@@ -5,25 +5,22 @@
 //! decisions; policy and durable decisions remain in the parent.
 //! Content-free facts are retained losslessly until the parent drains them.
 use crate::{
-    AnsweredCall, Ask, CallName, Delivery, Down, End, Exit, Fact, Fault, Forced, Grant, Input, Invalid, Limits,
-    MessageRefusal, Output, Reply, RunFailure, RunResult, Signal, Start, Up,
+    Ask, CallName, Down, End, Exit, Fact, Fault, Forced, Grant, Input, Limits, MessageRefusal, Output, Reply,
+    RunFailure, RunResult, Signal, Start, Up,
 };
 use crate::{parent, process};
+
+mod admit;
+mod reading;
+mod record;
+mod supervision;
+use admit::{valid_start, within};
+use record::{too_large, valid_record};
+mod tree;
+use supervision::State;
+mod word;
 use alloc::boxed::Box;
 use skein_lib::{Deadlines, Env, Id, Map, Queue, Slab, Time, Token};
-
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-enum Phase {
-    Spawning,
-    Starting,
-    Live,
-    Cancelled,
-    Draining,
-    Exiting,
-    Terminating,
-    Killing,
-    Closed,
-}
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub(crate) enum Alarm {
@@ -39,7 +36,7 @@ enum Kind {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-enum CallStage {
+enum SendState {
     Parent,
     Queued,
     Sending,
@@ -50,27 +47,26 @@ pub(crate) struct Call {
     name: CallName,
     deadline: Time,
     kind: Kind,
-    stage: CallStage,
+    stage: SendState,
     withdrawn: bool,
-}
-
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-enum TurnStage {
-    Parent,
-    Queued,
-    Sending,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(crate) struct TurnMeta {
     bytes: u64,
-    stage: TurnStage,
+    stage: SendState,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub(crate) struct Account {
     latest: Grant,
     emitted: u64,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+struct BusyCall {
+    call: Token,
+    name: CallName,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -85,31 +81,21 @@ pub(crate) enum Sent {
 }
 
 #[derive(Debug)]
-#[expect(clippy::struct_excessive_bools, reason = "independent channel and process state spans finite phases")]
 pub(crate) struct Agent {
     client: Token,
     logical_run: Token,
     activation: u64,
-    phase: Phase,
-    start: Option<Start>,
-    process: Option<Token>,
-    admitted: bool,
-    last_word: bool,
-    told: bool,
-    dropped: bool,
-    owed: Option<Fault>,
+    supervision: State,
+    tree: tree::State,
+    word: word::State,
     host_stopped: bool,
     diagnostic: Option<Fault>,
-    reading: bool,
-    eof: bool,
+    reading: reading::State,
     sending: Option<Sent>,
     signals: u32,
-    exited: bool,
-    exit: Option<Exit>,
     forced: Forced,
-    reaped: Option<Box<[u8]>>,
     outbox: Queue<Down>,
-    busy: Queue<Sent>,
+    busy: Queue<BusyCall>,
     calls: Map<Token, Call>,
     turns: Map<u32, TurnMeta>,
     accounts: Map<u32, Account>,
@@ -118,14 +104,9 @@ pub(crate) struct Agent {
     number: u32,
     spent: u64,
     turn_bytes: u64,
-    cancel_queued: bool,
-    progress: Time,
     long: crate::long::Long,
     // Paused only while the run waits with no message still queued or unread.
     waiting: bool,
-    paused: bool,
-    wall: Time,
-    until: Time,
 }
 
 /// Bounded process/channel state, parent terminal rights and lossless content-free facts;
@@ -198,190 +179,150 @@ impl Domain {
 /// Consume one parent notice or lower terminal with injected clocks.
 /// Caller drains the ordered outputs and returns every operation terminal,
 /// even after cancellation/EOF.
-#[expect(clippy::too_many_lines, reason = "one exhaustive typed boundary keeps terminal ownership visible")]
 pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Input, out: &mut Queue<Output>) {
     let before = out.len();
-    let token = match &event {
-        Input::Parent(parent::Event::Spawn { .. }) => {
-            spawn(domain, env, event, out);
-            return;
-        }
-        Input::Parent(
-            parent::Event::Message { agent, .. }
-            | parent::Event::Answer { agent, .. }
-            | parent::Event::Acknowledge { agent, .. }
-            | parent::Event::Grant { agent, .. }
-            | parent::Event::Stop { agent }
-            | parent::Event::Drop { agent },
-        ) => *agent,
-        Input::Process(
-            process::Event::Spawned { owner, .. }
-            | process::Event::Unspawned { owner, .. }
-            | process::Event::Sent { owner }
-            | process::Event::Unsent { owner }
-            | process::Event::Received { owner, .. }
-            | process::Event::Progress { owner }
-            | process::Event::Malformed { owner }
-            | process::Event::Hangup { owner }
-            | process::Event::Signalled { owner }
-            | process::Event::Exited { owner, .. }
-            | process::Event::Reaped { owner, .. },
-        ) => *owner,
+    let id = match event {
+        Input::Parent(event) => from_parent(domain, env, event, out),
+        Input::Process(event) => from_process(domain, env, event, out),
     };
-    let id = Id::from_token(token);
-    let Some(agent) = domain.agents.get_mut(id) else {
-        return;
-    };
-    if agent.phase == Phase::Closed {
-        return;
+    if let Some(id) = id {
+        follow(domain, env, id, out);
+        observations(domain, out, before);
     }
-    match event {
-        Input::Parent(parent::Event::Spawn { .. }) => unreachable!("spawn handled before lookup"),
-        Input::Process(process::Event::Spawned { process, .. }) => {
-            assert!(agent.phase == Phase::Spawning, "one terminal per process spawn");
-            agent.process = Some(process);
-            agent.phase = Phase::Starting;
-            agent.progress = env.now;
-            agent.wall = env.now.saturating_add(env.limits.wall_time);
-            out.push(Output::Parent(parent::Request::Started { client: agent.client, agent: token }));
-            let start = agent.start.take().expect("spawn retains first message");
-            for message in &start.messages {
-                agent.unread.sent(message.name);
-            }
-            for grant in &start.grants {
-                agent.accounts.get_mut(&grant.account).expect("validated start grant").emitted = grant.generation;
-            }
-            out.push(Output::Process(process::Request::Send {
-                owner: token,
-                process,
-                message: Down::Start {
-                    start,
-                    window: crate::Window { turns: env.limits.turns, bytes: env.limits.unacknowledged_bytes },
-                },
-            }));
-            agent.sending = Some(Sent::Start);
-            out.push(Output::Process(process::Request::Wait { owner: token, process }));
-            out.push(Output::Process(process::Request::Reap { owner: token, process }));
+}
+
+fn current(domain: &mut Domain, token: Token) -> Option<&mut Agent> {
+    let agent = domain.agents.get_mut(Id::from_token(token))?;
+    if agent.supervision.closed() { None } else { Some(agent) }
+}
+
+fn from_parent(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    event: parent::Event,
+    out: &mut Queue<Output>,
+) -> Option<Id<Agent>> {
+    let token = match event {
+        parent::Event::Spawn { client, start } => {
+            spawn(domain, env, client, start, out);
+            return None;
         }
-        Input::Process(process::Event::Unspawned { detail, .. }) => {
-            assert!(agent.phase == Phase::Spawning, "one terminal per spawn");
-            report_unread(agent, out);
-            agent.phase = Phase::Closed;
-            agent.start = None;
-            out.push(Output::Parent(parent::Request::Gone {
-                client: agent.client,
-                end: End::Unspawned,
-                detail: tail(&detail, env.limits.detail_bytes),
-            }));
+        parent::Event::Message { agent: token, finish_requested, name, label, text } => {
+            message(current(domain, token)?, name, label, text, finish_requested, env, out);
+            token
         }
-        Input::Parent(parent::Event::Message { finish_requested, name, label, text, .. }) => {
-            message(agent, name, label, text, finish_requested, env, out);
+        parent::Event::Answer { agent: token, call, reply } => {
+            answered(current(domain, token)?, call, reply, env);
+            token
         }
-        Input::Parent(parent::Event::Answer { call, reply, .. }) => answered(agent, call, reply, env),
-        Input::Parent(parent::Event::Acknowledge { turn, .. }) => acknowledge_turn(agent, turn),
-        Input::Parent(parent::Event::Grant { grant, .. }) => grant_name(agent, grant),
-        Input::Parent(parent::Event::Drop { .. }) => drop_run(agent, token, env, out),
-        Input::Parent(parent::Event::Stop { .. }) => {
-            match agent.phase {
-                Phase::Starting | Phase::Live | Phase::Cancelled | Phase::Draining => agent.host_stopped = true,
-                Phase::Spawning | Phase::Exiting | Phase::Terminating | Phase::Killing | Phase::Closed => {}
+        parent::Event::Acknowledge { agent: token, turn } => {
+            acknowledge_turn(current(domain, token)?, turn);
+            token
+        }
+        parent::Event::Grant { agent: token, grant } => {
+            grant_name(current(domain, token)?, grant);
+            token
+        }
+        parent::Event::Drop { agent: token } => {
+            drop_run(current(domain, token)?, token, env, out);
+            token
+        }
+        parent::Event::Stop { agent: token } => {
+            let agent = current(domain, token)?;
+            match agent.supervision {
+                State::Watching(_) | State::Cancelled { .. } | State::Draining { .. } => agent.host_stopped = true,
+                State::Spawning
+                | State::Exiting { .. }
+                | State::Terminating { .. }
+                | State::Killing
+                | State::Closed => {}
             }
-            if agent.owed == Some(Fault::WallTime) || agent.owed == Some(Fault::Exited) {
-                agent.owed = None;
+            if agent.supervision.fault() == Some(Fault::WallTime) || agent.supervision.fault() == Some(Fault::Exited) {
+                agent.supervision.clear_fault();
             }
             polite(agent, env, None);
+            token
         }
-        Input::Process(process::Event::Sent { .. } | process::Event::Unsent { .. }) => {
-            let unsent = match event {
-                Input::Process(process::Event::Unsent { .. }) => true,
-                Input::Process(process::Event::Sent { .. }) => false,
-                Input::Parent(
-                    parent::Event::Spawn { .. }
-                    | parent::Event::Message { .. }
-                    | parent::Event::Answer { .. }
-                    | parent::Event::Acknowledge { .. }
-                    | parent::Event::Grant { .. }
-                    | parent::Event::Stop { .. }
-                    | parent::Event::Drop { .. },
-                )
-                | Input::Process(
-                    process::Event::Spawned { .. }
-                    | process::Event::Unspawned { .. }
-                    | process::Event::Received { .. }
-                    | process::Event::Progress { .. }
-                    | process::Event::Malformed { .. }
-                    | process::Event::Hangup { .. }
-                    | process::Event::Signalled { .. }
-                    | process::Event::Exited { .. }
-                    | process::Event::Reaped { .. },
-                ) => unreachable!("send terminal branch"),
-            };
-            let sent = agent.sending.take().expect("send terminal ends one pending send");
-            settle_send(agent, sent);
-            if unsent && !agent.last_word {
-                draining(agent, env);
-            }
-        }
-        Input::Process(process::Event::Received { message, .. }) => {
-            assert!(agent.reading, "record ends one requested read");
-            agent.reading = false;
+    };
+    Some(Id::from_token(token))
+}
+
+fn from_process(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    event: process::Event,
+    out: &mut Queue<Output>,
+) -> Option<Id<Agent>> {
+    let token = match &event {
+        process::Event::Spawned { owner, .. }
+        | process::Event::Unspawned { owner, .. }
+        | process::Event::Sent { owner }
+        | process::Event::Unsent { owner }
+        | process::Event::Received { owner, .. }
+        | process::Event::Progress { owner }
+        | process::Event::Malformed { owner }
+        | process::Event::Hangup { owner }
+        | process::Event::Signalled { owner }
+        | process::Event::Exited { owner, .. }
+        | process::Event::Reaped { owner, .. } => *owner,
+    };
+    let agent = current(domain, token)?;
+    match event {
+        process::Event::Spawned { process, .. } => tree::spawned(agent, token, process, env, out),
+        process::Event::Unspawned { detail, .. } => tree::unspawned(agent, &detail, env, out),
+        process::Event::Sent { .. } => send_terminal(agent, false, env),
+        process::Event::Unsent { .. } => send_terminal(agent, true, env),
+        process::Event::Received { message, .. } => {
+            agent.reading.received();
             receive(agent, token, message, env, out);
         }
-        Input::Process(process::Event::Progress { .. }) => {
-            assert!(agent.reading, "piece ends one requested read");
-            agent.reading = false;
-            if agent.last_word {
+        process::Event::Progress { .. } => {
+            agent.reading.received();
+            if agent.word.last_word() {
                 fail(agent, token, Fault::Rules, env, out);
-            } else if !agent.told && agent.phase != Phase::Terminating && agent.phase != Phase::Killing {
-                if agent.admitted {
-                    agent.progress = env.now;
+            } else if !agent.word.told() && !agent.supervision.forced() {
+                if agent.word.admitted() {
+                    agent.supervision.progress(env.now);
                 } else {
                     fail(agent, token, Fault::Rules, env, out);
                 }
             }
         }
-        Input::Process(process::Event::Malformed { .. }) => {
-            assert!(agent.reading, "malformed terminal ends read");
-            agent.reading = false;
-            agent.eof = true;
+        process::Event::Malformed { .. } => {
+            agent.reading.end();
             fail(agent, token, Fault::Rules, env, out);
         }
-        Input::Process(process::Event::Hangup { .. }) => {
-            assert!(agent.reading, "EOF ends pending read");
-            agent.reading = false;
-            agent.eof = true;
-            if !agent.last_word {
-                match agent.phase {
-                    Phase::Cancelled | Phase::Draining => {
-                        if let Some(fault) = agent.owed.take() {
+        process::Event::Hangup { .. } => {
+            agent.reading.end();
+            if !agent.word.last_word() {
+                match agent.supervision {
+                    State::Cancelled { .. } | State::Draining { .. } => {
+                        if let Some(fault) = agent.supervision.take_fault() {
                             report_fault(agent, fault, out);
                         }
-                        agent.phase = Phase::Exiting;
+                        agent.supervision.hangup();
                     }
-                    Phase::Starting | Phase::Live => fail(agent, token, Fault::Exited, env, out),
-                    Phase::Exiting | Phase::Terminating | Phase::Killing => {}
-                    Phase::Spawning | Phase::Closed => unreachable!("spawned process reads"),
+                    State::Watching(_) => fail(agent, token, Fault::Exited, env, out),
+                    State::Exiting { .. } | State::Terminating { .. } | State::Killing => {}
+                    State::Spawning | State::Closed => unreachable!("spawned process reads"),
                 }
             }
         }
-        Input::Process(process::Event::Signalled { .. }) => {
+        process::Event::Signalled { .. } => {
             agent.signals = agent.signals.checked_sub(1).expect("one terminal per signal");
         }
-        Input::Process(process::Event::Exited { exit, .. }) => {
-            assert!(!agent.exited, "one terminal per Wait");
-            agent.exited = true;
-            agent.exit = exit;
-            if !agent.last_word {
-                draining(agent, env);
-            }
-        }
-        Input::Process(process::Event::Reaped { detail, .. }) => {
-            assert!(agent.exited && agent.reaped.is_none(), "Reap follows Exited once");
-            agent.reaped = Some(tail(&detail, env.limits.detail_bytes));
-        }
+        process::Event::Exited { exit, .. } => tree::exited(agent, exit, env),
+        process::Event::Reaped { detail, .. } => tree::reaped(agent, &detail, env),
     }
-    follow(domain, env, id, out);
-    observations(domain, out, before);
+    Some(Id::from_token(token))
+}
+
+fn send_terminal(agent: &mut Agent, unsent: bool, env: &Env<Limits>) {
+    let sent = agent.sending.take().expect("send terminal ends one pending send");
+    settle_send(agent, sent);
+    if unsent && !agent.word.last_word() {
+        draining(agent, env);
+    }
 }
 
 /// Expire one due timer; repeat while due and drain the outputs. Wall never
@@ -398,26 +339,27 @@ pub fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Output>) {
     match alarm {
         Alarm::Watch { .. } => {
             if pause(agent, env) {
-                agent.paused = true;
-            } else if agent.paused {
-                agent.paused = false;
-                agent.progress = env.now;
+                agent.supervision.pause(true, env.now);
+            } else if agent.supervision.watch().expect("watch alarm owns watching state").paused {
+                agent.supervision.pause(false, env.now);
             } else {
                 fail(agent, id.token(), Fault::NoProgress, env, out);
             }
         }
         Alarm::Wall { .. } => polite(agent, env, Some(Fault::WallTime)),
         Alarm::Grace { .. } => {
-            if let Some(fault) = agent.owed.take() {
+            if let Some(fault) = agent.supervision.take_fault() {
                 report_fault(agent, fault, out);
             }
-            match agent.phase {
-                Phase::Cancelled | Phase::Draining | Phase::Exiting => terminate(agent, id.token(), env, out),
-                Phase::Terminating => {
-                    signal(agent, id.token(), Signal::Kill, out);
-                    agent.phase = Phase::Killing;
+            match agent.supervision {
+                State::Cancelled { .. } | State::Draining { .. } | State::Exiting { .. } => {
+                    terminate(agent, id.token(), env, out);
                 }
-                Phase::Spawning | Phase::Starting | Phase::Live | Phase::Killing | Phase::Closed => {
+                State::Terminating { .. } => {
+                    signal(agent, id.token(), Signal::Kill, out);
+                    agent.supervision.kill();
+                }
+                State::Spawning | State::Watching(_) | State::Killing | State::Closed => {
                     unreachable!("grace belongs to shutdown")
                 }
             }
@@ -428,31 +370,7 @@ pub fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Output>) {
 }
 
 #[expect(clippy::manual_map, reason = "explicit admission cases follow programming-model.md, section 10")]
-fn spawn(domain: &mut Domain, env: &Env<Limits>, event: Input, out: &mut Queue<Output>) {
-    let (client, start) = match event {
-        Input::Parent(parent::Event::Spawn { client, start }) => (client, start),
-        Input::Process(
-            process::Event::Spawned { .. }
-            | process::Event::Unspawned { .. }
-            | process::Event::Sent { .. }
-            | process::Event::Unsent { .. }
-            | process::Event::Received { .. }
-            | process::Event::Progress { .. }
-            | process::Event::Malformed { .. }
-            | process::Event::Hangup { .. }
-            | process::Event::Signalled { .. }
-            | process::Event::Exited { .. }
-            | process::Event::Reaped { .. },
-        )
-        | Input::Parent(
-            parent::Event::Message { .. }
-            | parent::Event::Answer { .. }
-            | parent::Event::Acknowledge { .. }
-            | parent::Event::Grant { .. }
-            | parent::Event::Stop { .. }
-            | parent::Event::Drop { .. },
-        ) => unreachable!("only Spawn enters admission"),
-    };
+fn spawn(domain: &mut Domain, env: &Env<Limits>, client: Token, start: Start, out: &mut Queue<Output>) {
     let refusal = if domain.agents.is_full() {
         Some(End::Busy)
     } else {
@@ -483,24 +401,15 @@ fn spawn(domain: &mut Domain, env: &Env<Limits>, event: Input, out: &mut Queue<O
         client,
         logical_run,
         activation,
-        phase: Phase::Spawning,
-        start: Some(start),
-        process: None,
-        admitted: false,
-        last_word: false,
-        told: false,
-        dropped: false,
-        owed: None,
+        supervision: State::Spawning,
+        tree: tree::State::Spawning { start },
+        word: word::State::Open(word::Admission::Pending),
         host_stopped: false,
         diagnostic: None,
-        reading: false,
-        eof: false,
+        reading: reading::State::Idle,
         sending: None,
         signals: 0,
-        exited: false,
-        exit: None,
         forced: Forced::No,
-        reaped: None,
         outbox: Queue::with_capacity(crate::limits::outbox(&env.limits).expect("validated outbox")),
         busy: Queue::with_capacity(2),
         calls: Map::with_capacity(env.limits.calls),
@@ -511,13 +420,8 @@ fn spawn(domain: &mut Domain, env: &Env<Limits>, event: Input, out: &mut Queue<O
         number: 0,
         spent: 0,
         turn_bytes: 0,
-        cancel_queued: false,
-        progress: env.now,
         long: crate::long::Long::new(env.now),
         waiting: false,
-        paused: false,
-        wall: env.now,
-        until: env.now,
     };
     let id = domain.agents.insert(agent).expect("slot admitted");
     out.push(Output::Process(process::Request::Spawn {
@@ -527,159 +431,6 @@ fn spawn(domain: &mut Domain, env: &Env<Limits>, event: Input, out: &mut Queue<O
     }));
 }
 
-fn valid_start(start: &Start, limits: &Limits) -> Option<Invalid> {
-    if start.messages.len() > usize::try_from(limits.messages).expect("u32 fits") {
-        return Some(Invalid::Messages);
-    }
-    for (at, message) in start.messages.iter().enumerate() {
-        match smith_domain::run::rendered_bytes(&message.label, &message.text) {
-            Some(bytes) if bytes <= limits.message_bytes => {}
-            Some(_) | None => return Some(Invalid::Messages),
-        }
-        for earlier in start.messages.get(..at).expect("enumerated prefix") {
-            if earlier.name == message.name {
-                return Some(Invalid::Messages);
-            }
-        }
-    }
-    if start.activation == 0 {
-        return Some(Invalid::Activation);
-    }
-    if start.charter.owned_bytes() > limits.charter_bytes {
-        return Some(Invalid::Charter);
-    }
-    let transcript_fits = match &start.transcript {
-        Some(transcript) => transcript.owned_bytes() <= limits.transcript_bytes,
-        None => true,
-    };
-    if !transcript_fits {
-        return Some(Invalid::Transcript);
-    }
-    match answered_bytes(&start.answered, limits.name_bytes) {
-        Some(bytes) if bytes <= limits.answered_bytes => {}
-        Some(_) | None => return Some(Invalid::Answered),
-    }
-    if start.directories.len() > usize::try_from(limits.directories).expect("u32 fits usize") {
-        return Some(Invalid::Directories);
-    }
-    match start.workspace {
-        Some(_) if start.directories.is_empty() => return Some(Invalid::Directories),
-        None if !start.directories.is_empty() => return Some(Invalid::Directories),
-        Some(_) | None => {}
-    }
-    if limits.path_bytes > 4096 {
-        return Some(Invalid::Directories);
-    }
-    for directory in &start.directories {
-        if !within(&directory.host, u64::from(limits.path_bytes))
-            || !within(&directory.name, u64::from(limits.name_bytes))
-            || directory.conflicts.len() > usize::try_from(limits.conflicts).expect("u32 fits usize")
-        {
-            return Some(Invalid::Directories);
-        }
-        for path in &directory.conflicts {
-            if !within(path, u64::from(limits.path_bytes)) {
-                return Some(Invalid::Directories);
-            }
-        }
-    }
-    for (at, directory) in start.directories.iter().enumerate() {
-        if !safe_name(&directory.name) || (!directory.git && !directory.conflicts.is_empty()) {
-            return Some(Invalid::Directories);
-        }
-        for earlier in start.directories.get(..at).expect("enumerated directory") {
-            if directory.name == earlier.name {
-                return Some(Invalid::Directories);
-            }
-        }
-        for (position, path) in directory.conflicts.iter().enumerate() {
-            if !relative(path, limits.path_bytes) {
-                return Some(Invalid::Directories);
-            }
-            for earlier in directory.conflicts.get(..position).expect("enumerated conflict") {
-                if earlier == path {
-                    return Some(Invalid::Directories);
-                }
-            }
-        }
-    }
-    if start.grants.len() > usize::try_from(limits.accounts).expect("u32 fits usize") {
-        return Some(Invalid::Grants);
-    }
-    for (at, grant) in start.grants.iter().enumerate() {
-        if grant.generation == 0 {
-            return Some(Invalid::Grants);
-        }
-        for earlier in start.grants.get(..at).expect("enumerated grant") {
-            if grant.account == earlier.account {
-                return Some(Invalid::Grants);
-            }
-        }
-    }
-    None
-}
-
-fn safe_name(name: &[u8]) -> bool {
-    if name.is_empty() || name == b"." || name == b".." {
-        return false;
-    }
-    for byte in name {
-        if *byte == 0 || *byte == b'/' {
-            return false;
-        }
-    }
-    true
-}
-
-fn within(bytes: &[u8], limit: u64) -> bool {
-    u64::try_from(bytes.len()).expect("length fits u64") <= limit
-}
-
-fn answered_bytes(calls: &[AnsweredCall], name_bytes: u32) -> Option<u64> {
-    if calls.len() > 128 {
-        return None;
-    }
-    let mut total = 0_u64;
-    for call in calls {
-        if call.tool.is_empty() || !within(&call.tool, u64::from(name_bytes)) {
-            return None;
-        }
-        total = total.checked_add(u64::try_from(call.tool.len()).ok()?)?;
-        let reply = match &call.reply {
-            crate::SavedReply::Host { body, .. } => u64::try_from(body.len()).ok()?,
-            crate::SavedReply::Delivery(delivery) => match delivery.as_ref() {
-                Delivery::Delivered(delivered) => delivered.owned_bytes(),
-                Delivery::Refused(refusal) => refusal.owned_bytes(),
-                Delivery::Nothing | Delivery::Failed(_) | Delivery::Stale => 0,
-            },
-            crate::SavedReply::TooLarge => 0,
-        };
-        total = total.checked_add(reply)?;
-    }
-    Some(total)
-}
-
-fn relative(path: &[u8], limit: u32) -> bool {
-    if path.is_empty() || !within(path, u64::from(limit)) {
-        return false;
-    }
-    let mut from = 0;
-    for (at, byte) in path.iter().enumerate() {
-        if *byte == 0 {
-            return false;
-        }
-        if *byte == b'/' {
-            let part = path.get(from..at).expect("ordered path positions");
-            if part.is_empty() || part == b"." || part == b".." {
-                return false;
-            }
-            from = at.checked_add(1).expect("bounded path");
-        }
-    }
-    let part = path.get(from..).expect("bounded path suffix");
-    !part.is_empty() && part != b"." && part != b".."
-}
-
 fn tail(detail: &[u8], limit: u32) -> Box<[u8]> {
     let keep = detail.len().min(usize::try_from(limit).expect("u32 fits usize"));
     let from = detail.len().checked_sub(keep).expect("bounded tail");
@@ -687,24 +438,29 @@ fn tail(detail: &[u8], limit: u32) -> Box<[u8]> {
 }
 
 fn accepts(agent: &Agent) -> bool {
-    match agent.phase {
-        Phase::Starting | Phase::Live => true,
-        Phase::Spawning
-        | Phase::Cancelled
-        | Phase::Draining
-        | Phase::Exiting
-        | Phase::Terminating
-        | Phase::Killing
-        | Phase::Closed => false,
+    match agent.supervision {
+        State::Watching(_) => true,
+        State::Spawning
+        | State::Cancelled { .. }
+        | State::Draining { .. }
+        | State::Exiting { .. }
+        | State::Terminating { .. }
+        | State::Killing
+        | State::Closed => false,
     }
 }
 
 fn listens(agent: &Agent) -> bool {
-    match agent.phase {
-        Phase::Starting | Phase::Live | Phase::Cancelled => !agent.eof && !agent.exited && !agent.last_word,
-        Phase::Spawning | Phase::Draining | Phase::Exiting | Phase::Terminating | Phase::Killing | Phase::Closed => {
-            false
+    match agent.supervision {
+        State::Watching(_) | State::Cancelled { .. } => {
+            !agent.reading.ended() && !agent.tree.exited() && !agent.word.last_word()
         }
+        State::Spawning
+        | State::Draining { .. }
+        | State::Exiting { .. }
+        | State::Terminating { .. }
+        | State::Killing
+        | State::Closed => false,
     }
 }
 
@@ -731,22 +487,14 @@ fn message(
     agent.outbox.push(Down::Message { finish_requested, name, label, text });
 }
 
-fn known_read(agent: &Agent, read: Option<Token>) -> bool {
-    agent.unread.known(read)
-}
-
-fn mark_read(agent: &mut Agent, read: Option<Token>) {
-    agent.unread.fence(read);
-}
-
 fn acknowledge_turn(agent: &mut Agent, number: u32) {
     let Some(turn) = agent.turns.get_mut(&number) else {
         assert!(number <= agent.number, "parent ACK names a forwarded turn");
         return;
     };
     match turn.stage {
-        TurnStage::Parent => {
-            turn.stage = TurnStage::Queued;
+        SendState::Parent => {
+            turn.stage = SendState::Queued;
             agent.turn_bytes = agent.turn_bytes.checked_sub(turn.bytes).expect("outstanding turn bytes");
             if listens(agent) {
                 agent.outbox.push(Down::Acknowledge { turn: number });
@@ -754,7 +502,7 @@ fn acknowledge_turn(agent: &mut Agent, number: u32) {
                 agent.turns.remove(&number).expect("exact ACK metadata");
             }
         }
-        TurnStage::Queued | TurnStage::Sending => {}
+        SendState::Queued | SendState::Sending => {}
     }
 }
 
@@ -794,7 +542,7 @@ fn grant_name(agent: &mut Agent, grant: Grant) {
 
 fn answered(agent: &mut Agent, callback: Token, reply: Reply, env: &Env<Limits>) {
     let call = *agent.calls.get(&callback).expect("parent returns one known operation right");
-    assert!(call.stage == CallStage::Parent, "one parent answer per call");
+    assert!(call.stage == SendState::Parent, "one parent answer per call");
     let reply = match reply {
         Reply::Delivery(delivery) => {
             assert!(call.kind == Kind::Delivery, "delivery terminal matches delivery call");
@@ -810,7 +558,7 @@ fn answered(agent: &mut Agent, callback: Token, reply: Reply, env: &Env<Limits>)
         }
     };
     if listens(agent) {
-        agent.calls.get_mut(&callback).expect("known call").stage = CallStage::Queued;
+        agent.calls.get_mut(&callback).expect("known call").stage = SendState::Queued;
         agent.outbox.push(Down::Answer { call: callback, reply });
     } else {
         agent.calls.remove(&callback).expect("parent right settled");
@@ -818,11 +566,11 @@ fn answered(agent: &mut Agent, callback: Token, reply: Reply, env: &Env<Limits>)
 }
 
 fn receive(agent: &mut Agent, owner: Token, message: Up, env: &Env<Limits>, out: &mut Queue<Output>) {
-    if agent.last_word {
+    if agent.word.last_word() {
         fail(agent, owner, Fault::Rules, env, out);
         return;
     }
-    if agent.told || discarded_work(agent, &message) {
+    if agent.word.told() || discarded_work(agent, &message) {
         return;
     }
     if too_large(&message, &env.limits) {
@@ -833,13 +581,10 @@ fn receive(agent: &mut Agent, owner: Token, message: Up, env: &Env<Limits>, out:
         fail(agent, owner, Fault::Rules, env, out);
         return;
     }
-    agent.progress = env.now;
+    agent.supervision.progress(env.now);
     match message {
         Up::Admitted => {
-            agent.admitted = true;
-            if agent.phase == Phase::Starting {
-                agent.phase = Phase::Live;
-            }
+            agent.word.admit();
             out.push(Output::Parent(parent::Request::Admitted { client: agent.client }));
         }
         Up::Call { call, name, deadline, ask } => {
@@ -849,11 +594,11 @@ fn receive(agent: &mut Agent, owner: Token, message: Up, env: &Env<Limits>, out:
             };
             agent.waiting = false;
             if agent.calls.len() >= env.limits.calls {
-                agent.busy.push(Sent::Busy { call, name });
+                agent.busy.push(BusyCall { call, name });
             } else {
                 agent
                     .calls
-                    .insert(call, Call { name, deadline, kind, stage: CallStage::Parent, withdrawn: false })
+                    .insert(call, Call { name, deadline, kind, stage: SendState::Parent, withdrawn: false })
                     .expect("call admitted within capacity");
                 out.push(Output::Parent(parent::Request::Called {
                     client: agent.client,
@@ -866,7 +611,7 @@ fn receive(agent: &mut Agent, owner: Token, message: Up, env: &Env<Limits>, out:
             }
         }
         Up::Withdraw { call } => match agent.calls.get_mut(&call) {
-            Some(entry) if entry.stage == CallStage::Parent => {
+            Some(entry) if entry.stage == SendState::Parent => {
                 entry.withdrawn = true;
                 out.push(Output::Parent(parent::Request::Withdrawn { client: agent.client, call }));
             }
@@ -878,19 +623,19 @@ fn receive(agent: &mut Agent, owner: Token, message: Up, env: &Env<Limits>, out:
         }
         Up::Turn { turn } => {
             agent.waiting = false;
-            mark_read(agent, turn.read);
+            agent.unread.fence(turn.read);
             agent.number = turn.number;
             agent.spent = turn.spent;
             let bytes = turn.body.owned_bytes();
             agent.turn_bytes = agent.turn_bytes.checked_add(bytes).expect("validated byte credit");
             agent
                 .turns
-                .insert(turn.number, TurnMeta { bytes, stage: TurnStage::Parent })
+                .insert(turn.number, TurnMeta { bytes, stage: SendState::Parent })
                 .expect("maximum turn room reserved before read");
             out.push(Output::Parent(parent::Request::Turn { client: agent.client, turn }));
         }
         Up::Waiting { read } => {
-            mark_read(agent, read);
+            agent.unread.fence(read);
             agent.waiting = agent.messages == 0 && agent.unread.is_empty();
             out.push(Output::Parent(parent::Request::Waiting { client: agent.client, read }));
         }
@@ -918,9 +663,9 @@ fn receive(agent: &mut Agent, owner: Token, message: Up, env: &Env<Limits>, out:
 }
 
 fn discarded_work(agent: &Agent, message: &Up) -> bool {
-    match agent.phase {
-        Phase::Terminating | Phase::Killing => match message {
-            Up::Answer { .. } => agent.dropped,
+    match agent.supervision {
+        State::Terminating { .. } | State::Killing => match message {
+            Up::Answer { .. } => agent.word.dropped(),
             Up::MessageRefused { .. } => false,
             Up::Admitted
             | Up::Call { .. }
@@ -934,236 +679,55 @@ fn discarded_work(agent: &Agent, message: &Up) -> bool {
             | Up::Refused { .. }
             | Up::Limited { .. } => true,
         },
-        Phase::Spawning
-        | Phase::Starting
-        | Phase::Live
-        | Phase::Cancelled
-        | Phase::Draining
-        | Phase::Exiting
-        | Phase::Closed => false,
+        State::Spawning
+        | State::Watching(_)
+        | State::Cancelled { .. }
+        | State::Draining { .. }
+        | State::Exiting { .. }
+        | State::Closed => false,
     }
 }
 
 fn heard_answer(agent: &mut Agent, answer: crate::Answer, env: &Env<Limits>, out: &mut Queue<Output>) {
-    mark_read(agent, answer.read);
-    agent.last_word = true;
+    agent.unread.fence(answer.read);
     agent.spent = answer.spent;
     let wall_cancel = match &answer.result {
-        RunResult::Failed { failure: RunFailure::Cancelled } => agent.owed == Some(Fault::WallTime),
+        RunResult::Failed { failure: RunFailure::Cancelled } => agent.supervision.fault() == Some(Fault::WallTime),
         RunResult::Refused { .. } | RunResult::Accepted { .. } | RunResult::Parked | RunResult::Failed { .. } => false,
     };
     if wall_cancel {
         report_fault(agent, Fault::WallTime, out);
     } else {
-        agent.told = true;
         out.push(Output::Parent(parent::Request::Answered { client: agent.client, answer, detail: Box::default() }));
         report_unread(agent, out);
     }
-    agent.owed = None;
-    match agent.phase {
-        Phase::Starting | Phase::Live | Phase::Cancelled | Phase::Draining => {
-            agent.until = env.now.saturating_add(env.limits.exit_grace);
-        }
-        Phase::Exiting | Phase::Terminating | Phase::Killing => {}
-        Phase::Spawning | Phase::Closed => unreachable!("answer after process start"),
-    }
-    if agent.phase != Phase::Terminating && agent.phase != Phase::Killing {
-        agent.phase = Phase::Exiting;
-    }
-}
-
-fn too_large(message: &Up, limits: &Limits) -> bool {
-    match message {
-        Up::Call { ask, .. } => match ask {
-            Ask::Host { tool, body, .. } => {
-                !within(tool, u64::from(limits.name_bytes)) || !within(body, limits.call_bytes)
-            }
-            Ask::Deliver { fields } => fields.owned_bytes() > limits.call_bytes,
-        },
-        Up::Turn { turn } => turn.body.owned_bytes() > limits.turn_bytes,
-        Up::Fact { body } => !within(body, limits.fact_bytes),
-        Up::Answer { answer } => match &answer.result {
-            RunResult::Accepted { outcome } => outcome.owned_bytes() > limits.outcome_bytes,
-            RunResult::Refused { .. } | RunResult::Parked | RunResult::Failed { .. } => false,
-        },
-        Up::Admitted
-        | Up::MessageRefused { .. }
-        | Up::Withdraw { .. }
-        | Up::Long { .. }
-        | Up::LongDone
-        | Up::Waiting { .. }
-        | Up::Unauthorized { .. }
-        | Up::Refused { .. }
-        | Up::Limited { .. } => false,
-    }
-}
-
-fn valid_record(agent: &Agent, message: &Up, env: &Env<Limits>) -> bool {
-    let limits = &env.limits;
-    match message {
-        Up::Admitted => !agent.admitted && !agent.last_word,
-        Up::MessageRefused { name, .. } => agent.admitted && agent.unread.refusal_known(*name),
-        Up::Answer { answer } => valid_answer(agent, answer, limits),
-        Up::Call { call, name, deadline, ask } => {
-            if !agent.admitted || name.activation != agent.activation || name.completion == 0 || *deadline < env.now {
-                return false;
-            }
-            let kind = match ask {
-                Ask::Host { tool, body, .. } => {
-                    if tool.is_empty()
-                        || !within(tool, u64::from(limits.name_bytes))
-                        || !within(body, limits.call_bytes)
-                    {
-                        return false;
-                    }
-                    Kind::Host
-                }
-                Ask::Deliver { fields } => {
-                    if fields.owned_bytes() > limits.call_bytes {
-                        return false;
-                    }
-                    Kind::Delivery
-                }
-            };
-            if agent.calls.contains_key(call) {
-                return false;
-            }
-            for (_, old) in &agent.calls {
-                if old.name == *name || (old.kind == Kind::Delivery && kind == Kind::Delivery) {
-                    return false;
-                }
-            }
-            for busy in &agent.busy {
-                match busy {
-                    Sent::Busy { call: old, name: old_name } => {
-                        if old == call || old_name == name {
-                            return false;
-                        }
-                    }
-                    Sent::Start | Sent::Message | Sent::Call(_) | Sent::Ack(_) | Sent::Grant | Sent::Cancel => {
-                        unreachable!("busy queue only stores overflow rights")
-                    }
-                }
-            }
-            match agent.sending {
-                Some(Sent::Busy { call: old, name: old_name }) => {
-                    if old == *call || old_name == *name {
-                        return false;
-                    }
-                }
-                Some(Sent::Start | Sent::Message | Sent::Call(_) | Sent::Ack(_) | Sent::Grant | Sent::Cancel)
-                | None => {}
-            }
-            true
-        }
-        Up::Withdraw { call } => {
-            if !agent.admitted {
-                return false;
-            }
-            match agent.calls.get(call) {
-                Some(entry) => !entry.withdrawn || entry.stage != CallStage::Parent,
-                None => true,
-            }
-        }
-        Up::Turn { turn } => {
-            agent.admitted
-                && agent.number.checked_add(1) == Some(turn.number)
-                && valid_spend(agent, turn.spent)
-                && known_read(agent, turn.read)
-                && turn.body.owned_bytes() <= limits.turn_bytes
-                && agent.turns.len() < limits.turns
-                && match agent.turn_bytes.checked_add(turn.body.owned_bytes()) {
-                    Some(bytes) => bytes <= limits.unacknowledged_bytes,
-                    None => false,
-                }
-        }
-        Up::Fact { body } => agent.admitted && within(body, limits.fact_bytes),
-        Up::Long { operation: _, span } => {
-            agent.admitted && *span <= limits.long_span && agent.long.open < limits.long_open
-        }
-        Up::LongDone => agent.admitted && agent.long.open > 0,
-        Up::Waiting { read } => agent.admitted && known_read(agent, *read),
-        Up::Unauthorized { account, generation } => match agent.accounts.get(account) {
-            Some(account) => agent.admitted && *generation > 0 && *generation <= account.emitted,
-            None => false,
-        },
-        Up::Refused { account, .. } | Up::Limited { account, .. } => {
-            agent.admitted && agent.accounts.contains_key(account)
-        }
-    }
-}
-
-// Agent spend never decreases (domain/host.md, section 6). The kit never reprices.
-fn valid_spend(agent: &Agent, spent: u64) -> bool {
-    spent >= agent.spent
-}
-
-fn valid_answer(agent: &Agent, answer: &crate::Answer, limits: &Limits) -> bool {
-    for (_, call) in &agent.calls {
-        if call.kind == Kind::Delivery {
-            match call.stage {
-                CallStage::Parent | CallStage::Queued => return false,
-                CallStage::Sending => {}
-            }
-        }
-    }
-    if answer.read != agent.unread.read() || answer.turns != agent.number || !valid_spend(agent, answer.spent) {
-        return false;
-    }
-    match &answer.result {
-        RunResult::Refused { .. } => !agent.admitted && answer.turns == 0 && answer.spent == 0,
-        RunResult::Accepted { outcome } => agent.admitted && outcome.owned_bytes() <= limits.outcome_bytes,
-        RunResult::Parked | RunResult::Failed { .. } => agent.admitted,
-    }
+    agent.word.answer();
+    agent.supervision.clear_fault();
+    agent.supervision.answer(env.now, env.limits.exit_grace);
 }
 
 fn settle_send(agent: &mut Agent, sent: Sent) {
     match sent {
         Sent::Call(callback) => {
             let call = agent.calls.remove(&callback).expect("call transmission still reserved");
-            assert!(call.stage == CallStage::Sending, "send terminal owns reservation");
+            assert!(call.stage == SendState::Sending, "send terminal owns reservation");
         }
         Sent::Ack(number) => {
             let turn = agent.turns.remove(&number).expect("ACK transmission still reserved");
-            assert!(turn.stage == TurnStage::Sending, "ACK send terminal owns metadata");
+            assert!(turn.stage == SendState::Sending, "ACK send terminal owns metadata");
         }
         Sent::Start | Sent::Message | Sent::Busy { .. } | Sent::Grant | Sent::Cancel => {}
     }
 }
 
 fn polite(agent: &mut Agent, env: &Env<Limits>, owed: Option<Fault>) {
-    match agent.phase {
-        Phase::Starting | Phase::Live => {
-            if !agent.cancel_queued {
-                agent.outbox.push(Down::Cancel);
-                agent.cancel_queued = true;
-            }
-            agent.owed = owed;
-            agent.phase = Phase::Cancelled;
-            agent.until = env.now.saturating_add(env.limits.cancel_grace);
-        }
-        Phase::Spawning
-        | Phase::Cancelled
-        | Phase::Draining
-        | Phase::Exiting
-        | Phase::Terminating
-        | Phase::Killing
-        | Phase::Closed => {}
+    if agent.supervision.cancel(env.now, env.limits.cancel_grace, owed) {
+        agent.outbox.push(Down::Cancel);
     }
 }
 
 fn draining(agent: &mut Agent, env: &Env<Limits>) {
-    match agent.phase {
-        Phase::Starting | Phase::Live => {
-            agent.phase = Phase::Draining;
-            agent.owed = Some(Fault::Exited);
-            agent.until = env.now.saturating_add(env.limits.cancel_grace);
-        }
-        Phase::Cancelled => {
-            agent.phase = Phase::Draining;
-        }
-        Phase::Spawning | Phase::Draining | Phase::Exiting | Phase::Terminating | Phase::Killing | Phase::Closed => {}
-    }
+    agent.supervision.drain(env.now, env.limits.cancel_grace);
 }
 
 fn report_unread(agent: &mut Agent, out: &mut Queue<Output>) {
@@ -1173,56 +737,55 @@ fn report_unread(agent: &mut Agent, out: &mut Queue<Output>) {
 }
 
 fn report_fault(agent: &mut Agent, fault: Fault, out: &mut Queue<Output>) {
-    if !agent.told {
+    if !agent.word.told() {
         report_unread(agent, out);
-        agent.told = true;
+        agent.word.fault();
         out.push(Output::Parent(parent::Request::Faulted { client: agent.client, fault }));
     }
 }
 
 fn fail(agent: &mut Agent, owner: Token, fault: Fault, env: &Env<Limits>, out: &mut Queue<Output>) {
-    if !agent.host_stopped && !agent.told {
+    if !agent.host_stopped && !agent.word.told() {
         report_fault(agent, fault, out);
     } else {
         agent.diagnostic = Some(fault);
     }
-    agent.owed = None;
-    match agent.phase {
-        Phase::Starting | Phase::Live | Phase::Cancelled | Phase::Draining | Phase::Exiting => {
+    agent.supervision.clear_fault();
+    match agent.supervision {
+        State::Watching(_) | State::Cancelled { .. } | State::Draining { .. } | State::Exiting { .. } => {
             terminate(agent, owner, env, out);
         }
-        Phase::Terminating | Phase::Killing => {}
-        Phase::Spawning | Phase::Closed => unreachable!("only spawned processes fail channel/progress"),
+        State::Terminating { .. } | State::Killing => {}
+        State::Spawning | State::Closed => unreachable!("only spawned processes fail channel/progress"),
     }
 }
 
 fn drop_run(agent: &mut Agent, owner: Token, env: &Env<Limits>, out: &mut Queue<Output>) {
-    agent.dropped = !agent.told;
+    agent.word.drop_run();
     agent.host_stopped = true;
-    agent.owed = None;
+    agent.supervision.clear_fault();
     let mut released = skein_lib::List::with_capacity(env.limits.turns);
     for (number, turn) in &agent.turns {
         match turn.stage {
-            TurnStage::Parent => released.push(*number).expect("bounded held turns"),
-            TurnStage::Queued | TurnStage::Sending => {}
+            SendState::Parent => released.push(*number).expect("bounded held turns"),
+            SendState::Queued | SendState::Sending => {}
         }
     }
     for number in &released {
         let turn = agent.turns.remove(number).expect("held turn released exactly once");
         agent.turn_bytes = agent.turn_bytes.checked_sub(turn.bytes).expect("held turn byte credit");
     }
-    match agent.phase {
-        Phase::Starting | Phase::Live | Phase::Cancelled | Phase::Draining | Phase::Exiting => {
+    match agent.supervision {
+        State::Watching(_) | State::Cancelled { .. } | State::Draining { .. } | State::Exiting { .. } => {
             terminate(agent, owner, env, out);
         }
-        Phase::Spawning | Phase::Terminating | Phase::Killing | Phase::Closed => {}
+        State::Spawning | State::Terminating { .. } | State::Killing | State::Closed => {}
     }
 }
 
 fn terminate(agent: &mut Agent, owner: Token, env: &Env<Limits>, out: &mut Queue<Output>) {
     signal(agent, owner, Signal::Terminate, out);
-    agent.phase = Phase::Terminating;
-    agent.until = env.now.saturating_add(env.limits.kill_after);
+    agent.supervision.terminate(env.now, env.limits.kill_after);
 }
 
 fn signal(agent: &mut Agent, owner: Token, signal: Signal, out: &mut Queue<Output>) {
@@ -1231,11 +794,7 @@ fn signal(agent: &mut Agent, owner: Token, signal: Signal, out: &mut Queue<Outpu
         Signal::Kill => Forced::Killed,
     };
     agent.signals = agent.signals.checked_add(1).expect("two bounded tree signals at most");
-    out.push(Output::Process(process::Request::Signal {
-        owner,
-        process: agent.process.expect("spawned process"),
-        signal,
-    }));
+    out.push(Output::Process(process::Request::Signal { owner, process: agent.tree.process(), signal }));
 }
 
 fn turn_room(agent: &Agent, limits: &Limits) -> bool {
@@ -1251,7 +810,7 @@ fn pause(agent: &Agent, env: &Env<Limits>) -> bool {
         return true;
     }
     for (_, call) in &agent.calls {
-        if call.stage == CallStage::Parent && call.deadline > env.now {
+        if call.stage == SendState::Parent && call.deadline > env.now {
             return true;
         }
     }
@@ -1263,15 +822,7 @@ fn send_next(agent: &mut Agent, owner: Token, out: &mut Queue<Output>) {
         return;
     }
     let (sent, message) = match agent.busy.pop() {
-        Some(sent) => {
-            let call = match sent {
-                Sent::Busy { call, .. } => call,
-                Sent::Start | Sent::Message | Sent::Call(_) | Sent::Ack(_) | Sent::Grant | Sent::Cancel => {
-                    unreachable!("overflow queue")
-                }
-            };
-            (sent, Down::Answer { call, reply: Reply::Busy })
-        }
+        Some(BusyCall { call, name }) => (Sent::Busy { call, name }, Down::Answer { call, reply: Reply::Busy }),
         None => {
             let Some(message) = agent.outbox.pop() else {
                 return;
@@ -1285,11 +836,11 @@ fn send_next(agent: &mut Agent, owner: Token, out: &mut Queue<Output>) {
                 }
                 Down::Answer { call, .. } => {
                     let entry = agent.calls.get_mut(call).expect("answer retains callback until Sent");
-                    entry.stage = CallStage::Sending;
+                    entry.stage = SendState::Sending;
                     Sent::Call(*call)
                 }
                 Down::Acknowledge { turn } => {
-                    agent.turns.get_mut(turn).expect("exact ACK metadata").stage = TurnStage::Sending;
+                    agent.turns.get_mut(turn).expect("exact ACK metadata").stage = SendState::Sending;
                     Sent::Ack(*turn)
                 }
                 Down::Grant { grant } => {
@@ -1302,16 +853,12 @@ fn send_next(agent: &mut Agent, owner: Token, out: &mut Queue<Output>) {
         }
     };
     agent.sending = Some(sent);
-    out.push(Output::Process(process::Request::Send {
-        owner,
-        process: agent.process.expect("spawned process"),
-        message,
-    }));
+    out.push(Output::Process(process::Request::Send { owner, process: agent.tree.process(), message }));
 }
 
 fn disconnect(agent: &mut Agent, limits: &Limits, out: &mut Queue<Output>) {
     // Exit can precede the last buffered turn and answer on the read pipe.
-    if agent.eof || agent.last_word {
+    if agent.reading.ended() || agent.word.last_word() {
         report_unread(agent, out);
     }
     let count = agent.outbox.len();
@@ -1337,7 +884,7 @@ fn disconnect(agent: &mut Agent, limits: &Limits, out: &mut Queue<Output>) {
     }
     let mut withdrawn = skein_lib::List::with_capacity(limits.calls);
     for (callback, call) in &agent.calls {
-        if call.stage == CallStage::Parent && !call.withdrawn {
+        if call.stage == SendState::Parent && !call.withdrawn {
             withdrawn.push(*callback).expect("one entry per admitted call");
         }
     }
@@ -1352,83 +899,63 @@ fn follow(domain: &mut Domain, env: &Env<Limits>, id: Id<Agent>, out: &mut Queue
     let owner = id.token();
     let client = agent.client;
     let diagnostic = agent.diagnostic.take();
-    if !listens(agent) && agent.phase != Phase::Spawning {
+    if !listens(agent) && !agent.supervision.spawning() {
         disconnect(agent, &env.limits, out);
     }
     send_next(agent, owner, out);
-    let may_read = match agent.phase {
-        Phase::Starting | Phase::Live | Phase::Cancelled | Phase::Draining => {
+    let may_read = match agent.supervision {
+        State::Watching(_) | State::Cancelled { .. } | State::Draining { .. } => {
             turn_room(agent, &env.limits) && agent.busy.room() > 0
         }
-        Phase::Exiting | Phase::Terminating | Phase::Killing => true,
-        Phase::Spawning | Phase::Closed => false,
+        State::Exiting { .. } | State::Terminating { .. } | State::Killing => true,
+        State::Spawning | State::Closed => false,
     };
-    if may_read && !agent.reading && !agent.eof {
-        agent.reading = true;
-        out.push(Output::Process(process::Request::Read { owner, process: agent.process.expect("spawned process") }));
+    if may_read && !agent.reading.pending() && !agent.reading.ended() {
+        agent.reading.demand();
+        out.push(Output::Process(process::Request::Read { owner, process: agent.tree.process() }));
     }
-    let working = match agent.phase {
-        Phase::Starting | Phase::Live => true,
-        Phase::Spawning
-        | Phase::Cancelled
-        | Phase::Draining
-        | Phase::Exiting
-        | Phase::Terminating
-        | Phase::Killing
-        | Phase::Closed => false,
-    };
+    let working = agent.supervision.watch().is_some();
     let paused = working && pause(agent, env);
-    if agent.paused && !paused {
-        agent.progress = env.now;
-    }
-    agent.paused = paused;
-    let watch = if working {
-        if paused {
-            let mut deadline = None;
-            for (_, call) in &agent.calls {
-                if call.stage == CallStage::Parent && call.deadline > env.now {
-                    deadline = Some(match deadline {
-                        Some(at) => call.deadline.min(at),
-                        None => call.deadline,
-                    });
+    agent.supervision.pause(paused, env.now);
+    let (watch, wall) = match agent.supervision.watch() {
+        Some(watch) => {
+            let deadline = if paused {
+                let mut deadline = None;
+                for (_, call) in &agent.calls {
+                    if call.stage == SendState::Parent && call.deadline > env.now {
+                        deadline = Some(match deadline {
+                            Some(at) => call.deadline.min(at),
+                            None => call.deadline,
+                        });
+                    }
                 }
-            }
-            deadline
-        } else {
-            Some(agent.long.stretch(agent.progress).saturating_add(env.limits.no_progress))
+                deadline
+            } else {
+                Some(agent.long.stretch(watch.progress).saturating_add(env.limits.no_progress))
+            };
+            (deadline, Some(watch.wall))
         }
-    } else {
-        None
+        None => (None, None),
     };
-    let wall = if working { Some(agent.wall) } else { None };
-    let grace = match agent.phase {
-        Phase::Cancelled | Phase::Draining | Phase::Exiting | Phase::Terminating => Some(agent.until),
-        Phase::Spawning | Phase::Starting | Phase::Live | Phase::Killing | Phase::Closed => None,
-    };
+    let grace = agent.supervision.deadline();
     set(&mut domain.alarms, Alarm::Watch { agent: id }, watch);
     set(&mut domain.alarms, Alarm::Wall { agent: id }, wall);
     set(&mut domain.alarms, Alarm::Grace { agent: id }, grace);
-    let done = agent.phase == Phase::Closed
-        || (agent.exited
-            && agent.reaped.is_some()
-            && agent.eof
-            && !agent.reading
+    let done = agent.supervision.closed()
+        || (agent.tree.reaped()
+            && agent.reading.ended()
             && agent.sending.is_none()
             && agent.signals == 0
             && agent.calls.is_empty()
             && agent.turns.is_empty());
     if done {
-        if agent.phase != Phase::Closed {
-            if let Some(fault) = agent.owed.take() {
+        if !agent.supervision.closed() {
+            if let Some(fault) = agent.supervision.take_fault() {
                 report_fault(agent, fault, out);
             }
-            out.push(Output::Parent(parent::Request::Gone {
-                client: agent.client,
-                end: End::Exited { exit: agent.exit, forced: agent.forced },
-                detail: agent.reaped.take().expect("empty tree proof"),
-            }));
+            tree::finish(agent, out);
         }
-        agent.phase = Phase::Closed;
+        agent.supervision = State::Closed;
         for alarm in [Alarm::Watch { agent: id }, Alarm::Wall { agent: id }, Alarm::Grace { agent: id }] {
             domain.alarms.cancel(alarm);
         }
