@@ -339,3 +339,52 @@ fn a_one_byte_needle_is_found_as_the_two_way_search_finds_it() {
         }
     }
 }
+
+#[test]
+fn decimal_parsing_accepts_only_digits_that_fit() {
+    for (digits, expected) in [
+        (&b""[..], None),
+        (b"0", Some(0)),
+        (b"00042", Some(42)),
+        (b"18446744073709551615", Some(u64::MAX)),
+        (b"18446744073709551616", None),
+        (b"12x3", None),
+        (b"+1", None),
+        (b"-1", None),
+        (b" 1", None),
+        (b"1\n", None),
+    ] {
+        assert_eq!(Decimal::parse(digits), expected, "{digits:?}");
+    }
+}
+
+#[test]
+fn hex_digits_round_trip_and_ignore_high_bits() {
+    use crate::hex;
+
+    for (nibble, (lower, upper)) in (0_u8..16).zip(b"0123456789abcdef".iter().zip(b"0123456789ABCDEF")) {
+        assert_eq!(hex::lower(nibble), *lower);
+        assert_eq!(hex::upper(nibble), *upper);
+        assert_eq!(hex::value(*lower), Some(nibble));
+        assert_eq!(hex::value(*upper), Some(nibble));
+        assert_eq!(hex::lower_value(*lower), Some(nibble));
+    }
+    for byte in 0_u8..=255 {
+        let mut lower = None;
+        let mut upper = None;
+        for (nibble, digit) in (0_u8..16).zip(b"0123456789abcdef") {
+            if *digit == byte {
+                lower = Some(nibble);
+            }
+        }
+        for (nibble, digit) in (0_u8..16).zip(b"0123456789ABCDEF") {
+            if *digit == byte {
+                upper = Some(nibble);
+            }
+        }
+        assert_eq!(hex::value(byte), lower.or(upper));
+        assert_eq!(hex::lower_value(byte), lower);
+        assert_eq!(hex::lower(byte), hex::lower(byte & 0x0f));
+        assert_eq!(hex::upper(byte), hex::upper(byte & 0x0f));
+    }
+}

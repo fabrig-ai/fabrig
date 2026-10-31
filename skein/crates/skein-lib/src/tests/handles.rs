@@ -75,3 +75,57 @@ fn a_slab_hands_out_slots_in_the_order_it_did() {
     }
     assert_eq!(slab.get(reused_second), Some(&'d'), "a reused slot keeps its generation across growth");
 }
+
+#[test]
+fn slab_walks_skip_retired_and_vacant_slots_in_slot_order() {
+    let mut slab = Slab::with_capacity(4);
+    assert_eq!(slab.iter().next(), None);
+    assert_eq!(slab.next_after(None), None);
+    let first = slab.insert('a').expect("room");
+    let second = slab.insert('b').expect("room");
+    let third = slab.insert('c').expect("room");
+    slab.retire(second);
+    assert_eq!(slab.get(second), Some(&'b'), "retired remains reachable by handle");
+    let mut iter = slab.iter();
+    assert_eq!(iter.next(), Some((first, &'a')));
+    assert_eq!(iter.next(), Some((third, &'c')));
+    assert_eq!(iter.next(), None);
+    assert_eq!(slab.next_after(Some(first)), Some(third));
+    slab.reclaim();
+    assert_eq!(slab.next_after(Some(first)), Some(third), "vacant slot is skipped");
+    let reused = slab.insert('d').expect("freed slot");
+    assert_ne!(reused, second);
+    for (from, expected) in [
+        (None, Some(first)),
+        (Some(first), Some(reused)),
+        (Some(second), Some(third)),
+        (Some(reused), Some(third)),
+        (Some(third), None),
+    ] {
+        assert_eq!(slab.next_after(from), expected);
+    }
+    let mut iter = slab.iter();
+    for expected in [(first, &'a'), (reused, &'d'), (third, &'c')] {
+        assert_eq!(iter.next(), Some(expected));
+    }
+    assert_eq!(iter.next(), None);
+}
+
+#[test]
+fn a_slab_can_change_between_walk_steps() {
+    let mut slab = Slab::with_capacity(3);
+    let first = slab.insert(1_u8).expect("room");
+    let second = slab.insert(2).expect("room");
+    assert_eq!(slab.next_after(None), Some(first));
+    *slab.get_mut(first).expect("live") = 10;
+    slab.retire(first);
+    slab.reclaim();
+    let replacement = slab.insert(3).expect("reclaimed slot");
+    let third = slab.insert(4).expect("room");
+    assert_eq!(slab.next_after(Some(first)), Some(second));
+    slab.retire(second);
+    assert_eq!(slab.next_after(Some(first)), Some(third));
+    slab.reclaim();
+    assert_eq!(slab.next_after(Some(second)), Some(third));
+    assert_eq!(slab.next_after(None), Some(replacement));
+}

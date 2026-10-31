@@ -5,6 +5,8 @@
 
 use core::hash::{Hash, Hasher};
 
+use crate::grow::growth;
+
 use alloc::vec::Vec;
 use core::mem::size_of;
 
@@ -16,8 +18,6 @@ pub struct Stack<T> {
     items: Vec<T>,
     capacity: u32,
 }
-
-const GROWTH_FLOOR: usize = 4;
 
 impl<T> Stack<T> {
     #[must_use]
@@ -60,10 +60,18 @@ impl<T> Stack<T> {
     /// Grows a full buffer exactly, while the logical capacity has room.
     fn grow(&mut self) {
         if self.items.len() == self.items.capacity() {
-            let cap = usize::try_from(self.capacity).expect("a u32 fits in a usize");
-            let target = self.items.len().saturating_mul(2).max(GROWTH_FLOOR).min(cap);
-            let additional = target.checked_sub(self.items.len()).expect("room for another item");
+            let len = self.items.len();
+            let needed = len.checked_add(1).expect("room for another item");
+            let additional = growth(len, len, needed, self.capacity);
             self.items.reserve_exact(additional);
+        }
+    }
+
+    /// Empties the stack, dropping items front to back and keeping its grown
+    /// buffer: a stack refilled in place to its previous length allocates nothing.
+    pub fn clear(&mut self) {
+        for item in self.items.drain(..) {
+            drop(item);
         }
     }
 

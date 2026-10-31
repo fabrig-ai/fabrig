@@ -269,3 +269,32 @@ fn a_buffer_price_fits_the_largest_capacity() {
     // A byte buffer's u32 capacity cannot overflow its u64 price.
     assert_eq!(Buffer::price(u32::MAX), Some(u64::from(u32::MAX)));
 }
+
+#[test]
+fn a_cleared_queue_and_stack_can_be_refilled() {
+    let mut queue = Queue::with_capacity(3);
+    let mut stack = Stack::with_capacity(3);
+    for value in 0_u8..3 {
+        queue.push(value);
+        stack.push(value).expect("room");
+    }
+    // Wrap the queue's ring before clearing it.
+    assert_eq!(queue.pop(), Some(0));
+    queue.push(3);
+    queue.clear();
+    stack.clear();
+    assert!(queue.is_empty());
+    assert!(stack.is_empty());
+    assert_eq!(queue.capacity(), 3);
+    assert_eq!(stack.capacity(), 3);
+    for value in 4_u8..7 {
+        queue.push(value);
+        stack.push(value).expect("room after clear");
+    }
+    for expected in 4_u8..7 {
+        assert_eq!(queue.pop(), Some(expected));
+    }
+    for expected in (4_u8..7).rev() {
+        assert_eq!(stack.pop(), Some(expected));
+    }
+}
