@@ -231,8 +231,10 @@ fn unsent_result(retried: bool) -> crate::AttemptResult {
     let mut result = pricing_result();
     let limits = smith_events::Limits { string: 524_288, content: 4096, items: 512 };
     let mut observer = crate::agent::smith::events::Observer::with_ceiling(&limits, 16_384).expect("response bounds");
-    let records = include_str!("../../tests/recorded/retried-failure-17d63afd-02.jsonl")
-        .replace("\"evidence\":\"response\"", "\"evidence\":\"unsent\"");
+    let records = crate::json_fixture::edit_lines(
+        include_str!("../../tests/recorded/retried-failure-17d63afd-02.jsonl"),
+        "/failure/evidence", &serde_json::json!("response"), Some(&serde_json::json!("unsent")), 1,
+    );
     let mut records: Vec<serde_json::Value> =
         records.lines().map(|line| serde_json::from_str(line).expect("event")).collect();
     if !retried {

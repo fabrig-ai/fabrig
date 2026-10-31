@@ -94,3 +94,7 @@ use crate as bench;
 #[cfg(test)]
 #[path = "../tests/common/request.rs"]
 mod request_fixture;
+
+#[cfg(test)]
+#[path = "../tests/common/json.rs"]
+mod json_fixture;

@@ -57,8 +57,10 @@ fn codexs_peak_is_its_trees_and_says_so() {
 
 #[test]
 fn a_null_peak_record_leaves_smiths_own_unavailable() {
-    let stream = include_str!("../recorded/retried-failure-17d63afd-02.jsonl")
-        .replace("\"peak_rss_bytes\":{\"self\":17321984,\"children\":157687808}", "\"peak_rss_bytes\":null");
+    let stream = crate::common::json::edit_lines(
+        include_str!("../recorded/retried-failure-17d63afd-02.jsonl"),
+        "/peak_rss_bytes", &serde_json::json!({"self":17321984,"children":157687808}), Some(&serde_json::Value::Null), 1,
+    );
     assert_eq!(
         observer(stream.as_bytes()).own_peak_rss_bytes(),
         Measure::unavailable("session.ended reported peak_rss_bytes null: resource usage unread")

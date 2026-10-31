@@ -71,7 +71,7 @@ fn known_shapes_and_conflicting_usage_fail_with_named_evidence() {
     assert_eq!(combined[0].usage.fresh, Measure::Observed { value: 18_803 });
     assert!(matches!(combined[0].usage.cache_write, Measure::LowerBound { value: 0, .. }));
     let mut observer = observed(COMPLETED);
-    let conflict = COMPLETED.lines().last().expect("usage").replace("130418", "130419");
+    let conflict = crate::common::json::edit_lines(COMPLETED.lines().last().expect("usage"), "/usage/input_tokens", &serde_json::json!(130418), Some(&serde_json::json!(130419)), 1);
     assert!(observer.observe_line(&conflict).expect_err("conflict").to_string().contains("usage"));
     assert!(matches!(observer.classify(Exit::Code(0), Forced::No).end, End::HarnessError { .. }));
     assert!(parse_line("{").is_err());
