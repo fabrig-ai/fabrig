@@ -69,20 +69,13 @@ struct Start {
     forge: u16,
     kind: Option<BoxKind>,
 }
-impl Start {
-    fn forge(&self) -> u16 {
-        self.forge
-    }
-}
-
 pub(crate) struct Link {
     pub(crate) write: Option<Box<[u8]>>,
     ended: bool,
     asked: Option<Ask>,
-    // which the box link holds while another group starts and sends once that
-    // one answers (protocol/setup.md, 8.4).
+    // A start retains its kind until the active ask ends (temper/docs/design/draft/playground-reset.md, 3).
     held: Option<Start>,
-    stop: Option<End>,
+    pending_end: Option<End>,
     line_bytes: u32,
     partial: List<u8>,
     skipping: bool,
@@ -95,7 +88,7 @@ impl Link {
             ended: false,
             asked: None,
             held: None,
-            stop: None,
+            pending_end: None,
             line_bytes,
             partial: List::with_capacity(line_bytes),
             skipping: false,
@@ -140,11 +133,13 @@ impl Link {
         if self.ended {
             return;
         }
-        if self.held.as_ref().map(Start::forge) == Some(end.forge()) {
+        if let Some(held) = &self.held
+            && held.forge == end.forge()
+        {
             self.held = None;
         }
         if self.asked.is_some() {
-            self.stop = Some(end);
+            self.pending_end = Some(end);
         } else {
             self.asked = Some(Ask::End(end));
             out.push(Out::Write(end.line()));
@@ -178,7 +173,7 @@ impl Link {
                 line(&mut self.asked, self.partial.as_slice(), out);
                 self.partial.clear();
                 if self.asked.is_none() {
-                    if let Some(end) = self.stop.take() {
+                    if let Some(end) = self.pending_end.take() {
                         self.asked = Some(Ask::End(end));
                         out.push(Out::Write(end.line()));
                     } else if let Some(held) = self.held.take() {
@@ -204,7 +199,7 @@ impl Link {
         out.push(Out::Named(Box::from(b"box link: the box closed the pipe".as_slice())));
         self.asked = None;
         self.held = None;
-        self.stop = None;
+        self.pending_end = None;
         out.push(Out::Closed);
     }
 }
