@@ -209,14 +209,14 @@ impl Harness {
     }
 
     fn route_core(&mut self, event: core::Event) {
-        let core::Requests::Out(mut out) = core::step(&mut self.core, &self.env, event);
+        let mut out = core::step(&mut self.core, &self.env, event);
         self.outputs(&mut out);
     }
 
     fn outputs(&self, out: &mut Queue<core::Request>) {
         for _ in 0..out.len() {
             match out.pop().expect("core output") {
-                core::Request::Write(_) | core::Request::Decided => {}
+                core::Request::Write(_) => {}
                 core::Request::Now(now) => {
                     assert!(self.wires, "no outward output before durable Wires");
                     assert!(matches!(*now, core::Now::Account(_)));

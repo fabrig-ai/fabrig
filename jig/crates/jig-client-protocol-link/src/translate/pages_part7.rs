@@ -33,7 +33,7 @@ pub(crate) fn role_policy_piece(bytes: &[u8], limits: &Limits, bound: u32) -> Re
     Err(too_large())
 }
 
-pub(crate) fn decider_fields(value: &w::Decider, _limits: &Limits) -> c::Decider {
+pub(crate) fn decider_fields(value: &w::Decider) -> c::Decider {
     c::Decider { kind: value.kind(), role: value.role() }
 }
 
@@ -43,7 +43,7 @@ pub(crate) fn policy_fields(value: &w::Policy, limits: &Limits) -> Result<c::Pol
     }
     let mut list0 = List::with_capacity(value.deciders().len());
     for item in value.deciders() {
-        list0.push(decider_fields(item, limits)).expect("reserved supplied list");
+        list0.push(decider_fields(item)).expect("reserved supplied list");
     }
     Ok(c::Policy {
         ceiling: authority_fields(value.ceiling(), limits)?,
@@ -55,8 +55,8 @@ pub(crate) fn policy_fields(value: &w::Policy, limits: &Limits) -> Result<c::Pol
     })
 }
 
-pub(crate) fn holding_fields(value: &w::Holding, limits: &Limits) -> c::Holding {
-    c::Holding { party: value.party(), role: crate::translate::answers::held_role(value.role(), limits) }
+pub(crate) fn holding_fields(value: &w::Holding) -> c::Holding {
+    c::Holding { party: value.party(), role: crate::translate::answers::held_role(value.role()) }
 }
 
 pub(crate) fn project_fields(value: &w::Project, limits: &Limits) -> Result<c::Project, w::Problem> {
@@ -65,14 +65,14 @@ pub(crate) fn project_fields(value: &w::Project, limits: &Limits) -> Result<c::P
     }
     let mut list0 = List::with_capacity(value.roles().len());
     for item in value.roles() {
-        list0.push(holding_fields(item, limits)).expect("reserved supplied list");
+        list0.push(holding_fields(item)).expect("reserved supplied list");
     }
     if value.pools().len() > limits.client.rows {
         return Err(too_large());
     }
     let mut list1 = List::with_capacity(value.pools().len());
     for item in value.pools() {
-        list1.push(pool_fields(item, limits)).expect("reserved supplied list");
+        list1.push(pool_fields(item)).expect("reserved supplied list");
     }
     if value.services().len() > limits.client.rows {
         return Err(too_large());
@@ -88,7 +88,7 @@ pub(crate) fn project_fields(value: &w::Project, limits: &Limits) -> Result<c::P
         name: text(value.name(), limits)?,
         policy: policy_fields(value.policy(), limits)?,
         roles: list0,
-        spend: budget_fields(value.spend(), limits),
+        spend: budget_fields(value.spend()),
         pools: list1,
         resources: part_piece(value.resources(), limits, limits.client.rows)?,
         services: list2,
@@ -178,15 +178,15 @@ pub(crate) fn owner_person_proposal_goal_fields(
     Ok(c::OwnerPersonProposalGoal {
         number: value.number(),
         project: value.project(),
-        executor: crate::translate::facts::owner_executor(value.executor(), limits),
+        executor: crate::translate::facts::owner_executor(value.executor()),
         spec: specification_fields(value.spec(), limits)?,
         contract: task_contract_document_fields(value.contract(), limits)?,
         authority: owner_authority_fields(value.authority(), limits)?,
-        numbers: crate::translate::facts::owner_numbers(value.numbers(), limits),
-        funder: crate::translate::facts::funder(value.funder(), limits),
+        numbers: crate::translate::facts::owner_numbers(value.numbers()),
+        funder: crate::translate::facts::funder(value.funder()),
         dependencies: list0,
         holdings: owner_goal_holding_piece(value.holdings(), limits, limits.client.rows)?,
-        wake: crate::translate::facts::owner_wake_policy(value.wake(), limits),
+        wake: crate::translate::facts::owner_wake_policy(value.wake()),
         tracked: opt1,
     })
 }
@@ -200,10 +200,10 @@ pub(crate) fn owner_person_proposal_state_fields(
             c::OwnerPersonProposalState::Pending { since: Wall::from_nanos(row.since()) }
         }
         w::OwnerPersonProposalState::Accepted(row) => {
-            c::OwnerPersonProposalState::Accepted { by: crate::translate::facts::owner_requester(row.by(), limits) }
+            c::OwnerPersonProposalState::Accepted { by: crate::translate::facts::owner_requester(row.by()) }
         }
         w::OwnerPersonProposalState::Rejected(row) => c::OwnerPersonProposalState::Rejected {
-            by: crate::translate::facts::owner_requester(row.by(), limits),
+            by: crate::translate::facts::owner_requester(row.by()),
             reason: text(row.reason(), limits)?,
             message: row.message(),
             at: Wall::from_nanos(row.at()),
@@ -225,22 +225,19 @@ pub(crate) fn owner_person_proposal_fields(
 }
 
 #[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
-pub(crate) fn owner_proposal_decision_fields(
-    value: &w::OwnerProposalDecision,
-    limits: &Limits,
-) -> c::OwnerProposalDecision {
+pub(crate) fn owner_proposal_decision_fields(value: &w::OwnerProposalDecision) -> c::OwnerProposalDecision {
     let opt0 = match value.created() {
         Some(item) => Some((item.first(), item.last())),
         None => None,
     };
     c::OwnerProposalDecision {
         project: value.project(),
-        proposer: crate::translate::answers::proposer(value.proposer(), limits),
+        proposer: crate::translate::answers::proposer(value.proposer()),
         proposal: value.proposal(),
-        kind: owner_message_proposal_kind_fields(value.kind(), limits),
+        kind: owner_message_proposal_kind_fields(value.kind()),
         by: value.by(),
         at: Wall::from_nanos(value.at()),
-        choice: crate::translate::answers::owner_proposal_choice(value.choice(), limits),
+        choice: crate::translate::answers::owner_proposal_choice(value.choice()),
         created: opt0,
     }
 }

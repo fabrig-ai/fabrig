@@ -45,7 +45,7 @@ fn description() -> core::connector::EffectDescription {
 fn begin(core: &mut core::Core, env: &Env<core::Limits>, origin: core::EffectOrigin) -> authority::Judge {
     let owner = Token::new(9900);
     let _requests = core::step(core, env, core::Event::EffectStart { owner, connector: 1, origin });
-    let core::Requests::Out(mut requests) = core::step(
+    let mut requests = core::step(
         core,
         env,
         core::Event::EffectConnector(core::connector::Event::Described { owner, description: Box::new(description()) }),
@@ -61,7 +61,7 @@ fn begin(core: &mut core::Core, env: &Env<core::Limits>, origin: core::EffectOri
 }
 
 fn verdict(core: &mut core::Core, env: &Env<core::Limits>, judge: authority::Judge) -> Vec<core::Request> {
-    let core::Requests::Out(mut requests) = core::step(
+    let mut requests = core::step(
         core,
         env,
         core::Event::EffectConnector(core::connector::Event::Verdict {
@@ -219,7 +219,7 @@ fn every_connector_must_acknowledge_closure_and_duplicates_cannot_replace_a_miss
         },
     );
     for connector in [1, 1, 99] {
-        let core::Requests::Out(mut requests) = core::step(
+        let mut requests = core::step(
             &mut core,
             &env,
             core::Event::EffectConnector(core::connector::Event::Closed { task: key.task, connector }),
@@ -235,7 +235,7 @@ fn every_connector_must_acknowledge_closure_and_duplicates_cannot_replace_a_miss
             tasks::Phase::Closing(tasks::Closing { stage: tasks::Stage::Effects, .. })
         ));
     }
-    let core::Requests::Out(mut requests) = core::step(
+    let mut requests = core::step(
         &mut core,
         &env,
         core::Event::EffectConnector(core::connector::Event::Closed { task: key.task, connector: 2 }),
@@ -254,7 +254,7 @@ fn a_conflicting_late_terminal_cannot_replace_an_already_committed_answer() {
     let key = world.call_key(1);
     world.end(tasks::End::Parked, 0);
     let (mut core, env) = recovered(&world, 131, false);
-    let core::Requests::Out(mut outputs) = core::step(
+    let mut outputs = core::step(
         &mut core,
         &env,
         core::Event::AnswerPayload {
@@ -284,7 +284,7 @@ fn a_conflicting_late_terminal_cannot_replace_an_already_committed_answer() {
         tasks::End::Parked
     );
     core.remember_unpriced_terminal(Token::new(key.task), Token::new(key.attempt), tasks::End::Refused);
-    let core::Requests::Out(mut requests) = core::step(
+    let mut requests = core::step(
         &mut core,
         &env,
         core::Event::RefusedPayload {
@@ -341,7 +341,7 @@ fn late_busy_or_refused_descriptions_cannot_answer_a_cancelled_run() {
         } else {
             core::connector::Event::DescribeRefused { owner }
         };
-        let core::Requests::Out(mut requests) = core::step(&mut core, &env, core::Event::EffectConnector(event));
+        let mut requests = core::step(&mut core, &env, core::Event::EffectConnector(event));
         for _ in 0..requests.len() {
             assert!(!matches!(
                 requests.pop().expect("request count"),
@@ -407,7 +407,7 @@ fn describe_effect(
     let _requests = core::step(core, env, core::Event::EffectStart { owner, connector: 1, origin });
     let mut description = description();
     description.waits_for_dependencies = waits_for_dependencies;
-    let core::Requests::Out(mut requests) = core::step(
+    let mut requests = core::step(
         core,
         env,
         core::Event::EffectConnector(core::connector::Event::Described { owner, description: Box::new(description) }),
@@ -567,8 +567,7 @@ fn a_dependency_added_while_judges_answer_refuses_a_waiting_effect() {
             | core::Request::Ask { .. }
             | core::Request::Held(_)
             | core::Request::Now(_)
-            | core::Request::ProjectMade { .. }
-            | core::Request::Decided => None,
+            | core::Request::ProjectMade { .. } => None,
         })
         .expect("judge outstanding");
     let _requests = core::step(&mut core, &env, dependency_edit(parent, task, dependency));

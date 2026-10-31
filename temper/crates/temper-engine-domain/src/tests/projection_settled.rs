@@ -76,11 +76,9 @@ fn terminal(domain: &mut crate::Domain, env: &Env<crate::Limits>, goal: u64) -> 
 fn a_live_tracked_goal_forwards_its_explicit_terminal_and_cancels_its_timer() {
     let (mut domain, env, goal) = live_goal(Some(1));
     let event = terminal(&mut domain, &env, goal);
-    let core::Requests::Out(mut out) = core::step(&mut domain.core, &crate::limits::environment_core(&env), event);
-    let Some(core::Request::Decided) = out.pop() else {
-        panic!("core owns stale-terminal bookkeeping");
-    };
+    let out = core::step(&mut domain.core, &crate::limits::environment_core(&env), event);
     assert!(out.is_empty());
+
     assert!(domain.core.tasks.task(goal).is_some());
 }
 
@@ -117,7 +115,7 @@ fn a_live_untracked_goal_settles_its_retained_core_projection() {
     ];
     (domain, _) = super::resume_fixture::root_with_records(super::resume_fixture::config(7), &env.limits, &records);
     let event = terminal(&mut domain, &env, goal);
-    let core::Requests::Out(mut out) = core::step(&mut domain.core, &crate::limits::environment_core(&env), event);
+    let mut out = core::step(&mut domain.core, &crate::limits::environment_core(&env), event);
     for key in [core::ProjectionKey::Task { goal, task: goal }, core::ProjectionKey::Goal(goal)] {
         let Some(core::Request::Write(core::Write::Erase(core::Key::Core(core::CoreKey::Projection(received))))) =
             out.pop()
@@ -131,9 +129,7 @@ fn a_live_untracked_goal_settles_its_retained_core_projection() {
     };
     assert_eq!(received, goal);
     assert_eq!(connector, domain.config.forge_connector);
-    let Some(core::Request::Decided) = out.pop() else {
-        panic!("core completed the settlement decision");
-    };
     assert!(out.is_empty());
+
     assert_eq!(domain.core.tasks.task(goal).expect("untracking keeps task live").tracked, None);
 }

@@ -148,7 +148,7 @@ impl Domain {
     }
 
     /// One bounded walk returning the first tasks incompatible with prospective charters,
-    /// plus the exact count omitted (engine.md, 17.2; M3's newest-only rule).
+    /// plus the exact count omitted (engine.md, 17.2).
     #[must_use]
     pub fn incompatible_charters(&self, charters: &[crate::CharterModels], limit: u32) -> (Box<[u64]>, u32) {
         let mut tasks = List::with_capacity(limit);
@@ -1461,7 +1461,7 @@ pub(crate) fn make_admitted(
             }
         }
         if inherited {
-            crate::holds::take(domain, env, number, out);
+            crate::holds::take(domain, number, out);
             task_mut(domain, number).expect("handed child live").record.phase = Phase::Active(Active::Due);
         }
         let held = crate::placed::covering(domain, &crate::compound::Staged::new(0), number, None);

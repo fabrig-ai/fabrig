@@ -392,7 +392,7 @@ fn sweep(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision) {
         restore_page_row(domain, env, row);
         let mut output = Queue::uncapped();
         let action = domain.core.start_sweep(&environment_core(env), SweepInput::Next, &mut output);
-        route_core_requests(domain, env, decision, jig_domain_core::Requests::Out(output));
+        route_core_requests(domain, env, decision, output);
         match action {
             Action::Idle => {}
             action @ (Action::Commit(_) | Action::Refused(_) | Action::Step(_)) => {
@@ -416,7 +416,7 @@ fn sweep(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision) {
         domain.startup_range = None;
         let mut output = Queue::uncapped();
         let action = domain.core.start_sweep(&environment_core(env), SweepInput::Finished, &mut output);
-        route_core_requests(domain, env, decision, jig_domain_core::Requests::Out(output));
+        route_core_requests(domain, env, decision, output);
         domain.work.push(Work::Start(action));
     }
 }

@@ -77,9 +77,9 @@ pub(super) fn goal_decide(
                         pool_refused(work, request, people::Refusal::Unknown);
                         return;
                     };
-                    let before = crate::translate::authority_value(&current.authority);
+                    let before = crate::translate::tasks_authority(&current.authority);
                     let after =
-                        crate::translate::authority_value(amendment.authority.as_ref().unwrap_or(&current.authority));
+                        crate::translate::tasks_authority(amendment.authority.as_ref().unwrap_or(&current.authority));
                     let stop_run = !authority::at_most(&before, &after, &core.authority.rules().implies);
                     let Some(message) = crate::fresh(&mut core.counters, crate::Family::Message) else {
                         pool_refused(work, request, people::Refusal::Limit { which: people::LimitKind::Arithmetic });
@@ -352,8 +352,8 @@ pub(super) fn person_proposal_accept(
                 pool_refused(work, request, people::Refusal::Limit { which: people::LimitKind::Arithmetic });
                 return;
             };
-            let after = crate::translate::authority_value(amendment.authority.as_ref().unwrap_or(&current.authority));
-            let before = crate::translate::authority_value(&current.authority);
+            let after = crate::translate::tasks_authority(amendment.authority.as_ref().unwrap_or(&current.authority));
+            let before = crate::translate::tasks_authority(&current.authority);
             let stop_run = !authority::at_most(&before, &after, &core.authority.rules().implies);
             tasks::Event::Amend {
                 places: Box::new([]),

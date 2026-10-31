@@ -247,7 +247,7 @@ pub(crate) fn progress(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<R
                     }
                     if ready {
                         if task.holdings.is_empty() {
-                            crate::holds::take(domain, env, number, out);
+                            crate::holds::take(domain, number, out);
                             task_mut(domain, number).expect("waiting task live").record.phase =
                                 Phase::Active(Active::Due);
                             publish(domain, env, number, out);
@@ -290,7 +290,7 @@ pub(crate) fn progress(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<R
             }
         }
         if let Some(number) = crate::holds::next_ready(domain, &env.limits) {
-            crate::holds::take(domain, env, number, out);
+            crate::holds::take(domain, number, out);
             task_mut(domain, number).expect("waiting task live").record.phase = Phase::Active(Active::Due);
             publish(domain, env, number, out);
             activate(domain, number, out);
@@ -344,7 +344,7 @@ fn end_task(domain: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Queue
     ended.ended_at = Some(env.wall);
     ended.changed = env.wall;
     crate::waits::remove(domain, number);
-    crate::refs::end(domain, env, number, out);
+    crate::refs::end(domain, env, number);
     ended.questions = Box::new([]);
     let id = domain.names.remove(&number).expect("ending name exists");
     crate::holds::release(domain, number);

@@ -1,11 +1,11 @@
 //! Scheduler observations are pure over timers restored through public entrances.
-#![allow(
+#![expect(
     clippy::disallowed_macros,
     clippy::disallowed_methods,
     clippy::disallowed_types,
     clippy::wildcard_enum_match_arm,
     clippy::match_like_matches_macro,
-    reason = "entry-point fixtures are ordinary Rust under programming-model.md section 10.2"
+    reason = "unit tests build fixtures and inspect selected child events"
 )]
 use super::revisions::{Harness, LIMITS, task};
 use crate::{

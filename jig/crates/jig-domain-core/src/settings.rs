@@ -322,7 +322,7 @@ impl Record {
 }
 
 /// One whole set of settings at the bounds the check enforces. The template
-/// carrier deliberately shares the pre-existing conservative construction bound.
+/// carrier shares the conservative construction bound.
 #[must_use]
 pub fn set_bound(limits: &crate::Limits) -> Option<u64> {
     let charters = u64::from(limits.tasks.charters)
@@ -427,14 +427,6 @@ pub fn proposal_heads(items: &[Item]) -> Box<[jig_domain_tasks::SettingHead]> {
     heads.into_boxed()
 }
 
-/// The tasks child's revision tables are bounded by the core's settings limits.
-pub(crate) fn task_limits(limits: &crate::Limits) -> jig_domain_tasks::Limits {
-    let mut tasks = limits.tasks;
-    tasks.revisions = limits.settings.revisions;
-    tasks.versions = limits.settings.versions;
-    tasks
-}
-
 /// One decision copies/erases each old head, drops each version, and saves one extent.
 pub(crate) fn release_writes(limits: &crate::Limits) -> Option<u32> {
     limits.settings.revisions.checked_mul(2)?.checked_add(limits.settings.versions)?.checked_add(1)
@@ -443,11 +435,4 @@ pub(crate) fn release_writes(limits: &crate::Limits) -> Option<u32> {
 /// Each moved live record and at most two projection rows, plus release cleanup.
 pub(crate) fn move_writes(limits: &crate::Limits) -> Option<u32> {
     limits.tasks.tasks.checked_mul(3)?.checked_add(release_writes(limits)?)
-}
-
-/// The fleet's retained requirements use the core's settings version limit.
-pub(crate) fn fleet_limits(limits: &crate::Limits) -> jig_domain_fleet::Limits {
-    let mut fleet = limits.fleet;
-    fleet.versions = limits.settings.versions;
-    fleet
 }

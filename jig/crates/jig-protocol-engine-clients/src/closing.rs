@@ -73,14 +73,14 @@ impl Component {
                 Waiting::LinkGet { .. } => self.link_sign_in(exchange, None, out),
                 Waiting::Keep { .. } | Waiting::Made { .. } => {
                     if !self.mint_refused(exchange, crate::MintRefusal::Bound, out) {
-                        self.respond(env, exchange, routes::refused(&env.limits.wire));
+                        self.respond(exchange, routes::refused());
                     }
                 }
                 Waiting::Read { .. }
                 | Waiting::ApplicationRead { .. }
                 | Waiting::Get { route: Route::Read, .. }
                 | Waiting::Checked { route: Route::Read, .. } => {
-                    self.respond(env, exchange, routes::read_none(core::reads::Why::SignedOut, &env.limits.wire));
+                    self.respond(exchange, routes::read_none(core::reads::Why::SignedOut, &env.limits.wire));
                 }
                 Waiting::Get { route, .. } | Waiting::Checked { route, .. } => {
                     self.denied(env, exchange, route);
@@ -89,7 +89,7 @@ impl Component {
                     self.denied(env, exchange, Route::Authorize);
                 }
                 Waiting::Ask { .. } | Waiting::Carry { .. } | Waiting::Moving { .. } => {
-                    self.respond(env, exchange, routes::signed_out(&env.limits.wire));
+                    self.respond(exchange, routes::signed_out());
                 }
                 Waiting::Watch { opening, .. } => {
                     let body = if opening {
@@ -97,7 +97,7 @@ impl Component {
                     } else {
                         routes::close_answer(true)
                     };
-                    self.respond(env, exchange, body);
+                    self.respond(exchange, body);
                 }
                 Waiting::SignOut { .. } => {
                     self.pending
@@ -110,7 +110,7 @@ impl Component {
         }
         self.end_streams(Some(sign_in));
     }
-    pub(super) fn abort(&mut self, _out: &mut Queue<Request>) {
+    pub(super) fn abort(&mut self) {
         if self.aborting() {
             return;
         }
@@ -131,16 +131,13 @@ impl Component {
         out: &mut Queue<Request>,
     ) {
         if self.stopping() {
-            self.respond(env, exchange, routes::sign_out_not_ready());
+            self.respond(exchange, routes::sign_out_not_ready());
             return;
         }
         let mut reader = Reader::new(body);
         if w::SignOut::decode(&env.limits.wire, &mut reader).is_err() || !reader.is_empty() {
             if let Some(owner) = self.owner(exchange) {
-                self.connections
-                    .get_mut(&owner)
-                    .expect("exchange owner")
-                    .respond(crate::Reply::NotARecord, &env.limits);
+                self.connections.get_mut(&owner).expect("exchange owner").respond(crate::Reply::NotARecord);
             }
             return;
         }
@@ -153,7 +150,7 @@ impl Component {
             sign_in,
         }))));
     }
-    pub(super) fn erased(&mut self, env: &Env<Limits>, owner: SecretOwner) {
+    pub(super) fn erased(&mut self, owner: SecretOwner) {
         for _ in 0..self.pending.exchanges.capacity() {
             let mut found = None;
             for (exchange, waiting) in &self.pending.exchanges {
@@ -180,20 +177,20 @@ impl Component {
             }
             let Some(exchange) = found else { break };
             self.pending.exchanges.remove(&exchange);
-            self.respond(env, exchange, routes::sign_out_answer());
+            self.respond(exchange, routes::sign_out_answer());
         }
     }
-    pub(super) fn stop(&mut self, _out: &mut Queue<Request>) {
+    pub(super) fn stop(&mut self) {
         if self.phase == Phase::Active {
             self.phase = Phase::Stopped;
         }
     }
-    pub(super) fn close(&mut self, out: &mut Queue<Request>) {
+    pub(super) fn close(&mut self) {
         if !self.aborting() {
             self.phase = Phase::Closing;
             self.link = None;
             self.spending = None;
-            self.stop(out);
+            self.stop();
         }
     }
     pub(super) fn settled(&self) -> bool {
@@ -207,7 +204,7 @@ impl Component {
             && self.streams.is_empty()
             && self.pending.mints.is_empty()
     }
-    pub(super) fn close_up(&mut self, _env: &Env<Limits>, out: &mut Queue<Request>) -> bool {
+    pub(super) fn close_up(&mut self, out: &mut Queue<Request>) -> bool {
         if !self.closing() {
             return false;
         }

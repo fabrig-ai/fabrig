@@ -433,7 +433,6 @@ impl Component {
     pub fn dropped_down(&self) -> u64 {
         self.dropped_down
     }
-    pub fn reclaim(&mut self) {}
 }
 
 fn closed(connection: Token, state: &mut Connection, why: Closed, out: &mut Queue<Request>) {

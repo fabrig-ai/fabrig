@@ -27,7 +27,7 @@ fn listing(core: &mut core::Core, env: &Env<core::Limits>, worker: u32) -> Vec<(
     let channel = Token::new(7 + u64::from(worker));
     let run = Token::new(41 + u64::from(worker));
     let attempt = Token::new(11);
-    let core::Requests::Out(mut out) = core::step(
+    let mut out = core::step(
         core,
         env,
         core::Event::Fleet(fleet::Event::Hello {

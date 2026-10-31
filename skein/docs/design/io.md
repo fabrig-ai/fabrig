@@ -221,6 +221,8 @@ room there. New external work waits at the root's watermark
   completion always finds its operation and its entity, which is
   asserted.
 
+- **Owners on both sides.** `Event::owner` and `Request::owner` name the owner a record is for, and `with_owner` re-addresses it, so a composing root routes by owner without matching every kind.
+
 ### 3.2 The listener
 
 | State | Holds | In flight |

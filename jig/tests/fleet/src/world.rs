@@ -941,7 +941,7 @@ impl World {
     fn request(&mut self, request: Request) {
         match request {
             Request::Sources { channel, sources } => {
-                assert!(sources.is_empty(), "legacy worker fixture has no program sources");
+                assert!(sources.is_empty(), "worker fixture has no program sources");
                 self.stage.push(Event::Logins { channel, logins: Box::new([]) });
             }
             Request::ProgramTargets { .. }

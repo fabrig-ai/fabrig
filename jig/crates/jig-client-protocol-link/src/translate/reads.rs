@@ -156,31 +156,31 @@ pub fn value(bytes: &[u8], limits: &Limits) -> Result<c::ReadValue, Undecodable>
     let receiving = pages::receiving(limits)?;
     let record = match w::ReadValue::decode(&receiving.wire, &mut Reader::new(bytes)) {
         Ok(record) => record,
-        Err(problem) => return Err(documents::classify(problem)),
+        Err(problem) => return Err(super::classify(problem)),
     };
     Ok(match record {
         w::ReadValue::Settings(v) => {
             c::ReadValue::Settings(Box::new(match super::settings::restore_settings_document(&v, &receiving) {
                 Ok(value) => value,
-                Err(problem) => return Err(documents::classify(problem)),
+                Err(problem) => return Err(super::classify(problem)),
             }))
         }
         w::ReadValue::Setting(v) => {
             c::ReadValue::Setting(Box::new(match super::settings::restore_setting_document(&v, &receiving) {
                 Ok(value) => value,
-                Err(problem) => return Err(documents::classify(problem)),
+                Err(problem) => return Err(super::classify(problem)),
             }))
         }
         w::ReadValue::Revision(v) => {
             c::ReadValue::Revision(Box::new(match super::settings::restore_revision_answer(v.value(), &receiving) {
                 Ok(value) => value,
-                Err(problem) => return Err(documents::classify(problem)),
+                Err(problem) => return Err(super::classify(problem)),
             }))
         }
         w::ReadValue::Revisions(v) => {
-            c::ReadValue::Revisions(Box::new(match super::settings::restore_revisions_page(&v, &receiving) {
+            c::ReadValue::Revisions(Box::new(match super::settings::restore_revisions_page(&v) {
                 Ok(value) => value,
-                Err(problem) => return Err(documents::classify(problem)),
+                Err(problem) => return Err(super::classify(problem)),
             }))
         }
         w::ReadValue::OwnerProject(record) => {

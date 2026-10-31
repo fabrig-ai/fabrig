@@ -1,11 +1,11 @@
 //! Ops root/view shell adapter; observations come from public requests and trees.
-#![allow(clippy::wildcard_imports, reason = "the adapter translates complete owner vocabularies")]
-use jig_client_domain::contract::Outcome;
-use jig_client_domain::contract::*;
+use jig_client_domain::contract::{Answer, Ask, Outcome, WatchEnd};
+#[cfg(test)]
+use jig_client_domain::contract::{Operation, Revision, Scope, SeenThrough, Text};
 use jig_client_view::Owner;
 use jig_client_view::boundary::Offset;
-use jig_client_world::harness::Seen;
-use jig_client_world::{harness::*, observe};
+use jig_client_world::harness::{App, CardKey, Duty, Receipt, Seen, Sent, StoreWrite};
+use jig_client_world::observe;
 use jig_ops_client_domain::{
     self as domain, Action, Address, Event, Request, infrastructure as infra, observability as obs,
 };

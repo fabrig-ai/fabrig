@@ -438,12 +438,7 @@ fn messages(value: &TaskRecord, ordinary: usize, subscriptions: usize) -> Result
         .ok_or(RestoreCause::Accounting)?
         .checked_add(value.questions.len())
         .ok_or(RestoreCause::Accounting)?
-        .checked_add(crate::inbox::received_credits(
-            value.requester,
-            &value.question_lines,
-            &value.questions,
-            &value.inbox,
-        ))
+        .checked_add(crate::inbox::received_credits(value.requester, &value.question_lines, &value.questions))
         .ok_or(RestoreCause::Accounting)?
         .checked_add(usize::from(value.proposal.is_some()))
         .ok_or(RestoreCause::Accounting)?

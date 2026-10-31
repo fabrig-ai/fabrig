@@ -1,5 +1,8 @@
 //! P and Q's supplied owner facts and public-tree observations.
-#![allow(clippy::wildcard_imports, reason = "finite story fixtures enumerate the complete client vocabulary")]
+#![cfg_attr(
+    not(test),
+    expect(clippy::wildcard_imports, reason = "story fixtures enumerate the complete client vocabulary")
+)]
 use super::{Document, Ops, OpsScript, Scripted, Subject};
 use jig_client_domain::contract::*;
 use jig_client_scripted_engine::{Bounds, Script, Truth};

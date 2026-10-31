@@ -10,7 +10,7 @@ use super::{
     fixtures::{ENGINE_SMALL, with},
 };
 use crate::{Profile, profile};
-use jig_domain_core::{Core, CoreRecord, Event, Record, Request, Requests, Write};
+use jig_domain_core::{Core, CoreRecord, Event, Record, Request, Write};
 use jig_domain_people as people;
 use skein_lib::{Env, ReplyTo, Time, Token, Wall};
 
@@ -21,7 +21,7 @@ const SECOND_PERSON: u64 = 2;
 const ONE_SAVE: usize = 1;
 
 fn saves(core: &mut Core, env: &Env<jig_domain_core::Limits>, event: Event) -> Vec<Record> {
-    let Requests::Out(mut out) = jig_domain_core::step(core, env, event);
+    let mut out = jig_domain_core::step(core, env, event);
     let mut records = Vec::new();
     while let Some(request) = out.pop() {
         if let Request::Write(Write::Save(record)) = request {

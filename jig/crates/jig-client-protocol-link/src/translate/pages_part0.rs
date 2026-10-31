@@ -1,9 +1,6 @@
 //! Whole pages and single documents (protocol/client.md, 3 and 6).
 use super::{Limits, List, Wall, c, carried_turn_fields, text, too_large, w};
-pub(crate) fn owner_message_proposal_kind_fields(
-    value: &w::OwnerMessageProposalKind,
-    _limits: &Limits,
-) -> c::OwnerMessageProposalKind {
+pub(crate) fn owner_message_proposal_kind_fields(value: &w::OwnerMessageProposalKind) -> c::OwnerMessageProposalKind {
     match value {
         w::OwnerMessageProposalKind::Settings => c::OwnerMessageProposalKind::Settings,
         w::OwnerMessageProposalKind::Batch => c::OwnerMessageProposalKind::Batch,
@@ -14,7 +11,7 @@ pub(crate) fn owner_message_proposal_kind_fields(
     }
 }
 
-pub(crate) fn owner_notice_state_fields(value: &w::OwnerNoticeState, _limits: &Limits) -> c::OwnerNoticeState {
+pub(crate) fn owner_notice_state_fields(value: &w::OwnerNoticeState) -> c::OwnerNoticeState {
     match value {
         w::OwnerNoticeState::Held => c::OwnerNoticeState::Held,
         w::OwnerNoticeState::Done => c::OwnerNoticeState::Done,
@@ -23,7 +20,7 @@ pub(crate) fn owner_notice_state_fields(value: &w::OwnerNoticeState, _limits: &L
     }
 }
 
-pub(crate) fn owner_news_class_fields(value: &w::OwnerNewsClass, _limits: &Limits) -> c::OwnerNewsClass {
+pub(crate) fn owner_news_class_fields(value: &w::OwnerNewsClass) -> c::OwnerNewsClass {
     match value {
         w::OwnerNewsClass::Wakes => c::OwnerNewsClass::Wakes,
         w::OwnerNewsClass::Kept => c::OwnerNewsClass::Kept,
@@ -46,7 +43,7 @@ pub(crate) fn owner_word_result_fields(
             }
             let mut list0 = List::with_capacity(row.fields().len());
             for item in row.fields() {
-                list0.push(crate::translate::facts::result_field(item, limits)).expect("reserved supplied list");
+                list0.push(crate::translate::facts::result_field(item)).expect("reserved supplied list");
             }
             c::OwnerWordResult::Verdict { code: row.code(), fields: list0 }
         }
@@ -77,7 +74,7 @@ pub(crate) fn owner_message_kind_fields(
         w::OwnerMessageKind::Proposal(row) => c::OwnerMessageKind::Proposal {
             proposer: row.proposer(),
             proposal: row.proposal(),
-            kind: owner_message_proposal_kind_fields(row.kind(), limits),
+            kind: owner_message_proposal_kind_fields(row.kind()),
         },
         w::OwnerMessageKind::PersonStalled(row) => c::OwnerMessageKind::PersonStalled { task: row.task() },
         w::OwnerMessageKind::ProposalDecision(row) => {
@@ -99,13 +96,12 @@ pub(crate) fn owner_message_kind_fields(
         w::OwnerMessageKind::Notice(row) => c::OwnerMessageKind::Notice {
             subscription: row.subscription(),
             target: row.target(),
-            state: owner_notice_state_fields(row.state(), limits),
+            state: owner_notice_state_fields(row.state()),
         },
         w::OwnerMessageKind::Timer(row) => c::OwnerMessageKind::Timer { subscription: row.subscription() },
-        w::OwnerMessageKind::News(row) => c::OwnerMessageKind::News {
-            subscription: row.subscription(),
-            class: owner_news_class_fields(row.class(), limits),
-        },
+        w::OwnerMessageKind::News(row) => {
+            c::OwnerMessageKind::News { subscription: row.subscription(), class: owner_news_class_fields(row.class()) }
+        }
         w::OwnerMessageKind::Result(row) => c::OwnerMessageKind::Result(owner_word_result_fields(row.value(), limits)?),
     })
 }
@@ -113,7 +109,7 @@ pub(crate) fn owner_message_kind_fields(
 pub(crate) fn owner_word_fields(value: &w::OwnerWord, limits: &Limits) -> Result<c::OwnerWord, w::Problem> {
     Ok(c::OwnerWord {
         number: value.number(),
-        from: crate::translate::facts::owner_requester(value.from(), limits),
+        from: crate::translate::facts::owner_requester(value.from()),
         kind: owner_message_kind_fields(value.kind(), limits)?,
         words: text(value.words(), limits)?,
         at: Wall::from_nanos(value.at()),
@@ -122,27 +118,27 @@ pub(crate) fn owner_word_fields(value: &w::OwnerWord, limits: &Limits) -> Result
     })
 }
 
-pub(crate) fn owner_run_why_fields(value: &w::OwnerRunWhy, limits: &Limits) -> c::OwnerRunWhy {
+pub(crate) fn owner_run_why_fields(value: &w::OwnerRunWhy) -> c::OwnerRunWhy {
     match value {
         w::OwnerRunWhy::Made => c::OwnerRunWhy::Made,
         w::OwnerRunWhy::Ready => c::OwnerRunWhy::Ready,
         w::OwnerRunWhy::Message(row) => c::OwnerRunWhy::Message { message: row.message() },
         w::OwnerRunWhy::Released => c::OwnerRunWhy::Released,
         w::OwnerRunWhy::Retry(row) => {
-            c::OwnerRunWhy::Retry { tries: crate::translate::facts::owner_failure_tries(row.tries(), limits) }
+            c::OwnerRunWhy::Retry { tries: crate::translate::facts::owner_failure_tries(row.tries()) }
         }
         w::OwnerRunWhy::Narrowed => c::OwnerRunWhy::Narrowed,
         w::OwnerRunWhy::Changed => c::OwnerRunWhy::Changed,
     }
 }
 
-pub(crate) fn owner_run_end_fields(value: &w::OwnerRunEnd, limits: &Limits) -> c::OwnerRunEnd {
+pub(crate) fn owner_run_end_fields(value: &w::OwnerRunEnd) -> c::OwnerRunEnd {
     match value {
         w::OwnerRunEnd::Parked => c::OwnerRunEnd::Parked,
         w::OwnerRunEnd::Finished => c::OwnerRunEnd::Finished,
         w::OwnerRunEnd::Cancelled => c::OwnerRunEnd::Cancelled,
         w::OwnerRunEnd::Failed(row) => {
-            c::OwnerRunEnd::Failed { class: crate::translate::answers::hold_failure(row.class(), limits) }
+            c::OwnerRunEnd::Failed { class: crate::translate::answers::hold_failure(row.class()) }
         }
         w::OwnerRunEnd::Refused => c::OwnerRunEnd::Refused,
     }
@@ -153,23 +149,23 @@ pub(crate) fn owner_activity_fields(value: &w::OwnerActivity, limits: &Limits) -
     Ok(match value {
         w::OwnerActivity::Words(row) => c::OwnerActivity::Words {
             message: row.message(),
-            by: crate::translate::facts::owner_requester(row.by(), limits),
+            by: crate::translate::facts::owner_requester(row.by()),
             kind: owner_message_kind_fields(row.kind(), limits)?,
             words: text(row.words(), limits)?,
         },
         w::OwnerActivity::Heard(row) => c::OwnerActivity::Heard(owner_word_fields(row.value(), limits)?),
         w::OwnerActivity::Notified(row) => c::OwnerActivity::Notified {
-            recipient: crate::translate::facts::owner_requester(row.recipient(), limits),
+            recipient: crate::translate::facts::owner_requester(row.recipient()),
             word: owner_word_fields(row.word(), limits)?,
         },
         w::OwnerActivity::RunBegan(row) => c::OwnerActivity::RunBegan {
             attempt: row.attempt(),
-            why: owner_run_why_fields(row.why(), limits),
+            why: owner_run_why_fields(row.why()),
             resumed: row.resumed(),
         },
         w::OwnerActivity::RunEnded(row) => c::OwnerActivity::RunEnded {
             attempt: row.attempt(),
-            end: owner_run_end_fields(row.end(), limits),
+            end: owner_run_end_fields(row.end()),
             spent: row.spent(),
         },
         w::OwnerActivity::Turn(row) => {
@@ -207,7 +203,7 @@ pub(crate) fn archived_turn_fields(value: &w::ArchivedTurn, limits: &Limits) -> 
     };
     c::ArchivedTurn {
         task: value.task(),
-        name: turn_name_fields(value.name(), limits),
+        name: turn_name_fields(value.name()),
         cumulative: value.cumulative(),
         read: opt0,
         at: Wall::from_nanos(value.at()),
@@ -220,6 +216,6 @@ pub(crate) fn archived_turn_fields(value: &w::ArchivedTurn, limits: &Limits) -> 
     }
 }
 
-pub(crate) fn turn_name_fields(value: &w::TurnName, _limits: &Limits) -> c::TurnName {
+pub(crate) fn turn_name_fields(value: &w::TurnName) -> c::TurnName {
     c::TurnName { attempt: value.attempt(), number: value.number() }
 }

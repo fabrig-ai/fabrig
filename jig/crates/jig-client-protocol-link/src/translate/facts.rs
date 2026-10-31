@@ -279,7 +279,7 @@ pub(crate) fn decode(bytes: &[u8], limits: &Limits) -> Result<Node, w::Problem> 
                 Node::ChipPhase(Box::new(chip_phase_fields(row.value(), limits, index, &mut children)?)),
             ),
             w::Fact::Closing(row) => {
-                (*row.parent(), Node::Closing(Box::new(closing_fields(row.value(), limits, index, &mut children)?)))
+                (*row.parent(), Node::Closing(Box::new(closing_fields(row.value(), index, &mut children)?)))
             }
             w::Fact::Ending(row) => {
                 (*row.parent(), Node::Ending(Box::new(ending_fields(row.value(), limits, index, &mut children)?)))

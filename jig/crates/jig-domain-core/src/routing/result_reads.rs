@@ -6,7 +6,7 @@ use alloc::boxed::Box;
 use jig_domain_tasks as tasks;
 use skein_lib::{Env, List, Queue, Token};
 
-use crate::{Core, Event, Held, HistoricalResult, Limits, Now, Request, Requests};
+use crate::{Core, Event, Held, HistoricalResult, Limits, Now, Request};
 
 #[derive(Debug)]
 pub(crate) struct ResultRead {
@@ -56,13 +56,12 @@ pub(crate) fn clear(core: &mut Core, task: u64) {
     }
 }
 
-pub(super) fn begin(core: &mut Core, work: &mut Queue<Event>, task: u64, ids: Box<[u64]>) -> Requests {
+pub(super) fn begin(core: &mut Core, work: &mut Queue<Event>, task: u64, ids: Box<[u64]>) -> Queue<Request> {
     let mut out = Queue::uncapped();
     for (_, read) in &core.result_reads {
         match read.why {
             ReadFor::Preparation { task: owner, .. } if owner == task => {
-                out.push(Request::Decided);
-                return Requests::Out(out);
+                return out;
             }
             ReadFor::DeploymentClose { .. } | ReadFor::Preparation { .. } | ReadFor::Amendment(_) => {}
         }
@@ -84,8 +83,7 @@ pub(super) fn begin(core: &mut Core, work: &mut Queue<Event>, task: u64, ids: Bo
         ask(&mut out, request, &read);
         assert!(core.result_reads.insert(request, read).is_ok(), "admitted result read");
     }
-    out.push(Request::Decided);
-    Requests::Out(out)
+    out
 }
 
 // Held, so that it sees the commit that ended the dependency (`domain/engine.md`, 5.3).
@@ -103,10 +101,10 @@ pub(super) fn loaded(
     request: Token,
     row: Option<Box<tasks::TaskRecord>>,
     busy: bool,
-) -> Requests {
+) -> Queue<Request> {
     let mut out = Queue::uncapped();
-    out.push(Request::Decided);
-    let Some(mut read) = core.result_reads.remove(&request) else { return Requests::Out(out) };
+
+    let Some(mut read) = core.result_reads.remove(&request) else { return out };
     match read.why {
         ReadFor::DeploymentClose { request, project } => {
             let outcome = closed_outcome(project, *read.ids.first().expect("one close subject"), row, busy);
@@ -114,11 +112,11 @@ pub(super) fn loaded(
         }
         ReadFor::Amendment(mut amendment) => {
             if !amendment_reads::current(core, &amendment.replay) {
-                return Requests::Out(out);
+                return out;
             }
             if busy {
                 amendment_reads::busy(core, work, &mut out, amendment.replay);
-                return Requests::Out(out);
+                return out;
             }
             let wanted = *read.ids.first().expect("one pending amendment place");
             amendment.evidence.loaded.push(wanted).expect("bounded loaded places");
@@ -163,7 +161,7 @@ pub(super) fn loaded(
                 Some(_) | None => false,
             };
             if !current {
-                return Requests::Out(out);
+                return out;
             }
             let result = if busy {
                 None
@@ -175,7 +173,7 @@ pub(super) fn loaded(
             };
             let Some(result) = result else {
                 work.push(Event::Tasks(tasks::Event::PreparationFailed { task }));
-                return Requests::Out(out);
+                return out;
             };
             read.results.push(result).expect("one result per ID");
             read.at = read.at.checked_add(1).expect("bounded result position");
@@ -191,7 +189,7 @@ pub(super) fn loaded(
             }
         }
     }
-    Requests::Out(out)
+    out
 }
 
 /// Holds only transient replay inputs; no call record or task change precedes the load.

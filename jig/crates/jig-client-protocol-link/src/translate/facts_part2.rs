@@ -9,7 +9,7 @@ use jig_client_domain::contract as c;
 use jig_client_protocol_wire::v19 as w;
 use skein_lib::Map;
 use skein_lib::{List, Reader, Wall, bytes};
-pub(crate) fn funder(value: &w::Funder, _limits: &Limits) -> c::Funder {
+pub(crate) fn funder(value: &w::Funder) -> c::Funder {
     match value {
         w::Funder::Task(row) => c::Funder::Task(row.value()),
         w::Funder::Pool(row) => c::Funder::Pool { project: row.project(), person: row.person(), period: row.period() },
@@ -21,20 +21,20 @@ pub(crate) fn funder(value: &w::Funder, _limits: &Limits) -> c::Funder {
 }
 
 #[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
-pub(crate) fn owner_budget(value: &w::OwnerBudget, limits: &Limits) -> c::OwnerBudget {
+pub(crate) fn owner_budget(value: &w::OwnerBudget) -> c::OwnerBudget {
     let opt0 = match value.deadline() {
         Some(item) => Some(Wall::from_nanos(*item)),
         None => None,
     };
     c::OwnerBudget {
-        numbers: owner_numbers(value.numbers(), limits),
+        numbers: owner_numbers(value.numbers()),
         left: value.left(),
-        funder: funder(value.funder(), limits),
+        funder: funder(value.funder()),
         deadline: opt0,
     }
 }
 
-pub(crate) fn owner_resource_writer(value: &w::OwnerResourceWriter, _limits: &Limits) -> c::OwnerResourceWriter {
+pub(crate) fn owner_resource_writer(value: &w::OwnerResourceWriter) -> c::OwnerResourceWriter {
     match value {
         w::OwnerResourceWriter::Run(row) => c::OwnerResourceWriter::Run { task: row.task(), attempt: row.attempt() },
         w::OwnerResourceWriter::Effect(row) => c::OwnerResourceWriter::Effect { entry: row.entry() },
@@ -42,17 +42,17 @@ pub(crate) fn owner_resource_writer(value: &w::OwnerResourceWriter, _limits: &Li
 }
 
 #[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
-pub(crate) fn owner_resource_line(value: &w::OwnerResourceLine, limits: &Limits) -> c::OwnerResourceLine {
+pub(crate) fn owner_resource_line(value: &w::OwnerResourceLine) -> c::OwnerResourceLine {
     let opt0 = match value.holder() {
         Some(item) => Some(*item),
         None => None,
     };
     let opt1 = match &value.writer() {
-        Some(item) => Some(owner_resource_writer(item, limits)),
+        Some(item) => Some(owner_resource_writer(item)),
         None => None,
     };
     c::OwnerResourceLine {
-        part: owner_part(value.part(), limits),
+        part: owner_part(value.part()),
         kind: value.kind(),
         taken: value.taken(),
         holder: opt0,
@@ -74,7 +74,7 @@ pub(crate) fn owner_resource_line_piece(
         };
         let Some(item) = item else { return Ok(rows) };
         let row = w::OwnerResourceLine::decode(&limits.wire, &mut Reader::new(&item))?;
-        let row = owner_resource_line(&row, limits);
+        let row = owner_resource_line(&row);
         if rows.push(row).is_err() {
             return Err(too_large());
         }
@@ -82,7 +82,7 @@ pub(crate) fn owner_resource_line_piece(
     Err(too_large())
 }
 
-pub(crate) fn owner_chip_work(value: &w::OwnerChipWork, _limits: &Limits) -> c::OwnerChipWork {
+pub(crate) fn owner_chip_work(value: &w::OwnerChipWork) -> c::OwnerChipWork {
     match value {
         w::OwnerChipWork::Preparing => c::OwnerChipWork::Preparing,
         w::OwnerChipWork::Starting => c::OwnerChipWork::Starting,
@@ -97,14 +97,14 @@ pub(crate) fn owner_chip_work(value: &w::OwnerChipWork, _limits: &Limits) -> c::
 }
 
 #[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
-pub(crate) fn owner_chip_observation(value: &w::OwnerChipObservation, limits: &Limits) -> c::OwnerChipObservation {
+pub(crate) fn owner_chip_observation(value: &w::OwnerChipObservation) -> c::OwnerChipObservation {
     let opt0 = match value.started() {
         Some(item) => Some(Wall::from_nanos(*item)),
         None => None,
     };
     c::OwnerChipObservation {
         channel: skein_lib::Token::new(value.channel()),
-        work: owner_chip_work(value.work(), limits),
+        work: owner_chip_work(value.work()),
         since: Wall::from_nanos(value.since()),
         reported_at: Wall::from_nanos(value.reported_at()),
         started: opt0,
@@ -127,11 +127,11 @@ pub(crate) fn owner_chip_details_fields(
         None => None,
     };
     let opt2 = match &value.retry() {
-        Some(item) => Some(retry_notice(item, limits)),
+        Some(item) => Some(retry_notice(item)),
         None => None,
     };
     let opt3 = match &value.person_wait() {
-        Some(item) => Some(owner_person_wait(item, limits)),
+        Some(item) => Some(owner_person_wait(item)),
         None => None,
     };
     let opt4 = match &value.hold() {
@@ -139,7 +139,7 @@ pub(crate) fn owner_chip_details_fields(
         None => None,
     };
     let opt5 = match &value.procedure() {
-        Some(item) => Some(owner_part(item, limits)),
+        Some(item) => Some(owner_part(item)),
         None => None,
     };
     let opt6 = match &value.closing_connectors() {
@@ -161,21 +161,21 @@ pub(crate) fn owner_chip_details_fields(
         None => None,
     };
     let opt9 = match &value.observation() {
-        Some(item) => Some(owner_chip_observation(item, limits)),
+        Some(item) => Some(owner_chip_observation(item)),
         None => None,
     };
     Ok(c::OwnerChipDetails {
-        dependencies: dependencies(value.dependencies(), limits),
+        dependencies: dependencies(value.dependencies()),
         project: value.project(),
-        executor: owner_executor(value.executor(), limits),
+        executor: owner_executor(value.executor()),
         phase_since: Wall::from_nanos(value.phase_since()),
         run_since: opt0,
         attempt: opt1,
         retry: opt2,
-        wake: owner_wake_policy(value.wake(), limits),
+        wake: owner_wake_policy(value.wake()),
         person_wait: opt3,
         hold: opt4,
-        budget: owner_budget(value.budget(), limits),
+        budget: owner_budget(value.budget()),
         activity: value.activity(),
         resources: owner_resource_line_piece(value.resources(), limits)?,
         resources_cut: value.resources_cut(),
@@ -189,7 +189,7 @@ pub(crate) fn owner_chip_details_fields(
     })
 }
 
-pub(crate) fn owner_requester(value: &w::OwnerRequester, _limits: &Limits) -> c::OwnerRequester {
+pub(crate) fn owner_requester(value: &w::OwnerRequester) -> c::OwnerRequester {
     match value {
         w::OwnerRequester::Task(row) => c::OwnerRequester::Task(row.value()),
         w::OwnerRequester::Person(row) => c::OwnerRequester::Person(row.value()),
@@ -216,14 +216,14 @@ pub(crate) fn owner_chip_ending_fields(
             c::OwnerChipEnding::Cancelled {
                 reason: document_text(row.reason(), limits)?,
                 result: opt0,
-                by: owner_requester(row.by(), limits),
+                by: owner_requester(row.by()),
                 at: Wall::from_nanos(row.at()),
             }
         }
     })
 }
 
-pub(crate) fn result_field(value: &w::ResultField, _limits: &Limits) -> c::ResultField {
+pub(crate) fn result_field(value: &w::ResultField) -> c::ResultField {
     c::ResultField { name: bytes::copy_of(value.name()), value: bytes::copy_of(value.value()) }
 }
 
@@ -239,7 +239,7 @@ pub(crate) fn result_value_fields(
         w::ResultValueFields::OwnerVerdict(row) => {
             let mut list0 = List::with_capacity(row.fields().len());
             for item in row.fields() {
-                list0.push(result_field(item, limits)).expect("reserved supplied list");
+                list0.push(result_field(item)).expect("reserved supplied list");
             }
             c::ResultValue::OwnerVerdict {
                 verdict: row.verdict(),
@@ -250,14 +250,14 @@ pub(crate) fn result_value_fields(
         w::ResultValueFields::Verdict(row) => {
             let mut list0 = List::with_capacity(row.fields().len());
             for item in row.fields() {
-                list0.push(result_field(item, limits)).expect("reserved supplied list");
+                list0.push(result_field(item)).expect("reserved supplied list");
             }
             let mut list1 = List::with_capacity(row.tasks().len());
             for item in row.tasks() {
                 list1.push(take_chip(*item, index, children)?).expect("reserved supplied list");
             }
             let opt2 = match &row.proposal() {
-                Some(item) => Some(proposal_key(item, limits)),
+                Some(item) => Some(proposal_key(item)),
                 None => None,
             };
             c::ResultValue::Verdict {
@@ -269,11 +269,11 @@ pub(crate) fn result_value_fields(
             }
         }
         w::ResultValueFields::Connector(row) => {
-            c::ResultValue::Connector { summary: document_text(row.summary(), limits)?, part: part(row.part(), limits) }
+            c::ResultValue::Connector { summary: document_text(row.summary(), limits)?, part: part(row.part()) }
         }
         w::ResultValueFields::Change(row) => c::ResultValue::Change {
             kind: row.kind(),
-            part: owner_part(row.part(), limits),
+            part: owner_part(row.part()),
             words: document_text(row.words(), limits)?,
         },
         w::ResultValueFields::Choice(row) => c::ResultValue::Choice {
@@ -294,12 +294,12 @@ pub(crate) fn result_value_fields(
 }
 
 #[expect(clippy::manual_map, reason = "step code preserves optional owner facts explicitly")]
-pub(crate) fn dependencies(values: &List<w::Dependency>, limits: &Limits) -> List<c::Dependency> {
+pub(crate) fn dependencies(values: &List<w::Dependency>) -> List<c::Dependency> {
     let mut rows = List::with_capacity(values.len());
     for value in values {
         let added = match value.added() {
             Some(added) => {
-                Some(c::DependencyAdded { at: Wall::from_nanos(added.at()), by: owner_requester(added.by(), limits) })
+                Some(c::DependencyAdded { at: Wall::from_nanos(added.at()), by: owner_requester(added.by()) })
             }
             None => None,
         };

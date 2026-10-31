@@ -4,7 +4,7 @@ use super::{
     through_link,
 };
 use crate::start::{Continuation, LiveSet};
-use crate::{CoreRecord, Event, Now, Requests, RunProof, fleet, people};
+use crate::{CoreRecord, Event, Now, RunProof, fleet, people};
 use core::panic::AssertUnwindSafe;
 use skein_lib::Token;
 use std::panic::catch_unwind;
@@ -183,14 +183,13 @@ fn due_agent_preparation_waits_until_open() {
     ));
     super::super::run_choice::host(&mut core, &env.limits, Token::new(7), &[b"scripted"]);
     let context = core.tasks.run_context(DUE).expect("due agent");
-    let Requests::Out(mut before) = crate::step(&mut core, &env, Event::Activate { context, ready: true });
-    let Some(Request::Decided) = before.pop() else { panic!("closed decisions defer the due agent") };
+    let before = crate::step(&mut core, &env, Event::Activate { context, ready: true });
     assert!(before.is_empty());
     let _action = core.start_done(&env, Phase::AdoptRuns, &mut out);
     open(&mut core, &env, &mut out);
     let context = core.take_due().expect("next Resume takes due agent");
     assert_eq!(context.task, DUE);
-    let Requests::Out(mut after) = crate::step(&mut core, &env, Event::Activate { context, ready: true });
+    let mut after = crate::step(&mut core, &env, Event::Activate { context, ready: true });
     let Some(Request::Now(request)) = after.pop() else { panic!("agent preparation request") };
     let Now::PrepareAgent { context } = *request else { panic!("due agent begins preparation") };
     assert_eq!(context.task, DUE);

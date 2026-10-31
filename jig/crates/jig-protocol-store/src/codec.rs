@@ -32,23 +32,14 @@ pub fn limits(domain: &domain::Limits) -> Option<Limits> {
 pub fn names(models: &[domain::Model]) -> Box<[domain::settings::ModelName]> {
     domain::settings::model_names(models)
 }
-// The older task and people families store model names alone.
-fn plain_names(models: &[domain::settings::ModelName]) -> Box<[Box<[u8]>]> {
-    let mut names = skein_lib::List::with_capacity(u32::try_from(models.len()).expect("model count"));
-    for model in models {
-        names.push(model.name.clone()).expect("model count");
-    }
-    names.into_boxed()
-}
-
 /// Encode a record through its owning family; `names` are [`names`] of today's configuration.
 #[must_use]
 pub fn encode(row: &domain::Record, limits: &Limits, names: &[domain::settings::ModelName]) -> Option<Box<[u8]>> {
     match row {
         domain::Record::Core(domain::CoreRecord::Settings(row)) => settings::encode(row, &limits.settings, names).ok(),
         domain::Record::Core(row) => core::encode(row, &core_limits(limits)).ok(),
-        domain::Record::Tasks(row) => tasks::encode(row, &limits.tasks, &plain_names(names)).ok(),
-        domain::Record::People(row) => people::encode(row, &limits.people, &plain_names(names)).ok(),
+        domain::Record::Tasks(row) => tasks::encode(row, &limits.tasks, names).ok(),
+        domain::Record::People(row) => people::encode(row, &limits.people, names).ok(),
         domain::Record::Notes(row) => notes::encode(row, &limits.notes).ok(),
         domain::Record::Accounts(row) => accounts::encode(row).ok(),
     }
@@ -68,12 +59,8 @@ pub fn decode(
             settings::decode(key, bytes, &limits.settings, names).ok()?,
         ))),
         domain::Key::Core(_) => Some(domain::Record::Core(core::decode(bytes, &core_limits(limits)).ok()?)),
-        domain::Key::Tasks(_) => {
-            Some(domain::Record::Tasks(tasks::decode(bytes, &limits.tasks, &plain_names(names)).ok()?))
-        }
-        domain::Key::People(_) => {
-            Some(domain::Record::People(people::decode(bytes, &limits.people, &plain_names(names)).ok()?))
-        }
+        domain::Key::Tasks(_) => Some(domain::Record::Tasks(tasks::decode(bytes, &limits.tasks, names).ok()?)),
+        domain::Key::People(_) => Some(domain::Record::People(people::decode(bytes, &limits.people, names).ok()?)),
         domain::Key::Notes(_) => Some(domain::Record::Notes(notes::decode(bytes, &limits.notes).ok()?)),
         domain::Key::Accounts(_) => Some(domain::Record::Accounts(accounts::decode(bytes).ok()?)),
     }

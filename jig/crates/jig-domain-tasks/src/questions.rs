@@ -129,25 +129,19 @@ pub(crate) fn cancel(
     let Some(credit) = selected else {
         return refused(to, Some(task), Refusal::Reference, out);
     };
-    forget_credit(domain, env, task, question, out);
+    forget_credit(domain, env, task, question);
     match credit.asked {
         Party::Task(asked) => {
-            forget_received(domain, env, asked, question, out);
+            forget_received(domain, env, asked, question);
         }
-        Party::Person(_) => forget_received(domain, env, task, question, out),
+        Party::Person(_) => forget_received(domain, env, task, question),
         Party::Deployment { .. } => unreachable!("question recipient is a task or person"),
     }
-    owe(domain, env, task, question);
+    owe(domain, task, question);
     out.push(Request::Done { reply_to: to });
 }
 
-pub(crate) fn forget_credit(
-    domain: &mut Domain,
-    env: &Env<Limits>,
-    task: u64,
-    question: u64,
-    _out: &mut Queue<Request>,
-) {
+pub(crate) fn forget_credit(domain: &mut Domain, env: &Env<Limits>, task: u64, question: u64) {
     let row = task_mut(domain, task).expect("credit owner live");
     let mut credits = List::with_capacity(env.limits.inbox_messages);
     for credit in &row.record.questions {
@@ -159,13 +153,7 @@ pub(crate) fn forget_credit(
     changed(domain, task);
 }
 
-pub(crate) fn forget_received(
-    domain: &mut Domain,
-    env: &Env<Limits>,
-    task: u64,
-    question: u64,
-    _out: &mut Queue<Request>,
-) {
+pub(crate) fn forget_received(domain: &mut Domain, env: &Env<Limits>, task: u64, question: u64) {
     let Some(row) = task_mut(domain, task) else {
         return;
     };
@@ -243,7 +231,7 @@ fn append_notice(
 }
 
 /// Move's question decisions stay with the child that owns their credits.
-pub(crate) fn moved(domain: &mut Domain, env: &Env<Limits>, number: u64, person: u64, out: &mut Queue<Request>) {
+pub(crate) fn moved(domain: &mut Domain, env: &Env<Limits>, number: u64, person: u64) {
     // A received question follows the current person's inbox. Task answerers
     // keep their relay form until the application enables direct answers.
     let mut sources = List::uncapped();
@@ -272,7 +260,7 @@ pub(crate) fn moved(domain: &mut Domain, env: &Env<Limits>, number: u64, person:
     for credit in credits {
         match credit.asked {
             Party::Task(asked) => {
-                forget_received(domain, env, asked, credit.number, out);
+                forget_received(domain, env, asked, credit.number);
                 let row = task_mut(domain, number).expect("moved asker live");
                 row.record.last_message = row.record.last_message.max(credit.number);
                 crate::positions::question(&mut row.record, credit.number, credit.line, env.limits.inbox_messages);
@@ -302,7 +290,7 @@ pub(crate) fn published(domain: &mut Domain, task: u64) {
     }
 }
 
-pub(crate) fn owe(domain: &mut Domain, _env: &Env<Limits>, task: u64, question: u64) {
+pub(crate) fn owe(domain: &mut Domain, task: u64, question: u64) {
     if !domain.question_ends.contains_key(&task) {
         domain.question_ends.insert(task, List::uncapped()).expect("uncapped task batches");
     }

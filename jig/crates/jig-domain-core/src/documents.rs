@@ -15,7 +15,7 @@
 //! endings. Core-aware constructors also join fenced best-effort observations;
 //! their engine receipt clocks are distinct from placement/adoption clocks.
 //! Retained failure and dependency explanations use exact task/activity reads.
-//! Closing chips name the connectors they wait on (QUESTIONS 29). Effect
+//! Closing chips name the connectors they wait on (domain/engine.md, 11.3). Effect
 //! descriptions, prices and counts remain in each connector's panel. Recurring wall
 //! schedules still require their schedule owner. `make_with_clock` projects
 //! host grace from monotonic deadlines; account deadlines carry their source wall.
@@ -287,7 +287,7 @@ pub struct Chip {
     pub details: Box<ChipDetails>,
 }
 
-/// A held project role and the actual current funding facts available to the party.
+/// A held project role and the current funding facts available to the party.
 /// Each project has its kept name (core.md, 6.1); unopened pools have no ledger.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct FrameProjectRole {
@@ -325,7 +325,7 @@ pub struct Frame {
     pub providers: List<ProviderOffer>,
     /// Whether additional provider offers were omitted.
     pub providers_cut: bool,
-    /// Actual startup key ceiling, including the client carried-value bound.
+    /// Startup key ceiling, including the client carried-value bound.
     pub key_bytes: u32,
     /// The driver's redirect bound: the most bytes a pasted sign-in address may have.
     pub redirect_bytes: u32,
@@ -535,5 +535,5 @@ pub fn budget_from_row(row: &tasks::TaskRecord) -> BudgetLine {
 
 /// Complete bounded authority facts used when judging draft controls.
 pub(crate) fn act_authority(limits: &Limits, value: &tasks::Authority) -> Result<AuthorityLine, Missing> {
-    task_tree::authority(limits, value)
+    task_tree::authority(limits, &crate::translate::tasks_authority(value))
 }

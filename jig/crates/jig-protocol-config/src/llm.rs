@@ -364,7 +364,7 @@ fn price(document: &Document, at: u32, path: &Path, problems: &mut Problems) -> 
     })
 }
 
-// Decision 4: LLM and OAuth dial socket addresses, with host resolution at startup.
+// LLM and OAuth dial socket addresses, with host resolution at startup.
 fn network_address(address: &Address, path: &Path, problems: &mut Problems) {
     match address {
         Address::Addr(skein_io::Addr::InProcess(_)) => problems.push(path.clone(), What::Form),

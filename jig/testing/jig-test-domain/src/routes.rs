@@ -20,10 +20,10 @@ pub(super) fn route_core(
     domain: &mut Domain,
     env: &Env<Limits>,
     decision: &mut Decision<Write, Delivery>,
-    requests: core::Requests,
+    requests: Queue<core::Request>,
     work: &mut Queue<Work>,
 ) {
-    let core::Requests::Out(mut requests) = requests;
+    let mut requests = requests;
     for _ in 0..requests.len() {
         match requests.pop().expect("core request count") {
             core::Request::Write(core::Write::CopySettingsRevision(number)) => {
@@ -107,7 +107,6 @@ pub(super) fn route_core(
             core::Request::Now(now) => route_now(domain, env, decision, *now, work),
             core::Request::Ask { connector, ask } => route_ask(domain, env, decision, connector, ask, work),
             core::Request::ProjectMade { project } => hold(decision, Delivery::ProjectMade { project }),
-            core::Request::Decided => {}
         }
     }
 }

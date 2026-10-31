@@ -3,7 +3,7 @@
 
 use super::NoteRoute;
 use super::children::remember_due;
-use crate::{Ask, Core, Event, Limits, Now, Request, Requests, RunCharter, RunProof};
+use crate::{Ask, Core, Event, Limits, Now, Request, RunCharter, RunProof};
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
 use jig_domain_brief as brief;
@@ -11,29 +11,25 @@ use jig_domain_notes as notes;
 use jig_domain_tasks as tasks;
 use skein_lib::{Env, List, Queue, ReplyTo, Token};
 
-pub(super) fn brief_assembled(core: &mut Core, work: &mut Queue<Event>, task: u64, ready: bool) -> Requests {
+pub(super) fn brief_assembled(core: &mut Core, work: &mut Queue<Event>, task: u64, ready: bool) -> Queue<Request> {
     let mut out = Queue::uncapped();
     if !ready {
         work.push(Event::PreparationFailed { task });
         out.push(Request::Now(Box::new(Now::RunPreparationFailed { task })));
-        out.push(Request::Decided);
-        return Requests::Out(out);
+        return out;
     }
     let Some(context) = core.contexts.get(&task).cloned() else {
         out.push(Request::Now(Box::new(Now::RunPreparationFailed { task })));
-        out.push(Request::Decided);
-        return Requests::Out(out);
+        return out;
     };
     let Some(attempt) = crate::fresh(&mut core.counters, crate::Family::Run) else {
         work.push(Event::Tasks(tasks::Event::PreparationFailed { task }));
         out.push(Request::Now(Box::new(Now::RunPreparationFailed { task })));
-        out.push(Request::Decided);
-        return Requests::Out(out);
+        return out;
     };
     assert!(core.workspace_pending.insert(task, attempt) == Ok(None), "one workspace flight per task");
     out.push(Request::Now(Box::new(Now::WorkspaceRequest { task, attempt, context })));
-    out.push(Request::Decided);
-    Requests::Out(out)
+    out
 }
 
 #[expect(
@@ -49,31 +45,27 @@ pub(super) fn workspace_prepared(
     attempt: u64,
     writes: Option<Box<[authority::Write]>>,
     credentials: Box<[u32]>,
-) -> Requests {
+) -> Queue<Request> {
     let mut out = Queue::uncapped();
     if core.workspace_pending.remove(&task) != Some(attempt) {
         out.push(Request::Now(Box::new(Now::RunPreparationFailed { task })));
-        out.push(Request::Decided);
-        return Requests::Out(out);
+        return out;
     }
     let Some(context) = core.contexts.get(&task).cloned() else {
         out.push(Request::Now(Box::new(Now::RunPreparationFailed { task })));
-        out.push(Request::Decided);
-        return Requests::Out(out);
+        return out;
     };
     drop(core.dependency_results.remove(&task));
     let transcript = core.transcripts.remove(&task).expect("rendered task owns loaded transcript");
     let Some(writes) = writes else {
         work.push(Event::Tasks(tasks::Event::Hold { task, why: tasks::Hold::Effects }));
         out.push(Request::Now(Box::new(Now::RunPreparationFailed { task })));
-        out.push(Request::Decided);
-        return Requests::Out(out);
+        return out;
     };
     if credentials.len() > usize::try_from(env.limits.accounts.credentials).expect("u32 credential limit fits usize") {
         work.push(Event::Tasks(tasks::Event::Hold { task, why: tasks::Hold::Effects }));
         out.push(Request::Now(Box::new(Now::RunPreparationFailed { task })));
-        out.push(Request::Decided);
-        return Requests::Out(out);
+        return out;
     }
     drop(core.workspace_credentials.insert(task, credentials).expect("live task credential room"));
     let Some(current) = core.tasks.run_context(task) else { return wait_for_account(core, work, context) };
@@ -87,8 +79,7 @@ pub(super) fn workspace_prepared(
         crate::RunAdmission::Hold(why) => {
             work.push(Event::Tasks(tasks::Event::Hold { task, why }));
             out.push(Request::Now(Box::new(Now::RunPreparationFailed { task })));
-            out.push(Request::Decided);
-            return Requests::Out(out);
+            return out;
         }
     };
     let mut grants = List::with_capacity(env.limits.fleet.grants);
@@ -118,8 +109,7 @@ pub(super) fn workspace_prepared(
     if !core.proofs.contains_key(&task) && core.proofs.len() == core.proofs.capacity() {
         work.push(Event::Tasks(tasks::Event::PreparationFailed { task }));
         out.push(Request::Now(Box::new(Now::RunPreparationFailed { task })));
-        out.push(Request::Decided);
-        return Requests::Out(out);
+        return out;
     }
     let resume = !transcript.closed
         && core.charter_of(task).policy.resume
@@ -199,8 +189,7 @@ pub(super) fn workspace_prepared(
         answered,
         grants: grants.into_boxed(),
     })));
-    out.push(Request::Decided);
-    Requests::Out(out)
+    out
 }
 
 fn answered_calls(core: &Core, task: u64, attempt: u64, limit: u32) -> Box<[crate::CallKey]> {
@@ -253,35 +242,31 @@ fn start_proof(_core: &Core, task: u64, attempt: u64, conversation: u64, message
     proof
 }
 
-fn wait_for_account(core: &mut Core, work: &mut Queue<Event>, context: Box<tasks::RunContext>) -> Requests {
+fn wait_for_account(core: &mut Core, work: &mut Queue<Event>, context: Box<tasks::RunContext>) -> Queue<Request> {
     let task = context.task;
     super::result_reads::clear(core, task);
     drop(core.contexts.remove(&task));
     work.push(Event::Tasks(tasks::Event::PreparationWaiting { task }));
     let mut out = Queue::uncapped();
     out.push(Request::Now(Box::new(Now::RunPreparationFailed { task })));
-    out.push(Request::Decided);
-    Requests::Out(out)
+    out
 }
 
-pub(super) fn start_brief(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Event>, task: u64) -> Requests {
+pub(super) fn start_brief(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Event>, task: u64) -> Queue<Request> {
     if let Some(transcript) = core.transcripts.get_mut(&task) {
         transcript.loaded = true;
     }
-    let mut out = Queue::uncapped();
+    let out = Queue::uncapped();
     let Some(context) = core.contexts.get(&task) else {
-        out.push(Request::Decided);
-        return Requests::Out(out);
+        return out;
     };
     let Some(current) = core.tasks.task(task) else {
-        out.push(Request::Decided);
-        return Requests::Out(out);
+        return out;
     };
     if current.phase != tasks::Phase::Active(tasks::Active::Preparing)
         || core.tasks.run_message(task) != Some(context.last_message)
     {
-        out.push(Request::Decided);
-        return Requests::Out(out);
+        return out;
     }
     if !core.dependency_results.contains_key(&task)
         && let Some(ids) = core.preparation_ids(task)
@@ -291,8 +276,7 @@ pub(super) fn start_brief(core: &mut Core, env: &Env<Limits>, work: &mut Queue<E
     }
     if core.notes.busy() {
         core.pending_note_briefs.insert(task, super::NoteBrief::Operation).expect("brief count bounds waiting notes");
-        out.push(Request::Decided);
-        return Requests::Out(out);
+        return out;
     }
     let mut scopes = List::with_capacity(env.limits.notes.scopes);
     if let Some(goal) = core.goal_of(current) {
@@ -315,8 +299,7 @@ pub(super) fn start_brief(core: &mut Core, env: &Env<Limits>, work: &mut Queue<E
     }
     let owner = core.begin_note_route(NoteRoute::Brief { task });
     work.push(Event::Notes(notes::Event::Index { owner, scopes, most: env.limits.notes.lines }));
-    out.push(Request::Decided);
-    Requests::Out(out)
+    out
 }
 
 pub(super) fn plan_brief(
@@ -326,21 +309,18 @@ pub(super) fn plan_brief(
     task: u64,
     lines: List<notes::Line>,
     more: u32,
-) -> Requests {
+) -> Queue<Request> {
     let mut out = Queue::uncapped();
     let Some(context) = core.contexts.get(&task) else {
-        out.push(Request::Decided);
-        return Requests::Out(out);
+        return out;
     };
     let Some(current) = core.tasks.task(task) else {
-        out.push(Request::Decided);
-        return Requests::Out(out);
+        return out;
     };
     if current.phase != tasks::Phase::Active(tasks::Active::Preparing)
         || core.tasks.run_message(task) != Some(context.last_message)
     {
-        out.push(Request::Decided);
-        return Requests::Out(out);
+        return out;
     }
     let text_limits = crate::BriefTextLimits {
         parts: env.limits.brief_parts,
@@ -350,8 +330,7 @@ pub(super) fn plan_brief(
     let mut wanted = List::with_capacity(env.limits.brief.sections);
     let Some(task_text) = crate::read_brief_part(core, text_limits, task, crate::BriefPart::Spec) else {
         work.push(Event::Tasks(tasks::Event::PreparationFailed { task }));
-        out.push(Request::Decided);
-        return Requests::Out(out);
+        return out;
     };
     wanted
         .push(brief::Planned::Core {
@@ -365,8 +344,7 @@ pub(super) fn plan_brief(
     if !context.dependencies.is_empty() || !context.spec.inputs.is_empty() {
         let Some(text) = crate::read_brief_part(core, text_limits, task, crate::BriefPart::Dependencies) else {
             work.push(Event::Tasks(tasks::Event::PreparationFailed { task }));
-            out.push(Request::Decided);
-            return Requests::Out(out);
+            return out;
         };
         wanted
             .push(brief::Planned::Core {
@@ -381,8 +359,7 @@ pub(super) fn plan_brief(
     if tail_wanted(core, task, context.tries.transient != 0) {
         let Some(text) = crate::read_brief_part(core, text_limits, task, crate::BriefPart::TranscriptTail) else {
             work.push(Event::Tasks(tasks::Event::PreparationFailed { task }));
-            out.push(Request::Decided);
-            return Requests::Out(out);
+            return out;
         };
         wanted
             .push(brief::Planned::Core {
@@ -425,8 +402,7 @@ pub(super) fn plan_brief(
     }
     let parent = brief_parent(context.requester);
     out.push(Request::Now(Box::new(Now::BriefCorePlanned { task, parent, sections: wanted })));
-    out.push(Request::Decided);
-    Requests::Out(out)
+    out
 }
 
 fn tail_wanted(core: &Core, task: u64, transient: bool) -> bool {
@@ -468,7 +444,7 @@ pub(super) fn route_prepared_agent(
     context: Box<tasks::RunContext>,
     transcript_waiter: Option<Token>,
     busy: bool,
-) -> Requests {
+) -> Queue<Request> {
     let mut out = Queue::uncapped();
     if busy {
         remember_due(core, context);
@@ -489,8 +465,7 @@ pub(super) fn route_prepared_agent(
             from: core.transcripts.get(&number).expect("begun transcript").window,
         })));
     }
-    out.push(Request::Decided);
-    Requests::Out(out)
+    out
 }
 
 pub(super) fn route_activate(
@@ -499,16 +474,14 @@ pub(super) fn route_activate(
     work: &mut Queue<Event>,
     context: Box<tasks::RunContext>,
     ready: bool,
-) -> Requests {
+) -> Queue<Request> {
     let number = context.task;
     let mut out = Queue::uncapped();
     let Some(context) = core.tasks.run_context(number) else {
-        out.push(Request::Decided);
-        return Requests::Out(out);
+        return out;
     };
     if core.tasks.task(number).expect("current activation").phase != tasks::Phase::Active(tasks::Active::Due) {
-        out.push(Request::Decided);
-        return Requests::Out(out);
+        return out;
     }
     if !ready || !core.start_opened() || core.start_stopped() {
         remember_due(core, context);
@@ -531,30 +504,26 @@ pub(super) fn route_activate(
             },
         }
     }
-    out.push(Request::Decided);
-    Requests::Out(out)
+    out
 }
 
-pub(super) fn route_preparation_failed(core: &mut Core, work: &mut Queue<Event>, task: u64) -> Requests {
+pub(super) fn route_preparation_failed(core: &mut Core, work: &mut Queue<Event>, task: u64) -> Queue<Request> {
     super::result_reads::clear(core, task);
     drop(core.contexts.remove(&task));
     drop(core.dependency_results.remove(&task));
     drop(core.transcripts.remove(&task));
     work.push(Event::Tasks(tasks::Event::PreparationFailed { task }));
-    let mut out = Queue::uncapped();
-    out.push(Request::Decided);
-    Requests::Out(out)
+    Queue::uncapped()
 }
 
-pub(super) fn route_claim_refused(core: &mut Core, work: &mut Queue<Event>, task: u64) -> Requests {
+pub(super) fn route_claim_refused(core: &mut Core, work: &mut Queue<Event>, task: u64) -> Queue<Request> {
     let mut out = Queue::uncapped();
     if core.claiming.remove(&task).is_some() {
         core.restore_replaced_proof(task);
         out.push(Request::Now(Box::new(Now::DropAssignment { task })));
         work.push(Event::Tasks(tasks::Event::PreparationFailed { task }));
     }
-    out.push(Request::Decided);
-    Requests::Out(out)
+    out
 }
 
 #[expect(clippy::manual_map, reason = "the strict subset uses explicit matches without closures")]
@@ -566,7 +535,7 @@ pub(super) fn route_claim_prepared(
     attempt: u64,
     budget: u64,
     writes: Box<[tasks::Name]>,
-) -> Requests {
+) -> Queue<Request> {
     if core.claiming.get(&task) == Some(&attempt) {
         if let Some(context) = core.contexts.remove(&task) {
             let valid = match core.tasks.run_context(task) {
@@ -587,8 +556,7 @@ pub(super) fn route_claim_prepared(
                 work.push(Event::Tasks(tasks::Event::PreparationWaiting { task }));
                 let mut out = Queue::uncapped();
                 out.push(Request::Now(Box::new(Now::DropAssignment { task })));
-                out.push(Request::Decided);
-                return Requests::Out(out);
+                return out;
             }
         }
 
@@ -617,12 +585,10 @@ pub(super) fn route_claim_prepared(
             writes,
         }));
     }
-    let mut out = Queue::uncapped();
-    out.push(Request::Decided);
-    Requests::Out(out)
+    Queue::uncapped()
 }
 
-pub(super) fn transcript_unread(core: &mut Core, work: &mut Queue<Event>, task: u64) -> Requests {
+pub(super) fn transcript_unread(core: &mut Core, work: &mut Queue<Event>, task: u64) -> Queue<Request> {
     if let Some(transcript) = core.transcripts.get(&task)
         && transcript.closed
     {
@@ -637,9 +603,7 @@ pub(super) fn transcript_unread(core: &mut Core, work: &mut Queue<Event>, task: 
         drop(core.dependency_results.remove(&task));
         work.push(Event::Tasks(tasks::Event::PreparationUnread { task }));
     }
-    let mut out = Queue::uncapped();
-    out.push(Request::Decided);
-    Requests::Out(out)
+    Queue::uncapped()
 }
 
 #[cfg(test)]

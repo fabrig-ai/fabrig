@@ -71,7 +71,7 @@ fn end(value: t::EndKind, limits: &w::Limits) -> Result<w::OwnerRunEnd, w::Probl
         t::EndKind::Cancelled => w::OwnerRunEnd::Cancelled,
         t::EndKind::Failed { class } => w::OwnerRunEnd::Failed(w::OwnerRunEndFailed::new(
             limits,
-            w::OwnerRunEndFailedParts { class: chips::class(class, limits)? },
+            w::OwnerRunEndFailedParts { class: chips::class(class)? },
         )?),
         t::EndKind::Refused => w::OwnerRunEnd::Refused,
     })

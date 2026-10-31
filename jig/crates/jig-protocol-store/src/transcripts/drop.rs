@@ -31,7 +31,7 @@ pub(crate) struct State {
     orphans: Queue<Orphan>,
 }
 impl State {
-    pub fn new(_limits: &Limits) -> State {
+    pub fn new() -> State {
         State { task: 0, directory: None, step: Step::Idle, orphans: Queue::uncapped() }
     }
 }

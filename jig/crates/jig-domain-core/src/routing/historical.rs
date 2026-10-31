@@ -1,7 +1,7 @@
 //! Historical decision-race answers routed back to authenticated parties
 //! (`domain/people.md`, section 5.1). These complete keyed decisions, not reads.
 
-use crate::{Core, EscalationDecisionRecord, Event, Limits, Request, Requests};
+use crate::{Core, EscalationDecisionRecord, Event, Limits, Request};
 use jig_domain_authority as authority;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -19,7 +19,7 @@ pub(super) fn route_historical_escalation(
     revision: u64,
     row: Option<EscalationDecisionRecord>,
     busy: bool,
-) -> Requests {
+) -> Queue<Request> {
     let outcome = if busy {
         people::Outcome::Again(people::Again::Busy)
     } else if let Some(row) = row {
@@ -83,9 +83,7 @@ pub(super) fn route_historical_escalation(
         people::Outcome::Refused(people::Refusal::Unknown)
     };
     work.push(Event::People(people::Event::Decided { request, outcome }));
-    let mut out = Queue::uncapped();
-    out.push(Request::Decided);
-    Requests::Out(out)
+    Queue::uncapped()
 }
 
 #[expect(clippy::too_many_arguments, reason = "the route retains its event fields")]
@@ -99,7 +97,7 @@ pub(super) fn route_historical_proposal(
     proposal: u64,
     row: Option<crate::ProposalDecisionRecord>,
     busy: bool,
-) -> Requests {
+) -> Queue<Request> {
     let outcome = if busy {
         people::Outcome::Again(people::Again::Busy)
     } else if let Some(row) = row {
@@ -159,9 +157,7 @@ pub(super) fn route_historical_proposal(
         people::Outcome::Refused(people::Refusal::Unknown)
     };
     work.push(Event::People(people::Event::Decided { request, outcome }));
-    let mut out = Queue::uncapped();
-    out.push(Request::Decided);
-    Requests::Out(out)
+    Queue::uncapped()
 }
 
 /// Finish a withdrawal against a proposal that has left the live task state.
@@ -172,7 +168,7 @@ pub(super) fn decided_proposal(
     proposal: u64,
     row: Option<tasks::Proposal>,
     busy: bool,
-) -> Requests {
+) -> Queue<Request> {
     let part = if busy {
         crate::CallPart::Unavailable
     } else if let Some(row) = row

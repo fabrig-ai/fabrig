@@ -272,9 +272,9 @@ fn credential_world() -> World {
 fn a_credential_is_usable_while_its_generation_is_valid() {
     let mut world = credential_world();
     world.fire_at(99);
-    assert!(world.domain.credential_usable(7));
+    assert!(world.domain.credential_usable(7, world.now));
     world.fire_at(100);
-    assert!(!world.domain.credential_usable(7));
+    assert!(!world.domain.credential_usable(7, world.now));
 }
 #[test]
 fn a_credentials_new_generation_is_granted_on() {
@@ -412,4 +412,22 @@ fn retry_wall_uses_the_actual_armed_monotonic_deadline() {
         assert_eq!(world.domain.source(ANALYST).expect("retrying source").state, State::Later { until: deadline });
         assert_eq!(world.domain.next_deadline(), Some(deadline.at));
     }
+}
+
+#[test]
+#[should_panic(expected = "accounts restore after link: Next")]
+fn restore_after_want_panics_naming_the_key() {
+    let mut world = World::default();
+    world.step(Event::Want);
+    world.step(Event::Restore { record: Stored::Next { number: 1_009 } });
+}
+
+#[test]
+fn credential_usability_uses_the_supplied_time_without_a_step() {
+    let mut world = credential_world();
+    world.fire_at(99);
+    assert!(world.domain.credential_usable(7, at(99)));
+    assert!(!world.domain.credential_usable(7, at(100)));
+    assert!(!world.domain.credential_usable(7, at(101)));
+    assert_eq!(world.now, at(99));
 }

@@ -20,9 +20,9 @@ pub(crate) struct Call {
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub(crate) enum State {
-    /// A delivery in flight, for the call `call` of the agent `agent`.
+    /// A delivery in flight for the agent `agent`.
     Delivering { agent: Token },
-    /// Relayed to the engine, for the call `call` of the agent `agent`.
+    /// Relayed to the engine for the agent `agent`.
     Relayed { agent: Token },
     /// The agent has its answer; local delivery is being cancelled.
     Settling,

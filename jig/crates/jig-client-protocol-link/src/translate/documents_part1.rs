@@ -1,7 +1,7 @@
 //! Field-for-field document values (client/domain/contract.md, 5–7).
 use super::{Box, Limits, List, Reader, Wall, c, piece_problem, raw, subscription_kind_fields, too_large, w};
-pub(crate) fn subscription_fields(value: &w::Subscription, limits: &Limits) -> c::Subscription {
-    c::Subscription { number: value.number(), kind: subscription_kind_fields(value.kind(), limits) }
+pub(crate) fn subscription_fields(value: &w::Subscription) -> c::Subscription {
+    c::Subscription { number: value.number(), kind: subscription_kind_fields(value.kind()) }
 }
 
 pub(crate) fn subscriptions_fields(value: &w::Subscriptions, limits: &Limits) -> Result<c::Subscriptions, w::Problem> {
@@ -10,7 +10,7 @@ pub(crate) fn subscriptions_fields(value: &w::Subscriptions, limits: &Limits) ->
     }
     let mut list0 = List::with_capacity(value.entries().len());
     for item in value.entries() {
-        list0.push(subscription_fields(item, limits)).expect("reserved supplied list");
+        list0.push(subscription_fields(item)).expect("reserved supplied list");
     }
     Ok(c::Subscriptions { entries: list0 })
 }
@@ -70,7 +70,7 @@ pub(crate) fn task_contract_document_fields(
     Ok(match value {
         w::TaskContractDocument::Approval(row) => c::TaskContractDocument::Approval {
             state: raw(row.state(), limits)?,
-            part: crate::translate::facts::owner_part(row.part(), limits),
+            part: crate::translate::facts::owner_part(row.part()),
         },
         w::TaskContractDocument::Report(row) => c::TaskContractDocument::Report { words: row.words() },
         w::TaskContractDocument::Verdict(row) => c::TaskContractDocument::Verdict {
@@ -83,11 +83,11 @@ pub(crate) fn task_contract_document_fields(
     })
 }
 
-pub(crate) fn task_resource_fields(value: &w::TaskResource, limits: &Limits) -> c::TaskResource {
+pub(crate) fn task_resource_fields(value: &w::TaskResource) -> c::TaskResource {
     match value {
-        w::TaskResource::Part(row) => c::TaskResource::Part(crate::translate::facts::part(row.value(), limits)),
+        w::TaskResource::Part(row) => c::TaskResource::Part(crate::translate::facts::part(row.value())),
         w::TaskResource::Owner(row) => {
-            c::TaskResource::Owner(Box::new(crate::translate::facts::owner_resource_line(row.value(), limits)))
+            c::TaskResource::Owner(Box::new(crate::translate::facts::owner_resource_line(row.value())))
         }
     }
 }
@@ -117,7 +117,7 @@ pub(crate) fn task_resource_piece(
             return Err(too_large());
         }
         let row = w::TaskResource::decode(&limits.wire, &mut Reader::new(&item))?;
-        let row = task_resource_fields(&row, limits);
+        let row = task_resource_fields(&row);
         if rows.push(row).is_err() {
             return Err(too_large());
         }
@@ -125,11 +125,11 @@ pub(crate) fn task_resource_piece(
     Err(too_large())
 }
 
-pub(crate) fn owner_grant_fields(value: &w::OwnerGrant, limits: &Limits) -> c::OwnerGrant {
+pub(crate) fn owner_grant_fields(value: &w::OwnerGrant) -> c::OwnerGrant {
     c::OwnerGrant {
         connector: value.connector(),
         kind: value.kind(),
-        pattern: crate::translate::answers::owner_pattern(value.pattern(), limits),
+        pattern: crate::translate::answers::owner_pattern(value.pattern()),
     }
 }
 
@@ -154,7 +154,7 @@ pub(crate) fn owner_grant_piece(bytes: &[u8], limits: &Limits, bound: u32) -> Re
             return Err(too_large());
         }
         let row = w::OwnerGrant::decode(&limits.wire, &mut Reader::new(&item))?;
-        let row = owner_grant_fields(&row, limits);
+        let row = owner_grant_fields(&row);
         if rows.push(row).is_err() {
             return Err(too_large());
         }
@@ -162,10 +162,7 @@ pub(crate) fn owner_grant_piece(bytes: &[u8], limits: &Limits, bound: u32) -> Re
     Err(too_large())
 }
 
-pub(crate) fn owner_authority_executor_fields(
-    value: &w::OwnerAuthorityExecutor,
-    _limits: &Limits,
-) -> c::OwnerAuthorityExecutor {
+pub(crate) fn owner_authority_executor_fields(value: &w::OwnerAuthorityExecutor) -> c::OwnerAuthorityExecutor {
     match value {
         w::OwnerAuthorityExecutor::Charter(row) => c::OwnerAuthorityExecutor::Charter(row.value()),
         w::OwnerAuthorityExecutor::Procedure(row) => c::OwnerAuthorityExecutor::Procedure(row.value()),
@@ -182,15 +179,15 @@ pub(crate) fn owner_delegation_fields(
     }
     let mut list0 = List::with_capacity(value.kinds().len());
     for item in value.kinds() {
-        list0.push(owner_authority_executor_fields(item, limits)).expect("reserved supplied list");
+        list0.push(owner_authority_executor_fields(item)).expect("reserved supplied list");
     }
     Ok(c::OwnerDelegation { kinds: list0, tasks: value.tasks(), depth: value.depth() })
 }
 
-pub(crate) fn owner_resource_scope_fields(value: &w::OwnerResourceScope, limits: &Limits) -> c::OwnerResourceScope {
+pub(crate) fn owner_resource_scope_fields(value: &w::OwnerResourceScope) -> c::OwnerResourceScope {
     c::OwnerResourceScope {
         connector: value.connector(),
-        pattern: crate::translate::answers::owner_pattern(value.pattern(), limits),
+        pattern: crate::translate::answers::owner_pattern(value.pattern()),
     }
 }
 
@@ -219,7 +216,7 @@ pub(crate) fn owner_resource_scope_piece(
             return Err(too_large());
         }
         let row = w::OwnerResourceScope::decode(&limits.wire, &mut Reader::new(&item))?;
-        let row = owner_resource_scope_fields(&row, limits);
+        let row = owner_resource_scope_fields(&row);
         if rows.push(row).is_err() {
             return Err(too_large());
         }

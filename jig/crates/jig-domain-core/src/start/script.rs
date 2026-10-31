@@ -76,13 +76,12 @@ impl Core {
                 // Each restored claim is delivered once before the fleet opens placement.
                 for _ in 0..self.adopted.len() {
                     let event = self.adopted.pop().expect("restored claims are bounded by live tasks");
-                    let crate::Requests::Out(mut child) = crate::step(self, env, crate::Event::Fleet(event));
+                    let mut child = crate::step(self, env, crate::Event::Fleet(event));
                     for _ in 0..child.len() {
                         out.push(child.pop().expect("bounded fleet outputs"));
                     }
                 }
-                let crate::Requests::Out(mut child) =
-                    crate::step(self, env, crate::Event::Fleet(crate::fleet::Event::Loaded));
+                let mut child = crate::step(self, env, crate::Event::Fleet(crate::fleet::Event::Loaded));
                 for _ in 0..child.len() {
                     out.push(child.pop().expect("bounded fleet outputs"));
                 }
@@ -183,8 +182,7 @@ impl Core {
                 }
                 let pending = core::mem::replace(&mut self.start.waiting_tasks, Queue::uncapped());
                 crate::routing::start_task_outputs(self, env, pending, out);
-                let crate::Requests::Out(mut activated) =
-                    crate::step(self, env, crate::Event::Tasks(tasks::Event::Restored));
+                let mut activated = crate::step(self, env, crate::Event::Tasks(tasks::Event::Restored));
                 for _ in 0..activated.len() {
                     let request = activated.pop().expect("bounded restored activation outputs");
                     out.push(request);
@@ -277,7 +275,7 @@ impl Core {
             return;
         }
         self.start_cross_links();
-        let crate::Requests::Out(mut accounts) = crate::want_accounts(self, env);
+        let mut accounts = crate::want_accounts(self, env);
         self.start_collect_failure();
         if self.start.failure.is_some() {
             return;

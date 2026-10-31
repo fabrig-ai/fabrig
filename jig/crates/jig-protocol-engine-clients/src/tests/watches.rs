@@ -91,7 +91,7 @@ fn a_watch_admission_or_refusal_cannot_answer_another_exchange() {
             .component
             .pending
             .exchanges
-            .get(&world.component.connections.get(&second).expect("second").name.expect("exchange"))
+            .get(&world.component.connections.get(&second).expect("second").name)
             .is_some()
     );
 }
@@ -152,7 +152,7 @@ fn unwatch_answers_only_after_its_released_ending() {
         panic!("unwatch");
     };
     assert_eq!(actual, watcher);
-    let exchange = world.component.connections.get(&owner).expect("connection").name.expect("exchange");
+    let exchange = world.component.connections.get(&owner).expect("connection").name;
     world.component.down(&world.env, Event::Admitted { watcher }, &mut world.out);
     assert!(world.component.pending.exchanges.get(&exchange).is_some());
     world.component.down(

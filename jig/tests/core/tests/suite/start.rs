@@ -49,8 +49,7 @@ impl Harness {
     }
 
     fn record(&mut self, record: accounts::Stored) {
-        let core::Requests::Out(out) =
-            core::step(&mut self.core, &self.env, core::Event::Account(accounts::Event::Restore { record }));
+        let out = core::step(&mut self.core, &self.env, core::Event::Account(accounts::Event::Restore { record }));
         assert!(out.len() <= 1);
     }
 }

@@ -89,11 +89,11 @@ pub(crate) fn owner_ended_page_fields(
     })
 }
 
-pub(crate) fn owner_inbox_object_fields(value: &w::OwnerInboxObject, limits: &Limits) -> c::OwnerInboxObject {
+pub(crate) fn owner_inbox_object_fields(value: &w::OwnerInboxObject) -> c::OwnerInboxObject {
     match value {
         w::OwnerInboxObject::Question(row) => c::OwnerInboxObject::Question { message: row.message() },
         w::OwnerInboxObject::Proposal(row) => c::OwnerInboxObject::Proposal {
-            proposer: crate::translate::answers::proposer(row.proposer(), limits),
+            proposer: crate::translate::answers::proposer(row.proposer()),
             number: row.number(),
         },
         w::OwnerInboxObject::Escalation(row) => c::OwnerInboxObject::Escalation { revision: row.revision() },
@@ -104,7 +104,7 @@ pub(crate) fn owner_inbox_object_fields(value: &w::OwnerInboxObject, limits: &Li
 }
 
 #[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
-pub(crate) fn owner_inbox_cursor_fields(value: &w::OwnerInboxCursor, limits: &Limits) -> c::OwnerInboxCursor {
+pub(crate) fn owner_inbox_cursor_fields(value: &w::OwnerInboxCursor) -> c::OwnerInboxCursor {
     match value {
         w::OwnerInboxCursor::Number(row) => c::OwnerInboxCursor::Number { number: row.number() },
         w::OwnerInboxCursor::Inbox(row) => {
@@ -112,11 +112,7 @@ pub(crate) fn owner_inbox_cursor_fields(value: &w::OwnerInboxCursor, limits: &Li
                 Some(item) => Some(Wall::from_nanos(*item)),
                 None => None,
             };
-            c::OwnerInboxCursor::Inbox {
-                task: row.task(),
-                object: owner_inbox_object_fields(row.object(), limits),
-                at: opt0,
-            }
+            c::OwnerInboxCursor::Inbox { task: row.task(), object: owner_inbox_object_fields(row.object()), at: opt0 }
         }
     }
 }
@@ -132,7 +128,7 @@ pub(crate) fn owner_inbox_selection_fields(
     for item in value.goals() {
         list0.push(*item).expect("reserved supplied list");
     }
-    Ok(c::OwnerInboxSelection { cursor: owner_inbox_cursor_fields(value.cursor(), limits), goals: list0 })
+    Ok(c::OwnerInboxSelection { cursor: owner_inbox_cursor_fields(value.cursor()), goals: list0 })
 }
 
 pub(crate) fn owner_inbox_selection_piece(
@@ -197,11 +193,11 @@ pub(crate) fn owner_inbox_entry_fields(
         reply: opt0,
         task: owner_task_link_fields(value.task(), limits)?,
         project: opt1,
-        object: owner_inbox_object_fields(value.object(), limits),
+        object: owner_inbox_object_fields(value.object()),
         activity: opt2,
         at: opt3,
         unread: opt4,
-        cursor: owner_inbox_cursor_fields(value.cursor(), limits),
+        cursor: owner_inbox_cursor_fields(value.cursor()),
     })
 }
 
@@ -264,7 +260,7 @@ pub(crate) fn owner_inbox_page_fields(
 }
 
 #[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
-pub(crate) fn owner_period_times_fields(value: &w::OwnerPeriodTimes, _limits: &Limits) -> c::OwnerPeriodTimes {
+pub(crate) fn owner_period_times_fields(value: &w::OwnerPeriodTimes) -> c::OwnerPeriodTimes {
     let opt0 = match value.next() {
         Some(item) => Some(Wall::from_nanos(*item)),
         None => None,

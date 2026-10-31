@@ -11,7 +11,7 @@
 //! | Changed | Decision finishing | Open or closing | Save and one feed per connector |
 //! | Closing | Last connector settles | Absent | Erase and forget asks |
 
-use crate::{Ask, Core, CoreKey, CoreRecord, Limits, Record, Request, Requests, Write};
+use crate::{Ask, Core, CoreKey, CoreRecord, Limits, Record, Request, Write};
 use alloc::boxed::Box;
 use jig_domain_tasks as tasks;
 use skein_lib::{Env, List, Queue};
@@ -283,7 +283,7 @@ pub(crate) fn owed(core: &Core) -> bool {
 
 /// Complete a composed root decision's projection handoffs. Repeated calls
 /// retain subsequent changes but never feed a goal twice under one commit.
-pub fn finish_decision(core: &mut Core, env: &Env<Limits>) -> Requests {
+pub fn finish_decision(core: &mut Core, env: &Env<Limits>) -> Queue<Request> {
     core.start_runtime_input();
     if !owed(core) {
         return crate::routing::finish_watches(core, env);
@@ -350,22 +350,13 @@ pub fn finish_decision(core: &mut Core, env: &Env<Limits>) -> Requests {
         }
     }
     if out.is_empty() {
-        let Requests::Out(mut watches) = crate::routing::finish_watches(core, env);
+        let mut watches = crate::routing::finish_watches(core, env);
         for _ in 0..watches.len() {
-            match watches.pop().expect("watch decision outputs") {
-                Request::Decided => {}
-                request @ (Request::ProjectMade { .. }
-                | Request::Write(_)
-                | Request::Held(_)
-                | Request::Now(_)
-                | Request::Ask { .. }) => {
-                    out.push(request);
-                }
-            }
+            let request = watches.pop().expect("watch decision outputs");
+            out.push(request);
         }
     }
-    out.push(Request::Decided);
-    Requests::Out(out)
+    out
 }
 
 pub(crate) fn settled(core: &mut Core, goal: u64, connector: u16, out: &mut Queue<Request>) {

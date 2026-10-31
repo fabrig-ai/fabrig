@@ -1,5 +1,5 @@
 //! Offered topic calls are reads before they enter the task hub (authority.md, 8.5).
-use crate::{CallKey, CallPart, Core, Event, Family, Held, Limits, Request, Requests, fresh};
+use crate::{CallKey, CallPart, Core, Event, Family, Held, Limits, Request, fresh};
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
 use jig_domain_tasks as tasks;
@@ -15,24 +15,21 @@ pub(super) fn subscribe(
     connector: u16,
     topic: u64,
     resources: &[authority::Effect],
-) -> Requests {
+) -> Queue<Request> {
     let mut out = Queue::uncapped();
     if !core.current_proof(key.task, key.attempt) {
-        out.push(Request::Decided);
-        return Requests::Out(out);
+        return out;
     }
     if let Some(record) = core.call_record(key) {
         out.push(Request::Held(Box::new(Held::CallAnswer { to, key, part: record.part })));
-        out.push(Request::Decided);
-        return Requests::Out(out);
+        return out;
     }
     if core.pending_calls.contains_key(&key)
         || core.call_parts.len().saturating_add(core.pending_calls.len()) >= env.limits.call_records
         || core.counters.deployment().calls == u64::MAX
     {
         out.push(Request::Now(Box::new(crate::Now::EffectAnswer { to, key, part: CallPart::Unavailable })));
-        out.push(Request::Decided);
-        return Requests::Out(out);
+        return out;
     }
     let mut findings = Queue::uncapped();
     let answer = core.topic_admit(key, resources, &mut findings);
@@ -62,6 +59,5 @@ pub(super) fn subscribe(
     } else {
         super::runs::call_decision(core, &mut out, to, key, CallPart::Unavailable);
     }
-    out.push(Request::Decided);
-    Requests::Out(out)
+    out
 }

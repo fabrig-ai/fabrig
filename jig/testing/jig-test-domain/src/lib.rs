@@ -657,8 +657,7 @@ fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
             }
             let requests =
                 core::finish_decision(&mut domain.core, &Env { now: env.now, wall: env.wall, limits: env.limits.core });
-            let core::Requests::Out(ref out) = requests;
-            let done = out.len() == 1;
+            let done = requests.is_empty();
             route_core(domain, env, &mut decision, requests, &mut work);
             if done && work.is_empty() {
                 break;
@@ -685,7 +684,7 @@ fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
                     StartInput::Resume(continuation) => domain.core.start_resume(&core_env, continuation, &mut out),
                     StartInput::Sweep => domain.core.start_sweep(&core_env, core::start::SweepInput::Next, &mut out),
                 };
-                route_core(domain, env, &mut decision, core::Requests::Out(out), &mut work);
+                route_core(domain, env, &mut decision, out, &mut work);
                 let mut next = start_action(domain, env, &mut decision, action);
                 for _ in 0..next.len() {
                     work.push(next.pop().expect("start phase work"));

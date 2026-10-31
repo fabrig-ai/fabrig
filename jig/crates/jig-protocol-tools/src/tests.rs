@@ -354,7 +354,8 @@ fn schema(tool: &[u8]) {
         }
     }
     let declaration = declared.expect("the declared tool");
-    let schema = crate::json::parse(declaration.schema, &limits).expect("a schema is JSON");
+    let doc = crate::json::parse(declaration.schema, &limits).expect("a schema is JSON");
+    let schema = crate::json::Node::root(&doc, &limits);
     assert!(!declaration.description.is_empty());
     let mut expected = None;
     for (name, fields) in fixtures::FIELDS {
@@ -363,7 +364,7 @@ fn schema(tool: &[u8]) {
         }
     }
     for field in expected.expect("every tool has decoder fields") {
-        assert!(schema_names(&schema, field), "the schema names {field:?}");
+        assert!(schema_names(schema, field), "the schema names {field:?}");
     }
 }
 
@@ -432,12 +433,13 @@ fn the_recall_schema_parses_and_names_its_decoders_fields() {
     schema(b"recall");
 }
 
-fn schema_names(schema: &crate::json::Value, field: &[u8]) -> bool {
+fn schema_names(schema: crate::json::Node<'_>, field: &[u8]) -> bool {
     if let Some(properties) = schema.field(b"properties").expect("schema object") {
         return properties.field(field).expect("properties object").is_some();
     }
-    let choices = schema.required(b"oneOf").expect("a union schema").array().expect("schema alternatives");
-    for choice in choices {
+    let mut choices = schema.required(b"oneOf").expect("a union schema").array().expect("schema alternatives");
+    for _ in 0..choices.len() {
+        let choice = choices.next().expect("counted array element");
         let properties = choice.required(b"properties").expect("alternative properties");
         if properties.field(field).expect("properties object").is_some() {
             return true;
@@ -773,3 +775,5 @@ fn a_hold_owner_refusal_names_the_proposal_revision_and_owner() {
         assert_eq!(rendered.text.as_ref(), expected);
     }
 }
+
+mod json;

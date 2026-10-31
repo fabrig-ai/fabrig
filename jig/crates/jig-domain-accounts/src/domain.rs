@@ -124,7 +124,7 @@ enum Phase {
     Closed,
 }
 /// What an account's runs take: the first source by place that is usable; a program's not
-/// held is passed over, being usable on some host alone (T12); any other unusable source holds
+/// held is passed over, being usable on some host alone; any other unusable source holds
 /// the account until its holder acts on it (accounts.md, 3.4).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 enum Choice {
@@ -341,9 +341,9 @@ impl Domain {
         })
     }
     #[must_use]
-    pub fn credential_usable(&self, number: u32) -> bool {
+    pub fn credential_usable(&self, number: u32, now: Time) -> bool {
         match self.credentials.get(&number) {
-            Some(grant) => grant.expires > self.now,
+            Some(grant) => grant.expires > now,
             None => false,
         }
     }
@@ -549,9 +549,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
     }
 }
 fn restore(domain: &mut Domain, env: &Env<Limits>, record: Stored) {
-    if domain.phase != Phase::New {
-        return;
-    }
+    assert!(domain.phase == Phase::New, "accounts restore after link: {:?}", record.key());
     crate::restore::load(domain, env, record);
 }
 /// Finish restoration and name every party source before the component is asked for grants.
@@ -1013,12 +1011,12 @@ pub(crate) fn changed(
     }
     let held = domain.sources.get(&source).expect("settled above").hold;
     if domain.phase == Phase::Wanted && held != before {
-        out.push(Request::Save { record: stored(domain, env, source) });
+        out.push(Request::Save { record: stored(domain, source) });
     }
 }
 /// A source's record: its place in its account's order, and a limit's reset on the wall clock,
 /// so that it means the same after a restart (engine.md, 5.4).
-pub(crate) fn stored(domain: &Domain, _env: &Env<Limits>, number: u32) -> Stored {
+pub(crate) fn stored(domain: &Domain, number: u32) -> Stored {
     let entry = domain.sources.get(&number).expect("a kept source");
     let account = domain.accounts.get(&entry.account).expect("a source's account is kept");
     let mut place = None;

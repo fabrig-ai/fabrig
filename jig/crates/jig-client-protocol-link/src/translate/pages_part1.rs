@@ -15,8 +15,8 @@ pub(crate) fn history_change_fields(value: &w::HistoryChange, limits: &Limits) -
         w::HistoryChange::Released => c::HistoryChange::Released,
         w::HistoryChange::Cancelled(row) => c::HistoryChange::Cancelled { reason: text(row.reason(), limits)? },
         w::HistoryChange::Moved(row) => c::HistoryChange::Moved {
-            from: crate::translate::answers::actor(row.from(), limits),
-            to: crate::translate::answers::actor(row.to(), limits),
+            from: crate::translate::answers::actor(row.from()),
+            to: crate::translate::answers::actor(row.to()),
             reason: text(row.reason(), limits)?,
         },
     })
@@ -26,13 +26,13 @@ pub(crate) fn history_line_fields(value: &w::HistoryLine, limits: &Limits) -> Re
     Ok(c::HistoryLine {
         position: value.position(),
         task: value.task(),
-        by: crate::translate::answers::actor(value.by(), limits),
+        by: crate::translate::answers::actor(value.by()),
         at: Wall::from_nanos(value.at()),
         change: history_change_fields(value.change(), limits)?,
     })
 }
 
-pub(crate) fn owner_history_change_fields(value: &w::OwnerHistoryChange, _limits: &Limits) -> c::OwnerHistoryChange {
+pub(crate) fn owner_history_change_fields(value: &w::OwnerHistoryChange) -> c::OwnerHistoryChange {
     match value {
         w::OwnerHistoryChange::Cancelled => c::OwnerHistoryChange::Cancelled,
         w::OwnerHistoryChange::Released => c::OwnerHistoryChange::Released,
@@ -46,10 +46,10 @@ pub(crate) fn owner_history_change_fields(value: &w::OwnerHistoryChange, _limits
     }
 }
 
-pub(crate) fn address_change_fields(value: &w::AddressChange, limits: &Limits) -> c::AddressChange {
+pub(crate) fn address_change_fields(value: &w::AddressChange) -> c::AddressChange {
     c::AddressChange {
-        revision: crate::translate::answers::revision(value.revision(), limits),
-        address: crate::translate::facts::person_address(value.address(), limits),
+        revision: crate::translate::answers::revision(value.revision()),
+        address: crate::translate::facts::person_address(value.address()),
     }
 }
 
@@ -59,7 +59,7 @@ pub(crate) fn owner_retained_amendment_fields(
     limits: &Limits,
 ) -> Result<c::OwnerRetainedAmendment, w::Problem> {
     let opt0 = match value.addressed() {
-        Some(item) => Some(address_change_fields(item, limits)),
+        Some(item) => Some(address_change_fields(item)),
         None => None,
     };
     let opt1 = match value.instructions() {
@@ -79,7 +79,7 @@ pub(crate) fn owner_retained_amendment_fields(
         None => None,
     };
     let opt5 = match value.wake() {
-        Some(item) => Some(crate::translate::facts::owner_wake_policy(item, limits)),
+        Some(item) => Some(crate::translate::facts::owner_wake_policy(item)),
         None => None,
     };
     let opt6 = match value.dependencies() {
@@ -120,7 +120,7 @@ pub(crate) fn owner_retained_action_fields(
             c::OwnerRetainedAction::Batch(proposed_task_piece(row.value(), limits, limits.client.rows)?)
         }
         w::OwnerRetainedAction::Effect(row) => c::OwnerRetainedAction::Effect {
-            part: crate::translate::facts::owner_part(row.part(), limits),
+            part: crate::translate::facts::owner_part(row.part()),
             authority: owner_authority_document_fields(row.authority(), limits)?,
             attempt: row.attempt(),
             completion: row.completion(),
@@ -128,7 +128,7 @@ pub(crate) fn owner_retained_action_fields(
             purpose: row.purpose(),
         },
         w::OwnerRetainedAction::ProcedureEffect(row) => c::OwnerRetainedAction::ProcedureEffect {
-            part: crate::translate::facts::owner_part(row.part(), limits),
+            part: crate::translate::facts::owner_part(row.part()),
             authority: owner_authority_document_fields(row.authority(), limits)?,
             step: row.step(),
             purpose: row.purpose(),
@@ -228,7 +228,7 @@ pub(crate) fn activity_fields(value: &w::Activity, limits: &Limits) -> Result<c:
         },
         w::Activity::RunBegan(row) => c::Activity::RunBegan {
             attempt: row.attempt(),
-            how: run_beginning_fields(row.how(), limits),
+            how: run_beginning_fields(row.how()),
             why: text(row.why(), limits)?,
         },
         w::Activity::RunEnded(row) => c::Activity::RunEnded {
@@ -237,19 +237,19 @@ pub(crate) fn activity_fields(value: &w::Activity, limits: &Limits) -> Result<c:
             spent: row.spent(),
         },
         w::Activity::Turn(row) => {
-            c::Activity::Turn { name: turn_name_fields(row.name(), limits), turn: turn_fields(row.turn(), limits) }
+            c::Activity::Turn { name: turn_name_fields(row.name()), turn: turn_fields(row.turn(), limits) }
         }
         w::Activity::Result(row) => c::Activity::Result { result: result_fields(row.result(), limits)? },
         w::Activity::News(row) => {
             let opt0 = match row.part() {
-                Some(item) => Some(crate::translate::facts::part(item, limits)),
+                Some(item) => Some(crate::translate::facts::part(item)),
                 None => None,
             };
             c::Activity::News { topic: row.topic(), summary: text(row.summary(), limits)?, part: opt0 }
         }
         w::Activity::Decision(row) => c::Activity::Decision {
-            object: object_key_fields(row.object(), limits),
-            by: crate::translate::answers::actor(row.by(), limits),
+            object: object_key_fields(row.object()),
+            by: crate::translate::answers::actor(row.by()),
             how: crate::translate::answers::decision(row.how(), limits)?,
         },
     })
@@ -261,13 +261,13 @@ pub(crate) fn run_ending_fields(value: &w::RunEnding, limits: &Limits) -> Result
         w::RunEnding::Finished => c::RunEnding::Finished,
         w::RunEnding::Cancelled => c::RunEnding::Cancelled,
         w::RunEnding::Failed(row) => c::RunEnding::Failed {
-            class: crate::translate::facts::failure_class(row.class(), limits),
+            class: crate::translate::facts::failure_class(row.class()),
             reason: text(row.reason(), limits)?,
         },
     })
 }
 
-pub(crate) fn run_beginning_fields(value: &w::RunBeginning, _limits: &Limits) -> c::RunBeginning {
+pub(crate) fn run_beginning_fields(value: &w::RunBeginning) -> c::RunBeginning {
     match value {
         w::RunBeginning::Resumed => c::RunBeginning::Resumed,
         w::RunBeginning::Fresh(row) => c::RunBeginning::Fresh { tail: row.tail_count() },

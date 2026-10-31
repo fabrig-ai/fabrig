@@ -36,7 +36,7 @@ pub(super) fn encode_deployment(
         },
     )
 }
-pub(super) fn decode_deployment(source: wire::Deployment, _limits: &Limits) -> domain::Deployment {
+pub(super) fn decode_deployment(source: wire::Deployment) -> domain::Deployment {
     let wire::DeploymentParts {
         id,
         tasks,
@@ -106,7 +106,7 @@ pub(super) fn encode_turn_proof(source: &domain::TurnProof, limits: &Limits) -> 
     let domain::TurnProof { turn, cumulative, read } = source;
     wire::TurnProof::new(&limits.core, wire::TurnProofParts { turn: *turn, cumulative: *cumulative, read: *read })
 }
-pub(super) fn decode_turn_proof(source: wire::TurnProof, _limits: &Limits) -> domain::TurnProof {
+pub(super) fn decode_turn_proof(source: wire::TurnProof) -> domain::TurnProof {
     let wire::TurnProofParts { turn, cumulative, read } = source.into_parts();
     domain::TurnProof { turn, cumulative, read }
 }
@@ -145,7 +145,7 @@ pub(super) fn encode_run_proof(source: &domain::RunProof, limits: &Limits) -> Re
             credentials: encode_credentials(credentials, limits)?,
             window: encode_window(*window, limits)?,
             crossed: *crossed,
-            host: super::encode_host_kind(host, limits),
+            host: super::encode_host_kind(host),
             offered: *offered,
             outstanding: encode_outstanding(outstanding, limits)?,
             turn: match turn {
@@ -198,12 +198,12 @@ pub(super) fn decode_run_proof(source: wire::RunProof, limits: &Limits) -> Resul
             None => None,
         },
         crossed,
-        host: super::decode_host_kind(host, limits),
+        host: super::decode_host_kind(host),
         offered,
         outstanding: decode_outstanding(outstanding),
         turn: match turn {
             Some(value) => {
-                let result = decode_turn_proof(value, limits);
+                let result = decode_turn_proof(value);
                 Some(result)
             }
             None => None,
@@ -233,7 +233,7 @@ pub(super) fn encode_turn_record(
         },
     )
 }
-pub(super) fn decode_turn_record(source: wire::TurnRecord, _limits: &Limits) -> domain::TurnRecord {
+pub(super) fn decode_turn_record(source: wire::TurnRecord) -> domain::TurnRecord {
     let wire::TurnRecordParts { opens_window, task, attempt, turn, spent, read, at, transcript } = source.into_parts();
     domain::TurnRecord { opens_window, task, attempt, turn, spent, read, at: Wall::from_nanos(at), transcript }
 }
@@ -248,28 +248,25 @@ pub(super) fn encode_proposal_decision_record(
             project: *project,
             proposer: super::encode_proposer(proposer, limits)?,
             proposal: *proposal,
-            kind: super::encode_proposal_kind(kind, limits),
+            kind: super::encode_proposal_kind(kind),
             by: *by,
             at: at.as_nanos(),
-            choice: super::encode_proposal_choice(choice, limits),
+            choice: super::encode_proposal_choice(choice),
             created: encode_created(*created, limits)?,
         },
     )
 }
-pub(super) fn decode_proposal_decision_record(
-    source: wire::ProposalDecisionRecord,
-    limits: &Limits,
-) -> domain::ProposalDecisionRecord {
+pub(super) fn decode_proposal_decision_record(source: wire::ProposalDecisionRecord) -> domain::ProposalDecisionRecord {
     let wire::ProposalDecisionRecordParts { project, proposer, proposal, kind, by, at, choice, created } =
         source.into_parts();
     domain::ProposalDecisionRecord {
         project,
-        proposer: super::decode_proposer(proposer, limits),
+        proposer: super::decode_proposer(proposer),
         proposal,
-        kind: super::decode_proposal_kind(kind, limits),
+        kind: super::decode_proposal_kind(kind),
         by,
         at: Wall::from_nanos(at),
-        choice: super::decode_proposal_choice(choice, limits),
+        choice: super::decode_proposal_choice(choice),
         created: match created {
             Some(value) => {
                 let result = read_created(value);
@@ -299,7 +296,6 @@ pub(super) fn encode_escalation_decision_record(
 }
 pub(super) fn decode_escalation_decision_record(
     source: wire::EscalationDecisionRecord,
-    limits: &Limits,
 ) -> domain::EscalationDecisionRecord {
     let wire::EscalationDecisionRecordParts { project, requester, task, revision, by, at, decision } =
         source.into_parts();
@@ -310,7 +306,7 @@ pub(super) fn decode_escalation_decision_record(
         revision,
         by,
         at: Wall::from_nanos(at),
-        decision: super::decode_escalation_decision(decision, limits),
+        decision: super::decode_escalation_decision(decision),
     }
 }
 fn encode_window(value: Option<domain::CurrentWindow>, limits: &Limits) -> Result<Option<wire::Window>, wire::Problem> {

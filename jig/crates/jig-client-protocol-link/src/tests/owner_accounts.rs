@@ -299,7 +299,7 @@ fn account_capacity_labels_decode_without_account_payloads() {
         wire.encode(&mut writer).unwrap();
         let bytes = writer.finish();
         let decoded = w::OwnerPersonCapacityAction::decode(&limits.wire, &mut skein_lib::Reader::new(&bytes)).unwrap();
-        assert_eq!(crate::translate::documents::owner_person_capacity_action_fields(&decoded, &limits), expected);
+        assert_eq!(crate::translate::documents::owner_person_capacity_action_fields(&decoded), expected);
     }
 }
 

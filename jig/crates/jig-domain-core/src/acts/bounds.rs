@@ -417,8 +417,8 @@ pub(crate) fn amendment_admit_places_in(
     if !tasks::valid_authority(limits, after) {
         return Err(people::Refusal::Limit { which: people::LimitKind::Authority });
     }
-    let before = translate::authority_value(context.authority);
-    let after = translate::authority_value(after);
+    let before = translate::tasks_authority(context.authority);
+    let after = translate::tasks_authority(after);
     let implies = &core.authority.rules().implies;
     let stop_run = !authority::at_most(&before, &after, implies);
     if authority::at_most(&after, &before, implies) {

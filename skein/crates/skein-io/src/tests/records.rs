@@ -2,7 +2,7 @@
 
 use super::addr;
 use crate::kernel::{Exit, ServiceSignal};
-use crate::{Error, Event, Measured, Window};
+use crate::{Error, Event, Measured, Request, Window};
 use skein_lib::{Token, stream};
 
 fn owned(owner: Token) -> [Event; 12] {
@@ -64,4 +64,50 @@ fn the_test_preset_is_usable_and_allows_entrance_overrides() {
     let changed = crate::Limits { sockets: 2, intake: 8, ..crate::Limits::TEST };
     assert_eq!(changed.largest_read(), 8);
     assert!(crate::valid(&changed));
+}
+
+fn owned_requests(owner: Token) -> [Request; 6] {
+    let entity = Token::new(99);
+    [
+        Request::Listen { owner, addr: addr(100) },
+        Request::Connect { owner, addr: addr(101) },
+        Request::Bind { socket: entity, owner },
+        Request::Spawn { owner, spawn: super::process::command(&[(7, crate::kernel::Way::Out)]) },
+        Request::Usage { owner },
+        Request::Window { owner, stream: entity },
+    ]
+}
+
+#[test]
+fn request_routing_preserves_every_owned_payload() {
+    let original = Token::new(1);
+    let destination = Token::new(2);
+    for (request, expected) in owned_requests(original).into_iter().zip(owned_requests(destination)) {
+        assert_eq!(request.owner(), Some(original));
+        let remapped = request.with_owner(destination);
+        assert_eq!(remapped.owner(), Some(destination));
+        assert_eq!(remapped, expected);
+    }
+}
+
+fn entity_requests() -> [Request; 6] {
+    let entity = Token::new(99);
+    [
+        Request::Reject { socket: entity },
+        Request::Stream { stream: entity, down: stream::Down::Demand { read: stream::Read::Fill(2), room: 3 } },
+        Request::Output { stream: entity, down: stream::OutputDown::Room { right: Token::new(5), bytes: 8 } },
+        Request::Signal { child: entity, signal: crate::kernel::Signal::Terminate, to: crate::kernel::Target::Group },
+        Request::Close { entity },
+        Request::Abort { entity },
+    ]
+}
+
+#[test]
+fn entity_only_requests_remain_ownerless_and_keep_their_payload() {
+    for (request, expected) in entity_requests().into_iter().zip(entity_requests()) {
+        assert_eq!(request.owner(), None);
+        let remapped = request.with_owner(Token::new(2));
+        assert_eq!(remapped.owner(), None);
+        assert_eq!(remapped, expected);
+    }
 }

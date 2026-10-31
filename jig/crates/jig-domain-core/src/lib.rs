@@ -55,10 +55,7 @@ mod numbers;
 mod person_task;
 mod policy;
 mod projects;
-pub use policy::{
-    authority_to_authority, authority_to_people, grants_to_authority, pattern_to_people, requirement_to_authority,
-    snapshot as policy_snapshot,
-};
+pub use policy::{grants_to_authority, snapshot as policy_snapshot};
 mod projections;
 pub use projections::{
     MilestoneId, Projection, ProjectionFeed, ProjectionGoal, ProjectionKey, ProjectionMilestone, ProjectionRecord,
@@ -88,7 +85,7 @@ mod sibling_routes;
 pub use numbers::{Counters, Deployment, Family, fresh};
 pub use routing::{
     Ask, Carried, CoreBriefBudgets, EscalationChoice, Event, Held, Limits, NamedAction, Now, PayloadRefusal,
-    ProposalChoice, Request, Requests, StepRefusal, Timer, ToolKind, WatchRefusal, Write, fire, resume_fleet, step,
+    ProposalChoice, Request, StepRefusal, Timer, ToolKind, WatchRefusal, Write, fire, resume_fleet, step,
     want_accounts,
 };
 pub use sibling_routes::{MadeRoute, PersonMessage, SentRoute};
@@ -110,7 +107,9 @@ pub use stored::{
     CallKey, CallPart, CallRecord, CallReplay, CoreKey, CoreRecord, CurrentWindow, EscalationDecisionRecord, Key, Made,
     ProposalDecisionRecord, Record, Restored, RunProof, TerminalRecord, TurnProof, TurnRecord,
 };
-pub use translate::task_authority;
+pub use translate::{
+    authority_to_people, pattern_to_people, people_authority, requirement_to_authority, task_authority,
+};
 
 use alloc::boxed::Box;
 use jig_domain_accounts as accounts;
@@ -759,7 +758,7 @@ impl Core {
             due: Queue::uncapped(),
             adopted: Queue::uncapped(),
             tasks: tasks::Domain::new(
-                &settings::task_limits(limits),
+                &limits.tasks,
                 config.seed,
                 current.newest(),
                 charters::models(&current, &config.settings, limits),
@@ -778,7 +777,7 @@ impl Core {
                 config.grants,
             ),
             fleet: {
-                let mut fleet = fleet::Domain::new(&settings::fleet_limits(limits), fleet_needs, {
+                let mut fleet = fleet::Domain::new(&limits.fleet, fleet_needs, {
                     let mut names = List::with_capacity(tasks::MODELS);
                     for model in &config.settings.models {
                         names.push(model.name.clone()).expect("catalogue bound");

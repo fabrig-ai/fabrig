@@ -151,7 +151,7 @@ pub(crate) fn wire_wake_rule(value: &c::WakeRule, limits: &w::Limits) -> Result<
     })
 }
 
-pub(crate) fn wire_results_wake(value: c::ResultsWake, _limits: &w::Limits) -> w::ResultsWake {
+pub(crate) fn wire_results_wake(value: c::ResultsWake) -> w::ResultsWake {
     match value {
         c::ResultsWake::Never => w::ResultsWake::Never,
         c::ResultsWake::Each => w::ResultsWake::Each,
@@ -169,7 +169,7 @@ pub(crate) fn wire_owner_wake_policy(
             words: wire_wake_rule(&value.words, limits)?,
             notices: wire_wake_rule(&value.notices, limits)?,
             news: wire_wake_rule(&value.news, limits)?,
-            results: wire_results_wake(value.results, limits),
+            results: wire_results_wake(value.results),
             questions: value.questions,
             answers: value.answers,
             timers: value.timers,

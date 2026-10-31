@@ -68,7 +68,7 @@ impl Core {
             Some(numbers) => numbers,
             None => fallback,
         };
-        let mut giving = translate::authority_value(context.authority);
+        let mut giving = translate::tasks_authority(context.authority);
         giving.budget.spend = left;
         let mut findings = Queue::uncapped();
         let ask = authority::PersonAsk {
