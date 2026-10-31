@@ -318,8 +318,6 @@ mod tests {
     #[test]
     fn a_turn_shows_the_tool_name_and_its_terminal() {
         let turn = agent::Turn {
-            model: b"model".as_slice().into(),
-            effort: None,
             kind: session::record::Kind::First(Box::new(session::record::Opener {
                 affinity: session::llm::Affinity { key: [0; 16], thread: 0 },
                 account: None,
@@ -327,11 +325,6 @@ mod tests {
             })),
             version: 1,
             endpoint: Some(session::llm::Endpoint(1)),
-            dialect: 1,
-            sequence: 1,
-            usage: session::llm::Usage::ZERO,
-            spent: 0,
-            jobs: 0,
             messages: Box::new([session::llm::Message {
                 role: session::llm::Role::Assistant,
                 content: Box::new([
@@ -353,6 +346,7 @@ mod tests {
                     },
                 ]),
             }]),
+            ..crate::fixture::turn()
         };
         assert_eq!(turn_text(&turn, 128).as_ref(), b"Working\nTool: inspect\nTool finished\n");
     }

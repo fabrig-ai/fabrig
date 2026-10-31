@@ -225,21 +225,8 @@ pub(crate) mod tests {
         entries.push(channel::Endpoint { name: Box::from(&b"main"[..]), number: 2, dialect: 1 }).expect("one endpoint");
         let endpoints = Endpoints::new(entries);
         let turn = smith_domain::Turn {
-            model: b"model".as_slice().into(),
-            effort: None,
-            kind: smith_domain::session::record::Kind::First(Box::new(smith_domain::session::record::Opener {
-                affinity: smith_domain::llm::Affinity { key: [0; 16], thread: 0 },
-                account: None,
-                backend: smith_domain::session::record::Backend::Direct,
-            })),
-            version: smith_domain::session::record::VERSION,
             endpoint: Some(smith_domain::session::llm::Endpoint(2)),
-            dialect: 1,
-            sequence: 1,
-            usage: smith_domain::session::llm::Usage::ZERO,
-            spent: 0,
-            jobs: 0,
-            messages: Box::new([]),
+            ..smith_local_domain::fixture::turn()
         };
         (endpoints, turn)
     }

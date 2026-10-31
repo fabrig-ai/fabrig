@@ -58,30 +58,32 @@ pub(crate) fn config() -> Config {
     let queue = EXTERNAL_QUEUE_SLOTS;
     let agent_limits = smith_agent_process_world::limits();
     let mut process = ProcessLimits {
-        io: skein_io::Limits {
-            sockets: 8,
-            names: 0,
-            refusals: 1,
-            intake: 4096,
-            receive: 4096,
-            output: 1_000_000,
-            sends: 8,
-            accepts: 1,
-            backlog: 2,
-            close_timeout: Duration::from_secs(1),
-            retry: Duration::from_millis(1),
-        },
-        channel: smith_host_protocol::Limits {
-            bodies: agent_limits.channel.bodies,
-            charter: agent_limits.channel.charter,
-            transcript: agent_limits.channel.transcript,
-            endpoints: agent_limits.channel.endpoints,
-            channel: agent_limits.channel.channel,
-            start_bytes: agent_limits.channel.start_bytes,
-            calls: host_limits.calls,
-        },
         detail_bytes: host_limits.detail_bytes,
         queue,
+        ..crate::fixture::process(
+            skein_io::Limits {
+                sockets: 8,
+                names: 0,
+                refusals: 1,
+                intake: 4096,
+                receive: 4096,
+                output: 1_000_000,
+                sends: 8,
+                accepts: 1,
+                backlog: 2,
+                close_timeout: Duration::from_secs(1),
+                retry: Duration::from_millis(1),
+            },
+            smith_host_protocol::Limits {
+                bodies: agent_limits.channel.bodies,
+                charter: agent_limits.channel.charter,
+                transcript: agent_limits.channel.transcript,
+                endpoints: agent_limits.channel.endpoints,
+                channel: agent_limits.channel.channel,
+                start_bytes: agent_limits.channel.start_bytes,
+                calls: host_limits.calls,
+            },
+        )
     };
     process.channel.channel.output_bytes =
         smith_host_protocol::output_bytes(&process.channel).expect("host directional frame");
@@ -122,7 +124,7 @@ pub(crate) fn config() -> Config {
             workspace: None,
             push: None,
         },
-        limits: Limits { local: local_limits, envelope_bytes, process, queue, watermark: queue },
+        limits: Limits { envelope_bytes, queue, watermark: queue, ..crate::fixture::small(local_limits, process) },
         endpoints: smith_protocol_channel::Endpoints::new(List::with_capacity(0)),
         paths: Box::new([]),
         launch: Launch {

@@ -199,23 +199,7 @@ fn told_and_withdrawn_do_not_abandon_a_durable_delivery() {
 #[test]
 fn a_parent_turn_moves_its_concrete_value_to_the_durable_store() {
     let (mut domain, env, mut out) = running(crate::tests::config());
-    let turn = smith_domain::Turn {
-        model: b"model".as_slice().into(),
-        effort: None,
-        kind: session::record::Kind::First(Box::new(session::record::Opener {
-            affinity: smith_domain::llm::Affinity { key: [0; 16], thread: 0 },
-            account: None,
-            backend: session::record::Backend::Direct,
-        })),
-        version: session::record::VERSION,
-        endpoint: Some(session::llm::Endpoint(4)),
-        dialect: 1,
-        sequence: 1,
-        usage: session::llm::Usage::NONE,
-        spent: 29,
-        jobs: 0,
-        messages: Box::default(),
-    };
+    let turn = smith_domain::Turn { usage: session::llm::Usage::NONE, spent: 29, ..crate::fixture::turn() };
     let expected = turn.clone();
     parent_request(
         &mut domain,

@@ -291,23 +291,7 @@ fn budget_and_rate_refusals_precede_agent_construction() {
 fn spawned_agent_receives_saved_start_message_and_durable_turn_ack() {
     use smith_host_domain::{self as host, process};
     let (mut domain, env, mut out, owner) = spawned_chat_with_saved_hello();
-    let turn = smith_domain::Turn {
-        model: b"model".as_slice().into(),
-        effort: None,
-        kind: smith_domain::session::record::Kind::First(Box::new(smith_domain::session::record::Opener {
-            affinity: smith_domain::llm::Affinity { key: [0; 16], thread: 0 },
-            account: None,
-            backend: smith_domain::session::record::Backend::Direct,
-        })),
-        version: smith_domain::session::record::VERSION,
-        endpoint: Some(smith_domain::session::llm::Endpoint(4)),
-        dialect: 1,
-        sequence: 1,
-        usage: smith_domain::session::llm::Usage::ZERO,
-        spent: 0,
-        jobs: 0,
-        messages: Box::default(),
-    };
+    let turn = crate::fixture::turn();
     crate::step(
         &mut domain,
         &env,
@@ -572,23 +556,7 @@ fn a_one_turn_configuration_keeps_scalar_and_completion_startup_checks() {
 }
 
 pub(super) fn saved_window_turn() -> smith_domain::Turn {
-    smith_domain::Turn {
-        model: b"model".as_slice().into(),
-        effort: None,
-        kind: smith_domain::session::record::Kind::First(Box::new(smith_domain::session::record::Opener {
-            affinity: smith_domain::llm::Affinity { key: [0; 16], thread: 0 },
-            account: None,
-            backend: smith_domain::session::record::Backend::Direct,
-        })),
-        version: smith_domain::session::record::VERSION,
-        endpoint: Some(smith_domain::session::llm::Endpoint(4)),
-        dialect: 1,
-        sequence: 1,
-        usage: smith_domain::session::llm::Usage::ZERO,
-        spent: 0,
-        jobs: 0,
-        messages: Box::default(),
-    }
+    crate::fixture::turn()
 }
 
 #[test]

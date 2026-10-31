@@ -3582,6 +3582,7 @@ dependencies = [
  "smith-local-domain",
  "smith-local-process-world",
  "smith-local-protocol",
+ "smith-local-service",
  "smith-protocol-channel",
  "smith-protocol-program",
  "smith-transcript",
