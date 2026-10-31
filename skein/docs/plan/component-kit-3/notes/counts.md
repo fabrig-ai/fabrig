@@ -12,7 +12,7 @@ adds them; each later task lowers them with `--write` for what it removes.
 | `Lifecycle` | `\benum\s+Lifecycle\b` | `crates/skein-lib/` | 3 | 1 |
 | `GROWTH_FLOOR` | `\bconst\s+GROWTH_FLOOR\b` | (everywhere) | 5 | 1 |
 | `pop_loop` | `for _ in 0\.\.[^{;]*\{\s*(?:drop\(\|let _ = )?[\w.]+\.pop\(\)\)?;\s*\}` | (everywhere) | 21 | 0 |
-| `hex_decimal` | `\bfn\s+(?:hex\|decimal)\b` | `crates/skein-lib/` | 26 | 5 |
+| `hex_decimal` | `\bfn\s+(?:hex\|decimal)\b` | `crates/skein-lib/` | 26 | 9 |
 | `forwarded_host` | `\bimpl\s+(?:\w+::)*Host\s+for\s+Process\b` | (everywhere) | 11 | 2 |
 
 In the table, `\|` is the table's escape of a regex `|`. "Outside" is a
@@ -28,7 +28,10 @@ What stays at each target, and why:
   Closed }` is a scripted child's, not a component's (programming-model.md,
   5.2).
 - `GROWTH_FLOOR`: lib's one growth rule keeps the one floor.
-- `hex_decimal`: five functions that are not copies of lib's helpers:
+- `hex_decimal`: four writers that already call lib's `Decimal::of` and
+  only adapt its digits to where they go (`skein-fake-forge-domain/src/actions.rs`,
+  `skein-fake-forge-github/src/rates.rs`, `skein-forge-setup/src/github/app.rs`,
+  `skein-ui/src/phrases.rs`); and five functions that are not copies of lib's helpers:
   `skein-fake-forge-github/src/pages.rs` (random hex), `skein-forge-setup/src/reconcile.rs`
   (a secret written as hex), `skein-json/src/string.rs` (a `\u` escape's
   accumulator), `skein-fake-llm-protocol/src/provider/inflate.rs` (a test's

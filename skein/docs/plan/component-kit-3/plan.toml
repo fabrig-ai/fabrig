@@ -46,6 +46,13 @@ mode = "direct"
 needs = []
 design = "skein/docs/design/draft/component-kit.md, 3.5"
 
+[[part]]
+id = "lib-sites"
+title = "the private copies of lib's primitives moved onto lib, one crate per task"
+mode = "direct"
+needs = []
+design = "skein/docs/design/draft/component-kit.md, 3.4"
+
 [[slice]]
 id = 1
 story = "the echo example's host runs on skein_io::stage, its story test green"
@@ -55,7 +62,7 @@ walk = false
 [[slice]]
 id = 2
 story = "every io stage site and every private copy of lib's primitives moved, the counts at their targets"
-parts = ["counts"]
+parts = ["counts", "lib-sites"]
 walk = false
 
 [[slice]]
