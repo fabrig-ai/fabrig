@@ -24,6 +24,16 @@ pub(crate) fn sent_requests(bytes: &[u8]) -> u64 {
         })
         .count() as u64
 }
+/// The request lines in the sends still queued for io.
+fn queued_requests(below: &Queue<skein_io::Request>) -> u64 {
+    let mut lines = 0;
+    for request in below {
+        if let skein_io::Request::Stream { down: Down::Send(bytes), .. } = request {
+            lines += sent_requests(bytes);
+        }
+    }
+    lines
+}
 pub(super) struct Hosted {
     component: Component,
     env: Env<skein_forge_connection::Limits>,
@@ -250,33 +260,17 @@ impl Host for Hosted {
         self.env.wall = wall;
         self.io_env.now = now;
         self.io_env.wall = wall;
-        while self.io.is_ready() {
-            skein_io::resume(&mut self.io, &self.io_env, &mut self.events, &mut self.submit);
-        }
-        while let Some(c) = self.complete.pop() {
-            skein_io::up(&mut self.io, &self.io_env, c, &mut self.events, &mut self.submit);
-            while self.io.is_ready() {
-                skein_io::resume(&mut self.io, &self.io_env, &mut self.events, &mut self.submit);
-            }
-        }
-        while self.io.is_due(now) {
-            skein_io::fire(&mut self.io, &self.io_env, &mut self.events, &mut self.submit);
-        }
+        skein_io::stage::up(&mut self.io, &self.io_env, &mut self.complete, &mut self.events, &mut self.submit, now);
         while let Some(e) = self.events.pop() {
             self.component.up(&self.env, e, &mut self.above, &mut self.below);
         }
         if self.component.next_deadline().is_some_and(|at| at <= now) {
             self.component.fire(&self.env, &mut self.above, &mut self.below);
         }
-        while self.io.takes() {
-            let Some(r) = self.below.pop() else {
-                break;
-            };
-            if let skein_io::Request::Stream { down: Down::Send(bytes), .. } = &r {
-                self.sent += sent_requests(bytes);
-            }
-            skein_io::down(&mut self.io, &self.io_env, r, &mut self.submit);
-        }
+        // What io takes leaves the front of the queue: count its request lines as the difference.
+        let queued = queued_requests(&self.below);
+        skein_io::stage::down(&mut self.io, &self.io_env, &mut self.below, &mut self.submit);
+        self.sent += queued - queued_requests(&self.below);
         while let Some(e) = self.above.pop() {
             match e {
                 Event::Installation { .. } | Event::Fact { .. } | Event::GitToken { .. } => panic!("Forgejo fixture"),
