@@ -488,25 +488,8 @@ impl Core {
                 }
             }
             crate::start::StartMode::LoadAndLink => {
-                assert!(
-                    self.authority.policy(project).is_none(),
-                    "duplicate {:?}",
-                    crate::Key::People(people::Key::Policy(project))
-                );
-                for (held, limit) in [
-                    (self.projects.len(), self.projects.capacity()),
-                    (self.names.len(), self.names.capacity()),
-                    (self.permission_roles.len(), self.permission_roles.capacity()),
-                    (self.template_overrides.len(), self.template_overrides.capacity()),
-                ] {
-                    if !self.start_room(
-                        crate::start::LiveSet::Projects,
-                        crate::Key::People(people::Key::Policy(project)),
-                        held,
-                        limit,
-                    ) {
-                        return false;
-                    }
+                if !self.start_policy_room(project) {
+                    return false;
                 }
             }
         }
@@ -573,11 +556,40 @@ impl Core {
                 self.names.insert(project, name).expect("preflighted name room");
                 true
             }
-            authority::PolicyFact::Refused { .. } => false,
+            authority::PolicyFact::Refused { .. } => {
+                if self.start.mode == crate::start::StartMode::LoadAndLink {
+                    self.refuse_restore(crate::RestartRequest::ProjectPolicy { project });
+                }
+                false
+            }
             authority::PolicyFact::Changed { .. } | authority::PolicyFact::Dropped { .. } => {
                 unreachable!("absent project policy restoration")
             }
         }
+    }
+
+    fn start_policy_room(&mut self, project: u32) -> bool {
+        assert!(
+            self.authority.policy(project).is_none(),
+            "duplicate {:?}",
+            crate::Key::People(people::Key::Policy(project))
+        );
+        for (held, limit) in [
+            (self.projects.len(), self.projects.capacity()),
+            (self.names.len(), self.names.capacity()),
+            (self.permission_roles.len(), self.permission_roles.capacity()),
+            (self.template_overrides.len(), self.template_overrides.capacity()),
+        ] {
+            if !self.start_room(
+                crate::start::LiveSet::Projects,
+                crate::Key::People(people::Key::Policy(project)),
+                held,
+                limit,
+            ) {
+                return false;
+            }
+        }
+        true
     }
 }
 

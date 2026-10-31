@@ -26,14 +26,20 @@ impl Harness {
             env: Env { now: Time::ZERO, wall: Wall::from_nanos(10), limits: limits.core },
             out: Queue::uncapped(),
         };
-        phase(h.core.start_begin(pending, h.env.wall), Phase::LoadCore);
+        phase(&h.core.start_begin(pending, h.env.wall), Phase::LoadCore);
         for row in world.store.rows.values() {
             if let root::Record::Core(core::Record::Core(row)) = row {
                 match row {
                     core::CoreRecord::Deployment(_) | core::CoreRecord::Settings(_) => {
                         assert_ne!(h.core.restore_core(row.clone(), &h.env.limits), core::Restored::Rejected);
                     }
-                    _ => {}
+                    core::CoreRecord::Projection(_)
+                    | core::CoreRecord::Call(_)
+                    | core::CoreRecord::RunProof(_)
+                    | core::CoreRecord::Turn(_)
+                    | core::CoreRecord::Terminal(_)
+                    | core::CoreRecord::ProposalDecision(_)
+                    | core::CoreRecord::EscalationDecision(_) => {}
                 }
             }
         }
@@ -41,20 +47,20 @@ impl Harness {
     }
 
     fn link(&mut self) -> Action {
-        phase(self.core.start_done(&self.env, Phase::LoadCore, &mut self.out), Phase::LoadInbox);
+        phase(&self.core.start_done(&self.env, Phase::LoadCore, &mut self.out), Phase::LoadInbox);
         let mut previous = Phase::LoadInbox;
         for connector in self.core.connectors.clone() {
             let next = Phase::RestoreConnector { connector };
-            phase(self.core.start_done(&self.env, previous, &mut self.out), next);
+            phase(&self.core.start_done(&self.env, previous, &mut self.out), next);
             previous = next;
         }
-        phase(self.core.start_done(&self.env, previous, &mut self.out), Phase::Link);
+        phase(&self.core.start_done(&self.env, previous, &mut self.out), Phase::Link);
         self.core.start_done(&self.env, Phase::Link, &mut self.out)
     }
 }
 
-fn phase(action: Action, expected: Phase) {
-    assert!(matches!(action, Action::Step(found) if found == expected));
+fn phase(action: &Action, expected: Phase) {
+    assert!(matches!(action, Action::Step(found) if *found == expected));
 }
 
 #[test]
@@ -83,7 +89,9 @@ fn changed_defaults_commit_the_release_revision_before_sweep_and_switch() {
                         assert_eq!(oldest, 1);
                         extent = true;
                     }
-                    _ => panic!("unexpected settings release row"),
+                    settings::Record::Changed { .. }
+                    | settings::Record::Charter { .. }
+                    | settings::Record::Proposal { .. } => panic!("unexpected settings release row"),
                 },
                 core::Write::CopySettingsRevision(number) => {
                     assert_eq!(number, 1);
@@ -93,7 +101,7 @@ fn changed_defaults_commit_the_release_revision_before_sweep_and_switch() {
                     assert_eq!(key, core::Key::Core(core::CoreKey::Settings(settings::Key::Held(1))));
                     erased = true;
                 }
-                _ => panic!("unexpected release write"),
+                core::Write::Save(_) => panic!("unexpected release write"),
             }
         }
         let default = default.expect("changed default");
@@ -118,18 +126,18 @@ fn changed_defaults_commit_the_release_revision_before_sweep_and_switch() {
             h.core.start_sweep(&h.env, SweepInput::Finished, &mut h.out)
         }));
         assert!(early.is_err());
-        phase(h.core.start_resume(&h.env, release, &mut h.out), Phase::Sweep);
-        phase(h.core.start_sweep(&h.env, SweepInput::Finished, &mut h.out), Phase::Switch);
+        phase(&h.core.start_resume(&h.env, release, &mut h.out), Phase::Sweep);
+        phase(&h.core.start_sweep(&h.env, SweepInput::Finished, &mut h.out), Phase::Switch);
     }
 }
 
 #[test]
 fn unchanged_settings_go_directly_to_sweep_without_a_release_commit() {
     let mut h = Harness::stored(false, false);
-    phase(h.link(), Phase::Sweep);
+    phase(&h.link(), Phase::Sweep);
     assert!(h.out.is_empty());
     assert_eq!(h.core.current.newest(), 1);
-    phase(h.core.start_sweep(&h.env, SweepInput::Finished, &mut h.out), Phase::Switch);
+    phase(&h.core.start_sweep(&h.env, SweepInput::Finished, &mut h.out), Phase::Switch);
 }
 
 #[test]
@@ -178,7 +186,7 @@ fn stored_proposal_consistency_is_not_rejudged_at_link() {
         ),
         core::Restored::Live
     );
-    phase(h.link(), Phase::Sweep);
+    phase(&h.link(), Phase::Sweep);
     assert_eq!(h.core.start_failure(), None);
     assert!(h.out.is_empty());
 }

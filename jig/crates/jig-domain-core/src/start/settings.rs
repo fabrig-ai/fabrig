@@ -18,7 +18,8 @@ impl Core {
             return self.start_failure();
         }
         for _ in 0..writes.len() {
-            out.push(writes.pop().expect("settings release writes"));
+            let request = writes.pop().expect("settings release writes");
+            out.push(request);
         }
         None
     }
