@@ -29,7 +29,7 @@ pub(in crate::credentials) fn run(
     environment: &Environment,
 ) -> Result<LoginOutcome, String> {
     let logout = operation == Operation::SignOut;
-    let prior = sign_in::record(file)?;
+    let prior = sign_in::record(file).map_err(sign_in::RecordFailure::line)?;
     if logout && prior.is_none() {
         eprintln!("account {}: signed out", account.name);
         return Ok(LoginOutcome::Usable);

@@ -40,10 +40,7 @@ fn configured(account: &Account, codex: bool) -> Result<oauth::Registration, Ref
         },
         client_secret: None,
         pkce_for_confidential: false,
-        metadata_claim: codex.then(|| oauth::ClaimSelector {
-            object: b"https://api.openai.com/auth".as_slice().into(),
-            field: b"chatgpt_account_id".as_slice().into(),
-        }),
+        metadata_claim: codex.then(super::codex_selector),
     };
     issuer(text(account, "authorization_url")?).map_err(|why| refuse(account, "authorization_url", why))?;
     issuer(text(account, "token_url")?).map_err(|why| refuse(account, "token_url", why))?;
@@ -164,13 +161,25 @@ pub(super) fn document_limits() -> oauth::Limits {
     limits
 }
 
-pub(super) fn record(file: &std::path::Path) -> Result<Option<oauth::SavedToken>, String> {
+#[derive(Debug)]
+pub(crate) enum RecordFailure {
+    Invalid,
+    Unreadable,
+}
+
+impl RecordFailure {
+    pub(crate) fn line(self) -> String {
+        "unreadable sign-in record".into()
+    }
+}
+
+pub(super) fn record(file: &std::path::Path) -> Result<Option<oauth::SavedToken>, RecordFailure> {
     match skein_shell::read_private_file(file, document_limits().record_bytes, skein_shell::effective_user()) {
-        Ok(bytes) => oauth::decode_record(bytes.expose(), &document_limits())
-            .map(Some)
-            .map_err(|_| "unreadable sign-in record".into()),
+        Ok(bytes) => {
+            oauth::decode_record(bytes.expose(), &document_limits()).map(Some).map_err(|_| RecordFailure::Invalid)
+        }
         Err(skein_shell::Unread::Absent) => Ok(None),
-        Err(_) => Err("unreadable sign-in record".into()),
+        Err(_) => Err(RecordFailure::Unreadable),
     }
 }
 
@@ -182,27 +191,22 @@ pub(super) fn inspect(
     if !file.is_absolute() {
         return super::Credential::NotSignedIn;
     }
-    match skein_shell::read_private_file(file, document_limits().record_bytes, skein_shell::effective_user()) {
-        Ok(bytes) => match oauth::decode_record(bytes.expose(), &document_limits()).ok() {
-            Some(record) => {
-                if let Some(required) = required_scopes {
-                    let missing = scopes::missing(required, &record);
-                    if !missing.is_empty() {
-                        return super::Credential::WithoutScope {
-                            scope: String::from_utf8_lossy(&missing).into_owned(),
-                        };
-                    }
-                }
-                if record.remaining(wall) > skein_lib::Duration::ZERO || record.refresh_token.is_some() {
-                    super::Credential::Usable { until: Some(record.expires_at.as_nanos()) }
-                } else {
-                    super::Credential::SignInAgain
+    match record(file) {
+        Ok(Some(record)) => {
+            if let Some(required) = required_scopes {
+                let missing = scopes::missing(required, &record);
+                if !missing.is_empty() {
+                    return super::Credential::WithoutScope { scope: String::from_utf8_lossy(&missing).into_owned() };
                 }
             }
-            None => super::Credential::NotSignedIn,
-        },
-        Err(skein_shell::Unread::Absent) => super::Credential::NotSignedIn,
-        Err(_) => super::Credential::Unreadable { file: file.into() },
+            if record.remaining(wall) > skein_lib::Duration::ZERO || record.refresh_token.is_some() {
+                super::Credential::Usable { until: Some(record.expires_at.as_nanos()) }
+            } else {
+                super::Credential::SignInAgain
+            }
+        }
+        Ok(None) | Err(RecordFailure::Invalid) => super::Credential::NotSignedIn,
+        Err(RecordFailure::Unreadable) => super::Credential::Unreadable { file: file.into() },
     }
 }
 

@@ -371,7 +371,12 @@ fn handed_accounts(resolved: &settings::resolve::Resolved) -> Result<crate::cred
     let mut locations = skein_lib::List::with_capacity(count);
     let directory = crate::credentials::Directory::of(&resolved.settings);
     for account in &resolved.accounts {
-        let source = crate::credentials::source(&account.fields, false, &account.name, directory.as_ref());
+        let source = crate::credentials::source(
+            &account.fields,
+            crate::credentials::product_codex(resolved, account.number),
+            &account.name,
+            directory.as_ref(),
+        );
         locations
             .push(crate::credentials::Location { account: account.number, name: account.name.clone(), source })
             .expect("selected locations fit their account bound");

@@ -1,6 +1,6 @@
 //! Source-specific credential commands (shell.md, sections 4.5–4.6).
 //! The edge supplies the environment; dispatch keeps names and redacted outcomes.
-use super::{Account, Credential, Directory, Source};
+use super::{Account, Directory, Source};
 use crate::{command::Command, settings};
 use skein_shell::Clock;
 
@@ -112,13 +112,7 @@ fn run(
                 .iter()
                 .find(|(key, _)| key.as_os_str() == std::ffi::OsStr::new(&variable))
                 .and_then(|(_, value)| super::env_record(value.as_encoded_bytes(), codex, wall));
-            let credential = match borrowed {
-                Some(value) if value.record.remaining(wall) > skein_lib::Duration::ZERO => {
-                    Credential::Usable { until: codex.then_some(value.record.expires_at.as_nanos()) }
-                }
-                Some(value) => Credential::ExpiredVariable { at: value.record.expires_at.as_nanos(), variable },
-                None => Credential::Unset { variable },
-            };
+            let credential = super::env_state(&variable, borrowed.as_ref(), codex, wall);
             eprintln!("{}", credential.line(name));
             Ok(if credential.usable() { LoginOutcome::Usable } else { LoginOutcome::Unavailable })
         }

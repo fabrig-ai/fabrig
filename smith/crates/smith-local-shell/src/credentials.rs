@@ -171,13 +171,8 @@ pub fn source(fields: &BTreeMap<String, Sourced>, codex: bool, name: &str, direc
         "program" => Source::Program { name: name.into() },
         "none" => Source::Nothing,
         _ => {
-            let required_scopes = if text("provider") == "openai" {
-                registration::openai("", None, &registration::Moved::default())
-                    .terms
-                    .and_then(|terms| terms.required_scopes)
-            } else {
-                None
-            };
+            let required_scopes =
+                if text("provider") == "openai" { Some(registration::REQUIRED_SCOPE.into()) } else { None };
             Source::SignIn {
                 required_scopes,
                 file: directory.map_or_else(|| PathBuf::from("missing-token"), |directory| directory.token(name)),
@@ -190,15 +185,9 @@ pub fn source(fields: &BTreeMap<String, Sourced>, codex: bool, name: &str, direc
 #[must_use]
 pub fn inspect(source: &Source, wall: Wall, programs: &ProgramStates) -> Credential {
     match source {
-        Source::Env { variable, codex } => match environment(variable, *codex, wall) {
-            Some(value) if value.record.remaining(wall) > skein_lib::Duration::ZERO => {
-                Credential::Usable { until: (*codex).then_some(value.record.expires_at.as_nanos()) }
-            }
-            Some(value) => {
-                Credential::ExpiredVariable { at: value.record.expires_at.as_nanos(), variable: variable.clone() }
-            }
-            None => Credential::Unset { variable: variable.clone() },
-        },
+        Source::Env { variable, codex } => {
+            env_state(variable, environment(variable, *codex, wall).as_ref(), *codex, wall)
+        }
         Source::SignIn { file, required_scopes } => sign_in::inspect(file, wall, required_scopes.as_deref()),
         Source::Key { file } => key::inspect(file),
         Source::Program { name } => programs.get(name).cloned().unwrap_or_else(|| Credential::ProgramFailed {
@@ -206,6 +195,25 @@ pub fn inspect(source: &Source, wall: Wall, programs: &ProgramStates) -> Credent
             detail: "not checked".into(),
         }),
         Source::Nothing => Credential::Usable { until: None },
+    }
+}
+
+pub(super) fn env_state(variable: &str, value: Option<&Borrowed>, codex: bool, wall: Wall) -> Credential {
+    match value {
+        Some(value) if value.record.remaining(wall) > skein_lib::Duration::ZERO => {
+            Credential::Usable { until: codex.then_some(value.record.expires_at.as_nanos()) }
+        }
+        Some(value) => {
+            Credential::ExpiredVariable { at: value.record.expires_at.as_nanos(), variable: variable.into() }
+        }
+        None => Credential::Unset { variable: variable.into() },
+    }
+}
+
+pub(super) fn codex_selector() -> skein_oauth::ClaimSelector {
+    skein_oauth::ClaimSelector {
+        object: b"https://api.openai.com/auth".as_slice().into(),
+        field: b"chatgpt_account_id".as_slice().into(),
     }
 }
 
@@ -223,11 +231,7 @@ pub fn env_record(value: &[u8], codex: bool, wall: Wall) -> Option<Borrowed> {
         return None;
     }
     let (account_id, expires_at) = if codex {
-        let selector = skein_oauth::ClaimSelector {
-            object: b"https://api.openai.com/auth".as_slice().into(),
-            field: b"chatgpt_account_id".as_slice().into(),
-        };
-        let claims = skein_oauth::read_claims(value, &selector, wall, &token_limits()).ok()?;
+        let claims = skein_oauth::read_claims(value, &codex_selector(), wall, &token_limits()).ok()?;
         if claims.metadata.is_empty() || claims.metadata.len() > smith_local_service::Source::account_id_bytes() {
             return None;
         }
