@@ -332,46 +332,23 @@ pub fn brief_room(charter: &Charter, workspace: Option<&crate::Workspace>, limit
 fn non_brief_host_bytes(charter: &Charter, workspace: Option<&crate::Workspace>, limits: &Limits) -> Option<u64> {
     let outcome = &charter.outcome;
     let grants = &charter.grants;
-    let mut host = crate::prompt::non_brief_host_bytes(charter, workspace, 0);
+    let mut host = crate::prompt::non_brief_host_bytes(charter, workspace, 0)?;
     match charter.mode {
         Mode::Finite => {
-            host = match host {
-                Some(bytes) => match limits.schema_costs.finish(outcome) {
-                    Some(schema) => match bytes.checked_add(schema) {
-                        Some(total) => total.checked_add(limits.schema_costs.finish_text),
-                        None => None,
-                    },
-                    None => None,
-                },
-                None => None,
-            };
+            host =
+                host.checked_add(limits.schema_costs.finish(outcome)?)?.checked_add(limits.schema_costs.finish_text)?;
         }
         Mode::Open => {}
     }
     if let Some(change) = &grants.deliver {
-        host = match host {
-            Some(bytes) => match limits.schema_costs.deliver(change) {
-                Some(schema) => match bytes.checked_add(schema) {
-                    Some(total) => total.checked_add(limits.schema_costs.deliver_text),
-                    None => None,
-                },
-                None => None,
-            },
-            None => None,
-        };
+        host = host.checked_add(limits.schema_costs.deliver(change)?)?.checked_add(limits.schema_costs.deliver_text)?;
     }
     for tool in &grants.host_tools {
         for text in [&tool.name, &tool.description, &tool.schema] {
-            host = match host {
-                Some(bytes) => match len(text) {
-                    Some(length) => bytes.checked_add(length),
-                    None => None,
-                },
-                None => None,
-            };
+            host = host.checked_add(len(text)?)?;
         }
     }
-    host
+    Some(host)
 }
 
 fn check_window_parts(
@@ -562,18 +539,24 @@ pub(crate) fn line(llm: &Llm, material: u64) -> u64 {
         .expect("admitted model leaves compaction material above its line")
 }
 
-fn has_spare(llm: &Llm, limits: &Limits) -> bool {
+fn threshold(llm: &Llm, limits: &Limits) -> Option<u64> {
     let [numerator, denominator] = limits.compaction_threshold;
-    let within = match u64::from(llm.window).checked_mul(u64::from(numerator)) {
-        Some(product) => product.checked_div(u64::from(denominator)),
-        None => None,
-    };
-    match within {
-        Some(within) => match u64::from(llm.window).checked_sub(within) {
-            Some(headroom) => match u64::from(llm.output).checked_add(limits.compaction_material) {
-                Some(required) => headroom >= required,
-                None => false,
-            },
+    u64::from(llm.window).checked_mul(u64::from(numerator))?.checked_div(u64::from(denominator))
+}
+
+fn spare(llm: &Llm, limits: &Limits) -> Option<u64> {
+    u64::from(llm.window).checked_sub(threshold(llm, limits)?)
+}
+
+fn room(llm: &Llm, limits: &Limits) -> Option<u64> {
+    let outputs = u64::from(llm.output).checked_mul(2).expect("two u32 outputs fit u64");
+    threshold(llm, limits)?.checked_sub(outputs)
+}
+
+fn has_spare(llm: &Llm, limits: &Limits) -> bool {
+    match spare(llm, limits) {
+        Some(headroom) => match u64::from(llm.output).checked_add(limits.compaction_material) {
+            Some(required) => headroom >= required,
             None => false,
         },
         None => false,
@@ -581,17 +564,8 @@ fn has_spare(llm: &Llm, limits: &Limits) -> bool {
 }
 
 fn has_room(llm: &Llm, limits: &Limits) -> bool {
-    let [numerator, denominator] = limits.compaction_threshold;
-    let within = match u64::from(llm.window).checked_mul(u64::from(numerator)) {
-        Some(product) => product.checked_div(u64::from(denominator)),
-        None => None,
-    };
-    let outputs = u64::from(llm.output).checked_mul(2).expect("two u32 outputs fit u64");
-    match within {
-        Some(within) => match within.checked_sub(outputs) {
-            Some(room) => room >= limits.room,
-            None => false,
-        },
+    match room(llm, limits) {
+        Some(room) => room >= limits.room,
         None => false,
     }
 }
