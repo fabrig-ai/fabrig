@@ -23,10 +23,11 @@ pub fn naming(key: &root::Key, record: &root::Record) -> Option<r::Naming> {
             core::CoreKey::Call(key) => name.task = Some(key.task),
             core::CoreKey::ProposalDecision { proposer, .. } => name.task = proposer_task(*proposer),
             core::CoreKey::Settings(key) => match key {
-                // Policy settings are deployment templates copied when a project is made.
-                core::settings::Key::Default(_) | core::settings::Key::Changed(_) => {}
                 core::settings::Key::Proposal { proposer, .. } => name.task = proposer_task(*proposer),
-                core::settings::Key::Held(_)
+                // Policy settings are deployment templates copied when a project is made.
+                core::settings::Key::Default(_)
+                | core::settings::Key::Changed(_)
+                | core::settings::Key::Held(_)
                 | core::settings::Key::Charter { .. }
                 | core::settings::Key::Extent
                 | core::settings::Key::History(_) => {}
