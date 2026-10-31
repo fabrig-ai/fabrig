@@ -152,7 +152,7 @@ fn encode_contract(value: &domain::Contract, limits: &wire::Limits) -> Result<wi
                         fields: encode_fields(&choice.fields, limits)?,
                     },
                 )?;
-                let mut writer = Writer::new(usize::try_from(value.measure()).expect("measured size"));
+                let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
                 value.encode(&mut writer).expect("measured verdict");
                 items.push(writer.finish()).expect("choice count");
             }
@@ -190,7 +190,7 @@ fn encode_fields(fields: &[domain::FieldRule], limits: &wire::Limits) -> Result<
     let mut items = List::with_capacity(count(fields.len())?);
     for field in fields {
         let value = wire::FieldRule::new(limits, wire::FieldRuleParts { name: field.name.clone(), max: field.max })?;
-        let mut writer = Writer::new(usize::try_from(value.measure()).expect("measured size"));
+        let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
         value.encode(&mut writer).expect("measured field");
         items.push(writer.finish()).expect("field count");
     }

@@ -217,7 +217,7 @@ pub fn encode(
         )?),
     };
     let row = wire::Row::new(limits, wire::RowParts { value })?;
-    let mut writer = Writer::new(usize::try_from(row.measure()).expect("row length fits usize"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(row.measure()));
     row.encode(&mut writer).expect("measured room");
     Ok(writer.finish())
 }
@@ -581,7 +581,7 @@ mod account_hosts;
 /// Reuse the people family's refusal vocabulary inside a decided core call.
 pub(crate) fn refusal_bytes(value: &domain::Refusal) -> Result<Box<[u8]>, wire::Problem> {
     let value = outcomes::encode_refusal(value, &wire::CEILINGS)?;
-    let mut writer = Writer::new(usize::try_from(value.measure()).expect("refusal size"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
     value.encode(&mut writer).expect("measured refusal");
     Ok(writer.finish())
 }

@@ -3,7 +3,7 @@ use super::{Box, Reader, Writer, domain, wire};
 use skein_lib::List;
 fn admit(used: &mut usize, name: &[u8], extra: usize, limit: u32, path: wire::Path) -> Result<(), wire::Problem> {
     *used = used.saturating_add(name.len()).saturating_add(extra);
-    if name.is_empty() || *used > usize::try_from(limit).expect("bound fits usize") {
+    if name.is_empty() || *used > skein_lib::length::usize_of(limit) {
         return Err(wire::Problem { path, reason: skein_codec::Reason::Bound });
     }
     Ok(())
@@ -28,7 +28,7 @@ pub(super) fn fields(
         admit(&mut used, name, value.len(), limits.result_field_value, path)?;
         let field =
             wire::ResultField::new(limits, wire::ResultFieldParts { name: name.clone(), value: value.clone() })?;
-        let mut item = Writer::new(usize::try_from(field.measure()).expect("measured size"));
+        let mut item = Writer::new(skein_lib::length::usize_of(field.measure()));
         field.encode(&mut item).expect("measured field");
         items.push(item.finish()).expect("same field count");
     }
@@ -61,15 +61,9 @@ pub(super) fn rules(values: &[domain::FieldRule], limits: &wire::Limits) -> Resu
     let mut used = 0;
     for field in values {
         let domain::FieldRule { name, max } = field;
-        admit(
-            &mut used,
-            name,
-            usize::try_from(*max).expect("field bound fits usize"),
-            limits.field_rule_name,
-            wire::Path::VerdictFields,
-        )?;
+        admit(&mut used, name, skein_lib::length::usize_of(*max), limits.field_rule_name, wire::Path::VerdictFields)?;
         let field = wire::FieldRule::new(limits, wire::FieldRuleParts { name: name.clone(), max: *max })?;
-        let mut item = Writer::new(usize::try_from(field.measure()).expect("measured size"));
+        let mut item = Writer::new(skein_lib::length::usize_of(field.measure()));
         field.encode(&mut item).expect("measured field");
         items.push(item.finish()).expect("same field count");
     }
@@ -87,13 +81,7 @@ pub(super) fn read_rules(bytes: Box<[u8]>, limits: &wire::Limits) -> Result<Box<
     while let Some(bytes) = split(&mut reader, wire::Path::VerdictFields)? {
         let wire::FieldRuleParts { name, max } =
             wire::FieldRule::decode(limits, &mut Reader::new(&bytes))?.into_parts();
-        admit(
-            &mut used,
-            &name,
-            usize::try_from(max).expect("field bound fits usize"),
-            limits.field_rule_name,
-            wire::Path::VerdictFields,
-        )?;
+        admit(&mut used, &name, skein_lib::length::usize_of(max), limits.field_rule_name, wire::Path::VerdictFields)?;
         values.push(domain::FieldRule { name, max }).expect("piece bounds item count");
     }
     Ok(values.into_boxed())

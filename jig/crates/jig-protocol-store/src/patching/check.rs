@@ -240,7 +240,7 @@ pub(crate) fn up(checking: &mut Checking, arrived: Arrived, below: &mut Below) -
         }
         Step::Listing => {
             let file::Event::Listed { entries, .. } = arrived.event else { return Err(OpenRefusal::Failed) };
-            checking.last = entries.len() < usize::try_from(PAGE).expect("PAGE fits usize");
+            checking.last = entries.len() < skein_lib::length::usize_of(PAGE);
             checking.entries = entries;
             checking.next = 0;
             next(checking, below);

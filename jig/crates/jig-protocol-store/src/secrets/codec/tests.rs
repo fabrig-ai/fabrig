@@ -68,11 +68,11 @@ fn malformed_envelopes_agree_with_the_generated_decoder() {
 // Version (2), enum tag (1), secret length (4), followed by the declared bytes.
 const PREFIX_BYTES: u32 = 7;
 fn envelope(tag: u8, length: u32) -> Box<[u8]> {
-    let mut bytes = Writer::new(usize::try_from(PREFIX_BYTES.checked_add(length).expect("row size")).expect("room"));
+    let mut bytes = Writer::new(skein_lib::length::usize_of(PREFIX_BYTES.checked_add(length).expect("row size")));
     bytes.put(&1_u16.to_be_bytes()).expect("version");
     bytes.put(&[tag]).expect("tag");
     bytes.put(&length.to_be_bytes()).expect("length");
-    let payload = Secret::new(Box::from("x".repeat(usize::try_from(length).expect("payload size")).as_bytes()));
+    let payload = Secret::new(Box::from("x".repeat(skein_lib::length::usize_of(length)).as_bytes()));
     bytes.put(payload.expose()).expect("payload");
     bytes.finish()
 }

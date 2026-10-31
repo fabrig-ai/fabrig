@@ -508,7 +508,7 @@ fn read_disk(store: &mut Store, mut below: Below, disk: &[u8]) -> reads::Loaded 
         };
         assert!(below.transcripts.is_empty());
         let first = usize::try_from(offset).expect("fixture offset");
-        let end = first.checked_add(usize::try_from(max).expect("fixture read length")).expect("fixture interval");
+        let end = first.checked_add(skein_lib::length::usize_of(max)).expect("fixture interval");
         let bytes = Box::from(disk.get(first..end).expect("read within committed disk"));
         let (events, next) =
             fixtures::answer(store, Io::Transcripts(Arrived { event: file::Event::Read { owner, bytes }, fd: None }));

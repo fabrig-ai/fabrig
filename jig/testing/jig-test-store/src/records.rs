@@ -10,7 +10,7 @@ use facts::{decode_refusal, encode_refusal};
 pub fn encode(record: &d::Record) -> Box<[u8]> {
     let row =
         w::Row::new(&w::CEILINGS, w::RowParts { value: encode_record(record) }).expect("admitted record fits schema");
-    let mut writer = Writer::new(usize::try_from(row.measure()).expect("row length fits"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(row.measure()));
     row.encode(&mut writer).expect("measured room");
     writer.finish()
 }
@@ -81,7 +81,6 @@ fn decode_attempt(value: w::Attempt) -> d::Attempt {
     let w::AttemptParts { number, sent, deadline } = value.into_parts();
     d::Attempt { number, sent: Wall::from_nanos(sent), deadline: Wall::from_nanos(deadline) }
 }
-#[expect(clippy::manual_map, reason = "step code translates optional fields without closures")]
 fn encode_outbox_entry(value: &d::OutboxEntry) -> w::OutboxEntry {
     let d::OutboxEntry { number, task, key, effect, attempt, phase } = value;
     w::OutboxEntry::new(
@@ -100,7 +99,6 @@ fn encode_outbox_entry(value: &d::OutboxEntry) -> w::OutboxEntry {
     )
     .expect("admitted fields fit schema")
 }
-#[expect(clippy::manual_map, reason = "step code translates optional fields without closures")]
 fn decode_outbox_entry(value: w::OutboxEntry, limits: &d::Limits) -> Result<d::OutboxEntry, Undecodable> {
     let w::OutboxEntryParts { number, task, key, effect, attempt, phase } = value.into_parts();
     Ok(d::OutboxEntry {
@@ -115,7 +113,6 @@ fn decode_outbox_entry(value: w::OutboxEntry, limits: &d::Limits) -> Result<d::O
         phase: decode_effect_phase(phase),
     })
 }
-#[expect(clippy::manual_map, reason = "step code translates optional fields without closures")]
 fn encode_procedure_state(value: &d::ProcedureState) -> w::ProcedureState {
     let d::ProcedureState { project, task, number, resource, index, steps, awaiting, deadline, delegate, revision } =
         value;
@@ -139,7 +136,6 @@ fn encode_procedure_state(value: &d::ProcedureState) -> w::ProcedureState {
     )
     .expect("admitted fields fit schema")
 }
-#[expect(clippy::manual_map, reason = "step code translates optional fields without closures")]
 fn decode_procedure_state(value: w::ProcedureState, limits: &d::Limits) -> Result<d::ProcedureState, Undecodable> {
     let w::ProcedureStateParts {
         project,

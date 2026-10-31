@@ -1341,7 +1341,7 @@ fn a_full_byte_page_defers_the_next_finished_record_without_repeating_its_site()
         Some(&(crate::Owner::Application, 2, crate::Counts { records: 5, commits: 2 }))
     );
     assert_fixture_opened(&events, 5);
-    assert_eq!(disk.sites.len(), usize::try_from(SHELVES).expect("shelves"));
+    assert_eq!(disk.sites.len(), skein_lib::length::usize_of(SHELVES));
     assert_eq!(fixture_rows(&mut store, 2, 2), expected);
 }
 
