@@ -809,14 +809,11 @@ fn an_asked_groups_final_once_step_gates_started_and_failure_allows_another_ask(
     }
 }
 
-#[test]
-fn an_owned_version_gates_the_runner_and_record_on_ask_and_restart() {
+fn version_gated_steps() -> Box<[crate::layout::Placed]> {
     use super::fixtures::step;
     use crate::layout;
-    use crate::machine::{Machine, Said, Why};
-    use skein_lib::{Queue, Time};
     use temper_forge_setup::{Group, Stage, Steps};
-    let placed = layout::flatten(Steps {
+    layout::flatten(Steps {
         always: Box::new([step(b"serve", Kind::Long)]),
         asked: Box::new([Group {
             kind: None,
@@ -831,7 +828,14 @@ fn an_owned_version_gates_the_runner_and_record_on_ask_and_restart() {
                 (Stage::Run, step(b"once 3", Kind::Once)),
             ]),
         }]),
-    });
+    })
+}
+
+#[test]
+fn an_owned_version_gates_the_runner_and_record_on_ask_and_restart() {
+    use crate::machine::{Machine, Said, Why};
+    use skein_lib::{Queue, Time};
+    let placed = version_gated_steps();
     for recorded in [false, true] {
         for ending in ["ready", "timeout", "stop", "exit"] {
             let mut machine = Machine::new(&limits::small(), &placed).unwrap();

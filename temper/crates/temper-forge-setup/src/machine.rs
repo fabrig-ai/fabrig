@@ -222,7 +222,11 @@ fn github(d: &Document, at: u32, p: &Path, ps: &mut config::Problems) -> Option<
     let api = config::address::read(d, api_at?, &p.member(b"api"), ps)?;
     let tls = transport(d, transport_at?, &p.member(b"transport"), ps)?;
     let socket = match &api {
-        config::Address::Addr(a) => a.socket(),
+        config::Address::Addr(a) => {
+            let socket = a.socket();
+            valid(socket.is_some(), p.member(b"api"), ps);
+            socket
+        }
         config::Address::Host { .. } => None,
     };
     if !tls {
@@ -424,11 +428,10 @@ fn owned(d: &Document, at: u32, p: &Path, ps: &mut config::Problems) -> Option<O
         None => None,
     };
     let fetch = Fetch { forgejo: fetched_forgejo, runner: fetched_runner, mirror };
-    let p = p.member(b"person");
-    let person = account(d, person_at?, &p, ps)?;
+    let person = account(d, person_at?, &p.member(b"person"), ps)?;
     let remote = remote?;
     valid(git_base(&remote), p.member(b"remote"), ps);
-    Some(OwnedMachine { public, fetch, forgejo, runner, listen, person, remote })
+    Some(OwnedMachine { listen, remote, person, public, fetch, forgejo, runner })
 }
 fn mirror(d: &Document, at: u32, p: &Path, ps: &mut config::Problems) -> Option<Mirror> {
     let mut o = object(d, at, p, ps)?;

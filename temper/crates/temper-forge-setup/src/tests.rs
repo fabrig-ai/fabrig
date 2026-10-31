@@ -4,6 +4,7 @@ mod fixtures;
 mod given;
 mod golden;
 mod limits;
+mod machine;
 mod managed;
 mod members;
 mod parent;
