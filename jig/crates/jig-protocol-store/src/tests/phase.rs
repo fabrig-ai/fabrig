@@ -1524,13 +1524,6 @@ fn fixture_with_record(record: jig_domain_core::Record) -> Vec<Item> {
     disk.items()
 }
 
-fn ended_position() -> jig_domain_core::Record {
-    jig_domain_core::Record::People(jig_domain_people::Stored::EndedRead {
-        task: fixtures::ENDED,
-        party: fixtures::ALICE,
-        through: 1,
-    })
-}
 
 #[test]
 fn a_restart_row_past_the_deployments_lowered_limit_refuses_load() {

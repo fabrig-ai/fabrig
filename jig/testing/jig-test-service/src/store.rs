@@ -102,7 +102,7 @@ impl Store {
         let mut drivers = [driver(limits), driver(limits), driver(limits)];
         let [store, secrets, transcripts] = &mut drivers;
         let seeded = protocol::seed([&mut store.io, &mut secrets.io, &mut transcripts.io], seed);
-        let mut component =
+        let component =
             protocol::Store::on_directory(limits, jig_test_store::application(&application.connector), models, seeded);
         Self {
             component,

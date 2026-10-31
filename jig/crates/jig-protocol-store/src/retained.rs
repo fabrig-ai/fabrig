@@ -56,11 +56,12 @@ impl Store {
             };
         }
         let rows = found.into_boxed();
-        let next_cursor = match &next {
-            Some(next) => Some(Cursor { interval: 0, after: next.clone() }),
-            None => None,
-        };
-        restore::assert_progress(cursor.as_ref(), rows.is_empty(), next_cursor.as_ref());
+        if rows.is_empty()
+            && let Some(next) = &next
+        {
+            let next = Cursor { interval: 0, after: next.clone() };
+            restore::assert_progress(cursor.as_ref(), true, Some(&next));
+        }
         Ok(Page { rows, next })
     }
 }

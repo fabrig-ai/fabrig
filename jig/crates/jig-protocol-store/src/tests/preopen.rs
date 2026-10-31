@@ -1,6 +1,6 @@
 //! Open failures and first causes (protocol/store.md, 10.1–10.2).
 use super::{fixtures, patching::SETS};
-use crate::{Event, OpenRefusal, Phase, Request, Restore, Store, Write, keys, restore};
+use crate::{Event, OpenRefusal, Request, Restore, Store, Write, keys, restore};
 use skein_lib::{List, Queue, Token};
 
 fn open_ask() -> Request {

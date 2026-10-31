@@ -239,7 +239,7 @@ fn a_census_row_without_its_ended_task_hands_up_the_missing_link() {
     let [crate::restore::Item::MissingLink { record, target }] = items.as_ref() else { panic!("missing link") };
     assert_eq!(*record, fixtures::result_index(ALICE, 1, ENDED).key());
     assert_eq!(*target, jig_domain_core::Key::Tasks(jig_domain_tasks::Key::Ended(ENDED)));
-    assert!(matches!(store.phase, Phase::Ready { .. }));
+    let Phase::Ready { .. } = store.phase else { panic!("ready after missing link") };
 }
 
 #[test]
