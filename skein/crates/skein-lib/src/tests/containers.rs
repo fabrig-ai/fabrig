@@ -1,10 +1,22 @@
 //! The bounded containers (lib.md, 5): each refuses past its capacity and
-//! keeps its order, and a B-tree is priced in its nodes.
+//! keeps its order, a B-tree is priced in its nodes, and a full buffer
+//! grows by one rule.
 
 use alloc::boxed::Box;
 
 use crate::btree::price;
+use crate::growth::grown;
 use crate::{Buffer, Intake, List, Map, Queue, Set, Stack};
+
+#[test]
+fn a_full_buffer_doubles_from_the_floor_to_what_it_needs_under_its_cap() {
+    assert_eq!(grown(0, 1, 100), 4, "the floor");
+    assert_eq!(grown(4, 5, 100), 8, "twice");
+    assert_eq!(grown(8, 30, 100), 30, "what it needs, past twice");
+    assert_eq!(grown(64, 65, 100), 100, "never past the cap");
+    assert_eq!(grown(0, 1, 2), 2, "a cap below the floor");
+    assert_eq!(grown(usize::MAX / 2 + 1, 1, usize::MAX), usize::MAX, "doubling saturates");
+}
 
 #[test]
 fn a_list_refuses_past_its_capacity() {
@@ -163,6 +175,34 @@ fn a_queue_is_fifo_and_bounded() {
 }
 
 #[test]
+fn a_queue_cleared_is_refilled_to_its_capacity() {
+    let mut queue = Queue::with_capacity(3);
+    queue.push(1_u8);
+    queue.push(2);
+    assert_eq!(queue.pop(), Some(1));
+    queue.push(3);
+    queue.push(4);
+    queue.clear();
+    assert!(queue.is_empty());
+    assert_eq!((queue.room(), queue.capacity()), (3, 3), "its capacity kept");
+    for item in [5, 6, 7] {
+        assert_eq!(queue.try_push(item), Ok(()));
+    }
+    assert_eq!(queue.try_push(8), Err(8));
+    for item in [Some(5), Some(6), Some(7), None] {
+        assert_eq!(queue.pop(), item);
+    }
+}
+
+#[test]
+fn clearing_an_empty_queue_changes_nothing() {
+    let mut queue = Queue::<u8>::uncapped();
+    queue.clear();
+    assert!(queue.is_empty());
+    assert_eq!(queue.room(), u32::MAX);
+}
+
+#[test]
 #[should_panic(expected = "the loop reserves room for every output")]
 fn pushing_past_the_reservation_is_a_bug() {
     let mut queue = Queue::with_capacity(0);
@@ -183,6 +223,23 @@ fn a_stack_is_lifo_and_bounded() {
     assert_eq!(stack.pop(), Some('a'));
     assert_eq!(stack.pop(), None);
     assert!(stack.is_empty());
+}
+
+#[test]
+fn a_stack_cleared_is_refilled_to_its_capacity() {
+    let mut stack = Stack::with_capacity(2);
+    assert_eq!(stack.push('a'), Ok(()));
+    assert_eq!(stack.push('b'), Ok(()));
+    stack.clear();
+    assert!(stack.is_empty());
+    assert_eq!(stack.top(), None);
+    assert_eq!(stack.capacity(), 2, "its capacity kept");
+    assert_eq!(stack.push('c'), Ok(()));
+    assert_eq!(stack.push('d'), Ok(()));
+    assert_eq!(stack.push('e'), Err('e'));
+    assert_eq!(stack.pop(), Some('d'));
+    assert_eq!(stack.pop(), Some('c'));
+    assert_eq!(stack.pop(), None);
 }
 
 #[test]
