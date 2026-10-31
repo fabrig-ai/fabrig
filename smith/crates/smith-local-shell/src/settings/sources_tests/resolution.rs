@@ -3,7 +3,7 @@ use crate::credentials::tests::Files;
 use std::os::unix::fs::PermissionsExt;
 
 pub(super) fn configured(files: &Files, source_name: &str, program: bool) -> super::super::Settings {
-    let certificate = skein_scratch::paths::tree().join("tests/protocol-llm/fixtures/root.der");
+    let certificate = crate::fixture::trust();
     let program = if program { "program='claude_code'" } else { "" };
     settings(&[source(Layer::User, &format!(
         "model='codex/gpt-6-luna'\ncredentials='{}'\n[programs]\nclaude_code='/bin/true'\n[accounts.codex]\nsource='{source_name}'\n[endpoints.codex]\naddress='127.0.0.1:443'\ntrust.system=false\ntrust.der=['{}']\n{program}\n",
@@ -12,7 +12,7 @@ pub(super) fn configured(files: &Files, source_name: &str, program: bool) -> sup
 }
 
 fn resolved(settings: &super::super::Settings) -> resolve::Resolved {
-    resolve::resolve_startup(settings).unwrap_or_else(|why| panic!("{}", why.line())).0
+    crate::fixture::ready(resolve::resolve_startup(settings)).0
 }
 
 #[test]
@@ -35,8 +35,7 @@ fn a_key_accounts_models_name_its_number() {
 #[test]
 fn the_generated_document_names_the_program_directory() {
     let files = Files::new();
-    let (_, bytes) =
-        resolve::resolve_startup(&configured(&files, "program", true)).unwrap_or_else(|why| panic!("{}", why.line()));
+    let (_, bytes) = crate::fixture::ready(resolve::resolve_startup(&configured(&files, "program", true)));
     let document: serde_json::Value = serde_json::from_slice(&bytes).expect("agent document");
     assert_eq!(document["programs"]["claude_code"]["path"], "/bin/true", "configured executable");
     assert!(
@@ -54,8 +53,7 @@ fn the_generated_document_names_the_program_directory() {
 #[test]
 fn a_document_without_a_program_endpoint_holds_no_programs() {
     let files = Files::new();
-    let (_, bytes) =
-        resolve::resolve_startup(&configured(&files, "key", false)).unwrap_or_else(|why| panic!("{}", why.line()));
+    let (_, bytes) = crate::fixture::ready(resolve::resolve_startup(&configured(&files, "key", false)));
     let document: serde_json::Value = serde_json::from_slice(&bytes).expect("agent document");
     assert!(document.get("programs").is_none(), "unused program settings omitted");
 }

@@ -4,7 +4,7 @@ use std::os::unix::fs::PermissionsExt;
 
 fn check_settings(files: &Files, model: &str, source: &str, extra: &str) -> Settings {
     let (endpoint, _) = model.split_once('/').expect("fixture model");
-    let certificate = skein_scratch::paths::tree().join("tests/protocol-llm/fixtures/root.der");
+    let certificate = crate::fixture::trust();
     let base = format!(
         "model='{model}'\ncredentials='{}'\n[accounts.{endpoint}]\nsource='{source}'\n\
          [endpoints.{endpoint}]\naddress='127.0.0.1:443'\ntrust.system=false\ntrust.der=['{}']\n\
@@ -12,15 +12,14 @@ fn check_settings(files: &Files, model: &str, source: &str, extra: &str) -> Sett
         files.0.join("unopened").display(),
         certificate.display()
     );
-    let mut settings = settings::merge(
+    let mut settings = crate::fixture::ready(settings::merge(
         &command::Shared::default(),
         files.0.clone(),
         &[
             settings::Source { layer: settings::Layer::User, path: files.0.join("base.toml"), text: base },
             settings::Source { layer: settings::Layer::User, path: files.0.join("extra.toml"), text: extra.into() },
         ],
-    )
-    .unwrap_or_else(|why| panic!("{}", why.line()));
+    ));
     settings.paths.path = Some("/usr/bin:/bin".into());
     settings.paths.state_home = Some(files.0.join("state").into());
     settings
@@ -83,13 +82,17 @@ fn missing_fixed_registration_keys_keep_their_source() {
 #[test]
 fn default_checks_declare_memory_without_opening_resources() {
     // The standard profile's shipped memory declaration.
-    const MEMORY: u64 = 2_281_701_376;
+    let memory_bytes = smith_agent_service::profile::standard().declared.memory;
     let files = Files::new();
     for model in ["codex/gpt-6-astra", "anthropic/claude-opus-5-5"] {
         let settings = check_settings(&files, model, "none", "");
         let report = checked(&settings);
         let memory = report.named_limits.iter().find(|limit| limit["name"] == "declared.memory").expect("memory");
-        assert_eq!(memory, &serde_json::json!({"name":"declared.memory","value":MEMORY,"unit":"bytes"}), "{model}");
+        assert_eq!(
+            memory,
+            &serde_json::json!({"name":"declared.memory","value":memory_bytes,"unit":"bytes"}),
+            "{model}"
+        );
         assert!(!files.0.join("state").exists(), "check starts no chat store");
         assert!(!files.0.join("unopened").exists(), "check starts no credential store");
     }
@@ -252,18 +255,17 @@ fn the_report_lists_each_program_a_run_may_use() {
     let executable = files.0.join("claude");
     std::fs::write(&executable, b"").expect("scratch executable");
     std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o700)).expect("executable mode");
-    let certificate = skein_scratch::paths::tree().join("tests/protocol-llm/fixtures/root.der").display().to_string();
+    let certificate = crate::fixture::trust().display().to_string();
     let text = format!(
         "model='codex/gpt-6-luna'\ncredentials='{}'\n[environment]\ninherit=['PATH']\n[programs]\nclaude_code='{}'\n[accounts.codex]\nsource='key'\n[endpoints.codex]\naddress='127.0.0.1:443'\nprogram='claude_code'\ntrust.system=false\ntrust.der=['{certificate}']\n",
         files.0.display(),
         executable.display()
     );
-    let mut settings = settings::merge(
+    let mut settings = crate::fixture::ready(settings::merge(
         &command::Shared::default(),
         files.0.clone(),
         &[settings::Source { layer: settings::Layer::User, path: files.0.join("config.toml"), text }],
-    )
-    .unwrap_or_else(|why| panic!("{}", why.line()));
+    ));
     settings.paths.path = Some("/usr/bin:/bin".into());
     let report = match report(&settings, skein_lib::Wall::from_nanos(0), &skein_shell::Clock::new()) {
         Verdict::Ready(report) => report,

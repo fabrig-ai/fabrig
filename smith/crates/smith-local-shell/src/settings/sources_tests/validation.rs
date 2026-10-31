@@ -84,7 +84,7 @@ fn program_documents_use_the_supplied_path() {
     let mut settings = resolution::configured(&files, "program", true);
     settings.values.remove("programs.claude_code");
     settings.paths.path = Some(files.0.clone().into());
-    let (_, bytes) = resolve::resolve_startup(&settings).unwrap_or_else(|why| panic!("{}", why.line()));
+    let (_, bytes) = crate::fixture::ready(resolve::resolve_startup(&settings));
     let document: serde_json::Value = serde_json::from_slice(&bytes).expect("agent document");
     assert!(document["programs"]["claude_code"]["path"].as_str() == executable.to_str(), "supplied PATH used");
 }

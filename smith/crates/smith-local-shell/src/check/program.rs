@@ -6,7 +6,7 @@ fn program_invocations_select_spawned_placement_and_the_consumed_producer() {
     // Agent program paths are bounded at 4096 bytes; /programs consumes nine.
     const PROGRAM_PATH_BYTES: usize = 4096;
     const PROGRAMS_SUFFIX_BYTES: usize = 9;
-    const MEMORY: u64 = 2_281_701_376;
+    let memory_bytes = smith_agent_service::profile::standard().declared.memory;
     let credentials = format!(
         "/{}",
         "c".repeat(
@@ -16,8 +16,8 @@ fn program_invocations_select_spawned_placement_and_the_consumed_producer() {
                 .expect("programs path prefix")
         )
     );
-    let trust = skein_scratch::paths::tree().join("tests/protocol-llm/fixtures/root.der");
-    let settings = settings::merge(
+    let trust = crate::fixture::trust();
+    let settings = crate::fixture::ready(settings::merge(
         &command::Shared::default(),
         "/workspace".into(),
         &[settings::Source {
@@ -29,11 +29,9 @@ fn program_invocations_select_spawned_placement_and_the_consumed_producer() {
                 trust.display()
             ),
         }],
-    )
-    .unwrap_or_else(|why| panic!("{}", why.line()));
+    ));
     for (interactive, json) in [(false, false), (false, true), (true, false)] {
-        let mut resolved =
-            settings::resolve::resolve_startup(&settings).unwrap_or_else(|why| panic!("{}", why.line())).0;
+        let mut resolved = crate::fixture::ready(settings::resolve::resolve_startup(&settings)).0;
         startup_agent(&mut resolved).expect("product placement");
         let invocation = command::Exec {
             shared: command::Shared::default(),
@@ -46,7 +44,7 @@ fn program_invocations_select_spawned_placement_and_the_consumed_producer() {
         let (limits, _) = derive_invocation(&mut resolved, &invocation, skein_lib::Wall::EPOCH, interactive)
             .expect("program invocation checks");
         assert!(matches!(limits.local.agent, smith_local_domain::AgentLimits::Spawned(_)), "program placement");
-        assert_eq!(resolved.agent.memory, MEMORY);
+        assert_eq!(resolved.agent.memory, memory_bytes);
         assert_eq!(resolved.agent.service.limits.events.is_some(), interactive || json);
     }
 }

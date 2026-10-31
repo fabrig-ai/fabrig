@@ -632,8 +632,7 @@ mod configured_trace_tests {
         std::fs::write(chat.join("state"), b"old state").unwrap();
         let alias = scratch.path().join("alias");
         std::os::unix::fs::symlink(&chat, &alias).unwrap();
-        let certificate =
-            skein_scratch::paths::tree().join("tests/protocol-llm/fixtures/root.der").display().to_string();
+        let certificate = crate::fixture::trust().display().to_string();
         for (path, allowed) in
             [(scratch.path().join("outside"), true), (chat.join("state"), false), (alias.join("trace"), false)]
         {
@@ -645,11 +644,13 @@ mod configured_trace_tests {
                     path.display()
                 ),
             };
-            let mut settings = settings::from_sources(&crate::command::Shared::default(), workspace.clone(), &[source])
-                .unwrap_or_else(|why| panic!("{}", why.line()));
+            let mut settings = crate::fixture::ready(settings::from_sources(
+                &crate::command::Shared::default(),
+                workspace.clone(),
+                &[source],
+            ));
             settings.paths = paths.clone();
-            let (resolved, document) =
-                settings::resolve::resolve_startup(&settings).unwrap_or_else(|why| panic!("{}", why.line()));
+            let (resolved, document) = crate::fixture::ready(settings::resolve::resolve_startup(&settings));
             let document: serde_json::Value = serde_json::from_slice(&document).unwrap();
             assert_eq!(document["trace"]["path"].as_str(), path.to_str());
             assert_eq!(trace_admission(&resolved, &workspace).is_ok(), allowed);

@@ -449,7 +449,7 @@ mod tests {
     fn a_small_declared_memory_checks() {
         let files = crate::credentials::tests::Files::new();
         crate::credentials::tests::private_key(&files);
-        let certificate = skein_scratch::paths::tree().join("tests/protocol-llm/fixtures/root.der");
+        let certificate = crate::fixture::trust();
         let text = format!(
             "credentials='{}'\nmodel='codex/gpt-6-luna'\n\
              [deployment]\nmemory=1\n[environment]\ninherit=['PATH']\n\
@@ -458,12 +458,11 @@ mod tests {
             files.0.display(),
             certificate.display()
         );
-        let mut settings = settings::merge(
+        let mut settings = crate::fixture::ready(settings::merge(
             &command::Shared::default(),
             files.0.clone(),
             &[settings::Source { layer: settings::Layer::User, path: files.0.join("check.toml"), text }],
-        )
-        .unwrap_or_else(|why| panic!("{}", why.line()));
+        ));
         settings.paths.path = Some("/usr/bin:/bin".into());
         let execution = command::Exec {
             shared: command::Shared::default(),
@@ -500,19 +499,13 @@ mod tests {
     }
 
     fn resolved(trace: bool) -> settings::resolve::Resolved {
-        let certificate =
-            skein_scratch::paths::tree().join("tests/protocol-llm/fixtures/root.der").display().to_string();
+        let certificate = crate::fixture::trust().display().to_string();
         let trace = if trace { "[trace]\npath='/unopened-events'\n" } else { "" };
         let text = format!(
             "model='codex/gpt-6-luna'\n[deployment]\nmemory=8589934592\n[accounts.codex]\nsource='env'\nvariable='SMITH_FIXTURE_TOKEN'\n[endpoints.codex]\ntrust.system=false\ntrust.der=['{certificate}']\n{trace}"
         );
-        let settings = settings::merge(
-            &command::Shared::default(),
-            "/workspace".into(),
-            &[settings::Source { layer: settings::Layer::User, path: "check-fixture.toml".into(), text }],
-        )
-        .unwrap_or_else(|why| panic!("{}", why.line()));
-        settings::resolve::resolve(&settings).unwrap_or_else(|why| panic!("{}", why.line()))
+        let settings = crate::fixture::settings(&text);
+        crate::fixture::ready(settings::resolve::resolve(&settings))
     }
 
     #[test]
@@ -544,40 +537,19 @@ mod tests {
         }
     }
 
-    #[expect(
-        clippy::zero_sized_map_values,
-        reason = "The fixture retains adapter names even while Claude Code is the sole adapter."
-    )]
     fn execution_fixture() -> settings::resolve::Resolved {
-        let (mut local, service) =
-            smith_local_process_world::process::configuration(skein_io::kernel::Fd::new(41), false);
-        local.limits.local.agent = smith_local_domain::AgentLimits::inline(
-            service.limits.domain,
+        let mut resolved = crate::fixture::resolved("/workspace".into());
+        let profile = smith_agent_process_world::profile();
+        resolved.limits.agent = smith_local_domain::AgentLimits::inline(
+            resolved.agent.service.limits.domain,
             2,
             skein_lib::Duration::from_secs(3600),
-            smith_agent_process_world::profile().policy.cancel_grace,
+            profile.policy.cancel_grace,
         )
         .expect("product inline fixture");
-        settings::resolve::Resolved {
-            agent: smith_agent_shell::config::Configuration {
-                programs: BTreeMap::new(),
-                endpoint_programs: BTreeMap::new(),
-                service,
-                memory: 8_589_934_592,
-                trace: None,
-                profile: smith_agent_process_world::profile(),
-                declarations: smith_agent_process_world::declarations(0),
-            },
-            local: local.local,
-            limits: local.limits.local,
-            settings: Settings {
-                paths: settings::Paths::default(),
-                workspace: "/workspace".into(),
-                values: BTreeMap::new(),
-            },
-            accounts: Vec::new(),
-            outside_models: BTreeMap::new(),
-        }
+        resolved.agent.memory = 8_589_934_592;
+        resolved.agent.profile = profile;
+        resolved
     }
 
     #[test]
@@ -615,21 +587,19 @@ mod tests {
         // The smoke-tools Chat arm: standard profile, codex/gpt-6-luna
         // selected at low effort, an env token and an everything trace.
         // Invocation derivation checks the selected sources without reading the variable.
-        let certificate =
-            skein_scratch::paths::tree().join("tests/protocol-llm/fixtures/root.der").display().to_string();
+        let certificate = crate::fixture::trust().display().to_string();
         let text = format!(
             "model='codex/gpt-6-luna'\neffort='low'\n\
              [accounts.codex]\nsource='env'\nvariable='SMITH_FIXTURE_TOKEN'\n\
              [endpoints.codex]\ntrust.system=false\ntrust.der=['{certificate}']\n\
              [trace]\npath='/unopened-events'\ncapture='everything'\n"
         );
-        let settings = settings::merge(
+        let settings = crate::fixture::ready(settings::merge(
             &command::Shared::default(),
             "/workspace".into(),
             &[settings::Source { layer: settings::Layer::User, path: "chat-start.toml".into(), text }],
-        )
-        .unwrap_or_else(|why| panic!("{}", why.line()));
-        let mut resolved = settings::resolve::resolve(&settings).unwrap_or_else(|why| panic!("{}", why.line()));
+        ));
+        let mut resolved = crate::fixture::ready(settings::resolve::resolve(&settings));
         assert_eq!(resolved.accounts.len(), 1);
         assert_eq!(resolved.limits.endpoints.len(), 1);
 

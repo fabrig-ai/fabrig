@@ -21,12 +21,7 @@ impl Drop for Files {
 fn wall() -> Wall {
     Wall::from_nanos(100_000_000_000)
 }
-#[expect(
-    clippy::zero_sized_map_values,
-    reason = "The fixture retains adapter names even while Claude Code is the sole adapter."
-)]
 fn resolved(files: &Files) -> settings::resolve::Resolved {
-    let (local, lower) = smith_local_process_world::process::configuration(skein_io::kernel::Fd::new(70), false);
     let mut values = BTreeMap::new();
     for (name, source) in [("codex", "none"), ("unused", "env")] {
         for (field, value) in [("source", source), ("variable", "SMITH_UNSET_FIXTURE")] {
@@ -41,22 +36,10 @@ fn resolved(files: &Files) -> settings::resolve::Resolved {
         .iter()
         .filter_map(|(key, value)| key.strip_prefix("accounts.codex.").map(|field| (field.into(), value.clone())))
         .collect();
-    settings::resolve::Resolved {
-        settings: settings::Settings { paths: settings::Paths::default(), workspace: files.0.clone(), values },
-        accounts: vec![Account { name: "codex".into(), number: 0, fields }],
-        agent: smith_agent_shell::config::Configuration {
-            programs: BTreeMap::new(),
-            endpoint_programs: BTreeMap::new(),
-            service: lower,
-            memory: u64::MAX,
-            trace: None,
-            profile: smith_agent_service::profile::standard(),
-            declarations: smith_agent_process_world::declarations(0),
-        },
-        limits: local.limits.local,
-        local: local.local,
-        outside_models: BTreeMap::new(),
-    }
+    let mut resolved = crate::fixture::resolved(files.0.clone());
+    resolved.settings.values = values;
+    resolved.accounts = vec![Account { name: "codex".into(), number: 0, fields }];
+    resolved
 }
 
 #[test]

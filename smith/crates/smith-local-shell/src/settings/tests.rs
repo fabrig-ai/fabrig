@@ -291,7 +291,7 @@ fn choosing_another_preset_replaces_only_the_endpoints_default_values() {
 }
 
 fn composed(extra: &str) -> Result<super::resolve::Resolved, super::Refusal> {
-    let certificate = skein_scratch::paths::tree().join("tests/protocol-llm/fixtures/root.der").display().to_string();
+    let certificate = crate::fixture::trust().display().to_string();
     let text = format!(
         "model='codex/gpt-6-luna'\n{extra}\n[accounts.codex]\nsource='env'\nvariable='SMITH_FIXTURE_TOKEN'\n[endpoints.codex]\naddress='127.0.0.1:443'\ntrust.system=false\ntrust.der=['{certificate}']\n[endpoints.anthropic]\naddress='127.0.0.1:443'\ntrust.system=false\ntrust.der=['{certificate}']\n"
     );
@@ -301,8 +301,7 @@ fn composed(extra: &str) -> Result<super::resolve::Resolved, super::Refusal> {
 
 #[test]
 fn composition_derives_only_the_main_model_with_sub_agents_off() {
-    let resolved = composed("[models.'anthropic/claude-opus-5-5']\nhead=0\nreasoning_item=0\n")
-        .unwrap_or_else(|why| panic!("{}", why.line()));
+    let resolved = crate::fixture::ready(composed("[models.'anthropic/claude-opus-5-5']\nhead=0\nreasoning_item=0\n"));
     assert_eq!(resolved.local.models.len(), 3);
     assert_eq!(resolved.local.models[0].model.as_ref(), b"gpt-6-luna");
     assert_eq!(resolved.accounts.len(), 1);
@@ -313,8 +312,7 @@ fn composition_derives_only_the_main_model_with_sub_agents_off() {
 
 #[test]
 fn composition_adds_every_model_of_accounts_with_a_source() {
-    let resolved = composed("sub_agents=true\n[accounts.anthropic]\nsource='env'\n")
-        .unwrap_or_else(|why| panic!("{}", why.line()));
+    let resolved = crate::fixture::ready(composed("sub_agents=true\n[accounts.anthropic]\nsource='env'\n"));
     assert_eq!(resolved.local.models.len(), 6);
     assert_eq!(resolved.local.models[0].model.as_ref(), b"gpt-6-luna");
     assert_eq!(
@@ -328,7 +326,7 @@ fn composition_adds_every_model_of_accounts_with_a_source() {
 
 #[test]
 fn composition_reports_an_account_without_a_source_outside_the_run() {
-    let resolved = composed("sub_agents=true\n").unwrap_or_else(|why| panic!("{}", why.line()));
+    let resolved = crate::fixture::ready(composed("sub_agents=true\n"));
     assert_eq!(resolved.local.models.len(), 3);
     assert_eq!(resolved.outside_models.len(), 3);
     assert_eq!(resolved.outside_models["anthropic/claude-opus-5-5"], "account has no source");
@@ -404,7 +402,9 @@ fn waiting_past_the_profile_ceiling_is_refused_at_waiting_seconds() {
 
 #[test]
 fn a_change_and_mid_run_delivery_keep_their_fields_and_title() {
-    let resolved = composed("[workspace.contract]\nform='change'\nfields=[{name='title',max=128}]\n[workspace.delivery]\nfields=[{name='title',max=64}]\ntitle='title'\n").unwrap_or_else(|why| panic!("{}", why.line()));
+    let resolved = crate::fixture::ready(composed(
+        "[workspace.contract]\nform='change'\nfields=[{name='title',max=128}]\n[workspace.delivery]\nfields=[{name='title',max=64}]\ntitle='title'\n",
+    ));
     assert!(matches!(resolved.local.contract, smith_local_domain::Contract::Change(_)));
     assert_eq!(resolved.local.deliver.expect("mid-run delivery").fields.first().expect("title field").max, 64);
     assert_eq!(resolved.local.title_field.as_ref(), b"title");
@@ -412,10 +412,9 @@ fn a_change_and_mid_run_delivery_keep_their_fields_and_title() {
 
 #[test]
 fn an_outside_declared_model_needs_only_its_value_checks() {
-    let resolved = composed(
+    let resolved = crate::fixture::ready(composed(
         "[models.'outside/model']\nwindow=1024\noutput=16\ninput_price=1.0\ncached_price=0.1\noutput_price=2.0\n",
-    )
-    .unwrap_or_else(|why| panic!("{}", why.line()));
+    ));
     assert_eq!(resolved.local.models.len(), 3);
     assert_eq!(resolved.outside_models["outside/model"], "sub_agents is off");
 }
@@ -433,7 +432,7 @@ fn trust_paths_are_resolved_from_the_settings_workspace() {
     let decoded = merge(&Shared::default(), skein_scratch::paths::package(), &[
         source(Layer::User,"model='codex/gpt-6-luna'\n[accounts.codex]\nsource='env'\nvariable='SMITH_FIXTURE_TOKEN'\n[endpoints.codex]\naddress='127.0.0.1:443'\ntrust.system=false\ntrust.der=['../../tests/protocol-llm/fixtures/root.der']\n")
     ]).expect("relative root");
-    let resolved = super::resolve::resolve(&decoded).unwrap_or_else(|why| panic!("{}", why.line()));
+    let resolved = crate::fixture::ready(super::resolve::resolve(&decoded));
     assert_eq!(resolved.local.models.len(), 3);
 }
 
@@ -480,7 +479,7 @@ fn a_credential_like_name_is_warned() {
 
 #[test]
 fn the_configuration_holds_each_model_of_mains_endpoint_and_none_of_another() {
-    let resolved = composed("effort='high'\n").unwrap_or_else(|why| panic!("{}", why.line()));
+    let resolved = crate::fixture::ready(composed("effort='high'\n"));
     let declared = &resolved.agent.declarations.endpoints;
     assert_eq!(declared.len(), 1);
     assert_eq!(declared[0].models.len(), 3);
@@ -503,7 +502,7 @@ fn effort_settings_shared(extra: &str, shared: &Shared) -> Result<super::resolve
 }
 
 fn effort_settings_input(extra: &str, shared: &Shared) -> Result<super::Settings, super::Refusal> {
-    let certificate = skein_scratch::paths::tree().join("tests/protocol-llm/fixtures/root.der").display().to_string();
+    let certificate = crate::fixture::trust().display().to_string();
     let base = format!(
         "model='test/model'\n[accounts.test]\nsource='env'\nvariable='SYNTHETIC'\n[endpoints.test]\ndialect='codex'\nconnect=10\nhandshake=10\naccount='test'\naddress='127.0.0.1:443'\nserver_name='example.test'\ntrust.system=false\ntrust.der=['{certificate}']\n[models.\"test/model\"]\nwindow=262144\noutput=32768\ninput_price=1.0\ncached_price=1.0\noutput_price=1.0\n"
     );
@@ -568,7 +567,7 @@ fn the_effort_flag_is_checked_against_the_models_declared_names() {
 
 #[test]
 fn parallel_tools_reaches_the_agents_policy_and_batch_limits() {
-    let resolved = composed("[deployment]\nparallel_tools=2\n").unwrap_or_else(|why| panic!("{}", why.line()));
+    let resolved = crate::fixture::ready(composed("[deployment]\nparallel_tools=2\n"));
     assert_eq!(resolved.agent.profile.policy.parallel_tools, 2);
     assert_eq!(resolved.agent.service.limits.domain.session.parallel_tools, 2);
     assert_eq!(resolved.agent.service.limits.domain.session.tools.calls, 2);
@@ -576,8 +575,7 @@ fn parallel_tools_reaches_the_agents_policy_and_batch_limits() {
 
 #[test]
 fn jobs_job_poll_and_job_wait_reach_the_agents_tool_limits() {
-    let resolved =
-        composed("[deployment]\njobs=2\njob_poll=2\njob_wait=7\n").unwrap_or_else(|why| panic!("{}", why.line()));
+    let resolved = crate::fixture::ready(composed("[deployment]\njobs=2\njob_poll=2\njob_wait=7\n"));
     assert_eq!(resolved.agent.profile.declared.jobs, 2);
     assert_eq!(resolved.agent.profile.policy.job_poll, skein_lib::Duration::from_secs(2));
     assert_eq!(resolved.agent.profile.policy.job_wait, skein_lib::Duration::from_secs(7));
@@ -641,7 +639,7 @@ fn a_zero_refresh_lead_names_the_setting() {
 
 #[test]
 fn the_default_task_role_reaches_the_resolved_run() {
-    let resolved = composed("").unwrap_or_else(|why| panic!("{}", why.line()));
+    let resolved = crate::fixture::ready(composed(""));
     assert_eq!(resolved.local.instructions.as_ref(), crate::role::TASK_ROLE.as_bytes());
     assert_eq!(
         resolved.agent.declarations.role_bound,
@@ -651,7 +649,7 @@ fn the_default_task_role_reaches_the_resolved_run() {
 
 #[test]
 fn explicit_instructions_replace_the_shells_default_task_role() {
-    let resolved = composed("instructions='Custom instructions'\n").unwrap_or_else(|why| panic!("{}", why.line()));
+    let resolved = crate::fixture::ready(composed("instructions='Custom instructions'\n"));
     assert_eq!(resolved.local.instructions.as_ref(), b"Custom instructions");
     assert_eq!(resolved.agent.declarations.role_bound, None);
 }
@@ -700,7 +698,7 @@ fn with_dirs(
     extra: &str,
     dirs: Vec<crate::command::Dir>,
 ) -> Result<super::resolve::Resolved, super::Refusal> {
-    let certificate = skein_scratch::paths::tree().join("tests/protocol-llm/fixtures/root.der").display().to_string();
+    let certificate = crate::fixture::trust().display().to_string();
     let text = format!(
         "model='codex/gpt-6-luna'\n{extra}\n[accounts.codex]\nsource='env'\nvariable='SMITH_FIXTURE_TOKEN'\n[endpoints.codex]\naddress='127.0.0.1:443'\ntrust.system=false\ntrust.der=['{certificate}']\n"
     );
@@ -721,7 +719,7 @@ fn rows(resolved: &super::resolve::Resolved) -> Vec<(String, bool, bool)> {
 #[test]
 fn without_dir_the_workspace_is_one_writable_row_named_workspace() {
     let root = scratch("default");
-    let resolved = with_dirs(&root, "", Vec::new()).unwrap_or_else(|why| panic!("{}", why.line()));
+    let resolved = crate::fixture::ready(with_dirs(&root, "", Vec::new()));
     assert_eq!(rows(&resolved), [("workspace".into(), true, false)]);
 }
 
@@ -729,8 +727,7 @@ fn without_dir_the_workspace_is_one_writable_row_named_workspace() {
 fn a_dir_follows_the_working_directory_named_by_its_last_component() {
     let root = scratch("rows");
     std::fs::create_dir_all(root.join("plan")).unwrap();
-    let resolved = with_dirs(&root, "", vec![dir("plan", root.join("work/../plan"), false)])
-        .unwrap_or_else(|why| panic!("{}", why.line()));
+    let resolved = crate::fixture::ready(with_dirs(&root, "", vec![dir("plan", root.join("work/../plan"), false)]));
     assert_eq!(rows(&resolved), [("work".into(), true, false), ("plan".into(), false, false)]);
     let workspace = resolved.local.workspace.as_ref().unwrap();
     let canonical = root.canonicalize().unwrap();
@@ -748,7 +745,7 @@ fn three_dirs_start_beside_the_working_directory() {
     for name in ["plan", "kit", "log"] {
         std::fs::create_dir_all(root.join(name)).unwrap();
     }
-    let mut resolved = with_dirs(
+    let mut resolved = crate::fixture::ready(with_dirs(
         &root,
         "",
         vec![
@@ -756,8 +753,7 @@ fn three_dirs_start_beside_the_working_directory() {
             dir("kit", root.join("kit"), false),
             dir("log", root.join("log"), true),
         ],
-    )
-    .unwrap_or_else(|why| panic!("{}", why.line()));
+    ));
     assert_eq!(
         rows(&resolved),
         [
@@ -799,8 +795,7 @@ fn a_dir_inside_a_git_working_tree_is_a_repository() {
     let root = scratch("git");
     std::fs::create_dir_all(root.join("kit/.git")).unwrap();
     std::fs::create_dir_all(root.join("kit/src")).unwrap();
-    let resolved = with_dirs(&root, "", vec![dir("kit", root.join("kit/src"), true)])
-        .unwrap_or_else(|why| panic!("{}", why.line()));
+    let resolved = crate::fixture::ready(with_dirs(&root, "", vec![dir("kit", root.join("kit/src"), true)]));
     assert_eq!(rows(&resolved), [("work".into(), true, false), ("kit".into(), true, true)]);
 }
 
@@ -809,8 +804,7 @@ fn dir_flags_replace_a_workspace_directories_setting() {
     let root = scratch("replace");
     std::fs::create_dir_all(root.join("plan")).unwrap();
     let setting = "[[workspace.directories]]\nname='main'\npath='.'\n";
-    let resolved = with_dirs(&root, setting, vec![dir("plan", root.join("plan"), true)])
-        .unwrap_or_else(|why| panic!("{}", why.line()));
+    let resolved = crate::fixture::ready(with_dirs(&root, setting, vec![dir("plan", root.join("plan"), true)]));
     assert_eq!(rows(&resolved), [("work".into(), true, false), ("plan".into(), true, false)]);
 }
 
