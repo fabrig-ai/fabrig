@@ -43,7 +43,7 @@ impl Harness {
         clippy::too_many_lines,
         reason = "one fixture loads a sampled core store and hand-built connector records"
     )]
-    fn new(selected: bool, recovery: u16) -> Self {
+    fn new(recovery: u16) -> Self {
         let (configuration, limits) = jig_core_world::effects::fixture(SEED, false);
         let mut source = World::new(SEED, false);
         let task = source.assigned.as_ref().expect("source run").task;
@@ -72,10 +72,8 @@ impl Harness {
             &mut configured,
         );
         assert!(configured.is_empty());
-        if selected {
+        {
             phase(&core.start_begin(false, env.wall), Phase::LoadCore);
-        } else {
-            assert_eq!(core.restart_begin(false), core::RestartRequest::Step(core::RestartStep::LoadCore));
         }
         let mut rows: Vec<_> = source
             .store
@@ -106,9 +104,7 @@ impl Harness {
                 assert!(!matches!(core.restore_core(row.clone(), &limits.core), core::Restored::Rejected));
             }
         }
-        if !selected {
-            assert!(core.settings_restored(&env));
-        }
+        {}
         rows.sort_by_key(|row| match row {
             core::Record::Accounts(_) => 0,
             core::Record::People(_) => 1,
@@ -139,10 +135,7 @@ impl Harness {
                     assert!(core.restore_policy(&limits.core, project, name, value));
                     continue;
                 }
-                core::Record::People(row) => {
-                    assert!(core.restore_people_row(&row));
-                    core::Event::People(people::Event::Restore { record: row })
-                }
+                core::Record::People(row) => core::Event::People(people::Event::Restore { record: row }),
                 core::Record::Accounts(record) => core::Event::Account(accounts::Event::Restore { record }),
             };
             #[expect(clippy::wildcard_enum_match_arm, reason = "only restore events are built above")]
@@ -156,7 +149,7 @@ impl Harness {
             let first = out.pop();
             assert!(
                 matches!(first, Some(core::Request::Decided)),
-                "load {key:?}, selected={selected}, output {first:?}, failure {:?}",
+                "load {key:?}, output {first:?}, failure {:?}",
                 core.start_failure()
             );
             assert!(out.is_empty());
@@ -432,56 +425,17 @@ impl Harness {
         assert_eq!(self.core.start_phase(), None);
         assert_eq!(self.core.start_failure(), None);
     }
-
-    fn default_start(&mut self) {
-        use core::RestartStep;
-        let mut request = core::RestartRequest::Step(RestartStep::LoadCore);
-        for _ in 0..16 {
-            let core::RestartRequest::Step(step) = request else { break };
-            match step {
-                RestartStep::RestoreConnector { connector: 1 } => self.restore_connector(),
-                RestartStep::RestoreConnector { connector: 2 } => {
-                    self.route_core(core::Event::Tasks(tasks::Event::Check));
-                }
-                RestartStep::Switch => {
-                    self.wires = true;
-                }
-                RestartStep::AdoptRuns => {
-                    self.route_core(core::Event::People(people::Event::Restored));
-                    self.route_core(core::Event::Tasks(tasks::Event::Restored));
-                }
-                RestartStep::ReadAfresh { connector: 1 } => self.read_afresh(),
-                RestartStep::SettleOutbox { connector: 1 } => self.settle(),
-                RestartStep::LoadCore
-                | RestartStep::LoadInbox
-                | RestartStep::ReadAfresh { .. }
-                | RestartStep::SettleOutbox { .. }
-                | RestartStep::Open => {}
-                RestartStep::RestoreConnector { .. } => panic!("two fixture connectors"),
-            }
-            request = self.core.restart_done(step);
-        }
-        assert_eq!(request, core::RestartRequest::Idle);
-        assert!(self.core.restart_ready());
-    }
 }
 
 fn recovered(recovery: u16, applications: usize, calls: u64) {
-    let mut selected = Harness::new(true, recovery);
+    let mut selected = Harness::new(recovery);
     selected.selected();
-    let mut default = Harness::new(false, recovery);
-    default.default_start();
     assert_eq!(selected.outcome, Some(core::connector::OutboxOutcome::Made));
-    assert_eq!(selected.outcome, default.outcome);
-    assert_eq!(selected.records, default.records);
     assert!(selected.records.values().any(|row| matches!(row, connector::Record::Made { state: 11, .. })));
     assert!(!selected.records.values().any(|row| matches!(row, connector::Record::Outbox(_))));
     assert_eq!(selected.core.tasks.writer(&selected.resource), None);
-    assert_eq!(default.core.tasks.writer(&default.resource), None);
-    assert_eq!(selected.core.tasks.task(selected.task), default.core.tasks.task(default.task));
     assert_eq!(selected.system.observed().iter().filter(|row| row.applied).count(), applications);
     assert_eq!(selected.system.calls(), calls);
-    assert_eq!(selected.system.observed(), default.system.observed());
 }
 
 #[test]
@@ -501,24 +455,18 @@ fn uncertain_idempotent_effect_repeats_after_its_saved_deadline() {
 
 #[test]
 fn unrecoverable_effect_holds_its_task_and_writer_as_default() {
-    let mut selected = Harness::new(true, 4);
+    let mut selected = Harness::new(4);
     selected.selected();
-    let mut default = Harness::new(false, 4);
-    default.default_start();
     assert_eq!(selected.outcome, Some(core::connector::OutboxOutcome::Held { entry: ENTRY }));
-    assert_eq!(selected.outcome, default.outcome);
-    assert_eq!(selected.records, default.records);
     assert!(selected.records.values().any(|row| matches!(
         row,
         connector::Record::Outbox(connector::OutboxEntry { phase: connector::EffectPhase::Held, .. })
     )));
-    assert_eq!(selected.core.tasks.writer(&selected.resource), default.core.tasks.writer(&default.resource));
     assert!(selected.core.tasks.writer(&selected.resource).is_some());
     let row = selected.core.tasks.task(selected.task).expect("held task");
     assert!(
         matches!(&row.phase, tasks::Phase::Held { why: tasks::Hold::Uncertain { entry: ENTRY }, source: Some(source), .. } if **source == tasks::HoldSource::Effect { connector: 1, entry: ENTRY })
     );
-    assert_eq!(Some(row), default.core.tasks.task(default.task));
     assert_eq!(selected.system.calls(), 2, "an unrecoverable effect is neither looked up nor retried");
     assert_eq!(selected.system.observed().iter().filter(|row| row.applied).count(), 1);
 }
@@ -526,17 +474,15 @@ fn unrecoverable_effect_holds_its_task_and_writer_as_default() {
 #[test]
 fn restored_access_controls_workspace_writers_on_both_paths() {
     for role in [connector::ResourceRole::Owned, connector::ResourceRole::Context] {
-        for selected in [false, true] {
-            let mut h = Harness::new(selected, 1);
+        {
+            let mut h = Harness::new(1);
             for record in h.records.values_mut() {
                 if let connector::Record::Adoption { role: restored, .. } = record {
                     *restored = role;
                 }
             }
-            if selected {
+            {
                 h.selected();
-            } else {
-                h.default_start();
             }
             assert_eq!(h.core.tasks.holder(&h.resource), Some(h.task));
             assert_eq!(
@@ -616,12 +562,10 @@ fn restored_access_controls_workspace_writers_on_both_paths() {
 
 #[test]
 fn loading_slot_reports_keep_the_durable_pool_capacity_as_default() {
-    for selected in [false, true] {
-        let mut h = Harness::new(selected, 1);
-        if selected {
+    {
+        let mut h = Harness::new(1);
+        {
             h.selected();
-        } else {
-            h.default_start();
         }
         let pool = task_name(&jig_test_connector_world::path(1, 2));
         assert_eq!(h.connector.slots(&jig_test_connector_world::path(1, 2)), Some(2));

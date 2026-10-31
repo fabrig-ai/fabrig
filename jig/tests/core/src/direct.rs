@@ -267,7 +267,9 @@ impl Driver {
         root::release(&mut self.domain, &self.env, &mut out);
         while let Some(request) = out.pop() {
             match request {
-                root::Request::Start { .. } => unreachable!("the start driver is not selected here"),
+                root::Request::Start { phase, census } => {
+                    self.store.ask(jig_test_store::StoreOut::Start { phase, census })
+                }
                 root::Request::Commit { number, mut writes } => {
                     let mut rows = Vec::new();
                     while let Some(write) = writes.pop() {
@@ -307,7 +309,6 @@ impl Driver {
                 }
                 other @ (root::Request::ReadResult { .. }
                 | root::Request::Busy { .. }
-                | root::Request::Restart(_)
                 | root::Request::Deliver(_)
                 | root::Request::Now(_)) => self.released.push(other),
             }
@@ -315,7 +316,7 @@ impl Driver {
         for answer in self.store.answers() {
             match answer {
                 Up::Root(event) => self.events.push_back(event),
-                Up::Restore(_) | Up::Ask(_) => panic!("settled chat does not restart"),
+                Up::Ask(_) => panic!("settled chat does not restart"),
             }
         }
         self.domain.reclaim();

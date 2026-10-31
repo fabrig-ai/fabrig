@@ -10,7 +10,7 @@ use super::{
     fixtures::{ENGINE_SMALL, with},
 };
 use crate::{Profile, profile};
-use jig_domain_core::{Core, CoreRecord, Event, Record, Request, Requests, RestartRequest, RestartStep, Write};
+use jig_domain_core::{Core, CoreRecord, Event, Record, Request, Requests, Write};
 use jig_domain_people as people;
 use skein_lib::{Env, ReplyTo, Time, Token, Wall};
 
@@ -128,7 +128,7 @@ fn first_owners_hold_the_deployments_roles_across_start_and_restart() {
     let mut first_saves = Vec::new();
     for row in rows() {
         let mut core = Core::new(core_config(&row.document), &env.limits).expect("real Small core");
-        let _load = core.restart_begin(false);
+        let mut action = core.start_begin(false, env.wall);
         if row.restart {
             for record in &first_saves {
                 match record {
@@ -145,25 +145,29 @@ fn first_owners_hold_the_deployments_roles_across_start_and_restart() {
                 }
             }
         }
-        let mut records = saves(&mut core, &env, Event::People(people::Event::Restored));
-        // The root saves the deployment header with the decision's people records.
+        let mut records = Vec::new();
+        let mut out = skein_lib::Queue::uncapped();
+        for _ in 0_u16..64 {
+            use jig_domain_core::start::{Action, Phase, SweepInput};
+            action = match action {
+                Action::Step(Phase::Sweep) => core.start_sweep(&env, SweepInput::Finished, &mut out),
+                Action::Step(phase) => core.start_done(&env, phase, &mut out),
+                Action::Commit(token) => core.start_resume(&env, token, &mut out),
+                Action::Idle => break,
+                Action::Refused(why) => panic!("first-owner start refused {why:?}"),
+            };
+            while let Some(request) = out.pop() {
+                if let Request::Write(Write::Save(record)) = request {
+                    records.push(record);
+                }
+            }
+        }
+        assert!(core.start_opened());
         if first_saves.is_empty() {
             first_saves.clone_from(&records);
             first_saves.insert(0, Record::Core(CoreRecord::Deployment(core.counters.next_commit())));
         }
-        let mut restart = core.restart_done(RestartStep::LoadCore);
-        loop {
-            match restart {
-                RestartRequest::Step(next) => restart = core.restart_done(next),
-                RestartRequest::Idle => break,
-                RestartRequest::Settings { .. }
-                | RestartRequest::HeldPastLimit { .. }
-                | RestartRequest::UnheldRevision { .. }
-                | RestartRequest::ProjectPolicy { .. }
-                | RestartRequest::Unresolved { .. }
-                | RestartRequest::Refused { .. } => panic!("first-owner restart refused: {restart:?}"),
-            }
-        }
+
         if row.sign_in {
             records.extend(saves(
                 &mut core,

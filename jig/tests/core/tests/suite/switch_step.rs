@@ -202,11 +202,11 @@ fn a_broken_task_set_refuses_before_the_switch() {
     // Valid on its own, but its declared root is absent from the restored set.
     row.root = u64::MAX;
     world.seed(Box::new([root::Record::Core(core::Record::Tasks(jig_domain_tasks::Stored::Live(Box::new(row))))]));
-    refuses_before_switch(world, core::RestoreChild::Tasks);
+    refuses_before_switch(world);
 }
 
 // Every refusal must leave A byte-for-byte reopenable by the earlier build.
-fn refuses_before_switch(mut world: World, _child: core::RestoreChild) {
+fn refuses_before_switch(mut world: World) {
     world.store.crash(f::SEED);
     let source = world.store.generation_contents(b"generations/1");
     let last = world.store.applied;
@@ -259,7 +259,7 @@ fn orphan_source() -> root::Record {
 fn a_patched_account_the_accounts_child_would_leave_refuses_before_the_switch() {
     let mut world = before();
     world.seed(Box::new([orphan_source()]));
-    refuses_before_switch(world, core::RestoreChild::Accounts);
+    refuses_before_switch(world);
 }
 
 #[test]
@@ -284,7 +284,7 @@ fn a_task_naming_a_project_the_copy_does_not_hold_refuses_before_the_switch() {
     // Leave the task and its funding internally consistent, but without its project.
     world.erase(root::Key::Core(core::Key::People(jig_domain_people::Key::Policy(PROJECT))));
     world.seed(Box::new([root::Record::Core(core::Record::Tasks(jig_domain_tasks::Stored::Live(Box::new(row))))]));
-    refuses_before_switch(world, core::RestoreChild::Tasks);
+    refuses_before_switch(world);
 }
 
 #[test]
@@ -299,7 +299,7 @@ fn a_task_naming_a_party_the_copy_does_not_hold_refuses_before_the_switch() {
     });
     row.last_message = 1;
     world.seed(Box::new([root::Record::Core(core::Record::Tasks(jig_domain_tasks::Stored::Live(Box::new(row))))]));
-    refuses_before_switch(world, core::RestoreChild::Tasks);
+    refuses_before_switch(world);
 }
 
 #[test]
@@ -310,7 +310,7 @@ fn a_read_position_over_a_conversation_the_copy_does_not_hold_refuses_before_the
         task: ABSENT_TASK,
         through: 1,
     }))]));
-    refuses_before_switch(world, core::RestoreChild::People);
+    refuses_before_switch(world);
 }
 
 #[test]

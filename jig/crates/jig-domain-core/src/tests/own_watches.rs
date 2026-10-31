@@ -45,6 +45,28 @@ fn signed_core() -> (Core, Limits, u64, Box<[Record]>) {
     (core, limits, sign_in, records)
 }
 
+fn started_signed_core() -> (Core, Limits, u64, Box<[Record]>) {
+    let limits = limits();
+    let mut configuration = config(41);
+    configuration.owners = Box::new([]);
+    let mut core = Core::new(configuration, &limits).expect("fixture core configuration");
+    let mut seeded = finish_start(&mut core, &Env { now: Time::ZERO, wall: Wall::EPOCH, limits });
+    let (sign_in, records) = sign_in(&mut core, &limits, 1);
+    let mut saved = List::with_capacity(
+        seeded.len().checked_add(u32::try_from(records.len()).expect("sign-in records")).expect("saved records"),
+    );
+    while let Some(request) = seeded.pop() {
+        if let Request::Write(Write::Save(record)) = request {
+            saved.push(record).expect("saved records");
+        }
+    }
+    for record in records {
+        saved.push(record).expect("saved records");
+    }
+    let records = saved.into_boxed();
+    (core, limits, sign_in, records)
+}
+
 fn open(core: &mut Core, limits: &Limits, sign_in: u64, watcher: u64, subject: Watched) -> Box<[Request]> {
     watch_outputs(core, limits, Event::Watch { watcher: Token::new(watcher), sign_in, subject, window: window() })
 }
@@ -79,16 +101,20 @@ fn an_own_subject_names_the_sign_ins_party() {
 
 #[test]
 fn an_own_subject_after_a_restart_names_the_restored_sign_ins_party() {
-    let (original, limits, sign_in, records) = signed_core();
+    let (original, limits, sign_in, records) = started_signed_core();
     let mut restored = Core::new(config(42), &limits).expect("fixture core configuration");
-    assert_eq!(restored.restart_begin(false), RestartRequest::Step(RestartStep::LoadCore));
-    let header = original.counters.deployment();
+    let _start = restored.start_begin(false, Wall::EPOCH);
+    let mut header = original.counters.deployment();
+    header.commits = 1;
     assert_eq!(
         restored.restore_core(CoreRecord::Deployment(header), &limits),
         Restored::Deployment { commits: header.commits }
     );
     for record in records {
         match record {
+            Record::People(people::Stored::Policy { project, name, value }) => {
+                assert!(restored.restore_policy(&limits, project, name, value));
+            }
             Record::People(record) => {
                 drop(watch_outputs(&mut restored, &limits, Event::People(people::Event::Restore { record })));
             }
@@ -100,8 +126,9 @@ fn an_own_subject_after_a_restart_names_the_restored_sign_ins_party() {
             }
         }
     }
-    drop(watch_outputs(&mut restored, &limits, Event::People(people::Event::Restored)));
-    assert_eq!(restored.restart_done(RestartStep::LoadCore), RestartRequest::Step(RestartStep::LoadInbox));
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
+    let action = restored.start_done(&env, crate::start::Phase::LoadCore, &mut Queue::uncapped());
+    drop(finish_started(&mut restored, &env, action));
     let out = open(&mut restored, &limits, sign_in, 30, Watched::Frame);
     assert_eq!(named(&restored, 30), &Subject::Frame { party: 1 });
     assert_eq!(frame_party(&out), 1);

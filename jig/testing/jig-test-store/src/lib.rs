@@ -60,7 +60,6 @@ pub enum StoreOut {
 #[derive(Debug)]
 #[expect(clippy::large_enum_variant, reason = "store replies carry the core's bounded proposal event whole")]
 pub enum Up {
-    Restore(jig_test_domain::Record),
     Root(jig_test_domain::Event),
     Ask(jig_protocol_store::Request),
 }

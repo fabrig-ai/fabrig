@@ -321,7 +321,7 @@ impl World {
                 }
                 match request {
                     root::Request::Start { phase, census } => self.start_step(phase, census),
-                    root::Request::Restart(_) => unreachable!("the world starts through the start script"),
+
                     root::Request::Commit { number, mut writes } => {
                         let mut rows = Vec::new();
                         while let Some(write) = writes.pop() {

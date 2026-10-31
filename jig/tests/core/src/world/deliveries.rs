@@ -5,7 +5,6 @@ impl World {
     pub(super) fn delivered(&mut self, mut delivery: root::Delivery) {
         self.observer.delivered(self.iteration * 1_000_000, &mut delivery);
         match delivery {
-            root::Delivery::Start(_) => unreachable!("the start driver is not selected here"),
             root::Delivery::Core(core::Held::Sources { channel, sources }) => {
                 assert!(sources.is_empty(), "walking worker source fixture");
                 self.events.push_back(root::Event::Core(core::Event::Fleet(jig_domain_fleet::Event::Logins {
@@ -21,7 +20,7 @@ impl World {
                     }));
                 }
             }
-            root::Delivery::Restart(_) => panic!("walking fixture uses the restored-marker path"),
+
             root::Delivery::Core(core::Held::Load(load)) => self.store.ask(jig_test_store::StoreOut::Now(*load)),
             root::Delivery::Core(core::Held::NotesLoad { owner, range }) => {
                 self.store.ask(jig_test_store::StoreOut::NotesLoad { owner, range });
@@ -213,6 +212,7 @@ impl World {
             | root::Delivery::CallAnswer { .. }
             | root::Delivery::Core(_)
             | root::Delivery::Fleet(_)
+            | root::Delivery::Start(_)
             | root::Delivery::System { .. }
             | root::Delivery::Application { .. }
             | root::Delivery::LostRead { .. }) => {

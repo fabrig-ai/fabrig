@@ -46,14 +46,14 @@ impl Core {
                         !self.current.changes.contains_key(&setting),
                         "duplicate {:?}",
                         crate::Key::Core(CoreKey::Settings(Key::Changed(setting)))
-                    )
+                    );
                 }
                 if let Err(failure) = super::check::admits_change(&self.current, setting, limits) {
                     self.refuse_restore(crate::start::Failure::Settings { failure, changed: true });
                     return false;
                 }
                 if let Some(value) = &changed.value
-                    && let Err(failure) = self.restore_setting_fit(setting, value, limits)
+                    && let Err(failure) = super::check::restore_fit(setting, value, limits)
                 {
                     self.refuse_restore(crate::start::Failure::Settings { failure, changed: true });
                     return false;
@@ -67,7 +67,7 @@ impl Core {
                         !self.settings_restore.extent,
                         "duplicate {:?}",
                         crate::Key::Core(CoreKey::Settings(Key::Extent))
-                    )
+                    );
                 }
                 self.current.oldest = oldest;
                 self.settings_restore.extent = true;
@@ -120,7 +120,7 @@ impl Core {
                 !self.settings_restore.defaults.contains_key(&setting),
                 "duplicate {:?}",
                 crate::Key::Core(CoreKey::Settings(Key::Default(setting)))
-            )
+            );
         }
         match self.current.defaults.get_mut(&setting) {
             Some(given) if given.value == default.value => given.revision = default.revision,
@@ -135,7 +135,7 @@ impl Core {
                 }
             }
         }
-        if let Err(failure) = self.restore_setting_fit(setting, &default.value, limits) {
+        if let Err(failure) = super::check::restore_fit(setting, &default.value, limits) {
             let _refused = self.refuse_settings(failure);
             return false;
         }
@@ -186,7 +186,7 @@ impl Core {
                 !self.held.versions.contains_key(&key),
                 "duplicate {:?}",
                 crate::Key::Core(CoreKey::Settings(Key::Charter { charter, revision }))
-            )
+            );
         }
         let held = self.held.versions.len().checked_add(1).expect("version row count");
         if held > limits.settings.versions {
@@ -195,7 +195,7 @@ impl Core {
         }
         if let Some(value) = &value.charter {
             let stored = super::Value::Charter(value.clone());
-            if let Err(failure) = self.restore_setting_fit(Setting::Charter(charter), &stored, limits) {
+            if let Err(failure) = super::check::restore_fit(Setting::Charter(charter), &stored, limits) {
                 let _refused = self.refuse_settings(failure);
                 return false;
             }
@@ -263,10 +263,6 @@ impl Core {
             self.restore_failure = Some(request);
         }
         self.start_collect_failure();
-    }
-
-    fn restore_setting_fit(&self, setting: Setting, value: &super::Value, limits: &Limits) -> Result<(), Failure> {
-        super::check::restore_fit(setting, value, limits)
     }
 
     pub(crate) fn tell_settings(&mut self, env: &Env<Limits>) {

@@ -50,7 +50,7 @@ fn snapshot_store() -> Store {
 
 fn ask_snapshots(store: &mut Store) {
     for connector in 1..=FLIGHTS {
-        store.ask(StoreOut::Restart { step: core::RestartStep::RestoreConnector { connector }, census: None });
+        store.ask(StoreOut::Start { phase: core::start::Phase::RestoreConnector { connector }, census: None });
     }
 }
 
@@ -71,7 +71,7 @@ fn finish_snapshots(store: &mut Store) {
         let _committed = store.tick(false).expect("read-only traversal");
         for answer in store.answers() {
             match answer {
-                Up::Restore(row @ root::Record::Connector { number, .. }) => {
+                Up::Root(root::Event::StartRecord(row @ root::Record::Connector { number, .. })) => {
                     assert!(!finished.contains_key(&number), "all rows precede the terminal");
                     let rows = restored.entry(number).or_default();
                     if rows.is_empty() {
@@ -79,10 +79,10 @@ fn finish_snapshots(store: &mut Store) {
                     }
                     rows.push(row);
                 }
-                Up::Root(root::Event::RestartDone(core::RestartStep::RestoreConnector { connector })) => {
+                Up::Root(root::Event::StartDone(core::start::Phase::RestoreConnector { connector })) => {
                     *finished.entry(connector).or_default() += 1;
                 }
-                Up::Restore(_) | Up::Root(_) | Up::Ask(_) => panic!("only connector rows and terminals"),
+                Up::Root(_) | Up::Ask(_) => panic!("only connector rows and terminals"),
             }
         }
     }
@@ -339,7 +339,7 @@ fn check_start_snapshot(store: &mut Store) {
                 assert_eq!(found, phase);
                 finished = true;
             }
-            Up::Root(_) | Up::Restore(_) | Up::Ask(_) => panic!("typed start page"),
+            Up::Root(_) | Up::Ask(_) => panic!("typed start page"),
         }
     }
     assert!(finished);

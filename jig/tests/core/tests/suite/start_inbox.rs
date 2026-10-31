@@ -114,18 +114,13 @@ fn phase(action: &Action, expected: Phase) {
     assert!(matches!(action, Action::Step(found) if *found == expected));
 }
 
-fn load_core(rows: &BTreeMap<root::Key, root::Record>, limits: &root::Limits, selected: bool) -> core::Core {
+fn load_core(rows: &BTreeMap<root::Key, root::Record>, limits: &root::Limits) -> core::Core {
     let mut domain = core::Core::new(configuration().core, &limits.core).expect("configured direct core");
     let env = core_env(limits);
-    if selected {
+    {
         phase(&domain.start_begin(false, env.wall), Phase::LoadCore);
-    } else {
-        assert_eq!(domain.restart_begin(false), core::RestartRequest::Step(core::RestartStep::LoadCore));
     }
     for range in core::RestoreRange::LIVE {
-        if !selected && range == core::RestoreRange::Accounts {
-            assert!(domain.settings_restored(&env));
-        }
         for (key, record) in rows {
             if let root::Key::Core(key) = key
                 && range.admits(key)
@@ -135,16 +130,9 @@ fn load_core(rows: &BTreeMap<root::Key, root::Record>, limits: &root::Limits, se
             }
         }
     }
-    if selected {
+    {
         phase(&domain.start_done(&core_env(limits), Phase::LoadCore, &mut Queue::uncapped()), Phase::LoadInbox);
         assert!(!domain.people.ready());
-        assert_eq!(domain.restart_step(), None);
-    } else {
-        let _out = core::step(&mut domain, &core_env(limits), core::Event::People(people::Event::Restored));
-        assert_eq!(
-            domain.restart_done(core::RestartStep::LoadCore),
-            core::RestartRequest::Step(core::RestartStep::LoadInbox)
-        );
     }
     domain
 }
@@ -157,7 +145,6 @@ fn load_record(domain: &mut core::Core, limits: &root::Limits, record: core::Rec
             assert!(domain.restore_policy(&limits.core, project, name, value));
         }
         core::Record::People(row) => {
-            assert!(domain.restore_people_row(&row));
             let mut out = Queue::uncapped();
             people::step(
                 &mut domain.people,
@@ -261,44 +248,21 @@ fn through_wires(domain: &mut core::Core, limits: &root::Limits) {
 }
 
 #[test]
-fn selected_census_matches_default_inbox_chats_and_unread_results_from_one_store() {
+fn start_restores_inbox_chats_and_unread_results_from_one_store() {
     let world = stored_world();
     let limits = limits();
-    let mut default = load_core(&world.store.rows, &limits, false);
-    let mut selected = load_core(&world.store.rows, &limits, true);
-    load_inbox(&mut default, &world.store.rows, &limits);
-    load_inbox(&mut selected, &world.store.rows, &limits);
-    through_wires(&mut selected, &limits);
-    assert!(selected.people.ready());
+    let mut restored = load_core(&world.store.rows, &limits);
+    load_inbox(&mut restored, &world.store.rows, &limits);
+    through_wires(&mut restored, &limits);
+    assert!(restored.people.ready());
     let person = 1;
-    let people_limits = &limits.core.people;
-    assert_eq!(
-        selected.people.cached_waiting(people_limits, person),
-        default.people.cached_waiting(people_limits, person)
-    );
-    assert_eq!(
-        selected.people.cached_updates(people_limits, person),
-        default.people.cached_updates(people_limits, person)
-    );
-    assert_eq!(selected.people.cached_results(person), default.people.cached_results(person));
-    assert_eq!(selected.people.counts(people_limits, person), default.people.counts(people_limits, person));
-    assert!(selected.people.needs(person).expect("restored party needs") >= 2);
-    assert_eq!(selected.people.cached_results(person).expect("restored party results").len(), 2);
-    let subject = core::documents::Subject::Inbox { party: person };
-    let window = core::documents::Window { rows: limits.core.documents.rows, after: None };
-    let expected = core::documents::make(&default, &limits.core, person, &subject, &window, Wall::from_nanos(10))
-        .expect("default inbox document");
-    assert_eq!(
-        core::documents::make(&selected, &limits.core, person, &subject, &window, Wall::from_nanos(10)),
-        Ok(expected)
-    );
+    assert!(restored.people.needs(person).expect("restored party needs") >= 2);
+    assert_eq!(restored.people.cached_results(person).expect("restored party results").len(), 2);
     for record in world.store.rows.values() {
         if let root::Record::Core(core::Record::Tasks(tasks::Stored::Live(row) | tasks::Stored::Ended(row))) = record {
-            assert_eq!(selected.people.chat_owner(row.number), default.people.chat_owner(row.number));
-            assert_eq!(
-                selected.people.conversation_seen(person, row.number),
-                default.people.conversation_seen(person, row.number)
-            );
+            if row.flags.conversation {
+                assert_eq!(restored.people.chat_owner(row.number), Some(person));
+            }
         }
     }
 }

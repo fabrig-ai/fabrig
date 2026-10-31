@@ -341,10 +341,6 @@ fn remember_outbox(domain: &mut Domain, number: u16, row: &connector::OutboxEntr
 
 /// The root's live components and one commit barrier.
 #[derive(Debug)]
-#[expect(
-    clippy::struct_excessive_bools,
-    reason = "opening, restart selection, decision writes and stop reporting are independent"
-)]
 pub struct Domain {
     pieces_dropped: u64,
     core: core::Core,
@@ -675,8 +671,7 @@ fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
                     assert_eq!(connector, number, "the selected connector settles");
                     work.push(Work::Start(StartInput::Done(phase)));
                 }
-                Some(_) => unreachable!("connector completion belongs to SettleOutbox"),
-                None => unreachable!("connector completion belongs to SettleOutbox"),
+                Some(_) | None => unreachable!("connector completion belongs to SettleOutbox"),
             },
             Work::Start(input) => {
                 let mut out = Queue::uncapped();
@@ -915,7 +910,6 @@ fn start_action(
 }
 
 impl Domain {
-    #[expect(clippy::manual_map, reason = "the step-code subset uses exhaustive matches")]
     fn starting(&self) -> Option<core::start::Phase> {
         self.core.start_phase()
     }
@@ -1152,13 +1146,6 @@ pub use admission::{Class, class, try_step};
 mod census;
 pub use census::inbox_census;
 
-/// Translate one durable row during the requested restart load. The root
-/// supplies header, children, proofs, then calls; the core validates their links.
-#[must_use]
-pub fn restore_record(domain: &mut Domain, env: &Env<Limits>, record: Record) -> bool {
-    restore_row(domain, env, record)
-}
-
 fn restore_row(domain: &mut Domain, env: &Env<Limits>, record: Record) -> bool {
     match record {
         Record::Core(core::Record::Core(row)) => match domain.core.restore_core(row, &env.limits.core) {
@@ -1186,9 +1173,6 @@ fn restore_row(domain: &mut Domain, env: &Env<Limits>, record: Record) -> bool {
             domain.core.restore_policy(&env.limits.core, project, name, value)
         }
         Record::Core(core::Record::People(row)) => {
-            if !domain.core.restore_people_row(&row) {
-                return false;
-            }
             let mut out = Queue::uncapped();
             jig_domain_people::step(
                 &mut domain.core.people,
@@ -1200,8 +1184,6 @@ fn restore_row(domain: &mut Domain, env: &Env<Limits>, record: Record) -> bool {
         }
         Record::Core(core::Record::Notes(_)) => true,
         Record::Core(core::Record::Accounts(record)) => {
-            // A record breaking the child's rules is counted there and
-            // dropped; it never refuses the start (store.md 4.4 item 9).
             let mut out = Queue::uncapped();
             jig_domain_accounts::step(
                 &mut domain.core.accounts,

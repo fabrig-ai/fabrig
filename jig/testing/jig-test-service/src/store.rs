@@ -567,7 +567,7 @@ fn answer_routed(engine: &mut crate::Engine) {
             && !engine.domain.quiescent()
             && match &up {
                 Up::Root(root::Event::Committed { .. } | root::Event::Failed { .. }) => false,
-                Up::Restore(_) | Up::Ask(_) | Up::Root(_) => true,
+                Up::Ask(_) | Up::Root(_) => true,
             }
         {
             engine.store.routed.push(up);
@@ -579,7 +579,7 @@ fn answer_routed(engine: &mut crate::Engine) {
                 assert_eq!(engine.store.restoring.take(), Some(phase), "the selected walk finishes once");
                 engine.events.push(root::Event::StartDone(phase));
             }
-            Up::Restore(_) => unreachable!("the service opens its store in start mode"),
+
             Up::Root(root::Event::StartRecord(row)) => {
                 if row.key() == root::Key::Core(jig_domain_core::Key::Core(jig_domain_core::CoreKey::Deployment)) {
                     engine.first_periods.truncate(0);

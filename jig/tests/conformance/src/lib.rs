@@ -451,7 +451,7 @@ impl Application for Testing {
                     Output::Commit { number, writes: rows.into_boxed_slice() }
                 }
                 root::Request::Start { phase, census } => Output::Deliver(Delivery::Start { phase, census }),
-                root::Request::Restart(_) => unreachable!("the root drives the start"),
+
                 root::Request::Deliver(delivery) => {
                     if !domain.ready()
                         && let root::Delivery::System { connector, call: connector::SystemRequest::ReadFact { .. } } =
@@ -569,7 +569,7 @@ impl Application for Testing {
         peers.observer.delivered(clock.now, &mut delivery);
         peers.peers.delivered(&delivery);
         match delivery {
-            root::Delivery::Start(_) => unreachable!("the start driver is not selected here"),
+            root::Delivery::Start(_) => {}
             root::Delivery::Projection { connector, feed } => {
                 if feed.closing {
                     vec![Input::Event(root::Event::Core(core::Event::ProjectionSettled {
@@ -580,7 +580,7 @@ impl Application for Testing {
                     Vec::new()
                 }
             }
-            root::Delivery::Restart(_) => unreachable!("the root drives the start"),
+
             root::Delivery::Core(core::Held::Drained) => {
                 peers.drained.push(store.applied);
                 peers.routes.push(jig_conformance::referee::Observed::Drained { at: store.applied });
@@ -669,7 +669,6 @@ impl Application for Testing {
         let mut events = Vec::new();
         for answer in store.answers() {
             match answer {
-                Up::Restore(row) => events.push(Input::Restore(row)),
                 Up::Root(event) => {
                     events.push(Input::Event(event));
                 }

@@ -62,13 +62,6 @@ impl Parties {
 
     pub fn inbound(&mut self, event: &root::Event) {
         match event {
-            root::Event::StartRecord(_)
-            | root::Event::StartMissing { .. }
-            | root::Event::StartPageRefused { .. }
-            | root::Event::StartBegin { .. }
-            | root::Event::StartDone(_) => {
-                unreachable!("the start driver is not selected here")
-            }
             root::Event::Core(core::Event::Read { .. }) | root::Event::ReadApplication { .. } => {
                 let reply = self.queued.pop_front().expect("the independent caller issued this read");
                 assert!(self.awaiting.insert(reply, Fence(self.made)).is_none());
@@ -93,14 +86,16 @@ impl Parties {
             | root::Event::Failed { .. }
             | root::Event::Connector { .. }
             | root::Event::Stop
-            | root::Event::Switched
-            | root::Event::RestartBegin { .. }
-            | root::Event::RestartDone(_)
             | root::Event::ConnectorTimer { .. }
             | root::Event::ProjectionEffect { .. }
             | root::Event::TopicCall { .. }
             | root::Event::EffectCall { .. }
             | root::Event::CallAnswered { .. }
+            | root::Event::StartRecord(_)
+            | root::Event::StartMissing { .. }
+            | root::Event::StartPageRefused { .. }
+            | root::Event::StartBegin { .. }
+            | root::Event::StartDone(_)
             | root::Event::TranscriptLoaded { .. } => {}
         }
     }

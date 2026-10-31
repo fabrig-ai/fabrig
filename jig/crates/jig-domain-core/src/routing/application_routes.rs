@@ -210,11 +210,3 @@ fn empty() -> Requests {
     out.push(Request::Decided);
     Requests::Out(out)
 }
-
-impl Core {
-    /// Validate retained application tokens against the restored deployment and its connectors.
-    #[must_use]
-    pub fn restore_people_row(&self, _row: &people::Stored) -> bool {
-        true
-    }
-}

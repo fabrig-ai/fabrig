@@ -295,26 +295,6 @@ fn requester_template_overrides_refuse_invalid_ending_authority_without_changing
 }
 
 #[test]
-fn requester_template_restore_refuses_invalid_ending_authority_without_changing_policy() {
-    for (conversation, executor) in
-        [(false, people::TemplateExecutor::Charter(PROJECT)), (true, people::TemplateExecutor::Chosen)]
-    {
-        let (mut core, limits) = make_tree();
-        core.current.test_templates(Box::new([requester_template(conversation)]));
-        let templates = crate::templates::current_merged(&core.current, &[]);
-        let before = template_policy(&core);
-        clear_projects(&mut core, &limits);
-        let mut restored = before.clone();
-        restored.templates =
-            Box::new([people::TemplateOverride { executor: Some(executor), ..executor_override(PROJECT) }]);
-        assert!(!core.restore_policy(&limits, PROJECT, Box::from("Project 1"), restored));
-        assert!(core.authority.policy(PROJECT).is_none());
-        assert_eq!(crate::templates::current_merged(&core.current, &[]), templates);
-        assert!(core.template_overrides.is_empty());
-    }
-}
-
-#[test]
 fn startup_refuses_requester_templates_without_conversation_or_a_named_executor() {
     for (conversation, executor) in
         [(false, people::TemplateExecutor::Charter(PROJECT)), (true, people::TemplateExecutor::Chosen)]
@@ -344,20 +324,21 @@ fn an_incompatible_template_edit_leaves_the_entire_policy_unchanged() {
 }
 
 #[test]
-fn invalid_restored_template_overrides_leave_the_entire_policy_unchanged() {
-    let (mut core, limits) = template_core();
-    let before = template_policy(&core);
+fn stored_template_overrides_keep_their_values_without_rechecking_admission() {
+    let (original, limits) = template_core();
+    let before = template_policy(&original);
     for (name, overrides) in [
         ("incompatible", Box::<[people::TemplateOverride]>::from([executor_override(OTHER_CHARTER)])),
         ("unknown charter", Box::from([executor_override(UNKNOWN)])),
         ("duplicate template", Box::from([executor_override(PROJECT), executor_override(PROJECT)])),
     ] {
-        clear_projects(&mut core, &limits);
+        let mut core = Core::new(config(41), &limits).expect("restoring core");
+        let _start = core.start_begin(false, Wall::EPOCH);
         let mut restored = before.clone();
-        restored.period_spend = 1; // A second field must not slip through a refused restore.
+        restored.period_spend = 1;
         restored.templates = overrides;
-        assert!(!core.restore_policy(&limits, PROJECT, Box::from("Project 1"), restored), "{name}");
-        assert!(core.authority.policy(PROJECT).is_none(), "{name}");
+        assert!(core.restore_policy(&limits, PROJECT, Box::from("Project 1"), restored.clone()), "{name}");
+        assert_eq!(core.template_overrides.get(&PROJECT), Some(&restored.templates), "{name}");
     }
 }
 

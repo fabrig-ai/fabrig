@@ -457,9 +457,6 @@ impl Clients {
             | root::Event::Application { .. }
             | root::Event::WriterRead { .. }
             | root::Event::ConnectorTimer { .. }
-            | root::Event::Switched
-            | root::Event::RestartBegin { .. }
-            | root::Event::RestartDone(..)
             | root::Event::Timer(..)
             | root::Event::Credential { .. }
             | root::Event::Connector { .. }
@@ -577,9 +574,6 @@ impl Clients {
             | root::Event::Stop
             | root::Event::WriterRead { .. }
             | root::Event::ConnectorTimer { .. }
-            | root::Event::Switched
-            | root::Event::RestartBegin { .. }
-            | root::Event::RestartDone(..)
             | root::Event::Timer(..)
             | root::Event::Credential { .. }
             | root::Event::Connector { .. }

@@ -298,21 +298,6 @@ pub fn snapshot(
     })
 }
 
-/// Restore the whole committed policy (store.md, 4.4; core.md, 6.1).
-pub(crate) fn restore(
-    policy: &mut authority::Policy,
-    permissions: &mut Box<[people::PermissionRole]>,
-    templates: &mut Box<[people::TemplateOverride]>,
-    value: people::PolicyValue,
-    limit: u32,
-) -> Option<()> {
-    restore_value(policy, permissions, templates, value, limit)?;
-    if !map_valid(policy, permissions) {
-        return None;
-    }
-    Some(())
-}
-
 fn restore_value(
     policy: &mut authority::Policy,
     permissions: &mut Box<[people::PermissionRole]>,

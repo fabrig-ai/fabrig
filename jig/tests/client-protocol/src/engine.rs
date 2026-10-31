@@ -313,7 +313,6 @@ impl Engine {
         let mut refused = false;
         for (_, delivery) in held {
             match delivery {
-                root::Delivery::Start(_) => unreachable!("the start driver is not selected here"),
                 root::Delivery::Application { to, number, outcome } => {
                     self.event(Event::Application(clients::FromApplication::Answered {
                         to,
@@ -345,12 +344,12 @@ impl Engine {
                 | root::Delivery::CallBusy { .. }
                 | root::Delivery::Projection { .. }
                 | root::Delivery::Message { .. }
-                | root::Delivery::Restart(_)
                 | root::Delivery::CallAnswer { .. }
                 | root::Delivery::Assigned { .. }
                 | root::Delivery::Fleet(_)
                 | root::Delivery::System { .. }
                 | root::Delivery::LostRead { .. }
+                | root::Delivery::Start(_)
                 | root::Delivery::Procedure { .. } => {}
             }
         }

@@ -156,7 +156,7 @@ impl Host {
                         return;
                     }
                     Request::Deliver(_) | Request::Now(_) => {}
-                    Request::Restart(_) | Request::Busy { .. } | Request::ReadResult { .. } => {
+                    Request::Busy { .. } | Request::ReadResult { .. } => {
                         panic!("start host vocabulary")
                     }
                 }

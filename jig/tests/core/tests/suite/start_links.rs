@@ -56,7 +56,6 @@ impl Harness {
                 assert!(self.core.restore_policy(&self.env.limits, project, name, value));
             }
             core::Record::People(row) => {
-                assert!(self.core.restore_people_row(&row));
                 drop(core::step(
                     &mut self.core,
                     &self.env,

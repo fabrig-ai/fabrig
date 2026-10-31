@@ -2,20 +2,21 @@
 use super::{Action, Core, Env, Phase, Queue, Request, SweepInput, Time, Wall, config, limits, step_phase};
 use crate::{Ask, CoreRecord, Restored, connector, resources, tasks};
 
-fn fresh(selected: bool) -> (Core, Env<crate::Limits>) {
+fn fresh() -> (Core, Env<crate::Limits>) {
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits() };
     let mut configured = config(41);
     configured.connectors = Box::new([1, 2]);
     configured.grants = Box::new([]);
     let mut core = Core::new(configured, &env.limits).expect("configured connectors");
-    if selected {
+    {
         step_phase(core.start_begin(false, env.wall), Phase::LoadCore);
-    } else {
-        assert_eq!(core.restart_begin(false), crate::RestartRequest::Step(crate::RestartStep::LoadCore));
     }
     let mut header = core.counters.deployment();
     header.commits = 1;
     assert_eq!(core.restore_core(CoreRecord::Deployment(header), &env.limits), Restored::Deployment { commits: 1 });
+    let project = &config(41).seed_projects[0];
+    let value = crate::policy::snapshot(&project.policy.policy, &[], &[]).expect("fixture policy");
+    assert!(core.restore_policy(&env.limits, project.number, project.name.clone(), value));
     (core, env)
 }
 
@@ -23,30 +24,21 @@ fn name(connector: u16) -> tasks::Name {
     tasks::Name { connector, path: Box::new([Box::from(b"resource".as_slice())]) }
 }
 
-fn to_connectors(core: &mut Core, env: &Env<crate::Limits>, selected: bool) {
-    if selected {
+fn to_connectors(core: &mut Core, env: &Env<crate::Limits>) {
+    {
         let mut out = Queue::uncapped();
         step_phase(core.start_done(env, Phase::LoadCore, &mut out), Phase::LoadInbox);
         step_phase(core.start_done(env, Phase::LoadInbox, &mut out), Phase::RestoreConnector { connector: 1 });
         assert!(out.is_empty());
-    } else {
-        assert_eq!(
-            core.restart_done(crate::RestartStep::LoadCore),
-            crate::RestartRequest::Step(crate::RestartStep::LoadInbox)
-        );
-        assert_eq!(
-            core.restart_done(crate::RestartStep::LoadInbox),
-            crate::RestartRequest::Step(crate::RestartStep::RestoreConnector { connector: 1 })
-        );
     }
 }
 
 #[test]
 fn roles_follow_each_connector_and_keep_the_name_bound_on_both_paths() {
-    for selected in [false, true] {
-        let (mut core, env) = fresh(selected);
+    {
+        let (mut core, env) = fresh();
         assert!(!core.restore_resource_role(&env, 1, name(1), connector::ResourceRole::Context));
-        to_connectors(&mut core, &env, selected);
+        to_connectors(&mut core, &env);
         for connector in [1, 2] {
             let other = if connector == 1 { 2 } else { 1 };
             assert!(!core.restore_resource_role(&env, 1, name(other), connector::ResourceRole::Context));
@@ -58,15 +50,10 @@ fn roles_follow_each_connector_and_keep_the_name_bound_on_both_paths() {
                 Some(&connector::ResourceRole::Context)
             );
             if connector == 1 {
-                if selected {
+                {
                     step_phase(
                         core.start_done(&env, Phase::RestoreConnector { connector }, &mut Queue::uncapped()),
                         Phase::RestoreConnector { connector: 2 },
-                    );
-                } else {
-                    assert_eq!(
-                        core.restart_done(crate::RestartStep::RestoreConnector { connector }),
-                        crate::RestartRequest::Step(crate::RestartStep::RestoreConnector { connector: 2 })
                     );
                 }
             }
@@ -77,9 +64,9 @@ fn roles_follow_each_connector_and_keep_the_name_bound_on_both_paths() {
 
 #[test]
 fn resource_reports_load_access_slots_and_holds_before_link_without_asking() {
-    for selected in [false, true] {
-        let (mut core, env) = fresh(selected);
-        to_connectors(&mut core, &env, selected);
+    {
+        let (mut core, env) = fresh();
+        to_connectors(&mut core, &env);
         for connector in [1, 2] {
             let pool = tasks::PoolSlots { number: u64::from(connector), pool: name(connector), slots: 3 };
             // Slots are durable task rows; the connector's loading report must not replace them.
@@ -111,23 +98,14 @@ fn resource_reports_load_access_slots_and_holds_before_link_without_asking() {
                 core.resource_roles.get(&resources::Key { project: 1, name: name(connector) }),
                 Some(&connector::ResourceRole::Context)
             );
-            if selected {
+            {
                 let next = if connector == 1 { Phase::RestoreConnector { connector: 2 } } else { Phase::Link };
                 step_phase(core.start_done(&env, Phase::RestoreConnector { connector }, &mut Queue::uncapped()), next);
-            } else {
-                let _next = core.restart_done(crate::RestartStep::RestoreConnector { connector });
             }
         }
         let mut out = Queue::uncapped();
-        if selected {
+        {
             step_phase(core.start_done(&env, Phase::Link, &mut out), Phase::Sweep);
-        } else {
-            tasks::step(
-                &mut core.tasks,
-                &Env { now: env.now, wall: env.wall, limits: env.limits.tasks },
-                tasks::Event::Check,
-                &mut Queue::uncapped(),
-            );
         }
         assert!(core.tasks.checked());
         assert_eq!(core.start_failure(), None);
@@ -137,8 +115,8 @@ fn resource_reports_load_access_slots_and_holds_before_link_without_asking() {
 
 #[test]
 fn a_connector_ask_waits_for_the_wires_continuation() {
-    let (mut core, env) = fresh(true);
-    to_connectors(&mut core, &env, true);
+    let (mut core, env) = fresh();
+    to_connectors(&mut core, &env);
     // An internal output fixture pins the same held queue used by loading decisions.
     core.start.held.push(Request::Ask { connector: 2, ask: Ask::Effect(connector::Ask::ReadAfresh) });
     assert_eq!(core.start.held.len(), 1);
@@ -179,8 +157,8 @@ fn a_connector_ask_waits_for_the_wires_continuation() {
 
 #[test]
 fn another_connectors_resource_report_is_not_loading_input() {
-    let (mut core, env) = fresh(true);
-    to_connectors(&mut core, &env, true);
+    let (mut core, env) = fresh();
+    to_connectors(&mut core, &env);
     let rejected = std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| {
         crate::step(
             &mut core,
@@ -198,8 +176,8 @@ fn another_connectors_resource_report_is_not_loading_input() {
 
 #[test]
 fn a_full_roles_cache_fails_closed_without_refusing_the_start() {
-    let (mut core, env) = fresh(true);
-    to_connectors(&mut core, &env, true);
+    let (mut core, env) = fresh();
+    to_connectors(&mut core, &env);
     core.resource_roles = skein_lib::Map::with_capacity(1);
     assert!(core.restore_resource_role(&env, 1, name(1), connector::ResourceRole::Context));
     assert!(!core.restore_resource_role(&env, 2, name(1), connector::ResourceRole::Context));
