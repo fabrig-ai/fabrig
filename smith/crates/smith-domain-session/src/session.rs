@@ -295,6 +295,25 @@ const KIT_ONLY: Waiting = Waiting { completion: false, runs: 0, kit: Kit::Open }
 /// A closing session that waits for nothing: it has ended.
 const SETTLED: Waiting = Waiting { completion: false, runs: 0, kit: Kit::Closed };
 
+/// Opener-requested continuation after its result and tool turn settle.
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum After {
+    /// Request the next completion directly.
+    Complete,
+    /// Return control to the opener before requesting the next completion.
+    Yield,
+}
+
+/// A child's exact cumulative inclusive bill. This fixed handoff carries no
+/// payload and never changes the receiver's own price.
+#[derive(Debug)]
+pub(crate) struct Bill {
+    /// The opener's choice after the settled batch; closing always settles without continuation.
+    pub(crate) after: After,
+    /// Exact child bill, added once after the identity guard.
+    pub(crate) spent: u64,
+}
+
 /// The tool calls of the last assistant message, run in batches: adjacent
 /// calls that read, up to `Limits::parallel_tools` of them, run together, and
 /// one that writes runs alone.
@@ -413,6 +432,66 @@ impl Ready {
 // out, run the cell's handler, then settle, tell what happened and follow the
 // new state ([`conclude`]).
 
+/// Admit concrete history before acquiring a tools kit or making a completion.
+pub(crate) fn open(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    opener: Token,
+    opening: crate::record::Opening,
+    out: &mut Queue<Request>,
+) {
+    let mark = out.len();
+    if domain.sessions.is_full() {
+        refuse(&mut domain.facts, opener, End::Busy, out);
+        return;
+    }
+    let crate::record::Opening { spec, window_llm, dialect, prices, budget, transcript, answered } = opening;
+    if prices.unit == 0 || budget > env.limits.spend {
+        refuse(&mut domain.facts, opener, End::Invalid, out);
+        return;
+    }
+    let spending = Spending { prices, limit: budget, total: 0, own: 0, reservation: None, last_charge: 0 };
+    let cursor = Cursor { dialect, sequence: 0, told: 0, pending: None };
+    let Some((mut conversation, authority)) = admit(opener, spec, spending, cursor, &env.limits, env.now) else {
+        refuse(&mut domain.facts, opener, End::Invalid, out);
+        return;
+    };
+    let mut sequence = 0;
+    let mut told = 0;
+    match transcript {
+        None => {
+            if !answered.is_empty() {
+                refuse(
+                    &mut domain.facts,
+                    opener,
+                    End::TranscriptRefused { reason: crate::record::Refusal::Malformed },
+                    out,
+                );
+                return;
+            }
+        }
+        Some(transcript) => match restore(&mut conversation, transcript, answered, &env.limits) {
+            Ok(previous) => {
+                sequence = previous;
+                told = conversation.transcript.len().saturating_sub(1);
+            }
+            Err(reason) => {
+                refuse(&mut domain.facts, opener, End::TranscriptRefused { reason }, out);
+                return;
+            }
+        },
+    }
+    if let Some(llm) = window_llm
+        && let Some(end) = compaction::change_model(&mut conversation, llm, &env.limits)
+    {
+        refuse(&mut domain.facts, opener, end, out);
+        return;
+    }
+    conversation.cursor.sequence = sequence;
+    conversation.cursor.told = told;
+    open_admitted(domain, env, opener, conversation, authority, out, mark);
+}
+
 fn open_admitted(
     domain: &mut Domain,
     env: &Env<Limits>,
@@ -453,6 +532,131 @@ fn open_admitted(
         }
         Some(News::Closed { .. }) | None => unreachable!("the tools answer an open with its kit, opened or refused"),
     }
+    conclude(domain, env, id, out, mark);
+}
+
+/// An addressed delegated terminal charges its inclusive bill once before
+/// settling its result. Retired, stale, wrong-owner and duplicate bills
+/// change neither price prefix; the own prefix never includes a child bill.
+pub(crate) fn delegate_ended(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    owner: Token,
+    result: Returned,
+    bill: Bill,
+    out: &mut Queue<Request>,
+) {
+    // This value may be redelivered by its parent. A retired or stale
+    // identity cannot charge a child twice, including before reclaim.
+    let Some(run) = domain.calls.runs.get(Id::from_token(owner)) else {
+        return;
+    };
+    if run.ended || run.by != By::Opener {
+        return;
+    }
+    let mark = out.len();
+    let Run { session: id, slot, block, by, credit, metadata, ended: _ } =
+        ended_run(&mut domain.calls.runs, Id::from_token(owner));
+    assert!(by == By::Opener, "the opener answers its delegated call once");
+    let session = domain.sessions.get_mut(id).expect("a call keeps its session alive");
+    let conversation = &mut session.conversation;
+    let added = conversation.spending.total.checked_add(bill.spent);
+    if let Some(total) = added {
+        conversation.spending.total = total;
+        out.push(Request::Priced { opener: conversation.opener, spent: total, own_spent: conversation.spending.own });
+    }
+    let result = history::cut_result(result, credit);
+    let fact = match &result {
+        Returned::Text { text, error, replay: _ } => {
+            FactKind::DelegateAnswered { opener: conversation.opener, bytes: count(text.len()).into(), error: *error }
+        }
+        Returned::Withdrawn => FactKind::DelegateCancelled { opener: conversation.opener },
+        Returned::Owned { .. } | Returned::Invalid { .. } | Returned::NotRun { .. } => {
+            unreachable!("terminals carry a concrete answer or withdrawal")
+        }
+    };
+    domain.facts.push_call(env.now, fact, &metadata);
+    let state = mem::replace(&mut session.state, State::Closed);
+    session.state = match state {
+        State::Tooling { mut tools } => {
+            match bill.after {
+                After::Complete => {}
+                After::Yield => tools.after = After::Yield,
+            }
+            match added {
+                Some(_) => tool_ran(conversation, id, &mut domain.calls, tools, slot, block, credit, result, env, out),
+                None => {
+                    tools.running = tools.running.checked_sub(1).expect("settled delegated call");
+                    receive_result(conversation, credit, &result, &env.limits);
+                    let result = Block::ToolResult { id: call_id(conversation, block), result };
+                    *tools.slots.get_mut(slot).expect("settled slot") = Slot::Done { result };
+                    clear_pending(conversation);
+                    abandon(&domain.calls.runs, tools, End::PriceOverflow, out)
+                }
+            }
+        }
+        State::Closing { end, waiting, mut tools } => {
+            let end = match added {
+                Some(_) => {
+                    keep_closing(conversation, tools.as_mut(), slot, block, credit, result, &env.limits).unwrap_or(end)
+                }
+                None => {
+                    let _discarded: Option<End> =
+                        keep_closing(conversation, tools.as_mut(), slot, block, credit, result, &env.limits);
+                    clear_pending(conversation);
+                    End::PriceOverflow
+                }
+            };
+            settled(end, waiting, tools)
+        }
+        State::Completing { .. }
+        | State::Backoff { .. }
+        | State::Resting { .. }
+        | State::Yielded { .. }
+        | State::Closed => {
+            unreachable!("an answer ends an in-flight delegated call")
+        }
+    };
+    conclude(domain, env, id, out, mark);
+}
+
+/// Release the live delegated right while retaining its unanswered historical call.
+/// It also settles while closing; no provider request or yield is emitted.
+pub(crate) fn delegate_withheld(domain: &mut Domain, env: &Env<Limits>, owner: Token, out: &mut Queue<Request>) {
+    let Some(run) = domain.calls.runs.get(Id::from_token(owner)) else {
+        return;
+    };
+    if run.ended || run.by != By::Opener {
+        return;
+    }
+    let mark = out.len();
+    let Run { session: id, slot, credit, metadata, .. } = ended_run(&mut domain.calls.runs, Id::from_token(owner));
+    let session = domain.sessions.get_mut(id).expect("a delegated call retains its session");
+    let conversation = &mut session.conversation;
+    conversation.reserved = conversation.reserved.checked_sub(credit).expect("withheld call owns its result credit");
+    domain.facts.push_call(env.now, FactKind::DelegateWithheld { opener: conversation.opener }, &metadata);
+    let state = mem::replace(&mut session.state, State::Closed);
+    session.state = match state {
+        State::Tooling { mut tools } => {
+            tools.running = tools.running.checked_sub(1).expect("withheld call was running");
+            assert!(tools.running == 0, "the run's wait is a serialized writer");
+            *tools.slots.get_mut(slot).expect("withheld call's slot") = Slot::Withheld;
+            State::Yielded { tools: Some(tools) }
+        }
+        State::Closing { end, waiting, mut tools } => {
+            if let Some(tools) = tools.as_mut() {
+                *tools.slots.get_mut(slot).expect("withheld call's closing slot") = Slot::Withheld;
+            }
+            settled(end, waiting, tools)
+        }
+        State::Completing { .. }
+        | State::Backoff { .. }
+        | State::Resting { .. }
+        | State::Yielded { .. }
+        | State::Closed => {
+            unreachable!("withheld terminal settles an in-flight opener call")
+        }
+    };
     conclude(domain, env, id, out, mark);
 }
 
@@ -2232,210 +2436,6 @@ fn receiving_reserve(conversation: &Conversation, limits: &Limits) -> Option<u64
     provider_reserve(limits)?.checked_add(choices)
 }
 
-/// Admit concrete history before acquiring a tools kit or making a completion.
-pub(crate) fn open(
-    domain: &mut Domain,
-    env: &Env<Limits>,
-    opener: Token,
-    opening: crate::record::Opening,
-    out: &mut Queue<Request>,
-) {
-    let mark = out.len();
-    if domain.sessions.is_full() {
-        refuse(&mut domain.facts, opener, End::Busy, out);
-        return;
-    }
-    let crate::record::Opening { spec, window_llm, dialect, prices, budget, transcript, answered } = opening;
-    if prices.unit == 0 || budget > env.limits.spend {
-        refuse(&mut domain.facts, opener, End::Invalid, out);
-        return;
-    }
-    let spending = Spending { prices, limit: budget, total: 0, own: 0, reservation: None, last_charge: 0 };
-    let cursor = Cursor { dialect, sequence: 0, told: 0, pending: None };
-    let Some((mut conversation, authority)) = admit(opener, spec, spending, cursor, &env.limits, env.now) else {
-        refuse(&mut domain.facts, opener, End::Invalid, out);
-        return;
-    };
-    let mut sequence = 0;
-    let mut told = 0;
-    match transcript {
-        None => {
-            if !answered.is_empty() {
-                refuse(
-                    &mut domain.facts,
-                    opener,
-                    End::TranscriptRefused { reason: crate::record::Refusal::Malformed },
-                    out,
-                );
-                return;
-            }
-        }
-        Some(transcript) => match restore(&mut conversation, transcript, answered, &env.limits) {
-            Ok(previous) => {
-                sequence = previous;
-                told = conversation.transcript.len().saturating_sub(1);
-            }
-            Err(reason) => {
-                refuse(&mut domain.facts, opener, End::TranscriptRefused { reason }, out);
-                return;
-            }
-        },
-    }
-    if let Some(llm) = window_llm
-        && let Some(end) = compaction::change_model(&mut conversation, llm, &env.limits)
-    {
-        refuse(&mut domain.facts, opener, end, out);
-        return;
-    }
-    conversation.cursor.sequence = sequence;
-    conversation.cursor.told = told;
-    open_admitted(domain, env, opener, conversation, authority, out, mark);
-}
-
-/// Opener-requested continuation after its result and tool turn settle.
-#[derive(Clone, Copy, Debug)]
-pub(crate) enum After {
-    /// Request the next completion directly.
-    Complete,
-    /// Return control to the opener before requesting the next completion.
-    Yield,
-}
-
-/// A child's exact cumulative inclusive bill. This fixed handoff carries no
-/// payload and never changes the receiver's own price.
-#[derive(Debug)]
-pub(crate) struct Bill {
-    /// The opener's choice after the settled batch; closing always settles without continuation.
-    pub(crate) after: After,
-    /// Exact child bill, added once after the identity guard.
-    pub(crate) spent: u64,
-}
-
-/// An addressed delegated terminal charges its inclusive bill once before
-/// settling its result. Retired, stale, wrong-owner and duplicate bills
-/// change neither price prefix; the own prefix never includes a child bill.
-pub(crate) fn delegate_ended(
-    domain: &mut Domain,
-    env: &Env<Limits>,
-    owner: Token,
-    result: Returned,
-    bill: Bill,
-    out: &mut Queue<Request>,
-) {
-    // This value may be redelivered by its parent. A retired or stale
-    // identity cannot charge a child twice, including before reclaim.
-    let Some(run) = domain.calls.runs.get(Id::from_token(owner)) else {
-        return;
-    };
-    if run.ended || run.by != By::Opener {
-        return;
-    }
-    let mark = out.len();
-    let Run { session: id, slot, block, by, credit, metadata, ended: _ } =
-        ended_run(&mut domain.calls.runs, Id::from_token(owner));
-    assert!(by == By::Opener, "the opener answers its delegated call once");
-    let session = domain.sessions.get_mut(id).expect("a call keeps its session alive");
-    let conversation = &mut session.conversation;
-    let added = conversation.spending.total.checked_add(bill.spent);
-    if let Some(total) = added {
-        conversation.spending.total = total;
-        out.push(Request::Priced { opener: conversation.opener, spent: total, own_spent: conversation.spending.own });
-    }
-    let result = history::cut_result(result, credit);
-    let fact = match &result {
-        Returned::Text { text, error, replay: _ } => {
-            FactKind::DelegateAnswered { opener: conversation.opener, bytes: count(text.len()).into(), error: *error }
-        }
-        Returned::Withdrawn => FactKind::DelegateCancelled { opener: conversation.opener },
-        Returned::Owned { .. } | Returned::Invalid { .. } | Returned::NotRun { .. } => {
-            unreachable!("terminals carry a concrete answer or withdrawal")
-        }
-    };
-    domain.facts.push_call(env.now, fact, &metadata);
-    let state = mem::replace(&mut session.state, State::Closed);
-    session.state = match state {
-        State::Tooling { mut tools } => {
-            match bill.after {
-                After::Complete => {}
-                After::Yield => tools.after = After::Yield,
-            }
-            match added {
-                Some(_) => tool_ran(conversation, id, &mut domain.calls, tools, slot, block, credit, result, env, out),
-                None => {
-                    tools.running = tools.running.checked_sub(1).expect("settled delegated call");
-                    receive_result(conversation, credit, &result, &env.limits);
-                    let result = Block::ToolResult { id: call_id(conversation, block), result };
-                    *tools.slots.get_mut(slot).expect("settled slot") = Slot::Done { result };
-                    clear_pending(conversation);
-                    abandon(&domain.calls.runs, tools, End::PriceOverflow, out)
-                }
-            }
-        }
-        State::Closing { end, waiting, mut tools } => {
-            let end = match added {
-                Some(_) => {
-                    keep_closing(conversation, tools.as_mut(), slot, block, credit, result, &env.limits).unwrap_or(end)
-                }
-                None => {
-                    let _discarded: Option<End> =
-                        keep_closing(conversation, tools.as_mut(), slot, block, credit, result, &env.limits);
-                    clear_pending(conversation);
-                    End::PriceOverflow
-                }
-            };
-            settled(end, waiting, tools)
-        }
-        State::Completing { .. }
-        | State::Backoff { .. }
-        | State::Resting { .. }
-        | State::Yielded { .. }
-        | State::Closed => {
-            unreachable!("an answer ends an in-flight delegated call")
-        }
-    };
-    conclude(domain, env, id, out, mark);
-}
-
-/// Release the live delegated right while retaining its unanswered historical call.
-/// It also settles while closing; no provider request or yield is emitted.
-pub(crate) fn delegate_withheld(domain: &mut Domain, env: &Env<Limits>, owner: Token, out: &mut Queue<Request>) {
-    let Some(run) = domain.calls.runs.get(Id::from_token(owner)) else {
-        return;
-    };
-    if run.ended || run.by != By::Opener {
-        return;
-    }
-    let mark = out.len();
-    let Run { session: id, slot, credit, metadata, .. } = ended_run(&mut domain.calls.runs, Id::from_token(owner));
-    let session = domain.sessions.get_mut(id).expect("a delegated call retains its session");
-    let conversation = &mut session.conversation;
-    conversation.reserved = conversation.reserved.checked_sub(credit).expect("withheld call owns its result credit");
-    domain.facts.push_call(env.now, FactKind::DelegateWithheld { opener: conversation.opener }, &metadata);
-    let state = mem::replace(&mut session.state, State::Closed);
-    session.state = match state {
-        State::Tooling { mut tools } => {
-            tools.running = tools.running.checked_sub(1).expect("withheld call was running");
-            assert!(tools.running == 0, "the run's wait is a serialized writer");
-            *tools.slots.get_mut(slot).expect("withheld call's slot") = Slot::Withheld;
-            State::Yielded { tools: Some(tools) }
-        }
-        State::Closing { end, waiting, mut tools } => {
-            if let Some(tools) = tools.as_mut() {
-                *tools.slots.get_mut(slot).expect("withheld call's closing slot") = Slot::Withheld;
-            }
-            settled(end, waiting, tools)
-        }
-        State::Completing { .. }
-        | State::Backoff { .. }
-        | State::Resting { .. }
-        | State::Yielded { .. }
-        | State::Closed => {
-            unreachable!("withheld terminal settles an in-flight opener call")
-        }
-    };
-    conclude(domain, env, id, out, mark);
-}
-
 fn clear_pending(conversation: &mut Conversation) {
     conversation.cursor.pending = None;
 }
@@ -2457,23 +2457,6 @@ fn keep_closing(
 }
 
 pub(crate) use builtin::result as builtin_result;
-
-/// Fault injection for the unit test of the integer naming fence. A
-/// bounded transcript cannot hold this many turns; this tests the fence before
-/// delegated or owned effects, while retaining the received provider usage.
-#[cfg(test)]
-pub(crate) fn exhaust_origin_for_test(domain: &mut Domain, owner: Token) {
-    let session = domain.sessions.get_mut(Id::from_token(owner)).expect("live test session");
-    session.conversation.cursor.sequence = u32::MAX;
-}
-
-/// Reserved provider rights for focused settlement controls. This
-/// observes bounded retained state, never supplies a completion or price.
-#[cfg(test)]
-pub(crate) fn provider_credit_for_test(domain: &Domain, owner: Token) -> (u64, Option<u64>) {
-    let session = domain.sessions.get(Id::from_token(owner)).expect("admitted test session before reclaim");
-    (session.conversation.reserved, session.conversation.provider.credit())
-}
 
 fn tool_metadata(
     id: &[u8],
@@ -2508,4 +2491,21 @@ fn observed_run(
     let id = calls.runs.insert(run).expect("the run slab has room for regular batches and program observations");
     calls.runs.get_mut(id).expect("inserted above").metadata.owner = id.token();
     id
+}
+
+/// Fault injection for the unit test of the integer naming fence. A
+/// bounded transcript cannot hold this many turns; this tests the fence before
+/// delegated or owned effects, while retaining the received provider usage.
+#[cfg(test)]
+pub(crate) fn exhaust_origin_for_test(domain: &mut Domain, owner: Token) {
+    let session = domain.sessions.get_mut(Id::from_token(owner)).expect("live test session");
+    session.conversation.cursor.sequence = u32::MAX;
+}
+
+/// Reserved provider rights for focused settlement controls. This
+/// observes bounded retained state, never supplies a completion or price.
+#[cfg(test)]
+pub(crate) fn provider_credit_for_test(domain: &Domain, owner: Token) -> (u64, Option<u64>) {
+    let session = domain.sessions.get(Id::from_token(owner)).expect("admitted test session before reclaim");
+    (session.conversation.reserved, session.conversation.provider.credit())
 }
