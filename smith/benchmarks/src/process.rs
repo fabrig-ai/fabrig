@@ -661,7 +661,7 @@ pub fn execute_script(
         observer,
         observing,
         error,
-        counts: binary.counts().expect("genuine tree settlement"),
+        counts: binary.counts().expect("tree settlement"),
         tree: {
             let tree = binary.tree_status();
             skein_world::end_to_end::TreeStatus {
@@ -679,5 +679,4 @@ pub fn execute_script(
 }
 
 #[cfg(test)]
-#[path = "process/lower_tests.rs"]
 mod lower_tests;

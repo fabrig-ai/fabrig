@@ -50,7 +50,7 @@ impl Rollouts {
                 match &child.link {
                     Link::Linked { parent } if parent == root => {}
                     Link::Linked { .. } | Link::Unlinked => {
-                        return Err("cache child lacks its actual direct parent link".into());
+                        return Err("cache child lacks its direct parent link".into());
                     }
                 }
                 if child.responses.is_empty() {

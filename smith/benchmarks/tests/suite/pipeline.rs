@@ -5,16 +5,13 @@ use std::path::PathBuf;
 use sha2::{Digest, Sha256};
 use smith_bench::guard::Guard;
 use smith_bench::isolate::Machine;
-use smith_bench::run::{Prepared, attempt, scratch_root};
+use smith_bench::run::{Request, attempt, scratch_root};
 use smith_bench::{End, Measure};
 
-fn root(story: &str) -> PathBuf {
-    std::env::temp_dir().join(format!("smith-bench-pipeline-{story}-{}", std::process::id()))
-}
-
-fn fixture(story: &str) -> (Guard, Machine, PathBuf, Prepared) {
+fn fixture(story: &str) -> (Guard, Machine, skein_scratch::Scratch, Request) {
     use std::os::unix::fs::DirBuilderExt;
-    let root = root(story);
+    let scratch = skein_scratch::Scratch::new(story);
+    let root = scratch.path().join("root");
     fs::DirBuilder::new().mode(0o700).create(&root).expect("fresh story root");
     let task = root.join("task");
     fs::create_dir(&task).expect("task");
@@ -28,28 +25,36 @@ fn fixture(story: &str) -> (Guard, Machine, PathBuf, Prepared) {
         fs::OpenOptions::new().append(true).open(task.join("task.toml")).expect("append neutral checks")
             .write_all(b"\n[[outcome]]\ncheck='end'\nend='completed'\n[[outcome]]\ncheck='exit-code'\ncode=0\n[[outcome]]\ncheck='answer'\npattern='bounded saturating arithmetic'\n[[outcome]]\ncheck='last-line'\npattern='^settled replay$'\n").expect("neutral task checks");
     }
-    let mut identity = smith_bench::read_result(
-        &PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/recorded/results/attempt.json"),
-    )
-    .expect("template")
-    .identity;
+    let mut identity =
+        smith_bench::read_result(&crate::common::repository().join("tests/recorded/results/attempt.json"))
+            .expect("template")
+            .identity;
     identity.run = story.into();
     identity.attempt = "one".into();
     identity.task = "probes/recorded".into();
     identity.seed_sha256 = digest;
     identity.prompt_sha256 = format!("{:x}", Sha256::digest(prompt));
     identity.binary_sha256 = smith_bench::arm::binary_digest(&PathBuf::from("/bin/dash")).expect("shell digest");
-    let recording = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/recorded/codex/completed.jsonl");
-    let prepared = Prepared { task: task.join("task.toml"), identity, program: "/bin/dash".into(), arguments: vec!["-c".into(), "cat >/dev/null; test \"$(cat \"$CARGO_HOME/warm\")\" = warmed; test \"$(cat \"$CARGO_TARGET_DIR/warm\")\" = target; printf 'changed\\n' > answer.txt; git add answer.txt; git -c user.name=replay -c user.email=replay@example.invalid -c gc.auto=0 -c maintenance.auto=false commit -qm 'Agent commit'; printf untracked > new.txt; printf poisoned > \"$CARGO_HOME/warm\"; printf poisoned > \"$CARGO_TARGET_DIR/warm\"; printf marker > \"$HOME/agent-only\"; printf 'settled replay\\n' >&2; cat \"$1\"".into(), "replay".into(), recording.to_str().expect("recording UTF-8").into()], codex_home: None, configuration: None, teardown_ms: 100, grace_ms: 30, settlement_ms: 200, setup_deadline_seconds: 1, max_stdout_bytes: 16384, max_stderr_bytes: 4096, disk_estimate_bytes: 65536, force_walk: true };
+    let recording = crate::common::repository().join("tests/recorded/codex/completed.jsonl");
+    let prepared = Request {
+program: "/bin/dash".into(),
+arguments: vec!["-c".into(), "cat >/dev/null; test \"$(cat \"$CARGO_HOME/warm\")\" = warmed; test \"$(cat \"$CARGO_TARGET_DIR/warm\")\" = target; printf 'changed\\n' > answer.txt; git add answer.txt; git -c user.name=replay -c user.email=replay@example.invalid -c gc.auto=0 -c maintenance.auto=false commit -qm 'Agent commit'; printf untracked > new.txt; printf poisoned > \"$CARGO_HOME/warm\"; printf poisoned > \"$CARGO_TARGET_DIR/warm\"; printf marker > \"$HOME/agent-only\"; printf 'settled replay\\n' >&2; cat \"$1\"".into(), "replay".into(), recording.to_str().expect("recording UTF-8").into()],
+teardown_ms: 100,
+grace_ms: 30,
+max_stdout_bytes: 16384,
+disk_estimate_bytes: 65536,
+..crate::common::request(task.join("task.toml"), identity)
+};
     let guard =
         Guard::new(&root.join("user-home"), &root.join("user-config"), &root.join("user-state"), &[]).expect("guard");
     let machine = Machine { path: "/usr/bin:/bin".into(), rustup_home: None };
-    (guard, machine, root, prepared)
+    (guard, machine, scratch, prepared)
 }
 
 #[test]
 fn grading_and_archives_keep_agent_commits_and_untracked_files_outside_the_timer() {
-    let (guard, machine, root, prepared) = fixture("archives");
+    let (guard, machine, scratch_directory, prepared) = fixture("archives");
+    let root = scratch_directory.path().join("root");
     let request = root.join("prepared.json");
     fs::write(&request, serde_json::to_vec(&prepared).expect("prepared JSON")).expect("request");
     let clock = skein_shell::Clock::new();
@@ -130,14 +135,15 @@ fn grading_and_archives_keep_agent_commits_and_untracked_files_outside_the_timer
     .expect("settled crashed grader");
     assert!(matches!(judgment.end, smith_bench::grade::GradeEnd::Fault { .. }));
     assert_eq!(judgment.stdout, b"crash-evidence");
-    fs::remove_dir_all(root).expect("remove synthetic story");
 }
 
 #[test]
 fn login_shells_keep_machine_path_in_setup_agent_and_grading() {
     use std::os::unix::fs::PermissionsExt;
 
-    let (guard, mut machine, root, mut prepared) = fixture("login-path");
+    let (guard, mut machine, scratch_directory, mut prepared) = fixture("login-path");
+
+    let root = scratch_directory.path().join("root");
     let tools = root.join("machine's tools $literal");
     fs::create_dir(&tools).expect("machine tool directory");
     let tool = tools.join("smith-login-path-fixture");
@@ -165,12 +171,12 @@ fn login_shells_keep_machine_path_in_setup_agent_and_grading() {
     assert_eq!(recorded.result.outcome.end, End::Completed, "{:?}", recorded.result.outcome);
     assert_eq!(recorded.result.outcome.grade, Some(Measure::Observed { value: true }));
     assert!(!scratch_root(&root.join("state"), &prepared).expect("scratch").exists());
-    fs::remove_dir_all(root).expect("remove synthetic story");
 }
 
 #[test]
 fn an_existing_scratch_root_is_refused_and_never_deleted() {
-    let (guard, machine, root, prepared) = fixture("existing");
+    let (guard, machine, scratch_directory, prepared) = fixture("existing");
+    let root = scratch_directory.path().join("root");
     let scratch = scratch_root(&root.join("state"), &prepared).expect("scratch");
     fs::create_dir_all(&scratch).expect("existing directory");
     {
@@ -183,7 +189,6 @@ fn an_existing_scratch_root_is_refused_and_never_deleted() {
     assert!(matches!(recorded.result.outcome.end, End::Refused { .. }));
     assert_eq!(recorded.incomplete, smith_bench::run::Incomplete::Setup(smith_bench::isolate::SetupStep::Scratch));
     assert_eq!(fs::read_to_string(scratch.join("sentinel")).expect("retained original"), "keep");
-    fs::remove_dir_all(root).expect("remove synthetic story");
 }
 
 fn check_replay_judgments(result: &smith_bench::AttemptResult) {

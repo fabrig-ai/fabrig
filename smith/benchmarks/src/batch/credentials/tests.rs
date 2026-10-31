@@ -43,7 +43,8 @@ fn isolated(name: &str) -> Option<PathBuf> {
     if let Some(root) = std::env::var_os("SMITH_BENCH_PAIR_ROOT") {
         return Some(root.into());
     }
-    let root = std::env::temp_dir().join(format!("smith-bench-pair-{}", std::process::id()));
+    let scratch = skein_scratch::Scratch::new("bench-tests");
+    let root = scratch.path().to_path_buf().join(format!("smith-bench-pair-{}", std::process::id()));
     std::fs::DirBuilder::new().mode(0o700).create(&root).expect("private synthetic root");
     let output = std::process::Command::new(std::env::current_exe().expect("test executable"))
         .args(["--exact", name, "--nocapture"])
@@ -55,7 +56,7 @@ fn isolated(name: &str) -> Option<PathBuf> {
         .env("XDG_STATE_HOME", root.join("state"))
         .output()
         .expect("isolated pair control");
-    std::fs::remove_dir_all(root).expect("synthetic cleanup");
+
     assert!(
         output.status.success(),
         "{}{}",
@@ -130,21 +131,18 @@ fn two_attempt_processes_meet_before_either_can_finish() {
     }];
     std::fs::write(state.join("template.json"), crate::render_result(&result).expect("template"))
         .expect("template file");
-    let request = Prepared {
-        task: Path::new(env!("CARGO_MANIFEST_DIR")).join("tasks/probes/credentials/task.toml"),
-        identity: result.identity,
+    let request = Request {
         program: "/nonexecuted".into(),
-        arguments: vec![],
-        codex_home: Some(state.join("logins/codex")),
-        configuration: None,
+        logins: Some(state.join("logins/codex")),
         teardown_ms: 100,
         grace_ms: 100,
         settlement_ms: 1000,
         setup_deadline_seconds: 5,
-        max_stdout_bytes: 4096,
-        max_stderr_bytes: 4096,
         disk_estimate_bytes: 0,
-        force_walk: true,
+        ..crate::request_fixture::request(
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("tasks/probes/credentials/task.toml"),
+            result.identity,
+        )
     };
     let program = state.join("peer");
     std::os::unix::fs::symlink(std::env::current_exe().expect("control executable"), state.join("peer.test"))

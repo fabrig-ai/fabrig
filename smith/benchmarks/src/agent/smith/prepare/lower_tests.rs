@@ -9,6 +9,7 @@ use crate::{ModelChoice, Provider, Task};
 use std::os::unix::fs::DirBuilderExt;
 
 struct Fixture {
+    _scratch: skein_scratch::Scratch,
     root: PathBuf,
     guard: Guard,
     private: Private,
@@ -21,7 +22,8 @@ struct Fixture {
 
 impl Fixture {
     fn new(name: &str, provider: Provider, model: &str) -> Self {
-        let root = std::env::temp_dir().join(format!("smith-lower-prepare-{name}-{}", std::process::id()));
+        let scratch = skein_scratch::Scratch::new("bench-lower_tests");
+        let root = scratch.path().to_path_buf().join(format!("smith-lower-prepare-{name}-{}", std::process::id()));
         fs::DirBuilder::new().mode(0o700).create(&root).expect("owned root");
         let guard = Guard::new(&root.join("home"), &root.join("config"), &root.join("state"), &[]).expect("guard");
         let private = crate::isolate::empty(&guard, &root.join("scratch")).expect("private paths");
@@ -35,6 +37,7 @@ impl Fixture {
         task.budget.seconds = None;
         task.budget.spend = None;
         Self {
+            _scratch: scratch,
             home: root.join("admitted-sign-in"),
             arm: ArmRef::Built(Build {
                 directory: root.join("verified-arm"),
@@ -81,13 +84,8 @@ impl Fixture {
         render(&context, &serde_json::to_value(base).expect("layer"), build.directory.join("smith"), registry, serial)
             .expect("render admitted inputs")
     }
-
-    fn clean(self) {
-        fs::remove_dir_all(self.root).expect("owned fixture cleanup");
-    }
 }
 
-/// Lower test of smith-bench's `smith_adapter::exec::an_exec_arm_uses_the_shared_sign_in_directory` (top tiers test wiring only).
 #[test]
 fn admitted_sign_in_keeps_shared_credentials_and_private_state() {
     let fixture = Fixture::new("sign-in", Provider::Codex, "gpt-6-luna");
@@ -100,10 +98,8 @@ fn admitted_sign_in_keeps_shared_credentials_and_private_state() {
     assert!(prepared.settings.starts_with(&fixture.private.config));
     assert!(!fixture.private.root.join("smith/tokens").exists());
     assert!(!prepared.program.exists(), "identity is an input, no executable fixture");
-    fixture.clean();
 }
 
-/// Lower test of smith-bench's `smith_adapter::exec::an_exec_arms_teardown_bound_comes_from_check` (top tiers test wiring only).
 #[test]
 fn supplied_check_bound_reaches_the_prepared_exec_command() {
     let fixture = Fixture::new("check", Provider::Codex, "gpt-6-luna");
@@ -126,10 +122,8 @@ fn supplied_check_bound_reaches_the_prepared_exec_command() {
             "-"
         ]
     );
-    fixture.clean();
 }
 
-/// Lower test of smith-bench's `smith_adapter::exec::the_program_arm_selects_claude_on_the_anthropic_small_tier` (top tiers test wiring only).
 #[test]
 fn admitted_program_keeps_its_model_trace_and_serial_guard() {
     let fixture = Fixture::new("program", Provider::Anthropic, "claude-haiku-5-5");
@@ -143,5 +137,4 @@ fn admitted_program_keeps_its_model_trace_and_serial_guard() {
     assert!(prepared.command().arguments.windows(2).any(|pair| pair == ["-m", "anthropic/claude-haiku-5-5"]));
     assert_eq!(prepared.rendered["trace"]["path"], serde_json::json!(prepared.trace.as_ref().expect("program trace")));
     drop(prepared);
-    fixture.clean();
 }

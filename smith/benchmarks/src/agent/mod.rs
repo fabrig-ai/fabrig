@@ -44,9 +44,9 @@ pub struct Context<'a> {
 
 /// The adapter's prepared invocation; unsupported agents refuse before this value.
 #[derive(Debug)]
-pub enum Prepared {
+pub enum PreparedAgent {
     /// Codex's pinned standalone command, in an attempt-owned home.
-    Codex(codex::Prepared),
+    Codex(codex::PreparedCodex),
     /// Smith's verified built arm and native outside face.
     Smith(smith::Prepared),
 }
@@ -91,10 +91,10 @@ pub struct HarnessFault {
 
 impl Agent {
     /// Prepare a supported adapter; missing faces or versions refuse as setup.
-    pub fn prepare(self, context: &Context<'_>) -> Result<Prepared, crate::isolate::Setup> {
+    pub fn prepare(self, context: &Context<'_>) -> Result<PreparedAgent, crate::isolate::Setup> {
         match self {
-            Self::Codex => codex::prepare(context).map(Prepared::Codex),
-            Self::Smith => smith::prepare(context).map(Prepared::Smith),
+            Self::Codex => codex::prepare(context).map(PreparedAgent::Codex),
+            Self::Smith => smith::prepare(context).map(PreparedAgent::Smith),
             Self::ClaudeCode => Err(crate::isolate::Setup {
                 step: crate::isolate::SetupStep::Configuration,
                 reason: "Claude Code belongs to the next comparison pass".into(),
@@ -103,7 +103,7 @@ impl Agent {
     }
 }
 
-impl Prepared {
+impl PreparedAgent {
     /// Build the command with its pinned configuration overrides.
     #[must_use]
     pub fn command(&self) -> Invocation {
@@ -136,7 +136,7 @@ impl Observing {
         }
     }
 
-    /// The actual root final message, where the selected stream retains it.
+    /// The root final message, where the selected stream retains it.
     #[must_use]
     pub fn answer(&self) -> Option<String> {
         match self {
@@ -166,7 +166,7 @@ impl Observing {
         }
     }
 
-    /// Classify from the selected face, its accepted answer and genuine tree exit.
+    /// Classify from the selected face, its accepted answer and tree exit.
     #[must_use]
     pub fn classify(&self, exit: crate::Exit, forced: crate::Forced) -> crate::Classification {
         match self {
@@ -184,7 +184,7 @@ pub enum Agent {
     Smith,
     /// Codex, observed through JSON lines and its named rollouts.
     Codex,
-    /// Standalone Claude Code identity; probes select the smith program arm.
+    /// Standalone Claude Code identity, refused by the benchmark adapters.
     ClaudeCode,
 }
 
@@ -244,8 +244,7 @@ pub fn read_configuration(file: &Path) -> Result<PinnedConfiguration, Refusal> {
     match pin.agent {
         Agent::Smith => {
             if let Some(commit) = &pin.minimum_commit
-                && (commit.len() != 40
-                    || !commit.bytes().all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte)))
+                && (!crate::formats::lowercase_hex(commit, 40))
             {
                 return Err(Refusal::new(file, "minimum_commit", "expected a full lowercase source commit"));
             }
@@ -261,8 +260,7 @@ pub fn read_configuration(file: &Path) -> Result<PinnedConfiguration, Refusal> {
                 .sha256
                 .as_deref()
                 .ok_or_else(|| Refusal::new(file, "sha256", "Codex requires an executable digest"))?;
-            if digest.len() != 64 || !digest.bytes().all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
-            {
+            if !crate::formats::lowercase_hex(digest, 64) {
                 return Err(Refusal::new(file, "sha256", "expected 64 lowercase hexadecimal digits"));
             }
             let package = pin

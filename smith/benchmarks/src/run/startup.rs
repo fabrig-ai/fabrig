@@ -1,4 +1,4 @@
-//! Explicit startup probes classify the genuine refusal and empty native capture.
+//! Explicit startup probes classify the refusal and empty native capture.
 //! Other empty streams remain errors; no record is synthesized (benchmarks.md 11.1).
 
 use crate::agent::smith::events;

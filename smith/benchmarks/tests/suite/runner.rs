@@ -11,7 +11,8 @@ fn isolated_replay(name: &str) -> Option<PathBuf> {
     if let Some(root) = std::env::var_os("SMITH_REPOSITORY_REPLAY_ROOT") {
         return Some(PathBuf::from(root));
     }
-    let root = std::env::temp_dir().join(format!("smith-bench-{name}-{}", std::process::id()));
+    let scratch = skein_scratch::Scratch::new("bench-runner");
+    let root = scratch.path().to_path_buf().join(format!("smith-bench-{name}-{}", std::process::id()));
     std::fs::create_dir(&root).expect("fixture root");
     let output = std::process::Command::new(std::env::current_exe().expect("test executable"))
         .args(["--exact", &format!("runner::{name}"), "--nocapture"])
@@ -21,7 +22,7 @@ fn isolated_replay(name: &str) -> Option<PathBuf> {
         .env("XDG_STATE_HOME", root.join("state"))
         .output()
         .expect("private replay process");
-    std::fs::remove_dir_all(root).expect("remove private replay");
+
     assert!(
         output.status.success(),
         "{}{}",
@@ -31,9 +32,9 @@ fn isolated_replay(name: &str) -> Option<PathBuf> {
     None
 }
 
-fn repository_request(root: &std::path::Path, guard: &smith_bench::guard::Guard) -> smith_bench::run::Prepared {
+fn repository_request(root: &std::path::Path, guard: &smith_bench::guard::Guard) -> smith_bench::run::Request {
     use sha2::{Digest, Sha256};
-    let fixtures = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/recorded");
+    let fixtures = crate::common::repository().join("tests/recorded");
     let state = root.join("state/smith-bench");
     std::fs::create_dir_all(state.join("bundles")).expect("bundles parent");
     smith_bench::isolate::copy_directory(guard, &fixtures.join("bundles/tiny"), &state.join("bundles/tiny"))
@@ -56,21 +57,13 @@ fn repository_request(root: &std::path::Path, guard: &smith_bench::guard::Guard)
     let program = std::fs::canonicalize("/bin/sh").expect("shell executable");
     identity.binary_sha256 = smith_bench::arm::binary_digest(&program).expect("replay digest");
     identity.run = "repository-replay".into();
-    smith_bench::run::Prepared {
-        task: manifest,
-        identity,
+    smith_bench::run::Request {
         program,
-        arguments: Vec::new(),
-        codex_home: None,
-        configuration: None,
         teardown_ms: 100,
-        grace_ms: 20,
-        settlement_ms: 200,
         setup_deadline_seconds: 3,
         max_stdout_bytes: 16384,
-        max_stderr_bytes: 4096,
         disk_estimate_bytes: 1,
-        force_walk: true,
+        ..crate::common::request(manifest, identity)
     }
 }
 
@@ -96,7 +89,7 @@ fn a_file_left_in_tmp_by_an_attempt_is_a_write_outside() {
 }
 
 fn replay(tail: &str) -> Command {
-    let recording = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/recorded/codex/completed.jsonl");
+    let recording = crate::common::repository().join("tests/recorded/codex/completed.jsonl");
     Command {
         program: "/bin/sh".into(),
         arguments: vec![
@@ -137,7 +130,7 @@ fn a_recorded_answer_is_observed_before_the_tree_settles() {
 
 #[test]
 fn a_prepared_adapter_observes_the_answer_through_the_common_supervisor() {
-    let prepared = smith_bench::agent::Prepared::Codex(smith_bench::agent::codex::Prepared {
+    let prepared = smith_bench::agent::PreparedAgent::Codex(smith_bench::agent::codex::PreparedCodex {
         overrides: Vec::new(),
         credential: "/tmp/smith-codex-capture-no-login/auth.json".into(),
         expires: skein_lib::Wall::EPOCH,

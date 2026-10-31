@@ -32,35 +32,19 @@ fn rejected_responses(sessions: &[super::events::Session], expected: u64) -> boo
         }
         for record in &session.records {
             match &record.event {
-                Event::ResponseStarted(value) => {
-                    if !started.insert((index, value.run, value.conversation, value.response)) {
-                        return false;
-                    }
+                Event::ResponseStarted(value)
+                    if !started.insert((index, value.run, value.conversation, value.response)) =>
+                {
+                    return false;
                 }
-                Event::ResponseCompleted(value) => {
-                    if !response_rejected(value)
-                        || !rejected.insert((index, value.run, value.conversation, value.response))
-                    {
-                        return false;
-                    }
+                Event::ResponseCompleted(value)
+                    if (!response_rejected(value)
+                        || !rejected.insert((index, value.run, value.conversation, value.response))) =>
+                {
+                    return false;
                 }
                 Event::TextDelta(_) => return false,
-                Event::SessionStarted(_)
-                | Event::SessionEnded(_)
-                | Event::RunStarted(_)
-                | Event::RunCompleted(_)
-                | Event::ConversationOpened(_)
-                | Event::ConversationClosed(_)
-                | Event::ToolStarted(_)
-                | Event::JobEnded(_)
-                | Event::ToolCompleted(_)
-                | Event::CheckStarted(_)
-                | Event::CheckCompleted(_)
-                | Event::MessageReceived(_)
-                | Event::MessageRead(_)
-                | Event::MessageUnread(_)
-                | Event::Budget(_)
-                | Event::Notice(_) => {}
+                _ => {}
             }
         }
     }

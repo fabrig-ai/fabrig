@@ -1,5 +1,5 @@
 //! Budget prose joins its immutable opening and the latest run-scoped charge.
-//! Child returns join rendered results in their actual parent's next request;
+//! Child returns join rendered results in their parent's next request;
 //! their usage retains the return-time budget. Missing capture or links remain
 //! unavailable. Millisecond projections retain their submillisecond uncertainty,
 //! never guessed nanoseconds (domain/run.md, sections5.3/9.2; protocol/events.md,
@@ -151,7 +151,7 @@ fn wind_down(prompt: &smith_events::Prompt, reserve: &smith_events::Reserve) -> 
     Duration::recorded(reserve.time_ms).prose().iter().any(|time| {
         let expected = format!("The ordinary budget is spent. Finish now with what you have. You have at most {} final completions and {time} to finish. Use only finish, or deliver when offered.", reserve.turns);
         prompt.messages.iter().any(|message| message.blocks.iter().any(|block| match block {
-            smith_events::Block::Text { text } => text.windows(expected.len()).any(|text| text == expected.as_bytes()),
+            smith_events::Block::Text { text } => skein_lib::bytes::find(text, expected.as_bytes()).is_some(),
             smith_events::Block::Refusal { .. } | smith_events::Block::Unknown { .. }
             | smith_events::Block::Call { .. } | smith_events::Block::Oversized { .. }
             | smith_events::Block::Cut { .. } | smith_events::Block::Result { .. }
@@ -184,12 +184,12 @@ struct Returned<'a> {
 impl<'a> State<'a> {
     fn opening(&mut self, value: &'a ConversationOpened, now: u64) -> Checked {
         if !self.runs.contains_key(&value.run) {
-            return Err("conversation opening lacks its actual run admission");
+            return Err("conversation opening lacks its run admission");
         }
         if value.kind == ConversationKind::Child {
-            let parent = value.parent.ok_or("child opening lacks its actual parent")?;
+            let parent = value.parent.ok_or("child opening lacks its parent")?;
             if !self.openings.contains_key(&(value.run, parent)) || value.call.is_none() {
-                return Err("child opening lacks its actual parent call");
+                return Err("child opening lacks its parent call");
             }
             let (budget, at) = self.budgets.get(&value.run).ok_or("child opening lacks a preceding run budget")?;
             if !share(value, budget, *at, now)? {
@@ -204,7 +204,7 @@ impl<'a> State<'a> {
 
     fn request(&mut self, value: &smith_events::ResponseStarted) -> Checked {
         let identity = (value.run, value.conversation);
-        let (opening, at) = self.openings.get(&identity).ok_or("request lacks its actual opening")?;
+        let (opening, at) = self.openings.get(&identity).ok_or("request lacks its opening")?;
         if opening.kind == ConversationKind::Compaction {
             return Ok(true);
         }
@@ -270,9 +270,9 @@ impl<'a> State<'a> {
     fn returned(&mut self, value: &'a ToolCompleted, now: u64) -> Checked {
         let child = value.child.as_ref().expect("child return selected");
         let identity = (value.run, child.conversation);
-        let (opening, _) = self.openings.get(&identity).ok_or("child return lacks its actual opening")?;
+        let (opening, _) = self.openings.get(&identity).ok_or("child return lacks its opening")?;
         if opening.parent != Some(value.conversation) || opening.call.as_ref() != Some(&value.call) {
-            return Err("child return does not join its actual parent call");
+            return Err("child return does not join its parent call");
         }
         let (budget, at) = self.budgets.get(&value.run).ok_or("child usage lacks a preceding run budget")?;
         let identity = (value.run, value.conversation, value.call.clone());
@@ -285,10 +285,8 @@ impl<'a> State<'a> {
 
     fn record(&mut self, record: &'a Record) -> Checked {
         match &record.event {
-            Event::RunStarted(value) => {
-                if self.runs.insert(value.run, (value, record.t_ms)).is_some() {
-                    return Ok(false);
-                }
+            Event::RunStarted(value) if self.runs.insert(value.run, (value, record.t_ms)).is_some() => {
+                return Ok(false);
             }
             Event::Budget(value) => {
                 let (run, _) = self.runs.get(&value.run).ok_or("budget snapshot lacks its run admission")?;
@@ -306,25 +304,10 @@ impl<'a> State<'a> {
             Event::ConversationOpened(value) => return self.opening(value, record.t_ms),
             Event::ResponseStarted(value) => return self.request(value),
             Event::ToolCompleted(value) if value.child.is_some() => return self.returned(value, record.t_ms),
-            Event::RunCompleted(value) => {
-                if value.wind_down != self.winding.contains(&value.run) {
-                    return Ok(false);
-                }
+            Event::RunCompleted(value) if value.wind_down != self.winding.contains(&value.run) => {
+                return Ok(false);
             }
-            Event::MessageReceived(_)
-            | Event::MessageRead(_)
-            | Event::MessageUnread(_)
-            | Event::SessionStarted(_)
-            | Event::SessionEnded(_)
-            | Event::ConversationClosed(_)
-            | Event::ResponseCompleted(_)
-            | Event::TextDelta(_)
-            | Event::ToolStarted(_)
-            | Event::JobEnded(_)
-            | Event::ToolCompleted(_)
-            | Event::CheckStarted(_)
-            | Event::CheckCompleted(_)
-            | Event::Notice(_) => {}
+            _ => {}
         }
         Ok(true)
     }
@@ -339,7 +322,7 @@ fn session(session: &Session) -> Checked {
     }
     for (identity, (opening, _)) in &state.openings {
         if !state.budgets.contains_key(&opening.run) {
-            return Err("conversation lacks its actual run budget snapshot");
+            return Err("conversation lacks its run budget snapshot");
         }
         if opening.kind == ConversationKind::Child && !state.returned.contains(identity) {
             return Err("child lacks captured returned usage");
@@ -351,7 +334,7 @@ fn session(session: &Session) -> Checked {
         }
     }
     if state.budgets.is_empty() || state.systems.is_empty() {
-        return Err("budget visibility lacks a captured report and actual budget snapshot");
+        return Err("budget visibility lacks a captured report and budget snapshot");
     }
     Ok(true)
 }

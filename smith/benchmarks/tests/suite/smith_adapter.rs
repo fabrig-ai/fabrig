@@ -16,7 +16,8 @@ mod retried;
 
 #[test]
 fn a_terminal_peer_can_close_its_stdio_before_the_leader_exits_without_hangup() {
-    let directory = root("terminal-before-exit");
+    let scratch = root("terminal-before-exit");
+    let directory = scratch.path().join("root");
     std::fs::create_dir(&directory).expect("private fixture directory");
     let trace = directory.join("trace.jsonl");
     std::fs::write(&trace, []).expect("empty append file");
@@ -36,7 +37,7 @@ fn a_terminal_peer_can_close_its_stdio_before_the_leader_exits_without_hangup() 
         bounds(),
     )
     .expect("tree settles");
-    std::fs::remove_dir_all(directory).expect("fixture cleanup");
+
     assert!(result.error.is_none(), "{:?}", result.error);
     assert_eq!(result.forced, Forced::No);
     assert!(result.answered.is_some());
@@ -44,8 +45,8 @@ fn a_terminal_peer_can_close_its_stdio_before_the_leader_exits_without_hangup() 
     assert_eq!(result.exit, smith_bench::Exit::Code(0));
 }
 
-fn root(name: &str) -> PathBuf {
-    std::env::temp_dir().join(format!("smith-bench-events-{}-{name}", std::process::id()))
+fn root(name: &str) -> skein_scratch::Scratch {
+    skein_scratch::Scratch::new(name)
 }
 
 fn observing(trace: &Path) -> Observing {
@@ -81,7 +82,8 @@ fn bounds() -> Bounds {
 
 #[test]
 fn the_selected_event_face_observes_the_answer_and_drains_its_native_boundaries() {
-    let directory = root("events");
+    let scratch = root("events");
+    let directory = scratch.path().join("root");
     std::fs::create_dir(&directory).expect("private fixture directory");
     let trace = directory.join("trace.jsonl");
     let replay = directory.join("codec-control.jsonl");
@@ -152,12 +154,12 @@ fn the_selected_event_face_observes_the_answer_and_drains_its_native_boundaries(
     let spend = native.spend(&native.tokens().expect("exact response usage")).expect("reported notional spend");
     assert_eq!(spend.basis, smith_bench::SpendBasis::Notional);
     assert_eq!(spend.usd, Measure::Observed { value: 0.000_003 });
-    std::fs::remove_dir_all(directory).expect("replay fixture removed");
 }
 
 #[test]
 fn a_terminal_person_closes_after_main_acceptance_and_drains_the_final_file_record() {
-    let directory = root("terminal");
+    let scratch = root("terminal");
+    let directory = scratch.path().join("root");
     std::fs::create_dir(&directory).expect("fixture directory");
     let trace = directory.join("trace.jsonl");
     std::fs::write(&trace, []).expect("empty append file");
@@ -181,12 +183,12 @@ fn a_terminal_person_closes_after_main_acceptance_and_drains_the_final_file_reco
     assert!(String::from_utf8_lossy(&result.trace).contains("session.ended"));
     assert_eq!(result.observing.expect("paired observer").classify(result.exit, result.forced).end, End::Completed);
     assert!(result.tree.live_pids.is_empty());
-    std::fs::remove_dir_all(directory).expect("fixture cleanup");
 }
 
 #[test]
-fn an_incomplete_file_record_faults_after_genuine_tree_settlement_and_retains_its_prefix() {
-    let directory = root("partial");
+fn an_incomplete_file_record_faults_after_observed_tree_settlement_and_retains_its_prefix() {
+    let scratch = root("partial");
+    let directory = scratch.path().join("root");
     std::fs::create_dir(&directory).expect("fixture directory");
     let trace = directory.join("trace.jsonl");
     std::fs::write(&trace, b"{\"type\":").expect("partial fixture");
@@ -203,10 +205,8 @@ fn an_incomplete_file_record_faults_after_genuine_tree_settlement_and_retains_it
     assert!(result.error.as_ref().is_some_and(|error| error.contains("partial record")));
     assert_eq!(result.trace, b"{\"type\":");
     assert!(result.tree.live_pids.is_empty());
-    std::fs::remove_dir_all(directory).expect("fixture cleanup");
 }
 
-/// Lower test of smith-bench's `smith_adapter::path_mounts_reach_native_policy_and_escaped_mounts_refuse_before_credentials` (top tiers test wiring only).
 #[test]
 fn path_mounts_reach_native_policy_and_escaped_mounts_refuse_before_credentials() {
     let fixture = exec::ExecFixture::rendering("path-settings");
@@ -238,7 +238,6 @@ fn path_mounts_reach_native_policy_and_escaped_mounts_refuse_before_credentials(
     assert_eq!(mounts[0].host.as_ref(), private.workspace.join("app").as_os_str().as_encoded_bytes());
     mount_refusals(&context, &mut task);
     assert!(context.home.join("tokens/chatgpt").is_file());
-    fixture.clean();
 }
 
 fn mount_refusals(context: &smith_bench::agent::Context<'_>, task: &mut smith_bench::Task) {
@@ -272,9 +271,8 @@ fn mount_refusals(context: &smith_bench::agent::Context<'_>, task: &mut smith_be
     }
 }
 
-/// Lower test of smith-bench's `smith_adapter::every_probe_tasks_overrides_pass_the_actual_public_startup_derivation` (top tiers test wiring only).
 #[test]
-fn every_probe_tasks_overrides_pass_the_actual_public_startup_derivation() {
+fn every_probe_tasks_overrides_pass_the_observed_public_startup_derivation() {
     let fixture = exec::ExecFixture::rendering("all-probe-settings");
     for name in ["app", "spec"] {
         std::fs::create_dir_all(fixture.context().private.workspace.join(name)).expect("probe mount");
@@ -293,12 +291,10 @@ fn every_probe_tasks_overrides_pass_the_actual_public_startup_derivation() {
         let resolved = resolved_product(&context);
         resolved.local.validate(&resolved.limits).expect("probe product policy");
     }
-    fixture.clean();
 }
 
-/// Lower test of smith-bench's `smith_adapter::tool_output_profiles_render_and_pass_the_actual_public_startup_derivation` (top tiers test wiring only).
 #[test]
-fn tool_output_profiles_render_and_pass_the_actual_public_startup_derivation() {
+fn tool_output_profiles_render_and_pass_the_observed_public_startup_derivation() {
     let fixture = exec::ExecFixture::rendering("tool-output-settings");
     let task = authored_task("tool-output");
     for variant in &task.variant {
@@ -313,12 +309,10 @@ fn tool_output_profiles_render_and_pass_the_actual_public_startup_derivation() {
         assert_eq!(resolved.agent.service.domain.models.len(), 3);
         resolved.local.validate(&resolved.limits).expect("mounted product policy");
     }
-    fixture.clean();
 }
 
-/// Lower test of smith-bench's `smith_adapter::process_tree_profile_renders_and_passes_the_actual_public_startup_derivation` (top tiers test wiring only).
 #[test]
-fn process_tree_profile_renders_and_passes_the_actual_public_startup_derivation() {
+fn process_tree_profile_renders_and_passes_the_observed_public_startup_derivation() {
     let fixture = exec::ExecFixture::rendering("process-tree-settings");
     let task = authored_task("process-tree");
     let context = smith_bench::agent::Context { task: &task, ..fixture.context() };
@@ -329,12 +323,10 @@ fn process_tree_profile_renders_and_passes_the_actual_public_startup_derivation(
     assert_eq!(resolved.local.models.len(), 3);
     assert_eq!(resolved.agent.service.domain.models.len(), 3);
     resolved.local.validate(&resolved.limits).expect("product policy");
-    fixture.clean();
 }
 
-/// Lower test of smith-bench's `smith_adapter::slow_completion_profile_renders_and_passes_the_actual_public_startup_derivation` (top tiers test wiring only).
 #[test]
-fn slow_completion_profile_renders_and_passes_the_actual_public_startup_derivation() {
+fn slow_completion_profile_renders_and_passes_the_observed_public_startup_derivation() {
     let fixture = exec::ExecFixture::rendering("slow-completion-settings");
     let task = authored_task("slow-completion");
     let context = smith_bench::agent::Context { task: &task, ..fixture.context() };
@@ -349,7 +341,6 @@ fn slow_completion_profile_renders_and_passes_the_actual_public_startup_derivati
     assert_eq!(resolved.local.models.len(), 3);
     assert_eq!(resolved.agent.service.domain.models.len(), 3);
     resolved.local.validate(&resolved.limits).expect("product policy");
-    fixture.clean();
 }
 
 fn authored_task(name: &str) -> smith_bench::Task {
@@ -383,7 +374,6 @@ fn an_exec_arm_reads_its_prompt_to_eof_without_a_trace_file() {
     assert_eq!(result.exit, smith_bench::Exit::Code(0));
     assert_eq!(result.forced, Forced::No);
     assert!(result.error.is_none() && result.tree.live_pids.is_empty());
-    fixture.clean();
 }
 
 #[test]
@@ -514,7 +504,6 @@ fn a_time_breakdown_sums_to_task_wall_within_one_second() {
     assert!(value(&timing.longest_completion_ms) > 10_000);
 }
 
-/// Lower test of smith-bench's `smith_adapter::a_task_override_reaches_smith_as_a_product_setting` (top tiers test wiring only).
 #[test]
 fn a_task_override_reaches_smith_as_a_product_setting() {
     let fixture = exec::ExecFixture::rendering("task-setting");
@@ -524,10 +513,8 @@ fn a_task_override_reaches_smith_as_a_product_setting() {
     let arguments = product_arguments(&context).expect("overrides");
     assert!(arguments.contains(&"models.\"openai/gpt-6-luna\".output=8192".into()));
     assert_eq!(resolved_product(&context).agent.declarations.endpoints[0].models[0].output, 8192);
-    fixture.clean();
 }
 
-/// Lower test of smith-bench's `smith_adapter::a_comparison_pin_keeps_every_preset_value_and_the_default_role` (top tiers test wiring only).
 #[test]
 fn a_comparison_pin_keeps_every_preset_value_and_the_default_role() {
     let fixture = exec::ExecFixture::rendering("comparison-settings");
@@ -572,10 +559,8 @@ fn a_comparison_pin_keeps_every_preset_value_and_the_default_role() {
     }
     let resolved = resolved_product(&context);
     assert!(!resolved.local.instructions.is_empty());
-    fixture.clean();
 }
 
-/// Lower test of smith-bench's `smith_adapter::a_task_without_a_budget_renders_the_products_defaults` (top tiers test wiring only).
 #[test]
 fn a_task_without_a_budget_renders_the_products_defaults() {
     let fixture = exec::ExecFixture::rendering("default-budget");
@@ -593,5 +578,4 @@ fn a_task_without_a_budget_renders_the_products_defaults() {
     assert!(
         !product_arguments(&context).expect("default flags").iter().any(|argument| argument.starts_with("budget."))
     );
-    fixture.clean();
 }

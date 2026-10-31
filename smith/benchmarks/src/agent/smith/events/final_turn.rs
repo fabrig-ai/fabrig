@@ -38,7 +38,7 @@ pub(super) fn check(observer: &Observer) -> Measure<bool> {
                 }
                 let identity = (value.run, child.conversation);
                 let Some(opening) = children.get(&identity) else {
-                    return Measure::unavailable("capped child lacks its actual opening");
+                    return Measure::unavailable("capped child lacks its opening");
                 };
                 if opening.parent != Some(value.conversation) || opening.call.as_ref() != Some(&value.call) {
                     return Measure::unavailable("capped child return does not match its parent call");

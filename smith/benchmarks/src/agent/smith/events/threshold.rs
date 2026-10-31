@@ -28,13 +28,13 @@ pub(super) fn passed_line(observer: &Observer) -> Measure<bool> {
             }
             if let Event::ResponseStarted(value) = &record.event {
                 if models.get(&(value.run, value.conversation)) != Some(&&value.model) {
-                    return Measure::unavailable("request model does not match its actual conversation opening");
+                    return Measure::unavailable("request model does not match its conversation opening");
                 }
                 requests.insert((value.run, value.conversation, value.response), value);
             }
             if let Event::ResponseCompleted(value) = &record.event {
                 let Some(request) = requests.get(&(value.run, value.conversation, value.response)) else {
-                    return Measure::unavailable("response lacks its request's actual model window");
+                    return Measure::unavailable("response lacks its request's model window");
                 };
                 if value.outcome == Outcome::Failed && value.blocks == 0
                     && session.records[position + 1..].iter().any(|record| matches!(&record.event,

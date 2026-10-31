@@ -14,29 +14,12 @@ pub fn record(source: &str) -> Record {
 }
 
 fn encoded(record: &Record) -> Vec<u8> {
-    // Keep the synthetic semantic envelope and actual emitted inventory; the
+    // Keep the synthetic semantic envelope and emitted inventory; the
     // independent golden sweep still retains the complete maximum LIMITS.
     {
         let items = match &record.event {
             Event::SessionEnded(ended) => ended.emitted.len().max(4),
-            Event::Budget(_)
-            | Event::SessionStarted(_)
-            | Event::RunStarted(_)
-            | Event::RunCompleted(_)
-            | Event::ConversationOpened(_)
-            | Event::ConversationClosed(_)
-            | Event::ResponseStarted(_)
-            | Event::ResponseCompleted(_)
-            | Event::TextDelta(_)
-            | Event::ToolStarted(_)
-            | Event::JobEnded(_)
-            | Event::ToolCompleted(_)
-            | Event::CheckStarted(_)
-            | Event::CheckCompleted(_)
-            | Event::MessageReceived(_)
-            | Event::MessageRead(_)
-            | Event::MessageUnread(_)
-            | Event::Notice(_) => 4,
+            _ => 4,
         };
         let limits = Limits { items, ..LIMITS };
         smith_events::write(record, &Capture::Everything, &limits)
@@ -193,24 +176,14 @@ fn build_balanced() -> Vec<Record> {
                 value.loss.events = 0;
                 value.loss.channel = Some(0);
             }
-            Event::MessageReceived(_)
-            | Event::MessageRead(_)
-            | Event::MessageUnread(_)
-            | Event::Budget(_)
-            | Event::TextDelta(_)
-            | Event::ToolStarted(_)
-            | Event::JobEnded(_)
-            | Event::ToolCompleted(_)
-            | Event::CheckStarted(_)
-            | Event::CheckCompleted(_)
-            | Event::Notice(_) => panic!("unexpected fixture record"),
+            _ => panic!("unexpected fixture record"),
         }
     }
     inventory(&mut values);
     values
 }
 
-/// Synthetic peers report the inventory of the exchange they actually emit.
+/// Synthetic peers report the inventory of the exchange they emit.
 pub fn inventory(records: &mut [Record]) {
     type Names = Vec<(std::mem::Discriminant<Event>, Box<[u8]>)>;
     static NAMES: std::sync::LazyLock<std::sync::Mutex<Names>> = std::sync::LazyLock::new(Default::default);

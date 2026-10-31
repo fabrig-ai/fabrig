@@ -44,17 +44,13 @@ pub fn read_bundle_manifest(file: &Path) -> Result<BundleManifest, Refusal> {
     let manifest: BundleManifest = crate::formats::read_document(file)?;
     crate::check::check_path(file, "name", Path::new(&manifest.name))?;
     if manifest.name.contains('/')
-        || !hex(&manifest.source, 40)
-        || !hex(&manifest.sha256, 64)
-        || manifest.pins.iter().any(|pin| pin.name.is_empty() || !hex(&pin.commit, 40))
+        || !crate::formats::lowercase_hex(&manifest.source, 40)
+        || !crate::formats::lowercase_hex(&manifest.sha256, 64)
+        || manifest.pins.iter().any(|pin| pin.name.is_empty() || !crate::formats::lowercase_hex(&pin.commit, 40))
     {
         return Err(Refusal::new(file, "bundle", "one directory name, exact git commits and SHA-256 required"));
     }
     Ok(manifest)
-}
-
-fn hex(value: &str, length: usize) -> bool {
-    value.len() == length && value.bytes().all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
 }
 
 /// Accept a present matching bundle; absence is skipped, and any changed bytes refuse.

@@ -43,7 +43,7 @@ pub enum OutcomeCheck {
     ExitCode { code: i32 },
     /// Standard error's last retained complete line must match the pattern.
     LastLine { pattern: String },
-    /// The actual final result text must match the pattern.
+    /// The final result text must match the pattern.
     Answer { pattern: String },
     /// The paired smith attempts must accept and advance their shared sign-in generation.
     CredentialRefresh,
@@ -67,7 +67,7 @@ pub enum EventCheck {
     OversizedWrite {
         path: PathBuf,
         content_bytes_above: u64,
-        /// Select protocol-only refusal against the actual stated call-input bound.
+        /// Select protocol-only refusal against the stated call-input bound.
         protocol_input_bytes_above: Option<u64>,
     },
     /// An oversized write is repaired by a first write and captured extending edits.
@@ -88,7 +88,7 @@ pub enum EventCheck {
     },
     /// Tool starts match the count the task asks of the model.
     CallCount { tool: String, count: Count },
-    /// An actual tool terminal retains at least this many result bytes.
+    /// A tool terminal retains at least this many result bytes.
     ToolResultBytes { tool: String, at_least: u64 },
     /// A shell request times out at its emitted bound, with its exact clamp and grace.
     ToolTimeout { requested_seconds: u32, deadline_ms: u64, clamped: bool, grace_ms: u64, command: Option<String> },
@@ -138,7 +138,7 @@ pub enum EventCheck {
     BudgetVisible,
     /// The last child usage's told remainder matches its writing-step budget.
     BudgetTold,
-    /// Main's report repeats the last remainder it was actually told.
+    /// Main's report repeats the last remainder it was told.
     BudgetReport,
     /// Reported spend does not exceed this notional dollar ceiling.
     SpendWithin { ceiling_usd: f64 },
@@ -154,7 +154,7 @@ pub enum EventCheck {
     NoFailure { class: String },
     /// The authoritative run terminal has this status and optional typed failure identity.
     RunCompleted { status: String, class: Option<String>, which: Option<String>, reason: Option<String> },
-    /// The run retains actual provider rejection status and bounded diagnostic content.
+    /// The run retains provider rejection status and bounded diagnostic content.
     ProviderFailure { status_at_least: u16, status_at_most: u16, detail_bytes_at_most: u32 },
     /// The process refuses before making a provider request.
     NoRequest,

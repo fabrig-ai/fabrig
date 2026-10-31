@@ -3,10 +3,8 @@
 use smith_bench::{Agent, AttemptResult, Design, Measure, PeakScope, RunSummary};
 
 fn result() -> AttemptResult {
-    smith_bench::read_result(
-        &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/recorded/results/attempt.json"),
-    )
-    .expect("recorded attempt")
+    smith_bench::read_result(&crate::common::repository().join("tests/recorded/results/attempt.json"))
+        .expect("recorded attempt")
 }
 
 fn summary(result: AttemptResult) -> RunSummary {
@@ -59,8 +57,13 @@ fn codexs_peak_is_its_trees_and_says_so() {
 
 #[test]
 fn a_null_peak_record_leaves_smiths_own_unavailable() {
-    let stream = include_str!("../recorded/retried-failure-17d63afd-02.jsonl")
-        .replace("\"peak_rss_bytes\":{\"self\":17321984,\"children\":157687808}", "\"peak_rss_bytes\":null");
+    let stream = crate::common::json::edit_lines(
+        include_str!("../recorded/retried-failure-17d63afd-02.jsonl"),
+        "/peak_rss_bytes",
+        &serde_json::json!({"self":17_321_984,"children":157_687_808}),
+        Some(&serde_json::Value::Null),
+        1,
+    );
     assert_eq!(
         observer(stream.as_bytes()).own_peak_rss_bytes(),
         Measure::unavailable("session.ended reported peak_rss_bytes null: resource usage unread")
@@ -71,7 +74,7 @@ fn a_null_peak_record_leaves_smiths_own_unavailable() {
 fn parity_reports_the_medians_without_changing_its_criteria() {
     const RESPONSES: u64 = 10;
     const PEAK_BYTES: u64 = 8192;
-    let file = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/recorded/parity/on-par.json");
+    let file = crate::common::repository().join("tests/recorded/parity/on-par.json");
     let mut summary = smith_bench::read_summary(&file).expect("recorded parity");
     let before = smith_bench::parity::from_summary(&summary).expect("verdict");
     for row in &mut summary.attempts {

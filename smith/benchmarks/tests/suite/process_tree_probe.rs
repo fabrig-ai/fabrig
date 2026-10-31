@@ -1,9 +1,7 @@
 //! Process-tree controls exercise the harness codec, not a provider or product run.
 
-use smith_bench::agent::smith::events::Observer;
 use smith_bench::{EventCheck, Measure};
-use smith_events::{Capture, Event, Record};
-use std::path::PathBuf;
+use smith_events::{Capture, Record};
 
 use crate::common;
 
@@ -11,9 +9,8 @@ const COMMAND: &str = "sh -c 'sleep 600 & wait'";
 
 #[test]
 fn nested_process_task_freezes_the_command_profile_and_tree_criterion() {
-    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let task = smith_bench::check_task(&root.join("tasks/probes/process-tree/task.toml"), &root.join("../docs/design"))
-        .expect("frozen seed and task");
+    let root = crate::common::repository();
+    let task = crate::common::task("probes/process-tree");
     assert_eq!(task.version, 2);
     assert!(task.prompt.contains(COMMAND));
     assert!(task.deciding.iter().any(|name| name == "tree-ended"));
@@ -50,26 +47,17 @@ fn nested_command_requires_retained_input_and_its_later_exact_terminal() {
         command: Some(COMMAND.into()),
     };
     let mut values = common::events::balanced();
-    let mut start =
-        common::events::record(include_str!("../../../crates/smith-events/golden/v4/tool_started_everything.jsonl"));
-    let mut end =
-        common::events::record(include_str!("../../../crates/smith-events/golden/v4/tool_completed_everything.jsonl"));
-    if let Event::ToolStarted(value) = &mut start.event {
-        value.run = 0;
-        value.conversation = 0;
-        value.call = Box::from(&b"nested-call"[..]);
-        value.tool = Box::from(&b"shell"[..]);
+    let (mut start, mut end) = common::tool_pair("shell", "nested-call");
+    {
+        let value = crate::common::edit::tool_started(&mut start);
         let input =
             serde_json::to_vec(&serde_json::json!({"command": COMMAND, "timeout_seconds": 1})).expect("fixture");
         value.input_bytes = u64::try_from(input.len()).expect("bounded");
         value.input = Some(input.into_boxed_slice());
         value.deadline_ms = Some(1000);
     }
-    if let Event::ToolCompleted(value) = &mut end.event {
-        value.run = 0;
-        value.conversation = 0;
-        value.call = Box::from(&b"nested-call"[..]);
-        value.tool = Box::from(&b"shell"[..]);
+    {
+        let value = crate::common::edit::tool_completed(&mut end);
         value.verdict = smith_events::Verdict::TimedOut;
         value.clamped = false;
         value.duration_ms = 1001;
@@ -86,23 +74,25 @@ fn nested_command_requires_retained_input_and_its_later_exact_terminal() {
         assert_eq!(observed(&values, &check, &capture), Measure::Observed { value: true });
         for command in [Some("sleep 600"), Some("sh -c 'sleep 600'"), Some(""), None] {
             let mut wrong = values.clone();
-            if let Event::ToolStarted(value) = &mut wrong[5].event {
+            {
+                let value = crate::common::edit::tool_started(&mut wrong[5]);
                 let input = match command {
                     Some(command) => serde_json::json!({"command": command, "timeout_seconds": 1}),
                     None => serde_json::json!({"timeout_seconds": 1}),
                 };
                 value.input = Some(serde_json::to_vec(&input).expect("fixture").into_boxed_slice());
             }
-            let actual = observed(&wrong, &check, &capture);
+            let got = observed(&wrong, &check, &capture);
             if command.is_some() {
-                assert_eq!(actual, Measure::Observed { value: false });
+                assert_eq!(got, Measure::Observed { value: false });
             } else {
-                assert!(matches!(actual, Measure::Unavailable { .. }));
+                assert!(matches!(got, Measure::Unavailable { .. }));
             }
         }
         for field in ["run", "conversation", "call", "tool"] {
             let mut wrong = values.clone();
-            if let Event::ToolCompleted(value) = &mut wrong[6].event {
+            {
+                let value = crate::common::edit::tool_completed(&mut wrong[6]);
                 match field {
                     "run" => value.run = 1,
                     "conversation" => value.conversation = 1,
@@ -120,20 +110,11 @@ fn nested_command_requires_retained_input_and_its_later_exact_terminal() {
         }
         assert!(matches!(observed(&wrong, &check, &capture), Measure::Unavailable { .. }));
         let mut wrong = values.clone();
-        if let Event::ToolStarted(value) = &mut wrong[5].event {
-            value.input = None;
-        }
+        crate::common::edit::tool_started(&mut wrong[5]).input = None;
         assert!(matches!(observed(&wrong, &check, &capture), Measure::Unavailable { .. }));
     }
 }
 
 fn observed(records: &[Record], check: &EventCheck, capture: &Capture) -> Measure<bool> {
-    let mut observer = Observer::new(&common::events::LIMITS).expect("actual reader");
-    for record in records {
-        let line =
-            smith_events::write(record, capture, &common::events::LIMITS).expect("actual writer").expect("record");
-        observer.feed(&line).expect("actual codec input");
-    }
-    observer.finish().expect("complete stream");
-    observer.check(check, "task").passed
+    crate::common::captured(records, capture, &common::events::LIMITS).check(check, "task").passed
 }

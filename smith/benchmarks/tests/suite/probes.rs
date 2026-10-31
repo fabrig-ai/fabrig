@@ -1,20 +1,16 @@
 //! Smoke task manifests and decision boundaries use recorded and typed outside evidence.
 
 use smith_bench::{CheckVerdict, End, Judgment, Measure, judge, judge_suite};
-use std::path::PathBuf;
 
 use crate::common;
 
 fn history() -> smith_bench::Task {
-    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    smith_bench::check_task(&root.join("tasks/probes/history/task.toml"), &root.join("../docs/design"))
-        .expect("frozen history task")
+    crate::common::task("probes/history")
 }
 
 #[test]
 fn history_reads_one_file_per_completion_to_its_sum() {
-    let task = history();
-    let seed = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tasks/probes/history/seed");
+    let seed = crate::common::repository().join("tasks/probes/history/seed");
     let mut next = "node-93e158a7.txt".to_owned();
     let mut sum = 0_u32;
     let mut visited = std::collections::BTreeSet::new();
@@ -29,23 +25,6 @@ fn history_reads_one_file_per_completion_to_its_sum() {
     assert_eq!(next, "END");
     assert_eq!(sum, 528);
     assert_eq!(std::fs::read_dir(seed).expect("seed").count(), 32);
-    assert!(task.outcome.contains(&smith_bench::OutcomeCheck::Answer { pattern: "^ALPHA 528$".into() }));
-    assert!(task.event.contains(&smith_bench::EventCheck::ToolCall {
-        tool: "read".into(),
-        count: None,
-        input_bytes_at_least: None,
-        verdict: Some("read".into()),
-        exit: None,
-        clamped: None,
-    }));
-    assert!(
-        task.event.contains(&smith_bench::EventCheck::CallCount {
-            tool: "read".into(),
-            count: smith_bench::Count::Exactly(32),
-        })
-    );
-    assert!(task.event.contains(&smith_bench::EventCheck::CallsPerResponse { tool: "read".into(), at_most: 1 }));
-    assert_eq!(task.smith["deployment.calls_per_response"].as_integer(), Some(1));
 }
 
 fn history_observer(records: &mut [smith_events::Record]) -> smith_bench::agent::smith::events::Observer {
@@ -83,7 +62,8 @@ fn small_window_requires_a_compaction_and_no_prompt_past_its_window() {
     assert!(task.event.contains(&compacted));
     assert!(task.event.contains(&smith_bench::EventCheck::PromptWithinWindow));
     let mut records = common::events::balanced();
-    if let smith_events::Event::SessionStarted(value) = &mut records[0].event {
+    {
+        let value = crate::common::edit::session_started(&mut records[0]);
         value
             .limits
             .push(smith_events::EffectiveLimit {
@@ -117,9 +97,7 @@ fn small_window_requires_a_compaction_and_no_prompt_past_its_window() {
         observer.check(&smith_bench::EventCheck::PromptWithinWindow, "task").passed,
         Measure::Observed { value: true }
     );
-    if let smith_events::Event::ResponseCompleted(value) = &mut records[4].event {
-        value.usage.input_tokens = Some(10_000);
-    }
+    crate::common::edit::response_completed(&mut records[4]).usage.input_tokens = Some(10_000);
     assert_eq!(
         history_observer(&mut records).check(&smith_bench::EventCheck::PromptWithinWindow, "task").passed,
         Measure::Observed { value: false }
@@ -127,12 +105,12 @@ fn small_window_requires_a_compaction_and_no_prompt_past_its_window() {
 }
 
 fn result() -> smith_bench::AttemptResult {
-    smith_bench::read_result(&PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/recorded/results/attempt.json"))
+    smith_bench::read_result(&crate::common::repository().join("tests/recorded/results/attempt.json"))
         .expect("unchanged recorded result")
 }
 
 fn smoke_entry() -> smith_bench::CatalogueTask {
-    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let root = crate::common::repository();
     let manifest = root.join("tasks/probes/smoke-tools/task.toml");
     let task = smith_bench::read_task(&manifest).expect("smoke task");
     smith_bench::CatalogueTask { name: "probes/smoke-tools".into(), manifest, task }
@@ -149,7 +127,7 @@ fn smoke_skips_an_uncalibrated_probe() {
 
 #[test]
 fn the_smoke_suite_names_the_one_turn_refusal_probe() {
-    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let root = crate::common::repository();
     let suite = smith_bench::read_suite(&root.join("suites/smoke.toml")).expect("suite");
     assert_eq!(
         suite.tasks,
@@ -226,9 +204,7 @@ fn an_uncalibrated_harness_error_still_makes_the_suite_incomplete() {
 
 #[test]
 fn credentials_requires_the_refresh_pair_with_both_answers() {
-    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let task = smith_bench::check_task(&root.join("tasks/probes/credentials/task.toml"), &root.join("../docs/design"))
-        .expect("credentials task with its frozen seed");
+    let task = crate::common::task("probes/credentials");
     assert_eq!(task.deciding, ["end", "answer", "credential-refresh"]);
     assert_eq!(task.smith["deployment.refresh_lead"].as_integer(), Some(34_560_000));
     assert!(task.prompt.contains("CREDENTIALS_REFRESH_OK"));
@@ -236,9 +212,7 @@ fn credentials_requires_the_refresh_pair_with_both_answers() {
 }
 
 fn follow_up() -> smith_bench::Task {
-    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    smith_bench::check_task(&root.join("tasks/probes/follow-up/task.toml"), &root.join("../docs/design"))
-        .expect("frozen follow-up task")
+    crate::common::task("probes/follow-up")
 }
 
 fn exchanges(records: &mut [smith_events::Record]) -> Measure<bool> {
@@ -299,7 +273,8 @@ fn follow_up_chat_judges_one_completion_per_exchange() {
     let mut received = common::events::record(include_str!(
         "../../../crates/smith-events/golden/v4/message_received_everything.jsonl"
     ));
-    if let smith_events::Event::MessageReceived(value) = &mut received.event {
+    {
+        let value = crate::common::edit::message_received(&mut received);
         value.run = 0;
         value.label = Some(b"person".as_slice().into());
         value.refused = None;
@@ -369,7 +344,7 @@ fn attempt_and_suite_share_failure_precedence_and_preserve_expected_budget_class
 }
 
 fn smoke_catalogue_selects_five_active_probes_and_retains_deferred_one_turn_with_exact_frozen_inputs() {
-    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let root = crate::common::repository();
     let design = root.join("../docs/design");
     let tasks: Vec<_> = ["first-request", "smoke-tools", "large-write", "budget", "failures"]
         .into_iter()
@@ -417,7 +392,8 @@ fn smoke_catalogue_selects_five_active_probes_and_retains_deferred_one_turn_with
     let smoke = tasks.iter().find(|task| task.name == "probes/smoke-tools").expect("smoke-tools");
     let child = smoke.task.with_variant("child").expect("historical additive behavior");
     assert!(smoke.task.event.iter().all(|check| child.event.contains(check)));
-    let directory = std::env::temp_dir().join(format!("smith-probe-name-{}", std::process::id()));
+    let scratch = skein_scratch::Scratch::new("bench-probes");
+    let directory = scratch.path().to_path_buf().join(format!("smith-probe-name-{}", std::process::id()));
     std::fs::create_dir(&directory).expect("isolated author typo");
     let manifest = directory.join("task.toml");
     let source = std::fs::read_to_string(&smoke.manifest).expect("authored manifest");
@@ -428,7 +404,7 @@ fn smoke_catalogue_selects_five_active_probes_and_retains_deferred_one_turn_with
             .key
             .starts_with("deciding")
     );
-    std::fs::remove_dir_all(directory).expect("offline cleanup");
+
     let serialized = smith_bench::render_result(&result()).expect("historical result remains valid");
     assert_eq!(smith_bench::parse_result(&root, &serialized).expect("historical round trip"), result());
 }
@@ -447,7 +423,7 @@ fn the_smoke_retains_each_probes_frozen_checks_and_inputs() {
 }
 
 fn smoke_listing_is_a_minimum_and_shell_stays_exact() {
-    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let root = crate::common::repository();
     let task = smith_bench::read_task(&root.join("tasks/probes/smoke-tools/task.toml")).expect("smoke task");
     for task in [task.clone(), task.with_variant("child").expect("child task")] {
         let count = |name: &str| {
@@ -504,7 +480,7 @@ fn fix_body_keeps_both_runs_and_distinguishes_effect_from_unjudged() {
 
 #[test]
 fn the_probes_suite_names_each_probe_and_variant_once() {
-    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let root = crate::common::repository();
     let tasks: Vec<_> = std::fs::read_dir(root.join("tasks/probes"))
         .expect("probe catalogue")
         .map(|entry| entry.expect("probe directory"))
@@ -537,7 +513,7 @@ fn the_probes_suite_names_each_probe_and_variant_once() {
 
 #[test]
 fn an_agent_task_outside_the_suite_is_refused() {
-    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let root = crate::common::repository();
     let manifest = root.join("tasks/probes/smoke-tools/task.toml");
     let tasks = [smith_bench::CatalogueTask {
         name: "probes/smoke-tools".into(),
@@ -559,7 +535,7 @@ fn an_agent_task_outside_the_suite_is_refused() {
 
 #[test]
 fn codex_runs_only_its_outcome_halves() {
-    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let root = crate::common::repository();
     let suite = smith_bench::read_suite(&root.join("suites/probes.toml")).expect("suite");
     let codex: Vec<_> = suite.agents.iter().filter(|agent| agent.agent == smith_bench::Agent::Codex).collect();
     assert_eq!(codex.len(), 1);

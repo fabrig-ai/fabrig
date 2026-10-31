@@ -1,11 +1,9 @@
 //! Repository range claims preserve measurement gaps (benchmarks.md, 3.1 and 9).
 
-use std::path::PathBuf;
-
 use smith_bench::{Agent, Design, LargeEffect, Measure, RunSummary, large_effect, summarise};
 
 fn repository_summary(candidate: [Measure<u64>; 3], design: Design) -> RunSummary {
-    let file = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/recorded/results/attempt.json");
+    let file = crate::common::repository().join("tests/recorded/results/attempt.json");
     let recorded = smith_bench::read_result(&file).expect("recorded attempt");
     let mut results = Vec::new();
     for (arm, agent, values) in [

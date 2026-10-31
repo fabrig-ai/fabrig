@@ -231,8 +231,13 @@ fn unsent_result(retried: bool) -> crate::AttemptResult {
     let mut result = pricing_result();
     let limits = smith_events::Limits { string: 524_288, content: 4096, items: 512 };
     let mut observer = crate::agent::smith::events::Observer::with_ceiling(&limits, 16_384).expect("response bounds");
-    let records = include_str!("../../tests/recorded/retried-failure-17d63afd-02.jsonl")
-        .replace("\"evidence\":\"response\"", "\"evidence\":\"unsent\"");
+    let records = crate::json_fixture::edit_lines(
+        include_str!("../../tests/recorded/retried-failure-17d63afd-02.jsonl"),
+        "/failure/evidence",
+        &serde_json::json!("response"),
+        Some(&serde_json::json!("unsent")),
+        1,
+    );
     let mut records: Vec<serde_json::Value> =
         records.lines().map(|line| serde_json::from_str(line).expect("event")).collect();
     if !retried {
@@ -344,7 +349,8 @@ fn a_summary_of_another_version_is_refused_by_name() {
     let mut document = serde_json::to_value(summary).expect("document");
     document["version"] = 2.into();
     document.as_object_mut().expect("object").remove("attempts");
-    let file = std::env::temp_dir().join(format!("smith-summary-version-{}.json", std::process::id()));
+    let scratch = skein_scratch::Scratch::new("bench-comparison");
+    let file = scratch.path().to_path_buf().join(format!("smith-summary-version-{}.json", std::process::id()));
     std::fs::write(&file, document.to_string()).expect("fixture");
     let refusal = crate::read_summary(&file).expect_err("version two");
     std::fs::remove_file(&file).expect("cleanup");

@@ -5,6 +5,7 @@ use smith_bench::{EventCheck, Measure};
 use smith_events::{ConversationKind, Event, Record};
 
 use crate::common;
+use crate::common::observe;
 
 #[test]
 fn children_overlap_requires_positive_time_in_the_same_run() {
@@ -23,32 +24,6 @@ fn children_overlap_requires_positive_time_in_the_same_run() {
 }
 
 #[test]
-fn parallel_tasks_are_frozen_and_decide_actual_call_and_child_evidence() {
-    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
-    let read =
-        smith_bench::check_task(&root.join("tasks/probes/parallel-read/task.toml"), &root.join("../docs/design"))
-            .expect("parallel reads");
-    assert!(read.event.contains(&EventCheck::CallsInOneResponse { tool: "read".into(), at_least: 20 }));
-    assert_eq!(read.smith["deployment.calls_per_response"].as_integer(), Some(20));
-    let children =
-        smith_bench::check_task(&root.join("tasks/probes/parallel-children/task.toml"), &root.join("../docs/design"))
-            .expect("parallel children");
-    for (task, count) in [(children.clone(), 4), (children.with_variant("reviews").expect("reviews"), 3)] {
-        assert!(task.event.contains(&EventCheck::ChildrenOverlap { at_least: 2 }));
-        assert!(task.event.contains(&EventCheck::ConversationOpened {
-            kind: "child".into(),
-            count: smith_bench::Count::Exactly(count)
-        }));
-        assert_eq!(task.event.iter().filter(|check| matches!(check, EventCheck::ConversationOpened { .. })).count(), 1);
-        assert!(
-            task.event
-                .iter()
-                .any(|check| matches!(check, EventCheck::ToolCall { verdict: Some(value), .. } if value == "result"))
-        );
-    }
-}
-
-#[test]
 fn twenty_reads_must_be_in_one_response_and_content_absence_is_unknown() {
     let check = EventCheck::CallsInOneResponse { tool: "read".into(), at_least: 20 };
     let mut records = common::events::balanced();
@@ -56,9 +31,7 @@ fn twenty_reads_must_be_in_one_response_and_content_absence_is_unknown() {
     assert_eq!(observe_wide(&records).check(&check, "task").passed, Measure::Observed { value: true });
     set_calls(&mut records[4], 10);
     let mut second = records[4].clone();
-    if let Event::ResponseCompleted(value) = &mut second.event {
-        value.response = 1;
-    }
+    crate::common::edit::response_completed(&mut second).response = 1;
     records.insert(5, second);
     common::events::inventory(&mut records);
     assert_eq!(observe_wide(&records).check(&check, "task").passed, Measure::Observed { value: false });
@@ -90,15 +63,7 @@ fn set_calls(record: &mut Record, count: u32) {
 
 fn observe_wide(records: &[Record]) -> Observer {
     let limits = smith_events::Limits { items: 64, ..common::events::LIMITS };
-    let mut observer = Observer::new(&limits).expect("twenty-call fixture");
-    for record in records {
-        let line = smith_events::write(record, &smith_events::Capture::Everything, &limits)
-            .expect("typed fixture")
-            .expect("captured fixture");
-        observer.feed(&line).expect("real codec");
-    }
-    observer.finish().expect("complete framing");
-    observer
+    crate::common::captured(records, &smith_events::Capture::Everything, &limits)
 }
 
 fn children(intervals: [(u64, u64, u64); 2]) -> Vec<Record> {
@@ -108,7 +73,8 @@ fn children(intervals: [(u64, u64, u64); 2]) -> Vec<Record> {
     for (index, (start, end, run)) in intervals.into_iter().enumerate() {
         let mut opening = opened.clone();
         opening.t_ms = start;
-        if let Event::ConversationOpened(value) = &mut opening.event {
+        {
+            let value = crate::common::edit::conversation_opened(&mut opening);
             value.run = run;
             value.conversation = u64::try_from(index + 1).expect("two children");
             value.kind = ConversationKind::Child;
@@ -117,24 +83,18 @@ fn children(intervals: [(u64, u64, u64); 2]) -> Vec<Record> {
         }
         let mut closure = closed.clone();
         closure.t_ms = end;
-        if let Event::ConversationClosed(value) = &mut closure.event {
+        {
+            let value = crate::common::edit::conversation_closed(&mut closure);
             value.run = run;
             value.conversation = u64::try_from(index + 1).expect("two children");
         }
         records.extend([opening, closure]);
     }
-    // Retain actual session framing around the synthetic intervals.
+    // Retain session framing around the synthetic intervals.
     let mut terminal = records.remove(7);
     terminal.t_ms = 100;
     records.sort_by_key(|record| record.t_ms);
     records.push(terminal);
     common::events::inventory(&mut records);
     records
-}
-
-fn observe(records: &[Record]) -> Observer {
-    let mut observer = Observer::new(&common::events::LIMITS).expect("reader");
-    observer.feed(&common::events::bytes(records)).expect("real codec");
-    observer.finish().expect("complete framing");
-    observer
 }

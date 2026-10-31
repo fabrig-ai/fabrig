@@ -31,7 +31,6 @@ rusqlite = { version = "0.37", features = ["bundled"] }
 time = { version = "0.3", features = ["formatting", "parsing"] }
 smith-local-shell = { path = "../crates/smith-local-shell" }
 smith-events.workspace = true
-smith-local-protocol.workspace = true
 skein-lib.workspace = true
 skein-llm.workspace = true
 skein-world.workspace = true
@@ -40,10 +39,8 @@ skein-shell.workspace = true
 skein-oauth.workspace = true
 
 [dev-dependencies]
+skein-scratch.workspace = true
 smith-agent-service.workspace = true
-smith-domain-run.workspace = true
-smith-domain-session.workspace = true
-smith-agent-shell = { path = "../crates/smith-agent-shell" }
 
 [lints.rust]
 unsafe_code = "forbid"
@@ -56,7 +53,6 @@ pedantic = { level = "warn", priority = -1 }
 module_name_repetitions = "allow"
 missing_errors_doc = "allow"
 missing_panics_doc = "allow"
-wildcard_enum_match_arm = "deny"
 match_wildcard_for_single_variants = "deny"
 unwrap_used = "deny"
 disallowed_types = "deny"

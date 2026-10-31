@@ -102,7 +102,7 @@ pub struct Identity {
     pub harness_commit: String,
     pub host: String,
     pub cpus: Vec<u32>,
-    /// The runner's start in UTC wall time, never used to measure durations.
+    /// The runner's start in UTC wall time; durations use a monotonic clock.
     pub started_utc: String,
 }
 

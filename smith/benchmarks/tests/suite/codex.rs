@@ -18,7 +18,7 @@ fn archived_streams_preserve_root_only_evidence_and_real_failure() {
     let completed = observed(COMPLETED);
     assert_eq!(completed.classify(Exit::Code(0), Forced::No).end, End::Completed);
     let native = smith_bench::agent::codex::parse_rollout(REPEATED.as_bytes(), "01a121bc-04a8-75c2-8fba-d2694fa1ad22")
-        .expect("actual repeated usage fields");
+        .expect("repeated usage fields");
     assert_eq!(native.1.len(), 2);
     let tokens = completed.token_records().expect("root-only usage");
     assert_eq!(tokens[0].usage.fresh, Measure::Observed { value: 18_802 });
@@ -39,7 +39,7 @@ fn archived_streams_preserve_root_only_evidence_and_real_failure() {
     for record in manifest["records"].as_array().expect("records") {
         let file = record["file"].as_str().expect("file");
         assert_eq!(record["provenance"], "archived");
-        let path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/recorded/codex").join(file);
+        let path = crate::common::repository().join("tests/recorded/codex").join(file);
         assert_eq!(smith_bench::arm::binary_digest(&path).expect("record digest"), record["sha256"]);
     }
 }
@@ -71,7 +71,13 @@ fn known_shapes_and_conflicting_usage_fail_with_named_evidence() {
     assert_eq!(combined[0].usage.fresh, Measure::Observed { value: 18_803 });
     assert!(matches!(combined[0].usage.cache_write, Measure::LowerBound { value: 0, .. }));
     let mut observer = observed(COMPLETED);
-    let conflict = COMPLETED.lines().last().expect("usage").replace("130418", "130419");
+    let conflict = crate::common::json::edit_lines(
+        COMPLETED.lines().last().expect("usage"),
+        "/usage/input_tokens",
+        &serde_json::json!(130_418),
+        Some(&serde_json::json!(130_419)),
+        1,
+    );
     assert!(observer.observe_line(&conflict).expect_err("conflict").to_string().contains("usage"));
     assert!(matches!(observer.classify(Exit::Code(0), Forced::No).end, End::HarnessError { .. }));
     assert!(parse_line("{").is_err());

@@ -13,7 +13,7 @@ use skein_world::end_to_end::Command;
 use crate::guard::Guard;
 use crate::isolate::Machine;
 use crate::process::{Bounds, Capture, execute};
-use crate::run::{Prepared, read_prepared};
+use crate::run::{Request, read_prepared};
 use crate::{AttemptResult, Design, End, Measure, ScopeKind, Suite};
 
 mod credentials;
@@ -30,7 +30,7 @@ pub struct Batch {
     pub probes: BTreeMap<String, crate::ProbeVerdict>,
 }
 
-fn requests(directory: &Path) -> Result<Vec<Prepared>, String> {
+fn requests(directory: &Path) -> Result<Vec<Request>, String> {
     let mut paths = fs::read_dir(directory)
         .map_err(|error| error.to_string())?
         .collect::<Result<Vec<_>, _>>()
@@ -39,12 +39,12 @@ fn requests(directory: &Path) -> Result<Vec<Prepared>, String> {
     paths.into_iter().map(|entry| read_prepared(&entry.path())).collect()
 }
 
-pub(crate) fn ordered(suite: &Suite, requests: Vec<Prepared>, seed: u64) -> Result<Vec<Prepared>, String> {
+pub(crate) fn ordered(suite: &Suite, requests: Vec<Request>, seed: u64) -> Result<Vec<Request>, String> {
     order(suite, requests, seed, false)
 }
 
-fn order(suite: &Suite, requests: Vec<Prepared>, seed: u64, logical: bool) -> Result<Vec<Prepared>, String> {
-    let mut groups: BTreeMap<String, BTreeMap<String, Vec<Prepared>>> = BTreeMap::new();
+fn order(suite: &Suite, requests: Vec<Request>, seed: u64, logical: bool) -> Result<Vec<Request>, String> {
+    let mut groups: BTreeMap<String, BTreeMap<String, Vec<Request>>> = BTreeMap::new();
     let mut ids = BTreeSet::new();
     let run = requests.first().map(|request| request.identity.run.clone());
     for request in requests {
@@ -137,7 +137,7 @@ fn known_tokens(result: &AttemptResult) -> Option<u64> {
     Some(used)
 }
 
-fn configuration_matches(pin: &crate::PinnedConfiguration, request: &Prepared) -> Result<bool, String> {
+fn configuration_matches(pin: &crate::PinnedConfiguration, request: &Request) -> Result<bool, String> {
     if pin.pin.agent != request.identity.agent
         || pin.pin.provider != request.identity.provider
         || pin.sha256 != request.identity.configuration_sha256
@@ -158,7 +158,7 @@ fn configuration_matches(pin: &crate::PinnedConfiguration, request: &Prepared) -
 fn selected_configuration_matches(
     agents: &[crate::SuiteAgent],
     pins: &[crate::PinnedConfiguration],
-    request: &Prepared,
+    request: &Request,
 ) -> Result<bool, String> {
     let mut matched = false;
     for (agent, pin) in agents.iter().zip(pins) {
@@ -187,7 +187,7 @@ fn allowed_agents(suite: &Suite) -> Vec<crate::SuiteAgent> {
     allowed
 }
 
-fn check_override(suite: &Suite, request: &Prepared) -> Result<(), String> {
+fn check_override(suite: &Suite, request: &Request) -> Result<(), String> {
     if !suite.arms.is_empty() && matches!(suite.arms[0], crate::Arm::Override { .. }) {
         let fields = suite
             .arms
@@ -204,7 +204,7 @@ fn check_override(suite: &Suite, request: &Prepared) -> Result<(), String> {
     Ok(())
 }
 
-fn check_requests(suite_file: &Path, suite: &Suite, requests: &[Prepared]) -> Result<(), String> {
+fn check_requests(suite_file: &Path, suite: &Suite, requests: &[Request]) -> Result<(), String> {
     let root = Path::new(env!("CARGO_MANIFEST_DIR"));
     let catalogue =
         crate::catalogue(&root.join("tasks"), &root.join("../docs/design")).map_err(|error| error.to_string())?;
@@ -312,7 +312,7 @@ fn dispatch_command(
     machine: &Machine,
     state: &Path,
     executable: &Path,
-    request: &Prepared,
+    request: &Request,
 ) -> Result<(Command, bool), String> {
     let root = state.join("requests");
     crate::run::private_parent(guard, &root)?;
@@ -347,7 +347,7 @@ fn dispatch_command(
 fn dispatch_result(
     guard: &Guard,
     state: &Path,
-    request: &Prepared,
+    request: &Request,
     process: &crate::process::ProcessResult,
     existed: bool,
 ) -> Result<AttemptResult, String> {
@@ -383,7 +383,7 @@ fn dispatch(
     state: &Path,
     clock: &Clock,
     executable: &Path,
-    request: &Prepared,
+    request: &Request,
     remaining: u64,
 ) -> Result<AttemptResult, String> {
     let (command, existed) = dispatch_command(guard, machine, state, executable, request)?;
@@ -459,7 +459,7 @@ pub(crate) fn probe_requests(
     seed: u64,
     probe: &str,
     repetitions: u32,
-) -> Result<Vec<Prepared>, String> {
+) -> Result<Vec<Request>, String> {
     let suite = probe_suite(suite_file, probe, repetitions)?;
     let requests = requests(prepared_directory)?;
     check_requests(suite_file, &suite, &requests)?;
@@ -468,10 +468,10 @@ pub(crate) fn probe_requests(
 
 fn dispatch_order(
     suite: &Suite,
-    requests: Vec<Prepared>,
+    requests: Vec<Request>,
     seed: u64,
     logical: bool,
-) -> Result<(VecDeque<Prepared>, usize), String> {
+) -> Result<(VecDeque<Request>, usize), String> {
     let ordered = if logical { order(suite, requests, seed, true)? } else { ordered(suite, requests, seed)? };
     let physical = ordered.first().map_or(Ok(1), |request| {
         if credentials::selected(request) {
@@ -612,426 +612,6 @@ fn run_suite(
     Ok(crate::probe::gating::report(Batch { results, incomplete, probes }, &uncalibrated))
 }
 
-#[cfg(test)]
-pub(crate) fn probe_cases() {
-    tests::no_request_requires_selected_complete_observations_without_inventing_tokens();
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use std::path::PathBuf;
-
-    fn retried_total() -> AttemptResult {
-        let mut result =
-            crate::read_result(&Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/recorded/results/attempt.json"))
-                .expect("result fixture");
-        let total = result.tokens.iter_mut().find(|record| record.role == ScopeKind::Total).expect("total");
-        total.usage.fresh =
-            Measure::LowerBound { value: 10, missing: vec!["root: response-3: retried failure".into()] };
-        total.usage.cache_read =
-            Measure::LowerBound { value: 20, missing: vec!["root: response-3: retried failure".into()] };
-        total.usage.cache_write =
-            Measure::LowerBound { value: 0, missing: vec!["root: response-3: retried failure".into()] };
-        total.usage.output =
-            Measure::LowerBound { value: 30, missing: vec!["root: response-3: retried failure".into()] };
-        result.identity.model.resolved_model = Measure::Observed { value: "gpt-6.1-sol".into() };
-        result.identity.model.resolved_window = Measure::Observed { value: 272_000 };
-        result
-    }
-
-    #[test]
-    fn a_total_missing_only_retried_failures_charges_its_lower_bound() {
-        assert_eq!(known_tokens(&retried_total()), Some(60));
-    }
-
-    #[test]
-    fn a_total_missing_another_count_charges_nothing_known() {
-        let mut result = retried_total();
-        let total = result.tokens.iter_mut().find(|record| record.role == ScopeKind::Total).expect("total");
-        total.usage.output = Measure::LowerBound { value: 30, missing: vec!["root: missing response".into()] };
-        assert_eq!(known_tokens(&result), None);
-    }
-
-    fn priced_response() -> crate::ResponseTokens {
-        crate::ResponseTokens {
-            scope: "response-4".into(),
-            model: "gpt-6.1-sol".into(),
-            fresh: 10,
-            cache_read: 20,
-            cache_write: 0,
-            output: 30,
-        }
-    }
-
-    #[test]
-    fn pricing_reported_tokens_keeps_the_retried_failure_lower_bound() {
-        assert_eq!(
-            crate::result::priced_spend(&retried_total(), &[priced_response()]),
-            Measure::LowerBound { value: 0.000_322, missing: vec!["root: response-3: retried failure".into()] }
-        );
-    }
-
-    #[test]
-    fn pricing_a_total_with_another_gap_stays_unavailable() {
-        let mut result = retried_total();
-        let total = result.tokens.iter_mut().find(|record| record.role == ScopeKind::Total).expect("total");
-        total.usage.output = Measure::LowerBound { value: 30, missing: vec!["root: missing response".into()] };
-        assert_eq!(
-            crate::result::priced_spend(&result, &[priced_response()]),
-            Measure::unavailable("total output tokens are a lower bound: root: missing response")
-        );
-    }
-
-    pub(super) fn no_request_requires_selected_complete_observations_without_inventing_tokens() {
-        let root = Path::new(env!("CARGO_MANIFEST_DIR"));
-        let mut value = crate::read_result(&root.join("tests/recorded/results/attempt.json")).expect("fixture");
-        value.tokens.clear();
-        value.outcome.deciding = vec!["no-request".into(), "stream-whole".into()];
-        value.outcome.checks = value
-            .outcome
-            .deciding
-            .iter()
-            .map(|name| crate::CheckVerdict {
-                check: name.clone(),
-                passed: Measure::Observed { value: true },
-                evidence: vec![],
-            })
-            .collect();
-        assert!(observed_no_request(&value));
-        assert_eq!(known_tokens(&value), None, "NoRequest is evidence, not invented numeric usage");
-        value.outcome.checks[1].passed = Measure::unavailable("missing authoritative terminal");
-        assert!(!observed_no_request(&value));
-        value.outcome.checks[1].passed = Measure::LowerBound { value: true, missing: vec!["loss".into()] };
-        assert!(!observed_no_request(&value));
-        value.outcome.checks[1].passed = Measure::Observed { value: true };
-        value.outcome.deciding.pop();
-        assert!(!observed_no_request(&value), "an advisory no-request observation cannot lift a token gap");
-    }
-
-    fn startup_refusal_result() -> AttemptResult {
-        let root = Path::new(env!("CARGO_MANIFEST_DIR"));
-        let mut result = crate::read_result(&root.join("tests/recorded/results/attempt.json")).expect("fixture");
-        result.tokens.clear();
-        result.identity.agent = crate::Agent::Smith;
-        result.outcome.end = End::Refused { setup: "expected invalid setting".into() };
-        result.outcome.exit = Measure::Observed { value: crate::Exit::Code(2) };
-        result.outcome.forced = crate::Forced::No;
-        result.outcome.deciding = ["no-run", "end", "exit-code", "last-line", "tree-ended"].map(str::to_owned).to_vec();
-        result.outcome.checks = result
-            .outcome
-            .deciding
-            .iter()
-            .map(|name| crate::CheckVerdict {
-                check: name.clone(),
-                passed: Measure::Observed { value: true },
-                evidence: vec![],
-            })
-            .collect();
-        result
-    }
-
-    #[test]
-    fn expected_startup_refusal_keeps_a_suite_running_without_token_totals() {
-        let result = startup_refusal_result();
-        let mut batch = Batch { results: vec![result], incomplete: false, probes: BTreeMap::new() };
-        assert!(observed_no_request(&batch.results[0]));
-        assert_eq!(known_tokens(&batch.results[0]), None);
-        assert_eq!(crate::probe::judgment(&batch), crate::Judgment::Pass);
-        for index in 0..batch.results[0].outcome.checks.len() {
-            batch.results[0].outcome.checks[index].passed =
-                Measure::LowerBound { value: true, missing: vec!["missing".into()] };
-            assert!(!observed_no_request(&batch.results[0]));
-            assert_eq!(crate::probe::judgment(&batch), crate::Judgment::Incomplete);
-            batch.results[0].outcome.checks[index].passed = Measure::Observed { value: true };
-        }
-        batch.results[0].outcome.deciding.pop();
-        assert!(!observed_no_request(&batch.results[0]));
-        assert_eq!(crate::probe::judgment(&batch), crate::Judgment::Pass);
-    }
-
-    #[test]
-    fn an_expected_in_run_refusal_passes_only_when_every_deciding_check_passes() {
-        let mut result = startup_refusal_result();
-        result.outcome.deciding =
-            ["end", "run-completed", "no-request", "stream-whole", "tree-ended"].map(str::to_owned).to_vec();
-        result.outcome.checks = result
-            .outcome
-            .deciding
-            .iter()
-            .map(|name| crate::CheckVerdict {
-                check: name.clone(),
-                passed: Measure::Observed { value: true },
-                evidence: vec![],
-            })
-            .collect();
-        let mut batch = Batch { results: vec![result], incomplete: false, probes: BTreeMap::new() };
-        assert!(!expected_startup_refusal(&batch.results[0]));
-        assert_eq!(crate::probe::judgment(&batch), crate::Judgment::Pass);
-        for index in 0..batch.results[0].outcome.checks.len() {
-            batch.results[0].outcome.checks[index].passed = Measure::Observed { value: false };
-            assert!(!expected_refusal(&batch.results[0]));
-            assert_eq!(crate::probe::judgment(&batch), crate::Judgment::Incomplete);
-            batch.results[0].outcome.checks[index].passed = Measure::unavailable("missing deciding observation");
-            assert!(!expected_refusal(&batch.results[0]));
-            batch.results[0].outcome.checks[index].passed = Measure::Observed { value: true };
-        }
-    }
-
-    #[test]
-    fn a_proved_provider_rejection_charges_no_tokens_without_changing_usage_or_requests() {
-        let mut result = startup_refusal_result();
-        result.outcome.end = End::Failed { reason: crate::FailureReason::Model, detail: "HTTP 400".into() };
-        result.counts.provider_attempts = Measure::Observed { value: 1 };
-        let health = &mut result.health;
-        health.passive_checks.push(crate::CheckVerdict {
-            check: "provider-rejected-before-output".into(),
-            passed: Measure::Observed { value: true },
-            evidence: vec![],
-        });
-        assert!(rejected_before_output(&result));
-        assert!(!observed_no_request(&result));
-        assert_eq!(known_tokens(&result), None);
-        assert_eq!(result.counts.provider_attempts, Measure::Observed { value: 1 });
-        result.counts.provider_attempts = Measure::LowerBound { value: 1, missing: vec!["loss".into()] };
-        assert!(!rejected_before_output(&result));
-        result.counts.provider_attempts = Measure::Observed { value: 1 };
-        result.health.passive_checks.last_mut().expect("proof").passed =
-            Measure::Unavailable { reason: "unobserved".into() };
-        assert!(!rejected_before_output(&result));
-    }
-
-    // Two arms, repeated twice, form complete interleaved blocks.
-    const BLOCK_ARMS: [&str; 2] = ["a", "b"];
-    const BLOCK_REPETITIONS: u32 = 2;
-    const BLOCK_SEED: u64 = 71;
-
-    fn block_requests() -> (crate::Suite, Vec<Prepared>) {
-        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        let mut suite = crate::read_suite(&root.join("tests/recorded/suites/sample.toml")).expect("suite");
-        suite.design = Design::Interleaved;
-        suite.repetitions = BLOCK_REPETITIONS;
-        let result = crate::read_result(&root.join("tests/recorded/results/attempt.json")).expect("result");
-        let mut requests = Vec::new();
-        for arm in BLOCK_ARMS {
-            for repetition in 0..BLOCK_REPETITIONS {
-                let mut identity = result.identity.clone();
-                identity.arm = arm.into();
-                identity.attempt = format!("{arm}-{repetition}");
-                requests.push(Prepared {
-                    task: root.join("tests/recorded/tasks/valid/task.toml"),
-                    identity,
-                    program: "/bin/sh".into(),
-                    arguments: Vec::new(),
-                    codex_home: None,
-                    configuration: None,
-                    teardown_ms: 50,
-                    grace_ms: 20,
-                    settlement_ms: 200,
-                    setup_deadline_seconds: 1,
-                    max_stdout_bytes: 4096,
-                    max_stderr_bytes: 4096,
-                    disk_estimate_bytes: 4096,
-                    force_walk: true,
-                });
-            }
-        }
-        (suite, requests)
-    }
-
-    /// Lower test of smith-bench's `batch::tests::prepared_blocks_preserve_seeded_order_unique_ids_and_token_gaps` (top tiers test wiring only).
-    #[test]
-    fn seeded_blocks_replay_with_one_request_per_arm() {
-        let (suite, requests) = block_requests();
-        let first = ordered(&suite, requests.clone(), BLOCK_SEED).expect("interleaving");
-        let second = ordered(&suite, requests, BLOCK_SEED).expect("same seed");
-        assert_eq!(
-            first.iter().map(|request| &request.identity.attempt).collect::<Vec<_>>(),
-            second.iter().map(|request| &request.identity.attempt).collect::<Vec<_>>()
-        );
-        for block in first.chunks_exact(BLOCK_ARMS.len()) {
-            assert_ne!(block[0].identity.arm, block[1].identity.arm);
-        }
-    }
-
-    /// Lower test of smith-bench's `batch::tests::prepared_blocks_preserve_seeded_order_unique_ids_and_token_gaps` (top tiers test wiring only).
-    #[test]
-    fn duplicate_attempt_ids_refuse_before_dispatch() {
-        let (suite, mut requests) = block_requests();
-        requests.push(requests[0].clone());
-        assert!(ordered(&suite, requests, BLOCK_SEED).expect_err("duplicate").contains("unique"));
-    }
-
-    /// Lower test of smith-bench's `batch::tests::prepared_blocks_preserve_seeded_order_unique_ids_and_token_gaps` (top tiers test wiring only).
-    #[test]
-    fn mixed_runs_refuse_before_dispatch() {
-        let (suite, mut requests) = block_requests();
-        requests[0].identity.run = "another-run".into();
-        assert!(ordered(&suite, requests, BLOCK_SEED).expect_err("mixed runs").contains("one run"));
-    }
-
-    /// Lower test of smith-bench's `batch::tests::prepared_blocks_preserve_seeded_order_unique_ids_and_token_gaps` (top tiers test wiring only).
-    #[test]
-    fn incomplete_repetition_blocks_refuse_before_dispatch() {
-        let (suite, mut requests) = block_requests();
-        requests.pop();
-        assert!(ordered(&suite, requests, BLOCK_SEED).expect_err("missing repetition").contains("repetition"));
-    }
-
-    fn token_result() -> AttemptResult {
-        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        let mut result = crate::read_result(&root.join("tests/recorded/results/attempt.json")).expect("result");
-        let total = result.tokens.iter_mut().find(|record| record.role == ScopeKind::Total).expect("total");
-        total.usage.fresh = Measure::Observed { value: 10 };
-        total.usage.cache_read = Measure::Observed { value: 20 };
-        total.usage.output = Measure::Observed { value: 30 };
-        result
-    }
-
-    /// Lower test of smith-bench's `batch::tests::prepared_blocks_preserve_seeded_order_unique_ids_and_token_gaps` (top tiers test wiring only).
-    #[test]
-    fn observed_token_scopes_sum_before_dispatch() {
-        // The supplied total contains 10 fresh, 20 cache-read and 30 output tokens.
-        const TOKENS: u64 = 60;
-        assert_eq!(known_tokens(&token_result()), Some(TOKENS));
-    }
-
-    /// Lower test of smith-bench's `batch::tests::prepared_blocks_preserve_seeded_order_unique_ids_and_token_gaps` (top tiers test wiring only).
-    #[test]
-    fn missing_token_scopes_keep_the_total_unknown() {
-        let mut result = token_result();
-        let total = result.tokens.iter_mut().find(|record| record.role == ScopeKind::Total).expect("total");
-        total.usage.fresh = Measure::unavailable("missing child");
-        assert_eq!(known_tokens(&result), None);
-    }
-
-    #[test]
-    fn missing_result_recovery_archives_evidence_and_removes_settled_scratch() {
-        // The fake fresh attempt creates its scratch, then exits without a
-        // result. Settlement must precede recovery and owned scratch deletion;
-        // dispatcher resource counts never become agent measurements.
-        let (_, requests) = block_requests();
-        let request = &requests[0];
-        let state = std::env::temp_dir().join(format!("smith-bench-dispatch-{}", std::process::id()));
-        let guard = Guard::new(&state.join("user-home"), &state.join("config"), &state.join("state"), &[])
-            .expect("synthetic guard");
-        crate::isolate::create_directory(&guard, &state).expect("private state");
-        let scratch = crate::run::scratch_root(&state, request).expect("planned scratch");
-        let relative = scratch.strip_prefix(&state).expect("private scratch").display();
-        let archived = format!("runs/{}/{}", request.identity.run, request.identity.attempt);
-        fs::write(
-            state.join("attempt"),
-            format!("umask 077; mkdir -p '{relative}' '{archived}'; cp \"$1\" '{archived}/prepared.json'; printf transient > '{relative}/transient'; printf interrupted; exit 1\n"),
-        )
-        .expect("fake attempt program");
-        let machine = Machine { path: "/usr/bin:/bin".into(), rustup_home: None };
-        let recovered = dispatch(&guard, &machine, &state, &Clock::new(), Path::new("/bin/sh"), request, 1_000_000_000)
-            .expect("settled missing result");
-        assert!(matches!(recovered.outcome.end, End::HarnessError { .. }));
-        assert!(matches!(recovered.resources.cpu_ms, Measure::Unavailable { .. }));
-        let directory = state.join("runs").join(&request.identity.run).join(&request.identity.attempt);
-        assert_eq!(fs::read(directory.join("dispatcher-stdout.log")).expect("retained output"), b"interrupted");
-        assert!(!scratch.exists());
-        assert!(recovered.artifacts.iter().any(|artifact| {
-            artifact.path == Path::new("prepared.json")
-                && artifact.sha256 == crate::arm::binary_digest(&directory.join(&artifact.path)).expect("digest")
-        }));
-        fs::remove_dir_all(state).expect("remove dispatch control");
-    }
-}
-
-#[cfg(test)]
-mod native_suite_pin_tests {
-    use super::*;
-    use sha2::Digest;
-
-    #[test]
-    fn native_built_suite_pin_verifies_full_arm_commit_and_binary() {
-        let root = Path::new(env!("CARGO_MANIFEST_DIR"));
-        let pin_file = root.join("agents/smith/everything.pin.toml");
-        let pin = crate::read_configuration(&pin_file).expect("native built-arm pin");
-        let task_file = root.join("tasks/probes/first-request/task.toml");
-        let task = crate::read_task(&task_file).expect("frozen author input");
-        let mut suite = crate::read_suite(&root.join("suites/calibrate.toml")).expect("suite");
-        suite.tasks = vec!["probes/first-request".into()];
-        let mut identity =
-            crate::read_result(&root.join("tests/recorded/results/attempt.json")).expect("identity fixture").identity;
-        let commit = "a".repeat(40);
-        let bytes = b"synthetic identity fixture; never executed\n";
-        let digest = format!("{:x}", sha2::Sha256::digest(bytes));
-        let directory = std::env::temp_dir()
-            .join(format!("smith-native-suite-pin-{}", std::process::id()))
-            .join(crate::arm::arm_name(&commit, &digest).expect("arm name"));
-        fs::create_dir_all(&directory).expect("isolated identity fixture");
-        fs::write(directory.join("smith"), bytes).expect("non-executed fixture");
-        let arm = crate::arm::BuiltArm {
-            version: 1,
-            commit: commit.clone(),
-            sha256: digest.clone(),
-            toolchain: "synthetic identity control".into(),
-            binaries: vec![crate::arm::ArmBinary { name: "smith".into(), sha256: digest.clone() }],
-        };
-        fs::write(directory.join("arm.json"), serde_json::to_vec(&arm).expect("arm manifest"))
-            .expect("private test manifest");
-        identity.agent = crate::Agent::Smith;
-        identity.provider = crate::Provider::Codex;
-        identity.agent_version = commit;
-        identity.binary_sha256 = digest.clone();
-        identity.configuration_sha256 = pin.sha256.clone();
-        identity.task = "probes/first-request".into();
-        identity.task_version = task.version;
-        identity.seed_sha256 = task.seed_sha256;
-        identity.model.requested_model = "gpt-6-luna".into();
-        identity.model.requested_effort = "low".into();
-        let mut request = Prepared {
-            task: task_file,
-            identity,
-            program: directory.join("smith"),
-            arguments: vec![],
-            codex_home: None,
-            configuration: Some(pin_file),
-            teardown_ms: 1,
-            grace_ms: 1,
-            settlement_ms: 1,
-            setup_deadline_seconds: 1,
-            max_stdout_bytes: 1,
-            max_stderr_bytes: 1,
-            disk_estimate_bytes: 1,
-            force_walk: true,
-        };
-        let suite_file = root.join("suites/calibrate.toml");
-        let valid = check_requests(&suite_file, &suite, std::slice::from_ref(&request));
-        // Do not execute or read credentials; this is the real admission seam.
-        assert!(valid.is_ok(), "verified native commit must match built-arm pin: {valid:?}");
-        request.identity.binary_sha256 = "0".repeat(64);
-        assert_eq!(configuration_matches(&pin, &request), Ok(false), "changed binary identity refused by admission");
-        request.identity.binary_sha256 = digest;
-        unknown_model_admission(root, &mut request);
-        fs::remove_dir_all(directory.parent().expect("fixture owner")).expect("cleanup");
-    }
-
-    fn unknown_model_admission(root: &Path, request: &mut Prepared) {
-        let suite_file = root.join("suites/probes.toml");
-        let mut suite = probe_suite(&suite_file, "probes/failures/unknown-model", 1).expect("failure suite");
-        suite.tasks = vec!["probes/failures/unknown-model".into()];
-        let pin_file = root.join("agents/smith/everything.pin.toml");
-        let pin = crate::read_configuration(&pin_file).expect("failure pin");
-        request.task = root.join("tasks/probes/failures/task.toml");
-        let task =
-            crate::read_task(&request.task).expect("failure task").with_variant("unknown-model").expect("variant");
-        request.configuration = Some(pin_file);
-        request.identity.configuration_sha256 = pin.sha256;
-        request.identity.task = "probes/failures/unknown-model".into();
-        request.identity.task_version = task.version;
-        request.identity.seed_sha256 = task.seed_sha256;
-        // The actual closed admission seam refuses a tier-labelled secret override.
-        assert!(check_requests(&suite_file, &suite, std::slice::from_ref(request)).is_err());
-        request.identity.model.requested_model = "codex/smith-bench-nonexistent-model-2026-10-11".into();
-        let valid = check_requests(&suite_file, &suite, std::slice::from_ref(request));
-        assert!(valid.is_ok(), "truthful authored provider rejection identity admitted: {valid:?}");
-    }
-}
-
 fn cache_verdicts(
     results: &[AttemptResult],
     incomplete: &mut bool,
@@ -1052,88 +632,18 @@ fn cache_verdicts(
 }
 
 #[cfg(test)]
-mod cache_order_tests {
-    use super::*;
-
-    #[test]
-    fn logical_calibration_requires_thirty_runs_but_one_suite_triplet_requires_three() {
-        let root = Path::new(env!("CARGO_MANIFEST_DIR"));
-        let mut suite = crate::read_suite(&root.join("suites/probes.toml")).expect("cache suite");
-        suite.repetitions = 10;
-        let result = crate::read_result(&root.join("tests/recorded/results/attempt.json")).expect("fixture");
-        let requests: Vec<_> = (0..30)
-            .map(|position| {
-                let mut identity = result.identity.clone();
-                identity.attempt = format!("{position:02}");
-                Prepared {
-                    task: root.join("tasks/probes/cache-reuse/task.toml"),
-                    identity,
-                    program: "/nonexecuted".into(),
-                    arguments: vec![],
-                    codex_home: None,
-                    configuration: None,
-                    teardown_ms: 0,
-                    grace_ms: 1,
-                    settlement_ms: 1,
-                    setup_deadline_seconds: 1,
-                    max_stdout_bytes: 4096,
-                    max_stderr_bytes: 4096,
-                    disk_estimate_bytes: 4096,
-                    force_walk: true,
-                }
-            })
-            .collect();
-        assert_eq!(order(&suite, requests.clone(), 1, true).expect("ten triplets").len(), 30);
-        assert!(order(&suite, requests[..29].to_vec(), 1, true).is_err());
-        assert!(ordered(&suite, requests.clone(), 1).is_err(), "suite task's authored repetition count is three");
-        assert_eq!(ordered(&suite, requests[..3].to_vec(), 1).expect("one triplet").len(), 3);
-        suite.repetitions = 1;
-        assert_eq!(order(&suite, requests[..3].to_vec(), 1, true).expect("one control triplet").len(), 3);
-    }
+pub(crate) fn probe_cases() {
+    tests::no_request_requires_selected_complete_observations_without_inventing_tokens();
 }
 
 #[cfg(test)]
-mod agent_task_tests {
-    use super::*;
+mod tests;
 
-    #[test]
-    fn a_prepared_pin_runs_only_its_selected_tasks() {
-        let root = Path::new(env!("CARGO_MANIFEST_DIR"));
-        let suite_file = root.join("suites/probes.toml");
-        let mut suite = crate::read_suite(&suite_file).expect("suite");
-        suite.tasks = vec!["probes/smoke-tools".into(), "probes/large-write".into()];
-        suite.agents.retain(|agent| agent.agent == crate::Agent::Codex);
-        suite.agents[0].tasks = vec!["probes/large-write".into()];
-        let pin_file = root.join("agents/codex/standard.pin.toml");
-        let pin = crate::read_configuration(&pin_file).expect("pin");
-        let mut identity =
-            crate::read_result(&root.join("tests/recorded/results/attempt.json")).expect("identity fixture").identity;
-        identity.task = "probes/large-write".into();
-        identity.agent = crate::Agent::Codex;
-        identity.provider = crate::Provider::Codex;
-        identity.agent_version = pin.pin.version.clone();
-        identity.configuration_sha256 = pin.sha256.clone();
-        identity.model.requested_model = "gpt-6-luna".into();
-        identity.model.requested_effort = "low".into();
-        let mut request = Prepared {
-            task: root.join("tasks/probes/large-write/task.toml"),
-            identity,
-            program: "/nonexecuted".into(),
-            arguments: vec![],
-            codex_home: None,
-            configuration: Some(pin_file),
-            teardown_ms: 0,
-            grace_ms: 1,
-            settlement_ms: 1,
-            setup_deadline_seconds: 1,
-            max_stdout_bytes: 1,
-            max_stderr_bytes: 1,
-            disk_estimate_bytes: 1,
-            force_walk: true,
-        };
-        assert_eq!(selected_configuration_matches(&suite.agents, std::slice::from_ref(&pin), &request), Ok(true));
-        request.identity.task = "probes/smoke-tools".into();
-        request.task = root.join("tasks/probes/smoke-tools/task.toml");
-        assert_eq!(selected_configuration_matches(&suite.agents, &[pin], &request), Ok(false));
-    }
-}
+#[cfg(test)]
+mod native_suite_pin_tests;
+
+#[cfg(test)]
+mod cache_order_tests;
+
+#[cfg(test)]
+mod agent_task_tests;
