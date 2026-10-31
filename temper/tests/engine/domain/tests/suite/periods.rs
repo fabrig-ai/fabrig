@@ -82,7 +82,6 @@ fn a_period_is_renewed_at_its_next_start() {
     let first = ledger(&d, 1, 1);
     let times = first.period.expect("period times");
     assert_eq!(times.next, Some(Wall::from_nanos(times.began.as_nanos() + PERIOD_SPAN.as_nanos())));
-    d.broken("fixture advances beyond sign-in expiry; cold startup legitimately erases the expired session");
     d.fire_at(PERIOD_SPAN);
     d.pump();
     let second = ledger(&d, 1, 2);
@@ -150,7 +149,6 @@ fn two_projects_due_at_once_are_renewed_in_one_decision() {
     d.settle();
     assert_eq!(next(&d, 1, 1), next(&d, 2, 1));
     let before = d.transactions.len();
-    d.broken("fixture advances beyond sign-in expiry; cold startup legitimately erases the expired session");
     d.fire_at(PERIOD_SPAN);
     d.settle();
     assert_eq!(ledger(&d, 1, 2).numbers.budget, 1000);
@@ -171,7 +169,6 @@ fn nothing_is_armed_while_stopping() {
     d.send(engine::Event::Stop);
     // Accounts may keep their own drain timer; the calendar contributes none.
     assert!(d.root.next_deadline(&d.env).is_none_or(|next| next > calendar_deadline));
-    d.broken("fixture advances beyond sign-in expiry; cold startup legitimately erases the expired session");
     d.fire_at(PERIOD_SPAN);
     d.pump();
     assert_eq!(periods(&d, 1), vec![1]);
@@ -203,7 +200,6 @@ fn a_raised_spend_is_the_next_periods_budget() {
     assert!(
         matches!(policy, Record::Core(core::Record::People(people::Stored::Policy { value, .. })) if value.period_spend == 800)
     );
-    d.broken("fixture advances beyond sign-in expiry; cold startup legitimately erases the expired session");
     d.fire_at(PERIOD_SPAN);
     d.settle();
     assert_eq!(ledger(&d, 1, 2).numbers.budget, 800);

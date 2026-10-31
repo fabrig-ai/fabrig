@@ -1077,6 +1077,9 @@ fn run_phase(
         *cell.borrow_mut() = Some(store.clone());
     });
     let transport = forge_for_run(&run, scenario);
+    if matches!(phase, Phase::Fault { .. }) {
+        run.borrow_mut().forge = Some(transport.clone());
+    }
     let observed_forge = Rc::new(RefCell::new(referee::forge::Forge::new(transport.clone(), scenario)));
     share(Some(transport.clone()));
     let mut world = skein_world::World::new_controlled(settings.seed, settings.config, Memory::Unchecked, |controls| {

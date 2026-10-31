@@ -40,17 +40,21 @@ pub fn rebuilt(key: &Key) -> Option<&'static str> {
 /// Last answers and retained rows at a quiescent boundary.
 pub struct Snapshot {
     rows: BTreeMap<Key, Record>,
+    expired: std::collections::BTreeSet<Key>,
     pub queries: Vec<(u64, Read)>,
     pub answers: Vec<Answer>,
 }
 impl Snapshot {
     #[must_use]
-    pub fn new(rows: &BTreeMap<Key, Record>) -> Self {
+    pub fn new(rows: &BTreeMap<Key, Record>, wall: skein_lib::Wall) -> Self {
+        let expired: std::collections::BTreeSet<_> = rows.iter().filter_map(|(key, row)| {
+            matches!(row, Record::Core(core::Record::People(people::Stored::SignIn { expires, .. })) if *expires <= wall).then(|| key.clone())
+        }).collect();
         let sessions: Vec<_> = rows
             .values()
             .filter_map(|row| {
-                if let Record::Core(core::Record::People(people::Stored::SignIn { number, .. })) = row {
-                    Some(*number)
+                if let Record::Core(core::Record::People(people::Stored::SignIn { number, expires, .. })) = row {
+                    (*expires > wall).then_some(*number)
                 } else {
                     None
                 }
@@ -66,11 +70,15 @@ impl Snapshot {
                 }
             }
         }
-        Self { rows: rows.clone(), queries, answers: Vec::new() }
+        Self { rows: rows.clone(), expired, queries, answers: Vec::new() }
     }
 
     pub fn compare_rows(&self, rows: &BTreeMap<Key, Record>) {
         for key in self.rows.keys().chain(rows.keys()) {
+            // Startup discards sessions whose durable expiry is already past.
+            if self.expired.contains(key) {
+                continue;
+            }
             let mut before = self.rows.get(key).cloned();
             let mut after = rows.get(key).cloned();
             if rebuilt(key).is_some() {
@@ -142,7 +150,7 @@ impl Driver {
         self.oracle_settle();
         assert!(self.store.idle() && self.store.held.is_empty(), "restart oracle store settled");
         let forges = self.root.forges();
-        let mut snapshot = Snapshot::new(&self.store.rows);
+        let mut snapshot = Snapshot::new(&self.store.rows, self.env.wall);
         for (sign_in, read) in &snapshot.queries {
             snapshot.answers.push(self.oracle_read(*sign_in, read));
         }

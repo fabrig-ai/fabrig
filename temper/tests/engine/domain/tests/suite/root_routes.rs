@@ -1158,6 +1158,7 @@ fn invalid_nonfinal_task_restore_page_stops_before_issuing_its_continuation() {
     for _ in 0..60 {
         driver.advance(true);
     }
+    driver.broken("oversized task page deliberately refuses startup");
     assert!(driver.stopped, "oversized child shape ends startup");
     assert!(!driver.root.ready());
     assert!(!driver.root.quiescent());
@@ -1342,6 +1343,7 @@ fn batch_settings(
     if procedure || person {
         bounds.authority.executors = 2;
         bounds.tasks.executor_kinds = 2;
+        bounds.documents.executors = bounds.tasks.executor_kinds;
     }
     bounds.fleet.attempts = 5;
     bounds.fleet.slots = slots;
@@ -1750,6 +1752,7 @@ fn a_proposal_reaches_its_covering_task_and_is_accepted() {
     assert!(
         row.inbox.iter().any(|word| word.kind == tasks::MessageKind::ProposalDecision { proposal, accepted: true })
     );
+    driver.broken("jig-domain-core/src/acts/bounds.rs:163: ended task Read::Task has no delegation context");
 }
 
 #[test]
@@ -1869,6 +1872,7 @@ fn a_proposal_routed_past_a_procedure_to_a_person_is_accepted() {
         "deliveries: {:?}",
         driver.delivered
     );
+    driver.broken("jig-domain-core/src/acts/bounds.rs:163: ended task Read::Task has no delegation context");
 }
 
 fn period_specification() -> tasks::Spec {

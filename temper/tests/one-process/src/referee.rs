@@ -305,6 +305,7 @@ impl skein_world::Referee<Proc> for Referee {
                 }))
             && let Some(link) = service.service.links().pop()
         {
+            crate::oracle::linked(&link);
             for proc in other.iter_mut() {
                 if let Proc::Client(person) = proc
                     && person.signed_in == 0

@@ -25,11 +25,20 @@ struct State {
     active: bool,
     sent: bool,
     before: Vec<Value>,
+    link: Box<[u8]>,
 }
 thread_local! { static STATE: RefCell<State> = RefCell::new(State::default()); }
 
 pub(crate) fn begin() {
     STATE.with(|state| *state.borrow_mut() = State { active: true, ..State::default() });
+}
+pub(crate) fn linked(link: &[u8]) {
+    STATE.with(|state| {
+        let mut state = state.borrow_mut();
+        if state.active {
+            state.link = link.into();
+        }
+    });
 }
 fn commands(caller: &mut Caller) {
     for words in READS {
@@ -37,14 +46,20 @@ fn commands(caller: &mut Caller) {
     }
     caller.closed = true;
 }
-fn documents(caller: &Caller) -> Vec<Value> {
-    assert_eq!(caller.answers.len(), READS.len(), "every oracle document answers");
+fn documents(caller: &Caller, phase: &str, skip: usize) -> Vec<Value> {
+    assert_eq!(caller.answers.len(), READS.len() + skip, "every oracle document answers");
     caller
         .answers
         .iter()
+        .skip(skip)
         .zip(READS)
         .map(|(answer, read)| {
-            assert_eq!(answer.exit, Exit::Code(0), "oracle read {read:?}: {}", String::from_utf8_lossy(&answer.error));
+            assert_eq!(
+                answer.exit,
+                Exit::Code(0),
+                "oracle {phase} read {read:?}: {}",
+                String::from_utf8_lossy(&answer.error)
+            );
             assert!(answer.error.is_empty(), "oracle read has no diagnostic");
             serde_json::from_slice(&answer.output).expect("public document JSON")
         })
@@ -65,13 +80,17 @@ pub(crate) fn readback(procs: &mut [Proc]) -> bool {
             })
             .expect("crash world has an oracle caller");
         if !state.sent {
+            assert!(!state.link.is_empty(), "oracle has the printed sign-in link");
+            let mut sign_in = Command::new(&[b"sign-in", b"-"]);
+            sign_in.input = state.link.clone();
+            caller.commands.push_back(sign_in);
             commands(caller);
             state.sent = true;
         }
         if !caller.is_empty() {
             return false;
         }
-        state.before = documents(caller);
+        state.before = documents(caller, "live", 1);
         true
     })
 }
@@ -91,7 +110,7 @@ impl skein_world::Referee<Proc> for Judge {
             self.sent = true;
         }
         if self.sent && caller.is_empty() && !self.stopping {
-            for ((before, after), read) in self.before.iter().zip(documents(caller)).zip(READS) {
+            for ((before, after), read) in self.before.iter().zip(documents(caller, "cold", 0)).zip(READS) {
                 assert_eq!(*before, after, "restart oracle public document {read:?}");
             }
             self.controls.signal(0, skein_io::kernel::ServiceSignal::Terminate);
@@ -135,7 +154,7 @@ pub(crate) fn cold(
     .with_machine(Machine(disk));
     world::host_programs(&mut world);
     world.spawn_restartable(world::service_roots(), world::service);
-    world.spawn_root(skein_sim::Handle::new(client.raw()), |root| Proc::Calls(Box::new(Caller::scripted(root))));
+    world.spawn_root(skein_sim::Handle::new(client.raw()), |root| Proc::Calls(Box::new(Caller::oracle(root))));
     world.spawn(|| Proc::Peer(Box::new(SignalHost::new(stories::provider(Story::Adoption), None))));
     world.spawn(|| Proc::Forge(Box::new(SignalHost::new(world::peer(), None))));
     let outcome = world.run();

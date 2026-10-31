@@ -22,6 +22,7 @@ fn restart_with_rows(rows: Box<[forge::Stored]>) -> Driver {
 fn asserts_before_switch(row: forge::Stored, expected: forge::MissingLink) {
     let key = engine::Key::Forge(forge::stored_key(&row));
     let mut driver = restart_with(row.clone());
+    driver.broken("fixture removes a required forge link and catches the startup assertion");
     std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
         for _ in 0..STEPS {
             driver.advance(true);

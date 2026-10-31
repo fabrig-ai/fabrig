@@ -232,6 +232,8 @@ fn a_persons_read_is_answered_while_the_budget_binds() {
     assert_eq!(assigned(&driver), 0);
     assert_eq!(driver.root.held_bytes(), ALLOWANCE, "the read leaves activation at the byte boundary");
     assert_eq!(driver.root.pending_assignments().len(), 0, "no assignment is ready while its transcript is held");
+    driver.events.extend(held);
+    driver.pump();
 }
 
 #[test]

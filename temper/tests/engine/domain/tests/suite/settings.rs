@@ -191,6 +191,7 @@ fn replay_policy(mut driver: Driver, limits: &engine::Limits) -> Driver {
 fn a_stored_settings_policy_one_byte_over_the_new_bound_refuses_by_setting_and_source() {
     let driver = saved_policy(PRIOR_POLICY_CAP, false);
     let mut restarted = replay_policy(driver, &policy_limits(POLICY_CAP));
+    restarted.broken("stored settings deliberately exceed the restart configuration bounds");
     restarted.pump();
     assert!(restarted.stopped);
     assert!(!restarted.root.ready());
@@ -211,6 +212,7 @@ fn a_stored_settings_policy_one_byte_over_the_new_bound_refuses_by_setting_and_s
 fn a_stored_project_policy_one_byte_over_the_new_bound_refuses_by_project() {
     let driver = saved_policy(PRIOR_POLICY_CAP, true);
     let mut restarted = replay_policy(driver, &policy_limits(POLICY_CAP));
+    restarted.broken("stored settings deliberately exceed the restart configuration bounds");
     restarted.pump();
     assert!(restarted.stopped);
     assert!(!restarted.root.ready());
@@ -552,6 +554,7 @@ fn a_stored_change_that_no_longer_checks_refuses_the_start() {
     let mut limits = walking::limits();
     limits.tasks.grace = Duration::from_secs(3);
     let mut restarted = Driver::cold(driver.take_store(), walking::config(SEED), &limits);
+    restarted.broken("stored settings deliberately exceed the restart configuration bounds");
     restarted.pump();
     assert!(restarted.stopped);
     assert_eq!(

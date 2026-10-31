@@ -1846,7 +1846,7 @@ impl World {
         self.oracle_running = true;
         self.oracle_settle();
         let forges = self.root.forges();
-        let mut snapshot = crate::oracle::Snapshot::new(&self.store.rows);
+        let mut snapshot = crate::oracle::Snapshot::new(&self.store.rows, self.env.wall);
         for (sign_in, read) in &snapshot.queries {
             snapshot.answers.push(self.oracle_read(*sign_in, read.clone()));
         }
@@ -1926,7 +1926,19 @@ impl World {
                 quiet = 0;
             }
         }
-        panic!("restart oracle forge world did not settle: {:?}", self.root);
+        panic!(
+            "restart oracle forge world did not settle: ready={} held={} events={} immediate={:?} pending={:?} store_idle={} held_commits={} phase={:?} stop={:?} first={:?}",
+            self.root.ready(),
+            self.root.held_bytes(),
+            self.events.len(),
+            self.immediate,
+            self.pending,
+            self.store.idle(),
+            self.store.held.len(),
+            self.root.start_phase(),
+            self.root.start_stop(),
+            self.events.front()
+        );
     }
 
     fn oracle_read(&mut self, sign_in: u64, read: jig_domain_core::reads::Read) -> jig_domain_core::reads::Answer {

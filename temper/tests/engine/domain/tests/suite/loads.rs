@@ -600,6 +600,7 @@ fn startup_continuations_assert_unusable_or_nonprogressing_walk_positions() {
 #[test]
 fn a_later_forge_load_fit_failure_keeps_its_range_and_connector_step() {
     let mut driver = temper_engine_domain_world::direct::Driver::new(Store::new());
+    driver.broken("oversized forge load deliberately refuses startup");
     let mut owner = None;
     for _ in 0..300 {
         driver.advance(true);
