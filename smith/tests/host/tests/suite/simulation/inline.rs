@@ -53,15 +53,7 @@ fn a_drop_after_an_answer_releases_held_turns_without_replacing_the_answer() {
 
     let mut spawned = Spawned::new(319, smith_host_world::limits());
     spawned.live();
-    spawned.up(host::Up::Turn {
-        turn: host::Turn {
-            opens_window: true,
-            number: 1,
-            spent: 0,
-            read: None,
-            body: smith_host_world::turn_value(64),
-        },
-    });
+    spawned.up(host::Up::Turn { turn: smith_host_world::turn(1, smith_host_world::turn_value(64)) });
     let answer = host::Answer { read: None, turns: 1, spent: 0, result: RunResult::Parked };
     spawned.up(host::Up::Answer { answer });
     spawned.event(host::Input::Parent(parent::Event::Drop { agent: spawned.agent() }));
@@ -309,25 +301,25 @@ fn two_inline_slots_route_each_roots_requests_to_its_own_slot_under_load() {
         parties
             .iter()
             .map(|(_, cue, _)| {
-                use skein_fake_llm_domain::api::{Finish, Line, Script, Turn};
+                use skein_fake_llm_domain::api::{Line, Script};
                 let mut turns: Vec<_> = (0..HOST_CALLS)
-                    .map(|_| Turn {
-                        lines: Box::from([Line::Call {
-                            name: b"host_action".as_slice().into(),
-                            arguments: br#"{"work":"route me"}"#.as_slice().into(),
-                        }]),
-                        finish: Finish::ToolCalls,
-                        tokens: 40,
+                    .map(|_| {
+                        smith_agent_world::fixture::calls(
+                            Box::from([Line::Call {
+                                name: b"host_action".as_slice().into(),
+                                arguments: br#"{"work":"route me"}"#.as_slice().into(),
+                            }]),
+                            40,
+                        )
                     })
                     .collect();
-                turns.push(Turn {
-                    lines: Box::from([Line::Call {
+                turns.push(smith_agent_world::fixture::calls(
+                    Box::from([Line::Call {
                         name: b"finish".as_slice().into(),
                         arguments: br#"{"report":"Host completed.","source":"host"}"#.as_slice().into(),
                     }]),
-                    finish: Finish::ToolCalls,
-                    tokens: 40,
-                });
+                    40,
+                ));
                 Script { cue: (*cue).into(), turns: turns.into() }
             })
             .collect(),
@@ -427,13 +419,14 @@ fn workspace_script(commands: &[(&[u8], &[u8])]) -> Box<[skein_fake_llm_domain::
         cue: b"inline-workspace".as_slice().into(),
         turns: commands
             .iter()
-            .map(|(name, arguments)| skein_fake_llm_domain::api::Turn {
-                lines: Box::from([skein_fake_llm_domain::api::Line::Call {
-                    name: (*name).into(),
-                    arguments: (*arguments).into(),
-                }]),
-                finish: skein_fake_llm_domain::api::Finish::ToolCalls,
-                tokens: 40,
+            .map(|(name, arguments)| {
+                smith_agent_world::fixture::calls(
+                    Box::from([skein_fake_llm_domain::api::Line::Call {
+                        name: (*name).into(),
+                        arguments: (*arguments).into(),
+                    }]),
+                    40,
+                )
             })
             .collect(),
     }])
@@ -498,7 +491,7 @@ fn an_inline_cancel_waits_for_its_pending_machine_terminal() {
 }
 
 fn child_command_world(seed: u64) -> World {
-    use skein_fake_llm_domain::api::{Finish, Line, Script, Turn};
+    use skein_fake_llm_domain::api::{Line, Script};
     let mut world = World::new(seed, inline::limits());
     world.tool_terminals = inline::ToolTerminals::Hold;
     let mut source = inline::workspace_start(seed, Job::Reporting);
@@ -509,25 +502,23 @@ fn child_command_world(seed: u64) -> World {
     world.scripts(Box::from([
         Script {
             cue: b"inline-parent-command".as_slice().into(),
-            turns: Box::from([Turn {
-                lines: Box::from([Line::Call {
+            turns: Box::from([smith_agent_world::fixture::calls(
+                Box::from([Line::Call {
                     name: b"sub_agent".as_slice().into(),
                     arguments: br#"{"brief":"inline-child-command","tools":["shell"]}"#.as_slice().into(),
                 }]),
-                finish: Finish::ToolCalls,
-                tokens: 40,
-            }]),
+                40,
+            )]),
         },
         Script {
             cue: b"inline-child-command".as_slice().into(),
-            turns: Box::from([Turn {
-                lines: Box::from([Line::Call {
+            turns: Box::from([smith_agent_world::fixture::calls(
+                Box::from([Line::Call {
                     name: b"shell".as_slice().into(),
                     arguments: br#"{"command":"true"}"#.as_slice().into(),
                 }]),
-                finish: Finish::ToolCalls,
-                tokens: 40,
-            }]),
+                40,
+            )]),
         },
     ]));
     world.event(parent::Event::Spawn { client: Token::new(1), start: source });

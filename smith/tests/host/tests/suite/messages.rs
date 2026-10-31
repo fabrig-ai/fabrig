@@ -42,9 +42,7 @@ fn a_seen_turn_fence_covers_a_prefix_and_the_report_includes_a_queued_suffix() {
     world.sent();
     message(&mut world, 2);
     world.sent();
-    world.up(Up::Turn {
-        turn: Turn { opens_window: true, number: 1, spent: 0, read: Some(Token::new(1)), body: turn_value(0) },
-    });
+    world.up(Up::Turn { turn: Turn { read: Some(Token::new(1)), ..smith_host_world::turn(1, turn_value(0)) } });
     world.event(Input::Parent(parent::Event::Acknowledge { agent: world.agent(), turn: 1 }));
     message(&mut world, 3);
     answer(&mut world, 1);

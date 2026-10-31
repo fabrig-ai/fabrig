@@ -1,7 +1,7 @@
 //! Program account checks before runs (smith/docs/design/domain/host.md, section 8).
 use super::{program_check, support};
 use serde_json::json;
-use smith_fake_claude::{End, OBSERVATIONS_FILE, STORY_FILE, Status, Step, Story, Turn, observations};
+use smith_fake_claude::{OBSERVATIONS_FILE, STORY_FILE, Status, Step, Story, Turn, observations};
 use smith_local_process_world::terminal::Action;
 use smith_real_world::Scratch;
 
@@ -14,10 +14,9 @@ fn setup(status: Status) -> Scratch {
         Story {
             summary: "earlier answer".into(),
             status,
-            turns: vec![Turn {
-                steps: vec![Step::Outcome { input: json!({"outcome":{"form":"report","text":ANSWER,"fields":{}}}) }],
-                end: End::default(),
-            }],
+            turns: vec![Turn::new(vec![Step::Outcome {
+                input: json!({"outcome":{"form":"report","text":ANSWER,"fields":{}}}),
+            }])],
             ..Story::default()
         }
         .encode(),

@@ -76,11 +76,10 @@ pub fn peer() -> llm::Peer {
 /// The same one-turn text response in the selected provider dialect.
 #[must_use]
 pub fn peer_for(anthropic: bool) -> llm::Peer {
-    let turns = Box::new([api::Turn {
-        lines: Box::new([api::Line::Text { text: b"Hello".as_slice().into() }]),
-        finish: api::Finish::Stop,
-        tokens: 1,
-    }]);
+    let turns = Box::new([smith_agent_world::fixture::says(
+        Box::new([api::Line::Text { text: b"Hello".as_slice().into() }]),
+        1,
+    )]);
     let scripts = Box::new([api::Script { cue: Box::new([]), turns }]);
     let credential = credential(anthropic);
     if anthropic { configured_anthropic(scripts, credential) } else { configured(scripts, credential, Duration::ZERO) }

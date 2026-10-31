@@ -85,10 +85,11 @@ fn a_standard_coding_write_reaches_following_calls_and_checks() {
     world.script(
         calls
             .into_iter()
-            .map(|(name, arguments)| api::Turn {
-                lines: Box::new([api::Line::Call { name: name.into(), arguments: arguments.into() }]),
-                finish: api::Finish::ToolCalls,
-                tokens: 1,
+            .map(|(name, arguments)| {
+                smith_agent_world::fixture::calls(
+                    Box::new([api::Line::Call { name: name.into(), arguments: arguments.into() }]),
+                    1,
+                )
             })
             .collect(),
     );

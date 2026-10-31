@@ -273,19 +273,14 @@ fn a_hosted_agent_adopts_a_root_by_its_path_as_given() {
     world.configured_environment();
     world.root_path(b"/host/supplied");
     world.script(Box::new([
-        api::Turn {
-            lines: Box::new([api::Line::Call {
+        smith_agent_world::fixture::calls(
+            Box::new([api::Line::Call {
                 name: b"read".as_slice().into(),
                 arguments: br#"{"path":"/host/supplied/problem.txt"}"#.as_slice().into(),
             }]),
-            finish: api::Finish::ToolCalls,
-            tokens: 1,
-        },
-        api::Turn {
-            lines: Box::new([api::Line::Text { text: b"done".as_slice().into() }]),
-            finish: api::Finish::Stop,
-            tokens: 1,
-        },
+            1,
+        ),
+        smith_agent_world::fixture::says(Box::new([api::Line::Text { text: b"done".as_slice().into() }]), 1),
     ]));
     assert!(world.settle(), "the hosted root is adopted");
     assert!(world.observed().iter().any(|frame| frame.kind == 0x0106), "the Start was admitted");

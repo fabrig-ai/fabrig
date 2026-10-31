@@ -12,7 +12,7 @@ test = false
 doctest = false
 
 [dependencies]
-smith-domain.workspace = true
+smith-domain = { workspace = true, features = ["fixture"] }
 skein-llm-world.workspace = true
 skein-llm.workspace = true
 skein-lib.workspace = true

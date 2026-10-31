@@ -124,21 +124,16 @@ fn a_told_turn_keeps_the_roots_exact_concrete_value() {
     );
     while out.pop().is_some() {}
     let turn = smith::session::record::Turn {
-        model: b"model".as_slice().into(),
-        effort: None,
-        kind: smith_domain::session::record::Kind::First(Box::new(smith_domain::session::record::Opener {
-            affinity: smith_domain::llm::Affinity { key: [0; 16], thread: 0 },
-            account: None,
-            backend: smith_domain::session::record::Backend::Direct,
-        })),
-        version: smith::session::record::VERSION,
-        endpoint: Some(smith::session::llm::Endpoint(0)),
         dialect: 1,
-        sequence: 1,
-        usage: smith::session::llm::Usage::ZERO,
-        spent: 0,
-        jobs: 0,
-        messages: Box::default(),
+        ..smith_domain::session::fixture::turn(
+            b"model".as_slice().into(),
+            smith_domain::session::record::Kind::First(Box::new(smith_domain::session::record::Opener {
+                affinity: smith_domain::llm::Affinity { key: [0; 16], thread: 0 },
+                account: None,
+                backend: smith_domain::session::record::Backend::Direct,
+            })),
+            Box::default(),
+        )
     };
     agent.lower.push(smith::Request::Turn {
         host_run: Token::new(7),

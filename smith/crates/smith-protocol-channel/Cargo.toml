@@ -23,3 +23,6 @@ smith-domain-tools.workspace = true
 
 [lints]
 workspace = true
+
+[dev-dependencies]
+smith-domain = { workspace = true, features = ["fixture"] }

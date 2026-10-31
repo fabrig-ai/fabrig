@@ -79,13 +79,12 @@ pub fn run() {
 }
 
 fn peer_script() -> skein_fake_llm_domain::api::Script {
-    use skein_fake_llm_domain::api::{Finish, Line, Script, Turn};
+    use skein_fake_llm_domain::api::{Line, Script};
     Script {
         cue: Box::new([]),
-        turns: Box::new([Turn {
-            lines: Box::new([Line::Text { text: b"Hello".as_slice().into() }]),
-            finish: Finish::Stop,
-            tokens: 1,
-        }]),
+        turns: Box::new([smith_agent_world::fixture::says(
+            Box::new([Line::Text { text: b"Hello".as_slice().into() }]),
+            1,
+        )]),
     }
 }

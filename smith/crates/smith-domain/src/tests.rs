@@ -519,25 +519,22 @@ fn oversized_resume_history_is_refused_when_the_conversation_opens() {
     for sequence in 1..=17_u32 {
         turns
             .push(session::record::Turn {
-                model: b"model-a".as_slice().into(),
-                effort: None,
-                kind: if sequence == 1 {
-                    session::record::Kind::First(Box::new(session::record::Opener {
-                        affinity: session::llm::Affinity { key: [0; 16], thread: 0 },
-                        account: None,
-                        backend: session::record::Backend::Direct,
-                    }))
-                } else {
-                    session::record::Kind::Ordinary
-                },
-                version: session::record::VERSION,
                 endpoint: Some(session::llm::Endpoint(1)),
                 dialect: 1,
                 sequence,
-                usage: Usage::ZERO,
-                spent: 0,
-                jobs: 0,
-                messages: Box::new([session::llm::Message { role: Role::User, content: Box::new([]) }]),
+                ..session::fixture::turn(
+                    b"model-a".as_slice().into(),
+                    if sequence == 1 {
+                        session::record::Kind::First(Box::new(session::record::Opener {
+                            affinity: session::llm::Affinity { key: [0; 16], thread: 0 },
+                            account: None,
+                            backend: session::record::Backend::Direct,
+                        }))
+                    } else {
+                        session::record::Kind::Ordinary
+                    },
+                    Box::new([session::llm::Message { role: Role::User, content: Box::new([]) }]),
+                )
             })
             .expect("room for each oversized turn");
     }
@@ -2034,30 +2031,26 @@ fn first_message_after_awaiting_restores_history_and_absent_host_answers_once() 
         endpoint: Some(session::llm::Endpoint(1)),
         dialect: 1,
         turns: Box::new([session::record::Turn {
-            model: b"model-a".as_slice().into(),
-            effort: None,
-            kind: session::record::Kind::First(Box::new(session::record::Opener {
-                affinity: crate::llm::Affinity { key: [0; 16], thread: 0 },
-                account: Some(0),
-                backend: session::record::Backend::Direct,
-            })),
-            version: session::record::VERSION,
             endpoint: Some(session::llm::Endpoint(1)),
             dialect: 1,
-            sequence: 1,
-            usage: Usage::ZERO,
-            spent: 0,
-            jobs: 0,
-            messages: Box::new([
-                session::llm::Message {
-                    role: Role::User,
-                    content: Box::new([session::llm::Block::Text { text: bytes(b"old task"), replay: None }]),
-                },
-                session::llm::Message {
-                    role: Role::Assistant,
-                    content: Box::new([session::llm::Block::Text { text: bytes(b"old response"), replay: None }]),
-                },
-            ]),
+            ..session::fixture::turn(
+                b"model-a".as_slice().into(),
+                session::record::Kind::First(Box::new(session::record::Opener {
+                    affinity: crate::llm::Affinity { key: [0; 16], thread: 0 },
+                    account: Some(0),
+                    backend: session::record::Backend::Direct,
+                })),
+                Box::new([
+                    session::llm::Message {
+                        role: Role::User,
+                        content: Box::new([session::llm::Block::Text { text: bytes(b"old task"), replay: None }]),
+                    },
+                    session::llm::Message {
+                        role: Role::Assistant,
+                        content: Box::new([session::llm::Block::Text { text: bytes(b"old response"), replay: None }]),
+                    },
+                ]),
+            )
         }]),
     };
     let answered = Box::new([crate::AnsweredCall {

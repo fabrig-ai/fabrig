@@ -238,11 +238,8 @@ fn maximum_v2_starts_and_full_queued_replies_fit_every_slot() {
                     owner,
                     Up::Turn {
                         turn: Turn {
-                            opens_window: number == 1,
-                            number,
                             spent: u64::from(number),
-                            read: None,
-                            body: smith_host_world::turn_value(limits.turn_bytes),
+                            ..smith_host_world::turn(number, smith_host_world::turn_value(limits.turn_bytes))
                         },
                     },
                 );

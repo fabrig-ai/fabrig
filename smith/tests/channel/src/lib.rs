@@ -4,6 +4,8 @@
 
 use std::collections::VecDeque;
 
+pub mod fixture;
+
 use skein_channel::{Closed, Control, Lower, LowerEvent, StreamMode, control_frame};
 use skein_lib::stream::{self, OutputOutcome};
 use skein_lib::{Queue, Token};
@@ -1265,26 +1267,14 @@ pub fn typed_transcript(bytes: &[Box<[u8]>]) -> Option<smith_host_domain::Transc
 pub fn window_turn_fixture() -> smith_domain_session::record::Turn {
     use smith_domain_session::{llm, record};
     let affinity = llm::Affinity { key: [0; 16], thread: 0 };
-    record::Turn {
-        model: b"model".as_slice().into(),
-        effort: None,
-        kind: record::Kind::First(Box::new(record::Opener {
-            affinity,
-            account: None,
-            backend: record::Backend::Direct,
-        })),
-        version: record::VERSION,
-        endpoint: Some(llm::Endpoint(0)),
-        dialect: 0,
-        sequence: 1,
-        usage: llm::Usage::ZERO,
-        spent: 0,
-        jobs: 0,
-        messages: Box::new([llm::Message {
+    smith_domain::session::fixture::turn(
+        b"model".as_slice().into(),
+        record::Kind::First(Box::new(record::Opener { affinity, account: None, backend: record::Backend::Direct })),
+        Box::new([llm::Message {
             role: llm::Role::User,
             content: Box::new([llm::Block::Text { text: b"the task and summary".as_slice().into(), replay: None }]),
         }]),
-    }
+    )
 }
 
 #[cfg(test)]

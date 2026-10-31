@@ -62,7 +62,7 @@ fn run(story: &Story) -> Run {
 }
 
 fn steps(steps: Vec<Step>) -> Run {
-    run(&Story { turns: vec![Turn { steps, end: End::default() }], ..Default::default() })
+    run(&Story { turns: vec![Turn::new(steps)], ..Default::default() })
 }
 
 fn accepted(run: &Run) {
@@ -188,7 +188,7 @@ fn a_built_in_after_a_host_call_runs() {
 
 #[test]
 fn an_ungranted_built_in_in_init_fails_the_start() {
-    let mut story = Story { turns: vec![Turn { steps: vec![finish()], end: End::default() }], ..Default::default() };
+    let mut story = Story { turns: vec![Turn::new(vec![finish()])], ..Default::default() };
     story.init.extra_tools.push("WebFetch".into());
     let run = run(&story);
     let answer = run.answer().expect("failure");
@@ -268,7 +268,10 @@ const FINITE_THINKING_SPEND: u64 = 3;
 fn thinking_story() -> Story {
     Story {
         turns: vec![Turn {
-            steps: vec![
+            end: End::Success {
+                structured_output: Some(json!({"outcome":{"form":"report","text":"done","fields":{}}})),
+            },
+            ..Turn::new(vec![
                 Step::Think {
                     tokens: 100,
                     step: Box::new(Step::CallChecked {
@@ -278,10 +281,7 @@ fn thinking_story() -> Story {
                     }),
                 },
                 Step::Text("Reply after found.".into()),
-            ],
-            end: End::Success {
-                structured_output: Some(json!({"outcome":{"form":"report","text":"done","fields":{}}})),
-            },
+            ])
         }],
         usage: smith_fake_claude::Usage { input_tokens: 600_000, output_tokens: 154 },
         ..Story::default()
@@ -355,7 +355,7 @@ fn native_read(input: serde_json::Value) -> Step {
 }
 
 fn coder_story(steps: Vec<Step>) -> Story {
-    Story { turns: vec![Turn { steps, end: End::default() }], observe_tools: true, ..Story::default() }
+    Story { turns: vec![Turn::new(steps)], observe_tools: true, ..Story::default() }
 }
 
 fn coder_steps(steps: Vec<Step>) -> Run {

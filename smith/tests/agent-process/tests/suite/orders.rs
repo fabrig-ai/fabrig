@@ -36,11 +36,7 @@ fn domain_requests_dispatch_before_a_later_entrances_facts() {
     let mut world = pressured(Order::Requests, &two_turn_charter());
     world.anthropic();
     world.ask(true, false, false);
-    let turn = api::Turn {
-        lines: Box::new([api::Line::Text { text: b"Hello".as_slice().into() }]),
-        finish: api::Finish::Stop,
-        tokens: 1,
-    };
+    let turn = smith_agent_world::fixture::says(Box::new([api::Line::Text { text: b"Hello".as_slice().into() }]), 1);
     world.script(Box::new([turn.clone(), turn]));
     assert!(world.settle(), "seed {SEED}");
     let blocked = world.order_snapshot();
@@ -61,16 +57,15 @@ fn domain_requests_dispatch_before_a_later_entrances_facts() {
 fn domain_facts_reach_the_sink_before_the_next_entrance() {
     let mut world = pressured(Order::Facts, &charter());
     world.anthropic();
-    world.script(Box::new([api::Turn {
-        lines: Box::new([api::Line::Pieces {
+    world.script(Box::new([smith_agent_world::fixture::says(
+        Box::new([api::Line::Pieces {
             pieces: Box::new([
                 api::Piece { text: b"prefix".as_slice().into(), hold: None },
                 api::Piece { text: b"suffix".as_slice().into(), hold: Some(HOLD.into()) },
             ]),
         }]),
-        finish: api::Finish::Stop,
-        tokens: 1,
-    }]));
+        1,
+    )]));
     world.release_after(HOLD, 1, PROVIDER_RELEASE);
     assert!(world.settle(), "seed {SEED}");
     let blocked = world.order_snapshot();

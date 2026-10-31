@@ -33,7 +33,7 @@ fn outcome() -> Step {
 }
 
 fn answer() -> Turn {
-    Turn { steps: vec![Step::Text(TOLD_TEXT.into()), outcome()], end: End::default() }
+    Turn::new(vec![Step::Text(TOLD_TEXT.into()), outcome()])
 }
 
 fn invocations(scratch: &Scratch) -> Vec<Vec<String>> {
@@ -120,7 +120,7 @@ fn a_program_chat_answers_before_input_ends() {
 
 #[test]
 fn a_program_turn_exit_keeps_the_run_failure() {
-    let scratch = signed_in(Turn { steps: vec![], end: End::Exit(7) });
+    let scratch = signed_in(Turn { end: End::Exit(7), ..Turn::new(vec![]) });
     let ran = support::run_product(
         &scratch,
         &["exec", "--json", "--trace", "failure.jsonl", "-c", "trace.capture='none'", "Ask first"],
@@ -146,7 +146,7 @@ fn a_program_turn_exit_keeps_the_run_failure() {
 fn a_program_chat_shows_text_before_interrupting_an_uncommitted_turn() {
     use smith_local_process_world::terminal::Action;
     let text = "Text before the hang";
-    let scratch = signed_in(Turn { steps: vec![Step::Text(text.into()), Step::Hang], end: End::default() });
+    let scratch = signed_in(Turn::new(vec![Step::Text(text.into()), Step::Hang]));
     let ran = support::program_chat(
         &scratch,
         vec![
@@ -167,14 +167,11 @@ fn a_program_chat_shows_text_before_interrupting_an_uncommitted_turn() {
 fn a_program_chat_completes_its_live_view() {
     use smith_local_process_world::terminal::Action;
     let text = "Live settled text";
-    let scratch = signed_in(Turn {
-        steps: vec![
-            Step::Text(text.into()),
-            Step::Builtin { tool: "Read".into(), input: json!({"file_path":"README.md"}), result: "file bytes".into() },
-            outcome(),
-        ],
-        end: End::default(),
-    });
+    let scratch = signed_in(Turn::new(vec![
+        Step::Text(text.into()),
+        Step::Builtin { tool: "Read".into(), input: json!({"file_path":"README.md"}), result: "file bytes".into() },
+        outcome(),
+    ]));
     let ran = support::program_chat(
         &scratch,
         vec![

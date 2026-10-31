@@ -6,10 +6,10 @@ use crate::support;
 use crate::support::print::{self, messages};
 use serde_json::{Value, json};
 use skein_io::kernel::{Exit, ServiceSignal};
-use smith_fake_claude::{Answer, Decision, End, Seen, ServerScript, Step, Story, Tool, Turn, Verdict, seen};
+use smith_fake_claude::{Answer, Decision, Seen, ServerScript, Step, Story, Tool, Turn, Verdict, seen};
 
 fn story(steps: Vec<Step>) -> Story {
-    Story { turns: vec![Turn { steps, end: End::default() }], ..Story::default() }
+    Story { turns: vec![Turn::new(steps)], ..Story::default() }
 }
 
 fn script(answer: Answer) -> ServerScript {
@@ -218,7 +218,7 @@ fn each_call_is_observed_without_its_values() {
 fn a_late_server_answer_is_dropped() {
     let first = Step::Call { tool: "finish".into(), input: json!({}) };
     let mut story = story(vec![first.clone()]);
-    story.turns.push(Turn { steps: vec![first], end: End::default() });
+    story.turns.push(Turn::new(vec![first]));
     let invocation = print::control(print::invocation(2), "call");
     let run = print::with_server(story, invocation, script(Answer::Text("late".repeat(256))));
     let messages = messages(&run);

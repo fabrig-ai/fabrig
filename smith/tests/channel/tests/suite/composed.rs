@@ -250,21 +250,7 @@ fn carried_start_messages_cross_the_wire_in_order_and_an_overfull_start_is_refus
         agent::step(
             &mut domain,
             &env,
-            AgentEvent::Start(smith_domain::Start {
-                messages: decoded.messages,
-                host_run: Token::new(7),
-                identity: decoded.identity,
-                activation: decoded.activation,
-                window: decoded.window,
-                transcript: decoded.transcript,
-                answered: decoded.answered,
-                grants: decoded
-                    .grants
-                    .iter()
-                    .map(|grant| agent::Grant { renewable: true, name: grant.name, valid: grant.valid })
-                    .collect(),
-                ..smith_domain::fixture::start(Token::new(1), decoded.charter)
-            }),
+            AgentEvent::Start(smith_channel_world::fixture::start(*decoded, Token::new(7))),
             &mut out,
         );
         let requests: Vec<_> = core::iter::from_fn(|| out.pop()).collect();
@@ -353,21 +339,7 @@ fn an_empty_start_waits_without_a_fence_and_the_first_wire_message_opens_main() 
     agent::step(
         &mut domain,
         &env,
-        AgentEvent::Start(smith_domain::Start {
-            messages: decoded.messages,
-            host_run: Token::new(7),
-            identity: decoded.identity,
-            activation: decoded.activation,
-            window: decoded.window,
-            transcript: decoded.transcript,
-            answered: decoded.answered,
-            grants: decoded
-                .grants
-                .iter()
-                .map(|grant| agent::Grant { renewable: true, name: grant.name, valid: grant.valid })
-                .collect(),
-            ..smith_domain::fixture::start(Token::new(1), decoded.charter)
-        }),
+        AgentEvent::Start(smith_channel_world::fixture::start(*decoded, Token::new(7))),
         &mut out,
     );
     let AgentRequest::Admitted { run, .. } = out.pop().expect("admission") else { panic!("admission first") };
@@ -459,21 +431,7 @@ fn composed_start() -> Composed {
     agent::step(
         &mut domain,
         &env,
-        AgentEvent::Start(smith_domain::Start {
-            messages: decoded.messages,
-            host_run: Token::new(7),
-            identity: decoded.identity,
-            activation: decoded.activation,
-            window: decoded.window,
-            transcript: decoded.transcript,
-            answered: decoded.answered,
-            grants: decoded
-                .grants
-                .iter()
-                .map(|grant| agent::Grant { renewable: true, name: grant.name, valid: grant.valid })
-                .collect(),
-            ..smith_domain::fixture::start(Token::new(1), decoded.charter)
-        }),
+        AgentEvent::Start(smith_channel_world::fixture::start(*decoded, Token::new(7))),
         &mut out,
     );
     Composed { host_world, wire, domain, env, out }
