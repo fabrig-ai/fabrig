@@ -46,7 +46,7 @@ impl Routes {
     }
     /// The store's typed cause for the refused startup page.
     #[must_use]
-    pub fn page_failure(&self) -> Option<&store::restore::Failure> {
+    pub(crate) fn page_failure(&self) -> Option<&store::restore::Failure> {
         self.page_failure.as_ref()
     }
     /// Whether every routed load has had its terminal.
