@@ -148,7 +148,11 @@ fn a_chats_banner_precedes_main_and_its_chatbar_in_every_project() {
         }
         assert!(banner.unwrap() < playground.unwrap() && playground.unwrap() < main.unwrap(), "{row}");
         // The playground is a frame sibling before Main, never inside it.
-        assert_eq!(main.unwrap(), playground.unwrap() + usize::try_from(nodes[playground.unwrap()].size).unwrap(), "{row}");
+        assert_eq!(
+            main.unwrap(),
+            playground.unwrap() + usize::try_from(nodes[playground.unwrap()].size).unwrap(),
+            "{row}"
+        );
         assert!(main.unwrap() < chatbar.unwrap() && chatbar.unwrap() < thread.unwrap(), "{row}");
         assert!(f::find(view.tree(), Role::Heading { level: 1 }, "T1 · Ship the update".as_bytes()).is_some(), "{row}");
         assert!(f::find(view.tree(), Role::Paragraph, b"Scripted model").is_none(), "{row}");
@@ -272,12 +276,12 @@ fn the_playground_chooser_names_the_provider_and_model_but_keeps_the_configured_
     let mut root = f::playground_root(Address::Chats { filter: ChatsFilter::All, start: false }, f::PROJECT, true);
     let mut view = f::page_view(&root);
     assert!(f::find(view.tree(), Role::Paragraph, b"Playground").is_some());
-    assert!(f::find(view.tree(), Role::Button, b"demo").is_none());
+    assert!(f::find(view.tree(), Role::Button, crate::words::SCRIPTED_MODEL).is_none());
     let model = f::find(view.tree(), Role::Button, b"Scripted model").expect("scripted model");
     let action = crate::act(&mut view, model, skein_ui::Act::Press).expect("model choice");
     assert_eq!(action, Action::Pages(Act::Choice(temper_client_domain::pages::choice::Act::Model { index: 0 })));
     f::root_event(&mut root, Event::Act { action });
-    assert_eq!(root.pages().choice().requested.as_ref().unwrap().main.model.bytes(), b"demo");
+    assert_eq!(root.pages().choice().requested.as_ref().unwrap().main.model.bytes(), crate::words::SCRIPTED_MODEL);
 }
 
 #[test]

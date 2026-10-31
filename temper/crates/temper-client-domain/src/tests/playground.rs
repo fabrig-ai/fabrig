@@ -69,7 +69,12 @@ fn the_playground_is_read_once_per_live_link_and_replaced_pages_are_dropped() {
         if reads {
             let next = read(&mut side);
             assert_ne!(first, next, "{row}");
-            assert!(playground::told(&mut side, &Told::Page { handle: first, page: page() }, f::limits().forge, &mut out));
+            assert!(playground::told(
+                &mut side,
+                &Told::Page { handle: first, page: page() },
+                f::limits().forge,
+                &mut out
+            ));
             assert!(side.playground().is_none(), "{row}: replaced page dropped");
             playground::told(&mut side, &Told::Page { handle: next, page: page() }, f::limits().forge, &mut out);
             assert!(side.playground().is_some(), "{row}");
@@ -104,7 +109,12 @@ fn a_playground_page_replaces_the_last_answer_or_clears_it() {
             &mut Queue::with_capacity(1),
         );
         let shown = forge::shown(&side);
-        playground::told(&mut side, &Told::Link { link: Link::Offline }, f::limits().forge, &mut Queue::with_capacity(1));
+        playground::told(
+            &mut side,
+            &Told::Link { link: Link::Offline },
+            f::limits().forge,
+            &mut Queue::with_capacity(1),
+        );
         assert!(side.playground().is_some(), "{row}: keep the last answer across the gap");
         assert!(side.playground_answered(), "{row}: keep that the read answered across the gap");
         let handle = read(&mut side);
@@ -279,13 +289,19 @@ fn the_first_playground_read_answer_counts_even_when_it_has_no_record() {
         assert!(side.playground().is_none());
         assert_eq!(side.playground_provider(), None);
         assert!(forge::shown(&side) > before, "an answered absence redraws the welcome");
-        playground::told(&mut side, &Told::Link { link: Link::Offline }, f::limits().forge, &mut Queue::with_capacity(1));
+        playground::told(
+            &mut side,
+            &Told::Link { link: Link::Offline },
+            f::limits().forge,
+            &mut Queue::with_capacity(1),
+        );
         assert!(side.playground_answered());
     }
 }
 
 pub(super) type DeploymentAccount = (Option<u32>, bool, bool, c::OwnerAccountHolder);
-pub(super) const PLAYGROUND_ACCOUNT: DeploymentAccount = (Some(PROVIDER), true, false, c::OwnerAccountHolder::Deployment);
+pub(super) const PLAYGROUND_ACCOUNT: DeploymentAccount =
+    (Some(PROVIDER), true, false, c::OwnerAccountHolder::Deployment);
 pub(super) const OTHER_ACCOUNT: DeploymentAccount =
     (Some(PROVIDER + 1), true, false, c::OwnerAccountHolder::Deployment);
 pub(super) fn deployment(rows: &[DeploymentAccount]) -> c::OwnerDeployment {
@@ -364,7 +380,12 @@ pub(super) fn deployment_watch(out: &mut Queue<crate::Request>) -> Option<skein_
     watch
 }
 pub(super) fn deliver_playground_read(root: &mut crate::Domain, page: Readout) -> Queue<crate::Request> {
-    playground::told(&mut root.forge, &Told::Link { link: Link::Offline }, f::limits().forge, &mut Queue::with_capacity(1));
+    playground::told(
+        &mut root.forge,
+        &Told::Link { link: Link::Offline },
+        f::limits().forge,
+        &mut Queue::with_capacity(1),
+    );
     let handle = read(&mut root.forge);
     let mut out = Queue::uncapped();
     crate::route::told(root, &f::env(&f::limits()), Told::Page { handle, page }, &mut out);

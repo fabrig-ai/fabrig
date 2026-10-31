@@ -478,7 +478,8 @@ fn suggestions(
     text(
         b,
         Role::Paragraph,
-        &words.say(Word::PlaygroundRequest, &[Hole::Name(playground.owner.clone()), Hole::Name(playground.name.clone())]),
+        &words
+            .say(Word::PlaygroundRequest, &[Hole::Name(playground.owner.clone()), Hole::Name(playground.name.clone())]),
     );
     if let Some(failure) = root.forge().playground_failure() {
         use temper_client_domain::forge::playground::StartFailure;
@@ -487,9 +488,10 @@ fn suggestions(
                 words.say(Word::PlaygroundGroupFailed, &[Hole::Name(temper_client_domain::forge::words::lossy(why))])
             }
             StartFailure::Account => words.say(Word::PlaygroundAccountFailed, &[]),
-            StartFailure::Adoption => {
-                words.say(Word::PlaygroundAdoptionFailed, &[Hole::Name(playground.owner.clone()), Hole::Name(playground.name.clone())])
-            }
+            StartFailure::Adoption => words.say(
+                Word::PlaygroundAdoptionFailed,
+                &[Hole::Name(playground.owner.clone()), Hole::Name(playground.name.clone())],
+            ),
             StartFailure::NotConnected => words.say(Word::PlaygroundNotConnected, &[]),
         };
         text(b, Role::Alert, &message);

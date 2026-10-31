@@ -1,5 +1,5 @@
 use crate::ChatsFilter;
-use crate::tests::{playground, fixtures as f};
+use crate::tests::{fixtures as f, playground};
 use crate::{
     Action, Address, Domain, Event, Place, Request, Step, forge,
     pages::{self, Act, welcome::FirstRun},
@@ -30,8 +30,9 @@ fn answer(root: &mut Domain, present: bool) {
         panic!("playground read")
     };
     let page = if present {
-        let mut parts =
-            wire::decode_playground_answer(&playground::answer(b"Change the title"), &w::CEILINGS).unwrap().into_parts();
+        let mut parts = wire::decode_playground_answer(&playground::answer(b"Change the title"), &w::CEILINGS)
+            .unwrap()
+            .into_parts();
         parts.state = w::PlaygroundState::Starting;
         Readout::Family {
             family: wire::FORGE,
@@ -506,8 +507,11 @@ fn ready_and_the_strip_count_an_owners_deployment_model() {
         Readout::Family { family: wire::FORGE, record: Some(playground::answer(b"Change the title")) },
     );
     let watch = playground::deployment_watch(&mut out).expect("owner start opens the deployment watch");
-    let mut out =
-        playground::deliver_deployment(&mut root, watch, playground::deployment(&[playground::PLAYGROUND_ACCOUNT, playground::OTHER_ACCOUNT]));
+    let mut out = playground::deliver_deployment(
+        &mut root,
+        watch,
+        playground::deployment(&[playground::PLAYGROUND_ACCOUNT, playground::OTHER_ACCOUNT]),
+    );
     assert!(playground::removed(&mut out).is_empty(), "removal waits for the running read");
     assert_eq!(pages::welcome::model_usable(&root), Some(true));
 

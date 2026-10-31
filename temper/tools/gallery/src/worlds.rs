@@ -267,7 +267,7 @@ fn first_run_ready(root: &mut Domain, w: World, forge_watch: Option<Token>, out:
         adopt_owned_sample(root, forge_watch.expect("owned forge watch"), out);
     }
     if matches!(w, FirstRun { step: 1..=4 }) {
-        assert!(root.demo().expect("answered demo").1.model);
+        assert!(root.forge().playground_running());
     }
 }
 fn forges_watched(root: &mut Domain, world: World, watch: Token, out: &mut Queue<Request>) {
@@ -540,17 +540,17 @@ fn demo(root: &mut Domain, w: World, read: Token, out: &mut Queue<Request>) {
         for cue in ["Add CSV export to widget", "Add a dark theme to widget", "Fix widget’s empty search state"] {
             cues.push(Box::from(cue.as_bytes())).expect("cue");
         }
-        let value = v1::DemoAnswer::new(
+        let value = v1::PlaygroundAnswer::new(
             &v1::CEILINGS,
-            v1::DemoAnswerParts {
+            v1::PlaygroundAnswerParts {
                 state: if matches!(w, FirstRun { step: 0 }) {
-                    v1::DemoState::NotStarted
+                    v1::PlaygroundState::Starting
                 } else if w == (FirstRun { step: 7 }) {
-                    v1::DemoState::Ended
+                    v1::PlaygroundState::Resetting
                 } else {
-                    v1::DemoState::Running
+                    v1::PlaygroundState::Running
                 },
-                project: PROJECT,
+                project: Some(PROJECT),
                 forge: 1,
                 provider: 17,
                 owner: Box::from(b"playground".as_slice()),
@@ -559,7 +559,7 @@ fn demo(root: &mut Domain, w: World, read: Token, out: &mut Queue<Request>) {
             },
         )
         .expect("checked demo");
-        Some(wire::demo_answer(&value))
+        Some(wire::playground_answer(&value))
     } else {
         None
     };

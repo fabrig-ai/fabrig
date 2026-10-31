@@ -4,13 +4,13 @@ use skein_lib::{Env, Queue, Time};
 pub mod admin;
 pub mod change;
 pub mod connect;
-pub mod model;
 pub mod family;
 pub mod forges;
 mod form;
 pub mod github;
 pub mod listed;
 pub(crate) mod me;
+pub mod model;
 pub mod panel;
 pub mod picker;
 pub mod playground;
@@ -148,6 +148,10 @@ impl Side {
             Some(answer) => answer.state == PlaygroundState::Running,
             None => false,
         }
+    }
+    #[must_use]
+    pub fn playground_request(&self) -> Option<skein_lib::Token> {
+        Some(self.playground.start.as_ref()?.request)
     }
     #[must_use]
     pub const fn panel(&self) -> Option<&panel::Panel> {

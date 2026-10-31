@@ -163,8 +163,11 @@ fn line_fixture(
     let models = line_models(task_page);
     me.projects.get_mut(0).unwrap().models = models;
     if !task_page {
-        let template =
-            fixtures::playground_root(Address::Chats { filter: ChatsFilter::All, start: false }, fixtures::PROJECT, true);
+        let template = fixtures::playground_root(
+            Address::Chats { filter: ChatsFilter::All, start: false },
+            fixtures::PROJECT,
+            true,
+        );
         me.projects.get_mut(0).unwrap().templates =
             template.pages().me(template.client()).unwrap().projects.get(0).unwrap().templates.clone();
     }
@@ -1259,7 +1262,7 @@ pub(super) fn playground_offers_root(address: Address, playground: bool) -> (d::
     );
     let mut me = d::pages::accounts::current_me(root.client()).unwrap().clone();
     me.providers = List::with_capacity(2);
-    for (provider, name, sign_in) in [(17, b"demo".as_slice(), false), (18, b"openai".as_slice(), true)] {
+    for (provider, name, sign_in) in [(17, crate::words::SCRIPTED_MODEL, false), (18, b"openai".as_slice(), true)] {
         me.providers
             .push(c::ProviderOffer {
                 provider,

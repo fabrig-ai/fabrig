@@ -855,7 +855,7 @@ fn accounts_navigation_ignores_the_playground_provider_and_other_holders() {
         b"Shop",
         Some((fixtures::PROJECT, true)),
     );
-    let provider = root.playground().unwrap().0.provider;
+    let provider = root.forge().playground().unwrap().provider;
     let mut doc = navigation_accounts(&[c::OwnerAccountState::SignInAgain; 3]);
     doc.accounts.get_mut(0).unwrap().provider = Some(provider);
     doc.accounts.get_mut(1).unwrap().holder = c::OwnerAccountHolder::Deployment;

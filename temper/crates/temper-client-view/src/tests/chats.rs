@@ -768,8 +768,11 @@ fn start_a_chat_heads_the_composer_except_at_the_playgrounds_start() {
 #[test]
 fn an_accepted_start_draws_no_applied_status() {
     use temper_client_domain::{self as d, Action, Event, pages::Act};
-    let mut root =
-        fixtures::playground_root(d::Address::Chats { filter: ChatsFilter::All, start: false }, fixtures::PROJECT, true);
+    let mut root = fixtures::playground_root(
+        d::Address::Chats { filter: ChatsFilter::All, start: false },
+        fixtures::PROJECT,
+        true,
+    );
     let limits = fixtures::domain_limits();
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
     let mut out = Queue::uncapped();

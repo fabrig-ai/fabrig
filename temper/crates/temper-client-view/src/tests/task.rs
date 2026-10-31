@@ -1171,7 +1171,7 @@ fn the_budget_card_names_each_funder() {
 #[test]
 fn the_budget_card_names_its_models() {
     let mut names = List::with_capacity(2);
-    for name in [b"demo".as_slice(), b"second"] {
+    for name in [crate::words::SCRIPTED_MODEL, b"second"] {
         names.push(Box::from(name)).expect("two model names");
     }
     for (models, expected) in [

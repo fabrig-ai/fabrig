@@ -1,4 +1,4 @@
-use super::{playground, fixtures as f};
+use super::{fixtures as f, playground};
 use crate::ChatsFilter;
 use crate::{
     Address, Choice, Event, Place, Request, Step,
@@ -66,7 +66,10 @@ fn the_flow_shows_the_step_its_row_is_at() {
         assert_eq!(connect::step(choice, &State::Unknown, None), Shown::Details(Choice::Elsewhere));
     }
     let playground = forge::family::playground(&playground::answer(b"title"), &w::CEILINGS).unwrap();
-    assert_eq!(connect::step(Some(Choice::Forge(playground.forge)), &rows(C::NotSetUp), Some(playground.forge)), Shown::Choose);
+    assert_eq!(
+        connect::step(Some(Choice::Forge(playground.forge)), &rows(C::NotSetUp), Some(playground.forge)),
+        Shown::Choose
+    );
     let github = State::Rows(Box::new([row(2, Kind::GitHub, Mode::Managed, C::NotConnected, Offer::NotOffered)]));
     assert_eq!(connect::step(Some(Choice::Forge(2)), &github, None), Shown::Details(Choice::Forge(2)));
     let fake = State::Rows(Box::new([row(HERE, Kind::Forgejo, Mode::Fake, C::NotSetUp, Offer::Offered)]));

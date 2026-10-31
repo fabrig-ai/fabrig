@@ -27,7 +27,7 @@ const _: () = {
 pub fn to_root(
     exchange: kit::ToApplication,
     forges: &crate::forges::Forges,
-    demo: Option<&crate::settings::Demo>,
+    _demo: Option<&crate::settings::Demo>,
     limits: &w::Limits,
 ) -> Result<root::Event, Box<kit::Event>> {
     match exchange {
@@ -151,8 +151,7 @@ pub fn to_root(
                         | w::Request::Return(_)
                         | w::Request::RemoveForge(_)
                         | w::Request::StartPlayground
-                        | w::Request::EndPlayground
-                        | w::Request::StartDemo => {
+                        | w::Request::EndPlayground => {
                             unreachable!("connect or install")
                         }
                     };
@@ -197,17 +196,6 @@ pub fn to_root(
                         digest,
                         carried,
                         request: root::Application::Forge(forge::Ask::EndPlayground),
-                    }));
-                }
-                w::Request::StartDemo => {
-                    return Ok(root::Event::Party(root::PartyInput::Application {
-                        scope,
-                        reply_to,
-                        sign_in,
-                        key,
-                        digest,
-                        carried,
-                        request: root::Application::Forge(forge::Ask::StartDemo),
                     }));
                 }
                 w::Request::Reachable(value) => {
@@ -255,38 +243,8 @@ pub fn to_root(
                 carried,
             }))
         }
-        kit::ToApplication::Read { reply, family, version, record, .. } => {
-            let mut answer = None;
-            if family == wire::FORGE
-                && version == wire::CLIENT_VERSION
-                && let Some(reading) = wire::decode_reading(&record, limits)
-                && *reading.read() == w::Read::Demo
-                && let Some(demo) = demo
-            {
-                let mut cues = List::with_capacity(u32::try_from(demo.cues.len()).expect("bounded demo cues"));
-                for cue in &demo.cues {
-                    cues.push(cue.clone()).expect("bounded demo cues");
-                }
-                let record = w::DemoAnswer::new(
-                    limits,
-                    w::DemoAnswerParts {
-                        state: match demo.state {
-                            Some(forge::DemoState::Running) => w::DemoState::Running,
-                            Some(forge::DemoState::Ended) => w::DemoState::Ended,
-                            None => w::DemoState::NotStarted,
-                        },
-                        project: demo.project,
-                        forge: demo.forge,
-                        provider: demo.provider,
-                        owner: demo.owner.clone(),
-                        name: demo.name.clone(),
-                        cues,
-                    },
-                )
-                .expect("demo checked at startup");
-                answer = Some(wire::demo_answer(&record));
-            }
-            Err(Box::new(kit::Event::Application(kit::FromApplication::Read { reply, family, record: answer })))
+        kit::ToApplication::Read { reply, family, .. } => {
+            Err(Box::new(kit::Event::Application(kit::FromApplication::Read { reply, family, record: None })))
         }
         kit::ToApplication::Watch { watcher, sign_in, family, version, record, scope, window } => {
             if family == wire::FORGE

@@ -2,7 +2,9 @@
 use super::{Request, Side};
 use jig_client::{Client, Handle, Latest, contract as c};
 use skein_lib::Queue;
-pub(crate) fn progress(side: &mut Side, client: &Client, out: &mut Queue<Request>) { watch_deployment(side, client, out); }
+pub(crate) fn progress(side: &mut Side, client: &Client, out: &mut Queue<Request>) {
+    watch_deployment(side, client, out);
+}
 /// A usable source of a provider other than the playground's, or any provider without a playground.
 #[must_use]
 pub fn usable_account(line: &c::OwnerAccountLine, playground_provider: Option<u32>) -> bool {
@@ -107,4 +109,3 @@ fn owner(client: &Client) -> bool {
     let Some(Latest::Jig(c::Delivery::Me(me))) = document.latest else { return false };
     me.deployment_role == Some(c::HeldRole::Owner)
 }
-

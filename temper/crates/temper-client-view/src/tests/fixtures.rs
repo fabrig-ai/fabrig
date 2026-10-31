@@ -439,7 +439,7 @@ pub(super) fn root_at_with_forges(
             }
         }
         if let Some((project, model, state)) = playground {
-            deliver_playground(
+            playground_session(
                 &mut root,
                 read.expect("live link reads playground"),
                 account_watch.expect("accounts watch"),
@@ -448,12 +448,12 @@ pub(super) fn root_at_with_forges(
                 state,
             );
         } else {
-            deliver_no_playground(&mut root, read.expect("playground read"), account_watch.expect("accounts watch"));
+            empty_session(&mut root, read.expect("playground read"), account_watch.expect("accounts watch"));
         }
     }
     (root, watch.expect("me opened"), inbox_watch, tree_watch, account_watch, forges)
 }
-fn deliver_no_playground(root: &mut temper_client_domain::Domain, read: Token, watch: Token) {
+fn empty_session(root: &mut temper_client_domain::Domain, read: Token, watch: Token) {
     deliver_no_playground(root, read);
     root_event(
         root,
@@ -1132,7 +1132,11 @@ fn fixture_me(project_name: &[u8]) -> c::Me {
 }
 pub const PLAYGROUND_CUE: &[u8] = b"Change the title";
 pub const PLAYGROUND_OTHER_CUE: &[u8] = b"Add a test";
-pub fn playground_root(address: temper_client_domain::Address, project: u32, model: bool) -> temper_client_domain::Domain {
+pub fn playground_root(
+    address: temper_client_domain::Address,
+    project: u32,
+    model: bool,
+) -> temper_client_domain::Domain {
     playground_choice_root(address, project, model, None)
 }
 pub fn playground_choice_root(
@@ -1171,7 +1175,7 @@ pub fn playground_frame_with_watch(
         me.providers.push(playground_provider()).unwrap();
     }
     let mut models = List::with_capacity(2);
-    for name in [b"demo".as_slice(), b"selected"] {
+    for name in [crate::words::SCRIPTED_MODEL, b"selected"] {
         models
             .push(c::MeModel {
                 name: c::Text::new(Box::from(name), 32).unwrap(),
@@ -1288,7 +1292,7 @@ pub fn playground_kept_root() -> temper_client_domain::Domain {
     let mut task = template.pages().chat().unwrap().task(template.client()).unwrap().clone();
     task.llm = Some(c::LlmChoice {
         account: None,
-        main: c::ModelEffort { model: c::Text::new(Box::from(b"demo".as_slice()), 32).unwrap(), effort: None },
+        main: c::ModelEffort { model: c::Text::new(Box::from(crate::words::SCRIPTED_MODEL), 32).unwrap(), effort: None },
         subagents: List::with_capacity(0),
     });
     for (watch, value) in [
@@ -1317,7 +1321,7 @@ pub fn hidden_playground_root(ready: Option<c::Readiness>, payer: u64) -> temper
     let mut task = template.pages().chat().unwrap().task(template.client()).unwrap().clone();
     task.llm = Some(c::LlmChoice {
         account: None,
-        main: c::ModelEffort { model: c::Text::new(Box::from(b"demo".as_slice()), 32).unwrap(), effort: None },
+        main: c::ModelEffort { model: c::Text::new(Box::from(crate::words::SCRIPTED_MODEL), 32).unwrap(), effort: None },
         subagents: List::with_capacity(0),
     });
     task.budget.funder = c::Funder::Pool { project: PROJECT, person: payer, period: 1 };
@@ -1347,7 +1351,7 @@ pub fn hidden_playground_root(ready: Option<c::Readiness>, payer: u64) -> temper
 fn playground_provider() -> c::ProviderOffer {
     c::ProviderOffer {
         provider: 17,
-        name: c::DocumentText::complete(c::Text::new(Box::from(b"demo".as_slice()), 32).unwrap()),
+        name: c::DocumentText::complete(c::Text::new(Box::from(crate::words::SCRIPTED_MODEL), 32).unwrap()),
         key_bytes: 4096,
         sign_in: false,
         key: true,
@@ -1451,12 +1455,12 @@ pub fn deliver_playground(
         },
     )
     .expect("playground answer");
-    playground_read_answer(root, read, Some(wire::playground_answer(&answer)));
+    playground_record(root, read, Some(wire::playground_answer(&answer)));
 }
 pub fn deliver_no_playground(root: &mut temper_client_domain::Domain, read: Token) {
-    playground_read_answer(root, read, None);
+    playground_record(root, read, None);
 }
-fn playground_read_answer(root: &mut temper_client_domain::Domain, read: Token, record: Option<Box<[u8]>>) {
+fn playground_record(root: &mut temper_client_domain::Domain, read: Token, record: Option<Box<[u8]>>) {
     root_event(
         root,
         temper_client_domain::Event::Client {
@@ -1469,7 +1473,12 @@ fn playground_read_answer(root: &mut temper_client_domain::Domain, read: Token, 
         },
     );
 }
-pub fn playground_read_answer(root: &mut temper_client_domain::Domain, read: Token, project: u32, state: w::PlaygroundState) {
+pub fn playground_read_answer(
+    root: &mut temper_client_domain::Domain,
+    read: Token,
+    project: u32,
+    state: w::PlaygroundState,
+) {
     match state {
         w::PlaygroundState::Starting => {
             deliver_playground(root, read, w::PlaygroundState::Starting, wire::FORGE, Some(project));
@@ -1481,7 +1490,7 @@ pub fn playground_read_answer(root: &mut temper_client_domain::Domain, read: Tok
     }
 }
 
-fn deliver_playground(
+fn playground_session(
     root: &mut temper_client_domain::Domain,
     read: Token,
     watch: Token,

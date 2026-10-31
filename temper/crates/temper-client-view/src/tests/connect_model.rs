@@ -122,12 +122,12 @@ fn a_provider_without_a_plan_names_its_sign_in_by_its_brand() {
 #[test]
 fn the_playgrounds_provider_offers_no_way() {
     let mut providers = List::with_capacity(2);
-    providers.push(offer(PROVIDER, b"demo", true, true)).unwrap();
+    providers.push(offer(PROVIDER, crate::words::SCRIPTED_MODEL, true, true)).unwrap();
     providers.push(offer(PROVIDER + 1, b"openai", true, false)).unwrap();
     let names = control_names(&ways_root(providers, true));
     assert!(names.contains(&b"Continue with ChatGPT".to_vec()));
     assert!(names.contains(&b"Use an API key".to_vec()));
-    assert!(!names.iter().any(|name| name.windows(b"demo".len()).any(|part| part == b"demo")));
+    assert!(!names.iter().any(|name| name.windows(crate::words::SCRIPTED_MODEL.len()).any(|part| part == crate::words::SCRIPTED_MODEL)));
 }
 #[test]
 fn the_deployment_holder_offers_keys_only() {

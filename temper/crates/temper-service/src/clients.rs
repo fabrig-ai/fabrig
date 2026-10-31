@@ -11,8 +11,6 @@ use skein_io as io;
 use skein_lib::{Env, List, Map, Queue, Time, Token, Wall};
 use temper_engine_domain as root;
 pub mod bundle;
-#[cfg(test)]
-mod demo_tests;
 pub mod fetch;
 mod github;
 pub mod google;

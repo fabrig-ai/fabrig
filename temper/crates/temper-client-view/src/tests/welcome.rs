@@ -280,18 +280,6 @@ fn the_welcome_tagline_and_lead_are_named_and_emphasize_what_and_how() {
     );
 }
 #[test]
-<<<<<<< HEAD
-fn a_document_with_no_playground_has_neither_the_playground_card_nor_the_closing_line() {
-    let root = f::welcome_root(Step::Welcome, false);
-    assert!(root.pages().welcome().unwrap().decided);
-    let view = f::page_view(&root);
-    node(view.tree(), Role::Region, "Set up temper");
-    let words = String::from_utf8_lossy(&f::text(view.tree())).into_owned();
-    assert!(!words.contains("playground"));
-}
-#[test]
-=======
->>>>>>> origin/pgkit/t-view-welcome
 fn the_welcome_shows_its_heading_alone_until_it_decides() {
     let (mut root, _, _) = f::root_at(Address::Chats { filter: ChatsFilter::All, start: false }, &f::limits());
     f::root_event(&mut root, d::Event::Went { place: d::Place::Address(Address::Welcome { step: Step::Welcome }) });
@@ -355,11 +343,7 @@ fn the_model_step_offers_the_accounts_ways() {
     assert!(view.tree().nodes().iter().any(|node| node.role == Role::TextField));
 }
 #[test]
-<<<<<<< HEAD
-fn each_later_step_offers_back_later_and_the_playground_while_the_playground_is_answered() {
-=======
 fn each_later_step_offers_the_playground_only_for_an_empty_store() {
->>>>>>> origin/pgkit/t-view-welcome
     for (step, back) in
         [(Step::Forge { forge: None }, Step::Welcome), (Step::Model { way: None }, Step::Forge { forge: None })]
     {
@@ -387,13 +371,8 @@ fn each_later_step_offers_the_playground_only_for_an_empty_store() {
                         .contains(&crate::look::FLOW_QUIET)
                 );
             }
-<<<<<<< HEAD
-            assert_eq!(f::find(view.tree(), Role::Button, b"Try the playground instead").is_some(), playground);
-            if playground {
-=======
             assert!(f::find(view.tree(), Role::Button, b"Try the playground instead").is_some());
             {
->>>>>>> origin/pgkit/t-view-welcome
                 let id = node(view.tree(), Role::Button, "Try the playground instead");
                 assert!(
                     !view
@@ -593,11 +572,7 @@ fn a_kept_real_forge_hides_the_playground() {
     }
     for rows in cases {
         for step in [Step::Forge { forge: None }, Step::Model { way: None }] {
-<<<<<<< HEAD
             let root = f::playground_forges_root(Address::Welcome { step }, rows.clone());
-=======
-            let root = f::demo_forges_root(Address::Welcome { step }, rows.clone());
->>>>>>> origin/pgkit/t-view-welcome
             assert!(root.forge().playground().is_some(), "the cached answer has not been reread yet");
             let view = f::page_view(&root);
             assert!(f::find(view.tree(), Role::Button, b"Try the playground instead").is_none());
@@ -637,43 +612,6 @@ fn ready_under_way_lists_model_forge_and_project_with_folded_progress() {
 }
 
 #[test]
-<<<<<<< HEAD
-fn model_choose_excludes_the_playgrounds_provider_before_and_after_retirement() {
-    let address = Address::Welcome { step: Step::Model { way: None } };
-    let (mut root, watch) = super::choice::playground_offers_root(address, true);
-    let check = |root: &d::Domain| {
-        let mut view = f::page_view(root);
-        let tree = view.tree();
-        assert!(f::find(tree, Role::Heading { level: 2 }, b"A playground API key").is_none());
-        node(tree, Role::Heading { level: 2 }, "ChatGPT");
-        node(tree, Role::Heading { level: 2 }, "An OpenAI API key");
-        let headings: Vec<_> = tree
-            .nodes()
-            .iter()
-            .filter(|n| n.role == (Role::Heading { level: 2 }))
-            .map(|n| n.name.as_deref().unwrap())
-            .collect();
-        assert_eq!(headings, [b"ChatGPT".as_slice(), b"An OpenAI API key"]);
-        let key = node(tree, Role::Link, "Use an API key");
-        assert_eq!(
-            crate::act(&mut view, key, Act::Press),
-            Some(d::Action::Pages(pages::Act::Go {
-                address: Address::Welcome {
-                    step: Step::Model { way: Some(d::ModelWay { provider: 18, source: None, kind: d::WayKind::Key }) }
-                }
-            }))
-        );
-    };
-    check(&root);
-    let read = super::choice::retire_playground(&mut root, watch);
-    check(&root);
-    super::choice::answer_retired_playground(&mut root, read);
-    check(&root);
-}
-
-#[test]
-=======
->>>>>>> origin/pgkit/t-view-welcome
 fn welcome_keeps_failed_setup_steps_at_model_forge_and_ready() {
     for step in [Step::Model { way: None }, Step::Forge { forge: Some(d::Choice::Forge(HERE)) }, Step::Ready] {
         for (rows, failed, why) in forge::failure_cases() {

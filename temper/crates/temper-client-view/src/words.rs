@@ -110,11 +110,6 @@ pub enum Word {
     ForgePlaygroundHeading,
     ForgeDotAmber,
     ForgeDotRed,
-    Setup,
-    SetupBoth,
-    SetupForge,
-    SetupModel,
-    SetupContinue,
 
     ForgeSetupUrl,
     SetupOrganization,
@@ -428,8 +423,6 @@ pub enum Word {
     ChatDelegates,
     ChatHint,
     ChatSendHint,
-    PlaygroundBoth,
-    PlaygroundForge,
     ConnectForge,
     ChatTitle,
     PlaygroundModelName,
@@ -443,7 +436,6 @@ pub enum Word {
     NewChatLink,
     Ready,
     Playground,
-    PlaygroundModel,
     ConnectModel,
     PlaygroundHeading,
     PlaygroundStarting,
@@ -684,9 +676,10 @@ pub enum Word {
 // M1's Model details add eight phrases and sixteen segments.
 // The welcome's Forgejo card adds four literal phrases and segments.
 // Eighteen playground, removal and forge choice literals.
-const PHRASES: u32 = 1197;
-const SEGMENTS: u32 = 2096;
-const ALL: [Word; 616] = [
+pub(crate) const SCRIPTED_MODEL: &[u8] = b"demo";
+const PHRASES: u32 = 1189;
+const SEGMENTS: u32 = 2088;
+const ALL: [Word; 608] = [
     Word::PlaygroundBanner,
     Word::PlaygroundSetUp,
     Word::PlaygroundLeaving,
@@ -783,11 +776,6 @@ const ALL: [Word; 616] = [
     Word::ForgePlaygroundHeading,
     Word::ForgeDotAmber,
     Word::ForgeDotRed,
-    Word::Setup,
-    Word::SetupBoth,
-    Word::SetupForge,
-    Word::SetupModel,
-    Word::SetupContinue,
     Word::ForgeSetupUrl,
     Word::SetupOrganization,
     Word::SetupRepository,
@@ -1093,8 +1081,6 @@ const ALL: [Word; 616] = [
     Word::ChatDelegates,
     Word::ChatHint,
     Word::ChatSendHint,
-    Word::PlaygroundBoth,
-    Word::PlaygroundForge,
     Word::ConnectForge,
     Word::ChatTitle,
     Word::PlaygroundModelName,
@@ -1108,7 +1094,6 @@ const ALL: [Word; 616] = [
     Word::NewChatLink,
     Word::Ready,
     Word::Playground,
-    Word::PlaygroundModel,
     Word::ConnectModel,
     Word::PlaygroundHeading,
     Word::PlaygroundStarting,
@@ -1368,11 +1353,6 @@ impl Word {
             Self::ForgePlaygroundHeading => 1810,
             Self::ForgeDotAmber => 1811,
             Self::ForgeDotRed => 1812,
-            Self::Setup => 1813,
-            Self::SetupBoth => 1814,
-            Self::SetupForge => 1815,
-            Self::SetupModel => 1816,
-            Self::SetupContinue => 1817,
             Self::ForgeSetupUrl => 1700,
             Self::SetupOrganization => 1820,
             Self::SetupRepository => 1821,
@@ -1744,8 +1724,6 @@ impl Word {
             Self::ChatDelegates => 145,
             Self::ChatHint => 185,
             Self::ChatSendHint => 186,
-            Self::PlaygroundBoth => 273,
-            Self::PlaygroundForge => 274,
             Self::ConnectForge => 275,
             Self::ChatTitle => 276,
             Self::PlaygroundModelName => 277,
@@ -1759,7 +1737,6 @@ impl Word {
             Self::NewChatLink => 1258,
             Self::Ready => 287,
             Self::Playground => 187,
-            Self::PlaygroundModel => 188,
             Self::ConnectModel => 189,
             Self::PlaygroundHeading => 190,
             Self::PlaygroundStarting => 1900,
@@ -2109,7 +2086,7 @@ pub(crate) fn english_declarations() -> [(&'static str, u64, u64); 2] {
 impl Words {
     /// The configured playground model's identifier has its own display name (client/README.md, 5.6).
     pub(crate) fn model_name(&self, name: &[u8]) -> Box<[u8]> {
-        if name == b"demo" { self.say(Word::PlaygroundModelName, &[]) } else { copy_of(name) }
+        if name == SCRIPTED_MODEL { self.say(Word::PlaygroundModelName, &[]) } else { copy_of(name) }
     }
 
     pub fn english(connector: u16, text: u32, shell: Shell) -> Result<Words, Invalid> {
@@ -2187,7 +2164,8 @@ impl Words {
         Some(most.max(crate::forge::words::capacity(self)?).max(crate::accounts::words::capacity(self)?))
     }
 }
-const PLAYGROUND_REQUEST: &[&[u8]] = &[b"Try a request in ", b"/", b". Follow the task from its branch to a landed change."];
+const PLAYGROUND_REQUEST: &[&[u8]] =
+    &[b"Try a request in ", b"/", b". Follow the task from its branch to a landed change."];
 #[expect(clippy::too_many_lines, reason = "one exhaustive table of the client's English words")]
 #[expect(clippy::match_same_arms, reason = "welcome phrases stay independent of the other pages in translations")]
 fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [HoleKind]) {
@@ -2270,11 +2248,6 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ForgePlaygroundHeading => (&[b"The playground"], &[]),
         Word::ForgeDotAmber => (&[b"a forge is setting up"], &[]),
         Word::ForgeDotRed => (&[b"a forge needs you"], &[]),
-        Word::Setup => (&[b"Setup"], &[]),
-        Word::SetupBoth => (&[b"temper has no forge and no model yet."], &[]),
-        Word::SetupForge => (&[b"temper has no forge yet."], &[]),
-        Word::SetupModel => (&[b"temper has no model yet."], &[]),
-        Word::SetupContinue => (&[b"Continue setting up"], &[]),
         Word::ForgeSetupUrl => (&[b"On GitHub, set the App\xe2\x80\x99s setup URL to temper\xe2\x80\x99s address followed by /forges/", b"/github/setup, and give it the permissions and events temper\xe2\x80\x99s guide lists."], &[Number]),
         Word::SetupOrganization => (&[b"Organization"], &[]),
         Word::SetupRepository => (&[b"Repository"], &[]),
@@ -2634,8 +2607,6 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ChatDelegates => (&[b"", b" delegates"], &[Number]),
         Word::ChoiceProvider => (&[b"", b""], &[Name]),
         Word::ChatSendHint => (&[b"Enter to send \xc2\xb7 Shift+Enter for newline"], &[]),
-        Word::PlaygroundBoth => (&[b"This is the playground: a scripted model and a playground forge."], &[]),
-        Word::PlaygroundForge => (&[b"This is the playground: a playground forge."], &[]),
         Word::ConnectForge => (&[b"Connect a forge"], &[]),
         Word::ChatTitle => (&[b"T", b" \xc2\xb7 ", b""], &[Number, Name]),
         Word::PlaygroundModelName => (&[b"Scripted model"], &[]),
@@ -2652,7 +2623,6 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::NewChatLink => (&[b"+ New chat"], &[]),
         Word::Ready => (&[b"Ready"], &[]),
         Word::Playground => (&[b"Playground"], &[]),
-        Word::PlaygroundModel => (&[b"This is the playground: a scripted model."], &[]),
         Word::ConnectModel => (&[b"Connect a model"], &[]),
         Word::PlaygroundStarting => (&[b"Starting"], &[]),
         Word::PlaygroundNotStarted => (&[b"Not started"], &[]),

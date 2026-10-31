@@ -207,7 +207,8 @@ pub(crate) fn speakers(task: &c::Task, me: Option<&c::Me>) -> Speakers {
 
 pub(crate) fn context(b: &mut Builder, root: &Domain, project: u32, words: &Words) {
     let Some(playground) = root.forge().playground() else { return };
-    if Some(project) != playground.project || playground.state != temper_client_domain::forge::PlaygroundState::Running {
+    if Some(project) != playground.project || playground.state != temper_client_domain::forge::PlaygroundState::Running
+    {
         return;
     }
     let Some(me) = root.pages().me(root.client()) else { return };
@@ -217,7 +218,8 @@ pub(crate) fn context(b: &mut Builder, root: &Domain, project: u32, words: &Word
     };
     b.open(Role::Slot);
     b.style(look::CONTEXT);
-    let repository = words.say(Word::PlaygroundRepository, &[Hole::Name(playground.owner.clone()), Hole::Name(playground.name.clone())]);
+    let repository = words
+        .say(Word::PlaygroundRepository, &[Hole::Name(playground.owner.clone()), Hole::Name(playground.name.clone())]);
     b.open(Role::Paragraph);
     b.text(Run::Plain, &words.say(Word::PlaygroundContextProject, &[Hole::Name(project)]));
     b.open(Role::Text);

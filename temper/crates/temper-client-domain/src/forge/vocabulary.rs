@@ -119,7 +119,8 @@ pub enum Served {
 }
 
 /// The group's reason rendered as text: each invalid byte may need a UTF-8 replacement.
-pub const PLAYGROUND_WHY_BYTES: u32 = temper_client_protocol_wire::SET_UP_WHY_BYTES.checked_mul(3).expect("reason text fits");
+pub const PLAYGROUND_WHY_BYTES: u32 =
+    temper_client_protocol_wire::SET_UP_WHY_BYTES.checked_mul(3).expect("reason text fits");
 
 /// The first-password file path rendered as text: each invalid byte may need a UTF-8 replacement.
 pub const OWNED_PASSWORD_BYTES: u32 =
