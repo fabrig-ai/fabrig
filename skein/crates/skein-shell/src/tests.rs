@@ -3,8 +3,8 @@
 
 use std::fs;
 
-use skein_io::kernel::{Complete, Done, Entry, Op, OpenHow, Submit};
-use skein_lib::{Queue, Token};
+use skein_io::kernel::{Complete, Done, Entry, Exit, Op, OpenHow, Submit};
+use skein_lib::{Queue, Time, Token, Wall};
 use skein_scratch::Scratch;
 
 use crate::Kernel;
@@ -12,7 +12,198 @@ use crate::system::{open_root, status_flags};
 fn close(fd: i32) {
     crate::system::close(skein_io::kernel::Fd::new(fd)).expect("close test descriptor");
 }
-use crate::{Config, Wait};
+use crate::{Config, Delegate, Host, Wait};
+
+/// A policy-only host, using the loop's provided deadlines (shell.md, 12).
+struct PolicyHost {
+    policy: Option<Time>,
+    completions: Queue<Complete>,
+    submissions: Queue<Submit>,
+}
+
+impl PolicyHost {
+    fn new(policy: Option<Time>) -> Self {
+        Self { policy, completions: Queue::uncapped(), submissions: Queue::uncapped() }
+    }
+}
+
+impl Host for PolicyHost {
+    fn iterate(&mut self, _now: Time, _wall: Wall) {}
+
+    fn completions(&mut self) -> &mut Queue<Complete> {
+        &mut self.completions
+    }
+
+    fn submissions(&mut self) -> &mut Queue<Submit> {
+        &mut self.submissions
+    }
+
+    fn work_pending(&self, _now: Time) -> bool {
+        false
+    }
+
+    fn next_policy_deadline(&self) -> Option<Time> {
+        self.policy
+    }
+
+    fn is_empty(&self) -> bool {
+        self.completions.is_empty() && self.submissions.is_empty()
+    }
+
+    fn operations(&self) -> u32 {
+        3
+    }
+}
+
+/// A host with both layers' deadlines and observable hooks (shell.md, 12).
+struct MechanismHost {
+    inner: PolicyHost,
+    mechanism: Option<Time>,
+    iterated: Option<(Time, Wall)>,
+    drained: bool,
+}
+
+impl MechanismHost {
+    fn new(mechanism: Option<Time>, policy: Option<Time>) -> Self {
+        Self { inner: PolicyHost::new(policy), mechanism, iterated: None, drained: false }
+    }
+}
+
+impl Host for MechanismHost {
+    fn state_digest(&self) -> Option<[u8; 32]> {
+        Some([7; 32])
+    }
+
+    fn drain(&mut self) {
+        assert!(!self.drained, "diagnostics drain once");
+        self.drained = true;
+    }
+
+    fn iterate(&mut self, now: Time, wall: Wall) {
+        self.iterated = Some((now, wall));
+    }
+
+    fn completions(&mut self) -> &mut Queue<Complete> {
+        self.inner.completions()
+    }
+
+    fn submissions(&mut self) -> &mut Queue<Submit> {
+        self.inner.submissions()
+    }
+
+    fn work_pending(&self, now: Time) -> bool {
+        self.iterated.is_some_and(|(iterated, _wall)| iterated == now)
+    }
+
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        self.mechanism
+    }
+
+    fn next_policy_deadline(&self) -> Option<Time> {
+        self.inner.next_policy_deadline()
+    }
+
+    fn is_empty(&self) -> bool {
+        self.inner.is_empty()
+    }
+
+    fn exit(&self) -> Option<Exit> {
+        Some(Exit::Code(23))
+    }
+
+    fn operations(&self) -> u32 {
+        self.inner.operations()
+    }
+}
+
+/// Selects either concrete host without forwarding its methods (shell.md, 12).
+enum Process {
+    Policy(PolicyHost),
+    Mechanism(MechanismHost),
+}
+
+impl Delegate for Process {
+    fn host(&self) -> &dyn Host {
+        match self {
+            Self::Policy(host) => host,
+            Self::Mechanism(host) => host,
+        }
+    }
+
+    fn host_mut(&mut self) -> &mut dyn Host {
+        match self {
+            Self::Policy(host) => host,
+            Self::Mechanism(host) => host,
+        }
+    }
+}
+
+#[test]
+fn host_deadline_defaults_to_its_policy_deadline() {
+    for policy in [None, Some(Time::from_nanos(20))] {
+        let host = PolicyHost::new(policy);
+        assert_eq!(host.next_mechanism_deadline(), None, "no mechanism deadline stated");
+        assert_eq!(host.next_deadline(), policy, "the policy deadline wakes the loop");
+    }
+}
+
+#[test]
+fn host_deadline_is_the_earlier_of_mechanism_and_policy() {
+    let early = Some(Time::from_nanos(10));
+    let late = Some(Time::from_nanos(20));
+    for (mechanism, policy, expected) in [
+        (early, late, early),
+        (late, early, early),
+        (early, early, early),
+        (early, None, early),
+        (None, late, late),
+        (None, None, None),
+    ] {
+        let host = MechanismHost::new(mechanism, policy);
+        assert_eq!(host.next_deadline(), expected, "mechanism {mechanism:?}, policy {policy:?}");
+    }
+}
+
+#[test]
+fn delegate_forwards_to_the_selected_host() {
+    let now = Time::from_nanos(10);
+    let wall = Wall::from_nanos(30);
+    let mechanism = Some(Time::from_nanos(20));
+    let policy = Some(Time::from_nanos(40));
+    let mut process = Process::Mechanism(MechanismHost::new(mechanism, policy));
+    assert!(!process.work_pending(now), "no iteration yet");
+    process.iterate(now, wall);
+    assert!(process.work_pending(now), "the selected host iterated at now");
+    assert!(!process.work_pending(Time::ZERO), "work_pending receives its time");
+    process.drain();
+    assert_eq!(process.state_digest(), Some([7; 32]), "the selected host's digest");
+    assert_eq!(process.exit(), Some(Exit::Code(23)), "the selected host's failure status");
+    assert_eq!(process.next_mechanism_deadline(), mechanism, "the selected mechanism deadline");
+    assert_eq!(process.next_policy_deadline(), policy, "the selected policy deadline");
+    assert_eq!(process.next_deadline(), mechanism, "the selected host's earliest deadline");
+    assert_eq!(process.operations(), 3, "the selected host's ring size");
+    assert!(process.is_empty(), "queues start empty");
+    process.completions().push(Complete {
+        op: Token::new(5),
+        kind: Op::Close { fd: skein_io::kernel::Fd::new(8) },
+        result: Ok(Done::Nothing),
+    });
+    process.submissions().push(Submit { op: Token::new(6), kind: Op::Close { fd: skein_io::kernel::Fd::new(9) } });
+    assert!(!process.is_empty(), "the selected host holds the queued records");
+    let Process::Mechanism(host) = &mut process else { panic!("mechanism host selected") };
+    assert_eq!(host.iterated, Some((now, wall)), "both iteration times reach the host");
+    assert!(host.drained, "the selected host drained");
+    assert_eq!(host.inner.completions.pop().expect("forwarded completion").op, Token::new(5));
+    assert_eq!(host.inner.submissions.pop().expect("forwarded submission").op, Token::new(6));
+
+    let mut process = Process::Policy(PolicyHost::new(policy));
+    process.iterate(now, wall);
+    process.drain();
+    assert_eq!(process.state_digest(), None, "the other host's default digest");
+    assert_eq!(process.exit(), Some(Exit::Code(0)), "the other host's default exit");
+    assert_eq!(process.next_mechanism_deadline(), None, "the other host has no mechanism deadline");
+    assert_eq!(process.next_deadline(), policy, "the other host's policy deadline");
+}
 
 #[test]
 fn startup_process_id_is_this_process() {
