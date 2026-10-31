@@ -242,8 +242,9 @@ fn reset(d: &mut Domain, out: &mut Queue<Request>) {
                 if crate::removal::begin(d, row.forge, out) {
                     return;
                 }
-                row.state = PlaygroundState::Resetting(ResetStep::Account);
-                save(d, row, out);
+                // An ended forge can still be waiting for its secrets or box (6.2).
+                removed(d, out);
+                return;
             }
             PlaygroundState::Resetting(ResetStep::Account) => {
                 if let Some(account) = row.account {
