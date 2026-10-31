@@ -117,6 +117,8 @@ pub(crate) type ConnectionState = (crate::Connection, Option<crate::FailedStep>)
 /// The bounded forge connector subtree.
 #[derive(Debug)]
 pub struct Domain {
+    pub(crate) playground: Option<crate::Playground>,
+    retire_pending: bool,
     pub(crate) machine: Option<crate::Machine>,
     pub(crate) records: Map<u16, crate::ForgeRecord>,
     pub(crate) forge_number: u16,
@@ -542,6 +544,8 @@ impl Domain {
         }
         Ok(Domain {
             machine: None,
+            playground: None,
+            retire_pending: false,
             records: Map::with_capacity(l.forges),
             forge_number,
             configured,
@@ -1198,10 +1202,23 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
             }
             out.push(Request::MarkedForges);
         }
-        Event::SecretsErased { .. } | Event::BoxRemoved { .. } => crate::playground::removed(d, out),
+        Event::SecretsErased { forge } => {
+            crate::removal::secrets_erased(d, forge, out);
+            crate::playground::removed(d, out);
+        }
+        Event::BoxRemoved { forge } => {
+            crate::removal::box_removed(d, forge, out);
+            crate::playground::removed(d, out);
+        }
         Event::Application { request, token, retention, ask, role, carried } => match ask {
-            ask @ (crate::Ask::RemoveForge { .. }
-            | crate::Ask::Connect { .. }
+            crate::Ask::RemoveForge { forge } => {
+                if let Some(value) = carried {
+                    out.push(Request::CarriedUnused { number: value.number });
+                }
+                crate::removal::admit(d, request, token, role, forge, out);
+            }
+            ask @ (crate::Ask::Connect { .. }
+
             | crate::Ask::Install { .. }
             | crate::Ask::Accept { .. }
             | crate::Ask::Reachable { .. }) => {
@@ -1441,6 +1458,10 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         Event::Restored { clock } => restored(d, env, clock, out),
         Event::ReadAfresh => read_afresh(d, env, out),
         Event::SettleOutbox => settle_outbox(d, env, out),
+    }
+    if d.retire_pending {
+        d.retire_pending = false;
+        retire_ended(d, env, out);
     }
 }
 
@@ -4997,6 +5018,7 @@ fn restored(d: &mut Domain, env: &Env<Limits>, clock: skein_forge_client::Recove
             emit(out, Request::ForgeKept(record.clone()));
         }
     }
+    crate::removal::restart(d, out);
     emit(out, Request::RestartDone { stage: RestartStage::Restored });
 }
 
@@ -5058,37 +5080,52 @@ fn read_afresh(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
 
 // A permanently retired forge has no future observation to await. Its
 // historical rows stay; its live watches and local release gates do not.
-fn retire_ended(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
-    if d.demo_state != Some(crate::DemoState::Ended) {
-        return;
-    }
-    let mut removed = List::with_capacity(env.limits.holds);
+/// Drop the forge's local reads now; the event's environment retires its watches before returning.
+pub(crate) fn retire_forge(d: &mut Domain, forge: u16) {
+    let mut removed = List::with_capacity(d.lost.capacity());
     for (owner, pending) in &d.lost {
-        if d.forge_ended(pending.name.forge) {
+        if pending.name.forge == forge {
             removed.push(*owner).expect("bounded lost reads");
         }
     }
     for owner in removed.into_boxed() {
         d.lost.remove(&owner);
     }
-    let mut ci = List::with_capacity(env.limits.subscriptions);
+    let mut ci = List::with_capacity(d.pending_ci.capacity());
     for (owner, pending) in &d.pending_ci {
-        if d.forge_ended(pending.repository.forge) {
+        if pending.repository.forge == forge {
             ci.push(*owner).expect("bounded CI reads");
         }
     }
     for owner in ci.into_boxed() {
         d.pending_ci.remove(&owner);
     }
-    let mut files = List::with_capacity(env.limits.changes);
+    let mut files = List::with_capacity(d.goal_file_reads.capacity());
     for (owner, pending) in &d.goal_file_reads {
-        if d.forge_ended(pending.repository.forge) {
+        if pending.repository.forge == forge {
             files.push(*owner).expect("bounded goal file reads");
         }
     }
     for owner in files.into_boxed() {
         d.goal_file_reads.remove(&owner);
     }
+    d.retire_pending = true;
+}
+
+fn retire_ended(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
+    let mut ended = List::with_capacity(d.configured.capacity());
+    for (forge, _) in &d.configured {
+        if d.forge_ended(*forge) {
+            ended.push(*forge).expect("configured forge bound");
+        }
+    }
+    if ended.is_empty() {
+        return;
+    }
+    for forge in ended.into_boxed() {
+        retire_forge(d, forge);
+    }
+    d.retire_pending = false;
     let mut watches = Map::with_capacity(env.limits.client.resources);
     for (_, names) in &d.names {
         for name in names {
