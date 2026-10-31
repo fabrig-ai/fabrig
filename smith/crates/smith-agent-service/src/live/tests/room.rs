@@ -127,7 +127,7 @@ impl Room {
             }
         }
         let before = self.sent.len();
-        let mut edge = channel::edge_room(&self.limits);
+        let mut edge = channel::edge_room();
         if !self.takes || self.remaining == 0 {
             edge.below = u32::MAX;
         }
