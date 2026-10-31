@@ -435,7 +435,9 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
         Stored::Binding { address, subject } => bytes(address)?.checked_add(bytes(subject)?),
         Stored::BranchHead(row) => name(&row.name),
         Stored::PullState(row) => name(&row.name),
-        Stored::ForgeNumber { .. } | Stored::Playground(_) | Stored::Ci(_)
+        Stored::ForgeNumber { .. }
+        | Stored::Playground(_)
+        | Stored::Ci(_)
         | Stored::Landed { .. }
         | Stored::Writer(_)
         | Stored::Demo(_)

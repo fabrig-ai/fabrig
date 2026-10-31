@@ -56,7 +56,18 @@ fn connector(limits: &top::Limits) -> top::Domain {
             writers: Box::new([skein_forge_client::Writer { forge: REPO.forge, author: 1 }]),
         },
         &[top::GitIdentity { forge: REPO.forge, credential: 1 }],
-        &[],
+        &[top::Configured {
+            number: REPO.forge,
+            kind: top::Kind::Forgejo,
+            mode: top::Mode::Connected,
+            admin_connect: false,
+            bot: Box::new([]),
+            owned: None,
+            git: Box::new([]),
+            web: None,
+            read_only: false,
+            asked: false,
+        }],
         false,
     )
     .expect("admitted limits")

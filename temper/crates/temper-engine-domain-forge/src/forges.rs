@@ -4,7 +4,7 @@ use crate::{
     Request, Stored,
 };
 use alloc::boxed::Box;
-use skein_lib::Queue;
+use skein_lib::{Map, Queue};
 
 impl Domain {
     /// Keep the machine's places for new forges.
@@ -62,7 +62,7 @@ pub(crate) fn make(
     first: Option<FirstIntent>,
     out: &mut Queue<Request>,
 ) -> Option<u16> {
-    if d.records.len() >= d.records.capacity() || d.configured.len() >= d.configured.capacity() {
+    if d.records.len() >= d.records.capacity() {
         return None;
     }
     let number = d.forge_number.checked_add(1)?;
@@ -83,7 +83,7 @@ pub(crate) fn save(d: &mut Domain, record: ForgeRecord, out: &mut Queue<Request>
 }
 
 /// Erase a record whole; its number stays spent (section 4).
-#[expect(dead_code, reason = "forge removal consumes this shared surface")]
+#[cfg_attr(not(test), expect(dead_code, reason = "forge removal consumes this shared surface"))]
 pub(crate) fn erase(d: &mut Domain, forge: u16, out: &mut Queue<Request>) {
     d.records.remove(&forge);
     d.configured.remove(&forge);
@@ -106,4 +106,27 @@ pub(crate) fn configured_of(record: &ForgeRecord) -> Configured {
         admin_connect: record.mode == Mode::Managed,
         read_only: record.read_only,
     }
+}
+
+/// Admit document forges until startup supplies only records.
+pub(crate) fn document(
+    limit: u32,
+    forges: &[Configured],
+) -> Result<(Map<u16, Configured>, u16), skein_forge::api::Error> {
+    if forges.len() > usize::try_from(limit).expect("forge count fits usize") {
+        return Err(skein_forge::api::Error::TooLarge);
+    }
+    // Document forges and records each enter at the kept-forges bound.
+    let mut configured = Map::uncapped();
+    let mut forge_number = 0;
+    for forge in forges {
+        forge_number = forge_number.max(forge.number);
+        if forge.git.len() > usize::try_from(crate::PULL_ADDRESS_BYTES).expect("u32 fits usize") {
+            return Err(skein_forge::api::Error::TooLarge);
+        }
+        if configured.insert(forge.number, forge.clone()).is_err() {
+            return Err(skein_forge::api::Error::TooLarge);
+        }
+    }
+    Ok((configured, forge_number))
 }
