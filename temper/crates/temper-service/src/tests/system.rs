@@ -248,7 +248,7 @@ fn a_scripted_box_answers_keyed_setup_requests_through_the_clients_family() {
     let bearer = box_sign_in(&mut stand);
     assert_eq!(box_setup(&mut stand, &bearer, OWNED, 1), w::Outcome::SettingUp);
     turns(&mut stand);
-    assert_eq!(stand.kernel.box_written.as_slice(), b"start 1\n");
+    assert_eq!(stand.kernel.box_written.as_slice(), b"start 1 owned\n");
     assert_eq!(
         stand.service.engine.as_ref().unwrap().domain.forge_connection(OWNED),
         Connection::SettingUp { step: None }
@@ -263,7 +263,7 @@ fn a_scripted_box_answers_keyed_setup_requests_through_the_clients_family() {
         Connection::SettingUp { step: Some(SetUpStep::Prepare) }
     );
     assert_eq!(box_setup(&mut stand, &bearer, OWNED, 1), w::Outcome::SettingUp);
-    assert_eq!(stand.kernel.box_written.as_slice(), b"start 1\n");
+    assert_eq!(stand.kernel.box_written.as_slice(), b"start 1 owned\n");
 
     for byte in b"failed 1 prepare 1 exited 1\n" {
         stand.kernel.box_answers.push(*byte);
@@ -273,11 +273,11 @@ fn a_scripted_box_answers_keyed_setup_requests_through_the_clients_family() {
         stand.service.engine.as_ref().unwrap().domain.forge_connection(OWNED),
         Connection::SetUpFailed { why: b"prepare 1 exited 1".as_slice().into() }
     );
-    assert_eq!(stand.kernel.box_written.as_slice(), b"start 1\n");
+    assert_eq!(stand.kernel.box_written.as_slice(), b"start 1 owned\n");
 
     assert_eq!(box_setup(&mut stand, &bearer, OWNED, 2), w::Outcome::SettingUp);
     turns(&mut stand);
-    assert_eq!(stand.kernel.box_written.as_slice(), b"start 1\nstart 1\n");
+    assert_eq!(stand.kernel.box_written.as_slice(), b"start 1 owned\nstart 1 owned\n");
     assert_eq!(
         stand.service.engine.as_ref().unwrap().domain.forge_connection(OWNED),
         Connection::SettingUp { step: None }
@@ -286,7 +286,7 @@ fn a_scripted_box_answers_keyed_setup_requests_through_the_clients_family() {
     let w::Outcome::SetUpRefused(refused) = box_setup(&mut stand, &bearer, OTHER, 3) else { panic!("busy answer") };
     assert_eq!(*refused.why(), w::SetUpRefusal::Busy);
     turns(&mut stand);
-    assert_eq!(stand.kernel.box_written.as_slice(), b"start 1\nstart 1\n");
+    assert_eq!(stand.kernel.box_written.as_slice(), b"start 1 owned\nstart 1 owned\n");
     assert_eq!(
         stand.service.engine.as_ref().unwrap().domain.forge_connection(OWNED),
         Connection::SettingUp { step: None }
@@ -298,7 +298,7 @@ fn a_scripted_box_answers_keyed_setup_requests_through_the_clients_family() {
         stand.kernel.box_answers.push(*byte);
     }
     turns(&mut stand);
-    assert_eq!(stand.kernel.box_written.as_slice(), b"start 1\nstart 1\n");
+    assert_eq!(stand.kernel.box_written.as_slice(), b"start 1 owned\nstart 1 owned\n");
     assert_eq!(
         stand.service.engine.as_ref().unwrap().domain.forge_connection(OWNED),
         Connection::SettingUp { step: None }
