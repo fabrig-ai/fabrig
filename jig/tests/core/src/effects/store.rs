@@ -57,26 +57,24 @@ impl World {
     }
 
     pub(super) fn start_input(&mut self, event: &root::Event) {
-        match event {
-            root::Event::StartRecord(row) => {
-                let (phase, count) = self.restoring.as_mut().expect("one start load");
-                *count += 1;
-                if *phase == core::start::Phase::LoadInbox
-                    && matches!(row, root::Record::Core(core::Record::Tasks(tasks::Stored::Ended(_))))
-                {
-                    self.census_ended += 1;
-                }
-                if self.tracing && *count % 2 == 0 {
-                    self.trace.push(format!("store page {phase:?} 2 rows"));
-                }
+        if let root::Event::StartRecord(row) = event {
+            let (phase, count) = self.restoring.as_mut().expect("one start load");
+            *count += 1;
+            if *phase == core::start::Phase::LoadInbox
+                && matches!(row, root::Record::Core(core::Record::Tasks(tasks::Stored::Ended(_))))
+            {
+                self.census_ended += 1;
             }
-            root::Event::StartDone(phase) if self.restoring.is_some_and(|(selected, _)| selected == *phase) => {
-                let (_, count) = self.restoring.take().expect("start load completion");
-                if self.tracing && count % 2 != 0 {
-                    self.trace.push(format!("store page {phase:?} 1 rows"));
-                }
+            if self.tracing && *count % 2 == 0 {
+                self.trace.push(format!("store page {phase:?} 2 rows"));
             }
-            _ => {}
+        } else if let root::Event::StartDone(phase) = event
+            && self.restoring.is_some_and(|(selected, _)| selected == *phase)
+        {
+            let (_, count) = self.restoring.take().expect("start load completion");
+            if self.tracing && count % 2 != 0 {
+                self.trace.push(format!("store page {phase:?} 1 rows"));
+            }
         }
     }
 
