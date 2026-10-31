@@ -193,13 +193,6 @@
         },
         "remote": "http://127.0.0.1:3000"
       },
-      "fake": {
-        "listen": {
-          "socket": "127.0.0.1:8369"
-        },
-        "remote": "http://127.0.0.1:8369",
-        "git": "demo/bin/git"
-      },
       "github": null
     },
     "landing": {

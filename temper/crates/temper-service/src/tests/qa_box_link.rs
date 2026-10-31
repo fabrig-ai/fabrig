@@ -7,20 +7,14 @@ use temper_engine_domain_forge::{Connection, SetUpStep};
 
 #[test]
 fn qa_unasked_and_invalid_lines_are_named_without_state_changes() {
-    let mut stand = fixtures::one_process();
-    stand.service.adopt_box(Fd::new(3), Fd::new(4), fixtures::system::BOX_BYTES).unwrap();
-    fixtures::until_hosting(&mut stand);
-    crate::setup::lifecycle::state(stand.service.engine.as_mut().unwrap(), 3, Connection::NotSetUp);
-    for _ in 0_u8..64 {
-        stand.turn();
-    }
+    let mut stand = under_box(fixtures::system::BOX_BYTES);
     for asked in [false, true] {
         if asked {
             crate::route::request(
                 stand.service.engine.as_mut().unwrap(),
                 root::Request::SetUp {
                     playground: false,
-                    forge: 3,
+                    forge: 1,
                     request: Token::new(91),
                     org: b"work".as_slice().into(),
                     repository: b"hello".as_slice().into(),
@@ -34,10 +28,10 @@ fn qa_unasked_and_invalid_lines_are_named_without_state_changes() {
             b"step 4 fetch\n".as_slice(),
             b"failed 4 other\n",
             b"started 4\n",
-            b"mystery 3\n",
+            b"mystery 1\n",
             b"step xyz fetch\n",
             b"step 65536 fetch\n",
-            b"step 3 unknown\n",
+            b"step 1 unknown\n",
             b"\n",
         ] {
             for byte in line {
@@ -51,28 +45,22 @@ fn qa_unasked_and_invalid_lines_are_named_without_state_changes() {
             };
             assert!(stand.service.notes().is_empty(), "one diagnostic per line");
             assert_eq!(
-                stand.service.engine.as_ref().unwrap().domain.forge_connection(3),
+                stand.service.engine.as_ref().unwrap().domain.forge_connection(1),
                 if asked { Connection::SettingUp { step: None } } else { Connection::NotSetUp }
             );
-            assert_eq!(stand.kernel.box_written.as_slice(), if asked { b"start 3\n".as_slice() } else { b"" });
+            assert_eq!(stand.kernel.box_written.as_slice(), if asked { b"start 1 owned\n".as_slice() } else { b"" });
         }
     }
 }
 
 #[test]
 fn qa_split_lines_and_coalesced_steps_keep_the_last_step() {
-    let mut stand = fixtures::one_process();
-    stand.service.adopt_box(Fd::new(3), Fd::new(4), fixtures::system::BOX_BYTES).unwrap();
-    fixtures::until_hosting(&mut stand);
-    crate::setup::lifecycle::state(stand.service.engine.as_mut().unwrap(), 3, Connection::NotSetUp);
-    for _ in 0_u8..64 {
-        stand.turn();
-    }
+    let mut stand = under_box(fixtures::system::BOX_BYTES);
     crate::route::request(
         stand.service.engine.as_mut().unwrap(),
         root::Request::SetUp {
             playground: false,
-            forge: 3,
+            forge: 1,
             request: Token::new(91),
             org: b"work".as_slice().into(),
             repository: b"hello".as_slice().into(),
@@ -81,13 +69,13 @@ fn qa_split_lines_and_coalesced_steps_keep_the_last_step() {
     for _ in 0_u8..64 {
         stand.turn();
     }
-    for byte in b"step 3 fet" {
+    for byte in b"step 1 fet" {
         stand.kernel.box_answers.push(*byte);
     }
     for _ in 0_u8..64 {
         stand.turn();
     }
-    assert_eq!(stand.service.engine.as_ref().unwrap().domain.forge_connection(3), Connection::SettingUp { step: None });
+    assert_eq!(stand.service.engine.as_ref().unwrap().domain.forge_connection(1), Connection::SettingUp { step: None });
     assert!(stand.service.notes().is_empty());
     for byte in b"ch\n" {
         stand.kernel.box_answers.push(*byte);
@@ -96,42 +84,36 @@ fn qa_split_lines_and_coalesced_steps_keep_the_last_step() {
         stand.turn();
     }
     assert_eq!(
-        stand.service.engine.as_ref().unwrap().domain.forge_connection(3),
+        stand.service.engine.as_ref().unwrap().domain.forge_connection(1),
         Connection::SettingUp { step: Some(SetUpStep::Fetch) }
     );
-    for byte in b"step 3 prepare\nstep 3 run\n" {
+    for byte in b"step 1 prepare\nstep 1 run\n" {
         stand.kernel.box_answers.push(*byte);
     }
     for _ in 0_u8..64 {
         stand.turn();
     }
     assert_eq!(
-        stand.service.engine.as_ref().unwrap().domain.forge_connection(3),
+        stand.service.engine.as_ref().unwrap().domain.forge_connection(1),
         Connection::SettingUp { step: Some(SetUpStep::Run) }
     );
     assert!(stand.service.notes().is_empty());
-    assert_eq!(stand.kernel.box_written.as_slice(), b"start 3\n");
+    assert_eq!(stand.kernel.box_written.as_slice(), b"start 1 owned\n");
 }
 
 #[test]
 fn qa_line_byte_bound_includes_lf_and_recovers_after_overflow() {
     const BOUND: u32 = 32;
     for (why, exact, overflow) in [
-        ("abcdefghijklmnopqrstuv", "failed 3 abcdefghijklmnopqrstuv\n", "failed 3 abcdefghijklmnopqrstuvx\n"),
-        ("ééééééééééé", "failed 3 ééééééééééé\n", "failed 3 éééééééééééx\n"),
+        ("abcdefghijklmnopqrstuv", "failed 1 abcdefghijklmnopqrstuv\n", "failed 1 abcdefghijklmnopqrstuvx\n"),
+        ("ééééééééééé", "failed 1 ééééééééééé\n", "failed 1 éééééééééééx\n"),
     ] {
-        let mut stand = fixtures::one_process();
-        stand.service.adopt_box(Fd::new(3), Fd::new(4), BOUND).unwrap();
-        fixtures::until_hosting(&mut stand);
-        crate::setup::lifecycle::state(stand.service.engine.as_mut().unwrap(), 3, Connection::NotSetUp);
-        for _ in 0_u8..64 {
-            stand.turn();
-        }
+        let mut stand = under_box(BOUND);
         crate::route::request(
             stand.service.engine.as_mut().unwrap(),
             root::Request::SetUp {
                 playground: false,
-                forge: 3,
+                forge: 1,
                 request: Token::new(91),
                 org: b"work".as_slice().into(),
                 repository: b"hello".as_slice().into(),
@@ -148,7 +130,7 @@ fn qa_line_byte_bound_includes_lf_and_recovers_after_overflow() {
             stand.turn();
         }
         assert_eq!(
-            stand.service.engine.as_ref().unwrap().domain.forge_connection(3),
+            stand.service.engine.as_ref().unwrap().domain.forge_connection(1),
             Connection::SettingUp { step: None }
         );
         let Some(crate::Note::BoxLink { line }) = stand.service.notes().pop() else {
@@ -170,10 +152,23 @@ fn qa_line_byte_bound_includes_lf_and_recovers_after_overflow() {
             stand.turn();
         }
         assert_eq!(
-            stand.service.engine.as_ref().unwrap().domain.forge_connection(3),
+            stand.service.engine.as_ref().unwrap().domain.forge_connection(1),
             Connection::SetUpFailed { why: why.as_bytes().into() }
         );
         assert!(stand.service.notes().is_empty());
-        assert_eq!(stand.kernel.box_written.as_slice(), b"start 3\n");
+        assert_eq!(stand.kernel.box_written.as_slice(), b"start 1 owned\n");
     }
+}
+
+fn under_box(line_bytes: u32) -> fixtures::system::SystemStand {
+    let mut stand = fixtures::system::one_process_under_box(true);
+    stand.service.adopt_box(Fd::new(3), Fd::new(4), line_bytes).unwrap();
+    fixtures::until_hosting(&mut stand);
+    // The in-memory store has no prepared-file state; inject the root's startup input.
+    crate::setup::lifecycle::state(stand.service.engine.as_mut().unwrap(), 1, Connection::NotSetUp);
+    for _ in 0_u8..64 {
+        stand.turn();
+    }
+    while stand.service.notes().pop().is_some() {}
+    stand
 }
