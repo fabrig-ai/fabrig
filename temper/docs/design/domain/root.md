@@ -850,7 +850,7 @@ each step the core asks for:
    Designed, not built: before them, the forge loads its kinds' values
    from its family `Setting`, is given temper's stock defaults, and
    tells the core which differ (5.6). Then **the switch**
-   (`RestartStep::Switch`), at every start: over a generation the store
+   (jig's `start::Phase::Switch`), at every start: over a generation the store
    holds pending (jig's `protocol/store.md`, 10.2, step 7) the root asks
    the store to switch and goes on once it answers; then it commits the
    start's wires (jig's `protocol/store.md`, 5.3). Nothing leaves the
