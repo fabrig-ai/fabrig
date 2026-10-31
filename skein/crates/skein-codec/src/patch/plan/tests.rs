@@ -4,7 +4,7 @@
 #![expect(clippy::disallowed_macros, reason = "table rows assemble schema and patch fixtures")]
 
 use super::*;
-use crate::patch::{Capacity, Patcher};
+use crate::patch::{Capacity, Patcher, text};
 
 // Fixtures fit in 4 KiB, hold two adjacent versions and one plan.
 const CAPACITY: Capacity = Capacity { versions: 3, patches: 2, text: 4096, bytes: 64, nodes: 16 };
