@@ -33,6 +33,7 @@ Each design document's status is in `<doc>.status.md` beside it:
 - [`protocol/client.md`](protocol/client.status.md)
 - [`protocol/store.md`](protocol/store.status.md)
 - [`protocol/browser.md`](protocol/browser.status.md)
+- [`debt/quality-review.md`](debt/quality-review.status.md)
 
 Not single documents:
 
