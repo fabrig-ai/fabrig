@@ -1,7 +1,7 @@
 //! Origin targets and percent encoding, segment boundaries preserved.
 use super::limits::Limits;
 use alloc::boxed::Box;
-use skein_lib::{List, Overflow, Writer};
+use skein_lib::{List, Overflow, Writer, hex};
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Pair {
     pub name: Box<[u8]>,
@@ -23,8 +23,7 @@ pub fn segment(name: &[u8], out: &mut Writer) -> Result<(), Overflow> {
         if byte.is_ascii_alphanumeric() || b"-._~".contains(byte) {
             out.put(&[*byte])?;
         } else {
-            let digits =
-                [b'%', super::id::hex(byte / 16).to_ascii_uppercase(), super::id::hex(byte % 16).to_ascii_uppercase()];
+            let digits = [b'%', hex::digit(byte / 16).to_ascii_uppercase(), hex::digit(byte % 16).to_ascii_uppercase()];
             out.put(&digits)?;
         }
     }
