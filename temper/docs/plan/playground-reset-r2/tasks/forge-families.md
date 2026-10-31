@@ -260,3 +260,19 @@ version moved; the container types behind the accessors.
   crate's other exhaustive functions carry theirs, and nothing else of
   the constructor. No refactor of `Domain::new` here: the forge-records
   part owns `domain.rs` next. Name the expectation in the report.
+
+2026-10-31 (fourth).
+
+- **May this task put a scoped `too_many_lines` expectation on
+  `temper-fake`'s `check::evidence`?** Yes, under the same rule as
+  `Domain::new`. `evidence`'s `Stored` match is one of the exhaustive
+  matches outside the owned files that "May change" already opens; the
+  four new variants join its no-op arm (`Demo(_) | DemoAct(_) | ... =>
+  {}`), since the evidence reads none of them: `Forge` too, as a forge
+  record is not a writer and names no client. Add, directly on
+  `evidence` beside its `type_complexity` expectation,
+  `#[expect(clippy::too_many_lines, reason = "one exhaustive evidence
+  map for every durable forge family")]`, and nothing else of
+  `temper-fake`: no refactor. The same holds for any other exhaustive
+  function outside the owned files that the new arms take past its
+  line limit: a scoped expectation on it, named in the report.
