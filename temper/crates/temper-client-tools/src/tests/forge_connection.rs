@@ -64,7 +64,8 @@ fn connect_carries_the_bundle_once_without_saving_it() {
         let mut root = f::signed_in(f::PARTY);
         let call = root.submit_value(CONNECT, Some(Secret::new(pem.into())));
         let w::Request::Connect(connect) = request(&root, call) else { panic!("connect") };
-        assert_eq!(connect.forge(), 3);
+        let w::Making::Kept(kept) = connect.forge() else { panic!("kept forge") };
+        assert_eq!(kept.forge(), 3);
         let w::How::GithubApp(app) = connect.into_parts().how else { panic!("pasted App") };
         assert_eq!(app.id(), 4242);
         assert_eq!(root.sent_name(call), Some(f::named("app")));
@@ -269,7 +270,8 @@ fn manifest_connect_sends_no_back_or_carried_value() {
     let mut root = f::signed_in(f::PARTY);
     let call = root.submit(MANIFEST);
     let w::Request::Connect(connect) = request(&root, call) else { panic!("connect") };
-    assert_eq!(connect.forge(), 3);
+    let w::Making::Kept(kept) = connect.forge() else { panic!("kept forge") };
+    assert_eq!(kept.forge(), 3);
     let w::How::GithubManifest(manifest) = connect.how() else { panic!("manifest") };
     assert_eq!(manifest.back(), &None);
     assert!(root.carried.is_empty());

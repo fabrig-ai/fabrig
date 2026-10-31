@@ -343,7 +343,7 @@ fn box_setup(
                     &w::CEILINGS,
                     w::SetUpParts {
                         playground: false,
-                        forge,
+                        forge: w::Making::Kept(w::Kept::new(&w::CEILINGS, w::KeptParts { forge }).unwrap()),
                         org: b"work".as_slice().into(),
                         repository: b"hello".as_slice().into(),
                         project: w::SetUpProject::Existing(
