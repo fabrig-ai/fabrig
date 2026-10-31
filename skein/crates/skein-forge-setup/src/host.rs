@@ -13,7 +13,8 @@ mod state_tests;
 mod states;
 use crate::item::Bounds;
 use crate::reconcile::{self, Failure, Reply, Stage, Why};
-pub use boundary::{Answer, Event, File, Need, Plan, Request};
+use alloc::boxed::Box;
+pub use boundary::{AddRefused, Answer, Event, File, Need, Plan, Request};
 use connection::{Connection, Refused};
 pub use limits::{Limits, Stacked, Unusable, documents, github, http};
 use run::{Run, Send, forgejo_pair};
@@ -22,7 +23,8 @@ use skein_lib::{CryptoRng, Env, List, Map, Queue, Secret, Time, Token, bytes, ea
 
 /// A service's setup plans: one writing run and one Reachable per forge (6.3).
 pub struct Host {
-    settings: Settings,
+    forges: List<Option<Forge>>,
+    user_agent: Box<[u8]>,
     crypto: CryptoRng,
     states: states::States,
     runs: Map<Token, Run>,
@@ -37,8 +39,16 @@ pub struct Host {
 impl Host {
     pub fn new(limits: &Limits, settings: Settings, crypto: CryptoRng) -> Result<Self, Unusable> {
         limits::check(limits, &settings)?;
+        let mut forges = List::with_capacity(limits.forges);
+        for forge in settings.forges.into_boxed() {
+            forges.push(Some(forge)).expect("checked forge count");
+        }
+        for _ in forges.len()..limits.forges {
+            forges.push(None).expect("reserved forge room");
+        }
         Ok(Self {
-            settings,
+            forges,
+            user_agent: settings.user_agent,
             crypto,
             states: states::States::new(limits.states),
             runs: Map::with_capacity(limits.runs),
@@ -62,10 +72,19 @@ impl Host {
             return;
         }
         match request {
+            Request::Add { forge } => self.add(&env.limits, forge, up),
+            Request::Remove { forge } => self.remove(forge, up),
             Request::Run { run, plan } => {
                 let forge = plan.forge();
                 assert!(!self.runs.contains_key(&run), "one live run per owner token");
-                let configured = configured(&self.settings, forge);
+                let Some(configured) = configured(&self.forges, forge) else {
+                    up.push(Event::Stop {
+                        run,
+                        failure: Failure { forge, step: Stage::Admin, subject: plan.name().into(), why: Why::Unknown },
+                    });
+                    self.drive(env, up, io);
+                    return;
+                };
                 if let (Kind::Forgejo(given), Plan::Create { .. }) = (&configured.kind, &plan) {
                     crate::given::check_create(&given.limits, env.limits.string_bytes, &plan)
                         .expect("the owner checks a creation plan before sending it");
@@ -149,6 +168,78 @@ impl Host {
             }
         }
         self.drive(env, up, io);
+    }
+    fn add(&mut self, limits: &Limits, forge: Forge, up: &mut Queue<Event>) {
+        let number = forge.number();
+        let mut full = true;
+        for slot in &self.forges {
+            full &= slot.is_some();
+        }
+        let why = if configured(&self.forges, number).is_some() {
+            Some(AddRefused::Served)
+        } else if full {
+            Some(AddRefused::Full)
+        } else if limits::check_forge(limits, &self.user_agent, &forge).is_err() {
+            Some(AddRefused::Invalid)
+        } else {
+            None
+        };
+        if let Some(why) = why {
+            up.push(Event::Refused { forge: number, why });
+            return;
+        }
+        for at in 0..self.forges.len() {
+            let slot = self.forges.get_mut(at).expect("reserved forge slot");
+            if slot.is_none() {
+                *slot = Some(forge);
+                return;
+            }
+        }
+        unreachable!("admitted forge has a free slot");
+    }
+    fn remove(&mut self, forge: u16, up: &mut Queue<Event>) {
+        self.closing_tokens.clear();
+        for (token, run) in &self.runs {
+            if run.forge == forge {
+                self.closing_tokens.push(*token).expect("bounded runs");
+            }
+        }
+        for token in &self.closing_tokens {
+            let _run = self.runs.remove(token).expect("removed forge's live run");
+            let configured = configured(&self.forges, forge).expect("live run's forge");
+            let step = match &configured.kind {
+                Kind::Forgejo(_) => Stage::Admin,
+                Kind::GitHub(_) => Stage::App,
+            };
+            // Removal uses the host's abort reason, with its cause as the subject.
+            up.push(Event::Stop {
+                run: *token,
+                failure: Failure { forge, step, subject: b"removed".as_slice().into(), why: Why::Down },
+            });
+        }
+        self.closing_tokens.clear();
+        // A connection can outlive its run while io settles its close (6.5).
+        for (token, connection) in &self.connections {
+            if connection.forge == forge {
+                self.closing_tokens.push(*token).expect("bounded connections");
+            }
+        }
+        for token in &self.closing_tokens {
+            self.connections.get_mut(token).expect("removed forge's connection").abort();
+        }
+        self.states.remove(forge);
+        for at in 0..self.forges.len() {
+            let slot = self.forges.get_mut(at).expect("reserved forge slot");
+            let same = match slot {
+                Some(held) => held.number() == forge,
+                None => false,
+            };
+            if same {
+                *slot = None;
+                break;
+            }
+        }
+        up.push(Event::Removed { forge });
     }
     /// Ends every run unheard and aborts every connection (6.3).
     fn close(&mut self) {
@@ -353,9 +444,9 @@ impl Host {
             cut(run, &mut self.connections, &mut self.plan_out);
             return;
         }
-        let forge = configured(&self.settings, run.forge);
+        let forge = configured(&self.forges, run.forge).expect("live run's forge");
         let send = run.send.as_ref().expect("ready send");
-        let connection = match open(token, forge, &self.settings.user_agent, send, env) {
+        let connection = match open(token, forge, &self.user_agent, send, env) {
             Ok(connection) => connection,
             Err(Refused::Unexpected) => {
                 run.halt(Why::Unexpected, &mut self.plan_out);
@@ -418,13 +509,15 @@ impl core::fmt::Debug for Host {
     }
 }
 
-fn configured(settings: &Settings, number: u16) -> &Forge {
-    for forge in &settings.forges {
-        if forge.number() == number {
-            return forge;
+fn configured(forges: &List<Option<Forge>>, number: u16) -> Option<&Forge> {
+    for slot in forges {
+        if let Some(forge) = slot
+            && forge.number() == number
+        {
+            return Some(forge);
         }
     }
-    unreachable!("owner names a configured forge")
+    None
 }
 
 pub(super) fn bounds(env_limits: &Limits, forge: &Forge) -> Bounds {
@@ -451,6 +544,8 @@ pub(super) fn about(forge: &Forge, plan: &Plan, why: Why) -> Failure {
     }
 }
 
+#[cfg(test)]
+mod runtime_tests;
 #[cfg(test)]
 #[path = "host/tests.rs"]
 mod tests;

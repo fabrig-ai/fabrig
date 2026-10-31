@@ -86,11 +86,16 @@ impl World {
                 assert_eq!(self.host.next_deadline(), None);
                 state
             }
-            Event::Need { .. } | Event::Done { .. } | Event::Stop { .. } | Event::Closed => panic!("manifest Done"),
+            Event::Need { .. }
+            | Event::Done { .. }
+            | Event::Stop { .. }
+            | Event::Refused { .. }
+            | Event::Removed { .. }
+            | Event::Closed => panic!("manifest Done"),
         }
     }
     fn admit(&mut self) -> Run {
-        let forge = configured(&self.host.settings, FORGE);
+        let forge = configured(&self.host.forges, FORGE).expect("fixture forge");
         Run::new(
             forge,
             manifest(FORGE),
@@ -319,7 +324,12 @@ fn a_manifest_uses_the_normal_write_slot_and_admission_precedes_issuance() {
             assert_eq!(run, Token::new(2));
             assert_eq!(state, first);
         }
-        Event::Need { .. } | Event::Done { .. } | Event::Stop { .. } | Event::Closed => panic!("earlier manifest Done"),
+        Event::Need { .. }
+        | Event::Done { .. }
+        | Event::Stop { .. }
+        | Event::Refused { .. }
+        | Event::Removed { .. }
+        | Event::Closed => panic!("earlier manifest Done"),
     }
     assert!(w.io.is_empty());
     let mut expected = [0_u8; 3];

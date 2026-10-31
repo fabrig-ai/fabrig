@@ -8,7 +8,7 @@ pub struct Settings {
     pub forges: List<Forge>,
     pub user_agent: Box<[u8]>,
 }
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Forge {
     pub kind: Kind,
     pub address: skein_io::Addr,
@@ -73,7 +73,7 @@ pub(super) struct Times {
     pub backoff: Duration,
     pub backoff_max: Duration,
 }
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum Transport {
     Plaintext {
         name: Option<Box<[u8]>>,

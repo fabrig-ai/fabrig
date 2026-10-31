@@ -228,7 +228,10 @@ fn a_wrong_binding_or_busy_convert_does_not_take_a_valid_state() {
         world.down(Request::Run { run: Token::new(1), plan });
         match world.up.pop() {
             Some(Event::Need { .. }) => (),
-            Some(Event::Done { .. } | Event::Stop { .. } | Event::Closed) | None => panic!("held owner need"),
+            Some(
+                Event::Done { .. } | Event::Stop { .. } | Event::Refused { .. } | Event::Removed { .. } | Event::Closed,
+            )
+            | None => panic!("held owner need"),
         }
         world.convert(2, CONVERT_FORGE, &state);
         assert_eq!(
@@ -255,7 +258,7 @@ fn a_started_failed_convert_cannot_reuse_its_state() {
         let mut world = ConvertHost::new();
         let state = world.state(CONVERT_FORGE, Purpose::Convert);
         // A terminal scripted reply or the deadline halts at the conversion step.
-        let forge = super::configured(&world.host.settings, CONVERT_FORGE);
+        let forge = super::configured(&world.host.forges, CONVERT_FORGE).expect("fixture forge");
         let mut run = super::run::Run::new(
             forge,
             Plan::Convert { forge: CONVERT_FORGE, code: secret(CONVERT_CODE), state: state.clone() },

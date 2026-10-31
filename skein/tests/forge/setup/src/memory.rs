@@ -129,6 +129,7 @@ fn copy_io(request: &skein_io::Request) -> skein_io::Request {
 }
 fn request_bytes(request: &Request) -> usize {
     match request {
+        Request::Add { .. } | Request::Remove { .. } => panic!("unexpected setup host request"),
         Request::Answer { answer: Answer::Read(Some(bytes)), .. } => bytes.len(),
         Request::Run { plan, .. } => match plan {
             Plan::Reconcile { adopted, .. } => adopted.len() * size_of::<u64>(),

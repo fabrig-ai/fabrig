@@ -501,6 +501,15 @@ pub(crate) fn advance(engine: &mut crate::engine::Engine) {
             }
             host::Event::Done { run, outcome } => lifecycle::done(engine, run, outcome),
             host::Event::Stop { run, failure } => lifecycle::stopped(engine, run, failure),
+            host::Event::Refused { forge, .. } | host::Event::Removed { forge } => {
+                engine.notes.push(crate::Note::ForgeSetupStopped {
+                    number: forge,
+                    why: crate::SetupStopped::Stopped {
+                        plan: crate::SetupPlan::Reconcile,
+                        step: crate::SetupStep { stage: reconcile::Stage::Admin, why: reconcile::Why::Unexpected },
+                    },
+                });
+            }
             host::Event::Closed => engine.setup.closed = true,
         }
         if engine.end.is_some() {

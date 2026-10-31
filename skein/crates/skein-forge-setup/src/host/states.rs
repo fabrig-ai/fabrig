@@ -86,6 +86,15 @@ impl States {
             Err(Failure { forge, step: Stage::State, subject: purpose.name().into(), why: Why::Unknown })
         }
     }
+    /// Forget every binding belonging to a removed forge (5.7).
+    pub(super) fn remove(&mut self, forge: u16) {
+        for _ in 0..self.entries.len() {
+            let entry = self.entries.pop().expect("bounded traversal");
+            if entry.forge != forge {
+                self.entries.push(entry);
+            }
+        }
+    }
     /// Close forgets every binding without arming an expiry timer (5.7).
     pub(super) fn clear(&mut self) {
         self.entries.clear();

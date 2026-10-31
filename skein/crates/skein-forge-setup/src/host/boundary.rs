@@ -1,4 +1,5 @@
 //! The owner's plans, answers and retained items (forge-setup.md, 6.3).
+use super::Forge;
 use crate::{
     github::manifest::Target,
     item::Item,
@@ -107,8 +108,17 @@ pub(super) enum Dialect {
     GitHub,
     Both,
 }
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, Debug)]
+#[expect(clippy::large_enum_variant, reason = "Add carries the owner's complete Forge by value at this boundary")]
 pub enum Request {
+    /// One more forge, as one in the settings (forge-setup.md, 6.3).
+    Add {
+        forge: Forge,
+    },
+    /// Ends a forge's runs and forgets it; `Event::Removed` answers.
+    Remove {
+        forge: u16,
+    },
     Run {
         run: Token,
         plan: Plan,
@@ -136,8 +146,18 @@ pub enum Need {
 }
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Event {
+    Refused { forge: u16, why: AddRefused },
+    Removed { forge: u16 },
     Need { run: Token, need: Need },
     Done { run: Token, outcome: Outcome },
     Stop { run: Token, failure: Failure },
     Closed,
+}
+
+/// Why an addition left the host's forges unchanged (forge-setup.md, 6.3).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum AddRefused {
+    Served,
+    Full,
+    Invalid,
 }

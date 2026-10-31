@@ -1428,3 +1428,18 @@ fn abort_when_idle_is_closed_at_once() {
     assert!(w.io.is_empty());
     assert_eq!(w.host.next_deadline(), None);
 }
+
+#[test]
+fn a_runtime_forge_reconciles_to_done() {
+    const ADDED_FORGE: u16 = 2;
+    const RUN: u64 = 1;
+    let mut world = World::with(limits(), settings(&[]));
+    world.down(Request::Add { forge: forge(ADDED_FORGE) });
+    world.run(RUN, ADDED_FORGE);
+    let _need = world.up.pop();
+    world.finish_reconcile();
+    assert_eq!(world.up.pop(), Some(Event::Done { run: Token::new(RUN), outcome: Outcome::Nothing }));
+    assert!(world.up.is_empty());
+    assert!(world.io.is_empty());
+    assert_eq!(world.host.next_deadline(), None);
+}
