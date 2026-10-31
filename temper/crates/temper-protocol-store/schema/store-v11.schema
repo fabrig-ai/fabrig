@@ -1,4 +1,4 @@
-family temper-store 10
+family temper-store 11
 
 # 04.2: values the families share (protocol/store.md, 2 and 3).
 record Repository { forge: u16 repository: u32 }
@@ -241,5 +241,23 @@ record ReceiptKey { project: u32 repository: Repository check_name: ReceiptCheck
 record ReceiptRun { id: u64 number: u64 url: bytes 2048 }
 record Receipt { passed: bool run: ReceiptRun candidate: fixed 32 ended: u64 }
 record ReceiptRow { key: ReceiptKey receipt: Receipt }
-enum Value { call: Call, proposed_effect: ProposedEffect, repository: Adopted, hold: Hold, names: Names, subscription: Subscriber, branch_head: BranchHead, pull_state: PullState, ci: CiState, landed: Landed, entry: EntryRow, client: ClientRow, change: boxed ChangeRow, issue: boxed IssueRow, release: ReleaseRow, application: Application, writer: ForgeWriter, demo: Demo, binding: Binding, demo_act: DemoAct, flight: Flight, landing: LandingRow, receipt: ReceiptRow }
+# 04.2: families 25 to 27 (temper/docs/design/draft/playground-reset.md, 3 and 6.1).
+enum ForgeKind { forgejo, github }
+enum ForgeMode { connected, managed, owned, fake }
+record Address { host: bytes 255 port: u16 tls: option bytes 255 }
+record Place { api: Address git: bytes 2048 web: option bytes 2048 }
+record Bot { login: bytes 255 name: bytes 255 email: bytes 255 }
+record ExistingFirst { project: u32 }
+record NewFirst { name: bytes 4096 }
+enum FirstProject { existing: ExistingFirst, new: NewFirst }
+record FirstIntent { playground: bool org: bytes 4096 repository: bytes 4096 project: FirstProject label: bytes 64 }
+record EndedForge { secrets_erased: bool box_removed: bool }
+enum ForgeState { kept, ended: EndedForge }
+record Forge { number: u16 kind: ForgeKind mode: ForgeMode state: ForgeState place: Place read_only: bool bot: Bot asked: bool first: option FirstIntent }
+record ForgeNumber { last: u16 }
+enum ResetStep { project, forge, account }
+record Resetting { step: ResetStep }
+enum PlaygroundState { starting, running, resetting: Resetting }
+record Playground { state: PlaygroundState forge: u16 project: option u32 account: option u32 }
+enum Value { call: Call, proposed_effect: ProposedEffect, repository: Adopted, hold: Hold, names: Names, subscription: Subscriber, branch_head: BranchHead, pull_state: PullState, ci: CiState, landed: Landed, entry: EntryRow, client: ClientRow, change: boxed ChangeRow, issue: boxed IssueRow, release: ReleaseRow, application: Application, writer: ForgeWriter, demo: Demo, binding: Binding, demo_act: DemoAct, flight: Flight, landing: LandingRow, receipt: ReceiptRow, forge: Forge, forge_number: ForgeNumber, playground: Playground }
 versioned record Row { value: Value }

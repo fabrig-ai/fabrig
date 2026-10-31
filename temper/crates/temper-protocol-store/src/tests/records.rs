@@ -1,5 +1,5 @@
 use super::fixtures;
-use crate::{records, v10};
+use crate::{records, v11};
 use temper_engine_domain_forge as forge;
 
 #[test]
@@ -55,7 +55,7 @@ fn bounds_take_each_limit_from_its_source() {
 #[test]
 fn bounds_refuse_sources_past_schema_ceilings() {
     let mut larger = fixtures::LIMITS;
-    larger.name_bytes = v10::CEILINGS.adopted_host.checked_add(1).expect("one past ceiling");
+    larger.name_bytes = v11::CEILINGS.adopted_host.checked_add(1).expect("one past ceiling");
     assert_eq!(crate::bounds(&larger, fixtures::LIMITS.client.op_bytes), None);
 }
 
@@ -713,21 +713,21 @@ fn every_application_outcome_preserves_its_complete_record() {
     assert!(
         jig_protocol_store::people_v13::Refusal::encoded_bound(&jig_protocol_store::people_v13::CEILINGS)
             .expect("bounded facts")
-            <= u64::from(v10::CEILINGS.core_refused_refusal)
+            <= u64::from(v11::CEILINGS.core_refused_refusal)
     );
 }
 #[test]
 fn application_decoding_refuses_malformed_refusal_facts() {
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
     for refusal in [Box::from([255]), Box::from([2]), Box::from([9, 0])] {
-        let value = v10::CoreRefused::new(&v10::CEILINGS, v10::CoreRefusedParts { refusal }).expect("small piece");
-        let application = v10::Application::new(
-            &v10::CEILINGS,
-            v10::ApplicationParts { token: 9, until: 10, outcome: v10::ApplicationOutcome::CoreRefused(value) },
+        let value = v11::CoreRefused::new(&v11::CEILINGS, v11::CoreRefusedParts { refusal }).expect("small piece");
+        let application = v11::Application::new(
+            &v11::CEILINGS,
+            v11::ApplicationParts { token: 9, until: 10, outcome: v11::ApplicationOutcome::CoreRefused(value) },
         )
         .expect("application");
         let row =
-            v10::Row::new(&v10::CEILINGS, v10::RowParts { value: v10::Value::Application(application) }).expect("row");
+            v11::Row::new(&v11::CEILINGS, v11::RowParts { value: v11::Value::Application(application) }).expect("row");
         assert_eq!(records::decode(&fixtures::encoded_row(&row), &bounds), Err(crate::Undecodable));
     }
 }
@@ -773,7 +773,7 @@ fn forge_writers_round_trip_with_the_v6_golden_bytes() {
         let key = crate::keys::encode(&forge::stored_key(&row), u32::MAX).expect("writer key");
         let bytes = records::encode(&row);
         assert_eq!(bytes.len(), 13); // Row version, family, forge, author.
-        assert_eq!(&bytes[..3], &[0, 10, 16]);
+        assert_eq!(&bytes[..3], &[0, 11, 16]);
         assert_eq!(records::row(&key, &bytes, &bounds), Ok(row));
         if forge == u16::MAX {
             let mut golden = [255; 11];
@@ -797,7 +797,7 @@ fn demo_states_round_trip_and_refuse_a_mismatched_key() {
             let key = crate::keys::encode(&forge::Key::Demo(forge), u32::MAX).expect("demo key");
             let bytes = records::encode(&row);
             assert_eq!(bytes.len(), 6);
-            assert_eq!(&bytes[..3], &[0, 10, 17]);
+            assert_eq!(&bytes[..3], &[0, 11, 17]);
             assert_eq!(records::row(&key, &bytes, &bounds), Ok(row));
             let other = crate::keys::encode(&forge::Key::Demo(forge ^ 1), u32::MAX).expect("other key");
             assert_eq!(records::row(&other, &bytes, &bounds), Err(crate::Undecodable));
@@ -821,7 +821,7 @@ fn binding_rows_round_trip_at_the_field_bounds() {
     ] {
         let row = forge::Stored::Binding { address, subject };
         let bytes = records::encode(&row);
-        assert_eq!(&bytes[..3], &[0, 10, 18]);
+        assert_eq!(&bytes[..3], &[0, 11, 18]);
         let key = crate::keys::encode(&forge::stored_key(&row), u32::MAX).unwrap();
         assert_eq!(records::row(&key, &bytes, &bounds), Ok(row));
         let other =
@@ -846,7 +846,7 @@ fn binding_decoder_preserves_bounded_noncanonical_addresses() {
 }
 #[test]
 fn binding_schema_refuses_fields_one_past_their_bounds() {
-    use crate::v10 as w;
+    use crate::v11 as w;
     for (address, subject) in [
         (Box::from([b'a'; 255]), b"subject".as_slice().into()),
         (b"sam@example.com".as_slice().into(), Box::from([b's'; 256])),
@@ -862,7 +862,7 @@ fn embedded_people_refusals_changed_at_store_nine() {
     let mut after = skein_lib::Writer::new(1);
     jig_protocol_store::people_v13::Refusal::Unknown.encode(&mut after).unwrap();
     assert_eq!(after.finish().as_ref(), &[10]);
-    assert_eq!(crate::STORE_VERSION, 10);
+    assert_eq!(crate::STORE_VERSION, 11);
 }
 
 #[test]
