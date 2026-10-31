@@ -514,7 +514,7 @@ impl Domain {
             return Err(skein_forge::api::Error::TooLarge);
         }
         let (configured, forge_number) = crate::forges::document(l.forges, forges)?;
-        let mut credentials = Map::with_capacity(l.repositories);
+        let mut credentials = Map::with_capacity(l.forges);
         for identity in identities {
             if credentials.insert(identity.forge, identity.credential).is_err() {
                 return Err(skein_forge::api::Error::TooLarge);
@@ -4795,6 +4795,7 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
     match record {
         Stored::Forge(record) => {
             make::restore_first(d, &record);
+            d.identities.insert(record.number, u32::from(record.number)).expect("restored forge credential fits");
             d.configured
                 .insert(record.number, crate::forges::configured_of(&record))
                 .expect("restored configured forge fits");
