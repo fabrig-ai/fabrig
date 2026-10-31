@@ -153,25 +153,7 @@ impl Host for Client {
         }
         let io_env = Env { now, wall, limits: self.limits.io };
         let env = Env { now, wall, limits: self.limits };
-        for _ in 0..ROOM {
-            if self.submissions.room() < 2 || !self.io.is_ready() {
-                break;
-            }
-            io::resume(&mut self.io, &io_env, &mut self.io_events, &mut self.submissions);
-        }
-        for _ in 0..ROOM {
-            if self.submissions.room() < 2 {
-                break;
-            }
-            let Some(complete) = self.completions.pop() else { break };
-            io::up(&mut self.io, &io_env, complete, &mut self.io_events, &mut self.submissions);
-        }
-        for _ in 0..ROOM {
-            if self.submissions.room() < 2 || !self.io.is_due(now) {
-                break;
-            }
-            io::fire(&mut self.io, &io_env, &mut self.io_events, &mut self.submissions);
-        }
+        io::stage::up(&mut self.io, &io_env, &mut self.completions, &mut self.io_events, &mut self.submissions);
         for _ in 0..ROOM {
             let Some(event) = self.io_events.pop() else { break };
             self.component.as_mut().expect("io follows Start").up(&env, event, &mut self.events, &mut self.requests);
@@ -219,13 +201,7 @@ impl Host for Client {
             assert!(self.received.len() < 32, "bounded owner observations");
             self.received.push(event);
         }
-        for _ in 0..ROOM {
-            if !self.io.takes() || self.submissions.room() < 2 {
-                break;
-            }
-            let Some(request) = self.requests.pop() else { break };
-            io::down(&mut self.io, &io_env, request, &mut self.submissions);
-        }
+        io::stage::down(&mut self.io, &io_env, &mut self.requests, &mut self.submissions);
         self.io.reclaim();
         if let Some(component) = &mut self.component {
             component.reclaim();
@@ -248,11 +224,8 @@ impl Host for Client {
                 component.has_work() || component.next_deadline().is_some_and(|due| due <= now)
             })
     }
-    fn next_deadline(&self) -> Option<Time> {
-        [self.io.next_deadline(), self.component.as_ref().and_then(Component::next_deadline)]
-            .into_iter()
-            .flatten()
-            .min()
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        self.io.next_deadline()
     }
 
     fn next_policy_deadline(&self) -> Option<Time> {
