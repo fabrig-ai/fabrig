@@ -3,6 +3,7 @@ static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Co
 
 mod authorize;
 mod closing;
+mod placed_hold_client;
 mod placed_holds;
 mod provider;
 mod reads;

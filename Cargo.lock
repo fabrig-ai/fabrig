@@ -395,6 +395,9 @@ dependencies = [
 [[package]]
 name = "jig-boundary"
 version = "0.0.0"
+dependencies = [
+ "serde_json",
+]
 
 [[package]]
 name = "jig-brief-world"
@@ -761,7 +764,6 @@ dependencies = [
  "jig-domain-people",
  "jig-domain-tasks",
  "jig-domain-views",
- "jig-engine-clients-world",
  "jig-fake-parties",
  "jig-fake-workers",
  "jig-protocol-engine-clients",
