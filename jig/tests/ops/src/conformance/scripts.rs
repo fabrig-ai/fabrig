@@ -390,7 +390,7 @@ impl Agents {
             )],
             Role::Uncued => Vec::new(),
         };
-        steps.into_iter().nth(usize::try_from(index).expect("small index")).unwrap_or(Step::Yield)
+        steps.into_iter().nth(skein_lib::length::usize_of(index)).unwrap_or(Step::Yield)
     }
 }
 
@@ -441,7 +441,7 @@ fn name(activation: u64, completion: u32) -> Box<[u8]> {
         smith_channel::v5::CallNameParts { activation, completion, position: 0 },
     )
     .expect("script call name");
-    let mut encoded = skein_lib::Writer::new(usize::try_from(name.measure()).expect("call name size"));
+    let mut encoded = skein_lib::Writer::new(skein_lib::length::usize_of(name.measure()));
     name.encode(&mut encoded).expect("measured call name");
     encoded.finish()
 }
@@ -543,7 +543,7 @@ fn turn(agent: &Agent, texts: &[Vec<u8>], step: &Step) -> Box<[u8]> {
         },
     )
     .expect("bounded turn");
-    let mut writer = Writer::new(usize::try_from(value.measure()).expect("turn size"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
     value.encode(&mut writer).expect("measured turn");
     writer.finish()
 }
@@ -601,7 +601,7 @@ pub(super) fn result(
         },
     )
     .expect("bounded result");
-    let mut writer = Writer::new(usize::try_from(value.measure()).expect("result size"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
     value.encode(&mut writer).expect("measured result");
     writer.finish()
 }

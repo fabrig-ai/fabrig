@@ -317,8 +317,6 @@ pub(crate) fn recovery_decode(value: w::InfrastructureRecovery) -> d::Recovery {
         w::InfrastructureRecovery::Unrecoverable => d::Recovery::Unrecoverable,
     }
 }
-
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn description_encode(value: &d::Description) -> Result<w::InfrastructureDescription, Invalid> {
     let parts = w::InfrastructureDescriptionParts {
         kind: (value.kind),
@@ -346,7 +344,6 @@ pub(crate) fn description_encode(value: &d::Description) -> Result<w::Infrastruc
     let Ok(value) = w::InfrastructureDescription::new(&w::CEILINGS, parts) else { return Err(Invalid) };
     Ok(value)
 }
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn description_decode(value: w::InfrastructureDescription) -> d::Description {
     let value = value.into_parts();
     d::Description {

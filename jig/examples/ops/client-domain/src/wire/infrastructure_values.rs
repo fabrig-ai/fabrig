@@ -83,8 +83,6 @@ pub(crate) fn kind_encode(value: &d::Kind) -> Result<w::InfrastructureKind, Inva
         d::Kind::Deployment => w::InfrastructureKind::Deployment,
     })
 }
-
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn kind_decode(value: w::InfrastructureKind) -> d::Kind {
     match value {
         w::InfrastructureKind::Environment(value) => {
