@@ -471,7 +471,7 @@ fn wires_commit_holds_its_continuation_before_any_connector_read() {
 }
 
 #[test]
-fn a_store_page_refusal_stops_with_its_typed_cause_and_phase() {
+fn a_store_page_refusal_stops_with_its_cause_and_phase() {
     use jig_protocol_store::restore::{Cause, Failure as PageFailure, RangeFailure};
     let mut host = Host::new(Vec::new());
     host.begin();

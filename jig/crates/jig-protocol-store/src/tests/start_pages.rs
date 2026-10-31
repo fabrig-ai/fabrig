@@ -274,7 +274,7 @@ fn selected_pages_share_the_empty_nonterminal_progress_assertion() {
 }
 
 #[test]
-fn a_connector_page_keeps_its_untyped_bytes() {
+fn a_connector_page_keeps_its_bytes() {
     let mut store = open();
     fixtures::committed(
         &mut store,
