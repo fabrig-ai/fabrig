@@ -235,7 +235,7 @@ pub(super) fn live_page(core: &Core, limits: &Limits, party: u64, read: &Read, d
                             Some(Cursor::Store { .. }) | None => None,
                         },
                     };
-                    if group.updates() && value.cached_updates != documents::Count::Known(0) {
+                    if value.cached_needs != 0 || value.cached_updates != documents::Count::Known(0) {
                         Some(Cursor::Store { scope, after })
                     } else {
                         None
