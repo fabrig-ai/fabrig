@@ -7,17 +7,7 @@ use smith_host_domain::{self as host, parent};
 use crate::{Below, Domain, Input, Limits, Lower, Output, fire, resume, step, translate};
 
 fn bounds() -> Limits {
-    let smith = smith_agent_world::LIMITS;
-    Limits {
-        slots: 2,
-        smith,
-        window: smith::Window {
-            turns: 8,
-            bytes: smith::max_turn_bytes(&smith).expect("root bound").checked_mul(8).expect("small window"),
-        },
-        wall_time: Duration::from_secs(3600),
-        cancel_grace: Duration::from_secs(5),
-    }
+    crate::fixture::small(smith_agent_world::LIMITS)
 }
 
 fn configuration() -> smith::Config {

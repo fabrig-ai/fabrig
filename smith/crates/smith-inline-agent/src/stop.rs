@@ -49,15 +49,13 @@ pub(crate) fn drop_run(agent: &mut Domain, now: Time, id: Id<Slot>, out: &mut Qu
     if unanswered {
         slot.state = Stage::Settling(Settling::Dropped);
     }
-    slot.turns = skein_lib::Map::with_capacity(slot.turns.capacity());
+    slot.turns = skein_lib::Set::with_capacity(slot.turns.capacity());
     let client = slot.client;
     if unanswered {
         if let Some(names) = slot.inbox.report() {
             out.push(Output::Parent(parent::Request::Unread { client, names }));
         }
         out.push(Output::Parent(parent::Request::Faulted { client, fault: smith_host_domain::Fault::Exited }));
-    }
-    if unanswered {
         observe(agent, now, FactKind::Dropped { client });
     }
     cleanup(agent, now, id, out);

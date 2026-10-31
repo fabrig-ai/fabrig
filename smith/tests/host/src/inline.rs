@@ -25,14 +25,7 @@ struct Binding {
 /// Checked two-slot capacities, sharing the agent world's shipped root bounds.
 #[must_use]
 pub fn limits() -> inline::Limits {
-    let smith = smith_agent_world::LIMITS;
-    inline::Limits {
-        slots: 2,
-        smith,
-        window: smith::Window { turns: 8, bytes: smith::max_turn_bytes(&smith).expect("root turn bound") * 8 },
-        wall_time: Duration::from_secs(3600),
-        cancel_grace: Duration::from_secs(5),
-    }
+    inline::fixture::small(smith_agent_world::LIMITS)
 }
 
 /// Explicit value declarations for the existing native fake scripts.

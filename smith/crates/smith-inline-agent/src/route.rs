@@ -33,10 +33,7 @@ pub(crate) fn route(agent: &mut Domain, env: &Env<Limits>, id: Id<Slot>, out: &m
                 slot.inbox.fence(read);
                 let body = host::TurnValue::new(turn, u64::MAX).expect("root concrete turns have checked ownership");
                 assert!(
-                    slot.turns
-                        .insert(number, body.owned_bytes())
-                        .expect("root respects the acknowledgement window")
-                        .is_none(),
+                    slot.turns.insert(number).expect("root respects the acknowledgement window"),
                     "root output preserves its scoped identity and single right"
                 );
                 out.push(Output::Parent(parent::Request::Turn {

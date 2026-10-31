@@ -12,7 +12,7 @@ skein-lib.workspace = true
 skein-world.workspace = true
 smith-host-domain = { workspace = true, features = ["fixture"] }
 smith-domain.workspace = true
-smith-inline-agent.workspace = true
+smith-inline-agent = { workspace = true, features = ["fixture"] }
 smith-agent-world.workspace = true
 smith-machine-world.workspace = true
 smith-protocol-machine.workspace = true

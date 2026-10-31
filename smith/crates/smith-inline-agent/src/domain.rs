@@ -5,7 +5,7 @@
 //! callbacks. The parent owns told payloads; exact ACK metadata stays here.
 
 use alloc::boxed::Box;
-use skein_lib::{Env, Id, List, Map, Queue, Slab, Time, Token};
+use skein_lib::{Env, Id, List, Map, Queue, Set, Slab, Time, Token};
 use smith_domain as smith;
 use smith_host_domain::{self as host, parent};
 
@@ -31,7 +31,7 @@ pub(crate) struct Slot {
     pub(crate) machine: Map<Token, crate::workspace::Machine>,
     pub(crate) next_call: u64,
     pub(crate) relays: Map<Token, Relay>,
-    pub(crate) turns: Map<u32, u64>,
+    pub(crate) turns: Set<u32>,
     pub(crate) inbox: host::Inbox,
     pub(crate) facts_drained: bool,
     pub(crate) content_drained: bool,
@@ -251,7 +251,7 @@ fn spawn(agent: &mut Domain, env: &Env<Limits>, client: Token, start: host::Star
         machine: Map::with_capacity(env.limits.smith.run.runs),
         next_call: 0,
         relays: Map::with_capacity(crate::workspace::call_capacity(&env.limits)),
-        turns: Map::with_capacity(env.limits.window.turns),
+        turns: Set::with_capacity(env.limits.window.turns),
         inbox,
         facts_drained: false,
         content_drained: false,
@@ -327,7 +327,7 @@ fn command(agent: &mut Domain, env: &Env<Limits>, event: parent::Event, out: &mu
             let Some(slot) = agent.slots.get_mut(id) else {
                 return;
             };
-            if slot.turns.remove(&turn).is_none() {
+            if !slot.turns.remove(&turn) {
                 return;
             }
             let run = slot.run;
