@@ -36,28 +36,19 @@ impl TraceCase {
             return stopped_reasoning_peer();
         }
         let turns = match self {
-            Self::Accepted => vec![api::Turn {
-                lines: Box::new([api::Line::Call {
+            Self::Accepted => vec![smith_agent_world::fixture::calls(
+                Box::new([api::Line::Call {
                     name: b"finish".as_slice().into(),
                     arguments: br#"{"form":"report","text":"done","fields":{}}"#.as_slice().into(),
                 }]),
-                finish: api::Finish::ToolCalls,
-                tokens: 1,
-            }],
+                1,
+            )],
             Self::Parked => vec![
-                api::Turn {
-                    lines: Box::new([api::Line::Call {
-                        name: b"wait".as_slice().into(),
-                        arguments: b"{}".as_slice().into(),
-                    }]),
-                    finish: api::Finish::ToolCalls,
-                    tokens: 1,
-                },
-                api::Turn {
-                    lines: Box::new([api::Line::Text { text: b"Waiting".as_slice().into() }]),
-                    finish: api::Finish::Stop,
-                    tokens: 1,
-                },
+                smith_agent_world::fixture::calls(
+                    Box::new([api::Line::Call { name: b"wait".as_slice().into(), arguments: b"{}".as_slice().into() }]),
+                    1,
+                ),
+                smith_agent_world::fixture::says(Box::new([api::Line::Text { text: b"Waiting".as_slice().into() }]), 1),
             ],
             Self::Failed | Self::Refused | Self::Cancelled => return fake::peer_for(anthropic),
             Self::ProviderRejected => return fake::rejected(),
@@ -82,11 +73,10 @@ fn child_peer(anthropic: bool, three: bool, credential: skein_llm::Credential) -
         let cue = if three { format!("@event-child-{index}") } else { "@event-child".to_owned() };
         scripts.push(api::Script {
             cue: cue.clone().into_bytes().into_boxed_slice(),
-            turns: Box::new([api::Turn {
-                lines: Box::new([api::Line::Text { text: b"child answer".as_slice().into() }]),
-                finish: api::Finish::Stop,
-                tokens: 1,
-            }]),
+            turns: Box::new([smith_agent_world::fixture::says(
+                Box::new([api::Line::Text { text: b"child answer".as_slice().into() }]),
+                1,
+            )]),
         });
         calls.push(api::Line::Call {
             name: b"sub_agent".as_slice().into(),
@@ -98,15 +88,14 @@ fn child_peer(anthropic: bool, three: bool, credential: skein_llm::Credential) -
     scripts.push(api::Script {
         cue: b"@event-main".as_slice().into(),
         turns: Box::new([
-            api::Turn { lines: calls.into_boxed_slice(), finish: api::Finish::ToolCalls, tokens: 1 },
-            api::Turn {
-                lines: Box::new([api::Line::Call {
+            smith_agent_world::fixture::calls(calls.into_boxed_slice(), 1),
+            smith_agent_world::fixture::calls(
+                Box::new([api::Line::Call {
                     name: b"finish".as_slice().into(),
                     arguments: br#"{"form":"report","text":"done","fields":{}}"#.as_slice().into(),
                 }]),
-                finish: api::Finish::ToolCalls,
-                tokens: 1,
-            },
+                1,
+            ),
         ]),
     });
     if anthropic {
@@ -138,19 +127,14 @@ pub(super) fn environment_peer() -> skein_fake_peers::llm::Peer {
         Box::new([api::Script {
             cue: Box::new([]),
             turns: Box::new([
-                api::Turn {
-                    lines: Box::new([api::Line::Call {
+                smith_agent_world::fixture::calls(
+                    Box::new([api::Line::Call {
                         name: b"shell".as_slice().into(),
                         arguments: br#"{"command":"true"}"#.as_slice().into(),
                     }]),
-                    finish: api::Finish::ToolCalls,
-                    tokens: 1,
-                },
-                api::Turn {
-                    lines: Box::new([api::Line::Text { text: b"done".as_slice().into() }]),
-                    finish: api::Finish::Stop,
-                    tokens: 1,
-                },
+                    1,
+                ),
+                smith_agent_world::fixture::says(Box::new([api::Line::Text { text: b"done".as_slice().into() }]), 1),
             ]),
         }]),
         fake::credential(false),
@@ -163,16 +147,11 @@ fn stopped_reasoning_peer() -> skein_fake_peers::llm::Peer {
     fake::reasoning(Box::new([api::Script {
         cue: Box::new([]),
         turns: Box::new([
-            api::Turn {
-                lines: Box::new([api::Line::Call {
+            smith_agent_world::fixture::calls(Box::new([api::Line::Call {
                     name: b"read".as_slice().into(),
                     arguments: br#"{"path":"problem.txt"}"#.as_slice().into(),
-                }]),
-                finish: api::Finish::ToolCalls,
-                tokens: 1,
-            },
-            api::Turn {
-                lines: Box::new([
+                }]), 1),
+            smith_agent_world::fixture::says(Box::new([
                     api::Line::Opaque {
                         bytes: format!(
                             r#"{{"id":"r2","type":"reasoning","encrypted_content":"{}","summary":[]}}"#,
@@ -198,18 +177,11 @@ fn stopped_reasoning_peer() -> skein_fake_peers::llm::Peer {
                         .into_bytes()
                         .into(),
                     },
-                ]),
-                finish: api::Finish::Stop,
-                tokens: 1,
-            },
-            api::Turn {
-                lines: Box::new([api::Line::Call {
+                ]), 1),
+            smith_agent_world::fixture::calls(Box::new([api::Line::Call {
                     name: b"finish".as_slice().into(),
                     arguments: br#"{"form":"report","text":"REASONING COMPLETE","fields":{}}"#.as_slice().into(),
-                }]),
-                finish: api::Finish::ToolCalls,
-                tokens: 1,
-            },
+                }]), 1),
         ]),
     }]))
 }
@@ -248,11 +220,10 @@ impl<'a> Peer<'a> {
             Self::Refreshing => fake::configured(
                 Box::new([skein_fake_llm_domain::api::Script {
                     cue: Box::new([]),
-                    turns: Box::new([skein_fake_llm_domain::api::Turn {
-                        lines: Box::new([skein_fake_llm_domain::api::Line::Text { text: Box::from(&b"Hello"[..]) }]),
-                        finish: skein_fake_llm_domain::api::Finish::Stop,
-                        tokens: 1,
-                    }]),
+                    turns: Box::new([smith_agent_world::fixture::says(
+                        Box::new([skein_fake_llm_domain::api::Line::Text { text: Box::from(&b"Hello"[..]) }]),
+                        1,
+                    )]),
                 }]),
                 crate::scenario_credential(false, false),
                 Duration::from_secs(1),
@@ -269,8 +240,8 @@ fn full_completion() -> skein_fake_peers::llm::Peer {
     fake::configured(
         Box::new([skein_fake_llm_domain::api::Script {
             cue: Box::new([]),
-            turns: Box::new([skein_fake_llm_domain::api::Turn {
-                lines: (0..crate::limits().llm.adapter.client.output_items)
+            turns: Box::new([smith_agent_world::fixture::says(
+                (0..crate::limits().llm.adapter.client.output_items)
                     .map(|index| skein_fake_llm_domain::api::Line::Text {
                         // First response metadata is item_1_<index> and final_answer.
                         text: vec![
@@ -292,9 +263,8 @@ fn full_completion() -> skein_fake_peers::llm::Peer {
                         .into_boxed_slice(),
                     })
                     .collect(),
-                finish: skein_fake_llm_domain::api::Finish::Stop,
-                tokens: 1,
-            }]),
+                1,
+            )]),
         }]),
         fake::credential(false),
         Duration::ZERO,

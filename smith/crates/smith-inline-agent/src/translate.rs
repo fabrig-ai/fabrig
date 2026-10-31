@@ -44,7 +44,7 @@ pub(crate) fn start(client: Token, source: host::Start, limits: &Limits) -> Resu
         Some(value) => Some(value.into_value()),
         None => None,
     };
-    Ok(smith::Event::Start {
+    Ok(smith::Event::Start(smith::Start {
         reply_to: ReplyTo::new(client),
         host_run: source.logical_run,
         activation: source.activation,
@@ -56,7 +56,7 @@ pub(crate) fn start(client: Token, source: host::Start, limits: &Limits) -> Resu
         transcript,
         answered: answered.into_boxed(),
         grants: grants.into_boxed(),
-    })
+    }))
 }
 
 fn checked_count(length: usize) -> Result<u32, host::Invalid> {

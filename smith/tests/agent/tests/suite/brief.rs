@@ -341,7 +341,6 @@ fn ordered_sections_and_instructions_reach_main_but_child_receives_only_its_own_
 
 #[test]
 fn the_first_provider_request_contains_the_carried_messages_with_the_briefs_instruction() {
-    use skein_lib::ReplyTo;
     let settings = Settings { job: Job::Reporting, network: Span::millis(1, 1), ..Settings::calm(1191) };
     for has_brief in [true, false] {
         let mut charter = charter(&settings, "@carried-opening");
@@ -349,7 +348,7 @@ fn the_first_provider_request_contains_the_carried_messages_with_the_briefs_inst
             charter.brief.sections = Box::new([]);
         }
         let (disk, mounted) = workspace();
-        let start = smith_domain::Event::Start {
+        let start = smith_domain::Event::Start(smith_domain::Start {
             messages: Box::new([
                 run::Message {
                     finish_requested: false,
@@ -364,21 +363,15 @@ fn the_first_provider_request_contains_the_carried_messages_with_the_briefs_inst
                     text: b"second".as_slice().into(),
                 },
             ]),
-            reply_to: ReplyTo::new(Token::new(1)),
-            host_run: Token::new(1),
-            identity: None,
-            activation: 1,
             window: smith_domain::Window { turns: 100, bytes: u64::MAX },
-            charter,
             workspace: Some(mounted),
-            transcript: None,
-            answered: Box::default(),
             grants: Box::new([smith_domain::Grant {
                 renewable: true,
                 name: smith_domain::GrantName { account: 0, generation: 1 },
                 valid: skein_lib::Duration::from_secs(7200),
             }]),
-        };
+            ..smith_domain::fixture::start(Token::new(1), charter)
+        });
         let scripts = Box::new([Script {
             cue: b"@carried-opening".as_slice().into(),
             turns: Box::new([calls(vec![call(b"finish", FINISH_INPUT)], 1)]),
@@ -560,24 +553,19 @@ fn resume_on_message(
     saved: smith_domain::Transcript,
     message: run::Message,
 ) -> World {
-    use skein_lib::{Duration, ReplyTo};
-    let start = smith_domain::Event::Start {
-        reply_to: ReplyTo::new(Token::new(1)),
-        host_run: Token::new(1),
-        identity: None,
+    use skein_lib::Duration;
+    let start = smith_domain::Event::Start(smith_domain::Start {
         activation: 2,
         window: smith_domain::Window { turns: u32::MAX, bytes: u64::MAX },
-        charter,
-        workspace: None,
         transcript: Some(saved),
-        answered: Box::default(),
         grants: Box::new([smith_domain::Grant {
             renewable: true,
             name: smith_domain::GrantName { account: 0, generation: 1 },
             valid: Duration::from_secs(7200),
         }]),
         messages: Box::new([message]),
-    };
+        ..smith_domain::fixture::start(Token::new(1), charter)
+    });
     World::with_workspace_scripts_start(*settings, Checkout::new(), scripts, start)
 }
 

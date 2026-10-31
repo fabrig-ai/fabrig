@@ -5,7 +5,7 @@ use smith_agent_process_world::{
     program_world::{self, Case},
 };
 use smith_channel::RunResult;
-use smith_fake_claude::{End, Resume, Seen, Step, Story, Turn};
+use smith_fake_claude::{Resume, Seen, Step, Story, Turn};
 
 fn charter() -> Box<[u8]> {
     smith_agent_process_world::wire::edit_charter(&smith_agent_process_world::charter(), |parts| {
@@ -15,14 +15,13 @@ fn charter() -> Box<[u8]> {
 }
 
 fn finish() -> api::Turn {
-    api::Turn {
-        lines: Box::new([api::Line::Call {
+    smith_agent_world::fixture::calls(
+        Box::new([api::Line::Call {
             name: b"finish".as_slice().into(),
             arguments: br#"{"form":"report","text":"done","fields":{}}"#.as_slice().into(),
         }]),
-        finish: api::Finish::ToolCalls,
-        tokens: 1,
-    }
+        1,
+    )
 }
 
 fn story() -> Story {
@@ -83,11 +82,7 @@ fn a_conversation_is_carried_over_to_the_direct_backend() {
     world.restore(turns);
     world.script(Box::new([
         finish(),
-        api::Turn {
-            lines: Box::new([api::Line::Text { text: b"direct summary".as_slice().into() }]),
-            finish: api::Finish::Stop,
-            tokens: 1,
-        },
+        smith_agent_world::fixture::says(Box::new([api::Line::Text { text: b"direct summary".as_slice().into() }]), 1),
     ]));
     assert!(world.settle());
     assert!(matches!(world.answer().expect("answer").result(), RunResult::Accepted(_)), "{:?}", world.answer());
@@ -128,17 +123,14 @@ fn a_waiting_program_run_reads_its_message() {
         smith_agent_process_world::wire::budget(parts, 8, 20);
     });
     let story = Story {
-        turns: vec![Turn {
-            steps: vec![
-                Step::CallChecked {
-                    tool: "wait".into(),
-                    input: serde_json::json!({}),
-                    contains: "The next instruction".into(),
-                },
-                Step::Outcome { input: serde_json::json!({"outcome":{"form":"report", "text":"done", "fields":{}}}) },
-            ],
-            end: End::default(),
-        }],
+        turns: vec![Turn::new(vec![
+            Step::CallChecked {
+                tool: "wait".into(),
+                input: serde_json::json!({}),
+                contains: "The next instruction".into(),
+            },
+            Step::Outcome { input: serde_json::json!({"outcome":{"form":"report", "text":"done", "fields":{}}}) },
+        ])],
         ..Story::default()
     };
     let run = program_world::run(Case::Waiting, &story, Some(b"claude.ai"), &charter, &program(b"source"), None);

@@ -53,10 +53,11 @@ smith-local-shell.workspace = true
 smith-fake-claude = { workspace = true, optional = true }
 
 [dev-dependencies]
+smith-agent-world.workspace = true
 skein-scratch.workspace = true
 smith-hosts-world = { path = "tests/hosts" }
 toml = "0.9"
-smith-events.workspace = true
+smith-events = { workspace = true, features = ["fixture"] }
 smith-bench = { path = "benchmarks" }
 skein-world.workspace = true
 skein-lib.workspace = true

@@ -130,18 +130,19 @@ fn configuration_for(
     policy.1.agent = local::AgentLimits::Spawned(host);
     let queue = EXTERNAL_QUEUE_SLOTS;
     let mut process = service::ProcessLimits {
-        io: lower.limits.io,
-        channel: smith_host_protocol::Limits {
-            bodies: lower.limits.channel.bodies,
-            charter: lower.limits.channel.charter,
-            transcript: lower.limits.channel.transcript,
-            endpoints: lower.limits.channel.endpoints,
-            channel: lower.limits.channel.channel,
-            start_bytes: lower.limits.channel.start_bytes,
-            calls: host.calls,
-        },
         detail_bytes: host.detail_bytes,
         queue,
+        ..smith_local_service::fixture::process(lower.limits.io, {
+            let mut fixture_limits = smith_host_protocol::fixture::small();
+            fixture_limits.bodies = lower.limits.channel.bodies;
+            fixture_limits.charter = lower.limits.channel.charter;
+            fixture_limits.transcript = lower.limits.channel.transcript;
+            fixture_limits.endpoints = lower.limits.channel.endpoints;
+            fixture_limits.channel = lower.limits.channel.channel;
+            fixture_limits.start_bytes = lower.limits.channel.start_bytes;
+            fixture_limits.calls = host.calls;
+            fixture_limits
+        })
     };
     process.channel.channel.output_bytes =
         smith_host_protocol::output_bytes(&process.channel).expect("host directional frame");
@@ -150,11 +151,10 @@ fn configuration_for(
             agent: service::AgentConfig::Spawned,
             local: policy.0,
             limits: service::Limits {
-                local: policy.1,
                 envelope_bytes: host.answer_bytes,
-                process,
                 queue,
                 watermark: queue,
+                ..smith_local_service::fixture::small(policy.1, process)
             },
             endpoints,
             paths: policy.2,
@@ -242,7 +242,6 @@ fn local_policy(lower: &agent::Config, change: bool, tools: bool) -> (local::Con
     };
     let native = lower.limits.domain;
     let limits = local::Limits {
-        smith: native,
         agent: local::AgentLimits::inline(
             native,
             2,
@@ -256,8 +255,8 @@ fn local_policy(lower: &agent::Config, change: bool, tools: bool) -> (local::Con
         models: 3,
         line_bytes: local::max_line_bytes(native.run.message_bytes).unwrap(),
         show_bytes: 8192,
-        unsaved: 2,
         facts: 1024,
+        ..smith_local_domain::fixture::small(native)
     };
     config.validate(&limits).expect("typed fixture local policy");
     (config, limits, paths)

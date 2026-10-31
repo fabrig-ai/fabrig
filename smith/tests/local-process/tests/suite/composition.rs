@@ -12,13 +12,11 @@ fn write_report(name: &str) -> Box<[api::Script]> {
             ("finish", r#"{"form":"report","text":"Wrote it","fields":{}}"#.into()),
         ]
         .into_iter()
-        .map(|(name, arguments)| api::Turn {
-            lines: Box::new([api::Line::Call {
-                name: name.as_bytes().into(),
-                arguments: arguments.into_bytes().into(),
-            }]),
-            finish: api::Finish::ToolCalls,
-            tokens: 1,
+        .map(|(name, arguments)| {
+            smith_agent_world::fixture::calls(
+                Box::new([api::Line::Call { name: name.as_bytes().into(), arguments: arguments.into_bytes().into() }]),
+                1,
+            )
         })
         .collect(),
     }])

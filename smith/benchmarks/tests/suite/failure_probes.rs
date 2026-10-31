@@ -169,7 +169,13 @@ fn set_completion_failure(records: &mut [smith_events::Record], completion: &smi
 // The fixture envelope admits a deliberate 1025-byte defect. The authored
 // predicate still enforces the independently derived native 1024-byte cap.
 fn observe_provider(records: &[smith_events::Record]) -> Observer {
-    let limits = smith_events::Limits { string: 2048, content: 2048, items: 16 };
+    let limits = {
+        let mut fixture_limits = smith_events::fixture::SMALL;
+        fixture_limits.string = 2048;
+        fixture_limits.content = 2048;
+        fixture_limits.items = 16;
+        fixture_limits
+    };
     crate::common::captured(records, &smith_events::Capture::Everything, &limits)
 }
 

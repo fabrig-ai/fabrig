@@ -9,7 +9,7 @@ use skein_io::kernel::{Exit, ServiceSignal};
 use smith_fake_claude::{End, Resume, Seen, Step, Story, Turn, seen};
 
 fn story(steps: Vec<Step>, end: End) -> Story {
-    Story { turns: vec![Turn { steps, end }], ..Story::default() }
+    Story { turns: vec![Turn { end, ..Turn::new(steps) }], ..Story::default() }
 }
 
 fn results(run: &support::Run) -> Vec<Value> {

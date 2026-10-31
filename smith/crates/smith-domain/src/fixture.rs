@@ -1,5 +1,6 @@
 //! Small agent admission bounds (smith/docs/design/domain/run.md, section 13).
 use crate::{Limits, run, session, tools};
+use alloc::boxed::Box;
 use skein_lib::Duration;
 
 const CEILING: session::Budget = session::Budget {
@@ -53,3 +54,21 @@ pub const SMALL: Limits = Limits {
         ..smith_domain_session::fixture::SMALL
     },
 };
+
+/// A fresh host activation with unbounded test credit and no supplied history or grants.
+#[must_use]
+pub fn start(call: skein_lib::Token, charter: run::Charter) -> crate::Start {
+    crate::Start {
+        reply_to: skein_lib::ReplyTo::new(call),
+        host_run: call,
+        activation: 1,
+        identity: None,
+        window: crate::Window { turns: u32::MAX, bytes: u64::MAX },
+        messages: Box::default(),
+        charter,
+        workspace: None,
+        transcript: None,
+        answered: Box::default(),
+        grants: Box::default(),
+    }
+}

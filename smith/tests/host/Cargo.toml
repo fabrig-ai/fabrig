@@ -11,7 +11,7 @@ publish.workspace = true
 skein-lib.workspace = true
 skein-world.workspace = true
 smith-host-domain = { workspace = true, features = ["fixture"] }
-smith-domain.workspace = true
+smith-domain = { workspace = true, features = ["fixture"] }
 smith-inline-agent = { workspace = true, features = ["fixture"] }
 smith-agent-world.workspace = true
 smith-machine-world.workspace = true

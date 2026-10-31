@@ -71,7 +71,7 @@ fn the_binary_logout_accepts_an_absent_directory() {
 
 use crate::support;
 
-use smith_fake_claude::{Answer, End, STORY_FILE, ServerScript, Step, Story, Tool, Turn};
+use smith_fake_claude::{Answer, STORY_FILE, ServerScript, Step, Story, Tool, Turn};
 use std::io::{BufRead, BufReader, Write};
 use std::process::{Child, Stdio};
 
@@ -147,10 +147,7 @@ fn the_binary_runs_a_turn() {
 }
 
 fn hanging_child() -> (Scratch, std::process::Child, BufReader<std::process::ChildStdout>) {
-    let story = Story {
-        turns: vec![Turn { steps: vec![Step::Text("waiting".into()), Step::Hang], end: End::default() }],
-        ..Story::default()
-    };
+    let story = Story { turns: vec![Turn::new(vec![Step::Text("waiting".into()), Step::Hang])], ..Story::default() };
     let (scratch, mut child) = print_child(story);
     let mut reader = BufReader::new(child.stdout.take().expect("output"));
     assert_eq!(read_message(&mut reader)["subtype"], "init");
@@ -176,10 +173,7 @@ fn the_binary_ends_a_turn_on_an_interrupt() {
 
 #[test]
 fn the_binary_exits_143_on_a_termination() {
-    let story = Story {
-        turns: vec![Turn { steps: vec![Step::Text("waiting".into()), Step::Hang], end: End::default() }],
-        ..Story::default()
-    };
+    let story = Story { turns: vec![Turn::new(vec![Step::Text("waiting".into()), Step::Hang])], ..Story::default() };
     let (scratch, mut child) = print_child(story);
     let mut reader = BufReader::new(child.stdout.take().expect("output"));
     assert_eq!(read_message(&mut reader)["subtype"], "init");
@@ -194,10 +188,7 @@ fn the_binary_exits_143_on_a_termination() {
 #[test]
 fn the_binary_connects_to_its_server() {
     let story = Story {
-        turns: vec![Turn {
-            steps: vec![Step::Call { tool: "finish".into(), input: serde_json::json!({"answer":"done"}) }],
-            end: End::default(),
-        }],
+        turns: vec![Turn::new(vec![Step::Call { tool: "finish".into(), input: serde_json::json!({"answer":"done"}) }])],
         ..Story::default()
     };
     let script = ServerScript {

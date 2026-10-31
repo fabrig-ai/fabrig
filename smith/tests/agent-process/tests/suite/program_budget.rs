@@ -6,7 +6,7 @@ use smith_agent_process_world::{
     program_world::{self, Case, Run},
 };
 use smith_channel::{RunFailure, RunResult};
-use smith_fake_claude::{Decision, End, Seen, Step, Story, Turn};
+use smith_fake_claude::{Decision, Seen, Step, Story, Turn};
 
 fn selected(change: impl FnOnce(&mut smith_charter::CharterParts)) -> Box<[u8]> {
     smith_agent_process_world::wire::edit_charter(&charter(), |parts| {
@@ -27,7 +27,7 @@ fn run(case: Case, charter: &[u8], turns: Vec<Turn>) -> Run {
 }
 
 fn turn(steps: Vec<Step>) -> Turn {
-    Turn { steps, end: End::default() }
+    Turn::new(steps)
 }
 
 fn finish() -> Step {

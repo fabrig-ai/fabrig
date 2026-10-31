@@ -124,21 +124,16 @@ fn a_told_turn_keeps_the_roots_exact_concrete_value() {
     );
     while out.pop().is_some() {}
     let turn = smith::session::record::Turn {
-        model: b"model".as_slice().into(),
-        effort: None,
-        kind: smith_domain::session::record::Kind::First(Box::new(smith_domain::session::record::Opener {
-            affinity: smith_domain::llm::Affinity { key: [0; 16], thread: 0 },
-            account: None,
-            backend: smith_domain::session::record::Backend::Direct,
-        })),
-        version: smith::session::record::VERSION,
-        endpoint: Some(smith::session::llm::Endpoint(0)),
         dialect: 1,
-        sequence: 1,
-        usage: smith::session::llm::Usage::ZERO,
-        spent: 0,
-        jobs: 0,
-        messages: Box::default(),
+        ..smith_domain::session::fixture::turn(
+            b"model".as_slice().into(),
+            smith_domain::session::record::Kind::First(Box::new(smith_domain::session::record::Opener {
+                affinity: smith_domain::llm::Affinity { key: [0; 16], thread: 0 },
+                account: None,
+                backend: smith_domain::session::record::Backend::Direct,
+            })),
+            Box::default(),
+        )
     };
     agent.lower.push(smith::Request::Turn {
         host_run: Token::new(7),
@@ -686,7 +681,7 @@ fn grant_forms_keep_their_policy_at_start_and_refresh() {
         assert_eq!(refresh.valid, source.grants[0].valid);
         let decoded = translate::start(Token::new(1), source, &bounds());
         if admitted {
-            let smith::Event::Start { grants, .. } = decoded.expect("existing form admitted") else {
+            let smith::Event::Start(smith::Start { grants, .. }) = decoded.expect("existing form admitted") else {
                 panic!("expected root Start");
             };
             assert_eq!(grants.as_ref(), &[refresh], "start {form:?}");

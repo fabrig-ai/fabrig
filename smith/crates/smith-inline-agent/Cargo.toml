@@ -16,6 +16,7 @@ smith-domain.workspace = true
 smith-host-domain.workspace = true
 
 [dev-dependencies]
+smith-domain = { workspace = true, features = ["fixture"] }
 smith-agent-world.workspace = true
 
 [lints]

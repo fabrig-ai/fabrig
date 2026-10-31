@@ -752,21 +752,17 @@ fn an_oversized_waking_result_tail_is_refused_before_cloning_provider_ids() {
 
 fn restored_tail_turn(messages: Box<[smith_domain_session::llm::Message]>) -> smith_domain_session::record::Turn {
     smith_domain_session::record::Turn {
-        model: b"model".as_slice().into(),
-        effort: None,
-        kind: smith_domain_session::record::Kind::First(Box::new(smith_domain_session::record::Opener {
-            affinity: smith_domain_session::llm::Affinity { key: [0; 16], thread: 0 },
-            account: None,
-            backend: smith_domain_session::record::Backend::Direct,
-        })),
-        version: smith_domain_session::record::VERSION,
         endpoint: Some(Endpoint(7)),
         dialect: 2,
-        sequence: 1,
-        usage: Usage::ZERO,
-        spent: 0,
-        jobs: 0,
-        messages,
+        ..smith_domain::session::fixture::turn(
+            b"model".as_slice().into(),
+            smith_domain_session::record::Kind::First(Box::new(smith_domain_session::record::Opener {
+                affinity: smith_domain_session::llm::Affinity { key: [0; 16], thread: 0 },
+                account: None,
+                backend: smith_domain_session::record::Backend::Direct,
+            })),
+            messages,
+        )
     }
 }
 

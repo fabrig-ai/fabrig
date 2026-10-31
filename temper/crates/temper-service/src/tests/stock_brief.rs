@@ -266,7 +266,7 @@ fn measure_turn(number: u32) {
     let charter = temper_engine_smith::charter(&assignment);
     let mut events = Queue::uncapped();
     let mut out = Queue::uncapped();
-    events.push(smith_domain::Event::Start {
+    events.push(smith_domain::Event::Start(smith_domain::Start {
         reply_to: ReplyTo::new(Token::new(1)),
         host_run: Token::new(1),
         activation: 1,
@@ -281,7 +281,7 @@ fn measure_turn(number: u32) {
         transcript: None,
         answered: Box::default(),
         grants: Box::default(),
-    });
+    }));
     let mut turns = 0_u32;
     let mut refused = None;
     for _ in 0_u32..1000 {

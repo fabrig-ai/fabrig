@@ -223,23 +223,16 @@ fn a_restored_prefix_names_the_next_source_sequence_without_changing_the_retry()
         turns: Box::new([saved]),
     };
     let mut restored = Harness::new();
-    let emitted = restored.step(Event::Start {
-        messages: Box::default(),
-        window: crate::Window { turns: u32::MAX, bytes: u64::MAX },
-        answered: Box::default(),
-        workspace: None,
+    let emitted = restored.step(Event::Start(crate::Start {
         grants: Box::new([crate::Grant {
             renewable: true,
             name: crate::GrantName { account: 0, generation: 0 },
             valid: Duration::from_secs(100_000),
         }]),
-        reply_to: ReplyTo::new(Token::new(8)),
-        host_run: Token::new(8),
         activation: 2,
-        identity: None,
-        charter: Charter { resume: true, ..charter() },
         transcript: Some(transcript),
-    });
+        ..crate::fixture::start(Token::new(8), Charter { resume: true, ..charter() })
+    }));
     let [Request::Admitted { .. }, Request::Lower(crate::Lower::Complete { owner, name, .. })] = &*emitted else {
         panic!("restored main completion, got {emitted:?}");
     };

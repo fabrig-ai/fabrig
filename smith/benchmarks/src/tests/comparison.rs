@@ -229,7 +229,13 @@ fn a_child_on_another_model_is_priced_at_its_own() {
 
 fn unsent_result(retried: bool) -> crate::AttemptResult {
     let mut result = pricing_result();
-    let limits = smith_events::Limits { string: 524_288, content: 4096, items: 512 };
+    let limits = {
+        let mut fixture_limits = smith_events::fixture::SMALL;
+        fixture_limits.string = 524_288;
+        fixture_limits.content = 4096;
+        fixture_limits.items = 512;
+        fixture_limits
+    };
     let mut observer = crate::agent::smith::events::Observer::with_ceiling(&limits, 16_384).expect("response bounds");
     let records = crate::json_fixture::edit_lines(
         include_str!("../../tests/recorded/retried-failure-17d63afd-02.jsonl"),

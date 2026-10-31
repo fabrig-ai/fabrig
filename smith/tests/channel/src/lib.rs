@@ -4,6 +4,8 @@
 
 use std::collections::VecDeque;
 
+pub mod fixture;
+
 use skein_channel::{Closed, Control, Lower, LowerEvent, StreamMode, control_frame};
 use skein_lib::stream::{self, OutputOutcome};
 use skein_lib::{Queue, Token};
@@ -543,15 +545,12 @@ impl World {
         let host = Peer::host(
             &host::Limits {
                 bodies: host_bodies,
-                charter: smith_charter::CEILINGS,
-                transcript: smith_transcript::CEILINGS,
-                endpoints: 1,
                 channel,
                 start_bytes: u32::try_from(
                     smith_channel::Start::encoded_bound(&host_bodies).expect("fixture Start bound"),
                 )
                 .expect("fixture frame"),
-                calls: 8,
+                ..smith_host_protocol::fixture::small()
             },
             mode,
         );
@@ -578,14 +577,16 @@ impl World {
     /// Open the two halves at the agent fixture's derived deployment bounds.
     #[must_use]
     pub fn with_agent_limits(limits: agent::Limits, mode: StreamMode) -> World {
-        let mut host_limits = host::Limits {
-            bodies: limits.bodies,
-            charter: limits.charter,
-            transcript: limits.transcript,
-            endpoints: limits.endpoints,
-            channel: limits.channel,
-            start_bytes: limits.start_bytes,
-            calls: limits.calls,
+        let mut host_limits = {
+            let mut fixture_limits = smith_host_protocol::fixture::small();
+            fixture_limits.bodies = limits.bodies;
+            fixture_limits.charter = limits.charter;
+            fixture_limits.transcript = limits.transcript;
+            fixture_limits.endpoints = limits.endpoints;
+            fixture_limits.channel = limits.channel;
+            fixture_limits.start_bytes = limits.start_bytes;
+            fixture_limits.calls = limits.calls;
+            fixture_limits
         };
         host_limits.channel.output_bytes = host::output_bytes(&host_limits).expect("host directional frame");
         World {
@@ -1266,26 +1267,14 @@ pub fn typed_transcript(bytes: &[Box<[u8]>]) -> Option<smith_host_domain::Transc
 pub fn window_turn_fixture() -> smith_domain_session::record::Turn {
     use smith_domain_session::{llm, record};
     let affinity = llm::Affinity { key: [0; 16], thread: 0 };
-    record::Turn {
-        model: b"model".as_slice().into(),
-        effort: None,
-        kind: record::Kind::First(Box::new(record::Opener {
-            affinity,
-            account: None,
-            backend: record::Backend::Direct,
-        })),
-        version: record::VERSION,
-        endpoint: Some(llm::Endpoint(0)),
-        dialect: 0,
-        sequence: 1,
-        usage: llm::Usage::ZERO,
-        spent: 0,
-        jobs: 0,
-        messages: Box::new([llm::Message {
+    smith_domain::session::fixture::turn(
+        b"model".as_slice().into(),
+        record::Kind::First(Box::new(record::Opener { affinity, account: None, backend: record::Backend::Direct })),
+        Box::new([llm::Message {
             role: llm::Role::User,
             content: Box::new([llm::Block::Text { text: b"the task and summary".as_slice().into(), replay: None }]),
         }]),
-    }
+    )
 }
 
 #[cfg(test)]

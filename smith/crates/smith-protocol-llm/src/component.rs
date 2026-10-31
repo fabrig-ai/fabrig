@@ -643,7 +643,7 @@ impl Component {
                 to_domain.push(ToDomain::Cancelled { owner });
             }
             DomainEvent::HostReturned { .. }
-            | DomainEvent::Start { .. }
+            | DomainEvent::Start(_)
             | DomainEvent::Message { .. }
             | DomainEvent::Acknowledge { .. }
             | DomainEvent::Grant { .. }

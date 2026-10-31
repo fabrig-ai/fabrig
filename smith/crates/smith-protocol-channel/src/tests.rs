@@ -364,24 +364,21 @@ fn a_window_suffix_round_trips_its_noninitial_place_and_rejects_a_second_window(
     let limits = smith_transcript::CEILINGS;
     let endpoints = saved_endpoints();
     let window = record::Turn {
-        model: b"model".as_slice().into(),
-        effort: None,
-        version: record::VERSION,
-        kind: record::Kind::Window(Box::new(record::Opener {
-            affinity: llm::Affinity { key: [0x25; 16], thread: 0 },
-            account: None,
-            backend: record::Backend::Direct,
-        })),
         endpoint: Some(llm::Endpoint(3)),
-        dialect: 0,
         sequence: 8,
-        usage: llm::Usage::ZERO,
         spent: 9,
-        jobs: 0,
-        messages: Box::new([llm::Message {
-            role: llm::Role::User,
-            content: Box::new([llm::Block::Text { text: b"task and summary".as_slice().into(), replay: None }]),
-        }]),
+        ..smith_domain::session::fixture::turn(
+            b"model".as_slice().into(),
+            record::Kind::Window(Box::new(record::Opener {
+                affinity: llm::Affinity { key: [0x25; 16], thread: 0 },
+                account: None,
+                backend: record::Backend::Direct,
+            })),
+            Box::new([llm::Message {
+                role: llm::Role::User,
+                content: Box::new([llm::Block::Text { text: b"task and summary".as_slice().into(), replay: None }]),
+            }]),
+        )
     };
     let first = crate::encode_turn(&window, &limits, &endpoints).expect("window turn");
     let decoded = decode_saved_transcript(&[first.clone(), saved_turn(9, 0)], &limits, &endpoints)

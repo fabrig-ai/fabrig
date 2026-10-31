@@ -181,6 +181,14 @@ pub struct Turn {
     pub end: End,
 }
 
+impl Turn {
+    /// A scripted program turn that succeeds after its supplied steps.
+    #[must_use]
+    pub fn new(steps: Vec<Step>) -> Self {
+        Self { steps, end: End::default() }
+    }
+}
+
 impl Default for Turn {
     fn default() -> Self {
         Self { steps: vec![Step::Text("Done.".into())], end: End::default() }

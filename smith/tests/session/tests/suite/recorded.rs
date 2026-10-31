@@ -1207,21 +1207,18 @@ fn a_saved_window_starts_at_its_recorded_place_and_keeps_its_affinity() {
         ]),
     }]);
     let window = record::Turn {
-        model: bytes(b"model"),
-        effort: None,
-        version: record::VERSION,
-        kind: record::Kind::Window(Box::new(record::Opener {
-            affinity,
-            account: Some(0),
-            backend: record::Backend::Direct,
-        })),
         endpoint: Some(llm::Endpoint(7)),
         dialect: 23,
         sequence: 19,
-        usage: llm::Usage::ZERO,
-        spent: 0,
-        jobs: 0,
-        messages: messages.clone(),
+        ..smith_domain::session::fixture::turn(
+            bytes(b"model"),
+            record::Kind::Window(Box::new(record::Opener {
+                affinity,
+                account: Some(0),
+                backend: record::Backend::Direct,
+            })),
+            messages.clone(),
+        )
     };
     let history = record::Transcript {
         version: record::VERSION,

@@ -100,14 +100,10 @@ fn a_channel_with_no_room_counts_every_input_byte_and_still_sends_the_turn() {
         world.observe_facts(TraceCase::Failed, 1);
         world.output_tokens(4096);
         world.ask(false, false, true);
-        world.script(Box::new([api::Turn {
-            lines: Box::new([api::Line::Call {
-                name: b"finish".as_slice().into(),
-                arguments: vec![b' '; length].into(),
-            }]),
-            finish: api::Finish::ToolCalls,
-            tokens: 1,
-        }]));
+        world.script(Box::new([smith_agent_world::fixture::calls(
+            Box::new([api::Line::Call { name: b"finish".as_slice().into(), arguments: vec![b' '; length].into() }]),
+            1,
+        )]));
         assert!(world.settle());
         assert_eq!(world.lost_live_bytes(), length as u64);
         assert!(world.pieces().is_empty());

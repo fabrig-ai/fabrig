@@ -2,7 +2,7 @@
 
 use crate::support::print::{self, messages};
 use serde_json::{Value, json};
-use smith_fake_claude::{Answer, End, ServerScript, Step, Story, Tool, Turn};
+use smith_fake_claude::{Answer, ServerScript, Step, Story, Tool, Turn};
 
 #[test]
 fn init_has_the_recorded_keys_and_thirteen_capabilities() {
@@ -76,10 +76,7 @@ fn shape(message: &Value) -> (&str, &str) {
 #[test]
 fn a_tool_reply_and_second_turn_follow_the_recorded_order() {
     let story = Story {
-        turns: vec![Turn {
-            steps: vec![Step::Call { tool: "echo".into(), input: json!({}) }, Step::Text("reply".into())],
-            end: End::default(),
-        }],
+        turns: vec![Turn::new(vec![Step::Call { tool: "echo".into(), input: json!({}) }, Step::Text("reply".into())])],
         ..Story::default()
     };
     let mut arguments = print::arguments();

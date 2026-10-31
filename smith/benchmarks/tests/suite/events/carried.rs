@@ -5,7 +5,13 @@
 use smith_bench::{CheckVerdict, EventCheck, Measure};
 use smith_events::{Block, Capture, Event, Limits, Record};
 
-const LIMITS: Limits = Limits { string: 16_384, content: 16_384, items: 16 };
+const LIMITS: Limits = {
+    let mut fixture_limits = smith_events::fixture::SMALL;
+    fixture_limits.string = 16_384;
+    fixture_limits.content = 16_384;
+    fixture_limits.items = 16;
+    fixture_limits
+};
 
 fn records(source: &str) -> Vec<Record> {
     let excerpt: Vec<_> = source

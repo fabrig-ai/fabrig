@@ -16,7 +16,13 @@ fn observer(bytes: &[u8]) -> smith_bench::agent::smith::events::Observer {
     const CONTENT_BYTES: u32 = 4096;
     const ITEMS: u32 = 512;
     const LINE_BYTES: u32 = 16_384;
-    let limits = smith_events::Limits { string: STRING_BYTES, content: CONTENT_BYTES, items: ITEMS };
+    let limits = {
+        let mut fixture_limits = smith_events::fixture::SMALL;
+        fixture_limits.string = STRING_BYTES;
+        fixture_limits.content = CONTENT_BYTES;
+        fixture_limits.items = ITEMS;
+        fixture_limits
+    };
     let mut observer = smith_bench::agent::smith::events::Observer::with_ceiling(&limits, LINE_BYTES).expect("bounds");
     observer.feed(bytes).expect("recorded stream");
     observer.finish().expect("complete lines");

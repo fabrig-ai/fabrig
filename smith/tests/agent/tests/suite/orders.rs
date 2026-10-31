@@ -6,7 +6,7 @@ use std::collections::{BTreeMap, BTreeSet};
 
 use skein_fake_checkout::Checkout;
 use skein_fake_llm_domain::api::{Line, Script, Turn};
-use skein_lib::{Duration, ReplyTo, Time, Token};
+use skein_lib::{Duration, Time, Token};
 use skein_world::domain::Span;
 use smith_agent_world::orders::{Entrance, EntranceObservation, HandoffRequest};
 use smith_agent_world::{Boundary, CompletionTerminal, Job, Settings, World, scripted_charter};
@@ -89,27 +89,22 @@ fn fixture(settings: &Settings, charter: run::Charter, scripts: Vec<Script>, win
             conflicts: Box::default(),
         }]),
     };
-    let start = Event::Start {
+    let start = Event::Start(smith_domain::Start {
         messages: Box::new([run::Message {
             finish_requested: false,
             name: Token::new(9),
             label: b"host".as_slice().into(),
             text: b"Run the handoff scenario.".as_slice().into(),
         }]),
-        reply_to: ReplyTo::new(HOST),
-        host_run: HOST,
-        identity: None,
         activation: ACTIVATION,
         window,
-        charter,
         workspace: Some(workspace),
-        transcript: None,
-        answered: Box::default(),
         grants: Box::new([
             Grant { renewable: true, name: GrantName { account: 0, generation: 1 }, valid: Duration::from_secs(7200) },
             Grant { renewable: false, name: GrantName { account: 1, generation: 1 }, valid: Duration::from_millis(1) },
         ]),
-    };
+        ..smith_domain::fixture::start(HOST, charter)
+    });
     let mut world = World::with_workspace_scripts_start(*settings, disk, scripts.into(), start);
     world.record_entrances();
     world

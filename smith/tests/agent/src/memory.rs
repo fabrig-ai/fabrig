@@ -2,7 +2,7 @@
 //! Containers are allocated before the meter; every entry point drains output and reclaims.
 
 use crate::TIGHT;
-use skein_lib::{Duration, Env, Queue, ReplyTo, Rng, Time, Token, Wall};
+use skein_lib::{Duration, Env, Queue, Rng, Time, Token, Wall};
 use skein_world::domain::heap::Meter;
 use smith_domain::llm::{Completion, Decoded, Failure, Problem, Prompt, Said, Served, Stop, Usage};
 use smith_domain::run::charter::{Endpoint, Families, Grants, Llm, Tools};
@@ -271,23 +271,17 @@ impl Driver {
             let host_run = Token::new(self.workers);
             // Most charters as large as a run may hold, some a byte larger.
             let brief = limits.run.run_bytes - 900 + self.rng.below(901);
-            return Some(Event::Start {
-                messages: Box::default(),
-                answered: Box::default(),
+            return Some(Event::Start(smith_domain::Start {
                 workspace: Some(workspace()),
                 grants: Box::new([smith_domain::Grant {
                     renewable: true,
                     name: smith_domain::GrantName { account: 0, generation: 0 },
                     valid: Duration::from_secs(100_000),
                 }]),
-                reply_to: ReplyTo::new(host_run),
-                host_run,
-                identity: None,
                 activation: self.workers,
                 window: smith_domain::Window { turns: u32::MAX, bytes: u64::MAX },
-                charter: charter(brief),
-                transcript: None,
-            });
+                ..smith_domain::fixture::start(host_run, charter(brief))
+            }));
         }
         if roll == 1 && !self.runs.is_empty() && self.rng.chance(100) {
             return self.cancel_run();
