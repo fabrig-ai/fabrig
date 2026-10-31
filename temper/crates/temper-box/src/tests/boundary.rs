@@ -27,13 +27,13 @@ fn allowed(path: &str) -> bool {
         };
         for item in group[..end].split(',') {
             let item = item.trim();
-            if !["Step", "steps", "Steps", "Group", "Stage", "Kind", ""].contains(&item) {
+            if !["Step", "steps", "Steps", "Group", "Stage", "Kind", "machine::BoxKind", ""].contains(&item) {
                 return false;
             }
         }
         return true;
     }
-    for name in ["Steps", "Group", "Stage", "Kind", "Step", "steps"] {
+    for name in ["Steps", "Group", "Stage", "Kind", "Step", "steps", "machine::BoxKind"] {
         if let Some(rest) = path.strip_prefix(name) {
             let rest = rest.trim_start();
             return rest.starts_with(';')

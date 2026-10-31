@@ -428,7 +428,7 @@ fn owned(d: &Document, at: u32, p: &Path, ps: &mut config::Problems) -> Option<O
     let person = account(d, person_at?, &p, ps)?;
     let remote = remote?;
     valid(git_base(&remote), p.member(b"remote"), ps);
-    Some(OwnedMachine { public, fetch, forgejo, runner, listen, person, remote })
+    Some(OwnedMachine { listen, remote, person, public, fetch, forgejo, runner })
 }
 fn mirror(d: &Document, at: u32, p: &Path, ps: &mut config::Problems) -> Option<Mirror> {
     let mut o = object(d, at, p, ps)?;
