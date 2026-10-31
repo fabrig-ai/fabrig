@@ -1,4 +1,5 @@
 //! Small live documents and the shared bounded chip construction.
+//! Closed at once (temper/docs/design/draft/playground-reset.md, 5).
 use super::{Chip, Count, ExecutorKind, Frame, FrameProjectRole, Missing, PhaseLine, Run, Text};
 use crate::{Core, Limits};
 use alloc::boxed::Box;
@@ -22,7 +23,7 @@ pub(crate) fn text(bytes: &[u8], maximum: u32) -> Text {
 
 pub(super) fn visible(core: &Core, party: u64, number: u64) -> Result<&tasks::TaskRecord, Missing> {
     let row = core.tasks.task(number).ok_or(Missing::Unknown)?;
-    if core.people.role(party, row.project).is_none() {
+    if !core.open_project(row.project) || core.people.role(party, row.project).is_none() {
         return Err(Missing::NotAllowed);
     }
     match row.phase {
@@ -98,7 +99,15 @@ pub(super) fn frame(core: &Core, limits: &Limits, party: u64) -> Result<Frame, M
     let identity = core.people.identity(party).ok_or(Missing::Unknown)?;
     let roles = core.people.project_roles(party).ok_or(Missing::Unknown)?;
     let mut projects = List::with_capacity(limits.documents.lines);
-    for role in roles.iter().take(usize::try_from(limits.documents.lines).expect("line count fits")) {
+    let mut cut = false;
+    for role in &roles {
+        if !core.open_project(role.project) {
+            continue;
+        }
+        if projects.room() == 0 {
+            cut = true;
+            continue;
+        }
         let pool = match core.tasks.funding(tasks::Funder::Pool {
             project: role.project,
             person: party,
@@ -155,7 +164,7 @@ pub(super) fn frame(core: &Core, limits: &Limits, party: u64) -> Result<Frame, M
         login: text(&identity.login, limits.documents.text_bytes),
         name: text(&identity.name, limits.documents.text_bytes),
         deployment_role: core.people.role(party, people::DEPLOYMENT),
-        cut: projects.len() < roles.len(),
+        cut,
         projects,
         needs: counts.needs.checked_add(core.settings_needs(party)).ok_or(Missing::TooLarge)?,
         need_counts: core.party_need_counts(party).ok_or(Missing::Unknown)?,

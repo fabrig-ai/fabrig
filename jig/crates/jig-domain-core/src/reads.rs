@@ -304,9 +304,15 @@ pub(crate) fn start(core: &mut Core, env: &Env<Limits>, reply: ReplyTo, sign_in:
     };
     match &read {
         Read::Application { scope, connector, read: name, window } => {
-            if (*scope != jig_domain_people::ApplicationScope::Own
-                && core.people.role(party, scope.project()).is_none())
-                || !core.connectors.as_ref().contains(connector)
+            if match scope {
+                jig_domain_people::ApplicationScope::Own => false,
+                jig_domain_people::ApplicationScope::Deployment => {
+                    core.people.role(party, jig_domain_people::DEPLOYMENT).is_none()
+                }
+                jig_domain_people::ApplicationScope::Project(project) => {
+                    !core.open_project(*project) || core.people.role(party, *project).is_none()
+                }
+            } || !core.connectors.as_ref().contains(connector)
             {
                 return refused_application(reply, &read, Why::Unknown);
             }
