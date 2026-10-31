@@ -2990,6 +2990,18 @@ pub(crate) fn outputs(
             forge::Request::ListDemoActs => super::demo::list_end_acts(domain),
             forge::Request::SendDemoAct(row) => super::demo::send_end_act(domain, row),
             forge::Request::DemoStart { request } => super::demo::start(domain, env, decision, request),
+            forge::Request::ForgeKept(record) => {
+                assert!(super::now(domain, Request::ForgeKept(record)), "forge runtime door");
+            }
+            forge::Request::ForgeGone { forge } => {
+                assert!(super::now(domain, Request::ForgeGone { forge }), "forge removal door");
+            }
+            forge::Request::BoxGroup { forge, kind, request } => {
+                assert!(super::now(domain, Request::BoxGroup { forge, kind, request }), "box group door");
+            }
+            forge::Request::BoxRemove { forge } => {
+                assert!(super::now(domain, Request::BoxRemove { forge }), "box removal door");
+            }
             forge::Request::StopGroup { forge } => {
                 assert!(super::now(domain, Request::StopGroup { forge }), "demo stop door reserved");
             }

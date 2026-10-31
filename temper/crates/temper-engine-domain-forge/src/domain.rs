@@ -117,6 +117,7 @@ pub(crate) type ConnectionState = (crate::Connection, Option<crate::FailedStep>)
 /// The bounded forge connector subtree.
 #[derive(Debug)]
 pub struct Domain {
+    pub(crate) machine: Option<crate::Machine>,
     pub(crate) configured: Map<u16, crate::Configured>,
     pub(crate) under_box: bool,
     pub(crate) demo: Option<crate::DemoConfig>,
@@ -526,6 +527,7 @@ impl Domain {
             }
         }
         Ok(Domain {
+            machine: None,
             configured,
             under_box,
             demo: None,
@@ -1166,8 +1168,12 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
             }
             out.push(Request::MarkedForges);
         }
+        Event::SecretsErased { .. } | Event::BoxRemoved { .. } => {}
         Event::Application { request, token, retention, ask, role, carried } => match ask {
-            ask @ (crate::Ask::Connect { .. }
+            ask @ (crate::Ask::RemoveForge { .. }
+            | crate::Ask::StartPlayground
+            | crate::Ask::EndPlayground
+            | crate::Ask::Connect { .. }
             | crate::Ask::Install { .. }
             | crate::Ask::Accept { .. }
             | crate::Ask::Reachable { .. }) => {
@@ -1175,7 +1181,18 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
             }
             crate::Ask::StartDemo => crate::demo::start(d, request, token, out),
             crate::Ask::Adopt(adoption) => adoption::start(d, env, request, token, retention, adoption, out),
-            crate::Ask::SetUp { forge, org, repository, project, playground } => {
+            crate::Ask::SetUp { forge: crate::Making::New(_), .. } => {
+                if let Some(value) = carried {
+                    out.push(Request::CarriedUnused { number: value.number });
+                }
+                d.connect.answer(
+                    request,
+                    token,
+                    crate::Answered::SetUp(crate::SetUpAnswer::Refused(crate::SetUpRefusal::NotOffered)),
+                    out,
+                );
+            }
+            crate::Ask::SetUp { forge: crate::Making::Kept(forge), org, repository, project, playground } => {
                 let mut expired = None;
                 for (token, (until, _)) in &d.setup_answers {
                     if *until <= env.wall {
