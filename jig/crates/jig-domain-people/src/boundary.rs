@@ -854,6 +854,11 @@ pub enum Event {
     },
     /// Authorized keyed conversation mark, with the owner's complete reply count.
     ConversationSeen { request: Token, project: u32, last_reply: u64 },
+    /// An erased task's traces: its chat, every party's read of it, its
+    /// waiting entries (temper/docs/design/draft/playground-reset.md, 5).
+    ForgetTask { task: u64 },
+    /// A deleted project's roster, once its tasks are erased (playground-reset.md, 5).
+    DropProject { project: u32 },
     /// The owner forgot an ended chat and its reply references; retire its positions.
     Forget { task: u64, project: u32, party: Option<u64>, last_reply: u64 },
     /// Apply an authorized owner request to make a service with a fresh party number.

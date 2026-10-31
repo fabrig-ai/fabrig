@@ -1077,11 +1077,17 @@ fn restored_role_success_checks_historical_people_and_project_after_all_rows_arr
         );
         test.send_bounded(Event::Restore { record: Stored::Person { number: 1, identity: identity(0, 1) } });
         test.send_bounded(Event::Restore { record: Stored::Roles { project: 1, holdings: Box::new([]) } });
-        assert_eq!(
-            test.send_bounded(Event::Restored).as_slice(),
-            [Request::RestoreRefused { key: Key::Answer(key), refusal: Refusal::Unknown }]
-        );
-        assert!(!test.d.ready());
+        let restored = test.send_bounded(Event::Restored);
+        if project == 1 {
+            assert_eq!(
+                restored.as_slice(),
+                [Request::RestoreRefused { key: Key::Answer(key), refusal: Refusal::Unknown }]
+            );
+            assert!(!test.d.ready());
+        } else {
+            assert!(restored.is_empty(), "gone roster has no historical links");
+            assert!(test.d.ready());
+        }
     }
 }
 
@@ -1132,7 +1138,8 @@ fn refused_role_requests_restore_invalid_rosters_and_unknown_targets_for_replay(
         cold.d = Domain::new(&LIMITS, Box::new([]), 2, Box::new([]));
         assert!(cold.send_bounded(Event::Restore { record: saved_answer(rows.as_slice()) }).is_empty());
         cold.send_bounded(Event::Restore { record: Stored::Person { number: 1, identity: identity(0, 1) } });
-        // Even a refused unknown project needs no present membership row.
+        // Retained answers replay while the project remains live, regardless of membership.
+        cold.send_bounded(Event::Restore { record: Stored::Roles { project: 1, holdings: Box::new([]) } });
         assert!(cold.send_bounded(Event::Restored).is_empty());
         assert!(cold.d.ready());
         cold.signin_bounded(2, 20, identity(0, 1));
@@ -1392,6 +1399,7 @@ fn expiry_projection_uses_the_environment_when_restore_finishes() {
 fn authenticated_escalation_decisions_route_without_membership_and_io_pressure_is_retryable() {
     let mut test = Test::new(LIMITS);
     test.signin(1, 10, identity(0, 1));
+    test.send(Event::Roles { project: 1, holdings: Box::new([]) });
     let ask = Ask::DecideEscalation { project: 1, task: 9, revision: 2, decision: EscalationDecision::Pass };
     let routed = test.request(10, 2, ask.clone());
     assert!(routed.iter().any(|row| match row {
@@ -1575,6 +1583,7 @@ fn application_keys_join_flights_and_replay_opaque_tokens_across_sign_ins_and_re
     for record in [
         Stored::Person { number: 1, identity: identity(0, 1) },
         Stored::SignIn { number: 10, person: 1, expires: Wall::from_nanos(LIMITS.sign_in_lifetime.as_nanos()) },
+        Stored::Roles { project: 1, holdings: Box::new([]) },
         saved,
     ] {
         let mut out = Queue::uncapped();
@@ -1899,6 +1908,7 @@ fn a_proposal_makers_kind_is_kept_in_its_key_and_restored_answer() {
         for record in [
             Stored::Person { number: 1, identity: identity(0, 1) },
             Stored::SignIn { number: 10, person: 1, expires: Wall::from_nanos(LIMITS.sign_in_lifetime.as_nanos()) },
+            Stored::Roles { project: 1, holdings: Box::new([]) },
             saved,
         ] {
             assert!(test.send(Event::Restore { record }).is_empty());

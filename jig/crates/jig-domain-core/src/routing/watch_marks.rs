@@ -387,7 +387,9 @@ pub(super) fn touch_people_event(core: &mut Core, limits: &Limits, event: &peopl
                 core.touch_party(*party);
             }
         }
-        people::Event::MakeService { .. }
+        people::Event::ForgetTask { .. }
+        | people::Event::DropProject { .. }
+        | people::Event::MakeService { .. }
         | people::Event::Seed { .. }
         | people::Event::ApplyRoles { .. }
         | people::Event::SignedIn { .. }

@@ -12,6 +12,7 @@ mod inbox;
 pub use ended::EndedMark;
 pub(crate) mod acts;
 mod parties;
+mod replay;
 mod start;
 use inbox::{conversation_seen_decision, mark_seen, prune_unheld_roles, replace_waiting};
 
@@ -583,6 +584,8 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         Event::ConversationSeen { request, project, last_reply } => {
             conversation_seen_decision(domain, env, request, project, last_reply, out);
         }
+        Event::ForgetTask { task } => inbox::forget_task(domain, &env.limits, task, out),
+        Event::DropProject { project } => inbox::drop_project(domain, &env.limits, project, out),
         Event::Forget { task, project, party, last_reply } => {
             inbox::forget_event(domain, env, task, project, party, last_reply, out);
         }
@@ -1699,7 +1702,10 @@ fn admit_ask(
         if answer.ask != ask || answer.models != models {
             return refused(to, Refusal::KeyConflict, out);
         }
-        return out.push(Request::Reply { to, reply: Reply::Outcome(answer.outcome.clone()) });
+        return out.push(Request::Reply {
+            to,
+            reply: Reply::Outcome(replay::answer(domain, project(&answer.ask), &answer.outcome)),
+        });
     }
 
     if let Some(id) = domain.flights.get(&key).copied() {
@@ -2154,7 +2160,7 @@ fn restored(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
             Outcome::RolesSet { .. } => match &answer.ask {
                 Ask::SetRoles { project, holdings } => {
                     if !domain.roles.contains_key(project) {
-                        return restore_failed(domain, Key::Answer(*key), Refusal::Unknown, out);
+                        continue;
                     }
                     for holding in holdings {
                         if !domain.people.contains_key(&holding.person) {

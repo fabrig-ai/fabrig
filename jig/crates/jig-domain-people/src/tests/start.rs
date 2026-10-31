@@ -548,7 +548,6 @@ fn explicit_start_asserts_each_required_local_link_before_sweep() {
             Ask::MakeService { project: 0, name: Box::new([]), role: Role::Member },
             Outcome::ServiceMade { person: 99 },
         ),
-        answer(1, roster_ask.clone(), Outcome::RolesSet { project: 9 }),
     ] {
         let env = env();
         let (mut domain, mut out) = new_start(&env);
