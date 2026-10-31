@@ -3296,6 +3296,16 @@ pub(crate) fn outputs(
                     holds::hold(domain, task, b"connector entry numbers exhausted while releasing resources");
                 }
             }
+            forge::Request::ProjectReleased { request } => {
+                emit(
+                    decision,
+                    &env.limits,
+                    Delivery::ProjectReleased {
+                        connector: domain.config.forge_connector,
+                        project: u32::try_from(request.raw()).expect("project reply token is a u32"),
+                    },
+                );
+            }
             forge::Request::Released { task } => {
                 domain.work.push(Work::Tasks(tasks::Event::Settled { task }));
             }

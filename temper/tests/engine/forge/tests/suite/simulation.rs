@@ -848,6 +848,7 @@ fn a_change_produced_opened_checked_queued_and_landed() {
                 | top::Request::ContinueRelease { .. }
                 | top::Request::EffectsSettled { .. }
                 | top::Request::Released { .. }
+                | top::Request::ProjectReleased { .. }
                 | top::Request::Retained { .. }
                 | top::Request::ReleaseFailed { .. }
                 | top::Request::ProjectionEffect { .. }

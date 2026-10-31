@@ -1118,6 +1118,12 @@ pub struct ChangeDependencies {
 /// A parent or child input to the connector top.
 #[derive(PartialEq, Eq, Debug)]
 pub enum Event {
+    /// Release adoptions after the project's tasks are erased
+    /// (temper/docs/design/draft/playground-reset.md, 5).
+    ReleaseProject {
+        project: u32,
+        request: Token,
+    },
     /// Removal completions (temper/docs/design/draft/playground-reset.md, 4).
     SecretsErased {
         forge: u16,
@@ -1489,6 +1495,10 @@ pub enum Event {
 /// The connector's output to the root, including child API calls.
 #[derive(PartialEq, Eq, Debug)]
 pub enum Request {
+    /// The project's adoption erasures precede this post-commit reply.
+    ProjectReleased {
+        request: Token,
+    },
     /// Make or refresh the runtime (temper/docs/design/draft/playground-reset.md, 3).
     ForgeKept(ForgeRecord),
     /// Drop the runtime and erase secrets (temper/docs/design/draft/playground-reset.md, 4).

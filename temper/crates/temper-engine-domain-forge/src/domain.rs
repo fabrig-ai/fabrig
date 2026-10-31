@@ -1307,6 +1307,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
             held::drop_section(d, section);
             brief::drop_section(d, section);
         }
+        Event::ReleaseProject { project, request } => adoption::release(d, project, request, out),
         Event::Adopt { request } => adoption::adopt(d, env, request, out),
         Event::ForgetAdoption { repository, restore } => match restore {
             Some(previous) => {

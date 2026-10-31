@@ -18,6 +18,7 @@ mod projection;
 mod purpose;
 mod reconcile;
 mod records;
+mod release;
 mod removal;
 mod restore_fit;
 mod runs;
@@ -323,6 +324,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::NotMade { .. }
         | Request::ContinueRelease { .. }
         | Request::Released { .. }
+        | Request::ProjectReleased { .. }
         | Request::Retained { .. }
         | Request::ReleaseFailed { .. }
         | Request::News { .. }
@@ -399,6 +401,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::NotMade { .. }
         | Request::ContinueRelease { .. }
         | Request::Released { .. }
+        | Request::ProjectReleased { .. }
         | Request::Retained { .. }
         | Request::ReleaseFailed { .. }
         | Request::News { .. }
@@ -472,6 +475,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::NotMade { .. }
         | Request::ContinueRelease { .. }
         | Request::Released { .. }
+        | Request::ProjectReleased { .. }
         | Request::Retained { .. }
         | Request::ReleaseFailed { .. }
         | Request::News { .. }

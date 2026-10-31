@@ -47,6 +47,12 @@ pub struct Limits {
 /// resumed by the root and never passed to the protocol as child events.
 #[derive(PartialEq, Eq, Debug)]
 pub enum Delivery {
+    /// Adoption release reaches the core after its erasures commit
+    /// (temper/docs/design/draft/playground-reset.md, 5).
+    ProjectReleased {
+        connector: u16,
+        project: u32,
+    },
     /// `Switch` is released behind prior writes; `AdoptRuns` completes the durable mark.
     Restart(jig_domain_core::RestartStep),
     /// Retry archive admission after the current iteration can retire its read slots.
@@ -482,6 +488,7 @@ impl Decision {
             Delivery::SourceSignedOut { .. }
             | Delivery::Link { .. }
             | Delivery::ProjectMade { .. }
+            | Delivery::ProjectReleased { .. }
             | Delivery::ForgeCommitted { .. }
             | Delivery::ForgeCall { .. }
             | Delivery::Bound { .. }

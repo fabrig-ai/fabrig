@@ -1017,6 +1017,9 @@ fn released_into(
     out: &mut Queue<Request>,
 ) {
     match released.0 {
+        Delivery::ProjectReleased { connector, project } => {
+            domain.work.push(Work::Core(jig_domain_core::Event::ProjectReleased { connector, project }));
+        }
         Delivery::ProjectMade { project } => {
             if let Some(row) = domain.core.tasks.funding(tasks::Funder::Period { project, period: 1 })
                 && let Some(times) = row.period
