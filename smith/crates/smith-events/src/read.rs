@@ -329,8 +329,8 @@ fn text(tokens: &[Token], capacity: u32) -> Result<Box<[u8]>, Error> {
     }
 }
 fn read_capture(tokens: &[Token], limits: &Limits) -> Result<Capture, Error> {
-    let value = text(tokens, limits.string.max(64))?;
-    Ok(match value.as_ref() {
+    let value = word(tokens, limits.string.max(64))?;
+    Ok(match value {
         b"none" => Capture::None,
         b"calls" => Capture::Calls,
         b"everything" => Capture::Everything,
@@ -339,8 +339,8 @@ fn read_capture(tokens: &[Token], limits: &Limits) -> Result<Capture, Error> {
 }
 
 fn read_delivery(tokens: &[Token], limits: &Limits) -> Result<Delivery, Error> {
-    let value = text(tokens, limits.string.max(64))?;
-    Ok(match value.as_ref() {
+    let value = word(tokens, limits.string.max(64))?;
+    Ok(match value {
         b"complete" => Delivery::Complete,
         b"best_effort" => Delivery::BestEffort,
         _ => Delivery::Unknown(unknown_word(value, limits)?),
@@ -348,8 +348,8 @@ fn read_delivery(tokens: &[Token], limits: &Limits) -> Result<Delivery, Error> {
 }
 
 fn read_mode(tokens: &[Token], limits: &Limits) -> Result<Mode, Error> {
-    let value = text(tokens, limits.string.max(64))?;
-    Ok(match value.as_ref() {
+    let value = word(tokens, limits.string.max(64))?;
+    Ok(match value {
         b"agent" => Mode::Agent,
         b"exec" => Mode::Exec,
         b"chat" => Mode::Chat,
@@ -358,8 +358,8 @@ fn read_mode(tokens: &[Token], limits: &Limits) -> Result<Mode, Error> {
 }
 
 fn read_containment(tokens: &[Token], limits: &Limits) -> Result<Containment, Error> {
-    let value = text(tokens, limits.string.max(6))?;
-    Ok(match value.as_ref() {
+    let value = word(tokens, limits.string.max(6))?;
+    Ok(match value {
         b"groups" => Containment::Groups,
         b"trees" => Containment::Trees,
         _ => Containment::Unknown(unknown_word(value, limits)?),
@@ -367,8 +367,8 @@ fn read_containment(tokens: &[Token], limits: &Limits) -> Result<Containment, Er
 }
 
 fn read_family(tokens: &[Token], limits: &Limits) -> Result<Family, Error> {
-    let value = text(tokens, limits.string.max(64))?;
-    Ok(match value.as_ref() {
+    let value = word(tokens, limits.string.max(64))?;
+    Ok(match value {
         b"inspect" => Family::Inspect,
         b"modify" => Family::Modify,
         b"shell" => Family::Shell,
@@ -378,8 +378,8 @@ fn read_family(tokens: &[Token], limits: &Limits) -> Result<Family, Error> {
 }
 
 fn read_form(tokens: &[Token], limits: &Limits) -> Result<Form, Error> {
-    let value = text(tokens, limits.string.max(64))?;
-    Ok(match value.as_ref() {
+    let value = word(tokens, limits.string.max(64))?;
+    Ok(match value {
         b"report" => Form::Report,
         b"verdict" => Form::Verdict,
         b"change" => Form::Change,
@@ -389,8 +389,8 @@ fn read_form(tokens: &[Token], limits: &Limits) -> Result<Form, Error> {
 }
 
 fn read_status(tokens: &[Token], limits: &Limits) -> Result<Status, Error> {
-    let value = text(tokens, limits.string.max(64))?;
-    Ok(match value.as_ref() {
+    let value = word(tokens, limits.string.max(64))?;
+    Ok(match value {
         b"accepted" => Status::Accepted,
         b"parked" => Status::Parked,
         b"failed" => Status::Failed,
@@ -400,8 +400,8 @@ fn read_status(tokens: &[Token], limits: &Limits) -> Result<Status, Error> {
 }
 
 fn read_conversation_kind(tokens: &[Token], limits: &Limits) -> Result<ConversationKind, Error> {
-    let value = text(tokens, limits.string.max(64))?;
-    Ok(match value.as_ref() {
+    let value = word(tokens, limits.string.max(64))?;
+    Ok(match value {
         b"main" => ConversationKind::Main,
         b"child" => ConversationKind::Child,
         b"compaction" => ConversationKind::Compaction,
@@ -410,8 +410,8 @@ fn read_conversation_kind(tokens: &[Token], limits: &Limits) -> Result<Conversat
 }
 
 fn read_conversation_end(tokens: &[Token], limits: &Limits) -> Result<ConversationEnd, Error> {
-    let value = text(tokens, limits.string.max(64))?;
-    Ok(match value.as_ref() {
+    let value = word(tokens, limits.string.max(64))?;
+    Ok(match value {
         b"closed" => ConversationEnd::Closed,
         b"budget" => ConversationEnd::Budget,
         b"failed" => ConversationEnd::Failed,
@@ -423,8 +423,8 @@ fn read_conversation_end(tokens: &[Token], limits: &Limits) -> Result<Conversati
 }
 
 fn read_tool_choice(tokens: &[Token], limits: &Limits) -> Result<ToolChoice, Error> {
-    let value = text(tokens, limits.string.max(64))?;
-    Ok(match value.as_ref() {
+    let value = word(tokens, limits.string.max(64))?;
+    Ok(match value {
         b"auto" => ToolChoice::Auto,
         b"none" => ToolChoice::None,
         b"only" => ToolChoice::Only,
@@ -433,8 +433,8 @@ fn read_tool_choice(tokens: &[Token], limits: &Limits) -> Result<ToolChoice, Err
 }
 
 fn read_outcome(tokens: &[Token], limits: &Limits) -> Result<Outcome, Error> {
-    let value = text(tokens, limits.string.max(64))?;
-    Ok(match value.as_ref() {
+    let value = word(tokens, limits.string.max(64))?;
+    Ok(match value {
         b"completed" => Outcome::Completed,
         b"failed" => Outcome::Failed,
         b"cancelled" => Outcome::Cancelled,
@@ -443,8 +443,8 @@ fn read_outcome(tokens: &[Token], limits: &Limits) -> Result<Outcome, Error> {
 }
 
 fn read_stop(tokens: &[Token], limits: &Limits) -> Result<Stop, Error> {
-    let value = text(tokens, limits.string.max(64))?;
-    Ok(match value.as_ref() {
+    let value = word(tokens, limits.string.max(64))?;
+    Ok(match value {
         b"end" => Stop::End,
         b"tools" => Stop::Tools,
         b"max_tokens" => Stop::MaxTokens,
@@ -454,8 +454,8 @@ fn read_stop(tokens: &[Token], limits: &Limits) -> Result<Stop, Error> {
 }
 
 fn read_source(tokens: &[Token], limits: &Limits) -> Result<Source, Error> {
-    let value = text(tokens, limits.string.max(64))?;
-    Ok(match value.as_ref() {
+    let value = word(tokens, limits.string.max(64))?;
+    Ok(match value {
         b"workspace" => Source::Workspace,
         b"run" => Source::Run,
         b"host" => Source::Host,
@@ -464,8 +464,8 @@ fn read_source(tokens: &[Token], limits: &Limits) -> Result<Source, Error> {
 }
 
 fn read_effect(tokens: &[Token], limits: &Limits) -> Result<Effect, Error> {
-    let value = text(tokens, limits.string.max(64))?;
-    Ok(match value.as_ref() {
+    let value = word(tokens, limits.string.max(64))?;
+    Ok(match value {
         b"read" => Effect::Read,
         b"write" => Effect::Write,
         _ => Effect::Unknown(unknown_word(value, limits)?),
@@ -473,8 +473,8 @@ fn read_effect(tokens: &[Token], limits: &Limits) -> Result<Effect, Error> {
 }
 
 fn read_verdict(tokens: &[Token], limits: &Limits) -> Result<Verdict, Error> {
-    let value = text(tokens, limits.string.max(64))?;
-    Ok(match value.as_ref() {
+    let value = word(tokens, limits.string.max(64))?;
+    Ok(match value {
         b"read" => Verdict::Read,
         b"listed" => Verdict::Listed,
         b"found" => Verdict::Found,
@@ -517,8 +517,8 @@ fn read_verdict(tokens: &[Token], limits: &Limits) -> Result<Verdict, Error> {
 }
 
 fn read_delivered(tokens: &[Token], limits: &Limits) -> Result<Delivered, Error> {
-    let value = text(tokens, limits.string.max(64))?;
-    Ok(match value.as_ref() {
+    let value = word(tokens, limits.string.max(64))?;
+    Ok(match value {
         b"delivered" => Delivered::Delivered,
         b"nothing" => Delivered::Nothing,
         b"refused" => Delivered::Refused,
@@ -529,8 +529,8 @@ fn read_delivered(tokens: &[Token], limits: &Limits) -> Result<Delivered, Error>
 }
 
 fn read_failure_class(tokens: &[Token], limits: &Limits) -> Result<FailureClass, Error> {
-    let value = text(tokens, limits.string.max(64))?;
-    Ok(match value.as_ref() {
+    let value = word(tokens, limits.string.max(64))?;
+    Ok(match value {
         b"overloaded" => FailureClass::Overloaded,
         b"rate_limited" => FailureClass::RateLimited,
         b"exhausted" => FailureClass::Exhausted,
@@ -549,8 +549,8 @@ fn read_failure_class(tokens: &[Token], limits: &Limits) -> Result<FailureClass,
 }
 
 fn read_evidence(tokens: &[Token], limits: &Limits) -> Result<Evidence, Error> {
-    let value = text(tokens, limits.string.max(64))?;
-    Ok(match value.as_ref() {
+    let value = word(tokens, limits.string.max(64))?;
+    Ok(match value {
         b"unsent" => Evidence::Unsent,
         b"maybe_sent" => Evidence::MaybeSent,
         b"response" => Evidence::Response,
@@ -559,8 +559,8 @@ fn read_evidence(tokens: &[Token], limits: &Limits) -> Result<Evidence, Error> {
 }
 
 fn read_answer_class(tokens: &[Token], limits: &Limits) -> Result<AnswerClass, Error> {
-    let value = text(tokens, limits.string.max(64))?;
-    Ok(match value.as_ref() {
+    let value = word(tokens, limits.string.max(64))?;
+    Ok(match value {
         b"model" => AnswerClass::Model,
         b"budget" => AnswerClass::Budget,
         b"policy" => AnswerClass::Policy,
@@ -576,8 +576,8 @@ fn read_answer_class(tokens: &[Token], limits: &Limits) -> Result<AnswerClass, E
 }
 
 fn read_level(tokens: &[Token], limits: &Limits) -> Result<Level, Error> {
-    let value = text(tokens, limits.string.max(64))?;
-    Ok(match value.as_ref() {
+    let value = word(tokens, limits.string.max(64))?;
+    Ok(match value {
         b"info" => Level::Info,
         b"warning" => Level::Warning,
         _ => Level::Unknown(unknown_word(value, limits)?),
@@ -585,8 +585,8 @@ fn read_level(tokens: &[Token], limits: &Limits) -> Result<Level, Error> {
 }
 
 fn read_notice_kind(tokens: &[Token], limits: &Limits) -> Result<NoticeKind, Error> {
-    let value = text(tokens, limits.string.max(64))?;
-    Ok(match value.as_ref() {
+    let value = word(tokens, limits.string.max(64))?;
+    Ok(match value {
         b"reasoning_dropped" => NoticeKind::ReasoningDropped,
         b"credential_unauthorized" => NoticeKind::CredentialUnauthorized,
         b"account_limited" => NoticeKind::AccountLimited,
@@ -598,8 +598,8 @@ fn read_notice_kind(tokens: &[Token], limits: &Limits) -> Result<NoticeKind, Err
 }
 
 fn read_role(tokens: &[Token], limits: &Limits) -> Result<Role, Error> {
-    let value = text(tokens, limits.string.max(64))?;
-    Ok(match value.as_ref() {
+    let value = word(tokens, limits.string.max(64))?;
+    Ok(match value {
         b"user" => Role::User,
         b"assistant" => Role::Assistant,
         _ => Role::Unknown(unknown_word(value, limits)?),
@@ -716,14 +716,14 @@ fn read_tools(tokens: &[Token], limits: &Limits) -> Result<Tools, Error> {
 }
 
 fn read_failure_phase(tokens: &[Token], limits: &Limits) -> Result<FailurePhase, Error> {
-    let value = text(tokens, limits.string)?;
-    Ok(match value.as_ref() {
+    let value = word(tokens, limits.string)?;
+    Ok(match value {
         b"connect" => FailurePhase::Connect,
         b"handshake" => FailurePhase::Handshake,
         b"head" => FailurePhase::Head,
         b"idle" => FailurePhase::Idle,
         b"whole" => FailurePhase::Whole,
-        _ => FailurePhase::Unknown(value),
+        _ => FailurePhase::Unknown(Box::from(value)),
     })
 }
 
@@ -1255,8 +1255,8 @@ fn read_message_received(tokens: &[Token], limits: &Limits) -> Result<MessageRec
 }
 
 fn read_message_refusal(tokens: &[Token], limits: &Limits) -> Result<MessageRefusal, Error> {
-    let value = text(tokens, limits.string.max(12))?;
-    Ok(match value.as_ref() {
+    let value = word(tokens, limits.string.max(12))?;
+    Ok(match value {
         b"too_large" => MessageRefusal::TooLarge,
         b"inbox_full" => MessageRefusal::InboxFull,
         b"name_in_use" => MessageRefusal::NameInUse,
@@ -1281,12 +1281,12 @@ fn read_message_unread(tokens: &[Token]) -> Result<MessageUnread, Error> {
 }
 
 fn read_forced(tokens: &[Token], limits: &Limits) -> Result<Forced, Error> {
-    let value = text(tokens, limits.string)?;
-    Ok(match value.as_ref() {
+    let value = word(tokens, limits.string)?;
+    Ok(match value {
         b"no" => Forced::No,
         b"terminated" => Forced::Terminated,
         b"killed" => Forced::Killed,
-        _ => Forced::Unknown(value),
+        _ => Forced::Unknown(Box::from(value)),
     })
 }
 
@@ -1359,7 +1359,7 @@ fn read_block(tokens: &[Token], limits: &Limits) -> Result<Block, Error> {
             text: text(required(tokens, b"text")?, limits.content)?,
         },
         b"opaque" => Block::Opaque { bytes: unsigned(required(tokens, b"bytes")?)? },
-        _ => Block::Unknown { kind: unknown_word(kind, limits)? },
+        _ => Block::Unknown { kind: unknown_word(&kind, limits)? },
     })
 }
 
@@ -1481,8 +1481,8 @@ fn read_list_text(tokens: &[Token], limits: &Limits) -> Result<List<Box<[u8]>>, 
 }
 
 fn read_budget_stage(tokens: &[Token], limits: &Limits) -> Result<BudgetStage, Error> {
-    let value = text(tokens, limits.string.max(64))?;
-    Ok(match value.as_ref() {
+    let value = word(tokens, limits.string.max(64))?;
+    Ok(match value {
         b"ordinary" => BudgetStage::Ordinary,
         b"wind_down" => BudgetStage::WindDown,
         _ => BudgetStage::Unknown(unknown_word(value, limits)?),
@@ -1490,8 +1490,8 @@ fn read_budget_stage(tokens: &[Token], limits: &Limits) -> Result<BudgetStage, E
 }
 
 fn read_share_part(tokens: &[Token], limits: &Limits) -> Result<SharePart, Error> {
-    let value = text(tokens, limits.string.max(64))?;
-    Ok(match value.as_ref() {
+    let value = word(tokens, limits.string.max(64))?;
+    Ok(match value {
         b"turns" => SharePart::Turns,
         b"time" => SharePart::Time,
         _ => SharePart::Unknown(unknown_word(value, limits)?),
@@ -1499,8 +1499,8 @@ fn read_share_part(tokens: &[Token], limits: &Limits) -> Result<SharePart, Error
 }
 
 fn read_share_bound(tokens: &[Token], limits: &Limits) -> Result<ShareBound, Error> {
-    let value = text(tokens, limits.string.max(64))?;
-    Ok(match value.as_ref() {
+    let value = word(tokens, limits.string.max(64))?;
+    Ok(match value {
         b"reserve" => ShareBound::Reserve,
         b"deadline" => ShareBound::Deadline,
         _ => ShareBound::Unknown(unknown_word(value, limits)?),
@@ -1549,17 +1549,10 @@ fn read_budget_standing(tokens: &[Token], limits: &Limits) -> Result<BudgetStand
 }
 
 fn read_list_clamp(tokens: &[Token], limits: &Limits) -> Result<List<Clamp>, Error> {
-    if tokens.first() != Some(&Token::ArrayStart) || tokens.last() != Some(&Token::ArrayEnd) {
-        return Err(Error::Shape);
-    }
+    let mut cursor = ListCursor::new(tokens)?;
     let mut values = List::with_capacity(limits.items);
-    let mut at = 1_usize;
     for _ in 0..tokens.len() {
-        if at >= tokens.len().saturating_sub(1) {
-            break;
-        }
-        let end = value_end(tokens, at)?;
-        let item = tokens.get(at..end).ok_or(Error::Shape)?;
+        let Some(item) = cursor.next(tokens)? else { break };
         object(item)?;
         let value = Clamp {
             part: read_share_part(required(item, b"part")?, limits)?,
@@ -1568,26 +1561,25 @@ fn read_list_clamp(tokens: &[Token], limits: &Limits) -> Result<List<Clamp>, Err
         if values.push(value).is_err() {
             return Err(Error::Limits);
         }
-        at = end;
     }
     Ok(values)
 }
 
 fn read_account_state(tokens: &[Token], limits: &Limits) -> Result<AccountState, Error> {
-    let value = text(tokens, limits.string)?;
-    Ok(match value.as_ref() {
+    let value = word(tokens, limits.string)?;
+    Ok(match value {
         b"limited" => AccountState::Limited,
         b"refused" => AccountState::Refused,
         b"unauthorized" => AccountState::Unauthorized,
-        _ => AccountState::Unknown(value),
+        _ => AccountState::Unknown(Box::from(value)),
     })
 }
 
-fn unknown_word(value: Box<[u8]>, limits: &Limits) -> Result<Box<[u8]>, Error> {
+fn unknown_word(value: &[u8], limits: &Limits) -> Result<Box<[u8]>, Error> {
     if value.len() > usize::try_from(limits.string).expect("u32 fits") {
         return Err(Error::Limits);
     }
-    Ok(value)
+    Ok(Box::from(value))
 }
 
 struct ListCursor {
@@ -1623,4 +1615,11 @@ fn the_product_announces_its_chat_store_version() {
     let Event::SessionStarted(started) = &record.event else { panic!("startup record") };
     assert_eq!(started.versions.chat_store, Some(1));
     assert_eq!(crate::write(&record, &Capture::None, &limits).unwrap().unwrap().as_ref(), wire);
+}
+
+fn word(tokens: &[Token], capacity: u32) -> Result<&[u8], Error> {
+    match tokens {
+        [Token::String(value)] if value.len() <= usize::try_from(capacity).expect("u32 fits") => Ok(value),
+        _ => Err(Error::Shape),
+    }
 }

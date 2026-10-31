@@ -379,87 +379,87 @@ fn heap_block(limits: &Limits) -> Option<u64> {
 }
 
 fn size_capture(limits: &Limits) -> Option<u64> {
-    u64::from(limits.string.max(10)).checked_mul(6)?.checked_add(2)
+    string_size(limits.string.max(10))
 }
 
 fn size_delivery(limits: &Limits) -> Option<u64> {
-    u64::from(limits.string.max(11)).checked_mul(6)?.checked_add(2)
+    string_size(limits.string.max(11))
 }
 
 fn size_mode(limits: &Limits) -> Option<u64> {
-    u64::from(limits.string.max(5)).checked_mul(6)?.checked_add(2)
+    string_size(limits.string.max(5))
 }
 
 fn size_containment(limits: &Limits) -> Option<u64> {
-    u64::from(limits.string.max(6)).checked_mul(6)?.checked_add(2)
+    string_size(limits.string.max(6))
 }
 
 fn size_family(limits: &Limits) -> Option<u64> {
-    u64::from(limits.string.max(10)).checked_mul(6)?.checked_add(2)
+    string_size(limits.string.max(10))
 }
 
 fn size_form(limits: &Limits) -> Option<u64> {
-    u64::from(limits.string.max(7)).checked_mul(6)?.checked_add(2)
+    string_size(limits.string.max(7))
 }
 
 fn size_status(limits: &Limits) -> Option<u64> {
-    u64::from(limits.string.max(8)).checked_mul(6)?.checked_add(2)
+    string_size(limits.string.max(8))
 }
 
 fn size_conversation_kind(limits: &Limits) -> Option<u64> {
-    u64::from(limits.string.max(10)).checked_mul(6)?.checked_add(2)
+    string_size(limits.string.max(10))
 }
 
 fn size_conversation_end(limits: &Limits) -> Option<u64> {
-    u64::from(limits.string.max(10)).checked_mul(6)?.checked_add(2)
+    string_size(limits.string.max(10))
 }
 
 fn size_outcome(limits: &Limits) -> Option<u64> {
-    u64::from(limits.string.max(9)).checked_mul(6)?.checked_add(2)
+    string_size(limits.string.max(9))
 }
 
 fn size_stop(limits: &Limits) -> Option<u64> {
-    u64::from(limits.string.max(10)).checked_mul(6)?.checked_add(2)
+    string_size(limits.string.max(10))
 }
 
 fn size_source(limits: &Limits) -> Option<u64> {
-    u64::from(limits.string.max(9)).checked_mul(6)?.checked_add(2)
+    string_size(limits.string.max(9))
 }
 
 fn size_effect(limits: &Limits) -> Option<u64> {
-    u64::from(limits.string.max(5)).checked_mul(6)?.checked_add(2)
+    string_size(limits.string.max(5))
 }
 
 fn size_verdict(limits: &Limits) -> Option<u64> {
-    u64::from(limits.string.max(9)).checked_mul(6)?.checked_add(2)
+    string_size(limits.string.max(9))
 }
 
 fn size_delivered(limits: &Limits) -> Option<u64> {
-    u64::from(limits.string.max(9)).checked_mul(6)?.checked_add(2)
+    string_size(limits.string.max(9))
 }
 
 fn size_failure_class(limits: &Limits) -> Option<u64> {
-    u64::from(limits.string.max(16)).checked_mul(6)?.checked_add(2)
+    string_size(limits.string.max(16))
 }
 
 fn size_evidence(limits: &Limits) -> Option<u64> {
-    u64::from(limits.string.max(10)).checked_mul(6)?.checked_add(2)
+    string_size(limits.string.max(10))
 }
 
 fn size_answer_class(limits: &Limits) -> Option<u64> {
-    u64::from(limits.string.max(10)).checked_mul(6)?.checked_add(2)
+    string_size(limits.string.max(10))
 }
 
 fn size_level(limits: &Limits) -> Option<u64> {
-    u64::from(limits.string.max(7)).checked_mul(6)?.checked_add(2)
+    string_size(limits.string.max(7))
 }
 
 fn size_notice_kind(limits: &Limits) -> Option<u64> {
-    u64::from(limits.string.max(23)).checked_mul(6)?.checked_add(2)
+    string_size(limits.string.max(23))
 }
 
 fn size_role(limits: &Limits) -> Option<u64> {
-    u64::from(limits.string.max(9)).checked_mul(6)?.checked_add(2)
+    string_size(limits.string.max(9))
 }
 
 fn size_agent(limits: &Limits) -> Option<u64> {
@@ -577,9 +577,7 @@ fn size_answer_failure(capture: &Capture, limits: &Limits) -> Option<u64> {
     length = length.checked_add(10)?.checked_add(string_size(limits.string)?)?;
     length = length.checked_add(24)?.checked_add(u64::from(limits.string).checked_mul(12)?.checked_add(4)?)?;
     length = length.checked_add(12)?.checked_add(20)?;
-    length = length
-        .checked_add(9 + 8 + 11)?
-        .checked_add(u64::from(limits.string.max(12)).checked_mul(6)?.checked_add(2)?.checked_mul(3)?)?;
+    length = length.checked_add(9 + 8 + 11)?.checked_add(string_size(limits.string.max(12))?.checked_mul(3)?)?;
     length = length.checked_add(8 + 31)?;
     match capture {
         Capture::None | Capture::Unknown(_) => {}
@@ -649,7 +647,7 @@ fn size_command_exit() -> Option<u64> {
 
 fn size_check_exit(limits: &Limits) -> Option<u64> {
     let mut length = 2_u64;
-    length = length.checked_add(8)?.checked_add(u64::from(limits.string.max(9)).checked_mul(6)?.checked_add(2)?)?;
+    length = length.checked_add(8)?.checked_add(string_size(limits.string.max(9))?)?;
     length = length.checked_add(9)?.checked_add(20)?;
     Some(length)
 }
@@ -759,7 +757,7 @@ fn size_response_started(capture: &Capture, limits: &Limits) -> Option<u64> {
     length = length.checked_add(9)?.checked_add(size_model(limits)?)?;
     length = length.checked_add(12)?.checked_add(20_u64)?;
     length = length.checked_add(17)?.checked_add(20_u64)?;
-    length = length.checked_add(15)?.checked_add(u64::from(limits.string.max(4)).checked_mul(6)?.checked_add(2)?)?;
+    length = length.checked_add(15)?.checked_add(string_size(limits.string.max(4))?)?;
     if *capture == Capture::Everything {
         length = length.checked_add(10)?.checked_add(size_prompt(limits)?)?;
     }
@@ -898,7 +896,7 @@ fn size_message_unread() -> Option<u64> {
 fn size_notice(limits: &Limits) -> Option<u64> {
     let mut length = 2_u64;
     length = length.checked_add(8)?.checked_add(11)?.checked_add(20)?;
-    length = length.checked_add(10)?.checked_add(u64::from(limits.string.max(10)).checked_mul(6)?.checked_add(2)?)?;
+    length = length.checked_add(10)?.checked_add(string_size(limits.string.max(10))?)?;
     length = length.checked_add(9)?.checked_add(size_level(limits)?)?;
     length = length.checked_add(8)?.checked_add(size_notice_kind(limits)?)?;
     length = length.checked_add(7)?.checked_add(20_u64)?;

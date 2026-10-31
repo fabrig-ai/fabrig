@@ -797,7 +797,6 @@ pub struct SessionStarted {
 pub struct SessionEnded {
     pub exit: i64,
     pub answered: bool,
-    /// Absent only when the benchmark reader selects a stream from before this field.
     pub aborted: bool,
     pub teardown_ms: Option<u64>,
     pub emitted: List<Count>,
