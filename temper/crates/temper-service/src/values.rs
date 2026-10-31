@@ -46,6 +46,9 @@ impl Identities {
             .expect("kept forge identity capacity");
         1
     }
+    pub(crate) fn forget(&mut self, number: u32) {
+        self.entries.remove(&number);
+    }
     /// Either of the two newest generations, or none for an older one.
     #[must_use]
     pub fn get(&self, number: u32, generation: u64) -> Option<&Secret> {
