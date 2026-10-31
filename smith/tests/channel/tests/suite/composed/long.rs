@@ -22,12 +22,7 @@ impl LongWorld {
         bounds.unacknowledged_bytes = bounds.turn_bytes;
         let mut host = smith_host_world::World::new(97, bounds);
         host.live();
-        let mut wire = World::new(CEILINGS, CEILINGS, StreamMode::Two);
-        wire.settle();
-        wire.send_start(Box::from(
-            &include_bytes!("../../../../../crates/smith-charter/golden/v4/record_charter_smallest.bin")[..],
-        ));
-        wire.settle();
+        let wire = World::started();
         Self {
             domain: agent::Domain::new(&limits, configuration(), 97),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },

@@ -8,12 +8,15 @@
 //!
 //! | State | Input | Output |
 //! |---|---|---|
-//! | Opening | Open | Accept the highest shared version |
-//! | Opening | Ready | Check host receive terms, then Opened or Refuse limits |
-//! | Opened | Start | Decode its charter and resolve endpoint names, or answer invalid |
-//! | Started | Admitted | Send the domain's admission notice once |
+//! | Opening | Open/Ready | Agree version and receive terms, then Opened |
+//! | Opened | Start | Resolve charter, transcript and grants, or answer invalid |
+//! | Started | Message/Cancel | Deliver a labelled message or the single cancel |
+//! | Started | Admitted | Send admission; retain the live request and turn window |
+//! | Admitted | HostAnswer/GrantRefresh | Settle a call or retain a new generation |
+//! | Admitted | Acknowledge | Release the durably kept turn prefix |
 //! | Started/Admitted | Answer | Send the final answer and finish writes |
-//! | Opened | End/Closed | Ended |
+//! | Answered | Acknowledge | Release remaining turn credit |
+//! | Any | End/Closed | Emit the independent Ended terminal once |
 
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]

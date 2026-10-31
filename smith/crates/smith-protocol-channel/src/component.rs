@@ -1,7 +1,7 @@
 //! Agent-side opening machine (protocol/channel.md, sections 2 and 5).
 use alloc::boxed::Box;
 use skein_channel::{Closed, Event, Frame, Lower, LowerEvent, Machine, Request, Role, Schema, StreamMode};
-use skein_lib::{Duration, Map, Queue, Reader, Time, Token};
+use skein_lib::{Duration, Map, Queue, Time, Token};
 
 use crate::calls;
 use crate::credentials::Credentials;
@@ -9,24 +9,20 @@ use crate::facts;
 use crate::limits::{Error, Limits};
 use smith_domain::run;
 use smith_domain_session::record;
-use smith_protocol_translate::decode_transcript;
 use smith_protocol_translate::encode_turn;
-use smith_protocol_translate::{
-    DecodedStart, Endpoints, answer_record, decode_charter, invalid_start, saved_delivery, start_context,
-};
+use smith_protocol_translate::{DecodedStart, Endpoints, answer_record};
 
+mod cancellation;
+mod ending;
 mod notices;
+mod receive;
+mod state;
+mod turns;
 
-use smith_channel::reason::{RULES, UNAUTHORIZED};
+use ending::Ending;
+use state::State;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum Phase {
-    Opening,
-    Opened,
-    Started,
-    Admitted,
-    Answered,
-}
+use smith_channel::reason::RULES;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) struct CallKey {
@@ -88,27 +84,21 @@ pub struct Component {
     machine: Machine,
     schema: Schema,
     events: Queue<Event>,
-    phase: Phase,
-    ended: bool,
+    state: State,
+    ending: Ending,
     bodies: smith_channel::Limits,
     charter: smith_charter::v4::Limits,
     transcript: smith_transcript::v6::Limits,
     endpoints: Endpoints,
     calls: Map<CallKey, CallRoute>,
-    window: Option<smith_domain::Window>,
-    turns: Map<u32, u64>,
+    turn_capacity: u32,
     resume_turns: u32,
     search_hits: u32,
-    last_sent_turn: u32,
-    long_open: u32,
-    held_turn_bytes: u64,
     fact_reserve_frames: u32,
     fact_reserve_bytes: u32,
     lost_facts: u64,
-    live: Option<smith_channel::LiveAsk>,
     lost_live_bytes: u64,
     credentials: Credentials,
-    cancelled: bool,
 }
 
 impl Component {
@@ -129,34 +119,28 @@ impl Component {
             machine,
             schema,
             events: Queue::uncapped(),
-            phase: Phase::Opening,
-            ended: false,
+            state: State::Opening,
+            ending: Ending::Listening,
             bodies: limits.bodies,
             charter: limits.charter,
             transcript: limits.transcript,
             endpoints,
             calls: Map::with_capacity(limits.calls),
-            window: None,
-            turns: Map::with_capacity(limits.turns),
+            turn_capacity: limits.turns,
             resume_turns: limits.resume_turns,
             search_hits: limits.search_hits,
-            last_sent_turn: 0,
-            long_open: 0,
-            held_turn_bytes: 0,
             fact_reserve_frames: limits.fact_reserve_frames,
             fact_reserve_bytes: limits.fact_reserve_bytes,
             lost_facts: 0,
-            live: None,
             lost_live_bytes: 0,
             credentials: Credentials::new(limits.grants),
-            cancelled: false,
         })
     }
 
     /// The channel has reported its end to its service.
     #[must_use]
-    pub const fn ended(&self) -> bool {
-        self.ended
+    pub fn ended(&self) -> bool {
+        self.ending.reported()
     }
 
     /// Consume one stream event and progress the opening.
@@ -179,12 +163,13 @@ impl Component {
         to_service: &mut Queue<OpenEvent>,
         below: &mut Queue<Lower>,
     ) -> Result<(), Error> {
-        if self.phase != Phase::Started {
+        if !self.state.started() {
             return Err(Error::Order);
         }
         let record = smith_channel::Admitted::new(&self.bodies, smith_channel::AdmittedParts {})?;
         let frame = smith_channel::frame(smith_channel::Body::Admitted(record))?;
-        self.phase = Phase::Admitted;
+        self.state.admit();
+        self.follow(below);
         self.machine.down(Request::Send { token, frame }, &mut self.events, below);
         self.drain(to_service, below);
         self.fire(to_service, below);
@@ -200,7 +185,7 @@ impl Component {
         to_service: &mut Queue<OpenEvent>,
         below: &mut Queue<Lower>,
     ) -> Result<(), Error> {
-        if self.phase != Phase::Admitted {
+        if !self.state.admitted() {
             return Err(Error::Order);
         }
         let reason = match reason {
@@ -231,9 +216,9 @@ impl Component {
         below: &mut Queue<Lower>,
     ) -> Result<(), Error> {
         let permitted = match &answer {
-            run::Answer::Refused(_) => self.phase == Phase::Started,
+            run::Answer::Refused(_) => self.state.started(),
             run::Answer::Parked { .. } | run::Answer::Accepted { .. } | run::Answer::Failed { .. } => {
-                self.phase == Phase::Admitted
+                self.state.admitted()
             }
         };
         if !permitted {
@@ -241,7 +226,8 @@ impl Component {
         }
         let record = answer_record(now, answer, read, &self.bodies, &self.charter)?;
         let frame = smith_channel::frame(smith_channel::Body::Answer(record))?;
-        self.phase = Phase::Answered;
+        self.state.answer();
+        self.follow(below);
         self.machine.down(Request::Send { token, frame }, &mut self.events, below);
         self.machine.down(Request::Finish, &mut self.events, below);
         self.drain(to_service, below);
@@ -258,7 +244,7 @@ impl Component {
         to_service: &mut Queue<OpenEvent>,
         below: &mut Queue<Lower>,
     ) -> Result<(), Error> {
-        if self.phase != Phase::Admitted {
+        if !self.state.admitted() {
             return Err(Error::Order);
         }
         let last_read = match read {
@@ -282,10 +268,10 @@ impl Component {
         to_service: &mut Queue<OpenEvent>,
         below: &mut Queue<Lower>,
     ) -> Result<(), Error> {
-        if self.phase != Phase::Admitted {
+        if !self.state.admitted() {
             return Err(Error::Order);
         }
-        let next = self.long_open.checked_add(1).ok_or(Error::Order)?;
+        let next = self.state.active()?.long_open.checked_add(1).ok_or(Error::Order)?;
         let operation = match operation {
             smith_domain::Operation::Checks => smith_channel::Operation::Check,
             smith_domain::Operation::Completion => smith_channel::Operation::Completion,
@@ -293,7 +279,7 @@ impl Component {
         };
         let record = smith_channel::Long::new(&self.bodies, smith_channel::LongParts { operation, span })?;
         let frame = smith_channel::frame(smith_channel::Body::Long(record))?;
-        self.long_open = next;
+        self.state.active_mut()?.long_open = next;
         self.machine.down(Request::Send { token, frame }, &mut self.events, below);
         self.drain(to_service, below);
         self.fire(to_service, below);
@@ -307,12 +293,13 @@ impl Component {
         to_service: &mut Queue<OpenEvent>,
         below: &mut Queue<Lower>,
     ) -> Result<(), Error> {
-        if self.phase != Phase::Admitted || self.long_open == 0 {
+        if !self.state.admitted() || self.state.active()?.long_open == 0 {
             return Err(Error::Order);
         }
         let record = smith_channel::LongDone::new(&self.bodies, smith_channel::LongDoneParts {})?;
         let frame = smith_channel::frame(smith_channel::Body::LongDone(record))?;
-        self.long_open = self.long_open.checked_sub(1).expect("a begun operation owns this terminal");
+        let active = self.state.active_mut()?;
+        active.long_open = active.long_open.checked_sub(1).expect("a begun operation owns this terminal");
         self.machine.down(Request::Send { token, frame }, &mut self.events, below);
         self.drain(to_service, below);
         self.fire(to_service, below);
@@ -333,17 +320,12 @@ impl Component {
         to_service: &mut Queue<OpenEvent>,
         below: &mut Queue<Lower>,
     ) -> Result<(), Error> {
-        if self.phase != Phase::Admitted || number == 0 {
+        if !self.state.admitted() || number == 0 {
             return Err(Error::Order);
         }
         let body = encode_turn(turn, &self.transcript, &self.endpoints)?;
-        let window = self.window.ok_or(Error::Order)?;
         let body_bytes = turn.owned_bytes().ok_or(Error::Window)?;
-        let next = self.last_sent_turn.checked_add(1).ok_or(Error::Window)?;
-        let held_bytes = self.held_turn_bytes.checked_add(body_bytes).ok_or(Error::Window)?;
-        if number != next || self.turns.len() >= window.turns || held_bytes > window.bytes {
-            return Err(Error::Window);
-        }
+        self.state.active()?.turns.check(number, body_bytes)?;
         let last_read = match read {
             Some(name) => Some(name.raw()),
             None => None,
@@ -353,11 +335,7 @@ impl Component {
             smith_channel::TurnParts { number, spent: spent.units, last_read, opens_window, body },
         )?;
         let frame = smith_channel::frame(smith_channel::Body::Turn(record))?;
-        if self.turns.insert(number, body_bytes).is_err() {
-            return Err(Error::Window);
-        }
-        self.last_sent_turn = number;
-        self.held_turn_bytes = held_bytes;
+        self.state.turns_mut()?.keep(number, body_bytes)?;
         self.machine.down(Request::Send { token, frame }, &mut self.events, below);
         self.drain(to_service, below);
         self.fire(to_service, below);
@@ -409,10 +387,11 @@ impl Component {
     /// Whether one text piece fits without spending authoritative or fact room.
     #[must_use]
     pub fn takes_live(&self, kind: crate::PieceKind<'_>, bytes: u32) -> bool {
-        if self.phase != Phase::Admitted || self.ended {
+        if !self.state.admitted() || self.ended() {
             return false;
         }
-        let Some(ask) = &self.live else {
+        let Ok(active) = self.state.active() else { return false };
+        let Some(ask) = &active.live else {
             return false;
         };
         let asked = match kind {
@@ -454,7 +433,7 @@ impl Component {
         below: &mut Queue<Lower>,
     ) -> Result<bool, Error> {
         let length = u64::try_from(piece.bytes.len()).expect("piece length fits u64");
-        if self.last_sent_turn.checked_add(1) != Some(piece.turn)
+        if self.state.next_turn() != Some(piece.turn)
             || !self.takes_live(piece.kind, u32::try_from(length).unwrap_or(u32::MAX))
             || to_service.room() < crate::limits::EDGE_ROOM.to_domain
             || below.room() < crate::limits::EDGE_ROOM.below
@@ -495,8 +474,8 @@ impl Component {
         to_service: &mut Queue<OpenEvent>,
         below: &mut Queue<Lower>,
     ) -> Result<bool, Error> {
-        if self.phase != Phase::Admitted
-            || self.ended
+        if !self.state.admitted()
+            || self.ended()
             || to_service.room() < crate::limits::EDGE_ROOM.to_domain
             || below.room() < crate::limits::EDGE_ROOM.below
         {
@@ -542,7 +521,7 @@ impl Component {
         to_service: &mut Queue<OpenEvent>,
         below: &mut Queue<Lower>,
     ) -> Result<(), Error> {
-        if self.phase != Phase::Admitted {
+        if !self.state.admitted() {
             return Err(Error::Order);
         }
         let key = CallKey::from_domain(name);
@@ -572,7 +551,7 @@ impl Component {
         to_service: &mut Queue<OpenEvent>,
         below: &mut Queue<Lower>,
     ) -> Result<(), Error> {
-        if self.phase != Phase::Admitted {
+        if !self.state.admitted() {
             return Err(Error::Order);
         }
         let key = CallKey::from_domain(name);
@@ -597,7 +576,7 @@ impl Component {
         to_service: &mut Queue<OpenEvent>,
         below: &mut Queue<Lower>,
     ) -> Result<(), Error> {
-        if self.phase != Phase::Admitted {
+        if !self.state.admitted() {
             return Err(Error::Order);
         }
         let mut name = None;
@@ -618,272 +597,7 @@ impl Component {
     /// Whether the channel can take application records.
     #[must_use]
     pub fn opened(&self) -> bool {
-        self.phase != Phase::Opening
-    }
-
-    #[expect(clippy::too_many_lines, reason = "bounded event dispatch keeps channel order in one place")]
-    fn drain(&mut self, to_service: &mut Queue<OpenEvent>, below: &mut Queue<Lower>) {
-        // Eight child transitions bound opening/terms, one demanded record or
-        // refusal, and the resulting output and close notifications.
-        for _ in 0_u8..8_u8 {
-            let event = self.events.pop();
-            match event {
-                Some(Event::Opening { credential, lowest: _, highest }) => {
-                    if credential.is_empty() {
-                        self.machine.down(
-                            Request::Accept { version: highest.min(smith_channel::kind::VERSION) },
-                            &mut self.events,
-                            below,
-                        );
-                    } else {
-                        self.machine.down(
-                            Request::Refuse { reason: UNAUTHORIZED, text: Box::from(*b"credential on pipe") },
-                            &mut self.events,
-                            below,
-                        );
-                    }
-                }
-                Some(Event::Ready { version, terms }) => {
-                    match smith_channel::peer_terms_gap(&self.schema, Role::Responder, version, &terms) {
-                        Some(kind) => {
-                            self.machine.down(
-                                Request::Refuse { reason: smith_channel::reason::LIMITS, text: kind_text(kind) },
-                                &mut self.events,
-                                below,
-                            );
-                        }
-                        None => {
-                            self.phase = Phase::Opened;
-                            to_service.push(OpenEvent::Opened { version });
-                            self.machine.down(Request::Read, &mut self.events, below);
-                        }
-                    }
-                }
-                Some(Event::Body { kind: smith_channel::kind::MESSAGE, body })
-                    if self.phase == Phase::Started || self.phase == Phase::Admitted =>
-                {
-                    match smith_channel::Message::decode(&self.bodies, &mut Reader::new(&body)) {
-                        Ok(message) => {
-                            to_service.push(OpenEvent::Message {
-                                finish_requested: message.finish_requested(),
-                                name: Token::new(message.name()),
-                                label: Box::from(message.label()),
-                                text: Box::from(message.text()),
-                            });
-                            self.machine.down(Request::Read, &mut self.events, below);
-                        }
-                        Err(_) => self.refuse_rules(below),
-                    }
-                }
-                Some(Event::Body { kind: smith_channel::kind::HOST_ANSWER, body }) if self.phase == Phase::Admitted => {
-                    match smith_channel::HostAnswer::decode(&self.bodies, &mut Reader::new(&body)) {
-                        Ok(answer) => {
-                            let key = CallKey::from_wire(answer.name());
-                            match self.calls.remove(&key) {
-                                Some(CallRoute::Host { relay, send: _ }) => match calls::host_reply(answer.reply()) {
-                                    Some(reply) => {
-                                        to_service.push(OpenEvent::HostReturned { relay, reply });
-                                        self.machine.down(Request::Read, &mut self.events, below);
-                                    }
-                                    None => self.refuse_rules(below),
-                                },
-                                Some(CallRoute::Delivery { owner, send: _ }) => match answer.reply() {
-                                    smith_channel::Reply::Delivery(delivery) => {
-                                        match saved_delivery(delivery.value()) {
-                                            Ok(delivery) => {
-                                                to_service
-                                                    .push(OpenEvent::Delivered { owner, delivery: Box::new(delivery) });
-                                                self.machine.down(Request::Read, &mut self.events, below);
-                                            }
-                                            Err(_) => self.refuse_rules(below),
-                                        }
-                                    }
-                                    smith_channel::Reply::Host(_)
-                                    | smith_channel::Reply::Busy
-                                    | smith_channel::Reply::Unavailable
-                                    | smith_channel::Reply::Withdrawn
-                                    | smith_channel::Reply::TooLarge => self.refuse_rules(below),
-                                },
-                                None => self.refuse_rules(below),
-                            }
-                        }
-                        Err(_) => self.refuse_rules(below),
-                    }
-                }
-                Some(Event::Body { kind: smith_channel::kind::ACKNOWLEDGE, body })
-                    if self.phase == Phase::Admitted || self.phase == Phase::Answered =>
-                {
-                    match smith_channel::Acknowledge::decode(&self.bodies, &mut Reader::new(&body)) {
-                        Ok(acknowledge) => {
-                            if acknowledge.number() > self.last_sent_turn || acknowledge.number() == 0 {
-                                self.refuse_rules(below);
-                                continue;
-                            }
-                            let mut released = 0_u64;
-                            let mut old = skein_lib::List::with_capacity(self.turns.len());
-                            for (number, bytes) in &self.turns {
-                                if *number <= acknowledge.number() {
-                                    released = match released.checked_add(*bytes) {
-                                        Some(total) => total,
-                                        None => {
-                                            self.refuse_rules(below);
-                                            return;
-                                        }
-                                    };
-                                    if old.push(*number).is_err() {
-                                        self.refuse_rules(below);
-                                        return;
-                                    }
-                                }
-                            }
-                            for number in &old {
-                                self.turns.remove(number);
-                            }
-                            self.held_turn_bytes = match self.held_turn_bytes.checked_sub(released) {
-                                Some(held) => held,
-                                None => {
-                                    self.refuse_rules(below);
-                                    return;
-                                }
-                            };
-                            to_service.push(OpenEvent::Acknowledged { turn: acknowledge.number() });
-                            self.machine.down(Request::Read, &mut self.events, below);
-                        }
-                        Err(_) => self.refuse_rules(below),
-                    }
-                }
-                Some(Event::Body { kind: smith_channel::kind::GRANT_REFRESH, body })
-                    if self.phase == Phase::Admitted =>
-                {
-                    match smith_channel::GrantRefresh::decode(&self.bodies, &mut Reader::new(&body)) {
-                        Ok(refresh) => {
-                            let grant = refresh.grant();
-                            let name =
-                                smith_domain::GrantName { account: grant.account(), generation: grant.generation() };
-                            let kept = match crate::GrantValue::try_from(grant.value()) {
-                                Ok(value) => self.credentials.keep(name.account, name.generation, value),
-                                Err(error) => Err(error),
-                            };
-                            match kept {
-                                Ok(()) => {
-                                    to_service.push(OpenEvent::Grant {
-                                        grant: smith_protocol_translate::refreshed_grant(grant),
-                                    });
-                                    self.machine.down(Request::Read, &mut self.events, below);
-                                }
-                                Err(_) => self.refuse_rules(below),
-                            }
-                        }
-                        Err(_) => self.refuse_rules(below),
-                    }
-                }
-                Some(Event::Body { kind: smith_channel::kind::CANCEL, body })
-                    if self.phase == Phase::Started || self.phase == Phase::Admitted =>
-                {
-                    if self.cancelled {
-                        self.refuse_rules(below);
-                    } else {
-                        match smith_channel::Cancel::decode(&self.bodies, &mut Reader::new(&body)) {
-                            Ok(_) => {
-                                self.cancelled = true;
-                                to_service.push(OpenEvent::Cancel);
-                                self.machine.down(Request::Read, &mut self.events, below);
-                            }
-                            Err(_) => self.refuse_rules(below),
-                        }
-                    }
-                }
-                Some(Event::Body { kind, body }) => {
-                    if self.phase != Phase::Opened || kind != smith_channel::kind::START {
-                        self.refuse_rules(below);
-                    } else {
-                        match smith_channel::Start::decode(&self.bodies, &mut Reader::new(&body)) {
-                            Ok(start) => {
-                                self.phase = Phase::Started;
-                                match decode_charter(start.charter(), &self.charter, &self.endpoints) {
-                                    Ok(charter) => {
-                                        match decode_transcript(
-                                            start.transcript(),
-                                            self.resume_turns,
-                                            self.search_hits,
-                                            &self.transcript,
-                                            &self.endpoints,
-                                        ) {
-                                            Ok(transcript) => match self.stash_initial_grants(&start) {
-                                                Ok(()) => match start_context(start, charter, transcript) {
-                                                    Ok(mut start) => {
-                                                        start.window.turns =
-                                                            start.window.turns.min(self.turns.capacity());
-                                                        self.window = Some(start.window);
-                                                        self.live.clone_from(&start.live);
-                                                        to_service.push(OpenEvent::Start { start: Box::new(start) });
-                                                        self.machine.down(Request::Read, &mut self.events, below);
-                                                    }
-                                                    Err(_) => self.refuse_rules(below),
-                                                },
-                                                Err(_) => self.refuse_rules(below),
-                                            },
-                                            Err(reason) => self.transcript_refused(reason, to_service, below),
-                                        }
-                                    }
-                                    Err(invalid) => match invalid_start(invalid, &self.bodies) {
-                                        Ok(reason) => self.invalid_start(reason, below),
-                                        Err(_) => self.refuse_rules(below),
-                                    },
-                                }
-                            }
-                            Err(_) => self.refuse_rules(below),
-                        }
-                    }
-                }
-                Some(Event::Closed { why }) => {
-                    if !self.ended {
-                        self.ended = true;
-                        to_service.push(OpenEvent::Ended { why });
-                    }
-                }
-                Some(Event::Ended) => {
-                    if !self.ended {
-                        self.ended = true;
-                        to_service.push(OpenEvent::Ended { why: Closed::Stream });
-                    }
-                }
-                Some(Event::Unsent { token, why: _ }) => {
-                    let mut found = None;
-                    for (key, route) in &self.calls {
-                        let send = match route {
-                            CallRoute::Host { send, .. } | CallRoute::Delivery { send, .. } => *send,
-                        };
-                        if send == token {
-                            found = Some(*key);
-                        }
-                    }
-                    if let Some(key) = found {
-                        match self.calls.remove(&key) {
-                            Some(CallRoute::Host { relay, send: _ }) => {
-                                to_service.push(OpenEvent::HostReturned {
-                                    relay,
-                                    reply: run::HostReply::Unanswered(run::Unanswered::Lost),
-                                });
-                            }
-                            Some(CallRoute::Delivery { owner, send: _ }) => {
-                                to_service.push(OpenEvent::DeliveryUnsent { owner });
-                            }
-                            None => {}
-                        }
-                    }
-                }
-                Some(
-                    Event::Ping
-                    | Event::Unsupported { .. }
-                    | Event::Refused { .. }
-                    | Event::Sent { .. }
-                    | Event::Drained,
-                )
-                | None => {}
-                Some(Event::OutputFailed) => to_service.push(OpenEvent::WriteFailed),
-            }
-        }
+        self.state.opened()
     }
 
     fn refuse_rules(&mut self, below: &mut Queue<Lower>) {
@@ -899,46 +613,6 @@ impl Component {
             self.credentials.keep(grant.account(), grant.generation(), crate::GrantValue::try_from(grant.value())?)?;
         }
         Ok(())
-    }
-
-    fn invalid_start(&mut self, invalid: smith_channel::InvalidStart, below: &mut Queue<Lower>) {
-        match invalid_answer(&self.bodies, invalid) {
-            Some(frame) => {
-                self.phase = Phase::Answered;
-                self.machine.down(Request::Send { token: Token::new(0), frame }, &mut self.events, below);
-                self.machine.down(Request::Finish, &mut self.events, below);
-            }
-            None => self.refuse_rules(below),
-        }
-    }
-
-    fn transcript_refused(
-        &mut self,
-        reason: record::Refusal,
-        to_service: &mut Queue<OpenEvent>,
-        below: &mut Queue<Lower>,
-    ) {
-        let reason = match reason {
-            record::Refusal::Version => run::TranscriptRefusal::Version,
-            record::Refusal::Malformed => run::TranscriptRefusal::Malformed,
-            record::Refusal::Unresolved => run::TranscriptRefusal::Unresolved,
-            record::Refusal::TooLarge => run::TranscriptRefusal::TooLarge,
-        };
-        let admitted = self.send_admitted(Token::new(0), to_service, below);
-        let answered = match admitted {
-            Ok(()) => self.send_answer(
-                Time::ZERO,
-                run::Answer::Failed { failure: run::Failure::Transcript(reason), spent: run::Spend::ZERO, turns: 0 },
-                None,
-                Token::new(0),
-                to_service,
-                below,
-            ),
-            Err(error) => Err(error),
-        };
-        if answered.is_err() {
-            self.refuse_rules(below);
-        }
     }
 }
 

@@ -508,6 +508,27 @@ pub struct World {
 }
 
 impl World {
+    /// Open both halves and deliver the smallest valid Start.
+    #[must_use]
+    pub fn started() -> World {
+        let mut world = World::new(smith_channel::CEILINGS, smith_channel::CEILINGS, StreamMode::Two);
+        world.settle();
+        world.send_start(Box::from(
+            &include_bytes!("../../../crates/smith-charter/golden/v4/record_charter_smallest.bin")[..],
+        ));
+        world.settle();
+        world
+    }
+
+    /// Open, start and admit the smallest valid run.
+    #[must_use]
+    pub fn admitted() -> World {
+        let mut world = Self::started();
+        world.agent_admits();
+        world.settle();
+        world
+    }
+
     /// Build both halves with independent receiving limits.
     #[must_use]
     pub fn new(host_bodies: smith_channel::Limits, agent_bodies: smith_channel::Limits, mode: StreamMode) -> World {
@@ -1315,5 +1336,48 @@ mod read_tests {
             world.observations().iter().filter(|event| **event == Observation::HostEnded(Closed::Stream)).count(),
             1
         );
+    }
+    fn inject_agent(world: &mut World, body: smith_channel::Body) {
+        let frame = smith_channel::frame(body).expect("bounded scripted peer frame");
+        world.agent.incoming.extend(frame.bytes().iter().copied());
+        world.settle();
+    }
+
+    #[test]
+    fn a_second_cancel_is_refused_without_a_second_terminal() {
+        let mut world = World::started();
+        for _ in 0..2 {
+            let record = smith_channel::Cancel::new(&smith_channel::CEILINGS, smith_channel::CancelParts {}).unwrap();
+            inject_agent(&mut world, smith_channel::Body::Cancel(record));
+        }
+        assert_eq!(world.observations().iter().filter(|event| **event == Observation::AgentCancel).count(), 1);
+        assert_eq!(world.observations().iter().filter(|event| matches!(event, Observation::AgentEnded(_))).count(), 1);
+    }
+
+    #[test]
+    fn answered_turn_credit_accepts_a_late_acknowledgement() {
+        let mut world = World::admitted();
+        world.agent_tells_turn(1, None, &window_turn_fixture());
+        world.settle();
+        world.agent_parks();
+        world.settle();
+        let record =
+            smith_channel::Acknowledge::new(&smith_channel::CEILINGS, smith_channel::AcknowledgeParts { number: 1 })
+                .unwrap();
+        inject_agent(&mut world, smith_channel::Body::Acknowledge(record));
+        assert_eq!(
+            world.observations().iter().filter(|event| **event == Observation::AgentAcknowledged { turn: 1 }).count(),
+            1
+        );
+    }
+
+    #[test]
+    fn a_cancel_before_start_is_refused_without_reaching_the_service() {
+        let mut world = World::new(smith_channel::CEILINGS, smith_channel::CEILINGS, StreamMode::Two);
+        world.settle();
+        let record = smith_channel::Cancel::new(&smith_channel::CEILINGS, smith_channel::CancelParts {}).unwrap();
+        inject_agent(&mut world, smith_channel::Body::Cancel(record));
+        assert!(!world.observations().contains(&Observation::AgentCancel));
+        assert_eq!(world.observations().iter().filter(|event| matches!(event, Observation::AgentEnded(_))).count(), 1);
     }
 }

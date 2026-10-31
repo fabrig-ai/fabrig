@@ -35,12 +35,7 @@ fn a_host_whose_terms_are_too_small_is_refused_at_the_opening() {
 
 #[test]
 fn a_start_that_decodes_reaches_the_agent() {
-    let mut world = World::new(CEILINGS, CEILINGS, StreamMode::Two);
-    world.settle();
-    world.send_start(Box::from(
-        &include_bytes!("../../../../crates/smith-charter/golden/v4/record_charter_smallest.bin")[..],
-    ));
-    world.settle();
+    let world = World::started();
     assert!(world.observations().contains(&Observation::AgentStart));
 }
 
@@ -198,12 +193,7 @@ fn an_accepted_verdict_keeps_its_label_and_items() {
 
 #[test]
 fn a_run_goes_from_start_to_answer() {
-    let mut world = World::new(CEILINGS, CEILINGS, StreamMode::Two);
-    world.settle();
-    world.send_start(Box::from(
-        &include_bytes!("../../../../crates/smith-charter/golden/v4/record_charter_smallest.bin")[..],
-    ));
-    world.settle();
+    let mut world = World::started();
     assert!(world.observations().contains(&Observation::AgentStart));
     world.agent_admits_and_parks();
     world.settle();
@@ -264,7 +254,7 @@ fn a_model_failure_reaches_the_host_domain_in_its_typed_vocabulary() {
     use smith_domain::run;
     use smith_host_domain as host;
     for (fault, expected) in channel_faults() {
-        let mut world = admitted_channel();
+        let mut world = World::admitted();
         world.agent_answers(run::Answer::Failed {
             failure: run::Failure::Model(fault),
             spent: run::Spend::ZERO,
@@ -308,18 +298,6 @@ fn channel_faults() -> [(smith_domain::run::Fault, smith_host_domain::ModelFault
         channel_completion(run::CompletionFailure::Refused, host::CompletionFailure::Refused),
         channel_completion(run::CompletionFailure::Unsupported, host::CompletionFailure::Unsupported),
     ]
-}
-
-fn admitted_channel() -> World {
-    let mut world = World::new(CEILINGS, CEILINGS, StreamMode::Two);
-    world.settle();
-    world.send_start(Box::from(
-        &include_bytes!("../../../../crates/smith-charter/golden/v4/record_charter_smallest.bin")[..],
-    ));
-    world.settle();
-    world.agent_admits();
-    world.settle();
-    world
 }
 
 fn channel_completion(
@@ -617,14 +595,7 @@ fn a_run_parked_resumed_and_parked_again_keeps_its_identity_and_numbers_turns_pe
 
 #[test]
 fn a_message_reaches_the_llm_with_its_senders_label() {
-    let mut world = World::new(CEILINGS, CEILINGS, StreamMode::Two);
-    world.settle();
-    world.send_start(Box::from(
-        &include_bytes!("../../../../crates/smith-charter/golden/v4/record_charter_smallest.bin")[..],
-    ));
-    world.settle();
-    world.agent_admits();
-    world.settle();
+    let mut world = World::admitted();
     let name = skein_lib::Token::new(31);
     world.send_message(name, Box::from(*b"Ada"), Box::from(*b"Please retry"), false);
     world.settle();
@@ -641,7 +612,7 @@ fn a_message_reaches_the_llm_with_its_senders_label() {
 
 #[test]
 fn finish_requested_crosses_the_live_wire_with_name_label_and_text() {
-    let mut world = admitted_channel();
+    let mut world = World::admitted();
     for (name, finish_requested) in [(31, false), (32, true)] {
         let name = skein_lib::Token::new(name);
         world.send_message(name, Box::from(*b"Ada"), Box::from(*b"Please finish"), finish_requested);
@@ -657,14 +628,7 @@ fn finish_requested_crosses_the_live_wire_with_name_label_and_text() {
 
 #[test]
 fn a_long_operation_stretches_progress_until_its_end() {
-    let mut world = World::new(CEILINGS, CEILINGS, StreamMode::Two);
-    world.settle();
-    world.send_start(Box::from(
-        &include_bytes!("../../../../crates/smith-charter/golden/v4/record_charter_smallest.bin")[..],
-    ));
-    world.settle();
-    world.agent_admits();
-    world.settle();
+    let mut world = World::admitted();
     let span = skein_lib::Duration::from_nanos(42);
     world.agent_starts_long(smith_domain::Operation::Checks, span);
     world.settle();
@@ -718,14 +682,7 @@ fn a_concrete_turn_reaches_the_host_and_its_acknowledgement_returns() {
             ]),
         }]),
     };
-    let mut world = World::new(CEILINGS, CEILINGS, StreamMode::Two);
-    world.settle();
-    world.send_start(Box::from(
-        &include_bytes!("../../../../crates/smith-charter/golden/v4/record_charter_smallest.bin")[..],
-    ));
-    world.settle();
-    world.agent_admits();
-    world.settle();
+    let mut world = World::admitted();
     let read = Some(skein_lib::Token::new(31));
     world.agent_tells_turn(1, read, &turn);
     world.settle();
@@ -771,14 +728,7 @@ fn a_concrete_turn_reaches_the_host_and_its_acknowledgement_returns() {
 
 #[test]
 fn facts_are_dropped_under_pressure_and_waiting_still_passes() {
-    let mut world = World::new(CEILINGS, CEILINGS, StreamMode::Two);
-    world.settle();
-    world.send_start(Box::from(
-        &include_bytes!("../../../../crates/smith-charter/golden/v4/record_charter_smallest.bin")[..],
-    ));
-    world.settle();
-    world.agent_admits();
-    world.settle();
+    let mut world = World::admitted();
     let elapsed = skein_lib::Duration::from_nanos(7);
     let mut kept = 0_u64;
     for _ in 0..12 {
@@ -856,23 +806,11 @@ fn account_notices_reach_the_host_without_values() {
         ),
     ];
     for (report, expected) in rows {
-        let mut world = admitted_notice_world();
+        let mut world = World::admitted();
         report(&mut world);
         world.settle();
         assert!(world.observations().contains(&expected), "{expected:?}");
     }
-}
-
-fn admitted_notice_world() -> World {
-    let mut world = World::new(CEILINGS, CEILINGS, StreamMode::Two);
-    world.settle();
-    world.send_start(Box::from(
-        &include_bytes!("../../../../crates/smith-charter/golden/v4/record_charter_smallest.bin")[..],
-    ));
-    world.settle();
-    world.agent_admits();
-    world.settle();
-    world
 }
 
 #[test]
@@ -961,14 +899,7 @@ fn cancellation_records_and_end_each_wait_for_their_read() {
 
 #[test]
 fn a_cancel_with_a_host_call_in_flight_keeps_its_terminal_and_one_answer() {
-    let mut world = World::new(CEILINGS, CEILINGS, StreamMode::Two);
-    world.settle();
-    world.send_start(Box::from(
-        &include_bytes!("../../../../crates/smith-charter/golden/v4/record_charter_smallest.bin")[..],
-    ));
-    world.settle();
-    world.agent_admits();
-    world.settle();
+    let mut world = World::admitted();
     let name = smith_domain::run::CallName { activation: 1, completion: 1, position: 0 };
     let relay = smith_domain::run::RelayName { owner: skein_lib::Token::new(41), attempt: 1 };
     world.agent_calls_host(name, relay);
@@ -991,14 +922,7 @@ fn a_cancel_with_a_host_call_in_flight_keeps_its_terminal_and_one_answer() {
 
 #[test]
 fn a_failed_agent_write_does_not_end_its_read_stream() {
-    let mut world = World::new(CEILINGS, CEILINGS, StreamMode::Two);
-    world.settle();
-    world.send_start(Box::from(
-        &include_bytes!("../../../../crates/smith-charter/golden/v4/record_charter_smallest.bin")[..],
-    ));
-    world.settle();
-    world.agent_admits();
-    world.settle();
+    let mut world = World::admitted();
     world.agent_next_write_fails();
     world.agent_waits(None);
     world.settle();
@@ -1015,14 +939,7 @@ fn a_failed_agent_write_does_not_end_its_read_stream() {
 
 #[test]
 fn host_tools_answered_busy_are_asked_again_under_their_names() {
-    let mut world = World::new(CEILINGS, CEILINGS, StreamMode::Two);
-    world.settle();
-    world.send_start(Box::from(
-        &include_bytes!("../../../../crates/smith-charter/golden/v4/record_charter_smallest.bin")[..],
-    ));
-    world.settle();
-    world.agent_admits();
-    world.settle();
+    let mut world = World::admitted();
     let name = smith_domain::run::CallName { activation: 1, completion: 1, position: 0 };
     let first = smith_domain::run::RelayName { owner: skein_lib::Token::new(40), attempt: 1 };
     world.agent_calls_host(name, first);
@@ -1141,14 +1058,7 @@ fn a_host_tool_answered_as_the_channel_is_lost_is_asked_again_under_its_name() {
 
 #[test]
 fn a_withdrawn_host_call_still_returns_under_its_live_relay() {
-    let mut world = World::new(CEILINGS, CEILINGS, StreamMode::Two);
-    world.settle();
-    world.send_start(Box::from(
-        &include_bytes!("../../../../crates/smith-charter/golden/v4/record_charter_smallest.bin")[..],
-    ));
-    world.settle();
-    world.agent_admits();
-    world.settle();
+    let mut world = World::admitted();
     let name = smith_domain::run::CallName { activation: 1, completion: 1, position: 0 };
     let relay = smith_domain::run::RelayName { owner: skein_lib::Token::new(40), attempt: 1 };
     world.agent_calls_host(name, relay);
@@ -1168,14 +1078,7 @@ fn a_withdrawn_host_call_still_returns_under_its_live_relay() {
 #[test]
 #[expect(clippy::wildcard_enum_match_arm, reason = "test extracts one observation from many event kinds")]
 fn a_delivery_keeps_fields_and_a_settled_landing_or_stale_terminal() {
-    let mut world = World::new(CEILINGS, CEILINGS, StreamMode::Two);
-    world.settle();
-    world.send_start(Box::from(
-        &include_bytes!("../../../../crates/smith-charter/golden/v4/record_charter_smallest.bin")[..],
-    ));
-    world.settle();
-    world.agent_admits();
-    world.settle();
+    let mut world = World::admitted();
     let owner = skein_lib::Token::new(50);
     world.agent_delivers(smith_domain::run::CallName { activation: 1, completion: 1, position: 0 }, owner);
     world.settle();
@@ -1221,14 +1124,7 @@ fn a_delivery_keeps_fields_and_a_settled_landing_or_stale_terminal() {
 
 #[test]
 fn a_fact_projects_its_emission_time_relative_to_the_activation_start() {
-    let mut world = World::new(CEILINGS, CEILINGS, StreamMode::Two);
-    world.settle();
-    world.send_start(Box::from(
-        &include_bytes!("../../../../crates/smith-charter/golden/v4/record_charter_smallest.bin")[..],
-    ));
-    world.settle();
-    world.agent_admits();
-    world.settle();
+    let mut world = World::admitted();
     let fact = smith_domain::Fact::Run {
         opening: None,
         fact: smith_domain::run::facts::Fact {
@@ -1322,14 +1218,7 @@ fn facts_outside_observed_admission_are_counted_without_failing_the_channel() {
 
 #[test]
 fn overlapping_kinds_have_exactly_one_terminal_per_begin() {
-    let mut world = World::new(CEILINGS, CEILINGS, StreamMode::Two);
-    world.settle();
-    world.send_start(Box::from(
-        &include_bytes!("../../../../crates/smith-charter/golden/v4/record_charter_smallest.bin")[..],
-    ));
-    world.settle();
-    world.agent_admits();
-    world.settle();
+    let mut world = World::admitted();
     assert!(!world.agent_try_ends_long(), "no span has begun");
     for operation in [smith_domain::Operation::Completion, smith_domain::Operation::Command] {
         world.agent_starts_long(operation, skein_lib::Duration::from_secs(30));

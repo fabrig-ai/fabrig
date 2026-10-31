@@ -1,5 +1,5 @@
 //! Bounded account notices (protocol/channel.md, section 4).
-use super::{Component, Phase};
+use super::Component;
 use crate::{Error, OpenEvent};
 use alloc::boxed::Box;
 use skein_channel::{Lower, Request};
@@ -14,7 +14,7 @@ impl Component {
         to_service: &mut Queue<OpenEvent>,
         below: &mut Queue<Lower>,
     ) -> Result<(), Error> {
-        if self.phase != Phase::Admitted {
+        if !self.state.admitted() {
             return Err(Error::Order);
         }
         let record = smith_channel::Unauthorized::new(
@@ -37,7 +37,7 @@ impl Component {
         to_service: &mut Queue<OpenEvent>,
         below: &mut Queue<Lower>,
     ) -> Result<(), Error> {
-        if self.phase != Phase::Admitted {
+        if !self.state.admitted() {
             return Err(Error::Order);
         }
         let record = smith_channel::Limited::new(&self.bodies, smith_channel::LimitedParts { account, reset })?;
@@ -58,7 +58,7 @@ impl Component {
         to_service: &mut Queue<OpenEvent>,
         below: &mut Queue<Lower>,
     ) -> Result<(), Error> {
-        if self.phase != Phase::Admitted {
+        if !self.state.admitted() {
             return Err(Error::Order);
         }
         let record = refused_notice(&self.bodies, account, code, reason)?;
