@@ -329,6 +329,20 @@ impl HostWorld {
     pub fn close(&mut self) {
         self.action(Request::Close);
     }
+    /// Ends held runs unheard and aborts their sockets, awaiting Closed.
+    pub fn abort(&mut self) {
+        self.action(Request::Abort);
+    }
+    /// Checks that Closed is the last event and no work remains held.
+    pub fn assert_closed(&self) {
+        assert!(matches!(self.heard.last(), Some(Heard::Closed { .. })));
+        assert!(self.peers.is_empty());
+        assert!(self.above.is_empty());
+        assert!(self.below.is_empty());
+        assert!(self.pending_reads.is_empty());
+        assert!(self.pending_writes.is_empty());
+        assert!(self.host.next_deadline().is_none());
+    }
     fn action(&mut self, request: Request) {
         self.host.down(&self.env, request, &mut self.above, &mut self.below);
     }

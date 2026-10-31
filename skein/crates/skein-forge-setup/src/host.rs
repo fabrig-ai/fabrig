@@ -32,6 +32,7 @@ pub struct Host {
     next_token: u64,
     wake: Option<Time>,
     closing: bool,
+    aborting: bool,
     ended: bool,
 }
 impl Host {
@@ -48,6 +49,7 @@ impl Host {
             next_token: 1,
             wake: None,
             closing: false,
+            aborting: false,
             ended: false,
         })
     }
@@ -58,7 +60,7 @@ impl Host {
         up: &mut Queue<Event>,
         io: &mut Queue<skein_io::Request>,
     ) {
-        if self.closing {
+        if self.closing && (self.aborting || request != Request::Abort) {
             return;
         }
         match request {
@@ -115,7 +117,8 @@ impl Host {
                     live.answer(answer, &mut self.plan_out);
                 }
             }
-            Request::Close => {
+            Request::Close | Request::Abort => {
+                self.aborting = request == Request::Abort;
                 self.closing = true;
                 self.states.clear();
                 self.runs = Map::with_capacity(self.runs.capacity());
