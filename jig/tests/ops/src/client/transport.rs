@@ -620,6 +620,7 @@ fn change_facts(change: &engine::Change, commit: u64, out: &mut Vec<Observed>) {
         | engine::Change::OwnerDeployment(_)
         | engine::Change::Deployment(_)
         | engine::Change::Tree(_)
+        | engine::Change::RemoveProject { .. }
         | engine::Change::Seen { .. } => {}
     }
 }
