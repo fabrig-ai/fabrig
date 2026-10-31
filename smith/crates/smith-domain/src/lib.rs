@@ -1,10 +1,10 @@
-//! The agent root (domain/run.md, sections 2, 3 and 10;
-//! programming-model.md, sections 4.4 and 4.5). It owns the run and session
+//! The agent root (smith/docs/design/domain/run.md, sections 2, 3 and 10;
+//! skein/docs/foundation/programming-model.md, sections 4.4 and 4.5). It owns the run and session
 //! children, opaque credential names and validity, conversation bindings,
 //! tool tickets, deferred handoffs, uncapped facts and bounded content.
 //! Bounded Start contexts retain the original reply rights and optional history;
 //! single-use concrete Turn handoffs own records crossing the sibling seam
-//! (domain/run.md, section 13).
+//! (smith/docs/design/domain/run.md, section 13).
 //!
 //! [`step`], [`fire`] and [`resume`] accept typed host, provider and IO events
 //! with injected clocks and seed. They emit owned [`Request`] values into an

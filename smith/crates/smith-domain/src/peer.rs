@@ -5,12 +5,12 @@
 //! one bounded peer ticket until dispatch or yield. Fixed offered descriptors
 //! are finish/deliver/sub-agent/wait plus admitted opaque host declarations.
 //! Aggregate decoded owning bytes and completion block count bound this map.
-//! Concrete V2 results move through the ready list into session history; no
+//! Concrete results move through the ready list into session history; no
 //! persistent root answer-ticket inventory survives for prompt replay. Historical
 //! calls are concrete provider id/name/input/replay with Historical classification.
 //! The peer never knows provider syntax, credential secrets or host effects.
 //!
-//! Contract: domain/run.md, sections 5.2 and 13; programming-model.md, sections 4.4 and 6.3.
+//! Contract: smith/docs/design/domain/run.md, sections 5.2 and 13; skein/docs/foundation/programming-model.md, sections 4.4 and 6.3.
 
 use core::mem::size_of;
 

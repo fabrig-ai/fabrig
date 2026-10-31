@@ -1,5 +1,5 @@
-//! Provider identities of commands whose calls ended running (domain/session.md,
-//! section 5; domain/tools.md, section 5). The kit owns execution and output;
+//! Provider identities of commands whose calls ended running (smith/docs/design/domain/session.md,
+//! section 5; smith/docs/design/domain/tools.md, section 5). The kit owns execution and output;
 //! this table knows only job numbers and the original shell call's metadata.
 //! Result terminals release identities; close facts consume the remaining ones.
 

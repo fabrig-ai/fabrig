@@ -1,5 +1,5 @@
 //! The smith agent's session child domain
-//! (programming-model.md, section 4.5): one conversation with an LLM, driven turn by
+//! (skein/docs/foundation/programming-model.md, section 4.5): one conversation with an LLM, driven turn by
 //! turn, running the tools the LLM asks for, its own or, delegated, those its
 //! opener serves. When the LLM stops calling tools the session yields to its
 //! opener, which continues it with a new message or closes it; a failure, a
@@ -32,13 +32,13 @@
 //! provider wire grammar, forge state or CI. [`resume`] drains bounded deferred
 //! tool handoffs; output queues are uncapped, and the caller delivers or
 //! discards owned records before reclaiming at iteration end
-//! (domain/session.md, sections 3–6; programming-model.md, sections
+//! (smith/docs/design/domain/session.md, sections 3–6; skein/docs/foundation/programming-model.md, sections
 //! 4.5 and 7).
 //! Exact own and inclusive activation spend are retained separately. The root's
 //! `BudgetDenied` and `UnsentClosed` entrances release only
 //! the current provider reservation; this domain never knows global prices or
-//! whether another session may start (domain/session.md, section 6;
-//! domain/run.md, section 9).
+//! whether another session may start (smith/docs/design/domain/session.md, section 6;
+//! smith/docs/design/domain/run.md, section 9).
 
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]

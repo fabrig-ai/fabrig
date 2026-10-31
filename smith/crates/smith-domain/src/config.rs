@@ -1,7 +1,7 @@
 //! Endpoint and model declarations retained by the root at startup. This module
 //! knows no destinations or credentials. Configuration is checked before the
 //! root starts; each charter is checked against its declared model quantities.
-//! Contracts: domain/run.md, section 4; protocol/limits.md, section 2.1.
+//! Contracts: smith/docs/design/domain/run.md, section 4; smith/docs/design/protocol/limits.md, section 2.1.
 
 use alloc::boxed::Box;
 use core::mem::size_of;
@@ -80,13 +80,13 @@ impl ConfiguredModel {
 pub struct Config {
     /// Unique endpoint names, at most `Limits::endpoints`.
     pub endpoints: Box<[Endpoint]>,
-    /// Endpoints whose LLM a program runs (protocol/programs.md 3), each once.
+    /// Endpoints whose LLM a program runs (smith/docs/design/protocol/programs.md 3), each once.
     pub programs: Box<[Program]>,
     /// Unique models per endpoint; model and program declarations together fit `Limits::configured_model_bytes`.
     pub models: Box<[ConfiguredModel]>,
 }
 
-/// One endpoint's program name, supplied at startup for turns and events (programs.md 3).
+/// One endpoint's program name, supplied at startup for turns and events (smith/docs/design/protocol/programs.md 3).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Program {
     pub endpoint: Endpoint,
@@ -97,11 +97,9 @@ pub struct Program {
 impl Config {
     /// Whether declarations fit their capacities and names are unique.
     #[must_use]
-    #[expect(clippy::manual_let_else, reason = "strict subset keeps checked construction exhaustive")]
     pub fn valid(&self, limits: &Limits) -> bool {
-        let count = match u32::try_from(self.endpoints.len()) {
-            Ok(count) => count,
-            Err(_) => return false,
+        let Ok(count) = u32::try_from(self.endpoints.len()) else {
+            return false;
         };
         if count > limits.endpoints {
             return false;
@@ -127,9 +125,8 @@ impl Config {
                 Ok(length) => length.checked_add(u64::try_from(size_of::<Program>()).expect("program cell")),
                 Err(_) => return false,
             };
-            let owned = match owned {
-                Some(owned) => owned,
-                None => return false,
+            let Some(owned) = owned else {
+                return false;
             };
             bytes = match bytes.checked_add(owned) {
                 Some(bytes) => bytes,
@@ -148,9 +145,8 @@ impl Config {
             {
                 return false;
             }
-            let owned = match ConfiguredModel::owned_bound(model.model.len(), &model.efforts) {
-                Some(owned) => owned,
-                None => return false,
+            let Some(owned) = ConfiguredModel::owned_bound(model.model.len(), &model.efforts) else {
+                return false;
             };
             bytes = match bytes.checked_add(owned) {
                 Some(bytes) => bytes,
@@ -168,7 +164,7 @@ impl Config {
         bytes <= limits.configured_model_bytes
     }
 
-    /// The program configured for an endpoint, if any (protocol/programs.md 3).
+    /// The program configured for an endpoint, if any (smith/docs/design/protocol/programs.md 3).
     #[must_use]
     #[expect(clippy::manual_find, reason = "programming-model.md 10.1 keeps domain lookups free of closures")]
     pub fn program(&self, endpoint: Endpoint) -> Option<&Program> {

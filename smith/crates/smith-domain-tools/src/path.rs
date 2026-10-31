@@ -11,7 +11,7 @@
 //! `..` is resolved by the names, not by the files: `a/link/..` is `a`
 //! wherever `link` points, and `..` at the root stays at the root.
 //!
-//! Contract: domain/tools.md, sections 2 and 4; programming-model.md, sections 4.4 and 6.3.
+//! Contract: smith/docs/design/domain/tools.md, sections 2 and 4; skein/docs/foundation/programming-model.md, sections 4.4 and 6.3.
 
 use alloc::boxed::Box;
 
@@ -47,7 +47,7 @@ impl Name {
 
 /// Where a failed path resolved, normalized and bounded by tools' `path_bytes`.
 /// The tools send this in failures; the protocol renders it in the fixed namespace.
-/// Contract: domain/tools.md, section 2.
+/// Contract: smith/docs/design/domain/tools.md, section 2.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Resolved {
     /// Names beneath the working directory, empty for the directory itself.
@@ -72,7 +72,7 @@ impl Resolved {
 }
 
 /// How paths read in a conversation, fixed from its authority for its life.
-/// Contract: domain/run.md, section 3.3; domain/tools.md, section 2.
+/// Contract: smith/docs/design/domain/run.md, section 3.3; smith/docs/design/domain/tools.md, section 2.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Namespace {
     /// No directories are mounted, so no workspace paths are offered.
@@ -104,7 +104,7 @@ pub struct Path {
     pub parts: Box<[Part]>,
 }
 
-/// One bounded block accepted from the provider stream or neutral fake API.
+/// One component of a normalized tool path.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Part {
     /// A file or a directory.

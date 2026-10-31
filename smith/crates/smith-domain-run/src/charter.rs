@@ -1,4 +1,4 @@
-//! Host policy retained by one admitted run (domain/run.md, section 3.1).
+//! Host policy retained by one admitted run (smith/docs/design/domain/run.md, section 3.1).
 //! Admission checks counts and owned bytes before effects; this module knows no
 //! task vocabulary, provider credentials or meaning behind the supplied text.
 //!
@@ -20,7 +20,7 @@ pub use crate::conventions::Conventions;
 
 pub use crate::host::{HostEffect, HostTool};
 
-/// What the host keeps for main to finish with (domain/run.md, section 9.1).
+/// What the host keeps for main to finish with (smith/docs/design/domain/run.md, section 9.1).
 /// Spend is derived from main's completions and is never supplied separately.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Reserve {
@@ -28,7 +28,7 @@ pub struct Reserve {
     pub time: Duration,
 }
 
-/// Host-selected lifecycle of main; the run answers once in either mode (domain/run.md, section 3.1).
+/// Host-selected lifecycle of main; the run answers once in either mode (smith/docs/design/domain/run.md, section 3.1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Mode {
     /// The host permits main to finish with a result accepted by the run.
@@ -195,7 +195,6 @@ pub struct Llm {
     /// Optional host account named by the charter; none sends no credential.
     pub account: Option<u32>,
     pub endpoint: Endpoint,
-    /// The provider's name for the model.
     pub model: Box<[u8]>,
     /// Reasoning effort requested by this activation, absent for the provider default.
     pub effort: Option<Effort>,
@@ -320,7 +319,7 @@ pub(crate) fn check(charter: &Charter, workspace: Option<&crate::Workspace>, lim
 }
 
 /// Bytes of the host part left for a run's brief after all other charter and
-/// workspace bytes counted at admission (domain/run.md, section 4), including
+/// workspace bytes counted at admission (smith/docs/design/domain/run.md, section 4), including
 /// empty-guide scaffolding. Compare with `brief_bytes`; the current brief is
 /// ignored. Returns `None` if the non-brief bytes exceed `limits.host_part`,
 /// the count overflows, or the remaining room cannot be represented as a `u32`.
@@ -511,7 +510,7 @@ pub(crate) fn len(bytes: &[u8]) -> Option<u64> {
     u64::try_from(bytes.len()).ok()
 }
 
-/// Smith-owned tool names that a host declaration cannot take (domain/run.md, section 5.1).
+/// Smith-owned tool names that a host declaration cannot take (smith/docs/design/domain/run.md, section 5.1).
 pub(crate) const RESERVED_NAMES: [&[u8]; 12] = [
     b"finish",
     b"deliver",

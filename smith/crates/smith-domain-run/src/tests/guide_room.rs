@@ -1,6 +1,6 @@
 //! Guide reads use the space left after admitting the charter's rendered material.
 
-#![allow(
+#![expect(
     clippy::disallowed_macros,
     clippy::disallowed_methods,
     reason = "programming-model.md, section 10.2: deterministic test harnesses are ordinary Rust"

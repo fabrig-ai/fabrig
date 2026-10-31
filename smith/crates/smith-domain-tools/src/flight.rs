@@ -7,9 +7,9 @@
 //! with a cancel.
 //!
 //! A write stores the file if it is as the kit knows it: at the version its
-//! LLM read or wrote last, or absent if it knows none. An edit runs in two
-//! phases: it loads the file, which must be at the version the kit knows,
-//! makes the edit in memory, and stores the result expecting that version.
+//! LLM read or wrote last, or absent if it knows none. An edit needs no earlier
+//! read: it loads the file, matches its snippets and edits in memory, then stores
+//! the result expecting the version returned by that load.
 //! io compares that with the current file just before it stores, so a change
 //! made since, by another kit or by anything else, is caught: as `Stale` if
 //! the LLM had read the file, and as `NotRead` if it had not and the write
@@ -19,9 +19,9 @@
 //! write's check settles it.
 //!
 //! A command runs until it exits or its deadline, the call's or the tools'
-//! own limit for commands, whichever is sooner. It may change any file the kit
-//! may write; what the kit knows stays as it was, and the version check of
-//! the next write or edit catches what the command changed.
+//! own limit for commands, whichever is sooner. It runs with the agent user's
+//! permissions. File knowledge stays as it was; the next write's version check
+//! or edit's snippet match observes what the command changed.
 //!
 //! The transition table. Every other cell is unreachable by the boundary's
 //! contract: an operation ends only in its own terminals.
@@ -36,7 +36,7 @@
 //! Searching  found                       Done      the lines found
 //!            exited                      Done      how rg failed
 //!            any other                   Done      what it says
-//! Editing    loaded, as known, edited    Storing   (store the edited file)
+//! Editing    loaded, matched, edited    Storing   (store the edited file)
 //!            loaded, otherwise           Done      stale, no match, ambiguous, too large,
 //!                                                  or cancelled if the kit is closing
 //!            missing                     Done      not found; nothing is known there
@@ -61,7 +61,7 @@
 //! once it is Done ([`follow`]), which also ends a closing kit with its last
 //! flight and held owner.
 //!
-//! Contract: domain/tools.md, sections 3, 5 and 6; programming-model.md, sections 4.4 and 6.3.
+//! Contract: smith/docs/design/domain/tools.md, sections 3, 5 and 6; skein/docs/foundation/programming-model.md, sections 4.4 and 6.3.
 
 use alloc::boxed::Box;
 use core::mem;
@@ -445,7 +445,7 @@ fn loaded(kit: &mut Kit, reply_to: ReplyTo, place: Place, span: Span, done: Done
         Done::Escapes => Outcome::Outside { path: authority::resolved(&kit.checkout, &place) },
         Done::Failed { fault } => Outcome::Failed { fault },
         Done::TimedOut => Outcome::TimedOut,
-        Done::Held { .. } | Done::Job { .. } => unreachable!("the tools issue no yield or job act yet"),
+        Done::Held { .. } | Done::Job { .. } => unreachable!("this operation cannot yield a held command"),
         Done::Cancelled => Outcome::Cancelled,
         Done::Listed { .. }
         | Done::Removed
@@ -468,7 +468,7 @@ fn scanned(checkout: &Checkout, reply_to: ReplyTo, place: Place, done: Done) -> 
         Done::Escapes => Outcome::Outside { path: authority::resolved(checkout, &place) },
         Done::Failed { fault } => Outcome::Failed { fault },
         Done::TimedOut => Outcome::TimedOut,
-        Done::Held { .. } | Done::Job { .. } => unreachable!("the tools issue no yield or job act yet"),
+        Done::Held { .. } | Done::Job { .. } => unreachable!("this operation cannot yield a held command"),
         Done::Cancelled => Outcome::Cancelled,
         Done::Loaded { .. }
         | Done::Removed
@@ -501,7 +501,7 @@ fn found(checkout: &Checkout, reply_to: ReplyTo, place: Place, done: Done) -> Ne
         Done::Escapes => Outcome::Outside { path: authority::resolved(checkout, &place) },
         Done::Failed { fault } => Outcome::Failed { fault },
         Done::TimedOut => Outcome::TimedOut,
-        Done::Held { .. } | Done::Job { .. } => unreachable!("the tools issue no yield or job act yet"),
+        Done::Held { .. } | Done::Job { .. } => unreachable!("this operation cannot yield a held command"),
         Done::Cancelled => Outcome::Cancelled,
         Done::Loaded { .. }
         | Done::Listed { .. }
@@ -558,7 +558,7 @@ fn to_edit(
         Done::Escapes => Outcome::Outside { path: authority::resolved(&kit.checkout, &place) },
         Done::Failed { fault } => Outcome::Failed { fault },
         Done::TimedOut => Outcome::TimedOut,
-        Done::Held { .. } | Done::Job { .. } => unreachable!("the tools issue no yield or job act yet"),
+        Done::Held { .. } | Done::Job { .. } => unreachable!("this operation cannot yield a held command"),
         Done::Cancelled => Outcome::Cancelled,
         Done::Listed { .. }
         | Done::Removed
@@ -626,7 +626,7 @@ fn stored(
         Done::Escapes => Outcome::Outside { path: authority::resolved(checkout, &place) },
         Done::Failed { fault } => Outcome::Failed { fault },
         Done::TimedOut => Outcome::TimedOut,
-        Done::Held { .. } | Done::Job { .. } => unreachable!("the tools issue no yield or job act yet"),
+        Done::Held { .. } | Done::Job { .. } => unreachable!("this operation cannot yield a held command"),
         Done::Cancelled => Outcome::Cancelled,
         Done::Loaded { .. } | Done::Listed { .. } | Done::Exited { .. } | Done::Found { .. } => {
             unreachable!("io ends a store with a store's terminal")
@@ -652,7 +652,7 @@ fn exited(
         Done::Escapes => Outcome::Outside { path: authority::resolved(checkout, &place) },
         Done::Failed { fault } => Outcome::Failed { fault },
         Done::TimedOut => Outcome::TimedOut,
-        Done::Held { .. } | Done::Job { .. } => unreachable!("the tools issue no yield or job act yet"),
+        Done::Held { .. } | Done::Job { .. } => unreachable!("this operation cannot yield a held command"),
         Done::Cancelled => Outcome::Cancelled,
         Done::Loaded { .. }
         | Done::Listed { .. }

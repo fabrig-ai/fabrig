@@ -1,5 +1,5 @@
-//! Routing (programming-model.md, section 4.5; domain/run.md, sections 2, 3, 10 and 13;
-//! domain/session.md, sections 3–6): each of the protocol's events to the child domain it is for,
+//! Routing (skein/docs/foundation/programming-model.md, section 4.5; smith/docs/design/domain/run.md, sections 2, 3, 10 and 13;
+//! smith/docs/design/domain/session.md, sections 3–6): each of the protocol's events to the child domain it is for,
 //! each child domain's requests to the protocol layer or, translated, to the
 //! other, and the hand-offs the ready list deferred.
 //!
@@ -348,7 +348,7 @@ fn start(
     };
     let resumed = transcript.is_some();
     // A resume without a host identity keeps the run tree under the recorded
-    // main key (domain/run.md, section 3.2). The run only mints when both are absent.
+    // main key (smith/docs/design/domain/run.md, section 3.2). The run only mints when both are absent.
     let identity = match identity {
         Some(identity) => Some(identity),
         None => match transcript.as_ref() {
@@ -430,7 +430,7 @@ pub(crate) fn hand_off(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<R
     // The finite synchronous chain is the entrance's session batch, sessions
     // opened/continued by it, one narrowed unsent completion, then its terminal.
     // Return/Close defer across reclaim; none of these batches can start another
-    // delegated batch (programming-model.md, 2, 4.5).
+    // delegated batch (skein/docs/foundation/programming-model.md, 2, 4.5).
     session_handoff_batch(domain, env, out);
     session_handoff_batch(domain, env, out);
     session_handoff_batch(domain, env, out);
@@ -612,7 +612,8 @@ fn from_session(domain: &mut Domain, env: &Env<Limits>, request: session::Reques
 }
 
 /// Transfer one live ask into a pending terminal right, retaining its complete
-/// historical origin. The session's expiry bounds the call; only its /// terminal releases this flight.
+/// historical origin. The session's expiry bounds the call; only its
+/// terminal releases this flight.
 fn delegated(
     domain: &mut Domain,
     owner: Token,
@@ -658,7 +659,7 @@ fn from_run(domain: &mut Domain, env: &Env<Limits>, request: run::Request, out: 
         run::Request::Answer { to, answer, read, detail } => {
             let id = Id::<StartContext>::from_token(to.into_token());
             let context = domain.starts.get_mut(id).expect("root issued the start reply binding");
-            let to = context.reply_to.take().expect("one actual terminal consumes the parent right");
+            let to = context.reply_to.take().expect("one terminal consumes the parent right");
             context.transcript = None;
             context.answered = Box::default();
             domain.starts.retire(id);
@@ -668,7 +669,7 @@ fn from_run(domain: &mut Domain, env: &Env<Limits>, request: run::Request, out: 
         run::Request::Turn { host_run, record, number, position, opens_window, read, spent } => {
             let id = Id::<TurnHandoff>::from_token(record);
             let handoff = domain.turns.get_mut(id).expect("root issued the concrete turn binding");
-            let turn = handoff.turn.take().expect("one actual output takes the concrete body");
+            let turn = handoff.turn.take().expect("one output takes the concrete body");
             assert_eq!(turn.sequence, position, "run and record name the same conversation turn");
             domain.turns.retire(id);
             return out.push(Request::Turn { host_run, number, position, opens_window, read, spent, turn });

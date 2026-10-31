@@ -1,5 +1,5 @@
-//! The tools child domain's state and its entry point (domain/tools.md,
-//! sections 3–6; programming-model.md, sections 4.5 and 6.3). [`Domain`]
+//! The tools child domain's state and its entry point (smith/docs/design/domain/tools.md,
+//! sections 3–6; skein/docs/foundation/programming-model.md, sections 4.5 and 6.3). [`Domain`]
 //! retains kits, pending IO flights and uncapped facts. [`step`] emits the kit's
 //! requests into an uncapped queue and accepts its typed terminals. Facts are
 //! kept losslessly and drained by count. This module never knows

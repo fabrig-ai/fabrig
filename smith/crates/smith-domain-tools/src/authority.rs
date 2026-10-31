@@ -3,7 +3,7 @@
 //! its charter, and it is copied into the session, and from there into its
 //! kit, when the session opens.
 //!
-//! Contract: domain/tools.md, sections 2 and 4; programming-model.md, sections 4.4 and 6.3.
+//! Contract: smith/docs/design/domain/tools.md, sections 2 and 4; skein/docs/foundation/programming-model.md, sections 4.4 and 6.3.
 
 use alloc::boxed::Box;
 
@@ -46,7 +46,7 @@ impl Authority {
             1 => Namespace::One,
             _ => match self.cwd.first() {
                 Some(working) => Namespace::Several { working: working.clone() },
-                // Legacy authorities may mount the filesystem root without a
+                // Authorities may mount the filesystem root without a
                 // working name. Keep their relative presentation; run-owned
                 // authorities always name the first directory.
                 None => Namespace::One,
@@ -75,11 +75,10 @@ pub struct Repo {
 pub struct Grants {
     /// Read, list and search.
     pub inspect: bool,
-    /// Write and edit, in the writable repositories. Without it, nothing the
-    /// kit does writes a file: its commands see every repository read-only.
+    /// Write, edit and remove files in writable repositories.
     pub modify: bool,
-    /// Run commands. A command may write only where the kit may write, which
-    /// needs modify too, and never in a repository's git directory.
+    /// Run commands with the agent user's permissions; commands are not confined
+    /// by the kit's file-modification grant or repository mounts.
     pub shell: bool,
 }
 
@@ -216,7 +215,7 @@ pub(crate) fn locate(checkout: &Checkout, path: &Path, max: u32) -> Result<Targe
     Ok(Target::Place(Located { place: Place { root: mount.root, path }, writable: mount.writable }))
 }
 
-/// The normalized namespace path of a place retained by a flight. Legacy nested
+/// The normalized namespace path of a place retained by a flight. Nested
 /// mounts keep their remaining components after the directory's first name.
 pub(crate) fn resolved(checkout: &Checkout, place: &Place) -> Resolved {
     for mount in &checkout.mounts {

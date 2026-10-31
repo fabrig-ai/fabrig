@@ -27,7 +27,7 @@ fn retry(harness: &mut Harness, owner: Token) -> CompletionName {
             })
             .is_empty()
     );
-    harness.env.now = harness.domain.next_deadline().expect("actual transient backoff");
+    harness.env.now = harness.domain.next_deadline().expect("transient backoff");
     let (reissued, _, name) = named(harness.fire());
     assert_eq!(reissued, owner, "retries retain their session owner");
     name
@@ -214,7 +214,7 @@ fn a_restored_prefix_names_the_next_source_sequence_without_changing_the_retry()
     let mut original = Harness::new();
     let (_, owner, _, _) = original.admit_named(7, charter());
     drop(original.says(owner, b"saved answer"));
-    let saved = original.turns.iter().next().expect("actual emitted concrete turn").clone();
+    let saved = original.turns.iter().next().expect("emitted concrete turn").clone();
     let sequence = saved.sequence.checked_add(1).expect("next source sequence");
     let transcript = crate::Transcript {
         version: saved.version,

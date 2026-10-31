@@ -1,5 +1,5 @@
 //! The smith agent's run child domain
-//! (programming-model.md, section 4.5; domain/run.md, section 2): one agent instance.
+//! (skein/docs/foundation/programming-model.md, section 4.5; smith/docs/design/domain/run.md, section 2): one agent instance.
 //! A run takes its charter from the host, opens the conversation that does
 //! the work, accounts what it spends against one budget, and answers once.
 //!
@@ -12,25 +12,25 @@
 //! A run has three faces, all through its parent: the host's and io's, which
 //! the parent routes to and from the protocol layer, and its conversations',
 //! which the parent translates to and from the session child domain's
-//! vocabulary. The run names no session type: siblings share none (programming-model.md, section 4.5).
+//! vocabulary. The run names no session type: siblings share none (skein/docs/foundation/programming-model.md, section 4.5).
 //!
 //! What a run is given is policy as data ([`charter`]): the run interprets no
 //! workflow vocabulary, and compares the labels in it byte for byte. So is what
 //! it may finish with ([`outcome`]), which [`outcome::judge`] checks a declared
-//! outcome against (domain/run.md, sections 7 and 8).
+//! outcome against (smith/docs/design/domain/run.md, sections 7 and 8).
 
 //! The retained state is each admitted charter, conversation binding, shared
 //! usage, preparation/check/delivery phase, the write lease and its pending terminal rights.
 //! The lease names the exclusive call schedule; each writer first settles session jobs
-//! (domain/run.md, sections 5.3 and 8.1).
+//! (smith/docs/design/domain/run.md, sections 5.3 and 8.1).
 //! It also keeps the bounded labelled-message FIFO, current/offered read fence,
 //! settled wait/park state and activation-local turn numbering
-//! (domain/run.md, sections 6 and 13).
+//! (smith/docs/design/domain/run.md, sections 6 and 13).
 //! The run never knows authentication, provider dialect bytes,
 //! credential secrets, forge state, CI or the host's delivery policy. Output
 //! goes into an uncapped queue, and the caller delivers pending terminals
-//! even while cancellation is settling (domain/run.md, sections 2, 10;
-//! programming-model.md, sections 5.2, 5.3 and 7).
+//! even while cancellation is settling (smith/docs/design/domain/run.md, sections 2, 10;
+//! skein/docs/foundation/programming-model.md, sections 5.2, 5.3 and 7).
 
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]

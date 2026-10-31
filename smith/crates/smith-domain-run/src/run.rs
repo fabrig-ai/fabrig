@@ -1,5 +1,5 @@
 //! Run admission, main and child lifetimes, shared spend and terminal rights
-//! (domain/run.md, sections 3, 6–10). State retains the charter, prepared
+//! (smith/docs/design/domain/run.md, sections 3, 6–10). State retains the charter, prepared
 //! guides/checks, run identity, never-reused child ordinals, conversation bindings,
 //! call ownership, the wind-down's budget or host cause, and one pending ending.
 //! Entrances below act only through bounded queues, slabs and injected time.
@@ -12,11 +12,11 @@
 //! completion's maximum across all conversations before the root sends it and
 //! returns unused credit on its terminal. Global accounting sums monotonic own
 //! deltas, while inclusive subtree totals transfer only as child bills. A charge that cannot fit ends the
-//! session before it is added (domain/run.md, sections 9 and 10).
+//! session before it is added (smith/docs/design/domain/run.md, sections 9 and 10).
 //!
 //! The run and its conversations move through these retained phases. Each row
 //! names the event that changes the phase; all issued operations still owe their
-//! typed terminal while the run winds down (domain/run.md, sections 5.2, 6,
+//! typed terminal while the run winds down (smith/docs/design/domain/run.md, sections 5.2, 6,
 //! 8.2 and 10).
 //!
 //! ```text
@@ -56,7 +56,7 @@
 //! ```
 //!
 //! The two calls with independent lower terminals keep their own phases
-//! (domain/run.md, sections 5.2 and 8.2):
+//! (smith/docs/design/domain/run.md, sections 5.2 and 8.2):
 //!
 //! ```text
 //! operation  phase       event                          next        outward action
@@ -204,7 +204,7 @@ pub(crate) struct Conversation {
     subtree_spent: u64,
     /// The one provider completion this conversation has reserved with the run.
     reservation: Option<(Token, Most)>,
-    /// A budget close keeps its cause through the actual session terminal.
+    /// A budget close keeps its cause through the session terminal.
     budget_close: Option<Exhausted>,
     /// Its calls to the run in flight.
     calls: u32,
@@ -217,7 +217,7 @@ enum Phase {
     Pending,
     /// Opened, and not started yet.
     Opening,
-    /// Opened, not started yet, and no longer wanted: closed once it starts.
+    /// Opened, not started yet, and unwanted: closed once it starts.
     Unwanted,
     /// Started, and addressed as `peer`.
     Running { peer: Token },
@@ -474,7 +474,7 @@ pub(crate) fn turn(
 ) {
     let conversation = domain.conversations.get(Id::from_token(conversation)).expect("turn precedes session end");
     assert!(conversation.asker.is_none(), "only main enters the host transcript");
-    let run = domain.runs.get_mut(conversation.run).expect("run outlives its actual turns");
+    let run = domain.runs.get_mut(conversation.run).expect("run outlives its turns");
     match run.sequence {
         Some(previous) => assert!(previous.checked_add(1) == Some(sequence), "exact historical turn prefix"),
         None => assert!(sequence > 0, "historical sequence is one-based"),
@@ -668,7 +668,7 @@ pub(crate) fn yielded(
     run.state = match state {
         State::Working { reply_to, main } => {
             assert!(main == id, "a conversation with no asker is main");
-            assert!(conversation.calls == 0, "a main yield follows every actual call terminal");
+            assert!(conversation.calls == 0, "a main yield follows every call terminal");
             let replied = match run.charter.mode {
                 Mode::Finite => false,
                 Mode::Open => match stop {
@@ -921,7 +921,7 @@ fn hard_stop(
             State::Winding { reply_to, ending }
         }
         State::Awaiting { .. } | State::Preparing { .. } | State::Stopping { .. } | State::Closed => {
-            unreachable!("actual usage is reported only by live admitted conversations")
+            unreachable!("usage is reported only by live admitted conversations")
         }
     }
 }
@@ -941,7 +941,7 @@ fn hard_ending(ending: Ending, failure: Failure) -> Ending {
     }
 }
 
-/// The completion's spend bound, supplied by the root (protocol/programs.md 5.7).
+/// The completion's spend bound, supplied by the root (smith/docs/design/protocol/programs.md 5.7).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Most {
     /// The direct backend's priced worst case, released at settlement.
@@ -1332,7 +1332,7 @@ pub(crate) fn withdraw(domain: &mut Domain, conversation: Token, call: Token, ou
     let Some(id) = domain.calls.find(conversation, call) else {
         return;
     };
-    // The call is settling now: its deadline no longer matters.
+    // The call is settling now: its deadline is irrelevant.
     domain.alarms.cancel(Alarm::Call { call: id });
     stop_call(domain, id, Withdrawal::Withdrawn, out);
 }
@@ -1572,7 +1572,7 @@ pub(crate) fn deadline(domain: &mut Domain, id: Id<Run>, out: &mut Queue<Request
     follow(runs, alarms, facts, ready, id);
 }
 
-/// Child parentage copied from its owned call for the actual opening fact.
+/// Child parentage copied from its owned call for the opening fact.
 pub(crate) fn opened(conversations: &Slab<Conversation>, conversation: Token) -> crate::facts::Kind {
     conversations.get(Id::from_token(conversation)).expect("a conversation is told of as it opens").kind
 }

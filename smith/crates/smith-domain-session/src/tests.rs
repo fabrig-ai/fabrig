@@ -469,7 +469,8 @@ fn opening(spec: Spec) -> Box<crate::record::Opening> {
     })
 }
 
-/// Preserve the original pressure bytes and add only this scene's /// provider/result reservation envelope; all payload lengths remain unchanged.
+/// Preserve the pressure bytes and add this scene's provider/result
+/// reservation envelope; all payload lengths remain unchanged.
 fn receiving_limits(pressure: u64, content: &[Block], result_credit: u64) -> Limits {
     let limits = Limits {
         completion_bytes: crate::session::content_cost(content).expect("fixture completion fits"),
@@ -963,7 +964,7 @@ fn maximum_owned_results_fit_when_they_win_cancellation() {
     assert_eq!(h.batch(Event::Close { session: owner }).as_slice(), runs.as_slice());
     assert_eq!(h.step(ran(a, &[b'x'; 4096])), None, "the admitted maximum result wins cancellation");
     assert_eq!(h.step(Event::Done { owner: b, done: Done::Cancelled }), Some(ended(End::Closed, 1)));
-    let turn = &h.turn_records.get(0).expect("actual observed turn");
+    let turn = &h.turn_records.get(0).expect("observed turn");
     assert_eq!(turn.messages[2].content[0], result(b"a", read(&[b'x'; 4096])));
 }
 
@@ -986,7 +987,7 @@ fn a_result_is_charged_its_id_with_its_call_so_a_refusal_at_the_entrance_always_
     ];
     assert_eq!(&*prompt.messages[2].content, &expected);
     assert_eq!(
-        &*h.turn_records.get(0).expect("actual observed turn").messages[2].content,
+        &*h.turn_records.get(0).expect("observed turn").messages[2].content,
         &expected,
         "full IDs survive concrete Turn emission"
     );
@@ -1130,7 +1131,7 @@ fn maximum_delegated_results_fit_when_they_win_cancellation() {
         assert_eq!(h.step(answered(read_b, 20, length, false)), None);
         assert_eq!(h.step(Event::Done { owner: read_a, done: Done::Cancelled }), Some(ended(End::Closed, 1)));
         assert_eq!(
-            h.turn_records.get(0).expect("actual observed turn").messages[2].content[0],
+            h.turn_records.get(0).expect("observed turn").messages[2].content[0],
             Block::ToolResult {
                 id: bytes(b"b"),
                 result: Returned::Text { text: answer(20, length), error: false, replay: None }
@@ -2170,7 +2171,7 @@ fn unsent_denial_releases_reserved_provider_credit_before_kit_settlement() {
         let owner = reserved_recorded_call(&mut harness);
         let (reserved, credit) = crate::session::provider_credit_for_test(&harness.domain, owner);
         assert!(reserved > 0);
-        assert_eq!(credit, Some(reserved), "the pending provider owns the entire actual reservation");
+        assert_eq!(credit, Some(reserved), "the pending provider owns the entire reservation");
         assert_eq!(
             harness.step(Event::BudgetDenied { owner, reason }),
             Some(ended(End::Budget { spent: dimension }, 0)),
@@ -2669,7 +2670,7 @@ fn a_selected_descriptor_can_have_a_distinct_live_call_ticket() {
     let Some(Request::Delegate { call, .. }) =
         h.step(Event::Completed { owner, completion: completion(Box::new([call]), Stop::ToolUse) })
     else {
-        panic!("the chosen descriptor must dispatch its actual call");
+        panic!("the chosen descriptor must dispatch its call");
     };
     assert_eq!(call, Token::new(1234));
 }
@@ -2767,7 +2768,7 @@ fn a_childs_last_turn_has_one_note_no_effects_and_yields_its_answer_for_budget()
         assert_eq!(harness.turn_records.len(), 1);
         let record = harness.turn_records.last().expect("settled final turn");
         let Block::ToolResult { result, .. } = &record.messages.last().unwrap().content[0] else {
-            panic!("actual tool result is retained");
+            panic!("tool result is retained");
         };
         assert_eq!(result, &Returned::NotRun { why: crate::llm::NotRun::OutsideChoice { choice: None } });
         let ended = harness.step(Event::Continue { session: owner, content: bytes(b"Again.") });
@@ -2965,10 +2966,10 @@ fn delayed_workspace_terminal_facts_keep_tool_caps_before_any_render() {
     let mut started = None;
     for fact in &facts {
         if let Fact::Tools { fact: tools::FactKind::Answered { .. }, .. } = fact.kind {
-            assert!(terminal.replace(fact).is_none(), "one actual workspace terminal");
+            assert!(terminal.replace(fact).is_none(), "one workspace terminal");
         }
         if let Fact::Tools { fact: tools::FactKind::Started { .. }, .. } = fact.kind {
-            assert!(started.replace(fact).is_none(), "one actual workspace start");
+            assert!(started.replace(fact).is_none(), "one workspace start");
         }
     }
     let terminal = terminal.expect("workspace terminal");
@@ -2989,7 +2990,7 @@ fn delayed_workspace_terminal_facts_keep_tool_caps_before_any_render() {
             }
         )
     );
-    let metadata = terminal.call.as_ref().expect("actual provider identity retained");
+    let metadata = terminal.call.as_ref().expect("provider identity retained");
     assert_eq!(&*metadata.id, b"windowed");
     assert_eq!(started.at, Time::from_nanos(11));
     assert_eq!(terminal.call, started.call, "the parent call identity survives terminal settlement");

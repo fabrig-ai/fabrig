@@ -1,5 +1,5 @@
-//! Main's immutable conversation opening (domain/run.md, sections 3.3 and
-//! 3.4; programming-model.md, section 6.2). This module keeps no state and
+//! Main's immutable conversation opening (smith/docs/design/domain/run.md, sections 3.3 and
+//! 3.4; skein/docs/foundation/programming-model.md, section 6.2). This module keeps no state and
 //! knows no provider dialect, host policy or live clock. `main` copies the
 //! admitted charter and preparation findings into the opening value; the
 //! run retains its phase, message offer and transcript ownership.

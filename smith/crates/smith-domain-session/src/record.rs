@@ -1,4 +1,4 @@
-//! Concrete session history (domain/session.md, section 3). Encoding these
+//! Concrete session history (smith/docs/design/domain/session.md, section 3). Encoding these
 //! versioned values into bytes belongs to the protocol layer, never the domain.
 
 use crate::{
@@ -24,7 +24,7 @@ pub struct Origin {
 }
 
 /// Charter rates per `unit` tokens; a completion rounds its combined charge once
-/// (domain/session.md, section 6). The opener sends them; overflow ends pricing.
+/// (smith/docs/design/domain/session.md, section 6). The opener sends them; overflow ends pricing.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Prices {
     /// Integer price for fresh input tokens per unit.
@@ -85,7 +85,7 @@ pub struct Opening {
     pub window_llm: Option<Llm>,
     /// Provider dialect/schema identity, paired with the configured endpoint.
     pub dialect: u32,
-    /// Immutable integer prices used to charge each accepted completion.
+    /// Immutable integer prices for charging each accepted completion.
     pub prices: Prices,
     /// Allowance supplied at admission, checked before starting more work.
     pub budget: u64,
@@ -123,7 +123,7 @@ pub enum Backend {
     Program { name: Box<[u8]> },
 }
 
-/// What a window's opening turn records (protocol/transcript.md, sections 2 and 3).
+/// What a window's opening turn records (smith/docs/design/protocol/transcript.md, sections 2 and 3).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Opener {
     pub affinity: Affinity,
@@ -132,7 +132,7 @@ pub struct Opener {
 }
 
 /// The session's turn kind, including the affinity of each window opener
-/// (protocol/transcript.md, sections 2 and 3).
+/// (smith/docs/design/protocol/transcript.md, sections 2 and 3).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Kind {
     /// The conversation's first settled completion, opening its first window.
@@ -173,7 +173,6 @@ pub struct Turn {
     pub spent: u64,
     /// Highest job number issued across the conversation; zero before its first.
     pub jobs: u32,
-    /// Oldest-first conversation messages, with provider call/result pairing preserved.
     pub messages: Box<[Message]>,
 }
 

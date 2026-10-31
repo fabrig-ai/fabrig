@@ -2,7 +2,7 @@
 //! Original spawn tokens stay live until IO settles; cancelled terminals and
 //! bounded unread output stay until read or close. Provider ids are never known.
 //! Same-job reads reach the machine one at a time.
-//! Contract: domain/tools.md, section 5; programming-model.md, sections 5.2 and 6.3.
+//! Contract: smith/docs/design/domain/tools.md, section 5; skein/docs/foundation/programming-model.md, sections 5.2 and 6.3.
 
 use crate::command::{Kept, Timed};
 use crate::domain::Domain;

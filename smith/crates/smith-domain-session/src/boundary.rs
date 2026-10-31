@@ -1,7 +1,7 @@
 //! The records that cross the boundary with the session's parent, the
-//! root domain (programming-model.md, section 4.5), which routes them to and from the protocol layer and
+//! root domain (skein/docs/foundation/programming-model.md, section 4.5), which routes them to and from the protocol layer and
 //! the session's opener. The session defines them; its parent depends on it.
-//! Contracts: domain/session.md, sections 3–7.
+//! Contracts: smith/docs/design/domain/session.md, sections 3–7.
 //! This module retains no runtime state and knows no provider wire format,
 //! host policy or checkout contents; [`Event`] and [`Request`] are the typed
 //! entrances and exits for the stateful session module.
@@ -11,7 +11,7 @@
 //! [`Request::Opened`] that names the session if it was admitted, and any
 //! number of [`Request::Yielded`] and [`Request::Used`] in between; the opener
 //! addresses the session by that name, and every record back carries the
-//! opener's token (programming-model.md, section 4.2). Each request has one
+//! opener's token (skein/docs/foundation/programming-model.md, section 4.2). Each request has one
 //! terminal event: a [`Request::Complete`] is ended by one of [`Event::Completed`],
 //! [`Event::Failed`] or [`Event::Cancelled`], or by [`Event::BudgetDenied`]
 //! when the root withholds it before any provider lease, or [`Event::UnsentClosed`]
@@ -54,7 +54,6 @@ pub enum Event {
         /// Parent-owned result bytes, at most `Limits::delegated_result_bytes`.
         /// Moved into concrete history even while closing; no answer ticket remains.
         text: Box<[u8]>,
-        /// Whether the returned tool result represents a failure.
         error: bool,
         /// Child activation's inclusive cumulative bill, in deployment units;
         /// historical spend is excluded. Only the inclusive parent prefix changes.
@@ -63,7 +62,7 @@ pub enum Event {
     /// Parent terminal for Delegate that yields after the settled tool turn, so its opener can append work.
     AnsweredAndYield {
         owner: Token,
-        /// Complete result bytes within the previously reserved delegated result cap.
+        /// Complete result bytes within the reserved delegated result cap.
         text: Box<[u8]>,
         error: bool,
         /// Inclusive child activation bill, charged once by the live identity.
@@ -95,7 +94,7 @@ pub enum Event {
     CancelJobs { session: Token },
     /// The run asks this session to yield its outstanding Complete; its terminal remains owed.
     Yield { session: Token },
-    /// The program reports a built-in call's result after its completion (protocol/programs.md, 5.5).
+    /// The program reports a built-in call's result after its completion (smith/docs/design/protocol/programs.md, 5.5).
     BuiltinResult { session: Token, id: Box<[u8]>, text: Box<[u8]>, error: bool },
     /// Terminal for `Complete`: the LLM produced its next message.
     Completed {
@@ -142,11 +141,10 @@ pub enum Event {
     /// Terminal for `Complete`: the call produced no message.
     Failed {
         owner: Token,
-        /// Whether an actual unauthorized call may recover; unsent calls remain recoverable.
+        /// Whether an unauthorized call may recover; unsent calls remain recoverable.
         retry_ok: bool,
         failure: Failure,
 
-        /// Exact content-free transport evidence carried by the terminal.
         evidence: crate::llm::Evidence,
 
         /// Bounded exact shared-client diagnostic, consumed and dropped by policy.
@@ -157,7 +155,7 @@ pub enum Event {
     Cancelled { owner: Token },
     /// Terminal for `Io`, for the tools.
     Done { owner: Token, done: tools::Done },
-    /// The program observed this whole file version for the addressed session (domain/tools.md, 10).
+    /// The program observed this whole file version for the addressed session (smith/docs/design/domain/tools.md, 10).
     ReadVersion { session: Token, place: tools::Place, version: tools::Version },
 }
 
@@ -215,7 +213,6 @@ pub enum Request {
         owner: Token,
         /// Session-owned completion identity; emitted even when no content follows.
         name: crate::llm::CompletionName,
-        /// First user message supplied by the opener.
         prompt: Prompt,
         /// Model progress deadlines and the enclosing session's expiry.
         deadlines: Deadlines,
@@ -230,7 +227,8 @@ pub enum Request {
         max_completion_blocks: u32,
 
         /// Maximum exact shared-client failure diagnostic bytes. The adapter
-        /// verifies compatibility before prepare; policy consumes the         /// terminal and drops detail without retaining text in facts/history.
+        /// verifies compatibility before prepare; policy consumes the
+        /// terminal and drops detail without retaining text in facts/history.
         max_failure_bytes: u32,
     },
     /// Abandon the `Complete` in flight for `owner`. Its terminal event still
@@ -242,13 +240,8 @@ pub enum Request {
     /// an owner with no outstanding completion is ignored.
     Yield { owner: Token },
     /// Ask io for `op` for the tools, giving up at `deadline`: io runs the
-    /// race (programming-model.md, section 5.3).
-    Io {
-        owner: Token,
-        /// Typed IO operation carrying only the authority and bounds required for it.
-        op: tools::Op,
-        deadline: Time,
-    },
+    /// race (skein/docs/foundation/programming-model.md, section 5.3).
+    Io { owner: Token, op: tools::Op, deadline: Time },
     /// Abandon the `Io` in flight for `owner`. Its terminal event still comes:
     /// `Done` with `Cancelled`, or whichever outcome won the race.
     CancelIo { owner: Token },
@@ -264,7 +257,6 @@ pub enum Request {
         origin: crate::record::Origin,
         owner: Token,
         opener: Token,
-        /// Typed checkout-tool call decoded below the domain.
         call: Token,
         deadline: Time,
     },
@@ -277,7 +269,7 @@ pub enum Request {
 /// What a session is opened for.
 #[derive(PartialEq, Eq, Debug)]
 pub struct Spec {
-    /// Transport named in this conversation's opening turns (session.md 8.2).
+    /// Transport named in this conversation's opening turns (smith/docs/design/domain/session.md 8.2).
     pub backend: crate::record::Backend,
     /// Account named by the charter, absent for uncredentialed calls.
     pub account: Option<u32>,
@@ -289,7 +281,6 @@ pub struct Spec {
     /// Measured fixed/provider and generated-contract bytes absent from domain text.
     pub protocol_allowance: u64,
     pub progress: Progress,
-    /// The provider's name for the model.
     pub model: Box<[u8]>,
     /// Reasoning effort requested by this activation, absent for the provider default.
     pub effort: Option<Box<[u8]>>,
@@ -301,7 +292,6 @@ pub struct Spec {
     pub authority: tools::Authority,
     /// Opener-owned tool descriptors; tickets are resolved only by the opener.
     pub delegated: Box<[Descriptor]>,
-    /// The first user message.
     pub prompt: Box<[u8]>,
     /// The model's usable context window in tokens.
     pub window: u32,
@@ -318,7 +308,7 @@ pub struct Spec {
     pub budget: Budget,
 }
 
-/// Opener-supplied child wrap-up note and allowance (domain/session.md, section 7).
+/// Opener-supplied child wrap-up note and allowance (smith/docs/design/domain/session.md, section 7).
 #[derive(PartialEq, Eq, Debug)]
 pub struct FinalTurn {
     /// Appended once after the latest settled tool results.
@@ -417,7 +407,7 @@ pub enum Yield {
     Malformed,
 }
 
-/// Why a compaction answer cannot open a new window (domain/session.md, 8.2).
+/// Why a compaction answer cannot open a new window (smith/docs/design/domain/session.md, 8.2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum NoSummary {
     /// The provider refused the summary, with or without accompanying text.
@@ -441,7 +431,6 @@ pub enum End {
     Failed {
         failure: Failure,
 
-        /// Exact content-free transport evidence carried by the terminal.
         evidence: crate::llm::Evidence,
         attempts: u32,
         /// Last failed attempt’s bounded diagnostic, carried to the opener.

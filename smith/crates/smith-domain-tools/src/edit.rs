@@ -4,7 +4,7 @@
 //! and only if the edits together changed those bytes.
 //! This module knows no earlier reads or filesystem state.
 //!
-//! Contract: domain/tools.md, sections 3 and 4; programming-model.md, sections 4.4 and 6.3.
+//! Contract: smith/docs/design/domain/tools.md, sections 3 and 4; skein/docs/foundation/programming-model.md, sections 4.4 and 6.3.
 
 use alloc::boxed::Box;
 

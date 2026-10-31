@@ -1,4 +1,4 @@
-//! Generic host-tool declarations and bounded relay lifecycle (domain/run.md,
+//! Generic host-tool declarations and bounded relay lifecycle (smith/docs/design/domain/run.md,
 //! sections 3, 5.2 and 12). State retains one immutable operation name, tool,
 //! effect and protocol-attested input through deadline-bounded retries. It never knows
 //! schemas' meaning, host policy, provider IDs or delivery state. A withdrawal
@@ -170,7 +170,7 @@ pub enum HostReply {
 
     /// The relay terminal carries no learnable outcome yet.
     Unanswered(
-        /// Actual settled relay status, preserving possible committed effects.
+        /// Settled relay status, preserving possible committed effects.
         Unanswered,
     ),
 }

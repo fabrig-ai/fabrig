@@ -1,4 +1,4 @@
-//! What the tools tell whoever watches the agent (domain/tools.md, section 4):
+//! What the tools tell whoever watches the agent (smith/docs/design/domain/tools.md, section 4):
 //! a fact for each thing that happened, content-free (tokens, counts and
 //! classifications, never a path, a file or what a command wrote), in a
 //! uncapped queue the parent drains at its own pace.
@@ -6,7 +6,7 @@
 //! Facts are a separate step output. Every observation is preserved without
 //! reserving room, and none changes a tool's decision. Applied tool
 //! caps and omitted suffix bytes are retained at the terminal, before rendering
-//! (protocol/events.md, section 3.6); a later render cut is never known here.
+//! (smith/docs/design/protocol/events.md, section 3.6); a later render cut is never known here.
 
 use skein_lib::{Queue, Time, Token};
 
@@ -18,7 +18,6 @@ use crate::call::{Effect, Exit, Fault, Outcome, Tool};
 pub struct Fact {
     /// Emission time, preserved when parents drain this observation later.
     pub at: Time,
-    /// The content-free observation.
     pub kind: FactKind,
     /// Parent call context when the caller has a provider observation.
     pub call: Option<CallInfo>,
@@ -30,23 +29,14 @@ pub enum FactKind {
     /// The kit opened.
     Opened { session: Token },
     /// No kit was opened.
-    Refused {
-        session: Token,
-        /// Typed admission refusal; no work runs for a refused entrance.
-        refusal: Refusal,
-    },
+    Refused { session: Token, refusal: Refusal },
     /// A call passed the entrance, and runs.
-    Started {
-        session: Token,
-        /// Content-free classification of the checkout tool called.
-        tool: Tool,
-    },
+    Started { session: Token, tool: Tool },
     /// A call was answered, so, with an outcome carrying `bytes` of payload
     /// (what was read, listed, found, or kept of a command's output). A call
     /// refused at the entrance is answered without having started.
     Answered {
         session: Token,
-        /// Content-free classification of the checkout tool called.
         tool: Tool,
         /// Content-free classification of the checkout call terminal.
         verdict: Verdict,
@@ -90,7 +80,7 @@ pub enum Verdict {
     Found,
     /// The version-aware write completed.
     Written {
-        /// Whether this write created a previously absent file.
+        /// Whether this write created a absent file.
         created: bool,
     },
     /// The version-aware edit completed.
@@ -131,7 +121,7 @@ pub enum Verdict {
     NotDirectory,
     /// A configured ownership, count or encoded-byte cap would be exceeded.
     TooLarge,
-    /// A write or edit lacks a previously observed file version.
+    /// A write lacks an observed file version.
     NotRead,
     /// The file version changed since it was read.
     Stale,
@@ -153,10 +143,7 @@ pub enum Verdict {
         edit: u32,
     },
     /// One failed terminal with bounded diagnostics.
-    Failed {
-        /// Typed IO failure; this boundary carries no OS error text.
-        fault: Fault,
-    },
+    Failed { fault: Fault },
     /// The injected operation deadline won the race.
     TimedOut,
     /// The caller cancelled and the terminal settled.

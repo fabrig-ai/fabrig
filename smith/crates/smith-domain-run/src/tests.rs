@@ -39,7 +39,7 @@ fn an_unread_charter_version_has_its_own_start_refusal() {
 }
 
 /// Fixed admission and ownership limits shared by focused run and result tests.
-/// Contract: domain/run.md, sections 3.1, 7.1 and 13.
+/// Contract: smith/docs/design/domain/run.md, sections 3.1, 7.1 and 13.
 pub(crate) const LIMITS: Limits = Limits {
     runs: 2,
     conversations: 4,
@@ -130,7 +130,8 @@ impl Harness {
         if let Event::Started { conversation, peer } = &event {
             self.peers.insert(*peer, *conversation);
         }
-        // Legacy controls supply own units alongside raw usage; the         // run receives the two independent session notices in protocol order.
+        // Controls supply own units alongside raw usage; the run receives the
+        // two independent session notices in protocol order.
         if let Event::Used { conversation, spend } = &event {
             let previous = self.prices.get(conversation).copied().unwrap_or(0);
             let own_spent = previous.checked_add(spend.units).expect("fixture own units");
@@ -1921,15 +1922,15 @@ fn a_sub_agent_answers_with_its_last_message_once_it_has_ended() {
         if let crate::facts::FactKind::Returned { call, result: Return::Answered { cut, .. }, .. } = fact.kind
             && call == Token::new(7)
         {
-            assert_eq!(cut, 14, "actual child cap omission");
+            assert_eq!(cut, 14, "child cap omission");
             returned += 1;
         }
     }
-    assert_eq!(returned, 1, "the actual child cap reaches its fact once");
+    assert_eq!(returned, 1, "the child cap reaches its fact once");
 }
 
 #[test]
-fn writing_children_hold_the_lease_until_their_actual_end_even_after_withdrawal() {
+fn writing_children_hold_the_lease_until_their_seen_end_even_after_withdrawal() {
     for tools in
         [Tools { inspect: true, modify: true, shell: false }, Tools { inspect: true, modify: false, shell: true }]
     {
@@ -2373,7 +2374,7 @@ fn a_sub_agent_past_its_deadline_is_closed_and_returns_timed_out_once_it_has_end
     assert_eq!(h.step(end_turn(main)).len(), 1, "the run goes on: main is nudged");
     h.domain.reclaim();
 
-    // One withdrawn first returns as cancelled, its deadline no longer armed.
+    // One withdrawn first returns as cancelled, its deadline disarmed.
     let emitted = h.step(ask_by(main, 8, h.env.now.saturating_add(minute)));
     let [Request::Open { conversation: child, .. }] = &*emitted else { panic!("expected the sub-agent to open") };
     let child = *child;
@@ -2790,7 +2791,7 @@ fn submit_mid(harness: &mut Harness, conversation: Token) -> Token {
     let [Request::Check { owner, .. }, Request::Checking { .. }] = &*requests else { panic!("all writable checks") };
     let owner = *owner;
     let requests = harness.step(Event::Checked { owner, ran: ran(0, b"passed") });
-    let [Request::Deliver { name, deadline, .. }] = &*requests else { panic!("actual bounded submission") };
+    let [Request::Deliver { name, deadline, .. }] = &*requests else { panic!("bounded submission") };
     assert_eq!(*name, crate::CallName { activation: 1, completion: 3, position: 2 });
     assert_eq!(*deadline, harness.env.now.saturating_add(LIMITS.delivery_timeout).min(EXPIRY));
     owner
@@ -2967,7 +2968,7 @@ fn caller_only_stop_keeps_submitted_mid_delivery_and_ordinary_continuation() {
             if expired {
                 harness.env.now = caller_deadline;
                 assert!(harness.domain.is_due(harness.env.now));
-                assert!(harness.fire().is_empty(), "expiry retains the actual host terminal right");
+                assert!(harness.fire().is_empty(), "expiry retains the host terminal right");
             } else {
                 assert!(harness.step(Event::Withdraw { conversation, call: Token::new(50) }).is_empty());
             }
@@ -3054,10 +3055,10 @@ fn host_relay_retries_keep_the_call_name_and_input() {
     h.after(LIMITS.host_backoff);
     let third = host_submission(&h.fire());
     assert_eq!(third.attempt, 3);
-    let actual = crate::HostAnswer::new(bytes(b"recorded first decision"), true).expect("bounded exact error");
+    let seen = crate::HostAnswer::new(bytes(b"recorded first decision"), true).expect("bounded exact error");
     assert_eq!(
-        &*h.step(Event::HostReturned { relay: third, reply: crate::HostReply::Answered(actual.clone()) }),
-        &[Request::Return { spent: 0, call: Token::new(41), result: Returned::HostAnswered(actual) }]
+        &*h.step(Event::HostReturned { relay: third, reply: crate::HostReply::Answered(seen.clone()) }),
+        &[Request::Return { spent: 0, call: Token::new(41), result: Returned::HostAnswered(seen) }]
     );
     assert!(
         h.step(Event::HostReturned { relay: third, reply: crate::HostReply::Busy }).is_empty(),
@@ -3176,10 +3177,10 @@ fn host_withdrawal_and_timeout_retain_relay_until_terminal_answer_wins() {
         }
         assert!(h.step(Event::Withdraw { conversation, call: Token::new(41) }).is_empty());
         assert_eq!(h.domain.calls(), 1, "withdrawal did not fabricate terminal");
-        let actual = crate::HostAnswer::new(bytes(b"already recorded"), false).expect("small answer");
+        let seen = crate::HostAnswer::new(bytes(b"already recorded"), false).expect("small answer");
         assert_eq!(
-            &*h.step(Event::HostReturned { relay, reply: crate::HostReply::Answered(actual.clone()) }),
-            &[Request::Return { spent: 0, call: Token::new(41), result: Returned::HostAnswered(actual) }]
+            &*h.step(Event::HostReturned { relay, reply: crate::HostReply::Answered(seen.clone()) }),
+            &[Request::Return { spent: 0, call: Token::new(41), result: Returned::HostAnswered(seen) }]
         );
         match stop {
             Stop::CancelRun => {
@@ -3472,7 +3473,7 @@ fn convention_path_payloads_fill_the_exact_charter_cap_and_cancel_discovery_sett
         + crate::workspace::cost(Some(&workspace())).unwrap();
     let baseline = crate::charter::cost(&Charter { conventions: None, ..charter() }).unwrap()
         + crate::workspace::cost(Some(&workspace())).unwrap();
-    // The legacy fixture contributes explicit path payloads; remove them from
+    // The fixture contributes explicit path payloads; remove them from
     // this independent cap comparison rather than reducing any fixture maximum.
     assert_eq!(exact, baseline + u64::try_from(crate::Conventions::PATH_CAPACITY * 2).unwrap());
     let mut harness = Harness::new(Limits { run_bytes: exact, ..LIMITS });
@@ -4189,7 +4190,7 @@ fn ordered_offers_end_each_message_read_or_unread_and_the_answer_keeps_the_last_
         );
         let told =
             harness.step(Event::Turn { conversation: main, record: Token::new(40), sequence: 1, opens_window: true });
-        let [Request::Turn { read, .. }] = &*told else { panic!("one actual told turn") };
+        let [Request::Turn { read, .. }] = &*told else { panic!("one told turn") };
         assert_eq!(*read, Some(Token::new(0)), "names are opaque, including a fence of zero");
         assert_eq!(
             &*harness.step(end_turn(main)),
@@ -4461,7 +4462,7 @@ fn prepared_empty_brief_awaits_first_message_without_opening_main() {
     let conversation = *conversation;
     assert!(harness.step(Event::Started { conversation, peer: Token::new(81) }).is_empty());
     let emitted = harness.step(Event::Turn { conversation, record: Token::new(82), sequence: 1, opens_window: true });
-    let [Request::Turn { read, number, spent, .. }] = emitted.as_ref() else { panic!("actual first turn") };
+    let [Request::Turn { read, number, spent, .. }] = emitted.as_ref() else { panic!("first turn") };
     assert_eq!((*read, *number, *spent), (Some(Token::new(0)), 1, Spend::ZERO));
     let facts = observed_facts(&mut harness);
     let mut prepared = 0_u32;
@@ -4760,7 +4761,7 @@ fn final_turns_ignore_ordinary_nudges_and_fail_once_only_after_the_last() {
             assert_eq!(requests.as_ref(), &[Request::Close { peer: Token::new(100) }]);
         }
     }
-    let actual = Spend {
+    let seen = Spend {
         turns: 4,
         input: Some(3),
         output: Some(30),
@@ -4772,10 +4773,10 @@ fn final_turns_ignore_ordinary_nudges_and_fail_once_only_after_the_last() {
     let (_, answer) = answered(harness.step(Event::Ended {
         conversation: main,
         end: End::Closed,
-        spend: actual,
+        spend: seen,
         detail: Box::default(),
     }));
-    assert_eq!(answer, failed(Failure::Budget { exhausted: Exhausted::Turns, used: Some(4), bound: Some(4) }, actual));
+    assert_eq!(answer, failed(Failure::Budget { exhausted: Exhausted::Turns, used: Some(4), bound: Some(4) }, seen));
 }
 
 #[test]
@@ -4788,7 +4789,7 @@ fn a_report_accepted_in_main_final_work_remains_accepted_once() {
     drop(harness.step(Event::Used { conversation: main, spend: Spend { turns: 2, ..Spend::ZERO } }));
     let permit = crate::completion_permit(&mut harness.domain, main, harness.env.now, crate::Most::Bounded(0));
     let crate::CompletionPermit::Final { note: Some(_) } = permit else {
-        panic!("the accepted report is in actual final work");
+        panic!("the accepted report is in final work");
     };
     assert_eq!(crate::reserve(&mut harness.domain, main, Token::new(500), crate::Most::Bounded(1)), Ok(()));
     assert!(crate::settle_reservation(&mut harness.domain, main, Token::new(500), 0));
@@ -4797,22 +4798,22 @@ fn a_report_accepted_in_main_final_work_remains_accepted_once() {
         harness.step(finish(main, 7, report())).as_ref(),
         &[returned(7, Returned::Accepted), Request::Close { peer: Token::new(100) }]
     );
-    let actual = Spend { turns: 3, ..Spend::ZERO };
+    let seen = Spend { turns: 3, ..Spend::ZERO };
     assert_eq!(
         answered(harness.step(Event::Ended {
             conversation: main,
             end: End::Closed,
-            spend: actual,
+            spend: seen,
             detail: Box::default()
         }))
         .1,
-        Answer::Accepted { outcome: report(), spent: actual, turns: 0 }
+        Answer::Accepted { outcome: report(), spent: seen, turns: 0 }
     );
     assert!(harness.step(Event::Cancel { run }).is_empty(), "no second answer after acceptance");
 }
 
 #[test]
-fn ordinary_time_exhaustion_parks_a_wait_and_withholds_its_actual_call() {
+fn ordinary_time_exhaustion_parks_a_wait_and_withholds_its_seen_call() {
     let mut harness = Harness::new(Limits { waiting: Duration::from_secs(600), ..LIMITS });
     let mut selected = charter();
     selected.grants.wait = true;
@@ -4870,7 +4871,7 @@ fn child_wrap_up_is_an_exact_quarter_of_750ms_and_sixty_seconds_of_one_hour() {
         *deadline = Time::ZERO.saturating_add(Duration::from_secs(7200));
         let emitted = harness.step(request);
         let [Request::Open { opening, .. }] = emitted.as_ref() else {
-            panic!("actual child opening");
+            panic!("child opening");
         };
         assert_eq!(opening.budget.time, time);
         let final_turn = opening.final_turn.as_ref().expect("child gets its final allowance");
@@ -4883,7 +4884,7 @@ fn child_wrap_up_is_an_exact_quarter_of_750ms_and_sixty_seconds_of_one_hour() {
 }
 
 #[test]
-fn a_capped_child_answer_keeps_its_budget_stop_until_the_actual_end_and_returns_once() {
+fn a_capped_child_answer_keeps_its_budget_stop_until_the_seen_end_and_returns_once() {
     let mut harness = Harness::new(LIMITS);
     let (_, main) = harness.running_on(1, 100, agents());
     let (child, _) = harness.child(main, 7, families(true, false, false), 101);
@@ -4898,7 +4899,7 @@ fn a_capped_child_answer_keeps_its_budget_stop_until_the_actual_end_and_returns_
         harness.step(Event::Ended { conversation: child, end: End::Closed, spend: spend(50), detail: Box::default() });
     let [Request::Return { call, result: Returned::Answered { text, stop, used, .. }, spent }] = emitted.as_ref()
     else {
-        panic!("actual parent receives one answered terminal: {emitted:?}");
+        panic!("parent receives one answered terminal: {emitted:?}");
     };
     assert_eq!(*call, Token::new(7));
     assert_eq!(text.as_ref(), b"What I found.");
@@ -5002,7 +5003,7 @@ mod room_controls {
             let [
                 Request::Return {
                     call,
-                    result: Returned::Refused { refusal: AskRefusal::TooLarge { bound: actual } },
+                    result: Returned::Refused { refusal: AskRefusal::TooLarge { bound: seen } },
                     spent: 0,
                 },
             ] = &requests[..]
@@ -5010,7 +5011,7 @@ mod room_controls {
                 panic!("no child opens: {requests:?}")
             };
             assert_eq!(*call, Token::new(7));
-            assert_eq!(*actual, bound);
+            assert_eq!(*seen, bound);
         }
     }
 }
@@ -5091,16 +5092,16 @@ fn spend_above_the_reserve_runs_out_then_main_finishes_and_is_accepted() {
         harness.step(finish(main, 7, report())).as_ref(),
         &[returned(7, Returned::Accepted), Request::Close { peer: Token::new(100) }]
     );
-    let actual = spend(1).accumulate(spend(1)).expect("two bounded charges");
+    let seen = spend(1).accumulate(spend(1)).expect("two bounded charges");
     assert_eq!(
         answered(harness.step(Event::Ended {
             conversation: main,
             end: End::Closed,
-            spend: actual,
+            spend: seen,
             detail: Box::default()
         }))
         .1,
-        Answer::Accepted { outcome: report(), spent: actual, turns: 0 }
+        Answer::Accepted { outcome: report(), spent: seen, turns: 0 }
     );
     assert!(harness.step(Event::Cancel { run }).is_empty());
 }
@@ -5185,7 +5186,7 @@ fn assert_check_fact_pair(harness: &mut Harness, expected: &[u8]) {
                 records.push(Box::from(b"started".as_slice())).expect("one start and one terminal");
             }
             Fact::CheckFinished { run, exit } => {
-                assert_eq!(Some(*run), started_run, "terminal belongs to the actual started run");
+                assert_eq!(Some(*run), started_run, "terminal belongs to the started run");
                 records
                     .push(alloc::format!("{exit:?}").into_bytes().into_boxed_slice())
                     .expect("one start and one terminal");

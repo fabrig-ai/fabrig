@@ -1,4 +1,4 @@
-//! History admission and bounded result batches (domain/session.md, section 8.1).
+//! History admission and bounded result batches (smith/docs/design/domain/session.md, section 8.1).
 //! This retains no state: it forecasts space before provider work and shares
 //! remaining payload room before tool work. Window replacement owns held text.
 

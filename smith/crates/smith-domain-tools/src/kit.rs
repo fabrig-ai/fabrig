@@ -4,9 +4,8 @@
 //! A call is checked at the entrance, where refusing it costs nothing: the
 //! family of tools it belongs to must be granted, its path must lie in a
 //! repository of the checkout, and for a change in a writable one and outside
-//! its `.git`, what it
-//! would store must fit the limits, an edit must be of a file its LLM has read
-//! and must change something, its deadline must not have passed, and the kit
+//! its `.git`. What it would store must fit the limits, an edit must match its
+//! snippets and change something, its deadline must not have passed, and the kit
 //! must have room for one more call. A filesystem call that passes becomes a
 //! flight; the namespace root's listing answers directly from its authority.
 //! A yielded command leaves the batch but keeps its IO owner in the jobs
@@ -27,7 +26,7 @@
 //! A call or a close to a kit that is not open is the session's bug. A kit is
 //! retired once it is Closed, after both calls and held owners have settled.
 //!
-//! Contract: domain/tools.md, sections 2–5; programming-model.md, sections 4.4 and 6.3.
+//! Contract: smith/docs/design/domain/tools.md, sections 2–5; skein/docs/foundation/programming-model.md, sections 4.4 and 6.3.
 
 use alloc::boxed::Box;
 
@@ -272,7 +271,7 @@ fn place(checkout: &Checkout, path: &Path, maximum: u32) -> Result<Located, Outc
 }
 
 /// Directory names at the namespace root, in name order and within both
-/// listing caps. Legacy nested mounts contribute their first name once.
+/// listing caps. Nested mounts contribute their first name once.
 fn directories(checkout: &Checkout, limits: &Limits) -> Outcome {
     let mut names = List::with_capacity(u32::try_from(checkout.mounts.len()).expect("admitted mounts"));
     for mount in &checkout.mounts {
@@ -474,7 +473,7 @@ fn fits(content: &[u8], limits: &Limits) -> Result<(), Outcome> {
     Ok(())
 }
 
-/// File-only calls cannot name the directory itself (domain/tools.md, section 2).
+/// File-only calls cannot name the directory itself (smith/docs/design/domain/tools.md, section 2).
 fn file(place: &path::Place) -> Result<(), Outcome> {
     if place.path.is_empty() { Err(Outcome::NotFile) } else { Ok(()) }
 }

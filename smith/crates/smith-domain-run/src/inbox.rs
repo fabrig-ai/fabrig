@@ -1,6 +1,6 @@
 //! The admitted message queue, one outstanding offer and the read fence.
 //! The run calls admission, offering, told and unread; this module knows no
-//! session or provider state (domain/run.md, section 6; protocol/limits.md, 3.9).
+//! session or provider state (smith/docs/design/domain/run.md, section 6; smith/docs/design/protocol/limits.md, 3.9).
 
 use alloc::boxed::Box;
 
@@ -142,7 +142,7 @@ impl Inbox {
         Ok(bytes)
     }
 
-    /// Build one ordered offer and retain each name until an actual told turn.
+    /// Build one ordered offer and retain each name until an told turn.
     pub(crate) fn offer(&mut self, limits: &Limits) -> Option<Box<[u8]>> {
         assert!(self.offered.is_empty(), "a previous offer ends at its told turn");
         let mut length = 0_usize;

@@ -1,4 +1,4 @@
-//! Measured window estimates and compaction room (domain/session.md, 8.1–8.2).
+//! Measured window estimates and compaction room (smith/docs/design/domain/session.md, 8.1–8.2).
 
 use super::*;
 

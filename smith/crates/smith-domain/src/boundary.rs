@@ -1,6 +1,6 @@
-//! The records that cross the boundary with the protocol layer (programming-model.md, section 4.4;
-//! domain/run.md, sections 2, 3, 5, 6, 8, 9, 10 and 13;
-//! domain/session.md, sections 3–6). The
+//! The records that cross the boundary with the protocol layer (skein/docs/foundation/programming-model.md, section 4.4;
+//! smith/docs/design/domain/run.md, sections 2, 3, 5, 6, 8, 9, 10 and 13;
+//! smith/docs/design/domain/session.md, sections 3–6). The
 //! domain defines them; the protocol crate depends on it.
 //!
 //! Three peers are behind it, and each record names which by its variant:
@@ -11,8 +11,8 @@
 //!   [`Event::Cancel`] can name it. A run's host call, [`Request::Deliver`], is
 //!   ended by exactly one [`Event::Delivered`]. After submission the
 //!   host operation is never abandoned; its deadline bounds the host terminal.
-//!   Duplicate or stale callback owners are inert (domain/run.md, sections 8 and 10).
-//!   [`Request::Long`] and [`Request::LongDone`] bracket actual checks,
+//!   Duplicate or stale callback owners are inert (smith/docs/design/domain/run.md, sections 8 and 10).
+//!   [`Request::Long`] and [`Request::LongDone`] bracket checks,
 //!   provider completions and commands, from issuance to their terminal.
 //! - LLM providers, for the sessions: a [`Request::Complete`] is ended by one
 //!   of [`Event::Completed`], [`Event::Failed`] or, after a
@@ -33,7 +33,7 @@
 //!   share a shape (a command run as a contained process, in a root, with a
 //!   deadline, is a check for the run and a shell call for the tools), and
 //!   become one vocabulary once the io layer is designed. Every io request
-//!   carries its deadline, and io runs the race (programming-model.md, section 5.3).
+//!   carries its deadline, and io runs the race (skein/docs/foundation/programming-model.md, section 5.3).
 //!
 //! A request's `owner` is the token of whoever asked, echoed on its terminal
 //! event. Tokens of different families may be equal: the variant routes a
@@ -46,7 +46,7 @@ use smith_domain_tools as tools;
 use crate::llm::{Completion, Failure, Prompt};
 use alloc::boxed::Box;
 
-/// Host credit for unacknowledged turns in one activation (protocol/channel.md, sections 3 and 7).
+/// Host credit for unacknowledged turns in one activation (smith/docs/design/protocol/channel.md, sections 3 and 7).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Window {
     /// Maximum turns awaiting acknowledgement.
@@ -80,7 +80,6 @@ pub enum Answered {
 /// A credential name, never its value.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct GrantName {
-    /// Configured credential account, compared as an opaque numeric name.
     pub account: u32,
     /// Credential generation, echoed unchanged so stale refreshes cannot replace newer credentials.
     pub generation: u64,
@@ -93,7 +92,7 @@ pub struct Grant {
     pub name: GrantName,
     /// Remaining monotonic validity of the granted credential.
     pub valid: Duration,
-    /// False for a key, which its host never renews (domain/session.md, section 4).
+    /// False for a key, which its host never renews (smith/docs/design/domain/session.md, section 4).
     pub renewable: bool,
 }
 
@@ -101,7 +100,7 @@ pub struct Grant {
 /// one host answer; each lower terminal echoes the owner of its pending request.
 #[derive(PartialEq, Eq, Debug)]
 pub enum Event {
-    /// Actual terminal for one host relay attempt; old callbacks are inert.
+    /// Terminal for one host relay attempt; old callbacks are inert.
     HostReturned {
         /// Live attempt identity, distinct from durable operation scope.
         relay: run::RelayName,
@@ -125,11 +124,10 @@ pub enum Event {
         window: Window,
         /// Triggering messages admitted before any later live input.
         messages: Box<[run::Message]>,
-        /// Host-supplied admission policy, validated before the run starts.
         charter: run::Charter,
         /// Optional immutable host mounts and initial conflicts, moved to run admission.
         workspace: Option<run::Workspace>,
-        /// Typed V2 turns, kept without assembling provider messages.
+        /// Typed turns, kept without assembling provider messages.
         /// False charter.resume ignores it; semantic refusal never starts fresh.
         /// Receiving record/count caps are checked before root retention.
         transcript: Option<smith_domain_session::record::Transcript>,
@@ -146,7 +144,6 @@ pub enum Event {
     Message {
         /// Admitted Open messages request a final reply; Finite ignores this bit.
         finish_requested: bool,
-        /// Admitted live run handle.
         run: Token,
 
         /// Active-run unique opaque name, including zero.
@@ -163,22 +160,19 @@ pub enum Event {
     Acknowledge { run: Token, turn: u32 },
 
     /// A refreshed credential, pushed by the engine through the host.
-    Grant {
-        /// Credential name or refresh notice; its secret value stays below the domain.
-        grant: Grant,
-    },
+    Grant { grant: Grant },
     /// From the host: end the run `run` as cancelled. A run that has already
     /// answered, or decided how it ends, ignores it.
     Cancel {
         /// Root-issued admitted run token, supplied in `Request::Admitted` and echoed by cancellation.
         run: Token,
     },
-    /// Actual host terminal for `Deliver`, including while shutdown settles.
+    /// Host terminal for `Deliver`, including while shutdown settles.
     /// Constructor-sealed owned evidence is revalidated against admitted writable
     /// mounts; stale callback generations are inert.
     Delivered { owner: Token, delivery: run::Delivery },
 
-    /// The program reports a built-in call's result after its completion (protocol/programs.md, 5.5).
+    /// The program reports a built-in call's result after its completion (smith/docs/design/protocol/programs.md, 5.5).
     BuiltinResult { owner: Token, id: Box<[u8]>, text: Box<[u8]>, error: bool },
     /// Terminal for `Complete`: the LLM produced its next message.
     Completed {
@@ -192,7 +186,6 @@ pub enum Event {
         failure: Failure,
         report: crate::llm::Report,
 
-        /// Exact content-free transport evidence carried by the terminal.
         evidence: crate::llm::Evidence,
 
         /// Bounded exact shared-client diagnostic, consumed and dropped by policy.
@@ -224,7 +217,7 @@ pub enum Event {
     },
     /// Terminal for `Check`, after `Abort`: the checks were stopped.
     Aborted { owner: Token },
-    /// The program observed this whole file version for the addressed session (domain/tools.md, 10).
+    /// The program observed this whole file version for the addressed session (smith/docs/design/domain/tools.md, 10).
     ReadVersion { owner: Token, place: tools::Place, version: tools::Version },
 }
 
@@ -239,17 +232,15 @@ pub enum Request {
     /// This observation to the parent owes no terminal; Start's reply right
     /// remains pending until the run's final Answer.
     Waiting {
-        /// Stable parent run scope.
         host_run: Token,
 
         /// Latest name consumed by a turn.
         read: Option<Token>,
     },
 
-    /// Actual main turn; caller owns durable payload and host ACK metadata has
+    /// Main turn; caller owns durable payload and host ACK metadata has
     /// its separate existing owner. Emitted before the final Answer.
     Turn {
-        /// Stable parent run scope.
         host_run: Token,
 
         /// One-based output number within this activation.
@@ -280,7 +271,6 @@ pub enum Request {
         relay: run::RelayName,
         /// Immutable accepted-transcript operation name.
         name: run::CallName,
-        /// Exact declared tool name.
         tool: Box<[u8]>,
         /// Checked declaration effect, used for session scheduling.
         effect: run::HostEffect,
@@ -306,16 +296,14 @@ pub enum Request {
     Answer {
         /// Single-use reply right returned to the layer that issued it.
         to: ReplyTo,
-        /// Single terminal value returned to the caller.
         answer: run::Answer,
-        /// Main conversation's last diagnostic, for the operator.
         detail: Box<[u8]>,
-        /// Last message covered by an actual told main turn; none before any read.
+        /// Last message covered by a told main turn; none before any read.
         read: Option<Token>,
     },
     /// To the host: bounded work of `host_run` began; one `LongDone` ends it.
     Long { host_run: Token, operation: Operation, until: Time },
-    /// To the host: one previously announced operation has actually ended.
+    /// To the host: one announced operation has ended.
     LongDone { host_run: Token },
     /// To the host, deliver the exact checked writable-directory state under
     /// the logical run named `host_run`. The host interprets the unchanged
@@ -341,7 +329,6 @@ pub enum Request {
         owner: Token,
         /// Session-owned completion identity; emitted even when no content follows.
         name: crate::llm::CompletionName,
-        /// Credential name or refresh notice; its secret value stays below the domain.
         grant: Option<GrantName>,
         /// Complete provider-neutral conversation snapshot from the root, bounded by session ownership limits.
         prompt: Prompt,
@@ -358,7 +345,8 @@ pub enum Request {
         max_completion_blocks: u32,
 
         /// Maximum exact shared-client failure diagnostic bytes. The adapter
-        /// verifies compatibility before prepare; policy consumes the         /// terminal and drops detail without retaining text in facts/history.
+        /// verifies compatibility before prepare; policy consumes the
+        /// terminal and drops detail without retaining text in facts/history.
         max_failure_bytes: u32,
 
         /// Aggregate decoded application-call ownership permitted in this
@@ -367,13 +355,9 @@ pub enum Request {
     },
     /// Provider authentication rejected this exact credential generation; a notice
     /// to the host, with no terminal owed. Repeated rejection of that generation is suppressed.
-    Unauthorized {
-        /// Credential name or refresh notice; its secret value stays below the domain.
-        grant: GrantName,
-    },
+    Unauthorized { grant: GrantName },
     /// The provider reports its account allowance spent.
     Limited {
-        /// Configured credential account, compared as an opaque numeric name.
         account: u32,
         /// The reset, absent when the provider did not say.
         reset: Option<Duration>,
@@ -389,12 +373,7 @@ pub enum Request {
     /// an owner with no outstanding completion is ignored.
     Yield { owner: Token },
     /// Ask io for `op` for a session's tools, giving up at `deadline`.
-    Io {
-        owner: Token,
-        /// Typed IO operation carrying only the authority and bounds required for it.
-        op: tools::Op,
-        deadline: Time,
-    },
+    Io { owner: Token, op: tools::Op, deadline: Time },
     /// Abandon the `Io` in flight for `owner`. Its terminal event still comes:
     /// `Done` with `Cancelled`, or whichever outcome won the race.
     CancelIo { owner: Token },
@@ -429,13 +408,13 @@ pub enum Request {
 }
 
 /// Work below the run, reported to its host with its own deadline
-/// (domain/host.md, section 4; protocol/channel.md, section 4).
+/// (smith/docs/design/domain/host.md, section 4; smith/docs/design/protocol/channel.md, section 4).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Operation {
     /// The run reports its checks before a delivery; their terminal ends this span.
     Checks,
-    /// The root reports an issued provider completion; its actual terminal ends this span.
+    /// The root reports an issued provider completion; its terminal ends this span.
     Completion,
-    /// The root reports an issued session command; its actual IO terminal ends this span.
+    /// The root reports an issued session command; its IO terminal ends this span.
     Command,
 }

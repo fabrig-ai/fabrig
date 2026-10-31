@@ -1,8 +1,8 @@
-//! LLM sessions (domain/session.md, sections 3–7): a conversation with an LLM, driven turn by turn until the LLM
+//! LLM sessions (smith/docs/design/domain/session.md, sections 3–7): a conversation with an LLM, driven turn by turn until the LLM
 //! yields, a limit or the budget ends it, or its opener closes it.
 //!
 //! An `Open` opens a session, and its kit in the tools the session owns
-//! (programming-model.md, section 4.5), with the spec's authority; then the session calls the LLM. While the
+//! (skein/docs/foundation/programming-model.md, section 4.5), with the spec's authority; then the session calls the LLM. While the
 //! LLM asks for tools, the session runs them and sends their results back, in
 //! call order, in another call. A call is to the session's own tools, which
 //! answer it, at their entrance or once the operations they ask of io have
@@ -22,12 +22,12 @@
 //! A charge that cannot fit ends the session before the completion's calls or
 //! turn. An unsent root `BudgetDenied` releases the current
 //! Calling reservation without inventing a provider lease or cancellation
-//! (domain/session.md, section 6; domain/run.md, section 9).
+//! (smith/docs/design/domain/session.md, section 6; smith/docs/design/domain/run.md, section 9).
 //!
 //! A session ends once, and only once nothing it asked for is in flight and
 //! its kit has closed: closing cancels its call to the LLM, withdraws its
 //! delegated calls and closes its kit, which cancels the tools' calls, and
-//! waits for all of it to settle (programming-model.md, section 5.3).
+//! waits for all of it to settle (skein/docs/foundation/programming-model.md, section 5.3).
 //!
 //! The transition table. Every other cell is unreachable by the boundary's
 //! contract: one terminal event per request, a request only from the states
@@ -95,7 +95,7 @@
 //! (reclaimed only at the reclaim point) would outgrow its slabs. So a step
 //! starts one batch at most, and a batch the tools answer entirely within the
 //! step that started it rests (Resting): its results are kept, and the
-//! session goes on the domain's ready list (programming-model.md, section 2),
+//! session goes on the domain's ready list (skein/docs/foundation/programming-model.md, section 2),
 //! held as its state rather than as a queued record. The loop drains the ready
 //! list with [`crate::resume`] at the start of the domain's stage in a later
 //! iteration, after the runs the batch ended have been reclaimed; a session
@@ -239,7 +239,7 @@ struct Recording {
     pending: Option<Usage>,
     /// Maximum spend accepted by the parent before sending this attempt.
     reservation: Option<u64>,
-    /// Actual charge of the most recently accepted completion, for its fact.
+    /// Charge of the most recently accepted completion, for its fact.
     last_charge: u64,
 }
 
@@ -341,7 +341,7 @@ enum By {
 }
 
 /// What runs the sessions' tool calls: the runs, the tools child domain, which
-/// the session owns (programming-model.md, section 4.5), and room for what the tools emit in a step.
+/// the session owns (skein/docs/foundation/programming-model.md, section 4.5), and room for what the tools emit in a step.
 #[derive(Debug)]
 pub(crate) struct Calls {
     pub(crate) runs: Slab<Run>,
@@ -356,7 +356,7 @@ pub(crate) enum Alarm {
     Retry { session: Id<Session> },
 }
 
-/// The sessions that rest (programming-model.md, section 2), each at most once:
+/// The sessions that rest (skein/docs/foundation/programming-model.md, section 2), each at most once:
 /// those that rested before the last reclaim point, which [`crate::resume`]
 /// starts again, and those that rested since, which wait for the next.
 #[derive(Debug)]
@@ -600,7 +600,7 @@ pub fn preview_reservation(
 }
 
 /// Record the parent's accepted maximum before provider work. Missing input or
-/// output later charges this entire reservation (domain/session.md, section 6).
+/// output later charges this entire reservation (smith/docs/design/domain/session.md, section 6).
 pub fn reserve_completion(
     domain: &mut Domain,
     owner: Token,
@@ -843,7 +843,7 @@ pub(crate) fn failed(
     let session = domain.sessions.get_mut(id).expect("a session lives until its requests have ended");
     assert!(
         detail.len() <= usize::try_from(env.limits.failure_bytes).expect("receiving cap fits"),
-        "actual adapter terminal obeys failure receiving cap"
+        "adapter terminal obeys failure receiving cap"
     );
     builtin::forget(&mut session.conversation);
     builtin::flush(&mut session.conversation, &mut domain.facts);
@@ -871,7 +871,7 @@ pub(crate) fn failed(
                     &mut session.conversation,
                     &env.limits,
                     evidence,
-                    attempt.checked_add(1).expect("an actual completion has a one-based attempt"),
+                    attempt.checked_add(1).expect("a completion has a one-based attempt"),
                 ) {
                     Some(end) => finish(end),
                     None => call(&mut session.conversation, id, 0, env, out),
@@ -1082,7 +1082,7 @@ pub(crate) fn rested(domain: &mut Domain, env: &Env<Limits>, id: Id<Session>, ou
 /// that queue. Each fact goes on at the end of the entry point that told it,
 /// while its session is there still: a session is reclaimed at the reclaim
 /// point at the earliest.
-pub(crate) fn pass_on_facts(domain: &mut Domain, _env: &Env<Limits>) {
+pub(crate) fn pass_on_facts(domain: &mut Domain) {
     for _ in 0..domain.calls.tools.pending_facts() {
         let Some(fact) = domain.calls.tools.pop_fact() else {
             break;
@@ -1304,7 +1304,7 @@ fn settle(domain: &mut Domain, env: &Env<Limits>, id: Id<Session>, out: &mut Que
     let waiting = Waiting { kit, ..waiting };
     let session = domain.sessions.get_mut(id).expect("looked up above");
     if waiting == SETTLED {
-        pass_on_facts(domain, env);
+        pass_on_facts(domain);
         let session = domain.sessions.get_mut(id).expect("session lives through its terminal");
         let Conversation { opener, turns, usage, reported, .. } = session.conversation;
         let detail = mem::replace(&mut session.conversation.detail, Box::new([]));
@@ -1892,28 +1892,6 @@ fn call_failed(
     rng: &mut Rng,
     env: &Env<Limits>,
 ) -> State {
-    let failure = match failure {
-        Failure::Limit { which: crate::llm::Limit::Path(crate::llm::Cap::Request), bound: _ } => {
-            Failure::ContextTooLong
-        }
-        Failure::Limit { .. }
-        | Failure::ApplicationLimit
-        | Failure::Protocol
-        | Failure::Cancelled
-        | Failure::Overloaded
-        | Failure::RateLimited { .. }
-        | Failure::Unavailable
-        | Failure::TimedOut { .. }
-        | Failure::ContextTooLong
-        | Failure::Refused
-        | Failure::Program { .. }
-        | Failure::SessionGone
-        | Failure::SignedOut
-        | Failure::Unsupported
-        | Failure::Invalid
-        | Failure::Unauthorized
-        | Failure::Exhausted { .. } => failure,
-    };
     let response = match evidence {
         crate::llm::Evidence::Response { .. } => true,
         crate::llm::Evidence::Unsent | crate::llm::Evidence::Unknown => false,
@@ -2021,7 +1999,7 @@ fn final_prompt(conversation: &mut Conversation, env: &Env<Limits>) -> Option<En
     None
 }
 
-/// An actual final completion yields its text after every call has a not-run result.
+/// A final completion yields its text after every call has a not-run result.
 fn final_answer(conversation: &mut Conversation, text: Box<[u8]>, out: &mut Queue<Request>) -> State {
     if let Some(end) = tell_turn(conversation, out) {
         return finish(end);
@@ -2461,7 +2439,7 @@ fn tally(content: &[Block]) -> (u32, u32) {
     (calls, invalid)
 }
 
-/// The session's policy decision after a failed attempt (domain/session.md, section 4).
+/// The session's policy decision after a failed attempt (smith/docs/design/domain/session.md, section 4).
 enum Retry {
     /// A transient failure waits for this backoff before another attempt.
     After(Duration),
@@ -2641,7 +2619,7 @@ fn reserve_provider(conversation: &mut Conversation, limits: &Limits) -> bool {
 
 fn release_provider(conversation: &mut Conversation) {
     if let Some(credit) = conversation.provider_credit.take() {
-        conversation.reserved = conversation.reserved.checked_sub(credit).expect("actual provider right owned credit");
+        conversation.reserved = conversation.reserved.checked_sub(credit).expect("provider right owned credit");
     }
 }
 
@@ -2651,7 +2629,7 @@ fn receive_completion(conversation: &mut Conversation, content: &[Block], calls:
     } else {
         held(content, calls, &conversation.choice, conversation.choice_names.as_deref())
     };
-    let credit = conversation.provider_credit.take().expect("actual completion owns receiving credit");
+    let credit = conversation.provider_credit.take().expect("completion owns receiving credit");
     conversation.reserved = conversation.reserved.checked_sub(credit).expect("provider credit was reserved");
     let Some(content_bytes) = content_cost(content) else {
         return false;
@@ -2670,7 +2648,7 @@ fn receive_completion(conversation: &mut Conversation, content: &[Block], calls:
         conversation.transcript.len().checked_add(1).expect("reserved assistant slot"),
         compaction::prompt_bytes(conversation).unwrap_or(u64::MAX),
     );
-    assert!(fits, "valid actual completion consumes space reserved before provider work");
+    assert!(fits, "valid completion consumes space reserved before provider work");
     true
 }
 
@@ -2683,11 +2661,11 @@ fn delegated_credit(limits: &Limits) -> u64 {
 }
 
 fn receive_result(conversation: &mut Conversation, credit: u64, result: &Returned, limits: &Limits) {
-    let cost = returned_cost(result).expect("actual bounded result cost fits");
-    assert!(cost <= credit, "actual lower terminal obeys its pre-effect result cap");
-    conversation.reserved = conversation.reserved.checked_sub(credit).expect("actual call owned result credit");
+    let cost = returned_cost(result).expect("bounded result cost fits");
+    assert!(cost <= credit, "lower terminal obeys its pre-effect result cap");
+    conversation.reserved = conversation.reserved.checked_sub(credit).expect("call owned result credit");
     let fits = charge(conversation, Some(cost), limits);
-    assert!(fits, "valid actual result consumes reserved space through close");
+    assert!(fits, "valid result consumes reserved space through close");
 }
 
 /// What a spec costs: its names, the tools its opener serves, and its first
@@ -3408,7 +3386,7 @@ fn tell_turn(conversation: &mut Conversation, out: &mut Queue<Request>) -> Optio
     None
 }
 
-/// Opener-requested continuation after its actual result and tool turn settle.
+/// Opener-requested continuation after its result and tool turn settle.
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum After {
     /// Request the next completion directly.
@@ -3642,13 +3620,13 @@ fn validate_wait_result(message: &Message, wait: &[u8]) -> Result<(), crate::rec
 fn validate_results(previous: &Message, message: &Message) -> Result<Option<u32>, crate::record::Refusal> {
     use crate::record::Refusal;
     let mut next = 0_u32;
-    let mut actual = next_result(&message.content, &mut next)?;
+    let mut seen = next_result(&message.content, &mut next)?;
     let mut withheld = None;
     if previous.role == Role::Assistant {
         for (position, block) in previous.content.iter().enumerate() {
             match block {
                 Block::ToolCall { id, name, .. } => {
-                    let matches = match actual {
+                    let matches = match seen {
                         Some(position) => {
                             result_id(
                                 message
@@ -3660,7 +3638,7 @@ fn validate_results(previous: &Message, message: &Message) -> Result<Option<u32>
                         None => false,
                     };
                     if matches {
-                        actual = next_result(&message.content, &mut next)?;
+                        seen = next_result(&message.content, &mut next)?;
                     } else if name.as_ref() == b"wait" && withheld.is_none() {
                         withheld = Some(u32::try_from(position).or(Err(Refusal::TooLarge))?);
                     } else {
@@ -3671,7 +3649,7 @@ fn validate_results(previous: &Message, message: &Message) -> Result<Option<u32>
             }
         }
     }
-    if actual.is_some() {
+    if seen.is_some() {
         return Err(Refusal::Malformed);
     }
     Ok(withheld)

@@ -1,7 +1,7 @@
 //! The records that cross the boundary with the run's parent, the top-level
-//! domain (programming-model.md, section 4.5). The run defines them; its parent depends on it.
-//! Contracts: domain/run.md, sections 3, 5, 6, 8, 9 and 10;
-//! protocol/channel.md, sections 4, 5 and 7; protocol/transcript.md, section 2.
+//! domain (skein/docs/foundation/programming-model.md, section 4.5). The run defines them; its parent depends on it.
+//! Contracts: smith/docs/design/domain/run.md, sections 3, 5, 6, 8, 9 and 10;
+//! smith/docs/design/protocol/channel.md, sections 4, 5 and 7; smith/docs/design/protocol/transcript.md, section 2.
 //!
 //! All three of the run's faces cross here:
 //!
@@ -11,26 +11,26 @@
 //!   [`Event::Cancel`] can name it. A run's host call, [`Request::Deliver`], is
 //!   ended by exactly one [`Event::Delivered`]. After submission the
 //!   host operation is never abandoned; its deadline bounds the host terminal.
-//!   Duplicate or stale callback owners are inert (domain/run.md, sections 8 and 10).
+//!   Duplicate or stale callback owners are inert (smith/docs/design/domain/run.md, sections 8 and 10).
 //! - io's, for what the run itself does in its checkout, which the parent
 //!   routes to and from the protocol layer. A [`Request::Read`] is ended by
 //!   exactly one [`Event::Read`], a [`Request::Probe`] by one
 //!   [`Event::Probed`], and a [`Request::Check`] by one [`Event::Checked`],
 //!   or after a [`Request::Abort`] by [`Event::Aborted`] if the abort won.
-//!   Each carries its deadline, and io runs the race (programming-model.md, section 5.3).
+//!   Each carries its deadline, and io runs the race (skein/docs/foundation/programming-model.md, section 5.3).
 //! - The conversations', which the parent translates to and from the session
 //!   child domain's vocabulary. A [`Request::Open`] is ended by exactly one
 //!   [`Event::Ended`], after a [`Event::Started`] unless the conversation was
 //!   refused at its entrance. Every event about a conversation carries the
 //!   run's token for it, `conversation`; the run addresses a conversation by
-//!   `peer`, the token it gave back when it started (programming-model.md, section 4.2). A conversation's
+//!   `peer`, the token it gave back when it started (skein/docs/foundation/programming-model.md, section 4.2). A conversation's
 //!   [`Event::Delegated`] call is ended by exactly one [`Request::Return`],
 //!   after an [`Event::Withdraw`] too; the call is named by the
 //!   conversation's own token for it, `call`. It carries its deadline, and
 //!   the run runs the race: past it, the run stops work before submission and
 //!   returns it as timed out once that settles. A submitted delivery always
 //!   owes its host terminal, including after withdrawal or expiry;
-//!   caller-only expiry does not decide the run's shutdown (domain/run.md, 8.2 and 10).
+//!   caller-only expiry does not decide the run's shutdown (smith/docs/design/domain/run.md, 8.2 and 10).
 //!
 //! A request's `owner` is the run's token for what asked: the run itself for
 //! a read or a probe, or a delivery call for a check and its abort or host
@@ -48,7 +48,7 @@ use crate::charter::{Charter, Families, Llm, Tools};
 use crate::outcome::{Change, Declared, Problems};
 
 /// Host acknowledgement credit for one activation; the agent reserves the largest turn before another completion
-/// (protocol/channel.md, sections 3 and 7).
+/// (smith/docs/design/protocol/channel.md, sections 3 and 7).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Window {
     /// Turns that may be told without acknowledgement.
@@ -73,7 +73,7 @@ pub struct Message {
 /// parent -> run
 #[derive(PartialEq, Eq, Debug)]
 pub enum Event {
-    /// Actual terminal of one host relay; old attempts and callback generations are inert.
+    /// Terminal of one host relay; old attempts and callback generations are inert.
     HostReturned {
         /// Live attempt identity, distinct from durable `CallName`.
         relay: crate::RelayName,
@@ -98,7 +98,6 @@ pub enum Event {
         window: Window,
         /// Triggering messages admitted together, before later relayed messages.
         messages: Box<[Message]>,
-        /// Host-supplied admission policy, validated before the run starts.
         charter: Charter,
         /// Optional immutable host mounts and initial conflicts, admitted before effects.
         workspace: Option<crate::Workspace>,
@@ -113,7 +112,6 @@ pub enum Event {
     Message {
         /// Admitted Open messages request a final reply; Finite ignores this bit.
         finish_requested: bool,
-        /// Admitted live run handle.
         run: Token,
 
         /// Parent-issued active-run unique name.
@@ -129,7 +127,7 @@ pub enum Event {
     /// The host durably kept this turn and every preceding turn of the run.
     Acknowledge { run: Token, turn: u32 },
 
-    /// Actual concrete session turn; the root owns the body behind record.
+    /// Concrete session turn; the root owns the body behind record.
     Turn {
         /// Run-issued conversation binding.
         conversation: Token,
@@ -147,11 +145,7 @@ pub enum Event {
     /// answered, or decided how it ends, ignores it.
     Cancel { run: Token },
     /// The conversation was admitted, and `peer` names it from now on.
-    Started {
-        conversation: Token,
-        /// Conversation-issued opaque handle used after admission.
-        peer: Token,
-    },
+    Started { conversation: Token, peer: Token },
     /// The addressed session has settled every job cancelled for a writer.
     JobsCancelled { conversation: Token },
     /// The LLM stopped calling tools, `text` being its last message. The
@@ -217,7 +211,6 @@ pub enum Event {
         conversation: Token,
         /// Root-issued live call token, echoed on the one finish, delivery or sub-agent terminal.
         call: Token,
-        /// Typed run tool ask, validated against the asker's authority and charter.
         ask: Ask,
         deadline: Time,
     },
@@ -236,13 +229,13 @@ pub enum Event {
     },
     /// Terminal for `Check`, after `Abort`: the checks were stopped.
     Aborted { owner: Token },
-    /// Actual host terminal for `Deliver`, including while shutdown settles.
+    /// Host terminal for `Deliver`, including while shutdown settles.
     /// Constructor-sealed owned evidence is revalidated against admitted writable
     /// mounts; stale callback generations are inert.
     Delivered { owner: Token, delivery: Delivery },
 }
 
-/// Why the run refuses a host message at its entrance (domain/run.md, section 6).
+/// Why the run refuses a host message at its entrance (smith/docs/design/domain/run.md, section 6).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum MessageRefusal {
     /// The label, separator and text exceed the rendered-byte bound.
@@ -268,7 +261,6 @@ pub enum Request {
 
     /// Main yielded after a settled wait with an empty inbox. No terminal is owed.
     Waiting {
-        /// Stable parent logical run scope.
         host_run: Token,
 
         /// Latest message consumed by a told turn.
@@ -277,7 +269,6 @@ pub enum Request {
 
     /// One settled main turn, emitted before the final answer; root moves its body.
     Turn {
-        /// Stable parent logical run scope.
         host_run: Token,
 
         /// Single-use root-owned concrete body binding.
@@ -292,10 +283,9 @@ pub enum Request {
         /// First historical turn or a later context window declared by the root.
         opens_window: bool,
 
-        /// Latest message actually consumed by this turn.
+        /// Latest message consumed by this turn.
         read: Option<Token>,
 
-        /// Actual cumulative run token usage.
         spent: Spend,
     },
 
@@ -308,7 +298,6 @@ pub enum Request {
         relay: crate::RelayName,
         /// Immutable transcript-derived name, identical on every recovery attempt.
         name: CallName,
-        /// Exact declared tool name.
         tool: Box<[u8]>,
         /// Declared scheduling effect, identical across attempts.
         effect: crate::HostEffect,
@@ -330,11 +319,9 @@ pub enum Request {
     Answer {
         /// Single-use reply right returned to the layer that issued it.
         to: ReplyTo,
-        /// Single terminal value returned to the caller.
         answer: Answer,
-        /// Main conversation's last diagnostic, for the operator.
         detail: Box<[u8]>,
-        /// Last message covered by an actual told main turn; none before any read.
+        /// Last message covered by a told main turn; none before any read.
         read: Option<Token>,
     },
     /// Open a conversation, which every event about it names `conversation`.
@@ -345,18 +332,11 @@ pub enum Request {
     },
     /// A new user message for `peer`, a conversation that has yielded. One that
     /// has ended meanwhile drops it.
-    Say {
-        /// Conversation-issued opaque handle used after admission.
-        peer: Token,
-        text: Box<[u8]>,
-    },
+    Say { peer: Token, text: Box<[u8]> },
     /// Cancel the addressed session's jobs; `JobsCancelled` follows settlement.
     CancelJobs { peer: Token },
     /// Close `peer`, in any state: it stops what is in flight, then ends.
-    Close {
-        /// Conversation-issued opaque handle used after admission.
-        peer: Token,
-    },
+    Close { peer: Token },
     /// Read the first `max` bytes of the regular file at `at`, following
     /// symbolic links within its root, giving up at `deadline`.
     Read {
@@ -389,7 +369,7 @@ pub enum Request {
     /// because the watchdog decides on it, and nothing may depend on whether
     /// a fact is kept.
     Checking { host_run: Token, deadline: Time },
-    /// To the host: the previously announced check has ended, including after an abort race.
+    /// To the host: the announced check has ended, including after an abort race.
     ChecksEnded { host_run: Token },
     /// To the host, deliver the exact checked writable-directory state under
     /// the logical run named `host_run`. The host interprets the unchanged
@@ -447,10 +427,7 @@ pub enum Ask {
         change: Change,
     },
     /// Finish the run with `outcome`.
-    Finish {
-        /// Declared or accepted result, validated against the host's contract.
-        outcome: Declared,
-    },
+    Finish { outcome: Declared },
     /// Open a sub-agent: a conversation of its own on `brief`, with families
     /// of tools no wider than the asker's, on the LLM named `llm` among the
     /// charter's (the main conversation's if none is named), and a share of
@@ -480,7 +457,7 @@ pub enum Returned {
     /// Main parks with its own wait unanswered; the session records the call without a result.
     Withheld,
 
-    /// Actual host result/error text; the host's error is forwarded, never retried.
+    /// Host result/error text; the host's error is forwarded, never retried.
     HostAnswered(
         /// Exact constructor-bounded host text and error bit, at most receiving reply cap.
         crate::HostAnswer,
@@ -497,7 +474,7 @@ pub enum Returned {
         /// Typed pre-relay semantic admission failure.
         crate::HostProblem,
     ),
-    /// Actual host landing evidence. A mid-run call continues normally; a finish
+    /// Host landing evidence. A mid-run call continues normally; a finish
     /// call ends with its admitted Change. Receipt constructors cap each copy.
     Delivered(
         /// Constructor-bounded host receipts, at most 64 unique writable mounts.
@@ -560,10 +537,7 @@ pub enum Returned {
         left: Budget,
     },
     /// The run refuses the requested authority or origin before an effect.
-    Refused {
-        /// Typed admission refusal; no work runs for a refused entrance.
-        refusal: AskRefusal,
-    },
+    Refused { refusal: AskRefusal },
 }
 
 /// Why a delegated run ask is refused before an effect.
@@ -604,10 +578,7 @@ pub struct Ran {
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Exit {
     /// It exited with `code`; zero passes.
-    Code {
-        /// Typed or byte-valued terminal classification in the enclosing boundary.
-        code: u8,
-    },
+    Code { code: u8 },
     /// IO reports the number of the signal that killed the checks.
     Signalled { signal: u32 },
     /// Its deadline passed, and io stopped it.
@@ -679,7 +650,6 @@ pub struct Opening {
     pub line: u64,
     /// System instructions supplied by the opener, retained within the enclosing byte cap.
     pub system: Box<[u8]>,
-    /// The first user message.
     pub prompt: Box<[u8]>,
     /// The run's instruction for summarising this conversation.
     pub summary: Box<[u8]>,
@@ -702,7 +672,7 @@ pub struct Opening {
     pub families: Families,
 }
 
-/// The run's child final note and allowance (domain/run.md, section 5.3).
+/// The run's child final note and allowance (smith/docs/design/domain/run.md, section 5.3).
 #[derive(PartialEq, Eq, Hash, Debug)]
 pub struct FinalTurn {
     /// Appended by the session before its final answer.
@@ -740,7 +710,7 @@ pub enum End {
         crate::ReceivingLimit,
     ),
 
-    /// Exact V2 history refusal before provider or tool effects.
+    /// Exact history refusal before provider or tool effects.
     TranscriptRefused {
         /// Small lossless sibling-independent admission reason.
         reason: TranscriptRefusal,
@@ -824,7 +794,7 @@ pub enum Limit {
 }
 
 /// The protocol's elapsed call phase, carried losslessly in timeout terminals
-/// (protocol/llm.md, sections 6 and 10).
+/// (smith/docs/design/protocol/llm.md, sections 6 and 10).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Phase {
     /// The connection's socket admission deadline.
@@ -890,7 +860,7 @@ pub enum CompletionFailure {
     },
 }
 
-/// Actual transport evidence retained alongside a neutral completion failure.
+/// Transport evidence retained alongside a neutral completion failure.
 /// No domain infers this from an error label or from requested cancellation.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum CompletionEvidence {
@@ -904,7 +874,7 @@ pub enum CompletionEvidence {
     Response { status: Option<u16> },
 }
 
-/// Bounded provider evidence, kept outside history and content-free facts (domain/run.md, section 10).
+/// Bounded provider evidence, kept outside history and content-free facts (smith/docs/design/domain/run.md, section 10).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Report {
     pub code: Box<[u8]>,
@@ -913,7 +883,7 @@ pub struct Report {
 }
 
 impl Report {
-    /// Three provider fields, each at the vocabulary's 128-byte bound (protocol/limits.md, 2.4).
+    /// Three provider fields, each at the vocabulary's 128-byte bound (smith/docs/design/protocol/limits.md, 2.4).
     pub const BYTES: u64 = 3 * 128;
 
     /// No provider evidence was supplied.
@@ -964,7 +934,6 @@ pub enum Fault {
 pub enum Answer {
     /// Main waited or replied in Open and this activation parked; all terminal rights have closed.
     Parked {
-        /// Actual cumulative run token usage.
         spent: Spend,
         /// Number of main turns emitted in this activation.
         turns: u32,
@@ -981,19 +950,16 @@ pub enum Answer {
     /// The run finished with `outcome`, having spent `spent`. A change has
     /// been checked and delivered by the host.
     Accepted {
-        /// Declared or accepted result, validated against the host's contract.
         outcome: Declared,
-        /// Accepted cumulative usage across the enclosing run or session.
         spent: Spend,
-        /// Actual main turns emitted in this activation before this terminal.
+        /// Main turns emitted in this activation before this terminal.
         turns: u32,
     },
     /// The run ended without an outcome, having spent `spent`.
     Failed {
         failure: Failure,
-        /// Accepted cumulative usage across the enclosing run or session.
         spent: Spend,
-        /// Actual main turns emitted in this activation before this terminal.
+        /// Main turns emitted in this activation before this terminal.
         turns: u32,
     },
 }
@@ -1040,7 +1006,7 @@ pub enum Invalid {
     Workspace,
     /// The host declarations exceed count/storage bounds, repeat/reserve a name,
     /// have empty opaque fields or a zero deadline, or the receiving retry limits are invalid,
-    /// or a grant this run cannot use (protocol/programs.md, section 2).
+    /// or a grant this run cannot use (smith/docs/design/protocol/programs.md, section 2).
     Grants,
     /// The result contract permits no form, exceeds the verdict count cap,
     /// declares invalid or duplicate names/caps/ranges, or its smallest
@@ -1048,7 +1014,7 @@ pub enum Invalid {
     Outcome,
     /// The host's budget was refused before effects, naming its part and bound.
     Budget(crate::BudgetRefusal),
-    /// A model is unpriced at this rate, refused before effects (domain/run.md, section 9).
+    /// A model is unpriced at this rate, refused before effects (smith/docs/design/domain/run.md, section 9).
     Price(crate::Rate),
     /// A model is undeclared, its effective window/output are zero or above its
     /// declaration, its spare is negative, or the charter repeats a model or exceeds its model count.

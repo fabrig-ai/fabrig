@@ -1,4 +1,4 @@
-//! Owed program results (protocol/programs.md, sections 5.4–5.5; domain/tools.md, section 10).
+//! Owed program results (smith/docs/design/protocol/programs.md, sections 5.4–5.5; smith/docs/design/domain/tools.md, section 10).
 //! A bounded table retains provider identity, result credit and its current place.
 //! It knows no paths or program policy. Preparation makes stand-ins immediately;
 //! result patches consume their credit, and forgetting settles the remaining stand-ins.

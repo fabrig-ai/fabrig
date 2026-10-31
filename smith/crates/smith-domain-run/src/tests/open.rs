@@ -1,4 +1,4 @@
-//! Open main lifecycle at the existing run entrance (domain/run.md, sections 3.1, 6 and 9.1).
+//! Open main lifecycle at the existing run entrance (smith/docs/design/domain/run.md, sections 3.1, 6 and 9.1).
 #![expect(
     clippy::disallowed_macros,
     clippy::disallowed_methods,
@@ -28,7 +28,7 @@ fn listening() -> (Harness, Token, Token) {
 
 fn finish_policy() -> Charter {
     let mut selected = policy();
-    selected.budget.turns = 8; // Approved Close reproducer, domain/run.md section 6.
+    selected.budget.turns = 8; // Approved Close reproducer, smith/docs/design/domain/run.md section 6.
     selected.reserve = crate::charter::Reserve { turns: 1, time: Duration::from_secs(60) };
     selected.waiting = Duration::from_secs(120);
     selected

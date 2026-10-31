@@ -1,5 +1,5 @@
 //! Brief capacity uses admission's host measure and the literal section renderer.
-//! No state or text meaning is retained; the tests hold domain/run.md, section 4.
+//! No state or text meaning is retained; the tests hold smith/docs/design/domain/run.md, section 4.
 
 use super::{LIMITS, bytes, charter, coding, coding_workspace};
 use crate::outcome::{ChangeSpec, OutcomeSpec, TextSpec};

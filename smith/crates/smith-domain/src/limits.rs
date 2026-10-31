@@ -1,14 +1,12 @@
 //! Admission limits and checked capacities. This module retains no runtime state.
 //! `valid` checks compatibility and constructor capacities, without knowing live ownership.
 //!
-//! Contract: domain/run.md, section 13; programming-model.md, sections 4.4, 4.5 and 6.3.
-
-use alloc::boxed::Box;
+//! Contract: smith/docs/design/domain/run.md, section 13; skein/docs/foundation/programming-model.md, sections 4.4, 4.5 and 6.3.
 
 use smith_domain_run as run;
 use smith_domain_session as session;
 
-/// The agent domain's limits (programming-model.md, sections 4.5 and 6.3), handed to every step read-only: its
+/// The agent domain's limits (skein/docs/foundation/programming-model.md, sections 4.5 and 6.3), handed to every step read-only: its
 /// child domains', each handed down to the one it bounds. The session's include
 /// its tools'.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -39,7 +37,7 @@ pub struct Limits {
 }
 
 /// Whether a domain can be built under `limits`: compatible limits and
-/// representable constructor capacities (programming-model.md, section 6.3).
+/// representable constructor capacities (skein/docs/foundation/programming-model.md, section 6.3).
 /// The shell refuses limits for which this is false.
 #[must_use]
 pub fn valid(limits: &Limits) -> bool {
@@ -79,7 +77,7 @@ pub fn valid(limits: &Limits) -> bool {
 }
 
 /// Deferred concrete payload outside session while one complete delegate batch
-/// owns its pre-effect receiving credit. Actual queued bytes are separately
+/// owns its pre-effect receiving credit. Queued bytes are separately
 /// allocated and priced; no post-effect history-full result is discarded.
 #[cfg(test)]
 pub(crate) fn uncharged(limits: &Limits) -> Option<u64> {
@@ -117,38 +115,6 @@ pub(crate) fn record_payload(limits: &Limits) -> Option<u64> {
 #[must_use]
 pub fn max_turn_bytes(limits: &Limits) -> Option<u64> {
     record_payload(limits)
-}
-
-/// Rewritten root prompt envelopes can be larger than session Block cells:
-/// the legacy root result union retains a sealed inline diagnostic. The payload
-/// cap prices all source Block/payload bytes, while this separate conservative
-/// bound prices every allocated root Block/Message/served descriptor and the
-/// copied host declarations. Child queue and caller-output ownership coexist.
-#[expect(dead_code, reason = "programming-model.md 6.3: preserve the independent edge workspace bound")]
-pub(crate) fn prompt_payload(limits: &Limits) -> Option<u64> {
-    let session_block = u64::try_from(size_of::<session::llm::Block>()).ok()?;
-    let blocks = limits.session.history_bytes.checked_div(session_block)?;
-    let root_block = u64::try_from(size_of::<crate::llm::Block>()).ok()?;
-    // The source byte total already includes each session Block cell. Root
-    // translation adds only the larger cell's difference, not that cell again.
-    let extra_block = root_block.max(session_block).checked_sub(session_block)?;
-    let messages = u64::from(limits.session.history_messages)
-        .checked_mul(u64::try_from(size_of::<crate::llm::Message>()).ok()?)?;
-    let descriptors = u64::from(limits.run.host_tools)
-        .checked_add(4)?
-        .checked_mul(u64::try_from(size_of::<crate::llm::Served>()).ok()?)?;
-    // Every retained result has its call beside it; a wind-down names finish and deliver only.
-    let names = u64::try_from(size_of::<Box<[u8]>>()).ok()?.checked_mul(2)?.checked_add(13)?;
-    let served = u64::try_from(size_of::<crate::llm::Served>()).ok()?;
-    let choices = blocks.checked_div(2)?.checked_mul(names)?.checked_add(served.checked_mul(2)?)?;
-    limits
-        .session
-        .history_bytes
-        .checked_add(blocks.checked_mul(extra_block)?)?
-        .checked_add(messages)?
-        .checked_add(descriptors)?
-        .checked_add(choices)?
-        .checked_add(limits.run.run_bytes)
 }
 
 /// One command per live tools call; retired job slots own no IO rights.

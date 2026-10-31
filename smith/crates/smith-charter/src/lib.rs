@@ -1,6 +1,6 @@
 //! Bounded charter and result records; this crate retains no runtime state and
 //! knows no domain, endpoint configuration or host policy. Constructors,
-//! encoders and decoders are generated from `protocol/charter.md`, sections 2-6.
+//! encoders and decoders are generated from `smith/docs/design/protocol/charter.md`, sections 2-6.
 
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]

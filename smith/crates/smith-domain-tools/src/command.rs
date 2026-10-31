@@ -1,7 +1,7 @@
 //! Selected command budgets, kept without file or process state.
 //! The kit selects duration and proportional capture before emitting IO;
 //! the flight retains only their clamp evidence through the process terminal.
-//! Contract: domain/tools.md, sections 3 and 5; programming-model.md, section 6.3.
+//! Contract: smith/docs/design/domain/tools.md, sections 3 and 5; skein/docs/foundation/programming-model.md, section 6.3.
 
 use crate::{Budget, BytesClamp, Limits, Timeout, TimeoutClamp};
 use skein_lib::Duration;
