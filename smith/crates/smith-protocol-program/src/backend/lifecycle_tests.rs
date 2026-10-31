@@ -3,9 +3,9 @@
     clippy::disallowed_methods,
     reason = "ordinary Rust step harness, programming-model.md 10.2"
 )]
-use super::fixtures::{backend, env, request};
 use super::*;
 use alloc::vec;
+use fixtures::{backend, env, request};
 
 #[test]
 fn a_late_spawn_after_grace_is_terminated_as_a_group() {
@@ -15,7 +15,7 @@ fn a_late_spawn_after_grace_is_terminated_as_a_group() {
     backend.close(&env(0), &mut up, &mut below);
     backend.fire(&env(2), &mut up, &mut below);
     assert!(backend.process.spawning());
-    assert!(backend.stopping > 0);
+    assert!(backend.stopping.escalated());
     backend.from_io(
         &env(3),
         BelowEvent::Io(io::Event::Spawned {
@@ -84,7 +84,7 @@ fn a_renewed_grant_survives_its_first_lapse() {
     let mut up = Queue::with_capacity(32);
     let mut below = Queue::with_capacity(32);
     backend.from_domain(&env(3), request, &mut up, &mut below);
-    assert_eq!(backend.state, State::Checking);
+    assert_eq!(backend.startup.phase(), State::Checking);
     assert!(up.is_empty());
     assert!(below.iter().any(|request| if let Below::Io(io::Request::Spawn { owner, .. }) = request {
         *owner == backend.token(Owner::Status)
@@ -99,14 +99,14 @@ fn an_accepted_init_uses_the_completion_head_deadline() {
     let mut below = Queue::with_capacity(64);
     backend.from_io(&env(1),BelowEvent::Io(io::Event::Stream { owner: Token::new(32),up: skein_lib::stream::Up::Bytes(br#"{"type":"system","subtype":"init","mcp_servers":[{"name":"smith","status":"connected"}],"tools":["mcp__smith__permission_prompt"]}
 "#.as_slice().into()) }),&mut up,&mut below);
-    assert_eq!(backend.state, State::Running);
+    assert_eq!(backend.startup.phase(), State::Running);
     assert_eq!(backend.next_deadline(), Some(env(2).now));
     backend.fire(&env(2), &mut up, &mut below);
     let Some(ToDomain::Failed { failure, .. }) = up.pop() else { panic!("completion head deadline") };
     assert_eq!(failure, llm::Failure::TimedOut { phase: llm::CompletionPhase::Head });
-    assert_eq!(backend.state, State::Running);
-    assert!(backend.switching, "stops the expired invocation while retaining retry storage");
-    assert!(backend.stop == stop::Stop::Closing);
+    assert_eq!(backend.startup.phase(), State::Running);
+    assert!(backend.startup.switching(), "stops the expired invocation while retaining retry storage");
+    assert!(backend.stopping.action() == Some(stopping::Action::Close));
     assert!(backend.current.owner().is_none());
 }
 #[test]

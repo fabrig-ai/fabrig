@@ -300,7 +300,7 @@ impl Backend {
     ) {
         let step = self.files.pending.take().expect("one pending private file request");
         let success = self.files.accept(step, event, descriptor);
-        if self.state == State::Ending {
+        if self.startup.phase() == State::Ending {
             if success && step == Step::CloseRoot {
                 self.settings.directory = None;
             }
@@ -376,7 +376,7 @@ impl Backend {
         mcp_configuration(
             &self.settings.relay,
             self.files.port,
-            self.server.as_ref().expect("listening server").secret(),
+            self.startup.server().expect("listening server").secret(),
         )
     }
 
@@ -391,7 +391,7 @@ impl Backend {
             return;
         }
         let Some(root) = self.settings.directory else {
-            self.state = State::Ended;
+            self.startup.ended(&mut self.io);
             return;
         };
         if let Some(residue) = &self.files.residue {

@@ -10,7 +10,8 @@ use skein_lib::{Duration, Env, List, Map, Queue, Secret, Tail, Time, Token};
 use smith_domain::{GrantName, llm};
 use smith_protocol_llm::{self as protocol, FromDomain, ToDomain};
 
-use crate::{Command, Programs, mcp};
+use crate::{Programs, mcp};
+use startup::Phase as State;
 
 mod builtins;
 mod calls;
@@ -34,7 +35,9 @@ mod recovery;
 mod redaction;
 mod replies;
 mod start;
+mod startup;
 mod stop;
+mod stopping;
 mod stream;
 mod tail;
 mod transport;
@@ -194,33 +197,17 @@ pub enum BelowEvent {
     File { event: file::Event, descriptor: Option<kernel::Fd> },
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-enum State {
-    Idle,
-    Checking,
-    Starting,
-    Running,
-    Ending,
-    Ended,
-}
-
 /// The run's program adapter, driven by the service (smith/docs/design/protocol/programs.md, sections 3, 5).
-#[expect(
-    clippy::struct_excessive_bools,
-    reason = "MCP, stream retention, window invocation and prompt observations advance independently"
-)]
 pub struct Backend {
     mounts: Box<[Mount]>,
     first: Token,
     settings: Settings,
     names: start::Names,
     grant: Option<Grant>,
-    state: State,
+    startup: startup::Startup,
+    stopping: stopping::Stopping,
     current: current::Current,
     pending_failure: Option<(llm::Failure, Box<[u8]>)>,
-    check: Option<Command>,
-    server: Option<mcp::Server>,
-    server_ended: bool,
     files: files::Files,
     native: Option<native::Snapshot>,
     native_writes: Map<Box<[u8]>, smith_domain::tools::Place>,
@@ -228,16 +215,7 @@ pub struct Backend {
     outgoing: Option<Box<[u8]>>,
     written: u32,
     interrupt: interrupt::Interrupt,
-    deadline: Option<Time>,
-    eof_deadline: Option<Time>,
-    stopping: u8,
-    stop: stop::Stop,
-    winding: stop::WindDown,
-    switching: bool,
-    resuming: bool,
     compactions: u32,
-    running_session: Option<[u8; 16]>,
-    recorded_session: Option<[u8; 16]>,
     /// One-based index of the next message whose calls may be permitted.
     permitted_message: u64,
     run_time: Duration,
@@ -262,7 +240,7 @@ impl core::fmt::Debug for Backend {
     fn fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         formatter
             .debug_struct("Backend")
-            .field("state", &self.state)
+            .field("state", &self.startup.phase())
             .field("owner", &self.current.owner())
             .finish_non_exhaustive()
     }
@@ -285,12 +263,10 @@ impl Backend {
             settings,
             names: start::Names::new(entropy),
             grant: None,
-            state: State::Idle,
+            startup: startup::Startup::new(),
+            stopping: stopping::Stopping::new(),
             current: current::Current::new(),
             pending_failure: None,
-            check: None,
-            server: None,
-            server_ended: false,
             files: files::Files::new(),
             native: None,
             native_writes: Map::with_capacity(ledger.capacity()),
@@ -298,16 +274,7 @@ impl Backend {
             outgoing: None,
             written: 0,
             interrupt: interrupt::Interrupt::new(),
-            deadline: None,
-            eof_deadline: None,
-            stopping: 0,
-            stop: stop::Stop::None,
-            winding: stop::WindDown::Ordinary,
-            switching: false,
-            resuming: false,
             compactions: 0,
-            running_session: None,
-            recorded_session: None,
             permitted_message: 1,
             run_time: Duration::ZERO,
             line,
@@ -330,19 +297,19 @@ impl Backend {
 
     /// Adopt the shell's programs directory; its close belongs to this backend.
     pub fn directory(&mut self, root: Root) {
-        assert_eq!(self.state, State::Idle, "programs root is supplied before startup");
+        assert_eq!(self.startup.phase(), State::Idle, "programs root is supplied before startup");
         self.settings.directory = Some(root);
     }
 
     /// Supply the first admitted workspace directory, borrowed until backend close.
     pub fn workspace(&mut self, root: Root) {
-        assert_eq!(self.state, State::Idle, "workspace is supplied before startup");
+        assert_eq!(self.startup.phase(), State::Idle, "workspace is supplied before startup");
         self.settings.workspace = Some(root);
     }
 
     /// Supply all admitted host directories, with the working directory first (5.4).
     pub fn mounts(&mut self, mounts: Box<[Mount]>) {
-        assert_eq!(self.state, State::Idle, "mounts precede startup");
+        assert_eq!(self.startup.phase(), State::Idle, "mounts precede startup");
         self.mounts = mounts;
     }
 
@@ -371,14 +338,7 @@ impl Backend {
             || owner == self.token(Owner::Files)
             || owner == self.token(Owner::Native)
             || self.process.pipes().all().contains(&Some(owner))
-            || match &self.check {
-                Some(check) => check.owns(owner),
-                None => false,
-            }
-            || match &self.server {
-                Some(server) => server.owns(owner),
-                None => false,
-            }
+            || self.startup.owns(owner)
     }
 
     /// Set the admitted charter's turn guard before its first completion (5.7).
@@ -417,8 +377,8 @@ impl Backend {
         match request {
             request @ FromDomain::Complete { owner, .. } => {
                 let request = Complete::from_request(request);
-                if self.winding == stop::WindDown::YieldRequested {
-                    self.winding = stop::WindDown::Ordinary;
+                if self.stopping.intent() == stopping::Intent::YieldRequested {
+                    self.stopping.intend(stopping::Intent::Ordinary);
                 }
                 self.begin_prompt(request.observation.is_some());
                 if let Some((failure, detail)) = self.pending_failure.take() {
@@ -432,7 +392,7 @@ impl Backend {
                     });
                     return;
                 }
-                match self.state {
+                match self.startup.phase() {
                     State::Running => self.window_request(env, request, up, below),
                     State::Idle | State::Checking | State::Starting | State::Ending | State::Ended => {
                         self.start(env, request, up, below);
@@ -441,8 +401,8 @@ impl Backend {
             }
             FromDomain::Yield { owner } => {
                 if self.pending(owner) {
-                    if self.winding == stop::WindDown::Ordinary {
-                        self.winding = stop::WindDown::YieldRequested;
+                    if self.stopping.intent() == stopping::Intent::Ordinary {
+                        self.stopping.intend(stopping::Intent::YieldRequested);
                     }
                     self.yield_for_wind_down(env, up, below);
                 }
@@ -482,12 +442,7 @@ impl Backend {
 
     /// Advance the check, startup deadline and close grace at the supplied clock.
     pub fn fire(&mut self, env: &Env<protocol::ComponentLimits>, up: &mut Queue<ToDomain>, below: &mut Queue<Below>) {
-        if let Some(check) = &mut self.check {
-            check.fire(env.now, &mut self.io);
-        }
-        if let Some(server) = &mut self.server {
-            server.fire(env.now, &mut self.io);
-        }
+        self.startup.fire(env.now, &mut self.io);
         let drain_due = match self.process.next_deadline() {
             Some(deadline) => env.now >= deadline,
             None => false,
@@ -495,32 +450,26 @@ impl Backend {
         if drain_due {
             self.terminate(env.now);
         }
-        let eof_due = match self.eof_deadline {
+        let eof_due = match self.startup.eof_deadline() {
             Some(deadline) => env.now >= deadline,
             None => false,
         };
         if eof_due {
-            self.eof_deadline = None;
             self.fail_program(env, b"smith: the MCP server ended", up, below);
         }
-        let due = match self.deadline {
+        let stop_due = match self.stopping.next_deadline() {
             Some(deadline) => env.now >= deadline,
             None => false,
         };
-        if due && (self.stop != stop::Stop::None || self.switching) {
-            self.deadline = None;
+        if stop_due {
             self.terminate(env.now);
-        } else if due {
-            self.deadline = None;
-            match self.state {
-                State::Starting => self.fail_program(env, b"smith: the program did not initialize", up, below),
-                State::Ending => self.terminate(env.now),
-                State::Running => {
-                    let phase = self.current.phase(env.now);
-                    self.fail(env, llm::Failure::TimedOut { phase }, b"smith: program completion deadline", up, below);
-                }
-                State::Idle | State::Checking | State::Ended => {}
-            }
+        }
+        let startup_due = match self.startup.startup_deadline() {
+            Some(deadline) => env.now >= deadline,
+            None => false,
+        };
+        if startup_due {
+            self.fail_program(env, b"smith: the program did not initialize", up, below);
         }
         let completion_due = match self.current.next_deadline() {
             Some(until) => env.now >= until,
@@ -535,28 +484,7 @@ impl Backend {
     }
 
     fn terminate(&mut self, now: Time) {
-        if self.process.exit().is_some() {
-            self.deadline = None;
-            self.process.drain(now, &mut self.io);
-            return;
-        }
-        self.stopping = self.stopping.saturating_add(1).min(2);
-        if let Some(child) = self.process.child() {
-            self.io.push(io::Request::Signal {
-                child,
-                to: kernel::Target::Group,
-                signal: if self.stopping == 1 { kernel::Signal::Terminate } else { kernel::Signal::Kill },
-            });
-            if self.stopping == 2 {
-                for pipe in self.process.pipes().all().into_iter().flatten() {
-                    self.io.push(io::Request::Abort { entity: pipe });
-                }
-                self.io.push(io::Request::Close { entity: child });
-            }
-        }
-        if self.process.child().is_some() || self.process.spawning() {
-            self.deadline = Some(now.saturating_add(self.settings.grace));
-        }
+        self.stopping.terminate(now, self.settings.grace, &mut self.process, &mut self.io);
     }
 
     /// Earliest check, server authentication, startup or close deadline.
@@ -565,7 +493,7 @@ impl Backend {
         if self.closed() {
             return None;
         }
-        let mut earliest = self.deadline;
+        let mut earliest = self.stopping.next_deadline();
         if self.completion_active()
             && let Some(at) = self.current.next_deadline()
         {
@@ -581,13 +509,14 @@ impl Backend {
             });
         }
         for at in [
-            self.eof_deadline,
+            self.startup.eof_deadline(),
+            self.startup.startup_deadline(),
             self.process.next_deadline(),
-            match &self.check {
+            match self.startup.check() {
                 Some(check) => check.next_deadline(),
                 None => None,
             },
-            match &self.server {
+            match self.startup.server() {
                 Some(server) => server.next_deadline(),
                 None => None,
             },
@@ -662,32 +591,25 @@ impl Backend {
         up: &mut Queue<ToDomain>,
         below: &mut Queue<Below>,
     ) {
-        match self.state {
+        match self.startup.phase() {
             State::Ending | State::Ended => return,
             State::Idle | State::Checking | State::Starting | State::Running => {}
         }
         let active = self.active_turn();
-        self.state = State::Ending;
+        self.startup.close(&mut self.io);
         if let Some(owner) = self.current.owner() {
             self.terminal_measure(env.now, owner);
             self.current.settle(current::Terminal::Cancelled, up);
         }
         self.current.clear(up);
         self.outgoing = None;
-        self.eof_deadline = None;
         self.stop(env, active, parking, up, below);
-        if parking && self.stop == stop::Stop::WindDown {
-            self.stop = stop::Stop::Parking;
+        if parking && self.stopping.action() == Some(stopping::Action::Finish) {
+            self.stopping.begin(stopping::Action::Park, self.stopping.next_deadline());
         }
         self.read_stdout();
-        if let Some(check) = &mut self.check {
-            check.fire(Time::from_nanos(u64::MAX), &mut self.io);
-        }
-        if self.process.child().is_none()
-            && !self.process.spawning()
-            && let Some(server) = &mut self.server
-        {
-            server.close(&mut self.io);
+        if self.process.child().is_none() && !self.process.spawning() {
+            self.startup.close_server(&mut self.io);
         }
         self.progress(env, up, below);
         self.flush(below);
@@ -696,7 +618,7 @@ impl Backend {
     /// Every owned resource, including the programs root, has reported closed.
     #[must_use]
     pub fn closed(&self) -> bool {
-        self.state == State::Ended
+        self.startup.phase() == State::Ended
     }
 
     fn token(&self, owner: Owner) -> Token {
@@ -755,8 +677,7 @@ impl Backend {
         }
         if restart {
             let active = self.active_turn();
-            self.switching = true;
-            self.state = State::Running;
+            self.startup.switch(&mut self.io);
             self.outgoing = None;
             self.stop(env, active, false, up, below);
             self.current.clear(up);

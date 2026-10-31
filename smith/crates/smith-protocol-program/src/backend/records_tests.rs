@@ -4,10 +4,10 @@
     reason = "ordinary Rust step harness, programming-model.md 10.2"
 )]
 #![expect(clippy::match_like_matches_macro, reason = "the no_std test harness uses explicit record filters")]
-use super::fixtures::window as active;
-use super::fixtures::{connect_server, env, request, server_reply};
 use super::*;
 use crate::backend::fixtures::COMPLETION;
+use fixtures::window as active;
+use fixtures::{connect_server, env, request, server_reply};
 use serde_json::json;
 
 fn feed(backend: &mut Backend, value: serde_json::Value, up: &mut Queue<ToDomain>, below: &mut Queue<Below>) {
@@ -153,7 +153,7 @@ fn an_unmatched_call_after_text_closes_is_rejected_immediately() {
     let mut up = Queue::with_capacity(32);
     let mut below = Queue::with_capacity(64);
     feed(&mut backend, text(), &mut up, &mut below);
-    let server = backend.server.as_mut().expect("server");
+    let server = backend.startup.server_mut().expect("server");
     server.from_io(
         env(0).now,
         io::Event::Stream {
@@ -341,7 +341,7 @@ fn accepting_one_finish_does_not_accept_an_unjudged_finish() {
 #[test]
 fn bytes_after_init_in_the_same_read_start_the_idle_deadline() {
     let mut backend = active();
-    backend.state = State::Starting;
+    fixtures::preparing(&mut backend);
     let Some(Complete { deadlines, .. }) = backend.current.request_mut() else { panic!("completion") };
     deadlines.head = Duration::from_secs(30);
     deadlines.idle = Duration::from_secs(2);

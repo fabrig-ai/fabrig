@@ -3,9 +3,9 @@
     clippy::disallowed_types,
     reason = "ordinary Rust deterministic harness, programming-model.md 10.2"
 )]
-use super::fixtures::{env, observed as active, request};
 use super::*;
 use crate::backend::fixtures::COMPLETION;
+use fixtures::{env, observed as active, request};
 use protocol::{Measure, Observation};
 use smith_events::{Block, Role};
 
@@ -309,7 +309,7 @@ fn a_retry_discards_the_unfinished_message() {
         }
     }
     assert_eq!(completions, 1);
-    assert_eq!(backend.state, State::Running);
+    assert_eq!(backend.startup.phase(), State::Running);
 }
 
 #[test]
@@ -320,7 +320,7 @@ fn held_call_user_text_is_captured() {
         held.name = b"foo".as_slice().into();
         assert!(backend.ledger.push(held).is_ok());
         fixtures::connect_server(&mut backend);
-        let server = backend.server.as_mut().expect("server");
+        let server = backend.startup.server_mut().expect("server");
         server.from_io(
             env(0).now,
             io::Event::Stream {
@@ -405,5 +405,5 @@ fn a_results_only_complete_offers_one_prompt() {
     backend.prompt_measure(env(4).now, Some(b"a second offer"));
     backend.flush_prompt_measure(env(4).now);
     assert!(backend.pop_measure().is_none());
-    assert_eq!(backend.state, State::Running);
+    assert_eq!(backend.startup.phase(), State::Running);
 }

@@ -14,7 +14,6 @@ use smith_protocol_llm::{self as protocol, ToDomain};
 pub(super) struct Names {
     pub mcp: Secret,
     pub run: [u8; 32],
-    pub session: [u8; 36],
 }
 
 impl Names {
@@ -31,7 +30,7 @@ impl Names {
         for (target, source) in run.iter_mut().zip(run_hex) {
             *target = source;
         }
-        Self { mcp, run, session: [0; 36] }
+        Self { mcp, run }
     }
 }
 
@@ -44,7 +43,7 @@ impl Backend {
         below: &mut Queue<Below>,
     ) {
         let (owner, name) = (request.owner, request.grant);
-        if self.state != State::Idle {
+        if self.startup.phase() != State::Idle {
             self.current.claim(owner, up);
             self.fail(env, llm::Failure::Invalid, b"smith: a program conversation is already started", up, below);
             return;
@@ -68,7 +67,7 @@ impl Backend {
         }
         if self.files.prepared() {
             self.current.retain(request, up);
-            self.state = State::Starting;
+            self.startup.prepare(&mut self.io);
             self.prepare_invocation(env, up, below);
             return;
         }
@@ -94,8 +93,7 @@ impl Backend {
         for argument in STATUS {
             arguments.push(Box::from(argument)).expect("status arguments");
         }
-        self.state = State::Checking;
-        self.check = Some(Command::new(
+        let check = Command::new(
             self.token(Owner::Status),
             Launch {
                 program: self.settings.program.claude.clone(),
@@ -107,7 +105,8 @@ impl Backend {
             env.now.saturating_add(self.settings.startup),
             self.settings.receiving.max_failure_bytes,
             &mut self.io,
-        ));
+        );
+        self.startup.checking(check, &mut self.io);
     }
 
     pub(super) fn progress(
@@ -120,27 +119,23 @@ impl Backend {
         self.checked(env, up, below);
         self.server_events(env, up, below);
         self.switch_progress(env, up, below);
-        if self.winding == super::stop::WindDown::YieldRequested {
+        if self.stopping.intent() == super::stopping::Intent::YieldRequested {
             self.yield_for_wind_down(env, up, below);
         }
-        if self.state == State::Ending
-            && self.process.child().is_none()
-            && !self.process.spawning()
-            && let Some(server) = &mut self.server
-        {
-            server.close(&mut self.io);
+        if self.startup.phase() == State::Ending && self.process.child().is_none() && !self.process.spawning() {
+            self.startup.close_server(&mut self.io);
         }
-        if self.state == State::Ending
-            && self.check.is_none()
+        if self.startup.phase() == State::Ending
+            && self.startup.check().is_none()
             && self.process.settled()
-            && (self.server.is_none() || self.server_ended)
+            && (self.startup.server().is_none() || self.startup.server_ended())
         {
             self.cleanup(env.now, below);
         }
     }
 
     fn checked(&mut self, env: &Env<protocol::ComponentLimits>, up: &mut Queue<ToDomain>, below: &mut Queue<Below>) {
-        let (status, exit, detail) = match match &self.check {
+        let (status, exit, detail) = match match self.startup.check() {
             Some(check) => check.ended(),
             None => None,
         } {
@@ -158,13 +153,13 @@ impl Backend {
             Some(Ended::Unspawned { detail } | Ended::Deadline { detail }) => (Status::Unreadable, None, detail.into()),
             None => return,
         };
-        self.check = None;
-        if self.state == State::Ending {
+        self.startup.checked(&mut self.io);
+        if self.startup.phase() == State::Ending {
             return;
         }
         match status {
             Status::Usable => {
-                self.state = State::Starting;
+                self.startup.prepare(&mut self.io);
                 self.open_runs(env.now, below);
             }
             Status::NotSignedIn | Status::Otherwise(_) => self.fail(
@@ -185,13 +180,13 @@ impl Backend {
         below: &mut Queue<Below>,
     ) {
         for _ in 0_u32..2 {
-            let event = match &mut self.server {
+            let event = match self.startup.server_mut() {
                 Some(server) => server.up(),
                 None => None,
             };
             match event {
                 Some(mcp::Up::Listening { port }) => {
-                    if self.state == State::Starting {
+                    if self.startup.phase() == State::Starting {
                         self.store_instructions(env.now, port, below);
                     }
                 }
@@ -225,12 +220,12 @@ impl Backend {
             );
             return;
         };
-        if !self.compaction() && !self.resuming {
+        if !self.compaction() && !self.startup.resuming() {
             self.first_prompt_measure(env.now);
         }
         self.io.push(io::Request::Spawn { owner: self.token(Owner::Program), spawn: launch });
         self.process.spawn();
-        self.deadline = Some(env.now.saturating_add(self.settings.startup));
+        self.startup.launch(env.now.saturating_add(self.settings.startup), &mut self.io);
     }
 
     pub(super) fn mcp_ended(
@@ -239,16 +234,17 @@ impl Backend {
         up: &mut Queue<ToDomain>,
         below: &mut Queue<Below>,
     ) {
-        self.server_ended = true;
-        if self.switching {
-            return;
-        }
-        if self.state == State::Running && self.process.child().is_some() {
-            // Relay EOF can precede waitpid. Let the child and stderr settle
-            // before choosing its program fault (smith/docs/design/protocol/programs.md, section 5.6).
-            let until = env.now.saturating_add(self.settings.grace);
-            self.eof_deadline = Some(self.eof_deadline.unwrap_or(until).min(until));
-        } else if self.state != State::Ending && self.state != State::Ended {
+        // Relay EOF can precede waitpid. Let the child and stderr settle
+        // before choosing its program fault (smith/docs/design/protocol/programs.md, 5.6).
+        let waiting = self.startup.phase() == State::Running && self.process.child().is_some();
+        let until =
+            if waiting && !self.startup.switching() { Some(env.now.saturating_add(self.settings.grace)) } else { None };
+        self.startup.relay_ended(until, &mut self.io);
+        if !self.startup.switching()
+            && !waiting
+            && self.startup.phase() != State::Ending
+            && self.startup.phase() != State::Ended
+        {
             self.fail_program(env, b"smith: the MCP server ended", up, below);
         }
     }
@@ -258,7 +254,9 @@ impl Backend {
         let outcome = &self.current.request()?.outcome;
         if !super::compact::is_compaction(prompt) {
             match &prompt.choice {
-                llm::ToolChoice::Only(_) | llm::ToolChoice::None => self.winding = super::stop::WindDown::Finishing,
+                llm::ToolChoice::Only(_) | llm::ToolChoice::None => {
+                    self.stopping.intend(super::stopping::Intent::Finishing);
+                }
                 llm::ToolChoice::Auto => {}
             }
         }
@@ -274,7 +272,7 @@ impl Backend {
         let instructions = self.run_path(b"instructions.md");
         let mcp_file = self.run_path(b"mcp.json");
         let mut arguments = if super::compact::is_compaction(prompt) {
-            super::compact::arguments(prompt, &instructions, &self.names.session)?
+            super::compact::arguments(prompt, &instructions, &self.startup.session())?
         } else {
             arguments(
                 &prompt.model,
@@ -283,11 +281,11 @@ impl Backend {
                 &mcp_file,
                 &schema,
                 self.settings.max_turns,
-                &self.names.session,
+                &self.startup.session(),
                 &super::policy::tools_flag(prompt.tools),
             )?
         };
-        if self.resuming {
+        if self.startup.resuming() {
             for argument in &mut arguments {
                 if argument.as_ref() == b"--session-id" {
                     *argument = b"--resume".as_slice().into();

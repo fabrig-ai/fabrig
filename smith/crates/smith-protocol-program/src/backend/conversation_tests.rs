@@ -1,7 +1,7 @@
-use super::fixtures::records as active;
-use super::fixtures::{env, records_with as running, request};
 use super::*;
 use crate::backend::fixtures::COMPLETION;
+use fixtures::records as active;
+use fixtures::{env, records_with as running, request};
 
 #[test]
 fn an_unframed_tool_message_completes_without_any_partial() {
@@ -218,7 +218,7 @@ fn reply_after_notice(notice: &[u8]) -> (Backend, Queue<ToDomain>) {
 fn status_before_a_completion_preserves_the_reply() {
     let (backend, up) = reply_after_notice(STATUS);
     assert_eq!(finished_reply(&up).content, expected_reply());
-    assert_eq!(backend.state, State::Running);
+    assert_eq!(backend.startup.phase(), State::Running);
 }
 
 #[test]
@@ -238,7 +238,7 @@ fn status_after_a_tool_result_preserves_the_next_completion() {
     backend.line(&env(0), REPLY, &mut up, &mut below);
     backend.line(&env(0), RESULT, &mut up, &mut below);
     assert_eq!(finished_reply(&up).content, expected_reply());
-    assert_eq!(backend.state, State::Running);
+    assert_eq!(backend.startup.phase(), State::Running);
 }
 
 fn second_turn() -> (Backend, Queue<ToDomain>, Queue<Below>) {
@@ -269,7 +269,7 @@ fn a_valid_later_init_allows_the_second_turn() {
     backend.line(&env(0), REPLY, &mut up, &mut below);
     backend.line(&env(0), RESULT, &mut up, &mut below);
     assert_eq!(finished_reply(&up).stop, llm::Stop::EndTurn);
-    assert_eq!(backend.state, State::Running);
+    assert_eq!(backend.startup.phase(), State::Running);
 }
 
 fn init_failure(mut up: Queue<ToDomain>) -> (llm::Failure, Box<[u8]>) {
@@ -308,7 +308,7 @@ fn a_later_init_rechecks_the_runs_builtin_grants() {
 fn an_unknown_system_subtype_preserves_the_reply() {
     let (backend, up) = reply_after_notice(br#"{"type":"system","subtype":"something_new"}"#);
     assert_eq!(finished_reply(&up).content, expected_reply());
-    assert_eq!(backend.state, State::Running);
+    assert_eq!(backend.startup.phase(), State::Running);
 }
 
 #[test]
@@ -320,7 +320,7 @@ fn thinking_tokens_is_a_notice_without_state_or_measure() {
         &mut up,
         &mut below,
     );
-    assert_eq!(backend.state, State::Running);
+    assert_eq!(backend.startup.phase(), State::Running);
     assert!(backend.turns.message.is_none());
     assert_eq!(backend.turns.closed, 0);
     assert!(backend.pop_measure().is_none());

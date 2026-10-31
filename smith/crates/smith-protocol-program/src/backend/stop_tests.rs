@@ -4,10 +4,10 @@
     clippy::disallowed_types,
     reason = "ordinary Rust deterministic harness, programming-model.md 10.2"
 )]
-use super::fixtures::active;
-use super::fixtures::{env, request};
 use super::*;
 use crate::backend::fixtures::COMPLETION;
+use fixtures::active;
+use fixtures::{env, request};
 
 fn signal(below: &Queue<Below>, expected: kernel::Signal) -> usize {
     let mut count = 0_usize;
@@ -94,8 +94,8 @@ fn the_wind_down_requests_one_interrupt() {
     assert_eq!(control_rooms(&below), 1);
     backend.line(&env(0), br#"{"type":"result","is_error":true,"subtype":"error_during_execution","terminal_reason":"aborted_streaming"}"#, &mut up, &mut below);
     backend.flush(&mut below);
-    assert!(backend.winding == stop::WindDown::Finishing);
-    assert_eq!(backend.state, State::Running);
+    assert!(backend.stopping.intent() == stopping::Intent::Finishing);
+    assert_eq!(backend.startup.phase(), State::Running);
     let note: serde_json::Value = serde_json::from_slice(backend.outgoing.as_ref().expect("finishing note")).unwrap();
     assert_eq!(
         note["message"]["content"],
@@ -162,7 +162,7 @@ fn prompt_input(backend: &mut Backend, labelled: bool, input: serde_json::Value)
         message["params"]["arguments"]["tool_use_id"] = serde_json::json!("r");
     }
     let bytes = mcp::json::join(&[&serde_json::to_vec(&message).expect("prompt JSON"), b"\n"]);
-    let server = backend.server.as_mut().expect("permission server");
+    let server = backend.startup.server_mut().expect("permission server");
     server.from_io(
         env(0).now,
         io::Event::Stream { owner: Token::new(101), up: skein_lib::stream::Up::Bytes(bytes) },
@@ -216,7 +216,7 @@ fn a_built_in_outside_the_choice_is_denied() {
     let mut backend = active();
     builtin(&mut backend);
     fixtures::connect_server(&mut backend);
-    backend.winding = stop::WindDown::Finishing;
+    backend.stopping.intend(stopping::Intent::Finishing);
     let mut next = request(&backend);
     let FromDomain::Complete { prompt: next_prompt, .. } = &mut next else { panic!("complete") };
     next_prompt.choice = llm::ToolChoice::Only(Box::new([llm::Served::Finish, llm::Served::Deliver]));
@@ -400,15 +400,15 @@ fn a_tail_moves_served_results_after_the_last_assistant() {
 fn a_call_arriving_during_interrupt_is_not_run() {
     let mut backend = active();
     fixtures::connect_server(&mut backend);
-    backend.stop = stop::Stop::Yielding;
+    backend.stopping.begin(stopping::Action::Yield, None);
     let bytes =
         b"{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\",\"params\":{\"name\":\"foo\",\"arguments\":{}}}\n";
-    backend.server.as_mut().expect("server").from_io(
+    backend.startup.server_mut().expect("server").from_io(
         env(0).now,
         io::Event::Stream { owner: Token::new(101), up: skein_lib::stream::Up::Bytes(bytes.as_slice().into()) },
         &mut backend.io,
     );
-    let call = backend.server.as_mut().expect("server").up().expect("call");
+    let call = backend.startup.server_mut().expect("server").up().expect("call");
     backend.calls.push(call).expect("one held call");
     backend.match_calls();
     let reply = fixtures::server_reply(&mut backend);
@@ -420,7 +420,7 @@ fn a_call_arriving_during_interrupt_is_not_run() {
 fn a_prompt_arriving_during_interrupt_is_not_run() {
     let mut backend = active();
     fixtures::connect_server(&mut backend);
-    backend.stop = stop::Stop::Yielding;
+    backend.stopping.begin(stopping::Action::Yield, None);
     prompt(&mut backend, true);
     assert_eq!(
         decision(&mut backend),
@@ -512,7 +512,7 @@ fn a_control_interrupt_keeps_the_process_for_the_note() {
         ]
     );
     assert_eq!(backend.process.child(), Some(Token::new(30)));
-    assert_eq!(backend.state, State::Running);
+    assert_eq!(backend.startup.phase(), State::Running);
     assert_eq!(signal(&below, kernel::Signal::Interrupt), 0);
     assert!(!input_closed(&below));
     for event in &up {

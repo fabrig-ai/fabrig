@@ -197,7 +197,7 @@ pub(super) fn connect_server(backend: &mut Backend) {
         &mut io,
     );
     assert_eq!(server.up(), Some(mcp::Up::Connected));
-    backend.server = Some(server);
+    backend.startup.install_server(server, &mut backend.io);
 }
 
 pub(super) fn server_reply(backend: &mut Backend) -> serde_json::Value {
@@ -208,7 +208,7 @@ pub(super) fn server_reply(backend: &mut Backend) -> serde_json::Value {
                 io::Request::Output { stream, down: skein_lib::stream::OutputDown::Room { right, .. } }
                     if stream == Token::new(201) =>
                 {
-                    backend.server.as_mut().expect("server").from_io(
+                    backend.startup.server_mut().expect("server").from_io(
                         env(0).now,
                         io::Event::Output {
                             owner: Token::new(101),
@@ -250,7 +250,7 @@ pub(super) fn active() -> Backend {
 
 /// Keep caller-selected limits and attach the standard running completion.
 pub(super) fn running(mut backend: Backend) -> Backend {
-    backend.state = State::Running;
+    initialized(&mut backend);
     attach_process(Some(Token::new(30)), &mut backend);
     attach_pipes(Pipes::from_spawn(&[Token::new(31), Token::new(32), Token::new(33)]), &mut backend);
     claim_completion(COMPLETION, &mut backend);
@@ -276,7 +276,7 @@ pub(super) fn window() -> Backend {
     let session::Opening::New { id } = session::opening(prompt, None, None) else {
         panic!("new window");
     };
-    backend.running_session = Some(id);
+    new_window(id, &mut backend);
     backend
 }
 
@@ -323,7 +323,7 @@ pub(super) fn prompt_with(messages: Box<[llm::Message]>) -> llm::Prompt {
 /// A lazy startup whose program spawn has not answered yet.
 pub(super) fn spawning() -> Backend {
     let mut backend = backend();
-    backend.state = State::Starting;
+    preparing(&mut backend);
     backend.process.spawn();
     backend
 }
@@ -331,8 +331,8 @@ pub(super) fn spawning() -> Backend {
 /// A spawned program waiting for its init record.
 pub(super) fn starting() -> Backend {
     let mut backend = active();
-    backend.state = State::Starting;
-    backend.deadline = Some(env(30).now);
+    preparing(&mut backend);
+    backend.startup.launch(env(30).now, &mut backend.io);
     attach_process(Some(backend.token(Owner::Program)), &mut backend);
     backend
 }
@@ -340,7 +340,7 @@ pub(super) fn starting() -> Backend {
 /// One child with no remaining output streams.
 pub(super) fn running_child() -> Backend {
     let mut backend = backend();
-    backend.state = State::Running;
+    initialized(&mut backend);
     attach_process(Some(Token::new(30)), &mut backend);
     backend
 }
@@ -348,7 +348,7 @@ pub(super) fn running_child() -> Backend {
 /// A program input line waiting for output room.
 pub(super) fn input(bytes: Box<[u8]>) -> Backend {
     let mut backend = backend();
-    backend.state = State::Running;
+    initialized(&mut backend);
     attach_pipes(Pipes { input: Some(Token::new(31)), ..backend.process.pipes() }, &mut backend);
     backend.outgoing = Some(bytes);
     backend.send_input();
@@ -358,7 +358,7 @@ pub(super) fn input(bytes: Box<[u8]>) -> Backend {
 /// A completion configured for prompt and delta observations.
 pub(super) fn observed(observe: bool) -> Backend {
     let mut backend = backend();
-    backend.state = State::Running;
+    initialized(&mut backend);
     attach_process(Some(Token::new(30)), &mut backend);
     attach_pipes(Pipes::from_spawn(&[Token::new(31), Token::new(32), Token::new(33)]), &mut backend);
     let mut request = request(&backend);
@@ -420,8 +420,7 @@ pub(super) fn resumable() -> Backend {
     let request = resume_request(&backend);
     let FromDomain::Complete { prompt, .. } = &request else { panic!("complete") };
     let session::Opening::Resume { id } = session::opening(prompt, None, None) else { panic!("resume") };
-    backend.names.session = session::uuid(id);
-    backend.resuming = true;
+    resume_window(id, &mut backend);
     retain_request(request, &mut backend);
     backend
 }
@@ -465,4 +464,49 @@ pub(super) fn clear_completion(backend: &mut Backend) {
 pub(super) fn begin_prompt(request: &FromDomain, backend: &mut Backend) {
     let FromDomain::Complete { observation, .. } = request else { panic!("completion fixture") };
     backend.begin_prompt(observation.is_some());
+}
+
+/// Prepare an invocation while retaining the scenario's MCP/window resources.
+pub(super) fn preparing(backend: &mut Backend) {
+    backend.startup.preparing_fixture(&mut backend.io);
+}
+
+/// Observe init for the scenario's invocation.
+pub(super) fn initialized(backend: &mut Backend) {
+    preparing(backend);
+    backend.startup.initialized(&mut backend.io);
+}
+
+pub(super) fn new_window(id: [u8; 16], backend: &mut Backend) {
+    if backend.startup.phase() == State::Idle {
+        preparing(backend);
+    }
+    backend.startup.window(startup::Window::New(id), &mut backend.io);
+}
+
+pub(super) fn fresh_window(backend: &mut Backend) {
+    if backend.startup.phase() == State::Idle {
+        preparing(backend);
+    }
+    let window = match backend.startup.running_session() {
+        Some(id) => startup::Window::New(id),
+        None => startup::Window::Unidentified,
+    };
+    backend.startup.window(window, &mut backend.io);
+}
+
+pub(super) fn resume_window(id: [u8; 16], backend: &mut Backend) {
+    if backend.startup.phase() == State::Idle {
+        preparing(backend);
+    }
+    backend.startup.window(startup::Window::Resume(id), &mut backend.io);
+}
+
+/// Settle the standard child, its pipes and the connected fixture's MCP slots.
+pub(super) fn settle_connected_invocation(backend: &mut Backend, up: &mut Queue<ToDomain>, below: &mut Queue<Below>) {
+    let owner = backend.token(Owner::Program);
+    backend.from_io(&env(0), BelowEvent::Io(io::Event::Exited { owner, exit: kernel::Exit::Code(0) }), up, below);
+    for owner in [owner, Token::new(31), Token::new(32), Token::new(33), Token::new(100), Token::new(101)] {
+        backend.from_io(&env(0), BelowEvent::Io(io::Event::Closed { owner }), up, below);
+    }
 }

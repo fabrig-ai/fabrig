@@ -20,19 +20,7 @@ impl Backend {
         up: &mut Queue<ToDomain>,
         below: &mut Queue<Below>,
     ) {
-        let owner = event.owner().expect("backend has no signals");
-        if let Some(check) = &mut self.check
-            && check.owns(owner)
-        {
-            check.from_io(event, &mut self.io);
-            return;
-        }
-        if let Some(server) = &mut self.server
-            && server.owns(owner)
-        {
-            server.from_io(env.now, event, &mut self.io);
-            return;
-        }
+        let Some(event) = self.startup.io_event(env.now, event, &mut self.io) else { return };
         match event {
             io::Event::Spawned { child, pipes, .. } => {
                 self.process.spawned(child, Pipes::from_spawn(&pipes));
@@ -41,17 +29,9 @@ impl Backend {
                 if let Some(pipe) = self.process.pipes().errors {
                     Self::demand(pipe, PIPE_BYTES, &mut self.io);
                 }
-                if self.state == State::Ending {
+                if self.startup.phase() == State::Ending {
                     self.io.push(io::Request::Close { entity: self.process.pipes().input.expect("stdin") });
-                    if self.stopping > 0
-                        || match self.deadline {
-                            Some(deadline) => env.now >= deadline,
-                            None => false,
-                        }
-                    {
-                        self.stopping = 0;
-                        self.terminate(env.now);
-                    }
+                    self.stopping.spawned(env.now, self.settings.grace, &mut self.process, &mut self.io);
                 } else {
                     self.send_input();
                 }
@@ -61,7 +41,7 @@ impl Backend {
             }
             io::Event::Closed { owner } => {
                 self.process.closed(owner, self.token(Owner::Program));
-                if self.process.settled() && self.state != State::Ending && !self.switching {
+                if self.process.settled() && self.startup.phase() != State::Ending && !self.startup.switching() {
                     let detail = self.error_tail();
                     let failure = self.exit_failure();
                     self.fail(env, failure, &detail, up, below);
@@ -92,7 +72,9 @@ impl Backend {
             }
             io::Event::Stream { up: stream::Up::Room, .. } => {}
             io::Event::Output { up: stream::OutputUp::Settled { right, outcome }, .. } => {
-                if self.state != State::Ending || self.stop == super::stop::Stop::Parking {
+                if self.startup.phase() != State::Ending
+                    || self.stopping.action() == Some(super::stopping::Action::Park)
+                {
                     match outcome {
                         stream::OutputOutcome::Granted => {
                             if self.process.exit().is_some() || self.process.pipes().input.is_none() {

@@ -9,7 +9,7 @@ fn relay_eof_waits_for_the_programs_exit() {
     let fixtures::Harness { mut backend, mut up, mut below } = fixtures::Harness::new(active());
     backend.mcp_ended(&env(0), &mut up, &mut below);
     assert!(up.is_empty());
-    assert_eq!(backend.state, State::Running);
+    assert_eq!(backend.startup.phase(), State::Running);
     backend.from_io(
         &env(0),
         BelowEvent::Io(io::Event::Exited { owner: backend.token(Owner::Program), exit: kernel::Exit::Code(7) }),
@@ -71,7 +71,7 @@ fn buffered_stdout_cannot_clear_the_relay_eof_grace() {
     assert_eq!(bytes, 8);
     let Some(ToDomain::Completed { .. }) = up.pop() else { panic!("buffered completion") };
     assert!(up.is_empty());
-    assert!(backend.deadline.is_none(), "delivery cleared only the completion deadline");
+    assert!(backend.stopping.next_deadline().is_none(), "delivery cleared only the completion deadline");
     backend.from_domain(&buffered, request(&backend), &mut up, &mut below);
     assert!(up.is_empty());
     assert_eq!(backend.next_deadline(), Some(until));

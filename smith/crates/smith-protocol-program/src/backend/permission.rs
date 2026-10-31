@@ -18,8 +18,8 @@ impl Backend {
                 unreachable!("permission prompt")
             }
         };
-        if self.state == State::Ending || self.stop != super::stop::Stop::None {
-            self.server.as_mut().expect("stopped permission prompt").verdict(
+        if self.startup.phase() == State::Ending || self.stopping.waiting() {
+            self.startup.server_mut().expect("stopped permission prompt").verdict(
                 call,
                 mcp::Verdict::Deny { message: super::stop::INTERRUPTED.into() },
                 &mut self.io,
@@ -51,7 +51,7 @@ impl Backend {
                 self.native_permission(index, &tool_name, &input, call, updated_input);
             }
             verdict @ mcp::Verdict::Deny { .. } => {
-                self.server.as_mut().expect("permission server").verdict(call, verdict, &mut self.io);
+                self.startup.server_mut().expect("permission server").verdict(call, verdict, &mut self.io);
             }
         }
     }
