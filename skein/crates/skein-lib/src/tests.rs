@@ -11,6 +11,7 @@ mod digest;
 mod handles;
 mod held;
 mod journal;
+mod lifecycle;
 mod requests;
 mod sha256;
 mod streams;

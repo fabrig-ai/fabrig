@@ -69,6 +69,13 @@ them (testing.md, section 6).
     frees every retired one, so an entity can be looked up until the
     iteration ends.
 
+**`Lifecycle`** is a component's live, closing, aborting or closed phase
+(programming-model.md, 5.2). `close` advances live to closing;
+`abort` advances live or closing to aborting; both report whether they
+changed it. `is_settling` means closing or aborting, and `closed` asserts
+that phase before advancing to closed. Requests after closed are the
+owner's concern.
+
 ## 4. Names across boundaries
 
 - **`Token`** is an opaque `u64`, the only name that crosses a boundary.
@@ -102,6 +109,20 @@ start empty and grow, with `u32::MAX` as their capacity. They hold the
 hops, correlations and collections inside a service, never what a peer
 can push in. An uncapped queue's `push` cannot fail; its allocation
 price is for a chosen capacity, not a bound on the queue.
+
+`List::clear`, `Queue::clear` and `Stack::clear` drop every item front to
+back, keeping the grown buffer: refilling to the previous length allocates
+nothing. List, Queue, Stack, Slab and Intake share one growth rule: double
+the held buffer, at least the needed length and four items, capped at the
+container's limit. Intake grows from its allocated capacity for all bytes
+appended; the other four grow from their full buffer's length for one item.
+
+`Slab::next_after` finds the first live entry after a handle's slot, or
+from the start for `None`; the cursor's generation does not matter. It
+holds no borrow between calls, so its caller may mutate the slab mid-walk.
+`Slab::iter` yields every live `(Id, &value)` in slot order. Both skip
+retired entries. Slot order is not insertion order, since freed slots are
+reused.
 
 ### 5.1 State digests
 
@@ -184,6 +205,11 @@ where it holds it.
   each record in one, a secret's bytes among them (codec.md, section 11).
 - **`Decimal`** holds the decimal digits of a count, for a step that
   writes a number as text without formatting: measure it, then put it.
+  `Decimal::parse` reads ASCII decimal digits into a `u64`, accepting
+  leading zeros and refusing empty input, signs, non-digits and overflow.
+- **`hex`** supplies lowercase and uppercase ASCII digits (`lower`,
+  `upper`) from the low four bits of a byte. `value` reads either case;
+  `lower_value` refuses uppercase. Each reader refuses any other byte.
 - **`Secret`** holds a secret's owned bytes: a credential, a token, a
   key. Its `Debug` shows its length only, never its bytes, so a record
   that holds one prints, logs and traces without it (codec.md, section 3).
@@ -467,6 +493,8 @@ cannot manufacture independent room.
   saturating arithmetic. **`Wall`** is wall-clock time, nanoseconds since
   the Unix epoch, a type of its own with no arithmetic on spans, so it is
   never mixed with `Time` and never arms a deadline.
+  `Time::earliest` chooses the earlier of two optional deadlines, treating
+  `None` as no deadline; two absent deadlines give `None`.
 - **`Deadlines`** is a layer's own timer table, bounded: `arm` a deadline
   for a key, `cancel` it, ask for the `next` one, and `expire` those that
   have passed, each removed before its handler runs. It is a pair of

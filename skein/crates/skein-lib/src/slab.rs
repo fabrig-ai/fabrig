@@ -11,6 +11,7 @@ use core::hash::{Hash, Hasher};
 use core::mem::size_of;
 
 use crate::Id;
+use crate::grow::growth;
 
 /// Entities of one kind, named by `Id<T>`.
 ///
@@ -44,7 +45,28 @@ enum Slot<T> {
     Spent,
 }
 
-const GROWTH_FLOOR: usize = 4;
+/// Live entries in slot order, which is not insertion order: freed slots are reused.
+#[derive(Debug)]
+pub struct Iter<'a, T> {
+    slots: core::iter::Enumerate<core::slice::Iter<'a, Slot<T>>>,
+}
+
+impl<'a, T> Iterator for Iter<'a, T> {
+    type Item = (Id<T>, &'a T);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        for (slot, entry) in self.slots.by_ref() {
+            match entry {
+                Slot::Occupied { generation, retired: false, value } => {
+                    let slot = u32::try_from(slot).expect("a slot fits its u32 capacity");
+                    return Some((Id::new(slot, *generation), value));
+                }
+                Slot::Occupied { retired: true, .. } | Slot::Vacant { .. } | Slot::Spent => {}
+            }
+        }
+        None
+    }
+}
 
 impl<T> Slab<T> {
     /// Starts without allocating; slots and lists grow as they fill, up to
@@ -95,7 +117,12 @@ impl<T> Slab<T> {
                     return Err(value);
                 }
                 if self.slots.len() == self.slots.capacity() {
-                    self.slots.reserve_exact(growth(self.slots.len(), self.capacity));
+                    self.slots.reserve_exact(growth(
+                        self.slots.len(),
+                        self.slots.len(),
+                        self.slots.len().checked_add(1).expect("room for another item"),
+                        self.capacity,
+                    ));
                 }
                 let slot = u32::try_from(self.slots.len()).expect("fewer slots than the capacity");
                 self.slots.push(Slot::Vacant { generation: 0 });
@@ -130,6 +157,35 @@ impl<T> Slab<T> {
         }
     }
 
+    /// The first live entry after `from`'s slot (from the start for `None`), in slot order.
+    /// Slot order is not insertion order: freed slots are reused. Only the slot
+    /// of `from` is used, even if it has been reclaimed or reused. No borrow is
+    /// held between calls, so the slab may change between steps of a walk.
+    #[must_use]
+    pub fn next_after(&self, from: Option<Id<T>>) -> Option<Id<T>> {
+        let start = match from {
+            Some(id) => index(id.slot()).checked_add(1)?,
+            None => 0,
+        };
+        for (slot, entry) in self.slots.iter().enumerate().skip(start) {
+            match entry {
+                Slot::Occupied { generation, retired: false, value: _ } => {
+                    let slot = u32::try_from(slot).expect("a slot fits its u32 capacity");
+                    return Some(Id::new(slot, *generation));
+                }
+                Slot::Occupied { retired: true, .. } | Slot::Vacant { .. } | Slot::Spent => {}
+            }
+        }
+        None
+    }
+
+    /// Every live entry, in slot order, excluding retired entries.
+    /// Slot order is not insertion order: freed slots are reused.
+    #[must_use]
+    pub fn iter(&self) -> Iter<'_, T> {
+        Iter { slots: self.slots.iter().enumerate() }
+    }
+
     /// Marks a live entity for reclaiming. It stays reachable until
     /// `reclaim`. Retiring anything else is a bug.
     pub fn retire(&mut self, id: Id<T>) {
@@ -143,7 +199,12 @@ impl<T> Slab<T> {
             Slot::Vacant { .. } | Slot::Spent => unreachable!("only a live entity is retired"),
         }
         if self.retired.len() == self.retired.capacity() {
-            self.retired.reserve_exact(growth(self.retired.len(), self.capacity));
+            self.retired.reserve_exact(growth(
+                self.retired.len(),
+                self.retired.len(),
+                self.retired.len().checked_add(1).expect("room for another item"),
+                self.capacity,
+            ));
         }
         self.retired.push(id.slot());
     }
@@ -163,7 +224,12 @@ impl<T> Slab<T> {
             *entry = match next {
                 Some(generation) => {
                     if self.free.len() == self.free.capacity() {
-                        self.free.reserve_exact(growth(self.free.len(), self.capacity));
+                        self.free.reserve_exact(growth(
+                            self.free.len(),
+                            self.free.len(),
+                            self.free.len().checked_add(1).expect("room for another item"),
+                            self.capacity,
+                        ));
                     }
                     self.free.push(slot);
                     Slot::Vacant { generation }
@@ -175,10 +241,13 @@ impl<T> Slab<T> {
     }
 }
 
-/// Additional storage for a full buffer that has room below its cap.
-fn growth(len: usize, capacity: u32) -> usize {
-    let target = len.saturating_mul(2).max(GROWTH_FLOOR).min(index(capacity));
-    target.checked_sub(len).expect("room for another item")
+impl<'a, T> IntoIterator for &'a Slab<T> {
+    type Item = (Id<T>, &'a T);
+    type IntoIter = Iter<'a, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
 }
 
 fn index(slot: u32) -> usize {

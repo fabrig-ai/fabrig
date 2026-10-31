@@ -868,6 +868,16 @@ fn a_queue_grows_to_its_capacity_exactly() {
             assert_eq!(queue.try_push(999), Err(999));
             metered.end(());
             assert_eq!(queue.iter().copied().collect::<Vec<_>>(), (0..u64::from(capacity)).collect::<Vec<_>>());
+            metered.start();
+            queue.clear();
+            metered.end(());
+            assert_eq!(metered.meter.held(), bound, "clear keeps the grown buffer");
+            for n in 0..capacity {
+                metered.start();
+                queue.push(u64::from(n));
+                metered.end(());
+            }
+            assert_eq!(metered.meter.held(), bound, "refilling keeps the buffer");
         }
     }
 }
@@ -972,6 +982,19 @@ fn a_stack_grows_to_its_capacity_exactly() {
             metered.end(());
         }
         assert_eq!(metered.meter.held(), bound, "popping keeps the buffer");
+        for n in 0..capacity {
+            stack.push(u64::from(n)).expect("room after popping");
+        }
+        metered.start();
+        stack.clear();
+        metered.end(());
+        assert_eq!(metered.meter.held(), bound, "clear keeps the grown buffer");
+        for n in 0..capacity {
+            metered.start();
+            stack.push(u64::from(n)).expect("room after clear");
+            metered.end(());
+        }
+        assert_eq!(metered.meter.held(), bound, "refilling keeps the buffer");
     }
 }
 
@@ -1097,4 +1120,39 @@ fn an_uncapped_list_allocates_only_as_items_arrive() {
     for item in 0..ITEMS {
         assert_eq!(list.get(item), Some(&item));
     }
+}
+
+/// Checks that clear drops each item in the container's front-to-back order.
+#[derive(Debug)]
+struct OrderedDrop<'a> {
+    value: u8,
+    next: &'a std::cell::Cell<u8>,
+}
+
+impl Drop for OrderedDrop<'_> {
+    fn drop(&mut self) {
+        assert_eq!(self.next.get(), self.value);
+        self.next.set(self.value + 1);
+    }
+}
+
+#[test]
+fn queue_and_stack_clear_drop_items_front_to_back() {
+    let next = std::cell::Cell::new(0);
+    let mut queue = Queue::with_capacity(3);
+    for value in 0..3 {
+        queue.push(OrderedDrop { value, next: &next });
+    }
+    drop(queue.pop());
+    queue.push(OrderedDrop { value: 3, next: &next });
+    queue.clear();
+    assert_eq!(next.get(), 4, "wrapped queue drops oldest first");
+
+    next.set(0);
+    let mut stack = Stack::with_capacity(3);
+    for value in 0..3 {
+        stack.push(OrderedDrop { value, next: &next }).expect("room");
+    }
+    stack.clear();
+    assert_eq!(next.get(), 3, "stack drops bottom to top");
 }

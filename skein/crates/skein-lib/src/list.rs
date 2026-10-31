@@ -5,6 +5,8 @@
 use alloc::boxed::Box;
 use alloc::vec::Vec;
 use core::hash::{Hash, Hasher};
+
+use crate::grow::growth;
 use core::mem::size_of;
 use core::slice;
 
@@ -15,8 +17,6 @@ pub struct List<T> {
     items: Vec<T>,
     capacity: u32,
 }
-
-const GROWTH_FLOOR: usize = 4;
 
 impl<T> List<T> {
     #[must_use]
@@ -72,9 +72,9 @@ impl<T> List<T> {
     /// Grows a full buffer exactly, while the logical capacity has room.
     fn grow(&mut self) {
         if self.items.len() == self.items.capacity() {
-            let cap = usize::try_from(self.capacity).expect("a u32 fits in a usize");
-            let target = self.items.len().saturating_mul(2).max(GROWTH_FLOOR).min(cap);
-            let additional = target.checked_sub(self.items.len()).expect("room for another item");
+            let len = self.items.len();
+            let needed = len.checked_add(1).expect("room for another item");
+            let additional = growth(len, len, needed, self.capacity);
             self.items.reserve_exact(additional);
         }
     }

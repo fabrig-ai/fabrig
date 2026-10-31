@@ -75,3 +75,19 @@ fn draws_stay_in_range() {
     assert!(!rng.chance(0));
     assert!(rng.chance(1000));
 }
+
+#[test]
+fn no_deadline_does_not_precede_a_deadline() {
+    let early = Some(Time::from_nanos(1));
+    let late = Some(Time::from_nanos(2));
+    for (left, right, expected) in [
+        (None, None, None),
+        (None, early, early),
+        (early, None, early),
+        (early, late, early),
+        (late, early, early),
+        (early, early, early),
+    ] {
+        assert_eq!(Time::earliest(left, right), expected);
+    }
+}
