@@ -445,7 +445,10 @@ impl Clients {
                 self.committed(*number);
                 None
             }
-            root::Event::StartBegin { .. }
+            root::Event::StartRecord(_)
+            | root::Event::StartMissing { .. }
+            | root::Event::StartPageRefused { .. }
+            | root::Event::StartBegin { .. }
             | root::Event::StartDone(_)
             | root::Event::Link { .. }
             | root::Event::ResultRead { .. }
@@ -564,7 +567,10 @@ impl Clients {
             root::Event::WatchApplication { watcher, .. } => {
                 Some(kit::Event::WatchRefused { watcher, why: core::WatchRefusal::Busy })
             }
-            root::Event::StartBegin { .. }
+            root::Event::StartRecord(_)
+            | root::Event::StartMissing { .. }
+            | root::Event::StartPageRefused { .. }
+            | root::Event::StartBegin { .. }
             | root::Event::StartDone(_)
             | root::Event::Link { .. }
             | root::Event::ResultRead { .. }

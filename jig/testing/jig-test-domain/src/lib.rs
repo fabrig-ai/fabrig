@@ -227,6 +227,17 @@ pub enum Event {
     /// The host finished the requested phase, with pages handed in through
     /// `start_record`/`start_missing`, or the store switched at `Switch`.
     StartDone(core::start::Phase),
+    /// A decoded row from the selected start phase.
+    StartRecord(Record),
+    /// A page's source row names an absent owner.
+    StartMissing {
+        record: core::Key,
+        target: core::Key,
+    },
+    /// The store refused a page with its own typed cause.
+    StartPageRefused {
+        failure: jig_protocol_store::restore::Failure,
+    },
     /// Drive one due child timer through the same decision barrier.
     Timer(core::Timer),
     /// A party, host, account or other event in jig's vocabulary.
@@ -420,6 +431,7 @@ pub struct Domain {
     stopped_reported: bool,
     restart_active: bool,
     start_opened: bool,
+    start_page_failure: Option<(core::start::Phase, jig_protocol_store::restore::Failure)>,
     restart_load: Option<core::RestartStep>,
 }
 
@@ -455,6 +467,12 @@ impl Domain {
             Some(failure) => Some((self.core.start_phase(), failure)),
             None => None,
         }
+    }
+
+    /// The application's store-page cause and the phase at which it stopped.
+    #[must_use]
+    pub fn start_page_failure(&self) -> Option<&(core::start::Phase, jig_protocol_store::restore::Failure)> {
+        self.start_page_failure.as_ref()
     }
 
     /// Project each child's original elapsed deadline and the saved people
@@ -552,6 +570,7 @@ impl Domain {
             stopped_reported: false,
             restart_active: false,
             start_opened: false,
+            start_page_failure: None,
             restart_load: None,
         }
     }
@@ -590,6 +609,14 @@ use link::Work;
 pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event) {
     let Ok(event) = stopping::defer(domain, event) else { return };
     match event {
+        Event::StartRecord(record) => start_record(domain, env, record),
+        Event::StartMissing { record, target } => start_missing(domain, record, target),
+        Event::StartPageRefused { failure } => {
+            if !domain.start_stopped() {
+                let phase = domain.core.start_phase().expect("page belongs to a selected start phase");
+                domain.start_page_failure = Some((phase, failure));
+            }
+        }
         Event::StartBegin { pending } => decide(domain, env, Work::Start(StartInput::Begin { pending })),
         Event::StartDone(phase) => decide(domain, env, Work::Start(StartInput::Done(phase))),
         Event::Link { channel, link } => decide(domain, env, Work::Link { channel, link }),
@@ -1066,7 +1093,9 @@ impl Domain {
     }
 
     fn start_stopped(&self) -> bool {
-        self.core.restart_failure().is_some() || self.core.start_failure().is_some()
+        self.start_page_failure.is_some()
+            || self.core.restart_failure().is_some()
+            || self.core.start_failure().is_some()
     }
 }
 
@@ -1417,7 +1446,9 @@ pub fn start_record(domain: &mut Domain, env: &Env<Limits>, record: Record) {
 
 /// A store page's missing owner.
 pub fn start_missing(domain: &mut Domain, record: core::Key, target: core::Key) {
-    domain.core.start_missing(record, target);
+    if !domain.start_stopped() {
+        domain.core.start_missing(record, target);
+    }
 }
 
 fn relay_message(domain: &mut Domain, task: u64, attempt: u64, word: tasks::Word) -> Event {
