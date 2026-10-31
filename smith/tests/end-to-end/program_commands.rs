@@ -1,5 +1,6 @@
 //! The product hands sign-in to the executable fake, then uses the host half.
 use super::support;
+use smith_fake_claude::{Logout, OBSERVATIONS_FILE, Observation, STORY_FILE, Story, observations};
 use smith_real_world::Scratch;
 
 pub(super) const HOST_VARIABLES: [(&str, &str); 7] = [
@@ -29,34 +30,18 @@ pub(super) fn with_credentials(scratch: &Scratch, arguments: &[&str]) -> support
     ran
 }
 
-pub(super) fn credential_free(invocation: &serde_json::Value) {
-    let names = invocation["environment"].as_array().expect("environment names");
+pub(super) fn credential_free(invocation: &Observation) {
+    let names = &invocation.environment;
     for (name, _) in &HOST_VARIABLES[..5] {
         assert!(!names.iter().any(|kept| kept == name), "program kept {name}");
     }
     assert_eq!(names.iter().filter(|name| *name == "CLAUDE_CONFIG_DIR").count(), 1, "one account directory setting");
 }
 
-pub(super) fn invocations(bytes: &[u8]) -> Vec<serde_json::Value> {
-    bytes
-        .split(|byte| *byte == b'\n')
-        .filter(|line| !line.is_empty())
-        .map(|line| serde_json::from_slice::<serde_json::Value>(line).expect("observation record"))
-        .filter(|record| record.get("arguments").is_some())
-        .collect()
-}
-
 #[test]
 fn program_commands_use_the_fake_program() {
     let scratch = Scratch::new();
-    let executable = std::env::current_exe()
-        .expect("credential fixture")
-        .parent()
-        .expect("credential fixture")
-        .parent()
-        .expect("credential fixture")
-        .join("fake-claude");
-    assert!(executable.is_file(), "build smith-fake-claude's fake-claude binary before this proof");
+    let executable = skein_scratch::paths::binary("fake-claude");
     let settings = format!(
         "[programs]\nclaude_code='{}'\n[accounts.work]\nprovider='anthropic'\nsource='program'\n",
         executable.display()
@@ -68,21 +53,21 @@ fn program_commands_use_the_fake_program() {
     assert!(configuration.join("fake-claude.login").exists());
     // The fake writes observations under its CLAUDE_CONFIG_DIR. Reading
     // them here proves the account directory replaced the host's value.
-    let login_observations = std::fs::read(configuration.join("fake-claude.observations")).expect("login observations");
-    let calls = invocations(&login_observations);
+    let login_observations = std::fs::read(configuration.join(OBSERVATIONS_FILE)).expect("login observations");
+    let calls = observations(&login_observations);
     assert_eq!(calls.len(), 2, "login and its status check");
-    assert_eq!(calls[0]["arguments"], serde_json::json!(["auth", "login"]));
-    assert_eq!(calls[1]["arguments"], serde_json::json!(["auth", "status"]));
+    assert_eq!(calls[0].arguments, ["auth", "login"]);
+    assert_eq!(calls[1].arguments, ["auth", "status"]);
     for call in calls {
         credential_free(&call);
     }
     std::fs::write(
-        configuration.join("fake-claude.story"),
-        serde_json::to_vec(&serde_json::json!({
-            "status": "Truthful", "login": {"Immediate": "claude.ai"},
-            "logout": {"Detail": format!("discard-this-prefix{}tail\u{1b}[2J\r\n\u{7}end", "x".repeat(1100))}
-        }))
-        .expect("program story"),
+        configuration.join(STORY_FILE),
+        Story {
+            logout: Logout::Detail(format!("discard-this-prefix{}tail\u{1b}[2J\r\n\u{7}end", "x".repeat(1100))),
+            ..Story::default()
+        }
+        .encode(),
     )
     .expect("credential fixture");
     let failed = support::run_product(&scratch, &["logout", "work"], b"", None);
@@ -97,29 +82,21 @@ fn program_commands_use_the_fake_program() {
     let line = words.lines().find(|line| line.contains("program sign-out failed: ")).expect("sign-out detail");
     let (_, detail) = line.split_once("program sign-out failed: ").expect("detail prefix");
     assert_eq!(detail, format!("{}tail\\x1b[2J\\r\\n\\x07end\\n", "x".repeat(1009)), "1024 raw bytes at the tail");
-    std::fs::remove_file(configuration.join("fake-claude.story")).expect("credential fixture");
+    std::fs::remove_file(configuration.join(STORY_FILE)).expect("credential fixture");
     let logout = support::run_product(&scratch, &["logout", "work"], b"", None);
     assert_eq!(logout.code, 0);
     assert!(!configuration.join("fake-claude.login").exists());
-    let bytes = std::fs::read(configuration.join("fake-claude.observations")).expect("credential fixture");
-    let records: Vec<serde_json::Value> = bytes
-        .split(|byte| *byte == b'\n')
-        .filter(|line| !line.is_empty())
-        .map(|line| serde_json::from_slice(line).expect("credential fixture"))
-        .collect();
-    let arguments: Vec<_> = records.iter().map(|record| record["arguments"].clone()).collect();
+    let bytes = std::fs::read(configuration.join(OBSERVATIONS_FILE)).expect("credential fixture");
+    let arguments: Vec<_> = observations(&bytes).into_iter().map(|record| record.arguments).collect();
     assert_eq!(
         arguments,
-        serde_json::json!([
+        [
             ["auth", "login"],
             ["auth", "status"],
             ["auth", "logout"],
             ["auth", "status"],
             ["auth", "logout"],
             ["auth", "status"]
-        ])
-        .as_array()
-        .expect("credential fixture")
-        .as_slice()
+        ]
     );
 }
