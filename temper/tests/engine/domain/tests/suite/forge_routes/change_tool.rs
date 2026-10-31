@@ -58,7 +58,6 @@ fn live(world: &World, task: u64) -> &tasks::TaskRecord {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn change_expands_the_only_repository_field_by_field() {
     let (mut world, chat) = chat_world(true);
     let parent = live(&world, chat.task).clone();
@@ -153,7 +152,6 @@ fn producer(words: &[u8]) -> (World, tasks::TaskRecord) {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn the_producer_hears_the_change_task_lands_what_it_delivers_when_its_bound_has_room() {
     let (world, row) = producer(b"Small fix");
     assert_eq!(
@@ -182,7 +180,6 @@ Report the branch and head you produced; only the change task reports landing af
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn change_with_no_repository_is_refused_once() {
     let (mut world, chat) = chat_world(false);
     let first = change(&mut world, &chat, 93, None, b"Small fix");
@@ -209,7 +206,6 @@ fn change_with_no_repository_is_refused_once() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn change_with_an_unknown_repository_names_the_available_one() {
     let (mut world, chat) = chat_world(true);
     let first = change(&mut world, &chat, 93, Some(b"org/missing"), b"Small fix");
@@ -221,7 +217,6 @@ fn change_with_an_unknown_repository_names_the_available_one() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn change_accepts_a_second_change_within_the_chats_task_allotment() {
     let (mut world, chat) = configured_chat(
         100,
@@ -233,7 +228,6 @@ fn change_accepts_a_second_change_within_the_chats_task_allotment() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn change_refuses_oversized_words_as_a_delegate_spec() {
     let (mut world, chat) = chat_world(true);
     let words = vec![b'x'; usize::try_from(world.env.limits.tasks.spec_bytes).expect("u32 fits usize") + 1];
@@ -256,7 +250,6 @@ fn configured_chat(cap: u64, kinds: Box<[people::Executor]>, tasks: u32) -> (Wor
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn change_without_procedure_permission_gets_delegates_executor_denial() {
     let (mut world, chat) = configured_chat(100, Box::new([people::Executor::Charter(1)]), 11);
     assert!(
@@ -266,7 +259,6 @@ fn change_without_procedure_permission_gets_delegates_executor_denial() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn change_without_task_capacity_gets_delegates_tasks_denial() {
     let (mut world, chat) = configured_chat(
         100,
@@ -279,7 +271,6 @@ fn change_without_task_capacity_gets_delegates_tasks_denial() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn change_with_one_task_left_is_refused_as_the_tree_limit() {
     let (mut world, chat) = configured_chat(
         100,
@@ -293,7 +284,6 @@ fn change_with_one_task_left_is_refused_as_the_tree_limit() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn change_with_one_level_left_is_refused_as_the_depth_limit() {
     let mut world = World::configured(true, true);
     world.adopt();
@@ -308,7 +298,6 @@ fn change_with_one_level_left_is_refused_as_the_depth_limit() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn change_with_half_the_remainder_at_minimum_is_refused_as_funding() {
     let (mut world, chat) = configured_chat(
         62,
@@ -391,7 +380,6 @@ fn several_repositories() -> (World, engine::Assignment) {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn change_with_several_unnamed_repositories_is_refused_once() {
     let (mut world, chat) = several_repositories();
     let first = change(&mut world, &chat, 93, None, b"Small fix");
@@ -404,7 +392,6 @@ fn change_with_several_unnamed_repositories_is_refused_once() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn change_selects_the_named_repository_among_several() {
     let (mut world, chat) = several_repositories();
     let engine::CallAnswer::Delegated(made) = change(&mut world, &chat, 93, Some(b"org/extra"), b"Small fix") else {
@@ -445,7 +432,6 @@ pub(super) fn named_read(
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_chat_reads_its_only_repository_by_branch_without_a_repository_name() {
     let (mut world, chat) = chat_world(true);
     let answer = named_read(&mut world, &chat, 93, b"read_branch", br#"{"branch":"main"}"#);
@@ -454,7 +440,6 @@ fn a_chat_reads_its_only_repository_by_branch_without_a_repository_name() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn an_unnamed_read_with_two_repositories_names_both() {
     let (mut world, chat) = several_repositories();
     let answer = named_read(&mut world, &chat, 93, b"read_branch", br#"{"branch":"main"}"#);
@@ -466,7 +451,6 @@ fn an_unnamed_read_with_two_repositories_names_both() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn an_empty_repository_name_reads_the_only_repository_and_refuses_two() {
     let (mut world, chat) = chat_world(true);
     let answer = named_read(&mut world, &chat, 93, b"read_branch", br#"{"repository":"","branch":"main"}"#);
@@ -481,7 +465,6 @@ fn an_empty_repository_name_reads_the_only_repository_and_refuses_two() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_read_with_an_unknown_name_names_the_project_repositories() {
     let (mut world, chat) = chat_world(true);
     let answer = named_read(&mut world, &chat, 93, b"read_branch", br#"{"repository":"org/missing","branch":"main"}"#);
@@ -493,7 +476,6 @@ fn a_read_with_an_unknown_name_names_the_project_repositories() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_named_context_repository_is_readable() {
     let (mut world, chat) = several_repositories();
     world.send(engine::Event::Party(engine::PartyInput::Application {
@@ -529,7 +511,6 @@ fn a_named_context_repository_is_readable() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_chat_read_pull_for_reaches_the_fake_forge_through_named_routing() {
     let (mut world, chat) = chat_world(true);
     assert!(matches!(
@@ -568,7 +549,6 @@ fn a_chat_read_pull_for_reaches_the_fake_forge_through_named_routing() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_chat_reads_its_landed_pulls_state_and_the_merge_the_fake_made() {
     let (mut world, chat, producer, branch) = change_world(false, 1000, None);
     assert!(matches!(
@@ -617,7 +597,6 @@ fn a_chat_reads_its_landed_pulls_state_and_the_merge_the_fake_made() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn an_omitted_file_limit_uses_the_engine_read_bound() {
     let (mut world, chat) = chat_world(true);
     let head = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", b"main", b"file", b"contents", 1)
@@ -634,7 +613,6 @@ fn an_omitted_file_limit_uses_the_engine_read_bound() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_chat_reads_the_job_attempt_printed_by_its_checks() {
     let mut world = World::configured_checks(true, true, false, 0);
     world.adopt();
@@ -675,7 +653,6 @@ fn a_chat_reads_the_job_attempt_printed_by_its_checks() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_decoded_job_zero_read_reaches_the_fake_and_is_answered() {
     let (mut world, chat) = chat_world(true);
     let input = smith_domain_run::HostInput::attested(br#"{"head":"0000000000000000000000000000000000000000","run":1,"job":0,"attempt":0,"max_bytes":32}"#.as_slice().into()).expect("bounded input");
@@ -703,7 +680,6 @@ fn a_decoded_job_zero_read_reaches_the_fake_and_is_answered() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_chats_two_kib_change_lands_with_its_words_whole_in_the_producers_brief() {
     const WORD_BYTES: usize = 2048;
     let mut words = vec![b'x'; WORD_BYTES];

@@ -7,7 +7,6 @@ use temper_engine_domain_forge as forge;
 use temper_engine_domain_world::{direct::Driver, fixtures};
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn an_adoption_of_a_repository_the_forge_lacks_is_refused_as_not_found() {
     let mut driver = driver();
     let mut request = fixtures::adoption(1);
@@ -23,7 +22,6 @@ fn an_adoption_of_a_repository_the_forge_lacks_is_refused_as_not_found() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_partys_own_adopt_ask_is_refused_as_not_offered() {
     let mut driver = driver();
     let ask = engine::adopt_repository_ask(
@@ -66,7 +64,6 @@ fn seeded_roles(driver: &Driver) -> (Box<[people::Holding]>, std::collections::B
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_repository_adopted_seeds_its_collaborators_into_roles() {
     let mut driver = driver();
     adopt(&mut driver, fixtures::adoption(1), 95);
@@ -77,7 +74,6 @@ fn a_repository_adopted_seeds_its_collaborators_into_roles() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn policy_maps_connector_permissions_to_seeded_roles_after_restart() {
     let mut driver = driver();
     driver.send(engine::Event::Party(engine::PartyInput::Ask {
@@ -142,7 +138,6 @@ fn outcomes(driver: &Driver) -> Vec<&Option<temper_engine_domain::ApplicationAns
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn an_adoption_naming_a_forge_not_configured_is_refused_as_no_such_forge() {
     let mut driver = driver();
     adopt(&mut driver, fixtures::adoption(2), 95);
@@ -156,7 +151,6 @@ fn an_adoption_naming_a_forge_not_configured_is_refused_as_no_such_forge() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn an_adoption_on_a_configured_forge_is_adopted_with_what_temper_may_do() {
     let mut driver = driver();
     adopt(&mut driver, fixtures::adoption(1), 95);
@@ -187,7 +181,6 @@ fn an_adoption_on_a_configured_forge_is_adopted_with_what_temper_may_do() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn an_adoption_sent_again_under_its_key_is_answered_its_kept_outcome() {
     let mut driver = driver();
     adopt(&mut driver, fixtures::adoption(1), 95);
@@ -199,7 +192,6 @@ fn an_adoption_sent_again_under_its_key_is_answered_its_kept_outcome() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn an_adoption_the_forge_user_may_not_read_is_refused_as_no_access() {
     let mut driver = driver();
     let mut request = fixtures::adoption(1);
@@ -214,7 +206,6 @@ fn an_adoption_the_forge_user_may_not_read_is_refused_as_no_access() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn an_adoption_sent_again_after_a_restart_is_answered_its_kept_outcome() {
     let mut first = driver();
     adopt(&mut first, fixtures::adoption(1), 95);
@@ -237,7 +228,6 @@ fn an_adoption_sent_again_after_a_restart_is_answered_its_kept_outcome() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_person_without_an_owner_role_returns_once_and_replays_the_answer() {
     let mut driver = Driver::forge();
     driver.settle();
@@ -290,7 +280,6 @@ fn return_ask(sign_in: u64) -> engine::Event {
     })
 }
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_return_replayed_after_restart_is_unknown_without_a_second_output() {
     let mut first = driver();
     first.send(return_ask(first.session()));

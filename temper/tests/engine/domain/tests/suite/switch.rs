@@ -11,11 +11,11 @@ const STEPS: u32 = 256;
 const MARK_WRITES: usize = 2;
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn every_start_takes_the_switch_step_and_commits_its_wires() {
     let (running, _) = Driver::chat();
     for (label, mut store) in [(FIRST_START, Store::new()), (RESTART, running.store)] {
         store.crash(9761);
+        let pending = store.pending_generation;
         let mut driver = Driver::cold(store, walking::config(91), &walking::limits());
         for _ in 0..STEPS {
             if driver.store.pending.front().is_some_and(|(_, writes)| writes.contains(&Write::Wires)) {
@@ -33,7 +33,8 @@ fn every_start_takes_the_switch_step_and_commits_its_wires() {
         assert!(writes.contains(&Write::Wires), "{label}");
         assert!(writes.iter().any(|write| matches!(write,
             Write::Save(Record::Core(core::Record::Core(core::CoreRecord::Deployment(header)))) if header.commits == mark)), "{label}: header and wires in one commit");
-        assert_eq!(driver.switches, vec![driver.loads.len()], "{label}: exactly one switch after all loads");
+        let switches = if pending { vec![driver.loads.len()] } else { Vec::new() };
+        assert_eq!(driver.switches, switches, "{label}: only a pending generation asks the store to switch");
         assert_eq!(
             driver.loads.last().map(|(_, range)| range),
             Some(&Range::Core(engine::CoreRange::Sweep)),

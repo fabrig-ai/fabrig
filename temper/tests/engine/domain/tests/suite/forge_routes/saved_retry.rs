@@ -248,7 +248,6 @@ fn saved_repair_retry() -> (World, Workspace, engine::Assignment, Box<[u8]>) {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_repair_that_wrote_and_ended_unfinished_finishes_with_its_file_on_retry() {
     let (mut world, mut workspace, retry, branch) = saved_repair_retry();
     assert!(!retry.transcript.is_empty());
@@ -265,7 +264,6 @@ fn a_repair_that_wrote_and_ended_unfinished_finishes_with_its_file_on_retry() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_landed_change_waits_for_its_live_repair_retrys_terminal() {
     let (mut world, mut workspace, retry, branch) = saved_repair_retry();
     let tasks::Party::Task(change) = live_task(&world, retry.task).requester else {

@@ -254,7 +254,6 @@ fn result_key(party: u64, position: u64) -> Key {
     Key::Core(jig_domain_core::Key::Tasks(jig_domain_tasks::Key::Result { party, position }))
 }
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_census_page_takes_repeated_owners_and_an_index_cursor() {
     let mut store = Store::new();
     for number in [5, 3] {
@@ -314,7 +313,6 @@ fn a_census_cursor_behind_its_start_is_out_of_order() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_forge_row_survives_the_real_store_byte_for_byte() {
     let (driver, _) = temper_engine_domain_world::direct::Driver::chat();
     let mut store = driver.store.fork();
@@ -330,7 +328,6 @@ fn ended_read_key(task: u64, party: u64) -> Key {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_census_page_takes_an_ended_read_position_then_its_task() {
     let mut store = Store::new();
     let position = Record::Core(jig_domain_core::Record::People(jig_domain_people::Stored::EndedRead {
@@ -364,7 +361,6 @@ fn a_census_page_takes_an_ended_read_position_then_its_task() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn an_ended_conversation_query_joins_its_owner_and_read_position_after_restart() {
     use jig_domain_core::{self as core, reads};
     use jig_domain_tasks as tasks;
@@ -538,7 +534,6 @@ fn startup_rows_bytes_and_soft_cuts_retain_range_and_failed_step_before_switch()
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn real_writer_store_walk_rejects_wrong_family_duplicates_order_and_cursor_mutations() {
     use temper_engine_domain_world::store::page_rules;
     let (mut driver, _) = temper_engine_domain_world::direct::Driver::chat();
@@ -601,7 +596,6 @@ fn startup_continuations_assert_unusable_or_nonprogressing_walk_positions() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_later_forge_load_fit_failure_keeps_its_range_and_connector_step() {
     let mut driver = temper_engine_domain_world::direct::Driver::new(Store::new());
     let mut owner = None;

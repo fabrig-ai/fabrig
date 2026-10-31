@@ -71,7 +71,6 @@ fn opening() -> (Driver, Cast) {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn the_director_p_and_both_implementers_start_assigned_without_holds_or_findings() {
     let (driver, cast) = opening();
     let person = signed_in(&driver, 101).0;
@@ -117,7 +116,6 @@ fn person_ask(driver: &mut Driver, key: u8, ask: people::Ask) {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn the_persons_stop_requires_its_owners_acceptance_and_resumes_the_subtrees_transcripts() {
     let (mut driver, cast) = opening();
     let runs = [&cast.p, &cast.implementers[0], &cast.implementers[1]];

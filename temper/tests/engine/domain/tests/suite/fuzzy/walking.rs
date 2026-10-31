@@ -47,7 +47,6 @@ fn fuzzy_walking_seeds_cover_every_commit_cut() {
 /// at every iteration, 493 MB of text and 84% of the walk's time, until the
 /// state digest (`shard`).
 #[test]
-#[ignore = "needs core-inbox"]
 fn fuzzy_walking_shard_0() {
     shard(0..8);
 }
@@ -56,7 +55,6 @@ fn fuzzy_walking_shard_0() {
 /// at every iteration, 493 MB of text and 84% of the walk's time, until the
 /// state digest (`shard`).
 #[test]
-#[ignore = "needs core-inbox"]
 fn fuzzy_walking_shard_1() {
     shard(8..16);
 }
@@ -65,7 +63,6 @@ fn fuzzy_walking_shard_1() {
 /// at every iteration, 493 MB of text and 84% of the walk's time, until the
 /// state digest (`shard`).
 #[test]
-#[ignore = "needs core-inbox"]
 fn fuzzy_walking_shard_2() {
     shard(16..24);
 }
@@ -74,7 +71,6 @@ fn fuzzy_walking_shard_2() {
 /// at every iteration, 493 MB of text and 84% of the walk's time, until the
 /// state digest (`shard`).
 #[test]
-#[ignore = "needs core-inbox"]
 fn fuzzy_walking_shard_3() {
     shard(24..32);
 }
@@ -83,7 +79,6 @@ fn fuzzy_walking_shard_3() {
 /// at every iteration, 493 MB of text and 84% of the walk's time, until the
 /// state digest (`shard`).
 #[test]
-#[ignore = "needs core-inbox"]
 fn fuzzy_walking_shard_4() {
     shard(32..40);
 }
@@ -92,7 +87,6 @@ fn fuzzy_walking_shard_4() {
 /// at every iteration, 493 MB of text and 84% of the walk's time, until the
 /// state digest (`shard`).
 #[test]
-#[ignore = "needs core-inbox"]
 fn fuzzy_walking_shard_5() {
     shard(40..48);
 }
@@ -101,7 +95,6 @@ fn fuzzy_walking_shard_5() {
 /// at every iteration, 493 MB of text and 84% of the walk's time, until the
 /// state digest (`shard`).
 #[test]
-#[ignore = "needs core-inbox"]
 fn fuzzy_walking_shard_6() {
     shard(48..56);
 }
@@ -110,13 +103,11 @@ fn fuzzy_walking_shard_6() {
 /// at every iteration, 493 MB of text and 84% of the walk's time, until the
 /// state digest (`shard`).
 #[test]
-#[ignore = "needs core-inbox"]
 fn fuzzy_walking_shard_7() {
     shard(56..64);
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn fuzzy_terminal_commit_cut_preserves_complete_replay_and_funding() {
     for seed in 0..4 {
         let mut random = Rng::new(seed + 8100);

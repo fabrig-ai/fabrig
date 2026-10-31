@@ -41,7 +41,6 @@ fn authority_referee_rejects_a_person_without_a_grant() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn once_referee_rejects_a_second_result_from_the_same_durable_task() {
     let world = settled_chat();
     let (person, task) = world
@@ -61,7 +60,6 @@ fn once_referee_rejects_a_second_result_from_the_same_durable_task() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn commit_referee_rejects_an_ack_if_its_transcript_was_lost() {
     let world = settled_chat();
     let mut rows = world.store.rows.clone();

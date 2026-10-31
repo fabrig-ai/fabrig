@@ -188,7 +188,6 @@ fn replay_policy(driver: Driver, limits: &engine::Limits) -> Driver {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_stored_settings_policy_one_byte_over_the_new_bound_refuses_by_setting_and_source() {
     let driver = saved_policy(PRIOR_POLICY_CAP, false);
     let mut restarted = replay_policy(driver, &policy_limits(POLICY_CAP));
@@ -209,7 +208,6 @@ fn a_stored_settings_policy_one_byte_over_the_new_bound_refuses_by_setting_and_s
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_stored_project_policy_one_byte_over_the_new_bound_refuses_by_project() {
     let driver = saved_policy(PRIOR_POLICY_CAP, true);
     let mut restarted = replay_policy(driver, &policy_limits(POLICY_CAP));
@@ -227,7 +225,6 @@ fn a_stored_project_policy_one_byte_over_the_new_bound_refuses_by_project() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_stored_settings_policy_at_the_byte_bound_is_admitted() {
     let driver = saved_policy(POLICY_CAP, false);
     let mut restarted = replay_policy(driver, &policy_limits(POLICY_CAP));
@@ -238,7 +235,6 @@ fn a_stored_settings_policy_at_the_byte_bound_is_admitted() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_stored_project_policy_at_the_byte_bound_is_admitted() {
     let driver = saved_policy(POLICY_CAP, true);
     let mut restarted = replay_policy(driver, &policy_limits(POLICY_CAP));
@@ -287,7 +283,6 @@ fn deployment_without_projects() -> Driver {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn an_owner_of_a_deployment_with_no_project_makes_one_from_policy_1() {
     let mut driver = deployment_without_projects();
     let llm = jig_protocol_config::Llm {
@@ -359,7 +354,6 @@ fn an_owner_of_a_deployment_with_no_project_makes_one_from_policy_1() {
 mod b2;
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_stock_chat_funds_two_dependent_changes_with_two_repairs_each() {
     b2::story();
 }
@@ -430,7 +424,6 @@ fn read_rules(driver: &mut Driver, revision: u32) -> core::reads::SettingDocumen
         .expect("current setting read")
 }
 #[test]
-#[ignore = "needs core-inbox"]
 fn an_owner_change_commits_and_the_next_read_serves_it() {
     let mut driver = started(HISTORY);
     change(&mut driver, 1, 1, rules(2));
@@ -442,7 +435,6 @@ fn an_owner_change_commits_and_the_next_read_serves_it() {
     assert_eq!(read_rules(&mut driver, 2).value, rule_value(2));
 }
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_nonowner_cannot_change_the_deployments_settings() {
     let mut driver = started(HISTORY);
     driver.delivered.clear();
@@ -468,7 +460,6 @@ fn a_nonowner_cannot_change_the_deployments_settings() {
     )));
 }
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_stale_owner_change_names_the_newest_revision() {
     let mut driver = started(HISTORY);
     change(&mut driver, 1, 3, rules(2));
@@ -483,7 +474,6 @@ fn a_stale_owner_change_names_the_newest_revision() {
     assert_eq!(head(&driver).number, 2);
 }
 #[test]
-#[ignore = "needs core-inbox"]
 fn changed_settings_restore_before_accounts_and_survive_a_restart() {
     let mut driver = started(HISTORY);
     change(&mut driver, 1, 5, rules(2));
@@ -504,7 +494,6 @@ fn changed_settings_restore_before_accounts_and_survive_a_restart() {
     assert_eq!(read_rules(&mut restarted, 2).value, rule_value(2));
 }
 #[test]
-#[ignore = "needs core-inbox"]
 fn changed_release_defaults_record_a_revision_once() {
     let driver = started(HISTORY);
     let mut config = walking::config(SEED);
@@ -526,7 +515,6 @@ fn changed_release_defaults_record_a_revision_once() {
     );
 }
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_revision_copy_precedes_its_erase_in_the_same_commit() {
     let mut driver = started(PRUNED_HISTORY);
     change(&mut driver, 1, 6, rules(2));
@@ -551,7 +539,6 @@ fn a_revision_copy_precedes_its_erase_in_the_same_commit() {
     assert!(!driver.store.rows.contains_key(&Key::Core(core::Key::Core(core::CoreKey::Settings(s::Key::History(1))))));
 }
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_stored_change_that_no_longer_checks_refuses_the_start() {
     let mut driver = started(HISTORY);
     let mut template = walking::config(SEED).core.defaults.templates[0].clone();
@@ -580,13 +567,11 @@ fn a_stored_change_that_no_longer_checks_refuses_the_start() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_stock_reviewer_reads_and_gives_a_verdict_but_cannot_delegate() {
     b2::reviewer();
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_changes_delegates_read_the_coding_words_without_settings_or_message_tools() {
     b2::changes_without_settings_or_message();
 }
@@ -786,7 +771,6 @@ fn owner_reviews_run_proposal(driver: &mut Driver, task: u64, proposal: u64) {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_run_reads_the_settings_and_proposes_a_change_an_owner_accepts() {
     use jig_domain_tasks as tasks;
     let (mut driver, run) = settings_agent(true);
@@ -847,7 +831,6 @@ fn a_run_reads_the_settings_and_proposes_a_change_an_owner_accepts() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_run_without_the_settings_family_is_denied() {
     let (mut driver, run) = settings_agent(false);
     let original = driver.store.rows.clone();

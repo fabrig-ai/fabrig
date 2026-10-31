@@ -28,7 +28,6 @@ fn driver() -> Driver {
     driver
 }
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_refused_key_envelope_returns_its_value_before_its_answer() {
     let mut driver = driver();
     let carried = core::Carried { number: 1_u64 << 63, digest: [7; 32] };
@@ -49,7 +48,6 @@ fn a_refused_key_envelope_returns_its_value_before_its_answer() {
         people::Reply::Refused(people::Refusal::NotOffered), .. }] if *number == carried.number));
 }
 #[test]
-#[ignore = "needs core-inbox"]
 fn signing_and_the_accounts_watch_cross_the_root_without_losing_their_facts() {
     let mut driver = driver();
     driver.send(engine::Event::Party(PartyInput::Ask {

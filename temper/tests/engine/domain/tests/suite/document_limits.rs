@@ -6,7 +6,6 @@ const DOCUMENT_READ: Token = Token::new(7);
 const ROWS: &[(u32, u32)] = &[(1, 1), (2, 2)];
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn configured_document_rows_reach_the_cores_limits() {
     for &(rows, expected) in ROWS {
         let mut jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small);

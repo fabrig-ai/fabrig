@@ -4,7 +4,6 @@ const PROPOSE: u64 = 82;
 const WITHDRAW: u64 = 83;
 const WITHDRAW_AGAIN: u64 = 84;
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_named_withdrawal_answers_from_the_loaded_decided_proposal() {
     let (mut driver, parent) = batch_fixture_with(3, 2);
     let child = call_batch(&mut driver, &parent, DELEGATE, Box::new([report_delegate(b"child", Box::new([]))]))[0];

@@ -28,7 +28,6 @@ fn ended(world: &World) -> &tasks::TaskRecord {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn chat_claim_two_charged_turns_and_result_survive_a_lost_commit_completion() {
     let mut world = World::new(Settings::calm(61));
     world.run();
@@ -40,7 +39,6 @@ fn chat_claim_two_charged_turns_and_result_survive_a_lost_commit_completion() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn walking_story_replays_exactly_with_store_and_page_latency() {
     let settings = Settings { commit_delay: 2, page_delay: 1, ..Settings::calm(62) };
     let mut first = run_replayed(settings);
@@ -53,7 +51,6 @@ fn walking_story_replays_exactly_with_store_and_page_latency() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn saturated_observation_queues_change_no_walking_decision() {
     let mut observed = World::new(Settings::calm(63));
     observed.run();
@@ -66,7 +63,6 @@ fn saturated_observation_queues_change_no_walking_decision() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn walking_story_also_settles_without_a_restart() {
     let mut world = World::new(Settings { restart: false, ..Settings::calm(64) });
     world.run();
@@ -76,7 +72,6 @@ fn walking_story_also_settles_without_a_restart() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn walking_referee_rejects_duplicate_transaction_keys_and_transcripts() {
     let mut world = settled();
     let task = ended(&world);
@@ -124,7 +119,6 @@ fn walking_referee_rejects_duplicate_transaction_keys_and_transcripts() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn walking_referee_rejects_split_turn_and_terminal_transactions() {
     let mut world = settled();
     let task = ended(&world);
@@ -156,7 +150,6 @@ fn walking_referee_rejects_split_turn_and_terminal_transactions() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn walking_referee_rejects_web_replies_without_their_atomic_records() {
     let mut world = settled();
     let task = ended(&world);
@@ -180,7 +173,6 @@ fn walking_referee_rejects_web_replies_without_their_atomic_records() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn walking_referee_rejects_duplicate_sign_in_and_chat_replies() {
     let mut world = settled();
     let task = ended(&world);
@@ -197,7 +189,6 @@ fn walking_referee_rejects_duplicate_sign_in_and_chat_replies() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn walking_referee_rejects_wrong_task_or_uncommitted_or_duplicate_assignment() {
     use jig_domain_accounts::Grant;
     use jig_domain_brief as brief;
@@ -276,7 +267,6 @@ fn walking_referee_rejects_wrong_task_or_uncommitted_or_duplicate_assignment() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn walking_referee_rejects_turn_ack_before_transcript_and_charge() {
     let mut world = settled();
     let task = ended(&world);
@@ -305,7 +295,6 @@ fn walking_referee_rejects_turn_ack_before_transcript_and_charge() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn walking_referee_rejects_answer_ack_before_final_charge() {
     let mut world = settled();
     let task = ended(&world);
@@ -324,7 +313,6 @@ fn walking_referee_rejects_answer_ack_before_final_charge() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn walking_referee_rejects_a_lost_or_duplicate_funding_posting_and_result() {
     let mut world = settled();
     let task = ended(&world);
@@ -351,7 +339,6 @@ fn walking_referee_rejects_a_lost_or_duplicate_funding_posting_and_result() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn walking_referee_rejects_missing_or_split_current_claim_turn_and_terminal_proofs() {
     let mut world = settled();
     let task = ended(&world);
@@ -452,7 +439,6 @@ fn walking_referee_rejects_missing_or_split_current_claim_turn_and_terminal_proo
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn final_transaction_survives_a_lost_completion_and_its_retained_answer_recovers() {
     let mut recovered = World::new(Settings::terminal(81));
     recovered.run();
@@ -475,7 +461,6 @@ fn final_transaction_survives_a_lost_completion_and_its_retained_answer_recovers
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn terminal_restart_replays_complete_state_with_delayed_store_and_page_terminals() {
     let settings = Settings { commit_delay: 2, page_delay: 2, ..Settings::terminal(82) };
     let mut first = run_replayed(settings);
@@ -489,7 +474,6 @@ fn terminal_restart_replays_complete_state_with_delayed_store_and_page_terminals
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn terminal_restart_is_unchanged_when_observation_queues_saturate() {
     let mut observed = World::new(Settings::terminal(83));
     observed.run();
@@ -515,7 +499,6 @@ fn terminal_cut() -> World {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn independent_terminal_cut_referee_rejects_missing_or_altered_evidence() {
     let mut world = terminal_cut();
     let task = ended(&world);
@@ -570,7 +553,6 @@ fn independent_terminal_cut_referee_rejects_missing_or_altered_evidence() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn independent_referee_rejects_recommitted_terminal_and_unscripted_ack() {
     let mut world = terminal_cut();
     let task = ended(&world);

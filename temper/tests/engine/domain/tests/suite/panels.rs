@@ -58,7 +58,6 @@ fn panels(driver: &Driver) -> Vec<&forge::Panel> {
         .collect()
 }
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_project_role_admits_the_watch_and_delivers_the_whole_change_panel() {
     let mut driver = driver();
     watch(&mut driver, 1, CHANGE);
@@ -93,7 +92,6 @@ fn a_project_role_admits_the_watch_and_delivers_the_whole_change_panel() {
     );
 }
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_party_without_a_role_in_the_scope_is_refused_before_the_connector() {
     let mut driver = driver();
     watch(&mut driver, 2, CHANGE);
@@ -102,7 +100,6 @@ fn a_party_without_a_role_in_the_scope_is_refused_before_the_connector() {
     assert!(driver.immediate.iter().any(|request| matches!(request, root::Request::Party(root::PartyRequest::WatchRefused { watcher, why: jig_domain_core::WatchRefusal::NotAllowed }) if *watcher == WATCHER)));
 }
 #[test]
-#[ignore = "needs core-inbox"]
 fn the_panel_stays_held_until_the_asking_decision_is_durable() {
     let mut driver = driver();
     watch(&mut driver, 1, CHANGE);
@@ -128,7 +125,6 @@ fn the_panel_stays_held_until_the_asking_decision_is_durable() {
     assert_eq!(got[1].runs, Some(73));
 }
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_saved_change_marks_the_forges_subject_and_delivers_the_panel_again() {
     let mut driver = driver();
     watch(&mut driver, 1, CHANGE);
@@ -148,7 +144,6 @@ fn a_saved_change_marks_the_forges_subject_and_delivers_the_panel_again() {
     assert_eq!(got[1].runs, Some(73));
 }
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_task_that_is_no_change_ends_the_watch_as_gone() {
     let mut driver = driver();
     watch(&mut driver, 1, 999);
@@ -158,7 +153,6 @@ fn a_task_that_is_no_change_ends_the_watch_as_gone() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_project_landings_watch_delivers_its_list_after_the_commit_barrier() {
     for ended in [false, true] {
         let mut driver = driver();

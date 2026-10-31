@@ -6,7 +6,6 @@ use temper_engine_domain_world::escalation::{Cut, Settings, run_replayed};
 use temper_engine_domain_world::escalation_referee::Story;
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn fifteen_small_escalation_histories_cover_every_story_and_durable_cut() {
     let stories = [Story::Release, Story::PassRelease, Story::Reject, Story::RaceRelease, Story::RaceReject];
     let cuts = [Cut::None, Cut::Held, Cut::Decision];
