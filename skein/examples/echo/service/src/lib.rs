@@ -21,15 +21,14 @@
 //! came wins over a deadline that passed while the loop waited. The price:
 //! under a load that leaves input over in every iteration, deadlines wait
 //! for it to ease, as one that cut in could close a connection whose
-//! progress sits untaken in the queue. The loop reserves kernel submission
-//! room before calling io; handoffs between its layers are uncapped.
+//! progress sits untaken in the queue. io's shared stage reserves kernel
+//! submission room before each entry point; handoffs between layers are
+//! uncapped.
 
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 
 extern crate alloc;
-
-mod io_stage;
 
 #[cfg(test)]
 mod tests;
@@ -296,7 +295,7 @@ pub fn iterate(svc: &mut Service, now: Time, wall: Wall) {
     svc.domain_env.now = now;
     svc.domain_env.wall = wall;
     // The up pass.
-    io_up(svc, now);
+    io_up(svc);
     protocol_up(svc, now);
     domain_stage(svc);
     // The down pass.
@@ -320,8 +319,8 @@ pub fn iterate(svc: &mut Service, now: Time, wall: Wall) {
 /// io's stage of the up pass: its ready list, then the completions (only
 /// once the ready list is empty, so that what the down pass made is told
 /// first: io.md, 2), then its deadlines.
-fn io_up(svc: &mut Service, now: Time) {
-    io_stage::up(&mut svc.io, &svc.io_env, &mut svc.completions, &mut svc.told, &mut svc.submissions, now);
+fn io_up(svc: &mut Service) {
+    io::stage::up(&mut svc.io, &svc.io_env, &mut svc.completions, &mut svc.told, &mut svc.submissions);
 }
 
 /// The protocol layer's stage of the up pass: its ready list, then what io
@@ -401,17 +400,5 @@ fn protocol_down(svc: &mut Service) {
 /// io's stage of the down pass: each request, while io can hold a refusal
 /// (`Io::takes`) and what it submits fits.
 fn io_down(svc: &mut Service) {
-    for _ in 0..svc.asked.len() {
-        if !svc.io.takes() || !io_room(svc, io::MAX_OUT_DOWN) {
-            break;
-        }
-        let Some(request) = svc.asked.pop() else {
-            break;
-        };
-        io::down(&mut svc.io, &svc.io_env, request, &mut svc.submissions);
-    }
-}
-
-fn io_room(svc: &Service, max: io::MaxOut) -> bool {
-    svc.submissions.room() >= max.submissions
+    io::stage::down(&mut svc.io, &svc.io_env, &mut svc.asked, &mut svc.submissions);
 }
