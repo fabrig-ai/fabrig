@@ -1,6 +1,6 @@
-//! An engine at the client's typed protocol boundary, without an engine domain.
+//! An engine at the client's wire protocol boundary, without an engine domain.
 //! Keeps parties, sign-ins, documents, keyed decisions and numbered commits;
-//! knows no platform, application types or transport encoding.
+//! serves generated wire records through the client link without a transport.
 //! See client/domain/testing.md, 4 and 6, and contract.md, 3–5.
 //!
 //! | State | Input | Next | Emits |
@@ -13,7 +13,7 @@
 #![forbid(unsafe_code)]
 mod admission;
 mod application;
-mod engine_set;
+mod codec;
 mod faults;
 pub mod offered;
 pub mod owner_wake;
@@ -392,8 +392,6 @@ impl<A: Application> Engine<A> {
                     }
                     Up::Watch { .. } | Up::App { .. } | Up::Ended { .. } => {}
                 }
-                #[cfg(test)]
-                crate::tests::engine_value(&due.up);
                 out.push(due.up);
             } else {
                 held.push(due);

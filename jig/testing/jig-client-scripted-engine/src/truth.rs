@@ -95,26 +95,47 @@ pub enum Change {
 impl Change {
     pub(crate) fn validate(&self, bounds: &Bounds) -> core::result::Result<(), Invalid> {
         let fits = match self {
-            Self::Settings(v) => payload::fits(v, bounds),
-            Self::Setting(v) => payload::fits(v, bounds),
-            Self::Revision { value, .. } => payload::fits(value, bounds),
-            Self::Revisions { value, .. } => payload::fits(value, bounds),
+            Self::Settings(v) => crate::codec::read(&ReadValue::Settings(Box::new(v.clone())), bounds).is_ok(),
+            Self::Setting(v) => crate::codec::read(&ReadValue::Setting(Box::new(v.clone())), bounds).is_ok(),
+            Self::Revision { value, .. } => {
+                crate::codec::read(&ReadValue::Revision(Box::new(value.clone())), bounds).is_ok()
+            }
+            Self::Revisions { value, .. } => {
+                crate::codec::read(&ReadValue::Revisions(Box::new(value.clone())), bounds).is_ok()
+            }
             Self::Request(ask) => payload::fits(ask, bounds),
             Self::Source(value) => {
                 return value.validate(bounds);
             }
             Self::Seen { replies, .. } => replies.len() <= bounds.rows as usize,
-            Self::Tree(value) => payload::fits(value, bounds),
-            Self::Me(value) => payload::fits(value, bounds),
+            Self::Tree(value) => crate::codec::delivery(
+                &jig_client_domain::contract::Delivery::OwnerTree(Box::new(value.clone())),
+                bounds,
+            )
+            .is_ok(),
+            Self::Me(value) => crate::codec::read(&ReadValue::Me(Box::new(value.clone())), bounds).is_ok(),
             Self::Object { project, key, value } => {
                 if identity(value) != Some(*key) || document_project(value).is_some_and(|number| number != *project) {
                     return Err(Invalid::Identity);
                 }
-                payload::fits(value, bounds)
+                crate::codec::read(value, bounds).is_ok()
             }
-            Self::OwnerProject(value) => payload::fits(value, bounds),
-            Self::Note(value) => payload::fits(value, bounds),
-            Self::OwnerDeployment(value) => payload::fits(value, bounds),
+            Self::OwnerProject(value) => {
+                crate::codec::read(&ReadValue::OwnerProject(Box::new(value.clone())), bounds).is_ok()
+            }
+            Self::Note(value) => crate::codec::read(
+                &ReadValue::Notes(Box::new(jig_client_domain::contract::NotePage {
+                    cut: false,
+                    rows: skein_lib::List::from_boxed(Box::new([value.clone()])),
+                    before: None,
+                    after: None,
+                })),
+                bounds,
+            )
+            .is_ok(),
+            Self::OwnerDeployment(value) => {
+                crate::codec::read(&ReadValue::OwnerDeployment(Box::new(value.clone())), bounds).is_ok()
+            }
             Self::RemoveProject { .. }
             | Self::SignIn { .. }
             | Self::SignedOut { .. }
@@ -125,7 +146,7 @@ impl Change {
     }
 }
 impl Truth {
-    /// Validates fixture documents, including unused list capacity and nested payloads.
+    /// Validates fixture documents through the receiving link.
     pub fn validate(&self, bounds: &Bounds) -> core::result::Result<(), Invalid> {
         if let Some(value) = &self.settings {
             Change::Settings(value.clone()).validate(bounds)?;
@@ -158,7 +179,7 @@ impl Truth {
             if *number != project.number {
                 return Err(Invalid::Identity);
             }
-            if !crate::owner_project::fits(project, bounds) {
+            if crate::codec::read(&ReadValue::OwnerProject(Box::new(project.clone())), bounds).is_err() {
                 return Err(Invalid::Payload);
             }
         }
@@ -284,7 +305,7 @@ impl Rule {
         if matches!(self.answer, Answer::Refused { refusal: _, .. }) && !self.changes.is_empty() {
             return Err(Invalid::Script);
         }
-        if !payload::fits(&self.ask, bounds) || !payload::fits(&self.answer, bounds) {
+        if !payload::fits(&self.ask, bounds) || crate::codec::answer(&self.answer, bounds).is_err() {
             return Err(Invalid::Payload);
         }
         for change in &self.changes {
@@ -330,10 +351,13 @@ impl Script {
 pub(crate) fn identity(value: &ReadValue) -> Option<ObjectKey> {
     match value {
         ReadValue::Task(v) => Some(ObjectKey::Task(v.chip.task)),
+
         ReadValue::Historical(v) => Some(v.key),
         ReadValue::OwnerProposal(v) => Some(ObjectKey::Proposal(v.key)),
+
         ReadValue::OwnerEscalation(v) => Some(ObjectKey::Escalation(v.task.chip.task)),
         ReadValue::Question(v) => Some(ObjectKey::Question { task: v.task.task, message: v.message }),
+
         ReadValue::OwnerPersonTask(v) => Some(ObjectKey::PersonTask(v.task.task)),
         ReadValue::Result(v) => Some(ObjectKey::Result(v.task.task)),
         ReadValue::Tasks(_)
@@ -358,6 +382,7 @@ fn document_project(value: &ReadValue) -> Option<u32> {
     match value {
         ReadValue::Task(v) => Some(v.project),
         ReadValue::OwnerEscalation(v) => Some(v.task.project),
+
         ReadValue::OwnerProposal(v) => Some(v.project),
         ReadValue::OwnerPersonTask(v) => v.project(),
         ReadValue::Historical(_)

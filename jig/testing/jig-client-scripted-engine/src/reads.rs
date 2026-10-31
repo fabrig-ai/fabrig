@@ -63,17 +63,12 @@ impl Source {
 }
 impl Rows {
     pub(crate) fn validate(&self, bounds: &Bounds) -> core::result::Result<(), Invalid> {
-        let fits = match self {
-            Self::Tasks(rows) => rows.iter().all(|row| payload::fits(row, bounds)),
-            Self::Ended(rows) => rows.iter().all(|row| payload::fits(row, bounds)),
-            Self::History(rows) => rows.iter().all(|row| payload::fits(row, bounds)),
-            Self::Activity(rows) => rows.iter().all(|row| payload::fits(row, bounds)),
-            Self::Inbox(rows) => rows.iter().all(|row| payload::fits(row, bounds)),
-            Self::Spend(rows) => rows.iter().all(|row| payload::fits(row, bounds)),
-            Self::Notes(rows) => rows.iter().all(|row| payload::fits(row, bounds)),
-        };
-        if fits { Ok(()) } else { Err(Invalid::Payload) }
+        for start in 0..self.len() {
+            crate::codec::read(&self.page(start, start + 1, None, None), bounds)?;
+        }
+        Ok(())
     }
+
     fn matches(&self, read: &Read) -> bool {
         matches!(
             (self, read),
@@ -193,6 +188,10 @@ impl<A: crate::Application> Engine<A> {
             self.read_value(party, read).map_or_else(ReadResult::None, ReadResult::Value)
         } else {
             ReadResult::None(ReadNone::SignedOut)
+        };
+        let terminal = match terminal {
+            ReadResult::Value(value) => ReadResult::Value(value),
+            ReadResult::None(why) => ReadResult::None(crate::codec::none(why)),
         };
         self.queue(now, self.next_commit - 1, Up::Read { token, terminal });
         Ok(())
@@ -318,7 +317,7 @@ impl<A: crate::Application> Engine<A> {
                     )
                 });
             }
-            if payload::fits(&page, &self.bounds) {
+            if let Ok(page) = crate::codec::read(&page, &self.bounds) {
                 if before.is_some() {
                     self.positions.insert(self.next_position, Position { party, read: query.clone(), index: start });
                 }
@@ -342,8 +341,10 @@ impl<A: crate::Application> Engine<A> {
             unreachable!("activity rows")
         };
         for row in rows {
-            if row.source.task == task
-                && matches!(row.source.line, jig_client_domain::contract::OwnerActivity::Turn { attempt: found_attempt, turn: found_turn, .. } if (found_attempt, found_turn) == (attempt, turn))
+            let source = row.source;
+            let decoded = row.decoded;
+            if source.task == task
+                && matches!(source.line, jig_client_domain::contract::OwnerActivity::Turn { attempt: found_attempt, turn: found_turn, .. } if (found_attempt, found_turn) == (attempt, turn))
             {
                 let archive = row.decoded.ok_or(ReadNone::Malformed)?;
                 if (archive.task, archive.name.attempt, archive.name.number) != (task, attempt, turn)
@@ -403,7 +404,7 @@ impl<A: crate::Application> Engine<A> {
     }
     fn checked_read(&self, value: Option<ReadValue>) -> core::result::Result<ReadValue, ReadNone> {
         let value = value.ok_or(ReadNone::Unknown)?;
-        if payload::fits(&value, &self.bounds) { Ok(value) } else { Err(ReadNone::Busy) }
+        crate::codec::read(&value, &self.bounds).map_err(|_| ReadNone::Busy)
     }
     pub(crate) fn read_visible(&self, party: u64, read: &Read) -> bool {
         let key = match read {

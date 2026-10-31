@@ -292,7 +292,11 @@ impl<A: crate::Application> Engine<A> {
                     return Ok(None);
                 };
                 let run = match run {
-                    Run::State(value) => return Ok(Some(Delivery::RunState(Box::new(value.clone())))),
+                    Run::State(value) => {
+                        return crate::codec::delivery(&Delivery::RunState(Box::new(value.clone())), &self.bounds)
+                            .map(Some)
+                            .map_err(|_| WatchEnd::Busy);
+                    }
                     Run::Text(value) => value,
                 };
                 let acknowledged =
@@ -331,8 +335,8 @@ impl<A: crate::Application> Engine<A> {
             }
         };
         loop {
-            if payload::fits(&value, &self.bounds) && crate::engine_set::delivery(&value) {
-                return Ok(Some(value));
+            if let Ok(decoded) = crate::codec::delivery(&value, &self.bounds) {
+                return Ok(Some(decoded));
             }
             match &mut value {
                 Delivery::OwnerInbox(doc) => {
@@ -417,9 +421,6 @@ impl<A: crate::Application> Engine<A> {
         if !self.online(now) {
             return Err(Invalid::Offline);
         }
-        if !payload::fits(bytes, &self.bounds) || !payload::fits(&call, &self.bounds) {
-            return Err(Invalid::Payload);
-        }
         if !self.truth.objects.contains_key(&ObjectKey::Task(task)) {
             return Err(Invalid::Identity);
         }
@@ -452,20 +453,16 @@ impl<A: crate::Application> Engine<A> {
             cut: from != 0,
             call,
         };
-        if !payload::fits(&run, &self.bounds)
-            || !payload::fits(
-                &Delivery::RunState(Box::new(RunState {
-                    task,
-                    attempt: Some(run.attempt),
-                    committed_turn: 0,
-                    writing: Some(run.clone()),
-                    call: None,
-                })),
-                &self.bounds,
-            )
-        {
-            return Err(Invalid::Payload);
-        }
+        crate::codec::delivery(
+            &Delivery::RunState(Box::new(RunState {
+                task,
+                attempt: Some(run.attempt),
+                committed_turn: 0,
+                writing: Some(run.clone()),
+                call: None,
+            })),
+            &self.bounds,
+        )?;
         self.runs.insert(task, Run::Text(run));
         for watch in self.watches.values_mut() {
             if matches!(watch.subject, Subject::Run { task:id, .. } if id == task) {
@@ -483,11 +480,11 @@ impl<A: crate::Application> Engine<A> {
         if !self.online(now) {
             return Err(Invalid::Offline);
         }
-        if !payload::fits(&value, &self.bounds)
-            || !payload::fits(&Delivery::RunState(Box::new(value.clone())), &self.bounds)
-        {
-            return Err(Invalid::Payload);
-        }
+        let Delivery::RunState(value) = crate::codec::delivery(&Delivery::RunState(Box::new(value)), &self.bounds)?
+        else {
+            unreachable!("encoded run state")
+        };
+        let value = *value;
         if !self.truth.objects.contains_key(&ObjectKey::Task(value.task)) {
             return Err(Invalid::Identity);
         }

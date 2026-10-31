@@ -50,12 +50,21 @@ impl<A: crate::Application> Engine<A> {
                 Answer::Refused { refusal: Refusal::KeyConflict, at: None }
             };
             let commit = old.commit;
-            self.answer(now, commit, attempt, answer);
+            self.answer(now, commit, attempt, crate::codec::answer(&answer, &self.bounds)?);
             return Ok(());
         }
+        let previous_truth = self.truth.clone();
         let (answer, changes) = match self.decide(party, &ask, wall) {
             Ok(decision) => decision,
             Err(error) => {
+                self.attempts.remove(&attempt);
+                return Err(error);
+            }
+        };
+        let answer = match crate::codec::answer(&answer, &self.bounds) {
+            Ok(answer) => answer,
+            Err(error) => {
+                self.truth = previous_truth;
                 self.attempts.remove(&attempt);
                 return Err(error);
             }
@@ -163,18 +172,52 @@ impl<A: crate::Application> Engine<A> {
                     (ReadValue::Task(value), Moved::Spec) => Some(value.spec_revision),
                     (ReadValue::OwnerEscalation(value), Moved::Spec) => Some(value.task.spec_revision),
                     (ReadValue::OwnerEscalation(value), Moved::Hold { .. }) => {
-                        value.task.hold.as_deref().map(OwnerChipHold::revision)
+                        value.task.hold.as_ref().map(|hold| hold.revision())
                     }
-                    (ReadValue::Task(value), Moved::Hold { .. }) => value.hold.as_deref().map(OwnerChipHold::revision),
+                    (ReadValue::Task(value), Moved::Hold { .. }) => value.hold.as_ref().map(|hold| hold.revision()),
+
                     (ReadValue::OwnerPersonTask(value), Moved::PersonTask) => Some(value.revision),
+                    (
+                        ReadValue::Tasks(_)
+                        | ReadValue::Me(_)
+                        | ReadValue::Task(_)
+                        | ReadValue::Historical(_)
+                        | ReadValue::OwnerProposal(_)
+                        | ReadValue::OwnerEscalation(_)
+                        | ReadValue::Question(_)
+                        | ReadValue::OwnerPersonTask(_)
+                        | ReadValue::Result(_)
+                        | ReadValue::History(_)
+                        | ReadValue::Activity(_)
+                        | ReadValue::Turn(_)
+                        | ReadValue::OwnerInbox(_)
+                        | ReadValue::OwnerEnded(_)
+                        | ReadValue::OwnerSpend(_)
+                        | ReadValue::OwnerProject(_)
+                        | ReadValue::Notes(_)
+                        | ReadValue::Settings(_)
+                        | ReadValue::Setting(_)
+                        | ReadValue::Revision(_)
+                        | ReadValue::Revisions(_)
+                        | ReadValue::OwnerDeployment(_),
+                        Moved::Hold { .. }
+                        | Moved::PlacedHold { .. }
+                        | Moved::Spec
+                        | Moved::PersonTask
+                        | Moved::Note
+                        | Moved::Waiting,
+                    ) => None,
                 };
                 if let Some(now) = current {
                     if seen != now {
                         let what = match what {
                             Moved::Hold { .. } => {
                                 let reason = match value {
-                                    ReadValue::Task(task) => task.hold.as_ref().map(task_hold_reason),
-                                    ReadValue::OwnerEscalation(value) => value.task.hold.as_ref().map(task_hold_reason),
+                                    ReadValue::Task(task) => task.hold.as_ref().map(|hold| task_hold_reason(hold)),
+                                    ReadValue::OwnerEscalation(value) => {
+                                        value.task.hold.as_ref().map(|hold| task_hold_reason(hold))
+                                    }
+
                                     ReadValue::Tasks(_)
                                     | ReadValue::Me(_)
                                     | ReadValue::Historical(_)
@@ -492,6 +535,7 @@ impl<A: crate::Application> Engine<A> {
                 Some(ReadValue::OwnerEscalation(before)) => {
                     jig_client_domain::contract::admission::amendment(offer, change, &before.task.authority)
                 }
+
                 _ => Admission::Refused(Refusal::Unknown),
             },
         }
@@ -519,9 +563,12 @@ pub(crate) fn recipient(truth: &crate::Truth, party: u64, to: &Recipient) -> boo
 fn offers(value: &ReadValue) -> Option<&List<Offered>> {
     match value {
         ReadValue::Task(v) => Some(&v.acts),
+
         ReadValue::OwnerProposal(v) => Some(&v.acts),
+
         ReadValue::OwnerEscalation(v) => Some(&v.acts),
         ReadValue::Question(v) => Some(&v.acts),
+
         ReadValue::OwnerPersonTask(v) => Some(&v.acts),
         ReadValue::Result(v) => Some(&v.acts),
         ReadValue::Historical(_)
@@ -552,7 +599,9 @@ fn ending(value: &ReadValue) -> Option<Ending> {
             jig_client_domain::contract::TaskResult::Document(result) => Some(result.ending.clone()),
             jig_client_domain::contract::TaskResult::Ending(ending) => Some(Ending::Task(ending.clone())),
         },
+
         ReadValue::Question(v) => v.ending.clone(),
+
         ReadValue::Result(v) => Some(v.ending.clone()),
         ReadValue::OwnerPersonTask(_)
         | ReadValue::Historical(_)
