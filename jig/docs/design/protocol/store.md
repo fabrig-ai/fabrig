@@ -2137,6 +2137,8 @@ was made (`../domain/tasks.md`, section 3):
 - **Checked whole at startup** with the root's and every component's
   (`configuration.md`, section 6).
 
+`jig_protocol_store::host` hosts the three file drivers around the store for any engine: the drivers, their kernel hand-offs and their adoption and close. An application's service routes its own keys and records to it and writes no driver of its own.
+
 ## 14. Testing
 
 Each within jig's suites' budgets.

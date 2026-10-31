@@ -80,10 +80,18 @@ fn full_task() -> jig_client_domain::contract::Task {
         (1..=8).map(|n| jig_client_domain::contract::Part::Panel { connector: jig_client_test_domain::FIRST, task: n }),
     );
     task.resources = jig_client_world::test::list((1..=8).map(|n| {
-        jig_client_domain::contract::TaskResource::Part(jig_client_domain::contract::Part::Panel {
-            connector: jig_client_test_domain::SECOND,
-            task: n,
-        })
+        jig_client_domain::contract::TaskResource::Owner(Box::new(jig_client_domain::contract::OwnerResourceLine {
+            part: jig_client_domain::contract::OwnerPart {
+                connector: jig_client_test_domain::SECOND,
+                kind: jig_client_domain::contract::OwnerPartKind::Resource,
+                key: jig_client_domain::contract::OwnerPartKey::Number(n),
+            },
+            kind: 1,
+            taken: false,
+            holder: None,
+            writer: None,
+            writer_lost: false,
+        }))
     }));
     task.spec.specification.words.bytes = stories::text(&[b's'; 32]);
     task.instructions = Some(jig_client_domain::contract::DocumentText::complete(stories::text(&[b'i'; 32])));
@@ -162,6 +170,14 @@ fn full_world() -> jig_client_world::World<jig_client_world::Test, jig_client_wo
         .engine
         .act(Time::ZERO, Wall::EPOCH, jig_client_scripted_engine::Change::Me(frame))
         .expect("full frame fits");
+    w.front().compositions.insert(
+        jig_client_test_domain::first::Address { project: 1, item: 1 },
+        jig_client_test_domain::family::PageComposition {
+            task: 9,
+            second: None,
+            proposals: jig_client_world::test::list([]),
+        },
+    );
     let mut family = jig_client_world::scripted::Family::default();
     for n in 1..=8 {
         let subject = jig_client_test_domain::family::Subject {
@@ -170,12 +186,18 @@ fn full_world() -> jig_client_world::World<jig_client_world::Test, jig_client_wo
         };
         family.documents.insert(
             subject,
-            jig_client_test_domain::family::Document::Part(jig_client_test_domain::family::PartDocument {
-                subject,
-                revision: jig_client_domain::contract::Revision { value: 1 },
-                value: n,
-                parameters: None,
-            }),
+            jig_client_test_domain::family::Document::Connector(
+                jig_client_test_domain::connector_values::ConnectorDocument {
+                    subject,
+                    value: Box::new(jig_client_test_domain::connector_values::ClientDocument::Panel {
+                        task: n,
+                        procedure: None,
+                        result: Some(u16::try_from(n).expect("small result")),
+                        resources: jig_client_world::test::list([]),
+                        effects: jig_client_world::test::list([]),
+                    }),
+                },
+            ),
         );
     }
     let subject = jig_client_test_domain::family::Subject {
@@ -184,25 +206,26 @@ fn full_world() -> jig_client_world::World<jig_client_world::Test, jig_client_wo
     };
     family.documents.insert(
         subject,
-        jig_client_test_domain::family::Document::Item(jig_client_test_domain::family::Item {
-            project: 1,
-            key: 1,
-            revision: jig_client_domain::contract::Revision { value: 1 },
-            state: jig_client_test_domain::family::ItemState::Ready,
-            value: 1,
-            task: 9,
-            second: None,
-            proposals: jig_client_world::test::list([]),
-            touchable: true,
-        }),
+        jig_client_test_domain::family::Document::Connector(
+            jig_client_test_domain::connector_values::ConnectorDocument {
+                subject: jig_client_test_domain::family::Subject {
+                    scope: jig_client_test_domain::family::Scope::Project(1),
+                    kind: jig_client_test_domain::family::Kind::Item(1),
+                },
+                value: Box::new(jig_client_test_domain::connector_values::ClientDocument::Object {
+                    object: 1,
+                    now: jig_client_test_domain::connector_values::ApplicationObject { revision: 1, value: 1 },
+                }),
+            },
+        ),
     );
     w.front()
         .engine
         .act_application(Time::ZERO, Wall::EPOCH, jig_client_test_domain::FIRST, 1, family, vec![])
         .expect("full family fits");
     for change in [
-        jig_client_scripted_engine::Change::Project(Box::new(stories::project())),
-        jig_client_scripted_engine::Change::Deployment(stories::deployment()),
+        jig_client_scripted_engine::Change::OwnerProject(Box::new(stories::project())),
+        jig_client_scripted_engine::Change::OwnerDeployment(stories::deployment()),
     ] {
         w.front().engine.act(Time::ZERO, Wall::EPOCH, change).expect("full page fixture fits");
     }

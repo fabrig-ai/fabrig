@@ -1,6 +1,7 @@
 //! Party note edits and run note requests translated through the notes child
 //! (`domain/engine.md`, section 4.4; `domain/people.md`, section 5.1).
 
+use super::party::{Party, Routed};
 use super::refusals::note_person_refusal;
 use super::runs::call_decision;
 use super::{NoteBrief, NoteRoute};
@@ -11,7 +12,7 @@ use jig_domain_authority as authority;
 use jig_domain_notes as notes;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
-use skein_lib::{Env, List, Queue, Token};
+use skein_lib::{Env, List, Queue};
 
 pub(super) fn route_notes(
     core: &mut Core,
@@ -20,7 +21,7 @@ pub(super) fn route_notes(
     event: notes::Event,
 ) -> Queue<Request> {
     let mut child = Queue::uncapped();
-    notes::step(&mut core.notes, &Env { now: env.now, wall: env.wall, limits: env.limits.notes }, event, &mut child);
+    crate::routing::step::step_notes(core, env, event, &mut child);
     tag_notes(core, work, child)
 }
 
@@ -192,24 +193,22 @@ pub(super) fn recalled_part(core: &Core, task: u64, entries: List<notes::Entry>,
     CallPart::NoteRecalled { entries: entries.into_boxed(), more }
 }
 
-#[expect(clippy::too_many_arguments, reason = "the route retains the admitted party and request fields")]
 pub(super) fn edit_note_request(
     core: &mut Core,
-    work: &mut Queue<Work>,
-    request: Token,
-    person: u64,
-    project: u32,
-    _role: Option<people::Role>,
+    routed: &mut Routed,
+    party: Party,
     name: u64,
     scope: Box<people::NoteScope>,
     change: people::NoteChange,
 ) {
+    let Party { request, person, project, .. } = party;
+
     let act = match &change {
         people::NoteChange::Correct { .. } => crate::acts::Act::EditNote,
         people::NoteChange::Delete { .. } => crate::acts::Act::DeleteNote,
     };
     if let Err(why) = crate::acts::note(core, person, project, &scope, act) {
-        work.push(Work::Event(Event::People(people::Event::Decided {
+        routed.work.push(Work::Event(Event::People(people::Event::Decided {
             request,
             outcome: people::Outcome::Refused(why),
         })));
@@ -217,6 +216,6 @@ pub(super) fn edit_note_request(
         let owner = core.begin_note_route(NoteRoute::Person { request });
         let scope = person_note_scope(project, *scope);
         let change = person_note_change(change);
-        work.push(Work::Event(Event::Notes(notes::Event::Edit { owner, party: person, name, scope, change })));
+        routed.work.push(Work::Event(Event::Notes(notes::Event::Edit { owner, party: person, name, scope, change })));
     }
 }

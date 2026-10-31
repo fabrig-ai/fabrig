@@ -24,7 +24,7 @@ pub(super) fn append_people(core: &mut Core, env: &Env<Limits>, event: people::E
 
 pub(super) fn append_tasks(core: &mut Core, env: &Env<Limits>, event: tasks::Event, out: &mut Queue<Request>) {
     let mut child = Queue::uncapped();
-    tasks::step(&mut core.tasks, &Env { now: env.now, wall: env.wall, limits: env.limits.tasks }, event, &mut child);
+    crate::routing::step::step_tasks(core, env, event, &mut child);
     let mut routed = tag_task_outputs(core, env, child);
     for _ in 0..routed.len() {
         let request = routed.pop().expect("task route count");
@@ -142,12 +142,7 @@ pub(super) fn tag_fleet(
                 // core has the complete proofs needed to reject a stale run.
                 if core.start_opened() && !claimed {
                     let mut follow = Queue::uncapped();
-                    fleet::step(
-                        &mut core.fleet,
-                        &Env { now: env.now, wall: env.wall, limits: env.limits.fleet },
-                        fleet::Event::Cancel { run, attempt },
-                        &mut follow,
-                    );
+                    crate::routing::step::step_fleet(core, env, fleet::Event::Cancel { run, attempt }, &mut follow);
                     for _ in 0..follow.len() {
                         pending.push(follow.pop().expect("fenced listing output count"));
                     }
@@ -272,12 +267,7 @@ pub(super) fn tag_fleet(
                         &mut out,
                     );
                     let mut cancelled = Queue::uncapped();
-                    fleet::step(
-                        &mut core.fleet,
-                        &Env { now: env.now, wall: env.wall, limits: env.limits.fleet },
-                        fleet::Event::Cancel { run, attempt },
-                        &mut cancelled,
-                    );
+                    crate::routing::step::step_fleet(core, env, fleet::Event::Cancel { run, attempt }, &mut cancelled);
                     for _ in 0..cancelled.len() {
                         pending.push(cancelled.pop().expect("cancelled placement outputs"));
                     }
@@ -374,12 +364,7 @@ pub(super) fn tag_fleet(
             }
             fleet::Request::Turned { run, attempt, turn, body } if core.stopping => {
                 let mut follow = Queue::uncapped();
-                fleet::step(
-                    &mut core.fleet,
-                    &Env { now: env.now, wall: env.wall, limits: env.limits.fleet },
-                    fleet::Event::TurnBusy { run, attempt, turn },
-                    &mut follow,
-                );
+                crate::routing::step::step_fleet(core, env, fleet::Event::TurnBusy { run, attempt, turn }, &mut follow);
                 for _ in 0..follow.len() {
                     pending.push(follow.pop().expect("busy turn outputs"));
                 }
@@ -572,12 +557,7 @@ pub(super) fn route_account(
 ) -> Queue<Request> {
     let party = account_party(core, &event);
     let mut out = Queue::uncapped();
-    accounts::step(
-        &mut core.accounts,
-        &Env { now: env.now, wall: env.wall, limits: env.limits.accounts },
-        event,
-        &mut out,
-    );
+    crate::routing::step::step_accounts(core, env, event, &mut out);
     core.touch_deployment();
     core.touch_run_waits();
     core.touch_accounts(party);
@@ -586,12 +566,7 @@ pub(super) fn route_account(
 
 pub(super) fn route_brief(core: &mut Core, env: &Env<Limits>, event: brief::GatherEvent) -> Queue<Request> {
     let mut out = Queue::uncapped();
-    brief::gather_step(
-        &mut core.brief,
-        &Env { now: env.now, wall: env.wall, limits: env.limits.brief },
-        event,
-        &mut out,
-    );
+    crate::routing::step::step_brief(core, env, event, &mut out);
     tag_brief(core, env, out)
 }
 
@@ -677,7 +652,7 @@ pub(super) fn route_fleet(
     let shape = host_shape(&event);
     let draining = draining_hosts(core);
     let mut out = Queue::uncapped();
-    fleet::step(&mut core.fleet, &Env { now: env.now, wall: env.wall, limits: env.limits.fleet }, event, &mut out);
+    crate::routing::step::step_fleet(core, env, event, &mut out);
     if shape || draining != draining_hosts(core) {
         core.touch_accounts(None);
     }

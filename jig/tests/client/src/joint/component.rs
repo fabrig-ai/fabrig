@@ -2,7 +2,7 @@
 //! protocol/client.md, 2). Only transport names and external secrets live here.
 use super::{
     engine::Driver,
-    packets::{Incoming, SignInFailure},
+    session::{Incoming, SignInFailure},
     transport::{KeyedOwner, Reply, Watched},
 };
 use crate::harness::ClientId;
@@ -269,7 +269,7 @@ impl Composition {
     }
 
     pub(super) fn pump(&mut self, driver: &mut Driver) -> Vec<Incoming> {
-        self.component.fire(&self.env, &mut self.out);
+        self.component.fire(&self.env);
         loop {
             let mut active = false;
             let clients: Vec<_> = self.link_out.keys().copied().collect();

@@ -6,28 +6,12 @@ use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::Queue;
 
+use crate::routing::party::Control;
 use crate::{Core, Limits, translate};
 
 impl Core {
     /// Admit a person's funded move of a live task.
-    pub fn move_admit(
-        &self,
-        person: u64,
-        role: Option<people::Role>,
-        project: u32,
-        task: u64,
-        tasks_left: u32,
-        depth: u32,
-    ) -> Result<(), people::Refusal> {
-        self.move_admit_in(
-            crate::compound::PartyTask { person, project, role, task },
-            tasks_left,
-            depth,
-            &tasks::CompoundAdmission::new(&self.tasks, 0),
-        )
-    }
-
-    pub(crate) fn move_admit_in(
+    pub(crate) fn move_admit(
         &self,
         party: crate::compound::PartyTask,
         tasks_left: u32,
@@ -46,7 +30,7 @@ impl Core {
         let Some(role_policy) = self.authority.role(project, holding.number()) else {
             unreachable!("member belongs to configured policy")
         };
-        let standing = Self::person_tree_in(person, task, depth, admission);
+        let standing = Self::person_tree(person, task, depth, admission);
         if !role_policy.requests.allows(authority::RequestKind::Amend) && !standing {
             return Err(people::Refusal::Role { held: Some(holding) });
         }
@@ -95,68 +79,30 @@ impl Core {
 
     /// Check standing, current policy and financial authority for a party's
     /// stop, cancel or release request before routing it to the task child.
-    pub fn control_admit(
+    pub(crate) fn control_admit(
         &self,
-        ask: &people::Ask,
-        person: u64,
-        project: u32,
-        role: Option<people::Role>,
-        limits: &tasks::Limits,
-    ) -> Result<u64, people::Refusal> {
-        self.control_admit_in(ask, person, project, role, limits, &tasks::CompoundAdmission::new(&self.tasks, 0))
-    }
-
-    pub(crate) fn control_admit_in(
-        &self,
-        ask: &people::Ask,
-        person: u64,
-        project: u32,
-        role: Option<people::Role>,
+        party: crate::compound::PartyTask,
+        control: Control,
         limits: &tasks::Limits,
         admission: &tasks::CompoundAdmission<'_>,
     ) -> Result<u64, people::Refusal> {
-        let (task, kind, reason_len) = match ask {
-            people::Ask::Stop { task, .. } => (*task, authority::RequestKind::Cancel, 0),
-            people::Ask::Cancel { task, reason, .. } => (*task, authority::RequestKind::Cancel, reason.len()),
-            people::Ask::Release { task, .. } => (*task, authority::RequestKind::Release, 0),
-            people::Ask::Lift { .. }
-            | people::Ask::Compound { .. }
-            | people::Ask::MarkSeen { .. }
-            | people::Ask::Application { .. }
-            | people::Ask::TakePerson { .. }
-            | people::Ask::HandBackPerson { .. }
-            | people::Ask::AnswerPerson { .. }
-            | people::Ask::Move { .. }
-            | people::Ask::DecideProposal { .. }
-            | people::Ask::Say { .. }
-            | people::Ask::AnswerQuestion { .. }
-            | people::Ask::Amend { .. }
-            | people::Ask::EditNote { .. }
-            | people::Ask::MakeService { .. }
-            | people::Ask::SetRoles { .. }
-            | people::Ask::Adopt { .. }
-            | people::Ask::Rename { .. }
-            | people::Ask::MakeProject { .. }
-            | people::Ask::ChangeSettings { .. }
-            | people::Ask::MoveToNewest { .. }
-            | people::Ask::ChangePolicy { .. }
-            | people::Ask::SetPool { .. }
-            | people::Ask::DecideEscalation { .. }
-            | people::Ask::Create { .. }
-            | people::Ask::Propose { .. }
-            | people::Ask::Withdraw { .. }
-            | people::Ask::AccountSignIn { .. }
-            | people::Ask::AccountSignOut { .. }
-            | people::Ask::AccountChange { .. } => unreachable!("control route owns its ask"),
+        let crate::compound::PartyTask { person, project, role, task } = party;
+        let (kind, reason_len) = match control {
+            Control::Stop => (authority::RequestKind::Cancel, 0),
+            Control::Cancel { reason_len, grace } => {
+                if let Some(span) = grace
+                    && span > limits.grace
+                {
+                    return Err(people::Refusal::Limit { which: people::LimitKind::Grace });
+                }
+                (authority::RequestKind::Cancel, reason_len)
+            }
+            Control::Release { .. } => (authority::RequestKind::Release, 0),
         };
-        if let people::Ask::Cancel { grace: Some(span), .. } = ask
-            && *span > limits.grace
-        {
-            return Err(people::Refusal::Limit { which: people::LimitKind::Grace });
-        }
         let Some(context) = admission.task(task) else { return Err(people::Refusal::Unknown) };
-        if let people::Ask::Release { again, .. } = ask {
-            crate::revisions::release_run(&context, *again)?;
+        match control {
+            Control::Release { again } => crate::revisions::release_run(&context, again)?,
+            Control::Stop | Control::Cancel { .. } => {}
         }
         let Some(holding) = role else { return Err(people::Refusal::Role { held: None }) };
         let any_task = match holding {
@@ -167,7 +113,7 @@ impl Core {
                 None => false,
             },
         };
-        let standing = Self::person_tree_in(person, task, limits.depth, admission);
+        let standing = Self::person_tree(person, task, limits.depth, admission);
         if context.project != project || !any_task && !standing {
             return Err(people::Refusal::Unknown);
         }
@@ -207,14 +153,7 @@ impl Core {
 
     /// Whether a party may name this live task within its project.
     #[must_use]
-    pub fn reaches(&self, person: u64, role: people::Role, project: u32, task: u64, depth: u32) -> bool {
-        self.reaches_in(
-            crate::compound::PartyTask { person, role: Some(role), project, task },
-            depth,
-            &tasks::CompoundAdmission::new(&self.tasks, 0),
-        )
-    }
-    pub(crate) fn reaches_in(
+    pub(crate) fn reaches(
         &self,
         party: crate::compound::PartyTask,
         depth: u32,
@@ -224,7 +163,7 @@ impl Core {
         let Some(role) = role else { return false };
         let Some(context) = admission.task(task) else { return false };
         context.project == project
-            && (self.reaches_project(role, project) || Self::person_tree_in(person, task, depth, admission))
+            && (self.reaches_project(role, project) || Self::person_tree(person, task, depth, admission))
     }
     pub(crate) fn reaches_project(&self, role: people::Role, project: u32) -> bool {
         match role {
@@ -239,10 +178,7 @@ impl Core {
 
     /// Whether a person is the requesting ancestor of a live task.
     #[must_use]
-    pub fn person_tree(&self, person: u64, task: u64, depth: u32) -> bool {
-        Self::person_tree_in(person, task, depth, &tasks::CompoundAdmission::new(&self.tasks, 0))
-    }
-    pub(crate) fn person_tree_in(person: u64, task: u64, depth: u32, admission: &tasks::CompoundAdmission<'_>) -> bool {
+    pub(crate) fn person_tree(person: u64, task: u64, depth: u32, admission: &tasks::CompoundAdmission<'_>) -> bool {
         let mut next = task;
         for _ in 0..=depth {
             let Some(context) = admission.task(next) else { return false };

@@ -9,7 +9,7 @@ fn page_values(capacity: u32, cut: bool) -> [ReadValue; 6] {
     let before = Some(Cursor::new(Box::from(UTF8_TEXTS[0]), 1024).expect("bounded opaque cursor"));
     let after = Some(Cursor::new(Box::from(b"after/opaque".as_slice()), 1024).expect("bounded opaque cursor"));
     [
-        ReadValue::Ended(Box::new(ObjectPage {
+        ReadValue::OwnerEnded(Box::new(OwnerEndedPage {
             cut,
             rows: List::with_capacity(capacity),
             before: before.clone(),
@@ -27,13 +27,14 @@ fn page_values(capacity: u32, cut: bool) -> [ReadValue; 6] {
             before: before.clone(),
             after: after.clone(),
         })),
-        ReadValue::Inbox(Box::new(InboxPage {
+        ReadValue::OwnerInbox(Box::new(OwnerInboxPage {
+            selection: None,
             cut,
             rows: List::with_capacity(capacity),
             before: before.clone(),
             after: after.clone(),
         })),
-        ReadValue::Spend(Box::new(SpendPage {
+        ReadValue::OwnerSpend(Box::new(OwnerSpendPage {
             cut,
             rows: List::with_capacity(capacity),
             before: before.clone(),

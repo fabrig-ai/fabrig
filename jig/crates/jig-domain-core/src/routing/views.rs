@@ -17,10 +17,10 @@ use skein_lib::{Env, List, Map, Queue, Token};
 
 pub(super) fn route_view(core: &mut Core, env: &Env<Limits>, event: views::Event) -> Queue<Request> {
     let mut out = Queue::uncapped();
-    views::step(&mut core.views, &Env { now: env.now, wall: env.wall, limits: env.limits.views }, event, &mut out);
+    crate::routing::step::step_views(core, env, event, &mut out);
     made_outputs(core, env, out)
 }
-pub(super) use super::watch_marks::{touch_number, touch_people_event, touch_people_row, touch_task};
+pub(super) use super::watch_marks::{touch_number, touch_people_row, touch_task};
 
 // Construct and move each document into the decision that asked for it.
 pub(super) fn made_outputs(core: &mut Core, env: &Env<Limits>, mut child: Queue<views::Request>) -> Queue<Request> {
@@ -49,12 +49,7 @@ pub(super) fn made_outputs(core: &mut Core, env: &Env<Limits>, mut child: Queue<
                     }
                     Err(why) => views::Made::Gone { why },
                 };
-                views::step(
-                    &mut core.views,
-                    &Env { now: env.now, wall: env.wall, limits: env.limits.views },
-                    views::Event::Made { watcher, outcome },
-                    &mut ready,
-                );
+                crate::routing::step::step_views(core, env, views::Event::Made { watcher, outcome }, &mut ready);
             }
             request @ (views::Request::Watching { .. }
             | views::Request::Refused { .. }
@@ -696,14 +691,18 @@ pub(crate) fn retained_made(
     document: Result<documents::Document, views::End>,
 ) -> Queue<Request> {
     let mut child = Queue::uncapped();
-    let view_env = Env { now: env.now, wall: env.wall, limits: env.limits.views };
     let outcome = match &document {
         Ok(_) => views::Made::Ready,
         Err(why) => views::Made::Gone { why: *why },
     };
-    views::step(&mut core.views, &view_env, views::Event::Made { watcher, outcome }, &mut child);
+    crate::routing::step::step_views(core, env, views::Event::Made { watcher, outcome }, &mut child);
     if document.is_ok() {
-        views::step(&mut core.views, &view_env, views::Event::EndWatch { watcher, end: views::End::Gone }, &mut child);
+        crate::routing::step::step_views(
+            core,
+            env,
+            views::Event::EndWatch { watcher, end: views::End::Gone },
+            &mut child,
+        );
     }
     let mut out = Queue::uncapped();
     for _ in 0..child.len() {

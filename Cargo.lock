@@ -777,6 +777,12 @@ dependencies = [
 name = "jig-conformance"
 version = "0.0.0"
 dependencies = [
+ "jig-domain-accounts",
+ "jig-domain-authority",
+ "jig-domain-core",
+ "jig-domain-notes",
+ "jig-domain-people",
+ "jig-domain-tasks",
  "jig-fake-store",
  "skein-lib",
  "skein-world",
@@ -904,6 +910,21 @@ name = "jig-domain-host"
 version = "0.0.0"
 dependencies = [
  "jig-domain-link",
+ "skein-lib",
+]
+
+[[package]]
+name = "jig-domain-hub-link"
+version = "0.0.0"
+dependencies = [
+ "jig-domain-accounts",
+ "jig-domain-authority",
+ "jig-domain-brief",
+ "jig-domain-core",
+ "jig-domain-fleet",
+ "jig-domain-host",
+ "jig-domain-link",
+ "jig-domain-tasks",
  "skein-lib",
 ]
 
@@ -1565,6 +1586,7 @@ dependencies = [
  "jig-domain-core",
  "jig-domain-fleet",
  "jig-domain-host",
+ "jig-domain-hub-link",
  "jig-domain-notes",
  "jig-domain-people",
  "jig-domain-tasks",
@@ -4205,6 +4227,7 @@ dependencies = [
  "jig-domain-tasks",
  "jig-domain-views",
  "jig-protocol-config",
+ "jig-protocol-engine-clients",
  "jig-protocol-transcript",
  "jig-test-domain",
  "skein-fake-forge-domain",
@@ -4362,6 +4385,8 @@ name = "temper-engine-domain-world"
 version = "0.0.0"
 dependencies = [
  "jig-client",
+ "jig-client-protocol-link",
+ "jig-client-protocol-wire",
  "jig-client-world",
  "jig-conformance",
  "jig-core-world",
@@ -4375,8 +4400,10 @@ dependencies = [
  "jig-domain-people",
  "jig-domain-tasks",
  "jig-domain-views",
+ "jig-engine-clients-world",
  "jig-people-world",
  "jig-protocol-config",
+ "jig-protocol-engine-clients",
  "jig-protocol-store",
  "jig-tasks-world",
  "jig-test-domain",

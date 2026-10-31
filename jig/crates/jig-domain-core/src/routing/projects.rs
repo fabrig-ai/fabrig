@@ -1,5 +1,6 @@
 //! One project decision includes its roster, policy, first period and answer
 //! (people.md, 5.1–5.3; core.md, 6.1; contract.md, 3.2).
+use super::party::{Party, Routed};
 use crate::routing::Work;
 use crate::{Core, Event, Limits, Record, Request, Write};
 use alloc::boxed::Box;
@@ -7,17 +8,9 @@ use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::{Env, Queue, ReplyTo, Token};
 
-#[expect(clippy::too_many_arguments, reason = "the keyed party request retains its routing envelope")]
-pub(super) fn rename_request(
-    core: &mut Core,
-    env: &Env<Limits>,
-    work: &mut Queue<Work>,
-    out: &mut Queue<Request>,
-    request: Token,
-    person: u64,
-    project: u32,
-    name: Box<str>,
-) {
+pub(super) fn rename_request(core: &mut Core, env: &Env<Limits>, routed: &mut Routed, party: Party, name: Box<str>) {
+    let Party { request, person, project, .. } = party;
+
     match core.rename(&env.limits, person, project, name) {
         Ok(()) => {
             let policy = core.authority.policy(project).expect("renamed project policy");
@@ -25,53 +18,56 @@ pub(super) fn rename_request(
             let templates = core.template_overrides.get(&project).expect("project template overrides");
             let value = crate::policy::snapshot(policy, permissions, templates).expect("checked policy snapshot");
             let name = core.names.get(&project).expect("renamed project name").clone();
-            out.push(Request::Write(Write::Save(Record::People(people::Stored::Policy { project, name, value }))));
+            routed.out.push(Request::Write(Write::Save(Record::People(people::Stored::Policy {
+                project,
+                name,
+                value,
+            }))));
             core.touch_project_parties(project);
-            decided(work, request, people::Outcome::Renamed { project });
+            decided(&mut routed.work, request, people::Outcome::Renamed { project });
         }
-        Err(why) => decided(work, request, people::Outcome::Refused(why)),
+        Err(why) => decided(&mut routed.work, request, people::Outcome::Refused(why)),
     }
 }
 
-#[expect(clippy::too_many_arguments, reason = "the keyed party request retains its routing envelope")]
 pub(super) fn make_project_request(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Work>,
-    out: &mut Queue<Request>,
-    request: Token,
-    maker: u64,
+    routed: &mut Routed,
+    party: Party,
     name: Box<str>,
     policy: u32,
 ) {
+    let Party { request, person: maker, .. } = party;
+
     if core.tasks.funding_room() < 1 {
-        return super::refusals::pool_again(work, request, people::Again::Busy);
+        return super::refusals::pool_again(&mut routed.work, request, people::Again::Busy);
     }
     match core.make_project(&env.limits, maker, name, policy) {
         Ok(made) => {
             let project = made.project;
             let budget = made.policy.period_spend;
-            out.push(Request::Write(Write::Save(Record::People(people::Stored::Policy {
+            routed.out.push(Request::Write(Write::Save(Record::People(people::Stored::Policy {
                 project,
                 name: made.name,
                 value: made.policy,
             }))));
-            work.push(Work::Event(Event::People(people::Event::Roles {
+            routed.work.push(Work::Event(Event::People(people::Event::Roles {
                 project,
                 holdings: Box::new([people::Holding { person: maker, role: people::Role::Owner }]),
             })));
-            work.push(Work::Event(Event::Tasks(tasks::Event::OpenPeriod {
+            routed.work.push(Work::Event(Event::Tasks(tasks::Event::OpenPeriod {
                 reply_to: ReplyTo::new(core.internal(crate::flight::Internal::Admission)),
                 project,
                 period: 1,
                 budget,
             })));
-            work.push(Work::Event(Event::Tasks(tasks::Event::PeriodNext { project, period: 1, next: None })));
+            routed.work.push(Work::Event(Event::Tasks(tasks::Event::PeriodNext { project, period: 1, next: None })));
             core.touch_party(maker);
-            out.push(Request::ProjectMade { project });
-            decided(work, request, people::Outcome::ProjectMade { project });
+            routed.out.push(Request::ProjectMade { project });
+            decided(&mut routed.work, request, people::Outcome::ProjectMade { project });
         }
-        Err(why) => decided(work, request, people::Outcome::Refused(why)),
+        Err(why) => decided(&mut routed.work, request, people::Outcome::Refused(why)),
     }
 }
 
@@ -89,7 +85,20 @@ pub(super) fn make_project_act(
     if core.people.role(maker, people::DEPLOYMENT) != Some(people::Role::Owner) {
         return decided(work, request, people::Outcome::Refused(people::Refusal::Unknown));
     }
-    make_project_request(core, env, work, out, request, maker, name, policy);
+    let mut routed = Routed::new(work);
+    make_project_request(
+        core,
+        env,
+        &mut routed,
+        Party { request, person: maker, project: 0, role: None },
+        name,
+        policy,
+    );
+    let mut follow = routed.finish(work);
+    for _ in 0..follow.len() {
+        let next = follow.pop().expect("project route output count");
+        out.push(next);
+    }
 }
 
 fn decided(work: &mut Queue<Work>, request: Token, outcome: people::Outcome) {

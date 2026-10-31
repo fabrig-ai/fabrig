@@ -99,14 +99,9 @@ enum FamilyKind { item: FamilyNumber, panel: FamilyNumber, result: FamilyNumber,
 record FamilySubject { scope: FamilyScope kind: FamilyKind }
 versioned record Subject { value: FamilySubject }
 versioned record Read { value: FamilySubject }
-enum ItemState { ready, held, ended }
-record Item { project: u32 key: u64 revision: u64 state: ItemState value: u64 task: u64 second: option u64 proposals: list 128 FamilyProposalKey touchable: bool }
-record Parameters { item: u64 revision: u64 value: u64 amendable: bool }
-record PartDocument { subject: FamilySubject revision: u64 value: u64 parameters: option Parameters }
-record FamilyRevision { item: u64 revision: u64 }
 record FamilyConnectorDocument { subject: FamilySubject value: ClientDocument }
-enum FamilyDocument { item: Item, part: PartDocument, connector: FamilyConnectorDocument }
+enum FamilyDocument { connector: FamilyConnectorDocument }
 versioned record FamilyDocumentRecord { value: FamilyDocument }
 record FamilyConnectorAnswer { value: ApplicationOutcome }
-enum FamilyAnswer { touched: FamilyRevision, moved: FamilyRevision, gone, connector: FamilyConnectorAnswer }
+enum FamilyAnswer { connector: FamilyConnectorAnswer }
 versioned record FamilyAnswerRecord { value: FamilyAnswer }

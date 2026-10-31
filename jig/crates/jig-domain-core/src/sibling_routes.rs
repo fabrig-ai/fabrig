@@ -200,12 +200,7 @@ impl Core {
     pub fn lost_channel(&mut self, env: &Env<Limits>, channel: Token) {
         self.start_input();
         let mut out = Queue::uncapped();
-        fleet::step(
-            &mut self.fleet,
-            &Env { now: env.now, wall: env.wall, limits: env.limits.fleet },
-            fleet::Event::Lost { channel },
-            &mut out,
-        );
+        crate::routing::step::step_fleet(self, env, fleet::Event::Lost { channel }, &mut out);
         assert!(out.is_empty(), "loss changes topology and deadlines without child effects");
         self.touch_deployment();
     }

@@ -45,7 +45,7 @@ fn reject(world: &mut World<Test, Scripted>, text: &[u8]) {
     let key = proposal.key;
     world.observe(Observation::Delivered {
         client: CLIENT,
-        receipt: super::super::Receipt::Document { value: Box::new(ReadValue::Proposal(Box::new(proposal))) },
+        receipt: super::super::Receipt::Document { value: Box::new(ReadValue::OwnerProposal(Box::new(proposal))) },
     });
     let mut builder = Builder::new(&UI);
     builder.open(Role::Region);

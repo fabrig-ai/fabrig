@@ -1,12 +1,10 @@
 //! Full directory opens for worlds that exercise patch sets. Ordinary worlds
-//! retain the cheaper memory maps and direct positioned-file answers.
-use jig_protocol_store::{Arrived, Limits, Root, Seeded};
+//! retain memory maps and direct positioned-file answers.
+use jig_protocol_store::host::{Host, Lane, Submission};
+use jig_protocol_store::{Event, Limits, Request, Root, Seeded, Store};
 use skein_fake_machine::{How, Machine, serve};
-use skein_io::{
-    file,
-    file_layer::{self, FileIo},
-};
-use skein_lib::{Queue, Time, Token};
+use skein_io::kernel::Op;
+use skein_lib::{Env, Queue, Token};
 use skein_sim::{Config, Handle, Pid, Sim};
 
 // The store world's file-driver queue capacity; each request settles before
@@ -18,26 +16,25 @@ pub(super) struct Disk {
     sim: Sim,
     pid: Pid,
     root: Root,
-    io: [FileIo; 3],
-    seeded: Seeded,
+    host: Host,
 }
 impl Disk {
     pub fn new(limits: &Limits) -> Self {
         let mut machine = Machine::for_user(0);
         let handle = machine.lay(&[]);
-        let (sim, pid, root, io, seeded) = drivers(limits, handle, 0);
-        Self { machine, sim, pid, root, io, seeded }
+        let (sim, pid, root, host) = drivers(limits, handle, 0);
+        Self { machine, sim, pid, root, host }
     }
     pub fn root(&self) -> Root {
         self.root
     }
     pub fn seeded(&self) -> Seeded {
-        self.seeded
+        self.host.seeded()
     }
     pub fn crash(&mut self, limits: &Limits, seed: u64) {
         self.machine.crash(seed);
         let handle = self.machine.reopen_root(0);
-        (self.sim, self.pid, self.root, self.io, self.seeded) = drivers(limits, handle, seed);
+        (self.sim, self.pid, self.root, self.host) = drivers(limits, handle, seed);
     }
     pub fn unread_transcript(&mut self, task: u64) {
         let root = self.machine.reopen_root(0);
@@ -66,48 +63,61 @@ impl Disk {
         self.machine.close(root);
         bytes
     }
-    pub fn answer(&mut self, driver: usize, request: file::Request) -> Arrived {
-        let io = &mut self.io[driver];
-        let mut events = Queue::uncapped();
-        let mut submissions = Queue::with_capacity(QUEUE);
-        let mut completions = Queue::with_capacity(QUEUE);
-        file_layer::down(io, Time::ZERO, request, &mut events, &mut submissions);
-        // The calm simulator answers one file operation synchronously; the
-        // bound also guards a broken file driver in this ordinary test shell.
-        for _ in 0..100 {
-            if !submissions.is_empty() {
-                self.sim.submit(self.pid, &mut submissions);
-                serve(&mut self.machine, &mut self.sim);
+    /// Typed requests pass through the production host; fixture faults stay above it.
+    pub fn request(&mut self, store: &mut Store, env: &Env<Limits>, request: Request, above: &mut Queue<Event>) {
+        match request {
+            Request::Open { owner, root, installation } => {
+                self.host.adopt(root.fd, 0, owner, installation).expect("one fixture adoption");
             }
+            request @ (Request::Switch { .. }
+            | Request::Commit { .. }
+            | Request::Restore { .. }
+            | Request::Load { .. }
+            | Request::Read { .. }
+            | Request::Get { .. }
+            | Request::Transcript { .. }
+            | Request::Secrets { .. }
+            | Request::Site { .. }) => self.host.down(store, env, request, above),
+        }
+        self.drive(store, env, above);
+    }
+    pub fn drive(&mut self, store: &mut Store, env: &Env<Limits>, above: &mut Queue<Event>) {
+        for _ in 0..100_000 {
+            self.host.iterate(store, env, above);
+            let mut submissions = Queue::with_capacity(QUEUE);
+            while let Some(Submission { lane, mut submit }) = self.host.pop_submission() {
+                let tag = u8::try_from(lane.index() + 1).expect("three lanes");
+                submit.op = Token::tagged(tag, submit.op.raw()).expect("local operation");
+                if let Op::Cancel { target } = &mut submit.kind {
+                    *target = Token::tagged(tag, target.raw()).expect("local cancellation");
+                }
+                submissions.push(submit);
+            }
+            self.sim.submit(self.pid, &mut submissions);
+            serve(&mut self.machine, &mut self.sim);
+            let mut completions = Queue::with_capacity(QUEUE);
             self.sim.reap(self.pid, &mut completions);
-            while let Some(complete) = completions.pop() {
-                file_layer::up(io, complete, &mut events, &mut submissions);
+            while let Some(mut complete) = completions.pop() {
+                let lane = *Lane::ALL.get(usize::from(complete.op.tag()) - 1).expect("driver tag");
+                complete.op = Token::new(complete.op.untagged());
+                if let Op::Cancel { target } = &mut complete.kind {
+                    *target = Token::new(target.untagged());
+                }
+                self.host.complete(lane, complete);
             }
-            if io.takes() {
-                break;
+            if self.host.idle() && !self.host.work_pending(env.now) {
+                return;
             }
         }
-        assert!(io.takes(), "calm file operation settles");
-        let event = events.pop().expect("one file terminal");
-        assert!(events.is_empty(), "one terminal per request");
-        let fd = if let file::Event::Opened { file, .. } = &event { io.descriptor(*file) } else { None };
-        Arrived { event, fd }
+        panic!("calm directory host settles");
     }
 }
-fn drivers(limits: &Limits, handle: skein_fake_machine::Opened, seed: u64) -> (Sim, Pid, Root, [FileIo; 3], Seeded) {
+fn drivers(limits: &Limits, handle: skein_fake_machine::Opened, seed: u64) -> (Sim, Pid, Root, Host) {
     let mut sim = Sim::new(seed, Config::calm());
     let pid = sim.spawn_process();
     let fd = sim.root(pid, Handle::new(handle.raw()));
-    let mut io = std::array::from_fn(|_| {
-        let whole = limits.store.chunk.max(jig_protocol_store::sizes::MANIFEST_BYTES);
-        let mut driver =
-            FileIo::with_whole_limit(8, limits.store.chunk, 32, whole, limits.store.deadline).with_effective_user(0);
-        assert_eq!(driver.adopt_root(fd), Some(Token::new(1)));
-        driver
-    });
-    let [store, secrets, transcripts] = &mut io;
-    let seeded = jig_protocol_store::seed([store, secrets, transcripts], seed);
-    (sim, pid, Root { token: Token::new(1), fd }, io, seeded)
+    let host = Host::new(limits, seed);
+    (sim, pid, Root { token: Token::new(1), fd }, host)
 }
 
 fn collect(

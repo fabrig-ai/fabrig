@@ -114,9 +114,9 @@ pub(super) fn apply(core: &mut Core, env: &Env<Limits>, task: u64, step: u64, ev
         }
     }
     let mut child = Queue::uncapped();
-    tasks::step(
-        &mut core.tasks,
-        &Env { now: env.now, wall: env.wall, limits: env.limits.tasks },
+    crate::routing::step::step_tasks(
+        core,
+        env,
         tasks::Event::Procedure {
             reply_to: skein_lib::ReplyTo::new(token),
             task: named,

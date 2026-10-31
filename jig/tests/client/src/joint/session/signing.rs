@@ -1,4 +1,4 @@
-use super::{ClientId, Event, Session, Time, Wall, packets, people};
+use super::{ClientId, Event, Session, SignInFailure, Time, Wall, people};
 impl Session {
     /// Retry sign-in using the supplied identity, not the expected party number.
     pub fn sign_in(&mut self, client: ClientId, now: Time, wall: Wall) {
@@ -21,7 +21,7 @@ impl Session {
     /// The exact failure of the latest provider exchange. It neither creates a
     /// session nor retires an independently authenticated older session.
     #[must_use]
-    pub fn sign_in_failure(&self, client: ClientId) -> Option<&packets::SignInFailure> {
+    pub fn sign_in_failure(&self, client: ClientId) -> Option<&SignInFailure> {
         self.sign_in_failures.get(&client)
     }
 

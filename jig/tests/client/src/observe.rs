@@ -40,11 +40,9 @@ pub fn sent(request: &Request) -> Option<Sent> {
         jig_client::Ask::Jig(ask) => return Some(jig_sent(*attempt, *k, ask)),
         jig_client::Ask::Family { record, .. } => {
             let ask = crate::test::family_request(record);
-            let family::Ask::Touch { project, item, revision, .. } = ask else {
-                unreachable!("decoded optional request")
-            };
+            let family::Ask::ChangeObject { project, object: item, revision, .. } = ask;
             (
-                Some(CardKey::of(jig_client_test_view::family_key(&family::Subject {
+                Some(CardKey::of(jig_client_test_view::family_key(&jig_client_test_domain::family::Subject {
                     scope: family::Scope::Project(project),
                     kind: family::Kind::Item(item),
                 }))),
@@ -190,11 +188,7 @@ fn frame(frame: &Me, watch: Option<Token>) -> Vec<Receipt> {
     vec![Receipt::Party { party: frame.party.number, watch }]
 }
 fn family(doc: &family::Document) -> Receipt {
-    let revision = match doc {
-        family::Document::Item(item) => Some(item.revision),
-        family::Document::Part(part) => Some(part.parameters.map_or(part.revision, |p| p.revision)),
-        family::Document::Connector(_) => doc.revision(),
-    };
+    let revision = doc.revision();
     Receipt::Card {
         key: CardKey::of(jig_client_test_view::family_key(&doc.subject())),
         revisions: revision.map_or_else(Vec::new, |revision| vec![(0, revision.value)]),
@@ -417,6 +411,18 @@ fn visible(tree: &Tree, include_test_family: bool) -> Vec<Seen> {
             continue;
         };
         let end = at + usize::try_from(node.size).expect("subtree");
+        // Unimplemented owner effect fragments create no waiting-card obligation.
+        if k.owner == (Owner::Application { number: jig_client_test_domain::FIRST }).opaque()
+            && k.kind == 20
+            && tree.nodes()[at..end].iter().find(|node| node.role == Role::Status).is_some_and(|node| {
+                matches!(
+                    node.name.as_deref(),
+                    Some(b"Unknown family object" | b"Loading family document" | b"Unsupported family document")
+                )
+            })
+        {
+            continue;
+        }
         // Plan tree items reuse object identity, but only Item nodes are cards.
         if (k.owner == Owner::Jig.opaque() && (k.kind <= 6 || k.kind == 29) && node.role == Role::Item)
             || (include_test_family && k.owner != Owner::Jig.opaque() && card_key(k))
@@ -428,10 +434,7 @@ fn visible(tree: &Tree, include_test_family: bool) -> Vec<Seen> {
             let leaving = contains(tree, at, end, Role::Status, b"Leaving");
             let looking = contains(tree, at, end, Role::Status, b"Leaving")
                 && contains(tree, at, end, Role::Text, b"Finding how this ended");
-            let done = contains(tree, at, end, Role::Status, b"Touched")
-                || contains(tree, at, end, Role::Status, b"Moved to revision")
-                || contains(tree, at, end, Role::Status, b"Gone")
-                || (include_test_family && contains(tree, at, end, Role::Status, b"Application outcome"));
+            let done = include_test_family && contains(tree, at, end, Role::Status, b"Application outcome");
             let state = if leaving && !looking {
                 CardSeen::Left { reason: explained(tree, at, end) }
             } else if deciding || looking {
@@ -470,7 +473,7 @@ fn visible(tree: &Tree, include_test_family: bool) -> Vec<Seen> {
 #[path = "observe/link_tests.rs"]
 mod link_tests;
 
-/// Only decoded public person acts explain changing the displayed window (QUESTIONS 34).
+/// Only decoded public person acts explain changing the displayed window.
 #[must_use]
 pub fn window_changed(event: &Event) -> bool {
     let act = match event {
@@ -488,7 +491,7 @@ pub fn window_changed(event: &Event) -> bool {
     };
     jig_window_changed(act)
 }
-/// Only decoded jig person acts explain a changed displayed window (QUESTIONS 34).
+/// Only decoded jig person acts explain a changed displayed window.
 #[must_use]
 pub fn jig_window_changed(act: &jig_client_view::action::Act) -> bool {
     // Settings review and explicit service role selection keep the current windows.
@@ -536,6 +539,44 @@ mod tests {
         }
     }
 
+    #[test]
+    fn family_placeholders_distinguish_items_from_owner_effects() {
+        for (kind, waiting) in [
+            (jig_client_test_domain::family::Kind::OwnerEffect(1), false),
+            (jig_client_test_domain::family::Kind::Item(1), true),
+        ] {
+            for caption in [b"Loading family document".as_slice(), b"Unknown family object"] {
+                let limits = skein_ui::Limits {
+                    nodes: 8,
+                    depth: 4,
+                    text_per_node: 64,
+                    text_bytes: 256,
+                    drawing_bytes: 0,
+                    styles_per_node: 0,
+                    patches: 32,
+                    bindings: 0,
+                    slots: 0,
+                    markdown_depth: 1,
+                    scene_marks: 0,
+                    scene_bytes: 0,
+                };
+                let mut builder = skein_ui::Builder::new(&limits);
+                builder.open(Role::Item);
+                builder.key(jig_client_test_view::family_key(&jig_client_test_domain::family::Subject {
+                    scope: jig_client_test_domain::family::Scope::Project(1),
+                    kind,
+                }));
+                builder.open(Role::Status);
+                builder.name(caption);
+                builder.close();
+                builder.close();
+                assert_eq!(
+                    super::seen(&builder.finish()).iter().any(|value| matches!(value, Seen::Card { .. })),
+                    waiting
+                );
+            }
+        }
+    }
     #[test]
     fn top_level_seen_has_no_retained_answer_observation() {
         for through in [c::SeenThrough::Results { through: 1 }, c::SeenThrough::Conversation { task: TASK, through: 1 }]
@@ -603,11 +644,11 @@ mod tests {
     #[test]
     fn family_requests_keep_their_card_and_revision() {
         let (project, value) =
-            jig_client_test_domain::family::wire::request(&jig_client_test_domain::family::Ask::Touch {
+            jig_client_test_domain::family::wire::request(&jig_client_test_domain::family::Ask::ChangeObject {
                 project: PROJECT,
-                item: TASK,
+                object: TASK,
                 revision: c::Revision { value: 5 },
-                parameters: None,
+                value: 0,
             });
         let sent = super::sent(&send(jig_client::Ask::Family {
             scope: c::Scope::Project(project),
@@ -653,13 +694,13 @@ mod tests {
         builder.open(Role::Item);
         builder.key(Key { owner: (Owner::Application { number: 77 }).opaque(), kind: 2, a: 1, b: 5 });
         builder.open(Role::Status);
-        builder.name(b"Gone");
+        builder.name(b"Application outcome");
         builder.close();
         builder.close();
         builder.close();
         builder.close();
         view.finish(builder, 1, &mut Queue::with_capacity(limits.patches));
-        let seen = jig_seen(view.tree());
+        let seen = super::seen(view.tree());
         assert!(
             matches!(seen.as_slice(), [Seen::Card { key, state: CardSeen::Waiting, revision: None }] if *key == CardKey::of(card))
         );

@@ -21,8 +21,6 @@ use children::{route_account, route_brief, route_fleet, route_projection_settled
 use historical::{route_historical_escalation, route_historical_proposal};
 use jig_domain_accounts as accounts;
 use jig_domain_authority as authority;
-use jig_domain_brief as brief;
-use jig_domain_fleet as fleet;
 use jig_domain_notes as notes;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
@@ -58,6 +56,7 @@ mod historical;
 #[path = "notes.rs"]
 mod note_routes;
 mod parties;
+pub(crate) mod party;
 mod party_controls;
 mod party_decisions;
 #[path = "people.rs"]
@@ -71,6 +70,7 @@ mod run_delegation;
 mod run_payloads;
 mod run_preparation;
 mod runs;
+pub(crate) mod step;
 mod topics;
 mod turns;
 use turns::route_accepted_turn;
@@ -425,7 +425,7 @@ pub fn resume_fleet(core: &mut Core, env: &Env<Limits>) -> Queue<Request> {
         return crate::stopping::empty();
     }
     let mut child = Queue::uncapped();
-    fleet::resume(&mut core.fleet, &Env { now: env.now, wall: env.wall, limits: env.limits.fleet }, &mut child);
+    step::resume_fleet(core, env, &mut child);
     if !child.is_empty() {
         core.touch_deployment();
         core.touch_run_waits();
@@ -446,7 +446,7 @@ fn step_work(core: &mut Core, env: &Env<Limits>, next: Work, work: &mut Queue<Wo
         Work::StartBrief { task } => start_brief(core, env, work, task),
         Work::BriefNotes { task, lines, more } => plan_brief(core, env, work, task, lines, more),
         Work::PreparationFailed { task } => route_preparation_failed(core, work, task),
-        Work::Forget { owner } => crate::forget::forget(core, env, work, &owner),
+        Work::Forget { owner } => crate::forget::forget(core, work, &owner),
     }
 }
 
@@ -592,21 +592,36 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
             historical::decided_proposal(core, to, key, proposal, row, busy)
         }
         Event::HistoricalProposal { request, person, project, proposer, proposal, row, busy } => {
-            route_historical_proposal(core, work, request, person, project, proposer, proposal, row, busy)
+            route_historical_proposal(
+                core,
+                work,
+                party::Party { request, person, project, role: None },
+                proposer,
+                proposal,
+                row,
+                busy,
+            )
         }
         Event::EndedTaskLoaded { request, row, busy } => result_reads::loaded(core, env, work, request, row, busy),
         Event::PartyInputsLoaded { request, row, busy } => {
-            let mut out = Queue::uncapped();
-            party_inputs::loaded(core, env, &mut out, work, party_inputs::Loaded { request, row, busy });
-            out
+            let mut routed = party::Routed::new(work);
+            party_inputs::loaded(core, env, &mut routed, party_inputs::Loaded { request, row, busy });
+            routed.finish(work)
         }
         Event::HistoricalPersonTask { request, person, project, task, row, busy } => {
-            let outcome = core.person_task_ended(person, project, task, row, busy);
+            let outcome =
+                core.person_task_ended(party::Party { request, person, project, role: None }, task, row, busy);
             work.push(Work::Event(Event::People(people::Event::Decided { request, outcome })));
             Queue::uncapped()
         }
         Event::HistoricalEscalation { request, person, project, task, revision, row, busy } => {
-            route_historical_escalation(core, env, work, request, person, project, task, revision, row, busy)
+            route_historical_escalation(
+                core,
+                env,
+                work,
+                party::Party { request, person, project, role: None },
+                historical::Escalation { task, revision, row, busy },
+            )
         }
         Event::NamedAnswer { to, key, part } => route_named_answer(core, to, key, part),
         Event::NamedAction { to, key, action } => named_action(core, env, work, to, key, action),
@@ -643,7 +658,7 @@ pub fn fire(core: &mut Core, env: &Env<Limits>, timer: Timer) -> Queue<Request> 
     let mut out = match timer {
         Timer::People => {
             let mut out = Queue::uncapped();
-            people::fire(&mut core.people, &Env { now: env.now, wall: env.wall, limits: env.limits.people }, &mut out);
+            step::fire_people(core, env, &mut out);
             let mut work = Queue::uncapped();
             let requests = people_routes::tag_people(core, env, out, &mut work);
             assert!(work.is_empty(), "people expirations produce no sibling continuations");
@@ -651,12 +666,12 @@ pub fn fire(core: &mut Core, env: &Env<Limits>, timer: Timer) -> Queue<Request> 
         }
         Timer::Tasks => {
             let mut out = Queue::uncapped();
-            tasks::fire(&mut core.tasks, &Env { now: env.now, wall: env.wall, limits: env.limits.tasks }, &mut out);
+            step::fire_tasks(core, env, &mut out);
             tag_task_outputs(core, env, out)
         }
         Timer::Fleet => {
             let mut out = Queue::uncapped();
-            fleet::fire(&mut core.fleet, &Env { now: env.now, wall: env.wall, limits: env.limits.fleet }, &mut out);
+            step::fire_fleet(core, env, &mut out);
             if !out.is_empty() {
                 core.touch_deployment();
                 core.touch_run_waits();
@@ -669,20 +684,12 @@ pub fn fire(core: &mut Core, env: &Env<Limits>, timer: Timer) -> Queue<Request> 
         }
         Timer::Brief => {
             let mut out = Queue::uncapped();
-            brief::gather_fire(
-                &mut core.brief,
-                &Env { now: env.now, wall: env.wall, limits: env.limits.brief },
-                &mut out,
-            );
+            step::fire_brief(core, env, &mut out);
             tag_brief(core, env, out)
         }
         Timer::Account => {
             let mut out = Queue::uncapped();
-            accounts::fire(
-                &mut core.accounts,
-                &Env { now: env.now, wall: env.wall, limits: env.limits.accounts },
-                &mut out,
-            );
+            step::fire_accounts(core, env, &mut out);
             core.touch_deployment();
             core.touch_run_waits();
             core.touch_accounts(None);

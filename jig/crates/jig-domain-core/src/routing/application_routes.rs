@@ -1,6 +1,7 @@
 //! Connector-owned keyed requests and their synchronous party parts
 //! (`domain/connectors.md`, section 5.5; `domain/core.md`, section 5).
 
+use super::party::{Party, Routed};
 use crate::routing::Work;
 use crate::{Ask, Core, Event, Family, Held, Limits, Request, fresh};
 use alloc::boxed::Box;
@@ -94,18 +95,16 @@ pub(crate) fn first(unused: Option<u64>, requests: Queue<Request>) -> Queue<Requ
     out
 }
 
-#[expect(clippy::too_many_arguments, reason = "the admitted party envelope is passed unchanged")]
 pub(super) fn admitted(
     core: &mut Core,
     env: &Env<Limits>,
-    work: &mut Queue<Work>,
-    out: &mut Queue<Request>,
-    request: Token,
+    routed: &mut Routed,
+    party: Party,
     connector: u16,
-    person: u64,
     scope: people::ApplicationScope,
-    role: Option<people::Role>,
 ) {
+    let Party { request, person, role, .. } = party;
+
     let input = core.application_input.take();
     let carried = match input {
         Some(input) => input.carried,
@@ -115,9 +114,9 @@ pub(super) fn admitted(
         Some(input) if input.connector == connector && core.connectors.contains(&connector) => input.owner,
         Some(_) | None => {
             if let Some(number) = carried {
-                out.push(unused(number));
+                routed.out.push(unused(number));
             }
-            work.push(Work::Event(Event::People(people::Event::Decided {
+            routed.work.push(Work::Event(Event::People(people::Event::Decided {
                 request,
                 outcome: people::Outcome::Refused(people::Refusal::NotOffered),
             })));
@@ -126,9 +125,9 @@ pub(super) fn admitted(
     };
     let Some(number) = fresh(&mut core.counters, Family::Application) else {
         if let Some(number) = carried {
-            out.push(unused(number));
+            routed.out.push(unused(number));
         }
-        work.push(Work::Event(Event::People(people::Event::Decided {
+        routed.work.push(Work::Event(Event::People(people::Event::Decided {
             request,
             outcome: people::Outcome::Refused(people::Refusal::Limit { which: people::LimitKind::Arithmetic }),
         })));
@@ -137,7 +136,7 @@ pub(super) fn admitted(
     let token = Token::new(number);
     let request = core
         .fly(crate::flight::Flight::Application { request, route: Flight { connector, token, part: false, carried } });
-    out.push(Request::Ask {
+    routed.out.push(Request::Ask {
         connector,
         ask: Ask::Application {
             request,
@@ -162,12 +161,7 @@ pub(super) fn part(
     assert!(!flight.part, "one synchronous core part at a time");
     let connector = flight.connector;
     let original = core.people_request(original).expect("application party route");
-    let admitted = people::application_part(
-        &mut core.people,
-        &Env { now: env.now, wall: env.wall, limits: env.limits.people },
-        original,
-        ask,
-    );
+    let admitted = people::application_part(&mut core.people, &env.with(env.limits.people), original, ask);
     match admitted {
         Ok(route) => {
             core.application_mut(request).expect("application part owner").1.part = true;

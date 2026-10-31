@@ -959,7 +959,7 @@ mod tests {
             vec![
                 Step::See { find: Find::named(Role::Link, b"Family"), within },
                 Step::Press { find: Find::named(Role::Link, b"Family") },
-                Step::See { find: Find::text(b"Item 1"), within },
+                Step::See { find: Find::text(b"Object: 1"), within },
                 Step::See { find: Find::text(b"Chat nine"), within },
             ],
         );

@@ -1032,7 +1032,7 @@ fn inbox_row(
     }
     match &row.value {
         Record::Tasks(tasks::Stored::PersonProposal(proposal) | tasks::Stored::DecidedProposal(proposal)) => {
-            return person_proposal_need(core, limits, party, group, filter, &row, proposal);
+            return person_proposal_need(core, party, group, filter, &row, proposal);
         }
         Record::Tasks(
             tasks::Stored::Activity(_)
@@ -1153,7 +1153,6 @@ fn inbox_row(
 
 fn person_proposal_need(
     core: &Core,
-    _limits: &Limits,
     party: u64,
     group: Group,
     filter: Filter,

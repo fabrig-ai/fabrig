@@ -499,12 +499,7 @@ pub(crate) fn finish_watches(core: &mut Core, env: &Env<Limits>) -> Queue<Reques
                 }
             };
             let mut quiet = Queue::uncapped();
-            views::step(
-                &mut core.views,
-                &Env { now: env.now, wall: env.wall, limits: env.limits.views },
-                event,
-                &mut quiet,
-            );
+            crate::routing::step::step_views(core, env, event, &mut quiet);
             assert!(quiet.is_empty(), "ending writing emits no output");
         }
     }

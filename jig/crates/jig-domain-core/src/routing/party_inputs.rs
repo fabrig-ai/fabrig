@@ -1,10 +1,10 @@
 //! A party's historical inputs, loaded by the root and judged by the core.
+use super::party::Routed;
 use super::{
     CreationKind,
     parties::begin_creation,
     refusals::{pool_again, pool_refused},
 };
-use crate::routing::Work;
 use crate::{Core, Limits, Now, Request};
 use alloc::boxed::Box;
 use jig_domain_people as people;
@@ -23,14 +23,7 @@ pub(crate) struct Inputs {
     pub row: Option<Box<tasks::TaskRecord>>,
     pub stubs: List<tasks::Stub>,
 }
-pub(super) fn begin(
-    core: &mut Core,
-    env: &Env<Limits>,
-    out: &mut Queue<Request>,
-    work: &mut Queue<Work>,
-    mut flight: Inputs,
-    request: Token,
-) {
+pub(super) fn begin(core: &mut Core, env: &Env<Limits>, routed: &mut Routed, mut flight: Inputs, request: Token) {
     let capacity = env.limits.people.batch.checked_mul(env.limits.tasks.inputs).expect("bounded party inputs");
     let mut ids = List::with_capacity(capacity);
     for member in &flight.members {
@@ -41,16 +34,16 @@ pub(super) fn begin(
         }
     }
     if ids.is_empty() {
-        begin_creation(core, env, out, work, request, kind(&mut flight, Box::new([])), flight.members);
+        begin_creation(core, env, routed, request, kind(&mut flight, Box::new([])), flight.members);
         return;
     }
     flight.ids = ids.into_boxed();
     flight.stubs = List::with_capacity(capacity);
     if core.creating_inputs_flights() == core.flight_people_capacity {
-        pool_again(work, request, people::Again::Busy);
+        pool_again(&mut routed.work, request, people::Again::Busy);
         return;
     }
-    retain(core, out, request, flight);
+    retain(core, &mut routed.out, request, flight);
 }
 fn retain(core: &mut Core, out: &mut Queue<Request>, request: Token, flight: Inputs) {
     let tasks: Box<[u64]> = match &flight.row {
@@ -67,21 +60,15 @@ pub(super) struct Loaded {
     pub row: Option<Box<tasks::TaskRecord>>,
     pub busy: bool,
 }
-pub(super) fn loaded(
-    core: &mut Core,
-    env: &Env<Limits>,
-    out: &mut Queue<Request>,
-    work: &mut Queue<Work>,
-    loaded: Loaded,
-) {
+pub(super) fn loaded(core: &mut Core, env: &Env<Limits>, routed: &mut Routed, loaded: Loaded) {
     let Loaded { request, row, busy } = loaded;
     let Some((request, mut flight)) = core.take_creating_inputs(request) else { return };
     if busy {
-        pool_again(work, request, people::Again::Busy);
+        pool_again(&mut routed.work, request, people::Again::Busy);
         return;
     }
     let Some(row) = row else {
-        pool_refused(work, request, people::Refusal::Unknown);
+        pool_refused(&mut routed.work, request, people::Refusal::Unknown);
         return;
     };
     let wanted = *flight.ids.get(flight.at).expect("pending input");
@@ -90,7 +77,7 @@ pub(super) fn loaded(
             || row.project != flight.project
             || row.requester != tasks::Party::Person(flight.person)
         {
-            pool_refused(work, request, people::Refusal::Unknown);
+            pool_refused(&mut routed.work, request, people::Refusal::Unknown);
             return;
         }
         input
@@ -102,19 +89,24 @@ pub(super) fn loaded(
             }
         };
         if row.number != wanted || row.project != flight.project || !ended {
-            pool_refused(work, request, people::Refusal::Unknown);
+            pool_refused(&mut routed.work, request, people::Refusal::Unknown);
             return;
         }
         if !core.reaches_project(flight.role, flight.project)
             && row.requester != tasks::Party::Person(flight.person)
-            && !core.person_tree(flight.person, row.root, env.limits.tasks.depth)
+            && !Core::person_tree(
+                flight.person,
+                row.root,
+                env.limits.tasks.depth,
+                &tasks::CompoundAdmission::new(&core.tasks, 0),
+            )
         {
             if row.root == wanted || core.tasks.task(row.root).is_some() {
-                pool_refused(work, request, people::Refusal::Unknown);
+                pool_refused(&mut routed.work, request, people::Refusal::Unknown);
                 return;
             }
             flight.row = Some(row);
-            retain(core, out, request, flight);
+            retain(core, &mut routed.out, request, flight);
             return;
         }
         row
@@ -130,10 +122,10 @@ pub(super) fn loaded(
     flight.stubs.push(tasks::Stub { task: wanted, phase, result: Token::new(wanted) }).expect("one stub per input");
     flight.at = flight.at.checked_add(1).expect("bounded input position");
     if flight.at < flight.ids.len() {
-        retain(core, out, request, flight);
+        retain(core, &mut routed.out, request, flight);
     } else {
         let stubs = core::mem::replace(&mut flight.stubs, List::with_capacity(0)).into_boxed();
-        begin_creation(core, env, out, work, request, kind(&mut flight, stubs), flight.members);
+        begin_creation(core, env, routed, request, kind(&mut flight, stubs), flight.members);
     }
 }
 
