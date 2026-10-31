@@ -1,7 +1,7 @@
-//! A turn scenario world beside the unchanged first-version world. Its fake
-//! worker owns numbered opaque turns until acknowledged; the fake parent
-//! commits them in order, refuses under pressure, and restores its durable
-//! prefix after restart. The referee sees only their boundary observations.
+//! A turn scenario world whose fake worker owns numbered opaque turns until
+//! acknowledged; the fake parent commits them in order, refuses under pressure,
+//! and restores its durable prefix after restart. The referee sees only their
+//! boundary observations.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -207,7 +207,7 @@ impl World {
             self.report.trace.push(format!("{} {request:?}", self.tick));
             match request {
                 Request::Sources { channel, sources } => {
-                    assert!(sources.is_empty(), "legacy turn fixture has no program sources");
+                    assert!(sources.is_empty(), "turn fixture has no program sources");
                     fleet::step(
                         &mut self.domain,
                         &self.env,

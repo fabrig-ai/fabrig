@@ -28,9 +28,8 @@ fn the_next_start_settles_the_worker_s_claims_at_once() {
 
 #[test]
 fn a_kill_before_a_commit_loses_nothing_a_person_saw() {
-    // Engine submissions from spawn, measured against main's 168 (generation
-    // 1's manifest adds ten, the start's mark a write and sync): before opening
-    // the first turn's transcript shard.
+    // Cut at engine submission 180 from spawn, before opening the first
+    // turn's transcript shard.
     const BEFORE_TURN_COMMIT: u32 = 180;
     let outcome = crash(skein_world::Cut::Kill, BEFORE_TURN_COMMIT);
     assert_eq!(outcome.verdict, Verdict::Passed);
@@ -39,9 +38,7 @@ fn a_kill_before_a_commit_loses_nothing_a_person_saw() {
 }
 #[test]
 fn a_power_loss_mid_run_restarts_and_adopts_nothing_from_the_dead_worker() {
-    // Engine submissions from spawn, measured against main's 183 (generation
-    // 1's manifest adds ten, the start's mark a write and sync): before closing
-    // agent stdout.
+    // Cut at engine submission 195 from spawn, before closing agent stdout.
     const BEFORE_AGENT_OUTPUT_CLOSE: u32 = 195;
     let outcome = crash(skein_world::Cut::PowerLoss, BEFORE_AGENT_OUTPUT_CLOSE);
     assert_eq!(outcome.verdict, Verdict::Passed);

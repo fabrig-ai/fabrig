@@ -2234,7 +2234,8 @@ Each within jig's suites' budgets.
   world, whose store closes the window by the walk itself: smith's
   fixture turn kept at one text, and a patch marked fresh that changes
   no family. The independent testing of each change is an independent tester's from this
-  design, committed as `qa_*` tests the gate skips.
+  design, committed in `jig-store-world`'s `edges` binary, excluded from the
+  gate's default and fuzzy profiles and selected by the `qa-jig` profile.
 - **Step tests:** each key encoder against the derived order; each
   range's intervals against its predicate; each codec both ways, with
   golden bytes; refusals at open (format, deployment, sizes, numbers).

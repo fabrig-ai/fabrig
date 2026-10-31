@@ -3,10 +3,9 @@ use skein_world::domain::Verdict;
 
 #[test]
 fn drawn_kills_and_drains_keep_the_conformance_rules() {
-    // Engine submissions from spawn. The real key request is kept after 135
-    // (main: 125, before generation 1's manifest added ten); keep the offset
-    // of 43 and the 20-submission run/commit window, beginning before the
-    // first transcript shard opens (178).
+    // Engine submissions from spawn: the key request is kept after 135.
+    // Draw a cut in the 20-submission run/commit window starting at 178,
+    // before the first transcript shard opens.
     const KEY_KEPT: u32 = 135;
     const RUN_COMMIT_BASE: u32 = KEY_KEPT + 43;
     const RUN_COMMIT_WIDTH: u64 = 20;

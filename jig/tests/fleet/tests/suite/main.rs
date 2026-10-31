@@ -5,6 +5,7 @@ mod host_kinds;
 mod memory;
 mod models;
 mod notices;
+mod ownership_capacity;
 mod program_sources;
 mod referee;
 mod simulation;

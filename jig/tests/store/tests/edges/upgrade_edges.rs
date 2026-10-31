@@ -1,5 +1,5 @@
-//! Independent M1 contract checks through the public store world.
-//! protocol/store.md 8.3, 8.6 and 10.2; expectations are unexecuted here.
+//! Independent upgrade contract checks through the public store world.
+//! jig/docs/design/protocol/store.md 8.3, 8.6 and 10.2.
 use jig_domain_core as core;
 use jig_protocol_store::{Event, PatchSets, Request, TranscriptRead, Write};
 use jig_store_world::{World, patches, root};

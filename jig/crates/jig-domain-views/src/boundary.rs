@@ -51,7 +51,7 @@ pub struct TurnName {
     pub retry: u32,
 }
 
-/// A provider call's opaque identity (`QUESTIONS.md`, item 42).
+/// A provider call's opaque identity (`jig/docs/design/client/domain/contract.md`, 7.3).
 /// Compare only for equality. The same provider id in another issued completion
 /// or owner names a different call; none of these values is a routing number.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
