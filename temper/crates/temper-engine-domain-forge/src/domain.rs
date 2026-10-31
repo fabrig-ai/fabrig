@@ -124,6 +124,11 @@ pub struct Domain {
     pub(crate) under_box: bool,
     pub(crate) playground_config: Option<crate::PlaygroundConfig>,
     pub(crate) playground: Option<crate::Playground>,
+    pub(crate) playground_pending: Map<Token, Token>,
+    pub(crate) playground_ends: Map<Token, Token>,
+    pub(crate) playground_answers: Map<Token, crate::Answered>,
+    pub(crate) playground_due: Option<skein_lib::Time>,
+    pub(crate) playground_acts_sent: bool,
     pub(crate) demo: Option<crate::DemoConfig>,
     bindings: Map<Box<[u8]>, Box<[u8]>>,
     pub(crate) demo_state: Option<crate::DemoState>,
@@ -349,6 +354,9 @@ impl Domain {
         if let Some(answer) = self.connect.answers.get(&token) {
             return Some(answer.clone());
         }
+        if let Some(answer) = self.playground_answers.get(&token) {
+            return Some(answer.clone());
+        }
         if let Some(answer) = self.demo_answers.get(&token) {
             return Some(crate::Answered::StartDemo(answer.clone()));
         }
@@ -540,6 +548,11 @@ impl Domain {
             under_box,
             playground_config: None,
             playground: None,
+            playground_pending: Map::with_capacity(l.applications),
+            playground_ends: Map::with_capacity(l.applications),
+            playground_answers: Map::with_capacity(l.applications.saturating_mul(2)),
+            playground_due: None,
+            playground_acts_sent: false,
             demo: None,
             demo_state: None,
             bindings: Map::with_capacity(l.bindings),
@@ -685,6 +698,9 @@ impl Domain {
             (Some(client), Some(brief)) => Some(client.min(brief)),
             (client, brief) => client.or(brief),
         }
+        .into_iter()
+        .chain(self.playground_due)
+        .min()
     }
 
     /// Earliest procedure or projection wait, reported to the root's clock.
@@ -1061,7 +1077,9 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
             };
             out.push(Request::Bound { request, answer });
         }
-        Event::PlaygroundMade { .. } | Event::PlaygroundFailed { .. } | Event::ResetActAnswered { .. } => {}
+        Event::PlaygroundMade { project, account } => crate::playground::made(d, project, account, out),
+        Event::PlaygroundFailed { why } => crate::playground::failed(d, why, out),
+        Event::ResetActAnswered { key, keep } => crate::playground::act_answered(d, key, keep, out),
         Event::DemoActs { acts } => crate::demo::acts(d, acts, out),
         Event::DemoActAnswered { key, keep } => crate::demo::act_answered(d, key, keep, out),
         Event::SendDemoActs => crate::demo::send_acts(d, out),
@@ -1166,6 +1184,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
                 | crate::Connection::Stopped { .. } => None,
             };
             d.connections.insert(forge, (state, failed)).expect("configured forge connections");
+            crate::playground::connected(d, out);
             out.push(Request::MarkedForges);
         }
         Event::Installation { forge, installation, state } => {
@@ -1179,17 +1198,17 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
             }
             out.push(Request::MarkedForges);
         }
-        Event::SecretsErased { .. } | Event::BoxRemoved { .. } => {}
+        Event::SecretsErased { .. } | Event::BoxRemoved { .. } => crate::playground::removed(d, out),
         Event::Application { request, token, retention, ask, role, carried } => match ask {
             ask @ (crate::Ask::RemoveForge { .. }
-            | crate::Ask::StartPlayground
-            | crate::Ask::EndPlayground
             | crate::Ask::Connect { .. }
             | crate::Ask::Install { .. }
             | crate::Ask::Accept { .. }
             | crate::Ask::Reachable { .. }) => {
                 crate::connect::start(d, request, token, ask, role, carried, out);
             }
+            crate::Ask::StartPlayground => crate::playground::start(d, env.now, request, token, out),
+            crate::Ask::EndPlayground => crate::playground::end(d, request, token, out),
             crate::Ask::StartDemo => crate::demo::start(d, request, token, out),
             crate::Ask::Adopt(adoption) => adoption::start(d, env, request, token, retention, adoption, out),
             crate::Ask::SetUp { forge: crate::Making::New(_), .. } => {
@@ -1438,6 +1457,7 @@ pub fn resume(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
         drain(d, env, out);
         return;
     }
+    crate::playground::expire(d, env.now, out);
     brief::expire(d, env.now, out);
     let before = out.len();
     handoff_one(d, env, out);
@@ -1474,6 +1494,7 @@ pub fn fire(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
         drain(d, env, out);
         return;
     }
+    crate::playground::expire(d, env.now, out);
     brief::expire(d, env.now, out);
     let mut goals = List::with_capacity(env.limits.issues);
     for (goal, when) in &d.projection_due {
@@ -4843,9 +4864,7 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
         Stored::ForgeNumber { last } => {
             d.forge_number = d.forge_number.max(last);
         }
-        Stored::Playground(_) => {
-            // t-forge-map keeps it
-        }
+        Stored::Playground(row) => d.playground = Some(row),
         Stored::Landing(row) => {
             d.landing.rows.insert(row.landing.task, row).expect("restored landing within limits");
         }
@@ -5001,6 +5020,7 @@ fn read_afresh(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     crate::landing::rebuild(d);
     d.restore_phase = RestorePhase::Active;
     crate::demo::restart(d, out);
+    crate::playground::restart(d, out);
     d.restart_fresh = Some(false);
     let mut lost_runs = List::with_capacity(env.limits.holds);
     for (_, hold) in &d.holds {

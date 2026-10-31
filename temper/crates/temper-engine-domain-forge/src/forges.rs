@@ -51,7 +51,6 @@ impl Domain {
 }
 
 /// Make a record numbered next; refuse at the kept-forges bound or when numbers are spent.
-#[expect(dead_code, reason = "the forge-making entry points consume this shared surface")]
 pub(crate) fn make(
     d: &mut Domain,
     kind: Kind,
