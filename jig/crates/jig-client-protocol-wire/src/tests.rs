@@ -88,18 +88,18 @@ fn a_read_value_round_trips_with_its_owner_version() {
 #[test]
 fn a_page_one_row_past_its_limit_is_refused() {
     let limits = fixtures::limits();
-    let rows = fixtures::funding_rows(limits.owner_spend_page_rows.checked_add(1).expect("small bound"));
+    let rows = fixtures::funding_rows(limits.spend_page_rows.checked_add(1).expect("small bound"));
     assert_eq!(
-        OwnerSpendPage::new(&limits, OwnerSpendPageParts { rows, before: None, after: None, cut: false }),
-        Err(Problem { path: Path::OwnerSpendPageRows, reason: skein_codec::Reason::Bound })
+        SpendPage::new(&limits, SpendPageParts { rows, before: None, after: None, cut: false }),
+        Err(Problem { path: Path::SpendPageRows, reason: skein_codec::Reason::Bound })
     );
 }
 
 fn an_activity_line_carries_its_turn_bytes_unchanged() {
     let limits = fixtures::limits();
     let line = fixtures::activity_line(Box::from([0, 255, 1]));
-    let bytes = fixtures::encoded(&line, ActivityLine::measure, ActivityLine::encode);
-    assert_eq!(ActivityLine::decode(&limits, &mut Reader::new(&bytes)), Ok(line));
+    let bytes = fixtures::encoded(&line, DecodedActivityLine::measure, DecodedActivityLine::encode);
+    assert_eq!(DecodedActivityLine::decode(&limits, &mut Reader::new(&bytes)), Ok(line));
 }
 
 #[test]
@@ -200,8 +200,8 @@ fn each_watch_end_but_dropped_round_trips() {
         WatchEnd::Stopping,
     ] {
         let ended = fixtures::ended(&limits, why);
-        let bytes = fixtures::encoded(&ended, Ended::measure, Ended::encode);
-        assert_eq!(Ended::decode(&limits, &mut Reader::new(&bytes)), Ok(ended));
+        let bytes = fixtures::encoded(&ended, WatchEnded::measure, WatchEnded::encode);
+        assert_eq!(WatchEnded::decode(&limits, &mut Reader::new(&bytes)), Ok(ended));
     }
 }
 
@@ -210,20 +210,20 @@ fn an_account_waiting_to_ask_again_carries_the_wall_it_asks_at() {
     let limits = fixtures::stream_limits();
     for until in [None, Some(0), Some(u64::MAX)] {
         let state = fixtures::waiting_account_state(&limits, until);
-        let account = fixtures::owner_account(&limits, state.clone());
-        let bytes = fixtures::encoded(&account, OwnerAccount::measure, OwnerAccount::encode);
-        let decoded = OwnerAccount::decode(&limits, &mut Reader::new(&bytes)).expect("whole account document");
+        let account = fixtures::account(&limits, state.clone());
+        let bytes = fixtures::encoded(&account, Account::measure, Account::encode);
+        let decoded = Account::decode(&limits, &mut Reader::new(&bytes)).expect("whole account document");
         assert_eq!(decoded.state(), &state);
         assert_eq!(decoded, account);
     }
 }
 
 #[test]
-fn a_historical_goal_holding_keeps_its_opaque_segments() {
+fn a_ended_goal_holding_keeps_its_opaque_segments() {
     let limits = fixtures::stream_limits();
-    let holding = fixtures::historical_goal_holding(&limits);
-    let bytes = fixtures::encoded(&holding, OwnerGoalHolding::measure, OwnerGoalHolding::encode);
-    assert_eq!(OwnerGoalHolding::decode(&limits, &mut Reader::new(&bytes)), Ok(holding));
+    let holding = fixtures::ended_goal_holding(&limits);
+    let bytes = fixtures::encoded(&holding, GoalHolding::measure, GoalHolding::encode);
+    assert_eq!(GoalHolding::decode(&limits, &mut Reader::new(&bytes)), Ok(holding));
 }
 
 fn small_store_family(limits: &Limits) -> Family {

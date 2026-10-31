@@ -15,22 +15,22 @@ macro_rules! value {
 
 pub fn read_values(limits: &Limits) -> List<(&'static str, ReadValue)> {
     let mut values = List::with_capacity(26);
-    value!(values, limits, OwnerProject, OwnerProject, 116);
-    value!(values, limits, Historical, OwnerHistorical, 289, Box::new);
+    value!(values, limits, Project, Project, 116);
+    value!(values, limits, Ended, Ended, 289, Box::new);
     value!(values, limits, Me, Me, 79);
     value!(values, limits, Turn, ArchivedTurn, 42);
     value!(values, limits, Task, Task, 262);
-    value!(values, limits, OwnerProposal, OwnerProposal, 57);
-    value!(values, limits, OwnerEscalation, OwnerEscalation, 266);
+    value!(values, limits, Proposal, Proposal, 57);
+    value!(values, limits, Escalation, Escalation, 266);
     value!(values, limits, Question, Question, 31);
-    value!(values, limits, OwnerPersonTask, OwnerPersonTask, 71);
+    value!(values, limits, PersonTask, PersonTask, 71);
     value!(values, limits, Result, ResultDocument, 15);
-    value!(values, limits, OwnerEnded, OwnerEndedPage, 7);
+    value!(values, limits, EndedPage, EndedPage, 7);
     value!(values, limits, History, HistoryPage, 7);
     value!(values, limits, Activity, ActivityPage, 7);
-    value!(values, limits, OwnerInbox, OwnerInboxPage, 8);
-    value!(values, limits, OwnerSpend, OwnerSpendPage, 7);
+    value!(values, limits, Inbox, InboxPage, 8);
+    value!(values, limits, Spend, SpendPage, 7);
     value!(values, limits, Notes, NotePage, 7);
-    value!(values, limits, OwnerDeployment, OwnerDeployment, 148);
+    value!(values, limits, Deployment, Deployment, 148);
     values
 }
