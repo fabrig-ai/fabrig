@@ -161,3 +161,15 @@ read scopes (`jp-scopes` owns `jig-protocol-store/src/reads/**` and
 
 The standard report, plus: every forced arm outside the owned files;
 the key's bytes as written; whether the layout fingerprint test moved.
+
+## Rebase (2026-10-31, step merge, foreman playground-reset-r2/jp-row/foreman-1)
+
+resolve vocabulary.rs by preserving jp-scopes sizing changes and adding Removal to the refusal arm.
+The merge conflicts in `jig/crates/jig-domain-core/src/reads/vocabulary.rs`, function `record_bytes`.
+Branch commit `358cda8f5c` adds `CoreRecord::Removal(_)` to the arm returning `None`.
+Integration commit `f9c6fdd8d782d823e2d6a094e3aed1d4fa037229` (jp-scopes) rewrites that same arm.
+Keep its separate sizing arms for `RunProof`, `Call`, and `Settings::Proposal`, and its `EndedRead` handling.
+Add `CoreRecord::Removal(_)` alongside `Settings(_)`, `Deployment(_)`, and `Projection(_)` in the remaining arm returning `None`.
+Preserve jp-scopes’ `EndedTasks` and `TaskRows` scopes and the other automatically merged changes.
+This is the forced exhaustive-match edit authorized by jp-row; no deletion behavior or scope changes are needed.
+No files changed, builds run, or pushes made. The read-only filesystem prevents writing report.md; this response is the report.
