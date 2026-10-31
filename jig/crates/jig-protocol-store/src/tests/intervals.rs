@@ -406,3 +406,58 @@ fn tasks_restore_includes_placed_holds_beyond_the_history_families() {
         ));
     }
 }
+
+#[test]
+fn project_notes_intervals_follow_the_full_key_cursor_across_scopes() {
+    let scopes = [
+        notes::Scope::Deployment,
+        notes::Scope::Project { project: 0 },
+        notes::Scope::Project { project: 7 },
+        notes::Scope::Project { project: u32::MAX },
+        notes::Scope::Goal { project: 7, goal: 1 },
+        notes::Scope::Goal { project: 8, goal: 1 },
+        notes::Scope::Resources {
+            project: 7,
+            connector: 1,
+            pattern: notes::Pattern { segments: Box::new([]), last: notes::Last::Open(Box::new([])) },
+        },
+    ];
+    let mut keys = skein_lib::List::with_capacity(15);
+    keys.push(notes::Key::Entry { name: 1 }).expect("one entry and fourteen scope lines");
+    for scope in scopes {
+        for name in [1, 2] {
+            keys.push(notes::Key::Line { scope: scope.clone(), name }).expect("fourteen scope lines");
+        }
+    }
+    let mut cursors = skein_lib::List::with_capacity(16);
+    cursors.push(None).expect("initial cursor");
+    for key in &keys {
+        cursors.push(Some(key.clone())).expect("one cursor per key");
+    }
+    for project in [0, 7, u32::MAX] {
+        for after in &cursors {
+            let ranges = intervals::notes(&notes::Range::Project { project, after: after.clone() });
+            for key in &keys {
+                let in_project = match key {
+                    notes::Key::Entry { .. } => false,
+                    notes::Key::Line { scope, .. } => match scope {
+                        notes::Scope::Deployment => false,
+                        notes::Scope::Project { project: found }
+                        | notes::Scope::Goal { project: found, .. }
+                        | notes::Scope::Resources { project: found, .. } => project == *found,
+                    },
+                };
+                let past_cursor = match after {
+                    Some(cursor) => key > cursor,
+                    None => true,
+                };
+                let expected = in_project && past_cursor;
+                assert_eq!(
+                    fixtures::within(&ranges, &key_bytes(&Key::Notes(key.clone()))),
+                    expected,
+                    "{project} {after:?} {key:?}"
+                );
+            }
+        }
+    }
+}

@@ -502,24 +502,44 @@ impl CoreRange {
             }
             CoreRange::Notes(range) => {
                 let Core::Notes(child) = key else { return false };
-                match range {
-                    jig_domain_notes::Range::Entry { name } => match child {
-                        jig_domain_notes::Key::Entry { name: found } => name == found,
-                        jig_domain_notes::Key::Line { .. } => false,
-                    },
-                    jig_domain_notes::Range::Lines { scope, after } => match child {
-                        jig_domain_notes::Key::Line { scope: found, name } => {
-                            let past_cursor = match after {
-                                Some(cursor) => name > cursor,
-                                None => true,
-                            };
-                            scope == found && past_cursor
-                        }
-                        jig_domain_notes::Key::Entry { .. } => false,
-                    },
-                }
+                notes_contains(range, child)
             }
         }
+    }
+}
+
+fn notes_contains(range: &jig_domain_notes::Range, child: &jig_domain_notes::Key) -> bool {
+    match range {
+        jig_domain_notes::Range::Project { project, after } => match child {
+            jig_domain_notes::Key::Line { scope, .. } => {
+                let in_project = match scope {
+                    jig_domain_notes::Scope::Deployment => false,
+                    jig_domain_notes::Scope::Project { project: found }
+                    | jig_domain_notes::Scope::Goal { project: found, .. }
+                    | jig_domain_notes::Scope::Resources { project: found, .. } => project == found,
+                };
+                let past_cursor = match after {
+                    Some(cursor) => child > cursor,
+                    None => true,
+                };
+                in_project && past_cursor
+            }
+            jig_domain_notes::Key::Entry { .. } => false,
+        },
+        jig_domain_notes::Range::Entry { name } => match child {
+            jig_domain_notes::Key::Entry { name: found } => name == found,
+            jig_domain_notes::Key::Line { .. } => false,
+        },
+        jig_domain_notes::Range::Lines { scope, after } => match child {
+            jig_domain_notes::Key::Line { scope: found, name } => {
+                let past_cursor = match after {
+                    Some(cursor) => name > cursor,
+                    None => true,
+                };
+                scope == found && past_cursor
+            }
+            jig_domain_notes::Key::Entry { .. } => false,
+        },
     }
 }
 
@@ -646,7 +666,6 @@ pub fn record_bytes(record: &Record) -> Option<u64> {
         },
         Record::Forge { row, .. } => temper_engine_domain_forge::stored_bytes(row),
         Record::Core(jig_domain_core::Record::People(row)) => match row {
-            jig_domain_people::Stored::Deletion { .. } => Some(0),
             jig_domain_people::Stored::Person { identity, .. } => u64::try_from(identity.key.subject.len())
                 .ok()?
                 .checked_add(u64::try_from(identity.login.len()).ok()?)?
@@ -656,7 +675,6 @@ pub fn record_bytes(record: &Record) -> Option<u64> {
                 .checked_mul(u64::try_from(size_of::<jig_domain_people::Holding>()).ok()?),
             jig_domain_people::Stored::Answer { ask, models, outcome, .. } => {
                 let payload = match ask.as_ref() {
-                    jig_domain_people::Ask::RemoveProject { .. } => Some(0),
                     jig_domain_people::Ask::AccountChange { change, .. } => {
                         use jig_domain_people::AccountChange;
                         match change {
@@ -743,7 +761,8 @@ pub fn record_bytes(record: &Record) -> Option<u64> {
                     jig_domain_people::Ask::Move { reason, .. } | jig_domain_people::Ask::Cancel { reason, .. } => {
                         u64::try_from(reason.len()).ok()
                     }
-                    jig_domain_people::Ask::ChangeSettings { .. }
+                    jig_domain_people::Ask::RemoveProject { .. }
+                    | jig_domain_people::Ask::ChangeSettings { .. }
                     | jig_domain_people::Ask::MoveToNewest { .. }
                     | jig_domain_people::Ask::Withdraw { .. }
                     | jig_domain_people::Ask::MarkSeen { .. }
@@ -777,7 +796,8 @@ pub fn record_bytes(record: &Record) -> Option<u64> {
                 }?;
                 model_context_bytes(models)?.checked_add(payload)?.checked_add(program_answer_bytes(outcome)?)
             }
-            jig_domain_people::Stored::SignIn { .. }
+            jig_domain_people::Stored::Deletion { .. }
+            | jig_domain_people::Stored::SignIn { .. }
             | jig_domain_people::Stored::ReadResults { .. }
             | jig_domain_people::Stored::EndedRead { .. }
             | jig_domain_people::Stored::ReadConversation { .. } => Some(0),
@@ -786,9 +806,10 @@ pub fn record_bytes(record: &Record) -> Option<u64> {
             }
             jig_domain_people::Stored::Acted { act, outcome, .. } => {
                 let payload = match act {
-                    jig_domain_people::Act::RemoveProject { .. } => 0,
                     jig_domain_people::Act::Close { reason, .. } => u64::try_from(reason.len()).ok()?,
-                    jig_domain_people::Act::AddKey { .. } | jig_domain_people::Act::RemoveAccount { .. } => 0,
+                    jig_domain_people::Act::RemoveProject { .. }
+                    | jig_domain_people::Act::AddKey { .. }
+                    | jig_domain_people::Act::RemoveAccount { .. } => 0,
                     jig_domain_people::Act::Adopt { adoption, .. } => adoption_bytes(adoption)?,
                     jig_domain_people::Act::MakeProject { .. } => unreachable!("demo never makes a project"),
                 };

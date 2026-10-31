@@ -100,10 +100,30 @@ fn census_ranges(census: &core::Census) -> Box<[Range]> {
     ranges.into_boxed()
 }
 
-/// One globally named entry or the ordered lines of one exact scope.
+/// One globally named entry or the ordered lines of a scope or project.
 #[must_use]
 pub fn notes(range: &notes::Range) -> Box<[Range]> {
     Box::new([match range {
+        notes::Range::Project { project, after: cursor } => {
+            let mut ranges = List::with_capacity(3);
+            let start = match cursor {
+                Some(key) => after(&encoded(&core::Key::Notes(key.clone()))),
+                None => Box::new([]),
+            };
+            for tag in [1, 2, 3] {
+                let mut range = numbered_prefix(&[keys::JIG, 3, 1, tag], u64::from(*project));
+                if let Some(end) = &range.end
+                    && &start >= end
+                {
+                    continue;
+                }
+                if start > range.start {
+                    range.start.clone_from(&start);
+                }
+                ranges.push(range).expect("three project scope intervals");
+            }
+            return ranges.into_boxed();
+        }
         notes::Range::Entry { name } => point(&core::Key::Notes(notes::Key::Entry { name: *name })),
         notes::Range::Lines { scope, after: cursor } => {
             let first = encoded(&core::Key::Notes(notes::Key::Line { scope: scope.clone(), name: 0 }));
@@ -140,7 +160,6 @@ fn after(key: &[u8]) -> Box<[u8]> {
 pub fn scope(party: u64, scope: &core::reads::Scope) -> Option<Box<[Range]>> {
     use core::reads::Scope;
     Some(match scope {
-        Scope::EndedTasks | Scope::TaskRows { .. } => return None,
         Scope::SettingsHistory { first, last, newest, .. } => {
             let mut ranges = List::with_capacity(2);
             if first < newest {
@@ -209,7 +228,9 @@ pub fn scope(party: u64, scope: &core::reads::Scope) -> Option<Box<[Range]>> {
             | core::reads::Group::Questions
             | core::reads::Group::PersonTasks => return None,
         },
-        Scope::Proposal { proposer: jig_domain_people::Proposer::Task(_), .. }
+        Scope::EndedTasks
+        | Scope::TaskRows { .. }
+        | Scope::Proposal { proposer: jig_domain_people::Proposer::Task(_), .. }
         | Scope::Escalation { .. }
         | Scope::Question { .. }
         | Scope::Turn { .. }

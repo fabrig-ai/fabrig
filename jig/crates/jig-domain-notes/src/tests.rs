@@ -334,3 +334,47 @@ fn a_named_recall_loads_its_entry_without_caching_the_body() {
     assert_eq!(entries.get(0).expect("one entry").name, 20);
     assert_eq!(h.domain.cached_scopes(), 0);
 }
+
+#[test]
+fn a_project_drop_retries_busy_loads_and_answers_only_after_an_empty_page() {
+    let mut h = Harness::new();
+    let caller = Token::new(71);
+    let first = h.step(Event::DropProject { owner: caller, project: 7 });
+    let [Request::Load { owner, range: Range::Project { project: 7, after: None } }] = &*first else {
+        panic!("project load: {first:?}");
+    };
+    let first_owner = *owner;
+    assert!(h.domain.busy());
+    assert_eq!(
+        &*h.step(Event::DropProject { owner: Token::new(72), project: 8 }),
+        &[Request::Refused { owner: Token::new(72), why: Refusal::Busy }]
+    );
+    assert_eq!(
+        &*h.step(Event::Write { owner: Token::new(73), entry: new(21, b"new"), recalled: None }),
+        &[Request::Refused { owner: Token::new(73), why: Refusal::Busy }]
+    );
+    let retry = h.step(Event::LoadFailed { owner: first_owner });
+    let [Request::Load { owner, range: Range::Project { project: 7, after: None } }] = &*retry else {
+        panic!("retry project load: {retry:?}");
+    };
+    assert_ne!(*owner, first_owner, "retry has a fresh load token");
+    assert!(h.step(Event::LoadFailed { owner: first_owner }).is_empty(), "stale failure is ignored");
+    let next = h.step(Event::Loaded { owner: *owner, rows: rows(&[Record::Line(line(7, 20, b"note"))]), more: false });
+    let [Request::Erase { key }, Request::Load { owner, range: Range::Project { project: 7, after: Some(after) } }] =
+        &*next
+    else {
+        panic!("erase and next page: {next:?}");
+    };
+    assert_eq!(key, &crate::Key::Line { scope: Scope::Project { project: 7 }, name: 20 });
+    assert_eq!(key, after);
+    let retry = h.step(Event::LoadFailed { owner: *owner });
+    let [Request::Load { owner, range: Range::Project { project: 7, after: Some(cursor) } }] = &*retry else {
+        panic!("retry continuation: {retry:?}");
+    };
+    assert_eq!(cursor, key, "busy continuation keeps its cursor");
+    assert_eq!(
+        &*h.step(Event::Loaded { owner: *owner, rows: rows(&[]), more: false }),
+        &[Request::ProjectDropped { owner: caller }]
+    );
+    assert!(!h.domain.busy());
+}

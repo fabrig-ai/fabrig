@@ -24,6 +24,11 @@ fn run(seed: u64) -> (Vec<String>, std::collections::BTreeMap<jig_domain_notes::
             world.restart();
         }
     }
+    let project = if rng.chance(500) { 7 } else { 8 };
+    let _dropped = world.call(Event::DropProject { owner: Token::new(2000), project });
+    world.restart();
+    let _index =
+        world.call(Event::Index { owner: Token::new(2001), scopes: one_scope(Scope::Project { project }), most: 2 });
     (world.trace().to_vec(), world.records().clone())
 }
 
