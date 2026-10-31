@@ -5277,3 +5277,19 @@ fn each_conversation_opens_with_its_line() {
     let [Request::Open { opening, .. }] = requests.as_ref() else { panic!("child opening: {requests:?}") };
     assert_eq!(opening.line, 239_018);
 }
+
+#[test]
+fn a_child_overflow_cancels_run_alarms_while_main_closes() {
+    for end in [End::PriceOverflow, End::UsageOverflow] {
+        let mut harness = Harness::new(LIMITS);
+        let (_, main) = harness.running_on(1, 100, agents());
+        let (child, _) = harness.child(main, 7, families(true, false, false), 101);
+        let requests =
+            harness.step(Event::Ended { conversation: child, end, spend: Spend::ZERO, detail: Box::default() });
+        assert!(requests.contains(&Request::Close { peer: Token::new(100) }), "child overflow closes main");
+        harness.after(BUDGET.time);
+        fire(&mut harness.domain, &harness.env, &mut harness.out);
+        assert!(harness.drain().is_empty(), "closing main owes its terminal, not an alarm");
+        assert!(!harness.domain.is_due(harness.env.now));
+    }
+}
