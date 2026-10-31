@@ -147,7 +147,6 @@ use accounting::{
 };
 pub(crate) use accounting::{content_cost, provider_reserve};
 use restore::restore;
-use retry::completion_failed;
 use tell::{Cursor, end_fact, next_response, next_sequence, tell, tell_turn};
 
 use alloc::boxed::Box;
@@ -838,26 +837,17 @@ pub(crate) fn failed(
     );
     let state = mem::replace(&mut session.state, State::Closed);
     session.state = match state {
-        State::Completing { attempt } => {
-            if failure == Failure::SessionGone {
-                match compaction::session_gone(&mut session.conversation) {
-                    Some(end) => finish(end),
-                    None => ask(&mut session.conversation, id, 0, env, out),
-                }
-            } else if compaction::context_failure(failure) {
-                match compaction::start(
-                    &mut session.conversation,
-                    &env.limits,
-                    evidence,
-                    attempt.checked_add(1).expect("a completion has a one-based attempt"),
-                ) {
-                    Some(end) => finish(end),
-                    None => ask(&mut session.conversation, id, 0, env, out),
-                }
-            } else {
-                completion_failed(attempt, failure, evidence, retry_ok, &session.conversation, &mut domain.rng, env)
-            }
-        }
+        State::Completing { attempt } => retry::failed(
+            attempt,
+            failure,
+            evidence,
+            retry_ok,
+            &mut session.conversation,
+            id,
+            &mut domain.rng,
+            env,
+            out,
+        ),
         State::Closing { end, waiting: waiting @ Waiting { completion: true, .. }, tools } => {
             State::Closing { end, waiting: Waiting { completion: false, ..waiting }, tools }
         }

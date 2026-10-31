@@ -8,7 +8,7 @@ use core::mem::{self, size_of};
 use skein_lib::{List, Queue, Writer};
 
 use super::{Conversation, End, Limits, Request, content_cost, payload_cost, release_provider, spec_cost};
-use crate::llm::{Block, Cap, Evidence, Failure, Limit, Message, Role, Stop, Usage};
+use crate::llm::{Block, Evidence, Failure, Limit, Message, Role, Stop, Usage};
 use crate::window::{self, Admission, Stage, Tokens, Window};
 
 /// Opener text waits beside the old history until its new window opens.
@@ -292,28 +292,6 @@ fn new_bytes(conversation: &Conversation, content: &[Block]) -> Option<u64> {
             Some(effort) => u64::try_from(effort.len()).ok()?,
             None => 0,
         })
-}
-
-pub(super) fn context_failure(failure: Failure) -> bool {
-    match failure {
-        Failure::ContextTooLong | Failure::Limit { which: Limit::Path(Cap::Request), .. } => true,
-        Failure::Limit { .. }
-        | Failure::ApplicationLimit
-        | Failure::Protocol
-        | Failure::Cancelled
-        | Failure::Overloaded
-        | Failure::RateLimited { .. }
-        | Failure::Unavailable
-        | Failure::TimedOut { .. }
-        | Failure::Refused
-        | Failure::SignedOut
-        | Failure::Program { .. }
-        | Failure::SessionGone
-        | Failure::Unsupported
-        | Failure::Invalid
-        | Failure::Unauthorized
-        | Failure::Exhausted { .. } => false,
-    }
 }
 
 pub(super) fn answered(
