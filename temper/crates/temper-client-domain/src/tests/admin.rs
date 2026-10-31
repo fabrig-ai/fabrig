@@ -78,15 +78,6 @@ fn write(root: &mut crate::Domain, field: Field, bytes: &[u8]) {
     act(root, forge::Act::AdminWrite { field, text: bytes.into() });
 }
 #[test]
-fn only_the_configured_admin_form_has_a_card() {
-    for (admin, expected) in [(false, &[Choice::Elsewhere][..]), (true, &[Choice::Forge(FORGE), Choice::Elsewhere][..])]
-    {
-        let (mut root, watch) = opened();
-        deliver(&mut root, watch, row(admin, w::Connection::NotConnected, None, None));
-        assert_eq!(forge::connect::choices(root.forges(), None).as_slice(), expected);
-    }
-}
-#[test]
 fn empty_tokens_and_names_and_invalid_labels_send_nothing() {
     let (mut root, _) = opened();
     assert!(send(&mut root).is_empty());
@@ -365,4 +356,84 @@ fn an_admin_first_adoption_advances_only_the_welcome() {
         }
         assert_eq!(moves, u32::from(welcome));
     }
+}
+
+#[test]
+fn a_managed_forgejo_sends_connect_new_managed_with_its_place() {
+    let (mut root, _, _) = connect::opened(true);
+    token(&mut root, TOKEN);
+    let place = forge::forges::Managed {
+        host: b"forge.example".as_slice().into(),
+        port: 443,
+        tls: Some(b"forge.example".as_slice().into()),
+        git: b"https://forge.example/".as_slice().into(),
+        web: Some(b"https://forge.example".as_slice().into()),
+    };
+    let mut out = act(&mut root, forge::Act::Forges(forge::forges::Act::Managed { place: place.clone() }));
+    let mut found = false;
+    while let Some(request) = out.pop() {
+        if let Request::Client {
+            request:
+                jig_client::Request::Down { down: Down::Send { request: jig_client::Ask::Family { record, .. }, .. } },
+        } = request
+        {
+            let w::Request::Connect(connect) =
+                wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().into_parts().request
+            else {
+                panic!("connect")
+            };
+            let w::Making::New(new) = connect.forge() else { panic!("new") };
+            let w::ForgeAsk::Managed(managed) = new.forge() else { panic!("managed") };
+            assert_eq!(
+                (managed.host(), managed.port(), managed.tls(), managed.git(), managed.web()),
+                (place.host.as_ref(), place.port, &place.tls, place.git.as_ref(), &place.web)
+            );
+            found = true;
+        }
+    }
+    assert!(found);
+}
+#[test]
+fn a_managed_place_requires_a_host_and_nonzero_port() {
+    for (host, port) in [(b"".as_slice(), 443), (b"forge.example".as_slice(), 0)] {
+        let (mut root, _, _) = connect::opened(true);
+        token(&mut root, TOKEN);
+        let place = forge::forges::Managed { host: host.into(), port, tls: None, git: Box::default(), web: None };
+        assert!(act(&mut root, forge::Act::Forges(forge::forges::Act::Managed { place })).is_empty());
+        assert!(root.forge().admin_form().has_token());
+    }
+}
+
+#[test]
+fn the_managed_address_draft_validates_ports_at_both_bounds() {
+    use forge::admin::PlaceField;
+    let (mut root, _, _) = connect::opened(true);
+    for (bytes, expected) in [
+        (b"0".as_slice(), None),
+        (b"1", Some(1)),
+        (b"65535", Some(u16::MAX)),
+        (b"65536", None),
+        (b"", None),
+        (b"-1", None),
+        (b" 443", None),
+    ] {
+        act(
+            &mut root,
+            forge::Act::Forges(forge::forges::Act::PlaceWrite { field: PlaceField::Port, text: bytes.into() }),
+        );
+        assert_eq!(root.forge().admin_form().place.port(), expected);
+    }
+    act(
+        &mut root,
+        forge::Act::Forges(forge::forges::Act::PlaceWrite { field: PlaceField::Port, text: b"443".as_slice().into() }),
+    );
+    assert!(root.forge().admin_form().place.place().is_none());
+    act(
+        &mut root,
+        forge::Act::Forges(forge::forges::Act::PlaceWrite {
+            field: PlaceField::Host,
+            text: b"forge.example".as_slice().into(),
+        }),
+    );
+    assert_eq!(root.forge().admin_form().place.place().unwrap().host.as_ref(), b"forge.example");
 }

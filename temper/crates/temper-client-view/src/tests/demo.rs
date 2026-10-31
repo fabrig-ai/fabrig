@@ -374,12 +374,8 @@ fn the_playground_account_is_in_its_own_folded_section() {
     assert_eq!(count, Some(b"0".as_slice()));
     assert!(f::find(view.tree(), Role::Paragraph, b"No model of yours yet.").is_some());
     assert!(
-        f::find(
-            view.tree(),
-            Role::Disclosure,
-            "Scripted model · the playground’s, until a model of yours connects · held by the deployment".as_bytes()
-        )
-        .is_some()
+        f::find(view.tree(), Role::Disclosure, "Scripted model · the playground’s · held by the deployment".as_bytes())
+            .is_some()
     );
 }
 

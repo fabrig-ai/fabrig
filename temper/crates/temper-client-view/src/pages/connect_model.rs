@@ -288,7 +288,7 @@ fn choose_body(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Binding
     let Some(page) = root.pages().connect_model() else { return };
     let Some(me) = accounts::current_me(root.client()) else { return };
     let welcome = welcome(root);
-    let ways = accounts::ways(&me.providers, root.forge().demo_provider(), page.holder);
+    let ways = accounts::ways(&me.providers, root.forge().playground_provider(), page.holder);
     let busy = if let Some(p) = &page.request.pending { p.outcome.is_none() } else { false };
     if !welcome {
         flow::card(b, &say(w, W::Choose));
@@ -320,8 +320,8 @@ fn choose_body(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Binding
 pub(crate) fn body(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, text_per_node: u32) {
     let Some(page) = root.pages().connect_model() else { return };
     let Some(me) = accounts::current_me(root.client()) else { return };
-    let demo = root.forge().demo_provider();
-    let ways = accounts::ways(&me.providers, demo, page.holder);
+    let playground = root.forge().playground_provider();
+    let ways = accounts::ways(&me.providers, playground, page.holder);
     let way = model::way(root.pages(), root.client());
     let busy = match &page.request.pending {
         Some(p) => p.outcome.is_none(),
@@ -526,7 +526,7 @@ pub(super) fn welcome_end(b: &mut Builder, root: &Domain, w: &Words, bindings: &
         | c::OwnerAccountEnd::Failed { .. } => return,
     };
     let Some(me) = accounts::current_me(root.client()) else { return };
-    let ways = accounts::ways(&me.providers, root.forge().demo_provider(), c::AccountHolder::Own);
+    let ways = accounts::ways(&me.providers, root.forge().playground_provider(), c::AccountHolder::Own);
     // These endings are ChatGPT's: last_end has no provider on a Failed ending.
     let mut offered = None;
     for way in &ways {
@@ -721,9 +721,6 @@ fn facts(b: &mut Builder, root: &Domain, w: &Words, way: Way) {
         ),
     );
     b.close();
-    if page.playground {
-        text(b, w, Role::Paragraph, W::SteppedAside);
-    }
 }
 fn manage_usage(b: &mut Builder, root: &Domain, w: &Words, way: Way) {
     let Some(doc) = accounts::document(root.client()) else { return };
