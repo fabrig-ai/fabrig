@@ -7,7 +7,7 @@ use skein_lib::{Duration, Env, List, Queue, Time, Wall, bytes};
 use skein_oauth as oauth;
 use skein_oauth_accounts as accounts;
 use skein_world::domain::Ledger;
-use skein_world::{Host, Memory, Outcome, Referee, World};
+use skein_world::{Forward, Host, Memory, Outcome, Referee, World};
 use std::net::{Ipv4Addr, SocketAddr};
 mod browser;
 #[cfg(test)]
@@ -469,13 +469,7 @@ impl Host for Client {
         {
             self.observe(&env);
         }
-        for _ in 0..ROOM {
-            if !self.io.takes() || self.submissions.room() < 2 {
-                break;
-            }
-            let Some(request) = self.requests.pop() else { break };
-            io::down(&mut self.io, &io_env, request, &mut self.submissions);
-        }
+        io::stage::down(&mut self.io, &io_env, &mut self.requests, &mut self.submissions);
         self.private_io(&env);
         self.io.reclaim();
         if let Some(component) = &mut self.component {
@@ -545,63 +539,20 @@ pub enum Process {
     Browser(Box<Browser>),
 }
 
-impl Host for Process {
-    fn iterate(&mut self, now: Time, wall: Wall) {
+impl Forward for Process {
+    fn host(&self) -> &dyn Host {
         match self {
-            Process::Client(client) => client.iterate(now, wall),
-            Process::Issuer(peer) => peer.iterate(now, wall),
-            Process::Browser(browser) => browser.iterate(now, wall),
-        }
-    }
-    fn completions(&mut self) -> &mut Queue<kernel::Complete> {
-        match self {
-            Process::Client(client) => client.completions(),
-            Process::Issuer(peer) => peer.completions(),
-            Process::Browser(browser) => browser.completions(),
-        }
-    }
-    fn submissions(&mut self) -> &mut Queue<kernel::Submit> {
-        match self {
-            Process::Client(client) => client.submissions(),
-            Process::Issuer(peer) => peer.submissions(),
-            Process::Browser(browser) => browser.submissions(),
-        }
-    }
-    fn work_pending(&self, now: Time) -> bool {
-        match self {
-            Process::Client(client) => client.work_pending(now),
-            Process::Issuer(peer) => peer.work_pending(now),
-            Process::Browser(browser) => browser.work_pending(now),
-        }
-    }
-    fn next_deadline(&self) -> Option<Time> {
-        match self {
-            Process::Client(client) => client.next_deadline(),
-            Process::Issuer(peer) => peer.next_deadline(),
-            Process::Browser(browser) => browser.next_deadline(),
+            Process::Client(client) => client.as_ref(),
+            Process::Issuer(peer) => peer.as_ref(),
+            Process::Browser(browser) => browser.as_ref(),
         }
     }
 
-    fn next_policy_deadline(&self) -> Option<Time> {
+    fn host_mut(&mut self) -> &mut dyn Host {
         match self {
-            Process::Client(client) => client.next_policy_deadline(),
-            Process::Issuer(peer) => peer.next_policy_deadline(),
-            Process::Browser(browser) => browser.next_policy_deadline(),
-        }
-    }
-
-    fn is_empty(&self) -> bool {
-        match self {
-            Process::Client(client) => client.is_empty(),
-            Process::Issuer(peer) => peer.is_empty(),
-            Process::Browser(browser) => browser.is_empty(),
-        }
-    }
-    fn operations(&self) -> u32 {
-        match self {
-            Process::Client(client) => client.operations(),
-            Process::Issuer(peer) => peer.operations(),
-            Process::Browser(browser) => browser.operations(),
+            Process::Client(client) => client.as_mut(),
+            Process::Issuer(peer) => peer.as_mut(),
+            Process::Browser(browser) => browser.as_mut(),
         }
     }
 }
