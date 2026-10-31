@@ -1,7 +1,7 @@
 //! Origin targets and percent encoding, segment boundaries preserved.
 use super::limits::Limits;
 use alloc::boxed::Box;
-use skein_lib::{List, Overflow, Writer};
+use skein_lib::{List, Overflow, Writer, bytes};
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct Pair {
     pub name: Box<[u8]>,
@@ -23,8 +23,11 @@ pub fn segment(name: &[u8], out: &mut Writer) -> Result<(), Overflow> {
         if byte.is_ascii_alphanumeric() || b"-._~".contains(byte) {
             out.put(&[*byte])?;
         } else {
-            let digits =
-                [b'%', super::id::hex(byte / 16).to_ascii_uppercase(), super::id::hex(byte % 16).to_ascii_uppercase()];
+            let digits = [
+                b'%',
+                bytes::hex_digit(byte / 16).to_ascii_uppercase(),
+                bytes::hex_digit(byte % 16).to_ascii_uppercase(),
+            ];
             out.put(&digits)?;
         }
     }
@@ -64,8 +67,8 @@ fn unescape(text: &[u8], query: bool) -> Result<Box<[u8]>, Unread> {
         let value = if *byte == b'%' {
             let a = *text.get(i.saturating_add(1)).ok_or(Unread::Escape)?;
             let b = *text.get(i.saturating_add(2)).ok_or(Unread::Escape)?;
-            let high = super::id::digit(a.to_ascii_lowercase()).ok_or(Unread::Escape)?;
-            let low = super::id::digit(b.to_ascii_lowercase()).ok_or(Unread::Escape)?;
+            let high = bytes::hex_value(a).ok_or(Unread::Escape)?;
+            let low = bytes::hex_value(b).ok_or(Unread::Escape)?;
             skip = 2;
             high.saturating_mul(16).saturating_add(low)
         } else if query && *byte == b'+' {
@@ -84,7 +87,7 @@ pub fn read(target: &[u8], limits: &Limits) -> Result<Target, Unread> {
     if target.first() != Some(&b'/') || target.contains(&b'#') {
         return Err(Unread::Form);
     }
-    let end = match skein_lib::bytes::find(target, b"?") {
+    let end = match bytes::find(target, b"?") {
         Some(at) => at,
         None => target.len(),
     };
@@ -106,7 +109,7 @@ pub fn read(target: &[u8], limits: &Limits) -> Result<Target, Unread> {
         for at in query_start..=target.len() {
             if at == target.len() || target.get(at) == Some(&b'&') {
                 let part = target.get(start..at).expect("query range");
-                let eq = match skein_lib::bytes::find(part, b"=") {
+                let eq = match bytes::find(part, b"=") {
                     Some(eq) => eq,
                     None => part.len(),
                 };
