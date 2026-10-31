@@ -21,7 +21,7 @@ pub enum Unusable {
 }
 impl Limits {
     pub fn new(client: jig_client_domain::Limits, exchanges: u32) -> Result<Self, Unusable> {
-        if client.owners.len() >= usize::try_from(w::CEILINGS.hello_served).expect("u32 fits") {
+        if client.owners.len() >= skein_lib::length::usize_of(w::CEILINGS.hello_served) {
             return Err(Unusable::Limits);
         }
         for (i, owner) in client.owners.iter().enumerate() {

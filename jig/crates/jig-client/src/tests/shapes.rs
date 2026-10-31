@@ -128,7 +128,6 @@ fn a_template_span_is_kept_in_the_ask() {
     assert_eq!(task.deadline, NewDeadline::Span(SHAPE_GRACE));
     assert_eq!(task.authority.deadline, None);
 }
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 fn choice(model: &[u8], effort: Option<&[u8]>) -> LlmChoice {
     let mut subagents = List::with_capacity(1);
     subagents.push(ModelEffort { model: Text::new(b"quick".as_slice().into(), 32).unwrap(), effort: None }).unwrap();

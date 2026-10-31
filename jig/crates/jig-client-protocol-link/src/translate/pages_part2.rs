@@ -47,7 +47,6 @@ pub(crate) fn proposal_history_fields(
     })
 }
 
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn amendment_state_fields(
     value: &w::AmendmentState,
     limits: &Limits,
@@ -83,7 +82,6 @@ pub(crate) fn amendment_state_fields(
     })
 }
 
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn history_line_fields(value: &w::HistoryLine, limits: &Limits) -> Result<c::HistoryLine, w::Problem> {
     let opt0 = match value.proposal() {
         Some(item) => Some(proposal_history_fields(item, limits)?),
@@ -112,7 +110,6 @@ pub(crate) fn history_line_fields(value: &w::HistoryLine, limits: &Limits) -> Re
     })
 }
 
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn milestone_phase_fields(
     value: &w::MilestonePhase,
     limits: &Limits,
@@ -144,7 +141,6 @@ pub(crate) fn milestone_phase_fields(
     })
 }
 
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn milestone_line_fields(value: &w::MilestoneLine, limits: &Limits) -> Result<c::MilestoneLine, w::Problem> {
     let opt0 = match value.at() {
         Some(item) => Some(Wall::from_nanos(*item)),

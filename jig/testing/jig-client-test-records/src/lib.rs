@@ -53,7 +53,7 @@ pub fn chip_record() -> w::Chip {
 #[must_use]
 pub fn chip_pieces(count: u32) -> Box<[u8]> {
     let row = chip_record();
-    let mut encoded = Writer::new(usize::try_from(row.measure()).expect("literal fixture fits"));
+    let mut encoded = Writer::new(skein_lib::length::usize_of(row.measure()));
     row.encode(&mut encoded).expect("literal fixture fits");
     let encoded = encoded.finish();
     let mut pieces = Writer::new(
@@ -61,7 +61,7 @@ pub fn chip_pieces(count: u32) -> Box<[u8]> {
             .len()
             .checked_add(4)
             .expect("literal fixture fits")
-            .checked_mul(usize::try_from(count).expect("literal fixture fits"))
+            .checked_mul(skein_lib::length::usize_of(count))
             .expect("literal fixture fits"),
     );
     for _ in 0..count {
@@ -368,7 +368,7 @@ pub fn chip_from_rows(rows: &[w::Fact]) -> w::Chip {
     let mut length = 0_usize;
     for row in rows {
         length = length
-            .checked_add(usize::try_from(row.measure()).expect("literal fixture fits"))
+            .checked_add(skein_lib::length::usize_of(row.measure()))
             .expect("literal fixture fits")
             .checked_add(4)
             .expect("literal fixture fits");
@@ -381,11 +381,10 @@ pub fn chip_from_rows(rows: &[w::Fact]) -> w::Chip {
 }
 #[must_use]
 pub fn fact_bytes(value: &w::Fact) -> Box<[u8]> {
-    let mut row = Writer::new(usize::try_from(value.measure()).expect("literal fixture fits"));
+    let mut row = Writer::new(skein_lib::length::usize_of(value.measure()));
     value.encode(&mut row).expect("literal fixture fits");
-    let mut piece = Writer::new(
-        usize::try_from(value.measure().checked_add(4).expect("literal fixture fits")).expect("literal fixture fits"),
-    );
+    let mut piece =
+        Writer::new(skein_lib::length::usize_of(value.measure().checked_add(4).expect("literal fixture fits")));
     skein_codec::piece::write(&mut piece, &row.finish()).expect("literal fixture fits");
     piece.finish()
 }

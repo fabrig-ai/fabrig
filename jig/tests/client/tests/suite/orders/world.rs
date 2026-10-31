@@ -770,14 +770,14 @@ fn hello() -> Box<[u8]> {
         )
         .expect("peer hello"),
     );
-    let mut writer = Writer::new(usize::try_from(event.measure()).expect("measured event"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(event.measure()));
     event.encode(&mut writer).expect("hello bytes");
     writer.finish()
 }
 
 fn delivery(watch: u64) -> Box<[u8]> {
     let frame = w::DeliveryValue::Me(frame());
-    let mut writer = Writer::new(usize::try_from(frame.measure()).expect("measured frame"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(frame.measure()));
     frame.encode(&mut writer).expect("frame bytes");
     let document = w::Owned::new(
         &w::CEILINGS,
@@ -787,14 +787,14 @@ fn delivery(watch: u64) -> Box<[u8]> {
     let event = w::StreamEvent::Delivery(
         w::Delivery::new(&w::CEILINGS, w::DeliveryParts { watch, document }).expect("delivery"),
     );
-    let mut writer = Writer::new(usize::try_from(event.measure()).expect("measured delivery"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(event.measure()));
     event.encode(&mut writer).expect("delivery bytes");
     writer.finish()
 }
 
 fn open_answer() -> Box<[u8]> {
     let answer = w::OpenAnswer::Admitted;
-    let mut writer = Writer::new(usize::try_from(answer.measure()).expect("measured answer"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(answer.measure()));
     answer.encode(&mut writer).expect("open bytes");
     writer.finish()
 }
@@ -804,7 +804,7 @@ fn read_answer() -> Box<[u8]> {
         w::ReadAnswerNone::new(&w::CEILINGS, w::ReadAnswerNoneParts { value: w::ReadNone::Unknown })
             .expect("read none"),
     );
-    let mut writer = Writer::new(usize::try_from(answer.measure()).expect("measured answer"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(answer.measure()));
     answer.encode(&mut writer).expect("read bytes");
     writer.finish()
 }
@@ -825,7 +825,7 @@ fn keyed_answer() -> Box<[u8]> {
         )
         .expect("done"),
     );
-    let mut writer = Writer::new(usize::try_from(final_answer.measure()).expect("measured answer"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(final_answer.measure()));
     final_answer.encode(&mut writer).expect("final bytes");
     let owned = w::Owned::new(
         &w::CEILINGS,
@@ -833,7 +833,7 @@ fn keyed_answer() -> Box<[u8]> {
     )
     .expect("owned answer");
     let answer = w::KeyedAnswer::FinalAnswer(owned);
-    let mut writer = Writer::new(usize::try_from(answer.measure()).expect("measured keyed answer"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(answer.measure()));
     answer.encode(&mut writer).expect("keyed bytes");
     writer.finish()
 }

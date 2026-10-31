@@ -43,7 +43,7 @@ pub fn show_once(words: Phrases<'_>, credential: &[u8]) {
         u32::try_from(credential.len()).expect("credential length fits"),
     )
     .expect("encoded credential fits");
-    let mut encoded = skein_lib::Writer::new(usize::try_from(size).expect("encoded length fits"));
+    let mut encoded = skein_lib::Writer::new(skein_lib::length::usize_of(size));
     skein_lib::base64::encode(skein_lib::base64::Alphabet::Url, credential, &mut encoded).expect("measured credential");
     field.set_value(std::str::from_utf8(&encoded.finish()).expect("base64 is UTF-8"));
     dialog.append_child(&field).expect("credential field");

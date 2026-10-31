@@ -1,7 +1,6 @@
 //! Total translations of every connector refusal.
 use super::{d, w};
 use skein_lib::Wall;
-#[expect(clippy::manual_map, reason = "step code translates optional fields without closures")]
 pub(super) fn encode_refusal(value: &d::application_core::Refusal) -> w::Refusal {
     match value {
         d::application_core::Refusal::Role { held } => w::Refusal::Role(
@@ -51,7 +50,6 @@ pub(super) fn encode_refusal(value: &d::application_core::Refusal) -> w::Refusal
         d::application_core::Refusal::KeyConflict => w::Refusal::KeyConflict,
     }
 }
-#[expect(clippy::manual_map, reason = "step code translates optional fields without closures")]
 pub(super) fn decode_refusal(value: w::Refusal, limits: &d::Limits) -> d::application_core::Refusal {
     match value {
         w::Refusal::Role(value) => {

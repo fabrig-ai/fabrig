@@ -21,12 +21,7 @@ use crate::{
 use jig_client::contract::*;
 use skein_lib::{Duration, List, Wall, bytes::copy_of};
 fn rows<T>(values: impl IntoIterator<Item = T>) -> List<T> {
-    let values: Vec<_> = values.into_iter().collect();
-    let mut rows = List::with_capacity(u32::try_from(values.len()).unwrap());
-    for value in values {
-        rows.push(value).ok().unwrap();
-    }
-    rows
+    List::from_boxed(values.into_iter().collect::<Vec<_>>().into_boxed_slice())
 }
 fn doc(bytes: &[u8]) -> DocumentText {
     DocumentText { bytes: Text::new(copy_of(bytes), CLIENT.client.text).unwrap(), cut: true }

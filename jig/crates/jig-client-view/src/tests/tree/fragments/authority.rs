@@ -84,7 +84,7 @@ fn render(value: &AuthorityDocument, words: &crate::words::Words, rows: u32) -> 
 
     assert!(
         tree.nodes().iter().flat_map(|n| &n.text).map(|t| t.text.len()).sum::<usize>()
-            <= usize::try_from(required.text_bytes).expect("bytes")
+            <= skein_lib::length::usize_of(required.text_bytes)
     );
     tree
 }

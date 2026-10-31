@@ -135,7 +135,6 @@ pub(crate) fn hold_category(value: &w::HoldCategory) -> c::HoldCategory {
     }
 }
 
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn chip_phase(value: &w::ChipPhase) -> c::ChipPhase {
     match value {
         w::ChipPhase::Waiting(row) => {
@@ -216,7 +215,6 @@ pub(crate) fn run_work(value: &w::RunWork, limits: &Limits) -> Result<c::RunWork
     })
 }
 
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn run_observation(value: &w::RunObservation, limits: &Limits) -> Result<c::RunObservation, w::Problem> {
     let opt0 = match value.started() {
         Some(item) => Some(Wall::from_nanos(*item)),
@@ -231,7 +229,6 @@ pub(crate) fn run_observation(value: &w::RunObservation, limits: &Limits) -> Res
     })
 }
 
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn active_run(value: &w::ActiveRun, limits: &Limits) -> Result<c::ActiveRun, w::Problem> {
     let opt0 = match value.attempt() {
         Some(item) => Some(*item),

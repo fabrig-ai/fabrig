@@ -5,7 +5,7 @@ use skein_lib::{Reader, Writer};
 macro_rules! encoded {
     ($value:expr) => {{
         let value = $value;
-        let mut out = Writer::new(usize::try_from(value.measure()).expect("wire bytes"));
+        let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
         value.encode(&mut out).expect("measured fixture");
         out.finish()
     }};

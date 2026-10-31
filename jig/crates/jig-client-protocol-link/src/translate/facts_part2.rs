@@ -20,7 +20,6 @@ pub(crate) fn funder(value: &w::Funder) -> c::Funder {
     }
 }
 
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn budget(value: &w::Budget) -> c::Budget {
     let opt0 = match value.deadline() {
         Some(item) => Some(Wall::from_nanos(*item)),
@@ -36,7 +35,6 @@ pub(crate) fn resource_writer(value: &w::ResourceWriter) -> c::ResourceWriter {
     }
 }
 
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn resource_line(value: &w::ResourceLine) -> c::ResourceLine {
     let opt0 = match value.holder() {
         Some(item) => Some(*item),
@@ -88,7 +86,6 @@ pub(crate) fn chip_work(value: &w::ChipWork) -> c::ChipWork {
     }
 }
 
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn chip_observation(value: &w::ChipObservation) -> c::ChipObservation {
     let opt0 = match value.started() {
         Some(item) => Some(Wall::from_nanos(*item)),
@@ -103,7 +100,6 @@ pub(crate) fn chip_observation(value: &w::ChipObservation) -> c::ChipObservation
     }
 }
 
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn chip_details_fields(
     value: &w::ChipDetailsFields,
     limits: &Limits,
@@ -217,7 +213,6 @@ pub(crate) fn result_field(value: &w::ResultField) -> c::ResultField {
     c::ResultField { name: bytes::copy_of(value.name()), value: bytes::copy_of(value.value()) }
 }
 
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn result_value_fields(
     value: &w::ResultValueFields,
     limits: &Limits,
@@ -280,7 +275,6 @@ pub(crate) fn result_value_fields(
     })
 }
 
-#[expect(clippy::manual_map, reason = "step code preserves optional owner facts explicitly")]
 pub(crate) fn dependencies(values: &List<w::Dependency>) -> List<c::Dependency> {
     let mut rows = List::with_capacity(values.len());
     for value in values {

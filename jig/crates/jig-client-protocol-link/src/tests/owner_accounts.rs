@@ -3,11 +3,7 @@ use super::{c, fixtures, w};
 use crate::{Limits, Undecodable, Unusable, translate::watches};
 use skein_lib::{Duration, List, Wall, Writer};
 fn list<T, const N: usize>(items: [T; N]) -> List<T> {
-    let mut out = List::with_capacity(u32::try_from(N).expect("literal rows"));
-    for item in items {
-        out.push(item).ok().expect("literal rows");
-    }
-    out
+    List::from_boxed(Box::new(items))
 }
 fn source_lines() -> List<c::AccountSource> {
     list(source_rows())
@@ -38,7 +34,6 @@ fn source_rows() -> [c::AccountSource; 2] {
         },
     ]
 }
-#[expect(clippy::manual_map, reason = "optional fixture facts follow the step crate lint configuration")]
 fn document(end: Option<c::AccountEnd>) -> c::Accounts {
     c::Accounts {
         readiness: List::with_capacity(0),

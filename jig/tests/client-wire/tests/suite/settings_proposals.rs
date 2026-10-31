@@ -10,7 +10,7 @@ fn settings_proposal_records_and_arms_round_trip() {
         let mut input = Reader::new(bytes);
         let value = w::ProposeSettings::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
-        let mut out = Writer::new(usize::try_from(value.measure()).expect("wire size"));
+        let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
         value.encode(&mut out).expect("measured");
         assert_eq!(out.finish().as_ref(), bytes.as_slice(), "record_propose_settings_smallest");
     }
@@ -20,7 +20,7 @@ fn settings_proposal_records_and_arms_round_trip() {
         let mut input = Reader::new(bytes);
         let value = w::ProposeSettings::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
-        let mut out = Writer::new(usize::try_from(value.measure()).expect("wire size"));
+        let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
         value.encode(&mut out).expect("measured");
         assert_eq!(out.finish().as_ref(), bytes.as_slice(), "record_propose_settings_full");
     }
@@ -30,7 +30,7 @@ fn settings_proposal_records_and_arms_round_trip() {
         let mut input = Reader::new(bytes);
         let value = w::OriginRevision::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
-        let mut out = Writer::new(usize::try_from(value.measure()).expect("wire size"));
+        let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
         value.encode(&mut out).expect("measured");
         assert_eq!(out.finish().as_ref(), bytes.as_slice(), "record_origin_revision_smallest");
     }
@@ -40,7 +40,7 @@ fn settings_proposal_records_and_arms_round_trip() {
         let mut input = Reader::new(bytes);
         let value = w::OriginRevision::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
-        let mut out = Writer::new(usize::try_from(value.measure()).expect("wire size"));
+        let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
         value.encode(&mut out).expect("measured");
         assert_eq!(out.finish().as_ref(), bytes.as_slice(), "record_origin_revision_full");
     }
@@ -50,7 +50,7 @@ fn settings_proposal_records_and_arms_round_trip() {
         let mut input = Reader::new(bytes);
         let value = w::ReviewItem::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
-        let mut out = Writer::new(usize::try_from(value.measure()).expect("wire size"));
+        let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
         value.encode(&mut out).expect("measured");
         assert_eq!(out.finish().as_ref(), bytes.as_slice(), "record_review_item_smallest");
     }
@@ -59,7 +59,7 @@ fn settings_proposal_records_and_arms_round_trip() {
         let mut input = Reader::new(bytes);
         let value = w::ReviewItem::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
-        let mut out = Writer::new(usize::try_from(value.measure()).expect("wire size"));
+        let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
         value.encode(&mut out).expect("measured");
         assert_eq!(out.finish().as_ref(), bytes.as_slice(), "record_review_item_full");
     }
@@ -69,7 +69,7 @@ fn settings_proposal_records_and_arms_round_trip() {
         let mut input = Reader::new(bytes);
         let value = w::SettingsReview::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
-        let mut out = Writer::new(usize::try_from(value.measure()).expect("wire size"));
+        let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
         value.encode(&mut out).expect("measured");
         assert_eq!(out.finish().as_ref(), bytes.as_slice(), "record_settings_review_smallest");
     }
@@ -79,7 +79,7 @@ fn settings_proposal_records_and_arms_round_trip() {
         let mut input = Reader::new(bytes);
         let value = w::SettingsReview::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
-        let mut out = Writer::new(usize::try_from(value.measure()).expect("wire size"));
+        let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
         value.encode(&mut out).expect("measured");
         assert_eq!(out.finish().as_ref(), bytes.as_slice(), "record_settings_review_full");
     }
@@ -90,7 +90,7 @@ fn settings_proposal_records_and_arms_round_trip() {
         let mut input = Reader::new(bytes);
         let value = w::ProposalActionSettings::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
-        let mut out = Writer::new(usize::try_from(value.measure()).expect("wire size"));
+        let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
         value.encode(&mut out).expect("measured");
         assert_eq!(out.finish().as_ref(), bytes.as_slice(), "record_proposal_action_settings_smallest");
     }
@@ -101,7 +101,7 @@ fn settings_proposal_records_and_arms_round_trip() {
         let mut input = Reader::new(bytes);
         let value = w::ProposalActionSettings::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
-        let mut out = Writer::new(usize::try_from(value.measure()).expect("wire size"));
+        let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
         value.encode(&mut out).expect("measured");
         assert_eq!(out.finish().as_ref(), bytes.as_slice(), "record_proposal_action_settings_full");
     }
@@ -112,7 +112,7 @@ fn settings_proposal_records_and_arms_round_trip() {
         let mut input = Reader::new(bytes);
         let value = w::RetainedActionSettings::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
-        let mut out = Writer::new(usize::try_from(value.measure()).expect("wire size"));
+        let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
         value.encode(&mut out).expect("measured");
         assert_eq!(out.finish().as_ref(), bytes.as_slice(), "record_retained_action_settings_smallest");
     }
@@ -123,7 +123,7 @@ fn settings_proposal_records_and_arms_round_trip() {
         let mut input = Reader::new(bytes);
         let value = w::RetainedActionSettings::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
-        let mut out = Writer::new(usize::try_from(value.measure()).expect("wire size"));
+        let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
         value.encode(&mut out).expect("measured");
         assert_eq!(out.finish().as_ref(), bytes.as_slice(), "record_retained_action_settings_full");
     }
@@ -134,7 +134,7 @@ fn settings_proposal_records_and_arms_round_trip() {
         let mut input = Reader::new(bytes);
         let value = w::SettingOrigin::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
-        let mut out = Writer::new(usize::try_from(value.measure()).expect("wire size"));
+        let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
         value.encode(&mut out).expect("measured");
         assert_eq!(out.finish().as_ref(), bytes.as_slice(), "enum_setting_origin_default_smallest");
     }
@@ -144,7 +144,7 @@ fn settings_proposal_records_and_arms_round_trip() {
         let mut input = Reader::new(bytes);
         let value = w::SettingOrigin::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
-        let mut out = Writer::new(usize::try_from(value.measure()).expect("wire size"));
+        let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
         value.encode(&mut out).expect("measured");
         assert_eq!(out.finish().as_ref(), bytes.as_slice(), "enum_setting_origin_default_full");
     }
@@ -155,7 +155,7 @@ fn settings_proposal_records_and_arms_round_trip() {
         let mut input = Reader::new(bytes);
         let value = w::SettingOrigin::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
-        let mut out = Writer::new(usize::try_from(value.measure()).expect("wire size"));
+        let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
         value.encode(&mut out).expect("measured");
         assert_eq!(out.finish().as_ref(), bytes.as_slice(), "enum_setting_origin_change_smallest");
     }
@@ -165,7 +165,7 @@ fn settings_proposal_records_and_arms_round_trip() {
         let mut input = Reader::new(bytes);
         let value = w::SettingOrigin::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
-        let mut out = Writer::new(usize::try_from(value.measure()).expect("wire size"));
+        let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
         value.encode(&mut out).expect("measured");
         assert_eq!(out.finish().as_ref(), bytes.as_slice(), "enum_setting_origin_change_full");
     }
@@ -176,7 +176,7 @@ fn settings_proposal_records_and_arms_round_trip() {
         let mut input = Reader::new(bytes);
         let value = w::SettingOrigin::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
-        let mut out = Writer::new(usize::try_from(value.measure()).expect("wire size"));
+        let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
         value.encode(&mut out).expect("measured");
         assert_eq!(out.finish().as_ref(), bytes.as_slice(), "enum_setting_origin_not_offered_smallest");
     }
@@ -187,7 +187,7 @@ fn settings_proposal_records_and_arms_round_trip() {
         let mut input = Reader::new(bytes);
         let value = w::SettingOrigin::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
-        let mut out = Writer::new(usize::try_from(value.measure()).expect("wire size"));
+        let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
         value.encode(&mut out).expect("measured");
         assert_eq!(out.finish().as_ref(), bytes.as_slice(), "enum_setting_origin_not_offered_full");
     }
@@ -197,7 +197,7 @@ fn settings_proposal_records_and_arms_round_trip() {
         let mut input = Reader::new(bytes);
         let value = w::ReviewValue::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
-        let mut out = Writer::new(usize::try_from(value.measure()).expect("wire size"));
+        let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
         value.encode(&mut out).expect("measured");
         assert_eq!(out.finish().as_ref(), bytes.as_slice(), "enum_review_value_value_smallest");
     }
@@ -207,7 +207,7 @@ fn settings_proposal_records_and_arms_round_trip() {
         let mut input = Reader::new(bytes);
         let value = w::ReviewValue::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
-        let mut out = Writer::new(usize::try_from(value.measure()).expect("wire size"));
+        let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
         value.encode(&mut out).expect("measured");
         assert_eq!(out.finish().as_ref(), bytes.as_slice(), "enum_review_value_value_full");
     }
@@ -218,7 +218,7 @@ fn settings_proposal_records_and_arms_round_trip() {
         let mut input = Reader::new(bytes);
         let value = w::ReviewValue::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
-        let mut out = Writer::new(usize::try_from(value.measure()).expect("wire size"));
+        let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
         value.encode(&mut out).expect("measured");
         assert_eq!(out.finish().as_ref(), bytes.as_slice(), "enum_review_value_too_large_smallest");
     }
@@ -228,7 +228,7 @@ fn settings_proposal_records_and_arms_round_trip() {
         let mut input = Reader::new(bytes);
         let value = w::ReviewValue::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
-        let mut out = Writer::new(usize::try_from(value.measure()).expect("wire size"));
+        let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
         value.encode(&mut out).expect("measured");
         assert_eq!(out.finish().as_ref(), bytes.as_slice(), "enum_review_value_too_large_full");
     }
@@ -238,7 +238,7 @@ fn settings_proposal_records_and_arms_round_trip() {
         let mut input = Reader::new(bytes);
         let value = w::ReviewValue::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
-        let mut out = Writer::new(usize::try_from(value.measure()).expect("wire size"));
+        let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
         value.encode(&mut out).expect("measured");
         assert_eq!(out.finish().as_ref(), bytes.as_slice(), "enum_review_value_none_smallest");
     }
@@ -248,7 +248,7 @@ fn settings_proposal_records_and_arms_round_trip() {
         let mut input = Reader::new(bytes);
         let value = w::ReviewValue::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
-        let mut out = Writer::new(usize::try_from(value.measure()).expect("wire size"));
+        let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
         value.encode(&mut out).expect("measured");
         assert_eq!(out.finish().as_ref(), bytes.as_slice(), "enum_review_value_none_full");
     }
@@ -259,7 +259,7 @@ fn settings_proposal_records_and_arms_round_trip() {
         let mut input = Reader::new(bytes);
         let value = w::ProposeAction::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
-        let mut out = Writer::new(usize::try_from(value.measure()).expect("wire size"));
+        let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
         value.encode(&mut out).expect("measured");
         assert_eq!(out.finish().as_ref(), bytes.as_slice(), "enum_propose_action_settings_smallest");
     }
@@ -269,7 +269,7 @@ fn settings_proposal_records_and_arms_round_trip() {
         let mut input = Reader::new(bytes);
         let value = w::ProposeAction::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
-        let mut out = Writer::new(usize::try_from(value.measure()).expect("wire size"));
+        let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
         value.encode(&mut out).expect("measured");
         assert_eq!(out.finish().as_ref(), bytes.as_slice(), "enum_propose_action_settings_full");
     }
@@ -280,7 +280,7 @@ fn settings_proposal_records_and_arms_round_trip() {
         let mut input = Reader::new(bytes);
         let value = w::ProposalAction::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
-        let mut out = Writer::new(usize::try_from(value.measure()).expect("wire size"));
+        let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
         value.encode(&mut out).expect("measured");
         assert_eq!(out.finish().as_ref(), bytes.as_slice(), "enum_proposal_action_settings_smallest");
     }
@@ -290,7 +290,7 @@ fn settings_proposal_records_and_arms_round_trip() {
         let mut input = Reader::new(bytes);
         let value = w::ProposalAction::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
-        let mut out = Writer::new(usize::try_from(value.measure()).expect("wire size"));
+        let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
         value.encode(&mut out).expect("measured");
         assert_eq!(out.finish().as_ref(), bytes.as_slice(), "enum_proposal_action_settings_full");
     }
@@ -301,7 +301,7 @@ fn settings_proposal_records_and_arms_round_trip() {
         let mut input = Reader::new(bytes);
         let value = w::RetainedAction::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
-        let mut out = Writer::new(usize::try_from(value.measure()).expect("wire size"));
+        let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
         value.encode(&mut out).expect("measured");
         assert_eq!(out.finish().as_ref(), bytes.as_slice(), "enum_retained_action_settings_smallest");
     }
@@ -311,7 +311,7 @@ fn settings_proposal_records_and_arms_round_trip() {
         let mut input = Reader::new(bytes);
         let value = w::RetainedAction::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
-        let mut out = Writer::new(usize::try_from(value.measure()).expect("wire size"));
+        let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
         value.encode(&mut out).expect("measured");
         assert_eq!(out.finish().as_ref(), bytes.as_slice(), "enum_retained_action_settings_full");
     }
@@ -322,7 +322,7 @@ fn settings_proposal_records_and_arms_round_trip() {
         let mut input = Reader::new(bytes);
         let value = w::MessageProposalKind::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
-        let mut out = Writer::new(usize::try_from(value.measure()).expect("wire size"));
+        let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
         value.encode(&mut out).expect("measured");
         assert_eq!(out.finish().as_ref(), bytes.as_slice(), "enum_message_proposal_kind_settings_smallest");
     }
@@ -333,7 +333,7 @@ fn settings_proposal_records_and_arms_round_trip() {
         let mut input = Reader::new(bytes);
         let value = w::MessageProposalKind::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
-        let mut out = Writer::new(usize::try_from(value.measure()).expect("wire size"));
+        let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
         value.encode(&mut out).expect("measured");
         assert_eq!(out.finish().as_ref(), bytes.as_slice(), "enum_message_proposal_kind_settings_full");
     }
@@ -343,7 +343,7 @@ fn settings_proposal_records_and_arms_round_trip() {
         let mut input = Reader::new(bytes);
         let value = w::Malformed::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
-        let mut out = Writer::new(usize::try_from(value.measure()).expect("wire size"));
+        let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
         value.encode(&mut out).expect("measured");
         assert_eq!(out.finish().as_ref(), bytes.as_slice(), "enum_malformed_running_smallest");
     }
@@ -353,7 +353,7 @@ fn settings_proposal_records_and_arms_round_trip() {
         let mut input = Reader::new(bytes);
         let value = w::Malformed::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
-        let mut out = Writer::new(usize::try_from(value.measure()).expect("wire size"));
+        let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
         value.encode(&mut out).expect("measured");
         assert_eq!(out.finish().as_ref(), bytes.as_slice(), "enum_malformed_running_full");
     }
@@ -363,7 +363,7 @@ fn settings_proposal_records_and_arms_round_trip() {
         let mut input = Reader::new(bytes);
         let value = w::DecideProposal::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
-        let mut out = Writer::new(usize::try_from(value.measure()).expect("wire size"));
+        let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
         value.encode(&mut out).expect("measured");
         assert_eq!(out.finish().as_ref(), bytes.as_slice(), "record_decide_proposal_smallest");
     }
@@ -373,7 +373,7 @@ fn settings_proposal_records_and_arms_round_trip() {
         let mut input = Reader::new(bytes);
         let value = w::DecideProposal::decode(&w::CEILINGS, &mut input).expect("golden record");
         assert!(input.is_empty());
-        let mut out = Writer::new(usize::try_from(value.measure()).expect("wire size"));
+        let mut out = Writer::new(skein_lib::length::usize_of(value.measure()));
         value.encode(&mut out).expect("measured");
         assert_eq!(out.finish().as_ref(), bytes.as_slice(), "record_decide_proposal_full");
     }

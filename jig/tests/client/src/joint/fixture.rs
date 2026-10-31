@@ -50,7 +50,7 @@ pub(super) fn turn() -> Box<[u8]> {
         },
     )
     .expect("whole actual codec turn");
-    let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("measured turn fits"));
+    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(value.measure()));
     value.encode(&mut writer).expect("actual codec encoding");
     writer.finish()
 }

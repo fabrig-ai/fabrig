@@ -14,7 +14,7 @@ fn refused_task_documents_reject_truncated_or_unknown_nested_tags() {
     parts.lineage = skein_lib::List::with_capacity(1);
     parts.lineage.push(77).expect("one ancestor");
     let record = w::Task::new(&limits, parts).expect("whole task");
-    let mut out = Writer::new(usize::try_from(record.measure()).expect("small record"));
+    let mut out = Writer::new(skein_lib::length::usize_of(record.measure()));
     record.encode(&mut out).expect("measured writer");
     let bytes = out.finish();
     let mut reader = Reader::new(&bytes);

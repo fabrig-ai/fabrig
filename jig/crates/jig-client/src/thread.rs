@@ -538,7 +538,7 @@ pub fn later(name: TurnName, other: TurnName) -> bool {
 }
 fn tail(old: &[u8], incoming: &[u8], limit: u32) -> Text {
     let length = old.len().checked_add(incoming.len()).expect("validated text lengths fit usize");
-    let kept = length.min(usize::try_from(limit).expect("text limit fits usize"));
+    let kept = length.min(skein_lib::length::usize_of(limit));
     let dropped = length.saturating_sub(kept);
     let old_from = dropped.min(old.len());
     let new_from = dropped.saturating_sub(old.len());

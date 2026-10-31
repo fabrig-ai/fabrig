@@ -2,14 +2,10 @@
 use super::{inbox_both_groups_record, limits, w, wire_text};
 use skein_lib::{List, Writer};
 fn rows<T, const N: usize>(values: [T; N]) -> List<T> {
-    let mut rows = List::with_capacity(u32::try_from(N).expect("literal rows"));
-    for row in values {
-        rows.push(row).ok().expect("literal row");
-    }
-    rows
+    List::from_boxed(Box::new(values))
 }
 fn encoded(measure: u32, encode: impl FnOnce(&mut Writer) -> Result<(), skein_lib::Overflow>) -> Box<[u8]> {
-    let mut out = Writer::new(usize::try_from(measure).expect("literal size"));
+    let mut out = Writer::new(skein_lib::length::usize_of(measure));
     encode(&mut out).expect("literal record");
     out.finish()
 }

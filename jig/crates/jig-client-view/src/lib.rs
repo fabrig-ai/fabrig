@@ -2,6 +2,7 @@
 //! Holds presentation state, builds semantic trees and routes acts through bindings,
 //! with default pages composed from jig's parts on skein-ui.
 
+#![expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 

@@ -165,7 +165,7 @@ fn proposed_items_refuse_one_past_either_ceiling() {
     let mut wire = *limits.wire();
     wire.propose_settings_items = PROPOSAL_ITEMS * RESET_PIECE - 1;
     t::wire_propose_settings(&resets(PROPOSAL_ITEMS), &wire).expect_err("one past the proposal byte bound");
-    let mut writer = skein_lib::Writer::new(usize::try_from((PROPOSAL_ITEMS + 1) * RESET_PIECE).expect("piece bytes"));
+    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of((PROPOSAL_ITEMS + 1) * RESET_PIECE));
     for _ in 0..=PROPOSAL_ITEMS {
         writer.put(&[0, 0, 0, 2, 3, 2]).expect("rules reset piece");
     }
@@ -290,7 +290,7 @@ fn a_settings_decision_keeps_its_three_outcomes_through_the_wire_and_link() {
             )
             .unwrap(),
         );
-        let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("measured settings decision"));
+        let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(value.measure()));
         value.encode(&mut writer).unwrap();
         let value = w::MessageKind::decode(limits.wire(), &mut Reader::new(&writer.finish())).unwrap();
         assert_eq!(

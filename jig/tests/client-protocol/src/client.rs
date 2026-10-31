@@ -215,7 +215,7 @@ impl Front {
         let limits = client::Limits { domain: fixtures::domain_limits(), exchanges: 8 };
         assert!(
             self.store.keys().filter(|key| key.len() == 16).count()
-                <= usize::try_from(limits.domain.requests.requests).expect("table bound fits"),
+                <= skein_lib::length::usize_of(limits.domain.requests.requests),
             "bounded small store"
         );
     }

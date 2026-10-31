@@ -4,7 +4,6 @@ use super::{
     project_member_fields, project_policy_fields, project_resource_piece, project_spend_piece, recurring_piece, text,
     too_large, w,
 };
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn project_fields(value: &w::Project, limits: &Limits) -> Result<c::Project, w::Problem> {
     if value.members().len() > limits.client().rows {
         return Err(too_large());
@@ -76,7 +75,6 @@ pub(crate) fn call_fields(value: &w::Call, limits: &Limits) -> Result<c::Call, w
     })
 }
 
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn current_call_fields(value: &w::CurrentCall, limits: &Limits) -> Result<c::CurrentCall, w::Problem> {
     let opt0 = match value.began() {
         Some(item) => Some(Wall::from_nanos(*item)),
@@ -98,7 +96,6 @@ pub(crate) fn live_call_fields(value: &w::LiveCall, limits: &Limits) -> Result<c
     })
 }
 
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn run_text_fields(value: &w::RunText, limits: &Limits) -> Result<c::RunText, w::Problem> {
     let opt0 = match value.began() {
         Some(item) => Some(Wall::from_nanos(*item)),
@@ -142,7 +139,6 @@ pub(crate) fn run_text_fields(value: &w::RunText, limits: &Limits) -> Result<c::
     })
 }
 
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn run_state_fields(value: &w::RunState, limits: &Limits) -> Result<c::RunState, w::Problem> {
     let opt0 = match value.attempt() {
         Some(item) => Some(*item),

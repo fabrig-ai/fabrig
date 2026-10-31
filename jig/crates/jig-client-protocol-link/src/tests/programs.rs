@@ -10,7 +10,7 @@ fn login(name: &[u8], state: Option<w::ProgramState>) -> w::ProgramLogin {
     .expect("literal login")
 }
 fn piece(row: &w::ProgramLogin) -> Box<[u8]> {
-    let mut out = Writer::new(usize::try_from(row.measure()).expect("measure").checked_add(4).expect("piece prefix"));
+    let mut out = Writer::new(skein_lib::length::usize_of(row.measure()).checked_add(4).expect("piece prefix"));
     out.put(&row.measure().to_be_bytes()).expect("prefix");
     row.encode(&mut out).expect("measured login");
     out.finish()
@@ -102,7 +102,7 @@ fn configured_host_names_stay_whole_below_the_text_limit() {
         },
     )
     .expect("host");
-    let mut bytes = Writer::new(usize::try_from(row.measure()).expect("row").checked_add(4).expect("prefix"));
+    let mut bytes = Writer::new(skein_lib::length::usize_of(row.measure()).checked_add(4).expect("prefix"));
     bytes.put(&row.measure().to_be_bytes()).expect("prefix");
     row.encode(&mut bytes).expect("row");
     let base = fixtures::limits();
@@ -140,7 +140,7 @@ fn a_host_rule_survives_wire_receipt() {
             },
         )
         .expect("host");
-        let mut bytes = Writer::new(usize::try_from(row.measure()).expect("row").checked_add(4).expect("prefix"));
+        let mut bytes = Writer::new(skein_lib::length::usize_of(row.measure()).checked_add(4).expect("prefix"));
         bytes.put(&row.measure().to_be_bytes()).expect("prefix");
         row.encode(&mut bytes).expect("row");
         let mut room = 4096;

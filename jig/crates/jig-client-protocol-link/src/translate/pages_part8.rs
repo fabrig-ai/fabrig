@@ -19,7 +19,6 @@ pub(crate) fn escalation_decision_record_fields(
     })
 }
 
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn ended_value_fields(value: &w::EndedValue, limits: &Limits) -> Result<c::EndedValue, w::Problem> {
     Ok(match value {
         w::EndedValue::Task(row) => c::EndedValue::Task {
@@ -66,7 +65,6 @@ pub(crate) fn ended_value_fields(value: &w::EndedValue, limits: &Limits) -> Resu
     })
 }
 
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn ended_fields(value: &w::Ended, limits: &Limits) -> Result<c::Ended, w::Problem> {
     let opt0 = match value.at() {
         Some(item) => Some(Wall::from_nanos(*item)),

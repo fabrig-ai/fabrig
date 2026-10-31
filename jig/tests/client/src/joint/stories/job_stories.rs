@@ -112,7 +112,7 @@ fn turn() -> Box<[u8]> {
         },
     )
     .expect("job story record fits the transcript schema");
-    let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("measured turn fits usize"));
+    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(value.measure()));
     value.encode(&mut writer).expect("writer holds the measured job turn");
     writer.finish()
 }

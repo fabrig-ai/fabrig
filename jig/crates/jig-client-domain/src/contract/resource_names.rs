@@ -11,7 +11,7 @@ pub fn resource_path_fits(path: &List<Box<[u8]>>, segments: u32, text: u32) -> b
         return false;
     }
     for segment in path {
-        if segment.len() > usize::try_from(text).expect("u32 fits usize") {
+        if segment.len() > skein_lib::length::usize_of(text) {
             return false;
         }
     }
@@ -25,7 +25,7 @@ pub fn exact_resource_pattern(path: &List<Box<[u8]>>) -> Option<Pattern> {
     let last = path.as_slice().last()?.clone();
     let preceding = path.len().checked_sub(1)?;
     let mut segments = List::with_capacity(preceding);
-    for segment in path.as_slice().get(..usize::try_from(preceding).expect("u32 fits usize"))? {
+    for segment in path.as_slice().get(..skein_lib::length::usize_of(preceding))? {
         segments.push(segment.clone()).expect("exact preceding segment count fits");
     }
     Some(Pattern { segments, last: PatternEnd::Exact(last) })

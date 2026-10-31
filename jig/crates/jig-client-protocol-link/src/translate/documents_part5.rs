@@ -26,7 +26,6 @@ pub(crate) fn attempt_state_fields(value: &w::AttemptState) -> c::AttemptState {
     }
 }
 
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn run_location_fields(value: &w::RunLocation) -> c::RunLocation {
     match value {
         w::RunLocation::None => c::RunLocation::None,
@@ -51,7 +50,6 @@ pub(crate) fn run_location_fields(value: &w::RunLocation) -> c::RunLocation {
     }
 }
 
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn host_run_fields(value: &w::HostRun, limits: &Limits) -> Result<c::HostRun, w::Problem> {
     let opt0 = match value.grace_until() {
         Some(item) => Some(Wall::from_nanos(*item)),
@@ -97,7 +95,6 @@ pub(crate) fn host_run_piece(bytes: &[u8], limits: &Limits, bound: u32) -> Resul
     Err(too_large())
 }
 
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn host_fields(value: &w::Host, limits: &Limits, room: &mut u64) -> Result<c::Host, w::Problem> {
     let opt0 = match value.grace_until() {
         Some(item) => Some(Wall::from_nanos(*item)),
@@ -175,7 +172,6 @@ pub(crate) fn account_unread_fields(value: &w::AccountUnread) -> c::AccountUnrea
     }
 }
 
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn account_state_fields(value: &w::AccountState) -> c::AccountState {
     match value {
         w::AccountState::Asking => c::AccountState::Asking,

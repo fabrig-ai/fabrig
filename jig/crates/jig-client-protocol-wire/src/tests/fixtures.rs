@@ -25,7 +25,7 @@ pub fn limits_with_activity_bytes(bound: u32) -> Limits {
 }
 
 pub fn bytes(n: u32) -> Box<[u8]> {
-    skein_lib::bytes::zeroed(usize::try_from(n).expect("small bound"))
+    skein_lib::bytes::zeroed(skein_lib::length::usize_of(n))
 }
 
 pub fn ceiling_text(n: u32) -> Box<[u8]> {
@@ -76,7 +76,7 @@ pub fn refused_moved() -> Refused {
 }
 
 pub fn encoded<T>(value: &T, measure: fn(&T) -> u32, encode: fn(&T, &mut Writer) -> Result<(), Overflow>) -> Box<[u8]> {
-    let mut writer = Writer::new(usize::try_from(measure(value)).expect("measured record"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(measure(value)));
     encode(value, &mut writer).expect("measured room");
     writer.finish()
 }
@@ -133,7 +133,7 @@ pub fn piece_items<T>(
         length = length.checked_add(measure(row)).expect("small fixture row");
         length = length.checked_add(4).expect("small fixture piece");
     }
-    let mut out = Writer::new(usize::try_from(length).expect("fixture length fits"));
+    let mut out = Writer::new(skein_lib::length::usize_of(length));
     for row in rows {
         let bytes = encoded(row, measure, encode);
         skein_codec::piece::write(&mut out, &bytes).expect("measured piece room");

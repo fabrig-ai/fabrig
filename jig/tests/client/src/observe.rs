@@ -296,7 +296,7 @@ fn contains(tree: &Tree, start: usize, end: usize, role: Role, name: &[u8]) -> b
                             && n.key.is_some_and(|key| {
                                 matches!(Owner::from_opaque(key.owner), Some(Owner::Application { .. }))
                             })))
-                        && start + 1 + offset + usize::try_from(n.size).expect("subtree") > at
+                        && start + 1 + offset + skein_lib::length::usize_of(n.size) > at
                 })
         }
         Found::Absent | Found::Pending => false,
@@ -312,7 +312,7 @@ fn explained(tree: &Tree, start: usize, end: usize) -> bool {
     let Some(at) = tree.nodes().iter().position(|n| n.id == id) else {
         return false;
     };
-    let through = at + usize::try_from(tree.nodes()[at].size).expect("status subtree");
+    let through = at + skein_lib::length::usize_of(tree.nodes()[at].size);
     through <= end && tree.nodes()[at..through].iter().any(|n| !n.text.is_empty())
 }
 fn card_key(k: Key) -> bool {
@@ -339,7 +339,7 @@ fn enclosing_card(tree: &Tree, node: NodeId, admits: fn(Key) -> bool) -> Option<
         .iter()
         .enumerate()
         .take(at + 1)
-        .filter(|(i, n)| *i + usize::try_from(n.size).expect("subtree") > at)
+        .filter(|(i, n)| *i + skein_lib::length::usize_of(n.size) > at)
         .filter_map(|(_, n)| n.key.filter(|k| admits(*k)))
         .next_back()
         .map(CardKey::of)
@@ -357,7 +357,7 @@ fn frame_link(tree: &Tree) -> Option<bool> {
     let (at, frame) = tree.nodes().iter().enumerate().find(|(_, node)| {
         node.role == Role::Region && node.region == Some(jig_client_view::regions::JigRegion::Link.region())
     })?;
-    let end = at + usize::try_from(frame.size).expect("frame subtree");
+    let end = at + skein_lib::length::usize_of(frame.size);
     let mut child = at + 1;
     // The frame's own status is current; notices and navigation slots can
     // retain other link words. Read direct frame children, not their descendants.
@@ -370,7 +370,7 @@ fn frame_link(tree: &Tree) -> Option<bool> {
                 _ => {}
             }
         }
-        child += usize::try_from(node.size).expect("frame child subtree");
+        child += skein_lib::length::usize_of(node.size);
     }
     None
 }
@@ -399,7 +399,7 @@ fn visible(tree: &Tree, include_test_family: bool) -> Vec<Seen> {
         let Some(k) = node.key else {
             continue;
         };
-        let end = at + usize::try_from(node.size).expect("subtree");
+        let end = at + skein_lib::length::usize_of(node.size);
         // Unimplemented owner effect fragments create no waiting-card obligation.
         if k.owner == (Owner::Application { number: jig_client_test_domain::FIRST }).opaque()
             && k.kind == 20

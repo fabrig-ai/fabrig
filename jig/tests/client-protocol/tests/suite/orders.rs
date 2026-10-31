@@ -124,7 +124,7 @@ impl World {
 
     fn answer(&mut self, exchange: Token) {
         let answer = w::KeyedAnswer::Busy;
-        let mut bytes = Writer::new(usize::try_from(answer.measure()).expect("busy answer size"));
+        let mut bytes = Writer::new(skein_lib::length::usize_of(answer.measure()));
         answer.encode(&mut bytes).expect("measured busy answer");
         self.event(Event::Reply { exchange, message: bytes.finish() });
     }

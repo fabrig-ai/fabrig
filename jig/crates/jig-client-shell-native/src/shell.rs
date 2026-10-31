@@ -125,7 +125,7 @@ impl Shell {
                 }
             }
             request @ (client::Request::Exchange { .. } | client::Request::OpenStream { .. }) => {
-                assert!(self.held.len() < usize::try_from(self.max * 64).expect("held bound"), "step output bound");
+                assert!(self.held.len() < skein_lib::length::usize_of(self.max * 64), "step output bound");
                 self.held.push_back(request);
             }
             request @ client::Request::CloseStream => {
@@ -285,7 +285,7 @@ impl Transport {
                 if matches!(down, Down::Finish) {
                     continue;
                 }
-                assert!(self.sockets.len() < usize::try_from(self.max).expect("socket bound"), "bounded sockets");
+                assert!(self.sockets.len() < skein_lib::length::usize_of(self.max), "bounded sockets");
                 self.sockets.insert(
                     conn,
                     Socket { entity: None, connected: false, started: false, closed: false, below: VecDeque::new() },
@@ -424,7 +424,7 @@ impl Transport {
         if self.closing {
             self.sockets.values().any(|s| s.entity.is_some())
         } else {
-            (self.sockets.len() < usize::try_from(self.max).expect("socket bound") && self.connections.waiting())
+            (self.sockets.len() < skein_lib::length::usize_of(self.max) && self.connections.waiting())
                 || !self.below.is_empty()
                 || self.sockets.values().any(|s| !s.started || s.connected && !s.below.is_empty())
                 || self.next_deadline().is_some_and(|until| now >= until)

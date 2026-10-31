@@ -21,12 +21,7 @@ use crate::{
 use jig_client::contract::*;
 use skein_lib::{Duration, Id, List, Time, Wall};
 fn values<T>(items: impl IntoIterator<Item = T>) -> List<T> {
-    let items: Vec<_> = items.into_iter().collect();
-    let mut rows = List::with_capacity(u32::try_from(items.len()).unwrap());
-    for item in items {
-        rows.push(item).ok().unwrap();
-    }
-    rows
+    List::from_boxed(items.into_iter().collect::<Vec<_>>().into_boxed_slice())
 }
 fn value(contract: TaskContractDocument) -> PersonTask {
     let mut task = chip(8);

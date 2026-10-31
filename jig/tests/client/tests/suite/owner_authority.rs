@@ -4,12 +4,7 @@ use jig_client_domain::contract::{
 };
 use skein_lib::{List, Wall};
 fn list<T: core::fmt::Debug>(items: impl IntoIterator<Item = T>) -> List<T> {
-    let items: Vec<T> = items.into_iter().collect();
-    let mut result = List::with_capacity(u32::try_from(items.len()).expect("fixture size"));
-    for item in items {
-        result.push(item).expect("fixture capacity");
-    }
-    result
+    List::from_boxed(items.into_iter().collect::<Vec<_>>().into_boxed_slice())
 }
 fn pattern(open: bool) -> Pattern {
     Pattern {

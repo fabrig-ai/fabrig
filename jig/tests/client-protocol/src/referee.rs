@@ -11,7 +11,7 @@ macro_rules! same {
         if source.remaining() != 0 || received.remaining() != 0 || actual != wanted {
             return Err(Broken::Record);
         }
-        let mut writer = Writer::new(usize::try_from(actual.measure()).expect("bounded wire"));
+        let mut writer = Writer::new(skein_lib::length::usize_of(actual.measure()));
         actual.encode(&mut writer).map_err(|_| Broken::Record)?;
         if writer.finish().as_ref() != $crossed {
             return Err(Broken::Record);

@@ -45,7 +45,7 @@ pub fn owned(value: Watchable, limits: &w::Limits) -> Result<w::Owned, w::Proble
     let (owner, version, record) = match value {
         Watchable::Jig(value) => {
             let value = subject(&value, limits)?;
-            let mut writer = Writer::new(usize::try_from(value.measure()).expect("u32 fits usize"));
+            let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
             value.encode(&mut writer).expect("measured subject");
             (w::Owner::Jig, VERSION, writer.finish())
         }
@@ -119,7 +119,6 @@ pub fn delivery(bytes: &[u8], limits: &Limits) -> Result<c::Delivery, Undecodabl
         }
     })
 }
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 fn inbox(record: w::Inbox, limits: &Limits) -> Result<c::Inbox, Undecodable> {
     let needs = match pages::inbox_entry_piece(record.needs(), limits, limits.client().rows) {
         Ok(value) => value,

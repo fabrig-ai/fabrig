@@ -60,7 +60,7 @@ fn all_eight_account_changes_and_their_outcomes_round_trip() {
                 AskAccountChange::new(&CEILINGS, AskAccountChangeParts { holder, change: change.clone() })
                     .expect("bounded account wire fixture"),
             );
-            let mut out = Writer::new(usize::try_from(ask.measure()).expect("measured ask fits"));
+            let mut out = Writer::new(skein_lib::length::usize_of(ask.measure()));
             ask.encode(&mut out).expect("bounded account wire fixture");
             assert_eq!(Ask::decode(&CEILINGS, &mut Reader::new(&out.finish())), Ok(ask));
         }
@@ -79,7 +79,7 @@ fn all_eight_account_changes_and_their_outcomes_round_trip() {
             .expect("bounded account wire fixture"),
         ),
     ] {
-        let mut out = Writer::new(usize::try_from(outcome.measure()).expect("measured outcome fits"));
+        let mut out = Writer::new(skein_lib::length::usize_of(outcome.measure()));
         outcome.encode(&mut out).expect("bounded account wire fixture");
         assert_eq!(DocumentOutcome::decode(&CEILINGS, &mut Reader::new(&out.finish())), Ok(outcome));
     }
@@ -91,7 +91,7 @@ fn all_eight_account_changes_and_their_outcomes_round_trip() {
         .expect("bounded account wire fixture");
     }
     assert!(AccountChangeSetUses::new(&CEILINGS, AccountChangeSetUsesParts { account: 1, uses: Some(uses) }).is_err());
-    let mut out = Writer::new(usize::try_from(Refusal::Provider.measure()).expect("measured refusal fits"));
+    let mut out = Writer::new(skein_lib::length::usize_of(Refusal::Provider.measure()));
     Refusal::Provider.encode(&mut out).expect("bounded account wire fixture");
     assert_eq!(Refusal::decode(&CEILINGS, &mut Reader::new(&out.finish())), Ok(Refusal::Provider));
 }

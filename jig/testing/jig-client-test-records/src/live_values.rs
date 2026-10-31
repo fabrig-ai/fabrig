@@ -1,15 +1,10 @@
 use super::{limits, owner_chip_records, w};
 use skein_lib::{Duration, List, Writer};
 pub(super) fn rows<T>(items: impl IntoIterator<Item = T>) -> List<T> {
-    let items: Vec<_> = items.into_iter().collect();
-    let mut out = List::with_capacity(u32::try_from(items.len()).expect("fixture size"));
-    for item in items {
-        out.push(item).ok().expect("fixture rows fit");
-    }
-    out
+    List::from_boxed(items.into_iter().collect::<Vec<_>>().into_boxed_slice())
 }
 pub(super) fn encoded(measure: u32, write: impl FnOnce(&mut Writer) -> Result<(), skein_lib::Overflow>) -> Box<[u8]> {
-    let mut writer = Writer::new(usize::try_from(measure).expect("fixture size"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(measure));
     write(&mut writer).expect("literal record encodes");
     writer.finish()
 }

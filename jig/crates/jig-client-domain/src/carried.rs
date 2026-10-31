@@ -22,7 +22,6 @@ impl Carrying {
     }
 }
 impl Domain {
-    #[expect(clippy::manual_map, reason = "step code matches optional values without closures")]
     pub(crate) fn carry(
         &mut self,
         env: &Env<Limits>,

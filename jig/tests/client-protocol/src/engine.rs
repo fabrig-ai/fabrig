@@ -92,7 +92,7 @@ impl Engine {
         }
     }
     fn mount_env(&self) -> Env<http::Limits> {
-        Env { now: self.env.now, wall: self.env.wall, limits: crate::fixtures::http_limits() }
+        self.env.with(crate::fixtures::http_limits())
     }
     fn mount_event(&mut self, event: http::Event) {
         self.mount.down(&self.mount_env(), event);

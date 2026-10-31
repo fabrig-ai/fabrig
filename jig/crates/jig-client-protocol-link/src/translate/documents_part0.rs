@@ -9,7 +9,6 @@ pub(crate) fn frame_party_fields(value: &w::MeParty, limits: &Limits) -> Result<
     })
 }
 
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn pool_ledger_fields(value: &w::PoolLedger) -> c::PoolLedger {
     let opt0 = match value.parent() {
         Some(item) => Some(crate::translate::facts::funder(item)),
@@ -34,7 +33,6 @@ pub(crate) fn pool_ledger_fields(value: &w::PoolLedger) -> c::PoolLedger {
     }
 }
 
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn project_role_fields(value: &w::MeProject, limits: &Limits) -> Result<c::MeProject, w::Problem> {
     let opt1 = match value.pool() {
         Some(item) => Some(pool_ledger_fields(item)),
@@ -73,7 +71,6 @@ pub(crate) fn count_fields(value: &w::Count) -> c::Count {
     c::Count { value: value.value(), limited: value.limited() }
 }
 
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn frame_fields(value: &w::Me, limits: &Limits) -> Result<c::Me, w::Problem> {
     let list0 = super::me::projects(value.projects(), limits)?;
     let opt1 = match value.deployment_role() {
@@ -153,7 +150,6 @@ pub(crate) fn task_status_fields(value: &w::TaskStatus) -> c::TaskStatus {
     }
 }
 
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn task_link_fields(value: &w::TaskLink, limits: &Limits) -> Result<c::TaskLink, w::Problem> {
     Ok(match value {
         w::TaskLink::Live(row) => c::TaskLink::Live(chip_fields(row.value(), limits)?),
@@ -255,7 +251,6 @@ pub(crate) fn specification_document_fields(
     })
 }
 
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn subscription_kind_fields(value: &w::SubscriptionKind) -> c::SubscriptionKind {
     match value {
         w::SubscriptionKind::Task(row) => {

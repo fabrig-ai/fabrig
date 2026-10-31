@@ -1,4 +1,3 @@
-#![expect(clippy::manual_map, reason = "step code matches optional query facts without closures")]
 //! The fixed task query and the task owner's whole lines.
 use super::{documents, facts, w};
 use crate::Limits;

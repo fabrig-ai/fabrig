@@ -213,7 +213,6 @@ fn second(
     }
 }
 #[must_use]
-#[expect(clippy::manual_map, reason = "step code matches optional owner actions explicitly")]
 pub fn decode(view: &mut View<'_>, node: NodeId, act: Act) -> Option<Action> {
     let bound = view.render.act(node, act)?;
     if bound.binding.owner == (Owner::Application { number: jig_client_test_domain::FIRST }).opaque()

@@ -1,4 +1,3 @@
-#![expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 //! Exhaustive settings and history translations (protocol/client.md, 3).
 use crate::Limits;
 use alloc::boxed::Box;
@@ -823,7 +822,7 @@ fn encode_setting_item_pieces(values: &List<c::SettingItem>, limits: &w::Limits)
         }
         rows.push(row).expect("same capacity");
     }
-    let mut writer = Writer::new(usize::try_from(size).expect("wire size fits"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(size));
     for row in rows.into_boxed() {
         writer.put(&row.measure().to_be_bytes()).expect("measured");
         row.encode(&mut writer).expect("measured");
@@ -866,7 +865,7 @@ fn encode_revision_item_pieces(values: &List<c::RevisionItem>, limits: &w::Limit
         }
         rows.push(row).expect("same capacity");
     }
-    let mut writer = Writer::new(usize::try_from(size).expect("wire size fits"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(size));
     for row in rows.into_boxed() {
         writer.put(&row.measure().to_be_bytes()).expect("measured");
         row.encode(&mut writer).expect("measured");
@@ -1035,7 +1034,7 @@ fn wire_task_contract(
             if size > limits.task_contract_document_verdict_choices {
                 return Err(super::too_large());
             }
-            let mut writer = Writer::new(usize::try_from(size).expect("wire size fits"));
+            let mut writer = Writer::new(skein_lib::length::usize_of(size));
             for row in &rows {
                 writer.put(&row.measure().to_be_bytes()).expect("measured");
                 row.encode(&mut writer).expect("measured");

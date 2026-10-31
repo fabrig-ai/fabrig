@@ -110,7 +110,7 @@ fn a_sign_in_answer_with_no_token_leaves_none_held() {
         w::SignedIn::new(limits().wire(), w::SignedInParts { token: None, party: PARTY, expires: 10 })
             .expect("transport credential"),
     );
-    let mut bytes = skein_lib::Writer::new(usize::try_from(answer.measure()).expect("short sign-in"));
+    let mut bytes = skein_lib::Writer::new(skein_lib::length::usize_of(answer.measure()));
     answer.encode(&mut bytes).expect("measured sign-in");
     h.answer(exchange, &bytes.finish());
     assert!(h.link.credential().is_none());
@@ -133,7 +133,7 @@ fn a_link_carries_the_attempts_held_credential_and_keeps_it_on_a_tokenless_answe
         w::SignedIn::new(limits().wire(), w::SignedInParts { token: None, party: PARTY, expires: 10 })
             .expect("kept sign-in"),
     );
-    let mut bytes = skein_lib::Writer::new(usize::try_from(answer.measure()).expect("answer size"));
+    let mut bytes = skein_lib::Writer::new(skein_lib::length::usize_of(answer.measure()));
     answer.encode(&mut bytes).expect("answer");
     h.answer(exchange, &bytes.finish());
     assert_eq!(h.link.credential(), Some(&Secret::new(Box::new(CREDENTIAL))));

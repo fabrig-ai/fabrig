@@ -7,7 +7,7 @@ use stories::client_construction as fixture;
 #[test]
 fn supplied_client_bounds_and_constructor_survive_tabs_reload_and_default_neighbours() {
     let settings = Settings { seed: 8530, ..Settings::default() };
-    assert!(fixture::NAME.len() > usize::try_from(test::limits().client.domain.text).expect("default text bound fits"));
+    assert!(fixture::NAME.len() > skein_lib::length::usize_of(test::limits().client.domain.text));
     let mut world = fixture::world(settings);
     let custom = world.client_with(7, stories::chat(), fixture::limits(), fixture::client);
     let default = world.client(8, stories::chat());

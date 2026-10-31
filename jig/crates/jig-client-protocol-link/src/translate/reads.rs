@@ -9,7 +9,6 @@ use jig_client_protocol_wire::VERSION;
 use jig_client_protocol_wire::v19 as w;
 use skein_lib::{Reader, Writer, bytes};
 
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub fn read(read: &c::Read, limits: &w::Limits) -> Result<w::Read, w::Problem> {
     Ok(match read {
         c::Read::Settings => w::Read::Settings,
@@ -101,7 +100,6 @@ fn inbox_group(value: c::InboxReadGroup) -> w::InboxReadGroup {
         c::InboxReadGroup::Updates => w::InboxReadGroup::Updates,
     }
 }
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 fn inbox_kind(value: Option<c::InboxGroup>) -> Option<w::InboxGroup> {
     match value {
         Some(value) => Some(match value {
@@ -121,7 +119,7 @@ pub fn owned(value: Readable, limits: &w::Limits) -> Result<w::Owned, w::Problem
     let (owner, version, record) = match value {
         Readable::Jig(value) => {
             let value = read(&value, limits)?;
-            let mut writer = Writer::new(usize::try_from(value.measure()).expect("u32 fits usize"));
+            let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
             value.encode(&mut writer).expect("measured read");
             (w::Owner::Jig, VERSION, writer.finish())
         }

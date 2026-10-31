@@ -3,7 +3,6 @@ use super::{
     Limits, List, Reader, Wall, account_state_fields, c, charge, chip_piece, host_piece, host_run_piece, piece_count,
     store_fill_fields, too_large, w,
 };
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn account_fields(value: &w::Account, limits: &Limits, room: &mut u64) -> Result<c::Account, w::Problem> {
     super::charge_account(value.uses().as_ref(), value.display(), room)?;
     // An account's runs and its waiting tasks stay lists bounded by the rows.
@@ -159,7 +158,6 @@ pub(crate) fn person_capacity_cause_fields(value: &w::PersonCapacityCause) -> c:
     }
 }
 
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn person_capacity_refusal_fields(value: &w::PersonCapacityRefusal) -> c::PersonCapacityRefusal {
     let opt0 = match value.project() {
         Some(item) => Some(*item),
@@ -174,7 +172,6 @@ pub(crate) fn person_capacity_refusal_fields(value: &w::PersonCapacityRefusal) -
     }
 }
 
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn task_capacity_action_fields(value: &w::TaskCapacityAction) -> c::TaskCapacityAction {
     match value {
         w::TaskCapacityAction::Batch(row) => {
@@ -231,7 +228,6 @@ pub(crate) fn task_capacity_cause_fields(value: &w::TaskCapacityCause) -> c::Tas
     }
 }
 
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn task_capacity_request_fields(value: &w::TaskCapacityRequest) -> c::TaskCapacityRequest {
     let opt0 = match value.project() {
         Some(item) => Some(*item),

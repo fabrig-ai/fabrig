@@ -104,7 +104,7 @@ impl Connections {
     pub(crate) fn has_exchange_room(&self) -> bool {
         self.pending.iter().filter(|(owner, _, _, _)| matches!(owner, Owner::Link(_))).count()
             + self.exchanges.values().filter(|value| !matches!(value.owner, Owner::Stream)).count()
-            < usize::try_from(self.limits.exchanges).expect("u32 fits")
+            < skein_lib::length::usize_of(self.limits.exchanges)
     }
     pub(crate) fn kinds(&self) -> (skein_lib::List<Kind>, skein_lib::List<Kind>) {
         let mut active =
@@ -200,7 +200,7 @@ impl Connections {
         Env { now, wall: Wall::EPOCH, limits: self.limits.http }
     }
     fn start(&mut self, now: Time, owner: Owner, call: Call, until: Time, kind: Kind, below: &mut Queue<(Conn, Down)>) {
-        if call.body.len() > usize::try_from(self.limits.body_bytes).expect("u32 fits") {
+        if call.body.len() > skein_lib::length::usize_of(self.limits.body_bytes) {
             self.failed(owner);
             return;
         }
@@ -316,9 +316,7 @@ impl Connections {
                     if let Some(stream) = &mut value.stream {
                         stream.body(&bytes, &mut self.heard);
                         value.terminal = self.hear();
-                    } else if value.body.len() + bytes.len()
-                        <= usize::try_from(self.limits.body_bytes).expect("u32 fits")
-                    {
+                    } else if value.body.len() + bytes.len() <= skein_lib::length::usize_of(self.limits.body_bytes) {
                         value.body.extend_from_slice(&bytes);
                     } else {
                         self.failed(value.owner);
@@ -376,7 +374,7 @@ impl Connections {
         }
     }
     fn send_upload(env: &Env<http::Limits>, value: &mut Exchange) {
-        let end = (value.sent + usize::try_from(env.limits.send).expect("u32 fits")).min(value.upload.len());
+        let end = (value.sent + skein_lib::length::usize_of(env.limits.send)).min(value.upload.len());
         let bytes = value.upload[value.sent..end].into();
         value.sent = end;
         http::down(

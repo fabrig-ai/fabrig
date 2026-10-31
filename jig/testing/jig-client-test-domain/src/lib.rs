@@ -1,6 +1,7 @@
 //! The test application's client tree: jig and two connector sides below one
 //! typed request table. The root keeps no routing state and reads no answers.
 //! Entry points follow client/domain/root.md, sections 3–10.
+#![expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
 extern crate alloc;

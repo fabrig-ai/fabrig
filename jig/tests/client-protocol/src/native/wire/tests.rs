@@ -8,7 +8,7 @@ const PROJECT: u32 = 1;
 const FIRST_MESSAGE: u64 = 19;
 const KEY: [u8; 16] = [3; 16];
 fn encoded<T>(value: &T, measure: fn(&T) -> u32, encode: fn(&T, &mut Writer) -> Result<(), Overflow>) -> Box<[u8]> {
-    let mut out = Writer::new(usize::try_from(measure(value)).expect("bounded wire fixture"));
+    let mut out = Writer::new(skein_lib::length::usize_of(measure(value)));
     encode(value, &mut out).expect("bounded wire fixture");
     out.finish()
 }

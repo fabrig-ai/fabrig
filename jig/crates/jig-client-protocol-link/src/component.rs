@@ -159,7 +159,7 @@ impl Link {
             kind: ExchangeKind::Attempt { carrying },
         };
         self.attempts.insert(exchange, state).expect("checked exchange capacity");
-        let mut writer = Writer::new(usize::try_from(record.measure()).expect("u32 fits usize"));
+        let mut writer = Writer::new(skein_lib::length::usize_of(record.measure()));
         record.encode(&mut writer).expect("measured envelope");
         self.exchange(exchange, Message::Request(writer.finish()), out);
     }
@@ -193,7 +193,7 @@ impl Link {
         let state =
             Attempt { held: None, token: read, owner, version: record.version(), kind: ExchangeKind::Read { turn } };
         self.attempts.insert(exchange, state).expect("checked exchange capacity");
-        let mut writer = Writer::new(usize::try_from(record.measure()).expect("u32 fits usize"));
+        let mut writer = Writer::new(skein_lib::length::usize_of(record.measure()));
         record.encode(&mut writer).expect("measured read envelope");
         self.exchange(exchange, Message::Read(writer.finish()), out);
     }
@@ -407,7 +407,7 @@ fn keyed(key: RequestKey, ask: Ask, value: Option<Secret>, limits: &w::Limits) -
     let (owner, version, request) = match ask {
         Ask::Jig(ask) => {
             let record = translate::asks::ask(&ask, limits)?;
-            let mut writer = Writer::new(usize::try_from(record.measure()).expect("u32 fits usize"));
+            let mut writer = Writer::new(skein_lib::length::usize_of(record.measure()));
             record.encode(&mut writer).expect("measured ask");
             (w::Owner::Jig, wire::VERSION, writer.finish())
         }
@@ -491,7 +491,7 @@ impl Link {
             kind: ExchangeKind::WatchOpen { name: opening.name },
         };
         self.attempts.insert(exchange, attempt).expect("checked opening exchange capacity");
-        let mut writer = Writer::new(usize::try_from(record.measure()).expect("u32 fits usize"));
+        let mut writer = Writer::new(skein_lib::length::usize_of(record.measure()));
         record.encode(&mut writer).expect("measured opening");
         self.exchange(exchange, Message::Watch(writer.finish()), out);
     }
@@ -561,7 +561,7 @@ impl Link {
     fn unwatch(&mut self, exchange: Token, stream: [u8; 16], watch: u64, out: &mut Queue<Request>) {
         let record =
             w::WatchClose::new(self.limits.wire(), w::WatchCloseParts { stream, watch }).expect("fixed closing names");
-        let mut writer = Writer::new(usize::try_from(record.measure()).expect("u32 fits usize"));
+        let mut writer = Writer::new(skein_lib::length::usize_of(record.measure()));
         record.encode(&mut writer).expect("measured closing");
         self.exchange(exchange, Message::Unwatch(writer.finish()), out);
     }
@@ -791,7 +791,7 @@ impl Link {
     }
     fn gone(&mut self, exchange: Token, stream: [u8; 16], out: &mut Queue<Request>) {
         let record = w::Gone::new(self.limits.wire(), w::GoneParts { stream }).expect("fixed stream name");
-        let mut writer = Writer::new(usize::try_from(record.measure()).expect("u32 fits usize"));
+        let mut writer = Writer::new(skein_lib::length::usize_of(record.measure()));
         record.encode(&mut writer).expect("measured stream gone");
         self.exchange(exchange, Message::StreamGone(writer.finish()), out);
     }

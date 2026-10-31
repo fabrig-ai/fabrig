@@ -209,7 +209,6 @@ pub(crate) fn resource_scope_piece(
     Err(too_large())
 }
 
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn authority_fields(value: &w::Authority, limits: &Limits) -> Result<c::Authority, w::Problem> {
     let opt0 = match value.deadline() {
         Some(item) => Some(Wall::from_nanos(*item)),

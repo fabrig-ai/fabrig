@@ -8,7 +8,6 @@ pub(crate) fn note_author_fields(value: &w::NoteAuthor) -> c::NoteAuthor {
     }
 }
 
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn note_fields(value: &w::Note, limits: &Limits) -> Result<c::Note, w::Problem> {
     if value.tasks().len() > limits.client().rows {
         return Err(too_large());

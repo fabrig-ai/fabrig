@@ -39,7 +39,6 @@ pub(crate) fn chip_phase_fields(
     Ok(c::ChipPhaseFacts { phase, details: Box::new(details) })
 }
 
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn closing_fields(
     value: &w::ClosingFields,
     index: u32,
@@ -93,7 +92,6 @@ pub(crate) fn party(value: &w::Party, limits: &Limits) -> Result<c::Party, w::Pr
     })
 }
 
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn decision(value: &w::Decision, limits: &Limits) -> Result<c::Decision, w::Problem> {
     Ok(match value {
         w::Decision::Accepted => c::Decision::Accepted,
@@ -120,7 +118,6 @@ pub(crate) fn decision(value: &w::Decision, limits: &Limits) -> Result<c::Decisi
     })
 }
 
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn ending_fields(
     value: &w::EndingFields,
     limits: &Limits,
@@ -272,7 +269,6 @@ pub(crate) fn person_stall_notice(value: &w::PersonStallNotice) -> c::PersonStal
     c::PersonStallNotice { message: value.message(), at: Wall::from_nanos(value.at()), activity: value.activity() }
 }
 
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn person_wait(value: &w::PersonWait) -> c::PersonWait {
     let opt0 = match &value.notice() {
         Some(item) => Some(person_stall_notice(item)),
@@ -356,7 +352,6 @@ pub(crate) fn failure_tries(value: &w::FailureTries) -> c::FailureTries {
     }
 }
 
-#[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn chip_hold(value: &w::ChipHold, limits: &Limits) -> Result<c::ChipHold, w::Problem> {
     let opt0 = match &value.account() {
         Some(item) => Some(part(item)),

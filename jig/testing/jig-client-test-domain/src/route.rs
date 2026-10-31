@@ -7,7 +7,7 @@ use crate::{
 use skein_lib::{Env, List, Queue};
 
 fn first_env(env: &Env<Limits>) -> Env<first::Limits> {
-    Env { now: env.now, wall: env.wall, limits: env.limits.first }
+    env.with(env.limits.first)
 }
 pub(crate) fn jig(root: &mut Domain, env: &Env<Limits>, event: jig_client_view::Event, out: &mut Queue<Request>) {
     let mut child = Queue::uncapped();
@@ -244,13 +244,7 @@ pub(crate) fn told(root: &mut Domain, env: &Env<Limits>, told: jig_client::Told,
 
 fn first_me(root: &mut Domain, env: &Env<Limits>, told: &jig_client::Told, out: &mut Queue<Request>) -> bool {
     let mut child = Queue::uncapped();
-    let consumed = first::me::told(
-        &mut root.first,
-        &Env { now: env.now, wall: env.wall, limits: env.limits.first },
-        &root.client,
-        told,
-        &mut child,
-    );
+    let consumed = first::me::told(&mut root.first, &env.with(env.limits.first), &root.client, told, &mut child);
     route_first(root, env, &mut child, out);
     consumed
 }

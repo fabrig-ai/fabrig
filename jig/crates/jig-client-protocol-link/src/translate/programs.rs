@@ -67,9 +67,8 @@ pub(crate) fn logins(value: &[u8], limits: &Limits, room: &mut u64) -> Result<Li
     }
     Ok(rows)
 }
-#[expect(clippy::disallowed_methods, reason = "protocol validates configured UTF-8 names before allocation")]
 pub(crate) fn name(value: &[u8], room: &mut u64) -> Result<Box<[u8]>, w::Problem> {
-    if core::str::from_utf8(value).is_err() {
+    if !bytes::is_utf8(value) {
         return Err(piece_problem(skein_codec::Reason::Malformed));
     }
     copy(value, room)

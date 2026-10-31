@@ -29,7 +29,6 @@ pub fn owner_facts(object: &Object) -> Option<&jig_client::contract::PersonTask>
     }
 }
 /// Positive forms the current person answer schema can express.
-#[expect(clippy::manual_map, reason = "the strict step subset uses explicit Option matches without closures")]
 #[must_use]
 pub fn answer(
     document: &jig_client::contract::PersonTask,

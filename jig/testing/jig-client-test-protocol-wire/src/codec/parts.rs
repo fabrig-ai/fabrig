@@ -30,7 +30,6 @@ pub(super) fn decode_key(value: w::Key, _limits: &d::Limits) -> d::Key {
     };
     d::Key { origin, deployment, task, purpose }
 }
-#[expect(clippy::manual_map, reason = "step code translates optional fields without closures")]
 pub(super) fn encode_effect(value: &d::Effect) -> w::Effect {
     let d::Effect { kind, resources, purpose, condition, target, state } = value;
     w::Effect::new(
@@ -49,7 +48,6 @@ pub(super) fn encode_effect(value: &d::Effect) -> w::Effect {
     )
     .expect("admitted fields fit schema")
 }
-#[expect(clippy::manual_map, reason = "step code translates optional fields without closures")]
 pub(super) fn decode_effect(value: w::Effect, limits: &d::Limits) -> Result<d::Effect, Undecodable> {
     let w::EffectParts { kind, resources, purpose, condition, target, state } = value.into_parts();
     Ok(d::Effect {
@@ -76,7 +74,6 @@ pub(super) fn decode_attempt(value: w::Attempt, _limits: &d::Limits) -> d::Attem
     let w::AttemptParts { number, sent, deadline } = value.into_parts();
     d::Attempt { number, sent: Wall::from_nanos(sent), deadline: Wall::from_nanos(deadline) }
 }
-#[expect(clippy::manual_map, reason = "step code translates optional fields without closures")]
 pub(super) fn encode_procedure_state(value: &d::ProcedureState) -> w::ProcedureState {
     let d::ProcedureState { project, task, number, resource, index, steps, awaiting, deadline, delegate, revision } =
         value;
@@ -100,7 +97,6 @@ pub(super) fn encode_procedure_state(value: &d::ProcedureState) -> w::ProcedureS
     )
     .expect("admitted fields fit schema")
 }
-#[expect(clippy::manual_map, reason = "step code translates optional fields without closures")]
 pub(super) fn decode_procedure_state(
     value: w::ProcedureState,
     limits: &d::Limits,
@@ -142,7 +138,6 @@ pub(super) fn decode_application_object(value: w::ApplicationObject, _limits: &d
     let w::ApplicationObjectParts { revision, value } = value.into_parts();
     d::ApplicationObject { revision, value }
 }
-#[expect(clippy::manual_map, reason = "step code translates optional fields without closures")]
 pub(super) fn encode_outbox_entry(value: &d::OutboxEntry) -> w::OutboxEntry {
     let d::OutboxEntry { number, task, key, effect, attempt, phase } = value;
     w::OutboxEntry::new(
@@ -161,7 +156,6 @@ pub(super) fn encode_outbox_entry(value: &d::OutboxEntry) -> w::OutboxEntry {
     )
     .expect("admitted fields fit schema")
 }
-#[expect(clippy::manual_map, reason = "step code translates optional fields without closures")]
 pub(super) fn decode_outbox_entry(value: w::OutboxEntry, limits: &d::Limits) -> Result<d::OutboxEntry, Undecodable> {
     let w::OutboxEntryParts { number, task, key, effect, attempt, phase } = value.into_parts();
     Ok(d::OutboxEntry {
@@ -176,7 +170,6 @@ pub(super) fn decode_outbox_entry(value: w::OutboxEntry, limits: &d::Limits) -> 
         phase: decode_effect_phase(phase, limits),
     })
 }
-#[expect(clippy::manual_map, reason = "step code translates optional fields without closures")]
 pub(super) fn encode_application_release(value: &d::ApplicationRelease) -> w::ApplicationRelease {
     let d::ApplicationRelease { task, revision, again } = value;
     w::ApplicationRelease::new(
@@ -192,7 +185,6 @@ pub(super) fn encode_application_release(value: &d::ApplicationRelease) -> w::Ap
     )
     .expect("admitted fields fit schema")
 }
-#[expect(clippy::manual_map, reason = "step code translates optional fields without closures")]
 pub(super) fn decode_application_release(value: w::ApplicationRelease) -> d::ApplicationRelease {
     let w::ApplicationReleaseParts { task, revision, again } = value.into_parts();
     d::ApplicationRelease {
@@ -204,7 +196,6 @@ pub(super) fn decode_application_release(value: w::ApplicationRelease) -> d::App
         },
     }
 }
-#[expect(clippy::manual_map, reason = "step code translates optional fields without closures")]
 pub(super) fn encode_application_request(value: &d::ApplicationRequest) -> w::ApplicationRequest {
     let d::ApplicationRequest { object, revision, value, release } = value;
     w::ApplicationRequest::new(
@@ -221,7 +212,6 @@ pub(super) fn encode_application_request(value: &d::ApplicationRequest) -> w::Ap
     )
     .expect("admitted fields fit schema")
 }
-#[expect(clippy::manual_map, reason = "step code translates optional fields without closures")]
 pub(super) fn decode_application_request(value: w::ApplicationRequest) -> Result<d::ApplicationRequest, Undecodable> {
     let w::ApplicationRequestParts { object, revision, value, release } = value.into_parts();
     let value = value.ok_or(Undecodable)?;
@@ -235,7 +225,6 @@ pub(super) fn decode_application_request(value: w::ApplicationRequest) -> Result
         },
     })
 }
-#[expect(clippy::manual_map, reason = "step code translates optional fields without closures")]
 pub(super) fn encode_fact(value: &d::Fact) -> w::Fact {
     let d::Fact { state, observed, pending } = value;
     w::Fact::new(
@@ -251,7 +240,6 @@ pub(super) fn encode_fact(value: &d::Fact) -> w::Fact {
     )
     .expect("admitted fields fit schema")
 }
-#[expect(clippy::manual_map, reason = "step code translates optional fields without closures")]
 pub(super) fn decode_fact(value: w::Fact, _limits: &d::Limits) -> d::Fact {
     let w::FactParts { state, observed, pending } = value.into_parts();
     d::Fact {
@@ -263,7 +251,6 @@ pub(super) fn decode_fact(value: w::Fact, _limits: &d::Limits) -> d::Fact {
         pending,
     }
 }
-#[expect(clippy::manual_map, reason = "step code translates optional fields without closures")]
 pub(super) fn encode_description(value: &d::Description) -> w::Description {
     let d::Description { kind, resources, purpose, condition, form, recovery, price, state } = value;
     w::Description::new(
@@ -284,7 +271,6 @@ pub(super) fn encode_description(value: &d::Description) -> w::Description {
     )
     .expect("admitted fields fit schema")
 }
-#[expect(clippy::manual_map, reason = "step code translates optional fields without closures")]
 pub(super) fn decode_description(value: w::Description, limits: &d::Limits) -> Result<d::Description, Undecodable> {
     let w::DescriptionParts { kind, resources, purpose, condition, form, recovery, price, state } = value.into_parts();
     Ok(d::Description {
@@ -301,7 +287,6 @@ pub(super) fn decode_description(value: w::Description, limits: &d::Limits) -> R
         state,
     })
 }
-#[expect(clippy::manual_map, reason = "step code translates optional fields without closures")]
 pub(super) fn encode_client_resource(value: &d::ClientResource) -> w::ClientResource {
     let d::ClientResource { path, role, hold, fact } = value;
     w::ClientResource::new(
@@ -318,7 +303,6 @@ pub(super) fn encode_client_resource(value: &d::ClientResource) -> w::ClientReso
     )
     .expect("admitted fields fit schema")
 }
-#[expect(clippy::manual_map, reason = "step code translates optional fields without closures")]
 pub(super) fn decode_client_resource(
     value: w::ClientResource,
     limits: &d::Limits,
