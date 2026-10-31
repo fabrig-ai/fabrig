@@ -115,7 +115,7 @@ impl Step {
         &self.arguments
     }
 }
-fn forge(action: &[u8], flags: &[Box<[u8]>], number: u16, run: Option<&[u8]>) -> Step {
+pub(crate) fn forge(action: &[u8], flags: &[Box<[u8]>], number: u16, run: Option<&[u8]>) -> Step {
     let digits = Decimal::of(u64::from(number));
     let n = digits.as_bytes();
     let mut args = List::with_capacity(
@@ -199,6 +199,13 @@ pub fn steps(
             out.push(forge(b"reconcile", flags, e.forge, None)).expect("step capacity");
         }
     }
+    out.push(serve(flags, listeners)).expect("serve capacity");
+    Steps { always: out.into_boxed(), asked: asked.into_boxed() }
+}
+
+/// The box's long-running engine, with its inherited listeners.
+#[must_use]
+pub fn serve(flags: &[Box<[u8]>], listeners: Box<[core::net::SocketAddr]>) -> Step {
     let mut serve = List::with_capacity(
         u32::try_from(flags.len()).expect("bounded flags").checked_add(3).expect("bounded arguments"),
     );
@@ -208,7 +215,5 @@ pub fn steps(
         serve.push(flag.clone()).expect("flags counted");
     }
     serve.push(bytes::copy_of(b"--box")).expect("box flag");
-    out.push(Step::new(bytes::copy_of(b"serve"), serve.into_boxed(), Kind::Long).listening(listeners))
-        .expect("serve capacity");
-    Steps { always: out.into_boxed(), asked: asked.into_boxed() }
+    Step::new(bytes::copy_of(b"serve"), serve.into_boxed(), Kind::Long).listening(listeners)
 }
