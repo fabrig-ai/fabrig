@@ -322,8 +322,7 @@ fn references_refuse_before_mutation_and_first_failure_stops_recovery() {
 
 #[test]
 fn application_expiry_uses_one_explicit_start_observation() {
-    let mut d = domain();
-    d.restore_begin(Wall::from_nanos(100));
+    let mut d = restoring_domain(Wall::from_nanos(100));
     for token in 0..100 {
         restore(&mut d, application(token, Wall::from_nanos(100)));
     }
@@ -338,7 +337,8 @@ fn application_expiry_uses_one_explicit_start_observation() {
     assert_eq!(d.restore_fit_failure().unwrap().set, RestoreSet::Rows(RecordKind::Application));
     let mut direct = domain();
     restore(&mut direct, application(1, Wall::EPOCH));
-    assert!(direct.application_outcome(Token::new(1)).is_some(), "explicit compatibility default");
+    assert_eq!(direct.application_outcome(Token::new(1)), None, "expired decoded row swept");
+    assert_eq!(direct.restore_fit_failure(), None);
 }
 
 #[test]
@@ -416,8 +416,7 @@ fn adopted_outcome() -> ApplicationOutcome {
 }
 #[test]
 fn expired_adopted_history_neither_counts_nor_links_an_absent_repository() {
-    let mut d = domain();
-    d.restore_begin(Wall::from_nanos(100));
+    let mut d = restoring_domain(Wall::from_nanos(100));
     for token in 0..100 {
         restore(&mut d, Stored::Application { token, until: Wall::from_nanos(100), outcome: adopted_outcome() });
     }
@@ -427,8 +426,7 @@ fn expired_adopted_history_neither_counts_nor_links_an_absent_repository() {
 }
 #[test]
 fn nonexpired_adopted_history_still_asserts_its_missing_repository() {
-    let mut d = domain();
-    d.restore_begin(Wall::from_nanos(100));
+    let mut d = restoring_domain(Wall::from_nanos(100));
     restore(&mut d, Stored::Application { token: 1, until: Wall::from_nanos(101), outcome: adopted_outcome() });
     assert_eq!(
         d.missing_link(&reconcile::empty_tasks()),
@@ -573,6 +571,7 @@ fn a_zero_capacity_table_refuses_its_first_row() {
             false,
         )
         .unwrap();
+        d.restore_begin(Wall::EPOCH);
         let mut out = Queue::uncapped();
         step(&mut d, &Env { limits, ..env() }, Event::Restore { record: row(kind, 1) }, &mut out);
         assert_eq!(
@@ -668,4 +667,12 @@ fn missing_links_scan_retained_keys_after_lower_insertions_and_replacements() {
         assert_eq!(missing.kind, kind);
         assert_eq!(missing.key, expected);
     }
+}
+
+#[test]
+#[should_panic(expected = "restore_begin precedes every restored row")]
+fn restoring_a_row_requires_the_start_observation() {
+    let mut d = domain();
+    let mut out = Queue::uncapped();
+    step(&mut d, &env(), Event::Restore { record: application(1, Wall::EPOCH) }, &mut out);
 }

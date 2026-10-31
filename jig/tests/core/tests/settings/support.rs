@@ -110,7 +110,7 @@ pub(super) fn restart(world: &mut World, config: root::Config) {
         "restart trace: {:?}; steps: {:?}; failure: {:?}",
         world.trace,
         world.restart_steps,
-        world.domain.restore_failure()
+        world.domain.start_failure()
     );
 }
 

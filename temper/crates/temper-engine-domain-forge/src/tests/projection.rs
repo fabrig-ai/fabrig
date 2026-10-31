@@ -11,7 +11,12 @@ const CLOSE: u64 = FINISHED + 1;
 fn requests(d: &mut Domain, environment: &Env<Limits>, event: Option<Event>) -> Box<[Request]> {
     let mut out = Queue::uncapped();
     match event {
-        Some(event) => step(d, environment, event, &mut out),
+        Some(event) => {
+            if let Event::Restore { .. } = &event {
+                d.restore_begin(environment.wall);
+            }
+            step(d, environment, event, &mut out);
+        }
         None => resume(d, environment, &mut out),
     }
     let mut kept = skein_lib::List::with_capacity(out.len());

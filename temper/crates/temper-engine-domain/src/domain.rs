@@ -473,6 +473,11 @@ impl Domain {
     pub fn forge_fit_failure(&self) -> Option<&forge::RestoreFit> {
         self.forge.restore_fit_failure()
     }
+    /// First unmade connector link before startup reconciliation.
+    #[must_use]
+    pub fn forge_missing_link(&self) -> Option<forge::MissingLink> {
+        self.forge.missing_link(&self.core.tasks)
+    }
     /// Decisions open and the journal is not stopped (temper/docs/design/domain/root.md, 9.1).
     #[must_use]
     pub fn ready(&self) -> bool {

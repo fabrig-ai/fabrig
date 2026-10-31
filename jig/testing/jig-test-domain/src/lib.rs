@@ -459,6 +459,18 @@ impl Domain {
     pub fn restore_failure(&self) -> Option<core::RestartRequest> {
         self.core.restore_failure()
     }
+    /// The fixture's journal, for numbered writes made outside a root decision.
+    #[must_use]
+    pub fn journal_mut(&mut self) -> &mut Journal<Write, Delivery> {
+        &mut self.journal
+    }
+
+    /// The phase currently selected by the core's start.
+    #[must_use]
+    pub fn start_phase(&self) -> Option<core::start::Phase> {
+        self.core.start_phase()
+    }
+
     /// The start's refusal with the phase it refused at.
     #[must_use]
     #[expect(clippy::manual_map, reason = "the step-code subset uses exhaustive matches")]
