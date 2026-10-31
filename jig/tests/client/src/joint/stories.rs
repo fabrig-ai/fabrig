@@ -1,15 +1,13 @@
 //! People act on the public tree over actual core, worker and applied store doors
 //! (client/domain/testing.md, sections 5–6; domain/people.md, section 11).
-use super::{Joint, engine::Driver, session::Session};
+use super::{Joint, session::Session};
 use crate::{Settings, Test, Until, World};
 use jig_client_domain::contract as client;
-use jig_core_world::peers::Peers;
 use jig_domain_people as people;
-use jig_fake_workers::{Script, Worker};
+use jig_fake_workers::Script;
 use skein_fake_person::{Find, Step};
 use skein_lib::{Duration, Time, Token};
 use skein_ui::Role;
-use std::collections::BTreeMap;
 
 use super::fixture::{bounded_world, clock, configured_world, turn, world};
 
@@ -104,29 +102,7 @@ fn signing_in_and_starting_a_chat_on_the_engine() {
 #[test]
 fn a_person_reads_actual_project_settings_and_returns_to_its_overview() {
     let mut world = world(turn());
-    let client = world.client(1, crate::stories::conversation());
-    let within = Duration::from_secs(1);
-    world.person(
-        client,
-        vec![
-            Step::See { find: Find::named(Role::Button, b"Sign in with Test"), within },
-            Step::Press { find: Find::named(Role::Button, b"Sign in with Test") },
-            Step::See { find: Find::named(Role::Button, b"Project 1"), within },
-            Step::Press { find: Find::named(Role::Button, b"Project 1") },
-            Step::See { find: Find::named(Role::Tab, b"Settings"), within },
-            Step::Press { find: Find::named(Role::Tab, b"Settings") },
-            Step::See { find: Find::text(b"Period spend: 1000"), within },
-            Step::See { find: Find::text(b"Period spend: 500"), within },
-            Step::See { find: Find::text(b"Escalation role: 0"), within },
-            Step::See { find: Find::text(b"Configured pool period: 1"), within },
-            Step::See { find: Find::named(Role::Tab, b"Overview"), within },
-            Step::Press { find: Find::named(Role::Tab, b"Overview") },
-            Step::See { find: Find::named(Role::Tab, b"Settings"), within },
-        ],
-    );
-    let outcome = world.run(Until::Done);
-    assert_eq!(outcome.verdict, skein_world::domain::Verdict::Passed);
-    assert!(outcome.judged.0 > 0);
+    crate::stories::shared::a_person::reading_project_settings(&mut world);
     let rows = &world.front().session.driver.world.store.rows;
     assert_eq!(
         rows.values()
@@ -152,12 +128,6 @@ fn a_person_reads_actual_project_settings_and_returns_to_its_overview() {
     )));
 }
 
-#[path = "deployment_story.rs"]
-mod deployment;
-
-#[path = "ended_story.rs"]
-mod ended;
-
 #[path = "people_stories.rs"]
 mod person_stories;
 
@@ -178,3 +148,5 @@ fn completion() -> jig_domain_fleet::Activity {
         span: Duration::from_secs(1),
     }
 }
+
+mod a_shared;
