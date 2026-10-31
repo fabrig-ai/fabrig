@@ -29,10 +29,17 @@ A project is where work happens: the repositories adopted into it, one of them i
 - **Made:** `temper init` makes project 1, `Project 1`. Setting up the
   box's Forgejo, or connecting a Forgejo with a first repository, makes
   a new project, named after the repository, unless you name one that
-  exists. A new project's policy is a copy of policy 1 as it is then.
+  exists; the playground's start makes `Playground`. A new project's
+  policy is a copy of policy 1 as it is then.
 - **Given repositories:** `repository adopt` adopts one into a project
   that exists; the first one adopted becomes its home unless the
   adoption says otherwise.
+- **Deleted:** its owners delete it with Delete on its settings in the
+  client, confirmed by its name; the playground's reset deletes
+  `Playground`. It takes no new work at once and leaves every list;
+  its live tasks are cancelled, then erased, its own settings and roles
+  with them, and its repositories leave it. Its name is free again; its
+  number is never given again.
 
 ## What temper guarantees
 
@@ -40,6 +47,8 @@ A project is where work happens: the repositories adopted into it, one of them i
   adoption to make instead.
 - **Its policy is its own:** a change of policy 1 reaches the projects
   made after it alone.
+- **A deletion ends whole:** one a restart cut goes on at the next
+  start, and no start serves a half-deleted project.
 - **A goal shows in the home:** each tracked task of the project is an
   issue there, updated as the task changes (temper help goal).
 
@@ -52,6 +61,8 @@ A project is where work happens: the repositories adopted into it, one of them i
   one; `project show` reads a project: its homes, its roles with their
   parties, its spends, its open period and each party's pool in it;
   `project fund` raises its period spend or a role's.
+- **The client:** Delete on a project's settings deletes it, for its
+  owners.
 - **temper's runs** work in their task's project: `change` writes to
   one of its repositories, and the forge's reads name one by
   `owner/name`.
@@ -61,7 +72,9 @@ A project is where work happens: the repositories adopted into it, one of them i
 - ctl's group `project` reads a project and changes its spends alone:
   no call renames a project or changes its roles.
 - temper does not make a project from ctl but with its first
-  repository.
+  repository, or the playground's.
+- ctl has no call that deletes a project.
+- A deleted project's spend stays in the period's totals.
 - temper has no call that moves a task or a repository to another
   project.
 - A project's period lasts a week: each week the next opens at its
