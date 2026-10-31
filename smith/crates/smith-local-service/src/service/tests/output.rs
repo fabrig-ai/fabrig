@@ -141,21 +141,18 @@ fn assert_removed_after_exit(status: local::ExitStatus) {
     }
 }
 
-/// Lower test of smith's `end_to_end::smith_exec_ephemeral_removes_its_private_files_after_acceptance`
 /// (top tiers test wiring only).
 #[test]
 fn acceptance_removes_private_records_and_their_directory() {
     assert_removed_after_exit(local::ExitStatus::Accepted);
 }
 
-/// Lower test of smith's `end_to_end::smith_exec_ephemeral_removes_its_private_files_after_a_failed_answer`
 /// (top tiers test wiring only).
 #[test]
 fn failure_removes_private_records_and_their_directory() {
     assert_removed_after_exit(local::ExitStatus::RunFailed);
 }
 
-/// Lower test of smith's `end_to_end::smith_exec_ephemeral_keeps_a_foreign_file_and_warns_before_the_last_line`
 /// (top tiers test wiring only); warning text belongs to the shell.
 #[test]
 fn a_foreign_file_survives_and_warns_before_exit() {
@@ -199,7 +196,6 @@ fn finish_output(service: &mut Service) -> local::ExitStatus {
     status
 }
 
-/// Lower test of smith's `end_to_end::smith_exec_result_file_failure_exits_1_after_an_accepted_run`
 /// (top tiers test wiring only); the shell owns the file operation.
 #[test]
 fn result_failure_changes_acceptance_before_the_final_exit() {
@@ -211,7 +207,6 @@ fn result_failure_changes_acceptance_before_the_final_exit() {
     assert_eq!(finish_output(&mut service), local::ExitStatus::RunFailed);
 }
 
-/// Lower test of smith's `end_to_end::smith_exec_result_file_failure_warns_before_a_parked_answers_last_line`
 /// (top tiers test wiring only); warning text belongs to the shell.
 #[test]
 fn result_failure_keeps_the_parked_exit_behind_shell_output() {

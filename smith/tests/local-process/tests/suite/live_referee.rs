@@ -66,7 +66,6 @@ fn refused_finish(seen: &Seen) -> Seen {
     refused
 }
 
-/// Lower test of smith's end_to_end::the_live_outcome_referee_runs_on_the_shared_fake_binary_harness (top tiers test wiring only).
 #[test]
 fn the_live_report_policy_rejects_mutated_accepted_observations() {
     let files = Files::new();
@@ -88,7 +87,6 @@ fn the_live_report_policy_rejects_mutated_accepted_observations() {
     }
 }
 
-/// Lower test of smith's end_to_end::the_live_outcome_referee_runs_on_the_shared_fake_binary_harness (top tiers test wiring only).
 #[test]
 fn the_live_change_policy_rejects_mutated_delivery_observations() {
     let files = Files::new();

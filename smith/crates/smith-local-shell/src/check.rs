@@ -78,11 +78,7 @@ fn report_for(
     clock: &skein_shell::Clock,
     execution: Option<&command::Exec>,
 ) -> Verdict {
-    let command = match execution {
-        Some(execution) => Command::Exec(execution.clone()),
-        None => Command::Check { shared: command::Shared::default(), json: false, execution: None },
-    };
-    let mut resolved = match settings::resolve::resolve(settings, &command) {
+    let mut resolved = match settings::resolve::resolve(settings) {
         Ok(resolved) => resolved,
         Err(why) => return Verdict::Refused(why),
     };
@@ -268,25 +264,18 @@ fn invocation_limits(
     wall: skein_lib::Wall,
 ) -> Result<Option<Box<[smith_agent_service::profile::Limit]>>, String> {
     let local = match execution {
-        Some(execution) => Some(derive_execution(resolved, execution, wall)?),
-        None => Some(interactive_limits(resolved)?),
+        Some(execution) => derive_invocation(resolved, execution, wall, false)?,
+        None => interactive_limits(resolved)?,
     };
     let agent = &resolved.agent;
-    Ok(match &local {
-        Some((local, result_file)) => smith_local_service::profile::effective(
-            &agent.profile,
-            &agent.declarations,
-            &agent.service,
-            local,
-            *result_file,
-        ),
-        None => smith_agent_service::profile::effective(
-            &agent.profile,
-            &agent.declarations,
-            &agent.service.limits,
-            &agent.service.llm_endpoints,
-        ),
-    })
+    let (local, result_file) = local;
+    Ok(smith_local_service::profile::effective(
+        &agent.profile,
+        &agent.declarations,
+        &agent.service,
+        &local,
+        result_file,
+    ))
 }
 
 fn named_limits(
@@ -309,14 +298,6 @@ fn named_limits(
             })
             .collect(),
     )
-}
-
-fn derive_execution(
-    resolved: &mut settings::resolve::Resolved,
-    invocation: &command::Exec,
-    wall: skein_lib::Wall,
-) -> Result<(smith_local_service::Limits, skein_lib::Duration), String> {
-    derive_invocation(resolved, invocation, wall, false)
 }
 
 /// Derive and admit the interactive invocation's limits without opening resources.
@@ -390,8 +371,7 @@ fn handed_accounts(resolved: &settings::resolve::Resolved) -> Result<crate::cred
     let mut locations = skein_lib::List::with_capacity(count);
     let directory = crate::credentials::Directory::of(&resolved.settings);
     for account in &resolved.accounts {
-        let source =
-            crate::credentials::source(&account.fields, &resolved.settings, false, &account.name, directory.as_ref());
+        let source = crate::credentials::source(&account.fields, false, &account.name, directory.as_ref());
         locations
             .push(crate::credentials::Location { account: account.number, name: account.name.clone(), source })
             .expect("selected locations fit their account bound");
@@ -532,11 +512,7 @@ mod tests {
             &[settings::Source { layer: settings::Layer::User, path: "check-fixture.toml".into(), text }],
         )
         .unwrap_or_else(|why| panic!("{}", why.line()));
-        settings::resolve::resolve(
-            &settings,
-            &Command::Check { shared: command::Shared::default(), json: true, execution: None },
-        )
-        .unwrap_or_else(|why| panic!("{}", why.line()))
+        settings::resolve::resolve(&settings).unwrap_or_else(|why| panic!("{}", why.line()))
     }
 
     #[test]
@@ -616,8 +592,9 @@ mod tests {
                 deliver: false,
                 json,
             };
-            let (limits, result_file) = derive_execution(&mut resolved, &invocation, skein_lib::Wall::from_nanos(0))
-                .expect("pure invocation derivation");
+            let (limits, result_file) =
+                derive_invocation(&mut resolved, &invocation, skein_lib::Wall::from_nanos(0), false)
+                    .expect("pure invocation derivation");
             let agent = &resolved.agent;
             let events = agent.service.limits.events.as_ref();
             assert_eq!(events.map_or(0, |events| events.sinks.destinations), destinations);
@@ -652,11 +629,7 @@ mod tests {
             &[settings::Source { layer: settings::Layer::User, path: "chat-start.toml".into(), text }],
         )
         .unwrap_or_else(|why| panic!("{}", why.line()));
-        let mut resolved = settings::resolve::resolve(
-            &settings,
-            &Command::Check { shared: command::Shared::default(), json: true, execution: None },
-        )
-        .unwrap_or_else(|why| panic!("{}", why.line()));
+        let mut resolved = settings::resolve::resolve(&settings).unwrap_or_else(|why| panic!("{}", why.line()));
         assert_eq!(resolved.accounts.len(), 1);
         assert_eq!(resolved.limits.endpoints.len(), 1);
 

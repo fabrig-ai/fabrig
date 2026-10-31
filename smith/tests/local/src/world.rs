@@ -649,7 +649,7 @@ impl World {
             chat: b"main".as_slice().into(),
             instructions: instructions.into(),
             // This persistence fixture asks for a greeting before waiting.
-            // Its charter therefore supplies actual initial work.
+            // Its charter therefore supplies initial work.
             brief: run::charter::Brief {
                 sections: Box::new([run::charter::Section {
                     title: Box::default(),
@@ -862,7 +862,7 @@ impl World {
         self.delayed_turns.len()
     }
 
-    /// Number of credential requests actually made by the local host.
+    /// Number of credential requests made by the local host.
     #[must_use]
     pub fn credential_requests(&self) -> u32 {
         self.credential_requests
@@ -964,7 +964,7 @@ impl World {
         self.reached.contains(&Goal::Waiting)
     }
 
-    /// Number of actual fake provider completion calls.
+    /// Number of fake provider completion calls.
     #[must_use]
     pub fn completions(&self) -> u32 {
         self.completions
@@ -976,13 +976,13 @@ impl World {
         self.answers
     }
 
-    /// Actual child completion prompts, with their workspace authority and served tools.
+    /// Child completion prompts, with their workspace authority and served tools.
     #[must_use]
     pub fn child_prompts(&self) -> &[(tools::Grants, Box<[agent::llm::Served]>)] {
         &self.child_prompts
     }
 
-    /// Affinity in every actual native child completion prompt.
+    /// Affinity in every native child completion prompt.
     #[must_use]
     pub fn prompt_affinities(&self) -> &[agent::llm::Affinity] {
         &self.prompt_affinities

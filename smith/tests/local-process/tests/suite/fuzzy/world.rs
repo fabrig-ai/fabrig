@@ -59,11 +59,11 @@ fn seeded_hosted_and_colocated_runs_settle_and_replay() {
                     },
                 )
                 .assert_passed(seed);
-                let actual = (world.trace(), seen);
+                let seen = (world.trace(), seen);
                 if let Some(previous) = previous {
-                    assert_eq!(actual, previous, "seed {seed}, {placement:?}");
+                    assert_eq!(seen, previous, "seed {seed}, {placement:?}");
                 }
-                previous = Some(actual);
+                previous = Some(seen);
             }
         }
     }

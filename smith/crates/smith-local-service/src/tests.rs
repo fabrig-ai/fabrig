@@ -793,7 +793,7 @@ fn trace_records(
     trace: skein_fake_machine::Opened,
     events: &smith_agent_service::EventLimits,
 ) -> Vec<smith_events::Record> {
-    // Read the whole one-turn fixture; the machine owns the file's actual bound.
+    // Read the whole one-turn fixture; the machine owns the file's bound.
     machine
         .read(trace, 0, u32::MAX)
         .expect("trace file")

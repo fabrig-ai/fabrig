@@ -151,7 +151,7 @@ fn a_spawned_childs_facts_are_drained_by_the_local_domain() {
                 saved |= saved_number == number;
             }
         }
-        assert!(saved, "the actual turn reaches the local store");
+        assert!(saved, "the turn reaches the local store");
         assert_eq!(spawned_backlog(&domain), 0, "each turn leaves no host facts behind");
         for event in [Event::TurnSaved { number }, Event::Process(process::Event::Sent { owner })] {
             step(&mut domain, &env, event, &mut out);

@@ -12,7 +12,7 @@ mod tests {
         let seen = world.seen();
         assert!(seen.started);
         assert!(seen.admitted);
-        assert!(seen.answered.is_some(), "the actual agent service supplied its last word");
+        assert!(seen.answered.is_some(), "the agent service supplied its last word");
         assert_eq!(
             seen.gone,
             Some(End::Exited { exit: Some(smith_host_domain::Exit::Code(0)), forced: smith_host_domain::Forced::No })

@@ -333,7 +333,7 @@ fn budget_and_rate_refusals_precede_agent_construction() {
 #[expect(
     clippy::wildcard_enum_match_arm,
     clippy::match_like_matches_macro,
-    reason = "unit follows one actual process lifecycle and durable ACK through Gone"
+    reason = "unit follows one process lifecycle and durable ACK through Gone"
 )]
 fn spawned_agent_receives_saved_start_message_and_durable_turn_ack() {
     use smith_host_domain::{self as host, process};

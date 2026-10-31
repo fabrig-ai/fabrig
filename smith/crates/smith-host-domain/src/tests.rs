@@ -1,5 +1,5 @@
-//! Admission/source-law controls (Temper 19735a06; domain/host.md, 4 and 10).
-//! The independent V2 scripted world carries the remaining boundary histories.
+//! Admission/source-law controls (domain/host.md, sections 4 and 10).
+//! The independent scripted world checks the remaining boundary paths.
 use crate::{Domain, End, Input, Output, Start};
 use crate::{parent, process};
 use alloc::boxed::Box;
@@ -217,7 +217,7 @@ fn a_spawn_beyond_the_slots_is_refused_as_busy_without_displacing_the_active_own
             | process::Request::Signal { .. }
             | process::Request::Wait { .. }
             | process::Request::Reap { .. },
-        ) => panic!("expected actual Spawn"),
+        ) => panic!("expected Spawn"),
     };
     crate::step(
         &mut domain,
@@ -289,7 +289,7 @@ fn admit_start(start: Start, limits: crate::Limits) -> Output {
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
     let mut out = Queue::uncapped();
     crate::step(&mut domain, &env, Input::Parent(parent::Event::Spawn { client: Token::new(91), start }), &mut out);
-    out.pop().expect("one actual spawn or invalid terminal")
+    out.pop().expect("one spawn or invalid terminal")
 }
 
 #[test]

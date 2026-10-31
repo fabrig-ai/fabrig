@@ -102,7 +102,6 @@ fn catalog(
             }
             let descriptor = source(
                 &account.fields,
-                settings,
                 needed.is_some_and(|needed| product::codex(resolved, needed.number)),
                 &name,
                 directory.as_ref(),

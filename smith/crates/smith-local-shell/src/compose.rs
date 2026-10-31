@@ -91,11 +91,6 @@ pub(crate) struct Opened {
     document: Option<Box<[u8]>>,
 }
 
-/// Read the product layers and one complete prompt before any credentials are inspected.
-pub(crate) fn open(invocation: Exec, wall: Wall, clock: &Clock, kind: &AgentKind) -> Result<(Opened, Kernel), Refused> {
-    open_mode(invocation, wall, clock, None, kind)
-}
-
 fn open_mode(
     invocation: Exec,
     wall: Wall,
@@ -157,10 +152,6 @@ fn open_settings(
     Ok((Opened { resolved, invocation, seed, wall, input_closed, interactive, document }, kernel))
 }
 
-struct Composed {
-    local: crate::Local,
-}
-
 /// Compose native roots and the account driver; a spawned child receives generated JSON.
 fn compose(
     opened: Opened,
@@ -169,7 +160,7 @@ fn compose(
     files: &mut Files,
     kernel: &mut Kernel,
     clock: &Clock,
-) -> Result<Composed, Refused> {
+) -> Result<crate::Local, Refused> {
     let Opened { mut resolved, invocation, seed, wall, input_closed, interactive, document } = opened;
     let interactive =
         interactive.map(|plain| plain || skein_shell::terminal_modes(skein_io::kernel::Fd::new(0)).is_err());
@@ -211,12 +202,13 @@ fn compose(
     }
     let mut limits = service_limits(resolved.limits, host_limits, &resolved.agent.service)
         .map_err(|detail| Refused::Local(startup::Failure::Configuration { detail }))?;
-    let (trace, header) = files.prepare_stream(
+    let (trace, header) = prepare_stream(
         &mut resolved.agent,
         &resolved.local.chat,
         &mut limits,
         invocation.json,
         wall,
+        files.teardown_bound()?,
         interactive.is_some(),
     )?;
     let front = prepare_front(interactive, input_closed, invocation.json, &resolved.agent, &limits, files)?;
@@ -259,7 +251,7 @@ fn compose(
     start_stream(&mut local, trace, header, now)?;
     local.result_file(files.output.take());
     files.composed();
-    Ok(Composed { local })
+    Ok(local)
 }
 
 fn recheck_programs(
@@ -572,11 +564,7 @@ pub fn run(
     interactive: Option<bool>,
     kind: &AgentKind,
 ) -> Result<u8, Refused> {
-    let opened = if interactive.is_none() {
-        open(invocation, at.wall, clock, kind)?
-    } else {
-        open_mode(invocation, at.wall, clock, interactive, kind)?
-    };
+    let opened = open_mode(invocation, at.wall, clock, interactive, kind)?;
     run_opened(opened, at, clock, kind)
 }
 
@@ -588,7 +576,7 @@ fn run_opened(
 ) -> Result<u8, Refused> {
     let mut files = Files::prepare(&opened.invocation, &opened.resolved, opened.seed)?;
     let result = compose(opened, kind, at.now, &mut files, &mut kernel, clock).map(|mut started| {
-        match skein_shell::drive(&mut kernel, clock, &mut started.local) {
+        match skein_shell::drive(&mut kernel, clock, &mut started) {
             skein_io::kernel::Exit::Code(code) => code,
             skein_io::kernel::Exit::Signal(_) => 130,
         }

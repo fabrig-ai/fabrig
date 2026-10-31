@@ -32,7 +32,7 @@ pub fn answered(answer: &host::Answer, capture: Capture) -> Answered {
     }
 }
 
-/// Parts of `run.completed` for a run that went without answering (events.md, section 3.3).
+/// Parts of `run.completed` for a run that went without answering (protocol/events.md, section 3.3).
 #[must_use]
 pub fn unanswered(
     cause: smith_local_domain::EndCause,

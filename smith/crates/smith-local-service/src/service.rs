@@ -598,7 +598,7 @@ impl Service {
         total
     }
 
-    // New work waits at the watermark (dynamic-memory.md 4.2).
+    // New work waits at the watermark (skein/docs/foundation/programming-model.md, section 7.1).
     fn admits(&self) -> bool {
         self.backlog() < u64::from(self.limits.watermark)
     }
@@ -639,7 +639,7 @@ impl Service {
     }
 
     // Admission and FIFO head readiness are shared by the drain and readiness.
-    // Only a person's new line or command waits (dynamic-memory.md 4.2–4.3).
+    // Only a person's new line or command waits (skein/docs/foundation/programming-model.md, section 7.1).
     fn terminal_head_ready(&self) -> bool {
         match self.terminal_events.iter().next() {
             Some(protocol::TerminalEvent::Domain(event)) => match event.as_ref() {

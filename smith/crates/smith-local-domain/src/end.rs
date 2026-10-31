@@ -36,7 +36,7 @@ pub(crate) const fn exit_status(cause: Option<EndCause>) -> ExitStatus {
     }
 }
 
-/// Classify the actual answer before rendering moves its concrete result.
+/// Classify the answer before rendering moves its concrete result.
 pub(crate) fn answer_status(answer: &smith_host_domain::Answer, account: Option<u32>) -> ExitStatus {
     use smith_host_domain::{Refusal, RunFailure, RunResult};
     match &answer.result {

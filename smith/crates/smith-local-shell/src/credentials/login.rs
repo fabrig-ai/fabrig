@@ -43,12 +43,6 @@ impl LoginOutcome {
     }
 }
 
-/// Render the account's next action without its access value.
-#[must_use]
-pub fn credential_words(account: &str, credential: &Credential) -> String {
-    credential.line(account)
-}
-
 /// Handle login or logout before the run and check front ends.
 #[must_use]
 pub fn command(arguments: &[std::ffi::OsString], clock: &Clock, environment: &Environment) -> Option<u8> {
@@ -97,14 +91,13 @@ fn run(
             })
     });
     let directory = Directory::of(&settings);
-    let source = super::source(&account.fields, &settings, codex, name, directory.as_ref());
-    let registration = if codex { provider::Registration::Codex } else { provider::Registration::Configured };
+    let source = super::source(&account.fields, codex, name, directory.as_ref());
     if logout {
-        return super::logout::run(&account, &source, &settings, registration, clock, environment);
+        return super::logout::run(&account, &source, &settings, codex, clock, environment);
     }
     match source {
         Source::SignIn { file, .. } => {
-            provider::run(&account, &file, &settings, registration, provider::Operation::SignIn, clock, environment)
+            provider::run(&account, &file, &settings, codex, provider::Operation::SignIn, clock, environment)
         }
         Source::Key { file } => key::run(name, &file),
         Source::Program { .. } => program::run(name, &settings, false, clock, environment),
@@ -126,7 +119,7 @@ fn run(
                 Some(value) => Credential::ExpiredVariable { at: value.record.expires_at.as_nanos(), variable },
                 None => Credential::Unset { variable },
             };
-            eprintln!("{}", credential_words(name, &credential));
+            eprintln!("{}", credential.line(name));
             Ok(if credential.usable() { LoginOutcome::Usable } else { LoginOutcome::Unavailable })
         }
     }
@@ -147,7 +140,6 @@ mod tests {
         }
     }
 
-    /// Lower test of smith's `end_to_end::smith_login_of_an_unknown_account_exits_2` (top tiers test wiring only).
     #[test]
     fn an_unknown_account_is_refused_without_creating_credentials() {
         let files = Files::new();
@@ -168,7 +160,6 @@ mod tests {
         assert!(!files.0.join("unopened").exists(), "lookup starts no credential store");
     }
 
-    /// Lower test of smith's `end_to_end::login_checks_an_account_without_selecting_a_main_model` (top tiers test wiring only).
     #[test]
     fn account_only_login_needs_no_main_model() {
         let files = Files::new();

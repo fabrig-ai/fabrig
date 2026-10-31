@@ -1,4 +1,4 @@
-//! Seeded message and cancellation crossings on both actual inline slots.
+//! Seeded message and cancellation crossings on both inline slots.
 use skein_lib::{Duration, Rng, Time, Token};
 use smith_agent_world::Job;
 use smith_host_domain::parent;

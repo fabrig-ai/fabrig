@@ -1,4 +1,4 @@
-//! Actual message ingress, read fences and one terminal unread report on both faces.
+//! message ingress, read fences and one terminal unread report on both faces.
 use skein_lib::{Duration, Token};
 use smith_agent_world::Job;
 use smith_host_domain::{Answer, End, Fault, Input, Message, MessageRefusal, RunResult, Turn, Up, parent, process};
@@ -35,7 +35,7 @@ fn an_answer_reports_sent_and_queued_names_and_later_ingress_has_its_own_refusal
 }
 
 #[test]
-fn an_actual_turn_fence_covers_a_prefix_and_the_report_includes_a_queued_suffix() {
+fn a_seen_turn_fence_covers_a_prefix_and_the_report_includes_a_queued_suffix() {
     let mut world = World::new(502, limits());
     world.live();
     message(&mut world, 1);
@@ -55,7 +55,7 @@ fn an_actual_turn_fence_covers_a_prefix_and_the_report_includes_a_queued_suffix(
 }
 
 #[test]
-fn an_actual_waiting_fence_covers_only_the_names_before_it() {
+fn a_seen_waiting_fence_covers_only_the_names_before_it() {
     let mut world = World::new(503, limits());
     world.live();
     message(&mut world, 1);
@@ -100,7 +100,7 @@ fn failed_process_admission_reports_the_initial_messages_before_gone() {
 }
 
 #[test]
-fn inline_stop_and_drop_report_the_queued_message_and_settle_the_actual_provider() {
+fn inline_stop_and_drop_report_the_queued_message_and_settle_the_seen_provider() {
     for drop_now in [false, true] {
         let mut world = inline::World::new(506, inline::limits());
         world.provider_latency(Duration::from_secs(20));
@@ -115,7 +115,7 @@ fn inline_stop_and_drop_report_the_queued_message_and_settle_the_actual_provider
             text: b"hi".as_slice().into(),
         });
         world.event(if drop_now { parent::Event::Drop { agent } } else { parent::Event::Stop { agent } });
-        assert!(world.seen[&client].gone.is_none(), "actual provider terminal is still owed");
+        assert!(world.seen[&client].gone.is_none(), "provider terminal is still owed");
         if drop_now {
             assert_eq!(world.seen[&client].unread, Some(vec![Token::new(99)]));
             assert_eq!(world.seen[&client].fault, Some(Fault::Exited));

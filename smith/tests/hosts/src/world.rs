@@ -17,7 +17,7 @@ use crate::{HostService, Observation, Program, Seen, referee};
 enum Proc {
     /// The scripted parent sends Start and watches the child until Gone.
     Parent(Box<HostService>),
-    /// The actual agent service receives inherited streams until its exit.
+    /// The agent service receives inherited streams until its exit.
     Agent { agent: Box<skein_world::PipeHost<Agent>>, errors: fixture::AgentErrors, paused: bool },
     /// The independent fake provider answers requests until shutdown.
     Peer(Box<skein_fake_peers::llm::Peer>),
@@ -408,7 +408,7 @@ impl World {
         }
     }
 
-    /// Put the owner's live-content request in the actual host Start.
+    /// Put the owner's live-content request in the host Start.
     pub fn ask(&mut self, text: bool, reasoning: bool, input: bool) {
         self.live = Some(smith_host_domain::channel::LiveAsk { text, reasoning, input });
     }

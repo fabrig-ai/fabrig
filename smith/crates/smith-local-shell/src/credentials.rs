@@ -23,7 +23,7 @@ pub(crate) use account_report::unused_warnings;
 pub use account_report::{AccountReport, Kept, report};
 pub use directory::Directory;
 pub use key::KeyProblem;
-pub use login::{Environment, LoginOutcome, command, credential_words};
+pub use login::{Environment, LoginOutcome, command};
 pub use product::{Location, Prepared, limits, prepare, record_generation};
 pub(crate) use product::{codex as product_codex, status_words};
 use program_check::ProgramStates;
@@ -159,13 +159,7 @@ impl std::fmt::Debug for Source {
 
 /// Resolve one account descriptor without exposing a variable's value.
 #[must_use]
-pub fn source(
-    fields: &BTreeMap<String, Sourced>,
-    _settings: &settings::Settings,
-    codex: bool,
-    name: &str,
-    directory: Option<&Directory>,
-) -> Source {
+pub fn source(fields: &BTreeMap<String, Sourced>, codex: bool, name: &str, directory: Option<&Directory>) -> Source {
     let text = |key: &str| fields.get(key).and_then(|field| field.value.as_str()).unwrap_or_default();
     match text("source") {
         "env" => Source::Env { variable: text("variable").into(), codex },

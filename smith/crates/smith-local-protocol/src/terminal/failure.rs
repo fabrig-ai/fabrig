@@ -75,8 +75,6 @@ pub(super) fn detail(text: &mut Shown, diagnostic: &[u8]) {
 
 pub(super) fn account(text: &mut Shown, why: &local::AccountFailure) {
     match why {
-        local::AccountFailure::Unavailable => append(text, b"A model account is unavailable"),
-        local::AccountFailure::NotRefreshed => append(text, b"A model account could not refresh"),
         local::AccountFailure::Limited { account, reset_at } => {
             append(text, b"run failed: account ");
             decimal(text, u64::from(*account));

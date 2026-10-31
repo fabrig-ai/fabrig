@@ -2,8 +2,7 @@
 //! section 5.5). This adapter keeps git's typed command sequence, two bounded
 //! output captures and child/pipe tokens until IO proves them closed. It
 //! never decides delivery policy. `new`, `from_io` and `fire` translate one
-//! git request into one local Git terminal. Plain children remain the
-//! containment limit decided in the plan's QUESTIONS.md, item 1.
+//! git request into one local Git terminal. Git runs as a plain child.
 //!
 //! | Phase | Input | Effect |
 //! |---|---|---|

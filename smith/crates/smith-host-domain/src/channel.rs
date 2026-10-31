@@ -1,7 +1,7 @@
-//! V2 typed host channel (domain/host.md, sections 2, 3, 6 and 7;
+//! Typed host channel (domain/host.md, sections 2, 3, 6 and 7;
 //! protocol/channel.md, sections 3 and 7).
 //! Concrete parent values move; metadata controls sequence, spend, read fences and ACKs.
-//! No framing, secrets, policy decoding or V1 compatibility. All payloads are
+//! No framing, secrets or policy decoding. All payloads are
 //! checked against receiving Limits before retained state changes. Durable decisions
 //! belong to the parent, which scopes `CallName` by the same logical run after restart.
 pub use crate::source_name::SourceName;
@@ -94,10 +94,8 @@ pub struct Directory {
     pub name: Box<[u8]>,
     /// Absolute host path retained for inline workspace aliases, within `Limits::path_bytes`.
     pub host: Box<[u8]>,
-    /// Parent write authority for the mount.
     pub writable: bool,
-    /// Parent declares a git working tree; plain directories have no conflicts
-    ///.
+    /// Parent declares a git working tree; plain directories have no conflicts.
     pub git: bool,
     /// At most `Limits::conflicts` unique bounded relative paths per git mount.
     /// Read-only git conflicts are informative and grant no writes. The host
@@ -115,7 +113,6 @@ pub struct Grant {
     pub generation: u64,
     /// Relative lifetime; protocol resolves the secret.
     pub valid: Duration,
-    /// What the grant's value lends (protocol/channel.md, section 6).
     pub form: Form,
 }
 
@@ -142,9 +139,8 @@ pub enum Scheme {
 /// Durable transcript-derived operation identity, separate from callback Token.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct CallName {
-    /// Host-supplied activation of the logical run.
     pub activation: u64,
-    /// One-based accepted completion sequence, including restored V2 prefix.
+    /// One-based accepted completion sequence, including restored prefix.
     pub completion: u32,
     /// Zero-based assistant block ordinal; checked by the agent before effects.
     pub position: u32,
@@ -162,7 +158,7 @@ pub struct Turn {
     /// the opaque body separately retains the session's inclusive child bill.
     pub spent: u64,
 
-    /// Last named message actually sent and read; never a queued or unknown name.
+    /// Last named message sent and read; never a queued or unknown name.
     pub read: Option<Token>,
     /// Concrete transcript turn owning at most `Limits::turn_bytes`.
     pub body: TurnValue,
@@ -184,12 +180,11 @@ pub enum Ask {
     Host {
         /// Nonempty tool label bounded by `Limits::name_bytes`.
         tool: Box<[u8]>,
-        /// Read/write classification supplied by the agent.
         effect: Effect,
         /// Opaque owned arguments bounded by `Limits::call_bytes`.
         body: Box<[u8]>,
     },
-    /// Actual delivery of checked workspace; no cancellation after submission.
+    /// Delivery of checked workspace; no cancellation after submission.
     Deliver {
         /// Checked generic fields bounded by `Limits::call_bytes`.
         fields: Fields,
@@ -358,7 +353,7 @@ pub enum CompletionFailure {
     },
 }
 
-/// Actual transport evidence retained alongside a neutral completion failure.
+/// Transport evidence retained alongside a neutral completion failure.
 /// No domain infers this from an error label or from requested cancellation.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum CompletionEvidence {
@@ -381,9 +376,6 @@ pub struct Report {
 }
 
 impl Report {
-    /// Three provider fields at the channel vocabulary's 128-byte bound.
-    pub const BYTES: u64 = 3 * 128;
-
     /// No provider evidence was supplied.
     #[must_use]
     pub fn none() -> Self {
@@ -425,11 +417,6 @@ pub enum ModelFault {
     Truncated,
     /// It kept asking for tools and naming none.
     Malformed,
-}
-
-impl ModelFault {
-    /// Maximum owned fault bytes: the program name and diagnostic (protocol/channel.md, section 5).
-    pub const BYTES: u64 = 32 + 512;
 }
 
 /// Run-wide allowance exhausted, reported by the agent as a typed failure.
@@ -477,7 +464,7 @@ pub enum ReceivingLimit {
     CacheWrite,
 }
 
-/// Exact transient V2 history admission refusal, without provider effects or
+/// Exact transient history admission refusal, without provider effects or
 /// silent fresh-start fallback. The host decides whether a later activation
 /// receives corrected history.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -640,28 +627,22 @@ pub enum RunInvalid {
 #[derive(PartialEq, Eq, Debug)]
 pub enum RunResult {
     /// Run refused before Admitted; requires zero turns/spend.
-    Refused {
-        /// Typed agent refusal in the kit's own vocabulary.
-        refusal: Refusal,
-    },
+    Refused { refusal: Refusal },
     /// Agent-declared result allowed by its contract.
     Accepted {
         /// Concrete declared result bounded by `Limits::outcome_bytes`.
         outcome: Declared,
     },
-    /// V2 parking resumes from transcript, with no snapshot.
+    /// Parking resumes from transcript, with no snapshot.
     Parked,
     /// Typed run failure.
-    Failed {
-        /// Agent-declared stop kind.
-        failure: RunFailure,
-    },
+    Failed { failure: RunFailure },
 }
 
 /// Agent final word forwarded once; process still owes Gone.
 #[derive(PartialEq, Eq, Debug)]
 pub struct Answer {
-    /// Last message covered by an actual told turn, echoed at the terminal.
+    /// Last message covered by a told turn, echoed at the terminal.
     pub read: Option<Token>,
 
     /// Exactly the observed numbered turn count.
@@ -671,11 +652,10 @@ pub struct Answer {
     /// refused starts have zero.
     pub spent: u64,
 
-    /// Concrete accepted result or typed refusal, parking or failure.
     pub result: RunResult,
 }
 
-/// Decoded V2 agent records; one record terminates each Read.
+/// Decoded agent records; one record terminates each Read.
 #[derive(PartialEq, Eq, Debug)]
 pub enum Up {
     /// Independent run admission after process Started, exactly once.
@@ -689,7 +669,6 @@ pub enum Up {
         name: CallName,
         /// Agent deadline bounds watchdog pause, not abandonment.
         deadline: Time,
-        /// Typed effect and opaque metadata.
         ask: Ask,
     },
     /// Call withdrawn once; parent still owes terminal.
@@ -710,10 +689,9 @@ pub enum Up {
         /// At most `Limits::long_span`.
         span: Duration,
     },
-    /// Ends the previously announced progress stretch.
+    /// Ends the announced progress stretch.
     LongDone,
-    /// Waiting with a known read prefix pauses the watchdog until a message arrives
-    ///.
+    /// Waiting with a known read prefix pauses the watchdog until a message arrives.
     Waiting {
         /// None before first message; known sent message thereafter.
         read: Option<Token>,
@@ -735,13 +713,10 @@ pub enum Up {
     /// The provider refused a known account, retaining its diagnostic fields.
     Refused { account: u32, code: Box<[u8]>, reason: Box<[u8]> },
     /// Agent last word; no further records may follow before EOF.
-    Answer {
-        /// Checked final counts and concrete result.
-        answer: Answer,
-    },
+    Answer { answer: Answer },
 }
 
-/// Owned V2 downlink; Start first, ordered controls and at most one Cancel.
+/// Owned downlink; Start first, ordered controls and at most one Cancel.
 #[derive(PartialEq, Eq, Debug)]
 pub enum Down {
     /// First and exactly once; concrete values moved from Spawn.

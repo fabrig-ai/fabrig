@@ -19,20 +19,11 @@ pub(in crate::credentials) enum Operation {
     SignOut,
 }
 
-/// The endpoint defaults used for a configured registration.
-#[derive(Clone, Copy)]
-pub(in crate::credentials) enum Registration {
-    /// Use the declaration without Codex defaults.
-    Configured,
-    /// Use the Codex endpoint defaults.
-    Codex,
-}
-
 pub(in crate::credentials) fn run(
     account: &Account,
     file: &Path,
     settings: &Settings,
-    kind: Registration,
+    codex: bool,
     operation: Operation,
     clock: &Clock,
     environment: &Environment,
@@ -53,14 +44,7 @@ pub(in crate::credentials) fn run(
         };
         registration::configured(account, &host, &settings.workspace)
     } else {
-        registration(
-            account,
-            match kind {
-                Registration::Configured => false,
-                Registration::Codex => true,
-            },
-            &settings.workspace,
-        )
+        registration(account, codex, &settings.workspace)
     }
     .map_err(|why| why.line())?;
     let first_plan =

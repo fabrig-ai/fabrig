@@ -1,17 +1,10 @@
-//! The local host's terminal boundary (protocol/hosts.md, section 5.1;
-//! domain/host.md, section 8). It retains one bounded, possibly continued
-//! line and whether an interrupt has already cancelled the current run. It
-//! never knows the chat, the agent, or how the terminal is opened. `feed`,
-//! `interrupt`, `answer_finished`, and `show` are its entry points. The
-//! terminal pushes its events; its caller drains them.
-//!
-//! | State | Input | Output |
-//! |---|---|---|
-//! | Collecting | newline without trailing backslash | one person line |
-//! | Collecting | newline with trailing backslash | retain continued line |
-//! | Any | first interrupt | cancel the run |
-//! | Cancelled | second interrupt | drop the selected child |
-//! | Any | answer finished | clear interrupt count |
+//! The local host's terminal, durable chat store, and checkout adapters
+//! (smith/docs/design/protocol/hosts.md, section 5). The terminal retains bounded
+//! continued lines and interrupt state; the store retains acknowledged chat
+//! records; git, plain-tree and marker adapters retain bounded operations until
+//! their terminals arrive. These adapters know no model policy or credential values.
+//! Owners feed terminal bytes, store requests and filesystem or child completions,
+//! then drain typed events and actions. Store acknowledgements follow durable writes.
 
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]

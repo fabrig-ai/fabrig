@@ -4,8 +4,6 @@
 //! Root requests keep their owners, while a separate slab generation scopes
 //! callbacks. The parent owns told payloads; exact ACK metadata stays here.
 
-#![expect(clippy::manual_let_else, reason = "checked routes remain exhaustive")]
-
 use alloc::boxed::Box;
 use skein_lib::{Env, Id, List, Map, Queue, Slab, Time, Token};
 use smith_domain as smith;
@@ -166,8 +164,7 @@ impl Domain {
         self.facts.len()
     }
 
-    /// Entries held for the parent to drain (skein's draft
-    /// dynamic-memory.md 4.1): its lifecycle facts and its slot roots'
+    /// Entries held for the parent to drain (skein/docs/foundation/programming-model.md, section 7.1): its lifecycle facts and its slot roots'
     /// facts. The parent root counts them in its backlog.
     #[must_use]
     pub fn backlog(&self) -> u32 {
@@ -238,12 +235,9 @@ fn spawn(agent: &mut Domain, env: &Env<Limits>, client: Token, start: host::Star
             return;
         }
     };
-    let wall = match env.now.checked_add(env.limits.wall_time) {
-        Some(at) => at,
-        None => {
-            refused(agent, env.now, client, host::End::Invalid(host::Invalid::Limits), out);
-            return;
-        }
+    let Some(wall) = env.now.checked_add(env.limits.wall_time) else {
+        refused(agent, env.now, client, host::End::Invalid(host::Invalid::Limits), out);
+        return;
     };
     let slot = Slot {
         root: smith::Domain::new(&env.limits.smith, agent.configuration.clone(), agent.seed ^ client.raw()),
@@ -278,9 +272,8 @@ fn command(agent: &mut Domain, env: &Env<Limits>, event: parent::Event, out: &mu
         parent::Event::Spawn { client, start } => spawn(agent, env, client, start, out),
         parent::Event::Message { finish_requested, agent: handle, name, label, text } => {
             let id = Id::<Slot>::from_token(handle);
-            let slot = match agent.slots.get_mut(id) {
-                Some(slot) => slot,
-                None => return,
+            let Some(slot) = agent.slots.get_mut(id) else {
+                return;
             };
             let run = match slot.state {
                 Stage::Live => slot.run,
@@ -310,17 +303,15 @@ fn command(agent: &mut Domain, env: &Env<Limits>, event: parent::Event, out: &mu
         }
         parent::Event::Answer { agent: handle, call, reply } => {
             let id = Id::<Slot>::from_token(handle);
-            let slot = match agent.slots.get_mut(id) {
-                Some(slot) => slot,
-                None => return,
+            let Some(slot) = agent.slots.get_mut(id) else {
+                return;
             };
-            let relay = match slot.relays.get(&call) {
-                Some(relay) => relay.name,
-                None => return,
+            let Some(relay) = slot.relays.get(&call) else {
+                return;
             };
-            let event = match crate::workspace::parent_answer(relay, reply) {
-                Some(event) => event,
-                None => return,
+            let relay = relay.name;
+            let Some(event) = crate::workspace::parent_answer(relay, reply) else {
+                return;
             };
             slot.relays.remove(&call).expect("the retained relay receives one answer");
             match slot.state {
@@ -333,9 +324,8 @@ fn command(agent: &mut Domain, env: &Env<Limits>, event: parent::Event, out: &mu
         }
         parent::Event::Acknowledge { agent: handle, turn } => {
             let id = Id::<Slot>::from_token(handle);
-            let slot = match agent.slots.get_mut(id) {
-                Some(slot) => slot,
-                None => return,
+            let Some(slot) = agent.slots.get_mut(id) else {
+                return;
             };
             if slot.turns.remove(&turn).is_none() {
                 return;
@@ -353,9 +343,8 @@ fn command(agent: &mut Domain, env: &Env<Limits>, event: parent::Event, out: &mu
         }
         parent::Event::Grant { agent: handle, grant } => {
             let id = Id::<Slot>::from_token(handle);
-            let slot = match agent.slots.get(id) {
-                Some(slot) => slot,
-                None => return,
+            let Some(slot) = agent.slots.get(id) else {
+                return;
             };
             match slot.state {
                 Stage::Live | Stage::Cancelling { .. } => {
@@ -372,13 +361,11 @@ fn command(agent: &mut Domain, env: &Env<Limits>, event: parent::Event, out: &mu
 /// Return one provider terminal to the slot that emitted its request.
 fn terminal(agent: &mut Domain, env: &Env<Limits>, handle: Token, completion: Below, out: &mut Queue<Output>) {
     let id = Id::<Slot>::from_token(handle);
-    let slot = match agent.slots.get_mut(id) {
-        Some(slot) => slot,
-        None => return,
+    let Some(slot) = agent.slots.get_mut(id) else {
+        return;
     };
-    let event = match crate::workspace::terminal(slot, completion) {
-        Some(event) => event,
-        None => return,
+    let Some(event) = crate::workspace::terminal(slot, completion) else {
+        return;
     };
     match slot.state {
         Stage::Live | Stage::Cancelling { .. } | Stage::Settling(Settling::Answered) => {
@@ -410,9 +397,8 @@ pub fn fire(agent: &mut Domain, env: &Env<Limits>, out: &mut Queue<Output>) {
             Stage::Settling(_) | Stage::Gone => {}
         }
     }
-    let id = match due {
-        Some(id) => id,
-        None => return,
+    let Some(id) = due else {
+        return;
     };
     let slot = agent.slots.get_mut(id).expect("due slot");
     match slot.state {

@@ -339,10 +339,6 @@ pub enum Failure {
 /// An account's terminal failure shown to the person.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum AccountFailure {
-    /// No usable account is available.
-    Unavailable,
-    /// The account could not refresh.
-    NotRefreshed,
     /// The account reached its usage limit, with a reset only when supplied.
     Limited { account: u32, reset_at: Option<Wall> },
     /// The provider refused the account, keeping its diagnostic.

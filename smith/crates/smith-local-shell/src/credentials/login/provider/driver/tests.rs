@@ -229,7 +229,6 @@ impl Exchange {
     }
 }
 
-/// Lower test of smith's `end_to_end::signing_in_again_uses_the_issued_id` (top tiers test wiring only).
 #[test]
 fn a_second_login_reuses_registration_and_subject_hints() {
     let mut exchange = Exchange::new(Some(&saved(SUBJECT)), SUBJECT, true, None);
@@ -241,7 +240,6 @@ fn a_second_login_reuses_registration_and_subject_hints() {
     assert!(!url.contains("agent_name_hint"), "an issued registration omits the new-registration hint");
 }
 
-/// Lower test of smith's `end_to_end::another_subject_preserves_the_record` (top tiers test wiring only).
 #[test]
 fn a_replacement_subject_keeps_the_saved_bytes() {
     let prior = saved(SUBJECT);
@@ -251,7 +249,6 @@ fn a_replacement_subject_keeps_the_saved_bytes() {
     assert_eq!(exchange.record(), Some(prior), "saved bytes remain identical");
 }
 
-/// Lower test of smith's `end_to_end::a_declined_plan_scope_keeps_the_record` (top tiers test wiring only).
 #[test]
 fn declined_plan_scope_is_saved_and_reported_unavailable() {
     let files = Files::new();
@@ -269,7 +266,6 @@ fn declined_plan_scope_is_saved_and_reported_unavailable() {
     assert!(state.line("work").contains("again and allow it, or use a key"), "actionable scope report");
 }
 
-/// Lower test of smith's `end_to_end::a_duplicate_subject_names_its_account` (top tiers test wiring only).
 #[test]
 fn a_duplicate_subject_rolls_back_only_the_new_account() {
     let files = Files::new();
@@ -284,7 +280,6 @@ fn a_duplicate_subject_rolls_back_only_the_new_account() {
     assert_eq!(std::fs::read(first).expect("first account"), prior, "the existing account remains unchanged");
 }
 
-/// Lower test of smith's `end_to_end::an_unconfirmed_revocation_says_where_to_disconnect` (top tiers test wiring only).
 #[test]
 fn unconfirmed_revocation_still_removes_the_record() {
     let mut exchange = Exchange::new(Some(&saved(SUBJECT)), SUBJECT, true, Some(false));
@@ -293,7 +288,6 @@ fn unconfirmed_revocation_still_removes_the_record() {
     assert!(exchange.record().is_none(), "local sign-out removes the record");
 }
 
-/// Lower test of smith's `end_to_end::a_racing_first_login_preserves_the_winner` (top tiers test wiring only).
 #[test]
 fn an_arriving_record_wins_before_the_login_save() {
     let winner = saved(OTHER);

@@ -26,10 +26,10 @@ The simulated adapter alone registers `git::make` with `git::roots`. Exact
 git arguments select a bounded result directory in the fake filesystem
 namespace. The fake checkout computes the command there; the child reads its
 exit code and stdout through its own root and file descriptors, then writes
-the actual pipes. No process shares the checkout or simulator. The real loop
+the pipes. No process shares the checkout or simulator. The real loop
 leaves `/usr/bin/git` unregistered so the kernel executes it in the scratch
 repository. The referee uses only `CheckoutRead::{head,message,files}`; a
-real implementation supplies actual git observations through that same face.
+real implementation supplies git observations through that same face.
 
 The harness owns iteration, replay traces, timing, hosted admission, normal
 exit and kill cleanup. `referee::Run` watches every emitted fact, terminal and

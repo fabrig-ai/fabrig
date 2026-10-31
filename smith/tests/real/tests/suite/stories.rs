@@ -41,7 +41,7 @@ fn a_chat_ends_with_a_commit_in_place() {
                 }
                 _ => None,
             })
-            .expect("actual tool terminal reaches the provider");
+            .expect("tool terminal reaches the provider");
         assert!(
             !output.starts_with(b"Error:"),
             "tool {}: {}",
@@ -49,14 +49,11 @@ fn a_chat_ends_with_a_commit_in_place() {
             String::from_utf8_lossy(output)
         );
         if name == b"search" {
-            assert!(
-                output.windows(12).any(|bytes| bytes == b"original.txt"),
-                "actual rg output names the matched file"
-            );
-            assert!(output.windows(8).any(|bytes| bytes == b"original"), "actual rg output contains the matched text");
+            assert!(output.windows(12).any(|bytes| bytes == b"original.txt"), "rg output names the matched file");
+            assert!(output.windows(8).any(|bytes| bytes == b"original"), "rg output contains the matched text");
         }
         if name == b"read" {
-            assert!(output.windows(8).any(|bytes| bytes == b"original"), "actual file bytes reached the provider");
+            assert!(output.windows(8).any(|bytes| bytes == b"original"), "file bytes reached the provider");
         }
         if name == b"shell" {
             assert!(output.starts_with(b"exit code 0"), "the real command exited successfully");

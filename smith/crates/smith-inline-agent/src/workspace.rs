@@ -5,8 +5,6 @@
 //! Routing forwards operations; settlement requests cancellation once and
 //! waits for every machine and parent terminal before the slot can be gone.
 
-#![expect(clippy::manual_let_else, reason = "checked mounts use exhaustive results")]
-
 use alloc::boxed::Box;
 use skein_lib::{List, Queue, Time, Token};
 use smith_domain::{self as smith, run};
@@ -61,9 +59,8 @@ pub(crate) fn start(
             Ok(None)
         }
         Some(_) => {
-            let count = match u32::try_from(directories.len()) {
-                Ok(count) => count,
-                Err(_) => return Err(host::Invalid::Directories),
+            let Ok(count) = u32::try_from(directories.len()) else {
+                return Err(host::Invalid::Directories);
             };
             if count == 0 || count > limits.smith.run.directories {
                 return Err(host::Invalid::Directories);

@@ -14,7 +14,6 @@ skein-oauth.workspace = true
 skein-oauth-accounts.workspace = true
 skein-io.workspace = true
 skein-shell.workspace = true
-skein-channel.workspace = true
 skein-http.workspace = true
 skein-llm.workspace = true
 skein-tls.workspace = true
@@ -27,8 +26,6 @@ smith-local-service.workspace = true
 smith-host-domain.workspace = true
 smith-host-protocol.workspace = true
 smith-protocol-channel.workspace = true
-smith-protocol-llm.workspace = true
-smith-protocol-machine.workspace = true
 smith-channel.workspace = true
 smith-charter.workspace = true
 smith-transcript.workspace = true
@@ -38,19 +35,14 @@ toml = "0.9"
 
 [dev-dependencies]
 skein-scratch.workspace = true
-skein-heap.workspace = true
 skein-world.workspace = true
 smith-real-world.workspace = true
-skein-fake-llm-domain.workspace = true
 skein-fake-peers.workspace = true
-skein-fake-channel.workspace = true
 smith-local-process-world.workspace = true
-skein-fake-oauth.workspace = true
 skein-sim.workspace = true
 skein-fake-machine.workspace = true
 skein-tls-world.workspace = true
 smith-agent-process-world.workspace = true
-smith-host-world.workspace = true
 
 [lints.rust]
 unsafe_code = "forbid"

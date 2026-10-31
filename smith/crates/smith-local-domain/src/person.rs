@@ -113,8 +113,7 @@ impl Lines {
         }
     }
 
-    pub(crate) fn fence(&mut self, read: Option<Token>) -> u32 {
-        let mut count = 0_u32;
+    pub(crate) fn fence(&mut self, read: Option<Token>) {
         for _ in 0..self.held.len() {
             let line = self.held.pop().expect("bounded line count");
             let covered = match line.stage {
@@ -124,17 +123,13 @@ impl Lines {
                 },
                 Stage::Received | Stage::Naming { .. } | Stage::Named { .. } => false,
             };
-            if covered {
-                count = count.checked_add(1).expect("bounded lines");
-            } else {
+            if !covered {
                 self.held.push(line);
             }
         }
-        count
     }
 
-    pub(crate) fn refused(&mut self, name: Token) -> bool {
-        let mut removed = false;
+    pub(crate) fn refused(&mut self, name: Token) {
         for _ in 0..self.held.len() {
             let line = self.held.pop().expect("bounded line count");
             let same = match line.stage {
@@ -143,13 +138,10 @@ impl Lines {
                 }
                 Stage::Received => false,
             };
-            if same {
-                removed = true;
-            } else {
+            if !same {
                 self.held.push(line);
             }
         }
-        removed
     }
 
     pub(crate) fn all_read(&self) -> bool {
@@ -462,11 +454,13 @@ mod line_tests {
     #[test]
     fn a_fence_pops_only_relayed_lines_it_covers() {
         let mut lines = named();
-        assert_eq!(lines.fence(Some(Token::new(1))), 0);
+        lines.fence(Some(Token::new(1)));
+        assert!(!lines.is_empty());
         lines.carry();
         assert!(!lines.all_read());
-        assert_eq!(lines.fence(None), 0);
-        assert_eq!(lines.fence(Some(Token::new(1))), 1);
+        lines.fence(None);
+        assert!(!lines.is_empty());
+        lines.fence(Some(Token::new(1)));
         assert!(lines.all_read());
         assert!(lines.is_empty());
     }
@@ -474,8 +468,9 @@ mod line_tests {
     fn a_refused_named_line_releases_its_cell_once() {
         let mut lines = named();
         lines.carry();
-        assert!(lines.refused(Token::new(1)));
-        assert!(!lines.refused(Token::new(1)));
+        lines.refused(Token::new(1));
+        assert!(lines.is_empty());
+        lines.refused(Token::new(1));
         assert!(lines.is_empty());
     }
     #[test]

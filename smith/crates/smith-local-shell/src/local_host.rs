@@ -1,6 +1,6 @@
 //! Shared local shell pass (protocol/hosts.md, sections 5.3–5.6). It keeps
 //! chat and token file owners, the terminal writer, and kernel routing. It
-//! knows no simulator or checkout state. `Local::new` takes all directories
+//! knows no simulator or checkout state. `Local::within_memory` takes all directories
 //! and terminal descriptors; `Host::iterate` performs the service and shell
 //! passes. Every store acknowledgement follows file and directory sync.
 
@@ -94,16 +94,6 @@ pub struct Local {
 }
 
 impl Local {
-    /// Compose either agent kind with the same file and terminal shell pass.
-    pub fn new(
-        config: service::Config,
-        lower: Option<agent::Config>,
-        resources: Resources,
-        errors: Box<dyn Write>,
-    ) -> Result<Self, String> {
-        Self::within_memory(config, lower, resources, errors, None, None).map_err(|failure| failure.detail().to_owned())
-    }
-
     /// Configure the shell and its selected front before stream adoption.
     /// Contract: protocol/limits.md, section 4.
     pub fn within_memory(
@@ -365,17 +355,6 @@ impl Local {
     /// Take one typed best-effort live-view record from the service's event sink.
     pub fn pop_front(&mut self) -> Option<agent::sinks::View> {
         self.service.pop_front()
-    }
-
-    /// Ask the domain to select a chat only when activation and store work are idle.
-    pub fn select_chat(&mut self, name: Box<[u8]>, create: bool) {
-        self.service.local_event(domain::Event::SelectChat { name, create });
-    }
-
-    /// Live-view records dropped by that sink, independent of destination loss.
-    #[must_use]
-    pub fn front_lost(&mut self) -> u64 {
-        self.service.front_lost()
     }
 
     /// Attach the product result owner before its first pass.

@@ -1,7 +1,7 @@
 [package]
 license.workspace = true
 name = "smith-host-world"
-description = "V2 host supervision on scripted agents and process trees"
+description = "host supervision on scripted agents and process trees"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
