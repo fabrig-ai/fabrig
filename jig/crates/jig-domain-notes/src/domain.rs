@@ -124,10 +124,6 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
                 read::loaded(domain, &env.limits, owner, rows, more, out);
             }
         }
-        Event::Restore { record } => match record {
-            Record::Entry(_) | Record::Line(_) => {}
-        },
-        Event::Restored => {}
     }
 }
 

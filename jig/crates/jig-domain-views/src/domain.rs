@@ -3,7 +3,7 @@
 use crate::facts::Facts;
 use crate::watch::{self, Watcher};
 use crate::{Event, Fact, Limits, Request};
-use skein_lib::{Env, Id, List, Map, Queue, Slab, Time, Token};
+use skein_lib::{Env, Id, List, Map, Queue, Slab, Token};
 
 /// A bounded set of watches, discarded on restart.
 #[derive(Debug)]
@@ -86,16 +86,6 @@ impl Domain {
         }
         false
     }
-    /// Watches have no timers.
-    #[must_use]
-    pub const fn next_deadline(&self) -> Option<Time> {
-        None
-    }
-    /// Watches have no timers.
-    #[must_use]
-    pub const fn is_due(&self, _now: Time) -> bool {
-        false
-    }
     /// Drain the oldest expendable observation.
     pub fn pop_fact(&mut self) -> Option<Fact> {
         self.facts.pop()
@@ -130,9 +120,6 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         Event::Called { run, attempt, call } => crate::text::called(domain, env, run, attempt, call, out),
         Event::TurnCommitted { run, attempt, turn } => crate::text::committed(domain, run, attempt, turn),
         Event::RunEnded { run } => crate::text::ended(domain, run),
-        Event::Unwatch { watcher } => watch::close(domain, watcher, crate::End::Unwatched, out),
         Event::Gone { subject, why } => watch::gone(domain, subject, why, out),
     }
 }
-/// There are no deadlines to fire.
-pub fn fire(_domain: &mut Domain, _env: &Env<Limits>, _out: &mut Queue<Request>) {}

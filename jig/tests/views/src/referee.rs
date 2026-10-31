@@ -302,7 +302,6 @@ impl Referee {
                 unreachable!("input has separate unit stories; this world scripts text and made calls")
             }
             Event::Changed { .. }
-            | Event::Unwatch { .. }
             | Event::Gone { .. }
             | Event::RunEnded { .. }
             | Event::TurnCommitted { .. }

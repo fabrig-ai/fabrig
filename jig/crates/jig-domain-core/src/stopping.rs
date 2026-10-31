@@ -173,7 +173,7 @@ impl Timer {
 pub(crate) fn waits(timer: Timer) -> bool {
     match timer {
         Timer::People | Timer::Tasks | Timer::Fleet | Timer::Brief => true,
-        Timer::Account | Timer::View => false,
+        Timer::Account => false,
     }
 }
 
