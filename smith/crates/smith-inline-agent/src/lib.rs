@@ -27,7 +27,11 @@ extern crate alloc;
 mod boundary;
 mod domain;
 mod facts;
+#[cfg(any(test, feature = "fixture"))]
+pub mod fixture;
+
 mod limits;
+mod route;
 mod stop;
 mod translate;
 mod workspace;

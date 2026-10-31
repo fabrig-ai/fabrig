@@ -5,19 +5,15 @@
 //! checked against receiving Limits before retained state changes. Durable decisions
 //! belong to the parent, which scopes `CallName` by the same logical run after restart.
 pub use crate::source_name::SourceName;
+
 use crate::{Charter, Declared, Delivery, Fields, Transcript, TurnValue};
 use alloc::boxed::Box;
 use skein_lib::{Duration, Time, Token};
-
-/// Named labelled message carried in a parent Start, ending with its activation.
-#[derive(Clone, PartialEq, Eq, Debug)]
-pub struct Message {
-    /// Admitted Open messages request a final reply; Finite treats them as ordinary words.
-    pub finish_requested: bool,
-    pub name: Token,
-    pub label: Box<[u8]>,
-    pub text: Box<[u8]>,
-}
+pub use smith_domain::run::{
+    BudgetRefusal, CallName, Cap, Ceiling, CompletionEvidence, CompletionFailure, Exhausted, HostEffect as Effect,
+    Invalid as RunInvalid, Limit, Message, Overflow, Part, Phase, Policy, Rate, ReceivingLimit, Refusal, Report,
+    TranscriptRefusal,
+};
 
 /// The host asks for live content, one boolean per kind (protocol/channel.md, section 3).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -136,16 +132,6 @@ pub enum Scheme {
     Key,
 }
 
-/// Durable transcript-derived operation identity, separate from callback Token.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub struct CallName {
-    pub activation: u64,
-    /// One-based accepted completion sequence, including restored prefix.
-    pub completion: u32,
-    /// Zero-based assistant block ordinal; checked by the agent before effects.
-    pub position: u32,
-}
-
 /// Agent turn moved once to parent, which owns payload until exact commitment ACK.
 #[derive(PartialEq, Eq, Debug)]
 pub struct Turn {
@@ -162,15 +148,6 @@ pub struct Turn {
     pub read: Option<Token>,
     /// Concrete transcript turn owning at most `Limits::turn_bytes`.
     pub body: TurnValue,
-}
-
-/// Agent-described host tool effect forwarded to durable parent policy.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Effect {
-    /// Read-only host tool; parent decides its meaning.
-    Read,
-    /// Writing host tool; parent must keep its durable decision.
-    Write,
 }
 
 /// Agent operation forwarded once to parent and answered once even after withdrawal.
@@ -220,169 +197,6 @@ pub enum Reply {
     TooLarge,
 }
 
-/// A native LLM path cap, sent by the protocol in a terminal failure.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Cap {
-    /// The configured bound on encoded request body.
-    Request,
-    /// The configured bound on encoded request head.
-    RequestHead,
-    /// The configured bound on response head.
-    ResponseHead,
-    /// The configured bound on HTTP header field count.
-    ResponseFields,
-    /// Scanned wire bytes of one event.
-    Skip,
-    /// The configured bound on an SSE event type or identifier.
-    Field,
-    /// The configured bound on retained decoded text.
-    Retained,
-    /// The configured bound on retained JSON tokens.
-    Tokens,
-    /// The configured bound on JSON nesting depth.
-    Depth,
-    /// The configured bound on retained string.
-    Strings,
-    /// The fixed tokenizer bound on a numeral.
-    Number,
-    /// The configured bound on provider reasoning replay.
-    Reasoning,
-    /// The configured bound on completion items.
-    OutputItems,
-    /// The configured bound on other replay metadata.
-    Metadata,
-    /// The configured bound on offered tools.
-    Tools,
-    /// The configured bound on history messages and blocks.
-    HistoryItems,
-    /// The endpoint model's declared completion ceiling in tokens.
-    Output,
-    /// The configured bound on completion answer.
-    Answer,
-    /// The configured bound on provider error body.
-    ErrorBody,
-    /// The configured bound on access token.
-    AccessToken,
-    /// The configured bound on account identifier.
-    AccountId,
-}
-
-/// The owner of a bounded value, sent in a terminal limit failure.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Limit {
-    /// The requested reservation exceeds the entire native connection pool.
-    Pool { reservation: u64 },
-    /// The native provider path refused its named cap.
-    Path(Cap),
-    /// The session's retained window refused its history bound.
-    History,
-    /// The usable model window could not make its first ordinary completion.
-    Window,
-    /// One received tool call refused its argument bound.
-    Call,
-    /// One injected message refused its receiving bound.
-    Message,
-}
-
-/// The protocol's elapsed call phase, carried losslessly in timeout terminals
-/// (protocol/llm.md, sections 6 and 10).
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Phase {
-    /// The connection's socket admission deadline.
-    Connect,
-    /// The connection's TLS handshake deadline.
-    Handshake,
-    /// The completion's first response-byte deadline.
-    Head,
-    /// The completion's deadline between response events.
-    Idle,
-    /// The completion's absolute whole-call deadline.
-    Whole,
-}
-
-/// Exact neutral completion failure after retries or nonretryable refusal.
-/// Diagnostic bytes were consumed by session policy; this record remains content-free.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum CompletionFailure {
-    /// Shared-client receiving allowance exceeded.
-    Limit { which: Limit, bound: u64 },
-
-    /// The application aggregate receiving allowance was exceeded.
-    ApplicationLimit,
-
-    /// Shared protocol response contract violated.
-    Protocol,
-
-    /// Unsolicited lower cancellation.
-    Cancelled,
-
-    /// Provider capacity refused the request.
-    Overloaded,
-
-    /// Provider could not be reached or failed.
-    Unavailable,
-
-    /// The completion deadline elapsed.
-    TimedOut { phase: Phase },
-
-    /// Provider context allowance was exceeded.
-    ContextTooLong,
-
-    /// Provider refused the request.
-    Refused,
-
-    /// Provider does not support the requested feature.
-    Unsupported,
-
-    /// Provider rejected the request shape.
-    Invalid,
-
-    /// Provider rejected the credential.
-    Unauthorized,
-
-    /// Provider rate allowance requires the retained cooldown.
-    RateLimited {
-        /// Exact lower cooldown, without scheduling or recovery policy.
-        retry_after: Duration,
-    },
-
-    /// Provider account allowance requires the retained cooldown.
-    Exhausted {
-        /// Exact lower cooldown when the provider supplied one.
-        retry_after: Option<Duration>,
-    },
-}
-
-/// Transport evidence retained alongside a neutral completion failure.
-/// No domain infers this from an error label or from requested cancellation.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum CompletionEvidence {
-    /// The lower proves no request bytes were sent.
-    Unsent,
-
-    /// The request may have reached the peer; outcome is unknown.
-    Unknown,
-
-    /// A peer response, including a refusal, was received.
-    Response { status: Option<u16> },
-}
-
-/// Provider diagnostics retained outside content-free facts (domain/host.md, section 8).
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub struct Report {
-    pub code: Box<[u8]>,
-    pub request: Box<[u8]>,
-    pub field: Box<[u8]>,
-}
-
-impl Report {
-    /// No provider evidence was supplied.
-    #[must_use]
-    pub fn none() -> Self {
-        Self { code: Box::default(), request: Box::default(), field: Box::default() }
-    }
-}
-
 /// What kept an LLM from going on.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ModelFault {
@@ -419,69 +233,6 @@ pub enum ModelFault {
     Malformed,
 }
 
-/// Run-wide allowance exhausted, reported by the agent as a typed failure.
-/// The host decides whether another activation receives a new allowance;
-/// per-kind receiving token ceilings remain separate classifications.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Exhausted {
-    /// Global completion count reached its cap; admitted current calls settle.
-    Turns,
-
-    /// Global host-unit charge reached its cap; admitted current calls settle.
-    Spend,
-
-    /// Monotonic run deadline expired; immediate close remains independent.
-    Time,
-    /// A session exceeded its receiving token ceiling for one kind.
-    Tokens(ReceivingLimit),
-    /// Checked priced or raw usage arithmetic could not represent the total.
-    Overflow(Overflow),
-}
-
-/// Which checked budget arithmetic overflowed.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Overflow {
-    /// Priced spend could not be represented.
-    Spend,
-    /// Raw completion usage could not be represented.
-    Usage,
-}
-
-/// Session receiving token ceiling reported by the agent, separate from the
-/// run's scalar financial allowance. Host policy decides the next activation.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum ReceivingLimit {
-    /// Fresh input-token receiving allowance exhausted.
-    Input,
-
-    /// Output-token receiving allowance exhausted.
-    Output,
-
-    /// Cache-read-token receiving allowance exhausted.
-    CacheRead,
-
-    /// Cache-write-token receiving allowance exhausted.
-    CacheWrite,
-}
-
-/// Exact transient history admission refusal, without provider effects or
-/// silent fresh-start fallback. The host decides whether a later activation
-/// receives corrected history.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum TranscriptRefusal {
-    /// Unsupported durable record version.
-    Version,
-
-    /// Invalid sequence, structure or call/result pairing.
-    Malformed,
-
-    /// A local live ticket survives in durable history.
-    Unresolved,
-
-    /// History or required receiving reserve exceeds caps.
-    TooLarge,
-}
-
 /// Why a run ended without an outcome: what the host parent acts on.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum RunFailure {
@@ -508,119 +259,6 @@ pub enum RunFailure {
     /// The host's delivery context moved: no later delivery from this run can
     /// land. The host decides what context a new run receives.
     Stale,
-}
-
-/// The run's rules, as the LLM broke them.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Policy {
-    /// It kept stopping without finishing, through `nudges` nudges, having
-    /// called `finish` with `rejected` outcomes that were refused.
-    Unfinished {
-        /// Number of run nudges already given after unfinished turns.
-        nudges: u32,
-        /// Number of declared outcomes rejected by the charter contract.
-        rejected: u32,
-    },
-}
-
-/// Why the agent refused a start before admission (domain/run.md, section 10).
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Refusal {
-    /// The agent has no capacity for the start.
-    Busy,
-    /// The agent rejected the start for a typed contract reason.
-    Invalid(RunInvalid),
-}
-
-/// A part of a run's budget supplied by its host (domain/host.md, section 8).
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Part {
-    /// Its completions.
-    Turns,
-    /// Its spend in the host's unit.
-    Spend,
-    /// Its monotonic wall time.
-    Time,
-}
-
-/// The most of a part the agent admits, returned with an entrance refusal.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Ceiling {
-    /// The most completions.
-    Turns(u32),
-    /// The most spend in the host's unit.
-    Spend(u64),
-    /// The most monotonic wall time.
-    Time(Duration),
-}
-
-/// Why the agent refuses a budget before effects (domain/host.md, section 8).
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum BudgetRefusal {
-    /// A part asks for more than the agent admits.
-    Ceiling(Ceiling),
-    /// A part asks for nothing.
-    Empty(Part),
-    /// The budget cannot hold its finishing reserve.
-    Reserve(Part),
-    /// A change contract needs more check time than the finishing reserve holds.
-    Checks { reserve: Duration, checks: Duration },
-    /// The spend cannot pay for one of main's most costly completions.
-    Completion { most: u64 },
-}
-
-/// A model rate that the host must price above zero (domain/host.md, section 9).
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Rate {
-    /// New input.
-    Input,
-    /// Input read from the cache.
-    Cached,
-    /// Input written to the cache when priced apart.
-    CacheWrite,
-    /// Output, including reasoning.
-    Output,
-}
-
-/// The agent's reason for rejecting a start before admission.
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum RunInvalid {
-    /// Rendered charter and schema bytes exceed the agent's host part.
-    HostPart { bound: u64 },
-    /// A selected model leaves less room than the agent derived.
-    Room { bound: u64 },
-    /// A start's carried messages exceed their bounds or repeat a name.
-    Messages,
-    /// The agent does not read the charter's version.
-    CharterVersion,
-    /// The charter does not decode in a version the agent reads.
-    MalformedCharter,
-    /// The activation name is invalid.
-    Activation,
-    /// The acknowledgement window cannot hold one largest permitted turn.
-    Window,
-    /// A convention path is invalid.
-    Conventions,
-    /// The charter owns too many bytes.
-    TooLarge,
-    /// A workspace mount is invalid.
-    Workspace,
-    /// Tool grants or declarations are invalid.
-    Grants,
-    /// The result contract is invalid.
-    Outcome,
-    /// The budget is refused before admission, naming its part and bound.
-    Budget(BudgetRefusal),
-    /// A model is unpriced at this rate, refused before admission.
-    Price(Rate),
-    /// A model declaration is invalid.
-    Llm,
-    /// The charter’s effort is outside the model’s declared values.
-    Effort,
-    /// The main conversation cannot fit.
-    Conversation,
-    /// An endpoint name is not configured.
-    Endpoint,
 }
 
 /// Agent last-word result; the kit does not judge the accepted declaration.

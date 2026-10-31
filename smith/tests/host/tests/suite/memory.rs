@@ -131,25 +131,7 @@ impl Measured {
                     | Down::Grant { .. }
                     | Down::Cancel => {}
                 },
-                Output::Parent(
-                    parent::Request::Started { .. }
-                    | parent::Request::Admitted { .. }
-                    | parent::Request::Called { .. }
-                    | parent::Request::Withdrawn { .. }
-                    | parent::Request::Turn { .. }
-                    | parent::Request::Waiting { .. }
-                    | parent::Request::Long { .. }
-                    | parent::Request::LongDone { .. }
-                    | parent::Request::Unread { .. }
-                    | parent::Request::Unauthorized { .. }
-                    | parent::Request::Refused { .. }
-                    | parent::Request::Limited { .. }
-                    | parent::Request::Told { .. }
-                    | parent::Request::Answered { .. }
-                    | parent::Request::Faulted { .. }
-                    | parent::Request::MessageRefused { .. }
-                    | parent::Request::Gone { .. },
-                )
+                Output::Parent(_)
                 | Output::Process(
                     process::Request::Read { .. }
                     | process::Request::Signal { .. }

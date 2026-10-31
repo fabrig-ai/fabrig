@@ -1916,10 +1916,7 @@ fn delivery_saved(domain: &mut Domain, env: &Env<Limits>, name: agent::run::Call
 }
 
 fn deliver_to_agent(domain: &mut Domain, env: &Env<Limits>, owner: Token, delivery: agent::run::Delivery) {
-    let reply = match crate::agent::delivery_to_host(delivery) {
-        Ok(delivery) => host::Reply::Delivery(delivery),
-        Err(_) => host::Reply::Unavailable,
-    };
+    let reply = host::Reply::Delivery(delivery);
     command(
         &mut domain.agent,
         env.now,

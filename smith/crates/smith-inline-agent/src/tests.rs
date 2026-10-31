@@ -7,17 +7,7 @@ use smith_host_domain::{self as host, parent};
 use crate::{Below, Domain, Input, Limits, Lower, Output, fire, resume, step, translate};
 
 fn bounds() -> Limits {
-    let smith = smith_agent_world::LIMITS;
-    Limits {
-        slots: 2,
-        smith,
-        window: smith::Window {
-            turns: 8,
-            bytes: smith::max_turn_bytes(&smith).expect("root bound").checked_mul(8).expect("small window"),
-        },
-        wall_time: Duration::from_secs(3600),
-        cancel_grace: Duration::from_secs(5),
-    }
+    crate::fixture::small(smith_agent_world::LIMITS)
 }
 
 fn configuration() -> smith::Config {
@@ -159,7 +149,7 @@ fn a_told_turn_keeps_the_roots_exact_concrete_value() {
         spent: run::Spend::ZERO,
         turn: turn.clone(),
     });
-    translate::route(&mut agent, &env, Id::from_token(handle), &mut out);
+    crate::route::route(&mut agent, &env, Id::from_token(handle), &mut out);
     assert_eq!(
         out.pop(),
         Some(Output::Parent(parent::Request::Turn {
@@ -461,7 +451,7 @@ fn workspace_routes_keep_equal_tokens_in_separate_lower_families() {
         max: 3,
         deadline: Time::from_nanos(100),
     });
-    translate::route(&mut agent, &env, Id::from_token(handle), &mut out);
+    crate::route::route(&mut agent, &env, Id::from_token(handle), &mut out);
     let Some(Output::Lower { agent: emitted_agent, request: Lower::Io { owner: name, .. } }) = out.pop() else {
         panic!("expected Io")
     };
@@ -494,7 +484,7 @@ fn a_job_act_is_lowered_and_settles_with_its_done() {
     let owner = Token::new(55);
     let act = smith::tools::JobAct::Read { head: 3, tail: 2, wait: Duration::from_secs(1) };
     agent.lower.push(smith::Request::Job { owner, act });
-    translate::route(&mut agent, &env, Id::from_token(handle), &mut out);
+    crate::route::route(&mut agent, &env, Id::from_token(handle), &mut out);
     assert_eq!(out.pop(), Some(Output::Lower { agent: handle, request: Lower::Job { owner, act } }));
     let slot = agent.slots.get_mut(Id::from_token(handle)).expect("retained slot");
     assert_eq!(
@@ -602,7 +592,7 @@ fn a_dropped_slot_keeps_a_command_right_until_its_terminal() {
         },
         deadline: Time::from_nanos(100),
     });
-    translate::route(&mut agent, &env, Id::from_token(handle), &mut out);
+    crate::route::route(&mut agent, &env, Id::from_token(handle), &mut out);
     while out.pop().is_some() {}
     step(&mut agent, &env, Input::Parent(parent::Event::Drop { agent: handle }), &mut out);
     let mut faulted = false;

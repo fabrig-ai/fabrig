@@ -25,14 +25,7 @@ struct Binding {
 /// Checked two-slot capacities, sharing the agent world's shipped root bounds.
 #[must_use]
 pub fn limits() -> inline::Limits {
-    let smith = smith_agent_world::LIMITS;
-    inline::Limits {
-        slots: 2,
-        smith,
-        window: smith::Window { turns: 8, bytes: smith::max_turn_bytes(&smith).expect("root turn bound") * 8 },
-        wall_time: Duration::from_secs(3600),
-        cancel_grace: Duration::from_secs(5),
-    }
+    inline::fixture::small(smith_agent_world::LIMITS)
 }
 
 /// Explicit value declarations for the existing native fake scripts.
@@ -295,6 +288,18 @@ impl World {
             self.outputs();
         }
         self.pass();
+    }
+
+    /// Drive at most one hundred deadlines until this client has its answer.
+    pub fn run_until_answered(&mut self, client: Token) {
+        const ANSWER_STEPS: u32 = 100;
+        for _ in 0..ANSWER_STEPS {
+            if self.seen[&client].answer.is_some() {
+                return;
+            }
+            self.at(self.next_deadline().expect("provider or root alarm"));
+        }
+        assert!(self.seen[&client].answer.is_some(), "answer within the fixture's step bound");
     }
 
     /// Advance to one clock point; queued inputs precede root alarms.

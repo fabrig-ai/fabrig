@@ -1,6 +1,6 @@
 //! Scratch FIFO translation and opening teardown (protocol/hosts.md, section 3).
 
-use super::{Phase, Process, ProcessEvent};
+use super::{Process, ProcessEvent, State};
 use crate::{OpenEvent, tests};
 use skein_channel::{Closed, Lower};
 use skein_io::{Event, Request};
@@ -86,7 +86,7 @@ fn queued_channel_events_keep_opening_sends_and_hangup_order() {
     process.channel_events.push(OpenEvent::Sent { token: SECOND });
     process.channel_events.push(OpenEvent::Hangup { why: Closed::Stream });
     process.drain_channel(&mut above, &mut below);
-    assert_eq!(process.phase, Phase::Ready);
+    assert_eq!(process.state, State::Ready);
     assert_eq!(above.pop(), Some(ProcessEvent::Spawned { agent: AGENT, process: CHILD }));
     for event in
         [OpenEvent::Sent { token: FIRST }, OpenEvent::Sent { token: SECOND }, OpenEvent::Hangup { why: Closed::Stream }]

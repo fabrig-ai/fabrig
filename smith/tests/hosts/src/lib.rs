@@ -191,11 +191,11 @@ impl HostService {
             process_limits: protocol::Limits {
                 bodies: agent_limits.channel.bodies,
                 charter: agent_limits.channel.charter,
-                transcript: agent_limits.channel.transcript,
-                endpoints: agent_limits.channel.endpoints,
                 channel: agent_limits.channel.channel,
                 start_bytes: agent_limits.channel.start_bytes,
+                endpoints: agent_limits.channel.endpoints,
                 calls: domain_limits.calls,
+                ..protocol::fixture::small()
             },
             root: launch.root,
             launch: Some(launch),
@@ -214,6 +214,7 @@ impl HostService {
             crash_requested: false,
             crashed: false,
         };
+        service.process_limits.transcript = agent_limits.channel.transcript;
         service.process_limits.channel.output_bytes =
             protocol::output_bytes(&service.process_limits).expect("host directional frame");
         service

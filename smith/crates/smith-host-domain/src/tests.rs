@@ -5,49 +5,28 @@ use crate::{parent, process};
 use alloc::boxed::Box;
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
 
-#[test]
-fn an_unread_charter_version_is_a_distinct_agent_refusal() {
-    let unread = crate::RunResult::Refused { refusal: crate::Refusal::Invalid(crate::RunInvalid::CharterVersion) };
-    let malformed = crate::RunResult::Refused { refusal: crate::Refusal::Invalid(crate::RunInvalid::MalformedCharter) };
-    let oversized = crate::RunResult::Refused { refusal: crate::Refusal::Invalid(crate::RunInvalid::TooLarge) };
-    assert_ne!(unread, malformed);
-    assert_ne!(malformed, oversized);
-    assert_ne!(unread, oversized);
-}
-
 fn limits() -> crate::Limits {
     crate::Limits {
-        agents: 1,
         directories: 0,
         conflicts: 0,
         path_bytes: 0,
-        name_bytes: 64,
         accounts: 0,
         charter_bytes: 64,
         transcript_bytes: 64,
         answered_bytes: 64,
-        message_bytes: 64,
         messages: 1,
         calls: 1,
         call_bytes: 64,
-        answer_bytes: crate::Delivered::owned_bound(),
         turns: 1,
         turn_bytes: 64,
         unacknowledged_bytes: 64,
-        fact_bytes: 64,
         outcome_bytes: 64,
         detail_bytes: 64,
         spawn_timeout: Duration::from_secs(1),
-        no_progress: Duration::from_secs(10),
-        silence: Duration::ZERO,
         long_span: Duration::from_secs(60),
-        long_open: 64,
         wall_time: Duration::from_secs(100),
-        cancel_grace: Duration::from_secs(5),
-        exit_grace: Duration::from_secs(5),
-        teardown: Duration::ZERO,
-        kill_after: Duration::from_secs(2),
         facts: 4,
+        ..crate::fixture::small()
     }
 }
 
@@ -91,7 +70,6 @@ fn a_parent_that_drains_late_loses_no_fact() {
     assert_eq!(domain.pop_fact(), Some(crate::Fact::Admitted { client }));
     assert_eq!(domain.pop_fact(), None);
     assert_eq!(domain.backlog(), 0);
-    assert_eq!(domain.facts_lost(), 0);
 }
 
 fn cancelled_answer() -> crate::Answer {
@@ -106,30 +84,9 @@ fn cancelled_answer() -> crate::Answer {
 fn answer_count(out: &Queue<Output>, expected: &crate::Answer) -> u32 {
     let mut count = 0_u32;
     for request in out {
-        match request {
-            Output::Parent(parent::Request::Answered { answer, .. }) => {
-                assert_eq!(answer, expected);
-                count = count.checked_add(1).expect("bounded answers");
-            }
-            Output::Parent(
-                parent::Request::Started { .. }
-                | parent::Request::Admitted { .. }
-                | parent::Request::Called { .. }
-                | parent::Request::Withdrawn { .. }
-                | parent::Request::Turn { .. }
-                | parent::Request::Waiting { .. }
-                | parent::Request::Long { .. }
-                | parent::Request::LongDone { .. }
-                | parent::Request::Unread { .. }
-                | parent::Request::Unauthorized { .. }
-                | parent::Request::Refused { .. }
-                | parent::Request::Limited { .. }
-                | parent::Request::Told { .. }
-                | parent::Request::Faulted { .. }
-                | parent::Request::MessageRefused { .. }
-                | parent::Request::Gone { .. },
-            )
-            | Output::Process(_) => {}
+        if let Output::Parent(parent::Request::Answered { answer, .. }) = request {
+            assert_eq!(answer, expected);
+            count = count.checked_add(1).expect("bounded answers");
         }
     }
     count
@@ -190,34 +147,8 @@ fn a_spawn_beyond_the_slots_is_refused_as_busy_without_displacing_the_active_own
         Input::Parent(parent::Event::Spawn { client: Token::new(1), start: start() }),
         &mut out,
     );
-    let first = match out.pop().expect("first spawn admitted") {
-        Output::Process(process::Request::Spawn { owner, .. }) => owner,
-        Output::Parent(
-            parent::Request::Started { .. }
-            | parent::Request::Admitted { .. }
-            | parent::Request::Called { .. }
-            | parent::Request::Withdrawn { .. }
-            | parent::Request::Turn { .. }
-            | parent::Request::Waiting { .. }
-            | parent::Request::Long { .. }
-            | parent::Request::LongDone { .. }
-            | parent::Request::Unread { .. }
-            | parent::Request::Unauthorized { .. }
-            | parent::Request::Refused { .. }
-            | parent::Request::Limited { .. }
-            | parent::Request::Told { .. }
-            | parent::Request::Answered { .. }
-            | parent::Request::Faulted { .. }
-            | parent::Request::MessageRefused { .. }
-            | parent::Request::Gone { .. },
-        )
-        | Output::Process(
-            process::Request::Send { .. }
-            | process::Request::Read { .. }
-            | process::Request::Signal { .. }
-            | process::Request::Wait { .. }
-            | process::Request::Reap { .. },
-        ) => panic!("expected Spawn"),
+    let Output::Process(process::Request::Spawn { owner: first, .. }) = out.pop().expect("first spawn admitted") else {
+        panic!("expected Spawn");
     };
     crate::step(
         &mut domain,
@@ -225,39 +156,12 @@ fn a_spawn_beyond_the_slots_is_refused_as_busy_without_displacing_the_active_own
         Input::Parent(parent::Event::Spawn { client: Token::new(2), start: start() }),
         &mut out,
     );
-    match out.pop().expect("second spawn refused") {
-        Output::Parent(parent::Request::Gone { client, end, detail }) => {
-            assert_eq!(client, Token::new(2));
-            assert_eq!(end, End::Busy);
-            assert!(detail.is_empty());
-        }
-        Output::Process(
-            process::Request::Spawn { .. }
-            | process::Request::Send { .. }
-            | process::Request::Read { .. }
-            | process::Request::Signal { .. }
-            | process::Request::Wait { .. }
-            | process::Request::Reap { .. },
-        )
-        | Output::Parent(
-            parent::Request::Started { .. }
-            | parent::Request::Admitted { .. }
-            | parent::Request::Called { .. }
-            | parent::Request::Withdrawn { .. }
-            | parent::Request::Turn { .. }
-            | parent::Request::Waiting { .. }
-            | parent::Request::Long { .. }
-            | parent::Request::LongDone { .. }
-            | parent::Request::Unread { .. }
-            | parent::Request::Unauthorized { .. }
-            | parent::Request::Refused { .. }
-            | parent::Request::Limited { .. }
-            | parent::Request::Told { .. }
-            | parent::Request::Answered { .. }
-            | parent::Request::Faulted { .. }
-            | parent::Request::MessageRefused { .. },
-        ) => panic!("expected exact Busy terminal"),
-    }
+    let Output::Parent(parent::Request::Gone { client, end, detail }) = out.pop().expect("second spawn refused") else {
+        panic!("expected exact Busy terminal");
+    };
+    assert_eq!(client, Token::new(2));
+    assert_eq!(end, End::Busy);
+    assert!(detail.is_empty());
     assert_eq!(domain.agents(), 1);
     crate::step(
         &mut domain,
@@ -300,35 +204,9 @@ fn host_mount_metadata_admission_agrees_with_optional_workspace_and_git_kind() {
         directories: Box::new([mount(b"plain", true, false, &[]), mount(b"git", false, true, &[b"src/conflict.rs"])]),
         ..start()
     };
-    match admit_start(selected, receiving) {
-        Output::Process(process::Request::Spawn { .. }) => {}
-        Output::Parent(
-            parent::Request::Started { .. }
-            | parent::Request::Admitted { .. }
-            | parent::Request::Called { .. }
-            | parent::Request::Withdrawn { .. }
-            | parent::Request::Turn { .. }
-            | parent::Request::Waiting { .. }
-            | parent::Request::Long { .. }
-            | parent::Request::LongDone { .. }
-            | parent::Request::Unread { .. }
-            | parent::Request::Unauthorized { .. }
-            | parent::Request::Refused { .. }
-            | parent::Request::Limited { .. }
-            | parent::Request::Told { .. }
-            | parent::Request::Answered { .. }
-            | parent::Request::Faulted { .. }
-            | parent::Request::MessageRefused { .. }
-            | parent::Request::Gone { .. },
-        )
-        | Output::Process(
-            process::Request::Send { .. }
-            | process::Request::Read { .. }
-            | process::Request::Signal { .. }
-            | process::Request::Wait { .. }
-            | process::Request::Reap { .. },
-        ) => panic!("readonly git conflict evidence is valid"),
-    }
+    let Output::Process(process::Request::Spawn { .. }) = admit_start(selected, receiving) else {
+        panic!("readonly git conflict evidence is valid");
+    };
     let cases = [
         Start { workspace: None, directories: Box::new([mount(b"git", false, true, &[])]), ..start() },
         Start { workspace: Some(Token::new(7)), directories: Box::new([]), ..start() },
@@ -350,37 +228,10 @@ fn host_mount_metadata_admission_agrees_with_optional_workspace_and_git_kind() {
         },
     ];
     for rejected in cases {
-        match admit_start(rejected, receiving) {
-            Output::Parent(parent::Request::Gone { end, .. }) => {
-                assert_eq!(end, End::Invalid(crate::Invalid::Directories));
-            }
-            Output::Process(
-                process::Request::Spawn { .. }
-                | process::Request::Send { .. }
-                | process::Request::Read { .. }
-                | process::Request::Signal { .. }
-                | process::Request::Wait { .. }
-                | process::Request::Reap { .. },
-            )
-            | Output::Parent(
-                parent::Request::Started { .. }
-                | parent::Request::Admitted { .. }
-                | parent::Request::Called { .. }
-                | parent::Request::Withdrawn { .. }
-                | parent::Request::Turn { .. }
-                | parent::Request::Waiting { .. }
-                | parent::Request::Long { .. }
-                | parent::Request::LongDone { .. }
-                | parent::Request::Unread { .. }
-                | parent::Request::Unauthorized { .. }
-                | parent::Request::Refused { .. }
-                | parent::Request::Limited { .. }
-                | parent::Request::Told { .. }
-                | parent::Request::Answered { .. }
-                | parent::Request::Faulted { .. }
-                | parent::Request::MessageRefused { .. },
-            ) => panic!("metadata refuses before lower spawn"),
-        }
+        let Output::Parent(parent::Request::Gone { end, .. }) = admit_start(rejected, receiving) else {
+            panic!("metadata refuses before lower spawn");
+        };
+        assert_eq!(end, End::Invalid(crate::Invalid::Directories));
     }
     assert!(!crate::valid(&crate::Limits { path_bytes: 4097, ..receiving }));
 }

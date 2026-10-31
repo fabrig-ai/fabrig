@@ -3,7 +3,7 @@
 use skein_lib::{Duration, Time, Token};
 use smith_host_domain::{
     Answer, Ask, CallName, Delivered, Delivery, Down, Effect, End, Fault, Grant, Input, Invalid, MessageRefusal,
-    ModelFault, Receipt, Reply, RunFailure, RunResult, Signal, Turn, Up,
+    ModelFault, Receipt, Reply, RunFailure, RunResult, Signal, Start, Turn, Up,
 };
 use smith_host_domain::{parent, process};
 use smith_host_world::{Lower, World, limits, start};
@@ -47,19 +47,20 @@ fn last(world: &mut World, result: RunResult, turns: u32, spent: u64) {
 }
 fn finish(world: &mut World) {
     last(world, RunResult::Parked, 0, 0);
-    world.cleanup(Some(smith_host_domain::Exit::Code(0)));
-    world.settled();
+    world.clean_end();
 }
 fn faulted(world: &mut World, fault: Fault) {
     assert_eq!(world.seen.fault, Some(fault));
-    world.cleanup(Some(smith_host_domain::Exit::Code(0)));
-    world.settled();
+    world.clean_end();
 }
 fn receipts(text: &[u8]) -> Delivered {
     Delivered::new(Box::new([Receipt::new(0, Box::from(text)).expect("valid receipt")])).expect("valid sealed delivery")
 }
 fn turn(world: &mut World, number: u32, spent: u64, read: Option<Token>, bytes: usize) {
-    world.up(Up::Turn {
+    world.up(turn_record(number, spent, read, bytes));
+}
+fn turn_record(number: u32, spent: u64, read: Option<Token>, bytes: usize) -> Up {
+    Up::Turn {
         turn: Turn {
             opens_window: number == 1,
             number,
@@ -67,7 +68,7 @@ fn turn(world: &mut World, number: u32, spent: u64, read: Option<Token>, bytes: 
             read,
             body: smith_host_world::turn_value(u64::try_from(bytes).expect("fixture bytes")),
         },
-    });
+    }
 }
 fn message(world: &mut World, name: u64, bytes: usize) {
     world.event(Input::Parent(parent::Event::Message {
@@ -156,62 +157,75 @@ fn process_started_precedes_agent_admitted_and_start_is_first() {
 
 #[test]
 fn admission_refusals_preserve_separate_process_rights() {
-    for field in 0..6 {
-        let mut world = World::new(field, limits());
-        let mut request = start();
-        let invalid = match field {
-            0 => {
-                request.charter = smith_host_world::charter_value(257);
-                Invalid::Charter
-            }
-            1 => {
-                request.transcript = Some(smith_host_world::transcript_value(1025));
-                Invalid::Transcript
-            }
-            2 => {
-                request.answered = Box::new([smith_host_domain::AnsweredCall {
-                    name: smith_host_domain::CallName { activation: 1, completion: 1, position: 0 },
+    let cases = [
+        (Start { charter: smith_host_world::charter_value(limits().charter_bytes + 1), ..start() }, Invalid::Charter),
+        (
+            Start { transcript: Some(smith_host_world::transcript_value(limits().transcript_bytes + 1)), ..start() },
+            Invalid::Transcript,
+        ),
+        (
+            Start {
+                answered: Box::new([smith_host_domain::AnsweredCall {
+                    name: CallName { activation: 1, completion: 1, position: 0 },
                     tool: Box::from(&b"tool"[..]),
-                    reply: smith_host_domain::SavedReply::Host { error: false, body: vec![0; 257].into_boxed_slice() },
-                }]);
-                Invalid::Answered
-            }
-            3 => {
-                request.grants = Box::new([Grant {
+                    reply: smith_host_domain::SavedReply::Host {
+                        error: false,
+                        body: vec![0; usize::try_from(limits().answered_bytes + 1).expect("answer bound")]
+                            .into_boxed_slice(),
+                    },
+                }]),
+                ..start()
+            },
+            Invalid::Answered,
+        ),
+        (
+            Start {
+                grants: Box::new([Grant {
                     account: 1,
                     generation: 0,
                     valid: Duration::ZERO,
                     form: smith_host_domain::Form::Credential(smith_host_domain::Scheme::Bearer),
-                }]);
-                Invalid::Grants
-            }
-            4 => {
-                request.directories = Box::new([smith_host_domain::Directory {
+                }]),
+                ..start()
+            },
+            Invalid::Grants,
+        ),
+        (
+            Start {
+                directories: Box::new([smith_host_domain::Directory {
                     host: Box::from(b"/host".as_slice()),
                     root: Token::new(1),
                     name: Box::from(&b"a"[..]),
                     writable: false,
                     git: false,
                     conflicts: Box::new([Box::from(&b"file"[..])]),
-                }]);
-                Invalid::Directories
-            }
-            5 => {
-                request.activation = 0;
-                Invalid::Activation
-            }
-            _ => unreachable!(),
-        };
+                }]),
+                ..start()
+            },
+            Invalid::Directories,
+        ),
+        (Start { activation: 0, ..start() }, Invalid::Activation),
+    ];
+    for (seed, (request, invalid)) in cases.into_iter().enumerate() {
+        let mut world = World::new(u64::try_from(seed).expect("case seed"), limits());
         world.spawn(request);
         assert_eq!(world.seen.gone, Some(End::Invalid(invalid)));
         world.settled();
     }
+}
+
+#[test]
+fn zero_agent_capacity_refuses_before_process_spawn() {
     let mut bounds = limits();
     bounds.agents = 0;
     let mut world = World::new(9, bounds);
     world.spawn(start());
     assert_eq!(world.seen.gone, Some(End::Busy));
     world.settled();
+}
+
+#[test]
+fn a_failed_process_spawn_keeps_the_bounded_operator_tail() {
     let mut world = World::new(10, limits());
     world.spawn(start());
     world.event(Input::Process(process::Event::Unspawned {
@@ -239,8 +253,7 @@ fn admission_refusal_and_working_traffic_are_distinct() {
             world.seen.answer.as_ref().expect("refusal reaches the parent").result,
             RunResult::Refused { refusal }
         );
-        world.cleanup(Some(smith_host_domain::Exit::Code(0)));
-        world.settled();
+        world.clean_end();
     }
     for record in [Up::Fact { body: Box::new([]) }, Up::Admitted] {
         let mut world = World::new(12, limits());
@@ -273,8 +286,7 @@ fn a_live_run_calls_tells_waits_and_finishes() {
     reply(&mut world, 20, Reply::Host { error: false, body: Box::from(&b"result"[..]) });
     world.sent();
     last(&mut world, RunResult::Accepted { outcome: smith_host_world::declared_value(8) }, 0, 9);
-    world.cleanup(Some(smith_host_domain::Exit::Code(0)));
-    world.settled();
+    world.clean_end();
 }
 
 #[test]
@@ -321,8 +333,7 @@ fn a_run_may_fail_as_it_reports_it() {
         world.live();
         last(&mut world, RunResult::Failed { failure: failure.clone() }, 0, 10);
         assert_eq!(world.seen.answer.as_ref().expect("last word").result, RunResult::Failed { failure });
-        world.cleanup(Some(smith_host_domain::Exit::Code(0)));
-        world.settled();
+        world.clean_end();
     }
 }
 
@@ -356,8 +367,7 @@ fn durable_call_names_and_callback_owners_are_independently_fenced() {
         call(&mut world, callback, name, false, 100);
         assert_eq!(world.seen.fault, Some(Fault::Rules));
         reply(&mut world, 20, Reply::Unavailable);
-        world.cleanup(Some(smith_host_domain::Exit::Code(0)));
-        world.settled();
+        world.clean_end();
     }
     let mut world = World::new(18, limits());
     world.live();
@@ -395,8 +405,7 @@ fn an_overflow_name_is_fenced_until_its_busy_answer_terminal_then_reusable() {
             world.sent();
             finish(&mut world);
         } else {
-            world.cleanup(Some(smith_host_domain::Exit::Code(0)));
-            world.settled();
+            world.clean_end();
         }
     }
 }
@@ -418,7 +427,7 @@ fn payloads_beyond_the_limits_break_the_rules() {
             call: Token::new(20),
             name: CallName { activation: 1, completion: 1, position: 1 },
             deadline: Time::ZERO,
-            ask: Ask::Deliver { fields: smith_host_world::fields_value(129) },
+            ask: Ask::Deliver { fields: smith_host_world::fields_value(limits().call_bytes + 1) },
         },
         Up::Answer {
             answer: Answer {
@@ -426,7 +435,7 @@ fn payloads_beyond_the_limits_break_the_rules() {
                 turns: 0,
                 spent: 0,
 
-                result: RunResult::Accepted { outcome: smith_host_world::declared_value(129) },
+                result: RunResult::Accepted { outcome: smith_host_world::declared_value(limits().outcome_bytes + 1) },
             },
         },
     ] {
@@ -452,8 +461,7 @@ fn malformed_hangup_and_unsent_have_lower_terminals() {
     message(&mut world, 30, 1);
     world.event(Input::Process(process::Event::Unsent { owner: world.owner() }));
     assert_eq!(world.seen.fault, None);
-    world.cleanup(Some(smith_host_domain::Exit::Code(0)));
-    world.settled();
+    world.clean_end();
     assert_eq!(world.seen.fault, Some(Fault::Exited));
 }
 
@@ -537,8 +545,7 @@ fn sent_message_at_run_end_stays_outside_the_read_fence() {
         world.seen.refused_messages.iter().map(|(_, reason)| *reason).collect::<Vec<_>>(),
         [MessageRefusal::Ending]
     );
-    world.cleanup(Some(smith_host_domain::Exit::Code(0)));
-    world.settled();
+    world.clean_end();
 }
 
 #[test]
@@ -564,8 +571,7 @@ fn read_watermarks_cover_only_sent_names_and_release_exact_prefix() {
     world.event(Input::Parent(parent::Event::Acknowledge { agent: world.agent(), turn: 1 }));
     world.sent();
     last(&mut world, RunResult::Parked, 1, 2);
-    world.cleanup(Some(smith_host_domain::Exit::Code(0)));
-    world.settled();
+    world.clean_end();
     for fence in [None, Some(Token::new(999)), Some(Token::new(30))] {
         let mut world = World::new(26, limits());
         world.live();
@@ -637,21 +643,19 @@ fn exact_ack_metadata_preserves_parent_payloads_and_shutdown_rights() {
 
 #[test]
 fn turn_numbers_spend_and_answer_counts_are_fenced() {
-    for mutation in 0..4 {
+    for record in [
+        turn_record(1, 11, None, 1),
+        turn_record(3, 11, None, 1),
+        turn_record(2, 9, None, 1),
+        Up::Answer { answer: Answer { read: None, turns: 0, spent: 10, result: RunResult::Parked } },
+    ] {
         let mut world = World::new(30, limits());
         world.live();
         turn(&mut world, 1, 10, None, 1);
-        match mutation {
-            0 => turn(&mut world, 1, 11, None, 1),
-            1 => turn(&mut world, 3, 11, None, 1),
-            2 => turn(&mut world, 2, 9, None, 1),
-            3 => last(&mut world, RunResult::Parked, 0, 10),
-            _ => unreachable!(),
-        }
+        world.up(record);
         assert_eq!(world.seen.fault, Some(Fault::Rules));
         world.event(Input::Parent(parent::Event::Acknowledge { agent: world.agent(), turn: 1 }));
-        world.cleanup(Some(smith_host_domain::Exit::Code(0)));
-        world.settled();
+        world.clean_end();
     }
     let mut world = World::new(31, limits());
     world.live();
@@ -659,8 +663,7 @@ fn turn_numbers_spend_and_answer_counts_are_fenced() {
     last(&mut world, RunResult::Parked, 1, 9);
     assert_eq!(world.seen.fault, Some(Fault::Rules));
     world.event(Input::Parent(parent::Event::Acknowledge { agent: world.agent(), turn: 1 }));
-    world.cleanup(Some(smith_host_domain::Exit::Code(0)));
-    world.settled();
+    world.clean_end();
 }
 
 #[test]
@@ -682,8 +685,7 @@ fn a_withdrawn_call_keeps_its_once_only_answer_right() {
     world.up(Up::Withdraw { call: Token::new(20) });
     assert_eq!(world.seen.fault, Some(Fault::Rules));
     reply(&mut world, 20, Reply::Unavailable);
-    world.cleanup(Some(smith_host_domain::Exit::Code(0)));
-    world.settled();
+    world.clean_end();
 }
 
 #[test]
@@ -713,7 +715,7 @@ fn an_oversized_generic_answer_is_too_large_but_delivery_always_fits() {
 }
 
 #[test]
-fn the_watchdog_pauses_calls_waiting_turn_credit_and_bounded_longs() {
+fn an_owed_call_pauses_the_watchdog_until_its_deadline() {
     let mut world = World::new(35, limits());
     world.live();
     call(&mut world, 20, 1, false, 20);
@@ -724,8 +726,11 @@ fn the_watchdog_pauses_calls_waiting_turn_credit_and_bounded_longs() {
     world.at(30);
     assert_eq!(world.seen.fault, Some(Fault::NoProgress));
     reply(&mut world, 20, Reply::Unavailable);
-    world.cleanup(Some(smith_host_domain::Exit::Code(0)));
-    world.settled();
+    world.clean_end();
+}
+
+#[test]
+fn waiting_pauses_the_watchdog_until_a_message_arrives() {
     let mut world = World::new(36, limits());
     world.live();
     world.up(Up::Waiting { read: None });
@@ -737,6 +742,10 @@ fn the_watchdog_pauses_calls_waiting_turn_credit_and_bounded_longs() {
     assert_eq!(world.seen.fault, None);
     world.at(60);
     faulted(&mut world, Fault::NoProgress);
+}
+
+#[test]
+fn a_long_span_stretches_the_watchdog() {
     let mut world = World::new(37, limits());
     world.live();
     world.up(Up::Long { operation: smith_host_domain::Operation::Checks, span: Duration::from_secs(30) });
@@ -744,6 +753,10 @@ fn the_watchdog_pauses_calls_waiting_turn_credit_and_bounded_longs() {
     assert_eq!(world.seen.fault, None);
     world.at(40);
     faulted(&mut world, Fault::NoProgress);
+}
+
+#[test]
+fn the_last_long_done_ends_the_extension() {
     let mut world = World::new(38, limits());
     world.live();
     world.up(Up::Long { operation: smith_host_domain::Operation::Checks, span: Duration::from_secs(30) });
@@ -751,9 +764,16 @@ fn the_watchdog_pauses_calls_waiting_turn_credit_and_bounded_longs() {
     world.up(Up::LongDone);
     world.at(12);
     faulted(&mut world, Fault::NoProgress);
+}
+
+#[test]
+fn a_long_past_the_allowed_span_is_a_rule_fault() {
     let mut world = World::new(39, limits());
     world.live();
-    world.up(Up::Long { operation: smith_host_domain::Operation::Checks, span: Duration::from_secs(121) });
+    world.up(Up::Long {
+        operation: smith_host_domain::Operation::Checks,
+        span: limits().long_span.saturating_add(Duration::from_secs(1)),
+    });
     faulted(&mut world, Fault::Rules);
 }
 
@@ -768,30 +788,36 @@ fn a_wait_crossing_an_unread_or_queued_message_does_not_pause() {
     faulted(&mut world, Fault::NoProgress);
 }
 
+fn wall_cancelled(seed: u64) -> World {
+    let mut world = World::new(seed, smith_host_domain::Limits { wall_time: Duration::from_secs(20), ..limits() });
+    world.live();
+    world.up(Up::Waiting { read: None });
+    world.at(20);
+    assert_eq!(world.seen.fault, None);
+    world.sent();
+    world
+}
+
 #[test]
-fn wall_clock_never_pauses_and_cancelled_spend_is_preserved() {
-    for mode in 0..3 {
-        let mut bounds = limits();
-        bounds.wall_time = Duration::from_secs(20);
-        let mut world = World::new(41, bounds);
-        world.live();
-        world.up(Up::Waiting { read: None });
-        world.at(20);
-        assert_eq!(world.seen.fault, None);
-        world.sent();
-        if mode == 0 {
-            last(&mut world, RunResult::Accepted { outcome: smith_host_world::declared_value(0) }, 0, 12);
-            world.cleanup(Some(smith_host_domain::Exit::Code(0)));
-            world.settled();
-            assert_eq!(world.seen.answer.as_ref().expect("answer").spent, 12);
-        } else if mode == 1 {
-            last(&mut world, RunResult::Failed { failure: RunFailure::Cancelled }, 0, 12);
-            faulted(&mut world, Fault::WallTime);
-        } else {
-            world.at(25);
-            faulted(&mut world, Fault::WallTime);
-        }
-    }
+fn a_completed_outcome_at_wall_cancellation_keeps_its_spend() {
+    let mut world = wall_cancelled(41);
+    last(&mut world, RunResult::Accepted { outcome: smith_host_world::declared_value(0) }, 0, 12);
+    world.clean_end();
+    assert_eq!(world.seen.answer.as_ref().expect("answer").spent, 12);
+}
+
+#[test]
+fn a_cancelled_answer_at_the_wall_reports_wall_time() {
+    let mut world = wall_cancelled(41);
+    last(&mut world, RunResult::Failed { failure: RunFailure::Cancelled }, 0, 12);
+    faulted(&mut world, Fault::WallTime);
+}
+
+#[test]
+fn the_wall_cancel_grace_reports_wall_time() {
+    let mut world = wall_cancelled(41);
+    world.at(25);
+    faulted(&mut world, Fault::WallTime);
 }
 
 #[test]
@@ -808,8 +834,7 @@ fn explicit_stop_cancels_once_and_does_not_restart_grace() {
     assert_eq!(world.seen.signals, [Signal::Terminate, Signal::Kill]);
     last(&mut world, RunResult::Failed { failure: RunFailure::Cancelled }, 0, 15);
     assert_eq!(world.seen.answer.as_ref().expect("late honest answer").spent, 15);
-    world.cleanup(Some(smith_host_domain::Exit::Code(0)));
-    world.settled();
+    world.clean_end();
 }
 
 #[test]
@@ -834,8 +859,7 @@ fn an_agent_that_exits_0_is_gone_not_forced() {
     let mut world = World::new(61, limits());
     world.live();
     last(&mut world, RunResult::Parked, 0, 0);
-    world.cleanup(Some(smith_host_domain::Exit::Code(0)));
-    world.settled();
+    world.clean_end();
     assert_eq!(
         world.seen.gone,
         Some(End::Exited { exit: Some(smith_host_domain::Exit::Code(0)), forced: smith_host_domain::Forced::No })
@@ -921,8 +945,7 @@ fn stop_and_answer_during_wall_or_draining_preserve_original_shutdown_deadline()
     last(&mut world, RunResult::Failed { failure: RunFailure::Cancelled }, 0, 0);
     world.at(25);
     assert!(world.seen.signals.is_empty());
-    world.cleanup(Some(smith_host_domain::Exit::Code(0)));
-    world.settled();
+    world.clean_end();
     let mut world = World::new(44, limits());
     world.live();
     world.event(Input::Process(process::Event::Exited {
@@ -930,8 +953,7 @@ fn stop_and_answer_during_wall_or_draining_preserve_original_shutdown_deadline()
         exit: Some(smith_host_domain::Exit::Code(0)),
     }));
     world.event(Input::Parent(parent::Event::Stop { agent: world.agent() }));
-    world.cleanup(Some(smith_host_domain::Exit::Code(0)));
-    world.settled();
+    world.clean_end();
     assert_eq!(world.seen.fault, None);
 }
 
@@ -987,8 +1009,7 @@ fn ordinary_earlier_landing_then_later_stop_remains_an_ordinary_answer() {
     world.event(Input::Parent(parent::Event::Stop { agent: world.agent() }));
     world.sent();
     last(&mut world, RunResult::Failed { failure: RunFailure::Cancelled }, 0, 9);
-    world.cleanup(Some(smith_host_domain::Exit::Code(0)));
-    world.settled();
+    world.clean_end();
 }
 
 #[test]
@@ -1125,8 +1146,7 @@ fn trailing_records_terminate_without_fabricating_a_second_run_answer() {
     world.up(Up::Fact { body: Box::new([]) });
     assert_eq!(world.seen.signals, [Signal::Terminate]);
     assert_eq!(world.seen.fault, None);
-    world.cleanup(Some(smith_host_domain::Exit::Code(0)));
-    world.settled();
+    world.clean_end();
 }
 
 #[test]
@@ -1147,7 +1167,6 @@ fn facts_are_kept_whatever_the_estimate() {
         assert!(matches!(world.domain.pop_fact(), Some(smith_host_domain::Fact::Gone { .. })));
         assert_eq!(world.domain.pop_fact(), None);
         assert_eq!(world.domain.backlog(), 0);
-        assert_eq!(world.domain.facts_lost(), 0);
         let seen = (world.seen.answer, world.seen.fault, world.seen.gone, world.seen.gone_detail, world.seen.unread);
         match &terminals {
             Some(previous) => assert_eq!(&seen, previous),
@@ -1208,8 +1227,7 @@ fn final_answers_cannot_abandon_parent_or_queued_delivery_terminals() {
         1,
     );
     assert!(world.seen.answer.is_some());
-    world.cleanup(Some(smith_host_domain::Exit::Code(0)));
-    world.settled();
+    world.clean_end();
 }
 
 #[test]
@@ -1223,8 +1241,7 @@ fn cancelled_and_draining_paths_keep_work_and_drop_answers_only_after_a_reported
     reply(&mut world, 20, Reply::Unavailable);
     world.sent();
     last(&mut world, RunResult::Failed { failure: RunFailure::Cancelled }, 0, 7);
-    world.cleanup(Some(smith_host_domain::Exit::Code(0)));
-    world.settled();
+    world.clean_end();
     for malformed in [false, true] {
         let mut world = World::new(64, limits());
         world.live();
@@ -1233,7 +1250,10 @@ fn cancelled_and_draining_paths_keep_work_and_drop_answers_only_after_a_reported
         if malformed {
             world.event(Input::Process(process::Event::Malformed { owner: world.owner() }));
         } else {
-            world.up(Up::Long { operation: smith_host_domain::Operation::Checks, span: Duration::from_secs(121) });
+            world.up(Up::Long {
+                operation: smith_host_domain::Operation::Checks,
+                span: limits().long_span.saturating_add(Duration::from_secs(1)),
+            });
         }
         assert_eq!(world.seen.fault, None, "explicit parent stop owns shutdown");
         assert_eq!(world.seen.signals, [Signal::Terminate]);
@@ -1257,8 +1277,7 @@ fn cancelled_and_draining_paths_keep_work_and_drop_answers_only_after_a_reported
             last(&mut world, RunResult::Failed { failure: RunFailure::Cancelled }, 0, 8);
             assert!(world.seen.answer.is_some(), "first last word still heard after untold diagnostic");
         }
-        world.cleanup(Some(smith_host_domain::Exit::Code(0)));
-        world.settled();
+        world.clean_end();
     }
     let mut world = World::new(65, limits());
     world.live();
@@ -1269,8 +1288,7 @@ fn cancelled_and_draining_paths_keep_work_and_drop_answers_only_after_a_reported
     world.at(12);
     world.up(Up::Fact { body: Box::new([]) });
     assert_eq!(world.seen.told, 0);
-    world.cleanup(Some(smith_host_domain::Exit::Code(0)));
-    world.settled();
+    world.clean_end();
     let mut world = World::new(66, limits());
     world.live();
     world.event(Input::Process(process::Event::Exited {
@@ -1287,46 +1305,46 @@ fn cancelled_and_draining_paths_keep_work_and_drop_answers_only_after_a_reported
     }));
     world.at(5);
     assert_eq!(world.seen.fault, Some(Fault::Exited));
-    world.cleanup(Some(smith_host_domain::Exit::Code(0)));
-    world.settled();
+    world.clean_end();
 }
 
 #[test]
-fn wall_shutdown_hangup_exit_and_breach_report_the_original_cause() {
-    for mode in 0..4 {
-        let mut bounds = limits();
-        bounds.wall_time = Duration::from_secs(20);
-        let mut world = World::new(68, bounds);
-        world.live();
-        world.up(Up::Waiting { read: None });
-        world.at(20);
-        world.sent();
-        match mode {
-            0 => {
-                world.event(Input::Process(process::Event::Hangup { owner: world.owner() }));
-                assert_eq!(world.seen.fault, Some(Fault::WallTime));
-            }
-            1 => {
-                world.event(Input::Process(process::Event::Exited {
-                    owner: world.owner(),
-                    exit: Some(smith_host_domain::Exit::Code(0)),
-                }));
-                last(&mut world, RunResult::Failed { failure: RunFailure::Cancelled }, 0, 3);
-                assert_eq!(world.seen.fault, Some(Fault::WallTime));
-            }
-            2 => {
-                world.up(Up::Long { operation: smith_host_domain::Operation::Checks, span: Duration::from_secs(121) });
-                assert_eq!(world.seen.fault, Some(Fault::Rules));
-            }
-            3 => {
-                world.event(Input::Process(process::Event::Malformed { owner: world.owner() }));
-                assert_eq!(world.seen.fault, Some(Fault::Rules));
-            }
-            _ => unreachable!(),
-        }
-        world.cleanup(Some(smith_host_domain::Exit::Code(0)));
-        world.settled();
-    }
+fn a_wall_cancelled_run_reports_wall_time_on_hangup() {
+    let mut world = wall_cancelled(68);
+    world.event(Input::Process(process::Event::Hangup { owner: world.owner() }));
+    assert_eq!(world.seen.fault, Some(Fault::WallTime));
+    world.clean_end();
+}
+
+#[test]
+fn a_cancelled_answer_after_process_exit_reports_the_wall_cause() {
+    let mut world = wall_cancelled(68);
+    world.event(Input::Process(process::Event::Exited {
+        owner: world.owner(),
+        exit: Some(smith_host_domain::Exit::Code(0)),
+    }));
+    last(&mut world, RunResult::Failed { failure: RunFailure::Cancelled }, 0, 3);
+    assert_eq!(world.seen.fault, Some(Fault::WallTime));
+    world.clean_end();
+}
+
+#[test]
+fn a_long_past_its_bound_during_wall_cancellation_is_a_rule_fault() {
+    let mut world = wall_cancelled(68);
+    world.up(Up::Long {
+        operation: smith_host_domain::Operation::Checks,
+        span: limits().long_span.saturating_add(Duration::from_secs(1)),
+    });
+    assert_eq!(world.seen.fault, Some(Fault::Rules));
+    world.clean_end();
+}
+
+#[test]
+fn a_malformed_record_during_wall_cancellation_is_a_rule_fault() {
+    let mut world = wall_cancelled(68);
+    world.event(Input::Process(process::Event::Malformed { owner: world.owner() }));
+    assert_eq!(world.seen.fault, Some(Fault::Rules));
+    world.clean_end();
 }
 
 #[test]
@@ -1363,8 +1381,7 @@ fn continual_progress_reaches_only_the_independent_wall_deadline() {
     world.at(25);
     assert_eq!(world.seen.fault, Some(Fault::WallTime));
     assert_eq!(world.seen.signals, [Signal::Terminate]);
-    world.cleanup(Some(smith_host_domain::Exit::Code(0)));
-    world.settled();
+    world.clean_end();
 }
 
 #[test]
@@ -1480,6 +1497,5 @@ fn a_process_exit_preserves_the_read_fence_of_its_buffered_answer() {
     last(&mut world, RunResult::Parked, 0, 0);
     assert_eq!(world.seen.fault, None);
     assert_eq!(world.seen.answer.as_ref().expect("buffered answer").read, Some(Token::new(1)));
-    world.cleanup(Some(smith_host_domain::Exit::Code(0)));
-    world.settled();
+    world.clean_end();
 }

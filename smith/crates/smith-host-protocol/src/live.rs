@@ -11,18 +11,6 @@ pub(super) enum Rule {
     Call,
 }
 
-impl Rule {
-    pub(super) const fn reason(self) -> &'static [u8] {
-        match self {
-            Self::NotAsked => b"live kind not asked",
-            Self::Turn => b"live turn",
-            Self::Retry => b"live retry",
-            Self::Offset => b"live offset",
-            Self::Call => b"live call",
-        }
-    }
-}
-
 #[derive(Debug)]
 pub(super) struct Streams {
     ask: Option<LiveAsk>,

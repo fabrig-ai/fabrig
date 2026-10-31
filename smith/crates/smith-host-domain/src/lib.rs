@@ -30,6 +30,9 @@ mod facts;
 
 mod inbox;
 
+#[cfg(any(test, feature = "fixture"))]
+pub mod fixture;
+
 mod limits;
 
 mod long;
