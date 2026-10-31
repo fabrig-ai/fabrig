@@ -273,8 +273,7 @@ impl Process {
                 self.output = pipes.get(1).copied();
                 self.error = pipes.get(2).copied();
                 if self.phase == Phase::Failing || now >= self.deadline {
-                    self.phase = Phase::Spawning;
-                    self.fail(below);
+                    self.abort_resources(below);
                 } else {
                     self.phase = Phase::Opening;
                     self.channel.open(&mut self.channel_events, &mut self.channel_below);
@@ -289,33 +288,14 @@ impl Process {
                 if self.phase == Phase::Opening {
                     self.fail(below);
                 }
-                self.exited = true;
-                if self.phase == Phase::Ready {
-                    above.push(ProcessEvent::Exited { agent: self.agent, exit: None });
-                }
-                if let Some(input) = self.input {
-                    below.push(IoRequest::Close { entity: input });
-                }
-                if let Some(child) = self.child {
-                    below.push(IoRequest::Close { entity: child });
-                }
+                self.tree_ended(None, above, below);
             }
             IoEvent::Closed { owner } if owner == self.io_owner => {
                 self.child_closed = true;
                 self.finish(above);
             }
             IoEvent::Exited { owner, exit } if owner == self.io_owner => {
-                self.exited = true;
-                self.exit = Some(exit);
-                if self.phase == Phase::Ready {
-                    above.push(ProcessEvent::Exited { agent: self.agent, exit: self.exit });
-                }
-                if let Some(input) = self.input {
-                    below.push(IoRequest::Close { entity: input });
-                }
-                if let Some(child) = self.child {
-                    below.push(IoRequest::Close { entity: child });
-                }
+                self.tree_ended(Some(exit), above, below);
             }
             IoEvent::Stream { owner, up } if Some(owner) == self.output => {
                 self.channel.from_below(LowerEvent::Read(up), &mut self.channel_events, &mut self.channel_below);
@@ -494,10 +474,34 @@ impl Process {
         self.tail = next;
     }
 
+    fn tree_ended(
+        &mut self,
+        exit: Option<kernel::Exit>,
+        above: &mut Queue<ProcessEvent>,
+        below: &mut Queue<IoRequest>,
+    ) {
+        self.exited = true;
+        self.exit = exit;
+        if self.phase == Phase::Ready {
+            above.push(ProcessEvent::Exited { agent: self.agent, exit });
+        }
+        if let Some(input) = self.input {
+            below.push(IoRequest::Close { entity: input });
+        }
+        if let Some(child) = self.child {
+            below.push(IoRequest::Close { entity: child });
+        }
+    }
+
     fn fail(&mut self, below: &mut Queue<IoRequest>) {
         if self.phase == Phase::Failing || self.phase == Phase::Gone {
             return;
         }
+        self.abort_resources(below);
+    }
+
+    // A Spawned terminal supplies fresh resources even if opening already failed.
+    fn abort_resources(&mut self, below: &mut Queue<IoRequest>) {
         self.phase = Phase::Failing;
         if let Some(child) = self.child {
             below.push(IoRequest::Abort { entity: child });

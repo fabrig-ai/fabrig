@@ -169,6 +169,44 @@ fn refused_spawn_reports_one_unspawned_terminal() {
 }
 
 #[test]
+fn a_spawn_terminal_after_its_timeout_aborts_the_new_child_and_pipes() {
+    use skein_io::{Event as IoEvent, Request as IoRequest};
+    use skein_lib::{Time, Token, stream};
+
+    let mut process = crate::Process::new(Token::new(7), &process_limits(), 4, endpoints()).expect("channel");
+    let io_owner = process.io_owner();
+    let mut below = Queue::uncapped();
+    let mut above = Queue::uncapped();
+    process.spawn(launch(), Time::from_nanos(100), &mut below);
+    below.pop().expect("spawn request");
+    process.fire(Time::from_nanos(101), &mut above, &mut below);
+    assert!(above.is_empty());
+    assert!(below.is_empty(), "the spawn terminal still owns the new resources");
+    let child = Token::new(8);
+    let input = Token::new(9);
+    let output = Token::new(10);
+    let error = Token::new(11);
+    process.from_io(
+        Time::from_nanos(102),
+        IoEvent::Spawned { owner: io_owner, child, pipes: Box::from([input, output, error]) },
+        &mut above,
+        &mut below,
+    );
+    for entity in [child, input, output] {
+        assert_eq!(below.pop(), Some(IoRequest::Abort { entity }));
+    }
+    assert_eq!(
+        below.pop(),
+        Some(IoRequest::Stream {
+            stream: error,
+            down: stream::Down::Demand { read: stream::Read::Arrived { max: 4096 }, room: 0 },
+        })
+    );
+    assert!(below.is_empty());
+    assert!(above.is_empty(), "failed opening waits for containment before Unspawned");
+}
+
+#[test]
 #[expect(clippy::wildcard_enum_match_arm, reason = "test rejects every other terminal")]
 fn expired_opening_kills_child_and_keeps_errors_tail() {
     use alloc::boxed::Box;
