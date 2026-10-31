@@ -1882,6 +1882,7 @@ fn unnamed(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<Request
     );
     if kept(&d.client_out) && d.names.remove(&task).is_some() {
         emit(out, Request::Erase { key: Key::Names(task) });
+        crate::removal::unnamed(d, out);
     }
     drain(d, env, out);
 }
@@ -2498,6 +2499,10 @@ fn step_change(d: &mut Domain, env: &Env<Limits>, input: StepInput, out: &mut Qu
         emit(out, Request::Refused { task });
         return;
     };
+    if row.change.state == change::State::Ended {
+        emit(out, Request::ChangeDecision { task, decision: change::Decision::Cancel, entry: None, evidence: None });
+        return;
+    }
     let mut owner = None;
     for (token, pending) in &d.steps {
         if pending.task == task {
@@ -3516,14 +3521,7 @@ fn continue_release(d: &mut Domain, env: &Env<Limits>, task: u64, entry: u64, ou
         if !settle_held(d, task, out) {
             return;
         }
-        if let Some(number) = row.close_pull {
-            let Some(change) = d.changes.get(&task) else {
-                emit(out, Request::ReleaseFailed { task, account: None });
-                return;
-            };
-            let repository = change.repository;
-            let write = release_pull_write(&row, &d.namespace, number, &env.limits);
-            enqueue_release(d, env, &mut row, entry, repository, write, None, out);
+        if !release_pull(d, env, &mut row, entry, out) {
             return;
         }
         let mut selected = None;
@@ -3598,6 +3596,27 @@ fn continue_release(d: &mut Domain, env: &Env<Limits>, task: u64, entry: u64, ou
         return;
     }
     unreachable!("every release pass removes a hold or completes");
+}
+
+// Removal leaves the remote forge untouched (temper/docs/design/draft/playground-reset.md, 4).
+fn release_pull(d: &mut Domain, env: &Env<Limits>, row: &mut ReleaseRow, entry: u64, out: &mut Queue<Request>) -> bool {
+    let Some(number) = row.close_pull else { return true };
+    let Some(change) = d.changes.get(&row.task) else {
+        emit(out, Request::ReleaseFailed { task: row.task, account: None });
+        return false;
+    };
+    let repository = change.repository;
+    if d.forge_ended(repository.forge) {
+        row.close_pull = None;
+        row.comment = None;
+        d.releases.insert(row.task, row.clone()).expect("replaces release");
+        emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Release(row.clone()) });
+        true
+    } else {
+        let write = release_pull_write(row, &d.namespace, number, &env.limits);
+        enqueue_release(d, env, row, entry, repository, write, None, out);
+        false
+    }
 }
 
 /// The panel outlives its task, but never its task's live state (domain/forge.md, 8.3).
@@ -3703,7 +3722,20 @@ fn release_outcome(d: &mut Domain, entry: u64, outcome: skein_forge_client::Outc
     let account = settled_account(d, entry, outcome);
     let mut row = d.releases.get(&task).expect("selected release").clone();
     let (_, resource) = row.pending.take().expect("selected pending release");
-    if resource.is_none() && row.comment.is_some() {
+    let removed = match d.entries.get(&entry) {
+        Some(entry) => d.forge_ended(entry.entry.repository.forge),
+        None => false,
+    };
+    if removed {
+        // Removal leaves the remote forge untouched (temper/docs/design/draft/playground-reset.md, 4).
+        if let Some(name) = resource {
+            d.holds.remove(&name);
+            emit(out, Request::Erase { key: Key::Hold(name) });
+        } else {
+            row.close_pull = None;
+            row.comment = None;
+        }
+    } else if resource.is_none() && row.comment.is_some() {
         // A permanent post failure must not prevent the pull from closing.
         // Uncertain/queued outcomes returned above keep the reason and keyed entry.
         row.comment = None;
@@ -4993,7 +5025,7 @@ fn read_afresh(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
 }
 
 // A permanently retired forge has no future observation to await. Its
-// historical rows stay; its live watches and local release gates do not.
+// kept task names retain repository rows; live watches and release gates retire.
 /// Drop the forge's local reads now; the event's environment retires its watches before returning.
 pub(crate) fn retire_forge(d: &mut Domain, forge: u16) {
     let mut removed = List::with_capacity(d.lost.capacity());
@@ -5023,6 +5055,17 @@ pub(crate) fn retire_forge(d: &mut Domain, forge: u16) {
     for owner in files.into_boxed() {
         d.goal_file_reads.remove(&owner);
     }
+    let mut steps = List::with_capacity(d.steps.capacity());
+    for (owner, pending) in &d.steps {
+        if let Some(row) = d.changes.get(&pending.task)
+            && row.repository.forge == forge
+        {
+            steps.push(*owner).expect("bounded change reads");
+        }
+    }
+    for owner in steps.into_boxed() {
+        d.steps.remove(&owner);
+    }
     d.retire_pending = true;
 }
 
@@ -5038,6 +5081,37 @@ fn retire_ended(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     }
     for forge in ended.into_boxed() {
         retire_forge(d, forge);
+        let mut entries = List::with_capacity(d.entries.capacity());
+        for (number, row) in &d.entries {
+            if row.entry.repository.forge == forge {
+                entries.push(*number).expect("bounded outbox entries");
+            }
+        }
+        for number in entries.into_boxed() {
+            let task = d.entries.get(&number).expect("collected entry").entry.task;
+            d.named_outcome(number, skein_forge_client::Outcome::Withdrawn);
+            outcome_facts(d, env, number, task, skein_forge_client::Outcome::Withdrawn, out);
+            not_made(d, number, out);
+            if let Some(row) = d.releases.get(&task)
+                && !row.failed
+            {
+                emit(out, Request::ContinueRelease { task });
+            }
+        }
+        let mut changes = List::with_capacity(d.changes.capacity());
+        for (task, row) in &d.changes {
+            if row.repository.forge == forge && !row.terminal() {
+                changes.push(*task).expect("bounded changes");
+            }
+        }
+        for task in changes.into_boxed() {
+            end_change(d, env, task, out);
+            d.change_due.remove(&task);
+            emit(
+                out,
+                Request::ChangeDecision { task, decision: change::Decision::Cancel, entry: None, evidence: None },
+            );
+        }
     }
     d.retire_pending = false;
     let mut watches = Map::with_capacity(env.limits.client.resources);
@@ -5061,6 +5135,46 @@ fn retire_ended(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
         list.push(watch.clone()).expect("bounded watches");
     }
     child(d, env, skein_forge_client::Event::Keep { owner: Token::new(u64::MAX), watches: list.into_boxed() }, out);
+}
+
+/// One pass over the forge's repositories (temper/docs/design/draft/playground-reset.md, 4).
+pub(crate) fn erase_removed_repositories(d: &mut Domain, forge: u16, out: &mut Queue<Request>) -> bool {
+    let mut erased = List::with_capacity(d.repositories.capacity());
+    let mut kept = false;
+    for (repository, _) in &d.repositories {
+        if repository.forge != forge {
+            continue;
+        }
+        let mut named = false;
+        for (_, names) in &d.names {
+            for name in names {
+                named |= name.forge == forge && name.repository == repository.repository;
+            }
+        }
+        for (name, _) in &d.holds {
+            named |= name.forge == forge && name.repository == repository.repository;
+        }
+        for ((_, topic), _) in &d.subscriptions {
+            let provider = match topic {
+                Topic::Landings { repository, .. }
+                | Topic::Ci { repository, .. }
+                | Topic::Pull { repository, .. }
+                | Topic::Participation { repository, .. } => repository,
+            };
+            named |= provider == repository;
+        }
+        if named {
+            kept = true;
+        } else {
+            erased.push(*repository).expect("bounded repositories");
+        }
+    }
+    for repository in erased.into_boxed() {
+        d.repositories.remove(&repository);
+        emit(out, Request::Erase { key: Key::Repository(repository) });
+        emit(out, Request::Erase { key: Key::Client(skein_forge_client::Key::Repository(repository)) });
+    }
+    !kept
 }
 
 fn read_afresh_complete(d: &mut Domain, out: &mut Queue<Request>) {

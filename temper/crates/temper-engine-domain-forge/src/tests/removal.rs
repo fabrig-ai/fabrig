@@ -85,6 +85,7 @@ fn remove_ends_the_forge_in_one_decision_and_answers_removed() {
             Request::Save { record: Stored::Forge(ended), release: None, read_afresh: None },
             Request::ForgeGone { forge: 1 },
             Request::BoxRemove { forge: 1 },
+            Request::Erase { key: Key::Writer(1) },
             Request::MarkedForges,
             Request::ApplicationDone { request: Token::new(4), token: Token::new(104) },
         ]
@@ -110,6 +111,7 @@ fn a_removed_forge_leaves_every_list_and_refuses_calls() {
     for row in [home.clone(), context] {
         outputs(&mut d, Event::Restore { record: Stored::Repository(row) });
     }
+    outputs(&mut d, Event::Restore { record: Stored::Names { task: 7, resources: Box::new([branch()]) } });
     assert!(d.home(5).is_some());
     remove(&mut d, 1, Some(PartyRole::Owner));
     assert!(d.forges().rows.is_empty());
@@ -209,6 +211,8 @@ fn answers_set_their_flags_and_both_call_settle() {
         {
             assert!(outputs(&mut d, event).is_empty(), "unended and absent forges ignore late answers");
         }
+        outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+        outputs(&mut d, Event::Restore { record: Stored::Names { task: 7, resources: Box::new([branch()]) } });
         remove(&mut d, 1, Some(PartyRole::Owner));
         for secrets in [secrets_first, secrets_first, !secrets_first, !secrets_first] {
             let sent = outputs(
@@ -284,4 +288,180 @@ fn removal_retires_waiting_reads_and_keeps_watches_from_returning() {
     assert!(outputs(&mut d, Event::Connection { forge: 1, state: Connection::Connecting }).is_empty());
     assert!(ready(&mut d).is_empty());
     assert_eq!(d.hold(&name).unwrap().writer, Some(Writer::Lost { task: 9, attempt: 1 }));
+}
+
+#[test]
+fn remove_cancels_each_change_on_the_forge_and_its_task_ends_cancelled() {
+    use temper_engine_domain_forge_change as change;
+    let mut d = kept(Mode::Fake);
+    outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+    for task in [51, 52] {
+        let mut row = fixtures::opening_row();
+        row.task = task;
+        row.change.task = task;
+        row.pending = None;
+        outputs(&mut d, Event::Change { row });
+    }
+    let mut other = fixtures::opening_row();
+    other.task = 53;
+    other.change.task = 53;
+    other.repository.forge = 2;
+    let mut repository = adopted();
+    repository.provider.forge = 2;
+    outputs(&mut d, Event::Restore { record: Stored::Forge(record(2, Mode::Fake)) });
+    outputs(&mut d, Event::Restore { record: Stored::Repository(repository) });
+    outputs(&mut d, Event::Change { row: other.clone() });
+    let sent = remove(&mut d, 1, Some(PartyRole::Owner));
+    for task in [51, 52] {
+        assert_eq!(d.change(task).unwrap().change.state, change::State::Ended);
+        assert!(sent.contains(&Request::ChangeDecision {
+            task,
+            decision: change::Decision::Cancel,
+            entry: None,
+            evidence: None
+        }));
+    }
+    assert_eq!(d.change(53), Some(&other));
+}
+
+#[test]
+fn writer_and_flights_go_at_once() {
+    let mut d = kept(Mode::Fake);
+    outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+    for (number, held) in [(11, false), (12, true)] {
+        let entry = skein_forge_client::Entry {
+            number,
+            task: 51,
+            repository: REPO,
+            effect: skein_forge_client::Effect {
+                write: skein_forge::api::Write::Close { number: 1 },
+                condition: skein_forge_client::Condition::None,
+            },
+            start: None,
+            attempt: None,
+            failures: 0,
+            queued: false,
+        };
+        outputs(&mut d, Event::Restore { record: Stored::Entry { entry, held } });
+        outputs(&mut d, Event::Restore { record: Stored::Flight { task: 51, entry: number } });
+    }
+    let sent = remove(&mut d, 1, Some(PartyRole::Owner));
+    assert!(!d.writers.contains_key(&1));
+    assert!(sent.contains(&Request::Erase { key: Key::Writer(1) }));
+    for entry in [11, 12] {
+        assert!(!d.entries.contains_key(&entry));
+        assert!(!d.flights.contains_key(&(51, entry)));
+        assert!(sent.contains(&Request::Erase { key: Key::Entry(entry) }));
+        assert!(sent.contains(&Request::Erase { key: Key::Flight { task: 51, entry } }));
+        assert!(sent.contains(&Request::NotMade { entry, task: 51 }));
+    }
+}
+
+#[test]
+fn a_repository_named_by_a_kept_task_stays_until_that_task_is_erased() {
+    let mut d = kept(Mode::Fake);
+    outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+    outputs(&mut d, Event::Names { task: 7, resources: Box::new([branch()]) });
+    remove(&mut d, 1, Some(PartyRole::Owner));
+    outputs(&mut d, Event::SecretsErased { forge: 1 });
+    outputs(&mut d, Event::BoxRemoved { forge: 1 });
+    assert_eq!(d.repository(REPO), Some(&adopted()));
+    assert!(d.record(1).is_some());
+    let sent = outputs(&mut d, Event::Unnamed { task: 7 });
+    assert_eq!(d.repository(REPO), None);
+    assert!(sent.contains(&Request::Erase { key: Key::Repository(REPO) }));
+    assert!(sent.contains(&Request::Erase { key: Key::Client(skein_forge_client::Key::Repository(REPO)) }));
+    assert_eq!(d.record(1), None);
+}
+
+#[test]
+fn the_record_is_erased_once_whole_and_its_number_stays_spent() {
+    let mut d = kept(Mode::Fake);
+    outputs(&mut d, Event::Restore { record: Stored::ForgeNumber { last: 1 } });
+    remove(&mut d, 1, Some(PartyRole::Owner));
+    outputs(&mut d, Event::SecretsErased { forge: 1 });
+    assert!(d.record(1).is_some());
+    let sent = outputs(&mut d, Event::BoxRemoved { forge: 1 });
+    assert!(sent.contains(&Request::Erase { key: Key::Forge(1) }));
+    assert_eq!(d.record(1), None);
+    assert!(outputs(&mut d, Event::BoxRemoved { forge: 1 }).is_empty());
+    let row = record(1, Mode::Fake);
+    let mut out = Queue::uncapped();
+    assert_eq!(forges::make(&mut d, row.kind, row.mode, row.place, row.bot, false, None, &mut out), Some(2));
+}
+
+#[test]
+fn a_removed_changes_open_pull_does_not_block_its_release() {
+    let mut d = kept(Mode::Fake);
+    outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+    let mut row = fixtures::opening_row();
+    row.pending = None;
+    row.pull = Some(1);
+    outputs(&mut d, Event::Change { row });
+    remove(&mut d, 1, Some(PartyRole::Owner));
+    outputs(&mut d, Event::SettleEffects { task: 51, root: 51, ending: ReleaseEnding::Cancelled });
+    let sent = outputs(
+        &mut d,
+        Event::Release { task: 51, root: 51, ending: ReleaseEnding::Cancelled, reason: None, entry: 100 },
+    );
+    assert!(sent.contains(&Request::Released { task: 51 }), "removed forge needs no remote cleanup: {sent:?}");
+}
+
+#[test]
+fn removal_keeps_retained_change_history_reconcilable() {
+    let mut d = kept(Mode::Fake);
+    outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+    let mut row = fixtures::opening_row();
+    row.pending = None;
+    outputs(&mut d, Event::Change { row });
+    remove(&mut d, 1, Some(PartyRole::Owner));
+    outputs(&mut d, Event::SecretsErased { forge: 1 });
+    outputs(&mut d, Event::BoxRemoved { forge: 1 });
+    let history = Stored::Change(d.change(51).unwrap().clone());
+    assert!(
+        crate::reconcile::references_resolve(&d, &LIMITS, &history, &[]),
+        "the retained change panel must restore after its repository is erased"
+    );
+}
+
+#[test]
+fn removal_settles_pending_release_cleanup_without_touching_the_forge() {
+    let mut d = kept(Mode::Fake);
+    outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+    let mut row = fixtures::opening_row();
+    row.pending = None;
+    row.pull = Some(1);
+    outputs(&mut d, Event::Change { row });
+    outputs(&mut d, Event::SettleEffects { task: 51, root: 51, ending: ReleaseEnding::Cancelled });
+    let sent = outputs(
+        &mut d,
+        Event::Release { task: 51, root: 51, ending: ReleaseEnding::Cancelled, reason: None, entry: 100 },
+    );
+    assert!(sent.iter().any(|request| if let Request::Save { record: Stored::Release(row), .. } = request {
+        row.pending.is_some()
+    } else {
+        false
+    }));
+    let sent = remove(&mut d, 1, Some(PartyRole::Owner));
+    assert!(!sent.iter().any(|request| if let Request::ReleaseFailed { .. } = request { true } else { false }));
+    assert!(sent.contains(&Request::ContinueRelease { task: 51 }));
+    let sent = outputs(&mut d, Event::ContinueRelease { task: 51, entry: 101 });
+    assert!(sent.contains(&Request::Released { task: 51 }));
+}
+
+#[test]
+fn removed_history_restores_without_a_repository_but_live_names_still_require_it() {
+    let mut d = setup_domain(&[], false);
+    outputs(&mut d, Event::Restore { record: Stored::ForgeNumber { last: 1 } });
+    let mut row = fixtures::opening_row();
+    row.pending = None;
+    row.change.state = temper_engine_domain_forge_change::State::Ended;
+    outputs(&mut d, Event::Restore { record: Stored::Change(row) });
+    d.reconcile(&reconcile::empty_tasks());
+    assert!(!crate::reconcile::references_resolve(
+        &d,
+        &LIMITS,
+        &Stored::Names { task: 7, resources: Box::new([branch()]) },
+        &[7]
+    ));
 }

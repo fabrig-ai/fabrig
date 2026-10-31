@@ -275,7 +275,7 @@ impl Domain {
                 }
                 Need::Forge(_) | Need::Demo(_) | Need::Repository(_) => false,
             };
-            if !self.reference_resolves(reference.need, live) {
+            if !self.reference_resolves(reference.kind, reference.need, live) {
                 return Some(MissingLink {
                     kind: reference.kind,
                     key: self.restored_link_key(
@@ -297,7 +297,7 @@ impl Domain {
     fn configured_forge(&self, forge: u16) -> bool {
         self.configured.contains_key(&forge) || self.identities.contains_key(&forge)
     }
-    fn reference_resolves(&self, need: Need, live: bool) -> bool {
+    fn reference_resolves(&self, kind: RecordKind, need: Need, live: bool) -> bool {
         match need {
             // Identities are constructor facts too; a restored writer is never one.
             Need::Forge(forge) => self.configured_forge(forge),
@@ -306,7 +306,11 @@ impl Domain {
                 None => false,
             },
             Need::Repository(repository) => {
-                self.configured_forge(repository.forge) && self.repositories.contains_key(&repository)
+                (self.configured_forge(repository.forge) && self.repositories.contains_key(&repository))
+                    || (Self::historical_repository(kind)
+                        && self.forge_ended(repository.forge)
+                        && repository.forge != 0
+                        && repository.forge <= self.forge_number)
             }
             Need::Task { retired, .. } => {
                 live || match retired {
@@ -328,6 +332,37 @@ impl Domain {
                 }
                 None => false,
             },
+        }
+    }
+
+    // History survives removal without retaining its repository's row
+    // (temper/docs/design/draft/playground-reset.md, 4 and 9).
+    const fn historical_repository(kind: RecordKind) -> bool {
+        match kind {
+            RecordKind::BranchHead
+            | RecordKind::PullState
+            | RecordKind::Ci
+            | RecordKind::Change
+            | RecordKind::Issue
+            | RecordKind::Application
+            | RecordKind::Landing
+            | RecordKind::Receipt => true,
+            RecordKind::Forge
+            | RecordKind::Call
+            | RecordKind::ProposedEffect
+            | RecordKind::Repository
+            | RecordKind::Hold
+            | RecordKind::Names
+            | RecordKind::Subscription
+            | RecordKind::Landed
+            | RecordKind::Entry
+            | RecordKind::Client
+            | RecordKind::Release
+            | RecordKind::Writer
+            | RecordKind::Demo
+            | RecordKind::Binding
+            | RecordKind::DemoAct
+            | RecordKind::Flight => false,
         }
     }
 
@@ -375,7 +410,7 @@ pub(crate) fn references_resolve(d: &Domain, limits: &Limits, row: &Stored, live
                 return false;
             }
         }
-        if !d.reference_resolves(reference.need, live) {
+        if !d.reference_resolves(reference.kind, reference.need, live) {
             return false;
         }
     }
