@@ -377,7 +377,7 @@ fn temper_word_keeps_the_marker_bytes_and_length() {
     let config = fixtures::engine();
     let mut found = jig_protocol_config::Problems::empty();
     let settings =
-        forge::settings(&config.forges, fixtures::forge_runtime(), None, &mut found).expect("fixture settings");
+        forge::settings(&fixtures::forges(), fixtures::forge_runtime(), None, &mut found).expect("fixture settings");
     let defaults = config.limits.forge_component;
     assert!(settings.forges.get(0).unwrap().log_origins.is_empty());
     assert_eq!((defaults.log_origins, defaults.log_pages, defaults.delivery_bytes), (4, 10, 1_048_576));
@@ -408,22 +408,20 @@ fn the_component_s_new_refusals_are_problems_naming_their_members() {
 
 #[test]
 fn the_forge_fixture_number_differs_from_its_index() {
-    let config = fixtures::engine();
-    assert_ne!(config.forges[0].number, 0);
+    assert_ne!(fixtures::forges()[0].number, 0);
 }
 
 #[test]
 fn a_refusal_naming_a_forge_is_indexed_to_the_configured_forge() {
     use skein_forge_connection::Unusable;
-    let config = fixtures::engine();
-    let number = config.forges[0].number;
+    let number = fixtures::forges()[0].number;
     let rows: [(Unusable, &[u8]); 3] = [
         (Unusable::PlaintextName { forge: number }, b"application.forges[0].api: past its bound\n"),
         (Unusable::Origin { forge: number, origin: skein_forge::github::redirect::Origin { tls: false, host: Box::from(b"logs.test".as_slice()), port: 80 } }, b"application.forges[0].log_origins: past its bound\n"),
         (Unusable::LogOrigins { forge: number, origins: 5, limit: 4 }, b"application.forges[0].log_origins: past its bound\napplication.limits.overrides.forge_component.log_origins: past its bound\n"),
     ];
     for (refusal, expected) in rows {
-        assert_eq!(problem_lines(forge::indexed(refusal, &config.forges)).as_ref(), expected);
+        assert_eq!(problem_lines(forge::indexed(refusal, &fixtures::forges())).as_ref(), expected);
     }
 }
 
@@ -495,10 +493,10 @@ const REFUSED_TARGET_BYTES: u32 = 1_047_843;
 
 #[test]
 fn the_longest_head_of_the_shipped_forge_fits_its_room_to_the_byte() {
-    let mut config = fixtures::engine();
+    let mut config = fixtures::configured_engine();
     for (target_bytes, expected) in [(FITTING_TARGET_BYTES, None), (REFUSED_TARGET_BYTES, Some(HEAD_PROBLEMS))] {
         config.limits.forge_component.target_bytes = target_bytes;
-        let problems = match forge::prepare(&config, fixtures::forge_runtime()) {
+        let problems = match fixtures::checked_endpoints(&config, fixtures::forge_runtime()) {
             Ok(_) => None,
             Err(found) => {
                 Some(crate::startup::lines(&crate::startup::Problems::jig(found, &jig_protocol_config::Path::root())))
@@ -552,7 +550,7 @@ fn connected_then_token_refused_keeps_the_note_and_engine_running() {
 fn records_service() -> (crate::Service, skein_lib::Secret) {
     use crate::settings::{Kind, Transport};
     use skein_lib::List;
-    let mut settings = fixtures::engine();
+    let mut settings = fixtures::configured_engine();
     settings.limits.forge_component.forges = 9;
     settings.limits.forge.forges = 9;
     settings.limits.forge_component.repositories = 9;
@@ -585,7 +583,7 @@ fn records_service() -> (crate::Service, skein_lib::Secret) {
     settings.forges = forges.into_boxed();
     fixtures::fill_files(&mut settings);
     let file_token = settings.forges[0].api_token.clone().unwrap();
-    let mut service = crate::Service::engine(settings, &fixtures::seeds(), None, runtime).unwrap();
+    let mut service = fixtures::configured_service(settings, &fixtures::seeds(), None, runtime).unwrap();
     service.engine.as_mut().expect("engine").store = fixtures::records_store();
     (service, file_token)
 }
@@ -608,10 +606,10 @@ fn startup_records() -> skein_lib::List<(u64, skein_lib::Secret)> {
         let mut values = List::with_capacity(7);
         values.push((Item::Origin, Origin { kind, api }.encode())).unwrap();
         if number != 4 {
-            values.push((Item::User, Box::from(9_u64.to_le_bytes()))).unwrap();
+            values.push((Item::User, Box::from(if number == 1 { 42_u64 } else { 9_u64 }.to_le_bytes()))).unwrap();
             if number == 1 {
-                let token = skein_lib::Decimal::of(skein_lib::Rng::new(512).next_u64());
-                values.push((Item::ApiToken, Box::from(token.as_bytes()))).unwrap();
+                values.push((Item::ApiToken, Box::from(b"api-token".as_slice()))).unwrap();
+                values.push((Item::GitToken, Box::from(b"forge-token-1234".as_slice()))).unwrap();
             } else {
                 for (item, value) in [
                     (Item::AppId, Box::from(7_u64.to_le_bytes())),
@@ -709,8 +707,8 @@ fn records_start_erases_carried_rows_before_connecting_without_decoding_them() {
         service.engine.as_ref().expect("engine").forge_records.inspected.len(),
         kept.len().checked_sub(2).unwrap()
     );
-    assert_eq!(service.engine.as_ref().expect("engine").forge.starts.len(), 1);
-    let (number, access) = service.engine.as_mut().expect("engine").forge.starts.get(0).unwrap();
+    assert_eq!(service.engine.as_ref().expect("engine").forge.starts.len(), 2);
+    let (number, access) = service.engine.as_mut().expect("engine").forge.starts.get(1).unwrap();
     assert_eq!((*number, access.user), (2, 9));
     let skein_forge::credential::Credential::App { id, key } = &access.credential else { panic!("App credential") };
     assert_eq!(*id, 7);
@@ -753,7 +751,7 @@ fn records_start_erases_carried_rows_before_connecting_without_decoding_them() {
     face.select(1);
     assert!(
         face.sent().windows(b"GET /api/v1/user ".len()).any(|part| part == b"GET /api/v1/user "),
-        "Forgejo starts with its files"
+        "Forgejo starts with its kept access"
     );
     assert!(face.sent().windows(file_token.expose().len()).any(|part| part == file_token.expose()));
     face.capture_answers();
@@ -864,6 +862,6 @@ fn a_records_key_that_cannot_sign_stops_only_its_forge() {
     assert_eq!(stopped, 1);
     assert_eq!(service.end(), None);
     face.select(1);
-    assert!(face.sent().starts_with(b"GET /api/v1/user "));
+    assert!(face.sent().starts_with(b"GET /api/v1/"));
     assert_eq!(service.engine.as_ref().expect("engine").store.erases, 2);
 }

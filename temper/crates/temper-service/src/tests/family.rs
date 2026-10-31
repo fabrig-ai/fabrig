@@ -11,7 +11,7 @@ const REPLY: ReplyTo = ReplyTo::new(Token::new(19));
 const REQUEST_KEY: [u8; 16] = [5; 16];
 const WATCHER: Token = Token::new(7);
 fn configured(git: &[u8]) -> Box<[crate::settings::Forge]> {
-    let mut forges = fixtures::engine().forges;
+    let mut forges = fixtures::forges();
     forges.get_mut(0).unwrap().git = git.into();
     forges
 }

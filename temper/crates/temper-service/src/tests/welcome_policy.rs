@@ -56,18 +56,14 @@ fn generated() -> (engine::Config, engine::Limits) {
     let resolved = application::resolve(&parsed.application, &files, &mut problems).expect("generated file values");
     assert!(problems.is_empty());
     let mut settings = settings::Engine {
-        machine: None,
+        machine: parsed.application.machine,
         directories: directories.clone(),
         jig: parsed.engine,
         clients: parsed.application.clients,
         sign_in: resolved.sign_in,
         webhooks: resolved.webhooks,
         files,
-        forges: resolved.forges,
         demo: parsed.application.demo,
-        setup: Box::new([]),
-        records_only: Box::new([]),
-        identities: resolved.identities,
         landing: parsed.application.landing,
         charter: parsed.application.charter,
         limits: parsed.application.limits,
@@ -77,10 +73,10 @@ fn generated() -> (engine::Config, engine::Limits) {
     let seeds = fixtures::seeds();
     let core = config::core(&settings.jig, seeds.deployment, seeds.seed);
     let (forge, identities) = crate::forge::config(&settings, seeds.deployment);
-    let forges = application::configured(&settings);
+    let forges = Box::new([]);
     (
         engine::Config {
-            machine: None,
+            machine: Some(crate::system::machine_config(&settings.machine)),
             period_span: crate::stock::PERIOD_SPAN,
             core,
             forge,
@@ -212,6 +208,13 @@ fn real_init_policy_fits_with_two_long_github_repositories() {
     let first = vec![b'a'; 64];
     let second = vec![b'b'; 64];
     driver.forge = Some(ForgeStand::with(&[(&owner, &first, 7), (&owner, &second, 8)]).at_forge(2));
+    let mut kept = fixtures::forge_record(2);
+    kept.kind = forge::Kind::GitHub;
+    kept.place.api.host = b"api.github.com".as_slice().into();
+    kept.place.api.port = 443;
+    kept.place.api.tls = Some(b"api.github.com".as_slice().into());
+    kept.place.git = b"https://github.com".as_slice().into();
+    driver.send(Event::Forge(Box::new(forge::Event::Restore { record: forge::Stored::Forge(kept) })));
     driver.settle();
     let before = policies(&driver);
     assert_eq!(before, vec![(1, snapshot.clone())]);
@@ -309,4 +312,22 @@ fn real_init_policy_fits_with_two_long_github_repositories() {
         limits.policy_bytes
     );
     assert!(bytes <= 4096);
+}
+
+#[test]
+fn the_template_machine_gives_the_domain_its_places() {
+    let (config, _) = generated();
+    assert!(config.forges.is_empty());
+    assert!(config.identities.is_empty());
+    let machine = config.machine.expect("machine is passed to the domain");
+    let owned = machine.owned.unwrap();
+    assert_eq!(owned.api.host.as_ref(), b"127.0.0.1");
+    assert_eq!(owned.api.port, 8368);
+    assert!(owned.api.tls.is_none());
+    assert_eq!(machine.fake.unwrap().api.port, 8369);
+    assert_eq!(machine.github.api.host.as_ref(), b"api.github.com");
+    assert_eq!(machine.github.api.port, 443);
+    assert_eq!(machine.github.api.tls.as_deref(), Some(b"api.github.com".as_slice()));
+    assert_eq!(machine.github.git.as_ref(), b"https://github.com/");
+    assert_eq!(machine.github.web.as_deref(), Some(b"https://github.com".as_slice()));
 }
