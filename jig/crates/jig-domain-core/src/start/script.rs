@@ -4,6 +4,17 @@ use crate::{Core, Key, Limits, Queue, Request, Write, people, tasks};
 use skein_lib::Env;
 
 impl Core {
+    pub(crate) fn next_connector(&self, previous: u16) -> Option<u16> {
+        let mut found = false;
+        for &connector in &self.connectors {
+            if found {
+                return Some(connector);
+            }
+            found = connector == previous;
+        }
+        None
+    }
+
     pub fn start_done(&mut self, env: &Env<Limits>, done: Phase, out: &mut Queue<Request>) -> Action {
         self.start_input();
         self.start_collect_failure();
@@ -11,8 +22,14 @@ impl Core {
             return Action::Refused(failure);
         }
         assert!(self.start.phase == Some(done) && self.start.waiting.is_none(), "start phase completed in order");
+        if self.stopping {
+            return Action::Idle;
+        }
         let next = match done {
             Phase::LoadCore => {
+                if let Some(failure) = self.start_settings_finish(env) {
+                    return Action::Refused(failure);
+                }
                 if !crate::deletion::restored(self) {
                     self.start_collect_failure();
                     return Action::Refused(self.start_failure().expect("named project policy failure"));
@@ -29,7 +46,7 @@ impl Core {
                 Phase::LoadInbox
             }
             Phase::LoadInbox => {
-                assert!(self.census_position.is_none(), "census pair complete before Link");
+                self.start_inbox_done();
                 match self.connectors.first() {
                     Some(&connector) => Phase::RestoreConnector { connector },
                     None => Phase::Link,
@@ -40,9 +57,13 @@ impl Core {
                 None => Phase::Link,
             },
             Phase::Link => {
+                self.start_projections_link();
                 let before = out.len();
                 self.start_link(env, out);
                 if let Some(failure) = self.start_failure() {
+                    return Action::Refused(failure);
+                }
+                if let Some(failure) = self.start_settings_commit(env, out) {
                     return Action::Refused(failure);
                 }
                 self.people.start_sweep();
@@ -56,7 +77,21 @@ impl Core {
             Phase::Switch => Phase::Wires,
             Phase::Wires => return self.start_commit(Phase::AdoptRuns),
             Phase::AdoptRuns => {
-                assert!(self.adopted.is_empty(), "restored claims delivered before reads");
+                if let Some(claim) = self.adopted.iter().next() {
+                    #[expect(
+                        clippy::wildcard_enum_match_arm,
+                        reason = "the adoption queue contains only restored claims"
+                    )]
+                    let task = match claim {
+                        crate::fleet::Event::Adopt { run, .. } | crate::fleet::Event::Cross { run, .. } => run.raw(),
+                        _ => unreachable!("adopted queue contains restored claims"),
+                    };
+                    assert!(
+                        self.adopted.is_empty(),
+                        "{:?} restored claim delivered before reads",
+                        Key::Tasks(tasks::Key::Live(task))
+                    );
+                }
                 match self.connectors.first() {
                     Some(&connector) => Phase::ReadAfresh { connector },
                     None => Phase::Open,
@@ -74,6 +109,7 @@ impl Core {
                 None => Phase::Open,
             },
             Phase::Open => {
+                self.opened = true;
                 self.start.phase = None;
                 return Action::Idle;
             }
@@ -87,8 +123,24 @@ impl Core {
             return Action::Refused(failure);
         }
         assert!(self.start.phase == Some(Phase::Sweep) && self.start.waiting.is_none(), "sweep waits for its commit");
+        if self.stopping {
+            return Action::Idle;
+        }
         match input {
             SweepInput::Record(record) => {
+                match &record {
+                    // The sweep erases only expired rows (jig/docs/design/domain/engine.md, 6).
+                    people::Stored::Policy { .. }
+                    | people::Stored::EndedRead { .. }
+                    | people::Stored::Deletion { .. } => return Action::Idle,
+                    people::Stored::Acted { .. }
+                    | people::Stored::Person { .. }
+                    | people::Stored::ReadResults { .. }
+                    | people::Stored::ReadConversation { .. }
+                    | people::Stored::SignIn { .. }
+                    | people::Stored::Roles { .. }
+                    | people::Stored::Answer { .. } => {}
+                }
                 let mut child = Queue::uncapped();
                 self.people.start_sweep_row(
                     &Env { now: env.now, wall: self.start.at, limits: env.limits.people },
@@ -114,11 +166,14 @@ impl Core {
 
     pub fn start_resume(&mut self, env: &Env<Limits>, continuation: Continuation, out: &mut Queue<Request>) -> Action {
         self.start_input();
+        assert!(self.start.waiting.as_ref() == Some(&continuation), "stale or out-of-order start continuation");
         if let Some(failure) = self.start_failure() {
             return Action::Refused(failure);
         }
-        assert!(self.start.waiting.as_ref() == Some(&continuation), "stale or out-of-order start continuation");
         self.start.waiting = None;
+        if self.stopping {
+            return Action::Idle;
+        }
         match continuation.phase {
             Phase::AdoptRuns => {
                 assert!(
@@ -137,6 +192,16 @@ impl Core {
                 for _ in 0..activated.len() {
                     let request = activated.pop().expect("bounded restored activation outputs");
                     out.push(request);
+                }
+                if let Some((task, held)) = self.restored_worker_claims()
+                    && held > u64::from(self.restart_attempts)
+                {
+                    return self.start_refuse(Failure::LiveSet {
+                        set: LiveSet::WorkerClaims,
+                        key: Key::Tasks(tasks::Key::Live(task)),
+                        held,
+                        limit: u64::from(self.restart_attempts),
+                    });
                 }
             }
             Phase::LoadInbox | Phase::Sweep => {}
@@ -171,26 +236,8 @@ impl Core {
                 tasks::RestoreCause::Accounting => Failure::Accounting { key },
                 tasks::RestoreCause::LlmChoice { .. } => Failure::LlmChoice { key },
             })
-        } else if let Some(request) = self.restore_failure {
-            match request {
-                crate::RestartRequest::Settings { failure, changed } => Some(Failure::Settings { failure, changed }),
-                crate::RestartRequest::ProjectPolicy { project } => Some(Failure::ProjectPolicy { project }),
-                crate::RestartRequest::HeldPastLimit { which, held, limit } => {
-                    Some(Failure::HeldPastLimit { which, held, limit })
-                }
-                crate::RestartRequest::UnheldRevision { task, revision } => {
-                    assert!(
-                        self.held(revision),
-                        "{:?} links missing settings revision {revision}",
-                        Key::Tasks(tasks::Key::Live(task))
-                    );
-                    None
-                }
-                crate::RestartRequest::Unresolved { .. }
-                | crate::RestartRequest::Step(_)
-                | crate::RestartRequest::Idle
-                | crate::RestartRequest::Refused { .. } => None,
-            }
+        } else if let Some(failure) = &self.restore_failure {
+            Some(failure.clone())
         } else {
             match self.accounts.restore_limit() {
                 Some(failure) => Some(Failure::AccountsPastLimit { failure }),
@@ -203,6 +250,14 @@ impl Core {
     }
 
     fn start_link(&mut self, env: &Env<Limits>, out: &mut Queue<Request>) {
+        if let Some((task, party, _)) = self.census_position {
+            assert!(
+                self.census_position.is_none(),
+                "{:?} links missing {:?}",
+                Key::People(people::Key::EndedRead { task, party }),
+                Key::Tasks(tasks::Key::Ended(task))
+            );
+        }
         if let Some((record, target)) = &self.start.missing {
             assert!(self.start.missing.is_none(), "{record:?} links missing {target:?}");
         }
@@ -242,6 +297,7 @@ impl Core {
                 reason = "Check links and publishes derived wait state without activation"
             )]
             match request {
+                tasks::Request::RestoreRefused { .. } => unreachable!("start refusal collected before task outputs"),
                 tasks::Request::Save { record } => out.push(Request::Write(Write::Save(crate::Record::Tasks(record)))),
                 tasks::Request::Released { revision } => self.release_revision(env, revision, out),
                 request => self.start.waiting_tasks.push(request),

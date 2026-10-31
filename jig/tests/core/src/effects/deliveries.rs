@@ -1,5 +1,5 @@
 //! Scripted peers consume each root delivery in order.
-use super::{Fault, ReplyTo, StoreOut, Token, World, bootstrap, connector, core, people, root};
+use super::{Fault, ReplyTo, StoreOut, Token, World, connector, core, people, root};
 impl World {
     #[expect(clippy::too_many_lines, reason = "one exhaustive delivery handler drives the script's independent peers")]
     pub(super) fn delivered(&mut self, mut delivery: root::Delivery) {
@@ -25,6 +25,7 @@ impl World {
             }
         }
         match delivery {
+            root::Delivery::Start(_) => unreachable!("the root resumes its held start continuation"),
             root::Delivery::ProjectMade { project } => self.project_made.push((self.store.applied, project)),
             root::Delivery::Core(core::Held::Acted { to, outcome }) => {
                 self.act_answers.push((to.into_token(), outcome));
@@ -88,7 +89,7 @@ impl World {
                 }
                 self.projections.push((self.commits.len(), connector, *feed));
             }
-            root::Delivery::Restart(step) => self.restart_step(step),
+
             root::Delivery::CallBusy { name, .. } => self.busy_calls.push(name),
             root::Delivery::Core(core::Held::TurnBusy { run, attempt, turn, .. }) => {
                 self.busy_turns.push((run.raw(), attempt.raw(), turn));
@@ -137,14 +138,14 @@ impl World {
                 call: connector::SystemRequest::ReadFact { resource, observed },
             } => {
                 let call = connector::SystemRequest::ReadFact { resource, observed };
-                if self.restart_reads.contains_key(&number) && !self.hold_restart_reads {
-                    let event = self.systems[usize::from(number - 1)].answer(call, Fault::None);
-                    self.events.push_back(root::Event::Connector { number, event: connector::Event::System(event) });
-                    let step = self.restart_reads.remove(&number).expect("restart read");
-                    self.events.push_back(root::Event::RestartDone(step));
-                } else {
-                    self.pending_reads.push((number, call));
+                if let Some(phase @ core::start::Phase::ReadAfresh { connector }) = self.domain.start_phase() {
+                    assert_eq!(connector, number);
+                    if self.restart_steps.last() != Some(&phase) {
+                        self.restart_steps.push(phase);
+                    }
+                    self.restart_reads.insert(number, phase);
                 }
+                self.pending_reads.push((number, call));
             }
             root::Delivery::System { connector: number, call } => {
                 if let connector::SystemRequest::Apply { entry, key, .. } = &call {
@@ -163,13 +164,12 @@ impl World {
                 self.events.push_back(root::Event::Connector { number, event: connector::Event::System(event) });
             }
             root::Delivery::Core(core::Held::PeopleReply {
-                reply: reply @ people::Reply::SignedIn { person, sign_in, .. },
+                reply: reply @ people::Reply::SignedIn { sign_in, .. },
                 ..
             }) => {
                 let initial = self.sign_in.is_none();
                 self.sign_in = Some(sign_in);
                 self.people_answers.push(reply);
-                bootstrap::signed_in(self, person);
                 if !initial {
                     return;
                 }

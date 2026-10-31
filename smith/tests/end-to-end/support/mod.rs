@@ -1,5 +1,5 @@
 //! Smith's shipped-binary stories: the shared person, browser, peers and scratch
-//! over Skein's real loop (testing.md, sections 2.3 and 5). Only outside
+//! over Skein's real loop (smith/docs/design/testing.md, sections 2.3 and 5). Only outside
 //! observations are kept; no local or agent state is available.
 
 use skein_io::kernel::Exit;
@@ -121,7 +121,7 @@ impl Referee<Process> for Judge {
         let authenticated = procs.iter().any(|p| matches!(p, Process::Script(Proc::Issuer(_))));
         if authenticated && !self.saved && procs.iter().any(|p| matches!(p, Process::Script(Proc::Peer(p)) if smith_local_process_world::llm::queries(p).next().is_some())) {
             let bytes = std::fs::read(&self.tokens).expect("saved before grant use");
-            let record = skein_oauth::decode_record(&bytes, &smith_local_shell::local_host::token_limits()).expect("private token record");
+            let record = skein_oauth::decode_record(&bytes, &smith_local_shell::credentials::token_limits()).expect("private token record");
             let directory = self.tokens.ancestors().nth(3).expect("scratch credential path");
             assert!(record.access_token == fixture_access(directory), "token persists before provider query");
             self.saved = true;
@@ -350,17 +350,17 @@ pub fn run_with_provider(
     assert!(
         records.iter().any(|record| matches!(&record.event,
             smith_events::Event::ToolStarted(started) if started.tool.as_ref() == b"finish")),
-        "agent actually called finish"
+        "agent observed called finish"
     );
     let trace = std::fs::read(path).expect("agent trace");
     for credential in [b"access-new".as_slice(), b"refresh-new".as_slice()] {
-        assert!(!trace.windows(credential.len()).any(|bytes| bytes == credential), "trace excludes credentials");
+        assert!(skein_lib::bytes::find(&trace, credential).is_none(), "trace excludes credentials");
     }
     assert_no_children();
     seen
 }
 
-/// Decode actual append bytes within the producer's configured receiving bounds.
+/// Decode append bytes within the producer's configured receiving bounds.
 /// Each appended invocation is checked independently; a prior prefix stays untouched.
 #[must_use]
 pub fn read_trace(directory: &Path, prefix: &[u8]) -> Vec<smith_events::Record> {
@@ -391,8 +391,8 @@ fn read_trace_resolved(
     let configuration = &resolved.agent;
     let events = configuration.service.limits.events.expect("configured event producer");
     let limits = events.sinks.records;
-    let ceiling = events.sinks.line_ceiling(events.capture).expect("actual writer-derived line ceiling");
-    let bytes = std::fs::read(trace).expect("actual append trace");
+    let ceiling = events.sinks.line_ceiling(events.capture).expect("seen writer-derived line ceiling");
+    let bytes = std::fs::read(trace).expect("seen append trace");
     assert!(bytes.starts_with(prefix), "durable trace prefix stays unchanged");
     let mut reader = smith_events::Reader::with_ceiling(&limits, ceiling)
         .unwrap_or_else(|why| panic!("configured receiving bounds {limits:?}: {why:?}"));
@@ -413,7 +413,7 @@ fn read_trace_resolved(
     for (index, record) in records.iter().enumerate() {
         if matches!(&record.event, smith_events::Event::SessionEnded(_)) {
             smith_agent_process_world::assert_event_conformance(
-                records.get(beginning..=index).expect("one actual process stream"),
+                records.get(beginning..=index).expect("one seen process stream"),
             );
             beginning = index.checked_add(1).expect("bounded trace inventory");
         }
@@ -428,7 +428,7 @@ fn read_trace_resolved(
     records
 }
 
-struct Refusal {
+struct Settling {
     poll: Time,
     next_act: Option<Time>,
     terminal_sign_in: referee::SignIn,
@@ -439,7 +439,7 @@ struct Refusal {
     deadline: Time,
     trace: Option<(std::path::PathBuf, bool)>,
 }
-impl Refusal {
+impl Settling {
     fn new(now: Time, deadline: Time) -> Self {
         Self {
             poll: now,
@@ -455,7 +455,7 @@ impl Refusal {
     }
 }
 
-impl Referee<Process> for Refusal {
+impl Referee<Process> for Settling {
     fn act(&mut self, now: Time, procs: &mut [Process]) {
         if now >= self.poll
             && let Some(runtime) = &self.foreign
@@ -588,7 +588,7 @@ fn refusal_program_code(
     let streams = binary.take_streams().expect("startup terminal");
     let descriptors = streams.descriptors();
     let Streams::Terminal { stream } = streams else { unreachable!("startup on terminal") };
-    let mut world = real::World::new(Refusal::new(now, now.saturating_add(Duration::from_secs(2))));
+    let mut world = real::World::new(Settling::new(now, now.saturating_add(Duration::from_secs(2))));
     world.spawn_with_fds(binary.descriptors(), || Process::Binary(Box::new(binary)));
     world.spawn_with_fds(descriptors, || {
         Process::Script(Proc::Terminal(Box::new(Terminal::attached_to_a_refusal(
@@ -673,7 +673,7 @@ pub fn smith_with_environment(
     let Streams::Pipes { input: stdin, output } = streams else { unreachable!("product on pipes") };
     let clock = Clock::new();
     let now = clock.now().now;
-    let mut world = real::World::new(Refusal::new(now, now.saturating_add(Duration::from_secs(2))));
+    let mut world = real::World::new(Settling::new(now, now.saturating_add(Duration::from_secs(2))));
     world.spawn_with_fds(binary.descriptors(), || Process::Binary(Box::new(binary)));
     world.spawn_with_fds(descriptors, || {
         let mut commands = Vec::new();

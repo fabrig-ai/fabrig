@@ -322,35 +322,19 @@ pub fn step(core: &mut Core, env: &Env<Limits>, event: Event) -> Requests {
         return Requests::Out(Queue::uncapped());
     }
     if let Some(phase) = core.start_phase() {
-        use crate::start::Phase;
-        match phase {
-            Phase::LoadCore
-            | Phase::LoadInbox
-            | Phase::RestoreConnector { .. }
-            | Phase::Link
-            | Phase::Sweep
-            | Phase::Switch
-            | Phase::Wires =>
-            {
-                #[expect(
-                    clippy::wildcard_enum_match_arm,
-                    reason = "the closed start gate accepts loading inputs; serving inputs require durable Wires"
-                )]
-                match &event {
-                    Event::Account(accounts::Event::Want) => return want_accounts(core, env),
-                    Event::Account(accounts::Event::Restore { .. })
-                    | Event::People(people::Event::Restore { .. })
-                    | Event::Tasks(tasks::Event::Restore { .. }) => {
-                        assert!(core.start_loading(), "rows load before Link and outside a seed commit");
-                    }
-                    Event::SettingsCommit { .. } => assert!(phase == Phase::Sweep, "settings cleanup follows Link"),
-                    Event::EffectConnector(crate::connector::Event::Resource { .. }) => {
-                        assert!(matches_restore_connector(phase), "connector resources load before Link");
-                    }
-                    _ => unreachable!("operational input requires durable Wires"),
-                }
+        #[expect(clippy::wildcard_enum_match_arm, reason = "only restore entrances need phase validation")]
+        match &event {
+            Event::Account(accounts::Event::Want) => return want_accounts(core, env),
+            Event::Account(accounts::Event::Restore { .. })
+            | Event::People(people::Event::Restore { .. })
+            | Event::Tasks(tasks::Event::Restore { .. }) => {
+                assert!(core.start_loading(), "rows load before Link and outside a seed commit");
             }
-            Phase::AdoptRuns | Phase::ReadAfresh { .. } | Phase::SettleOutbox { .. } | Phase::Open => {}
+            Event::SettingsCommit { .. } => unreachable!("the start commits settings itself"),
+            Event::EffectConnector(crate::connector::Event::Resource { name, .. }) => {
+                assert!(takes_connector_resource(phase, name.connector), "connector resources load before Link");
+            }
+            _ => {}
         }
     }
     let oldest = core.current.oldest;
@@ -417,19 +401,19 @@ pub fn want_accounts(core: &mut Core, env: &Env<Limits>) -> Requests {
     Requests::Out(out)
 }
 
-fn matches_restore_connector(phase: crate::start::Phase) -> bool {
+fn takes_connector_resource(phase: crate::start::Phase, connector: u16) -> bool {
     match phase {
-        crate::start::Phase::RestoreConnector { .. } => true,
+        crate::start::Phase::RestoreConnector { connector: expected } => connector == expected,
+        crate::start::Phase::AdoptRuns
+        | crate::start::Phase::ReadAfresh { .. }
+        | crate::start::Phase::SettleOutbox { .. }
+        | crate::start::Phase::Open => true,
         crate::start::Phase::LoadCore
         | crate::start::Phase::LoadInbox
         | crate::start::Phase::Link
         | crate::start::Phase::Sweep
         | crate::start::Phase::Switch
-        | crate::start::Phase::Wires
-        | crate::start::Phase::AdoptRuns
-        | crate::start::Phase::ReadAfresh { .. }
-        | crate::start::Phase::SettleOutbox { .. }
-        | crate::start::Phase::Open => false,
+        | crate::start::Phase::Wires => false,
     }
 }
 
@@ -513,7 +497,16 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<E
         Event::SubscribeTopic { to, key, connector, topic, resources } => {
             topics::subscribe(core, env, work, to, key, connector, topic, &resources)
         }
+        Event::EffectDeadline if !core.ready() => crate::stopping::empty(),
         Event::EffectDeadline => crate::effects::deadline(core, env),
+        Event::SignIn { reply_to, .. } | Event::People(people::Event::Ask { reply_to, .. }) if !core.ready() => {
+            let mut out = Queue::uncapped();
+            out.push(Request::Held(Box::new(Held::PeopleReply {
+                to: reply_to,
+                reply: people::Reply::Again(people::Again::NotReady),
+            })));
+            Requests::Out(out)
+        }
         Event::SignIn { reply_to, identity, held } => sign_in(core, env, work, reply_to, identity, held),
         Event::ReadLoaded { load, result } => crate::reads::loaded(core, env, load, result),
         Event::Read { reply, sign_in, read } => crate::reads::start(core, env, reply, sign_in, read),
@@ -647,7 +640,10 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<E
 
 /// Fire one due child timer, returning its whole bounded request batch.
 pub fn fire(core: &mut Core, env: &Env<Limits>, timer: Timer) -> Requests {
-    core.start_runtime_input();
+    core.start_input();
+    if !core.ready() {
+        return crate::stopping::empty();
+    }
     core.run_now = env.now;
     core.run_wall = env.wall;
     if core.stopping && crate::stopping::waits(timer) {

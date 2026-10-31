@@ -25,7 +25,7 @@ use crate::domain::{
     Domain, close, emit, forge_release_ending, internal, journal_outputs, now, route, save, step_released,
 };
 use crate::limits::{Limits, core_limits, environment_core};
-use crate::restart::{accept_load, connector_restart_done, load_decision, load_outputs, restart_request};
+use crate::restart::{accept_load, connector_start_done, load_decision, load_outputs, start_action};
 use crate::translate::{
     call_needs_input, checked_call, connector_answer, core_call, environment_forge, keep_connector_answer, named_call,
     relay_call, tool_kind,
@@ -36,7 +36,6 @@ pub use forge_route::adopt_repository_ask;
 use jig_domain_authority as authority;
 use jig_domain_core as core;
 use jig_domain_core::{Delegate, ProcedureStep, StepEnd};
-use jig_domain_fleet as fleet;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 pub use landing::{Approval, Freshness, Gate, LandingRule};
@@ -57,7 +56,7 @@ pub(crate) fn step_routed(domain: &mut Domain, env: &Env<Limits>, event: Event, 
     crate::domain::invalidate_input(domain, &event);
     assert!(domain.application.is_none(), "application value cleared in its admission step");
     assert!(domain.limits == env.limits, "root uses configured limits");
-    if domain.journal.stopped() || domain.core.restart_failure().is_some() {
+    if domain.journal.stopped() || domain.start_stop().is_some() {
         discard_after_stop(domain, event);
         return;
     }
@@ -181,7 +180,11 @@ pub(crate) fn step_routed(domain: &mut Domain, env: &Env<Limits>, event: Event, 
             if !domain.journal.stopped() {
                 domain.durable_commit = number;
             }
-            let _filled = core::step(&mut domain.core, &environment_core(env), core::Event::Fill { bytes: fill });
+            if domain.start_runtime() {
+                let _filled = core::step(&mut domain.core, &environment_core(env), core::Event::Fill { bytes: fill });
+            } else {
+                domain.startup_fill = Some(fill);
+            }
             return;
         }
         Event::Store(crate::StoreInput::Uncommitted { number }) => {
@@ -206,11 +209,16 @@ pub(crate) fn step_routed(domain: &mut Domain, env: &Env<Limits>, event: Event, 
             accept_load(domain, env, decision);
             return;
         }
+        Event::Store(crate::StoreInput::MissingLink { owner, record, target }) => {
+            if loads::startup_owner(&domain.loads, owner) {
+                domain.core.start_missing(record, target);
+            }
+            return;
+        }
         Event::Store(crate::StoreInput::Switched) => {
-            domain.settled = None;
             let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
-            save(&mut decision, &env.limits, Write::Wires);
-            emit(&mut decision, &env.limits, Delivery::Restart(core::RestartStep::AdoptRuns));
+            domain.work.push(Work::StartDone(core::start::Phase::Switch));
+            route_into(domain, env, &mut decision);
             close(domain, env, decision, out);
             return;
         }
@@ -218,14 +226,16 @@ pub(crate) fn step_routed(domain: &mut Domain, env: &Env<Limits>, event: Event, 
             domain.work.push(Work::Core(core::Event::ReadLoaded { load, result }));
         }
         Event::Restart { pending } => {
-            if domain.start_wall.is_none() {
-                domain.start_wall = Some(env.wall);
-                domain.forge.restore_begin(env.wall);
+            if domain.start_wall.is_some() {
+                return;
             }
+            domain.start_wall = Some(env.wall);
+            domain.start_pending = pending;
+            domain.forge.restore_begin(env.wall);
             domain.settled = None;
             let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
-            let request = domain.core.restart_begin(pending);
-            restart_request(domain, env, &mut decision, request);
+            let action = domain.core.start_begin(pending, env.wall);
+            start_action(domain, env, &mut decision, action);
             route_into(domain, env, &mut decision);
             close(domain, env, decision, out);
             return;
@@ -298,32 +308,28 @@ pub(crate) fn route_core_requests(
 
 pub(crate) fn route_into(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision) {
     loop {
+        if domain.start_stop().is_some() {
+            return;
+        }
+        if domain.core.start_failure().is_some() {
+            domain.stop_core();
+            return;
+        }
         if refuse_forge_fit(domain) {
             return;
         }
         let Some(work) = domain.work.pop() else { break };
         match work {
-            Work::SwitchChecked => {
-                if domain.core.restart_checked() {
-                    emit(decision, &env.limits, Delivery::Restart(core::RestartStep::Switch));
-                } else {
-                    domain.stop_pending = true;
+            Work::StartDone(phase) => {
+                let mut output = Queue::uncapped();
+                let action = domain.core.start_done(&environment_core(env), phase, &mut output);
+                route_core_requests(domain, env, decision, core::Requests::Out(output));
+                if phase == core::start::Phase::Open && domain.start_phase().is_none() {
+                    domain.opened = true;
                 }
+                domain.work.push(Work::Start(action));
             }
-            Work::AdoptRestored => {
-                if domain.core.restart_admit_claims() {
-                    for _ in 0..domain.core.adopted.len() {
-                        domain.work.push(Work::Fleet(domain.core.adopted.pop().expect("restored claims")));
-                    }
-                    domain.work.push(Work::Fleet(fleet::Event::Loaded));
-                    domain.work.push(Work::AdoptDone);
-                }
-            }
-            Work::AdoptDone => {
-                let request = domain.core.restart_done(core::RestartStep::AdoptRuns);
-                domain.work.push(Work::Restart(request));
-            }
-            Work::Restart(request) => restart_request(domain, env, decision, request),
+            Work::Start(action) => start_action(domain, env, decision, action),
             Work::Decoded { to, body } => host_route::decoded(domain, env, decision, to, body),
             Work::Core(event) => {
                 if let core::Event::AcceptedTurn { accepted: tasks::Accepted::Already, transcript, .. } = &event {
@@ -537,7 +543,8 @@ pub(crate) fn discard_after_stop(domain: &mut Domain, event: Event) {
         | Event::Resume
         | Event::Stop
         | Event::Store(
-            crate::StoreInput::Switched
+            crate::StoreInput::MissingLink { .. }
+            | crate::StoreInput::Switched
             | crate::StoreInput::Committed { .. }
             | crate::StoreInput::Uncommitted { .. }
             | crate::StoreInput::ReadLoaded { .. },
@@ -574,7 +581,7 @@ pub(crate) fn refuse_forge_fit(domain: &mut Domain) -> bool {
     if domain.forge_fit_failure().is_none() {
         return false;
     }
-    let _refused = domain.core.restart_refuse();
-    domain.stop_pending = true;
+    let failure = *domain.forge_fit_failure().expect("forge fit failure");
+    domain.stop_start(crate::StartStop::ForgeFit { phase: domain.start_phase(), failure });
     true
 }

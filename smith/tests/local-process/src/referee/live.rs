@@ -1,6 +1,7 @@
 //! Outside observations for the live outcome policy, tested with simulated
 //! captures and edited records (skein/docs/foundation/testing-strategy.md, 10).
 //! No process, clock, credential or filesystem is inspected by this referee.
+use crate::fixture::contains;
 use skein_fake_checkout::git::Tree;
 use skein_io::kernel::Exit;
 use skein_lib::Time;
@@ -55,19 +56,13 @@ impl Expectations for Outcome {
         );
         if let Some(before) = &self.before {
             judge.check(seen.head.as_ref().is_some_and(|head| head != before), "a new live commit exists");
-            judge.check(
-                seen.message.windows(b"Smith-Delivery:".len()).any(|bytes| bytes == b"Smith-Delivery:"),
-                "the live commit carries its delivery identity",
-            );
+            judge.check(contains(&seen.message, b"Smith-Delivery:"), "the live commit carries its delivery identity");
             for (path, expected) in &self.files {
                 judge
                     .check(seen.committed.get(path) == Some(expected), "the committed file has its prescribed content");
                 judge.check(seen.working.get(path) == Some(expected), "the working file has its prescribed content");
             }
-            judge.check(
-                seen.shown.windows(b"Change delivered".len()).any(|bytes| bytes == b"Change delivered"),
-                "the person saw delivery",
-            );
+            judge.check(contains(&seen.shown, b"Change delivered"), "the person saw delivery");
         }
     }
 }

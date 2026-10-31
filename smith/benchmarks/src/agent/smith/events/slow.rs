@@ -1,4 +1,4 @@
-//! Actual native provider terminals qualify the slow-completion exercise.
+//! native provider terminals qualify the slow-completion exercise.
 //! Content-free opaque observations are durable-envelope sizes, not raw item sizes.
 //! Missing capture and ambiguous dropped items remain unavailable; preset half
 //! warnings never fail the task. Contracts: benchmarks.md 11.1; protocol/events.md
@@ -76,7 +76,7 @@ pub(super) fn check(observer: &Observer, floor: u64, head: u64, idle: u64, reaso
                 }
             });
             let Some(start) = start else {
-                missing.push(format!("{key}: no earlier actual provider start"));
+                missing.push(format!("{key}: no earlier provider start"));
                 continue;
             };
             longest = Some(longest.unwrap_or(0_u64).max(response.duration_ms));
@@ -115,7 +115,7 @@ pub(super) fn check(observer: &Observer, floor: u64, head: u64, idle: u64, reaso
     }
     evidence.extend(missing.iter().cloned());
     let Some(longest) = longest else {
-        return verdict(Measure::unavailable("no joined actual provider call"), evidence);
+        return verdict(Measure::unavailable("no joined provider call"), evidence);
     };
     if longest <= floor {
         evidence.push(format!(

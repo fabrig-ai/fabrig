@@ -102,7 +102,7 @@ impl Process {
                     let (head, tail, dropped) = self.output.take(head, tail);
                     let done = match self.job_end() {
                         tools::JobEnd::Ended(exit) => {
-                            if self.failed {
+                            if self.failure.is_some() {
                                 tools::Done::Failed { fault: tools::Fault::Other }
                             } else {
                                 tools::Done::Exited { head, tail, dropped, exit }

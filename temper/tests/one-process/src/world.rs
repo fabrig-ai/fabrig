@@ -820,15 +820,11 @@ pub fn crash(settings: Settings, cut: skein_world::Cut, draw: &mut skein_lib::Rn
     let length = end.checked_sub(start).expect("pending window ordering");
     assert!(length > 0, "pending window has a submission");
     let before = start + u32::try_from(draw.below(u64::from(length))).expect("bounded pending draw");
-    let outcome = run_phase(
-        settings,
-        Story::Adoption,
-        Phase::Fault { cut, before },
-        machine::fresh(),
-        Store::new(),
-        Rc::new(RefCell::new(referee::Run::default())),
-    )
-    .0;
+    crate::oracle::begin();
+    let run = Rc::new(RefCell::new(referee::Run::default()));
+    let (outcome, disk, store) =
+        run_phase(settings, Story::Adoption, Phase::Fault { cut, before }, machine::fresh(), Store::new(), run.clone());
+    crate::oracle::cold(settings, disk, store, &run);
     (before, outcome)
 }
 pub(crate) fn saved_adoptions() -> std::collections::BTreeSet<[u8; 16]> {
@@ -887,7 +883,7 @@ pub(crate) fn share(transport: Option<temper_fake_git_hosted::Typed>) {
 fn transport() -> temper_fake_git_hosted::Typed {
     SHARED.with(|shared| shared.borrow().as_ref().expect("world's forge").clone())
 }
-fn peer() -> Peer {
+pub(crate) fn peer() -> Peer {
     let mut peer = Peer::new(
         fixtures::FORGE,
         fixtures::peer_limits(),
@@ -1031,9 +1027,9 @@ fn settings_revision(records: &Store) -> u32 {
         .unwrap_or(0)
 }
 
-fn forge_for_run(run: &Rc<RefCell<referee::Run>>, scenario: Story) -> temper_fake_git_hosted::Typed {
+fn forge_for_run(run: &Rc<RefCell<referee::Run>>, scenario: Story, phase: Phase) -> temper_fake_git_hosted::Typed {
     let transport = run.borrow().forge.clone().unwrap_or_else(|| stories::forge(scenario));
-    if matches!(scenario, Story::HeldChange) {
+    if matches!(scenario, Story::HeldChange) || matches!(phase, Phase::Fault { .. }) {
         run.borrow_mut().forge = Some(transport.clone());
     }
     transport
@@ -1080,7 +1076,7 @@ fn run_phase(
     STORE.with(|cell| {
         *cell.borrow_mut() = Some(store.clone());
     });
-    let transport = forge_for_run(&run, scenario);
+    let transport = forge_for_run(&run, scenario, phase);
     let observed_forge = Rc::new(RefCell::new(referee::forge::Forge::new(transport.clone(), scenario)));
     share(Some(transport.clone()));
     let mut world = skein_world::World::new_controlled(settings.seed, settings.config, Memory::Unchecked, |controls| {
@@ -1100,6 +1096,7 @@ fn run_phase(
             );
             world.spawn_restartable(vec![], llm_peer);
             world.spawn_restartable(vec![], fake_forge);
+            crate::oracle::spawn(&mut world);
             world.cut(0, before, cut);
         }
         Phase::Restart | Phase::Refused => {

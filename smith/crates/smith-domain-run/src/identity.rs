@@ -1,4 +1,4 @@
-//! Stable opaque run identity (domain/run.md, section 3.2; programming-model.md,
+//! Stable opaque run identity (smith/docs/design/domain/run.md, section 3.2; skein/docs/foundation/programming-model.md,
 //! section 9). This module retains no state and knows no credentials or host
 //! naming policy. Hosts construct identities; admission draws absent ones from
 //! its injected random state.

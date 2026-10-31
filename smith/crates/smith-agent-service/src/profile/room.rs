@@ -1,7 +1,7 @@
 //! A declared model's room and the host and message parts derived from it.
 //! Only numeric bounds are retained; no charter, provider destination or
 //! transcript is known. `room` checks every declared model before returning
-//! one set of receiving bounds. Contract: protocol/limits.md, sections 3.9 and 4.
+//! one set of receiving bounds. Contract: smith/docs/design/protocol/limits.md, sections 3.9 and 4.
 
 #[cfg(test)]
 mod tests;
@@ -13,7 +13,7 @@ use super::{Check, Configuration, Layer, LimitName, Per, Profile, Refusal, Value
 pub struct Room {
     /// The smallest threshold less two reserved outputs, counting a byte as a token.
     pub room: u64,
-    /// Largest measured Smith part across endpoints, including their actual options.
+    /// Largest measured Smith part across endpoints, including their options.
     pub own: u64,
     /// The host's rendered contribution, including directory guides, in bytes.
     pub host: u64,
@@ -96,7 +96,7 @@ pub fn room(profile: &Profile, configuration: &Configuration, own: u64, summary_
                 });
             }
             let room = within.checked_sub(reserved).expect("fresh window holds both outputs");
-            let remaining = room.checked_sub(endpoint_own).expect("fresh window leaves room after actual own part");
+            let remaining = room.checked_sub(endpoint_own).expect("fresh window leaves room after own part");
             smallest_remaining = Some(match smallest_remaining {
                 Some(current) => remaining.min(current),
                 None => remaining,

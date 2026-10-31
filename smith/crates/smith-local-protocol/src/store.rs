@@ -18,7 +18,7 @@ use alloc::boxed::Box;
 use skein_lib::{List, Reader, Token, Writer};
 use smith_domain::Transcript;
 use smith_local_domain::ChatState;
-use smith_protocol_channel::{self as channel, Endpoints};
+use smith_protocol_translate::Endpoints;
 use smith_transcript as transcript;
 
 /// One file replacement; the service acknowledges it only after a durable store terminal.
@@ -43,7 +43,6 @@ pub enum StoreError {
 
 /// The metadata file after the caller has durably stored it.
 #[must_use]
-#[expect(clippy::manual_map, reason = "strict subset keeps optional boundary conversion as an explicit match")]
 pub fn save_state(state: ChatState) -> File {
     let read = match state.read {
         Some(read) => Some(read.raw()),
@@ -65,7 +64,6 @@ pub fn save_state(state: ChatState) -> File {
 }
 
 /// Read a complete generated local metadata file.
-#[expect(clippy::manual_map, reason = "strict subset keeps optional boundary conversion as an explicit match")]
 pub fn decode_state(bytes: &[u8]) -> Result<ChatState, StoreError> {
     let record = crate::local_store_v1::State::decode(&crate::local_store_v1::CEILINGS, &mut Reader::new(bytes))
         .or(Err(StoreError::Malformed))?
@@ -85,22 +83,17 @@ pub fn decode_state(bytes: &[u8]) -> Result<ChatState, StoreError> {
 /// Fixed-width numeric path for one turn, sortable in transcript order.
 #[must_use]
 pub fn turn_name(place: u32) -> Box<[u8]> {
-    let mut digits = [b'0'; 10];
-    let mut number = place;
-    for index in (0..10).rev() {
-        let digit = number.checked_rem(10).expect("nonzero base");
-        let cell = digits.get_mut(index).expect("decimal position within ten digits");
-        *cell = b'0'.checked_add(u8::try_from(digit).expect("decimal digit fits")).expect("digit fits");
-        number = number.checked_div(10).expect("nonzero base");
-    }
+    let digits = skein_lib::Decimal::of(u64::from(place));
     let mut writer = Writer::new(15);
-    writer.put(&digits).expect("ten digits fit");
+    for _ in digits.as_bytes().len()..10 {
+        writer.put(b"0").expect("ten digits fit");
+    }
+    writer.put(digits.as_bytes()).expect("ten digits fit");
     writer.put(b".turn").expect("turn suffix fits");
     writer.finish()
 }
 
 /// Encode one concrete turn for a durable numbered file.
-#[expect(clippy::manual_map, reason = "strict subset keeps optional boundary conversion as an explicit match")]
 pub fn save_turn(
     place: u32,
     read: Option<Token>,
@@ -112,7 +105,9 @@ pub fn save_turn(
     if place == 0 || place != turn.sequence {
         return Err(StoreError::Malformed);
     }
-    let Ok(bytes) = channel::encode_turn(turn, limits, endpoints) else { return Err(StoreError::Turn) };
+    let Ok(bytes) = smith_protocol_translate::encode_turn(turn, limits, endpoints) else {
+        return Err(StoreError::Turn);
+    };
     let read = match read {
         Some(read) => Some(read.raw()),
         None => None,
@@ -148,7 +143,6 @@ pub fn decode_turns(
     decode_turns_bounded(files, limits, endpoints, crate::local_store_v1::CEILINGS.turn_body)
 }
 
-#[expect(clippy::manual_map, reason = "strict subset keeps optional boundary conversion as an explicit match")]
 pub(super) fn decode_turns_bounded(
     files: &[Box<[u8]>],
     limits: &transcript::v6::Limits,
@@ -181,11 +175,11 @@ pub(super) fn decode_turns_bounded(
         bodies.push(record.body).expect("bounded turn count");
     }
     let count = bodies.len();
-    let piece = channel::transcript_piece(bodies.as_slice()).ok_or(StoreError::Malformed)?;
+    let piece = smith_protocol_translate::transcript_piece(bodies.as_slice()).ok_or(StoreError::Malformed)?;
     // The aggregate piece now owns the bodies' bytes. Release those copies
     // before typed transcript decoding; whole-envelope reads have their own copy.
     drop(bodies);
-    match channel::decode_transcript(&piece, count, u32::MAX, limits, endpoints) {
+    match smith_protocol_translate::decode_transcript(&piece, count, u32::MAX, limits, endpoints) {
         Ok(transcript) => Ok((transcript, last_read)),
         Err(_) => Err(StoreError::Malformed),
     }
@@ -226,24 +220,13 @@ pub(crate) mod tests {
 
     pub(crate) fn fixture() -> (Endpoints, smith_domain::Turn) {
         let mut entries = List::with_capacity(1);
-        entries.push(channel::Endpoint { name: Box::from(&b"main"[..]), number: 2, dialect: 1 }).expect("one endpoint");
+        entries
+            .push(smith_protocol_translate::Endpoint { name: Box::from(&b"main"[..]), number: 2, dialect: 1 })
+            .expect("one endpoint");
         let endpoints = Endpoints::new(entries);
         let turn = smith_domain::Turn {
-            model: b"model".as_slice().into(),
-            effort: None,
-            kind: smith_domain::session::record::Kind::First(Box::new(smith_domain::session::record::Opener {
-                affinity: smith_domain::llm::Affinity { key: [0; 16], thread: 0 },
-                account: None,
-                backend: smith_domain::session::record::Backend::Direct,
-            })),
-            version: smith_domain::session::record::VERSION,
             endpoint: Some(smith_domain::session::llm::Endpoint(2)),
-            dialect: 1,
-            sequence: 1,
-            usage: smith_domain::session::llm::Usage::ZERO,
-            spent: 0,
-            jobs: 0,
-            messages: Box::new([]),
+            ..smith_local_domain::fixture::turn()
         };
         (endpoints, turn)
     }

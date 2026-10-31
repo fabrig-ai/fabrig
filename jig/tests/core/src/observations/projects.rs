@@ -47,9 +47,6 @@ impl Makes {
             }
             root::Event::Core(_)
             | root::Event::Stop
-            | root::Event::Switched
-            | root::Event::RestartBegin { .. }
-            | root::Event::RestartDone(_)
             | root::Event::Timer(_)
             | root::Event::Link { .. }
             | root::Event::ResultRead { .. }
@@ -62,6 +59,11 @@ impl Makes {
             | root::Event::CallAnswered { .. }
             | root::Event::TopicCall { .. }
             | root::Event::EffectCall { .. }
+            | root::Event::StartRecord(_)
+            | root::Event::StartMissing { .. }
+            | root::Event::StartPageRefused { .. }
+            | root::Event::StartBegin { .. }
+            | root::Event::StartDone(_)
             | root::Event::TranscriptLoaded { .. }
             | root::Event::Committed { .. }
             | root::Event::WriterRead { .. }

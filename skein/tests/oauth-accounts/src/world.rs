@@ -1308,7 +1308,7 @@ pub(crate) fn protocol_client(seed: u64, mut client: Client) -> (Client, Vec<Str
                     server_requests.push(http::Request::Respond(http::Response {
                         status: answer.status,
                         headers: Box::new([]),
-                        body: http::Body::Length(u64::try_from(answer.body.len()).expect("bounded response")),
+                        body: http::Body::Length(skein_lib::len_u64(answer.body.len())),
                         close: true,
                     }));
                     server_requests.push(http::Request::Reply(Down::Demand {

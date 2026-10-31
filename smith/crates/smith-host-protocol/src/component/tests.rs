@@ -1,21 +1,20 @@
 //! Grant-form checks and crossing call terminals (protocol/channel.md, sections 3–4).
 
-use super::{Component, Phase};
+use super::{Component, State};
 use crate::{Error, Values, grant_form};
 use alloc::boxed::Box;
 use skein_channel::{Control, Direction, Lower, LowerEvent, StreamMode, Term, control_frame, frame_writer};
 use skein_lib::{Duration, List, Queue, Token, Writer, stream};
 use smith_host_domain::{Form, Scheme, SourceName};
-use smith_protocol_channel::GrantValue;
+use smith_protocol_translate::GrantValue;
 
 fn mismatched_values() -> [GrantValue; 2] {
     [GrantValue::Key(Box::from(b"key".as_slice())), GrantValue::Program(Box::from(b"claude-code".as_slice()))]
 }
 
-fn channel(phase: Phase) -> (Component, Queue<crate::OpenEvent>, Queue<Lower>) {
+fn channel() -> (Component, Queue<crate::Received>, Queue<Lower>) {
     let limits = crate::tests::process_limits();
-    let mut component = Component::new(&limits, StreamMode::Two, crate::tests::endpoints()).expect("channel limits");
-    component.phase = phase;
+    let component = Component::new(&limits, StreamMode::Two, crate::tests::endpoints()).expect("channel limits");
     (component, Queue::with_capacity(limits.channel.output_frames), Queue::with_capacity(limits.channel.kinds))
 }
 
@@ -28,8 +27,8 @@ const REUSED_CALL: Token = Token::new(2);
 const REPLY: Token = Token::new(11);
 const CANCEL: Token = Token::new(12);
 
-fn admitted_channel() -> (Component, Queue<crate::OpenEvent>, Queue<Lower>) {
-    let (mut component, mut above, mut below) = channel(Phase::Opening);
+fn opened_channel() -> (Component, Queue<crate::Received>, Queue<Lower>) {
+    let (mut component, mut above, mut below) = channel();
     let limits = crate::tests::process_limits();
     let mut entries = List::with_capacity(limits.channel.kinds);
     for kind in &component.schema.version(VERSION).expect("channel version").kinds {
@@ -68,7 +67,39 @@ fn admitted_channel() -> (Component, Queue<crate::OpenEvent>, Queue<Lower>) {
             }
         }
     }
-    component.phase = Phase::Admitted;
+    while above.pop().is_some() {}
+    (component, above, below)
+}
+
+pub(super) fn admitted_channel() -> (Component, Queue<crate::Received>, Queue<Lower>) {
+    let (mut component, mut above, mut below) = opened_channel();
+    let mut start = smith_host_world::start();
+    start.grants = Box::default();
+    start.transcript = None;
+    component
+        .send_start(
+            start,
+            smith_host_domain::Window { turns: 1, bytes: 4096 },
+            Values { paths: Box::default(), credentials: Box::default() },
+            Token::new(1),
+            &mut above,
+            &mut below,
+        )
+        .expect("start");
+    while let Some(request) = below.pop() {
+        match request {
+            Lower::Write(stream::OutputDown::Room { right, .. }) => component.from_below(
+                LowerEvent::Write(stream::OutputUp::Settled { right, outcome: stream::OutputOutcome::Granted }),
+                &mut above,
+                &mut below,
+            ),
+            Lower::Write(stream::OutputDown::Send { .. }) => component.fire(&mut above, &mut below),
+            other @ (Lower::Read(_) | Lower::Write(_) | Lower::FinishWrite) => {
+                panic!("unexpected start operation: {other:?}")
+            }
+        }
+    }
+    receive(&mut component, 0x0106, Box::default(), &mut above, &mut below);
     while above.pop().is_some() {}
     (component, above, below)
 }
@@ -116,7 +147,7 @@ fn receive(
     component: &mut Component,
     kind: u16,
     body: Box<[u8]>,
-    above: &mut Queue<crate::OpenEvent>,
+    above: &mut Queue<crate::Received>,
     below: &mut Queue<Lower>,
 ) {
     if !component.reading {
@@ -137,14 +168,14 @@ fn receive(
     }
 }
 
-fn called_channel() -> (Component, Queue<crate::OpenEvent>, Queue<Lower>) {
+fn called_channel() -> (Component, Queue<crate::Received>, Queue<Lower>) {
     let (mut component, mut above, mut below) = admitted_channel();
     receive(&mut component, 0x0107, call_body(1), &mut above, &mut below);
     while above.pop().is_some() {}
     (component, above, below)
 }
 
-fn answer(component: &mut Component, above: &mut Queue<crate::OpenEvent>, below: &mut Queue<Lower>) {
+fn answer(component: &mut Component, above: &mut Queue<crate::Received>, below: &mut Queue<Lower>) {
     component.send_reply(CALL, smith_host_domain::Reply::Unavailable, REPLY, above, below).expect("reply");
     // Finish the answer's write before checking for any later refusal output.
     while let Some(request) = below.pop() {
@@ -163,7 +194,7 @@ fn answer(component: &mut Component, above: &mut Queue<crate::OpenEvent>, below:
     while above.pop().is_some() {}
 }
 
-fn crossed_channel() -> (Component, Queue<crate::OpenEvent>, Queue<Lower>) {
+fn crossed_channel() -> (Component, Queue<crate::Received>, Queue<Lower>) {
     let (mut component, mut above, mut below) = called_channel();
     answer(&mut component, &mut above, &mut below);
     receive(&mut component, 0x0108, withdraw_body(1), &mut above, &mut below);
@@ -179,8 +210,8 @@ fn assert_no_refusal(below: &Queue<Lower>) {
     }
 }
 
-fn next_call(above: &mut Queue<crate::OpenEvent>) -> Token {
-    let Some(crate::OpenEvent::Call { call, .. }) = above.pop() else {
+fn next_call(above: &mut Queue<crate::Received>) -> Token {
+    let Some(crate::Received::Message { message: smith_host_domain::Up::Call { call, .. } }) = above.pop() else {
         panic!("the following call is delivered");
     };
     call
@@ -203,7 +234,10 @@ fn a_name_withdrawn_after_its_answer_can_be_called_again() {
     receive(&mut component, 0x0107, call_body(1), &mut above, &mut below);
     assert_eq!(next_call(&mut above), REUSED_CALL);
     receive(&mut component, 0x0108, withdraw_body(1), &mut above, &mut below);
-    assert_eq!(above.pop(), Some(crate::OpenEvent::Withdraw { call: REUSED_CALL }));
+    assert_eq!(
+        above.pop(),
+        Some(crate::Received::Message { message: smith_host_domain::Up::Withdraw { call: REUSED_CALL } })
+    );
     assert!(above.is_empty(), "one withdrawal event for the new call");
     assert_no_refusal(&below);
 }
@@ -290,7 +324,7 @@ fn a_program_value_without_a_source_name_has_no_form() {
 
 #[test]
 fn a_start_whose_value_disagrees_with_its_grant_is_refused() {
-    let (mut component, mut to_service, mut below) = channel(Phase::Opened);
+    let (mut component, mut to_service, mut below) = opened_channel();
     for value in mismatched_values() {
         let mut start = smith_host_world::start();
         start.grants[0].form = Form::Credential(Scheme::Bearer);
@@ -305,13 +339,13 @@ fn a_start_whose_value_disagrees_with_its_grant_is_refused() {
         assert_eq!(result, Err(Error::Grants));
         assert!(to_service.is_empty());
         assert!(below.is_empty());
-        assert_eq!(component.phase, Phase::Opened);
+        assert_eq!(component.state, State::Opened);
     }
 }
 
 #[test]
 fn a_refresh_whose_value_disagrees_with_its_grant_is_refused() {
-    let (mut component, mut to_service, mut below) = channel(Phase::Admitted);
+    let (mut component, mut to_service, mut below) = admitted_channel();
     for value in mismatched_values() {
         let grant = smith_host_domain::Grant {
             account: 1,
@@ -322,5 +356,46 @@ fn a_refresh_whose_value_disagrees_with_its_grant_is_refused() {
         assert_eq!(component.send_grant(grant, value, Token::new(1), &mut to_service, &mut below), Err(Error::Grants));
         assert!(to_service.is_empty());
         assert!(below.is_empty());
+    }
+}
+
+#[test]
+fn malformed_records_name_the_record_in_their_refusal() {
+    for (kind, expected) in [
+        (0x0111, b"invalid message refusal".as_slice()),
+        (0x0107, b"invalid call".as_slice()),
+        (0x0108, b"invalid withdrawal".as_slice()),
+        (0x010a, b"invalid waiting record".as_slice()),
+        (0x0109, b"invalid turn".as_slice()),
+        (0x010f, b"invalid fact".as_slice()),
+        (0x010d, b"invalid account notice".as_slice()),
+        (0x010e, b"invalid account notice".as_slice()),
+        (0x0113, b"invalid account notice".as_slice()),
+        (0x010b, b"invalid long operation".as_slice()),
+        (0x0110, b"invalid answer".as_slice()),
+    ] {
+        let (mut component, mut above, mut below) = admitted_channel();
+        receive(&mut component, kind, Box::new([255]), &mut above, &mut below);
+        assert!(above.is_empty(), "malformed record never reaches the domain");
+        let Some(Lower::Write(stream::OutputDown::Room { right, .. })) = below.pop() else {
+            panic!("refusal requests output room");
+        };
+        component.from_below(
+            LowerEvent::Write(stream::OutputUp::Settled { right, outcome: stream::OutputOutcome::Granted }),
+            &mut above,
+            &mut below,
+        );
+        let Some(Lower::Write(stream::OutputDown::Send { bytes, .. })) = below.pop() else {
+            panic!("refusal frame");
+        };
+        let header = skein_channel::parse_header(&bytes[..HEADER_BYTES]).expect("refusal header");
+        let control =
+            skein_channel::decode_control(header.kind, &bytes[HEADER_BYTES..], &crate::tests::process_limits().channel)
+                .expect("refusal control");
+        let Control::Refuse { reason, text } = control else {
+            panic!("refusal control");
+        };
+        assert_eq!(reason, super::RULES);
+        assert_eq!(text.as_ref(), expected, "kind {kind:#06x}");
     }
 }

@@ -128,7 +128,7 @@ const MEMBER_ROLE: u32 = 2;
 const CONNECTOR: u16 = 1;
 const PROCEDURE: u32 = 1;
 const CHARTER: u32 = 1;
-const OTHER_PARTY: u64 = 2;
+const OTHER_PARTY: u64 = 3;
 const CHAT: u64 = 1;
 const SECOND_MEMBER: u32 = 1;
 const FIRST_MEMBER: u32 = 0;
@@ -730,7 +730,7 @@ fn a_rejected_amendment_proposal_reaches_the_party_not_the_task() {
     assert_eq!(
         row.state,
         tasks::PersonProposalState::Rejected {
-            by: tasks::Party::Person(2),
+            by: tasks::Party::Person(OTHER_PARTY),
             reason: b"not now".as_slice().into(),
             message: 2,
             at: REJECTED_AT

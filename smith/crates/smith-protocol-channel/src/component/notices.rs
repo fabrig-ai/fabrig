@@ -1,9 +1,9 @@
-//! Bounded account notices (protocol/channel.md, section 4).
-use super::{Component, Phase};
-use crate::{Error, OpenEvent};
+//! Bounded account notices (smith/docs/design/protocol/channel.md, section 4).
+use super::Component;
+use crate::{Error, Heard};
 use alloc::boxed::Box;
-use skein_channel::{Lower, Request, frame_writer};
-use skein_lib::{Duration, Queue, Token, Writer};
+use skein_channel::{Lower, Request};
+use skein_lib::{Duration, Queue, Token};
 
 impl Component {
     /// Tell the host a provider rejected one named credential generation.
@@ -11,24 +11,24 @@ impl Component {
         &mut self,
         name: smith_domain::GrantName,
         token: Token,
-        to_service: &mut Queue<OpenEvent>,
+        to_service: &mut Queue<Heard>,
         below: &mut Queue<Lower>,
     ) -> Result<(), Error> {
-        if self.phase != Phase::Admitted {
+        if !self.state.admitted() {
             return Err(Error::Order);
         }
-        let record = smith_channel::Unauthorized::new(
+        let record = match smith_channel::Unauthorized::new(
             &self.bodies,
             smith_channel::UnauthorizedParts { account: name.account, generation: name.generation },
-        )?;
-        let Ok(length) = usize::try_from(record.measure()) else {
-            return Err(Error::ResultCapacity);
+        ) {
+            Ok(value) => value,
+            Err(problem) => return Err(Error::ChannelBody(problem)),
         };
-        let mut body = Writer::new(length);
-        record.encode(&mut body)?;
-        let mut frame = frame_writer(0x010d, record.measure())?;
-        frame.put(&body.finish())?;
-        self.machine.down(Request::Send { token, frame: frame.finish()? }, &mut self.events, below);
+        let frame = match smith_channel::frame(smith_channel::Body::Unauthorized(record)) {
+            Ok(value) => value,
+            Err(problem) => return Err(Error::Frame(problem)),
+        };
+        self.machine.down(Request::Send { token, frame }, &mut self.events, below);
         self.drain(to_service, below);
         self.fire(to_service, below);
         Ok(())
@@ -40,21 +40,21 @@ impl Component {
         account: u32,
         reset: Option<Duration>,
         token: Token,
-        to_service: &mut Queue<OpenEvent>,
+        to_service: &mut Queue<Heard>,
         below: &mut Queue<Lower>,
     ) -> Result<(), Error> {
-        if self.phase != Phase::Admitted {
+        if !self.state.admitted() {
             return Err(Error::Order);
         }
-        let record = smith_channel::Limited::new(&self.bodies, smith_channel::LimitedParts { account, reset })?;
-        let Ok(length) = usize::try_from(record.measure()) else {
-            return Err(Error::ResultCapacity);
+        let record = match smith_channel::Limited::new(&self.bodies, smith_channel::LimitedParts { account, reset }) {
+            Ok(value) => value,
+            Err(problem) => return Err(Error::ChannelBody(problem)),
         };
-        let mut body = Writer::new(length);
-        record.encode(&mut body)?;
-        let mut frame = frame_writer(0x010e, record.measure())?;
-        frame.put(&body.finish())?;
-        self.machine.down(Request::Send { token, frame: frame.finish()? }, &mut self.events, below);
+        let frame = match smith_channel::frame(smith_channel::Body::Limited(record)) {
+            Ok(value) => value,
+            Err(problem) => return Err(Error::Frame(problem)),
+        };
+        self.machine.down(Request::Send { token, frame }, &mut self.events, below);
         self.drain(to_service, below);
         self.fire(to_service, below);
         Ok(())
@@ -67,19 +67,18 @@ impl Component {
         code: &[u8],
         reason: &[u8],
         token: Token,
-        to_service: &mut Queue<OpenEvent>,
+        to_service: &mut Queue<Heard>,
         below: &mut Queue<Lower>,
     ) -> Result<(), Error> {
-        if self.phase != Phase::Admitted {
+        if !self.state.admitted() {
             return Err(Error::Order);
         }
         let record = refused_notice(&self.bodies, account, code, reason)?;
-        let length = usize::try_from(record.measure()).or(Err(Error::ResultCapacity))?;
-        let mut body = Writer::new(length);
-        record.encode(&mut body)?;
-        let mut frame = frame_writer(0x0113, record.measure())?;
-        frame.put(&body.finish())?;
-        self.machine.down(Request::Send { token, frame: frame.finish()? }, &mut self.events, below);
+        let frame = match smith_channel::frame(smith_channel::Body::AccountRefused(record)) {
+            Ok(value) => value,
+            Err(problem) => return Err(Error::Frame(problem)),
+        };
+        self.machine.down(Request::Send { token, frame }, &mut self.events, below);
         self.drain(to_service, below);
         self.fire(to_service, below);
         Ok(())
@@ -101,14 +100,19 @@ fn refused_notice(
             Some(_) | None => break,
         }
     }
-    Ok(smith_channel::AccountRefused::new(
-        limits,
-        smith_channel::AccountRefusedParts {
-            account,
-            code: Box::from(code),
-            reason: Box::from(reason.get(..end).ok_or(Error::Grants)?),
+    Ok(
+        match smith_channel::AccountRefused::new(
+            limits,
+            smith_channel::AccountRefusedParts {
+                account,
+                code: Box::from(code),
+                reason: Box::from(reason.get(..end).ok_or(Error::Grants)?),
+            },
+        ) {
+            Ok(value) => value,
+            Err(problem) => return Err(Error::ChannelBody(problem)),
         },
-    )?)
+    )
 }
 
 #[cfg(test)]

@@ -13,11 +13,11 @@ const NOW: Time = Time::from_nanos(2_000_000);
 
 const RESET_DELAY: Duration = RESET_AT.saturating_since(NOW);
 
-const RESET_MS: u64 = RESET_DELAY.as_nanos() / Duration::from_millis(1).as_nanos();
+const RESET_MS: u64 = RESET_DELAY.as_millis();
 
 const ELAPSED: Duration = NOW.saturating_since(Time::ZERO);
 
-const NOW_MS: u64 = ELAPSED.as_nanos() / Duration::from_millis(1).as_nanos();
+const NOW_MS: u64 = ELAPSED.as_millis();
 
 #[test]
 fn each_account_notice_is_written_when_raised() {
@@ -131,7 +131,14 @@ fn a_limited_run_answers_with_reset_ms() {
             ),
         },
     ] {
-        let meta = crate::AnswerMeta { now: NOW, run: RUN, wind_down: false, read: None, unread: 0, elapsed: ELAPSED };
+        let meta = smith_protocol_events::AnswerMeta {
+            now: NOW,
+            run: RUN,
+            wind_down: false,
+            read: None,
+            unread: 0,
+            elapsed: ELAPSED,
+        };
         let answer = run::Answer::Failed {
             failure: run::Failure::Model(run::Fault::Limited { account: ACCOUNT, reset_at: row.reset_at }),
             spent: run::Spend::ZERO,
@@ -139,7 +146,11 @@ fn a_limited_run_answers_with_reset_ms() {
         };
         let record = smith_events::Record {
             t_ms: NOW_MS,
-            event: smith_events::Event::RunCompleted(crate::answer_record(meta, &answer, crate::sinks::Capture::None)),
+            event: smith_events::Event::RunCompleted(smith_protocol_events::answer_record(
+                meta,
+                &answer,
+                smith_protocol_events::sinks::Capture::None,
+            )),
         };
         let expected = row.expected.as_bytes();
         assert_stream_record(&record, expected);

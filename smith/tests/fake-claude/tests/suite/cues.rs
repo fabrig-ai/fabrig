@@ -1,5 +1,5 @@
 //! Conversation cues and resumed cursors through the simulated process face
-//! (protocol/programs.md, sections 5.8 and 8; skein fake-llm.md, section 2.4).
+//! (smith/docs/design/protocol/programs.md, sections 5.8 and 8; skein/docs/design/fake-llm.md, section 2.4).
 
 use crate::support::{Invocation, Run, print};
 use serde_json::{Value, json};
@@ -61,8 +61,6 @@ fn selected(run: &Run) -> Vec<Seen> {
     selections(run.observations.as_ref().expect("observations"))
 }
 
-/// Lower test of binary::the_binary_uses_its_system_prompt_to_select
-/// (top tiers test wiring only).
 #[test]
 fn a_system_cue_selects_its_script() {
     let story =
@@ -206,19 +204,7 @@ fn a_resumed_request_keeps_its_script_and_place() {
 }
 
 #[test]
-fn a_legacy_session_marker_starts_at_zero() {
-    let story = Story { turns: turns(&["zero", "one"]), ..Story::default() };
-    let marker = format!("config/fake-claude.session.{}", print::SESSION);
-    let run = print::sequence_files(
-        story,
-        vec![invocation(&[json!("continue")], print::SESSION, true, PROMPT)],
-        vec![Item::file(marker.as_bytes(), &[1])],
-    );
-    assert_eq!(answers(&run), [json!("zero")]);
-}
-
-#[test]
-fn an_uncued_resume_preserves_legacy_turn_restarts() {
+fn an_uncued_resume_restarts_fallback_turns() {
     let story = Story { turns: turns(&["zero", "one"]), ..Story::default() };
     let run = print::sequence(
         story,

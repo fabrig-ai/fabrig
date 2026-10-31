@@ -9,33 +9,6 @@ mod closed;
 mod deletion;
 mod start;
 
-#[test]
-fn restored_application_tokens_cannot_exceed_the_deployments_allocations() {
-    let (mut core, _) = make_tree();
-    let connector = core.connectors[0];
-    let token = fresh(&mut core.counters, Family::Application).expect("application token");
-    let mut record = people::Stored::Answer {
-        models: Box::new([]),
-        key: people::RequestKey { person: 1, key: [1; 16] },
-        ask: Box::new(people::Ask::Application {
-            scope: jig_domain_people::ApplicationScope::Project(1),
-            connector,
-            digest: [1; 32],
-        }),
-        outcome: people::Outcome::Applied { connector, token: Token::new(token.checked_add(1).expect("next token")) },
-        at: Wall::EPOCH,
-    };
-    assert!(!core.restore_people_row(&record));
-    if let people::Stored::Answer { outcome, .. } = &mut record {
-        *outcome = people::Outcome::Applied { connector, token: Token::new(token) };
-    }
-    assert!(core.restore_people_row(&record));
-    if let people::Stored::Answer { outcome, .. } = &mut record {
-        *outcome = people::Outcome::Applied { connector: u16::MAX, token: Token::new(token) };
-    }
-    assert!(!core.restore_people_row(&record));
-}
-
 pub(crate) fn limits() -> Limits {
     let retry = tasks::Retry { retries: 1, base: Duration::from_millis(10), max: Duration::from_secs(1) };
     let tasks = tasks::Limits {
@@ -301,7 +274,7 @@ pub(crate) fn restoring_sized_policy(bytes: u64) -> (Core, Limits, ConfiguredPol
     }
     config.seed_projects = Box::new([]);
     let mut core = Core::new(config, &limits).expect("restoring core");
-    core.restart_begin(false);
+    let _start = core.start_begin(false, Wall::EPOCH);
     let mut deployment = core.counters.deployment();
     deployment.projects = u64::from(RESTORE_PROJECT);
     deployment.commits = 1;
@@ -497,6 +470,7 @@ fn restore_key_account(core: &mut Core, limits: &Limits, number: u32, source: u3
 
 fn clear_projects(core: &mut Core, limits: &Limits) {
     core.authority = authority::Domain::new(core.authority.rules().clone(), limits.authority).expect("restore rules");
+    core.authority.start_restore();
     core.projects.clear();
     core.names = Map::with_capacity(limits.authority.projects);
     core.permission_roles = Map::with_capacity(limits.authority.projects);
@@ -505,7 +479,21 @@ fn clear_projects(core: &mut Core, limits: &Limits) {
 
 fn seeded_core(config: Config, limits: &Limits) -> Result<Core, Problem> {
     let mut core = Core::new(config, limits)?;
-    routing::first_start::seed_projects(&mut core);
+    core.people.start_restore(Wall::EPOCH);
+    let projects = core::mem::replace(&mut core.seed_projects, Box::new([]));
+    for project in projects {
+        let mut out = Queue::uncapped();
+        authority::step(
+            &mut core.authority,
+            authority::Event::Policy { project: project.number, policy: project.policy.policy },
+            &mut out,
+        );
+        assert_eq!(out.pop(), Some(authority::PolicyFact::Added { project: project.number }));
+        core.projects.push(project.number).expect("fixture projects");
+        core.names.insert(project.number, project.name).expect("fixture names");
+        core.permission_roles.insert(project.number, project.policy.permissions).expect("fixture roles");
+        core.template_overrides.insert(project.number, project.policy.templates).expect("fixture templates");
+    }
     Ok(core)
 }
 
@@ -542,7 +530,7 @@ pub(crate) fn core() -> (Core, Limits) {
         },
         &mut out,
     );
-    people::step(&mut core.people, &env, people::Event::Restored, &mut out);
+    finish_people(&mut core.people, &env);
     (core, limits)
 }
 
@@ -1648,6 +1636,7 @@ fn documents_project_exposes_two_roles_members_pool_and_resource_parts() {
     assert_eq!(out.pop(), Some(authority::PolicyFact::Added { project: 1 }));
     let first_identity = core.people.identity(1).unwrap().clone();
     core.people = people::Domain::new(&limits.people, Box::new([]), core.settings.deployment_provider, Box::new([]));
+    core.people.start_restore(Wall::EPOCH);
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.people };
     let mut restored = Queue::uncapped();
     for record in [
@@ -1674,7 +1663,7 @@ fn documents_project_exposes_two_roles_members_pool_and_resource_parts() {
         people::step(&mut core.people, &env, people::Event::Restore { record }, &mut restored);
         while restored.pop().is_some() {}
     }
-    people::step(&mut core.people, &env, people::Event::Restored, &mut restored);
+    finish_people(&mut core.people, &env);
     send_task(
         &mut core,
         &limits,
@@ -1760,6 +1749,7 @@ fn restore_document_party(core: &mut Core, limits: &Limits, projects: &[u32]) {
     }
     let identity = core.people.identity(1).unwrap().clone();
     core.people = people::Domain::new(&limits.people, Box::new([]), core.settings.deployment_provider, Box::new([]));
+    core.people.start_restore(Wall::EPOCH);
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.people };
     let mut out = Queue::uncapped();
     people::step(
@@ -1783,7 +1773,7 @@ fn restore_document_party(core: &mut Core, limits: &Limits, projects: &[u32]) {
         );
         while out.pop().is_some() {}
     }
-    people::step(&mut core.people, &env, people::Event::Restored, &mut out);
+    finish_people(&mut core.people, &env);
     assert!(core.people.identity(1).is_some());
 }
 #[test]
@@ -2071,6 +2061,7 @@ fn watch_core() -> (Core, Limits) {
         .unwrap();
     let identity = core.people.identity(1).unwrap().clone();
     core.people = people::Domain::new(&limits.people, Box::new([]), core.settings.deployment_provider, Box::new([]));
+    core.people.start_restore(Wall::EPOCH);
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.people };
     let mut out = Queue::uncapped();
     let records = [
@@ -2094,7 +2085,7 @@ fn watch_core() -> (Core, Limits) {
         people::step(&mut core.people, &env, people::Event::Restore { record }, &mut out);
         while out.pop().is_some() {}
     }
-    people::step(&mut core.people, &env, people::Event::Restored, &mut out);
+    finish_people(&mut core.people, &env);
     (core, limits)
 }
 
@@ -3067,12 +3058,7 @@ fn invisible_and_absent_reads_have_the_same_unknown_answer() {
     }
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.people };
     let mut out = Queue::uncapped();
-    people::step(
-        &mut core.people,
-        &env,
-        people::Event::Restore { record: people::Stored::Roles { project: 1, holdings: Box::new([]) } },
-        &mut out,
-    );
+    people::step(&mut core.people, &env, people::Event::Roles { project: 1, holdings: Box::new([]) }, &mut out);
     let Held::Read { answer, .. } = read_answer(&mut core, &limits, 10, reads::Read::Task { task: 1 }) else {
         panic!("read terminal expected")
     };
@@ -3416,7 +3402,6 @@ mod sign_ins;
 
 mod fill;
 mod inbox_selection;
-mod restore_admission;
 
 mod project_period_watches;
 
@@ -3708,28 +3693,6 @@ fn projection_readiness_shares_generation_restore_and_pending_connector_rules() 
     assert!(!core.finish_owed(), "an untracked goal waits on its closing connectors first");
     core.projections.get_mut(&1).unwrap().changed = true;
     assert!(!core.finish_owed(), "pending connectors take precedence over changed");
-
-    // The durable projection header is independently restored and still owes
-    // its changed pass; no private dirty flag can stand in for this state.
-    let (mut restored, restored_limits) = self::core();
-    fresh(&mut restored.counters, Family::Task).unwrap();
-    restored.counters.next_commit();
-    let row = ProjectionRecord::Goal {
-        goal: ProjectionGoal {
-            number: 1,
-            project: 1,
-            priority: 0,
-            words: b"restored".as_slice().into(),
-            phase: tasks::Phase::Waiting,
-        },
-        pending: Box::new([]),
-        changed: true,
-        fed_at: None,
-    };
-    assert_eq!(restored.restore_core(CoreRecord::Projection(row), &restored_limits), Restored::Live);
-    assert!(restored.finish_owed());
-    finish_watch_outputs(&mut restored, &restored_limits);
-    assert!(!restored.finish_owed());
 }
 
 fn assert_decided_only(out: &[Request]) {
@@ -3749,7 +3712,6 @@ fn assert_one_watch_ending(out: &[Request], expected: views::End) {
     assert_eq!(endings, 1);
 }
 
-mod project_names;
 mod projects;
 
 #[test]
@@ -3777,21 +3739,7 @@ fn configured_policies_are_retained_by_the_core() {
     assert!(policy.templates.is_empty());
 }
 
-#[test]
-fn a_restored_policy_cannot_pass_the_deployments_projects_mark() {
-    let limits = limits();
-    let config = config(41);
-    let value = policy::snapshot(&config.seed_projects[0].policy.policy, &[], &[]).expect("bounded policy");
-    let mut core = Core::new(config, &limits).expect("restoring core");
-    core.counters.deployment.projects = 0;
-    assert!(!core.restore_policy(&limits, 1, Box::from("Project 1"), value.clone()));
-    core.counters.deployment.projects = 1;
-    assert!(core.restore_policy(&limits, 1, Box::from("Project 1"), value));
-}
-
 mod ended_watches;
-
-mod restart_checks;
 
 fn placed(task: u64, person: u64, number: u64) -> tasks::Event {
     tasks::Event::Place {
@@ -3837,3 +3785,29 @@ fn validity_keeps_document_settings_and_route_refusals() {
 }
 
 mod erase;
+pub(crate) fn finish_start(core: &mut Core, env: &Env<Limits>) -> Queue<Request> {
+    let action = core.start_begin(false, env.wall);
+    finish_started(core, env, action)
+}
+
+pub(crate) fn finish_started(core: &mut Core, env: &Env<Limits>, mut action: crate::start::Action) -> Queue<Request> {
+    let mut out = Queue::uncapped();
+    for _ in 0_u16..64 {
+        action = match action {
+            crate::start::Action::Step(crate::start::Phase::Sweep) => {
+                core.start_sweep(env, crate::start::SweepInput::Finished, &mut out)
+            }
+            crate::start::Action::Step(phase) => core.start_done(env, phase, &mut out),
+            crate::start::Action::Commit(token) => core.start_resume(env, token, &mut out),
+            crate::start::Action::Idle => return out,
+            crate::start::Action::Refused(why) => panic!("fixture start refused {why:?}"),
+        };
+    }
+    panic!("bounded fixture start");
+}
+
+fn finish_people(domain: &mut people::Domain, env: &Env<people::Limits>) {
+    assert!(domain.start_link(env));
+    domain.start_sweep();
+    assert!(domain.start_complete(env));
+}

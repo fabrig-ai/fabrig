@@ -1,5 +1,5 @@
-//! The translations between the run's vocabulary and the session's (programming-model.md, section 4.5;
-//! domain/run.md, sections 5, 6, 9 and 13; domain/session.md, sections 3–6):
+//! The translations between the run's vocabulary and the session's (skein/docs/foundation/programming-model.md, section 4.5;
+//! smith/docs/design/domain/run.md, sections 5, 6, 9 and 13; smith/docs/design/domain/session.md, sections 3–6):
 //! siblings share no types, so the run's conversations and the sessions meet
 //! here, through small total functions, each an exhaustive match, so that a
 //! variant added on either side breaks the build in one place.
@@ -13,7 +13,7 @@ use skein_lib::{List, Token};
 use smith_domain_run::charter::{Families, Tools};
 use smith_domain_run::{self as run, Ask, Directory, Opening, Spend, Workspace};
 use smith_domain_session::{self as session, Budget, Dimension, Spec, Yield, llm};
-use smith_domain_tools::{Authority, Effect, Grants, Name, Repo};
+use smith_domain_tools::{Authority, Directory as ToolDirectory, Effect, Grants, Name};
 
 /// The ticket of `finish` among the tools a session is offered: tickets are
 /// the top level's, and name values within one session.
@@ -22,10 +22,10 @@ pub(crate) const FINISH: Token = Token::new(0);
 /// The ticket of the sub-agent tool.
 pub(crate) const SUB_AGENT: Token = Token::new(1);
 
-/// The first ticket of a session's calls and answers.
+/// The ticket of `deliver` among the tools a session is offered.
 pub(crate) const DELIVER: Token = Token::new(2);
 
-/// First live ticket, separate from the fixed served-tool descriptors.
+/// The ticket of `wait` among the tools a session is offered.
 pub(crate) const WAIT: Token = Token::new(3);
 
 /// First live descriptor/ask ticket, separate from all fixed tool descriptors.
@@ -157,7 +157,7 @@ fn authority(workspace: Option<Workspace>, tools: Tools) -> Option<Authority> {
     let mut repos = List::with_capacity(count);
     for Directory { name, host, root, writable, git: _, conflicts: _ } in mounted {
         let name = Name::new(name)?;
-        let repo = Repo { host: host_names(&host)?, mount: Box::new([name]), root, writable };
+        let repo = ToolDirectory { host: host_names(&host)?, mount: Box::new([name]), root, writable };
         repos.push(repo).expect("room for every repository");
     }
     let repos = repos.into_boxed();
@@ -210,11 +210,11 @@ pub(crate) fn spend(turns: u32, usage: llm::Usage) -> Spend {
     }
 }
 
+const PROGRAM_NAME: &[u8] = b"claude_code";
+
 /// How the session ended, as the run hears it: a failed call is its
 /// provider's fault, but for a conversation too long for the model, which is
 /// a full context, as is a transcript past the session's limits.
-const PROGRAM_NAME: &[u8] = b"claude_code";
-
 pub(crate) fn end(
     end: session::End,
     model: u32,
@@ -410,13 +410,13 @@ const fn completion_cap(cap: llm::Cap) -> run::Cap {
     }
 }
 
-const fn completion_phase(phase: llm::Phase) -> run::Phase {
+const fn completion_phase(phase: llm::CompletionPhase) -> run::CompletionPhase {
     match phase {
-        llm::Phase::Connect => run::Phase::Connect,
-        llm::Phase::Handshake => run::Phase::Handshake,
-        llm::Phase::Head => run::Phase::Head,
-        llm::Phase::Idle => run::Phase::Idle,
-        llm::Phase::Whole => run::Phase::Whole,
+        llm::CompletionPhase::Connect => run::CompletionPhase::Connect,
+        llm::CompletionPhase::Handshake => run::CompletionPhase::Handshake,
+        llm::CompletionPhase::Head => run::CompletionPhase::Head,
+        llm::CompletionPhase::Idle => run::CompletionPhase::Idle,
+        llm::CompletionPhase::Whole => run::CompletionPhase::Whole,
     }
 }
 

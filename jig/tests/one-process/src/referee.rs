@@ -118,8 +118,9 @@ impl Referee {
         if !service.held_mark.is_empty() {
             assert!(!state.durable);
             assert!(!state.driver_made, "driver is made only after the mark");
-            assert_eq!(state.restores_waiting, 1, "source restore still queued, without reading its secret");
-            assert_eq!(state.wants_waiting, 1, "the restored source has one waiting want");
+            // jig/docs/design/domain/engine.md, 6: the core holds account requests until durable Wires.
+            assert_eq!(state.restores_waiting, 0, "source restore is held by the core");
+            assert_eq!(state.wants_waiting, 0, "the restored source's want is held by the core");
             assert!(!state.granted);
             assert_eq!(service.early_connections, 0, "no provider connection or token request");
             service.mark_gate_checked = true;

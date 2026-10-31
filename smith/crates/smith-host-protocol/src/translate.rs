@@ -2,8 +2,8 @@
 //! The host service supplies opening paths and credential values; the host domain
 //! retains alias metadata and never credential values.
 use alloc::boxed::Box;
-use skein_channel::{Frame, frame_writer};
-use skein_lib::{List, Writer};
+use skein_channel::Frame;
+use skein_lib::List;
 use smith_channel as wire;
 use smith_host_domain::{self as host, channel};
 
@@ -15,15 +15,10 @@ pub struct Values {
     /// One filesystem path for each directory, in domain order.
     pub paths: Box<[Box<[u8]>]>,
     /// One credential value for each grant, in domain order.
-    pub credentials: Box<[smith_protocol_channel::GrantValue]>,
+    pub credentials: Box<[smith_protocol_translate::GrantValue]>,
 }
 
 /// Encode a domain Start and its service-owned values as the first downlink frame.
-#[expect(
-    clippy::manual_let_else,
-    clippy::manual_map,
-    reason = "strict subset keeps typed Start translation as explicit matches without higher-order methods"
-)]
 pub fn encode_start(
     start: channel::Start,
     window: channel::Window,
@@ -31,7 +26,7 @@ pub fn encode_start(
     limits: &wire::Limits,
     charter_limits: &smith_charter::v4::Limits,
     transcript_limits: &smith_transcript::v6::Limits,
-    endpoints: &smith_protocol_channel::Endpoints,
+    endpoints: &smith_protocol_translate::Endpoints,
 ) -> Result<Frame, Error> {
     if start.grants.len() != values.credentials.len() {
         return Err(Error::MissingValue);
@@ -53,21 +48,19 @@ pub fn encode_start(
         Some(history) => {
             let mut bodies = List::with_capacity(u32::try_from(history.value().turns.len()).or(Err(Error::Value))?);
             for turn in &history.value().turns {
-                let body = match smith_protocol_channel::encode_turn(turn, transcript_limits, endpoints) {
-                    Ok(body) => body,
-                    Err(_) => return Err(Error::Value),
+                let Ok(body) = smith_protocol_translate::encode_turn(turn, transcript_limits, endpoints) else {
+                    return Err(Error::Value);
                 };
                 if bodies.push(body).is_err() {
                     return Err(Error::MissingValue);
                 }
             }
-            smith_protocol_channel::transcript_piece(bodies.as_slice()).ok_or(Error::Value)?
+            smith_protocol_translate::transcript_piece(bodies.as_slice()).ok_or(Error::Value)?
         }
         None => Box::default(),
     };
-    let charter = match smith_protocol_channel::encode_charter(start.charter.value(), charter_limits, endpoints) {
-        Ok(body) => body,
-        Err(_) => return Err(Error::Value),
+    let Ok(charter) = smith_protocol_translate::encode_charter(start.charter.value(), charter_limits, endpoints) else {
+        return Err(Error::Value);
     };
     let mut answered = List::with_capacity(limits.start_answered);
     for call in start.answered {
@@ -122,11 +115,7 @@ pub fn encode_start(
             window,
         },
     )?;
-    let mut body = Writer::new(usize::try_from(record.measure()).expect("measured body fits usize"));
-    record.encode(&mut body)?;
-    let mut frame = frame_writer(0x0100, record.measure())?;
-    frame.put(&body.finish())?;
-    Ok(frame.finish()?)
+    Ok(wire::frame(wire::Body::Start(record))?)
 }
 
 fn encode_workspace(
@@ -292,20 +281,13 @@ pub(crate) fn encode_reply(
         channel::Reply::TooLarge => wire::Reply::TooLarge,
     };
     let record = wire::HostAnswer::new(limits, wire::HostAnswerParts { name, reply })?;
-    let Ok(length) = usize::try_from(record.measure()) else {
-        return Err(Error::MissingValue);
-    };
-    let mut body = Writer::new(length);
-    record.encode(&mut body)?;
-    let mut frame = frame_writer(0x0102, record.measure())?;
-    frame.put(&body.finish())?;
-    Ok(frame.finish()?)
+    Ok(wire::frame(wire::Body::HostAnswer(record))?)
 }
 
 /// The form a service-owned value lends, checked against its grant
 /// (protocol/hosts.md, section 2).
-pub fn grant_form(value: &smith_protocol_channel::GrantValue) -> Result<host::Form, Error> {
-    use smith_protocol_channel::GrantValue;
+pub fn grant_form(value: &smith_protocol_translate::GrantValue) -> Result<host::Form, Error> {
+    use smith_protocol_translate::GrantValue;
     match value {
         GrantValue::Bearer(_) => Ok(host::Form::Credential(host::Scheme::Bearer)),
         GrantValue::Key(_) => Ok(host::Form::Credential(host::Scheme::Key)),
@@ -318,15 +300,15 @@ pub fn grant_form(value: &smith_protocol_channel::GrantValue) -> Result<host::Fo
 }
 
 pub(crate) fn grant_value(
-    value: smith_protocol_channel::GrantValue,
+    value: smith_protocol_translate::GrantValue,
     limits: &wire::Limits,
 ) -> Result<wire::GrantValue, Error> {
-    use smith_protocol_channel::GrantValue;
+    use smith_protocol_translate::GrantValue;
     match value {
         GrantValue::Bearer(value) => credential_value(value, wire::Scheme::Bearer, limits),
         GrantValue::Key(value) => credential_value(value, wire::Scheme::Key, limits),
         GrantValue::Program(name) => {
-            smith_protocol_channel::program_name(&name).or(Err(Error::Grants))?;
+            smith_protocol_translate::program_name(&name).or(Err(Error::Grants))?;
             let value = wire::ProgramValue::new(limits, wire::ProgramValueParts { name }).or(Err(Error::Grants))?;
             Ok(wire::GrantValue::Program(value))
         }

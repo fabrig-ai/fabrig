@@ -1,5 +1,5 @@
-//! The test's scripts and recorded invocation names (protocol/programs.md,
-//! sections 5 and 8; testing.md, section 4); no environment values are retained.
+//! The test's scripts and recorded invocation names (smith/docs/design/protocol/programs.md,
+//! sections 5 and 8; smith/docs/design/testing.md, section 4); no environment values are retained.
 
 use serde::{Deserialize, Serialize};
 
@@ -11,7 +11,7 @@ pub struct Story {
     pub logout: Logout,
     #[serde(default)]
     pub init: Init,
-    /// Legacy fallback turns, counted from this process's first user message.
+    /// Fallback turns, counted from this process's first user message.
     #[serde(default)]
     pub turns: Vec<Turn>,
     /// Record the MCP tool inventory received at startup for admission stories.
@@ -112,13 +112,19 @@ pub struct Observation {
     pub environment: Vec<String>,
 }
 
-/// Reads the newline-separated records in `fake-claude.observations`.
-/// Malformed records fail the test that reads them.
-pub fn observations(bytes: &[u8]) -> Vec<Observation> {
+fn records(bytes: &[u8]) -> Vec<serde_json::Value> {
     bytes
         .split(|byte| *byte == b'\n')
         .filter(|line| !line.is_empty())
-        .map(|line| serde_json::from_slice::<serde_json::Value>(line).expect("fake observation record"))
+        .map(|line| serde_json::from_slice(line).expect("observation JSON"))
+        .collect()
+}
+
+/// Reads the newline-separated records in `fake-claude.observations`.
+/// Malformed records fail the test that reads them.
+pub fn observations(bytes: &[u8]) -> Vec<Observation> {
+    records(bytes)
+        .into_iter()
         .filter(|value| value.get("arguments").is_some())
         .map(|value| serde_json::from_value(value).expect("invocation observation"))
         .collect()
@@ -144,7 +150,7 @@ impl Default for Init {
     }
 }
 
-// Owner's Claude Code 2.1.311 probe: reports/live-claude-shapes.md, system/init.
+// Initialization reports the configured tools and servers.
 fn capabilities() -> Vec<String> {
     [
         "interrupt_receipt_v1",
@@ -173,6 +179,14 @@ pub struct Turn {
     pub steps: Vec<Step>,
     #[serde(default)]
     pub end: End,
+}
+
+impl Turn {
+    /// A scripted program turn that succeeds after its supplied steps.
+    #[must_use]
+    pub fn new(steps: Vec<Step>) -> Self {
+        Self { steps, end: End::default() }
+    }
 }
 
 impl Default for Turn {
@@ -302,10 +316,8 @@ pub enum Seen {
 /// Reads control and settings observations, skipping invocations and selections.
 /// Use [`selections`] for the per-turn script observations.
 pub fn seen(bytes: &[u8]) -> Vec<Seen> {
-    bytes
-        .split(|byte| *byte == b'\n')
-        .filter(|line| !line.is_empty())
-        .map(|line| serde_json::from_slice::<serde_json::Value>(line).expect("observation JSON"))
+    records(bytes)
+        .into_iter()
         .filter_map(|value| value.get("seen").cloned())
         .map(|value| serde_json::from_value(value).expect("seen record"))
         .collect()
@@ -313,10 +325,8 @@ pub fn seen(bytes: &[u8]) -> Vec<Seen> {
 
 /// Reads per-turn script selections, skipping invocation and control records.
 pub fn selections(bytes: &[u8]) -> Vec<Seen> {
-    bytes
-        .split(|byte| *byte == b'\n')
-        .filter(|line| !line.is_empty())
-        .map(|line| serde_json::from_slice::<serde_json::Value>(line).expect("observation JSON"))
+    records(bytes)
+        .into_iter()
         .filter_map(|value| value.get("selection").cloned())
         .map(|value| serde_json::from_value(value).expect("selection record"))
         .collect()
@@ -335,10 +345,5 @@ pub enum Decision {
 
 /// User messages independently decoded when the fake accepts each input line.
 pub fn received(bytes: &[u8]) -> Vec<serde_json::Value> {
-    bytes
-        .split(|byte| *byte == b'\n')
-        .filter(|line| !line.is_empty())
-        .map(|line| serde_json::from_slice::<serde_json::Value>(line).expect("observation JSON"))
-        .filter_map(|mut value| value.get_mut("received").map(serde_json::Value::take))
-        .collect()
+    records(bytes).into_iter().filter_map(|mut value| value.get_mut("received").map(serde_json::Value::take)).collect()
 }

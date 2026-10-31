@@ -720,7 +720,6 @@ impl Session {
             )
             | root::Delivery::Projection { .. }
             | root::Delivery::Message { .. }
-            | root::Delivery::Restart(_)
             | root::Delivery::Link { .. }
             | root::Delivery::CallBusy { .. }
             | root::Delivery::CallAnswer { .. }
@@ -728,6 +727,7 @@ impl Session {
             | root::Delivery::Fleet(_)
             | root::Delivery::System { .. }
             | root::Delivery::LostRead { .. }
+            | root::Delivery::Start(_)
             | root::Delivery::Procedure { .. }) => {
                 return unrouted_delivery(&other);
             }

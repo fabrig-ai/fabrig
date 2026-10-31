@@ -1,29 +1,35 @@
 //! Timed command writes and held-job acts at the agent world's IO boundary.
-use super::{Delivery, Duration, Event, Family, Flight, Key, Time, Token, World, io, tools};
+use super::{Delivery, Duration, Event, Family, Flight, Time, Token, World, io, tools};
 use tools::{Done, Op};
 use tools::{JobAct, JobEnd};
 
-#[derive(Debug)]
+use smith_tools_world::jobs::{Job, Response};
+
 pub(super) struct Held {
-    started: io::Started,
-    since: Time,
-    deadline: Time,
-    cursor: usize,
-    end: Option<JobEnd>,
-    response: Response,
-    event: Option<Key>,
-    caps: (u32, u32),
+    command: Job,
     announced: bool,
 }
 
-#[derive(Debug)]
-enum Response {
-    Yield { at: Time },
-    Held,
-    Read { at: Time },
+impl core::fmt::Debug for Held {
+    fn fmt(&self, formatter: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        formatter.debug_struct("Held").field("announced", &self.announced).finish_non_exhaustive()
+    }
 }
 
-impl World {
+impl core::ops::Deref for Held {
+    type Target = Job;
+    fn deref(&self) -> &Job {
+        &self.command
+    }
+}
+
+impl core::ops::DerefMut for Held {
+    fn deref_mut(&mut self) -> &mut Job {
+        &mut self.command
+    }
+}
+
+impl<B: super::Backend> World<B> {
     pub(super) fn start_job(&mut self, owner: Token, op: &Op, deadline: Time) -> bool {
         let Op::Spawn { cwd, command, head, tail, after: Some(after) } = op else { return false };
         self.boundaries.push((self.now, super::Boundary::Io { op: op.clone() }));
@@ -41,19 +47,22 @@ impl World {
         match started {
             Ok(started) => {
                 let job = Held {
-                    started,
-                    since: self.now,
-                    deadline,
-                    cursor: 0,
-                    end: None,
-                    response: Response::Yield { at: self.now.saturating_add(*after) },
-                    event: None,
-                    caps: (*head, *tail),
+                    command: Job {
+                        started,
+                        since: self.now,
+                        deadline,
+                        output: Vec::new(),
+                        cursor: 0,
+                        end: None,
+                        response: Response::Yield { at: self.now.saturating_add(*after) },
+                        event: None,
+                        caps: (*head, *tail),
+                    },
                     announced: false,
                 };
                 self.keep_job(owner, job);
             }
-            Err(done) => self.terminal(Family::Io, owner, Event::Done { owner, done }),
+            Err(done) => self.terminal(Family::Io, owner, Event::Below(smith_domain::Below::Done { owner, done })),
         }
         true
     }
@@ -101,7 +110,11 @@ impl World {
             job.end = Some(JobEnd::Cancelled);
         }
         match job.response {
-            Response::Yield { .. } => self.terminal(Family::Io, owner, Event::Done { owner, done: Done::Cancelled }),
+            Response::Yield { .. } => self.terminal(
+                Family::Io,
+                owner,
+                Event::Below(smith_domain::Below::Done { owner, done: Done::Cancelled }),
+            ),
             Response::Held | Response::Read { .. } => {
                 job.response = Response::Read { at: self.now };
                 self.keep_job(owner, job);
@@ -156,13 +169,13 @@ impl World {
                 if job.announced {
                     self.observe(super::Seen::JobSettled { owner });
                 }
-                self.terminal(Family::Io, owner, Event::Done { owner, done });
+                self.terminal(Family::Io, owner, Event::Below(smith_domain::Below::Done { owner, done }));
             } else {
                 if !job.announced {
                     self.observe(super::Seen::JobLive { owner });
                     job.announced = true;
                 }
-                self.stage.push(Event::Done { owner, done });
+                self.stage.push(Event::Below(smith_domain::Below::Done { owner, done }));
             }
             if job.end.is_some() {
                 return;
@@ -191,17 +204,5 @@ impl World {
         };
         job.event = next.map(|at| self.schedule.send(at, Delivery::Job { owner }));
         assert!(self.jobs.insert(owner, job).is_none(), "one process per original token");
-    }
-}
-
-impl Held {
-    fn written(&self, now: Time) -> usize {
-        let ran = now.min(self.deadline).saturating_since(self.since);
-        let total = self.started.process.program.output.len();
-        usize::try_from(
-            u128::from(ran.as_nanos()) * total as u128 / self.started.process.program.duration.as_nanos().max(1),
-        )
-        .expect("finite output")
-        .min(total)
     }
 }

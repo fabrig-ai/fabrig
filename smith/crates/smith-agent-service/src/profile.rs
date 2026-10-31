@@ -1,7 +1,7 @@
 //! The agent profile keeps declared deployment quantities and policy ceilings and
 //! computes the service limits from them. It never knows endpoint destinations,
 //! credentials or a run's charter. `derive` returns typed refusals.
-//! Contract: shell.md, section 2.1; protocol/agent.md, section 4.
+//! Contract: smith/docs/design/shell.md, section 2.1; smith/docs/design/protocol/agent.md, section 4.
 
 use skein_io as io;
 use skein_lib::Duration;
@@ -16,6 +16,14 @@ use smith_protocol_machine as machine;
 use crate as service;
 
 const CONTENT_EDGE_RECORDS: u32 = 1024;
+// Eight workspace tools, wait and sub_agent form the fixed schema inventory.
+const FIXED_TOOLS: u32 = 10;
+// A prompt may also carry one finish or delivery schema.
+const HISTORY_TOOL_RESERVE: u32 = FIXED_TOOLS.checked_add(1).expect("one landing schema");
+// Receiving allowance used by native HTTP and TLS pieces.
+const NATIVE_READ_BYTES: u32 = 19_000;
+// Channel header: kind (u16), flags (u16) and body length (u32).
+const FRAME_HEADER_BYTES: u32 = 8;
 
 mod bounds;
 mod quantities;
@@ -66,9 +74,9 @@ pub fn derive(profile: &Profile, configuration: &Configuration) -> Result<servic
     let path = path::path(profile, configuration)?;
     let mut client = path.client;
     // Receiving maxima cover both configured transports; each destination
-    // takes its own pieces before entering the actual native connection pool.
+    // takes its own pieces before entering the native connection pool.
     client.http.request = tls::client::MAX_PLAINTEXT;
-    client.http.read = 19_000;
+    client.http.read = NATIVE_READ_BYTES;
     client.http.send = tls::client::MAX_PLAINTEXT;
     client.sse.chunk = client.http.read;
     let decoded_call_bytes = u64::from(declared.calls_per_response)
@@ -89,7 +97,7 @@ pub fn derive(profile: &Profile, configuration: &Configuration) -> Result<servic
         .history_blocks
         .checked_add(policy.host_tools)
         .ok_or(derived(Layer::Llm, "history_items"))?
-        .checked_add(11)
+        .checked_add(HISTORY_TOOL_RESERVE)
         .ok_or(derived(Layer::Llm, "history_items"))?;
     validate::window_first(profile, configuration, &domain.session)?;
     // The result bound holds whole capped outcomes; native outgoing text has
@@ -106,7 +114,7 @@ pub fn derive(profile: &Profile, configuration: &Configuration) -> Result<servic
         u32::try_from(smith_channel::Fact::encoded_bound(&bodies).ok_or(derived(Layer::Channel, "output_bytes"))?)
             .or(Err(derived(Layer::Channel, "output_bytes")))?;
     let output_bytes = channel_output(&bodies)?
-        .checked_add(fact.checked_add(8).ok_or(derived(Layer::Channel, "output_bytes"))?)
+        .checked_add(fact.checked_add(FRAME_HEADER_BYTES).ok_or(derived(Layer::Channel, "output_bytes"))?)
         .ok_or(derived(Layer::Channel, "output_bytes"))?;
     let machine = derive_machine(profile, configuration, &domain)?;
     let file_slots = machine.roots.checked_add(machine.operations).ok_or(derived(Layer::Service, "file_slots"))?;
@@ -124,7 +132,7 @@ pub fn derive(profile: &Profile, configuration: &Configuration) -> Result<servic
     charter.change_rule_fields = policy.fields;
     let transcript = transcript(&domain, &client)?;
     let operations = io::operations(&io).ok_or(derived(Layer::Service, "routes"))?;
-    let routes = operations.checked_add(64).ok_or(derived(Layer::Service, "routes"))?;
+    let routes = operations.checked_add(crate::service::ROUTE_HEADROOM).ok_or(derived(Layer::Service, "routes"))?;
     let limits = service::Limits {
         domain,
         channel: channel_limits(&domain, &policy, bodies, charter, transcript, &io)?,
@@ -151,7 +159,8 @@ pub fn derive(profile: &Profile, configuration: &Configuration) -> Result<servic
 /// The root adds the admitted contract's exact generated-schema bytes to each opening.
 pub fn endpoint_allowance(profile: &Profile, endpoint: &Endpoint, tools: &tools::Limits) -> Result<u64, Refusal> {
     let client = endpoint_client(profile, endpoint, 2)?;
-    let inventory = profile.policy.host_tools.checked_add(10).ok_or(derived(Layer::Llm, "prompt_allowance"))?;
+    let inventory =
+        profile.policy.host_tools.checked_add(FIXED_TOOLS).ok_or(derived(Layer::Llm, "prompt_allowance"))?;
     let framing = llm::prompt_allowance(endpoint.provider, &client, inventory)
         .or(Err(derived(Layer::Llm, "prompt_allowance")))?;
     let stated = llm::Stated::from_tools(tools, client.input).ok_or(derived(Layer::Llm, "fixed_schema_bytes"))?;
@@ -183,7 +192,7 @@ fn transcript(
         client.metadata.checked_add(shared::REPLAY_HEADER_BYTES).ok_or(derived(Layer::Transcript, "replay_bytes"))?;
     limits.text_text = client.answer.max(host).max(run.offer_bytes).max(run.answer_bytes);
     // Consecutive reasoning items share one block, which can hold the
-    // completion's whole reasoning share (protocol/limits.md, section 3.3).
+    // completion's whole reasoning share (smith/docs/design/protocol/limits.md, section 3.3).
     limits.opaque_bytes = client
         .output_items
         .checked_mul(client.reasoning)
@@ -259,14 +268,14 @@ fn transcript(
 }
 
 // Endpoint-derived request heads include both credential ceilings and fit one
-// native TLS plaintext piece (skein's llm-connection.md, section 7).
+// native TLS plaintext piece (skein/docs/design/llm-connection.md, section 7).
 fn tls_limits() -> tls::client::Limits {
-    tls::client::Limits { read: 19_000, send: tls::client::MAX_PLAINTEXT, records: tls::client::MAX_RECORD }
+    tls::client::Limits { read: NATIVE_READ_BYTES, send: tls::client::MAX_PLAINTEXT, records: tls::client::MAX_RECORD }
 }
 
 fn channel_output(bodies: &smith_channel::Limits) -> Result<u32, Refusal> {
     let schema = smith_channel::schema(bodies).or(Err(derived(Layer::Channel, "output_bytes")))?;
-    let version = schema.version(5).ok_or(derived(Layer::Channel, "version"))?;
+    let version = schema.version(smith_channel::kind::VERSION).ok_or(derived(Layer::Channel, "version"))?;
     let mut largest = 0;
     for kind in &version.kinds {
         match kind.direction {
@@ -274,7 +283,7 @@ fn channel_output(bodies: &smith_channel::Limits) -> Result<u32, Refusal> {
             skein_channel::Direction::FromInitiator => {}
         }
     }
-    largest.checked_add(8).ok_or(derived(Layer::Channel, "frame_bytes"))
+    largest.checked_add(FRAME_HEADER_BYTES).ok_or(derived(Layer::Channel, "frame_bytes"))
 }
 
 // Rule 6: active field bounds follow their source domain's admission. Sealed
@@ -386,11 +395,11 @@ fn channel_limits(
     let authority = channel_output(&bodies)?;
     let fact = u32::try_from(smith_channel::Fact::encoded_bound(&bodies).ok_or(refusal)?)
         .or(Err(refusal))?
-        .checked_add(8)
+        .checked_add(FRAME_HEADER_BYTES)
         .ok_or(refusal)?;
     let live = u32::try_from(smith_channel::Live::encoded_bound(&bodies).ok_or(refusal)?)
         .or(Err(refusal))?
-        .checked_add(8)
+        .checked_add(FRAME_HEADER_BYTES)
         .ok_or(refusal)?;
     let output_bytes = authority
         .checked_add(fact)
@@ -536,13 +545,14 @@ fn derive_domain(
         compaction_material: room::compaction_material(declared.calls_per_response, run::summary_bytes())
             .ok_or(derived(Layer::Run, "compaction_material"))?,
         schema_costs,
+        effort_bytes: smith_charter::CEILINGS.llm_effort_some,
     }) {
         Ok(limits) => limits,
         Err(field) => return Err(derived(Layer::Run, field.name())),
     };
     validate::host_part_holds_the_role(profile, configuration, &run)?;
     // The entrance splits what the rendered charter leaves among the start's
-    // own directories (protocol/limits.md, section 3.9); this is only the cap.
+    // own directories (smith/docs/design/protocol/limits.md, section 3.9); this is only the cap.
     run.guide_bytes =
         u32::try_from(parts.host.min(u64::from(declared.guide))).or(Err(derived(Layer::Run, "guide_bytes")))?;
     let delegated = domain::feedback_bound(&run).ok_or(derived(Layer::Session, "delegated_result_bytes"))?;
@@ -615,9 +625,11 @@ fn component_limits(
                 .session
                 .protocol_allowance
                 .checked_add(
-                    u64::from(profile.policy.host_tools.checked_add(10).ok_or(derived(Layer::Llm, "tool_bytes"))?)
-                        .checked_mul(u64::try_from(size_of::<domain::llm::Served>()).expect("cell fits u64"))
-                        .ok_or(derived(Layer::Llm, "tool_bytes"))?,
+                    u64::from(
+                        profile.policy.host_tools.checked_add(FIXED_TOOLS).ok_or(derived(Layer::Llm, "tool_bytes"))?,
+                    )
+                    .checked_mul(u64::try_from(size_of::<domain::llm::Served>()).expect("cell fits u64"))
+                    .ok_or(derived(Layer::Llm, "tool_bytes"))?,
                 )
                 .ok_or(derived(Layer::Llm, "tool_bytes"))?,
             rendered_result,
@@ -654,7 +666,7 @@ fn derived(layer: Layer, field: &'static str) -> Refusal {
     Refusal::Derived { limit: LimitName::deployment(layer, field) }
 }
 
-// protocol/limits.md, section 3.5: each conversation's batch and jobs
+// smith/docs/design/protocol/limits.md, section 3.5: each conversation's batch and jobs
 // coexist with one check per directory.
 fn machine_processes(domain: &domain::Limits) -> Option<u32> {
     let tools = domain.session.tools;

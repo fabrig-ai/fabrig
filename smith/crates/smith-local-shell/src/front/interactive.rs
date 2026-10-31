@@ -1,8 +1,8 @@
 //! The line-mode live view (shell.md, section 4.1). Records come typed from
 //! the one sink's best-effort queue. Outcomes still come from the local host.
 use skein_lib::{Duration, Map, Token};
-use smith_agent_service::sinks::View;
 use smith_events::{Model, Quantity, Usage, Verdict};
+use smith_protocol_events::sinks::View;
 
 /// The three reported budget quantities retained for the next response status.
 #[derive(Clone)]
@@ -49,7 +49,7 @@ impl StatusLine {
             count(self.usage.cache_read_tokens),
             count(self.usage.output_tokens),
             self.spent,
-            self.elapsed.as_nanos() / 1_000_000,
+            self.elapsed.as_millis(),
             remaining
         )
         .into_bytes()

@@ -619,8 +619,14 @@ impl World {
         self.observe();
         if self.events.front().is_some_and(|(due, _)| *due <= self.iteration) {
             let (_, event) = self.events.pop_front().expect("due input");
-            self.trace.push(format!("input {event:?}"));
-            engine::step(&mut self.domain, &self.environment, event);
+            if !crate::waits_for_start(&self.domain, &event) {
+                self.trace.push(format!("input {event:?}"));
+            }
+            if crate::waits_for_start(&self.domain, &event) {
+                self.queue(event, 0);
+            } else {
+                engine::step(&mut self.domain, &self.environment, event);
+            }
             engine::release(&mut self.domain, &self.environment, &mut self.out);
             self.observe();
         }
@@ -790,6 +796,9 @@ impl World {
                 engine::Request::Store(engine::StoreRequest::Load { owner, range, after, most, .. }) => {
                     self.pages += 1;
                     let (rows, next) = self.store.page(&range, after.as_ref(), most);
+                    for missing in self.store.take_missing(owner) {
+                        self.queue(engine::Event::Store(missing), self.settings.page_delay);
+                    }
                     self.queue(
                         engine::Event::Store(engine::StoreInput::Loaded { owner, rows, next, texts: None }),
                         self.settings.page_delay,
@@ -914,6 +923,12 @@ impl World {
                     TerminalRecovery::Complete => panic!("ACK after both scripted sends completed"),
                 }
             }
+            Delivery::Link { channel, down: host::LinkDown::Cancel { run, attempt } } => {
+                let assignment = self.assignment.as_ref().expect("retained worker answer");
+                assert_eq!(channel, Token::new(7));
+                assert_eq!((run.raw(), attempt.raw()), (assignment.task, assignment.attempt));
+                assert!(self.terminal_snapshot.is_some(), "only a committed terminal has no adopted claim");
+            }
             Delivery::Link { down: host::LinkDown::Grant { .. }, .. } => {}
             Delivery::TurnBusy { turn, .. } => self.turn(turn),
             Delivery::Result { person, task, words } => self
@@ -940,7 +955,7 @@ impl World {
             | Delivery::Refuse { .. } => {
                 panic!("unexpected walking delivery {delivery:?}")
             }
-            Delivery::Restart(_)
+            Delivery::Start(_)
             | Delivery::Fleet(_)
             | Delivery::ProjectMade { .. }
             | Delivery::ProjectReleased { .. }
@@ -952,6 +967,18 @@ impl World {
                 panic!("internal handoff leaked to world")
             }
         }
+    }
+
+    /// Close this story through the shared cold restart oracle.
+    pub fn close(&mut self) {
+        self.run();
+        crate::oracle::close_world(
+            &mut self.domain,
+            &self.environment,
+            &mut self.store,
+            &mut self.protocol,
+            config(self.settings.seed),
+        );
     }
 
     /// Settle every obligation within a deterministic iteration bound.
@@ -988,6 +1015,8 @@ pub fn run_replayed(settings: Settings) -> World {
     for _ in 0..600 {
         if first.settled() {
             assert!(replay.settled());
+            first.close();
+            replay.close();
             return first;
         }
         first.iterate();

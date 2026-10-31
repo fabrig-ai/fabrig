@@ -74,15 +74,17 @@ pub fn snapshot(path: &Path) -> Vec<Entry> {
 /// Tiny bounds, including capacity for the current marker and interrupted residue.
 #[must_use]
 pub fn limits() -> StoreLimits {
-    StoreLimits { file_bytes: 4096, turns: 2, deliveries: 2, scan_bytes: 4096 }
+    smith_local_protocol::fixture::STORE
 }
 
 /// The fixture's single main endpoint: number 2, dialect 1, without an address.
 #[must_use]
-pub fn endpoints() -> smith_protocol_channel::Endpoints {
+pub fn endpoints() -> smith_protocol_translate::Endpoints {
     let mut entries = List::with_capacity(1);
-    entries.push(smith_protocol_channel::Endpoint { name: b"main".as_slice().into(), number: 2, dialect: 1 }).unwrap();
-    smith_protocol_channel::Endpoints::new(entries)
+    entries
+        .push(smith_protocol_translate::Endpoint { name: b"main".as_slice().into(), number: 2, dialect: 1 })
+        .unwrap();
+    smith_protocol_translate::Endpoints::new(entries)
 }
 
 /// A concrete real directory and the explicitly closed Store/`FileIo`/kernel stack.

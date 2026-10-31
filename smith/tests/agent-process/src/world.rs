@@ -2,10 +2,15 @@
 //! knows channel bytes and kernel terminals, never agent state; the referee
 //! reads those bytes and independent provider observations, including facts
 //! decoded from the host's channel.
-//! Scheduling, replay and process heaps belong to Skein (testing.md, 2–5).
+//! Scheduling, replay and process heaps belong to Skein (smith/docs/design/testing.md, 2–5).
 use crate::fake;
 
 mod coding;
+mod peer;
+mod setup;
+pub use peer::TraceCase;
+use peer::child_charter;
+pub(crate) use setup::{Mode, ParentOptions, Setup};
 pub(crate) mod orders;
 pub use orders::{Order, OrderSnapshot};
 use skein_io::kernel::{self, Done, Fd, Op, Pipe, Spawn, Way};
@@ -47,21 +52,10 @@ pub(crate) struct Parent {
 }
 
 impl Parent {
-    #[expect(clippy::too_many_arguments, reason = "ordinary scenario harness supplies independent startup inputs")]
-    pub(crate) fn new(
-        root: Fd,
-        charter: &[u8],
-        hang_up: bool,
-        tracing: Option<(TraceCase, u32)>,
-        window: u32,
-        environment: bool,
-        message: Option<&smith_channel::Message>,
-        capture: smith_agent_service::sinks::Capture,
-        provider: skein_llm::Provider,
-        value: &smith_channel::GrantValue,
-        live: Option<smith_channel::LiveAsk>,
-        output: u32,
-    ) -> Self {
+    pub(crate) fn new(root: Fd, charter: &[u8], value: &smith_channel::GrantValue, options: ParentOptions<'_>) -> Self {
+        let ParentOptions { hang_up, window, message, live, setup } = options;
+        let Setup { tracing, capture: _, provider, output, mode, order_requests: _ } = setup;
+        let environment = matches!(mode, Mode::Environment);
         let mut peer = if matches!(tracing, Some((TraceCase::StoppedReasoning, _))) {
             crate::host_with_limits(crate::reasoning_configuration().limits.channel)
         } else if output > 0 {
@@ -115,34 +109,7 @@ impl Parent {
         parent.submit(Op::Spawn {
             spawn: Box::new(Spawn {
                 program: b"smith".as_slice().into(),
-                args: if provider == skein_llm::Provider::OpenAi {
-                    Box::new([Box::from(&b"openai"[..])])
-                } else if environment {
-                    Box::new([Box::from(b"environment".as_slice())])
-                } else {
-                    tracing.map_or_else(
-                        || Box::new([]) as Box<[Box<[u8]>]>,
-                        |(case, frames)| {
-                            Box::new([
-                                Box::new([b'0' + case.number()]) as Box<[u8]>,
-                                frames.to_string().into_bytes().into_boxed_slice(),
-                                match capture {
-                                    smith_agent_service::sinks::Capture::None => Box::from(b"none".as_slice()),
-                                    smith_agent_service::sinks::Capture::Calls => Box::from(b"calls".as_slice()),
-                                    smith_agent_service::sinks::Capture::Everything => {
-                                        Box::from(b"everything".as_slice())
-                                    }
-                                },
-                                Box::from(if provider == skein_llm::Provider::Anthropic {
-                                    b"anthropic".as_slice()
-                                } else {
-                                    b"codex".as_slice()
-                                }),
-                                output.to_string().into_bytes().into_boxed_slice(),
-                            ])
-                        },
-                    )
-                },
+                args: setup.arguments(),
                 env: Box::new([]),
                 root,
                 dir: Box::new([]),
@@ -484,83 +451,67 @@ impl Host for Proc {
     }
 }
 fn make(spawn: &Spawn, inherited: &Inherited) -> Proc {
-    let fd = inherited.pipes.iter().find(|(child, _)| *child == 2).expect("stderr").1;
-    let (errors, capture) = crate::AgentErrors::pipe(fd);
-    let mut configuration = if spawn.args.first().is_some_and(|arg| arg.as_ref() == b"coding") {
-        coding::configuration()
-    } else if spawn.args.first().is_some_and(|arg| arg.as_ref() == b"openai") {
-        crate::configuration_for(skein_llm::Provider::OpenAi)
-    } else {
-        crate::configuration()
-    };
-    if spawn.args.first().is_some_and(|arg| arg.as_ref() == b"environment") {
-        configuration.limits.machine.env_bytes = 128;
-        configuration.environment = smith_protocol_machine::Environment::encode(
-            &[
-                smith_protocol_machine::Variable {
-                    name: b"BUILD_FLAG".as_slice().into(),
-                    value: b"configured=value".as_slice().into(),
-                },
-                smith_protocol_machine::Variable { name: b"EMPTY".as_slice().into(), value: Box::new([]) },
-            ],
-            &configuration.limits.machine,
-        )
-        .expect("configured command environment");
-    }
-    if spawn.args.first().is_some_and(|argument| argument.as_ref() == b"roots") {
-        configuration.limits.machine.file_bytes = configuration.limits.domain.session.tools.file_bytes;
-    }
-    let agent = crate::configured(configuration, 7, inherited, errors.clone());
-    Proc::Agent(Box::new(capture.host(agent)), errors)
-}
-
-fn make_tracing(spawn: &Spawn, inherited: &Inherited) -> Proc {
-    let output = std::str::from_utf8(&spawn.args[4]).expect("output argument").parse().expect("output tokens");
-    let mut configuration = if output > 0 {
-        crate::configuration_output(spawn.args[3].as_ref() == b"anthropic", output)
-    } else if spawn.args[0].as_ref() == b"8" {
-        crate::reasoning_configuration()
-    } else {
-        crate::configuration_for(if spawn.args[3].as_ref() == b"anthropic" {
-            skein_llm::Provider::Anthropic
+    let setup = Setup::read(spawn);
+    let mut configuration = if setup.tracing.is_some() {
+        if setup.output > 0 {
+            crate::configuration_output(setup.provider == skein_llm::Provider::Anthropic, setup.output)
+        } else if matches!(setup.tracing, Some((TraceCase::StoppedReasoning, _))) {
+            crate::reasoning_configuration()
         } else {
-            skein_llm::Provider::OpenAiCodex
-        })
+            crate::configuration_for(setup.provider)
+        }
+    } else {
+        match setup.mode {
+            Mode::Coding => coding::configuration(),
+            Mode::Ordinary | Mode::Environment | Mode::Roots => crate::configuration_for(setup.provider),
+        }
     };
-    if spawn.args[0].as_ref() == b"6" {
-        configuration.limits.llm.connection.connections = 3;
-        configuration.limits.llm.connection.calls = 3;
-        configuration.limits.llm.connection.per_endpoint = 3;
+    match setup.mode {
+        Mode::Environment => {
+            configuration.limits.machine.env_bytes = 128;
+            configuration.environment = smith_protocol_machine::Environment::encode(
+                &[
+                    smith_protocol_machine::Variable {
+                        name: b"BUILD_FLAG".as_slice().into(),
+                        value: b"configured=value".as_slice().into(),
+                    },
+                    smith_protocol_machine::Variable { name: b"EMPTY".as_slice().into(), value: Box::new([]) },
+                ],
+                &configuration.limits.machine,
+            )
+            .expect("configured command environment");
+        }
+        Mode::Roots => configuration.limits.machine.file_bytes = configuration.limits.domain.session.tools.file_bytes,
+        Mode::Ordinary | Mode::Coding => {}
     }
-    configuration.limits.channel.channel.output_frames =
-        std::str::from_utf8(&spawn.args[1]).expect("frame argument").parse().expect("frame allowance");
-    if spawn.args.get(5).is_some_and(|argument| argument.as_ref() == b"order-requests") {
-        configuration.limits.io.sends = orders::OUTPUT_SENDS;
-        configuration.limits.llm.connection.io.sends = orders::OUTPUT_SENDS;
+    if let Some((case, frames)) = setup.tracing {
+        if case == TraceCase::ThreeChildren {
+            configuration.limits.llm.connection.connections = 3;
+            configuration.limits.llm.connection.calls = 3;
+            configuration.limits.llm.connection.per_endpoint = 3;
+        }
+        configuration.limits.channel.channel.output_frames = frames;
+        if setup.order_requests {
+            configuration.limits.io.sends = orders::OUTPUT_SENDS;
+            configuration.limits.llm.connection.io.sends = orders::OUTPUT_SENDS;
+        }
+        Proc::Tracing(Box::new(crate::tracing::Tracing::new(configuration, inherited, setup.capture)))
+    } else {
+        let fd = inherited.pipes.iter().find(|(child, _)| *child == 2).expect("stderr").1;
+        let (errors, capture) = crate::AgentErrors::pipe(fd);
+        let agent = crate::configured(configuration, 7, inherited, errors.clone());
+        Proc::Agent(Box::new(capture.host(agent)), errors)
     }
-    let capture = match spawn.args[2].as_ref() {
-        b"none" => smith_agent_service::sinks::Capture::None,
-        b"calls" => smith_agent_service::sinks::Capture::Calls,
-        b"everything" => smith_agent_service::sinks::Capture::Everything,
-        _ => panic!("selected native capture policy"),
-    };
-    Proc::Tracing(Box::new(crate::tracing::Tracing::new(configuration, inherited, capture)))
 }
 
-fn unused_roots(spawn: &Spawn) -> Vec<skein_world::StartupRoot> {
-    let mut roots: Vec<_> = [b"unused-a", b"unused-b"]
+fn unused_roots(_spawn: &Spawn) -> Vec<skein_world::StartupRoot> {
+    let roots: Vec<_> = [b"unused-a", b"unused-b"]
         .into_iter()
         .map(|name| skein_world::StartupRoot {
             name: name.as_slice().into(),
             path: [b"/", name.as_slice()].concat().into(),
         })
         .collect();
-    if spawn.args.len() >= 4 {
-        roots.push(skein_world::StartupRoot {
-            name: b"event-trace".as_slice().into(),
-            path: b"event-trace".as_slice().into(),
-        });
-    }
     roots
 }
 
@@ -599,6 +550,18 @@ impl skein_world::Machine for Machine {
         self.files.close(skein_fake_machine::Opened::new(root.raw()));
     }
 
+    fn open_append(
+        &mut self,
+        root: skein_sim::Handle,
+        path: &[u8],
+        mode: u32,
+    ) -> Result<skein_sim::Handle, kernel::Error> {
+        self.files
+            .open(skein_fake_machine::Opened::new(root.raw()), path, skein_fake_machine::How::Append { mode })
+            .map(|file| skein_sim::Handle::new(file.raw()))
+            .map_err(skein_fake_machine::kernel_error)
+    }
+
     fn step(&mut self, call: skein_sim::Call, answers: &mut Queue<skein_sim::Answer>) {
         if self.coding && coding::check(self, &call, answers) {
             return;
@@ -617,10 +580,10 @@ impl skein_world::Machine for Machine {
     }
 }
 
-// Reads the actual closed append file; no service or simulator decision is consulted.
+// Reads the closed append file; no service or simulator decision is consulted.
 fn read_records(machine: &mut Machine) -> (Vec<smith_events::Record>, Box<[u8]>) {
     let mut records = Vec::new();
-    let mut actual = Box::new([]) as Box<[u8]>;
+    let mut seen = Box::new([]) as Box<[u8]>;
     if let Some(index) = machine.trace_root {
         let root = machine.files.reopen_root(index);
         let file = machine
@@ -628,14 +591,14 @@ fn read_records(machine: &mut Machine) -> (Vec<smith_events::Record>, Box<[u8]>)
             .open(root, b"events.jsonl", skein_fake_machine::How::ReadNoFollow)
             .expect("settled trace exists");
         let size = u32::try_from(machine.files.stat(file).size).expect("finite trace bytes");
-        let bytes = machine.files.read(file, 0, size).expect("read actual trace file");
+        let bytes = machine.files.read(file, 0, size).expect("read trace file");
         machine.files.close(file);
         machine.files.close(root);
         let events = crate::tracing::event_limits(&crate::limits());
         records = crate::events::read(&bytes, &events);
-        actual = bytes.into();
+        seen = bytes.into();
     }
-    (records, actual)
+    (records, seen)
 }
 
 #[derive(Debug)]
@@ -777,7 +740,7 @@ impl skein_world::Referee<Proc> for Referee {
             if matches!(self.tracing, Some((TraceCase::Parked, _))) {
                 assert_eq!(fake::queries(peer).count(), 0, "empty zero-waiting work parks without a provider request");
             } else if self.provider_rejected || matches!(self.tracing, Some((TraceCase::ProviderRejected, _))) {
-                assert!(fake::context_rejected(peer), "the independent provider rejected the actual request");
+                assert!(fake::context_rejected(peer), "the independent provider rejected the request");
             } else if !self.cancel && !matches!(self.credential_story, CredentialStory::Refresh) && !entrance_refused {
                 assert!(fake::replied(peer), "provider answered before agent exit");
             }
@@ -849,198 +812,13 @@ impl skein_world::Referee<Proc> for Referee {
     }
 }
 
-/// Scenario configuration and a settled shared-harness outcome.
-/// The actual run terminal selected by the process scenario's inputs.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum TraceCase {
-    /// The independent provider calls the granted finish tool.
-    Accepted,
-    /// The one-turn budget ends after a plaintext response.
-    Failed,
-    /// A charter model absent from configured declarations is refused before admission.
-    Refused,
-    /// A settled wait parks immediately under its admitted idle policy.
-    Parked,
-    /// The parent signals after observing admission.
-    Cancelled,
-    /// A real delegated child answers before main's accepted finish.
-    ChildAnswered,
-    /// One native completion calls three children together, each of which answers.
-    ThreeChildren,
-    /// The actual independent provider sends a typed HTTP context rejection.
-    ProviderRejected,
-    /// A read is told, then reasoning stops without a finish and needs a nudge.
-    StoppedReasoning,
-}
-
-impl TraceCase {
-    fn number(self) -> u8 {
-        match self {
-            Self::Accepted => 0,
-            Self::Failed => 1,
-            Self::Refused => 2,
-            Self::Parked => 3,
-            Self::Cancelled => 4,
-            Self::ChildAnswered => 5,
-            Self::ThreeChildren => 6,
-            Self::ProviderRejected => 7,
-            Self::StoppedReasoning => 8,
-        }
-    }
-
-    fn peer(self, anthropic: bool, credential: skein_llm::Credential) -> skein_fake_peers::llm::Peer {
-        use skein_fake_llm_domain::api;
-        if self == Self::ChildAnswered || self == Self::ThreeChildren {
-            return child_peer(anthropic, self == Self::ThreeChildren, credential);
-        }
-        if self == Self::StoppedReasoning {
-            return stopped_reasoning_peer();
-        }
-        let turns = match self {
-            Self::Accepted => vec![api::Turn {
-                lines: Box::new([api::Line::Call {
-                    name: b"finish".as_slice().into(),
-                    arguments: br#"{"form":"report","text":"done","fields":{}}"#.as_slice().into(),
-                }]),
-                finish: api::Finish::ToolCalls,
-                tokens: 1,
-            }],
-            Self::Parked => vec![
-                api::Turn {
-                    lines: Box::new([api::Line::Call {
-                        name: b"wait".as_slice().into(),
-                        arguments: b"{}".as_slice().into(),
-                    }]),
-                    finish: api::Finish::ToolCalls,
-                    tokens: 1,
-                },
-                api::Turn {
-                    lines: Box::new([api::Line::Text { text: b"Waiting".as_slice().into() }]),
-                    finish: api::Finish::Stop,
-                    tokens: 1,
-                },
-            ],
-            Self::Failed | Self::Refused | Self::Cancelled => return fake::peer_for(anthropic),
-            Self::ProviderRejected => return fake::rejected(),
-            Self::ChildAnswered | Self::ThreeChildren | Self::StoppedReasoning => {
-                unreachable!("selected actual child scripts above")
-            }
-        };
-        fake::configured(
-            Box::new([api::Script { cue: Box::new([]), turns: turns.into() }]),
-            skein_llm::Credential {
-                value: b"token".as_slice().into(),
-                account_id: b"acc".as_slice().into(),
-                scheme: skein_llm::Scheme::Bearer,
-            },
-            Duration::ZERO,
-        )
-    }
-}
-
-fn child_peer(anthropic: bool, three: bool, credential: skein_llm::Credential) -> skein_fake_peers::llm::Peer {
-    use skein_fake_llm_domain::api;
-    let count = if three { 3 } else { 1 };
-    let mut scripts = Vec::new();
-    let mut calls = Vec::new();
-    for index in 0..count {
-        let cue = if three { format!("@event-child-{index}") } else { "@event-child".to_owned() };
-        scripts.push(api::Script {
-            cue: cue.clone().into_bytes().into_boxed_slice(),
-            turns: Box::new([api::Turn {
-                lines: Box::new([api::Line::Text { text: b"actual child answer".as_slice().into() }]),
-                finish: api::Finish::Stop,
-                tokens: 1,
-            }]),
-        });
-        calls.push(api::Line::Call {
-            name: b"sub_agent".as_slice().into(),
-            arguments: format!("{{\"brief\":\"{cue}\",\"tools\":[],\"max_turns\":2,\"max_seconds\":30}}")
-                .into_bytes()
-                .into_boxed_slice(),
-        });
-    }
-    scripts.push(api::Script {
-        cue: b"@event-main".as_slice().into(),
-        turns: Box::new([
-            api::Turn { lines: calls.into_boxed_slice(), finish: api::Finish::ToolCalls, tokens: 1 },
-            api::Turn {
-                lines: Box::new([api::Line::Call {
-                    name: b"finish".as_slice().into(),
-                    arguments: br#"{"form":"report","text":"done","fields":{}}"#.as_slice().into(),
-                }]),
-                finish: api::Finish::ToolCalls,
-                tokens: 1,
-            },
-        ]),
-    });
-    if anthropic {
-        fake::configured_anthropic(scripts.into_boxed_slice(), credential)
-    } else {
-        fake::configured(scripts.into_boxed_slice(), credential, Duration::ZERO)
-    }
-}
-
-fn child_charter(bytes: &[u8]) -> Box<[u8]> {
-    let mut parts = smith_charter::Charter::decode(&smith_charter::CEILINGS, &mut skein_lib::Reader::new(bytes))
-        .expect("source charter")
-        .into_parts();
-    parts.instructions = b"@event-main".as_slice().into();
-    let mut budget = parts.budget.into_parts();
-    budget.turns = 8;
-    budget.spend = 100;
-    parts.budget = smith_charter::Budget::new(&smith_charter::CEILINGS, budget).expect("child budget");
-    let mut models = skein_lib::List::with_capacity(1);
-    models.push(parts.main.clone()).expect("one permitted child model");
-    parts.models = models;
-    let mut tools = parts.tools.into_parts();
-    let mut families = tools.families.into_parts();
-    families.skein_bools[0] = true;
-    families.skein_bools[3] = true;
-    tools.families = smith_charter::Families::new(&smith_charter::CEILINGS, families).expect("child authority");
-    parts.tools = smith_charter::Tools::new(&smith_charter::CEILINGS, tools).expect("tools");
-    let charter = smith_charter::Charter::new(&smith_charter::CEILINGS, parts).expect("child charter");
-    let mut writer = skein_lib::Writer::new(usize::try_from(charter.measure()).expect("wire size"));
-    charter.encode(&mut writer).expect("wire");
-    writer.finish()
-}
-
-fn environment_peer() -> skein_fake_peers::llm::Peer {
-    use skein_fake_llm_domain::api;
-    fake::configured(
-        Box::new([api::Script {
-            cue: Box::new([]),
-            turns: Box::new([
-                api::Turn {
-                    lines: Box::new([api::Line::Call {
-                        name: b"shell".as_slice().into(),
-                        arguments: br#"{"command":"true"}"#.as_slice().into(),
-                    }]),
-                    finish: api::Finish::ToolCalls,
-                    tokens: 1,
-                },
-                api::Turn {
-                    lines: Box::new([api::Line::Text { text: b"done".as_slice().into() }]),
-                    finish: api::Finish::Stop,
-                    tokens: 1,
-                },
-            ]),
-        }]),
-        skein_llm::Credential {
-            value: b"token".as_slice().into(),
-            account_id: b"acc".as_slice().into(),
-            scheme: skein_llm::Scheme::Bearer,
-        },
-        Duration::ZERO,
-    )
-}
-
 #[expect(
     clippy::struct_excessive_bools,
     reason = "independent cancellation, hangup, completion and environment scenarios"
 )]
 pub struct World {
     seed: u64,
+    setup: Setup,
     provider_rejected: bool,
     charter: Box<[u8]>,
     cancel: bool,
@@ -1052,12 +830,10 @@ pub struct World {
     full_completion: bool,
     outcome: Option<Outcome<Proc, Machine>>,
     window: u32,
-    tracing: Option<(TraceCase, u32)>,
     environment: bool,
     records: Vec<smith_events::Record>,
     trace_bytes: Box<[u8]>,
     message: Option<smith_channel::Message>,
-    capture: smith_agent_service::sinks::Capture,
     anthropic: bool,
     private_grant: bool,
     grant: Option<smith_channel::GrantValue>,
@@ -1065,7 +841,6 @@ pub struct World {
     openai: bool,
     live: Option<smith_channel::LiveAsk>,
     script: Option<Box<[skein_fake_llm_domain::api::Turn]>>,
-    output: u32,
     release: Option<Release>,
     saved_window: Option<Vec<Box<[u8]>>>,
     root_path: Option<Box<[u8]>>,
@@ -1090,6 +865,7 @@ impl World {
     pub fn new(seed: u64, charter: &[u8]) -> Self {
         Self {
             seed,
+            setup: Setup::default(),
             provider_rejected: false,
             charter: charter.into(),
             cancel: false,
@@ -1101,12 +877,10 @@ impl World {
             full_completion: false,
             outcome: None,
             window: 8,
-            tracing: None,
             environment: false,
             records: Vec::new(),
             trace_bytes: Box::new([]),
             message: None,
-            capture: smith_agent_service::sinks::Capture::Everything,
             anthropic: false,
             private_grant: false,
             grant: None,
@@ -1114,7 +888,6 @@ impl World {
             openai: false,
             live: None,
             script: None,
-            output: 0,
             release: None,
             saved_window: None,
             root_path: None,
@@ -1125,7 +898,7 @@ impl World {
 
     /// Derive the scripted model's output capacity through the shipped profile.
     pub fn output_tokens(&mut self, output: u32) {
-        self.output = output;
+        self.setup.output = output;
     }
 
     /// Restore independently observed turns through the host's Start frame.
@@ -1154,7 +927,7 @@ impl World {
         self.observed().get(..self.parent().frames_at_release).expect("the observed prefix at release remains")
     }
 
-    /// Put the host's live-content ask in its actual Start.
+    /// Put the host's live-content ask in its Start.
     pub fn ask(&mut self, text: bool, reasoning: bool, input: bool) {
         self.live = Some(
             smith_channel::LiveAsk::new(
@@ -1193,7 +966,7 @@ impl World {
         self.hold_channel = true;
     }
 
-    /// Make the independent byte provider refuse the actual model request.
+    /// Make the independent byte provider refuse the model request.
     pub fn reject_provider(&mut self) {
         self.provider_rejected = true;
     }
@@ -1203,7 +976,7 @@ impl World {
         self.hang_up_mid_call = true;
     }
 
-    /// Send this concrete message in the actual channel Start.
+    /// Send this concrete message in the channel Start.
     pub fn initial_message(&mut self, name: u64, label: &[u8], text: &[u8]) {
         self.message = Some(
             smith_channel::Message::new(
@@ -1214,17 +987,17 @@ impl World {
         );
     }
 
-    /// Select the actual event destination's capture policy before spawning.
-    pub fn capture(&mut self, capture: smith_agent_service::sinks::Capture) {
-        self.capture = capture;
+    /// Select the event destination's capture policy before spawning.
+    pub fn capture(&mut self, capture: smith_protocol_events::sinks::Capture) {
+        self.setup.capture = capture;
     }
 
-    /// Run the same actual agent against the independent Anthropic byte peer.
+    /// Run the same agent against the independent Anthropic byte peer.
     pub fn anthropic(&mut self) {
         self.anthropic = true;
     }
 
-    /// Give the actual Start and byte peer distinctive secret values for leak checks.
+    /// Give the Start and byte peer distinctive secret values for leak checks.
     pub fn private_grant(&mut self) {
         self.private_grant = true;
     }
@@ -1232,27 +1005,21 @@ impl World {
     /// Grant a shell over startup roots and ask the peer to call it once.
     pub fn configured_environment(&mut self) {
         self.environment = true;
-        let source =
-            smith_charter::Charter::decode(&smith_charter::CEILINGS, &mut skein_lib::Reader::new(&self.charter))
-                .expect("charter");
-        let mut parts = source.into_parts();
-        let mut budget = parts.budget.into_parts();
-        budget.turns = 2;
-        parts.budget = smith_charter::Budget::new(&smith_charter::CEILINGS, budget).expect("two turns");
-        let mut tools = parts.tools.into_parts();
-        tools.families = smith_charter::Families::new(
-            &smith_charter::CEILINGS,
-            smith_charter::FamiliesParts { skein_bools: [true, false, true, false] },
-        )
-        .expect("shell family");
-        parts.tools = smith_charter::Tools::new(&smith_charter::CEILINGS, tools).expect("tools");
-        let record = smith_charter::Charter::new(&smith_charter::CEILINGS, parts).expect("configured charter");
-        let mut writer = skein_lib::Writer::new(usize::try_from(record.measure()).expect("charter bytes"));
-        record.encode(&mut writer).expect("charter encoding");
-        self.charter = writer.finish();
+        self.charter = crate::wire::edit_charter(&self.charter, |parts| {
+            let mut budget = parts.budget.clone().into_parts();
+            budget.turns = 2;
+            parts.budget = smith_charter::Budget::new(&smith_charter::CEILINGS, budget).expect("two turns");
+            let mut tools = parts.tools.clone().into_parts();
+            tools.families = smith_charter::Families::new(
+                &smith_charter::CEILINGS,
+                smith_charter::FamiliesParts { skein_bools: [true, false, true, false] },
+            )
+            .expect("shell family");
+            parts.tools = smith_charter::Tools::new(&smith_charter::CEILINGS, tools).expect("tools");
+        });
     }
 
-    /// Machine-seam observations of commands spawned by the actual agent.
+    /// Machine-seam observations of commands spawned by the agent.
     #[must_use]
     pub fn command_environments(&self) -> Vec<Box<[Box<[u8]>]>> {
         self.outcome
@@ -1273,32 +1040,26 @@ impl World {
 
     /// Observe every native trace fact while constraining channel output slots.
     pub fn observe_facts(&mut self, case: TraceCase, frames: u32) {
-        self.tracing = Some((case, frames));
+        self.setup.tracing = Some((case, frames));
         self.cancel = case == TraceCase::Cancelled;
         if case == TraceCase::ChildAnswered || case == TraceCase::ThreeChildren {
             self.charter = child_charter(&self.charter);
         }
         if case == TraceCase::Parked || case == TraceCase::Refused {
-            let mut parts =
-                smith_charter::Charter::decode(&smith_charter::CEILINGS, &mut skein_lib::Reader::new(&self.charter))
-                    .expect("charter")
-                    .into_parts();
-            if case == TraceCase::Refused {
-                let mut main = parts.main.into_parts();
-                main.model = b"undeclared-model".as_slice().into();
-                parts.main = smith_charter::Llm::new(&smith_charter::CEILINGS, main).expect("undeclared model");
-            }
-            let mut budget = parts.budget.into_parts();
-            budget.turns = if case == TraceCase::Parked { 4 } else { 1 };
-            parts.budget = smith_charter::Budget::new(&smith_charter::CEILINGS, budget).expect("park budget");
-            let mut tools = parts.tools.into_parts();
-            tools.wait = case == TraceCase::Parked;
-            parts.tools = smith_charter::Tools::new(&smith_charter::CEILINGS, tools).expect("wait authority");
-            parts.waiting = Duration::ZERO;
-            let record = smith_charter::Charter::new(&smith_charter::CEILINGS, parts).expect("park charter");
-            let mut writer = skein_lib::Writer::new(usize::try_from(record.measure()).expect("wire size"));
-            record.encode(&mut writer).expect("wire");
-            self.charter = writer.finish();
+            self.charter = crate::wire::edit_charter(&self.charter, |parts| {
+                if case == TraceCase::Refused {
+                    let mut main = parts.main.clone().into_parts();
+                    main.model = b"undeclared-model".as_slice().into();
+                    parts.main = smith_charter::Llm::new(&smith_charter::CEILINGS, main).expect("undeclared model");
+                }
+                let mut budget = parts.budget.clone().into_parts();
+                budget.turns = if case == TraceCase::Parked { 4 } else { 1 };
+                parts.budget = smith_charter::Budget::new(&smith_charter::CEILINGS, budget).expect("park budget");
+                let mut tools = parts.tools.clone().into_parts();
+                tools.wait = case == TraceCase::Parked;
+                parts.tools = smith_charter::Tools::new(&smith_charter::CEILINGS, tools).expect("wait authority");
+                parts.waiting = Duration::ZERO;
+            });
         }
     }
 
@@ -1318,13 +1079,13 @@ impl World {
         &self.records
     }
 
-    /// Exact append-file bytes read after the actual writer has closed.
+    /// Exact append-file bytes read after the writer has closed.
     #[must_use]
     pub fn trace_bytes(&self) -> &[u8] {
         &self.trace_bytes
     }
 
-    /// Check record pairings, per-type counts and actual response totals from the file.
+    /// Check record pairings, per-type counts and response totals from the file.
     pub fn assert_event_conformance(&self) {
         crate::events::check(&self.records);
     }
@@ -1332,16 +1093,16 @@ impl World {
     /// Facts refused by the channel projection, as counted by that component.
     #[must_use]
     pub fn channel_loss(&self) -> u64 {
-        self.observations().channel_loss
+        self.observations().agent.inner().lost_channel_facts()
     }
 
-    /// Live bytes omitted from the owner's channel by the actual service.
+    /// Live bytes omitted from the owner's channel by the service.
     #[must_use]
     pub fn lost_live_bytes(&self) -> u64 {
-        self.observations().lost_live_bytes
+        self.observations().agent.inner().lost_live_bytes()
     }
 
-    /// Destination loss reported in the actual last stream record.
+    /// Destination loss reported in the last stream record.
     #[must_use]
     pub fn trace_loss(&self) -> u64 {
         let Some(smith_events::Record { event: smith_events::Event::SessionEnded(end), .. }) = self.records.last()
@@ -1351,17 +1112,17 @@ impl World {
         end.loss.events
     }
 
-    /// Request an actual pidfd termination signal after observed admission.
+    /// Request a pidfd termination signal after observed admission.
     pub fn signal(&mut self) {
         self.cancel = true;
     }
-    /// Request one more actual termination signal after the parent's channel answer.
+    /// Request one more termination signal after the parent's channel answer.
     pub fn signal_after_answer(&mut self) {
         self.after_answer = self.after_answer.checked_add(1).expect("bounded signal scenario");
-        self.tracing = Some((TraceCase::Failed, 8));
+        self.setup.tracing = Some((TraceCase::Failed, 8));
     }
 
-    /// The parent's actual submitted signal count.
+    /// The parent's submitted signal count.
     #[must_use]
     pub fn signals(&self) -> u32 {
         self.parent().signalled
@@ -1393,11 +1154,11 @@ impl World {
     }
 
     fn maximum_queries(&self) -> usize {
-        let scenario = if matches!(self.tracing, Some((TraceCase::ThreeChildren, _))) {
+        let scenario = if matches!(self.setup.tracing, Some((TraceCase::ThreeChildren, _))) {
             5
-        } else if matches!(self.tracing, Some((TraceCase::ChildAnswered | TraceCase::StoppedReasoning, _))) {
+        } else if matches!(self.setup.tracing, Some((TraceCase::ChildAnswered | TraceCase::StoppedReasoning, _))) {
             3
-        } else if self.environment || self.tracing.is_some() || self.saved_window.is_some() {
+        } else if self.environment || self.setup.tracing.is_some() || self.saved_window.is_some() {
             2
         } else {
             1
@@ -1425,7 +1186,7 @@ impl World {
             admitted_facts: 0,
             answer_facts: 0,
             full_completion: self.full_completion,
-            tracing: self.tracing,
+            tracing: self.setup.tracing,
             maximum_queries: self.maximum_queries(),
             workspace_refusal: self
                 .root_path
@@ -1459,39 +1220,62 @@ impl World {
             spawns: Vec::new(),
             next_root: 1,
             trace_root: None,
-            problem_file: self.root_path.is_some() || matches!(self.tracing, Some((TraceCase::StoppedReasoning, _))),
+            problem_file: self.root_path.is_some()
+                || matches!(self.setup.tracing, Some((TraceCase::StoppedReasoning, _))),
             coding: self.coding,
             checked_files: Vec::new(),
         });
-        world.host_roots(
+        world.host_startup(
             HostedProgram {
                 program: b"smith".as_slice().into(),
-                make: if self.tracing.is_some() { make_tracing } else { make },
+                make,
                 instances: 1,
                 operations: crate::limits().routes.checked_add(8).expect("routes, startup trace and inherited closes"),
             },
             unused_roots,
+            |spawn| {
+                if Setup::read(spawn).tracing.is_some() {
+                    vec![skein_world::StartupAppend {
+                        name: b"trace".as_slice().into(),
+                        root: b"event-trace".as_slice().into(),
+                        path: b"events.jsonl".as_slice().into(),
+                        mode: 0o600,
+                    }]
+                } else {
+                    Vec::new()
+                }
+            },
         );
         world.spawn_root(skein_sim::Handle::new(root.raw()), |root| {
+            let mut setup = self.setup;
+            setup.mode = if self.coding {
+                Mode::Coding
+            } else if self.root_path.is_some() {
+                Mode::Roots
+            } else if self.environment {
+                Mode::Environment
+            } else {
+                Mode::Ordinary
+            };
+            setup.provider = if self.openai {
+                skein_llm::Provider::OpenAi
+            } else if self.anthropic {
+                skein_llm::Provider::Anthropic
+            } else {
+                skein_llm::Provider::OpenAiCodex
+            };
+            setup.order_requests = matches!(self.order, Some(Order::Requests));
             let mut parent = Parent::new(
                 root,
                 &self.charter,
-                self.hang_up,
-                self.tracing,
-                self.window,
-                self.environment,
-                self.message.as_ref(),
-                self.capture,
-                if self.openai {
-                    skein_llm::Provider::OpenAi
-                } else if self.anthropic {
-                    skein_llm::Provider::Anthropic
-                } else {
-                    skein_llm::Provider::OpenAiCodex
-                },
                 &self.grant_value(),
-                self.live.clone(),
-                self.output,
+                ParentOptions {
+                    hang_up: self.hang_up,
+                    window: self.window,
+                    message: self.message.as_ref(),
+                    live: self.live.clone(),
+                    setup,
+                },
             );
             if self.coding {
                 coding::start(&mut parent, &self.charter);
@@ -1499,19 +1283,10 @@ impl World {
             if let Some(path) = &self.root_path {
                 parent.peer = crate::host();
                 parent.peer.play(crate::start_root(&self.charter, path));
-                parent.program_arguments(Box::new([b"roots".as_slice().into()]), None);
             }
             if let Some(turns) = &self.saved_window {
                 parent.peer = crate::host();
                 parent.peer.play(crate::program_world::start_with_window(&self.charter, &self.grant_value(), turns));
-            }
-            if matches!(self.order, Some(Order::Requests)) {
-                let mut startup = parent.submissions.pop().expect("initial spawn");
-                let Op::Spawn { spawn } = &mut startup.kind else { panic!("initial spawn") };
-                let mut arguments = spawn.args.to_vec();
-                arguments.push(b"order-requests".as_slice().into());
-                spawn.args = arguments.into_boxed_slice();
-                parent.submissions.push(startup);
             }
             parent.hold_channel = self.hold_channel;
             parent.refreshing.clone_from(&self.refreshing);
@@ -1526,66 +1301,7 @@ impl World {
             == Some(kernel::Exit::Code(u8::from(self.hang_up || self.hang_up_mid_call || self.refreshing.is_some())))
     }
     fn make_peer(&self) -> skein_fake_peers::llm::Peer {
-        if let Some(turns) = &self.script {
-            fake::scripted(turns.clone(), self.credential(), self.anthropic)
-        } else if self.refreshing.is_some() {
-            fake::configured(
-                Box::new([skein_fake_llm_domain::api::Script {
-                    cue: Box::new([]),
-                    turns: Box::new([skein_fake_llm_domain::api::Turn {
-                        lines: Box::new([skein_fake_llm_domain::api::Line::Text { text: Box::from(&b"Hello"[..]) }]),
-                        finish: skein_fake_llm_domain::api::Finish::Stop,
-                        tokens: 1,
-                    }]),
-                }]),
-                crate::scenario_credential(false, false),
-                Duration::from_secs(1),
-            )
-        } else if self.environment {
-            environment_peer()
-        } else if self.full_completion {
-            fake::configured(
-                Box::new([skein_fake_llm_domain::api::Script {
-                    cue: Box::new([]),
-                    turns: Box::new([skein_fake_llm_domain::api::Turn {
-                        lines: (0..crate::limits().llm.adapter.client.output_items)
-                            .map(|index| skein_fake_llm_domain::api::Line::Text {
-                                // First response metadata is item_1_<index> and final_answer.
-                                text: vec![
-                                    b'x';
-                                    usize::try_from(
-                                        crate::limits().llm.adapter.client.answer
-                                            / crate::limits().llm.adapter.client.output_items
-                                            + u32::from(
-                                                index
-                                                    < crate::limits().llm.adapter.client.answer
-                                                        % crate::limits().llm.adapter.client.output_items
-                                            )
-                                    )
-                                    .expect("bounded text per part")
-                                        - format!("item_1_{index}").len()
-                                        - b"final_answer".len()
-                                        - 9
-                                ]
-                                .into_boxed_slice(),
-                            })
-                            .collect(),
-                        finish: skein_fake_llm_domain::api::Finish::Stop,
-                        tokens: 1,
-                    }]),
-                }]),
-                skein_llm::Credential {
-                    value: b"token".as_slice().into(),
-                    account_id: b"acc".as_slice().into(),
-                    scheme: skein_llm::Scheme::Bearer,
-                },
-                Duration::ZERO,
-            )
-        } else if let Some((case, _)) = self.tracing {
-            case.peer(self.anthropic, self.credential())
-        } else {
-            fake::peer()
-        }
+        peer::Peer::select(self).make(self)
     }
     fn parent(&self) -> &Parent {
         self.outcome
@@ -1687,13 +1403,13 @@ impl World {
     pub fn assert_agent_clean(&self) {
         assert!(self.outcome.as_ref().expect("settled world").killed.is_empty());
     }
-    /// The process status actually received by its parent.
+    /// The process status received by its parent.
     #[must_use]
     pub fn exit(&self) -> Option<kernel::Exit> {
         self.parent().status
     }
 
-    /// Diagnostic bytes actually read from the child's standard-error pipe.
+    /// Diagnostic bytes read from the child's standard-error pipe.
     #[must_use]
     pub fn errors(&self) -> Vec<u8> {
         self.parent().errors.clone()
@@ -1710,62 +1426,6 @@ impl World {
     pub fn trace(&self) -> Vec<String> {
         self.outcome.as_ref().expect("settled world").trace.iter().map(|entry| format!("{entry:?}")).collect()
     }
-}
-
-fn stopped_reasoning_peer() -> skein_fake_peers::llm::Peer {
-    use skein_fake_llm_domain::api;
-    fake::reasoning(Box::new([api::Script {
-        cue: Box::new([]),
-        turns: Box::new([
-            api::Turn {
-                lines: Box::new([api::Line::Call {
-                    name: b"read".as_slice().into(),
-                    arguments: br#"{"path":"problem.txt"}"#.as_slice().into(),
-                }]),
-                finish: api::Finish::ToolCalls,
-                tokens: 1,
-            },
-            api::Turn {
-                lines: Box::new([
-                    api::Line::Opaque {
-                        bytes: format!(
-                            r#"{{"id":"r2","type":"reasoning","encrypted_content":"{}","summary":[]}}"#,
-                            "r".repeat(43_688)
-                        )
-                        .into_bytes()
-                        .into(),
-                    },
-                    api::Line::Opaque {
-                        bytes: format!(
-                            r#"{{"id":"r3","type":"reasoning","encrypted_content":"{}","summary":[]}}"#,
-                            "r".repeat(43_688)
-                        )
-                        .into_bytes()
-                        .into(),
-                    },
-                    api::Line::Opaque {
-                        bytes: format!(
-                            r#"{{"id":"{}","type":"message","phase":"final_answer","role":"assistant","content":[{{"type":"output_text","text":"{}","annotations":[]}}]}}"#,
-                            "m".repeat(54),
-                            "t".repeat(903)
-                        )
-                        .into_bytes()
-                        .into(),
-                    },
-                ]),
-                finish: api::Finish::Stop,
-                tokens: 1,
-            },
-            api::Turn {
-                lines: Box::new([api::Line::Call {
-                    name: b"finish".as_slice().into(),
-                    arguments: br#"{"form":"report","text":"REASONING COMPLETE","fields":{}}"#.as_slice().into(),
-                }]),
-                finish: api::Finish::ToolCalls,
-                tokens: 1,
-            },
-        ]),
-    }]))
 }
 
 mod grants;

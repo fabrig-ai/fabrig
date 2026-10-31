@@ -1,8 +1,8 @@
-//! Counting-allocator driver for agent memory contracts (protocol/limits.md, sections 5 and 11).
+//! Counting-allocator driver for agent memory contracts (smith/docs/design/protocol/limits.md, sections 5 and 11).
 //! Containers are allocated before the meter; every entry point drains output and reclaims.
 
 use crate::TIGHT;
-use skein_lib::{Duration, Env, Queue, ReplyTo, Rng, Time, Token, Wall};
+use skein_lib::{Duration, Env, Queue, Rng, Time, Token, Wall};
 use skein_world::domain::heap::Meter;
 use smith_domain::llm::{Completion, Decoded, Failure, Problem, Prompt, Said, Served, Stop, Usage};
 use smith_domain::run::charter::{Endpoint, Families, Grants, Llm, Tools};
@@ -101,7 +101,7 @@ enum OpKind {
     Search { hits: u32, byte_cap: u32 },
 }
 
-/// Receiving contract observed on this actual root request, independently of
+/// Receiving contract observed on this root request, independently of
 /// stored history capacity. Every terminal must fit all three allowances.
 #[derive(Clone, Copy, Debug)]
 struct Receiving {
@@ -118,8 +118,7 @@ struct Driver {
     runs: Vec<(Token, Token)>,
     workers: u64,
     running: Option<smith_domain_tools::JobNumber>,
-    /// Requests seen, by kind: completions, io, looks, checks, pushes,
-    /// Requests: completions, io, looks, checks, pushes, answers; then actual
+    /// Requests: completions, io, looks, checks, pushes, answers; then
     /// full searches, passing/failing checks, delivered/stale/failed delivery,
     /// delivery after parent cancellation, full provider terminals, invalid semantic
     /// feedback, refused starts, provider terminals winning cancellation, and
@@ -134,7 +133,7 @@ impl Driver {
         while let Some(request) = out.pop() {
             match request {
                 Request::HostCall { .. } | Request::WithdrawHost { .. } => {
-                    panic!("random legacy driver has no host declarations")
+                    panic!("random scripted driver has no host declarations")
                 }
                 Request::Admitted { host_run, run } => self.runs.push((host_run, run)),
                 Request::Answer { answer, .. } => {
@@ -151,19 +150,19 @@ impl Driver {
                 | Request::Unauthorized { .. }
                 | Request::Refused { .. }
                 | Request::Limited { .. }
-                | Request::Yield { .. } => {}
+                | Request::Lower(smith_domain::Lower::Yield { .. }) => {}
                 Request::Deliver { owner, host_run, .. } => {
                     self.seen[4] += 1;
                     self.ask(Asked::Delivery { owner, host_run, stopped: false });
                 }
-                Request::Complete {
+                Request::Lower(smith_domain::Lower::Complete {
                     owner,
                     prompt,
                     max_completion_bytes,
                     max_completion_blocks,
                     decoded_call_bytes,
                     ..
-                } => {
+                }) => {
                     self.seen[0] += 1;
                     let (finish, agents) = served(&prompt);
                     self.observe_prompt(&prompt);
@@ -182,8 +181,8 @@ impl Driver {
                         cancelled: false,
                     });
                 }
-                Request::Cancel { owner } => self.cancel(Family::Llm, owner),
-                Request::Io { owner, op, deadline: _ } => {
+                Request::Lower(smith_domain::Lower::Cancel { owner }) => self.cancel(Family::Llm, owner),
+                Request::Lower(smith_domain::Lower::Io { owner, op, deadline: _ }) => {
                     self.seen[1] += 1;
                     let op = match op {
                         Op::Load { .. } => OpKind::Load,
@@ -195,21 +194,21 @@ impl Driver {
                     };
                     self.ask(Asked::Io { owner, op, cancelled: false });
                 }
-                Request::Job { owner, act } => self.ask(Asked::Job { owner, act }),
-                Request::CancelIo { owner } => self.cancel(Family::Io, owner),
-                Request::Read { owner, .. } => {
+                Request::Lower(smith_domain::Lower::Job { owner, act }) => self.ask(Asked::Job { owner, act }),
+                Request::Lower(smith_domain::Lower::CancelIo { owner }) => self.cancel(Family::Io, owner),
+                Request::Lower(smith_domain::Lower::Read { owner, .. }) => {
                     self.seen[2] += 1;
                     self.ask(Asked::Read { owner });
                 }
-                Request::Probe { owner, .. } => {
+                Request::Lower(smith_domain::Lower::Probe { owner, .. }) => {
                     self.seen[2] += 1;
                     self.ask(Asked::Probe { owner });
                 }
-                Request::Check { owner, .. } => {
+                Request::Lower(smith_domain::Lower::Check { owner, .. }) => {
                     self.seen[3] += 1;
                     self.ask(Asked::Check { owner, aborted: false });
                 }
-                Request::Abort { owner } => self.cancel(Family::Check, owner),
+                Request::Lower(smith_domain::Lower::Abort { owner }) => self.cancel(Family::Check, owner),
             }
         }
     }
@@ -272,39 +271,35 @@ impl Driver {
             let host_run = Token::new(self.workers);
             // Most charters as large as a run may hold, some a byte larger.
             let brief = limits.run.run_bytes - 900 + self.rng.below(901);
-            return Some(Event::Start {
-                messages: Box::default(),
-                answered: Box::default(),
+            return Some(Event::Start(smith_domain::Start {
                 workspace: Some(workspace()),
                 grants: Box::new([smith_domain::Grant {
                     renewable: true,
                     name: smith_domain::GrantName { account: 0, generation: 0 },
                     valid: Duration::from_secs(100_000),
                 }]),
-                reply_to: ReplyTo::new(host_run),
-                host_run,
-                identity: None,
                 activation: self.workers,
                 window: smith_domain::Window { turns: u32::MAX, bytes: u64::MAX },
-                charter: charter(brief),
-                transcript: None,
-            });
+                ..smith_domain::fixture::start(host_run, charter(brief))
+            }));
         }
         if roll == 1 && !self.runs.is_empty() && self.rng.chance(100) {
             return self.cancel_run();
         }
         let asked = self.asked.swap_remove(index(&mut self.rng, self.asked.len()));
         Some(match asked {
-            Asked::Complete { owner, cancelled: true, .. } if self.rng.chance(700) => Event::Cancelled { owner },
+            Asked::Complete { owner, cancelled: true, .. } if self.rng.chance(700) => {
+                Event::Below(smith_domain::Below::Cancelled { owner })
+            }
             Asked::Complete { owner, finish, agents, receiving, cancelled, .. } => {
                 if self.rng.below(10) == 0 {
-                    Event::Failed {
+                    Event::Below(smith_domain::Below::Failed {
                         owner,
                         failure: Failure::Overloaded,
                         evidence: smith_domain::llm::Evidence::Unknown,
                         detail: Box::default(),
                         report: smith_domain::llm::Report::none(),
-                    }
+                    })
                 } else {
                     let completion = self.completion(limits, finish, agents, receiving);
                     let (owned, decoded) = completion_owned(&completion);
@@ -316,28 +311,34 @@ impl Driver {
                     if cancelled {
                         self.seen[16] += 1;
                     }
-                    Event::Completed { owner, completion }
+                    Event::Below(smith_domain::Below::Completed { owner, completion })
                 }
             }
             Asked::Io { owner, cancelled: true, .. } if self.rng.chance(700) => {
-                Event::Done { owner, done: Done::Cancelled }
+                Event::Below(smith_domain::Below::Done { owner, done: Done::Cancelled })
             }
-            Asked::Io { owner, op, .. } => Event::Done { owner, done: self.done(limits, op) },
-            Asked::Job { owner, act } => Event::Done { owner, done: random::job_done(act) },
+            Asked::Io { owner, op, .. } => {
+                Event::Below(smith_domain::Below::Done { owner, done: self.done(limits, op) })
+            }
+            Asked::Job { owner, act } => Event::Below(smith_domain::Below::Done { owner, done: random::job_done(act) }),
             Asked::Read { owner } => {
                 let read = match self.rng.below(4) {
                     0 => run::Read::Missing,
                     _ => run::Read::Text { text: bytes(u64::from(limits.run.guide_bytes)), whole: false },
                 };
-                Event::Read { owner, read }
+                Event::Below(smith_domain::Below::Read { owner, read })
             }
-            Asked::Probe { owner } => Event::Probed { owner, executable: self.rng.chance(700) },
-            Asked::Check { owner, aborted: true } if self.rng.chance(700) => Event::Aborted { owner },
+            Asked::Probe { owner } => {
+                Event::Below(smith_domain::Below::Probed { owner, executable: self.rng.chance(700) })
+            }
+            Asked::Check { owner, aborted: true } if self.rng.chance(700) => {
+                Event::Below(smith_domain::Below::Aborted { owner })
+            }
             Asked::Check { owner, .. } => {
                 let exit = run::Exit::Code { code: u8::from(self.rng.chance(500)) };
                 self.seen[if exit == (run::Exit::Code { code: 0 }) { 7 } else { 8 }] += 1;
                 let ran = run::Ran { exit, output: bytes(u64::from(limits.run.check_tail)), cut: 1000 };
-                Event::Checked { owner, ran }
+                Event::Below(smith_domain::Below::Checked { owner, ran })
             }
             Asked::Delivery { owner, stopped, .. } => {
                 let choice = index(&mut self.rng, 3);
@@ -375,7 +376,7 @@ impl Driver {
         } else {
             None
         };
-        // Actual submissions make this race reachable; the other half retains
+        // submissions make this race reachable; the other half retains
         // arbitrary stale parent cancellation handles from the original sweep.
         let (host_run, run) = pending_delivery.unwrap_or_else(|| self.runs[index(&mut self.rng, self.runs.len())]);
         for asked in &mut self.asked {
@@ -394,7 +395,7 @@ fn served(prompt: &Prompt) -> (bool, bool) {
     let mut offered = (false, false);
     for tool in &prompt.served {
         match tool {
-            Served::Host(_) => panic!("random legacy driver has no host declarations"),
+            Served::Host(_) => panic!("random scripted driver has no host declarations"),
             Served::Wait | Served::Deliver => {}
             Served::Finish => offered.0 = true,
             Served::SubAgent => offered.1 = true,

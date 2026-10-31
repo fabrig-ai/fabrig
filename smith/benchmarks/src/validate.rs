@@ -250,7 +250,8 @@ mod tests {
     use super::*;
 
     fn fixture(name: &str, solved: bool) -> Validation {
-        let root = std::env::temp_dir().join(format!("smith-bench-validate-{name}-{}", std::process::id()));
+        let scratch = skein_scratch::Scratch::new("bench-validate");
+        let root = scratch.path().to_path_buf().join(format!("smith-bench-validate-{name}-{}", std::process::id()));
         fs::create_dir(&root).expect("fresh root");
         let task_root = root.join("task");
         fs::create_dir_all(task_root.join("seed")).expect("seed");
@@ -271,7 +272,7 @@ mod tests {
         let machine = Machine { path: "/usr/bin:/bin".into(), rustup_home: None };
         let entry = CatalogueTask { name: name.into(), manifest: task_root.join("task.toml"), task };
         let mut results = validate_catalogue(&[entry], &[], &guard, &machine, &root).expect("validation");
-        fs::remove_dir_all(root).expect("remove fixture");
+
         results.pop().expect("one task")
     }
 

@@ -1,6 +1,6 @@
 //! The smith agent's tools child domain
-//! (programming-model.md, section 4.5; domain/tools.md, sections 1–5): what a session does to the
-//! checkout. It reads, lists, searches, writes and edits files, and runs
+//! (skein/docs/foundation/programming-model.md, section 4.5; smith/docs/design/domain/tools.md, sections 1–5): what a session does to the
+//! workspace. It reads, lists, searches, writes and edits files, and runs
 //! commands, for the calls a session's LLM makes.
 //!
 //! Sans-io: [`step`] turns events into requests and changes nothing but the
@@ -8,7 +8,7 @@
 //! a kit for each session, hands it the LLM's calls, and routes the file
 //! operations the tools ask for out to io and their terminal events back. The
 //! tools arm no timers: every operation carries its deadline as data, and io
-//! runs the race (programming-model.md, section 5.3).
+//! runs the race (skein/docs/foundation/programming-model.md, section 5.3).
 //!
 //! Both directions are typed: a [`Call`] arrives decoded by the protocol layer
 //! from the JSON the LLM wrote, its paths split into parts ([`Path`]), and an
@@ -18,7 +18,7 @@
 //! What happens is also told as content-free [`Fact`]s, kept in an uncapped
 //! queue the parent drains ([`Domain::pop_fact`]).
 //!
-//! The checkout is shared, knowledge is not. Files are world state, reached
+//! The workspace is shared, knowledge is not. Files are world state, reached
 //! through io and shared by every session; what a session's LLM has read, and
 //! at which version, belongs to its kit, along with the [`Authority`] the
 //! session was opened with. A write needs its current version
@@ -29,7 +29,7 @@
 //! results, authentication, forge state or CI. Output needs no room reservation.
 //! The parent returns each started operation's
 //! one terminal, including a cancellation terminal when cancellation wins
-//! (domain/tools.md, sections 4–6; programming-model.md, sections 5.2
+//! (smith/docs/design/domain/tools.md, sections 4–6; skein/docs/foundation/programming-model.md, sections 5.2
 //! and 7).
 
 #![cfg_attr(not(test), no_std)]
@@ -44,6 +44,8 @@ mod command;
 mod domain;
 mod edit;
 mod facts;
+#[cfg(any(test, feature = "fixture"))]
+pub mod fixture;
 mod flight;
 mod jobs;
 mod kit;
@@ -54,7 +56,7 @@ mod path;
 mod tests;
 mod window;
 
-pub use authority::{Authority, Grants, Repo};
+pub use authority::{Authority, Directory, Grants};
 pub use boundary::{Done, Event, Expect, JobAct, JobProblem, Op, Refusal, Request, Version};
 pub use call::{
     Budget, BytesClamp, Call, Cut, Depth, Effect, Entry, Exit, Fault, Hit, JobEnd, JobNumber, Kind, Mismatch, Next,

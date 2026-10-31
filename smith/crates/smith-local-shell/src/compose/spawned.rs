@@ -42,7 +42,7 @@ fn generated(
         .expect("generated policy")
         .as_object_mut()
         .expect("policy object")
-        .insert("exit_grace".into(), serde_json::json!(exit_grace.as_nanos() / 1_000_000));
+        .insert("exit_grace".into(), serde_json::json!(exit_grace.as_millis()));
     if let Some(trace) = trace {
         let mut path = trace.path.as_os_str().to_os_string();
         path.push(".agent");
@@ -81,14 +81,14 @@ mod tests {
         assert_eq!(child.profile.policy.exit_grace, host.exit_grace);
         let trace = child.trace.unwrap();
         assert_eq!(trace.path, Path::new("product.jsonl.agent"));
-        assert!(trace.capture == smith_agent_service::sinks::Capture::Calls);
+        assert!(trace.capture == smith_protocol_events::sinks::Capture::Calls);
     }
 
     #[test]
     fn program_children_validate_with_their_hosts_derived_grace() {
         // Grace and complete memory use the same declared TLS bounds with one
         // test root; this story does not need the machine's certificate bundle.
-        let trust = skein_scratch::paths::tree().join("tests/protocol-llm/fixtures/root.der");
+        let trust = crate::fixture::trust();
         let source = crate::settings::Source {
             layer: crate::settings::Layer::User,
             path: "program.toml".into(),

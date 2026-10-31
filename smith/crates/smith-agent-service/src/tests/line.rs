@@ -1,4 +1,4 @@
-//! Session read results pass the real protocol guard (domain/session.md, 8.1).
+//! Session read results pass the real protocol guard (smith/docs/design/domain/session.md, 8.1).
 
 use alloc::boxed::Box;
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
@@ -297,7 +297,7 @@ fn opening(line: u64, budget: session::Budget) -> session::record::Opening {
         system: b"read files".as_slice().into(),
         authority: tools::Authority {
             cwd: Box::new([named(b"work")]),
-            repos: Box::new([tools::Repo {
+            repos: Box::new([tools::Directory {
                 host: Box::new([named(b"host")]),
                 mount: Box::new([named(b"work")]),
                 root: ROOT,

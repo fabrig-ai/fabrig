@@ -11,11 +11,11 @@ publish.workspace = true
 skein-lib.workspace = true
 skein-json.workspace = true
 smith-domain.workspace = true
+smith-agent-world.workspace = true
 smith-agent-service.workspace = true
-smith-events.workspace = true
-smith-protocol-llm.workspace = true
-smith-host-domain.workspace = true
-smith-host-world.workspace = true
+smith-protocol-events = { workspace = true, features = ["fixture"] }
+smith-events = { workspace = true, features = ["fixture"] }
+smith-protocol-llm = { workspace = true, features = ["fixture"] }
 smith-session-world.workspace = true
 smith-domain-tools.workspace = true
 smith-tools-world.workspace = true
@@ -41,7 +41,6 @@ unused_must_use = "deny"
 [lints.clippy]
 pedantic = { level = "warn", priority = -1 }
 missing_panics_doc = "allow"          # the world asserts its invariants by panicking
-wildcard_enum_match_arm = "deny"      # a new variant must break the translation
 match_wildcard_for_single_variants = "deny"
 unwrap_used = "deny"
 allow_attributes = "deny"
@@ -52,4 +51,5 @@ disallowed_methods = "deny"
 [dev-dependencies]
 smith-domain-session.workspace = true
 smith-protocol-channel.workspace = true
+smith-protocol-translate.workspace = true
 smith-transcript.workspace = true

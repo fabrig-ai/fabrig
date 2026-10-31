@@ -4,25 +4,28 @@ use std::os::unix::fs::PermissionsExt;
 
 fn check_settings(files: &Files, model: &str, source: &str, extra: &str) -> Settings {
     let (endpoint, _) = model.split_once('/').expect("fixture model");
-    let certificate = skein_scratch::paths::tree().join("tests/protocol-llm/fixtures/root.der");
+    let certificate = crate::fixture::trust();
     let base = format!(
         "model='{model}'\ncredentials='{}'\n[accounts.{endpoint}]\nsource='{source}'\n\
          [endpoints.{endpoint}]\naddress='127.0.0.1:443'\ntrust.system=false\ntrust.der=['{}']\n\
          [environment]\ninherit=[]\n[environment.set]\nPATH='/usr/bin:/bin'\n",
-        files.0.join("unopened").display(),
+        files.path().join("unopened").display(),
         certificate.display()
     );
-    let mut settings = settings::merge(
+    let mut settings = crate::fixture::ready(settings::merge(
         &command::Shared::default(),
-        files.0.clone(),
+        files.path().to_path_buf(),
         &[
-            settings::Source { layer: settings::Layer::User, path: files.0.join("base.toml"), text: base },
-            settings::Source { layer: settings::Layer::User, path: files.0.join("extra.toml"), text: extra.into() },
+            settings::Source { layer: settings::Layer::User, path: files.path().join("base.toml"), text: base },
+            settings::Source {
+                layer: settings::Layer::User,
+                path: files.path().join("extra.toml"),
+                text: extra.into(),
+            },
         ],
-    )
-    .unwrap_or_else(|why| panic!("{}", why.line()));
+    ));
     settings.paths.path = Some("/usr/bin:/bin".into());
-    settings.paths.state_home = Some(files.0.join("state").into());
+    settings.paths.state_home = Some(files.path().join("state").into());
     settings
 }
 
@@ -33,23 +36,24 @@ fn checked(settings: &Settings) -> Box<Report> {
     }
 }
 
-/// Lower test of smith's `end_to_end::local_bad_setting_exits_2_and_names_output_before_a_run` (top tiers test wiring only).
 #[test]
 fn zero_output_names_its_key_and_positive_requirement() {
-    let files = Files::new();
+    let files = Files::new("smith-credentials");
     let settings = check_settings(&files, "codex/gpt-6-luna", "none", "[models.'codex/gpt-6-luna']\noutput=0\n");
     let Verdict::Refused(why) = report(&settings, skein_lib::Wall::EPOCH, &skein_shell::Clock::new()) else {
         panic!("zero model output must refuse check");
     };
     assert_eq!(why.key, "models.codex/gpt-6-luna.output", "output declaration");
     assert_eq!(why.problem, Problem::Input("output must be positive".into()), "positive output requirement");
-    assert!(!files.0.join("state").exists() && !files.0.join("unopened").exists(), "refusal creates no resources");
+    assert!(
+        !files.path().join("state").exists() && !files.path().join("unopened").exists(),
+        "refusal creates no resources"
+    );
 }
 
-/// Lower test of smith's `end_to_end::smith_check_and_startup_refuse_missing_sign_in_registration_keys_by_name` (top tiers test wiring only).
 #[test]
 fn missing_fixed_registration_keys_keep_their_source() {
-    let files = Files::new();
+    let files = Files::new("smith-credentials");
     let base = check_settings(&files, "codex/gpt-6-luna", "sign_in", "");
     let fields = [
         ("client_id", "client"),
@@ -79,29 +83,31 @@ fn missing_fixed_registration_keys_keep_their_source() {
         );
         assert!(refusal.line().contains("base.toml"), "{}", refusal.line());
     }
-    assert!(!files.0.join("unopened").exists(), "registration validation opens no credential store");
+    assert!(!files.path().join("unopened").exists(), "registration validation opens no credential store");
 }
 
-/// Lower test of smith's `end_to_end::the_interactive_default_check_emits_its_declaration_without_starting_resources` (top tiers test wiring only).
 #[test]
 fn default_checks_declare_memory_without_opening_resources() {
     // The standard profile's shipped memory declaration.
-    const MEMORY: u64 = 2_281_701_376;
-    let files = Files::new();
+    let memory_bytes = smith_agent_service::profile::standard().declared.memory;
+    let files = Files::new("smith-credentials");
     for model in ["codex/gpt-6-astra", "anthropic/claude-opus-5-5"] {
         let settings = check_settings(&files, model, "none", "");
         let report = checked(&settings);
         let memory = report.named_limits.iter().find(|limit| limit["name"] == "declared.memory").expect("memory");
-        assert_eq!(memory, &serde_json::json!({"name":"declared.memory","value":MEMORY,"unit":"bytes"}), "{model}");
-        assert!(!files.0.join("state").exists(), "check starts no chat store");
-        assert!(!files.0.join("unopened").exists(), "check starts no credential store");
+        assert_eq!(
+            memory,
+            &serde_json::json!({"name":"declared.memory","value":memory_bytes,"unit":"bytes"}),
+            "{model}"
+        );
+        assert!(!files.path().join("state").exists(), "check starts no chat store");
+        assert!(!files.path().join("unopened").exists(), "check starts no credential store");
     }
 }
 
-/// Lower test of smith's `end_to_end::smith_check_json_lists_the_effective_limits_by_name` (top tiers test wiring only).
 #[test]
 fn effective_limits_keep_their_names_values_and_units() {
-    let files = Files::new();
+    let files = Files::new("smith-credentials");
     let report = checked(&check_settings(&files, "codex/gpt-6-luna", "none", ""));
     let json: serde_json::Value = serde_json::from_str(&render_json(&report)).expect("check JSON");
     let limits = json["limits"].as_array().expect("limits inventory");
@@ -121,15 +127,14 @@ fn effective_limits_keep_their_names_values_and_units() {
     );
 }
 
-/// Lower test of smith's `end_to_end::smith_check_json_warns_of_a_wrapper_cache_outside_the_caches` (top tiers test wiring only).
 #[test]
 fn an_unlisted_wrapper_cache_warns_without_creating_it() {
-    let files = Files::new();
-    let cargo = files.0.join("cargo");
+    let files = Files::new("smith-credentials");
+    let cargo = files.path().join("cargo");
     for cache in ["registry", "git"] {
         std::fs::create_dir_all(cargo.join(cache)).expect("existing Rust cache");
     }
-    let cache = files.0.join("wrapper-cache");
+    let cache = files.path().join("wrapper-cache");
     let extra = format!(
         "[build]\npreset='rust'\n[environment.set]\nCARGO_HOME='{}'\nRUSTC_WRAPPER='sccache'\nSCCACHE_DIR='{}'\n",
         cargo.display(),
@@ -148,22 +153,20 @@ fn an_unlisted_wrapper_cache_warns_without_creating_it() {
     assert!(!cache.exists(), "check never creates the wrapper cache");
 }
 
-/// Lower test of smith's `end_to_end::smith_check_warns_about_an_absent_cache_and_creates_nothing` (top tiers test wiring only).
 #[test]
 fn an_absent_cache_warns_without_being_created() {
-    let files = Files::new();
-    let cache = files.0.join("absent-cache");
+    let files = Files::new("smith-credentials");
+    let cache = files.path().join("absent-cache");
     let extra = format!("[build]\ncaches=['{}']\n", cache.display());
     let report = checked(&check_settings(&files, "codex/gpt-6-luna", "none", &extra));
     assert!(report.warnings.iter().any(|warning| matches!(warning, Warning::CacheAccess { cache: path, reason } if path == &cache && reason == "absent")), "absent cache report");
     assert!(!cache.exists(), "check creates nothing");
 }
 
-/// Lower test of smith's `end_to_end::smith_check_warns_about_a_file_named_as_a_cache_and_keeps_it` (top tiers test wiring only).
 #[test]
 fn a_file_cache_warns_and_keeps_its_bytes() {
-    let files = Files::new();
-    let cache = files.0.join("file-cache");
+    let files = Files::new("smith-credentials");
+    let cache = files.path().join("file-cache");
     std::fs::write(&cache, b"kept").expect("file instead of a cache");
     let extra = format!("[build]\ncaches=['{}']\n", cache.display());
     let report = checked(&check_settings(&files, "codex/gpt-6-luna", "none", &extra));
@@ -171,12 +174,11 @@ fn a_file_cache_warns_and_keeps_its_bytes() {
     assert_eq!(std::fs::read(cache).expect("retained cache file"), b"kept", "check preserves file bytes");
 }
 
-/// Lower test of smith's `end_to_end::check_inspects_an_unused_program_account_without_refusing_startup` (top tiers test wiring only).
 #[test]
 fn an_unused_program_account_warns_without_refusing_check() {
     // SHA-256 of spare starts cf2d9706; the first four bytes name the account.
     const SPARE: u32 = 0xcf2d_9706;
-    let files = Files::new();
+    let files = Files::new("smith-credentials");
     let report = checked(&check_settings(
         &files,
         "codex/gpt-6-luna",
@@ -188,7 +190,7 @@ fn an_unused_program_account_warns_without_refusing_check() {
         json["credentials"]["spare"],
         serde_json::json!({
             "required":false,"provider":"anthropic","source":"program","number":SPARE,
-            "kept":{"kind":"directory","at":files.0.join("unopened/programs/spare")},
+            "kept":{"kind":"directory","at":files.path().join("unopened/programs/spare")},
             "state":"program_not_signed_in","program":"claude_code"
         }),
         "unused account retains its metadata and checked state"
@@ -215,10 +217,6 @@ fn public_directory(path: &std::path::Path, _target: &std::path::Path) {
     std::fs::set_permissions(path, std::fs::Permissions::from_mode(0o755)).expect("public source directory");
 }
 
-/// Lower test of smith's `end_to_end::check_refuses_a_linked_program_account_directory` (top tiers test wiring only).
-/// Lower test of smith's `end_to_end::check_refuses_a_public_program_account_directory` (top tiers test wiring only).
-/// Lower test of smith's `end_to_end::check_refuses_a_linked_programs_directory` (top tiers test wiring only).
-/// Lower test of smith's `end_to_end::check_refuses_a_public_programs_directory` (top tiers test wiring only).
 #[test]
 fn unsafe_program_directories_map_to_failed_account_reports() {
     use std::os::unix::fs::DirBuilderExt;
@@ -231,21 +229,21 @@ fn unsafe_program_directories_map_to_failed_account_reports() {
         ("programs", public_directory, "nonprivate mode bits 0o55"),
     ];
     for &(relative, fault, reason) in rows {
-        let files = Files::new();
-        let executable = files.0.join("unrun-program");
+        let files = Files::new("smith-credentials");
+        let executable = files.path().join("unrun-program");
         std::fs::write(&executable, b"").expect("scratch executable");
         std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o700)).expect("executable mode");
         let extra =
             format!("[programs]\nclaude_code='{}'\n[endpoints.codex]\nprogram='claude_code'\n", executable.display());
         let settings = check_settings(&files, "codex/gpt-6-luna", "program", &extra);
-        let base = files.0.join("unopened");
+        let base = files.path().join("unopened");
         let path = base.join(relative);
         std::fs::DirBuilder::new()
             .recursive(true)
             .mode(0o700)
             .create(base.join("programs/codex"))
             .expect("private source tree");
-        fault(&path, &files.0.join("linked-target"));
+        fault(&path, &files.path().join("linked-target"));
         let report = checked(&settings);
         let json: serde_json::Value = serde_json::from_str(&render_json(&report)).expect("check JSON");
         assert_eq!(json["credentials"]["codex"]["state"], "program_failed", "{relative}: {reason}");
@@ -260,22 +258,21 @@ fn unsafe_program_directories_map_to_failed_account_reports() {
 
 #[test]
 fn the_report_lists_each_program_a_run_may_use() {
-    let files = Files::new();
-    let executable = files.0.join("claude");
+    let files = Files::new("smith-credentials");
+    let executable = files.path().join("claude");
     std::fs::write(&executable, b"").expect("scratch executable");
     std::fs::set_permissions(&executable, std::fs::Permissions::from_mode(0o700)).expect("executable mode");
-    let certificate = skein_scratch::paths::tree().join("tests/protocol-llm/fixtures/root.der").display().to_string();
+    let certificate = crate::fixture::trust().display().to_string();
     let text = format!(
         "model='codex/gpt-6-luna'\ncredentials='{}'\n[environment]\ninherit=['PATH']\n[programs]\nclaude_code='{}'\n[accounts.codex]\nsource='key'\n[endpoints.codex]\naddress='127.0.0.1:443'\nprogram='claude_code'\ntrust.system=false\ntrust.der=['{certificate}']\n",
-        files.0.display(),
+        files.path().display(),
         executable.display()
     );
-    let mut settings = settings::merge(
+    let mut settings = crate::fixture::ready(settings::merge(
         &command::Shared::default(),
-        files.0.clone(),
-        &[settings::Source { layer: settings::Layer::User, path: files.0.join("config.toml"), text }],
-    )
-    .unwrap_or_else(|why| panic!("{}", why.line()));
+        files.path().to_path_buf(),
+        &[settings::Source { layer: settings::Layer::User, path: files.path().join("config.toml"), text }],
+    ));
     settings.paths.path = Some("/usr/bin:/bin".into());
     let report = match report(&settings, skein_lib::Wall::from_nanos(0), &skein_shell::Clock::new()) {
         Verdict::Ready(report) => report,
@@ -297,5 +294,5 @@ fn the_report_lists_each_program_a_run_may_use() {
         "programs immediately follow the tools"
     );
     assert!(text.contains(&format!("{program_line}\nenvironment:")), "programs precede the environment");
-    assert!(!files.0.join("programs").exists(), "building the report never prepares the program source");
+    assert!(!files.path().join("programs").exists(), "building the report never prepares the program source");
 }

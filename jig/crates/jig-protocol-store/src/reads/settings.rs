@@ -17,7 +17,7 @@ pub(super) fn read(store: &mut Store, range: &reads::Range) -> Result<reads::Loa
     // one physical page at a time, so the store's encoded-page cap cannot cut
     // off the newest end of this interval. The core reverses the result.
     for _ in 0..range.rows {
-        let walked = pages::walk(store, &intervals, after.as_ref(), 1).ok_or(Failure::Corrupt)?;
+        let walked = pages::reader::walk(store, &intervals, after.as_ref(), 1).or(Err(Failure::Corrupt))?;
         for item in walked.rows {
             let (value, _) = pages::decode(store, item.row).ok_or(Failure::Corrupt)?;
             let value = match value {

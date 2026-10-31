@@ -590,7 +590,7 @@ fn escaped_calls_at_the_input_edge_and_one_over_complete_beside_a_normal_call() 
                 };
                 assert_eq!(id.as_ref(), b"call_0000000000000001");
                 assert_eq!(name.as_ref(), b"caller_tool");
-                assert_eq!(*bytes, u64::try_from(arguments.len()).expect("bounded bytes"));
+                assert_eq!(*bytes, skein_lib::len_u64(arguments.len()));
                 let mut next = input(provider, 2);
                 next.prompt.messages = Box::new([Message { role: Role::Assistant, content: answer.content.clone() }]);
                 assert_eq!(client::Client::prepare(next, &limits()).err(), Some(skein_llm::Error::Invalid));

@@ -1,5 +1,5 @@
 //! Raw optional token totals compare only within the same session/run.
-//! Missing provider counts remain unknown (benchmarks.md11.1, events.md3.3/3.5).
+//! Missing provider counts remain unknown (benchmarks.md, section 11.1; protocol/events.md, sections 3.3 and 3.5).
 
 use super::Observer;
 use crate::Measure;
@@ -31,28 +31,10 @@ pub(super) fn check(observer: &Observer) -> Measure<bool> {
                         *total = total.and_then(|total| value.and_then(|value| total.checked_add(value)));
                     }
                 }
-                Event::RunCompleted(run) => {
-                    if runs.insert(run.run, counts(&run.usage)).is_some() {
-                        return Measure::Observed { value: false };
-                    }
+                Event::RunCompleted(run) if runs.insert(run.run, counts(&run.usage)).is_some() => {
+                    return Measure::Observed { value: false };
                 }
-                Event::MessageReceived(_)
-                | Event::MessageRead(_)
-                | Event::MessageUnread(_)
-                | Event::Budget(_)
-                | Event::SessionStarted(_)
-                | Event::SessionEnded(_)
-                | Event::RunStarted(_)
-                | Event::ConversationOpened(_)
-                | Event::ConversationClosed(_)
-                | Event::ResponseStarted(_)
-                | Event::TextDelta(_)
-                | Event::ToolStarted(_)
-                | Event::JobEnded(_)
-                | Event::ToolCompleted(_)
-                | Event::CheckStarted(_)
-                | Event::CheckCompleted(_)
-                | Event::Notice(_) => {}
+                _ => {}
             }
         }
         if runs.is_empty() || sums.keys().any(|run| !runs.contains_key(run)) {

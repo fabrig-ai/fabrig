@@ -1,5 +1,5 @@
 //! Typed values retained by the local parent and its spawned child.
-use super::agent::{RunStart, answer_text, delivery_to_host, name_to_host, prepare_start, saved_reply_to_host};
+use super::agent::{RunStart, answer_text, prepare_start, saved_reply_to_host};
 use alloc::boxed::Box;
 use smith_domain::run;
 use smith_host_domain as host;
@@ -61,13 +61,10 @@ fn a_local_start_keeps_its_concrete_charter_and_run_identity() {
 }
 
 #[test]
-fn a_saved_delivery_retains_its_name_receipt_and_failure_tail() {
-    let name = run::CallName { activation: 9, completion: 3, position: 1 };
-    assert_eq!(name_to_host(name), host::channel::CallName { activation: 9, completion: 3, position: 1 });
+fn a_saved_delivery_retains_its_receipt_and_failure_tail() {
     let receipt = run::Receipt::new(0, Box::from(&b"commit abc"[..])).expect("receipt");
     let delivered = run::Delivered::new(Box::from([receipt])).expect("delivery");
-    let saved = saved_reply_to_host(smith_domain::Answered::Delivery(Box::new(run::Delivery::Delivered(delivered))))
-        .expect("saved answer");
+    let saved = saved_reply_to_host(smith_domain::Answered::Delivery(Box::new(run::Delivery::Delivered(delivered))));
     let host::channel::SavedReply::Delivery(answer) = saved else { panic!("delivery answer") };
     let host::Delivery::Delivered(answer) = *answer else { panic!("landed terminal") };
     assert_eq!(answer.receipts()[0].text(), b"commit abc");
@@ -77,7 +74,7 @@ fn a_saved_delivery_retains_its_name_receipt_and_failure_tail() {
         reason: run::DeliveryReason::TimedOut,
         diagnostic: run::Diagnostic::new(b"git timed out", 7),
     };
-    let converted = delivery_to_host(run::Delivery::Failed(failed)).expect("failed terminal");
+    let converted = run::Delivery::Failed(failed);
     let host::Delivery::Failed(converted) = converted else { panic!("failure") };
     assert_eq!(converted.reason, host::DeliveryReason::TimedOut);
     assert_eq!(converted.diagnostic.output(), b"git timed out");

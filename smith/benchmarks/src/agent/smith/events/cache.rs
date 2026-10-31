@@ -1,7 +1,7 @@
-//! Cache reuse joins adjacent requests only within an actual affinity/window.
+//! Cache reuse joins adjacent requests only within an affinity/window.
 //! R sums reported cache reads over cacheable predecessors' disjoint prompt
-//! counts; the probe's 1,152-token eligibility is findings/context.md C10,
-//! with the threshold and full-miss rate in benchmarks.md, section11.1.
+//! counts; eligibility, the threshold and full-miss rate follow
+//! benchmarks.md, section 11.1.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -32,7 +32,7 @@ fn measured(observer: &Observer) -> Result<(u128, u128, u64, u64), String> {
             if let Event::ResponseStarted(value) = &record.event {
                 let opening = openings
                     .get(&(value.run, value.conversation))
-                    .ok_or("cache request lacks its actual conversation opening")?;
+                    .ok_or("cache request lacks its conversation opening")?;
                 if opening.model != value.model || value.window == 0 {
                     return Err("cache request lacks a valid matching model/window".into());
                 }
@@ -48,7 +48,7 @@ fn measured(observer: &Observer) -> Result<(u128, u128, u64, u64), String> {
                 if !completed.insert(identity) {
                     continue;
                 }
-                let scope = requests.get(&identity).ok_or("cache response lacks its actual request")?;
+                let scope = requests.get(&identity).ok_or("cache response lacks its request")?;
                 // A failed attempt without reported prompt usage cannot supply a
                 // known predecessor; do not bridge across it to an older request.
                 if let Some(predecessor) = previous.insert(*scope, prompt(&value.usage)) {
@@ -71,7 +71,7 @@ fn measured(observer: &Observer) -> Result<(u128, u128, u64, u64), String> {
         }
     }
     if eligible == 0 {
-        return Err("no request has a reported cacheable predecessor in its actual window".into());
+        return Err("no request has a reported cacheable predecessor in its window".into());
     }
     Ok((reads, predecessors, eligible, misses))
 }

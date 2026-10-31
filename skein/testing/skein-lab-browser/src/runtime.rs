@@ -692,12 +692,7 @@ impl Runtime {
             Ok(pages) => pages,
             Err((why, detail)) => return Ok(calls::refused(why, detail)),
         };
-        let pages = Pages::verbatim(
-            pages,
-            self.ienv.now,
-            self.ienv.wall,
-            u64::try_from(self.origins.len()).expect("eight origins"),
-        );
+        let pages = Pages::verbatim(pages, self.ienv.now, self.ienv.wall, skein_lib::len_u64(self.origins.len()));
         self.origins.insert(name.clone(), pages);
         loop {
             if let Some(addr) = self.origins.get(&name).and_then(|p| p.addr) {

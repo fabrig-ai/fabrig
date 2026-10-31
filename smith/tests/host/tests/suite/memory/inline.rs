@@ -50,9 +50,9 @@ fn two_full_inline_slots_and_their_emitted_prompts_stay_under_the_ceiling() {
                 emitted = true;
             }
         }
-        assert!(emitted, "each composed root reaches the actual provider boundary");
+        assert!(emitted, "each composed root reaches the provider boundary");
         meter.check(measured, INLINE_SLOTS_CEILING, &limits);
     }
-    assert_eq!(domain.hosted(), 2, "maximum configured slots actually retained");
+    assert_eq!(domain.hosted(), 2, "maximum configured slots retained");
     assert!(meter.held() > 0);
 }

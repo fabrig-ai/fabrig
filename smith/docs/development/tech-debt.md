@@ -75,10 +75,12 @@ Four kinds of debt came with it.
 
 ### Strict-subset exceptions grew
 
-- **Seen.** In the production domain crates, the `while` loops and the
-  `expect(clippy::…)` suppressions grew from 90 at `30259d8` to 102.
-  The rules forbid `while` (AGENTS.md; skein's programming-model.md).
-- **Why it matters.** The exceptions are few, but each one is a rule the
-  compiler cannot check, so it erodes without review.
-- **Pays it back:** one audit of the domain crates. Remove each
-  exception, or justify it beside the code.
+- **Seen.** `while` and `loop` are at 0 in the seven production domain
+  crates, and counted as old forms so they stay there. 47
+  `expect(clippy::…)` suppressions remain in them, several with reasons
+  that do not hold (a `manual_let_else` on an `Option` or `Result`
+  match, which programming-model.md 10.2 allows as `let else`).
+- **Why it matters.** Each suppression is a rule the compiler no longer
+  checks at that site, so a false reason erodes it without review.
+- **Pays it back:** the false reasons are counted as old forms; remove
+  each, or justify it beside the code.

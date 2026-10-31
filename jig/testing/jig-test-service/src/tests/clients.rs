@@ -29,10 +29,10 @@ fn the_listener_opens_before_the_restart_begins() {
     ));
     engine::iterate(engine, Time::ZERO, Wall::EPOCH);
     assert!(!engine.begin);
-    let Some(jig_protocol_store::Event::Restored { rows, next, .. }) = engine.store.above.pop() else {
+    let Some(jig_protocol_store::Event::Page { items, next, .. }) = engine.store.above.pop() else {
         panic!("restart load completed by the real store")
     };
-    assert_eq!(rows.len(), 0);
+    assert_eq!(items.len(), 0);
     assert_eq!(next, None);
 }
 #[test]
@@ -428,8 +428,7 @@ const RESTART_TURNS: u32 = 64; // The real-store restart fixture's settlement bu
 fn restore_people(engine: &mut crate::Engine) {
     for _ in 0..RESTART_TURNS {
         crate::store::answer(engine);
-        if let Some(root::Event::Core(core::Event::People(people::Event::Restored))) = engine.events.iter().next() {
-            engine::iterate(engine, Time::ZERO, Wall::EPOCH);
+        if engine.domain.core_mut().start_phase() == Some(core::start::Phase::Sweep) {
             return;
         }
         engine::iterate(engine, Time::ZERO, Wall::EPOCH);
@@ -469,7 +468,7 @@ fn sign_in_is_not_ready_until_restart_decisions_open() {
         peer.pump(engine);
         withhold_store(engine, &mut held);
     }
-    assert!(!engine.begin, "RestartBegin was submitted");
+    assert!(!engine.begin, "StartBegin was submitted");
     assert!(!engine.domain.ready(), "remaining store completions still hold decisions closed");
     assert!(!held.is_empty(), "store completions remain withheld");
     assert_eq!(sign_in_answer(engine, &peer), w::SignInAnswer::NotReady);

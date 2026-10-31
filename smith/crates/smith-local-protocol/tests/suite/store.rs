@@ -12,8 +12,8 @@ mod tests {
         local::ChatState {
             identity: smith_domain::run::Identity::new([42; 16]),
             activation,
-            next_message: 1,
-            read: None,
+            next_message: 17,
+            read: Some(skein_lib::Token::new(11)),
         }
     }
     fn empty(event: local::Event) {
@@ -22,13 +22,13 @@ mod tests {
         };
         assert!(deliveries.is_empty());
     }
-    fn marker(store: bool, transcript: bool) -> Box<[u8]> {
+    fn marker(store: bool, transcript: bool, position: usize) -> Box<[u8]> {
         let mut parts = format::layouts().into_parts();
         if store {
-            parts.store[0] ^= 1;
+            parts.store[position] ^= 1;
         }
         if transcript {
-            parts.transcript[0] ^= 1;
+            parts.transcript[position] ^= 1;
         }
         let value = wire::Layouts::new(&wire::CEILINGS, parts).unwrap();
         let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("measured bytes fit usize"));
@@ -42,9 +42,16 @@ mod tests {
         let local::Event::StoreFailed { turn: None, reason } = event else {
             panic!("refusal: {event:?}");
         };
-        if let Some(why) = why {
-            assert_eq!(reason, local::StoreFailure::OlderBuild { why });
-        }
+        let expected = match why {
+            Some(why) => local::StoreFailure::OlderBuild { why },
+            None => local::StoreFailure::Read,
+        };
+        assert_eq!(reason, expected);
+        let requests: &[Kind] = match why {
+            Some(Older::Unrecorded) => &[Kind::Load, Kind::Scan],
+            Some(Older::Layout(_)) | None => &[Kind::Load],
+        };
+        assert_eq!(disk.requests(), requests);
         assert_eq!(before, snapshot(disk.path()));
         assert!(
             disk.requests().iter().all(|kind| matches!(kind, Kind::Load | Kind::Scan | Kind::Close)),
@@ -54,6 +61,15 @@ mod tests {
         disk.close();
         assert_eq!(before, snapshot(disk.path()));
     }
+    fn compatible(path: &std::path::Path) {
+        fs::write(path.join("format"), format::file().bytes).unwrap();
+    }
+
+    fn write_state(path: &std::path::Path, value: local::ChatState) {
+        let file = smith_local_protocol::save_state(value);
+        fs::write(path.join("state"), file.bytes).unwrap();
+    }
+
     fn old_records(disk: &Disk) {
         for name in ["state", "fresh"] {
             fs::write(disk.path().join(name), smith_local_protocol::save_state(state(9)).bytes).unwrap();
@@ -82,7 +98,16 @@ mod tests {
 
     #[test]
     fn every_unrecorded_old_record_is_refused_before_any_mutation() {
-        for name in ["state", "fresh", "0000000001.turn", "00000000000000000001.0000000001.0000000000", "foreign"] {
+        for name in [
+            "state",
+            "fresh",
+            "0000000001.turn",
+            "00000000000000000001.0000000001.0000000000",
+            "foreign",
+            "turn-00000001",
+            "delivery",
+            "unrelated",
+        ] {
             let mut disk = Disk::new();
             fs::write(disk.path().join(name), b"retained bytes").unwrap();
             refused(&mut disk, Some(Older::Unrecorded));
@@ -96,10 +121,12 @@ mod tests {
             (false, true, StoreFamily::Transcript),
             (true, true, StoreFamily::Store),
         ] {
-            let mut disk = Disk::new();
-            old_records(&disk);
-            fs::write(disk.path().join("format"), marker(store, transcript)).unwrap();
-            refused(&mut disk, Some(Older::Layout(family)));
+            for position in 0..32 {
+                let mut disk = Disk::new();
+                old_records(&disk);
+                fs::write(disk.path().join("format"), marker(store, transcript, position)).unwrap();
+                refused(&mut disk, Some(Older::Layout(family)));
+            }
         }
     }
 
@@ -108,7 +135,13 @@ mod tests {
         let valid = format::file().bytes;
         let mut wrong = valid.to_vec();
         wrong[1] = 2;
-        for bytes in [vec![], b"not a marker".to_vec(), valid[..valid.len() - 1].to_vec(), wrong, vec![0; 67]] {
+        let mut trailing = valid.to_vec();
+        trailing.extend_from_slice(b"trailing record");
+        let mut markers = vec![b"not a marker".to_vec(), wrong, vec![0; 67], trailing];
+        for prefix in 0..valid.len() {
+            markers.push(valid[..prefix].to_vec());
+        }
+        for bytes in markers {
             let oversized = bytes.len() > usize::try_from(format::max_bytes()).unwrap();
             let mut disk = Disk::new();
             old_records(&disk);
@@ -123,7 +156,8 @@ mod tests {
             let mut disk = Disk::new();
             old_records(&disk);
             if symlink {
-                std::os::unix::fs::symlink("state", disk.path().join("format")).unwrap();
+                fs::write(disk.path().join("valid-target"), format::file().bytes).unwrap();
+                std::os::unix::fs::symlink("valid-target", disk.path().join("format")).unwrap();
             } else {
                 fs::create_dir(disk.path().join("format")).unwrap();
             }
@@ -132,17 +166,18 @@ mod tests {
     }
 
     #[test]
-    fn only_regular_exact_reserved_residue_can_admit_interrupted_empty_creation() {
+    fn near_miss_and_nonregular_reserved_residue_refuses_unchanged() {
         let residue = "format.skein-0123456789abcdef";
-        let mut disk = Disk::new();
-        fs::write(disk.path().join(residue), b"partial marker").unwrap();
-        let before = snapshot(disk.path());
-        empty(disk.drive(StoreRequest::Load));
-        let after = snapshot(disk.path());
-        assert!(after.contains(&before[0]), "residue is retained with its inode and bytes");
-        disk.close();
-        for name in ["format.skein-0123456789abcdeF", "format.skein-0123456789abcde", "format.skein-0123456789abcdef0"]
-        {
+        for name in [
+            "format.skein-0123456789abcdeF",
+            "format.skein-0123456789abcde",
+            "format.skein-0123456789abcdef0",
+            "format.skein-0123456789abcdeg",
+            "format.skein-0123456789abcdef.extra",
+            "state.skein-0123456789abcdef",
+            "xformat.skein-0123456789abcdef",
+            ".format.skein-0123456789abcdef",
+        ] {
             let mut disk = Disk::new();
             fs::write(disk.path().join(name), b"unknown").unwrap();
             refused(&mut disk, Some(Older::Unrecorded));
@@ -154,21 +189,13 @@ mod tests {
                 1 => fs::create_dir(disk.path().join(residue)).unwrap(),
                 2 => {
                     fs::write(disk.path().join(residue), b"partial").unwrap();
-                    fs::write(disk.path().join("state"), b"old").unwrap();
+                    fs::write(disk.path().join("format.skein-fedcba9876543210"), b"partial").unwrap();
+                    fs::write(disk.path().join("fresh"), b"old pending recovery").unwrap();
                 }
                 _ => unreachable!(),
             }
             refused(&mut disk, Some(Older::Unrecorded));
         }
-    }
-
-    #[test]
-    fn an_incomplete_absence_scan_never_adopts_the_directory() {
-        let mut disk = Disk::new();
-        for index in 0_u8..9_u8 {
-            fs::write(disk.path().join(format!("format.skein-{index:016x}")), b"partial").unwrap();
-        }
-        refused(&mut disk, Some(Older::Unrecorded));
     }
 
     #[test]
@@ -192,33 +219,34 @@ mod tests {
 
     #[test]
     fn selecting_a_different_root_resets_the_check() {
-        let mut disk = Disk::new();
-        fs::create_dir(disk.path().join("current")).unwrap();
-        fs::write(disk.path().join("current/format"), format::file().bytes).unwrap();
-        fs::create_dir(disk.path().join("older")).unwrap();
-        fs::write(disk.path().join("older/fresh"), smith_local_protocol::save_state(state(9)).bytes).unwrap();
-        assert!(matches!(
-            disk.drive(StoreRequest::SelectChat { name: b"current".as_slice().into(), create: false }),
-            local::Event::ChatSelected { result: Ok(()), .. }
-        ));
-        empty(disk.drive(StoreRequest::Load));
-        assert!(matches!(
-            disk.drive(StoreRequest::SaveState { state: state(1), history: History::Kept }),
-            local::Event::StateSaved
-        ));
-        assert!(matches!(
-            disk.drive(StoreRequest::SelectChat { name: b"older".as_slice().into(), create: false }),
-            local::Event::ChatSelected { result: Ok(()), .. }
-        ));
-        let before = snapshot(&disk.path().join("older"));
-        disk.clear_requests();
-        assert!(matches!(
-            disk.drive(StoreRequest::Load),
-            local::Event::StoreFailed { reason: local::StoreFailure::OlderBuild { why: Older::Unrecorded }, .. }
-        ));
-        assert_eq!(before, snapshot(&disk.path().join("older")));
-        assert_eq!(disk.requests(), [Kind::Load, Kind::Scan]);
-        disk.close();
+        for mismatched in [false, true] {
+            let mut disk = Disk::new();
+            fs::create_dir(disk.path().join("current")).unwrap();
+            fs::write(disk.path().join("current/format"), format::file().bytes).unwrap();
+            fs::create_dir(disk.path().join("older")).unwrap();
+            fs::write(disk.path().join("older/fresh"), smith_local_protocol::save_state(state(9)).bytes).unwrap();
+            if mismatched {
+                fs::write(disk.path().join("older/format"), marker(false, true, 0)).unwrap();
+            }
+            assert!(matches!(
+                disk.drive(StoreRequest::SelectChat { name: b"current".as_slice().into(), create: false }),
+                local::Event::ChatSelected { result: Ok(()), .. }
+            ));
+            empty(disk.drive(StoreRequest::Load));
+            assert!(matches!(
+                disk.drive(StoreRequest::SaveState { state: state(1), history: History::Kept }),
+                local::Event::StateSaved
+            ));
+            assert!(matches!(
+                disk.drive(StoreRequest::SelectChat { name: b"older".as_slice().into(), create: false }),
+                local::Event::ChatSelected { result: Ok(()), .. }
+            ));
+            let before = snapshot(&disk.path().join("older"));
+            disk.clear_requests();
+            let expected = if mismatched { Older::Layout(StoreFamily::Transcript) } else { Older::Unrecorded };
+            refused(&mut disk, Some(expected));
+            assert_eq!(before, snapshot(&disk.path().join("older")));
+        }
     }
 
     #[test]
@@ -230,21 +258,8 @@ mod tests {
             local::Event::StateSaved
         ));
         let turn = smith_domain::Turn {
-            version: smith_domain::session::record::VERSION,
-            kind: smith_domain::session::record::Kind::First(Box::new(smith_domain::session::record::Opener {
-                affinity: smith_domain::llm::Affinity { key: [0; 16], thread: 0 },
-                account: None,
-                backend: smith_domain::session::record::Backend::Direct,
-            })),
             endpoint: Some(smith_domain::session::llm::Endpoint(2)),
-            dialect: 1,
-            model: b"model".as_slice().into(),
-            effort: None,
-            sequence: 1,
-            usage: smith_domain::session::llm::Usage::ZERO,
-            spent: 0,
-            jobs: 0,
-            messages: Box::new([]),
+            ..smith_local_domain::fixture::turn()
         };
         assert!(matches!(
             disk.drive(StoreRequest::SaveTurn {
@@ -269,6 +284,81 @@ mod tests {
         assert!(disk.requests().iter().all(|kind| matches!(kind, Kind::Load | Kind::Scan)));
         disk.close();
     }
+    #[test]
+    fn marker_at_file_bound_is_adopted() {
+        let mut bounds = disk::limits();
+        bounds.file_bytes = format::max_bytes();
+        let mut disk = Disk::bounded(bounds);
+        compatible(disk.path());
+        let before = snapshot(disk.path());
+        let terminal = disk.drive(StoreRequest::Load);
+        disk.close();
+        empty(terminal);
+        assert_eq!(snapshot(disk.path()), before);
+    }
+
+    #[test]
+    fn compatible_marker_loads_the_exact_public_state() {
+        let mut disk = Disk::new();
+        compatible(disk.path());
+        let expected = state(23);
+        write_state(disk.path(), expected);
+        let before = snapshot(disk.path());
+        let terminal = disk.drive(StoreRequest::Load);
+        disk.close();
+        assert!(
+            matches!(&terminal, local::Event::Loaded { state: Some(value), transcript: None, deliveries } if *value == expected && deliveries.is_empty()),
+            "{terminal:?}"
+        );
+        assert_eq!(snapshot(disk.path()), before);
+    }
+
+    #[test]
+    fn repeated_load_refreshes_state_on_the_checked_root() {
+        let mut disk = Disk::new();
+        compatible(disk.path());
+        let _loaded = disk.drive(StoreRequest::Load);
+        let expected = state(29);
+        write_state(disk.path(), expected);
+        let terminal = disk.drive(StoreRequest::Load);
+        disk.close();
+        assert!(
+            matches!(&terminal, local::Event::Loaded { state: Some(value), transcript: None, deliveries } if *value == expected && deliveries.is_empty()),
+            "{terminal:?}"
+        );
+    }
+
+    #[test]
+    fn reopening_a_checked_root_rechecks_its_marker() {
+        let mut disk = Disk::new();
+        compatible(disk.path());
+        let _loaded = disk.drive(StoreRequest::Load);
+        fs::remove_file(disk.path().join("format")).unwrap();
+        write_state(disk.path(), state(31));
+        disk.reopen();
+        refused(&mut disk, Some(Older::Unrecorded));
+    }
+
+    #[test]
+    fn fresh_history_keeps_the_original_layout_marker() {
+        let mut disk = Disk::new();
+        compatible(disk.path());
+        write_state(disk.path(), state(37));
+        let marker_before: Vec<_> = snapshot(disk.path()).into_iter().filter(|entry| entry.name == "format").collect();
+        let _loaded = disk.drive(StoreRequest::Load);
+        let expected = state(41);
+        let saved = disk.drive(StoreRequest::SaveState { state: expected, history: History::Fresh });
+        disk.reopen();
+        let terminal = disk.drive(StoreRequest::Load);
+        let marker_after: Vec<_> = snapshot(disk.path()).into_iter().filter(|entry| entry.name == "format").collect();
+        disk.close();
+        assert!(matches!(saved, local::Event::StateSaved), "{saved:?}");
+        assert!(
+            matches!(&terminal, local::Event::Loaded { state: Some(value), transcript: None, deliveries } if *value == expected && deliveries.is_empty()),
+            "{terminal:?}"
+        );
+        assert_eq!(marker_before, marker_after);
+    }
 }
 
 #[cfg(test)]
@@ -284,11 +374,16 @@ mod scan_reservation_tests {
             for index in 0..count {
                 std::fs::write(disk.path().join(format!("format.skein-{index:016x}")), b"partial").unwrap();
             }
+            let before = super::disk::snapshot(disk.path());
             let result = disk.drive(StoreRequest::Load);
             if admitted {
                 assert!(matches!(result, local::Event::Loaded { state: None, .. }));
+                let after_create = super::disk::snapshot(disk.path());
+                let retained: Vec<_> = after_create.iter().filter(|entry| entry.name != "format").collect();
+                assert_eq!(retained, before.iter().collect::<Vec<_>>());
                 disk.reopen();
                 assert!(matches!(disk.drive(StoreRequest::Load), local::Event::Loaded { state: None, .. }));
+                assert_eq!(super::disk::snapshot(disk.path()), after_create);
             } else {
                 assert!(matches!(
                     result,
@@ -310,11 +405,16 @@ mod scan_reservation_tests {
             bounds.scan_bytes = bytes;
             let mut disk = Disk::bounded(bounds);
             std::fs::write(disk.path().join("format.skein-0123456789abcdef"), b"partial").unwrap();
+            let before = super::disk::snapshot(disk.path());
             let result = disk.drive(StoreRequest::Load);
             if admitted {
                 assert!(matches!(result, local::Event::Loaded { state: None, .. }));
+                let after_create = super::disk::snapshot(disk.path());
+                let retained: Vec<_> = after_create.iter().filter(|entry| entry.name != "format").collect();
+                assert_eq!(retained, before.iter().collect::<Vec<_>>());
                 disk.reopen();
                 assert!(matches!(disk.drive(StoreRequest::Load), local::Event::Loaded { state: None, .. }));
+                assert_eq!(super::disk::snapshot(disk.path()), after_create);
             } else {
                 assert!(matches!(
                     result,

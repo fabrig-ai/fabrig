@@ -121,7 +121,7 @@ pub(super) fn node_id(repository: u32, number: u64, limits: &Limits) -> Option<B
     let prefix = crate::service::joined(b"PR_", skein_lib::Decimal::of(u64::from(repository)).as_bytes())?;
     let prefix = crate::service::joined(&prefix, b"_")?;
     let id = crate::service::joined(&prefix, skein_lib::Decimal::of(number).as_bytes())?;
-    if u64::try_from(id.len()).expect("bounded decimal ID") > u64::from(limits.github.string_bytes) {
+    if skein_lib::len_u64(id.len()) > u64::from(limits.github.string_bytes) {
         return None;
     }
     Some(id)

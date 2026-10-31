@@ -62,7 +62,7 @@ pub struct Rollouts {
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
-#[allow(clippy::struct_field_names)] // These are the pinned persisted field names.
+#[expect(clippy::struct_field_names, reason = "pinned persisted field names")]
 struct NativeUsage {
     input_tokens: u64,
     cached_input_tokens: u64,
@@ -417,7 +417,7 @@ impl Rollouts {
             let count = if totals.is_empty() {
                 crate::Measure::unavailable("thread has no token_count usage records")
             } else {
-                crate::Measure::Observed { value: u64::try_from(totals.len()).expect("bounded rollout records") }
+                crate::Measure::Observed { value: skein_lib::len_u64(totals.len()) }
             };
             counts.insert(thread.into(), count);
         }

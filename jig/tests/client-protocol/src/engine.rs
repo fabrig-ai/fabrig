@@ -344,12 +344,12 @@ impl Engine {
                 | root::Delivery::CallBusy { .. }
                 | root::Delivery::Projection { .. }
                 | root::Delivery::Message { .. }
-                | root::Delivery::Restart(_)
                 | root::Delivery::CallAnswer { .. }
                 | root::Delivery::Assigned { .. }
                 | root::Delivery::Fleet(_)
                 | root::Delivery::System { .. }
                 | root::Delivery::LostRead { .. }
+                | root::Delivery::Start(_)
                 | root::Delivery::Procedure { .. } => {}
             }
         }

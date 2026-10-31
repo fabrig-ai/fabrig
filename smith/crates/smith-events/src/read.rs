@@ -23,7 +23,6 @@ pub struct Reader {
     limits: Limits,
     encoded_line: u32,
     line: List<u8>,
-    session_ended_aborted: bool,
 }
 
 /// One read's consumed bytes and optional record; unknown records still complete a line.
@@ -44,18 +43,8 @@ impl Reader {
     /// Reserve the writer's encoded-line ceiling, including its final newline.
     /// Field and list caps remain independent semantic checks; zero refuses.
     pub fn with_ceiling(limits: &Limits, encoded_line: u32) -> Result<Reader, Error> {
-        Self::with_session_ended_aborted(limits, encoded_line, true)
-    }
-
-    /// Select whether this writer's session terminal carries the `aborted` field.
-    /// Only historical benchmark faces select its absence; current readers require it.
-    pub fn with_session_ended_aborted(
-        limits: &Limits,
-        encoded_line: u32,
-        session_ended_aborted: bool,
-    ) -> Result<Reader, Error> {
         let capacity = encoded_line.checked_sub(1).ok_or(Error::Limits)?;
-        Ok(Reader { limits: *limits, encoded_line, line: List::with_capacity(capacity), session_ended_aborted })
+        Ok(Reader { limits: *limits, encoded_line, line: List::with_capacity(capacity) })
     }
 
     /// Consume through at most one newline, preserving a partial line between calls.
@@ -64,12 +53,7 @@ impl Reader {
         for byte in input {
             consumed = consumed.checked_add(1).ok_or(Error::Limits)?;
             if *byte == b'\n' {
-                let result = read_for_session_ended(
-                    self.line.as_slice(),
-                    &self.limits,
-                    self.encoded_line,
-                    self.session_ended_aborted,
-                );
+                let result = read_with_ceiling(self.line.as_slice(), &self.limits, self.encoded_line);
                 self.line.clear();
                 return Ok(Line { consumed, complete: true, record: result? });
             }
@@ -100,15 +84,6 @@ pub fn read(line: &[u8], limits: &Limits) -> Result<Option<Record>, Error> {
 /// Decode within a writer-derived encoded byte ceiling and the supplied semantic caps.
 /// The byte ceiling includes a newline when the supplied line has one; zero refuses.
 pub fn read_with_ceiling(line: &[u8], limits: &Limits, encoded_line: u32) -> Result<Option<Record>, Error> {
-    read_for_session_ended(line, limits, encoded_line, true)
-}
-
-fn read_for_session_ended(
-    line: &[u8],
-    limits: &Limits,
-    encoded_line: u32,
-    session_ended_aborted: bool,
-) -> Result<Option<Record>, Error> {
     let tokens = tokenize(line, limits, encoded_line)?;
     let tokens = tokens.as_slice();
     object(tokens)?;
@@ -121,7 +96,7 @@ fn read_for_session_ended(
     let event = match kind.as_ref() {
         b"budget" => Event::Budget(read_budget_standing(tokens, limits)?),
         b"session.started" => Event::SessionStarted(read_session_started(tokens, limits)?),
-        b"session.ended" => Event::SessionEnded(read_session_ended(tokens, limits, session_ended_aborted)?),
+        b"session.ended" => Event::SessionEnded(read_session_ended(tokens, limits)?),
         b"run.started" => Event::RunStarted(read_run_started(tokens, limits)?),
         b"run.completed" => Event::RunCompleted(read_run_completed(tokens, limits)?),
         b"conversation.opened" => Event::ConversationOpened(read_conversation_opened(tokens, limits)?),
@@ -132,7 +107,7 @@ fn read_for_session_ended(
         b"tool.started" => Event::ToolStarted(read_tool_started(tokens, limits)?),
         b"job.ended" => Event::JobEnded(read_job_ended(tokens, limits)?),
         b"tool.completed" => Event::ToolCompleted(read_tool_completed(tokens, limits)?),
-        b"check.started" => Event::CheckStarted(read_check_started(tokens, limits)?),
+        b"check.started" => Event::CheckStarted(read_check_started(tokens)?),
         b"check.completed" => Event::CheckCompleted(read_check_completed(tokens, limits)?),
         b"message.received" => Event::MessageReceived(read_message_received(tokens, limits)?),
         b"message.read" => Event::MessageRead(read_message_read(tokens)?),
@@ -283,6 +258,34 @@ fn required<'a>(tokens: &'a [Token], name: &[u8]) -> Result<&'a [Token], Error> 
     field(tokens, name)?.ok_or(Error::Shape)
 }
 
+fn optional_text(tokens: &[Token], name: &[u8], capacity: u32) -> Result<Option<Box<[u8]>>, Error> {
+    match field(tokens, name)? {
+        Some(item) => Ok(Some(text(item, capacity)?)),
+        None => Ok(None),
+    }
+}
+
+fn optional_unsigned(tokens: &[Token], name: &[u8]) -> Result<Option<u64>, Error> {
+    match field(tokens, name)? {
+        Some(item) => Ok(Some(unsigned(item)?)),
+        None => Ok(None),
+    }
+}
+
+fn optional_boolean(tokens: &[Token], name: &[u8]) -> Result<Option<bool>, Error> {
+    match field(tokens, name)? {
+        Some(item) => Ok(Some(boolean(item)?)),
+        None => Ok(None),
+    }
+}
+
+fn nullable_unsigned(tokens: &[Token]) -> Result<Option<u64>, Error> {
+    match tokens {
+        [Token::Null] => Ok(None),
+        item => Ok(Some(unsigned(item)?)),
+    }
+}
+
 fn unsigned(tokens: &[Token]) -> Result<u64, Error> {
     match tokens {
         [Token::Number(value)] => digits(value),
@@ -291,21 +294,7 @@ fn unsigned(tokens: &[Token]) -> Result<u64, Error> {
 }
 
 fn digits(value: &[u8]) -> Result<u64, Error> {
-    if value.is_empty() {
-        return Err(Error::Shape);
-    }
-    let mut number = 0_u64;
-    for byte in value {
-        if !byte.is_ascii_digit() {
-            return Err(Error::Shape);
-        }
-        number = number
-            .checked_mul(10)
-            .ok_or(Error::Shape)?
-            .checked_add(u64::from(byte.saturating_sub(b'0')))
-            .ok_or(Error::Shape)?;
-    }
-    Ok(number)
+    bytes::decimal(value).ok_or(Error::Shape)
 }
 
 fn signed(tokens: &[Token]) -> Result<i64, Error> {
@@ -340,222 +329,152 @@ fn text(tokens: &[Token], capacity: u32) -> Result<Box<[u8]>, Error> {
     }
 }
 fn read_capture(tokens: &[Token], limits: &Limits) -> Result<Capture, Error> {
-    let value = text(tokens, limits.string.max(64))?;
-    Ok(match value.as_ref() {
+    let value = word(tokens, limits.string.max(64))?;
+    Ok(match value {
         b"none" => Capture::None,
         b"calls" => Capture::Calls,
         b"everything" => Capture::Everything,
-        _ => {
-            if value.len() > usize::try_from(limits.string).expect("u32 fits") {
-                return Err(Error::Limits);
-            }
-            Capture::Unknown(value)
-        }
+        _ => Capture::Unknown(unknown_word(value, limits)?),
     })
 }
 
 fn read_delivery(tokens: &[Token], limits: &Limits) -> Result<Delivery, Error> {
-    let value = text(tokens, limits.string.max(64))?;
-    Ok(match value.as_ref() {
+    let value = word(tokens, limits.string.max(64))?;
+    Ok(match value {
         b"complete" => Delivery::Complete,
         b"best_effort" => Delivery::BestEffort,
-        _ => {
-            if value.len() > usize::try_from(limits.string).expect("u32 fits") {
-                return Err(Error::Limits);
-            }
-            Delivery::Unknown(value)
-        }
+        _ => Delivery::Unknown(unknown_word(value, limits)?),
     })
 }
 
 fn read_mode(tokens: &[Token], limits: &Limits) -> Result<Mode, Error> {
-    let value = text(tokens, limits.string.max(64))?;
-    Ok(match value.as_ref() {
+    let value = word(tokens, limits.string.max(64))?;
+    Ok(match value {
         b"agent" => Mode::Agent,
         b"exec" => Mode::Exec,
         b"chat" => Mode::Chat,
-        _ => {
-            if value.len() > usize::try_from(limits.string).expect("u32 fits") {
-                return Err(Error::Limits);
-            }
-            Mode::Unknown(value)
-        }
+        _ => Mode::Unknown(unknown_word(value, limits)?),
     })
 }
 
 fn read_containment(tokens: &[Token], limits: &Limits) -> Result<Containment, Error> {
-    let value = text(tokens, limits.string.max(6))?;
-    Ok(match value.as_ref() {
+    let value = word(tokens, limits.string.max(6))?;
+    Ok(match value {
         b"groups" => Containment::Groups,
         b"trees" => Containment::Trees,
-        _ => {
-            if value.len() > usize::try_from(limits.string).expect("u32 fits") {
-                return Err(Error::Limits);
-            }
-            Containment::Unknown(value)
-        }
+        _ => Containment::Unknown(unknown_word(value, limits)?),
     })
 }
 
 fn read_family(tokens: &[Token], limits: &Limits) -> Result<Family, Error> {
-    let value = text(tokens, limits.string.max(64))?;
-    Ok(match value.as_ref() {
+    let value = word(tokens, limits.string.max(64))?;
+    Ok(match value {
         b"inspect" => Family::Inspect,
         b"modify" => Family::Modify,
         b"shell" => Family::Shell,
         b"sub_agents" => Family::SubAgents,
-        _ => {
-            if value.len() > usize::try_from(limits.string).expect("u32 fits") {
-                return Err(Error::Limits);
-            }
-            Family::Unknown(value)
-        }
+        _ => Family::Unknown(unknown_word(value, limits)?),
     })
 }
 
 fn read_form(tokens: &[Token], limits: &Limits) -> Result<Form, Error> {
-    let value = text(tokens, limits.string.max(64))?;
-    Ok(match value.as_ref() {
+    let value = word(tokens, limits.string.max(64))?;
+    Ok(match value {
         b"report" => Form::Report,
         b"verdict" => Form::Verdict,
         b"change" => Form::Change,
         b"failure" => Form::Failure,
-        _ => {
-            if value.len() > usize::try_from(limits.string).expect("u32 fits") {
-                return Err(Error::Limits);
-            }
-            Form::Unknown(value)
-        }
+        _ => Form::Unknown(unknown_word(value, limits)?),
     })
 }
 
 fn read_status(tokens: &[Token], limits: &Limits) -> Result<Status, Error> {
-    let value = text(tokens, limits.string.max(64))?;
-    Ok(match value.as_ref() {
+    let value = word(tokens, limits.string.max(64))?;
+    Ok(match value {
         b"accepted" => Status::Accepted,
         b"parked" => Status::Parked,
         b"failed" => Status::Failed,
         b"refused" => Status::Refused,
-        _ => {
-            if value.len() > usize::try_from(limits.string).expect("u32 fits") {
-                return Err(Error::Limits);
-            }
-            Status::Unknown(value)
-        }
+        _ => Status::Unknown(unknown_word(value, limits)?),
     })
 }
 
 fn read_conversation_kind(tokens: &[Token], limits: &Limits) -> Result<ConversationKind, Error> {
-    let value = text(tokens, limits.string.max(64))?;
-    Ok(match value.as_ref() {
+    let value = word(tokens, limits.string.max(64))?;
+    Ok(match value {
         b"main" => ConversationKind::Main,
         b"child" => ConversationKind::Child,
         b"compaction" => ConversationKind::Compaction,
-        _ => {
-            if value.len() > usize::try_from(limits.string).expect("u32 fits") {
-                return Err(Error::Limits);
-            }
-            ConversationKind::Unknown(value)
-        }
+        _ => ConversationKind::Unknown(unknown_word(value, limits)?),
     })
 }
 
 fn read_conversation_end(tokens: &[Token], limits: &Limits) -> Result<ConversationEnd, Error> {
-    let value = text(tokens, limits.string.max(64))?;
-    Ok(match value.as_ref() {
+    let value = word(tokens, limits.string.max(64))?;
+    Ok(match value {
         b"closed" => ConversationEnd::Closed,
         b"budget" => ConversationEnd::Budget,
         b"failed" => ConversationEnd::Failed,
         b"refused" => ConversationEnd::Refused,
         b"transcript" => ConversationEnd::Transcript,
         b"overflow" => ConversationEnd::Overflow,
-        _ => {
-            if value.len() > usize::try_from(limits.string).expect("u32 fits") {
-                return Err(Error::Limits);
-            }
-            ConversationEnd::Unknown(value)
-        }
+        _ => ConversationEnd::Unknown(unknown_word(value, limits)?),
     })
 }
 
 fn read_tool_choice(tokens: &[Token], limits: &Limits) -> Result<ToolChoice, Error> {
-    let value = text(tokens, limits.string.max(64))?;
-    Ok(match value.as_ref() {
+    let value = word(tokens, limits.string.max(64))?;
+    Ok(match value {
         b"auto" => ToolChoice::Auto,
         b"none" => ToolChoice::None,
         b"only" => ToolChoice::Only,
-        _ => {
-            if value.len() > usize::try_from(limits.string).expect("u32 fits") {
-                return Err(Error::Limits);
-            }
-            ToolChoice::Unknown(value)
-        }
+        _ => ToolChoice::Unknown(unknown_word(value, limits)?),
     })
 }
 
 fn read_outcome(tokens: &[Token], limits: &Limits) -> Result<Outcome, Error> {
-    let value = text(tokens, limits.string.max(64))?;
-    Ok(match value.as_ref() {
+    let value = word(tokens, limits.string.max(64))?;
+    Ok(match value {
         b"completed" => Outcome::Completed,
         b"failed" => Outcome::Failed,
         b"cancelled" => Outcome::Cancelled,
-        _ => {
-            if value.len() > usize::try_from(limits.string).expect("u32 fits") {
-                return Err(Error::Limits);
-            }
-            Outcome::Unknown(value)
-        }
+        _ => Outcome::Unknown(unknown_word(value, limits)?),
     })
 }
 
 fn read_stop(tokens: &[Token], limits: &Limits) -> Result<Stop, Error> {
-    let value = text(tokens, limits.string.max(64))?;
-    Ok(match value.as_ref() {
+    let value = word(tokens, limits.string.max(64))?;
+    Ok(match value {
         b"end" => Stop::End,
         b"tools" => Stop::Tools,
         b"max_tokens" => Stop::MaxTokens,
         b"refusal" => Stop::Refusal,
-        _ => {
-            if value.len() > usize::try_from(limits.string).expect("u32 fits") {
-                return Err(Error::Limits);
-            }
-            Stop::Unknown(value)
-        }
+        _ => Stop::Unknown(unknown_word(value, limits)?),
     })
 }
 
 fn read_source(tokens: &[Token], limits: &Limits) -> Result<Source, Error> {
-    let value = text(tokens, limits.string.max(64))?;
-    Ok(match value.as_ref() {
+    let value = word(tokens, limits.string.max(64))?;
+    Ok(match value {
         b"workspace" => Source::Workspace,
         b"run" => Source::Run,
         b"host" => Source::Host,
-        _ => {
-            if value.len() > usize::try_from(limits.string).expect("u32 fits") {
-                return Err(Error::Limits);
-            }
-            Source::Unknown(value)
-        }
+        _ => Source::Unknown(unknown_word(value, limits)?),
     })
 }
 
 fn read_effect(tokens: &[Token], limits: &Limits) -> Result<Effect, Error> {
-    let value = text(tokens, limits.string.max(64))?;
-    Ok(match value.as_ref() {
+    let value = word(tokens, limits.string.max(64))?;
+    Ok(match value {
         b"read" => Effect::Read,
         b"write" => Effect::Write,
-        _ => {
-            if value.len() > usize::try_from(limits.string).expect("u32 fits") {
-                return Err(Error::Limits);
-            }
-            Effect::Unknown(value)
-        }
+        _ => Effect::Unknown(unknown_word(value, limits)?),
     })
 }
 
 fn read_verdict(tokens: &[Token], limits: &Limits) -> Result<Verdict, Error> {
-    let value = text(tokens, limits.string.max(64))?;
-    Ok(match value.as_ref() {
+    let value = word(tokens, limits.string.max(64))?;
+    Ok(match value {
         b"read" => Verdict::Read,
         b"listed" => Verdict::Listed,
         b"found" => Verdict::Found,
@@ -593,35 +512,25 @@ fn read_verdict(tokens: &[Token], limits: &Limits) -> Result<Verdict, Error> {
         b"unchanged" => Verdict::Unchanged,
         b"busy" => Verdict::Busy,
         b"nul_byte" => Verdict::NulByte,
-        _ => {
-            if value.len() > usize::try_from(limits.string).expect("u32 fits") {
-                return Err(Error::Limits);
-            }
-            Verdict::Unknown(value)
-        }
+        _ => Verdict::Unknown(unknown_word(value, limits)?),
     })
 }
 
 fn read_delivered(tokens: &[Token], limits: &Limits) -> Result<Delivered, Error> {
-    let value = text(tokens, limits.string.max(64))?;
-    Ok(match value.as_ref() {
+    let value = word(tokens, limits.string.max(64))?;
+    Ok(match value {
         b"delivered" => Delivered::Delivered,
         b"nothing" => Delivered::Nothing,
         b"refused" => Delivered::Refused,
         b"failed" => Delivered::Failed,
         b"stale" => Delivered::Stale,
-        _ => {
-            if value.len() > usize::try_from(limits.string).expect("u32 fits") {
-                return Err(Error::Limits);
-            }
-            Delivered::Unknown(value)
-        }
+        _ => Delivered::Unknown(unknown_word(value, limits)?),
     })
 }
 
 fn read_failure_class(tokens: &[Token], limits: &Limits) -> Result<FailureClass, Error> {
-    let value = text(tokens, limits.string.max(64))?;
-    Ok(match value.as_ref() {
+    let value = word(tokens, limits.string.max(64))?;
+    Ok(match value {
         b"overloaded" => FailureClass::Overloaded,
         b"rate_limited" => FailureClass::RateLimited,
         b"exhausted" => FailureClass::Exhausted,
@@ -635,33 +544,23 @@ fn read_failure_class(tokens: &[Token], limits: &Limits) -> Result<FailureClass,
         b"limit" => FailureClass::Limit,
         b"protocol" => FailureClass::Protocol,
         b"cancelled" => FailureClass::Cancelled,
-        _ => {
-            if value.len() > usize::try_from(limits.string).expect("u32 fits") {
-                return Err(Error::Limits);
-            }
-            FailureClass::Unknown(value)
-        }
+        _ => FailureClass::Unknown(unknown_word(value, limits)?),
     })
 }
 
 fn read_evidence(tokens: &[Token], limits: &Limits) -> Result<Evidence, Error> {
-    let value = text(tokens, limits.string.max(64))?;
-    Ok(match value.as_ref() {
+    let value = word(tokens, limits.string.max(64))?;
+    Ok(match value {
         b"unsent" => Evidence::Unsent,
         b"maybe_sent" => Evidence::MaybeSent,
         b"response" => Evidence::Response,
-        _ => {
-            if value.len() > usize::try_from(limits.string).expect("u32 fits") {
-                return Err(Error::Limits);
-            }
-            Evidence::Unknown(value)
-        }
+        _ => Evidence::Unknown(unknown_word(value, limits)?),
     })
 }
 
 fn read_answer_class(tokens: &[Token], limits: &Limits) -> Result<AnswerClass, Error> {
-    let value = text(tokens, limits.string.max(64))?;
-    Ok(match value.as_ref() {
+    let value = word(tokens, limits.string.max(64))?;
+    Ok(match value {
         b"model" => AnswerClass::Model,
         b"budget" => AnswerClass::Budget,
         b"policy" => AnswerClass::Policy,
@@ -672,58 +571,38 @@ fn read_answer_class(tokens: &[Token], limits: &Limits) -> Result<AnswerClass, E
         b"transcript" => AnswerClass::Transcript,
         b"busy" => AnswerClass::Busy,
         b"invalid" => AnswerClass::Invalid,
-        _ => {
-            if value.len() > usize::try_from(limits.string).expect("u32 fits") {
-                return Err(Error::Limits);
-            }
-            AnswerClass::Unknown(value)
-        }
+        _ => AnswerClass::Unknown(unknown_word(value, limits)?),
     })
 }
 
 fn read_level(tokens: &[Token], limits: &Limits) -> Result<Level, Error> {
-    let value = text(tokens, limits.string.max(64))?;
-    Ok(match value.as_ref() {
+    let value = word(tokens, limits.string.max(64))?;
+    Ok(match value {
         b"info" => Level::Info,
         b"warning" => Level::Warning,
-        _ => {
-            if value.len() > usize::try_from(limits.string).expect("u32 fits") {
-                return Err(Error::Limits);
-            }
-            Level::Unknown(value)
-        }
+        _ => Level::Unknown(unknown_word(value, limits)?),
     })
 }
 
 fn read_notice_kind(tokens: &[Token], limits: &Limits) -> Result<NoticeKind, Error> {
-    let value = text(tokens, limits.string.max(64))?;
-    Ok(match value.as_ref() {
+    let value = word(tokens, limits.string.max(64))?;
+    Ok(match value {
         b"reasoning_dropped" => NoticeKind::ReasoningDropped,
         b"credential_unauthorized" => NoticeKind::CredentialUnauthorized,
         b"account_limited" => NoticeKind::AccountLimited,
         b"account_refused" => NoticeKind::AccountRefused,
         b"teardown_aborted" => NoticeKind::TeardownAborted,
         b"forced_exit" => NoticeKind::ForcedExit,
-        _ => {
-            if value.len() > usize::try_from(limits.string).expect("u32 fits") {
-                return Err(Error::Limits);
-            }
-            NoticeKind::Unknown(value)
-        }
+        _ => NoticeKind::Unknown(unknown_word(value, limits)?),
     })
 }
 
 fn read_role(tokens: &[Token], limits: &Limits) -> Result<Role, Error> {
-    let value = text(tokens, limits.string.max(64))?;
-    Ok(match value.as_ref() {
+    let value = word(tokens, limits.string.max(64))?;
+    Ok(match value {
         b"user" => Role::User,
         b"assistant" => Role::Assistant,
-        _ => {
-            if value.len() > usize::try_from(limits.string).expect("u32 fits") {
-                return Err(Error::Limits);
-            }
-            Role::Unknown(value)
-        }
+        _ => Role::Unknown(unknown_word(value, limits)?),
     })
 }
 
@@ -735,7 +614,7 @@ fn read_agent(tokens: &[Token], limits: &Limits) -> Result<Agent, Error> {
     })
 }
 
-fn read_versions(tokens: &[Token], _limits: &Limits) -> Result<Versions, Error> {
+fn read_versions(tokens: &[Token]) -> Result<Versions, Error> {
     object(tokens)?;
     Ok(Versions {
         events: unsigned(required(tokens, b"events")?)?,
@@ -749,29 +628,15 @@ fn read_versions(tokens: &[Token], _limits: &Limits) -> Result<Versions, Error> 
     })
 }
 
-#[cfg(test)]
-#[test]
-fn the_product_announces_its_chat_store_version() {
-    let wire = b"{\"v\":4,\"type\":\"session.started\",\"t_ms\":0,\"wall_ms\":0,\"agent\":{\"name\":\"smith\",\"version\":\"0\"},\"mode\":\"exec\",\"chat\":\"plan\",\"containment\":\"groups\",\"pid\":1,\"profile\":\"standard\",\"capture\":\"none\",\"delivery\":\"complete\",\"versions\":{\"events\":4,\"channel\":2,\"charter\":2,\"transcript\":5,\"chat_store\":1},\"limits\":{}}\n";
-    let limits = Limits { string: 32, content: 1024, items: 16 };
-    let record = read(wire, &limits).unwrap().unwrap();
-    let Event::SessionStarted(started) = &record.event else { panic!("startup record") };
-    assert_eq!(started.versions.chat_store, Some(1));
-    assert_eq!(crate::write(&record, &Capture::None, &limits).unwrap().unwrap().as_ref(), wire);
-}
-
-fn read_loss(tokens: &[Token], _limits: &Limits) -> Result<Loss, Error> {
+fn read_loss(tokens: &[Token]) -> Result<Loss, Error> {
     object(tokens)?;
     Ok(Loss {
         events: unsigned(required(tokens, b"events")?)?,
-        channel: match required(tokens, b"channel")? {
-            [Token::Null] => None,
-            item => Some(unsigned(item)?),
-        },
+        channel: nullable_unsigned(required(tokens, b"channel")?)?,
     })
 }
 
-fn read_cpu(tokens: &[Token], _limits: &Limits) -> Result<Cpu, Error> {
+fn read_cpu(tokens: &[Token]) -> Result<Cpu, Error> {
     object(tokens)?;
     Ok(Cpu {
         user: unsigned(required(tokens, b"user")?)?,
@@ -781,7 +646,7 @@ fn read_cpu(tokens: &[Token], _limits: &Limits) -> Result<Cpu, Error> {
     })
 }
 
-fn read_peak_rss(tokens: &[Token], _limits: &Limits) -> Result<PeakRss, Error> {
+fn read_peak_rss(tokens: &[Token]) -> Result<PeakRss, Error> {
     object(tokens)?;
     Ok(PeakRss {
         self_bytes: unsigned(required(tokens, b"self")?)?,
@@ -818,33 +683,18 @@ fn read_model(tokens: &[Token], limits: &Limits) -> Result<Model, Error> {
     })
 }
 
-fn read_usage(tokens: &[Token], _limits: &Limits) -> Result<Usage, Error> {
+fn read_usage(tokens: &[Token]) -> Result<Usage, Error> {
     object(tokens)?;
     Ok(Usage {
-        input_tokens: match required(tokens, b"input_tokens")? {
-            [Token::Null] => None,
-            item => Some(unsigned(item)?),
-        },
-        cache_read_tokens: match required(tokens, b"cache_read_tokens")? {
-            [Token::Null] => None,
-            item => Some(unsigned(item)?),
-        },
-        cache_write_tokens: match required(tokens, b"cache_write_tokens")? {
-            [Token::Null] => None,
-            item => Some(unsigned(item)?),
-        },
-        output_tokens: match required(tokens, b"output_tokens")? {
-            [Token::Null] => None,
-            item => Some(unsigned(item)?),
-        },
-        reasoning_tokens: match required(tokens, b"reasoning_tokens")? {
-            [Token::Null] => None,
-            item => Some(unsigned(item)?),
-        },
+        input_tokens: nullable_unsigned(required(tokens, b"input_tokens")?)?,
+        cache_read_tokens: nullable_unsigned(required(tokens, b"cache_read_tokens")?)?,
+        cache_write_tokens: nullable_unsigned(required(tokens, b"cache_write_tokens")?)?,
+        output_tokens: nullable_unsigned(required(tokens, b"output_tokens")?)?,
+        reasoning_tokens: nullable_unsigned(required(tokens, b"reasoning_tokens")?)?,
     })
 }
 
-fn read_budget(tokens: &[Token], _limits: &Limits) -> Result<Budget, Error> {
+fn read_budget(tokens: &[Token]) -> Result<Budget, Error> {
     object(tokens)?;
     Ok(Budget {
         turns: unsigned(required(tokens, b"turns")?)?,
@@ -866,32 +716,23 @@ fn read_tools(tokens: &[Token], limits: &Limits) -> Result<Tools, Error> {
 }
 
 fn read_failure_phase(tokens: &[Token], limits: &Limits) -> Result<FailurePhase, Error> {
-    let value = text(tokens, limits.string)?;
-    Ok(match value.as_ref() {
+    let value = word(tokens, limits.string)?;
+    Ok(match value {
         b"connect" => FailurePhase::Connect,
         b"handshake" => FailurePhase::Handshake,
         b"head" => FailurePhase::Head,
         b"idle" => FailurePhase::Idle,
         b"whole" => FailurePhase::Whole,
-        _ => FailurePhase::Unknown(value),
+        _ => FailurePhase::Unknown(Box::from(value)),
     })
 }
 
 fn read_completion_failure(tokens: &[Token], limits: &Limits) -> Result<CompletionFailure, Error> {
     object(tokens)?;
     Ok(CompletionFailure {
-        request_id: match field(tokens, b"request_id")? {
-            Some(item) => Some(text(item, limits.string)?),
-            None => None,
-        },
-        code: match field(tokens, b"code")? {
-            Some(item) => Some(text(item, limits.string)?),
-            None => None,
-        },
-        field: match field(tokens, b"field")? {
-            Some(item) => Some(text(item, limits.string)?),
-            None => None,
-        },
+        request_id: optional_text(tokens, b"request_id", limits.string)?,
+        code: optional_text(tokens, b"code", limits.string)?,
+        field: optional_text(tokens, b"field", limits.string)?,
         class: read_failure_class(required(tokens, b"class")?, limits)?,
         evidence: read_evidence(required(tokens, b"evidence")?, limits)?,
         phase: match field(tokens, b"phase")? {
@@ -902,18 +743,9 @@ fn read_completion_failure(tokens: &[Token], limits: &Limits) -> Result<Completi
             Some(item) => Some(read_failure_limit(item, limits)?),
             None => None,
         },
-        status: match field(tokens, b"status")? {
-            Some(item) => Some(unsigned(item)?),
-            None => None,
-        },
-        detail: match field(tokens, b"detail")? {
-            Some(item) => Some(text(item, limits.content)?),
-            None => None,
-        },
-        retry_after_ms: match field(tokens, b"retry_after_ms")? {
-            Some(item) => Some(unsigned(item)?),
-            None => None,
-        },
+        status: optional_unsigned(tokens, b"status")?,
+        detail: optional_text(tokens, b"detail", limits.content)?,
+        retry_after_ms: optional_unsigned(tokens, b"retry_after_ms")?,
     })
 }
 
@@ -945,59 +777,26 @@ fn read_answer_failure(tokens: &[Token], limits: &Limits) -> Result<AnswerFailur
             Some(item) => Some(read_account_state(item, limits)?),
             None => None,
         },
-        code: match field(tokens, b"code")? {
-            Some(item) => Some(text(item, limits.string)?),
-            None => None,
-        },
-        program: match field(tokens, b"program")? {
-            Some(item) => Some(text(item, limits.string)?),
-            None => None,
-        },
+        code: optional_text(tokens, b"code", limits.string)?,
+        program: optional_text(tokens, b"program", limits.string)?,
         exit: match field(tokens, b"exit")? {
             Some(item) => Some(read_agent_exit(item)?),
             None => None,
         },
-        detail: match field(tokens, b"detail")? {
-            Some(item) => Some(text(item, limits.content)?),
-            None => None,
-        },
-        reset_ms: match field(tokens, b"reset_ms")? {
-            Some(item) => Some(unsigned(item)?),
-            None => None,
-        },
-        used: match field(tokens, b"used")? {
-            Some(item) => Some(unsigned(item)?),
-            None => None,
-        },
-        bound: match field(tokens, b"bound")? {
-            Some(item) => Some(unsigned(item)?),
-            None => None,
-        },
-        dropped: match field(tokens, b"dropped")? {
-            Some(item) => Some(boolean(item)?),
-            None => None,
-        },
+        detail: optional_text(tokens, b"detail", limits.content)?,
+        reset_ms: optional_unsigned(tokens, b"reset_ms")?,
+        used: optional_unsigned(tokens, b"used")?,
+        bound: optional_unsigned(tokens, b"bound")?,
+        dropped: optional_boolean(tokens, b"dropped")?,
         ended: match field(tokens, b"ended")? {
             Some(item) => Some(read_agent_exit(item)?),
             None => None,
         },
-        turn: match field(tokens, b"turn")? {
-            Some(item) => Some(unsigned(item)?),
-            None => None,
-        },
+        turn: optional_unsigned(tokens, b"turn")?,
         class: read_answer_class(required(tokens, b"class")?, limits)?,
-        endpoint: match field(tokens, b"endpoint")? {
-            Some(item) => Some(text(item, limits.string)?),
-            None => None,
-        },
-        model: match field(tokens, b"model")? {
-            Some(item) => Some(text(item, limits.string)?),
-            None => None,
-        },
-        attempts: match field(tokens, b"attempts")? {
-            Some(item) => Some(unsigned(item)?),
-            None => None,
-        },
+        endpoint: optional_text(tokens, b"endpoint", limits.string)?,
+        model: optional_text(tokens, b"model", limits.string)?,
+        attempts: optional_unsigned(tokens, b"attempts")?,
         completion: match field(tokens, b"completion")? {
             Some(item) => Some(read_completion_failure(item, limits)?),
             None => None,
@@ -1009,14 +808,8 @@ fn read_answer_failure(tokens: &[Token], limits: &Limits) -> Result<AnswerFailur
             }),
             None => None,
         },
-        which: match field(tokens, b"which")? {
-            Some(item) => Some(text(item, limits.string)?),
-            None => None,
-        },
-        reason: match field(tokens, b"reason")? {
-            Some(item) => Some(text(item, limits.string)?),
-            None => None,
-        },
+        which: optional_text(tokens, b"which", limits.string)?,
+        reason: optional_text(tokens, b"reason", limits.string)?,
     })
 }
 
@@ -1032,14 +825,8 @@ fn read_run_result(tokens: &[Token], limits: &Limits) -> Result<RunResult, Error
     object(tokens)?;
     Ok(RunResult {
         form: read_form(required(tokens, b"form")?, limits)?,
-        label: match field(tokens, b"label")? {
-            Some(item) => Some(text(item, limits.string)?),
-            None => None,
-        },
-        text: match field(tokens, b"text")? {
-            Some(item) => Some(text(item, limits.content)?),
-            None => None,
-        },
+        label: optional_text(tokens, b"label", limits.string)?,
+        text: optional_text(tokens, b"text", limits.content)?,
         fields: match field(tokens, b"fields")? {
             Some(item) => Some(read_list_field(item, limits)?),
             None => None,
@@ -1058,10 +845,7 @@ fn read_message(tokens: &[Token], limits: &Limits) -> Result<Message, Error> {
 fn read_prompt(tokens: &[Token], limits: &Limits) -> Result<Prompt, Error> {
     object(tokens)?;
     Ok(Prompt {
-        system: match field(tokens, b"system")? {
-            Some(item) => Some(text(item, limits.content)?),
-            None => None,
-        },
+        system: optional_text(tokens, b"system", limits.content)?,
         tools: match field(tokens, b"tools")? {
             Some(item) => Some(read_list_text(item, limits)?),
             None => None,
@@ -1075,7 +859,7 @@ fn read_completion(tokens: &[Token], limits: &Limits) -> Result<Completion, Erro
     Ok(Completion { blocks: read_list_block(required(tokens, b"blocks")?, limits)? })
 }
 
-fn read_command_exit(tokens: &[Token], _limits: &Limits) -> Result<CommandExit, Error> {
+fn read_command_exit(tokens: &[Token]) -> Result<CommandExit, Error> {
     object(tokens)?;
     match field(tokens, b"code")? {
         Some(code) => {
@@ -1126,7 +910,7 @@ fn read_session_started(tokens: &[Token], limits: &Limits) -> Result<SessionStar
         profile: text(required(tokens, b"profile")?, limits.string)?,
         capture: read_capture(required(tokens, b"capture")?, limits)?,
         delivery: read_delivery(required(tokens, b"delivery")?, limits)?,
-        versions: read_versions(required(tokens, b"versions")?, limits)?,
+        versions: read_versions(required(tokens, b"versions")?)?,
         limits: read_effective_limits(required(tokens, b"limits")?, limits)?,
     })
 }
@@ -1193,25 +977,22 @@ fn read_effective_limits(tokens: &[Token], limits: &Limits) -> Result<List<Effec
     Ok(values)
 }
 
-fn read_session_ended(tokens: &[Token], limits: &Limits, session_ended_aborted: bool) -> Result<SessionEnded, Error> {
+fn read_session_ended(tokens: &[Token], limits: &Limits) -> Result<SessionEnded, Error> {
     object(tokens)?;
     Ok(SessionEnded {
         exit: signed(required(tokens, b"exit")?)?,
         answered: boolean(required(tokens, b"answered")?)?,
-        aborted: if session_ended_aborted { Some(boolean(required(tokens, b"aborted")?)?) } else { None },
-        teardown_ms: match required(tokens, b"teardown_ms")? {
-            [Token::Null] => None,
-            item => Some(unsigned(item)?),
-        },
+        aborted: boolean(required(tokens, b"aborted")?)?,
+        teardown_ms: nullable_unsigned(required(tokens, b"teardown_ms")?)?,
         emitted: read_list_count(required(tokens, b"emitted")?, limits)?,
-        loss: read_loss(required(tokens, b"loss")?, limits)?,
+        loss: read_loss(required(tokens, b"loss")?)?,
         cpu_ms: match required(tokens, b"cpu_ms")? {
             [Token::Null] => None,
-            item => Some(read_cpu(item, limits)?),
+            item => Some(read_cpu(item)?),
         },
         peak_rss_bytes: match required(tokens, b"peak_rss_bytes")? {
             [Token::Null] => None,
-            item => Some(read_peak_rss(item, limits)?),
+            item => Some(read_peak_rss(item)?),
         },
     })
 }
@@ -1223,7 +1004,7 @@ fn read_run_started(tokens: &[Token], limits: &Limits) -> Result<RunStarted, Err
         resumed: boolean(required(tokens, b"resumed")?)?,
         messages: unsigned(required(tokens, b"messages")?)?,
         main: read_model(required(tokens, b"main")?, limits)?,
-        budget: read_budget(required(tokens, b"budget")?, limits)?,
+        budget: read_budget(required(tokens, b"budget")?)?,
         tools: read_tools(required(tokens, b"tools")?, limits)?,
         contract: read_list_form(required(tokens, b"contract")?, limits)?,
     })
@@ -1245,11 +1026,8 @@ fn read_run_completed(tokens: &[Token], limits: &Limits) -> Result<RunCompleted,
         },
         turns: unsigned(required(tokens, b"turns")?)?,
         spent: unsigned(required(tokens, b"spent")?)?,
-        usage: read_usage(required(tokens, b"usage")?, limits)?,
-        read: match required(tokens, b"read")? {
-            [Token::Null] => None,
-            item => Some(unsigned(item)?),
-        },
+        usage: read_usage(required(tokens, b"usage")?)?,
+        read: nullable_unsigned(required(tokens, b"read")?)?,
         unread: unsigned(required(tokens, b"unread")?)?,
         duration_ms: unsigned(required(tokens, b"duration_ms")?)?,
     })
@@ -1261,14 +1039,8 @@ fn read_conversation_opened(tokens: &[Token], limits: &Limits) -> Result<Convers
         run: unsigned(required(tokens, b"run")?)?,
         conversation: unsigned(required(tokens, b"conversation")?)?,
         kind: read_conversation_kind(required(tokens, b"kind")?, limits)?,
-        parent: match field(tokens, b"parent")? {
-            Some(item) => Some(unsigned(item)?),
-            None => None,
-        },
-        call: match field(tokens, b"call")? {
-            Some(item) => Some(text(item, limits.string)?),
-            None => None,
-        },
+        parent: optional_unsigned(tokens, b"parent")?,
+        call: optional_text(tokens, b"call", limits.string)?,
         thread: unsigned(required(tokens, b"thread")?)?,
         model: read_model(required(tokens, b"model")?, limits)?,
         requested: match field(tokens, b"requested")? {
@@ -1292,16 +1064,13 @@ fn read_conversation_closed(tokens: &[Token], limits: &Limits) -> Result<Convers
         run: unsigned(required(tokens, b"run")?)?,
         conversation: unsigned(required(tokens, b"conversation")?)?,
         end: read_conversation_end(required(tokens, b"end")?, limits)?,
-        which: match field(tokens, b"which")? {
-            Some(item) => Some(text(item, limits.string)?),
-            None => None,
-        },
+        which: optional_text(tokens, b"which", limits.string)?,
         failure: match field(tokens, b"failure")? {
             Some(item) => Some(read_completion_failure(item, limits)?),
             None => None,
         },
         turns: unsigned(required(tokens, b"turns")?)?,
-        usage: read_usage(required(tokens, b"usage")?, limits)?,
+        usage: read_usage(required(tokens, b"usage")?)?,
         spent: unsigned(required(tokens, b"spent")?)?,
         duration_ms: unsigned(required(tokens, b"duration_ms")?)?,
     })
@@ -1343,29 +1112,17 @@ fn read_response_completed(tokens: &[Token], limits: &Limits) -> Result<Response
         invalid: unsigned(required(tokens, b"invalid")?)?,
         oversized: unsigned(required(tokens, b"oversized")?)?,
         cut: unsigned(required(tokens, b"cut")?)?,
-        usage: read_usage(required(tokens, b"usage")?, limits)?,
+        usage: read_usage(required(tokens, b"usage")?)?,
         spent: unsigned(required(tokens, b"spent")?)?,
-        request_bytes: match required(tokens, b"request_bytes")? {
-            [Token::Null] => None,
-            item => Some(unsigned(item)?),
-        },
-        first_byte_ms: match required(tokens, b"first_byte_ms")? {
-            [Token::Null] => None,
-            item => Some(unsigned(item)?),
-        },
-        largest_gap_ms: match required(tokens, b"largest_gap_ms")? {
-            [Token::Null] => None,
-            item => Some(unsigned(item)?),
-        },
+        request_bytes: nullable_unsigned(required(tokens, b"request_bytes")?)?,
+        first_byte_ms: nullable_unsigned(required(tokens, b"first_byte_ms")?)?,
+        largest_gap_ms: nullable_unsigned(required(tokens, b"largest_gap_ms")?)?,
         duration_ms: unsigned(required(tokens, b"duration_ms")?)?,
         failure: match field(tokens, b"failure")? {
             Some(item) => Some(read_completion_failure(item, limits)?),
             None => None,
         },
-        retry_ms: match field(tokens, b"retry_ms")? {
-            Some(item) => Some(unsigned(item)?),
-            None => None,
-        },
+        retry_ms: optional_unsigned(tokens, b"retry_ms")?,
         completion: match field(tokens, b"completion")? {
             Some(item) => Some(read_completion(item, limits)?),
             None => None,
@@ -1393,15 +1150,9 @@ fn read_tool_started(tokens: &[Token], limits: &Limits) -> Result<ToolStarted, E
         tool: text(required(tokens, b"tool")?, limits.string)?,
         source: read_source(required(tokens, b"source")?, limits)?,
         effect: read_effect(required(tokens, b"effect")?, limits)?,
-        deadline_ms: match required(tokens, b"deadline_ms")? {
-            [Token::Null] => None,
-            item => Some(unsigned(item)?),
-        },
+        deadline_ms: nullable_unsigned(required(tokens, b"deadline_ms")?)?,
         input_bytes: unsigned(required(tokens, b"input_bytes")?)?,
-        input: match field(tokens, b"input")? {
-            Some(item) => Some(text(item, limits.content)?),
-            None => None,
-        },
+        input: optional_text(tokens, b"input", limits.content)?,
     })
 }
 
@@ -1421,7 +1172,7 @@ fn read_child_completed(tokens: &[Token], limits: &Limits) -> Result<ChildComple
         turns: unsigned(required(tokens, b"turns")?)?,
         time_ms: unsigned(required(tokens, b"time_ms")?)?,
         spent: unsigned(required(tokens, b"spent")?)?,
-        usage: read_usage(required(tokens, b"usage")?, limits)?,
+        usage: read_usage(required(tokens, b"usage")?)?,
     })
 }
 
@@ -1434,13 +1185,10 @@ fn read_tool_completed(tokens: &[Token], limits: &Limits) -> Result<ToolComplete
         tool: text(required(tokens, b"tool")?, limits.string)?,
         verdict: read_verdict(required(tokens, b"verdict")?, limits)?,
         exit: match field(tokens, b"exit")? {
-            Some(item) => Some(read_command_exit(item, limits)?),
+            Some(item) => Some(read_command_exit(item)?),
             None => None,
         },
-        job: match field(tokens, b"job")? {
-            Some(item) => Some(unsigned(item)?),
-            None => None,
-        },
+        job: optional_unsigned(tokens, b"job")?,
         bytes: unsigned(required(tokens, b"bytes")?)?,
         omitted_bytes: unsigned(required(tokens, b"omitted_bytes")?)?,
         clamped: boolean(required(tokens, b"clamped")?)?,
@@ -1465,7 +1213,7 @@ fn read_job_ended(tokens: &[Token], limits: &Limits) -> Result<JobEnded, Error> 
         call: text(required(tokens, b"call")?, limits.string)?,
         verdict: read_verdict(required(tokens, b"verdict")?, limits)?,
         exit: match field(tokens, b"exit")? {
-            Some(item) => Some(read_command_exit(item, limits)?),
+            Some(item) => Some(read_command_exit(item)?),
             None => None,
         },
         unread_bytes: unsigned(required(tokens, b"unread_bytes")?)?,
@@ -1473,14 +1221,11 @@ fn read_job_ended(tokens: &[Token], limits: &Limits) -> Result<JobEnded, Error> 
     })
 }
 
-fn read_check_started(tokens: &[Token], _limits: &Limits) -> Result<CheckStarted, Error> {
+fn read_check_started(tokens: &[Token]) -> Result<CheckStarted, Error> {
     object(tokens)?;
     Ok(CheckStarted {
         run: unsigned(required(tokens, b"run")?)?,
-        deadline_ms: match required(tokens, b"deadline_ms")? {
-            [Token::Null] => None,
-            item => Some(unsigned(item)?),
-        },
+        deadline_ms: nullable_unsigned(required(tokens, b"deadline_ms")?)?,
     })
 }
 
@@ -1504,31 +1249,20 @@ fn read_message_received(tokens: &[Token], limits: &Limits) -> Result<MessageRec
             Some(item) => Some(read_message_refusal(item, limits)?),
             None => None,
         },
-        label: match field(tokens, b"label")? {
-            Some(item) => Some(text(item, limits.string)?),
-            None => None,
-        },
-        text: match field(tokens, b"text")? {
-            Some(item) => Some(text(item, limits.content)?),
-            None => None,
-        },
+        label: optional_text(tokens, b"label", limits.string)?,
+        text: optional_text(tokens, b"text", limits.content)?,
     })
 }
 
 fn read_message_refusal(tokens: &[Token], limits: &Limits) -> Result<MessageRefusal, Error> {
-    let value = text(tokens, limits.string.max(12))?;
-    Ok(match value.as_ref() {
+    let value = word(tokens, limits.string.max(12))?;
+    Ok(match value {
         b"too_large" => MessageRefusal::TooLarge,
         b"inbox_full" => MessageRefusal::InboxFull,
         b"name_in_use" => MessageRefusal::NameInUse,
         b"ending" => MessageRefusal::Ending,
         b"start_refused" => MessageRefusal::StartRefused,
-        _ => {
-            if value.len() > usize::try_from(limits.string).expect("u32 fits") {
-                return Err(Error::Limits);
-            }
-            MessageRefusal::Unknown(value)
-        }
+        _ => MessageRefusal::Unknown(unknown_word(value, limits)?),
     })
 }
 
@@ -1547,22 +1281,19 @@ fn read_message_unread(tokens: &[Token]) -> Result<MessageUnread, Error> {
 }
 
 fn read_forced(tokens: &[Token], limits: &Limits) -> Result<Forced, Error> {
-    let value = text(tokens, limits.string)?;
-    Ok(match value.as_ref() {
+    let value = word(tokens, limits.string)?;
+    Ok(match value {
         b"no" => Forced::No,
         b"terminated" => Forced::Terminated,
         b"killed" => Forced::Killed,
-        _ => Forced::Unknown(value),
+        _ => Forced::Unknown(Box::from(value)),
     })
 }
 
 fn read_notice(tokens: &[Token], limits: &Limits) -> Result<Notice, Error> {
     object(tokens)?;
     let notice = Notice {
-        code: match field(tokens, b"code")? {
-            Some(item) => Some(text(item, limits.string)?),
-            None => None,
-        },
+        code: optional_text(tokens, b"code", limits.string)?,
         exit: match field(tokens, b"exit")? {
             Some([Token::Null]) | None => None,
             Some(item) => Some(read_agent_exit(item)?),
@@ -1573,10 +1304,7 @@ fn read_notice(tokens: &[Token], limits: &Limits) -> Result<Notice, Error> {
         },
         level: read_level(required(tokens, b"level")?, limits)?,
         kind: read_notice_kind(required(tokens, b"kind")?, limits)?,
-        run: match field(tokens, b"run")? {
-            Some(item) => Some(unsigned(item)?),
-            None => None,
-        },
+        run: optional_unsigned(tokens, b"run")?,
         account: match field(tokens, b"account")? {
             Some(item) => Some(match u32::try_from(unsigned(item)?) {
                 Ok(value) => value,
@@ -1584,14 +1312,8 @@ fn read_notice(tokens: &[Token], limits: &Limits) -> Result<Notice, Error> {
             }),
             None => None,
         },
-        bytes: match field(tokens, b"bytes")? {
-            Some(item) => Some(unsigned(item)?),
-            None => None,
-        },
-        reset_ms: match field(tokens, b"reset_ms")? {
-            Some(item) => Some(unsigned(item)?),
-            None => None,
-        },
+        bytes: optional_unsigned(tokens, b"bytes")?,
+        reset_ms: optional_unsigned(tokens, b"reset_ms")?,
     };
     match notice.kind {
         NoticeKind::ForcedExit if notice.forced.is_none() || field(tokens, b"exit")?.is_none() => Err(Error::Shape),
@@ -1637,32 +1359,19 @@ fn read_block(tokens: &[Token], limits: &Limits) -> Result<Block, Error> {
             text: text(required(tokens, b"text")?, limits.content)?,
         },
         b"opaque" => Block::Opaque { bytes: unsigned(required(tokens, b"bytes")?)? },
-        _ => {
-            if kind.len() > usize::try_from(limits.string).expect("u32 fits") {
-                return Err(Error::Limits);
-            }
-            Block::Unknown { kind }
-        }
+        _ => Block::Unknown { kind: unknown_word(&kind, limits)? },
     })
 }
 
 fn read_list_block(tokens: &[Token], limits: &Limits) -> Result<List<Block>, Error> {
-    if tokens.first() != Some(&Token::ArrayStart) || tokens.last() != Some(&Token::ArrayEnd) {
-        return Err(Error::Shape);
-    }
+    let mut cursor = ListCursor::new(tokens)?;
     let mut values = List::with_capacity(limits.items);
-    let mut at = 1_usize;
     for _ in 0..tokens.len() {
-        if at >= tokens.len().saturating_sub(1) {
-            break;
-        }
-        let end = value_end(tokens, at)?;
-        let item = tokens.get(at..end).ok_or(Error::Shape)?;
+        let Some(item) = cursor.next(tokens)? else { break };
         let value = read_block(item, limits)?;
         if values.push(value).is_err() {
             return Err(Error::Limits);
         }
-        at = end;
     }
     Ok(values)
 }
@@ -1707,164 +1416,100 @@ fn read_list_count(tokens: &[Token], limits: &Limits) -> Result<List<Count>, Err
 }
 
 fn read_list_family(tokens: &[Token], limits: &Limits) -> Result<List<Family>, Error> {
-    if tokens.first() != Some(&Token::ArrayStart) || tokens.last() != Some(&Token::ArrayEnd) {
-        return Err(Error::Shape);
-    }
+    let mut cursor = ListCursor::new(tokens)?;
     let mut values = List::with_capacity(limits.items);
-    let mut at = 1_usize;
     for _ in 0..tokens.len() {
-        if at >= tokens.len().saturating_sub(1) {
-            break;
-        }
-        let end = value_end(tokens, at)?;
-        let item = tokens.get(at..end).ok_or(Error::Shape)?;
+        let Some(item) = cursor.next(tokens)? else { break };
         let value = read_family(item, limits)?;
         if values.push(value).is_err() {
             return Err(Error::Limits);
         }
-        at = end;
     }
     Ok(values)
 }
 
 fn read_list_field(tokens: &[Token], limits: &Limits) -> Result<List<Field>, Error> {
-    if tokens.first() != Some(&Token::ArrayStart) || tokens.last() != Some(&Token::ArrayEnd) {
-        return Err(Error::Shape);
-    }
+    let mut cursor = ListCursor::new(tokens)?;
     let mut values = List::with_capacity(limits.items);
-    let mut at = 1_usize;
     for _ in 0..tokens.len() {
-        if at >= tokens.len().saturating_sub(1) {
-            break;
-        }
-        let end = value_end(tokens, at)?;
-        let item = tokens.get(at..end).ok_or(Error::Shape)?;
+        let Some(item) = cursor.next(tokens)? else { break };
         let value = read_field(item, limits)?;
         if values.push(value).is_err() {
             return Err(Error::Limits);
         }
-        at = end;
     }
     Ok(values)
 }
 
 fn read_list_form(tokens: &[Token], limits: &Limits) -> Result<List<Form>, Error> {
-    if tokens.first() != Some(&Token::ArrayStart) || tokens.last() != Some(&Token::ArrayEnd) {
-        return Err(Error::Shape);
-    }
+    let mut cursor = ListCursor::new(tokens)?;
     let mut values = List::with_capacity(limits.items);
-    let mut at = 1_usize;
     for _ in 0..tokens.len() {
-        if at >= tokens.len().saturating_sub(1) {
-            break;
-        }
-        let end = value_end(tokens, at)?;
-        let item = tokens.get(at..end).ok_or(Error::Shape)?;
+        let Some(item) = cursor.next(tokens)? else { break };
         let value = read_form(item, limits)?;
         if values.push(value).is_err() {
             return Err(Error::Limits);
         }
-        at = end;
     }
     Ok(values)
 }
 
 fn read_list_message(tokens: &[Token], limits: &Limits) -> Result<List<Message>, Error> {
-    if tokens.first() != Some(&Token::ArrayStart) || tokens.last() != Some(&Token::ArrayEnd) {
-        return Err(Error::Shape);
-    }
+    let mut cursor = ListCursor::new(tokens)?;
     let mut values = List::with_capacity(limits.items);
-    let mut at = 1_usize;
     for _ in 0..tokens.len() {
-        if at >= tokens.len().saturating_sub(1) {
-            break;
-        }
-        let end = value_end(tokens, at)?;
-        let item = tokens.get(at..end).ok_or(Error::Shape)?;
+        let Some(item) = cursor.next(tokens)? else { break };
         let value = read_message(item, limits)?;
         if values.push(value).is_err() {
             return Err(Error::Limits);
         }
-        at = end;
     }
     Ok(values)
 }
 
 fn read_list_text(tokens: &[Token], limits: &Limits) -> Result<List<Box<[u8]>>, Error> {
-    if tokens.first() != Some(&Token::ArrayStart) || tokens.last() != Some(&Token::ArrayEnd) {
-        return Err(Error::Shape);
-    }
+    let mut cursor = ListCursor::new(tokens)?;
     let mut values = List::with_capacity(limits.items);
-    let mut at = 1_usize;
     for _ in 0..tokens.len() {
-        if at >= tokens.len().saturating_sub(1) {
-            break;
-        }
-        let end = value_end(tokens, at)?;
-        let item = tokens.get(at..end).ok_or(Error::Shape)?;
+        let Some(item) = cursor.next(tokens)? else { break };
         let value = text(item, limits.string)?;
         if values.push(value).is_err() {
             return Err(Error::Limits);
         }
-        at = end;
     }
     Ok(values)
 }
 
 fn read_budget_stage(tokens: &[Token], limits: &Limits) -> Result<BudgetStage, Error> {
-    let value = text(tokens, limits.string.max(64))?;
-    Ok(match value.as_ref() {
+    let value = word(tokens, limits.string.max(64))?;
+    Ok(match value {
         b"ordinary" => BudgetStage::Ordinary,
         b"wind_down" => BudgetStage::WindDown,
-        _ => {
-            if value.len() > usize::try_from(limits.string).expect("u32 fits") {
-                return Err(Error::Limits);
-            }
-            BudgetStage::Unknown(value)
-        }
+        _ => BudgetStage::Unknown(unknown_word(value, limits)?),
     })
 }
 
 fn read_share_part(tokens: &[Token], limits: &Limits) -> Result<SharePart, Error> {
-    let value = text(tokens, limits.string.max(64))?;
-    Ok(match value.as_ref() {
+    let value = word(tokens, limits.string.max(64))?;
+    Ok(match value {
         b"turns" => SharePart::Turns,
         b"time" => SharePart::Time,
-        _ => {
-            if value.len() > usize::try_from(limits.string).expect("u32 fits") {
-                return Err(Error::Limits);
-            }
-            SharePart::Unknown(value)
-        }
+        _ => SharePart::Unknown(unknown_word(value, limits)?),
     })
 }
 
 fn read_share_bound(tokens: &[Token], limits: &Limits) -> Result<ShareBound, Error> {
-    let value = text(tokens, limits.string.max(64))?;
-    Ok(match value.as_ref() {
+    let value = word(tokens, limits.string.max(64))?;
+    Ok(match value {
         b"reserve" => ShareBound::Reserve,
         b"deadline" => ShareBound::Deadline,
-        _ => {
-            if value.len() > usize::try_from(limits.string).expect("u32 fits") {
-                return Err(Error::Limits);
-            }
-            ShareBound::Unknown(value)
-        }
+        _ => ShareBound::Unknown(unknown_word(value, limits)?),
     })
 }
 
 fn read_requested(tokens: &[Token]) -> Result<Requested, Error> {
     object(tokens)?;
-    Ok(Requested {
-        turns: match field(tokens, b"turns")? {
-            Some(item) => Some(unsigned(item)?),
-            None => None,
-        },
-        seconds: match field(tokens, b"seconds")? {
-            Some(item) => Some(unsigned(item)?),
-            None => None,
-        },
-    })
+    Ok(Requested { turns: optional_unsigned(tokens, b"turns")?, seconds: optional_unsigned(tokens, b"seconds")? })
 }
 
 fn read_share(tokens: &[Token]) -> Result<Share, Error> {
@@ -1899,25 +1544,15 @@ fn read_budget_standing(tokens: &[Token], limits: &Limits) -> Result<BudgetStand
         spend: read_quantity(required(tokens, b"spend")?)?,
         time_ms: read_quantity(required(tokens, b"time_ms")?)?,
         reserve: read_reserve(required(tokens, b"reserve")?)?,
-        call: match field(tokens, b"call")? {
-            Some(item) => Some(text(item, limits.string)?),
-            None => None,
-        },
+        call: optional_text(tokens, b"call", limits.string)?,
     })
 }
 
 fn read_list_clamp(tokens: &[Token], limits: &Limits) -> Result<List<Clamp>, Error> {
-    if tokens.first() != Some(&Token::ArrayStart) || tokens.last() != Some(&Token::ArrayEnd) {
-        return Err(Error::Shape);
-    }
+    let mut cursor = ListCursor::new(tokens)?;
     let mut values = List::with_capacity(limits.items);
-    let mut at = 1_usize;
     for _ in 0..tokens.len() {
-        if at >= tokens.len().saturating_sub(1) {
-            break;
-        }
-        let end = value_end(tokens, at)?;
-        let item = tokens.get(at..end).ok_or(Error::Shape)?;
+        let Some(item) = cursor.next(tokens)? else { break };
         object(item)?;
         let value = Clamp {
             part: read_share_part(required(item, b"part")?, limits)?,
@@ -1926,17 +1561,65 @@ fn read_list_clamp(tokens: &[Token], limits: &Limits) -> Result<List<Clamp>, Err
         if values.push(value).is_err() {
             return Err(Error::Limits);
         }
-        at = end;
     }
     Ok(values)
 }
 
 fn read_account_state(tokens: &[Token], limits: &Limits) -> Result<AccountState, Error> {
-    let value = text(tokens, limits.string)?;
-    Ok(match value.as_ref() {
+    let value = word(tokens, limits.string)?;
+    Ok(match value {
         b"limited" => AccountState::Limited,
         b"refused" => AccountState::Refused,
         b"unauthorized" => AccountState::Unauthorized,
-        _ => AccountState::Unknown(value),
+        _ => AccountState::Unknown(Box::from(value)),
     })
+}
+
+fn unknown_word(value: &[u8], limits: &Limits) -> Result<Box<[u8]>, Error> {
+    if value.len() > usize::try_from(limits.string).expect("u32 fits") {
+        return Err(Error::Limits);
+    }
+    Ok(Box::from(value))
+}
+
+struct ListCursor {
+    at: usize,
+    end: usize,
+}
+
+impl ListCursor {
+    fn new(tokens: &[Token]) -> Result<ListCursor, Error> {
+        if tokens.first() != Some(&Token::ArrayStart) || tokens.last() != Some(&Token::ArrayEnd) {
+            return Err(Error::Shape);
+        }
+        Ok(ListCursor { at: 1, end: tokens.len().saturating_sub(1) })
+    }
+
+    fn next<'a>(&mut self, tokens: &'a [Token]) -> Result<Option<&'a [Token]>, Error> {
+        if self.at >= self.end {
+            return Ok(None);
+        }
+        let end = value_end(tokens, self.at)?;
+        let item = tokens.get(self.at..end).ok_or(Error::Shape)?;
+        self.at = end;
+        Ok(Some(item))
+    }
+}
+
+#[cfg(test)]
+#[test]
+fn the_product_announces_its_chat_store_version() {
+    let wire = b"{\"v\":4,\"type\":\"session.started\",\"t_ms\":0,\"wall_ms\":0,\"agent\":{\"name\":\"smith\",\"version\":\"0\"},\"mode\":\"exec\",\"chat\":\"plan\",\"containment\":\"groups\",\"pid\":1,\"profile\":\"standard\",\"capture\":\"none\",\"delivery\":\"complete\",\"versions\":{\"events\":4,\"channel\":2,\"charter\":2,\"transcript\":5,\"chat_store\":1},\"limits\":{}}\n";
+    let limits = Limits { string: 32, items: 16, ..crate::fixture::SMALL };
+    let record = read(wire, &limits).unwrap().unwrap();
+    let Event::SessionStarted(started) = &record.event else { panic!("startup record") };
+    assert_eq!(started.versions.chat_store, Some(1));
+    assert_eq!(crate::write(&record, &Capture::None, &limits).unwrap().unwrap().as_ref(), wire);
+}
+
+fn word(tokens: &[Token], capacity: u32) -> Result<&[u8], Error> {
+    match tokens {
+        [Token::String(value)] if value.len() <= usize::try_from(capacity).expect("u32 fits") => Ok(value),
+        _ => Err(Error::Shape),
+    }
 }

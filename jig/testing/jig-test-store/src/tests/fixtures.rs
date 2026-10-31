@@ -170,6 +170,12 @@ pub fn component_limits() -> jig_protocol_store::Limits {
     }
 }
 pub fn component() -> Component {
+    build_component()
+}
+pub fn starting_component() -> Component {
+    build_component()
+}
+fn build_component() -> Component {
     let root = root_limits();
     let limits = component_limits();
     let kv = limits.store;
@@ -245,7 +251,7 @@ pub fn routed(component: &mut Component, routes: &mut crate::route::Routes, out:
                 };
                 match output {
                     crate::Up::Ask(request) => requests.push(request),
-                    other @ (crate::Up::Restore(_) | crate::Up::Root(_)) => {
+                    other @ crate::Up::Root(_) => {
                         found.push(other).expect("bounded fixture");
                     }
                 }

@@ -12,7 +12,7 @@ mod tests {
         let seen = world.seen();
         assert!(seen.started);
         assert!(seen.admitted);
-        assert!(seen.answered.is_some(), "the actual agent service supplied its last word");
+        assert!(seen.answered.is_some(), "the agent service supplied its last word");
         assert_eq!(
             seen.gone,
             Some(End::Exited { exit: Some(smith_host_domain::Exit::Code(0)), forced: smith_host_domain::Forced::No })
@@ -104,16 +104,15 @@ mod tests {
         const RELEASE_AFTER: Duration = Duration::from_secs(1);
         let mut world = World::new(SEED, Program::Service);
         world.ask(true, false, false);
-        world.script(Box::new([api::Turn {
-            lines: Box::new([api::Line::Pieces {
+        world.script(Box::new([smith_agent_world::fixture::says(
+            Box::new([api::Line::Pieces {
                 pieces: Box::new([
                     api::Piece { text: FIRST.into(), hold: None },
                     api::Piece { text: LAST.into(), hold: Some(HOLD.into()) },
                 ]),
             }]),
-            finish: api::Finish::Stop,
-            tokens: 1,
-        }]));
+            1,
+        )]));
         world.release_after(HOLD, QUERY, RELEASE_AFTER);
         world.settle();
         let pieces: Vec<_> = world

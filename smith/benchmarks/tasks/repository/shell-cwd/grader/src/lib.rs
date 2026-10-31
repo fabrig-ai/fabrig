@@ -21,7 +21,7 @@ fn shell(cwd: Option<&str>, timeout: Option<u32>) -> tools::Call {
     let mut value = serde_json::json!({"command":"printf repository_oracle"});
     if let Some(cwd) = cwd { value["cwd"] = serde_json::json!(cwd); }
     if let Some(timeout) = timeout { value["timeout"] = serde_json::json!(timeout); }
-    match decode_value(value, ALL) { llm::Decoded::Owned { call } => call, other => panic!("expected owned shell, got {other:?}") }
+    match decode_value(value, ALL) { llm::Decoded::Owned { call } => call, other => panic!("expected owned shell, {other:?}") }
 }
 fn names(path: &str) -> Box<[tools::Name]> {
     path.split('/').filter(|part| !part.is_empty()).map(|part| tools::Name::new(part.as_bytes().into()).unwrap()).collect()

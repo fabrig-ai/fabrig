@@ -1,4 +1,4 @@
-//! Seeded host and agent input cuts at actual wire bytes.
+//! Seeded host and agent input cuts at observed wire bytes.
 //! Contract: protocol/channel.md, sections 5 and 10; testing-strategy.md,
 //! sections 6 and 8. Skein owns the replay helper and channel parser.
 

@@ -17,3 +17,6 @@ pub mod startup;
 pub use local_host::{Local, Resources};
 pub use presets::{Prices, list_prices};
 pub use startup::Failure;
+
+#[cfg(test)]
+mod fixture;

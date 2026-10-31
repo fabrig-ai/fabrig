@@ -279,11 +279,36 @@ pub struct Observer {
     // Durable fresh marks fence these attempts: their traffic is acknowledged
     // and discarded without a turn or terminal row (engine.md, 7.2 and 8).
     crossed: BTreeSet<(u64, u64)>,
+    cancelled: BTreeSet<(u64, u64)>,
+    discarded: BTreeSet<(u64, u64)>,
     words: BTreeSet<(u64, u64)>,
     policy_changes: BTreeMap<(u64, [u8; 16]), (u32, people::PolicyChange)>,
     applied_changes: BTreeSet<(u64, [u8; 16])>,
     forgetting: BTreeMap<u64, Vec<u64>>,
     recorded: Option<Vec<r::Observed>>,
+}
+
+fn connector_policy(policy: &mut r::Policy, number: u16, connector: &connector::Config) {
+    let parts = connector.prefix.segments();
+    // The deployment prefix owns its complete subtree, but not the prefix object itself.
+    policy.owned.push((
+        number,
+        r::Pattern { base: parts.iter().map(|part| part.to_vec()).collect(), terminal: Vec::new(), open: true },
+    ));
+    for kind in &connector.kinds {
+        policy.kinds.insert(
+            (number, kind.kind),
+            r::Kind {
+                price: kind.price.unwrap_or(0),
+                recovery: match kind.recovery {
+                    connector::Recovery::Keyed => r::Recovery::Keyed,
+                    connector::Recovery::Conditional => r::Recovery::Conditional,
+                    connector::Recovery::Idempotent => r::Recovery::Idempotent,
+                    connector::Recovery::Unrecoverable => r::Recovery::Unrecoverable,
+                },
+            },
+        );
+    }
 }
 
 impl Observer {
@@ -341,26 +366,7 @@ impl Observer {
             }
         }
         for (number, connector) in [(1, &configuration.first), (2, &configuration.second)] {
-            let parts = connector.prefix.segments();
-            // The deployment prefix owns its complete subtree, but not the prefix object itself.
-            policy.owned.push((
-                number,
-                r::Pattern { base: parts.iter().map(|part| part.to_vec()).collect(), terminal: Vec::new(), open: true },
-            ));
-            for kind in &connector.kinds {
-                policy.kinds.insert(
-                    (number, kind.kind),
-                    r::Kind {
-                        price: kind.price.unwrap_or(0),
-                        recovery: match kind.recovery {
-                            connector::Recovery::Keyed => r::Recovery::Keyed,
-                            connector::Recovery::Conditional => r::Recovery::Conditional,
-                            connector::Recovery::Idempotent => r::Recovery::Idempotent,
-                            connector::Recovery::Unrecoverable => r::Recovery::Unrecoverable,
-                        },
-                    },
-                );
-            }
+            connector_policy(&mut policy, number, connector);
         }
         // Enumerate the finite configured kind vocabulary rather than reuse an
         // authority decision function when checking a later observed effect.
@@ -386,6 +392,8 @@ impl Observer {
             accepted: BTreeMap::new(),
             settled_calls: BTreeSet::new(),
             crossed: BTreeSet::new(),
+            cancelled: BTreeSet::new(),
+            discarded: BTreeSet::new(),
             words: BTreeSet::new(),
             policy_changes: BTreeMap::new(),
             applied_changes: BTreeSet::new(),
@@ -483,9 +491,6 @@ impl Observer {
             | root::Event::WatchApplication { .. }
             | root::Event::ReadApplication { .. }
             | root::Event::Stop
-            | root::Event::Switched
-            | root::Event::RestartBegin { .. }
-            | root::Event::RestartDone(_)
             | root::Event::Timer(_)
             | root::Event::Core(_)
             | root::Event::Credential { .. }
@@ -494,6 +499,11 @@ impl Observer {
             | root::Event::CallAnswered { .. }
             | root::Event::TopicCall { .. }
             | root::Event::EffectCall { .. }
+            | root::Event::StartRecord(_)
+            | root::Event::StartMissing { .. }
+            | root::Event::StartPageRefused { .. }
+            | root::Event::StartBegin { .. }
+            | root::Event::StartDone(_)
             | root::Event::TranscriptLoaded { .. }
             | root::Event::Committed { .. }
             | root::Event::WriterRead { .. }
@@ -761,6 +771,7 @@ impl Observer {
                 self.policy_change(project, &change);
             }
         }
+        self.discarded.clear();
         let mut snapshot = r::Snapshot::default();
         let mut decisions = Vec::new();
         let mut task_acceptances = Vec::new();
@@ -792,6 +803,12 @@ impl Observer {
                     snapshot.party_proposals.insert(value.number, value.proposer);
                 }
                 root::Record::Core(core::Record::Tasks(tasks::Stored::Live(value) | tasks::Stored::Ended(value))) => {
+                    if matches!(
+                        value.phase,
+                        tasks::Phase::Held { .. } | tasks::Phase::Closing(_) | tasks::Phase::Ended(_)
+                    ) {
+                        self.discarded.insert((value.number, value.attempt));
+                    }
                     let mut snapshot_task = task(value);
                     snapshot_task.tracked |= store.rows.contains_key(&root::Key::Core(core::Key::Core(
                         core::CoreKey::Projection(core::ProjectionKey::Goal(value.number)),
@@ -1100,9 +1117,18 @@ impl Observer {
                     self.observe(now, r::Observed::Reached(r::Receipt::Word(assignment.task, word.number)));
                 }
             }
+            root::Delivery::Core(core::Held::Cancel { run, attempt, .. }) => {
+                self.cancelled.insert((run.raw(), attempt.raw()));
+            }
             root::Delivery::Core(core::Held::AcknowledgeTurn { run, attempt, turn, .. }) => {
                 let receipt = if self.crossed.contains(&(run.raw(), attempt.raw())) {
                     r::Receipt::Claim(run.raw(), attempt.raw())
+                } else if self.cancelled.contains(&(run.raw(), attempt.raw()))
+                    && self.discarded.contains(&(run.raw(), attempt.raw()))
+                {
+                    // A cancelled attempt's discarded body has no Turn row (fleet's turn.rs).
+                    requires.push(r::Receipt::Claim(run.raw(), attempt.raw()));
+                    r::Receipt::Task(run.raw())
                 } else {
                     r::Receipt::Turn(run.raw(), attempt.raw(), *turn)
                 };
@@ -1156,8 +1182,7 @@ impl Observer {
                     },
                 );
             }
-            root::Delivery::Restart(_)
-            | root::Delivery::Core(_)
+            root::Delivery::Core(_)
             | root::Delivery::Fleet(_)
             | root::Delivery::ApplicationDocument { .. }
             | root::Delivery::ApplicationRead { .. }
@@ -1165,6 +1190,7 @@ impl Observer {
             | root::Delivery::Link { .. }
             | root::Delivery::ProjectMade { .. }
             | root::Delivery::CallBusy { .. }
+            | root::Delivery::Start(_)
             | root::Delivery::System { .. } => {}
         }
         self.observe(now, r::Observed::Released { requires });

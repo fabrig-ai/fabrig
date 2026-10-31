@@ -133,7 +133,7 @@ impl Referee {
 
     pub(crate) fn counts(&self) -> (u64, u64) {
         (
-            u64::try_from(self.calls.len()).expect("submitted count"),
+            skein_lib::len_u64(self.calls.len()),
             u64::try_from(self.calls.values().filter(|call| call.terminal.is_some()).count()).expect("terminal count"),
         )
     }

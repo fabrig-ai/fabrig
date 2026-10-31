@@ -254,7 +254,7 @@ fn restored_projects() -> (Core, Limits) {
     config.seed_projects = Box::new([]);
     let mut core = Core::new(config, &limits).unwrap();
     core.counters.deployment.projects = 2;
-    core.restart_begin(false);
+    let _start = core.start_begin(false, Wall::EPOCH);
     core.restore_core(CoreRecord::Deployment(core.counters.deployment()), &limits);
     assert!(core.restore_policy(&limits, 1, Box::from("Tally"), value.clone()));
     assert!(core.restore_policy(&limits, 2, Box::from("tally"), value));
@@ -263,10 +263,15 @@ fn restored_projects() -> (Core, Limits) {
 
 #[test]
 fn a_freed_name_restores_beside_its_new_holder() {
-    let (mut core, _) = restored_projects();
+    let (mut core, limits) = restored_projects();
     // People projects the committed deletion row after the policy rows load.
     crate::deletion::restore_project(&mut core, 1, people::DeletionStep::Tasks);
-    assert_eq!(core.restart_done(RestartStep::LoadCore), RestartRequest::Step(RestartStep::LoadInbox));
+    let mut out = Queue::uncapped();
+    let env = environment(&limits);
+    assert!(matches!(
+        core.start_done(&env, crate::start::Phase::LoadCore, &mut out),
+        crate::start::Action::Step(crate::start::Phase::LoadInbox)
+    ));
     assert_eq!(core.projects.as_slice(), &[2]);
     assert!(!core.names.contains_key(&1));
     assert_eq!(core.names.get(&2).unwrap().as_ref(), "tally");
@@ -278,10 +283,14 @@ fn a_freed_name_restores_beside_its_new_holder() {
 fn a_kept_deletion_resumes_at_its_tasks_step_after_open() {
     let (mut core, limits) = make_tree();
     crate::deletion::restore_project(&mut core, 1, people::DeletionStep::Tasks);
-    core.restart = restart::Restart::Waiting(RestartStep::Open);
+    core.start.phase = Some(crate::start::Phase::Open);
     let _closed = resume_fleet(&mut core, &environment(&limits));
     assert!(!closing(&core, 1));
-    assert_eq!(core.restart_done(RestartStep::Open), RestartRequest::Idle);
+    let mut out = Queue::uncapped();
+    assert!(matches!(
+        core.start_done(&environment(&limits), crate::start::Phase::Open, &mut out),
+        crate::start::Action::Idle
+    ));
     let _opened = resume_fleet(&mut core, &environment(&limits));
     assert!(closing(&core, 1));
     assert!(core.authority.policy(1).is_some());
@@ -291,13 +300,17 @@ fn a_kept_deletion_resumes_at_its_tasks_step_after_open() {
 fn a_kept_deletion_resumes_at_its_rows_step_after_open() {
     let (mut core, limits) = core();
     crate::deletion::restore_project(&mut core, 1, people::DeletionStep::Rows);
-    core.restart = restart::Restart::Waiting(RestartStep::Open);
+    core.start.phase = Some(crate::start::Phase::Open);
     let Requests::Out(closed) = resume_fleet(&mut core, &environment(&limits));
     let closed = collect(closed);
     assert!(!contains_policy(&closed));
     assert!(released_connectors(&closed).is_empty());
     assert!(core.authority.policy(1).is_some());
-    assert_eq!(core.restart_done(RestartStep::Open), RestartRequest::Idle);
+    let mut out = Queue::uncapped();
+    assert!(matches!(
+        core.start_done(&environment(&limits), crate::start::Phase::Open, &mut out),
+        crate::start::Action::Idle
+    ));
     let Requests::Out(opened) = resume_fleet(&mut core, &environment(&limits));
     assert!(contains_policy(&collect(opened)));
     assert!(core.authority.policy(1).is_none());
@@ -307,12 +320,16 @@ fn a_kept_deletion_resumes_at_its_rows_step_after_open() {
 fn a_kept_deletion_resumes_at_its_release_step_after_open() {
     let (mut core, limits) = core();
     crate::deletion::restore_project(&mut core, 1, people::DeletionStep::Release);
-    core.restart = restart::Restart::Waiting(RestartStep::Open);
+    core.start.phase = Some(crate::start::Phase::Open);
     let Requests::Out(closed) = resume_fleet(&mut core, &environment(&limits));
     let closed = collect(closed);
     assert!(!contains_policy(&closed));
     assert!(released_connectors(&closed).is_empty());
-    assert_eq!(core.restart_done(RestartStep::Open), RestartRequest::Idle);
+    let mut out = Queue::uncapped();
+    assert!(matches!(
+        core.start_done(&environment(&limits), crate::start::Phase::Open, &mut out),
+        crate::start::Action::Idle
+    ));
     let Requests::Out(opened) = resume_fleet(&mut core, &environment(&limits));
     assert_eq!(released_connectors(&collect(opened)).as_ref(), &[1, 2]);
     let Requests::Out(again) = resume_fleet(&mut core, &environment(&limits));

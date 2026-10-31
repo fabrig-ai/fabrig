@@ -2,8 +2,8 @@
 //! This module keeps no entity or terminal right. Its two checked passes measure
 //! then write one owning text, preserving all semantic fields and opaque bytes.
 //! Provider-attested host text moves verbatim; child text precedes its usage line; opaque
-//! evidence uses lossless quoted ASCII byte literals. Contract: domain/run.md,
-//! sections 7, 8, 9.2, 10; programming-model.md, sections 4.5, 6.3 and 8.
+//! evidence uses lossless quoted ASCII byte literals. Contract: smith/docs/design/domain/run.md,
+//! sections 7, 8, 9.2, 10; skein/docs/foundation/programming-model.md, sections 4.5, 6.3 and 8.
 
 use alloc::boxed::Box;
 

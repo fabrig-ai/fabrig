@@ -10,7 +10,7 @@ use super::{
     fixtures::{ENGINE_SMALL, with},
 };
 use crate::{Profile, profile};
-use jig_domain_core::{Core, CoreRecord, Event, Record, Request, Requests, RestartRequest, RestartStep, Write};
+use jig_domain_core::{Core, CoreRecord, Event, Record, Request, Requests, Write};
 use jig_domain_people as people;
 use skein_lib::{Env, ReplyTo, Time, Token, Wall};
 
@@ -128,42 +128,35 @@ fn first_owners_hold_the_deployments_roles_across_start_and_restart() {
     let mut first_saves = Vec::new();
     for row in rows() {
         let mut core = Core::new(core_config(&row.document), &env.limits).expect("real Small core");
-        let _load = core.restart_begin(false);
+        let mut action = core.start_begin(false, env.wall);
         if row.restart {
             for record in &first_saves {
-                match record {
-                    Record::Core(record) => {
-                        let _restored = core.restore_core(record.clone(), &env.limits);
-                    }
-                    Record::People(people::Stored::Policy { project, name, value }) => {
-                        let _restored = core.restore_policy(&env.limits, *project, name.clone(), value.clone());
-                    }
-                    Record::People(record) => {
-                        drop(saves(&mut core, &env, Event::People(people::Event::Restore { record: record.clone() })));
-                    }
-                    Record::Tasks(_) | Record::Accounts(_) | Record::Notes(_) => panic!("first-start records"),
+                restore(&mut core, &env, record);
+            }
+        }
+        let mut records = Vec::new();
+        let mut out = skein_lib::Queue::uncapped();
+        for _ in 0_u16..64 {
+            use jig_domain_core::start::{Action, Phase, SweepInput};
+            action = match action {
+                Action::Step(Phase::Sweep) => core.start_sweep(&env, SweepInput::Finished, &mut out),
+                Action::Step(phase) => core.start_done(&env, phase, &mut out),
+                Action::Commit(token) => core.start_resume(&env, token, &mut out),
+                Action::Idle => break,
+                Action::Refused(why) => panic!("first-owner start refused {why:?}"),
+            };
+            while let Some(request) = out.pop() {
+                if let Request::Write(Write::Save(record)) = request {
+                    records.push(record);
                 }
             }
         }
-        let mut records = saves(&mut core, &env, Event::People(people::Event::Restored));
-        // The root saves the deployment header with the decision's people records.
+        assert!(core.start_opened());
         if first_saves.is_empty() {
             first_saves.clone_from(&records);
             first_saves.insert(0, Record::Core(CoreRecord::Deployment(core.counters.next_commit())));
         }
-        let mut restart = core.restart_done(RestartStep::LoadCore);
-        loop {
-            match restart {
-                RestartRequest::Step(next) => restart = core.restart_done(next),
-                RestartRequest::Idle => break,
-                RestartRequest::Settings { .. }
-                | RestartRequest::HeldPastLimit { .. }
-                | RestartRequest::UnheldRevision { .. }
-                | RestartRequest::ProjectPolicy { .. }
-                | RestartRequest::Unresolved { .. }
-                | RestartRequest::Refused { .. } => panic!("first-owner restart refused: {restart:?}"),
-            }
-        }
+
         if row.sign_in {
             records.extend(saves(
                 &mut core,
@@ -216,5 +209,27 @@ fn first_owners_hold_the_deployments_roles_across_start_and_restart() {
             }
         }
         assert_eq!(policies, row.deployment_policy, "{}", row.shows);
+    }
+}
+
+fn restore(core: &mut Core, env: &Env<jig_domain_core::Limits>, record: &Record) {
+    match record {
+        Record::Core(record) => {
+            let _restored = core.restore_core(record.clone(), &env.limits);
+        }
+        Record::People(people::Stored::Policy { project, name, value }) => {
+            let _restored = core.restore_policy(&env.limits, *project, name.clone(), value.clone());
+        }
+        Record::People(record) => {
+            drop(saves(core, env, Event::People(people::Event::Restore { record: record.clone() })));
+        }
+        Record::Tasks(record) => {
+            assert!(core.restore_task_row(record));
+            drop(saves(core, env, Event::Tasks(jig_domain_tasks::Event::Restore { record: record.clone() })));
+        }
+        Record::Accounts(record) => {
+            drop(saves(core, env, Event::Account(jig_domain_accounts::Event::Restore { record: record.clone() })));
+        }
+        Record::Notes(_) => panic!("first start creates no notes"),
     }
 }

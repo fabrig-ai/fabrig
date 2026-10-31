@@ -2,6 +2,7 @@
 static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Counting;
 
 mod admission;
+mod bounds;
 mod memory;
 mod messages;
 mod person;

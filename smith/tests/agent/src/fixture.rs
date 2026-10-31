@@ -1,5 +1,4 @@
-//! One scripted host workspace, copied from temper `25ac2ad` without forge
-//! metadata (domain/run.md, section 14). The fake checkout owns bytes and
+//! One scripted host workspace without forge metadata (smith/docs/design/domain/run.md, section 13). The fake checkout owns bytes and
 //! process scripts; neither this fixture nor the agent contacts a filesystem.
 
 use skein_fake_checkout::{Checkout, Exit, Program};
@@ -39,7 +38,24 @@ pub(crate) fn seed(disk: &mut Checkout) -> u64 {
 }
 
 pub(crate) fn check(disk: &Checkout, root: u64) -> (bool, Vec<u8>) {
-    let passed = disk.load(root, CODE, u64::MAX).is_ok_and(|(content, _)| content.windows(2).any(|part| part == b"43"));
+    let passed =
+        disk.load(root, CODE, u64::MAX).is_ok_and(|(content, _)| skein_lib::bytes::find(&content, b"43").is_some());
     let output = if passed { b"ok: src/lib.rs\n".as_slice() } else { b"FAILED: src/lib.rs does not hold 43\n" };
     (passed, output.to_vec())
+}
+
+/// Scripted provider turns shared with the session world.
+pub use smith_session_world::fixture::{calls, says};
+
+/// A fresh scripted activation with the world's renewable account grant.
+#[must_use]
+pub fn start(charter: smith_domain::run::Charter) -> smith_domain::Start {
+    smith_domain::Start {
+        grants: Box::new([smith_domain::Grant {
+            renewable: true,
+            name: smith_domain::GrantName { account: 0, generation: 1 },
+            valid: skein_lib::Duration::from_secs(7200),
+        }]),
+        ..smith_domain::fixture::start(skein_lib::Token::new(1), charter)
+    }
 }

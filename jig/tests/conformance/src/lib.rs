@@ -15,7 +15,6 @@ use jig_test_connector as connector;
 use jig_test_domain as root;
 use jig_test_system::System;
 use skein_lib::{Duration, Env, Queue, Time, Wall};
-use std::collections::BTreeMap;
 mod store;
 use jig_test_store::{StoreOut, Up};
 
@@ -149,14 +148,14 @@ pub struct Testing;
 /// A released root output, including immediate observations and cold loads.
 #[derive(Debug)]
 pub enum Delivery {
-    /// A journal-held output, including a restart script instruction.
+    /// A journal-held output.
     Held(root::Delivery),
     /// A root observation that decides nothing.
     Now(core::Now),
     /// A connector retains this event until a later engine can take it.
     Busy(Box<root::Event>),
-    /// The root-selected inbox index range.
-    Census(core::Census),
+    /// A core-selected start phase and its optional inbox range.
+    Start { phase: core::start::Phase, census: Option<core::Census> },
 }
 
 /// The outside correlation state of the application's scripted peers.
@@ -164,16 +163,16 @@ pub enum Delivery {
 pub struct Neighbours {
     pub peers: Peers,
     observer: Observer,
-    restart_reads: BTreeMap<u16, core::RestartStep>,
     account_ready: bool,
     pub assignments: Vec<(u64, u64)>,
     pub answers: u64,
     pub drained: Vec<u64>,
     pub busy_events: Vec<std::rc::Rc<root::Event>>,
-    pub restart_steps: Vec<core::RestartStep>,
+    pub start_phases: Vec<core::start::Phase>,
     pub calls: Vec<core::CallPart>,
     pub hold_writes: bool,
     pub pending_writes: Vec<(u16, connector::SystemRequest)>,
+    pub pending_asks: Vec<(u8, people::Ask)>,
     pub next_fault: jig_test_system::Fault,
     pub scenario: Option<Scenario>,
     pub children: Vec<u64>,
@@ -253,7 +252,7 @@ impl Application for Testing {
 
     fn store(config: &Config) -> Store {
         let (configuration, _) = config.root();
-        Store::new(&config.limits, &configuration.core.settings.models)
+        Store::starting(&config.limits, &configuration.core.settings.models)
     }
     fn build(config: &Config) -> Engine {
         let (configuration, limits) = config.root();
@@ -349,16 +348,16 @@ impl Application for Testing {
         Neighbours {
             peers,
             observer,
-            restart_reads: BTreeMap::new(),
             account_ready: false,
             assignments: Vec::new(),
             answers: 0,
             drained: Vec::new(),
             busy_events: Vec::new(),
-            restart_steps: Vec::new(),
+            start_phases: Vec::new(),
             calls: Vec::new(),
             hold_writes: false,
             pending_writes: Vec::new(),
+            pending_asks: Vec::new(),
             next_fault: jig_test_system::Fault::None,
             scenario: config.scenario,
             children: Vec::new(),
@@ -391,13 +390,12 @@ impl Application for Testing {
     }
 
     fn start(_: &Config, store: &mut Store) -> Vec<root::Event> {
-        vec![root::Event::RestartBegin { pending: store.generation_pending }]
+        vec![root::Event::StartBegin { pending: store.generation_pending }]
     }
 
     fn cold(peers: &mut Neighbours, store: &Store, clock: Clock) {
         peers.observer.cold(clock.now, store);
         peers.peers.restart();
-        peers.restart_reads.clear();
         peers.account_ready = false;
         peers.pending_writes.clear();
     }
@@ -415,14 +413,19 @@ impl Application for Testing {
     fn step(domain: &mut Engine, config: &Config, clock: Clock, input: Input<root::Event, root::Record>) {
         let env = env(config, clock);
         let input = negative::input(domain, config, clock, input);
-        if matches!(&input, Input::Restore(root::Record::Core(core::Record::Core(core::CoreRecord::Deployment(_))))) {
+        if matches!(
+            &input,
+            Input::Event(root::Event::StartRecord(root::Record::Core(core::Record::Core(
+                core::CoreRecord::Deployment(_)
+            ))))
+        ) {
             domain.fixture = None;
         }
-        if matches!(&input, Input::Event(root::Event::Core(core::Event::People(people::Event::Restored))))
+        if matches!(&input, Input::Event(root::Event::StartDone(core::start::Phase::LoadCore)))
             && let Some(rows) = domain.fixture.take()
         {
             for row in &rows {
-                assert!(root::restore_record(domain, &env, row.clone()));
+                root::start_record(domain, &env, row.clone());
             }
             domain.journal = rows;
         }
@@ -430,7 +433,7 @@ impl Application for Testing {
             Input::Event(event) => root::step(domain, &env, event),
             Input::Committed(number) => root::step(domain, &env, root::Event::Committed { number, fill: 0 }),
             Input::Failed(number) => root::step(domain, &env, root::Event::Failed { number }),
-            Input::Restore(row) => assert!(root::restore_record(domain, &env, row), "row accepted by cold script"),
+            Input::Restore(_) => unreachable!("the start store returns typed root events"),
         }
     }
 
@@ -438,6 +441,7 @@ impl Application for Testing {
         let mut queue = Queue::with_capacity(128);
         root::release(domain, &env(config, clock), &mut queue);
         let mut outputs = Vec::new();
+        let mut read_afresh = None;
         while let Some(request) = queue.pop() {
             outputs.push(match request {
                 root::Request::Commit { number, mut writes } => {
@@ -448,23 +452,47 @@ impl Application for Testing {
                     rows.extend(std::mem::take(&mut domain.journal).into_vec().into_iter().map(root::Write::Save));
                     Output::Commit { number, writes: rows.into_boxed_slice() }
                 }
-                root::Request::Restart(core::RestartStep::LoadInbox)
-                | root::Request::Deliver(root::Delivery::Restart(core::RestartStep::LoadInbox)) => {
-                    Output::Deliver(Delivery::Census(root::inbox_census(domain, &config.limits)))
+                root::Request::Start { phase, census } => Output::Deliver(Delivery::Start { phase, census }),
+
+                root::Request::Deliver(delivery) => {
+                    if !domain.ready()
+                        && let root::Delivery::System { connector, call: connector::SystemRequest::ReadFact { .. } } =
+                            &delivery
+                    {
+                        assert!(
+                            read_afresh.is_none_or(|number| number == *connector),
+                            "one connector reads afresh at a time"
+                        );
+                        read_afresh = Some(*connector);
+                    }
+                    Output::Deliver(Delivery::Held(delivery))
                 }
-                root::Request::Restart(step) => Output::Deliver(Delivery::Held(root::Delivery::Restart(step))),
-                root::Request::Deliver(delivery) => Output::Deliver(Delivery::Held(delivery)),
                 root::Request::ReadResult { .. } => panic!("scripted results are already typed"),
                 root::Request::Now(now) => Output::Deliver(Delivery::Now(now)),
                 root::Request::Busy { event } => Output::Deliver(Delivery::Busy(event)),
                 root::Request::Stop => Output::Stop,
             });
         }
+        if let Some(connector) = read_afresh {
+            outputs.push(Output::Deliver(Delivery::Start {
+                phase: core::start::Phase::ReadAfresh { connector },
+                census: None,
+            }));
+        }
         negative::released(domain, config, clock, outputs)
     }
 
     fn inbound(peers: &mut Neighbours, store: &Store, clock: Clock, event: &mut root::Event) {
-        peers.observer.inbound(store, clock.now, event);
+        if !matches!(
+            event,
+            root::Event::StartBegin { .. }
+                | root::Event::StartDone(_)
+                | root::Event::StartRecord(_)
+                | root::Event::StartMissing { .. }
+                | root::Event::StartPageRefused { .. }
+        ) {
+            peers.observer.inbound(store, clock.now, event);
+        }
     }
 
     #[expect(clippy::too_many_lines, reason = "the root delivery vocabulary has one exhaustive outside translation")]
@@ -529,7 +557,7 @@ impl Application for Testing {
                     store.ask(StoreOut::Now(now));
                     Vec::new()
                 }
-                Delivery::Census(census) => peers.restart(store, core::RestartStep::LoadInbox, Some(census)),
+                Delivery::Start { phase, census } => peers.start(store, phase, census),
                 Delivery::Busy(event) => {
                     peers.busy_events.push(std::rc::Rc::new(*event));
                     Vec::new()
@@ -553,20 +581,7 @@ impl Application for Testing {
                     Vec::new()
                 }
             }
-            root::Delivery::Restart(step) => {
-                let position = match step {
-                    core::RestartStep::LoadCore | core::RestartStep::LoadInbox | core::RestartStep::Switch => 0,
-                    core::RestartStep::RestoreConnector { connector } => u32::from(connector),
-                    core::RestartStep::ReadAfresh { connector } => 2 + u32::from(connector),
-                    core::RestartStep::AdoptRuns | core::RestartStep::SettleOutbox { .. } | core::RestartStep::Open => {
-                        panic!("root performs internal restart phases")
-                    }
-                };
-                if !matches!(step, core::RestartStep::LoadInbox | core::RestartStep::Switch) {
-                    peers.routes.push(jig_conformance::referee::Observed::RestartStage { position });
-                }
-                peers.restart(store, step, None)
-            }
+
             root::Delivery::Core(core::Held::Drained) => {
                 peers.drained.push(store.applied);
                 peers.routes.push(jig_conformance::referee::Observed::Drained { at: store.applied });
@@ -595,12 +610,7 @@ impl Application for Testing {
                     peers.next_fault = jig_test_system::Fault::None;
                 }
                 let event = systems[usize::from(number - 1)].answer(call, fault);
-                let mut events =
-                    vec![Input::Event(root::Event::Connector { number, event: connector::Event::System(event) })];
-                if let Some(step) = peers.restart_reads.remove(&number) {
-                    events.push(Input::Event(root::Event::RestartDone(step)));
-                }
-                events
+                vec![Input::Event(root::Event::Connector { number, event: connector::Event::System(event) })]
             }
             root::Delivery::LostRead { connector, resource, call, .. } => vec![Input::Event(root::Event::WriterRead {
                 connector,
@@ -645,6 +655,7 @@ impl Application for Testing {
             | root::Delivery::ProjectMade { .. }
             | root::Delivery::CallBusy { .. }
             | root::Delivery::CallAnswer { .. }
+            | root::Delivery::Start(_)
             | root::Delivery::Message { .. } => Vec::new(),
             root::Delivery::Fleet(_) => panic!("root consumes fleet continuations"),
         }
@@ -660,7 +671,6 @@ impl Application for Testing {
         let mut events = Vec::new();
         for answer in store.answers() {
             match answer {
-                Up::Restore(row) => events.push(Input::Restore(row)),
                 Up::Root(event) => {
                     events.push(Input::Event(event));
                 }
@@ -668,6 +678,9 @@ impl Application for Testing {
             }
         }
         if ready {
+            for (key, ask) in std::mem::take(&mut peers.pending_asks) {
+                events.push(Input::Event(scenarios::party_ask(peers, key, ask)));
+            }
             if !peers.account_ready {
                 peers.account_ready = true;
                 events.push(Input::Event(root::Event::Core(core::Event::Period {

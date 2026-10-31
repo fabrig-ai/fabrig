@@ -15,19 +15,17 @@ fn saturated_searches_and_pipe_routes_stay_within_the_machine_bound() {
 
     let limits = Limits {
         operations: 0,
-        roots: 1,
         path_bytes: 16,
         file_bytes: 0,
         tool_payload: 16,
         entries: 0,
         entry_bytes: 0,
-        processes: 2,
         output_bytes: 0,
         search_hits: 0,
-        search_bytes: 256,
         search_line_bytes: 256,
         env_bytes: 128,
         group_stop: Duration::from_millis(1),
+        ..smith_protocol_machine::fixture::SMALL
     };
     let workspace = run::Workspace {
         directories: Box::new([run::Directory {
@@ -137,10 +135,10 @@ fn shared_harness_meters_file_child_and_flood_runs_through_drop() {
     assert!(matches!(checked, ToDomain::Checked { ran: run::Ran { exit: run::Exit::TimedOut, .. }, .. }));
     let flooded = world.flood(Token::new(23), &[b'x'; 4096], 32, 32);
     assert!(matches!(flooded, ToDomain::Done { done: tools::Done::Exited { dropped: 4032, .. }, .. }));
-    world.settle();
+
     assert_eq!(world.peaks().len(), 4, "every independent run was metered");
     assert!(world.peaks().iter().all(|peak| *peak > 0));
-    assert!(!world.trace().is_empty(), "actual kernel operations ran");
+    assert!(!world.trace().is_empty(), "observed kernel operations ran");
 }
 
 #[test]
@@ -152,19 +150,18 @@ fn saturated_configured_environments_and_command_check_copies_fit_the_machine_bo
     for many in [false, true] {
         let limits = Limits {
             operations: 0,
-            roots: 1,
             path_bytes: 16,
             file_bytes: 0,
             tool_payload: 16,
             entries: 0,
             entry_bytes: 0,
-            processes: 2,
             output_bytes: 0,
             search_hits: 0,
             search_bytes: 0,
             search_line_bytes: 0,
             env_bytes: 128,
             group_stop: Duration::from_millis(1),
+            ..smith_protocol_machine::fixture::SMALL
         };
         let variables = if many {
             (0_u8..64)
@@ -255,6 +252,6 @@ fn a_selected_listing_at_both_caps_stays_within_the_machine_bound() {
     assert!(
         matches!(terminal, ToDomain::Done { done: tools::Done::Listed { ref entries, more }, .. } if entries.len() == 16 && more == 16)
     );
-    world.settle();
+
     assert!(world.peaks().iter().all(|peak| *peak > 0));
 }

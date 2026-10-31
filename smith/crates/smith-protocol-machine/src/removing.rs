@@ -2,6 +2,7 @@
 //! It checks the supplied digest and knows no session read history.
 //! Contract: smith/docs/design/domain/tools.md, sections 3 and 4.
 
+use crate::boundary::Below;
 use alloc::boxed::Box;
 use skein_io::{digest, file, kernel};
 use skein_lib::{Queue, Time, Token};
@@ -167,8 +168,6 @@ impl Removing {
         Next::Wait(self)
     }
 }
-
-use crate::boundary::Below;
 
 #[expect(clippy::wildcard_enum_match_arm, reason = "skein kernel errors are a foreign vocabulary")]
 fn failure(error: kernel::Error) -> tools::Done {

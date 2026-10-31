@@ -147,6 +147,7 @@ fn a_long_queue_counts_every_place_but_carries_only_the_nearest_ahead() {
     )
     .expect("long queue bounds");
     let environment = Env { limits, ..env() };
+    d.restore_begin(environment.wall);
     let mut out = Queue::uncapped();
     step(&mut d, &environment, Event::Restore { record: Stored::Repository(adopted()) }, &mut out);
     for task in 1..=u64::from(CHANGES) {
@@ -296,6 +297,7 @@ fn priority_moves_mark_the_nearest_followers_and_stop_at_the_mark_bound() {
     )
     .expect("queue bounds");
     let environment = Env { limits, ..env() };
+    d.restore_begin(environment.wall);
     let mut out = Queue::uncapped();
     step(&mut d, &environment, Event::Restore { record: Stored::Repository(adopted()) }, &mut out);
     for task in 1..=u64::from(CHANGES) {

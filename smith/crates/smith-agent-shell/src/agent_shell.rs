@@ -1,4 +1,4 @@
-//! Shared agent startup and shell pass (protocol/agent.md, sections 4–6).
+//! Shared agent startup and shell pass (smith/docs/design/protocol/agent.md, sections 4–6).
 //! It keeps the service, startup header, inherited mount descriptors and error
 //! output. It never keeps credentials outside the service or knows the driving
 //! kernel, simulator or neighbours. `Agent::read` reads startup settings;
@@ -19,7 +19,7 @@ use smith_agent_service as service;
 
 use crate::config;
 
-/// Program resources supplied by the binary or a hosted process world (programs.md, 5.1).
+/// Program resources supplied by the binary or a hosted process world (smith/docs/design/protocol/programs.md, 5.1).
 pub struct ProgramResources {
     pub relay: std::path::PathBuf,
     pub entropy: Secret,
@@ -63,7 +63,7 @@ pub struct Agent {
     operations: u32,
 }
 
-struct Prepared {
+struct PreparedAgent {
     service: service::Service,
     header: Option<smith_events::SessionStarted>,
     trace_root: Option<Fd>,
@@ -126,6 +126,18 @@ impl Agent {
         }
     }
 
+    /// Facts omitted from the host channel by its bounded projection.
+    #[must_use]
+    pub fn lost_channel_facts(&self) -> u64 {
+        self.service.lost_channel_facts()
+    }
+
+    /// Live bytes omitted from the host channel under output pressure.
+    #[must_use]
+    pub fn lost_live_bytes(&self) -> u64 {
+        self.service.lost_live_bytes()
+    }
+
     fn close(&mut self, fd: Fd) {
         self.closing = self.closing.checked_add(1).expect("bounded inherited closes");
         self.submissions.push(Submit {
@@ -150,17 +162,14 @@ impl Agent {
 }
 
 fn effective_header(configuration: &config::Configuration) -> Result<List<smith_events::EffectiveLimit>, String> {
-    let named = service::profile::effective(
+    config::effective_header(
         &configuration.profile,
         &configuration.declarations,
         &configuration.service.limits,
+        &configuration.service.channel_endpoints,
         &configuration.service.llm_endpoints,
     )
-    .ok_or_else(|| derivation_refusal("effective"))?;
-    let header_limits =
-        service::profile::header(&named, &configuration.service.channel_endpoints, &configuration.declarations)
-            .ok_or_else(|| derivation_refusal("effective_names"))?;
-    Ok(header_limits)
+    .map_err(config::ConfigurationRefusal::detail)
 }
 
 #[cfg(unix)]
@@ -240,7 +249,7 @@ fn open_root(path: &[u8], maximum: u32) -> (Result<Fd, ()>, Box<[u8]>) {
     let host = std::str::from_utf8(path)
         .ok()
         .and_then(|path| std::path::absolute(Path::new(path)).ok())
-        .and_then(|path| smith_protocol_channel::host_path(path.as_os_str().as_encoded_bytes(), maximum));
+        .and_then(|path| smith_protocol_translate::host_path(path.as_os_str().as_encoded_bytes(), maximum));
     let Some(host) = host else {
         return (Err(()), Box::new([]));
     };
@@ -270,7 +279,7 @@ fn extra_operations(configuration: &config::Configuration, resources: &Resources
         })
 }
 
-fn prepare(mut configuration: config::Configuration, resources: &Resources) -> Result<Prepared, String> {
+fn prepare(mut configuration: config::Configuration, resources: &Resources) -> Result<PreparedAgent, String> {
     #[cfg(not(unix))]
     validate_hosted(&configuration, resources)?;
     prepare_program(&mut configuration.service, resources.programs.as_ref())?;
@@ -293,10 +302,7 @@ fn prepare(mut configuration: config::Configuration, resources: &Resources) -> R
     let header = configuration.trace.as_ref().map(|trace| smith_events::SessionStarted {
         chat: None,
         wall_ms: 0,
-        agent: smith_events::Agent {
-            name: b"smith".as_slice().into(),
-            version: env!("CARGO_PKG_VERSION").as_bytes().into(),
-        },
+        agent: identity(),
         mode: smith_events::Mode::Agent,
         containment: smith_events::Containment::Groups,
         pid: u64::from(resources.pid),
@@ -305,9 +311,9 @@ fn prepare(mut configuration: config::Configuration, resources: &Resources) -> R
         delivery: trace.delivery.encoded(),
         versions: smith_events::Versions {
             events: smith_events::VERSION,
-            channel: 5,
-            charter: 4,
-            transcript: 6,
+            channel: smith_channel::KindRule::FORMAT_VERSION,
+            charter: smith_charter::Charter::FORMAT_VERSION,
+            transcript: smith_transcript::Turn::FORMAT_VERSION,
             chat_store: None,
         },
         limits: header_limits,
@@ -331,12 +337,12 @@ fn prepare(mut configuration: config::Configuration, resources: &Resources) -> R
             fd
         };
         service
-            .adopt_destination(fd, service::Destination::Trace, trace.delivery, true)
+            .adopt_destination(fd, smith_protocol_events::Destination::Trace, trace.delivery, true)
             .map_err(|fd| format!("trace descriptor {} cannot be adopted", fd.raw()))?;
     } else if resources.trace.is_some() {
         return Err("an inherited trace requires a configured destination".into());
     }
-    Ok(Prepared { service, header, trace_root, unused_program_root, operations, queue })
+    Ok(PreparedAgent { service, header, trace_root, unused_program_root, operations, queue })
 }
 
 impl Host for Agent {
@@ -408,7 +414,7 @@ impl Host for Agent {
         while let Some(path) = self.service.root_to_open() {
             let (root, host) = match &mut self.roots {
                 Some(roots) => {
-                    let Some(host) = smith_protocol_channel::host_path(path, self.service.host_path_bytes()) else {
+                    let Some(host) = smith_protocol_translate::host_path(path, self.service.host_path_bytes()) else {
                         self.service.root_opened(Err(()), Box::new([]));
                         continue;
                     };
@@ -469,22 +475,24 @@ impl Host for Agent {
 
 #[cfg(unix)]
 fn read_configuration(path: &Path, errors: &mut dyn Write) -> Result<config::Configuration, String> {
-    config::read(path).inspect_err(|why| diagnostic(errors, why))
+    config::read_decoded(path)
+        .and_then(|decoded| decoded.resolve(errors).map_err(config::ConfigurationRefusal::detail))
+        .inspect_err(|why| diagnostic(errors, why))
 }
 
 /// The operator's line for one destination IO gave up, naming it and why in
-/// IO's terms; every shell prints it once per destination (protocol/events.md,
+/// IO's terms; every shell prints it once per destination (smith/docs/design/protocol/events.md,
 /// section 5.2).
 #[must_use]
-pub fn given_up_line(given_up: service::GivenUp) -> String {
+pub fn given_up_line(given_up: smith_protocol_events::GivenUp) -> String {
     let name = match given_up.destination {
-        service::Destination::Trace => "trace file",
-        service::Destination::Output => "standard output events",
+        smith_protocol_events::Destination::Trace => "trace file",
+        smith_protocol_events::Destination::Output => "standard output events",
     };
     let why = match given_up.why {
-        service::Why::Behind => "it stayed behind past the write deadline",
-        service::Why::ReaderGone => "its reader went away",
-        service::Why::WriteFailed => "a write failed",
+        smith_protocol_events::Why::Behind => "it stayed behind past the write deadline",
+        smith_protocol_events::Why::ReaderGone => "its reader went away",
+        smith_protocol_events::Why::WriteFailed => "a write failed",
     };
     format!("event destination {name} was given up: {why}; later records count as lost")
 }
@@ -495,26 +503,22 @@ fn diagnostic(errors: &mut dyn Write, line: &str) {
     drop(writeln!(errors, "smith: {line}"));
 }
 
-/// Run the shipped agent command; startup and final failures are already logged.
+/// Run the shipped agent command with its kernel, clock and startup resources.
 #[cfg(unix)]
 pub fn run(path: &Path, mut errors: Box<dyn Write>) -> Result<Exit, String> {
-    let configuration = read_configuration(path, errors.as_mut())?;
-    let seed = skein_shell::seed()
-        .map_err(|errno| format!("kernel seed failed (errno {errno})"))
-        .inspect_err(|why| diagnostic(errors.as_mut(), why))?;
+    let decoded = config::read_decoded(path).inspect_err(|why| diagnostic(errors.as_mut(), why))?;
     let signals = skein_shell::open_termination_signals()
         .map_err(|errno| format!("termination signals cannot open (errno {errno})"))
         .inspect_err(|why| diagnostic(errors.as_mut(), why))?;
+    let configuration = decoded
+        .resolve(errors.as_mut())
+        .map_err(config::ConfigurationRefusal::detail)
+        .inspect_err(|why| diagnostic(errors.as_mut(), why))?;
+    let seed = skein_shell::seed()
+        .map_err(|errno| format!("kernel seed failed (errno {errno})"))
+        .inspect_err(|why| diagnostic(errors.as_mut(), why))?;
     let programs = match configuration.programs.get(&config::ProgramName::ClaudeCode) {
-        Some(program) => Some(ProgramResources {
-            relay: std::env::current_exe().map_err(|error| format!("program relay: {error}"))?,
-            entropy: skein_shell::crypto_seed().map_err(|error| format!("program entropy: {error}"))?,
-            directory: if crate::program::private_directory(&program.directory).map_err(|error| error.to_string())? {
-                Some(skein_shell::open_root(&program.directory).map_err(|error| format!("programs root: {error:?}"))?)
-            } else {
-                None
-            },
-        }),
+        Some(program) => Some(open_program(program, errors.as_mut())?),
         None => None,
     };
     let mut agent = Agent::new(
@@ -538,6 +542,22 @@ pub fn run(path: &Path, mut errors: Box<dyn Write>) -> Result<Exit, String> {
     Ok(drive(&mut kernel, &Clock::new(), &mut agent))
 }
 
+#[cfg(unix)]
+fn open_program(program: &config::Program, errors: &mut dyn Write) -> Result<ProgramResources, String> {
+    let opened = (|| {
+        Ok(ProgramResources {
+            relay: std::env::current_exe().map_err(|error| format!("program relay: {error}"))?,
+            entropy: skein_shell::crypto_seed().map_err(|error| format!("program entropy: {error}"))?,
+            directory: if crate::program::private_directory(&program.directory).map_err(|error| error.to_string())? {
+                Some(skein_shell::open_root(&program.directory).map_err(|error| format!("programs root: {error:?}"))?)
+            } else {
+                None
+            },
+        })
+    })();
+    opened.inspect_err(|why: &String| diagnostic(errors, why))
+}
+
 fn derivation_refusal(field: &'static str) -> String {
     config::profile_refusal(Refusal::Derived { limit: LimitName::deployment(Layer::Service, field) })
 }
@@ -551,7 +571,7 @@ pub fn identity() -> smith_events::Agent {
 #[cfg(test)]
 mod tests {
     use super::given_up_line;
-    use smith_agent_service::{Destination, GivenUp, Why};
+    use smith_protocol_events::{Destination, GivenUp, Why};
 
     #[test]
     fn the_given_up_line_names_the_destination_and_why() {

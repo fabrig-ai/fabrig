@@ -19,18 +19,16 @@ pub(super) struct Rendered {
     pub text: Option<Box<[u8]>>,
 }
 
-#[cfg(test)]
-pub(super) fn render(
-    prompt: &mut llm::Prompt,
-    ledger: &List<calls::Call>,
-    limits: &protocol::Limits,
-    maximum: u32,
-) -> Option<Box<[u8]>> {
-    let Rendered { line, .. } = render_observed(prompt, ledger, limits, maximum, b"", false)?;
-    Some(line)
+pub(super) fn after_assistant(messages: &[llm::Message]) -> Option<usize> {
+    let mut from = 0;
+    for (index, message) in messages.iter().enumerate() {
+        if message.role == llm::Role::Assistant {
+            from = index.checked_add(1)?;
+        }
+    }
+    Some(from)
 }
 
-#[expect(clippy::manual_map, reason = "the protocol subset matches Option without callbacks")]
 pub(super) fn render_observed(
     prompt: &mut llm::Prompt,
     ledger: &List<calls::Call>,
@@ -39,12 +37,7 @@ pub(super) fn render_observed(
     prefix: &[u8],
     capture: bool,
 ) -> Option<Rendered> {
-    let mut from = 0;
-    for (index, message) in prompt.messages.iter().enumerate() {
-        if message.role == llm::Role::Assistant {
-            from = index.checked_add(1)?;
-        }
-    }
+    let from = after_assistant(&prompt.messages)?;
     let mut messages = core::mem::replace(&mut prompt.messages, Box::new([]));
     let mut rendered = 0_u32;
     for message in messages.iter_mut().skip(from) {
@@ -195,14 +188,13 @@ impl Output {
                 8 => self.put(br"\b")?,
                 12 => self.put(br"\f")?,
                 0..=31 => {
-                    let hex = b"0123456789abcdef";
                     self.put(&[
                         b'\\',
                         b'u',
                         b'0',
                         b'0',
-                        *hex.get(usize::from(byte.checked_div(16)?))?,
-                        *hex.get(usize::from(byte.checked_rem(16)?))?,
+                        skein_lib::bytes::hex_digit(byte.checked_div(16)?),
+                        skein_lib::bytes::hex_digit(*byte),
                     ])?;
                 }
                 _ => self.put(&[*byte])?,
@@ -210,4 +202,15 @@ impl Output {
         }
         Some(())
     }
+}
+
+#[cfg(test)]
+pub(super) fn render(
+    prompt: &mut llm::Prompt,
+    ledger: &List<calls::Call>,
+    limits: &protocol::Limits,
+    maximum: u32,
+) -> Option<Box<[u8]>> {
+    let Rendered { line, .. } = render_observed(prompt, ledger, limits, maximum, b"", false)?;
+    Some(line)
 }

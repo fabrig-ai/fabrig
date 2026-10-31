@@ -50,9 +50,21 @@ fn main() -> ExitCode {
             guards(Path::new(suite), None, sections)
         }
         _ => {
-            eprintln!(
-                "usage: smith-bench check [TASKS_DIRECTORY]\n       smith-bench validate [TASK]...\n       smith-bench guards --suite SUITE [--tasks TASKS_DIRECTORY] SECTION...\n       smith-bench summarise RESULTS SUITE TIER DESIGN SEED [BASELINE] [--baseline-run SUMMARY] [--landed SUMMARY]...\n       smith-bench parity SUMMARY --commit SHA\n       smith-bench change SUMMARY\n       smith-bench baseline SUMMARY NAME [--group AGENT CONFIGURATION_SHA256 MODEL EFFORT]\n       smith-bench build COMMIT [--repository REPOSITORY]\n       smith-bench attempt PREPARED_REQUEST\n       smith-bench probe PROBE [--agent smith|codex|smith-claude-code] [--attempts N] [--commit COMMIT | --arm DIRECTORY]\n       smith-bench calibrate PROBE [--attempts N] [--passes N] [--control COMMIT] [--commit COMMIT | --arm DIRECTORY]\n       smith-bench fix PROBE --parent COMMIT [--commit COMMIT]\n       smith-bench suite NAME [--seed N] [--commit COMMIT | --arm DIRECTORY]"
-            );
+            eprintln!(concat!(
+                "usage: smith-bench check [TASKS_DIRECTORY]\n",
+                "       smith-bench validate [TASK]...\n",
+                "       smith-bench guards --suite SUITE [--tasks TASKS_DIRECTORY] SECTION...\n",
+                "       smith-bench summarise RESULTS SUITE TIER DESIGN SEED [BASELINE] [--baseline-run SUMMARY] [--landed SUMMARY]...\n",
+                "       smith-bench parity SUMMARY --commit SHA\n",
+                "       smith-bench change SUMMARY\n",
+                "       smith-bench baseline SUMMARY NAME [--group AGENT CONFIGURATION_SHA256 MODEL EFFORT]\n",
+                "       smith-bench build COMMIT [--repository REPOSITORY]\n",
+                "       smith-bench attempt PREPARED_REQUEST\n",
+                "       smith-bench probe PROBE [--agent smith|codex|smith-claude-code] [--attempts N] [--commit COMMIT | --arm DIRECTORY]\n",
+                "       smith-bench calibrate PROBE [--attempts N] [--passes N] [--control COMMIT] [--commit COMMIT | --arm DIRECTORY]\n",
+                "       smith-bench fix PROBE --parent COMMIT [--commit COMMIT]\n",
+                "       smith-bench suite NAME [--attempts N] [--seed N] [--commit COMMIT | --arm DIRECTORY] [--include TASK]... [--parent COMMIT | --parent-arm DIRECTORY]"
+            ));
             ExitCode::from(2)
         }
     }

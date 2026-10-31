@@ -1,7 +1,7 @@
 //! Private chat cleanup by this store's written names (shell.md, section 4.2).
 //! No directory content is learned. A failed removal keeps the directory;
 //! closing the two roots reports the warning without changing the answer.
-use super::{Action, Box, Phase, Queue, Store, Time, Token, file, kernel};
+use super::{Action, Box, Queue, State, Store, Time, Token, file, kernel};
 
 #[derive(Debug)]
 enum Step {
@@ -35,31 +35,22 @@ impl Store {
     pub fn close(&mut self, now: Time, out: &mut Queue<Action>) {
         self.closing = true;
         match self.phase {
-            Phase::Idle if self.ephemeral.is_some() => {
-                self.phase = Phase::Cleaning;
+            State::Idle if self.ephemeral.is_some() => {
+                self.phase = State::Cleaning;
                 self.cleanup_next(now, out);
             }
-            Phase::Idle => {
-                self.phase = Phase::Closing;
+            State::Idle => {
+                self.phase = State::Closing;
                 Self::io(file::Request::Close { owner: self.owner, file: self.root }, now, out);
             }
-            Phase::Selecting
-            | Phase::Format
-            | Phase::Admit
-            | Phase::CreateFormat
-            | Phase::Journal
-            | Phase::State
-            | Phase::Scan
-            | Phase::Headers
-            | Phase::Records
-            | Phase::Write
-            | Phase::Remove
-            | Phase::SyncOld
-            | Phase::RemoveJournal
-            | Phase::SyncJournal
-            | Phase::Cleaning
-            | Phase::Closing
-            | Phase::Closed => {}
+            State::Selecting(_)
+            | State::Compatibility(_)
+            | State::Load(_)
+            | State::Fresh(_)
+            | State::Write(_)
+            | State::Cleaning
+            | State::Closing
+            | State::Closed => {}
         }
     }
 
@@ -131,7 +122,7 @@ impl Store {
                 if let Some(error) = cleanup.warning {
                     out.push(Action::CleanupWarning { error });
                 }
-                self.phase = Phase::Closed;
+                self.phase = State::Closed;
                 out.push(Action::Closed);
                 return;
             }

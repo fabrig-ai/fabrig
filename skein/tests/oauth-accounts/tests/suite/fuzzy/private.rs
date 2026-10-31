@@ -26,7 +26,7 @@ fn seeded_private_file_failures_and_keeper_settlement_replay() {
         Story::CloseLoading,
         Story::AbortLoading,
     ];
-    let count = u64::try_from(stories.len()).expect("story count");
+    let count = skein_lib::len_u64(stories.len());
     for seed in 0..32 {
         let mut random = Rng::new(seed);
         let story = stories[usize::try_from(random.below(count)).expect("story index")];

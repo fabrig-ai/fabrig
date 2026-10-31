@@ -1,9 +1,9 @@
-//! Actual requests and compaction turns authorise whole-window replacement.
+//! requests and compaction turns authorise whole-window replacement.
 //! This referee knows the opener's window and accepted usage, never domain state.
 
 use super::{Block, Prompt, Session, agent};
 
-/// Check two actual requests of one window (domain/session.md, sections 3 and 10).
+/// Check two requests of one window (smith/docs/design/domain/session.md, sections 3 and 10).
 pub fn assert_prompt_extends(previous: &Prompt, current: &Prompt) {
     assert_prompt_boundary(previous, current, None);
 }
@@ -21,7 +21,7 @@ pub fn assert_prompt_boundary(previous: &Prompt, current: &Prompt, opening: Opti
     }
 }
 
-/// No actual request may exceed the supplied model window.
+/// No request may exceed the supplied model window.
 pub fn assert_prompt_bound(bound: u64, window: u32) {
     assert!(bound <= u64::from(window), "no prompt whose bound exceeds its window");
 }
@@ -78,10 +78,8 @@ pub(super) fn recorded_window(session: &mut Session, turn: &agent::record::Turn,
     session.compacting = None;
     session.opening = Some(turn.messages.clone());
     session.ordinary = None;
-    session.summary = Some((
-        u64::try_from(text.len()).expect("small summary"),
-        turn.usage.output_tokens.unwrap_or(u64::from(session.max_tokens)),
-    ));
+    session.summary =
+        Some((skein_lib::len_u64(text.len()), turn.usage.output_tokens.unwrap_or(u64::from(session.max_tokens))));
 }
 
 fn assert_compaction_prompt(previous: &Prompt, current: &Prompt, session: &Session) {

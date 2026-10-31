@@ -1,6 +1,6 @@
 //! Before/after evidence uses verified frozen arms and the prepared suite dispatcher.
 //! Builds are an explicit heavy preparation step; live dispatch never builds or
-//! reads agent credentials itself (benchmarks.md sections4.2/10; 00.12 sketches).
+//! reads agent credentials itself (benchmarks.md sections4.2/10).
 
 use std::path::Path;
 
@@ -10,7 +10,7 @@ use crate::{AttemptResult, End, Judgment, judge_suite};
 
 mod prepare;
 
-/// One verified arm's actual probe run, supplied by the common dispatcher.
+/// One verified arm's probe run, supplied by the common dispatcher.
 #[derive(Clone, Debug)]
 pub struct ProbeRun {
     pub arm: ArmRef,
@@ -29,7 +29,7 @@ pub struct FixReport {
     pub shown: Shown,
 }
 
-/// What the actual deciding observations establish about a fix.
+/// What the deciding observations establish about a fix.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Shown {
     /// Deciding checks failed before and passed after.
@@ -59,7 +59,7 @@ fn shown(before: &ProbeRun, after: &ProbeRun) -> Shown {
     }
 }
 
-/// Classify supplied actual runs without discarding failure or unavailable evidence.
+/// Classify supplied runs without discarding failure or unavailable evidence.
 #[must_use]
 pub fn report(probe: String, before: ProbeRun, after: ProbeRun) -> FixReport {
     FixReport { probe, shown: shown(&before, &after), before, after }
@@ -94,7 +94,7 @@ pub(crate) fn prepared(suite: &Path, requests: &Path, seed: u64, probe: &str, at
     prepare::one_arm(&prepared, prepared.len())
 }
 
-pub(crate) fn actual(build: &Build, results: &[AttemptResult], batch: &Batch) -> Result<ProbeRun, String> {
+pub(crate) fn collected(build: &Build, results: &[AttemptResult], batch: &Batch) -> Result<ProbeRun, String> {
     if results.is_empty() {
         return Err("probe arm produced no results".into());
     }
@@ -167,27 +167,27 @@ mod tests {
         let key = format!("{}/{}", value.identity.task, value.identity.arm);
         let mut batch =
             crate::batch::Batch { results: vec![value.clone()], incomplete: false, probes: BTreeMap::new() };
-        assert_eq!(actual(&build, &batch.results, &batch).expect("unknown rerun").verdict, Judgment::Incomplete);
+        assert_eq!(collected(&build, &batch.results, &batch).expect("unknown rerun").verdict, Judgment::Incomplete);
         for verdict in [ProbeVerdict::Rerun, ProbeVerdict::Quarantined] {
             batch.probes.insert(key.clone(), verdict);
-            assert_eq!(actual(&build, &batch.results, &batch).expect("quarantine").verdict, Judgment::Incomplete);
+            assert_eq!(collected(&build, &batch.results, &batch).expect("quarantine").verdict, Judgment::Incomplete);
         }
         batch.probes.insert(key.clone(), ProbeVerdict::Regression);
-        assert_eq!(actual(&build, &batch.results, &batch).expect("two actual failures").verdict, Judgment::Fail);
+        assert_eq!(collected(&build, &batch.results, &batch).expect("two failures").verdict, Judgment::Fail);
         batch.results[0].outcome.checks[0].passed = crate::Measure::Observed { value: true };
         batch.probes.insert(key, ProbeVerdict::Passed);
-        assert_eq!(actual(&build, &batch.results, &batch).expect("pass").verdict, Judgment::Pass);
+        assert_eq!(collected(&build, &batch.results, &batch).expect("pass").verdict, Judgment::Pass);
         batch.results[0].outcome.end = End::Refused { setup: "named refusal".into() };
         batch.results[0].timing.process_wall_ms = crate::Measure::unavailable("product invocation did not run");
         assert!(
-            actual(&build, &batch.results, &batch).expect("setup refusal").setup_refused,
+            collected(&build, &batch.results, &batch).expect("setup refusal").setup_refused,
             "neutral named checks survive even when setup refuses"
         );
         batch.results[0].timing.process_wall_ms = crate::Measure::Observed { value: 1 };
-        assert!(!actual(&build, &batch.results, &batch).expect("measured product refusal").setup_refused);
+        assert!(!collected(&build, &batch.results, &batch).expect("measured product refusal").setup_refused);
         batch.results[0].identity.binary_sha256.push('0');
         assert!(
-            actual(&build, &batch.results, &batch).is_err(),
+            collected(&build, &batch.results, &batch).is_err(),
             "a changed binary identity is never reported as a pass"
         );
     }

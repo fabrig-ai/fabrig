@@ -1,5 +1,5 @@
-//! Startup adapters for the same command machine (protocol/programs.md,
-//! sections 4.2, 5 and 8; testing.md, section 4). Only this module reads the
+//! Startup adapters for the same command machine (smith/docs/design/protocol/programs.md,
+//! sections 4.2, 5 and 8; smith/docs/design/testing.md, section 4). Only this module reads the
 //! process's arguments/environment or opens kernel startup descriptors.
 
 use std::{os::unix::ffi::OsStrExt, path::Path, process::ExitCode};
@@ -15,7 +15,7 @@ pub(crate) fn config_path(environment: &[Box<[u8]>]) -> Option<&[u8]> {
 }
 
 /// Declares the configuration directory named by this launch, as `config`.
-/// Worlds must make it before spawning (protocol/programs.md, section 4.2):
+/// Worlds must make it before spawning (smith/docs/design/protocol/programs.md, section 4.2):
 /// an absent directory fails hosted startup as any missing startup root does.
 /// The binary separately admits an absent directory as `Faces::config: None`.
 pub fn config_root(spawn: &Spawn) -> Option<StartupRoot> {

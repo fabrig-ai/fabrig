@@ -156,7 +156,7 @@ pub(super) fn tag_fleet(
                 };
                 // Listings precede adoption during a cold start. Only an open
                 // core has the complete proofs needed to reject a stale run.
-                if core.restart_ready() && !claimed {
+                if core.start_opened() && !claimed {
                     let mut follow = Queue::uncapped();
                     fleet::step(
                         &mut core.fleet,

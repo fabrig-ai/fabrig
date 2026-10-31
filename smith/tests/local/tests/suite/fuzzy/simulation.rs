@@ -9,7 +9,7 @@ fn random_local_chats_settle_against_the_boundary_referee() {
         let mode = seed % 10;
         let mut world = if mode == 4 { World::tight_unsaved(seed + 100) } else { World::new(seed + 100) };
         if seed % 3 == 0 && mode != 5 {
-            world.drive(5);
+            world.drive(crate::bounds::SCHEDULE_SLICE);
         }
         if mode == 1 {
             world.reject_first_credential();
@@ -32,16 +32,19 @@ fn random_local_chats_settle_against_the_boundary_referee() {
         world.line(b"Hello from the fuzz person");
         match mode {
             3 | 4 => {
-                world.drive(300);
+                world.drive(crate::bounds::CHAT);
                 if mode == 4 {
                     world.interrupt();
                 }
                 for _ in 0..8 {
-                    if world.waiting() || world.exit().is_some() || world.drive_to_cancelled(10) {
+                    if world.waiting()
+                        || world.exit().is_some()
+                        || world.drive_to_cancelled(crate::bounds::CANCELLATION)
+                    {
                         break;
                     }
                     assert!(world.release_turn(), "seed {seed}: stalled store has an acknowledgement");
-                    world.drive(300);
+                    world.drive(crate::bounds::CHAT);
                 }
                 assert!(
                     world.waiting()
@@ -50,11 +53,11 @@ fn random_local_chats_settle_against_the_boundary_referee() {
                 );
             }
             5..=7 => {
-                world.drive(300);
+                world.drive(crate::bounds::CHAT);
                 assert_eq!(world.exit(), Some(ExitStatus::RunFailed), "seed {seed}: store failure stops");
             }
             2 => {
-                world.drive(300);
+                world.drive(crate::bounds::CHAT);
                 assert!(world.notices().contains(&smith_local_domain::Notice::Failure(
                     smith_local_domain::Failure::Account(smith_local_domain::AccountFailure::Limited {
                         account: 0,
@@ -64,15 +67,15 @@ fn random_local_chats_settle_against_the_boundary_referee() {
             }
             8 | 9 => {
                 let cut = if mode == 8 { Cut::BeforeSaveTurn(2) } else { Cut::AfterTurnSaved(2) };
-                assert!(world.drive_to_cut(300, cut), "seed {seed}: crash cut reached");
+                assert!(world.drive_to_cut(crate::bounds::CHAT, cut), "seed {seed}: crash cut reached");
                 let mut resumed = World::with_store(seed + 200, world.into_store());
                 resumed.line(b"Continue after crash");
-                assert!(!resumed.drive(300), "seed {seed}: next invocation resumes");
+                assert!(!resumed.drive(crate::bounds::CHAT), "seed {seed}: next invocation resumes");
                 assert!(resumed.judged().0 > 0);
                 continue;
             }
             _ => {
-                assert!(world.drive(300), "seed {seed}: the chat waits");
+                assert!(world.drive(crate::bounds::CHAT), "seed {seed}: the chat waits");
             }
         }
         if mode != 5 {
@@ -89,7 +92,7 @@ fn drawn_people_settle_against_the_message_rules() {
         if seed % 3 == 0 {
             world.slow_store();
         }
-        assert!(world.drive_to_exit(4_000), "seed {seed}: person closes and chat exits");
+        assert!(world.drive_to_exit(crate::bounds::SCHEDULED_DRAIN), "seed {seed}: person closes and chat exits");
         assert_eq!(world.exit(), Some(ExitStatus::Accepted), "seed {seed}");
     }
 }

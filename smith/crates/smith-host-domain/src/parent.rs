@@ -13,7 +13,7 @@ pub enum Event {
     /// Parent requests one agent capability; exactly one Gone.
     Spawn {
         client: Token,
-        /// Bounded V2 start admitted before process IO.
+        /// Bounded start admitted before process IO.
         start: Start,
     },
     /// Parent message, ending refused if the ingress cannot admit it.
@@ -21,7 +21,6 @@ pub enum Event {
         /// Admitted Open messages request a final reply; Finite ignores this bit.
         finish_requested: bool,
         agent: Token,
-        /// Opaque parent message name.
         name: Token,
         /// Sender's bounded label, forwarded without interpretation.
         label: Box<[u8]>,
@@ -68,19 +67,14 @@ pub enum Request {
         call: Token,
         /// Positive completion and assistant-block position, scoped by logical run.
         name: CallName,
-        /// Actual operation deadline and bounded pause.
+        /// Operation deadline and bounded pause.
         deadline: Time,
-        /// Generic tool/effect or delivery fields.
         ask: Ask,
     },
     /// Agent/process withdrew call once; parent terminal still required.
     Withdrawn { client: Token, call: Token },
     /// Parent takes owned payload; kit retains exact ACK metadata.
-    Turn {
-        client: Token,
-        /// Validated numbered turn.
-        turn: Turn,
-    },
+    Turn { client: Token, turn: Turn },
     /// Validated read fence; crossed queued message prevents pause.
     Waiting {
         client: Token,
@@ -92,21 +86,9 @@ pub enum Request {
     /// One prior long operation ended.
     LongDone { client: Token },
     /// Known-account credential rejection notice.
-    Unauthorized {
-        client: Token,
-        /// Credential account.
-        account: u32,
-        /// Rejected generation.
-        generation: u64,
-    },
+    Unauthorized { client: Token, account: u32, generation: u64 },
     /// Known-account quota notice.
-    Limited {
-        client: Token,
-        /// Credential account.
-        account: u32,
-        /// Retry hint.
-        reset: Option<skein_lib::Duration>,
-    },
+    Limited { client: Token, account: u32, reset: Option<skein_lib::Duration> },
     /// The provider refused a known account, retaining its diagnostic fields.
     Refused { client: Token, account: u32, code: Box<[u8]>, reason: Box<[u8]> },
     /// Best-effort fact moved to parent.
@@ -132,17 +114,10 @@ pub enum Request {
         fault: Fault,
     },
     /// Message rejected before queue mutation.
-    MessageRefused {
-        client: Token,
-        /// Original rejected message name.
-        name: Token,
-        /// Admission reason.
-        reason: MessageRefusal,
-    },
+    MessageRefused { client: Token, name: Token, reason: MessageRefusal },
     /// Spawn terminal; all process and parent rights settled.
     Gone {
         client: Token,
-        /// Entrance or containment completion.
         end: End,
         /// Bounded operator detail.
         detail: Box<[u8]>,

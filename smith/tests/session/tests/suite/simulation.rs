@@ -1,6 +1,8 @@
 //! End to end at the session child domain: the agent's sessions, their opener
 //! and a fake provider's domain, talking through a domain world.
 
+use smith_session_world::bytes;
+
 use skein_fake_llm_domain::Config;
 use skein_lib::{Duration, Time};
 use smith_domain_session::llm::Failure;
@@ -93,7 +95,7 @@ fn malformed_calls_are_answered_with_their_problem_and_the_conversation_goes_on(
 /// the limits allow, a write alone, and the results back in call order.
 #[test]
 fn reads_in_one_answer_run_side_by_side_and_writes_alone() {
-    use skein_fake_llm_domain::api::{Finish, Line, Script, Turn};
+    use skein_fake_llm_domain::api::{Line, Script};
 
     let calm = Settings::calm(19);
     let settings = Settings {
@@ -110,8 +112,8 @@ fn reads_in_one_answer_run_side_by_side_and_writes_alone() {
         scripted_call(b"read", br#"{"path":"src/lib.rs"}"#),
         scripted_call(b"write", br#"{"path":"README.md","content":"README.md: rewritten"}"#),
     ];
-    let turn = Turn { lines: lines.into(), finish: Finish::ToolCalls, tokens: 48 };
-    let script = Script { cue: b"You are a coding agent.".as_slice().into(), turns: vec![turn; 4].into() };
+    let turn = smith_session_world::fixture::calls(lines.into(), 48);
+    let script = Script { cue: bytes(b"You are a coding agent."), turns: vec![turn; 4].into() };
     let mut world = World::with_scripts(settings, Box::new([script]));
     let openers: Vec<u64> = (0..4).map(|_| world.submit(Time::ZERO, spec(b"fix the build"))).collect();
     world.run(ITERATIONS);
@@ -212,7 +214,7 @@ fn calls_slower_than_their_timeout_time_out_and_their_late_answers_are_dropped()
         end(&world, opener),
         End::Failed {
             detail: Box::default(),
-            failure: Failure::TimedOut { phase: smith_domain_session::llm::Phase::Head },
+            failure: Failure::TimedOut { phase: smith_domain_session::llm::CompletionPhase::Head },
             evidence: smith_domain_session::llm::Evidence::Unknown,
             attempts: 3
         }
@@ -468,7 +470,7 @@ fn the_token_budgets_end_a_session_after_the_turn_that_uses_them_up() {
     }
     // The shared fake caches its fresh input; this typed peer explicitly reports
     // ordinary input so the separate Input ceiling is still observed outside.
-    let mut world = recorded::World::new(16);
+    let mut world = recorded::Scripted::new(16);
     let mut opening = recorded::opening(None, 100);
     opening.spec.budget.input = 30;
     opening.prices =
@@ -476,16 +478,13 @@ fn the_token_budgets_end_a_session_after_the_turn_that_uses_them_up() {
     world.open(opening);
     for _ in 0..3 {
         world.complete(
-            Box::new([smith_domain_session::llm::Block::Text {
-                text: b"input-priced answer".as_slice().into(),
-                replay: None,
-            }]),
+            Box::new([smith_domain_session::llm::Block::Text { text: bytes(b"input-priced answer"), replay: None }]),
             smith_domain_session::llm::Stop::EndTurn,
             smith_domain_session::llm::Usage { input_tokens: Some(11), ..smith_domain_session::llm::Usage::ZERO },
         );
         world.step(smith_domain_session::Event::Continue {
             session: world.session.expect("yielded"),
-            content: b"go on".as_slice().into(),
+            content: bytes(b"go on"),
         });
     }
     assert_eq!(world.end, Some(out_of(Dimension::Input)));
@@ -543,7 +542,7 @@ fn a_yielded_call_tail_becomes_not_run_only_after_the_continue() {
         .iter()
         .flat_map(|message| message.content.iter())
         .find_map(|block| if let Block::ToolCall { id, .. } = block { Some(id) } else { None })
-        .expect("the actual truncated provider payload retained its unanswered call");
+        .expect("the truncated provider payload retained its unanswered call");
     assert!(
         !records[0]
             .messages
@@ -556,7 +555,7 @@ fn a_yielded_call_tail_becomes_not_run_only_after_the_continue() {
         matches!(&records[1].messages[0].content[0], Block::ToolResult {
         id, result: Returned::NotRun { why: smith_domain_session::llm::NotRun::Stopped },
     } if id == pending),
-        "the actual Continue carries exact NotRun before the waking assistant"
+        "the Continue carries exact NotRun before the waking assistant"
     );
     assert_eq!(
         (world.stats().ops, world.stats().delegates, world.stats().continues),
@@ -568,23 +567,21 @@ fn a_yielded_call_tail_becomes_not_run_only_after_the_continue() {
 #[test]
 fn a_failed_sessions_end_carries_its_last_detail() {
     use smith_domain_session::{self as session, llm};
-    let mut world = recorded::World::new(6812);
+    let mut world = recorded::Scripted::new(6812);
     world.open(recorded::opening(None, u64::MAX));
     world.step(session::Event::Failed {
         retry_ok: true,
         owner: world.completing.expect("provider request"),
         failure: llm::Failure::Invalid,
         evidence: llm::Evidence::Response { status: Some(400) },
-        detail: b"private provider diagnostic".as_slice().into(),
+        detail: bytes(b"private provider diagnostic"),
     });
     assert_eq!(world.detail.as_ref(), b"private provider diagnostic");
     assert!(matches!(world.end, Some(session::End::Failed { failure: llm::Failure::Invalid, .. })));
     assert_eq!(world.prompts.len(), 1);
     assert!(world.prompts.iter().all(|prompt| prompt.messages.iter().all(|message| {
         message.content.iter().all(|block| match block {
-            llm::Block::Text { text, .. } => {
-                !text.windows(b"private provider diagnostic".len()).any(|bytes| bytes == b"private provider diagnostic")
-            }
+            llm::Block::Text { text, .. } => skein_lib::bytes::find(text, b"private provider diagnostic").is_none(),
             llm::Block::Opaque { .. }
             | llm::Block::Refusal { .. }
             | llm::Block::ToolCall { .. }
@@ -597,14 +594,14 @@ fn a_failed_sessions_end_carries_its_last_detail() {
 #[test]
 fn a_later_failure_replaces_the_kept_detail() {
     use smith_domain_session::{self as session, llm};
-    let mut world = recorded::World::new(6813);
+    let mut world = recorded::Scripted::new(6813);
     world.open(recorded::opening(None, u64::MAX));
     world.step(session::Event::Failed {
         retry_ok: true,
         owner: world.completing.expect("first provider request"),
         failure: llm::Failure::Overloaded,
         evidence: llm::Evidence::Response { status: Some(503) },
-        detail: b"first private diagnostic".as_slice().into(),
+        detail: bytes(b"first private diagnostic"),
     });
     world.fire();
     world.step(session::Event::Failed {
@@ -612,7 +609,7 @@ fn a_later_failure_replaces_the_kept_detail() {
         owner: world.completing.expect("second provider request"),
         failure: llm::Failure::Invalid,
         evidence: llm::Evidence::Response { status: Some(400) },
-        detail: b"last private diagnostic".as_slice().into(),
+        detail: bytes(b"last private diagnostic"),
     });
     assert_eq!(world.detail.as_ref(), b"last private diagnostic");
     world.close();
@@ -621,22 +618,20 @@ fn a_later_failure_replaces_the_kept_detail() {
 #[test]
 fn no_prompt_holds_a_kept_detail() {
     use smith_domain_session::{self as session, llm};
-    let mut world = recorded::World::new(6814);
+    let mut world = recorded::Scripted::new(6814);
     world.open(recorded::opening(None, u64::MAX));
     world.step(session::Event::Failed {
         retry_ok: true,
         owner: world.completing.expect("first provider request"),
         failure: llm::Failure::Overloaded,
         evidence: llm::Evidence::Response { status: Some(503) },
-        detail: b"private provider diagnostic".as_slice().into(),
+        detail: bytes(b"private provider diagnostic"),
     });
     world.fire();
     assert_eq!(world.prompts.len(), 2);
     assert!(world.prompts.iter().all(|prompt| prompt.messages.iter().all(|message| {
         message.content.iter().all(|block| match block {
-            llm::Block::Text { text, .. } => {
-                !text.windows(b"private provider diagnostic".len()).any(|bytes| bytes == b"private provider diagnostic")
-            }
+            llm::Block::Text { text, .. } => skein_lib::bytes::find(text, b"private provider diagnostic").is_none(),
             llm::Block::Opaque { .. }
             | llm::Block::Refusal { .. }
             | llm::Block::ToolCall { .. }
@@ -648,7 +643,7 @@ fn no_prompt_holds_a_kept_detail() {
 
 #[test]
 fn more_adjacent_reads_than_parallel_tools_run_in_the_next_batch() {
-    use skein_fake_llm_domain::api::{Finish, Line, Script, Turn};
+    use skein_fake_llm_domain::api::{Line, Script};
 
     let calm = Settings::calm(119);
     let settings = Settings {
@@ -656,9 +651,9 @@ fn more_adjacent_reads_than_parallel_tools_run_in_the_next_batch() {
         provider: Config { calls_per_answer: 5, tool_rounds: 1, ..calm.provider },
         ..calm
     };
-    let line = Line::Call { name: b"read".as_slice().into(), arguments: br#"{"path":"src/lib.rs"}"#.as_slice().into() };
-    let turn = Turn { lines: vec![line; 5].into(), finish: Finish::ToolCalls, tokens: 40 };
-    let script = Script { cue: b"You are a coding agent.".as_slice().into(), turns: Box::new([turn]) };
+    let line = Line::Call { name: bytes(b"read"), arguments: br#"{"path":"src/lib.rs"}"#.as_slice().into() };
+    let turn = smith_session_world::fixture::calls(vec![line; 5].into(), 40);
+    let script = Script { cue: bytes(b"You are a coding agent."), turns: Box::new([turn]) };
     let mut world = World::with_scripts(settings, Box::new([script]));
     let opener = world.submit(Time::ZERO, spec(b"fix the build"));
     world.run(ITERATIONS);
@@ -704,7 +699,7 @@ fn a_guarded_request_past_the_line_is_refused_by_the_world() {
 }
 
 fn batched_change(old: &str) -> (World, u64) {
-    use skein_fake_llm_domain::api::{Finish, Line, Script, Turn};
+    use skein_fake_llm_domain::api::{Line, Script};
     const SCRIPT_CALLS: u32 = 6;
     const TURN_TOKENS: u64 = 48;
     let scripted_call = |name: &[u8], arguments: &[u8]| Line::Call { name: name.into(), arguments: arguments.into() };
@@ -719,8 +714,8 @@ fn batched_change(old: &str) -> (World, u64) {
     let calm = Settings::calm(819);
     let settings = Settings { provider: Config { calls_per_answer: SCRIPT_CALLS, ..calm.provider }, ..calm };
     let script = Script {
-        cue: b"You are a coding agent.".as_slice().into(),
-        turns: vec![Turn { lines: lines.into(), finish: Finish::ToolCalls, tokens: TURN_TOKENS }].into(),
+        cue: bytes(b"You are a coding agent."),
+        turns: vec![smith_session_world::fixture::calls(lines.into(), TURN_TOKENS)].into(),
     };
     let mut world = World::with_scripts(settings, Box::new([script]));
     let mut selected = spec(b"fix the build");

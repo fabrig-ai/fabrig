@@ -1,7 +1,7 @@
 //! Byte windows selected by a read caller, bounded by the tools' payload ceiling.
 //! It keeps no file state and knows no version; window selects the configured
 //! bytes and read slices a loaded file into whole lines, or one cut line.
-//! Contract: domain/tools.md, sections 3 and 4; programming-model.md, sections 4.4 and 6.3.
+//! Contract: smith/docs/design/domain/tools.md, sections 3 and 4; skein/docs/foundation/programming-model.md, sections 4.4 and 6.3.
 
 use crate::{Budget, BytesClamp, Cut, Limits, Next, Outcome};
 use alloc::boxed::Box;
@@ -35,13 +35,13 @@ pub(crate) fn window(asked: Budget, limits: &Limits) -> Window {
 }
 
 /// The selected tool answer and the suffix its own window omitted, before rendering.
-pub(crate) struct Read {
+pub(crate) struct ReadResult {
     pub(crate) outcome: Outcome,
     pub(crate) omitted_bytes: u64,
 }
 
 /// Return whole lines within the effective window, or the cut first line.
-pub(crate) fn read(content: Box<[u8]>, span: Span) -> Read {
+pub(crate) fn read(content: Box<[u8]>, span: Span) -> ReadResult {
     let total = count(&content);
     let skipped = span.offset.checked_sub(1).expect("admitted one-based offset").min(total);
     let mut start = 0_usize;
@@ -80,7 +80,7 @@ pub(crate) fn read(content: Box<[u8]>, span: Span) -> Read {
     } else {
         copy_of(rest.get(..end).expect("window within file"))
     };
-    Read {
+    ReadResult {
         outcome: Outcome::Read { content, first, lines: taken, total, next, cut, window: span.window.clamp },
         omitted_bytes,
     }

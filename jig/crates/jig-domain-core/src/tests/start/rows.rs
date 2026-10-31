@@ -7,10 +7,10 @@ use jig_domain_authority as authority;
 use jig_domain_notes as notes;
 use skein_lib::List;
 
-fn loaded(selected: bool) -> (Core, Limits) {
+fn loaded() -> (Core, Limits) {
     let limits = limits();
     let mut core = Core::new(config(301), &limits).expect("configured core");
-    if selected {
+    {
         let _begin = core.start_begin(false, Wall::EPOCH);
     }
     let mut header = core.counters.deployment();
@@ -46,9 +46,7 @@ fn note() -> notes::Entry {
 }
 
 fn retained(record: CallRecord) {
-    let (mut default, limits) = loaded(false);
-    assert_eq!(default.restore_core(CoreRecord::Call(record.clone()), &limits), Restored::Rejected);
-    let (mut selected, limits) = loaded(true);
+    let (mut selected, limits) = loaded();
     assert_eq!(selected.restore_core(CoreRecord::Call(record.clone()), &limits), Restored::Live);
     assert_eq!(selected.call_record(record.key), Some(record));
     assert_eq!(selected.start_failure(), None);
@@ -76,16 +74,13 @@ fn stored_calls_ignore_historical_serials_and_tool_shape() {
 
 #[test]
 fn settled_serials_are_not_record_keys() {
-    for selected in [false, true] {
-        let (mut core, limits) = loaded(selected);
+    {
+        let (mut core, limits) = loaded();
         let mut record = row(CallPart::Controlled);
         record.settled = Some(settled(1, b"tool"));
         assert_eq!(core.restore_core(CoreRecord::Call(record.clone()), &limits), Restored::Live);
         record.key.position = 1;
-        assert_eq!(
-            core.restore_core(CoreRecord::Call(record), &limits),
-            if selected { Restored::Live } else { Restored::Rejected }
-        );
+        assert_eq!(core.restore_core(CoreRecord::Call(record), &limits), { Restored::Live });
     }
 }
 
@@ -130,10 +125,10 @@ fn stored_parts_ignore_historical_counters_and_current_rules() {
         retained(row(part));
     }
     let duplicate = row(CallPart::Delegated(Box::new([crate::Made { task: 1, revision: 1, given: None }; 2])));
-    let (mut default, mut limits) = loaded(false);
+    let mut limits = limits();
     limits.tasks.batch = 2;
-    assert_eq!(default.restore_core(CoreRecord::Call(duplicate.clone()), &limits), Restored::Rejected);
-    let (mut selected, _) = loaded(true);
+
+    let (mut selected, _) = loaded();
     assert_eq!(selected.restore_core(CoreRecord::Call(duplicate.clone()), &limits), Restored::Live);
     assert_eq!(selected.call_record(duplicate.key), Some(duplicate.clone()));
 }
@@ -166,7 +161,7 @@ fn recalled_notes_keep_their_stored_content_without_admission() {
 }
 
 fn call_bound(part: CallPart, held: u64, limit: u64) {
-    let (mut core, limits) = loaded(true);
+    let (mut core, limits) = loaded();
     let record = row(part);
     assert_eq!(core.restore_core(CoreRecord::Call(record), &limits), Restored::Rejected);
     assert_eq!(
@@ -257,7 +252,7 @@ fn call_payload_capacity_failures_keep_the_outer_record_key() {
 
 #[test]
 fn settled_bytes_and_call_table_capacity_keep_the_outer_key() {
-    let (mut core, limits) = loaded(true);
+    let (mut core, limits) = loaded();
     let mut record = row(CallPart::Controlled);
     record.settled = Some(SettledCall {
         serial: 0,
@@ -277,7 +272,7 @@ fn settled_bytes_and_call_table_capacity_keep_the_outer_key() {
             limit: u64::from(limits.call_answer_bytes)
         })
     );
-    let (mut core, limits) = loaded(true);
+    let (mut core, limits) = loaded();
     for position in 0..limits.call_records {
         let mut record = row(CallPart::Controlled);
         record.key.position = position;
@@ -309,7 +304,7 @@ fn proof_capacity_failures_keep_the_outer_key() {
     }
     let limits = limits();
     for which in [Bound::Offers, Bound::Accounts, Bound::Credentials, Bound::Terminal, Bound::Rows] {
-        let (mut core, _) = loaded(true);
+        let (mut core, _) = loaded();
         let mut row = proof();
         row.task = 2;
         let limit = match which {
@@ -370,8 +365,8 @@ fn size(count: u32) -> usize {
 }
 
 fn accepted(part: CallPart) {
-    for selected in [false, true] {
-        let (mut core, limits) = loaded(selected);
+    {
+        let (mut core, limits) = loaded();
         let record = row(part.clone());
         assert_eq!(core.restore_core(CoreRecord::Call(record.clone()), &limits), Restored::Live);
         assert_eq!(core.call_record(record.key), Some(record));
@@ -431,7 +426,7 @@ fn call_payloads_at_their_capacity_fit_both_paths() {
         accepted(CallPart::NoteRecalled { entries: Box::new([n]), more: false });
     }
     for delivery in [false, true] {
-        let (mut core, limits) = loaded(true);
+        let (mut core, limits) = loaded();
         let mut record = row(CallPart::Controlled);
         let bytes = vec![b'x'; size(limits.call_answer_bytes) - 1].into_boxed_slice();
         record.settled = Some(SettledCall {
@@ -449,7 +444,7 @@ fn call_payloads_at_their_capacity_fit_both_paths() {
 
 #[test]
 fn selected_row_duplicates_reject_before_replacement() {
-    let (mut core, limits) = loaded(true);
+    let (mut core, limits) = loaded();
     let record = row(CallPart::Controlled);
     assert_eq!(core.restore_core(CoreRecord::Call(record.clone()), &limits), Restored::Live);
     let duplicate = std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| {
@@ -472,7 +467,7 @@ fn selected_row_duplicates_reject_before_replacement() {
 
 #[test]
 fn a_proof_at_all_payload_bounds_is_retained() {
-    let (mut core, limits) = loaded(true);
+    let (mut core, limits) = loaded();
     let mut p = proof();
     p.task = 2;
     p.outstanding = vec![1; size(limits.tasks.run_inbox)].into_boxed_slice();

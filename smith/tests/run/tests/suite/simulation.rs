@@ -11,20 +11,10 @@ use smith_run_world::host;
 use smith_run_world::partner::Script;
 use smith_run_world::{Checkouts, Settings, Span, World, noisy};
 
-const ITERATIONS: u32 = 1_000_000;
-
-fn settled(settings: &Settings) -> World {
-    let mut world = World::new(*settings);
-    world.run(ITERATIONS);
-    world
-}
-
-fn answers(world: &World) -> Vec<&Answer> {
-    world.answers().map(|answer| answer.expect("every start is answered")).collect()
-}
+use crate::support::{answers, settled};
 
 /// A retained host decision outlives the crashed domain. The host writes its
-/// own wake message from the answer it actually recorded.
+/// own wake message from the answer it recorded.
 struct CrashHost {
     starts: Vec<run::Event>,
     decision: Option<run::HostAnswer>,
@@ -616,18 +606,18 @@ fn a_check_deadline_terminal_returns_feedback_without_submitting_to_host() {
             ..settings.checkout
         },
         races: 0,
-        // Actual Root Opened/Started is synchronous. This focused story
+        // Root Opened/Started is synchronous. This focused story
         // adds no artificial session hop, so the IO deadline really ties
         // the run alarm; noisy worlds retain their independent hop races.
         hop: Span::millis(0, 0),
         ..settings
     });
     let stats = world.stats();
-    // IO supplies its deadline terminal before alarms fire (programming-model.md, section 2).
+    // IO supplies its deadline terminal before alarms fire (skein/docs/foundation/programming-model.md, section 2).
     // The stopped check returns feedback; there is no live check to abort or delivery to submit.
     assert!(stats.checks == 4 && stats.partner.checks_failed == 4, "{stats:?}");
     assert_eq!(stats.aborts, 0, "{stats:?}");
-    assert_eq!(stats.pushes, 0, "{stats:?}");
+    assert_eq!(stats.deliveries, 0, "{stats:?}");
     for answer in answers(&world) {
         assert!(
             matches!(answer, Answer::Failed { failure: Failure::Budget { exhausted: Exhausted::Time, .. }, .. }),
@@ -750,7 +740,7 @@ fn deadlines_find_runs_in_every_state_they_run_in_cells() -> BTreeMap<&'static s
         let settings = Settings { host, checkout, partner, hop: Span::millis(0, 1_500), ..calm };
         tally(&settled(&settings), &mut cancels, &mut deadlines);
     }
-    // And as changes are checked and pushed, and as the LLM spends past its
+    // And as changes are checked and delivered, and as the LLM spends past its
     // budget.
     for seed in LANDING_SEEDS {
         let landing = finishing(seed);
@@ -876,9 +866,9 @@ fn a_child_that_reaches_its_final_turn_answers_for_its_budget() {
             };
             (granted.turns >= 2).then_some((run, conversation))
         })
-        .expect("the story actually gives a child at least two turns");
+        .expect("the story gives a child at least two turns");
     bad.push(run::facts::Fact {
-        at: bad.last().expect("actual facts").at,
+        at: bad.last().expect("facts").at,
         kind: run::facts::FactKind::Ended {
             run: opened.0,
             conversation: opened.1,
@@ -963,11 +953,11 @@ fn empty_reports_and_declared_failures_are_terminal_results_without_delivery() {
                 | Answer::Failed { .. }
                 | Answer::Refused(_)
                 | Answer::Parked { .. } => {
-                    panic!("report/failure finish must produce its actual text result: {answer:?}")
+                    panic!("report/failure finish must produce its text result: {answer:?}")
                 }
             }
         }
-        assert_eq!((world.stats().checks, world.stats().pushes), (0, 0));
+        assert_eq!((world.stats().checks, world.stats().deliveries), (0, 0));
         assert_eq!(world.stats().partner.accepted, 4);
         skein_world::domain::assert_replays(41, 42, |seed| {
             let world = settled(&Settings { seed, ..settings });
@@ -984,7 +974,7 @@ fn an_empty_failure_reason_is_accepted_in_the_run_world() {
     let world = settled(&Settings { host, partner, ..calm });
     assert_eq!(world.stats().partner.rejected, 0);
     assert_eq!(world.stats().partner.accepted, 4);
-    assert_eq!((world.stats().checks, world.stats().pushes), (0, 0));
+    assert_eq!((world.stats().checks, world.stats().deliveries), (0, 0));
     assert!(answers(&world).iter().all(|answer| matches!(
         answer,
         Answer::Accepted { outcome: smith_domain_run::outcome::Declared::Failure(_), .. }

@@ -1565,6 +1565,7 @@ dependencies = [
  "jig-domain-tasks",
  "jig-domain-views",
  "jig-protocol-config",
+ "jig-protocol-store",
  "jig-protocol-tools",
  "jig-test-connector",
  "jig-test-connector-world",
@@ -2341,6 +2342,7 @@ dependencies = [
  "skein-io",
  "skein-lib",
  "skein-sim",
+ "skein-sim-world",
 ]
 
 [[package]]
@@ -3086,51 +3088,27 @@ checksum = "d0d5d4b1981b8bbbb7aed204cae5726d683d5d6ac7e74ec54122ea28f315e7c8"
 name = "smith"
 version = "0.0.0"
 dependencies = [
- "libc",
- "serde",
  "serde_json",
- "skein-channel",
  "skein-fail-stop",
- "skein-fake-channel",
  "skein-fake-llm-domain",
- "skein-fake-machine",
- "skein-fake-oauth",
  "skein-fake-peers",
- "skein-http",
  "skein-io",
  "skein-lib",
  "skein-llm",
- "skein-llm-connection",
  "skein-oauth",
  "skein-scratch",
  "skein-shell",
- "skein-sim",
- "skein-tls",
- "skein-tls-world",
  "skein-world",
  "smith-agent-process-world",
- "smith-agent-service",
  "smith-agent-shell",
+ "smith-agent-world",
  "smith-bench",
- "smith-channel",
- "smith-charter",
- "smith-domain",
  "smith-events",
  "smith-fake-claude",
- "smith-host-domain",
- "smith-host-protocol",
- "smith-host-world",
  "smith-hosts-world",
- "smith-local-domain",
  "smith-local-process-world",
- "smith-local-protocol",
- "smith-local-service",
  "smith-local-shell",
- "smith-protocol-channel",
- "smith-protocol-llm",
- "smith-protocol-machine",
  "smith-real-world",
- "smith-transcript",
  "toml",
 ]
 
@@ -3156,7 +3134,6 @@ dependencies = [
  "skein-scratch",
  "skein-shell",
  "skein-sim",
- "skein-tls",
  "skein-tls-world",
  "skein-world",
  "smith-agent-service",
@@ -3167,13 +3144,14 @@ dependencies = [
  "smith-charter",
  "smith-domain",
  "smith-domain-run",
- "smith-domain-session",
  "smith-events",
  "smith-fake-claude",
  "smith-protocol-channel",
+ "smith-protocol-events",
  "smith-protocol-llm",
  "smith-protocol-machine",
  "smith-protocol-program",
+ "smith-protocol-translate",
  "smith-transcript",
 ]
 
@@ -3189,17 +3167,19 @@ dependencies = [
  "skein-lib",
  "skein-llm",
  "skein-llm-connection",
- "skein-llm-world",
  "skein-tls",
+ "smith-agent-service",
  "smith-agent-world",
  "smith-channel",
  "smith-charter",
  "smith-domain",
  "smith-events",
  "smith-protocol-channel",
+ "smith-protocol-events",
  "smith-protocol-llm",
  "smith-protocol-machine",
  "smith-protocol-program",
+ "smith-protocol-translate",
  "smith-transcript",
 ]
 
@@ -3207,7 +3187,6 @@ dependencies = [
 name = "smith-agent-shell"
 version = "0.0.0"
 dependencies = [
- "libc",
  "serde",
  "serde_json",
  "skein-channel",
@@ -3219,16 +3198,17 @@ dependencies = [
  "skein-scratch",
  "skein-shell",
  "skein-tls",
- "skein-world",
  "smith-agent-service",
  "smith-channel",
  "smith-charter",
  "smith-domain",
  "smith-events",
  "smith-protocol-channel",
+ "smith-protocol-events",
  "smith-protocol-llm",
  "smith-protocol-machine",
  "smith-protocol-program",
+ "smith-protocol-translate",
  "smith-transcript",
 ]
 
@@ -3266,14 +3246,11 @@ dependencies = [
  "skein-lib",
  "skein-llm",
  "skein-oauth",
+ "skein-scratch",
  "skein-shell",
  "skein-world",
  "smith-agent-service",
- "smith-agent-shell",
- "smith-domain-run",
- "smith-domain-session",
  "smith-events",
- "smith-local-protocol",
  "smith-local-shell",
  "time",
  "toml",
@@ -3296,7 +3273,6 @@ dependencies = [
  "skein-lib",
  "skein-world",
  "smith-agent-process-world",
- "smith-agent-service",
  "smith-agent-world",
  "smith-channel",
  "smith-charter",
@@ -3306,6 +3282,7 @@ dependencies = [
  "smith-host-protocol",
  "smith-host-world",
  "smith-protocol-channel",
+ "smith-protocol-translate",
  "smith-transcript",
 ]
 
@@ -3314,7 +3291,6 @@ name = "smith-charter"
 version = "0.0.0"
 dependencies = [
  "skein-codec",
- "skein-codegen",
  "skein-lib",
 ]
 
@@ -3326,6 +3302,7 @@ dependencies = [
  "skein-codec",
  "skein-codegen",
  "skein-heap",
+ "skein-json",
  "skein-lib",
  "skein-scratch",
  "smith-channel",
@@ -3350,8 +3327,6 @@ name = "smith-domain-run"
 version = "0.0.0"
 dependencies = [
  "skein-lib",
- "smith-charter",
- "smith-machine-world",
 ]
 
 [[package]]
@@ -3418,6 +3393,7 @@ dependencies = [
  "smith-host-world",
  "smith-protocol-channel",
  "smith-protocol-program",
+ "smith-protocol-translate",
  "smith-transcript",
 ]
 
@@ -3455,17 +3431,18 @@ dependencies = [
  "smith-agent-process-world",
  "smith-agent-service",
  "smith-agent-shell",
+ "smith-agent-world",
  "smith-channel",
  "smith-charter",
  "smith-fake-claude",
  "smith-host-domain",
  "smith-host-protocol",
- "smith-host-world",
  "smith-local-process-world",
  "smith-local-service",
  "smith-local-shell",
  "smith-protocol-channel",
  "smith-protocol-program",
+ "smith-protocol-translate",
 ]
 
 [[package]]
@@ -3485,7 +3462,6 @@ dependencies = [
  "skein-lib",
  "smith-agent-world",
  "smith-domain",
- "smith-events",
  "smith-host-domain",
  "smith-inline-agent",
 ]
@@ -3511,6 +3487,7 @@ dependencies = [
  "skein-llm-world",
  "skein-oauth",
  "skein-oauth-accounts",
+ "skein-scratch",
  "skein-shell",
  "skein-sim",
  "skein-tls",
@@ -3519,9 +3496,9 @@ dependencies = [
  "smith-agent-process-world",
  "smith-agent-service",
  "smith-agent-shell",
+ "smith-agent-world",
  "smith-domain",
  "smith-events",
- "smith-host-domain",
  "smith-host-protocol",
  "smith-host-world",
  "smith-local-domain",
@@ -3530,8 +3507,10 @@ dependencies = [
  "smith-local-shell",
  "smith-local-world",
  "smith-protocol-channel",
+ "smith-protocol-events",
  "smith-protocol-llm",
  "smith-protocol-machine",
+ "smith-protocol-translate",
  "smith-transcript",
 ]
 
@@ -3541,19 +3520,18 @@ version = "0.0.0"
 dependencies = [
  "skein-codec",
  "skein-io",
- "skein-json",
  "skein-lib",
  "skein-oauth",
  "skein-scratch",
  "skein-shell",
  "skein-world",
- "smith-channel",
- "smith-charter",
  "smith-domain",
  "smith-events",
  "smith-host-domain",
  "smith-local-domain",
+ "smith-local-protocol",
  "smith-protocol-channel",
+ "smith-protocol-translate",
  "smith-transcript",
 ]
 
@@ -3587,8 +3565,11 @@ dependencies = [
  "smith-local-domain",
  "smith-local-process-world",
  "smith-local-protocol",
+ "smith-local-service",
  "smith-protocol-channel",
+ "smith-protocol-events",
  "smith-protocol-program",
+ "smith-protocol-translate",
  "smith-transcript",
 ]
 
@@ -3598,13 +3579,8 @@ version = "0.0.0"
 dependencies = [
  "serde",
  "serde_json",
- "skein-channel",
- "skein-fake-channel",
- "skein-fake-llm-domain",
  "skein-fake-machine",
- "skein-fake-oauth",
  "skein-fake-peers",
- "skein-heap",
  "skein-http",
  "skein-io",
  "skein-lib",
@@ -3626,15 +3602,14 @@ dependencies = [
  "smith-events",
  "smith-host-domain",
  "smith-host-protocol",
- "smith-host-world",
  "smith-local-domain",
  "smith-local-process-world",
  "smith-local-protocol",
  "smith-local-service",
  "smith-protocol-channel",
- "smith-protocol-llm",
- "smith-protocol-machine",
+ "smith-protocol-events",
  "smith-protocol-program",
+ "smith-protocol-translate",
  "smith-real-world",
  "smith-transcript",
  "toml",
@@ -3663,6 +3638,7 @@ dependencies = [
  "skein-fake-machine",
  "skein-io",
  "skein-lib",
+ "skein-scratch",
  "skein-shell",
  "skein-sim",
  "skein-world",
@@ -3681,7 +3657,22 @@ dependencies = [
  "smith-domain",
  "smith-domain-session",
  "smith-domain-tools",
+ "smith-protocol-translate",
  "smith-transcript",
+]
+
+[[package]]
+name = "smith-protocol-events"
+version = "0.0.0"
+dependencies = [
+ "skein-heap",
+ "skein-io",
+ "skein-lib",
+ "smith-agent-world",
+ "smith-domain",
+ "smith-events",
+ "smith-protocol-llm",
+ "smith-protocol-translate",
 ]
 
 [[package]]
@@ -3696,6 +3687,7 @@ dependencies = [
  "skein-llm-world",
  "skein-tls",
  "smith-domain",
+ "smith-domain-tools",
  "smith-events",
 ]
 
@@ -3717,14 +3709,15 @@ dependencies = [
  "skein-tls-world",
  "skein-world",
  "smith-agent-service",
+ "smith-agent-world",
  "smith-domain",
  "smith-domain-session",
  "smith-domain-tools",
  "smith-events",
- "smith-host-domain",
- "smith-host-world",
  "smith-protocol-channel",
+ "smith-protocol-events",
  "smith-protocol-llm",
+ "smith-protocol-translate",
  "smith-session-world",
  "smith-tools-world",
  "smith-transcript",
@@ -3759,10 +3752,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "smith-protocol-translate"
+version = "0.0.0"
+dependencies = [
+ "skein-channel",
+ "skein-lib",
+ "smith-channel",
+ "smith-charter",
+ "smith-domain",
+ "smith-domain-session",
+ "smith-domain-tools",
+ "smith-transcript",
+]
+
+[[package]]
 name = "smith-real-world"
 version = "0.0.0"
 dependencies = [
- "serde_json",
  "skein-fake-checkout",
  "skein-fake-llm-domain",
  "skein-fake-peers",
@@ -3772,7 +3778,6 @@ dependencies = [
  "skein-tls-world",
  "skein-world",
  "smith-agent-process-world",
- "smith-agent-shell",
  "smith-local-domain",
  "smith-local-process-world",
  "smith-local-protocol",
@@ -3790,6 +3795,7 @@ dependencies = [
  "smith-agent-world",
  "smith-domain",
  "smith-domain-run",
+ "smith-machine-world",
  "smith-tools-world",
 ]
 
@@ -3809,6 +3815,7 @@ dependencies = [
  "smith-domain-tools",
  "smith-protocol-channel",
  "smith-protocol-llm",
+ "smith-protocol-translate",
  "smith-tools-world",
  "smith-transcript",
 ]

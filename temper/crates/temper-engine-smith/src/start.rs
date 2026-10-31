@@ -107,7 +107,7 @@ pub fn start(
             accounts::GrantTable::Application => {}
         }
     }
-    smith::Event::Start {
+    smith::Event::Start(smith::Start {
         reply_to,
         host_run,
         activation: assignment.attempt,
@@ -121,7 +121,7 @@ pub fn start(
         // records; this typed system route has none to pass yet.
         answered: Box::new([]),
         grants: grants.into_boxed(),
-    }
+    })
 }
 
 /// The channel charter takes its mode from the task's ending and resumes

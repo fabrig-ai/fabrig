@@ -210,7 +210,7 @@ pub(crate) struct AgentPeer {
     pub(crate) owner: Token,
     pub(crate) now: Time,
     pub(crate) component: smith_protocol_channel::Component,
-    pub(crate) events: Queue<smith_protocol_channel::OpenEvent>,
+    pub(crate) events: Queue<smith_protocol_channel::Heard>,
     pub(crate) out: Queue<Lower>,
     pub(crate) agent_bytes: Intake,
     pub(crate) worker_bytes: Intake,
@@ -311,7 +311,7 @@ impl AgentPeer {
         );
         peer.settle(worker);
         let opened = peer.events.pop();
-        let Some(smith_protocol_channel::OpenEvent::Opened { .. }) = opened else {
+        let Some(smith_protocol_channel::Heard::Opened { .. }) = opened else {
             panic!("agent opening: {opened:?}");
         };
         if !rooted {
@@ -329,7 +329,7 @@ impl AgentPeer {
             );
         }
         peer.settle(worker);
-        let Some(smith_protocol_channel::OpenEvent::Start { .. }) = peer.events.pop() else {
+        let Some(smith_protocol_channel::Heard::Start { .. }) = peer.events.pop() else {
             panic!("agent receives Start");
         };
         peer.component.send_admitted(peer.owner, &mut peer.events, &mut peer.out).unwrap();

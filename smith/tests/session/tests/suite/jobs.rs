@@ -1,19 +1,28 @@
 //! Jobs retain execution beside turns and end before their session's terminal.
+
+use smith_session_world::said;
+
+use smith_session_world::bytes;
+
 use skein_lib::{Duration, Time, Token};
 use smith_domain_session::{self as session, llm, record};
 use smith_domain_tools::{self as tools, Budget, Call, Done, JobEnd, JobNumber, Wait};
-use smith_session_world::recorded::{self, World};
+use smith_session_world::recorded::{self, Scripted};
 
 fn opening(transcript: Option<record::Transcript>) -> record::Opening {
     let mut opening = recorded::opening(transcript, 100);
     opening.spec.authority.grants = tools::Grants { inspect: true, modify: true, shell: true };
-    opening.spec.authority.repos =
-        Box::new([tools::Repo { host: Box::default(), mount: Box::default(), root: Token::new(7), writable: true }]);
+    opening.spec.authority.repos = Box::new([tools::Directory {
+        host: Box::default(),
+        mount: Box::default(),
+        root: Token::new(7),
+        writable: true,
+    }]);
     opening
 }
 
-fn world() -> World {
-    let mut world = World::new(1);
+fn world() -> Scripted {
+    let mut world = Scripted::new(1);
     world.open(opening(None));
     world
 }
@@ -21,7 +30,7 @@ fn world() -> World {
 fn called(id: &[u8], call: Call) -> llm::Block {
     llm::Block::ToolCall {
         id: id.into(),
-        name: b"workspace".as_slice().into(),
+        name: bytes(b"workspace"),
         input: Box::default(),
         call: llm::Decoded::Owned { call },
         replay: None,
@@ -32,7 +41,7 @@ fn shell() -> llm::Block {
     called(
         b"build",
         Call::Shell {
-            command: b"cargo build".as_slice().into(),
+            command: bytes(b"cargo build"),
             timeout: tools::Timeout::Default,
             output: Budget::Default,
             after: tools::Yield::Asked(Duration::from_secs(1)),
@@ -51,7 +60,7 @@ fn read(id: &[u8]) -> llm::Block {
             path: tools::Path {
                 absolute: false,
                 parts: Box::new([tools::Part::Name {
-                    name: tools::Name::new(b"README.md".as_slice().into()).expect("fixture name"),
+                    name: tools::Name::new(bytes(b"README.md")).expect("fixture name"),
                 }]),
             },
             offset: 1,
@@ -60,38 +69,34 @@ fn read(id: &[u8]) -> llm::Block {
     )
 }
 
-fn complete(world: &mut World, blocks: Vec<llm::Block>) {
+fn complete(world: &mut Scripted, blocks: Vec<llm::Block>) {
     world.complete(blocks.into_boxed_slice(), llm::Stop::ToolUse, llm::Usage::ZERO);
 }
 
-fn start_job(world: &mut World) -> Token {
+fn start_job(world: &mut Scripted) -> Token {
     complete(world, vec![shell()]);
     let owner = world.operations[0].0;
     world.env.now = Time::from_nanos(1_000_000_000);
     world.step(session::Event::Done {
         owner,
-        done: Done::Held { head: b"Compiling\n".as_slice().into(), tail: Box::default(), dropped: 0 },
+        done: Done::Held { head: bytes(b"Compiling\n"), tail: Box::default(), dropped: 0 },
     });
     owner
 }
 
-fn end_job(world: &mut World, owner: Token, end: JobEnd) {
+fn end_job(world: &mut Scripted, owner: Token, end: JobEnd) {
     world.step(session::Event::Done {
         owner,
-        done: Done::Job { head: b"Done\n".as_slice().into(), tail: Box::default(), dropped: 0, end },
+        done: Done::Job { head: bytes(b"Done\n"), tail: Box::default(), dropped: 0, end },
     });
 }
 
-fn finish(world: &mut World) {
-    world.complete(
-        Box::new([llm::Block::Text { text: b"finished".as_slice().into(), replay: None }]),
-        llm::Stop::EndTurn,
-        llm::Usage::ZERO,
-    );
+fn finish(world: &mut Scripted) {
+    world.complete(said(b"finished"), llm::Stop::EndTurn, llm::Usage::ZERO);
     world.close();
 }
 
-fn outcomes(world: &World) -> Vec<tools::Outcome> {
+fn outcomes(world: &Scripted) -> Vec<tools::Outcome> {
     world
         .turns
         .iter()
@@ -107,17 +112,17 @@ fn outcomes(world: &World) -> Vec<tools::Outcome> {
         .collect()
 }
 
-fn read_and_edit(world: &mut World) {
+fn read_and_edit(world: &mut Scripted) {
     complete(world, vec![read(b"read"), edit(), job(false)]);
     let read_owner = world.operations[0].0;
     world.step(session::Event::Done {
         owner: read_owner,
-        done: Done::Loaded { content: b"old\n".as_slice().into(), version: tools::Version::new([1; 4]) },
+        done: Done::Loaded { content: bytes(b"old\n"), version: tools::Version::new([1; 4]) },
     });
     let edit_owner = world.operations[0].0;
     world.step(session::Event::Done {
         owner: edit_owner,
-        done: Done::Loaded { content: b"old\n".as_slice().into(), version: tools::Version::new([1; 4]) },
+        done: Done::Loaded { content: bytes(b"old\n"), version: tools::Version::new([1; 4]) },
     });
     world.step(session::Event::Done { owner: edit_owner, done: Done::Stored { version: tools::Version::new([2; 4]) } });
 }
@@ -140,7 +145,7 @@ fn a_command_answered_running_while_the_session_reads_edits_and_completes() {
         outcomes(&world).last(),
         Some(&tools::Outcome::Job {
             job: JobNumber(1),
-            head: b"Done\n".as_slice().into(),
+            head: bytes(b"Done\n"),
             tail: Box::default(),
             dropped: 0,
             output: tools::BytesClamp::Within,
@@ -185,7 +190,7 @@ fn jobs_cancelled_by_the_opener_before_another_writer_answer_cancelled() {
         outcomes(&world).last(),
         Some(&tools::Outcome::Job {
             job: JobNumber(1),
-            head: b"Done\n".as_slice().into(),
+            head: bytes(b"Done\n"),
             tail: Box::default(),
             dropped: 0,
             output: tools::BytesClamp::Within,
@@ -268,7 +273,7 @@ fn a_resumed_session_numbers_its_next_job_after_its_last_turns() {
     let old = recorded::scenario(1);
     let mut transcript = recorded::transcript(&old);
     transcript.turns.last_mut().expect("last turn").jobs = 3;
-    let mut world = World::new(1);
+    let mut world = Scripted::new(1);
     world.open(opening(Some(transcript)));
     let owner = start_job(&mut world);
     assert_eq!(world.turns[0].jobs, 4);
@@ -276,7 +281,7 @@ fn a_resumed_session_numbers_its_next_job_after_its_last_turns() {
         outcomes(&world)[0],
         tools::Outcome::Running {
             job: JobNumber(4),
-            head: b"Compiling\n".as_slice().into(),
+            head: bytes(b"Compiling\n"),
             tail: Box::default(),
             dropped: 0,
             output: tools::BytesClamp::Within,
@@ -289,7 +294,7 @@ fn a_resumed_session_numbers_its_next_job_after_its_last_turns() {
     world.close();
 }
 
-fn polling(blocks: Vec<llm::Block>) -> (World, Token) {
+fn polling(blocks: Vec<llm::Block>) -> (Scripted, Token) {
     let mut world = world();
     let owner = start_job(&mut world);
     complete(&mut world, blocks);
@@ -317,19 +322,19 @@ fn edit() -> llm::Block {
             path: tools::Path {
                 absolute: false,
                 parts: Box::new([tools::Part::Name {
-                    name: tools::Name::new(b"README.md".as_slice().into()).expect("fixture name"),
+                    name: tools::Name::new(bytes(b"README.md")).expect("fixture name"),
                 }]),
             },
             edits: Box::new([tools::Replacement {
-                old: b"old".as_slice().into(),
-                new: b"new".as_slice().into(),
+                old: bytes(b"old"),
+                new: bytes(b"new"),
                 occurrences: tools::Occurrences::Once,
             }]),
         },
     )
 }
 
-fn answer_operation(world: &mut World, done: Option<Done>) {
+fn answer_operation(world: &mut Scripted, done: Option<Done>) {
     if let Some(done) = done {
         let owner = world.operations[0].0;
         world.step(session::Event::Done { owner, done });

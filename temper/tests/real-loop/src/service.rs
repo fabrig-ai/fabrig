@@ -374,6 +374,12 @@ impl ServiceHost {
     pub fn links(&self) -> u32 {
         self.links
     }
+    pub(crate) fn fixture_ready(&self) -> bool {
+        self.fixture.is_none()
+            || self.service.as_ref().and_then(temper_service::Service::engine_domain).is_some_and(|domain| {
+                matches!(domain.forge_connection(1), temper_engine_domain_forge::Connection::Connected { .. })
+            })
+    }
     pub(crate) fn arm_watch(&mut self, call: usize) {
         if self.watch.call != Some(call) {
             self.watch = watch::Watch::default();

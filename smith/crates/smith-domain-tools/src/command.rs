@@ -1,7 +1,7 @@
 //! Selected command budgets, kept without file or process state.
 //! The kit selects duration and proportional capture before emitting IO;
 //! the flight retains only their clamp evidence through the process terminal.
-//! Contract: domain/tools.md, sections 3 and 5; programming-model.md, section 6.3.
+//! Contract: smith/docs/design/domain/tools.md, sections 3 and 5; skein/docs/foundation/programming-model.md, section 6.3.
 
 use crate::{Budget, BytesClamp, Limits, Timeout, TimeoutClamp};
 use skein_lib::Duration;
@@ -16,7 +16,7 @@ pub(crate) struct Kept {
 
 /// A command's effective duration with its applied deadline clamp.
 #[derive(Clone, Copy, Debug)]
-pub(crate) struct Timed {
+pub(crate) struct SelectedTimeout {
     pub(crate) timeout: Duration,
     pub(crate) clamp: TimeoutClamp,
 }
@@ -41,18 +41,18 @@ pub(crate) fn kept(asked: Budget, limits: &Limits) -> Kept {
     Kept { head, tail, clamp }
 }
 
-pub(crate) fn timed(asked: Timeout, limits: &Limits) -> Timed {
+pub(crate) fn timed(asked: Timeout, limits: &Limits) -> SelectedTimeout {
     let timeout = match asked {
         Timeout::Default => limits.shell_timeout,
         Timeout::Asked(duration) => duration,
     };
     if timeout > limits.tool_deadline {
-        Timed {
+        SelectedTimeout {
             timeout: limits.tool_deadline,
             clamp: TimeoutClamp::Clamped { asked: timeout, ceiling: limits.tool_deadline },
         }
     } else {
-        Timed { timeout, clamp: TimeoutClamp::Within }
+        SelectedTimeout { timeout, clamp: TimeoutClamp::Within }
     }
 }
 
@@ -68,17 +68,17 @@ pub(crate) fn yielded(asked: crate::Yield, limits: &Limits) -> (Option<Duration>
 }
 
 /// Select a job read's wait under the same ceiling as a shell's yield.
-pub(crate) fn waited(asked: crate::Wait, limits: &Limits) -> Timed {
+pub(crate) fn waited(asked: crate::Wait, limits: &Limits) -> SelectedTimeout {
     match asked {
-        crate::Wait::Default => Timed { timeout: limits.job_poll, clamp: TimeoutClamp::Within },
+        crate::Wait::Default => SelectedTimeout { timeout: limits.job_poll, clamp: TimeoutClamp::Within },
         crate::Wait::Asked(duration) => job_timed(duration, limits),
     }
 }
 
-fn job_timed(asked: Duration, limits: &Limits) -> Timed {
+fn job_timed(asked: Duration, limits: &Limits) -> SelectedTimeout {
     if asked > limits.job_wait {
-        Timed { timeout: limits.job_wait, clamp: TimeoutClamp::Clamped { asked, ceiling: limits.job_wait } }
+        SelectedTimeout { timeout: limits.job_wait, clamp: TimeoutClamp::Clamped { asked, ceiling: limits.job_wait } }
     } else {
-        Timed { timeout: asked, clamp: TimeoutClamp::Within }
+        SelectedTimeout { timeout: asked, clamp: TimeoutClamp::Within }
     }
 }

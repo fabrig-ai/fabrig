@@ -53,8 +53,8 @@ pub enum Delivery {
         connector: u16,
         project: u32,
     },
-    /// `Switch` is released behind prior writes; `AdoptRuns` completes the durable mark.
-    Restart(jig_domain_core::RestartStep),
+    /// Resumes the start only after this decision is durable.
+    Start(jig_domain_core::start::Continuation),
     /// Retry archive admission after the current iteration can retire its read slots.
     NotesLoad {
         owner: Token,
@@ -494,7 +494,7 @@ impl Decision {
             | Delivery::ReadEscalationDecision { .. }
             | Delivery::TurnBusy { .. }
             | Delivery::NotesLoad { .. }
-            | Delivery::Restart(_)
+            | Delivery::Start(_)
             | Delivery::Load { .. } => true,
         };
         if !within {

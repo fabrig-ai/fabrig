@@ -25,7 +25,7 @@ fn answer(status: u16, body: Box<[u8]>, kind: &str, cache: Option<(&str, &str)>)
     if let Some((name, value)) = cache {
         headers.push(header(name, value));
     }
-    let length = u64::try_from(body.len()).expect("bounded answer fits u64");
+    let length = skein_lib::len_u64(body.len());
     Answer {
         head: Response {
             status,

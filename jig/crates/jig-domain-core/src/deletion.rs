@@ -108,7 +108,7 @@ pub(crate) fn restored(core: &mut Core) -> bool {
     for (&project, name) in &core.names {
         for (&other, previous) in &core.names {
             if project != other && people::same_name(name, previous) {
-                core.restore_failure = Some(crate::RestartRequest::ProjectPolicy { project });
+                core.restore_failure = Some(crate::start::Failure::ProjectPolicy { project });
                 return false;
             }
         }
@@ -125,12 +125,7 @@ pub(crate) fn restore_project(core: &mut Core, project: u32, step: people::Delet
 
 /// One bounded cancellation per deletion, or one whole-task walk at a time.
 pub(crate) fn advance(core: &mut Core, env: &Env<Limits>, out: &mut Queue<Request>) {
-    if core.deletions.routing
-        || core.start_phase().is_some()
-        || core.start_failure().is_some()
-        || core.restart_failure().is_some()
-        || core.restart_step().is_some()
-    {
+    if core.deletions.routing || core.start_phase().is_some() || core.start_failure().is_some() {
         return;
     }
     let resume = core.deletions.resume;

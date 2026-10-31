@@ -1,42 +1,13 @@
 //! Offline cache triplets retain repetitions, pooled misses and real evidence gaps.
 
-use std::path::PathBuf;
-
 use smith_bench::{CacheObservation, CheckVerdict, End, EventCheck, Judgment, Measure};
-use smith_events::{Block, Event};
+use smith_events::Block;
 
 use crate::common;
-
-#[test]
-fn the_crossing_variant_waits_once_at_medium_effort() {
-    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let base = smith_bench::check_task(&root.join("tasks/probes/cache-reuse/task.toml"), &root.join("../docs/design"))
-        .expect("cache task");
-    let task = base.with_variant("crossing").expect("crossing");
-    assert_eq!(task.effort.as_deref(), Some("medium"));
-    assert!(task.prompt.contains("After the sixth read, call wait exactly once"));
-    assert_eq!(task.person.len(), 1);
-    assert_eq!(task.person[0].when, smith_bench::agent::Trigger::ToolCall { tool: "wait".into() });
-    assert!(task.event.contains(&EventCheck::ToolCall {
-        tool: "wait".into(),
-        count: Some(smith_bench::Count::Exactly(1)),
-        input_bytes_at_least: None,
-        verdict: None,
-        exit: None,
-        clamped: None,
-    }));
-    assert!(task.event.contains(&EventCheck::Completions {
-        count: smith_bench::Count::Exactly(14),
-        before: smith_bench::Before::Answer
-    }));
-    let cache =
-        base.event.iter().find(|check| matches!(check, EventCheck::CacheReuse { .. })).expect("base cache check");
-    assert!(task.event.contains(cache));
-}
+use crate::common::observe;
 
 fn repetition(position: u32, read: u64, misses: u64) -> smith_bench::AttemptResult {
-    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let mut value = smith_bench::read_result(&root.join("tests/recorded/results/attempt.json")).expect("fixture");
+    let mut value = crate::common::attempt();
     value.identity.task = "probes/cache-reuse".into();
     value.identity.attempt = format!("{position:02}");
     value.outcome.end = End::Completed;
@@ -98,7 +69,7 @@ fn cache_triplets_judge_the_median_and_pool_misses_without_passing_a_partial_tri
 
 #[test]
 fn cache_task_freezes_twelve_pointer_reads_and_two_sequential_children() {
-    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let root = crate::common::repository();
     let directory = root.join("tasks/probes/cache-reuse");
     let task =
         smith_bench::check_task(&directory.join("task.toml"), &root.join("../docs/design")).expect("authored task");
@@ -131,7 +102,8 @@ fn one_read_each_rejects_batched_calls_and_retains_missing_capture() {
     let mut records = common::events::balanced();
     let check = EventCheck::CallsPerResponse { tool: "read".into(), at_most: 1 };
     for count in [1, 2] {
-        if let Event::ResponseCompleted(value) = &mut records[4].event {
+        {
+            let value = crate::common::edit::response_completed(&mut records[4]);
             let mut blocks = skein_lib::List::with_capacity(2);
             for position in 0..count {
                 blocks
@@ -146,17 +118,8 @@ fn one_read_each_rejects_batched_calls_and_retains_missing_capture() {
         }
         assert_eq!(observe(&records).check(&check, "task").passed, Measure::Observed { value: count == 1 });
     }
-    if let Event::ResponseCompleted(value) = &mut records[4].event {
-        value.completion = None;
-    }
+    crate::common::edit::response_completed(&mut records[4]).completion = None;
     assert!(matches!(observe(&records).check(&check, "task").passed, Measure::Unavailable { .. }));
-}
-
-fn observe(records: &[smith_events::Record]) -> smith_bench::agent::smith::events::Observer {
-    let mut value = smith_bench::agent::smith::events::Observer::new(&common::events::LIMITS).expect("reader");
-    value.feed(&common::events::bytes(records)).expect("outside codec records");
-    value.finish().expect("complete lines");
-    value
 }
 
 #[test]
@@ -166,7 +129,8 @@ fn sequential_children_wait_for_the_parent_return_and_require_both_returns() {
     for child in 1..=2 {
         let call = format!("child{child}");
         let mut opened = baseline[2].clone();
-        if let Event::ConversationOpened(value) = &mut opened.event {
+        {
+            let value = crate::common::edit::conversation_opened(&mut opened);
             value.conversation = child;
             value.thread = child;
             value.parent = Some(0);
@@ -174,13 +138,12 @@ fn sequential_children_wait_for_the_parent_return_and_require_both_returns() {
             value.kind = smith_events::ConversationKind::Child;
         }
         let mut closed = baseline[5].clone();
-        if let Event::ConversationClosed(value) = &mut closed.event {
-            value.conversation = child;
-        }
+        crate::common::edit::conversation_closed(&mut closed).conversation = child;
         let mut returned = common::events::record(include_str!(
             "../../../crates/smith-events/golden/v4/tool_completed_everything.jsonl"
         ));
-        if let Event::ToolCompleted(value) = &mut returned.event {
+        {
+            let value = crate::common::edit::tool_completed(&mut returned);
             value.run = 0;
             value.conversation = 0;
             value.call = call.as_bytes().into();

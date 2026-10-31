@@ -189,7 +189,7 @@ pub fn interleave(arms: usize, repetitions: u32, seed: u64) -> Vec<Vec<usize>> {
 }
 
 fn resample(values: &[f64], random: &mut Rng, sample: &mut Vec<f64>) {
-    let bound = u64::try_from(values.len()).expect("observation count fits u64");
+    let bound = skein_lib::len_u64(values.len());
     sample.clear();
     for _ in 0..values.len() {
         sample.push(values[usize::try_from(random.below(bound)).expect("draw fits index")]);
@@ -213,7 +213,7 @@ fn solved_ratio(reference: (f64, u32), candidate: (f64, u32)) -> f64 {
 fn draw_solved(values: &[(f64, bool)], random: &mut Rng, resample: bool) -> (f64, u32) {
     let mut sum = 0.0;
     let mut passes = 0;
-    let bound = u64::try_from(values.len()).expect("stratum size");
+    let bound = skein_lib::len_u64(values.len());
     for index in 0..values.len() {
         let index = if resample { usize::try_from(random.below(bound)).expect("draw") } else { index };
         sum += values[index].0;

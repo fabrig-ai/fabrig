@@ -1,8 +1,7 @@
 //! Text pieces at the channel boundary (protocol/channel.md, sections 4 and 7).
 use crate::Error;
 use alloc::boxed::Box;
-use skein_channel::{Frame, frame_writer};
-use skein_lib::Writer;
+use skein_channel::Frame;
 
 /// The stream selected by the service for a live piece.
 #[derive(Clone, Copy, Debug)]
@@ -28,13 +27,18 @@ pub(crate) fn frame(piece: Piece<'_>, limits: &smith_channel::Limits) -> Result<
         PieceKind::Text => (smith_channel::LiveKind::Text, None),
         PieceKind::Input { id, tool } => (
             smith_channel::LiveKind::Input,
-            Some(smith_channel::LiveCall::new(
-                limits,
-                smith_channel::LiveCallParts { id: Box::from(id), tool: Box::from(tool) },
-            )?),
+            Some(
+                match smith_channel::LiveCall::new(
+                    limits,
+                    smith_channel::LiveCallParts { id: Box::from(id), tool: Box::from(tool) },
+                ) {
+                    Ok(value) => value,
+                    Err(problem) => return Err(Error::ChannelBody(problem)),
+                },
+            ),
         ),
     };
-    let record = smith_channel::Live::new(
+    let record = match smith_channel::Live::new(
         limits,
         smith_channel::LiveParts {
             turn: piece.turn,
@@ -44,15 +48,15 @@ pub(crate) fn frame(piece: Piece<'_>, limits: &smith_channel::Limits) -> Result<
             bytes: Box::from(piece.bytes),
             call,
         },
-    )?;
-    let Ok(length) = usize::try_from(record.measure()) else {
-        return Err(Error::ResultCapacity);
+    ) {
+        Ok(value) => value,
+        Err(problem) => return Err(Error::ChannelBody(problem)),
     };
-    let mut body = Writer::new(length);
-    record.encode(&mut body)?;
-    let mut frame = frame_writer(0x0112, record.measure())?;
-    frame.put(&body.finish())?;
-    Ok(frame.finish()?)
+    let frame = match smith_channel::frame(smith_channel::Body::Live(record)) {
+        Ok(value) => value,
+        Err(problem) => return Err(Error::Frame(problem)),
+    };
+    Ok(frame)
 }
 
 pub(crate) fn frame_bytes(limits: &smith_channel::Limits, bytes: u32) -> Option<u32> {

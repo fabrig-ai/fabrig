@@ -1,5 +1,5 @@
-//! Routing (programming-model.md, section 4.5; domain/run.md, sections 2, 3, 10 and 13;
-//! domain/session.md, sections 3–6): each of the protocol's events to the child domain it is for,
+//! Routing (skein/docs/foundation/programming-model.md, section 4.5; smith/docs/design/domain/run.md, sections 2, 3, 10 and 13;
+//! smith/docs/design/domain/session.md, sections 3–6): each of the protocol's events to the child domain it is for,
 //! each child domain's requests to the protocol layer or, translated, to the
 //! other, and the hand-offs the ready list deferred.
 //!
@@ -17,7 +17,7 @@ use skein_lib::{Duration, Env, Id, List, Queue, ReplyTo, Token};
 use smith_domain_run::{self as run, Spend};
 use smith_domain_session as session;
 
-use crate::boundary::{AnsweredCall, Event, Operation, Request};
+use crate::boundary::{AnsweredCall, Below, Event, Lower, Operation, Request};
 use crate::domain::{Credential, Domain, Due, Flight, Handoff, StartContext, TurnHandoff};
 use crate::limits::{self, Limits};
 use crate::peer::Peer;
@@ -36,7 +36,7 @@ pub(crate) const fn session_env(env: &Env<Limits>) -> Env<session::Limits> {
 /// Hands one of the protocol's events to the child domain it is for.
 pub(crate) fn event(domain: &mut Domain, env: &Env<Limits>, event: Event) {
     let event = match event {
-        Event::Start {
+        Event::Start(crate::Start {
             reply_to,
             host_run,
             activation,
@@ -48,7 +48,7 @@ pub(crate) fn event(domain: &mut Domain, env: &Env<Limits>, event: Event) {
             grants,
             transcript,
             answered,
-        } => {
+        }) => {
             if let Err(invalid) = models_declared(domain, &charter) {
                 domain.notices.push(Request::Answer {
                     read: None,
@@ -83,27 +83,29 @@ pub(crate) fn event(domain: &mut Domain, env: &Env<Limits>, event: Event) {
         Event::Cancel { run } => run::Event::Cancel { run },
         Event::HostReturned { relay, reply } => run::Event::HostReturned { relay, reply },
         Event::Delivered { owner, delivery } => run::Event::Delivered { owner, delivery },
-        Event::Read { owner, read } => run::Event::Read { owner, read },
-        Event::Probed { owner, executable } => run::Event::Probed { owner, executable },
-        Event::Checked { owner, ran } => run::Event::Checked { owner, ran },
-        Event::Aborted { owner } => run::Event::Aborted { owner },
-        Event::ReadVersion { owner, place, version } => {
+        Event::Below(Below::Read { owner, read }) => run::Event::Read { owner, read },
+        Event::Below(Below::Probed { owner, executable }) => run::Event::Probed { owner, executable },
+        Event::Below(Below::Checked { owner, ran }) => run::Event::Checked { owner, ran },
+        Event::Below(Below::Aborted { owner }) => run::Event::Aborted { owner },
+        Event::Below(Below::ReadVersion { owner, place, version }) => {
             if domain.sessions.contains_key(&owner) {
                 session_step(domain, env, session::Event::ReadVersion { session: owner, place, version });
             }
             return;
         }
-        Event::BuiltinResult { owner, id, text, error } => {
+        Event::Below(Below::BuiltinResult { owner, id, text, error }) => {
             if domain.sessions.contains_key(&owner) {
                 session_step(domain, env, session::Event::BuiltinResult { session: owner, id, text, error });
             }
             return;
         }
-        Event::Completed { owner, completion } => return completed(domain, env, owner, completion),
-        Event::Failed { owner, failure, evidence, detail, report } => {
+        Event::Below(Below::Completed { owner, completion }) => {
+            return completed(domain, env, owner, completion);
+        }
+        Event::Below(Below::Failed { owner, failure, evidence, detail, report }) => {
             return failed(domain, env, owner, failure, evidence, detail, report);
         }
-        Event::Cancelled { owner } => {
+        Event::Below(Below::Cancelled { owner }) => {
             crate::operation::completion_done(domain, owner);
             let id = *domain.sessions.get(&owner).expect("a session lives until its call has ended");
             let conversation = domain.peers.get(id).expect("a peer lives as its session").conversation;
@@ -113,7 +115,7 @@ pub(crate) fn event(domain: &mut Domain, env: &Env<Limits>, event: Event) {
             );
             return session_step(domain, env, session::Event::Cancelled { owner });
         }
-        Event::Done { owner, done } => {
+        Event::Below(Below::Done { owner, done }) => {
             crate::operation::command_done(domain, owner);
             if room_for_content(domain, env, crate::facts::done_bytes(&done)) {
                 domain.content.push(crate::Content::Tool { owner, done: done.clone() });
@@ -348,7 +350,7 @@ fn start(
     };
     let resumed = transcript.is_some();
     // A resume without a host identity keeps the run tree under the recorded
-    // main key (domain/run.md, section 3.2). The run only mints when both are absent.
+    // main key (smith/docs/design/domain/run.md, section 3.2). The run only mints when both are absent.
     let identity = match identity {
         Some(identity) => Some(identity),
         None => match transcript.as_ref() {
@@ -389,11 +391,11 @@ fn history_fits(transcript: Option<&session::record::Transcript>, answered: &[u8
     let mut messages = 0_u64;
     let mut history_bytes = 0_u64;
     if let Some(transcript) = transcript {
-        if u64::try_from(transcript.turns.len()).expect("owned input count fits") > cap {
+        if skein_lib::len_u64(transcript.turns.len()) > cap {
             return false;
         }
         for turn in &transcript.turns {
-            messages = match messages.checked_add(u64::try_from(turn.messages.len()).expect("owned input count fits")) {
+            messages = match messages.checked_add(skein_lib::len_u64(turn.messages.len())) {
                 Some(count) if count <= cap => count,
                 Some(_) | None => return false,
             };
@@ -403,12 +405,10 @@ fn history_fits(transcript: Option<&session::record::Transcript>, answered: &[u8
             None => return false,
         };
     }
-    if messages > cap
-        || u64::try_from(answered.len()).expect("owned length fits") > u64::from(limits.run.answered_bytes)
-    {
+    if messages > cap || skein_lib::len_u64(answered.len()) > u64::from(limits.run.answered_bytes) {
         return false;
     }
-    let total = history_bytes.checked_add(u64::try_from(answered.len()).expect("owned length fits"));
+    let total = history_bytes.checked_add(skein_lib::len_u64(answered.len()));
     match total {
         Some(bytes) => match limits::record_payload(limits) {
             Some(cap) => bytes <= cap && bytes <= limits.session.history_bytes,
@@ -430,7 +430,7 @@ pub(crate) fn hand_off(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<R
     // The finite synchronous chain is the entrance's session batch, sessions
     // opened/continued by it, one narrowed unsent completion, then its terminal.
     // Return/Close defer across reclaim; none of these batches can start another
-    // delegated batch (programming-model.md, 2, 4.5).
+    // delegated batch (skein/docs/foundation/programming-model.md, 2, 4.5).
     session_handoff_batch(domain, env, out);
     session_handoff_batch(domain, env, out);
     session_handoff_batch(domain, env, out);
@@ -547,7 +547,7 @@ fn from_session(domain: &mut Domain, env: &Env<Limits>, request: session::Reques
             };
             return complete(domain, env, pending, out);
         }
-        session::Request::Yield { owner } => return out.push(Request::Yield { owner }),
+        session::Request::Yield { owner } => return out.push(Request::Lower(Lower::Yield { owner })),
         session::Request::Cancel { owner } => {
             let id = *domain.sessions.get(&owner).expect("a call owner retains its session");
             let conversation = domain.peers.get(id).expect("session retains peer").conversation;
@@ -560,17 +560,17 @@ fn from_session(domain: &mut Domain, env: &Env<Limits>, request: session::Reques
                 domain.pending.remove(&run);
                 return session_step(domain, env, session::Event::Cancelled { owner });
             }
-            return out.push(Request::Cancel { owner });
+            return out.push(Request::Lower(Lower::Cancel { owner }));
         }
         session::Request::Io { owner, op, deadline } => {
             crate::operation::command(domain, owner, &op, deadline, out);
-            return out.push(Request::Io { owner, op, deadline });
+            return out.push(Request::Lower(Lower::Io { owner, op, deadline }));
         }
         session::Request::Job { owner, act } => {
             crate::operation::job(domain, env, owner, act, out);
-            return out.push(Request::Job { owner, act });
+            return out.push(Request::Lower(Lower::Job { owner, act }));
         }
-        session::Request::CancelIo { owner } => return out.push(Request::CancelIo { owner }),
+        session::Request::CancelIo { owner } => return out.push(Request::Lower(Lower::CancelIo { owner })),
         session::Request::JobsCancelled { opener } => run::Event::JobsCancelled { conversation: opener },
         session::Request::Opened { opener, session } => {
             let id = peer(domain, opener);
@@ -612,7 +612,8 @@ fn from_session(domain: &mut Domain, env: &Env<Limits>, request: session::Reques
 }
 
 /// Transfer one live ask into a pending terminal right, retaining its complete
-/// historical origin. The session's expiry bounds the call; only its /// terminal releases this flight.
+/// historical origin. The session's expiry bounds the call; only its
+/// terminal releases this flight.
 fn delegated(
     domain: &mut Domain,
     owner: Token,
@@ -638,6 +639,7 @@ fn delegated(
 }
 
 /// One of the run's requests: out to the protocol layer, or to the sessions.
+#[expect(clippy::too_many_lines, reason = "one exhaustive run-to-root vocabulary translation")]
 fn from_run(domain: &mut Domain, env: &Env<Limits>, request: run::Request, out: &mut Queue<Request>) {
     let event = match request {
         run::Request::CompletionReady { conversation } => {
@@ -658,7 +660,7 @@ fn from_run(domain: &mut Domain, env: &Env<Limits>, request: run::Request, out: 
         run::Request::Answer { to, answer, read, detail } => {
             let id = Id::<StartContext>::from_token(to.into_token());
             let context = domain.starts.get_mut(id).expect("root issued the start reply binding");
-            let to = context.reply_to.take().expect("one actual terminal consumes the parent right");
+            let to = context.reply_to.take().expect("one terminal consumes the parent right");
             context.transcript = None;
             context.answered = Box::default();
             domain.starts.retire(id);
@@ -668,7 +670,7 @@ fn from_run(domain: &mut Domain, env: &Env<Limits>, request: run::Request, out: 
         run::Request::Turn { host_run, record, number, position, opens_window, read, spent } => {
             let id = Id::<TurnHandoff>::from_token(record);
             let handoff = domain.turns.get_mut(id).expect("root issued the concrete turn binding");
-            let turn = handoff.turn.take().expect("one actual output takes the concrete body");
+            let turn = handoff.turn.take().expect("one output takes the concrete body");
             assert_eq!(turn.sequence, position, "run and record name the same conversation turn");
             domain.turns.retire(id);
             return out.push(Request::Turn { host_run, number, position, opens_window, read, spent, turn });
@@ -680,12 +682,16 @@ fn from_run(domain: &mut Domain, env: &Env<Limits>, request: run::Request, out: 
         run::Request::Deliver { host_run, owner, change, name, deadline } => {
             return out.push(Request::Deliver { host_run, owner, change, name, deadline });
         }
-        run::Request::Read { owner, at, max, deadline } => return out.push(Request::Read { owner, at, max, deadline }),
-        run::Request::Probe { owner, at, deadline } => return out.push(Request::Probe { owner, at, deadline }),
-        run::Request::Check { owner, program, deadline, tail } => {
-            return out.push(Request::Check { owner, program, deadline, tail });
+        run::Request::Read { owner, at, max, deadline } => {
+            return out.push(Request::Lower(Lower::Read { owner, at, max, deadline }));
         }
-        run::Request::Abort { owner } => return out.push(Request::Abort { owner }),
+        run::Request::Probe { owner, at, deadline } => {
+            return out.push(Request::Lower(Lower::Probe { owner, at, deadline }));
+        }
+        run::Request::Check { owner, program, deadline, tail } => {
+            return out.push(Request::Lower(Lower::Check { owner, program, deadline, tail }));
+        }
+        run::Request::Abort { owner } => return out.push(Request::Lower(Lower::Abort { owner })),
         run::Request::Open { conversation, opening } => {
             return open(domain, env, conversation, opening);
         }
@@ -799,7 +805,6 @@ fn pending_permit(
     }
 }
 
-#[expect(clippy::manual_map, reason = "programming-model.md 10.1 keeps the reservation translation exhaustive")]
 fn complete(domain: &mut Domain, env: &Env<Limits>, pending: PendingCompletion, out: &mut Queue<Request>) {
     let owner = pending.owner;
     let id = *domain.sessions.get(&owner).expect("a session asks for completions once it has opened");
@@ -892,7 +897,7 @@ fn complete(domain: &mut Domain, env: &Env<Limits>, pending: PendingCompletion, 
         deadlines.whole,
         out,
     );
-    out.push(Request::Complete {
+    out.push(Request::Lower(Lower::Complete {
         owner,
         name,
         grant,
@@ -902,7 +907,7 @@ fn complete(domain: &mut Domain, env: &Env<Limits>, pending: PendingCompletion, 
         max_completion_blocks,
         max_failure_bytes,
         decoded_call_bytes: env.limits.decoded_call_bytes,
-    });
+    }));
 }
 
 /// Settle the reservation of a named account whose grant has lapsed.

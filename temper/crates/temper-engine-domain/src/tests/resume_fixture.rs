@@ -500,8 +500,8 @@ const FORGE_LIMITS: forge::Limits = forge::Limits {
     queue_window: Duration::from_secs(30),
 };
 
-// Eight restart steps for one connector (including Switch), followed by Idle.
-const RESTORE_PASSES: u32 = 9;
+// Phases and durable continuations for one connector, followed by Idle.
+const RESTORE_PASSES: u32 = 20;
 
 pub fn root() -> (engine::Domain, Env<engine::Limits>) {
     root_with_config(config(7))
@@ -513,6 +513,14 @@ pub fn root_with_config(config: engine::Config) -> (engine::Domain, Env<engine::
 pub fn root_with_config_and_limits(
     config: engine::Config,
     limits: &engine::Limits,
+) -> (engine::Domain, Env<engine::Limits>) {
+    root_with_records(config, limits, &[])
+}
+
+pub fn root_with_records(
+    config: engine::Config,
+    limits: &engine::Limits,
+    records: &[engine::Record],
 ) -> (engine::Domain, Env<engine::Limits>) {
     // Model a later start: the store supplies the complete project rows and
     // their deployment high-water mark, rather than configuration reseeding.
@@ -532,9 +540,21 @@ pub fn root_with_config_and_limits(
     }
     let mut root = engine::Domain::new(config, limits).unwrap();
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits };
-    let mut request = root.core.restart_begin(false);
+    root.start_wall = Some(env.wall);
+    let mut request = root.core.start_begin(false, env.wall);
     let mut deployment = root.core.counters.deployment();
     deployment.projects = project_mark;
+    for record in records {
+        match record {
+            engine::Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(row))) => {
+                deployment.tasks = deployment.tasks.max(row.number);
+            }
+            engine::Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Projection(
+                jig_domain_core::ProjectionRecord::Goal { goal, .. },
+            ))) => deployment.tasks = deployment.tasks.max(goal.number),
+            engine::Record::Core(_) | engine::Record::Forge { .. } => {}
+        }
+    }
     engine::restart::restore_page_row(
         &mut root,
         &env,
@@ -547,6 +567,14 @@ pub fn root_with_config_and_limits(
             engine::Record::Core(jig_domain_core::Record::People(record)),
         );
     }
+    let mut decision = engine::Decision::decide(&mut root.journal, &limits.journal);
+    for record in records {
+        if let engine::Record::Forge { .. } = record {
+            root.forge.restore_begin(env.wall);
+        }
+        engine::restart::restore_page_row(&mut root, &env, record.clone());
+        engine::route::route_into(&mut root, &env, &mut decision);
+    }
     // In production the page's own write-free decision takes the header's
     // commit count while the journal is still idle.
     if let Some(commits) = root.restored_commits.take() {
@@ -555,48 +583,194 @@ pub fn root_with_config_and_limits(
         root.durable_commit = commits;
     }
     for _ in 0..RESTORE_PASSES {
-        match request {
-            jig_domain_core::RestartRequest::Step(step) => {
-                if step == jig_domain_core::RestartStep::LoadInbox {
-                    let _requests =
-                        jig_domain_core::want_accounts(&mut root.core, &crate::limits::environment_core(&env));
+        let mut output = skein_lib::Queue::uncapped();
+        request = match request {
+            jig_domain_core::start::Action::Step(phase) => match phase {
+                jig_domain_core::start::Phase::Sweep => root.core.start_sweep(
+                    &crate::limits::environment_core(&env),
+                    jig_domain_core::start::SweepInput::Finished,
+                    &mut output,
+                ),
+                phase @ (jig_domain_core::start::Phase::LoadCore
+                | jig_domain_core::start::Phase::LoadInbox
+                | jig_domain_core::start::Phase::RestoreConnector { .. }
+                | jig_domain_core::start::Phase::Link
+                | jig_domain_core::start::Phase::Switch
+                | jig_domain_core::start::Phase::Wires
+                | jig_domain_core::start::Phase::AdoptRuns
+                | jig_domain_core::start::Phase::ReadAfresh { .. }
+                | jig_domain_core::start::Phase::SettleOutbox { .. }
+                | jig_domain_core::start::Phase::Open) => {
+                    root.core.start_done(&crate::limits::environment_core(&env), phase, &mut output)
                 }
-                if step == jig_domain_core::RestartStep::Switch {
-                    check_switch(&mut root, &env);
-                }
-                request = root.core.restart_done(step);
+            },
+            jig_domain_core::start::Action::Commit(continuation) => {
+                root.core.start_resume(&crate::limits::environment_core(&env), continuation, &mut output)
             }
-            jig_domain_core::RestartRequest::Idle => break,
-            jig_domain_core::RestartRequest::Settings { failure, changed } => {
-                panic!("fixture settings restore: {failure:?}, changed {changed}")
+            jig_domain_core::start::Action::Idle => {
+                root.opened = true;
+                break;
             }
-            jig_domain_core::RestartRequest::Unresolved { child, records } => {
-                panic!("fixture restore {child:?}: {records}")
-            }
-            jig_domain_core::RestartRequest::ProjectPolicy { project } => {
-                panic!("fixture project policy restore: {project}")
-            }
-            jig_domain_core::RestartRequest::HeldPastLimit { which, held, limit } => {
-                panic!("fixture held settings: {which:?} held {held}, allowed {limit}")
-            }
-            jig_domain_core::RestartRequest::UnheldRevision { task, revision } => {
-                panic!("fixture task {task} has unheld settings revision {revision}")
-            }
-            jig_domain_core::RestartRequest::Refused { step } => panic!("fixture restore: {step:?}"),
-        }
+            jig_domain_core::start::Action::Refused(failure) => panic!("fixture start: {failure:?}"),
+        };
     }
     assert!(root.ready(), "fixture store restored");
     (root, env)
 }
 
-/// Unit fixtures drive the script without routing its store deliveries.
-pub fn check_switch(root: &mut engine::Domain, env: &Env<engine::Limits>) {
-    let _requests = jig_domain_core::step(
-        &mut root.core,
-        &crate::limits::environment_core(env),
-        jig_domain_core::Event::Tasks(tasks::Event::Check),
-    );
-    assert!(root.core.restart_checked(), "fixture children checked before switch");
+/// A typed durable store for the root's startup protocol; every release is an input.
+pub struct StartStore {
+    pub rows: alloc::collections::BTreeMap<engine::Key, engine::Record>,
+    pub wires: u32,
+    pub switches: u32,
+}
+
+impl StartStore {
+    pub fn new() -> Self {
+        Self { rows: alloc::collections::BTreeMap::new(), wires: 0, switches: 0 }
+    }
+
+    pub fn apply(&mut self, writes: &[engine::Write]) {
+        for write in writes {
+            match write {
+                engine::Write::DropTranscript { .. } => {}
+                engine::Write::Wires => self.wires = self.wires.checked_add(1).unwrap(),
+                engine::Write::Save(row) => {
+                    self.rows.insert(row.key(), row.clone());
+                }
+                engine::Write::Erase(key) => {
+                    self.rows.remove(key);
+                }
+                engine::Write::CopySettingsRevision(number) => {
+                    let key = engine::Key::Core(jig_domain_core::Key::Core(jig_domain_core::CoreKey::Settings(
+                        jig_domain_core::settings::Key::Held(*number),
+                    )));
+                    let engine::Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Settings(
+                        jig_domain_core::settings::Record::Revision { revision, .. },
+                    ))) = self.rows.get(&key).expect("held revision before its copy")
+                    else {
+                        panic!("held revision shape");
+                    };
+                    let row =
+                        engine::Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Settings(
+                            jig_domain_core::settings::Record::Revision { revision: revision.clone(), history: true },
+                        )));
+                    self.rows.insert(row.key(), row);
+                }
+            }
+        }
+    }
+
+    pub fn run(&mut self, root: &mut engine::Domain, env: &Env<engine::Limits>, pause_at_wires: bool) {
+        let mut out = skein_lib::Queue::uncapped();
+        for _ in 0_u32..1024 {
+            engine::release(root, env, &mut out);
+            engine::release(root, env, &mut out);
+            if let Some(request) = out.pop() {
+                match request {
+                    engine::Request::ToChild(released) => engine::step(root, env, engine::Event::Released(released)),
+                    engine::Request::Account(accounts::Request::Signing(accounts::Signing::Restored)) => {
+                        assert!(self.wires > 0, "account restoration follows durable wires");
+                    }
+                    engine::Request::Store(engine::StoreRequest::Commit { number, writes }) => {
+                        let wires = writes.contains(&engine::Write::Wires);
+                        self.apply(&writes);
+                        engine::step(
+                            root,
+                            env,
+                            engine::Event::Store(engine::StoreInput::Committed { number, fill: 0 }),
+                        );
+                        if wires && pause_at_wires {
+                            return;
+                        }
+                    }
+                    engine::Request::Store(engine::StoreRequest::Switch) => {
+                        self.switches = self.switches.checked_add(1).unwrap();
+                        engine::step(root, env, engine::Event::Store(engine::StoreInput::Switched));
+                    }
+                    engine::Request::Store(engine::StoreRequest::Load { owner, range, after, most, .. }) => {
+                        let mut ordered = alloc::collections::BTreeMap::new();
+                        for (key, row) in &self.rows {
+                            if range.contains(key) {
+                                ordered.insert(start_position(&range, key), row.clone());
+                            }
+                        }
+                        let mut rows = skein_lib::List::with_capacity(most);
+                        let mut more = false;
+                        for (position, row) in ordered {
+                            if let Some(key) = &after
+                                && position <= start_position(&range, key)
+                            {
+                                continue;
+                            }
+                            if rows.room() == 0 {
+                                more = true;
+                                break;
+                            }
+                            rows.push(row).unwrap();
+                        }
+                        let next = if more { Some(rows.as_slice().last().unwrap().key()) } else { None };
+                        engine::step(
+                            root,
+                            env,
+                            engine::Event::Store(engine::StoreInput::Loaded {
+                                owner,
+                                rows: rows.into_boxed(),
+                                next,
+                                texts: None,
+                            }),
+                        );
+                    }
+                    engine::Request::Stop => panic!("start stopped: {:?}", root.start_stop()),
+                    request @ (engine::Request::Unsettled(_)
+                    | engine::Request::Bound { .. }
+                    | engine::Request::BoxRemove { .. }
+                    | engine::Request::BoxGroup { .. }
+                    | engine::Request::ForgeKept(_)
+                    | engine::Request::ForgeGone { .. }
+                    | engine::Request::PlaygroundActs { .. }
+                    | engine::Request::ResetAct { .. }
+                    | engine::Request::Return { .. }
+                    | engine::Request::SetUp { .. }
+                    | engine::Request::Connect { .. }
+                    | engine::Request::Manifest { .. }
+                    | engine::Request::Reachable { .. }
+                    | engine::Request::Accept { .. }
+                    | engine::Request::Install { .. }
+                    | engine::Request::EraseCarried { .. }
+                    | engine::Request::Setup { .. }
+                    | engine::Request::Store(_)
+                    | engine::Request::Worker(_)
+                    | engine::Request::Party(_)
+                    | engine::Request::Forge { .. }
+                    | engine::Request::Account(_)
+                    | engine::Request::Busy(_)
+                    | engine::Request::Drained) => panic!("unexpected startup output: {request:?}"),
+                }
+            } else if root.ready() {
+                assert_eq!(root.start_phase(), None);
+                return;
+            } else {
+                engine::step(root, env, engine::Event::Resume);
+            }
+            root.reclaim();
+        }
+        panic!("start did not open: {:?}", root.start_phase());
+    }
+}
+
+fn start_position(range: &engine::Range, key: &engine::Key) -> (u32, engine::Key) {
+    match (range, key) {
+        (engine::Range::Core(range), engine::Key::Core(key)) => {
+            let (interval, key) = jig_domain_core::restore_cursor(range.restore_ranges(), key).unwrap();
+            (interval, engine::Key::Core(key))
+        }
+        (engine::Range::Census(census), engine::Key::Core(key)) => {
+            (census.interval(key).unwrap(), engine::Key::Core(key.clone()))
+        }
+        (engine::Range::Forge, key) => (0, key.clone()),
+        _ => panic!("startup key belongs to its range"),
+    }
 }
 
 fn configured_forges() -> Box<[forge::Configured]> {

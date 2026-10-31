@@ -172,6 +172,75 @@ impl Document {
         }
     }
 
+    /// A direct member's first value index (skein/docs/design/json.md, 5.2).
+    /// Returns `None` for a non-object, an absent name or an incomplete walk.
+    /// The producer supplies valid grammar; duplicate names select the first.
+    #[must_use]
+    pub fn member(&self, object: u32, name: &[u8]) -> Option<u32> {
+        if self.token(object)?.kind != Kind::ObjectStart {
+            return None;
+        }
+        let mut cursor = object.checked_add(1)?;
+        for _step in object..self.len() {
+            let key = self.token(cursor)?;
+            match key.kind {
+                Kind::Key => {
+                    let value = cursor.checked_add(1)?;
+                    let end = self.value_end(value)?;
+                    if self.text(key)? == name {
+                        return Some(value);
+                    }
+                    cursor = end;
+                }
+                Kind::ObjectEnd
+                | Kind::ObjectStart
+                | Kind::ArrayStart
+                | Kind::ArrayEnd
+                | Kind::String
+                | Kind::Number
+                | Kind::True
+                | Kind::False
+                | Kind::Null
+                | Kind::Long => return None,
+            }
+        }
+        None
+    }
+
+    /// The exclusive token end of a value (skein/docs/design/json.md, 5.2).
+    /// Scalars, including `Long`, occupy one record; keys and closings are
+    /// not values. An absent value or unfinished container returns `None`.
+    /// This navigates producer-checked grammar without validating it again.
+    #[must_use]
+    pub fn value_end(&self, start: u32) -> Option<u32> {
+        match self.token(start)?.kind {
+            Kind::ObjectStart | Kind::ArrayStart => {
+                let mut depth = 0_u32;
+                for index in start..self.len() {
+                    match self.token(index)?.kind {
+                        Kind::ObjectStart | Kind::ArrayStart => depth = depth.checked_add(1)?,
+                        Kind::ObjectEnd | Kind::ArrayEnd => {
+                            depth = depth.checked_sub(1)?;
+                            if depth == 0 {
+                                return index.checked_add(1);
+                            }
+                        }
+                        Kind::Key
+                        | Kind::String
+                        | Kind::Number
+                        | Kind::True
+                        | Kind::False
+                        | Kind::Null
+                        | Kind::Long => {}
+                    }
+                }
+                None
+            }
+            Kind::String | Kind::Number | Kind::True | Kind::False | Kind::Null | Kind::Long => start.checked_add(1),
+            Kind::Key | Kind::ObjectEnd | Kind::ArrayEnd => None,
+        }
+    }
+
     /// The number of retained records.
     #[must_use]
     pub fn len(&self) -> u32 {
@@ -357,7 +426,7 @@ impl Builder {
         Ok(())
     }
 
-    fn into_document(self) -> Document {
+    pub(crate) fn into_document(self) -> Document {
         Document { text: self.text.into_boxed(), tokens: self.tokens.into_boxed() }
     }
 }

@@ -1,4 +1,4 @@
-//! Scalar host-unit ceilings and exact accounting (domain/run.md,
+//! Scalar host-unit ceilings and exact accounting (smith/docs/design/domain/run.md,
 //! sections 9 and 10). Sessions price usage; the run never reprices it.
 
 use crate::charter::{Llm, Reserve};
@@ -6,7 +6,7 @@ use alloc::boxed::Box;
 
 use skein_lib::Duration;
 
-/// A part of a run's budget supplied by its host (domain/run.md, section 9).
+/// A part of a run's budget supplied by its host (smith/docs/design/domain/run.md, section 9).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Part {
     /// Its completions.
@@ -28,7 +28,7 @@ pub enum Ceiling {
     Time(Duration),
 }
 
-/// Why the agent refuses a budget before effects (domain/run.md, sections 4 and 9).
+/// Why the agent refuses a budget before effects (smith/docs/design/domain/run.md, sections 4 and 9).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum BudgetRefusal {
     /// A part asks for more than the agent admits.
@@ -43,7 +43,7 @@ pub enum BudgetRefusal {
     Completion { most: u64 },
 }
 
-/// A model rate that the host must price above zero (domain/run.md, section 9).
+/// A model rate that the host must price above zero (smith/docs/design/domain/run.md, section 9).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Rate {
     /// New input.
@@ -71,7 +71,7 @@ pub struct Budget {
 }
 
 /// The share a `sub_agent` call asks for: each part optional, spend never asked.
-/// Contract: domain/run.md, section 5.3.
+/// Contract: smith/docs/design/domain/run.md, section 5.3.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Share {
     pub turns: Option<u32>,
@@ -84,7 +84,7 @@ impl Share {
     pub const UNASKED: Self = Self { turns: None, time: None };
 }
 
-/// A child's effective share and how each part was set (domain/run.md, section 5.3).
+/// A child's effective share and how each part was set (smith/docs/design/domain/run.md, section 5.3).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Granted {
     pub turns: u32,
@@ -115,7 +115,7 @@ pub enum Set {
     Deadline,
 }
 
-/// The run's budget stage, recorded for its watchers (domain/run.md, section 9.1).
+/// The run's budget stage, recorded for its watchers (smith/docs/design/domain/run.md, section 9.1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Stage {
     /// Work draws on the ordinary pool.
@@ -126,7 +126,7 @@ pub enum Stage {
 }
 
 /// Host-supplied rates: Session charges reported usage; Run derives completion
-/// maxima from them (domain/run.md, section 9). Absent cache-write pricing uses
+/// maxima from them (smith/docs/design/domain/run.md, section 9). Absent cache-write pricing uses
 /// the input rate. The run refuses zero rates or a zero unit before discovery;
 /// Session keeps its own generic charging policy.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -151,19 +151,19 @@ pub struct Prices {
 /// any completion reports it. A failed addition leaves every field unchanged.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Spend {
-    /// Actual completion count.
+    /// Completion count.
     pub turns: u32,
 
-    /// Actual fresh input tokens.
+    /// Fresh input tokens.
     pub input: Option<u64>,
 
-    /// Actual output tokens.
+    /// Output tokens.
     pub output: Option<u64>,
 
-    /// Actual cache-read tokens.
+    /// Cache-read tokens.
     pub cache_read: Option<u64>,
 
-    /// Actual cache-write tokens.
+    /// Cache-write tokens.
     pub cache_write: Option<u64>,
 
     /// Reported reasoning tokens, already within output and never charged again.
@@ -353,7 +353,7 @@ impl Budget {
 
 /// Whether a run may start, shared by the entrance, local host and `smith check`.
 /// A change contract supplies its configured check deadline; other contracts
-/// supply none (domain/run.md, sections 4 and 9.1).
+/// supply none (smith/docs/design/domain/run.md, sections 4 and 9.1).
 pub fn admit(
     budget: &Budget,
     reserve: Reserve,
@@ -386,7 +386,7 @@ pub fn admit(
 
 /// Main's full input window at the highest input rate and output at its rate,
 /// rounded up once.
-/// Contract: domain/run.md, sections 9 and 9.1.
+/// Contract: smith/docs/design/domain/run.md, sections 9 and 9.1.
 #[must_use]
 pub fn most_costly(main: &Llm) -> Option<u64> {
     let input = u128::from(main.window).checked_mul(u128::from(main.prices.reserved_input()))?;
@@ -405,10 +405,11 @@ pub fn reserve_spend(reserve: Reserve, main: &Llm) -> Option<u64> {
 
 /// Remaining ordinary credit, above main's finishing reserve in each part.
 pub(crate) fn ordinary(budget: &Budget, reserve: Reserve, reserve_spend: u64, spent: Spend, left: Duration) -> Budget {
+    let remaining = budget.remainder(spent, left);
     Budget {
-        turns: budget.turns.saturating_sub(spent.turns).saturating_sub(reserve.turns),
-        spend: budget.spend.saturating_sub(spent.units).saturating_sub(reserve_spend),
-        time: Duration::from_nanos(left.as_nanos().saturating_sub(reserve.time.as_nanos())),
+        turns: remaining.turns.saturating_sub(reserve.turns),
+        spend: remaining.spend.saturating_sub(reserve_spend),
+        time: Duration::from_nanos(remaining.time.as_nanos().saturating_sub(reserve.time.as_nanos())),
     }
 }
 
@@ -418,9 +419,9 @@ pub(crate) fn left(standing: &crate::facts::Standing) -> Budget {
         turns: standing.turns_limit.saturating_sub(standing.turns).saturating_sub(standing.reserve.turns),
         spend: standing.spend_limit.saturating_sub(standing.spend).saturating_sub(standing.reserve_spend),
         time: Duration::from_millis(
-            (standing.time_limit.as_nanos() / 1_000_000)
-                .saturating_sub(standing.time.as_nanos() / 1_000_000)
-                .saturating_sub(standing.reserve.time.as_nanos() / 1_000_000),
+            (standing.time_limit.as_millis())
+                .saturating_sub(standing.time.as_millis())
+                .saturating_sub(standing.reserve.time.as_millis()),
         ),
     }
 }

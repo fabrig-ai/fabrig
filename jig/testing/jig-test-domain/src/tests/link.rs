@@ -447,9 +447,9 @@ fn stopping_continues_a_projection_deferred_watch_without_another_commit() {
                     drained = drained.checked_add(1).expect("one drain");
                 }
                 Request::Deliver(Delivery::Projection { .. }) => {}
-                other @ (Request::ReadResult { .. }
+                other @ (Request::Start { .. }
+                | Request::ReadResult { .. }
                 | Request::Busy { .. }
-                | Request::Restart(_)
                 | Request::Deliver(_)
                 | Request::Now(_)
                 | Request::Stop) => panic!("unexpected continuation output: {other:?}"),
@@ -464,6 +464,7 @@ fn settled_frame_watch(expiry: skein_lib::Wall) -> (crate::Domain, skein_lib::En
     use skein_lib::Env;
     let mut domain = fixtures::domain();
     let env = fixtures::env();
+    domain.core.people.start_restore(env.wall);
     let people_env = Env { now: env.now, wall: env.wall, limits: env.limits.core.people };
     let mut ignored = Queue::uncapped();
     for record in [
@@ -479,7 +480,9 @@ fn settled_frame_watch(expiry: skein_lib::Wall) -> (crate::Domain, skein_lib::En
     ] {
         people::step(&mut domain.core.people, &people_env, people::Event::Restore { record }, &mut ignored);
     }
-    people::step(&mut domain.core.people, &people_env, people::Event::Restored, &mut ignored);
+    assert!(domain.core.people.start_link(&people_env));
+    domain.core.people.start_sweep();
+    assert!(domain.core.people.start_complete(&people_env));
     let watcher = Token::new(901);
     crate::step(
         &mut domain,

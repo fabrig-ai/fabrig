@@ -1,4 +1,4 @@
-//! Rebuild actual native requests from append-file deltas and completion blocks.
+//! Rebuild native requests from append-file deltas and completion blocks.
 //! The independent byte peer supplies the expected requests, never the service.
 use std::collections::BTreeMap;
 
@@ -38,11 +38,10 @@ fn request_new_parts_and_completions_reconstruct_every_native_request() {
 }
 
 #[test]
-fn actual_anthropic_live_text_joins_the_native_completion_blocks() {
+fn seen_anthropic_live_text_joins_the_native_completion_blocks() {
     reconstruct(true);
 }
 
-#[expect(clippy::wildcard_enum_match_arm, reason = "select content from an independently checked complete stream")]
 fn reconstruct(anthropic: bool) {
     let mut world = World::new(37, &charter());
     world.private_grant();
@@ -55,7 +54,7 @@ fn reconstruct(anthropic: bool) {
     assert!(world.settle());
     world.assert_event_conformance();
     let mut queries = world.peer_queries();
-    assert_eq!(queries.len(), 3, "main, actual child, and main after rendered child feedback");
+    assert_eq!(queries.len(), 3, "main, child, and main after rendered child feedback");
     let mut conversations = BTreeMap::<u64, (u64, Vec<u8>, Vec<Vec<u8>>, Vec<api::Message>)>::new();
     let mut deltas = BTreeMap::<(u64, u64, u64), Vec<u8>>::new();
     let mut requests = 0;
@@ -63,7 +62,7 @@ fn reconstruct(anthropic: bool) {
     for record in world.records() {
         match &record.event {
             Event::ResponseStarted(started) => {
-                let prompt = started.prompt.as_ref().expect("Everything records the actual hand-off");
+                let prompt = started.prompt.as_ref().expect("Everything records the hand-off");
                 let state = conversations.entry(started.conversation).or_default();
                 if state.0 != started.window {
                     *state = (started.window, Vec::new(), Vec::new(), Vec::new());
@@ -109,15 +108,15 @@ fn reconstruct(anthropic: bool) {
                         // complete text, and no TextDelta SSE event. The native
                         // Anthropic component story separately joins live pieces.
                         if anthropic {
-                            assert_eq!(deltas.remove(&key).expect("actual native live pieces"), text.to_vec());
+                            assert_eq!(deltas.remove(&key).expect("native live pieces"), text.to_vec());
                         } else {
                             assert!(deltas.remove(&key).is_none());
                         }
-                        assert_eq!(text.as_ref(), b"actual child answer");
+                        assert_eq!(text.as_ref(), b"child answer");
                         text_blocks += 1;
                     }
                 }
-                conversations.get_mut(&completed.conversation).expect("actual request precedes completion").3.push(
+                conversations.get_mut(&completed.conversation).expect("request precedes completion").3.push(
                     api::Message {
                         role: api::Role::Assistant,
                         parts: completion.blocks.iter().map(part).collect::<Vec<_>>().into_boxed_slice(),
@@ -128,22 +127,18 @@ fn reconstruct(anthropic: bool) {
         }
     }
     assert_eq!(requests, 3);
-    assert_eq!(text_blocks, 1, "the child supplies actual text while main calls tools");
+    assert_eq!(text_blocks, 1, "the child supplies text while main calls tools");
     assert!(queries.is_empty());
     assert!(deltas.is_empty());
-    let trace = std::str::from_utf8(world.trace_bytes()).expect("actual UTF-8 JSON lines");
-    assert!(!trace.contains("native-private-bearer-02.6"), "actual granted bearer bytes never reach the stream");
-    assert!(!trace.contains("native-private-account-02.6"), "actual granted account bytes never reach the stream");
+    let trace = std::str::from_utf8(world.trace_bytes()).expect("UTF-8 JSON lines");
+    assert!(!trace.contains("native-private-bearer-02.6"), "granted bearer bytes never reach the stream");
+    assert!(!trace.contains("native-private-account-02.6"), "granted account bytes never reach the stream");
     world.assert_agent_clean();
 }
 
 #[test]
-#[expect(
-    clippy::wildcard_enum_match_arm,
-    reason = "check capture fields across independently checked complete native streams"
-)]
 fn native_capture_policies_keep_execution_and_select_only_their_content() {
-    use smith_agent_service::sinks::Capture;
+    use smith_protocol_events::sinks::Capture;
     let mut queries = None;
     let mut answer = None;
     for capture in [Capture::None, Capture::Calls, Capture::Everything] {
@@ -154,12 +149,12 @@ fn native_capture_policies_keep_execution_and_select_only_their_content() {
         world.check_memory();
         assert!(world.settle());
         world.assert_event_conformance();
-        let actual_queries: Vec<_> = world.peer_queries().into_iter().cloned().collect();
+        let seen_queries: Vec<_> = world.peer_queries().into_iter().cloned().collect();
         if let Some(expected) = &queries {
-            assert_eq!(&actual_queries, expected, "capture grants no execution authority");
+            assert_eq!(&seen_queries, expected, "capture grants no execution authority");
             assert_eq!(world.answer(), answer);
         } else {
-            queries = Some(actual_queries);
+            queries = Some(seen_queries);
             answer = world.answer();
         }
         let mut calls = 0;
@@ -184,7 +179,7 @@ fn native_capture_policies_keep_execution_and_select_only_their_content() {
                 }
                 Event::RunCompleted(completed) => {
                     assert_eq!(
-                        completed.result.as_ref().expect("actual accepted report").text.is_some(),
+                        completed.result.as_ref().expect("accepted report").text.is_some(),
                         capture == Capture::Everything
                     );
                 }
@@ -199,7 +194,6 @@ fn native_capture_policies_keep_execution_and_select_only_their_content() {
 }
 
 #[test]
-#[expect(clippy::wildcard_enum_match_arm, reason = "select starts and terminals from the independently checked stream")]
 fn three_conversations_starting_completions_in_one_pass_are_each_recorded() {
     let mut world = World::new(39, &charter());
     world.initial_message(904, b"task", b"ALPHA");
@@ -207,7 +201,7 @@ fn three_conversations_starting_completions_in_one_pass_are_each_recorded() {
     world.check_memory();
     assert!(world.settle());
     world.assert_event_conformance();
-    assert_eq!(world.peer_queries().len(), 5, "main, three actual children, final main");
+    assert_eq!(world.peer_queries().len(), 5, "main, three children, final main");
     let children: Vec<_> = world
         .records()
         .iter()
@@ -226,12 +220,12 @@ fn three_conversations_starting_completions_in_one_pass_are_each_recorded() {
                 starts.push((started.conversation, started.response, record.t_ms));
             }
             Event::ResponseCompleted(completed) if children.contains(&completed.conversation) => {
-                let content = completed.completion.as_ref().expect("each actual child completion has content");
+                let content = completed.completion.as_ref().expect("each child completion has content");
                 assert!(
                     content
                         .blocks
                         .iter()
-                        .any(|block| matches!(block, Block::Text { text } if text.as_ref() == b"actual child answer"))
+                        .any(|block| matches!(block, Block::Text { text } if text.as_ref() == b"child answer"))
                 );
                 completions.push((completed.conversation, completed.response));
             }
@@ -249,7 +243,7 @@ fn three_conversations_starting_completions_in_one_pass_are_each_recorded() {
 
 #[test]
 fn native_provider_failure_keeps_status_and_capture_selected_detail_in_every_terminal() {
-    use smith_agent_service::sinks::Capture;
+    use smith_protocol_events::sinks::Capture;
     for capture in [Capture::None, Capture::Calls, Capture::Everything] {
         let mut world = World::new(71, &charter());
         world.initial_message(907, b"task", b"ALPHA");
@@ -268,24 +262,10 @@ fn native_provider_failure_keeps_status_and_capture_selected_detail_in_every_ter
                 Event::ResponseCompleted(value) => response = value.failure.as_ref(),
                 Event::ConversationClosed(value) => conversation = value.failure.as_ref(),
                 Event::RunCompleted(value) => run = value.failure.as_ref(),
-                Event::Budget(_)
-                | Event::SessionStarted(_)
-                | Event::SessionEnded(_)
-                | Event::RunStarted(_)
-                | Event::ConversationOpened(_)
-                | Event::TextDelta(_)
-                | Event::ToolStarted(_)
-                | Event::JobEnded(_)
-                | Event::ToolCompleted(_)
-                | Event::CheckStarted(_)
-                | Event::CheckCompleted(_)
-                | Event::MessageReceived(_)
-                | Event::MessageRead(_)
-                | Event::MessageUnread(_)
-                | Event::Notice(_) => {}
+                _ => {}
             }
         }
-        let failure = response.expect("actual provider failure");
+        let failure = response.expect("provider failure");
         assert_eq!(failure.class, smith_events::FailureClass::ContextTooLong);
         assert_eq!(failure.evidence, smith_events::Evidence::Response);
         assert_eq!(failure.status, Some(400));
@@ -293,10 +273,10 @@ fn native_provider_failure_keeps_status_and_capture_selected_detail_in_every_ter
         window.class = smith_events::FailureClass::Limit;
         window.limit = Some(smith_events::FailureLimit { which: b"window".as_slice().into(), bound: 1_048_576 });
         assert_eq!(conversation, Some(&window));
-        let run = run.expect("actual failed run");
+        let run = run.expect("failed run");
         assert_eq!(run.class, smith_events::AnswerClass::Model);
         assert_eq!(run.completion.as_ref(), Some(&window));
-        let model = &started.expect("actual request").model;
+        let model = &started.expect("request").model;
         assert_eq!(run.endpoint.as_deref(), Some(model.endpoint.as_ref()));
         assert_eq!(run.model.as_deref(), Some(model.model.as_ref()));
         assert_eq!(run.attempts, Some(1));
@@ -313,7 +293,6 @@ fn native_provider_failure_keeps_status_and_capture_selected_detail_in_every_ter
     }
 }
 
-/// Lower test of jig-test's `process::an_agent_trace_captures_content_without_the_grant_or_authorization_header` (top tiers test wiring only).
 #[test]
 fn no_grant_value_reaches_a_turn_fact_or_trace() {
     use smith_agent_process_world::{PRIVATE_GRANT, bearer, key, withdrawn};
@@ -331,8 +310,8 @@ fn no_grant_value_reaches_a_turn_fact_or_trace() {
         world.observe_facts(TraceCase::ChildAnswered, 4);
         world.initial_message(908, b"task", b"Trace policy prompt sentinel");
         let settled = world.settle();
-        let leaked = world.observed().iter().any(|frame| frame.body.windows(secret.len()).any(|bytes| bytes == secret))
-            || world.trace_bytes().windows(secret.len()).any(|bytes| bytes == secret);
+        let leaked = world.observed().iter().any(|frame| skein_lib::bytes::find(&frame.body, secret).is_some())
+            || skein_lib::bytes::find(world.trace_bytes(), secret).is_some();
         assert_eq!((settled, leaked), (true, false), "row {index}");
         assert_trace_policy(&world, &[secret, account]);
         world.assert_agent_clean();
@@ -397,7 +376,7 @@ fn trace_fields(value: &serde_json::Value, secrets: &[&[u8]]) {
 fn trace_text(text: &str, secrets: &[&[u8]]) {
     assert!(!text.to_ascii_lowercase().contains("authorization:"), "Authorization header in trace");
     for secret in secrets {
-        assert!(!text.as_bytes().windows(secret.len()).any(|bytes| bytes == *secret), "grant bytes in trace text");
+        assert!(skein_lib::bytes::find(text.as_bytes(), secret).is_none(), "grant bytes in trace text");
     }
 }
 
@@ -411,24 +390,7 @@ fn a_runs_model_names_its_account_and_backend() {
         .iter()
         .filter_map(|record| match &record.event {
             Event::RunStarted(started) => Some((started.main.account, started.main.backend.clone())),
-            Event::Budget(_)
-            | Event::SessionStarted(_)
-            | Event::SessionEnded(_)
-            | Event::RunCompleted(_)
-            | Event::ConversationOpened(_)
-            | Event::ConversationClosed(_)
-            | Event::ResponseStarted(_)
-            | Event::ResponseCompleted(_)
-            | Event::TextDelta(_)
-            | Event::ToolStarted(_)
-            | Event::ToolCompleted(_)
-            | Event::JobEnded(_)
-            | Event::CheckStarted(_)
-            | Event::CheckCompleted(_)
-            | Event::MessageReceived(_)
-            | Event::MessageRead(_)
-            | Event::MessageUnread(_)
-            | Event::Notice(_) => None,
+            _ => None,
         })
         .collect::<Vec<_>>();
     assert_eq!((settled, models), (true, vec![(Some(0), smith_events::Backend::Direct)]));

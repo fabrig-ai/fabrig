@@ -10,7 +10,10 @@ pub(super) fn report(resolved: &Resolved, wall: Wall, clock: &Clock) -> BTreeMap
     let catalog = credentials::account_report::accounts(resolved);
     let states = credentials::program_check::check(
         resolved,
-        catalog.values().filter(|account| account.source() == "program").map(|account| account.name.as_str()),
+        catalog
+            .values()
+            .filter(|account| account.source() == crate::settings::resolve::AccountSource::Program)
+            .map(|account| account.name.as_str()),
         clock,
     );
     credentials::report(resolved, wall, &states)

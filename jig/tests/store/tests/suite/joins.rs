@@ -258,6 +258,7 @@ fn a_task_query_lists_a_live_task_past_the_bound() {
     let (mut world, records) = small_chain(FIFTH, false, false, false);
     let mut core = core::Core::new(jig_core_world::world::config(SEED).core, &profile.core).expect("core");
     core.projects.push(PROJECT).expect("open fixture project");
+    assert!(matches!(core.start_begin(false, Wall::EPOCH), core::start::Action::Step(core::start::Phase::LoadCore)));
     let mut out = Queue::uncapped();
     people::step(
         &mut core.people,

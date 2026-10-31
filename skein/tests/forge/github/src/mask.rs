@@ -17,7 +17,7 @@ impl Mask {
         Self { common: Shared::new(port), ids: BTreeMap::new(), opaque: BTreeMap::new() }
     }
     fn id(&mut self, value: &[u8]) -> String {
-        let next = u64::try_from(self.ids.len()).expect("bounded ids") + 1;
+        let next = skein_lib::len_u64(self.ids.len()) + 1;
         self.ids.entry(value.to_vec()).or_insert(next).to_string()
     }
     fn opaque(&mut self, value: &[u8]) -> String {

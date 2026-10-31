@@ -233,7 +233,13 @@ impl Accounts {
                 | store::SecretValue::Application(_)
                 | store::SecretValue::Held(_),
             ) => {
-                store.above.push(store::Event::Corrupt { owner: Token::new(0) });
+                store.above.push(store::Event::PageRefused {
+                    owner: Token::new(0),
+                    failure: store::restore::Failure {
+                        cause: store::restore::Cause::Decode(store::restore::DecodeFailure::Value),
+                        row: None,
+                    },
+                });
                 self.abort();
                 return Err(());
             }
@@ -752,6 +758,9 @@ impl Accounts {
             return;
         }
         match event {
+            store::Event::Page { .. } | store::Event::PageRefused { .. } => {
+                unreachable!("a start's pages need a start-mode store")
+            }
             store::Event::Secret { owner, value } if owner.raw() & MOVE_OUT == MOVE_OUT => {
                 let source = move_source(owner);
                 let Ok(value) = self.secret(store, value, SecretKind::Record) else {
@@ -799,7 +808,6 @@ impl Accounts {
             | store::Event::Committed { .. }
             | store::Event::Failed { .. }
             | store::Event::FrameTooLarge { .. }
-            | store::Event::Restored { .. }
             | store::Event::Loaded { .. }
             | store::Event::Read { .. }
             | store::Event::Got { .. }
@@ -976,6 +984,9 @@ impl Accounts {
     fn answers(&mut self, store: &mut crate::store::Store, events: &mut Queue<root::Event>) {
         for _ in 0..store.sources.len() {
             match store.sources.pop().expect("source answers") {
+                store::Event::Page { .. } | store::Event::PageRefused { .. } => {
+                    unreachable!("a start's pages need a start-mode store")
+                }
                 store::Event::Secret { owner, value } if owner.raw() & FINISH_EXCHANGE == FINISH_EXCHANGE => {
                     let Ok(value) = self.secret(store, value, SecretKind::Held) else {
                         return;
@@ -1031,7 +1042,6 @@ impl Accounts {
                 | store::Event::Committed { .. }
                 | store::Event::Failed { .. }
                 | store::Event::FrameTooLarge { .. }
-                | store::Event::Restored { .. }
                 | store::Event::Loaded { .. }
                 | store::Event::Read { .. }
                 | store::Event::Got { .. }

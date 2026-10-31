@@ -1,18 +1,19 @@
-//! Lazy child startup and private entropy-derived names (programs.md, 3, 5.1).
+//! Lazy child startup and private entropy-derived names (smith/docs/design/protocol/programs.md, 3, 5.1).
 //! Keeps no login; the existing status reader classifies subscription use.
 
-use super::{Backend, Below, Phase};
+use super::Complete;
+use super::Owner;
+use super::{Backend, Below, State};
 use crate::{Command, Ended, Launch, STATUS, Status, configuration_directory, environment, mcp};
 use alloc::boxed::Box;
 use skein_io::{self as io, kernel};
-use skein_lib::{Decimal, Env, List, Queue, Secret, Token, sha256, stream};
+use skein_lib::{Decimal, Env, List, Queue, Secret, sha256};
 use smith_domain::llm;
-use smith_protocol_llm::{self as protocol, FromDomain, ToDomain};
+use smith_protocol_llm::{self as protocol, ToDomain};
 
 pub(super) struct Names {
     pub mcp: Secret,
     pub run: [u8; 32],
-    pub session: [u8; 36],
 }
 
 impl Names {
@@ -29,7 +30,7 @@ impl Names {
         for (target, source) in run.iter_mut().zip(run_hex) {
             *target = source;
         }
-        Self { mcp, run, session: [0; 36] }
+        Self { mcp, run }
     }
 }
 
@@ -37,21 +38,18 @@ impl Backend {
     pub(super) fn start(
         &mut self,
         env: &Env<protocol::ComponentLimits>,
-        request: FromDomain,
+        request: Complete,
         up: &mut Queue<ToDomain>,
         below: &mut Queue<Below>,
     ) {
-        let (owner, name) = match &request {
-            FromDomain::Complete { owner, grant, .. } => (*owner, *grant),
-            FromDomain::Cancel { .. } | FromDomain::Yield { .. } => unreachable!("start receives Complete"),
-        };
-        if self.phase != Phase::Idle {
-            self.owner = Some(owner);
+        let (owner, name) = (request.owner, request.grant);
+        if self.startup.phase() != State::Idle {
+            self.current.claim(owner, up);
             self.fail(env, llm::Failure::Invalid, b"smith: a program conversation is already started", up, below);
             return;
         }
-        self.begin_prompt(&request);
-        self.owner = Some(owner);
+        self.begin_prompt(request.observation.is_some());
+        self.current.claim(owner, up);
         let valid = match &self.grant {
             Some(grant) => match name {
                 Some(name) => {
@@ -68,8 +66,8 @@ impl Backend {
             return;
         }
         if self.files.prepared() {
-            self.request = Some(request);
-            self.phase = Phase::Starting;
+            self.current.retain(request, up);
+            self.startup.prepare(&mut self.io);
             self.prepare_invocation(env, up, below);
             return;
         }
@@ -90,14 +88,13 @@ impl Backend {
             self.fail(env, llm::Failure::Program { exit: None }, b"smith: invalid program environment", up, below);
             return;
         };
-        self.request = Some(request);
+        self.current.retain(request, up);
         let mut arguments = List::with_capacity(2);
         for argument in STATUS {
             arguments.push(Box::from(argument)).expect("status arguments");
         }
-        self.phase = Phase::Checking;
-        self.check = Some(Command::new(
-            self.token(3),
+        let check = Command::new(
+            self.token(Owner::Status),
             Launch {
                 program: self.settings.program.claude.clone(),
                 arguments: arguments.into_boxed(),
@@ -108,7 +105,8 @@ impl Backend {
             env.now.saturating_add(self.settings.startup),
             self.settings.receiving.max_failure_bytes,
             &mut self.io,
-        ));
+        );
+        self.startup.checking(check, &mut self.io);
     }
 
     pub(super) fn progress(
@@ -121,29 +119,23 @@ impl Backend {
         self.checked(env, up, below);
         self.server_events(env, up, below);
         self.switch_progress(env, up, below);
-        if self.winding == super::stop::WindDown::YieldRequested {
+        if self.stopping.intent() == super::stopping::Intent::YieldRequested {
             self.yield_for_wind_down(env, up, below);
         }
-        if self.phase == Phase::Ending
-            && self.child.is_none()
-            && !self.spawning
-            && let Some(server) = &mut self.server
-        {
-            server.close(&mut self.io);
+        if self.startup.phase() == State::Ending && self.process.child().is_none() && !self.process.spawning() {
+            self.startup.close_server(&mut self.io);
         }
-        if self.phase == Phase::Ending
-            && self.check.is_none()
-            && !self.spawning
-            && self.child.is_none()
-            && self.pipes == [None; 3]
-            && (self.server.is_none() || self.server_ended)
+        if self.startup.phase() == State::Ending
+            && self.startup.check().is_none()
+            && self.process.settled()
+            && (self.startup.server().is_none() || self.startup.server_ended())
         {
             self.cleanup(env.now, below);
         }
     }
 
     fn checked(&mut self, env: &Env<protocol::ComponentLimits>, up: &mut Queue<ToDomain>, below: &mut Queue<Below>) {
-        let (status, exit, detail) = match match &self.check {
+        let (status, exit, detail) = match match self.startup.check() {
             Some(check) => check.ended(),
             None => None,
         } {
@@ -161,13 +153,13 @@ impl Backend {
             Some(Ended::Unspawned { detail } | Ended::Deadline { detail }) => (Status::Unreadable, None, detail.into()),
             None => return,
         };
-        self.check = None;
-        if self.phase == Phase::Ending {
+        self.startup.checked(&mut self.io);
+        if self.startup.phase() == State::Ending {
             return;
         }
         match status {
             Status::Usable => {
-                self.phase = Phase::Starting;
+                self.startup.prepare(&mut self.io);
                 self.open_runs(env.now, below);
             }
             Status::NotSignedIn | Status::Otherwise(_) => self.fail(
@@ -188,13 +180,13 @@ impl Backend {
         below: &mut Queue<Below>,
     ) {
         for _ in 0_u32..2 {
-            let event = match &mut self.server {
+            let event = match self.startup.server_mut() {
                 Some(server) => server.up(),
                 None => None,
             };
             match event {
                 Some(mcp::Up::Listening { port }) => {
-                    if self.phase == Phase::Starting {
+                    if self.startup.phase() == State::Starting {
                         self.store_instructions(env.now, port, below);
                     }
                 }
@@ -228,12 +220,12 @@ impl Backend {
             );
             return;
         };
-        if !self.compaction() && !self.resuming {
+        if !self.compaction() && !self.startup.resuming() {
             self.first_prompt_measure(env.now);
         }
-        self.io.push(io::Request::Spawn { owner: self.token(4), spawn: launch });
-        self.spawning = true;
-        self.deadline = Some(env.now.saturating_add(self.settings.startup));
+        self.io.push(io::Request::Spawn { owner: self.token(Owner::Program), spawn: launch });
+        self.process.spawn();
+        self.startup.launch(env.now.saturating_add(self.settings.startup), &mut self.io);
     }
 
     pub(super) fn mcp_ended(
@@ -242,32 +234,29 @@ impl Backend {
         up: &mut Queue<ToDomain>,
         below: &mut Queue<Below>,
     ) {
-        self.server_ended = true;
-        if self.switching {
-            return;
-        }
-        if self.phase == Phase::Running && self.child.is_some() {
-            // Relay EOF can precede waitpid. Let the child and stderr settle
-            // before choosing its program fault (programs.md, section 5.6).
-            let until = env.now.saturating_add(self.settings.grace);
-            self.eof_deadline = Some(self.eof_deadline.unwrap_or(until).min(until));
-        } else if self.phase != Phase::Ending && self.phase != Phase::Ended {
-            self.fail(env, llm::Failure::Program { exit: self.exit }, b"smith: the MCP server ended", up, below);
+        // Relay EOF can precede waitpid. Let the child and stderr settle
+        // before choosing its program fault (smith/docs/design/protocol/programs.md, 5.6).
+        let waiting = self.startup.phase() == State::Running && self.process.child().is_some();
+        let until =
+            if waiting && !self.startup.switching() { Some(env.now.saturating_add(self.settings.grace)) } else { None };
+        self.startup.relay_ended(until, &mut self.io);
+        if !self.startup.switching()
+            && !waiting
+            && self.startup.phase() != State::Ending
+            && self.startup.phase() != State::Ended
+        {
+            self.fail_program(env, b"smith: the MCP server ended", up, below);
         }
     }
 
     pub(super) fn launch_spec(&mut self) -> Option<kernel::Spawn> {
-        let prompt = match self.request.as_ref()? {
-            FromDomain::Complete { prompt, .. } => prompt,
-            FromDomain::Cancel { .. } | FromDomain::Yield { .. } => return None,
-        };
-        let outcome = match self.request.as_ref()? {
-            FromDomain::Complete { outcome, .. } => outcome,
-            FromDomain::Cancel { .. } | FromDomain::Yield { .. } => return None,
-        };
+        let prompt = &self.current.request()?.prompt;
+        let outcome = &self.current.request()?.outcome;
         if !super::compact::is_compaction(prompt) {
             match &prompt.choice {
-                llm::ToolChoice::Only(_) | llm::ToolChoice::None => self.winding = super::stop::WindDown::Finishing,
+                llm::ToolChoice::Only(_) | llm::ToolChoice::None => {
+                    self.stopping.intend(super::stopping::Intent::Finishing);
+                }
                 llm::ToolChoice::Auto => {}
             }
         }
@@ -283,7 +272,7 @@ impl Backend {
         let instructions = self.run_path(b"instructions.md");
         let mcp_file = self.run_path(b"mcp.json");
         let mut arguments = if super::compact::is_compaction(prompt) {
-            super::compact::arguments(prompt, &instructions, &self.names.session)?
+            super::compact::arguments(prompt, &instructions, &self.startup.session())?
         } else {
             arguments(
                 &prompt.model,
@@ -292,11 +281,11 @@ impl Backend {
                 &mcp_file,
                 &schema,
                 self.settings.max_turns,
-                &self.names.session,
+                &self.startup.session(),
                 &super::policy::tools_flag(prompt.tools),
             )?
         };
-        if self.resuming {
+        if self.startup.resuming() {
             for argument in &mut arguments {
                 if argument.as_ref() == b"--session-id" {
                     *argument = b"--resume".as_slice().into();
@@ -321,260 +310,6 @@ impl Backend {
                 kernel::Pipe { child: 2, way: kernel::Way::Out, parent: None },
             ]),
         })
-    }
-
-    #[expect(
-        clippy::too_many_lines,
-        reason = "one exhaustive entry routes child and pipe terminals before the shared progress pass"
-    )]
-    pub(super) fn io_event(
-        &mut self,
-        env: &Env<protocol::ComponentLimits>,
-        event: io::Event,
-        up: &mut Queue<ToDomain>,
-        below: &mut Queue<Below>,
-    ) {
-        let owner = match &event {
-            io::Event::Listening { owner, .. }
-            | io::Event::Accepted { owner, .. }
-            | io::Event::Connecting { owner, .. }
-            | io::Event::Connected { owner }
-            | io::Event::Stream { owner, .. }
-            | io::Event::Output { owner, .. }
-            | io::Event::Spawned { owner, .. }
-            | io::Event::Exited { owner, .. }
-            | io::Event::Usage { owner, .. }
-            | io::Event::Window { owner, .. }
-            | io::Event::Failed { owner, .. }
-            | io::Event::Closed { owner } => *owner,
-            io::Event::Resized | io::Event::Shutdown { .. } => unreachable!("backend has no signals"),
-        };
-        if let Some(check) = &mut self.check
-            && check.owns(owner)
-        {
-            check.from_io(event, &mut self.io);
-            return;
-        }
-        if let Some(server) = &mut self.server
-            && server.owns(owner)
-        {
-            server.from_io(env.now, event, &mut self.io);
-            return;
-        }
-        match event {
-            io::Event::Spawned { child, pipes, .. } => {
-                self.spawning = false;
-                self.child = Some(child);
-                self.interrupt_sequence = 0;
-                for (slot, pipe) in self.pipes.iter_mut().zip(pipes) {
-                    *slot = Some(pipe);
-                }
-                self.read_stdout();
-                if let Some(pipe) = self.pipes[2] {
-                    Self::demand(pipe, 4096, &mut self.io);
-                }
-                if self.phase == Phase::Ending {
-                    self.io.push(io::Request::Close { entity: self.pipes[0].expect("stdin") });
-                    if self.stopping > 0
-                        || match self.deadline {
-                            Some(deadline) => env.now >= deadline,
-                            None => false,
-                        }
-                    {
-                        self.stopping = 0;
-                        self.terminate(env.now);
-                    }
-                } else {
-                    self.send_input();
-                }
-            }
-            io::Event::Exited { exit, .. } => {
-                self.drain_deadline = Some(env.now.saturating_add(self.settings.grace));
-                self.exit = Some(match exit {
-                    kernel::Exit::Code(code) => u32::from(code),
-                    kernel::Exit::Signal(signal) => 128_u32.checked_add(signal).expect("signal code"),
-                });
-                if let Some(child) = self.child {
-                    self.io.push(io::Request::Close { entity: child });
-                }
-                if let Some(input) = self.pipes[0] {
-                    self.io.push(io::Request::Close { entity: input });
-                }
-            }
-            io::Event::Closed { owner } => {
-                if owner == self.token(4) {
-                    self.child = None;
-                }
-                for pipe in &mut self.pipes {
-                    if *pipe == Some(owner) {
-                        *pipe = None;
-                    }
-                }
-                if self.child.is_none()
-                    && !self.spawning
-                    && self.pipes == [None; 3]
-                    && self.phase != Phase::Ending
-                    && !self.switching
-                {
-                    let detail = self.error_tail();
-                    let failure = self.exit_failure();
-                    self.fail(env, failure, &detail, up, below);
-                }
-            }
-            io::Event::Failed { owner, .. } => {
-                if owner == self.token(4) {
-                    self.spawning = false;
-                }
-                self.fail(
-                    env,
-                    llm::Failure::Program { exit: self.exit },
-                    b"smith: the program could not start",
-                    up,
-                    below,
-                );
-            }
-            io::Event::Stream { owner, up: stream::Up::Bytes(bytes) } => {
-                if self.pipes[2] == Some(owner) {
-                    self.keep_error(&bytes);
-                    Self::demand(owner, 4096, &mut self.io);
-                } else {
-                    self.stdout_demanding = false;
-                    self.completion_deadline(env, false);
-                    assert!(self.intake.is_empty(), "one outstanding stdout read");
-                    for byte in bytes {
-                        self.intake.push(byte).expect("stdout demand is 4096 bytes");
-                    }
-                    self.consume_stdout(env, up, below);
-                }
-            }
-            io::Event::Stream { owner, up: stream::Up::End | stream::Up::Failed(_) } => {
-                self.io.push(io::Request::Close { entity: owner });
-            }
-            io::Event::Stream { up: stream::Up::Room, .. } => {}
-            io::Event::Output { up: stream::OutputUp::Settled { right, outcome }, .. } => {
-                if self.phase != Phase::Ending || self.stop == super::stop::Stop::Parking {
-                    match outcome {
-                        stream::OutputOutcome::Granted => {
-                            if self.exit.is_some() || self.pipes[0].is_none() {
-                                self.fail(
-                                    env,
-                                    llm::Failure::Program { exit: self.exit },
-                                    b"smith: the program input closed",
-                                    up,
-                                    below,
-                                );
-                                return;
-                            }
-                            if right == Token::new(2) {
-                                if let Some(bytes) = self.interrupt_line.take() {
-                                    self.io.push(io::Request::Output {
-                                        stream: self.pipes[0].expect("interrupt write"),
-                                        down: stream::OutputDown::Send { right, bytes },
-                                    });
-                                }
-                            } else if let Some(bytes) = &self.outgoing {
-                                let start = usize::try_from(self.written).expect("input cursor");
-                                let end = start.checked_add(4096).expect("input chunk").min(bytes.len());
-                                let chunk = Box::from(bytes.get(start..end).expect("input range"));
-                                self.written = u32::try_from(end).expect("input ceiling");
-                                let finished = end == bytes.len();
-                                self.io.push(io::Request::Output {
-                                    stream: self.pipes[0].expect("input write"),
-                                    down: stream::OutputDown::Send { right, bytes: chunk },
-                                });
-                                if finished {
-                                    self.outgoing = None;
-                                    self.written = 0;
-                                    self.remember_session();
-                                    self.send_interrupt();
-                                } else {
-                                    self.send_input();
-                                }
-                            }
-                        }
-                        stream::OutputOutcome::Cancelled | stream::OutputOutcome::Failed(_) => self.fail(
-                            env,
-                            llm::Failure::Program { exit: self.exit },
-                            b"smith: the program input failed",
-                            up,
-                            below,
-                        ),
-                    }
-                }
-            }
-            io::Event::Listening { .. }
-            | io::Event::Accepted { .. }
-            | io::Event::Connecting { .. }
-            | io::Event::Connected { .. }
-            | io::Event::Usage { .. }
-            | io::Event::Window { .. }
-            | io::Event::Resized
-            | io::Event::Shutdown { .. } => unreachable!("program event route"),
-        }
-    }
-
-    pub(super) fn demand(pipe: Token, max: u32, below: &mut Queue<io::Request>) {
-        below.push(io::Request::Stream {
-            stream: pipe,
-            down: stream::Down::Demand { read: stream::Read::Arrived { max }, room: 0 },
-        });
-    }
-
-    pub(super) fn read_stdout(&mut self) {
-        if !self.stdout_demanding
-            && self.intake.is_empty()
-            && let Some(pipe) = self.pipes[1]
-        {
-            Self::demand(pipe, 4096, &mut self.io);
-            self.stdout_demanding = true;
-        }
-    }
-
-    pub(super) fn send_input(&mut self) {
-        if let Some(bytes) = &self.outgoing {
-            self.io.push(io::Request::Output {
-                stream: self.pipes[0].expect("spawned input"),
-                down: stream::OutputDown::Room {
-                    right: Token::new(1),
-                    bytes: u32::try_from(bytes.len())
-                        .expect("bounded input")
-                        .checked_sub(self.written)
-                        .expect("remaining input")
-                        .min(4096),
-                },
-            });
-        }
-    }
-
-    fn keep_error(&mut self, bytes: &[u8]) {
-        for byte in bytes {
-            if self.stderr.room() > 0 {
-                self.stderr.push(*byte).expect("tail room");
-            } else if self.stderr.capacity() > 0 {
-                self.stderr_wrapped = true;
-                *self.stderr.get_mut(self.tail).expect("tail cell") = *byte;
-                self.tail = self
-                    .tail
-                    .checked_add(1)
-                    .expect("tail index")
-                    .checked_rem(self.stderr.capacity())
-                    .expect("positive capacity");
-            }
-        }
-    }
-
-    fn error_tail(&self) -> Box<[u8]> {
-        let mut bytes = List::with_capacity(self.stderr.len());
-        for index in 0..self.stderr.len() {
-            let at = self
-                .tail
-                .checked_add(index)
-                .expect("tail offset")
-                .checked_rem(self.stderr.len())
-                .expect("nonempty tail");
-            bytes.push(*self.stderr.get(at).expect("tail cell")).expect("sized tail");
-        }
-        bytes.into_boxed()
     }
 }
 
@@ -611,6 +346,7 @@ pub(super) fn arguments(
         arguments.push(Box::from(b"--effort".as_slice())).ok()?;
         arguments.push(Box::from(effort)).ok()?;
     }
+    let permission = mcp::json::join(&[b"mcp__", mcp::SERVER, b"__", mcp::PROMPT_TOOL]);
     for argument in [
         b"--append-system-prompt-file".as_slice(),
         instructions,
@@ -618,7 +354,7 @@ pub(super) fn arguments(
         mcp_file,
         b"--strict-mcp-config",
         b"--permission-prompt-tool",
-        b"mcp__smith__permission_prompt",
+        permission.as_ref(),
         b"--tools",
         tools,
         b"--max-turns",

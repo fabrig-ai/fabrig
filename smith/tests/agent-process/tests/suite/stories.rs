@@ -1,6 +1,20 @@
 use smith_agent_process_world::{World, charter};
 use smith_channel::{RunFailure, RunResult};
 
+fn unopened_resources() -> smith_agent_shell::Resources {
+    smith_agent_shell::Resources {
+        programs: None,
+        input: skein_io::kernel::Fd::new(100),
+        output: skein_io::kernel::Fd::new(101),
+        signals: skein_io::kernel::Fd::new(102),
+        error: None,
+        seed: 1,
+        pid: 101,
+        trace: None,
+        roots: Some(Box::new([])),
+    }
+}
+
 #[test]
 fn an_answered_agent_exits_0_with_no_signal_from_its_host() {
     let charter = charter();
@@ -52,7 +66,7 @@ fn a_termination_signal_after_the_answer_aborts_a_peer_that_ignores_the_close() 
     let smith_events::Event::SessionEnded(end) = &world.records().last().expect("authoritative end").event else {
         panic!("session end is last")
     };
-    assert_eq!(end.aborted, Some(true));
+    assert!(end.aborted);
     assert!(end.teardown_ms.expect("answered teardown") < 5000);
     assert_eq!(world.signals(), 1);
     world.assert_agent_clean();
@@ -73,7 +87,7 @@ fn a_second_signal_after_the_answer_changes_nothing() {
     let smith_events::Event::SessionEnded(end) = &world.records().last().expect("one terminal").event else {
         panic!("session end is last")
     };
-    assert_eq!(end.aborted, Some(true));
+    assert!(end.aborted);
     world.assert_agent_clean();
 }
 
@@ -108,23 +122,9 @@ fn an_agent_whose_host_hangs_up_before_its_answer_says_so_and_exits_1() {
 
 #[test]
 fn a_refused_configuration_writes_one_line_and_exits_1_without_a_channel() {
-    use smith_agent_shell::{Agent, Resources};
+    use smith_agent_shell::Agent;
     let errors = smith_agent_process_world::AgentErrors::default();
-    let startup = Agent::read(
-        std::path::Path::new(""),
-        Resources {
-            programs: None,
-            input: skein_io::kernel::Fd::new(100),
-            output: skein_io::kernel::Fd::new(101),
-            signals: skein_io::kernel::Fd::new(102),
-            error: None,
-            seed: 1,
-            pid: 101,
-            trace: None,
-            roots: Some(Box::new([])),
-        },
-        Box::new(errors.clone()),
-    );
+    let startup = Agent::read(std::path::Path::new(""), unopened_resources(), Box::new(errors.clone()));
     let exit = match startup {
         Ok(agent) => {
             assert!(skein_world::Host::is_empty(&agent), "a refused startup never adopts these nonexistent streams");
@@ -139,12 +139,12 @@ fn a_refused_configuration_writes_one_line_and_exits_1_without_a_channel() {
 }
 
 #[test]
-fn the_configured_environment_reaches_the_actual_agents_command_spawn() {
+fn the_configured_environment_reaches_the_seen_agents_command_spawn() {
     let mut world = World::new(42, &charter());
     world.configured_environment();
     assert!(world.settle());
     let observed = world.command_environments();
-    assert_eq!(observed.len(), 1, "the granted model call started one actual command");
+    assert_eq!(observed.len(), 1, "the granted model call started one command");
     let expected: &[Box<[u8]>] =
         &[Box::from(b"BUILD_FLAG=configured=value".as_slice()), Box::from(b"EMPTY=".as_slice())];
     assert_eq!(observed[0].as_ref(), expected);
@@ -154,24 +154,10 @@ fn the_configured_environment_reaches_the_actual_agents_command_spawn() {
 
 #[test]
 fn a_broken_declared_relationship_is_named_before_channel_adoption() {
-    use smith_agent_shell::{Agent, Resources};
+    use smith_agent_shell::Agent;
     let errors = smith_agent_process_world::AgentErrors::default();
     let path = skein_scratch::paths::package().join("fixtures/read-past-payload.json");
-    let startup = Agent::read(
-        &path,
-        Resources {
-            programs: None,
-            input: skein_io::kernel::Fd::new(100),
-            output: skein_io::kernel::Fd::new(101),
-            signals: skein_io::kernel::Fd::new(102),
-            error: None,
-            seed: 1,
-            pid: 101,
-            trace: None,
-            roots: Some(Box::new([])),
-        },
-        Box::new(errors.clone()),
-    );
+    let startup = Agent::read(&path, unopened_resources(), Box::new(errors.clone()));
     match startup {
         Ok(_) => panic!("broken read/payload relationship must refuse before adopting nonexistent channel handles"),
         Err(refusal) => {
@@ -184,7 +170,7 @@ fn a_broken_declared_relationship_is_named_before_channel_adoption() {
 
 #[test]
 fn an_invalid_io_composition_refuses_before_channel_adoption() {
-    use smith_agent_shell::{Agent, Resources, config};
+    use smith_agent_shell::{Agent, config};
     let errors = smith_agent_process_world::AgentErrors::default();
     let mut configuration = config::parse(
         br#"{"profile":{"name":"standard","declared":{"memory":1099511627776,"tool_payload":256,"read_window":256}},"endpoints":[{"name":"fake","number":0,"dialect":1,"account":0,"provider":"codex","address":"127.0.0.1:8080","transport":"plaintext","connect":1000,"handshake":1000,"models":[{"name":"fake","window":65536,"output":512,"reasoning_item":64,"prices":{"input":1,"cached":1,"output":1,"unit":1},"head":1000,"idle":1000}]}],"environment":[]}"#,
@@ -193,21 +179,7 @@ fn an_invalid_io_composition_refuses_before_channel_adoption() {
     // Both configuration's validity guard and Service::new reject this
     // mismatch between the native IO driver and the child connection IO.
     configuration.service.limits.io.output -= 1;
-    let startup = Agent::new(
-        configuration,
-        Resources {
-            programs: None,
-            input: skein_io::kernel::Fd::new(100),
-            output: skein_io::kernel::Fd::new(101),
-            signals: skein_io::kernel::Fd::new(102),
-            error: None,
-            seed: 1,
-            pid: 101,
-            trace: None,
-            roots: Some(Box::new([])),
-        },
-        Box::new(errors.clone()),
-    );
+    let startup = Agent::new(configuration, unopened_resources(), Box::new(errors.clone()));
     let Err(refusal) = startup else {
         panic!("invalid IO composition must refuse before adopting nonexistent channel handles");
     };
@@ -261,26 +233,18 @@ fn a_provider_refusal_ends_standard_error_with_its_clipped_text() {
 }
 
 fn stopped_reasoning_charter() -> Box<[u8]> {
-    let mut parts = smith_charter::Charter::decode(&smith_charter::CEILINGS, &mut skein_lib::Reader::new(&charter()))
-        .expect("ordinary charter")
-        .into_parts();
-    let mut main = parts.main.into_parts();
-    main.window = 272_000;
-    main.output = 16_384;
-    parts.main = smith_charter::Llm::new(&smith_charter::CEILINGS, main).expect("live window");
-    let mut budget = parts.budget.into_parts();
-    budget.turns = 8;
-    budget.spend = 1_000_000;
-    parts.budget = smith_charter::Budget::new(&smith_charter::CEILINGS, budget).expect("three-turn story");
-    let mut tools = parts.tools.into_parts();
-    let mut families = tools.families.into_parts();
-    families.skein_bools[0] = true;
-    tools.families = smith_charter::Families::new(&smith_charter::CEILINGS, families).expect("read authority");
-    parts.tools = smith_charter::Tools::new(&smith_charter::CEILINGS, tools).expect("read and finish");
-    let record = smith_charter::Charter::new(&smith_charter::CEILINGS, parts).expect("stopped-turn charter");
-    let mut bytes = skein_lib::Writer::new(usize::try_from(record.measure()).expect("charter size"));
-    record.encode(&mut bytes).expect("charter bytes");
-    bytes.finish()
+    smith_agent_process_world::wire::edit_charter(&charter(), |parts| {
+        let mut main = parts.main.clone().into_parts();
+        main.window = 272_000;
+        main.output = 16_384;
+        parts.main = smith_charter::Llm::new(&smith_charter::CEILINGS, main).expect("live window");
+        smith_agent_process_world::wire::budget(parts, 8, 1_000_000);
+        let mut tools = parts.tools.clone().into_parts();
+        let mut families = tools.families.into_parts();
+        families.skein_bools[0] = true;
+        tools.families = smith_charter::Families::new(&smith_charter::CEILINGS, families).expect("read authority");
+        parts.tools = smith_charter::Tools::new(&smith_charter::CEILINGS, tools).expect("read and finish");
+    })
 }
 
 #[test]
@@ -292,7 +256,7 @@ fn a_reasoning_turn_that_stops_after_a_read_is_told_and_nudged() {
     let queries = world.peer_queries();
     assert_eq!(queries.len(), 3);
     assert!(queries[2].messages.iter().flat_map(|message| &message.parts).any(|part| {
-        matches!(part, skein_fake_llm_domain::api::Part::Text { text } if text.windows(b"You stopped without calling `finish`".len()).any(|part| part == b"You stopped without calling `finish`"))
+        matches!(part, skein_fake_llm_domain::api::Part::Text { text } if skein_lib::bytes::find(text, b"You stopped without calling `finish`").is_some())
     }));
     let answer = world.answer().expect("the finish answered");
     assert!(matches!(answer.result(), RunResult::Accepted(_)));
@@ -309,26 +273,21 @@ fn a_hosted_agent_adopts_a_root_by_its_path_as_given() {
     world.configured_environment();
     world.root_path(b"/host/supplied");
     world.script(Box::new([
-        api::Turn {
-            lines: Box::new([api::Line::Call {
+        smith_agent_world::fixture::calls(
+            Box::new([api::Line::Call {
                 name: b"read".as_slice().into(),
                 arguments: br#"{"path":"/host/supplied/problem.txt"}"#.as_slice().into(),
             }]),
-            finish: api::Finish::ToolCalls,
-            tokens: 1,
-        },
-        api::Turn {
-            lines: Box::new([api::Line::Text { text: b"done".as_slice().into() }]),
-            finish: api::Finish::Stop,
-            tokens: 1,
-        },
+            1,
+        ),
+        smith_agent_world::fixture::says(Box::new([api::Line::Text { text: b"done".as_slice().into() }]), 1),
     ]));
     assert!(world.settle(), "the hosted root is adopted");
     assert!(world.observed().iter().any(|frame| frame.kind == 0x0106), "the Start was admitted");
     let queries = world.peer_queries();
     assert!(queries.len() >= 2, "the root-backed read reaches its next provider turn");
     assert!(queries[1].messages.iter().flat_map(|message| &message.parts).any(|part| {
-        matches!(part, api::Part::ToolOutput { output, is_error: false, .. } if output.windows(b"problem".len()).any(|bytes| bytes == b"problem"))
+        matches!(part, api::Part::ToolOutput { output, is_error: false, .. } if skein_lib::bytes::find(output, b"problem").is_some())
     }), "the run retained the host path as an alias for the supplied descriptor");
     world.assert_agent_clean();
 }

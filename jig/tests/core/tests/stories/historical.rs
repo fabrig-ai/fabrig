@@ -88,4 +88,5 @@ fn a_second_party_proposal_request_reads_the_original_committed_decision_after_r
             Some(&people::Reply::Outcome(people::Outcome::Refused(people::Refusal::Unknown)))
         );
     }
+    world.close();
 }

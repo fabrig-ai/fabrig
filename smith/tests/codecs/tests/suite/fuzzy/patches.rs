@@ -1,4 +1,4 @@
-//! Drawn kept turns follow their schema's decode through patches (transcript.md, 12).
+//! Drawn kept turns follow their schema's decode through patches (smith/docs/design/protocol/transcript.md, 12).
 
 use skein_codec::{patch::Halt, schema, value::Value};
 use skein_lib::Rng;
@@ -10,7 +10,7 @@ use crate::support::patches;
 const SEED: u64 = 0x51_17_70_01;
 /// Four mutation modes over both goldens, with many draws of each within the 0.2 s share.
 const ROUNDS: u32 = 512;
-/// The version prefix selects the host's schema; body mutations keep that routing input at v1.
+/// The version prefix selects the host's schema; body mutations retain the kept schema version.
 const VERSION_BYTES: usize = 2;
 /// Unchanged, byte changes, truncation and extension are the four draw modes.
 const MUTATION_MODES: u64 = 4;

@@ -1,11 +1,11 @@
-//! Ordered host sections through actual main/child sessions and native restore.
+//! Ordered host sections through main/child sessions and native restore.
 //! Expected system bodies are handwritten outside literals; concrete history,
 //! child results, usage and lower settlement come from the composed routes.
-//! Contract: domain/run.md, sections 3.1, 3.3, 5.3, 6 and 13;
-//! testing-strategy.md, sections 2.3, 6 and 7.
+//! Contract: smith/docs/design/domain/run.md, sections 3.1, 3.3, 5.3, 6 and 13;
+//! skein/docs/foundation/testing-strategy.md, sections 2.3, 6 and 7.
 
 use skein_fake_checkout::Checkout;
-use skein_fake_llm_domain::api::{Finish, Line, Part, Query, Script, Turn};
+use skein_fake_llm_domain::api::{Line, Part, Query, Script, Turn};
 use skein_lib::Token;
 use skein_world::domain::Span;
 use smith_agent_world::{Boundary, Job, Settings, World};
@@ -155,11 +155,11 @@ fn call(name: &[u8], arguments: &[u8]) -> Line {
 }
 
 fn calls(lines: Vec<Line>, tokens: u64) -> Turn {
-    Turn { lines: lines.into(), finish: Finish::ToolCalls, tokens }
+    smith_agent_world::fixture::calls(lines.into(), tokens)
 }
 
 fn says(text: &[u8], tokens: u64) -> Turn {
-    Turn { lines: Box::new([Line::Text { text: text.into() }]), finish: Finish::Stop, tokens }
+    smith_agent_world::fixture::says(Box::new([Line::Text { text: text.into() }]), tokens)
 }
 
 fn typed_scripts() -> Box<[Script]> {
@@ -195,7 +195,7 @@ fn typed_scripts() -> Box<[Script]> {
 }
 
 fn contains(bytes: &[u8], part: &[u8]) -> bool {
-    bytes.windows(part.len()).any(|bytes| bytes == part)
+    skein_lib::bytes::find(bytes, part).is_some()
 }
 
 fn feedback_has(query: &Query, part: &[u8]) -> bool {
@@ -216,15 +216,15 @@ fn typed_openings(world: &World) {
         ["@brief-child CHILD-TASK-ONLY: inspect both mounts.\n\n", GUIDES, CHILD_MECHANICS].concat().into_bytes();
     let main = world.prompts().iter().filter(|query| query.system.starts_with(b"@brief-main")).collect::<Vec<_>>();
     let child = world.prompts().iter().filter(|query| query.system.starts_with(b"@brief-child")).collect::<Vec<_>>();
-    assert_eq!(main.len(), 5, "actual main turns, including child result and accepted finish");
-    assert_eq!(child.len(), 3, "actual child reads, denied edit and terminal answer");
+    assert_eq!(main.len(), 5, "seen main turns, including child result and accepted finish");
+    assert_eq!(child.len(), 3, "seen child reads, denied edit and terminal answer");
     assert_eq!(main.len() + child.len(), world.prompts().len());
     for query in &main {
         assert_eq!(query.system.as_ref(), main_system, "literal complete ordered main system");
         assert_eq!(query.model.as_ref(), b"fake-1");
     }
     for query in &child {
-        assert_eq!(query.system.as_ref(), child_system, "literal task, actual guides and narrowed mechanics");
+        assert_eq!(query.system.as_ref(), child_system, "literal task, seen guides and narrowed mechanics");
         for sentinel in [
             b"PARENT-INSTRUCTIONS".as_slice(),
             b"PARENT-TITLE-Z",
@@ -327,7 +327,7 @@ fn ordered_sections_and_instructions_reach_main_but_child_receives_only_its_own_
             })
             .count(),
         1,
-        "actual child result is paired once with its caller's concrete Turn"
+        "seen child result is paired once with its caller's concrete Turn"
     );
     assert!(matches!(world.answer(), run::Answer::Accepted {
         outcome: run::outcome::Declared::Report(report), turns: 5, ..
@@ -340,12 +340,7 @@ fn ordered_sections_and_instructions_reach_main_but_child_receives_only_its_own_
 }
 
 #[test]
-#[expect(
-    clippy::wildcard_enum_match_arm,
-    reason = "the golden collects literal request text rather than every provider part"
-)]
 fn the_first_provider_request_contains_the_carried_messages_with_the_briefs_instruction() {
-    use skein_lib::ReplyTo;
     let settings = Settings { job: Job::Reporting, network: Span::millis(1, 1), ..Settings::calm(1191) };
     for has_brief in [true, false] {
         let mut charter = charter(&settings, "@carried-opening");
@@ -353,7 +348,7 @@ fn the_first_provider_request_contains_the_carried_messages_with_the_briefs_inst
             charter.brief.sections = Box::new([]);
         }
         let (disk, mounted) = workspace();
-        let start = smith_domain::Event::Start {
+        let start = smith_domain::Event::Start(smith_domain::Start {
             messages: Box::new([
                 run::Message {
                     finish_requested: false,
@@ -368,33 +363,22 @@ fn the_first_provider_request_contains_the_carried_messages_with_the_briefs_inst
                     text: b"second".as_slice().into(),
                 },
             ]),
-            reply_to: ReplyTo::new(Token::new(1)),
-            host_run: Token::new(1),
-            identity: None,
-            activation: 1,
             window: smith_domain::Window { turns: 100, bytes: u64::MAX },
-            charter,
             workspace: Some(mounted),
-            transcript: None,
-            answered: Box::default(),
             grants: Box::new([smith_domain::Grant {
                 renewable: true,
                 name: smith_domain::GrantName { account: 0, generation: 1 },
                 valid: skein_lib::Duration::from_secs(7200),
             }]),
-        };
+            ..smith_domain::fixture::start(Token::new(1), charter)
+        });
         let scripts = Box::new([Script {
             cue: b"@carried-opening".as_slice().into(),
             turns: Box::new([calls(vec![call(b"finish", FINISH_INPUT)], 1)]),
         }]);
         let mut world = World::with_workspace_scripts_start(settings, disk, scripts, start);
         world.run(10_000);
-        assert_eq!(
-            world.prompts().len(),
-            1,
-            "an immediate finish takes one actual request; answer={:?}",
-            world.answer()
-        );
+        assert_eq!(world.prompts().len(), 1, "an immediate finish takes one seen request; answer={:?}", world.answer());
         let expected: &[u8] = if has_brief {
             b"Begin the work your brief describes.\n\nperson: first\n\nperson: second"
         } else {
@@ -418,7 +402,7 @@ fn the_first_provider_request_contains_the_carried_messages_with_the_briefs_inst
         assert_eq!(
             referee.verdict(),
             skein_world::domain::Verdict::Passed,
-            "actual carried opening and finish satisfy the message oracle"
+            "seen carried opening and finish satisfy the message oracle"
         );
         assert_eq!(world.turns().len(), 1);
         assert!(world.messages_seen().iter().any(|(_, seen)| matches!(seen, smith_agent_world::messages_referee::Seen::Turn { read: Some(name), .. } if *name == Token::new(0))));
@@ -558,7 +542,7 @@ fn saved_wait(first: &World) -> (smith_domain::Transcript, Box<[u8]>) {
             | llm::Block::Refusal { .. }
             | llm::Block::ToolResult { .. } => None,
         })
-        .expect("actual wait identity");
+        .expect("seen wait identity");
     (saved, call)
 }
 
@@ -569,24 +553,19 @@ fn resume_on_message(
     saved: smith_domain::Transcript,
     message: run::Message,
 ) -> World {
-    use skein_lib::{Duration, ReplyTo};
-    let start = smith_domain::Event::Start {
-        reply_to: ReplyTo::new(Token::new(1)),
-        host_run: Token::new(1),
-        identity: None,
+    use skein_lib::Duration;
+    let start = smith_domain::Event::Start(smith_domain::Start {
         activation: 2,
         window: smith_domain::Window { turns: u32::MAX, bytes: u64::MAX },
-        charter,
-        workspace: None,
         transcript: Some(saved),
-        answered: Box::default(),
         grants: Box::new([smith_domain::Grant {
             renewable: true,
             name: smith_domain::GrantName { account: 0, generation: 1 },
             valid: Duration::from_secs(7200),
         }]),
         messages: Box::new([message]),
-    };
+        ..smith_domain::fixture::start(Token::new(1), charter)
+    });
     World::with_workspace_scripts_start(*settings, Checkout::new(), scripts, start)
 }
 
@@ -642,7 +621,7 @@ fn a_wait_withheld_through_a_park_is_supplied_on_resuming() {
     assert_eq!(
         referee.verdict(),
         skein_world::domain::Verdict::Passed,
-        "actual restored wait output crosses the offered-person fence"
+        "seen restored wait output crosses the offered-person fence"
     );
 }
 
@@ -689,7 +668,7 @@ fn a_parked_open_run_resumes_on_the_delegate_result_without_a_new_begin() {
                         Part::ToolCall { id: id.clone(), name: name.clone(), arguments: input.clone() }
                     }
                     llm::Block::Opaque { .. } | llm::Block::Refusal { .. } | llm::Block::ToolResult { .. } => {
-                        panic!("the actual first turn contains only its opening and unanswered wait")
+                        panic!("the seen first turn contains only its opening and unanswered wait")
                     }
                 })
                 .collect(),
@@ -741,6 +720,6 @@ fn a_parked_open_run_resumes_on_the_delegate_result_without_a_new_begin() {
     assert_eq!(
         next.turn_metadata().iter().map(|(_, read, _)| *read).collect::<Vec<_>>(),
         [Some(RESULT_MESSAGE)],
-        "the actual told turn reads the result exactly once"
+        "the seen told turn reads the result exactly once"
     );
 }

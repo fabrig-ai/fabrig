@@ -65,11 +65,7 @@ impl Host for Input {
     fn iterate(&mut self, now: Time, wall: Wall) {
         self.env.now = now;
         self.env.wall = wall;
-        while let Some(complete) = self.completions.pop() {
-            io::up(&mut self.io, &self.env, complete, &mut self.events, &mut self.submissions);
-        }
-        io::resume(&mut self.io, &self.env, &mut self.events, &mut self.submissions);
-        io::fire(&mut self.io, &self.env, &mut self.events, &mut self.submissions);
+        io::stage::up(&mut self.io, &self.env, &mut self.completions, &mut self.events, &mut self.submissions, now);
         while let Some(event) = self.events.pop() {
             match event {
                 io::Event::Stream { up: stream::Up::Bytes(bytes), .. } => {
@@ -103,9 +99,7 @@ impl Host for Input {
                 | io::Event::Failed { .. } => unreachable!("the prompt owns only an input pipe"),
             }
         }
-        while let Some(request) = self.requests.pop() {
-            io::down(&mut self.io, &self.env, request, &mut self.submissions);
-        }
+        io::stage::down(&mut self.io, &self.env, &mut self.requests, &mut self.submissions);
         self.io.reclaim();
     }
 

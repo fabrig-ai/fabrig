@@ -21,7 +21,7 @@ pub enum Store {
     /// One row in the core's requested restoration order.
     Restore(Record),
     /// The store completed this exact restart range.
-    Restored(core::RestartStep),
+    Restored(core::start::Phase),
     /// The generation is active; save the start’s wires.
     Switched,
     /// Ordered opaque transcript rows for a prepared activation.
@@ -46,10 +46,8 @@ pub enum Released {
     Host(host::Event),
     /// A procedure may choose its next step after the preceding decision.
     Procedure { task: u64, step: u64, connector: u16, code: u32 },
-    /// One core-selected stage of cold restart.
-    Restart(core::RestartStep),
-    /// The start’s mark is durable.
-    RestartDone(core::RestartStep),
+    /// Resume the start after its decision is durable.
+    Start(core::start::Continuation),
 }
 
 /// Inputs to the reference root; protocol adapters supply typed child values.
@@ -159,7 +157,7 @@ pub enum Output {
     /// Make the pending generation active, or answer Switched immediately.
     Switch,
     /// Load this child's rows for the core-selected restart step.
-    Load { step: core::RestartStep, range: Range },
+    Load { phase: core::start::Phase, range: Range },
     /// A core-owned store read, routed by its variant.
     CoreLoad(core::Now),
     /// Core output for its party, view, note or external protocol owner.

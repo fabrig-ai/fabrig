@@ -1,4 +1,4 @@
-//! Seeded full-V2 endings and crossed terminal paths, with shared schedules and
+//! Seeded full-endings and crossed terminal paths, with shared schedules and
 //! exactly-once ledgers (testing-strategy.md, sections 3 and 6; domain/host.md, 10).
 use skein_lib::{Duration, Rng, Token};
 use smith_host_domain::{
@@ -27,7 +27,7 @@ fn random_worlds_settle_and_reach_every_ending() {
                 last(&mut world, RunResult::Refused { refusal: smith_host_domain::Refusal::Busy }, 0);
             } else {
                 world.up(Up::Admitted);
-                // Stable names, generic effects and actual late terminals all
+                // Stable names, generic effects and late terminals all
                 // cross the host boundary; tree exit cannot erase them.
                 if seed.is_multiple_of(3) && ![2, 3, 4, 7, 8, 10].contains(&fate) {
                     world.up(Up::Call {
@@ -122,7 +122,7 @@ fn assert_ending(world: &World, fate: u64, seed: u64) {
 
 fn settle_parent_call(world: &mut World, seed: u64, fate: u64) {
     world.cleanup(Some(smith_host_domain::Exit::Code(0)));
-    assert_eq!(world.seen.gone, None, "actual parent call terminal survives all tree cleanup");
+    assert_eq!(world.seen.gone, None, "parent call terminal survives all tree cleanup");
     let reply = if seed.is_multiple_of(3) && ![2, 3, 4, 7, 8, 10].contains(&fate) {
         Reply::Delivery(Delivery::Nothing)
     } else {

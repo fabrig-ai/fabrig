@@ -261,25 +261,6 @@ fn a_short_whole_closed_tail_fits_below_the_marker_size() {
     assert_closed_prepares(TINY_TAIL, b"fits all", b"fits all");
 }
 
-// Three claims put the window after the conversation's first attempt and
-// before the current claim, exposing the lower bound's turn-zero hole.
-#[test]
-fn a_window_at_turn_zero_is_refused_at_restore() {
-    const TASK: u64 = 1;
-    for (turn, accepted) in [(0, false), (1, true)] {
-        let (mut core, limits) = core();
-        let mut proof = RunProof::claimed(TASK, 3, 1, None, fleet::HostKind::Worker);
-        proof.accounts = Box::new([authority::AccountBinding { provider: 1, account: 0, source: 1 }]);
-        proof.placement = Some(Token::new(7));
-        proof.turn = Some(TurnProof { turn: 1, cumulative: 0, read: None });
-        proof.window = Some(CurrentWindow { attempt: 2, turn, closed: false });
-        core.restoring_proofs
-            .insert(TASK, RestoringProof { attempt: 3, turn: 1, run_spent: 0, last_answer: None })
-            .unwrap();
-        assert_eq!(core.restore_proof(proof, limits.tasks.result_bytes), accepted, "window turn {turn}");
-    }
-}
-
 // engine.md, 7.2: a mark crosses even a claim that committed no window.
 #[test]
 fn beginning_a_crossed_claims_transcript_without_a_window_keeps_it_fresh() {

@@ -19,6 +19,7 @@ fn source(deployment_role: Option<people::Role>) -> (Core, Limits) {
     core.names.insert(u32::MAX, Box::from("Project 4294967295")).expect("full-width project name");
     let identity = core.people.identity(1).unwrap().clone();
     core.people = people::Domain::new(&limits.people, Box::new([]), core.settings.deployment_provider, Box::new([]));
+    core.people.start_restore(Wall::EPOCH);
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.people };
     let mut out = Queue::uncapped();
     let mut rows = vec![
@@ -42,7 +43,7 @@ fn source(deployment_role: Option<people::Role>) -> (Core, Limits) {
         people::step(&mut core.people, &env, people::Event::Restore { record }, &mut out);
         assert_eq!(out.pop(), None, "retained membership source accepted");
     }
-    people::step(&mut core.people, &env, people::Event::Restored, &mut out);
+    finish_people(&mut core.people, &env);
     assert_eq!(out.pop(), None, "membership source restored");
     (core, limits)
 }

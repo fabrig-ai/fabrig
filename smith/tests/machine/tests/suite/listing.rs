@@ -1,27 +1,12 @@
-//! Actual rg selection and the public machine entry points for tree listings.
+//! Observed rg selection and the public machine entry points for tree listings.
 
 use skein_io::kernel;
-use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
+use skein_lib::{Env, Queue, Time, Token, Wall};
 use smith_domain::{run, tools};
 use smith_protocol_machine::{Below, BelowEvent, Component, FromDomain, Limits, ToDomain};
 
 pub(super) fn limits() -> Limits {
-    Limits {
-        operations: 2,
-        roots: 1,
-        path_bytes: 64,
-        file_bytes: 16,
-        tool_payload: 64,
-        entries: 8,
-        entry_bytes: 512,
-        processes: 2,
-        output_bytes: 64,
-        search_hits: 8,
-        search_bytes: 256,
-        search_line_bytes: 512,
-        env_bytes: 512,
-        group_stop: Duration::from_millis(10),
-    }
+    Limits { entries: 8, ..smith_protocol_machine::fixture::SMALL }
 }
 
 fn env() -> Env<Limits> {
@@ -164,8 +149,8 @@ fn listed_entry(path: &[u8], kind: tools::Kind) -> tools::Entry {
 
 fn selected_native_output(suffix: &str) -> Vec<u8> {
     use std::fs;
-    let root = std::env::temp_dir().join(format!("smith-list-tree-{suffix}-{}", std::process::id()));
-    fs::create_dir(&root).expect("unique scratch");
+    let scratch = skein_scratch::Scratch::new(&format!("smith-list-tree-{suffix}"));
+    let root = scratch.path();
     for directory in ["src/deep", "ignored", "empty", ".git", "unmatched"] {
         fs::create_dir_all(root.join(directory)).expect("fixture directory");
     }
@@ -175,8 +160,7 @@ fn selected_native_output(suffix: &str) -> Vec<u8> {
     {
         fs::write(root.join(file), b"").expect("empty selected file fixture");
     }
-    let output = native_output(&root);
-    fs::remove_dir_all(&root).expect("scratch reclaimed");
+    let output = native_output(root);
     assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
     assert_eq!(output.stdout.as_slice(), b"./src/deep/only.rs\0./src/empty.rs\0");
     output.stdout

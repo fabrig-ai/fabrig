@@ -1,24 +1,10 @@
-"""Old forms may only fall (skein's docs/design/draft/dynamic-memory.md, 7).
-
-Count matches in tracked Rust files, excluding generated/ components and
-comments, while keeping string literals. Compare each form independently
-with scripts/old-forms.txt; --write can initialize or lower that baseline.
-The frozen shell-cwd grader directory is excluded because smith does not own its names.
-Escapes separate words in ordinary strings and chars; raw strings stay literal.
-The max_out form exempts only the exact identifiers in EXEMPT:
-the provider wire field max_output_tokens and
-the benchmark grader's subprocess capture setting max_output_bytes.
-Identifiers containing an exempt name still count.
-Recorded raises and other comments stay in place when counts are rewritten.
-Run from the repository root, using only the Python standard library:
-
-    python3 -I -B scripts/old_forms.py [--write]
-"""
-import argparse
+"""Tree forms for the shared repository ratchet; run from this tree's root."""
 from pathlib import Path
 import re
-import subprocess
+import runpy
 import sys
+
+ENGINE = runpy.run_path(str(Path(__file__).resolve().parents[2] / 'tools/old_forms/old_forms.py'))
 
 FORMS = {
     'max_out': re.compile(r'\b\w*(?:max_out|MAX_OUT)\w*\b'),
@@ -48,121 +34,58 @@ RULE = (
     'new code takes the new forms (Queue::uncapped, Journal::uncapped, decide, backlog), '
     'or removes as many old uses as it adds.'
 )
-# Match whole quoted literals before looking for comment markers inside them.
-# A closing quote distinguishes a character from a lifetime such as 'a.
-TOKEN = re.compile(
-    r'//[^\n]*|/\*|(?:br|cr|r)(?P<hashes>#{0,255})"'
-    r'|"(?:\\[\s\S]|[^"\\])*"'
-    r"|'(?:[^'\\\n]|\\(?:x[0-9a-fA-F]{2}|u\{[0-9a-fA-F_]+\}|[^\n]))'"
-)
-BLOCK = re.compile(r'/\*|\*/')
-ESCAPE = re.compile(r'\\(?:x[0-9a-fA-F]{2}|u\{[0-9a-fA-F_]+\}|[\s\S])')
-IDENTIFIER = re.compile(r'\b\w+\b')
+MARKERS = {
+    'max_out': ('max_out', 'MAX_OUT'), 'JournalRoom': ('JournalRoom',),
+    'takes': ('takes',), 'worst_case': ('worst_case',),
+}
+WORDS = ('max_out', 'JournalRoom', 'worst_case')
+# Syntax forms ignore strings as well as comments; banned words keep strings.
+FORMS.update({
+    'actual': ENGINE['banned_word']('actual'),
+    'genuine': ENGINE['banned_word']('genuine'),
+    'allow': re.compile(r'#\s*!?\s*\[\s*allow\s*\('),
+    'expect_manual_let_else': re.compile(r'\bexpect\s*\(\s*clippy\s*::\s*manual_let_else\b'),
+    'expect_single_match': re.compile(r'\bexpect\s*\(\s*clippy\s*::\s*single_match\b'),
+    'full_limits': ENGINE['full_limits'],
+    'temp_dir': re.compile(r'\btemp_dir\s*\(\s*\)'),
+    # One-byte hex literals in kind fields or first arguments of wire writers.
+    'bare_wire_kind': re.compile(
+        r'(?:\bkind\s*:\s*|\b(?:frame_writer|write_record|push_record|encode_record)\s*\(\s*)'
+        r'0x[0-9a-fA-F]{2}\b'),
+    'io_resume': re.compile(r'\b(?:skein_)?io\s*::\s*resume\b'),
+    'test_windows': ENGINE['test_windows'],
+    'path_attribute': re.compile(r'#\s*!?\s*\[\s*path\b'),
+    'domain_while': ENGINE['domain_keyword']('while'),
+    'domain_loop': ENGINE['domain_keyword']('loop'),
+})
+SYNTAX_FORMS = tuple(form for form in FORMS if form not in (*WORDS, 'takes', 'actual', 'genuine'))
+# Seven production domain crates; test harnesses use ordinary Rust (Q7).
+DOMAIN_PATH = re.compile(
+    r'^crates/(?:smith-domain(?:-[^/]+)?|smith-host-domain|smith-local-domain|smith-inline-agent)/')
+INCLUDE = {'domain_while': DOMAIN_PATH, 'domain_loop': DOMAIN_PATH}
+COMMENT_FORMS = {
+    'actual': ENGINE['banned_word']('actual'),
+    'genuine': ENGINE['banned_word']('genuine'),
+    'originally': re.compile(r'\boriginally\b', re.I),
+    'previously': re.compile(r'\bpreviously\b', re.I),
+    'no_longer': re.compile(r'\bno\s+longer\b', re.I),
+    'used_to': re.compile(r'\bused\s+to\b', re.I),
+    'formerly': re.compile(r'\bformerly\b', re.I),
+    # Standalone outer doc-comment stamps; excludes //! module citations.
+    'contract_stamp': re.compile(r'^\s*///\s*contract\s*:', re.I | re.M),
+    'lower_test_of': re.compile(r'\bLower\s+test\s+of\b'),
+    'dead_citation': ENGINE['dead_citations'],
+}
 
-
-def without_comments(source):
-    """A small lexical scan: nested comments, raw/escaped strings and chars."""
-    pieces = []
-    position = 0
-    while token := TOKEN.search(source, position):
-        pieces.append(source[position:token.start()])
-        end = token.end()
-        if token.group() == '/*':
-            depth = 1
-            while depth and (marker := BLOCK.search(source, end)):
-                depth += 1 if marker.group() == '/*' else -1
-                end = marker.end()
-            if depth:
-                end = len(source)
-            pieces.append(' ')
-        elif token.group().startswith('//'):
-            pieces.append(' ')
-        else:
-            if token.group('hashes') is not None:
-                closing = '"' + token.group('hashes')
-                close = source.find(closing, end)
-                end = len(source) if close == -1 else close + len(closing)
-                pieces.append(source[token.start():end])
-            else:
-                pieces.append(ESCAPE.sub(' ', token.group()))
-        position = end
-    pieces.append(source[position:])
-    return ''.join(pieces)
+without_comments = ENGINE['without_comments']
 
 
 def counts():
-    paths = subprocess.run(
-        ['git', 'ls-files', '-z', '*.rs'], check=True, capture_output=True,
-    ).stdout.split(b'\0')
-    totals = dict.fromkeys(FORMS, 0)
-    for path in paths:
-        if not path or b'generated' in path.split(b'/'):
-            continue
-        decoded_path = path.decode('utf-8')
-        if decoded_path.startswith(EXEMPT_DIRECTORIES):
-            continue
-        source = Path(decoded_path).read_text(encoding='utf-8')
-        if not any(marker in source for marker in (*FORMS, 'MAX_OUT')):
-            continue
-        source = without_comments(source)
-        # Prefilter whole identifiers once: the three identifier patterns
-        # otherwise backtrack through every unrelated word in the tree.
-        candidates = ' '.join(
-            word for word in IDENTIFIER.findall(source)
-            if 'max_out' in word or 'MAX_OUT' in word
-            or 'JournalRoom' in word or 'worst_case' in word
-        )
-        for form, pattern in FORMS.items():
-            totals[form] += sum(
-                1 for match in pattern.finditer(source if form == 'takes' else candidates)
-                if match.group() not in EXEMPT.get(form, ())
-            )
-    return totals
+    return ENGINE['counts'](globals())
 
 
 def main():
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--write', action='store_true', help='initialize or lower the baseline')
-    args = parser.parse_args()
-    current = counts()
-    try:
-        lines = BASELINE.read_text(encoding='utf-8').splitlines(keepends=True)
-    except FileNotFoundError:
-        if not args.write:
-            parser.error(f'{BASELINE} is missing; initialize with --write')
-        baseline = current
-        lines = HEADER.splitlines(keepends=True) + [
-            f'{form} {count}\n' for form, count in current.items()
-        ]
-    else:
-        try:
-            entries = [line.split() for line in lines if line.strip() and not line.startswith('#')]
-            baseline = {form: int(count) for form, count in entries}
-            if (list(baseline) != list(FORMS) or len(entries) != len(FORMS)
-                    or any(count < 0 for count in baseline.values())):
-                raise ValueError('expected each form once, in order, with nonnegative counts')
-        except ValueError as error:
-            parser.error(f'invalid {BASELINE}: {error}')
-    raised = False
-    for form, count in current.items():
-        if count > baseline[form]:
-            print(f'{form}: count {count}, baseline {baseline[form]}', file=sys.stderr)
-            raised = True
-    if raised:
-        print(RULE, file=sys.stderr)
-        return 1
-    if args.write:
-        for index, line in enumerate(lines):
-            if line.strip() and not line.startswith('#'):
-                form = line.split()[0]
-                lines[index] = f'{form} {current[form]}\n'
-        BASELINE.write_text(''.join(lines), encoding='utf-8')
-    else:
-        for form, count in current.items():
-            if count < baseline[form]:
-                print(f'{form}: count {count}, baseline {baseline[form]}; lower with '
-                      '`python3 -I -B scripts/old_forms.py --write`', file=sys.stderr)
-    return 0
+    return ENGINE['main'](globals())
 
 
 if __name__ == '__main__':

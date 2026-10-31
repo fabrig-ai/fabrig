@@ -372,7 +372,7 @@ impl Peer {
             }
             if self.recording {
                 let target = route::observed_target(&call.target);
-                let payload_bytes = u64::try_from(target.len()).expect("bounded target");
+                let payload_bytes = skein_lib::len_u64(target.len());
                 self.observe(Observation::Authorize { connection: owner, target }, payload_bytes);
             }
             self.issuer.step(issuer::Event::Authorize { url: url.into_boxed_slice(), now }, &mut self.outgoing);
@@ -410,7 +410,7 @@ impl Peer {
             let endpoint = endpoint.clone().expect("configured document route");
             let owner = connection.owner;
             if self.recording {
-                let payload_bytes = u64::try_from(call.target.len()).expect("bounded target");
+                let payload_bytes = skein_lib::len_u64(call.target.len());
                 self.observe(Observation::Document { connection: owner, target: call.target }, payload_bytes);
             }
             self.issuer.step(issuer::Event::Get { id, endpoint, now, wall }, &mut self.outgoing);
@@ -525,11 +525,7 @@ impl Peer {
         connection.requests.push(http::Request::Respond(http::Response {
             status,
             headers: headers.into_boxed_slice(),
-            body: if empty {
-                http::Body::None
-            } else {
-                http::Body::Length(u64::try_from(body.len()).expect("bounded token response"))
-            },
+            body: if empty { http::Body::None } else { http::Body::Length(skein_lib::len_u64(body.len())) },
             close: false,
         }));
         connection.response = Some(Response { body, offset: 0 });

@@ -14,6 +14,7 @@ pub(super) fn timer_core(answers: bool) -> (Core, Env<Limits>) {
     let mut limits = limits();
     limits.people.sign_ins = 3;
     let mut core = Core::new(config(41), &limits).expect("fixture core configuration");
+    core.people.start_restore(Wall::EPOCH);
     let mut deployment = core.counters.deployment();
     deployment.people = 1;
     deployment.sign_ins = 11;
@@ -46,7 +47,7 @@ pub(super) fn timer_core(answers: bool) -> (Core, Env<Limits>) {
     for record in rows {
         drop(step(&mut core, &env, Event::People(people::Event::Restore { record })));
     }
-    drop(step(&mut core, &env, Event::People(people::Event::Restored)));
+    finish_people(&mut core.people, &Env { now: env.now, wall: env.wall, limits: env.limits.people });
     assert!(core.people.ready());
     (core, env)
 }

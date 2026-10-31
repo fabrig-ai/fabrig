@@ -92,3 +92,13 @@ fn draws_stay_in_range() {
     assert!(!rng.chance(0));
     assert!(rng.chance(1000));
 }
+
+#[test]
+fn whole_milliseconds_round_down_without_overflow() {
+    const WHOLE: u64 = Duration::from_nanos(1_999_999).as_millis();
+    assert_eq!(WHOLE, 1);
+    for (nanos, millis) in [(0, 0), (999_999, 0), (1_000_000, 1), (u64::MAX, 18_446_744_073_709)] {
+        assert_eq!(Duration::from_nanos(nanos).as_millis(), millis);
+    }
+    assert_eq!(Duration::from_millis(123).as_millis(), 123);
+}

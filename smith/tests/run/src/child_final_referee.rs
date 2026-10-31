@@ -1,6 +1,6 @@
-//! Independent own-turn-share terminal rule over actual run facts.
+//! Independent own-turn-share terminal rule over run facts.
 //! It keeps only effective child grants, never session state or production triggers.
-//! Contract: domain/run.md, sections 5.3 and 13; testing-strategy.md, section 7.
+//! Contract: smith/docs/design/domain/run.md, sections 5.3 and 13; skein/docs/foundation/testing-strategy.md, section 7.
 
 use std::collections::BTreeMap;
 
@@ -11,7 +11,7 @@ use smith_domain_run::{
     facts::{EndKind, Fact, FactKind, Kind},
 };
 
-/// Effective child turn shares observed at their actual openings.
+/// Effective child turn shares observed at their openings.
 #[derive(Default)]
 pub struct Meeting {
     children: BTreeMap<Token, u32>,
@@ -53,7 +53,7 @@ impl Expectations for Meeting {
     }
 }
 
-/// Judge effective openings and actual terminals with Skein's referee.
+/// Judge effective openings and terminals with Skein's referee.
 #[must_use]
 pub fn judge(facts: &[Fact]) -> Verdict {
     let mut referee = Referee::new(Meeting::default());

@@ -15,19 +15,6 @@ fn random_people_settle_and_reach_every_ending() {
 }
 
 #[test]
-fn explicit_start_random_people_settle_and_reach_every_ending() {
-    let mut endings = BTreeSet::new();
-    for seed in 0..256 {
-        let mut world = World::configured_start(Settings::random(seed), Box::new([]), Box::new([]));
-        world.run();
-        endings.extend(world.stats().endings.iter().copied());
-    }
-    for ending in ENDINGS {
-        assert!(endings.contains(ending), "{ending}: {endings:?}");
-    }
-}
-
-#[test]
 #[expect(
     clippy::too_many_lines,
     reason = "one seeded census compares selected volatile rebuilding with ordinary projections"
@@ -44,6 +31,7 @@ fn selected_projections_and_stored_diagnostics_replay_by_seed() {
         let mut ordinary = p::Domain::new(&limits, Box::new([]), 1, Box::new([]));
         let mut out = Queue::uncapped();
         selected.start_restore(env.wall);
+        ordinary.start_restore(env.wall);
         let through = rng.between(1, 3);
         for row in [
             p::Stored::Person { number: 1, identity: identity(1) },
@@ -55,7 +43,9 @@ fn selected_projections_and_stored_diagnostics_replay_by_seed() {
             p::step(&mut selected, &env, p::Event::Restore { record: row.clone() }, &mut out);
             p::step(&mut ordinary, &env, p::Event::Restore { record: row }, &mut out);
         }
-        p::step(&mut ordinary, &env, p::Event::Restored, &mut out);
+        assert!(ordinary.start_link(&env));
+        ordinary.start_sweep();
+        assert!(ordinary.start_complete(&env));
         assert!(out.is_empty(), "seed {seed}");
         let mut pending = Vec::new();
         for task in 1..=8 {

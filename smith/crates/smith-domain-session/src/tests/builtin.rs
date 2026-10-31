@@ -1,8 +1,8 @@
-#![allow(
+#![expect(
     clippy::disallowed_macros,
     clippy::disallowed_methods,
     clippy::disallowed_types,
-    reason = "programming-model.md section 10.2: deterministic test harnesses use ordinary Rust"
+    reason = "test modules are ordinary Rust: programming-model.md 10.2"
 )]
 
 use super::*;
@@ -226,11 +226,7 @@ fn builtin_calls_tell_their_facts() {
     drop(harness.step(Event::Close { session }));
     let facts: Vec<_> = core::iter::from_fn(|| harness.pop_fact()).collect();
     assert!(facts.iter().any(|fact| fact.kind
-        == Fact::BuiltinAnswered {
-            opener: Token::new(1),
-            bytes: u64::try_from(STAND_IN.len()).unwrap(),
-            error: true,
-        }));
+        == Fact::BuiltinAnswered { opener: Token::new(1), bytes: skein_lib::len_u64(STAND_IN.len()), error: true }));
 }
 
 #[test]
@@ -412,7 +408,7 @@ fn an_expired_completion_fills_every_fact_inventory() {
     let mut answer = completion(full_batch(&limits), Stop::ToolUse);
     answer.reasoning_dropped = vec![1; usize::try_from(limits.completion_blocks).unwrap()].into_boxed_slice();
     crate::session::completed(&mut harness.domain, &harness.env, session, answer, &mut harness.out);
-    crate::session::pass_on_facts(&mut harness.domain, &harness.env);
+    crate::session::pass_on_facts(&mut harness.domain);
     assert_fact_count(&mut harness, bound);
 }
 
@@ -438,7 +434,7 @@ fn a_builtin_in_a_late_completion_keeps_its_stand_in() {
             .filter(|fact| fact.kind
                 == Fact::BuiltinAnswered {
                     opener: Token::new(1),
-                    bytes: u64::try_from(STAND_IN.len()).unwrap(),
+                    bytes: skein_lib::len_u64(STAND_IN.len()),
                     error: true
                 })
             .count(),

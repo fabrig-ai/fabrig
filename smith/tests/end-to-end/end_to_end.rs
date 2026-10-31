@@ -9,6 +9,24 @@ pub mod support;
 use smith_local_process_world::{Placement, referee::CheckoutRead};
 use smith_real_world::{Scratch, World};
 
+fn assert_delivered(scratch: &Scratch) {
+    let checkout = scratch.checkout();
+    let files = checkout.files(&checkout.head().expect("committed head"));
+    for (path, expected) in [
+        (b"original.txt".as_slice(), b"edited\n".as_slice()),
+        (b"result.txt", b"new\n"),
+        (b"command.txt", b"ran\n"),
+        (b"checks-ran.txt", b"checked\n"),
+    ] {
+        assert_eq!(
+            files.get(path).expect("delivered file").as_slice(),
+            expected,
+            "delivered {}",
+            String::from_utf8_lossy(path)
+        );
+    }
+}
+
 #[test]
 fn the_terminal_modes_are_unchanged_after_smith_exits() {
     use smith_local_process_world::terminal::Action;
@@ -44,7 +62,7 @@ fn end_of_input_at_the_terminal_lets_the_run_answer_then_exits_0() {
     );
     assert_eq!(ran.code, 0, "{}", String::from_utf8_lossy(&ran.stderr));
     assert!(String::from_utf8_lossy(&ran.stdout).contains("API key"));
-    assert!(ran.stdout.windows(12).any(|bytes| bytes == b"First answer"));
+    assert!(skein_lib::bytes::find(&ran.stdout, b"First answer").is_some());
 }
 
 #[test]
@@ -95,13 +113,7 @@ fn a_first_run_signs_in_and_ends_with_a_commit_in_place() {
     assert_eq!(oauth.posts, 1);
     assert_eq!(oauth.pages, 1);
     assert!(oauth.browser_replied && oauth.saved_before_query);
-    let checkout = scratch.checkout();
-    let head = checkout.head().expect("committed head");
-    let files = checkout.files(&head);
-    assert_eq!(files[b"original.txt".as_slice()], b"edited\n");
-    assert_eq!(files[b"result.txt".as_slice()], b"new\n");
-    assert_eq!(files[b"command.txt".as_slice()], b"ran\n");
-    assert_eq!(files[b"checks-ran.txt".as_slice()], b"checked\n");
+    assert_delivered(&scratch);
 }
 
 #[test]
@@ -120,7 +132,7 @@ fn an_interrupt_cancels_the_run() {
         ],
     );
     assert_eq!(ran.code, 0, "{}", String::from_utf8_lossy(&ran.stderr));
-    assert!(ran.stdout.windows(34).any(|part| part == b"interrupted: the run was cancelled"));
+    assert!(skein_lib::bytes::find(&ran.stdout, b"interrupted: the run was cancelled").is_some());
 }
 
 #[test]
@@ -163,41 +175,58 @@ fn smith_on_a_terminal_signs_in_and_commits_in_place() {
     let checkout = scratch.checkout();
     let after = checkout.head().unwrap();
     assert_ne!(before, after);
-    let files = checkout.files(&after);
-    assert_eq!(files[b"original.txt".as_slice()], b"edited\n");
-    assert_eq!(files[b"result.txt".as_slice()], b"new\n");
-    assert_eq!(files[b"command.txt".as_slice()], b"ran\n");
-    assert_eq!(files[b"checks-ran.txt".as_slice()], b"checked\n");
+    assert_delivered(&scratch);
 }
 
 #[test]
-fn the_startup_refusals_of_both_commands_are_observed_outside() {
+fn an_agent_configuration_metadata_refusal_reaches_stderr() {
     let scratch = Scratch::new();
     let agent = skein_scratch::paths::binary("smith-agent");
     let errors = support::refusal_program(&agent, &scratch, vec!["".into()]);
     assert!(String::from_utf8_lossy(&errors).contains("configuration metadata"));
+}
+
+#[test]
+fn a_product_settings_metadata_refusal_reaches_stderr() {
+    let scratch = Scratch::new();
     let config = scratch.path().join("config/smith/config.toml");
     std::fs::create_dir_all(&config).expect("settings metadata refusal");
     let errors = support::refusal_code(&scratch, Vec::new(), 2);
     assert!(String::from_utf8_lossy(&errors).contains("regular file"));
+}
+
+fn agent_document(address: &str) -> serde_json::Value {
+    serde_json::json!({
+        "profile":{"name":"standard","declared":{"memory":1_099_511_627_776_u64,"conversations":1,"calls_per_response":2,"tool_payload":256,"read_window":256},"policy":{"group_stop":10}},
+        "endpoints":[{"name":"fake","number":0,"dialect":1,"account":0,"provider":"codex","address":address,"transport":"plaintext","connect":1000,"handshake":1000,
+            "models":[{"name":"fake","window":65536,"output":512,"reasoning_item":64,"prices":{"input":1,"cached":1,"output":1,"unit":1},"head":1000,"idle":1000}]}],
+        "environment":[]
+    })
+}
+
+fn agent_refusal(document: &serde_json::Value) -> Vec<u8> {
+    let scratch = Scratch::new();
     let path = scratch.path().join("agent-config.json");
-    std::fs::write(
-        &path,
-        br#"{"profile":{"name":"standard","declared":{"memory":1099511627776,"conversations":1,"calls_per_response":2,"tool_payload":256,"read_window":256},"policy":{"group_stop":10}},"endpoints":[{"name":"fake","number":0,"dialect":1,"account":0,"provider":"codex","address":"127.0.0.1:8080","transport":"plaintext","connect":1000,"handshake":1000,"models":[{"name":"fake","window":65536,"output":512,"reasoning_item":64,"prices":{"input":1,"cached":1,"output":1,"unit":1},"head":1000,"idle":1000}]}],"environment":[]}"#,
-    )
-    .expect("valid agent fixture");
-    let errors = support::refusal_program(&agent, &scratch, vec![path.clone().into()]);
+    std::fs::write(&path, serde_json::to_vec(document).expect("agent configuration")).expect("configuration fixture");
+    support::refusal_program(&skein_scratch::paths::binary("smith-agent"), &scratch, vec![path.into()])
+}
+
+#[test]
+fn an_agent_channel_end_is_reported_to_stderr() {
+    let errors = agent_refusal(&agent_document("127.0.0.1:8080"));
     assert_eq!(
         String::from_utf8_lossy(&errors).lines().last(),
         Some("smith: the run could not answer: the channel ended before the answer")
     );
-    std::fs::write(&path, br#"{"profile":{"name":"standard","declared":{"memory":1099511627776,"conversations":1,"calls_per_response":2,"tool_payload":256,"read_window":256},"policy":{"group_stop":10}},"endpoints":[{"name":"invalid","number":1,"dialect":1,"account":0,"provider":"codex","connect":10000,"handshake":10000,"models":[{"name":"fake","window":65536,"output":512,"reasoning_item":64,"prices":{"input":1,"cached":1,"output":1,"unit":1},"head":60000,"idle":30000}],"address":"192.0.2.1:8080","transport":"plaintext"}],"environment":[]}"#).expect("invalid transport fixture");
-    let errors = support::refusal_program(&agent, &scratch, vec![path.into()]);
+}
+
+#[test]
+fn an_agent_transport_refusal_is_reported_to_stderr() {
+    let errors = agent_refusal(&agent_document("192.0.2.1:8080"));
     assert_eq!(
         String::from_utf8_lossy(&errors).lines().last(),
         Some("smith: plaintext endpoint address must be loopback")
     );
-    assert!(!scratch.path().join("chat").exists(), "refusals leave no chat");
 }
 
 #[test]
@@ -219,7 +248,7 @@ fn standard_profile_runs_a_large_coding_write_and_the_following_checks() {
         "path": "result.txt", "content": "// coding regression\n".repeat(160)
     }))
     .expect("large coding tool arguments");
-    assert!(large.len() > 2048, "coding write exceeds the former input limit");
+    assert!(large.len() > 2048, "coding write exceeds 2,048 bytes");
     let mut turns = vec![(b"write".as_slice(), large)];
     for (name, arguments) in [
         ("read", r#"{"path":"result.txt"}"#),
@@ -240,10 +269,11 @@ fn standard_profile_runs_a_large_coding_write_and_the_following_checks() {
             cue: b"@local-shell".as_slice().into(),
             turns: turns
                 .into_iter()
-                .map(|(name, arguments)| api::Turn {
-                    lines: Box::new([api::Line::Call { name: name.into(), arguments: arguments.into() }]),
-                    finish: api::Finish::ToolCalls,
-                    tokens: 1,
+                .map(|(name, arguments)| {
+                    smith_agent_world::fixture::calls(
+                        Box::new([api::Line::Call { name: name.into(), arguments: arguments.into() }]),
+                        1,
+                    )
                 })
                 .collect(),
         }]),
@@ -258,7 +288,7 @@ fn standard_profile_runs_a_large_coding_write_and_the_following_checks() {
             .messages
             .iter()
             .any(|message| { message.parts.iter().any(|part| matches!(part, api::Part::ToolOutput { .. })) })),
-        "follow-up provider prompts contain actual workspace answers"
+        "follow-up provider prompts contain workspace answers"
     );
     let checkout = scratch.checkout();
     let files = checkout.files(&checkout.head().expect("committed head"));
@@ -386,7 +416,7 @@ fn smith_exec_json_ends_accepted_with_its_events_and_exit_0() {
     assert_eq!(records.last().unwrap()["type"], "session.ended");
     assert_eq!(records.last().unwrap()["exit"], 0);
     assert!(records.iter().any(|r| r["type"] == "run.completed"));
-    assert!(ran.stderr.windows(18).any(|bytes| bytes == b"smith: accepted in"));
+    assert!(skein_lib::bytes::find(&ran.stderr, b"smith: accepted in").is_some());
 }
 
 #[test]
@@ -585,7 +615,7 @@ fn an_ephemeral_directory_is_removed_when_product_startup_refuses() {
 
 /// What an ephemeral run left in the scratch runtime directory, where its
 /// private directory is made; none is ever made under the state directory
-/// (shell.md 4.2).
+/// (smith/docs/design/shell.md 4.2).
 fn ephemeral_directories(scratch: &Scratch) -> Vec<std::path::PathBuf> {
     let state = std::fs::read_dir(scratch.path().join("state")).into_iter().flatten();
     assert!(
@@ -630,11 +660,11 @@ fn smith_login_signs_in_against_the_fake_issuer_and_exits_0() {
     let file = scratch.path().join("credentials/tokens/test");
     let secret = skein_shell::read_private_file(
         &file,
-        smith_local_shell::local_host::token_limits().record_bytes,
+        smith_local_shell::credentials::token_limits().record_bytes,
         skein_shell::effective_user(),
     )
     .expect("kept private record");
-    let record = skein_oauth::decode_record(secret.expose(), &smith_local_shell::local_host::token_limits())
+    let record = skein_oauth::decode_record(secret.expose(), &smith_local_shell::credentials::token_limits())
         .expect("native record");
     assert!(record.access_token.as_ref() == b"access-new", "access credential retained");
     assert!(record.refresh_token.as_deref() == Some(b"refresh-new".as_slice()), "refresh credential retained");

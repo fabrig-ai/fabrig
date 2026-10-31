@@ -177,6 +177,12 @@ fn a_limited_candidate_does_not_hide_a_program_host_wait() {
     let mut records = own_records();
     records.extend([
         account(23, accounts::Holder::Party(ALICE)),
+        accounts::Stored::Issued {
+            number: 18,
+            holder: accounts::Holder::Party(ALICE),
+            name: b"program".as_slice().into(),
+            signed_out: false,
+        },
         accounts::Stored::Source {
             account: 23,
             number: 18,

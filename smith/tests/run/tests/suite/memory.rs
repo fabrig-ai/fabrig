@@ -1,4 +1,4 @@
-//! Memory stays under scenario ceilings (programming-model.md, section 6.3), measured by
+//! Memory stays under scenario ceilings (skein/docs/foundation/programming-model.md, section 6.3), measured by
 //! a counting allocator: the run child domain with every run holding a charter
 //! of exactly its byte limit, and every conversation started and spending.
 
@@ -55,11 +55,6 @@ const LIMITS: Limits = Limits {
     runs: 1,
     conversations: 2,
     run_bytes: 1024,
-    brief_sections: 4,
-    host_part: 1 << 20,
-    room: 0,
-    compaction_threshold: [4, 5],
-    compaction_material: 0,
     schema_costs: smith_domain_run::SchemaCosts::NONE,
     directories: 1,
     directory_name_bytes: 64,
@@ -67,17 +62,8 @@ const LIMITS: Limits = Limits {
     conflicts: 1,
     conflict_path_bytes: 64,
     host_tools: 1,
-    host_input_bytes: 65_536,
-    host_reply_bytes: 65_536,
-    answered_calls: 16,
-    answered_bytes: 4096,
-    host_timeout: Duration::from_secs(60),
-    host_timeout_max: Duration::from_secs(60),
-    host_backoff: Duration::from_millis(50),
     verdicts: 1,
-    calls: 2,
     budget: BUDGET,
-
     models: 1,
     run_conversations: 2,
     answer_bytes: 128,
@@ -87,13 +73,8 @@ const LIMITS: Limits = Limits {
     outcome_bytes: 256,
     delivery_timeout: Duration::from_secs(60),
     check_timeout: Duration::from_secs(60),
-    wrap_up: Duration::from_secs(60),
     check_tail: 1024,
-    messages: 8,
-    message_bytes: 4096,
-    offer_messages: 8,
-    offer_bytes: 32_782,
-    waiting: skein_lib::Duration::from_secs(300),
+    ..smith_domain_run::fixture::SMALL
 };
 
 /// A charter that holds exactly `held` bytes, as the run counts them: one of
@@ -277,7 +258,7 @@ fn observed_request(request: Request, selected: Option<&smith_domain_run::Conven
 /// byte limit and a guide of exactly its limit too, and has each one's main
 /// conversation start, spend, yield, be nudged, ask for a sub-agent that
 /// answers with more than the answer limit, and finish with a change of
-/// exactly the outcome limit, which is checked and pushed. A sub-agent's call
+/// exactly the outcome limit, which is checked and delivered. A sub-agent's call
 /// holds the answer, cut at the limit, while the child is being closed, and
 /// moves it into its return once the child has ended. Each run ends winding
 /// down with the change, while its landing, returned, still holds its copy
@@ -291,7 +272,7 @@ fn fill(limits: &Limits, bound: u64) {
 fn selected_charter(run_bytes: u64, selected: Option<&smith_domain_run::Conventions>) -> Charter {
     let mut charter = charter(run_bytes);
     if let Some(selected) = selected {
-        let previous = charter.conventions.as_ref().expect("explicit legacy fixture policy");
+        let previous = charter.conventions.as_ref().expect("explicit fixture policy");
         let previous_paths = size(previous.guide.len() + previous.checks.len());
         let selected_paths = size(selected.guide.len() + selected.checks.len());
         // The same exact aggregate cap is attained: move byte room
@@ -420,7 +401,7 @@ fn fill_selected(limits: &Limits, selected: Option<&smith_domain_run::Convention
             panic!("the change is being checked");
         };
         let ran = Ran { exit: Exit::Code { code: 0 }, output: bytes(0), cut: 0 };
-        assert_eq!(step(Event::Checked { owner, ran }), [Asked::Other, Asked::Other], "checked, it is pushed");
+        assert_eq!(step(Event::Checked { owner, ran }), [Asked::Other, Asked::Other], "checked, it is delivered");
         assert_eq!(step(Event::Delivered { owner, delivery: delivered() }), [Asked::Other, Asked::Other], "accepted");
     }
     assert_eq!(domain.runs(), limits.runs, "every run slot is held");
@@ -456,15 +437,15 @@ fn refuse_oversized_charter(limits: &Limits, env: &Env<Limits>, out: &mut Queue<
     assert_eq!(answer, Answer::Refused(Refusal::Invalid(Invalid::TooLarge)));
 }
 
-// Peak ceiling for one full run (programming-model.md, section 6.3).
+// Peak ceiling for one full run (skein/docs/foundation/programming-model.md, section 6.3).
 // Measured peak: 7_324 bytes on 2026-10-29; a quarter of headroom, rounded up.
 const FULL_RUNS_CEILING: u64 = 9_200;
 
-// Peak ceiling for 64 full runs with large charters and guides (programming-model.md, section 6.3).
+// Peak ceiling for 64 full runs with large charters and guides (skein/docs/foundation/programming-model.md, section 6.3).
 // Measured peak: 6_446_424 bytes on 2026-10-29; a quarter of headroom, rounded up.
 const LARGE_RUNS_CEILING: u64 = 8_100_000;
 
-// Peak ceiling for 1000 full runs (programming-model.md, section 6.3).
+// Peak ceiling for 1000 full runs (skein/docs/foundation/programming-model.md, section 6.3).
 // Measured peak: 4_435_512 bytes on 2026-10-29; a quarter of headroom, rounded up.
 const MANY_RUNS_CEILING: u64 = 5_600_000;
 
@@ -616,7 +597,7 @@ fn delivery_memory_step(
     (token, answered)
 }
 
-// Peak ceiling for full receipt delivery and cancellation (programming-model.md, section 6.3).
+// Peak ceiling for full receipt delivery and cancellation (skein/docs/foundation/programming-model.md, section 6.3).
 // Measured peak: 70_940 bytes on 2026-10-29; a quarter of headroom, rounded up.
 const DELIVERY_CEILING: u64 = 89_000;
 
@@ -673,7 +654,7 @@ fn full_receipt_delivery_settles_before_a_cancelled_answer() {
         ask: Ask::Deliver { change: Change { fields: Box::new([]) } },
         deadline: Time::ZERO.saturating_add(BUDGET.time),
     });
-    let owner = owner.expect("first actual writable check");
+    let owner = owner.expect("first writable check");
     for _ in 0..smith_domain_run::MAX_DIRECTORIES {
         take(Event::Checked { owner, ran: Ran { exit: Exit::Code { code: 0 }, output: bytes(0), cut: 0 } });
     }
@@ -806,7 +787,7 @@ fn host_memory_take(
     (token, relay)
 }
 
-// Peak ceiling for maximum immutable host input and retry (programming-model.md, section 6.3).
+// Peak ceiling for maximum immutable host input and retry (skein/docs/foundation/programming-model.md, section 6.3).
 // Measured peak: 74_781 bytes on 2026-10-29; a quarter of headroom, rounded up.
 const HOST_RELAY_CEILING: u64 = 94_000;
 
@@ -897,7 +878,7 @@ fn complete_declaration_and_maximum_opaque_input_answer_retries_reach_the_measur
     assert_eq!((domain.runs(), domain.conversations(), domain.calls()), (0, 0, 0));
 }
 
-// Peak ceiling for full owning convention paths (programming-model.md, section 6.3).
+// Peak ceiling for full owning convention paths (skein/docs/foundation/programming-model.md, section 6.3).
 // Measured peak: 22_684 bytes on 2026-10-29; a quarter of headroom, rounded up.
 const SELECTED_PATHS_CEILING: u64 = 29_000;
 
@@ -911,7 +892,7 @@ fn maximum_selected_read_probe_and_check_paths_attain_the_full_run_ownership_bou
     fill_selected(&Limits { run_bytes: 16_384, ..LIMITS }, Some(&selected), SELECTED_PATHS_CEILING);
 }
 
-// Peak ceiling for an awaiting run retaining its full charter (programming-model.md, section 6.3).
+// Peak ceiling for an awaiting run retaining its full charter (skein/docs/foundation/programming-model.md, section 6.3).
 // Measured peak: 5_644 bytes on 2026-10-29; a quarter of headroom, rounded up.
 const AWAITING_CEILING: u64 = 7_100;
 
@@ -969,7 +950,7 @@ fn an_awaiting_run_retains_its_full_charter_without_allocating_a_session() {
     assert_eq!((domain.runs(), domain.conversations(), domain.calls()), (0, 0, 0));
 }
 
-// Peak ceiling for the largest final note at scalar maxima (programming-model.md, section 6.3).
+// Peak ceiling for the largest final note at scalar maxima (skein/docs/foundation/programming-model.md, section 6.3).
 // Measured peak: 7_948 bytes on 2026-10-29; a quarter of headroom, rounded up.
 const FINAL_NOTE_CEILING: u64 = 10_000;
 
@@ -1049,8 +1030,8 @@ fn a_run_at_scalar_maxima_emits_its_largest_final_note_within_its_ownership_boun
         smith_domain_run::completion_permit(&mut domain, conversation, env.now, smith_domain_run::Most::Bounded(0));
     let measured = meter.end();
     let smith_domain_run::CompletionPermit::Final { note: Some(note) } = permit else { panic!("maximum note") };
-    assert!(note.windows(b"4294967294".len()).any(|bytes| bytes == b"4294967294"));
-    assert!(note.windows(b"18446744073".len()).any(|bytes| bytes == b"18446744073"));
+    assert!(skein_lib::bytes::find(&note, b"4294967294").is_some());
+    assert!(skein_lib::bytes::find(&note, b"18446744073").is_some());
     drop(note); // The completion receiver owns this output, as it owns Open and Say.
     meter.check(measured, bound, &limits);
     take(&mut domain, &env, Event::Cancel { run });

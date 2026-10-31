@@ -118,9 +118,9 @@ mod tests {
         let profile = standard();
         let mut agent = smith_agent_process_world::limits();
         agent.events = Some(
-            smith_agent_service::EventLimits::derive(
+            smith_agent_service::event_limits(
                 &agent,
-                smith_agent_service::sinks::Capture::None,
+                smith_protocol_events::sinks::Capture::None,
                 1,
                 0,
                 &[],

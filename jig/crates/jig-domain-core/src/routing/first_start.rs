@@ -6,70 +6,7 @@ use jig_domain_authority as authority;
 use jig_domain_people as people;
 use skein_lib::{Env, List, Map, Queue};
 
-use crate::{Core, Event, Family, Limits, Record, Request, Requests, Write, fresh};
-
-pub(super) fn seed(core: &mut Core, env: &Env<Limits>, work: &mut Queue<Event>) -> Requests {
-    seed_projects(core);
-    let mut out = Queue::uncapped();
-    if !crate::settings::restart::first_start(core, env, &mut out) {
-        return Requests::Out(out);
-    }
-    let mut rows = people_rows(core, env);
-    for _ in 0..rows.len() {
-        let record = rows.pop().expect("bounded seed rows");
-        let mut child = Queue::uncapped();
-        #[expect(clippy::wildcard_enum_match_arm, reason = "the seed generator emits only people, roles and policies")]
-        match &record {
-            people::Stored::Person { .. } => people::step(
-                &mut core.people,
-                &Env { now: env.now, wall: env.wall, limits: env.limits.people },
-                people::Event::Restore { record: record.clone() },
-                &mut child,
-            ),
-            people::Stored::Roles { project, holdings } => people::step(
-                &mut core.people,
-                &Env { now: env.now, wall: env.wall, limits: env.limits.people },
-                people::Event::Roles { project: *project, holdings: holdings.clone() },
-                &mut child,
-            ),
-            people::Stored::Policy { .. } => {}
-            _ => unreachable!("seed row family"),
-        }
-        if let people::Stored::Roles { .. } = &record {
-            for _ in 0..child.len() {
-                let people::Request::Save { record } = child.pop().expect("seed role row") else {
-                    unreachable!("configured roster fits people limits");
-                };
-                out.push(Request::Write(Write::Save(Record::People(record))));
-            }
-        } else {
-            assert!(child.is_empty(), "configured owner restores within people limits");
-            out.push(Request::Write(Write::Save(Record::People(record))));
-        }
-    }
-    let mut child = Queue::uncapped();
-    people::step(
-        &mut core.people,
-        &Env { now: env.now, wall: env.wall, limits: env.limits.people },
-        people::Event::Restored,
-        &mut child,
-    );
-    let Requests::Out(mut restored) = super::people_routes::tag_people(core, env, child, work);
-    for _ in 0..restored.len() {
-        out.push(restored.pop().expect("people restored requests"));
-    }
-    Requests::Out(out)
-}
-
-pub(crate) fn seed_projects(core: &mut Core) {
-    let mut rows = project_rows(core);
-    for _ in 0..rows.len() {
-        let (project, policy) = rows.pop().expect("configured project");
-        let mut facts = Queue::uncapped();
-        authority::step(&mut core.authority, authority::Event::Policy { project, policy }, &mut facts);
-        assert!(facts.pop() == Some(authority::PolicyFact::Added { project }), "checked seed policy admission");
-    }
-}
+use crate::{Core, Family, Limits, Record, Request, Write, fresh};
 
 fn project_rows(core: &mut Core) -> Queue<(u32, authority::Policy)> {
     let projects = core::mem::replace(&mut core.seed_projects, Box::new([]));

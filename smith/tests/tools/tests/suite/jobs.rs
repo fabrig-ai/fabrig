@@ -38,30 +38,11 @@ fn a_command_past_its_yield_is_answered_running_then_read_to_its_end() {
     let (answers, _) = run(settings(), Fixture::new(), &build(), script);
     assert_eq!(
         answers,
-        vec![
-            Ok(Outcome::Running {
-                job: JobNumber(1),
-                head: b"Compiling\n".as_slice().into(),
-                tail: Box::default(),
-                dropped: 0,
-                timeout: TimeoutClamp::Within,
-                output: BytesClamp::Within,
-                after: TimeoutClamp::Within
-            }),
-            Ok(Outcome::Job {
-                job: JobNumber(1),
-                head: b"Finished\n".as_slice().into(),
-                tail: Box::default(),
-                dropped: 0,
-                output: BytesClamp::Within,
-                wait: TimeoutClamp::Within,
-                end: JobEnd::Ended(tools::Exit::Code { code: 0 })
-            }),
-        ]
+        vec![Ok(running(b"Compiling\n")), Ok(job_answer(b"Finished\n", JobEnd::Ended(tools::Exit::Code { code: 0 }))),]
     );
 }
 
-// Distinct small durations exercise domain/tools.md, section 5, Reading it.
+// Distinct small durations exercise smith/docs/design/domain/tools.md, section 5, Reading it.
 fn poll_with_separate_default_and_ceiling(wait: tools::Wait) -> Vec<Result<Outcome, JobProblem>> {
     let mut settings = settings();
     settings.tools.job_poll = Duration::from_secs(1);
@@ -75,35 +56,13 @@ fn poll_with_separate_default_and_ceiling(wait: tools::Wait) -> Vec<Result<Outco
 #[test]
 fn an_unasked_wait_uses_job_poll_before_the_job_ends() {
     let answers = poll_with_separate_default_and_ceiling(tools::Wait::Default);
-    assert_eq!(
-        answers.get(1),
-        Some(&Ok(Outcome::Job {
-            job: JobNumber(1),
-            head: Box::default(),
-            tail: Box::default(),
-            dropped: 0,
-            output: BytesClamp::Within,
-            wait: TimeoutClamp::Within,
-            end: JobEnd::Running,
-        }))
-    );
+    assert_eq!(answers.get(1), Some(&Ok(job_answer(b"", JobEnd::Running))));
 }
 
 #[test]
 fn a_wait_between_job_poll_and_job_wait_reaches_the_end() {
     let answers = poll_with_separate_default_and_ceiling(tools::Wait::Asked(Duration::from_secs(2)));
-    assert_eq!(
-        answers.get(1),
-        Some(&Ok(Outcome::Job {
-            job: JobNumber(1),
-            head: b"Finished\n".as_slice().into(),
-            tail: Box::default(),
-            dropped: 0,
-            output: BytesClamp::Within,
-            wait: TimeoutClamp::Within,
-            end: JobEnd::Ended(tools::Exit::Code { code: 0 }),
-        }))
-    );
+    assert_eq!(answers.get(1), Some(&Ok(job_answer(b"Finished\n", JobEnd::Ended(tools::Exit::Code { code: 0 })))));
 }
 
 fn read_with_dropped_output() -> Vec<Result<Outcome, JobProblem>> {
@@ -133,15 +92,7 @@ fn a_jobs_read_past_its_kept_ceiling_counts_the_dropped_bytes_once() {
     assert_eq!(
         answers,
         vec![
-            Ok(Outcome::Running {
-                job: JobNumber(1),
-                head: b"start\n".as_slice().into(),
-                tail: Box::default(),
-                dropped: 0,
-                timeout: TimeoutClamp::Within,
-                output: BytesClamp::Within,
-                after: TimeoutClamp::Within
-            }),
+            Ok(running(b"start\n")),
             Ok(Outcome::Job {
                 job: JobNumber(1),
                 head: b"ab".as_slice().into(),
@@ -151,15 +102,7 @@ fn a_jobs_read_past_its_kept_ceiling_counts_the_dropped_bytes_once() {
                 wait: TimeoutClamp::Within,
                 end: JobEnd::Running
             }),
-            Ok(Outcome::Job {
-                job: JobNumber(1),
-                head: b"end\n".as_slice().into(),
-                tail: Box::default(),
-                dropped: 0,
-                output: BytesClamp::Within,
-                wait: TimeoutClamp::Within,
-                end: JobEnd::Ended(tools::Exit::Code { code: 0 })
-            }),
+            Ok(job_answer(b"end\n", JobEnd::Ended(tools::Exit::Code { code: 0 }))),
         ]
     );
 }
@@ -204,15 +147,7 @@ fn a_yield_and_a_wait_past_job_wait_are_clamped_and_said() {
                 wait: TimeoutClamp::Clamped { asked: Duration::from_secs(2), ceiling: Duration::from_secs(1) },
                 end: JobEnd::Running
             }),
-            Ok(Outcome::Job {
-                job: JobNumber(1),
-                head: b"Finished\n".as_slice().into(),
-                tail: Box::default(),
-                dropped: 0,
-                output: BytesClamp::Within,
-                wait: TimeoutClamp::Within,
-                end: JobEnd::Ended(tools::Exit::Code { code: 0 })
-            }),
+            Ok(job_answer(b"Finished\n", JobEnd::Ended(tools::Exit::Code { code: 0 }))),
         ]
     );
 }
@@ -237,15 +172,7 @@ fn reads_edits_and_commands_run_while_a_job_runs() {
     assert_eq!(
         answers,
         vec![
-            Ok(Outcome::Running {
-                job: JobNumber(1),
-                head: b"Compiling\n".as_slice().into(),
-                tail: Box::default(),
-                dropped: 0,
-                timeout: TimeoutClamp::Within,
-                output: BytesClamp::Within,
-                after: TimeoutClamp::Within
-            }),
+            Ok(running(b"Compiling\n")),
             Ok(Outcome::Read {
                 content: LIB.into(),
                 first: 1,
@@ -264,15 +191,7 @@ fn reads_edits_and_commands_run_while_a_job_runs() {
                 timeout: TimeoutClamp::Within,
                 output: BytesClamp::Within
             }),
-            Ok(Outcome::Job {
-                job: JobNumber(1),
-                head: b"Finished\n".as_slice().into(),
-                tail: Box::default(),
-                dropped: 0,
-                output: BytesClamp::Within,
-                wait: TimeoutClamp::Within,
-                end: JobEnd::Ended(tools::Exit::Code { code: 0 })
-            }),
+            Ok(job_answer(b"Finished\n", JobEnd::Ended(tools::Exit::Code { code: 0 }))),
         ]
     );
     assert_eq!(world.stats().commands, 2);
@@ -291,25 +210,9 @@ fn a_yield_while_jobs_jobs_run_is_an_invalid_call() {
     assert_eq!(
         answers,
         vec![
-            Ok(Outcome::Running {
-                job: JobNumber(1),
-                head: b"Compiling\n".as_slice().into(),
-                tail: Box::default(),
-                dropped: 0,
-                timeout: TimeoutClamp::Within,
-                output: BytesClamp::Within,
-                after: TimeoutClamp::Within
-            }),
+            Ok(running(b"Compiling\n")),
             Err(JobProblem::Full { jobs: 1 }),
-            Ok(Outcome::Job {
-                job: JobNumber(1),
-                head: b"Finished\n".as_slice().into(),
-                tail: Box::default(),
-                dropped: 0,
-                output: BytesClamp::Within,
-                wait: TimeoutClamp::Within,
-                end: JobEnd::Ended(tools::Exit::Code { code: 0 })
-            }),
+            Ok(job_answer(b"Finished\n", JobEnd::Ended(tools::Exit::Code { code: 0 }))),
         ]
     );
     assert_eq!(world.stats().commands, 1);
@@ -328,24 +231,8 @@ fn a_job_call_naming_an_unknown_or_answered_job_is_invalid() {
         answers,
         vec![
             Err(JobProblem::Unknown { job: JobNumber(1) }),
-            Ok(Outcome::Running {
-                job: JobNumber(1),
-                head: b"Compiling\n".as_slice().into(),
-                tail: Box::default(),
-                dropped: 0,
-                timeout: TimeoutClamp::Within,
-                output: BytesClamp::Within,
-                after: TimeoutClamp::Within
-            }),
-            Ok(Outcome::Job {
-                job: JobNumber(1),
-                head: b"Finished\n".as_slice().into(),
-                tail: Box::default(),
-                dropped: 0,
-                output: BytesClamp::Within,
-                wait: TimeoutClamp::Within,
-                end: JobEnd::Ended(tools::Exit::Code { code: 0 })
-            }),
+            Ok(running(b"Compiling\n")),
+            Ok(job_answer(b"Finished\n", JobEnd::Ended(tools::Exit::Code { code: 0 }))),
             Err(JobProblem::Unknown { job: JobNumber(1) }),
         ]
     );
@@ -358,33 +245,9 @@ fn two_reads_of_one_job_wait_their_turn() {
     assert_eq!(
         answers,
         vec![
-            Ok(Outcome::Running {
-                job: JobNumber(1),
-                head: b"Compiling\n".as_slice().into(),
-                tail: Box::default(),
-                dropped: 0,
-                timeout: TimeoutClamp::Within,
-                output: BytesClamp::Within,
-                after: TimeoutClamp::Within
-            }),
-            Ok(Outcome::Job {
-                job: JobNumber(1),
-                head: Box::default(),
-                tail: Box::default(),
-                dropped: 0,
-                output: BytesClamp::Within,
-                wait: TimeoutClamp::Within,
-                end: JobEnd::Running
-            }),
-            Ok(Outcome::Job {
-                job: JobNumber(1),
-                head: b"Finished\n".as_slice().into(),
-                tail: Box::default(),
-                dropped: 0,
-                output: BytesClamp::Within,
-                wait: TimeoutClamp::Within,
-                end: JobEnd::Ended(tools::Exit::Code { code: 0 })
-            }),
+            Ok(running(b"Compiling\n")),
+            Ok(job_answer(b"", JobEnd::Running)),
+            Ok(job_answer(b"Finished\n", JobEnd::Ended(tools::Exit::Code { code: 0 }))),
         ]
     );
 }
@@ -517,29 +380,7 @@ fn stop(number: u32) -> Call {
 fn a_job_stopped_and_one_stopped_after_it_exited() {
     let script = vec![Step::Calls(vec![shell_after(b"cargo build", 1)]), Step::Calls(vec![stop(1)])];
     let (answers, _) = run(settings(), Fixture::new(), &build(), script);
-    assert_eq!(
-        answers,
-        vec![
-            Ok(Outcome::Running {
-                job: JobNumber(1),
-                head: b"Compiling\n".as_slice().into(),
-                tail: Box::default(),
-                dropped: 0,
-                timeout: TimeoutClamp::Within,
-                output: BytesClamp::Within,
-                after: TimeoutClamp::Within
-            }),
-            Ok(Outcome::Job {
-                job: JobNumber(1),
-                head: Box::default(),
-                tail: Box::default(),
-                dropped: 0,
-                output: BytesClamp::Within,
-                wait: TimeoutClamp::Within,
-                end: JobEnd::Stopped
-            }),
-        ]
-    );
+    assert_eq!(answers, vec![Ok(running(b"Compiling\n")), Ok(job_answer(b"", JobEnd::Stopped)),]);
 }
 
 #[test]
@@ -552,26 +393,7 @@ fn a_job_stopped_after_its_exit_preserves_that_exit() {
     let (answers, _) = run(settings(), Fixture::new(), &build(), script);
     assert_eq!(
         answers,
-        vec![
-            Ok(Outcome::Running {
-                job: JobNumber(1),
-                head: b"Compiling\n".as_slice().into(),
-                tail: Box::default(),
-                dropped: 0,
-                timeout: TimeoutClamp::Within,
-                output: BytesClamp::Within,
-                after: TimeoutClamp::Within
-            }),
-            Ok(Outcome::Job {
-                job: JobNumber(1),
-                head: b"Finished\n".as_slice().into(),
-                tail: Box::default(),
-                dropped: 0,
-                output: BytesClamp::Within,
-                wait: TimeoutClamp::Within,
-                end: JobEnd::Ended(tools::Exit::Code { code: 0 })
-            }),
-        ]
+        vec![Ok(running(b"Compiling\n")), Ok(job_answer(b"Finished\n", JobEnd::Ended(tools::Exit::Code { code: 0 }))),]
     );
 }
 
@@ -579,18 +401,7 @@ fn a_job_stopped_after_its_exit_preserves_that_exit() {
 fn a_close_with_a_job_running_settles_it_before_closed() {
     let (answers, world) =
         run(settings(), Fixture::new(), &build(), vec![Step::Calls(vec![shell_after(b"cargo build", 1)])]);
-    assert_eq!(
-        answers,
-        vec![Ok(Outcome::Running {
-            job: JobNumber(1),
-            head: b"Compiling\n".as_slice().into(),
-            tail: Box::default(),
-            dropped: 0,
-            timeout: TimeoutClamp::Within,
-            output: BytesClamp::Within,
-            after: TimeoutClamp::Within
-        })]
-    );
+    assert_eq!(answers, vec![Ok(running(b"Compiling\n"))]);
     assert_eq!(world.stats().cancels, 1);
 }
 
@@ -629,15 +440,7 @@ fn different_jobs_can_be_read_in_the_same_batch() {
     assert_eq!(
         answers[2..],
         [
-            Ok(Outcome::Job {
-                job: JobNumber(1),
-                head: b"Finished\n".as_slice().into(),
-                tail: Box::default(),
-                dropped: 0,
-                output: BytesClamp::Within,
-                wait: TimeoutClamp::Within,
-                end: JobEnd::Ended(tools::Exit::Code { code: 0 })
-            }),
+            Ok(job_answer(b"Finished\n", JobEnd::Ended(tools::Exit::Code { code: 0 }))),
             Ok(Outcome::Job {
                 job: JobNumber(2),
                 head: b"Finished\n".as_slice().into(),
@@ -717,18 +520,7 @@ fn a_job_past_its_deadline_answers_timed_out() {
     }
     let writes = [(Duration::ZERO, b"Compiling\n".as_slice()), (Duration::from_secs(4), b"Finished\n")];
     let (answers, _) = run(settings(), fixture, &writes, vec![Step::Calls(vec![call]), Step::Calls(vec![job(1, 5)])]);
-    assert_eq!(
-        answers[1],
-        Ok(Outcome::Job {
-            job: JobNumber(1),
-            head: Box::default(),
-            tail: Box::default(),
-            dropped: 0,
-            output: BytesClamp::Within,
-            wait: TimeoutClamp::Within,
-            end: JobEnd::Ended(tools::Exit::TimedOut)
-        })
-    );
+    assert_eq!(answers[1], Ok(job_answer(b"", JobEnd::Ended(tools::Exit::TimedOut))));
 }
 
 fn cancel_builds(reads: Vec<Call>) -> (Vec<Result<Outcome, JobProblem>>, World) {
@@ -755,15 +547,7 @@ fn jobs_cancelled_for_a_check_answer_cancelled_at_their_next_read() {
     assert_eq!(
         answers[2..],
         [
-            Ok(Outcome::Job {
-                job: JobNumber(1),
-                head: b"Finished\n".as_slice().into(),
-                tail: Box::default(),
-                dropped: 0,
-                output: BytesClamp::Within,
-                wait: TimeoutClamp::Within,
-                end: JobEnd::Cancelled
-            }),
+            Ok(job_answer(b"Finished\n", JobEnd::Cancelled)),
             Ok(Outcome::Job {
                 job: JobNumber(2),
                 head: b"Finished\n".as_slice().into(),
@@ -842,21 +626,7 @@ fn cancellation_settles_an_outstanding_read_before_it_acknowledges() {
         Step::Calls(vec![job(1, 5)]),
     ];
     let (answers, _) = run(settings(), Fixture::new(), &build(), script);
-    assert_eq!(
-        answers[1..],
-        [
-            Ok(Outcome::Job {
-                job: JobNumber(1),
-                head: Box::default(),
-                tail: Box::default(),
-                dropped: 0,
-                output: BytesClamp::Within,
-                wait: TimeoutClamp::Within,
-                end: JobEnd::Cancelled
-            }),
-            Err(JobProblem::Unknown { job: JobNumber(1) }),
-        ]
-    );
+    assert_eq!(answers[1..], [Ok(job_answer(b"", JobEnd::Cancelled)), Err(JobProblem::Unknown { job: JobNumber(1) }),]);
 }
 
 #[test]
@@ -868,18 +638,7 @@ fn cancelling_an_already_exited_job_preserves_its_observed_exit() {
         Step::Calls(vec![job(1, 5)]),
     ];
     let (answers, _) = run(settings(), Fixture::new(), &build(), script);
-    assert_eq!(
-        answers[1],
-        Ok(Outcome::Job {
-            job: JobNumber(1),
-            head: b"Finished\n".as_slice().into(),
-            tail: Box::default(),
-            dropped: 0,
-            output: BytesClamp::Within,
-            wait: TimeoutClamp::Within,
-            end: JobEnd::Ended(tools::Exit::Code { code: 0 })
-        })
-    );
+    assert_eq!(answers[1], Ok(job_answer(b"Finished\n", JobEnd::Ended(tools::Exit::Code { code: 0 }))));
 }
 
 fn read_ended_early(
@@ -902,6 +661,18 @@ fn read_ended_early(
         Step::Sleep(Duration::from_secs(SETTLE_SECONDS)),
     ];
     run(settings(), fixture, &build(), script).0
+}
+
+fn running(head: &[u8]) -> Outcome {
+    Outcome::Running {
+        job: JobNumber(1),
+        head: head.into(),
+        tail: Box::default(),
+        dropped: 0,
+        timeout: TimeoutClamp::Within,
+        output: BytesClamp::Within,
+        after: TimeoutClamp::Within,
+    }
 }
 
 fn job_answer(head: &[u8], end: JobEnd) -> Outcome {

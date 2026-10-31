@@ -1,6 +1,6 @@
 # Machine component world
 
-The stories run the actual machine component and both IO adapters as one
+The stories run the machine component and both IO adapters as one
 `skein_world::Host`, using `skein_world::World`. Skein owns submission,
 reaping, fake calls, scheduling, clock advancement, replay records and
 process heap checks. There is no private simulator loop.
@@ -23,10 +23,10 @@ traces.
 The 4096-byte flood is a component-boundary fixture, supplying child
 events inside a metered application turn. Its synthetic child and pipe
 tokens do not claim kernel execution. The deadline and check stories
-exercise actual simulated child IO; every run closes its actual root.
+exercise simulated child IO; every run closes its root.
 
 Besides the saturated component memory control, a checked world covers
 file load, a maximal 128-byte store, a timed-out child, and the full
-flood, metering construction, every iteration and drop. The application
-bound includes the actual component and IO bounds plus a bounded two-MiB
-reserve for its finite queues, request, terminal and fixture payloads.
+flood, metering construction, every iteration and drop. The checked
+process heap has a total ceiling of 21,000 bytes, covering the component,
+IO, finite queues, request, terminal and fixture payloads.

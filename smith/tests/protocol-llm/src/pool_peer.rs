@@ -1,4 +1,4 @@
-//! Shared actual Smith adapter and HTTP/SSE pool peer, with caller-owned virtual time.
+//! Shared observed Smith adapter and HTTP/SSE pool peer, with caller-owned virtual time.
 //! It keeps physical bindings and independent terminal observations, never retry policy.
 //! Contract: domain/session.md, sections 4, 6 and 10; protocol/llm.md, section 6.
 
@@ -8,55 +8,12 @@ use skein_io::{Event as IoEvent, Request as IoRequest};
 use skein_lib::stream::{Down, Read, Up};
 use skein_lib::{Duration, Env, Intake, Queue, Time, Token, Wall};
 use smith_domain::{GrantName, llm, run, tools};
-use smith_protocol_llm::{
-    self as adapter, Component, ComponentLimits, ConfiguredEndpoint, Endpoints, FromDomain, Receiving, ToDomain,
-};
+use smith_protocol_llm::{Component, ComponentLimits, ConfiguredEndpoint, Endpoints, FromDomain, ToDomain};
 
 fn limits() -> ComponentLimits {
-    let client = skein_llm_world::limits();
-    let adapter = adapter::Limits {
-        client,
-        tool_bytes: 32_768,
-        history_bytes: u64::from(client.request),
-        rendered_result: client.strings,
-        stated: crate::adapter::stated(),
-    };
-    let decoded_call_bytes = 4096;
-    ComponentLimits {
-        adapter,
-        connection: skein_llm_connection::Limits {
-            memory: 1 << 40,
-            endpoints: 1,
-            connections: 2,
-            calls: 2,
-            per_endpoint: 2,
-            idle_keep: smith_agent_service::profile::standard().policy.connection_keep,
-            io: skein_io::Limits {
-                sockets: 3,
-                names: 0,
-                refusals: 1,
-                intake: 19_000,
-                receive: 1024,
-                output: 19_000,
-                sends: 2,
-                accepts: 1,
-                backlog: 2,
-                close_timeout: Duration::from_secs(1),
-                retry: Duration::from_millis(10),
-            },
-            tls: skein_tls::client::Limits { read: 4096, send: 4096, records: skein_tls::client::MAX_RECORD },
-        },
-        receiving: Receiving {
-            max_completion_bytes: adapter::completion_bound(&client, decoded_call_bytes).expect("receiving bound"),
-            max_completion_blocks: client.output_items,
-            decoded_call_bytes,
-            max_failure_bytes: client.detail_bytes,
-        },
-        contract_bytes: 4096,
-        llms: 1,
-        accounts: 1,
-        grant_value_bytes: 128,
-    }
+    let mut limits = crate::fixture::component();
+    limits.connection.tls.read = 4096;
+    limits
 }
 
 struct Binding {
@@ -65,7 +22,7 @@ struct Binding {
     response: Intake,
 }
 
-/// The production LLM component, actual physical bindings and observed terminals.
+/// The production LLM component, observed physical bindings and observed terminals.
 pub struct Peer {
     component: Component,
     env: Env<ComponentLimits>,
@@ -74,7 +31,7 @@ pub struct Peer {
     bindings: BTreeMap<Token, Binding>,
     /// Accepted calls have one independently observed terminal, in arrival order.
     pub terminals: Vec<ToDomain>,
-    /// Content actually emitted before a terminal by the component.
+    /// Content emitted before a terminal by the component.
     pub measures: Vec<smith_protocol_llm::Measure>,
     /// Plaintext request bytes independently received on the peer's sockets.
     pub request_bytes: u64,
@@ -89,9 +46,20 @@ impl Peer {
         Self::for_provider(calls, per_endpoint, skein_llm::Provider::OpenAiCodex)
     }
 
-    /// Build the same actual component peer for either wire dialect.
+    /// Build the same observed component peer for either wire dialect.
     #[must_use]
     pub fn for_provider(calls: u32, per_endpoint: u32, provider: skein_llm::Provider) -> Self {
+        Self::for_identity(calls, per_endpoint, provider, smith_protocol_llm::IdentityProfile::Plain)
+    }
+
+    /// Observe the production component's configured provider identity.
+    #[must_use]
+    pub fn for_identity(
+        calls: u32,
+        per_endpoint: u32,
+        provider: skein_llm::Provider,
+        identity: smith_protocol_llm::IdentityProfile,
+    ) -> Self {
         let mut limits = limits();
         limits.connection.calls = calls;
         limits.connection.connections = calls;
@@ -113,7 +81,7 @@ impl Peer {
                         skein_llm::Provider::Anthropic => skein_llm::Endpoint::anthropic(),
                     },
                 },
-                identity: smith_protocol_llm::IdentityProfile::Plain,
+                identity,
                 models: Box::new([]),
             }]),
             limits.connection.endpoints,
@@ -159,12 +127,12 @@ impl Peer {
         self.input = wanted;
     }
 
-    /// Admit one actual call with caller-selected model and whole deadlines.
+    /// Admit one observed call with caller-selected model and whole deadlines.
     pub fn start(&mut self, owner: u64, head: u64, idle: u64, whole: u64) {
         self.start_selected(owner, head, idle, whole, None);
     }
 
-    /// Admit a call whose actual translated content and text deltas are requested.
+    /// Admit a call whose observed translated content and text deltas are requested.
     pub fn start_observed(&mut self, owner: u64, head: u64, idle: u64, whole: u64) {
         self.start_selected(
             owner,
@@ -245,7 +213,7 @@ impl Peer {
         self.pump();
     }
 
-    /// Count actual open socket bindings.
+    /// Count observed open socket bindings.
     #[must_use]
     pub fn connections(&self) -> usize {
         self.bindings.len()
@@ -259,7 +227,7 @@ impl Peer {
                 drain_measures(&mut self.component, &self.env, &mut self.measures, &mut self.above, &mut self.below);
                 match request {
                     IoRequest::Connect { owner, .. } => {
-                        let socket = Token::new(100 + u64::try_from(self.bindings.len()).expect("few bindings"));
+                        let socket = Token::new(100 + skein_lib::len_u64(self.bindings.len()));
                         self.bindings
                             .insert(socket, Binding { owner, read: None, response: Intake::with_capacity(16_384) });
                         self.component.from_below(
@@ -292,7 +260,7 @@ impl Peer {
                             Down::Send(bytes) => {
                                 self.request_bytes = self
                                     .request_bytes
-                                    .checked_add(u64::try_from(bytes.len()).expect("native bounded send length"))
+                                    .checked_add(skein_lib::len_u64(bytes.len()))
                                     .expect("bounded fixture sends");
                             }
                             Down::Finish => {}
@@ -360,7 +328,7 @@ impl Peer {
         self.pump();
     }
 
-    /// Deliver actual HTTP/SSE bytes to a named physical socket.
+    /// Deliver observed HTTP/SSE bytes to a named physical socket.
     pub fn bytes(&mut self, socket: u64, bytes: &[u8]) {
         assert!(
             self.bindings.contains_key(&Token::new(socket)),

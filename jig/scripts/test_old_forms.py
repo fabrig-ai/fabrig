@@ -41,7 +41,8 @@ class OldForms(unittest.TestCase):
             path.write_text(source, encoding="utf-8")
         (root / "scripts").mkdir(exist_ok=True)
         (root / "scripts/old-forms.txt").write_text(
-            HEADER + "".join(f"{form} {count}\n" for form, count in zip(FORMS, counts)),
+            HEADER + "".join(f"{form} {count}\n" for form, count in zip(FORMS, counts))
+            + "comment:actual 0\ncomment:genuine 0\n",
             encoding="utf-8")
         return root
 

@@ -11,7 +11,7 @@ use skein_lib::List;
 pub(super) fn read(store: &mut Store, range: &reads::Range, spent: &mut Spent) -> Result<reads::Loaded, Failure> {
     let intervals = intervals::scope(range.party, &range.scope).ok_or(Failure::Corrupt)?;
     let after = paged::cursor(range, &intervals)?;
-    let walked = pages::walk(store, &intervals, after.as_ref(), spent.rows).ok_or(Failure::Corrupt)?;
+    let walked = pages::reader::walk(store, &intervals, after.as_ref(), spent.rows).or(Err(Failure::Corrupt))?;
     let mut found = List::with_capacity(u32::try_from(walked.rows.len()).or(Err(Failure::Corrupt))?);
     let mut last = range.after.clone();
     for item in walked.rows {

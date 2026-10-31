@@ -160,7 +160,6 @@ impl Referee {
             | root::Delivery::Application { .. }
             | root::Delivery::Projection { .. }
             | root::Delivery::Message { .. }
-            | root::Delivery::Restart(_)
             | root::Delivery::Core(_)
             | root::Delivery::Link { .. }
             | root::Delivery::ProjectMade { .. }
@@ -170,6 +169,7 @@ impl Referee {
             | root::Delivery::Fleet(_)
             | root::Delivery::System { .. }
             | root::Delivery::LostRead { .. }
+            | root::Delivery::Start(_)
             | root::Delivery::Procedure { .. } => {}
         }
     }

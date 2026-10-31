@@ -1,4 +1,4 @@
-//! Scope checks join actual conversation identities and emitted child returns.
+//! Scope checks join conversation identities and emitted child returns.
 //! Prompt tokens are the disjoint input/cache counts; absent values stay unknown
 //! (protocol/events.md, section3.10; benchmarks.md, section11.1).
 
@@ -21,13 +21,13 @@ pub(super) fn prompt_within_window(observer: &Observer) -> Measure<bool> {
             }
             if let Event::ResponseStarted(value) = &record.event {
                 if models.get(&(value.run, value.conversation)) != Some(&&value.model) {
-                    return Measure::unavailable("request model does not match its actual conversation opening");
+                    return Measure::unavailable("request model does not match its conversation opening");
                 }
                 requests.insert((value.run, value.conversation, value.response), value);
             }
             if let Event::ResponseCompleted(value) = &record.event {
                 let Some(request) = requests.get(&(value.run, value.conversation, value.response)) else {
-                    return Measure::unavailable("response lacks its request's actual model window");
+                    return Measure::unavailable("response lacks its request's model window");
                 };
                 if value.outcome == Outcome::Failed && value.blocks == 0
                     && session.records[position + 1..].iter().any(|record| matches!(&record.event,
@@ -80,7 +80,7 @@ pub(super) fn child_share(observer: &Observer, turns_at_most: u32) -> Measure<bo
                 return Measure::Observed { value: false };
             };
             if opening.parent != Some(tool.conversation) || opening.call.as_ref() != Some(&tool.call) {
-                return Measure::unavailable("child return does not match its actual parent call");
+                return Measure::unavailable("child return does not match its parent call");
             }
             let share = opening.share.as_ref().expect("checked effective share");
             measured = true;
@@ -135,11 +135,11 @@ pub(super) fn main_after_child(observer: &Observer) -> Measure<bool> {
             {
                 let child = value.child.as_ref().expect("checked child return");
                 let Some(opening) = children.get(&(value.run, child.conversation)) else {
-                    return Measure::unavailable("child return lacks its actual opening");
+                    return Measure::unavailable("child return lacks its opening");
                 };
                 let opening: &&smith_events::ConversationOpened = opening;
                 if opening.parent != Some(value.conversation) || opening.call.as_ref() != Some(&value.call) {
-                    return Measure::unavailable("child return does not match its actual parent call");
+                    return Measure::unavailable("child return does not match its parent call");
                 }
                 returned_children.insert((value.run, child.conversation));
                 latest_child.insert(value.run, position);

@@ -1,5 +1,5 @@
-//! Queued standard output and observation appends (protocol/programs.md,
-//! section 8; testing.md, section 4), flushed through skein's streams.
+//! Queued standard output and observation appends (smith/docs/design/protocol/programs.md,
+//! section 8; smith/docs/design/testing.md, section 4), flushed through skein's streams.
 
 use std::collections::VecDeque;
 

@@ -1,10 +1,10 @@
-//! Actual root submissions cross the host kit; parent operation, concrete
+//! root submissions cross the host kit; parent operation, concrete
 //! Turn commitment, Send and physical containment have independent rights.
 //! Full Debug payloads are bounded test encodings, not production codecs.
-//! The EOF control stops driving the simulated root after actual process exit:
+//! The EOF control stops driving the simulated root after process exit:
 //! it proves retained parent ownership, never a post-EOF receipt or root Turn.
-//! Contract: domain/run.md, sections 8.2, 10 and 14; domain/host.md, sections 2,
-//! 4, 6 and 9; testing-strategy.md, sections 2.3, 6 and 7.
+//! Contract: smith/docs/design/domain/run.md, sections 8.2, 10 and 13; smith/docs/design/domain/host.md, sections 2,
+//! 4, 6 and 9; skein/docs/foundation/testing-strategy.md, sections 2.3, 6 and 7.
 
 use skein_lib::{Duration, Token};
 use skein_world::domain::Span;
@@ -19,7 +19,7 @@ const FEEDBACK: &[u8] = b"delivered\nreceipt directory=0 text=\"landed\\xff\\x00
 const ID: &[u8] = b"call_0000000000000003";
 
 fn receipt(text: &[u8]) -> host::Delivered {
-    host::Delivered::new(Box::new([host::Receipt::new(0, text.into()).expect("bounded actual parent receipt")]))
+    host::Delivered::new(Box::new([host::Receipt::new(0, text.into()).expect("bounded parent receipt")]))
         .expect("one changed writable directory")
 }
 
@@ -97,7 +97,7 @@ fn forward(agent: &Agent, host: &mut Host, next: &mut usize) {
                 });
                 if *number == 1 {
                     host.event(Input::Parent(parent::Event::Acknowledge { agent: host.agent(), turn: 1 }));
-                    assert!(host.lower.contains(Lower::Send), "actual early ACK send is retained");
+                    assert!(host.lower.contains(Lower::Send), "early ACK send is retained");
                 }
             }
             Seen::Answer { .. }
@@ -121,14 +121,14 @@ fn submitted(agent: &mut Agent, host: &mut Host, next: &mut usize) -> DeliverySu
             break;
         }
     }
-    let [submission] = agent.delivery_submissions() else { panic!("one actual root delivery") };
+    let [submission] = agent.delivery_submissions() else { panic!("one root delivery") };
     assert_eq!(submission.host_run, Token::new(1));
     assert_eq!(submission.name, run::CallName { activation: 1, completion: 2, position: 0 });
     assert!(submission.at < submission.deadline);
     let [field] = submission.change.fields.as_ref() else { panic!("one whole caller field") };
     assert_eq!(field.name.as_ref(), b"ticket");
     assert_eq!(field.value.as_ref(), b"opaque-host-value");
-    assert!(field.value.len() <= 128, "actual charter field cap");
+    assert!(field.value.len() <= 128, "charter field cap");
     assert_eq!(agent.checked(), [true]);
     assert_eq!(agent.code(), b"pub fn answer() -> u32 { 43 }\n");
     let fields = host::Fields::new(submission.change.clone(), 4096).expect("bounded delivery fields");
@@ -157,8 +157,8 @@ fn submitted(agent: &mut Agent, host: &mut Host, next: &mut usize) -> DeliverySu
         "parent Called preserves complete observed scope/name/deadline/fields: {:?}",
         host.trace.lines()
     );
-    assert!(host.seen.calls.contains(&submission.owner), "actual Called owns the parent right");
-    assert!(host.lower.contains(Lower::Send), "earlier actual Turn ACK Send still coexists");
+    assert!(host.seen.calls.contains(&submission.owner), "Called owns the parent right");
+    assert!(host.lower.contains(Lower::Send), "earlier Turn ACK Send still coexists");
     assert!(agent.pushes().is_empty(), "submission never auto-answers the operation");
     submission.clone()
 }
@@ -203,10 +203,7 @@ fn finish_host(host: &mut Host) {
         owner: host.owner(),
         exit: Some(smith_host_domain::Exit::Code(0)),
     }));
-    host.event(Input::Process(process::Event::Reaped {
-        owner: host.owner(),
-        detail: b"actual empty tree".as_slice().into(),
-    }));
+    host.event(Input::Process(process::Event::Reaped { owner: host.owner(), detail: b"empty tree".as_slice().into() }));
     host.event(Input::Process(process::Event::Hangup { owner: host.owner() }));
     assert!(host.seen.exited && host.seen.empty && host.seen.eof);
     assert!(host.seen.gone.is_none(), "the final ACK Send terminal is still owed");
@@ -223,27 +220,24 @@ fn live_story() {
     let mut next = 0;
     let submission = submitted(&mut agent, &mut host, &mut next);
     cancel(&mut agent, &mut host, &submission, &mut next);
-    assert_eq!(
-        agent.return_delivery(Token::new(u64::MAX), run::Delivery::Nothing),
-        Err("no actual parent delivery right")
-    );
+    assert_eq!(agent.return_delivery(Token::new(u64::MAX), run::Delivery::Nothing), Err("no parent delivery right"));
     host.event(Input::Parent(parent::Event::Answer {
         agent: host.agent(),
         call: submission.owner,
         reply: Reply::Delivery(host::Delivery::Delivered(receipt(RECEIPT))),
     }));
-    assert!(host.seen.calls.is_empty(), "only actual parent Reply consumes its operation right");
+    assert!(host.seen.calls.is_empty(), "only parent Reply consumes its operation right");
     let Some(Down::Answer { call, reply: Reply::Delivery(host::Delivery::Delivered(receipts)) }) =
         host.seen.down.last()
     else {
-        panic!("one actual issued delivery response")
+        panic!("one issued delivery response")
     };
     assert_eq!(*call, submission.owner);
     assert_eq!(receipts.receipts()[0].text(), RECEIPT);
     agent
         .return_delivery(*call, run::Delivery::Delivered(root_receipt(receipts)))
-        .expect("actual parent response reaches root");
-    assert_eq!(agent.return_delivery(*call, run::Delivery::Nothing), Err("actual parent terminal is already queued"));
+        .expect("parent response reaches root");
+    assert_eq!(agent.return_delivery(*call, run::Delivery::Nothing), Err("parent terminal is already queued"));
     let mut done = false;
     for _ in 0..2000 {
         done = agent.drive(1);
@@ -255,14 +249,14 @@ fn live_story() {
     assert!(done, "root and all its lower operations settle");
     assert_eq!(agent.delivery_submissions().len(), 1);
     assert_eq!(agent.pushes().len(), 1);
-    assert_eq!(agent.return_delivery(submission.owner, run::Delivery::Nothing), Err("no actual parent delivery right"));
+    assert_eq!(agent.return_delivery(submission.owner, run::Delivery::Nothing), Err("no parent delivery right"));
     let answer = final_answer(&agent);
-    assert!(host.lower.contains(Lower::Send), "actual reply Send remains outstanding through the final Turn");
+    assert!(host.lower.contains(Lower::Send), "reply Send remains outstanding through the final Turn");
     let sends = host.seen.down.len();
     host.event(Input::Parent(parent::Event::Acknowledge { agent: host.agent(), turn: 2 }));
     assert!(host.seen.turns.is_empty(), "parent committed the exact final Turn while the channel listens");
-    assert_eq!(host.seen.down.len(), sends, "final ACK queues behind the actual held reply Send");
-    host.sent(); // Actual reply terminal releases the queued final ACK Send.
+    assert_eq!(host.seen.down.len(), sends, "final ACK queues behind the held reply Send");
+    host.sent(); // reply terminal releases the queued final ACK Send.
     assert_eq!(host.seen.down.len(), sends + 1);
     assert!(matches!(host.seen.down.last(), Some(Down::Acknowledge { turn: 2 })));
     assert!(host.lower.contains(Lower::Send), "issued final ACK Send precedes the last word");
@@ -286,14 +280,11 @@ fn root_submission_parent_right_outlives_exit_tree_eof_without_fabricated_return
         owner: host.owner(),
         exit: Some(smith_host_domain::Exit::Code(0)),
     }));
-    // The simulated root is deliberately never driven again after this actual
+    // The simulated root is deliberately never driven again after this
     // process exit. This branch claims no root terminal or post-EOF Turn.
     assert!(host.seen.withdrawals.contains(&submission.owner));
     assert!(host.seen.calls.contains(&submission.owner));
-    host.event(Input::Process(process::Event::Reaped {
-        owner: host.owner(),
-        detail: b"actual empty tree".as_slice().into(),
-    }));
+    host.event(Input::Process(process::Event::Reaped { owner: host.owner(), detail: b"empty tree".as_slice().into() }));
     host.event(Input::Process(process::Event::Hangup { owner: host.owner() }));
     assert!(host.seen.exited && host.seen.empty && host.seen.eof);
     assert!(host.seen.turns.is_empty() && !host.lower.contains(Lower::Send));

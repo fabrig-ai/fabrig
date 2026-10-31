@@ -22,7 +22,7 @@ pub enum Event {
     Sent { owner: Token },
     /// Terminal of Send; drain what agent already wrote.
     Unsent { owner: Token },
-    /// Terminal of Read; decoded V2 record.
+    /// Terminal of Read; decoded record.
     Received {
         owner: Token,
         /// Bounded agent metadata and payload.
@@ -53,7 +53,6 @@ pub enum Request {
     /// Lower contained process spawn with credential-free environment.
     Spawn {
         owner: Token,
-        /// Optional prepared workspace handle.
         workspace: Option<Token>,
         /// Lower Spawn must settle by this deadline.
         deadline: Time,
@@ -68,12 +67,7 @@ pub enum Request {
     /// Demand one record; exactly one Received/Malformed/Hangup.
     Read { owner: Token, process: Token },
     /// Signal every process-tree member; exactly one Signalled.
-    Signal {
-        owner: Token,
-        process: Token,
-        /// Terminate or Kill.
-        signal: Signal,
-    },
+    Signal { owner: Token, process: Token, signal: Signal },
     /// Wait for main process exit; exactly one Exited.
     Wait { owner: Token, process: Token },
     /// Await empty contained tree after exit; exactly one Reaped.

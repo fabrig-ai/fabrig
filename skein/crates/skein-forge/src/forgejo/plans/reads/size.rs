@@ -1,7 +1,7 @@
 //! The client's allocation measure, accumulated as rows arrive.
 use crate::api;
 fn length(bytes: &[u8]) -> u64 {
-    u64::try_from(bytes.len()).expect("bounded allocation")
+    skein_lib::len_u64(bytes.len())
 }
 fn optional(bytes: Option<&[u8]>) -> u64 {
     match bytes {

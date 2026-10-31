@@ -37,6 +37,7 @@ extern crate alloc;
 mod agent;
 mod boundary;
 mod chat;
+mod child;
 mod choices;
 mod config;
 mod credentials;
@@ -44,6 +45,9 @@ mod delivery;
 mod domain;
 mod end;
 mod facts;
+
+#[cfg(any(test, feature = "fixture"))]
+pub mod fixture;
 mod limits;
 mod long;
 mod person;
@@ -60,8 +64,9 @@ pub use boundary::{
     DeliveryState, Event, ExitStatus, Failure, GitOp, GitResult, IntentDirectory, Notice, Older, Reading, Request,
     StoreFailure, StoreFamily, Undelivered, Warning,
 };
-pub use choices::Slash;
+pub use choices::{ChoiceNotice, Slash};
 pub use config::{Config, Contract, Invalid, Mode, PushTarget, charter};
+pub use delivery::{commit_receipt, delivery_trailer};
 pub use domain::{Domain, fire, resume, step};
 pub use end::EndCause;
 pub use facts::Fact;

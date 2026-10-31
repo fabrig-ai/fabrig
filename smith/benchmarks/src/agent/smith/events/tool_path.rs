@@ -1,4 +1,4 @@
-//! A forced namespace spelling is joined to its actual call terminal.
+//! A forced namespace spelling is joined to its call terminal.
 //! Only captured JSON input and immutable session/run/conversation/call/tool
 //! identity are known. Host aliases and resolved-path metadata are not inferred
 //! (domain/tools.md, section 2; protocol/events.md, section 5).

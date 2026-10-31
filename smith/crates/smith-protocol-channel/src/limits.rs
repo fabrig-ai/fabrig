@@ -1,5 +1,4 @@
 //! Agent-side opening limits (protocol/channel.md, sections 2 and 7).
-use skein_channel::SchemaError;
 
 /// Codec, framing and queue allowances fixed before the channel opens.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -30,75 +29,9 @@ pub struct Limits {
     pub grants: u32,
 }
 
-/// A checked channel cannot be built from the supplied limits.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Error {
-    /// A codec body exceeds the frame range.
-    Codec(smith_channel::Overflow),
-    /// Skein rejected the schema or framing limits.
-    Channel(SchemaError),
-    /// Configured endpoint names exceed their count or byte allowance.
-    Endpoints,
-    /// The accepted result is outside the configured charter codec limits.
-    Result(smith_charter::v4::Problem),
-    /// A bounded result list had no room for a field or item.
-    ResultCapacity,
-    /// A saved answer decodes but fails the domain's sealed result bounds.
-    InvalidSavedAnswer,
-    /// A result or delivery record does not form the concrete typed value.
-    InvalidResult,
-    /// A concrete turn cannot be written to the durable transcript format.
-    Transcript(smith_domain_session::record::Refusal),
-    /// A concrete turn exceeds the transcript codec bounds.
-    TranscriptBody(smith_transcript::v6::Problem),
-    /// The service sent admission or an answer out of order.
-    Order,
-    /// A live host operation name is repeated, unknown, or beyond capacity.
-    Calls,
-    /// The host's outstanding turn or byte window has no remaining credit.
-    Window,
-    /// A credential generation is stale, repeated, or exceeds the table.
-    Grants,
-    /// The measured result did not fit its output writer.
-    ResultWrite(skein_lib::Overflow),
-    /// A domain answer exceeds the configured channel body limits.
-    Answer(smith_channel::v5::Problem),
-    /// A measured application frame could not be built.
-    Frame(skein_channel::FrameError),
-}
-
-impl From<smith_channel::v5::Problem> for Error {
-    fn from(problem: smith_channel::v5::Problem) -> Error {
-        Error::Answer(problem)
-    }
-}
-
-impl From<smith_transcript::v6::Problem> for Error {
-    fn from(problem: smith_transcript::v6::Problem) -> Error {
-        Error::TranscriptBody(problem)
-    }
-}
-
-impl From<skein_channel::FrameError> for Error {
-    fn from(problem: skein_channel::FrameError) -> Error {
-        Error::Frame(problem)
-    }
-}
-
-impl From<smith_charter::v4::Problem> for Error {
-    fn from(problem: smith_charter::v4::Problem) -> Error {
-        Error::Result(problem)
-    }
-}
-
-impl From<skein_lib::Overflow> for Error {
-    fn from(problem: skein_lib::Overflow) -> Error {
-        Error::ResultWrite(problem)
-    }
-}
+pub use smith_protocol_translate::Error;
 
 /// Room a caller keeps at the host-channel edge for one entrance.
-///
 /// At most one owner event and six lower operations fit; past this room the
 /// entrance waits. `send_live` and `offer_fact` count the dropped piece's bytes
 /// or fact instead.
@@ -113,35 +46,17 @@ pub(crate) const EDGE_ROOM: EdgeRoom = EdgeRoom { to_domain: 1, below: 6 };
 
 /// Room a caller keeps at the host-channel edge for one entrance.
 #[must_use]
-pub const fn edge_room(_limits: &Limits) -> EdgeRoom {
+pub const fn edge_room() -> EdgeRoom {
     EDGE_ROOM
 }
 
 /// Whether codec edges and responder capacities fit (programming-model.md, 6.3).
 #[must_use]
-#[expect(clippy::manual_let_else, reason = "programming-model.md, section 10: explicit exhaustive matches")]
 pub fn valid(limits: &Limits) -> bool {
-    let schema = match schema(limits) {
-        Ok(schema) => schema,
-        Err(_) => return false,
+    let Ok(schema) = schema(limits) else {
+        return false;
     };
-    // Skein's channel sum also checks these control-frame and queue capacities.
-    // Check them explicitly rather than probing that heap sum.
-    let terms = match limits.channel.kinds.checked_mul(6) {
-        Some(kinds) => kinds.checked_add(4),
-        None => return false,
-    };
-    let open = limits.channel.credential.checked_add(14);
-    let control = match terms {
-        Some(terms) => match open {
-            Some(open) => terms.max(open).max(262),
-            None => return false,
-        },
-        None => return false,
-    };
-    schema.check(skein_channel::Role::Responder, &limits.channel).is_ok()
-        && limits.channel.output_frames.checked_add(3).is_some()
-        && control.checked_add(8).is_some()
+    skein_channel::valid(&schema, skein_channel::Role::Responder, &limits.channel)
         && start_cells(&limits.bodies).is_some()
         && charter_cells(&limits.charter).is_some()
         && turn_cells(&limits.transcript).is_some()
@@ -164,7 +79,7 @@ pub fn schema_for_start(
         let version = schema.versions.get_mut(version_index).expect("indexed version");
         for kind_index in 0..version.kinds.len() {
             let kind = version.kinds.get_mut(kind_index).expect("indexed kind");
-            if kind.kind == 0x0100 {
+            if kind.kind == smith_channel::kind::START {
                 if start_bytes == 0 || start_bytes > kind.largest {
                     return Err(smith_channel::Overflow::Frame);
                 }

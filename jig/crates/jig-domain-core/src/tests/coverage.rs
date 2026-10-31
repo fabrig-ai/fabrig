@@ -32,6 +32,7 @@ fn roster(core: &mut Core, env: &Env<Limits>, members: &[u64]) {
     limits.people = 3;
     limits.holdings = 3;
     core.people = people::Domain::new(&limits, Box::new([]), core.settings.deployment_provider, Box::new([]));
+    core.people.start_restore(Wall::EPOCH);
     let people_env = Env { now: env.now, wall: env.wall, limits };
     let mut out = Queue::uncapped();
     for party in [ALICE, BOB, SERVICE] {
@@ -56,7 +57,7 @@ fn roster(core: &mut Core, env: &Env<Limits>, members: &[u64]) {
         people::Event::Restore { record: people::Stored::Roles { project: PROJECT, holdings } },
         &mut out,
     );
-    people::step(&mut core.people, &people_env, people::Event::Restored, &mut out);
+    finish_people(&mut core.people, &people_env);
 }
 
 #[test]

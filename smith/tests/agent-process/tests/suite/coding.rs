@@ -2,13 +2,13 @@
 //! simulated time and the fake filesystem, without starting OS processes.
 
 use skein_fake_llm_domain::api;
-use skein_lib::{List, Reader, Writer};
+use skein_lib::List;
 use smith_agent_process_world::{World, charter};
 
 // The end-to-end regression repeats this twenty-byte line 160 times: 3,200
-// content bytes, beyond its former 2,048-byte tool-input bound.
+// content bytes across a 2,048-byte input threshold.
 const CODING_LINES: usize = 160;
-const FORMER_INPUT: usize = 2048;
+const INPUT_THRESHOLD: usize = 2048;
 // Seven provider turns: large write, two reads, edit, replacement, shell, finish.
 const CALLS: usize = 7;
 const OUTPUT: u32 = 32_768;
@@ -17,58 +17,56 @@ const SPEND: u64 = 20;
 
 fn coding_charter() -> Box<[u8]> {
     let limits = &smith_charter::CEILINGS;
-    let mut parts = smith_charter::Charter::decode(limits, &mut Reader::new(&charter())).expect("charter").into_parts();
-    let mut budget = parts.budget.into_parts();
-    budget.turns = u32::try_from(CALLS).expect("coding turns");
-    budget.spend = SPEND;
-    // Standard checks receive five minutes; the charter reserves that inside
-    // a ten-minute virtual run, leaving the model five minutes to work.
-    budget.time = skein_lib::Duration::from_secs(600);
-    budget.reserve = smith_charter::Reserve::new(
-        limits,
-        smith_charter::ReserveParts { turns: 0, time: skein_lib::Duration::from_secs(300) },
-    )
-    .expect("check reserve");
-    parts.budget = smith_charter::Budget::new(limits, budget).expect("coding budget");
-    let mut main = parts.main.into_parts();
-    main.output = OUTPUT;
-    parts.main = smith_charter::Llm::new(limits, main).expect("coding model");
-    let mut tools = parts.tools.into_parts();
-    tools.families =
-        smith_charter::Families::new(limits, smith_charter::FamiliesParts { skein_bools: [true, true, true, false] })
-            .expect("workspace tools");
-    parts.tools = smith_charter::Tools::new(limits, tools).expect("coding tools");
-    let mut contract = parts.contract.into_parts();
-    contract.change = Some(
-        smith_charter::ChangeRule::new(
+    smith_agent_process_world::wire::edit_charter(&charter(), |parts| {
+        let mut budget = parts.budget.clone().into_parts();
+        budget.turns = u32::try_from(CALLS).expect("coding turns");
+        budget.spend = SPEND;
+        // Standard checks receive five minutes; the charter reserves that inside
+        // a ten-minute virtual run, leaving the model five minutes to work.
+        budget.time = skein_lib::Duration::from_secs(600);
+        budget.reserve = smith_charter::Reserve::new(
             limits,
-            smith_charter::ChangeRuleParts { checks_must_pass: true, fields: List::with_capacity(0) },
+            smith_charter::ReserveParts { turns: 0, time: skein_lib::Duration::from_secs(300) },
         )
-        .expect("checked change"),
-    );
-    parts.contract = smith_charter::Contract::new(limits, contract).expect("coding contract");
-    parts.conventions = Some(
-        smith_charter::Conventions::new(
+        .expect("check reserve");
+        parts.budget = smith_charter::Budget::new(limits, budget).expect("coding budget");
+        let mut main = parts.main.clone().into_parts();
+        main.output = OUTPUT;
+        parts.main = smith_charter::Llm::new(limits, main).expect("coding model");
+        let mut tools = parts.tools.clone().into_parts();
+        tools.families = smith_charter::Families::new(
             limits,
-            smith_charter::ConventionsParts {
-                guide: b"AGENTS.md".as_slice().into(),
-                checks: b".smith-test/check".as_slice().into(),
-            },
+            smith_charter::FamiliesParts { skein_bools: [true, true, true, false] },
         )
-        .expect("check convention"),
-    );
-    let charter = smith_charter::Charter::new(limits, parts).expect("coding charter");
-    let mut bytes = Writer::new(usize::try_from(charter.measure()).expect("charter size"));
-    charter.encode(&mut bytes).expect("charter bytes");
-    bytes.finish()
+        .expect("workspace tools");
+        parts.tools = smith_charter::Tools::new(limits, tools).expect("coding tools");
+        let mut contract = parts.contract.clone().into_parts();
+        contract.change = Some(
+            smith_charter::ChangeRule::new(
+                limits,
+                smith_charter::ChangeRuleParts { checks_must_pass: true, fields: List::with_capacity(0) },
+            )
+            .expect("checked change"),
+        );
+        parts.contract = smith_charter::Contract::new(limits, contract).expect("coding contract");
+        parts.conventions = Some(
+            smith_charter::Conventions::new(
+                limits,
+                smith_charter::ConventionsParts {
+                    guide: b"AGENTS.md".as_slice().into(),
+                    checks: b".smith-test/check".as_slice().into(),
+                },
+            )
+            .expect("check convention"),
+        );
+    })
 }
 
-/// Lower test of smith's `end_to_end::standard_profile_runs_a_large_coding_write_and_the_following_checks` (top tiers test wiring only).
 #[test]
 fn a_standard_coding_write_reaches_following_calls_and_checks() {
     let content = "// coding regression\n".repeat(CODING_LINES);
     let large = serde_json::to_vec(&serde_json::json!({"path":"result.txt", "content":content})).expect("write input");
-    assert!(large.len() > FORMER_INPUT, "the regression crosses the former input bound");
+    assert!(large.len() > INPUT_THRESHOLD, "the write crosses the input threshold");
     let mut calls = vec![(b"write".as_slice(), large)];
     calls.extend(
         [
@@ -87,10 +85,11 @@ fn a_standard_coding_write_reaches_following_calls_and_checks() {
     world.script(
         calls
             .into_iter()
-            .map(|(name, arguments)| api::Turn {
-                lines: Box::new([api::Line::Call { name: name.into(), arguments: arguments.into() }]),
-                finish: api::Finish::ToolCalls,
-                tokens: 1,
+            .map(|(name, arguments)| {
+                smith_agent_world::fixture::calls(
+                    Box::new([api::Line::Call { name: name.into(), arguments: arguments.into() }]),
+                    1,
+                )
             })
             .collect(),
     );

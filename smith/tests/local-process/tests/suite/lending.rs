@@ -1,7 +1,5 @@
-use smith_local_process_world::{
-    Files, Lending, World,
-    referee::{Ending, review},
-};
+use smith_local_process_world::fixture::contains;
+use smith_local_process_world::{Files, Lending, World, referee::Ending};
 
 #[test]
 fn an_env_account_lends_its_variable() {
@@ -9,7 +7,7 @@ fn an_env_account_lends_its_variable() {
     let mut world = World::lending(44, &files, Lending::Env);
     world.settle();
     assert!(!world.queries().is_empty(), "the inherited variable's value reaches the provider");
-    review(&world.seen(), &world, Ending::Report(b"First answer".to_vec())).assert_passed(44);
+    world.assert_ended(Ending::Report(b"First answer".to_vec()));
 }
 
 #[test]
@@ -18,6 +16,6 @@ fn a_key_account_lends_its_key_to_the_run() {
     let mut world = World::lending(45, &files, Lending::Key);
     world.settle();
     assert!(!world.queries().is_empty(), "the key grant reaches the provider");
-    assert!(!world.shown().windows(b"key-for-work".len()).any(|bytes| bytes == b"key-for-work"), "no key in output");
-    review(&world.seen(), &world, Ending::Report(b"First answer".to_vec())).assert_passed(45);
+    assert!(!contains(world.shown(), b"key-for-work"), "no key in output");
+    world.assert_ended(Ending::Report(b"First answer".to_vec()));
 }

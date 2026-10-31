@@ -126,9 +126,9 @@ fn twice_released(words: Option<&[u8]>) -> (Driver, u64) {
     (driver, task)
 }
 
-fn cold(driver: Driver) -> Driver {
+fn cold(mut driver: Driver) -> Driver {
     let ([_, configuration], bounds) = settings();
-    let mut restarted = Driver::cold(driver.store, configuration, &bounds);
+    let mut restarted = Driver::cold(driver.take_store(), configuration, &bounds);
     restarted.pump();
     restarted
 }
@@ -138,7 +138,7 @@ fn messaged_released_amended_delegate_survives_cold_restart() {
     let (mut driver, task) = twice_released(Some(WORDS));
     amend_model(&mut driver, task);
     let restarted = cold(driver);
-    assert!(restarted.root.ready(), "cold restore refused: {:?}", restarted.root.restore_failure());
+    assert!(restarted.root.ready(), "cold restore refused: {:?}", restarted.root.start_stop());
 }
 
 #[test]
@@ -150,7 +150,7 @@ fn person_messaged_delegate_survives_cold_restart() {
     assert!(
         restarted.root.ready(),
         "Live({task}) inbox word {message} from Person({OWNER}), requester {requester:?}: {:?}",
-        restarted.root.restore_failure()
+        restarted.root.start_stop()
     );
 }
 
@@ -159,7 +159,7 @@ fn unmessaged_released_amended_delegate_survives_cold_restart() {
     let (mut driver, task) = twice_released(None);
     amend_model(&mut driver, task);
     let restarted = cold(driver);
-    assert!(restarted.root.ready(), "cold restore refused: {:?}", restarted.root.restore_failure());
+    assert!(restarted.root.ready(), "cold restore refused: {:?}", restarted.root.start_stop());
 }
 
 #[test]
@@ -167,7 +167,7 @@ fn unmessaged_held_delegate_survives_cold_restart() {
     let (mut driver, task) = delegate();
     hold(&mut driver, task);
     let restarted = cold(driver);
-    assert!(restarted.root.ready(), "cold restore refused: {:?}", restarted.root.restore_failure());
+    assert!(restarted.root.ready(), "cold restore refused: {:?}", restarted.root.start_stop());
 }
 
 #[test]

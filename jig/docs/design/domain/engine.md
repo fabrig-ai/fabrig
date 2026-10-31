@@ -520,7 +520,7 @@ binary's patch levels before the root starts (`../protocol/store.md`,
 generation `active` names: the store's open answers that a generation
 is pending, and the script asks, after the connectors' records (step
 2) and before the runs adopted (step 3), for one step more,
-`RestartStep::Switch`, which the root serves by asking the store to
+`Phase::Switch`, which the root serves by asking the store to
 switch. Every engine's start takes that step, pending or not (a worker
 alone keeps no store): once the store is
 active the root commits the start's wires (`../protocol/store.md`, 5.3),
@@ -533,9 +533,8 @@ adopted or placed, no connector reads or writes its system
 (`../protocol/store.md`, 10.2, step 7). So the restores load and link
 before the switch, and what acts on a record comes after it: the tasks
 child's links of its live tasks (stubs, writers, waits and funders),
-which adopting the runs needs, are a step of their own,
-`RestartStep::Check`, the last of the link pass, just before the
-switch, and step 3 adopts. The
+which adopting the runs needs, are made at `Phase::Link`, the link
+pass, before the sweep and the switch, and step 3 adopts. The
 mark is a root decision carrying the store's `Write::Wires`, and the
 store opens its secrets' gate on it. The fleet's checks of a host's
 programs, which read what a worker reports and start nothing, may go
@@ -611,13 +610,35 @@ claim crossed, so the restart restores the windows closed, adopts no
 crossed claim (step 3), and each task's next attempt starts fresh
 (7.2).
 
-`RestartRequest::ProjectPolicy { project: u32 }` names a saved project
-policy whose byte size exceeds `limits.policy_bytes` or cannot be
-accounted. `Core::restore_policy` keeps its boolean result, records this
-refusal and stops the restart. `Core::restore_failure(&self) -> Option<RestartRequest>` reports either
-this refusal or the existing
-`Settings { failure, changed }` detail from one private slot. A later
-`restart_refuse` retains it, and `restart_done` returns it without advancing.
+**The start's interface** (`jig_domain_core::start`). The root drives
+the start; the core owns its order. `Core::start_begin(pending, at)`
+takes the store's pending flag and the start's time; the core then
+answers `Action::Step(phase)` for each `Phase` in turn: `LoadCore`,
+`LoadInbox`, `RestoreConnector { connector }` for each connector,
+`Link`, `Sweep`, `Switch`, `Wires`, `AdoptRuns`, then `ReadAfresh` and
+`SettleOutbox` for each connector, and `Open`. The root serves the
+phase and reports it with `start_done(env, phase, out)`, and gives the
+sweep its people rows with `start_sweep(env, SweepInput, out)`; it never
+picks a successor. `Action::Commit(continuation)` asks the root to put
+the writes the core pushed and the `Continuation` in one decision, and
+to call `start_resume` once that decision is released; a cold restart
+drops a held continuation with the rest of the volatile state, and a
+stale one is an assertion. `Wires` always answers a commit, so nothing
+leaves the process before the start's mark is durable. A row whose owner
+is missing reaches the core as `start_missing(record, target)`, a
+panic at the link naming both keys. `Action::Refused(failure)` stops
+the start, `start_phase()` naming the phase: a `start::Failure` is the
+store against the configuration, never a record judged: `Settings`,
+`ProjectPolicy { project }` (a saved policy past `limits.policy_bytes`
+or that cannot be accounted), `HeldPastLimit`, `AccountsPastLimit`,
+`LiveSet { set, key, held, limit }` (a live set past its limit, `set` a
+`LiveSet`), `Accounting` and `LlmChoice`, each reached by a test from a
+stored record. `Action::Idle` follows `Open`, and `start_opened()` says
+decisions are open. The store's side is `Store::start_restore()` before
+its open, then typed pages, `Event::Page` and `Event::PageRefused`
+(`../protocol/store.md`, 7.1); a refused page, like an open refused or a
+connector's own fit, is the application's cause and is never turned
+into a `start::Failure`.
 
 ### 6.1 Stopping
 

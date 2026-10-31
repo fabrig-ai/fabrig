@@ -4,8 +4,8 @@ use std::os::unix::fs::PermissionsExt;
 
 #[test]
 fn host_id_is_drawn_once() {
-    let files = Files::new();
-    let directory = Directory::from_base(files.0.join("installation")).unwrap();
+    let files = Files::new("smith-credentials");
+    let directory = Directory::from_base(files.path().join("installation")).unwrap();
     let first = read_or_draw(&directory, &[3; 32]).unwrap();
     let second = read_or_draw(&directory, &[4; 32]).unwrap();
     assert_eq!(first, second);
@@ -15,8 +15,8 @@ fn host_id_is_drawn_once() {
 
 #[test]
 fn a_malformed_host_id_is_kept() {
-    let files = Files::new();
-    let directory = Directory::from_base(files.0.join("installation")).unwrap();
+    let files = Files::new("smith-credentials");
+    let directory = Directory::from_base(files.path().join("installation")).unwrap();
     std::fs::create_dir(directory.host_id().parent().unwrap()).unwrap();
     std::fs::write(directory.host_id(), b"not-a-uuid").unwrap();
     std::fs::set_permissions(directory.host_id(), std::fs::Permissions::from_mode(0o600)).unwrap();

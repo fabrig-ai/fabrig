@@ -1,5 +1,5 @@
 //! Per-block rendered bytes and token ratios, retained while a window extends.
-//! Contract: domain/session.md, section 10.
+//! Contract: smith/docs/design/domain/session.md, section 10.
 
 use skein_fake_llm_domain::api::{Part, Query, Usage};
 use skein_lib::Rng;

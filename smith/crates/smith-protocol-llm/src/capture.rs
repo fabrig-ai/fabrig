@@ -1,4 +1,4 @@
-//! Content as translated for the actual provider request and received completion.
+//! Content as translated for the observed provider request and received completion.
 //! No replay envelope or credential enters an observation. The caller supplies
 //! the bounded conversation cursor; `prompt` copies only the new part, and
 //! `completion` preserves provider block order before policy decoding replaces
@@ -7,7 +7,6 @@
 use alloc::boxed::Box;
 
 use skein_lib::{List, Time, Token};
-use skein_llm as shared;
 use smith_events::{Block, Completion, Message, Prompt, Role};
 
 use crate::Error;
@@ -24,9 +23,9 @@ pub struct Observation {
 /// A bounded protocol observation, drained by the service before its terminal.
 #[derive(Debug)]
 pub enum Measure {
-    /// The actual translated request's new part, before the connection consumes it.
+    /// The observed translated request's new part, before the connection consumes it.
     Prompt { at: Time, owner: Token, prompt: Prompt },
-    /// The provider's completion before application decoding replaces cut inputs.
+    /// The provider's completion before tool decoding replaces cut inputs.
     Completion { at: Time, owner: Token, completion: Completion },
     /// A text or refusal piece; the service joins its request's response identity.
     Delta { at: Time, owner: Token, block: u32, text: Box<[u8]> },
@@ -41,9 +40,9 @@ pub enum Measure {
 }
 
 pub(crate) fn prompt(
-    input: &shared::Prompt,
+    input: &skein_llm::Prompt,
     observation: Observation,
-    limits: &shared::client::Limits,
+    limits: &skein_llm::client::Limits,
 ) -> Result<Prompt, Error> {
     let (system, tools) = if observation.first {
         let mut tools = List::with_capacity(u32::try_from(input.tools.len()).or(Err(Error::Limit))?);
@@ -59,45 +58,48 @@ pub(crate) fn prompt(
     let mut messages = List::with_capacity(u32::try_from(appended.len()).or(Err(Error::Limit))?);
     for message in appended {
         let role = match message.role {
-            shared::Role::User => Role::User,
-            shared::Role::Assistant => Role::Assistant,
+            skein_llm::Role::User => Role::User,
+            skein_llm::Role::Assistant => Role::Assistant,
         };
         messages.push(Message { role, blocks: blocks(&message.content, limits)? }).expect("admitted new part");
     }
     Ok(Prompt { system, tools, messages })
 }
 
-pub(crate) fn completion(input: &shared::Completion, limits: &shared::client::Limits) -> Result<Completion, Error> {
+pub(crate) fn completion(
+    input: &skein_llm::Completion,
+    limits: &skein_llm::client::Limits,
+) -> Result<Completion, Error> {
     Ok(Completion { blocks: blocks(&input.content, limits)? })
 }
 
-fn blocks(input: &[shared::Block], limits: &shared::client::Limits) -> Result<List<Block>, Error> {
+fn blocks(input: &[skein_llm::Block], limits: &skein_llm::client::Limits) -> Result<List<Block>, Error> {
     let mut output = List::with_capacity(u32::try_from(input.len()).or(Err(Error::Limit))?);
     for block in input {
         let observed = match block {
-            shared::Block::Text { text, replay: _ } => Block::Text { text: text.clone() },
-            shared::Block::Refusal { text, replay: _ } => Block::Refusal { text: text.clone() },
-            shared::Block::ToolCall { id, name, arguments, replay: _ } => {
+            skein_llm::Block::Text { text, replay: _ } => Block::Text { text: text.clone() },
+            skein_llm::Block::Refusal { text, replay: _ } => Block::Refusal { text: text.clone() },
+            skein_llm::Block::ToolCall { id, name, arguments, replay: _ } => {
                 Block::Call { call: id.clone(), tool: name.clone(), input: arguments.clone() }
             }
-            shared::Block::Oversize { id, name, bytes } => {
+            skein_llm::Block::Oversize { id, name, bytes } => {
                 Block::Oversized { call: id.clone(), tool: name.clone(), bytes: *bytes }
             }
-            shared::Block::Cut { id, name, arguments } => {
+            skein_llm::Block::Cut { id, name, arguments } => {
                 Block::Cut { call: id.clone(), tool: name.clone(), input: arguments.clone() }
             }
-            shared::Block::ToolResult { id, text, is_error } => {
+            skein_llm::Block::ToolResult { id, text, is_error } => {
                 Block::Result { call: id.clone(), error: *is_error, text: text.clone() }
             }
-            shared::Block::Reasoning { replay } => {
+            skein_llm::Block::Reasoning { replay } => {
                 let replay_limits = crate::limits::replay_limits(limits).ok_or(Error::Limit)?;
                 let encoded = match replay.to_bytes(&replay_limits) {
                     Ok(encoded) => encoded,
-                    Err(error) => return Err(Error::from_shared(error)),
+                    Err(error) => return Err(Error::from_client(error)),
                 };
                 Block::Opaque { bytes: u64::try_from(encoded.len()).or(Err(Error::Limit))? }
             }
-            shared::Block::Dropped { bytes } => Block::Opaque { bytes: *bytes },
+            skein_llm::Block::Dropped { bytes } => Block::Opaque { bytes: *bytes },
         };
         output.push(observed).expect("one observation per admitted block");
     }
@@ -106,27 +108,25 @@ fn blocks(input: &[shared::Block], limits: &shared::client::Limits) -> Result<Li
 
 #[cfg(test)]
 mod tests {
-    #![allow(
-        clippy::disallowed_macros,
-        clippy::disallowed_types,
-        clippy::disallowed_methods,
-        reason = "programming-model.md section 10.2: deterministic translation harnesses use ordinary Rust"
-    )]
 
     use super::*;
 
     #[test]
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "deterministic test fixtures use ordinary Rust parsing and containers"
+    )]
     fn typed_prompt_capture_preserves_text_and_tool_input_without_a_credential() {
-        let input = shared::Prompt {
+        let input = skein_llm::Prompt {
             model: b"model".to_vec().into(),
             instructions: b"system instructions".to_vec().into(),
             tools: Box::new([]),
-            choice: shared::ToolChoice::Auto,
-            messages: Box::new([shared::Message {
-                role: shared::Role::User,
+            choice: skein_llm::ToolChoice::Auto,
+            messages: Box::new([skein_llm::Message {
+                role: skein_llm::Role::User,
                 content: Box::new([
-                    shared::Block::Text { text: b"request".to_vec().into(), replay: None },
-                    shared::Block::ToolCall {
+                    skein_llm::Block::Text { text: b"request".to_vec().into(), replay: None },
+                    skein_llm::Block::ToolCall {
                         id: b"id".to_vec().into(),
                         name: b"inspect".to_vec().into(),
                         arguments: b"input".to_vec().into(),
@@ -142,9 +142,9 @@ mod tests {
             .expect("bounded translated prompt");
         assert_eq!(captured.system.as_deref(), Some(b"system instructions".as_slice()));
         assert_eq!(captured.tools.expect("first request carries its names").len(), 0);
-        assert_eq!(captured.messages.get(0).expect("actual task").role, Role::User);
+        assert_eq!(captured.messages.get(0).expect("observed task").role, Role::User);
         assert_eq!(
-            captured.messages.get(0).expect("actual task").blocks.as_slice(),
+            captured.messages.get(0).expect("observed task").blocks.as_slice(),
             &[
                 Block::Text { text: b"request".to_vec().into() },
                 Block::Call {
@@ -157,24 +157,29 @@ mod tests {
     }
 
     #[test]
+    #[expect(
+        clippy::disallowed_macros,
+        clippy::disallowed_methods,
+        reason = "deterministic test fixtures use ordinary Rust parsing and containers"
+    )]
     fn completed_content_preserves_cut_arguments_and_provider_block_order() {
-        let input = shared::Completion {
+        let input = skein_llm::Completion {
             content: vec![
-                shared::Block::Text { text: b"first".to_vec().into(), replay: None },
-                shared::Block::Cut {
+                skein_llm::Block::Text { text: b"first".to_vec().into(), replay: None },
+                skein_llm::Block::Cut {
                     id: b"cut".to_vec().into(),
                     name: b"shell".to_vec().into(),
                     arguments: b"{\"command\":".to_vec().into(),
                 },
-                shared::Block::Oversize { id: b"big".to_vec().into(), name: b"write".to_vec().into(), bytes: 8193 },
-                shared::Block::Dropped { bytes: 65537 },
-                shared::Block::Refusal { text: b"last".to_vec().into(), replay: None },
+                skein_llm::Block::Oversize { id: b"big".to_vec().into(), name: b"write".to_vec().into(), bytes: 8193 },
+                skein_llm::Block::Dropped { bytes: 65537 },
+                skein_llm::Block::Refusal { text: b"last".to_vec().into(), replay: None },
             ]
             .into_boxed_slice(),
-            stop: shared::Stop::MaxTokens,
-            usage: shared::Usage { input: None, output: None, cache_read: None, cache_write: None, reasoning: None },
+            stop: skein_llm::Stop::MaxTokens,
+            usage: skein_llm::Usage { input: None, output: None, cache_read: None, cache_write: None, reasoning: None },
         };
-        let observed = completion(&input, &skein_llm_world::limits()).unwrap();
+        let observed = completion(&input, &skein_llm_world::limits()).expect("valid deterministic fixture");
         assert_eq!(
             observed.blocks.as_slice(),
             &[
@@ -192,15 +197,20 @@ mod tests {
     }
 
     #[test]
+    #[expect(
+        clippy::disallowed_macros,
+        clippy::disallowed_methods,
+        reason = "deterministic test fixtures use ordinary Rust parsing and containers"
+    )]
     fn request_new_parts_omit_previous_completions_and_retries_are_empty() {
-        let mut input = shared::Prompt {
+        let mut input = skein_llm::Prompt {
             model: b"model".to_vec().into(),
-            instructions: b"actual system".to_vec().into(),
+            instructions: b"observed system".to_vec().into(),
             tools: Box::new([]),
-            choice: shared::ToolChoice::Auto,
-            messages: vec![shared::Message {
-                role: shared::Role::User,
-                content: vec![shared::Block::Text { text: b"task".to_vec().into(), replay: None }].into(),
+            choice: skein_llm::ToolChoice::Auto,
+            messages: vec![skein_llm::Message {
+                role: skein_llm::Role::User,
+                content: vec![skein_llm::Block::Text { text: b"task".to_vec().into(), replay: None }].into(),
             }]
             .into(),
             reasoning_effort: None,
@@ -208,27 +218,32 @@ mod tests {
             max_output_tokens: None,
         };
         let limits = skein_llm_world::limits();
-        let first = prompt(&input, Observation { first: true, messages: 0 }, &limits).unwrap();
-        assert_eq!(first.system.as_deref(), Some(b"actual system".as_slice()));
-        assert_eq!(first.tools.unwrap().len(), 0);
+        let first =
+            prompt(&input, Observation { first: true, messages: 0 }, &limits).expect("valid deterministic fixture");
+        assert_eq!(first.system.as_deref(), Some(b"observed system".as_slice()));
+        assert_eq!(first.tools.expect("valid deterministic fixture").len(), 0);
         assert_eq!(first.messages.len(), 1);
         let mut messages = input.messages.to_vec();
-        messages.push(shared::Message {
-            role: shared::Role::Assistant,
-            content: vec![shared::Block::Text { text: b"already in response.completed".to_vec().into(), replay: None }]
-                .into(),
+        messages.push(skein_llm::Message {
+            role: skein_llm::Role::Assistant,
+            content: vec![skein_llm::Block::Text {
+                text: b"already in response.completed".to_vec().into(),
+                replay: None,
+            }]
+            .into(),
         });
-        messages.push(shared::Message {
-            role: shared::Role::User,
-            content: vec![shared::Block::ToolResult {
+        messages.push(skein_llm::Message {
+            role: skein_llm::Role::User,
+            content: vec![skein_llm::Block::ToolResult {
                 id: b"call".to_vec().into(),
-                text: b"actual rendered result [cut]".to_vec().into(),
+                text: b"observed rendered result [cut]".to_vec().into(),
                 is_error: true,
             }]
             .into(),
         });
         input.messages = messages.into();
-        let next = prompt(&input, Observation { first: false, messages: 2 }, &limits).unwrap();
+        let next =
+            prompt(&input, Observation { first: false, messages: 2 }, &limits).expect("valid deterministic fixture");
         assert_eq!(next.system, None);
         assert_eq!(next.tools, None);
         assert_eq!(
@@ -241,14 +256,15 @@ mod tests {
                         .push(Block::Result {
                             call: b"call".to_vec().into(),
                             error: true,
-                            text: b"actual rendered result [cut]".to_vec().into(),
+                            text: b"observed rendered result [cut]".to_vec().into(),
                         })
-                        .unwrap();
+                        .expect("valid deterministic fixture");
                     blocks
                 }
             }]
         );
-        let retry = prompt(&input, Observation { first: false, messages: 3 }, &limits).unwrap();
+        let retry =
+            prompt(&input, Observation { first: false, messages: 3 }, &limits).expect("valid deterministic fixture");
         assert!(retry.messages.is_empty());
         assert_eq!(retry.system, None);
         assert_eq!(retry.tools, None);

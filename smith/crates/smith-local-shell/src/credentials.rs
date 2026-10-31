@@ -1,10 +1,12 @@
 //! Credential source inspection for startup and check (shell.md, section 7).
 //! Reports retain names, locations and expiry only. Login bytes and variable
 //! values leave this module only for the service's credential storage.
-use crate::settings::{self, Sourced};
+pub(crate) const PROGRAM_SOCKETS: u32 = 3;
+
+use crate::settings;
 use skein_lib::Wall;
 use smith_local_protocol::Borrowed;
-use std::{collections::BTreeMap, path::PathBuf};
+use std::path::PathBuf;
 
 pub(crate) mod account_report;
 mod directory;
@@ -23,7 +25,7 @@ pub(crate) use account_report::unused_warnings;
 pub use account_report::{AccountReport, Kept, report};
 pub use directory::Directory;
 pub use key::KeyProblem;
-pub use login::{Environment, LoginOutcome, command, credential_words};
+pub use login::{Environment, LoginOutcome, command};
 pub use product::{Location, Prepared, limits, prepare, record_generation};
 pub(crate) use product::{codex as product_codex, status_words};
 use program_check::ProgramStates;
@@ -158,51 +160,34 @@ impl std::fmt::Debug for Source {
 }
 
 /// Resolve one account descriptor without exposing a variable's value.
-#[must_use]
-pub fn source(
-    fields: &BTreeMap<String, Sourced>,
-    _settings: &settings::Settings,
-    codex: bool,
-    name: &str,
-    directory: Option<&Directory>,
-) -> Source {
+pub fn source(account: &Account, codex: bool, directory: Option<&Directory>) -> Result<Source, Credential> {
+    use settings::resolve::{AccountSource, Provider};
+    let fields = &account.fields;
+    let name = &account.name;
     let text = |key: &str| fields.get(key).and_then(|field| field.value.as_str()).unwrap_or_default();
-    match text("source") {
-        "env" => Source::Env { variable: text("variable").into(), codex },
-        "key" => Source::Key {
-            file: directory.map_or_else(|| PathBuf::from("missing-key"), |directory| directory.key(name)),
-        },
-        "program" => Source::Program { name: name.into() },
-        "none" => Source::Nothing,
-        _ => {
-            let required_scopes = if text("provider") == "openai" {
-                registration::openai("", None, &registration::Moved::default())
-                    .terms
-                    .and_then(|terms| terms.required_scopes)
+    Ok(match account.source() {
+        AccountSource::Env => Source::Env { variable: text("variable").into(), codex },
+        AccountSource::Key => Source::Key { file: directory.ok_or(Credential::NotSignedIn)?.key(name) },
+        AccountSource::Program => Source::Program { name: name.into() },
+        AccountSource::Nothing => Source::Nothing,
+        AccountSource::SignIn | AccountSource::Unspecified => {
+            let required_scopes = if account.provider() == Some(Provider::OpenAi) {
+                Some(registration::REQUIRED_SCOPE.into())
             } else {
                 None
             };
-            Source::SignIn {
-                required_scopes,
-                file: directory.map_or_else(|| PathBuf::from("missing-token"), |directory| directory.token(name)),
-            }
+            Source::SignIn { required_scopes, file: directory.ok_or(Credential::NotSignedIn)?.token(name) }
         }
-    }
+    })
 }
 
 /// Read the startup credential once, with clock data supplied by the shell.
 #[must_use]
 pub fn inspect(source: &Source, wall: Wall, programs: &ProgramStates) -> Credential {
     match source {
-        Source::Env { variable, codex } => match environment(variable, *codex, wall) {
-            Some(value) if value.record.remaining(wall) > skein_lib::Duration::ZERO => {
-                Credential::Usable { until: (*codex).then_some(value.record.expires_at.as_nanos()) }
-            }
-            Some(value) => {
-                Credential::ExpiredVariable { at: value.record.expires_at.as_nanos(), variable: variable.clone() }
-            }
-            None => Credential::Unset { variable: variable.clone() },
-        },
+        Source::Env { variable, codex } => {
+            env_state(variable, environment(variable, *codex, wall).as_ref(), *codex, wall)
+        }
         Source::SignIn { file, required_scopes } => sign_in::inspect(file, wall, required_scopes.as_deref()),
         Source::Key { file } => key::inspect(file),
         Source::Program { name } => programs.get(name).cloned().unwrap_or_else(|| Credential::ProgramFailed {
@@ -210,6 +195,25 @@ pub fn inspect(source: &Source, wall: Wall, programs: &ProgramStates) -> Credent
             detail: "not checked".into(),
         }),
         Source::Nothing => Credential::Usable { until: None },
+    }
+}
+
+pub(super) fn env_state(variable: &str, value: Option<&Borrowed>, codex: bool, wall: Wall) -> Credential {
+    match value {
+        Some(value) if value.record.remaining(wall) > skein_lib::Duration::ZERO => {
+            Credential::Usable { until: codex.then_some(value.record.expires_at.as_nanos()) }
+        }
+        Some(value) => {
+            Credential::ExpiredVariable { at: value.record.expires_at.as_nanos(), variable: variable.into() }
+        }
+        None => Credential::Unset { variable: variable.into() },
+    }
+}
+
+pub(super) fn codex_selector() -> skein_oauth::ClaimSelector {
+    skein_oauth::ClaimSelector {
+        object: b"https://api.openai.com/auth".as_slice().into(),
+        field: b"chatgpt_account_id".as_slice().into(),
     }
 }
 
@@ -227,11 +231,7 @@ pub fn env_record(value: &[u8], codex: bool, wall: Wall) -> Option<Borrowed> {
         return None;
     }
     let (account_id, expires_at) = if codex {
-        let selector = skein_oauth::ClaimSelector {
-            object: b"https://api.openai.com/auth".as_slice().into(),
-            field: b"chatgpt_account_id".as_slice().into(),
-        };
-        let claims = skein_oauth::read_claims(value, &selector, wall, &crate::local_host::token_limits()).ok()?;
+        let claims = skein_oauth::read_claims(value, &codex_selector(), wall, &token_limits()).ok()?;
         if claims.metadata.is_empty() || claims.metadata.len() > smith_local_service::Source::account_id_bytes() {
             return None;
         }
@@ -260,8 +260,7 @@ pub fn env_record(value: &[u8], codex: bool, wall: Wall) -> Option<Borrowed> {
 
 pub(crate) fn valid_key(value: &[u8]) -> bool {
     !value.is_empty()
-        && u64::try_from(value.len()).expect("key length fits u64")
-            <= u64::from(crate::local_host::token_limits().token_bytes)
+        && skein_lib::len_u64(value.len()) <= u64::from(token_limits().token_bytes)
         && value.iter().all(|byte| (0x21..=0x7e).contains(byte))
 }
 
@@ -299,3 +298,22 @@ pub(crate) mod tests;
 
 #[cfg(test)]
 mod state_tests;
+
+/// Bounded saved-token documents shared by both placements and the shell store.
+#[must_use]
+pub fn token_limits() -> skein_oauth::Limits {
+    skein_oauth::Limits {
+        issued_client_bytes: 0,
+        granted_bytes: 1024,
+        subject_bytes: 0,
+        id_token_bytes: 8192,
+        document_bytes: 16_384,
+        string_bytes: 8192,
+        token_bytes: 8192,
+        client_bytes: 1024,
+        detail_bytes: 1024,
+        record_bytes: 32_768,
+        depth: 16,
+        tokens: 1024,
+    }
+}

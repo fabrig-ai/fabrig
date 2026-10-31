@@ -129,7 +129,7 @@ fn the_denials_use_the_workspace_words() {
                 .starts_with(prefix)
         );
     }
-    let backend = super::super::lifecycle_tests::backend();
+    let backend = super::super::fixtures::backend();
     for (problem, prefix) in [
         (llm::Problem::Missing { field: b"file_path".as_slice().into() }, MISSING),
         (llm::Problem::WrongType { field: b"file_path".as_slice().into() }, WRONG_TYPE),
@@ -140,8 +140,10 @@ fn the_denials_use_the_workspace_words() {
             llm::Returned::Text { text: json::join(&[prefix, b"\"file_path\""]), error: true, replay: None },
         );
         assert_eq!(
-            smith_protocol_llm::prompt(denied, &[], &backend.settings.adapter).expect("rendered invalid input"),
-            smith_protocol_llm::prompt(expected, &[], &backend.settings.adapter).expect("rendered denial words")
+            smith_protocol_llm::fixture::prompt(denied, &[], &backend.settings.adapter)
+                .expect("rendered invalid input"),
+            smith_protocol_llm::fixture::prompt(expected, &[], &backend.settings.adapter)
+                .expect("rendered denial words")
         );
     }
 }
@@ -160,8 +162,7 @@ fn same(left: mcp::Verdict, right: mcp::Verdict) {
 }
 
 fn result_prompt(backend: &super::super::Backend, result: llm::Returned) -> llm::Prompt {
-    let smith_protocol_llm::FromDomain::Complete { mut prompt, .. } = super::super::lifecycle_tests::request(backend)
-    else {
+    let smith_protocol_llm::FromDomain::Complete { mut prompt, .. } = super::super::fixtures::request(backend) else {
         panic!("Complete")
     };
     prompt.messages = Box::new([llm::Message {

@@ -961,7 +961,7 @@ fn separate_opaque_tool_ids_each_obey_string_and_joint_answer_caps() {
             name: owned(b"read"),
             input: owned(b"{}"),
             too_large: false,
-            bytes: u64::try_from(owned(b"{}").len()).expect("slice length fits u64"),
+            bytes: skein_lib::len_u64(owned(b"{}").len()),
             cut: false,
         })
     );
@@ -1100,7 +1100,7 @@ fn escaped_argument_text_is_counted_at_the_input_edge_and_one_over() {
         match part {
             Part::ToolCall { input, too_large, bytes, .. } => {
                 assert_eq!(*too_large, below);
-                assert_eq!(*bytes, u64::try_from(arguments.len()).unwrap());
+                assert_eq!(*bytes, skein_lib::len_u64(arguments.len()));
                 assert_eq!(input.as_ref(), if below { b"".as_slice() } else { arguments.as_slice() });
             }
             Part::Text { .. } | Part::Opaque { .. } | Part::Dropped { .. } => unreachable!("one function call outcome"),

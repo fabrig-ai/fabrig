@@ -17,7 +17,7 @@ pub struct Registered {
 
 /// Read and validate an explicitly configured public client before driving it.
 pub fn registration(account: &Account, codex: bool, workspace: &std::path::Path) -> Result<Registered, Refusal> {
-    if account.fields.get("provider").is_some_and(|value| value.value.as_str() == Some("openai")) {
+    if account.provider() == Some(crate::settings::resolve::Provider::OpenAi) {
         return super::registration::configured(account, "", workspace);
     }
     let registration = configured(account, codex)?;
@@ -40,10 +40,7 @@ fn configured(account: &Account, codex: bool) -> Result<oauth::Registration, Ref
         },
         client_secret: None,
         pkce_for_confidential: false,
-        metadata_claim: codex.then(|| oauth::ClaimSelector {
-            object: b"https://api.openai.com/auth".as_slice().into(),
-            field: b"chatgpt_account_id".as_slice().into(),
-        }),
+        metadata_claim: codex.then(super::codex_selector),
     };
     issuer(text(account, "authorization_url")?).map_err(|why| refuse(account, "authorization_url", why))?;
     issuer(text(account, "token_url")?).map_err(|why| refuse(account, "token_url", why))?;
@@ -158,19 +155,33 @@ fn trust(account: &Account, workspace: &std::path::Path) -> Result<skein_tls::Co
 }
 
 pub(super) fn document_limits() -> oauth::Limits {
-    let mut limits = crate::local_host::token_limits();
+    let mut limits = crate::credentials::token_limits();
     limits.issued_client_bytes = 1024;
     limits.subject_bytes = 1024;
     limits
 }
 
-pub(super) fn record(file: &std::path::Path) -> Result<Option<oauth::SavedToken>, String> {
+#[derive(Debug)]
+pub(crate) enum RecordFailure {
+    Invalid,
+    Unreadable,
+}
+
+impl RecordFailure {
+    pub(crate) fn line(self) -> String {
+        match self {
+            Self::Invalid | Self::Unreadable => "unreadable sign-in record".into(),
+        }
+    }
+}
+
+pub(super) fn record(file: &std::path::Path) -> Result<Option<oauth::SavedToken>, RecordFailure> {
     match skein_shell::read_private_file(file, document_limits().record_bytes, skein_shell::effective_user()) {
-        Ok(bytes) => oauth::decode_record(bytes.expose(), &document_limits())
-            .map(Some)
-            .map_err(|_| "unreadable sign-in record".into()),
+        Ok(bytes) => {
+            oauth::decode_record(bytes.expose(), &document_limits()).map(Some).map_err(|_| RecordFailure::Invalid)
+        }
         Err(skein_shell::Unread::Absent) => Ok(None),
-        Err(_) => Err("unreadable sign-in record".into()),
+        Err(_) => Err(RecordFailure::Unreadable),
     }
 }
 
@@ -182,27 +193,22 @@ pub(super) fn inspect(
     if !file.is_absolute() {
         return super::Credential::NotSignedIn;
     }
-    match skein_shell::read_private_file(file, document_limits().record_bytes, skein_shell::effective_user()) {
-        Ok(bytes) => match oauth::decode_record(bytes.expose(), &document_limits()).ok() {
-            Some(record) => {
-                if let Some(required) = required_scopes {
-                    let missing = scopes::missing(required, &record);
-                    if !missing.is_empty() {
-                        return super::Credential::WithoutScope {
-                            scope: String::from_utf8_lossy(&missing).into_owned(),
-                        };
-                    }
-                }
-                if record.remaining(wall) > skein_lib::Duration::ZERO || record.refresh_token.is_some() {
-                    super::Credential::Usable { until: Some(record.expires_at.as_nanos()) }
-                } else {
-                    super::Credential::SignInAgain
+    match record(file) {
+        Ok(Some(record)) => {
+            if let Some(required) = required_scopes {
+                let missing = scopes::missing(required, &record);
+                if !missing.is_empty() {
+                    return super::Credential::WithoutScope { scope: String::from_utf8_lossy(&missing).into_owned() };
                 }
             }
-            None => super::Credential::NotSignedIn,
-        },
-        Err(skein_shell::Unread::Absent) => super::Credential::NotSignedIn,
-        Err(_) => super::Credential::Unreadable { file: file.into() },
+            if record.remaining(wall) > skein_lib::Duration::ZERO || record.refresh_token.is_some() {
+                super::Credential::Usable { until: Some(record.expires_at.as_nanos()) }
+            } else {
+                super::Credential::SignInAgain
+            }
+        }
+        Ok(None) | Err(RecordFailure::Invalid) => super::Credential::NotSignedIn,
+        Err(RecordFailure::Unreadable) => super::Credential::Unreadable { file: file.into() },
     }
 }
 
@@ -212,28 +218,14 @@ pub(super) fn private_source(
     registered: Registered,
     interactive: bool,
 ) -> Result<smith_local_service::Source, String> {
-    private_source_at(number, file, registered, interactive, None)
-}
-
-pub(super) fn private_source_at(
-    number: u32,
-    file: &std::path::Path,
-    registered: Registered,
-    interactive: bool,
-    inherited: Option<skein_io::kernel::Fd>,
-) -> Result<smith_local_service::Source, String> {
     use std::os::unix::fs::DirBuilderExt;
     if !file.is_absolute() || file.as_os_str().as_encoded_bytes().len() > 4095 {
         return Err("HOME or an absolute XDG_STATE_HOME is required for bounded private tokens".into());
     }
     let directory = file.parent().ok_or("private record has no directory")?;
     let base = directory.parent().ok_or("private record has no base")?;
-    let root = if let Some(root) = inherited {
-        root
-    } else {
-        std::fs::DirBuilder::new().recursive(true).mode(0o700).create(base).map_err(|why| why.to_string())?;
-        skein_shell::open_root(base).map_err(|why| format!("private token root: {why:?}"))?
-    };
+    std::fs::DirBuilder::new().recursive(true).mode(0o700).create(base).map_err(|why| why.to_string())?;
+    let root = skein_shell::open_root(base).map_err(|why| format!("private token root: {why:?}"))?;
     Ok(smith_local_service::Source::SignIn {
         account: number,
         root,
@@ -272,7 +264,7 @@ mod tests {
             )
         })
         .collect();
-        Account { name: "fixture".into(), number: 0, fields }
+        Account::from_fields("fixture".into(), 0, fields)
     }
     #[test]
     fn every_missing_registration_key_names_its_key_and_file() {

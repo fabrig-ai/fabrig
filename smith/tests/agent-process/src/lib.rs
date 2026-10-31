@@ -1,11 +1,11 @@
 //! A whole agent service on Skein's simulated kernel, with a scripted host
 //! speaking the real channel schema. The fake machine owns any filesystem and
-//! child-process effects. Contract: protocol/agent.md, sections 4–6.
+//! child-process effects. Contract: smith/docs/design/protocol/agent.md, sections 4–6.
 
-use skein_channel::{Role, StreamMode, frame_writer};
+use skein_channel::{Role, StreamMode};
 use skein_fake_channel::ScriptedPeer;
 use skein_io::kernel;
-use skein_lib::{Duration, List, Writer};
+use skein_lib::{Duration, List};
 use smith_agent_service as agent;
 use smith_protocol_channel as channel;
 use smith_protocol_llm as llm;
@@ -13,6 +13,7 @@ use smith_protocol_llm as llm;
 pub mod fake;
 #[path = "program.rs"]
 pub mod program_world;
+pub mod wire;
 
 pub mod events;
 mod tracing;
@@ -88,27 +89,14 @@ pub fn declarations(environment_bytes: u32) -> agent::profile::Configuration {
 
 /// Adopt scenario-specific service settings and mounts in Start order.
 #[must_use]
-#[expect(
-    clippy::zero_sized_map_values,
-    reason = "The fixture retains adapter names even while Claude Code is the sole adapter."
-)]
 pub fn configured(
     configuration: agent::Config,
     seed: u64,
     inherited: &skein_world::Inherited,
     errors: AgentErrors,
 ) -> smith_agent_shell::Agent {
-    let environment_bytes = configuration.limits.machine.env_bytes;
     smith_agent_shell::Agent::new(
-        smith_agent_shell::config::Configuration {
-            programs: std::collections::BTreeMap::new(),
-            endpoint_programs: std::collections::BTreeMap::new(),
-            service: configuration,
-            memory: profile().declared.memory,
-            trace: None,
-            profile: profile(),
-            declarations: declarations(environment_bytes),
-        },
+        shell_configuration(configuration),
         smith_agent_shell::Resources {
             programs: None,
             input: inherited.pipes.iter().find(|(child, _)| *child == 0).expect("stdin").1,
@@ -123,6 +111,20 @@ pub fn configured(
         Box::new(errors),
     )
     .expect("configured shipped agent")
+}
+
+#[expect(clippy::zero_sized_map_values, reason = "the shell configuration uses a unit selector map")]
+fn shell_configuration(configuration: agent::Config) -> smith_agent_shell::config::Configuration {
+    let environment_bytes = configuration.limits.machine.env_bytes;
+    smith_agent_shell::config::Configuration {
+        programs: std::collections::BTreeMap::new(),
+        endpoint_programs: std::collections::BTreeMap::new(),
+        service: configuration,
+        memory: profile().declared.memory,
+        trace: None,
+        profile: profile(),
+        declarations: declarations(environment_bytes),
+    }
 }
 
 /// Tiny deployment declarations shared by direct and hosted process worlds.
@@ -166,7 +168,7 @@ fn derive_limits() -> agent::Limits {
     let profile = profile();
     let configuration = declarations(0);
     let mut limits = agent::profile::derive(&profile, &configuration).expect("tiny profile derives");
-    // Worlds may lower or specialize a derived limit (protocol/limits.md2.2).
+    // Worlds may lower or specialize a derived limit (smith/docs/design/protocol/limits.md, section 2.2).
     limits.domain.run.models = 2;
     limits.domain.configured_model_bytes = 4096;
     limits.llm.connection.endpoints = 1;
@@ -199,7 +201,9 @@ fn configuration_for(provider: skein_llm::Provider) -> agent::Config {
 
 fn configuration_with_limits(provider: skein_llm::Provider, limits: &agent::Limits) -> agent::Config {
     let mut endpoints = List::with_capacity(1);
-    endpoints.push(channel::Endpoint { name: Box::default(), number: 0, dialect: 1 }).expect("one endpoint");
+    endpoints
+        .push(smith_protocol_translate::Endpoint { name: Box::default(), number: 0, dialect: 1 })
+        .expect("one endpoint");
     let llm_endpoints = llm::Endpoints::new(
         Box::new([llm::ConfiguredEndpoint {
             connect: skein_lib::Duration::from_secs(1),
@@ -254,7 +258,7 @@ fn configuration_with_limits(provider: skein_llm::Provider, limits: &agent::Limi
                 idle: Duration::from_secs(3),
             }]),
         },
-        channel_endpoints: channel::Endpoints::new(endpoints),
+        channel_endpoints: smith_protocol_translate::Endpoints::new(endpoints),
         llm_endpoints,
         environment: smith_protocol_machine::Environment::encode(&[], &limits.machine).expect("empty environment fits"),
         stream_mode: StreamMode::Two,
@@ -296,7 +300,7 @@ pub fn host() -> ScriptedPeer {
 fn host_with_limits(mut limits: channel::Limits) -> ScriptedPeer {
     let schema = channel::schema_for_start(&limits.bodies, limits.start_bytes).expect("joint Start schema");
     // The scripted host sends the initiator's kinds, with the same joint
-    // Start as the agent receives (protocol/limits.md, section 3, rule 6).
+    // Start as the agent receives (smith/docs/design/protocol/limits.md, section 3, rule 6).
     let mut largest = 0;
     for version in &schema.versions {
         for kind in &version.kinds {
@@ -397,35 +401,22 @@ pub(crate) fn start_workspace_message(
         },
     )
     .expect("Start record");
-    let mut body = Writer::new(usize::try_from(record.measure()).expect("body size"));
-    record.encode(&mut body).expect("measured body");
-    let body = body.finish();
-    let mut frame = frame_writer(0x0100, u32::try_from(body.len()).expect("body length")).expect("Start frame");
-    frame.put(&body).expect("measured frame");
-    frame.finish().expect("full frame")
+    crate::frame!(0x0100, record)
 }
 
 pub(crate) fn start_root(charter: &[u8], path: &[u8]) -> skein_channel::Frame {
     let frame = start_workspace_message(charter, 8, true, None, &withdrawn(b"acc", b"token"), None);
-    let mut start =
-        smith_channel::Start::decode(&smith_channel::CEILINGS, &mut skein_lib::Reader::new(&frame.bytes()[8..]))
-            .expect("workspace Start")
-            .into_parts();
-    let mut workspace = start.workspace.take().expect("workspace").into_parts();
-    let mut directory = workspace.directories.get(0).expect("first directory").clone().into_parts();
-    directory.path = path.into();
-    *workspace.directories.get_mut(0).expect("first directory") =
-        smith_channel::Directory::new(&smith_channel::CEILINGS, directory).expect("root path");
-    start.workspace = Some(smith_channel::Workspace::new(&smith_channel::CEILINGS, workspace).expect("workspace"));
-    let start = smith_channel::Start::new(&smith_channel::CEILINGS, start).expect("Start with requested root");
-    let mut body = Writer::new(usize::try_from(start.measure()).expect("Start bytes"));
-    start.encode(&mut body).expect("Start body");
-    let mut frame = frame_writer(0x0100, start.measure()).expect("Start frame");
-    frame.put(&body.finish()).expect("Start body");
-    frame.finish().expect("Start frame")
+    crate::wire::edit_start(&frame, |start| {
+        let mut workspace = start.workspace.take().expect("workspace").into_parts();
+        let mut directory = workspace.directories.get(0).expect("first directory").clone().into_parts();
+        directory.path = path.into();
+        *workspace.directories.get_mut(0).expect("first directory") =
+            smith_channel::Directory::new(&smith_channel::CEILINGS, directory).expect("root path");
+        start.workspace = Some(smith_channel::Workspace::new(&smith_channel::CEILINGS, workspace).expect("workspace"));
+    })
 }
 
-/// Private credential fixture used to check that channel content stays credential-free.
+/// Private credential fixture for checking that channel content stays credential-free.
 pub const PRIVATE_GRANT: &[u8] = b"native-private-bearer-02.6";
 
 fn scenario_credential(anthropic: bool, private_grant: bool) -> skein_llm::Credential {
@@ -444,54 +435,49 @@ fn scenario_credential(anthropic: bool, private_grant: bool) -> skein_llm::Crede
 #[must_use]
 pub fn charter() -> Box<[u8]> {
     let smallest = include_bytes!("../../../crates/smith-charter/golden/v4/record_charter_smallest.bin");
-    let source = smith_charter::Charter::decode(&smith_charter::CEILINGS, &mut skein_lib::Reader::new(smallest))
-        .expect("golden charter");
-    let mut parts = source.into_parts();
-    parts.budget = smith_charter::Budget::new(
-        &smith_charter::CEILINGS,
-        smith_charter::BudgetParts {
-            turns: 1,
-            spend: 2,
-            time: Duration::from_secs(60),
-            reserve: smith_charter::Reserve::new(
-                &smith_charter::CEILINGS,
-                smith_charter::ReserveParts { turns: 0, time: Duration::ZERO },
-            )
-            .expect("bounded reserve"),
-        },
-    )
-    .expect("workable budget");
-    parts.contract = smith_charter::Contract::new(
-        &smith_charter::CEILINGS,
-        smith_charter::ContractParts {
-            report: Some(
-                smith_charter::TextRule::new(
+    crate::wire::edit_charter(smallest, |parts| {
+        parts.budget = smith_charter::Budget::new(
+            &smith_charter::CEILINGS,
+            smith_charter::BudgetParts {
+                turns: 1,
+                spend: 2,
+                time: Duration::from_secs(60),
+                reserve: smith_charter::Reserve::new(
                     &smith_charter::CEILINGS,
-                    smith_charter::TextRuleParts { max: 128, fields: List::with_capacity(0) },
+                    smith_charter::ReserveParts { turns: 0, time: Duration::ZERO },
                 )
-                .expect("report rule"),
-            ),
-            verdicts: List::with_capacity(0),
-            change: None,
-            failure: None,
-        },
-    )
-    .expect("outcome contract");
-    let mut llm = parts.main.into_parts();
-    llm.account = Some(0);
-    llm.model = Box::from(*b"fake");
-    llm.window = declarations(0).endpoints[0].models[0].window;
-    llm.output = declarations(0).endpoints[0].models[0].output;
-    llm.prices = smith_charter::Prices::new(
-        &smith_charter::CEILINGS,
-        smith_charter::PricesParts { input: 1, cached: 1, cache_write: None, output: 1, unit: 1_000_000 },
-    )
-    .expect("prices");
-    parts.main = smith_charter::Llm::new(&smith_charter::CEILINGS, llm).expect("model");
-    let record = smith_charter::Charter::new(&smith_charter::CEILINGS, parts).expect("charter");
-    let mut writer = Writer::new(usize::try_from(record.measure()).expect("charter size"));
-    record.encode(&mut writer).expect("measured charter");
-    writer.finish()
+                .expect("bounded reserve"),
+            },
+        )
+        .expect("workable budget");
+        parts.contract = smith_charter::Contract::new(
+            &smith_charter::CEILINGS,
+            smith_charter::ContractParts {
+                report: Some(
+                    smith_charter::TextRule::new(
+                        &smith_charter::CEILINGS,
+                        smith_charter::TextRuleParts { max: 128, fields: List::with_capacity(0) },
+                    )
+                    .expect("report rule"),
+                ),
+                verdicts: List::with_capacity(0),
+                change: None,
+                failure: None,
+            },
+        )
+        .expect("outcome contract");
+        let mut llm = parts.main.clone().into_parts();
+        llm.account = Some(0);
+        llm.model = Box::from(*b"fake");
+        llm.window = declarations(0).endpoints[0].models[0].window;
+        llm.output = declarations(0).endpoints[0].models[0].output;
+        llm.prices = smith_charter::Prices::new(
+            &smith_charter::CEILINGS,
+            smith_charter::PricesParts { input: 1, cached: 1, cache_write: None, output: 1, unit: 1_000_000 },
+        )
+        .expect("prices");
+        parts.main = smith_charter::Llm::new(&smith_charter::CEILINGS, llm).expect("model");
+    })
 }
 
 pub use world::{Order, OrderSnapshot, TraceCase, World};
@@ -503,11 +489,7 @@ mod world;
 fn acknowledge(number: u32) -> skein_channel::Frame {
     let record = smith_channel::Acknowledge::new(&smith_channel::CEILINGS, smith_channel::AcknowledgeParts { number })
         .expect("durable prefix acknowledgement");
-    let mut body = Writer::new(usize::try_from(record.measure()).expect("ACK body size"));
-    record.encode(&mut body).expect("ACK body");
-    let mut frame = frame_writer(0x0103, record.measure()).expect("ACK frame");
-    frame.put(&body.finish()).expect("ACK body fits frame");
-    frame.finish().expect("ACK frame filled")
+    crate::frame!(0x0103, record)
 }
 
 mod grants;

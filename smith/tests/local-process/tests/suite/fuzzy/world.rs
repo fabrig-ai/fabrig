@@ -1,35 +1,51 @@
 //! Seeded short IO, completion delays and cancellation races in the real
 //! shared shell, replayed using Skein's trace and referee machinery.
+use skein_world::domain::assert_replays;
 use smith_local_process_world::{
-    Authentication, Files, Placement, World,
-    referee::{CheckoutRead, Ending, review},
+    Authentication, Files, World,
+    fixture::PLACEMENTS,
+    referee::{CheckoutRead, Ending},
     terminal::Action,
 };
 
+#[derive(Clone, Copy)]
+enum Story {
+    Report,
+    Changed,
+    Cancelled,
+    Authenticated(Authentication),
+}
+
 #[test]
 fn seeded_hosted_and_colocated_runs_settle_and_replay() {
-    for seed in 100..116 {
-        for placement in [Placement::Spawned, Placement::InProcess] {
-            let mut previous = None;
-            for _ in 0..2 {
+    for (seed, other, story) in [
+        (100, 108, Story::Cancelled),
+        (101, 109, Story::Report),
+        (102, 110, Story::Authenticated(Authentication::Refused)),
+        (103, 111, Story::Authenticated(Authentication::Proactive)),
+        (104, 112, Story::Cancelled),
+        (105, 113, Story::Changed),
+        (106, 114, Story::Authenticated(Authentication::SignIn)),
+        (107, 115, Story::Authenticated(Authentication::Refresh)),
+    ] {
+        for placement in PLACEMENTS {
+            assert_replays(seed, other, |seed| {
                 let files = Files::new();
-                let cancelled = seed % 4 == 0;
-                let changed = seed % 8 == 1;
-                let authentication = match seed % 8 {
-                    2 => Some(Authentication::SignIn),
-                    3 => Some(Authentication::Refresh),
-                    6 => Some(Authentication::Refused),
-                    7 => Some(Authentication::Proactive),
-                    _ => None,
+                let mut world = match story {
+                    Story::Authenticated(mode) => World::authenticated(seed, &files, placement, mode),
+                    Story::Changed => World::changed(seed, &files, placement),
+                    Story::Cancelled => World::interrupted(seed, &files, placement),
+                    Story::Report => World::new(seed, &files, placement, b"First answer"),
                 };
-                let mut world = if let Some(mode) = authentication {
-                    World::authenticated(seed, &files, placement, mode)
-                } else if changed {
-                    World::changed(seed, &files, placement)
-                } else if cancelled {
-                    World::interrupted(seed, &files, placement)
-                } else {
-                    World::new(seed, &files, placement, b"First answer")
+                world.scenario.faults = skein_sim::Faults {
+                    latency: 300,
+                    latency_max: skein_lib::Duration::from_millis(1),
+                    short_recv: 500,
+                    short_send: 500,
+                    short_read: 500,
+                    short_write: 500,
+                    cancel_race: 500,
+                    ..skein_sim::Faults::NONE
                 };
                 let mut rng = skein_lib::Rng::new(seed);
                 let lines = rng.between(1, 3);
@@ -38,33 +54,18 @@ fn seeded_hosted_and_colocated_runs_settle_and_replay() {
                     commands.push(Action::Send(format!("person line {line}\n").into_bytes().into()));
                 }
                 commands.push(Action::Eof);
-                if !changed && !cancelled && authentication != Some(Authentication::Refused) {
-                    world.scenario.ending = Ending::Report(b"answer".to_vec());
-                }
+                let ending = match story {
+                    Story::Authenticated(Authentication::Refused) => Ending::Unavailable,
+                    Story::Changed => Ending::Change { before: world.head().expect("initial head") },
+                    Story::Cancelled => Ending::Cancelled,
+                    Story::Report | Story::Authenticated(_) => Ending::Report(b"answer".to_vec()),
+                };
+                world.scenario.ending = ending.clone();
                 world.scenario.commands = commands;
-                let before = world.head();
                 world.settle();
-                let seen = world.seen();
-                review(
-                    &seen,
-                    &world,
-                    if authentication == Some(Authentication::Refused) {
-                        Ending::Unavailable
-                    } else if changed {
-                        Ending::Change { before: before.expect("initial head") }
-                    } else if cancelled {
-                        Ending::Cancelled
-                    } else {
-                        Ending::Report(b"answer".to_vec())
-                    },
-                )
-                .assert_passed(seed);
-                let actual = (world.trace(), seen);
-                if let Some(previous) = previous {
-                    assert_eq!(actual, previous, "seed {seed}, {placement:?}");
-                }
-                previous = Some(actual);
-            }
+                world.assert_ended(ending);
+                (world.trace(), world.seen())
+            });
         }
     }
 }

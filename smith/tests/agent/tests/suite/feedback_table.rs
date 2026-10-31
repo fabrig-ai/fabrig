@@ -1,5 +1,5 @@
 //! Golden bytes for each run call terminal and its nested refusal vocabulary.
-//! Contract: domain/run.md, sections 5.2, 7, 8 and 10; testing-strategy.md, section 7.
+//! Contract: smith/docs/design/domain/run.md, sections 5.2, 7, 8 and 10; skein/docs/foundation/testing-strategy.md, section 7.
 
 use skein_lib::Duration;
 use smith_domain::{feedback, run};
@@ -252,7 +252,7 @@ fn every_model_fault_and_completion_failure_keeps_its_evidence() {
         (run::CompletionFailure::Cancelled, "unsolicited-cancelled"),
         (run::CompletionFailure::Overloaded, "overloaded"),
         (run::CompletionFailure::Unavailable, "unavailable"),
-        (run::CompletionFailure::TimedOut { phase: run::Phase::Whole }, "timed-out"),
+        (run::CompletionFailure::TimedOut { phase: run::CompletionPhase::Whole }, "timed-out"),
         (run::CompletionFailure::ContextTooLong, "context-too-long"),
         (run::CompletionFailure::Invalid, "invalid"),
         (run::CompletionFailure::Refused, "refused"),
@@ -298,8 +298,8 @@ fn failure_fields() -> Vec<(smith_domain::llm::Failure, run::CompletionFailure)>
         (llm::Failure::Overloaded, run::CompletionFailure::Overloaded),
         (llm::Failure::Unavailable, run::CompletionFailure::Unavailable),
         (
-            llm::Failure::TimedOut { phase: llm::Phase::Head },
-            run::CompletionFailure::TimedOut { phase: run::Phase::Head },
+            llm::Failure::TimedOut { phase: llm::CompletionPhase::Head },
+            run::CompletionFailure::TimedOut { phase: run::CompletionPhase::Head },
         ),
         (llm::Failure::Invalid, run::CompletionFailure::Invalid),
         (llm::Failure::Refused, run::CompletionFailure::Refused),

@@ -41,12 +41,12 @@ fn a_program_answer_becomes_its_state() {
 
 #[test]
 fn an_absent_program_directory_is_not_signed_in_without_a_run() {
-    let files = Files::new();
+    let files = Files::new("smith-credentials");
     let mut resolved = resolved_source(&files, "program");
     resolved.settings.values.insert(
         "programs.claude_code".into(),
         crate::settings::Sourced {
-            value: toml::Value::String(files.0.join("absent-program").display().to_string()),
+            value: toml::Value::String(files.path().join("absent-program").display().to_string()),
             origin: crate::settings::Origin::BuiltIn,
         },
     );
@@ -55,12 +55,12 @@ fn an_absent_program_directory_is_not_signed_in_without_a_run() {
         matches!(states["codex"], Credential::ProgramNotSignedIn { .. }),
         "the reported state matches the contract"
     );
-    assert!(!files.0.join("programs").exists(), "check creates no directory");
+    assert!(!files.path().join("programs").exists(), "check creates no directory");
 }
 
 #[test]
 fn startup_refuses_a_needed_program_account_not_signed_in() {
-    let files = Files::new();
+    let files = Files::new("smith-credentials");
     let resolved = resolved_source(&files, "program");
     for credential in [
         Credential::ProgramNotSignedIn { program: ProgramName::ClaudeCode },
@@ -75,19 +75,19 @@ fn startup_refuses_a_needed_program_account_not_signed_in() {
 
 #[test]
 fn startup_lends_a_usable_program_account() {
-    let files = Files::new();
+    let files = Files::new("smith-credentials");
     let resolved = resolved_source(&files, "program");
     let states = ProgramStates::from([("codex".into(), Credential::Usable { until: None })]);
     let prepared = prepare(&resolved, Wall::from_nanos(0), false, &states).expect("usable source");
     assert!(
-        matches!(prepared.lendable.get(&0), Some((0, smith_protocol_channel::GrantValue::Program(name))) if name.as_ref() == b"codex"),
+        matches!(prepared.lendable.get(&0), Some((0, smith_protocol_translate::GrantValue::Program(name))) if name.as_ref() == b"codex"),
         "the reported state matches the contract"
     );
 }
 
 #[test]
 fn startup_checks_only_the_needed_program_accounts() {
-    let files = Files::new();
+    let files = Files::new("smith-credentials");
     let mut resolved = resolved_source(&files, "program");
     resolved.settings.values.insert(
         "accounts.unused.source".into(),

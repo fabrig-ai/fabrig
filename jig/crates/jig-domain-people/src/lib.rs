@@ -15,9 +15,7 @@
 //! keeps cookie secrets or their digests separately, named by the root-issued
 //! sign-in number (domain/people.md, section 3; domain/engine.md, sections 4 and 5.4).
 //!
-//! `Domain::new` starts restoring. `step` admits rows, then `Restored`
-//! validates references and arms deadlines; failed restoration stays unready.
-//! `Domain::start_restore` instead selects explicit load/fit/link before input, capturing one wall
+//! `Domain::new` starts restoring. `Domain::start_restore` begins load/fit/link before input, capturing one wall
 //! instant for both expiry walks. `start_link` leaves admission closed; the caller establishes all
 //! links, drives `start_sweep` and its borrowed rows, and releases sweep writes durably before
 //! `start_complete` projects live deadlines and opens admission (domain/engine.md, 6).

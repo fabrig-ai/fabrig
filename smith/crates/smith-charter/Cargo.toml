@@ -11,8 +11,5 @@ publish.workspace = true
 skein-lib.workspace = true
 skein-codec.workspace = true
 
-[dev-dependencies]
-skein-codegen.workspace = true
-
 [lints]
 workspace = true

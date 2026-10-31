@@ -92,7 +92,7 @@ impl Person {
         if let Some(cue) = self.script.cues.get(self.next) {
             let matches = match &cue.when {
                 Trigger::Start => false,
-                Trigger::ToolCall { tool } => matches!(seen,Seen::ToolCall {tool:actual} if actual==tool),
+                Trigger::ToolCall { tool } => matches!(seen,Seen::ToolCall {tool:got} if got==tool),
                 Trigger::Answer => *seen == Seen::Answer,
             };
             if matches {

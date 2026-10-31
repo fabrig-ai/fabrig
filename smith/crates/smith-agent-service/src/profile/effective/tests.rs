@@ -9,12 +9,12 @@ use alloc::boxed::Box;
 use skein_lib::List;
 use smith_events::LimitValue;
 
-fn names() -> smith_protocol_channel::Endpoints {
+fn names() -> smith_protocol_translate::Endpoints {
     let mut entries = List::with_capacity(2);
     for (number, name) in [(7, b"codex".as_slice()), (8, b"other".as_slice())] {
-        entries.push(smith_protocol_channel::Endpoint { number, name: name.into(), dialect: 91 }).expect("names");
+        entries.push(smith_protocol_translate::Endpoint { number, name: name.into(), dialect: 91 }).expect("names");
     }
-    smith_protocol_channel::Endpoints::new(entries)
+    smith_protocol_translate::Endpoints::new(entries)
 }
 
 #[test]
@@ -67,9 +67,9 @@ fn the_sinks_records_hold_the_headers_entries_and_longest_name() {
     let named =
         effective(&profile(), &declarations(), &limits, &endpoints(&declarations(), &limits)).expect("bounded list");
     let header = header(&named, &names(), &declarations()).expect("names fit");
-    let events = crate::EventLimits::derive(
+    let events = crate::event_limits(
         &limits,
-        crate::sinks::Capture::None,
+        smith_protocol_events::sinks::Capture::None,
         1,
         0,
         header.as_slice(),
@@ -155,9 +155,9 @@ fn the_sinks_own_limits_are_named_and_fit_the_header() {
         let named = effective(&profile(), &declarations(), &limits, &endpoints).expect("bounded list");
         let header = header(&named, &names(), &declarations()).expect("names fit");
         limits.events = Some(
-            crate::EventLimits::derive(
+            crate::event_limits(
                 &limits,
-                crate::sinks::Capture::None,
+                smith_protocol_events::sinks::Capture::None,
                 1,
                 0,
                 header.as_slice(),

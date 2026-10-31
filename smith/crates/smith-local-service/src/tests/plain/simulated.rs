@@ -1,7 +1,7 @@
 //! Plain capture bounds and replacement over the fake machine (shell.md, section 4).
 
 use super::{PLAIN_CHILDREN, PLAIN_FILE_BYTES, TOO_MANY_PLAIN_CHILDREN};
-use crate::process::ProcessAdapter;
+use crate::host_io::HostIo;
 use skein_fake_machine::{How, Item, Machine, Opened};
 use skein_lib::{List, Queue, Time, Token};
 use smith_local_domain as local;
@@ -11,7 +11,7 @@ const OWNER: Token = Token::new(7);
 const DEADLINE: Time = Time::from_nanos(u64::MAX);
 
 struct PlainWorld {
-    process: ProcessAdapter,
+    process: HostIo,
     machine: Machine,
     root: Opened,
     sim: skein_sim::Sim,
@@ -31,7 +31,7 @@ impl PlainWorld {
         let pid = sim.spawn_process();
         let descriptor = sim.root(pid, skein_sim::Handle::new(root.raw()));
         let config = crate::tests::config();
-        let mut process = ProcessAdapter::new(&config.limits.process, config.launch, config.endpoints, 1).unwrap();
+        let mut process = HostIo::new(&config.limits.process, config.launch, config.endpoints, 1).unwrap();
         process.adopt_delivery_roots(Box::new([descriptor]), Box::new([]));
         Self { process, machine, root, sim, pid, events: Queue::uncapped() }
     }
@@ -78,7 +78,6 @@ fn assert_status(event: local::Event, expected: bool) {
     assert_eq!(changed, expected);
 }
 
-/// Lower test of smith-local-service's `tests::plain::an_unknown_plain_capture_completes_and_counts_as_changed`
 /// (top tiers test wiring only).
 #[test]
 fn an_unknown_capture_completes_and_answers_changed_immediately() {
@@ -94,7 +93,6 @@ fn an_unknown_capture_completes_and_answers_changed_immediately() {
     }
 }
 
-/// Lower test of smith-local-service's `tests::plain::a_plain_tree_outgrowing_its_capture_counts_as_changed`
 /// (top tiers test wiring only).
 #[test]
 fn a_tree_outgrowing_its_capture_counts_as_changed() {
@@ -107,7 +105,6 @@ fn a_tree_outgrowing_its_capture_counts_as_changed() {
     }
 }
 
-/// Lower test of smith-local-service's `tests::plain::an_untouched_plain_tree_at_the_bounds_is_unchanged`
 /// (top tiers test wiring only).
 #[test]
 fn an_untouched_tree_at_both_bounds_is_unchanged() {
@@ -119,7 +116,6 @@ fn an_untouched_tree_at_both_bounds_is_unchanged() {
     }
 }
 
-/// Lower test of smith-local-service's `tests::plain::a_fresh_capture_replaces_an_unknown_plain_tree`
 /// (top tiers test wiring only).
 #[test]
 fn a_fresh_capture_replaces_an_unknown_tree() {

@@ -652,10 +652,8 @@ pub fn check(seed: u64, rounds: u32) -> u64 {
                     let attempt = if world.history.is_empty() {
                         Token::new(u64::MAX)
                     } else {
-                        world.history[usize::try_from(
-                            rng.below(u64::try_from(world.history.len()).expect("small history")),
-                        )
-                        .expect("small index")]
+                        world.history
+                            [usize::try_from(rng.below(skein_lib::len_u64(world.history.len()))).expect("small index")]
                     };
                     let envelope = match rng.below(4) {
                         0 => RequestEnvelope::Final,

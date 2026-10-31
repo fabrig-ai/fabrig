@@ -3,7 +3,7 @@
 //! `answer` lends from memory only; it never reads a key renewed on disk.
 use skein_lib::{Duration, Map};
 use smith_domain as agent;
-use smith_protocol_channel::GrantValue;
+use smith_protocol_translate::GrantValue;
 
 /// One shell answer, sent to the service or translated to a missing credential.
 #[derive(Debug)]

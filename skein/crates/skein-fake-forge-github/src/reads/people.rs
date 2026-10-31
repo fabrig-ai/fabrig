@@ -50,7 +50,7 @@ pub(super) fn collaborators(answer: a::Answer, page: u32, size: u32, target: &[u
     let a::Answer::Collaborators(values) = answer else {
         return answers::failed();
     };
-    let Some(page) = Page::new(page, size, u64::try_from(values.len()).expect("domain collaborators")) else {
+    let Some(page) = Page::new(page, size, skein_lib::len_u64(values.len())) else {
         return answers::failed();
     };
     let mut rows = List::with_capacity(size);

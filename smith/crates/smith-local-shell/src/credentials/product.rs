@@ -5,7 +5,7 @@ use super::{Credential, Refusal, Source, environment, inspect, source};
 use crate::settings::resolve::Resolved;
 use skein_lib::{Duration, List, Map, Wall};
 use smith_local_service as service;
-use smith_protocol_channel::GrantValue;
+use smith_protocol_translate::GrantValue;
 
 /// Names used by the shell when its driver reports a env token's expiry.
 #[derive(Debug)]
@@ -62,13 +62,8 @@ pub fn prepare(
     let mut lendable = Map::with_capacity(count);
     let directory = super::Directory::of(&resolved.settings);
     for account in &resolved.accounts {
-        let descriptor = source(
-            &account.fields,
-            &resolved.settings,
-            codex(resolved, account.number),
-            &account.name,
-            directory.as_ref(),
-        );
+        let descriptor = source(account, codex(resolved, account.number), directory.as_ref())
+            .map_err(|credential| unavailable(&account.name, credential))?;
         locations
             .push(Location { account: account.number, name: account.name.clone(), source: descriptor.clone() })
             .expect("selected locations fit their account bound");
@@ -95,18 +90,16 @@ pub fn prepare(
         }
         let handed = match descriptor {
             Source::Env { variable, codex } => {
-                let borrowed = environment(&variable, codex, wall)
-                    .ok_or_else(|| unavailable(&account.name, Credential::Unset { variable: variable.clone() }))?;
-                if borrowed.record.remaining(wall) == Duration::ZERO {
-                    return Err(unavailable(
-                        &account.name,
-                        Credential::ExpiredVariable { at: borrowed.record.expires_at.as_nanos(), variable },
-                    ));
+                let borrowed = environment(&variable, codex, wall);
+                let credential = super::env_state(&variable, borrowed.as_ref(), codex, wall);
+                if !credential.usable() {
+                    return Err(unavailable(&account.name, credential));
                 }
+                let borrowed = borrowed.expect("a usable variable has a record");
                 service::Source::Env { account: account.number, borrowed }
             }
             Source::SignIn { file, required_scopes } => {
-                let interactive = interactive && !account.fields.contains_key("provider");
+                let interactive = interactive && account.provider().is_none();
                 let credential = super::sign_in::inspect(&file, wall, required_scopes.as_deref());
                 if !interactive && !credential.usable() {
                     return Err(unavailable(&account.name, credential));
@@ -142,7 +135,9 @@ fn warnings(resolved: &Resolved, wall: Wall, programs: &super::program_check::Pr
 
 /// Read only a saved record's generation for a refresh observation (shell.md, 7.3).
 pub fn record_generation(file: &std::path::Path) -> Result<Option<u64>, String> {
-    super::sign_in::record(file).map(|record| record.map(|record| record.generation))
+    super::sign_in::record(file)
+        .map(|record| record.map(|record| record.generation))
+        .map_err(super::sign_in::RecordFailure::line)
 }
 
 fn unavailable(account: &str, credential: Credential) -> Refusal {

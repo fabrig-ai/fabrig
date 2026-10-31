@@ -5,7 +5,7 @@ use super::*;
 use crate::llm::{CompletionName, Evidence, Failure};
 
 pub(super) fn named(emitted: Box<[Request]>) -> (Token, Prompt, CompletionName) {
-    let [Request::Complete { owner, name, .. }] = &*emitted else {
+    let [Request::Lower(crate::Lower::Complete { owner, name, .. })] = &*emitted else {
         panic!("expected one completion, got {emitted:?}");
     };
     let name = *name;
@@ -18,16 +18,16 @@ pub(super) fn named(emitted: Box<[Request]>) -> (Token, Prompt, CompletionName) 
 fn retry(harness: &mut Harness, owner: Token) -> CompletionName {
     assert!(
         harness
-            .step(Event::Failed {
+            .step(Event::Below(crate::Below::Failed {
                 owner,
                 failure: Failure::Unavailable,
                 evidence: Evidence::Unknown,
                 detail: bytes(b"failed provider"),
                 report: crate::llm::Report::none(),
-            })
+            }))
             .is_empty()
     );
-    harness.env.now = harness.domain.next_deadline().expect("actual transient backoff");
+    harness.env.now = harness.domain.next_deadline().expect("transient backoff");
     let (reissued, _, name) = named(harness.fire());
     assert_eq!(reissued, owner, "retries retain their session owner");
     name
@@ -109,10 +109,10 @@ fn empty_text_and_a_completion_without_text_retain_their_retry_identity() {
         let mut harness = Harness::new();
         let (_, owner, _, _) = harness.admit_named(7, charter());
         let name = retry(&mut harness, owner);
-        drop(harness.step(Event::Completed {
+        drop(harness.step(Event::Below(crate::Below::Completed {
             owner,
             completion: Completion { content, stop: Stop::EndTurn, usage: USAGE, reasoning_dropped: Box::default() },
-        }));
+        })));
         if has_text {
             assert_eq!(
                 harness.domain.pop_content(),
@@ -161,13 +161,13 @@ fn retry_exhaustion_ends_the_run_without_another_start_or_content() {
     let mut harness = Harness::new();
     let (_, owner, _, _) = harness.admit_named(7, charter());
     assert_eq!(retry(&mut harness, owner).retry, LIMITS.session.retries);
-    let emitted = harness.step(Event::Failed {
+    let emitted = harness.step(Event::Below(crate::Below::Failed {
         owner,
         failure: Failure::Unavailable,
         evidence: Evidence::Unknown,
         detail: bytes(b"failed again"),
         report: crate::llm::Report::none(),
-    });
+    }));
     let [Request::Answer { answer: run::Answer::Failed { .. }, .. }] = &*emitted else {
         panic!("retry exhaustion ends the run, got {emitted:?}");
     };
@@ -197,7 +197,7 @@ fn a_completion_winning_its_cancel_keeps_the_issued_retry_name() {
     let (run, owner, _, _) = harness.admit_named(7, charter());
     let name = retry(&mut harness, owner);
     assert!(harness.step(Event::Cancel { run }).is_empty());
-    assert_eq!(&*harness.next(), &[Request::Cancel { owner }]);
+    assert_eq!(&*harness.next(), &[Request::Lower(crate::Lower::Cancel { owner })]);
     let ended = harness.says(owner, b"received after cancel");
     let [Request::Answer { .. }] = &*ended else {
         panic!("the cancelled run ends after the provider terminal, got {ended:?}");
@@ -214,7 +214,7 @@ fn a_restored_prefix_names_the_next_source_sequence_without_changing_the_retry()
     let mut original = Harness::new();
     let (_, owner, _, _) = original.admit_named(7, charter());
     drop(original.says(owner, b"saved answer"));
-    let saved = original.turns.iter().next().expect("actual emitted concrete turn").clone();
+    let saved = original.turns.iter().next().expect("emitted concrete turn").clone();
     let sequence = saved.sequence.checked_add(1).expect("next source sequence");
     let transcript = crate::Transcript {
         version: saved.version,
@@ -223,24 +223,17 @@ fn a_restored_prefix_names_the_next_source_sequence_without_changing_the_retry()
         turns: Box::new([saved]),
     };
     let mut restored = Harness::new();
-    let emitted = restored.step(Event::Start {
-        messages: Box::default(),
-        window: crate::Window { turns: u32::MAX, bytes: u64::MAX },
-        answered: Box::default(),
-        workspace: None,
+    let emitted = restored.step(Event::Start(crate::Start {
         grants: Box::new([crate::Grant {
             renewable: true,
             name: crate::GrantName { account: 0, generation: 0 },
             valid: Duration::from_secs(100_000),
         }]),
-        reply_to: ReplyTo::new(Token::new(8)),
-        host_run: Token::new(8),
         activation: 2,
-        identity: None,
-        charter: Charter { resume: true, ..charter() },
         transcript: Some(transcript),
-    });
-    let [Request::Admitted { .. }, Request::Complete { owner, name, .. }] = &*emitted else {
+        ..crate::fixture::start(Token::new(8), Charter { resume: true, ..charter() })
+    }));
+    let [Request::Admitted { .. }, Request::Lower(crate::Lower::Complete { owner, name, .. })] = &*emitted else {
         panic!("restored main completion, got {emitted:?}");
     };
     assert_eq!(*name, CompletionName { sequence, retry: 0 });
@@ -260,13 +253,13 @@ fn account_failure(
     charter.llm.account = account;
     let (_, owner, _) = harness.admit(7, charter);
     harness.env.now = now;
-    let emitted = harness.step(Event::Failed {
+    let emitted = harness.step(Event::Below(crate::Below::Failed {
         owner,
         failure,
         report,
         evidence: Evidence::Response { status: Some(403) },
         detail: bytes(b"provider reason"),
-    });
+    }));
     harness.env.now = later;
     let notices = account_notices(&emitted).len();
     for request in &*emitted {

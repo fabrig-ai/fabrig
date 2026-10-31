@@ -79,22 +79,7 @@ pub(super) fn check(observer: &Observer, currency: u64, ceiling: f64) -> Measure
                     total
                 }
                 Event::Budget(value) => u128::from(value.spend.used),
-                Event::SessionStarted(_)
-                | Event::SessionEnded(_)
-                | Event::RunStarted(_)
-                | Event::ConversationOpened(_)
-                | Event::ConversationClosed(_)
-                | Event::ResponseStarted(_)
-                | Event::TextDelta(_)
-                | Event::ToolStarted(_)
-                | Event::JobEnded(_)
-                | Event::ToolCompleted(_)
-                | Event::CheckStarted(_)
-                | Event::CheckCompleted(_)
-                | Event::MessageReceived(_)
-                | Event::MessageRead(_)
-                | Event::MessageUnread(_)
-                | Event::Notice(_) => continue,
+                _ => continue,
             };
             measured = true;
             if !within(spent, currency, ceiling) {

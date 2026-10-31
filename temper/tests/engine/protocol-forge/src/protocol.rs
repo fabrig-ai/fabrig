@@ -331,6 +331,7 @@ impl Protocol {
         self.accept_installations();
         self.top = Self::top(self.seed, self.fixture.writer, &self.env.limits);
         let records: Vec<_> = self.stored.iter().map(|(_, row)| row.clone()).collect();
+        self.top.restore_begin(self.env.wall);
         for record in records {
             self.event(top::Event::Restore { record });
         }

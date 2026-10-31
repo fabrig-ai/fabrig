@@ -2,35 +2,8 @@
 use skein_channel::{Lower, StreamMode};
 use skein_lib::{Queue, stream};
 
-use crate::{Component, Limits, OpenEvent};
-
-fn limits() -> Limits {
-    Limits {
-        bodies: smith_channel::CEILINGS,
-        start_bytes: u32::try_from(
-            smith_channel::Start::encoded_bound(&smith_channel::CEILINGS).expect("fixture Start bound"),
-        )
-        .expect("fixture frame"),
-        charter: smith_charter::CEILINGS,
-        transcript: smith_transcript::CEILINGS,
-        resume_turns: 64,
-        search_hits: 256,
-        endpoints: 0,
-        calls: 0,
-        turns: 0,
-        fact_reserve_frames: 1,
-        fact_reserve_bytes: 128,
-        grants: 0,
-        channel: skein_channel::Limits {
-            chunk: 8,
-            credential: 0,
-            skip: 8,
-            output_bytes: u32::MAX,
-            output_frames: 2,
-            kinds: 20,
-        },
-    }
-}
+use crate::fixture::small as limits;
+use crate::{Component, Heard, Limits};
 
 #[test]
 fn the_agent_demands_the_open_before_the_domain_hears_anything() {
@@ -38,7 +11,7 @@ fn the_agent_demands_the_open_before_the_domain_hears_anything() {
     let mut component =
         Component::new(&limits, StreamMode::Two, crate::Endpoints::new(skein_lib::List::with_capacity(0)))
             .expect("checked schema");
-    let mut to_service = Queue::<OpenEvent>::with_capacity(2);
+    let mut to_service = Queue::<Heard>::with_capacity(2);
     let mut below = Queue::<Lower>::with_capacity(8);
     component.fire(&mut to_service, &mut below);
     assert!(to_service.is_empty());
@@ -220,7 +193,7 @@ fn optional_usage_round_trips_without_turning_absence_into_zero() {
 }
 
 #[test]
-fn size_refusal_subject_size_and_bound_survive_version_three_resume() {
+fn size_refusal_subject_size_and_bound_survive_current_version_resume() {
     use smith_domain_session::llm;
     use smith_domain_tools::{Outcome, SizePart};
     let endpoints = saved_endpoints();
@@ -250,7 +223,7 @@ fn size_refusal_subject_size_and_bound_survive_version_three_resume() {
 }
 
 #[test]
-fn resolved_failures_round_trip_in_version_three_and_refuse_unnormalized_paths() {
+fn resolved_failures_round_trip_in_current_version_and_refuse_unnormalized_paths() {
     use smith_domain_session::{llm, record};
     use smith_domain_tools::{Name, Outcome, Resolved};
     let endpoints = saved_endpoints();
@@ -391,24 +364,21 @@ fn a_window_suffix_round_trips_its_noninitial_place_and_rejects_a_second_window(
     let limits = smith_transcript::CEILINGS;
     let endpoints = saved_endpoints();
     let window = record::Turn {
-        model: b"model".as_slice().into(),
-        effort: None,
-        version: record::VERSION,
-        kind: record::Kind::Window(Box::new(record::Opener {
-            affinity: llm::Affinity { key: [0x25; 16], thread: 0 },
-            account: None,
-            backend: record::Backend::Direct,
-        })),
         endpoint: Some(llm::Endpoint(3)),
-        dialect: 0,
         sequence: 8,
-        usage: llm::Usage::ZERO,
         spent: 9,
-        jobs: 0,
-        messages: Box::new([llm::Message {
-            role: llm::Role::User,
-            content: Box::new([llm::Block::Text { text: b"task and summary".as_slice().into(), replay: None }]),
-        }]),
+        ..smith_domain::session::fixture::turn(
+            b"model".as_slice().into(),
+            record::Kind::Window(Box::new(record::Opener {
+                affinity: llm::Affinity { key: [0x25; 16], thread: 0 },
+                account: None,
+                backend: record::Backend::Direct,
+            })),
+            Box::new([llm::Message {
+                role: llm::Role::User,
+                content: Box::new([llm::Block::Text { text: b"task and summary".as_slice().into(), replay: None }]),
+            }]),
+        )
     };
     let first = crate::encode_turn(&window, &limits, &endpoints).expect("window turn");
     let decoded = decode_saved_transcript(&[first.clone(), saved_turn(9, 0)], &limits, &endpoints)
@@ -803,7 +773,7 @@ fn grant_forms_keep_their_policy_at_start_and_refresh() {
             wire::GrantParts { account: 7, generation: 2, valid: Duration::from_secs(3600), value },
         )
         .expect("bounded wire grant");
-        let refresh = crate::translate::refreshed_grant(&grant);
+        let refresh = smith_protocol_translate::refreshed_grant(&grant);
         assert_eq!(
             refresh,
             smith_domain::Grant {
@@ -811,7 +781,7 @@ fn grant_forms_keep_their_policy_at_start_and_refresh() {
                 valid: Duration::from_secs(3600),
                 renewable,
             },
-            "actual refresh conversion"
+            "observed refresh conversion"
         );
         let mut grants = List::with_capacity(1);
         grants.push(grant).expect("one grant");
@@ -831,7 +801,7 @@ fn grant_forms_keep_their_policy_at_start_and_refresh() {
             },
         )
         .expect("bounded start envelope");
-        let decoded = crate::start_context(start, grant_charter(), None).expect("actual start conversion");
+        let decoded = crate::start_context(start, grant_charter(), None).expect("observed start conversion");
         assert_eq!(decoded.grants.len(), 1);
         let kept = &decoded.grants[0];
         assert_eq!((kept.name, kept.valid, kept.renewable), (refresh.name, refresh.valid, renewable));

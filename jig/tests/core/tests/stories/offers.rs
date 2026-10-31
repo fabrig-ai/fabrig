@@ -63,6 +63,7 @@ fn a_members_goal_beyond_their_pool_is_refused_when_nobody_may_accept_it() {
             .values()
             .any(|row| matches!(row, root::Record::Core(core::Record::Tasks(tasks::Stored::PersonProposal(_)))))
     );
+    world.close();
 }
 
 #[test]
@@ -96,6 +97,7 @@ fn a_member_is_offered_a_goal_past_their_allotment_as_proposed() {
     assert_eq!(world.assignments.len(), before, "no goal runs before acceptance");
     assert_eq!(world.offers.as_ref().expect("offer referee").checked, 1);
     world.watches.as_ref().expect("watch parties").finish();
+    world.close();
 }
 
 #[test]
@@ -134,6 +136,7 @@ fn an_observer_is_offered_nothing_and_told_why() {
     );
     assert_eq!(world.offers.as_ref().expect("offer referee").checked, 1);
     world.watches.as_ref().expect("watch parties").finish();
+    world.close();
 }
 
 #[test]
@@ -203,4 +206,5 @@ fn a_policy_narrowed_withdraws_an_offer_in_the_next_delivery() {
     assert_eq!(world.people_answers.last(), Some(&people::Reply::Outcome(people::Outcome::Refused(refused))));
     assert_eq!(world.offers.as_ref().expect("offer referee").checked, 1);
     world.watches.as_ref().expect("watch parties").finish();
+    world.close();
 }

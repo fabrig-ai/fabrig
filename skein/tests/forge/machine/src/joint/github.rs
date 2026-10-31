@@ -187,7 +187,7 @@ impl Github {
             http::Request::Respond(http::Response {
                 status: response.status,
                 headers: headers.into_boxed_slice(),
-                body: http::Body::Length(u64::try_from(peer.reply.len()).expect("reply length")),
+                body: http::Body::Length(skein_lib::len_u64(peer.reply.len())),
                 close: false,
             }),
         );

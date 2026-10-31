@@ -1,5 +1,5 @@
 //! Real composed-domain opaque-host stories and positive-first outside-history
-//! controls (domain/run.md, sections 5.2, 13 and 14; testing-strategy.md, section 7).
+//! controls (smith/docs/design/domain/run.md, sections 5.2 and 13; skein/docs/foundation/testing-strategy.md, section 7).
 
 use skein_lib::{Duration, Time, Token};
 use skein_world::domain::assert_replays;
@@ -104,7 +104,7 @@ fn positive_prefix() -> History {
             first.relay,
             &run::HostReply::Unanswered(run::Unanswered::Lost),
         )
-        .expect("positive actual terminal");
+        .expect("positive terminal");
     history
         .submit(submission(2, 2, 99))
         .expect("new callback after simulated translated activation restart retains logical host_run and input");
@@ -123,7 +123,7 @@ fn outside_history_positive_control_and_chronology_identity_feedback_negative_co
             &run::HostReply::Answered(answer.clone()),
         )
         .expect("positive answer replay");
-    assert_eq!(positive.submit(submission(4, 3, 100)), Err("recovery after actual answer"));
+    assert_eq!(positive.submit(submission(4, 3, 100)), Err("recovery after answer"));
     positive.feedback(&run::Returned::HostAnswered(answer.clone())).expect("closed positive exact feedback");
     let mut history = positive_prefix();
     assert_eq!(
@@ -189,7 +189,7 @@ fn prompt_feedback(returned: Option<run::Returned>) -> smith_domain::llm::Prompt
 fn outside_known_and_unknown_feedback_cannot_be_omitted_or_rewritten_but_shutdown_can_skip_continuation() {
     for unknown in [false, true] {
         let mut history = positive_prefix();
-        let answer = run::HostAnswer::new(b"actual first record".as_slice().into(), false).expect("bounded answer");
+        let answer = run::HostAnswer::new(b"first record".as_slice().into(), false).expect("bounded answer");
         let terminal = if unknown { run::HostReply::Busy } else { run::HostReply::Answered(answer.clone()) };
         history
             .terminal(Time::ZERO.saturating_add(Duration::from_secs(3)), submission(2, 2, 99).relay, &terminal)
@@ -198,8 +198,8 @@ fn outside_known_and_unknown_feedback_cannot_be_omitted_or_rewritten_but_shutdow
         assert_eq!(history.finish(false), Err("shutdown was not observed"));
         assert_eq!(history.prompt(&prompt_feedback(None)), Err("continuation omitted host feedback"));
         assert_eq!(history.prompt(&prompt_feedback(Some(run::Returned::Nothing))), Err("host feedback was rewritten"));
-        let actual = if unknown { run::Returned::HostUnknown } else { run::Returned::HostAnswered(answer) };
-        history.prompt(&prompt_feedback(Some(actual))).expect("closed positive exact paired feedback");
+        let seen = if unknown { run::Returned::HostUnknown } else { run::Returned::HostAnswered(answer) };
+        history.prompt(&prompt_feedback(Some(seen))).expect("closed positive exact paired feedback");
         history.finish(true).expect("full continuation positive control");
     }
 }
@@ -218,30 +218,30 @@ fn composed_cancellation_while_host_relay_is_live_retains_recorded_answer_and_st
     });
     cancelled.run(20_000);
     assert!(matches!(cancelled.answer(), run::Answer::Failed { failure: run::Failure::Cancelled, .. }));
-    assert_eq!(cancelled.host_submissions().len(), 1, "no fresh recovery after actual cancellation");
+    assert_eq!(cancelled.host_submissions().len(), 1, "no fresh recovery after cancellation");
     assert_eq!(cancelled.host_decisions(), 1);
     let [(relay, at, run::HostReply::Answered(answer))] = cancelled.host_terminals() else {
-        panic!("exactly one actual recorded answer settles original relay");
+        panic!("exactly one recorded answer settles original relay");
     };
     assert_eq!(*relay, cancelled.host_submissions()[0].relay);
     assert_eq!(answer.text(), b"opaque host answer: first decision");
-    let stopped = cancelled.host_shutdown_at().expect("actual parent cancellation observed");
+    let stopped = cancelled.host_shutdown_at().expect("parent cancellation observed");
     assert!(cancelled.host_submissions()[0].at < stopped && stopped < *at);
     assert_eq!(cancelled.prompts().len(), 1, "shutdown needs no next provider completion");
     assert!(cancelled.trace().iter().any(|line| line.contains("WithdrawHost")));
-    assert!(cancelled.answered_at() >= *at, "run settles after actual terminal");
+    assert!(cancelled.answered_at() >= *at, "run settles after terminal");
 }
 
 #[test]
 fn outside_shutdown_control_requires_stop_and_original_terminal() {
     let mut history = positive_prefix();
     history.shutdown(Time::ZERO.saturating_add(Duration::from_millis(2500)));
-    assert_eq!(history.finish(false), Err("shutdown abandoned actual relay terminal"));
+    assert_eq!(history.finish(false), Err("shutdown abandoned relay terminal"));
     history
         .terminal(Time::ZERO.saturating_add(Duration::from_secs(3)), submission(2, 2, 99).relay, &run::HostReply::Busy)
-        .expect("actual original terminal");
+        .expect("original terminal");
     assert_eq!(history.submit(submission(4, 3, 100)), Err("recovery after observed shutdown"));
-    history.finish(false).expect("closed actual shutdown control needs no continuation");
+    history.finish(false).expect("closed shutdown control needs no continuation");
 }
 
 fn origin_call(input: &[u8]) -> llm::Block {
@@ -254,9 +254,9 @@ fn origin_call(input: &[u8]) -> llm::Block {
 }
 
 fn origin_submission() -> Submission {
-    let mut actual = submission(0, 1, 11);
-    actual.tool = b"host_action".as_slice().into();
-    actual
+    let mut seen = submission(0, 1, 11);
+    seen.tool = b"host_action".as_slice().into();
+    seen
 }
 
 fn origin_history(message: u32, position: u32) -> History {
@@ -270,17 +270,17 @@ fn origin_history(message: u32, position: u32) -> History {
             b" {\"unchanged\":true} ".as_slice().into(),
         )
         .expect("outside observed executable call and exact origin");
-    let actual = origin_submission();
-    history.submit(actual.clone()).expect("actual relay matches observed call bytes");
+    let seen = origin_submission();
+    history.submit(seen.clone()).expect("relay matches observed call bytes");
     history
         .terminal(
             Time::ZERO.saturating_add(Duration::from_secs(1)),
-            actual.relay,
+            seen.relay,
             &run::HostReply::Answered(
                 run::HostAnswer::new(b"first record".as_slice().into(), false).expect("bounded exact answer"),
             ),
         )
-        .expect("actual answer before continued prompt");
+        .expect("answer before continued prompt");
     history
 }
 
@@ -326,7 +326,7 @@ fn corrupt_origin(prompt: &mut llm::Prompt, field: u32) {
             let llm::Block::ToolResult { id, result: llm::Returned::Text { text, error, replay } } =
                 &mut prompt.messages[3].content[0]
             else {
-                panic!("positive actual receipt shape")
+                panic!("positive receipt shape")
             };
             match field {
                 2 => *text = b"rewritten".as_slice().into(),
@@ -340,7 +340,7 @@ fn corrupt_origin(prompt: &mut llm::Prompt, field: u32) {
         7 => prompt.messages[3].role = llm::Role::Assistant,
         8..=10 => {
             let llm::Block::ToolCall { id, name, input, .. } = &mut prompt.messages[2].content[0] else {
-                panic!("positive actual call shape")
+                panic!("positive call shape")
             };
             match field {
                 8 => *id = b"different".as_slice().into(),

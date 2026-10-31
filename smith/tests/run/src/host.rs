@@ -12,11 +12,11 @@
 //!   delay; some of those again, and some once they have answered. A second
 //!   cancel names a run that has decided how it ends, and a late one a run
 //!   that has answered: the run ignores both, which is what they test.
-//! - It answers each push after a drawn latency: the branch has moved, for
-//!   every push of a job that drew so when it started (a push is a
+//! - It answers each delivery after a drawn latency: the branch has moved, for
+//!   every delivery of a job that drew so when it started (a delivery is a
 //!   fast-forward from where the run started, so a moved branch stays
-//!   moved); else, with the configured chance, the push fails; otherwise it
-//!   is done. Submitted delivery is never abandoned and its actual deadline
+//!   moved); else, with the configured chance, the delivery fails; otherwise it
+//!   is done. Submitted delivery is never abandoned and its deadline
 //!   terminal remains owed even while a job is cancelling;
 //!   and the withdraw changes nothing.
 //! - It counts the check notices it hears.
@@ -36,9 +36,9 @@
 //! ```
 //!
 //! It checks as it goes that each start is admitted at most once, before its
-//! answer, and answered exactly once; that a run pushes and tells of its
+//! answer, and answered exactly once; that a run delivers and tells of its
 //! checks only once admitted and before it answers; and that it names its
-//! pushes apart.
+//! deliveries apart.
 //!
 //! What it does at a later time it keeps alarms for, which the world fires.
 
@@ -53,13 +53,9 @@ use smith_domain_run::{Directory, Workspace};
 use skein_world::domain::Span;
 
 /// What a brief says, over and over.
-///
-/// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
 const TEXT: &[u8] = b"Fix the failing test in the parser, and keep the change small. ";
 
 /// How the host behaves.
-///
-/// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Script {
     /// Requested finishing quota, clamped below each generated total budget.
@@ -68,90 +64,50 @@ pub struct Script {
     pub checks: Duration,
     /// Runs to start, one per job, each at a time drawn from the first
     /// `window`.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
     pub jobs: u32,
     /// Initial monotonic interval in which the host schedules its jobs.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
     pub window: Duration,
     /// The chance, per mille, that a run is cancelled once it is admitted,
     /// after a delay drawn from `cancel`.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
     pub cancels: u32,
     /// Injected delay from admission until a scripted cancellation.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
     pub cancel: Span,
     /// The chances, per mille, that a run is cancelled again after a cancel,
     /// and that a run is cancelled after it has answered, each after a delay
     /// drawn from `cancel`.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
     pub recancels: u32,
     /// Chance per mille of a cancellation after the target has settled.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
     pub late_cancels: u32,
     /// The length of each brief, drawn from `brief_min..=brief_max`.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
     pub brief_min: u32,
     /// Inclusive largest generated brief byte length.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
     pub brief_max: u32,
     /// Each budget's turns and tokens of every kind, each drawn from its
     /// range, and its time, drawn from `time`.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
     pub turns_min: u32,
     /// Inclusive largest generated completion-count allowance.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
     pub turns_max: u32,
     /// Inclusive smallest generated token allowance in each dimension.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
     pub tokens_min: u64,
     /// Inclusive largest generated token allowance in each dimension.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
     pub tokens_max: u64,
     /// Monotonic wall-time allowance from admission.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
     pub time: Span,
     /// What each charter's LLM asks for as `max_tokens`.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
     pub max_tokens: u32,
     /// Chance per mille that the first directory is writable.
     /// Result permissions are drawn separately; when none is selected,
     /// the fixture permits a change if writable, otherwise a report.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
     pub writable: u32,
     /// Chance per mille of permitting a change when the first directory is writable.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
     pub changes: u32,
     /// Chance per mille of a report form; zero preserves the earlier fixture's random draws.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 7.1 and 13; testing-strategy.md, section 2.2.
     pub reports: u32,
     /// Independent chance per mille of permitting declared failure; zero preserves earlier random draws.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 7.1 and 13; testing-strategy.md, section 2.2.
     pub failures: u32,
     /// Chance per mille that a generated charter admits a verdict.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
     pub verdicts: u32,
     /// The chance, per mille, that a charter grants sub-agents.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
     pub agents: u32,
     /// Chance per mille of granting separately callable mid-run delivery.
     pub deliveries: u32,
@@ -163,104 +119,64 @@ pub struct Script {
     pub relay_busy: u32,
     /// Chance per mille of a decided relay whose response is lost.
     pub relay_lost: u32,
-    /// The time to push.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
-    pub push: Span,
+    /// The delivery latency.
+    pub delivery: Span,
     /// The chance, per mille, that a job's branch moves before its run
-    /// pushes: every push of that job finds it moved.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
+    /// deliveries: every delivery of that job finds it moved.
     pub moved: u32,
-    /// The chance, per mille, that a push fails.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
-    pub push_failures: u32,
+    /// The chance, per mille, that a delivery fails.
+    pub delivery_failures: u32,
 }
 
 /// What the host counted.
-///
-/// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
 #[derive(Clone, Copy, Default, PartialEq, Eq, Debug)]
 pub struct Tally {
-    /// Answers it took and actual bounded deliveries it served,
+    /// Answers it took and bounded deliveries it served,
     /// and check notices it heard.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
     pub answered: u32,
-    /// Count of pushes observed at this scripted boundary.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
-    pub pushes: u32,
-    /// Count of notices observed at this scripted boundary.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
+    pub deliveries: u32,
     pub notices: u32,
 }
 
-/// Seeded scripted host retaining pending jobs, cancellation alarms and push replies; it performs no remote IO.
-///
-/// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
+/// Seeded scripted host retaining pending jobs, cancellation alarms and delivery replies; it performs no remote IO.
 pub struct Host {
     script: Script,
     rng: Rng,
     /// The jobs not done yet, by their names, which are their runs' names at
     /// the host.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
     jobs: BTreeMap<Token, Job>,
-    /// The pushes in flight, by the runs' names for them, and the job each
+    /// The deliveries in flight, by the runs' names for them, and the job each
     /// is of.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
-    pushes: BTreeMap<Token, (Token, bool)>,
-    /// When each job starts or its run is cancelled, and when each push is
+    deliveries: BTreeMap<Token, (Token, bool)>,
+    /// When each job starts or its run is cancelled, and when each delivery is
     /// answered: in order, and by what they are for.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
     alarms: BTreeSet<(Time, Alarm)>,
     armed: BTreeMap<Alarm, Time>,
     /// Names for jobs and repositories.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
     names: u64,
     tally: Tally,
 }
 
 struct Job {
-    /// Whether its branch moved before its run pushed.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
+    /// Whether its branch moved before its run delivered.
     moved: bool,
     writable: Vec<u32>,
     state: State,
 }
 
 /// A job that is not done: once done, it is gone.
-///
-/// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 enum State {
     /// Its start alarm is armed.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
     Waiting,
     /// Its run is started, and not admitted yet.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
     Starting,
     /// Its run is admitted as `run`. Its alarm, if armed, cancels it.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
     Running { run: Token },
     /// Its run `run` is cancelled, and has not answered. Its alarm, if armed,
     /// cancels it again.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
     Cancelling { run: Token },
     /// Its run `run` has answered; its alarm cancels it all the same.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
     Lingering { run: Token },
 }
 
@@ -272,15 +188,13 @@ enum Alarm {
 
 impl Host {
     /// A host with `script.jobs` jobs to start, from time zero.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
     #[must_use]
     pub fn new(script: Script, seed: u64) -> Host {
         let mut host = Host {
             script,
             rng: Rng::new(seed),
             jobs: BTreeMap::new(),
-            pushes: BTreeMap::new(),
+            deliveries: BTreeMap::new(),
             alarms: BTreeSet::new(),
             armed: BTreeMap::new(),
             names: 0,
@@ -297,33 +211,25 @@ impl Host {
     }
 
     /// Observed counters retained by this scripted peer.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
     #[must_use]
     pub fn tally(&self) -> Tally {
         self.tally
     }
 
     /// Earliest injected deadline still pending, or `None` when no timed work remains.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
     #[must_use]
     pub fn next_deadline(&self) -> Option<Time> {
         self.alarms.first().map(|(at, _)| *at)
     }
 
     /// Whether injected now reaches the earliest pending deadline; no live clock is read.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
     #[must_use]
     pub fn is_due(&self, now: Time) -> bool {
         self.next_deadline().is_some_and(|at| at <= now)
     }
 
-    /// Starts the jobs, cancels the runs and answers the pushes whose alarms
+    /// Starts the jobs, cancels the runs and answers the deliveries whose alarms
     /// are due at `now`, in the order they fall due.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
     pub fn fire(&mut self, now: Time, out: &mut Vec<Event>) {
         while let Some(&(at, alarm)) = self.alarms.first()
             && at <= now
@@ -337,8 +243,6 @@ impl Host {
     }
 
     /// Starting, admitted: the run may be cancelled later.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
     pub fn admitted(&mut self, now: Time, job: Token, run: Token) {
         let state = self.state(job);
         match state {
@@ -356,8 +260,6 @@ impl Host {
 
     /// Any state with a run, answered: the job is done, unless it is to
     /// cancel its run late.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
     pub fn answered(&mut self, now: Time, job: Token) {
         let state = self.state(job);
         self.disarm(Alarm::Job(job));
@@ -376,38 +278,32 @@ impl Host {
 
     /// The run of `job` runs its checks: the host's watchdog would wait for
     /// them.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
     pub fn checking(&mut self, job: Token) {
         self.assert_running(job, "a run tells of its checks once admitted, before it answers");
         self.tally.notices += 1;
     }
 
-    /// A previously announced check ended before another starts or the run answers.
+    /// A announced check ended before another starts or the run answers.
     pub fn checks_ended(&mut self, job: Token) {
         self.assert_running(job, "a check ends while the run is admitted");
         self.tally.notices += 1;
     }
 
-    /// A push from the run of `job`, which names it `owner`: answered later.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
-    pub fn push(&mut self, now: Time, job: Token, owner: Token, deadline: Time) {
-        self.assert_running(job, "a run pushes once admitted, before it answers");
-        self.tally.pushes += 1;
-        let complete = now.saturating_add(self.script.push.draw(&mut self.rng));
-        assert!(self.pushes.insert(owner, (job, complete > deadline)).is_none(), "live callbacks are distinct");
+    /// A delivery from the run of `job`, which names it `owner`: answered later.
+    pub fn deliver(&mut self, now: Time, job: Token, owner: Token, deadline: Time) {
+        self.assert_running(job, "a run delivers once admitted, before it answers");
+        self.tally.deliveries += 1;
+        let complete = now.saturating_add(self.script.delivery.draw(&mut self.rng));
+        assert!(self.deliveries.insert(owner, (job, complete > deadline)).is_none(), "live callbacks are distinct");
         let at = complete.min(deadline);
         self.arm(Alarm::Delivery(owner), at);
     }
 
     /// The host's side of a settled world: every job started and answered,
-    /// every late cancel sent, and every push answered.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
+    /// every late cancel sent, and every delivery answered.
     pub fn assert_settled(&self) {
         assert!(self.jobs.is_empty(), "the host took every answer and sent every cancel");
-        assert!(self.pushes.is_empty(), "the host answered every push");
+        assert!(self.deliveries.is_empty(), "the host answered every delivery");
         assert!(self.alarms.is_empty() && self.armed.is_empty(), "no alarm outlives what it is for");
         assert_eq!(self.tally.answered, self.script.jobs, "every job was started and answered");
     }
@@ -457,22 +353,20 @@ impl Host {
         }
     }
 
-    /// The push `owner`'s latency has passed: it is decided.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
+    /// The delivery `owner`'s latency has passed: it is decided.
     fn answer_push(&mut self, owner: Token, out: &mut Vec<Event>) {
-        let (job, timed_out) = self.pushes.remove(&owner).expect("a push is in flight until its alarm fires");
+        let (job, timed_out) = self.deliveries.remove(&owner).expect("a delivery is in flight until its alarm fires");
         let moved = self.jobs.get(&job).expect("a job lives until its run, which waits on its push, answers").moved;
-        let push = if timed_out {
+        let delivery = if timed_out {
             Delivery::Failed(smith_domain_run::DeliveryFailure::new(0, smith_domain_run::DeliveryReason::TimedOut))
         } else if moved {
             Delivery::Stale
-        } else if self.rng.chance(self.script.push_failures) {
+        } else if self.rng.chance(self.script.delivery_failures) {
             Delivery::Failed(smith_domain_run::DeliveryFailure::new(0, smith_domain_run::DeliveryReason::Unknown))
         } else {
             delivered(&self.jobs[&job].writable)
         };
-        out.push(Event::Delivered { owner, delivery: push });
+        out.push(Event::Delivered { owner, delivery });
     }
 
     fn assert_running(&self, job: Token, contract: &str) {
@@ -497,7 +391,7 @@ impl Host {
     }
 
     fn arm(&mut self, alarm: Alarm, at: Time) {
-        assert!(self.armed.insert(alarm, at).is_none(), "one alarm at a time for each job and push");
+        assert!(self.armed.insert(alarm, at).is_none(), "one alarm at a time for each job and delivery");
         self.alarms.insert((at, alarm));
     }
 
@@ -528,8 +422,6 @@ impl Host {
     ///   names and meanings are owned by this host fixture. A readonly job with
     ///   no other result family receives a report contract.
     /// - The budget's turns, tokens and time are drawn from their ranges.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
     fn charter(&mut self) -> (Charter, Option<Workspace>) {
         let script = self.script;
         let len = self.rng.between(u64::from(script.brief_min), u64::from(script.brief_max));

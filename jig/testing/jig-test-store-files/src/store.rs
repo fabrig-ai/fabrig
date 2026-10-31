@@ -97,6 +97,23 @@ impl Store {
         models: &[jig_domain_core::Model],
         sets: protocol::PatchSets,
     ) -> Store {
+        Self::build(limits, models, sets)
+    }
+    /// Open the real store with typed start pages (protocol/store.md, 7.1).
+    #[must_use]
+    pub fn starting(limits: &root::Limits, models: &[jig_domain_core::Model]) -> Store {
+        Self::starting_with_patch_sets(limits, models, protocol::PatchSets::NONE)
+    }
+    /// Open typed start pages with the binary's patch sets installed before open.
+    #[must_use]
+    pub fn starting_with_patch_sets(
+        limits: &root::Limits,
+        models: &[jig_domain_core::Model],
+        sets: protocol::PatchSets,
+    ) -> Store {
+        Self::build(limits, models, sets)
+    }
+    fn build(limits: &root::Limits, models: &[jig_domain_core::Model], sets: protocol::PatchSets) -> Store {
         let component_limits = component_limits(limits);
         let disk = if sets.sets.is_empty() { None } else { Some(crate::disk::Disk::new(&component_limits)) };
         let application = jig_test_store::application(&limits.connector);
@@ -284,7 +301,7 @@ impl Store {
     /// Replay durable commits into fresh stores and a fresh filesystem.
     #[must_use]
     pub fn fork(&self) -> Store {
-        let mut fresh = Store::with_patch_sets(&self.limits, &self.models, self.initial_sets);
+        let mut fresh = Store::build(&self.limits, &self.models, self.initial_sets);
         fresh.wires(self.wires);
         for index in 0..=self.durable.len() {
             for (_, sets) in self.patches.iter().filter(|(at, _)| *at == index) {
@@ -293,7 +310,7 @@ impl Store {
             }
             if let Some((number, writes)) = self.durable.get(index) {
                 if fresh.generation_pending && writes.contains(&root::Write::Wires) {
-                    fresh.ask(StoreOut::Restart { step: jig_domain_core::RestartStep::Switch, census: None });
+                    fresh.ask(StoreOut::Start { phase: jig_domain_core::start::Phase::Switch, census: None });
                     let _answers = fresh.answers();
                 }
                 fresh.submit(*number, writes.clone(), 0);
@@ -326,14 +343,20 @@ impl Store {
     pub fn ask(&mut self, out: StoreOut) {
         match out {
             StoreOut::Commit { number, writes } => self.submit(number, writes, 0),
-            out @ (StoreOut::Restart { .. }
+            out @ (StoreOut::Start { .. }
             | StoreOut::ReadLoad { .. }
             | StoreOut::NotesLoad { .. }
             | StoreOut::Now(_)) => self.request(out),
         }
     }
     fn request(&mut self, out: StoreOut) {
-        if matches!(out, StoreOut::Restart { step: jig_domain_core::RestartStep::Switch, .. }) {
+        if matches!(out, StoreOut::Start { phase: jig_domain_core::start::Phase::Switch, .. })
+            && !self.generation_pending
+        {
+            self.replies.push(Up::Root(root::Event::StartDone(jig_domain_core::start::Phase::Switch)));
+            return;
+        }
+        if matches!(out, StoreOut::Start { phase: jig_domain_core::start::Phase::Switch, .. }) {
             self.switch_requests += 1;
         }
         let request = route::down(&mut self.routes, out).expect("root has room for its store request");
@@ -518,18 +541,18 @@ impl Store {
                 self.route(event, requests);
             }
             Event::OpenRefused { why, .. } => panic!("world store open refused: {why:?}"),
-            event @ (Event::Restored { .. } | Event::Loaded { .. } | Event::Read { .. })
+            event @ (Event::Page { .. } | Event::Loaded { .. } | Event::Read { .. })
                 if self.page_delay != 0 || self.pages_paused =>
             {
                 self.delayed.push_back(Delayed { event, delay: self.page_delay });
             }
-            event @ Event::Corrupt { .. } => {
+            event @ (Event::Corrupt { .. } | Event::PageRefused { .. }) => {
                 self.failed = true;
                 self.route(event, requests);
             }
             // These worlds supply sets without written sites; routing answers NoSite.
             event @ (Event::Site { .. }
-            | Event::Restored { .. }
+            | Event::Page { .. }
             | Event::Loaded { .. }
             | Event::Read { .. }
             | Event::Got { .. }
@@ -550,7 +573,7 @@ impl Store {
         while let Some(output) = outputs.pop() {
             match output {
                 Up::Ask(request) => requests.push_back(request),
-                output @ (Up::Restore(_) | Up::Root(_)) => self.replies.push(output),
+                output @ Up::Root(_) => self.replies.push(output),
             }
         }
     }

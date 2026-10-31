@@ -17,11 +17,18 @@
 
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
+#![expect(
+    clippy::manual_map,
+    reason = "closures are out of step code (programming-model.md 10.3), so an Option is mapped by a match"
+)]
 
 extern crate alloc;
 
 mod answer;
 mod component;
+#[cfg(any(test, feature = "fixture"))]
+pub mod fixture;
+
 mod limits;
 mod live;
 mod process;
@@ -31,7 +38,7 @@ mod translate;
 #[cfg(test)]
 mod tests;
 
-pub use component::{Component, OpenEvent};
+pub use component::{Component, Received};
 pub use limits::{Error, Limits, output_bytes};
 pub use process::{Launch, Process, ProcessEvent};
 pub use program::{ProgramSource, SourceAnswer, SourceAsk};

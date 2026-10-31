@@ -1,6 +1,5 @@
 //! Tests local watermark admission and backlog accounting (protocol/limits.md, section 3.8).
 
-use alloc::boxed::Box;
 use skein_lib::{Time, Wall};
 use smith_local_domain as local;
 
@@ -20,7 +19,7 @@ fn admitted_at_watermark() -> Service {
     for _ in 0..service.shell.capacity() {
         service.shell.push(local::Request::Credential { account: 99 });
     }
-    service.local_event(local::Event::Loaded { state: None, transcript: None, deliveries: Box::new([]) });
+    service.local_event(local::fixture::loaded());
     service.local_event(local::Event::Line { text: b"admitted".as_slice().into() });
     service
 }
@@ -98,14 +97,14 @@ fn the_backlog_counts_internal_queues_and_never_edges() {
     assert_eq!(service.backlog(), 3);
     service.lower.push(process::Request::Read { owner, process: owner });
     assert_eq!(service.backlog(), 4);
-    service.below.process_mut().store_request(smith_local_protocol::StoreRequest::Load);
+    service.io.store_request(smith_local_protocol::StoreRequest::Load);
     assert_eq!(service.backlog(), 5, "process internal handoffs contribute too");
     service.writer_request(skein_io::Request::Close { entity: owner });
     assert_eq!(service.backlog(), 6, "writer requests join the internal IO handoff");
     let mut held = a_service_with_held_inline_facts();
     let child_entries = held.local.backlog();
     assert!(child_entries > 0, "native facts wait for the service");
-    held.below.inline_mut().expect("inline effects").io_event(skein_io::Event::Resized);
+    held.effects.as_mut().expect("inline effects").io_event(skein_io::Event::Resized);
     assert_eq!(held.backlog(), u64::from(child_entries) + 1, "inline effects' handoffs contribute too");
     service.local = held.local;
     assert_eq!(service.backlog(), 6 + u64::from(child_entries), "the local domain contributes its child entries");
@@ -122,7 +121,7 @@ fn a_service_with_held_inline_facts() -> Service {
     local::resume(&mut service.local, &env, &mut service.local_requests);
     while service.local_requests.pop().is_some() {}
     for event in [
-        local::Event::Loaded { state: None, transcript: None, deliveries: Box::new([]) },
+        local::fixture::loaded(),
         local::Event::Line { text: b"hello".as_slice().into() },
         local::Event::Credential {
             form: Form::Credential(Scheme::Bearer),
@@ -143,7 +142,7 @@ fn a_service_with_held_inline_facts() -> Service {
 #[test]
 fn a_line_waits_while_the_local_child_holds_the_backlog() {
     use skein_io::kernel::Fd;
-    use smith_agent_service::sinks;
+    use smith_protocol_events::sinks;
     // A destination has six line slots; eight offers reach its reservation.
     const SINK_OFFERS: u64 = 8;
     const HELD_ITERATIONS: u32 = 2; // Check retention across an iteration boundary.
@@ -151,7 +150,7 @@ fn a_line_waits_while_the_local_child_holds_the_backlog() {
     let trace = Fd::new(20);
     service.adopt_trace(trace, Time::ZERO, crate::tests::session_started(), sinks::Delivery::Complete).unwrap();
     let (charter, messages) = service.local.charter();
-    let effects = service.below.inline_mut().expect("inline effects");
+    let effects = service.effects.as_mut().expect("inline effects");
     effects.starting(1, messages, &charter);
     let sinks = effects.front_sinks().expect("configured event sink");
     for name in 0..SINK_OFFERS {

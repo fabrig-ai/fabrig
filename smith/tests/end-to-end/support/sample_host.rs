@@ -72,20 +72,19 @@ pub fn run() {
         .expect("sample host fixture");
     assert!(host.seen().started && host.seen().admitted, "the generated configuration admitted the run");
     assert!(host.seen().answered.is_some(), "the agent answered");
-    assert_eq!(host.seen().exits, 1, "one actual agent exit");
+    assert_eq!(host.seen().exits, 1, "one agent exit");
     assert_eq!(host.seen().reaps, 1, "the child is reaped");
     referee::review(host.observations()).assert_passed(91);
     smith_real_world::settled::assert_no_children();
 }
 
 fn peer_script() -> skein_fake_llm_domain::api::Script {
-    use skein_fake_llm_domain::api::{Finish, Line, Script, Turn};
+    use skein_fake_llm_domain::api::{Line, Script};
     Script {
         cue: Box::new([]),
-        turns: Box::new([Turn {
-            lines: Box::new([Line::Text { text: b"Hello".as_slice().into() }]),
-            finish: Finish::Stop,
-            tokens: 1,
-        }]),
+        turns: Box::new([smith_agent_world::fixture::says(
+            Box::new([Line::Text { text: b"Hello".as_slice().into() }]),
+            1,
+        )]),
     }
 }

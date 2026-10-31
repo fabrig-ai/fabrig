@@ -9,7 +9,7 @@ use std::{collections::BTreeMap, ffi::OsString, os::unix::fs::PermissionsExt, pa
 
 mod accounts;
 #[cfg(test)]
-mod program;
+mod program_tests;
 pub(crate) mod warnings;
 
 /// A startup warning names its configuration source, never a variable's value.
@@ -78,11 +78,7 @@ fn report_for(
     clock: &skein_shell::Clock,
     execution: Option<&command::Exec>,
 ) -> Verdict {
-    let command = match execution {
-        Some(execution) => Command::Exec(execution.clone()),
-        None => Command::Check { shared: command::Shared::default(), json: false, execution: None },
-    };
-    let mut resolved = match settings::resolve::resolve(settings, &command) {
+    let mut resolved = match settings::resolve::resolve(settings) {
         Ok(resolved) => resolved,
         Err(why) => return Verdict::Refused(why),
     };
@@ -255,8 +251,7 @@ pub fn render_text(report: &Report) -> String {
 
 fn startup_agent(resolved: &mut settings::resolve::Resolved) -> Result<(), String> {
     if crate::compose::program_account(&resolved.accounts) {
-        let host = crate::compose::host_limits(&resolved.agent, true)
-            .map_err(|why| String::from_utf8_lossy(&smith_agent_service::profile::words(&why)).into_owned())?;
+        let host = crate::compose::host_limits(&resolved.agent, true).map_err(crate::startup::profile_refusal)?;
         resolved.limits.agent = smith_local_domain::AgentLimits::Spawned(host);
     }
     Ok(())
@@ -268,25 +263,18 @@ fn invocation_limits(
     wall: skein_lib::Wall,
 ) -> Result<Option<Box<[smith_agent_service::profile::Limit]>>, String> {
     let local = match execution {
-        Some(execution) => Some(derive_execution(resolved, execution, wall)?),
-        None => Some(interactive_limits(resolved)?),
+        Some(execution) => derive_invocation(resolved, execution, wall, false)?,
+        None => interactive_limits(resolved)?,
     };
     let agent = &resolved.agent;
-    Ok(match &local {
-        Some((local, result_file)) => smith_local_service::profile::effective(
-            &agent.profile,
-            &agent.declarations,
-            &agent.service,
-            local,
-            *result_file,
-        ),
-        None => smith_agent_service::profile::effective(
-            &agent.profile,
-            &agent.declarations,
-            &agent.service.limits,
-            &agent.service.llm_endpoints,
-        ),
-    })
+    let (local, result_file) = local;
+    Ok(smith_local_service::profile::effective(
+        &agent.profile,
+        &agent.declarations,
+        &agent.service,
+        &local,
+        result_file,
+    ))
 }
 
 fn named_limits(
@@ -309,14 +297,6 @@ fn named_limits(
             })
             .collect(),
     )
-}
-
-fn derive_execution(
-    resolved: &mut settings::resolve::Resolved,
-    invocation: &command::Exec,
-    wall: skein_lib::Wall,
-) -> Result<(smith_local_service::Limits, skein_lib::Duration), String> {
-    derive_invocation(resolved, invocation, wall, false)
 }
 
 /// Derive and admit the interactive invocation's limits without opening resources.
@@ -349,7 +329,7 @@ fn derive_invocation(
         &resolved.agent,
         matches!(resolved.limits.agent, smith_local_domain::AgentLimits::Spawned(_)),
     )
-    .map_err(|why| String::from_utf8_lossy(&smith_agent_service::profile::words(&why)).into_owned())?;
+    .map_err(crate::startup::profile_refusal)?;
     let mut limits = crate::compose::service_limits(resolved.limits.clone(), host, &resolved.agent.service)?;
     if interactive {
         interactive_header(resolved, &mut limits, result_file)?;
@@ -371,7 +351,10 @@ fn derive_invocation(
     {
         return Err("invalid inline limits".to_owned());
     }
-    let handed = handed_accounts(resolved)?;
+    let accounts = crate::local_host::AccountNeeds {
+        handed: true,
+        programs: resolved.accounts.iter().any(|account| account.source() == settings::resolve::AccountSource::Program),
+    };
     if interactive {
         crate::front::interactive::Interactive::new(false, &resolved.agent.service.limits)
             .ok_or_else(|| "interactive view bound overflows".to_owned())?;
@@ -380,32 +363,9 @@ fn derive_invocation(
         smith_local_domain::AgentLimits::Inline(_) => resolved.agent.service.limits.routes,
         smith_local_domain::AgentLimits::Spawned(_) => 0,
     };
-    crate::Local::startup_operations(&limits, lower_routes, Some(&handed), !interactive && files.has_output())
+    crate::Local::startup_operations(&limits, lower_routes, accounts, !interactive && files.has_output())
         .map_err(|why| why.detail().to_owned())?;
     Ok((limits, result_file))
-}
-
-fn handed_accounts(resolved: &settings::resolve::Resolved) -> Result<crate::credentials::Prepared, String> {
-    let count = u32::try_from(resolved.accounts.len()).map_err(|_| "too many account sources".to_owned())?;
-    let mut locations = skein_lib::List::with_capacity(count);
-    let directory = crate::credentials::Directory::of(&resolved.settings);
-    for account in &resolved.accounts {
-        let source =
-            crate::credentials::source(&account.fields, &resolved.settings, false, &account.name, directory.as_ref());
-        locations
-            .push(crate::credentials::Location { account: account.number, name: account.name.clone(), source })
-            .expect("selected locations fit their account bound");
-    }
-    Ok(crate::credentials::Prepared {
-        sources: skein_lib::List::with_capacity(count),
-        lendable: skein_lib::Map::with_capacity(count),
-        locations,
-        limits: crate::credentials::limits(
-            resolved.agent.service.limits.io,
-            count.max(1),
-            resolved.agent.profile.policy.refresh_lead,
-        ),
-    })
 }
 
 fn interactive_header(
@@ -416,8 +376,8 @@ fn interactive_header(
     let destinations = u32::from(resolved.agent.trace.is_some());
     let trace = resolved.agent.trace.take().unwrap_or(smith_agent_shell::trace::TraceConfig {
         path: "stdout".into(),
-        capture: smith_agent_service::sinks::Capture::None,
-        delivery: smith_agent_service::sinks::Delivery::Complete,
+        capture: smith_protocol_events::sinks::Capture::None,
+        delivery: smith_protocol_events::sinks::Delivery::Complete,
     });
     crate::Local::prepare_header(
         &mut resolved.agent,
@@ -462,212 +422,7 @@ pub fn command(arguments: &[OsString], wall: skein_lib::Wall, clock: &skein_shel
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn a_small_declared_memory_checks() {
-        let files = crate::credentials::tests::Files::new();
-        crate::credentials::tests::private_key(&files);
-        let certificate = skein_scratch::paths::tree().join("tests/protocol-llm/fixtures/root.der");
-        let text = format!(
-            "credentials='{}'\nmodel='codex/gpt-6-luna'\n\
-             [deployment]\nmemory=1\n[environment]\ninherit=['PATH']\n\
-             [accounts.codex]\nsource='key'\n[endpoints.codex]\n\
-             trust.system=false\ntrust.der=['{}']\n[trace]\npath='unopened-events'\n",
-            files.0.display(),
-            certificate.display()
-        );
-        let mut settings = settings::merge(
-            &command::Shared::default(),
-            files.0.clone(),
-            &[settings::Source { layer: settings::Layer::User, path: files.0.join("check.toml"), text }],
-        )
-        .unwrap_or_else(|why| panic!("{}", why.line()));
-        settings.paths.path = Some("/usr/bin:/bin".into());
-        let execution = command::Exec {
-            shared: command::Shared::default(),
-            prompt: command::Prompt::Argument(b"hello".as_slice().into()),
-            output: Some(files.0.join("unopened-result")),
-            ephemeral: true,
-            deliver: false,
-            json: true,
-        };
-        for invocation in [Some(&execution), None] {
-            let report = match report_for(&settings, skein_lib::Wall::EPOCH, &skein_shell::Clock::new(), invocation) {
-                Verdict::Ready(report) => report,
-                Verdict::Refused(why) => panic!("{}", why.line()),
-            };
-            assert!(report.credentials_ready(), "check succeeds with the synthetic key");
-            let declaration = report
-                .named_limits
-                .iter()
-                .find(|limit| limit["name"] == "declared.memory")
-                .expect("emitted memory declaration");
-            assert_eq!(declaration["value"], 1);
-        }
-        assert!(!files.0.join("unopened-result").exists());
-        assert!(!files.0.join("unopened-events").exists());
-    }
-
-    #[test]
-    fn interactive_checks_enable_the_live_front() {
-        let mut resolved = execution_fixture();
-        let (limits, _) = interactive_limits(&mut resolved).expect("interactive admission");
-        let events = resolved.agent.service.limits.events.expect("interactive sink");
-        assert!(events.front);
-        assert!(smith_local_service::valid(&limits));
-    }
-
-    fn resolved(trace: bool) -> settings::resolve::Resolved {
-        let certificate =
-            skein_scratch::paths::tree().join("tests/protocol-llm/fixtures/root.der").display().to_string();
-        let trace = if trace { "[trace]\npath='/unopened-events'\n" } else { "" };
-        let text = format!(
-            "model='codex/gpt-6-luna'\n[deployment]\nmemory=8589934592\n[accounts.codex]\nsource='env'\nvariable='SMITH_FIXTURE_TOKEN'\n[endpoints.codex]\ntrust.system=false\ntrust.der=['{certificate}']\n{trace}"
-        );
-        let settings = settings::merge(
-            &command::Shared::default(),
-            "/workspace".into(),
-            &[settings::Source { layer: settings::Layer::User, path: "check-fixture.toml".into(), text }],
-        )
-        .unwrap_or_else(|why| panic!("{}", why.line()));
-        settings::resolve::resolve(
-            &settings,
-            &Command::Check { shared: command::Shared::default(), json: true, execution: None },
-        )
-        .unwrap_or_else(|why| panic!("{}", why.line()))
-    }
-
-    #[test]
-    fn check_execs_teardown_includes_only_its_result_file_deadlines() {
-        let mut resolved = execution_fixture();
-        for (output, milliseconds) in [(false, 10_000), (true, 12_000)] {
-            let mut arguments = vec!["check", "--json", "exec"];
-            if output {
-                arguments.extend(["-o", "/unopened-output-parent/result"]);
-            }
-            let Command::Check { execution: Some(execution), .. } =
-                command::parse(arguments.into_iter().map(OsString::from).collect()).expect("check exec arguments")
-            else {
-                panic!("invocation-aware check");
-            };
-            let inventory = invocation_limits(&mut resolved, Some(&execution), skein_lib::Wall::from_nanos(0))
-                .expect("pure invocation derivation")
-                .expect("effective inventory");
-            let document = named_limits(&inventory, &resolved.agent).expect("check's named JSON limits");
-            assert!(document.iter().any(|limit| limit["name"] == "domain.content_edge_records"
-                && limit["value"] == 1024
-                && limit["unit"] == "count"));
-            for removed in ["run.facts", "session.facts", "tools.facts", "inline.facts"] {
-                assert!(document.iter().all(|limit| limit["name"] != removed), "{removed}");
-            }
-            let teardown = document.iter().find(|limit| limit["name"] == "service.teardown").expect("teardown bound");
-            assert_eq!(teardown["unit"], "ms");
-            assert_eq!(teardown["value"], milliseconds);
-        }
-    }
-
-    #[expect(
-        clippy::zero_sized_map_values,
-        reason = "The fixture retains adapter names even while Claude Code is the sole adapter."
-    )]
-    fn execution_fixture() -> settings::resolve::Resolved {
-        let (mut local, service) =
-            smith_local_process_world::process::configuration(skein_io::kernel::Fd::new(41), false);
-        local.limits.local.agent = smith_local_domain::AgentLimits::inline(
-            service.limits.domain,
-            2,
-            skein_lib::Duration::from_secs(3600),
-            smith_agent_process_world::profile().policy.cancel_grace,
-        )
-        .expect("product inline fixture");
-        settings::resolve::Resolved {
-            agent: smith_agent_shell::config::Configuration {
-                programs: BTreeMap::new(),
-                endpoint_programs: BTreeMap::new(),
-                service,
-                memory: 8_589_934_592,
-                trace: None,
-                profile: smith_agent_process_world::profile(),
-                declarations: smith_agent_process_world::declarations(0),
-            },
-            local: local.local,
-            limits: local.limits.local,
-            settings: Settings {
-                paths: settings::Paths::default(),
-                workspace: "/workspace".into(),
-                values: BTreeMap::new(),
-            },
-            accounts: Vec::new(),
-            outside_models: BTreeMap::new(),
-        }
-    }
-
-    #[test]
-    fn check_derives_execs_event_destinations_through_its_stream_owner() {
-        for (trace, json, destinations) in [(false, false, 0), (false, true, 1), (true, false, 1), (true, true, 2)] {
-            let mut resolved = resolved(trace);
-            let invocation = command::Exec {
-                shared: command::Shared::default(),
-                prompt: command::Prompt::Stdin,
-                output: Some("/unopened-output-parent/result".into()),
-                ephemeral: false,
-                deliver: false,
-                json,
-            };
-            let (limits, result_file) = derive_execution(&mut resolved, &invocation, skein_lib::Wall::from_nanos(0))
-                .expect("pure invocation derivation");
-            let agent = &resolved.agent;
-            let events = agent.service.limits.events.as_ref();
-            assert_eq!(events.map_or(0, |events| events.sinks.destinations), destinations);
-            let inventory = smith_local_service::profile::effective(
-                &agent.profile,
-                &agent.declarations,
-                &agent.service,
-                &limits,
-                result_file,
-            )
-            .expect("one effective limits owner");
-            assert!(inventory.iter().any(|limit| limit.name.field == "teardown"));
-        }
-    }
-
-    #[test]
-    fn interactive_chat_checks_derive_accounts_endpoints_and_the_live_sink() {
-        // The smoke-tools Chat arm: standard profile, codex/gpt-6-luna
-        // selected at low effort, an env token and an everything trace.
-        // Invocation derivation checks the selected sources without reading the variable.
-        let certificate =
-            skein_scratch::paths::tree().join("tests/protocol-llm/fixtures/root.der").display().to_string();
-        let text = format!(
-            "model='codex/gpt-6-luna'\neffort='low'\n\
-             [accounts.codex]\nsource='env'\nvariable='SMITH_FIXTURE_TOKEN'\n\
-             [endpoints.codex]\ntrust.system=false\ntrust.der=['{certificate}']\n\
-             [trace]\npath='/unopened-events'\ncapture='everything'\n"
-        );
-        let settings = settings::merge(
-            &command::Shared::default(),
-            "/workspace".into(),
-            &[settings::Source { layer: settings::Layer::User, path: "chat-start.toml".into(), text }],
-        )
-        .unwrap_or_else(|why| panic!("{}", why.line()));
-        let mut resolved = settings::resolve::resolve(
-            &settings,
-            &Command::Check { shared: command::Shared::default(), json: true, execution: None },
-        )
-        .unwrap_or_else(|why| panic!("{}", why.line()));
-        assert_eq!(resolved.accounts.len(), 1);
-        assert_eq!(resolved.limits.endpoints.len(), 1);
-
-        // This is check's derive_invocation -> interactive_header path; its
-        // derivation includes the trace header's event limits as well.
-        interactive_limits(&mut resolved).expect("standard Chat startup checks");
-        let events = resolved.agent.service.limits.events.expect("interactive trace and view");
-        assert!(events.front);
-        assert_eq!(events.sinks.destinations, 1);
-    }
-}
+mod tests;
 
 #[cfg(test)]
 mod catalog_tests;

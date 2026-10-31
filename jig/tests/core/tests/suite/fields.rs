@@ -42,7 +42,7 @@ fn a_chats_flags_and_last_activity_survive_a_cold_restart() {
 
 const PROJECT: u32 = 1;
 const OWNER: u64 = 1;
-const MEMBER: u64 = 2;
+const MEMBER: u64 = 3;
 const MEMBER_CHAT: u64 = 2;
 const MEMBER_CHAT_BUDGET: u64 = 100;
 const SIGN_IN: u64 = 8100;

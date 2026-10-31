@@ -12,7 +12,7 @@ pub(super) fn reviews(answer: a::Answer, page: u32, size: u32, target: &[u8], li
     let a::Answer::Pull(pull) = answer else {
         return answers::failed();
     };
-    let Some(page) = Page::new(page, size, u64::try_from(pull.reviews.len()).expect("domain reviews")) else {
+    let Some(page) = Page::new(page, size, skein_lib::len_u64(pull.reviews.len())) else {
         return answers::failed();
     };
     let mut rows = List::with_capacity(size);

@@ -2,338 +2,244 @@
 
 use skein_lib::List;
 use smith_events::{
-    Agent, AgentExit, AnswerClass, AnswerFailure, Block, Budget, Capture, CheckCompleted, CheckExit, CheckStarted,
-    CommandExit, Completion, CompletionFailure, ConversationClosed, ConversationEnd, ConversationKind,
-    ConversationOpened, Count, Cpu, Delivered, Delivery, Effect, Event, Evidence, FailureClass, FailureLimit,
-    FailurePhase, Family, Field, Form, Level, Loss, Message, Mode, Model, Notice, NoticeKind, Outcome, PeakRss, Prompt,
-    Record, ResponseCompleted, ResponseStarted, Role, RunCompleted, RunResult, RunStarted, SessionEnded,
-    SessionStarted, Source, Status, Stop, TextDelta, ToolChoice, ToolCompleted, ToolStarted, Tools, Usage, Verdict,
-    Versions,
+    AccountState, Agent, AgentExit, AnswerClass, AnswerFailure, Backend, Block, Budget, BudgetStage, BudgetStanding,
+    Capture, CheckCompleted, CheckExit, CheckStarted, ChildCompleted, ChildStop, Clamp, CommandExit, Completion,
+    CompletionFailure, ConversationClosed, ConversationEnd, ConversationKind, ConversationOpened, Count, Cpu,
+    Delivered, Delivery, Effect, EffectiveLimit, Event, Evidence, FailureClass, FailureLimit, FailurePhase, Family,
+    Field, Forced, Form, JobEnded, Level, LimitValue, Loss, Message, MessageRead, MessageReceived, MessageRefusal,
+    MessageUnread, Mode, Model, Notice, NoticeKind, Outcome, PeakRss, Prompt, Quantity, Record, Requested, Reserve,
+    ResponseCompleted, ResponseStarted, Role, RunCompleted, RunResult, RunStarted, SessionEnded, SessionStarted, Share,
+    ShareBound, SharePart, Source, Status, Stop, TextDelta, ToolChoice, ToolCompleted, ToolStarted, Tools, Usage,
+    Verdict, Versions,
 };
 
-fn value_capture(name: &str, spelling: &str) -> Capture {
-    if name != "Capture" {
-        return Capture::None;
+#[derive(Clone, Debug)]
+struct Fill {
+    limits: Option<smith_events::Limits>,
+    containment: smith_events::Containment,
+    capture: Capture,
+    delivery: Delivery,
+    mode: Mode,
+    family: Family,
+    form: Form,
+    status: Status,
+    conversation_kind: ConversationKind,
+    conversation_end: ConversationEnd,
+    outcome: Outcome,
+    stop: Stop,
+    source: Source,
+    effect: Effect,
+    verdict: Verdict,
+    delivered: Delivered,
+    failure_class: FailureClass,
+    evidence: Evidence,
+    answer_class: AnswerClass,
+    level: Level,
+    notice_kind: NoticeKind,
+    role: Role,
+}
+
+impl Fill {
+    fn maximum(&self) -> bool {
+        self.limits.is_some()
     }
-    match spelling {
-        "none" => Capture::None,
-        "calls" => Capture::Calls,
-        "everything" => Capture::Everything,
-        _ => panic!("fixture enum spelling"),
+
+    fn count(&self, sample: u32) -> u32 {
+        self.limits.map_or(sample, |limits| limits.items)
+    }
+
+    fn text(&self) -> Box<[u8]> {
+        self.metadata("sample\n\"🌍".as_bytes())
+    }
+
+    fn content(&self) -> Box<[u8]> {
+        self.captured("sample\n\"🌍".as_bytes())
+    }
+
+    fn metadata(&self, sample: &[u8]) -> Box<[u8]> {
+        self.limits.map_or_else(|| Box::from(sample), |limits| payload(limits.string))
+    }
+
+    fn captured(&self, sample: &[u8]) -> Box<[u8]> {
+        self.limits.map_or_else(|| Box::from(sample), |limits| payload(limits.content))
+    }
+
+    fn largest(limits: &smith_events::Limits) -> Fill {
+        Fill {
+            limits: Some(*limits),
+            containment: smith_events::Containment::Unknown(payload(limits.string)),
+            capture: Capture::Unknown(payload(limits.string)),
+            delivery: Delivery::Unknown(payload(limits.string)),
+            mode: Mode::Unknown(payload(limits.string)),
+            family: Family::Unknown(payload(limits.string)),
+            form: Form::Unknown(payload(limits.string)),
+            status: Status::Unknown(payload(limits.string)),
+            conversation_kind: ConversationKind::Unknown(payload(limits.string)),
+            conversation_end: ConversationEnd::Unknown(payload(limits.string)),
+            outcome: Outcome::Unknown(payload(limits.string)),
+            stop: Stop::Unknown(payload(limits.string)),
+            source: Source::Unknown(payload(limits.string)),
+            effect: Effect::Unknown(payload(limits.string)),
+            verdict: Verdict::Unknown(payload(limits.string)),
+            delivered: Delivered::Unknown(payload(limits.string)),
+            failure_class: FailureClass::Unknown(payload(limits.string)),
+            evidence: Evidence::Unknown(payload(limits.string)),
+            answer_class: AnswerClass::Unknown(payload(limits.string)),
+            level: Level::Unknown(payload(limits.string)),
+            notice_kind: NoticeKind::Unknown(payload(limits.string)),
+            role: Role::Unknown(payload(limits.string)),
+        }
+    }
+
+    const DEFAULT: Fill = Fill {
+        limits: None,
+        containment: smith_events::Containment::Groups,
+        capture: Capture::None,
+        delivery: Delivery::Complete,
+        mode: Mode::Agent,
+        family: Family::Inspect,
+        form: Form::Report,
+        status: Status::Accepted,
+        conversation_kind: ConversationKind::Main,
+        conversation_end: ConversationEnd::Closed,
+        outcome: Outcome::Completed,
+        stop: Stop::End,
+        source: Source::Workspace,
+        effect: Effect::Read,
+        verdict: Verdict::Read,
+        delivered: Delivered::Delivered,
+        failure_class: FailureClass::Overloaded,
+        evidence: Evidence::Unsent,
+        answer_class: AnswerClass::Model,
+        level: Level::Info,
+        notice_kind: NoticeKind::CredentialUnauthorized,
+        role: Role::User,
+    };
+
+    fn containment(value: smith_events::Containment) -> Fill {
+        Fill { containment: value, ..Self::DEFAULT }
+    }
+
+    fn capture(value: Capture) -> Fill {
+        Fill { capture: value, ..Self::DEFAULT }
+    }
+
+    fn delivery(value: Delivery) -> Fill {
+        Fill { delivery: value, ..Self::DEFAULT }
+    }
+
+    fn mode(value: Mode) -> Fill {
+        Fill { mode: value, ..Self::DEFAULT }
+    }
+
+    fn family(value: Family) -> Fill {
+        Fill { family: value, ..Self::DEFAULT }
+    }
+
+    fn form(value: Form) -> Fill {
+        Fill { form: value, ..Self::DEFAULT }
+    }
+
+    fn status(value: Status) -> Fill {
+        Fill { status: value, ..Self::DEFAULT }
+    }
+
+    fn conversation_kind(value: ConversationKind) -> Fill {
+        Fill { conversation_kind: value, ..Self::DEFAULT }
+    }
+
+    fn conversation_end(value: ConversationEnd) -> Fill {
+        Fill { conversation_end: value, ..Self::DEFAULT }
+    }
+
+    fn outcome(value: Outcome) -> Fill {
+        Fill { outcome: value, ..Self::DEFAULT }
+    }
+
+    fn stop(value: Stop) -> Fill {
+        Fill { stop: value, ..Self::DEFAULT }
+    }
+
+    fn source(value: Source) -> Fill {
+        Fill { source: value, ..Self::DEFAULT }
+    }
+
+    fn effect(value: Effect) -> Fill {
+        Fill { effect: value, ..Self::DEFAULT }
+    }
+
+    fn verdict(value: Verdict) -> Fill {
+        Fill { verdict: value, ..Self::DEFAULT }
+    }
+
+    fn delivered(value: Delivered) -> Fill {
+        Fill { delivered: value, ..Self::DEFAULT }
+    }
+
+    fn failure_class(value: FailureClass) -> Fill {
+        Fill { failure_class: value, ..Self::DEFAULT }
+    }
+
+    fn evidence(value: Evidence) -> Fill {
+        Fill { evidence: value, ..Self::DEFAULT }
+    }
+
+    fn answer_class(value: AnswerClass) -> Fill {
+        Fill { answer_class: value, ..Self::DEFAULT }
+    }
+
+    fn level(value: Level) -> Fill {
+        Fill { level: value, ..Self::DEFAULT }
+    }
+
+    fn notice_kind(value: NoticeKind) -> Fill {
+        Fill { notice_kind: value, ..Self::DEFAULT }
+    }
+
+    fn role(value: Role) -> Fill {
+        Fill { role: value, ..Self::DEFAULT }
     }
 }
 
-fn value_delivery(name: &str, spelling: &str) -> Delivery {
-    if name != "Delivery" {
-        return Delivery::Complete;
-    }
-    match spelling {
-        "complete" => Delivery::Complete,
-        "best_effort" => Delivery::BestEffort,
-        _ => panic!("fixture enum spelling"),
+fn value_agent(fill: &Fill) -> Agent {
+    Agent { name: fill.text(), version: fill.text() }
+}
+
+fn value_versions(fill: &Fill) -> Versions {
+    Versions {
+        events: u64::MAX,
+        channel: u64::MAX,
+        charter: u64::MAX,
+        transcript: u64::MAX,
+        chat_store: if fill.maximum() { Some(u64::MAX) } else { None },
     }
 }
 
-fn value_mode(name: &str, spelling: &str) -> Mode {
-    if name != "Mode" {
-        return Mode::Agent;
-    }
-    match spelling {
-        "agent" => Mode::Agent,
-        "exec" => Mode::Exec,
-        "chat" => Mode::Chat,
-        _ => panic!("fixture enum spelling"),
-    }
-}
-
-fn value_family(name: &str, spelling: &str) -> Family {
-    if name != "Family" {
-        return Family::Inspect;
-    }
-    match spelling {
-        "inspect" => Family::Inspect,
-        "modify" => Family::Modify,
-        "shell" => Family::Shell,
-        "sub_agents" => Family::SubAgents,
-        _ => panic!("fixture enum spelling"),
-    }
-}
-
-fn value_form(name: &str, spelling: &str) -> Form {
-    if name != "Form" {
-        return Form::Report;
-    }
-    match spelling {
-        "report" => Form::Report,
-        "verdict" => Form::Verdict,
-        "change" => Form::Change,
-        "failure" => Form::Failure,
-        _ => panic!("fixture enum spelling"),
-    }
-}
-
-fn value_status(name: &str, spelling: &str) -> Status {
-    if name != "Status" {
-        return Status::Accepted;
-    }
-    match spelling {
-        "accepted" => Status::Accepted,
-        "parked" => Status::Parked,
-        "failed" => Status::Failed,
-        "refused" => Status::Refused,
-        _ => panic!("fixture enum spelling"),
-    }
-}
-
-fn value_conversation_kind(name: &str, spelling: &str) -> ConversationKind {
-    if name != "ConversationKind" {
-        return ConversationKind::Main;
-    }
-    match spelling {
-        "main" => ConversationKind::Main,
-        "child" => ConversationKind::Child,
-        "compaction" => ConversationKind::Compaction,
-        _ => panic!("fixture enum spelling"),
-    }
-}
-
-fn value_conversation_end(name: &str, spelling: &str) -> ConversationEnd {
-    if name != "ConversationEnd" {
-        return ConversationEnd::Closed;
-    }
-    match spelling {
-        "closed" => ConversationEnd::Closed,
-        "budget" => ConversationEnd::Budget,
-        "failed" => ConversationEnd::Failed,
-        "refused" => ConversationEnd::Refused,
-        "transcript" => ConversationEnd::Transcript,
-        "overflow" => ConversationEnd::Overflow,
-        _ => panic!("fixture enum spelling"),
-    }
-}
-
-fn value_outcome(name: &str, spelling: &str) -> Outcome {
-    if name != "Outcome" {
-        return Outcome::Completed;
-    }
-    match spelling {
-        "completed" => Outcome::Completed,
-        "failed" => Outcome::Failed,
-        "cancelled" => Outcome::Cancelled,
-        _ => panic!("fixture enum spelling"),
-    }
-}
-
-fn value_stop(name: &str, spelling: &str) -> Stop {
-    if name != "Stop" {
-        return Stop::End;
-    }
-    match spelling {
-        "end" => Stop::End,
-        "tools" => Stop::Tools,
-        "max_tokens" => Stop::MaxTokens,
-        "refusal" => Stop::Refusal,
-        _ => panic!("fixture enum spelling"),
-    }
-}
-
-fn value_source(name: &str, spelling: &str) -> Source {
-    if name != "Source" {
-        return Source::Workspace;
-    }
-    match spelling {
-        "workspace" => Source::Workspace,
-        "run" => Source::Run,
-        "host" => Source::Host,
-        _ => panic!("fixture enum spelling"),
-    }
-}
-
-fn value_effect(name: &str, spelling: &str) -> Effect {
-    if name != "Effect" {
-        return Effect::Read;
-    }
-    match spelling {
-        "read" => Effect::Read,
-        "write" => Effect::Write,
-        _ => panic!("fixture enum spelling"),
-    }
-}
-
-fn value_verdict(name: &str, spelling: &str) -> Verdict {
-    if name != "Verdict" {
-        return Verdict::Read;
-    }
-    match spelling {
-        "read" => Verdict::Read,
-        "listed" => Verdict::Listed,
-        "found" => Verdict::Found,
-        "written" => Verdict::Written,
-        "edited" => Verdict::Edited,
-        "exited" => Verdict::Exited,
-        "conflict" => Verdict::Conflict,
-        "missing" => Verdict::Missing,
-        "too_large" => Verdict::TooLarge,
-        "timed_out" => Verdict::TimedOut,
-        "running" => Verdict::Running,
-        "stopped" => Verdict::Stopped,
-        "failed" => Verdict::Failed,
-        "cancelled" => Verdict::Cancelled,
-        "ambiguous" => Verdict::Ambiguous,
-        "result" => Verdict::Result,
-        "error" => Verdict::Error,
-        "invalid" => Verdict::Invalid,
-        "not_run" => Verdict::NotRun,
-        "withdrawn" => Verdict::Withdrawn,
-        "not_granted" => Verdict::NotGranted,
-        "outside" => Verdict::Outside,
-        "read_only" => Verdict::ReadOnly,
-        "too_long" => Verdict::TooLong,
-        "not_found" => Verdict::NotFound,
-        "not_file" => Verdict::NotFile,
-        "linked" => Verdict::Linked,
-        "protected" => Verdict::Protected,
-        "not_directory" => Verdict::NotDirectory,
-        "not_read" => Verdict::NotRead,
-        "stale" => Verdict::Stale,
-        "no_match" => Verdict::NoMatch,
-        "unchanged" => Verdict::Unchanged,
-        "busy" => Verdict::Busy,
-        "nul_byte" => Verdict::NulByte,
-        _ => panic!("fixture enum spelling"),
-    }
-}
-
-fn value_delivered(name: &str, spelling: &str) -> Delivered {
-    if name != "Delivered" {
-        return Delivered::Delivered;
-    }
-    match spelling {
-        "delivered" => Delivered::Delivered,
-        "nothing" => Delivered::Nothing,
-        "refused" => Delivered::Refused,
-        "failed" => Delivered::Failed,
-        "stale" => Delivered::Stale,
-        _ => panic!("fixture enum spelling"),
-    }
-}
-
-fn value_failure_class(name: &str, spelling: &str) -> FailureClass {
-    if name != "FailureClass" {
-        return FailureClass::Overloaded;
-    }
-    match spelling {
-        "overloaded" => FailureClass::Overloaded,
-        "rate_limited" => FailureClass::RateLimited,
-        "exhausted" => FailureClass::Exhausted,
-        "unavailable" => FailureClass::Unavailable,
-        "timed_out" => FailureClass::TimedOut,
-        "context_too_long" => FailureClass::ContextTooLong,
-        "invalid" => FailureClass::Invalid,
-        "unauthorized" => FailureClass::Unauthorized,
-        "limit" => FailureClass::Limit,
-        "protocol" => FailureClass::Protocol,
-        "cancelled" => FailureClass::Cancelled,
-        _ => panic!("fixture enum spelling"),
-    }
-}
-
-fn value_evidence(name: &str, spelling: &str) -> Evidence {
-    if name != "Evidence" {
-        return Evidence::Unsent;
-    }
-    match spelling {
-        "unsent" => Evidence::Unsent,
-        "maybe_sent" => Evidence::MaybeSent,
-        "response" => Evidence::Response,
-        _ => panic!("fixture enum spelling"),
-    }
-}
-
-fn value_answer_class(name: &str, spelling: &str) -> AnswerClass {
-    if name != "AnswerClass" {
-        return AnswerClass::Model;
-    }
-    match spelling {
-        "model" => AnswerClass::Model,
-        "budget" => AnswerClass::Budget,
-        "policy" => AnswerClass::Policy,
-        "cancelled" => AnswerClass::Cancelled,
-        "stale" => AnswerClass::Stale,
-        "transcript" => AnswerClass::Transcript,
-        "busy" => AnswerClass::Busy,
-        "invalid" => AnswerClass::Invalid,
-        _ => panic!("fixture enum spelling"),
-    }
-}
-
-fn value_level(name: &str, spelling: &str) -> Level {
-    if name != "Level" {
-        return Level::Info;
-    }
-    match spelling {
-        "info" => Level::Info,
-        "warning" => Level::Warning,
-        _ => panic!("fixture enum spelling"),
-    }
-}
-
-fn value_notice_kind(name: &str, spelling: &str) -> NoticeKind {
-    if name != "NoticeKind" {
-        return NoticeKind::CredentialUnauthorized;
-    }
-    match spelling {
-        "credential_unauthorized" => NoticeKind::CredentialUnauthorized,
-        "account_limited" => NoticeKind::AccountLimited,
-        "account_refused" => NoticeKind::AccountRefused,
-        _ => panic!("fixture enum spelling"),
-    }
-}
-
-fn value_role(name: &str, spelling: &str) -> Role {
-    if name != "Role" {
-        return Role::User;
-    }
-    match spelling {
-        "user" => Role::User,
-        "assistant" => Role::Assistant,
-        _ => panic!("fixture enum spelling"),
-    }
-}
-
-fn value_agent(_name: &str, _spelling: &str) -> Agent {
-    Agent { name: Box::from("sample\n\"🌍".as_bytes()), version: Box::from("sample\n\"🌍".as_bytes()) }
-}
-
-fn value_versions(_name: &str, _spelling: &str) -> Versions {
-    Versions { events: u64::MAX, channel: u64::MAX, charter: u64::MAX, transcript: u64::MAX, chat_store: None }
-}
-
-fn value_loss(_name: &str, _spelling: &str) -> Loss {
+fn value_loss() -> Loss {
     Loss { events: u64::MAX, channel: Some(u64::MAX) }
 }
 
-fn value_cpu(_name: &str, _spelling: &str) -> Cpu {
+fn value_cpu() -> Cpu {
     Cpu { user: u64::MAX, system: u64::MAX, children_user: u64::MAX, children_system: u64::MAX }
 }
 
-fn value_peak_rss(_name: &str, _spelling: &str) -> PeakRss {
+fn value_peak_rss() -> PeakRss {
     PeakRss { self_bytes: u64::MAX, children: u64::MAX }
 }
 
-fn value_model(_name: &str, _spelling: &str) -> Model {
+fn value_model(fill: &Fill) -> Model {
     Model {
-        account: None,
-        backend: smith_events::Backend::Direct,
-        endpoint: Box::from("sample\n\"🌍".as_bytes()),
-        model: Box::from("sample\n\"🌍".as_bytes()),
+        account: if fill.maximum() { Some(u32::MAX) } else { None },
+        backend: if fill.maximum() { Backend::Unknown(fill.text()) } else { Backend::Direct },
+        endpoint: fill.text(),
+        model: fill.text(),
         window_tokens: u64::MAX,
         output_tokens: u64::MAX,
-        effort: Some(Box::from("sample\n\"🌍".as_bytes())),
+        effort: Some(fill.text()),
     }
 }
 
-fn value_usage(_name: &str, _spelling: &str) -> Usage {
+fn value_usage() -> Usage {
     Usage {
         input_tokens: Some(u64::MAX),
         cache_read_tokens: Some(u64::MAX),
@@ -343,191 +249,215 @@ fn value_usage(_name: &str, _spelling: &str) -> Usage {
     }
 }
 
-fn value_budget(_name: &str, _spelling: &str) -> Budget {
+fn value_budget() -> Budget {
     Budget {
         turns: u64::MAX,
         spend: u64::MAX,
         time_ms: u64::MAX,
-        reserve: smith_events::Reserve { turns: u64::MAX, time_ms: u64::MAX, spend: u64::MAX },
+        reserve: Reserve { turns: u64::MAX, time_ms: u64::MAX, spend: u64::MAX },
     }
 }
 
-fn value_tools(name: &str, spelling: &str) -> Tools {
+fn value_tools(fill: &Fill) -> Tools {
     Tools {
-        withheld: skein_lib::List::with_capacity(0),
-        families: list_family(name, spelling),
-        wait: true,
-        deliver: true,
-        host: list_text(name, spelling),
+        withheld: if fill.maximum() { list_family(fill) } else { skein_lib::List::with_capacity(0) },
+        families: list_family(fill),
+        wait: !fill.maximum(),
+        deliver: !fill.maximum(),
+        host: list_text(fill),
     }
 }
 
-fn value_completion_failure(name: &str, spelling: &str) -> CompletionFailure {
+fn value_completion_failure(fill: &Fill) -> CompletionFailure {
     CompletionFailure {
-        field: None,
-        code: None,
-        request_id: None,
-        phase: None,
-        limit: None,
-        status: None,
-        detail: None,
-        class: value_failure_class(name, spelling),
-        evidence: value_evidence(name, spelling),
+        field: if fill.maximum() { Some(fill.text()) } else { None },
+        code: if fill.maximum() { Some(fill.text()) } else { None },
+        request_id: if fill.maximum() { Some(fill.text()) } else { None },
+        phase: if fill.maximum() { Some(FailurePhase::Unknown(fill.text())) } else { None },
+        limit: if fill.maximum() { Some(FailureLimit { which: fill.text(), bound: u64::MAX }) } else { None },
+        status: if fill.maximum() { Some(u64::MAX) } else { None },
+        detail: if fill.maximum() { Some(fill.content()) } else { None },
+        class: fill.failure_class.clone(),
+        evidence: fill.evidence.clone(),
         retry_after_ms: Some(u64::MAX),
     }
 }
 
-fn value_answer_failure(name: &str, spelling: &str) -> AnswerFailure {
+fn value_answer_failure(fill: &Fill) -> AnswerFailure {
     AnswerFailure {
-        state: None,
-        code: None,
-        program: None,
-        exit: None,
-        detail: None,
-        reset_ms: None,
-        used: None,
-        bound: None,
-        dropped: if name == "AnswerClass" && spelling == "cancelled" { Some(false) } else { None },
-        ended: None,
-        turn: None,
-        endpoint: None,
-        model: None,
-        attempts: None,
-        class: value_answer_class(name, spelling),
-        completion: Some(value_completion_failure(name, spelling)),
+        state: if fill.maximum() { Some(AccountState::Unknown(fill.text())) } else { None },
+        code: if fill.maximum() { Some(fill.text()) } else { None },
+        program: if fill.maximum() { Some(fill.text()) } else { None },
+        exit: if fill.maximum() { Some(AgentExit::Signal(u64::MAX)) } else { None },
+        detail: if fill.maximum() { Some(fill.content()) } else { None },
+        reset_ms: if fill.maximum() { Some(u64::MAX) } else { None },
+        used: if fill.maximum() { Some(u64::MAX) } else { None },
+        bound: if fill.maximum() { Some(u64::MAX) } else { None },
+        dropped: if fill.maximum() || fill.answer_class == AnswerClass::Cancelled { Some(false) } else { None },
+        ended: if fill.maximum() { Some(AgentExit::Code(i64::MIN)) } else { None },
+        turn: if fill.maximum() { Some(u64::MAX) } else { None },
+        endpoint: if fill.maximum() { Some(fill.text()) } else { None },
+        model: if fill.maximum() { Some(fill.text()) } else { None },
+        attempts: if fill.maximum() { Some(u64::MAX) } else { None },
+        class: fill.answer_class.clone(),
+        completion: Some(value_completion_failure(fill)),
         account: Some(u32::MAX),
-        which: Some(Box::from("sample\n\"🌍".as_bytes())),
-        reason: Some(Box::from("sample\n\"🌍".as_bytes())),
+        which: Some(fill.text()),
+        reason: Some(fill.text()),
     }
 }
 
-fn value_field(_name: &str, _spelling: &str) -> Field {
-    Field { name: Box::from("sample\n\"🌍".as_bytes()), text: Box::from("sample\n\"🌍".as_bytes()) }
+fn value_field(fill: &Fill) -> Field {
+    Field { name: fill.text(), text: fill.content() }
 }
 
-fn value_run_result(name: &str, spelling: &str) -> RunResult {
+fn value_run_result(fill: &Fill) -> RunResult {
     RunResult {
-        form: value_form(name, spelling),
-        label: Some(Box::from("sample\n\"🌍".as_bytes())),
-        text: Some(Box::from("sample\n\"🌍".as_bytes())),
-        fields: Some(list_field(name, spelling)),
+        form: fill.form.clone(),
+        label: Some(fill.text()),
+        text: Some(fill.content()),
+        fields: Some(list_field(fill)),
     }
 }
 
-fn value_message(name: &str, spelling: &str) -> Message {
-    Message { role: value_role(name, spelling), blocks: list_block(name, spelling) }
+fn value_message(fill: &Fill) -> Message {
+    Message { role: fill.role.clone(), blocks: list_block(fill) }
 }
 
-fn value_prompt(name: &str, spelling: &str) -> Prompt {
-    Prompt {
-        system: Some(Box::from("sample\n\"🌍".as_bytes())),
-        tools: Some(list_text(name, spelling)),
-        messages: list_message(name, spelling),
-    }
+fn value_prompt(fill: &Fill) -> Prompt {
+    Prompt { system: Some(fill.content()), tools: Some(list_text(fill)), messages: list_message(fill) }
 }
 
-fn value_completion(name: &str, spelling: &str) -> Completion {
-    Completion { blocks: list_block(name, spelling) }
+fn value_completion(fill: &Fill) -> Completion {
+    Completion { blocks: list_block(fill) }
 }
 
-fn value_command_exit(_name: &str, _spelling: &str) -> CommandExit {
-    CommandExit::Code { code: i64::MIN }
+fn value_command_exit(fill: &Fill) -> CommandExit {
+    if fill.maximum() { CommandExit::Signal { signal: u64::MAX } } else { CommandExit::Code { code: i64::MIN } }
 }
 
-fn value_session_started(name: &str, spelling: &str) -> SessionStarted {
+fn value_session_started(fill: &Fill) -> SessionStarted {
     SessionStarted {
-        chat: if name == "Mode" && spelling == "chat" { Some(b"main".as_slice().into()) } else { None },
-        limits: List::with_capacity(0),
-        wall_ms: u64::MAX,
-        agent: value_agent(name, spelling),
-        mode: value_mode(name, spelling),
-        containment: match name {
-            "Containment" => match spelling {
-                "groups" => smith_events::Containment::Groups,
-                "trees" => smith_events::Containment::Trees,
-                _ => smith_events::Containment::Unknown(Box::from(spelling.as_bytes())),
-            },
-            _ => smith_events::Containment::Groups,
+        chat: if fill.maximum() {
+            Some(fill.text())
+        } else if fill.mode == Mode::Chat {
+            Some(b"main".as_slice().into())
+        } else {
+            None
         },
+        limits: {
+            let mut values = List::with_capacity(fill.count(0));
+            for index in 0..fill.count(0) {
+                let mut name = fill.text();
+                *name.last_mut().expect("max metadata has a name") = u8::try_from(index).expect("small fixture");
+                values
+                    .push(EffectiveLimit {
+                        name,
+                        value: LimitValue::Fraction { numerator: u64::MAX, denominator: u64::MAX },
+                    })
+                    .expect("configured count");
+            }
+            values
+        },
+        wall_ms: u64::MAX,
+        agent: value_agent(fill),
+        mode: fill.mode.clone(),
+        containment: fill.containment.clone(),
         pid: u64::MAX,
-        profile: Box::from("sample\n\"🌍".as_bytes()),
-        capture: value_capture(name, spelling),
-        delivery: value_delivery(name, spelling),
-        versions: value_versions(name, spelling),
+        profile: fill.text(),
+        capture: fill.capture.clone(),
+        delivery: fill.delivery.clone(),
+        versions: value_versions(fill),
     }
 }
 
-fn value_session_ended(name: &str, spelling: &str) -> SessionEnded {
+fn value_session_ended(fill: &Fill) -> SessionEnded {
     SessionEnded {
         exit: i64::MIN,
-        answered: true,
-        aborted: Some(false),
+        answered: !fill.maximum(),
+        aborted: false,
         teardown_ms: Some(u64::MAX),
-        emitted: list_count(name, spelling),
-        loss: value_loss(name, spelling),
-        cpu_ms: Some(value_cpu(name, spelling)),
-        peak_rss_bytes: Some(value_peak_rss(name, spelling)),
+        emitted: list_count(fill),
+        loss: value_loss(),
+        cpu_ms: Some(value_cpu()),
+        peak_rss_bytes: Some(value_peak_rss()),
     }
 }
 
-fn value_run_started(name: &str, spelling: &str) -> RunStarted {
+fn value_run_started(fill: &Fill) -> RunStarted {
     RunStarted {
         run: u64::MAX,
-        resumed: true,
+        resumed: !fill.maximum(),
         messages: u64::MAX,
-        main: value_model(name, spelling),
-        budget: value_budget(name, spelling),
-        tools: value_tools(name, spelling),
-        contract: list_form(name, spelling),
+        main: value_model(fill),
+        budget: value_budget(),
+        tools: value_tools(fill),
+        contract: list_form(fill),
     }
 }
 
-fn value_run_completed(name: &str, spelling: &str) -> RunCompleted {
+fn value_run_completed(fill: &Fill) -> RunCompleted {
     RunCompleted {
         run: u64::MAX,
         wind_down: false,
-        status: value_status(name, spelling),
-        failure: Some(value_answer_failure(name, spelling)),
-        result: Some(value_run_result(name, spelling)),
+        status: fill.status.clone(),
+        failure: Some(value_answer_failure(fill)),
+        result: Some(value_run_result(fill)),
         turns: u64::MAX,
         spent: u64::MAX,
-        usage: value_usage(name, spelling),
+        usage: value_usage(),
         read: Some(u64::MAX),
         unread: u64::MAX,
         duration_ms: u64::MAX,
     }
 }
 
-fn value_conversation_opened(name: &str, spelling: &str) -> ConversationOpened {
+fn value_conversation_opened(fill: &Fill) -> ConversationOpened {
     ConversationOpened {
         run: u64::MAX,
         conversation: u64::MAX,
-        kind: value_conversation_kind(name, spelling),
+        kind: fill.conversation_kind.clone(),
         parent: Some(u64::MAX),
-        call: Some(Box::from("sample\n\"🌍".as_bytes())),
+        call: Some(fill.text()),
         thread: u64::MAX,
-        model: value_model(name, spelling),
-        requested: None,
-        share: None,
-        clamped: List::with_capacity(0),
+        model: value_model(fill),
+        requested: if fill.maximum() {
+            Some(Requested { turns: Some(u64::MAX), seconds: Some(u64::MAX) })
+        } else {
+            None
+        },
+        share: if fill.maximum() { Some(Share { turns: u64::MAX, time_ms: u64::MAX, spend: u64::MAX }) } else { None },
+        clamped: if fill.maximum() {
+            {
+                let mut values = List::with_capacity(fill.count(0));
+                for _ in 0..fill.count(0) {
+                    values
+                        .push(Clamp { part: SharePart::Unknown(fill.text()), by: ShareBound::Unknown(fill.text()) })
+                        .expect("configured clamp item room");
+                }
+                values
+            }
+        } else {
+            List::with_capacity(0)
+        },
     }
 }
 
-fn value_conversation_closed(name: &str, spelling: &str) -> ConversationClosed {
+fn value_conversation_closed(fill: &Fill) -> ConversationClosed {
     ConversationClosed {
         run: u64::MAX,
         conversation: u64::MAX,
-        end: value_conversation_end(name, spelling),
-        which: Some(Box::from("sample\n\"🌍".as_bytes())),
-        failure: Some(value_completion_failure(name, spelling)),
+        end: fill.conversation_end.clone(),
+        which: Some(fill.text()),
+        failure: Some(value_completion_failure(fill)),
         turns: u64::MAX,
-        usage: value_usage(name, spelling),
+        usage: value_usage(),
         spent: u64::MAX,
         duration_ms: u64::MAX,
     }
 }
 
-fn value_response_started(name: &str, spelling: &str) -> ResponseStarted {
+fn value_response_started(fill: &Fill) -> ResponseStarted {
     ResponseStarted {
         run: u64::MAX,
         conversation: u64::MAX,
@@ -535,1014 +465,468 @@ fn value_response_started(name: &str, spelling: &str) -> ResponseStarted {
         turn: u64::MAX,
         attempt: u64::MAX,
         window: u64::MAX,
-        model: value_model(name, spelling),
+        model: value_model(fill),
         messages: u64::MAX,
         output_tokens: u64::MAX,
-        tool_choice: ToolChoice::Auto,
-        prompt: Some(value_prompt(name, spelling)),
+        tool_choice: if fill.maximum() { ToolChoice::Unknown(fill.text()) } else { ToolChoice::Auto },
+        prompt: Some(value_prompt(fill)),
     }
 }
 
-fn value_response_completed(name: &str, spelling: &str) -> ResponseCompleted {
+fn value_response_completed(fill: &Fill) -> ResponseCompleted {
     ResponseCompleted {
         run: u64::MAX,
         conversation: u64::MAX,
         response: u64::MAX,
-        outcome: value_outcome(name, spelling),
-        stop: Some(value_stop(name, spelling)),
+        outcome: fill.outcome.clone(),
+        stop: Some(fill.stop.clone()),
         blocks: u64::MAX,
         calls: u64::MAX,
         invalid: u64::MAX,
         oversized: u64::MAX,
         cut: u64::MAX,
-        usage: value_usage(name, spelling),
+        usage: value_usage(),
         spent: u64::MAX,
         request_bytes: Some(u64::MAX),
         first_byte_ms: Some(u64::MAX),
         largest_gap_ms: Some(u64::MAX),
         duration_ms: u64::MAX,
-        failure: Some(value_completion_failure(name, spelling)),
+        failure: Some(value_completion_failure(fill)),
         retry_ms: Some(u64::MAX),
-        completion: Some(value_completion(name, spelling)),
+        completion: Some(value_completion(fill)),
     }
 }
 
-fn value_text_delta(_name: &str, _spelling: &str) -> TextDelta {
-    TextDelta {
-        run: u64::MAX,
-        conversation: u64::MAX,
-        response: u64::MAX,
-        block: u64::MAX,
-        text: Box::from("sample\n\"🌍".as_bytes()),
-    }
+fn value_text_delta(fill: &Fill) -> TextDelta {
+    TextDelta { run: u64::MAX, conversation: u64::MAX, response: u64::MAX, block: u64::MAX, text: fill.content() }
 }
 
-fn value_tool_started(name: &str, spelling: &str) -> ToolStarted {
+fn value_tool_started(fill: &Fill) -> ToolStarted {
     ToolStarted {
         run: u64::MAX,
         conversation: u64::MAX,
-        call: Box::from("sample\n\"🌍".as_bytes()),
-        tool: Box::from("sample\n\"🌍".as_bytes()),
-        source: value_source(name, spelling),
-        effect: value_effect(name, spelling),
+        call: fill.text(),
+        tool: fill.text(),
+        source: fill.source.clone(),
+        effect: fill.effect.clone(),
         deadline_ms: Some(u64::MAX),
         input_bytes: u64::MAX,
-        input: Some(Box::from("sample\n\"🌍".as_bytes())),
+        input: Some(fill.content()),
     }
 }
 
-fn value_tool_completed(name: &str, spelling: &str) -> ToolCompleted {
+fn value_tool_completed(fill: &Fill) -> ToolCompleted {
     ToolCompleted {
         run: u64::MAX,
         conversation: u64::MAX,
-        call: Box::from("sample\n\"🌍".as_bytes()),
-        tool: Box::from("sample\n\"🌍".as_bytes()),
-        verdict: value_verdict(name, spelling),
-        exit: Some(value_command_exit(name, spelling)),
-        job: None,
+        call: fill.text(),
+        tool: fill.text(),
+        verdict: fill.verdict.clone(),
+        exit: Some(value_command_exit(fill)),
+        job: if fill.maximum() { Some(u64::MAX) } else { None },
         bytes: u64::MAX,
         omitted_bytes: u64::MAX,
         clamped: true,
         duration_ms: u64::MAX,
-        child: None,
-        delivery: Some(value_delivered(name, spelling)),
+        child: if fill.maximum() {
+            Some(ChildCompleted {
+                conversation: u64::MAX,
+                stop: ChildStop::Unknown(fill.text()),
+                turns: u64::MAX,
+                time_ms: u64::MAX,
+                spent: u64::MAX,
+                usage: value_usage(),
+            })
+        } else {
+            None
+        },
+        delivery: Some(fill.delivered.clone()),
     }
 }
 
-fn value_check_started(_name: &str, _spelling: &str) -> CheckStarted {
+fn value_check_started() -> CheckStarted {
     CheckStarted { run: u64::MAX, deadline_ms: Some(u64::MAX) }
 }
 
-fn value_check_completed(_name: &str, _spelling: &str) -> CheckCompleted {
-    CheckCompleted { run: u64::MAX, exit: CheckExit::Code { code: i64::MIN }, passed: false, duration_ms: u64::MAX }
-}
-
-fn value_notice(name: &str, spelling: &str) -> Notice {
-    Notice {
-        code: None,
-        level: value_level(name, spelling),
-        kind: value_notice_kind(name, spelling),
-        run: Some(u64::MAX),
-        account: Some(u32::MAX),
-        bytes: None,
-        reset_ms: Some(u64::MAX),
-        exit: None,
-        forced: None,
+fn value_check_completed(fill: &Fill) -> CheckCompleted {
+    CheckCompleted {
+        run: u64::MAX,
+        exit: if fill.maximum() { CheckExit::Unknown(fill.text()) } else { CheckExit::Code { code: i64::MIN } },
+        passed: false,
+        duration_ms: u64::MAX,
     }
 }
 
-fn list_block(_name: &str, _spelling: &str) -> List<Block> {
-    let mut values = List::with_capacity(7);
-    values.push(Block::Text { text: Box::from("sample\n\"🌍".as_bytes()) }).expect("block room");
-    values.push(Block::Refusal { text: Box::from("sample\n\"🌍".as_bytes()) }).expect("block room");
-    values
-        .push(Block::Call {
-            call: Box::from("sample\n\"🌍".as_bytes()),
-            tool: Box::from("sample\n\"🌍".as_bytes()),
-            input: Box::from("sample\n\"🌍".as_bytes()),
-        })
-        .expect("block room");
-    values
-        .push(Block::Oversized {
-            call: Box::from("sample\n\"🌍".as_bytes()),
-            tool: Box::from("sample\n\"🌍".as_bytes()),
-            bytes: u64::MAX,
-        })
-        .expect("block room");
-    values
-        .push(Block::Cut {
-            call: Box::from("sample\n\"🌍".as_bytes()),
-            tool: Box::from("sample\n\"🌍".as_bytes()),
-            input: Box::from("sample\n\"🌍".as_bytes()),
-        })
-        .expect("block room");
-    values
-        .push(Block::Result {
-            call: Box::from("sample\n\"🌍".as_bytes()),
-            error: true,
-            text: Box::from("sample\n\"🌍".as_bytes()),
-        })
-        .expect("block room");
-    values.push(Block::Opaque { bytes: u64::MAX }).expect("block room");
+fn value_notice(fill: &Fill) -> Notice {
+    Notice {
+        code: if fill.maximum() { Some(fill.text()) } else { None },
+        level: fill.level.clone(),
+        kind: fill.notice_kind.clone(),
+        run: Some(u64::MAX),
+        account: Some(u32::MAX),
+        bytes: if fill.maximum() { Some(u64::MAX) } else { None },
+        reset_ms: Some(u64::MAX),
+        exit: if fill.maximum() { Some(AgentExit::Signal(u64::MAX)) } else { None },
+        forced: if fill.maximum() { Some(Forced::Unknown(fill.text())) } else { None },
+    }
+}
+
+fn list_family(fill: &Fill) -> List<Family> {
+    let mut values = List::with_capacity(fill.count(1));
+    for _ in 0..fill.count(1) {
+        values.push(fill.family.clone()).expect("fixture room");
+    }
     values
 }
 
-fn list_count(_name: &str, _spelling: &str) -> List<Count> {
-    let mut values = List::with_capacity(1);
-    values.push(Count { record: Box::from(b"notice".as_slice()), count: u64::MAX }).expect("one count");
+fn list_field(fill: &Fill) -> List<Field> {
+    let mut values = List::with_capacity(fill.count(1));
+    for _ in 0..fill.count(1) {
+        values.push(value_field(fill)).expect("fixture room");
+    }
     values
 }
 
-fn list_family(name: &str, spelling: &str) -> List<Family> {
-    let mut values = List::with_capacity(1);
-    values.push(value_family(name, spelling)).expect("fixture room");
+fn list_form(fill: &Fill) -> List<Form> {
+    let mut values = List::with_capacity(fill.count(1));
+    for _ in 0..fill.count(1) {
+        values.push(fill.form.clone()).expect("fixture room");
+    }
     values
 }
 
-fn list_field(name: &str, spelling: &str) -> List<Field> {
-    let mut values = List::with_capacity(1);
-    values.push(value_field(name, spelling)).expect("fixture room");
+fn list_message(fill: &Fill) -> List<Message> {
+    let mut values = List::with_capacity(fill.count(1));
+    for _ in 0..fill.count(1) {
+        values.push(value_message(fill)).expect("fixture room");
+    }
     values
 }
 
-fn list_form(name: &str, spelling: &str) -> List<Form> {
-    let mut values = List::with_capacity(1);
-    values.push(value_form(name, spelling)).expect("fixture room");
+fn list_text(fill: &Fill) -> List<Box<[u8]>> {
+    let mut values = List::with_capacity(fill.count(1));
+    for _ in 0..fill.count(1) {
+        values.push(fill.text()).expect("fixture room");
+    }
     values
 }
 
-fn list_message(name: &str, spelling: &str) -> List<Message> {
-    let mut values = List::with_capacity(1);
-    values.push(value_message(name, spelling)).expect("fixture room");
+fn value_block(fill: &Fill) -> Block {
+    Block::Call { call: fill.text(), tool: fill.text(), input: fill.content() }
+}
+
+fn list_block(fill: &Fill) -> List<Block> {
+    if fill.maximum() {
+        let mut values = List::with_capacity(fill.count(7));
+        for _ in 0..fill.count(7) {
+            values.push(value_block(fill)).expect("block room");
+        }
+        values
+    } else {
+        let mut values = List::with_capacity(7);
+        values.push(Block::Text { text: fill.content() }).expect("block room");
+        values.push(Block::Refusal { text: fill.content() }).expect("block room");
+        values.push(value_block(fill)).expect("block room");
+        values.push(Block::Oversized { call: fill.text(), tool: fill.text(), bytes: u64::MAX }).expect("block room");
+        values.push(Block::Cut { call: fill.text(), tool: fill.text(), input: fill.content() }).expect("block room");
+        values.push(Block::Result { call: fill.text(), error: true, text: fill.content() }).expect("block room");
+        values.push(Block::Opaque { bytes: u64::MAX }).expect("block room");
+        values
+    }
+}
+
+fn list_count(fill: &Fill) -> List<Count> {
+    let mut values = List::with_capacity(fill.count(1));
+    for index in 0..fill.count(1) {
+        let record = if fill.maximum() {
+            let mut name = fill.text();
+            *name.first_mut().expect("nonempty metadata limit") =
+                u8::try_from(index).expect("small fixture").saturating_add(32);
+            name
+        } else {
+            Box::from(b"notice".as_slice())
+        };
+        values.push(Count { record, count: u64::MAX }).expect("count room");
+    }
     values
 }
 
-fn list_text(_name: &str, _spelling: &str) -> List<Box<[u8]>> {
-    let mut values = List::with_capacity(1);
-    values.push(Box::from("sample\n\"🌍".as_bytes())).expect("fixture room");
+fn session_started_samples() -> Vec<(&'static str, Record, Capture)> {
+    let mut values = Vec::new();
+    for (name, words, capture) in [
+        ("session_started_none", Fill::capture(Capture::None), Capture::None),
+        ("session_started_calls", Fill::capture(Capture::Calls), Capture::Calls),
+        ("session_started_everything", Fill::capture(Capture::Everything), Capture::Everything),
+        ("capture_none", Fill::capture(Capture::None), Capture::Everything),
+        ("capture_calls", Fill::capture(Capture::Calls), Capture::Everything),
+        ("capture_everything", Fill::capture(Capture::Everything), Capture::Everything),
+        ("delivery_complete", Fill::delivery(Delivery::Complete), Capture::Everything),
+        ("delivery_best_effort", Fill::delivery(Delivery::BestEffort), Capture::Everything),
+        ("mode_agent", Fill::mode(Mode::Agent), Capture::Everything),
+        ("mode_exec", Fill::mode(Mode::Exec), Capture::Everything),
+        ("mode_chat", Fill::mode(Mode::Chat), Capture::Everything),
+    ] {
+        values.push((name, recorded(Event::SessionStarted(value_session_started(&words))), capture));
+    }
     values
 }
 
-fn samples_0() -> Vec<(&'static str, Record, Capture)> {
-    vec![
-        (
-            "session_started_none",
-            Record { t_ms: u64::MAX, event: Event::SessionStarted(value_session_started("Capture", "none")) },
-            Capture::None,
-        ),
-        (
-            "session_started_calls",
-            Record { t_ms: u64::MAX, event: Event::SessionStarted(value_session_started("Capture", "calls")) },
-            Capture::Calls,
-        ),
-        (
-            "session_started_everything",
-            Record { t_ms: u64::MAX, event: Event::SessionStarted(value_session_started("Capture", "everything")) },
-            Capture::Everything,
-        ),
-        (
-            "session_ended_none",
-            Record { t_ms: u64::MAX, event: Event::SessionEnded(value_session_ended("Capture", "none")) },
-            Capture::None,
-        ),
-        (
-            "session_ended_calls",
-            Record { t_ms: u64::MAX, event: Event::SessionEnded(value_session_ended("Capture", "calls")) },
-            Capture::Calls,
-        ),
-        (
-            "session_ended_everything",
-            Record { t_ms: u64::MAX, event: Event::SessionEnded(value_session_ended("Capture", "everything")) },
-            Capture::Everything,
-        ),
-        (
-            "run_started_none",
-            Record { t_ms: u64::MAX, event: Event::RunStarted(value_run_started("Capture", "none")) },
-            Capture::None,
-        ),
-        (
-            "run_started_calls",
-            Record { t_ms: u64::MAX, event: Event::RunStarted(value_run_started("Capture", "calls")) },
-            Capture::Calls,
-        ),
-        (
-            "run_started_everything",
-            Record { t_ms: u64::MAX, event: Event::RunStarted(value_run_started("Capture", "everything")) },
-            Capture::Everything,
-        ),
-        (
-            "run_completed_none",
-            Record { t_ms: u64::MAX, event: Event::RunCompleted(value_run_completed("Capture", "none")) },
-            Capture::None,
-        ),
-    ]
+fn session_ended_samples() -> Vec<(&'static str, Record, Capture)> {
+    let mut values = Vec::new();
+    for (name, capture) in [
+        ("session_ended_none", Capture::None),
+        ("session_ended_calls", Capture::Calls),
+        ("session_ended_everything", Capture::Everything),
+    ] {
+        values.push((name, recorded(Event::SessionEnded(value_session_ended(&Fill::DEFAULT))), capture));
+    }
+    values
 }
 
-fn samples_1() -> Vec<(&'static str, Record, Capture)> {
-    vec![
-        (
-            "run_completed_calls",
-            Record { t_ms: u64::MAX, event: Event::RunCompleted(value_run_completed("Capture", "calls")) },
-            Capture::Calls,
-        ),
-        (
-            "run_completed_everything",
-            Record { t_ms: u64::MAX, event: Event::RunCompleted(value_run_completed("Capture", "everything")) },
-            Capture::Everything,
-        ),
-        (
-            "conversation_opened_none",
-            Record { t_ms: u64::MAX, event: Event::ConversationOpened(value_conversation_opened("Capture", "none")) },
-            Capture::None,
-        ),
-        (
-            "conversation_opened_calls",
-            Record { t_ms: u64::MAX, event: Event::ConversationOpened(value_conversation_opened("Capture", "calls")) },
-            Capture::Calls,
-        ),
-        (
-            "conversation_opened_everything",
-            Record {
-                t_ms: u64::MAX,
-                event: Event::ConversationOpened(value_conversation_opened("Capture", "everything")),
-            },
-            Capture::Everything,
-        ),
-        (
-            "conversation_closed_none",
-            Record { t_ms: u64::MAX, event: Event::ConversationClosed(value_conversation_closed("Capture", "none")) },
-            Capture::None,
-        ),
-        (
-            "conversation_closed_calls",
-            Record { t_ms: u64::MAX, event: Event::ConversationClosed(value_conversation_closed("Capture", "calls")) },
-            Capture::Calls,
-        ),
-        (
-            "conversation_closed_everything",
-            Record {
-                t_ms: u64::MAX,
-                event: Event::ConversationClosed(value_conversation_closed("Capture", "everything")),
-            },
-            Capture::Everything,
-        ),
-        (
-            "response_started_none",
-            Record { t_ms: u64::MAX, event: Event::ResponseStarted(value_response_started("Capture", "none")) },
-            Capture::None,
-        ),
-        (
-            "response_started_calls",
-            Record { t_ms: u64::MAX, event: Event::ResponseStarted(value_response_started("Capture", "calls")) },
-            Capture::Calls,
-        ),
-    ]
+fn run_started_samples() -> Vec<(&'static str, Record, Capture)> {
+    let mut values = Vec::new();
+    for (name, words, capture) in [
+        ("run_started_none", Fill::capture(Capture::None), Capture::None),
+        ("run_started_calls", Fill::capture(Capture::Calls), Capture::Calls),
+        ("run_started_everything", Fill::capture(Capture::Everything), Capture::Everything),
+        ("family_modify", Fill::family(Family::Modify), Capture::Everything),
+        ("family_shell", Fill::family(Family::Shell), Capture::Everything),
+        ("family_sub_agents", Fill::family(Family::SubAgents), Capture::Everything),
+        ("form_report", Fill::form(Form::Report), Capture::Everything),
+        ("form_verdict", Fill::form(Form::Verdict), Capture::Everything),
+        ("form_change", Fill::form(Form::Change), Capture::Everything),
+        ("form_failure", Fill::form(Form::Failure), Capture::Everything),
+    ] {
+        values.push((name, recorded(Event::RunStarted(value_run_started(&words))), capture));
+    }
+    values
 }
 
-fn samples_2() -> Vec<(&'static str, Record, Capture)> {
-    vec![
-        (
-            "response_started_everything",
-            Record { t_ms: u64::MAX, event: Event::ResponseStarted(value_response_started("Capture", "everything")) },
-            Capture::Everything,
-        ),
-        (
-            "response_completed_none",
-            Record { t_ms: u64::MAX, event: Event::ResponseCompleted(value_response_completed("Capture", "none")) },
-            Capture::None,
-        ),
-        (
-            "response_completed_calls",
-            Record { t_ms: u64::MAX, event: Event::ResponseCompleted(value_response_completed("Capture", "calls")) },
-            Capture::Calls,
-        ),
-        (
-            "response_completed_everything",
-            Record {
-                t_ms: u64::MAX,
-                event: Event::ResponseCompleted(value_response_completed("Capture", "everything")),
-            },
-            Capture::Everything,
-        ),
-        (
-            "text_delta_everything",
-            Record { t_ms: u64::MAX, event: Event::TextDelta(value_text_delta("Capture", "everything")) },
-            Capture::Everything,
-        ),
-        (
-            "tool_started_none",
-            Record { t_ms: u64::MAX, event: Event::ToolStarted(value_tool_started("Capture", "none")) },
-            Capture::None,
-        ),
-        (
-            "tool_started_calls",
-            Record { t_ms: u64::MAX, event: Event::ToolStarted(value_tool_started("Capture", "calls")) },
-            Capture::Calls,
-        ),
-        (
-            "tool_started_everything",
-            Record { t_ms: u64::MAX, event: Event::ToolStarted(value_tool_started("Capture", "everything")) },
-            Capture::Everything,
-        ),
-        (
-            "tool_completed_none",
-            Record { t_ms: u64::MAX, event: Event::ToolCompleted(value_tool_completed("Capture", "none")) },
-            Capture::None,
-        ),
-        (
-            "tool_completed_calls",
-            Record { t_ms: u64::MAX, event: Event::ToolCompleted(value_tool_completed("Capture", "calls")) },
-            Capture::Calls,
-        ),
-    ]
+fn run_completed_samples() -> Vec<(&'static str, Record, Capture)> {
+    let mut values = Vec::new();
+    for (name, words, capture) in [
+        ("run_completed_none", Fill::capture(Capture::None), Capture::None),
+        ("run_completed_calls", Fill::capture(Capture::Calls), Capture::Calls),
+        ("run_completed_everything", Fill::capture(Capture::Everything), Capture::Everything),
+        ("status_accepted", Fill::status(Status::Accepted), Capture::Everything),
+        ("status_parked", Fill::status(Status::Parked), Capture::Everything),
+        ("status_failed", Fill::status(Status::Failed), Capture::Everything),
+        ("status_refused", Fill::status(Status::Refused), Capture::Everything),
+        ("failure_class_rate_limited", Fill::failure_class(FailureClass::RateLimited), Capture::Everything),
+        ("failure_class_exhausted", Fill::failure_class(FailureClass::Exhausted), Capture::Everything),
+        ("failure_class_unavailable", Fill::failure_class(FailureClass::Unavailable), Capture::Everything),
+        ("failure_class_timed_out", Fill::failure_class(FailureClass::TimedOut), Capture::Everything),
+        ("failure_class_context_too_long", Fill::failure_class(FailureClass::ContextTooLong), Capture::Everything),
+        ("failure_class_invalid", Fill::failure_class(FailureClass::Invalid), Capture::Everything),
+        ("failure_class_unauthorized", Fill::failure_class(FailureClass::Unauthorized), Capture::Everything),
+        ("failure_class_limit", Fill::failure_class(FailureClass::Limit), Capture::Everything),
+        ("failure_class_protocol", Fill::failure_class(FailureClass::Protocol), Capture::Everything),
+        ("failure_class_cancelled", Fill::failure_class(FailureClass::Cancelled), Capture::Everything),
+        ("evidence_maybe_sent", Fill::evidence(Evidence::MaybeSent), Capture::Everything),
+        ("evidence_response", Fill::evidence(Evidence::Response), Capture::Everything),
+        ("answer_class_budget", Fill::answer_class(AnswerClass::Budget), Capture::Everything),
+        ("answer_class_policy", Fill::answer_class(AnswerClass::Policy), Capture::Everything),
+        ("answer_class_cancelled", Fill::answer_class(AnswerClass::Cancelled), Capture::Everything),
+        ("answer_class_stale", Fill::answer_class(AnswerClass::Stale), Capture::Everything),
+        ("answer_class_transcript", Fill::answer_class(AnswerClass::Transcript), Capture::Everything),
+        ("answer_class_busy", Fill::answer_class(AnswerClass::Busy), Capture::Everything),
+        ("answer_class_invalid", Fill::answer_class(AnswerClass::Invalid), Capture::Everything),
+    ] {
+        values.push((name, recorded(Event::RunCompleted(value_run_completed(&words))), capture));
+    }
+    values
 }
 
-fn samples_3() -> Vec<(&'static str, Record, Capture)> {
-    vec![
-        (
-            "tool_completed_everything",
-            Record { t_ms: u64::MAX, event: Event::ToolCompleted(value_tool_completed("Capture", "everything")) },
-            Capture::Everything,
-        ),
-        (
-            "check_started_none",
-            Record { t_ms: u64::MAX, event: Event::CheckStarted(value_check_started("Capture", "none")) },
-            Capture::None,
-        ),
-        (
-            "check_started_calls",
-            Record { t_ms: u64::MAX, event: Event::CheckStarted(value_check_started("Capture", "calls")) },
-            Capture::Calls,
-        ),
-        (
-            "check_started_everything",
-            Record { t_ms: u64::MAX, event: Event::CheckStarted(value_check_started("Capture", "everything")) },
-            Capture::Everything,
-        ),
-        (
-            "check_completed_none",
-            Record { t_ms: u64::MAX, event: Event::CheckCompleted(value_check_completed("Capture", "none")) },
-            Capture::None,
-        ),
-        (
-            "check_completed_calls",
-            Record { t_ms: u64::MAX, event: Event::CheckCompleted(value_check_completed("Capture", "calls")) },
-            Capture::Calls,
-        ),
-        (
-            "check_completed_everything",
-            Record { t_ms: u64::MAX, event: Event::CheckCompleted(value_check_completed("Capture", "everything")) },
-            Capture::Everything,
-        ),
-        (
-            "notice_none",
-            Record { t_ms: u64::MAX, event: Event::Notice(value_notice("Capture", "none")) },
-            Capture::None,
-        ),
-        (
-            "notice_calls",
-            Record { t_ms: u64::MAX, event: Event::Notice(value_notice("Capture", "calls")) },
-            Capture::Calls,
-        ),
-        (
-            "notice_everything",
-            Record { t_ms: u64::MAX, event: Event::Notice(value_notice("Capture", "everything")) },
-            Capture::Everything,
-        ),
-    ]
+fn conversation_opened_samples() -> Vec<(&'static str, Record, Capture)> {
+    let mut values = Vec::new();
+    for (name, words, capture) in [
+        ("conversation_opened_none", Fill::capture(Capture::None), Capture::None),
+        ("conversation_opened_calls", Fill::capture(Capture::Calls), Capture::Calls),
+        ("conversation_opened_everything", Fill::capture(Capture::Everything), Capture::Everything),
+        ("conversation_kind_main", Fill::conversation_kind(ConversationKind::Main), Capture::Everything),
+        ("conversation_kind_child", Fill::conversation_kind(ConversationKind::Child), Capture::Everything),
+        ("conversation_kind_compaction", Fill::conversation_kind(ConversationKind::Compaction), Capture::Everything),
+    ] {
+        values.push((name, recorded(Event::ConversationOpened(value_conversation_opened(&words))), capture));
+    }
+    values
 }
 
-fn samples_4() -> Vec<(&'static str, Record, Capture)> {
-    vec![
-        (
-            "capture_none",
-            Record { t_ms: u64::MAX, event: Event::SessionStarted(value_session_started("Capture", "none")) },
-            Capture::Everything,
-        ),
-        (
-            "capture_calls",
-            Record { t_ms: u64::MAX, event: Event::SessionStarted(value_session_started("Capture", "calls")) },
-            Capture::Everything,
-        ),
-        (
-            "capture_everything",
-            Record { t_ms: u64::MAX, event: Event::SessionStarted(value_session_started("Capture", "everything")) },
-            Capture::Everything,
-        ),
-        (
-            "delivery_complete",
-            Record { t_ms: u64::MAX, event: Event::SessionStarted(value_session_started("Delivery", "complete")) },
-            Capture::Everything,
-        ),
-        (
-            "delivery_best_effort",
-            Record { t_ms: u64::MAX, event: Event::SessionStarted(value_session_started("Delivery", "best_effort")) },
-            Capture::Everything,
-        ),
-        (
-            "mode_agent",
-            Record { t_ms: u64::MAX, event: Event::SessionStarted(value_session_started("Mode", "agent")) },
-            Capture::Everything,
-        ),
-        (
-            "mode_exec",
-            Record { t_ms: u64::MAX, event: Event::SessionStarted(value_session_started("Mode", "exec")) },
-            Capture::Everything,
-        ),
-        (
-            "mode_chat",
-            Record { t_ms: u64::MAX, event: Event::SessionStarted(value_session_started("Mode", "chat")) },
-            Capture::Everything,
-        ),
-        (
-            "family_modify",
-            Record { t_ms: u64::MAX, event: Event::RunStarted(value_run_started("Family", "modify")) },
-            Capture::Everything,
-        ),
-        (
-            "family_shell",
-            Record { t_ms: u64::MAX, event: Event::RunStarted(value_run_started("Family", "shell")) },
-            Capture::Everything,
-        ),
-    ]
+fn conversation_closed_samples() -> Vec<(&'static str, Record, Capture)> {
+    let mut values = Vec::new();
+    for (name, words, capture) in [
+        ("conversation_closed_none", Fill::capture(Capture::None), Capture::None),
+        ("conversation_closed_calls", Fill::capture(Capture::Calls), Capture::Calls),
+        ("conversation_closed_everything", Fill::capture(Capture::Everything), Capture::Everything),
+        ("conversation_end_closed", Fill::conversation_end(ConversationEnd::Closed), Capture::Everything),
+        ("conversation_end_budget", Fill::conversation_end(ConversationEnd::Budget), Capture::Everything),
+        ("conversation_end_failed", Fill::conversation_end(ConversationEnd::Failed), Capture::Everything),
+        ("conversation_end_refused", Fill::conversation_end(ConversationEnd::Refused), Capture::Everything),
+        ("conversation_end_transcript", Fill::conversation_end(ConversationEnd::Transcript), Capture::Everything),
+        ("conversation_end_overflow", Fill::conversation_end(ConversationEnd::Overflow), Capture::Everything),
+    ] {
+        values.push((name, recorded(Event::ConversationClosed(value_conversation_closed(&words))), capture));
+    }
+    values
 }
 
-fn samples_5() -> Vec<(&'static str, Record, Capture)> {
-    vec![
-        (
-            "family_sub_agents",
-            Record { t_ms: u64::MAX, event: Event::RunStarted(value_run_started("Family", "sub_agents")) },
-            Capture::Everything,
-        ),
-        (
-            "form_report",
-            Record { t_ms: u64::MAX, event: Event::RunStarted(value_run_started("Form", "report")) },
-            Capture::Everything,
-        ),
-        (
-            "form_verdict",
-            Record { t_ms: u64::MAX, event: Event::RunStarted(value_run_started("Form", "verdict")) },
-            Capture::Everything,
-        ),
-        (
-            "form_change",
-            Record { t_ms: u64::MAX, event: Event::RunStarted(value_run_started("Form", "change")) },
-            Capture::Everything,
-        ),
-        (
-            "form_failure",
-            Record { t_ms: u64::MAX, event: Event::RunStarted(value_run_started("Form", "failure")) },
-            Capture::Everything,
-        ),
-        (
-            "status_accepted",
-            Record { t_ms: u64::MAX, event: Event::RunCompleted(value_run_completed("Status", "accepted")) },
-            Capture::Everything,
-        ),
-        (
-            "status_parked",
-            Record { t_ms: u64::MAX, event: Event::RunCompleted(value_run_completed("Status", "parked")) },
-            Capture::Everything,
-        ),
-        (
-            "status_failed",
-            Record { t_ms: u64::MAX, event: Event::RunCompleted(value_run_completed("Status", "failed")) },
-            Capture::Everything,
-        ),
-        (
-            "status_refused",
-            Record { t_ms: u64::MAX, event: Event::RunCompleted(value_run_completed("Status", "refused")) },
-            Capture::Everything,
-        ),
-        (
-            "conversation_kind_main",
-            Record {
-                t_ms: u64::MAX,
-                event: Event::ConversationOpened(value_conversation_opened("ConversationKind", "main")),
-            },
-            Capture::Everything,
-        ),
-    ]
+fn response_started_samples() -> Vec<(&'static str, Record, Capture)> {
+    let mut values = Vec::new();
+    for (name, words, capture) in [
+        ("response_started_none", Fill::capture(Capture::None), Capture::None),
+        ("response_started_calls", Fill::capture(Capture::Calls), Capture::Calls),
+        ("response_started_everything", Fill::capture(Capture::Everything), Capture::Everything),
+        ("role_assistant", Fill::role(Role::Assistant), Capture::Everything),
+    ] {
+        values.push((name, recorded(Event::ResponseStarted(value_response_started(&words))), capture));
+    }
+    values
 }
 
-fn samples_6() -> Vec<(&'static str, Record, Capture)> {
-    vec![
-        (
-            "conversation_kind_child",
-            Record {
-                t_ms: u64::MAX,
-                event: Event::ConversationOpened(value_conversation_opened("ConversationKind", "child")),
-            },
-            Capture::Everything,
-        ),
-        (
-            "conversation_kind_compaction",
-            Record {
-                t_ms: u64::MAX,
-                event: Event::ConversationOpened(value_conversation_opened("ConversationKind", "compaction")),
-            },
-            Capture::Everything,
-        ),
-        (
-            "conversation_end_closed",
-            Record {
-                t_ms: u64::MAX,
-                event: Event::ConversationClosed(value_conversation_closed("ConversationEnd", "closed")),
-            },
-            Capture::Everything,
-        ),
-        (
-            "conversation_end_budget",
-            Record {
-                t_ms: u64::MAX,
-                event: Event::ConversationClosed(value_conversation_closed("ConversationEnd", "budget")),
-            },
-            Capture::Everything,
-        ),
-        (
-            "conversation_end_failed",
-            Record {
-                t_ms: u64::MAX,
-                event: Event::ConversationClosed(value_conversation_closed("ConversationEnd", "failed")),
-            },
-            Capture::Everything,
-        ),
-        (
-            "conversation_end_refused",
-            Record {
-                t_ms: u64::MAX,
-                event: Event::ConversationClosed(value_conversation_closed("ConversationEnd", "refused")),
-            },
-            Capture::Everything,
-        ),
-        (
-            "conversation_end_transcript",
-            Record {
-                t_ms: u64::MAX,
-                event: Event::ConversationClosed(value_conversation_closed("ConversationEnd", "transcript")),
-            },
-            Capture::Everything,
-        ),
-        (
-            "conversation_end_overflow",
-            Record {
-                t_ms: u64::MAX,
-                event: Event::ConversationClosed(value_conversation_closed("ConversationEnd", "overflow")),
-            },
-            Capture::Everything,
-        ),
-        (
-            "outcome_completed",
-            Record {
-                t_ms: u64::MAX,
-                event: Event::ResponseCompleted(value_response_completed("Outcome", "completed")),
-            },
-            Capture::Everything,
-        ),
-        (
-            "outcome_failed",
-            Record { t_ms: u64::MAX, event: Event::ResponseCompleted(value_response_completed("Outcome", "failed")) },
-            Capture::Everything,
-        ),
-    ]
+fn response_completed_samples() -> Vec<(&'static str, Record, Capture)> {
+    let mut values = Vec::new();
+    for (name, words, capture) in [
+        ("response_completed_none", Fill::capture(Capture::None), Capture::None),
+        ("response_completed_calls", Fill::capture(Capture::Calls), Capture::Calls),
+        ("response_completed_everything", Fill::capture(Capture::Everything), Capture::Everything),
+        ("outcome_completed", Fill::outcome(Outcome::Completed), Capture::Everything),
+        ("outcome_failed", Fill::outcome(Outcome::Failed), Capture::Everything),
+        ("outcome_cancelled", Fill::outcome(Outcome::Cancelled), Capture::Everything),
+        ("stop_end", Fill::stop(Stop::End), Capture::Everything),
+        ("stop_tools", Fill::stop(Stop::Tools), Capture::Everything),
+        ("stop_max_tokens", Fill::stop(Stop::MaxTokens), Capture::Everything),
+        ("stop_refusal", Fill::stop(Stop::Refusal), Capture::Everything),
+    ] {
+        values.push((name, recorded(Event::ResponseCompleted(value_response_completed(&words))), capture));
+    }
+    values
 }
 
-fn samples_7() -> Vec<(&'static str, Record, Capture)> {
-    vec![
-        (
-            "outcome_cancelled",
-            Record {
-                t_ms: u64::MAX,
-                event: Event::ResponseCompleted(value_response_completed("Outcome", "cancelled")),
-            },
-            Capture::Everything,
-        ),
-        (
-            "stop_end",
-            Record { t_ms: u64::MAX, event: Event::ResponseCompleted(value_response_completed("Stop", "end")) },
-            Capture::Everything,
-        ),
-        (
-            "stop_tools",
-            Record { t_ms: u64::MAX, event: Event::ResponseCompleted(value_response_completed("Stop", "tools")) },
-            Capture::Everything,
-        ),
-        (
-            "stop_max_tokens",
-            Record { t_ms: u64::MAX, event: Event::ResponseCompleted(value_response_completed("Stop", "max_tokens")) },
-            Capture::Everything,
-        ),
-        (
-            "stop_refusal",
-            Record { t_ms: u64::MAX, event: Event::ResponseCompleted(value_response_completed("Stop", "refusal")) },
-            Capture::Everything,
-        ),
-        (
-            "source_workspace",
-            Record { t_ms: u64::MAX, event: Event::ToolStarted(value_tool_started("Source", "workspace")) },
-            Capture::Everything,
-        ),
-        (
-            "source_run",
-            Record { t_ms: u64::MAX, event: Event::ToolStarted(value_tool_started("Source", "run")) },
-            Capture::Everything,
-        ),
-        (
-            "source_host",
-            Record { t_ms: u64::MAX, event: Event::ToolStarted(value_tool_started("Source", "host")) },
-            Capture::Everything,
-        ),
-        (
-            "effect_read",
-            Record { t_ms: u64::MAX, event: Event::ToolStarted(value_tool_started("Effect", "read")) },
-            Capture::Everything,
-        ),
-        (
-            "effect_write",
-            Record { t_ms: u64::MAX, event: Event::ToolStarted(value_tool_started("Effect", "write")) },
-            Capture::Everything,
-        ),
-    ]
+fn text_delta_samples() -> Vec<(&'static str, Record, Capture)> {
+    vec![("text_delta_everything", recorded(Event::TextDelta(value_text_delta(&Fill::DEFAULT))), Capture::Everything)]
 }
 
-fn samples_8() -> Vec<(&'static str, Record, Capture)> {
-    vec![
-        (
-            "verdict_read",
-            Record { t_ms: u64::MAX, event: Event::ToolCompleted(value_tool_completed("Verdict", "read")) },
-            Capture::Everything,
-        ),
-        (
-            "verdict_listed",
-            Record { t_ms: u64::MAX, event: Event::ToolCompleted(value_tool_completed("Verdict", "listed")) },
-            Capture::Everything,
-        ),
-        (
-            "verdict_found",
-            Record { t_ms: u64::MAX, event: Event::ToolCompleted(value_tool_completed("Verdict", "found")) },
-            Capture::Everything,
-        ),
-        (
-            "verdict_written",
-            Record { t_ms: u64::MAX, event: Event::ToolCompleted(value_tool_completed("Verdict", "written")) },
-            Capture::Everything,
-        ),
-        (
-            "verdict_edited",
-            Record { t_ms: u64::MAX, event: Event::ToolCompleted(value_tool_completed("Verdict", "edited")) },
-            Capture::Everything,
-        ),
-        (
-            "verdict_exited",
-            Record { t_ms: u64::MAX, event: Event::ToolCompleted(value_tool_completed("Verdict", "exited")) },
-            Capture::Everything,
-        ),
-        (
-            "verdict_conflict",
-            Record { t_ms: u64::MAX, event: Event::ToolCompleted(value_tool_completed("Verdict", "conflict")) },
-            Capture::Everything,
-        ),
-        (
-            "verdict_missing",
-            Record { t_ms: u64::MAX, event: Event::ToolCompleted(value_tool_completed("Verdict", "missing")) },
-            Capture::Everything,
-        ),
-        (
-            "verdict_too_large",
-            Record { t_ms: u64::MAX, event: Event::ToolCompleted(value_tool_completed("Verdict", "too_large")) },
-            Capture::Everything,
-        ),
-        (
-            "verdict_timed_out",
-            Record { t_ms: u64::MAX, event: Event::ToolCompleted(value_tool_completed("Verdict", "timed_out")) },
-            Capture::Everything,
-        ),
-    ]
+fn tool_started_samples() -> Vec<(&'static str, Record, Capture)> {
+    let mut values = Vec::new();
+    for (name, words, capture) in [
+        ("tool_started_none", Fill::capture(Capture::None), Capture::None),
+        ("tool_started_calls", Fill::capture(Capture::Calls), Capture::Calls),
+        ("tool_started_everything", Fill::capture(Capture::Everything), Capture::Everything),
+        ("source_workspace", Fill::source(Source::Workspace), Capture::Everything),
+        ("source_run", Fill::source(Source::Run), Capture::Everything),
+        ("source_host", Fill::source(Source::Host), Capture::Everything),
+        ("effect_read", Fill::effect(Effect::Read), Capture::Everything),
+        ("effect_write", Fill::effect(Effect::Write), Capture::Everything),
+    ] {
+        values.push((name, recorded(Event::ToolStarted(value_tool_started(&words))), capture));
+    }
+    values
 }
 
-fn samples_9() -> Vec<(&'static str, Record, Capture)> {
-    vec![
-        (
-            "verdict_failed",
-            Record { t_ms: u64::MAX, event: Event::ToolCompleted(value_tool_completed("Verdict", "failed")) },
-            Capture::Everything,
-        ),
-        (
-            "verdict_cancelled",
-            Record { t_ms: u64::MAX, event: Event::ToolCompleted(value_tool_completed("Verdict", "cancelled")) },
-            Capture::Everything,
-        ),
-        (
-            "verdict_ambiguous",
-            Record { t_ms: u64::MAX, event: Event::ToolCompleted(value_tool_completed("Verdict", "ambiguous")) },
-            Capture::Everything,
-        ),
-        (
-            "verdict_result",
-            Record { t_ms: u64::MAX, event: Event::ToolCompleted(value_tool_completed("Verdict", "result")) },
-            Capture::Everything,
-        ),
-        (
-            "verdict_error",
-            Record { t_ms: u64::MAX, event: Event::ToolCompleted(value_tool_completed("Verdict", "error")) },
-            Capture::Everything,
-        ),
-        (
-            "verdict_invalid",
-            Record { t_ms: u64::MAX, event: Event::ToolCompleted(value_tool_completed("Verdict", "invalid")) },
-            Capture::Everything,
-        ),
-        (
-            "verdict_not_run",
-            Record { t_ms: u64::MAX, event: Event::ToolCompleted(value_tool_completed("Verdict", "not_run")) },
-            Capture::Everything,
-        ),
-        (
-            "verdict_withdrawn",
-            Record { t_ms: u64::MAX, event: Event::ToolCompleted(value_tool_completed("Verdict", "withdrawn")) },
-            Capture::Everything,
-        ),
-        (
-            "verdict_not_granted",
-            Record { t_ms: u64::MAX, event: Event::ToolCompleted(value_tool_completed("Verdict", "not_granted")) },
-            Capture::Everything,
-        ),
-        (
-            "verdict_outside",
-            Record { t_ms: u64::MAX, event: Event::ToolCompleted(value_tool_completed("Verdict", "outside")) },
-            Capture::Everything,
-        ),
-    ]
+fn tool_completed_samples() -> Vec<(&'static str, Record, Capture)> {
+    let mut values = Vec::new();
+    for (name, words, capture) in vec![
+        ("tool_completed_none", Fill::capture(Capture::None), Capture::None),
+        ("tool_completed_calls", Fill::capture(Capture::Calls), Capture::Calls),
+        ("tool_completed_everything", Fill::capture(Capture::Everything), Capture::Everything),
+        ("verdict_read", Fill::verdict(Verdict::Read), Capture::Everything),
+        ("verdict_listed", Fill::verdict(Verdict::Listed), Capture::Everything),
+        ("verdict_found", Fill::verdict(Verdict::Found), Capture::Everything),
+        ("verdict_written", Fill::verdict(Verdict::Written), Capture::Everything),
+        ("verdict_edited", Fill::verdict(Verdict::Edited), Capture::Everything),
+        ("verdict_exited", Fill::verdict(Verdict::Exited), Capture::Everything),
+        ("verdict_conflict", Fill::verdict(Verdict::Conflict), Capture::Everything),
+        ("verdict_missing", Fill::verdict(Verdict::Missing), Capture::Everything),
+        ("verdict_too_large", Fill::verdict(Verdict::TooLarge), Capture::Everything),
+        ("verdict_timed_out", Fill::verdict(Verdict::TimedOut), Capture::Everything),
+        ("verdict_failed", Fill::verdict(Verdict::Failed), Capture::Everything),
+        ("verdict_cancelled", Fill::verdict(Verdict::Cancelled), Capture::Everything),
+        ("verdict_ambiguous", Fill::verdict(Verdict::Ambiguous), Capture::Everything),
+        ("verdict_result", Fill::verdict(Verdict::Result), Capture::Everything),
+        ("verdict_error", Fill::verdict(Verdict::Error), Capture::Everything),
+        ("verdict_invalid", Fill::verdict(Verdict::Invalid), Capture::Everything),
+        ("verdict_not_run", Fill::verdict(Verdict::NotRun), Capture::Everything),
+        ("verdict_withdrawn", Fill::verdict(Verdict::Withdrawn), Capture::Everything),
+        ("verdict_not_granted", Fill::verdict(Verdict::NotGranted), Capture::Everything),
+        ("verdict_outside", Fill::verdict(Verdict::Outside), Capture::Everything),
+        ("verdict_read_only", Fill::verdict(Verdict::ReadOnly), Capture::Everything),
+        ("verdict_too_long", Fill::verdict(Verdict::TooLong), Capture::Everything),
+        ("verdict_not_found", Fill::verdict(Verdict::NotFound), Capture::Everything),
+        ("verdict_not_file", Fill::verdict(Verdict::NotFile), Capture::Everything),
+        ("verdict_linked", Fill::verdict(Verdict::Linked), Capture::Everything),
+        ("verdict_protected", Fill::verdict(Verdict::Protected), Capture::Everything),
+        ("verdict_not_directory", Fill::verdict(Verdict::NotDirectory), Capture::Everything),
+        ("verdict_not_read", Fill::verdict(Verdict::NotRead), Capture::Everything),
+        ("verdict_stale", Fill::verdict(Verdict::Stale), Capture::Everything),
+        ("verdict_no_match", Fill::verdict(Verdict::NoMatch), Capture::Everything),
+        ("verdict_unchanged", Fill::verdict(Verdict::Unchanged), Capture::Everything),
+        ("verdict_busy", Fill::verdict(Verdict::Busy), Capture::Everything),
+        ("verdict_nul_byte", Fill::verdict(Verdict::NulByte), Capture::Everything),
+        ("delivered_delivered", Fill::delivered(Delivered::Delivered), Capture::Everything),
+        ("delivered_nothing", Fill::delivered(Delivered::Nothing), Capture::Everything),
+        ("delivered_refused", Fill::delivered(Delivered::Refused), Capture::Everything),
+        ("delivered_failed", Fill::delivered(Delivered::Failed), Capture::Everything),
+        ("delivered_stale", Fill::delivered(Delivered::Stale), Capture::Everything),
+    ] {
+        values.push((name, recorded(Event::ToolCompleted(value_tool_completed(&words))), capture));
+    }
+    values
 }
 
-fn samples_10() -> Vec<(&'static str, Record, Capture)> {
-    vec![
-        (
-            "verdict_read_only",
-            Record { t_ms: u64::MAX, event: Event::ToolCompleted(value_tool_completed("Verdict", "read_only")) },
-            Capture::Everything,
-        ),
-        (
-            "verdict_too_long",
-            Record { t_ms: u64::MAX, event: Event::ToolCompleted(value_tool_completed("Verdict", "too_long")) },
-            Capture::Everything,
-        ),
-        (
-            "verdict_not_found",
-            Record { t_ms: u64::MAX, event: Event::ToolCompleted(value_tool_completed("Verdict", "not_found")) },
-            Capture::Everything,
-        ),
-        (
-            "verdict_not_file",
-            Record { t_ms: u64::MAX, event: Event::ToolCompleted(value_tool_completed("Verdict", "not_file")) },
-            Capture::Everything,
-        ),
-        (
-            "verdict_linked",
-            Record { t_ms: u64::MAX, event: Event::ToolCompleted(value_tool_completed("Verdict", "linked")) },
-            Capture::Everything,
-        ),
-        (
-            "verdict_protected",
-            Record { t_ms: u64::MAX, event: Event::ToolCompleted(value_tool_completed("Verdict", "protected")) },
-            Capture::Everything,
-        ),
-        (
-            "verdict_not_directory",
-            Record { t_ms: u64::MAX, event: Event::ToolCompleted(value_tool_completed("Verdict", "not_directory")) },
-            Capture::Everything,
-        ),
-        (
-            "verdict_not_read",
-            Record { t_ms: u64::MAX, event: Event::ToolCompleted(value_tool_completed("Verdict", "not_read")) },
-            Capture::Everything,
-        ),
-        (
-            "verdict_stale",
-            Record { t_ms: u64::MAX, event: Event::ToolCompleted(value_tool_completed("Verdict", "stale")) },
-            Capture::Everything,
-        ),
-        (
-            "verdict_no_match",
-            Record { t_ms: u64::MAX, event: Event::ToolCompleted(value_tool_completed("Verdict", "no_match")) },
-            Capture::Everything,
-        ),
-    ]
+fn check_started_samples() -> Vec<(&'static str, Record, Capture)> {
+    let mut values = Vec::new();
+    for (name, capture) in [
+        ("check_started_none", Capture::None),
+        ("check_started_calls", Capture::Calls),
+        ("check_started_everything", Capture::Everything),
+    ] {
+        values.push((name, recorded(Event::CheckStarted(value_check_started())), capture));
+    }
+    values
 }
 
-fn samples_11() -> Vec<(&'static str, Record, Capture)> {
-    vec![
-        (
-            "verdict_unchanged",
-            Record { t_ms: u64::MAX, event: Event::ToolCompleted(value_tool_completed("Verdict", "unchanged")) },
-            Capture::Everything,
-        ),
-        (
-            "verdict_busy",
-            Record { t_ms: u64::MAX, event: Event::ToolCompleted(value_tool_completed("Verdict", "busy")) },
-            Capture::Everything,
-        ),
-        (
-            "verdict_nul_byte",
-            Record { t_ms: u64::MAX, event: Event::ToolCompleted(value_tool_completed("Verdict", "nul_byte")) },
-            Capture::Everything,
-        ),
-        (
-            "delivered_delivered",
-            Record { t_ms: u64::MAX, event: Event::ToolCompleted(value_tool_completed("Delivered", "delivered")) },
-            Capture::Everything,
-        ),
-        (
-            "delivered_nothing",
-            Record { t_ms: u64::MAX, event: Event::ToolCompleted(value_tool_completed("Delivered", "nothing")) },
-            Capture::Everything,
-        ),
-        (
-            "delivered_refused",
-            Record { t_ms: u64::MAX, event: Event::ToolCompleted(value_tool_completed("Delivered", "refused")) },
-            Capture::Everything,
-        ),
-        (
-            "delivered_failed",
-            Record { t_ms: u64::MAX, event: Event::ToolCompleted(value_tool_completed("Delivered", "failed")) },
-            Capture::Everything,
-        ),
-        (
-            "delivered_stale",
-            Record { t_ms: u64::MAX, event: Event::ToolCompleted(value_tool_completed("Delivered", "stale")) },
-            Capture::Everything,
-        ),
-        (
-            "failure_class_rate_limited",
-            Record { t_ms: u64::MAX, event: Event::RunCompleted(value_run_completed("FailureClass", "rate_limited")) },
-            Capture::Everything,
-        ),
-        (
-            "failure_class_exhausted",
-            Record { t_ms: u64::MAX, event: Event::RunCompleted(value_run_completed("FailureClass", "exhausted")) },
-            Capture::Everything,
-        ),
-    ]
+fn check_completed_samples() -> Vec<(&'static str, Record, Capture)> {
+    let mut values = Vec::new();
+    for (name, capture) in [
+        ("check_completed_none", Capture::None),
+        ("check_completed_calls", Capture::Calls),
+        ("check_completed_everything", Capture::Everything),
+    ] {
+        values.push((name, recorded(Event::CheckCompleted(value_check_completed(&Fill::DEFAULT))), capture));
+    }
+    values
 }
 
-fn samples_12() -> Vec<(&'static str, Record, Capture)> {
-    vec![
-        (
-            "failure_class_unavailable",
-            Record { t_ms: u64::MAX, event: Event::RunCompleted(value_run_completed("FailureClass", "unavailable")) },
-            Capture::Everything,
-        ),
-        (
-            "failure_class_timed_out",
-            Record { t_ms: u64::MAX, event: Event::RunCompleted(value_run_completed("FailureClass", "timed_out")) },
-            Capture::Everything,
-        ),
-        (
-            "failure_class_context_too_long",
-            Record {
-                t_ms: u64::MAX,
-                event: Event::RunCompleted(value_run_completed("FailureClass", "context_too_long")),
-            },
-            Capture::Everything,
-        ),
-        (
-            "failure_class_invalid",
-            Record { t_ms: u64::MAX, event: Event::RunCompleted(value_run_completed("FailureClass", "invalid")) },
-            Capture::Everything,
-        ),
-        (
-            "failure_class_unauthorized",
-            Record { t_ms: u64::MAX, event: Event::RunCompleted(value_run_completed("FailureClass", "unauthorized")) },
-            Capture::Everything,
-        ),
-        (
-            "failure_class_limit",
-            Record { t_ms: u64::MAX, event: Event::RunCompleted(value_run_completed("FailureClass", "limit")) },
-            Capture::Everything,
-        ),
-        (
-            "failure_class_protocol",
-            Record { t_ms: u64::MAX, event: Event::RunCompleted(value_run_completed("FailureClass", "protocol")) },
-            Capture::Everything,
-        ),
-        (
-            "failure_class_cancelled",
-            Record { t_ms: u64::MAX, event: Event::RunCompleted(value_run_completed("FailureClass", "cancelled")) },
-            Capture::Everything,
-        ),
-        (
-            "evidence_maybe_sent",
-            Record { t_ms: u64::MAX, event: Event::RunCompleted(value_run_completed("Evidence", "maybe_sent")) },
-            Capture::Everything,
-        ),
-        (
-            "evidence_response",
-            Record { t_ms: u64::MAX, event: Event::RunCompleted(value_run_completed("Evidence", "response")) },
-            Capture::Everything,
-        ),
-    ]
-}
-
-fn samples_13() -> Vec<(&'static str, Record, Capture)> {
-    vec![
-        (
-            "answer_class_budget",
-            Record { t_ms: u64::MAX, event: Event::RunCompleted(value_run_completed("AnswerClass", "budget")) },
-            Capture::Everything,
-        ),
-        (
-            "answer_class_policy",
-            Record { t_ms: u64::MAX, event: Event::RunCompleted(value_run_completed("AnswerClass", "policy")) },
-            Capture::Everything,
-        ),
-        (
-            "answer_class_cancelled",
-            Record { t_ms: u64::MAX, event: Event::RunCompleted(value_run_completed("AnswerClass", "cancelled")) },
-            Capture::Everything,
-        ),
-        (
-            "answer_class_stale",
-            Record { t_ms: u64::MAX, event: Event::RunCompleted(value_run_completed("AnswerClass", "stale")) },
-            Capture::Everything,
-        ),
-        (
-            "answer_class_transcript",
-            Record { t_ms: u64::MAX, event: Event::RunCompleted(value_run_completed("AnswerClass", "transcript")) },
-            Capture::Everything,
-        ),
-        (
-            "answer_class_busy",
-            Record { t_ms: u64::MAX, event: Event::RunCompleted(value_run_completed("AnswerClass", "busy")) },
-            Capture::Everything,
-        ),
-        (
-            "answer_class_invalid",
-            Record { t_ms: u64::MAX, event: Event::RunCompleted(value_run_completed("AnswerClass", "invalid")) },
-            Capture::Everything,
-        ),
-        (
-            "level_info",
-            Record { t_ms: u64::MAX, event: Event::Notice(value_notice("Level", "info")) },
-            Capture::Everything,
-        ),
-        (
-            "level_warning",
-            Record { t_ms: u64::MAX, event: Event::Notice(value_notice("Level", "warning")) },
-            Capture::Everything,
-        ),
+fn notice_samples() -> Vec<(&'static str, Record, Capture)> {
+    let mut values = Vec::new();
+    for (name, words, capture) in [
+        ("notice_none", Fill::capture(Capture::None), Capture::None),
+        ("notice_calls", Fill::capture(Capture::Calls), Capture::Calls),
+        ("notice_everything", Fill::capture(Capture::Everything), Capture::Everything),
+        ("level_info", Fill::level(Level::Info), Capture::Everything),
+        ("level_warning", Fill::level(Level::Warning), Capture::Everything),
         (
             "notice_kind_credential_unauthorized",
-            Record { t_ms: u64::MAX, event: Event::Notice(value_notice("NoticeKind", "credential_unauthorized")) },
+            Fill::notice_kind(NoticeKind::CredentialUnauthorized),
             Capture::Everything,
         ),
-    ]
-}
-
-fn samples_14() -> Vec<(&'static str, Record, Capture)> {
-    vec![
-        (
-            "notice_kind_account_limited",
-            Record { t_ms: u64::MAX, event: Event::Notice(value_notice("NoticeKind", "account_limited")) },
-            Capture::Everything,
-        ),
-        (
-            "role_assistant",
-            Record { t_ms: u64::MAX, event: Event::ResponseStarted(value_response_started("Role", "assistant")) },
-            Capture::Everything,
-        ),
-    ]
+        ("notice_kind_account_limited", Fill::notice_kind(NoticeKind::AccountLimited), Capture::Everything),
+    ] {
+        values.push((name, recorded(Event::Notice(value_notice(&words))), capture));
+    }
+    values
 }
 
 pub fn samples() -> Vec<(&'static str, Record, Capture)> {
     let mut samples = vec![reasoning_dropped_sample()];
-    let mut signal = value_tool_completed("", "");
+    let mut signal = value_tool_completed(&Fill::DEFAULT);
     signal.exit = Some(CommandExit::Signal { signal: u64::MAX });
     samples.push((
         "tool_completed_signal",
         Record { t_ms: 0, event: Event::ToolCompleted(signal) },
         Capture::Everything,
     ));
-    let mut zero = value_tool_completed("", "");
+    let mut zero = value_tool_completed(&Fill::DEFAULT);
     zero.omitted_bytes = 0;
     zero.clamped = false;
     samples.push((
@@ -1550,7 +934,7 @@ pub fn samples() -> Vec<(&'static str, Record, Capture)> {
         Record { t_ms: 0, event: Event::ToolCompleted(zero) },
         Capture::Everything,
     ));
-    let mut check = value_check_completed("", "");
+    let mut check = value_check_completed(&Fill::DEFAULT);
     check.exit = CheckExit::Signal { signal: u64::MAX };
     samples.push((
         "check_completed_signal",
@@ -1564,7 +948,7 @@ pub fn samples() -> Vec<(&'static str, Record, Capture)> {
         ("check_completed_cancelled", CheckExit::Cancelled, false),
         ("check_completed_unknown", CheckExit::Unknown("future🌍".as_bytes().into()), false),
     ] {
-        let mut check = value_check_completed("", "");
+        let mut check = value_check_completed(&Fill::DEFAULT);
         check.exit = exit;
         check.passed = passed;
         samples.push((name, Record { t_ms: 0, event: Event::CheckCompleted(check) }, Capture::Everything));
@@ -1574,9 +958,9 @@ pub fn samples() -> Vec<(&'static str, Record, Capture)> {
         ("tool_choice_only", ToolChoice::Only),
         ("tool_choice_unknown", ToolChoice::Unknown("future🌍".as_bytes().into())),
     ] {
-        let mut response = value_response_started("Capture", "everything");
+        let mut response = value_response_started(&Fill::capture(Capture::Everything));
         response.tool_choice = choice;
-        samples.push((name, Record { t_ms: u64::MAX, event: Event::ResponseStarted(response) }, Capture::Everything));
+        samples.push((name, recorded(Event::ResponseStarted(response)), Capture::Everything));
     }
     samples.extend(accounts::samples());
     samples.extend(accounts_samples());
@@ -1585,39 +969,40 @@ pub fn samples() -> Vec<(&'static str, Record, Capture)> {
     samples.extend(answer_field_samples());
     samples.extend(budget_samples());
     samples.extend(message_samples());
-    samples.extend(samples_0());
-    samples.extend(samples_1());
-    samples.extend(samples_2());
-    samples.extend(samples_3());
-    samples.extend(samples_4());
-    samples.extend(samples_5());
-    samples.extend(samples_6());
-    samples.extend(samples_7());
-    samples.extend(samples_8());
-    samples.extend(samples_9());
-    samples.extend(samples_10());
-    samples.extend(samples_11());
-    samples.extend(samples_12());
-    samples.extend(samples_13());
-    samples.extend(samples_14());
+    samples.extend(session_started_samples());
+    samples.extend(session_ended_samples());
+    samples.extend(run_started_samples());
+    samples.extend(run_completed_samples());
+    samples.extend(conversation_opened_samples());
+    samples.extend(conversation_closed_samples());
+    samples.extend(response_started_samples());
+    samples.extend(response_completed_samples());
+    samples.extend(text_delta_samples());
+    samples.extend(tool_started_samples());
+    samples.extend(tool_completed_samples());
+    samples.extend(check_started_samples());
+    samples.extend(check_completed_samples());
+    samples.extend(notice_samples());
     samples.extend(null_samples());
     for (name, capture) in [
         ("session_ended_unread_none", Capture::None),
         ("session_ended_unread_calls", Capture::Calls),
         ("session_ended_unread_everything", Capture::Everything),
     ] {
-        let mut end = value_session_ended("", "");
+        let mut end = value_session_ended(&Fill::DEFAULT);
         end.cpu_ms = None;
         end.peak_rss_bytes = None;
-        samples.push((name, Record { t_ms: u64::MAX, event: Event::SessionEnded(end) }, capture));
+        samples.push((name, recorded(Event::SessionEnded(end)), capture));
     }
     samples.push(("session_started_effective_limits", effective_record(), Capture::Everything));
-    for (name, spelling) in
-        [("containment_groups", "groups"), ("containment_trees", "trees"), ("containment_unknown", "future🌍")]
-    {
+    for (name, containment) in [
+        ("containment_groups", smith_events::Containment::Groups),
+        ("containment_trees", smith_events::Containment::Trees),
+        ("containment_unknown", smith_events::Containment::Unknown("future🌍".as_bytes().into())),
+    ] {
         samples.push((
             name,
-            Record { t_ms: 0, event: Event::SessionStarted(value_session_started("Containment", spelling)) },
+            Record { t_ms: 0, event: Event::SessionStarted(value_session_started(&Fill::containment(containment))) },
             Capture::Everything,
         ));
     }
@@ -1625,7 +1010,7 @@ pub fn samples() -> Vec<(&'static str, Record, Capture)> {
 }
 
 fn null_samples() -> Vec<(&'static str, Record, Capture)> {
-    let mut response = value_response_completed("", "");
+    let mut response = value_response_completed(&Fill::DEFAULT);
     response.stop = None;
     response.usage = Usage {
         input_tokens: None,
@@ -1640,16 +1025,12 @@ fn null_samples() -> Vec<(&'static str, Record, Capture)> {
     response.failure = None;
     response.retry_ms = None;
     response.completion = None;
-    vec![(
-        "response_unknown_measures",
-        Record { t_ms: u64::MAX, event: Event::ResponseCompleted(response) },
-        Capture::Everything,
-    )]
+    vec![("response_unknown_measures", recorded(Event::ResponseCompleted(response)), Capture::Everything)]
 }
 
 /// Header with exact scoped numbers and a policy share, independent of domain types.
 pub fn effective_record() -> Record {
-    let mut started = value_session_started("", "");
+    let mut started = value_session_started(&Fill::DEFAULT);
     let mut values = List::with_capacity(6);
     for (name, value) in [
         ("llm.request[endpoint=7]", smith_events::LimitValue::Integer(u64::MAX)),
@@ -1666,54 +1047,26 @@ pub fn effective_record() -> Record {
 }
 
 fn budget_samples() -> Vec<(&'static str, Record, Capture)> {
-    use smith_events::{
-        BudgetStage, BudgetStanding, Clamp, Quantity, Requested, Reserve, Share, ShareBound, SharePart,
-    };
+    use smith_events::{BudgetStage, Clamp, Requested, Share, ShareBound, SharePart};
     let mut samples = Vec::new();
     samples.push((
         "budget_ordinary",
-        Record {
-            t_ms: 750,
-            event: Event::Budget(BudgetStanding {
-                call: None,
-                run: 1,
-                stage: BudgetStage::Ordinary,
-                turns: Quantity { used: 2, limit: 10 },
-                spend: Quantity { used: 3, limit: 100 },
-                time_ms: Quantity { used: 750, limit: 1999 },
-                reserve: Reserve { turns: 1, time_ms: 750, spend: 10 },
-            }),
-        },
+        Record { t_ms: 750, event: Event::Budget(sample_standing(None)) },
         Capture::Everything,
     ));
     samples.push((
         "budget_told",
-        Record {
-            t_ms: 750,
-            event: Event::Budget(BudgetStanding {
-                run: 1,
-                stage: BudgetStage::Ordinary,
-                turns: Quantity { used: 2, limit: 10 },
-                spend: Quantity { used: 3, limit: 100 },
-                time_ms: Quantity { used: 750, limit: 1999 },
-                reserve: Reserve { turns: 1, time_ms: 750, spend: 10 },
-                call: Some(Box::from(b"child-7".as_slice())),
-            }),
-        },
+        Record { t_ms: 750, event: Event::Budget(sample_standing(Some(Box::from(b"child-7".as_slice())))) },
         Capture::Everything,
     ));
     samples.push((
         "budget_wind_down",
         Record {
             t_ms: 750,
-            event: Event::Budget(BudgetStanding {
-                call: None,
-                run: 1,
-                stage: BudgetStage::WindDown,
-                turns: Quantity { used: 2, limit: 10 },
-                spend: Quantity { used: 3, limit: 100 },
-                time_ms: Quantity { used: 750, limit: 1999 },
-                reserve: Reserve { turns: 1, time_ms: 750, spend: 10 },
+            event: Event::Budget({
+                let mut value = sample_standing(None);
+                value.stage = BudgetStage::WindDown;
+                value
             }),
         },
         Capture::Everything,
@@ -1802,7 +1155,6 @@ fn child_terminal(name: &'static str, stop: smith_events::ChildStop) -> (&'stati
 }
 
 fn message_samples() -> Vec<(&'static str, Record, Capture)> {
-    use smith_events::{MessageRead, MessageReceived, MessageRefusal, MessageUnread};
     let mut samples = Vec::new();
     for (name, capture) in [
         ("message_received_none", Capture::None),
@@ -1811,17 +1163,7 @@ fn message_samples() -> Vec<(&'static str, Record, Capture)> {
     ] {
         samples.push((
             name,
-            Record {
-                t_ms: u64::MAX,
-                event: Event::MessageReceived(MessageReceived {
-                    run: u64::MAX,
-                    name: u64::MAX,
-                    bytes: u64::MAX,
-                    refused: None,
-                    label: Some(Box::from("label\n\"🌍".as_bytes())),
-                    text: Some(Box::from("text\n\"🌍".as_bytes())),
-                }),
-            },
+            Record { t_ms: u64::MAX, event: Event::MessageReceived(value_message_received(&Fill::DEFAULT)) },
             capture,
         ));
     }
@@ -1837,13 +1179,12 @@ fn message_samples() -> Vec<(&'static str, Record, Capture)> {
             name,
             Record {
                 t_ms: u64::MAX,
-                event: Event::MessageReceived(MessageReceived {
-                    run: u64::MAX,
-                    name: u64::MAX,
-                    bytes: u64::MAX,
-                    refused: Some(refused),
-                    label: None,
-                    text: None,
+                event: Event::MessageReceived({
+                    let mut value = value_message_received(&Fill::DEFAULT);
+                    value.refused = Some(refused);
+                    value.label = None;
+                    value.text = None;
+                    value
                 }),
             },
             Capture::Everything,
@@ -1854,34 +1195,19 @@ fn message_samples() -> Vec<(&'static str, Record, Capture)> {
         ("message_read_calls", Capture::Calls),
         ("message_read_everything", Capture::Everything),
     ] {
-        samples.push((
-            name,
-            Record {
-                t_ms: u64::MAX,
-                event: Event::MessageRead(MessageRead { run: u64::MAX, name: u64::MAX, turn: u64::MAX }),
-            },
-            capture,
-        ));
+        samples.push((name, Record { t_ms: u64::MAX, event: Event::MessageRead(value_message_read()) }, capture));
     }
     for (name, capture) in [
         ("message_unread_none", Capture::None),
         ("message_unread_calls", Capture::Calls),
         ("message_unread_everything", Capture::Everything),
     ] {
-        samples.push((
-            name,
-            Record { t_ms: u64::MAX, event: Event::MessageUnread(MessageUnread { run: u64::MAX, name: u64::MAX }) },
-            capture,
-        ));
+        samples.push((name, recorded(Event::MessageUnread(value_message_unread())), capture));
     }
-    let mut completed = value_run_completed("", "");
+    let mut completed = value_run_completed(&Fill::DEFAULT);
     completed.read = None;
     completed.unread = 0;
-    samples.push((
-        "run_completed_no_read",
-        Record { t_ms: u64::MAX, event: Event::RunCompleted(completed) },
-        Capture::Everything,
-    ));
+    samples.push(("run_completed_no_read", recorded(Event::RunCompleted(completed)), Capture::Everything));
     samples
 }
 
@@ -1895,7 +1221,7 @@ fn failure_samples() -> Vec<(&'static str, Record, Capture)> {
         ("failure_phase_whole", FailurePhase::Whole),
         ("failure_phase_unknown", FailurePhase::Unknown("future🌍".as_bytes().into())),
     ] {
-        let mut response = value_response_completed("Outcome", "failed");
+        let mut response = value_response_completed(&Fill::outcome(Outcome::Failed));
         let failure = response.failure.as_mut().expect("failure fixture");
         failure.phase = Some(phase);
         failure.limit = Some(FailureLimit { which: b"response_head".as_slice().into(), bound: u64::MAX });
@@ -1908,7 +1234,7 @@ fn failure_samples() -> Vec<(&'static str, Record, Capture)> {
         ("run_model_failure_calls", Capture::Calls),
         ("run_model_failure_everything", Capture::Everything),
     ] {
-        let mut run = value_run_completed("Status", "failed");
+        let mut run = value_run_completed(&Fill::status(Status::Failed));
         let failure = run.failure.as_mut().expect("run fixture");
         failure.class = AnswerClass::Model;
         failure.endpoint = Some(b"api.provider.test/v1".as_slice().into());
@@ -1980,13 +1306,9 @@ fn end_samples() -> Vec<(&'static str, Record, Capture)> {
             Capture::Everything,
         ));
     }
-    let mut aborted = value_session_ended("", "");
-    aborted.aborted = Some(true);
-    samples.push((
-        "session_ended_aborted",
-        Record { t_ms: u64::MAX, event: Event::SessionEnded(aborted) },
-        Capture::Everything,
-    ));
+    let mut aborted = value_session_ended(&Fill::DEFAULT);
+    aborted.aborted = true;
+    samples.push(("session_ended_aborted", recorded(Event::SessionEnded(aborted)), Capture::Everything));
     samples.push((
         "notice_teardown_aborted",
         Record {
@@ -2077,7 +1399,7 @@ fn answer_field_samples() -> Vec<(&'static str, Record, Capture)> {
         ("run_budget_spend_fields", Some("spend"), Some(19), Some(17), None, None, None),
         ("run_budget_time_fields", Some("time"), Some(1073), Some(1000), None, None, None),
     ] {
-        let mut run = value_run_completed("Status", "failed");
+        let mut run = value_run_completed(&Fill::status(Status::Failed));
         let failure = run.failure.as_mut().expect("failed fixture");
         failure.class = if account.is_some() { AnswerClass::Model } else { AnswerClass::Budget };
         failure.completion = None;
@@ -2095,12 +1417,12 @@ fn answer_field_samples() -> Vec<(&'static str, Record, Capture)> {
 
 fn job_samples() -> Vec<(&'static str, Record, Capture)> {
     let mut samples = Vec::new();
-    for name in ["running", "stopped"] {
-        let mut completed = value_tool_completed("Verdict", name);
+    for (name, verdict) in [("running", Verdict::Running), ("stopped", Verdict::Stopped)] {
+        let mut completed = value_tool_completed(&Fill::verdict(verdict));
         completed.job = Some(u64::MAX);
         samples.push((
             if name == "running" { "verdict_running" } else { "verdict_stopped" },
-            Record { t_ms: u64::MAX, event: Event::ToolCompleted(completed) },
+            recorded(Event::ToolCompleted(completed)),
             Capture::Everything,
         ));
     }
@@ -2113,15 +1435,10 @@ fn job_samples() -> Vec<(&'static str, Record, Capture)> {
             name,
             Record {
                 t_ms: u64::MAX,
-                event: Event::JobEnded(smith_events::JobEnded {
-                    run: u64::MAX,
-                    conversation: u64::MAX,
-                    job: u64::MAX,
-                    call: Box::from("sample\n\"🌍".as_bytes()),
-                    verdict,
-                    exit,
-                    unread_bytes: u64::MAX,
-                    duration_ms: u64::MAX,
+                event: Event::JobEnded({
+                    let mut value = value_job_ended(&Fill::verdict(verdict));
+                    value.exit = exit;
+                    value
                 }),
             },
             Capture::Everything,
@@ -2150,12 +1467,12 @@ fn accounts_samples() -> Vec<(&'static str, Record, Capture)> {
             backend: smith_events::Backend::Unknown(b"future".as_slice().into()),
         },
     ] {
-        let mut value = value_response_started("", "");
+        let mut value = value_response_started(&Fill::DEFAULT);
         value.model.account = sample.account;
         value.model.backend = sample.backend;
         samples.push((sample.name, Record { t_ms: 0, event: Event::ResponseStarted(value) }, Capture::Everything));
     }
-    let mut value = value_run_started("", "");
+    let mut value = value_run_started(&Fill::DEFAULT);
     value.tools.withheld = List::with_capacity(1);
     value.tools.withheld.push(Family::SubAgents).expect("withheld family fits");
     samples.push(("tools_withheld", Record { t_ms: 0, event: Event::RunStarted(value) }, Capture::Everything));
@@ -2163,8 +1480,8 @@ fn accounts_samples() -> Vec<(&'static str, Record, Capture)> {
         FailureSample { name: "failure_class_refused", class: FailureClass::Refused },
         FailureSample { name: "failure_class_unsupported", class: FailureClass::Unsupported },
     ] {
-        let mut value = value_response_completed("", "");
-        let mut failure = value_completion_failure("", "");
+        let mut value = value_response_completed(&Fill::DEFAULT);
+        let mut failure = value_completion_failure(&Fill::DEFAULT);
         failure.class = sample.class;
         failure.retry_after_ms = None;
         failure.field = Some(b"effort".as_slice().into());
@@ -2179,3 +1496,92 @@ fn accounts_samples() -> Vec<(&'static str, Record, Capture)> {
 
 #[path = "events/accounts.rs"]
 mod accounts;
+
+fn recorded(event: Event) -> Record {
+    Record { t_ms: u64::MAX, event }
+}
+
+fn payload(length: u32) -> Box<[u8]> {
+    vec![1; usize::try_from(length).expect("fixture length")].into_boxed_slice()
+}
+
+fn value_budget_standing(fill: &Fill) -> BudgetStanding {
+    BudgetStanding {
+        call: Some(fill.text()),
+        run: u64::MAX,
+        stage: BudgetStage::Unknown(fill.text()),
+        turns: Quantity { used: u64::MAX, limit: u64::MAX },
+        spend: Quantity { used: u64::MAX, limit: u64::MAX },
+        time_ms: Quantity { used: u64::MAX, limit: u64::MAX },
+        reserve: Reserve { turns: u64::MAX, time_ms: u64::MAX, spend: u64::MAX },
+    }
+}
+
+fn value_job_ended(fill: &Fill) -> JobEnded {
+    JobEnded {
+        run: u64::MAX,
+        conversation: u64::MAX,
+        job: u64::MAX,
+        call: fill.text(),
+        verdict: fill.verdict.clone(),
+        exit: Some(value_command_exit(fill)),
+        unread_bytes: u64::MAX,
+        duration_ms: u64::MAX,
+    }
+}
+
+fn value_message_received(fill: &Fill) -> MessageReceived {
+    MessageReceived {
+        run: u64::MAX,
+        name: u64::MAX,
+        bytes: u64::MAX,
+        refused: if fill.maximum() { Some(MessageRefusal::Unknown(fill.text())) } else { None },
+        label: Some(fill.metadata("label\n\"🌍".as_bytes())),
+        text: Some(fill.captured("text\n\"🌍".as_bytes())),
+    }
+}
+
+fn value_message_read() -> MessageRead {
+    MessageRead { run: u64::MAX, name: u64::MAX, turn: u64::MAX }
+}
+
+fn value_message_unread() -> MessageUnread {
+    MessageUnread { run: u64::MAX, name: u64::MAX }
+}
+
+pub fn largest_samples(limits: &smith_events::Limits) -> Vec<Record> {
+    let fill = &Fill::largest(limits);
+    vec![
+        Record { t_ms: u64::MAX, event: Event::Budget(value_budget_standing(fill)) },
+        Record { t_ms: u64::MAX, event: Event::SessionStarted(value_session_started(fill)) },
+        Record { t_ms: u64::MAX, event: Event::SessionEnded(value_session_ended(fill)) },
+        Record { t_ms: u64::MAX, event: Event::RunStarted(value_run_started(fill)) },
+        Record { t_ms: u64::MAX, event: Event::RunCompleted(value_run_completed(fill)) },
+        Record { t_ms: u64::MAX, event: Event::ConversationOpened(value_conversation_opened(fill)) },
+        Record { t_ms: u64::MAX, event: Event::ConversationClosed(value_conversation_closed(fill)) },
+        Record { t_ms: u64::MAX, event: Event::ResponseStarted(value_response_started(fill)) },
+        Record { t_ms: u64::MAX, event: Event::ResponseCompleted(value_response_completed(fill)) },
+        Record { t_ms: u64::MAX, event: Event::TextDelta(value_text_delta(fill)) },
+        Record { t_ms: u64::MAX, event: Event::ToolStarted(value_tool_started(fill)) },
+        Record { t_ms: u64::MAX, event: Event::ToolCompleted(value_tool_completed(fill)) },
+        Record { t_ms: u64::MAX, event: Event::JobEnded(value_job_ended(fill)) },
+        Record { t_ms: u64::MAX, event: Event::CheckStarted(value_check_started()) },
+        Record { t_ms: u64::MAX, event: Event::CheckCompleted(value_check_completed(fill)) },
+        Record { t_ms: u64::MAX, event: Event::Notice(value_notice(fill)) },
+        Record { t_ms: u64::MAX, event: Event::MessageReceived(value_message_received(fill)) },
+        Record { t_ms: u64::MAX, event: Event::MessageRead(value_message_read()) },
+        Record { t_ms: u64::MAX, event: Event::MessageUnread(value_message_unread()) },
+    ]
+}
+
+fn sample_standing(call: Option<Box<[u8]>>) -> BudgetStanding {
+    let mut value = value_budget_standing(&Fill::DEFAULT);
+    value.run = 1;
+    value.stage = BudgetStage::Ordinary;
+    value.call = call;
+    value.turns = Quantity { used: 2, limit: 10 };
+    value.spend = Quantity { used: 3, limit: 100 };
+    value.time_ms = Quantity { used: 750, limit: 1999 };
+    value.reserve = Reserve { turns: 1, time_ms: 750, spend: 10 };
+    value
+}

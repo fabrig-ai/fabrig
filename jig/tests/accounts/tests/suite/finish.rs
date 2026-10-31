@@ -6,7 +6,7 @@ use jig_domain_accounts::{
 use skein_lib::Token;
 
 fn world(sign_ins: u32) -> World {
-    let mut world = World::with_limits(
+    let mut world = World::with_start(
         jig_domain_accounts::Limits { sign_ins, ..LIMITS },
         providers(vec![provider(1, true, false), provider(2, true, false)]),
         &[],

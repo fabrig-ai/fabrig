@@ -42,9 +42,9 @@ impl PrivateWorld {
         let mut config = crate::tests::config();
         let mut endpoints = List::with_capacity(1);
         endpoints
-            .push(smith_protocol_channel::Endpoint { name: b"main".as_slice().into(), number: 4, dialect: 1 })
+            .push(smith_protocol_translate::Endpoint { name: b"main".as_slice().into(), number: 4, dialect: 1 })
             .unwrap();
-        config.endpoints = smith_protocol_channel::Endpoints::new(endpoints);
+        config.endpoints = smith_protocol_translate::Endpoints::new(endpoints);
         let mut service = Service::new(config, seed).unwrap();
         service.adopt_store(store).unwrap();
         service.ephemeral(parent, PRIVATE.into()).unwrap();
@@ -53,7 +53,7 @@ impl PrivateWorld {
 
     fn settle(&mut self) {
         crate::tests::settle_file_io(
-            self.service.below.process_mut(),
+            &mut self.service.io,
             &mut self.sim,
             &mut self.machine,
             self.pid,
@@ -79,7 +79,7 @@ impl PrivateWorld {
                 }),
             },
         ] {
-            self.service.below.process_mut().store_request(request);
+            self.service.io.store_request(request);
             self.settle();
         }
     }
@@ -92,7 +92,7 @@ impl PrivateWorld {
 
     fn finish(&mut self) -> local::ExitStatus {
         let status = finish_output(&mut self.service);
-        assert!(self.service.below.process().closed());
+        assert!(self.service.io.closed());
         self.machine.close(self.root);
         assert_eq!(self.machine.open_handles(), 0, "store, cleanup parent and observer close");
         status
@@ -109,23 +109,7 @@ impl PrivateWorld {
 }
 
 fn turn() -> smith_domain::Turn {
-    smith_domain::Turn {
-        model: b"model".as_slice().into(),
-        effort: None,
-        kind: smith_domain::session::record::Kind::First(Box::new(smith_domain::session::record::Opener {
-            affinity: smith_domain::llm::Affinity { key: [0; 16], thread: 0 },
-            account: None,
-            backend: smith_domain::session::record::Backend::Direct,
-        })),
-        version: smith_domain::session::record::VERSION,
-        endpoint: Some(smith_domain::session::llm::Endpoint(4)),
-        dialect: 1,
-        sequence: 1,
-        usage: smith_domain::session::llm::Usage::ZERO,
-        spent: 0,
-        jobs: 0,
-        messages: Box::new([]),
-    }
+    smith_local_domain::fixture::turn()
 }
 
 fn assert_removed_after_exit(status: local::ExitStatus) {
@@ -141,21 +125,18 @@ fn assert_removed_after_exit(status: local::ExitStatus) {
     }
 }
 
-/// Lower test of smith's `end_to_end::smith_exec_ephemeral_removes_its_private_files_after_acceptance`
 /// (top tiers test wiring only).
 #[test]
 fn acceptance_removes_private_records_and_their_directory() {
     assert_removed_after_exit(local::ExitStatus::Accepted);
 }
 
-/// Lower test of smith's `end_to_end::smith_exec_ephemeral_removes_its_private_files_after_a_failed_answer`
 /// (top tiers test wiring only).
 #[test]
 fn failure_removes_private_records_and_their_directory() {
     assert_removed_after_exit(local::ExitStatus::RunFailed);
 }
 
-/// Lower test of smith's `end_to_end::smith_exec_ephemeral_keeps_a_foreign_file_and_warns_before_the_last_line`
 /// (top tiers test wiring only); warning text belongs to the shell.
 #[test]
 fn a_foreign_file_survives_and_warns_before_exit() {
@@ -199,7 +180,6 @@ fn finish_output(service: &mut Service) -> local::ExitStatus {
     status
 }
 
-/// Lower test of smith's `end_to_end::smith_exec_result_file_failure_exits_1_after_an_accepted_run`
 /// (top tiers test wiring only); the shell owns the file operation.
 #[test]
 fn result_failure_changes_acceptance_before_the_final_exit() {
@@ -211,7 +191,6 @@ fn result_failure_changes_acceptance_before_the_final_exit() {
     assert_eq!(finish_output(&mut service), local::ExitStatus::RunFailed);
 }
 
-/// Lower test of smith's `end_to_end::smith_exec_result_file_failure_warns_before_a_parked_answers_last_line`
 /// (top tiers test wiring only); warning text belongs to the shell.
 #[test]
 fn result_failure_keeps_the_parked_exit_behind_shell_output() {

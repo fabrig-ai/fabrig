@@ -4,14 +4,14 @@
 use alloc::boxed::Box;
 use skein_lib::{Duration, Queue, Time, Token};
 use smith_host_domain::{self as host, process};
-use smith_host_protocol::OpenEvent;
+use smith_host_protocol::Received;
 
 /// The live-content edge's cap, independent of channel flow control.
 /// Text past it or for another run is dropped and counted in `lost`;
 /// reasoning and input pieces are never kept.
 pub const LIVE_SLOTS: u32 = 4;
 
-/// Protocol/limits.md, section 3.6: maximum bytes in one live piece.
+/// protocol/limits.md, section 3.6: maximum bytes in one live piece.
 pub const LIVE_BYTES: u32 = smith_channel::CEILINGS.live_bytes;
 
 /// One text piece, sent beside the domain to the shown activation's front.
@@ -57,9 +57,9 @@ impl Live {
         self.run = if asked { Some(run) } else { None };
     }
 
-    pub(crate) fn receive(&mut self, run: Token, event: OpenEvent) -> host::Input {
+    pub(crate) fn receive(&mut self, run: Token, event: Received) -> host::Input {
         match event {
-            OpenEvent::Live { turn, retry, kind, offset, bytes, .. } => {
+            Received::Live { turn, retry, kind, offset, bytes, .. } => {
                 match kind {
                     smith_channel::LiveKind::Text => {
                         if self.run == Some(run) && self.pieces.room() > 0 {
@@ -72,24 +72,13 @@ impl Live {
                 }
                 host::Input::Process(process::Event::Progress { owner: run })
             }
-            other @ (OpenEvent::Opened { .. }
-            | OpenEvent::Hangup { .. }
-            | OpenEvent::Sent { .. }
-            | OpenEvent::Unsent { .. }
-            | OpenEvent::WriteFailed
-            | OpenEvent::Answer { .. }
-            | OpenEvent::Admitted
-            | OpenEvent::MessageRefused { .. }
-            | OpenEvent::Waiting { .. }
-            | OpenEvent::Long { .. }
-            | OpenEvent::LongDone
-            | OpenEvent::Turn { .. }
-            | OpenEvent::Fact { .. }
-            | OpenEvent::Unauthorized { .. }
-            | OpenEvent::Limited { .. }
-            | OpenEvent::Refused { .. }
-            | OpenEvent::Call { .. }
-            | OpenEvent::Withdraw { .. }) => crate::process::channel_event(run, other),
+            other @ (Received::Opened { .. }
+            | Received::Hangup { .. }
+            | Received::Sent { .. }
+            | Received::Unsent { .. }
+            | Received::WriteFailed
+            | Received::Answer { .. }
+            | Received::Message { .. }) => crate::host_io::channel_event(run, other),
         }
     }
 
@@ -298,8 +287,8 @@ impl Timing {
 mod tests {
     use super::*;
 
-    fn piece() -> OpenEvent {
-        OpenEvent::Live {
+    fn piece() -> Received {
+        Received::Live {
             turn: 1,
             retry: 0,
             kind: smith_channel::LiveKind::Text,
@@ -350,8 +339,8 @@ mod tests {
         let mut live = Live::new();
         let run = Token::new(1);
         live.start(run, true);
-        let OpenEvent::Live { retry, kind, offset, bytes, call, .. } = piece() else { unreachable!() };
-        live.receive(run, OpenEvent::Live { turn: 2, retry, kind, offset, bytes, call });
+        let Received::Live { retry, kind, offset, bytes, call, .. } = piece() else { unreachable!() };
+        live.receive(run, Received::Live { turn: 2, retry, kind, offset, bytes, call });
         assert!(live.pop_through(Some(1)).is_none());
         assert_eq!(live.pop_through(Some(2)).unwrap().turn, 2);
     }
@@ -418,13 +407,9 @@ mod tests {
             kind: smith_domain::session::record::Kind::Ordinary,
             endpoint: None,
             model: Box::new([]),
-            effort: None,
-            dialect: 1,
             sequence: number,
             usage: smith_domain::session::llm::Usage::NONE,
-            spent: 0,
-            jobs: 0,
-            messages: Box::new([]),
+            ..smith_local_domain::fixture::turn()
         };
         timing.received(
             &process::Event::Received {

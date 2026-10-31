@@ -31,7 +31,7 @@ pub(super) fn calls_per_response(observer: &Observer, tool: &str, at_most: u32) 
                     .iter()
                     .filter(|block| {
                         matches!(block,
-                    Block::Call { tool: actual, .. } if actual.as_ref() == tool.as_bytes())
+                    Block::Call { tool: got, .. } if got.as_ref() == tool.as_bytes())
                     })
                     .count();
                 if u64::try_from(count).expect("blocks fit") > u64::from(at_most) {
@@ -67,7 +67,7 @@ pub(super) fn children_in_turn(observer: &Observer, count: u32) -> Measure<bool>
             {
                 let identity = (value.run, child.conversation);
                 let Some(opening) = openings.get(&identity) else {
-                    return Measure::unavailable("child return lacks its actual opening");
+                    return Measure::unavailable("child return lacks its opening");
                 };
                 let opening: &&smith_events::ConversationOpened = opening;
                 if opening.parent != Some(value.conversation)

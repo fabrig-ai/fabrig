@@ -141,7 +141,6 @@ struct Held {
 #[derive(Debug)]
 pub struct World {
     settings: Settings,
-    explicit_start: bool,
     domain: Domain,
     env: Env<Limits>,
     out: Queue<Request>,
@@ -199,7 +198,6 @@ impl World {
         let domain = Domain::new(&settings.limits, owners.clone(), 1, grants.clone());
         let mut world = World {
             settings,
-            explicit_start: false,
             domain,
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: settings.limits },
             out: Queue::uncapped(),
@@ -231,27 +229,11 @@ impl World {
             context: None,
             hold_replies: false,
         };
-        world.send(Event::Restored);
-        world
-    }
-
-    /// A parallel constructor whose cold restarts explicitly use load/fit/link/sweep.
-    #[must_use]
-    pub fn configured_start(settings: Settings, owners: Box<[InitialOwner]>, grants: Box<[people::ActGrant]>) -> World {
-        let mut world = Self::configured(settings, owners, grants);
-        world.explicit_start = true;
-        world.domain = Domain::new(&world.env.limits, world.owners.clone(), 1, world.grants.clone());
         world.domain.start_restore(world.env.wall);
         assert!(world.domain.start_link(&world.env));
         world.domain.start_sweep();
         assert!(world.domain.start_complete(&world.env));
         world
-    }
-
-    /// Restart an existing writer's durable store using the explicit start path.
-    pub fn restart_start(&mut self) {
-        self.explicit_start = true;
-        self.restart();
     }
 
     #[must_use]
@@ -1212,40 +1194,33 @@ impl World {
         self.acts.clear();
         self.issued = self.durable;
         self.domain = Domain::new(&self.env.limits, self.owners.clone(), 1, self.grants.clone());
-        if self.explicit_start {
-            self.domain.start_restore(self.env.wall);
-            // One row per first-walk page. Only the durable fake store owns the full range.
-            let mut after = None;
-            for _ in 0..self.records.len() {
-                let lower = after.map_or(std::ops::Bound::Unbounded, std::ops::Bound::Excluded);
-                let Some((key, record)) = self.records.range((lower, std::ops::Bound::Unbounded)).next() else { break };
-                after = Some(*key);
-                if key.live() {
-                    let record = record.clone();
-                    self.send(Event::Restore { record });
-                }
-            }
-            assert!(self.domain.start_link(&self.env));
-            self.domain.start_sweep();
-            let mut after = None;
-            for _ in 0..self.records.len() {
-                let lower = after.map_or(std::ops::Bound::Unbounded, std::ops::Bound::Excluded);
-                let Some((key, record)) = self.records.range((lower, std::ops::Bound::Unbounded)).next() else { break };
-                after = Some(*key);
-                if key.live() {
-                    self.domain.start_sweep_row(&self.env, record, &mut self.out);
-                    self.send_inner(None, None);
-                    self.commit_all();
-                }
-            }
-            self.commit_all();
-            assert!(self.domain.start_complete(&self.env));
-        } else {
-            for record in self.records.values().filter(|record| record.key().live()).cloned().collect::<Vec<_>>() {
+        self.domain.start_restore(self.env.wall);
+        // One row per first-walk page. Only the durable fake store owns the full range.
+        let mut after = None;
+        for _ in 0..self.records.len() {
+            let lower = after.map_or(std::ops::Bound::Unbounded, std::ops::Bound::Excluded);
+            let Some((key, record)) = self.records.range((lower, std::ops::Bound::Unbounded)).next() else { break };
+            after = Some(*key);
+            if key.live() {
+                let record = record.clone();
                 self.send(Event::Restore { record });
             }
-            self.send(Event::Restored);
         }
+        assert!(self.domain.start_link(&self.env));
+        self.domain.start_sweep();
+        let mut after = None;
+        for _ in 0..self.records.len() {
+            let lower = after.map_or(std::ops::Bound::Unbounded, std::ops::Bound::Excluded);
+            let Some((key, record)) = self.records.range((lower, std::ops::Bound::Unbounded)).next() else { break };
+            after = Some(*key);
+            if key.live() {
+                self.domain.start_sweep_row(&self.env, record, &mut self.out);
+                self.send_inner(None, None);
+                self.commit_all();
+            }
+        }
+        self.commit_all();
+        assert!(self.domain.start_complete(&self.env));
         self.restore_ended();
         self.stats.restarts += 1;
     }
@@ -1261,11 +1236,7 @@ impl World {
         while self.domain.is_due(self.env.now) {
             people::fire(&mut self.domain, &self.env, &mut self.out);
             // Fire's erases form their own decision, drained before the next timer.
-            if self.explicit_start {
-                self.send_inner(None, None);
-            } else {
-                self.send(Event::Restored);
-            }
+            self.send_inner(None, None);
         }
         self.commit_all();
         self.fire_referee();

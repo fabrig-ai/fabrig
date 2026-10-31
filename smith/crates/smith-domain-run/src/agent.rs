@@ -1,4 +1,4 @@
-//! Sub-agents (domain/run.md, section 5.3): a delegated call the run serves by
+//! Sub-agents (smith/docs/design/domain/run.md, section 5.3): a delegated call the run serves by
 //! opening another conversation, on the same checkout, with families of tools
 //! no wider than its asker's and never `finish`, on an LLM the charter lists,
 //! with a share of what the run has left above its finishing reserve (section 9.1).
@@ -12,7 +12,7 @@
 //! runs out no later than its call's deadline. A refused ask is a tool error
 //! too.
 //!
-//! Choosing the model (domain/run.md, section 5.3): the charter lists the LLMs
+//! Choosing the model (smith/docs/design/domain/run.md, section 5.3): the charter lists the LLMs
 //! a sub-agent may run on; the asking LLM may name one of them, by its model,
 //! compared byte for byte; otherwise the child runs on main's.
 //!

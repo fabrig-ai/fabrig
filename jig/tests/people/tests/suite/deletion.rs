@@ -28,6 +28,7 @@ impl People {
             Box::new([ActGrant { connector: CONNECTOR, may: ActKind::ALL.into() }]),
         );
         let mut people = Self { domain, env, rows: BTreeMap::new() };
+        people.domain.start_restore(people.env.wall);
         for row in [
             Stored::Person { number: PERSON, identity: identity(PERSON) },
             Stored::SignIn { number: SIGN_IN, person: PERSON, expires: Wall::from_nanos(1_000_000_000) },
@@ -36,7 +37,9 @@ impl People {
         ] {
             assert!(people.send(Event::Restore { record: row }).is_empty());
         }
-        assert!(people.send(Event::Restored).is_empty());
+        assert!(people.domain.start_link(&people.env));
+        people.domain.start_sweep();
+        assert!(people.domain.start_complete(&people.env));
         people
     }
     fn send(&mut self, event: Event) -> Vec<Request> {
@@ -116,29 +119,19 @@ fn a_deletion_row_is_kept_advanced_and_erased() {
 
 #[test]
 fn a_kept_deletion_restores_at_start() {
-    for selected in [false, true] {
+    for selected in [DeletionStep::Tasks, DeletionStep::Rows, DeletionStep::Release] {
         let mut people = People::new();
         people.domain = Domain::new(&LIMITS, Box::new([]), 1, Box::new([]));
-        if selected {
-            people.domain.start_restore(people.env.wall);
-        }
+        people.domain.start_restore(people.env.wall);
         for project in 1..=LIMITS.projects {
-            assert!(
-                people
-                    .send(Event::Restore { record: Stored::Deletion { project, step: DeletionStep::Rows } })
-                    .is_empty()
-            );
+            assert!(people.send(Event::Restore { record: Stored::Deletion { project, step: selected } }).is_empty());
         }
-        if selected {
-            assert!(people.domain.start_link(&people.env));
-            people.domain.start_sweep();
-            assert!(people.domain.start_complete(&people.env));
-        } else {
-            assert!(people.send(Event::Restored).is_empty());
-        }
+        assert!(people.domain.start_link(&people.env));
+        people.domain.start_sweep();
+        assert!(people.domain.start_complete(&people.env));
         assert!(people.domain.ready());
         assert_eq!(people.domain.deletions().len(), LIMITS.projects);
-        assert_eq!(people.domain.deletions().get(&PROJECT), Some(&DeletionStep::Rows));
+        assert_eq!(people.domain.deletions().get(&PROJECT), Some(&selected));
     }
 }
 

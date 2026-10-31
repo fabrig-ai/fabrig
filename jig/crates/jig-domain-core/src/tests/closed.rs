@@ -14,6 +14,7 @@ fn two_parties() -> (Core, Limits) {
     let mut second = first.clone();
     second.key.subject = Box::new(*b"second");
     core.people = people::Domain::new(&limits.people, Box::new([]), core.settings.deployment_provider, Box::new([]));
+    core.people.start_restore(Wall::EPOCH);
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.people };
     let mut out = Queue::uncapped();
     for record in [
@@ -39,7 +40,7 @@ fn two_parties() -> (Core, Limits) {
         people::step(&mut core.people, &env, people::Event::Restore { record }, &mut out);
         while out.pop().is_some() {}
     }
-    people::step(&mut core.people, &env, people::Event::Restored, &mut out);
+    finish_people(&mut core.people, &env);
     assert_eq!(core.people.person(11, Time::ZERO, Wall::EPOCH), Some(2));
     (core, limits)
 }

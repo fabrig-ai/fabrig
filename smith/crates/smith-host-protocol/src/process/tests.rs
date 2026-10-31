@@ -1,7 +1,7 @@
 //! Scratch FIFO translation and opening teardown (protocol/hosts.md, section 3).
 
-use super::{Phase, Process, ProcessEvent};
-use crate::{OpenEvent, tests};
+use super::{Process, ProcessEvent, State};
+use crate::{Received, tests};
 use skein_channel::{Closed, Lower};
 use skein_io::{Event, Request};
 use skein_lib::{Queue, Time, Token, stream};
@@ -81,15 +81,15 @@ fn queued_channel_events_keep_opening_sends_and_hangup_order() {
     const FIRST: Token = Token::new(21);
     const SECOND: Token = Token::new(22);
     let (mut process, mut above, mut below) = opening();
-    process.channel_events.push(OpenEvent::Opened { version: 5 });
-    process.channel_events.push(OpenEvent::Sent { token: FIRST });
-    process.channel_events.push(OpenEvent::Sent { token: SECOND });
-    process.channel_events.push(OpenEvent::Hangup { why: Closed::Stream });
+    process.channel_events.push(Received::Opened { version: 5 });
+    process.channel_events.push(Received::Sent { token: FIRST });
+    process.channel_events.push(Received::Sent { token: SECOND });
+    process.channel_events.push(Received::Hangup { why: Closed::Stream });
     process.drain_channel(&mut above, &mut below);
-    assert_eq!(process.phase, Phase::Ready);
+    assert_eq!(process.state, State::Ready);
     assert_eq!(above.pop(), Some(ProcessEvent::Spawned { agent: AGENT, process: CHILD }));
     for event in
-        [OpenEvent::Sent { token: FIRST }, OpenEvent::Sent { token: SECOND }, OpenEvent::Hangup { why: Closed::Stream }]
+        [Received::Sent { token: FIRST }, Received::Sent { token: SECOND }, Received::Hangup { why: Closed::Stream }]
     {
         assert_eq!(above.pop(), Some(ProcessEvent::Channel { agent: AGENT, event: Box::new(event) }));
     }

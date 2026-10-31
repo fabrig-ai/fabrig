@@ -125,7 +125,7 @@ fn crash(d: &mut Driver, seed: u64) {
     d.forge = Some(ForgeStand::new());
     d.send(engine::Event::Restart { pending: d.store.pending_generation });
     d.pump();
-    assert!(d.root.ready() && !d.stopped, "restored removal: {:?}", d.root.restore_failure());
+    assert!(d.root.ready() && !d.stopped, "restored removal: {:?}", d.root.start_stop());
     reconnect(d);
 }
 
@@ -329,7 +329,7 @@ fn run(cut: Cut, seed: u64) -> std::collections::BTreeMap<Key, Record> {
     assert_whole(&d);
     make_forge(&mut d, 203);
     assert!(forge_rows(&d).iter().any(|row| matches!(row, forge::Stored::Forge(row) if row.number > FORGE)));
-    d.store.rows
+    d.store.rows.clone()
 }
 
 fn make_forge(d: &mut Driver, number: u8) {

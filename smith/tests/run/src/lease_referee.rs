@@ -1,11 +1,11 @@
-//! Independent write-holder oracle over actual run requests and returns.
-//! Skein owns referee plumbing. Contract: domain/run.md, sections 5.3, 8.1 and 13.
+//! Independent write-holder oracle over run requests and returns.
+//! Skein owns referee plumbing. Contract: smith/docs/design/domain/run.md, sections 5.3, 8.1 and 13.
 
 use skein_lib::{Time, Token};
-use skein_world::domain::{Expectations, Judge, Referee, Verdict};
+use skein_world::domain::{Expectations, Judge, Verdict};
 use std::collections::BTreeMap;
 
-/// One actual opening, operation or terminal at the run boundary.
+/// One opening, operation or terminal at the run boundary.
 #[derive(Clone, Copy, Debug)]
 pub enum Seen {
     /// A shell answer names its conversation's new job.
@@ -112,13 +112,8 @@ impl Expectations for Meeting {
     }
 }
 
-/// Judge ordered actual observations separately for each admitted run.
+/// Judge ordered observations separately for each admitted run.
 #[must_use]
 pub fn judge(seen: &[(Time, Token, Seen)]) -> Vec<Verdict> {
-    let mut meetings = BTreeMap::new();
-    for (at, run, seen) in seen {
-        let meeting = meetings.entry(*run).or_insert_with(|| Referee::new(Meeting::default()));
-        meeting.observe(*at, *seen, &mut Vec::new());
-    }
-    meetings.values().map(Referee::verdict).collect()
+    crate::referee::judge::<Meeting>(seen)
 }

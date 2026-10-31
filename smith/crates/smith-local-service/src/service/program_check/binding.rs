@@ -38,7 +38,7 @@ impl Service {
             }
             accounts.push(Account { number: *number, source: *source, covered: true }).expect("admitted account count");
         }
-        self.below.process_mut().handed_programs(Checks {
+        self.io.handed_programs(Checks {
             accounts,
             programs,
             base,

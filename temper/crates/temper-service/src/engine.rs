@@ -182,6 +182,22 @@ impl Engine {
     fn release_pending(&self) -> bool {
         self.end.is_none() && (self.ready || self.settled_revision != Some(self.domain.revision()))
     }
+    pub(crate) fn start_runtime(&self) -> bool {
+        use jig_domain_core::start::Phase;
+        match self.domain.start_phase() {
+            Some(Phase::AdoptRuns | Phase::ReadAfresh { .. } | Phase::SettleOutbox { .. } | Phase::Open) => true,
+            Some(
+                Phase::LoadCore
+                | Phase::LoadInbox
+                | Phase::RestoreConnector { .. }
+                | Phase::Link
+                | Phase::Sweep
+                | Phase::Switch
+                | Phase::Wires,
+            ) => false,
+            None => !self.begin,
+        }
+    }
     pub(crate) fn step(&mut self, event: root::Event) {
         let watcher = watcher(&event);
         if let Err(event) = root::try_step(&mut self.domain, &self.env, event) {
@@ -258,13 +274,15 @@ impl Engine {
             || self.room()
                 && (self.begin
                     || self.release_pending()
-                    || self.can_pass()
-                    || !self.blocked
-                        && (self.passing.is_some()
-                            || self.pending.is_some()
-                            || !self.events.is_empty()
-                            || due
-                            || self.domain.ready() && !self.first_periods.is_empty()))
+                    || self.start_runtime()
+                        && (!self.credentials.is_empty()
+                            || self.can_pass()
+                            || !self.blocked
+                                && (self.passing.is_some()
+                                    || self.pending.is_some()
+                                    || !self.events.is_empty()
+                                    || due
+                                    || self.domain.ready() && !self.first_periods.is_empty())))
     }
     pub(crate) fn abort_if_ended(&mut self) {
         if self.end.is_some() {
@@ -390,19 +408,20 @@ pub(crate) fn iterate(engine: &mut Engine, now: Time, wall: Wall) {
 }
 fn input_pass(engine: &mut Engine, now: Time) {
     if engine.begin {
-        if engine.credentials.is_empty() {
-            engine.begin = false;
-            engine.step(root::Event::Restart { pending: engine.store.pending_generation });
-        } else {
-            let last = engine.credentials.len().checked_sub(1).expect("first credential");
-            let number = *engine.credentials.get(last).expect("configured identity");
-            engine.credentials.truncate(last);
-            engine.step(root::Event::Credential {
-                number,
-                generation: 1,
-                valid: skein_lib::Duration::from_nanos(u64::MAX),
-            });
-        }
+        engine.begin = false;
+        engine.step(root::Event::Restart { pending: engine.store.pending_generation });
+    } else if !engine.start_runtime() {
+        // Store answers and held start continuations advance through release.
+        // Operational inputs wait until the Wires continuation has resumed.
+    } else if !engine.credentials.is_empty() {
+        let last = engine.credentials.len().checked_sub(1).expect("first credential");
+        let number = *engine.credentials.get(last).expect("configured identity");
+        engine.credentials.truncate(last);
+        engine.step(root::Event::Credential {
+            number,
+            generation: 1,
+            valid: skein_lib::Duration::from_nanos(u64::MAX),
+        });
     } else if !engine.blocked && engine.passing.is_some() {
         let event = engine.passing.take().expect("held passing completion");
         engine.step(*event);
@@ -596,7 +615,8 @@ pub(crate) fn answer(engine: &mut Engine) {
             event @ (jig_protocol_store::Event::Committed { .. }
             | jig_protocol_store::Event::Failed { .. }
             | jig_protocol_store::Event::FrameTooLarge { .. }
-            | jig_protocol_store::Event::Restored { .. }
+            | jig_protocol_store::Event::Page { .. }
+            | jig_protocol_store::Event::PageRefused { .. }
             | jig_protocol_store::Event::Loaded { .. }
             | jig_protocol_store::Event::Read { .. }
             | jig_protocol_store::Event::Got { .. }

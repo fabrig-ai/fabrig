@@ -1,8 +1,8 @@
 //! Random memory driver limits and charters.
 
 use super::{
-    ChangeSpec, Charter, Directory, Duration, Endpoint, Grants, Limits, Llm, OutcomeSpec, TIGHT, TextSpec, Token,
-    Tools, VerdictRule, Workspace, bytes, run,
+    ChangeSpec, Charter, Directory, Endpoint, Grants, Limits, Llm, OutcomeSpec, TIGHT, TextSpec, Token, Tools,
+    VerdictRule, Workspace, bytes, run,
 };
 
 // Content capture capacity for this scenario:
@@ -12,12 +12,7 @@ const MEMORY_CONTENT_EDGE_RECORDS: u32 = 98;
 /// Small limits, so that every bound is met often: few runs and sessions,
 /// few bytes each.
 pub const LIMITS: Limits = Limits {
-    accounts: 4,
-    endpoints: 3,
-    configured_model_bytes: 4096,
-    decoded_call_bytes: 4096,
     content_edge_records: MEMORY_CONTENT_EDGE_RECORDS,
-    skew: Duration::ZERO,
     run: run::Limits {
         runs: 2,
         conversations: 4,
@@ -62,6 +57,7 @@ pub const LIMITS: Limits = Limits {
         },
         ..TIGHT.session
     },
+    ..smith_domain::fixture::SMALL
 };
 
 /// A charter with unchanged aggregate context filler distributed across role,
@@ -109,12 +105,12 @@ pub(super) fn charter(context_bytes: u64) -> Charter {
     let payload = context_bytes
         - u64::try_from(std::mem::size_of::<run::Section>() * count).expect("bounded owning Section array fits u64");
     let instructions = bytes(payload / 4);
-    let mut remainder = payload - u64::try_from(instructions.len()).expect("bounded instructions payload fits u64");
+    let mut remainder = payload - skein_lib::len_u64(instructions.len());
     let mut sections = Vec::with_capacity(count);
     for section in 0..count {
         let remaining = u64::try_from(count - section).expect("bounded Section suffix count fits u64");
         let title = bytes(remainder / remaining / 3);
-        let text = bytes(remainder / remaining - u64::try_from(title.len()).expect("bounded title payload fits u64"));
+        let text = bytes(remainder / remaining - skein_lib::len_u64(title.len()));
         remainder -= u64::try_from(title.len() + text.len()).expect("bounded Section payloads fit u64");
         sections.push(run::Section { title, text });
     }

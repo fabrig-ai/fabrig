@@ -7,14 +7,18 @@ edition.workspace = true
 rust-version.workspace = true
 publish.workspace = true
 
+[features]
+fixture = []
+
 [dependencies]
 skein-lib.workspace = true
 smith-domain.workspace = true
-smith-events.workspace = true
 smith-inline-agent.workspace = true
 smith-host-domain.workspace = true
 
 [dev-dependencies]
+smith-host-domain = { workspace = true, features = ["fixture"] }
+
 smith-agent-world.workspace = true
 
 [lints]

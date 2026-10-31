@@ -25,7 +25,7 @@ pub(crate) enum Guide {
     Closing { terminal: ToDomain },
 }
 
-pub(crate) enum Step {
+pub(crate) enum Next {
     Continue(Guide),
     Done(ToDomain),
 }
@@ -40,7 +40,7 @@ impl Guide {
     }
 
     #[expect(clippy::wildcard_enum_match_arm, reason = "skein event and kernel error vocabularies are external")]
-    pub(crate) fn event(self, owner: Token, event: file::Event, below: &mut Queue<Below>) -> Step {
+    pub(crate) fn event(self, owner: Token, event: file::Event, below: &mut Queue<Below>) -> Next {
         match self {
             Guide::OpeningRead { max, deadline } => match event {
                 file::Event::Opened { file, len, .. } => {
@@ -57,7 +57,7 @@ impl Guide {
                             request: file::Request::ReadAt { owner, file, offset: 0, max: requested },
                             deadline,
                         });
-                        Step::Continue(Guide::Reading { file, len, max })
+                        Next::Continue(Guide::Reading { file, len, max })
                     }
                 }
                 file::Event::Failed { error, .. } => {
@@ -67,18 +67,18 @@ impl Guide {
                         }
                         _ => run::Read::Failed,
                     };
-                    Step::Done(ToDomain::Read { owner, read })
+                    Next::Done(ToDomain::Read { owner, read })
                 }
-                file::Event::Cancelled { .. } => Step::Done(ToDomain::Read { owner, read: run::Read::Failed }),
+                file::Event::Cancelled { .. } => Next::Done(ToDomain::Read { owner, read: run::Read::Failed }),
                 _ => unreachable!("open read terminal"),
             },
             Guide::OpeningProbe { deadline } => match event {
                 file::Event::Opened { file, .. } => {
                     below.push(Below::File { request: file::Request::Stat { owner, file }, deadline });
-                    Step::Continue(Guide::Probing { file })
+                    Next::Continue(Guide::Probing { file })
                 }
                 file::Event::Failed { .. } | file::Event::Cancelled { .. } => {
-                    Step::Done(ToDomain::Probed { owner, executable: false })
+                    Next::Done(ToDomain::Probed { owner, executable: false })
                 }
                 _ => unreachable!("probe open terminal"),
             },
@@ -103,15 +103,15 @@ impl Guide {
                     file::Event::Closed { .. } | file::Event::Failed { .. } | file::Event::Cancelled { .. } => {}
                     _ => unreachable!("close terminal"),
                 }
-                Step::Done(terminal)
+                Next::Done(terminal)
             }
         }
     }
 }
 
-fn close(owner: Token, file: Token, terminal: ToDomain, below: &mut Queue<Below>) -> Step {
+fn close(owner: Token, file: Token, terminal: ToDomain, below: &mut Queue<Below>) -> Next {
     below.push(Below::File { request: file::Request::Close { owner, file }, deadline: Time::from_nanos(u64::MAX) });
-    Step::Continue(Guide::Closing { terminal })
+    Next::Continue(Guide::Closing { terminal })
 }
 
 #[expect(clippy::disallowed_methods, reason = "the protocol machine validates guide UTF-8")]

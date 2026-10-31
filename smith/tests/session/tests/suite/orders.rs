@@ -1,13 +1,15 @@
 //! Tools entrance settlement and batch boundaries (smith/docs/design/domain/session.md, 5 and 10).
 
+use smith_session_world::bytes;
+
 use std::collections::BTreeSet;
 
 use skein_fake_checkout::Checkout;
-use skein_fake_llm_domain::api::{Finish, Line, Script, Turn};
+use skein_fake_llm_domain::api::{Line, Script};
 use skein_lib::{Duration, Time, Token};
 use smith_domain_session::{self as session, llm};
 use smith_domain_tools::{self as tools, Budget, Call, Done, JobEnd, JobNumber, Op, Outcome};
-use smith_session_world::recorded::{self, World as Recorded};
+use smith_session_world::recorded::{self, Scripted};
 use smith_session_world::{Reclaim, Settings, Span, World, spec};
 use smith_tools_world::translate as io;
 
@@ -19,7 +21,7 @@ const OLD: &[u8] = b"README.md: old\n";
 fn called(id: &[u8], call: Call) -> llm::Block {
     llm::Block::ToolCall {
         id: id.into(),
-        name: b"workspace".as_slice().into(),
+        name: bytes(b"workspace"),
         input: Box::default(),
         call: llm::Decoded::Owned { call },
         replay: None,
@@ -30,11 +32,11 @@ fn read(id: &[u8], path: &[u8]) -> llm::Block {
     called(id, Call::Read { path: io::path(path), offset: 1, window: Budget::Default })
 }
 
-fn complete(world: &mut Recorded, blocks: Vec<llm::Block>) {
+fn complete(world: &mut Scripted, blocks: Vec<llm::Block>) {
     world.complete(blocks.into(), llm::Stop::ToolUse, llm::Usage::ZERO);
 }
 
-fn machine() -> (Recorded, Checkout) {
+fn machine() -> (Scripted, Checkout) {
     let mut checkout = Checkout::new();
     checkout.mkdir(b"/repo");
     checkout.write(b"/repo/README.md", OLD);
@@ -42,7 +44,7 @@ fn machine() -> (Recorded, Checkout) {
     let mut opening = recorded::opening(None, u64::MAX);
     opening.spec.authority = tools::Authority {
         cwd: io::names(b"/repo"),
-        repos: Box::new([tools::Repo {
+        repos: Box::new([tools::Directory {
             host: Box::default(),
             mount: io::names(b"/repo"),
             root: io::token(root),
@@ -50,17 +52,17 @@ fn machine() -> (Recorded, Checkout) {
         }]),
         grants: tools::Grants { inspect: true, modify: true, shell: true },
     };
-    let mut world = Recorded::new(SEED);
+    let mut world = Scripted::new(SEED);
     world.open(opening);
     (world, checkout)
 }
 
-fn perform(world: &mut Recorded, checkout: &mut Checkout, owner: Token) {
+fn perform(world: &mut Scripted, checkout: &mut Checkout, owner: Token) {
     let op = world.operations.iter().find(|(pending, _)| *pending == owner).expect("pending operation").1.clone();
     world.step(session::Event::Done { owner, done: io::perform(checkout, op) });
 }
 
-fn results(world: &Recorded) -> Vec<(&[u8], &llm::Returned)> {
+fn results(world: &Scripted) -> Vec<(&[u8], &llm::Returned)> {
     world
         .turns
         .last()
@@ -91,8 +93,8 @@ fn scripted(mut settings: Settings, lines: Vec<Line>, tokens: u64) -> World {
     settings.provider.latency_min = Duration::from_millis(1);
     settings.provider.latency_max = Duration::from_millis(1);
     let script = Script {
-        cue: b"You are a coding agent.".as_slice().into(),
-        turns: Box::new([Turn { lines: lines.into(), finish: Finish::ToolCalls, tokens }]),
+        cue: bytes(b"You are a coding agent."),
+        turns: Box::new([smith_session_world::fixture::calls(lines.into(), tokens)]),
     };
     World::with_scripts(settings, Box::new([script]))
 }
@@ -109,7 +111,7 @@ fn tools_requests_dispatched_before_the_next_batch() {
             vec![called(
                 b"build",
                 Call::Shell {
-                    command: b"cargo build".as_slice().into(),
+                    command: bytes(b"cargo build"),
                     timeout: tools::Timeout::Default,
                     output: Budget::Default,
                     after: tools::Yield::Asked(Duration::from_secs(1)),
@@ -194,7 +196,7 @@ fn immediate_batches_are_promoted_after_reclaim_before_close() {
     const TOKENS: u64 = 40; // The scripted tool response's declared output usage.
     let calm = Settings::calm(SEED);
     let settings = Settings { agent: session::Limits { parallel_tools: PARALLEL, ..calm.agent }, ..calm };
-    let line = Line::Call { name: b"read".as_slice().into(), arguments: br#"{"path":"src/lib.rs"}"#.as_slice().into() };
+    let line = Line::Call { name: bytes(b"read"), arguments: br#"{"path":"src/lib.rs"}"#.as_slice().into() };
     let mut world = scripted(settings, vec![line; CALLS], TOKENS);
     let openers: Vec<_> = (0..SESSIONS)
         .map(|_| {

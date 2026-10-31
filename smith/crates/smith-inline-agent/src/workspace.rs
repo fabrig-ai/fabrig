@@ -5,8 +5,6 @@
 //! Routing forwards operations; settlement requests cancellation once and
 //! waits for every machine and parent terminal before the slot can be gone.
 
-#![expect(clippy::manual_let_else, reason = "checked mounts use exhaustive results")]
-
 use alloc::boxed::Box;
 use skein_lib::{List, Queue, Time, Token};
 use smith_domain::{self as smith, run};
@@ -61,9 +59,8 @@ pub(crate) fn start(
             Ok(None)
         }
         Some(_) => {
-            let count = match u32::try_from(directories.len()) {
-                Ok(count) => count,
-                Err(_) => return Err(host::Invalid::Directories),
+            let Ok(count) = u32::try_from(directories.len()) else {
+                return Err(host::Invalid::Directories);
             };
             if count == 0 || count > limits.smith.run.directories {
                 return Err(host::Invalid::Directories);
@@ -90,9 +87,7 @@ pub(crate) fn parent_answer(call: Call, reply: host::Reply) -> Option<smith::Eve
     match call {
         Call::Host(relay) => Some(smith::Event::HostReturned { relay, reply: translate::host_reply(reply)? }),
         Call::Delivery(owner) => match reply {
-            host::Reply::Delivery(delivery) => {
-                Some(smith::Event::Delivered { owner, delivery: translate::delivery(delivery)? })
-            }
+            host::Reply::Delivery(delivery) => Some(smith::Event::Delivered { owner, delivery }),
             host::Reply::Host { .. }
             | host::Reply::Busy
             | host::Reply::Unavailable
@@ -103,52 +98,34 @@ pub(crate) fn parent_answer(call: Call, reply: host::Reply) -> Option<smith::Eve
 }
 
 pub(crate) fn terminal(slot: &mut Slot, terminal: Below) -> Option<smith::Event> {
-    match terminal {
-        Below::Completed { owner, completion } => {
-            slot.completions.remove(&owner)?;
-            Some(smith::Event::Completed { owner, completion })
+    match &terminal {
+        Below::Completed { owner, .. } | Below::Failed { owner, .. } | Below::Cancelled { owner } => {
+            slot.completions.remove(owner)?;
         }
-        Below::Failed { owner, failure, evidence, detail, report } => {
-            slot.completions.remove(&owner)?;
-            Some(smith::Event::Failed { owner, failure, evidence, detail, report })
+        Below::Done { owner, .. } => {
+            slot.io.remove(owner)?;
         }
-        Below::Cancelled { owner } => {
-            slot.completions.remove(&owner)?;
-            Some(smith::Event::Cancelled { owner })
-        }
-        Below::Done { owner, done } => {
-            slot.io.remove(&owner)?;
-            Some(smith::Event::Done { owner, done })
-        }
-        Below::Read { owner, read } => match slot.machine.get(&owner)? {
+        Below::Read { owner, .. } => match slot.machine.get(owner)? {
             Machine::Read { .. } => {
-                slot.machine.remove(&owner);
-                Some(smith::Event::Read { owner, read })
+                slot.machine.remove(owner);
             }
-            Machine::Probe { .. } | Machine::Check { .. } => None,
+            Machine::Probe { .. } | Machine::Check { .. } => return None,
         },
-        Below::Probed { owner, executable } => match slot.machine.get(&owner)? {
+        Below::Probed { owner, .. } => match slot.machine.get(owner)? {
             Machine::Probe { .. } => {
-                slot.machine.remove(&owner);
-                Some(smith::Event::Probed { owner, executable })
+                slot.machine.remove(owner);
             }
-            Machine::Read { .. } | Machine::Check { .. } => None,
+            Machine::Read { .. } | Machine::Check { .. } => return None,
         },
-        Below::Checked { owner, ran } => match slot.machine.get(&owner)? {
+        Below::Checked { owner, .. } | Below::Aborted { owner } => match slot.machine.get(owner)? {
             Machine::Check { .. } => {
-                slot.machine.remove(&owner);
-                Some(smith::Event::Checked { owner, ran })
+                slot.machine.remove(owner);
             }
-            Machine::Read { .. } | Machine::Probe { .. } => None,
+            Machine::Read { .. } | Machine::Probe { .. } => return None,
         },
-        Below::Aborted { owner } => match slot.machine.get(&owner)? {
-            Machine::Check { .. } => {
-                slot.machine.remove(&owner);
-                Some(smith::Event::Aborted { owner })
-            }
-            Machine::Read { .. } | Machine::Probe { .. } => None,
-        },
+        Below::BuiltinResult { .. } | Below::ReadVersion { .. } => {}
     }
+    Some(smith::Event::Below(terminal))
 }
 
 pub(crate) fn io(

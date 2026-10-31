@@ -196,7 +196,7 @@ impl Remote {
 }
 
 fn millis(duration: Duration) -> u64 {
-    duration.as_nanos() / 1_000_000
+    duration.as_millis()
 }
 
 fn append(output: &mut List<u8>, bytes: &[u8]) {

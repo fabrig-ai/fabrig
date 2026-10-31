@@ -7,7 +7,7 @@ impl Domain {
     /// monotonic time. Stopped roots have no policy timer left to fire.
     #[must_use]
     pub fn next_deadline(&self, env: &Env<Limits>) -> Option<Time> {
-        if self.journal.stopped() || self.core.restart_failure().is_some() {
+        if self.journal.stopped() || self.start_stop().is_some() || !self.start_runtime() {
             return None;
         }
         let mut next = earliest(self.core.accounts.next_deadline(), self.core.views.next_deadline());

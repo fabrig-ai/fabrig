@@ -1,8 +1,8 @@
 //! The records that cross the boundary with the tools' parent, the session
-//! child domain (programming-model.md, section 4.5), which hands the tools its LLM's calls and routes the
+//! child domain (skein/docs/foundation/programming-model.md, section 4.5), which hands the tools its LLM's calls and routes the
 //! file operations they ask for out to io and the terminal events back. The
 //! tools define them; the session depends on the tools.
-//! Contracts: domain/tools.md, sections 3–6.
+//! Contracts: smith/docs/design/domain/tools.md, sections 3–6.
 //! This module retains no runtime state and knows no provider schema, file
 //! contents or process state; [`Event`] and [`Request`] carry the typed calls
 //! and terminal rights of the tools domain.
@@ -23,7 +23,7 @@
 //!   the binding ends when that answer reports the command's end.
 //!
 //! The tools arm no timers. A call comes with its deadline, which bounds every
-//! operation it asks for; io runs the race (programming-model.md, section 5.3) and reports a lost one as
+//! operation it asks for; io runs the race (skein/docs/foundation/programming-model.md, section 5.3) and reports a lost one as
 //! [`Done::TimedOut`].
 
 use alloc::boxed::Box;
@@ -53,7 +53,6 @@ pub enum Event {
         reply_to: ReplyTo,
         /// Content-free provider-parent observation context; never affects admission.
         observation: Option<crate::CallInfo>,
-        /// Parent-issued tool-call token, echoed on the single outcome terminal.
         call: Call,
         deadline: Time,
     },
@@ -69,7 +68,7 @@ pub enum Event {
     EndWait { kit: Token, call: Token },
     /// Terminal for `Io`.
     Done { owner: Token, done: Done },
-    /// The program observed this whole file version for the addressed session (domain/tools.md, 10).
+    /// The program observed this whole file version for the addressed session (smith/docs/design/domain/tools.md, 10).
     ReadVersion { kit: Token, place: Place, version: Version },
 }
 
@@ -83,16 +82,11 @@ pub enum Request {
         kit: Token,
     },
     /// The answer to an `Open`: no kit was opened.
-    Refused {
-        session: Token,
-        /// Typed admission refusal; no work runs for a refused entrance.
-        refusal: Refusal,
-    },
+    Refused { session: Token, refusal: Refusal },
     /// The answer to a `Call`: exactly one per call.
     Answer {
         /// Single-use reply right returned to the layer that issued it.
         to: ReplyTo,
-        /// Declared or accepted result, validated against the host's contract.
         outcome: Outcome,
     },
     /// A call refused for its job number or the session's job bound; consumes its reply right.
@@ -102,12 +96,7 @@ pub enum Request {
     /// Every job cancelled by the session's request has settled.
     JobsCancelled { session: Token },
     /// Ask io for `op`, giving up at `deadline`.
-    Io {
-        owner: Token,
-        /// Typed IO operation carrying only the authority and bounds required for it.
-        op: Op,
-        deadline: Time,
-    },
+    Io { owner: Token, op: Op, deadline: Time },
     /// Abandon the `Io` in flight for `owner`. Its terminal event still comes:
     /// `Cancelled`, or whichever outcome won the race.
     CancelIo { owner: Token },
@@ -252,7 +241,6 @@ pub enum Op {
         pattern: Box<[u8]>,
         /// Optional search filename filter, passed as data rather than an option.
         glob: Option<Box<[u8]>>,
-        /// Bounded search results, or the caller's maximum retained count.
         hits: u32,
         /// Owned payload bytes charged against the enclosing session limit.
         bytes: u32,
@@ -265,10 +253,7 @@ pub enum Expect {
     /// Nothing: the file is created.
     Absent,
     /// The file at `version`.
-    Is {
-        /// IO-issued file version or record encoding version, as named by the enclosing type.
-        version: Version,
-    },
+    Is { version: Version },
 }
 
 /// io's terminal for an operation. Each operation ends in those its
@@ -280,7 +265,6 @@ pub enum Done {
     Loaded {
         /// Owned content blocks or file bytes, bounded by the enclosing record's byte cap.
         content: Box<[u8]>,
-        /// IO-issued file version or record encoding version, as named by the enclosing type.
         version: Version,
     },
     /// List: the selected tree's first `entries` in name order, and how many
@@ -292,10 +276,7 @@ pub enum Done {
         more: u64,
     },
     /// Store: the file holds the content, at `version`.
-    Stored {
-        /// IO-issued file version or record encoding version, as named by the enclosing type.
-        version: Version,
-    },
+    Stored { version: Version },
     /// Remove: one file or empty directory was removed.
     Removed,
     /// Remove: the directory contains entries and is unchanged.
@@ -324,7 +305,6 @@ pub enum Done {
     /// Search: the lines found, and how many more matched; `timed_out` if
     /// the deadline cut it short, and these are what it had found.
     Found {
-        /// Bounded search results, or the caller's maximum retained count.
         hits: Box<[Hit]>,
         /// Problems or matches omitted after the retained bound.
         more: u64,
@@ -349,10 +329,7 @@ pub enum Done {
     /// A symbolic link on the way leads out of the root.
     Escapes,
     /// io failed with `fault`.
-    Failed {
-        /// Typed IO failure; this boundary carries no OS error text.
-        fault: Fault,
-    },
+    Failed { fault: Fault },
     /// The deadline passed first.
     TimedOut,
     /// The cancel won the race.
@@ -362,7 +339,7 @@ pub enum Done {
 /// Which version of a file io found, or made by storing it. io makes versions
 /// so that changed content has a new one; the domain compares versions and
 /// never looks inside. The machine uses a SHA-256 content digest, represented
-/// as four big-endian words (protocol/agent.md, section 2).
+/// as four big-endian words (smith/docs/design/protocol/agent.md, section 2).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Version([u64; 4]);
 

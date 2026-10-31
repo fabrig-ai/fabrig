@@ -147,6 +147,71 @@ pub enum Event {
     },
 }
 
+/// Routing and lifecycle queries (skein/docs/design/io.md, 2 and 3.1).
+impl Event {
+    /// The destination owner, absent for service signals and resize notifications.
+    #[must_use]
+    pub const fn owner(&self) -> Option<Token> {
+        match self {
+            Self::Listening { owner, .. }
+            | Self::Accepted { owner, .. }
+            | Self::Connecting { owner, .. }
+            | Self::Connected { owner, .. }
+            | Self::Stream { owner, .. }
+            | Self::Output { owner, .. }
+            | Self::Spawned { owner, .. }
+            | Self::Exited { owner, .. }
+            | Self::Usage { owner, .. }
+            | Self::Window { owner, .. }
+            | Self::Failed { owner, .. }
+            | Self::Closed { owner, .. } => Some(*owner),
+            Self::Resized | Self::Shutdown { .. } => None,
+        }
+    }
+
+    /// Routes an owned event to `owner`; ownerless notifications keep their payload.
+    #[must_use]
+    pub fn with_owner(mut self, owner: Token) -> Self {
+        match &mut self {
+            Self::Listening { owner: destination, .. }
+            | Self::Accepted { owner: destination, .. }
+            | Self::Connecting { owner: destination, .. }
+            | Self::Connected { owner: destination, .. }
+            | Self::Stream { owner: destination, .. }
+            | Self::Output { owner: destination, .. }
+            | Self::Spawned { owner: destination, .. }
+            | Self::Exited { owner: destination, .. }
+            | Self::Usage { owner: destination, .. }
+            | Self::Window { owner: destination, .. }
+            | Self::Failed { owner: destination, .. }
+            | Self::Closed { owner: destination, .. } => *destination = owner,
+            Self::Resized | Self::Shutdown { .. } => {}
+        }
+        self
+    }
+
+    /// Whether this is the entity's final event (skein/docs/design/io.md, 3.1).
+    #[must_use]
+    pub const fn is_closed(&self) -> bool {
+        match self {
+            Self::Closed { .. } => true,
+            Self::Listening { .. }
+            | Self::Accepted { .. }
+            | Self::Connecting { .. }
+            | Self::Connected { .. }
+            | Self::Stream { .. }
+            | Self::Output { .. }
+            | Self::Spawned { .. }
+            | Self::Exited { .. }
+            | Self::Usage { .. }
+            | Self::Window { .. }
+            | Self::Failed { .. }
+            | Self::Resized
+            | Self::Shutdown { .. } => false,
+        }
+    }
+}
+
 /// Why a listen or a connect failed, as far as the layer above can act on it
 /// (io.md, 2). Kernel errors stay below io.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]

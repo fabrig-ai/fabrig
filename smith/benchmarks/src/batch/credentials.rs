@@ -6,18 +6,18 @@ use std::path::{Path, PathBuf};
 
 use smith_local_shell::credentials::record_generation;
 
-use super::{AttemptResult, Clock, End, Guard, Machine, Measure, Prepared, dispatch_command, dispatch_result};
+use super::{AttemptResult, Clock, End, Guard, Machine, Measure, Request, dispatch_command, dispatch_result};
 
-pub(super) fn selected(request: &Prepared) -> bool {
+pub(super) fn selected(request: &Request) -> bool {
     request.identity.task == "probes/credentials"
 }
 
-fn record_path(request: &Prepared) -> Result<PathBuf, String> {
+fn record_path(request: &Request) -> Result<PathBuf, String> {
     if request.identity.agent != crate::Agent::Smith || request.identity.provider != crate::Provider::Codex {
         return Err("the credentials pair requires smith's chatgpt account".into());
     }
     Ok(request
-        .codex_home
+        .logins
         .as_ref()
         .and_then(|home| home.parent())
         .ok_or("credentials pair needs the harness login parent")?
@@ -46,7 +46,7 @@ pub(super) fn run(
     machine: &Machine,
     state: &Path,
     executable: &Path,
-    request: &Prepared,
+    request: &Request,
     remaining: u64,
 ) -> Result<Vec<AttemptResult>, String> {
     let path = record_path(request)?;

@@ -1,4 +1,4 @@
-//! Charter accounts are admitted before any provider effect (domain/run.md, section 4).
+//! Charter accounts are admitted before any provider effect (smith/docs/design/domain/run.md, section 4).
 use smith_agent_world::{Job, Settings, scripted_charter, world};
 use smith_domain::run;
 
@@ -52,8 +52,8 @@ fn a_held_grant_serves_a_later_start() {
 }
 
 use skein_fake_checkout::Checkout;
-use skein_fake_llm_domain::api::{Finish, Line, Script, Turn};
-use skein_lib::{Duration, ReplyTo, Time, Token};
+use skein_fake_llm_domain::api::{Line, Script};
+use skein_lib::{Duration, Time, Token};
 use smith_agent_world::{World, messages_referee::Seen};
 use smith_domain::{Event, Fact, Grant, GrantName, Window, llm, session};
 
@@ -76,29 +76,20 @@ fn account_world(account: Option<u32>, held: Option<Grant>, failures: u32, failu
     let mut charter = scripted_charter(&settings);
     charter.llm.account = account;
     charter.models = Box::new([]);
-    let start = Event::Start {
-        reply_to: ReplyTo::new(Token::new(1)),
-        host_run: Token::new(1),
-        activation: 1,
-        identity: None,
+    let start = Event::Start(smith_domain::Start {
         window: Window { turns: u32::MAX, bytes: u64::MAX },
-        messages: Box::new([]),
-        charter,
-        workspace: None,
-        transcript: None,
-        answered: Box::new([]),
         grants: held.into_iter().collect(),
-    };
+        ..smith_domain::fixture::start(Token::new(1), charter)
+    });
     let scripts = Box::new([Script {
         cue: b"@report".as_slice().into(),
-        turns: Box::new([Turn {
-            lines: Box::new([Line::Call {
+        turns: Box::new([smith_agent_world::fixture::calls(
+            Box::new([Line::Call {
                 name: b"finish".as_slice().into(),
                 arguments: br#"{"report":"Account answered.","source":"provider"}"#.as_slice().into(),
             }]),
-            finish: Finish::ToolCalls,
-            tokens: 8,
-        }]),
+            8,
+        )]),
     }]);
     let mut world = World::with_workspace_scripts_start(settings, Checkout::new(), scripts, start);
     world.fail_calls(failures, failure, RESPONSE_401);
@@ -127,8 +118,8 @@ fn counts(world: &World) -> (usize, usize, usize, usize) {
 
 #[test]
 fn nonrenewable_401_count_proof() {
-    // Attempts/retries/activation terminals/notices, observed at actual boundaries.
-    // The first row is the regression: former policy produces (4, 3, 1, 1).
+    // Attempts/retries/activation terminals/notices, observed at boundaries.
+    // The first row requires the nonrenewable counter to settle each admitted call.
     for (label, account, held, replacement, expected, generations) in [
         ("static key", Some(0), Some(grant(1, false, GRANT_LIFETIME)), None, (1, 0, 1, 1), vec![1]),
         ("no account", None, None, None, (1, 0, 1, 0), vec![]),
@@ -212,7 +203,7 @@ fn nonrenewable_401_count_proof() {
         if expected.1 == 0 {
             assert_eq!(
                 world.answered_at(),
-                world.completions()[0].terminal.expect("actual failure").0,
+                world.completions()[0].terminal.expect("failure").0,
                 "{label}: terminal does not wait for backoff"
             );
         }

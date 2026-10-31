@@ -1,0 +1,534 @@
+//! Keeps bounded scalar joins and endpoint names; never learns credentials.
+//! `fact` precedes `request`; the service supplies its exact `answer`.
+//! Contracts: smith/docs/design/protocol/events.md, sections 3–5; smith/docs/design/domain/run.md, section 11.
+
+use alloc::boxed::Box;
+use skein_lib::{Duration, List, Time, Token};
+use smith_domain::{self as domain, run};
+use smith_events::{Event, Record};
+
+use crate::sinks::{Capture, SinkLimits, Sinks};
+
+/// Startup's bounded event configuration, supplied before any descriptor is adopted.
+#[derive(Clone, Copy, Debug)]
+pub struct EventLimits {
+    pub sinks: SinkLimits,
+    pub capture: Capture,
+    /// The product asks for a best-effort typed live view, independent of capture.
+    pub front: bool,
+    /// IO's stall deadline for each adopted destination.
+    pub write_deadline: Duration,
+}
+
+/// Source capacities admitted by the composing service before projection starts.
+#[derive(Clone, Copy, Debug)]
+pub struct Sources {
+    pub session: domain::session::Limits,
+    pub output: u32,
+    pub events: Option<EventLimits>,
+}
+
+#[derive(Debug)]
+struct Start {
+    messages: u64,
+    llm: run::charter::Llm,
+    budget: smith_events::Budget,
+    tools: smith_events::Tools,
+    contract: List<smith_events::Form>,
+}
+
+/// One invocation's typed records, supplied to its bounded destination drain.
+#[derive(Debug)]
+pub struct Producer {
+    pub(crate) sinks: Sinks,
+    names: smith_protocol_translate::Endpoints,
+    programs: Box<[u32]>,
+    calls: crate::calls::Book,
+    messages: crate::messages::Book,
+    capture: Capture,
+    origin: Option<Time>,
+    start: Option<Start>,
+    admitted: Option<u64>,
+    admitted_at: Option<Time>,
+    activation: Option<u64>,
+    answer_at: Option<Time>,
+    overflow_notice: Option<run::Overflow>,
+    wind_down: bool,
+    unread: u64,
+    check_at: Option<Time>,
+}
+
+impl Producer {
+    /// The bounded destinations driven by the owning process's IO.
+    pub fn sinks(&mut self) -> &mut Sinks {
+        &mut self.sinks
+    }
+
+    /// Project one measured provider exchange in its source order.
+    pub fn measure(&mut self, measure: smith_protocol_llm::Measure) {
+        self.sinks.measure(self.origin(), measure);
+    }
+
+    /// Finish the next observation whose source facts have drained.
+    pub fn facts_drained(&mut self) -> bool {
+        self.sinks.facts_drained(self.origin())
+    }
+
+    /// Whether every destination has reported closed.
+    #[must_use]
+    pub fn closed(&self) -> bool {
+        self.sinks.closed()
+    }
+
+    /// A typed live-view record awaits its product, independently of destination work.
+    #[must_use]
+    pub fn front_pending(&self) -> bool {
+        self.sinks.front_pending()
+    }
+
+    /// Whether a complete destination can take another parent observation.
+    #[must_use]
+    pub fn takes(&self) -> bool {
+        self.sinks.takes()
+    }
+
+    /// Live destination streams, for lower settlement excluding the trace itself.
+    #[must_use]
+    pub fn streams(&self) -> u32 {
+        self.sinks.open_streams()
+    }
+
+    /// Whether a destination can send or close in the next bounded pass.
+    #[must_use]
+    pub fn has_work(&self) -> bool {
+        self.sinks.has_work()
+    }
+
+    /// Whether this IO owner belongs to one of the destinations.
+    #[must_use]
+    pub fn owns(&self, owner: Token) -> bool {
+        self.sinks.owns(owner)
+    }
+
+    /// Build the joins and destinations from their admitted source bounds.
+    #[must_use]
+    pub fn new(limits: &Sources, names: smith_protocol_translate::Endpoints, programs: Box<[u32]>) -> Producer {
+        let events = limits.events.expect("event configuration exists");
+        Producer {
+            sinks: Sinks::with_front(&events.sinks, events.capture, limits.output, events.write_deadline, events.front),
+            names,
+            programs,
+            calls: crate::calls::Book::new(&limits.session, events.capture),
+            messages: crate::messages::Book::new(events.capture),
+            capture: events.capture,
+            origin: None,
+            start: None,
+            admitted: None,
+            admitted_at: None,
+            activation: None,
+            answer_at: None,
+            overflow_notice: None,
+            wind_down: false,
+            unread: 0,
+            check_at: None,
+        }
+    }
+
+    pub fn started(&mut self, now: Time, header: smith_events::SessionStarted) {
+        assert!(self.origin.is_none(), "one process startup before its first pass");
+        self.origin = Some(now);
+        self.sinks.record(&Record { t_ms: 0, event: Event::SessionStarted(header) });
+        self.notice(
+            now,
+            smith_events::Notice {
+                code: None,
+                level: smith_events::Level::Warning,
+                kind: smith_events::NoticeKind::Unknown(b"not_contained".as_slice().into()),
+                run: None,
+                account: None,
+                reset_ms: None,
+                bytes: None,
+                exit: None,
+                forced: None,
+            },
+        );
+    }
+
+    pub fn message(&mut self, name: Token, label: &[u8], text: &[u8]) {
+        self.messages.received(name, label, text);
+    }
+
+    pub fn starting(&mut self, activation: u64, messages: u64, charter: &run::Charter) {
+        assert!(self.activation.is_none() || self.answer_at.is_some(), "prior run has answered");
+        self.sinks.starting();
+        self.activation = Some(activation);
+        self.admitted = None;
+        self.admitted_at = None;
+        self.answer_at = None;
+        self.wind_down = false;
+        self.unread = 0;
+        self.check_at = None;
+        let mut families = List::with_capacity(4);
+        for (allowed, family) in [
+            (charter.grants.tools.inspect, smith_events::Family::Inspect),
+            (charter.grants.tools.modify, smith_events::Family::Modify),
+            (charter.grants.tools.shell, smith_events::Family::Shell),
+            (charter.grants.agents, smith_events::Family::SubAgents),
+        ] {
+            if allowed {
+                families.push(family).expect("four tool families");
+            }
+        }
+        let mut host =
+            List::with_capacity(u32::try_from(charter.grants.host_tools.len()).expect("bounded host declarations"));
+        for tool in &charter.grants.host_tools {
+            host.push(tool.name.clone()).expect("admitted host names");
+        }
+        let mut withheld = List::with_capacity(1);
+        if charter.grants.agents && self.programs.contains(&charter.llm.endpoint.0) {
+            withheld.push(smith_events::Family::SubAgents).expect("one withheld family");
+        }
+        let mut contract = List::with_capacity(4);
+        if charter.outcome.change.is_some() {
+            contract.push(smith_events::Form::Change).expect("four forms");
+        }
+        if !charter.outcome.verdicts.is_empty() {
+            contract.push(smith_events::Form::Verdict).expect("four forms");
+        }
+        if charter.outcome.report.is_some() {
+            contract.push(smith_events::Form::Report).expect("four forms");
+        }
+        if charter.outcome.failure.is_some() {
+            contract.push(smith_events::Form::Failure).expect("four forms");
+        }
+        self.start = Some(Start {
+            messages,
+            llm: charter.llm.clone(),
+            budget: smith_events::Budget {
+                turns: u64::from(charter.budget.turns),
+                spend: charter.budget.spend,
+                time_ms: charter.budget.time.as_millis(),
+                reserve: smith_events::Reserve {
+                    turns: u64::from(charter.reserve.turns),
+                    time_ms: charter.reserve.time.as_millis(),
+                    spend: run::reserve_spend(charter.reserve, &charter.llm).unwrap_or(0),
+                },
+            },
+            tools: smith_events::Tools {
+                withheld,
+                families,
+                wait: charter.grants.wait,
+                deliver: charter.grants.deliver.is_some(),
+                host,
+            },
+            contract,
+        });
+    }
+
+    pub fn pop_overflow_notice(&mut self) -> Option<run::Overflow> {
+        self.overflow_notice.take()
+    }
+
+    #[must_use]
+    pub fn answer_at(&self) -> Option<Time> {
+        self.answer_at
+    }
+
+    #[must_use]
+    pub fn origin(&self) -> Time {
+        self.origin.expect("session.started precedes the first service pass")
+    }
+
+    #[expect(clippy::too_many_lines, reason = "one exhaustive content-free root fact projection")]
+    pub fn fact(&mut self, fact: &domain::Fact) {
+        let origin = self.origin();
+        let (fact, opening) = match fact {
+            domain::Fact::Session { fact } => {
+                self.calls.fact(origin, fact, &mut self.sinks);
+                self.sinks.session(origin, fact);
+                return;
+            }
+            domain::Fact::Run { fact, opening } => (fact, opening),
+        };
+        let event = match fact.kind {
+            run::facts::FactKind::Admitted { run: _, resumed } => {
+                self.admitted = Some(self.activation());
+                self.admitted_at = Some(fact.at);
+                let start = self.start.take().expect("Start retained before its admission");
+                Event::RunStarted(smith_events::RunStarted {
+                    run: self.activation(),
+                    resumed,
+                    messages: start.messages,
+                    main: self.model(&start.llm),
+                    budget: start.budget,
+                    tools: start.tools,
+                    contract: start.contract,
+                })
+            }
+            run::facts::FactKind::Opened { run: _, conversation, kind } => {
+                let opening = opening.as_ref().expect("Run::Open metadata accompanied the fact");
+                assert_eq!(opening.activation, self.activation(), "opening carries this Start activation");
+                let number = self.sinks.next_conversation(self.activation());
+                let (kind, parent, call, requested, share, clamped) = match kind {
+                    run::facts::Kind::Main => {
+                        (smith_events::ConversationKind::Main, None, None, None, None, List::with_capacity(0))
+                    }
+                    run::facts::Kind::Child { parent, call, granted, .. } => {
+                        let parent = self.sinks.scope(parent).expect("parent conversation precedes child");
+                        let id = self.calls.child_opened(conversation, number, call, parent, granted, fact.at);
+                        let share = crate::child_share(kind).expect("child share");
+                        (
+                            smith_events::ConversationKind::Child,
+                            Some(parent.conversation),
+                            Some(id),
+                            Some(share.requested),
+                            Some(share.share),
+                            share.clamped,
+                        )
+                    }
+                };
+                self.sinks.conversation(
+                    fact.at,
+                    origin,
+                    conversation,
+                    smith_events::ConversationOpened {
+                        run: self.activation(),
+                        conversation: number,
+                        kind,
+                        parent,
+                        call,
+                        thread: u64::from(opening.ordinal),
+                        model: self.model(&opening.llm),
+                        requested,
+                        share,
+                        clamped,
+                    },
+                );
+                return;
+            }
+            run::facts::FactKind::Ended { conversation, end, .. } => {
+                self.calls.child_ended(conversation, end, fact.at);
+                self.sinks.conversation_ended(fact.at, conversation, end);
+                return;
+            }
+            run::facts::FactKind::Called { conversation, call, ask, .. } => {
+                let scope = self.sinks.scope(conversation).expect("asker conversation remains alive");
+                self.calls.called(call, scope, ask);
+                return;
+            }
+            run::facts::FactKind::Returned { call, result, .. } => {
+                self.calls.returned(call, result);
+                return;
+            }
+            run::facts::FactKind::Delivered { status, .. } => {
+                self.calls.delivered(status);
+                return;
+            }
+            run::facts::FactKind::Budget { standing, call, .. } => {
+                self.wind_down = match standing.stage {
+                    run::Stage::Ordinary => false,
+                    run::Stage::WindDown => true,
+                };
+                let call = match call {
+                    Some(owner) => Some(self.calls.id(owner)),
+                    None => None,
+                };
+                self.sinks
+                    .record(&crate::budget_record(fact, origin, self.activation(), call).expect("matched budget fact"));
+                return;
+            }
+            run::facts::FactKind::MessageReceived { run: _, name, bytes } => self.message_received(name, bytes, None),
+            run::facts::FactKind::MessageRefused { run: _, name, bytes, reason } => {
+                self.message_received(name, bytes, Some(message_refusal(reason)))
+            }
+            run::facts::FactKind::MessageRead { run: _, name, turn } => Event::MessageRead(smith_events::MessageRead {
+                run: self.activation(),
+                name: name.raw(),
+                turn: u64::from(turn),
+            }),
+            run::facts::FactKind::MessageUnread { run: _, name } => {
+                self.unread = self.unread.checked_add(1).expect("bounded unread messages");
+                Event::MessageUnread(smith_events::MessageUnread { run: self.activation(), name: name.raw() })
+            }
+            run::facts::FactKind::CheckStarted { run: _, deadline } => {
+                self.check_at = Some(fact.at);
+                Event::CheckStarted(smith_events::CheckStarted {
+                    run: self.activation(),
+                    deadline_ms: Some(deadline.saturating_since(fact.at).as_millis()),
+                })
+            }
+            run::facts::FactKind::CheckFinished { run: _, exit } => {
+                let (exit, passed) = crate::check_exit(exit);
+                Event::CheckCompleted(smith_events::CheckCompleted {
+                    run: self.activation(),
+                    passed,
+                    exit,
+                    duration_ms: fact.at.saturating_since(self.check_at.take().expect("one check start")).as_millis(),
+                })
+            }
+            run::facts::FactKind::MessageFence { .. }
+            | run::facts::FactKind::Prepared { .. }
+            | run::facts::FactKind::Answered { .. } => return,
+        };
+        self.sinks.record(&Record { t_ms: fact.at.saturating_since(origin).as_millis(), event });
+    }
+
+    fn activation(&self) -> u64 {
+        self.activation.expect("decoded Start precedes run observations")
+    }
+
+    fn model(&self, model: &run::charter::Llm) -> smith_events::Model {
+        let name =
+            self.names.name_of(model.endpoint.0, model.dialect).expect("admitted endpoint has its configured name");
+        let backend = if self.programs.contains(&model.endpoint.0) {
+            smith_events::Backend::ClaudeCode
+        } else {
+            smith_events::Backend::Direct
+        };
+        crate::opening_model(model, name, model.effort.as_deref(), backend)
+    }
+
+    pub fn received(&mut self, owner: Token, completion: &domain::llm::Completion) {
+        self.calls.child_received(owner, completion.usage);
+        self.calls.received(owner, completion);
+    }
+
+    pub fn request(
+        &mut self,
+        now: Time,
+        owner: Token,
+        prompt: &domain::llm::Prompt,
+    ) -> Option<smith_protocol_llm::Observation> {
+        self.sinks.request(now, self.origin(), owner, prompt)
+    }
+
+    fn message_received(&mut self, name: Token, bytes: u64, refused: Option<smith_events::MessageRefusal>) -> Event {
+        let (label, text) = match self.messages.take(name) {
+            Some(message) => (Some(message.label), Some(message.text)),
+            None => (None, None),
+        };
+        Event::MessageReceived(smith_events::MessageReceived {
+            run: self.activation(),
+            name: name.raw(),
+            bytes,
+            refused,
+            label,
+            text,
+        })
+    }
+
+    pub fn answer(&mut self, now: Time, started: Time, answer: &run::Answer, read: Option<Token>) {
+        self.messages.clear();
+        assert!(self.answer_at.is_none(), "one answer per invocation");
+        self.answer_at = Some(now);
+        let mut record = crate::answer_record(
+            crate::AnswerMeta {
+                now,
+                run: self.activation(),
+                wind_down: self.wind_down,
+                read: match read {
+                    Some(read) => Some(read.raw()),
+                    None => None,
+                },
+                unread: self.unread,
+                elapsed: now.saturating_since(started),
+            },
+            answer,
+            self.capture,
+        );
+        record.usage = self.sinks.reported();
+        self.sinks.answer_failure(&mut record);
+        self.overflow_notice = match answer {
+            run::Answer::Failed { failure, .. } => match failure {
+                run::Failure::Budget { exhausted, .. } => match exhausted {
+                    run::Exhausted::Overflow(overflow) => Some(*overflow),
+                    run::Exhausted::Turns
+                    | run::Exhausted::Spend
+                    | run::Exhausted::Time
+                    | run::Exhausted::Tokens(_) => None,
+                },
+                run::Failure::Model(_)
+                | run::Failure::Policy(_)
+                | run::Failure::Cancelled
+                | run::Failure::Stale
+                | run::Failure::Transcript(_) => None,
+            },
+            run::Answer::Accepted { .. } | run::Answer::Parked { .. } | run::Answer::Refused(_) => None,
+        };
+        self.sinks.record(&Record {
+            t_ms: now.saturating_since(self.origin()).as_millis(),
+            event: Event::RunCompleted(record),
+        });
+    }
+
+    pub fn answered(&mut self, now: Time, started: Time, answer: crate::Answered) {
+        let unanswered = match &answer.failure {
+            Some(failure) => {
+                failure.dropped == Some(true)
+                    || failure.class == smith_events::AnswerClass::Host
+                    || failure.class == smith_events::AnswerClass::Agent
+            }
+            None => false,
+        };
+        self.messages.clear();
+        assert!(self.answer_at.is_none(), "one answer per run");
+        self.answer_at = Some(now);
+        let mut record = smith_events::RunCompleted {
+            run: self.activation(),
+            wind_down: self.wind_down && !unanswered,
+            status: answer.status,
+            failure: answer.failure,
+            result: answer.result,
+            turns: answer.turns,
+            spent: answer.spent,
+            read: answer.read,
+            unread: self.unread,
+            usage: self.sinks.reported(),
+            duration_ms: now.saturating_since(self.admitted_at.unwrap_or(started)).as_millis(),
+        };
+        self.sinks.answer_failure(&mut record);
+        self.sinks.record(&Record {
+            t_ms: now.saturating_since(self.origin()).as_millis(),
+            event: Event::RunCompleted(record),
+        });
+    }
+
+    /// Write an operator notice, attaching the run observed by this writer.
+    pub fn notice(&mut self, now: Time, mut notice: smith_events::Notice) {
+        notice.run = match notice.kind {
+            smith_events::NoticeKind::ForcedExit => self.activation,
+            smith_events::NoticeKind::ReasoningDropped
+            | smith_events::NoticeKind::CredentialUnauthorized
+            | smith_events::NoticeKind::AccountLimited
+            | smith_events::NoticeKind::AccountRefused
+            | smith_events::NoticeKind::TeardownAborted
+            | smith_events::NoticeKind::Unknown(_) => self.admitted,
+        };
+        self.sinks
+            .record(&Record { t_ms: now.saturating_since(self.origin()).as_millis(), event: Event::Notice(notice) });
+    }
+}
+
+fn message_refusal(reason: run::MessageRefusal) -> smith_events::MessageRefusal {
+    match reason {
+        run::MessageRefusal::TooLarge => smith_events::MessageRefusal::TooLarge,
+        run::MessageRefusal::Full => smith_events::MessageRefusal::InboxFull,
+        run::MessageRefusal::NameInUse => smith_events::MessageRefusal::NameInUse,
+        run::MessageRefusal::Ending => smith_events::MessageRefusal::Ending,
+    }
+}
+
+/// Whether configured event sinks and joins fit (skein/docs/foundation/programming-model.md, 6.3).
+#[must_use]
+pub fn valid(limits: &Sources) -> bool {
+    match limits.events {
+        Some(events) => crate::sinks::valid(&events.sinks, events.capture) && crate::calls::valid(&limits.session),
+        None => true,
+    }
+}
+
+#[cfg(test)]
+mod tests;
+
+#[cfg(test)]
+mod program_tests;

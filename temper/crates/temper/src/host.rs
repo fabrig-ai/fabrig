@@ -1,4 +1,5 @@
 //! The shell's adapter over the temper composition (jig's protocol/service.md, 7).
+//! Start refusals name their cause (temper/docs/design/protocol/README.md, 4).
 use crate::directories::Directories;
 use skein_io::kernel::{Complete, Exit, Submit};
 use skein_lib::{Queue, Time, Wall};
@@ -152,15 +153,15 @@ pub fn ending(
                 found.clone(),
                 &jig_protocol_config::Path::root(),
             )),
-            Stop::RestoreLoad(failed) => {
-                format!("temper serve: restore {}: {}\n", restore_kind(failed.range), load_failure(failed.failure))
+            Stop::RestorePage { range, failure } => {
+                format!("temper serve: restore {}: {}\n", restore_kind(*range), page_failure(failure.as_ref()))
             }
-            Stop::RestoreStep { step } => {
-                let during = restart_step(*step);
-                format!("temper serve: restart refused during {during}\n")
+            Stop::StartRefused { phase, failure } => {
+                let during = phase.map_or_else(|| "unknown phase".into(), start_phase);
+                format!("temper serve: restart refused during {during}: {}\n", start_failure(failure))
             }
-            Stop::ForgeFit { step, failure } => {
-                let during = restart_step(*step);
+            Stop::ForgeFit { phase, failure } => {
+                let during = phase.map_or_else(|| "unknown phase".into(), start_phase);
                 let family = match failure.family {
                     Some(kind) => format!(" {kind:?}"),
                     None => String::new(),
@@ -170,18 +171,7 @@ pub fn ending(
                     failure.set, failure.held, failure.additional, failure.limit
                 )
             }
-            Stop::Unresolved { child, records } => {
-                let name = match child {
-                    jig_domain_core::RestoreChild::People => "people",
-                    jig_domain_core::RestoreChild::Tasks => "tasks",
-                    jig_domain_core::RestoreChild::Accounts => "accounts",
-                    jig_domain_core::RestoreChild::Core => "core",
-                };
-                format!("temper serve: {name}: unresolved records: {records}\n")
-            }
-            Stop::ForgeUnresolved { records } => {
-                format!("temper serve: the forge: unresolved records: {records}\n")
-            }
+            Stop::Binding => "temper serve: deployment namespace binding refused\n".into(),
             Stop::StoreOpen { why } => {
                 let deployment = crate::path(store);
                 let (lines, exit) = temper_service::refused_start(why, deployment.display().to_string().as_bytes());
@@ -254,16 +244,39 @@ fn restore_kind(kind: temper_service::RestoreRangeKind) -> &'static str {
         Kind::Forge => "forge",
     }
 }
-fn load_failure(failure: temper_service::LoadFailure) -> &'static str {
-    use temper_service::LoadFailure as Failure;
+fn start_failure(failure: &jig_domain_core::start::Failure) -> String {
+    use jig_domain_core::start::Failure;
     match failure {
-        Failure::Store => "store load failed",
-        Failure::Rows => "too many rows",
-        Failure::Range => "row outside requested range",
-        Failure::Order => "rows out of order",
-        Failure::Cursor => "invalid continuation",
-        Failure::Bytes => "page exceeds byte bound",
+        Failure::Settings { failure, changed } => {
+            let source = if *changed { "changed" } else { "default" };
+            format!("{source} setting {:?}: {:?}", failure.setting, failure.fault)
+        }
+        Failure::ProjectPolicy { project } => format!("project {project}: policy refused"),
+        Failure::HeldPastLimit { which, held, limit } => format!("{which:?}, held {held}, limit {limit}"),
+        Failure::AccountsPastLimit { failure } => {
+            format!("accounts {:?}, key {:?}, limit {}", failure.set, failure.key, failure.limit)
+        }
+        Failure::LiveSet { set, key, held, limit } => {
+            format!("{set:?}, key {key:?}, held {held}, limit {limit}")
+        }
+        Failure::Accounting { key } => format!("accounting refused, key {key:?}"),
+        Failure::LlmChoice { key } => format!("LLM choice refused, key {key:?}"),
     }
+}
+fn page_failure(failure: Option<&jig_protocol_store::restore::Failure>) -> String {
+    use std::fmt::Write as _;
+    let Some(failure) = failure else { return "store load failed".into() };
+    let mut line = format!("{:?}", failure.cause);
+    if let Some(row) = &failure.row {
+        if let Some(family) = row.family {
+            write!(line, ", family {family:?}").expect("format restore family");
+        }
+        write!(line, ", key {:02x?}", row.key).expect("format restore key");
+        if row.truncated {
+            write!(line, " (truncated, {} bytes total)", row.key_bytes).expect("format restore key size");
+        }
+    }
+    line
 }
 
 fn note_line(note: temper_service::Note) -> String {
@@ -473,33 +486,13 @@ fn other_endings_keep_their_exit_behavior() {
     problems.push(jig_protocol_config::Path::root().member(b"deployment"), jig_protocol_config::What::Refers);
     for (end, output_failed, expected, code) in [
         (
-            Some(End::Stopped(Stop::RestoreLoad(temper_service::RestoreFailure {
-                range: temper_service::RestoreRangeKind::Census,
-                failure: temper_service::LoadFailure::Range,
-            }))),
+            Some(End::Stopped(Stop::RestorePage { range: temper_service::RestoreRangeKind::Census, failure: None })),
             false,
-            "temper serve: restore census: row outside requested range\n",
-            1,
-        ),
-        (
-            Some(End::Stopped(Stop::RestoreStep { step: jig_domain_core::RestartStep::LoadInbox })),
-            false,
-            "temper serve: restart refused during inbox census\n",
+            "temper serve: restore census: store load failed\n",
             1,
         ),
         (Some(End::Stopped(Stop::Start(problems))), false, "temper serve: deployment: unknown reference\n", 1),
-        (
-            Some(End::Stopped(Stop::Unresolved { child: jig_domain_core::RestoreChild::Tasks, records: 3 })),
-            false,
-            "temper serve: tasks: unresolved records: 3\n",
-            1,
-        ),
-        (
-            Some(End::Stopped(Stop::ForgeUnresolved { records: 3 })),
-            false,
-            "temper serve: the forge: unresolved records: 3\n",
-            1,
-        ),
+        (Some(End::Stopped(Stop::Binding)), false, "temper serve: deployment namespace binding refused\n", 1),
         (Some(End::Stopped(Stop::CommitFailed { number: 7 })), false, "temper serve: commit 7 failed\n", 1),
         (
             Some(End::Stopped(Stop::FrameTooLarge { number: 7, task: 11, bytes: 79, limit: 78 })),
@@ -668,22 +661,25 @@ fn a_drained_end_prints_each_unsettled_write() {
     ));
 }
 
-fn restart_step(step: jig_domain_core::RestartStep) -> String {
-    use jig_domain_core::RestartStep;
-    match step {
-        RestartStep::LoadCore => "core restore".into(),
-        RestartStep::LoadInbox => "inbox census".into(),
-        RestartStep::RestoreConnector { connector } => format!("connector {connector} restore"),
-        RestartStep::Switch => "store switch".into(),
-        RestartStep::AdoptRuns => "run adoption".into(),
-        RestartStep::ReadAfresh { connector } => format!("connector {connector} refresh"),
-        RestartStep::SettleOutbox { connector } => format!("connector {connector} outbox settlement"),
-        RestartStep::Open => "opening decisions".into(),
+fn start_phase(phase: jig_domain_core::start::Phase) -> String {
+    use jig_domain_core::start::Phase;
+    match phase {
+        Phase::LoadCore => "core restore".into(),
+        Phase::LoadInbox => "inbox census".into(),
+        Phase::RestoreConnector { connector } => format!("connector {connector} restore"),
+        Phase::Link => "link".into(),
+        Phase::Sweep => "sweep".into(),
+        Phase::Wires => "wires".into(),
+        Phase::Switch => "store switch".into(),
+        Phase::AdoptRuns => "run adoption".into(),
+        Phase::ReadAfresh { connector } => format!("connector {connector} refresh"),
+        Phase::SettleOutbox { connector } => format!("connector {connector} outbox settlement"),
+        Phase::Open => "opening decisions".into(),
     }
 }
 
 #[test]
-fn forge_fit_endings_name_step_family_set_and_measured_limit() {
+fn forge_fit_endings_name_phase_family_set_and_measured_limit() {
     use temper_engine_domain_forge::{RecordKind, RestoreFit, RestoreSet};
     let arguments =
         [b"--config".as_slice(), b"/configuration", b"--data", b"/data", b"--cache", b"/cache"].map(Box::from);
@@ -700,11 +696,119 @@ fn forge_fit_endings_name_step_family_set_and_measured_limit() {
         (None, RestoreSet::LandingFlights, 9, 0, 8, "forge LandingFlights, held 9, additional 0, limit 8"),
     ] {
         let end = End::Stopped(Stop::ForgeFit {
-            step: jig_domain_core::RestartStep::RestoreConnector { connector: 7 },
+            phase: Some(jig_domain_core::start::Phase::RestoreConnector { connector: 7 }),
             failure: RestoreFit { family, set, held, additional, limit },
         });
         let (line, code) = ending(Some(&end), false, &directories, b"/data/deployment", &[]);
         assert_eq!(line, format!("temper serve: restart refused during connector 7 restore: {detail}\n"));
         assert_eq!(code, 1);
+    }
+}
+
+#[test]
+fn start_refusals_name_every_phase_and_the_refused_project() {
+    use jig_domain_core::start::{Failure, Phase};
+    let arguments =
+        [b"--config".as_slice(), b"/configuration", b"--data", b"/data", b"--cache", b"/cache"].map(Box::from);
+    let (directories, _) = crate::directories::resolve(&arguments, &[], b"/").expect("resolved directories");
+    for (phase, words) in [
+        (Some(Phase::LoadCore), "core restore"),
+        (Some(Phase::LoadInbox), "inbox census"),
+        (Some(Phase::RestoreConnector { connector: 7 }), "connector 7 restore"),
+        (Some(Phase::Link), "link"),
+        (Some(Phase::Sweep), "sweep"),
+        (Some(Phase::Switch), "store switch"),
+        (Some(Phase::Wires), "wires"),
+        (Some(Phase::AdoptRuns), "run adoption"),
+        (Some(Phase::ReadAfresh { connector: 7 }), "connector 7 refresh"),
+        (Some(Phase::SettleOutbox { connector: 7 }), "connector 7 outbox settlement"),
+        (Some(Phase::Open), "opening decisions"),
+        (None, "unknown phase"),
+    ] {
+        let end = End::Stopped(Stop::StartRefused { phase, failure: Failure::ProjectPolicy { project: 3 } });
+        assert_eq!(
+            ending(Some(&end), false, &directories, b"/data/deployment", &[]),
+            (format!("temper serve: restart refused during {words}: project 3: policy refused\n"), 1)
+        );
+    }
+}
+
+#[test]
+fn start_failures_name_the_set_key_setting_and_measured_limit() {
+    use jig_domain_core::{
+        HeldLimit, Key, settings,
+        start::{Failure, LiveSet},
+    };
+    let key = Key::Tasks(jig_domain_tasks::Key::Live(17));
+    for (failure, words) in [
+        (
+            Failure::LiveSet {
+                set: LiveSet::TasksBound(jig_domain_tasks::RestoreBound::Tasks),
+                key: key.clone(),
+                held: 5,
+                limit: 4,
+            },
+            "TasksBound(Tasks), key Tasks(Live(17)), held 5, limit 4",
+        ),
+        (Failure::HeldPastLimit { which: HeldLimit::Revisions, held: 5, limit: 4 }, "Revisions, held 5, limit 4"),
+        (Failure::HeldPastLimit { which: HeldLimit::Versions, held: 5, limit: 4 }, "Versions, held 5, limit 4"),
+        (
+            Failure::Settings {
+                failure: settings::Failure { setting: settings::Setting::Policy(1), fault: settings::Fault::Shape },
+                changed: true,
+            },
+            "changed setting Policy(1): Shape",
+        ),
+        (
+            Failure::Settings {
+                failure: settings::Failure { setting: settings::Setting::Rules, fault: settings::Fault::Reference },
+                changed: false,
+            },
+            "default setting Rules: Reference",
+        ),
+        (Failure::Accounting { key: key.clone() }, "accounting refused, key Tasks(Live(17))"),
+        (Failure::LlmChoice { key }, "LLM choice refused, key Tasks(Live(17))"),
+    ] {
+        assert_eq!(start_failure(&failure), words);
+    }
+}
+
+#[test]
+fn restore_pages_name_only_the_store_supplied_cause_family_and_key() {
+    use jig_protocol_store::{
+        Family,
+        restore::{Cause, DecodeFailure, Failure, RangeFailure, RowSite},
+    };
+    let arguments =
+        [b"--config".as_slice(), b"/configuration", b"--data", b"/data", b"--cache", b"/cache"].map(Box::from);
+    let (directories, _) = crate::directories::resolve(&arguments, &[], b"/").expect("resolved directories");
+    for (failure, words) in [
+        (None, "store load failed"),
+        (Some(Failure { cause: Cause::Range(RangeFailure::Cursor), row: None }), "Range(Cursor)"),
+        (
+            Some(Failure {
+                cause: Cause::Decode(DecodeFailure::Value),
+                row: Some(RowSite {
+                    family: Some(Family::Tasks),
+                    key: Box::from([0x01, 0xab]),
+                    key_bytes: 2,
+                    truncated: false,
+                }),
+            }),
+            "Decode(Value), family Tasks, key [01, ab]",
+        ),
+        (
+            Some(Failure {
+                cause: Cause::Decode(DecodeFailure::Key),
+                row: Some(RowSite { family: None, key: Box::from([0xff]), key_bytes: 3, truncated: true }),
+            }),
+            "Decode(Key), key [ff] (truncated, 3 bytes total)",
+        ),
+    ] {
+        let end = End::Stopped(Stop::RestorePage { range: temper_service::RestoreRangeKind::Tasks, failure });
+        assert_eq!(
+            ending(Some(&end), false, &directories, b"/data/deployment", &[]),
+            (format!("temper serve: restore tasks: {words}\n"), 1)
+        );
     }
 }

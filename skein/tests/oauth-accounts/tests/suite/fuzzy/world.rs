@@ -19,8 +19,7 @@ fn seeded_stream_cuts_rejections_and_closes_keep_owner_and_socket_contracts() {
     ];
     for seed in 0..64_u64 {
         let mut random = Rng::new(seed);
-        let story = stories
-            [usize::try_from(random.below(u64::try_from(stories.len()).expect("stories"))).expect("story index")];
+        let story = stories[usize::try_from(random.below(skein_lib::len_u64(stories.len()))).expect("story index")];
         drop(world::run(seed, story, true, Memory::Unchecked));
     }
 }

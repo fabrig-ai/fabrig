@@ -1066,10 +1066,8 @@ pub(crate) fn subscribe_goal(domain: &mut Domain, env: &Env<Limits>, goal: u64, 
             }
             Work::GoalSubscribe(_)
             | Work::ForgeRestored
-            | Work::SwitchChecked
-            | Work::AdoptRestored
-            | Work::AdoptDone
-            | Work::Restart(_)
+            | Work::StartDone(_)
+            | Work::Start(_)
             | Work::Decoded { .. }
             | Work::Core(_)
             | Work::Tasks(_)
@@ -3060,7 +3058,7 @@ pub(crate) fn outputs(
                     forge::RestartStage::ReadAfresh => jig_domain_core::connector::RestartStage::ReadAfresh,
                     forge::RestartStage::Settled => jig_domain_core::connector::RestartStage::Settled,
                 };
-                super::connector_restart_done(domain, stage);
+                super::connector_start_done(domain, stage);
             }
             forge::Request::BriefClient { event } => domain.work.push(Work::Forge(forge::Event::Client(event))),
             forge::Request::BriefReady { .. } => unreachable!("the root uses held forge sections"),

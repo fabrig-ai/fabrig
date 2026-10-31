@@ -1,10 +1,9 @@
-//! Batch result caps below the guard's line (domain/session.md, section 8.1).
+//! Batch result caps below the guard's line (smith/docs/design/domain/session.md, section 8.1).
 
-#![allow(
-    clippy::disallowed_macros,
+#![expect(
     clippy::disallowed_methods,
     clippy::disallowed_types,
-    reason = "programming-model.md, section 10.2: deterministic test harnesses use ordinary Rust"
+    reason = "test modules are ordinary Rust: programming-model.md 10.2"
 )]
 
 use super::*;
@@ -81,7 +80,7 @@ fn result_caps(messages: &[Message]) -> Vec<u64> {
                     }
                 );
                 assert_eq!(*cut, tools::Cut::Line);
-                Some(u64::try_from(content.len()).unwrap())
+                Some(skein_lib::len_u64(content.len()))
             }
             Block::Opaque { .. }
             | Block::Refusal { .. }
@@ -163,7 +162,7 @@ fn the_line_holds_exact_minima_and_falls_back_one_byte_short() {
             .flat_map(|message| message.content.iter())
             .filter_map(|block| match block {
                 Block::ToolResult { result: Returned::Owned { outcome: Outcome::Read { content, .. } }, .. } => {
-                    Some(u64::try_from(content.len()).unwrap())
+                    Some(skein_lib::len_u64(content.len()))
                 }
                 Block::Opaque { .. }
                 | Block::Refusal { .. }

@@ -1,4 +1,4 @@
-//! Keyed configuration-fit failures retained by a selected start
+//! Keyed configuration-fit failures retained during restoration
 //! (jig/docs/design/domain/engine.md, 6).
 use crate::{Key, ModelEffort};
 

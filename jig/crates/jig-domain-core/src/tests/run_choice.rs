@@ -275,29 +275,6 @@ fn an_unknown_reset_wait_has_no_readiness_spin_after_a_long_advance() {
 }
 
 #[test]
-fn restored_bindings_refuse_duplicates_and_wrong_surviving_associations() {
-    let (mut core, limits) = ready(false);
-    let mut cases = Vec::new();
-    let binding = authority::AccountBinding { provider: 1, account: 0, source: 1 };
-    cases.push((vec![binding], true));
-    cases.push((vec![binding, binding], false));
-    cases.push((vec![authority::AccountBinding { source: 2, ..binding }], false));
-    cases.push((vec![authority::AccountBinding { provider: 2, ..binding }], false));
-    cases.push((vec![authority::AccountBinding { source: 99, ..binding }], true));
-    cases.push((vec![], false));
-    for (accounts, accepted) in cases {
-        let mut proof = RunProof::claimed(TASK, 7, 7, None, fleet::HostKind::Worker);
-        proof.placement = Some(FIRST);
-        proof.accounts = accounts.into();
-        core.restoring_proofs
-            .insert(TASK, RestoringProof { attempt: 7, turn: 0, run_spent: 0, last_answer: None })
-            .unwrap();
-        assert_eq!(core.restore_proof(proof, limits.tasks.result_bytes), accepted);
-        core.proofs.remove(&TASK);
-    }
-}
-
-#[test]
 fn adoption_uses_recorded_sources_through_refresh_and_removal() {
     let (mut core, limits) = ready(false);
     granted(&mut core, &limits, 2);
@@ -591,6 +568,7 @@ fn placement_with_accounts(
     account(&mut core, &limits, accounts::Event::Want);
     granted(&mut core, &limits, 1);
     core.people = people::Domain::new(&limits.people, Box::new([]), u16::MAX, Box::new([]));
+    core.people.start_restore(Wall::EPOCH);
     let mut out = Queue::uncapped();
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.people };
     for person in [OWNER, OTHER_PERSON] {
@@ -621,7 +599,7 @@ fn placement_with_accounts(
         },
         &mut out,
     );
-    people::step(&mut core.people, &env, people::Event::Restored, &mut out);
+    finish_people(&mut core.people, &env);
     core.fleet = placement_fleet(&core, &limits);
     let mut out = Queue::uncapped();
     fleet::step(
@@ -1105,18 +1083,6 @@ fn a_crossed_claim_passes_its_committed_turns_or_calls_to_the_fleet() {
         core.adopt(&env, OPEN_TASK, OPEN_ATTEMPT, kept);
         let fleet::Event::Cross { worked, .. } = core.adopted.pop().unwrap() else { panic!("crossed claim") };
         assert_eq!(worked, expected);
-    }
-}
-
-#[test]
-fn crossed_worker_claims_still_count_toward_restart_admission() {
-    for (room, admitted) in [(0, false), (1, true)] {
-        let (mut core, env) = crossed_claim();
-        core.adopt(&env, OPEN_TASK, OPEN_ATTEMPT, 0);
-        core.restart = restart::Restart::Waiting(RestartStep::AdoptRuns);
-        // One restored worker claim needs one recovery slot, crossed or not.
-        core.restart_attempts = room;
-        assert_eq!(core.restart_admit_claims(), admitted);
     }
 }
 

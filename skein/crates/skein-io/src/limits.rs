@@ -44,6 +44,21 @@ pub struct Limits {
 }
 
 impl Limits {
+    /// Small io limits for test worlds, overridable at each entrance (skein/docs/design/io.md, 8).
+    pub const TEST: Self = Self {
+        sockets: 8,
+        names: 0,
+        refusals: 1,
+        intake: 4096,
+        receive: 4096,
+        output: 1_000_000,
+        sends: 8,
+        accepts: 1,
+        backlog: 2,
+        close_timeout: Duration::from_secs(1),
+        retry: Duration::from_millis(1),
+    };
+
     /// The largest read demand io can meet: a fill or a scan of at most this
     /// many bytes, the intake's cap. Whoever stacks a machine on a stream
     /// checks at startup that the machine's largest demand is no larger (io.md,

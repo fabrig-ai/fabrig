@@ -1,4 +1,4 @@
-//! A program source's sign-in on the person's terminal (protocol/programs.md,
+//! A program source's sign-in on the person's terminal (smith/docs/design/protocol/programs.md,
 //! 4.1 and 4.2): its private directories and its command. Keeps no login;
 //! `prepare` checks directories and `sign_in` leaves execution to the caller.
 
@@ -34,7 +34,7 @@ pub enum Refusal {
     Io { path: PathBuf, error: std::io::Error },
 }
 
-/// What makes an existing directory unsafe (skein's `io.md`, 5.3).
+/// What makes an existing directory unsafe (`skein/docs/design/io.md`, 5.3).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Unsafe {
     /// A symbolic link, not a directory reached directly.

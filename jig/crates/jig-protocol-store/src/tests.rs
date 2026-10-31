@@ -18,6 +18,7 @@ mod readers;
 mod reads;
 mod restore;
 mod secrets;
+mod start_pages;
 mod transcripts;
 
 mod settings;

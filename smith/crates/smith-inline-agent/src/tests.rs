@@ -7,17 +7,7 @@ use smith_host_domain::{self as host, parent};
 use crate::{Below, Domain, Input, Limits, Lower, Output, fire, resume, step, translate};
 
 fn bounds() -> Limits {
-    let smith = smith_agent_world::LIMITS;
-    Limits {
-        slots: 2,
-        smith,
-        window: smith::Window {
-            turns: 8,
-            bytes: smith::max_turn_bytes(&smith).expect("root bound").checked_mul(8).expect("small window"),
-        },
-        wall_time: Duration::from_secs(3600),
-        cancel_grace: Duration::from_secs(5),
-    }
+    crate::fixture::small(smith_agent_world::LIMITS)
 }
 
 fn configuration() -> smith::Config {
@@ -134,21 +124,16 @@ fn a_told_turn_keeps_the_roots_exact_concrete_value() {
     );
     while out.pop().is_some() {}
     let turn = smith::session::record::Turn {
-        model: b"model".as_slice().into(),
-        effort: None,
-        kind: smith_domain::session::record::Kind::First(Box::new(smith_domain::session::record::Opener {
-            affinity: smith_domain::llm::Affinity { key: [0; 16], thread: 0 },
-            account: None,
-            backend: smith_domain::session::record::Backend::Direct,
-        })),
-        version: smith::session::record::VERSION,
-        endpoint: Some(smith::session::llm::Endpoint(0)),
         dialect: 1,
-        sequence: 1,
-        usage: smith::session::llm::Usage::ZERO,
-        spent: 0,
-        jobs: 0,
-        messages: Box::default(),
+        ..smith_domain::session::fixture::turn(
+            b"model".as_slice().into(),
+            smith_domain::session::record::Kind::First(Box::new(smith_domain::session::record::Opener {
+                affinity: smith_domain::llm::Affinity { key: [0; 16], thread: 0 },
+                account: None,
+                backend: smith_domain::session::record::Backend::Direct,
+            })),
+            Box::default(),
+        )
     };
     agent.lower.push(smith::Request::Turn {
         host_run: Token::new(7),
@@ -159,7 +144,7 @@ fn a_told_turn_keeps_the_roots_exact_concrete_value() {
         spent: run::Spend::ZERO,
         turn: turn.clone(),
     });
-    translate::route(&mut agent, &env, Id::from_token(handle), &mut out);
+    crate::route::route(&mut agent, &env, Id::from_token(handle), &mut out);
     assert_eq!(
         out.pop(),
         Some(Output::Parent(parent::Request::Turn {
@@ -192,7 +177,7 @@ fn cancel_fire_resume_terminal_and_reclaim_settle_exactly_once() {
             completion_owner = Some(owner);
         }
     }
-    let owner = completion_owner.expect("actual provider request");
+    let owner = completion_owner.expect("provider request");
     resume(&mut agent, &env, &mut out);
     assert!(out.is_empty());
     env.now = Time::ZERO.saturating_add(Duration::from_secs(1));
@@ -291,10 +276,10 @@ fn a_full_parent_reply_is_a_typed_too_large_terminal() {
 
 #[test]
 fn a_slot_roots_undrained_facts_refuse_nothing_and_are_all_drained() {
-    // T1 first refused message 2044 after stepping 2043 messages without a drain.
-    const OLD_REFUSAL: u32 = 2044;
+    // Exercise thousands of undrained observations with two message counts.
+    const MESSAGE_COUNT: u32 = 2044;
     const LIFECYCLE_FACTS: u32 = 2; // One Opened per slot.
-    for messages in [OLD_REFUSAL, OLD_REFUSAL * 2] {
+    for messages in [MESSAGE_COUNT, MESSAGE_COUNT * 2] {
         let env = env();
         let mut domain = Domain::new(&env.limits, configuration(), 5);
         let mut out = Queue::uncapped();
@@ -307,20 +292,18 @@ fn a_slot_roots_undrained_facts_refuse_nothing_and_are_all_drained() {
                 Input::Parent(parent::Event::Spawn { client: client_token, start: start() }),
                 &mut out,
             );
-            let Some(Output::Parent(parent::Request::Started { agent, .. })) = out.pop() else {
-                panic!("actual slot handle")
-            };
+            let Some(Output::Parent(parent::Request::Started { agent, .. })) = out.pop() else { panic!("slot handle") };
             handles[usize::try_from(client - 1).expect("two slots")] = agent;
             while out.pop().is_some() {}
             while domain.pop_fact(client_token).is_some() {}
         }
-        // Full inline ingress refuses before entering the root. As in the old
-        // test, drive A's native public entry to get actual accepted/refused
+        // Full inline ingress refuses before entering the root. Drive the
+        // native public entry to get accepted/refused
         // message facts while leaving its observations undrained.
         let native_env = Env { now: env.now, wall: env.wall, limits: env.limits.smith };
         let mut native_out = Queue::uncapped();
         for name in 1..=messages {
-            let slot = domain.slots.get_mut(Id::from_token(handles[0])).expect("actual native slot");
+            let slot = domain.slots.get_mut(Id::from_token(handles[0])).expect("native slot");
             smith::step(
                 &mut slot.root,
                 &native_env,
@@ -449,21 +432,21 @@ fn workspace_routes_keep_equal_tokens_in_separate_lower_families() {
     };
     while out.pop().is_some() {}
     let owner = Token::new(55);
-    agent.lower.push(smith::Request::Io {
+    agent.lower.push(smith::Request::Lower(Lower::Io {
         owner,
         op: smith::tools::Op::Load {
             at: smith::tools::Place { root: Token::new(9), path: b"a".as_slice().into() },
             max: 3,
         },
         deadline: Time::from_nanos(100),
-    });
-    agent.lower.push(smith::Request::Read {
+    }));
+    agent.lower.push(smith::Request::Lower(Lower::Read {
         owner,
         at: run::Place { root: Token::new(9), path: b"guide".as_slice().into() },
         max: 3,
         deadline: Time::from_nanos(100),
-    });
-    translate::route(&mut agent, &env, Id::from_token(handle), &mut out);
+    }));
+    crate::route::route(&mut agent, &env, Id::from_token(handle), &mut out);
     let Some(Output::Lower { agent: emitted_agent, request: Lower::Io { owner: name, .. } }) = out.pop() else {
         panic!("expected Io")
     };
@@ -495,13 +478,13 @@ fn a_job_act_is_lowered_and_settles_with_its_done() {
     while out.pop().is_some() {}
     let owner = Token::new(55);
     let act = smith::tools::JobAct::Read { head: 3, tail: 2, wait: Duration::from_secs(1) };
-    agent.lower.push(smith::Request::Job { owner, act });
-    translate::route(&mut agent, &env, Id::from_token(handle), &mut out);
+    agent.lower.push(smith::Request::Lower(Lower::Job { owner, act }));
+    crate::route::route(&mut agent, &env, Id::from_token(handle), &mut out);
     assert_eq!(out.pop(), Some(Output::Lower { agent: handle, request: Lower::Job { owner, act } }));
     let slot = agent.slots.get_mut(Id::from_token(handle)).expect("retained slot");
     assert_eq!(
         crate::workspace::terminal(slot, Below::Done { owner, done: smith::tools::Done::Cancelled }),
-        Some(smith::Event::Done { owner, done: smith::tools::Done::Cancelled })
+        Some(smith::Event::Below(Below::Done { owner, done: smith::tools::Done::Cancelled }))
     );
     assert_eq!(slot.io.len(), 0);
 }
@@ -592,8 +575,8 @@ fn a_dropped_slot_keeps_a_command_right_until_its_terminal() {
         }
     }
     // This unit supplies a root-boundary command fixture; the composed worlds
-    // supply actual root operations and the native fake-machine settlement.
-    agent.lower.push(smith::Request::Io {
+    // supply root operations and the native fake-machine settlement.
+    agent.lower.push(smith::Request::Lower(Lower::Io {
         owner: Token::new(100),
         op: smith::tools::Op::Spawn {
             cwd: smith::tools::Place { root: Token::new(9), path: b".".as_slice().into() },
@@ -603,8 +586,8 @@ fn a_dropped_slot_keeps_a_command_right_until_its_terminal() {
             after: None,
         },
         deadline: Time::from_nanos(100),
-    });
-    translate::route(&mut agent, &env, Id::from_token(handle), &mut out);
+    }));
+    crate::route::route(&mut agent, &env, Id::from_token(handle), &mut out);
     while out.pop().is_some() {}
     step(&mut agent, &env, Input::Parent(parent::Event::Drop { agent: handle }), &mut out);
     let mut faulted = false;
@@ -629,13 +612,13 @@ fn a_dropped_slot_keeps_a_command_right_until_its_terminal() {
     step(
         &mut agent,
         &env,
-        Input::Below { agent: handle, terminal: Below::Cancelled { owner: completion.expect("actual Complete") } },
+        Input::Below { agent: handle, terminal: Below::Cancelled { owner: completion.expect("Complete") } },
         &mut out,
     );
     assert!(out.is_empty(), "the command still owns its terminal");
     assert_eq!(agent.hosted(), 1);
     // A dropped root hears nothing, so this boundary fixture needs no native tools job.
-    // Actual composed cancellation and answer settlement stay in the host worlds.
+    // composed cancellation and answer settlement stay in the host worlds.
     step(
         &mut agent,
         &env,
@@ -698,7 +681,7 @@ fn grant_forms_keep_their_policy_at_start_and_refresh() {
         assert_eq!(refresh.valid, source.grants[0].valid);
         let decoded = translate::start(Token::new(1), source, &bounds());
         if admitted {
-            let smith::Event::Start { grants, .. } = decoded.expect("existing form admitted") else {
+            let smith::Event::Start(smith::Start { grants, .. }) = decoded.expect("existing form admitted") else {
                 panic!("expected root Start");
             };
             assert_eq!(grants.as_ref(), &[refresh], "start {form:?}");

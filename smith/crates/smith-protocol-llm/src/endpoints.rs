@@ -1,6 +1,6 @@
 //! Startup endpoint names and their resolved transport, dialect and options.
 //! This table retains no credential. The service gives the destinations to
-//! skein's connection component and keeps their actual HTTP heads for native
+//! skein's connection component and keeps their observed HTTP heads for native
 //! validation before copying an observation, using names through this mapping.
 //! Contract: protocol/agent.md, section 4; protocol/llm.md, sections 2 and 6.
 
@@ -8,7 +8,7 @@ use alloc::boxed::Box;
 use core::mem::size_of;
 
 use skein_lib::{Duration, List, Map};
-use skein_llm::{Prompt, Provider};
+use skein_llm::Provider;
 use skein_llm_connection as connection;
 use smith_domain::llm;
 
@@ -30,9 +30,8 @@ pub enum OversizedReasoning {
     Drop,
 }
 
-/// Measure actual endpoint options and provider identity for startup's own part.
+/// Measure observed endpoint options and provider identity for startup's own part.
 /// Field punctuation belongs to the separately measured provider framing.
-/// Contract: protocol/limits.md, sections 3.2 and 3.9.
 pub fn endpoint_own(identity: IdentityProfile) -> Result<u64, crate::Error> {
     let mut bytes = 0_u64;
     match identity {
@@ -40,7 +39,7 @@ pub fn endpoint_own(identity: IdentityProfile) -> Result<u64, crate::Error> {
         IdentityProfile::ClaudeCode => {
             let instructions = match skein_llm::anthropic::identity::instructions(&[]) {
                 Ok(instructions) => instructions,
-                Err(error) => return Err(crate::Error::from_shared(error)),
+                Err(error) => return Err(crate::Error::from_client(error)),
             };
             bytes = bytes
                 .checked_add(u64::try_from(instructions.len()).or(Err(crate::Error::Limit))?)
@@ -82,7 +81,7 @@ pub struct EndpointOptions {
     pub handshake: Duration,
     /// Dialect that owns replay and provider-specific request rules.
     pub provider: Provider,
-    /// Actual destination head used to validate content before its observation is copied.
+    /// Destination head validates content before the observation is copied.
     pub endpoint: skein_llm::Endpoint,
     /// Native per-endpoint bounds, including its transport pieces and measured head.
     pub client: skein_llm::client::Limits,
@@ -167,20 +166,6 @@ impl Endpoints {
     #[must_use]
     pub fn resolve(&self, name: llm::Endpoint) -> Option<&EndpointOptions> {
         self.options.get(&name.0)
-    }
-
-    /// Apply the startup options to the neutral prompt given to skein.
-    /// Its dialect, target and headers are already in the destination.
-    pub fn apply(&self, name: llm::Endpoint, prompt: &mut Prompt) -> Result<u32, EndpointError> {
-        let options = self.resolve(name).ok_or(EndpointError::Unknown)?;
-        match options.identity {
-            IdentityProfile::Plain => {}
-            IdentityProfile::ClaudeCode => {
-                prompt.instructions = skein_llm::anthropic::identity::instructions(&prompt.instructions)
-                    .or(Err(EndpointError::Identity))?;
-            }
-        }
-        Ok(options.index)
     }
 
     /// Borrow configured destination limits and credential ceilings for startup accounting.

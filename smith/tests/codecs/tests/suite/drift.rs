@@ -1,51 +1,33 @@
-//! Frozen generated code and bytes follow codec.md, section 6.
+//! Frozen generated code and bytes follow skein/docs/design/codec.md, section 6.
 
 use std::{fs, path::Path};
 
-use skein_codegen::{Output, generate, parse};
+use skein_codegen::{generate, parse};
 
 #[test]
 fn charter_schema_matches_generated_code_and_all_goldens() {
-    let root = skein_scratch::paths::tree().join("crates/smith-charter");
-    let source = fs::read_to_string(root.join("schema/charter-v4.schema")).expect("charter schema");
-    let schema = parse(&source).expect("schema valid");
-    let output = generate(&schema);
-    write_generated_code_and_goldens(&root.join("src/generated/v4.rs"), &root.join("golden/v4"), &output);
-    let committed = fs::read_to_string(root.join("src/generated/v4.rs")).expect("generated code");
-    assert_eq!(committed, output.rust, "regenerate charter codec with skein-codegen");
-    for golden in output.goldens {
-        let committed = fs::read(root.join("golden/v4").join(&golden.name)).expect("golden bytes");
-        assert_eq!(committed, golden.bytes, "golden {} drifted", golden.name);
-    }
+    assert_family("charter", 4);
 }
 
 #[test]
 fn transcript_schema_matches_generated_code_and_all_goldens() {
-    let root = skein_scratch::paths::tree().join("crates/smith-transcript");
-    let source = fs::read_to_string(root.join("schema/transcript-v6.schema")).expect("transcript schema");
-    let schema = parse(&source).expect("schema valid");
-    let output = generate(&schema);
-    write_generated_code_and_goldens(&root.join("src/generated/v6.rs"), &root.join("golden/v6"), &output);
-    let committed = fs::read_to_string(root.join("src/generated/v6.rs")).expect("generated code");
-    assert_eq!(committed, output.rust, "regenerate transcript codec with skein-codegen");
-    for golden in output.goldens {
-        let committed = fs::read(root.join("golden/v6").join(&golden.name)).expect("golden bytes");
-        assert_eq!(committed, golden.bytes, "golden {} drifted", golden.name);
-    }
+    assert_family("transcript", 6);
 }
 
 #[test]
 fn channel_schema_matches_generated_code_and_all_goldens() {
-    let root = skein_scratch::paths::tree().join("crates/smith-channel");
-    let source = fs::read_to_string(root.join("schema/channel-v5.schema")).expect("channel schema");
-    let schema = parse(&source).expect("schema valid");
-    let output = generate(&schema);
-    write_generated_code_and_goldens(&root.join("src/generated/v5.rs"), &root.join("golden/v5"), &output);
-    let committed = fs::read_to_string(root.join("src/generated/v5.rs")).expect("generated code");
-    assert_eq!(committed, output.rust, "regenerate channel codec with skein-codegen");
+    assert_family("channel", 5);
+}
+
+fn assert_family(family: &str, version: u16) {
+    let root = skein_scratch::paths::tree().join(format!("crates/smith-{family}"));
+    let source = fs::read_to_string(root.join(format!("schema/{family}-v{version}.schema"))).expect("schema source");
+    let output = generate(&parse(&source).expect("schema valid"));
+    let code = root.join(format!("src/generated/v{version}.rs"));
+    let goldens = root.join(format!("golden/v{version}"));
+    check_artifact(&code, output.rust.as_bytes());
     for golden in output.goldens {
-        let committed = fs::read(root.join("golden/v5").join(&golden.name)).expect("golden bytes");
-        assert_eq!(committed, golden.bytes, "golden {} drifted", golden.name);
+        check_artifact(&goldens.join(&golden.name), &golden.bytes);
     }
 }
 
@@ -54,7 +36,7 @@ use crate::support::events;
 #[test]
 fn event_records_and_every_listed_value_match_frozen_version_four_goldens() {
     let root = skein_scratch::paths::tree().join("crates/smith-events/golden/v4");
-    let limits = smith_events::Limits { string: 64, content: 1024, items: 8 };
+    let limits = smith_events::Limits { items: 8, ..smith_events::fixture::SMALL };
     let samples = events::samples();
     assert_eq!(fs::read_dir(&root).expect("event goldens").count(), samples.len(), "every golden is covered");
     check_event_goldens(&root, &limits, &samples);
@@ -88,14 +70,11 @@ fn local_store_schema_and_layout_fingerprints_match_committed_code_and_goldens()
     let source = fs::read_to_string(root.join("schema/local-store-v1.schema")).expect("local store schema");
     let schema = parse(&source).expect("local store schema valid");
     let output = generate(&schema);
-    let write = std::env::var_os("SKEIN_CODEGEN_WRITE").as_deref() == Some(std::ffi::OsStr::new("1"));
     let generated = root.join("src/generated/local_store_v1.rs");
     let goldens = root.join("golden/v1");
-    write_generated_code_and_goldens(&generated, &goldens, &output);
-    assert_eq!(fs::read_to_string(generated).expect("generated local store"), output.rust);
+    check_artifact(&generated, output.rust.as_bytes());
     for golden in output.goldens {
-        let path = goldens.join(&golden.name);
-        assert_eq!(fs::read(path).expect("local store golden"), golden.bytes, "{}", golden.name);
+        check_artifact(&goldens.join(&golden.name), &golden.bytes);
     }
     let store = skein_codec::schema::parse(source.as_bytes())
         .expect("store fingerprint schema")
@@ -112,18 +91,13 @@ fn local_store_schema_and_layout_fingerprints_match_committed_code_and_goldens()
         "// Generated by the local-store drift test. Do not edit.\n\npub const STORE: [u8; 32] = {store:?};\n\npub const TRANSCRIPT: [u8; 32] = {transcript:?};\n"
     );
     let path = root.join("src/generated/layouts.rs");
-    if write {
-        fs::write(&path, &layouts).expect("write layout fingerprints");
-    }
-    assert_eq!(fs::read_to_string(path).expect("layout fingerprints"), layouts);
+    check_artifact(&path, layouts.as_bytes());
 }
 
-fn write_generated_code_and_goldens(generated: &Path, goldens: &Path, output: &Output) {
+fn check_artifact(path: &Path, expected: &[u8]) {
     if std::env::var_os("SKEIN_CODEGEN_WRITE").as_deref() == Some(std::ffi::OsStr::new("1")) {
-        fs::create_dir_all(goldens).expect("golden directory");
-        fs::write(generated, &output.rust).expect("write generated code");
-        for golden in &output.goldens {
-            fs::write(goldens.join(&golden.name), &golden.bytes).expect("write golden");
-        }
+        fs::create_dir_all(path.parent().expect("artifact directory")).expect("artifact directory");
+        fs::write(path, expected).expect("write generated artifact");
     }
+    assert_eq!(fs::read(path).expect("generated artifact"), expected, "{} drifted", path.display());
 }

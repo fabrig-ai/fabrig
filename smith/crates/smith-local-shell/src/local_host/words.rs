@@ -16,6 +16,7 @@ impl Local {
             | domain::Notice::Waiting
             | domain::Notice::Checking(_)
             | domain::Notice::NotDelivered { .. }
+            | domain::Notice::Choice(_)
             | domain::Notice::ChatRefused { .. } => return None,
         };
         let model = match failure {

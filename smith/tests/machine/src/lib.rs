@@ -28,19 +28,16 @@ const FLOOD_MOST: usize = 1 << 20;
 fn machine_limits() -> Limits {
     Limits {
         operations: 8,
-        roots: 1,
         path_bytes: 128,
         file_bytes: 128,
         tool_payload: 128,
         entries: 16,
         entry_bytes: 2048,
-        processes: 2,
         output_bytes: 32,
-        search_hits: 8,
         search_bytes: 128,
-        search_line_bytes: 512,
         env_bytes: 256,
         group_stop: Duration::from_millis(1),
+        ..smith_protocol_machine::fixture::SMALL
     }
 }
 
@@ -85,6 +82,9 @@ pub struct Spawned {
 }
 
 impl World {
+    /// The adopted workspace token in each independent application run.
+    pub const ROOT: Token = Token::new(1);
+
     /// Configure the machine's immutable command variables for each settled run.
     #[must_use]
     pub fn configured(seed: u64, items: &[Item], variables: &[smith_protocol_machine::Variable]) -> Self {
@@ -140,7 +140,7 @@ impl World {
     /// The first adopted root token in each independent application run.
     #[must_use]
     pub fn root(&self) -> Token {
-        Token::new(1)
+        Self::ROOT
     }
 
     /// Enable the shared harness's construction, iteration and drop checks.
@@ -206,7 +206,7 @@ impl World {
         self.run(&Job::Request(request, true))
     }
 
-    /// Abort a hanging check at the actual pre-spawn or post-spawn component boundary.
+    /// Abort a hanging check at the observed pre-spawn or post-spawn component boundary.
     pub fn aborted_check(&mut self, owner: Token, after_spawn: bool) -> Token {
         let before = self.spawns().len();
         let terminal = self.run(&Job::AbortedCheck { owner, after_spawn });
@@ -259,7 +259,7 @@ impl World {
         let mut world = skein_world::World::new(self.seed, config, referee, self.memory)
             .with_machine(Adapter { files: Rc::clone(&self.machine), spawns: Rc::clone(&self.spawns) });
         world.spawn_root(Handle::new(root.raw()), |root| {
-            Application::new(self.seed, self.writable, self.now, root, job.copy(), self.limits, &self.environment)
+            Application::new(self.seed, self.writable, self.now, root, job.clone(), self.limits, &self.environment)
         });
         let outcome = world.run();
         let terminal = copy_terminal(outcome.procs[0].terminals.first().expect("one terminal"));
@@ -286,10 +286,23 @@ impl Drop for World {
     }
 }
 
+fn request_owner(request: &FromDomain) -> Token {
+    match request {
+        FromDomain::Op { owner, .. }
+        | FromDomain::Job { owner, .. }
+        | FromDomain::Cancel { owner }
+        | FromDomain::Read { owner, .. }
+        | FromDomain::Probe { owner, .. }
+        | FromDomain::Check { owner, .. }
+        | FromDomain::Abort { owner } => *owner,
+    }
+}
+
 fn job_terminals(requests: &[FromDomain]) -> usize {
     requests.iter().filter(|request| !matches!(request, FromDomain::Job { act: tools::JobAct::Hasten, .. })).count()
 }
 
+#[derive(Clone)]
 enum Job {
     Sequence { requests: Vec<FromDomain>, delays: Vec<Duration> },
     Request(FromDomain, bool),
@@ -304,56 +317,8 @@ impl Job {
             Self::Sequence { requests, .. } => {
                 Self::Request(requests.first().expect("one spawn").clone(), false).owner()
             }
-            Self::Request(request, _) => match request {
-                FromDomain::Op { owner, .. }
-                | FromDomain::Job { owner, .. }
-                | FromDomain::Cancel { owner }
-                | FromDomain::Read { owner, .. }
-                | FromDomain::Probe { owner, .. }
-                | FromDomain::Check { owner, .. }
-                | FromDomain::Abort { owner } => *owner,
-            },
+            Self::Request(request, _) => request_owner(request),
             Self::AbortedCheck { owner, .. } | Self::Flood { owner, .. } | Self::Listing { owner, .. } => *owner,
-        }
-    }
-    fn copy(&self) -> Self {
-        match self {
-            Self::Sequence { requests, delays } => {
-                Self::Sequence { requests: requests.clone(), delays: delays.clone() }
-            }
-            Self::Request(request, cancel) => Self::Request(
-                match request {
-                    FromDomain::Op { owner, op, deadline } => {
-                        FromDomain::Op { owner: *owner, op: op.clone(), deadline: *deadline }
-                    }
-                    FromDomain::Job { owner, act } => FromDomain::Job { owner: *owner, act: *act },
-                    FromDomain::Cancel { owner } => FromDomain::Cancel { owner: *owner },
-                    FromDomain::Read { owner, at, max, deadline } => {
-                        FromDomain::Read { owner: *owner, at: at.clone(), max: *max, deadline: *deadline }
-                    }
-                    FromDomain::Probe { owner, at, deadline } => {
-                        FromDomain::Probe { owner: *owner, at: at.clone(), deadline: *deadline }
-                    }
-                    FromDomain::Check { owner, program, deadline, tail } => {
-                        FromDomain::Check { owner: *owner, program: program.clone(), deadline: *deadline, tail: *tail }
-                    }
-                    FromDomain::Abort { owner } => FromDomain::Abort { owner: *owner },
-                },
-                *cancel,
-            ),
-            Self::AbortedCheck { owner, after_spawn } => {
-                Self::AbortedCheck { owner: *owner, after_spawn: *after_spawn }
-            }
-            Self::Listing { owner, selected, depth, maximum, bytes } => Self::Listing {
-                owner: *owner,
-                selected: selected.clone(),
-                depth: *depth,
-                maximum: *maximum,
-                bytes: *bytes,
-            },
-            Self::Flood { owner, bytes, head, tail } => {
-                Self::Flood { owner: *owner, bytes: bytes.clone(), head: *head, tail: *tail }
-            }
         }
     }
 }
@@ -901,15 +866,7 @@ impl Host for Application {
                 }
                 Job::Request(request, cancel) => {
                     if cancel {
-                        self.cancel_after_spawn = Some(match &request {
-                            FromDomain::Op { owner, .. }
-                            | FromDomain::Job { owner, .. }
-                            | FromDomain::Cancel { owner }
-                            | FromDomain::Read { owner, .. }
-                            | FromDomain::Probe { owner, .. }
-                            | FromDomain::Check { owner, .. }
-                            | FromDomain::Abort { owner } => *owner,
-                        });
+                        self.cancel_after_spawn = Some(request_owner(&request));
                     }
                     self.component.from_domain(&self.machine_env, request, &mut self.to_domain, &mut self.below);
                 }

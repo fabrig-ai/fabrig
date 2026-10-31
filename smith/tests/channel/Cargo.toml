@@ -14,13 +14,13 @@ skein-world.workspace = true
 smith-channel.workspace = true
 smith-charter.workspace = true
 smith-transcript.workspace = true
-smith-domain.workspace = true
+smith-domain = { workspace = true, features = ["fixture"] }
 smith-domain-session.workspace = true
 smith-host-domain.workspace = true
-smith-protocol-channel.workspace = true
-smith-host-protocol.workspace = true
+smith-protocol-channel = { workspace = true, features = ["fixture"] }
+smith-protocol-translate.workspace = true
+smith-host-protocol = { workspace = true, features = ["fixture"] }
 smith-agent-world.workspace = true
-smith-agent-service.workspace = true
 smith-agent-process-world.workspace = true
 smith-host-world.workspace = true
 
@@ -32,7 +32,6 @@ unused_must_use = "deny"
 [lints.clippy]
 pedantic = { level = "warn", priority = -1 }
 missing_panics_doc = "allow"
-wildcard_enum_match_arm = "deny"
 match_wildcard_for_single_variants = "deny"
 unwrap_used = "deny"
 allow_attributes = "deny"

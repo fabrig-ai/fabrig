@@ -25,14 +25,7 @@ struct Binding {
 /// Checked two-slot capacities, sharing the agent world's shipped root bounds.
 #[must_use]
 pub fn limits() -> inline::Limits {
-    let smith = smith_agent_world::LIMITS;
-    inline::Limits {
-        slots: 2,
-        smith,
-        window: smith::Window { turns: 8, bytes: smith::max_turn_bytes(&smith).expect("root turn bound") * 8 },
-        wall_time: Duration::from_secs(3600),
-        cancel_grace: Duration::from_secs(5),
-    }
+    inline::fixture::small(smith_agent_world::LIMITS)
 }
 
 /// Explicit value declarations for the existing native fake scripts.
@@ -176,7 +169,7 @@ impl World {
         let mut trace = Trace::default();
         trace.log(Time::ZERO, format!("seed {seed}"));
         Self {
-            agent: inline::Domain::new(&bounds, configuration_value(), seed),
+            agent: inline::Domain::new(&bounds, self::configuration(), seed),
             stage: Stage::uncapped(bounds),
             schedule: Schedule::new(),
             seen: BTreeMap::new(),
@@ -205,19 +198,18 @@ impl World {
                 ],
                 smith_protocol_machine::Limits {
                     operations: 8,
-                    roots: 1,
                     path_bytes: 4096,
                     file_bytes: 1_048_576,
                     tool_payload: smith_agent_world::LIMITS.session.tools.tool_payload,
                     entries: 256,
                     entry_bytes: 65_536,
-                    processes: 2,
                     output_bytes: 65_536,
                     search_hits: 256,
                     search_bytes: 65_536,
                     search_line_bytes: 65_536,
                     env_bytes: 65_536,
                     group_stop: Duration::from_millis(1),
+                    ..smith_protocol_machine::fixture::SMALL
                 },
             ),
             machine_trace: Vec::new(),
@@ -230,7 +222,7 @@ impl World {
         }
     }
 
-    /// Fail actual provider requests with selected typed terminal metadata.
+    /// Fail provider requests with selected typed terminal metadata.
     pub fn fail_with(&mut self, failure: smith::llm::Failure, evidence: smith::llm::Evidence) {
         assert_eq!(self.provider.calls(), 0);
         self.provider_env.limits.overloaded = 1000;
@@ -255,10 +247,10 @@ impl World {
     /// Return the generation-safe parent handle learned from Started.
     #[must_use]
     pub fn handle(&self, client: Token) -> Token {
-        self.seen[&client].agent.expect("actual Started")
+        self.seen[&client].agent.expect("Started")
     }
 
-    /// Deliver one parent command, recording actual parent terminals first.
+    /// Deliver one parent command, recording parent terminals first.
     pub fn event(&mut self, event: parent::Event) {
         match &event {
             parent::Event::Spawn { client, start } => {
@@ -275,18 +267,15 @@ impl World {
                 }
             }
             parent::Event::Answer { agent, call, .. } => {
-                let seen =
-                    self.seen.values_mut().find(|seen| seen.agent == Some(*agent)).expect("parent's actual slot");
-                assert!(seen.calls.remove(call), "one actual parent terminal");
+                let seen = self.seen.values_mut().find(|seen| seen.agent == Some(*agent)).expect("parent's slot");
+                assert!(seen.calls.remove(call), "one parent terminal");
             }
             parent::Event::Acknowledge { agent, turn } => {
-                let seen =
-                    self.seen.values_mut().find(|seen| seen.agent == Some(*agent)).expect("parent's actual slot");
+                let seen = self.seen.values_mut().find(|seen| seen.agent == Some(*agent)).expect("parent's slot");
                 seen.turns.remove(turn);
             }
             parent::Event::Drop { agent } => {
-                let seen =
-                    self.seen.values_mut().find(|seen| seen.agent == Some(*agent)).expect("parent's actual slot");
+                let seen = self.seen.values_mut().find(|seen| seen.agent == Some(*agent)).expect("parent's slot");
                 seen.turns.clear();
             }
             parent::Event::Grant { .. } | parent::Event::Stop { .. } => {}
@@ -300,7 +289,19 @@ impl World {
         self.pass();
     }
 
-    /// Advance to one actual clock point; queued inputs precede root alarms.
+    /// Drive at most one hundred deadlines until this client has its answer.
+    pub fn run_until_answered(&mut self, client: Token) {
+        const ANSWER_STEPS: u32 = 100;
+        for _ in 0..ANSWER_STEPS {
+            if self.seen[&client].answer.is_some() {
+                return;
+            }
+            self.at(self.next_deadline().expect("provider or root alarm"));
+        }
+        assert!(self.seen[&client].answer.is_some(), "answer within the fixture's step bound");
+    }
+
+    /// Advance to one clock point; queued inputs precede root alarms.
     pub fn at(&mut self, now: Time) {
         assert!(now >= self.stage.env.now);
         self.stage.tick(now);
@@ -320,7 +321,7 @@ impl World {
         self.pass();
     }
 
-    /// Earliest actual provider, slot or scheduled parent alarm.
+    /// Earliest provider, slot or scheduled parent alarm.
     #[must_use]
     pub fn next_deadline(&self) -> Option<Time> {
         self.provider
@@ -366,10 +367,6 @@ impl World {
         assert!(self.schedule.is_empty());
     }
 
-    #[expect(
-        clippy::wildcard_enum_match_arm,
-        reason = "diagnostics capture routing identities and long notices; the shared parent referee owns all requests"
-    )]
     fn record_route(&mut self, request: &Output) {
         match request {
             Output::Parent(parent::Request::Called { client, logical_run, .. }) => {
@@ -452,12 +449,13 @@ impl World {
                         );
                         self.provider_replies();
                     }
+                    Lower::Yield { .. } => {}
                     Lower::Cancel { owner } => {
                         let binding = self
                             .bindings
                             .values_mut()
                             .find(|binding| binding.agent == agent && binding.owner == owner)
-                            .expect("cancel retains actual provider call");
+                            .expect("cancel retains provider call");
                         assert!(!binding.cancelled, "cancel emitted once");
                         binding.cancelled = true;
                     }
@@ -607,10 +605,6 @@ impl World {
         }
         panic!("bounded ready work did not settle");
     }
-}
-
-fn configuration_value() -> smith::Config {
-    configuration()
 }
 
 fn parent_client(request: &parent::Request) -> Token {

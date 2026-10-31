@@ -41,7 +41,7 @@ mod reconcile;
 mod removal;
 pub mod runs;
 mod views;
-pub use reconcile::{RecordKind, Unresolved};
+pub use reconcile::{MissingLink, Need, RecordKind};
 pub mod resources;
 mod settle;
 #[cfg(test)]

@@ -337,6 +337,7 @@ impl World {
             pull_snapshot: None,
             landing_config: None,
         };
+        world.top.restore_begin(world.env.wall);
         world.event(top::Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
         world
     }
@@ -543,6 +544,7 @@ impl World {
         for (_, record) in &self.stored {
             rows.push(record.clone()).expect("store snapshot capacity");
         }
+        self.top.restore_begin(self.env.wall);
         for record in rows.into_boxed() {
             self.event(top::Event::Restore { record });
         }

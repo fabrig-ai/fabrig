@@ -23,7 +23,7 @@ fn size<T>() -> u64 {
 }
 
 fn bytes(value: &[u8]) -> u64 {
-    u64::try_from(value.len()).expect("fixture bytes fit")
+    skein_lib::len_u64(value.len())
 }
 
 fn observations(bounds: &client::Limits) -> ObservationLimits {
@@ -405,7 +405,7 @@ fn exact_head_observation_capacity_retains_actual_fields_and_one_less_retains_no
         baseline.start();
         baseline.run();
         let [head] = baseline.heads.as_slice() else { panic!("one baseline actual head") };
-        let exact = u64::try_from(head.len()).expect("bounded wrappers") * size::<skein_http::Header>()
+        let exact = skein_lib::len_u64(head.len()) * size::<skein_http::Header>()
             + head.iter().map(|field| bytes(&field.name) + bytes(&field.value)).sum::<u64>();
         drop(baseline);
         let mut caps = observations(&bounds);
@@ -425,7 +425,7 @@ fn exact_head_observation_capacity_retains_actual_fields_and_one_less_retains_no
             measured.peak()
         );
         let [head] = positive.heads.as_slice() else { panic!("exact head observation fits") };
-        let actual = u64::try_from(head.len()).expect("bounded wrappers") * size::<skein_http::Header>()
+        let actual = skein_lib::len_u64(head.len()) * size::<skein_http::Header>()
             + head.iter().map(|field| bytes(&field.name) + bytes(&field.value)).sum::<u64>();
         assert_eq!(actual, exact);
         assert_eq!(positive.queries.len(), 1);

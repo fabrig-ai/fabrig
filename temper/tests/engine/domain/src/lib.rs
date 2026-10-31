@@ -23,6 +23,7 @@ pub mod fixtures;
 /// Requester-backed forge change fixture and delayed required-read control.
 pub mod forge_routes;
 pub mod forge_stand;
+pub mod oracle;
 
 /// Take ready journal output, then admit one owner continuation if none was ready.
 pub fn poll(
@@ -38,4 +39,20 @@ pub fn poll(
         temper_engine_domain::step(root, env, temper_engine_domain::Event::Resume);
         temper_engine_domain::release(root, env, out);
     }
+}
+
+/// Peer input waits for durable Wires (temper/docs/design/domain/root.md, 9.1).
+pub(crate) fn waits_for_start(root: &temper_engine_domain::Domain, event: &temper_engine_domain::Event) -> bool {
+    use jig_domain_core::start::Phase;
+    let runtime = root.ready()
+        || matches!(
+            root.start_phase(),
+            Some(Phase::AdoptRuns | Phase::ReadAfresh { .. } | Phase::SettleOutbox { .. } | Phase::Open)
+        );
+    !runtime
+        && matches!(
+            event,
+            temper_engine_domain::Event::Credential { .. }
+                | temper_engine_domain::Event::Worker(temper_engine_domain::WorkerInput::Link { .. })
+        )
 }

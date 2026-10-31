@@ -299,8 +299,13 @@ impl skein_world::Referee<Proc> for Referee {
             self.attached = Some(());
         }
         if !self.handed
+            && (matches!(self.story, crate::world::Story::Chat { .. } | crate::world::Story::ChatReadThenWait { .. })
+                || service.service.engine_domain().is_some_and(|domain| {
+                    matches!(domain.forge_connection(1), temper_engine_domain_forge::Connection::Connected { .. })
+                }))
             && let Some(link) = service.service.links().pop()
         {
+            crate::oracle::linked(&link);
             for proc in other.iter_mut() {
                 if let Proc::Client(person) = proc
                     && person.signed_in == 0
@@ -338,6 +343,7 @@ impl skein_world::Referee<Proc> for Referee {
         if self.done.is_none()
             && (done || !matches!(self.phase, crate::world::Phase::Story | crate::world::Phase::Fault { .. }))
             && complete
+            && crate::oracle::readback(other)
         {
             for proc in other.iter_mut() {
                 if let Proc::Client(person) = proc {

@@ -2,11 +2,9 @@
 //! Only accepted results carry content, under the configured capture policy.
 //! Contract: protocol/events.md, sections 3.3 and 4.
 
-#![expect(clippy::manual_map, reason = "the strict subset uses exhaustive matches without closures")]
-
-use smith_agent_service::{Answered, sinks::Capture};
 use smith_events::{AnswerClass, AnswerFailure, CompletionFailure, Evidence, FailureClass, Status};
 use smith_host_domain as host;
+use smith_protocol_events::{Answered, sinks::Capture};
 
 /// Parts of `run.completed` from the exact answer the local host meets.
 #[must_use]
@@ -16,7 +14,7 @@ pub fn answered(answer: &host::Answer, capture: Capture) -> Answered {
         host::RunResult::Refused { refusal } => (Status::Refused, Some(refused(*refusal)), None),
         host::RunResult::Failed { failure } => (Status::Failed, Some(failed(failure.clone())), None),
         host::RunResult::Accepted { outcome } => {
-            (Status::Accepted, None, Some(smith_agent_service::accepted(outcome.value(), capture)))
+            (Status::Accepted, None, Some(smith_protocol_events::accepted(outcome.value(), capture)))
         }
     };
     Answered {
@@ -32,7 +30,7 @@ pub fn answered(answer: &host::Answer, capture: Capture) -> Answered {
     }
 }
 
-/// Parts of `run.completed` for a run that went without answering (events.md, section 3.3).
+/// Parts of `run.completed` for a run that went without answering (protocol/events.md, section 3.3).
 #[must_use]
 pub fn unanswered(
     cause: smith_local_domain::EndCause,
@@ -57,7 +55,11 @@ pub fn unanswered(
         }
         smith_local_domain::EndCause::Agent { ended } => {
             let mut failure = failure(AnswerClass::Agent, None);
-            failure.ended = ended;
+            failure.ended = match ended {
+                Some(host::Exit::Code(code)) => Some(smith_events::AgentExit::Code(i64::from(code))),
+                Some(host::Exit::Signal(signal)) => Some(smith_events::AgentExit::Signal(u64::from(signal))),
+                None => None,
+            };
             failure
         }
     };
@@ -154,7 +156,7 @@ fn failed(why: host::RunFailure) -> AnswerFailure {
                 result.account = Some(account);
                 result.state = Some(smith_events::AccountState::Limited);
                 result.reset_ms = match reset {
-                    Some(reset) => reset.as_nanos().checked_div(1_000_000),
+                    Some(reset) => Some(reset.as_millis()),
                     None => None,
                 };
                 result
@@ -245,12 +247,12 @@ fn completion(why: host::CompletionFailure, evidence: host::CompletionEvidence) 
         host::CompletionFailure::Unsupported | host::CompletionFailure::Invalid => (FailureClass::Invalid, None),
         host::CompletionFailure::Unauthorized => (FailureClass::Unauthorized, None),
         host::CompletionFailure::RateLimited { retry_after } => {
-            (FailureClass::RateLimited, Some(retry_after.as_nanos() / 1_000_000))
+            (FailureClass::RateLimited, Some(retry_after.as_millis()))
         }
         host::CompletionFailure::Exhausted { retry_after } => (
             FailureClass::Exhausted,
             match retry_after {
-                Some(reset) => reset.as_nanos().checked_div(1_000_000),
+                Some(reset) => Some(reset.as_millis()),
                 None => None,
             },
         ),
@@ -279,7 +281,7 @@ const USAGE: skein_lib::Token = skein_lib::Token::new(u64::MAX - 1);
 /// The spawned product's producer takes parent answers, never channel facts.
 #[derive(Debug)]
 pub(crate) struct Spawned {
-    pub(crate) producer: smith_agent_service::events::Producer,
+    pub(crate) producer: smith_protocol_events::events::Producer,
     capture: Capture,
     /// Bounds each write to the adopted trace (protocol/events.md, section 5.2).
     pub(crate) write_deadline: skein_lib::Duration,
@@ -292,7 +294,7 @@ pub(crate) struct Spawned {
 
 impl Spawned {
     pub(crate) fn configured(config: &smith_agent_service::Config) -> Option<Self> {
-        let producer = smith_agent_service::events::Producer::configured(config)?;
+        let producer = smith_agent_service::event_producer(config)?;
         let events = config.limits.events?;
         Some(Self {
             producer,
@@ -399,7 +401,7 @@ impl Spawned {
                 self.producer.sinks().ended(
                     now,
                     origin,
-                    &smith_agent_service::sinks::Ended {
+                    &smith_protocol_events::sinks::Ended {
                         exit: self.exit.take().expect("product exited before usage"),
                         answered: self.answered,
                         aborted: self.close == smith_agent_service::Close::Aborted,

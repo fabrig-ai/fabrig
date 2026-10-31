@@ -56,12 +56,12 @@ fn driver(granted: bool) -> (Driver, u64) {
     let mut bootstrap = Driver::cold(Store::new(), config(granted), &limits);
     bootstrap.period_sent = true;
     bootstrap.pump();
-    assert!(!bootstrap.stopped, "bootstrap: {:?}", bootstrap.root.restore_failure());
-    let store = bootstrap.store;
+    assert!(!bootstrap.stopped, "bootstrap: {:?}", bootstrap.root.start_stop());
+    let store = bootstrap.take_store();
     let mut d = Driver::cold(store, config(granted), &limits);
     d.forge = Some(ForgeStand::with(&[(b"playground", b"widget", 2)]));
     d.pump();
-    assert!(!d.stopped, "restore: {:?}", d.root.restore_failure());
+    assert!(!d.stopped, "restore: {:?}", d.root.start_stop());
     d.sign_in();
     d.settle();
     let sign_in = d.session();
@@ -187,7 +187,7 @@ fn run(step: forge::ResetStep, seed: u64) -> std::collections::BTreeMap<engine::
     restart(&mut d, true, seed);
     finish_forge_removal(&mut d);
     assert_whole(&d, project, account, running.forge);
-    d.store.rows
+    d.store.rows.clone()
 }
 fn replay(step: forge::ResetStep) {
     for seed in [1, 7, 71] {

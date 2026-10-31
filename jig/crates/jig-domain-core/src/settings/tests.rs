@@ -1,6 +1,6 @@
 use super::*;
 use crate::tests::{RESTORE_POLICY_BYTES, RESTORE_PROJECT, config, limits, restoring_sized_policy};
-use crate::{Core, CoreRecord, Limits, RestartRequest, RestartStep, Restored};
+use crate::{Core, CoreRecord, Limits, Restored};
 use jig_domain_tasks as tasks;
 use skein_lib::{Duration, Env, Time};
 
@@ -311,30 +311,6 @@ fn current_lookup_keeps_each_kinds_default_change_and_removal_origin() {
     assert_eq!(current.lookup(Setting::Template(999)), (None, None));
 }
 
-#[test]
-fn restoring_settings_proposals_requires_the_deployment_scope_without_a_project_policy() {
-    let (mut core, _) = crate::tests::core();
-    core.counters.deployment.messages = 1;
-    core.counters.deployment.people = 1;
-    let mut row = jig_domain_tasks::PersonProposal {
-        number: 1,
-        proposer: 1,
-        project: jig_domain_people::DEPLOYMENT,
-        action: jig_domain_tasks::PersonAction::Settings {
-            against: 1,
-            items: Box::new([jig_domain_tasks::SettingHead {
-                setting: jig_domain_tasks::Setting::Template(1),
-                edit: jig_domain_tasks::SettingEdit::Removed,
-            }]),
-        },
-        reason: b"review".as_slice().into(),
-        state: jig_domain_tasks::PersonProposalState::Pending { since: Wall::EPOCH },
-    };
-    assert!(core.restore_task_row(&jig_domain_tasks::Stored::PersonProposal(Box::new(row.clone()))));
-    row.project = 1;
-    assert!(!core.restore_task_row(&jig_domain_tasks::Stored::PersonProposal(Box::new(row))));
-}
-
 fn stored_policy_change(bytes: u64) -> (Core, Limits, Record) {
     let (mut core, limits, configured) = restoring_sized_policy(bytes);
     let mut defaults = List::with_capacity(core.current.defaults.len());
@@ -365,17 +341,14 @@ fn oversized_settings_policy_restore_keeps_its_named_failure() {
     let oversized = RESTORE_POLICY_BYTES.checked_add(1).expect("one past the policy byte budget");
     let (mut core, limits, record) = stored_policy_change(oversized);
     assert_eq!(core.restore_core(CoreRecord::Settings(record), &limits), Restored::Rejected);
-    assert_eq!(core.restart_failure(), Some(RestartStep::LoadCore));
-    let _refused = core.restart_refuse();
-    let failure = RestartRequest::Settings {
+    let failure = crate::start::Failure::Settings {
         failure: Failure { setting: Setting::Policy(RESTORE_PROJECT), fault: Fault::Shape },
         changed: true,
     };
-    assert_eq!(core.restore_failure(), Some(failure));
-    assert_eq!(core.restart_done(RestartStep::LoadCore), failure);
-    assert_eq!(core.restore_failure(), Some(failure));
+    assert_eq!(core.start_failure(), Some(failure.clone()));
+    assert_eq!(core.start_failure(), Some(failure.clone()));
     assert!(!core.current.changed(Setting::Policy(RESTORE_PROJECT)));
-    assert!(!core.restart_ready());
+    assert!(!core.start_opened());
 }
 
 #[test]
@@ -384,8 +357,7 @@ fn settings_policy_restore_admits_the_policy_byte_budget() {
     assert_eq!(core.restore_core(CoreRecord::Settings(record), &limits), Restored::Live);
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
     assert!(core.settings_restored(&env));
-    assert_eq!(core.restore_failure(), None);
-    assert_eq!(core.restart_done(RestartStep::LoadCore), RestartRequest::Step(RestartStep::LoadInbox));
+    assert_eq!(core.start_failure(), None);
     assert!(core.current.policy(RESTORE_PROJECT).is_some());
 }
 
@@ -610,6 +582,7 @@ fn removal_markers_fit_beside_offered_charters_and_held_versions() {
 fn restore_settings_fixture() -> (Core, Limits) {
     let limits = limits();
     let mut core = Core::new(config(41), &limits).unwrap();
+    let _start = core.start_begin(false, Wall::EPOCH);
     let mut defaults = List::with_capacity(core.current.defaults.len());
     for (&setting, default) in &core.current.defaults {
         let mut default = default.clone();
@@ -674,9 +647,8 @@ fn a_charter_row_past_the_limit_refuses_without_retaining_it() {
         &limits
     ));
     assert!(core.held.versions.is_empty());
-    let refusal = RestartRequest::HeldPastLimit { which: crate::HeldLimit::Versions, held: 1, limit: 0 };
-    assert_eq!(core.restore_failure(), Some(refusal));
-    assert_eq!(core.restart_done(RestartStep::LoadCore), refusal);
+    let refusal = crate::start::Failure::HeldPastLimit { which: crate::HeldLimit::Versions, held: 1, limit: 0 };
+    assert_eq!(core.start_failure(), Some(refusal));
 }
 
 #[test]

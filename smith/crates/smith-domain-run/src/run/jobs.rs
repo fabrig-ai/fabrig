@@ -1,8 +1,8 @@
-//! Writers wait for session jobs to settle (domain/run.md, sections 5.3 and 8.1).
+//! Writers wait for session jobs to settle (smith/docs/design/domain/run.md, sections 5.3 and 8.1).
 //! The pending child owns its bounded opening; a withdrawal retains its cause
 //! until the parent's cancellation acknowledgement. No child is opened then.
 
-use super::{Conversation, Phase, agent, child_ready, may_finish, mem, retire_call};
+use super::{Conversation, Phase, agent, child_ready, mem, retire_call, working_main};
 use crate::agent::Child;
 use crate::call::{Withdrawal, Work};
 use crate::{Domain, Limits, Request, land};
@@ -26,7 +26,7 @@ pub(crate) fn cancelled(domain: &mut Domain, env: &Env<Limits>, conversation: To
     let run = domain.runs.get_mut(run_id).expect("writer retains its run");
     match &mut call.work {
         Work::Landing(landing) => {
-            if !may_finish(&run.state) {
+            if working_main(&run.state).is_none() {
                 land::withdraw(landing, id, Withdrawal::Withdrawn, out);
             }
             let settled = land::jobs_cancelled(landing, id, call.owner, run, env, out);
@@ -47,7 +47,7 @@ pub(crate) fn cancelled(domain: &mut Domain, env: &Env<Limits>, conversation: To
                     unreachable!("child has not opened before jobs settle")
                 }
             };
-            let unwanted = unwanted || !may_finish(&run.state);
+            let unwanted = unwanted || working_main(&run.state).is_none();
             let why = if env.now >= deadline { why.or(Some(Withdrawal::Expired)) } else { why };
             match why {
                 None if !unwanted => {

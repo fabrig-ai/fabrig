@@ -26,5 +26,5 @@ fn an_acknowledgement_may_cross_after_the_agents_last_word() {
     let files = Files::new();
     let mut world = World::new(115, &files, Placement::Spawned, b"First answer");
     world.settle();
-    review(&world.seen(), &world, Ending::Report(b"First answer".to_vec())).assert_passed(115);
+    world.assert_ended(Ending::Report(b"First answer".to_vec()));
 }

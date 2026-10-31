@@ -119,162 +119,22 @@ pub(crate) fn hooks(engine: &mut Engine) {
     }
 }
 
-/// Preserve jig's named settings failure in the ordinary startup diagnostics.
+/// Keep the application's page cause beside the root's named start stop.
 pub(crate) fn root(engine: &mut Engine) {
-    use jig_domain_core::RestartRequest;
-    if let Some(failure) = engine.domain.restore_load_failure() {
-        engine.end = Some(End::Stopped(Stop::RestoreLoad(failure)));
-        return;
-    }
-    if let Some(failure) = engine.domain.forge_fit_failure()
-        && let Some(step) = engine.domain.restart_failure()
-    {
-        engine.end = Some(End::Stopped(Stop::ForgeFit { step, failure: *failure }));
-        return;
-    }
-    if engine.domain.restore_failure().is_none()
-        && let Some(why) = engine.domain.forge_restore_failure()
-    {
-        engine.end = Some(End::Stopped(Stop::ForgeUnresolved { records: why.records }));
-        return;
-    }
-    let problems = match engine.domain.restore_failure() {
-        Some(RestartRequest::Settings { failure, changed }) => settings_problem(failure, changed),
-        Some(RestartRequest::Unresolved { child, records }) => {
-            engine.end = Some(End::Stopped(Stop::Unresolved { child, records }));
-            return;
+    let stopped = match engine.domain.start_stop() {
+        Some(root::StartStop::Core { phase, failure }) => Stop::StartRefused { phase, failure },
+        Some(root::StartStop::Load(failure)) => {
+            Stop::RestorePage { range: failure.range, failure: engine.store.routes.page_failure().cloned() }
         }
-        Some(RestartRequest::ProjectPolicy { project }) => project_policy_problem(project),
-        Some(RestartRequest::HeldPastLimit { which, held, limit }) => held_limit_problem(which, held, limit),
-        Some(RestartRequest::UnheldRevision { task, revision }) => unheld_revision_problem(task, revision),
-        Some(RestartRequest::Refused { step }) => {
-            engine.end = Some(End::Stopped(Stop::RestoreStep { step }));
-            return;
-        }
-        Some(RestartRequest::Step(_) | RestartRequest::Idle) | None => {
-            if let Some(step) = engine.domain.restart_failure() {
-                engine.end = Some(End::Stopped(Stop::RestoreStep { step }));
-                return;
-            }
-            unavailable(engine, b"deployment");
-            return;
-        }
+        Some(root::StartStop::ForgeFit { phase, failure }) => Stop::ForgeFit { phase, failure },
+        Some(root::StartStop::Binding) | None => Stop::Binding,
     };
-    engine.end = Some(End::Stopped(Stop::Start(problems)));
-}
-fn held_limit_problem(which: jig_domain_core::HeldLimit, held: u32, limit: u32) -> Problems {
-    use jig_domain_core::HeldLimit;
-    let name: &[u8] = match which {
-        HeldLimit::Revisions => b"revisions",
-        HeldLimit::Versions => b"versions",
-    };
-    let path = Path::root()
-        .member(b"settings")
-        .member(name)
-        .member(b"held")
-        .child(jig_protocol_config::Segment::Index(held))
-        .member(b"allowed")
-        .child(jig_protocol_config::Segment::Index(limit));
-    let mut problems = Problems::empty();
-    problems.push(path, What::Bound);
-    problems
-}
-fn unheld_revision_problem(task: u64, revision: u32) -> Problems {
-    let path = Path::root()
-        .member(b"tasks")
-        .member(skein_lib::Decimal::of(task).as_bytes())
-        .member(b"settings")
-        .member(b"revision")
-        .child(jig_protocol_config::Segment::Index(revision));
-    let mut problems = Problems::empty();
-    problems.push(path, What::Refers);
-    problems
-}
-fn project_policy_problem(project: u32) -> Problems {
-    let path = Path::root()
-        .member(b"projects")
-        .child(jig_protocol_config::Segment::Index(project))
-        .member(b"policy")
-        .member(b"bytes");
-    let mut problems = Problems::empty();
-    problems.push(path, What::Bound);
-    problems
-}
-fn settings_problem(failure: jig_domain_core::settings::Failure, changed: bool) -> Problems {
-    use jig_domain_core::settings::{Fault, Setting};
-    let origin: &[u8] = if changed { b"owner's stored change" } else { b"binary's default" };
-    let path = Path::root().member(b"settings").member(origin);
-    let path = match failure.setting {
-        Setting::Charter(number) => path.member(b"charter").child(jig_protocol_config::Segment::Index(number)),
-        Setting::Template(number) => path.member(b"template").child(jig_protocol_config::Segment::Index(number)),
-        Setting::Policy(number) => path.member(b"policy").child(jig_protocol_config::Segment::Index(number)),
-        Setting::Rules => path.member(b"rules"),
-    };
-    let fault: &[u8] = match failure.fault {
-        Fault::Shape => b"shape",
-        Fault::Count => b"count",
-        Fault::Reference => b"reference",
-        Fault::Rules => b"rules",
-        Fault::Budget => b"budget",
-        Fault::Grace => b"grace",
-        Fault::Owner => b"owner",
-    };
-    let mut problems = Problems::empty();
-    problems.push(path.member(fault), What::Form);
-    problems
+    engine.end = Some(End::Stopped(stopped));
 }
 
 pub(crate) fn requested(engine: &Engine) -> bool {
     match &engine.drain {
         Some(drain) => drain.requested,
         None => false,
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn held_settings_past_a_lowered_limit_name_the_limit_and_both_counts() {
-        use jig_domain_core::HeldLimit;
-        for (which, expected) in [
-            (HeldLimit::Revisions, b"settings.revisions.held[3].allowed[2]: past its bound\n".as_slice()),
-            (HeldLimit::Versions, b"settings.versions.held[3].allowed[2]: past its bound\n".as_slice()),
-        ] {
-            let problems = crate::startup::Problems::jig(held_limit_problem(which, 3, 2), &Path::root());
-            assert_eq!(crate::startup::lines(&problems).as_ref(), expected);
-        }
-    }
-
-    #[test]
-    fn an_unheld_settings_revision_names_the_task_and_revision() {
-        let problems = crate::startup::Problems::jig(unheld_revision_problem(4_294_967_297, 7), &Path::root());
-        assert_eq!(
-            crate::startup::lines(&problems).as_ref(),
-            b"tasks.4294967297.settings.revision[7]: unknown reference\n"
-        );
-    }
-
-    #[test]
-    fn an_oversized_stored_project_policy_names_its_project_and_byte_bound() {
-        let problems = crate::startup::Problems::jig(project_policy_problem(7), &Path::root());
-        assert_eq!(crate::startup::lines(&problems).as_ref(), b"projects[7].policy.bytes: past its bound\n");
-    }
-
-    #[test]
-    fn settings_start_refusals_name_the_setting_fault_and_source() {
-        use jig_domain_core::settings::{Failure, Fault, Setting};
-        for (changed, origin) in [(true, b"owner's stored change".as_slice()), (false, b"binary's default".as_slice())]
-        {
-            let problems = settings_problem(Failure { setting: Setting::Template(1), fault: Fault::Grace }, changed);
-            let problem = problems.problems.get(0).unwrap();
-            let path = &problem.path.segments;
-            assert_eq!(path.get(0), Some(&jig_protocol_config::Segment::Member(b"settings".as_slice().into())));
-            assert_eq!(path.get(1), Some(&jig_protocol_config::Segment::Member(origin.into())));
-            assert_eq!(path.get(2), Some(&jig_protocol_config::Segment::Member(b"template".as_slice().into())));
-            assert_eq!(path.get(3), Some(&jig_protocol_config::Segment::Index(1)));
-            assert_eq!(path.get(4), Some(&jig_protocol_config::Segment::Member(b"grace".as_slice().into())));
-        }
     }
 }

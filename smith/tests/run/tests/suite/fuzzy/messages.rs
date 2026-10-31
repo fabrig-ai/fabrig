@@ -1,4 +1,4 @@
-//! Seeded messages across real run callbacks. Contract: domain/run.md, section 13.
+//! Seeded messages across real run callbacks. Contract: smith/docs/design/domain/run.md, section 13.
 use skein_world::domain::Verdict;
 use smith_run_world::{World, messages_referee::judge, noisy};
 use std::collections::BTreeMap;

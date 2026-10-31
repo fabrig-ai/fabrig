@@ -14,7 +14,11 @@ const BOB: Holder = Holder::Party(4);
 /// Providers 1 and 2 offer a sign-in, 3 a key alone; none is a `none` provider, so the start
 /// makes nothing.
 fn fresh() -> World {
-    World::with(providers(vec![provider(1, true, true), provider(2, true, false), provider(3, false, true)]), &[])
+    World::with_start(
+        jig_accounts_world::LIMITS,
+        providers(vec![provider(1, true, true), provider(2, true, false), provider(3, false, true)]),
+        &[],
+    )
 }
 fn started(records: Vec<Stored>) -> World {
     let mut world = fresh();

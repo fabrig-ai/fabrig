@@ -16,7 +16,8 @@ pub(super) fn a_childs_share_stop_turns_and_time_are_recorded() {
 
 pub(super) fn a_clamped_share_names_its_part_and_bound() {
     let mut records = child_run();
-    if let Event::ConversationOpened(child) = &mut records[4].event {
+    {
+        let child = crate::common::edit::conversation_opened(&mut records[4]);
         child.clamped = skein_lib::List::with_capacity(1);
         child.requested = Some(smith_events::Requested { turns: Some(5), seconds: Some(3) });
         child
@@ -83,7 +84,8 @@ pub(super) fn event_loss_leaves_delegation_unavailable() {
 
 pub(super) fn an_unknown_child_stop_leaves_children_unavailable() {
     let mut records = child_run();
-    if let Event::ToolCompleted(completed) = &mut records[5].event {
+    {
+        let completed = crate::common::edit::tool_completed(&mut records[5]);
         completed.child.as_mut().expect("child terminal").stop =
             smith_events::ChildStop::Unknown(b"future".as_slice().into());
     }

@@ -1,5 +1,5 @@
-//! The run child domain's state and its entry points (domain/run.md, sections
-//! 3, 5, 6 and 10; programming-model.md, sections 4.5 and 6.3). [`Domain`]
+//! The run child domain's state and its entry points (smith/docs/design/domain/run.md, sections
+//! 3, 5, 6 and 10; skein/docs/foundation/programming-model.md, sections 4.5 and 6.3). [`Domain`]
 //! retains seeded admission randomness, runs, conversations, delegated calls,
 //! alarms, deferred wind-down effects and uncapped facts.
 //! [`step`] accepts parent events, [`fire`] handles due alarms and [`resume`]
@@ -201,33 +201,7 @@ pub fn resume(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) 
     facts::tell(&mut domain.facts, &domain.runs, &domain.conversations, out, mark);
 }
 
-/// Root asks before publishing a completion. This may record the finishing
-/// stage and keep deferred child closures; it never starts provider work.
-/// `most` is its priced maximum, or Unreserved for a program (programs.md 5.7).
-#[must_use]
-pub fn completion_permit(
-    domain: &mut Domain,
-    conversation: Token,
-    now: Time,
-    most: crate::Most,
-) -> crate::CompletionPermit {
-    run::completion_permit(domain, conversation, now, most)
-}
-
-/// Admit a completion, reserving a direct backend's priced maximum (programs.md 5.7).
-pub fn reserve(
-    domain: &mut Domain,
-    conversation: Token,
-    owner: Token,
-    most: crate::Most,
-) -> Result<(), crate::Exhausted> {
-    run::reserve(domain, conversation, owner, most)
-}
-
-/// Settle one provider terminal, returning whether its charge obeyed its reservation.
-pub fn settle_reservation(domain: &mut Domain, conversation: Token, owner: Token, charge: u64) -> bool {
-    run::settle_reservation(domain, conversation, owner, charge)
-}
+pub use run::{completion_overflow, completion_permit, reserve, settle_reservation};
 
 /// Live run that owns this conversation, for its parent's acknowledgement routing.
 #[must_use]
@@ -248,16 +222,4 @@ pub fn conversation_charter(domain: &Domain, conversation: Token) -> Option<&cra
 pub fn host_name(domain: &Domain, conversation: Token) -> Option<Token> {
     let conversation = domain.conversations.get(skein_lib::Id::from_token(conversation))?;
     Some(domain.runs.get(conversation.run)?.host_name)
-}
-
-/// Check one provider completion against exact run-wide arithmetic before its
-/// calls enter the session.
-#[must_use]
-pub fn completion_overflow(
-    domain: &Domain,
-    conversation: Token,
-    price: u64,
-    usage: crate::Spend,
-) -> Option<crate::Failure> {
-    run::completion_overflow(domain, conversation, price, usage)
 }

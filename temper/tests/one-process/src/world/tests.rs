@@ -60,12 +60,17 @@ fn a_failed_bind_is_not_a_hooks_address() {
 #[test]
 fn a_refused_restore_ends_with_its_in_process_worker() {
     let outcome = refused_restore(fixtures::calm(fixtures::SEED));
-    let Some(temper_service::End::Stopped(temper_service::Stop::Start(problems))) = outcome.end else {
-        panic!("the stored policy refuses restore: {:?}", outcome.end);
-    };
-    let problems = temper_service::startup::Problems::jig(problems, &jig_protocol_config::Path::root());
     assert_eq!(
-        temper_service::startup::lines(&problems).as_ref(),
-        b"settings.binary's default.policy[1].shape: invalid form\n"
+        outcome.end,
+        Some(temper_service::End::Stopped(temper_service::Stop::StartRefused {
+            phase: Some(jig_domain_core::start::Phase::LoadCore),
+            failure: jig_domain_core::start::Failure::Settings {
+                failure: jig_domain_core::settings::Failure {
+                    setting: jig_domain_core::settings::Setting::Policy(1),
+                    fault: jig_domain_core::settings::Fault::Shape,
+                },
+                changed: false,
+            },
+        }))
     );
 }

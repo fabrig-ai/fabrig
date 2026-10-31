@@ -513,8 +513,12 @@ impl World {
         }
         if self.events.front().is_some_and(|(due, _)| *due <= self.iteration) {
             let (_, event) = self.events.pop_front().expect("one due scripted event");
-            self.trace.push(format!("input {event:?}"));
-            if let Err(event) = engine::try_step(&mut self.domain, &self.environment, event) {
+            if !crate::waits_for_start(&self.domain, &event) {
+                self.trace.push(format!("input {event:?}"));
+            }
+            if crate::waits_for_start(&self.domain, &event) {
+                self.queue(event, 0);
+            } else if let Err(event) = engine::try_step(&mut self.domain, &self.environment, event) {
                 self.queue(event, 1);
             }
             engine::release(&mut self.domain, &self.environment, &mut self.out);
@@ -657,6 +661,9 @@ impl World {
                 engine::Request::Store(engine::StoreRequest::Load { owner, range, after, most, .. }) => {
                     self.pages += 1;
                     let (rows, next) = self.store.page(&range, after.as_ref(), most);
+                    for missing in self.store.take_missing(owner) {
+                        self.queue(engine::Event::Store(missing), self.settings.page_delay);
+                    }
                     self.queue(
                         engine::Event::Store(engine::StoreInput::Loaded { owner, rows, next, texts: None }),
                         self.settings.page_delay,
@@ -796,6 +803,12 @@ impl World {
                 .referee
                 .result(&self.store.rows, person, task, &words)
                 .expect("independent exact final report and funding"),
+            Delivery::Link { channel, down: host::LinkDown::Cancel { run, attempt } } => {
+                let assignment = self.assignment.as_ref().expect("retained worker answer");
+                assert_eq!(channel, Token::new(7));
+                assert_eq!((run.raw(), attempt.raw()), (assignment.task, assignment.attempt));
+                assert_eq!(self.worker_answer, WorkerAnswer::Retained, "the worker keeps its terminal until ACK");
+            }
             Delivery::Link { down: host::LinkDown::Grant { .. }, .. } => {}
             Delivery::PlaygroundNote { .. }
             | Delivery::Application { .. }
@@ -813,7 +826,7 @@ impl World {
             | Delivery::Drained
             | Delivery::Refuse { .. }
             | Delivery::TurnBusy { .. } => panic!("unexpected escalation delivery {delivery:?}"),
-            Delivery::Restart(_)
+            Delivery::Start(_)
             | Delivery::Fleet(_)
             | Delivery::ProjectMade { .. }
             | Delivery::ProjectReleased { .. }
@@ -826,6 +839,18 @@ impl World {
             Delivery::Host(_) => panic!("escalation world sent no calls"),
             Delivery::Procedure { .. } => panic!("escalation world sent no procedures"),
         }
+    }
+
+    /// Close this story through the shared cold restart oracle.
+    pub fn close(&mut self) {
+        self.run();
+        crate::oracle::close_world(
+            &mut self.domain,
+            &self.environment,
+            &mut self.store,
+            &mut self.protocol,
+            config(self.settings.seed),
+        );
     }
 
     /// Complete every outside obligation and actual pending IO within 600 passes.
@@ -883,6 +908,8 @@ pub fn run_replayed(settings: Settings) -> World {
         if first.settled() {
             assert!(replay.settled(), "replay settled at same cut: {settings:?}; {}", replay.unsettled());
             first.referee.final_state(&first.store.rows).expect("replayed finite funding");
+            first.close();
+            replay.close();
             return first;
         }
         first.iterate();

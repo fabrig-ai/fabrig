@@ -1,4 +1,4 @@
-//! What the tools tell whoever watches the agent (domain/tools.md, section 4):
+//! What the tools tell whoever watches the agent (smith/docs/design/domain/tools.md, section 4):
 //! a fact for each thing that happened, content-free (tokens, counts and
 //! classifications, never a path, a file or what a command wrote), in a
 //! uncapped queue the parent drains at its own pace.
@@ -6,7 +6,7 @@
 //! Facts are a separate step output. Every observation is preserved without
 //! reserving room, and none changes a tool's decision. Applied tool
 //! caps and omitted suffix bytes are retained at the terminal, before rendering
-//! (protocol/events.md, section 3.6); a later render cut is never known here.
+//! (smith/docs/design/protocol/events.md, section 3.6); a later render cut is never known here.
 
 use skein_lib::{Queue, Time, Token};
 
@@ -18,7 +18,6 @@ use crate::call::{Effect, Exit, Fault, Outcome, Tool};
 pub struct Fact {
     /// Emission time, preserved when parents drain this observation later.
     pub at: Time,
-    /// The content-free observation.
     pub kind: FactKind,
     /// Parent call context when the caller has a provider observation.
     pub call: Option<CallInfo>,
@@ -30,25 +29,16 @@ pub enum FactKind {
     /// The kit opened.
     Opened { session: Token },
     /// No kit was opened.
-    Refused {
-        session: Token,
-        /// Typed admission refusal; no work runs for a refused entrance.
-        refusal: Refusal,
-    },
+    Refused { session: Token, refusal: Refusal },
     /// A call passed the entrance, and runs.
-    Started {
-        session: Token,
-        /// Content-free classification of the checkout tool called.
-        tool: Tool,
-    },
+    Started { session: Token, tool: Tool },
     /// A call was answered, so, with an outcome carrying `bytes` of payload
     /// (what was read, listed, found, or kept of a command's output). A call
     /// refused at the entrance is answered without having started.
     Answered {
         session: Token,
-        /// Content-free classification of the checkout tool called.
         tool: Tool,
-        /// Content-free classification of the checkout call terminal.
+        /// Content-free classification of the tool call terminal.
         verdict: Verdict,
         /// Owned payload bytes charged against the enclosing session limit.
         bytes: u64,
@@ -90,7 +80,7 @@ pub enum Verdict {
     Found,
     /// The version-aware write completed.
     Written {
-        /// Whether this write created a previously absent file.
+        /// Whether this write created a absent file.
         created: bool,
     },
     /// The version-aware edit completed.
@@ -131,7 +121,7 @@ pub enum Verdict {
     NotDirectory,
     /// A configured ownership, count or encoded-byte cap would be exceeded.
     TooLarge,
-    /// A write or edit lacks a previously observed file version.
+    /// A write lacks an observed file version.
     NotRead,
     /// The file version changed since it was read.
     Stale,
@@ -153,10 +143,7 @@ pub enum Verdict {
         edit: u32,
     },
     /// One failed terminal with bounded diagnostics.
-    Failed {
-        /// Typed IO failure; this boundary carries no OS error text.
-        fault: Fault,
-    },
+    Failed { fault: Fault },
     /// The injected operation deadline won the race.
     TimedOut,
     /// The caller cancelled and the terminal settled.
@@ -192,8 +179,13 @@ pub(crate) fn timeout_clamped(clamp: crate::TimeoutClamp) -> bool {
 
 /// The fact of `outcome` answering a call of `tool` from `session`.
 pub(crate) fn answered(session: Token, tool: Tool, outcome: &Outcome, observation: Observation) -> FactKind {
+    let mut job = None;
+    let mut observed = observation;
     let (verdict, bytes) = match outcome {
-        Outcome::Read { content, .. } => (Verdict::Read, len(content)),
+        Outcome::Read { content, window, .. } => {
+            observed.clamped |= bytes_clamped(*window);
+            (Verdict::Read, len(content))
+        }
         Outcome::Listed { entries, .. } => {
             let mut bytes: u64 = 0;
             for entry in entries {
@@ -211,14 +203,24 @@ pub(crate) fn answered(session: Token, tool: Tool, outcome: &Outcome, observatio
         }
         Outcome::Written { created } => (Verdict::Written { created: *created }, 0),
         Outcome::Edited { replaced } => (Verdict::Edited { replaced: *replaced }, 0),
-        Outcome::Exited { exit, head, tail, dropped: _, timeout: _, output: _ } => (
-            Verdict::Exited { exit: *exit },
-            len(head).checked_add(len(tail)).expect("bounded command output fits u64"),
-        ),
-        Outcome::Running { head, tail, .. } => {
+        Outcome::Exited { exit, head, tail, dropped, timeout, output } => {
+            observed.omitted_bytes = *dropped;
+            observed.clamped |= timeout_clamped(*timeout) || bytes_clamped(*output);
+            (
+                Verdict::Exited { exit: *exit },
+                len(head).checked_add(len(tail)).expect("bounded command output fits u64"),
+            )
+        }
+        Outcome::Running { job: number, head, tail, dropped, timeout, after, output } => {
+            job = Some(*number);
+            observed.omitted_bytes = *dropped;
+            observed.clamped |= timeout_clamped(*timeout) || timeout_clamped(*after) || bytes_clamped(*output);
             (Verdict::Running, len(head).checked_add(len(tail)).expect("bounded job output"))
         }
-        Outcome::Job { head, tail, end, .. } => {
+        Outcome::Job { job: number, head, tail, dropped, end, wait, output } => {
+            job = Some(*number);
+            observed.omitted_bytes = *dropped;
+            observed.clamped |= timeout_clamped(*wait) || bytes_clamped(*output);
             let verdict = match end {
                 crate::JobEnd::Running => Verdict::Running,
                 crate::JobEnd::Ended(exit) => Verdict::Exited { exit: *exit },
@@ -255,8 +257,6 @@ pub(crate) fn answered(session: Token, tool: Tool, outcome: &Outcome, observatio
         Outcome::Busy => (Verdict::Busy, 0),
         Outcome::NulByte => (Verdict::NulByte, 0),
     };
-    let job = outcome_job(outcome);
-    let observed = observed(outcome, observation);
     FactKind::Answered {
         session,
         tool,
@@ -268,88 +268,8 @@ pub(crate) fn answered(session: Token, tool: Tool, outcome: &Outcome, observatio
     }
 }
 
-fn outcome_job(outcome: &Outcome) -> Option<crate::JobNumber> {
-    match outcome {
-        Outcome::Running { job, .. } | Outcome::Job { job, .. } => Some(*job),
-        Outcome::Exited { .. }
-        | Outcome::Read { .. }
-        | Outcome::Listed { .. }
-        | Outcome::Found { .. }
-        | Outcome::Removed
-        | Outcome::NotEmpty
-        | Outcome::Written { .. }
-        | Outcome::Edited { .. }
-        | Outcome::NotGranted
-        | Outcome::Outside { .. }
-        | Outcome::ReadOnly { .. }
-        | Outcome::TooLong
-        | Outcome::NotFound { .. }
-        | Outcome::NotFile
-        | Outcome::Linked
-        | Outcome::Protected
-        | Outcome::NotDirectory { .. }
-        | Outcome::TooLarge { .. }
-        | Outcome::NotRead
-        | Outcome::Stale
-        | Outcome::EditFailed { .. }
-        | Outcome::Failed { .. }
-        | Outcome::TimedOut
-        | Outcome::Cancelled
-        | Outcome::Busy
-        | Outcome::NulByte => None,
-    }
-}
-
-fn observed(outcome: &Outcome, observation: Observation) -> Observation {
-    match outcome {
-        Outcome::Exited { dropped, timeout, output, .. } => Observation {
-            omitted_bytes: *dropped,
-            clamped: observation.clamped || timeout_clamped(*timeout) || bytes_clamped(*output),
-        },
-        Outcome::Running { dropped, timeout, after, output, .. } => Observation {
-            omitted_bytes: *dropped,
-            clamped: observation.clamped
-                || timeout_clamped(*timeout)
-                || timeout_clamped(*after)
-                || bytes_clamped(*output),
-        },
-        Outcome::Job { dropped, wait: after, output, .. } => Observation {
-            omitted_bytes: *dropped,
-            clamped: observation.clamped || timeout_clamped(*after) || bytes_clamped(*output),
-        },
-        Outcome::Read { window, .. } => Observation {
-            omitted_bytes: observation.omitted_bytes,
-            clamped: observation.clamped || bytes_clamped(*window),
-        },
-        Outcome::Listed { .. }
-        | Outcome::Found { .. }
-        | Outcome::Removed
-        | Outcome::NotEmpty
-        | Outcome::Written { .. }
-        | Outcome::Edited { .. }
-        | Outcome::NotGranted
-        | Outcome::Outside { .. }
-        | Outcome::ReadOnly { .. }
-        | Outcome::TooLong
-        | Outcome::NotFound { .. }
-        | Outcome::NotFile
-        | Outcome::Linked
-        | Outcome::Protected
-        | Outcome::NotDirectory { .. }
-        | Outcome::TooLarge { .. }
-        | Outcome::NotRead
-        | Outcome::Stale
-        | Outcome::EditFailed { .. }
-        | Outcome::Failed { .. }
-        | Outcome::TimedOut
-        | Outcome::Cancelled
-        | Outcome::Busy
-        | Outcome::NulByte => observation,
-    }
-}
-
 fn len(bytes: &[u8]) -> u64 {
-    u64::try_from(bytes.len()).expect("bounded tool bytes fit u64")
+    skein_lib::len_u64(bytes.len())
 }
 
 /// Step observations not yet drained by the parent.

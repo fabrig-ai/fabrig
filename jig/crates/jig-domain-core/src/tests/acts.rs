@@ -246,6 +246,7 @@ fn an_observers_core_role_refusals_match_their_offers() {
         assert_eq!(offers::admit(&core, &limits, 1, act, &project, Wall::EPOCH), Admission::Refused(expected.clone()));
     }
     core.people = people::Domain::new(&limits.people, Box::new([]), 2, Box::new([]));
+    core.people.start_restore(Wall::EPOCH);
     let mut child = Queue::uncapped();
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.people };
     people::step(
@@ -286,12 +287,7 @@ fn an_observers_core_role_refusals_match_their_offers() {
         },
         &mut child,
     );
-    people::step(
-        &mut core.people,
-        &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.people },
-        people::Event::Restored,
-        &mut child,
-    );
+    finish_people(&mut core.people, &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.people });
     for (index, ask) in [
         people::Ask::SetPool { project: 1, person: 1, budget: 1 },
         people::Ask::SetRoles { project: 1, holdings: Box::new([]) },

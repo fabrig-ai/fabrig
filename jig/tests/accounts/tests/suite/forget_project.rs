@@ -17,13 +17,13 @@ fn row(number: u32, uses: Option<&[Use]>) -> Stored {
 }
 
 fn fixture(rows: Vec<Stored>) -> World {
-    let mut world = World::with(providers(vec![provider(PROVIDER, false, true)]), &[]);
+    let mut world =
+        World::with_start(jig_accounts_world::LIMITS, providers(vec![provider(PROVIDER, false, true)]), &[]);
     for row in rows {
         let Stored::Account { number, .. } = &row else { unreachable!("account fixtures") };
         let source = source(*number, number + 100, 0, Kind::Key);
         world.restore(vec![row, source]);
     }
-    assert_eq!(world.domain.unrestored(), 0);
     world.step(Event::Want);
     world
 }

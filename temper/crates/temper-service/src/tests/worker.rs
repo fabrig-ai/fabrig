@@ -259,7 +259,7 @@ fn the_worker_demands_each_cancellation_record_and_end() {
     let waiting = (peer.consumed, peer.stdout_demands, peer.worker_read);
     AgentPeer::send(&mut worker, smith_host_domain::Down::Cancel);
     peer.settle(&mut worker);
-    let Some(smith_protocol_channel::OpenEvent::Cancel) = peer.events.pop() else {
+    let Some(smith_protocol_channel::Heard::Cancel) = peer.events.pop() else {
         panic!("agent receives Cancel");
     };
     assert!(peer.events.is_empty(), "one Cancel reaches the real agent peer");
@@ -575,27 +575,34 @@ fn multiple_models_and_providers_preserve_the_supplied_grant_list() {
 #[test]
 fn smith_channel_notices_keep_the_source_generation_and_optional_reset() {
     use smith_host_domain as smith;
-    use smith_host_protocol::{OpenEvent, ProcessEvent};
+    use smith_host_protocol::{ProcessEvent, Received};
     let owner = Token::new(32);
     for (notice, expected) in [
         (
-            OpenEvent::Unauthorized { account: 17, generation: 4 },
+            Received::Message { message: smith_host_domain::Up::Unauthorized { account: 17, generation: 4 } },
             smith::Up::Unauthorized { account: 17, generation: 4 },
         ),
-        (OpenEvent::Limited { account: 17, reset: None }, smith::Up::Limited { account: 17, reset: None }),
         (
-            OpenEvent::Limited { account: 17, reset: Some(Duration::ZERO) },
+            Received::Message { message: smith_host_domain::Up::Limited { account: 17, reset: None } },
+            smith::Up::Limited { account: 17, reset: None },
+        ),
+        (
+            Received::Message { message: smith_host_domain::Up::Limited { account: 17, reset: Some(Duration::ZERO) } },
             smith::Up::Limited { account: 17, reset: Some(Duration::ZERO) },
         ),
         (
-            OpenEvent::Limited { account: 17, reset: Some(Duration::from_secs(9)) },
+            Received::Message {
+                message: smith_host_domain::Up::Limited { account: 17, reset: Some(Duration::from_secs(9)) },
+            },
             smith::Up::Limited { account: 17, reset: Some(Duration::from_secs(9)) },
         ),
         (
-            OpenEvent::Refused {
-                account: 17,
-                code: b"quota".as_slice().into(),
-                reason: b"provider refused".as_slice().into(),
+            Received::Message {
+                message: smith_host_domain::Up::Refused {
+                    account: 17,
+                    code: b"quota".as_slice().into(),
+                    reason: b"provider refused".as_slice().into(),
+                },
             },
             smith::Up::Refused {
                 account: 17,

@@ -25,6 +25,7 @@ fn a_party_watching_a_chat_sees_each_phase_after_its_commit() {
     let Document::Task(task) = latest(&world, 2) else { panic!("running page") };
     assert!(matches!(task.chip.phase, PhaseLine::Active(tasks::Active::Running { .. })));
     world.watches.as_ref().expect("watches").finish();
+    world.close();
 }
 
 #[test]
@@ -46,6 +47,7 @@ fn a_slow_watcher_of_a_tree_sees_fewer_deliveries_and_the_last_state() {
     assert_eq!(tree.root.phase, PhaseLine::Active(tasks::Active::Idle));
     watches.finish();
     inbox_across_projects_stories();
+    world.close();
 }
 
 #[test]
@@ -87,6 +89,7 @@ fn a_tree_window_past_the_rows_is_clamped_and_cut() {
     assert!(watches.endings.is_empty());
     assert!(world.busy_events.is_empty(), "no Busy or retry");
     watches.finish();
+    world.close();
 }
 
 #[test]
@@ -106,6 +109,7 @@ fn a_delivery_never_shows_what_a_crash_took_back() {
     assert_eq!(run.committed_turn, 0);
     assert!(world.store.rows.values().all(|row| !matches!(row, root::Record::Core(core::Record::Core(core::CoreRecord::Turn(turn))) if turn.task == task && turn.turn == 1)));
     world.watches.as_ref().expect("watches").finish();
+    world.close();
 }
 
 #[test]
@@ -133,6 +137,7 @@ fn a_run_s_text_streams_by_turn_and_is_replaced_by_the_committed_turn() {
     assert_eq!(run.committed_turn, 1);
     assert!(run.writing.is_none());
     world.watches.as_ref().expect("watches").finish();
+    world.close();
 }
 
 #[test]
@@ -155,6 +160,7 @@ fn a_watch_on_a_task_that_ends_ends_saying_so() {
     assert_eq!(inbox.cached_updates, Count::Known(1));
     assert_eq!(inbox.updates.len(), 1);
     watches.finish();
+    world.close();
 }
 
 fn inbox_across_projects_stories() {
@@ -211,7 +217,7 @@ fn inbox_across_projects_stories() {
             project: 2,
             holdings: Box::new([
                 people::Holding { person: 1, role: people::Role::Owner },
-                people::Holding { person: 2, role: people::Role::Owner },
+                people::Holding { person: 3, role: people::Role::Owner },
             ]),
         },
     );
@@ -254,6 +260,7 @@ fn inbox_across_projects_stories() {
     );
     a_proposal_decided_in_one_project_leaves_the_inbox_across_projects(&world, proposals[1]);
     world.watches.as_ref().expect("parties").finish();
+    world.close();
 }
 
 fn a_party_with_roles_in_two_projects_sees_both_in_one_inbox(world: &jig_core_world::effects::World) {
@@ -276,7 +283,7 @@ fn a_proposal_decided_in_one_project_leaves_the_inbox_across_projects(
     assert_eq!(inbox.needs.get(0).expect("other proposal").project, Some(2));
     assert_eq!(
         inbox.needs.get(0).expect("other proposal").object,
-        core::documents::InboxObject::Proposal { proposer: core::documents::Proposer::Party(2), number: other }
+        core::documents::InboxObject::Proposal { proposer: core::documents::Proposer::Party(3), number: other }
     );
     let Document::Frame(frame) = latest(world, 1) else { panic!("frame") };
     assert_eq!(frame.needs, 1);

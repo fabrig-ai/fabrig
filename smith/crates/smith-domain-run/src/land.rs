@@ -1,4 +1,4 @@
-//! One exclusive checked snapshot for final and mid-run delivery (domain/run.md,
+//! One exclusive checked snapshot for final and mid-run delivery (smith/docs/design/domain/run.md,
 //! sections 8 and 10). State keeps opaque fields, durable name, caller deadline
 //! and whether this is a finishing Change. It never knows receipt encoding,
 //! provider ids, callback identity or host delivery policy. Main's write batch

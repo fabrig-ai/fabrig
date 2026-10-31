@@ -1,5 +1,5 @@
-//! A domain world for the agent's run child domain (programming-model.md, section 4.5;
-//! testing-strategy.md, section 2.2): the runs, with the world as their parent, a
+//! A domain world for the agent's run child domain (skein/docs/foundation/programming-model.md, section 4.5;
+//! skein/docs/foundation/testing-strategy.md, section 2.2): the runs, with the world as their parent, a
 //! scripted host starting them, and a scripted partner playing their
 //! conversations, driven by one loop, deterministically from a seed.
 //!
@@ -27,6 +27,7 @@ pub mod messages_referee;
 mod noisy;
 pub mod order_log;
 pub mod partner;
+mod referee;
 pub mod share_referee;
 pub mod wind_down_referee;
 mod world;

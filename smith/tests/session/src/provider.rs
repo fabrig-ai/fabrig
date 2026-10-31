@@ -1,7 +1,10 @@
+//! Contracts: smith/docs/design/domain/session.md, 10;
+//! skein/docs/foundation/testing-strategy.md, 2.2.
+
 //! Smith application argument menu, separate from Skein's provider-neutral fake.
 //! These retained source fixtures know checkout paths and commands; the generic
-//! fake only selects bounded opaque menu entries. Contract: domain/session.md,
-//! sections 9 and 12; testing-strategy.md, sections 4 and 7.
+//! fake only selects bounded opaque menu entries.
+//! Contract: skein/docs/foundation/testing-strategy.md, sections 4 and 7.
 
 mod counting;
 pub(crate) use counting::{Counting, report};
@@ -11,8 +14,7 @@ use skein_fake_llm_domain::api::{InvalidInput, Menu};
 
 /// Complete application-owned random inputs, including the preserved deliberate
 /// unknown name, malformed object and missing fields. Script and menu wrappers
-/// and bytes jointly obey the actual provider `Config.script_bytes` admission.
-/// Contract: domain/session.md, sections 9 and 12; testing-strategy.md, section 4.
+/// and bytes jointly obey the provider `Config.script_bytes` admission.
 #[must_use]
 pub fn menu() -> Menu {
     let arguments: [&[u8]; 5] = [

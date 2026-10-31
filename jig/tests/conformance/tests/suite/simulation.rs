@@ -10,8 +10,8 @@ fn a_testing_engine_runs_against_independent_parties_workers_and_two_systems() {
         assert!(result.commits > 0);
         assert_eq!(world.peers.assignments.len(), 1, "outcome {result:?}, trace {:?}", world.trace);
         assert_eq!(world.peers.answers, 2);
-        assert!(world.peers.restart_steps.contains(&jig_domain_core::RestartStep::RestoreConnector { connector: 1 }));
-        assert!(world.peers.restart_steps.contains(&jig_domain_core::RestartStep::RestoreConnector { connector: 2 }));
+        assert!(world.peers.start_phases.contains(&jig_domain_core::start::Phase::RestoreConnector { connector: 1 }));
+        assert!(world.peers.start_phases.contains(&jig_domain_core::start::Phase::RestoreConnector { connector: 2 }));
     }
 }
 

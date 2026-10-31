@@ -1,5 +1,5 @@
 //! Host-supplied result contracts and protocol-decoded finish values
-//! (domain/run.md, sections 3.1, 7.1–7.3). Labels have no built-in
+//! (smith/docs/design/domain/run.md, sections 3.1, 7.1–7.3). Labels have no built-in
 //! meaning: this module keeps no runtime state, reads no clocks and performs
 //! no checkout or host effect. The run admits a satisfiable bounded contract,
 //! bounds a declaration with `owned_bytes`, then calls `judge` for shape.
@@ -359,10 +359,6 @@ pub(crate) fn valid_change(spec: &ChangeSpec, limits: &Limits) -> bool {
 
 pub(crate) fn change_cost(spec: &ChangeSpec) -> Option<u64> {
     rule_fields_cost(&spec.fields)
-}
-
-pub(crate) fn change_bytes(change: &Change) -> Option<u64> {
-    fields_cost(&change.fields)
 }
 
 fn judge_fields(rules: &[FieldRule], fields: &[Field], item: Option<u32>, found: &mut Found) {

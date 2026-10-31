@@ -11,18 +11,6 @@ pub(super) enum Rule {
     Call,
 }
 
-impl Rule {
-    pub(super) const fn reason(self) -> &'static [u8] {
-        match self {
-            Self::NotAsked => b"live kind not asked",
-            Self::Turn => b"live turn",
-            Self::Retry => b"live retry",
-            Self::Offset => b"live offset",
-            Self::Call => b"live call",
-        }
-    }
-}
-
 #[derive(Debug)]
 pub(super) struct Streams {
     ask: Option<LiveAsk>,
@@ -70,8 +58,7 @@ impl Streams {
                 return Err(Rule::Offset);
             }
         }
-        let Some(end) = piece.offset().checked_add(u64::try_from(piece.bytes().len()).expect("piece length fits u64"))
-        else {
+        let Some(end) = piece.offset().checked_add(skein_lib::len_u64(piece.bytes().len())) else {
             return Err(Rule::Offset);
         };
         *held = Some((piece.retry(), end));

@@ -232,11 +232,6 @@ impl World {
         self.store.into_stores()
     }
 
-    /// Opt in for this process before opening; crashes create an unselected store.
-    pub fn start_restore(&mut self) {
-        self.store.start_restore();
-    }
-
     #[must_use]
     pub fn start_open_failure(&self) -> Option<&jig_protocol_store::restore::OpenFailure> {
         self.store.start_open_failure()
@@ -367,11 +362,9 @@ impl World {
                 rows: 2,
                 bytes: u64::from(self.env.limits.store.page.bytes),
             });
-            let [Event::Restored { rows, next, .. }] = events.as_slice() else {
-                panic!("restore terminal: {events:?}")
-            };
-            for row in rows {
-                let Row::Jig(record) = row else { panic!("jig restore") };
+            let [Event::Page { items, next, .. }] = events.as_slice() else { panic!("restore terminal: {events:?}") };
+            for item in items {
+                let jig_protocol_store::restore::Item::Row(Row::Jig(record)) = item else { panic!("jig restore") };
                 assert!(restored.rows.insert(record.key(), record.clone()).is_none(), "no repeated page row");
             }
             after.clone_from(next);
@@ -552,6 +545,9 @@ impl World {
             let mut answer = None;
             for event in events {
                 match event {
+                    Event::Page { .. } | Event::PageRefused { .. } => {
+                        unreachable!("a start's pages need a start-mode store")
+                    }
                     Event::Site { owner, of, key, site, at, patcher } => {
                         answer = Some(answer_site(owner, of, key, site, at, patcher, &mut contexts));
                     }
@@ -573,7 +569,6 @@ impl World {
                     | Event::Committed { .. }
                     | Event::Failed { .. }
                     | Event::FrameTooLarge { .. }
-                    | Event::Restored { .. }
                     | Event::Loaded { .. }
                     | Event::Read { .. }
                     | Event::Got { .. }
@@ -834,8 +829,19 @@ impl World {
                 }
             };
             let events = self.request(request);
-            let [Event::Restored { rows, next, .. } | Event::Loaded { rows, next, .. }] = events.as_slice() else {
-                panic!("application page: {events:?}")
+            let (rows, next) = match events.as_slice() {
+                [Event::Page { items, next, .. }] => {
+                    let rows: Vec<_> = items
+                        .iter()
+                        .map(|item| match item {
+                            jig_protocol_store::restore::Item::Row(row) => row,
+                            jig_protocol_store::restore::Item::MissingLink { .. } => panic!("application row"),
+                        })
+                        .collect();
+                    (rows, next)
+                }
+                [Event::Loaded { rows, next, .. }] => (rows.iter().collect(), next),
+                _ => panic!("application page: {events:?}"),
             };
             for row in rows {
                 let Row::Application { key, value } = row else { panic!("application row") };

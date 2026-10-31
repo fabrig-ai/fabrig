@@ -595,15 +595,15 @@ mod tests {
         assert_eq!(store.entries.len(), store.entries.capacity());
         let mut held = u64::try_from(size_of_val(store.entries.as_slice())).unwrap();
         for entry in store.entries.as_slice().iter().flatten() {
-            held = held.checked_add(u64::try_from(entry.row.event.len()).unwrap()).unwrap();
+            held = held.checked_add(skein_lib::len_u64(entry.row.event.len())).unwrap();
             if let Some(action) = &entry.row.action {
-                held = held.checked_add(u64::try_from(action.len()).unwrap()).unwrap();
+                held = held.checked_add(skein_lib::len_u64(action.len())).unwrap();
             }
             let Delivery::Issue { body: skein_forge::forgejo::document::Body::Kept(body), .. } = &entry.payload else {
                 panic!("filled issue payload")
             };
             assert_eq!(body.len(), 6000);
-            held = held.checked_add(u64::try_from(body.len()).unwrap()).unwrap();
+            held = held.checked_add(skein_lib::len_u64(body.len())).unwrap();
         }
         assert!(held <= FAKE_GITHUB_DELIVERY_HELD_CEILING);
         let config = Config::standard();

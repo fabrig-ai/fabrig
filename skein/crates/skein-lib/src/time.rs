@@ -123,6 +123,12 @@ impl Duration {
         self.0
     }
 
+    /// Whole milliseconds, discarding submillisecond nanoseconds (skein/docs/design/lib.md, 8).
+    #[must_use]
+    pub const fn as_millis(self) -> u64 {
+        self.0.div_euclid(1_000_000)
+    }
+
     #[must_use]
     pub const fn checked_add(self, other: Duration) -> Option<Duration> {
         match self.0.checked_add(other.0) {

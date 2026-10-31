@@ -1,9 +1,10 @@
 use skein_io::kernel;
 use smith_events::{AnswerClass, Event};
+use smith_local_process_world::fixture::contains;
 
 #[test]
 fn an_interrupt_mid_turn_and_a_second_drop_the_run() {
-    for placement in [Placement::Spawned, Placement::InProcess] {
+    for placement in smith_local_process_world::fixture::PLACEMENTS {
         let files = Files::new();
         let mut world = World::dropped(12, &files, placement);
         world.settle();
@@ -20,13 +21,7 @@ fn a_dropped_inline_run_completes_as_cancelled_and_dropped() {
     world.scenario.launch.traced = true;
     world.settle();
     let records = world.records();
-    let completed = records
-        .iter()
-        .filter_map(|record| match &record.event {
-            Event::RunCompleted(completed) => Some(completed),
-            _ => None,
-        })
-        .collect::<Vec<_>>();
+    let completed = super::run_completed(&records);
     assert_eq!(completed.len(), 1);
     assert_eq!(completed[0].status, smith_events::Status::Failed);
     let failure = completed[0].failure.as_ref().expect("dropped run");
@@ -39,7 +34,7 @@ fn a_dropped_inline_run_completes_as_cancelled_and_dropped() {
 }
 use smith_local_process_world::{
     Files, Placement, World,
-    referee::{CheckoutRead, Ending, review},
+    referee::{CheckoutRead, Ending},
 };
 
 #[test]
@@ -51,13 +46,7 @@ fn a_store_failure_completes_as_host_store_with_its_turn() {
     world.scenario.launch.traced = true;
     world.settle();
     let records = world.records();
-    let completed = records
-        .iter()
-        .filter_map(|record| match &record.event {
-            Event::RunCompleted(completed) => Some(completed),
-            _ => None,
-        })
-        .collect::<Vec<_>>();
+    let completed = super::run_completed(&records);
     assert_eq!(completed.len(), 1);
     let failure = completed[0].failure.as_ref().expect("host failure");
     assert_eq!(failure.class, AnswerClass::Host);
@@ -77,13 +66,7 @@ fn a_cancelled_answer_completes_with_dropped_false() {
     world.scenario.launch.traced = true;
     world.settle();
     let records = world.records();
-    let completed = records
-        .iter()
-        .filter_map(|record| match &record.event {
-            Event::RunCompleted(completed) => Some(completed),
-            _ => None,
-        })
-        .collect::<Vec<_>>();
+    let completed = super::run_completed(&records);
     assert_eq!(completed.len(), 1);
     let failure = completed[0].failure.as_ref().expect("cancelled answer");
     assert_eq!(failure.class, AnswerClass::Cancelled);
@@ -107,7 +90,7 @@ fn a_chat_resumes_from_its_files_across_runs_of_the_binary() {
     assert!(
         second.queries()[0].messages.iter().flat_map(|message| message.parts.iter()).any(|part| {
             matches!(part, skein_fake_llm_domain::api::Part::ToolCall { name, arguments, .. }
-            if name.as_ref() == b"finish" && arguments.windows(12).any(|part| part == b"First answer"))
+            if name.as_ref() == b"finish" && contains(arguments, b"First answer"))
         }),
         "the provider saw the previous finish result"
     );
@@ -126,10 +109,10 @@ fn a_chat_runs_the_same_with_its_agent_in_process() {
     let mut spawned_queries = spawned.queries().to_vec();
     let mut colocated_queries = colocated.queries().to_vec();
     // Until the local host supplies its durable chat identity (08.4), each
-    // child kind mints from its own RNG path. Each actual activation still
+    // child kind mints from its own RNG path. Each activation still
     // has one scope; every other native provider field must remain equal.
     for queries in [&mut spawned_queries, &mut colocated_queries] {
-        let key = match &queries.first().expect("actual native request").caching {
+        let key = match &queries.first().expect("native request").caching {
             skein_fake_llm_domain::api::Caching::Scope(key) => *key,
             skein_fake_llm_domain::api::Caching::Unscoped | skein_fake_llm_domain::api::Caching::Marks(_) => {
                 panic!("Codex run affinity is rendered")
@@ -146,11 +129,11 @@ fn a_chat_runs_the_same_with_its_agent_in_process() {
 
 #[test]
 fn an_interrupt_in_the_middle_of_a_turn_cancels_the_run() {
-    for placement in [Placement::Spawned, Placement::InProcess] {
+    for placement in smith_local_process_world::fixture::PLACEMENTS {
         let files = Files::new();
         let mut world = World::interrupted(4, &files, placement);
         world.settle();
-        assert!(world.shown().windows(34).any(|text| text == b"interrupted: the run was cancelled"));
+        assert!(contains(world.shown(), b"interrupted: the run was cancelled"));
         assert_eq!(world.exit(), Some(kernel::Exit::Code(0)));
         assert_eq!(world.queries().len(), 1);
     }
@@ -158,7 +141,7 @@ fn an_interrupt_in_the_middle_of_a_turn_cancels_the_run() {
 
 #[test]
 fn a_store_failure_stops_the_chat_and_tells_the_person() {
-    for placement in [Placement::Spawned, Placement::InProcess] {
+    for placement in smith_local_process_world::fixture::PLACEMENTS {
         let files = Files::new();
         let mut first = World::new(6, &files, placement, b"First answer");
         first.settle();
@@ -186,12 +169,12 @@ fn a_store_failure_stops_the_chat_and_tells_the_person() {
 
 #[test]
 fn a_change_is_committed_in_place_with_its_fields_as_the_message() {
-    for placement in [Placement::Spawned, Placement::InProcess] {
+    for placement in smith_local_process_world::fixture::PLACEMENTS {
         let files = Files::new();
         let mut world = World::changed(5, &files, placement);
         let before = world.head().expect("initial head");
         world.settle();
-        review(&world.seen(), &world, Ending::Change { before }).assert_passed(5);
+        world.assert_ended(Ending::Change { before });
         assert_eq!(world.exit(), Some(kernel::Exit::Code(0)));
         let message = std::str::from_utf8(world.commit_message()).expect("commit UTF-8");
         assert!(message.starts_with("Updated result\n\nCreated the result file"), "{message}");
@@ -205,11 +188,11 @@ fn a_change_is_committed_in_place_with_its_fields_as_the_message() {
 fn a_follow_up_sent_as_the_run_finishes_is_read_once_in_both_placements() {
     use skein_lib::Token;
     use smith_local_domain::Fact;
-    for placement in [Placement::Spawned, Placement::InProcess] {
+    for placement in smith_local_process_world::fixture::PLACEMENTS {
         let files = Files::new();
         let mut world = World::finishing(19, &files, placement);
         world.settle();
-        review(&world.seen(), &world, Ending::Report(b"Second answer".to_vec())).assert_passed(19);
+        world.assert_ended(Ending::Report(b"Second answer".to_vec()));
         let reads = world
             .facts()
             .iter()
@@ -226,7 +209,7 @@ fn a_follow_up_typed_as_the_run_finishes_is_read_next() {
     let mut world = World::finishing(49, &files, Placement::InProcess);
     world.interactive();
     world.settle();
-    review(&world.seen(), &world, Ending::Report(b"Second answer".to_vec())).assert_passed(49);
+    world.assert_ended(Ending::Report(b"Second answer".to_vec()));
     assert_eq!(world.exit(), Some(kernel::Exit::Code(0)));
     assert_eq!(
         world
@@ -253,7 +236,7 @@ fn lines_then_end_of_input_answer_then_exit_0() {
         Action::Eof,
     ];
     world.settle();
-    review(&world.seen(), &world, Ending::Report(b"Third answer".to_vec())).assert_passed(51);
+    world.assert_ended(Ending::Report(b"Third answer".to_vec()));
     assert_eq!(world.exit(), Some(kernel::Exit::Code(0)));
     assert_eq!(world.facts().iter().filter(|fact| matches!(fact, smith_local_domain::Fact::Started { .. })).count(), 2);
     assert_eq!(world.queries().len(), 3);
@@ -271,8 +254,8 @@ fn an_interrupt_with_a_line_unread_shows_it_not_delivered() {
         Action::Eof,
     ];
     world.settle();
-    review(&world.seen(), &world, Ending::Cancelled).assert_passed(53);
-    assert!(world.shown().windows(20).any(|text| text == b"Line 2 not delivered"));
+    world.assert_ended(Ending::Cancelled);
+    assert!(contains(world.shown(), b"Line 2 not delivered"));
     assert_eq!(world.facts().iter().filter(|fact| matches!(fact, smith_local_domain::Fact::Started { .. })).count(), 1);
 }
 
@@ -292,7 +275,7 @@ fn slash_new_starts_a_chat_and_slash_resume_reopens_it() {
         Action::Eof,
     ];
     world.settle();
-    review(&world.seen(), &world, Ending::Report(b"Second answer".to_vec())).assert_passed(55);
+    world.assert_ended(Ending::Report(b"Second answer".to_vec()));
     assert_eq!(world.exit(), Some(kernel::Exit::Code(0)));
     assert!(!world.chat_files(b"56").is_empty());
     assert!(!world.chat_files(b"main").is_empty());
@@ -310,13 +293,13 @@ fn slash_new_starts_a_chat_and_slash_resume_reopens_it() {
             }
         })
         .collect();
-    assert!(calls.iter().any(|call| call.windows(12).any(|text| text == b"First answer")));
-    assert!(!calls.iter().any(|call| call.windows(13).any(|text| text == b"Second answer")));
+    assert!(calls.iter().any(|call| contains(call, b"First answer")));
+    assert!(!calls.iter().any(|call| contains(call, b"Second answer")));
     assert!(queries[2].messages.iter().flat_map(|message| message.parts.iter()).any(|part| {
-        matches!(part, skein_fake_llm_domain::api::Part::Text { text } if text.windows(10).any(|part| part == b"main hello"))
+        matches!(part, skein_fake_llm_domain::api::Part::Text { text } if contains(text, b"main hello"))
     }));
     assert!(!queries[2].messages.iter().flat_map(|message| message.parts.iter()).any(|part| {
-        matches!(part, skein_fake_llm_domain::api::Part::Text { text } if text.windows(9).any(|part| part == b"new hello"))
+        matches!(part, skein_fake_llm_domain::api::Part::Text { text } if contains(text, b"new hello"))
     }));
     assert!(
         !queries
@@ -332,7 +315,7 @@ fn slash_new_starts_a_chat_and_slash_resume_reopens_it() {
 fn an_interrupt_with_a_line_unread_starts_nothing_in_both_placements() {
     use smith_local_domain::Fact;
     use smith_local_process_world::terminal::Action;
-    for placement in [Placement::Spawned, Placement::InProcess] {
+    for placement in smith_local_process_world::fixture::PLACEMENTS {
         let files = Files::new();
         let mut world = World::interrupted(21, &files, placement);
         world.scenario.commands = vec![
@@ -341,20 +324,20 @@ fn an_interrupt_with_a_line_unread_starts_nothing_in_both_placements() {
             Action::Eof,
         ];
         world.settle();
-        review(&world.seen(), &world, Ending::Cancelled).assert_passed(21);
+        world.assert_ended(Ending::Cancelled);
         assert_eq!(world.facts().iter().filter(|fact| matches!(fact, Fact::Started { .. })).count(), 1);
     }
 }
 
 #[test]
 fn no_waiting_notice_shows_while_a_line_is_unread_in_both_placements() {
-    for placement in [Placement::Spawned, Placement::InProcess] {
+    for placement in smith_local_process_world::fixture::PLACEMENTS {
         let files = Files::new();
         let mut world = World::waiting(23, &files, placement);
         world.settle();
-        review(&world.seen(), &world, Ending::Report(b"Read follow-up".to_vec())).assert_passed(23);
-        let read = world.shown().windows(14).position(|text| text == b"Read follow-up").expect("follow-up read");
-        assert!(!world.shown()[..read].windows(21).any(|text| text == b"Waiting for a message"));
+        world.assert_ended(Ending::Report(b"Read follow-up".to_vec()));
+        let read = skein_lib::bytes::find(world.shown(), b"Read follow-up").expect("follow-up read");
+        assert!(!contains(&world.shown()[..read], b"Waiting for a message"));
         assert!(world.facts().iter().any(|fact| {
             matches!(fact, smith_local_domain::Fact::Answered { read: Some(name), .. } if name.raw() == 2)
         }));
@@ -375,18 +358,20 @@ fn assert_crossing_wait_records(records: &[smith_events::Record]) {
 #[test]
 fn a_turn_saved_while_a_line_crosses_a_wait_releases_the_next_response() {
     use smith_local_process_world::terminal::Action;
-    for placement in [Placement::Spawned, Placement::InProcess] {
+    for placement in smith_local_process_world::fixture::PLACEMENTS {
         let files = Files::new();
         let mut world = World::waiting(37, &files, placement);
         world.scenario.launch.traced = true;
-        world.scenario.ending = Ending::Report(b"Crossed wait".to_vec());
+        world.scenario.ending = Ending::Report(b"Answer after crossing".to_vec());
+        world.scenario.scripts = Some(smith_local_process_world::world::crossing_scripts(b"Answer after crossing"));
+        world.scenario.line_on_wait = Some(b"follow-up\n".as_slice().into());
         world.scenario.commands = vec![
             Action::Send(b"hello\n".as_slice().into()),
-            Action::Wait(b"Crossed wait".as_slice().into()),
+            Action::Wait(b"Answer after crossing".as_slice().into()),
             Action::Eof,
         ];
         world.settle();
-        review(&world.seen(), &world, Ending::Report(b"Crossed wait".to_vec())).assert_passed(37);
+        world.assert_ended(Ending::Report(b"Answer after crossing".to_vec()));
         assert_eq!(world.queries().len(), 2);
         assert_eq!(world.exit(), Some(kernel::Exit::Code(0)));
         assert_eq!(world.turns(), 2);
@@ -419,18 +404,19 @@ fn assert_start_message_records(records: &[smith_events::Record]) {
 #[test]
 fn a_line_typed_while_the_run_starts_reaches_it_as_a_message() {
     use smith_local_process_world::terminal::Action;
-    for placement in [Placement::Spawned, Placement::InProcess] {
+    for placement in smith_local_process_world::fixture::PLACEMENTS {
         let files = Files::new();
         let mut world = World::waiting(37, &files, placement);
         world.scenario.launch.traced = true;
-        world.scenario.ending = Ending::Report(b"Queued while starting".to_vec());
+        world.scenario.ending = Ending::Report(b"Answer after startup".to_vec());
+        world.scenario.scripts = Some(smith_local_process_world::world::crossing_scripts(b"Answer after startup"));
         world.scenario.commands = vec![
             Action::Send(b"hello\nfollow-up\n".as_slice().into()),
-            Action::Wait(b"Queued while starting".as_slice().into()),
+            Action::Wait(b"Answer after startup".as_slice().into()),
             Action::Eof,
         ];
         world.settle();
-        review(&world.seen(), &world, Ending::Report(b"Queued while starting".to_vec())).assert_passed(37);
+        world.assert_ended(Ending::Report(b"Answer after startup".to_vec()));
         assert_eq!(world.exit(), Some(kernel::Exit::Code(0)));
         let records = match placement {
             Placement::Spawned => world.agent_records(),
@@ -451,7 +437,7 @@ fn an_accepted_answer_after_several_tools_reaches_the_host_before_teardown() {
     world.settle();
     assert_eq!(world.exit(), Some(kernel::Exit::Code(0)));
     assert_eq!(world.queries().len(), 4);
-    assert!(!world.shown().windows(20).any(|text| text == b"Agent process failed"));
+    assert!(!contains(world.shown(), b"Agent process failed"));
     let records = world.agent_records();
     assert!(records.iter().any(
         |record| matches!(&record.event, Event::RunCompleted(end) if end.status == smith_events::Status::Accepted)
@@ -463,7 +449,7 @@ fn an_accepted_answer_after_several_tools_reaches_the_host_before_teardown() {
 
 #[test]
 fn a_chat_writes_session_ended_after_its_last_word() {
-    for placement in [Placement::Spawned, Placement::InProcess] {
+    for placement in smith_local_process_world::fixture::PLACEMENTS {
         let files = Files::new();
         let mut world = World::traced(37, &files, placement, b"First answer");
         world.settle();
@@ -472,14 +458,14 @@ fn a_chat_writes_session_ended_after_its_last_word() {
         let answer = records.iter().position(|record| matches!(record.event, Event::RunCompleted(_))).expect("answer");
         assert!(answer < records.len() - 1);
         assert!(matches!(&records.last().expect("terminal").event,
-            Event::SessionEnded(end) if end.answered && end.exit == 0 && end.aborted == Some(false)));
+            Event::SessionEnded(end) if end.answered && end.exit == 0 && !end.aborted));
         assert_eq!(records.iter().filter(|record| matches!(record.event, Event::SessionEnded(_))).count(), 1);
     }
 }
 
 #[test]
 fn a_termination_signal_while_closing_aborts_and_says_so() {
-    for placement in [Placement::Spawned, Placement::InProcess] {
+    for placement in smith_local_process_world::fixture::PLACEMENTS {
         let files = Files::new();
         let mut world = World::traced(37, &files, placement, b"First answer");
         world.scenario.terminate_on_output_end = true;
@@ -495,7 +481,7 @@ fn a_termination_signal_while_closing_aborts_and_says_so() {
             .expect("abort notice");
         assert!(notice < records.len() - 1);
         assert!(matches!(&records.last().expect("terminal").event,
-            Event::SessionEnded(end) if end.answered && end.exit == 0 && end.aborted == Some(true)));
+            Event::SessionEnded(end) if end.answered && end.exit == 0 && end.aborted));
         assert_eq!(records.iter().filter(|record| matches!(record.event, Event::SessionEnded(_))).count(), 1);
         assert!(records.last().expect("terminal").t_ms - records[notice].t_ms < 5_000);
     }
@@ -514,9 +500,9 @@ fn a_forced_exit_after_an_accepted_answer_is_shown_as_a_warning() {
         ];
         world.settle();
         assert_eq!(world.exit(), Some(kernel::Exit::Code(0)));
-        assert!(world.shown().windows(12).any(|part| part == b"First answer"));
+        assert!(contains(world.shown(), b"First answer"));
         assert_eq!(
-            world.errors().windows(45).any(|part| part == b"warning: agent forced to exit after answering"),
+            contains(world.errors(), b"warning: agent forced to exit after answering"),
             placement == Placement::Spawned
         );
     }
@@ -562,7 +548,7 @@ fn slash_model_applies_from_the_next_activation() {
         Action::Eof,
     ];
     world.settle();
-    review(&world.seen(), &world, Ending::Report(b"First answer".to_vec())).assert_passed(57);
+    world.assert_ended(Ending::Report(b"First answer".to_vec()));
     let queries = world.queries();
     assert_eq!(queries.len(), 3);
     assert_eq!(queries[0].model.as_ref(), b"fake");
@@ -586,13 +572,8 @@ fn slash_model_on_another_endpoint_is_refused_and_the_chat_kept() {
         Action::Eof,
     ];
     world.settle();
-    review(&world.seen(), &world, Ending::Report(b"Second answer".to_vec())).assert_passed(59);
-    assert!(
-        world
-            .shown()
-            .windows(b"smith --chat main -m elsewhere/model".len())
-            .any(|text| text == b"smith --chat main -m elsewhere/model")
-    );
+    world.assert_ended(Ending::Report(b"Second answer".to_vec()));
+    assert!(contains(world.shown(), b"smith --chat main -m elsewhere/model"));
     assert_eq!(world.queries().len(), 2);
     assert!(!world.chat_files(b"main").is_empty());
 }
@@ -611,7 +592,7 @@ fn slash_effort_outside_the_models_efforts_is_refused_naming_them() {
         Action::Eof,
     ];
     world.settle();
-    review(&world.seen(), &world, Ending::Report(b"First answer".to_vec())).assert_passed(61);
+    world.assert_ended(Ending::Report(b"First answer".to_vec()));
     assert_eq!(world.queries().len(), 1);
     assert_eq!(world.exit(), Some(kernel::Exit::Code(0)));
 }
@@ -630,7 +611,7 @@ fn slash_model_drops_an_effort_the_new_model_does_not_declare() {
         Action::Eof,
     ];
     world.settle();
-    review(&world.seen(), &world, Ending::Report(b"First answer".to_vec())).assert_passed(63);
+    world.assert_ended(Ending::Report(b"First answer".to_vec()));
     assert_eq!(world.queries().len(), 1);
     assert_eq!(world.queries()[0].model.as_ref(), b"alternate");
     assert_eq!(world.exit(), Some(kernel::Exit::Code(0)));

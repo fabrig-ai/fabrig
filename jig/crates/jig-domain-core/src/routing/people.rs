@@ -23,17 +23,6 @@ pub(super) fn route_people(
     work: &mut Queue<Event>,
     event: people::Event,
 ) -> Requests {
-    if event == people::Event::Restored {
-        let stage = core.restart_step();
-        if stage == Some(crate::RestartStep::LoadCore) || stage == Some(crate::RestartStep::LoadInbox) {
-            core.counters.finish_restore();
-            if core.counters.dirty() && !core.people.ready() {
-                return super::first_start::seed(core, env, work);
-            }
-        }
-        core.seed_owners = Box::new([]);
-        core.seed_projects = Box::new([]);
-    }
     if let people::Event::Forget { task, .. } = &event {
         drop(core.archived_chats.remove(task));
     }
@@ -80,8 +69,7 @@ pub(super) fn route_people(
         | people::Event::Act { .. }
         | people::Event::Whose { .. }
         | people::Event::Ask { .. }
-        | people::Event::Restore { .. }
-        | people::Event::Restored) => other,
+        | people::Event::Restore { .. }) => other,
     };
     super::view_routes::touch_people_event(core, &env.limits, &event);
     let mut child = Queue::uncapped();
@@ -230,7 +218,9 @@ pub(crate) fn tag_people(
             },
             people::Request::RolesApplied { .. } => continue,
             people::Request::RolesRefused { .. } | people::Request::RestoreRefused { .. } => {
-                Request::Now(Box::new(Now::RestoreRefused))
+                core.start_collect_failure();
+                assert!(core.start_failure().is_some(), "people refusal names its fit");
+                continue;
             }
             people::Request::Route { request, person, project, role, mut ask, models } => {
                 if !crate::model_names::resolve(&mut ask, &models, &core.settings.models) {

@@ -1,4 +1,4 @@
-//! Every retained V2 inventory and terminal path is metered by skein's allocator
+//! Every retained inventory and terminal path is metered by skein's allocator
 //! (programming-model.md, section 6.3; domain/host.md, sections 4, 6 and 10).
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
 use skein_world::domain::heap::Meter;
@@ -131,25 +131,7 @@ impl Measured {
                     | Down::Grant { .. }
                     | Down::Cancel => {}
                 },
-                Output::Parent(
-                    parent::Request::Started { .. }
-                    | parent::Request::Admitted { .. }
-                    | parent::Request::Called { .. }
-                    | parent::Request::Withdrawn { .. }
-                    | parent::Request::Turn { .. }
-                    | parent::Request::Waiting { .. }
-                    | parent::Request::Long { .. }
-                    | parent::Request::LongDone { .. }
-                    | parent::Request::Unread { .. }
-                    | parent::Request::Unauthorized { .. }
-                    | parent::Request::Refused { .. }
-                    | parent::Request::Limited { .. }
-                    | parent::Request::Told { .. }
-                    | parent::Request::Answered { .. }
-                    | parent::Request::Faulted { .. }
-                    | parent::Request::MessageRefused { .. }
-                    | parent::Request::Gone { .. },
-                )
+                Output::Parent(_)
                 | Output::Process(
                     process::Request::Read { .. }
                     | process::Request::Signal { .. }
@@ -213,7 +195,7 @@ fn maximum_v2_starts_and_full_queued_replies_fit_every_slot() {
         let mut measured = Measured::new(limits, ceiling);
         let owners: Vec<Token> = (1..=u64::from(agents)).map(|client| measured.spawn(client)).collect();
         let retained = u64::from(agents) * (limits.charter_bytes + limits.transcript_bytes + limits.answered_bytes);
-        assert!(measured.meter.held() >= retained, "maximum starts actually retained");
+        assert!(measured.meter.held() >= retained, "maximum starts retained");
         for owner in owners {
             measured.start(owner);
             for position in 0..limits.calls {
@@ -256,11 +238,8 @@ fn maximum_v2_starts_and_full_queued_replies_fit_every_slot() {
                     owner,
                     Up::Turn {
                         turn: Turn {
-                            opens_window: number == 1,
-                            number,
                             spent: u64::from(number),
-                            read: None,
-                            body: smith_host_world::turn_value(limits.turn_bytes),
+                            ..smith_host_world::turn(number, smith_host_world::turn_value(limits.turn_bytes))
                         },
                     },
                 );
@@ -327,7 +306,7 @@ fn maximum_start_io_ownership_coexists_with_full_pre_read_message_queue() {
             false,
         );
     }
-    assert!(measured.held_start.is_some(), "actual IO still owns the maximum first Send");
+    assert!(measured.held_start.is_some(), "IO still owns the maximum first Send");
     assert!(measured.meter.held() >= caller + u64::from(limits.messages) * (limits.message_bytes - 2));
     // The scenario ceiling includes domain and caller ownership at every step;
     // dropping the caller's Start is a send terminal ownership boundary.
@@ -431,7 +410,7 @@ fn maximum_carried_start_messages_are_owned_and_priced_during_spawn() {
         .expect("maximum carried Start admitted");
     assert!(
         measured.meter.held() >= u64::from(limits.messages) * (limits.message_bytes - 2),
-        "actual message payloads remain retained until spawn settles"
+        "message payloads remain retained until spawn settles"
     );
     measured.step(Input::Process(process::Event::Unspawned { owner, detail: Box::default() }), false);
     measured.domain.reclaim();

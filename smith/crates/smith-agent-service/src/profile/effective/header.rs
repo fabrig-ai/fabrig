@@ -1,5 +1,5 @@
 //! The event vocabulary's effective names, with configured endpoint and model names.
-//! No addresses or credentials are read. Contract: protocol/limits.md, section 9.
+//! No addresses or credentials are read. Contract: smith/docs/design/protocol/limits.md, section 9.
 
 use super::super::Configuration;
 use super::{Limit, LimitName, Per, Value};
@@ -11,7 +11,7 @@ use smith_events::{EffectiveLimit, LimitValue};
 #[must_use]
 pub fn header(
     limits: &[Limit],
-    names: &smith_protocol_channel::Endpoints,
+    names: &smith_protocol_translate::Endpoints,
     configuration: &Configuration,
 ) -> Option<List<EffectiveLimit>> {
     let mut result = List::with_capacity(u32::try_from(limits.len()).ok()?);
@@ -20,7 +20,7 @@ pub fn header(
             Value::Bytes(value) | Value::Count(value) | Value::Tokens(value) | Value::Spend(value) => {
                 LimitValue::Integer(value)
             }
-            Value::Duration(value) => LimitValue::Integer(value.as_nanos().checked_div(1_000_000)?),
+            Value::Duration(value) => LimitValue::Integer(value.as_millis()),
             Value::Fraction(value) => {
                 if value.denominator == 0 {
                     return None;
@@ -38,7 +38,7 @@ pub fn header(
 
 fn name(
     limit: &LimitName,
-    names: &smith_protocol_channel::Endpoints,
+    names: &smith_protocol_translate::Endpoints,
     configuration: &Configuration,
 ) -> Option<Box<[u8]>> {
     let mut parts: [&[u8]; 8] = [limit.layer.name().as_bytes(), b".", limit.field.as_bytes(), b"", b"", b"", b"", b""];

@@ -4770,11 +4770,11 @@ fn deleting_entry(d: &Domain, task: u64, resource: &skein_forge_client::Resource
 
 #[expect(clippy::too_many_lines, reason = "one exhaustive durable row restoration dispatcher")]
 fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
+    let started = d.restore_started.expect("restore_begin precedes every restored row");
     if d.restore_fit.is_some() {
         return;
     }
     if let Stored::Application { until, .. } = &record
-        && let Some(started) = d.restore_started
         && *until <= started
     {
         return;
@@ -4787,7 +4787,7 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
         d.restore_phase = RestorePhase::Restoring;
     }
     if d.restore_phase == RestorePhase::Restoring
-        && let Err(failure) = d.restore_references(&record)
+        && let Err(failure) = d.reconciliation.restore(&record)
     {
         d.restore_fit = Some(Box::new(failure));
         return;
@@ -5323,176 +5323,196 @@ fn failed_at(held: &crate::Connection, failed: Option<crate::FailedStep>) -> Opt
 }
 
 impl Domain {
-    // Ordinals name retained rows without retaining another copy of their keys
-    // (temper/docs/design/domain/root.md, 9.1).
-    fn restore_references(&mut self, row: &Stored) -> Result<(), RestoreFit> {
-        let before = self.reconciliation.len();
-        self.reconciliation.restore(row)?;
-        if self.reconciliation.len() != before
-            && let Some((position, inserted)) = self.restored_link_position(row)
-        {
-            self.reconciliation.locate(before, position, inserted);
-        }
-        Ok(())
-    }
-    fn restored_link_position(&self, row: &Stored) -> Option<(u32, bool)> {
-        let (position, inserted) = match row {
-            Stored::Call { key, .. } => (self.named_calls.range(..key).count(), !self.named_calls.contains_key(key)),
-            Stored::ProposedEffect(row) => {
-                (self.proposed_effects.range(..&row.number).count(), !self.proposed_effects.contains_key(&row.number))
-            }
-            Stored::Repository(row) => {
-                (self.repositories.range(..&row.provider).count(), !self.repositories.contains_key(&row.provider))
-            }
-            Stored::Hold(row) => (self.holds.range(..&row.name).count(), !self.holds.contains_key(&row.name)),
-            Stored::Names { task, .. } => (self.names.range(..task).count(), !self.names.contains_key(task)),
-            Stored::BranchHead(row) => (self.heads.range(..&row.name).count(), !self.heads.contains_key(&row.name)),
-            Stored::PullState(row) => (self.pulls.range(..&row.name).count(), !self.pulls.contains_key(&row.name)),
-            Stored::Ci(row) => (
-                self.ci.range(..&(row.repository, row.head)).count(),
-                !self.ci.contains_key(&(row.repository, row.head)),
-            ),
-            Stored::Entry { entry, .. } => {
-                (self.entries.range(..&entry.number).count(), !self.entries.contains_key(&entry.number))
-            }
-            Stored::Change(row) => (self.changes.range(..&row.task).count(), !self.changes.contains_key(&row.task)),
-            Stored::Issue(row) => (self.issues.range(..&row.goal).count(), !self.issues.contains_key(&row.goal)),
-            Stored::Release(row) => (self.releases.range(..&row.task).count(), !self.releases.contains_key(&row.task)),
-            Stored::Application { token, .. } => (
-                self.application.kept.range(..&Token::new(*token)).count(),
-                !self.application.kept.contains_key(&Token::new(*token)),
-            ),
-            Stored::Landing(row) => (
-                self.landing.rows.range(..&row.landing.task).count(),
-                !self.landing.rows.contains_key(&row.landing.task),
-            ),
-            Stored::Receipt { key, .. } => {
-                (self.landing.receipts.range(..key).count(), !self.landing.receipts.contains_key(key))
-            }
-            Stored::Subscription(row) => {
-                let mut position: usize = 0;
-                let mut inserted = true;
-                for ((task, topic), _) in &self.subscriptions {
-                    if *task < row.task || (*task == row.task && *topic < row.topic) {
-                        position = position.checked_add(1).expect("subscription rows fit their table capacity");
-                    } else if *task == row.task && *topic == row.topic {
-                        inserted = false;
-                    }
-                }
-                (position, inserted)
-            }
-            Stored::Forge(_)
-            | Stored::ForgeNumber { .. }
-            | Stored::Playground(_)
-            | Stored::Client(_)
-            | Stored::Flight { .. }
-            | Stored::Writer(_)
-            | Stored::Landed { .. }
-            | Stored::Binding { .. } => return None,
-        };
-        Some((u32::try_from(position).expect("retained rows fit their table capacity"), inserted))
-    }
-    /// Recover the durable key only after finding an unmade link.
-    pub(crate) fn restored_link_key(
+    /// Find a referencing row only on an unmade link (temper/docs/design/domain/root.md, 9.1).
+    #[expect(clippy::too_many_lines, reason = "one exhaustive failure-path scan of the referencing family")]
+    pub(super) fn restored_link_key(
         &self,
         kind: crate::RecordKind,
-        row: u32,
         need: crate::reconcile::Need,
         client_repository: bool,
-    ) -> Option<Key> {
+    ) -> Key {
         use crate::RecordKind;
         use crate::reconcile::Need;
-        let index = usize::try_from(row).expect("row ordinal fits usize");
-        let key = match kind {
-            RecordKind::Forge => {
-                let (key, _) = self.records.iter().nth(index).expect("restored forge retained");
-                Key::Forge(*key)
-            }
+        match kind {
             RecordKind::Call => {
-                let (key, _) = self.named_calls.iter().nth(index).expect("restored link row retained");
-                Key::Call(*key)
+                for (key, _) in &self.named_calls {
+                    if need.task(key.task, None) {
+                        return Key::Call(*key);
+                    }
+                }
             }
             RecordKind::ProposedEffect => {
-                let (key, _) = self.proposed_effects.iter().nth(index).expect("restored link row retained");
-                Key::ProposedEffect(*key)
+                for (key, row) in &self.proposed_effects {
+                    if need.entry(&row.entry) {
+                        return Key::ProposedEffect(*key);
+                    }
+                }
             }
             RecordKind::Repository => {
-                let (key, _) = self.repositories.iter().nth(index).expect("restored link row retained");
-                Key::Repository(*key)
+                for (key, _) in &self.repositories {
+                    if need == Need::Forge(key.forge) {
+                        return Key::Repository(*key);
+                    }
+                }
             }
             RecordKind::Hold => {
-                let (key, _) = self.holds.iter().nth(index).expect("restored link row retained");
-                Key::Hold(key.clone())
+                for (key, row) in &self.holds {
+                    if need.name(key)
+                        || need.task(row.task, Some(key.forge))
+                        || match row.writer {
+                            Some(Writer::Run { task, .. } | Writer::Lost { task, .. }) => {
+                                need.task(task, Some(key.forge))
+                            }
+                            Some(Writer::Entry(_)) | None => false,
+                        }
+                    {
+                        return Key::Hold(key.clone());
+                    }
+                }
             }
             RecordKind::Names => {
-                let (key, _) = self.names.iter().nth(index).expect("restored link row retained");
-                Key::Names(*key)
+                for (key, resources) in &self.names {
+                    if need.task(*key, crate::reconcile::names_forge(resources)) {
+                        return Key::Names(*key);
+                    }
+                    for name in resources {
+                        if need.name(name) {
+                            return Key::Names(*key);
+                        }
+                    }
+                }
             }
             RecordKind::Subscription => {
-                let (key, _) = self.subscriptions.iter().nth(index).expect("restored link row retained");
-                Key::Subscription { task: key.0, topic: key.1.clone() }
+                for (key, _) in &self.subscriptions {
+                    let repository = match &key.1 {
+                        Topic::Landings { repository, .. }
+                        | Topic::Ci { repository, .. }
+                        | Topic::Pull { repository, .. }
+                        | Topic::Participation { repository, .. } => *repository,
+                    };
+                    if need.repository(repository) || need.task(key.0, Some(repository.forge)) {
+                        return Key::Subscription { task: key.0, topic: key.1.clone() };
+                    }
+                }
             }
             RecordKind::BranchHead => {
-                let (key, _) = self.heads.iter().nth(index).expect("restored link row retained");
-                Key::BranchHead(key.clone())
+                for (key, _) in &self.heads {
+                    if need.name(key) {
+                        return Key::BranchHead(key.clone());
+                    }
+                }
             }
             RecordKind::PullState => {
-                let (key, _) = self.pulls.iter().nth(index).expect("restored link row retained");
-                Key::PullState(key.clone())
+                for (key, _) in &self.pulls {
+                    if need.name(key) {
+                        return Key::PullState(key.clone());
+                    }
+                }
             }
             RecordKind::Ci => {
-                let (key, _) = self.ci.iter().nth(index).expect("restored link row retained");
-                Key::Ci { repository: key.0, head: key.1 }
+                for (key, _) in &self.ci {
+                    if need.repository(key.0) {
+                        return Key::Ci { repository: key.0, head: key.1 };
+                    }
+                }
             }
             RecordKind::Entry => {
-                let (key, _) = self.entries.iter().nth(index).expect("restored link row retained");
-                Key::Entry(*key)
+                for (key, row) in &self.entries {
+                    if need.repository(row.entry.repository)
+                        || need == (Need::EntryOwner { task: row.entry.task, entry: *key })
+                    {
+                        return Key::Entry(*key);
+                    }
+                }
             }
             RecordKind::Change => {
-                let (key, _) = self.changes.iter().nth(index).expect("restored link row retained");
-                Key::Change(*key)
+                for (key, row) in &self.changes {
+                    if need.repository(row.repository) {
+                        return Key::Change(*key);
+                    }
+                }
             }
             RecordKind::Issue => {
-                let (key, _) = self.issues.iter().nth(index).expect("restored link row retained");
-                Key::Issue(*key)
+                for (key, row) in &self.issues {
+                    if need.repository(row.repository) || need.task(*key, Some(row.repository.forge)) {
+                        return Key::Issue(*key);
+                    }
+                }
             }
             RecordKind::Release => {
-                let (key, _) = self.releases.iter().nth(index).expect("restored link row retained");
-                Key::Release(*key)
+                for (key, row) in &self.releases {
+                    if need.task(row.task, None)
+                        || need.task(row.root, None)
+                        || match &row.pending {
+                            Some((_, Some(name))) => need.name(name),
+                            Some((_, None)) | None => false,
+                        }
+                    {
+                        return Key::Release(*key);
+                    }
+                }
             }
             RecordKind::Application => {
-                let (key, _) = self.application.kept.iter().nth(index).expect("restored link row retained");
-                Key::Application(key.raw())
+                for (key, (_, outcome)) in &self.application.kept {
+                    if match outcome {
+                        crate::ApplicationOutcome::Adopted(row) => need.repository(row.repository),
+                        crate::ApplicationOutcome::CoreRefused(_) | crate::ApplicationOutcome::ForgeRefused(_) => false,
+                    } {
+                        return Key::Application(key.raw());
+                    }
+                }
             }
             RecordKind::Landing => {
-                let (key, _) = self.landing.rows.iter().nth(index).expect("restored link row retained");
-                Key::Landing(*key)
+                for (key, row) in &self.landing.rows {
+                    for member in &row.landing.members {
+                        if need.repository(skein_forge::api::Repository {
+                            forge: member.repository.forge,
+                            repository: member.repository.repository,
+                        }) {
+                            return Key::Landing(*key);
+                        }
+                    }
+                }
             }
             RecordKind::Receipt => {
-                let (key, _) = self.landing.receipts.iter().nth(index).expect("restored link row retained");
-                Key::Receipt(key.clone())
+                for (key, _) in &self.landing.receipts {
+                    if need.repository(key.repository) {
+                        return Key::Receipt(key.clone());
+                    }
+                }
             }
             RecordKind::Flight => {
-                let Need::Entry { task, entry } = need else { unreachable!("flight entry link") };
-                Key::Flight { task, entry }
+                for ((task, entry), ()) in &self.flights {
+                    if need == (Need::Entry { task: *task, entry: *entry }) {
+                        return Key::Flight { task: *task, entry: *entry };
+                    }
+                }
             }
             RecordKind::Writer => {
-                let Need::Forge(forge) = need else { unreachable!("writer forge link") };
-                Key::Writer(forge)
+                for (forge, _) in &self.writers {
+                    if need == Need::Forge(*forge) {
+                        return Key::Writer(*forge);
+                    }
+                }
             }
             RecordKind::Client => match need {
-                Need::Forge(forge) => Key::Writer(forge),
+                Need::Forge(forge) => return Key::Writer(forge),
                 Need::Repository(repository) if client_repository => {
-                    Key::Client(skein_forge_client::Key::Repository(repository))
+                    return Key::Client(skein_forge_client::Key::Repository(repository));
                 }
-                // The opaque client exposes no retained Live-row key iterator.
-                Need::Repository(_) => return None,
+                Need::Repository(repository) => {
+                    for key in &self.client.live_keys() {
+                        if key.repository == repository && self.client.cached(key).is_some() {
+                            return Key::Client(skein_forge_client::Key::Live(key.clone()));
+                        }
+                    }
+                }
                 Need::Task { .. } | Need::EntryOwner { .. } | Need::Entry { .. } => {
                     unreachable!("client forge or repository link")
                 }
             },
-            RecordKind::Landed | RecordKind::Binding => unreachable!("row has no links"),
-        };
-        Some(key)
+            RecordKind::Forge | RecordKind::Landed | RecordKind::Binding => unreachable!("row has no links"),
+        }
+        unreachable!("unmade link has a referencing retained row")
     }
 }

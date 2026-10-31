@@ -27,9 +27,8 @@ fn project_core() -> (Core, Limits) {
         )
         .expect("one configured policy");
     let mut core = Core::new(config, &limits).expect("project fixture");
-    let _restart = core.restart_begin(false);
-    let _seed =
-        step(&mut core, &Env { now: Time::ZERO, wall: Wall::EPOCH, limits }, Event::People(people::Event::Restored));
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
+    finish_start(&mut core, &env);
     (core, limits)
 }
 #[test]

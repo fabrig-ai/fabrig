@@ -7,59 +7,12 @@ use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
 use skein_llm::{self as shared, Credential};
 use skein_world::domain::heap::Meter;
 use smith_domain::{GrantName, llm, run, tools};
-use smith_protocol_llm_world::adapter::{
-    self as adapter, Component, ComponentLimits, ConfiguredEndpoint, Endpoints, FromDomain, Receiving, ToDomain,
+use smith_protocol_llm_world::codec::{
+    self as codec, Component, ComponentLimits, ConfiguredEndpoint, Endpoints, FromDomain, Receiving, ToDomain,
 };
 
 fn limits() -> ComponentLimits {
-    let client = skein_llm_world::limits();
-    let adapter = adapter::Limits {
-        client,
-        tool_bytes: 32_768,
-        history_bytes: u64::from(client.request),
-        rendered_result: client.strings,
-        stated: smith_protocol_llm_world::adapter::stated(),
-    };
-    let decoded_call_bytes = 4096;
-    ComponentLimits {
-        adapter,
-        connection: skein_llm_connection::Limits {
-            memory: 1 << 40,
-            endpoints: 1,
-            connections: 2,
-            calls: 2,
-            per_endpoint: 2,
-            idle_keep: smith_agent_service::profile::standard().policy.connection_keep,
-            io: skein_io::Limits {
-                sockets: 3,
-                names: 0,
-                refusals: 1,
-                intake: 19_000,
-                receive: 1024,
-                output: 19_000,
-                sends: 2,
-                accepts: 1,
-                backlog: 2,
-                close_timeout: Duration::from_secs(1),
-                retry: Duration::from_millis(10),
-            },
-            tls: skein_tls::client::Limits {
-                read: skein_llm::client::largest_read(&client),
-                send: 4096,
-                records: skein_tls::client::MAX_RECORD,
-            },
-        },
-        receiving: Receiving {
-            max_completion_bytes: adapter::completion_bound(&client, decoded_call_bytes).expect("receiving bound"),
-            max_completion_blocks: client.output_items,
-            decoded_call_bytes,
-            max_failure_bytes: client.detail_bytes,
-        },
-        contract_bytes: 4096,
-        llms: 1,
-        accounts: 1,
-        grant_value_bytes: 128,
-    }
+    smith_protocol_llm_world::fixture::component()
 }
 
 fn endpoints() -> Endpoints {
@@ -151,7 +104,7 @@ fn credential(value: &[u8]) -> Credential {
 #[test]
 fn invalid_limits_are_refused() {
     let bounds = limits();
-    assert!(adapter::component_valid(&bounds, &endpoints()));
+    assert!(codec::component_valid(&bounds, &endpoints()));
     Component::new(&bounds, endpoints()).expect("valid component");
     let mut cases = Vec::new();
     for check in 0..16 {
@@ -228,16 +181,16 @@ fn invalid_limits_are_refused() {
         cases.push((name, invalid));
     }
     for (check, invalid) in cases {
-        assert!(!adapter::component_valid(&invalid, &endpoints()), "{check}");
-        assert!(matches!(Component::new(&invalid, endpoints()), Err(adapter::ComponentError::Limits)), "{check}");
+        assert!(!codec::component_valid(&invalid, &endpoints()), "{check}");
+        assert!(matches!(Component::new(&invalid, endpoints()), Err(codec::ComponentError::Limits)), "{check}");
     }
     let mut incompatible = bounds;
     incompatible.adapter.client.tools -= 1;
-    assert!(!adapter::component_valid(&incompatible, &endpoints()));
-    assert!(matches!(Component::new(&incompatible, endpoints()), Err(adapter::ComponentError::ClientLimits)));
+    assert!(!codec::component_valid(&incompatible, &endpoints()));
+    assert!(matches!(Component::new(&incompatible, endpoints()), Err(codec::ComponentError::ClientLimits)));
     let mut large = bounds;
     large.contract_bytes = u64::MAX;
-    assert!(adapter::component_valid(&large, &endpoints()), "retained heap total is not validity");
+    assert!(codec::component_valid(&large, &endpoints()), "retained heap total is not validity");
     Component::new(&large, endpoints()).expect("aggregate heap arithmetic is not constructor validity");
 }
 
@@ -304,7 +257,7 @@ fn a_connect_deadline_keeps_timed_out_failure_evidence() {
         up.pop(),
         Some(ToDomain::Failed {
             owner,
-            failure: llm::Failure::TimedOut { phase: llm::Phase::Connect },
+            failure: llm::Failure::TimedOut { phase: llm::CompletionPhase::Connect },
             evidence: llm::Evidence::Unsent,
             ..
         }) if owner == Token::new(7)
@@ -332,32 +285,38 @@ fn shared_failure_cases() -> [(shared::Failure, llm::Failure); 18] {
         (shared::Failure::Cancelled, llm::Failure::Cancelled),
         (
             shared::Failure::TimedOut { phase: shared::Phase::Connect },
-            llm::Failure::TimedOut { phase: llm::Phase::Connect },
+            llm::Failure::TimedOut { phase: llm::CompletionPhase::Connect },
         ),
         (
             shared::Failure::TimedOut { phase: shared::Phase::Handshake },
-            llm::Failure::TimedOut { phase: llm::Phase::Handshake },
+            llm::Failure::TimedOut { phase: llm::CompletionPhase::Handshake },
         ),
-        (shared::Failure::TimedOut { phase: shared::Phase::Head }, llm::Failure::TimedOut { phase: llm::Phase::Head }),
-        (shared::Failure::TimedOut { phase: shared::Phase::Idle }, llm::Failure::TimedOut { phase: llm::Phase::Idle }),
+        (
+            shared::Failure::TimedOut { phase: shared::Phase::Head },
+            llm::Failure::TimedOut { phase: llm::CompletionPhase::Head },
+        ),
+        (
+            shared::Failure::TimedOut { phase: shared::Phase::Idle },
+            llm::Failure::TimedOut { phase: llm::CompletionPhase::Idle },
+        ),
         (
             shared::Failure::TimedOut { phase: shared::Phase::Whole },
-            llm::Failure::TimedOut { phase: llm::Phase::Whole },
+            llm::Failure::TimedOut { phase: llm::CompletionPhase::Whole },
         ),
     ]
 }
 
-fn prepared_failure(limits: &ComponentLimits) -> adapter::Prepared {
-    let input = adapter::Input {
+fn prepared_failure(limits: &ComponentLimits) -> codec::Prepared {
+    let input = codec::Input {
         owner: Token::new(71),
         prompt: prompt(),
         endpoint_name: llm::Endpoint(42),
         endpoint: shared::Endpoint::codex(),
         credential: credential(b"secret"),
-        application: Box::new([]),
+
         receiving: limits.receiving,
     };
-    adapter::prepare(input, &limits.adapter).expect("bounded preparation")
+    codec::prepare(input, &limits.adapter).expect("bounded preparation")
 }
 
 #[test]
@@ -371,16 +330,17 @@ fn every_shared_failure_class_keeps_each_evidence_and_detail() {
     for (source, expected) in shared_failure_cases() {
         for (sent, expected_sent) in evidence {
             let prepared = prepared_failure(&limits);
-            let event = adapter::failed(
+            let event = codec::failed(
                 prepared.context,
-                Token::new(71),
                 source,
                 sent,
                 b"literal detail".as_slice().into(),
                 shared::Report::none(),
             )
             .expect("matching terminal");
-            let smith_domain::Event::Failed { owner, failure, evidence, detail, report } = event else {
+            let smith_domain::Event::Below(smith_domain::Below::Failed { owner, failure, evidence, detail, report }) =
+                event
+            else {
                 panic!("failed event")
             };
             let observed = Some((owner, failure, evidence, detail, report));
@@ -454,7 +414,7 @@ fn a_tls_handshake_deadline_stops_the_unsent_call() {
         up.pop(),
         Some(ToDomain::Failed {
             owner,
-            failure: llm::Failure::TimedOut { phase: llm::Phase::Handshake },
+            failure: llm::Failure::TimedOut { phase: llm::CompletionPhase::Handshake },
             evidence: llm::Evidence::Unsent,
             ..
         }) if owner == Token::new(7)
@@ -476,7 +436,7 @@ fn the_whole_deadline_precedes_a_later_endpoint_connect_deadline() {
     assert!(matches!(
         up.pop(),
         Some(ToDomain::Failed {
-            failure: llm::Failure::TimedOut { phase: llm::Phase::Whole },
+            failure: llm::Failure::TimedOut { phase: llm::CompletionPhase::Whole },
             evidence: llm::Evidence::Unsent,
             ..
         })
@@ -492,7 +452,7 @@ fn an_observed_request_is_native_validated_before_its_payload_is_copied() {
             client.request = 1;
         }
         let mut component = Component::new(&limits, endpoints_with_client(Duration::from_secs(1), client))
-            .expect("actual endpoint with its own request bound");
+            .expect("observed endpoint with its own request bound");
         component
             .grant(GrantName { account: 0, generation: 1 }, credential(b"private-grant"), Time::from_nanos(100))
             .expect("valid private grant");
@@ -530,29 +490,30 @@ fn an_observed_request_is_native_validated_before_its_payload_is_copied() {
 #[test]
 fn a_response_failure_keeps_its_status_in_the_evidence() {
     let limits = limits();
-    let prepared = adapter::prepare(
-        adapter::Input {
+    let prepared = codec::prepare(
+        codec::Input {
             owner: Token::new(71),
             prompt: prompt(),
             endpoint_name: llm::Endpoint(42),
             endpoint: shared::Endpoint::codex(),
             credential: credential(b"secret"),
-            application: Box::new([]),
+
             receiving: limits.receiving,
         },
         &limits.adapter,
     )
     .expect("bounded preparation");
-    let terminal = adapter::failed(
+    let terminal = codec::failed(
         prepared.context,
-        Token::new(71),
         shared::Failure::Unavailable,
         shared::client::Evidence::Response { status: 503 },
         Box::default(),
         shared::Report::none(),
     )
     .expect("matching terminal");
-    let smith_domain::Event::Failed { failure, evidence, .. } = terminal else { panic!("failure terminal") };
+    let smith_domain::Event::Below(smith_domain::Below::Failed { failure, evidence, .. }) = terminal else {
+        panic!("failure terminal")
+    };
     assert_eq!(failure, llm::Failure::Unavailable);
     assert_eq!(evidence, llm::Evidence::Response { status: Some(503) });
 }
@@ -583,16 +544,17 @@ fn skeins_report_reaches_the_session_whole() {
     ] {
         let prepared = prepared_failure(&limits);
         let report = shared::Report { code: code.into(), request: request.into(), field: field.into() };
-        let terminal = adapter::failed(
+        let terminal = codec::failed(
             prepared.context,
-            Token::new(71),
             shared::Failure::Unsupported,
             shared::client::Evidence::Unsent,
             Box::default(),
             report,
         )
         .expect("matching terminal");
-        let smith_domain::Event::Failed { report, .. } = terminal else { panic!("failed event") };
+        let smith_domain::Event::Below(smith_domain::Below::Failed { report, .. }) = terminal else {
+            panic!("failed event")
+        };
         let received = Some(report);
         assert_eq!(received, Some(expected));
     }

@@ -1,5 +1,5 @@
-//! Actual reserve transitions, child terminals and final requests at run boundaries.
-//! Contract: domain/run.md, sections 9.1 and 13.
+//! reserve transitions, child terminals and final requests at run boundaries.
+//! Contract: smith/docs/design/domain/run.md, sections 9.1 and 13.
 
 use skein_lib::Duration;
 use skein_world::domain::Verdict;
@@ -28,6 +28,13 @@ fn settings(seed: u64) -> Settings {
     settings
 }
 
+#[derive(Debug)]
+enum Mutation {
+    LiveChild,
+    ExtraFinal,
+    PrematureAnswer,
+}
+
 #[test]
 fn a_sub_agent_that_spends_the_ordinary_pool_is_closed_then_main_finishes_in_its_final_turns() {
     let mut accepted = 0;
@@ -46,7 +53,7 @@ fn a_sub_agent_that_spends_the_ordinary_pool_is_closed_then_main_finishes_in_its
             accepted += world.answers().filter(|answer| matches!(answer, Some(Answer::Accepted { .. }))).count();
         }
     }
-    assert!(accepted > 0, "a final result is accepted after an actual child spent the ordinary pool");
+    assert!(accepted > 0, "a final result is accepted after a child spent the ordinary pool");
 }
 
 #[test]
@@ -102,22 +109,22 @@ fn final_turns_ignored_fail_once_for_the_budget() {
     )));
     assert_eq!(world.wind_down_seen().iter().filter(|(_, _, seen)| matches!(seen, Seen::Final { .. })).count(), 3);
     assert!(judge(world.wind_down_seen()).iter().all(|verdict| *verdict == Verdict::Passed));
-    for violation in 0..3 {
+    for violation in [Mutation::LiveChild, Mutation::ExtraFinal, Mutation::PrematureAnswer] {
         let mut bad = world.wind_down_seen().to_vec();
-        let first =
-            bad.iter().position(|(_, _, seen)| matches!(seen, Seen::Final { .. })).expect("actual final request");
+        let first = bad.iter().position(|(_, _, seen)| matches!(seen, Seen::Final { .. })).expect("final request");
         match violation {
-            0 => bad[first].2 = Seen::Final { main: true, live_children: 1 },
-            1 => {
+            Mutation::LiveChild => bad[first].2 = Seen::Final { main: true, live_children: 1 },
+            Mutation::ExtraFinal => {
                 let extra = bad[first];
                 bad.insert(first, extra);
             }
-            2 => bad[first].2 = Seen::Answer { turns_failure: true, time_failure: false, time_expired: false },
-            _ => unreachable!(),
+            Mutation::PrematureAnswer => {
+                bad[first].2 = Seen::Answer { turns_failure: true, time_failure: false, time_expired: false }
+            }
         }
         assert!(
             judge(&bad).iter().any(|verdict| matches!(verdict, Verdict::Failed(_))),
-            "positive-first final rule {violation}"
+            "positive-first final rule {violation:?}"
         );
     }
 }
@@ -150,5 +157,5 @@ fn a_run_whose_spend_runs_out_first_winds_down_and_is_accepted() {
             witnessed += 1;
         }
     }
-    assert!(witnessed > 0, "actual spend starts final work before turns or time, then accepts");
+    assert!(witnessed > 0, "spend starts final work before turns or time, then accepts");
 }

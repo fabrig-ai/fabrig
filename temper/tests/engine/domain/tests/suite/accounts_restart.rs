@@ -153,11 +153,11 @@ fn restart_accepts_issued_and_counter_in_one_page() {
     let mut driver = Driver::cold(kept_store(), config(), &limits());
     for _ in 0..RESTORE_STEPS {
         driver.advance(true);
-        if driver.root.restore_load_failure().is_some() || driver.root.ready() {
+        if driver.root.start_stop().is_some() || driver.root.ready() {
             break;
         }
     }
-    assert_eq!(driver.root.restore_load_failure(), None, "restart must accept the store's accounts walk");
+    assert_eq!(driver.root.start_stop(), None, "restart must accept the store's accounts walk");
     assert!(driver.root.ready(), "restored accounts permit the startup switch");
 }
 

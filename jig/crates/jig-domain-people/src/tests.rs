@@ -276,6 +276,7 @@ fn kept_seen_answers_restore_replay_and_occupy_room_until_their_original_expiry(
     for outcome in [Outcome::MarkedSeen { seen }, Outcome::Refused(Refusal::Role { held: None })] {
         let mut test = Test::new(limits);
         test.d = Domain::new(&limits, Box::new([]), 2, Box::new([]));
+        test.d.start_restore(test.env.wall);
         let key = RequestKey { person: 1, key: [1; 16] };
         assert!(
             test.send(Event::Restore {
@@ -299,7 +300,7 @@ fn kept_seen_answers_restore_replay_and_occupy_room_until_their_original_expiry(
                 expires: Wall::from_nanos(Duration::from_secs(180).as_nanos()),
             },
         });
-        test.send(Event::Restored);
+        test.complete();
         assert!(test.d.ready());
         // No task or current role is needed for replay of the kept answer.
         for seconds in [0, 119] {
@@ -365,9 +366,10 @@ fn only_keyed_mark_seen_moves_results_and_restores_the_position() {
     assert_eq!(test.d.results_seen(1), Some(3));
     let mut restored = Test::new(LIMITS);
     restored.d = Domain::new(&LIMITS, Box::new([]), 2, Box::new([]));
+    restored.d.start_restore(restored.env.wall);
     restored.send(Event::Restore { record: Stored::ReadResults { party: 1, through: 3 } });
     restored.send(Event::Restore { record: Stored::Person { number: 1, identity: identity(0, 1) } });
-    restored.send(Event::Restored);
+    restored.complete();
     assert_eq!(restored.d.results_seen(1), Some(3));
 }
 
@@ -376,13 +378,16 @@ fn waiting_cache_keeps_newest_references_and_removes_one_task() {
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: LIMITS };
     let mut out = Queue::uncapped();
     let mut domain = Domain::new(&LIMITS, Box::new([]), 2, Box::new([]));
+    domain.start_restore(env.wall);
     step(
         &mut domain,
         &env,
         Event::Restore { record: Stored::Person { number: 1, identity: identity(0, 1) } },
         &mut out,
     );
-    step(&mut domain, &env, Event::Restored, &mut out);
+    assert!(domain.start_link(&env));
+    domain.start_sweep();
+    assert!(domain.start_complete(&env));
     for task in 1..=3 {
         let entry = Entry { task, project: 1, whom: Whom::Person(1), kind: EntryKind::PersonTask, at: Wall::EPOCH };
         step(&mut domain, &env, Event::Waiting { task, entries: Box::new([entry]) }, &mut out);
@@ -502,8 +507,17 @@ impl Test {
             env: Env { limits, now: Time::ZERO, wall: Wall::EPOCH },
             serial: 0,
         };
-        assert!(test.send(Event::Restored).is_empty());
+        test.d.start_restore(test.env.wall);
+        assert!(test.complete());
         test
+    }
+
+    fn complete(&mut self) -> bool {
+        if !self.d.start_link(&self.env) {
+            return false;
+        }
+        self.d.start_sweep();
+        self.d.start_complete(&self.env)
     }
 
     fn to(&mut self) -> ReplyTo {
@@ -705,6 +719,7 @@ fn policy_role_receives_shared_waiting_and_replays_its_key_after_restart() {
 
     let mut cold = Test::new(LIMITS);
     cold.d = Domain::new(&LIMITS, Box::new([]), 2, Box::new([]));
+    cold.d.start_restore(cold.env.wall);
     cold.send(Event::Restore { record: Stored::Person { number: 1, identity: identity(0, 1) } });
     cold.send(Event::Restore { record: Stored::Person { number: 2, identity: identity(0, 2) } });
     cold.send(Event::Restore { record: Stored::Roles { project: 1, holdings } });
@@ -712,7 +727,7 @@ fn policy_role_receives_shared_waiting_and_replays_its_key_after_restart() {
         record: Stored::SignIn { number: 10, person: 1, expires: Wall::from_nanos(Duration::from_secs(60).as_nanos()) },
     });
     cold.send(Event::Restore { record: saved });
-    cold.send(Event::Restored);
+    cold.complete();
     assert_eq!(reply(&cold.request(10, 1, ask)), Reply::Outcome(Outcome::PersonTaken { task: 7 }));
 }
 
@@ -826,23 +841,22 @@ fn completed_key_replays_until_its_deadline_then_can_be_reused() {
 }
 
 #[test]
-fn expired_completed_key_is_erased_from_a_restore_page_and_frees_its_slot() {
+fn expired_completed_key_is_erased_in_sweep_and_frees_its_slot() {
     let limits = Limits { requests: 1, ..LIMITS };
     let mut test = Test::new(limits);
     test.d = Domain::new(&limits, Box::new([]), 2, Box::new([]));
     test.env.now = Time::from_nanos(Duration::from_secs(120).as_nanos());
     test.env.wall = Wall::from_nanos(Duration::from_secs(120).as_nanos());
+    test.d.start_restore(test.env.wall);
     let key = RequestKey { person: 1, key: [1; 16] };
-    let erased = test.send(Event::Restore {
-        record: Stored::Answer {
-            models: Box::new([]),
-            key,
-            ask: Box::new(ask(1)),
-            outcome: Outcome::Created { first: 90, last: 90, given: None },
-            at: Wall::EPOCH,
-        },
-    });
-    assert_eq!(erased, [Request::Erase { key: Key::Answer(key) }]);
+    let record = Stored::Answer {
+        models: Box::new([]),
+        key,
+        ask: Box::new(ask(1)),
+        outcome: Outcome::Created { first: 90, last: 90, given: None },
+        at: Wall::EPOCH,
+    };
+    assert!(test.send(Event::Restore { record: record.clone() }).is_empty());
     test.send(Event::Restore { record: Stored::Person { number: 1, identity: identity(0, 1) } });
     test.send(Event::Restore {
         record: Stored::Roles { project: 1, holdings: Box::new([Holding { person: 1, role: Role::Member }]) },
@@ -854,7 +868,13 @@ fn expired_completed_key_is_erased_from_a_restore_page_and_frees_its_slot() {
             expires: Wall::from_nanos(Duration::from_secs(180).as_nanos()),
         },
     });
-    test.send(Event::Restored);
+    assert!(test.d.start_link(&test.env));
+    test.d.start_sweep();
+    let mut out = Queue::uncapped();
+    test.d.start_sweep_row(&test.env, &record, &mut out);
+    assert_eq!(out.pop(), Some(Request::Erase { key: Key::Answer(key) }));
+    assert!(out.is_empty());
+    assert!(test.d.start_complete(&test.env));
     assert!(test.d.ready());
     let _routed = route(&test.request(10, 1, ask(1)));
 }
@@ -913,21 +933,22 @@ fn result_query_checks_monotonic_expiry_before_fire_after_backward_wall_jump() {
 fn restore_order_is_independent_and_bad_or_oversized_records_refuse_start() {
     let mut test = Test::new(LIMITS);
     test.d = Domain::new(&LIMITS, Box::new([]), 2, Box::new([]));
+    test.d.start_restore(test.env.wall);
     test.send(Event::Restore {
         record: Stored::SignIn { number: 10, person: 1, expires: Wall::from_nanos(Duration::from_secs(60).as_nanos()) },
     });
     test.send(Event::Restore { record: Stored::Person { number: 1, identity: identity(0, 1) } });
-    test.send(Event::Restored);
+    test.complete();
     assert!(test.d.ready());
     test.d = Domain::new(&LIMITS, Box::new([]), 2, Box::new([]));
-    test.send(Event::Restore { record: Stored::SignIn { number: 10, person: 99, expires: Wall::EPOCH } });
-    assert_eq!(
-        test.send(Event::Restored),
-        [Request::RestoreRefused { key: Key::SignIn(10), refusal: Refusal::Unknown }]
-    );
+    test.d.start_restore(test.env.wall);
+    test.send(Event::Restore { record: Stored::SignIn { number: 10, person: 99, expires: Wall::from_nanos(1) } });
+    let linked = std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| test.d.start_link(&test.env)));
+    drop(linked.expect_err("missing retained link panics"));
     assert!(!test.d.ready());
     test.env.limits.people = 0;
     test.d = Domain::new(&test.env.limits, Box::new([]), 2, Box::new([]));
+    test.d.start_restore(test.env.wall);
     assert_eq!(
         test.send(Event::Restore { record: Stored::Person { number: 1, identity: identity(0, 1) } }),
         [Request::RestoreRefused { key: Key::Person(1), refusal: Refusal::Limit { which: LimitKind::Restore } }]
@@ -957,6 +978,7 @@ fn role_success_restores_before_identities_and_replays_after_roster_changes() {
     assert_eq!(reply(completed.as_slice()), Reply::Outcome(outcome.clone()));
     let mut cold = Test::new(LIMITS);
     cold.d = Domain::new(&LIMITS, Box::new([]), 2, Box::new([]));
+    cold.d.start_restore(cold.env.wall);
     assert!(cold.send_bounded(Event::Restore { record: saved_answer(completed.as_slice()) }).is_empty());
     // The historical roster differs from today's; the original owner is now an observer.
     assert!(
@@ -973,7 +995,7 @@ fn role_success_restores_before_identities_and_replays_after_roster_changes() {
             .is_empty()
         );
     }
-    assert!(cold.send_bounded(Event::Restored).is_empty());
+    assert!(cold.complete());
     assert!(cold.d.ready());
     cold.signin_bounded(3, 30, identity(0, 1));
     let replayed = cold.request_bounded(30, 7, ask.clone());
@@ -995,74 +1017,12 @@ fn role_success_restores_before_identities_and_replays_after_roster_changes() {
 }
 
 #[test]
-fn restored_role_success_requires_matching_ask_kind_and_project() {
-    let key = RequestKey { person: 1, key: [7; 16] };
-    for (ask, outcome) in [
-        (Ask::SetRoles { project: 1, holdings: Box::new([]) }, Outcome::RolesSet { project: 2 }),
-        (ask(1), Outcome::RolesSet { project: 1 }),
-        (
-            Ask::DecideEscalation { project: 1, task: 9, revision: 2, decision: EscalationDecision::Pass },
-            Outcome::RolesSet { project: 1 },
-        ),
-        (Ask::SetRoles { project: 1, holdings: Box::new([]) }, Outcome::Created { first: 9, last: 9, given: None }),
-        (
-            Ask::SetRoles { project: 1, holdings: Box::new([]) },
-            Outcome::EscalationDecided {
-                task: 9,
-                revision: 2,
-                by: 1,
-                at: Wall::from_nanos(0),
-                choice: EscalationChoice::Passed,
-            },
-        ),
-    ] {
-        let mut test = Test::new(LIMITS);
-        test.d = Domain::new(&LIMITS, Box::new([]), 2, Box::new([]));
-        assert_eq!(
-            test.send_bounded(Event::Restore {
-                record: Stored::Answer { models: Box::new([]), key, ask: Box::new(ask), outcome, at: Wall::EPOCH }
-            })
-            .as_slice(),
-            [Request::RestoreRefused { key: Key::Answer(key), refusal: Refusal::Limit { which: LimitKind::Restore } }]
-        );
-        assert!(test.send_bounded(Event::Restored).is_empty());
-        assert!(!test.d.ready());
-    }
-}
-
-#[test]
-fn restored_successful_role_rosters_require_positive_unique_people() {
-    let key = RequestKey { person: 1, key: [7; 16] };
-    for holdings in [
-        Box::from([Holding { person: 0, role: Role::Member }]),
-        Box::from([Holding { person: 2, role: Role::Owner }, Holding { person: 2, role: Role::Member }]),
-    ] {
-        let mut test = Test::new(LIMITS);
-        test.d = Domain::new(&LIMITS, Box::new([]), 2, Box::new([]));
-        assert_eq!(
-            test.send_bounded(Event::Restore {
-                record: Stored::Answer {
-                    models: Box::new([]),
-                    key,
-                    ask: Box::new(Ask::SetRoles { project: 1, holdings }),
-                    outcome: Outcome::RolesSet { project: 1 },
-                    at: Wall::EPOCH,
-                }
-            })
-            .as_slice(),
-            [Request::RestoreRefused { key: Key::Answer(key), refusal: Refusal::Limit { which: LimitKind::Restore } }]
-        );
-        assert!(test.send_bounded(Event::Restored).is_empty());
-        assert!(!test.d.ready());
-    }
-}
-
-#[test]
 fn restored_role_success_checks_historical_people_and_project_after_all_rows_arrive() {
     let key = RequestKey { person: 1, key: [7; 16] };
     for (project, person) in [(1, 99), (2, 1)] {
         let mut test = Test::new(LIMITS);
         test.d = Domain::new(&LIMITS, Box::new([]), 2, Box::new([]));
+        test.d.start_restore(test.env.wall);
         assert!(
             test.send_bounded(Event::Restore {
                 record: Stored::Answer {
@@ -1080,10 +1040,8 @@ fn restored_role_success_checks_historical_people_and_project_after_all_rows_arr
         );
         test.send_bounded(Event::Restore { record: Stored::Person { number: 1, identity: identity(0, 1) } });
         test.send_bounded(Event::Restore { record: Stored::Roles { project: 1, holdings: Box::new([]) } });
-        assert_eq!(
-            test.send_bounded(Event::Restored).as_slice(),
-            [Request::RestoreRefused { key: Key::Answer(key), refusal: Refusal::Unknown }]
-        );
+        let linked = std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| test.d.start_link(&test.env)));
+        drop(linked.expect_err("missing retained link panics"));
         assert!(!test.d.ready());
     }
 }
@@ -1149,10 +1107,11 @@ fn refused_role_requests_restore_invalid_rosters_and_unknown_targets_for_replay(
         }
         let mut cold = Test::new(LIMITS);
         cold.d = Domain::new(&LIMITS, Box::new([]), 2, Box::new([]));
+        cold.d.start_restore(cold.env.wall);
         assert!(cold.send_bounded(Event::Restore { record: saved_answer(rows.as_slice()) }).is_empty());
         cold.send_bounded(Event::Restore { record: Stored::Person { number: 1, identity: identity(0, 1) } });
         // Even a refused unknown project needs no present membership row.
-        assert!(cold.send_bounded(Event::Restored).is_empty());
+        assert!(cold.complete());
         assert!(cold.d.ready());
         cold.signin_bounded(2, 20, identity(0, 1));
         let replayed = cold.request_bounded(20, 7, ask);
@@ -1169,10 +1128,13 @@ fn initial_owners_bootstrap_all_projects_atomically_and_never_regrant() {
     ]);
     let mut test = Test::new(Limits { holdings: 1, ..LIMITS });
     test.d = Domain::new(&test.env.limits, owners, 2, Box::new([]));
-    test.send(Event::Roles { project: 1, holdings: Box::new([]) });
-    test.send(Event::Roles { project: 2, holdings: Box::new([Holding { person: 9, role: Role::Member }]) });
+    test.d.start_restore(test.env.wall);
+    test.send(Event::Restore { record: Stored::Roles { project: 1, holdings: Box::new([]) } });
+    test.send(Event::Restore {
+        record: Stored::Roles { project: 2, holdings: Box::new([Holding { person: 9, role: Role::Member }]) },
+    });
     test.send(Event::Restore { record: Stored::Person { number: 9, identity: identity(0, 9) } });
-    test.send(Event::Restored);
+    test.complete();
     let refused = test.signin(1, 10, identity(0, 1));
     assert_eq!(reply(&refused), Reply::Again(Again::Busy));
     assert_eq!(refused.len(), 1, "bootstrap refusal makes no record");
@@ -1199,9 +1161,10 @@ fn first_owners_seed_their_roles_on_the_first_start_only() {
     let owner = IdentityKey { provider: 0, subject: 1_u64.to_be_bytes().into() };
     let mut test = Test::new(LIMITS);
     test.d = Domain::new(&test.env.limits, Box::new([InitialOwner { project: 1, identity: owner }]), 2, Box::new([]));
+    test.d.start_restore(test.env.wall);
     test.d.end_seeding();
     test.send(Event::Roles { project: 1, holdings: Box::new([]) });
-    test.send(Event::Restored);
+    test.complete();
     let made = test.signin(1, 10, identity(0, 1));
     assert_eq!(signed_person(reply(&made)), Some(1));
     assert!(!made.iter().any(is_roles), "a restart's first sign-in seeds nothing");
@@ -1354,7 +1317,8 @@ fn identity_limits_clock_overflow_and_duplicate_holdings_leave_no_records() {
     );
     test.env.limits = LIMITS;
     test.d = Domain::new(&LIMITS, Box::new([]), 2, Box::new([]));
-    test.send(Event::Restored);
+    test.d.start_restore(test.env.wall);
+    test.complete();
     test.env.wall = Wall::from_nanos(u64::MAX);
     assert_eq!(
         reply(&test.signin(1, 10, identity(0, 1))),
@@ -1377,18 +1341,19 @@ fn identity_limits_clock_overflow_and_duplicate_holdings_leave_no_records() {
 fn calls_before_restore_and_after_failed_restore_are_answered_not_ready() {
     let mut test = Test::new(LIMITS);
     test.d = Domain::new(&LIMITS, Box::new([]), 2, Box::new([]));
+    test.d.start_restore(test.env.wall);
     assert_eq!(reply(&test.signin(1, 10, identity(0, 1))), Reply::Again(Again::NotReady));
     assert_eq!(reply(&test.request(10, 1, ask(1))), Reply::Again(Again::NotReady));
     test.send(Event::Restore {
         record: Stored::Answer {
             models: Box::new([]),
             key: RequestKey { person: 99, key: [1; 16] },
-            ask: Box::new(ask(1)),
+            ask: Box::new(create_request(1, Box::new([0; 9]))),
             outcome: Outcome::Created { first: 90, last: 90, given: None },
             at: Wall::EPOCH,
         },
     });
-    test.send(Event::Restored);
+    test.complete();
     assert!(!test.d.ready());
     assert_eq!(reply(&test.signin(1, 10, identity(0, 1))), Reply::Again(Again::NotReady));
 }
@@ -1397,13 +1362,14 @@ fn calls_before_restore_and_after_failed_restore_are_answered_not_ready() {
 fn expiry_projection_uses_the_environment_when_restore_finishes() {
     let mut test = Test::new(LIMITS);
     test.d = Domain::new(&LIMITS, Box::new([]), 2, Box::new([]));
+    test.d.start_restore(test.env.wall);
     test.send(Event::Restore { record: Stored::Person { number: 1, identity: identity(0, 1) } });
     test.send(Event::Restore {
         record: Stored::SignIn { number: 10, person: 1, expires: Wall::from_nanos(Duration::from_secs(60).as_nanos()) },
     });
     test.env.now = Time::from_nanos(Duration::from_secs(30).as_nanos());
     test.env.wall = Wall::from_nanos(Duration::from_secs(50).as_nanos());
-    test.send(Event::Restored);
+    test.complete();
     test.env.now = Time::from_nanos(Duration::from_secs(45).as_nanos());
     test.env.wall = Wall::from_nanos(Duration::from_secs(55).as_nanos());
     assert_eq!(reply(&test.request(10, 1, ask(1))), Reply::SignedOut);
@@ -1541,22 +1507,6 @@ fn every_final_refusal_keeps_its_facts_under_the_key_when_roles_and_time_change(
     }
 }
 
-#[test]
-fn retry_and_signed_out_answers_cannot_restore_as_completed_keys() {
-    for outcome in [Outcome::Again(Again::Busy), Outcome::Again(Again::NotReady), Outcome::SignedOut] {
-        let mut test = Test::new(LIMITS);
-        test.d = Domain::new(&LIMITS, Box::new([]), 2, Box::new([]));
-        let key = RequestKey { person: 1, key: [1; 16] };
-        assert_eq!(
-            test.send(Event::Restore {
-                record: Stored::Answer { models: Box::new([]), key, ask: Box::new(ask(1)), outcome, at: Wall::EPOCH }
-            }),
-            [Request::RestoreRefused { key: Key::Answer(key), refusal: Refusal::Limit { which: LimitKind::Restore } }],
-        );
-        assert!(!test.d.ready());
-    }
-}
-
 fn application(digest: u8) -> Ask {
     Ask::Application { scope: ApplicationScope::Project(1), connector: 2, digest: [digest; 32] }
 }
@@ -1594,6 +1544,7 @@ fn application_keys_join_flights_and_replay_opaque_tokens_across_sign_ins_and_re
     test.send(Event::Roles { project: 1, holdings: Box::new([]) });
     assert_eq!(reply(&test.request(10, 7, application(1))), Reply::Outcome(outcome.clone()));
     let mut d = Domain::new(&LIMITS, Box::new([]), 2, Box::new([]));
+    d.start_restore(test.env.wall);
     for record in [
         Stored::Person { number: 1, identity: identity(0, 1) },
         Stored::SignIn { number: 10, person: 1, expires: Wall::from_nanos(LIMITS.sign_in_lifetime.as_nanos()) },
@@ -1604,7 +1555,7 @@ fn application_keys_join_flights_and_replay_opaque_tokens_across_sign_ins_and_re
         assert!(out.is_empty());
     }
     test.d = d;
-    assert!(test.send(Event::Restored).is_empty());
+    assert!(test.complete());
     assert_eq!(reply(&test.request(10, 7, application(1))), Reply::Outcome(outcome.clone()));
     assert_eq!(reply(&test.request(10, 7, application(2))), Reply::Refused(Refusal::KeyConflict));
 }
@@ -1634,33 +1585,6 @@ fn application_admission_shares_capacity_and_retention_and_requires_a_live_sign_
         reply(&no_role.request(10, 1, application(1))),
         Reply::Outcome(Outcome::Refused(Refusal::Role { held: None }))
     );
-}
-
-#[test]
-fn restored_application_tokens_must_name_their_connector_and_a_positive_outcome() {
-    for outcome in [
-        Outcome::Applied { connector: 3, token: Token::new(42) },
-        Outcome::Applied { connector: 2, token: Token::new(0) },
-        Outcome::Created { first: 42, last: 42, given: None },
-    ] {
-        let mut test = Test::new(LIMITS);
-        test.d = Domain::new(&LIMITS, Box::new([]), 2, Box::new([]));
-        let rows = test.send(Event::Restore {
-            record: Stored::Answer {
-                models: Box::new([]),
-                key: RequestKey { person: 1, key: [1; 16] },
-                ask: Box::new(application(1)),
-                outcome,
-                at: Wall::EPOCH,
-            },
-        });
-        match rows.as_slice() {
-            [Request::RestoreRefused { .. }] => {}
-            _ => panic!("invalid restored application outcome is refused"),
-        }
-        test.send(Event::Restored);
-        assert!(!test.d.ready());
-    }
 }
 
 #[test]
@@ -1782,9 +1706,10 @@ fn capacity_facts_keep_actual_times_replay_and_diagnostics_independent() {
     let mut cold = Test::new(test.env.limits);
     cold.env.wall = test.env.wall;
     cold.d = Domain::new(&cold.env.limits, Box::new([]), 2, Box::new([]));
+    cold.d.start_restore(cold.env.wall);
     cold.send(Event::Restore { record: saved_answer(&completed) });
     cold.send(Event::Restore { record: Stored::Person { number: 1, identity: identity(0, 1) } });
-    cold.send(Event::Restored);
+    cold.complete();
     assert!(cold.d.ready());
     let restored = cold.d.capacity_refusals();
     assert_eq!(restored.len(), 1, "entrance history is live-only");
@@ -1919,6 +1844,7 @@ fn a_proposal_makers_kind_is_kept_in_its_key_and_restored_answer() {
         };
         assert_eq!(reply(&test.request(10, 1, other_ask.clone())), Reply::Refused(Refusal::KeyConflict));
         test.d = Domain::new(&LIMITS, Box::new([]), 2, Box::new([]));
+        test.d.start_restore(test.env.wall);
         for record in [
             Stored::Person { number: 1, identity: identity(0, 1) },
             Stored::SignIn { number: 10, person: 1, expires: Wall::from_nanos(LIMITS.sign_in_lifetime.as_nanos()) },
@@ -1926,7 +1852,7 @@ fn a_proposal_makers_kind_is_kept_in_its_key_and_restored_answer() {
         ] {
             assert!(test.send(Event::Restore { record }).is_empty());
         }
-        assert!(test.send(Event::Restored).is_empty());
+        assert!(test.complete());
         assert_eq!(reply(&test.request(10, 1, ask)), Reply::Outcome(outcome.clone()));
         assert_eq!(reply(&test.request(10, 1, other_ask)), Reply::Refused(Refusal::KeyConflict));
     }
@@ -1959,6 +1885,7 @@ fn a_stored_account_sign_in_answer_keeps_its_address() {
     let saved = saved_answer(&rows);
     // Restore the account sign-in answer and its authenticated party into a cold domain.
     test.d = Domain::new(&LIMITS, Box::new([]), 2, Box::new([]));
+    test.d.start_restore(test.env.wall);
     for record in [
         Stored::Person { number: 1, identity: identity(0, 1) },
         Stored::SignIn { number: 10, person: 1, expires: Wall::from_nanos(LIMITS.sign_in_lifetime.as_nanos()) },
@@ -1966,7 +1893,7 @@ fn a_stored_account_sign_in_answer_keeps_its_address() {
     ] {
         assert!(test.send(Event::Restore { record }).is_empty());
     }
-    assert!(test.send(Event::Restored).is_empty());
+    assert!(test.complete());
     assert!(test.d.ready());
     assert_eq!(reply(&test.request(10, 7, ask)), Reply::Outcome(outcome));
 }
@@ -1987,9 +1914,10 @@ fn original_named_selectors_survive_answer_restore_and_key_conflicts() {
     let record = saved_answer(&completed);
     let mut cold = Test::new(LIMITS);
     cold.d = Domain::new(&LIMITS, Box::new([]), 2, Box::new([]));
+    cold.d.start_restore(cold.env.wall);
     cold.send(Event::Restore { record });
     cold.send(Event::Restore { record: Stored::Person { number: 1, identity: identity(0, 1) } });
-    cold.send(Event::Restored);
+    cold.complete();
     cold.signin(1, 10, identity(0, 1));
     let reply_to = cold.to();
     let replay = cold.send(Event::Ask { reply_to, sign_in: 10, key: [1; 16], ask: ask.clone(), models: names });
@@ -2041,6 +1969,7 @@ fn a_restored_kept_llm_key_answer_replays_source_zero() {
     assert_eq!(reply(&rows), Reply::Outcome(outcome.clone()));
     let saved = saved_answer(&rows);
     test.d = Domain::new(&LIMITS, Box::new([]), 2, Box::new([]));
+    test.d.start_restore(test.env.wall);
     for record in [
         Stored::Person { number: 1, identity: identity(0, 1) },
         Stored::SignIn { number: 10, person: 1, expires: Wall::from_nanos(LIMITS.sign_in_lifetime.as_nanos()) },
@@ -2048,7 +1977,7 @@ fn a_restored_kept_llm_key_answer_replays_source_zero() {
     ] {
         assert!(test.send(Event::Restore { record }).is_empty());
     }
-    assert!(test.send(Event::Restored).is_empty());
+    assert!(test.complete());
     assert!(test.d.ready());
     assert_eq!(reply(&test.request(10, 7, ask)), Reply::Outcome(outcome));
 }
@@ -2066,6 +1995,7 @@ fn a_restored_program_declaration_replays_its_name() {
     let rows = test.send(Event::Decided { request, outcome: outcome.clone() });
     let saved = saved_answer(&rows);
     test.d = Domain::new(&LIMITS, Box::new([]), 2, Box::new([]));
+    test.d.start_restore(test.env.wall);
     for record in [
         Stored::Person { number: 1, identity: identity(0, 1) },
         Stored::SignIn { number: 10, person: 1, expires: Wall::from_nanos(LIMITS.sign_in_lifetime.as_nanos()) },
@@ -2073,7 +2003,7 @@ fn a_restored_program_declaration_replays_its_name() {
     ] {
         assert!(test.send(Event::Restore { record }).is_empty());
     }
-    assert!(test.send(Event::Restored).is_empty());
+    assert!(test.complete());
     assert_eq!(reply(&test.request(10, 7, ask)), Reply::Outcome(outcome));
 }
 #[test]
@@ -2092,6 +2022,7 @@ fn a_restored_program_sign_out_replays_its_original_host_name() {
     let rows = test.send(Event::Decided { request, outcome: outcome.clone() });
     let saved = saved_answer(&rows);
     test.d = Domain::new(&LIMITS, Box::new([]), 2, Box::new([]));
+    test.d.start_restore(test.env.wall);
     for record in [
         Stored::Person { number: 1, identity: identity(0, 1) },
         Stored::SignIn { number: 10, person: 1, expires: Wall::from_nanos(LIMITS.sign_in_lifetime.as_nanos()) },
@@ -2099,7 +2030,7 @@ fn a_restored_program_sign_out_replays_its_original_host_name() {
     ] {
         assert!(test.send(Event::Restore { record }).is_empty());
     }
-    assert!(test.send(Event::Restored).is_empty());
+    assert!(test.complete());
     assert_eq!(reply(&test.request(10, 7, ask)), Reply::Outcome(outcome));
 }
 
@@ -2107,10 +2038,11 @@ fn a_restored_program_sign_out_replays_its_original_host_name() {
 fn services_are_not_persons() {
     let mut test = Test::new(LIMITS);
     test.d = Domain::new(&LIMITS, Box::new([]), 2, Box::new([]));
+    test.d.start_restore(test.env.wall);
     for (number, provider) in [(1, 0), (2, 2)] {
         test.send(Event::Restore { record: Stored::Person { number, identity: identity(provider, number) } });
     }
-    test.send(Event::Restored);
+    test.complete();
     assert_eq!(test.d.persons(), 1);
 }
 
@@ -2164,6 +2096,7 @@ fn wall_expiry_and_original_elapsed_expiry_each_end_one_signin_per_fire() {
 fn restored_expiries_and_removing_the_earliest_keep_both_indexes_exact() {
     let mut test = Test::new(LIMITS);
     test.d = Domain::new(&LIMITS, Box::new([]), 2, Box::new([]));
+    test.d.start_restore(test.env.wall);
     test.send(Event::Restore { record: Stored::Person { number: 1, identity: identity(0, 1) } });
     for (number, expires) in [(11, 90), (10, 60), (12, 120)] {
         test.send(Event::Restore {
@@ -2176,7 +2109,7 @@ fn restored_expiries_and_removing_the_earliest_keep_both_indexes_exact() {
     }
     test.env.now = Time::from_nanos(Duration::from_secs(5).as_nanos());
     test.env.wall = Wall::from_nanos(Duration::from_secs(30).as_nanos());
-    test.send(Event::Restored);
+    test.complete();
     assert_eq!(test.d.next_wall_expiry(), Some(Wall::from_nanos(Duration::from_secs(60).as_nanos())));
     let to = test.to();
     test.send(Event::SignOut { reply_to: to, sign_in: 10 });
@@ -2390,13 +2323,14 @@ fn whose_reads_the_live_signers_identity_and_kind_without_writes() {
 fn whose_reads_a_service_and_answers_not_ready_before_restoration() {
     let mut test = Test::new(LIMITS);
     test.d = Domain::new(&LIMITS, Box::new([]), 2, Box::new([]));
+    test.d.start_restore(test.env.wall);
     assert_eq!(
         test.send(Event::Whose { reply_to: whose_destination(), sign_in: 21 }),
         [Request::Reply { to: whose_destination(), reply: Reply::Again(Again::NotReady) }]
     );
     let service = identity(2, 2);
     test.send(Event::Restore { record: Stored::Person { number: 2, identity: service.clone() } });
-    test.send(Event::Restored);
+    test.complete();
     test.send(Event::SignedIn {
         held: None,
         reply_to: whose_destination(),

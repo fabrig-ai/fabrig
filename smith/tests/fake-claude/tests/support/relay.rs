@@ -1,6 +1,4 @@
-//! The real run server and shipped relay around the fake (programs.md, 5.3, 9).
-
-#![allow(dead_code, reason = "shared support is compiled by integration binaries that exercise other scenarios")]
+//! The real run server and shipped relay around the fake (smith/docs/design/protocol/programs.md, 5.3).
 
 use serde_json::{Value, json};
 use skein_fake_machine::{Item, Machine as Files};
@@ -37,13 +35,7 @@ fn limits() -> io::Limits {
 }
 
 fn server_limits() -> mcp::Limits {
-    mcp::Limits {
-        message_bytes: 4096,
-        answer_bytes: 4096,
-        schema_bytes: 4096,
-        calls: 2,
-        unauthenticated: Time::from_nanos(1_000_000_000),
-    }
+    mcp::Limits { unauthenticated: Time::from_nanos(1_000_000_000), ..smith_protocol_program::mcp::fixture::SMALL }
 }
 
 pub struct Agent {
@@ -177,15 +169,7 @@ impl Agent {
         }
     }
     fn event(&mut self, now: Time, event: Event) {
-        let owner = match &event {
-            Event::Listening { owner, .. }
-            | Event::Accepted { owner, .. }
-            | Event::Stream { owner, .. }
-            | Event::Output { owner, .. }
-            | Event::Failed { owner, .. }
-            | Event::Closed { owner } => Some(*owner),
-            _ => None,
-        };
+        let owner = event.owner();
         if owner.is_some_and(|owner| self.server.owns(owner)) {
             self.server.from_io(now, event, &mut self.requests);
             self.notices();
@@ -269,9 +253,7 @@ impl Host for Agent {
         }
         self.server.fire(now, &mut self.requests);
         self.notices();
-        while let Some(request) = self.requests.pop() {
-            io::down(&mut self.io, &env, request, &mut self.submissions);
-        }
+        io::stage::down(&mut self.io, &env, &mut self.requests, &mut self.submissions);
         self.io.reclaim();
         if self.fake_done
             && self.io.is_empty()

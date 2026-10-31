@@ -1,11 +1,20 @@
-//! Positive-first mutations of actual child and landing observations.
-//! Contract: domain/run.md, sections 5.3, 8.1 and 13.
+//! Positive-first mutations of child and landing observations.
+//! Contract: smith/docs/design/domain/run.md, sections 5.3, 8.1 and 13.
 
 use skein_world::domain::Verdict;
 use smith_run_world::{
     Settings, World,
     lease_referee::{Seen, judge},
 };
+
+#[derive(Debug)]
+enum Mutation {
+    DuplicateChild,
+    UnownedWorkspace,
+    MissingWorkspace,
+    UnownedCheck,
+    UnownedDelivery,
+}
 
 #[test]
 fn the_lease_referee_rejects_overlapping_holders_and_unowned_checks_or_delivery() {
@@ -28,37 +37,41 @@ fn the_lease_referee_rejects_overlapping_holders_and_unowned_checks_or_delivery(
     let child = good
         .iter()
         .position(|(_, _, seen)| matches!(seen, Seen::ChildOpened { writing: true, .. }))
-        .expect("an actual writing child");
+        .expect("a writing child");
     let workspace = good
         .iter()
         .position(|(_, _, seen)| matches!(seen, Seen::WorkspaceOpened { .. }))
-        .expect("an actual workspace operation");
-    let check = good.iter().position(|(_, _, seen)| matches!(seen, Seen::Check { .. })).expect("an actual check");
-    let delivery =
-        good.iter().position(|(_, _, seen)| matches!(seen, Seen::Delivery { .. })).expect("an actual delivery");
-    for change in 0..5 {
+        .expect("a workspace operation");
+    let check = good.iter().position(|(_, _, seen)| matches!(seen, Seen::Check { .. })).expect("a check");
+    let delivery = good.iter().position(|(_, _, seen)| matches!(seen, Seen::Delivery { .. })).expect("a delivery");
+    for change in [
+        Mutation::DuplicateChild,
+        Mutation::UnownedWorkspace,
+        Mutation::MissingWorkspace,
+        Mutation::UnownedCheck,
+        Mutation::UnownedDelivery,
+    ] {
         let mut bad = good.to_vec();
         match change {
-            0 => {
+            Mutation::DuplicateChild => {
                 bad.insert(child + 1, bad[child]);
             }
-            1 => {
+            Mutation::UnownedWorkspace => {
                 bad.insert(
                     child + 1,
                     (bad[child].0, bad[child].1, Seen::WorkspaceOpened { owner: skein_lib::Token::new(u64::MAX) }),
                 );
             }
-            2 => {
+            Mutation::MissingWorkspace => {
                 bad.remove(workspace);
             }
-            3 => {
+            Mutation::UnownedCheck => {
                 bad[check].2 = Seen::Check { owner: skein_lib::Token::new(u64::MAX) };
             }
-            4 => {
+            Mutation::UnownedDelivery => {
                 bad[delivery].2 = Seen::Delivery { owner: skein_lib::Token::new(u64::MAX) };
             }
-            _ => unreachable!(),
         }
-        assert!(judge(&bad).iter().any(|verdict| matches!(verdict, Verdict::Failed(_))), "mutation {change}");
+        assert!(judge(&bad).iter().any(|verdict| matches!(verdict, Verdict::Failed(_))), "mutation {change:?}");
     }
 }

@@ -1,4 +1,4 @@
-//! Agent-neutral checks and grader commands after genuine tree settlement.
+//! Agent-neutral checks and grader commands after tree settlement.
 //! Reads stay inside the candidate copy; links and special files are scope
 //! evidence and are never followed. No provider or agent state is inspected.
 //! Contracts: benchmarks.md, sections 3.2, 9 and 10.
@@ -113,7 +113,7 @@ pub struct Ended {
     pub exit: Measure<Exit>,
     /// A bounded complete UTF-8 stderr line; never parsed for observations.
     pub last_line: Option<String>,
-    /// The actual native result text or Codex's final root message.
+    /// The native result text or Codex's final root message.
     pub answer: Option<String>,
     /// Pair settlement is supplied by the dispatcher; an isolated attempt cannot prove it.
     pub credential_refresh: Measure<bool>,
@@ -149,9 +149,9 @@ pub fn checks(
                 OutcomeCheck::FileContent { path, content } => file(workspace, path)
                     .and_then(|path| fs::read(path).map_err(|error| error.to_string()))
                     .map(|bytes| bytes == content.as_bytes()),
-                OutcomeCheck::FileDigest { path, sha256 } => file(workspace, path)
-                    .and_then(|path| crate::arm::binary_digest(&path))
-                    .map(|actual| actual == *sha256),
+                OutcomeCheck::FileDigest { path, sha256 } => {
+                    file(workspace, path).and_then(|path| crate::arm::binary_digest(&path)).map(|got| got == *sha256)
+                }
                 OutcomeCheck::FileSize { path, bytes_at_least } => file(workspace, path)
                     .and_then(|path| fs::metadata(path).map_err(|error| error.to_string()))
                     .map(|metadata| metadata.len() >= *bytes_at_least),

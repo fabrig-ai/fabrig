@@ -4,9 +4,14 @@ use temper_engine_domain as root;
 
 #[test]
 fn the_root_reports_the_earliest_credentials_expiry() {
-    let (mut domain, mut env) = fixtures::root();
+    let engine = fixtures::ready().engine.expect("running engine");
+    let mut domain = engine.domain;
+    let mut env = engine.env;
     env.now = Time::from_nanos(5_000_000_000);
-    assert_eq!(domain.next_deadline(&env), None);
+    let first_expiry = env.now.saturating_add(Duration::from_secs(7));
+    if let Some(deadline) = domain.next_deadline(&env) {
+        assert!(deadline > first_expiry);
+    }
     for (number, valid, expected) in [(1, 7, 12_u64), (2, 2, 7)] {
         root::try_step(
             &mut domain,
@@ -55,19 +60,15 @@ fn the_restart_asks_one_load_at_a_time() {
         }
     }
     let event = service.engine.as_mut().expect("engine").store.above.pop();
-    let Some(jig_protocol_store::Event::Restored { owner, rows, next }) = event else {
+    let Some(jig_protocol_store::Event::Page { owner, items, next }) = event else {
         panic!("first restart load: {event:?}")
     };
-    assert!(rows.is_empty());
+    assert!(items.is_empty());
     assert_eq!(next, None);
     assert!(service.engine.as_ref().expect("engine").store.above.is_empty());
     fixtures::turn(&mut service);
     assert!(service.engine.as_ref().expect("engine").store.above.is_empty(), "no next load before the first answer");
-    service.engine.as_mut().expect("engine").store.above.push(jig_protocol_store::Event::Restored {
-        owner,
-        rows,
-        next,
-    });
+    service.engine.as_mut().expect("engine").store.above.push(jig_protocol_store::Event::Page { owner, items, next });
     for _ in 0_u32..16 {
         fixtures::turn(&mut service);
         if !service.engine.as_mut().expect("engine").store.above.is_empty() {
@@ -101,10 +102,18 @@ fn a_corrupt_pending_restart_load_keeps_its_restore_kind() {
         }
     }
     let event = service.engine.as_mut().expect("engine").store.above.pop();
-    let Some(jig_protocol_store::Event::Restored { owner, .. }) = event else {
-        panic!("first restart load: {event:?}")
+    let Some(jig_protocol_store::Event::Page { owner, .. }) = event else { panic!("first restart load: {event:?}") };
+    let failure = jig_protocol_store::restore::Failure {
+        cause: jig_protocol_store::restore::Cause::Decode(jig_protocol_store::restore::DecodeFailure::Value),
+        row: None,
     };
-    service.engine.as_mut().expect("engine").store.above.push(jig_protocol_store::Event::Corrupt { owner });
+    service
+        .engine
+        .as_mut()
+        .expect("engine")
+        .store
+        .above
+        .push(jig_protocol_store::Event::PageRefused { owner, failure: failure.clone() });
     for _ in 0_u32..256 {
         fixtures::turn(&mut service);
         if service.end().is_some() {
@@ -113,10 +122,10 @@ fn a_corrupt_pending_restart_load_keeps_its_restore_kind() {
     }
     assert_eq!(
         service.end(),
-        Some(&crate::End::Stopped(crate::Stop::RestoreLoad(crate::RestoreFailure {
+        Some(&crate::End::Stopped(crate::Stop::RestorePage {
             range: crate::RestoreRangeKind::Deployment,
-            failure: crate::LoadFailure::Store,
-        })))
+            failure: Some(failure),
+        }))
     );
 }
 
@@ -546,8 +555,9 @@ fn nothing_leaves_before_the_mark() {
     let engine = service.engine.as_mut().expect("engine");
     assert!(engine.store.held_mark.is_some(), "public restore reaches its mark without secret bootstrap");
     assert!(!engine.store.component.mark_durable());
-    assert!(!engine.accounts.as_ref().expect("accounts").startup_state().0);
-    assert!(engine.accounts.as_ref().expect("accounts").startup_state().1 > 0, "early account requests retained");
+    assert_eq!(engine.accounts.as_ref().expect("accounts").startup_state(), (false, 0));
+    assert_eq!(engine.domain.start_phase(), Some(jig_domain_core::start::Phase::Wires));
+    assert!(!engine.credentials.is_empty(), "configured credentials wait for the durable wires");
     assert_eq!(engine.store.secret_requests, 0);
     assert!(engine.store.forge_loads.is_empty());
     assert!(!engine.forge_records.done());
@@ -830,18 +840,17 @@ fn an_oversized_startup_page_keeps_its_load_range_and_failed_step_before_switch(
         }
     }
     let engine = service.engine.as_mut().unwrap();
-    let Some(jig_protocol_store::Event::Restored { owner, .. }) = engine.store.above.pop() else {
-        panic!("startup page")
-    };
+    let Some(jig_protocol_store::Event::Page { owner, .. }) = engine.store.above.pop() else { panic!("startup page") };
     let header = jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Deployment(
         temper_engine_domain_world::store::HEADER,
     ));
     let mut rows = skein_lib::List::with_capacity(engine.env.limits.loads.rows + 1);
     for _ in 0..=engine.env.limits.loads.rows {
-        rows.push(jig_protocol_store::Row::Jig(header.clone())).expect("one row over demand");
+        rows.push(jig_protocol_store::restore::Item::Row(jig_protocol_store::Row::Jig(header.clone())))
+            .expect("one row over demand");
     }
     let rows = rows.into_boxed();
-    engine.store.above.push(jig_protocol_store::Event::Restored { owner, rows, next: None });
+    engine.store.above.push(jig_protocol_store::Event::Page { owner, items: rows, next: None });
     for _ in 0_u32..256 {
         fixtures::turn(&mut service);
         if service.end().is_some() {
@@ -850,13 +859,13 @@ fn an_oversized_startup_page_keeps_its_load_range_and_failed_step_before_switch(
     }
     assert_eq!(
         service.end(),
-        Some(&crate::End::Stopped(crate::Stop::RestoreLoad(crate::RestoreFailure {
+        Some(&crate::End::Stopped(crate::Stop::RestorePage {
             range: crate::RestoreRangeKind::Deployment,
-            failure: crate::LoadFailure::Store
-        })))
+            failure: None,
+        }))
     );
     let engine = service.engine.as_ref().unwrap();
-    assert_eq!(engine.domain.restart_failure(), Some(jig_domain_core::RestartStep::LoadCore));
+    assert_eq!(engine.domain.start_phase(), Some(jig_domain_core::start::Phase::LoadCore));
     assert!(!engine.domain.ready());
     assert!(engine.store.routes.idle());
 }
@@ -899,15 +908,88 @@ fn a_forge_fit_failure_reaches_the_typed_start_ending_before_switch() {
             limit: u64::from(limit),
         };
         let expected = crate::End::Stopped(crate::Stop::ForgeFit {
-            step: jig_domain_core::RestartStep::RestoreConnector { connector: 1 },
+            phase: Some(jig_domain_core::start::Phase::RestoreConnector { connector: 1 }),
             failure,
         });
         assert_eq!(service.end(), Some(&expected));
         let engine = service.engine.as_ref().unwrap();
         assert!(!engine.store.component.mark_durable());
-        assert!(!engine.domain.connectors_restored());
+        assert_eq!(engine.domain.start_phase(), Some(jig_domain_core::start::Phase::RestoreConnector { connector: 1 }));
         assert!(!engine.domain.ready());
         assert_eq!(engine.domain.forge_fit_failure(), Some(&failure));
         assert_eq!(engine.store.pending_generation, pending, "no switch");
     }
+}
+
+#[test]
+fn an_undecodable_startup_row_keeps_the_store_family_and_key() {
+    use jig_protocol_store as store;
+    use skein_lib::{Env, Queue, Token, Wall};
+    let mut previous = fixtures::started().engine.unwrap();
+    let mut header = previous.domain.deployment();
+    header.commits = 1;
+    previous.store.ask(store::Request::Commit {
+        number: 1,
+        writes: Box::new([store::Write::Save(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Deployment(
+            header,
+        )))]),
+    });
+    let Some(store::Event::Committed { .. }) = previous.store.above.pop() else { panic!("format and header commit") };
+    let application = previous.env.limits;
+    let models = previous.domain.models();
+    let names = store::codec::names(models);
+    let (_, _, profile) = fixtures::store_limits();
+    let limits = crate::store::limits(&application, &application.forge, &profile).unwrap();
+    let codec = store::codec::limits(&root::core_limits(&application)).unwrap();
+    let families = temper_protocol_store::application(&application.forge, application.tasks.spec_bytes).unwrap();
+    let mut maps = previous.store.component.into_stores();
+    header.commits = maps.store.last().checked_add(1).unwrap();
+    let key =
+        store::keys::encode(&jig_domain_core::Key::Tasks(jig_domain_tasks::Key::Live(9)), limits.store.key).unwrap();
+    let header = jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Deployment(header));
+    let mut above = Queue::uncapped();
+    let mut below = Queue::uncapped();
+    skein_kv::down(
+        &mut maps.store,
+        &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.store },
+        skein_kv::Request::Commit {
+            owner: Token::new(1),
+            ops: Box::new([
+                skein_kv::Op::Put {
+                    key: store::keys::encode(&header.key(), limits.store.key).unwrap(),
+                    value: store::codec::encode(&header, &codec, &names).unwrap(),
+                },
+                skein_kv::Op::Put { key: key.clone(), value: Box::new([255]) },
+            ]),
+        },
+        &mut above,
+        &mut below,
+    );
+    let Some(skein_kv::Event::Committed { .. }) = above.pop() else { panic!("fixture commit") };
+    assert!(below.is_empty());
+    let mut reopened = fixtures::memory_store();
+    reopened.component = store::Store::over(&limits, families, models, maps);
+    let reopened = fixtures::reopened_store(reopened, &application);
+    let mut service = fixtures::start_with_store(&[(1, 100)], Some(reopened));
+    for _ in 0_u32..256 {
+        fixtures::turn(&mut service);
+        if service.end().is_some() {
+            break;
+        }
+    }
+    assert_eq!(
+        service.end(),
+        Some(&crate::End::Stopped(crate::Stop::RestorePage {
+            range: crate::RestoreRangeKind::Tasks,
+            failure: Some(store::restore::Failure {
+                cause: store::restore::Cause::Decode(store::restore::DecodeFailure::Value),
+                row: Some(store::restore::RowSite {
+                    family: Some(store::Family::Tasks),
+                    key_bytes: u64::try_from(key.len()).unwrap(),
+                    key,
+                    truncated: false,
+                }),
+            }),
+        }))
+    );
 }

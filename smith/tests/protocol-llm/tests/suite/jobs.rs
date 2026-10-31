@@ -1,10 +1,10 @@
 //! Offered jobs cross each native dialect and the real tools domain.
 use skein_fake_checkout::{Checkout, Exit, Program};
-use skein_fake_llm_domain::api::{Finish, Line, Part, Script, Turn};
+use skein_fake_llm_domain::api::{Line, Part, Script, Turn};
 use skein_lib::{Duration, Token};
 use skein_world::domain::Span;
 use smith_domain::{llm, run, tools};
-use smith_protocol_llm_world::{Job, Settings, World, adapter, wire};
+use smith_protocol_llm_world::{Job, Settings, World, client_peer, codec};
 
 const COMMAND_MS: u64 = 3_000;
 const ITERATIONS: u32 = 10_000;
@@ -12,39 +12,39 @@ const STOP: &[u8] = br#"{"job":1,"stop":true}"#;
 const READ: &[u8] = br#"{"job":1,"wait_seconds":5}"#;
 
 fn call(name: &[u8], arguments: &[u8]) -> Turn {
-    Turn {
-        lines: Box::new([Line::Call { name: name.into(), arguments: arguments.into() }]),
-        finish: Finish::ToolCalls,
-        tokens: 1,
-    }
+    smith_protocol_llm_world::fixture::calls(
+        Box::new([Line::Call { name: name.into(), arguments: arguments.into() }]),
+        1,
+    )
 }
 
-fn world(configuration: wire::Configuration, job_input: &[u8]) -> World {
+fn world(configuration: client_peer::Configuration, job_input: &[u8]) -> World {
     let (disk, workspace) = checkout();
-    let mut settings = Settings { job: Job::Reporting, network: Span::millis(0, 0), ..Settings::calm(1102) };
+    let mut settings = Settings {
+        job: Job::Reporting,
+        network: Span::millis(0, 0),
+        ..smith_protocol_llm_world::fixture::settings(1102)
+    };
     let mut client = skein_llm_world::limits();
     client.request = 32768;
     client.http.request = 32768;
     settings.limits.session.completion_bytes =
-        adapter::completion_bound(&client, settings.limits.decoded_call_bytes).expect("native receiving");
+        codec::completion_bound(&client, settings.limits.decoded_call_bytes).expect("native receiving");
     settings.limits.session.completion_blocks = client.output_items;
     settings.limits.session.failure_bytes = client.detail_bytes;
-    let bounds = adapter::Limits {
+    let bounds = smith_protocol_llm::fixture::small(
         client,
-        tool_bytes: 32768,
-        history_bytes: u64::from(client.request),
-        rendered_result: client.strings,
-        stated: adapter::Stated::from_tools(&settings.limits.session.tools, client.input).expect("effective bounds"),
-    };
+        codec::Stated::from_tools(&settings.limits.session.tools, client.input).expect("effective bounds"),
+    );
     let scripts = Box::new([Script {
         cue: Box::new([]),
         turns: Box::new([
             call(b"shell", br#"{"command":"build","yield_seconds":1}"#),
             call(b"job", job_input),
-            call(b"finish", br#"{"report":"Read the job's end.","source":"job"}"#),
+            call(b"finish", br#"{"form":"report","text":"Read the job's end.","fields":{"source":"job"}}"#),
         ]),
     }]);
-    World::with_workspace_wire(settings, None, Some(workspace), disk, configuration, bounds, scripts)
+    World::with_workspace_protocol(settings, None, Some(workspace), disk, configuration, bounds, scripts)
 }
 
 fn checkout() -> (Checkout, run::Workspace) {
@@ -90,7 +90,7 @@ fn outputs(world: &World, prompt: usize) -> Vec<Vec<u8>> {
 
 #[test]
 fn a_shell_call_with_a_yield_is_answered_running_then_read_with_job_in_each_dialect() {
-    for configuration in wire::configurations() {
+    for configuration in client_peer::configurations() {
         let mut world = world(configuration, READ);
         world.run(ITERATIONS);
         assert!(matches!(world.answer(), run::Answer::Accepted { .. }));
@@ -107,7 +107,7 @@ fn a_shell_call_with_a_yield_is_answered_running_then_read_with_job_in_each_dial
 
 #[test]
 fn a_job_call_with_stop_is_rendered_stopped() {
-    for configuration in wire::configurations() {
+    for configuration in client_peer::configurations() {
         let mut world = world(configuration, STOP);
         world.run(ITERATIONS);
         assert!(matches!(world.answer(), run::Answer::Accepted { .. }));
@@ -123,19 +123,13 @@ fn a_job_call_with_stop_is_rendered_stopped() {
 
 fn decoded(name: &[u8], input: &[u8]) -> llm::Decoded {
     let client = skein_llm_world::limits();
-    adapter::decode(
+    codec::decode(
         name,
         input,
         tools::Grants { inspect: false, modify: false, shell: true },
         &[],
         llm::Asker::Main,
-        &adapter::Limits {
-            client,
-            tool_bytes: 32768,
-            history_bytes: u64::from(client.request),
-            rendered_result: client.strings,
-            stated: adapter::stated(),
-        },
+        &smith_protocol_llm::fixture::small(client, codec::stated()),
     )
 }
 

@@ -1,13 +1,13 @@
 //! Admission limits and checked capacities. This module retains no runtime state.
 //! `valid` checks limit compatibility and representable capacities, without knowing live ownership.
 //!
-//! Contract: domain/run.md, section 13; programming-model.md, sections 4.4, 4.5 and 6.3.
+//! Contract: smith/docs/design/domain/run.md, section 13; skein/docs/foundation/programming-model.md, sections 4.4, 4.5 and 6.3.
 
 use skein_lib::Duration;
 
 use crate::budget::Budget;
 
-/// The run child domain's limits (programming-model.md, sections 4.5 and 6.3), handed by its parent to every
+/// The run child domain's limits (skein/docs/foundation/programming-model.md, sections 4.5 and 6.3), handed by its parent to every
 /// step read-only.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Limits {
@@ -52,6 +52,8 @@ pub struct Limits {
     pub compaction_threshold: [u32; 2],
     /// Summary instruction and owed-result markers above each conversation's line.
     pub compaction_material: u64,
+    /// Maximum provider effort-name bytes, supplied by the protocol owner.
+    pub effort_bytes: u32,
     /// Exact protocol renderer projections, measured at startup.
     pub schema_costs: crate::SchemaCosts,
     /// Directories a present workspace may list; empty present workspaces refuse.
@@ -126,7 +128,7 @@ pub struct Limits {
 }
 
 /// Whether a domain can be built under `limits`: compatible limits and
-/// representable constructor capacities (programming-model.md, section 6.3).
+/// representable constructor capacities (skein/docs/foundation/programming-model.md, section 6.3).
 /// The shell refuses limits for which this is false.
 #[must_use]
 pub fn valid(limits: &Limits) -> bool {
@@ -169,6 +171,8 @@ pub struct Derivation {
     pub compaction_threshold: [u32; 2],
     /// Summary instruction and owed-result markers above each conversation's line.
     pub compaction_material: u64,
+    /// Maximum provider effort-name bytes, supplied by the protocol owner.
+    pub effort_bytes: u32,
     pub schema_costs: crate::SchemaCosts,
 }
 
@@ -190,7 +194,7 @@ impl Field {
 }
 
 /// Derive this layer from declarations, refusing checked arithmetic overflow.
-/// Contract: protocol/limits.md, sections 2 and 3.
+/// Contract: smith/docs/design/protocol/limits.md, sections 2 and 3.
 pub fn derive(inputs: &Derivation) -> Result<Limits, Field> {
     let message_bytes = inputs.message;
     let offer_bytes = u32::try_from(inputs.offer).or(Err(Field::OfferBytes))?;
@@ -203,6 +207,7 @@ pub fn derive(inputs: &Derivation) -> Result<Limits, Field> {
         room: inputs.room,
         compaction_threshold: inputs.compaction_threshold,
         compaction_material: inputs.compaction_material,
+        effort_bytes: inputs.effort_bytes,
         schema_costs: inputs.schema_costs,
         directories: 4,
         directory_name_bytes: 256,

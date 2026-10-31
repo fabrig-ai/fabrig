@@ -706,11 +706,11 @@ fn prepare(
             let bytes = value.to_bytes(&limits.document())?;
             let counted = if expected_kind == b"reasoning" {
                 match json::optional_at(tokens, json::field(tokens, b"encrypted_content")?)? {
-                    Some(text) => u64::try_from(json::text_ref(text)?.len()).expect("bounded reasoning"),
+                    Some(text) => skein_lib::len_u64(json::text_ref(text)?.len()),
                     None => 0,
                 }
             } else {
-                u64::try_from(bytes.len()).expect("bounded opaque item")
+                skein_lib::len_u64(bytes.len())
             };
             if counted > u64::from(limits.reasoning) {
                 match reasoning {

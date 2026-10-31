@@ -12,6 +12,8 @@ use crate::store::Store;
 use crate::walking::{config, limits};
 
 pub struct Driver {
+    pub(crate) broken: crate::oracle::Fixture,
+    pub(crate) restart_config: engine::Config,
     creating: jig_core_world::fixtures::Creating,
     pub forge: Option<crate::forge_stand::ForgeStand>,
     pub root: engine::Domain,
@@ -41,6 +43,22 @@ pub struct Driver {
 }
 
 impl Driver {
+    /// Replace the cold-start configuration together with the root it describes.
+    pub fn reopen(&mut self, configuration: engine::Config) {
+        self.store.crash(0);
+        self.stopped = false;
+        self.out.clear();
+        self.restart_config = crate::oracle::config::copy(&configuration);
+        self.root = engine::Domain::new(configuration, &self.env.limits).expect("restart configuration");
+        self.events.clear();
+        self.delivered.clear();
+        self.send(engine::Event::Restart { pending: false });
+    }
+    /// Transfer a cold-cut fixture's store; its receiving root runs the oracle.
+    pub fn take_store(&mut self) -> Store {
+        self.broken("cold-cut fixture transfers its store to the receiving root");
+        std::mem::take(&mut self.store)
+    }
     #[must_use]
     pub fn new(store: Store) -> Driver {
         Driver::configured(store, [config(91), config(91)], &limits())
@@ -75,6 +93,8 @@ impl Driver {
     #[must_use]
     pub fn cold(store: Store, config: engine::Config, limits: &engine::Limits) -> Driver {
         Driver {
+            broken: crate::oracle::Fixture::Checked,
+            restart_config: crate::oracle::config::copy(&config),
             creating: jig_core_world::fixtures::Creating::new(&config.core, limits.tasks.tree_tasks),
             forge: None,
             root: engine::Domain::new(config, limits).expect("valid engine configuration"),
@@ -111,6 +131,10 @@ impl Driver {
     /// Offer one input through admission; an input the journal cannot take
     /// is handed back to the world, which keeps it (jig's `domain/root.md`, 3).
     pub fn send(&mut self, event: engine::Event) {
+        if crate::waits_for_start(&self.root, &event) {
+            self.events.push_back(event);
+            return;
+        }
         if let Err(event) = engine::try_step(&mut self.root, &self.env, event) {
             self.returned += 1;
             self.events.push_back(event);
@@ -124,6 +148,10 @@ impl Driver {
     /// waits ahead of later root inputs (temper-service's `engine.rs:124`,
     /// retried at `engine.rs:320`). Store terminals can still advance durability.
     pub fn send_retaining(&mut self, event: engine::Event) {
+        if crate::waits_for_start(&self.root, &event) {
+            self.events.push_back(event);
+            return;
+        }
         if let Err(event) = engine::try_step(&mut self.root, &self.env, event) {
             self.returned += 1;
             self.events.push_front(event);
@@ -164,6 +192,7 @@ impl Driver {
                 engine::Request::Store(engine::StoreRequest::Load { owner, range, after, most, bytes }) => {
                     self.loads.push((owner, range.clone()));
                     let (rows, next) = self.store.page(&range, after.as_ref(), most);
+                    self.events.extend(self.store.take_missing(owner).into_iter().map(engine::Event::Store));
                     assert!(rows.len() <= usize::try_from(most).expect("small count"));
                     assert!(bytes >= self.env.limits.loads.bytes);
                     if self.fail_archive_once
@@ -241,7 +270,8 @@ impl Driver {
             self.period_sent = true;
             self.period();
         }
-        if let Some(event) = self.events.pop_front() {
+        if let Some(index) = self.events.iter().position(|event| !crate::waits_for_start(&self.root, event)) {
+            let event = self.events.remove(index).expect("eligible queued input");
             self.send(event);
         }
         if apply && !self.store.pending.is_empty() {

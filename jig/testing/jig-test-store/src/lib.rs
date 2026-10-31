@@ -51,16 +51,15 @@ mod tests;
 #[derive(Debug)]
 pub enum StoreOut {
     Commit { number: u64, writes: Box<[jig_test_domain::Write]> },
-    Restart { step: jig_domain_core::RestartStep, census: Option<jig_domain_core::Census> },
+    Start { phase: jig_domain_core::start::Phase, census: Option<jig_domain_core::Census> },
     ReadLoad { load: skein_lib::Token, range: Box<jig_domain_core::reads::Range> },
     NotesLoad { owner: skein_lib::Token, range: jig_domain_notes::Range },
     Now(jig_domain_core::Now),
 }
-/// A restored row, a root terminal or the next store request.
+/// A typed root event or the next store request.
 #[derive(Debug)]
 #[expect(clippy::large_enum_variant, reason = "store replies carry the core's bounded proposal event whole")]
 pub enum Up {
-    Restore(jig_test_domain::Record),
     Root(jig_test_domain::Event),
     Ask(jig_protocol_store::Request),
 }

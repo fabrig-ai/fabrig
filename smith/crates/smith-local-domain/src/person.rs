@@ -1,7 +1,6 @@
 //! Lines, names and text shown to one terminal (domain/host.md, section 8).
 
-use crate::chat::{Gone, Phase};
-use crate::domain::AgentLife;
+use crate::chat::State;
 use crate::{Domain, ExitStatus, Fact, Reading, Request};
 use alloc::boxed::Box;
 use skein_lib::{List, Queue, Token};
@@ -113,8 +112,7 @@ impl Lines {
         }
     }
 
-    pub(crate) fn fence(&mut self, read: Option<Token>) -> u32 {
-        let mut count = 0_u32;
+    pub(crate) fn fence(&mut self, read: Option<Token>) {
         for _ in 0..self.held.len() {
             let line = self.held.pop().expect("bounded line count");
             let covered = match line.stage {
@@ -124,17 +122,13 @@ impl Lines {
                 },
                 Stage::Received | Stage::Naming { .. } | Stage::Named { .. } => false,
             };
-            if covered {
-                count = count.checked_add(1).expect("bounded lines");
-            } else {
+            if !covered {
                 self.held.push(line);
             }
         }
-        count
     }
 
-    pub(crate) fn refused(&mut self, name: Token) -> bool {
-        let mut removed = false;
+    pub(crate) fn refused(&mut self, name: Token) {
         for _ in 0..self.held.len() {
             let line = self.held.pop().expect("bounded line count");
             let same = match line.stage {
@@ -143,13 +137,10 @@ impl Lines {
                 }
                 Stage::Received => false,
             };
-            if same {
-                removed = true;
-            } else {
+            if !same {
                 self.held.push(line);
             }
         }
-        removed
     }
 
     pub(crate) fn all_read(&self) -> bool {
@@ -326,8 +317,6 @@ mod tests {
     #[test]
     fn a_turn_shows_the_tool_name_and_its_terminal() {
         let turn = agent::Turn {
-            model: b"model".as_slice().into(),
-            effort: None,
             kind: session::record::Kind::First(Box::new(session::record::Opener {
                 affinity: session::llm::Affinity { key: [0; 16], thread: 0 },
                 account: None,
@@ -335,11 +324,6 @@ mod tests {
             })),
             version: 1,
             endpoint: Some(session::llm::Endpoint(1)),
-            dialect: 1,
-            sequence: 1,
-            usage: session::llm::Usage::ZERO,
-            spent: 0,
-            jobs: 0,
             messages: Box::new([session::llm::Message {
                 role: session::llm::Role::Assistant,
                 content: Box::new([
@@ -361,6 +345,7 @@ mod tests {
                     },
                 ]),
             }]),
+            ..crate::fixture::turn()
         };
         assert_eq!(turn_text(&turn, 128).as_ref(), b"Working\nTool: inspect\nTool finished\n");
     }
@@ -375,15 +360,25 @@ pub(crate) fn show_dropped(lines: &mut Lines, out: &mut Queue<Request>) {
 }
 
 pub(crate) fn finish_answer(domain: &mut Domain, out: &mut Queue<Request>) {
-    if domain.agent_life != AgentLife::Gone || domain.chat.state_pending {
+    if !domain.child.is_gone() || domain.chat.state_pending() || !domain.turns.unsaved.is_empty() {
         return;
     }
-    let Some(answer) = domain.turns.answer.take() else { return };
-    if domain.stop_failed {
-        domain.run = None;
-        domain.chat.phase = Phase::Done;
-        out.push(Request::Exit { status: crate::end::exit_status(domain.end_cause) });
-        return;
+    let state = core::mem::replace(&mut domain.chat.phase, State::Done);
+    domain.chat.phase = match state {
+        State::Answered { answer, detail } => finish_answered(domain, answer, detail, out),
+        state @ (State::Loading(_)
+        | State::Idle
+        | State::Starting(_)
+        | State::Running { .. }
+        | State::Ending(_)
+        | State::Done) => state,
+    };
+}
+
+fn finish_answered(domain: &mut Domain, answer: host::Answer, detail: Box<[u8]>, out: &mut Queue<Request>) -> State {
+    if domain.ending.store_failed() {
+        out.push(Request::Exit { status: crate::end::exit_status(domain.ending.cause()) });
+        return State::Done;
     }
     crate::domain::observe(domain, Fact::Shown { activation: domain.chat.state.activation });
     let status = match domain.config.mode {
@@ -392,7 +387,6 @@ pub(crate) fn finish_answer(domain: &mut Domain, out: &mut Queue<Request>) {
         }
         crate::Mode::Chat { .. } => ExitStatus::Accepted,
     };
-    let detail = core::mem::replace(&mut domain.turns.detail, Box::new([]));
     match &answer.result {
         host::RunResult::Failed { failure } => {
             out.push(Request::Notice {
@@ -408,8 +402,6 @@ pub(crate) fn finish_answer(domain: &mut Domain, out: &mut Queue<Request>) {
         }
     }
     out.push(Request::Answered { answer });
-    domain.run = None;
-    domain.wall_deadline = None;
 
     let headless = match domain.config.mode {
         crate::Mode::Headless { .. } => true,
@@ -419,16 +411,15 @@ pub(crate) fn finish_answer(domain: &mut Domain, out: &mut Queue<Request>) {
         Some(last) => domain.chat.state.activation >= last,
         None => false,
     };
-    if domain.chat.closed && drained {
+    if domain.chat.closed() && drained {
         show_dropped(&mut domain.lines, out);
     }
-    if (domain.chat.closed && domain.lines.is_empty()) || headless {
-        domain.chat.phase = Phase::Done;
+    if (domain.chat.closed() && domain.lines.is_empty()) || headless {
         out.push(Request::Exit { status });
+        State::Done
     } else {
-        domain.chat.phase = Phase::Loading;
-        domain.chat.load_requested = true;
         out.push(Request::Load);
+        State::Loading(crate::chat::Load::Waiting)
     }
 }
 
@@ -462,11 +453,13 @@ mod line_tests {
     #[test]
     fn a_fence_pops_only_relayed_lines_it_covers() {
         let mut lines = named();
-        assert_eq!(lines.fence(Some(Token::new(1))), 0);
+        lines.fence(Some(Token::new(1)));
+        assert!(!lines.is_empty());
         lines.carry();
         assert!(!lines.all_read());
-        assert_eq!(lines.fence(None), 0);
-        assert_eq!(lines.fence(Some(Token::new(1))), 1);
+        lines.fence(None);
+        assert!(!lines.is_empty());
+        lines.fence(Some(Token::new(1)));
         assert!(lines.all_read());
         assert!(lines.is_empty());
     }
@@ -474,8 +467,9 @@ mod line_tests {
     fn a_refused_named_line_releases_its_cell_once() {
         let mut lines = named();
         lines.carry();
-        assert!(lines.refused(Token::new(1)));
-        assert!(!lines.refused(Token::new(1)));
+        lines.refused(Token::new(1));
+        assert!(lines.is_empty());
+        lines.refused(Token::new(1));
         assert!(lines.is_empty());
     }
     #[test]
@@ -527,14 +521,17 @@ pub(crate) fn answered(domain: &mut Domain, answer: host::Answer, detail: Box<[u
     domain.lines.fence(answer.read);
     domain.chat.state.read = answer.read;
     crate::domain::observe(domain, Fact::Answered { activation: domain.chat.state.activation, read: answer.read });
-    domain.chat.phase =
-        Phase::Answered { gone: if domain.agent_life == AgentLife::Gone { Gone::Heard } else { Gone::Owed } };
-    match policy(Some(&answer.result), domain.cancel_requested.is_some()) {
+    match policy(Some(&answer.result), domain.ending.requested().is_some()) {
         UnreadPolicy::Carry => {}
         UnreadPolicy::Drop => show_dropped(&mut domain.lines, out),
     }
-    domain.turns.answer = Some(answer);
-    domain.turns.detail = detail;
+    let state = core::mem::replace(&mut domain.chat.phase, State::Done);
+    domain.chat.phase = match state {
+        State::Running { .. } | State::Ending(_) => State::Answered { answer, detail },
+        State::Loading(_) | State::Idle | State::Starting(_) | State::Answered { .. } | State::Done => {
+            unreachable!("one answer belongs to the live activation")
+        }
+    };
     if domain.turns.unsaved.is_empty() {
         finish_answer(domain, out);
     }

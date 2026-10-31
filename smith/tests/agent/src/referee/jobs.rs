@@ -1,4 +1,4 @@
-//! Job terminals are observed before the session's close (protocol/events.md, section 5).
+//! Job terminals are observed before the session's close (smith/docs/design/protocol/events.md, section 5).
 use super::{Judge, Meeting};
 use smith_domain::{session::FactKind, tools};
 
