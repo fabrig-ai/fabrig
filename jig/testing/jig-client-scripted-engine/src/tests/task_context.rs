@@ -14,7 +14,7 @@ fn task_context_parent_prices_actual_optional_box_and_all_reserved_children_with
     context.parts.push(Part::Resource { connector: u16::MAX, path }).unwrap();
     context.spend = List::with_capacity(2);
     context.writer_slots = List::with_capacity(2);
-    context.escalation = None;
+
     context.closing = None;
     context.runtime = Runtime::Running { attempt: u64::MAX, since: Wall::EPOCH, tool: Some(text(UTF8_TEXTS[0])) };
     row.context = Some(context.clone());

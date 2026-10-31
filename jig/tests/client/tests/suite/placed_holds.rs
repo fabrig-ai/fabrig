@@ -244,7 +244,7 @@ fn a_client_reads_a_stopped_goals_hold_and_only_its_owner_lifts_it() {
     assert!(!placed.lifted);
     assert!(placed.reason.is_empty());
     assert!(placed.placed_at > Wall::EPOCH);
-    assert!(matches!(hold, c::TaskHold::Owner(value) if value.reason == c::HoldCategory::Placed { hold: number }));
+    assert!(matches!(hold, c::value if value.reason == c::HoldCategory::Placed { hold: number }));
     assert!(
         document.acts.iter().any(|offer| offer.act == c::ActKind::Release && offer.admission == c::Admission::Allowed)
     );

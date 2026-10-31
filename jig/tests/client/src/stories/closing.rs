@@ -56,7 +56,7 @@ pub fn world(seed: u64) -> World<Test, Scripted> {
     })));
     moved.requester = OwnerRequester::Person(PARTY);
     chat.chip.phase = Phase::Closing;
-    let ChipPhase::Owner { phase, .. } = chat.chip.details.as_mut() else { unreachable!("owner chat") };
+    let ChipPhase { phase, .. } = chat.chip.details.as_mut();
     *phase = OwnerChipPhase::Closing(ClosingStage::Delegates);
     chat.delegates.clear();
     world

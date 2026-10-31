@@ -355,7 +355,9 @@ fn the_test_clients_family_revision_and_durable_outcome_are_observed() {
 
 #[test]
 fn the_test_clients_sent_words_are_found_in_committed_activity() {
-    use jig_client_domain::contract::{Activity, ActivityLine, Answer, Ask, Outcome, Read};
+    use jig_client_domain::contract::{
+        ActivityLine, Answer, Ask, Outcome, OwnerActivity, OwnerActivityLine, OwnerMessageKind, OwnerRequester, Read,
+    };
     use jig_client_world::stories;
     let mut w = stories::chat_ready(21);
     w.front()
@@ -368,9 +370,18 @@ fn the_test_clients_sent_words_are_found_in_committed_activity() {
                 party: 7,
                 read: Read::Activity { task: 9, before: None },
                 rows: jig_client_scripted_engine::Rows::Activity(vec![ActivityLine {
-                    position: 1,
-                    at: Wall::EPOCH,
-                    event: Activity::Words { by: stories::party(7), message: 1, words: stories::text(b"Words") },
+                    source: Box::new(OwnerActivityLine {
+                        task: 9,
+                        position: 1,
+                        at: skein_lib::Wall::EPOCH,
+                        line: OwnerActivity::Words {
+                            by: OwnerRequester::Person(7),
+                            message: 1,
+                            kind: OwnerMessageKind::Words,
+                            words: stories::text(b"Words"),
+                        },
+                    }),
+                    decoded: None,
                 }]),
             })],
         })

@@ -94,21 +94,6 @@ fn records_2(bytes: &[u8]) {
     check!(ProposerParty, bytes);
     check!(Proposer, bytes);
     check!(ProposalKey, bytes);
-    check!(PartScopeProject, bytes);
-    check!(PartScope, bytes);
-    check!(PartConnector, bytes);
-    check!(PartResource, bytes);
-    check!(PartKind, bytes);
-    check!(PartPanel, bytes);
-    check!(PartResult, bytes);
-    check!(PartEffect, bytes);
-    check!(PartOwnerEffect, bytes);
-    check!(PartOutbox, bytes);
-    check!(PartHold, bytes);
-    check!(PartProject, bytes);
-    check!(PartDeployment, bytes);
-    check!(Part, bytes);
-    check!(WakePolicy, bytes);
     check!(RecipientTask, bytes);
     check!(RecipientParty, bytes);
     check!(RecipientRole, bytes);
@@ -182,18 +167,6 @@ fn records_4(bytes: &[u8]) {
     check!(ChipFields, bytes);
     check!(ChipRow, bytes);
     check!(ChipPhaseOwnerFields, bytes);
-    check!(ChipPhaseActiveFields, bytes);
-    check!(ChipPhaseWaitingFields, bytes);
-    check!(ChipPhaseIdleFields, bytes);
-    check!(ChipPhaseRunningFields, bytes);
-    check!(ChipPhaseWaitingForWordsFields, bytes);
-    check!(ChipPhaseBackingOffFields, bytes);
-    check!(ChipPhaseProcedureFields, bytes);
-    check!(ChipPhasePersonFields, bytes);
-    check!(ChipPhaseClosingFields, bytes);
-    check!(ChipPhaseHeldFields, bytes);
-    check!(ChipPhaseEndedFields, bytes);
-    check!(ChipPhaseFields, bytes);
     check!(ChipPhaseRow, bytes);
     check!(ClosingFields, bytes);
     check!(ClosingRow, bytes);
@@ -214,15 +187,9 @@ fn records_5(bytes: &[u8]) {
     check!(HoldReasonTriesFields, bytes);
     check!(HoldReasonStalledFields, bytes);
     check!(HoldReasonDependencyFields, bytes);
-    check!(HoldReasonDriftFields, bytes);
-    check!(HoldReasonEffectFailedFields, bytes);
-    check!(HoldReasonEffectUncertainFields, bytes);
     check!(HoldReasonBudgetFields, bytes);
     check!(HoldReasonDeadlineFields, bytes);
     check!(HoldReasonStoppedFields, bytes);
-    check!(HoldReasonResourceFields, bytes);
-    check!(HoldReasonPoolFields, bytes);
-    check!(HoldReasonProcedureFields, bytes);
     check!(HoldReasonFields, bytes);
     check!(HoldReasonRow, bytes);
     check!(OwnerChipDetailsFields, bytes);
@@ -235,7 +202,6 @@ fn records_5(bytes: &[u8]) {
     check!(ResultValueReportFields, bytes);
     check!(ResultValueOwnerVerdictFields, bytes);
     check!(ResultValueVerdictFields, bytes);
-    check!(ResultValueConnectorFields, bytes);
     check!(ResultValueChangeFields, bytes);
     check!(ResultValueChoiceFields, bytes);
     check!(ResultValueApprovedFields, bytes);
@@ -407,16 +373,11 @@ fn records_8(bytes: &[u8]) {
     check!(Made, bytes);
     check!(OutcomeOwner, bytes);
     check!(OutcomeMade, bytes);
-    check!(OutcomeProposed, bytes);
-    check!(OutcomeDecided, bytes);
 }
 
 fn records_9(bytes: &[u8]) {
-    check!(OutcomeDecidedFirst, bytes);
     check!(Outcome, bytes);
-    check!(Grant, bytes);
     check!(LackingBudget, bytes);
-    check!(LackingGrant, bytes);
     check!(LackingGrantKind, bytes);
     check!(LackingAgain, bytes);
     check!(LackingRequired, bytes);
@@ -517,13 +478,9 @@ fn records_11(bytes: &[u8]) {
     check!(TurnTooLarge, bytes);
     check!(TurnBytes, bytes);
     check!(ArchivedTurn, bytes);
-    check!(RunBeginningFresh, bytes);
 }
 
 fn records_12(bytes: &[u8]) {
-    check!(RunBeginning, bytes);
-    check!(RunEndingFailed, bytes);
-    check!(RunEnding, bytes);
     check!(FieldRule, bytes);
     check!(VerdictChoice, bytes);
     check!(TaskContractDocumentApproval, bytes);
@@ -564,26 +521,10 @@ fn records_12(bytes: &[u8]) {
 fn records_13(bytes: &[u8]) {
     check!(ObjectKeyNote, bytes);
     check!(ObjectKey, bytes);
-    check!(ActivityOwner, bytes);
-    check!(ActivityWords, bytes);
-    check!(ActivityRunBegan, bytes);
-    check!(ActivityRunEnded, bytes);
-    check!(ActivityTurn, bytes);
-    check!(ActivityResult, bytes);
-    check!(ActivityNews, bytes);
-    check!(ActivityDecision, bytes);
-    check!(Activity, bytes);
     check!(ActivityLine, bytes);
     check!(ActivityPage, bytes);
     check!(SpendLine, bytes);
     check!(Hold, bytes);
-    check!(HistoryChangeMade, bytes);
-    check!(HistoryChangeAmended, bytes);
-    check!(HistoryChangeHeld, bytes);
-    check!(HistoryChangeCancelled, bytes);
-    check!(HistoryChangeMoved, bytes);
-    check!(HistoryChange, bytes);
-    check!(HistoryLine, bytes);
     check!(OwnerHistoryChange, bytes);
     check!(ParameterDocumentNumber, bytes);
     check!(ParameterDocumentBytes, bytes);
@@ -621,33 +562,23 @@ fn records_14(bytes: &[u8]) {
     check!(OwnerMilestonePhaseEnded, bytes);
     check!(OwnerMilestonePhase, bytes);
     check!(OwnerMilestoneLine, bytes);
-    check!(HistoryRowLine, bytes);
     check!(HistoryRowChange, bytes);
     check!(HistoryRowMilestone, bytes);
     check!(HistoryRow, bytes);
     check!(HistoryPage, bytes);
     check!(RuntimeActive, bytes);
-    check!(RuntimeWaiting, bytes);
     check!(RuntimeRunning, bytes);
     check!(RuntimeWaitingForWords, bytes);
     check!(RuntimeBackingOff, bytes);
-    check!(RuntimeProcedure, bytes);
     check!(RuntimePerson, bytes);
     check!(RuntimeClosing, bytes);
     check!(RuntimeHeld, bytes);
     check!(Runtime, bytes);
     check!(Count, bytes);
-    check!(InboxEntry, bytes);
-    check!(InboxPage, bytes);
 }
 
 fn records_15(bytes: &[u8]) {
     check!(OwnerPhaseCounts, bytes);
-    check!(Budget, bytes);
-    check!(Pool, bytes);
-    check!(TaskSpend, bytes);
-    check!(SpendPeriod, bytes);
-    check!(SpendPage, bytes);
     check!(NoteAuthorParty, bytes);
     check!(NoteAuthorTask, bytes);
     check!(NoteAuthor, bytes);

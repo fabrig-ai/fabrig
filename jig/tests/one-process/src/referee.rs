@@ -386,11 +386,7 @@ fn received(seen: &Received, store: &Store) -> Vec<rules::Receipt> {
             .rows
             .iter()
             .filter_map(|row| {
-                if let client::Activity::Owner { source, .. } = &row.event {
-                    row.event.committed_turn().map(|turn| rules::Receipt::Turn(source.task, turn.attempt, turn.number))
-                } else {
-                    None
-                }
+                row.committed_turn().map(|turn| rules::Receipt::Turn(row.source.task, turn.attempt, turn.number))
             })
             .collect();
     }

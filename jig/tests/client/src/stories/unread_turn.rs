@@ -5,46 +5,38 @@ use jig_client_domain::contract::*;
 use skein_lib::Wall;
 
 fn readable(number: u32, words: &[u8]) -> ActivityLine {
-    ActivityLine {
-        position: u64::from(number),
-        at: Wall::EPOCH,
-        event: crate::stories::turn_event(
-            9,
-            u64::from(number),
-            TurnName { attempt: 1, number },
-            TurnRead::Decoded(Turn {
-                messages: list([Message { speaker: Speaker::Assistant, blocks: list([Block::Text(text(words))]) }]),
-                used: Usage { input: 1, output: 1, cached: 0, cache_written: 0 },
-                spent: 1,
-                read_through: None,
-                cut: false,
-            }),
-        ),
-    }
+    crate::stories::turn_event(
+        9,
+        u64::from(number),
+        TurnName { attempt: 1, number },
+        TurnRead::Decoded(Turn {
+            messages: list([Message { speaker: Speaker::Assistant, blocks: list([Block::Text(text(words))]) }]),
+            used: Usage { input: 1, output: 1, cached: 0, cache_written: 0 },
+            spent: 1,
+            read_through: None,
+            cut: false,
+        }),
+    )
 }
 /// Starts a conversation with a malformed turn between two readable ones.
 #[must_use]
 pub fn world(seed: u64) -> World<Test, Scripted> {
     let mut world = chat_ready(seed);
     let unread = ActivityLine {
-        position: 2,
-        at: Wall::EPOCH,
-        event: Activity::Owner {
-            source: Box::new(OwnerActivityLine {
-                task: 9,
-                position: 2,
-                at: Wall::EPOCH,
-                line: OwnerActivity::Turn { reply: 2, attempt: 1, turn: 2, read: None },
-            }),
-            decoded: Some(ArchivedTurn {
-                task: 9,
-                name: TurnName { attempt: 1, number: 2 },
-                cumulative: 2,
-                read: None,
-                at: Wall::EPOCH,
-                turn: TurnRead::Undecodable { why: TurnProblem::Malformed },
-            }),
-        },
+        source: Box::new(OwnerActivityLine {
+            task: 9,
+            position: 2,
+            at: Wall::EPOCH,
+            line: OwnerActivity::Turn { reply: 2, attempt: 1, turn: 2, read: None },
+        }),
+        decoded: Some(ArchivedTurn {
+            task: 9,
+            name: TurnName { attempt: 1, number: 2 },
+            cumulative: 2,
+            read: None,
+            at: Wall::EPOCH,
+            turn: TurnRead::Undecodable { why: TurnProblem::Malformed },
+        }),
     };
     world
         .front()

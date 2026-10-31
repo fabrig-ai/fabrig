@@ -2,8 +2,8 @@ use super::*;
 use crate::payload::fits;
 use core::mem::size_of;
 use jig_client_domain::contract::{
-    Chip, ChipPhase, Executor, FieldRule, OwnerExecutor, OwnerPart, OwnerPartKey, OwnerPartKind, PersonAddress, Phase,
-    ProposalKey, Proposer, TaskContractDocument, Text, VerdictChoice,
+    Chip, ChipPhase, Executor, FieldRule, OwnerChipDetails, OwnerChipPhase, OwnerExecutor, OwnerPart, OwnerPartKey,
+    OwnerPartKind, PersonAddress, Phase, ProposalKey, Proposer, TaskContractDocument, Text, VerdictChoice,
 };
 use skein_lib::{List, Wall, bytes::copy_of};
 
@@ -15,7 +15,11 @@ fn chip() -> Chip {
         title: jig_client_domain::contract::DocumentText::complete(Text::new(copy_of(b"raw"), 3).unwrap()),
         executor: Executor::Agent { charter: u32::MAX },
         phase: Phase::Waiting,
-        details: Box::new(ChipPhase::Waiting { dependencies, hold: None }),
+        details: Box::new(crate::tests::chip_details(OwnerChipPhase::Waiting {
+            dependencies,
+            more: false,
+            holds: false,
+        })),
     }
 }
 fn metadata(contract: TaskContractDocument) -> ResultDetails {
@@ -57,7 +61,7 @@ fn result_metadata_prices_allocated_lists_nested_chips_and_verdict_field_bytes()
         .checked_add(3)
         .unwrap();
     let chip = 3_u64
-        .checked_add(u64::try_from(size_of::<ChipPhase>()).unwrap())
+        .checked_add(u64::try_from((size_of::<ChipPhase>() + size_of::<OwnerChipDetails>())).unwrap())
         .unwrap()
         .checked_add(List::<u64>::price(3).unwrap())
         .unwrap();
@@ -96,7 +100,7 @@ fn result_metadata_prices_opaque_approval_paths_and_every_task_link_form() {
         .checked_add(List::<OwnerTaskLink>::price(2).unwrap())
         .unwrap();
     let chip_heap = 3_u64
-        .checked_add(u64::try_from(size_of::<ChipPhase>()).unwrap())
+        .checked_add(u64::try_from((size_of::<ChipPhase>() + size_of::<OwnerChipDetails>())).unwrap())
         .unwrap()
         .checked_add(List::<u64>::price(3).unwrap())
         .unwrap();

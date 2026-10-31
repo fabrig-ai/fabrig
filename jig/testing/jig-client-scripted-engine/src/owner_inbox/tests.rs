@@ -12,7 +12,11 @@ fn chip() -> Chip {
         title: doc(b"chip"),
         executor: Executor::Party { party: 0 },
         phase: Phase::Waiting,
-        details: Box::new(ChipPhase::Waiting { dependencies: List::with_capacity(3), hold: None }),
+        details: Box::new(crate::tests::chip_details(OwnerChipPhase::Waiting {
+            dependencies: List::with_capacity(3),
+            more: false,
+            holds: false,
+        })),
     }
 }
 fn budget() -> OwnerBudget {
@@ -96,7 +100,9 @@ fn bounds() -> Bounds {
 fn owner_inbox_recursive_reserved_groups_reply_and_link_boxes_fit_exact_and_refuse_one_under_unchanged() {
     let source = whole();
     let unchanged = source.clone();
-    let chip_heap = u64::try_from(size_of::<ChipPhase>()).unwrap() + List::<u64>::price(3).unwrap() + 4;
+    let chip_heap = u64::try_from((size_of::<ChipPhase>() + size_of::<OwnerChipDetails>())).unwrap()
+        + List::<u64>::price(3).unwrap()
+        + 4;
     let expected = u64::try_from(size_of::<OwnerInbox>()).unwrap()
         + List::<OwnerInboxEntry>::price(3).unwrap() * 2
         + chip_heap

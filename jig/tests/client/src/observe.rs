@@ -131,19 +131,12 @@ fn read_cards(v: &ReadValue) -> Vec<Receipt> {
     match v {
         ReadValue::Task(t) => vec![task(t)],
         ReadValue::Me(f) => frame(f, None),
-        ReadValue::Escalation(e) => vec![Receipt::Card {
-            key: key(ObjectKey::Escalation(e.task.task)),
-            revisions: vec![(1, e.steering.revision.value), (2, e.hold.revision.value)],
-        }],
         ReadValue::OwnerEscalation(e) => {
             let mut revisions = vec![(1, e.task.spec_revision.value)];
             if let Some(hold) = &e.task.hold {
                 revisions.push((2, hold.revision().value));
             }
             vec![Receipt::Card { key: key(ObjectKey::Escalation(e.task.chip.task)), revisions }]
-        }
-        ReadValue::PersonTask(p) => {
-            vec![Receipt::Card { key: key(ObjectKey::PersonTask(p.task.task)), revisions: vec![(3, p.revision.value)] }]
         }
         ReadValue::OwnerPersonTask(p) => {
             vec![Receipt::Card { key: key(ObjectKey::PersonTask(p.task.task)), revisions: vec![(3, p.revision.value)] }]
@@ -162,27 +155,21 @@ fn read_cards(v: &ReadValue) -> Vec<Receipt> {
             })
             .collect(),
         ReadValue::Tasks(_)
-        | ReadValue::Proposal(_)
         | ReadValue::Historical(_)
         | ReadValue::OwnerProposal(_)
         | ReadValue::Question(_)
         | ReadValue::Result(_)
-        | ReadValue::Ended(_)
         | ReadValue::History(_)
         | ReadValue::Activity(_)
         | ReadValue::Turn(_)
-        | ReadValue::Inbox(_)
         | ReadValue::OwnerInbox(_)
-        | ReadValue::Spend(_)
         | ReadValue::OwnerEnded(_)
         | ReadValue::OwnerSpend(_)
         | ReadValue::OwnerProject(_)
-        | ReadValue::Project(_)
         | ReadValue::Settings(_)
         | ReadValue::Setting(_)
         | ReadValue::Revision(_)
         | ReadValue::Revisions(_)
-        | ReadValue::Deployment(_)
         | ReadValue::OwnerDeployment(_) => vec![],
     }
 }

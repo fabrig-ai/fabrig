@@ -107,17 +107,6 @@ impl Change {
                     return Err(Invalid::Identity);
                 }
                 payload::fits(value, bounds)
-                    && !matches!(
-                        value,
-                        ReadValue::Proposal(_)
-                            | ReadValue::Escalation(_)
-                            | ReadValue::PersonTask(_)
-                            | ReadValue::Ended(_)
-                            | ReadValue::Inbox(_)
-                            | ReadValue::Spend(_)
-                            | ReadValue::Project(_)
-                            | ReadValue::Deployment(_)
-                    )
             }
             Self::OwnerProject(value) => payload::fits(value, bounds),
             Self::Note(value) => payload::fits(value, bounds),
@@ -206,7 +195,7 @@ impl Truth {
                     (&source.read, &source.rows)
                     && let Some(ReadValue::Task(doc)) = self.objects.get_mut(&ObjectKey::Task(*task))
                 {
-                    doc.activity = rows.last().map_or(0, |line| line.position);
+                    doc.activity = rows.last().map_or(0, |line| line.source.position);
                 }
             }
             Change::Seen { party, results, replies } => {
@@ -278,11 +267,6 @@ impl Rule {
         if !payload::fits(&self.ask, bounds) || !payload::fits(&self.answer, bounds) {
             return Err(Invalid::Payload);
         }
-        if let Answer::Done(outcome) = &self.answer
-            && !crate::engine_set::outcome(outcome)
-        {
-            return Err(Invalid::Script);
-        }
         for change in &self.changes {
             if matches!(change, Change::Request(_)) {
                 return Err(Invalid::Script);
@@ -326,34 +310,26 @@ impl Script {
 pub(crate) fn identity(value: &ReadValue) -> Option<ObjectKey> {
     match value {
         ReadValue::Task(v) => Some(ObjectKey::Task(v.chip.task)),
-        ReadValue::Proposal(v) => Some(ObjectKey::Proposal(v.key)),
         ReadValue::Historical(v) => Some(v.key),
         ReadValue::OwnerProposal(v) => Some(ObjectKey::Proposal(v.key)),
-        ReadValue::Escalation(v) => Some(ObjectKey::Escalation(v.task.task)),
         ReadValue::OwnerEscalation(v) => Some(ObjectKey::Escalation(v.task.chip.task)),
         ReadValue::Question(v) => Some(ObjectKey::Question { task: v.task.task, message: v.message }),
-        ReadValue::PersonTask(v) => Some(ObjectKey::PersonTask(v.task.task)),
         ReadValue::OwnerPersonTask(v) => Some(ObjectKey::PersonTask(v.task.task)),
         ReadValue::Result(v) => Some(ObjectKey::Result(v.task.task)),
         ReadValue::Tasks(_)
         | ReadValue::Me(_)
-        | ReadValue::Ended(_)
         | ReadValue::History(_)
         | ReadValue::Activity(_)
         | ReadValue::Turn(_)
-        | ReadValue::Inbox(_)
         | ReadValue::OwnerInbox(_)
-        | ReadValue::Spend(_)
         | ReadValue::OwnerEnded(_)
         | ReadValue::OwnerSpend(_)
         | ReadValue::OwnerProject(_)
-        | ReadValue::Project(_)
         | ReadValue::Notes(_)
         | ReadValue::Settings(_)
         | ReadValue::Setting(_)
         | ReadValue::Revision(_)
         | ReadValue::Revisions(_)
-        | ReadValue::Deployment(_)
         | ReadValue::OwnerDeployment(_) => None,
     }
 }
@@ -362,33 +338,25 @@ fn document_project(value: &ReadValue) -> Option<u32> {
     match value {
         ReadValue::Task(v) => Some(v.project),
         ReadValue::OwnerEscalation(v) => Some(v.task.project),
-        ReadValue::Proposal(v) => Some(v.project),
         ReadValue::OwnerProposal(v) => Some(v.project),
         ReadValue::OwnerPersonTask(v) => v.project(),
         ReadValue::Historical(_)
         | ReadValue::Tasks(_)
         | ReadValue::Me(_)
-        | ReadValue::Escalation(_)
         | ReadValue::Question(_)
-        | ReadValue::PersonTask(_)
         | ReadValue::Result(_)
-        | ReadValue::Ended(_)
         | ReadValue::History(_)
         | ReadValue::Activity(_)
         | ReadValue::Turn(_)
-        | ReadValue::Inbox(_)
         | ReadValue::OwnerInbox(_)
-        | ReadValue::Spend(_)
         | ReadValue::OwnerEnded(_)
         | ReadValue::OwnerSpend(_)
         | ReadValue::OwnerProject(_)
-        | ReadValue::Project(_)
         | ReadValue::Notes(_)
         | ReadValue::Settings(_)
         | ReadValue::Setting(_)
         | ReadValue::Revision(_)
         | ReadValue::Revisions(_)
-        | ReadValue::Deployment(_)
         | ReadValue::OwnerDeployment(_) => None,
     }
 }

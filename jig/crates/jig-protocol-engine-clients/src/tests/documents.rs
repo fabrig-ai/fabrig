@@ -321,7 +321,7 @@ fn added_dependencies_and_kept_waits_cross_both_client_translations() {
     assert_eq!(second.added.unwrap().by, c::OwnerRequester::Task(19));
     let c::WaitsOn::Dependencies { pending, count } = actual.waits_on else { panic!("kept wait") };
     assert_eq!((pending.as_slice(), count), ([7].as_slice(), 1));
-    let c::ChipPhase::Owner { details, .. } = actual.chip.details.as_ref() else { panic!("owner chip") };
+    let c::ChipPhase { details, .. } = actual.chip.details.as_ref();
     assert_eq!(details.dependencies, actual.dependency_facts);
 }
 
@@ -335,7 +335,7 @@ fn a_circle_hold_keeps_its_order_and_cut_through_the_client() {
     hold.circle = Some(t::Circle { tasks: Box::new([9, 7]), cut: true });
     let record = translate::task::document(&task, &[], &fixtures::wire_limits()).unwrap();
     let actual = jig_client_protocol_link::translate::documents::task(record, &fixtures::client_limits()).unwrap();
-    let Some(c::TaskHold::Owner(hold)) = actual.hold else { panic!("owner hold") };
+    let Some(hold) = actual.hold else { panic!("owner hold") };
     assert_eq!(hold.reason, c::HoldCategory::Circle);
     let circle = hold.circle.unwrap();
     assert_eq!(circle.tasks.as_slice(), &[9, 7]);

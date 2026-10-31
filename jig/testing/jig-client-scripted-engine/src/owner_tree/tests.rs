@@ -11,7 +11,7 @@ fn chip(n: u64) -> Chip {
         title: DocumentText { bytes: Text::new(Box::from(b"tree".as_slice()), 8).unwrap(), cut: true },
         executor: Executor::Agent { charter: u32::MAX },
         phase: Phase::Running,
-        details: Box::new(ChipPhase::Running { attempt: u64::MAX, since: Wall::EPOCH, tool: None }),
+        details: Box::new(crate::tests::chip_details(OwnerChipPhase::Active(RunStage::Running { attempt: u64::MAX }))),
     }
 }
 fn tree() -> OwnerTree {

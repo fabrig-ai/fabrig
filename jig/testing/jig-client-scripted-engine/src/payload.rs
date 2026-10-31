@@ -3,21 +3,18 @@
 use crate::Bounds;
 use core::mem::size_of;
 use jig_client_domain::contract::{
-    Account, ActKind, ActiveRun, Activity, ActivityLine, ActivityPage, Actor, AddressChange, Admission, AdmissionLimit,
-    Amendment, Answer, Ask, AttemptFailure, Authority, Beyond, Block, Budget, Bytes, Call, Capacity, Chip, ChipPhase,
-    Closing, ClosingStage, Count, CreateProcedure, CurrentCall, CurrentHold, Cursor, Decider, Decision, Delivery,
-    Deployment, DocumentSpecification, DocumentText, EndedGroup, Ending, Escalation, Executor, FailureClass, FieldRule,
-    Grant, HeldRole, HeldRuntime, HistoryChange, HistoryLine, HistoryPage, Hold, HoldCategory, HoldFailure, HoldReason,
-    Holding, Host, Impact, Inbox, InboxEntry, InboxGroup, InboxPage, Lacking, Limit, LiveCall, LiveDelegate, Made, Me,
-    MeParty, MeProject, Message, Moved, Needs, Note, NoteAuthor, NotePage, NoteScope, ObjectKey, ObjectPage, Offered,
-    OptionLine, Outcome, OwnerChipPhase, Parameter, ParameterDocument, Part, PartScope, Party, PartyKind, Passed,
-    PersonAnswer, PersonContract, PersonTask, Phase, PhaseCounts, Policy, Pool, Project, Proposal, ProposalAction,
+    ActKind, ActiveRun, ActivityLine, ActivityPage, Actor, AddressChange, Admission, AdmissionLimit, Amendment, Answer,
+    Ask, AttemptFailure, Beyond, Block, Bytes, Call, Chip, ChipPhase, Closing, ClosingStage, Count, CreateProcedure,
+    CurrentCall, CurrentHold, Cursor, Decision, Delivery, DocumentSpecification, DocumentText, EndedGroup, Ending,
+    Executor, FailureClass, FieldRule, HeldRole, HeldRuntime, HistoryPage, Hold, HoldCategory, HoldFailure, HoldReason,
+    Holding, Impact, InboxGroup, Lacking, Limit, LiveCall, LiveDelegate, Made, Me, MeParty, MeProject, Message, Moved,
+    Needs, Note, NoteAuthor, NotePage, NoteScope, ObjectKey, Offered, OptionLine, Outcome, OwnerChipPhase, Parameter,
+    ParameterDocument, Part, PartScope, Party, PartyKind, PersonAnswer, PersonContract, Phase, PhaseCounts,
     ProposalKey, ProposedTask, Proposer, ProvisionalTurnName, Question, Read, ReadNone, ReadPosition, ReadResult,
     ReadValue, Recipient, Recurring, Refusal, Result, ResultContract, ResultField, ResultValue, RetryNotice, Revision,
-    RolePolicy, RunBeginning, RunEnding, RunObservation, RunStage, RunState, RunText, RunWork, Runtime, SeenThrough,
-    Speaker, Specification, SpecificationDocument, SpendLine, SpendPage, SpendPeriod, Steering, Subject, TakenBy, Task,
-    TaskContext, TaskHold, TaskLine, TaskPage, TaskSpend, Tasks, Text, Tree, TreeNode, Turn, TurnLimits, TurnName,
-    Usage, VersionRange, WakePolicy, WatchEnd, WatchEvent, WriterSlot, WritingCall,
+    RunObservation, RunStage, RunState, RunText, RunWork, Runtime, SeenThrough, Speaker, Specification,
+    SpecificationDocument, SpendLine, Subject, TakenBy, Task, TaskContext, TaskLine, TaskPage, Tasks, Text, Turn,
+    TurnLimits, TurnName, Usage, VersionRange, WatchEnd, WatchEvent, WriterSlot, WritingCall,
 };
 use skein_lib::{Duration, List, Token, Wall};
 
@@ -127,7 +124,7 @@ macro_rules! fields {
 }
 fields!(AddressChange { revision, address });
 fields!(Amendment { addressed, spec, wake, dependencies, authority, instructions, tracked, llm });
-fields!(WakePolicy { words, results, topics, subscriptions });
+
 impl Payload for PersonAnswer {
     fn heap(&self, bounds: &Bounds) -> Option<u64> {
         match self {
@@ -147,9 +144,7 @@ impl Payload for SeenThrough {
     }
 }
 fields!(Holding { party, role });
-fields!(Policy { ceiling, period, spend, roles, requirements, deciders });
-fields!(RolePolicy { number, authority, allotment, decisions });
-fields!(Decider { kind, role });
+
 impl Payload for Ask {
     fn heap(&self, bounds: &Bounds) -> Option<u64> {
         match self {
@@ -244,10 +239,7 @@ impl Payload for Outcome {
         match self {
             Self::Owner(value) => value.heap(bounds),
             Self::Made { what } => sum(&[what.heap(bounds)]),
-            Self::Proposed { proposal } => sum(&[proposal.heap(bounds)]),
-            Self::Decided { by, how, at } => sum(&[by.heap(bounds), how.heap(bounds), at.heap(bounds)]),
-            Self::DecidedFirst { by, how, at } => sum(&[by.heap(bounds), how.heap(bounds), at.heap(bounds)]),
-            Self::MovedToNewest(_) | Self::SettingsChanged(_) | Self::Changed => Some(0),
+            Self::MovedToNewest(_) | Self::SettingsChanged(_) => Some(0),
         }
     }
 }
@@ -364,8 +356,7 @@ impl Payload for Part {
         }
     }
 }
-fields!(Grant { connector, kind, pattern });
-fields!(Authority { models, budget, grants, task_kinds, depth, tasks, deadline, tools, note_scopes });
+
 impl Payload for NoteScope {
     fn heap(&self, bounds: &Bounds) -> Option<u64> {
         match self {
@@ -425,7 +416,7 @@ fields!(jig_client_domain::contract::MeModel { name, provider, window, output, e
 fields!(jig_client_domain::contract::ModelPrices { input, cached, cache_write, output, unit });
 fields!(jig_client_domain::contract::LlmChoice { account, main, subagents });
 fields!(jig_client_domain::contract::ModelEffort { model, effort });
-fields!(Budget { total, own, ended, reserved, left, funder });
+
 fields!(Chip { task, title, executor, phase, details });
 fields!(ActiveRun { stage, phase_since, attempt, placement, retry, observation });
 fields!(RunObservation { channel, work, since, reported_at, started });
@@ -454,37 +445,7 @@ impl Payload for OwnerChipPhase {
         }
     }
 }
-impl Payload for ChipPhase {
-    fn heap(&self, bounds: &Bounds) -> Option<u64> {
-        match self {
-            Self::Owner { phase, details } => sum(&[phase.heap(bounds), details.heap(bounds)]),
-            Self::Active(value) => value.heap(bounds),
-            Self::Waiting { dependencies, hold } => sum(&[dependencies.heap(bounds), hold.heap(bounds)]),
-            Self::Idle { wake } => wake.heap(bounds),
-            Self::Starting => Some(0),
-            Self::Running { attempt, since, tool } => {
-                sum(&[attempt.heap(bounds), since.heap(bounds), tool.heap(bounds)])
-            }
-            Self::WaitingForWords { attempt, since } => sum(&[attempt.heap(bounds), since.heap(bounds)]),
-            Self::BackingOff { at, attempt, tries, class, reason } => sum(&[
-                at.heap(bounds),
-                attempt.heap(bounds),
-                tries.heap(bounds),
-                class.heap(bounds),
-                reason.heap(bounds),
-            ]),
-            Self::Procedure { panel } => panel.heap(bounds),
-            Self::Person { addressed, taken, since } => {
-                sum(&[addressed.heap(bounds), taken.heap(bounds), since.heap(bounds)])
-            }
-            Self::Closing(value) => value.heap(bounds),
-            Self::Held { reason, since, revision, was } => {
-                sum(&[reason.heap(bounds), since.heap(bounds), revision.heap(bounds), was.heap(bounds)])
-            }
-            Self::Ended { how, at } => sum(&[how.heap(bounds), at.heap(bounds)]),
-        }
-    }
-}
+fields!(ChipPhase { phase, details });
 fields!(jig_client_domain::contract::TaskSettings { task, run, newest });
 fields!(Task {
     settings,
@@ -520,7 +481,7 @@ fields!(Task {
     context,
     cut; acts
 });
-fields!(TaskContext { escalation, parts, closing, spend, runtime, impact, writer_slots });
+fields!(TaskContext { parts, closing, spend, runtime, impact, writer_slots });
 fields!(Closing { delegates, connectors, stage, ending });
 fields!(SpendLine { task, attempt, spent });
 impl Payload for ActKind {
@@ -623,31 +584,7 @@ impl Payload for FailureClass {
         }
     }
 }
-fields!(Escalation { ending, task, hold, steering, impact, waiting, trail; acts });
-fields!(Steering {
-    addressed,
-    person_revision,
-    taken_by,
-    revision,
-    spec,
-    instructions,
-    wake,
-    dependencies,
-    authority,
-    budget
-});
-fields!(Passed { by, at, reason, lacking });
-fields!(Proposal { key, project, proposer, why, action, needs, funding, waiting, trail, since, ending; acts });
-impl Payload for ProposalAction {
-    fn heap(&self, bounds: &Bounds) -> Option<u64> {
-        match self {
-            Self::Batch { tasks, own } => sum(&[tasks.heap(bounds), own.heap(bounds)]),
-            Self::Effect { part } => sum(&[part.heap(bounds)]),
-            Self::Widen { before, after } => sum(&[before.heap(bounds), after.heap(bounds)]),
-            Self::Amend { task, before, change } => sum(&[task.heap(bounds), before.heap(bounds), change.heap(bounds)]),
-        }
-    }
-}
+
 fields!(ProposedTask {
     deadline,
     number,
@@ -693,20 +630,7 @@ impl Payload for jig_client_domain::contract::TaskContractDocument {
     }
 }
 fields!(Question { task, from, message, words, since, ending; acts });
-fields!(PersonTask {
-    task,
-    revision,
-    requester,
-    spec,
-    contract,
-    inputs,
-    addressed,
-    taken,
-    since,
-    stall,
-    deadline,
-    ending; acts
-});
+
 impl Payload for PersonContract {
     fn heap(&self, bounds: &Bounds) -> Option<u64> {
         match self {
@@ -729,14 +653,7 @@ impl Payload for ResultContract {
         }
     }
 }
-impl Payload for jig_client_domain::contract::TaskResource {
-    fn heap(&self, bounds: &Bounds) -> Option<u64> {
-        match self {
-            Self::Part(part) => part.heap(bounds),
-            Self::Owner(value) => value.heap(bounds),
-        }
-    }
-}
+
 impl Payload for jig_client_domain::contract::TaskResult {
     fn heap(&self, bounds: &Bounds) -> Option<u64> {
         match self {
@@ -768,8 +685,7 @@ impl Payload for ResultValue {
 }
 fields!(Result { task, ending, value, at, details; acts });
 fields!(PhaseCounts { ended, waiting, running, held, closing, done, failed, cancelled });
-fields!(TreeNode { chip, parent, dependencies, proposals, spend, folded, held_below });
-fields!(Tree { task, nodes, folded, held_below });
+
 impl Payload for InboxGroup {
     fn heap(&self, _bounds: &Bounds) -> Option<u64> {
         match self {
@@ -782,24 +698,9 @@ impl Payload for InboxGroup {
         }
     }
 }
-fields!(InboxEntry { reply, lineage, goal, recipient, stall, object, project, group, position, at });
-fields!(Inbox { entries, needs, updates, results_seen, replies_seen, more });
+
 fields!(ReadPosition { task, through });
-fields!(Project {
-    period,
-    spend_lines,
-    number,
-    name,
-    policy,
-    roles,
-    spend,
-    pools,
-    resources,
-    services,
-    recurring,
-    parts; acts
-});
-fields!(Pool { party, period, budget });
+
 fields!(Recurring {
     chip,
     key,
@@ -822,84 +723,31 @@ impl Payload for NoteAuthor {
     }
 }
 fields!(Note { number, revision, scope, description, body, writer, tasks, changed, cut; acts });
-fields!(Deployment { hosts, accounts, capacity, proposals, refusals, parts });
-fields!(Host { number, connected, grace, used, free, runs, refused });
-fields!(Account { number, usable, reason, runs, waiting });
-fields!(Capacity { project, live, limit });
-fields!(HistoryLine { position, task, by, at, change });
+
 impl Payload for jig_client_domain::contract::HistoryRow {
     fn heap(&self, bounds: &Bounds) -> Option<u64> {
         match self {
-            Self::Line(value) => value.heap(bounds),
             Self::Change(value) => value.heap(bounds),
             Self::Milestone(value) => value.heap(bounds),
         }
     }
 }
-impl Payload for HistoryChange {
-    fn heap(&self, bounds: &Bounds) -> Option<u64> {
-        match self {
-            Self::Made { batch } => sum(&[batch.heap(bounds)]),
-            Self::Amended { before, after } => sum(&[before.heap(bounds), after.heap(bounds)]),
-            Self::Held(value0) => sum(&[value0.heap(bounds)]),
-            Self::Released => Some(0),
-            Self::Cancelled { reason } => sum(&[reason.heap(bounds)]),
-            Self::Moved { from, to, reason } => sum(&[from.heap(bounds), to.heap(bounds), reason.heap(bounds)]),
-        }
-    }
-}
+
 impl Payload for ActivityLine {
     fn heap(&self, bounds: &Bounds) -> Option<u64> {
-        if let Activity::Owner { source, .. } = &self.event
-            && (source.position != self.position || source.at != self.at)
-        {
-            return None;
-        }
-        self.event.heap(bounds)
-    }
-}
-impl Payload for Activity {
-    fn heap(&self, bounds: &Bounds) -> Option<u64> {
-        match self {
-            Self::Owner { source, decoded } => {
-                if let Some(archive) = decoded {
-                    let jig_client_domain::contract::OwnerActivity::Turn { attempt, turn, .. } = source.line else {
-                        return None;
-                    };
-                    if archive.task != source.task || archive.name != (TurnName { attempt, number: turn }) {
-                        return None;
-                    }
-                }
-                sum(&[source.heap(bounds), decoded.heap(bounds)])
+        let Self { source, decoded } = self;
+        if let Some(archive) = decoded {
+            let jig_client_domain::contract::OwnerActivity::Turn { attempt, turn, .. } = source.line else {
+                return None;
+            };
+            if archive.task != source.task || archive.name != (TurnName { attempt, number: turn }) {
+                return None;
             }
-            Self::Words { by, message, words } => sum(&[by.heap(bounds), message.heap(bounds), words.heap(bounds)]),
-            Self::RunBegan { attempt, how, why } => sum(&[attempt.heap(bounds), how.heap(bounds), why.heap(bounds)]),
-            Self::RunEnded { attempt, how, spent } => {
-                sum(&[attempt.heap(bounds), how.heap(bounds), spent.heap(bounds)])
-            }
-            Self::Turn { name, turn } => sum(&[name.heap(bounds), turn.heap(bounds)]),
-            Self::Result { result } => sum(&[result.heap(bounds)]),
-            Self::News { topic, summary, part } => sum(&[topic.heap(bounds), summary.heap(bounds), part.heap(bounds)]),
-            Self::Decision { object, by, how } => sum(&[object.heap(bounds), by.heap(bounds), how.heap(bounds)]),
         }
+        sum(&[source.heap(bounds), decoded.heap(bounds)])
     }
 }
-impl Payload for RunBeginning {
-    fn heap(&self, bounds: &Bounds) -> Option<u64> {
-        match self {
-            Self::Resumed => Some(0),
-            Self::Fresh { tail } => sum(&[tail.heap(bounds)]),
-        }
-    }
-}
-impl Payload for RunEnding {
-    fn heap(&self, bounds: &Bounds) -> Option<u64> {
-        match self {
-            Self::Parked | Self::Finished | Self::Cancelled => Some(0),
-            Self::Failed { class, reason } => sum(&[class.heap(bounds), reason.heap(bounds)]),
-        }
-    }
-}
+
 impl Payload for Runtime {
     fn heap(&self, bounds: &Bounds) -> Option<u64> {
         match self {
@@ -945,8 +793,7 @@ fields!(TaskLine {
     conversation
 });
 fields!(Tasks { rows, more });
-fields!(TaskSpend { chip, spent });
-fields!(SpendPeriod { period, budget, pools, tasks });
+
 fields!(Cursor { value });
 impl Payload for Read {
     fn heap(&self, bounds: &Bounds) -> Option<u64> {
@@ -980,10 +827,10 @@ impl Payload for Read {
         }
     }
 }
-fields!(ObjectPage { cut, rows, before, after });
+
 fields!(ActivityPage { cut, rows, before, after });
 fields!(HistoryPage { cut, rows, before, after });
-fields!(InboxPage { cut, rows, before, after });
+
 fields!(NotePage { cut, rows, before, after });
 impl Payload for ReadValue {
     fn heap(&self, bounds: &Bounds) -> Option<u64> {
@@ -996,27 +843,19 @@ impl Payload for ReadValue {
             Self::Tasks(value0) => value0.heap(bounds),
             Self::Me(value0) => sum(&[value0.heap(bounds)]),
             Self::Task(value0) => sum(&[value0.heap(bounds)]),
-            Self::Proposal(value0) => sum(&[value0.heap(bounds)]),
             Self::OwnerProject(value0) => sum(&[value0.heap(bounds)]),
             Self::Historical(value0) => sum(&[value0.heap(bounds)]),
             Self::OwnerProposal(value0) => sum(&[value0.heap(bounds)]),
-            Self::Escalation(value0) => sum(&[value0.heap(bounds)]),
             Self::OwnerEscalation(value0) => sum(&[value0.heap(bounds)]),
             Self::Question(value0) => sum(&[value0.heap(bounds)]),
-            Self::PersonTask(value0) => sum(&[value0.heap(bounds)]),
             Self::OwnerPersonTask(value) => value.heap(bounds),
             Self::Result(value0) => sum(&[value0.heap(bounds)]),
-            Self::Ended(value0) => sum(&[value0.heap(bounds)]),
             Self::OwnerEnded(value) => value.heap(bounds),
             Self::History(value0) => sum(&[value0.heap(bounds)]),
             Self::Activity(value0) => sum(&[value0.heap(bounds)]),
-            Self::Inbox(value0) => sum(&[value0.heap(bounds)]),
             Self::OwnerInbox(value0) => sum(&[value0.heap(bounds)]),
-            Self::Spend(value0) => sum(&[value0.heap(bounds)]),
             Self::OwnerSpend(value) => value.heap(bounds),
-            Self::Project(value0) => sum(&[value0.heap(bounds)]),
             Self::Notes(value0) => sum(&[value0.heap(bounds)]),
-            Self::Deployment(value0) => sum(&[value0.heap(bounds)]),
             Self::OwnerDeployment(value0) => value0.heap(bounds),
         }
     }
@@ -1044,12 +883,11 @@ impl Payload for ReadResult {
         }
     }
 }
-fields!(SpendPage { cut, rows, before, after });
+
 impl Payload for Lacking {
     fn heap(&self, bounds: &Bounds) -> Option<u64> {
         match self {
             Self::Budget { needed, left } => sum(&[needed.heap(bounds), left.heap(bounds)]),
-            Self::Grant(value0) => sum(&[value0.heap(bounds)]),
             Self::TaskKind { executor } => executor.heap(bounds),
             Self::GrantKind { kind } => kind.heap(bounds),
             Self::Approver
@@ -1179,15 +1017,12 @@ impl Payload for Delivery {
             Self::Task(value0) => sum(&[value0.heap(bounds)]),
             Self::OwnerProject(value0) => sum(&[value0.heap(bounds)]),
             Self::OwnerProposal(value0) => sum(&[value0.heap(bounds)]),
-            Self::Tree(value0) => sum(&[value0.heap(bounds)]),
             Self::OwnerTree(value0) => sum(&[value0.heap(bounds)]),
             Self::Chips(value0) => sum(&[value0.heap(bounds)]),
-            Self::Inbox(value0) => sum(&[value0.heap(bounds)]),
             Self::OwnerInbox(value0) => sum(&[value0.heap(bounds)]),
             Self::Tasks(value0) => sum(&[value0.heap(bounds)]),
             Self::Run(value0) => sum(&[value0.heap(bounds)]),
             Self::RunState(value0) => sum(&[value0.heap(bounds)]),
-            Self::Deployment(value0) => sum(&[value0.heap(bounds)]),
             Self::OwnerDeployment(value0) => value0.heap(bounds),
             Self::OwnerAccounts(value0) => value0.heap(bounds),
         }
@@ -1382,18 +1217,6 @@ fields!(jig_client_domain::contract::OwnerPhaseCounts {
     failed,
     cancelled
 });
-
-#[cfg(test)]
-mod question;
-
-impl Payload for TaskHold {
-    fn heap(&self, bounds: &Bounds) -> Option<u64> {
-        match self {
-            Self::Document(value) => value.heap(bounds),
-            Self::Owner(value) => value.heap(bounds),
-        }
-    }
-}
 
 fields!(jig_client_domain::contract::OwnerEscalation { task; acts });
 

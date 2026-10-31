@@ -92,7 +92,7 @@ fn task(account: Option<OwnerPart>) -> Task {
     task.context = None;
     task.chip.executor = Executor::Agent { charter: 1 };
     task.chip.phase = Phase::Held;
-    task.chip.details = Box::new(ChipPhase::Owner {
+    task.chip.details = Box::new(ChipPhase {
         phase: OwnerChipPhase::Held { reason: HoldCategory::Drift, revision: 3 },
         details: Box::new(OwnerChipDetails {
             dependencies: List::with_capacity(0),

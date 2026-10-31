@@ -9,21 +9,11 @@ fn records_1(bytes: &[u8]) {
     check!(Me, bytes);
     check!(PhaseCounts, bytes);
     check!(Impact, bytes);
-    check!(WriterSlot, bytes);
     check!(LiveDelegate, bytes);
-    check!(Steering, bytes);
-    check!(Passed, bytes);
-    check!(Escalation, bytes);
     check!(TaskContext, bytes);
     check!(TaskResultDocument, bytes);
     check!(TaskResultEnding, bytes);
     check!(TaskResult, bytes);
-    check!(TaskResourcePart, bytes);
-    check!(TaskResourceOwner, bytes);
-    check!(TaskResource, bytes);
-    check!(TaskHoldDocument, bytes);
-    check!(TaskHoldOwner, bytes);
-    check!(TaskHold, bytes);
     check!(SubscriptionKindTask, bytes);
     check!(SubscriptionKindTimer, bytes);
     check!(SubscriptionKindTopic, bytes);
@@ -31,10 +21,7 @@ fn records_1(bytes: &[u8]) {
     check!(Subscription, bytes);
     check!(Subscriptions, bytes);
     check!(Task, bytes);
-    check!(TreeNode, bytes);
-    check!(Tree, bytes);
     check!(ReadPosition, bytes);
-    check!(Inbox, bytes);
     check!(TaskQuery, bytes);
     check!(WaitsOn, bytes);
     check!(ConversationRead, bytes);
@@ -51,13 +38,6 @@ fn records_2(bytes: &[u8]) {
     check!(ProvisionalTurnName, bytes);
     check!(RunText, bytes);
     check!(RunState, bytes);
-    check!(ProposalActionBatch, bytes);
-    check!(ProposalActionEffect, bytes);
-    check!(Authority, bytes);
-    check!(ProposalActionWiden, bytes);
-    check!(ProposalActionAmend, bytes);
-    check!(ProposalAction, bytes);
-    check!(Proposal, bytes);
     check!(OwnerProposalActionBatch, bytes);
     check!(OwnerProposalActionEffect, bytes);
     check!(OwnerProposalActionProcedureEffect, bytes);
@@ -72,17 +52,11 @@ fn records_2(bytes: &[u8]) {
     check!(Question, bytes);
     check!(OptionLine, bytes);
     check!(PersonContractChoice, bytes);
-    check!(PersonContractApproval, bytes);
     check!(PersonContract, bytes);
-    check!(PersonTask, bytes);
     check!(OwnerShownResult, bytes);
     check!(OwnerPersonTask, bytes);
-    check!(RolePolicy, bytes);
-    check!(Decider, bytes);
-    check!(Policy, bytes);
     check!(RecurringOverlap, bytes);
     check!(Recurring, bytes);
-    check!(Project, bytes);
 }
 
 fn records_3(bytes: &[u8]) {
@@ -129,10 +103,6 @@ fn records_3(bytes: &[u8]) {
 
 fn records_4(bytes: &[u8]) {
     check!(Subject, bytes);
-    check!(Host, bytes);
-    check!(Account, bytes);
-    check!(Capacity, bytes);
-    check!(Deployment, bytes);
     check!(StoreFill, bytes);
     check!(OwnerCapacity, bytes);
     check!(OwnerProjectCapacity, bytes);

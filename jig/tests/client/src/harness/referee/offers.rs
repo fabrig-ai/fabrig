@@ -55,32 +55,24 @@ impl Offers {
                 }
             }
             ReadValue::OwnerProposal(proposal) => self.owner_recipient(proposal.key, proposal.waiting.holder, judge),
-            ReadValue::Proposal(_)
-            | ReadValue::Project(_)
-            | ReadValue::Tasks(_)
+            ReadValue::Tasks(_)
             | ReadValue::Historical(_)
             | ReadValue::Task(_)
-            | ReadValue::Escalation(_)
             | ReadValue::OwnerEscalation(_)
             | ReadValue::Question(_)
-            | ReadValue::PersonTask(_)
             | ReadValue::OwnerPersonTask(_)
             | ReadValue::Result(_)
-            | ReadValue::Ended(_)
             | ReadValue::OwnerEnded(_)
             | ReadValue::History(_)
             | ReadValue::Activity(_)
             | ReadValue::Turn(_)
-            | ReadValue::Inbox(_)
             | ReadValue::OwnerInbox(_)
-            | ReadValue::Spend(_)
             | ReadValue::OwnerSpend(_)
             | ReadValue::Notes(_)
             | ReadValue::Settings(_)
             | ReadValue::Setting(_)
             | ReadValue::Revision(_)
             | ReadValue::Revisions(_)
-            | ReadValue::Deployment(_)
             | ReadValue::OwnerDeployment(_) => {}
         }
     }
