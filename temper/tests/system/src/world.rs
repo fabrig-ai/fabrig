@@ -124,6 +124,7 @@ pub fn hello(slots: u32) -> engine::Event {
 #[must_use]
 pub fn chat(words: &[u8], job: Job) -> World {
     let mut root = Driver::configured(Store::new(), [config(901), config(901)], &walking::limits());
+    root.settle();
     root.send(hello(1));
     root.settle();
     root.sign_in();
