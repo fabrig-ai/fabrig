@@ -88,7 +88,6 @@ struct Iter<'a> {
 impl<'a> Iterator for Iter<'a> {
     type Item = &'a Forge;
 
-    #[expect(clippy::manual_map, reason = "the programming model uses explicit matches")]
     fn next(&mut self) -> Option<Self::Item> {
         match self.entries.next() {
             Some((_, forge)) => Some(forge),
