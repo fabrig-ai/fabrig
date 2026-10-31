@@ -7,7 +7,6 @@ use temper_engine_domain::{self as engine, Delivery};
 use temper_engine_domain_world::direct::Driver;
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn an_undecodable_call_is_answered_as_an_error_with_no_commit() {
     let (mut driver, run) = Driver::chat();
     let (applied, rows) = (driver.store.applied, driver.store.rows.clone());
@@ -33,7 +32,6 @@ fn an_undecodable_call_is_answered_as_an_error_with_no_commit() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn an_undecodable_call_leaves_no_record_for_the_resumed_run() {
     let (mut driver, run) = Driver::chat();
     let event = driver.protocol.undecodable(Token::new(7), run.task, run.attempt, 31);
@@ -49,7 +47,6 @@ fn an_undecodable_call_leaves_no_record_for_the_resumed_run() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_corrected_call_under_a_new_name_is_decided_once() {
     let (mut driver, run) = Driver::chat();
     let event = driver.protocol.undecodable(Token::new(7), run.task, run.attempt, 31);
@@ -69,7 +66,6 @@ fn a_corrected_call_under_a_new_name_is_decided_once() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_call_answered_at_decode_is_relayed_as_a_success_with_no_commit() {
     let (mut driver, run) = Driver::chat();
     let (applied, rows) = (driver.store.applied, driver.store.rows.clone());
@@ -95,7 +91,6 @@ fn a_call_answered_at_decode_is_relayed_as_a_success_with_no_commit() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_call_answered_at_decode_leaves_no_record_for_the_resumed_run() {
     let (mut driver, run) = Driver::chat();
     let event = driver.protocol.answered_at_decode(Token::new(7), run.task, run.attempt, 31, b"answer made at decode");

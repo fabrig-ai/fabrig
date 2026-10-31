@@ -83,7 +83,6 @@ fn delegated(answer: engine::CallAnswer) -> u64 {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_chats_goal_is_unchanged() {
     let (mut world, chat) = chat_world(100, 11, 3);
     let task = delegated(goal(&mut world, &chat, 93, false));
@@ -99,7 +98,6 @@ fn a_chats_goal_is_unchanged() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_goals_report_is_bounded_by_the_deployments_result_bytes() {
     let (mut world, chat, run) = running_goal();
     let tasks::Contract::Report { words } = live(&world, chat.task).contract else { panic!("chat report") };
@@ -111,7 +109,6 @@ fn a_goals_report_is_bounded_by_the_deployments_result_bytes() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_goals_authority_is_the_runs_narrowed() {
     let (mut world, chat) = chat_world(100, 11, 3);
     let parent = live(&world, chat.task).clone();
@@ -142,7 +139,6 @@ fn a_goals_authority_is_the_runs_narrowed() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn an_untracked_chats_goal_comes_last_among_the_projects_goals() {
     for (existing, expected) in [(8, 9), (u32::MAX, u32::MAX)] {
         let (mut world, chat) = chat_world(400, 11, 3);
@@ -157,7 +153,6 @@ fn an_untracked_chats_goal_comes_last_among_the_projects_goals() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn an_advisor_reads_alone_untracked() {
     let (mut world, _, run) = running_goal();
     let task = delegated(goal(&mut world, &run, NESTED_GOAL_CALL, true));
@@ -174,7 +169,6 @@ fn an_advisor_reads_alone_untracked() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_goal_with_one_task_left_is_refused_as_the_tree_limit() {
     let (mut world, chat) = chat_world(100, 1, 3);
     assert!(
@@ -183,7 +177,6 @@ fn a_goal_with_one_task_left_is_refused_as_the_tree_limit() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_goal_with_one_level_left_is_refused_as_the_depth_limit() {
     let (mut world, chat) = chat_world(100, 11, 1);
     assert!(
@@ -192,7 +185,6 @@ fn a_goal_with_one_level_left_is_refused_as_the_depth_limit() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_goal_with_half_the_remainder_at_minimum_is_refused_as_funding() {
     let (mut world, chat) = chat_world(62, 11, 3);
     assert!(
@@ -218,7 +210,6 @@ fn running_goal_with_agreement(agree: bool) -> (World, engine::Assignment, engin
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_goal_calls_change_and_its_change_is_made() {
     let (mut world, _, run) = running_goal();
     let change = delegated(call(
@@ -243,7 +234,6 @@ fn a_goal_calls_change_and_its_change_is_made() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_goals_advisor_is_admitted() {
     let (mut world, _, run) = running_goal();
     let advisor = delegated(goal(&mut world, &run, 94, true));
@@ -252,7 +242,6 @@ fn a_goals_advisor_is_admitted() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_goal_asks_its_requester_and_the_person_sees_the_question() {
     use jig_domain_core::{documents, reads};
     let (mut world, chat, run) = running_goal();
@@ -329,7 +318,6 @@ fn refused_tool(world: &mut World, run: &engine::Assignment, name: u64, tool: en
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_goals_goal_without_advisor_is_refused_by_name() {
     let (mut world, _, run) = running_goal();
     refused_goal(
@@ -341,7 +329,6 @@ fn a_goals_goal_without_advisor_is_refused_by_name() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_chats_advisor_is_refused_by_name() {
     let (mut world, chat) = chat_world(100, 11, 3);
     refused_goal(
@@ -353,7 +340,6 @@ fn a_chats_advisor_is_refused_by_name() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_goal_uses_the_subtrees_remaining_task_allotment() {
     let (mut world, chat) = chat_world(400, 11, 3);
     delegated(goal(&mut world, &chat, 93, false));
@@ -362,7 +348,6 @@ fn a_goal_uses_the_subtrees_remaining_task_allotment() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn oversized_goal_words_are_refused_as_a_delegate_spec() {
     let (mut world, chat) = chat_world(100, 11, 3);
     let words = vec![b'x'; usize::try_from(world.env.limits.tasks.spec_bytes).expect("u32 fits usize") + 1];
@@ -373,7 +358,6 @@ fn oversized_goal_words_are_refused_as_a_delegate_spec() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn an_advisors_brief_opens_with_the_roots_line() {
     let (mut world, _, run) = running_goal();
     let task = delegated(goal(&mut world, &run, NESTED_GOAL_CALL, true));
@@ -394,7 +378,6 @@ fn advisor_at_spec_edge(extra: usize) -> (World, engine::CallAnswer) {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn an_advisors_brief_fits_at_the_spec_bound() {
     let (world, answer) = advisor_at_spec_edge(AT_BOUND);
     let task = delegated(answer);
@@ -405,14 +388,12 @@ fn an_advisors_brief_fits_at_the_spec_bound() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn an_advisors_brief_past_the_spec_bound_is_refused() {
     let (_, answer) = advisor_at_spec_edge(ONE_PAST_BOUND);
     assert!(matches!(answer, engine::CallAnswer::DelegationRefused(p) if p.why == tasks::Refusal::Spec));
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn agree_with_advisor_is_refused_by_name() {
     let (mut world, chat) = chat_world(400, 11, 3);
     refused_tool(
@@ -425,7 +406,6 @@ fn agree_with_advisor_is_refused_by_name() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_goals_goal_with_agree_is_refused_by_name() {
     let (mut world, _, run) = running_goal();
     refused_tool(
@@ -438,7 +418,6 @@ fn a_goals_goal_with_agree_is_refused_by_name() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn an_agreed_goals_brief_carries_its_persons_words_whole() {
     let (world, _, run) = running_goal_with_agreement(true);
     let row = live(&world, run.task);
@@ -447,7 +426,6 @@ fn an_agreed_goals_brief_carries_its_persons_words_whole() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn every_goals_brief_opens_with_the_roots_goal_line() {
     for (agree, prefix) in [(false, GOAL_PREFIX), (true, AGREED_PREFIX)] {
         let (world, _, run) = running_goal_with_agreement(agree);
@@ -471,7 +449,6 @@ fn agreed_at_spec_edge(extra: usize, person_words: &[u8]) -> (World, u64, Box<[u
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn an_agreed_brief_fits_its_persons_words_at_the_spec_bound() {
     let person = [b'x'; PERSON_BYTES];
     let (world, task, words) = agreed_at_spec_edge(AT_BOUND, &person);
@@ -483,7 +460,6 @@ fn an_agreed_brief_fits_its_persons_words_at_the_spec_bound() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn an_agreed_brief_cuts_its_persons_words_at_the_spec_bound() {
     // One excess byte and the 16-byte root cut marker omit 17 original bytes.
     const OMITTED: usize = 17;
@@ -500,7 +476,6 @@ fn an_agreed_brief_cuts_its_persons_words_at_the_spec_bound() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn an_agreed_brief_cuts_at_a_whole_character() {
     // Cutting the 17 bytes above would split é: the root omits 18 instead.
     const OMITTED: usize = 18;
@@ -515,7 +490,6 @@ fn an_agreed_brief_cuts_at_a_whole_character() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn an_agreed_goals_change_before_the_answer_is_refused_by_name() {
     let (mut world, chat, run) = running_goal_with_agreement(true);
     let engine::CallAnswer::Sent { message } = call(
@@ -541,7 +515,6 @@ fn an_agreed_goals_change_before_the_answer_is_refused_by_name() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn an_agreed_goals_change_before_asking_is_refused_by_name() {
     let (mut world, _, run) = running_goal_with_agreement(true);
     refused_tool(
@@ -554,7 +527,6 @@ fn an_agreed_goals_change_before_asking_is_refused_by_name() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn an_agreed_brief_uses_the_persons_newest_consumed_chat_words() {
     const MESSAGE_KEY: u8 = 96; // Distinct from the chat creation and agent call keys.
     const STEPS: u32 = 200; // The root world's durable round-trip bound.

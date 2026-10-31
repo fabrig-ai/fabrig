@@ -38,7 +38,6 @@ fn archives(world: &World) -> Vec<&EscalationDecisionRecord> {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn priced_failure_is_read_then_requester_release_starts_one_fresh_attempt() {
     let mut world = settled(Story::Release);
     assert!(world.referee.done());
@@ -53,7 +52,6 @@ fn priced_failure_is_read_then_requester_release_starts_one_fresh_attempt() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn requester_passes_to_final_role_second_owner_releases_and_final_pass_refuses() {
     let mut world = settled(Story::PassRelease);
     // Passing keeps the hold's revision (jig 00de0b8c): the final decision's
@@ -75,7 +73,6 @@ fn requester_passes_to_final_role_second_owner_releases_and_final_pass_refuses()
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn rejection_retains_a_bounded_reason_and_never_assigns_a_retry() {
     let mut world = settled(Story::Reject);
     assert_eq!(archives(&world).len(), 1);
@@ -107,7 +104,6 @@ fn rejection_retains_a_bounded_reason_and_never_assigns_a_retry() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn both_owner_races_return_the_same_first_committed_winner() {
     for story in [Story::RaceRelease, Story::RaceReject] {
         let mut world = settled(story);
@@ -139,7 +135,6 @@ fn both_owner_races_return_the_same_first_committed_winner() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn held_and_decision_commit_cuts_restore_paged_real_children_and_exact_scripts() {
     for cut in [Cut::Held, Cut::Decision] {
         let mut world =
@@ -209,7 +204,6 @@ fn held_and_decision_commit_cuts_restore_paged_real_children_and_exact_scripts()
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn saturated_facts_change_no_decision_or_durable_result() {
     for story in [Story::Release, Story::Reject] {
         let mut observed = World::new(Settings::calm(9102, story));
@@ -265,7 +259,6 @@ fn before_decision(world: &World, archive: &EscalationDecisionRecord) -> Referee
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn referee_rejects_split_or_missing_decision_cohorts_and_duplicate_revision_effects() {
     let mut world = settled(Story::Release);
     let archive = archives(&world)[0];
@@ -326,7 +319,6 @@ fn referee_rejects_split_or_missing_decision_cohorts_and_duplicate_revision_effe
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn referee_rejects_missing_terminal_evidence_duplicate_outputs_and_double_funding() {
     let mut world = settled(Story::Release);
     let archive = archives(&world)[0];
@@ -371,7 +363,6 @@ fn referee_rejects_missing_terminal_evidence_duplicate_outputs_and_double_fundin
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn key_conflict_requires_immediate_refusal_and_preserves_the_saved_winner() {
     let mut world = settled(Story::Release);
     let archive = archives(&world)[0];
@@ -417,7 +408,6 @@ fn key_conflict_requires_immediate_refusal_and_preserves_the_saved_winner() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_historical_query_retries_busy_with_a_fresh_reply_right() {
     let settings =
         Settings { cut: Cut::Held, commit_delay: 2, page_delay: 2, ..Settings::calm(9208, Story::RaceRelease) };
@@ -428,7 +418,6 @@ fn a_historical_query_retries_busy_with_a_fresh_reply_right() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn an_amend_naming_an_old_spec_revision_is_answered_moved() {
     use temper_engine_domain::{CallAnswer, Tool};
     let (mut driver, parent, child) = revision_delegate();
@@ -446,7 +435,6 @@ fn an_amend_naming_an_old_spec_revision_is_answered_moved() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn an_amends_answer_names_the_revision_its_next_amendment_names() {
     use temper_engine_domain::{CallAnswer, Tool};
     let (mut driver, parent, child) = revision_delegate();
@@ -477,7 +465,6 @@ fn an_amends_answer_names_the_revision_its_next_amendment_names() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_release_naming_an_old_hold_revision_is_answered_moved() {
     use temper_engine_domain::{CallAnswer, Tool};
     let (mut driver, parent, child) = revision_delegate();
@@ -522,7 +509,6 @@ fn stop_delegate(driver: &mut temper_engine_domain_world::direct::Driver, child:
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn writer_store_oracle_rejects_held_entry_actor_high_water_and_fallback_mutations() {
     use temper_engine_domain_world::escalation_referee::store_rules;
     let mut world = World::new(Settings::calm(9100, Story::Reject));

@@ -51,7 +51,6 @@ fn assert_flight(world: &World, task: u64, number: u64) {
     assert!(entry(world, number).expect("flight's entry remains").0.attempt.is_some());
 }
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_forge_write_in_flight_keeps_its_row_until_settled() {
     let (mut world, assignment) = pending_issue_effect();
     world.lose_writes = 1;
@@ -125,7 +124,6 @@ fn a_forge_write_in_flight_keeps_its_row_until_settled() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_crash_keeps_the_flight_until_restart_settles_it() {
     let (mut world, assignment, number) = held_issue_write();
     assert_flight(&world, assignment.task, number);

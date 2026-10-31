@@ -65,7 +65,6 @@ mod hints;
 
 #[test]
 #[expect(clippy::too_many_lines, reason = "one race follows the kept merge through refusal and Met to landing")]
-#[ignore = "needs core-inbox"]
 fn a_merge_asked_while_kept_is_refused_naming_the_pending() {
     let (mut world, chat, producer, branch) = change_world(false, 1000, None);
     let c = match live_task(&world, producer.task).requester {
@@ -214,7 +213,6 @@ fn live_task(world: &World, task: u64) -> &tasks::TaskRecord {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_pushed_change_is_recovered_before_its_worker_reports_the_head() {
     let (mut world, chat, producer, branch) = change_world(false, 1000, None);
     assert!(matches!(
@@ -282,7 +280,6 @@ fn a_pushed_change_is_recovered_before_its_worker_reports_the_head() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_change_whose_ci_never_reports_is_stalled_and_held() {
     let (mut world, chat, producer, branch) = change_world(true, 1000, None);
     assert!(matches!(
@@ -330,7 +327,6 @@ fn a_change_whose_ci_never_reports_is_stalled_and_held() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_change_whose_ci_takes_minutes_lands_without_being_held() {
     let stall = temper_service::limits::profile(temper_service::limits::Profile::Small).forge.change_policy.stall;
     let world = World::configured_limits(
@@ -421,7 +417,6 @@ fn a_change_whose_ci_takes_minutes_lands_without_being_held() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_branch_read_sent_before_the_push_and_answered_missing_after_it_does_not_hold_the_change() {
     let (mut world, _chat, producer, branch) = change_world_in(
         World::configured(true, true),
@@ -512,19 +507,16 @@ fn a_branch_read_sent_before_the_push_and_answered_missing_after_it_does_not_hol
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn an_agent_review_gate_runs_at_the_head_and_its_approval_lands_the_change() {
     check_gate_landing(false, false);
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_change_to_a_repository_without_ci_lands_on_its_checks() {
     check_gate_landing(true, false);
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn an_owner_adds_a_branch_requirement_and_later_changes_wait_for_it() {
     check_gate_landing(false, true);
 }
@@ -613,13 +605,11 @@ fn check_gate_landing(no_ci: bool, owner_gate: bool) {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_review_asking_for_changes_is_repaired_with_its_remarks_and_reviewed_again() {
     check_gate_repair(false);
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_failing_check_is_repaired_and_checked_again() {
     check_gate_repair(true);
 }
@@ -827,7 +817,6 @@ fn contains(words: &[u8], part: &[u8]) -> bool {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_failed_ci_repair_brief_names_the_failed_step_and_its_logs_end() {
     let (mut world, _chat, producer, branch) = change_world(false, 0, None);
     world.external(
@@ -851,7 +840,6 @@ fn a_failed_ci_repair_brief_names_the_failed_step_and_its_logs_end() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_failed_ci_with_no_failed_step_briefs_the_end_of_the_jobs_log() {
     let (mut world, _chat, producer, branch) = change_world(false, 0, None);
     fake::set_failing(&mut world.fake, b"org/repo", b"build", raw::Failing::NoStep);
@@ -868,7 +856,6 @@ fn a_failed_ci_with_no_failed_step_briefs_the_end_of_the_jobs_log() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn an_unreadable_failed_job_log_is_named_and_repair_still_runs() {
     let (mut world, _chat, producer, branch) = change_world(false, 0, None);
     world.fail_job_reads = true;
@@ -887,7 +874,6 @@ fn an_unreadable_failed_job_log_is_named_and_repair_still_runs() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_required_section_missing_sends_the_task_back_to_due_without_spending_a_try() {
     let (mut world, chat, producer) = failed_ci_with_delayed_brief();
     let mut repair = None;
@@ -928,7 +914,6 @@ fn a_required_section_missing_sends_the_task_back_to_due_without_spending_a_try(
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn an_amendment_while_gathering_discards_the_old_brief_without_claiming() {
     let (mut world, chat, producer) = failed_ci_with_delayed_brief();
     let mut repair = None;
@@ -1036,7 +1021,6 @@ fn an_amendment_while_gathering_discards_the_old_brief_without_claiming() {
 
 #[test]
 #[expect(clippy::too_many_lines, reason = "one slow blocking review, its preparation and landing")]
-#[ignore = "needs core-inbox"]
 fn a_review_whose_forge_reads_take_seconds_is_prepared_once() {
     let brief = temper_service::limits::profile(temper_service::limits::Profile::Small).root.brief;
     let world = World::configured_brief(
@@ -1157,7 +1141,6 @@ fn a_review_whose_forge_reads_take_seconds_is_prepared_once() {
 
 #[test]
 #[expect(clippy::too_many_lines, reason = "one delayed blocking review, wakes during preparation and its landing")]
-#[ignore = "needs core-inbox"]
 fn a_review_whose_forge_reads_take_seconds_is_prepared_once_and_merges() {
     let brief = temper_service::limits::profile(temper_service::limits::Profile::Small).root.brief;
     let world = World::configured_brief(
@@ -1414,7 +1397,6 @@ fn a_conflicting_update_is_resolved_from_a_merge_in_progress() {
 
 #[test]
 #[expect(clippy::too_many_lines, reason = "the story checks both clean-update carryover and a new review after repair")]
-#[ignore = "needs core-inbox"]
 fn an_approval_carries_over_a_clean_update_and_is_asked_again_after_a_repair() {
     let (mut world, _chat, producer, branch) = change_world(false, 1000, Some(engine::Freshness::Clean));
     assert!(matches!(
@@ -1664,7 +1646,6 @@ fn an_approval_carries_over_a_clean_update_and_is_asked_again_after_a_repair() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_worker_frozen_past_its_grace_resumes_with_a_push_in_hand_and_lands_nothing_twice() {
     let (mut world, chat, producer, branch) = change_world(false, 1000, None);
     assert!(matches!(
@@ -1761,7 +1742,6 @@ fn a_worker_frozen_past_its_grace_resumes_with_a_push_in_hand_and_lands_nothing_
 
 #[test]
 #[expect(clippy::too_many_lines, reason = "the base repair story drives two consecutive change landings")]
-#[ignore = "needs core-inbox"]
 fn a_broken_landing_branch_gets_one_deployment_repair_before_waiting_changes_land() {
     let (mut world, _chat, producer, branch) = change_world(false, 1000, None);
     assert!(matches!(
@@ -1974,7 +1954,6 @@ fn task_brief(assignment: &engine::Assignment) -> &[u8] {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_chat_made_before_its_home_was_adopted_reads_the_home_and_says_why() {
     let small = temper_service::limits::profile(temper_service::limits::Profile::Small);
     let mut world =
@@ -2057,7 +2036,6 @@ fn a_chat_made_before_its_home_was_adopted_reads_the_home_and_says_why() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_saved_repository_tag_becomes_a_concrete_checkout_in_the_next_attempt() {
     let mut world = World::configured(true, false);
     world.adopt();
@@ -2162,7 +2140,6 @@ fn a_saved_repository_tag_becomes_a_concrete_checkout_in_the_next_attempt() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_goal_ending_while_its_issue_is_opening_eventually_closes_that_issue() {
     let mut world = World::configured(true, false);
     world.adopt();
@@ -2208,7 +2185,6 @@ fn a_goal_ending_while_its_issue_is_opening_eventually_closes_that_issue() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_goal_subscription_receives_the_connectors_landing_news() {
     let mut world = World::new();
     world.adopt();
@@ -2318,7 +2294,6 @@ fn await_new_forge_news(world: &mut World, task: u64, before: usize) {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_pull_subscription_receives_the_connectors_state_news() {
     let mut world = World::new();
     world.adopt();
@@ -2417,19 +2392,16 @@ fn ci_subscription_story(restart: bool) {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_ci_subscription_receives_the_connectors_verdict_news() {
     ci_subscription_story(false);
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_durable_ci_subscription_receives_verdict_news_after_a_cold_restart() {
     ci_subscription_story(true);
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_participation_subscription_receives_the_connectors_comment_news() {
     let mut world = World::new();
     world.adopt();
@@ -2472,7 +2444,6 @@ fn a_participation_subscription_receives_the_connectors_comment_news() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn an_authorized_forge_read_returns_a_bounded_typed_answer() {
     let mut world = World::configured(true, false);
     world.adopt();
@@ -2562,7 +2533,6 @@ fn an_authorized_forge_read_returns_a_bounded_typed_answer() {
 
 #[test]
 #[expect(clippy::wildcard_enum_match_arm, reason = "the story prints an unexpected typed effect answer")]
-#[ignore = "needs core-inbox"]
 fn a_named_forge_effect_is_committed_before_its_write_and_made_once() {
     let mut world = World::configured(true, false);
     world.adopt();
@@ -2648,7 +2618,6 @@ fn a_named_forge_effect_is_committed_before_its_write_and_made_once() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn an_explicit_forge_effect_proposal_is_retained_until_its_holder_accepts() {
     let mut world = World::configured(true, false);
     world.adopt();
@@ -2811,7 +2780,6 @@ fn issue_count(world: &mut World) -> usize {
 // From the stop on, the engine takes nothing that would make a commit, and a
 // committed forge effect stays with the connector (jig's `domain/engine.md`, 6.1).
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_stop_with_a_committed_forge_effect_makes_no_commit_and_no_write() {
     let (mut world, assignment) = pending_issue_effect();
     let calls = world.forge_calls;
@@ -2840,7 +2808,6 @@ fn a_stop_with_a_committed_forge_effect_makes_no_commit_and_no_write() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn effect_survives_each_commit_and_outbox_cut_without_a_second_issue() {
     for cut in 0..4 {
         let (mut world, assignment) = pending_issue_effect();
@@ -2927,7 +2894,6 @@ fn effect_survives_each_commit_and_outbox_cut_without_a_second_issue() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_tracked_goals_changes_install_landing_and_current_head_ci_topics_without_agent_calls() {
     let (mut world, goal, producer, branch) = change_world_with_policy(true, 1000, None, false, false, false, true);
     let subscriptions = |world: &World| -> Vec<forge_top::Subscriber> {
@@ -3020,7 +2986,6 @@ fn a_tracked_goals_changes_install_landing_and_current_head_ci_topics_without_ag
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_delegated_goal_is_woken_by_a_landing_over_its_planned_path() {
     for (path, class, wakes) in
         [(b"file".as_slice(), tasks::NewsClass::Wakes, true), (b"other".as_slice(), tasks::NewsClass::Kept, false)]
@@ -3121,7 +3086,6 @@ fn drain_stop(world: &mut World) {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_stop_commits_the_answer_of_a_forge_write_already_sent() {
     let (mut world, assignment, entry) = held_issue_write();
     world.send(engine::Event::Stop);
@@ -3154,7 +3118,6 @@ fn a_stop_commits_the_answer_of_a_forge_write_already_sent() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn settling_places_no_run_and_answers_a_call_busy() {
     let (mut world, assignment, _entry) = held_issue_write();
     // Another task becomes due, with a slot available, immediately before Stop.
@@ -3196,7 +3159,6 @@ fn settling_places_no_run_and_answers_a_call_busy() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_write_unanswered_past_its_lifetime_stops_unsettled_naming_it() {
     let (mut world, assignment, entry) = held_issue_write();
     world.send(engine::Event::Stop);
@@ -3234,7 +3196,6 @@ fn a_write_unanswered_past_its_lifetime_stops_unsettled_naming_it() {
 }
 
 #[test]
-#[ignore = "needs core-inbox"]
 fn a_stop_waits_for_a_sent_merge_to_be_proved() {
     let (mut world, _chat, producer, branch) = change_world(false, 1000, None);
     world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.clone(), commit: 1 }));

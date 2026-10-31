@@ -40,3 +40,19 @@ pub fn poll(
         temper_engine_domain::release(root, env, out);
     }
 }
+
+/// Peer input waits for durable Wires (temper/docs/design/domain/root.md, 9.1).
+pub(crate) fn waits_for_start(root: &temper_engine_domain::Domain, event: &temper_engine_domain::Event) -> bool {
+    use jig_domain_core::start::Phase;
+    let runtime = root.ready()
+        || matches!(
+            root.start_phase(),
+            Some(Phase::AdoptRuns | Phase::ReadAfresh { .. } | Phase::SettleOutbox { .. } | Phase::Open)
+        );
+    !runtime
+        && matches!(
+            event,
+            temper_engine_domain::Event::Credential { .. }
+                | temper_engine_domain::Event::Worker(temper_engine_domain::WorkerInput::Link { .. })
+        )
+}
