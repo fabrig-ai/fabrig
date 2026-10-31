@@ -29,8 +29,6 @@
 
 extern crate alloc;
 
-mod io_stage;
-
 #[cfg(test)]
 mod tests;
 
@@ -296,7 +294,7 @@ pub fn iterate(svc: &mut Service, now: Time, wall: Wall) {
     svc.domain_env.now = now;
     svc.domain_env.wall = wall;
     // The up pass.
-    io_up(svc, now);
+    io::stage::up(&mut svc.io, &svc.io_env, &mut svc.completions, &mut svc.told, &mut svc.submissions, now);
     protocol_up(svc, now);
     domain_stage(svc);
     // The down pass.
@@ -310,18 +308,11 @@ pub fn iterate(svc: &mut Service, now: Time, wall: Wall) {
         svc.signals_closing = true;
         svc.asked.push(io::Request::Close { entity });
     }
-    io_down(svc);
+    io::stage::down(&mut svc.io, &svc.io_env, &mut svc.asked, &mut svc.submissions);
     // The reclaim point.
     svc.io.reclaim();
     svc.protocol.reclaim();
     svc.domain.reclaim();
-}
-
-/// io's stage of the up pass: its ready list, then the completions (only
-/// once the ready list is empty, so that what the down pass made is told
-/// first: io.md, 2), then its deadlines.
-fn io_up(svc: &mut Service, now: Time) {
-    io_stage::up(&mut svc.io, &svc.io_env, &mut svc.completions, &mut svc.told, &mut svc.submissions, now);
 }
 
 /// The protocol layer's stage of the up pass: its ready list, then what io
@@ -396,22 +387,4 @@ fn protocol_down(svc: &mut Service) {
         };
         protocol::down(&mut svc.protocol, &svc.protocol_env, request, &mut svc.asked);
     }
-}
-
-/// io's stage of the down pass: each request, while io can hold a refusal
-/// (`Io::takes`) and what it submits fits.
-fn io_down(svc: &mut Service) {
-    for _ in 0..svc.asked.len() {
-        if !svc.io.takes() || !io_room(svc, io::MAX_OUT_DOWN) {
-            break;
-        }
-        let Some(request) = svc.asked.pop() else {
-            break;
-        };
-        io::down(&mut svc.io, &svc.io_env, request, &mut svc.submissions);
-    }
-}
-
-fn io_room(svc: &Service, max: io::MaxOut) -> bool {
-    svc.submissions.room() >= max.submissions
 }

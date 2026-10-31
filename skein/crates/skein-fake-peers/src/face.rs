@@ -150,3 +150,6 @@ pub(crate) fn valid(limits: &Limits) -> bool {
         && limits.io.intake >= 18_432
         && limits.io.output >= limits.ciphertext
 }
+
+#[cfg(test)]
+mod tests;
