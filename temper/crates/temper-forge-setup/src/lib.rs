@@ -8,6 +8,7 @@ pub mod fetch;
 pub mod given;
 pub mod ini;
 pub mod limits;
+pub mod machine;
 pub mod name;
 pub mod parent;
 pub mod place;
@@ -22,7 +23,7 @@ pub mod state;
 pub mod step;
 pub mod upgrade;
 pub use setup::Setup;
-pub use step::{Group, Kind, Stage, Step, Steps, steps};
+pub use step::{FORGE_ARGUMENT, Group, Kind, Stage, Step, Steps, kinds, steps};
 #[cfg(test)]
 mod tests;
 
