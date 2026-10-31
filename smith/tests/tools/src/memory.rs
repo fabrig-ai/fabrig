@@ -2,13 +2,12 @@
 //! the largest of each thing they take, an authority, a path and a file, so
 //! that a domain fills its configured admission limits.
 
-use skein_lib::{Duration, Token};
+use skein_lib::Token;
 use smith_domain_tools::{Authority, Call, Grants, Limits, Name, Part, Path, Repo};
 
 /// Small bounded checkout-tool limits for exercising the memory envelope.
 pub const LIMITS: Limits = Limits {
     shell_output: 64,
-    kits: 2,
     calls: 3,
     repos: 2,
     path_bytes: 63,
@@ -18,20 +17,7 @@ pub const LIMITS: Limits = Limits {
     tool_payload: 256,
     read_bytes: 64,
     list_entries: 4,
-    list_bytes: 4096,
-    match_lines: 4,
-    file_timeout: Duration::from_secs(10),
-
-    jobs: 4,
-    job_poll: Duration::from_secs(30),
-    job_wait: Duration::from_secs(30),
-    shell_timeout: Duration::from_secs(60),
-    tool_deadline: Duration::from_secs(600),
-    shell_head: 64,
-    shell_tail: 128,
-    search_hits: 8,
-    search_bytes: 256,
-    search_timeout: Duration::from_secs(30),
+    ..smith_domain_tools::fixture::SMALL
 };
 
 /// Explicit inspect, modify and shell grants for the memory fixture.

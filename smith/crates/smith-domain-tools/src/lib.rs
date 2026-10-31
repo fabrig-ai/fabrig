@@ -44,6 +44,8 @@ mod command;
 mod domain;
 mod edit;
 mod facts;
+#[cfg(any(test, feature = "fixture"))]
+pub mod fixture;
 mod flight;
 mod jobs;
 mod kit;

@@ -1119,21 +1119,9 @@ fn the_directory_itself_works_for_every_operation() {
 fn paths_in_one_directory_and_in_several() {
     for several in [false, true] {
         let fixture = Fixture::new();
-        let mut repos = vec![tools::Repo {
-            host: Box::new([smith_domain_tools::Name::new(Box::from(b"host".as_slice())).expect("fixture host name")]),
-            mount: Box::new([Name::new(b"work-hidden".as_slice().into()).expect("valid namespace fixture")]),
-            root: fixture.repos[0].root,
-            writable: true,
-        }];
+        let mut repos = vec![smith_tools_world::fixture::directory(b"work-hidden", fixture.repos[0].root, true)];
         if several {
-            repos.push(tools::Repo {
-                host: Box::new([
-                    smith_domain_tools::Name::new(Box::from(b"host".as_slice())).expect("fixture host name")
-                ]),
-                mount: Box::new([Name::new(b"docs".as_slice().into()).expect("valid namespace fixture")]),
-                root: fixture.repos[2].root,
-                writable: false,
-            });
+            repos.push(smith_tools_world::fixture::directory(b"docs", fixture.repos[2].root, false));
         }
         let authority = tools::Authority { cwd: repos[0].mount.clone(), repos: repos.into(), grants: INSPECT };
         assert_eq!(
@@ -1184,21 +1172,9 @@ fn list_slash_answers_the_directories_without_io_even_when_io_always_fails() {
 fn a_directory_name_written_as_a_prefix_fails_with_the_path_it_resolved_to() {
     for several in [false, true] {
         let fixture = Fixture::new();
-        let mut repos = vec![tools::Repo {
-            host: Box::new([smith_domain_tools::Name::new(Box::from(b"host".as_slice())).expect("fixture host name")]),
-            mount: Box::new([Name::new(b"work".as_slice().into()).expect("working directory")]),
-            root: fixture.repos[0].root,
-            writable: true,
-        }];
+        let mut repos = vec![smith_tools_world::fixture::directory(b"work", fixture.repos[0].root, true)];
         if several {
-            repos.push(tools::Repo {
-                host: Box::new([
-                    smith_domain_tools::Name::new(Box::from(b"host".as_slice())).expect("fixture host name")
-                ]),
-                mount: Box::new([Name::new(b"docs".as_slice().into()).expect("other directory")]),
-                root: fixture.repos[2].root,
-                writable: false,
-            });
+            repos.push(smith_tools_world::fixture::directory(b"docs", fixture.repos[2].root, false));
         }
         let authority = tools::Authority { cwd: repos[0].mount.clone(), repos: repos.into(), grants: MODIFY };
         let mut calls = vec![read(b"work/src/lib.rs"), read(b"src/lib.rs"), list(b"Cargo.toml"), read(b"escape")];

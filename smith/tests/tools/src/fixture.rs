@@ -119,3 +119,14 @@ pub fn test_log() -> Vec<u8> {
 pub fn long() -> Vec<u8> {
     (0..100).flat_map(|line| format!("line {line:03} ..........\n").into_bytes()).collect()
 }
+
+/// A directory root at a namespace mount with an explicit write grant.
+#[must_use]
+pub fn directory(mount: &[u8], root: skein_lib::Token, writable: bool) -> smith_domain_tools::Repo {
+    smith_domain_tools::Repo {
+        host: crate::translate::names(b"/host"),
+        mount: crate::translate::names(mount),
+        root,
+        writable,
+    }
+}
