@@ -385,6 +385,8 @@ impl Front<Test> for Scripted {
             .collect();
         if self.engine.truth().sign_ins.contains_key(&self.parties[&client]) {
             events.push(crate::test::up(jig_client::Up::SignedIn));
+        } else {
+            events.push(crate::test::up(jig_client::Up::SignedOut));
         }
         events
     }
