@@ -5,7 +5,7 @@ use alloc::boxed::Box;
 use jig_domain_authority as authority;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
-use skein_lib::{List, Queue, Token, Wall};
+use skein_lib::{List, Queue, Time, Token, Wall};
 
 use crate::transcript_text::TranscriptText;
 use crate::translate;
@@ -78,18 +78,18 @@ impl Core {
             None => &[],
         }
     }
-    pub(crate) fn credentials_ready(&self, task: u64) -> bool {
+    pub(crate) fn credentials_ready(&self, task: u64, now: Time) -> bool {
         for number in self.run_credentials(task) {
-            if !self.accounts.credential_usable(*number) {
+            if !self.accounts.credential_usable(*number, now) {
                 return false;
             }
         }
         true
     }
-    pub(crate) fn run_credentials_check(&self, task: u64) -> Box<[bool]> {
+    pub(crate) fn run_credentials_check(&self, task: u64, now: Time) -> Box<[bool]> {
         let mut usable = List::with_capacity(self.accounts.credential_limit());
         for number in self.run_credentials(task) {
-            usable.push(self.accounts.credential_usable(*number)).expect("credential bound");
+            usable.push(self.accounts.credential_usable(*number, now)).expect("credential bound");
         }
         usable.into_boxed()
     }
@@ -135,7 +135,7 @@ impl Core {
                     Err(_) => 0,
                 },
                 accounts: accounts.into_boxed(),
-                credentials: self.run_credentials_check(task.task),
+                credentials: self.run_credentials_check(task.task, self.run_now),
                 writes,
             },
             &mut findings,

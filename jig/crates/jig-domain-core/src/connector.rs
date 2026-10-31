@@ -640,7 +640,7 @@ impl Core {
                 wall: now,
                 main_provider: choice.accounts.first().expect("choice includes main provider").provider,
                 accounts: accounts.into_boxed(),
-                credentials: self.run_credentials_check(context.task),
+                credentials: self.run_credentials_check(context.task, self.run_now),
                 writes: Box::new([authority::Write {
                     effect: crate::resources::effect(self, current.project, effect),
                     held: authority::Writer::Task,

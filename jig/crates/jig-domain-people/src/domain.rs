@@ -77,9 +77,12 @@ impl Pending {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-enum Phase {
-    Restoring,
-    Ready,
+enum Start {
+    NotStarted,
+    Loading,
+    Linked,
+    Sweeping,
+    Open,
     Failed,
 }
 
@@ -105,16 +108,14 @@ pub(crate) struct Recent {
 }
 
 /// Bounded secret-free identities, sign-ins/deadlines, project holdings, completed keys and
-/// volatile flights and task-derived inbox references; knows no task content and starts restoring.
+/// volatile flights and task-derived inbox references; knows no task content.
 /// (domain/people.md, sections 2–6).
 #[derive(Debug)]
 pub struct Domain {
-    phase: Phase,
-    start: start::Phase,
+    start: Start,
     start_at: Option<Wall>,
     restore_failure: Option<crate::RestoreFailure>,
     ended_witnesses: Set<(u64, u64)>,
-    touched: bool,
     deployment_provider: u16,
     people: Map<u64, Identity>,
     results_seen: Map<u64, u64>,
@@ -153,6 +154,12 @@ pub struct Domain {
 }
 
 impl Domain {
+    pub(crate) fn input(&mut self) {
+        if self.start == Start::NotStarted {
+            self.start = Start::Open;
+        }
+    }
+
     pub(super) fn party_pending(&self, id: Id<Pending>) -> Option<&PartyPending> {
         self.pending.get(id)?.party()
     }
@@ -170,7 +177,7 @@ impl Domain {
     /// Release a cancelled move's volatile Written place (protocol/llm.md, 5.6).
     /// `None` cancels all moves when the accounts component closes.
     pub fn cancel_moves(&mut self, source: Option<u32>) {
-        self.touched = true;
+        self.input();
         for _ in 0..self.flights.capacity() {
             let mut found = None;
             for (key, id) in &self.flights {
@@ -233,14 +240,12 @@ impl Domain {
             }
         }
         Domain {
-            phase: Phase::Restoring,
-            start: start::Phase::Loading,
+            start: Start::NotStarted,
             start_at: None,
             restore_failure: None,
             ended_witnesses: Set::with_capacity(
                 limits.people.checked_mul(limits.inbox_tasks).expect("bounded conversation witnesses"),
             ),
-            touched: false,
             deployment_provider,
             people: Map::with_capacity(limits.people),
             results_seen: Map::with_capacity(limits.people),
@@ -514,7 +519,7 @@ impl Domain {
     /// End the first owners' seeding when the core begins restore (protocol/configuration.md,
     /// 3: owners seed the first start only); they stay the deployment's first owners.
     pub fn end_seeding(&mut self) {
-        self.touched = true;
+        self.input();
         self.seeding = false;
     }
 
@@ -547,13 +552,13 @@ impl Domain {
         Some(session.person)
     }
 
-    /// Pure query of completed, successful restoration; false during restoring and permanently
-    /// after restore failure.
+    /// Whether ordinary input is admitted: before a start or after it opens, never during
+    /// loading, linking or sweeping, or after a failed start.
     #[must_use]
     pub fn ready(&self) -> bool {
-        match self.phase {
-            Phase::Ready => true,
-            Phase::Restoring | Phase::Failed => false,
+        match self.start {
+            Start::NotStarted | Start::Open => true,
+            Start::Loading | Start::Linked | Start::Sweeping | Start::Failed => false,
         }
     }
 }
@@ -581,7 +586,7 @@ pub fn outputs_bound(limits: &Limits) -> u32 {
 /// requiring the historical roster to equal the current one. Refused role asks retain their invalid
 /// targets for keyed replay.
 pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
-    domain.touched = true;
+    domain.input();
     match event {
         Event::Act { reply_to, connector, key, act } => {
             acts::admit(domain, env, reply_to, crate::ActKey { connector, key }, *act, out);
@@ -659,7 +664,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
 /// an uncapped output queue and calls again in later iterations while due; parent owns durability
 /// and secret cleanup.
 pub fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
-    domain.touched = true;
+    domain.input();
     if !domain.ready() {
         return;
     }
@@ -1823,7 +1828,7 @@ pub(super) fn answer_decided(
 }
 
 fn restore_failed(domain: &mut Domain, key: Key, refusal: Refusal, out: &mut Queue<Request>) {
-    domain.phase = Phase::Failed;
+    domain.start = Start::Failed;
     out.push(Request::RestoreRefused { key, refusal });
 }
 
@@ -1831,7 +1836,7 @@ fn restore_failed(domain: &mut Domain, key: Key, refusal: Refusal, out: &mut Que
 /// The caller completes this part before the application flight (domain/people.md, 5.1).
 /// Explicit model selectors refuse `Lack::Models`: parts carry no model-name context yet.
 pub fn application_part(domain: &mut Domain, env: &Env<Limits>, request: Token, ask: Ask) -> Result<Request, Outcome> {
-    domain.touched = true;
+    domain.input();
     let id = Id::from_token(request);
     let flight = domain.party_pending(id).ok_or(Outcome::Refused(Refusal::Unknown))?;
     let application_project = match &flight.ask {
@@ -2017,7 +2022,7 @@ fn holds(domain: &Domain, person: u64, holder: crate::AccountHolder) -> bool {
 
 /// Forget the synchronous part while preserving its application key and digest.
 pub fn application_part_done(domain: &mut Domain, request: Token) {
-    domain.touched = true;
+    domain.input();
     if let Some(flight) = domain.party_pending_mut(Id::from_token(request)) {
         flight.part = None;
     }

@@ -78,7 +78,7 @@ pub(crate) fn change(
             return;
         }
         Change::Written { number } => {
-            crate::signing::written(domain, env, request, holder, number, out);
+            crate::signing::written(domain, request, holder, number, out);
             return;
         }
         Change::MoveIn { carried } => {
@@ -95,7 +95,7 @@ pub(crate) fn change(
             return;
         }
         Change::RemoveKey { source } => {
-            crate::keys::remove(domain, env, request, holder, source, out);
+            crate::keys::remove(domain, request, holder, source, out);
             return;
         }
         Change::Resume { source } => resume(domain, env, holder, source, out),
@@ -105,7 +105,7 @@ pub(crate) fn change(
         }
         Change::MoveAccount { account: number, place } => move_account(domain, holder, number, place, out),
         Change::MoveSource { account: number, source, place } => {
-            move_source(domain, env, holder, number, source, place, out)
+            move_source(domain, holder, number, source, place, out)
         }
         Change::SetUses { account: number, uses } => match account(domain, holder, number) {
             Err(refusal) => Err(refusal),
@@ -151,7 +151,7 @@ fn resume(
 }
 
 /// Remove one source, erasing its account with the last source and saving dense shifts.
-pub(crate) fn detach(domain: &mut Domain, env: &Env<Limits>, account: u32, number: u32, out: &mut Queue<Request>) {
+pub(crate) fn detach(domain: &mut Domain, account: u32, number: u32, out: &mut Queue<Request>) {
     drop(domain.sources.remove(&number).expect("a kept source"));
     domain.alarms.cancel(number);
     let entry = domain.accounts.get_mut(&account).expect("a source's account");
@@ -180,7 +180,7 @@ pub(crate) fn detach(domain: &mut Domain, env: &Env<Limits>, account: u32, numbe
         }
         entry.plan = plan;
         let order = crate::ordering::sources(domain, account);
-        crate::ordering::save_sources(domain, env, account, &order, out);
+        crate::ordering::save_sources(domain, account, &order, out);
     }
 }
 
@@ -359,7 +359,6 @@ fn move_account(
 }
 fn move_source(
     domain: &mut Domain,
-    env: &Env<Limits>,
     holder: Holder,
     number: u32,
     source: u32,
@@ -372,7 +371,7 @@ fn move_source(
     }
     let order = crate::ordering::sources(domain, number);
     let order = moved(&order, source, place);
-    crate::ordering::save_sources(domain, env, number, &order, out);
+    crate::ordering::save_sources(domain, number, &order, out);
     Ok(())
 }
 pub(crate) fn refuse(request: Token, refusal: Refusal, out: &mut Queue<Request>) {
