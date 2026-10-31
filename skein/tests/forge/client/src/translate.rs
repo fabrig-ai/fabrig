@@ -4,7 +4,7 @@
 use skein_fake_forge_domain::api as forge;
 use skein_forge::api as client;
 use skein_forge_client::Limits;
-use skein_lib::{List, Time};
+use skein_lib::{List, Time, hex};
 const KEY: &[u8] = b"<!-- kit:key ";
 const END: &[u8] = b" -->\n";
 #[must_use]
@@ -44,13 +44,6 @@ pub fn keyed(key: &[u8], text: &[u8]) -> Box<[u8]> {
     }
     bytes.into_boxed()
 }
-fn hex(byte: u8) -> Option<u8> {
-    match byte {
-        b'0'..=b'9' => Some(byte - b'0'),
-        b'a'..=b'f' => Some(byte - b'a' + 10),
-        _ => None,
-    }
-}
 #[must_use]
 pub fn key_of(body: &[u8]) -> Option<Box<[u8]>> {
     let rest = body.strip_prefix(KEY)?;
@@ -61,7 +54,11 @@ pub fn key_of(body: &[u8]) -> Option<Box<[u8]>> {
             }
             let mut key = List::with_capacity(u32::try_from(end / 2).expect("world body bound"));
             for pair in rest.get(..end)?.chunks_exact(2) {
-                key.push(hex(pair[0])?.checked_mul(16)?.checked_add(hex(pair[1])?)?).expect("key capacity");
+                if pair[0].is_ascii_uppercase() || pair[1].is_ascii_uppercase() {
+                    return None;
+                }
+                key.push(hex::value(pair[0])?.checked_mul(16)?.checked_add(hex::value(pair[1])?)?)
+                    .expect("key capacity");
             }
             return Some(key.into_boxed());
         }
