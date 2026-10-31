@@ -34,7 +34,7 @@ pub(in crate::credentials) fn run(
         eprintln!("account {}: signed out", account.name);
         return Ok(LoginOutcome::Usable);
     }
-    let provider = account.fields.get("provider").and_then(|value| value.value.as_str()) == Some("openai");
+    let provider = account.provider() == Some(crate::settings::resolve::Provider::OpenAi);
     let registered = if provider {
         let host = if logout {
             String::new()

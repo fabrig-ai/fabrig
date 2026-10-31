@@ -109,7 +109,7 @@ pub(super) fn build(
         configured.push(model.local(
             endpoint.number,
             endpoint.dialect,
-            (account.source() != "none").then_some(account.number),
+            (account.source() != crate::settings::resolve::AccountSource::Nothing).then_some(account.number),
         ));
         let native = agent
             .service
@@ -190,7 +190,11 @@ pub(super) fn build(
         live_text: false,
         mode: local::Mode::Chat { waiting: Duration::from_secs(input::number(settings, "waiting_seconds")?) },
         resume: true,
-        accounts: accounts.iter().filter(|account| account.source() != "none").map(|account| account.number).collect(),
+        accounts: accounts
+            .iter()
+            .filter(|account| account.source() != crate::settings::resolve::AccountSource::Nothing)
+            .map(|account| account.number)
+            .collect(),
         workspace: Some(run::Workspace { directories: directories.into_boxed_slice() }),
         push,
     })

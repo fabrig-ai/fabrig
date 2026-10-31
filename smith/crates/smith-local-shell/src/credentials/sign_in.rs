@@ -17,7 +17,7 @@ pub struct Registered {
 
 /// Read and validate an explicitly configured public client before driving it.
 pub fn registration(account: &Account, codex: bool, workspace: &std::path::Path) -> Result<Registered, Refusal> {
-    if account.fields.get("provider").is_some_and(|value| value.value.as_str() == Some("openai")) {
+    if account.provider() == Some(crate::settings::resolve::Provider::OpenAi) {
         return super::registration::configured(account, "", workspace);
     }
     let registration = configured(account, codex)?;
@@ -262,7 +262,7 @@ mod tests {
             )
         })
         .collect();
-        Account { name: "fixture".into(), number: 0, fields }
+        Account::from_fields("fixture".into(), 0, fields)
     }
     #[test]
     fn every_missing_registration_key_names_its_key_and_file() {

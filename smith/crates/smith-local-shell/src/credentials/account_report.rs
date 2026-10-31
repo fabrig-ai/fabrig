@@ -54,19 +54,7 @@ impl AccountReport {
 }
 
 pub(crate) fn accounts(resolved: &Resolved) -> BTreeMap<String, Account> {
-    let mut accounts = BTreeMap::<String, Account>::new();
-    for (key, value) in &resolved.settings.values {
-        if let Some(rest) = key.strip_prefix("accounts.") {
-            let (name, field) = settings::named_field(rest).expect("validated account key");
-            let number = settings::resolve::numbers::number(&name);
-            accounts
-                .entry(name.clone())
-                .or_insert_with(|| Account { name, number, fields: BTreeMap::new() })
-                .fields
-                .insert(field.into(), value.clone());
-        }
-    }
-    accounts
+    settings::accounts(&resolved.settings)
 }
 
 /// Inspect all declared accounts using the caller's program checks and wall time.
@@ -101,9 +89,8 @@ fn catalog(
                 return None;
             }
             let descriptor = source(
-                &account.fields,
+                &account,
                 needed.is_some_and(|needed| product::codex(resolved, needed.number)),
-                &name,
                 directory.as_ref(),
             );
             let (source, kept) = match &descriptor {
@@ -119,7 +106,7 @@ fn catalog(
                 Source::Nothing => ("none", None),
             };
             let credential = inspect(&descriptor, wall, programs);
-            let provider = account.fields.get("provider").and_then(|field| field.value.as_str()).map(str::to_owned);
+            let provider = account.provider().map(|provider| provider.name().to_owned());
             Some((
                 name,
                 AccountReport {

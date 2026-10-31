@@ -1,5 +1,7 @@
 use super::tests::Files;
 use super::*;
+use crate::settings::Sourced;
+use std::collections::BTreeMap;
 use std::io::Write;
 use std::os::unix::fs::OpenOptionsExt;
 
@@ -78,12 +80,9 @@ fn a_record_without_the_plan_scope_is_signed_in_without_it() {
         "provider".into(),
         Sourced { value: toml::Value::String("openai".into()), origin: settings::Origin::BuiltIn },
     )]);
-    let descriptor = source(
-        &fields,
-        false,
-        "work",
-        Some(&Directory::from_base(files.path().to_path_buf()).expect("absolute scratch")),
-    );
+    let account = Account::from_fields("work".into(), 0, fields);
+    let descriptor =
+        source(&account, false, Some(&Directory::from_base(files.path().to_path_buf()).expect("absolute scratch")));
     let descriptor = match descriptor {
         Source::SignIn { required_scopes, .. } => Source::SignIn { file: path.clone(), required_scopes },
         Source::Env { .. } | Source::Key { .. } | Source::Program { .. } | Source::Nothing => {

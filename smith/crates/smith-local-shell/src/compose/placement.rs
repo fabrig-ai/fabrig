@@ -5,7 +5,7 @@ use crate::{settings, startup};
 use std::path::Path;
 
 pub(crate) fn program_account(accounts: &[settings::resolve::Account]) -> bool {
-    accounts.first().expect("main account is selected first").source() == "program"
+    accounts.first().expect("main account is selected first").source() == settings::resolve::AccountSource::Program
 }
 
 /// Price the child's validated teardown before selecting the host's grace.

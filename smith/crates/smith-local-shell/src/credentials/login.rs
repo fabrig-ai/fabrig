@@ -1,6 +1,6 @@
 //! Source-specific credential commands (shell.md, sections 4.5–4.6).
 //! The edge supplies the environment; dispatch keeps names and redacted outcomes.
-use super::{Account, Directory, Source};
+use super::{Directory, Source};
 use crate::{command::Command, settings};
 use skein_shell::Clock;
 
@@ -69,13 +69,7 @@ fn run(
 ) -> Result<LoginOutcome, String> {
     let settings = settings::read_in(shared, &environment.variables).map_err(|why| why.line())?;
     let settings = settings::resolve::checked(&settings).map_err(|why| why.line())?;
-    let prefix = format!("accounts.{}.", settings::name(name));
-    let fields = settings
-        .values
-        .iter()
-        .filter_map(|(key, value)| key.strip_prefix(&prefix).map(|field| (field.into(), value.clone())))
-        .collect();
-    let account = Account { name: name.into(), number: 0, fields };
+    let account = settings::accounts(&settings).remove(name).ok_or_else(|| format!("unknown account {name}"))?;
     if !account.fields.contains_key("source") {
         return Err(format!("unknown account {name}"));
     }
@@ -91,7 +85,7 @@ fn run(
             })
     });
     let directory = Directory::of(&settings);
-    let source = super::source(&account.fields, codex, name, directory.as_ref());
+    let source = super::source(&account, codex, directory.as_ref());
     if logout {
         return super::logout::run(&account, &source, &settings, codex, clock, environment);
     }

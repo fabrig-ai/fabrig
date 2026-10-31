@@ -372,9 +372,8 @@ fn handed_accounts(resolved: &settings::resolve::Resolved) -> Result<crate::cred
     let directory = crate::credentials::Directory::of(&resolved.settings);
     for account in &resolved.accounts {
         let source = crate::credentials::source(
-            &account.fields,
+            account,
             crate::credentials::product_codex(resolved, account.number),
-            &account.name,
             directory.as_ref(),
         );
         locations

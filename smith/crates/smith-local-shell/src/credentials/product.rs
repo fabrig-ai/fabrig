@@ -62,7 +62,7 @@ pub fn prepare(
     let mut lendable = Map::with_capacity(count);
     let directory = super::Directory::of(&resolved.settings);
     for account in &resolved.accounts {
-        let descriptor = source(&account.fields, codex(resolved, account.number), &account.name, directory.as_ref());
+        let descriptor = source(account, codex(resolved, account.number), directory.as_ref());
         locations
             .push(Location { account: account.number, name: account.name.clone(), source: descriptor.clone() })
             .expect("selected locations fit their account bound");
@@ -98,7 +98,7 @@ pub fn prepare(
                 service::Source::Env { account: account.number, borrowed }
             }
             Source::SignIn { file, required_scopes } => {
-                let interactive = interactive && !account.fields.contains_key("provider");
+                let interactive = interactive && account.provider().is_none();
                 let credential = super::sign_in::inspect(&file, wall, required_scopes.as_deref());
                 if !interactive && !credential.usable() {
                     return Err(unavailable(&account.name, credential));

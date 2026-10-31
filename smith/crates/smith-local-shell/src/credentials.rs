@@ -3,10 +3,10 @@
 //! values leave this module only for the service's credential storage.
 pub(crate) const PROGRAM_SOCKETS: u32 = 3;
 
-use crate::settings::{self, Sourced};
+use crate::settings;
 use skein_lib::Wall;
 use smith_local_protocol::Borrowed;
-use std::{collections::BTreeMap, path::PathBuf};
+use std::path::PathBuf;
 
 pub(crate) mod account_report;
 mod directory;
@@ -161,18 +161,24 @@ impl std::fmt::Debug for Source {
 
 /// Resolve one account descriptor without exposing a variable's value.
 #[must_use]
-pub fn source(fields: &BTreeMap<String, Sourced>, codex: bool, name: &str, directory: Option<&Directory>) -> Source {
+pub fn source(account: &Account, codex: bool, directory: Option<&Directory>) -> Source {
+    use settings::resolve::{AccountSource, Provider};
+    let fields = &account.fields;
+    let name = &account.name;
     let text = |key: &str| fields.get(key).and_then(|field| field.value.as_str()).unwrap_or_default();
-    match text("source") {
-        "env" => Source::Env { variable: text("variable").into(), codex },
-        "key" => Source::Key {
+    match account.source() {
+        AccountSource::Env => Source::Env { variable: text("variable").into(), codex },
+        AccountSource::Key => Source::Key {
             file: directory.map_or_else(|| PathBuf::from("missing-key"), |directory| directory.key(name)),
         },
-        "program" => Source::Program { name: name.into() },
-        "none" => Source::Nothing,
-        _ => {
-            let required_scopes =
-                if text("provider") == "openai" { Some(registration::REQUIRED_SCOPE.into()) } else { None };
+        AccountSource::Program => Source::Program { name: name.into() },
+        AccountSource::Nothing => Source::Nothing,
+        AccountSource::SignIn | AccountSource::Unspecified => {
+            let required_scopes = if account.provider() == Some(Provider::OpenAi) {
+                Some(registration::REQUIRED_SCOPE.into())
+            } else {
+                None
+            };
             Source::SignIn {
                 required_scopes,
                 file: directory.map_or_else(|| PathBuf::from("missing-token"), |directory| directory.token(name)),

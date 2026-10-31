@@ -1,6 +1,7 @@
 use super::*;
 use crate::settings::{Origin, Sourced};
 pub(crate) use skein_scratch::Scratch as Files;
+use std::collections::BTreeMap;
 
 fn wall() -> Wall {
     Wall::from_nanos(100_000_000_000)
@@ -22,7 +23,7 @@ fn resolved(files: &Files) -> settings::resolve::Resolved {
         .collect();
     let mut resolved = crate::fixture::resolved(files.path().to_path_buf());
     resolved.settings.values = values;
-    resolved.accounts = vec![Account { name: "codex".into(), number: 0, fields }];
+    resolved.accounts = vec![Account::from_fields("codex".into(), 0, fields)];
     resolved
 }
 
@@ -55,7 +56,9 @@ fn an_env_value_is_access_only_and_an_invalid_header_value_is_refused() {
 pub(crate) fn resolved_source(files: &Files, source: &str) -> settings::resolve::Resolved {
     let mut resolved = resolved(files);
     let value = Sourced { value: toml::Value::String(source.into()), origin: Origin::BuiltIn };
-    resolved.accounts[0].fields.insert("source".into(), value.clone());
+    let mut fields = resolved.accounts[0].fields.clone();
+    fields.insert("source".into(), value.clone());
+    resolved.accounts[0] = Account::from_fields("codex".into(), 0, fields);
     resolved.settings.values.insert("accounts.codex.source".into(), value);
     resolved.settings.values.insert(
         "credentials".into(),
