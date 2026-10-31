@@ -6,7 +6,7 @@ use crate::{
     limits::{self, Limits, Listing, Shared},
 };
 use skein_forge::forgejo::plans::plan::Bounds;
-use skein_lib::{Env, Id, List, Queue, Token};
+use skein_lib::{Env, Id, Lifecycle, List, Queue, Token};
 impl Component {
     pub(super) fn expire(
         &mut self,
@@ -53,7 +53,7 @@ impl Component {
             calls.push((*call, *id)).expect("bounded calls");
         }
         for (call, id) in calls.into_boxed() {
-            if !self.ending.live() {
+            if self.lifecycle != Lifecycle::Live {
                 break;
             }
             let waiting = self.waiting.get(id).expect("indexed call");
@@ -112,7 +112,7 @@ impl Component {
             if c.drain_redirect(env, io) {
                 self.wake = Some(env.now);
             }
-            if !self.ending.live()
+            if self.lifecycle != Lifecycle::Live
                 || (c.phase == Phase::Idle && c.deadline <= Some(env.now))
                 || c.phase == Phase::Closed
             {

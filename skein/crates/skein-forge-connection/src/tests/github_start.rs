@@ -104,15 +104,8 @@ fn request_content_length(head: &[u8]) -> usize {
     };
     let rest = head.get(at.checked_add(PREFIX.len()).expect("header start")..).expect("header value");
     let end = skein_lib::bytes::find(rest, b"\r\n").expect("header end");
-    let mut length = 0_usize;
-    for byte in rest.get(..end).expect("length digits") {
-        length = length
-            .checked_mul(10)
-            .expect("fixture length")
-            .checked_add(usize::from(byte.checked_sub(b'0').expect("decimal digit")))
-            .expect("fixture length");
-    }
-    length
+    let length = skein_lib::bytes::decimal(rest.get(..end).expect("length digits")).expect("decimal length");
+    usize::try_from(length).expect("fixture length")
 }
 
 #[test]

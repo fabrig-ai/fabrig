@@ -2,7 +2,7 @@
 use crate::{Event, Limits};
 use skein_forge::api;
 use skein_io::Addr;
-use skein_lib::{Env, Id, Map, Queue, Slab, Time, Token};
+use skein_lib::{Env, Id, Map, Queue, Slab, Time, Token, earliest};
 pub(crate) mod connection;
 use connection::{Closing, Hooked};
 /// The listener; each forge's webhook secret is in its access.
@@ -122,14 +122,14 @@ impl Hooks {
         !self.live && self.connections.is_empty() && self.waiting.is_none()
     }
     pub fn deadline(&self) -> Option<Time> {
-        let mut earliest = self.wake;
+        let mut next = self.wake;
         for (_, id) in &self.connections {
             let c = self.slab.get(*id).expect("indexed hook");
-            if !c.closing.sent() && (earliest.is_none() || Some(c.deadline) < earliest) {
-                earliest = Some(c.deadline);
+            if !c.closing.sent() {
+                next = earliest(next, Some(c.deadline));
             }
         }
-        earliest
+        next
     }
     pub fn drive(
         &mut self,

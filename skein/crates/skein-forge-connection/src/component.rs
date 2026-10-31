@@ -8,7 +8,7 @@ use crate::{
     start::Start,
 };
 use alloc::boxed::Box;
-use skein_lib::{Env, Id, List, Map, Queue, Slab, Time, Token};
+use skein_lib::{Env, Id, Lifecycle, List, Map, Queue, Slab, Time, Token, earliest};
 mod calls;
 mod github;
 mod github_calls;
@@ -92,24 +92,6 @@ impl Waiting {
         }
     }
 }
-/// The component's own lifecycle (programming-model.md, 5.2): `Closing` after the
-/// owner's close, `Aborting` after its abort, `Closed` once `Event::Closed` is up.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-enum Ending {
-    Live,
-    Closing,
-    Aborting,
-    Closed,
-}
-impl Ending {
-    /// Whether the owner has neither closed nor aborted the component.
-    fn live(self) -> bool {
-        match self {
-            Self::Live => true,
-            Self::Closing | Self::Aborting | Self::Closed => false,
-        }
-    }
-}
 #[derive(Debug)]
 pub(crate) struct Held {
     pub answer: Answered,
@@ -128,7 +110,7 @@ pub struct Component {
     calls: Map<Token, Id<Waiting>>,
     held: Map<Token, Held>,
     holders: Map<Token, Token>,
-    ending: Ending,
+    lifecycle: Lifecycle,
     diagnostics: Diagnostics,
     shared: Shared,
     connections: Map<Token, Id<Connection>>,
@@ -188,7 +170,7 @@ impl Component {
             calls: Map::with_capacity(shared.calls),
             held: Map::with_capacity(shared.calls),
             holders: Map::with_capacity(shared.calls),
-            ending: Ending::Live,
+            lifecycle: Lifecycle::Live,
             diagnostics: Diagnostics { long_bodies: 0, malformed: 0 },
             shared: *shared,
             connections: Map::with_capacity(limits.connections.checked_add(reserved).expect("checked connections")),
@@ -233,7 +215,7 @@ impl Component {
     }
     /// Opens each forge's start within its connection slots.
     pub fn begin(&mut self, env: &Env<Limits>, up: &mut Queue<Event>, io: &mut Queue<skein_io::Request>) {
-        if !self.ending.live() {
+        if self.lifecycle != Lifecycle::Live {
             return;
         }
         if let Some(settings) = &self.settings.webhooks {
@@ -254,15 +236,15 @@ impl Component {
         up: &mut Queue<Event>,
         io: &mut Queue<skein_io::Request>,
     ) {
-        match self.ending {
-            Ending::Live => {}
-            Ending::Closing => {
+        match self.lifecycle {
+            Lifecycle::Live => {}
+            Lifecycle::Closing => {
                 if let Request::Abort = request {
                     self.abort(env, up, io);
                 }
                 return;
             }
-            Ending::Aborting | Ending::Closed => return,
+            Lifecycle::Aborting | Lifecycle::Closed => return,
         }
         match request {
             Request::Connect { forge, access } => {
@@ -322,7 +304,7 @@ impl Component {
             }
             Request::Close => {
                 self.shed();
-                self.ending = Ending::Closing;
+                self.lifecycle = Lifecycle::Closing;
                 self.hooks.close();
                 self.drive(env, up, io);
             }
@@ -364,7 +346,7 @@ impl Component {
     /// and the rest shed: every connection and the webhooks are aborted, a graceful
     /// close already sent among them.
     fn abort(&mut self, env: &Env<Limits>, up: &mut Queue<Event>, io: &mut Queue<skein_io::Request>) {
-        self.ending = Ending::Aborting;
+        self.lifecycle = Lifecycle::Aborting;
         self.hooks.abort(io);
         self.drive(env, up, io);
     }
@@ -526,7 +508,7 @@ impl Component {
                 if let Some(id) = self.connections.remove(&owner) {
                     let closing = self.connection_slab.get(id).expect("indexed connection").closing;
                     if let Some(call) = self.holders.remove(&owner)
-                        && self.ending.live()
+                        && self.lifecycle == Lifecycle::Live
                     {
                         let call_id = *self.calls.get(&call).expect("holding call");
                         let c = self.connection_slab.get(id).expect("closed connection");
@@ -556,7 +538,7 @@ impl Component {
                 if self.settings.forges.get(at).expect("forge").kind == crate::settings::Kind::Forgejo {
                     *self.own_plans.get_mut(at).expect("configured forge") = None;
                 }
-                if self.ending.live() && !closing {
+                if self.lifecycle == Lifecycle::Live && !closing {
                     match self.settings.forges.get(at).expect("forge").kind {
                         crate::settings::Kind::Forgejo => {
                             self.start_heard(at, skein_forge::forgejo::plans::start::Heard::Unanswered, env, up);
@@ -568,7 +550,7 @@ impl Component {
         }
     }
     pub fn fire(&mut self, env: &Env<Limits>, up: &mut Queue<Event>, io: &mut Queue<skein_io::Request>) {
-        if !self.ending.live() {
+        if self.lifecycle != Lifecycle::Live {
             self.drive(env, up, io);
             return;
         }
@@ -589,50 +571,25 @@ impl Component {
     }
     #[must_use]
     pub fn next_deadline(&self) -> Option<Time> {
-        let mut earliest = self.wake;
-        if let Some(time) = self.hooks.deadline()
-            && (earliest.is_none() || Some(time) < earliest)
-        {
-            earliest = Some(time);
-        }
-        for slot in &self.github {
-            if let Some(gh) = slot
-                && let Some(time) = gh.puller.due
-                && (earliest.is_none() || Some(time) < earliest)
-            {
-                earliest = Some(time);
-            }
-            if let Some(gh) = slot
-                && let Some(time) = gh.deadline()
-                && (earliest.is_none() || Some(time) < earliest)
-            {
-                earliest = Some(time);
-            }
+        let mut next = earliest(self.wake, self.hooks.deadline());
+        for gh in self.github.iter().flatten() {
+            next = earliest(next, gh.puller.due);
+            next = earliest(next, gh.deadline());
         }
         for (_, id) in &self.connections {
-            let c = self.connection_slab.get(*id).expect("indexed connection");
-            if let Some(time) = c.deadline
-                && (earliest.is_none() || Some(time) < earliest)
-            {
-                earliest = Some(time);
-            }
+            next = earliest(next, self.connection_slab.get(*id).expect("indexed connection").deadline);
         }
-        if self.ending.live() {
+        if self.lifecycle == Lifecycle::Live {
             for state in &self.starts {
-                if let Some((until, _)) = backoff(*state)
-                    && (earliest.is_none() || Some(until) < earliest)
-                {
-                    earliest = Some(until);
+                if let Some((until, _)) = backoff(*state) {
+                    next = earliest(next, Some(until));
                 }
             }
         }
         for (_, id) in &self.calls {
-            let time = self.waiting.get(*id).expect("indexed live call").deadline;
-            if earliest.is_none() || Some(time) < earliest {
-                earliest = Some(time);
-            }
+            next = earliest(next, Some(self.waiting.get(*id).expect("indexed live call").deadline));
         }
-        earliest
+        next
     }
     fn start_heard(
         &mut self,
@@ -676,12 +633,12 @@ impl Component {
         let state = self.starts.get_mut(at).expect("configured start");
         if let Some((until, next)) = backoff(*state)
             && until <= env.now
-            && self.ending.live()
+            && self.lifecycle == Lifecycle::Live
         {
             *state = Start::Checking { next };
         }
         let mut token = *self.own_tokens.get(at).expect("configured slot");
-        if self.ending.live()
+        if self.lifecycle == Lifecycle::Live
             && token.is_none()
             && start_read(*state).is_some()
             && self.call_connections() < env.limits.connections
@@ -697,7 +654,7 @@ impl Component {
                 .connection_slab
                 .get_mut(*self.connections.get(&token).expect("indexed token"))
                 .expect("indexed connection");
-            if !self.ending.live() {
+            if self.lifecycle != Lifecycle::Live {
                 *self.own_plans.get_mut(at).expect("configured forge") = None;
                 c.close(c.in_flight(), io);
                 break;
@@ -768,7 +725,7 @@ impl Component {
         }
     }
     fn drive(&mut self, env: &Env<Limits>, up: &mut Queue<Event>, io: &mut Queue<skein_io::Request>) {
-        if self.ending == Ending::Aborting {
+        if self.lifecycle == Lifecycle::Aborting {
             // Each pass, so that a connection whose socket io names later is aborted too.
             for (_, id) in &self.connections {
                 self.connection_slab.get_mut(*id).expect("indexed connection").abort(io);
@@ -779,14 +736,14 @@ impl Component {
         }
         self.drive_own(env, up, io);
         self.drive_calls(env, up, io);
-        match self.ending {
-            Ending::Closing | Ending::Aborting => {
+        match self.lifecycle {
+            Lifecycle::Closing | Lifecycle::Aborting => {
                 if self.connections.is_empty() && self.hooks.closed() {
-                    self.ending = Ending::Closed;
+                    self.lifecycle = Lifecycle::Closed;
                     up.push(Event::Closed);
                 }
             }
-            Ending::Live | Ending::Closed => {}
+            Lifecycle::Live | Lifecycle::Closed => {}
         }
     }
     fn call_connections(&self) -> u32 {

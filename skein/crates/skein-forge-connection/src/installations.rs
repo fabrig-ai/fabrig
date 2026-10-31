@@ -5,7 +5,7 @@ use skein_forge::{
     api,
     github::{document, request::Scope},
 };
-use skein_lib::{Duration, Map, Secret, Set, Time, Wall};
+use skein_lib::{Duration, Map, Secret, Set, Time, Wall, earliest};
 
 #[derive(Debug)]
 pub(crate) struct Row {
@@ -407,9 +407,7 @@ impl GitHub {
     }
     /// Access replacement drops private work and credentials, keeping the comparison table.
     pub fn forget(&mut self) {
-        for _ in 0..self.said_origins.len() {
-            drop(self.said_origins.pop());
-        }
+        self.said_origins.clear();
         self.connect = self.connect.wrapping_add(1);
         self.jwt.forget();
         self.puller.pause();
@@ -643,25 +641,20 @@ impl GitHub {
         }
     }
     pub fn deadline(&self) -> Option<Time> {
-        let mut earliest = match self.read {
+        let mut next = match self.read {
             Read::Waiting { until, .. } => Some(until),
             Read::Idle | Read::Reading(_) | Read::Changes(_) => None,
         };
         match self.work {
-            Work::Waiting { until, .. } => {
-                earliest = Some(earliest.unwrap_or(until).min(until));
-            }
+            Work::Waiting { until, .. } => next = earliest(next, Some(until)),
             Work::Idle | Work::Minting { .. } | Work::Identity { .. } => {}
         }
         for (_, row) in &self.rows {
-            for time in [row.full.due, row.contents.due, if row.api.is_some() { Some(row.full.expiry) } else { None }]
-                .into_iter()
-                .flatten()
-            {
-                earliest = Some(earliest.unwrap_or(time).min(time));
+            for time in [row.full.due, row.contents.due, if row.api.is_some() { Some(row.full.expiry) } else { None }] {
+                next = earliest(next, time);
             }
         }
-        earliest
+        next
     }
     /// Consume local timers even while output, a socket or private backoff holds work.
     pub fn fire(&mut self, now: Time) {
