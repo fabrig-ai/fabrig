@@ -562,6 +562,7 @@ pub(super) fn tag_tasks(
             }
             tasks::Request::CompoundRefused { reply_to, at, problem } => {
                 let request = reply_to.into_token();
+                assert!(request != super::removal::CANCEL, "removal cancels are admitted");
                 let Some(PersonTaskRoute::Compound { .. }) = core.person_tasks.remove(&request) else {
                     unreachable!("compound continuation");
                 };
@@ -576,6 +577,9 @@ pub(super) fn tag_tasks(
             }
             tasks::Request::Done { reply_to } => {
                 let token = reply_to.into_token();
+                if token == super::removal::CANCEL {
+                    continue;
+                }
                 if let Some(route) = core.person_tasks.remove(&token) {
                     let outcome = match route {
                         PersonTaskRoute::Compound { project, operations, first_message } => {
@@ -828,6 +832,11 @@ pub(super) fn tag_tasks(
                         let position = crate::fresh(&mut core.counters, crate::Family::Message)
                             .expect("ending position preflighted before mutation");
                         task.result_position = position;
+                        if core.removing(task.project) {
+                            core.removal_ending_projects
+                                .insert(task.number, task.project)
+                                .expect("ending projects fit live tasks");
+                        }
                         assert!(core.ending_positions.insert(task.number, position) == Ok(None), "one ending position");
                         match task.requester {
                             tasks::Party::Person(person) => {
@@ -1158,6 +1167,9 @@ pub(super) fn tag_tasks(
             tasks::Request::Ended { task, requester, ending } => {
                 let _pending = core.pending_note_briefs.remove(&task);
                 let position = core.ending_positions.remove(&task).expect("ended row assigned its result position");
+                if let Some(project) = core.removal_ending_projects.remove(&task) {
+                    super::removal::task_ended(core, env, project, &mut out);
+                }
                 let Requests::Out(mut ended) = super::view_routes::route_view(
                     core,
                     env,

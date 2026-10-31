@@ -777,6 +777,9 @@ fn task_with_lineage(
     decision: Wall,
     live_lineage: bool,
 ) -> Result<Task, Missing> {
+    if core.removing(row.project) {
+        return Err(Missing::Unknown);
+    }
     if core.people.role(party, row.project).is_none() {
         return Err(Missing::NotAllowed);
     }
@@ -1134,6 +1137,9 @@ pub(super) fn dependency_rows(limits: &Limits, row: &tasks::TaskRecord) -> List<
 
 /// A retained ended root has no live subtree (client/domain/contract.md, 7.2).
 pub(crate) fn ended_tree(core: &Core, limits: &Limits, party: u64, row: &tasks::TaskRecord) -> Result<Tree, Missing> {
+    if core.removing(row.project) {
+        return Err(Missing::Unknown);
+    }
     if core.people.role(party, row.project).is_none() {
         return Err(Missing::NotAllowed);
     }

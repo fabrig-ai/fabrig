@@ -96,6 +96,9 @@ pub(super) fn rows(core: &Core, limits: &Limits, party: u64) -> Result<(List<Pay
     append(core, pending.as_slice(), tasks::Payer::Party(party), &mut rows, &mut cut)?;
     let roles = core.people.project_roles(party).ok_or(Missing::Unknown)?;
     for role in &roles {
+        if core.removing(role.project) {
+            continue;
+        }
         append(core, pending.as_slice(), tasks::Payer::Project(role.project), &mut rows, &mut cut)?;
     }
     Ok((rows, cut))

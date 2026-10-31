@@ -80,6 +80,9 @@ pub(super) fn allowed(core: &Core, project: u32, batch: Box<[authority::Delegate
 }
 fn allowed_action(core: &Core, project: u32, action: &authority::Action) -> Result<(), people::Refusal> {
     let needs = authority::needs(action).ok_or(people::Refusal::Limit { which: people::LimitKind::Arithmetic })?;
+    if core.removing(project) {
+        return Err(people::Refusal::Unknown);
+    }
     let policy = core.authority.policy(project).ok_or(people::Refusal::Unknown)?;
     let rules = core.authority.rules();
     let cap = policy.period_spend.min(rules.period_spend);

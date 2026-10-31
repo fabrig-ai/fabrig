@@ -229,6 +229,9 @@ impl Core {
         self.proposed_action_accounts(action)?;
         let Some(checked) = action_for_check(self, action, decision) else { return Err(tasks::Refusal::Executor) };
         let Some(needed) = authority::needs(&checked) else { return Err(tasks::Refusal::AuthorityShape) };
+        if self.removing(project) {
+            return Err(tasks::Refusal::Project);
+        }
         let Some(policy) = self.authority.policy(project) else { return Err(tasks::Refusal::Project) };
         let implies = &self.authority.rules().implies;
         if !authority::at_most(&needed, &policy.ceiling, implies)

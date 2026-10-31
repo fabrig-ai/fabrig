@@ -23,10 +23,14 @@ pub(super) fn scope_allowed(core: &Core, party: u64, scope: &Scope) -> bool {
         Scope::DecidedProposals | Scope::EndedTasks | Scope::TaskRows { .. } => false,
         Scope::SettingsHistory { .. } => core.people.role(party, jig_domain_people::DEPLOYMENT).is_some(),
         Scope::Tasks { query } => documents::task_query::admission(core, party, query).is_ok(),
-        Scope::Notes { project } | Scope::Spend { project } => core.people.role(party, *project).is_some(),
-        Scope::ScopedNotes { scope, .. } => core.people.role(party, note_project(scope)).is_some(),
+        Scope::Notes { project } | Scope::Spend { project } => {
+            !core.removing(*project) && core.people.role(party, *project).is_some()
+        }
+        Scope::ScopedNotes { scope, .. } => {
+            !core.removing(note_project(scope)) && core.people.role(party, note_project(scope)).is_some()
+        }
         Scope::Inbox { filter, .. } => match filter.project {
-            Some(project) => core.people.role(party, project).is_some(),
+            Some(project) => !core.removing(project) && core.people.role(party, project).is_some(),
             None => true,
         },
         Scope::Task { task }
@@ -40,7 +44,7 @@ pub(super) fn scope_allowed(core: &Core, party: u64, scope: &Scope) -> bool {
         | Scope::History { task, .. }
         | Scope::Activity { task }
         | Scope::Proposal { proposer: Proposer::Task(task), .. } => match core.tasks.task(*task) {
-            Some(row) => core.people.role(party, row.project).is_some(),
+            Some(row) => !core.removing(row.project) && core.people.role(party, row.project).is_some(),
             None => true,
         },
         Scope::Proposal { proposer: Proposer::Party(_), .. } => true,

@@ -16,6 +16,9 @@ pub(crate) fn request(
     ask: &people::Ask,
     decision: skein_lib::Wall,
 ) -> Result<(), people::Refusal> {
+    if core.removing(project) {
+        return Err(people::Refusal::Unknown);
+    }
     if let people::Ask::Release { task, again, .. } = ask
         && let Some(row) = core.tasks.task(*task)
         && row.project == project

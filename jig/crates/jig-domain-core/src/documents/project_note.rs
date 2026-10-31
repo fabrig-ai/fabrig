@@ -311,6 +311,9 @@ pub(super) fn project(
     number: u32,
     decision: Wall,
 ) -> Result<Project, Missing> {
+    if core.removing(number) {
+        return Err(Missing::Unknown);
+    }
     if core.people.role(party, number).is_none() {
         return Err(Missing::NotAllowed);
     }
@@ -511,6 +514,9 @@ pub fn note_from_entry(core: &Core, limits: &Limits, party: u64, value: &notes::
         | notes::Scope::Resources { project, .. } => project,
     };
     if core.people.identity(party).is_none() {
+        return Err(Missing::Unknown);
+    }
+    if core.removing(project) {
         return Err(Missing::Unknown);
     }
     if core.people.role(party, project).is_none() {

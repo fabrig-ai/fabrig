@@ -49,6 +49,9 @@ pub(crate) fn admission(core: &Core, party: u64, query: &TaskQuery) -> Result<()
         return Err(Missing::Unknown);
     }
     if let Some(project) = query.project {
+        if core.removing(project) {
+            return Err(Missing::Unknown);
+        }
         if core.people.role(party, project).is_none() {
             return Err(Missing::NotAllowed);
         }
@@ -142,7 +145,10 @@ pub fn lines(core: &Core, limits: &Limits, party: u64, query: &TaskQuery, window
     let mut order = Map::with_capacity(limits.tasks.tasks);
     for candidate in core.tasks.view_tasks().as_ref() {
         let row = core.tasks.task(candidate.number).expect("live task view");
-        if (query.project.is_some() || row.requester == tasks::Party::Person(party)) && matches(query, row) {
+        if !core.removing(row.project)
+            && (query.project.is_some() || row.requester == tasks::Party::Person(party))
+            && matches(query, row)
+        {
             order.insert(sort_key(row, query.order), row.number).expect("bounded live order");
         }
     }

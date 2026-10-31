@@ -60,6 +60,9 @@ pub(super) fn route(
             super::projects::make_project_act(core, env, work, out, request, maker, name, policy);
         }
         people::Act::Close { project, task, grace, reason } => {
+            if core.removing(project) || !core.projects.as_slice().contains(&project) {
+                return refused(work, request, people::Refusal::Unknown);
+            }
             if core.tasks.task(task).is_none() {
                 return super::result_reads::closed_subject(core, work, out, request, project, task);
             }
@@ -68,6 +71,9 @@ pub(super) fn route(
             }
         }
         people::Act::Cancel { project, task, grace, reason } => {
+            if core.removing(project) || !core.projects.as_slice().contains(&project) {
+                return refused(work, request, people::Refusal::Unknown);
+            }
             if core.tasks.task(task).is_none() {
                 return super::result_reads::closed_subject(core, work, out, request, project, task);
             }
@@ -75,8 +81,13 @@ pub(super) fn route(
                 refused(work, request, why);
             }
         }
-        // jp-delete builds deletion; admission refuses it without retaining an answer.
-        people::Act::RemoveProject { .. } => refused(work, request, people::Refusal::NotOffered),
+        people::Act::RemoveProject { project } => {
+            let outcome = match super::removal::close(core, env, project, out) {
+                Ok(()) => people::Outcome::ProjectRemoved { project },
+                Err(why) => people::Outcome::Refused(why),
+            };
+            work.push(Event::People(people::Event::Decided { request, outcome }));
+        }
         people::Act::AddKey { provider, join, digest } => {
             account(core, work, request, people::AccountChange::AddKey { provider, join, digest });
         }
@@ -84,7 +95,7 @@ pub(super) fn route(
             account(core, work, request, people::AccountChange::Remove { account: number });
         }
         people::Act::Adopt { project, adoption } => {
-            if !core.projects.as_slice().contains(&project) {
+            if !core.projects.as_slice().contains(&project) || core.removing(project) {
                 return refused(work, request, people::Refusal::Unknown);
             }
             out.push(Request::Ask {

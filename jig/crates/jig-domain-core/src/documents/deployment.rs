@@ -417,6 +417,9 @@ pub(super) fn deployment(
     let mut proposal_count = 0_u32;
     let mut projects = List::with_capacity(limits.documents.lines);
     for project in &core.projects {
+        if core.removing(*project) {
+            continue;
+        }
         let mut live = 0_u32;
         let mut proposed = 0_u32;
         for row in &rows {

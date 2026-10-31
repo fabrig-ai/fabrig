@@ -385,6 +385,9 @@ impl Core {
     /// funding and the deployment's maximum run spend.
     #[must_use]
     pub fn connector_repair_authority(&self, project: u32) -> Option<authority::Authority> {
+        if self.removing(project) {
+            return None;
+        }
         let policy = self.authority.policy(project)?;
         let mut given = policy.ceiling.clone();
         let period = self.period(project);
@@ -573,6 +576,10 @@ impl Core {
         members: Box<[authority::Delegate]>,
         findings: &mut Queue<authority::Finding>,
     ) -> authority::Checked {
+        if self.removing(project) {
+            findings.push(authority::Finding::UnknownProject);
+            return authority::Checked { answer: authority::Answer::Refuse, numbers: None };
+        }
         authority::check_batch(
             &self.authority,
             &authority::BatchAsk {
@@ -590,6 +597,9 @@ impl Core {
     /// this effect can be decided.
     #[must_use]
     pub fn connector_needed_judges(&self, project: u32, effect: &authority::Effect) -> Option<List<authority::Judge>> {
+        if self.removing(project) {
+            return None;
+        }
         authority::needed_judges(&self.authority, project, effect)
     }
 
@@ -603,6 +613,10 @@ impl Core {
         given: &[authority::Given],
         findings: &mut Queue<authority::Finding>,
     ) -> authority::Answer {
+        if self.removing(project) {
+            findings.push(authority::Finding::UnknownProject);
+            return authority::Answer::Refuse;
+        }
         if description.connector != description.effect.connector {
             return authority::Answer::Refuse;
         }
@@ -625,6 +639,10 @@ impl Core {
         findings: &mut Queue<authority::Finding>,
     ) -> authority::Answer {
         let Some(current) = self.tasks.run_context(context.task) else { return authority::Answer::Wait };
+        if self.removing(current.project) {
+            findings.push(authority::Finding::UnknownProject);
+            return authority::Answer::Refuse;
+        }
         let numbers = translate::authority_numbers(current.numbers);
         let Ok(choice) = self.run_choice(context.task) else { return authority::Answer::Wait };
         let mut accounts = List::with_capacity(tasks::MODELS);
@@ -669,6 +687,10 @@ impl Core {
             return authority::Answer::Refuse;
         }
         let Some(context) = self.tasks.delegation(task) else { return authority::Answer::Refuse };
+        if self.removing(context.project) {
+            findings.push(authority::Finding::UnknownProject);
+            return authority::Answer::Refuse;
+        }
         authority::check_effect(
             &self.authority,
             &authority::EffectAsk {
@@ -691,6 +713,10 @@ impl Core {
         findings: &mut Queue<authority::Finding>,
     ) -> authority::Answer {
         let Some(context) = self.tasks.delegation(task) else { return authority::Answer::Refuse };
+        if self.removing(context.project) {
+            findings.push(authority::Finding::UnknownProject);
+            return authority::Answer::Refuse;
+        }
         authority::check_call(
             &self.authority,
             &authority::CallAsk {
@@ -713,6 +739,10 @@ impl Core {
         findings: &mut Queue<authority::Finding>,
     ) -> authority::Answer {
         let Some(context) = self.tasks.delegation(key.task) else { return authority::Answer::Refuse };
+        if self.removing(context.project) {
+            findings.push(authority::Finding::UnknownProject);
+            return authority::Answer::Refuse;
+        }
         if resources.is_empty() {
             return authority::Answer::Refuse;
         }

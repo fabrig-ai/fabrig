@@ -490,14 +490,16 @@ pub(crate) fn row_visible(core: &Core, party: u64, row: &Row) -> bool {
                     party == proposal.proposer || core.people.role(party, people::DEPLOYMENT).is_some()
                 }
                 tasks::PersonAction::Batch(_) | tasks::PersonAction::Amend { .. } => {
-                    core.people.role(party, proposal.project).is_some()
+                    !core.removing(proposal.project) && core.people.role(party, proposal.project).is_some()
                 }
             }
         }
         Record::Tasks(tasks::Stored::Ledger(ledger) | tasks::Stored::ClosedLedger(ledger)) => match ledger.funder {
-            tasks::Funder::Period { project, .. } => core.people.role(party, project).is_some(),
+            tasks::Funder::Period { project, .. } => {
+                !core.removing(project) && core.people.role(party, project).is_some()
+            }
             tasks::Funder::Pool { project, person, .. } => {
-                person == party && core.people.role(party, project).is_some()
+                person == party && !core.removing(project) && core.people.role(party, project).is_some()
             }
             tasks::Funder::Task(_) | tasks::Funder::Recurring { .. } => false,
         },
@@ -505,7 +507,9 @@ pub(crate) fn row_visible(core: &Core, party: u64, row: &Row) -> bool {
             notes::Scope::Deployment => core.people.role(party, people::DEPLOYMENT).is_some(),
             notes::Scope::Project { project }
             | notes::Scope::Goal { project, .. }
-            | notes::Scope::Resources { project, .. } => core.people.role(party, *project).is_some(),
+            | notes::Scope::Resources { project, .. } => {
+                !core.removing(*project) && core.people.role(party, *project).is_some()
+            }
         },
         Record::Core(_)
         | Record::Tasks(
@@ -525,7 +529,7 @@ pub(crate) fn row_visible(core: &Core, party: u64, row: &Row) -> bool {
             | tasks::Stored::Update(_)
             | tasks::Stored::Pool(_),
         ) => match row_owner(row) {
-            Some(owner) => core.people.role(party, owner.project).is_some(),
+            Some(owner) => !core.removing(owner.project) && core.people.role(party, owner.project).is_some(),
             None => false,
         },
         Record::People(_) | Record::Notes(notes::Record::Line(_)) | Record::Accounts(_) => false,

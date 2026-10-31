@@ -571,8 +571,11 @@ fn cancel_ungranted_is_not_offered() {
     assert!(matches!(live_row(&world, task).phase, tasks::Phase::Active(_)));
 }
 #[test]
-fn remove_project_is_not_offered_and_not_saved() {
-    let mut world = world(1866);
+fn an_ungranted_remove_project_is_not_offered_and_not_saved() {
+    let (mut config, limits) = configuration(1866);
+    config.core.grants =
+        Box::new([people::ActGrant { connector: CONNECTOR, may: Box::new([people::ActKind::Cancel]) }]);
+    let mut world = World::configured(1866, false, config, limits);
     let commits = world.commits.len();
     act(&mut world, KEY, people::Act::RemoveProject { project: PROJECT });
     assert_eq!(answered(&world), &people::Outcome::Refused(people::Refusal::NotOffered));

@@ -314,11 +314,11 @@ pub(super) fn tag_people(
                         );
                     }
                     people::Ask::RemoveProject { .. } => {
-                        // Project removal is not offered until jp-delete.
-                        work.push(Event::People(people::Event::Decided {
-                            request,
-                            outcome: people::Outcome::Refused(people::Refusal::NotOffered),
-                        }));
+                        let outcome = match super::removal::close(core, env, project, &mut out) {
+                            Ok(()) => people::Outcome::ProjectRemoved { project },
+                            Err(why) => people::Outcome::Refused(why),
+                        };
+                        work.push(Event::People(people::Event::Decided { request, outcome }));
                     }
                     people::Ask::Rename { name, .. } => {
                         super::projects::rename_request(core, env, work, &mut out, request, person, project, name);

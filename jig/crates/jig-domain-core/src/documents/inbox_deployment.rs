@@ -220,7 +220,7 @@ pub(super) fn inbox(core: &Core, limits: &Limits, party: u64, window: &Window) -
         }
     }
     for entry in &entries {
-        if core.people.role(party, entry.project).is_none() {
+        if core.removing(entry.project) || core.people.role(party, entry.project).is_none() {
             continue;
         }
         let value = object(core, entry.task, entry.kind);
@@ -247,7 +247,7 @@ pub(super) fn inbox(core: &Core, limits: &Limits, party: u64, window: &Window) -
                 true,
             ),
         };
-        if core.people.role(party, project).is_none() {
+        if core.removing(project) || core.people.role(party, project).is_none() {
             continue;
         }
         let cursor = Cursor::Inbox { task, object: value, at: Some(at) };

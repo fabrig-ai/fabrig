@@ -80,6 +80,10 @@ pub(super) fn loaded(
 ) {
     let Loaded { request, row, busy } = loaded;
     let Some(mut flight) = core.creating_inputs.remove(&request) else { return };
+    if core.removing(flight.project) {
+        pool_refused(work, request, people::Refusal::Unknown);
+        return;
+    }
     if busy {
         pool_again(work, request, people::Again::Busy);
         return;

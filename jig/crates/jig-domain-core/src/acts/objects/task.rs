@@ -166,6 +166,9 @@ pub(crate) fn person(
     revision: Option<u64>,
 ) -> Result<(), people::Refusal> {
     let row = core.tasks.task(number).ok_or(people::Refusal::Unknown)?;
+    if core.removing(row.project) {
+        return Err(people::Refusal::Unknown);
+    }
     let held = core.people.role(party, row.project);
     let addressed = match row.executor {
         tasks::Executor::Person(tasks::PersonAddress::Person(person)) => person == party && act == Act::Answer,
