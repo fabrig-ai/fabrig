@@ -66,13 +66,8 @@ fn queued_before_claim(backend: Backend) {
         state.reclaim();
         let now = clock.now();
         let env = Env { now: now.now, wall: now.wall, limits };
-        while state.is_ready() {
-            io::resume(&mut state, &env, &mut events, &mut submissions);
-        }
         kernel.reap(&mut completions);
-        while let Some(complete) = completions.pop() {
-            io::up(&mut state, &env, complete, &mut events, &mut submissions);
-        }
+        io::stage::up(&mut state, &env, &mut completions, &mut events, &mut submissions, now.now);
         while let Some(event) = events.pop() {
             match event {
                 Event::Listening { owner, listener, addr } => {
@@ -170,9 +165,7 @@ fn cleanup_cancels_an_adopted_listeners_pending_accept() {
             Request::Listen { owner: Token::new(100), addr: Addr::Ip(address) },
             &mut submissions,
         );
-        while state.is_ready() {
-            io::resume(&mut state, &env, &mut events, &mut submissions);
-        }
+        io::stage::up(&mut state, &env, &mut completions, &mut events, &mut submissions, now.now);
         kernel.submit(&mut submissions, Wait::No);
         deadlines::end_io(&mut kernel, &mut state, limits, &mut submissions, &mut completions, &mut events, &[token]);
         assert!(state.is_empty(), "cleanup closes the listener");

@@ -9,6 +9,7 @@ pub(super) struct Closing {
     io: Io,
     env: Env<Limits>,
     events: Queue<skein_io::Event>,
+    completions: Queue<Complete>,
     subs: Queue<Submit>,
     recv: Option<Submit>,
     socket: Option<Token>,
@@ -21,6 +22,7 @@ impl Closing {
             io: Io::new(&limits),
             env: Env { now, wall: Wall::EPOCH, limits },
             events: Queue::with_capacity(32),
+            completions: Queue::with_capacity(32),
             subs: Queue::with_capacity(32),
             recv: None,
             socket: None,
@@ -45,28 +47,24 @@ impl Closing {
     }
     pub fn advance(&mut self, now: Time) -> bool {
         self.env.now = now;
-        while self.io.is_due(now) {
-            skein_io::fire(&mut self.io, &self.env, &mut self.events, &mut self.subs);
-            self.pump();
-        }
+        self.pump();
         self.closed
     }
     fn complete(&mut self, submit: Submit, result: Result<Done, Error>) {
-        skein_io::up(
-            &mut self.io,
-            &self.env,
-            Complete { op: submit.op, kind: submit.kind, result },
-            &mut self.events,
-            &mut self.subs,
-        );
+        self.completions.push(Complete { op: submit.op, kind: submit.kind, result });
     }
+    /// Runs io's up pass, the kernel answering one submission an iteration, until io settles.
     fn pump(&mut self) {
         for _ in 0..64 {
             self.io.reclaim();
-            if self.io.is_ready() {
-                skein_io::resume(&mut self.io, &self.env, &mut self.events, &mut self.subs);
-                continue;
-            }
+            skein_io::stage::up(
+                &mut self.io,
+                &self.env,
+                &mut self.completions,
+                &mut self.events,
+                &mut self.subs,
+                self.env.now,
+            );
             if let Some(submit) = self.subs.pop() {
                 match &submit.kind {
                     Op::Socket { .. } => self.complete(submit, Ok(Done::Fd(Fd::new(42)))),
@@ -108,6 +106,9 @@ impl Closing {
                     | Op::PipeRead { .. }
                     | Op::PipeWrite { .. } => panic!("close path: {submit:?}"),
                 }
+                continue;
+            }
+            if self.io.is_ready() || !self.completions.is_empty() {
                 continue;
             }
             while let Some(event) = self.events.pop() {

@@ -68,9 +68,7 @@ pub fn end_io(
         let now = clock.now();
         let env = Env { now: now.now, wall: now.wall, limits };
         kernel.reap(completions);
-        while let Some(complete) = completions.pop() {
-            io::up(state, &env, complete, events, submissions);
-        }
+        io::stage::up(state, &env, completions, events, submissions, now.now);
         while let Some(event) = events.pop() {
             match event {
                 Event::Spawned { child, pipes, .. } => {
@@ -96,12 +94,6 @@ pub fn end_io(
                 | Event::Failed { .. }
                 | Event::Closed { .. } => {}
             }
-        }
-        while state.is_ready() {
-            io::resume(state, &env, events, submissions);
-        }
-        while state.is_due(now.now) {
-            io::fire(state, &env, events, submissions);
         }
         state.reclaim();
         if state.is_empty() && kernel.in_flight() == 0 && submissions.is_empty() {
