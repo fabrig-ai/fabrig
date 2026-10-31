@@ -44,19 +44,11 @@ fn size(of: usize) -> u64 {
 }
 
 const LIMITS: Limits = Limits {
-    threshold: [4, 5],
     token_bytes: skein_llm::TOKEN_BYTES,
     sessions: 1,
     spend: 1,
-    protocol_allowance: 0,
-    history_blocks: u32::MAX,
     history_messages: 4,
     history_bytes: 1024,
-    completion_bytes: 4096,
-    answer_bytes: 4096,
-    completion_blocks: 16,
-    failure_bytes: 512,
-    delegated_result_bytes: 16_384,
     budget: Budget {
         turns: 16,
         input: 1 << 20,
@@ -78,6 +70,7 @@ const LIMITS: Limits = Limits {
         tool_payload: 1 << 20,
         ..TOOLS
     },
+    ..smith_domain_session::fixture::SMALL
 };
 
 /// What a step asked for last, without the payload.

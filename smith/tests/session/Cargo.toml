@@ -16,7 +16,7 @@ smith-domain.workspace = true
 skein-llm-world.workspace = true
 skein-llm.workspace = true
 skein-lib.workspace = true
-smith-domain-session.workspace = true
+smith-domain-session = { workspace = true, features = ["fixture"] }
 smith-domain-tools.workspace = true
 smith-protocol-llm.workspace = true
 smith-tools-world.workspace = true

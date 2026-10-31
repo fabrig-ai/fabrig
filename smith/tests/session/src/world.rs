@@ -159,19 +159,11 @@ impl Settings {
             progress: agent::Progress { head: Duration::from_secs(30), idle: Duration::from_secs(30) },
             seed,
             agent: agent::Limits {
-                threshold: [4, 5],
                 token_bytes: skein_llm::TOKEN_BYTES,
                 sessions: 4,
                 spend: 1,
-                protocol_allowance: 0,
-                history_blocks: u32::MAX,
                 history_messages: 32,
                 history_bytes: 1 << 20,
-                completion_bytes: 4096,
-                answer_bytes: 4096,
-                completion_blocks: 16,
-                failure_bytes: 512,
-                delegated_result_bytes: 16_384,
                 budget: BUDGET,
 
                 retries: 3,
@@ -179,6 +171,7 @@ impl Settings {
                 backoff_max: Duration::from_secs(5),
                 parallel_tools: 4,
                 tools: TOOLS,
+                ..smith_domain_session::fixture::SMALL
             },
             provider: provider::Config {
                 calls: 16,
