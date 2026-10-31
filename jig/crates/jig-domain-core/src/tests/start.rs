@@ -1,6 +1,7 @@
 //! Start selection and phase discipline (jig/docs/design/domain/engine.md, 6).
 mod inbox;
 mod projections;
+mod connectors;
 mod rows;
 use super::{Core, Env, Queue, Time, Wall, config, limits, tasks};
 use crate::start::{Action, Failure, Phase, SweepInput};

@@ -57,6 +57,7 @@ mod simulation;
 mod start;
 mod start_inbox;
 mod start_projections;
+mod start_connectors;
 mod stopping;
 mod store;
 mod store_adapter;
