@@ -140,6 +140,9 @@ pub fn down(routes: &mut Routes, request: engine::StoreRequest) -> Option<store:
 /// Every store terminal is accepted independently of journal room.
 pub fn up(routes: &mut Routes, event: store::Event, into: &mut Queue<Up>) {
     match event {
+        store::Event::Page { .. } | store::Event::PageRefused { .. } => {
+            unreachable!("a start's pages need a start-mode store")
+        }
         store::Event::Committed { number, fill } => root(into, engine::StoreInput::Committed { number, fill }),
         store::Event::Failed { number } => root(into, engine::StoreInput::Uncommitted { number }),
         store::Event::FrameTooLarge { number, task, bytes, limit } => {

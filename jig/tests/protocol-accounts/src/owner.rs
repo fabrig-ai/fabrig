@@ -811,6 +811,9 @@ impl Owner {
         let mut answers = std::mem::replace(&mut self.store_above, Queue::uncapped());
         while let Some(event) = answers.pop() {
             let request = match event {
+                store::Event::Page { .. } | store::Event::PageRefused { .. } => {
+                    unreachable!("a start's pages need a start-mode store")
+                }
                 store::Event::Kept { owner } | store::Event::Stale { owner }
                     if owner.raw() & MOVE_ADOPT == MOVE_ADOPT =>
                 {
