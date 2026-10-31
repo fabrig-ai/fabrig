@@ -277,8 +277,7 @@ pub fn config(seed: u64) -> engine::Config {
         requirements: Box::new([]),
     };
     // Check the same fixture bounds without allocating a discarded live policy table.
-    let policy_limits = authority_limits();
-    assert!(authority::valid_rules(&rules, &policy_limits), "valid authority configuration");
+    assert!(authority::valid_rules(&rules, &authority_limits()), "valid authority configuration");
     let policy = authority::Policy {
         projections: ceiling.grants.clone(),
         escalation_role: Some(0),
