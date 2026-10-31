@@ -8,10 +8,7 @@ use skein_lib::{Duration, ReplyTo, Token};
 use temper_engine_domain::{self as engine, Delivery, Key, Record};
 use temper_engine_domain_forge as forge;
 use temper_engine_domain_world::{
-    direct::Driver,
-    forge_routes::{World, change_world},
-    forge_stand::ForgeStand,
-    protocol, walking,
+    direct::Driver, forge_routes::change_world, forge_stand::ForgeStand, protocol, walking,
 };
 
 const FORGE: u16 = 1;
@@ -116,7 +113,11 @@ fn stop_cancelled_runs(d: &mut Driver) {
 
 fn crash(d: &mut Driver, seed: u64) {
     d.store.crash(seed);
-    d.root = World::configured(true, true).root;
+    let mut config = walking::config(71);
+    config.forges = Box::new([]);
+    config.identities = Box::new([]);
+    config.forge.writers = Box::new([]);
+    d.root = engine::Domain::new(config, &d.env.limits).expect("removal configuration");
     d.events.clear();
     d.out.clear();
     d.delivered.clear();

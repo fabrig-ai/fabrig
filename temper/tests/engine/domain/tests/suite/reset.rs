@@ -146,26 +146,27 @@ fn run(step: forge::ResetStep, seed: u64) -> std::collections::BTreeMap<engine::
     let account = running.account.expect("scripted account");
     application(&mut d, sign_in, 82, forge::Ask::EndPlayground, false);
     // Stop on the first durable row at the chosen step; its terminal is lost.
-    let after = match step {
-        forge::ResetStep::Project => Some(forge::ResetStep::Forge),
-        forge::ResetStep::Forge => Some(forge::ResetStep::Account),
-        forge::ResetStep::Account => None,
-    };
     let mut forge_answered = false;
+    let mut cut = false;
     for _ in 0..400 {
-        if let Some((_, writes)) = d.store.pending.front()
-            && writes.iter().any(|write| {
-                matches!(write, engine::Write::Save(engine::Record::Forge { row })
-                if matches!(row.as_ref(), forge::Stored::Playground(row)
-                    if Some(row.state) == after.map(forge::PlaygroundState::Resetting)))
-                    || (after.is_none()
-                        && matches!(write, engine::Write::Erase(engine::Key::Forge(forge::Key::Playground))))
-            })
-        {
-            d.store.apply();
-            break;
-        }
-        if step != forge::ResetStep::Project
+        if let Some((_, writes)) = d.store.pending.front() {
+            let cutting = writes.iter().any(|write| match step {
+                forge::ResetStep::Project => matches!(write, engine::Write::Save(engine::Record::Forge { row })
+                    if matches!(row.as_ref(), forge::Stored::Playground(row)
+                        if row.state == forge::PlaygroundState::Resetting(forge::ResetStep::Forge))),
+                forge::ResetStep::Forge => matches!(write,
+                    engine::Write::Erase(engine::Key::Forge(forge::Key::Forge(number))) if *number == running.forge),
+                forge::ResetStep::Account => {
+                    matches!(write, engine::Write::Erase(engine::Key::Forge(forge::Key::Playground)))
+                }
+            });
+            let number = d.store.apply();
+            if cutting {
+                cut = true;
+                break;
+            }
+            d.send(engine::Event::Store(engine::StoreInput::Committed { number, fill: 0 }));
+        } else if step != forge::ResetStep::Project
             && !forge_answered
             && row(&d).is_some_and(|row| row.state == forge::PlaygroundState::Resetting(forge::ResetStep::Forge))
         {
@@ -173,10 +174,16 @@ fn run(step: forge::ResetStep, seed: u64) -> std::collections::BTreeMap<engine::
             d.send(engine::Event::Forge(Box::new(forge::Event::BoxRemoved { forge: running.forge })));
             forge_answered = true;
         } else {
-            d.advance(true);
+            d.advance(false);
         }
     }
-    assert_eq!(row(&d).map(|row| row.state), after.map(forge::PlaygroundState::Resetting), "cut after {step:?}");
+    assert!(cut, "durable cut after {step:?}");
+    // Removing the account can finish in the decision that finishes the forge.
+    let expected = match step {
+        forge::ResetStep::Project => Some(forge::PlaygroundState::Resetting(forge::ResetStep::Forge)),
+        forge::ResetStep::Forge | forge::ResetStep::Account => None,
+    };
+    assert_eq!(row(&d).map(|row| row.state), expected, "cut after {step:?}");
     restart(&mut d, true, seed);
     finish_forge_removal(&mut d);
     assert_whole(&d, project, account, running.forge);
