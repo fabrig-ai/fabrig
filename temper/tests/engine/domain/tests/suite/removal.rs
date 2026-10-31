@@ -117,7 +117,7 @@ fn crash(d: &mut Driver, seed: u64) {
     config.forges = Box::new([]);
     config.identities = Box::new([]);
     config.forge.writers = Box::new([]);
-    d.root = engine::Domain::new(config, &d.env.limits).expect("removal configuration");
+    d.replace_root(config);
     d.events.clear();
     d.out.clear();
     d.delivered.clear();

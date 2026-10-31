@@ -1171,6 +1171,11 @@ pub fn restore_forge(engine: &mut crate::engine::Engine, record: temper_engine_d
     temper_engine_domain::step(
         &mut engine.domain,
         &engine.env,
+        temper_engine_domain::Event::Restart { pending: engine.store.pending_generation },
+    );
+    temper_engine_domain::step(
+        &mut engine.domain,
+        &engine.env,
         temper_engine_domain::Event::Forge(Box::new(temper_engine_domain_forge::Event::Restore {
             record: temper_engine_domain_forge::Stored::Forge(record),
         })),

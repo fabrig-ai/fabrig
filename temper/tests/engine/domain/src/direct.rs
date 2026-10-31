@@ -48,11 +48,15 @@ impl Driver {
         self.store.crash(0);
         self.stopped = false;
         self.out.clear();
-        self.restart_config = crate::oracle::config::copy(&configuration);
-        self.root = engine::Domain::new(configuration, &self.env.limits).expect("restart configuration");
+        self.replace_root(configuration);
         self.events.clear();
         self.delivered.clear();
         self.send(engine::Event::Restart { pending: false });
+    }
+    /// Replace a root together with the configuration used by its restart oracle.
+    pub fn replace_root(&mut self, configuration: engine::Config) {
+        self.restart_config = crate::oracle::config::copy(&configuration);
+        self.root = engine::Domain::new(configuration, &self.env.limits).expect("restart configuration");
     }
     /// Transfer a cold-cut fixture's store; its receiving root runs the oracle.
     pub fn take_store(&mut self) -> Store {

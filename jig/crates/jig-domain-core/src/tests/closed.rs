@@ -296,6 +296,12 @@ fn no_document_lists_a_closed_project_or_its_tasks() {
             &mut out,
         );
     }
+    accounts::step(
+        &mut core.accounts,
+        &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.accounts },
+        accounts::Event::Want,
+        &mut out,
+    );
     for party in [1, 2] {
         let Document::Frame(frame) =
             make(&core, &limits, party, &Subject::Frame { party }, &window(), Wall::EPOCH).unwrap()
