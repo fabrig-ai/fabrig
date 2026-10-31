@@ -20,7 +20,7 @@ pub(super) fn route_notes(
 ) -> Requests {
     let mut child = Queue::uncapped();
     notes::step(&mut core.notes, &Env { now: env.now, wall: env.wall, limits: env.limits.notes }, event, &mut child);
-    tag_notes(core, work, child)
+    tag_notes(core, env, work, child)
 }
 
 pub(super) fn person_note_scope(project: u32, scope: people::NoteScope) -> notes::Scope {
@@ -59,13 +59,21 @@ pub(super) fn person_note_change(change: people::NoteChange) -> notes::Change {
     }
 }
 
-#[expect(clippy::too_many_lines, reason = "one exhaustive table tags every note output with its commit")]
-pub(super) fn tag_notes(core: &mut Core, work: &mut Queue<Event>, mut child: Queue<notes::Request>) -> Requests {
+#[expect(
+    clippy::too_many_lines,
+    reason = "the notes vocabulary routes callers and deletion continuations exhaustively"
+)]
+pub(super) fn tag_notes(
+    core: &mut Core,
+    env: &Env<Limits>,
+    work: &mut Queue<Event>,
+    mut child: Queue<notes::Request>,
+) -> Requests {
     let mut out = Queue::uncapped();
     for _ in 0..child.len() {
         match child.pop().expect("note output count") {
             notes::Request::ProjectDropped { owner } => {
-                let Requests::Out(mut requests) = crate::deletion::notes_dropped(core, owner);
+                let Requests::Out(mut requests) = crate::deletion::notes_dropped(core, env, owner);
                 for _ in 0..requests.len() {
                     out.push(requests.pop().expect("deletion output count"));
                 }
@@ -147,7 +155,11 @@ pub(super) fn tag_notes(core: &mut Core, work: &mut Queue<Event>, mut child: Que
                         work.push(Event::Tasks(tasks::Event::PreparationFailed { task }));
                     }
                 },
-                None => out.push(Request::Now(Box::new(Now::NotesRefused { owner, why }))),
+                None => {
+                    if !crate::deletion::notes_refused(core, owner) {
+                        out.push(Request::Now(Box::new(Now::NotesRefused { owner, why })));
+                    }
+                }
             },
         }
     }

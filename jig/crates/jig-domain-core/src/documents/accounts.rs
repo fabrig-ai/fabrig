@@ -1,4 +1,5 @@
 //! The party's accounts (`client/domain/contract.md`, 5.1; `domain/accounts.md`, sections 3 and 5).
+//! Closed at once (jig/docs/design/domain/people.md, 5.2).
 use super::deployment::{AccountState, account_state};
 use super::inbox_deployment::line_bound;
 use super::{DocumentLimits, Missing, Text, Window};
@@ -119,7 +120,7 @@ pub(super) fn make(core: &Core, limits: &Limits, party: u64, owner: u64, window:
             .push(AccountLine {
                 number,
                 place: account.place(),
-                uses: uses(account),
+                uses: uses(core, account),
                 plan: account.plan(),
                 provider: Some(account.provider()),
                 provider_name: provider_name(core, account, limits.documents.text_bytes),
@@ -195,10 +196,18 @@ pub(super) fn document_bound(limits: &DocumentLimits) -> Option<u64> {
 }
 
 /// Copy an account's explicit uses without changing the default/empty distinction.
-pub(super) fn uses(account: &accounts::Account) -> Option<List<accounts::Use>> {
+pub(super) fn uses(core: &Core, account: &accounts::Account) -> Option<List<accounts::Use>> {
     let uses = account.uses()?;
     let mut result = List::with_capacity(accounts::USES);
     for payer in uses {
+        match payer {
+            accounts::Use::Project(project)
+                if *project != jig_domain_people::DEPLOYMENT && !core.open_project(*project) =>
+            {
+                continue;
+            }
+            accounts::Use::Project(_) | accounts::Use::Party(_) => {}
+        }
         result.push(*payer).expect("the child bounds uses");
     }
     Some(result)

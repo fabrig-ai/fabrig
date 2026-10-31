@@ -502,24 +502,44 @@ impl CoreRange {
             }
             CoreRange::Notes(range) => {
                 let Core::Notes(child) = key else { return false };
-                match range {
-                    jig_domain_notes::Range::Entry { name } => match child {
-                        jig_domain_notes::Key::Entry { name: found } => name == found,
-                        jig_domain_notes::Key::Line { .. } => false,
-                    },
-                    jig_domain_notes::Range::Lines { scope, after } => match child {
-                        jig_domain_notes::Key::Line { scope: found, name } => {
-                            let past_cursor = match after {
-                                Some(cursor) => name > cursor,
-                                None => true,
-                            };
-                            scope == found && past_cursor
-                        }
-                        jig_domain_notes::Key::Entry { .. } => false,
-                    },
-                }
+                notes_contains(range, child)
             }
         }
+    }
+}
+
+fn notes_contains(range: &jig_domain_notes::Range, child: &jig_domain_notes::Key) -> bool {
+    match range {
+        jig_domain_notes::Range::Project { project, after } => match child {
+            jig_domain_notes::Key::Line { scope, .. } => {
+                let in_project = match scope {
+                    jig_domain_notes::Scope::Deployment => false,
+                    jig_domain_notes::Scope::Project { project: found }
+                    | jig_domain_notes::Scope::Goal { project: found, .. }
+                    | jig_domain_notes::Scope::Resources { project: found, .. } => project == found,
+                };
+                let past_cursor = match after {
+                    Some(cursor) => child > cursor,
+                    None => true,
+                };
+                in_project && past_cursor
+            }
+            jig_domain_notes::Key::Entry { .. } => false,
+        },
+        jig_domain_notes::Range::Entry { name } => match child {
+            jig_domain_notes::Key::Entry { name: found } => name == found,
+            jig_domain_notes::Key::Line { .. } => false,
+        },
+        jig_domain_notes::Range::Lines { scope, after } => match child {
+            jig_domain_notes::Key::Line { scope: found, name } => {
+                let past_cursor = match after {
+                    Some(cursor) => name > cursor,
+                    None => true,
+                };
+                scope == found && past_cursor
+            }
+            jig_domain_notes::Key::Entry { .. } => false,
+        },
     }
 }
 

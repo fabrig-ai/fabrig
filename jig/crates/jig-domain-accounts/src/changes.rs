@@ -1,5 +1,5 @@
 //! Holder-owned account changes (accounts.md, section 5).
-use crate::{Answer, Bound, Change, Domain, Holder, Key, Kind, Limits, Refusal, Request, Signing};
+use crate::{Answer, Bound, Change, Domain, Holder, Key, Kind, Limits, Refusal, Request, Signing, USES, Use};
 use alloc::boxed::Box;
 use skein_lib::{Env, List, Map, Queue, Token};
 
@@ -14,6 +14,33 @@ pub(crate) struct Removing {
     pub(crate) left: u32,
     pub(crate) confirmed: bool,
     pub(crate) failed_hosts: Map<crate::Worker, crate::ProgramFailure>,
+}
+
+/// A deleted project's explicit use leaves shared lists in order
+/// (jig/docs/design/domain/accounts.md, 4.2; jig/docs/design/domain/accounts.md, 4.2).
+/// A sole use stays: its number is never reused, and an empty list would cover every payer.
+pub(crate) fn forget_project(domain: &mut Domain, project: u32, out: &mut Queue<Request>) {
+    let payer = Use::Project(project);
+    let mut changed = List::with_capacity(domain.accounts.capacity());
+    for (number, account) in &domain.accounts {
+        if let Some(uses) = account.uses()
+            && uses.len() > 1
+            && uses.contains(&payer)
+        {
+            changed.push(*number).expect("at most one change per account");
+        }
+    }
+    for number in &changed {
+        let account = domain.accounts.get_mut(number).expect("a changed account is kept");
+        let mut remaining = List::with_capacity(USES);
+        for use_ in account.uses().expect("a changed account has explicit uses") {
+            if *use_ != payer {
+                remaining.push(*use_).expect("removing a use stays within the uses bound");
+            }
+        }
+        account.uses = Some(remaining.into_boxed());
+        out.push(Request::Save { record: crate::ordering::account_record(domain, *number) });
+    }
 }
 
 pub(crate) fn account(domain: &Domain, holder: Holder, number: u32) -> Result<(), Refusal> {

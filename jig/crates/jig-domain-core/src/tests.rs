@@ -5,6 +5,8 @@ use crate::documents::*;
 use crate::*;
 use skein_lib::{Duration, Env, ReplyTo, Time, Token, Wall};
 
+mod closed;
+mod deletion;
 mod start;
 
 #[test]
@@ -1750,6 +1752,12 @@ fn documents_lifecycle_history_keeps_holds_and_endings() {
 }
 
 fn restore_document_party(core: &mut Core, limits: &Limits, projects: &[u32]) {
+    core.projects = List::with_capacity(u32::try_from(projects.len()).expect("fixture projects"));
+    for project in projects {
+        if *project != people::DEPLOYMENT {
+            core.projects.push(*project).expect("open fixture project");
+        }
+    }
     let identity = core.people.identity(1).unwrap().clone();
     core.people = people::Domain::new(&limits.people, Box::new([]), core.settings.deployment_provider, Box::new([]));
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.people };
@@ -3827,3 +3835,5 @@ fn validity_keeps_document_settings_and_route_refusals() {
     selected.people.program_hosts = selected.fleet.configured_workers;
     assert!(!valid(&selected), "engine outcomes need a host beyond the workers");
 }
+
+mod erase;

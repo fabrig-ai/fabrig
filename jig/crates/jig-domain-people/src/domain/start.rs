@@ -237,7 +237,9 @@ pub(super) fn load(domain: &mut Domain, env: &Env<Limits>, record: Stored, out: 
         return super::restore_failed(domain, key, Refusal::Limit { which: LimitKind::Restore }, out);
     }
     match record {
-        Stored::Deletion { .. } => {}
+        Stored::Deletion { project, step } => {
+            domain.deletions.insert(project, step).expect("deletion fit checked");
+        }
         Stored::Person { number, identity } => {
             domain.identities.insert(identity.key.clone(), number).expect("identity fit checked");
             domain.people.insert(number, identity).expect("person fit checked");
@@ -311,7 +313,10 @@ fn link_roster(domain: &Domain, source: Key, ask: &crate::Ask) {
 fn fits(domain: &Domain, env: &Env<Limits>, record: &Stored) -> Result<(), crate::RestoreCause> {
     let key = record.key();
     match record {
-        Stored::Deletion { .. } => Ok(()),
+        Stored::Deletion { project, .. } => {
+            assert!(!domain.deletions.contains_key(project), "duplicate {key:?}");
+            fit::occupancy(&key, RestoreBound::Roles, domain.deletions.len(), 0, env.limits.projects)
+        }
         Stored::Person { number, identity } => {
             assert!(!domain.people.contains_key(number), "duplicate {key:?}");
             assert!(!domain.identities.contains_key(&identity.key), "identity index collision at {key:?}");
