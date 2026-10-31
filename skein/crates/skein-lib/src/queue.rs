@@ -9,6 +9,8 @@ use alloc::collections::VecDeque;
 use alloc::collections::vec_deque;
 use core::mem::size_of;
 
+use crate::growth::grown;
+
 /// A first-in, first-out queue of at most `capacity` items, which
 /// allocates as it fills: never past its capacity, never shrinking.
 #[derive(Debug)]
@@ -16,8 +18,6 @@ pub struct Queue<T> {
     items: VecDeque<T>,
     capacity: u32,
 }
-
-const GROWTH_FLOOR: usize = 4;
 
 impl<T> Queue<T> {
     #[must_use]
@@ -84,7 +84,7 @@ impl<T> Queue<T> {
     fn grow(&mut self) {
         if self.items.len() == self.items.capacity() {
             let cap = usize::try_from(self.capacity).expect("a u32 fits in a usize");
-            let target = self.items.len().saturating_mul(2).max(GROWTH_FLOOR).min(cap);
+            let target = grown(self.items.len(), 0, cap);
             let additional = target.checked_sub(self.items.len()).expect("room for another item");
             self.items.reserve_exact(additional);
         }

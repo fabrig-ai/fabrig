@@ -24,6 +24,7 @@ mod deadlines;
 mod decimal;
 mod digest;
 mod env;
+mod growth;
 pub mod hex;
 mod id;
 mod intake;
@@ -68,7 +69,7 @@ pub use requests::{
 pub use rng::Rng;
 pub use secret::Secret;
 pub use set::Set;
-pub use slab::Slab;
+pub use slab::{Slab, SlabIter};
 pub use stack::Stack;
 pub use time::{Duration, Time, Wall, earliest};
 pub use token::{ReplyTo, Token};

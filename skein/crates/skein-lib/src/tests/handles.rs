@@ -2,7 +2,44 @@
 //! full slab, and a retired entity reachable until it is reclaimed, its
 //! handle stale after.
 
-use crate::{Id, Slab};
+use crate::{Id, Slab, SlabIter};
+
+#[test]
+fn an_empty_slab_iterates_no_entities() {
+    let slab = Slab::<u8>::with_capacity(4);
+    let mut entities: SlabIter<'_, u8> = slab.iter();
+    assert_eq!(entities.next(), None);
+    assert_eq!(entities.next(), None);
+}
+
+#[test]
+fn slab_iteration_keeps_retired_entities_until_reclaim() {
+    let mut slab = Slab::with_capacity(3);
+    let first = slab.insert('a').expect("room for first");
+    let second = slab.insert('b').expect("room for second");
+    let third = slab.insert('c').expect("room for third");
+    slab.retire(second);
+    assert!(slab.iter().eq([(first, &'a'), (second, &'b'), (third, &'c')]));
+    for (id, value) in &slab {
+        assert_eq!(slab.get(id), Some(value));
+    }
+
+    slab.reclaim();
+    assert!(slab.iter().eq([(first, &'a'), (third, &'c')]));
+    assert_eq!(slab.get(second), None);
+    let reused = slab.insert('d').expect("reclaimed slot");
+    assert_ne!(reused, second);
+    assert!(slab.iter().eq([(first, &'a'), (reused, &'d'), (third, &'c')]));
+    for (id, value) in &slab {
+        assert_eq!(slab.get(id), Some(value));
+    }
+
+    for id in [first, reused, third] {
+        slab.retire(id);
+    }
+    slab.reclaim();
+    assert_eq!(slab.iter().next(), None);
+}
 
 #[test]
 fn a_handle_survives_the_round_trip_through_a_token() {
