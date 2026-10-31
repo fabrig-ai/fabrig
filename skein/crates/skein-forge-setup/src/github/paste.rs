@@ -15,7 +15,7 @@ use crate::{
 use alloc::boxed::Box;
 use core::num::NonZeroU64;
 use skein_forge::github::{document::Document, request::Request};
-use skein_lib::{Queue, Secret};
+use skein_lib::{Decimal, Queue, Secret};
 
 #[derive(Debug)]
 struct Checked {
@@ -82,7 +82,7 @@ impl Paste {
         }
     }
     fn proved(&mut self, key: Secret, user: Option<NonZeroU64>, event: Event) -> Need {
-        let subject = app::decimal(self.app.get());
+        let subject = Decimal::of(self.app.get());
         let app = match reconcile::reply(event) {
             Ok(Reply::GithubDocument(Document::App(app))) => app,
             Ok(Reply::Unsigned) => return self.stop(b"key", Why::KeyForm),
@@ -95,15 +95,15 @@ impl Paste {
                 | Reply::GithubDocument(_)
                 | Reply::GithubRows(_)),
             ) => {
-                return self.stop(&subject, reconcile::unexpected(reply));
+                return self.stop(subject.as_bytes(), reconcile::unexpected(reply));
             }
-            Err(why) => return self.stop(&subject, why),
+            Err(why) => return self.stop(subject.as_bytes(), why),
         };
         if app.id != self.app.get() {
-            return self.stop(&subject, Why::OtherApp);
+            return self.stop(subject.as_bytes(), Why::OtherApp);
         }
         if item::app_slug(&app.slug, self.given.limits.name_bytes).is_none() {
-            return self.stop(&subject, Why::Unexpected);
+            return self.stop(subject.as_bytes(), Why::Unexpected);
         }
         let lacking = checks::lacks(&app);
         let request = Request::BotUser { slug: app.slug.clone() }.into();
@@ -140,7 +140,7 @@ impl Paste {
                     match optional_id(read) {
                         Ok(Some(id)) => {
                             if id != self.app {
-                                return self.stop(&app::decimal(self.app.get()), Why::OtherApp);
+                                return self.stop(Decimal::of(self.app.get()).as_bytes(), Why::OtherApp);
                             }
                         }
                         Ok(None) => (),
@@ -223,7 +223,7 @@ pub(crate) fn halt(machine: &mut Paste, why: Why, out: &mut Queue<Need>) {
         State::Begin | State::Pasted => machine.stop(b"key", why),
         State::Id(_) => machine.stop(b"id", why),
         State::User(_) => machine.stop(b"user", why),
-        State::App { .. } => machine.stop(&app::decimal(machine.app.get()), why),
+        State::App { .. } => machine.stop(Decimal::of(machine.app.get()).as_bytes(), why),
         State::Bot { slug, .. } | State::Writing { slug, .. } => machine.stop(&slug, why),
         State::Hook { checked, .. } => machine.stop(&checked.slug, why),
         State::Ended => return,

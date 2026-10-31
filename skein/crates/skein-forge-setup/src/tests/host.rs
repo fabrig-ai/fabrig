@@ -643,7 +643,7 @@ fn paired() -> World {
     let mut w = World::new();
     w.run(1, 1);
     w.plan(2, reachable(1));
-    while w.up.pop().is_some() {}
+    w.up.clear();
     w
 }
 #[test]

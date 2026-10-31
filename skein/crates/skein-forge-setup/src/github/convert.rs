@@ -16,7 +16,7 @@ use skein_forge::github::{
     document::{Conversion, Document},
     request::Request,
 };
-use skein_lib::{Queue, Secret, bytes};
+use skein_lib::{Decimal, Queue, Secret, bytes};
 
 #[derive(Debug)]
 enum State {
@@ -69,7 +69,7 @@ impl Convert {
     fn subject(&self) -> Box<[u8]> {
         match self.state {
             State::Begin | State::Conversion => bytes::copy_of(b"convert"),
-            State::App => app::decimal(self.id),
+            State::App => bytes::copy_of(Decimal::of(self.id).as_bytes()),
             State::Bot | State::Writing(_) | State::Ended => self.slug.clone(),
         }
     }
@@ -81,9 +81,8 @@ impl Convert {
             return self.stop(b"convert", Why::Unexpected);
         };
         self.id = id.get();
-        let subject = app::decimal(self.id);
         if item::app_slug(&slug, self.name_bytes).is_none() {
-            return self.stop(&subject, Why::Unexpected);
+            return self.stop(Decimal::of(self.id).as_bytes(), Why::Unexpected);
         }
         let key = key::pem(&pem, self.key_bytes);
         drop(pem);
