@@ -29,6 +29,8 @@ const CLIENT: skein_forge_client::Limits = skein_forge_client::Limits {
     facts: 16,
 };
 pub const LIMITS: top::Limits = top::Limits {
+    forges: 4,
+    definition_bytes: 8192,
     repositories: 2,
     tasks: 8,
     holds: 8,
@@ -148,7 +150,7 @@ fn client_key(random: &mut Rng) -> skein_forge_client::Key {
 #[expect(clippy::disallowed_macros, reason = "property inputs number canonical member addresses")]
 pub fn key(random: &mut Rng) -> top::Key {
     let number = random.next_u64();
-    match random.below(23) {
+    match random.below(27) {
         0 => top::Key::Call(top::NamedCall {
             task: number,
             attempt: random.next_u64(),
@@ -176,6 +178,10 @@ pub fn key(random: &mut Rng) -> top::Key {
         19 => top::Key::DemoAct([u8::try_from(random.below(256)).expect("byte"); 16]),
         20 => top::Key::Flight { task: number, entry: random.next_u64() },
         21 => top::Key::Landing(number),
+        23 => top::Key::Forge(u16::try_from(random.below(65_536)).expect("u16")),
+        24 => top::Key::ForgeNumbers,
+        25 => top::Key::Playground,
+        26 => top::Key::KeptAct([u8::try_from(random.below(256)).expect("byte"); 16]),
         _ => top::Key::Receipt(top::ReceiptKey {
             project: u32::try_from(random.below(4_294_967_296)).expect("u32"),
             repository: repository(random),
@@ -869,4 +875,70 @@ pub fn issue_row() -> top::IssueRow {
             finished: Some("finished λ".into()),
         }),
     }
+}
+
+pub fn forge_record() -> top::ForgeRecord {
+    top::ForgeRecord {
+        number: 5,
+        kind: top::Kind::Forgejo,
+        mode: top::Mode::Fake,
+        removing: true,
+        definition: Box::from(b"{}".as_slice()),
+        first: Some(top::FirstIntent {
+            playground: true,
+            org: Box::from(b"org".as_slice()),
+            repository: Box::from(b"repo".as_slice()),
+            project: top::SetUpProject::New(Box::from(b"project".as_slice())),
+            label: Box::from(b"label".as_slice()),
+        }),
+    }
+}
+pub fn kept_rows() -> Box<[(&'static str, top::Stored)]> {
+    let mut rows = List::with_capacity(20);
+    for kind in [top::Kind::Forgejo, top::Kind::GitHub] {
+        for mode in [top::Mode::Connected, top::Mode::Managed, top::Mode::Owned, top::Mode::Fake] {
+            let mut row = forge_record();
+            row.kind = kind;
+            row.mode = mode;
+            rows.push(("forge", top::Stored::Forge(row))).expect("fixture room");
+        }
+    }
+    let mut row = forge_record();
+    row.first.as_mut().unwrap().project = top::SetUpProject::Existing(7);
+    rows.push(("existing project", top::Stored::Forge(row))).expect("fixture room");
+    let mut row = forge_record();
+    row.first = None;
+    rows.push(("no intent", top::Stored::Forge(row))).expect("fixture room");
+    rows.push(("numbers", top::Stored::ForgeNumbers { next: u16::MAX })).expect("fixture room");
+    for state in [
+        top::PlaygroundState::Running,
+        top::PlaygroundState::Resetting(top::ResetStep::Project),
+        top::PlaygroundState::Resetting(top::ResetStep::Forge),
+        top::PlaygroundState::Resetting(top::ResetStep::Account),
+    ] {
+        rows.push((
+            "playground",
+            top::Stored::Playground(top::Playground { state, forge: Some(5), project: Some(7), account: Some(9) }),
+        ))
+        .expect("fixture room");
+    }
+    rows.push((
+        "empty playground",
+        top::Stored::Playground(top::Playground {
+            state: top::PlaygroundState::Running,
+            forge: None,
+            project: None,
+            account: None,
+        }),
+    ))
+    .expect("fixture room");
+    for act in [
+        top::KeptActKind::Cancel { project: 7, task: u64::MAX },
+        top::KeptActKind::RemoveGroup,
+        top::KeptActKind::EraseSecrets,
+    ] {
+        rows.push(("kept act", top::Stored::KeptAct(top::KeptAct { key: [0; 16], forge: 5, act })))
+            .expect("fixture room");
+    }
+    rows.into_boxed()
 }

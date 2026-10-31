@@ -31,6 +31,8 @@ const CLIENT: skein_forge_client::Limits = skein_forge_client::Limits {
     facts: 16,
 };
 pub const LIMITS: top::Limits = top::Limits {
+    forges: 4,
+    definition_bytes: 8192,
     repositories: 2,
     tasks: 8,
     holds: 8,
@@ -916,6 +918,10 @@ fn key(row: &top::Stored) -> top::Key {
         top::Stored::Change(row) => top::Key::Change(row.task),
         top::Stored::Issue(row) => top::Key::Issue(row.goal),
         top::Stored::Demo(row) => top::Key::Demo(row.forge),
+        top::Stored::Forge(row) => top::Key::Forge(row.number),
+        top::Stored::ForgeNumbers { .. } => top::Key::ForgeNumbers,
+        top::Stored::Playground(_) => top::Key::Playground,
+        top::Stored::KeptAct(row) => top::Key::KeptAct(row.key),
         top::Stored::Binding { address, .. } => top::Key::Binding(address.clone()),
         top::Stored::DemoAct(row) => top::Key::DemoAct(row.key),
         top::Stored::Flight { task, entry } => top::Key::Flight { task: *task, entry: *entry },

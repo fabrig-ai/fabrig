@@ -10,6 +10,8 @@ mod connect;
 mod demo;
 mod fixtures;
 mod flight;
+#[path = "tests/kept.rs"]
+mod kept_rows;
 #[path = "tests/landing.rs"]
 mod landing_routes;
 mod limits;
@@ -55,6 +57,8 @@ const CLIENT: skein_forge_client::Limits = skein_forge_client::Limits {
     facts: 16,
 };
 const LIMITS: Limits = Limits {
+    forges: 4,
+    definition_bytes: 8192,
     repositories: 2,
     tasks: 8,
     holds: 8,
