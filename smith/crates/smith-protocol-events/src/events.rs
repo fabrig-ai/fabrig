@@ -8,7 +8,6 @@ use alloc::boxed::Box;
 use skein_lib::{Duration, List, Time, Token};
 use smith_domain::{self as domain, run};
 use smith_events::{Event, Record};
-use smith_protocol_channel as channel;
 
 use crate::sinks::{Capture, SinkLimits, Sinks};
 
@@ -44,7 +43,7 @@ struct Start {
 #[derive(Debug)]
 pub struct Producer {
     pub(crate) sinks: Sinks,
-    names: channel::Endpoints,
+    names: smith_protocol_translate::Endpoints,
     programs: Box<[u32]>,
     calls: crate::calls::Book,
     messages: crate::messages::Book,
@@ -115,7 +114,7 @@ impl Producer {
 
     /// Build the joins and destinations from their admitted source bounds.
     #[must_use]
-    pub fn new(limits: &Sources, names: channel::Endpoints, programs: Box<[u32]>) -> Producer {
+    pub fn new(limits: &Sources, names: smith_protocol_translate::Endpoints, programs: Box<[u32]>) -> Producer {
         let events = limits.events.expect("event configuration exists");
         Producer {
             sinks: Sinks::with_front(&events.sinks, events.capture, limits.output, events.write_deadline, events.front),

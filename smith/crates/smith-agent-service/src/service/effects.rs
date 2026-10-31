@@ -12,7 +12,6 @@ use alloc::boxed::Box;
 use skein_io::{self as io, kernel};
 use skein_lib::{Id, Map, Queue, Time, Token, Wall};
 use smith_domain::{self as domain, run};
-use smith_protocol_channel as channel;
 
 /// Agent LLM and machine effects owned by a host that keeps the domain itself.
 /// Typed requests have typed terminals, with no channel, frames or agent process
@@ -70,7 +69,12 @@ impl Effects {
     }
 
     /// Install a grant's tagged value before supplying the grant to the domain.
-    pub fn grant(&mut self, grant: domain::Grant, value: &channel::GrantValue, now: Time) -> Result<(), Failure> {
+    pub fn grant(
+        &mut self,
+        grant: domain::Grant,
+        value: &smith_protocol_translate::GrantValue,
+        now: Time,
+    ) -> Result<(), Failure> {
         if self.installed.get(&grant.name.account) == Some(&grant.name) {
             return Ok(());
         }

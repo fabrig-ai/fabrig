@@ -80,7 +80,7 @@ fn startup_lends_a_usable_program_account() {
     let states = ProgramStates::from([("codex".into(), Credential::Usable { until: None })]);
     let prepared = prepare(&resolved, Wall::from_nanos(0), false, &states).expect("usable source");
     assert!(
-        matches!(prepared.lendable.get(&0), Some((0, smith_protocol_channel::GrantValue::Program(name))) if name.as_ref() == b"codex"),
+        matches!(prepared.lendable.get(&0), Some((0, smith_protocol_translate::GrantValue::Program(name))) if name.as_ref() == b"codex"),
         "the reported state matches the contract"
     );
 }

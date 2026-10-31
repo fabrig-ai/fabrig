@@ -8,8 +8,8 @@ use smith_channel_world::{Observation, World, initial_grant};
 use smith_domain::{self as agent, Event as AgentEvent, Request as AgentRequest};
 use smith_host_domain::{self as host, Down, Up};
 
-fn synthetic_grant() -> smith_protocol_channel::GrantValue {
-    smith_protocol_channel::GrantValue::Bearer(Box::from(b"synthetic".as_slice()))
+fn synthetic_grant() -> smith_protocol_translate::GrantValue {
+    smith_protocol_translate::GrantValue::Bearer(Box::from(b"synthetic".as_slice()))
 }
 
 #[path = "composed/long.rs"]

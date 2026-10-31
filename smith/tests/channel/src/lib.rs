@@ -14,18 +14,18 @@ pub mod referee;
 
 /// The current bearer grant fixture.
 #[must_use]
-pub fn initial_grant() -> agent::GrantValue {
-    agent::GrantValue::Bearer(Box::from(b"secret".as_slice()))
+pub fn initial_grant() -> smith_protocol_translate::GrantValue {
+    smith_protocol_translate::GrantValue::Bearer(Box::from(b"secret".as_slice()))
 }
 /// The first refreshed bearer grant fixture.
 #[must_use]
-pub fn refreshed_grant() -> agent::GrantValue {
-    agent::GrantValue::Bearer(Box::from(b"new-secret".as_slice()))
+pub fn refreshed_grant() -> smith_protocol_translate::GrantValue {
+    smith_protocol_translate::GrantValue::Bearer(Box::from(b"new-secret".as_slice()))
 }
 /// The second refreshed bearer grant fixture.
 #[must_use]
-pub fn latest_grant() -> agent::GrantValue {
-    agent::GrantValue::Bearer(Box::from(b"latest".as_slice()))
+pub fn latest_grant() -> smith_protocol_translate::GrantValue {
+    smith_protocol_translate::GrantValue::Bearer(Box::from(b"latest".as_slice()))
 }
 
 /// An opening observation independent of which half emitted it.
@@ -155,7 +155,7 @@ struct Peer {
     cut_after: Option<usize>,
     received_bytes: usize,
     host_answer: Option<smith_host_domain::channel::Answer>,
-    agent_start: Option<Box<agent::DecodedStart>>,
+    agent_start: Option<Box<smith_protocol_translate::DecodedStart>>,
     raw_start: Option<RawStart>,
     host_reads: HostReads,
     host_read_count: u64,
@@ -264,7 +264,8 @@ impl Peer {
                             let mut parts = start.into_parts();
                             parts.charter = charter;
                             parts.transcript =
-                                agent::transcript_piece(&transcript.unwrap_or_default()).expect("fixture piece");
+                                smith_protocol_translate::transcript_piece(&transcript.unwrap_or_default())
+                                    .expect("fixture piece");
                             let start = smith_channel::Start::new(&smith_channel::CEILINGS, parts)
                                 .expect("wire fixture bounds");
                             let mut writer =
@@ -352,8 +353,12 @@ impl Peer {
                     number: turn.number,
                     spent: turn.spent,
                     read: turn.read,
-                    body: agent::encode_turn(turn.body.value(), &smith_transcript::CEILINGS, &test_endpoints())
-                        .expect("store codec"),
+                    body: smith_protocol_translate::encode_turn(
+                        turn.body.value(),
+                        &smith_transcript::CEILINGS,
+                        &test_endpoints(),
+                    )
+                    .expect("store codec"),
                 }),
                 host::OpenEvent::Live { turn, retry, kind, offset, bytes, call } => {
                     output.push(Observation::HostLive { turn, retry, kind, offset, bytes, call });
@@ -472,10 +477,12 @@ impl Peer {
 
 /// The shared endpoint names and dialect used by channel stories.
 #[must_use]
-pub fn test_endpoints() -> agent::Endpoints {
+pub fn test_endpoints() -> smith_protocol_translate::Endpoints {
     let mut entries = skein_lib::List::with_capacity(1);
-    entries.push(agent::Endpoint { name: Box::default(), number: 0, dialect: 0 }).expect("one endpoint");
-    agent::Endpoints::new(entries)
+    entries
+        .push(smith_protocol_translate::Endpoint { name: Box::default(), number: 0, dialect: 0 })
+        .expect("one endpoint");
+    smith_protocol_translate::Endpoints::new(entries)
 }
 
 fn channel_limits(bodies: smith_channel::Limits) -> skein_channel::Limits {
@@ -501,6 +508,27 @@ pub struct World {
 }
 
 impl World {
+    /// Open both halves and deliver the smallest valid Start.
+    #[must_use]
+    pub fn started() -> World {
+        let mut world = World::new(smith_channel::CEILINGS, smith_channel::CEILINGS, StreamMode::Two);
+        world.settle();
+        world.send_start(Box::from(
+            &include_bytes!("../../../crates/smith-charter/golden/v4/record_charter_smallest.bin")[..],
+        ));
+        world.settle();
+        world
+    }
+
+    /// Open, start and admit the smallest valid run.
+    #[must_use]
+    pub fn admitted() -> World {
+        let mut world = Self::started();
+        world.agent_admits();
+        world.settle();
+        world
+    }
+
     /// Build both halves with independent receiving limits.
     #[must_use]
     pub fn new(host_bodies: smith_channel::Limits, agent_bodies: smith_channel::Limits, mode: StreamMode) -> World {
@@ -527,17 +555,13 @@ impl World {
                     smith_channel::Start::encoded_bound(&agent_bodies).expect("fixture Start bound"),
                 )
                 .expect("fixture frame"),
-                charter: smith_charter::CEILINGS,
-                transcript: smith_transcript::CEILINGS,
                 resume_turns: 256,
-                search_hits: 256,
                 channel,
                 endpoints: 1,
                 calls: 8,
                 turns: 8,
-                fact_reserve_frames: 1,
-                fact_reserve_bytes: 128,
                 grants: 8,
+                ..agent::fixture::small()
             },
             mode,
         );
@@ -654,8 +678,8 @@ impl World {
             });
         }
         let typed_charter = typed_charter(&charter);
-        let typed_transcript = agent::decode_transcript(
-            &agent::transcript_piece(transcript.as_deref().unwrap_or(&[])).expect("fixture piece"),
+        let typed_transcript = smith_protocol_translate::decode_transcript(
+            &smith_protocol_translate::transcript_piece(transcript.as_deref().unwrap_or(&[])).expect("fixture piece"),
             256,
             u32::MAX,
             &smith_transcript::CEILINGS,
@@ -721,8 +745,8 @@ impl World {
     ) {
         self.observed.push(Observation::HostStarted);
         let typed_charter = typed_charter(&charter);
-        let typed_transcript = agent::decode_transcript(
-            &agent::transcript_piece(transcript.as_deref().unwrap_or(&[])).expect("fixture piece"),
+        let typed_transcript = smith_protocol_translate::decode_transcript(
+            &smith_protocol_translate::transcript_piece(transcript.as_deref().unwrap_or(&[])).expect("fixture piece"),
             256,
             u32::MAX,
             &smith_transcript::CEILINGS,
@@ -1002,7 +1026,12 @@ impl World {
     }
 
     /// Refresh one service-owned credential under a new generation.
-    pub fn host_refreshes_grant(&mut self, account: u32, generation: u64, credential: agent::GrantValue) {
+    pub fn host_refreshes_grant(
+        &mut self,
+        account: u32,
+        generation: u64,
+        credential: smith_protocol_translate::GrantValue,
+    ) {
         if let Half::Host(host) = &mut self.host.half {
             host.send_grant(
                 smith_host_domain::channel::Grant {
@@ -1022,7 +1051,7 @@ impl World {
 
     /// Read the agent half's credential table as a service would during LLM preparation.
     #[must_use]
-    pub fn agent_grant_value(&self, account: u32, generation: u64) -> Option<agent::GrantValue> {
+    pub fn agent_grant_value(&self, account: u32, generation: u64) -> Option<smith_protocol_translate::GrantValue> {
         if let Half::Agent(agent) = &self.agent.half {
             let name = smith_domain::GrantName { account, generation };
             return agent.grant_value(name).cloned();
@@ -1191,7 +1220,7 @@ impl World {
     }
 
     /// Take the agent protocol half's translated Start for the real agent domain.
-    pub fn take_agent_start(&mut self) -> Option<Box<agent::DecodedStart>> {
+    pub fn take_agent_start(&mut self) -> Option<Box<smith_protocol_translate::DecodedStart>> {
         self.agent.agent_start.take()
     }
 }
@@ -1199,22 +1228,23 @@ impl World {
 /// Decode fixture policy for the typed host boundary; malformed wire fixtures use a neutral fallback.
 #[must_use]
 pub fn typed_charter(bytes: &[u8]) -> smith_host_domain::Charter {
-    let value = agent::decode_charter(bytes, &smith_charter::CEILINGS, &test_endpoints()).unwrap_or_else(|_| {
-        agent::decode_charter(
-            include_bytes!("../../../crates/smith-charter/golden/v4/record_charter_smallest.bin"),
-            &smith_charter::CEILINGS,
-            &test_endpoints(),
-        )
-        .expect("fallback fixture policy")
-    });
+    let value = smith_protocol_translate::decode_charter(bytes, &smith_charter::CEILINGS, &test_endpoints())
+        .unwrap_or_else(|_| {
+            smith_protocol_translate::decode_charter(
+                include_bytes!("../../../crates/smith-charter/golden/v4/record_charter_smallest.bin"),
+                &smith_charter::CEILINGS,
+                &test_endpoints(),
+            )
+            .expect("fallback fixture policy")
+        });
     smith_host_domain::Charter::new(value, u64::MAX).expect("fixture ownership")
 }
 
 /// Decode a valid history fixture before a typed host Start.
 #[must_use]
 pub fn typed_transcript(bytes: &[Box<[u8]>]) -> Option<smith_host_domain::Transcript> {
-    agent::decode_transcript(
-        &agent::transcript_piece(bytes).expect("fixture piece"),
+    smith_protocol_translate::decode_transcript(
+        &smith_protocol_translate::transcript_piece(bytes).expect("fixture piece"),
         256,
         u32::MAX,
         &smith_transcript::CEILINGS,
@@ -1302,5 +1332,50 @@ mod read_tests {
             world.observations().iter().filter(|event| **event == Observation::HostEnded(Closed::Stream)).count(),
             1
         );
+    }
+    fn inject_agent(world: &mut World, body: smith_channel::Body) {
+        let frame = smith_channel::frame(body).expect("bounded scripted peer frame");
+        world.agent.incoming.extend(frame.bytes().iter().copied());
+        world.settle();
+    }
+
+    #[test]
+    fn a_second_cancel_is_refused_without_a_second_terminal() {
+        let mut world = World::started();
+        for _ in 0..2 {
+            let record = smith_channel::Cancel::new(&smith_channel::CEILINGS, smith_channel::CancelParts {})
+                .expect("bounded peer record");
+            inject_agent(&mut world, smith_channel::Body::Cancel(record));
+        }
+        assert_eq!(world.observations().iter().filter(|event| **event == Observation::AgentCancel).count(), 1);
+        assert_eq!(world.observations().iter().filter(|event| matches!(event, Observation::AgentEnded(_))).count(), 1);
+    }
+
+    #[test]
+    fn answered_turn_credit_accepts_a_late_acknowledgement() {
+        let mut world = World::admitted();
+        world.agent_tells_turn(1, None, &window_turn_fixture());
+        world.settle();
+        world.agent_parks();
+        world.settle();
+        let record =
+            smith_channel::Acknowledge::new(&smith_channel::CEILINGS, smith_channel::AcknowledgeParts { number: 1 })
+                .expect("bounded peer record");
+        inject_agent(&mut world, smith_channel::Body::Acknowledge(record));
+        assert_eq!(
+            world.observations().iter().filter(|event| **event == Observation::AgentAcknowledged { turn: 1 }).count(),
+            1
+        );
+    }
+
+    #[test]
+    fn a_cancel_before_start_is_refused_without_reaching_the_service() {
+        let mut world = World::new(smith_channel::CEILINGS, smith_channel::CEILINGS, StreamMode::Two);
+        world.settle();
+        let record = smith_channel::Cancel::new(&smith_channel::CEILINGS, smith_channel::CancelParts {})
+            .expect("bounded peer record");
+        inject_agent(&mut world, smith_channel::Body::Cancel(record));
+        assert!(!world.observations().contains(&Observation::AgentCancel));
+        assert_eq!(world.observations().iter().filter(|event| matches!(event, Observation::AgentEnded(_))).count(), 1);
     }
 }

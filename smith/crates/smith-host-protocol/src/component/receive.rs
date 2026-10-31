@@ -171,7 +171,7 @@ impl Component {
             Err(problem) => return Err(Error::Body(problem)),
         };
         let sequence = self.sequence.checked_add(1).ok_or(Error::Value)?;
-        let Ok(value) = smith_protocol_channel::decode_turn(turn.body(), sequence, &self.transcript, &self.endpoints)
+        let Ok(value) = smith_protocol_translate::decode_turn(turn.body(), sequence, &self.transcript, &self.endpoints)
         else {
             return Err(Error::Value);
         };

@@ -565,8 +565,8 @@ fn configure_choices(config: &mut service::Config, lower: &mut agent::Config) {
     other.efforts = Box::new([b"low".as_slice().into()]);
     lower.domain.models = Box::new([main, other]);
     let mut names = skein_lib::List::with_capacity(1);
-    names.push(smith_protocol_channel::Endpoint { name: b"main".as_slice().into(), number: 0, dialect: 1 }).unwrap();
-    lower.channel_endpoints = smith_protocol_channel::Endpoints::new(names);
+    names.push(smith_protocol_translate::Endpoint { name: b"main".as_slice().into(), number: 0, dialect: 1 }).unwrap();
+    lower.channel_endpoints = smith_protocol_translate::Endpoints::new(names);
     config.endpoints = lower.channel_endpoints.clone();
     let main = config.local.models[0].clone();
     let mut other = main.clone();
@@ -874,7 +874,7 @@ fn lending_accounts(
         Lending::Key => {
             let file = launch.token_directory.parent().expect("scratch parent").join("key");
             let bytes = std::fs::read(&file).expect("scratch key at startup");
-            lendable.insert(0, (0, smith_protocol_channel::GrantValue::Key(bytes.into()))).expect("one key value");
+            lendable.insert(0, (0, smith_protocol_translate::GrantValue::Key(bytes.into()))).expect("one key value");
             locations
                 .push(Location { account: 0, name: "codex".into(), source: Source::Key { file } })
                 .expect("one key location");

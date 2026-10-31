@@ -6,46 +6,34 @@ use skein_codegen::{Output, generate, parse};
 
 #[test]
 fn charter_schema_matches_generated_code_and_all_goldens() {
-    let root = skein_scratch::paths::tree().join("crates/smith-charter");
-    let source = fs::read_to_string(root.join("schema/charter-v4.schema")).expect("charter schema");
-    let schema = parse(&source).expect("schema valid");
-    let output = generate(&schema);
-    write_generated_code_and_goldens(&root.join("src/generated/v4.rs"), &root.join("golden/v4"), &output);
-    let committed = fs::read_to_string(root.join("src/generated/v4.rs")).expect("generated code");
-    assert_eq!(committed, output.rust, "regenerate charter codec with skein-codegen");
-    for golden in output.goldens {
-        let committed = fs::read(root.join("golden/v4").join(&golden.name)).expect("golden bytes");
-        assert_eq!(committed, golden.bytes, "golden {} drifted", golden.name);
-    }
+    assert_family("charter", 4);
 }
 
 #[test]
 fn transcript_schema_matches_generated_code_and_all_goldens() {
-    let root = skein_scratch::paths::tree().join("crates/smith-transcript");
-    let source = fs::read_to_string(root.join("schema/transcript-v6.schema")).expect("transcript schema");
-    let schema = parse(&source).expect("schema valid");
-    let output = generate(&schema);
-    write_generated_code_and_goldens(&root.join("src/generated/v6.rs"), &root.join("golden/v6"), &output);
-    let committed = fs::read_to_string(root.join("src/generated/v6.rs")).expect("generated code");
-    assert_eq!(committed, output.rust, "regenerate transcript codec with skein-codegen");
-    for golden in output.goldens {
-        let committed = fs::read(root.join("golden/v6").join(&golden.name)).expect("golden bytes");
-        assert_eq!(committed, golden.bytes, "golden {} drifted", golden.name);
-    }
+    assert_family("transcript", 6);
 }
 
 #[test]
 fn channel_schema_matches_generated_code_and_all_goldens() {
-    let root = skein_scratch::paths::tree().join("crates/smith-channel");
-    let source = fs::read_to_string(root.join("schema/channel-v5.schema")).expect("channel schema");
-    let schema = parse(&source).expect("schema valid");
-    let output = generate(&schema);
-    write_generated_code_and_goldens(&root.join("src/generated/v5.rs"), &root.join("golden/v5"), &output);
-    let committed = fs::read_to_string(root.join("src/generated/v5.rs")).expect("generated code");
-    assert_eq!(committed, output.rust, "regenerate channel codec with skein-codegen");
+    assert_family("channel", 5);
+}
+
+fn assert_family(family: &str, version: u16) {
+    let root = skein_scratch::paths::tree().join(format!("crates/smith-{family}"));
+    let source = fs::read_to_string(root.join(format!("schema/{family}-v{version}.schema"))).expect("schema source");
+    let output = generate(&parse(&source).expect("schema valid"));
+    let code = root.join(format!("src/generated/v{version}.rs"));
+    let goldens = root.join(format!("golden/v{version}"));
+    write_generated_code_and_goldens(&code, &goldens, &output);
+    assert_eq!(fs::read_to_string(code).expect("generated code"), output.rust, "{family} code drifted");
     for golden in output.goldens {
-        let committed = fs::read(root.join("golden/v5").join(&golden.name)).expect("golden bytes");
-        assert_eq!(committed, golden.bytes, "golden {} drifted", golden.name);
+        assert_eq!(
+            fs::read(goldens.join(&golden.name)).expect("golden bytes"),
+            golden.bytes,
+            "{} drifted",
+            golden.name
+        );
     }
 }
 
@@ -54,7 +42,7 @@ use crate::support::events;
 #[test]
 fn event_records_and_every_listed_value_match_frozen_version_four_goldens() {
     let root = skein_scratch::paths::tree().join("crates/smith-events/golden/v4");
-    let limits = smith_events::Limits { string: 64, content: 1024, items: 8 };
+    let limits = smith_events::Limits { items: 8, ..smith_events::fixture::SMALL };
     let samples = events::samples();
     assert_eq!(fs::read_dir(&root).expect("event goldens").count(), samples.len(), "every golden is covered");
     check_event_goldens(&root, &limits, &samples);

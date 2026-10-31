@@ -25,6 +25,6 @@ pub fn start_with_window(
     let message = super::waiting::initial(true);
     let frame = crate::start_workspace_message(charter, 8, false, message.as_ref(), value, None);
     crate::wire::edit_start(&frame, |start| {
-        start.transcript = smith_protocol_channel::transcript_piece(turns).expect("saved window");
+        start.transcript = smith_protocol_translate::transcript_piece(turns).expect("saved window");
     })
 }

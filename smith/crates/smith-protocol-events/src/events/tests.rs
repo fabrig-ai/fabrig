@@ -38,7 +38,7 @@ fn refused_raw_totals_and_overflow_reach_the_wire_answer_and_operator_once() {
         let owner = Token::new(11);
         let mut producer = Producer {
             sinks: Sinks::new(&bounds, Capture::Calls, bounds.output, crate::sinks::tests::DEADLINE),
-            names: channel::Endpoints::new(List::with_capacity(0)),
+            names: smith_protocol_translate::Endpoints::new(List::with_capacity(0)),
             programs: Box::default(),
             calls: crate::calls::Book::new(&smith_agent_world::LIMITS.session, Capture::Calls),
             messages: crate::messages::Book::disabled(),

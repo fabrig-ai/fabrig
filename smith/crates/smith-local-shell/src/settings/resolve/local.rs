@@ -220,7 +220,7 @@ fn directories(
             .and_then(Value::as_str)
             .ok_or_else(|| input::refuse(settings, &key, "directory name is required"))?;
         let path = settings.workspace.join(path);
-        let host = smith_protocol_channel::host_path(
+        let host = smith_protocol_translate::host_path(
             path.as_os_str().as_encoded_bytes(),
             agent.service.limits.domain.run.host_path_bytes,
         )

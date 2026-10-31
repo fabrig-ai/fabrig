@@ -30,7 +30,7 @@ pub(super) fn samples() -> Vec<(&'static str, Record, Capture)> {
             code: Some(b"not_allowed"),
         },
     ] {
-        let mut value = value_notice("", "");
+        let mut value = value_notice(&Words::DEFAULT);
         value.kind = row.kind;
         value.reset_ms = row.reset;
         value.code = row.code.map(Box::from);
@@ -63,7 +63,7 @@ pub(super) fn samples() -> Vec<(&'static str, Record, Capture)> {
             code: None,
         },
     ] {
-        let mut run = value_run_completed("Status", "failed");
+        let mut run = value_run_completed(&Words::status(Status::Failed));
         let value = run.failure.as_mut().expect("failed run fixture");
         value.class = AnswerClass::Model;
         value.state = Some(row.state);
@@ -77,7 +77,7 @@ pub(super) fn samples() -> Vec<(&'static str, Record, Capture)> {
         ("answer_program_calls", Capture::Calls, Some(AgentExit::Code(i64::MIN))),
         ("answer_program_everything", Capture::Everything, Some(AgentExit::Signal(u64::MAX))),
     ] {
-        let mut run = value_run_completed("Status", "failed");
+        let mut run = value_run_completed(&Words::status(Status::Failed));
         let value = run.failure.as_mut().expect("failed run fixture");
         value.class = AnswerClass::Model;
         value.account = None;

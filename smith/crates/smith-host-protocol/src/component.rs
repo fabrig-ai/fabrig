@@ -114,7 +114,7 @@ pub struct Component {
     next_call: u64,
     now: Time,
     cancelled: bool,
-    endpoints: smith_protocol_channel::Endpoints,
+    endpoints: smith_protocol_translate::Endpoints,
     charter: smith_charter::v4::Limits,
     transcript: smith_transcript::v6::Limits,
     sequence: u32,
@@ -127,7 +127,7 @@ impl Component {
     pub fn new(
         limits: &Limits,
         mode: StreamMode,
-        endpoints: smith_protocol_channel::Endpoints,
+        endpoints: smith_protocol_translate::Endpoints,
     ) -> Result<Component, Error> {
         if !endpoints.fits(limits.endpoints, limits.charter.llm_endpoint) {
             return Err(Error::Value);
@@ -298,7 +298,7 @@ impl Component {
     pub fn send_grant(
         &mut self,
         grant: channel::Grant,
-        credential: smith_protocol_channel::GrantValue,
+        credential: smith_protocol_translate::GrantValue,
         token: Token,
         to_service: &mut Queue<OpenEvent>,
         below: &mut Queue<Lower>,
@@ -571,7 +571,7 @@ mod tests {
     fn a_concrete_turn_and_result_reach_the_host_as_equal_values() {
         let mut component = component();
         let source = smith_host_world::turn_value(512).into_value();
-        let bytes = smith_protocol_channel::encode_turn(&source, &component.transcript, &component.endpoints)
+        let bytes = smith_protocol_translate::encode_turn(&source, &component.transcript, &component.endpoints)
             .expect("turn codec");
         let mut above = Queue::with_capacity(8);
         let mut below = Queue::with_capacity(16);
@@ -581,7 +581,7 @@ mod tests {
         let Some(OpenEvent::Turn { turn }) = above.pop() else { panic!("typed turn") };
         assert_eq!(turn.body.into_value(), source);
         let source = smith_host_world::declared_value(32).into_value();
-        let bytes = smith_protocol_channel::encode_result(&source, &component.charter).expect("result codec");
+        let bytes = smith_protocol_translate::encode_result(&source, &component.charter).expect("result codec");
         component.read(&mut above, &mut below);
         component.events.push(Event::Body { kind: 0x0110, body: accepted_body(bytes) });
         component.drain(&mut above, &mut below);

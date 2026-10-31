@@ -20,7 +20,7 @@ pub(crate) fn decode_answer(record: &wire::Answer, limits: &smith_charter::v4::L
             host::RunResult::Refused { refusal }
         }
         wire::RunResult::Accepted(accepted) => {
-            let Ok(value) = smith_protocol_channel::decode_declared(accepted.result(), limits) else {
+            let Ok(value) = smith_protocol_translate::decode_declared(accepted.result(), limits) else {
                 return Err(Error::InvalidAnswer);
             };
             host::RunResult::Accepted {

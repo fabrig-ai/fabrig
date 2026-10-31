@@ -22,7 +22,6 @@ use smith_host_domain as host;
 use smith_inline_agent as inline;
 use smith_local_domain as local;
 use smith_local_protocol as protocol;
-use smith_protocol_channel as channel;
 
 use crate::host_io::{HostIo, Launch, ProcessLimits};
 
@@ -44,7 +43,7 @@ pub struct Limits {
 pub struct Config {
     pub local: local::Config,
     pub limits: Limits,
-    pub endpoints: channel::Endpoints,
+    pub endpoints: smith_protocol_translate::Endpoints,
     pub paths: Box<[Box<[u8]>]>,
     pub launch: Launch,
     pub agent: AgentConfig,
@@ -130,7 +129,7 @@ pub struct Service {
     host_events: Queue<host::Input>,
     shell: Queue<local::Request>,
     lower: Queue<host::process::Request>,
-    values: Map<u32, smith_protocol_channel::GrantValue>,
+    values: Map<u32, smith_protocol_translate::GrantValue>,
     paths: Box<[Box<[u8]>]>,
     start_values: Option<StartValues>,
     failed: bool,
@@ -141,7 +140,7 @@ pub struct Service {
 #[derive(Debug)]
 pub struct StartValues {
     pub paths: Box<[Box<[u8]>]>,
-    pub credentials: Box<[smith_protocol_channel::GrantValue]>,
+    pub credentials: Box<[smith_protocol_translate::GrantValue]>,
 }
 
 impl Service {
@@ -466,7 +465,7 @@ impl Service {
     }
 
     /// Lend a credential value only beside the domain's grant name.
-    pub fn credential(&mut self, grant: agent::Grant, value: smith_protocol_channel::GrantValue) {
+    pub fn credential(&mut self, grant: agent::Grant, value: smith_protocol_translate::GrantValue) {
         let Ok(form) = smith_host_protocol::grant_form(&value) else {
             self.local_events.push(local::Event::NoCredential {
                 account: grant.name.account,
@@ -475,10 +474,12 @@ impl Service {
             return;
         };
         let bytes = match &value {
-            channel::GrantValue::Bearer(bytes)
-            | channel::GrantValue::Key(bytes)
-            | channel::GrantValue::Program(bytes) => bytes.len(),
-            channel::GrantValue::Withdrawn { account_id, bearer } => account_id.len().saturating_add(bearer.len()),
+            smith_protocol_translate::GrantValue::Bearer(bytes)
+            | smith_protocol_translate::GrantValue::Key(bytes)
+            | smith_protocol_translate::GrantValue::Program(bytes) => bytes.len(),
+            smith_protocol_translate::GrantValue::Withdrawn { account_id, bearer } => {
+                account_id.len().saturating_add(bearer.len())
+            }
         };
         if u64::try_from(bytes).expect("grant payload bytes fit u64") > self.limits.envelope_bytes {
             self.local_events.push(local::Event::NoCredential {

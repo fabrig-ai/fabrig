@@ -14,7 +14,7 @@ skein-lib.workspace = true
 skein-io.workspace = true
 smith-domain.workspace = true
 smith-events.workspace = true
-smith-protocol-channel.workspace = true
+smith-protocol-translate.workspace = true
 smith-protocol-llm.workspace = true
 
 [dev-dependencies]

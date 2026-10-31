@@ -1,4 +1,4 @@
-//! Charter values become bounded wire policy (protocol/charter.md, sections 2
+//! Charter values become bounded wire policy (smith/docs/design/protocol/charter.md, sections 2
 //! and 5). This translation retains no state, addresses or credentials;
 //! `encode_charter` resolves domain endpoint names without admitting policy.
 use crate::{Endpoints, Error};
@@ -17,13 +17,18 @@ pub fn encode_charter(
     let mut brief = List::with_capacity(count(source.brief.sections.len())?);
     for section in &source.brief.sections {
         if brief
-            .push(wire::Section::new(
-                limits,
-                wire::SectionParts { title: section.title.clone(), body: section.text.clone() },
-            )?)
+            .push(
+                match wire::Section::new(
+                    limits,
+                    wire::SectionParts { title: section.title.clone(), body: section.text.clone() },
+                ) {
+                    Ok(value) => value,
+                    Err(problem) => return Err(Error::CharterBody(problem)),
+                },
+            )
             .is_err()
         {
-            return Err(Error::ResultCapacity);
+            return Err(Error::Capacity);
         }
     }
     let mut host = List::with_capacity(count(source.grants.host_tools.len())?);
@@ -32,7 +37,7 @@ pub fn encode_charter(
             run::HostEffect::Read => wire::Effect::Read,
             run::HostEffect::Write => wire::Effect::Write,
         };
-        let item = wire::HostTool::new(
+        let item = match wire::HostTool::new(
             limits,
             wire::HostToolParts {
                 name: tool.name.clone(),
@@ -41,19 +46,22 @@ pub fn encode_charter(
                 effect,
                 deadline: tool.timeout,
             },
-        )?;
+        ) {
+            Ok(value) => value,
+            Err(problem) => return Err(Error::CharterBody(problem)),
+        };
         if host.push(item).is_err() {
-            return Err(Error::ResultCapacity);
+            return Err(Error::Capacity);
         }
     }
     let deliver = match &source.grants.deliver {
         Some(rule) => Some(change(rule, limits)?),
         None => None,
     };
-    let tools = wire::Tools::new(
+    let tools = match wire::Tools::new(
         limits,
         wire::ToolsParts {
-            families: wire::Families::new(
+            families: match wire::Families::new(
                 limits,
                 wire::FamiliesParts {
                     skein_bools: [
@@ -63,25 +71,34 @@ pub fn encode_charter(
                         source.grants.agents,
                     ],
                 },
-            )?,
+            ) {
+                Ok(value) => value,
+                Err(problem) => return Err(Error::CharterBody(problem)),
+            },
             wait: source.grants.wait,
             deliver,
             host,
         },
-    )?;
+    ) {
+        Ok(value) => value,
+        Err(problem) => return Err(Error::CharterBody(problem)),
+    };
     let mut verdicts = List::with_capacity(count(source.outcome.verdicts.len())?);
     for rule in &source.outcome.verdicts {
         let mut kinds = List::with_capacity(count(rule.items.kinds.len())?);
         for kind in &rule.items.kinds {
-            let item = wire::ItemKind::new(
+            let item = match wire::ItemKind::new(
                 limits,
                 wire::ItemKindParts { kind: kind.kind.clone(), fields: fields(&kind.fields, limits)? },
-            )?;
+            ) {
+                Ok(value) => value,
+                Err(problem) => return Err(Error::CharterBody(problem)),
+            };
             if kinds.push(item).is_err() {
-                return Err(Error::ResultCapacity);
+                return Err(Error::Capacity);
             }
         }
-        let item = wire::VerdictRule::new(
+        let item = match wire::VerdictRule::new(
             limits,
             wire::VerdictRuleParts {
                 label: rule.name.clone(),
@@ -91,12 +108,15 @@ pub fn encode_charter(
                 most: rule.items.max,
                 kinds,
             },
-        )?;
+        ) {
+            Ok(value) => value,
+            Err(problem) => return Err(Error::CharterBody(problem)),
+        };
         if verdicts.push(item).is_err() {
-            return Err(Error::ResultCapacity);
+            return Err(Error::Capacity);
         }
     }
-    let contract = wire::Contract::new(
+    let contract = match wire::Contract::new(
         limits,
         wire::ContractParts {
             change: match &source.outcome.change {
@@ -113,21 +133,29 @@ pub fn encode_charter(
             },
             verdicts,
         },
-    )?;
+    ) {
+        Ok(value) => value,
+        Err(problem) => return Err(Error::CharterBody(problem)),
+    };
     let conventions = match &source.conventions {
-        Some(paths) => Some(wire::Conventions::new(
-            limits,
-            wire::ConventionsParts { guide: paths.guide.clone(), checks: paths.checks.clone() },
-        )?),
+        Some(paths) => Some(
+            match wire::Conventions::new(
+                limits,
+                wire::ConventionsParts { guide: paths.guide.clone(), checks: paths.checks.clone() },
+            ) {
+                Ok(value) => value,
+                Err(problem) => return Err(Error::CharterBody(problem)),
+            },
+        ),
         None => None,
     };
     let mut models = List::with_capacity(count(source.models.len())?);
     for model in &source.models {
         if models.push(llm(model, limits, endpoints)?).is_err() {
-            return Err(Error::ResultCapacity);
+            return Err(Error::Capacity);
         }
     }
-    let record = wire::Charter::new(
+    let record = match wire::Charter::new(
         limits,
         wire::CharterParts {
             mode: match source.mode {
@@ -139,59 +167,91 @@ pub fn encode_charter(
             tools,
             contract,
             conventions,
-            budget: wire::Budget::new(
+            budget: match wire::Budget::new(
                 limits,
                 wire::BudgetParts {
                     turns: source.budget.turns,
                     spend: source.budget.spend,
                     time: source.budget.time,
-                    reserve: wire::Reserve::new(
+                    reserve: match wire::Reserve::new(
                         limits,
                         wire::ReserveParts { turns: source.reserve.turns, time: source.reserve.time },
-                    )?,
+                    ) {
+                        Ok(value) => value,
+                        Err(problem) => return Err(Error::CharterBody(problem)),
+                    },
                 },
-            )?,
+            ) {
+                Ok(value) => value,
+                Err(problem) => return Err(Error::CharterBody(problem)),
+            },
             main: llm(&source.llm, limits, endpoints)?,
             models,
             waiting: source.waiting,
             resume: source.resume,
         },
-    )?;
+    ) {
+        Ok(value) => value,
+        Err(problem) => return Err(Error::CharterBody(problem)),
+    };
     let Ok(length) = usize::try_from(record.measure()) else {
-        return Err(Error::ResultCapacity);
+        return Err(Error::Capacity);
     };
     let mut writer = Writer::new(length);
-    record.encode(&mut writer)?;
+    match record.encode(&mut writer) {
+        Ok(value) => value,
+        Err(problem) => return Err(Error::Write(problem)),
+    }
     Ok(writer.finish())
 }
 
 fn count(length: usize) -> Result<u32, Error> {
     match u32::try_from(length) {
         Ok(count) => Ok(count),
-        Err(_) => Err(Error::ResultCapacity),
+        Err(_) => Err(Error::Capacity),
     }
 }
 
 fn fields(source: &[run::outcome::FieldRule], limits: &wire::v4::Limits) -> Result<List<wire::FieldRule>, Error> {
     let mut fields = List::with_capacity(count(source.len())?);
     for field in source {
-        let item = wire::FieldRule::new(limits, wire::FieldRuleParts { name: field.name.clone(), max: field.max })?;
+        let item = match wire::FieldRule::new(limits, wire::FieldRuleParts { name: field.name.clone(), max: field.max })
+        {
+            Ok(value) => value,
+            Err(problem) => return Err(Error::CharterBody(problem)),
+        };
         if fields.push(item).is_err() {
-            return Err(Error::ResultCapacity);
+            return Err(Error::Capacity);
         }
     }
     Ok(fields)
 }
 
 fn change(source: &run::outcome::ChangeSpec, limits: &wire::v4::Limits) -> Result<wire::ChangeRule, Error> {
-    Ok(wire::ChangeRule::new(
-        limits,
-        wire::ChangeRuleParts { checks_must_pass: source.checks_must_pass, fields: fields(&source.fields, limits)? },
-    )?)
+    Ok(
+        match wire::ChangeRule::new(
+            limits,
+            wire::ChangeRuleParts {
+                checks_must_pass: source.checks_must_pass,
+                fields: fields(&source.fields, limits)?,
+            },
+        ) {
+            Ok(value) => value,
+            Err(problem) => return Err(Error::CharterBody(problem)),
+        },
+    )
 }
 
 fn text(source: &run::outcome::TextSpec, limits: &wire::v4::Limits) -> Result<wire::TextRule, Error> {
-    Ok(wire::TextRule::new(limits, wire::TextRuleParts { max: source.max, fields: fields(&source.fields, limits)? })?)
+    Ok(
+        match wire::TextRule::new(
+            limits,
+            wire::TextRuleParts { max: source.max, fields: fields(&source.fields, limits)? },
+        ) {
+            Ok(value) => value,
+            Err(problem) => return Err(Error::CharterBody(problem)),
+        },
+    )
 }
 
 fn llm(source: &run::charter::Llm, limits: &wire::v4::Limits, endpoints: &Endpoints) -> Result<wire::Llm, Error> {
@@ -199,27 +259,35 @@ fn llm(source: &run::charter::Llm, limits: &wire::v4::Limits, endpoints: &Endpoi
         Some(name) => Box::from(name),
         None => return Err(Error::Endpoints),
     };
-    Ok(wire::Llm::new(
-        limits,
-        wire::LlmParts {
-            endpoint,
-            account: source.account,
-            model: source.model.clone(),
-            effort: source.effort.clone(),
-            window: source.window,
-            output: source.output,
-            prices: wire::Prices::new(
-                limits,
-                wire::PricesParts {
-                    input: source.prices.input,
-                    cached: source.prices.cached,
-                    cache_write: source.prices.cache_write,
-                    output: source.prices.output,
-                    unit: source.prices.unit,
+    Ok(
+        match wire::Llm::new(
+            limits,
+            wire::LlmParts {
+                endpoint,
+                account: source.account,
+                model: source.model.clone(),
+                effort: source.effort.clone(),
+                window: source.window,
+                output: source.output,
+                prices: match wire::Prices::new(
+                    limits,
+                    wire::PricesParts {
+                        input: source.prices.input,
+                        cached: source.prices.cached,
+                        cache_write: source.prices.cache_write,
+                        output: source.prices.output,
+                        unit: source.prices.unit,
+                    },
+                ) {
+                    Ok(value) => value,
+                    Err(problem) => return Err(Error::CharterBody(problem)),
                 },
-            )?,
+            },
+        ) {
+            Ok(value) => value,
+            Err(problem) => return Err(Error::CharterBody(problem)),
         },
-    )?)
+    )
 }
 
 #[cfg(test)]

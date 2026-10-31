@@ -5,7 +5,7 @@ use super::{Credential, Refusal, Source, environment, inspect, source};
 use crate::settings::resolve::Resolved;
 use skein_lib::{Duration, List, Map, Wall};
 use smith_local_service as service;
-use smith_protocol_channel::GrantValue;
+use smith_protocol_translate::GrantValue;
 
 /// Names used by the shell when its driver reports a env token's expiry.
 #[derive(Debug)]

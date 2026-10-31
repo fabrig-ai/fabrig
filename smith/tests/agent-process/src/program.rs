@@ -783,7 +783,7 @@ fn with_transcript(charter: &[u8], value: &smith_channel::GrantValue) -> skein_c
         );
         let turn = smith_transcript::Turn::new(&smith_transcript::CEILINGS, turn).expect("opening turn");
         start.transcript =
-            smith_protocol_channel::transcript_piece(&[crate::encoded!(turn)]).expect("transcript piece");
+            smith_protocol_translate::transcript_piece(&[crate::encoded!(turn)]).expect("transcript piece");
     })
 }
 

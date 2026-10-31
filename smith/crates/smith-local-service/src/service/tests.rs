@@ -4,7 +4,7 @@ use super::{Service, local};
 use alloc::boxed::Box;
 use skein_lib::Duration;
 use smith_host_domain::{Form, Scheme};
-use smith_protocol_channel::GrantValue;
+use smith_protocol_translate::GrantValue;
 
 mod output;
 
