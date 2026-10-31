@@ -10,6 +10,7 @@ use alloc::boxed::Box;
 mod down;
 mod effects;
 mod face;
+mod link;
 mod readiness;
 mod request;
 mod routing;
