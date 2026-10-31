@@ -135,15 +135,7 @@ impl Host for Peer {
     fn iterate(&mut self, now: Time, wall: Wall) {
         self.env.now = now;
         self.env.wall = wall;
-        while self.io.is_ready() {
-            io::resume(&mut self.io, &self.env, &mut self.events, &mut self.submit);
-        }
-        while let Some(complete) = self.complete.pop() {
-            io::up(&mut self.io, &self.env, complete, &mut self.events, &mut self.submit);
-        }
-        while self.io.is_due(now) {
-            io::fire(&mut self.io, &self.env, &mut self.events, &mut self.submit);
-        }
+        io::stage::up(&mut self.io, &self.env, &mut self.complete, &mut self.events, &mut self.submit, now);
         while let Some(event) = self.events.pop() {
             self.event(event);
         }
@@ -152,14 +144,12 @@ impl Host for Peer {
         {
             self.requests.push(io::Request::Close { entity: listener });
         }
-        while self.io.takes() {
-            let Some(request) = self.requests.pop() else { break };
-            io::down(&mut self.io, &self.env, request, &mut self.submit);
-        }
+        io::stage::down(&mut self.io, &self.env, &mut self.requests, &mut self.submit);
         self.io.reclaim();
     }
-    fn work_pending(&self, _: Time) -> bool {
+    fn work_pending(&self, now: Time) -> bool {
         self.io.is_ready()
+            || self.io.is_due(now)
             || !self.complete.is_empty()
             || !self.events.is_empty()
             || !self.requests.is_empty()

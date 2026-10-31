@@ -294,3 +294,40 @@ fn a_print_longer_than_the_output_room_finishes_before_the_next() {
     expected.put(suffix).unwrap();
     assert_eq!(text.as_slice(), expected.finish().as_ref());
 }
+
+#[test]
+fn completions_wait_for_submission_room_without_losing_their_terminal_tag() {
+    use skein_io::kernel::{Op, Submit};
+    use skein_lib::Token;
+
+    for room in 0..skein_io::MAX_OUT_UP.submissions {
+        let mut p = start(32, 4096);
+        p.drain();
+        assert_eq!(p.sim.peer_feed(p.pid, p.input, b"1\n"), 2);
+        p.sim.reap(p.pid, p.terminal.completions());
+        let completions = p.terminal.completions().len();
+        assert!(completions > 0, "the input completion waits at the terminal");
+        let submissions = p.terminal.submissions();
+        let held = submissions.capacity() - room;
+        for _ in 0..held {
+            submissions.push(Submit { op: Token::new(u64::MAX), kind: Op::Usage });
+        }
+        for _ in 0..2 {
+            p.terminal.iterate(Time::ZERO, &p.tree, false);
+            assert_eq!(p.terminal.completions().len(), completions);
+            assert!(p.terminal.commands().is_empty());
+            assert!(p.terminal.work_pending(Time::ZERO));
+            assert_eq!(p.terminal.submissions().len(), held);
+        }
+        for _ in 0..held {
+            let submit = p.terminal.submissions().pop().expect("held submission");
+            assert_eq!(submit.op, Token::new(u64::MAX));
+        }
+        p.drive(Time::ZERO, false);
+        assert_eq!(p.act(), p.expected());
+        p.terminal.close();
+        p.drive(Time::ZERO, false);
+        assert!(p.terminal.closed());
+        p.sim.assert_no_open_fds(p.pid);
+    }
+}
