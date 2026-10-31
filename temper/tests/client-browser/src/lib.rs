@@ -201,11 +201,10 @@ impl Tier {
         let address = listener.local_addr().expect("GitHub address");
         let path = tier.scratch.path().join("temper.json");
         let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("deployment")).expect("JSON");
-        value["application"]["forges"] = serde_json::json!([{
-            "number":1, "kind":"github", "api":{"socket":address.to_string()}, "transport":"plaintext",
-            "git":format!("http://{address}"), "web":format!("http://{address}")
-        }]);
-        value["application"]["identities"] = serde_json::json!([{"number":1,"forge":1,"login":null,"author":null}]);
+        value["application"]["machine"]["github"] = serde_json::json!({
+            "api":{"socket":address.to_string()}, "transport":"plaintext",
+            "remote":format!("http://{address}"), "web":format!("http://{address}")
+        });
         github::project_creation(&mut value, address);
         configuration::private(&path, &serde_json::to_vec(&value).expect("GitHub deployment JSON"));
         let mut peer = github::peer(address);
@@ -226,7 +225,7 @@ impl Tier {
             command(&["sign-in", "-"], Stdin::Printed, None),
             Step::Exited { code: 0, within: WITHIN },
             command(
-                &["forge", "connect", "1", "github", "--key", "github-connect"],
+                &["forge", "connect", "github", "--key", "github-connect"],
                 Stdin::Closed,
                 Some(Opens {
                     prefix: b"http://127.0.0.1:".as_slice().into(),
@@ -334,8 +333,10 @@ mod tests {
         assert_eq!(tier_configuration().1["application"]["clients"]["listener"]["socket"], "127.0.0.1:0");
     }
     #[test]
-    fn the_tiers_forge_is_unreached() {
-        assert_eq!(tier_configuration().1["application"]["forges"][0]["api"]["socket"], UNREACHED);
+    fn the_tier_starts_without_a_kept_forge() {
+        let value = tier_configuration().1;
+        assert!(value["application"]["machine"]["github"].is_null());
+        assert!(value["application"].get("forges").is_none());
     }
     #[test]
     fn the_tiers_llm_endpoint_is_unreached() {
@@ -346,7 +347,6 @@ mod tests {
     #[test]
     fn the_tiers_paths_are_absolute() {
         let value = tier_configuration().1;
-        assert_eq!(value["application"]["forges"][0]["api_token"], "/private/test/secrets/forge-1.api-token");
         assert_eq!(value["application"]["workers"][0]["root"], "/private/test/worker-root");
     }
 }
