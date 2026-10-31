@@ -203,7 +203,7 @@ pub(crate) fn welcome(
 fn choose(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, forge: &mut ForgeBindings, place: Place) {
     b.open(Role::Slot);
     b.style(look::FLOW_CHOICES);
-    for kind in &connect::choices(root.forges(), connect::playground(root.forge()), false) {
+    for kind in &connect::choices(connect::records(root.forges()), connect::playground(root.forge()), false) {
         let choice = &match kind {
             connect::Choice::GitHub => Choice::GitHub,
             connect::Choice::Owned => Choice::Owned,
