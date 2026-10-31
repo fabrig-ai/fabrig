@@ -312,8 +312,7 @@ impl Store {
                         continue;
                     }
                     engine::StoreInput::Committed { .. } => continue,
-                    reply @ (engine::StoreInput::MissingLink { .. }
-                    | engine::StoreInput::Switched
+                    reply @ (engine::StoreInput::Switched
                     | engine::StoreInput::Uncommitted { .. }
                     | engine::StoreInput::Unloaded { .. }
                     | engine::StoreInput::ReadLoaded { .. }) => {
