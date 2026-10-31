@@ -506,15 +506,7 @@ pub fn run(path: &Path, mut errors: Box<dyn Write>) -> Result<Exit, String> {
         .map_err(|errno| format!("termination signals cannot open (errno {errno})"))
         .inspect_err(|why| diagnostic(errors.as_mut(), why))?;
     let programs = match configuration.programs.get(&config::ProgramName::ClaudeCode) {
-        Some(program) => Some(ProgramResources {
-            relay: std::env::current_exe().map_err(|error| format!("program relay: {error}"))?,
-            entropy: skein_shell::crypto_seed().map_err(|error| format!("program entropy: {error}"))?,
-            directory: if crate::program::private_directory(&program.directory).map_err(|error| error.to_string())? {
-                Some(skein_shell::open_root(&program.directory).map_err(|error| format!("programs root: {error:?}"))?)
-            } else {
-                None
-            },
-        }),
+        Some(program) => Some(open_program(program, errors.as_mut())?),
         None => None,
     };
     let mut agent = Agent::new(
@@ -536,6 +528,22 @@ pub fn run(path: &Path, mut errors: Box<dyn Write>) -> Result<Exit, String> {
         .map_err(|error| format!("agent kernel cannot open: {error}"))
         .inspect_err(|why| diagnostic(agent.errors.as_mut(), why))?;
     Ok(drive(&mut kernel, &Clock::new(), &mut agent))
+}
+
+#[cfg(unix)]
+fn open_program(program: &config::Program, errors: &mut dyn Write) -> Result<ProgramResources, String> {
+    let opened = (|| {
+        Ok(ProgramResources {
+            relay: std::env::current_exe().map_err(|error| format!("program relay: {error}"))?,
+            entropy: skein_shell::crypto_seed().map_err(|error| format!("program entropy: {error}"))?,
+            directory: if crate::program::private_directory(&program.directory).map_err(|error| error.to_string())? {
+                Some(skein_shell::open_root(&program.directory).map_err(|error| format!("programs root: {error:?}"))?)
+            } else {
+                None
+            },
+        })
+    })();
+    opened.inspect_err(|why: &String| diagnostic(errors, why))
 }
 
 fn derivation_refusal(field: &'static str) -> String {
