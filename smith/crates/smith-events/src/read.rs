@@ -1618,7 +1618,7 @@ impl ListCursor {
 #[test]
 fn the_product_announces_its_chat_store_version() {
     let wire = b"{\"v\":4,\"type\":\"session.started\",\"t_ms\":0,\"wall_ms\":0,\"agent\":{\"name\":\"smith\",\"version\":\"0\"},\"mode\":\"exec\",\"chat\":\"plan\",\"containment\":\"groups\",\"pid\":1,\"profile\":\"standard\",\"capture\":\"none\",\"delivery\":\"complete\",\"versions\":{\"events\":4,\"channel\":2,\"charter\":2,\"transcript\":5,\"chat_store\":1},\"limits\":{}}\n";
-    let limits = Limits { string: 32, content: 1024, items: 16 };
+    let limits = Limits { string: 32, items: 16, ..crate::fixture::SMALL };
     let record = read(wire, &limits).unwrap().unwrap();
     let Event::SessionStarted(started) = &record.event else { panic!("startup record") };
     assert_eq!(started.versions.chat_store, Some(1));

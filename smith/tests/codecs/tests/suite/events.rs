@@ -5,7 +5,7 @@ use crate::support::events as fixtures;
 use smith_events::{Capture, Error, Event, Limits, read, write};
 
 fn limits() -> Limits {
-    Limits { string: 64, content: 1024, items: 8 }
+    Limits { items: 8, ..smith_events::fixture::SMALL }
 }
 
 #[test]

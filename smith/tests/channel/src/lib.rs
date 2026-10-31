@@ -555,17 +555,13 @@ impl World {
                     smith_channel::Start::encoded_bound(&agent_bodies).expect("fixture Start bound"),
                 )
                 .expect("fixture frame"),
-                charter: smith_charter::CEILINGS,
-                transcript: smith_transcript::CEILINGS,
                 resume_turns: 256,
-                search_hits: 256,
                 channel,
                 endpoints: 1,
                 calls: 8,
                 turns: 8,
-                fact_reserve_frames: 1,
-                fact_reserve_bytes: 128,
                 grants: 8,
+                ..agent::fixture::small()
             },
             mode,
         );

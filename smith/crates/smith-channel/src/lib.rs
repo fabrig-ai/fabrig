@@ -9,6 +9,9 @@
 
 extern crate alloc;
 
+#[cfg(any(test, feature = "fixture"))]
+pub mod fixture;
+
 #[rustfmt::skip]
 #[path = "generated/v5.rs"]
 pub mod v5;

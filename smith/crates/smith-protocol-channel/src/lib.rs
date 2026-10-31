@@ -23,6 +23,9 @@
 
 extern crate alloc;
 
+#[cfg(any(test, feature = "fixture"))]
+pub mod fixture;
+
 mod calls;
 mod component;
 mod credentials;

@@ -17,7 +17,7 @@ smith-transcript.workspace = true
 smith-domain.workspace = true
 smith-domain-session.workspace = true
 smith-host-domain.workspace = true
-smith-protocol-channel.workspace = true
+smith-protocol-channel = { workspace = true, features = ["fixture"] }
 smith-protocol-translate.workspace = true
 smith-host-protocol.workspace = true
 smith-agent-world.workspace = true
