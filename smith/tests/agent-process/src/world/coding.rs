@@ -70,7 +70,6 @@ pub(super) fn start(parent: &mut Parent, charter: &[u8]) {
     frame.put(&body.finish()).expect("frame body");
     parent.peer = crate::host_with_limits(configuration().limits.channel);
     parent.peer.play(frame.finish().expect("frame"));
-    parent.program_arguments(Box::new([b"coding".as_slice().into()]), None);
     parent.coding_deliveries = Some(0);
 }
 

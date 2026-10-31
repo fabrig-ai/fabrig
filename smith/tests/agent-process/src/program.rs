@@ -9,7 +9,7 @@ use skein_shell::{Delegate, Host};
 use skein_world::{HostedProgram, Inherited, Referee};
 use smith_fake_claude::{Fake, Story};
 
-use crate::world::Parent;
+use crate::world::{Parent, ParentOptions, Setup};
 
 #[path = "program/waiting.rs"]
 mod waiting;
@@ -656,20 +656,19 @@ fn run_scenario(
         let mut parent = Parent::new(
             root,
             charter,
-            false,
-            None,
-            8,
-            false,
-            initial.as_ref(),
-            if case == Case::Events {
-                smith_agent_service::sinks::Capture::Everything
-            } else {
-                smith_agent_service::sinks::Capture::None
-            },
-            skein_llm::Provider::OpenAiCodex,
             value,
-            None,
-            0,
+            ParentOptions {
+                message: initial.as_ref(),
+                setup: Setup {
+                    capture: if case == Case::Events {
+                        smith_agent_service::sinks::Capture::Everything
+                    } else {
+                        smith_agent_service::sinks::Capture::None
+                    },
+                    ..Setup::default()
+                },
+                ..ParentOptions::default()
+            },
         );
         parent.program_messages = waiting::messages(releases.unwrap_or(&[]));
         parent

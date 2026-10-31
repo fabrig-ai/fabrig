@@ -6,6 +6,8 @@
 use crate::fake;
 
 mod coding;
+mod setup;
+pub(crate) use setup::{Mode, ParentOptions, Setup};
 pub(crate) mod orders;
 pub use orders::{Order, OrderSnapshot};
 use skein_io::kernel::{self, Done, Fd, Op, Pipe, Spawn, Way};
@@ -47,21 +49,10 @@ pub(crate) struct Parent {
 }
 
 impl Parent {
-    #[expect(clippy::too_many_arguments, reason = "ordinary scenario harness supplies independent startup inputs")]
-    pub(crate) fn new(
-        root: Fd,
-        charter: &[u8],
-        hang_up: bool,
-        tracing: Option<(TraceCase, u32)>,
-        window: u32,
-        environment: bool,
-        message: Option<&smith_channel::Message>,
-        capture: smith_agent_service::sinks::Capture,
-        provider: skein_llm::Provider,
-        value: &smith_channel::GrantValue,
-        live: Option<smith_channel::LiveAsk>,
-        output: u32,
-    ) -> Self {
+    pub(crate) fn new(root: Fd, charter: &[u8], value: &smith_channel::GrantValue, options: ParentOptions<'_>) -> Self {
+        let ParentOptions { hang_up, window, message, live, setup } = options;
+        let Setup { tracing, capture: _, provider, output, mode, order_requests: _ } = setup;
+        let environment = matches!(mode, Mode::Environment);
         let mut peer = if matches!(tracing, Some((TraceCase::StoppedReasoning, _))) {
             crate::host_with_limits(crate::reasoning_configuration().limits.channel)
         } else if output > 0 {
@@ -115,34 +106,7 @@ impl Parent {
         parent.submit(Op::Spawn {
             spawn: Box::new(Spawn {
                 program: b"smith".as_slice().into(),
-                args: if provider == skein_llm::Provider::OpenAi {
-                    Box::new([Box::from(&b"openai"[..])])
-                } else if environment {
-                    Box::new([Box::from(b"environment".as_slice())])
-                } else {
-                    tracing.map_or_else(
-                        || Box::new([]) as Box<[Box<[u8]>]>,
-                        |(case, frames)| {
-                            Box::new([
-                                Box::new([b'0' + case.number()]) as Box<[u8]>,
-                                frames.to_string().into_bytes().into_boxed_slice(),
-                                match capture {
-                                    smith_agent_service::sinks::Capture::None => Box::from(b"none".as_slice()),
-                                    smith_agent_service::sinks::Capture::Calls => Box::from(b"calls".as_slice()),
-                                    smith_agent_service::sinks::Capture::Everything => {
-                                        Box::from(b"everything".as_slice())
-                                    }
-                                },
-                                Box::from(if provider == skein_llm::Provider::Anthropic {
-                                    b"anthropic".as_slice()
-                                } else {
-                                    b"codex".as_slice()
-                                }),
-                                output.to_string().into_bytes().into_boxed_slice(),
-                            ])
-                        },
-                    )
-                },
+                args: setup.arguments(),
                 env: Box::new([]),
                 root,
                 dir: Box::new([]),
@@ -484,67 +448,57 @@ impl Host for Proc {
     }
 }
 fn make(spawn: &Spawn, inherited: &Inherited) -> Proc {
-    let fd = inherited.pipes.iter().find(|(child, _)| *child == 2).expect("stderr").1;
-    let (errors, capture) = crate::AgentErrors::pipe(fd);
-    let mut configuration = if spawn.args.first().is_some_and(|arg| arg.as_ref() == b"coding") {
-        coding::configuration()
-    } else if spawn.args.first().is_some_and(|arg| arg.as_ref() == b"openai") {
-        crate::configuration_for(skein_llm::Provider::OpenAi)
-    } else {
-        crate::configuration()
-    };
-    if spawn.args.first().is_some_and(|arg| arg.as_ref() == b"environment") {
-        configuration.limits.machine.env_bytes = 128;
-        configuration.environment = smith_protocol_machine::Environment::encode(
-            &[
-                smith_protocol_machine::Variable {
-                    name: b"BUILD_FLAG".as_slice().into(),
-                    value: b"configured=value".as_slice().into(),
-                },
-                smith_protocol_machine::Variable { name: b"EMPTY".as_slice().into(), value: Box::new([]) },
-            ],
-            &configuration.limits.machine,
-        )
-        .expect("configured command environment");
-    }
-    if spawn.args.first().is_some_and(|argument| argument.as_ref() == b"roots") {
-        configuration.limits.machine.file_bytes = configuration.limits.domain.session.tools.file_bytes;
-    }
-    let agent = crate::configured(configuration, 7, inherited, errors.clone());
-    Proc::Agent(Box::new(capture.host(agent)), errors)
-}
-
-fn make_tracing(spawn: &Spawn, inherited: &Inherited) -> Proc {
-    let output = std::str::from_utf8(&spawn.args[4]).expect("output argument").parse().expect("output tokens");
-    let mut configuration = if output > 0 {
-        crate::configuration_output(spawn.args[3].as_ref() == b"anthropic", output)
-    } else if spawn.args[0].as_ref() == b"8" {
-        crate::reasoning_configuration()
-    } else {
-        crate::configuration_for(if spawn.args[3].as_ref() == b"anthropic" {
-            skein_llm::Provider::Anthropic
+    let setup = Setup::read(spawn);
+    let mut configuration = if setup.tracing.is_some() {
+        if setup.output > 0 {
+            crate::configuration_output(setup.provider == skein_llm::Provider::Anthropic, setup.output)
+        } else if matches!(setup.tracing, Some((TraceCase::StoppedReasoning, _))) {
+            crate::reasoning_configuration()
         } else {
-            skein_llm::Provider::OpenAiCodex
-        })
+            crate::configuration_for(setup.provider)
+        }
+    } else {
+        match setup.mode {
+            Mode::Coding => coding::configuration(),
+            Mode::Ordinary | Mode::Environment | Mode::Roots => crate::configuration_for(setup.provider),
+        }
     };
-    if spawn.args[0].as_ref() == b"6" {
-        configuration.limits.llm.connection.connections = 3;
-        configuration.limits.llm.connection.calls = 3;
-        configuration.limits.llm.connection.per_endpoint = 3;
+    match setup.mode {
+        Mode::Environment => {
+            configuration.limits.machine.env_bytes = 128;
+            configuration.environment = smith_protocol_machine::Environment::encode(
+                &[
+                    smith_protocol_machine::Variable {
+                        name: b"BUILD_FLAG".as_slice().into(),
+                        value: b"configured=value".as_slice().into(),
+                    },
+                    smith_protocol_machine::Variable { name: b"EMPTY".as_slice().into(), value: Box::new([]) },
+                ],
+                &configuration.limits.machine,
+            )
+            .expect("configured command environment");
+        }
+        Mode::Roots => configuration.limits.machine.file_bytes = configuration.limits.domain.session.tools.file_bytes,
+        Mode::Ordinary | Mode::Coding => {}
     }
-    configuration.limits.channel.channel.output_frames =
-        std::str::from_utf8(&spawn.args[1]).expect("frame argument").parse().expect("frame allowance");
-    if spawn.args.get(5).is_some_and(|argument| argument.as_ref() == b"order-requests") {
-        configuration.limits.io.sends = orders::OUTPUT_SENDS;
-        configuration.limits.llm.connection.io.sends = orders::OUTPUT_SENDS;
+    if let Some((case, frames)) = setup.tracing {
+        if case == TraceCase::ThreeChildren {
+            configuration.limits.llm.connection.connections = 3;
+            configuration.limits.llm.connection.calls = 3;
+            configuration.limits.llm.connection.per_endpoint = 3;
+        }
+        configuration.limits.channel.channel.output_frames = frames;
+        if setup.order_requests {
+            configuration.limits.io.sends = orders::OUTPUT_SENDS;
+            configuration.limits.llm.connection.io.sends = orders::OUTPUT_SENDS;
+        }
+        Proc::Tracing(Box::new(crate::tracing::Tracing::new(configuration, inherited, setup.capture)))
+    } else {
+        let fd = inherited.pipes.iter().find(|(child, _)| *child == 2).expect("stderr").1;
+        let (errors, capture) = crate::AgentErrors::pipe(fd);
+        let agent = crate::configured(configuration, 7, inherited, errors.clone());
+        Proc::Agent(Box::new(capture.host(agent)), errors)
     }
-    let capture = match spawn.args[2].as_ref() {
-        b"none" => smith_agent_service::sinks::Capture::None,
-        b"calls" => smith_agent_service::sinks::Capture::Calls,
-        b"everything" => smith_agent_service::sinks::Capture::Everything,
-        _ => panic!("selected native capture policy"),
-    };
-    Proc::Tracing(Box::new(crate::tracing::Tracing::new(configuration, inherited, capture)))
 }
 
 fn unused_roots(spawn: &Spawn) -> Vec<skein_world::StartupRoot> {
@@ -555,7 +509,7 @@ fn unused_roots(spawn: &Spawn) -> Vec<skein_world::StartupRoot> {
             path: [b"/", name.as_slice()].concat().into(),
         })
         .collect();
-    if spawn.args.len() >= 4 {
+    if Setup::read(spawn).tracing.is_some() {
         roots.push(skein_world::StartupRoot {
             name: b"event-trace".as_slice().into(),
             path: b"event-trace".as_slice().into(),
@@ -851,7 +805,7 @@ impl skein_world::Referee<Proc> for Referee {
 
 /// Scenario configuration and a settled shared-harness outcome.
 /// The run terminal selected by the process scenario's inputs.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum TraceCase {
     /// The independent provider calls the granted finish tool.
     Accepted,
@@ -874,20 +828,6 @@ pub enum TraceCase {
 }
 
 impl TraceCase {
-    fn number(self) -> u8 {
-        match self {
-            Self::Accepted => 0,
-            Self::Failed => 1,
-            Self::Refused => 2,
-            Self::Parked => 3,
-            Self::Cancelled => 4,
-            Self::ChildAnswered => 5,
-            Self::ThreeChildren => 6,
-            Self::ProviderRejected => 7,
-            Self::StoppedReasoning => 8,
-        }
-    }
-
     fn peer(self, anthropic: bool, credential: skein_llm::Credential) -> skein_fake_peers::llm::Peer {
         use skein_fake_llm_domain::api;
         if self == Self::ChildAnswered || self == Self::ThreeChildren {
@@ -1458,32 +1398,46 @@ impl World {
         world.host_roots(
             HostedProgram {
                 program: b"smith".as_slice().into(),
-                make: if self.tracing.is_some() { make_tracing } else { make },
+                make,
                 instances: 1,
                 operations: crate::limits().routes.checked_add(8).expect("routes, startup trace and inherited closes"),
             },
             unused_roots,
         );
         world.spawn_root(skein_sim::Handle::new(root.raw()), |root| {
-            let mut parent = Parent::new(
-                root,
-                &self.charter,
-                self.hang_up,
-                self.tracing,
-                self.window,
-                self.environment,
-                self.message.as_ref(),
-                self.capture,
-                if self.openai {
+            let setup = Setup {
+                mode: if self.coding {
+                    Mode::Coding
+                } else if self.root_path.is_some() {
+                    Mode::Roots
+                } else if self.environment {
+                    Mode::Environment
+                } else {
+                    Mode::Ordinary
+                },
+                tracing: self.tracing,
+                capture: self.capture,
+                provider: if self.openai {
                     skein_llm::Provider::OpenAi
                 } else if self.anthropic {
                     skein_llm::Provider::Anthropic
                 } else {
                     skein_llm::Provider::OpenAiCodex
                 },
+                output: self.output,
+                order_requests: matches!(self.order, Some(Order::Requests)),
+            };
+            let mut parent = Parent::new(
+                root,
+                &self.charter,
                 &self.grant_value(),
-                self.live.clone(),
-                self.output,
+                ParentOptions {
+                    hang_up: self.hang_up,
+                    window: self.window,
+                    message: self.message.as_ref(),
+                    live: self.live.clone(),
+                    setup,
+                },
             );
             if self.coding {
                 coding::start(&mut parent, &self.charter);
@@ -1491,19 +1445,10 @@ impl World {
             if let Some(path) = &self.root_path {
                 parent.peer = crate::host();
                 parent.peer.play(crate::start_root(&self.charter, path));
-                parent.program_arguments(Box::new([b"roots".as_slice().into()]), None);
             }
             if let Some(turns) = &self.saved_window {
                 parent.peer = crate::host();
                 parent.peer.play(crate::program_world::start_with_window(&self.charter, &self.grant_value(), turns));
-            }
-            if matches!(self.order, Some(Order::Requests)) {
-                let mut startup = parent.submissions.pop().expect("initial spawn");
-                let Op::Spawn { spawn } = &mut startup.kind else { panic!("initial spawn") };
-                let mut arguments = spawn.args.to_vec();
-                arguments.push(b"order-requests".as_slice().into());
-                spawn.args = arguments.into_boxed_slice();
-                parent.submissions.push(startup);
             }
             parent.hold_channel = self.hold_channel;
             parent.refreshing.clone_from(&self.refreshing);
