@@ -35,6 +35,9 @@ FORMS = {
         r'for _ in 0\.\.[^{};]*\{\s*(?:drop\(|let _ = )?[\w.\[\]()]+\.pop(?:_front)?\(\)\)?;\s*\}'
     ),
     'decimal_hex': re.compile(r'\bfn (?:decimal|hex)\b'),
+    'dispatcher': re.compile(
+        r'fn iterate\(&mut self, now: Time, wall: Wall\)\s*\{\s*(?:self\.host_mut\(\)\.iterate|match self)'
+    ),
 }
 EXEMPT = {
     'worst_case': (
@@ -54,6 +57,7 @@ EXCLUDED = {
     'earliest_helper': ('crates/skein-lib/',),
     'enum_lifecycle': ('crates/skein-lib/',),
     'decimal_hex': ('crates/skein-lib/',),
+    'dispatcher': ('crates/skein-shell/',),
 }
 BASELINE = Path('scripts/old-forms.txt')
 HEADER = (
@@ -121,7 +125,7 @@ def counts():
         source = Path(decoded_path).read_text(encoding='utf-8')
         if not any(marker in source for marker in (
             *FORMS, 'MAX_OUT', 'resume', 'earl', 'Lifecycle', 'GROWTH_FLOOR',
-            'pop', 'fn decimal', 'fn hex',
+            'pop', 'fn decimal', 'fn hex', 'fn iterate',
         )):
             continue
         source = without_comments(source)

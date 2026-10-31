@@ -635,11 +635,8 @@ impl Host for Peer {
                     || connection.wire.work_pending()
             })
     }
-    fn next_deadline(&self) -> Option<Time> {
-        [self.face.io.next_deadline(), self.forge.borrow().domain.next_deadline(), self.github_deadline()]
-            .into_iter()
-            .flatten()
-            .min()
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        self.face.io.next_deadline()
     }
     fn next_policy_deadline(&self) -> Option<Time> {
         [self.forge.borrow().domain.next_deadline(), self.github_deadline()].into_iter().flatten().min()

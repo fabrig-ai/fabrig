@@ -5,7 +5,7 @@ use std::io::Write;
 use skein_io::kernel::{Complete, Exit, Spawn, Submit};
 use skein_lib::{Duration, Queue, Time, Wall};
 use skein_sim::{Config, Faults, Handle};
-use skein_world::{Host, HostedProgram, Inherited, Memory, PipeHost, PipeWriter, World, real};
+use skein_world::{Dispatch, Host, HostedProgram, Inherited, Memory, PipeHost, PipeWriter, World, real};
 use skein_world_tests::hosted::{Act, Judge, RootMachine, Script};
 
 #[derive(Debug)]
@@ -60,7 +60,7 @@ enum Process {
     Child(Box<PipeHost<Diagnostic>>),
 }
 
-impl Process {
+impl Dispatch for Process {
     fn host(&self) -> &dyn Host {
         match self {
             Self::Parent(host) => host.as_ref(),
@@ -73,46 +73,14 @@ impl Process {
             Self::Child(host) => host.as_mut(),
         }
     }
+}
+
+impl Process {
     fn parent(&self) -> &Script {
         match self {
             Self::Parent(host) => host,
             Self::Child(_) => panic!("parent"),
         }
-    }
-}
-
-impl Host for Process {
-    fn iterate(&mut self, now: Time, wall: Wall) {
-        self.host_mut().iterate(now, wall);
-    }
-    fn drain(&mut self) {
-        self.host_mut().drain();
-    }
-    fn completions(&mut self) -> &mut Queue<Complete> {
-        self.host_mut().completions()
-    }
-    fn submissions(&mut self) -> &mut Queue<Submit> {
-        self.host_mut().submissions()
-    }
-    fn work_pending(&self, now: Time) -> bool {
-        self.host().work_pending(now)
-    }
-    fn next_deadline(&self) -> Option<Time> {
-        self.host().next_deadline()
-    }
-
-    fn next_policy_deadline(&self) -> Option<Time> {
-        self.host().next_policy_deadline()
-    }
-
-    fn is_empty(&self) -> bool {
-        self.host().is_empty()
-    }
-    fn exit(&self) -> Option<Exit> {
-        self.host().exit()
-    }
-    fn operations(&self) -> u32 {
-        self.host().operations()
     }
 }
 

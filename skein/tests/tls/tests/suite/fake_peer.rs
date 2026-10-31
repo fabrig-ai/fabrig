@@ -11,7 +11,7 @@ use skein_lib::stream::{Down, Read, Up};
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
 use skein_tls::client::{self, Client, Event, Request};
 use skein_tls_world::pki;
-use skein_world::{Host, Memory, Referee, World};
+use skein_world::{Dispatch, Host, Memory, Referee, World};
 
 const ROOM: u32 = 64;
 const OWNER: Token = Token::new(1);
@@ -206,7 +206,7 @@ enum Process {
     Sender(Box<Sender>),
     Peer(Box<llm::Peer>),
 }
-impl Process {
+impl Dispatch for Process {
     fn host(&self) -> &dyn Host {
         match self {
             Self::Sender(sender) => sender.as_ref(),
@@ -218,32 +218,6 @@ impl Process {
             Self::Sender(sender) => sender.as_mut(),
             Self::Peer(peer) => peer.as_mut(),
         }
-    }
-}
-impl Host for Process {
-    fn iterate(&mut self, now: Time, wall: Wall) {
-        self.host_mut().iterate(now, wall);
-    }
-    fn completions(&mut self) -> &mut Queue<kernel::Complete> {
-        self.host_mut().completions()
-    }
-    fn submissions(&mut self) -> &mut Queue<kernel::Submit> {
-        self.host_mut().submissions()
-    }
-    fn work_pending(&self, now: Time) -> bool {
-        self.host().work_pending(now)
-    }
-    fn next_deadline(&self) -> Option<Time> {
-        self.host().next_deadline()
-    }
-    fn next_policy_deadline(&self) -> Option<Time> {
-        self.host().next_policy_deadline()
-    }
-    fn is_empty(&self) -> bool {
-        self.host().is_empty()
-    }
-    fn operations(&self) -> u32 {
-        self.host().operations()
     }
 }
 
