@@ -182,6 +182,10 @@ pub(crate) fn route_forge(
             forge::Request::PanelEnded { subject } => refresh_panel(root, env, subject, true, out),
             forge::Request::Client { asked } => client(root, env, asked, out),
             forge::Request::Leave { to } => out.push(Request::Leave { to, replace: false }),
+            forge::Request::PlaygroundReset => out.push(Request::Show {
+                address: Address::Welcome { step: crate::Step::Forge { forge: None } },
+                replace: false,
+            }),
             forge::Request::Show { address } => {
                 let forge::Address::Adopt { project } = address;
                 out.push(Request::Show { address: Address::Adopt { project }, replace: false });
