@@ -30,7 +30,7 @@ fn row_floor() -> u32 {
 fn payload() -> Box<[u8]> {
     // The root fixture's row floor is about 323 KiB. Its frame is larger
     // still, allowing both boundary pages to pass the shell's size check.
-    vec![b'x'; usize::try_from(row_floor()).expect("fixture row floor")].into_boxed_slice()
+    vec![b'x'; skein_lib::length::usize_of(row_floor())].into_boxed_slice()
 }
 
 fn opened(page: u32) -> World {
@@ -250,7 +250,7 @@ fn the_frame_bound_covers_each_transcript_size() {
     let mut previous = None;
     for size in sizes {
         let bound = sizes::frame(&core, size).unwrap_or_else(|| panic!("no frame bound for admitted size {size}"));
-        let transcript = vec![b'x'; usize::try_from(size).expect("small fixture")];
+        let transcript = vec![b'x'; skein_lib::length::usize_of(size)];
         if size >= floor {
             let actual = frame_bytes(&transcript);
             assert!(actual <= bound, "transcript {size}: refused frame {actual} exceeds bound {bound}");

@@ -331,7 +331,7 @@ fn task_with_words(number: u64, bytes: usize) -> core::Record {
 
 #[test]
 fn live_record_exactly_at_decode_bound_switches() {
-    let bound = usize::try_from(root::TASKS_LIMITS.spec_bytes).expect("spec bound fits");
+    let bound = skein_lib::length::usize_of(root::TASKS_LIMITS.spec_bytes);
     let row = task_with_words(root::LIVE, bound);
     let mut world = empty().committed_with(SEED, patches::BASE, 1, patches::limits(), std::slice::from_ref(&row));
     world.patch_sets(patches::SETS);
@@ -343,7 +343,7 @@ fn live_record_exactly_at_decode_bound_switches() {
 fn live_record_one_byte_past_decode_bound_refuses_load() {
     let mut initial = patches::limits();
     initial.core.tasks.spec_bytes += 1;
-    let bytes = usize::try_from(initial.core.tasks.spec_bytes).expect("spec bound fits");
+    let bytes = skein_lib::length::usize_of(initial.core.tasks.spec_bytes);
     let row = task_with_words(root::LIVE, bytes);
     let mut world = empty().committed_with(SEED, patches::BASE, 1, initial, std::slice::from_ref(&row));
     world.restart_with_limits(SEED, patches::limits());
@@ -479,7 +479,7 @@ fn manifest_family_and_name_bounds_hold_at_first_start() {
     world.patch_sets(sets);
     assert_eq!(world.open_switched(), Some(0), "{:?}", world.refusal());
     let first = manifest(&mut world, 1);
-    assert_eq!(usize::try_from(first.counts.len()).expect("count fits"), FAMILY_BOUND);
+    assert_eq!(skein_lib::length::usize_of(first.counts.len()), FAMILY_BOUND);
     assert!(first.counts.iter().all(|row| row.before() == 0 && row.after() == 0));
 }
 
@@ -493,7 +493,7 @@ fn each_manifest_bound_fits_without_the_other_at_bound() {
         world.patch_sets(bounded_sets(families, name_bytes));
         assert_eq!(world.open_switched(), Some(0), "{families} families, {name_bytes} bytes: {:?}", world.refusal());
         let first = manifest(&mut world, 1);
-        assert_eq!(usize::try_from(first.counts.len()).expect("count fits"), families);
+        assert_eq!(skein_lib::length::usize_of(first.counts.len()), families);
     }
 }
 
@@ -507,7 +507,7 @@ fn combined_manifest_bounds_fit_with_larger_file_chunks() {
     world.patch_sets(bounded_sets(FAMILY_BOUND, NAME_BOUND));
     assert_eq!(world.open_switched(), Some(0), "{:?}", world.refusal());
     let first = manifest(&mut world, 1);
-    assert_eq!(usize::try_from(first.counts.len()).expect("count fits"), FAMILY_BOUND);
+    assert_eq!(skein_lib::length::usize_of(first.counts.len()), FAMILY_BOUND);
 }
 
 #[test]

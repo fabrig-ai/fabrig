@@ -478,7 +478,7 @@ fn several_frames_suspend_at_their_own_offsets_in_both_directions() {
         let order: Vec<_> = if backwards { (0..COUNT).rev().collect() } else { (0..COUNT).collect() };
         let mut after = None;
         let mut found = Vec::new();
-        for page in order.chunks(usize::try_from(patches::limits().store.page.rows).expect("page rows")) {
+        for page in order.chunks(skein_lib::length::usize_of(patches::limits().store.page.rows)) {
             let mut events =
                 world.request(ask(TranscriptRead::Page { task: frames::TASK, backwards, after }, READ_BYTES));
             for index in page {

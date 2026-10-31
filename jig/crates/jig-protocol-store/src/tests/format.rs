@@ -296,9 +296,7 @@ fn the_manifest_at_both_bounds_reaches_its_whole_file_price() {
                 codec::component::Count::new(
                     ceilings,
                     codec::component::CountParts {
-                        family: Box::from(
-                            "f".repeat(usize::try_from(ceilings.count_family).expect("name fits")).as_bytes(),
-                        ),
+                        family: Box::from("f".repeat(skein_lib::length::usize_of(ceilings.count_family)).as_bytes()),
                         before: u64::MAX,
                         after: u64::MAX,
                     },
@@ -324,7 +322,7 @@ fn the_manifest_at_both_bounds_reaches_its_whole_file_price() {
         skein_lib::Wall::EPOCH,
     );
     assert_eq!(sizes::MANIFEST_BYTES, 5464);
-    assert_eq!(manifest.len(), usize::try_from(sizes::MANIFEST_BYTES).expect("manifest fits"));
+    assert_eq!(manifest.len(), skein_lib::length::usize_of(sizes::MANIFEST_BYTES));
 }
 
 #[test]

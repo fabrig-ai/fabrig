@@ -51,7 +51,7 @@ pub fn committed(count: u32) -> World {
     // Each commit retains one slot for the deployment header.
     let per_commit = limits().commits.writes - 1;
     let mut number = 0_u64;
-    for start in (0..count).step_by(usize::try_from(per_commit).expect("fixture writes")) {
+    for start in (0..count).step_by(skein_lib::length::usize_of(per_commit)) {
         number += 1;
         let mut writes = vec![Write::Save(root::header(number))];
         writes

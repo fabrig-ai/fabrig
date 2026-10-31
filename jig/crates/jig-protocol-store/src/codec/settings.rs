@@ -1,5 +1,4 @@
 //! Typed settings records (protocol/store.md, sections 4.4 and 5).
-#![expect(clippy::manual_map, reason = "step code translates optional fields through exhaustive matches")]
 #![expect(
     clippy::trivially_copy_pass_by_ref,
     reason = "typed encoders uniformly borrow the domain values they translate"
@@ -1623,37 +1622,37 @@ pub fn encode(
     match record {
         settings::Record::Default { default, .. } => {
             let value = encode_default(default, limits, names)?;
-            let mut writer = Writer::new(usize::try_from(value.measure()).expect("settings row size"));
+            let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
             value.encode(&mut writer).expect("measured row");
             Ok(writer.finish())
         }
         settings::Record::Changed { changed, .. } => {
             let value = encode_changed(changed, limits, names)?;
-            let mut writer = Writer::new(usize::try_from(value.measure()).expect("settings row size"));
+            let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
             value.encode(&mut writer).expect("measured row");
             Ok(writer.finish())
         }
         settings::Record::Revision { revision, .. } => {
             let value = encode_revision(revision, limits, names)?;
-            let mut writer = Writer::new(usize::try_from(value.measure()).expect("settings row size"));
+            let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
             value.encode(&mut writer).expect("measured row");
             Ok(writer.finish())
         }
         settings::Record::Extent { oldest } => {
             let value = wire::Extent::new(limits, wire::ExtentParts { oldest: *oldest })?;
-            let mut writer = Writer::new(usize::try_from(value.measure()).expect("extent size"));
+            let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
             value.encode(&mut writer).expect("measured row");
             Ok(writer.finish())
         }
         settings::Record::Charter { value, .. } => {
             let value = encode_charter_version(value, limits)?;
-            let mut writer = Writer::new(usize::try_from(value.measure()).expect("settings row size"));
+            let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
             value.encode(&mut writer).expect("measured row");
             Ok(writer.finish())
         }
         settings::Record::Proposal { value, .. } => {
             let value = encode_proposal(value, limits, names)?;
-            let mut writer = Writer::new(usize::try_from(value.measure()).expect("settings row size"));
+            let mut writer = Writer::new(skein_lib::length::usize_of(value.measure()));
             value.encode(&mut writer).expect("measured row");
             Ok(writer.finish())
         }

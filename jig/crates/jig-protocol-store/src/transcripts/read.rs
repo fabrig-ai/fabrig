@@ -449,7 +449,7 @@ fn length(
         if length < 48 {
             if store.transcripts.machines.body.is_some() {
                 read.step =
-                    Step::Frame { offset: start, length, bytes: Writer::new(usize::try_from(length).expect("frame")) };
+                    Step::Frame { offset: start, length, bytes: Writer::new(skein_lib::length::usize_of(length)) };
                 demand(store, read, start, length, below)?;
                 return Ok(false);
             }
@@ -459,7 +459,7 @@ fn length(
         demand(store, read, start, 36, below)?;
         return Ok(false);
     }
-    read.step = Step::Frame { offset: start, length, bytes: Writer::new(usize::try_from(length).expect("u32 frame")) };
+    read.step = Step::Frame { offset: start, length, bytes: Writer::new(skein_lib::length::usize_of(length)) };
     demand(store, read, start, length, below)?;
     Ok(false)
 }
@@ -528,7 +528,7 @@ fn header(
             }
             return Ok(true);
         }
-        read.step = Step::Frame { offset, length, bytes: Writer::new(usize::try_from(length).expect("bounded frame")) };
+        read.step = Step::Frame { offset, length, bytes: Writer::new(skein_lib::length::usize_of(length)) };
         demand(store, read, offset, length, below)?;
         return Ok(false);
     }
@@ -582,7 +582,7 @@ fn activity_header(
             return Ok(true);
         }
     }
-    read.step = Step::Frame { offset, length, bytes: Writer::new(usize::try_from(length).expect("bounded frame")) };
+    read.step = Step::Frame { offset, length, bytes: Writer::new(skein_lib::length::usize_of(length)) };
     demand(store, read, offset, length, below)?;
     Ok(false)
 }
@@ -803,7 +803,7 @@ fn whole_from_head(
     head: &[u8],
     below: &mut Below,
 ) -> Result<bool, ()> {
-    let mut bytes = Writer::new(usize::try_from(length).expect("u32 frame"));
+    let mut bytes = Writer::new(skein_lib::length::usize_of(length));
     bytes.put(head).or(Err(()))?;
     let consumed = u64::try_from(bytes.written()).or(Err(()))?;
     let max = u32::try_from(bytes.room()).or(Err(()))?;
@@ -964,7 +964,7 @@ fn extend_header(
         return Err(());
     }
     let tail = header_size.checked_sub(36).expect("fixed header");
-    let mut header = Writer::new(usize::try_from(header_size).expect("fixed header"));
+    let mut header = Writer::new(skein_lib::length::usize_of(header_size));
     header.put(&bytes).or(Err(()))?;
     read.step = Step::Header { offset, length, bytes: header };
     demand(store, read, offset.checked_add(36).ok_or(())?, tail, below)?;

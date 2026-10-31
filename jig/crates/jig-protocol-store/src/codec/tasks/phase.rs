@@ -769,7 +769,7 @@ fn check_result(source: &domain::TaskResult, limits: &wire::Limits) -> Result<()
         domain::TaskResult::Report { words } | domain::TaskResult::Change { words, .. } => words.len(),
         domain::TaskResult::Failure { reason } => reason.len(),
     };
-    if bytes > usize::try_from(limits.result_field_value).expect("limit fits usize") {
+    if bytes > skein_lib::length::usize_of(limits.result_field_value) {
         return Err(problem(wire::Path::TaskResultTag));
     }
     Ok(())

@@ -44,12 +44,7 @@ fn turns() -> [core::TurnRecord; 3] {
             spent: 21,
             read: Some(22),
             at: Wall::from_nanos(23),
-            ..root::turn(
-                root::LIVE,
-                1,
-                2,
-                &vec![b'x'; usize::try_from(TRANSCRIPT_BYTES).expect("fixed transcript size")],
-            )
+            ..root::turn(root::LIVE, 1, 2, &vec![b'x'; skein_lib::length::usize_of(TRANSCRIPT_BYTES)])
         },
         core::TurnRecord {
             spent: 31,

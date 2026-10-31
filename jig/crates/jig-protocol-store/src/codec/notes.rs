@@ -73,7 +73,7 @@ pub fn encode(row: &domain::Record, limits: &wire::Limits) -> Result<Box<[u8]>, 
         }
     };
     let row = wire::Row::new(limits, wire::RowParts { value })?;
-    let mut writer = Writer::new(usize::try_from(row.measure()).expect("encoded row fits usize"));
+    let mut writer = Writer::new(skein_lib::length::usize_of(row.measure()));
     row.encode(&mut writer).expect("measured room");
     Ok(writer.finish())
 }
@@ -140,7 +140,7 @@ fn encode_scope(scope: &domain::Scope, limits: &wire::Limits) -> Result<wire::Sc
                     return Err(pattern_problem());
                 }
             }
-            if bytes > usize::try_from(limits.segment_bytes).expect("limit fits usize") {
+            if bytes > skein_lib::length::usize_of(limits.segment_bytes) {
                 return Err(pattern_problem());
             }
             let last = match last {
@@ -187,7 +187,7 @@ fn decode_scope(scope: wire::Scope, limits: &wire::Limits) -> Result<domain::Sco
                 bytes = bytes.saturating_add(segment.len());
                 members.push(segment).expect("same number of segments");
             }
-            if bytes > usize::try_from(limits.segment_bytes).expect("limit fits usize") {
+            if bytes > skein_lib::length::usize_of(limits.segment_bytes) {
                 return Err(pattern_problem());
             }
             domain::Scope::Resources {
