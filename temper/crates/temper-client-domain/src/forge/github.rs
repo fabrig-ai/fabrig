@@ -127,7 +127,7 @@ pub(crate) fn send(side: &mut Side, limits: Limits, forge: u16, back: Option<Box
             w::Connect::new(
                 &bounds,
                 w::ConnectParts {
-                    forge: w::Making::Kept(w::Kept::new(&bounds, w::KeptParts { forge }).expect("kept forge fits")),
+                    forge: w::Making::Kept(w::Kept::new(&bounds, w::KeptParts { forge }).expect("forge number")),
                     how: w::How::GithubApp(w::GitHubApp::new(&bounds, w::GitHubAppParts { id }).expect("valid App id")),
                 },
             )
@@ -157,7 +157,7 @@ pub(crate) fn manifest(side: &mut Side, limits: Limits, forge: u16, back: Box<[u
         w::Connect::new(
             &bounds,
             w::ConnectParts {
-                forge: w::Making::Kept(w::Kept::new(&bounds, w::KeptParts { forge }).expect("kept forge fits")),
+                forge: w::Making::Kept(w::Kept::new(&bounds, w::KeptParts { forge }).expect("forge number")),
                 how,
             },
         )

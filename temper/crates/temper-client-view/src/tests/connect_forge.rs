@@ -1055,10 +1055,8 @@ fn connect_github_sends_the_flow_address_at_its_forge() {
             }
         }
         let w::Request::Connect(connect) = sent.expect("manifest Connect") else { panic!("Connect") };
-        assert_eq!(
-            connect.forge(),
-            &w::Making::Kept(w::Kept::new(&w::CEILINGS, w::KeptParts { forge: GITHUB }).unwrap())
-        );
+        let w::Making::Kept(kept) = connect.forge() else { panic!("kept forge") };
+        assert_eq!(kept.forge(), GITHUB);
         let w::How::GithubManifest(manifest) = connect.how() else { panic!("manifest") };
         assert_eq!(manifest.back().as_deref(), Some(back));
     }

@@ -1273,7 +1273,8 @@ fn at_once_sends_fixed_names_without_reading_or_marking_the_form() {
     let (_, _, w::Request::SetUp(value)) = sent(f::form_act(&mut root, forge::Act::SetUpAtOnce { forge: HERE })) else {
         panic!("setup")
     };
-    assert_eq!(value.forge(), &w::Making::Kept(w::Kept::new(&w::CEILINGS, w::KeptParts { forge: HERE }).unwrap()));
+    let w::Making::Kept(kept) = value.forge() else { panic!("kept forge") };
+    assert_eq!(kept.forge(), HERE);
     assert_eq!((value.org(), value.repository(), value.playground()), (b"work".as_slice(), b"hello".as_slice(), false));
     let w::SetUpProject::New(project) = value.project() else { panic!("new project") };
     assert_eq!(project.name(), b"Default");

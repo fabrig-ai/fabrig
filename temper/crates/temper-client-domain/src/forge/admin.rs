@@ -172,7 +172,7 @@ pub(crate) fn send(side: &mut Side, limits: Limits, forge: u16, out: &mut Queue<
         w::Connect::new(
             &bounds,
             w::ConnectParts {
-                forge: w::Making::Kept(w::Kept::new(&bounds, w::KeptParts { forge }).expect("kept forge fits")),
+                forge: w::Making::Kept(w::Kept::new(&bounds, w::KeptParts { forge }).expect("forge number")),
                 how,
             },
         )
