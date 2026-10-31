@@ -2989,6 +2989,9 @@ pub(crate) fn outputs(
             }
             forge::Request::ListDemoActs => super::demo::list_end_acts(domain),
             forge::Request::SendDemoAct(row) => super::demo::send_end_act(domain, row),
+            forge::Request::PlaygroundActs { .. } | forge::Request::ResetAct { .. } => {
+                // t-root-playground
+            }
             forge::Request::DemoStart { request } => super::demo::start(domain, env, decision, request),
             forge::Request::ForgeKept(record) => {
                 assert!(super::now(domain, Request::ForgeKept(record)), "forge runtime door");

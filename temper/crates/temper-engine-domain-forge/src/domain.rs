@@ -122,6 +122,8 @@ pub struct Domain {
     pub(crate) forge_number: u16,
     pub(crate) configured: Map<u16, crate::Configured>,
     pub(crate) under_box: bool,
+    pub(crate) playground_config: Option<crate::PlaygroundConfig>,
+    pub(crate) playground: Option<crate::Playground>,
     pub(crate) demo: Option<crate::DemoConfig>,
     bindings: Map<Box<[u8]>, Box<[u8]>>,
     pub(crate) demo_state: Option<crate::DemoState>,
@@ -536,6 +538,8 @@ impl Domain {
             forge_number,
             configured,
             under_box,
+            playground_config: None,
+            playground: None,
             demo: None,
             demo_state: None,
             bindings: Map::with_capacity(l.bindings),
@@ -1057,6 +1061,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
             };
             out.push(Request::Bound { request, answer });
         }
+        Event::PlaygroundMade { .. } | Event::PlaygroundFailed { .. } | Event::ResetActAnswered { .. } => {}
         Event::DemoActs { acts } => crate::demo::acts(d, acts, out),
         Event::DemoActAnswered { key, keep } => crate::demo::act_answered(d, key, keep, out),
         Event::SendDemoActs => crate::demo::send_acts(d, out),

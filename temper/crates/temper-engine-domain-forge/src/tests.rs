@@ -357,6 +357,8 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::Bound { .. }
         | Request::ListDemoActs
         | Request::SendDemoAct(_)
+        | Request::PlaygroundActs { .. }
+        | Request::ResetAct { .. }
         | Request::DemoStart { .. }
         | Request::Settled { .. }
         | Request::ForgeKept(_)
@@ -433,6 +435,8 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::Bound { .. }
         | Request::ListDemoActs
         | Request::SendDemoAct(_)
+        | Request::PlaygroundActs { .. }
+        | Request::ResetAct { .. }
         | Request::DemoStart { .. }
         | Request::Settled { .. }
         | Request::ForgeKept(_)
@@ -506,6 +510,8 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::Bound { .. }
         | Request::ListDemoActs
         | Request::SendDemoAct(_)
+        | Request::PlaygroundActs { .. }
+        | Request::ResetAct { .. }
         | Request::DemoStart { .. }
         | Request::Settled { .. }
         | Request::ForgeKept(_)

@@ -264,6 +264,18 @@ pub enum StartFailure {
     Adoption,
     NotConnected,
 }
+/// The playground's scripted provider and start deadline (temper/docs/design/draft/playground-reset.md, 6.1).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct PlaygroundConfig {
+    pub provider: u32,
+    pub deadline: skein_lib::Duration,
+}
+/// The reset's acts (temper/docs/design/draft/playground-reset.md, 6.2).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum ResetAct {
+    RemoveProject { project: u32 },
+    RemoveAccount { account: u32 },
+}
 /// The demo's fake LLM, forge and project (protocol/setup.md, 8.4).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct DemoConfig {
@@ -1159,6 +1171,17 @@ pub enum Event {
         address: Box<[u8]>,
         subject: Box<[u8]>,
     },
+    PlaygroundMade {
+        project: u32,
+        account: u32,
+    },
+    PlaygroundFailed {
+        why: StartFailure,
+    },
+    ResetActAnswered {
+        key: [u8; 16],
+        keep: bool,
+    },
     DemoActs {
         acts: Box<[DemoAct]>,
     },
@@ -1531,6 +1554,16 @@ pub enum Request {
     SetUpGroup {
         forge: u16,
         request: Token,
+    },
+    /// Make the playground's ordinary records (temper/docs/design/draft/playground-reset.md, 6.1).
+    PlaygroundActs {
+        request: Token,
+        forge: u16,
+    },
+    /// Send the reset's kept act (temper/docs/design/draft/playground-reset.md, 6.2).
+    ResetAct {
+        key: [u8; 16],
+        act: ResetAct,
     },
     DemoStart {
         request: Token,
