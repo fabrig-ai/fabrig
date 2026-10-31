@@ -18,15 +18,7 @@ const STDERR_READ: u32 = 4096;
 #[cfg(test)]
 mod tests;
 
-/// The executable, arguments, credential-free environment and prepared view.
-#[derive(Debug)]
-pub struct Launch {
-    pub program: Box<[u8]>,
-    pub arguments: Box<[Box<[u8]>]>,
-    pub environment: Box<[Box<[u8]>]>,
-    pub root: kernel::Fd,
-    pub directory: Box<[u8]>,
-}
+pub use smith_protocol_program::Launch;
 
 /// Process and channel observations for the host service.
 #[derive(Debug, PartialEq, Eq)]
