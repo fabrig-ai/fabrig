@@ -20,7 +20,7 @@ impl<A: crate::Application> crate::Engine<A> {
         operations: &List<Operation>,
         wall: Wall,
     ) -> Result<(Answer, Vec<crate::Change>), crate::Invalid> {
-        let offers = self.truth.owner_projects.get(&project).map(|p| &p.acts);
+        let offers = self.truth.projects.get(&project).map(|p| &p.acts);
         let admission = offers.and_then(|rows| rows.iter().find(|offer| offer.act == c::ActKind::Reorder));
         let refusal = if self.truth.visible(party, project) {
             match admission.map(|offer| &offer.admission) {
@@ -57,7 +57,7 @@ impl<A: crate::Application> crate::Engine<A> {
         }
         self.truth = next;
         Ok((
-            Answer::Done(c::Outcome::Owner(c::OwnerOutcome::Compound {
+            Answer::Done(c::Outcome::Document(c::DocumentOutcome::Compound {
                 project,
                 operations: operations.len(),
                 first_message: self.next_commit,

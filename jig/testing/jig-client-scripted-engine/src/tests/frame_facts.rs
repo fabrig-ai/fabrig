@@ -32,7 +32,7 @@ fn builtin_roles_remain_memberships_without_becoming_numeric_policy_recipients()
         row.projects.get_mut(0).unwrap().pool = Some(PoolLedger {
             source: Funder::Pool { project: u32::MAX, person: u64::MAX, period: u64::MAX },
             parent: Some(Funder::Period { project: u32::MAX, period: u64::MAX }),
-            numbers: OwnerNumbers { budget: u64::MAX, spent: u64::MAX, spent_below: u64::MAX, reserved: u64::MAX },
+            numbers: Numbers { budget: u64::MAX, spent: u64::MAX, spent_below: u64::MAX, reserved: u64::MAX },
             left: 0,
             closed: true,
             began: Some(Wall::EPOCH),

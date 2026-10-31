@@ -7,16 +7,16 @@ fn chip(n: u64) -> Chip {
     Chip {
         task: n,
         title: doc(b"chip"),
-        executor: Executor::Party { party: u64::MAX },
+        executor: ChipExecutor::Party { party: u64::MAX },
         phase: Phase::Waiting,
-        details: Box::new(crate::tests::chip_details(OwnerChipPhase::Waiting {
+        details: Box::new(crate::tests::chip_details(ChipPhase::Waiting {
             dependencies: List::with_capacity(3),
             more: false,
             holds: false,
         })),
     }
 }
-pub(crate) fn value() -> OwnerPersonTask {
+pub(crate) fn value() -> PersonTask {
     let mut fields = List::with_capacity(2);
     fields.push(FieldRule { name: copy_of(&[255, 0, 47]), max: u32::MAX }).expect("field fits");
     let mut choices = List::with_capacity(3);
@@ -32,17 +32,14 @@ pub(crate) fn value() -> OwnerPersonTask {
         acts: List::with_capacity(3),
     };
     let mut results = List::with_capacity(3);
-    results.push(OwnerShownResult { task: OwnerTaskLink::Live(chip(2)), result: None }).expect("missing result fits");
+    results.push(ShownResult { task: TaskLink::Live(chip(2)), result: None }).expect("missing result fits");
     results
-        .push(OwnerShownResult {
-            task: OwnerTaskLink::Stored { number: 2, status: None },
-            result: Some(Box::new(result)),
-        })
+        .push(ShownResult { task: TaskLink::Stored { number: 2, status: None }, result: Some(Box::new(result)) })
         .expect("present result fits");
-    OwnerPersonTask {
+    PersonTask {
         task: chip(8),
         revision: Revision { value: u64::MAX },
-        requester: OwnerRequester::Deployment { project: u32::MAX },
+        requester: Requester::Deployment { project: u32::MAX },
         spec: SpecificationDocument {
             specification: DocumentSpecification {
                 asks: false,

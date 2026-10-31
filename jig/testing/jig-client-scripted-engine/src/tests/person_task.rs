@@ -3,7 +3,7 @@ use crate::{Change, Engine, Invalid, Up};
 use jig_client_domain::contract::*;
 use skein_lib::{Time, Token, Wall};
 #[test]
-fn person_owner_public_read_preserves_whole_optional_results_and_original_object_identity() {
+fn person_public_read_preserves_whole_optional_results_and_original_object_identity() {
     let value = source();
     let mut engine = Engine::new(script(), 37).expect("ordinary fixture admitted");
     let commit = engine
@@ -13,7 +13,7 @@ fn person_owner_public_read_preserves_whole_optional_results_and_original_object
             Change::Object {
                 project: 1,
                 key: ObjectKey::PersonTask(8),
-                value: ReadValue::OwnerPersonTask(Box::new(value.clone())),
+                value: ReadValue::PersonTask(Box::new(value.clone())),
             },
         )
         .expect("whole owner document admitted");
@@ -22,7 +22,7 @@ fn person_owner_public_read_preserves_whole_optional_results_and_original_object
         .read(Time::from_nanos(100_000_000), 11, Token::new(97), Read::PersonTask { task: 8 })
         .expect("original read admitted");
     let up = engine.poll(Time::from_nanos(100_000_000));
-    assert!(up.iter().any(|up| matches!(up,Up::Read {terminal:ReadResult::Value(ReadValue::OwnerPersonTask(document)),..} if document.as_ref()==&value)));
+    assert!(up.iter().any(|up| matches!(up,Up::Read {terminal:ReadResult::Value(ReadValue::PersonTask(document)),..} if document.as_ref()==&value)));
     assert_eq!(
         engine
             .act(
@@ -31,7 +31,7 @@ fn person_owner_public_read_preserves_whole_optional_results_and_original_object
                 Change::Object {
                     project: 1,
                     key: ObjectKey::PersonTask(9),
-                    value: ReadValue::OwnerPersonTask(Box::new(value))
+                    value: ReadValue::PersonTask(Box::new(value))
                 }
             )
             .err(),
@@ -41,7 +41,7 @@ fn person_owner_public_read_preserves_whole_optional_results_and_original_object
 }
 
 #[test]
-fn person_owner_public_read_preserves_reserved_offers_and_nested_result_admissions_above_rows() {
+fn person_public_read_preserves_reserved_offers_and_nested_result_admissions_above_rows() {
     let mut value = source();
     value.acts = skein_lib::List::with_capacity(MAX_OFFERED_ACTS);
     for (act, admission) in [
@@ -68,7 +68,7 @@ fn person_owner_public_read_preserves_reserved_offers_and_nested_result_admissio
             Change::Object {
                 project: 1,
                 key: ObjectKey::PersonTask(8),
-                value: ReadValue::OwnerPersonTask(Box::new(value.clone())),
+                value: ReadValue::PersonTask(Box::new(value.clone())),
             },
         )
         .expect("whole owner offers fit independently of rows");
@@ -80,7 +80,7 @@ fn person_owner_public_read_preserves_reserved_offers_and_nested_result_admissio
     let supplied = up
         .iter()
         .find_map(|event| match event {
-            Up::Read { token, terminal: ReadResult::Value(ReadValue::OwnerPersonTask(document)) }
+            Up::Read { token, terminal: ReadResult::Value(ReadValue::PersonTask(document)) }
                 if *token == Token::new(97) =>
             {
                 Some(document)
@@ -108,20 +108,20 @@ fn person_owner_public_read_preserves_reserved_offers_and_nested_result_admissio
     assert_eq!(value, original);
 }
 
-fn source() -> OwnerPersonTask {
+fn source() -> PersonTask {
     let mut value = super::person_task_fixture::value();
-    value.task.details = Box::new(super::chip_details(OwnerChipPhase::Person {
+    value.task.details = Box::new(super::chip_details(ChipPhase::Person {
         address: value.address,
         taken_by: value.taken_by,
         since: value.since,
     }));
     for index in 0..value.results.len() {
         let row = value.results.get_mut(index).expect("bounded result");
-        if let OwnerTaskLink::Live(chip) | OwnerTaskLink::Retained { chip, .. } = &mut row.task {
-            *chip.details = super::chip_details(OwnerChipPhase::Ended);
+        if let TaskLink::Live(chip) | TaskLink::Retained { chip, .. } = &mut row.task {
+            *chip.details = super::chip_details(ChipPhase::Ended);
         }
         if let Some(result) = &mut row.result {
-            *result.task.details = super::chip_details(OwnerChipPhase::Ended);
+            *result.task.details = super::chip_details(ChipPhase::Ended);
         }
     }
     value

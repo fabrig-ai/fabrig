@@ -45,8 +45,8 @@ impl<A: crate::Application> crate::Engine<A> {
             return None;
         };
         let value = self.truth.objects.get(&c::ObjectKey::Proposal(*proposal))?;
-        let c::ReadValue::OwnerProposal(value) = value else { return None };
-        let c::OwnerProposalAction::Batch(tasks) = &value.action else { return None };
+        let c::ReadValue::Proposal(value) = value else { return None };
+        let c::ProposalAction::Batch(tasks) = &value.action else { return None };
         let creating =
             self.truth.frames.get(&party)?.projects.iter().find(|row| row.project == *project)?.creating.as_ref()?;
         for task in tasks {

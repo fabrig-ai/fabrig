@@ -1,8 +1,8 @@
 //! One in-flight document and a dirty mark per watch; contract.md, 7.
 use crate::{Engine, Invalid, Rows, Up, reads::list};
 use jig_client_domain::contract::{
-    Call, Delivery, LiveCall, ObjectKey, OwnerInbox, OwnerInboxCursor, OwnerPhaseCounts, OwnerRequester, Phase,
-    ProvisionalTurnName, Read, ReadValue, RunState, RunText, Subject, Tasks, Text, TurnName, WatchEnd, WatchEvent,
+    Call, Delivery, Inbox, InboxCursor, LiveCall, ObjectKey, Phase, PhaseCounts, ProvisionalTurnName, Read, ReadValue,
+    Requester, RunState, RunText, Subject, Tasks, Text, TurnName, WatchEnd, WatchEvent,
 };
 use skein_lib::{Time, Token, Wall};
 
@@ -178,12 +178,12 @@ impl<A: crate::Application> Engine<A> {
             Subject::Task { task } | Subject::Tree { task, .. } | Subject::Run { task, .. } => vec![*task],
             Subject::Chips { tasks } => tasks.iter().copied().collect(),
             Subject::Tasks { query, .. } => {
-                if matches!(query.requester, Some(OwnerRequester::Deployment { .. })) {
+                if matches!(query.requester, Some(Requester::Deployment { .. })) {
                     return Some(WatchEnd::Unknown);
                 }
                 return match query.project {
                     Some(project) => (!self.truth.visible(party, project)).then_some(hidden),
-                    None => (query.requester != Some(OwnerRequester::Person(party))).then_some(hidden),
+                    None => (query.requester != Some(Requester::Person(party))).then_some(hidden),
                 };
             }
             Subject::Accounts | Subject::Me => return (!self.truth.frames.contains_key(&party)).then_some(hidden),
@@ -222,7 +222,7 @@ impl<A: crate::Application> Engine<A> {
                     fold_tree(&mut tree.folded, node.parent, node.chip.phase);
                 }
                 tree.rows = list(&nodes[..count]);
-                Delivery::OwnerTree(Box::new(tree))
+                Delivery::Tree(Box::new(tree))
             }
             Subject::Chips { tasks } => {
                 let mut chips = Vec::new();
@@ -249,7 +249,7 @@ impl<A: crate::Application> Engine<A> {
                 let count = entries.len().min((*window).min(self.bounds.rows) as usize);
                 let frame = &self.truth.frames[&party];
                 let rows = &entries[..count];
-                Delivery::OwnerInbox(Box::new(OwnerInbox {
+                Delivery::Inbox(Box::new(Inbox {
                     party,
                     needs: list(
                         &rows
@@ -275,7 +275,7 @@ impl<A: crate::Application> Engine<A> {
                     cached_updates: frame.updates,
                     results_seen: self.truth.results_seen.get(&party).copied().unwrap_or(0),
                     next: (count < entries.len())
-                        .then(|| rows.last().map_or(OwnerInboxCursor::Number { number: 0 }, |row| row.cursor)),
+                        .then(|| rows.last().map_or(InboxCursor::Number { number: 0 }, |row| row.cursor)),
                     updates_time_complete: true,
                     selection: self.truth.inbox_selection.get(&party).map(|selections| {
                         list(
@@ -322,8 +322,8 @@ impl<A: crate::Application> Engine<A> {
                     call: None,
                 }))
             }
-            Subject::Accounts => Delivery::OwnerAccounts(Box::new(self.truth.accounts.get(&party).cloned().unwrap_or(
-                jig_client_domain::contract::OwnerAccounts {
+            Subject::Accounts => Delivery::Accounts(Box::new(self.truth.accounts.get(&party).cloned().unwrap_or(
+                jig_client_domain::contract::Accounts {
                     program_hosts: list(&[]),
                     accounts: list(&[]),
                     signing: list(&[]),
@@ -337,7 +337,7 @@ impl<A: crate::Application> Engine<A> {
             ))),
             Subject::Settings => Delivery::Settings(Box::new(self.truth.settings.clone().ok_or(WatchEnd::Unknown)?)),
             Subject::Deployment => {
-                Delivery::OwnerDeployment(Box::new(self.truth.owner_deployment.clone().ok_or(WatchEnd::Unknown)?))
+                Delivery::Deployment(Box::new(self.truth.deployment.clone().ok_or(WatchEnd::Unknown)?))
             }
         };
         loop {
@@ -345,7 +345,7 @@ impl<A: crate::Application> Engine<A> {
                 return Ok(Some(decoded));
             }
             match &mut value {
-                Delivery::OwnerInbox(doc) => {
+                Delivery::Inbox(doc) => {
                     let rows = if doc.updates.is_empty() { &mut doc.needs } else { &mut doc.updates };
                     let Some(last) = rows.iter().last().map(|row| row.cursor) else {
                         return Err(WatchEnd::Busy);
@@ -361,7 +361,7 @@ impl<A: crate::Application> Engine<A> {
                     }
                     doc.more = true;
                 }
-                Delivery::OwnerTree(doc) => {
+                Delivery::Tree(doc) => {
                     let nodes: Vec<_> = doc.rows.iter().cloned().collect();
                     let Some(last) = nodes.last() else {
                         return Err(WatchEnd::Busy);
@@ -371,14 +371,14 @@ impl<A: crate::Application> Engine<A> {
                 }
                 Delivery::Me(_)
                 | Delivery::Task(_)
-                | Delivery::OwnerProject(_)
-                | Delivery::OwnerProposal(_)
+                | Delivery::Project(_)
+                | Delivery::Proposal(_)
                 | Delivery::Chips(_)
                 | Delivery::Run(_)
                 | Delivery::RunState(_)
                 | Delivery::Settings(_)
-                | Delivery::OwnerDeployment(_)
-                | Delivery::OwnerAccounts(_) => return Err(WatchEnd::Busy),
+                | Delivery::Deployment(_)
+                | Delivery::Accounts(_) => return Err(WatchEnd::Busy),
             }
         }
     }
@@ -519,7 +519,7 @@ fn shorten<T: Clone>(rows: &mut skein_lib::List<T>) -> bool {
     *rows = list(&copy[..copy.len() - 1]);
     true
 }
-fn fold_tree(folds: &mut skein_lib::List<jig_client_domain::contract::OwnerTreeFold>, parent: u64, phase: Phase) {
+fn fold_tree(folds: &mut skein_lib::List<jig_client_domain::contract::TreeFold>, parent: u64, phase: Phase) {
     for at in 0..folds.len() {
         let row = folds.get_mut(at).expect("bounded fold");
         if row.parent == parent {
@@ -527,7 +527,7 @@ fn fold_tree(folds: &mut skein_lib::List<jig_client_domain::contract::OwnerTreeF
             return;
         }
     }
-    let mut phases = OwnerPhaseCounts {
+    let mut phases = PhaseCounts {
         waiting: 0,
         idle: 0,
         starting: 0,
@@ -541,10 +541,10 @@ fn fold_tree(folds: &mut skein_lib::List<jig_client_domain::contract::OwnerTreeF
     };
     fold(&mut phases, phase);
     let mut rows: Vec<_> = folds.iter().cloned().collect();
-    rows.push(jig_client_domain::contract::OwnerTreeFold { parent, phases, held_below: 0 });
+    rows.push(jig_client_domain::contract::TreeFold { parent, phases, held_below: 0 });
     *folds = list(&rows);
 }
-fn fold(counts: &mut OwnerPhaseCounts, phase: Phase) {
+fn fold(counts: &mut PhaseCounts, phase: Phase) {
     match phase {
         Phase::Due | Phase::Preparing | Phase::Claimed => counts.starting += 1,
         Phase::BackingOff => counts.backing_off += 1,

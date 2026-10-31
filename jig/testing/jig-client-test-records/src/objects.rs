@@ -1,7 +1,7 @@
 //! Independent wire literals for single-read documents (testing-strategy.md, 8).
 use super::{List, Writer, fact_bytes, limits, owner_waiting_chip_record, task_with_hold_record, w, wire_text};
 #[must_use]
-pub fn pending_proposal_record() -> w::OwnerProposal {
+pub fn pending_proposal_record() -> w::Proposal {
     let limits = &limits();
     let mut funding = List::with_capacity(2);
     for (source, needed, left, after) in [
@@ -22,14 +22,14 @@ pub fn pending_proposal_record() -> w::OwnerProposal {
     ] {
         funding
             .push(
-                w::OwnerFundingOffer::new(limits, w::OwnerFundingOfferParts { source, needed, left, after })
+                w::FundingOffer::new(limits, w::FundingOfferParts { source, needed, left, after })
                     .expect("literal funding"),
             )
             .expect("two offers");
     }
-    w::OwnerProposal::new(
+    w::Proposal::new(
         limits,
-        w::OwnerProposalParts {
+        w::ProposalParts {
             key: w::ProposalKey::new(
                 limits,
                 w::ProposalKeyParts {
@@ -42,16 +42,13 @@ pub fn pending_proposal_record() -> w::OwnerProposal {
             .expect("literal key"),
             project: 7,
             reason: wire_text(b"pending"),
-            action: w::OwnerProposalAction::Release(
-                w::OwnerProposalActionRelease::new(
+            action: w::ProposalAction::Release(
+                w::ProposalActionRelease::new(
                     limits,
-                    w::OwnerProposalActionReleaseParts {
-                        task: w::OwnerTaskLink::Stored(
-                            w::OwnerTaskLinkStored::new(
-                                limits,
-                                w::OwnerTaskLinkStoredParts { number: 37, status: None },
-                            )
-                            .expect("literal task link"),
+                    w::ProposalActionReleaseParts {
+                        task: w::TaskLink::Stored(
+                            w::TaskLinkStored::new(limits, w::TaskLinkStoredParts { number: 37, status: None })
+                                .expect("literal task link"),
                         ),
                         hold: None,
                     },
@@ -59,13 +56,13 @@ pub fn pending_proposal_record() -> w::OwnerProposal {
                 .expect("literal action"),
             ),
             as_holder: true,
-            waiting: w::OwnerProposalWaiting::new(
+            waiting: w::ProposalWaiting::new(
                 limits,
-                w::OwnerProposalWaitingParts {
-                    holder: w::OwnerHistoryHolder::Policy(
-                        w::OwnerHistoryHolderPolicy::new(
+                w::ProposalWaitingParts {
+                    holder: w::HistoryHolder::Policy(
+                        w::HistoryHolderPolicy::new(
                             limits,
-                            w::OwnerHistoryHolderPolicyParts { project: 7, kind: w::OwnerMessageProposalKind::Amend },
+                            w::HistoryHolderPolicyParts { project: 7, kind: w::MessageProposalKind::Amend },
                         )
                         .expect("literal holder"),
                     ),
@@ -95,15 +92,15 @@ pub fn failed_result_record() -> w::ResultDocument {
         )
         .expect("literal ending root"),
     );
-    let child = w::Fact::OwnerChipEnding(
-        w::OwnerChipEndingRow::new(
+    let child = w::Fact::ChipEnding(
+        w::ChipEndingRow::new(
             limits,
-            w::OwnerChipEndingRowParts {
+            w::ChipEndingRowParts {
                 parent: Some(0),
-                value: w::OwnerChipEndingFields::Failed(
-                    w::OwnerChipEndingFailedFields::new(
+                value: w::ChipEndingFields::Failed(
+                    w::ChipEndingFailedFields::new(
                         limits,
-                        w::OwnerChipEndingFailedFieldsParts { value: wire_text(b"failed") },
+                        w::ChipEndingFailedFieldsParts { value: wire_text(b"failed") },
                     )
                     .expect("literal failed ending"),
                 ),
@@ -134,12 +131,12 @@ pub fn failed_result_record() -> w::ResultDocument {
                             )
                             .expect("literal contract"),
                         ),
-                        requester: w::OwnerRequester::Person(
-                            w::OwnerRequesterPerson::new(limits, w::OwnerRequesterPersonParts { value: 59 })
+                        requester: w::Requester::Person(
+                            w::RequesterPerson::new(limits, w::RequesterPersonParts { value: 59 })
                                 .expect("literal requester"),
                         ),
-                        executor: w::OwnerExecutor::Agent(
-                            w::OwnerExecutorAgent::new(limits, w::OwnerExecutorAgentParts { charter: 7 })
+                        executor: w::Executor::Agent(
+                            w::ExecutorAgent::new(limits, w::ExecutorAgentParts { charter: 7 })
                                 .expect("literal executor"),
                         ),
                         chosen_by: Some(61),
@@ -157,51 +154,47 @@ pub fn failed_result_record() -> w::ResultDocument {
     .expect("literal result")
 }
 #[must_use]
-pub fn historical_task_record() -> w::OwnerHistorical {
+pub fn ended_task_record() -> w::Ended {
     let limits = &limits();
-    w::OwnerHistorical::new(
+    w::Ended::new(
         limits,
-        w::OwnerHistoricalParts {
+        w::EndedParts {
             key: w::ObjectKey::Task(
                 w::ObjectKeyTask::new(limits, w::ObjectKeyTaskParts { value: 7 }).expect("literal task key"),
             ),
-            value: w::OwnerHistoricalValue::Task(
-                w::OwnerHistoricalValueTask::new(
+            value: w::EndedValue::Task(
+                w::EndedValueTask::new(
                     limits,
-                    w::OwnerHistoricalValueTaskParts {
-                        document: task_with_hold_record(),
-                        result: failed_result_record(),
-                    },
+                    w::EndedValueTaskParts { document: task_with_hold_record(), result: failed_result_record() },
                 )
-                .expect("literal historical task"),
+                .expect("literal ended task"),
             ),
             at: Some(67),
-            by: Some(w::OwnerRequester::Person(
-                w::OwnerRequesterPerson::new(limits, w::OwnerRequesterPersonParts { value: 71 })
-                    .expect("literal actor"),
+            by: Some(w::Requester::Person(
+                w::RequesterPerson::new(limits, w::RequesterPersonParts { value: 71 }).expect("literal actor"),
             )),
         },
     )
-    .expect("literal historical document")
+    .expect("literal ended document")
 }
 #[must_use]
-pub fn decided_escalation_record(decision: w::OwnerEscalationDecision) -> w::OwnerHistorical {
+pub fn decided_escalation_record(decision: w::EscalationDecision) -> w::Ended {
     let limits = &limits();
-    w::OwnerHistorical::new(
+    w::Ended::new(
         limits,
-        w::OwnerHistoricalParts {
+        w::EndedParts {
             key: w::ObjectKey::Escalation(
                 w::ObjectKeyEscalation::new(limits, w::ObjectKeyEscalationParts { value: 7 })
                     .expect("literal escalation key"),
             ),
-            value: w::OwnerHistoricalValue::Escalation(
-                w::OwnerHistoricalValueEscalation::new(
+            value: w::EndedValue::Escalation(
+                w::EndedValueEscalation::new(
                     limits,
-                    w::OwnerHistoricalValueEscalationParts {
+                    w::EndedValueEscalationParts {
                         task: task_with_hold_record(),
-                        decision: w::OwnerEscalationDecisionRecord::new(
+                        decision: w::EscalationDecisionRecord::new(
                             limits,
-                            w::OwnerEscalationDecisionRecordParts {
+                            w::EscalationDecisionRecordParts {
                                 project: 7,
                                 requester: 73,
                                 task: 7,
@@ -215,45 +208,44 @@ pub fn decided_escalation_record(decision: w::OwnerEscalationDecision) -> w::Own
                         hold: None,
                     },
                 )
-                .expect("literal historical escalation"),
+                .expect("literal ended escalation"),
             ),
             at: Some(97),
-            by: Some(w::OwnerRequester::Person(
-                w::OwnerRequesterPerson::new(limits, w::OwnerRequesterPersonParts { value: 101 })
-                    .expect("literal outer actor"),
+            by: Some(w::Requester::Person(
+                w::RequesterPerson::new(limits, w::RequesterPersonParts { value: 101 }).expect("literal outer actor"),
             )),
         },
     )
-    .expect("literal historical document")
+    .expect("literal ended document")
 }
 #[must_use]
-pub fn owner_project_record() -> w::OwnerProject {
+pub fn owner_project_record() -> w::Project {
     let lim = limits();
-    w::OwnerProject::new(
+    w::Project::new(
         &lim,
-        w::OwnerProjectParts {
+        w::ProjectParts {
             acts: Box::from([]),
             number: 7,
             name: w::DocumentText::new(&lim, w::DocumentTextParts { bytes: Box::from(*b"Tally"), cut: false })
                 .expect("project name"),
             resources: Box::from([]),
-            policy: w::OwnerProjectPolicy::new(
+            policy: w::ProjectPolicy::new(
                 &lim,
-                w::OwnerProjectPolicyParts {
+                w::ProjectPolicyParts {
                     templates: List::with_capacity(0),
-                    ceiling: w::OwnerAuthorityDocument::new(
+                    ceiling: w::AuthorityDocument::new(
                         &lim,
-                        w::OwnerAuthorityDocumentParts {
+                        w::AuthorityDocumentParts {
                             cut: false,
-                            authority: w::OwnerAuthority::new(
+                            authority: w::Authority::new(
                                 &lim,
-                                w::OwnerAuthorityParts {
+                                w::AuthorityParts {
                                     models: Some(w::ModelSet::All),
                                     tools: 7,
                                     grants: Box::from([]),
-                                    delegation: w::OwnerDelegation::new(
+                                    delegation: w::Delegation::new(
                                         &lim,
-                                        w::OwnerDelegationParts { kinds: List::with_capacity(0), tasks: 7, depth: 7 },
+                                        w::DelegationParts { kinds: List::with_capacity(0), tasks: 7, depth: 7 },
                                     )
                                     .expect("literal fixture fits"),
                                     spend: 7,

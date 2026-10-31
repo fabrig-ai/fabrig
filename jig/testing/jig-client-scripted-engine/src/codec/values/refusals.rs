@@ -1,8 +1,8 @@
 //! Wire projections of refusals facts (client/domain/testing.md, 4).
 use super::super::{bytes, c, facts, list, w};
 use super::{
-    wire_account_why, wire_admission_limit, wire_executor, wire_llm_why, wire_malformed, wire_owner_task_status,
-    wire_refusal_full, wire_refusal_stale, wire_revision,
+    wire_account_why, wire_admission_limit, wire_chip_executor, wire_llm_why, wire_malformed, wire_refusal_full,
+    wire_refusal_stale, wire_revision, wire_task_status,
 };
 pub(in crate::codec) fn wire_refusal(value: &c::Refusal, limits: &w::Limits) -> Result<w::Refusal, w::Problem> {
     Ok::<_, w::Problem>(match value {
@@ -25,7 +25,7 @@ pub(in crate::codec) fn wire_refusal(value: &c::Refusal, limits: &w::Limits) -> 
         )?),
         c::Refusal::Dependency { dependency, how } => w::Refusal::Dependency(w::RefusalDependency::new(
             limits,
-            w::RefusalDependencyParts { dependency: *(dependency), how: wire_owner_task_status(how, limits)? },
+            w::RefusalDependencyParts { dependency: *(dependency), how: wire_task_status(how, limits)? },
         )?),
         c::Refusal::Kept { pending } => w::Refusal::Kept(w::RefusalKept::new(
             limits,
@@ -157,7 +157,7 @@ pub(in crate::codec) fn wire_lacking(value: &c::Lacking, limits: &w::Limits) -> 
         c::Lacking::TaskKind { executor } => w::Lacking::TaskKind(w::LackingTaskKind::new(
             limits,
             w::LackingTaskKindParts {
-                executor: (executor).as_ref().map(|item| wire_executor(item, limits)).transpose()?,
+                executor: (executor).as_ref().map(|item| wire_chip_executor(item, limits)).transpose()?,
             },
         )?),
         c::Lacking::Depth { needed, allowed } => w::Lacking::Depth(w::LackingDepth::new(

@@ -1,9 +1,9 @@
 //! Retained rows and scoped opaque cursors; contract.md, 6.
 use crate::{Bounds, Engine, Invalid, Up};
 use jig_client_domain::contract::{
-    ActivityLine, ActivityPage, Cursor, HistoryPage, HistoryRow, InboxGroup, InboxReadGroup, Note, NotePage, NoteScope,
-    ObjectKey, OwnerEndedDelegate, OwnerEndedPage, OwnerFundingRecord, OwnerInboxEntry, OwnerInboxPage, OwnerSpendPage,
-    Read, ReadNone, ReadResult, ReadValue,
+    ActivityPage, Cursor, DecodedActivityLine, EndedDelegate, EndedPage, FundingRecord, HistoryPage, HistoryRow,
+    InboxEntry, InboxGroup, InboxPage, InboxReadGroup, Note, NotePage, NoteScope, ObjectKey, Read, ReadNone,
+    ReadResult, ReadValue, SpendPage,
 };
 use skein_lib::{List, Time, Token};
 
@@ -12,11 +12,11 @@ use skein_lib::{List, Time, Token};
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Rows {
     Tasks(Vec<jig_client_domain::contract::TaskLine>),
-    Ended(Vec<OwnerEndedDelegate>),
+    Ended(Vec<EndedDelegate>),
     History(Vec<HistoryRow>),
-    Activity(Vec<ActivityLine>),
-    Inbox(Vec<OwnerInboxEntry>),
-    Spend(Vec<OwnerFundingRecord>),
+    Activity(Vec<DecodedActivityLine>),
+    Inbox(Vec<InboxEntry>),
+    Spend(Vec<FundingRecord>),
     Notes(Vec<Note>),
 }
 /// A party's page source. The read has no cursor and supplies its exact filters.
@@ -99,31 +99,25 @@ impl Rows {
                 live_after: after,
                 ended: jig_client_domain::contract::EndedGroup::None,
             })),
-            Self::Ended(rows) => ReadValue::OwnerEnded(Box::new(OwnerEndedPage {
-                cut: false,
-                rows: list(&rows[start..end]),
-                before,
-                after,
-            })),
+            Self::Ended(rows) => {
+                ReadValue::EndedPage(Box::new(EndedPage { cut: false, rows: list(&rows[start..end]), before, after }))
+            }
             Self::History(rows) => {
                 ReadValue::History(Box::new(HistoryPage { cut: false, rows: list(&rows[start..end]), before, after }))
             }
             Self::Activity(rows) => {
                 ReadValue::Activity(Box::new(ActivityPage { cut: false, rows: list(&rows[start..end]), before, after }))
             }
-            Self::Inbox(rows) => ReadValue::OwnerInbox(Box::new(OwnerInboxPage {
+            Self::Inbox(rows) => ReadValue::Inbox(Box::new(InboxPage {
                 selection: None,
                 cut: false,
                 rows: list(&rows[start..end]),
                 before,
                 after,
             })),
-            Self::Spend(rows) => ReadValue::OwnerSpend(Box::new(OwnerSpendPage {
-                cut: false,
-                rows: list(&rows[start..end]),
-                before,
-                after,
-            })),
+            Self::Spend(rows) => {
+                ReadValue::Spend(Box::new(SpendPage { cut: false, rows: list(&rows[start..end]), before, after }))
+            }
             Self::Notes(rows) => {
                 ReadValue::Notes(Box::new(NotePage { cut: false, rows: list(&rows[start..end]), before, after }))
             }
@@ -217,9 +211,8 @@ impl<A: crate::Application> Engine<A> {
             Read::PersonTask { task } => Some(ObjectKey::PersonTask(*task)),
             Read::Result { task } => Some(ObjectKey::Result(*task)),
             Read::Project { project } => {
-                return self.checked_read(
-                    self.truth.owner_projects.get(project).cloned().map(|v| ReadValue::OwnerProject(Box::new(v))),
-                );
+                return self
+                    .checked_read(self.truth.projects.get(project).cloned().map(|v| ReadValue::Project(Box::new(v))));
             }
             Read::Settings => {
                 return self.checked_read(self.truth.settings.clone().map(|v| ReadValue::Settings(Box::new(v))));
@@ -249,9 +242,7 @@ impl<A: crate::Application> Engine<A> {
                 );
             }
             Read::Deployment => {
-                return self.checked_read(
-                    self.truth.owner_deployment.clone().map(|v| ReadValue::OwnerDeployment(Box::new(v))),
-                );
+                return self.checked_read(self.truth.deployment.clone().map(|v| ReadValue::Deployment(Box::new(v))));
             }
             Read::Tasks { .. }
             | Read::Ended { .. }
@@ -306,7 +297,7 @@ impl<A: crate::Application> Engine<A> {
             } else {
                 rows.page(start, end, before.clone(), after.clone())
             };
-            if let ReadValue::OwnerInbox(page) = &mut page {
+            if let ReadValue::Inbox(page) = &mut page {
                 page.selection = self.truth.inbox_selection.get(&party).map(|rows| {
                     list(
                         &rows
@@ -343,7 +334,7 @@ impl<A: crate::Application> Engine<A> {
         for row in rows {
             let source = row.source;
             if source.task == task
-                && matches!(source.line, jig_client_domain::contract::OwnerActivity::Turn { attempt: found_attempt, turn: found_turn, .. } if (found_attempt, found_turn) == (attempt, turn))
+                && matches!(source.line, jig_client_domain::contract::Activity::Turn { attempt: found_attempt, turn: found_turn, .. } if (found_attempt, found_turn) == (attempt, turn))
             {
                 let archive = row.decoded.ok_or(ReadNone::Malformed)?;
                 if (archive.task, archive.name.attempt, archive.name.number) != (task, attempt, turn)
@@ -472,16 +463,16 @@ fn empty(read: &Read) -> Rows {
     }
 }
 
-fn inbox_order(row: &OwnerInboxEntry) -> (bool, u64, u64, u64, jig_client_domain::contract::OwnerInboxObject) {
-    use jig_client_domain::contract::OwnerInboxObject;
+fn inbox_order(row: &InboxEntry) -> (bool, u64, u64, u64, jig_client_domain::contract::InboxObject) {
+    use jig_client_domain::contract::InboxObject;
     let time = row.at.map_or(0, skein_lib::Wall::as_nanos);
     let position = match row.object {
-        OwnerInboxObject::Result { position } => Some(position),
-        OwnerInboxObject::Reply { message } => Some(message),
-        OwnerInboxObject::Question { .. }
-        | OwnerInboxObject::Proposal { .. }
-        | OwnerInboxObject::Escalation { .. }
-        | OwnerInboxObject::PersonTask => None,
+        InboxObject::Result { position } => Some(position),
+        InboxObject::Reply { message } => Some(message),
+        InboxObject::Question { .. }
+        | InboxObject::Proposal { .. }
+        | InboxObject::Escalation { .. }
+        | InboxObject::PersonTask => None,
     };
     let task = row.task_number();
     match position {

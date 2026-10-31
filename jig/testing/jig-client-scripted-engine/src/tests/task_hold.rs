@@ -1,12 +1,12 @@
 use super::*;
 
 #[test]
-fn scripted_owner_hold_moves_return_exact_category_for_release_and_atomic_amend_release() {
+fn scripted_hold_moves_return_exact_category_for_release_and_atomic_amend_release() {
     for amendment in [false, true] {
         let mut setup = script();
         let mut row = task();
         let reason = HoldCategory::Failures { class: HoldFailure::Agent };
-        row.hold = Some(Box::new(OwnerChipHold {
+        row.hold = Some(Box::new(ChipHold {
             words: None,
             placed: None,
             circle: None,
@@ -14,9 +14,9 @@ fn scripted_owner_hold_moves_return_exact_category_for_release_and_atomic_amend_
             source: None,
             reason,
             revision: 7,
-            before: OwnerPriorPhase::Waiting,
+            before: PriorPhase::Waiting,
             escalation: None,
-            tries: OwnerFailureTries { transient: 1, permanent: 2, run: 3, agent: 4, lost: 5, invalid: 6 },
+            tries: FailureTries { transient: 1, permanent: 2, run: 3, agent: 4, lost: 5, invalid: 6 },
             hold_wait_since: None,
         }));
         row.acts = list(vec![Offered {

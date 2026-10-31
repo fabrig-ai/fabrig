@@ -1,7 +1,7 @@
 //! Wire projections of settings facts (client/domain/testing.md, 4).
 use super::super::{bytes, c, list, pieces, w};
 use super::{
-    wire_document_text, wire_owner_authority, wire_owner_grant, wire_owner_kind_implication, wire_policy_edit_role,
+    wire_authority, wire_document_text, wire_grant, wire_kind_implication, wire_policy_edit_role,
     wire_policy_permission, wire_policy_requirement, wire_proposal_key, wire_proposer, wire_template,
     wire_template_override,
 };
@@ -214,8 +214,8 @@ pub(in crate::codec) fn wire_setting_policy(
         limits,
         w::SettingPolicyParts {
             escalation_role: value.escalation_role.as_ref().map(|item| Ok::<_, w::Problem>(*(item))).transpose()?,
-            ceiling: wire_owner_authority(&value.ceiling, limits)?,
-            projections: list(value.projections.iter().map(|item| wire_owner_grant(item, limits)))?,
+            ceiling: wire_authority(&value.ceiling, limits)?,
+            projections: list(value.projections.iter().map(|item| wire_grant(item, limits)))?,
             period_spend: value.period_spend,
             roles: list(value.roles.iter().map(|item| wire_policy_edit_role(item, limits)))?,
             requirements: list(value.requirements.iter().map(|item| wire_policy_requirement(item, limits)))?,
@@ -229,11 +229,11 @@ pub(in crate::codec) fn wire_rules(value: &c::Rules, limits: &w::Limits) -> Resu
     w::Rules::new(
         limits,
         w::RulesParts {
-            ceiling: wire_owner_authority(&value.ceiling, limits)?,
+            ceiling: wire_authority(&value.ceiling, limits)?,
             period_spend: value.period_spend,
             minimum_run_spend: value.minimum_run_spend,
             maximum_run_spend: value.maximum_run_spend,
-            implies: list(value.implies.iter().map(|item| wire_owner_kind_implication(item, limits)))?,
+            implies: list(value.implies.iter().map(|item| wire_kind_implication(item, limits)))?,
             requirements: list(value.requirements.iter().map(|item| wire_policy_requirement(item, limits)))?,
         },
     )
@@ -411,13 +411,13 @@ pub(in crate::codec) fn wire_setting_fault(
     })
 }
 
-pub(in crate::codec) fn wire_owner_retained_action_settings(
-    value: &c::OwnerRetainedActionSettings,
+pub(in crate::codec) fn wire_retained_action_settings(
+    value: &c::RetainedActionSettings,
     limits: &w::Limits,
-) -> Result<w::OwnerRetainedActionSettings, w::Problem> {
-    w::OwnerRetainedActionSettings::new(
+) -> Result<w::RetainedActionSettings, w::Problem> {
+    w::RetainedActionSettings::new(
         limits,
-        w::OwnerRetainedActionSettingsParts {
+        w::RetainedActionSettingsParts {
             against: value.against,
             items: list(value.items.iter().map(|item| wire_revision_item_head(item, limits)))?,
             made: value.made.as_ref().map(|item| Ok::<_, w::Problem>(*(item))).transpose()?,
@@ -425,13 +425,13 @@ pub(in crate::codec) fn wire_owner_retained_action_settings(
     )
 }
 
-pub(in crate::codec) fn wire_owner_proposal_action_settings(
-    value: &c::OwnerProposalActionSettings,
+pub(in crate::codec) fn wire_proposal_action_settings(
+    value: &c::ProposalActionSettings,
     limits: &w::Limits,
-) -> Result<w::OwnerProposalActionSettings, w::Problem> {
-    w::OwnerProposalActionSettings::new(
+) -> Result<w::ProposalActionSettings, w::Problem> {
+    w::ProposalActionSettings::new(
         limits,
-        w::OwnerProposalActionSettingsParts {
+        w::ProposalActionSettingsParts {
             against: value.against,
             items: list(value.items.iter().map(|item| wire_revision_item_head(item, limits)))?,
             review: value.review.as_ref().map(|item| wire_settings_review(item, limits)).transpose()?,

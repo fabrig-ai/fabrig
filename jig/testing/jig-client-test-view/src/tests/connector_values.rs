@@ -632,7 +632,7 @@ fn connector_values_view_all_sparse_authority_categories_keep_absent_requested_f
         (Lack::Again { required: false }, b"choice was unexpected"),
         (Lack::Grant { kind: u16::MAX }, b"operation kind 65535"),
         (Lack::Funding, b"funding"),
-        (Lack::TaskKind, b"Executor kind not allowed"),
+        (Lack::TaskKind, b"ChipExecutor kind not allowed"),
         (Lack::Depth { most: u32::MAX }, b"Permitted descendant depth: 4294967295"),
         (Lack::Deadline, b"deadline"),
         (Lack::Tasks { left: u32::MAX }, b"Lifetime tasks left: 4294967295"),
@@ -708,7 +708,7 @@ fn connector_values_view_every_moved_hold_reason_failure_and_ending_keeps_only_a
     for (class, label) in [
         (FailureClass::Transient, b"Temporary failure".as_slice()),
         (FailureClass::Permanent, b"Permanent failure"),
-        (FailureClass::Run, b"Executor reported failure"),
+        (FailureClass::Run, b"ChipExecutor reported failure"),
         (FailureClass::Agent, b"Agent failed"),
         (FailureClass::Lost, b"Host lost"),
         (FailureClass::Invalid, b"Result broke its contract"),

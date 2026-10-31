@@ -1,14 +1,14 @@
 use super::*;
 
 #[test]
-fn scripted_task_ending_refusals_keep_whole_owner_facts_after_keyed_durability_and_replay() {
-    let ending = OwnerChipEnding::Cancelled {
+fn scripted_task_ending_refusals_keep_whole_facts_after_keyed_durability_and_replay() {
+    let ending = ChipEnding::Cancelled {
         reason: DocumentText { bytes: text(UTF8_TEXTS[0]), cut: true },
         result: Some(ResultValue::Approved {
             state: Box::from([255_u8; 32]),
             words: Some(DocumentText { bytes: text(b""), cut: true }),
         }),
-        by: OwnerRequester::Deployment { project: u32::MAX },
+        by: Requester::Deployment { project: u32::MAX },
         at: Wall::from_nanos(u64::MAX),
     };
     let mut setup = script();

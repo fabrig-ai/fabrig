@@ -1,42 +1,41 @@
 //! Pending owner decisions and retained winners (protocol/client.md, 5).
 use jig_client_domain::contract::{
-    Ask, ChipPhase, DecideOn, Decision, DocumentText, ObjectKey, OwnerChipPhase, OwnerEscalationChoice,
-    OwnerEscalationDecision, OwnerEscalationDecisionRecord, OwnerHistorical, OwnerHistoricalValue, OwnerOutcome,
-    OwnerProposalAction, OwnerProposalChoice, OwnerProposalHistory, OwnerProposalHistoryState, OwnerRequester,
-    OwnerRetainedAction, OwnerRetainedActionSettings, Phase, Proposer, ReadValue, RunStage, Runtime,
+    Ask, ChipPhase, ChipPhaseFacts, DecideOn, Decision, DocumentOutcome, DocumentText, Ended, EndedValue,
+    EscalationChoice, EscalationDecision, EscalationDecisionRecord, ObjectKey, Phase, ProposalAction, ProposalChoice,
+    ProposalHistory, ProposalHistoryState, Proposer, ReadValue, Requester, RetainedAction, RetainedActionSettings,
+    RunStage, Runtime,
 };
 use skein_lib::Wall;
 
-pub(super) fn repeated(value: &ReadValue, ask: &Ask) -> Option<OwnerOutcome> {
-    let ReadValue::Historical(value) = value else { return None };
+pub(super) fn repeated(value: &ReadValue, ask: &Ask) -> Option<DocumentOutcome> {
+    let ReadValue::Ended(value) = value else { return None };
     match (&value.value, ask) {
-        (
-            OwnerHistoricalValue::Proposal(proposal),
-            Ask::Decide { on: DecideOn::Proposal { proposal: key, .. }, .. },
-        ) => {
+        (EndedValue::Proposal(proposal), Ask::Decide { on: DecideOn::Proposal { proposal: key, .. }, .. }) => {
             let choice = match &proposal.state {
-                OwnerProposalHistoryState::Accepted { .. } => OwnerProposalChoice::Accepted,
-                OwnerProposalHistoryState::Rejected { .. } => OwnerProposalChoice::Rejected,
-                OwnerProposalHistoryState::Withdrawn => OwnerProposalChoice::Withdrawn,
-                OwnerProposalHistoryState::Pending { .. } => return None,
+                ProposalHistoryState::Accepted { .. } => ProposalChoice::Accepted,
+                ProposalHistoryState::Rejected { .. } => ProposalChoice::Rejected,
+                ProposalHistoryState::Withdrawn => ProposalChoice::Withdrawn,
+                ProposalHistoryState::Pending { .. } => return None,
             };
-            let OwnerRequester::Person(by) = value.by? else { return None };
-            Some(OwnerOutcome::ProposalDecided { proposal: *key, by, at: value.at?, choice, repeated: true })
+            let Requester::Person(by) = value.by? else { return None };
+            Some(DocumentOutcome::ProposalDecided { proposal: *key, by, at: value.at?, choice, repeated: true })
         }
         (
-            OwnerHistoricalValue::Escalation { decision, .. },
+            EndedValue::Escalation { decision, .. },
             Ask::Decide { on: DecideOn::Escalation { task, revision, .. }, .. },
-        ) if *task == decision.task && revision.value == decision.revision => Some(OwnerOutcome::EscalationDecided {
-            task: *task,
-            revision: *revision,
-            by: decision.by,
-            at: decision.at,
-            choice: match decision.decision {
-                OwnerEscalationDecision::Release => OwnerEscalationChoice::Released,
-                OwnerEscalationDecision::Reject { .. } => OwnerEscalationChoice::Rejected,
-                OwnerEscalationDecision::Pass => OwnerEscalationChoice::Passed,
-            },
-        }),
+        ) if *task == decision.task && revision.value == decision.revision => {
+            Some(DocumentOutcome::EscalationDecided {
+                task: *task,
+                revision: *revision,
+                by: decision.by,
+                at: decision.at,
+                choice: match decision.decision {
+                    EscalationDecision::Release => EscalationChoice::Released,
+                    EscalationDecision::Reject { .. } => EscalationChoice::Rejected,
+                    EscalationDecision::Pass => EscalationChoice::Passed,
+                },
+            })
+        }
         _ => None,
     }
 }
@@ -47,83 +46,80 @@ pub(super) fn decided(
     by: u64,
     at: Wall,
     how: &Decision,
-) -> Option<(ReadValue, OwnerOutcome)> {
+) -> Option<(ReadValue, DocumentOutcome)> {
     match value {
-        ReadValue::OwnerProposal(value) => proposal_decided(*value, by, at, how),
-        ReadValue::OwnerEscalation(value) => escalation_decided(*value, ask, by, at, how),
+        ReadValue::Proposal(value) => proposal_decided(*value, by, at, how),
+        ReadValue::Escalation(value) => escalation_decided(*value, ask, by, at, how),
         ReadValue::Task(value) => task_released(value, ask),
         ReadValue::Settings(_)
         | ReadValue::Setting(_)
         | ReadValue::Revision(_)
         | ReadValue::Revisions(_)
         | ReadValue::Tasks(_)
-        | ReadValue::OwnerProject(_)
-        | ReadValue::Historical(_)
+        | ReadValue::Project(_)
+        | ReadValue::Ended(_)
         | ReadValue::Me(_)
         | ReadValue::Turn(_)
         | ReadValue::Question(_)
-        | ReadValue::OwnerPersonTask(_)
+        | ReadValue::PersonTask(_)
         | ReadValue::Result(_)
-        | ReadValue::OwnerEnded(_)
+        | ReadValue::EndedPage(_)
         | ReadValue::History(_)
         | ReadValue::Activity(_)
-        | ReadValue::OwnerInbox(_)
-        | ReadValue::OwnerSpend(_)
+        | ReadValue::Inbox(_)
+        | ReadValue::Spend(_)
         | ReadValue::Notes(_)
-        | ReadValue::OwnerDeployment(_) => None,
+        | ReadValue::Deployment(_) => None,
     }
 }
 
-fn retained(action: OwnerProposalAction) -> Option<OwnerRetainedAction> {
+fn retained(action: ProposalAction) -> Option<RetainedAction> {
     Some(match action {
-        OwnerProposalAction::Batch(tasks) => OwnerRetainedAction::Batch(tasks),
-        OwnerProposalAction::Effect { part, authority, attempt, completion, position, purpose } => {
-            OwnerRetainedAction::Effect { part, authority, attempt, completion, position, purpose }
+        ProposalAction::Batch(tasks) => RetainedAction::Batch(tasks),
+        ProposalAction::Effect { part, authority, attempt, completion, position, purpose } => {
+            RetainedAction::Effect { part, authority, attempt, completion, position, purpose }
         }
-        OwnerProposalAction::ProcedureEffect { part, authority, step, purpose } => {
-            OwnerRetainedAction::ProcedureEffect { part, authority, step, purpose }
+        ProposalAction::ProcedureEffect { part, authority, step, purpose } => {
+            RetainedAction::ProcedureEffect { part, authority, step, purpose }
         }
-        OwnerProposalAction::Release { task, .. } => OwnerRetainedAction::Release { task: task.number() },
-        OwnerProposalAction::Widen { task, after, .. } => {
-            OwnerRetainedAction::Widen { task: task.number(), authority: after }
-        }
-        OwnerProposalAction::Settings(value) => OwnerRetainedAction::Settings(OwnerRetainedActionSettings {
+        ProposalAction::Release { task, .. } => RetainedAction::Release { task: task.number() },
+        ProposalAction::Widen { task, after, .. } => RetainedAction::Widen { task: task.number(), authority: after },
+        ProposalAction::Settings(value) => RetainedAction::Settings(RetainedActionSettings {
             against: value.against,
             items: value.items,
             made: value.made,
         }),
-        OwnerProposalAction::Amend { .. } => return None,
+        ProposalAction::Amend { .. } => return None,
     })
 }
 
 fn proposal_decided(
-    value: jig_client_domain::contract::OwnerProposal,
+    value: jig_client_domain::contract::Proposal,
     by: u64,
     at: Wall,
     how: &Decision,
-) -> Option<(ReadValue, OwnerOutcome)> {
+) -> Option<(ReadValue, DocumentOutcome)> {
     let choice = match how {
-        Decision::Accepted => OwnerProposalChoice::Accepted,
-        Decision::Rejected { .. } => OwnerProposalChoice::Rejected,
+        Decision::Accepted => ProposalChoice::Accepted,
+        Decision::Rejected { .. } => ProposalChoice::Rejected,
         Decision::PassedUp | Decision::Released { .. } | Decision::LeftHeld { .. } => return None,
     };
     let state = match how {
-        Decision::Accepted => OwnerProposalHistoryState::Accepted { by: OwnerRequester::Person(by) },
-        Decision::Rejected { reason } => OwnerProposalHistoryState::Rejected {
-            by: OwnerRequester::Person(by),
-            reason: DocumentText::complete(reason.clone()),
-        },
+        Decision::Accepted => ProposalHistoryState::Accepted { by: Requester::Person(by) },
+        Decision::Rejected { reason } => {
+            ProposalHistoryState::Rejected { by: Requester::Person(by), reason: DocumentText::complete(reason.clone()) }
+        }
         Decision::PassedUp | Decision::Released { .. } | Decision::LeftHeld { .. } => return None,
     };
     let action = retained(value.action)?;
     let proposer = match value.key.proposer {
         Proposer::Task(task) | Proposer::Party(task) => task,
     };
-    let outcome = OwnerOutcome::ProposalDecided { proposal: value.key, by, at, choice, repeated: false };
+    let outcome = DocumentOutcome::ProposalDecided { proposal: value.key, by, at, choice, repeated: false };
     Some((
-        ReadValue::Historical(Box::new(OwnerHistorical {
+        ReadValue::Ended(Box::new(Ended {
             key: ObjectKey::Proposal(value.key),
-            value: OwnerHistoricalValue::Proposal(OwnerProposalHistory {
+            value: EndedValue::Proposal(ProposalHistory {
                 action,
                 number: value.key.number,
                 proposer,
@@ -131,30 +127,28 @@ fn proposal_decided(
                 state,
             }),
             at: Some(at),
-            by: Some(OwnerRequester::Person(by)),
+            by: Some(Requester::Person(by)),
         })),
         outcome,
     ))
 }
 
 fn escalation_decided(
-    value: jig_client_domain::contract::OwnerEscalation,
+    value: jig_client_domain::contract::Escalation,
     ask: &Ask,
     by: u64,
     at: Wall,
     how: &Decision,
-) -> Option<(ReadValue, OwnerOutcome)> {
+) -> Option<(ReadValue, DocumentOutcome)> {
     let Ask::Decide { on: DecideOn::Escalation { task, revision, .. }, project } = ask else { return None };
     let (decision, choice) = match how {
-        Decision::Accepted | Decision::Released { .. } => {
-            (OwnerEscalationDecision::Release, OwnerEscalationChoice::Released)
-        }
+        Decision::Accepted | Decision::Released { .. } => (EscalationDecision::Release, EscalationChoice::Released),
         Decision::Rejected { reason } => {
-            (OwnerEscalationDecision::Reject { reason: reason.clone() }, OwnerEscalationChoice::Rejected)
+            (EscalationDecision::Reject { reason: reason.clone() }, EscalationChoice::Rejected)
         }
         Decision::PassedUp | Decision::LeftHeld { .. } => return None,
     };
-    let record = OwnerEscalationDecisionRecord {
+    let record = EscalationDecisionRecord {
         project: *project,
         requester: by,
         task: *task,
@@ -164,25 +158,25 @@ fn escalation_decided(
         decision,
     };
     Some((
-        ReadValue::Historical(Box::new(OwnerHistorical {
+        ReadValue::Ended(Box::new(Ended {
             key: ObjectKey::Escalation(*task),
-            value: OwnerHistoricalValue::Escalation { task: value.task, decision: record, hold: None },
+            value: EndedValue::Escalation { task: value.task, decision: record, hold: None },
             at: Some(at),
-            by: Some(OwnerRequester::Person(by)),
+            by: Some(Requester::Person(by)),
         })),
-        OwnerOutcome::EscalationDecided { task: *task, revision: *revision, by, at, choice },
+        DocumentOutcome::EscalationDecided { task: *task, revision: *revision, by, at, choice },
     ))
 }
 
-fn task_released(mut value: Box<jig_client_domain::contract::Task>, ask: &Ask) -> Option<(ReadValue, OwnerOutcome)> {
+fn task_released(mut value: Box<jig_client_domain::contract::Task>, ask: &Ask) -> Option<(ReadValue, DocumentOutcome)> {
     let Ask::Release { task, .. } = ask else { return None };
     value.hold = None;
     if let Some(context) = &mut value.context {
         context.runtime = Runtime::Starting;
     }
     value.chip.phase = Phase::Due;
-    let ChipPhase { phase, details } = value.chip.details.as_mut();
-    *phase = OwnerChipPhase::Active(RunStage::Due);
+    let ChipPhaseFacts { phase, details } = value.chip.details.as_mut();
+    *phase = ChipPhase::Active(RunStage::Due);
     details.hold = None;
-    Some((ReadValue::Task(value), OwnerOutcome::Released { task: *task }))
+    Some((ReadValue::Task(value), DocumentOutcome::Released { task: *task }))
 }

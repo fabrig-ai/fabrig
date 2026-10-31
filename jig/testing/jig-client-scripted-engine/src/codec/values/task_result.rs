@@ -12,7 +12,7 @@ pub(in crate::codec) fn wire_task_result(
         )?)),
         c::TaskResult::Ending(value) => w::TaskResult::Ending(w::TaskResultEnding::new(
             limits,
-            w::TaskResultEndingParts { value: facts::owner_chip_ending(value, limits)? },
+            w::TaskResultEndingParts { value: facts::chip_ending(value, limits)? },
         )?),
     })
 }

@@ -1,14 +1,13 @@
 //! Wire projections of documents facts (client/domain/testing.md, 4).
 use super::super::{bytes, c, empty_pieces, facts, list, pieces, problem, turn_bytes, w};
 use super::{
-    wire_active_run, wire_bounds_create, wire_closing_stage, wire_dependency, wire_document_text, wire_effect,
-    wire_executor, wire_funder, wire_llm_choice, wire_new_deadline, wire_note_scope, wire_owner_activity_line,
-    wire_owner_authority_document, wire_owner_budget, wire_owner_chip_hold, wire_owner_chip_phase, wire_owner_executor,
-    wire_owner_grant, wire_owner_kind_implication, wire_owner_part, wire_owner_requester, wire_owner_resource_line,
-    wire_owner_task_link, wire_owner_wake_policy, wire_party, wire_phase, wire_proposal_key, wire_recurring_overlap,
-    wire_refusal, wire_result_details, wire_revision, wire_specification_document, wire_subscriptions,
-    wire_task_contract_document, wire_task_flags, wire_task_line, wire_task_result, wire_task_run_wait, wire_turn_name,
-    wire_waits_on,
+    wire_active_run, wire_activity_line, wire_authority_document, wire_bounds_create, wire_budget, wire_chip_executor,
+    wire_chip_hold, wire_chip_phase, wire_closing_stage, wire_dependency, wire_document_text, wire_effect,
+    wire_executor, wire_funder, wire_grant, wire_kind_implication, wire_llm_choice, wire_new_deadline, wire_note_scope,
+    wire_part, wire_party, wire_phase, wire_proposal_key, wire_recurring_overlap, wire_refusal, wire_requester,
+    wire_resource_line, wire_result_details, wire_revision, wire_specification_document, wire_subscriptions,
+    wire_task_contract_document, wire_task_flags, wire_task_line, wire_task_link, wire_task_result, wire_task_run_wait,
+    wire_turn_name, wire_waits_on, wire_wake_policy,
 };
 pub(in crate::codec) fn wire_field_rule(value: &c::FieldRule, limits: &w::Limits) -> Result<w::FieldRule, w::Problem> {
     w::FieldRule::new(limits, w::FieldRuleParts { name: bytes::copy_of(&value.name), max: value.max })
@@ -104,13 +103,13 @@ pub(in crate::codec) fn wire_bounds(value: &c::Bounds, limits: &w::Limits) -> Re
                 w::BoundsAmendParts {
                     budget_left: *(budget_left),
                     grants: pieces(
-                        (grants).iter().map(|item| wire_owner_grant(item, limits)),
-                        w::OwnerGrant::measure,
-                        w::OwnerGrant::encode,
+                        (grants).iter().map(|item| wire_grant(item, limits)),
+                        w::Grant::measure,
+                        w::Grant::encode,
                     )?,
-                    implications: list((implications).iter().map(|item| wire_owner_kind_implication(item, limits)))?,
-                    authority: wire_owner_authority_document(authority, limits)?,
-                    ceiling: wire_owner_authority_document(ceiling, limits)?,
+                    implications: list((implications).iter().map(|item| wire_kind_implication(item, limits)))?,
+                    authority: wire_authority_document(authority, limits)?,
+                    ceiling: wire_authority_document(ceiling, limits)?,
                 },
             )?)
         }
@@ -134,20 +133,20 @@ pub(in crate::codec) fn wire_impact(value: &c::Impact, limits: &w::Limits) -> Re
     w::Impact::new(
         limits,
         w::ImpactParts {
-            tasks: wire_phase_counts(&value.tasks, limits)?,
+            tasks: wire_impact_counts(&value.tasks, limits)?,
             live_runs: value.live_runs,
             proposals: value.proposals,
         },
     )
 }
 
-pub(in crate::codec) fn wire_phase_counts(
-    value: &c::PhaseCounts,
+pub(in crate::codec) fn wire_impact_counts(
+    value: &c::ImpactCounts,
     limits: &w::Limits,
-) -> Result<w::PhaseCounts, w::Problem> {
-    w::PhaseCounts::new(
+) -> Result<w::ImpactCounts, w::Problem> {
+    w::ImpactCounts::new(
         limits,
-        w::PhaseCountsParts {
+        w::ImpactCountsParts {
             ended: value.ended,
             waiting: value.waiting,
             running: value.running,
@@ -194,18 +193,18 @@ pub(in crate::codec) fn wire_proposed_task(
             deadline: wire_new_deadline(&value.deadline, limits)?,
             number: value.number,
             spec: wire_specification_document(&value.spec, limits)?,
-            executor: wire_owner_executor(&value.executor, limits)?,
+            executor: wire_executor(&value.executor, limits)?,
             contract: wire_task_contract_document(&value.contract, limits)?,
-            authority: wire_owner_authority_document(&value.authority, limits)?,
+            authority: wire_authority_document(&value.authority, limits)?,
             budget: value.budget,
             funder: wire_funder(&value.funder, limits)?,
             dependencies: list(value.dependencies.iter().map(|item| Ok::<_, w::Problem>(*(item))))?,
             resources: pieces(
-                value.resources.iter().map(|item| wire_owner_part(item, limits)),
-                w::OwnerPart::measure,
-                w::OwnerPart::encode,
+                value.resources.iter().map(|item| wire_part(item, limits)),
+                w::Part::measure,
+                w::Part::encode,
             )?,
-            wake: wire_owner_wake_policy(&value.wake, limits)?,
+            wake: wire_wake_policy(&value.wake, limits)?,
             priority: value.priority.as_ref().map(|item| Ok::<_, w::Problem>(*(item))).transpose()?,
             cut: value.cut,
         },
@@ -230,40 +229,40 @@ pub(in crate::codec) fn wire_task(value: &c::Task, limits: &w::Limits) -> Result
                 w::Chip::encode,
             )?,
             inputs: pieces(
-                value.inputs.iter().map(|item| wire_owner_task_link(item, limits)),
-                w::OwnerTaskLink::measure,
-                w::OwnerTaskLink::encode,
+                value.inputs.iter().map(|item| wire_task_link(item, limits)),
+                w::TaskLink::measure,
+                w::TaskLink::encode,
             )?,
             project: value.project,
-            requester: wire_owner_requester(&value.requester, limits)?,
+            requester: wire_requester(&value.requester, limits)?,
             lineage: list(value.lineage.iter().map(|item| Ok::<_, w::Problem>(*(item))))?,
             spec: wire_specification_document(&value.spec, limits)?,
             spec_revision: wire_revision(&value.spec_revision, limits)?,
             person_revision: value.person_revision.as_ref().map(|item| wire_revision(item, limits)).transpose()?,
             taken_by: value.taken_by.as_ref().map(|item| Ok::<_, w::Problem>(*(item))).transpose()?,
             instructions: value.instructions.as_ref().map(|item| wire_document_text(item, limits)).transpose()?,
-            wake: wire_owner_wake_policy(&value.wake, limits)?,
+            wake: wire_wake_policy(&value.wake, limits)?,
             subscriptions: wire_subscriptions(&value.subscriptions, limits)?,
             result_contract: wire_task_contract_document(&value.result_contract, limits)?,
             dependencies: pieces(
-                value.dependencies.iter().map(|item| wire_owner_task_link(item, limits)),
-                w::OwnerTaskLink::measure,
-                w::OwnerTaskLink::encode,
+                value.dependencies.iter().map(|item| wire_task_link(item, limits)),
+                w::TaskLink::measure,
+                w::TaskLink::encode,
             )?,
             references: pieces(
-                value.references.iter().map(|item| wire_owner_task_link(item, limits)),
-                w::OwnerTaskLink::measure,
-                w::OwnerTaskLink::encode,
+                value.references.iter().map(|item| wire_task_link(item, limits)),
+                w::TaskLink::measure,
+                w::TaskLink::encode,
             )?,
             cut: value.cut,
             resources: pieces(
-                value.resources.iter().map(|item| wire_owner_resource_line(item, limits)),
-                w::OwnerResourceLine::measure,
-                w::OwnerResourceLine::encode,
+                value.resources.iter().map(|item| wire_resource_line(item, limits)),
+                w::ResourceLine::measure,
+                w::ResourceLine::encode,
             )?,
-            budget: wire_owner_budget(&value.budget, limits)?,
-            authority: wire_owner_authority_document(&value.authority, limits)?,
-            hold: value.hold.as_ref().map(|item| wire_owner_chip_hold(item, limits)).transpose()?,
+            budget: wire_budget(&value.budget, limits)?,
+            authority: wire_authority_document(&value.authority, limits)?,
+            hold: value.hold.as_ref().map(|item| wire_chip_hold(item, limits)).transpose()?,
             proposals: list(value.proposals.iter().map(|item| wire_proposal_key(item, limits)))?,
             activity: value.activity,
             changed: value.changed.as_nanos(),
@@ -429,7 +428,7 @@ pub(in crate::codec) fn wire_question(value: &c::Question, limits: &w::Limits) -
         limits,
         w::QuestionParts {
             task: facts::chip(&value.task, limits)?,
-            from: value.from.as_ref().map(|item| wire_owner_requester(item, limits)).transpose()?,
+            from: value.from.as_ref().map(|item| wire_requester(item, limits)).transpose()?,
             message: value.message,
             words: wire_document_text(&value.words, limits)?,
             since: value.since.as_nanos(),
@@ -482,14 +481,14 @@ pub(in crate::codec) fn wire_archived_turn(
     )
 }
 
-pub(in crate::codec) fn wire_activity_line(
-    value: &c::ActivityLine,
+pub(in crate::codec) fn wire_decoded_activity_line(
+    value: &c::DecodedActivityLine,
     limits: &w::Limits,
-) -> Result<w::ActivityLine, w::Problem> {
-    w::ActivityLine::new(
+) -> Result<w::DecodedActivityLine, w::Problem> {
+    w::DecodedActivityLine::new(
         limits,
-        w::ActivityLineParts {
-            source: wire_owner_activity_line(&value.source, limits)?,
+        w::DecodedActivityLineParts {
+            source: wire_activity_line(&value.source, limits)?,
             decoded: value.decoded.as_ref().map(|item| wire_archived_turn(item, limits)).transpose()?,
         },
     )
@@ -557,15 +556,15 @@ pub(in crate::codec) fn wire_chip_fields(
         w::ChipFieldsParts {
             task: value.task,
             title: wire_document_text(&value.title, limits)?,
-            executor: wire_executor(&value.executor, limits)?,
+            executor: wire_chip_executor(&value.executor, limits)?,
             phase: wire_phase(&value.phase, limits)?,
             details: facts.chip_phase(&value.details, Some(parent), limits)?,
         },
     )
 }
 
-pub(in crate::codec) fn wire_chip_phase_owner_fields(
-    value: &c::ChipPhase,
+pub(in crate::codec) fn wire_chip_phase_fields(
+    value: &c::ChipPhaseFacts,
     limits: &w::Limits,
     facts: &mut facts::Facts,
     parent: u32,
@@ -573,8 +572,8 @@ pub(in crate::codec) fn wire_chip_phase_owner_fields(
     w::ChipPhaseOwnerFields::new(
         limits,
         w::ChipPhaseOwnerFieldsParts {
-            phase: wire_owner_chip_phase(&value.phase, limits)?,
-            details: facts.owner_chip_details(&value.details, Some(parent), limits)?,
+            phase: wire_chip_phase(&value.phase, limits)?,
+            details: facts.chip_details(&value.details, Some(parent), limits)?,
         },
     )
 }
@@ -695,7 +694,7 @@ pub(in crate::codec) fn wire_result_value_fields(
             limits,
             w::ResultValueChangeFieldsParts {
                 kind: *(kind),
-                part: wire_owner_part(part, limits)?,
+                part: wire_part(part, limits)?,
                 words: wire_document_text(words, limits)?,
             },
         )?),

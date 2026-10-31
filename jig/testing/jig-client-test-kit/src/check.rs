@@ -2,8 +2,8 @@
 use jig_client::{
     Key,
     contract::{
-        ActKind, Amendment, AnswerOn, Ask, DecideOn, Note, NoteScope, Operation, OwnerEscalation, OwnerPersonTask,
-        ProposeAction, ReadValue, Revision, Task,
+        ActKind, Amendment, AnswerOn, Ask, DecideOn, Escalation, Note, NoteScope, Operation, PersonTask, ProposeAction,
+        ReadValue, Revision, Task,
     },
 };
 use skein_ui::{NodeId, Role, Tree};
@@ -20,8 +20,8 @@ pub enum Object {
 #[derive(Clone, Copy, Debug)]
 pub enum Delivered<'a> {
     Task(&'a Task),
-    Escalation(&'a OwnerEscalation),
-    PersonTask(&'a OwnerPersonTask),
+    Escalation(&'a Escalation),
+    PersonTask(&'a PersonTask),
     Note(&'a Note),
     Read(&'a ReadValue),
 }
@@ -70,8 +70,8 @@ impl Check {
             }
             Delivered::Read(value) => match value {
                 ReadValue::Task(value) => self.delivered(Delivered::Task(value)),
-                ReadValue::OwnerEscalation(value) => self.delivered(Delivered::Escalation(value)),
-                ReadValue::OwnerPersonTask(value) => self.delivered(Delivered::PersonTask(value)),
+                ReadValue::Escalation(value) => self.delivered(Delivered::Escalation(value)),
+                ReadValue::PersonTask(value) => self.delivered(Delivered::PersonTask(value)),
                 ReadValue::Notes(value) => {
                     for note in &value.rows {
                         self.delivered(Delivered::Note(note));
@@ -79,22 +79,22 @@ impl Check {
                 }
                 ReadValue::Me(_)
                 | ReadValue::Tasks(_)
-                | ReadValue::Historical(_)
-                | ReadValue::OwnerProposal(_)
+                | ReadValue::Ended(_)
+                | ReadValue::Proposal(_)
                 | ReadValue::Question(_)
                 | ReadValue::Result(_)
                 | ReadValue::History(_)
                 | ReadValue::Activity(_)
                 | ReadValue::Turn(_)
-                | ReadValue::OwnerInbox(_)
-                | ReadValue::OwnerEnded(_)
-                | ReadValue::OwnerSpend(_)
-                | ReadValue::OwnerProject(_)
+                | ReadValue::Inbox(_)
+                | ReadValue::EndedPage(_)
+                | ReadValue::Spend(_)
+                | ReadValue::Project(_)
                 | ReadValue::Settings(_)
                 | ReadValue::Setting(_)
                 | ReadValue::Revision(_)
                 | ReadValue::Revisions(_)
-                | ReadValue::OwnerDeployment(_) => {}
+                | ReadValue::Deployment(_) => {}
             },
         }
     }

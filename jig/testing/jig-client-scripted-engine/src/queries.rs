@@ -17,14 +17,14 @@ pub(crate) fn selects(query: &TaskQuery, task: &Task) -> bool {
         | Phase::Active => PhaseClass::Working,
     };
     let executor = match task.chip.executor {
-        c::Executor::Agent { .. } => ExecutorKind::Agent,
-        c::Executor::Procedure { .. } => ExecutorKind::Procedure,
-        c::Executor::Party { .. } | c::Executor::Role { .. } => ExecutorKind::Person,
+        c::ChipExecutor::Agent { .. } => ExecutorKind::Agent,
+        c::ChipExecutor::Procedure { .. } => ExecutorKind::Procedure,
+        c::ChipExecutor::Party { .. } | c::ChipExecutor::Role { .. } => ExecutorKind::Person,
     };
     query.project.is_none_or(|v| v == task.project)
         && query.requester.is_none_or(|v| v == task.requester)
         && query.root.is_none_or(|v| v == task.lineage.as_slice().first().copied().unwrap_or(task.chip.task))
-        && query.parent.is_none_or(|v| task.requester == c::OwnerRequester::Task(v))
+        && query.parent.is_none_or(|v| task.requester == c::Requester::Task(v))
         && query.label.is_none_or(|v| v == task.label)
         && query.phase.map_or(phase != PhaseClass::Ended, |v| v == phase)
         && query.executor.is_none_or(|v| v == executor)
@@ -35,7 +35,7 @@ pub(crate) fn line<'a>(
     subtree: impl Iterator<Item = &'a Task>,
     conversation: Option<c::ConversationRead>,
 ) -> TaskLine {
-    let mut phases = c::OwnerPhaseCounts {
+    let mut phases = c::PhaseCounts {
         waiting: 0,
         idle: 0,
         starting: 0,
@@ -116,7 +116,7 @@ impl<A: crate::Application> crate::Engine<A> {
         rows
     }
     pub(crate) fn conversation_read(&self, task: &Task) -> Option<c::ConversationRead> {
-        let c::OwnerRequester::Person(requester) = task.requester else { return None };
+        let c::Requester::Person(requester) = task.requester else { return None };
         if !task.flags.conversation {
             return None;
         }

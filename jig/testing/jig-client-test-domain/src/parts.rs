@@ -1,11 +1,11 @@
 //! A part routes by its connector, without reading the application's value.
 use crate::{Domain, Fact, Limits, Request, first, owner::Connector, route};
-use jig_client::contract::Part;
+use jig_client::contract::ApplicationPart;
 use skein_lib::{Env, Queue};
 pub(crate) fn show(
     root: &mut Domain,
     env: &Env<Limits>,
-    part: Part,
+    part: ApplicationPart,
     scope: jig_client::contract::PartScope,
     out: &mut Queue<Request>,
 ) {
@@ -32,18 +32,18 @@ pub(crate) fn show(
     }
 }
 #[must_use]
-pub fn connector(part: &Part) -> u16 {
+pub fn connector(part: &ApplicationPart) -> u16 {
     match part {
-        Part::Connector { connector }
-        | Part::Resource { connector, .. }
-        | Part::Kind { connector, .. }
-        | Part::Panel { connector, .. }
-        | Part::Result { connector, .. }
-        | Part::Effect { connector, .. }
-        | Part::OwnerEffect { connector, .. }
-        | Part::Outbox { connector, .. }
-        | Part::Hold { connector, .. }
-        | Part::Project { connector, .. }
-        | Part::Deployment { connector } => *connector,
+        ApplicationPart::Connector { connector }
+        | ApplicationPart::Resource { connector, .. }
+        | ApplicationPart::Kind { connector, .. }
+        | ApplicationPart::Panel { connector, .. }
+        | ApplicationPart::Result { connector, .. }
+        | ApplicationPart::Effect { connector, .. }
+        | ApplicationPart::OwnerEffect { connector, .. }
+        | ApplicationPart::Outbox { connector, .. }
+        | ApplicationPart::Hold { connector, .. }
+        | ApplicationPart::Project { connector, .. }
+        | ApplicationPart::Deployment { connector } => *connector,
     }
 }

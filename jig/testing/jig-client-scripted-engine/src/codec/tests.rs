@@ -55,7 +55,7 @@ fn scripted_answers_and_watch_documents_are_the_links_decoded_values() {
     let bounds = Bounds::default();
     let value = c::Delivery::Me(Box::new(frame()));
     assert_eq!(delivery(&value, &bounds), Ok(value));
-    let value = c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::Lifted { hold: 7, released: 1 }));
+    let value = c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::Lifted { hold: 7, released: 1 }));
     assert_eq!(answer(&value, &bounds), Ok(value));
     let value = c::Answer::Refused { refusal: c::Refusal::KeyConflict, at: Some(3) };
     assert_eq!(answer(&value, &bounds), Ok(value));

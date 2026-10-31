@@ -27,16 +27,13 @@ pub fn live_chip_record() -> w::Chip {
     owner_chip_records().into_iter().next().expect("waiting phase fixture")
 }
 #[must_use]
-pub fn live_budget_record() -> w::OwnerBudget {
+pub fn live_budget_record() -> w::Budget {
     let l = limits();
-    w::OwnerBudget::new(
+    w::Budget::new(
         &l,
-        w::OwnerBudgetParts {
-            numbers: w::OwnerNumbers::new(
-                &l,
-                w::OwnerNumbersParts { budget: 7, spent: 7, spent_below: 7, reserved: 7 },
-            )
-            .expect("literal"),
+        w::BudgetParts {
+            numbers: w::Numbers::new(&l, w::NumbersParts { budget: 7, spent: 7, spent_below: 7, reserved: 7 })
+                .expect("literal"),
             left: 7,
             funder: w::Funder::Task(w::FunderTask::new(&l, w::FunderTaskParts { value: 7 }).expect("literal")),
             deadline: None,
@@ -105,10 +102,10 @@ pub fn live_cursor_record() -> w::Cursor {
     w::Cursor::new(&limits(), w::CursorParts { value: Box::from([255, 0, 3]) }).expect("opaque literal")
 }
 #[must_use]
-pub fn phases_record() -> w::OwnerPhaseCounts {
-    w::OwnerPhaseCounts::new(
+pub fn phases_record() -> w::PhaseCounts {
+    w::PhaseCounts::new(
         &limits(),
-        w::OwnerPhaseCountsParts {
+        w::PhaseCountsParts {
             waiting: 1,
             idle: 2,
             starting: 3,
@@ -150,8 +147,8 @@ pub fn task_line_record() -> w::TaskLine {
             phases: phases_record(),
             held_below: 0,
             conversation: None,
-            requester: w::OwnerRequester::Person(
-                w::OwnerRequesterPerson::new(&l, w::OwnerRequesterPersonParts { value: 23 }).expect("literal"),
+            requester: w::Requester::Person(
+                w::RequesterPerson::new(&l, w::RequesterPersonParts { value: 23 }).expect("literal"),
             ),
             changed: 29,
         },
@@ -166,29 +163,23 @@ pub fn tasks_rows_record() -> w::Tasks {
         .expect("literal")
 }
 #[must_use]
-pub fn stored_link_record() -> w::OwnerTaskLink {
+pub fn stored_link_record() -> w::TaskLink {
     let l = limits();
-    w::OwnerTaskLink::Stored(
-        w::OwnerTaskLinkStored::new(
-            &l,
-            w::OwnerTaskLinkStoredParts { number: 7, status: Some(w::OwnerTaskStatus::Failed) },
-        )
-        .expect("literal"),
+    w::TaskLink::Stored(
+        w::TaskLinkStored::new(&l, w::TaskLinkStoredParts { number: 7, status: Some(w::TaskStatus::Failed) })
+            .expect("literal"),
     )
 }
 #[must_use]
-pub fn tree_rows_record() -> w::OwnerTree {
+pub fn tree_rows_record() -> w::Tree {
     let l = limits();
-    let dependency = w::OwnerTaskLink::Stored(
-        w::OwnerTaskLinkStored::new(
-            &l,
-            w::OwnerTaskLinkStoredParts { number: 19, status: Some(w::OwnerTaskStatus::Failed) },
-        )
-        .expect("literal"),
+    let dependency = w::TaskLink::Stored(
+        w::TaskLinkStored::new(&l, w::TaskLinkStoredParts { number: 19, status: Some(w::TaskStatus::Failed) })
+            .expect("literal"),
     );
-    let row = w::OwnerTreeRow::new(
+    let row = w::TreeRow::new(
         &l,
-        w::OwnerTreeRowParts {
+        w::TreeRowParts {
             chip: live_chip_record(),
             parent: 7,
             depth: 1,
@@ -208,14 +199,14 @@ pub fn tree_rows_record() -> w::OwnerTree {
         },
     )
     .expect("literal");
-    w::OwnerTree::new(
+    w::Tree::new(
         &l,
-        w::OwnerTreeParts {
+        w::TreeParts {
             root: live_chip_record(),
             rows: pieces([encoded(row.measure(), |w| row.encode(w))]),
-            folded: rows([w::OwnerTreeFold::new(
+            folded: rows([w::TreeFold::new(
                 &l,
-                w::OwnerTreeFoldParts { parent: 7, phases: phases_record(), held_below: 23 },
+                w::TreeFoldParts { parent: 7, phases: phases_record(), held_below: 23 },
             )
             .expect("literal")]),
             held_below: 29,
@@ -225,15 +216,15 @@ pub fn tree_rows_record() -> w::OwnerTree {
     .expect("literal")
 }
 #[must_use]
-pub fn live_inbox_cursor_record() -> w::OwnerInboxCursor {
+pub fn live_inbox_cursor_record() -> w::InboxCursor {
     let l = limits();
-    w::OwnerInboxCursor::Inbox(
-        w::OwnerInboxCursorInbox::new(
+    w::InboxCursor::Inbox(
+        w::InboxCursorInbox::new(
             &l,
-            w::OwnerInboxCursorInboxParts {
+            w::InboxCursorInboxParts {
                 task: 7,
-                object: w::OwnerInboxObject::Turn(
-                    w::OwnerInboxObjectTurn::new(&l, w::OwnerInboxObjectTurnParts { message: 11 }).expect("literal"),
+                object: w::InboxObject::Turn(
+                    w::InboxObjectTurn::new(&l, w::InboxObjectTurnParts { message: 11 }).expect("literal"),
                 ),
                 at: Some(13),
             },
@@ -242,15 +233,15 @@ pub fn live_inbox_cursor_record() -> w::OwnerInboxCursor {
     )
 }
 #[must_use]
-pub fn inbox_both_groups_record() -> w::OwnerInbox {
+pub fn inbox_both_groups_record() -> w::Inbox {
     let l = limits();
-    let need = w::OwnerInboxEntry::new(
+    let need = w::InboxEntry::new(
         &l,
-        w::OwnerInboxEntryParts {
+        w::InboxEntryParts {
             reply: None,
             task: stored_link_record(),
             project: Some(7),
-            object: w::OwnerInboxObject::PersonTask,
+            object: w::InboxObject::PersonTask,
             activity: Some(17),
             at: Some(13),
             unread: Some(true),
@@ -258,14 +249,14 @@ pub fn inbox_both_groups_record() -> w::OwnerInbox {
         },
     )
     .expect("literal");
-    let update = w::OwnerInboxEntry::new(
+    let update = w::InboxEntry::new(
         &l,
-        w::OwnerInboxEntryParts {
+        w::InboxEntryParts {
             reply: Some(task_line_record()),
             task: stored_link_record(),
             project: Some(7),
-            object: w::OwnerInboxObject::Turn(
-                w::OwnerInboxObjectTurn::new(&l, w::OwnerInboxObjectTurnParts { message: 11 }).expect("literal"),
+            object: w::InboxObject::Turn(
+                w::InboxObjectTurn::new(&l, w::InboxObjectTurnParts { message: 11 }).expect("literal"),
             ),
             activity: Some(17),
             at: Some(13),
@@ -274,14 +265,14 @@ pub fn inbox_both_groups_record() -> w::OwnerInbox {
         },
     )
     .expect("literal");
-    let selection = w::OwnerInboxSelection::new(
+    let selection = w::InboxSelection::new(
         &l,
-        w::OwnerInboxSelectionParts { cursor: live_inbox_cursor_record(), goals: rows([37, 41]) },
+        w::InboxSelectionParts { cursor: live_inbox_cursor_record(), goals: rows([37, 41]) },
     )
     .expect("literal");
-    w::OwnerInbox::new(
+    w::Inbox::new(
         &l,
-        w::OwnerInboxParts {
+        w::InboxParts {
             party: 19,
             needs: pieces([encoded(need.measure(), |w| need.encode(w))]),
             updates: pieces([encoded(update.measure(), |w| update.encode(w))]),
@@ -296,20 +287,20 @@ pub fn inbox_both_groups_record() -> w::OwnerInbox {
     .expect("literal")
 }
 #[must_use]
-pub fn host_run_record() -> w::OwnerHostRun {
+pub fn host_run_record() -> w::HostRun {
     let l = limits();
-    w::OwnerHostRun::new(
+    w::HostRun::new(
         &l,
-        w::OwnerHostRunParts {
+        w::HostRunParts {
             task: stored_link_record(),
             attempt: 11,
             kept: 13,
             listed: true,
-            state: w::OwnerAttemptState::Kept,
-            location: w::OwnerRunLocation::Adrift(
-                w::OwnerRunLocationAdrift::new(
+            state: w::AttemptState::Kept,
+            location: w::RunLocation::Adrift(
+                w::RunLocationAdrift::new(
                     &l,
-                    w::OwnerRunLocationAdriftParts {
+                    w::RunLocationAdriftParts {
                         channel: Some(17),
                         until: Some(19),
                         remaining: Some(Duration::from_nanos(23)),
@@ -323,19 +314,19 @@ pub fn host_run_record() -> w::OwnerHostRun {
     .expect("literal")
 }
 #[must_use]
-pub fn deployment_rows_record() -> w::OwnerDeployment {
+pub fn deployment_rows_record() -> w::Deployment {
     let l = limits();
     let run = host_run_record();
     let chip = live_chip_record();
-    let host = w::OwnerHost::new(
+    let host = w::Host::new(
         &l,
-        w::OwnerHostParts {
-            rule: w::OwnerHostRule::Open,
+        w::HostParts {
+            rule: w::HostRule::Open,
             skein_bools: [false, true, false, true],
             name: None,
             programs: Box::new([]),
             channel: 17,
-            kind: w::OwnerHostKind::Engine,
+            kind: w::HostKind::Engine,
             slots: 2,
             used: 1,
             free: 1,
@@ -345,9 +336,9 @@ pub fn deployment_rows_record() -> w::OwnerDeployment {
         },
     )
     .expect("literal");
-    let account = w::OwnerAccount::new(
+    let account = w::Account::new(
         &l,
-        w::OwnerAccountParts {
+        w::AccountParts {
             provider_name: None,
             manage_usage: None,
             number: 41,
@@ -355,12 +346,11 @@ pub fn deployment_rows_record() -> w::OwnerDeployment {
             uses: None,
             provider: Some(3),
             display: super::wire_text(b"Deployment account"),
-            holder: w::OwnerAccountHolder::Deployment,
+            holder: w::AccountHolder::Deployment,
             sources: Box::from([]),
             generation: Some(43),
-            state: w::OwnerAccountState::Later(
-                w::OwnerAccountStateLater::new(&l, w::OwnerAccountStateLaterParts { until: Some(47) })
-                    .expect("literal"),
+            state: w::AccountState::Later(
+                w::AccountStateLater::new(&l, w::AccountStateLaterParts { until: Some(47) }).expect("literal"),
             ),
             skein_bools: [false, false, true, false, true],
             spent_until: Some(53),
@@ -369,9 +359,9 @@ pub fn deployment_rows_record() -> w::OwnerDeployment {
         },
     )
     .expect("literal");
-    w::OwnerDeployment::new(
+    w::Deployment::new(
         &l,
-        w::OwnerDeploymentParts {
+        w::DeploymentParts {
             skein_bools: [false, true, false, false],
             providers: Box::new([]),
             key_bytes: 256,
@@ -380,16 +370,16 @@ pub fn deployment_rows_record() -> w::OwnerDeployment {
             hosts: pieces([encoded(host.measure(), |w| host.encode(w))]),
             attempts: pieces([encoded(run.measure(), |w| run.encode(w))]),
             accounts: pieces([encoded(account.measure(), |w| account.encode(w))]),
-            tasks: w::OwnerCapacity::new(&l, w::OwnerCapacityParts { used: 1, limit: 2 }).expect("literal"),
-            workers: w::OwnerCapacity::new(&l, w::OwnerCapacityParts { used: 3, limit: 4 }).expect("literal"),
-            attempts_capacity: w::OwnerCapacity::new(&l, w::OwnerCapacityParts { used: 5, limit: 6 }).expect("literal"),
+            tasks: w::Capacity::new(&l, w::CapacityParts { used: 1, limit: 2 }).expect("literal"),
+            workers: w::Capacity::new(&l, w::CapacityParts { used: 3, limit: 4 }).expect("literal"),
+            attempts_capacity: w::Capacity::new(&l, w::CapacityParts { used: 5, limit: 6 }).expect("literal"),
             waiting_attempts: 7,
-            proposals: w::OwnerCapacity::new(&l, w::OwnerCapacityParts { used: 8, limit: 9 }).expect("literal"),
-            projects: rows([w::OwnerProjectCapacity::new(
+            proposals: w::Capacity::new(&l, w::CapacityParts { used: 8, limit: 9 }).expect("literal"),
+            projects: rows([w::ProjectCapacity::new(
                 &l,
-                w::OwnerProjectCapacityParts {
+                w::ProjectCapacityParts {
                     project: 7,
-                    tasks: w::OwnerCapacity::new(&l, w::OwnerCapacityParts { used: 11, limit: 13 }).expect("literal"),
+                    tasks: w::Capacity::new(&l, w::CapacityParts { used: 11, limit: 13 }).expect("literal"),
                     proposals: 17,
                 },
             )
@@ -408,25 +398,22 @@ pub fn deployment_rows_record() -> w::OwnerDeployment {
     )
     .expect("literal")
 }
-fn hello_refusal_record() -> w::OwnerHelloRefusalLine {
+fn hello_refusal_record() -> w::HelloRefusalLine {
     let l = limits();
-    w::OwnerHelloRefusalLine::new(
+    w::HelloRefusalLine::new(
         &l,
-        w::OwnerHelloRefusalLineParts {
+        w::HelloRefusalLineParts {
             channel: 61,
             at: 67,
             slots: 2,
             stop_bound: Duration::from_nanos(71),
-            why: w::OwnerHelloRefusal::Agent(
-                w::OwnerHelloRefusalAgent::new(
+            why: w::HelloRefusal::Agent(
+                w::HelloRefusalAgent::new(
                     &l,
-                    w::OwnerHelloRefusalAgentParts {
-                        why: w::OwnerAgentShortfall::Window(
-                            w::OwnerAgentShortfallWindow::new(
-                                &l,
-                                w::OwnerAgentShortfallWindowParts { charter: 73, model: 79 },
-                            )
-                            .expect("literal"),
+                    w::HelloRefusalAgentParts {
+                        why: w::AgentShortfall::Window(
+                            w::AgentShortfallWindow::new(&l, w::AgentShortfallWindowParts { charter: 73, model: 79 })
+                                .expect("literal"),
                         ),
                     },
                 )
@@ -436,17 +423,17 @@ fn hello_refusal_record() -> w::OwnerHelloRefusalLine {
     )
     .expect("literal")
 }
-fn person_refusal_record() -> w::OwnerPersonCapacityRefusal {
+fn person_refusal_record() -> w::PersonCapacityRefusal {
     let l = limits();
-    w::OwnerPersonCapacityRefusal::new(
+    w::PersonCapacityRefusal::new(
         &l,
-        w::OwnerPersonCapacityRefusalParts {
-            key: w::OwnerRequestKey::new(&l, w::OwnerRequestKeyParts { person: 97, key: [3; 16] }).expect("literal"),
+        w::PersonCapacityRefusalParts {
+            key: w::RequestKey::new(&l, w::RequestKeyParts { person: 97, key: [3; 16] }).expect("literal"),
             project: Some(7),
-            action: w::OwnerPersonCapacityAction::Proposal(
-                w::OwnerPersonCapacityActionProposal::new(
+            action: w::PersonCapacityAction::Proposal(
+                w::PersonCapacityActionProposal::new(
                     &l,
-                    w::OwnerPersonCapacityActionProposalParts {
+                    w::PersonCapacityActionProposalParts {
                         proposer: w::Proposer::Party(
                             w::ProposerParty::new(&l, w::ProposerPartyParts { value: 101 }).expect("literal"),
                         ),
@@ -456,10 +443,10 @@ fn person_refusal_record() -> w::OwnerPersonCapacityRefusal {
                 .expect("literal"),
             ),
             at: 107,
-            cause: w::OwnerPersonCapacityCause::Limit(
-                w::OwnerPersonCapacityCauseLimit::new(
+            cause: w::PersonCapacityCause::Limit(
+                w::PersonCapacityCauseLimit::new(
                     &l,
-                    w::OwnerPersonCapacityCauseLimitParts { which: w::AdmissionLimit::LiveTasks },
+                    w::PersonCapacityCauseLimitParts { which: w::AdmissionLimit::LiveTasks },
                 )
                 .expect("literal"),
             ),
@@ -467,23 +454,22 @@ fn person_refusal_record() -> w::OwnerPersonCapacityRefusal {
     )
     .expect("literal")
 }
-fn task_refusal_record() -> w::OwnerTaskCapacityRefusal {
+fn task_refusal_record() -> w::TaskCapacityRefusal {
     let l = limits();
-    w::OwnerTaskCapacityRefusal::new(
+    w::TaskCapacityRefusal::new(
         &l,
-        w::OwnerTaskCapacityRefusalParts {
-            request: w::OwnerTaskCapacityRequest::new(
+        w::TaskCapacityRefusalParts {
+            request: w::TaskCapacityRequest::new(
                 &l,
-                w::OwnerTaskCapacityRequestParts {
+                w::TaskCapacityRequestParts {
                     project: Some(7),
-                    by: w::OwnerRequester::Deployment(
-                        w::OwnerRequesterDeployment::new(&l, w::OwnerRequesterDeploymentParts { project: 7 })
-                            .expect("literal"),
+                    by: w::Requester::Deployment(
+                        w::RequesterDeployment::new(&l, w::RequesterDeploymentParts { project: 7 }).expect("literal"),
                     ),
-                    action: w::OwnerTaskCapacityAction::Source(
-                        w::OwnerTaskCapacityActionSource::new(
+                    action: w::TaskCapacityAction::Source(
+                        w::TaskCapacityActionSource::new(
                             &l,
-                            w::OwnerTaskCapacityActionSourceParts {
+                            w::TaskCapacityActionSourceParts {
                                 funder: w::Funder::Task(
                                     w::FunderTask::new(&l, w::FunderTaskParts { value: 127 }).expect("literal"),
                                 ),
@@ -491,10 +477,10 @@ fn task_refusal_record() -> w::OwnerTaskCapacityRefusal {
                         )
                         .expect("literal"),
                     ),
-                    cause: w::OwnerTaskCapacityCause::Inbox(
-                        w::OwnerTaskCapacityCauseInbox::new(
+                    cause: w::TaskCapacityCause::Inbox(
+                        w::TaskCapacityCauseInbox::new(
                             &l,
-                            w::OwnerTaskCapacityCauseInboxParts { task: 131, messages: 2, bytes: 137 },
+                            w::TaskCapacityCauseInboxParts { task: 131, messages: 2, bytes: 137 },
                         )
                         .expect("literal"),
                     ),

@@ -8,7 +8,7 @@ pub mod proposal;
 use crate::family::{self, Document, Kind, Scope, Subject};
 pub use crate::family::{Answer, Ask, ReadResult, WatchEnd, WatchEvent};
 use jig_client::Link;
-use jig_client::contract::{Part, Revision};
+use jig_client::contract::{ApplicationPart, Revision};
 use skein_lib::{Env, Id, List, Map, Queue, RequestProgress, Slab, Time, Token};
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Address {
@@ -46,7 +46,7 @@ pub enum Fact {
 #[derive(Debug)]
 pub enum Event {
     Compose { address: Address, composition: family::PageComposition },
-    Show { part: Part, scope: Scope },
+    Show { part: ApplicationPart, scope: Scope },
     PartsLeft,
     Went { address: Address },
     Left,
@@ -141,7 +141,7 @@ pub struct Object {
 }
 #[derive(Debug)]
 struct Held {
-    part: Part,
+    part: ApplicationPart,
     subject: Option<Subject>,
 }
 #[derive(Debug)]
@@ -251,7 +251,7 @@ impl Side {
         self.find(Subject { scope: Scope::Project(address.project), kind: Kind::Item(address.item) })
     }
     #[must_use]
-    pub fn part(&self, part: &Part) -> Option<&Object> {
+    pub fn part(&self, part: &ApplicationPart) -> Option<&Object> {
         for held in &self.parts {
             if &held.part == part {
                 let subject = held.subject?;
@@ -261,7 +261,7 @@ impl Side {
         None
     }
     #[must_use]
-    pub fn contains(&self, part: &Part) -> bool {
+    pub fn contains(&self, part: &ApplicationPart) -> bool {
         for held in &self.parts {
             if &held.part == part {
                 return true;
@@ -855,19 +855,19 @@ fn progress_changed(
     }
 }
 
-fn part_fits(part: &Part, segments: u32, text: u32) -> bool {
+fn part_fits(part: &ApplicationPart, segments: u32, text: u32) -> bool {
     match part {
-        Part::Resource { path, .. } => jig_client::contract::resource_path_fits(path, segments, text),
-        Part::Connector { .. }
-        | Part::Kind { .. }
-        | Part::Panel { .. }
-        | Part::Result { .. }
-        | Part::Effect { .. }
-        | Part::OwnerEffect { .. }
-        | Part::Outbox { .. }
-        | Part::Hold { .. }
-        | Part::Project { .. }
-        | Part::Deployment { .. } => true,
+        ApplicationPart::Resource { path, .. } => jig_client::contract::resource_path_fits(path, segments, text),
+        ApplicationPart::Connector { .. }
+        | ApplicationPart::Kind { .. }
+        | ApplicationPart::Panel { .. }
+        | ApplicationPart::Result { .. }
+        | ApplicationPart::Effect { .. }
+        | ApplicationPart::OwnerEffect { .. }
+        | ApplicationPart::Outbox { .. }
+        | ApplicationPart::Hold { .. }
+        | ApplicationPart::Project { .. }
+        | ApplicationPart::Deployment { .. } => true,
     }
 }
 

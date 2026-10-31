@@ -1,8 +1,6 @@
 //! Wire projections of queries facts (client/domain/testing.md, 4).
 use super::super::{c, facts, list, pieces, w};
-use super::{
-    wire_count, wire_cursor, wire_owner_budget, wire_owner_phase_counts, wire_owner_requester, wire_task_flags,
-};
+use super::{wire_budget, wire_count, wire_cursor, wire_phase_counts, wire_requester, wire_task_flags};
 pub(in crate::codec) fn wire_task_page(value: &c::TaskPage, limits: &w::Limits) -> Result<w::TaskPage, w::Problem> {
     w::TaskPage::new(
         limits,
@@ -24,16 +22,16 @@ pub(in crate::codec) fn wire_task_line(value: &c::TaskLine, limits: &w::Limits) 
         w::TaskLineParts {
             chip: facts::chip(&value.chip, limits)?,
             project: value.project,
-            requester: wire_owner_requester(&value.requester, limits)?,
+            requester: wire_requester(&value.requester, limits)?,
             tracked: value.tracked.as_ref().map(|item| Ok::<_, w::Problem>(*(item))).transpose()?,
             label: value.label,
             flags: wire_task_flags(&value.flags, limits)?,
             changed: value.changed.as_nanos(),
             last_activity: value.last_activity.as_nanos(),
             ended_at: value.ended_at.as_ref().map(|item| Ok::<_, w::Problem>((item).as_nanos())).transpose()?,
-            budget: wire_owner_budget(&value.budget, limits)?,
+            budget: wire_budget(&value.budget, limits)?,
             waits_on: wire_waits_on(&value.waits_on, limits)?,
-            phases: wire_owner_phase_counts(&value.phases, limits)?,
+            phases: wire_phase_counts(&value.phases, limits)?,
             held_below: value.held_below,
             conversation: value.conversation.as_ref().map(|item| wire_conversation_read(item, limits)).transpose()?,
         },

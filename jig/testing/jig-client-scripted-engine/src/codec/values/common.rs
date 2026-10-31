@@ -1,6 +1,6 @@
 //! Wire projections of common facts (client/domain/testing.md, 4).
 use super::super::{bytes, c, facts, w};
-use super::wire_owner_pattern;
+use super::wire_pattern;
 pub(in crate::codec) fn wire_proposal_key(
     value: &c::ProposalKey,
     limits: &w::Limits,
@@ -26,19 +26,23 @@ pub(in crate::codec) fn wire_count(value: &c::Count, limits: &w::Limits) -> Resu
     w::Count::new(limits, w::CountParts { value: value.value, limited: value.limited })
 }
 
-pub(in crate::codec) fn wire_executor(value: &c::Executor, limits: &w::Limits) -> Result<w::Executor, w::Problem> {
+pub(in crate::codec) fn wire_chip_executor(
+    value: &c::ChipExecutor,
+    limits: &w::Limits,
+) -> Result<w::ChipExecutor, w::Problem> {
     Ok::<_, w::Problem>(match value {
-        c::Executor::Agent { charter } => {
-            w::Executor::Agent(w::ExecutorAgent::new(limits, w::ExecutorAgentParts { charter: *(charter) })?)
-        }
-        c::Executor::Procedure { connector, kind } => w::Executor::Procedure(w::ExecutorProcedure::new(
+        c::ChipExecutor::Agent { charter } => w::ChipExecutor::Agent(w::ChipExecutorAgent::new(
             limits,
-            w::ExecutorProcedureParts { connector: *(connector), kind: *(kind) },
+            w::ChipExecutorAgentParts { charter: *(charter) },
         )?),
-        c::Executor::Party { party } => {
-            w::Executor::Party(w::ExecutorParty::new(limits, w::ExecutorPartyParts { party: *(party) })?)
+        c::ChipExecutor::Procedure { connector, kind } => w::ChipExecutor::Procedure(w::ChipExecutorProcedure::new(
+            limits,
+            w::ChipExecutorProcedureParts { connector: *(connector), kind: *(kind) },
+        )?),
+        c::ChipExecutor::Party { party } => {
+            w::ChipExecutor::Party(w::ExecutorParty::new(limits, w::ExecutorPartyParts { party: *(party) })?)
         }
-        c::Executor::Role { project, role } => w::Executor::Role(w::ExecutorRole::new(
+        c::ChipExecutor::Role { project, role } => w::ChipExecutor::Role(w::ExecutorRole::new(
             limits,
             w::ExecutorRoleParts { project: *(project), role: *(role) },
         )?),
@@ -102,7 +106,7 @@ pub(in crate::codec) fn wire_note_scope(value: &c::NoteScope, limits: &w::Limits
             w::NoteScopeResourceParts {
                 project: *(project),
                 connector: *(connector),
-                pattern: wire_owner_pattern(pattern, limits)?,
+                pattern: wire_pattern(pattern, limits)?,
             },
         )?),
         c::NoteScope::Task { project, task } => w::NoteScope::Task(w::NoteScopeTask::new(
@@ -182,7 +186,7 @@ pub(in crate::codec) fn wire_ending_fields(
     Ok::<_, w::Problem>(match value {
         c::Ending::Task(value) => w::EndingFields::Task(w::EndingTaskFields::new(
             limits,
-            w::EndingTaskFieldsParts { value: facts.owner_chip_ending(value, Some(parent), limits)? },
+            w::EndingTaskFieldsParts { value: facts.chip_ending(value, Some(parent), limits)? },
         )?),
         c::Ending::Done => w::EndingFields::Done,
         c::Ending::Failed { reason } => w::EndingFields::Failed(w::EndingFailedFields::new(
