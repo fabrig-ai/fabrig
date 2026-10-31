@@ -1,4 +1,5 @@
-//! Shared io passes and declared queue/connection bounds; no peer semantics.
+//! Shared io stages (skein/docs/design/io.md, 2) and declared queue/connection
+//! bounds; no peer semantics.
 
 use std::net::SocketAddr;
 
@@ -63,46 +64,12 @@ impl Face {
 
     pub fn up(&mut self, now: Time, wall: Wall) {
         let env = Env { now, wall, limits: self.limits.io };
-        for _ in 0..self.limits.queue {
-            if self.submissions.room() < 2 {
-                break;
-            }
-            if self.io.is_ready() {
-                io::resume(&mut self.io, &env, &mut self.events, &mut self.submissions);
-            } else {
-                break;
-            }
-        }
-        if self.io.is_ready() {
-            return;
-        }
-        for _ in 0..self.completions.len() {
-            if self.submissions.room() < 2 {
-                break;
-            }
-            let Some(complete) = self.completions.pop() else { break };
-            io::up(&mut self.io, &env, complete, &mut self.events, &mut self.submissions);
-        }
-        if !self.completions.is_empty() {
-            return;
-        }
-        for _ in 0..self.limits.queue {
-            if self.submissions.room() < 2 || !self.io.is_due(now) {
-                break;
-            }
-            io::fire(&mut self.io, &env, &mut self.events, &mut self.submissions);
-        }
+        io::stage::up(&mut self.io, &env, &mut self.completions, &mut self.events, &mut self.submissions, now);
     }
 
     pub fn down(&mut self, now: Time, wall: Wall) {
         let env = Env { now, wall, limits: self.limits.io };
-        for _ in 0..self.limits.queue {
-            if self.submissions.room() < 2 || !self.io.takes() {
-                break;
-            }
-            let Some(request) = self.requests.pop() else { break };
-            io::down(&mut self.io, &env, request, &mut self.submissions);
-        }
+        io::stage::down(&mut self.io, &env, &mut self.requests, &mut self.submissions);
         self.io.reclaim();
     }
 
