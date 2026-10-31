@@ -68,3 +68,23 @@ id = 3
 story = "A forge removed ends whole across a restart; the playground made when chosen and reset to the welcome's Forge step"
 parts = ["forge-remove", "playground"]
 walk = false
+
+[[question]]
+id = "document-members"
+text = """The document gains `application.ports` (the machine's owned Forgejo, fake forge and fake LLM ports), `application.playground` (today's `application.demo.llm` members and the playground project's name and policy) and an optional `application.github` (where this machine reaches GitHub; absent is github.com), and loses `application.forges`, `identities`, `setup` and `demo`. A public, stored format. Default taken: as said (notes/contracts.md, 4; tasks fr-document, fr-init, fr-retire). Options: keep these names; or rename before the first release."""
+parts = []
+
+[[question]]
+id = "seed-files"
+text = """A forge can be given to a deployment at start as a seed file, `<data>/seed/forges/N.json` (one forge's definition, 0600 in a 0700 directory, read at each serve start). This is how a box-less deployment, the QA tier and a Forgejo elsewhere (managed or connected) get a forge, since the client cannot make a Forgejo elsewhere at runtime this run (it needs a wire address and runtime DNS). A new operator-facing interface. Default taken: as said (tasks fr-document, fr-service). Options: keep it as the documented import door (recommended); or keep it test-only and design a client flow for a Forgejo elsewhere next."""
+parts = []
+
+[[question]]
+id = "ctl-forge-setup"
+text = """`temper ctl forge setup` drops its forge number (a forge is made, not chosen), and `forge connect [FORGE] github` makes a new GitHub when given none; `forge remove FORGE` and `playground end` are new. Scripts that pass a number to `forge setup` break. Default taken: as said; the repository's callers are edited (task cl-tools). Options: as said; or accept and ignore a number for one release."""
+parts = []
+
+[[question]]
+id = "playground-policy"
+text = """The scripted model is allowed only in the playground's project, by a stock policy of its own, number 2, which `temper init` writes into the document's `engine.policies` (task pg-models). Default taken: as said. Options: policy 2 as said; or a project-level model setting instead of a policy, later."""
+parts = []
