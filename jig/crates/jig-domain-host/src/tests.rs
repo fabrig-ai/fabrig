@@ -1021,3 +1021,27 @@ fn validity_does_not_price_host_payloads() {
         ..LIMITS
     }));
 }
+
+#[test]
+fn admission_classifies_calls_and_link_work_separately_from_completions() {
+    let call = crate::FromAgent::Called {
+        owner: Token::new(1),
+        call: Box::from(*b"read"),
+        ask: crate::Ask::Relay {
+            tool: Box::from(*b"logs"),
+            writes: false,
+            input: Box::new([]),
+            deadline: skein_lib::Duration::from_secs(1),
+        },
+    };
+    assert!(call.new_work());
+    assert!(Event::Agent(call).new_work());
+    let settled = crate::FromAgent::Yielded { owner: Token::new(1) };
+    assert!(!settled.new_work());
+    assert!(!Event::Agent(settled).new_work());
+    assert!(
+        Event::Down(LinkDown::SignOut { name: crate::SourceName::new(b"test").expect("configured name") }).new_work()
+    );
+    assert!(!Event::SourceLost.new_work());
+    assert!(!Event::Saved { owner: Token::new(1), at: None }.new_work());
+}

@@ -499,7 +499,7 @@ pub fn outputs_bound(limits: &Limits) -> u32 {
 /// routing/persistence/replies, never IO; root completes each `Route` once and withholds replies
 /// until required atomic writes are durable. Restore loads decoded rows within representation bounds;
 /// `start_link` checks its project/person references without rechecking current membership or
-/// requiring the historical roster to equal the current one. Refused role asks retain their invalid
+/// requiring the roster at the time to equal the current one. Refused role asks retain their invalid
 /// targets for keyed replay.
 pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     domain.input();

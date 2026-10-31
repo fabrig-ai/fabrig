@@ -462,6 +462,12 @@ impl Record {
 /// Root-to-connector events.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Event {
+    /// Authority's answer for the procedure's staged effect.
+    ProcedureAdmission { task: u64, answer: Admission },
+    /// A connector reports that this resource changed.
+    ResourceChanged { resource: Resource },
+    /// Observability reports a changed service fact in its service vocabulary.
+    ObservedServiceChanged { environment: Box<[u8]>, name: Box<[u8]> },
     /// The root translated the deployment act's answer.
     Closed { key: [u8; 16], outcome: CloseOutcome },
     /// The core is ready; resend every retained close once.
@@ -670,4 +676,13 @@ pub enum CloseOutcome {
     Again,
     /// A saved refusal; report it and finish this request.
     Refused,
+}
+
+/// The core's effect admission translated into infrastructure's vocabulary (domain/root.md, 9).
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Admission {
+    Allow,
+    Wait,
+    Propose,
+    Refuse,
 }

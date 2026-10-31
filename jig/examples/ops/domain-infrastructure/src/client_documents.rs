@@ -127,8 +127,6 @@ pub(crate) fn prepare(domain: &mut Domain, limits: &Limits, token: Token, subjec
 fn scoped(scope: ClientScope, project: u32) -> Result<(), DocumentMissing> {
     if scope == ClientScope::Project(project) { Ok(()) } else { Err(DocumentMissing::Unknown) }
 }
-
-#[expect(clippy::manual_map, reason = "step code uses no closure-taking methods")]
 pub(crate) fn environment_owner(domain: &Domain, environment: &Environment, fact: &EnvironmentFact) -> Option<u32> {
     if let Some((key, project)) = domain.made.get(environment) {
         if *key != fact.created_by {
@@ -156,16 +154,12 @@ fn task(domain: &Domain, project: u32, task: u64) -> Result<&[crate::Named], Doc
         None => Err(DocumentMissing::Unknown),
     }
 }
-
-#[expect(clippy::manual_map, reason = "step code uses no closure-taking methods")]
 fn pool(domain: &Domain, name: &crate::Pool) -> Option<ClientPool> {
     match domain.pools.get(name) {
         Some((quota, used)) => Some(ClientPool { quota: *quota, used: *used }),
         None => None,
     }
 }
-
-#[expect(clippy::manual_map, reason = "step code uses no closure-taking methods")]
 fn resource(domain: &Domain, named: &crate::Named) -> ClientResource {
     let fact = match &named.resource {
         Resource::Service(service) => ResourceFact::Service(match domain.services.get(service) {
@@ -264,7 +258,7 @@ fn make(
                 proposal: *proposal,
                 task: *number,
                 effect: effect.clone(),
-                description: crate::domain::describe(effect, domain.backend),
+                description: crate::domain::describe(effect, domain.backend, &domain.vocabulary),
             })
         }
         ClientSubject::Outbox { project, entry: number } => {
@@ -283,7 +277,7 @@ fn make(
                     }
                     return Ok(ClientDocument::Outbox {
                         entry: entry.clone(),
-                        description: crate::domain::describe(&entry.effect, domain.backend),
+                        description: crate::domain::describe(&entry.effect, domain.backend, &domain.vocabulary),
                     });
                 }
             }

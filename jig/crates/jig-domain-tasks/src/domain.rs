@@ -3,7 +3,7 @@
 //! and iteration time, routes outputs and owns durability/transport proofs.
 //! A procedure keeps the transient inbox prefix offered to its current step;
 //! restoring reoffers its durable unread inbox. Tasks never performs IO or keeps
-//! full historical results or root shadows.
+//! full retained results or root shadows.
 use crate::{Active, Event, Fact, Limits, New, Party, Phase, Problem, Refusal, Request, Stored, TaskRecord, Tries};
 use alloc::boxed::Box;
 use skein_lib::{Deadlines, Env, Id, List, Map, Queue, ReplyTo, Rng, Slab, Time, Wall};
@@ -34,7 +34,7 @@ pub(crate) enum Startup {
 }
 
 /// Bounded live task arena, indexed waits, retry timers, finite period/pool ledgers,
-/// configured charters and deterministic retry randomness. Keeps bounded historical stubs,
+/// configured charters and deterministic retry randomness. Keeps bounded retained stubs,
 /// transport receipt, connector state or mutable root shadow ledger. (domain/tasks.md, sections 2, 4–5 and 10).
 #[derive(Debug)]
 pub struct Domain {
@@ -1523,6 +1523,23 @@ fn validate_charters(limits: &Limits, charters: &[crate::CharterModels], efforts
             for earlier in configured.iter().take(index) {
                 assert!(earlier != model, "a charter lists each model once");
             }
+        }
+    }
+}
+
+impl Domain {
+    /// The person conversation served by a directly requested delegate (domain/tasks.md, 2 and 8.1).
+    #[must_use]
+    pub fn served_chat(&self, task: u64) -> Option<u64> {
+        let row = self.task(task)?;
+        let chat = match row.requester {
+            Party::Task(chat) => chat,
+            Party::Person(_) | Party::Deployment { .. } => return None,
+        };
+        let row = self.task(chat)?;
+        match row.requester {
+            Party::Person(_) if row.flags.conversation => Some(chat),
+            Party::Person(_) | Party::Task(_) | Party::Deployment { .. } => None,
         }
     }
 }

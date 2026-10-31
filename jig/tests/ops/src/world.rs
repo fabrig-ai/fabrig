@@ -8,6 +8,7 @@ use skein_lib::{Env, Queue, Time, Token, Wall};
 #[must_use]
 pub fn limits() -> obs::Limits {
     obs::Limits {
+        vocabulary: obs::Vocabulary::reference(),
         services: 4,
         subscriptions: 8,
         watches: 2,

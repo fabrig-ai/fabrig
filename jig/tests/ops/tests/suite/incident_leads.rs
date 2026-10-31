@@ -12,13 +12,13 @@ fn full_retained_leads_alert_accounts_and_maximum_templates_keep_their_associati
     let templates = (0..limits.watches)
         .map(|number| obs::TriageTemplate {
             number: u16::try_from(number).expect("bounded fixture"),
-            delegate: vec![b't'; usize::try_from(limits.answer_bytes).expect("bounded fixture")].into(),
+            delegate: vec![b't'; skein_lib::length::usize_of(limits.answer_bytes)].into(),
         })
         .collect();
     let leads = (0..limits.watches)
         .map(|number| obs::LeadTemplate {
             number: u16::try_from(number).expect("bounded fixture"),
-            delegate: vec![b'i'; usize::try_from(limits.answer_bytes).expect("bounded fixture")].into(),
+            delegate: vec![b'i'; skein_lib::length::usize_of(limits.answer_bytes)].into(),
         })
         .collect();
     let mut domain = obs::Domain::with_templates(&limits, templates).with_leads(&limits, leads);
@@ -91,9 +91,9 @@ fn full_retained_leads_alert_accounts_and_maximum_templates_keep_their_associati
 }
 
 fn service(limits: &obs::Limits, watch: u32) -> obs::Service {
-    let mut name = vec![b's'; usize::try_from(limits.name_bytes).expect("bounded fixture")];
+    let mut name = vec![b's'; skein_lib::length::usize_of(limits.name_bytes)];
     *name.last_mut().expect("bounded fixture") = b's' + u8::try_from(watch).expect("bounded fixture");
-    obs::Service::new(vec![b'e'; usize::try_from(limits.name_bytes).expect("bounded fixture")].into(), name.into())
+    obs::Service::new(vec![b'e'; skein_lib::length::usize_of(limits.name_bytes)].into(), name.into())
 }
 
 fn fill_incidents(domain: &mut obs::Domain, env: &Env<obs::Limits>, out: &mut Queue<obs::Request>) {

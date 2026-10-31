@@ -9,6 +9,7 @@ use skein_lib::{Duration, List};
 #[must_use]
 pub fn limits() -> obs::Limits {
     obs::Limits {
+        vocabulary: obs::Vocabulary::reference(),
         services: 4,
         subscriptions: 8,
         watches: 2,
@@ -35,6 +36,7 @@ pub fn service() -> obs::Service {
 #[must_use]
 pub fn infrastructure_limits() -> infra::Limits {
     infra::Limits {
+        vocabulary: infra::Vocabulary::reference(),
         services: 4,
         environments: 4,
         pools: 2,

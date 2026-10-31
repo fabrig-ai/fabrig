@@ -8,6 +8,7 @@ use skein_lib::{Env, Queue, Time, Wall};
 #[must_use]
 pub fn infrastructure_limits() -> infra::Limits {
     infra::Limits {
+        vocabulary: infra::Vocabulary::reference(),
         services: 4,
         environments: 4,
         pools: 2,

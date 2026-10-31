@@ -140,3 +140,24 @@ mod wait_validity {
         }
     }
 }
+
+#[test]
+fn procedure_inputs_select_news_and_results_without_text_inference() {
+    use crate::{MessageKind, NewsClass, ProcedureInput, ResultKind};
+    assert_eq!(
+        MessageKind::News { subscription: 7, class: NewsClass::Wakes }.procedure_input(),
+        Some(ProcedureInput::News)
+    );
+    assert_eq!(
+        MessageKind::Result(ResultKind::Report).procedure_input(),
+        Some(ProcedureInput::Result(ResultKind::Report))
+    );
+    for kind in [
+        MessageKind::Words,
+        MessageKind::Question,
+        MessageKind::Timer { subscription: 7 },
+        MessageKind::FinishRequested { revision: 1 },
+    ] {
+        assert_eq!(kind.procedure_input(), None);
+    }
+}

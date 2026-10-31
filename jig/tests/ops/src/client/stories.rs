@@ -59,7 +59,7 @@ pub(super) fn seen(tree: &ViewTree) -> Vec<Seen> {
         };
         // The form supplies the owner's end revision as the public
         // field's write version, alongside the whole client object identity.
-        let revision = tree.nodes()[at..at + usize::try_from(node.size).expect("card subtree")]
+        let revision = tree.nodes()[at..at + skein_lib::length::usize_of(node.size)]
             .iter()
             .find(|field| field.role == Role::TextField)
             .and_then(|field| field.value.as_ref())
@@ -563,12 +563,7 @@ pub fn resolve(world: &mut ClientWorld) {
 }
 
 pub(super) fn list<T>(rows: impl IntoIterator<Item = T>) -> skein_lib::List<T> {
-    let rows: Vec<_> = rows.into_iter().collect();
-    let mut list = skein_lib::List::with_capacity(u32::try_from(rows.len()).expect("finite fixture row count"));
-    for row in rows {
-        list.push(row).ok().expect("fixture list capacity");
-    }
-    list
+    skein_lib::List::from_boxed(rows.into_iter().collect::<Vec<_>>().into_boxed_slice())
 }
 
 use jig_client::contract::DecideOn;

@@ -1,6 +1,6 @@
 //! Load bounded live rows, assert required links, then rebuild derived state
 //! (jig/docs/design/domain/engine.md, 6; jig/docs/design/domain/tasks.md, 12).
-//! Historical rows stay in root storage. A fit refusal remains sticky.
+//! Retained rows stay in root storage. A fit refusal remains sticky.
 use crate::domain::{Domain, Startup, Task, activate, publish, record, snapshot, task_mut};
 use crate::{
     Active, Closing, Executor, Limits, Party, Phase, Problem, Refusal, Request, Stage, Stored, TaskRecord, Was,
@@ -95,7 +95,7 @@ fn load(domain: &mut Domain, limits: &Limits, stored: Stored) -> Result<(), crat
         | Stored::Milestone(_)
         | Stored::History(_)
         | Stored::Activity(_) => {
-            assert!(key.live(), "restore {key:?}: historical row in live load");
+            assert!(key.live(), "restore {key:?}: ended row in live load");
         }
     }
     Ok(())
@@ -177,7 +177,7 @@ fn links(domain: &Domain, task: &TaskRecord) {
     for target in &task.references {
         retained_link(domain, key, *target);
     }
-    // Completed dependencies and historical inputs are store-read identities;
+    // Completed dependencies and retained inputs are store-read identities;
     // only waiting_on consumes a live dependency here (domain/tasks.md, 5.7).
 
     if let Some(proposal) = &task.proposal {

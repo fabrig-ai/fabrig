@@ -80,10 +80,7 @@ impl Domain {
     pub fn with_templates(limits: &Limits, templates: Box<[crate::TriageTemplate]>) -> Self {
         let mut domain = Self::new(limits);
         for template in templates {
-            assert!(
-                template.delegate.len() <= usize::try_from(limits.answer_bytes).expect("bounded template"),
-                "template byte bound"
-            );
+            assert!(template.delegate.len() <= skein_lib::length::usize_of(limits.answer_bytes), "template byte bound");
             assert!(
                 domain.templates.insert(template.number, template.delegate).expect("template count bound").is_none(),
                 "distinct template identities"
@@ -95,10 +92,7 @@ impl Domain {
     #[must_use]
     pub fn with_leads(mut self, limits: &Limits, templates: Box<[crate::LeadTemplate]>) -> Self {
         for template in templates {
-            assert!(
-                template.delegate.len() <= usize::try_from(limits.answer_bytes).expect("lead byte bound"),
-                "lead byte bound"
-            );
+            assert!(template.delegate.len() <= skein_lib::length::usize_of(limits.answer_bytes), "lead byte bound");
             assert!(
                 self.lead_templates.insert(template.number, template.delegate).expect("lead count bound").is_none(),
                 "distinct lead templates"
@@ -707,7 +701,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
             SystemEvent::Alert { alert, own } => news(domain, env, alert, own, out),
             SystemEvent::ReadDone { token, bytes } => {
                 if let Some(max) = domain.reads.remove(&token) {
-                    let limit = usize::try_from(max).expect("u32 fits usize");
+                    let limit = skein_lib::length::usize_of(max);
                     let size = bytes.len().min(limit);
                     let body = Box::<[u8]>::from(bytes.get(..size).expect("size within answer"));
                     out.push(Request::Answer { token, bytes: body });
@@ -736,7 +730,6 @@ pub fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
 
 /// Earliest absolute deadline in the world's clock domain.
 #[must_use]
-#[expect(clippy::manual_map, reason = "step code uses no closure-taking methods")]
 pub fn next_deadline(domain: &Domain) -> Option<Time> {
     if domain.restoring {
         return None;

@@ -1887,8 +1887,8 @@ fn procedure_delegate_outcomes_without_a_live_procedure_owner_are_not_routed() {
 #[path = "../stories/procedure_goals.rs"]
 mod procedure_goals;
 
-#[path = "../stories/historical.rs"]
-mod historical;
+#[path = "../stories/ended.rs"]
+mod ended;
 
 #[path = "../stories/dependencies.rs"]
 mod dependencies;

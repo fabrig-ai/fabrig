@@ -58,6 +58,7 @@ pub fn root_for(seed: u64, environment_chat: bool) -> (Config, Limits) {
     core_limits.brief.read_bytes = 8192;
     core_limits.call_answer_bytes = 1024;
     let mut limits = Limits {
+        policy: jig_ops_domain::Policy::reference(),
         core: core_limits,
         infrastructure: crate::infrastructure_limits(),
         observability: crate::limits(),
@@ -90,6 +91,7 @@ pub fn root_for(seed: u64, environment_chat: bool) -> (Config, Limits) {
         routes: 256,
     };
     let mut config = Config {
+        environment_closed_reason: jig_ops_domain::ENVIRONMENT_CLOSED_REASON.into(),
         agent_bounds: super::agent_bounds(),
         tools: crate::protocol::tools(Duration::from_secs(30)),
         core: jig_test_profile::config(seed).core,
