@@ -2,7 +2,7 @@
 use crate::{Core, Limits};
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
-use skein_lib::{Env, Queue, Wall};
+use skein_lib::{Env, List, Queue, Wall};
 
 /// The requesting party's reading and the task's live references.
 #[derive(Clone, Copy, Debug)]
@@ -100,23 +100,40 @@ pub(crate) fn forget(
             party: Some(party),
             last_reply: owner.last_reply.unwrap_or(0),
         }));
-        let ended_at = owner.ended_at;
-        let update = tasks::Update { party, at: ended_at, task: owner.task, object: tasks::UpdateObject::Result };
-        let index = tasks::EndedByParty { party, label: owner.label, ended_at, task: owner.task };
-        for key in [
-            tasks::Key::Ended(owner.task),
-            update.key(),
-            index.key(),
-            tasks::Key::Result { party, position: owner.result_position },
-        ] {
+        for key in record_keys(owner).into_boxed() {
             out.push(crate::Request::Write(crate::Write::Erase(crate::Key::Tasks(key))));
-        }
-        if owner.listed {
-            let index =
-                tasks::EndedByProject { project: owner.project, label: owner.label, ended_at, task: owner.task };
-            out.push(crate::Request::Write(crate::Write::Erase(crate::Key::Tasks(index.key()))));
         }
     }
     out.push(crate::Request::Decided);
     crate::Requests::Out(out)
+}
+
+/// Keys named by a party-requested ended record (protocol/store.md, 7.4).
+pub(crate) fn record_keys(owner: &Owner) -> List<tasks::Key> {
+    let mut keys = List::with_capacity(5);
+    let update =
+        tasks::Update { party: owner.party, at: owner.ended_at, task: owner.task, object: tasks::UpdateObject::Result };
+    let index =
+        tasks::EndedByParty { party: owner.party, label: owner.label, ended_at: owner.ended_at, task: owner.task };
+    for key in [
+        tasks::Key::Ended(owner.task),
+        update.key(),
+        index.key(),
+        tasks::Key::Result { party: owner.party, position: owner.result_position },
+    ] {
+        keys.push(key).expect("four record keys");
+    }
+    if owner.listed {
+        keys.push(
+            tasks::EndedByProject {
+                project: owner.project,
+                label: owner.label,
+                ended_at: owner.ended_at,
+                task: owner.task,
+            }
+            .key(),
+        )
+        .expect("optional fifth record key");
+    }
+    keys
 }

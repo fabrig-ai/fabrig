@@ -15,7 +15,6 @@ impl Core {
 }
 
 /// Continue a project's deletion once its tasks are erased whole.
-#[expect(dead_code, reason = "completion is reserved for the whole-task erasure driver")]
 pub(crate) fn tasks_erased(_core: &mut Core, _env: &Env<Limits>, _out: &mut Queue<Request>, _project: u32) {}
 
 /// Continue a project's deletion once its notes are dropped.
