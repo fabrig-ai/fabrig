@@ -59,7 +59,7 @@ pub fn seed(checkout: &mut Checkout, at: &[u8]) -> u64 {
 
 /// Whether `text` holds `pattern` whole.
 fn holds(text: &[u8], pattern: &[u8]) -> bool {
-    text.windows(pattern.len()).any(|window| window == pattern)
+    skein_lib::bytes::find(text, pattern).is_some()
 }
 
 /// Where `path` is, relative to the working directory at the repository's

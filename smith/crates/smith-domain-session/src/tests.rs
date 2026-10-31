@@ -2940,7 +2940,7 @@ fn delayed_workspace_terminal_facts_keep_tool_caps_before_any_render() {
 
 #[test]
 fn the_check_counts_reported_usage() {
-    use crate::window::{Admission, Tokens, Window, check};
+    use crate::window::{Admission, Bytes, Window, check};
     let mut window = Window::fresh(1, 0);
     window.completed(
         Usage {
@@ -2954,7 +2954,7 @@ fn the_check_counts_reported_usage() {
         2,
         1_400,
     );
-    window.appended = Tokens(100);
+    window.appended = Bytes(100);
     assert_eq!(check(&window, 1, 0, LIMITS.token_bytes, 2_000, [4, 5]), Admission::Fits);
     assert_eq!(check(&window, 1, 0, LIMITS.token_bytes, 1_999, [4, 5]), Admission::Compact);
 }
@@ -2970,11 +2970,11 @@ fn the_check_counts_bytes_without_usage() {
 
 #[test]
 fn an_overflow_answers_compact() {
-    use crate::window::{Admission, Tokens, Window, check};
+    use crate::window::{Admission, Bytes, Tokens, Window, check};
     let mut window = Window::fresh(1, 0);
     window.last_prompt = Some(Tokens(u64::MAX));
     window.last_prompt_bytes = 1;
-    window.appended = Tokens(2);
+    window.appended = Bytes(2);
     assert_eq!(check(&window, 0, 0, LIMITS.token_bytes, u32::MAX, [4, 5]), Admission::Compact);
     assert_eq!(check(&Window::fresh(1, 0), u64::MAX, 1, LIMITS.token_bytes, u32::MAX, [4, 5]), Admission::Compact);
 }

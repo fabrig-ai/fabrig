@@ -5,9 +5,13 @@
 
 use crate::llm::Usage;
 
-/// A reported token count or an appended payload-byte count.
+/// A reported token count.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Tokens(pub(crate) u64);
+
+/// An appended payload-byte count.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct Bytes(pub(crate) u64);
 
 /// Whether this window has made an ordinary completion.
 #[derive(Clone, Copy, Debug)]
@@ -25,7 +29,7 @@ pub(crate) struct Window {
     pub(crate) last_prompt: Option<Tokens>,
     pub(crate) last_output: Tokens,
     pub(crate) last_prompt_bytes: u64,
-    pub(crate) appended: Tokens,
+    pub(crate) appended: Bytes,
     pub(crate) stage: Stage,
     /// First message after the last ordinary completion.
     pub(crate) following: u32,
@@ -47,7 +51,7 @@ impl Window {
             last_prompt: None,
             last_output: Tokens(output),
             last_prompt_bytes: 0,
-            appended: Tokens(0),
+            appended: Bytes(0),
             stage: Stage::Fresh,
             following: 0,
             summary_bytes: 0,
@@ -58,7 +62,7 @@ impl Window {
         self.last_prompt = prompt_tokens(usage);
         self.last_prompt_bytes = prompt_bytes;
         self.last_output = Tokens(usage.output_tokens.unwrap_or(u64::from(output)));
-        self.appended = Tokens(0);
+        self.appended = Bytes(0);
         self.stage = Stage::Used;
         self.following = following;
         self.summary_bytes = 0;

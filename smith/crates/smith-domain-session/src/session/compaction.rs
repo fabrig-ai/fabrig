@@ -9,7 +9,7 @@ use skein_lib::{List, Queue, Writer};
 
 use super::{Conversation, End, Limits, Request, content_cost, payload_cost, release_provider, spec_cost};
 use crate::llm::{Block, Evidence, Failure, Limit, Message, Role, Stop, Usage};
-use crate::window::{self, Admission, Stage, Tokens, Window};
+use crate::window::{self, Admission, Bytes, Stage, Window};
 
 /// Opener text waits beside the old history until its new window opens.
 #[derive(Debug)]
@@ -84,7 +84,7 @@ pub(super) fn due(conversation: &mut Conversation, limits: &Limits) -> bool {
     if carried {
         return true;
     }
-    conversation.window.appended = Tokens(appended_bytes(conversation).unwrap_or(u64::MAX));
+    conversation.window.appended = Bytes(appended_bytes(conversation).unwrap_or(u64::MAX));
     match prompt_bytes(conversation) {
         Some(bytes) => {
             window::check(

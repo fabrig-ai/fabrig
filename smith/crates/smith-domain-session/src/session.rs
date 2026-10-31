@@ -384,9 +384,7 @@ impl Ready {
 
     /// Takes a session that may be started again now.
     pub(crate) fn pop(&mut self) -> Option<Id<Session>> {
-        let id = *self.now.first()?;
-        self.now.remove(&id);
-        Some(id)
+        self.now.pop_first()
     }
 
     /// Keeps the session `id` on the list if it is `resting`, and off it if
@@ -404,10 +402,9 @@ impl Ready {
     /// in the next.
     pub(crate) fn promote(&mut self) {
         for _ in 0..self.next.capacity() {
-            let Some(id) = self.next.first().copied() else {
+            let Some(id) = self.next.pop_first() else {
                 break;
             };
-            self.next.remove(&id);
             self.now.insert(id).expect("room on the ready list for every session");
         }
     }

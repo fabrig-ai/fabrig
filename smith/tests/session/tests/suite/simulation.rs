@@ -582,9 +582,7 @@ fn a_failed_sessions_end_carries_its_last_detail() {
     assert_eq!(world.prompts.len(), 1);
     assert!(world.prompts.iter().all(|prompt| prompt.messages.iter().all(|message| {
         message.content.iter().all(|block| match block {
-            llm::Block::Text { text, .. } => {
-                !text.windows(b"private provider diagnostic".len()).any(|bytes| bytes == b"private provider diagnostic")
-            }
+            llm::Block::Text { text, .. } => skein_lib::bytes::find(text, b"private provider diagnostic").is_none(),
             llm::Block::Opaque { .. }
             | llm::Block::Refusal { .. }
             | llm::Block::ToolCall { .. }
@@ -634,9 +632,7 @@ fn no_prompt_holds_a_kept_detail() {
     assert_eq!(world.prompts.len(), 2);
     assert!(world.prompts.iter().all(|prompt| prompt.messages.iter().all(|message| {
         message.content.iter().all(|block| match block {
-            llm::Block::Text { text, .. } => {
-                !text.windows(b"private provider diagnostic".len()).any(|bytes| bytes == b"private provider diagnostic")
-            }
+            llm::Block::Text { text, .. } => skein_lib::bytes::find(text, b"private provider diagnostic").is_none(),
             llm::Block::Opaque { .. }
             | llm::Block::Refusal { .. }
             | llm::Block::ToolCall { .. }
