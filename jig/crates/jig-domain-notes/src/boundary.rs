@@ -104,9 +104,11 @@ impl Record {
     }
 }
 
-/// Which records to load, starting after a previous page's last name.
+/// Which records to load, starting after a previous page's cursor.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Range {
+    /// Every index line in the project, goal and resource scopes, in key order.
+    Project { project: u32, after: Option<Key> },
     /// A globally named entry.
     Entry { name: u64 },
     /// The lines of one scope.
