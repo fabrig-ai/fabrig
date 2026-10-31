@@ -8,6 +8,6 @@ io_resume 10
 earliest 1
 lifecycle 1
 growth_floor 1
-pop_loop 4
-hex_decimal 7
+pop_loop 0
+hex_decimal 4
 host_dispatch 4

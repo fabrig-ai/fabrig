@@ -1,6 +1,6 @@
 //! Integer and object id spelling.
 use alloc::boxed::Box;
-use skein_lib::Writer;
+use skein_lib::{Writer, hex};
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum ObjectFormat {
     Sha1,
@@ -26,11 +26,10 @@ pub fn unsigned(text: &[u8]) -> Option<u64> {
     Some(number)
 }
 pub(crate) fn digit(byte: u8) -> Option<u8> {
-    match byte {
-        b'0'..=b'9' => byte.checked_sub(b'0'),
-        b'a'..=b'f' => byte.checked_sub(b'a')?.checked_add(10),
-        _ => None,
+    if byte.is_ascii_uppercase() {
+        return None;
     }
+    hex::value(byte)
 }
 #[must_use]
 pub fn read(hex: &[u8]) -> Option<ObjectId> {
@@ -56,15 +55,8 @@ pub fn write(id: &ObjectId) -> Box<[u8]> {
     let mut out = Writer::new(size.saturating_mul(2));
     for byte in id.bytes.iter().take(size) {
         for value in [byte / 16, byte % 16] {
-            out.put(&[hex(value)]).expect("two digits per byte");
+            out.put(&[hex::digit(value)]).expect("two digits per byte");
         }
     }
     out.finish()
-}
-pub(crate) fn hex(value: u8) -> u8 {
-    if value < 10 {
-        b'0'.checked_add(value).expect("one digit")
-    } else {
-        b'a'.checked_add(value.saturating_sub(10)).expect("hex digit")
-    }
 }

@@ -123,17 +123,14 @@ impl Hooks {
         !self.live && self.connections.is_empty() && self.waiting.is_none()
     }
     pub fn deadline(&self) -> Option<Time> {
-        let mut earliest = self.wake;
+        let mut next = self.wake;
         for (_, id) in &self.connections {
             let c = self.slab.get(*id).expect("indexed hook");
-            if c.closing != Closing::Sent
-                && c.closing != Closing::Aborted
-                && (earliest.is_none() || Some(c.deadline) < earliest)
-            {
-                earliest = Some(c.deadline);
+            if c.closing != Closing::Sent && c.closing != Closing::Aborted {
+                next = skein_lib::earliest(next, Some(c.deadline));
             }
         }
-        earliest
+        next
     }
     pub fn drive(
         &mut self,

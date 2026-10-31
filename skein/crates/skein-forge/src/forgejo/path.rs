@@ -23,8 +23,11 @@ pub fn segment(name: &[u8], out: &mut Writer) -> Result<(), Overflow> {
         if byte.is_ascii_alphanumeric() || b"-._~".contains(byte) {
             out.put(&[*byte])?;
         } else {
-            let digits =
-                [b'%', super::id::hex(byte / 16).to_ascii_uppercase(), super::id::hex(byte % 16).to_ascii_uppercase()];
+            let digits = [
+                b'%',
+                skein_lib::hex::digit(byte / 16).to_ascii_uppercase(),
+                skein_lib::hex::digit(byte % 16).to_ascii_uppercase(),
+            ];
             out.put(&digits)?;
         }
     }

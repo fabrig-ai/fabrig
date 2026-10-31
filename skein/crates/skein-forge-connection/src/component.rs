@@ -567,50 +567,27 @@ impl Component {
     }
     #[must_use]
     pub fn next_deadline(&self) -> Option<Time> {
-        let mut earliest = self.wake;
-        if let Some(time) = self.hooks.deadline()
-            && (earliest.is_none() || Some(time) < earliest)
-        {
-            earliest = Some(time);
-        }
-        for slot in &self.github {
-            if let Some(gh) = slot
-                && let Some(time) = gh.puller.due
-                && (earliest.is_none() || Some(time) < earliest)
-            {
-                earliest = Some(time);
-            }
-            if let Some(gh) = slot
-                && let Some(time) = gh.deadline()
-                && (earliest.is_none() || Some(time) < earliest)
-            {
-                earliest = Some(time);
-            }
+        let mut next = skein_lib::earliest(self.wake, self.hooks.deadline());
+        for gh in self.github.iter().flatten() {
+            next = skein_lib::earliest(next, gh.puller.due);
+            next = skein_lib::earliest(next, gh.deadline());
         }
         for (_, id) in &self.connections {
             let c = self.connection_slab.get(*id).expect("indexed connection");
-            if let Some(time) = c.deadline
-                && (earliest.is_none() || Some(time) < earliest)
-            {
-                earliest = Some(time);
-            }
+            next = skein_lib::earliest(next, c.deadline);
         }
         if !self.closed {
             for state in &self.starts {
-                if let Some((until, _)) = backoff(*state)
-                    && (earliest.is_none() || Some(until) < earliest)
-                {
-                    earliest = Some(until);
+                if let Some((until, _)) = backoff(*state) {
+                    next = skein_lib::earliest(next, Some(until));
                 }
             }
         }
         for (_, id) in &self.calls {
             let time = self.waiting.get(*id).expect("indexed live call").deadline;
-            if earliest.is_none() || Some(time) < earliest {
-                earliest = Some(time);
-            }
+            next = skein_lib::earliest(next, Some(time));
         }
-        earliest
+        next
     }
     fn start_heard(
         &mut self,
