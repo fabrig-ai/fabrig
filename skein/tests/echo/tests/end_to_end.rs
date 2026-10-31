@@ -13,21 +13,21 @@ use skein_world::{Deadline, Dispatch, Expired, Host, Referee, real};
 
 #[derive(Debug)]
 enum Process {
-    Echo(Binary),
+    Echo(Box<Binary>),
     Client(Proc),
 }
 
 impl Dispatch for Process {
     fn host(&self) -> &dyn Host {
         match self {
-            Self::Echo(binary) => binary,
+            Self::Echo(binary) => binary.as_ref(),
             Self::Client(client) => client,
         }
     }
 
     fn host_mut(&mut self) -> &mut dyn Host {
         match self {
-            Self::Echo(binary) => binary,
+            Self::Echo(binary) => binary.as_mut(),
             Self::Client(client) => client,
         }
     }
@@ -175,7 +175,7 @@ fn sigterm_with_idle_clients_exits_at_once_with_success() {
         now: start,
         deadline: start.saturating_add(Duration::from_secs(2)),
     });
-    world.spawn_with_fds(binary.descriptors(), || Process::Echo(binary));
+    world.spawn_with_fds(binary.descriptors(), || Process::Echo(Box::new(binary)));
     for seed in [7, 11] {
         let plans = [skein_echo_client::Plan { then: skein_echo_client::Then::Linger, ..plan(start, seed) }];
         world.spawn(|| Process::Client(Proc::client(client_limits(1), &plans)));

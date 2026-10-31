@@ -33,12 +33,7 @@ pub trait Host {
     /// `next_mechanism_deadline` and inherit this minimum with the policy
     /// deadline, or override `next_deadline` itself.
     fn next_deadline(&self) -> Option<Time> {
-        match (self.next_mechanism_deadline(), self.next_policy_deadline()) {
-            (Some(mechanism), Some(policy)) => Some(mechanism.min(policy)),
-            (Some(mechanism), None) => Some(mechanism),
-            (None, Some(policy)) => Some(policy),
-            (None, None) => None,
-        }
+        Time::earliest(self.next_mechanism_deadline(), self.next_policy_deadline())
     }
 
     /// Its earliest mechanism deadline: io's close, retry and file stall
