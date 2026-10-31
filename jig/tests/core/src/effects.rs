@@ -46,6 +46,7 @@ pub struct World {
     fixture_accounts: Box<[root::Record]>,
     pub domain: root::Domain,
     pub store: Store,
+    internal_reads: std::collections::BTreeSet<Token>,
     pub systems: [System; 2],
     protocol: crate::protocol::Stand,
     pub host_calls: Vec<(Token, u64, u64, fleet::Call)>,
@@ -293,7 +294,12 @@ impl World {
                 if let Some(watches) = &mut self.watches {
                     watches.inbound(&event);
                 }
-                if let Some(reads) = &mut self.reads {
+                let internal_read = if let root::Event::Core(core::Event::ReadLoaded { load, .. }) = &event {
+                    self.internal_reads.remove(load)
+                } else {
+                    false
+                };
+                if !internal_read && let Some(reads) = &mut self.reads {
                     reads.inbound(&event);
                 }
                 if self.tracing {

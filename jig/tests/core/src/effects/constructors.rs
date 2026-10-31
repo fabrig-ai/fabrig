@@ -335,6 +335,7 @@ impl World {
             fixture_accounts: Box::new([]),
             domain: root::Domain::new(configuration, limits),
             store,
+            internal_reads: std::collections::BTreeSet::new(),
             systems: [System::new(), System::new()],
             protocol,
             host_calls: Vec::new(),

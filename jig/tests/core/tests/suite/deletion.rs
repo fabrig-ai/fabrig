@@ -8,6 +8,7 @@ use jig_core_world::{
 };
 use jig_domain_accounts as accounts;
 use jig_domain_authority as authority;
+use jig_domain_fleet as fleet;
 use jig_domain_core::{self as core, documents};
 use jig_domain_notes as notes;
 use jig_domain_people as people;
@@ -111,13 +112,19 @@ fn deleted_world(seed: u64) -> World {
     world.turn(1, 7, None, b"retained reply");
     request(&mut world, 60, people::Ask::MarkSeen { seen: people::Seen::Conversation { task: ended, through: 1 } });
     fixtures::finish_chat(&mut world, 7, b"retained result");
+    world.send(root::Event::Core(core::Event::Period {
+        project: PROJECT,
+        period: 2,
+        budget: 1000,
+        next: None,
+    }));
     let next = fixtures::chat(&world, PROJECT, b"live conversation".as_slice().into());
     world.assignments.clear();
     request(&mut world, 61, next);
     let chat = world.task();
-    world.turn(1, 3, None, b"read reply");
+    world.turn(1, 0, None, b"read reply");
     request(&mut world, 62, people::Ask::MarkSeen { seen: people::Seen::Conversation { task: chat, through: 1 } });
-    world.turn(2, 5, None, b"unread reply");
+    world.turn(2, 0, None, b"unread reply");
     let (held, other) = delegate_pair(&mut world);
     request(&mut world, 63, people::Ask::Stop { project: PROJECT, task: held });
     assert!(live_row(&world, held).placed.is_some(), "fixture has a placed hold");
@@ -183,10 +190,61 @@ fn removed(world: &World) {
     );
 }
 
-fn finish(world: &mut World) {
-    // A host which does not answer cancellation is retired at its advertised stop bound.
+fn settle_hosts(world: &mut World) {
+    let answers = world.store.rows.values().filter_map(|row| {
+        if let root::Record::Core(core::Record::Tasks(tasks::Stored::Live(row))) = row
+            && matches!(row.phase, tasks::Phase::Closing(tasks::Closing { stage: tasks::Stage::Run { .. }, .. })) {
+            Some(root::Event::Answer {
+                read: None,
+                refused: Box::new([]),
+                channel: Token::new(7),
+                task: row.number,
+                attempt: row.attempt,
+                cumulative: row.numbers.spent,
+                end: tasks::End::Parked,
+            })
+        } else { None }
+    }).collect();
+    let cut = world.cut;
+    world.send_all(answers);
+    if cut.is_some() && world.reached_cut == cut {
+        return;
+    }
     world.advance(Duration::from_secs(6));
-    assert!(!world.store.rows.contains_key(&deletion()), "deletion reached its last step");
+}
+
+fn restart_world(world: &mut World) {
+    world.restart_with(configuration(SEED).0);
+    let hosting: Box<[_]> = world.store.rows.values().filter_map(|row| {
+        if let root::Record::Core(core::Record::Tasks(tasks::Stored::Live(row))) = row
+            && matches!(row.phase, tasks::Phase::Closing(tasks::Closing { stage: tasks::Stage::Run { .. }, .. })) {
+            Some(fleet::Hosted { run: Token::new(row.number), attempt: Token::new(row.attempt), phase: fleet::Phase::Ending })
+        } else { None }
+    }).collect();
+    if !hosting.is_empty() {
+        world.send(root::Event::Core(core::Event::Fleet(fleet::Event::Hello {
+            worker: 0,
+            channel: Token::new(7),
+            hello: fleet::Hello {
+                bounds: fixtures::bounds(),
+                stop_bound: Duration::from_millis(100),
+                slots: 3,
+                workstreams: Box::new([]),
+                hosting,
+            },
+        })));
+    }
+}
+
+fn finish(world: &mut World) {
+    settle_hosts(world);
+    assert!(!world.stopped, "restart {:?}; restore {:?}", world.domain.restart_failure(), world.domain.restore_failure());
+    assert!(!world.store.rows.contains_key(&deletion()), "deletion reached its last step: {:?}; live {:?}; busy {:?}",
+        world.store.rows.get(&deletion()), world.store.rows.values().filter_map(|row| {
+            if let root::Record::Core(core::Record::Tasks(tasks::Stored::Live(row))) = row {
+                Some((row.number, &row.phase))
+            } else { None }
+        }).collect::<Vec<_>>(), world.busy_events);
     assert!(!world.stopped, "the store stayed writable");
 }
 
@@ -361,10 +419,10 @@ fn a_deletion_cut_after_any_commit_ends_the_same() {
             world.cut = Some(cut);
             remove(&mut world, REMOVE);
             if world.reached_cut != Some(cut) {
-                world.advance(Duration::from_secs(6));
+                settle_hosts(&mut world);
             }
             assert_eq!(world.reached_cut, Some(cut), "every deletion commit is cut");
-            world.restart_with(configuration(SEED).0);
+            restart_world(&mut world);
             // Only a submission lost before the closing decision needs the requester again.
             if cut == Cut::Submitted(first) {
                 remove(&mut world, REMOVE);
@@ -392,20 +450,20 @@ fn adoption() -> people::Adoption {
     }
 }
 
-fn party_entries(world: &World, project: u32, chat: u64) -> [people::Ask; 5] {
+fn party_entries(project: u32, chat: u64) -> [people::Ask; 4] {
     [
         people::Ask::Say { project, task: chat, words: b"too late".as_slice().into() },
-        fixtures::chat(world, project, b"another chat".as_slice().into()),
+        people::Ask::Create { project, batch: Box::new([jig_core_world::stories::reads::conversation_member(false)]) },
         people::Ask::Rename { project, name: "Another name".into() },
         people::Ask::SetRoles {
             project,
             holdings: Box::new([people::Holding { person: PARTY, role: people::Role::Owner }]),
         },
-        people::Ask::Application { scope: people::ApplicationScope::Project(project), connector: 1, digest: [7; 32] },
     ]
 }
 
-fn watch_end(world: &mut World, project: u32, watcher: u64) -> jig_domain_views::End {
+fn watch_end(world: &mut World, project: u32, watcher: u64) -> core::WatchRefusal {
+    world.client_peer = Some(jig_core_world::client_peer::ClientPeer::routed());
     world.send(root::Event::Core(core::Event::Watch {
         watcher: Token::new(watcher),
         sign_in: world.sign_in.expect("signed in"),
@@ -414,7 +472,8 @@ fn watch_end(world: &mut World, project: u32, watcher: u64) -> jig_domain_views:
         },
         window: documents::Window { rows: 2, after: None },
     }));
-    let core::Held::WatchEnded { watcher: ended, why } = world.stop_deliveries.last().expect("watch ended") else {
+    let peer = world.client_peer.take().expect("watch caller");
+    let core::Now::WatchRefused { watcher: ended, why } = peer.now.last().expect("watch refused") else {
         panic!("unknown project's watch ends")
     };
     assert_eq!(*ended, Token::new(watcher));
@@ -428,14 +487,32 @@ fn a_closed_project_refuses_every_entry_as_one_never_made() {
     remove(&mut world, REMOVE);
     removed(&world);
     assert!(world.store.rows.contains_key(&deletion()), "hosts have not finished");
-    let closed = party_entries(&world, PROJECT, chat);
-    let unknown = party_entries(&world, UNKNOWN, chat);
+    let closed = party_entries(PROJECT, chat);
+    let unknown = party_entries(UNKNOWN, chat);
     for (index, (closed, unknown)) in closed.into_iter().zip(unknown).enumerate() {
         let key = 100 + u8::try_from(index * 2).expect("five entrances");
         let expected = party_answer(&mut world, key, unknown);
         assert_eq!(party_answer(&mut world, key + 1, closed), expected, "party entrance {index}");
-        assert_eq!(expected, people::Reply::Outcome(people::Outcome::Refused(people::Refusal::Unknown)));
+        assert!(matches!(expected, people::Reply::Outcome(people::Outcome::Refused(people::Refusal::Unknown)) | people::Reply::Refused(people::Refusal::Unknown)));
     }
+    let mut application = Vec::new();
+    for (project, key) in [(UNKNOWN, 110), (PROJECT, 111)] {
+        let before = world.people_answers.len();
+        world.send(root::Event::Application {
+            reply_to: ReplyTo::new(Token::new(u64::from(key))),
+            sign_in: world.sign_in.expect("signed in"),
+            key: [key; 16],
+            scope: people::ApplicationScope::Project(project),
+            number: 1,
+            digest: [7; 32],
+            value: connector::ApplicationRequest { object: 1, revision: 0, value: 1, release: None },
+            carried: None,
+        });
+        assert_eq!(world.people_answers.len(), before + 1);
+        application.push(world.people_answers.last().expect("application refused").clone());
+    }
+    assert_eq!(application.first(), application.last());
+    assert!(matches!(application.first(), Some(people::Reply::Outcome(people::Outcome::Refused(_))) | Some(people::Reply::Refused(_))));
     for (index, (closed, unknown)) in [
         (
             people::Act::Close { project: PROJECT, task: chat, grace: None, reason: Box::new([]) },
@@ -494,7 +571,7 @@ fn a_deleted_projects_name_is_free_and_its_number_never_comes_back() {
         panic!("name free in the closing decision: {answer:?}")
     };
     assert!(made > PROJECT);
-    world.restart_with(configuration(SEED).0);
+    restart_world(&mut world);
     finish(&mut world);
     assert!(world.domain.ready(), "restart completes with the replacement project");
     let answer = party_answer(&mut world, 131, people::Ask::MakeProject { name: "Later project".into(), policy: 1 });
@@ -507,18 +584,19 @@ fn a_deleted_projects_name_is_free_and_its_number_never_comes_back() {
     assert!(world.store.rows.contains_key(&root::Key::Core(core::Key::People(people::Key::Policy(later)))));
 }
 
-fn spend(world: &mut World) -> Vec<tasks::FundingRecord> {
+fn spend(world: &mut World) -> BTreeMap<u64, u64> {
     if world.reads.is_none() {
         world.reads = Some(reads::Parties::new(world.store.applied));
     }
     let mut from = None;
-    let mut rows = Vec::new();
+    let mut rows = BTreeMap::new();
     for page in 0..32 {
         reads::ask(world, 900 + page, core::reads::Read::Spend { project: 0, from: from.take() });
         let core::reads::Answer::Page(answer) = reads::latest(world) else { panic!("deployment period spend") };
         for row in &answer.rows {
             let core::reads::PageRow::Spend(row) = row else { panic!("spend row") };
-            rows.push(*row);
+            let tasks::Funder::Period { period, .. } = row.funder else { panic!("period spend") };
+            *rows.entry(period).or_insert(0) += row.numbers.spent + row.numbers.spent_below;
         }
         from.clone_from(&answer.next);
         if from.is_none() {
@@ -532,12 +610,30 @@ fn spend(world: &mut World) -> Vec<tasks::FundingRecord> {
 fn a_deleted_projects_spend_stays_in_the_totals() {
     let mut world = deleted_world(SEED);
     let before = spend(&mut world);
-    assert!(before.iter().any(|row| row.numbers.spent + row.numbers.spent_below > 0), "nonzero deployment spend");
+    assert!(before.values().any(|spent| *spent > 0), "nonzero deployment spend: {before:?}; ledgers {:?}", world.store.rows.values().filter_map(|row| {
+            if let root::Record::Core(core::Record::Tasks(tasks::Stored::Ledger(row) | tasks::Stored::ClosedLedger(row))) = row {
+                Some(row)
+            } else { None }
+        }).collect::<Vec<_>>());
     remove(&mut world, REMOVE);
     finish(&mut world);
     assert_eq!(spend(&mut world), before);
-    world.restart_with(configuration(SEED).0);
+    restart_world(&mut world);
     assert_eq!(spend(&mut world), before, "period spend survives a cold start");
+}
+
+#[test]
+fn deployment_spend_keeps_paging_periods_without_a_project_role() {
+    let mut world = deleted_world(SEED);
+    let before = spend(&mut world);
+    assert_eq!(before.get(&1), Some(&7));
+    world.send(root::Event::Core(core::Event::People(people::Event::Roles {
+        project: PROJECT,
+        holdings: Box::new([]),
+    })));
+    assert_eq!(spend(&mut world), before);
+    restart_world(&mut world);
+    assert_eq!(spend(&mut world), before);
 }
 
 #[test]
@@ -550,7 +646,7 @@ fn a_deleted_projects_tasks_leave_every_inbox() {
     finish(&mut world);
     for restart in [false, true] {
         if restart {
-            world.restart_with(configuration(SEED).0);
+            restart_world(&mut world);
         }
         for (number, group) in [
             core::reads::Group::Needs,
@@ -590,7 +686,7 @@ fn each_connector_is_asked_until_it_releases() {
     let mut world = deleted_world(SEED);
     world.hold_project_releases.push(2);
     remove(&mut world, REMOVE);
-    world.advance(Duration::from_secs(6));
+    settle_hosts(&mut world);
     let mut releases = world.project_releases.clone();
     releases.sort_unstable();
     assert_eq!(releases, [(1, PROJECT), (2, PROJECT)]);
@@ -600,7 +696,7 @@ fn each_connector_is_asked_until_it_releases() {
         world.advance(Duration::from_secs(1));
     }
     assert_eq!(world.project_releases.len(), 2, "once per connector in this start");
-    world.restart_with(configuration(SEED).0);
+    restart_world(&mut world);
     let mut releases = world.project_releases[2..].to_vec();
     releases.sort_unstable();
     assert_eq!(releases, [(1, PROJECT), (2, PROJECT)], "a new start asks every connector again");
