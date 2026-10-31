@@ -16,7 +16,14 @@ use jig_domain_tasks as tasks;
 pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, connector: u16, ask: core::Ask) {
     let request = match ask {
         core::Ask::ReleaseProject { project } => {
-            domain.work.push(Work::Core(core::Event::ProjectReleased { connector, project }));
+            if connector == domain.config.forge_connector {
+                domain.work.push(Work::Forge(forge::Event::ReleaseProject {
+                    project,
+                    request: Token::new(u64::from(project)),
+                }));
+            } else {
+                domain.work.push(Work::Core(core::Event::ProjectReleased { connector, project }));
+            }
             None
         }
         core::Ask::StepMade { task, step, first, .. } => {
