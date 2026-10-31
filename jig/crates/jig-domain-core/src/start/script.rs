@@ -135,7 +135,7 @@ impl Core {
                 }
                 let mut child = Queue::uncapped();
                 self.people.start_sweep_row(
-                    &Env { now: env.now, wall: self.start.at, limits: env.limits.people },
+                    &Env { wall: self.start.at, ..env.with(env.limits.people) },
                     &record,
                     &mut child,
                 );
@@ -259,7 +259,7 @@ impl Core {
             let _refused = self.start_refuse(Failure::ProjectPolicy { project });
             return;
         }
-        if !self.people.start_link(&Env { now: env.now, wall: self.start.at, limits: env.limits.people }) {
+        if !self.people.start_link(&Env { wall: self.start.at, ..env.with(env.limits.people) }) {
             self.start_collect_failure();
             return;
         }
