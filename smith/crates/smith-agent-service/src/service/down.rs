@@ -9,7 +9,6 @@ use skein_channel::Lower as ChannelLower;
 use skein_io::{self as io, file, file_layer, kernel};
 use skein_lib::stream;
 use smith_domain as domain;
-use smith_protocol_channel as channel;
 use smith_protocol_machine as machine;
 
 pub(super) fn domain_down(service: &mut Service) {
@@ -18,10 +17,9 @@ pub(super) fn domain_down(service: &mut Service) {
         Some(domain) if domain.has_facts() => return,
         Some(_) | None => {}
     }
-    let channel_room = channel::edge_room(&service.limits.channel);
     if let Some(run) = service.admitted {
         for _ in 0..service.pending_messages.capacity() {
-            if !super::admits(service) {
+            if !super::pending_message_ready(service) {
                 break;
             }
             let Some(PendingMessage { finish_requested, name, label, text }) = service.pending_messages.pop() else {
@@ -31,16 +29,7 @@ pub(super) fn domain_down(service: &mut Service) {
         }
     }
     for _ in 0..service.limits.queue {
-        match &service.events {
-            Some(events) if !events.takes() => break,
-            Some(_) | None => {}
-        }
-        if !channel_takes(service)
-            || !service.llm.measures_drained()
-            || (service.channel.is_some()
-                && (service.channel_events.room() < channel_room.to_domain
-                    || service.channel_below.room() < channel_room.below))
-        {
+        if !super::domain_request_credit(service) {
             break;
         }
         if program::wait_for_close(service) {
@@ -71,9 +60,8 @@ pub(super) fn channel_takes(service: &Service) -> bool {
 /// continues through answer and settlement; channel projection owns its phase.
 pub(super) fn drain_facts(service: &mut Service) {
     for _ in 0..service.limits.queue {
-        match &service.events {
-            Some(events) if !events.takes() => break,
-            Some(_) | None => {}
+        if !super::sinks_take(service) {
+            break;
         }
         let fact = match &mut service.domain {
             Some(domain) => match domain.pop_fact() {

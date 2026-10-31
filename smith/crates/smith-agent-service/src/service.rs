@@ -9,6 +9,7 @@ use alloc::boxed::Box;
 
 mod down;
 mod effects;
+mod readiness;
 mod request;
 mod routing;
 mod up;
@@ -19,7 +20,11 @@ pub(crate) mod tests;
 
 pub use effects::Effects;
 
-use down::{channel_takes, component_down, domain_down};
+use down::{component_down, domain_down};
+use readiness::{
+    channel_event_ready, channel_room, domain_entrance_ready, domain_request_credit, domain_requests_dispatched,
+    llm_events_ready, pending_message_ready, sinks_take, submissions_ready,
+};
 use routing::{component_owner, io_down};
 use up::{component_up, domain_up, io_up, lower_events};
 
@@ -628,11 +633,11 @@ fn clocks(service: &mut Service, now: Time, wall: Wall) {
 /// Earliest active deadline over all child machines.
 #[must_use]
 pub fn next_deadline(service: &Service) -> Option<Time> {
-    let mut earliest = match &service.domain {
-        Some(domain) => domain.next_deadline(),
-        None => None,
-    };
-    for deadline in [
+    earliest(&[
+        match &service.domain {
+            Some(domain) => domain.next_deadline(),
+            None => None,
+        },
         service.llm.next_deadline(),
         program::deadline(service),
         service.machine.next_deadline(),
@@ -642,39 +647,33 @@ pub fn next_deadline(service: &Service) -> Option<Time> {
         },
         service.files.next_deadline(),
         service.live.deadline(),
-    ] {
-        earliest = match deadline {
-            Some(next) => match earliest {
-                Some(old) => Some(old.min(next)),
-                None => Some(next),
-            },
-            None => earliest,
-        };
-    }
-    earliest
+    ])
 }
 
-/// Earliest policy deadline: the domain's, the LLM's and the machine's,
-/// excluding io's and the files' (skein/docs/foundation/testing-strategy.md, section 6).
+/// Earliest policy deadline, excluding IO and file settlement.
 #[must_use]
 pub fn next_policy_deadline(service: &Service) -> Option<Time> {
-    let mut earliest = match &service.domain {
-        Some(domain) => domain.next_deadline(),
-        None => None,
-    };
-    for deadline in [
+    earliest(&[
+        match &service.domain {
+            Some(domain) => domain.next_deadline(),
+            None => None,
+        },
         service.llm.next_deadline(),
         program::policy_deadline(service),
         service.machine.next_deadline(),
         service.live.deadline(),
-    ] {
-        earliest = match deadline {
-            Some(next) => match earliest {
-                Some(old) => Some(old.min(next)),
-                None => Some(next),
-            },
-            None => earliest,
-        };
+    ])
+}
+
+fn earliest(deadlines: &[Option<Time>]) -> Option<Time> {
+    let mut earliest = None;
+    for deadline in deadlines {
+        if let Some(next) = *deadline {
+            earliest = Some(match earliest {
+                Some(old) => Time::min(old, next),
+                None => next,
+            });
+        }
     }
     earliest
 }
@@ -700,46 +699,10 @@ pub(super) fn backlog(service: &Service) -> u64 {
     total
 }
 
-// Dispatch an entrance's effects before advancing the domain again. Its facts
-// must not overtake the preceding turn and channel notifications.
-fn domain_requests_dispatched(service: &Service) -> bool {
-    service.domain_requests.is_empty()
-}
-
-fn admits(service: &Service) -> bool {
-    backlog(service) < u64::from(service.limits.queue)
-}
-
-// The drain and shell readiness agree on both admission and the retained
-// pending-message edge credit before offering the head channel event.
-fn channel_event_ready(service: &Service) -> bool {
-    if service.admitted.is_none() && service.pending_messages.room() == 0 {
-        return false;
-    }
-    match service.channel_events.iter().next() {
-        Some(channel::OpenEvent::Start { .. } | channel::OpenEvent::Message { .. }) => admits(service),
-        Some(
-            channel::OpenEvent::Opened { .. }
-            | channel::OpenEvent::HostReturned { .. }
-            | channel::OpenEvent::Delivered { .. }
-            | channel::OpenEvent::DeliveryUnsent { .. }
-            | channel::OpenEvent::Acknowledged { .. }
-            | channel::OpenEvent::Grant { .. }
-            | channel::OpenEvent::Cancel
-            | channel::OpenEvent::WriteFailed
-            | channel::OpenEvent::Ended { .. },
-        ) => true,
-        None => false,
-    }
-}
-
 /// Whether another iteration can progress without waiting on the kernel.
 #[must_use]
 pub fn work_pending(service: &Service, now: Time) -> bool {
-    let takes = match &service.events {
-        Some(events) => events.takes(),
-        None => true,
-    };
+    let takes = sinks_take(service);
     let due = match next_deadline(service) {
         Some(deadline) => deadline <= now,
         None => false,
@@ -762,19 +725,17 @@ pub fn work_pending(service: &Service, now: Time) -> bool {
         || !service.io_events.is_empty()
         || !service.file_events.is_empty()
         || channel_event_ready(service)
-        || (!service.pending_messages.is_empty() && service.admitted.is_some() && admits(service))
-        || (takes && !service.llm_events.is_empty())
+        || (!service.pending_messages.is_empty() && pending_message_ready(service))
+        || (llm_events_ready(service) && !service.llm_events.is_empty())
         || !service.machine_events.is_empty()
-        || (takes && domain_requests_dispatched(service) && !service.domain_events.is_empty())
-        || (takes && !service.domain_requests.is_empty() && channel_takes(service) && program::requests_ready(service))
+        || (takes && domain_entrance_ready(service) && !service.domain_events.is_empty())
+        || (domain_request_credit(service) && !service.domain_requests.is_empty() && program::requests_ready(service))
         || !service.channel_below.is_empty()
         || program::pending(service)
         || !service.llm_below.is_empty()
         || !service.machine_below.is_empty()
         || !service.io_requests.is_empty()
-        || ((!service.io_submissions.is_empty() || !service.file_submissions.is_empty())
-            && service.submissions.room() > 0
-            && service.operations.len() < service.operations.capacity())
+        || ((!service.io_submissions.is_empty() || !service.file_submissions.is_empty()) && submissions_ready(service))
 }
 
 /// The channel has ended, every lower child has settled, and the final

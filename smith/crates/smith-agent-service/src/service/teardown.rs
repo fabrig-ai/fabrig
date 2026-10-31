@@ -182,11 +182,7 @@ pub(super) fn work_pending(service: &Service) -> bool {
         Teardown::Answered { .. } => close_room(service),
         Teardown::Closing { step: Step::Components, .. } => {
             (components_closed(service) && owner_ended(service))
-                || (!service.roots.is_empty()
-                    && service.owners.is_empty()
-                    && service.pipe_routes.is_empty()
-                    && service.files.takes()
-                    && !service.root_close_pending)
+                || (!service.roots.is_empty() && roots_closable(service))
         }
         Teardown::Closing { step: Step::Stream, .. } => stream_closed(service),
         Teardown::Closing { step: Step::Signals, .. } => service.signals.is_none() && stream_closed(service),
@@ -264,12 +260,7 @@ pub(super) fn advance(service: &mut Service) {
 
 fn close_roots(service: &mut Service) {
     service.machine.close(&mut service.machine_below);
-    if service.machine.closed()
-        && service.owners.is_empty()
-        && service.pipe_routes.is_empty()
-        && service.files.takes()
-        && !service.root_close_pending
-    {
+    if roots_closable(service) {
         if service.root_close_next > 0 {
             service.root_close_next = service.root_close_next.checked_sub(1).expect("positive root count");
             let root = *service.roots.get(service.root_close_next).expect("closed roots in reverse order");
@@ -335,4 +326,12 @@ fn settled(service: &Service, streams: u32) -> bool {
         && service.pipe_routes.is_empty()
         && operations_settled(service)
         && service.submissions.is_empty()
+}
+
+fn roots_closable(service: &Service) -> bool {
+    service.machine.closed()
+        && service.owners.is_empty()
+        && service.pipe_routes.is_empty()
+        && service.files.takes()
+        && !service.root_close_pending
 }

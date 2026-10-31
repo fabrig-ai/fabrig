@@ -196,14 +196,14 @@ pub(super) fn io_down(service: &mut Service) {
         }
     }
     for _ in 0..service.limits.queue {
-        if service.submissions.room() == 0 || service.operations.len() >= service.operations.capacity() {
+        if !super::submissions_ready(service) {
             break;
         }
         let Some(submit) = service.io_submissions.pop() else { break };
         route_submission(service, submit, false);
     }
     for _ in 0..service.limits.queue {
-        if service.submissions.room() == 0 || service.operations.len() >= service.operations.capacity() {
+        if !super::submissions_ready(service) {
             break;
         }
         let Some(submit) = service.file_submissions.pop() else { break };

@@ -57,10 +57,7 @@ pub(super) fn io_up(service: &mut Service) {
 
 pub(super) fn lower_events(service: &mut Service) {
     for _ in 0..service.limits.queue {
-        if service.channel.is_some()
-            && (service.channel_events.room() < channel::edge_room(&service.limits.channel).to_domain
-                || service.channel_below.room() < channel::edge_room(&service.limits.channel).below)
-        {
+        if !super::channel_room(service) {
             break;
         }
         let Some(event) = service.io_events.pop() else { break };
@@ -176,9 +173,8 @@ fn llm_measures(service: &mut Service) {
 
 fn llm_measure_batch(service: &mut Service, pending: u32, direct: bool) -> bool {
     for _ in 0..pending {
-        match &service.events {
-            Some(events) if !events.takes() => return false,
-            Some(_) | None => {}
+        if !super::sinks_take(service) {
+            return false;
         }
         let measure = if direct { service.llm.pop_measure() } else { program::pop_measure(service) }
             .expect("the batch retains its counted observations");
@@ -229,9 +225,7 @@ fn llm_measure_batch(service: &mut Service, pending: u32, direct: bool) -> bool 
 pub(super) fn component_up(service: &mut Service) {
     program::fire(service);
     llm_measures(service);
-    let channel_room = channel::edge_room(&service.limits.channel);
-    if service.channel_events.room() >= channel_room.to_domain
-        && service.channel_below.room() >= channel_room.below
+    if super::channel_room(service)
         && let Some(channel) = &mut service.channel
     {
         channel.fire(&mut service.channel_events, &mut service.channel_below);
@@ -265,15 +259,7 @@ pub(super) fn component_up(service: &mut Service) {
 
 fn llm_events_up(service: &mut Service) {
     for _ in 0..service.limits.queue {
-        match &service.events {
-            Some(events) if !events.takes() => break,
-            Some(_) | None => {}
-        }
-        if !service.llm.measures_drained()
-            || (service.channel.is_some()
-                && (service.channel_events.room() < channel::edge_room(&service.limits.channel).to_domain
-                    || service.channel_below.room() < channel::edge_room(&service.limits.channel).below))
-        {
+        if !super::llm_events_ready(service) {
             break;
         }
         let Some(event) = service.llm_events.pop() else { break };
@@ -429,9 +415,8 @@ pub(super) fn domain_up(service: &mut Service) {
     drain_facts(service);
     // An entrance's facts drain to the sinks before the next entrance.
     for _ in 0..service.limits.domain.run.conversations {
-        if !super::domain_requests_dispatched(service)
+        if !super::domain_entrance_ready(service)
             || !service.domain.as_ref().expect("framed agent owns its domain").is_ready()
-            || service.domain.as_ref().expect("framed agent owns its domain").has_facts()
         {
             break;
         }
@@ -444,9 +429,7 @@ pub(super) fn domain_up(service: &mut Service) {
         drain_facts(service);
     }
     for _ in 0..service.limits.queue {
-        if !super::domain_requests_dispatched(service)
-            || service.domain.as_ref().expect("framed agent owns its domain").has_facts()
-        {
+        if !super::domain_entrance_ready(service) {
             break;
         }
         let Some(event) = service.domain_events.pop() else { break };
@@ -460,9 +443,8 @@ pub(super) fn domain_up(service: &mut Service) {
         drain_content(service);
         drain_facts(service);
     }
-    if super::domain_requests_dispatched(service)
+    if super::domain_entrance_ready(service)
         && service.domain.as_ref().expect("framed agent owns its domain").is_due(service.domain_env.now)
-        && !service.domain.as_ref().expect("framed agent owns its domain").has_facts()
     {
         domain::fire(
             service.domain.as_mut().expect("framed agent owns its domain"),
