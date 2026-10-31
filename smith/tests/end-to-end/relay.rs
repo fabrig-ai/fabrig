@@ -1,4 +1,4 @@
-//! The shipped binary's relay dispatch (protocol/programs.md, section 9).
+//! The shipped binary's relay dispatch (smith/docs/design/protocol/programs.md, section 5.3).
 use smith_real_world::Scratch;
 #[test]
 fn the_agent_binary_refuses_a_relay_without_its_secret() {

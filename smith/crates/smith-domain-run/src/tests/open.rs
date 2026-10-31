@@ -1,4 +1,4 @@
-//! Open main lifecycle at the existing run entrance (domain/run.md, sections 3.1, 6 and 9.1).
+//! Open main lifecycle at the existing run entrance (smith/docs/design/domain/run.md, sections 3.1, 6 and 9.1).
 #![expect(
     clippy::disallowed_macros,
     clippy::disallowed_methods,
@@ -28,7 +28,7 @@ fn listening() -> (Harness, Token, Token) {
 
 fn finish_policy() -> Charter {
     let mut selected = policy();
-    selected.budget.turns = 8; // Approved Close reproducer, domain/run.md section 6.
+    selected.budget.turns = 8; // Approved Close reproducer, smith/docs/design/domain/run.md section 6.
     selected.reserve = crate::charter::Reserve { turns: 1, time: Duration::from_secs(60) };
     selected.waiting = Duration::from_secs(120);
     selected
@@ -78,40 +78,51 @@ fn carried_finish() -> crate::Message {
     crate::Message { finish_requested: true, name: FIRST, label: bytes(b"person"), text: bytes(b"Please finish") }
 }
 
-fn prepared_finish(carried: bool) -> (Harness, Token, Token) {
+fn preparing_finish(messages: Box<[crate::Message]>) -> (Harness, Token) {
     let mut harness = Harness::new(LIMITS);
-    let messages: Box<[crate::Message]> = if carried { Box::new([carried_finish()]) } else { Box::default() };
-    let emitted = harness.step(carried_start(finish_policy(), messages, Some(workspace())));
-    let [Request::Admitted { run, .. }, Request::Read { .. }] = emitted.as_ref() else { panic!("preparing") };
+    let requests = harness.step(carried_start(finish_policy(), messages, Some(workspace())));
+    let [Request::Admitted { run, .. }, Request::Read { .. }] = requests.as_ref() else { panic!("preparing") };
     let run = *run;
-    if !carried {
-        drop(harness.step(finish_request(run, FIRST, b"Please finish")));
-    }
-    let emitted = harness.step(Event::Read { owner: run, read: Read::Missing });
-    let [Request::Open { conversation, .. }] = emitted.as_ref() else { panic!("main opens") };
+    (harness, run)
+}
+
+fn open_prepared_finish(mut harness: Harness, run: Token) -> (Harness, Token) {
+    let requests = harness.step(Event::Read { owner: run, read: Read::Missing });
+    let [Request::Open { conversation, .. }] = requests.as_ref() else { panic!("main opens") };
     let main = *conversation;
     drop(harness.step(Event::Started { conversation: main, peer: Token::new(PEER) }));
     drop(harness.step(told(main, 1)));
-    (harness, run, main)
+    (harness, main)
+}
+
+fn assert_finish_request_parks(mut harness: Harness, main: Token) {
+    final_note(&mut harness, main);
+    assert_eq!(
+        harness.step(reply(main, Stop::EndTurn, b"Goodbye")).as_ref(),
+        &[
+            Request::Waiting { host_run: Token::new(HOST), read: Some(FIRST) },
+            Request::Close { peer: Token::new(PEER) }
+        ]
+    );
+    assert_eq!(
+        answered(harness.step(settled(main, Spend::ZERO))),
+        (HOST, Answer::Parked { spent: Spend::ZERO, turns: 1 })
+    );
 }
 
 #[test]
-fn start_and_preparing_finish_requests_survive_until_main_replies() {
-    for carried in [true, false] {
-        let (mut harness, _, main) = prepared_finish(carried);
-        final_note(&mut harness, main);
-        assert_eq!(
-            harness.step(reply(main, Stop::EndTurn, b"Goodbye")).as_ref(),
-            &[
-                Request::Waiting { host_run: Token::new(HOST), read: Some(FIRST) },
-                Request::Close { peer: Token::new(PEER) }
-            ]
-        );
-        assert_eq!(
-            answered(harness.step(settled(main, Spend::ZERO))),
-            (HOST, Answer::Parked { spent: Spend::ZERO, turns: 1 })
-        );
-    }
+fn a_finish_request_carried_by_start_survives_until_main_replies() {
+    let (harness, run) = preparing_finish(Box::new([carried_finish()]));
+    let (harness, main) = open_prepared_finish(harness, run);
+    assert_finish_request_parks(harness, main);
+}
+
+#[test]
+fn a_finish_request_while_preparing_survives_until_main_replies() {
+    let (mut harness, run) = preparing_finish(Box::default());
+    drop(harness.step(finish_request(run, FIRST, b"Please finish")));
+    let (harness, main) = open_prepared_finish(harness, run);
+    assert_finish_request_parks(harness, main);
 }
 
 #[test]
@@ -425,7 +436,7 @@ fn unsuccessful_open_ends_keep_the_existing_failure_policy() {
         for _ in 0..LIMITS.nudges {
             let emitted = harness.step(reply(main, stop, text));
             let [Request::Say { text, .. }] = emitted.as_ref() else { panic!("one nudge") };
-            assert!(!text.windows(b"`finish`".len()).any(|bytes| bytes == b"`finish`"));
+            assert!(skein_lib::bytes::find(text, b"`finish`").is_none());
         }
         assert_eq!(harness.step(reply(main, stop, text)).as_ref(), &[Request::Close { peer: Token::new(PEER) }]);
         assert_eq!(

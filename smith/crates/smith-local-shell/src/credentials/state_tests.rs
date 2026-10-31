@@ -1,5 +1,7 @@
 use super::tests::Files;
 use super::*;
+use crate::settings::Sourced;
+use std::collections::BTreeMap;
 use std::io::Write;
 use std::os::unix::fs::OpenOptionsExt;
 
@@ -51,7 +53,7 @@ fn record(files: &Files, scopes: Option<&[u8]>) -> PathBuf {
     record.expires_at = Wall::from_nanos(60_000_000_000);
     record.granted_scopes = scopes.map(Box::from);
     let bytes = skein_oauth::encode_record(&record, &sign_in::document_limits()).expect("bounded record");
-    let path = files.0.join("record");
+    let path = files.path().join("record");
     let mut file =
         std::fs::OpenOptions::new().write(true).create_new(true).mode(0o600).open(&path).expect("private record");
     file.write_all(&bytes).expect("write record");
@@ -60,7 +62,7 @@ fn record(files: &Files, scopes: Option<&[u8]>) -> PathBuf {
 
 #[test]
 fn an_expired_record_without_a_refresh_token_must_sign_in_again() {
-    let files = Files::new();
+    let files = Files::new("smith-credentials");
     let path = record(&files, Some(b"chatgpt.tokens.use.direct"));
     let state = inspect(
         &Source::SignIn { file: path, required_scopes: Some(b"chatgpt.tokens.use.direct".as_slice().into()) },
@@ -72,21 +74,16 @@ fn an_expired_record_without_a_refresh_token_must_sign_in_again() {
 
 #[test]
 fn a_record_without_the_plan_scope_is_signed_in_without_it() {
-    let files = Files::new();
+    let files = Files::new("smith-credentials");
     let path = record(&files, Some(b"openid profile"));
     let fields = BTreeMap::from([(
         "provider".into(),
         Sourced { value: toml::Value::String("openai".into()), origin: settings::Origin::BuiltIn },
     )]);
-    let settings =
-        settings::Settings { paths: settings::Paths::default(), workspace: files.0.clone(), values: BTreeMap::new() };
-    let descriptor = source(
-        &fields,
-        &settings,
-        false,
-        "work",
-        Some(&Directory::from_base(files.0.clone()).expect("absolute scratch")),
-    );
+    let account = Account::from_fields("work".into(), 0, fields);
+    let descriptor =
+        source(&account, false, Some(&Directory::from_base(files.path().to_path_buf()).expect("absolute scratch")))
+            .expect("a credentials directory");
     let descriptor = match descriptor {
         Source::SignIn { required_scopes, .. } => Source::SignIn { file: path.clone(), required_scopes },
         Source::Env { .. } | Source::Key { .. } | Source::Program { .. } | Source::Nothing => {
@@ -111,7 +108,7 @@ fn a_record_without_the_plan_scope_is_signed_in_without_it() {
 
 #[test]
 fn a_record_is_checked_against_the_supplied_required_scopes() {
-    let files = Files::new();
+    let files = Files::new("smith-credentials");
     let file = record(&files, Some(b"read"));
     let source = Source::SignIn { file, required_scopes: Some(b"read upload".as_slice().into()) };
     let credential = inspect(&source, Wall::from_nanos(0), &ProgramStates::new());
@@ -124,7 +121,7 @@ fn a_record_is_checked_against_the_supplied_required_scopes() {
 
 #[test]
 fn an_omitted_grant_scope_keeps_the_record_usable() {
-    let files = Files::new();
+    let files = Files::new("smith-credentials");
     let file = record(&files, None);
     let source = Source::SignIn { file, required_scopes: Some(b"read upload".as_slice().into()) };
     let credential = inspect(&source, Wall::from_nanos(0), &ProgramStates::new());

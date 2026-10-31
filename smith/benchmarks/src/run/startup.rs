@@ -1,4 +1,4 @@
-//! Explicit startup probes classify the genuine refusal and empty native capture.
+//! Explicit startup probes classify the refusal and empty native capture.
 //! Other empty streams remain errors; no record is synthesized (benchmarks.md 11.1).
 
 use crate::agent::smith::events;
@@ -56,7 +56,7 @@ mod tests {
         let root = Path::new(env!("CARGO_MANIFEST_DIR"));
         let task = crate::read_task(&root.join("tasks/probes/failures/task.toml")).expect("authored startup variants");
         let mut task = task.with_variant("bad-setting").expect("explicit startup scope");
-        let limits = smith_events::Limits { string: 128, content: 1024, items: 16 };
+        let limits = smith_events::Limits { string: 128, items: 16, ..smith_events::fixture::SMALL };
         let mut observer = events::Observer::new(&limits).expect("reader");
         let diagnostic = b"smith: models[0].output must be positive\n";
         assert!(refused(&task, &observer, Exit::Code(2), Forced::No, diagnostic).is_none());

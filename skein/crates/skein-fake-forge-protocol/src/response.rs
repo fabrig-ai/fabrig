@@ -572,7 +572,7 @@ pub fn range(value: Option<&[u8]>) -> Result<Option<Range>, a::Error> {
     Ok(Some(Range::From { first, last }))
 }
 fn raw(limits: &Limits, body: &[u8], range: Option<Range>) -> Result<Reply, a::Error> {
-    let total = u64::try_from(body.len()).expect("bounded body");
+    let total = skein_lib::len_u64(body.len());
     let range = match range {
         Some(Range::From { .. }) if total == 0 => None,
         Some(Range::From { first, last }) => Some((first, last)),

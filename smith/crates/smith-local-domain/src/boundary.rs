@@ -277,6 +277,8 @@ pub enum Reading {
 /// A local host notice rendered by the terminal (protocol/hosts.md, section 5.1).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Notice {
+    /// Feedback for a local choice, rendered without entering the agent.
+    Choice(crate::ChoiceNotice),
     /// A local chat selection was refused, without sending a message to the run.
     ChatRefused { name: Box<[u8]>, reason: ChatRefusal },
     /// The run is waiting for a person message.
@@ -339,10 +341,6 @@ pub enum Failure {
 /// An account's terminal failure shown to the person.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum AccountFailure {
-    /// No usable account is available.
-    Unavailable,
-    /// The account could not refresh.
-    NotRefreshed,
     /// The account reached its usage limit, with a reset only when supplied.
     Limited { account: u32, reset_at: Option<Wall> },
     /// The provider refused the account, keeping its diagnostic.

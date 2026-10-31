@@ -1,5 +1,5 @@
 //! Outside terminal observations on the existing shipped-binary world.
-use super::{Process, Refusal};
+use super::{Process, Settling};
 use skein_io::kernel::{Fd, Size};
 use skein_lib::{Duration, Time};
 use skein_shell::{Modes, resize_terminal, terminal_modes};
@@ -33,13 +33,13 @@ struct Watch {
 }
 
 pub(super) struct Judge {
-    pub common: Refusal,
+    pub common: Settling,
     watch: Option<Watch>,
     program: Option<super::program_interrupt::Watch>,
 }
 
 impl Judge {
-    pub fn new(common: Refusal, story: Story, master: Option<Fd>, scratch: &std::path::Path) -> Self {
+    pub fn new(common: Settling, story: Story, master: Option<Fd>, scratch: &std::path::Path) -> Self {
         let watch = match story {
             Story::None | Story::ProgramRun | Story::ProgramCheck => None,
             Story::Modes | Story::Resize => {
@@ -89,11 +89,7 @@ impl Watch {
         assert_eq!(modes, self.before, "smith leaves running terminal modes alone");
         self.during = Some(modes);
         match self.resize {
-            Resize::Response
-                if shown
-                    .windows(b"codex/gpt-6-luna; API key: in ".len())
-                    .any(|bytes| bytes == b"codex/gpt-6-luna; API key: in ") =>
-            {
+            Resize::Response if skein_lib::bytes::find(shown, b"codex/gpt-6-luna; API key: in ").is_some() => {
                 resize_terminal(self.master, Size { rows: 24, columns: 20 }).expect("second window change");
                 self.resize = Resize::Done;
             }
@@ -149,7 +145,7 @@ impl Story {
     pub(super) fn budget(self, sign_in: bool) -> Duration {
         match self {
             // Widths are this story's subject, so its referee uses the world's
-            // patience (testing-strategy.md, 2.8; director 1294).
+            // patience (skein/docs/foundation/testing-strategy.md, 2.9).
             Self::Resize => WORLD_PATIENCE,
             Self::ProgramRun | Self::ProgramCheck => Duration::from_secs(30),
             Self::None | Self::Modes => Duration::from_secs(if sign_in { 5 } else { 1 }),
@@ -160,7 +156,7 @@ impl Story {
 #[test]
 fn resize_referee_uses_world_patience() {
     let now = Time::ZERO;
-    let referee = Refusal::new(now, now.saturating_add(Story::Resize.budget(false)));
+    let referee = Settling::new(now, now.saturating_add(Story::Resize.budget(false)));
     assert_eq!(referee.overdue(now.saturating_add(Duration::from_millis(1118))), None);
     let deadline = now.saturating_add(WORLD_PATIENCE);
     assert_eq!(referee.next_deadline(), Some(deadline));

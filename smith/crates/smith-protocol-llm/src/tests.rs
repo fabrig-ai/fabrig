@@ -1,10 +1,5 @@
 //! Rendering properties with deterministic input and the ordinary Rust test kit.
-#![allow(
-    clippy::disallowed_macros,
-    clippy::disallowed_methods,
-    clippy::disallowed_types,
-    reason = "testing-strategy.md, section 4: test harnesses are ordinary Rust"
-)]
+#![expect(clippy::disallowed_types, reason = "test modules are ordinary Rust: programming-model.md 10.2")]
 
 use skein_lib::{Duration, Rng};
 use smith_domain::tools;
@@ -50,53 +45,52 @@ fn tools() -> tools::Limits {
         calls: 1,
         repos: 1,
         path_bytes: 32,
-        host_path_bytes: 4096,
         known_files: 1,
-        file_bytes: 1024,
-        tool_payload: 1024,
         read_bytes: 64,
         list_entries: 8,
         list_bytes: 512,
         match_lines: 8,
         file_timeout: Duration::from_secs(30),
-        jobs: 4,
-        job_poll: Duration::from_secs(30),
-        job_wait: Duration::from_secs(30),
         shell_timeout: Duration::from_secs(30),
         tool_deadline: Duration::from_secs(120),
-        shell_head: 64,
         shell_tail: 64,
-        search_hits: 8,
         search_bytes: 128,
-        search_timeout: Duration::from_secs(30),
+        ..smith_domain_tools::fixture::SMALL
     }
 }
 
 #[test]
+#[expect(
+    clippy::disallowed_macros,
+    clippy::disallowed_methods,
+    reason = "deterministic test fixtures use ordinary Rust parsing and containers"
+)]
 fn random_outcomes_at_random_caps_fit_their_derived_render_bound() {
     let mut rng = Rng::new(941);
     let mut smallest_bound = u32::MAX;
     let mut read_cuts = Vec::new();
     for case in 0_usize..1 {
         let mut caps = tools();
-        caps.read_bytes = u32::try_from(rng.next_u64() % 1024).unwrap();
-        caps.shell_head = u32::try_from(rng.next_u64() % 1024).unwrap();
-        caps.shell_tail = u32::try_from(rng.next_u64() % 1024).unwrap();
-        caps.search_hits = u32::try_from(rng.next_u64() % 32).unwrap();
-        caps.search_bytes = u32::try_from(rng.next_u64() % 1024).unwrap();
-        let bound = render_bound(&caps, 1024, 2048).unwrap();
+        caps.read_bytes = u32::try_from(rng.next_u64() % 1024).expect("valid deterministic fixture");
+        caps.shell_head = u32::try_from(rng.next_u64() % 1024).expect("valid deterministic fixture");
+        caps.shell_tail = u32::try_from(rng.next_u64() % 1024).expect("valid deterministic fixture");
+        caps.search_hits = u32::try_from(rng.next_u64() % 32).expect("valid deterministic fixture");
+        caps.search_bytes = u32::try_from(rng.next_u64() % 1024).expect("valid deterministic fixture");
+        let bound = render_bound(&caps, 1024, 2048).expect("valid deterministic fixture");
         smallest_bound = smallest_bound.min(bound);
         if case % 8 == 0 {
-            read_cuts.push(CUT_MARKER_BYTES + u32::try_from(rng.next_u64() % 128).unwrap());
+            read_cuts
+                .push(CUT_MARKER_BYTES + u32::try_from(rng.next_u64() % 128).expect("valid deterministic fixture"));
         }
         for outcome in random_outcomes(&caps) {
-            let cut = (case % 8 == 0).then(|| CUT_MARKER_BYTES + u32::try_from(rng.next_u64() % 128).unwrap());
+            let cut = (case % 8 == 0)
+                .then(|| CUT_MARKER_BYTES + u32::try_from(rng.next_u64() % 128).expect("valid deterministic fixture"));
             assert_rendering(&outcome, bound, cut);
         }
     }
     let caps = tools();
     let read = tools::Outcome::Read {
-        content: vec![b'\n'; usize::try_from(caps.tool_payload).unwrap()].into(),
+        content: vec![b'\n'; usize::try_from(caps.tool_payload).expect("valid deterministic fixture")].into(),
         first: u32::MAX,
         lines: u32::MAX,
         total: u32::MAX,
@@ -110,6 +104,11 @@ fn random_outcomes_at_random_caps_fit_their_derived_render_bound() {
     }
 }
 
+#[expect(
+    clippy::disallowed_macros,
+    clippy::disallowed_methods,
+    reason = "deterministic test fixtures use ordinary Rust parsing and containers"
+)]
 fn random_outcomes(caps: &tools::Limits) -> [tools::Outcome; 6] {
     let entries = (0..caps.list_entries)
         .map(|_| tools::Entry { name: vec![0xff; 8].into(), kind: tools::Kind::Directory })
@@ -126,7 +125,7 @@ fn random_outcomes(caps: &tools::Limits) -> [tools::Outcome; 6] {
             edit: 1,
             why: tools::Mismatch::Ambiguous {
                 count: u32::MAX,
-                lines: vec![u32::MAX; usize::try_from(caps.match_lines).unwrap()].into(),
+                lines: vec![u32::MAX; usize::try_from(caps.match_lines).expect("valid deterministic fixture")].into(),
             },
         },
         tools::Outcome::Running {
@@ -135,8 +134,8 @@ fn random_outcomes(caps: &tools::Limits) -> [tools::Outcome; 6] {
                 ceiling: Duration::from_nanos(1),
             },
             job: tools::JobNumber(u32::MAX),
-            head: vec![0xff; usize::try_from(caps.shell_head).unwrap()].into(),
-            tail: vec![0; usize::try_from(caps.shell_tail).unwrap()].into(),
+            head: vec![0xff; usize::try_from(caps.shell_head).expect("valid deterministic fixture")].into(),
+            tail: vec![0; usize::try_from(caps.shell_tail).expect("valid deterministic fixture")].into(),
             dropped: u64::MAX,
             after: tools::TimeoutClamp::Clamped {
                 asked: Duration::from_nanos(u64::MAX),
@@ -146,8 +145,8 @@ fn random_outcomes(caps: &tools::Limits) -> [tools::Outcome; 6] {
         },
         tools::Outcome::Job {
             job: tools::JobNumber(u32::MAX),
-            head: vec![0xff; usize::try_from(caps.shell_head).unwrap()].into(),
-            tail: vec![0; usize::try_from(caps.shell_tail).unwrap()].into(),
+            head: vec![0xff; usize::try_from(caps.shell_head).expect("valid deterministic fixture")].into(),
+            tail: vec![0; usize::try_from(caps.shell_tail).expect("valid deterministic fixture")].into(),
             dropped: u64::MAX,
             wait: tools::TimeoutClamp::Clamped {
                 asked: Duration::from_nanos(u64::MAX),
@@ -158,8 +157,8 @@ fn random_outcomes(caps: &tools::Limits) -> [tools::Outcome; 6] {
         },
         tools::Outcome::Exited {
             exit: tools::Exit::Code { code: u8::MAX },
-            head: vec![0xff; usize::try_from(caps.shell_head).unwrap()].into(),
-            tail: vec![0; usize::try_from(caps.shell_tail).unwrap()].into(),
+            head: vec![0xff; usize::try_from(caps.shell_head).expect("valid deterministic fixture")].into(),
+            tail: vec![0; usize::try_from(caps.shell_tail).expect("valid deterministic fixture")].into(),
             dropped: u64::MAX,
             timeout: tools::TimeoutClamp::Clamped {
                 asked: Duration::from_nanos(u64::MAX),
@@ -171,16 +170,16 @@ fn random_outcomes(caps: &tools::Limits) -> [tools::Outcome; 6] {
 }
 
 fn assert_rendering(outcome: &tools::Outcome, bound: u32, cut: Option<u32>) {
-    let (full, _) = render_outcome(outcome, &tools::Namespace::One, bound).unwrap();
+    let (full, _) = render_outcome(outcome, &tools::Namespace::One, bound).expect("valid deterministic fixture");
     if let Some(cut) = cut {
         assert_eq!(
-            render_outcome(outcome, &tools::Namespace::One, bound).unwrap().0,
+            render_outcome(outcome, &tools::Namespace::One, bound).expect("valid deterministic fixture").0,
             full,
             "same outcome renders identical bytes"
         );
         assert_cut_replays(outcome, cut);
     }
-    assert!(full.len() <= usize::try_from(bound).unwrap());
+    assert!(full.len() <= usize::try_from(bound).expect("valid deterministic fixture"));
     assert!(!full.ends_with(b" bytes omitted]"));
 }
 
@@ -195,14 +194,19 @@ fn assert_cut_replays(outcome: &tools::Outcome, cap: u32) {
 #[test]
 fn each_tools_framing_starts_from_the_same_empty_object() {
     let limits = skein_llm::DocumentLimits { bytes: 2, strings: 1, tokens: 2, depth: 2 };
-    for tool in &crate::framing::offered_tools(3).unwrap() {
+    for tool in &crate::framing::offered_tools(3).expect("valid deterministic fixture") {
         assert_eq!(tool.name.as_ref(), b"a");
         assert_eq!(tool.description.as_ref(), b"");
-        assert_eq!(tool.schema.to_bytes(&limits).unwrap().as_ref(), b"{}");
+        assert_eq!(tool.schema.to_bytes(&limits).expect("valid deterministic fixture").as_ref(), b"{}");
     }
 }
 
 #[test]
+#[expect(
+    clippy::disallowed_macros,
+    clippy::disallowed_methods,
+    reason = "deterministic test fixtures use ordinary Rust parsing and containers"
+)]
 fn a_cut_marker_counts_the_exact_bytes_left_out_of_the_rendering() {
     let outcome = tools::Outcome::Read {
         content: vec![b'x'; 512].into(),
@@ -213,30 +217,42 @@ fn a_cut_marker_counts_the_exact_bytes_left_out_of_the_rendering() {
         next: tools::Next::End,
         window: tools::BytesClamp::Within,
     };
-    let (full, error) = render_outcome(&outcome, &tools::Namespace::One, 4096).unwrap();
+    let (full, error) = render_outcome(&outcome, &tools::Namespace::One, 4096).expect("valid deterministic fixture");
     for cap in CUT_MARKER_BYTES..128 {
-        let (cut, cut_error) = render_outcome(&outcome, &tools::Namespace::One, cap).unwrap();
-        let marker = cut.windows(2).position(|bytes| bytes == b"\n[").unwrap();
-        let count =
-            core::str::from_utf8(&cut[marker + 2..]).unwrap().split(' ').next().unwrap().parse::<usize>().unwrap();
+        let (cut, cut_error) =
+            render_outcome(&outcome, &tools::Namespace::One, cap).expect("valid deterministic fixture");
+        let marker = cut.windows(2).position(|bytes| bytes == b"\n[").expect("valid deterministic fixture");
+        let count = core::str::from_utf8(&cut[marker + 2..])
+            .expect("valid deterministic fixture")
+            .split(' ')
+            .next()
+            .expect("valid deterministic fixture")
+            .parse::<usize>()
+            .expect("valid deterministic fixture");
         assert_eq!(count, full.len() - marker);
         assert_eq!(&cut[..marker], &full[..marker]);
         assert_eq!(cut_error, error);
-        assert!(cut.len() <= usize::try_from(cap).unwrap());
+        assert!(cut.len() <= usize::try_from(cap).expect("valid deterministic fixture"));
     }
 }
 
 #[test]
+#[expect(clippy::disallowed_methods, reason = "deterministic test fixtures use ordinary Rust parsing and containers")]
 fn cuts_preserve_every_utf8_character_boundary() {
     let original = "é界🦀".repeat(30);
     for cap in CUT_MARKER_BYTES..128 {
         let cut = crate::render::cut_text(original.as_bytes().into(), cap);
-        let text = core::str::from_utf8(&cut).unwrap();
-        let (prefix, marker) = text.split_once("\n[").unwrap();
-        let omitted = marker.split(' ').next().unwrap().parse::<usize>().unwrap();
+        let text = core::str::from_utf8(&cut).expect("valid deterministic fixture");
+        let (prefix, marker) = text.split_once("\n[").expect("valid deterministic fixture");
+        let omitted = marker
+            .split(' ')
+            .next()
+            .expect("valid deterministic fixture")
+            .parse::<usize>()
+            .expect("valid deterministic fixture");
         assert!(original.starts_with(prefix));
         assert_eq!(omitted, original.len() - prefix.len());
-        assert!(cut.len() <= usize::try_from(cap).unwrap());
+        assert!(cut.len() <= usize::try_from(cap).expect("valid deterministic fixture"));
     }
 }
 
@@ -270,14 +286,15 @@ fn valid_utf8_survives_and_only_invalid_bytes_and_controls_are_escaped() {
             timeout: tools::TimeoutClamp::Within,
             output: tools::BytesClamp::Within,
         };
-        let first = render_outcome(&outcome, &tools::Namespace::One, 4096).unwrap();
+        let first = render_outcome(&outcome, &tools::Namespace::One, 4096).expect("valid deterministic fixture");
         assert_eq!(first.0.as_ref(), expected);
         assert!(!first.1);
-        assert_eq!(first, render_outcome(&outcome, &tools::Namespace::One, 4096).unwrap());
+        assert_eq!(first, render_outcome(&outcome, &tools::Namespace::One, 4096).expect("valid deterministic fixture"));
     }
 }
 
 #[test]
+#[expect(clippy::disallowed_methods, reason = "deterministic test fixtures use ordinary Rust parsing and containers")]
 fn rendered_utf8_cuts_remain_valid_and_count_exact_omitted_bytes() {
     let outcome = tools::Outcome::Exited {
         exit: tools::Exit::Code { code: 0 },
@@ -287,15 +304,20 @@ fn rendered_utf8_cuts_remain_valid_and_count_exact_omitted_bytes() {
         timeout: tools::TimeoutClamp::Within,
         output: tools::BytesClamp::Within,
     };
-    let (full, _) = render_outcome(&outcome, &tools::Namespace::One, 4096).unwrap();
+    let (full, _) = render_outcome(&outcome, &tools::Namespace::One, 4096).expect("valid deterministic fixture");
     for cap in CUT_MARKER_BYTES..128 {
-        let (cut, error) = render_outcome(&outcome, &tools::Namespace::One, cap).unwrap();
-        let text = core::str::from_utf8(&cut).unwrap();
-        let (prefix, marker) = text.split_once("\n[").unwrap();
-        let omitted = marker.split(' ').next().unwrap().parse::<usize>().unwrap();
+        let (cut, error) = render_outcome(&outcome, &tools::Namespace::One, cap).expect("valid deterministic fixture");
+        let text = core::str::from_utf8(&cut).expect("valid deterministic fixture");
+        let (prefix, marker) = text.split_once("\n[").expect("valid deterministic fixture");
+        let omitted = marker
+            .split(' ')
+            .next()
+            .expect("valid deterministic fixture")
+            .parse::<usize>()
+            .expect("valid deterministic fixture");
         assert_eq!(omitted, full.len() - prefix.len());
         assert_eq!(prefix.as_bytes(), &full[..prefix.len()]);
-        assert!(cut.len() <= usize::try_from(cap).unwrap());
+        assert!(cut.len() <= usize::try_from(cap).expect("valid deterministic fixture"));
         assert!(!error);
     }
 }
@@ -320,6 +342,7 @@ fn described_prompt() -> smith_domain::llm::Prompt {
 }
 
 #[test]
+#[expect(clippy::disallowed_methods, reason = "deterministic test fixtures use ordinary Rust parsing and containers")]
 fn golden_descriptions_state_batching_and_every_effective_parameter() {
     let stated = crate::Stated {
         host_part: u64::MAX,
@@ -373,16 +396,16 @@ fn golden_descriptions_state_batching_and_every_effective_parameter() {
             4,
         ),
     ];
-    let schemas = crate::schemas(&described_prompt(), &stated);
+    let schemas = crate::fixture::schemas(&described_prompt(), &stated);
     assert_eq!(schemas.len(), golden.len());
     for (schema, (words, parameters)) in schemas.iter().zip(golden) {
         assert_eq!(schema.description.as_ref(), words.as_bytes());
-        let text = core::str::from_utf8(&schema.schema).unwrap();
+        let text = core::str::from_utf8(&schema.schema).expect("valid deterministic fixture");
         assert_eq!(
             text.matches("\"description\"").count(),
             parameters,
             "{}",
-            core::str::from_utf8(&schema.name).unwrap()
+            core::str::from_utf8(&schema.name).expect("valid deterministic fixture")
         );
         assert!(!text.contains("runs alone"));
         match schema.name.as_ref() {
@@ -407,13 +430,13 @@ fn golden_descriptions_state_batching_and_every_effective_parameter() {
             _ => panic!("only the eight workspace tools"),
         }
     }
-    assert_eq!(schemas, crate::schemas(&described_prompt(), &stated));
+    assert_eq!(schemas, crate::fixture::schemas(&described_prompt(), &stated));
 }
 
 #[test]
 fn stated_quantities_copy_effective_limits_and_refuse_capture_overflow() {
     let limits = tools();
-    let stated = crate::Stated::from_tools(&limits, 401).unwrap();
+    let stated = crate::Stated::from_tools(&limits, 401).expect("valid deterministic fixture");
     assert_eq!(stated.path_bytes, 32);
     assert_eq!(stated.tool_payload, 1024);
     assert_eq!(stated.read_window, 64);
@@ -431,7 +454,8 @@ fn stated_quantities_copy_effective_limits_and_refuse_capture_overflow() {
 }
 
 #[test]
-fn path_descriptions_follow_the_actual_conversation_namespace() {
+#[expect(clippy::disallowed_methods, reason = "deterministic test fixtures use ordinary Rust parsing and containers")]
+fn path_descriptions_follow_the_observed_conversation_namespace() {
     use smith_domain::tools::{Name, Namespace};
     for (namespace, wanted, absent) in [
         (Namespace::One, "Relative to the working directory, e.g. src/lib.rs", "/name/..."),
@@ -445,7 +469,7 @@ fn path_descriptions_follow_the_actual_conversation_namespace() {
     ] {
         let mut prompt = described_prompt();
         prompt.namespace = namespace;
-        for schema in crate::schemas(
+        for schema in crate::fixture::schemas(
             &prompt,
             &crate::Stated {
                 host_part: u64::MAX,
@@ -534,6 +558,7 @@ fn oversized_call_feedback_states_size_bound_and_batched_recovery_within_its_cap
 }
 
 #[test]
+#[expect(clippy::disallowed_methods, reason = "deterministic test fixtures use ordinary Rust parsing and containers")]
 fn fixed_own_schema_measurement_matches_the_complete_fixed_inventory() {
     let stated = crate::Stated::from_tools(&tools(), 2048).expect("bounded quantities");
     let mut prompt = described_prompt();
@@ -544,7 +569,7 @@ fn fixed_own_schema_measurement_matches_the_complete_fixed_inventory() {
         tools::Namespace::Several { working: tools::Name::new(b"work".as_slice().into()).expect("name") },
     ] {
         prompt.namespace = namespace;
-        let inventory = crate::schemas(&prompt, &stated);
+        let inventory = crate::fixture::schemas(&prompt, &stated);
         let rendered =
             inventory.iter().map(|tool| tool.name.len() + tool.description.len() + tool.schema.len()).sum::<usize>();
         largest = largest.max(rendered);
@@ -554,6 +579,7 @@ fn fixed_own_schema_measurement_matches_the_complete_fixed_inventory() {
 }
 
 #[test]
+#[expect(clippy::disallowed_methods, reason = "deterministic test fixtures use ordinary Rust parsing and containers")]
 fn drawn_contract_schema_costs_equal_every_rendered_byte() {
     use smith_domain::run::outcome::{ChangeSpec, FieldRule, ItemRule, ItemSpec, OutcomeSpec, TextSpec, VerdictRule};
     let costs = crate::schema_costs().expect("startup renderer costs");
@@ -598,22 +624,21 @@ fn drawn_contract_schema_costs_equal_every_rendered_byte() {
         };
         assert_eq!(
             costs.finish(&outcome),
-            Some(
-                u64::try_from(crate::finish_schema(&outcome, u32::MAX).expect("rendered finish").len())
-                    .expect("length")
-            )
+            Some(skein_lib::len_u64(crate::finish_schema(&outcome, u32::MAX).expect("rendered finish").len()))
         );
         assert_eq!(
             costs.deliver(&change),
-            Some(
-                u64::try_from(crate::deliver_schema(&change, u32::MAX).expect("rendered deliver").len())
-                    .expect("length")
-            )
+            Some(skein_lib::len_u64(crate::deliver_schema(&change, u32::MAX).expect("rendered deliver").len()))
         );
     }
 }
 
 #[test]
+#[expect(
+    clippy::disallowed_macros,
+    clippy::disallowed_methods,
+    reason = "deterministic test fixtures use ordinary Rust parsing and containers"
+)]
 fn every_size_refusal_at_numeric_maxima_fits_the_derived_result_with_its_units() {
     let mut caps = tools();
     caps.tool_payload = 1;
@@ -650,6 +675,7 @@ fn every_size_refusal_at_numeric_maxima_fits_the_derived_result_with_its_units()
 }
 
 #[test]
+#[expect(clippy::disallowed_methods, reason = "deterministic test fixtures use ordinary Rust parsing and containers")]
 fn owed_results_past_their_room_are_cut_with_markers() {
     let room = 160;
     let original = "é界🦀".repeat(30);
@@ -661,10 +687,10 @@ fn owed_results_past_their_room_are_cut_with_markers() {
         timeout: tools::TimeoutClamp::Within,
         output: tools::BytesClamp::Within,
     };
-    let (cut, error) = render_outcome(&outcome, &tools::Namespace::One, room / 2).unwrap();
+    let (cut, error) = render_outcome(&outcome, &tools::Namespace::One, room / 2).expect("valid deterministic fixture");
     assert!(!error);
     for result in [cut, crate::render::cut_text(original.as_bytes().into(), room / 2)] {
-        let text = core::str::from_utf8(&result).unwrap();
+        let text = core::str::from_utf8(&result).expect("valid deterministic fixture");
         assert!(result.len() <= 80);
         assert!(text.contains("\n["));
         assert!(text.ends_with(" bytes omitted]"));
@@ -685,7 +711,7 @@ fn render_job(end: tools::JobEnd) -> (Box<[u8]>, bool) {
         &tools::Namespace::One,
         1024,
     )
-    .unwrap()
+    .expect("valid deterministic fixture")
 }
 
 #[test]
@@ -700,7 +726,7 @@ fn a_running_command_names_the_job_to_read_next() {
         after: tools::TimeoutClamp::Within,
     };
     assert_eq!(
-        render_outcome(&outcome, &tools::Namespace::One, 1024).unwrap(),
+        render_outcome(&outcome, &tools::Namespace::One, 1024).expect("valid deterministic fixture"),
         (b"job 3 running; use job to read the rest\nstart".as_slice().into(), false)
     );
 }
@@ -787,7 +813,7 @@ fn a_commands_yield_clamp_names_the_asked_and_ceiling() {
         after: tools::TimeoutClamp::Clamped { asked: Duration::from_secs(90), ceiling: Duration::from_secs(30) },
     };
     assert_eq!(
-        render_outcome(&outcome, &tools::Namespace::One, 1024).unwrap(),
+        render_outcome(&outcome, &tools::Namespace::One, 1024).expect("valid deterministic fixture"),
         (b"job 3 running; use job to read the rest\n[yield clamped: 90000 ms to 30000 ms]".as_slice().into(), false)
     );
 }
@@ -804,7 +830,7 @@ fn a_jobs_wait_clamp_names_the_asked_and_ceiling() {
         wait: tools::TimeoutClamp::Clamped { asked: Duration::from_secs(90), ceiling: Duration::from_secs(30) },
     };
     assert_eq!(
-        render_outcome(&outcome, &tools::Namespace::One, 1024).unwrap(),
+        render_outcome(&outcome, &tools::Namespace::One, 1024).expect("valid deterministic fixture"),
         (
             b"job 3 output since its last answer:\nrunning\n[wait clamped: 90000 ms to 30000 ms]".as_slice().into(),
             false
@@ -824,7 +850,7 @@ fn a_jobs_output_clamp_names_the_asked_and_ceiling() {
         wait: tools::TimeoutClamp::Within,
     };
     assert_eq!(
-        render_outcome(&outcome, &tools::Namespace::One, 1024).unwrap(),
+        render_outcome(&outcome, &tools::Namespace::One, 1024).expect("valid deterministic fixture"),
         (
             b"job 3 output since its last answer:\nrunning\n[output clamped: 90 bytes to 30 bytes]".as_slice().into(),
             false
@@ -843,20 +869,22 @@ fn a_running_command_says_its_deadline_and_yield_clamps() {
         after: tools::TimeoutClamp::Clamped { asked: Duration::from_secs(90), ceiling: Duration::from_secs(30) },
         output: tools::BytesClamp::Within,
     };
-    assert_eq!(render_outcome(&outcome, &tools::Namespace::One, 1024).unwrap(),
+    assert_eq!(render_outcome(&outcome, &tools::Namespace::One, 1024).expect("valid deterministic fixture"),
         (b"job 3 running; use job to read the rest\n[timeout clamped: 180000 ms to 120000 ms]\n[yield clamped: 90000 ms to 30000 ms]".as_slice().into(), false));
 }
 
 #[test]
 fn a_full_jobs_problem_names_the_bound_and_recovery() {
-    assert_eq!(crate::failure::problem(smith_domain::llm::Problem::JobsFull { jobs: 4 }, 1024).unwrap().as_ref(),
+    assert_eq!(crate::failure::problem(smith_domain::llm::Problem::JobsFull { jobs: 4 }, 1024).expect("valid deterministic fixture").as_ref(),
         b"invalid yield_seconds: at most 4 jobs may run at once; job with stop stops one, or reads the end of one that ended");
 }
 
 #[test]
 fn an_unknown_job_problem_names_which_number_was_invalid() {
     assert_eq!(
-        crate::failure::problem(smith_domain::llm::Problem::UnknownJob { job: 17 }, 1024).unwrap().as_ref(),
+        crate::failure::problem(smith_domain::llm::Problem::UnknownJob { job: 17 }, 1024)
+            .expect("valid deterministic fixture")
+            .as_ref(),
         b"invalid job 17: no running answer named it, or its end was already answered"
     );
 }
@@ -884,7 +912,10 @@ fn skein_failures_map_to_the_sessions_classes() {
         ),
         (Source::Protocol, Failure::Protocol),
         (Source::Cancelled, Failure::Cancelled),
-        (Source::TimedOut { phase: Phase::Head }, Failure::TimedOut { phase: smith_domain::llm::Phase::Head }),
+        (
+            Source::TimedOut { phase: Phase::Head },
+            Failure::TimedOut { phase: smith_domain::llm::CompletionPhase::Head },
+        ),
     ] {
         assert_eq!(crate::failure::class(source), expected, "{source:?}");
     }
@@ -904,6 +935,7 @@ fn each_providers_prompt_allowance_counts_its_tool_inventory() {
 }
 
 #[test]
+#[expect(clippy::disallowed_methods, reason = "deterministic test fixtures use ordinary Rust parsing and containers")]
 fn a_call_with_no_account_carries_no_credential() {
     let grants = crate::Grants::new(1, 64).expect("bounded grants");
     let missing = smith_domain::GrantName { account: 7, generation: 1 };
@@ -923,4 +955,28 @@ fn removal_renders_success_and_the_nonempty_refusal() {
             (text.into(), failed)
         );
     }
+}
+
+#[test]
+fn schema_inventory_at_capacity_fits_and_one_more_is_refused() {
+    use smith_domain::{llm, run::outcome};
+    let mut prompt = described_prompt();
+    prompt.served = Box::new([llm::Served::Finish, llm::Served::Deliver, llm::Served::SubAgent, llm::Served::Wait]);
+    let stated = crate::Stated::from_tools(&tools(), 4096).expect("fixture stated quantities");
+    let delivery = outcome::ChangeSpec { checks_must_pass: false, fields: Box::new([]) };
+    let contract = crate::fixture::contract();
+    let inventory = crate::schemas_for_contract(&prompt, &stated, &contract, Some(&delivery), u32::MAX)
+        .expect("eight workspace and four run tools fit");
+    assert_eq!(inventory.len(), 12);
+    prompt.served = Box::new([
+        llm::Served::Finish,
+        llm::Served::Deliver,
+        llm::Served::SubAgent,
+        llm::Served::Wait,
+        llm::Served::Wait,
+    ]);
+    assert_eq!(
+        crate::schemas_for_contract(&prompt, &stated, &contract, Some(&delivery), u32::MAX),
+        Err(crate::Error::Limit)
+    );
 }

@@ -3,13 +3,15 @@
 //! reads hold Allow; allowed writes and edits hold their result. Failed loads
 //! teach nothing. Closing waits for the load's terminal before private cleanup.
 
-use super::{Backend, Below, Phase, policy, stop};
+use super::Complete;
+use super::Owner;
+use super::{Backend, Below, State, policy};
 use crate::mcp::{self, json};
 use alloc::boxed::Box;
 use skein_io::{digest, file};
 use skein_lib::{Queue, Time, Token};
 use smith_domain::tools::{Place, Version};
-use smith_protocol_llm::{FromDomain, ToDomain};
+use smith_protocol_llm::ToDomain;
 
 pub(super) enum After {
     Allow { call: mcp::CallId, input: Box<[u8]> },
@@ -50,7 +52,7 @@ impl Backend {
                 | None => {}
             }
         }
-        self.server.as_mut().expect("permission server").verdict(
+        self.startup.server_mut().expect("permission server").verdict(
             call,
             mcp::Verdict::Allow { updated_input },
             &mut self.io,
@@ -59,9 +61,9 @@ impl Backend {
 
     pub(super) fn begin_snapshot(&mut self, owner: Token, place: Place, after: After) {
         assert!(self.native.is_none(), "one native snapshot at a time");
-        let deadline = match &self.request {
-            Some(FromDomain::Complete { deadlines, .. }) => deadlines.whole,
-            Some(FromDomain::Cancel { .. } | FromDomain::Yield { .. }) | None => {
+        let deadline = match self.current.request() {
+            Some(Complete { deadlines, .. }) => deadlines.whole,
+            None => {
                 unreachable!("snapshot belongs to an allowed completion")
             }
         };
@@ -75,7 +77,7 @@ impl Backend {
     }
 
     pub(super) fn load_native(&mut self, below: &mut Queue<Below>) {
-        let owner = self.token(6);
+        let owner = self.token(Owner::Native);
         if let Some(snapshot) = &mut self.native {
             if snapshot.submitted {
                 return;
@@ -97,7 +99,7 @@ impl Backend {
 
     pub(super) fn native_event(&mut self, event: file::Event, up: &mut Queue<ToDomain>) {
         let snapshot = self.native.take().expect("one native file terminal");
-        if snapshot.cancelled || self.phase == Phase::Ending || self.stop != stop::Stop::None {
+        if snapshot.cancelled || self.startup.phase() == State::Ending || self.stopping.waiting() {
             return;
         }
         match event {
@@ -128,7 +130,7 @@ impl Backend {
             | file::Event::Cancelled { .. } => {}
         }
         match snapshot.after {
-            After::Allow { call, input } => self.server.as_mut().expect("snapshot permission server").verdict(
+            After::Allow { call, input } => self.startup.server_mut().expect("snapshot permission server").verdict(
                 call,
                 mcp::Verdict::Allow { updated_input: input },
                 &mut self.io,

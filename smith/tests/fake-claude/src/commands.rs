@@ -1,5 +1,5 @@
-//! Command machines for sign-in (protocol/programs.md, sections 3, 4.1, 5 and
-//! 8; testing.md, section 4). Effects are driven by the shared fake host.
+//! Command machines for sign-in (smith/docs/design/protocol/programs.md, sections 3, 4.1, 5 and
+//! 8; smith/docs/design/testing.md, section 4). Effects are driven by the shared fake host.
 
 use skein_io::{file, kernel};
 use skein_lib::Token;

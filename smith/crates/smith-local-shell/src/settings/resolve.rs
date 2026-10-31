@@ -1,7 +1,7 @@
 //! Catalog inheritance and the run's model/account selection (shell.md, 5.2).
 //! Selection retains settings and account descriptors, never credentials. `select`
 //! opens no endpoint; composition and relationship checks follow selection.
-use super::{Settings, Sourced};
+use super::Settings;
 use std::collections::{BTreeMap, BTreeSet};
 
 pub(crate) mod document;
@@ -22,21 +22,7 @@ pub struct Selection {
     pub settings: Settings,
 }
 
-/// An account's named source and fields, without any borrowed or refreshed value.
-#[derive(Debug)]
-pub struct Account {
-    pub name: String,
-    pub number: u32,
-    pub fields: BTreeMap<String, Sourced>,
-}
-
-impl Account {
-    /// The source's configured name, empty when absent.
-    #[must_use]
-    pub fn source(&self) -> &str {
-        self.fields.get("source").and_then(|field| field.value.as_str()).unwrap_or_default()
-    }
-}
+pub use super::accounts::{Account, AccountSource, Provider};
 
 /// Native agent and local policy values, with only the run's account descriptors.
 pub struct Resolved {
@@ -49,7 +35,7 @@ pub struct Resolved {
 }
 
 /// Compose selected models through the native configuration and local policy owners.
-pub fn resolve(settings: &Settings, _command: &crate::command::Command) -> Result<Resolved, super::Refusal> {
+pub fn resolve(settings: &Settings) -> Result<Resolved, super::Refusal> {
     build(select(settings)?, false).map(|(resolved, _document)| resolved)
 }
 
@@ -132,7 +118,7 @@ pub(crate) fn build(selection: Selection, document: bool) -> Result<(Resolved, B
     local.validate(&limits).map_err(|why| relationships::local(&settings, &local, &limits, why))?;
     let resolved = Resolved { agent, local, accounts, limits, settings, outside_models };
     for account in &resolved.accounts {
-        if account.fields.get("source").and_then(|value| value.value.as_str()) == Some("sign_in") {
+        if account.source() == AccountSource::SignIn {
             crate::credentials::registration(
                 account,
                 crate::credentials::product_codex(&resolved, account.number),
@@ -179,20 +165,13 @@ pub fn select(settings: &Settings) -> Result<Selection, super::Refusal> {
             }
         }
     }
+    let mut catalog = super::accounts(&settings);
     let mut accounts = Vec::<Account>::new();
     for model in &models {
         let name = account(&settings, model)?;
-        if accounts.iter().any(|account| account.name == name) {
-            continue;
+        if let Some(account) = catalog.remove(&name) {
+            accounts.push(account);
         }
-        let prefix = format!("accounts.{}.", super::name(&name));
-        let fields = settings
-            .values
-            .iter()
-            .filter_map(|(key, value)| key.strip_prefix(&prefix).map(|field| (field.into(), value.clone())))
-            .collect();
-        let number = numbers::number(&name);
-        accounts.push(Account { name, number, fields });
     }
     Ok(Selection { models, accounts, settings })
 }

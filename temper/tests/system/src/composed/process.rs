@@ -251,7 +251,7 @@ impl Process {
             u32::try_from(temper_engine_smith::tools(Duration::from_secs(10)).len()).expect("tool count");
         settings.limits.run.brief_sections = 16;
         settings.limits.session.spend = charter.budget.spend;
-        let event = smith::Event::Start {
+        let event = smith::Event::Start(smith::Start {
             reply_to: ReplyTo::new(Token::new(402)),
             host_run: start.logical_run,
             activation: start.activation,
@@ -263,7 +263,7 @@ impl Process {
             transcript,
             answered: answered(start.answered),
             grants: grants(&start.grants),
-        };
+        });
         let mut agent = Agent::with_workspace_scripts_start(settings, mounted, Box::new([self.script.clone()]), event);
         agent.enable_parent_host_calls();
         self.agent = Some(agent);

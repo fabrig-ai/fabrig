@@ -106,11 +106,7 @@ pub(super) fn build(
             .iter()
             .find(|entry| entry.name == account_name)
             .ok_or_else(|| input::refuse(settings, &account_field, "account is not configured"))?;
-        configured.push(model.local(
-            endpoint.number,
-            endpoint.dialect,
-            (account.source() != "none").then_some(account.number),
-        ));
+        configured.push(model.local(endpoint.number, endpoint.dialect, account.credential_number()));
         let native = agent
             .service
             .domain
@@ -190,7 +186,7 @@ pub(super) fn build(
         live_text: false,
         mode: local::Mode::Chat { waiting: Duration::from_secs(input::number(settings, "waiting_seconds")?) },
         resume: true,
-        accounts: accounts.iter().filter(|account| account.source() != "none").map(|account| account.number).collect(),
+        accounts: accounts.iter().filter_map(Account::credential_number).collect(),
         workspace: Some(run::Workspace { directories: directories.into_boxed_slice() }),
         push,
     })
@@ -220,7 +216,7 @@ fn directories(
             .and_then(Value::as_str)
             .ok_or_else(|| input::refuse(settings, &key, "directory name is required"))?;
         let path = settings.workspace.join(path);
-        let host = smith_protocol_channel::host_path(
+        let host = smith_protocol_translate::host_path(
             path.as_os_str().as_encoded_bytes(),
             agent.service.limits.domain.run.host_path_bytes,
         )

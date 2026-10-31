@@ -1,4 +1,4 @@
-//! The scripted browser follows actual HTTP redirects; Skein owns the issuer.
+//! The scripted browser follows HTTP redirects; Skein owns the issuer.
 //! It keeps GET and callback state and received observations, never local
 //! service state. Contract: testing.md, sections 4 and 5.
 pub use skein_fake_peers::oauth::Peer;

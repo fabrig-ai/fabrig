@@ -1,5 +1,5 @@
-//! Agent obligations preserved from temper `25ac2ad` on an explicit scripted
-//! host (domain/run.md, sections 13 and 14; domain/host.md, section 2).
+//! Agent obligations on an explicit scripted
+//! host (smith/docs/design/domain/run.md, section 13; smith/docs/design/domain/host.md, section 2).
 //! The host snapshots landed bytes, not forge commits or engine decisions.
 
 use skein_lib::Duration;
@@ -56,7 +56,7 @@ fn checks_said_to_start_and_end_bracket_the_long_operation() {
         let (started, begin) = span[0];
         let (ended, finish) = span[1];
         assert!(begin && !finish, "every check has one start and one end notice");
-        assert!(started <= *terminal && *terminal <= ended, "the actual terminal is inside its notice span");
+        assert!(started <= *terminal && *terminal <= ended, "the terminal is inside its notice span");
     }
 }
 
@@ -101,12 +101,12 @@ fn a_report_answers_the_host_without_checks_or_pushes() {
 fn a_report_only_run_with_a_writable_directory_is_told_of_its_checks() {
     let world = settled(&Settings { job: Job::Reporting, writable: true, ..Settings::calm(1010) });
     assert!(matches!(world.answer(), Answer::Accepted { outcome: Declared::Report(_), .. }));
-    assert!(world.prompts().iter().any(|query| {
-        query
-            .system
-            .windows(b"with checks (`.temper/pre-pr`)".len())
-            .any(|part| part == b"with checks (`.temper/pre-pr`)")
-    }));
+    assert!(
+        world
+            .prompts()
+            .iter()
+            .any(|query| { skein_lib::bytes::find(&query.system, b"with checks (`.temper/pre-pr`)").is_some() })
+    );
     assert!(world.checked().is_empty() && world.pushes().is_empty());
 }
 
@@ -131,7 +131,7 @@ fn a_child_asking_for_sub_agents_is_refused() {
     let fixer = world
         .prompts()
         .iter()
-        .filter(|query| query.system.windows(b"@fix".len()).any(|part| part == b"@fix"))
+        .filter(|query| skein_lib::bytes::find(&query.system, b"@fix").is_some())
         .collect::<Vec<_>>();
     assert!(!fixer.is_empty());
     assert!(fixer.iter().all(|query| !query.tools.iter().any(|tool| tool.name.as_ref() == b"sub_agent")));
@@ -146,7 +146,7 @@ fn a_child_asking_for_sub_agents_is_refused() {
     assert!(
         fixer.iter().flat_map(|query| &query.messages).flat_map(|message| &message.parts).any(|part| {
             matches!(part, skein_fake_llm_domain::api::Part::ToolOutput { output, is_error: true, .. }
-            if output.windows(b"Nesting".len()).any(|bytes| bytes == b"Nesting"))
+            if skein_lib::bytes::find(output, b"Nesting").is_some())
         }),
         "the independent fixture decoder returns the typed nesting problem"
     );
@@ -193,7 +193,7 @@ fn refused_push_feedback_reaches_the_llm_and_is_retried() {
     let feedback =
         world.prompts().iter().flat_map(|prompt| &prompt.messages).flat_map(|message| &message.parts).any(|part| {
             matches!(part, skein_fake_llm_domain::api::Part::ToolOutput { output, is_error: true, .. }
-            if output.windows(b"remote: push refused".len()).any(|part| part == b"remote: push refused"))
+            if skein_lib::bytes::find(output, b"remote: push refused").is_some())
         });
     assert!(feedback, "the host's exact bounded diagnostic returned to the provider");
     assert!(world.landed().is_empty());
@@ -305,10 +305,7 @@ fn a_silent_run_drains_every_native_fact_without_changing_the_answer() {
         assert_eq!(silent.trace(), kept.trace());
         assert_eq!(silent.landed(), kept.landed());
         assert!(silent.facts().is_empty());
-        assert_eq!(
-            silent.agent_facts_not_written(),
-            u64::try_from(kept.facts().len()).expect("bounded observed fact history")
-        );
+        assert_eq!(silent.agent_facts_not_written(), skein_lib::len_u64(kept.facts().len()));
     }
 }
 
@@ -349,7 +346,7 @@ fn separately_granted_mid_delivery_continues_to_a_report() {
             skein_fake_llm_domain::api::Part::ToolOutput { output, is_error: false, .. }
             if output.as_ref() == expected_feedback)
         });
-    assert!(receipt_reached_llm, "actual receipts are continuation feedback");
+    assert!(receipt_reached_llm, "receipts are continuation feedback");
 }
 
 #[test]
@@ -386,7 +383,7 @@ fn five_host_terminals_preserve_report_only_contract_and_stale_ends_it() {
 #[test]
 fn mid_landing_during_explicit_shutdown_preserves_receipts_and_spend() {
     // Deterministic zero-latency provider/IO except the host terminal: choose a
-    // cancellation within that actual pending operation by replaying its observed
+    // cancellation within that pending operation by replaying its observed
     // submission timestamp, never by inspecting private state.
     let baseline = settled(&Settings { job: Job::MidReport, ..Settings::calm(43) });
     let submitted = baseline.delivery_names()[0].1;

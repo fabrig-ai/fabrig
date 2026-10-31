@@ -399,7 +399,7 @@ impl Github {
                 http::Request::Respond(http::Response {
                     status: response.status,
                     headers: headers.into_boxed_slice(),
-                    body: http::Body::Length(u64::try_from(peer.reply.len()).expect("reply length")),
+                    body: http::Body::Length(skein_lib::len_u64(peer.reply.len())),
                     close: false,
                 }),
             );
@@ -489,7 +489,7 @@ impl Github {
     fn end(&mut self, owner: Token) {
         if let Some(peer) = self.peers.remove(&owner) {
             let counts = peer.pipe.request_counts();
-            assert_eq!(counts.written, u64::try_from(peer.traces.len()).expect("trace count"));
+            assert_eq!(counts.written, skein_lib::len_u64(peer.traces.len()));
             self.lines.extend_from_slice(peer.pipe.request_lines());
             for (index, trace) in peer.traces.into_iter().enumerate() {
                 if !trace.own {

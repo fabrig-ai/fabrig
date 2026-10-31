@@ -1,3 +1,6 @@
+use skein_llm as shared;
+use smith_agent_service::profile::Per;
+
 mod native;
 mod programs;
 mod prompt_line;
@@ -21,6 +24,20 @@ fn document() -> Document {
         environment: vec![],
         trace: None,
         programs: std::collections::BTreeMap::new(),
+    }
+}
+
+fn resources() -> crate::Resources {
+    crate::Resources {
+        input: skein_io::kernel::Fd::new(0),
+        output: skein_io::kernel::Fd::new(1),
+        signals: skein_io::kernel::Fd::new(2),
+        seed: 1,
+        pid: 1,
+        trace: None,
+        error: None,
+        roots: None,
+        programs: None,
     }
 }
 
@@ -88,51 +105,23 @@ fn a_trust_file_that_is_not_a_regular_file_is_refused_naming_it() {
 
 #[test]
 fn a_machine_bundle_past_its_certificate_bound_is_refused_naming_the_bound() {
-    let path = std::env::temp_dir().join(format!("smith-trust-bundle-{}.pem", std::process::id()));
+    let scratch = skein_scratch::Scratch::new("smith-trust-bundle");
+    let path = scratch.path().join("roots.pem");
     std::fs::write(&path, b"-----BEGIN CERTIFICATE-----\nAA==\n-----END CERTIFICATE-----\n".repeat(513))
         .expect("bounded PEM fixture");
     let error = trust_source(&skein_shell::Trust::Machine { ssl_cert_file: Some(path.clone()) })
         .expect_err("too many certificates");
-    std::fs::remove_file(path).expect("remove fixture");
     assert_eq!(error, "trust roots exceed 512 certificates");
 }
 
 #[test]
 fn named_endpoint_resolves_and_its_tls_trust_builds_before_start() {
     let mut document = document();
-    document.endpoints.clear();
-    document.endpoints.push(Endpoint {
-        connect: 10_000,
-        handshake: 10_000,
-        models: vec![ModelDocument {
-            prices: PriceDocument { input: 1, cached: 1, cache_write: None, output: 1, unit: 1 },
-            name: "test".into(),
-            window: 65_536,
-            output: 512,
-            reasoning_item: 64,
-            oversized_reasoning: None,
-            head: 60_000,
-            idle: 30_000,
-            efforts: Vec::new(),
-        }],
-        name: "test".into(),
-        number: 42,
-        dialect: 1,
-        _account: 0,
-        provider: "codex".into(),
-        address: "127.0.0.1:443".into(),
-        transport: "tls".into(),
-        server_name: Some("example.test".into()),
-        authority: None,
-        target: None,
-        trust_der: Some(
-            skein_scratch::paths::tree().join("tests/protocol-llm/fixtures/root.der").display().to_string(),
-        ),
-        trust: None,
-        headers: vec![],
-        identity: None,
-        program: None,
-    });
+    let endpoint = &mut document.endpoints[0];
+    endpoint.transport = "tls".into();
+    endpoint.server_name = Some("example.test".into());
+    endpoint.trust_der =
+        Some(skein_scratch::paths::tree().join("tests/protocol-llm/fixtures/root.der").display().to_string());
     let configuration = build(document).expect("resolved endpoint");
     service::Service::new(configuration.service, 1).expect("LLM and channel endpoints");
 }
@@ -169,52 +158,61 @@ fn an_openai_endpoint_takes_the_public_route() {
 }
 
 #[test]
-fn affinity_header_names_and_static_cache_keys_are_refused_in_configuration() {
+fn affinity_headers_are_refused_by_name() {
     for name in ["session-id", "SESSION-ID", "thread-id", "ThReAd-Id"] {
-        let json = format!(
-            r#"{{"profile":{{"name":"standard","declared":{{"memory":1099511627776,"tool_payload":256,"read_window":256}},"policy":{{"group_stop":10}}}},"endpoints":[{{"name":"local","number":1,"dialect":1,"account":0,"provider":"codex","address":"127.0.0.1:8080","connect":10000,"handshake":10000,"models":[{{"name":"test","window":65536,"output":512,"reasoning_item":64,"prices":{{"input":1,"cached":1,"output":1,"unit":1}},"head":60000,"idle":30000}}],"transport":"plaintext","headers":[{{"name":"{name}","value":"host override"}}]}}],"environment":[]}}"#
-        );
-        assert_eq!(parse(json.as_bytes()).err().as_deref(), Some("invalid endpoint HTTP header"));
+        let mut document = shaped_document();
+        document["endpoints"][0]["headers"] = serde_json::json!([{ "name": name, "value": "host override" }]);
+        assert_eq!(parse_value(&document).err().as_deref(), Some("invalid endpoint HTTP header"));
     }
-    let error = serde_json::from_str::<Endpoint>(r#"{"name":"old","number":1,"dialect":1,"account":0,"provider":"codex","address":"127.0.0.1:8080","transport":"plaintext","cache_key":"static"}"#).err().expect("removed field is rejected");
+}
+
+#[test]
+fn static_cache_keys_are_unknown_endpoint_fields() {
+    let mut endpoint = shaped_document()["endpoints"][0].clone();
+    endpoint["cache_key"] = "static".into();
+    let error = serde_json::from_value::<Endpoint>(endpoint).err().expect("removed field is rejected");
     assert!(error.to_string().contains("unknown field `cache_key`"));
 }
 
 #[test]
-fn plaintext_configuration_names_its_transport_and_admits_only_loopback() {
+fn plaintext_endpoints_admit_loopback_addresses() {
     for address in ["127.0.0.1:8080", "[::1]:8080"] {
-        let json = format!(
-            r#"{{"profile":{{"name":"standard","declared":{{"memory":1099511627776,"tool_payload":256,"read_window":256}},"policy":{{"group_stop":10}}}},
-            "endpoints":[{{"name":"local","number":1,"dialect":1,"account":0,"provider":"codex",
-            "address":"{address}","connect":10000,"handshake":10000,"models":[{{"name":"test","window":65536,"output":512,"reasoning_item":64,"prices":{{"input":1,"cached":1,"output":1,"unit":1}},"head":60000,"idle":30000}}],"transport":"plaintext"}}],"environment":[]}}"#
-        );
-        let configuration = parse(json.as_bytes()).expect("loopback plaintext configuration");
+        let mut document = shaped_document();
+        document["endpoints"][0]["address"] = address.into();
+        let configuration = parse_value(&document).expect("loopback plaintext configuration");
         service::Service::new(configuration.service, 1).expect("loopback plaintext service");
-    }
-    for address in ["192.0.2.1:8080", "[2001:db8::1]:8080"] {
-        let json = format!(
-            r#"{{"profile":{{"name":"standard","declared":{{"memory":1099511627776,"tool_payload":256,"read_window":256}},"policy":{{"group_stop":10}}}},
-            "endpoints":[{{"name":"local","number":1,"dialect":1,"account":0,"provider":"codex",
-            "address":"{address}","connect":10000,"handshake":10000,"models":[{{"name":"test","window":65536,"output":512,"reasoning_item":64,"prices":{{"input":1,"cached":1,"output":1,"unit":1}},"head":60000,"idle":30000}}],"transport":"plaintext"}}],"environment":[]}}"#
-        );
-        assert_eq!(parse(json.as_bytes()).err().as_deref(), Some("plaintext endpoint address must be loopback"));
     }
 }
 
 #[test]
-fn ambiguous_or_unknown_endpoint_transports_refuse_at_configuration() {
-    for extra in [
-        r#""transport":"plaintext","server_name":"example.test""#,
-        r#""transport":"plaintext","trust_der":"missing.der""#,
-        r#""transport":"unknown""#,
-        r#""transport":"tls""#,
+fn plaintext_endpoints_refuse_addresses_outside_loopback() {
+    for address in ["192.0.2.1:8080", "[2001:db8::1]:8080"] {
+        let mut document = shaped_document();
+        document["endpoints"][0]["address"] = address.into();
+        assert_eq!(parse_value(&document).err().as_deref(), Some("plaintext endpoint address must be loopback"));
+    }
+}
+
+#[test]
+fn ambiguous_or_unknown_transports_name_the_refused_setting() {
+    for (extra, expected) in [
+        (
+            serde_json::json!({"transport":"plaintext", "server_name":"example.test"}),
+            "plaintext endpoint cannot name TLS server_name or trust_der",
+        ),
+        (
+            serde_json::json!({"transport":"plaintext", "trust_der":"missing.der"}),
+            "plaintext endpoint cannot name TLS server_name or trust_der",
+        ),
+        (serde_json::json!({"transport":"unknown"}), "endpoint transport must be tls or plaintext"),
+        (serde_json::json!({"transport":"tls"}), "TLS endpoint requires server_name"),
     ] {
-        let json = format!(
-            r#"{{"profile":{{"name":"standard","declared":{{"memory":1099511627776,"tool_payload":256,"read_window":256}},"policy":{{"group_stop":10}}}},
-            "endpoints":[{{"name":"local","number":1,"dialect":1,"account":0,"provider":"codex",
-            "address":"127.0.0.1:8080","connect":10000,"handshake":10000,"models":[{{"name":"test","window":65536,"output":512,"reasoning_item":64,"prices":{{"input":1,"cached":1,"output":1,"unit":1}},"head":60000,"idle":30000}}],{extra}}}],"environment":[]}}"#
-        );
-        assert!(parse(json.as_bytes()).is_err(), "invalid transport {extra}");
+        let mut document = shaped_document();
+        document["endpoints"][0]
+            .as_object_mut()
+            .expect("endpoint")
+            .extend(extra.as_object().expect("settings").clone());
+        assert_eq!(parse_value(&document).err().as_deref(), Some(expected));
     }
 }
 
@@ -231,19 +229,33 @@ fn overflowing_declared_durations_name_the_first_field_and_its_scope() {
 }
 
 #[test]
-fn bad_profile_and_zero_grace_refuse_before_a_channel_is_opened() {
+fn an_unknown_profile_refuses_before_a_channel_is_opened() {
     let mut bad = document();
     bad.profile.name = "unknown".into();
-    assert!(build(bad).is_err());
-    let mut bad = document();
-    bad.profile.policy.group_stop = Some(0);
-    assert!(build(bad).is_err());
+    assert_eq!(build(bad).err().as_deref(), Some("unknown profile name"));
 }
 
 #[test]
-fn malformed_json_refuses_missing_required_configuration_fields() {
-    assert!(serde_json::from_slice::<Document>(br#"{"profile":"standard"}"#).is_err());
-    assert!(serde_json::from_slice::<Document>(br#"{"profile":"standard","memory_bytes":1,"grace_ms":1,"endpoints":[],"environment":[],"credential":"bad"}"#).is_err());
+fn zero_group_stop_refuses_before_a_channel_is_opened() {
+    let mut bad = document();
+    bad.profile.policy.group_stop = Some(0);
+    assert_eq!(build(bad).err().as_deref(), Some("deadlines: policy.group_stop=0 ns; policy.deadline_minimum=0 ns"));
+}
+
+#[test]
+fn a_document_without_endpoints_names_the_missing_field() {
+    let mut document = shaped_document();
+    document.as_object_mut().expect("configuration").remove("endpoints");
+    let refusal = decode(&serde_json::to_vec(&document).expect("configuration JSON")).err().expect("missing endpoints");
+    assert!(refusal.contains("missing field `endpoints`"), "{refusal}");
+}
+
+#[test]
+fn a_credential_field_is_not_part_of_configuration() {
+    let mut document = shaped_document();
+    document["credential"] = "bad".into();
+    let refusal = decode(&serde_json::to_vec(&document).expect("configuration JSON")).err().expect("unknown field");
+    assert!(refusal.contains("unknown field `credential`"), "{refusal}");
 }
 
 fn shaped_document() -> serde_json::Value {
@@ -275,22 +287,8 @@ fn a_declared_memory_of_one_byte_starts() {
     let configuration = from_value(document).expect("one declared byte is accepted");
     assert_eq!(configuration.memory, 1);
     assert_eq!(configuration.service.limits.memory, 1);
-    crate::Agent::new(
-        configuration,
-        crate::Resources {
-            input: skein_io::kernel::Fd::new(0),
-            output: skein_io::kernel::Fd::new(1),
-            signals: skein_io::kernel::Fd::new(2),
-            seed: 1,
-            pid: 1,
-            trace: None,
-            error: None,
-            roots: None,
-            programs: None,
-        },
-        Box::new(std::io::sink()),
-    )
-    .expect("one declared byte starts through prepare");
+    crate::Agent::new(configuration, resources(), Box::new(std::io::sink()))
+        .expect("one declared byte starts through prepare");
 }
 
 #[test]
@@ -326,29 +324,52 @@ fn quantities_override_one_value_and_derive_through_the_service() {
 }
 
 #[test]
-fn configuration_refuses_old_shape_raw_limits_duplicates_and_zero_quantities() {
-    assert!(
-        parse(br#"{"profile":"standard","memory_bytes":1099511627776,"grace_ms":10,"endpoints":[],"environment":[]}"#)
-            .is_err()
-    );
+fn a_profile_string_is_refused_as_the_old_shape() {
+    let mut document = shaped_document();
+    document["profile"] = "standard".into();
+    let refusal = parse_value(&document).err().expect("old profile shape");
+    assert!(refusal.contains("expected struct ProfileDocument"), "{refusal}");
+}
+
+#[test]
+fn raw_or_unknown_deployment_fields_are_named() {
     for field in ["request_bytes", "unexpected"] {
         let mut document = shaped_document();
         document["profile"]["declared"][field] = 100.into();
-        assert!(parse_value(&document).is_err(), "raw or unknown field {field}");
+        let refusal = parse_value(&document).err().expect("unknown declaration");
+        assert!(refusal.contains(&format!("unknown field `{field}`")), "{refusal}");
     }
+}
+
+#[test]
+fn duplicate_model_declarations_are_refused() {
     let mut document = shaped_document();
     let duplicate = document["endpoints"][0]["models"][0].clone();
     document["endpoints"][0]["models"].as_array_mut().expect("models").push(duplicate);
     assert_eq!(parse_value(&document).err().as_deref(), Some("duplicate declared model"));
-    for field in ["window", "output", "reasoning_item", "head", "idle"] {
+}
+
+#[test]
+fn zero_model_quantities_name_the_refused_setting() {
+    for (field, expected) in [
+        ("window", "model declaration contains an empty or zero quantity"),
+        ("output", "model declaration contains an empty or zero quantity"),
+        ("reasoning_item", "model declaration contains an empty or zero quantity"),
+        ("head", "deadlines: declared.head[endpoint=0,model=0]=0 ns; policy.deadline_minimum=0 ns"),
+        ("idle", "deadlines: declared.idle[endpoint=0,model=0]=0 ns; policy.deadline_minimum=0 ns"),
+    ] {
         let mut document = shaped_document();
         document["endpoints"][0]["models"][0][field] = 0.into();
-        assert!(parse_value(&document).is_err(), "zero model quantity {field}");
+        assert_eq!(parse_value(&document).err().as_deref(), Some(expected), "{field}");
     }
+}
+
+#[test]
+fn zero_deployment_quantities_name_the_refused_setting() {
     for field in ["conversations", "tool_payload", "file_bytes", "calls_per_response", "memory"] {
         let mut document = shaped_document();
         document["profile"]["declared"][field] = 0.into();
-        assert!(parse_value(&document).is_err(), "zero deployment quantity {field}");
+        assert_eq!(parse_value(&document).err(), Some(format!("profile.declared.{field} must be positive")));
     }
 }
 #[test]
@@ -413,10 +434,10 @@ fn all_product_models(mut document: serde_json::Value) -> serde_json::Value {
 }
 
 #[test]
-fn native_validated_dense_prompts_fit_the_actual_joint_receiving_ceiling() {
-    let configured = parse_value(&product_document()).expect("actual product startup");
+fn native_validated_dense_prompts_fit_the_seen_joint_receiving_ceiling() {
+    let configured = parse_value(&product_document()).expect("product startup");
     let client = configured.service.limits.llm.adapter.client;
-    let events = configured.service.limits.events.expect("actual product destination");
+    let events = configured.service.limits.events.expect("product destination");
     let ceiling = events.sinks.line_ceiling(Capture::Everything).expect("joint ceiling");
     let credential = shared::Credential {
         value: b"secret-prompt-bound-token".as_slice().into(),
@@ -442,15 +463,13 @@ fn native_validated_dense_prompts_fit_the_actual_joint_receiving_ceiling() {
             max_output_tokens: None,
         };
         let measured = shared::client::measure(&native, Some(&credential), &shared::Endpoint::codex(), &client)
-            .expect("the actual native writer admits the complete source payload");
+            .expect("the native writer admits the complete source payload");
         assert!(measured.body <= client.request, "native body stays within its owning cap");
         let mut messages = List::with_capacity(count);
         for _ in 0..count {
             let mut blocks = List::with_capacity(1);
-            blocks.push(smith_events::Block::Text { text: text.clone() }).expect("one actual block");
-            messages
-                .push(smith_events::Message { role: smith_events::Role::User, blocks })
-                .expect("actual admitted history");
+            blocks.push(smith_events::Block::Text { text: text.clone() }).expect("one block");
+            messages.push(smith_events::Message { role: smith_events::Role::User, blocks }).expect("admitted history");
         }
         let record = smith_events::Record {
             t_ms: u64::MAX,
@@ -487,7 +506,7 @@ fn native_validated_dense_prompts_fit_the_actual_joint_receiving_ceiling() {
             ceiling,
         )
         .expect("source-admitted prompt fits both semantic and joint caps")
-        .expect("actual response start is emitted");
+        .expect("response start is emitted");
         assert!(
             line.len() > if dense { 1_000_000 } else { 12_000_000 },
             "exercise dense framing and escaped payload maxima"

@@ -1,13 +1,18 @@
 //! Session charges only completions and child bills that fit exactly.
+
+use smith_session_world::said;
+
+use smith_session_world::bytes;
+
 use skein_lib::Token;
 use smith_domain_session::{self as session, BudgetDenial, Dimension, End, llm, record};
-use smith_session_world::recorded::{USAGE, World, called, opening};
+use smith_session_world::recorded::{Scripted, USAGE, called, opening};
 
 fn text() -> Box<[llm::Block]> {
-    Box::new([llm::Block::Text { text: b"actual completion".as_slice().into(), replay: None }])
+    said(b"completion")
 }
 
-fn inert(world: &mut World, event: session::Event) {
+fn inert(world: &mut Scripted, event: session::Event) {
     let before = format!("{:?}", world.domain);
     session::step(&mut world.domain, &world.env, event, &mut world.out);
     assert!(world.out.is_empty());
@@ -16,11 +21,11 @@ fn inert(world: &mut World, event: session::Event) {
 
 #[test]
 fn child_bill_is_charged_once_to_the_inclusive_spend() {
-    let mut world = World::new(41);
+    let mut world = Scripted::new(41);
     world.open(opening(None, 100));
     world.complete(called(), llm::Stop::ToolUse, USAGE);
     let owner = world.delegated[0];
-    world.step(session::Event::Answered { owner, text: b"child".as_slice().into(), error: false, spent: 9 });
+    world.step(session::Event::Answered { owner, text: bytes(b"child"), error: false, spent: 9 });
     assert_eq!(world.own_spend, [16, 16]);
     assert_eq!(world.spend, [16, 25]);
     assert_eq!(world.turns[0].spent, 25);
@@ -30,11 +35,11 @@ fn child_bill_is_charged_once_to_the_inclusive_spend() {
 
 #[test]
 fn child_bill_that_does_not_fit_ends_without_a_turn() {
-    let mut world = World::new(42);
+    let mut world = Scripted::new(42);
     world.open(opening(None, u64::MAX));
     world.complete(called(), llm::Stop::ToolUse, USAGE);
     let owner = world.delegated[0];
-    world.step(session::Event::Answered { owner, text: b"child".as_slice().into(), error: false, spent: u64::MAX });
+    world.step(session::Event::Answered { owner, text: bytes(b"child"), error: false, spent: u64::MAX });
     assert_eq!(world.end, Some(End::PriceOverflow));
     assert_eq!(world.spend, [16]);
     assert!(world.turns.is_empty());
@@ -44,7 +49,7 @@ fn child_bill_that_does_not_fit_ends_without_a_turn() {
 
 #[test]
 fn price_overflow_rejects_the_completion_before_its_turn() {
-    let mut world = World::new(43);
+    let mut world = Scripted::new(43);
     let mut spec = opening(None, u64::MAX);
     spec.prices = record::Prices { input: u64::MAX, cached: 0, cache_write: None, output: 0, unit: 1 };
     world.open(spec);
@@ -57,7 +62,7 @@ fn price_overflow_rejects_the_completion_before_its_turn() {
 
 #[test]
 fn raw_overflow_keeps_only_the_charged_completion() {
-    let mut world = World::new(44);
+    let mut world = Scripted::new(44);
     let mut spec = opening(None, u64::MAX);
     spec.prices = record::Prices { input: 0, cached: 0, cache_write: None, output: 0, unit: 1 };
     spec.spec.budget.input = u64::MAX;
@@ -65,10 +70,7 @@ fn raw_overflow_keeps_only_the_charged_completion() {
     world.open(spec);
     let first = llm::Usage { input_tokens: Some(u64::MAX - 1), ..llm::Usage::ZERO };
     world.complete(text(), llm::Stop::EndTurn, first);
-    world.step(session::Event::Continue {
-        session: world.session.expect("session"),
-        content: b"continue".as_slice().into(),
-    });
+    world.step(session::Event::Continue { session: world.session.expect("session"), content: bytes(b"continue") });
     world.complete(text(), llm::Stop::EndTurn, llm::Usage { input_tokens: Some(2), ..llm::Usage::ZERO });
     assert_eq!(world.end, Some(End::UsageOverflow));
     assert_eq!(world.used, [first]);
@@ -84,7 +86,7 @@ fn unsent_budget_denial_settles_current_reservation() {
         (BudgetDenial::Spend, Dimension::Unit),
         (BudgetDenial::Time, Dimension::Time),
     ] {
-        let mut world = World::new(45);
+        let mut world = Scripted::new(45);
         world.open(opening(None, 100));
         inert(&mut world, session::Event::BudgetDenied { owner: Token::new(u64::MAX), reason });
         let owner = world.completing.expect("reserved completion");
@@ -99,7 +101,7 @@ fn unsent_budget_denial_settles_current_reservation() {
 
 #[test]
 fn zero_price_unit_is_rejected_before_a_request() {
-    let mut world = World::new(46);
+    let mut world = Scripted::new(46);
     let mut spec = opening(None, 100);
     spec.prices = record::Prices { input: 0, cached: 0, cache_write: None, output: 0, unit: 0 };
     world.open(spec);
@@ -108,7 +110,7 @@ fn zero_price_unit_is_rejected_before_a_request() {
     world.domain.reclaim();
 }
 
-fn maximum(world: &World) -> u64 {
+fn maximum(world: &Scripted) -> u64 {
     let prompt = world.prompts.last().expect("one completion is pending");
     session::preview_reservation(
         &world.domain,
@@ -123,28 +125,28 @@ fn maximum(world: &World) -> u64 {
 #[test]
 fn a_completion_that_costs_less_than_its_maximum_returns_the_rest() {
     let usage = llm::Usage { output_tokens: Some(1), ..llm::Usage::ZERO };
-    let mut probe = World::new(47);
+    let mut probe = Scripted::new(47);
     probe.open(opening(None, u64::MAX));
     let first_maximum = maximum(&probe);
     probe.complete(called(), llm::Stop::ToolUse, usage);
     let owner = probe.delegated[0];
-    probe.step(session::Event::Answered { owner, text: b"child".as_slice().into(), error: false, spent: 0 });
+    probe.step(session::Event::Answered { owner, text: bytes(b"child"), error: false, spent: 0 });
     let second_maximum = maximum(&probe);
-    let actual = record::Prices { input: 7, cached: 3, cache_write: None, output: 11, unit: 10 }
+    let seen = record::Prices { input: 7, cached: 3, cache_write: None, output: 11, unit: 10 }
         .price(usage)
         .expect("priced usage");
-    let budget = second_maximum.checked_add(actual).expect("small fixture budget");
+    let budget = second_maximum.checked_add(seen).expect("small fixture budget");
     assert!(first_maximum <= budget);
     assert!(first_maximum.checked_add(second_maximum).expect("small fixture maximums") > budget);
     probe.close();
 
-    let mut world = World::new(48);
+    let mut world = Scripted::new(48);
     world.open(opening(None, budget));
     assert_eq!(maximum(&world), first_maximum);
     world.complete(called(), llm::Stop::ToolUse, usage);
-    assert_eq!(world.own_spend, [actual]);
+    assert_eq!(world.own_spend, [seen]);
     let owner = world.delegated[0];
-    world.step(session::Event::Answered { owner, text: b"child".as_slice().into(), error: false, spent: 0 });
+    world.step(session::Event::Answered { owner, text: bytes(b"child"), error: false, spent: 0 });
     assert_eq!(maximum(&world), second_maximum, "unused maximum is available for the next completion");
     assert_eq!(world.prompts.len(), 2);
     world.close();
@@ -153,7 +155,7 @@ fn a_completion_that_costs_less_than_its_maximum_returns_the_rest() {
 #[test]
 fn missing_input_or_output_charges_the_full_reservation_and_preserves_raw_reports() {
     for mask in 1..4 {
-        let mut world = World::new(70 + mask);
+        let mut world = Scripted::new(70 + mask);
         world.open(opening(None, 100));
         let owner = world.completing.expect("admitted call");
         assert_eq!(session::reserve_completion(&mut world.domain, owner, 9, 3, 4), Some(13));
@@ -181,7 +183,7 @@ fn missing_input_or_output_charges_the_full_reservation_and_preserves_raw_report
 
 #[test]
 fn reported_zero_and_reasoning_do_not_charge_the_reserved_maximum_again() {
-    let mut world = World::new(74);
+    let mut world = Scripted::new(74);
     world.open(opening(None, 100));
     let owner = world.completing.expect("admitted call");
     assert_eq!(session::reserve_completion(&mut world.domain, owner, 9, 3, 4), Some(13));
@@ -191,7 +193,7 @@ fn reported_zero_and_reasoning_do_not_charge_the_reserved_maximum_again() {
     assert_eq!(world.spend, [0]);
     assert_eq!(world.used, [raw]);
     world.close();
-    let mut world = World::new(75);
+    let mut world = Scripted::new(75);
     world.open(opening(None, 100));
     let raw =
         llm::Usage { input_tokens: Some(0), output_tokens: Some(2), reasoning_tokens: Some(2), ..llm::Usage::NONE };
@@ -203,22 +205,16 @@ fn reported_zero_and_reasoning_do_not_charge_the_reserved_maximum_again() {
 
 #[test]
 fn reported_counts_after_an_unreported_turn_still_exhaust_the_token_budget() {
-    let mut world = World::new(76);
+    let mut world = Scripted::new(76);
     let mut spec = opening(None, 100);
     spec.spec.budget.input = 2;
     world.open(spec);
     let owner = world.completing.expect("first call");
     assert_eq!(session::reserve_completion(&mut world.domain, owner, 9, 3, 4), Some(13));
     world.complete(text(), llm::Stop::EndTurn, llm::Usage::NONE);
-    world.step(session::Event::Continue {
-        session: world.session.expect("admitted"),
-        content: b"continue".as_slice().into(),
-    });
+    world.step(session::Event::Continue { session: world.session.expect("admitted"), content: bytes(b"continue") });
     world.complete(text(), llm::Stop::EndTurn, llm::Usage { input_tokens: Some(2), ..llm::Usage::ZERO });
-    world.step(session::Event::Continue {
-        session: world.session.expect("admitted"),
-        content: b"continue".as_slice().into(),
-    });
+    world.step(session::Event::Continue { session: world.session.expect("admitted"), content: bytes(b"continue") });
     assert_eq!(world.end, Some(End::Budget { spent: Dimension::Input }));
     assert!(world.completing.is_none());
     assert_eq!(world.spend, [13, 15]);
@@ -228,16 +224,13 @@ fn reported_counts_after_an_unreported_turn_still_exhaust_the_token_budget() {
 
 #[test]
 fn cache_writes_are_priced_at_their_own_rate() {
-    let mut world = World::new(703);
+    let mut world = Scripted::new(703);
     let mut spec = opening(None, 1000);
     spec.prices.cache_write = Some(31);
     world.open(spec);
     world.complete(text(), llm::Stop::EndTurn, USAGE);
     assert_eq!(world.own_spend, [23], "(11*7 + 5*3 + 3*31 + 4*11)/10 rounded once");
-    world.step(session::Event::Continue {
-        session: world.session.expect("yielded session"),
-        content: b"again".as_slice().into(),
-    });
+    world.step(session::Event::Continue { session: world.session.expect("yielded session"), content: bytes(b"again") });
     world.complete(text(), llm::Stop::EndTurn, USAGE);
     assert_eq!(world.own_spend, [23, 46], "own spend is cumulative across completions");
     assert_eq!(world.spend, [23, 46]);
@@ -248,7 +241,7 @@ fn cache_writes_are_priced_at_their_own_rate() {
 
 #[test]
 fn cache_write_charge_overflow_is_a_typed_end_without_a_turn() {
-    let mut world = World::new(704);
+    let mut world = Scripted::new(704);
     let mut spec = opening(None, u64::MAX);
     spec.prices = record::Prices { input: 0, cached: 0, cache_write: Some(u64::MAX), output: 0, unit: 1 };
     world.open(spec);
@@ -262,12 +255,12 @@ fn cache_write_charge_overflow_is_a_typed_end_without_a_turn() {
 #[test]
 fn a_fully_cached_completion_with_the_highest_cached_rate_fits_its_reservation() {
     for cache_write in [None, Some(3)] {
-        let mut world = World::new(705);
+        let mut world = Scripted::new(705);
         let mut spec = opening(None, u64::MAX);
         spec.prices = record::Prices { input: 1, cached: 1000, cache_write, output: 1, unit: 1 };
         world.open(spec);
-        let prompt = world.prompts.last().expect("actual pending completion");
-        let input = prompt.input_bytes().expect("bounded actual prompt") + world.env.limits.protocol_allowance;
+        let prompt = world.prompts.last().expect("pending completion");
+        let input = prompt.input_bytes().expect("bounded prompt") + world.env.limits.protocol_allowance;
         let output = u64::from(prompt.max_tokens);
         let owner = world.completing.expect("provider right owns the reservation");
         let reserved = session::reserve_completion(&mut world.domain, owner, input, 0, prompt.max_tokens)
@@ -282,7 +275,7 @@ fn a_fully_cached_completion_with_the_highest_cached_rate_fits_its_reservation()
         };
         world.complete(text(), llm::Stop::EndTurn, usage);
         assert_eq!(world.own_spend, [input * 1000 + output]);
-        assert!(world.own_spend[0] <= reserved, "actual fully cached charge never exceeds the maximum");
+        assert!(world.own_spend[0] <= reserved, "fully cached charge never exceeds the maximum");
         assert_eq!(world.turns[0].usage, usage);
         world.close();
     }

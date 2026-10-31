@@ -2,6 +2,7 @@
 //! 2.1, 2.2 and 5). Each process owns its IO and outside observations. Launch
 //! arguments carry immutable scenario settings; no process knows a simulator,
 //! fake checkout, another process's heap or the driving loop.
+use crate::fixture::contains;
 use crate::{
     llm::Peer,
     oauth::{Browser, Peer as Issuer},
@@ -11,21 +12,37 @@ use serde::{Deserialize, Serialize};
 use skein_fake_oauth as fake_oauth;
 use skein_io::kernel;
 use skein_lib::{Duration, Queue, Time, Wall};
-use skein_shell::Host;
+use skein_shell::{Delegate, Host};
 use skein_world::{Inherited, StartupRoot};
 use smith_agent_service as agent;
 use smith_local_domain as local;
 use smith_local_service as service;
-use smith_local_shell::local_host::{Local, Resources, token_limits};
+use smith_local_shell::credentials::token_limits;
+use smith_local_shell::local_host::{Local, Resources};
 use std::{os::unix::ffi::OsStrExt, path::PathBuf};
 
+mod agent_process;
 mod configuration;
+pub use agent_process::AgentProcess;
 
 pub use configuration::{
     agent_document, configuration, configuration_with, configuration_with_tools, lower_configuration,
     lower_configuration_with, prepared_accounts,
 };
 use configuration::{configuration_for_launch, specialize};
+
+// Observe emitted trace bytes at the public kernel boundary, preserving every submission.
+fn wait_in_trace(submissions: &mut Queue<kernel::Submit>) -> bool {
+    let mut wait = false;
+    for _ in 0..submissions.len() {
+        let submit = submissions.pop().expect("bounded output snapshot");
+        if let kernel::Op::Append { bytes, .. } = &submit.kind {
+            wait |= contains(bytes, b"\"type\":\"tool.started\"") && contains(bytes, b"\"tool\":\"wait\"");
+        }
+        submissions.push(submit);
+    }
+    wait
+}
 
 /// Immutable configuration sent by the terminal and passed to a spawned agent.
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -35,32 +52,23 @@ pub struct Launch {
     pub trust_der: Option<PathBuf>,
     pub change: bool,
     /// Include the real-loop tool and mandatory-check story.
-    #[serde(default)]
     pub tools: bool,
     /// Keep the workspace but accept a report after reads.
-    #[serde(default)]
     pub read_report: bool,
     /// Start one unattended run from the fixture's retained prompt.
-    #[serde(default)]
     pub headless: bool,
     /// Select the product's line-mode front on the same local composition.
-    #[serde(default)]
     pub interactive: bool,
     /// Compose the alternate model and model-owned efforts for local-choice stories.
-    #[serde(default)]
     pub choices: bool,
     /// Admit three tool turns, so the fourth would exceed the budget.
-    #[serde(default)]
     pub budget_failure: bool,
     /// A named plain directory whose write authority crosses the local/agent boundary.
-    #[serde(default)]
     pub plain: Option<PlainDirectory>,
     pub placement: crate::Placement,
     pub keep_facts: bool,
-    #[serde(default)]
     pub traced: bool,
     pub authenticated: bool,
-    #[serde(default)]
     pub lending: Option<crate::world::Lending>,
     pub state_directory: PathBuf,
     pub token_directory: PathBuf,
@@ -88,20 +96,6 @@ impl Launch {
 fn agent_launch(spawn: &kernel::Spawn) -> Launch {
     let path = std::path::Path::new(std::ffi::OsStr::from_bytes(&spawn.args[0]));
     serde_json::from_slice(&std::fs::read(path.with_file_name("launch.json")).unwrap()).expect("fixture launch")
-}
-
-// Observe emitted trace bytes at the public kernel boundary, preserving every submission.
-fn wait_in_trace(submissions: &mut Queue<kernel::Submit>) -> bool {
-    let mut wait = false;
-    for _ in 0..submissions.len() {
-        let submit = submissions.pop().expect("bounded output snapshot");
-        if let kernel::Op::Append { bytes, .. } = &submit.kind {
-            wait |= bytes.windows(b"\"type\":\"tool.started\"".len()).any(|part| part == b"\"type\":\"tool.started\"")
-                && bytes.windows(b"\"tool\":\"wait\"".len()).any(|part| part == b"\"tool\":\"wait\"");
-        }
-        submissions.push(submit);
-    }
-    wait
 }
 
 /// The scripted issuer and its one successful token rotation.
@@ -286,12 +280,12 @@ impl BrowserProcess {
     pub fn shutdown(&mut self) {
         self.stopped = true;
     }
-    /// Whether one authorization page was actually configured.
+    /// Whether one authorization page was configured.
     #[must_use]
     pub fn pages(&self) -> u32 {
         u32::from(self.length > 0)
     }
-    /// The browser's actual loopback callback response.
+    /// The browser's loopback callback response.
     #[must_use]
     pub fn replied(&self) -> bool {
         self.browser.as_ref().is_some_and(Browser::saw_reply)
@@ -426,14 +420,14 @@ impl Host for IssuerProcess {
 pub enum Proc {
     /// The scripted terminal, starting one local invocation and draining its exit.
     Terminal(Box<Terminal>),
-    /// The actual shared local shell, ending after its public result settles.
+    /// The shared local shell, ending after its public result settles.
     Local(Box<LocalProcess>),
     /// The spawned agent service, ending after its channel and descriptors settle.
-    Agent(Box<skein_world::PipeHost<smith_agent_shell::Agent>>, smith_agent_process_world::AgentErrors, bool),
+    Agent(Box<AgentProcess>),
     /// A child that ends before admitting an opening.
     Ended(Box<crate::git::Child>),
     /// A child that answered and closed its descriptors but has not exited.
-    LingeringAgent(Box<skein_world::PipeHost<smith_agent_shell::Agent>>),
+    LingeringAgent(Box<AgentProcess>),
     /// The independent fake provider, stopped after the terminal exits.
     Peer(Box<Peer>),
     /// The independent fake issuer and observed POST timing.
@@ -443,12 +437,12 @@ pub enum Proc {
     /// The simulated fake-checkout child; real worlds execute git externally.
     Git(Box<crate::git::Prepared>),
 }
-impl Proc {
+impl Delegate for Proc {
     fn host(&self) -> &dyn Host {
         match self {
             Self::Terminal(p) => p.as_ref(),
             Self::Local(p) => p.as_ref(),
-            Self::Agent(p, _, _) => p.as_ref(),
+            Self::Agent(p) => p.as_ref(),
             Self::Ended(p) => p.as_ref(),
             Self::LingeringAgent(p) => p.as_ref(),
             Self::Peer(p) => p.as_ref(),
@@ -461,7 +455,7 @@ impl Proc {
         match self {
             Self::Terminal(p) => p.as_mut(),
             Self::Local(p) => p.as_mut(),
-            Self::Agent(p, _, _) => p.as_mut(),
+            Self::Agent(p) => p.as_mut(),
             Self::Ended(p) => p.as_mut(),
             Self::LingeringAgent(p) => p.as_mut(),
             Self::Peer(p) => p.as_mut(),
@@ -471,51 +465,7 @@ impl Proc {
         }
     }
 }
-impl Host for Proc {
-    fn drain(&mut self) {
-        if let Self::Agent(agent, _, wait) = self {
-            agent.drain();
-            *wait |= wait_in_trace(agent.submissions());
-        } else {
-            self.host_mut().drain();
-        }
-    }
 
-    fn iterate(&mut self, now: Time, wall: Wall) {
-        self.host_mut().iterate(now, wall);
-    }
-    fn completions(&mut self) -> &mut Queue<kernel::Complete> {
-        self.host_mut().completions()
-    }
-    fn submissions(&mut self) -> &mut Queue<kernel::Submit> {
-        self.host_mut().submissions()
-    }
-    fn work_pending(&self, now: Time) -> bool {
-        self.host().work_pending(now)
-    }
-    fn next_mechanism_deadline(&self) -> Option<Time> {
-        self.host().next_mechanism_deadline()
-    }
-    fn next_policy_deadline(&self) -> Option<Time> {
-        self.host().next_policy_deadline()
-    }
-    fn is_empty(&self) -> bool {
-        match self {
-            Self::LingeringAgent(_) => false,
-            _ => self.host().is_empty(),
-        }
-    }
-    fn exit(&self) -> Option<kernel::Exit> {
-        match self {
-            Self::Ended(child) => child.is_empty().then_some(kernel::Exit::Code(child.code())),
-            Self::LingeringAgent(_) => None,
-            _ => self.host().exit(),
-        }
-    }
-    fn operations(&self) -> u32 {
-        self.host().operations()
-    }
-}
 fn root(inherited: &Inherited, name: &[u8]) -> kernel::Fd {
     inherited.roots.iter().find(|(n, _)| n.as_ref() == name).expect("named child root").1
 }
@@ -565,8 +515,8 @@ fn configure_choices(config: &mut service::Config, lower: &mut agent::Config) {
     other.efforts = Box::new([b"low".as_slice().into()]);
     lower.domain.models = Box::new([main, other]);
     let mut names = skein_lib::List::with_capacity(1);
-    names.push(smith_protocol_channel::Endpoint { name: b"main".as_slice().into(), number: 0, dialect: 1 }).unwrap();
-    lower.channel_endpoints = smith_protocol_channel::Endpoints::new(names);
+    names.push(smith_protocol_translate::Endpoint { name: b"main".as_slice().into(), number: 0, dialect: 1 }).unwrap();
+    lower.channel_endpoints = smith_protocol_translate::Endpoints::new(names);
     config.endpoints = lower.channel_endpoints.clone();
     let main = config.local.models[0].clone();
     let mut other = main.clone();
@@ -609,9 +559,9 @@ pub fn make_local(spawn: &kernel::Spawn, inherited: &Inherited) -> Proc {
     config.launch = kind.launch(config.launch.root, &document);
     if launch.traced {
         lower.limits.events = Some(
-            smith_agent_service::EventLimits::derive(
+            smith_agent_service::event_limits(
                 &lower.limits,
-                smith_agent_service::sinks::Capture::Everything,
+                smith_protocol_events::sinks::Capture::Everything,
                 1,
                 0,
                 &[],
@@ -676,7 +626,7 @@ pub fn make_local(spawn: &kernel::Spawn, inherited: &Inherited) -> Proc {
         Some(handed),
         interactive,
     )
-    .expect("actual shared local shell");
+    .expect("shared local shell");
     if let Some(configuration) = &spawned
         && launch.traced
     {
@@ -684,7 +634,7 @@ pub fn make_local(spawn: &kernel::Spawn, inherited: &Inherited) -> Proc {
     }
     if launch.traced {
         let fd = inherited.appends.iter().find(|(name, _)| name.as_ref() == b"product-trace").expect("trace fd").1;
-        let delivery = smith_agent_service::sinks::Delivery::Complete;
+        let delivery = smith_protocol_events::sinks::Delivery::Complete;
         let header = header.expect("traced product header");
         local.adopt_trace(fd, None, Time::ZERO, header, delivery).expect("product trace adoption");
     } else if let Some(header) = header {
@@ -717,8 +667,8 @@ fn product_header(
     configuration.trace = None;
     let trace = smith_agent_shell::trace::TraceConfig {
         path: launch.root_path.join("events.jsonl"),
-        capture: agent::sinks::Capture::Everything,
-        delivery: agent::sinks::Delivery::Complete,
+        capture: smith_protocol_events::sinks::Capture::Everything,
+        delivery: smith_protocol_events::sinks::Delivery::Complete,
     };
     let header = Local::trace_header(
         &mut configuration,
@@ -751,7 +701,7 @@ pub fn agent_roots(spawn: &kernel::Spawn) -> Vec<StartupRoot> {
         vec![]
     }
 }
-/// Construct the actual agent service with the local scenario's settings.
+/// Construct the agent service with the local scenario's settings.
 #[must_use]
 #[expect(
     clippy::zero_sized_map_values,
@@ -766,9 +716,9 @@ pub fn make_agent(spawn: &kernel::Spawn, inherited: &Inherited) -> Proc {
     let mut configuration = specialize(parsed.service);
     let trace = if launch.traced {
         configuration.limits.events = Some(
-            agent::EventLimits::derive(
+            smith_agent_service::event_limits(
                 &configuration.limits,
-                agent::sinks::Capture::Everything,
+                smith_protocol_events::sinks::Capture::Everything,
                 1,
                 0,
                 &[],
@@ -778,8 +728,8 @@ pub fn make_agent(spawn: &kernel::Spawn, inherited: &Inherited) -> Proc {
         );
         Some(smith_agent_shell::trace::TraceConfig {
             path: launch.root_path.join("events.jsonl.agent"),
-            capture: agent::sinks::Capture::Everything,
-            delivery: agent::sinks::Delivery::Complete,
+            capture: smith_protocol_events::sinks::Capture::Everything,
+            delivery: smith_protocol_events::sinks::Delivery::Complete,
         })
     } else {
         None
@@ -808,7 +758,7 @@ pub fn make_agent(spawn: &kernel::Spawn, inherited: &Inherited) -> Proc {
         Box::new(errors.clone()),
     )
     .expect("configured agent trace");
-    Proc::Agent(Box::new(capture.host(agent)), errors, false)
+    Proc::Agent(Box::new(AgentProcess::new(capture.host(agent))))
 }
 
 /// The product trace selected by the same launch document as its agent kind.
@@ -855,7 +805,8 @@ pub fn make_exited_agent(_: &kernel::Spawn, inherited: &Inherited) -> Proc {
 /// Reuse the real agent while withholding its process exit from the host kit.
 #[must_use]
 pub fn make_lingering_agent(spawn: &kernel::Spawn, inherited: &Inherited) -> Proc {
-    let Proc::Agent(agent, _, _) = make_agent(spawn, inherited) else { panic!("agent fixture") };
+    let Proc::Agent(mut agent) = make_agent(spawn, inherited) else { panic!("agent fixture") };
+    agent.linger();
     Proc::LingeringAgent(agent)
 }
 
@@ -874,7 +825,7 @@ fn lending_accounts(
         Lending::Key => {
             let file = launch.token_directory.parent().expect("scratch parent").join("key");
             let bytes = std::fs::read(&file).expect("scratch key at startup");
-            lendable.insert(0, (0, smith_protocol_channel::GrantValue::Key(bytes.into()))).expect("one key value");
+            lendable.insert(0, (0, smith_protocol_translate::GrantValue::Key(bytes.into()))).expect("one key value");
             locations
                 .push(Location { account: 0, name: "codex".into(), source: Source::Key { file } })
                 .expect("one key location");

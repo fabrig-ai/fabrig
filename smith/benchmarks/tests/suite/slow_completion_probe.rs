@@ -2,8 +2,7 @@
 
 use smith_bench::agent::smith::events::Observer;
 use smith_bench::{CheckVerdict, EventCheck, Measure};
-use smith_events::{Block, Capture, Event, Record};
-use std::path::PathBuf;
+use smith_events::{Block, Capture, Record};
 
 use crate::common;
 
@@ -13,7 +12,8 @@ fn check() -> EventCheck {
 
 fn fixture() -> Vec<Record> {
     let mut values = common::events::balanced();
-    if let Event::ResponseCompleted(response) = &mut values[4].event {
+    {
+        let response = crate::common::edit::response_completed(&mut values[4]);
         response.first_byte_ms = Some(31000);
         response.largest_gap_ms = Some(151_000);
         response.duration_ms = 61000;
@@ -26,11 +26,10 @@ fn fixture() -> Vec<Record> {
 }
 
 fn observed(records: &[Record], capture: &Capture) -> CheckVerdict {
-    let mut observer = Observer::new(&common::events::LIMITS).expect("actual reader");
+    let mut observer = Observer::new(&common::events::LIMITS).expect("reader");
     for record in records {
-        let line =
-            smith_events::write(record, capture, &common::events::LIMITS).expect("actual writer").expect("record");
-        observer.feed(&line).expect("actual input");
+        let line = smith_events::write(record, capture, &common::events::LIMITS).expect("writer").expect("record");
+        observer.feed(&line).expect("input");
     }
     observer.finish().expect("complete stream");
     observer.check(&check(), "task")
@@ -63,17 +62,13 @@ fn native_measurements_export_the_raw_item_and_preset_findings_without_failing()
 fn exercise_floor_is_strict_and_short_calls_are_not_exercised() {
     for length in [1, 59999, 60000] {
         let mut values = fixture();
-        if let Event::ResponseCompleted(response) = &mut values[4].event {
-            response.duration_ms = length;
-        }
+        crate::common::edit::response_completed(&mut values[4]).duration_ms = length;
         let verdict = observed(&values, &Capture::Everything);
         assert!(matches!(verdict.passed, Measure::Unavailable { .. }));
         assert!(verdict.evidence.iter().any(|line| line.contains("NotExercised") && line.contains("model deviation")));
     }
     let mut values = fixture();
-    if let Event::ResponseCompleted(response) = &mut values[4].event {
-        response.duration_ms = 60001;
-    }
+    crate::common::edit::response_completed(&mut values[4]).duration_ms = 60001;
     assert_eq!(observed(&values, &Capture::Everything).passed, Measure::Observed { value: true });
 }
 
@@ -81,7 +76,8 @@ fn exercise_floor_is_strict_and_short_calls_are_not_exercised() {
 fn absent_transport_content_wrong_join_and_failed_terminal_cannot_pass() {
     for field in ["first", "gap", "content", "response", "run", "conversation", "envelope", "unknown"] {
         let mut values = fixture();
-        if let Event::ResponseCompleted(response) = &mut values[4].event {
+        {
+            let response = crate::common::edit::response_completed(&mut values[4]);
             match field {
                 "first" => response.first_byte_ms = None,
                 "gap" => response.largest_gap_ms = None,
@@ -107,15 +103,14 @@ fn absent_transport_content_wrong_join_and_failed_terminal_cannot_pass() {
     }
     for outcome in [smith_events::Outcome::Failed, smith_events::Outcome::Cancelled] {
         let mut values = fixture();
-        if let Event::ResponseCompleted(response) = &mut values[4].event {
-            response.outcome = outcome;
-        }
+        crate::common::edit::response_completed(&mut values[4]).outcome = outcome;
         assert_eq!(observed(&values, &Capture::Everything).passed, Measure::Observed { value: false });
     }
     let mut values = fixture();
     let mut notice =
         common::events::record(include_str!("../../../crates/smith-events/golden/v4/notice_everything.jsonl"));
-    if let Event::Notice(notice) = &mut notice.event {
+    {
+        let notice = crate::common::edit::notice(&mut notice);
         notice.kind = smith_events::NoticeKind::ReasoningDropped;
         notice.run = Some(0);
         notice.bytes = Some(65537);
@@ -130,10 +125,8 @@ fn absent_transport_content_wrong_join_and_failed_terminal_cannot_pass() {
 
 #[test]
 fn frozen_slow_task_uses_high_effort_native_only_and_the_declared_preset_bounds() {
-    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let task =
-        smith_bench::check_task(&root.join("tasks/probes/slow-completion/task.toml"), &root.join("../docs/design"))
-            .expect("frozen task");
+    let root = crate::common::repository();
+    let task = crate::common::task("probes/slow-completion");
     assert_eq!(task.version, 1);
     assert_eq!(task.effort.as_deref(), Some("high"));
     assert!(task.event.contains(&check()));

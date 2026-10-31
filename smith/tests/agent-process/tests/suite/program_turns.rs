@@ -7,17 +7,9 @@ use smith_channel::{ModelFault, RunFailure, RunResult};
 use smith_fake_claude::{End, Step, Story, Turn};
 
 fn charter_turns() -> Box<[u8]> {
-    let source = smith_charter::Charter::decode(&smith_charter::CEILINGS, &mut skein_lib::Reader::new(&charter()))
-        .expect("bounded test fixture");
-    let mut parts = source.into_parts();
-    let mut budget = parts.budget.into_parts();
-    budget.turns = 8;
-    budget.spend = 20;
-    parts.budget = smith_charter::Budget::new(&smith_charter::CEILINGS, budget).expect("bounded test fixture");
-    let record = smith_charter::Charter::new(&smith_charter::CEILINGS, parts).expect("bounded test fixture");
-    let mut writer = skein_lib::Writer::new(usize::try_from(record.measure()).expect("charter size"));
-    record.encode(&mut writer).expect("bounded test fixture");
-    writer.finish()
+    smith_agent_process_world::wire::edit_charter(&charter(), |parts| {
+        smith_agent_process_world::wire::budget(parts, 8, 20);
+    })
 }
 fn run(turns: Vec<Turn>) -> Run {
     program_world::run(
@@ -51,7 +43,7 @@ fn fault(run: &Run) -> ModelFault {
 }
 #[test]
 fn a_program_turn_runs_to_its_finish() {
-    let run = run(vec![Turn { steps: vec![finish()], end: End::default() }]);
+    let run = run(vec![Turn::new(vec![finish()])]);
     accepted(&run);
     assert!(
         !run.seen.iter().any(|seen| matches!(seen, smith_fake_claude::Seen::Called {tool,..} if tool == "finish")),
@@ -61,20 +53,17 @@ fn a_program_turn_runs_to_its_finish() {
 #[test]
 fn a_structured_output_without_finish_is_its_finish() {
     accepted(&run(vec![Turn {
-        steps: vec![],
         end: End::Success { structured_output: Some(json!({"outcome":{"form":"report","text":"done","fields":{}}})) },
+        ..Turn::new(vec![])
     }]));
 }
 #[test]
 fn a_rejected_finish_reaches_the_model() {
     let run = run(vec![
-        Turn {
-            steps: vec![Step::Outcome {
-                input: json!({"outcome":{"form":"report","text":"x".repeat(129),"fields":{}}}),
-            }],
-            end: End::default(),
-        },
-        Turn { steps: vec![finish()], end: End::default() },
+        Turn::new(vec![Step::Outcome {
+            input: json!({"outcome":{"form":"report","text":"x".repeat(129),"fields":{}}}),
+        }]),
+        Turn::new(vec![finish()]),
     ]);
     accepted(&run);
     assert!(
@@ -85,15 +74,12 @@ fn a_rejected_finish_reaches_the_model() {
 }
 #[test]
 fn a_text_only_turn_is_nudged() {
-    accepted(&run(vec![
-        Turn { steps: vec![Step::Text("thinking".into())], end: End::default() },
-        Turn { steps: vec![finish()], end: End::default() },
-    ]));
+    accepted(&run(vec![Turn::new(vec![Step::Text("thinking".into())]), Turn::new(vec![finish()])]));
 }
 #[test]
 fn usage_is_counted_per_message() {
     let story = Story {
-        turns: vec![Turn { steps: vec![Step::Text("thinking".into()), finish()], end: End::default() }],
+        turns: vec![Turn::new(vec![Step::Text("thinking".into()), finish()])],
         usage: smith_fake_claude::Usage { input_tokens: 600_000, output_tokens: 0 },
         ..Default::default()
     };
@@ -137,7 +123,7 @@ fn limited(run: &Run, reset: Option<u64>) {
 #[test]
 fn a_usage_limit_fails_the_run_limited() {
     for resets_at in [None, Some(skein_sim::Config::calm().wall.as_nanos() / 1_000_000_000 + 123)] {
-        let run = run(vec![Turn { steps: vec![Step::RateLimit { resets_at }], end: End::default() }]);
+        let run = run(vec![Turn::new(vec![Step::RateLimit { resets_at }])]);
         limited(&run, resets_at);
     }
 }
@@ -145,20 +131,20 @@ fn a_usage_limit_fails_the_run_limited() {
 fn an_error_result_retains_the_usage_limit_notice() {
     for resets_at in [None, Some(skein_sim::Config::calm().wall.as_nanos() / 1_000_000_000 + 123)] {
         let run = run(vec![Turn {
-            steps: vec![],
             end: End::Error {
                 api_error_status: Some(429),
                 terminal_reason: Some("usage_limit".into()),
                 errors: vec!["limit".into()],
                 resets_at,
             },
+            ..Turn::new(vec![])
         }]);
         limited(&run, resets_at);
     }
 }
 #[test]
 fn a_login_lost_mid_run_fails_unauthorized() {
-    let run = run(vec![Turn { steps: vec![Step::LoseLogin, Step::Text("continue".into())], end: End::default() }]);
+    let run = run(vec![Turn::new(vec![Step::LoseLogin, Step::Text("continue".into())])]);
     let ModelFault::Unauthorized(fault) = fault(&run) else { panic!("unauthorized fault") };
     assert_eq!(fault.account(), 0);
     let notices: Vec<_> = run.frames.iter().filter(|frame| frame.kind == 0x010d).collect();
@@ -170,23 +156,20 @@ fn a_login_lost_mid_run_fails_unauthorized() {
 }
 #[test]
 fn a_program_that_exits_before_its_result_fails_the_run() {
-    assert!(matches!(fault(&run(vec![Turn { steps: vec![], end: End::Exit(7) }])), ModelFault::Program(_)));
+    assert!(matches!(fault(&run(vec![Turn { end: End::Exit(7), ..Turn::new(vec![]) }])), ModelFault::Program(_)));
 }
 #[test]
 fn an_undecodable_line_fails_the_run() {
-    assert!(matches!(fault(&run(vec![Turn { steps: vec![], end: End::Undecodable }])), ModelFault::Program(_)));
+    assert!(matches!(fault(&run(vec![Turn { end: End::Undecodable, ..Turn::new(vec![]) }])), ModelFault::Program(_)));
 }
 
 #[test]
 fn a_finished_tool_turn_resumes_without_an_extra_completion() {
     let run = run(vec![
-        Turn {
-            steps: vec![Step::Outcome {
-                input: json!({"outcome":{"form":"report","text":"x".repeat(129),"fields":{}}}),
-            }],
-            end: End::default(),
-        },
-        Turn { steps: vec![finish()], end: End::default() },
+        Turn::new(vec![Step::Outcome {
+            input: json!({"outcome":{"form":"report","text":"x".repeat(129),"fields":{}}}),
+        }]),
+        Turn::new(vec![finish()]),
     ]);
     accepted(&run);
     assert_eq!(run.answer().expect("answer").turns(), 2);
@@ -194,26 +177,18 @@ fn a_finished_tool_turn_resumes_without_an_extra_completion() {
 
 #[test]
 fn a_structured_failure_ends_with_its_declared_failure() {
-    let mut parts =
-        smith_charter::Charter::decode(&smith_charter::CEILINGS, &mut skein_lib::Reader::new(&charter_turns()))
-            .expect("charter")
-            .into_parts();
-    let mut contract = parts.contract.into_parts();
-    contract.failure = contract.report.take();
-    parts.contract = smith_charter::Contract::new(&smith_charter::CEILINGS, contract).expect("failure contract");
-    let charter = smith_charter::Charter::new(&smith_charter::CEILINGS, parts).expect("charter");
-    let mut writer = skein_lib::Writer::new(usize::try_from(charter.measure()).expect("charter bytes"));
-    charter.encode(&mut writer).expect("charter");
+    let charter = smith_agent_process_world::wire::edit_charter(&charter_turns(), |parts| {
+        let mut contract = parts.contract.clone().into_parts();
+        contract.failure = contract.report.take();
+        parts.contract = smith_charter::Contract::new(&smith_charter::CEILINGS, contract).expect("failure contract");
+    });
     let story = Story {
-        turns: vec![Turn {
-            steps: vec![Step::Outcome {
-                input: json!({"outcome":{"form":"failure","reason":"cannot proceed","fields":{}}}),
-            }],
-            end: End::default(),
-        }],
+        turns: vec![Turn::new(vec![Step::Outcome {
+            input: json!({"outcome":{"form":"failure","reason":"cannot proceed","fields":{}}}),
+        }])],
         ..Story::default()
     };
-    let run = program_world::run(Case::Turns, &story, Some(b"claude.ai"), &writer.finish(), &program(b"source"), None);
+    let run = program_world::run(Case::Turns, &story, Some(b"claude.ai"), &charter, &program(b"source"), None);
     let answer = run.answer().expect("answer");
     let RunResult::Accepted(accepted) = answer.result() else { panic!("declared result: {answer:?}") };
     let result =

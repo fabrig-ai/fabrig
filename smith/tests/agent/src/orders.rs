@@ -1,6 +1,6 @@
 //! Entrance and reclaim observations for root handoff order scenarios.
 //! The recorder copies facts and request identities; it never schedules work.
-//! Contract: domain/run.md, sections 3.2, 5.3 and 14;
+//! Contract: smith/docs/design/domain/run.md, sections 3.2, 5.3 and 13;
 //! skein/docs/design/draft/dynamic-memory.md, section 4.6.
 
 use skein_lib::{Time, Token};
@@ -36,9 +36,9 @@ impl HandoffRequest {
     pub(crate) fn from_request(request: &Request) -> Option<Self> {
         if let Request::Turn { turn, .. } = request {
             Some(Self::Turn { sequence: turn.sequence })
-        } else if let Request::Complete { owner, name, prompt, .. } = request {
+        } else if let Request::Lower(smith_domain::Lower::Complete { owner, name, prompt, .. }) = request {
             Some(Self::Complete { owner: *owner, name: *name, thread: prompt.affinity.thread })
-        } else if let Request::Cancel { owner } = request {
+        } else if let Request::Lower(smith_domain::Lower::Cancel { owner }) = request {
             Some(Self::Cancel { owner: *owner })
         } else {
             None

@@ -731,7 +731,7 @@ fn http_event(
             if let Some(remaining) = server.remaining_body {
                 server.remaining_body = Some(
                     remaining
-                        .checked_sub(u64::try_from(data.len()).expect("bounded body delivery"))
+                        .checked_sub(skein_lib::len_u64(data.len()))
                         .expect("HTTP delivers within the announced body"),
                 );
             }

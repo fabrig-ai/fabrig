@@ -2,7 +2,7 @@
 
 The world consumes `tests/local-process`'s processes, scenarios and referee
 unchanged. Hosted local and agent factories adopt independent scratch roots;
-only git, rg, sh and checks are actual children. The terminal uses real pipes,
+only git, rg, sh and checks are children. The terminal uses real pipes,
 and the provider, issuer and browser use Skein's test trust over loopback TLS.
 TLS fixture ports are unprivileged; nextest serializes stories using those
 addresses. Missing io_uring or required tools fails the world.

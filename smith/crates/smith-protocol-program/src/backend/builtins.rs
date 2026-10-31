@@ -1,34 +1,33 @@
 //! Built-in stream correlation (protocol/programs.md 5.4–5.5).
 //! Uses the bounded call ledger: a result waits for its call's Completed owner.
 
-use super::{Backend, Below, Phase, policy, stream};
+use super::Complete;
+use super::{Backend, Below, policy, stream};
 use crate::mcp::{self, json};
 use alloc::boxed::Box;
 use skein_json::{Document, Kind};
 use skein_lib::{Env, List, Queue, Token};
 use smith_domain::{llm, tools::Grants};
-use smith_protocol_llm::{self as protocol, FromDomain, ToDomain};
+use smith_protocol_llm::{self as protocol, ToDomain};
 
 impl Backend {
     pub(super) fn result_contract(&self) -> bool {
-        match &self.request {
-            Some(FromDomain::Complete { prompt, outcome, .. }) => {
+        match self.current.request() {
+            Some(Complete { prompt, outcome, .. }) => {
                 prompt.served.contains(&llm::Served::Finish)
                     && (outcome.change.is_some()
                         || !outcome.verdicts.is_empty()
                         || outcome.report.is_some()
                         || outcome.failure.is_some())
             }
-            Some(FromDomain::Cancel { .. } | FromDomain::Yield { .. }) | None => false,
+            None => false,
         }
     }
 
     pub(super) fn grants(&self) -> Grants {
-        match &self.request {
-            Some(FromDomain::Complete { prompt, .. }) => prompt.tools,
-            Some(FromDomain::Cancel { .. } | FromDomain::Yield { .. }) | None => {
-                Grants { inspect: false, modify: false, shell: false }
-            }
+        match self.current.request() {
+            Some(Complete { prompt, .. }) => prompt.tools,
+            None => Grants { inspect: false, modify: false, shell: false },
         }
     }
 
@@ -43,11 +42,11 @@ impl Backend {
             self.fail(env, llm::Failure::Program { exit: None }, &detail, up, below);
             return;
         }
-        self.phase = Phase::Running;
+        self.startup.initialized(&mut self.io);
         if !self.compaction() {
             self.remember_session();
         }
-        self.completion_deadline(env, true);
+        self.completion_deadline(env, true, up);
     }
 
     pub(super) fn later_init(
@@ -175,15 +174,13 @@ impl Backend {
     // its later answer cannot consume bytes already held by a built-in.
     pub(super) fn reply_room(&self, extra: u64) -> bool {
         let maximum = u64::from(self.settings.adapter.rendered_result)
-            .checked_mul(u64::from(self.settings.receiving.max_completion_blocks).checked_mul(5).expect("call slots"))
+            .checked_mul(u64::from(self.settings.ledger_slots().expect("call slots")))
             .expect("reply budget");
         let mut retained = extra;
         for call in &self.ledger {
             let bytes = if call.builtin {
                 match &call.answer {
-                    Some(mcp::Answer::Text(text) | mcp::Answer::Error(text)) => {
-                        u64::try_from(text.len()).expect("bounded result")
-                    }
+                    Some(mcp::Answer::Text(text) | mcp::Answer::Error(text)) => skein_lib::len_u64(text.len()),
                     None => 0,
                 }
             } else {

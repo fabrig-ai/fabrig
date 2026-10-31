@@ -266,7 +266,7 @@ fn measure_turn(number: u32) {
     let charter = temper_engine_smith::charter(&assignment);
     let mut events = Queue::uncapped();
     let mut out = Queue::uncapped();
-    events.push(smith_domain::Event::Start {
+    events.push(smith_domain::Event::Start(smith_domain::Start {
         reply_to: ReplyTo::new(Token::new(1)),
         host_run: Token::new(1),
         activation: 1,
@@ -281,7 +281,7 @@ fn measure_turn(number: u32) {
         transcript: None,
         answered: Box::default(),
         grants: Box::default(),
-    });
+    }));
     let mut turns = 0_u32;
     let mut refused = None;
     for _ in 0_u32..1000 {
@@ -296,12 +296,12 @@ fn measure_turn(number: u32) {
         }
         for _ in 0..out.len() {
             let request = out.pop().unwrap();
-            if let smith_domain::Request::Read { owner, .. } = request {
-                events.push(smith_domain::Event::Read { owner, read: run::Read::Missing });
-            } else if let smith_domain::Request::Probe { owner, .. } = request {
-                events.push(smith_domain::Event::Probed { owner, executable: false });
-            } else if let smith_domain::Request::Complete { owner, .. } = request {
-                events.push(smith_domain::Event::Completed {
+            if let smith_domain::Request::Lower(smith_domain::Lower::Read { owner, .. }) = request {
+                events.push(smith_domain::Event::Below(smith_domain::Below::Read { owner, read: run::Read::Missing }));
+            } else if let smith_domain::Request::Lower(smith_domain::Lower::Probe { owner, .. }) = request {
+                events.push(smith_domain::Event::Below(smith_domain::Below::Probed { owner, executable: false }));
+            } else if let smith_domain::Request::Lower(smith_domain::Lower::Complete { owner, .. }) = request {
+                events.push(smith_domain::Event::Below(smith_domain::Below::Completed {
                     owner,
                     completion: smith_domain::llm::Completion {
                         reasoning_dropped: Box::default(),
@@ -318,7 +318,7 @@ fn measure_turn(number: u32) {
                             reasoning_tokens: Some(0),
                         },
                     },
-                });
+                }));
             } else if let smith_domain::Request::Turn { .. } = request {
                 turns = turns.checked_add(1).unwrap();
             } else if let smith_domain::Request::Answer { answer: run::Answer::Refused(reason), .. } = request {

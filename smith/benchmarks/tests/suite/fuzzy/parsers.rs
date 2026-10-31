@@ -18,8 +18,7 @@ fn codex_lines_survive_seeded_truncations_corruptions_and_repetition() {
             }
             for _ in 0..64 {
                 let mut bytes = line.as_bytes().to_vec();
-                let index =
-                    usize::try_from(rng.below(u64::try_from(bytes.len()).expect("line length"))).expect("index");
+                let index = usize::try_from(rng.below(skein_lib::len_u64(bytes.len()))).expect("index");
                 bytes[index] = u8::try_from(rng.below(128)).expect("ASCII");
                 if let Ok(corrupt) = String::from_utf8(bytes) {
                     let _ = Observer::default().observe_line(&corrupt);
@@ -49,7 +48,7 @@ fn named_rollouts_survive_seeded_truncation_corruption_and_response_repetition()
         ("01a121d2-6e5a-7e30-abd0-133d08c8c960", include_str!("../../recorded/codex/live-child-rollout.jsonl")),
         ("01a121bc-04a8-75c2-8fba-d2694fa1ad22", include_str!("../../recorded/codex/repeated-rollout.jsonl")),
     ] {
-        let original = parse_rollout(stream.as_bytes(), thread).expect("actual rollout");
+        let original = parse_rollout(stream.as_bytes(), thread).expect("rollout");
         for end in 0..stream.len() {
             if stream.is_char_boundary(end) {
                 let _ = parse_rollout(&stream.as_bytes()[..end], thread);
@@ -57,11 +56,11 @@ fn named_rollouts_survive_seeded_truncation_corruption_and_response_repetition()
         }
         for _ in 0..512 {
             let mut bytes = stream.as_bytes().to_vec();
-            let index = usize::try_from(rng.below(u64::try_from(bytes.len()).expect("length"))).expect("index");
+            let index = usize::try_from(rng.below(skein_lib::len_u64(bytes.len()))).expect("index");
             bytes[index] = u8::try_from(rng.below(128)).expect("ASCII");
             let _ = parse_rollout(&bytes, thread);
         }
-        let response = stream.lines().find(|line| line.contains("token_usage_record")).expect("actual usage");
+        let response = stream.lines().find(|line| line.contains("token_usage_record")).expect("usage");
         let repeated = format!("{stream}{}", format!("{response}\n").repeat(128));
         assert_eq!(parse_rollout(repeated.as_bytes(), thread).expect("immutable repeats"), original);
     }
@@ -70,7 +69,7 @@ fn named_rollouts_survive_seeded_truncation_corruption_and_response_repetition()
 #[test]
 fn typed_event_chunks_preserve_records_under_seeded_cuts_and_corruption() {
     use smith_bench::agent::smith::events::Observer as Events;
-    let limits = smith_events::Limits { string: 128, content: 1024, items: 16 };
+    let limits = smith_events::Limits { string: 128, items: 16, ..smith_events::fixture::SMALL };
     let stream = include_bytes!("../../../../crates/smith-events/golden/v4/session_started_effective_limits.jsonl");
     let mut rng = Rng::new(0xe7e0_0020);
     for _ in 0..128 {
@@ -84,7 +83,7 @@ fn typed_event_chunks_preserve_records_under_seeded_cuts_and_corruption() {
         }
         observer.finish().expect("framing");
         assert_eq!(observer.sessions().len(), 1);
-        let cut = usize::try_from(rng.below(u64::try_from(stream.len()).expect("length"))).expect("index");
+        let cut = usize::try_from(rng.below(skein_lib::len_u64(stream.len()))).expect("index");
         let mut partial = Events::new(&limits).expect("bounds");
         let _ = partial.feed(&stream[..cut]);
         if cut > 0 {

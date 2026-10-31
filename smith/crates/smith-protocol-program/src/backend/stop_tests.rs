@@ -4,18 +4,10 @@
     clippy::disallowed_types,
     reason = "ordinary Rust deterministic harness, programming-model.md 10.2"
 )]
-use super::lifecycle_tests::{backend, env, request};
 use super::*;
-
-fn active() -> Backend {
-    let mut backend = backend();
-    backend.phase = Phase::Running;
-    backend.child = Some(Token::new(30));
-    backend.pipes = [Some(Token::new(31)), Some(Token::new(32)), Some(Token::new(33))];
-    backend.owner = Some(Token::new(80));
-    backend.request = Some(request(&backend));
-    backend
-}
+use crate::backend::fixtures::COMPLETION;
+use fixtures::active;
+use fixtures::{env, request};
 
 fn signal(below: &Queue<Below>, expected: kernel::Signal) -> usize {
     let mut count = 0_usize;
@@ -42,16 +34,14 @@ fn input_closed(below: &Queue<Below>) -> bool {
 
 #[test]
 fn a_cancel_interrupts_a_running_turn() {
-    let mut backend = active();
-    let mut up = Queue::with_capacity(32);
-    let mut below = Queue::with_capacity(64);
-    backend.from_domain(&env(0), FromDomain::Cancel { owner: Token::new(80) }, &mut up, &mut below);
+    let fixtures::Harness { mut backend, mut up, mut below } = fixtures::Harness::new(active());
+    backend.from_domain(&env(0), FromDomain::Cancel { owner: COMPLETION }, &mut up, &mut below);
     assert_eq!(signal(&below, kernel::Signal::Interrupt), 1);
     assert!(!input_closed(&below));
     let Some(ToDomain::Cancelled { owner }) = up.pop() else {
         panic!("cancel terminal");
     };
-    assert_eq!(owner, Token::new(80));
+    assert_eq!(owner, COMPLETION);
 }
 
 #[test]
@@ -60,16 +50,14 @@ fn a_cancel_of_an_idle_program_closes_its_input() {
     backend.turns.result = true;
     let mut up = Queue::with_capacity(32);
     let mut below = Queue::with_capacity(64);
-    backend.from_domain(&env(0), FromDomain::Cancel { owner: Token::new(80) }, &mut up, &mut below);
+    backend.from_domain(&env(0), FromDomain::Cancel { owner: COMPLETION }, &mut up, &mut below);
     assert_eq!(signal(&below, kernel::Signal::Interrupt), 0);
     assert!(input_closed(&below));
 }
 
 #[test]
 fn a_program_past_its_grace_is_terminated() {
-    let mut backend = active();
-    let mut up = Queue::with_capacity(32);
-    let mut below = Queue::with_capacity(64);
+    let fixtures::Harness { mut backend, mut up, mut below } = fixtures::Harness::new(active());
     backend.close(&env(0), &mut up, &mut below);
     backend.fire(&env(1), &mut up, &mut below);
     assert_eq!(signal(&below, kernel::Signal::Terminate), 1);
@@ -77,9 +65,7 @@ fn a_program_past_its_grace_is_terminated() {
 
 #[test]
 fn an_interrupted_result_after_a_stop_is_no_failure() {
-    let mut backend = active();
-    let mut up = Queue::with_capacity(32);
-    let mut below = Queue::with_capacity(64);
+    let fixtures::Harness { mut backend, mut up, mut below } = fixtures::Harness::new(active());
     backend.close(&env(0), &mut up, &mut below);
     backend.line(&env(0), br#"{"type":"result","is_error":true,"subtype":"error_during_execution","terminal_reason":"aborted_streaming"}"#, &mut up, &mut below);
     assert!(backend.pending_failure.is_none());
@@ -103,13 +89,13 @@ fn the_wind_down_requests_one_interrupt() {
     }]);
     let mut up = Queue::with_capacity(32);
     let mut below = Queue::with_capacity(64);
-    backend.resume(&env(0), next, &mut up, &mut below);
+    backend.resume(&env(0), Complete::from_request(next), &mut up, &mut below);
     assert_eq!(signal(&below, kernel::Signal::Interrupt), 0);
     assert_eq!(control_rooms(&below), 1);
     backend.line(&env(0), br#"{"type":"result","is_error":true,"subtype":"error_during_execution","terminal_reason":"aborted_streaming"}"#, &mut up, &mut below);
     backend.flush(&mut below);
-    assert!(backend.winding == stop::WindDown::Finishing);
-    assert_eq!(backend.phase, Phase::Running);
+    assert!(backend.stopping.intent() == stopping::Intent::Finishing);
+    assert_eq!(backend.startup.phase(), State::Running);
     let note: serde_json::Value = serde_json::from_slice(backend.outgoing.as_ref().expect("finishing note")).unwrap();
     assert_eq!(
         note["message"]["content"],
@@ -118,7 +104,7 @@ fn the_wind_down_requests_one_interrupt() {
     let mut second = request(&backend);
     let FromDomain::Complete { prompt, .. } = &mut second else { panic!("complete") };
     prompt.choice = llm::ToolChoice::Only(Box::new([llm::Served::Finish]));
-    backend.resume(&env(0), second, &mut up, &mut below);
+    backend.resume(&env(0), Complete::from_request(second), &mut up, &mut below);
     assert_eq!(signal(&below, kernel::Signal::Interrupt), 0);
     assert_eq!(control_rooms(&below), 1);
 }
@@ -126,7 +112,7 @@ fn the_wind_down_requests_one_interrupt() {
 #[test]
 fn the_wind_down_sends_answers_before_the_note() {
     let backend = active();
-    let FromDomain::Complete { mut prompt, .. } = request(&backend) else { panic!("complete") };
+    let mut prompt = fixtures::prompt_with(Box::default());
     prompt.messages = Box::new([llm::Message {
         role: llm::Role::User,
         content: Box::new([
@@ -157,12 +143,12 @@ fn builtin(backend: &mut Backend) {
                 eligible: true,
                 message: 1,
                 builtin: true,
-                owner: Some(Token::new(80)),
+                owner: Some(COMPLETION),
             })
             .is_ok()
     );
     backend.turns.closed = 1;
-    backend.owner = None;
+    fixtures::answered_completion(backend);
 }
 
 fn prompt(backend: &mut Backend, labelled: bool) {
@@ -176,7 +162,7 @@ fn prompt_input(backend: &mut Backend, labelled: bool, input: serde_json::Value)
         message["params"]["arguments"]["tool_use_id"] = serde_json::json!("r");
     }
     let bytes = mcp::json::join(&[&serde_json::to_vec(&message).expect("prompt JSON"), b"\n"]);
-    let server = backend.server.as_mut().expect("permission server");
+    let server = backend.startup.server_mut().expect("permission server");
     server.from_io(
         env(0).now,
         io::Event::Stream { owner: Token::new(101), up: skein_lib::stream::Up::Bytes(bytes) },
@@ -187,7 +173,7 @@ fn prompt_input(backend: &mut Backend, labelled: bool, input: serde_json::Value)
 }
 
 fn decision(backend: &mut Backend) -> serde_json::Value {
-    let reply = review_tests::server_reply(backend);
+    let reply = fixtures::server_reply(backend);
     assert_eq!(reply["id"], serde_json::json!(1_u32));
     serde_json::from_str(reply["result"]["content"][0]["text"].as_str().expect("permission JSON")).expect("verdict")
 }
@@ -196,7 +182,7 @@ fn decision(backend: &mut Backend) -> serde_json::Value {
 fn a_prompt_waits_for_its_complete() {
     let mut backend = active();
     builtin(&mut backend);
-    review_tests::connect_server(&mut backend);
+    fixtures::connect_server(&mut backend);
     prompt(&mut backend, true);
     assert_eq!(backend.calls.len(), 1, "the permission prompt is held");
     for request in &backend.io {
@@ -206,7 +192,7 @@ fn a_prompt_waits_for_its_complete() {
     }
     let mut up = Queue::with_capacity(32);
     let mut below = Queue::with_capacity(64);
-    backend.resume(&env(0), request(&backend), &mut up, &mut below);
+    backend.resume(&env(0), Complete::from_request(request(&backend)), &mut up, &mut below);
     assert!(backend.calls.is_empty());
     assert_eq!(decision(&mut backend)["behavior"], "deny");
 }
@@ -216,10 +202,10 @@ fn a_prompt_after_its_complete_is_answered_at_once() {
     let mut backend = active();
     builtin(&mut backend);
     backend.ledger.get_mut(0).expect("call").input = b"{ }".as_slice().into();
-    review_tests::connect_server(&mut backend);
+    fixtures::connect_server(&mut backend);
     let mut up = Queue::with_capacity(32);
     let mut below = Queue::with_capacity(64);
-    backend.resume(&env(0), request(&backend), &mut up, &mut below);
+    backend.resume(&env(0), Complete::from_request(request(&backend)), &mut up, &mut below);
     prompt(&mut backend, false);
     assert!(backend.calls.is_empty());
     assert_eq!(decision(&mut backend)["behavior"], "deny");
@@ -229,12 +215,12 @@ fn a_prompt_after_its_complete_is_answered_at_once() {
 fn a_built_in_outside_the_choice_is_denied() {
     let mut backend = active();
     builtin(&mut backend);
-    review_tests::connect_server(&mut backend);
-    backend.winding = stop::WindDown::Finishing;
+    fixtures::connect_server(&mut backend);
+    backend.stopping.intend(stopping::Intent::Finishing);
     let mut next = request(&backend);
     let FromDomain::Complete { prompt: next_prompt, .. } = &mut next else { panic!("complete") };
     next_prompt.choice = llm::ToolChoice::Only(Box::new([llm::Served::Finish, llm::Served::Deliver]));
-    backend.resume(&env(0), next, &mut Queue::with_capacity(32), &mut Queue::with_capacity(64));
+    backend.resume(&env(0), Complete::from_request(next), &mut Queue::with_capacity(32), &mut Queue::with_capacity(64));
     prompt(&mut backend, true);
     assert_eq!(
         decision(&mut backend),
@@ -246,7 +232,7 @@ fn a_built_in_outside_the_choice_is_denied() {
 fn an_answered_builtin_does_not_release_the_next_prompt() {
     let mut backend = active();
     builtin(&mut backend);
-    backend.permitted = 2;
+    backend.permitted_message = 2;
     backend.ledger.get_mut(0).unwrap().answered = true;
     backend.ledger.get_mut(0).unwrap().input = br#"{"a":1}"#.as_slice().into();
     builtin(&mut backend);
@@ -254,11 +240,16 @@ fn an_answered_builtin_does_not_release_the_next_prompt() {
     backend.ledger.get_mut(1).unwrap().message = 2;
     backend.ledger.get_mut(1).unwrap().input = br#"{"a":1}"#.as_slice().into();
     backend.turns.closed = 2;
-    review_tests::connect_server(&mut backend);
+    fixtures::connect_server(&mut backend);
     prompt_input(&mut backend, false, serde_json::json!({"a":1_u32}));
     assert_eq!(backend.calls.len(), 1);
     assert!(!backend.ledger.get(1).unwrap().prompted);
-    backend.resume(&env(0), request(&backend), &mut Queue::with_capacity(32), &mut Queue::with_capacity(64));
+    backend.resume(
+        &env(0),
+        Complete::from_request(request(&backend)),
+        &mut Queue::with_capacity(32),
+        &mut Queue::with_capacity(64),
+    );
     assert!(backend.calls.is_empty());
     assert!(backend.ledger.get(1).unwrap().prompted);
     assert_eq!(decision(&mut backend)["behavior"], "deny");
@@ -269,7 +260,7 @@ fn equal_permission_prompts_bind_distinct_calls() {
     let mut backend = active();
     builtin(&mut backend);
     builtin(&mut backend);
-    backend.permitted = 2;
+    backend.permitted_message = 2;
     assert!(backend.permission_ready(b"Read", b"{}", None).is_some());
     assert!(backend.permission_ready(b"Read", b"{}", None).is_some());
     assert!(backend.permission_ready(b"Read", b"{}", None).is_none());
@@ -278,14 +269,12 @@ fn equal_permission_prompts_bind_distinct_calls() {
 #[test]
 #[expect(clippy::match_like_matches_macro, reason = "effect selectors avoid the subset's disallowed matches macro")]
 fn an_exited_child_drains_for_one_grace_without_signals() {
-    let mut backend = active();
-    let mut up = Queue::with_capacity(32);
-    let mut below = Queue::with_capacity(64);
+    let fixtures::Harness { mut backend, mut up, mut below } = fixtures::Harness::new(active());
     backend.close(&env(0), &mut up, &mut below);
     while below.pop().is_some() {}
     backend.from_io(
         &env(1),
-        BelowEvent::Io(io::Event::Exited { owner: backend.token(4), exit: kernel::Exit::Code(0) }),
+        BelowEvent::Io(io::Event::Exited { owner: backend.token(Owner::Program), exit: kernel::Exit::Code(0) }),
         &mut up,
         &mut below,
     );
@@ -318,7 +307,7 @@ fn streaming_during_wind_down_keeps_the_stop_grace() {
     deadlines.idle = Duration::from_secs(10);
     let mut up = Queue::with_capacity(32);
     let mut below = Queue::with_capacity(64);
-    backend.resume(&env(0), next, &mut up, &mut below);
+    backend.resume(&env(0), Complete::from_request(next), &mut up, &mut below);
     backend.from_io(
         &env(0),
         BelowEvent::Io(io::Event::Stream {
@@ -337,7 +326,7 @@ fn streaming_during_wind_down_keeps_the_stop_grace() {
 fn a_tail_checks_its_exact_encoded_length() {
     let backend = active();
     for prefix in [b"".as_slice(), b"(The agent paused your last turn to send the finishing note.)\n"] {
-        let FromDomain::Complete { mut prompt, .. } = request(&backend) else { panic!("complete") };
+        let mut prompt = fixtures::prompt_with(Box::default());
         let mut text = (0_u8..=127).collect::<alloc::vec::Vec<_>>();
         text.extend_from_slice("é水".as_bytes());
         let mut expected = prefix.to_vec();
@@ -369,7 +358,7 @@ fn a_tail_checks_its_exact_encoded_length() {
 #[test]
 fn a_tail_refuses_invalid_utf8_before_encoding() {
     let backend = active();
-    let FromDomain::Complete { mut prompt, .. } = request(&backend) else { panic!("complete") };
+    let mut prompt = fixtures::prompt_with(Box::default());
     prompt.messages = Box::new([llm::Message {
         role: llm::Role::User,
         content: Box::new([llm::Block::Text { text: Box::new([255]), replay: None }]),
@@ -381,7 +370,7 @@ fn a_tail_refuses_invalid_utf8_before_encoding() {
 fn a_tail_moves_served_results_after_the_last_assistant() {
     let mut backend = active();
     builtin(&mut backend);
-    let FromDomain::Complete { mut prompt, .. } = request(&backend) else { panic!("complete") };
+    let mut prompt = fixtures::prompt_with(Box::default());
     prompt.messages = Box::new([
         llm::Message {
             role: llm::Role::User,
@@ -410,19 +399,19 @@ fn a_tail_moves_served_results_after_the_last_assistant() {
 #[test]
 fn a_call_arriving_during_interrupt_is_not_run() {
     let mut backend = active();
-    review_tests::connect_server(&mut backend);
-    backend.stop = stop::Stop::Yielding;
+    fixtures::connect_server(&mut backend);
+    backend.stopping.begin(stopping::Action::Yield, None);
     let bytes =
         b"{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\",\"params\":{\"name\":\"foo\",\"arguments\":{}}}\n";
-    backend.server.as_mut().expect("server").from_io(
+    backend.startup.server_mut().expect("server").from_io(
         env(0).now,
         io::Event::Stream { owner: Token::new(101), up: skein_lib::stream::Up::Bytes(bytes.as_slice().into()) },
         &mut backend.io,
     );
-    let call = backend.server.as_mut().expect("server").up().expect("call");
+    let call = backend.startup.server_mut().expect("server").up().expect("call");
     backend.calls.push(call).expect("one held call");
     backend.match_calls();
-    let reply = review_tests::server_reply(&mut backend);
+    let reply = fixtures::server_reply(&mut backend);
     assert_eq!(reply["result"]["isError"], true);
     assert_eq!(reply["result"]["content"][0]["text"], "not run: the program turn was interrupted");
 }
@@ -430,8 +419,8 @@ fn a_call_arriving_during_interrupt_is_not_run() {
 #[test]
 fn a_prompt_arriving_during_interrupt_is_not_run() {
     let mut backend = active();
-    review_tests::connect_server(&mut backend);
-    backend.stop = stop::Stop::Yielding;
+    fixtures::connect_server(&mut backend);
+    backend.stopping.begin(stopping::Action::Yield, None);
     prompt(&mut backend, true);
     assert_eq!(
         decision(&mut backend),
@@ -495,9 +484,7 @@ fn sent_lines(below: &Queue<Below>) -> alloc::vec::Vec<serde_json::Value> {
 }
 
 fn yielding() -> (Backend, Queue<ToDomain>, Queue<Below>) {
-    let mut backend = active();
-    let mut up = Queue::with_capacity(32);
-    let mut below = Queue::with_capacity(64);
+    let fixtures::Harness { mut backend, mut up, mut below } = fixtures::Harness::new(active());
     backend.yield_for_wind_down(&env(0), &mut up, &mut below);
     grant_input(&mut backend, 2, &mut up, &mut below);
     (backend, up, below)
@@ -515,7 +502,7 @@ fn a_control_interrupt_keeps_the_process_for_the_note() {
         role: llm::Role::User,
         content: Box::new([llm::Block::Text { text: b"finish now".as_slice().into(), replay: None }]),
     }]);
-    backend.resume(&env(0), next, &mut up, &mut below);
+    backend.resume(&env(0), Complete::from_request(next), &mut up, &mut below);
     grant_input(&mut backend, 1, &mut up, &mut below);
     assert_eq!(
         sent_lines(&below),
@@ -524,8 +511,8 @@ fn a_control_interrupt_keeps_the_process_for_the_note() {
             serde_json::json!({"type":"user","message":{"role":"user","content":"(The agent paused your last turn to send the finishing note.)\nfinish now\n"}}),
         ]
     );
-    assert_eq!(backend.child, Some(Token::new(30)));
-    assert_eq!(backend.phase, Phase::Running);
+    assert_eq!(backend.process.child(), Some(Token::new(30)));
+    assert_eq!(backend.startup.phase(), State::Running);
     assert_eq!(signal(&below, kernel::Signal::Interrupt), 0);
     assert!(!input_closed(&below));
     for event in &up {
@@ -571,7 +558,7 @@ fn an_acknowledged_interrupt_still_needs_its_result() {
 fn a_cancel_after_the_interrupt_ack_still_signals() {
     let (mut backend, mut up, mut below) = yielding();
     backend.line(&env(0), CONTROL_SUCCESS, &mut up, &mut below);
-    backend.from_domain(&env(0), FromDomain::Cancel { owner: Token::new(80) }, &mut up, &mut below);
+    backend.from_domain(&env(0), FromDomain::Cancel { owner: COMPLETION }, &mut up, &mut below);
     assert_eq!(signal(&below, kernel::Signal::Interrupt), 1);
 }
 
@@ -591,8 +578,8 @@ fn an_interrupt_id_advances_in_the_same_process() {
     let (mut backend, mut up, mut below) = yielding();
     backend.line(&env(0), CONTROL_SUCCESS, &mut up, &mut below);
     backend.line(&env(0), INTERRUPTED_RESULT, &mut up, &mut below);
-    backend.owner = Some(Token::new(80));
-    backend.request = Some(request(&backend));
+    fixtures::claim_completion(COMPLETION, &mut backend);
+    fixtures::retain_request(request(&backend), &mut backend);
     backend.turns.restart();
     backend.yield_for_wind_down(&env(0), &mut up, &mut below);
     grant_input(&mut backend, 2, &mut up, &mut below);

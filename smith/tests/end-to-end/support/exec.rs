@@ -1,5 +1,5 @@
 //! Headless product stories reuse the shipped binary, person and provider hosts.
-use super::{Process, Ran, Refusal, window};
+use super::{Process, Ran, Settling, window};
 use skein_io::kernel::Exit;
 use skein_lib::Duration;
 use skein_shell::{Clock, Host};
@@ -41,11 +41,12 @@ pub fn exec_with_foreign_file(scratch: &Scratch, arguments: &[&str], input: &[u8
     run_fixture(
         scratch,
         arguments,
-        Some(provider(scratch, Reply::Accepted)),
-        true,
-        person(input),
-        false,
-        window::Story::None,
+        Options {
+            provider: Some(provider(scratch, Reply::Accepted)),
+            foreign: true,
+            person: person(input),
+            ..Options::default()
+        },
     )
     .0
 }
@@ -55,11 +56,12 @@ pub fn chat_modes(scratch: &Scratch, commands: Vec<Action>) -> (Ran, Vec<skein_f
     run_fixture(
         scratch,
         &[],
-        Some(provider(scratch, Reply::Accepted)),
-        false,
-        (Mode::Terminal, commands),
-        false,
-        window::Story::Modes,
+        Options {
+            provider: Some(provider(scratch, Reply::Accepted)),
+            person: (Mode::Terminal, commands),
+            watching: window::Story::Modes,
+            ..Options::default()
+        },
     )
 }
 
@@ -68,11 +70,12 @@ pub fn chat_resized(scratch: &Scratch, commands: Vec<Action>) -> (Ran, Vec<skein
     run_fixture(
         scratch,
         &[],
-        Some(provider(scratch, Reply::Accepted)),
-        false,
-        (Mode::Terminal, commands),
-        false,
-        window::Story::Resize,
+        Options {
+            provider: Some(provider(scratch, Reply::Accepted)),
+            person: (Mode::Terminal, commands),
+            watching: window::Story::Resize,
+            ..Options::default()
+        },
     )
 }
 
@@ -81,11 +84,11 @@ pub fn chat_waiting(scratch: &Scratch, commands: Vec<Action>) -> Ran {
     run_fixture(
         scratch,
         &[],
-        Some(provider(scratch, Reply::Wait)),
-        false,
-        (Mode::Terminal, commands),
-        false,
-        window::Story::None,
+        Options {
+            provider: Some(provider(scratch, Reply::Wait)),
+            person: (Mode::Terminal, commands),
+            ..Options::default()
+        },
     )
     .0
 }
@@ -95,11 +98,12 @@ pub fn chat_signed_in(scratch: &Scratch, commands: Vec<Action>) -> Ran {
     run_fixture(
         scratch,
         &[],
-        Some(world::change_provider(credential(scratch))),
-        false,
-        (Mode::Terminal, commands),
-        true,
-        window::Story::None,
+        Options {
+            provider: Some(world::change_provider(credential(scratch))),
+            person: (Mode::Terminal, commands),
+            sign_in: true,
+            ..Options::default()
+        },
     )
     .0
 }
@@ -143,18 +147,28 @@ fn provider(scratch: &Scratch, reply: Reply) -> skein_fake_peers::llm::Peer {
 
 #[must_use]
 pub fn run(scratch: &Scratch, arguments: &[&str], input: &[u8], provider: Option<skein_fake_peers::llm::Peer>) -> Ran {
-    run_fixture(scratch, arguments, provider, false, person(input), false, window::Story::None).0
+    run_fixture(scratch, arguments, Options { provider, person: person(input), ..Options::default() }).0
 }
 
 #[must_use]
 pub fn run_scripted(scratch: &Scratch, arguments: &[&str], commands: Vec<Action>) -> Ran {
-    run_fixture(scratch, arguments, None, false, (Mode::Pipes, commands), false, window::Story::ProgramRun).0
+    run_fixture(
+        scratch,
+        arguments,
+        Options { person: (Mode::Pipes, commands), watching: window::Story::ProgramRun, ..Options::default() },
+    )
+    .0
 }
 
 /// A program chat on a terminal, with the same scratch and teardown as pipes.
 #[must_use]
 pub fn program_chat(scratch: &Scratch, commands: Vec<Action>) -> Ran {
-    run_fixture(scratch, &[], None, false, (Mode::Terminal, commands), false, window::Story::ProgramRun).0
+    run_fixture(
+        scratch,
+        &[],
+        Options { person: (Mode::Terminal, commands), watching: window::Story::ProgramRun, ..Options::default() },
+    )
+    .0
 }
 
 /// An inline terminal chat whose fixture lends a key without an account id.
@@ -164,11 +178,11 @@ pub fn key_chat(scratch: &Scratch, commands: Vec<Action>) -> Ran {
     run_fixture(
         scratch,
         &[],
-        Some(world::key_provider(credential.value)),
-        false,
-        (Mode::Terminal, commands),
-        false,
-        window::Story::None,
+        Options {
+            provider: Some(world::key_provider(credential.value)),
+            person: (Mode::Terminal, commands),
+            ..Options::default()
+        },
     )
     .0
 }
@@ -185,11 +199,7 @@ pub fn exec_without_head(scratch: &Scratch) -> (Ran, Vec<skein_fake_llm_domain::
     run_fixture(
         scratch,
         &["exec", "hello"],
-        Some(provider(scratch, Reply::Accepted)),
-        false,
-        person(b""),
-        false,
-        window::Story::None,
+        Options { provider: Some(provider(scratch, Reply::Accepted)), ..Options::default() },
     )
 }
 
@@ -197,15 +207,26 @@ fn person(input: &[u8]) -> (Mode, Vec<Action>) {
     (Mode::Pipes, if input.is_empty() { vec![Action::Eof] } else { vec![Action::Send(input.into()), Action::Eof] })
 }
 
-fn run_fixture(
-    scratch: &Scratch,
-    arguments: &[&str],
+struct Options {
     provider: Option<skein_fake_peers::llm::Peer>,
     foreign: bool,
     person: (Mode, Vec<Action>),
     sign_in: bool,
     watching: window::Story,
+}
+
+impl Default for Options {
+    fn default() -> Self {
+        Self { provider: None, foreign: false, person: person(b""), sign_in: false, watching: window::Story::None }
+    }
+}
+
+fn run_fixture(
+    scratch: &Scratch,
+    arguments: &[&str],
+    options: Options,
 ) -> (Ran, Vec<skein_fake_llm_domain::api::Query>) {
+    let Options { provider, foreign, person, sign_in, watching } = options;
     assert_no_children();
     let mut command_arguments: Vec<std::ffi::OsString> = arguments.iter().map(std::ffi::OsString::from).collect();
     let smith = skein_scratch::paths::binary("smith");
@@ -251,13 +272,13 @@ fn run_fixture(
         Streams::Pipes { .. } => None,
     };
     let mut world = real::World::new(window::Judge::new(
-        Refusal {
+        Settling {
             foreign: foreign.then(|| scratch.path().join("runtime")),
             trace: arguments
                 .windows(2)
                 .find(|pair| pair.first().is_some_and(|flag| *flag == "--trace"))
                 .map(|pair| (scratch.path().join(pair.get(1).expect("trace path")), false)),
-            ..Refusal::new(now, now.saturating_add(watching.budget(sign_in)))
+            ..Settling::new(now, now.saturating_add(watching.budget(sign_in)))
         },
         watching,
         master,
@@ -309,5 +330,10 @@ fn run_fixture(
 
 #[must_use]
 pub fn program_interrupt(scratch: &Scratch, commands: Vec<Action>) -> Ran {
-    run_fixture(scratch, &["--plain"], None, false, (Mode::Pipes, commands), false, window::Story::ProgramCheck).0
+    run_fixture(
+        scratch,
+        &["--plain"],
+        Options { person: (Mode::Pipes, commands), watching: window::Story::ProgramCheck, ..Options::default() },
+    )
+    .0
 }

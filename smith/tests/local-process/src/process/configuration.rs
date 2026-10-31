@@ -5,7 +5,7 @@ use skein_lib::Duration;
 use smith_agent_service as agent;
 use smith_local_domain as local;
 use smith_local_service as service;
-use smith_local_shell::local_host::token_limits;
+use smith_local_shell::credentials::token_limits;
 use std::path::PathBuf;
 
 /// The bounded agent settings shared by both local placements.
@@ -125,23 +125,24 @@ fn configuration_for(
     // A workspace's host path is the checkout's absolute path: production's
     // bound keeps the story independent of where the checkout lives.
     host.path_bytes = 4096;
-    // Actual provider spans carry the charter's whole-session deadline.
+    // provider spans carry the charter's whole-session deadline.
     host.long_span = policy.0.budget.time;
     policy.1.agent = local::AgentLimits::Spawned(host);
     let queue = EXTERNAL_QUEUE_SLOTS;
     let mut process = service::ProcessLimits {
-        io: lower.limits.io,
-        channel: smith_host_protocol::Limits {
-            bodies: lower.limits.channel.bodies,
-            charter: lower.limits.channel.charter,
-            transcript: lower.limits.channel.transcript,
-            endpoints: lower.limits.channel.endpoints,
-            channel: lower.limits.channel.channel,
-            start_bytes: lower.limits.channel.start_bytes,
-            calls: host.calls,
-        },
         detail_bytes: host.detail_bytes,
         queue,
+        ..smith_local_service::fixture::process(lower.limits.io, {
+            let mut fixture_limits = smith_host_protocol::fixture::small();
+            fixture_limits.bodies = lower.limits.channel.bodies;
+            fixture_limits.charter = lower.limits.channel.charter;
+            fixture_limits.transcript = lower.limits.channel.transcript;
+            fixture_limits.endpoints = lower.limits.channel.endpoints;
+            fixture_limits.channel = lower.limits.channel.channel;
+            fixture_limits.start_bytes = lower.limits.channel.start_bytes;
+            fixture_limits.calls = host.calls;
+            fixture_limits
+        })
     };
     process.channel.channel.output_bytes =
         smith_host_protocol::output_bytes(&process.channel).expect("host directional frame");
@@ -150,11 +151,10 @@ fn configuration_for(
             agent: service::AgentConfig::Spawned,
             local: policy.0,
             limits: service::Limits {
-                local: policy.1,
                 envelope_bytes: host.answer_bytes,
-                process,
                 queue,
                 watermark: queue,
+                ..smith_local_service::fixture::small(policy.1, process)
             },
             endpoints,
             paths: policy.2,
@@ -242,7 +242,6 @@ fn local_policy(lower: &agent::Config, change: bool, tools: bool) -> (local::Con
     };
     let native = lower.limits.domain;
     let limits = local::Limits {
-        smith: native,
         agent: local::AgentLimits::inline(
             native,
             2,
@@ -256,8 +255,8 @@ fn local_policy(lower: &agent::Config, change: bool, tools: bool) -> (local::Con
         models: 3,
         line_bytes: local::max_line_bytes(native.run.message_bytes).unwrap(),
         show_bytes: 8192,
-        unsaved: 2,
         facts: 1024,
+        ..smith_local_domain::fixture::small(native)
     };
     config.validate(&limits).expect("typed fixture local policy");
     (config, limits, paths)
@@ -384,10 +383,10 @@ pub fn agent_document(launch: &Launch) -> serde_json::Value {
         "read_window":declared.read_window,"shell_head":declared.shell_head,"shell_tail":declared.shell_tail,
         "search_hits":declared.search_hits,"search_bytes":declared.search_bytes,"list_entries":declared.list_entries,
         "guide":declared.guide,"memory":declared.memory,"llm_pool":declared.llm_pool},
-        "policy":{"max_turns":policy.max_turns,"max_time":policy.max_time.as_nanos()/1_000_000,
+        "policy":{"max_turns":policy.max_turns,"max_time":policy.max_time.as_millis(),
         "inbox":policy.inbox,"sections":policy.sections,"host_tools":policy.host_tools,"verdicts":policy.verdicts,
-        "check_timeout":policy.check_timeout.as_nanos()/1_000_000,"unacknowledged":policy.unacknowledged,
-        "group_stop":policy.group_stop.as_nanos()/1_000_000,"exit_grace":policy.exit_grace.as_nanos()/1_000_000}},
+        "check_timeout":policy.check_timeout.as_millis(),"unacknowledged":policy.unacknowledged,
+        "group_stop":policy.group_stop.as_millis(),"exit_grace":policy.exit_grace.as_millis()}},
         "endpoints":[endpoint],"environment":[]});
     if launch.traced {
         document["trace"] =

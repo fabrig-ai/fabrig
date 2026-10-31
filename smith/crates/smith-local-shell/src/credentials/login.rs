@@ -1,6 +1,6 @@
 //! Source-specific credential commands (shell.md, sections 4.5–4.6).
 //! The edge supplies the environment; dispatch keeps names and redacted outcomes.
-use super::{Account, Credential, Directory, Source};
+use super::{Directory, Source};
 use crate::{command::Command, settings};
 use skein_shell::Clock;
 
@@ -43,12 +43,6 @@ impl LoginOutcome {
     }
 }
 
-/// Render the account's next action without its access value.
-#[must_use]
-pub fn credential_words(account: &str, credential: &Credential) -> String {
-    credential.line(account)
-}
-
 /// Handle login or logout before the run and check front ends.
 #[must_use]
 pub fn command(arguments: &[std::ffi::OsString], clock: &Clock, environment: &Environment) -> Option<u8> {
@@ -75,13 +69,7 @@ fn run(
 ) -> Result<LoginOutcome, String> {
     let settings = settings::read_in(shared, &environment.variables).map_err(|why| why.line())?;
     let settings = settings::resolve::checked(&settings).map_err(|why| why.line())?;
-    let prefix = format!("accounts.{}.", settings::name(name));
-    let fields = settings
-        .values
-        .iter()
-        .filter_map(|(key, value)| key.strip_prefix(&prefix).map(|field| (field.into(), value.clone())))
-        .collect();
-    let account = Account { name: name.into(), number: 0, fields };
+    let account = settings::accounts(&settings).remove(name).ok_or_else(|| format!("unknown account {name}"))?;
     if !account.fields.contains_key("source") {
         return Err(format!("unknown account {name}"));
     }
@@ -97,14 +85,13 @@ fn run(
             })
     });
     let directory = Directory::of(&settings);
-    let source = super::source(&account.fields, &settings, codex, name, directory.as_ref());
-    let registration = if codex { provider::Registration::Codex } else { provider::Registration::Configured };
+    let source = super::source(&account, codex, directory.as_ref()).map_err(|credential| credential.line(name))?;
     if logout {
-        return super::logout::run(&account, &source, &settings, registration, clock, environment);
+        return super::logout::run(&account, &source, &settings, codex, clock, environment);
     }
     match source {
         Source::SignIn { file, .. } => {
-            provider::run(&account, &file, &settings, registration, provider::Operation::SignIn, clock, environment)
+            provider::run(&account, &file, &settings, codex, provider::Operation::SignIn, clock, environment)
         }
         Source::Key { file } => key::run(name, &file),
         Source::Program { .. } => program::run(name, &settings, false, clock, environment),
@@ -119,14 +106,8 @@ fn run(
                 .iter()
                 .find(|(key, _)| key.as_os_str() == std::ffi::OsStr::new(&variable))
                 .and_then(|(_, value)| super::env_record(value.as_encoded_bytes(), codex, wall));
-            let credential = match borrowed {
-                Some(value) if value.record.remaining(wall) > skein_lib::Duration::ZERO => {
-                    Credential::Usable { until: codex.then_some(value.record.expires_at.as_nanos()) }
-                }
-                Some(value) => Credential::ExpiredVariable { at: value.record.expires_at.as_nanos(), variable },
-                None => Credential::Unset { variable },
-            };
-            eprintln!("{}", credential_words(name, &credential));
+            let credential = super::env_state(&variable, borrowed.as_ref(), codex, wall);
+            eprintln!("{}", credential.line(name));
             Ok(if credential.usable() { LoginOutcome::Usable } else { LoginOutcome::Unavailable })
         }
     }
@@ -139,24 +120,23 @@ mod tests {
 
     fn invocation(files: &Files, declarations: &[&str]) -> Shared {
         Shared {
-            directory: Some(files.0.clone()),
-            overrides: std::iter::once(format!("credentials='{}'", files.0.join("unopened").display()))
+            directory: Some(files.path().to_path_buf()),
+            overrides: std::iter::once(format!("credentials='{}'", files.path().join("unopened").display()))
                 .chain(declarations.iter().map(|declaration| (*declaration).into()))
                 .collect(),
             ..Shared::default()
         }
     }
 
-    /// Lower test of smith's `end_to_end::smith_login_of_an_unknown_account_exits_2` (top tiers test wiring only).
     #[test]
     fn an_unknown_account_is_refused_without_creating_credentials() {
-        let files = Files::new();
+        let files = Files::new("smith-credentials");
         let shared = invocation(&files, &["accounts.work.source='none'"]);
         let error =
             run(&shared, "missing", false, &Clock::new(), &Environment::default()).expect_err("unknown account");
         assert_eq!(error, "unknown account missing", "lookup diagnostic");
         let mut arguments: Vec<std::ffi::OsString> =
-            vec!["smith".into(), "login".into(), "missing".into(), "-C".into(), files.0.clone().into()];
+            vec!["smith".into(), "login".into(), "missing".into(), "-C".into(), files.path().to_path_buf().into()];
         for declaration in &shared.overrides {
             arguments.extend(["-c".into(), declaration.into()]);
         }
@@ -165,19 +145,18 @@ mod tests {
             Some(2),
             "credential command refusal code"
         );
-        assert!(!files.0.join("unopened").exists(), "lookup starts no credential store");
+        assert!(!files.path().join("unopened").exists(), "lookup starts no credential store");
     }
 
-    /// Lower test of smith's `end_to_end::login_checks_an_account_without_selecting_a_main_model` (top tiers test wiring only).
     #[test]
     fn account_only_login_needs_no_main_model() {
-        let files = Files::new();
+        let files = Files::new("smith-credentials");
         let shared = invocation(
             &files,
             &["accounts.work.source='none'", "endpoints.custom.preset='codex'", "endpoints.custom.account='work'"],
         );
         let outcome = run(&shared, "work", false, &Clock::new(), &Environment::default()).expect("account command");
         assert_eq!(outcome, LoginOutcome::Usable, "account selection does not select a run model");
-        assert!(!files.0.join("unopened").exists(), "a none source starts no credential store");
+        assert!(!files.path().join("unopened").exists(), "a none source starts no credential store");
     }
 }

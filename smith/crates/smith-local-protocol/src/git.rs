@@ -154,14 +154,9 @@ impl Git {
             ]),
             Step::Inspect { name } => {
                 let mut pattern = List::with_capacity(96);
-                for byte in b"--grep=^Smith-Delivery: " {
+                for byte in b"--grep=^".iter().chain(smith_local_domain::delivery_trailer(*name).iter()) {
                     pattern.push(*byte).expect("trailer pattern bound");
                 }
-                decimal(&mut pattern, name.activation);
-                pattern.push(b'/').expect("trailer pattern bound");
-                decimal(&mut pattern, u64::from(name.completion));
-                pattern.push(b'/').expect("trailer pattern bound");
-                decimal(&mut pattern, u64::from(name.position));
                 pattern.push(b'$').expect("trailer pattern bound");
                 Box::new([
                     Box::from(&b"log"[..]),
@@ -243,11 +238,8 @@ impl Git {
             }
             Step::CommitHead => match clean_head(code, stdout) {
                 Some(head) => {
-                    let mut text = List::with_capacity(512);
-                    for byte in b"commit ".iter().chain(head.iter()) {
-                        text.push(*byte).expect("bounded hash receipt");
-                    }
-                    GitAction::Done(GitResult::Committed { receipt: text.into_boxed(), head })
+                    let receipt = smith_local_domain::commit_receipt(&head).expect("validated git head fits a receipt");
+                    GitAction::Done(GitResult::Committed { receipt, head })
                 }
                 None => GitAction::Done(uncertain(run::DeliveryReason::Broken, stderr, &self.limits)),
             },
@@ -301,26 +293,18 @@ fn inspect(code: Option<u8>, stdout: &[u8], name: run::CallName) -> Option<(Box<
         return None;
     }
     let message = stdout.get(split.saturating_add(1)..)?;
-    let mut trailer = List::with_capacity(80);
-    for byte in b"Smith-Delivery: " {
-        trailer.push(*byte).expect("trailer bound");
-    }
-    decimal(&mut trailer, name.activation);
-    trailer.push(b'/').expect("trailer bound");
-    decimal(&mut trailer, u64::from(name.completion));
-    trailer.push(b'/').expect("trailer bound");
-    decimal(&mut trailer, u64::from(name.position));
+    let trailer = smith_local_domain::delivery_trailer(name);
     let mut named = false;
     let mut start = 0_usize;
     for end in 0..message.len() {
         if message.get(end) == Some(&b'\n') {
-            if message.get(start..end) == Some(trailer.as_slice()) {
+            if message.get(start..end) == Some(trailer.as_ref()) {
                 named = true;
             }
             start = end.checked_add(1).expect("bounded message offset");
         }
     }
-    if message.get(start..) == Some(trailer.as_slice()) {
+    if message.get(start..) == Some(trailer.as_ref()) {
         named = true;
     }
     Some((Box::from(head), named))
@@ -333,23 +317,6 @@ fn is_hex(bytes: &[u8]) -> bool {
         }
     }
     true
-}
-
-fn decimal(out: &mut List<u8>, mut number: u64) {
-    let mut digits = [0_u8; 20];
-    let mut count = 0_usize;
-    for _ in 0_u8..20_u8 {
-        *digits.get_mut(count).expect("twenty decimal digits fit") =
-            b'0'.checked_add(u8::try_from(number % 10).expect("digit")).expect("ASCII digit");
-        count = count.saturating_add(1);
-        number /= 10;
-        if number == 0 {
-            break;
-        }
-    }
-    for digit in digits.get(..count).expect("twenty decimal digits fit").iter().rev() {
-        out.push(*digit).expect("trailer bound");
-    }
 }
 
 fn conflicts(stdout: &[u8], limits: &GitLimits) -> Result<Box<[Box<[u8]>]>, ()> {
@@ -428,7 +395,7 @@ mod tests {
     const HASH: &[u8] = b"0123456789abcdef0123456789abcdef01234567";
 
     fn limits() -> GitLimits {
-        GitLimits { argument_bytes: 4096, output_bytes: 4096, conflicts: 4, path_bytes: 128, detail_bytes: 128 }
+        GitLimits { output_bytes: 4096, conflicts: 4, path_bytes: 128, detail_bytes: 128, ..crate::fixture::GIT }
     }
 
     fn command(code: Option<u8>, stdout: &[u8], stderr: &[u8]) -> GitCompletion {

@@ -20,12 +20,7 @@ const WIDE_RANDOM_AGENT_CEILING: u64 = 320_000;
 #[test]
 fn a_domain_driven_at_random_stays_under_its_scenario_ceilings_at_every_entry_point() {
     let wider = Limits {
-        configured_model_bytes: LIMITS.configured_model_bytes,
-        accounts: LIMITS.accounts,
         content_edge_records: WIDE_CONTENT_EDGE_RECORDS,
-        endpoints: LIMITS.endpoints,
-        decoded_call_bytes: LIMITS.decoded_call_bytes,
-        skew: LIMITS.skew,
         run: run::Limits { runs: 3, conversations: 8, run_conversations: 4, calls: 8, ..LIMITS.run },
         session: smith_domain::session::Limits {
             sessions: 8,
@@ -40,6 +35,7 @@ fn a_domain_driven_at_random_stays_under_its_scenario_ceilings_at_every_entry_po
             tools: smith_domain::tools::Limits { kits: 8, calls: 3, ..LIMITS.session.tools },
             ..LIMITS.session
         },
+        ..LIMITS
     };
     let mut seen = [0; 18];
     for seed in 0..12 {
@@ -51,9 +47,9 @@ fn a_domain_driven_at_random_stays_under_its_scenario_ceilings_at_every_entry_po
             }
         }
     }
-    eprintln!("agent memory actual boundary coverage: {seen:?}");
+    eprintln!("agent memory boundary coverage: {seen:?}");
     assert!(seen[..7].iter().all(|count| *count > 10), "every kind of request was made: {seen:?}");
-    assert!(seen[7..].iter().all(|count| *count > 0), "actual terminal and refusal classes occurred: {seen:?}");
+    assert!(seen[7..].iter().all(|count| *count > 0), "terminal and refusal classes occurred: {seen:?}");
 }
 
 #[test]

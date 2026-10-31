@@ -6,7 +6,7 @@ use alloc::boxed::Box;
 
 use skein_io::{self as io, file, kernel};
 use skein_lib::stream::{Down, Read, Up};
-use skein_lib::{Duration, List, Map, Queue, Time, Token, Writer};
+use skein_lib::{Duration, List, Map, Queue, Tail, Time, Token, Writer};
 use smith_domain::{run, tools};
 
 use crate::boundary::{Below, Spawn, ToDomain};
@@ -14,7 +14,10 @@ use crate::limits::Limits;
 use crate::listing::Listing;
 use crate::search::Search;
 
+mod directory;
 mod jobs;
+
+use directory::Directory;
 
 pub(crate) use jobs::Advance;
 use jobs::Response;
@@ -27,22 +30,6 @@ pub(crate) enum Purpose {
     Search,
     List,
     Check,
-}
-
-/// Which environment one machine process sees.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum Sees {
-    /// Commands and checks see the whole configured environment.
-    Configured,
-    /// Searches see no environment.
-    Nothing,
-}
-
-pub(crate) fn sees(purpose: Purpose) -> Sees {
-    match purpose {
-        Purpose::Shell | Purpose::Check => Sees::Configured,
-        Purpose::Search | Purpose::List => Sees::Nothing,
-    }
 }
 
 /// The outstanding process-group stop stage (protocol/agent.md, section 2).
@@ -73,32 +60,21 @@ pub(crate) enum Why {
 #[derive(Debug)]
 pub(crate) struct Capture {
     head: List<u8>,
-    tail: List<u8>,
-    next: u32,
+    tail: Tail,
     total: u64,
 }
 
 impl Capture {
     pub(crate) fn new(head: u32, tail: u32) -> Capture {
-        Capture { head: List::with_capacity(head), tail: List::with_capacity(tail), next: 0, total: 0 }
+        Capture { head: List::with_capacity(head), tail: Tail::with_capacity(tail), total: 0 }
     }
 
     pub(crate) fn push(&mut self, byte: u8) {
         self.total = self.total.saturating_add(1);
         if self.head.room() > 0 {
             self.head.push(byte).expect("head has room");
-        } else if self.tail.capacity() > 0 {
-            if self.tail.room() > 0 {
-                self.tail.push(byte).expect("tail has room");
-            } else {
-                *self.tail.get_mut(self.next).expect("ring slot exists") = byte;
-                self.next = self
-                    .next
-                    .checked_add(1)
-                    .expect("ring index fits")
-                    .checked_rem(self.tail.capacity())
-                    .expect("tail capacity positive");
-            }
+        } else {
+            self.tail.push(byte);
         }
     }
 
@@ -127,7 +103,6 @@ impl Capture {
             .expect("tail within total");
         self.head.clear();
         self.tail.clear();
-        self.next = 0;
         self.total = 0;
         (leading.finish(), trailing.finish(), dropped)
     }
@@ -137,112 +112,74 @@ impl Capture {
             return *self.head.get(at).expect("head byte");
         }
         let at = at.checked_sub(self.head.len()).expect("tail offset");
-        let index = if self.tail.len() == self.tail.capacity() {
-            self.next
-                .checked_add(at)
-                .expect("ring index fits")
-                .checked_rem(self.tail.len())
-                .expect("tail length positive")
-        } else {
-            at
-        };
-        *self.tail.get(index).expect("tail byte")
+        *self.tail.get(at).expect("tail byte")
     }
 }
 
-/// A listing checks its directory and closes that descriptor before spawning.
+/// The admitted operation owns exactly the parser and directory it needs.
 #[derive(Debug)]
-enum Directory {
-    None,
-    Opening { root: Token, spawn: Spawn },
-    Closing { root: Token, spawn: Spawn },
+pub(crate) enum Work {
+    Shell,
+    Check,
+    Search(Search),
+    List { listing: Listing, directory: Directory },
 }
 
 /// One child and its output pipes, retained until io proves them closed.
 #[derive(Debug)]
 pub(crate) struct Process {
-    pub(crate) purpose: Purpose,
+    work: Work,
     pub(crate) deadline: Time,
     pub(crate) child: Option<Token>,
     pub(crate) pipes: [Option<Token>; 2],
     pipe_closed: [bool; 2],
     pub(crate) child_closed: bool,
     exit: Option<kernel::Exit>,
-    failed: bool,
     failure: Option<io::Error>,
-    listing: Option<Listing>,
-    directory: Directory,
-    directory_done: Option<tools::Done>,
-    directory_owner: Option<Token>,
     stop: Stop,
     output: Capture,
-    search: Option<Search>,
     response: Response,
 }
 
 impl Process {
-    pub(crate) fn new(purpose: Purpose, deadline: Time, head: u32, tail: u32, search: Option<Search>) -> Process {
+    pub(crate) fn new(work: Work, deadline: Time, head: u32, tail: u32) -> Process {
         Process {
-            purpose,
+            work,
             deadline,
             child: None,
             pipes: [None, None],
             pipe_closed: [false, false],
             child_closed: false,
             exit: None,
-            failed: false,
             failure: None,
-            listing: None,
-            directory: Directory::None,
-            directory_done: None,
-            directory_owner: None,
             stop: Stop::Running,
             output: Capture::new(head, tail),
-            search,
             response: Response::Final,
         }
     }
 
-    pub(crate) fn open_directory(&mut self, owner: Token, root: Token, spawn: Spawn) -> Below {
-        self.directory_owner = Some(owner);
-        let path = spawn.dir.clone();
-        self.directory = Directory::Opening { root, spawn };
-        Below::OpenDirectory { owner, root, path, no_follow: false, deadline: self.deadline }
+    pub(crate) fn purpose(&self) -> Purpose {
+        match &self.work {
+            Work::Shell => Purpose::Shell,
+            Work::Check => Purpose::Check,
+            Work::Search(_) => Purpose::Search,
+            Work::List { .. } => Purpose::List,
+        }
     }
 
-    #[expect(clippy::wildcard_enum_match_arm, reason = "file events and kernel errors are foreign vocabularies")]
-    pub(crate) fn directory_event(&mut self, owner: Token, event: file::Event, below: &mut Queue<Below>) {
-        match core::mem::replace(&mut self.directory, Directory::None) {
-            Directory::Opening { root, spawn } => match event {
-                file::Event::Opened { file, .. } => {
-                    below.push(Below::File {
-                        request: file::Request::Close { owner, file },
-                        deadline: Time::from_nanos(u64::MAX),
-                    });
-                    self.directory = Directory::Closing { root, spawn };
-                }
-                file::Event::Failed { error, .. } => {
-                    self.directory_done = Some(directory_failure(error));
+    pub(crate) fn directory_event(&mut self, event: file::Event, below: &mut Queue<Below>) {
+        let stopping = match self.stop {
+            Stop::Running => false,
+            Stop::Terminating { .. } | Stop::Killing { .. } | Stop::Closing { .. } => true,
+        };
+        match &mut self.work {
+            Work::List { directory, .. } => {
+                directory.event(event, stopping, below);
+                if directory.unspawned() {
                     self.child_closed = true;
                 }
-                file::Event::Cancelled { .. } => {
-                    self.directory_done = Some(tools::Done::TimedOut);
-                    self.child_closed = true;
-                }
-                _ => unreachable!("directory-open terminal"),
-            },
-            Directory::Closing { root, spawn } => match event {
-                file::Event::Closed { .. } => match self.stop {
-                    Stop::Running => below.push(Below::Spawn { owner, root, spawn }),
-                    Stop::Terminating { .. } | Stop::Killing { .. } | Stop::Closing { .. } => self.child_closed = true,
-                },
-                file::Event::Failed { .. } | file::Event::Cancelled { .. } => {
-                    self.directory_done = Some(tools::Done::Failed { fault: tools::Fault::Other });
-                    self.child_closed = true;
-                }
-                _ => unreachable!("directory-close terminal"),
-            },
-            Directory::None => unreachable!("file event belongs to a pending listing directory"),
+            }
+            Work::Shell | Work::Check | Work::Search(_) => unreachable!("only a listing opens a directory"),
         }
     }
 
@@ -290,10 +227,10 @@ impl Process {
     pub(crate) fn byte(&mut self, pipe: Token, byte: u8) {
         let index = usize::from(self.pipes.first().copied().expect("pipe slot") != Some(pipe));
         assert_eq!(self.pipes.get(index).copied().expect("pipe slot"), Some(pipe), "byte belongs to child");
-        match self.purpose {
-            Purpose::Search if index == 0 => self.search.as_mut().expect("search state").push(byte),
-            Purpose::List if index == 0 => self.listing.as_mut().expect("listing state").push(byte),
-            Purpose::Shell | Purpose::Check | Purpose::Search | Purpose::List => self.output.push(byte),
+        match &mut self.work {
+            Work::Search(search) if index == 0 => search.push(byte),
+            Work::List { listing, .. } if index == 0 => listing.push(byte),
+            Work::Shell | Work::Check | Work::Search(_) | Work::List { .. } => self.output.push(byte),
         }
     }
 
@@ -304,7 +241,6 @@ impl Process {
     }
 
     pub(crate) fn failed(&mut self, error: io::Error) {
-        self.failed = true;
         if self.failure.is_none() {
             self.failure = Some(error);
         }
@@ -336,11 +272,9 @@ impl Process {
                 if self.exit.is_some() || self.child_closed {
                     return;
                 }
-                match &self.directory {
-                    Directory::Opening { .. } => {
-                        below.push(Below::CancelFile { owner: self.directory_owner.expect("pending directory owner") });
-                    }
-                    Directory::Closing { .. } | Directory::None => {}
+                match &self.work {
+                    Work::List { directory, .. } => directory.cancel(below),
+                    Work::Shell | Work::Check | Work::Search(_) => {}
                 }
                 self.stop = Stop::Terminating { next: now.saturating_add(grace), why };
                 if let Some(child) = self.child {
@@ -422,11 +356,11 @@ impl Process {
         let timed_out = why == Some(Why::Deadline);
         let cancelled = why == Some(Why::Cancel);
         let (head, tail, dropped) = self.output.finish();
-        match self.purpose {
-            Purpose::Shell => {
+        match self.work {
+            Work::Shell => {
                 let done = if cancelled {
                     tools::Done::Cancelled
-                } else if self.failed {
+                } else if self.failure.is_some() {
                     tools::Done::Failed { fault: tools::Fault::Other }
                 } else {
                     let exit = tool_exit(self.exit, timed_out);
@@ -434,41 +368,39 @@ impl Process {
                 };
                 ToDomain::Done { owner, done }
             }
-            Purpose::Search => {
+            Work::Search(search) => {
                 let done = if cancelled {
                     tools::Done::Cancelled
-                } else if self.failed {
+                } else if self.failure.is_some() {
                     tools::Done::Failed { fault: tools::Fault::Other }
                 } else {
-                    self.search.expect("search state").finish(self.exit, timed_out, head, tail, dropped)
+                    search.finish(self.exit, timed_out, head, tail, dropped)
                 };
                 ToDomain::Done { owner, done }
             }
-            Purpose::List => {
+            Work::List { listing, directory } => {
                 let done = if cancelled {
                     tools::Done::Cancelled
                 } else if timed_out {
                     tools::Done::TimedOut
                 } else {
-                    match self.directory_done {
+                    match directory.failure() {
                         Some(done) => done,
                         None => match self.failure {
                             Some(error) => listing_failure(error),
-                            None => self.listing.expect("listing state").finish(self.exit, timed_out),
+                            None => listing.finish(self.exit, timed_out),
                         },
                     }
                 };
                 ToDomain::Done { owner, done }
             }
-            Purpose::Check => {
+            Work::Check => {
                 if cancelled {
                     ToDomain::Aborted { owner }
                 } else {
                     let output = tail;
-                    let cut = dropped
-                        .checked_add(u64::try_from(head.len()).expect("head length fits"))
-                        .expect("output count fits");
-                    let exit = run_exit(self.exit, timed_out, self.failed);
+                    let cut = dropped.checked_add(skein_lib::len_u64(head.len())).expect("output count fits");
+                    let exit = run_exit(self.exit, timed_out, self.failure.is_some());
                     ToDomain::Checked { owner, ran: run::Ran { exit, output, cut } }
                 }
             }
@@ -530,10 +462,10 @@ pub(crate) fn shell(
     let args = Box::new([Box::from(&b"-c"[..]), command]);
     let dir = crate::files::io_path(cwd.path);
     let spawn = Spawn { program: Box::from(&b"/bin/sh"[..]), args, env, dir, pipes: pipes() };
-    Some((Process::new(Purpose::Shell, deadline, head, tail, None), Below::Spawn { owner, root: cwd.root, spawn }))
+    Some((Process::new(Work::Shell, deadline, head, tail), Below::Spawn { owner, root: cwd.root, spawn }))
 }
 
-#[expect(clippy::too_many_arguments, clippy::single_match, reason = "strict subset uses exhaustive option matches")]
+#[expect(clippy::too_many_arguments, reason = "owned search request fields cross the machine boundary")]
 pub(crate) fn search(
     owner: Token,
     at: tools::Place,
@@ -564,14 +496,8 @@ pub(crate) fn search(
     expression.put(b"--regexp=").ok()?;
     expression.put(&pattern).ok()?;
     args.push(expression.finish()).ok()?;
-    match glob {
-        Some(glob) => {
-            let mut filter = Writer::new(b"--glob=".len().checked_add(glob.len())?);
-            filter.put(b"--glob=").ok()?;
-            filter.put(&glob).ok()?;
-            args.push(filter.finish()).ok()?;
-        }
-        None => {}
+    if let Some(glob) = glob {
+        args.push(glob_argument(&glob)?).ok()?;
     }
     args.push(Box::from(&b"--"[..])).ok()?;
     args.push(crate::files::io_path(at.path)).ok()?;
@@ -583,10 +509,7 @@ pub(crate) fn search(
         pipes: pipes(),
     };
     let parser = Search::new(hits, bytes, limits.search_line_bytes);
-    Some((
-        Process::new(Purpose::Search, deadline, bytes, bytes, Some(parser)),
-        Below::Spawn { owner, root: at.root, spawn },
-    ))
+    Some((Process::new(Work::Search(parser), deadline, bytes, bytes), Below::Spawn { owner, root: at.root, spawn }))
 }
 
 pub(crate) fn check(
@@ -608,7 +531,7 @@ pub(crate) fn check(
         dir: crate::files::io_path(Box::new([])),
         pipes: pipes(),
     };
-    Some((Process::new(Purpose::Check, deadline, 0, tail, None), Below::Spawn { owner, root: program.root, spawn }))
+    Some((Process::new(Work::Check, deadline, 0, tail), Below::Spawn { owner, root: program.root, spawn }))
 }
 
 pub(crate) fn stream(process: &mut Process, pipe: Token, up: Up, below: &mut Queue<Below>) {
@@ -632,11 +555,7 @@ pub(crate) fn stream(process: &mut Process, pipe: Token, up: Up, below: &mut Que
 }
 
 /// Start a selected-file listing; rg owns ignore and glob rules, the parser owns the tree.
-#[expect(
-    clippy::too_many_arguments,
-    clippy::single_match,
-    reason = "owned request fields cross the machine boundary with exhaustive options"
-)]
+#[expect(clippy::too_many_arguments, reason = "owned listing request fields cross the machine boundary")]
 pub(crate) fn list(
     owner: Token,
     at: tools::Place,
@@ -667,14 +586,8 @@ pub(crate) fn list(
     {
         args.push(Box::from(word)).ok()?;
     }
-    match glob {
-        Some(glob) => {
-            let mut filter = Writer::new(b"--glob=".len().checked_add(glob.len())?);
-            filter.put(b"--glob=").ok()?;
-            filter.put(&glob).ok()?;
-            args.push(filter.finish()).ok()?;
-        }
-        None => {}
+    if let Some(glob) = glob {
+        args.push(glob_argument(&glob)?).ok()?;
     }
     args.push(Box::from(b"--".as_slice())).ok()?;
     args.push(Box::from(b".".as_slice())).ok()?;
@@ -685,9 +598,17 @@ pub(crate) fn list(
         dir: crate::files::io_path(at.path),
         pipes: pipes(),
     };
-    let mut process = Process::new(Purpose::List, deadline, 0, 0, None);
-    process.listing = Some(Listing::new(maximum, bytes, depth, limits.search_line_bytes));
-    Some((process, Below::Spawn { owner, root: at.root, spawn }))
+    let listing = Listing::new(maximum, bytes, depth, limits.search_line_bytes);
+    let (directory, request) = Directory::open(owner, at.root, spawn, deadline);
+    let process = Process::new(Work::List { listing, directory }, deadline, 0, 0);
+    Some((process, request))
+}
+
+fn glob_argument(glob: &[u8]) -> Option<Box<[u8]>> {
+    let mut filter = Writer::new(b"--glob=".len().checked_add(glob.len())?);
+    filter.put(b"--glob=").ok()?;
+    filter.put(glob).ok()?;
+    Some(filter.finish())
 }
 
 fn listing_failure(error: io::Error) -> tools::Done {
@@ -699,43 +620,21 @@ fn listing_failure(error: io::Error) -> tools::Done {
     }
 }
 
-#[expect(clippy::wildcard_enum_match_arm, reason = "kernel errors are a foreign vocabulary")]
-fn directory_failure(error: kernel::Error) -> tools::Done {
-    match error {
-        kernel::Error::NotFound => tools::Done::Missing,
-        kernel::Error::NotADirectory | kernel::Error::IsADirectory | kernel::Error::NotAFile => {
-            tools::Done::NotDirectory
-        }
-        kernel::Error::Escape => tools::Done::Escapes,
-        kernel::Error::Permission | kernel::Error::ReadOnly => tools::Done::Failed { fault: tools::Fault::Denied },
-        kernel::Error::NoSpace => tools::Done::Failed { fault: tools::Fault::NoSpace },
-        kernel::Error::TimedOut => tools::Done::TimedOut,
-        kernel::Error::Cancelled => tools::Done::Cancelled,
-        _ => tools::Done::Failed { fault: tools::Fault::Other },
-    }
-}
-
 #[cfg(test)]
 mod signal_tests {
-    use super::{Process, Purpose, ToDomain, kernel};
+    use super::{Process, ToDomain, Work, kernel};
     use skein_lib::{Time, Token};
 
-    // Ordinary harness formatting inspects the typed terminal without requiring
-    // the repaired variant to exist on the defect's parent (testing-strategy.md, 2.1).
-    #[expect(
-        clippy::disallowed_macros,
-        reason = "programming-model.md 10.2: test-only Debug inspection runs on the unrepaired parent too"
-    )]
     #[test]
     fn a_check_ended_by_a_signal_keeps_its_number() {
         for signal in [1, 15, 27, u32::MAX] {
-            let mut process = Process::new(Purpose::Check, Time::ZERO, 0, 0, None);
-            process.exit = Some(kernel::Exit::Signal(signal));
+            let mut process = Process::new(Work::Check, Time::ZERO, 0, 0);
+            process.exited(kernel::Exit::Signal(signal), &mut skein_lib::Queue::uncapped());
             let ToDomain::Checked { owner, ran } = process.answer(Token::new(7)) else {
                 panic!("a check has a checked terminal");
             };
             assert_eq!(owner, Token::new(7));
-            assert_eq!(alloc::format!("{:?}", ran.exit), alloc::format!("Signalled {{ signal: {signal} }}"));
+            assert_eq!(ran.exit, smith_domain::run::Exit::Signalled { signal });
         }
     }
 }

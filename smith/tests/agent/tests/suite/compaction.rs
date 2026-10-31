@@ -17,24 +17,20 @@ fn history(input: u64) -> smith_domain::Transcript {
         endpoint: Some(llm::Endpoint(0)),
         dialect: 1,
         turns: Box::new([record::Turn {
-            model: b"fake-1".as_slice().into(),
-            effort: None,
-            version: record::VERSION,
-            kind: record::Kind::First(Box::new(record::Opener {
-                affinity: llm::Affinity { key: [0; 16], thread: 0 },
-                account: Some(0),
-                backend: record::Backend::Direct,
-            })),
-            endpoint: Some(llm::Endpoint(0)),
             dialect: 1,
-            sequence: 1,
             usage: llm::Usage { input_tokens: Some(input), ..llm::Usage::ZERO },
-            spent: 0,
-            jobs: 0,
-            messages: Box::new([
-                llm::Message { role: llm::Role::User, content: content(&[b't'; 200]) },
-                llm::Message { role: llm::Role::Assistant, content: content(b"saved answer") },
-            ]),
+            ..smith_domain::session::fixture::turn(
+                b"fake-1".as_slice().into(),
+                record::Kind::First(Box::new(record::Opener {
+                    affinity: llm::Affinity { key: [0; 16], thread: 0 },
+                    account: Some(0),
+                    backend: record::Backend::Direct,
+                })),
+                Box::new([
+                    llm::Message { role: llm::Role::User, content: content(&[b't'; 200]) },
+                    llm::Message { role: llm::Role::Assistant, content: content(b"saved answer") },
+                ]),
+            )
         }]),
     }
 }
@@ -64,22 +60,20 @@ fn world_with_history(refused: bool, immediate: bool, saved: smith_domain::Trans
             conflicts: Box::new([]),
         }]),
     };
-    let finish = Turn {
-        finish: Finish::ToolCalls,
-        tokens: 32,
-        lines: Box::new([Line::Call {
+    let finish = smith_agent_world::fixture::calls(
+        Box::new([Line::Call {
             name: b"finish".as_slice().into(),
             arguments: br#"{"report":"finished","source":"compaction"}"#.as_slice().into(),
         }]),
-    };
-    let read = Turn {
-        finish: Finish::ToolCalls,
-        tokens: 32,
-        lines: Box::new([Line::Call {
+        32,
+    );
+    let read = smith_agent_world::fixture::calls(
+        Box::new([Line::Call {
             name: b"read".as_slice().into(),
             arguments: br#"{"path":"data.txt"}"#.as_slice().into(),
         }]),
-    };
+        32,
+    );
     let summary = Turn {
         finish: if refused { Finish::ContentFilter } else { Finish::Stop },
         tokens: 40,
@@ -88,7 +82,7 @@ fn world_with_history(refused: bool, immediate: bool, saved: smith_domain::Trans
     let turns = if immediate {
         Box::new([finish, summary]) as Box<[Turn]>
     } else {
-        // The first read is cut to what fits below the line (session.md, 8.1); the second finds no room left, so
+        // The first read is cut to what fits below the line (smith/docs/design/domain/session.md, 8.1); the second finds no room left, so
         // its result crosses the line and the next turn is the compaction.
         Box::new([finish, read.clone(), read, summary]) as Box<[Turn]>
     };

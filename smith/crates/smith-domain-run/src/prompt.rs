@@ -1,8 +1,8 @@
 //! Main receives literal host instructions; a fresh Open main receives its
 //! ordered titled Brief as the first user message, a Finite main in system text;
-//! a child receives only its caller's raw task (domain/run.md, sections 3.1,
+//! a child receives only its caller's raw task (smith/docs/design/domain/run.md, sections 3.1,
 //! 3.3, 3.4, 5.3 and 9.2). Both then receive selected guides, run mechanics and
-//! budget prose fixed at their actual opening.
+//! budget prose fixed at their opening.
 //! `opening` composes a fresh main brief or begin instruction and its bounded message offer;
 //! with concrete history, it offers only messages or a saved-conversation continuation.
 //! No prompt state is retained here; title/text meaning and authority are never
@@ -10,7 +10,7 @@
 //! session receiving bytes still decide whether the rendered opening fits.
 //!
 //! A text is rendered twice: once to measure it, then into a [`Writer`] of
-//! exactly that length (programming-model.md, section 8).
+//! exactly that length (skein/docs/foundation/programming-model.md, section 8).
 
 use alloc::boxed::Box;
 
@@ -38,7 +38,7 @@ pub(crate) const PREAMBLE: &[u8] =
 /// The summary instruction's contribution to the compaction headroom.
 #[must_use]
 pub fn summary_bytes() -> u64 {
-    u64::try_from(SUMMARY.len()).expect("fixed summary length fits u64")
+    skein_lib::len_u64(SUMMARY.len())
 }
 
 /// The child's last prompt, independent of provider and host vocabulary.
@@ -55,7 +55,7 @@ const WAIT: &[u8] = b"Call `wait` when you need another message; its result is w
 
 /// Measure the largest fixed system mechanics and the opening instruction.
 /// Charter forms, names, conventions, guides and their scaffolding are excluded.
-/// Contract: protocol/limits.md, section 3.9.
+/// Contract: smith/docs/design/protocol/limits.md, section 3.9.
 #[must_use]
 pub fn fixed_prompt_bytes() -> Option<u64> {
     let mut measured = Text::measuring();
@@ -248,7 +248,7 @@ fn count_host_bytes(charter: &Charter, mounted: Option<&Workspace>, guide_bytes:
 }
 
 /// Bytes a brief adds to the host part, including each section's heading and
-/// paragraph termination (domain/run.md, sections 3.1 and 4). An empty brief
+/// paragraph termination (smith/docs/design/domain/run.md, sections 3.1 and 4). An empty brief
 /// adds zero bytes, in either message role; the count is additive with the
 /// non-brief host bytes. Returns `None` on overflow.
 #[must_use]
@@ -341,7 +341,7 @@ pub(crate) fn child(
 }
 
 /// Maximum new immutable budget/share prose, measured at scalar maxima without allocation.
-/// The profile adds this to its other fixed prompt bytes (domain/run.md, section 9.2).
+/// The profile adds this to its other fixed prompt bytes (smith/docs/design/domain/run.md, section 9.2).
 #[must_use]
 pub fn budget_prompt_bytes() -> Option<u64> {
     let mut main = Text::measuring();
@@ -548,7 +548,7 @@ fn end_paragraph(text: &mut Text, came: &[u8]) {
 
 fn render_guide(text: &mut Text, repositories: &[Directory], guide: &Guide, guide_path: &[u8]) {
     let directory =
-        if repositories.len() == 1 { None } else { Some(name(repositories, guide.repository).name.as_ref()) };
+        if repositories.len() == 1 { None } else { Some(name(repositories, guide.directory).name.as_ref()) };
     render_guide_parts(text, guide_path, directory, &guide.text, guide.whole);
 }
 
@@ -820,7 +820,7 @@ mod tests {
         let mut found = Found::with_capacity(2);
         found
             .guides
-            .push(Guide { repository: 0, text: bytes(b"Run `make test` before you finish."), whole: false })
+            .push(Guide { directory: 0, text: bytes(b"Run `make test` before you finish."), whole: false })
             .expect("room");
         found.checks.push(1).expect("room");
         found
@@ -1012,10 +1012,7 @@ At open, your share is 3 turns and less than a second. Your answer may hold at m
             let expected = ["\n## Your share\n\nAt open, your share is 3 turns and ", seconds, ". Your answer may hold at most 8192 bytes; anything past it is cut with a marker. Your last turn has no tools: answer with what you have.\n"].concat();
             assert!(text(&rendered).ends_with(&expected));
             assert!(!text(&rendered).contains("spend"));
-            assert!(
-                u64::try_from(expected.len()).expect("small prose")
-                    <= super::budget_prompt_bytes().expect("scalar bound")
-            );
+            assert!(skein_lib::len_u64(expected.len()) <= super::budget_prompt_bytes().expect("scalar bound"));
         }
         let mut measured = Text::measuring();
         super::render_budget(
@@ -1055,9 +1052,7 @@ At open, your share is 3 turns and less than a second. Your answer may hold at m
         );
         assert!(child.starts_with(b"own task\n\n## Tools\n\n"));
         for inherited in [b"literal role".as_slice(), b"Repeated", b"parent first body", b"parent last body"] {
-            for window in child.windows(inherited.len()) {
-                assert_ne!(window, inherited, "child scope excludes parent text");
-            }
+            assert!(skein_lib::bytes::find(&child, inherited).is_none(), "child scope excludes parent text");
         }
     }
 
@@ -1111,7 +1106,7 @@ At open, your share is 3 turns and less than a second. Your answer may hold at m
         let mut mounted = workspace();
         mounted.directories = Box::new([mounted.directories[0].clone()]);
         let mut found = Found::with_capacity(1);
-        found.guides.push(Guide { repository: 0, text: bytes(b"Guide text."), whole: true }).unwrap();
+        found.guides.push(Guide { directory: 0, text: bytes(b"Guide text."), whole: true }).unwrap();
         let rendered = system(&charter, Some(&mounted), &found, charter.budget, false);
         let rendered = text(&rendered);
         assert!(!rendered.contains(text(&mounted.directories[0].name)), "the one mount's name is hidden");

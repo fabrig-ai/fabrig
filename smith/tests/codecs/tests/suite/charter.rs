@@ -1,22 +1,19 @@
 //! Charter and result wire boundaries (protocol/charter.md, sections 3-6).
 
+use crate::support::goldens::assert_measured;
+
 use skein_codec::Reason;
 use skein_lib::Reader;
 use smith_charter::v4::{CEILINGS, Charter, Path, RunResult};
 
 #[test]
 fn charter_and_result_golden_records_decode() {
-    let root = skein_scratch::paths::tree().join("crates/smith-charter/golden/v4");
-    for name in ["record_charter_smallest.bin", "record_charter_full.bin"] {
-        let bytes = std::fs::read(root.join(name)).expect("charter golden");
-        let value = Charter::decode(&CEILINGS, &mut Reader::new(&bytes)).expect("charter decodes");
-        assert_eq!(u32::try_from(bytes.len()).expect("golden length fits"), value.measure());
-    }
-    for name in ["record_run_result_smallest.bin", "record_run_result_full.bin"] {
-        let bytes = std::fs::read(root.join(name)).expect("result golden");
-        let value = RunResult::decode(&CEILINGS, &mut Reader::new(&bytes)).expect("result decodes");
-        assert_eq!(u32::try_from(bytes.len()).expect("golden length fits"), value.measure());
-    }
+    assert_measured("charter", 4, "charter", |bytes| {
+        Charter::decode(&CEILINGS, &mut Reader::new(bytes)).expect("charter decodes").measure()
+    });
+    assert_measured("charter", 4, "run_result", |bytes| {
+        RunResult::decode(&CEILINGS, &mut Reader::new(bytes)).expect("result decodes").measure()
+    });
 }
 
 #[test]

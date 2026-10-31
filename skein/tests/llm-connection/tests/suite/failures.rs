@@ -735,7 +735,7 @@ fn failure_after_the_head_keeps_the_first_plaintext_byte_before_the_complete_hea
             World::new(Deadlines { idle: Some(Duration::from_secs(1)), ..Deadlines::none() }, 83, handshake);
         world.now = Time::from_nanos(1_000_000_000);
         world.run_until_request();
-        let request_bytes = u64::try_from(world.wire.received().len()).unwrap();
+        let request_bytes = skein_lib::len_u64(world.wire.received().len());
         world.now = Time::from_nanos(1_125_000_000);
         world.wire.write(b"HTTP/1.1 200 OK\r\n");
         for _ in 0..1000 {
@@ -763,7 +763,7 @@ fn the_terminal_event_is_in_the_largest_gap_for_plaintext_and_tls() {
         let mut world = World::new(Deadlines::none(), 89, handshake);
         world.now = Time::from_nanos(1_000_000_000);
         world.run_until_request();
-        let request_bytes = u64::try_from(world.wire.received().len()).unwrap();
+        let request_bytes = skein_lib::len_u64(world.wire.received().len());
         world.now = Time::from_nanos(1_125_000_000);
         world.wire.write(b"HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\nTransfer-Encoding: chunked\r\n\r\n");
         for _ in 0..1000 {

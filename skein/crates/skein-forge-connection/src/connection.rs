@@ -284,7 +284,7 @@ impl Connection {
         let body = match &upload {
             Some(body) => {
                 headers.push(field(b"Content-Type", b"application/json")).expect("dialect's header capacity");
-                http::Body::Length(u64::try_from(body.len()).expect("bounded body"))
+                http::Body::Length(skein_lib::len_u64(body.len()))
             }
             None => http::Body::None,
         };
@@ -545,7 +545,7 @@ impl Connection {
                 }
                 Receiving::Tail { tail, read, remaining } => match event {
                     Up::Bytes(piece) => {
-                        let length = u64::try_from(piece.len()).expect("Bounded piece");
+                        let length = skein_lib::len_u64(piece.len());
                         *read = read.saturating_add(length);
                         if let Some(left) = remaining {
                             *left = left.saturating_sub(length);
@@ -567,7 +567,7 @@ impl Connection {
                 Receiving::Raw { grow, max, remaining } => match event {
                     Up::Bytes(piece) => {
                         if let Some(left) = remaining {
-                            *left = left.saturating_sub(u64::try_from(piece.len()).expect("bounded piece"));
+                            *left = left.saturating_sub(skein_lib::len_u64(piece.len()));
                         }
                         let more = grow.write(&piece).is_err() || grow.len() > *max;
                         if more {

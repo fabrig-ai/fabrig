@@ -56,9 +56,9 @@ impl Service {
                     let identifier = accounts.account_id(grant.name.account).expect("selected account");
                     // accounts-sources moves the presets to their own sources.
                     let value = if identifier.is_empty() {
-                        smith_protocol_channel::GrantValue::Bearer(value)
+                        smith_protocol_translate::GrantValue::Bearer(value)
                     } else {
-                        smith_protocol_channel::GrantValue::Withdrawn {
+                        smith_protocol_translate::GrantValue::Withdrawn {
                             account_id: Box::from(identifier),
                             bearer: value,
                         }
@@ -90,7 +90,7 @@ impl Service {
         if self.interrupted_program_request(account) {
             return;
         }
-        if self.below.process_mut().program_request(account, self.now, &mut self.shell) {
+        if self.io.program_request(account, self.now, &mut self.shell) {
             return;
         }
         let handled = match &mut self.accounts {

@@ -1,5 +1,5 @@
-//! A domain world for the agent's tools child domain (programming-model.md,
-//! section 4.5; testing-strategy.md, section 2.2): the tools, with the world as their parent,
+//! A domain world for the agent's tools child domain (skein/docs/foundation/programming-model.md,
+//! section 4.5; skein/docs/foundation/testing-strategy.md, section 2.2): the tools, with the world as their parent,
 //! over a fake checkout, driven by one loop, deterministically from a seed.
 //!
 //! The world owns the clock and the seed, and plays everything around the
@@ -19,9 +19,11 @@ pub mod memory;
 mod names;
 mod noisy;
 pub mod translate;
-mod world;
+pub mod world;
 
 pub use names::kind;
 pub use noisy::noisy_world;
 pub use skein_world::domain::Span;
+/// Shared timed-command state for worlds that use the checkout translator.
+pub use world::jobs;
 pub use world::{Settings, Stats, Step, World, authority, repo};

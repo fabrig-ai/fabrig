@@ -2,10 +2,12 @@
 //! Keeps the last recorded id, never the program's session contents.
 //! Affinity and the first rendered message identify the window.
 
-use super::{Backend, Below, Phase, compact, turns};
+use super::Complete;
+use super::PIPE_BYTES;
+use super::{Backend, Below, State, compact, turns};
 use skein_lib::{Env, List, Queue, sha256::Sha256};
 use smith_domain::llm::{self, Affinity, Prompt};
-use smith_protocol_llm::{self as protocol, FromDomain, ToDomain};
+use smith_protocol_llm::{self as protocol, ToDomain};
 
 /// A completion keeps its process or opens the identified window's process.
 #[derive(Debug, PartialEq, Eq)]
@@ -89,14 +91,13 @@ fn quoted(hash: &mut Sha256, text: &[u8]) {
             8 => hash.update(br"\b"),
             12 => hash.update(br"\f"),
             0..=31 => {
-                let hex = b"0123456789abcdef";
                 hash.update(&[
                     b'\\',
                     b'u',
                     b'0',
                     b'0',
-                    *hex.get(usize::from(byte / 16)).expect("high nibble"),
-                    *hex.get(usize::from(byte % 16)).expect("low nibble"),
+                    skein_lib::bytes::hex_digit(byte / 16),
+                    skein_lib::bytes::hex_digit(*byte),
                 ]);
             }
             _ => hash.update(&[*byte]),
@@ -106,15 +107,13 @@ fn quoted(hash: &mut Sha256, text: &[u8]) {
 
 pub(super) fn uuid(id: [u8; 16]) -> [u8; 36] {
     let mut result = [b'-'; 36];
-    let hex = b"0123456789abcdef";
     let mut at = 0_usize;
     for byte in id {
         if [8, 13, 18, 23].contains(&at) {
             at = at.checked_add(1).expect("UUID");
         }
-        *result.get_mut(at).expect("UUID position") = *hex.get(usize::from(byte / 16)).expect("high nibble");
-        *result.get_mut(at.checked_add(1).expect("UUID")).expect("UUID position") =
-            *hex.get(usize::from(byte % 16)).expect("low nibble");
+        *result.get_mut(at).expect("UUID position") = skein_lib::bytes::hex_digit(byte / 16);
+        *result.get_mut(at.checked_add(1).expect("UUID")).expect("UUID position") = skein_lib::bytes::hex_digit(byte);
         at = at.checked_add(2).expect("UUID");
     }
     result
@@ -122,25 +121,26 @@ pub(super) fn uuid(id: [u8; 16]) -> [u8; 36] {
 
 impl Backend {
     pub(super) fn remember_session(&mut self) {
-        if self.phase == Phase::Running && !self.switching && !self.compaction() && self.outgoing.is_none() {
-            self.recorded = self.running;
+        if self.startup.phase() == State::Running
+            && !self.startup.switching()
+            && !self.compaction()
+            && self.outgoing.is_none()
+        {
+            self.startup.remember(&mut self.io);
         }
     }
 
     pub(super) fn window_request(
         &mut self,
         env: &Env<protocol::ComponentLimits>,
-        request: FromDomain,
+        request: Complete,
         up: &mut Queue<ToDomain>,
         below: &mut Queue<Below>,
     ) {
-        let (owner, prompt) = match &request {
-            FromDomain::Complete { owner, prompt, .. } => (*owner, prompt),
-            FromDomain::Cancel { .. } | FromDomain::Yield { .. } => unreachable!("completion route"),
-        };
+        let (owner, prompt) = (request.owner, &request.prompt);
         let keep = !compact::is_compaction(prompt)
-            && !self.switching
-            && match opening(prompt, self.running, self.recorded) {
+            && !self.startup.switching()
+            && match opening(prompt, self.startup.running_session(), self.startup.recorded()) {
                 Opening::Running => true,
                 Opening::New { .. } | Opening::Resume { .. } => false,
             };
@@ -149,10 +149,10 @@ impl Backend {
             return;
         }
         let active = self.active_turn();
-        let stopping = self.switching;
-        self.switching = true;
-        self.owner = Some(owner);
-        self.request = Some(request);
+        let stopping = self.startup.switching();
+        self.startup.switch(&mut self.io);
+        self.current.claim(owner, up);
+        self.current.retain(request, up);
         self.outgoing = None;
         if !stopping {
             self.stop(env, active, false, up, below);
@@ -165,55 +165,37 @@ impl Backend {
         up: &mut Queue<ToDomain>,
         below: &mut Queue<Below>,
     ) {
-        if self.phase == Phase::Ending
+        if self.startup.phase() == State::Ending
             || self.native.is_some()
-            || !self.switching
-            || self.child.is_some()
-            || self.spawning
-            || self.pipes != [None; 3]
+            || !self.startup.switching()
+            || !self.process.settled()
         {
             return;
         }
-        if !self.server_ended
-            && let Some(server) = &mut self.server
-        {
-            server.close(&mut self.io);
+        if !self.startup.server_ended() {
+            self.startup.close_server(&mut self.io);
             return;
         }
-        self.server = None;
-        self.server_ended = false;
-        self.switching = false;
-        self.running = None;
-        self.stop = super::stop::Stop::None;
-        if self.winding != super::stop::WindDown::YieldRequested {
-            self.winding = super::stop::WindDown::Ordinary;
-        }
-        self.stopping = 0;
-        self.exit = None;
-        self.eof_deadline = None;
-        self.drain_deadline = None;
-        self.deadline = None;
+        self.startup.reset(&mut self.io);
+        self.stopping.reset();
+        self.process.reset();
         self.stdout_demanding = false;
-        self.intake = List::with_capacity(4096);
+        self.intake = List::with_capacity(PIPE_BYTES);
         self.intake_at = 0;
         self.intake_due = None;
         self.line = List::with_capacity(self.settings.line_bytes);
-        self.stderr = List::with_capacity(self.settings.receiving.max_failure_bytes);
-        self.tail = 0;
+        self.stderr = super::Tail::with_capacity(self.settings.receiving.max_failure_bytes);
         self.stderr_wrapped = false;
         self.written = 0;
-        self.interrupt_pending = None;
-        self.interrupt_line = None;
-        self.ledger =
-            List::with_capacity(self.settings.receiving.max_completion_blocks.checked_mul(5).expect("ledger"));
+        self.interrupt.forget(&mut self.io);
+        self.ledger = List::with_capacity(self.settings.ledger_slots().expect("ledger"));
         self.turns = turns::Turns::new(&self.settings.receiving, self.settings.adapter.client.answer);
-        self.permitted = 1;
-        if self.owner.is_some() {
-            self.phase = Phase::Starting;
+        self.permitted_message = 1;
+        if self.current.owner().is_some() {
+            self.startup.prepare(&mut self.io);
             self.prepare_invocation(env, up, below);
         } else {
-            self.request = None;
-            self.phase = Phase::Idle;
+            self.current.clear(up);
         }
     }
 
@@ -223,36 +205,21 @@ impl Backend {
         up: &mut Queue<ToDomain>,
         below: &mut Queue<Below>,
     ) {
-        let prompt = match &self.request {
-            Some(FromDomain::Complete { prompt, .. }) => prompt,
-            Some(FromDomain::Cancel { .. } | FromDomain::Yield { .. }) | None => unreachable!("startup request"),
-        };
+        let Some(Complete { prompt, .. }) = self.current.request() else { unreachable!("startup request") };
         if compact::is_compaction(prompt) {
-            self.resuming = false;
-            self.names.session = self.compaction_id();
+            let session = self.compaction_id();
+            self.startup.window(super::startup::Window::Compaction(session), &mut self.io);
             self.store_instructions(env.now, 0, below);
         } else {
-            match opening(prompt, None, self.recorded) {
-                kind @ (Opening::New { .. } | Opening::Resume { .. }) => {
-                    let id = match kind {
-                        Opening::New { id } => {
-                            self.resuming = false;
-                            id
-                        }
-                        Opening::Resume { id } => {
-                            self.resuming = true;
-                            id
-                        }
-                        Opening::Running => unreachable!("opening a process"),
-                    };
-                    self.running = Some(id);
-                    self.names.session = uuid(id);
-                }
-                Opening::Running => unreachable!("no process"),
-            }
+            let window = match opening(prompt, None, self.startup.recorded()) {
+                Opening::New { id } => super::startup::Window::New(id),
+                Opening::Resume { id } => super::startup::Window::Resume(id),
+                Opening::Running => unreachable!("opening a process"),
+            };
+            self.startup.window(window, &mut self.io);
             let entropy: [u8; 32] = self.names.mcp.expose().try_into().expect("MCP entropy");
             match crate::mcp::Server::new(self.first, 0, &entropy, self.tools(), self.settings.mcp, &mut self.io) {
-                Ok(server) => self.server = Some(server),
+                Ok(server) => self.startup.install_server(server, &mut self.io),
                 Err(crate::mcp::Refused::TooLarge) => self.fail(
                     env,
                     llm::Failure::Program { exit: None },

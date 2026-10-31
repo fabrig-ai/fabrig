@@ -18,3 +18,5 @@ pub mod world;
 pub use world::{Authentication, Files, Lending, Placement, World};
 
 pub mod credential_fixture;
+
+pub mod fixture;

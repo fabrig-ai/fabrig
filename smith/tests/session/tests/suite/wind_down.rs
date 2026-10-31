@@ -1,13 +1,15 @@
-//! Actual narrowed requests and concrete not-run replay through the session domain.
-//! Contract: domain/session.md, section 5; protocol/llm.md, section 5.
+//! narrowed requests and concrete not-run replay through the session domain.
+//! Contract: smith/docs/design/domain/session.md, section 5; smith/docs/design/protocol/llm.md, section 5.
+
+use smith_session_world::bytes;
 
 use skein_lib::Token;
 use smith_domain_session::{self as session, llm};
-use smith_session_world::recorded::{World, opening};
+use smith_session_world::recorded::{Scripted, opening};
 
 #[test]
 fn a_wind_down_offering_only_some_tools_answers_a_call_outside_them_as_not_run() {
-    let mut world = World::new(71);
+    let mut world = Scripted::new(71);
     let mut start = opening(None, 1000);
     start.spec.authority.grants.inspect = true;
     world.open(start);
@@ -17,13 +19,13 @@ fn a_wind_down_offering_only_some_tools_answers_a_call_outside_them_as_not_run()
         owner: world.completing.expect("unsent completion"),
         note: note.as_slice().into(),
         choice: llm::ToolChoice::Only(Box::new([Token::new(19)])),
-        names: Some(Box::new([b"finish".as_slice().into()])),
+        names: Some(Box::new([bytes(b"finish")])),
     });
     world.complete(
         Box::new([llm::Block::ToolCall {
-            id: b"outside".as_slice().into(),
-            name: b"list".as_slice().into(),
-            input: b"{}".as_slice().into(),
+            id: bytes(b"outside"),
+            name: bytes(b"list"),
+            input: bytes(b"{}"),
             replay: None,
             call: llm::Decoded::Owned {
                 call: smith_domain_tools::Call::List {
@@ -45,9 +47,9 @@ fn a_wind_down_offering_only_some_tools_answers_a_call_outside_them_as_not_run()
     assert_eq!(
         result,
         &llm::Block::ToolResult {
-            id: b"outside".as_slice().into(),
+            id: bytes(b"outside"),
             result: llm::Returned::NotRun {
-                why: llm::NotRun::OutsideChoice { choice: Some(Box::new([b"finish".as_slice().into()])) }
+                why: llm::NotRun::OutsideChoice { choice: Some(Box::new([bytes(b"finish")])) }
             }
         }
     );
@@ -63,9 +65,9 @@ fn a_wind_down_offering_only_some_tools_answers_a_call_outside_them_as_not_run()
     assert_eq!(notes, 1, "the narrowing note remains exactly once");
     world.complete(
         Box::new([llm::Block::ToolCall {
-            id: b"chosen".as_slice().into(),
-            name: b"finish".as_slice().into(),
-            input: b"{}".as_slice().into(),
+            id: bytes(b"chosen"),
+            name: bytes(b"finish"),
+            input: bytes(b"{}"),
             replay: None,
             call: llm::Decoded::Delegated {
                 descriptor: Token::new(19),
@@ -79,6 +81,6 @@ fn a_wind_down_offering_only_some_tools_answers_a_call_outside_them_as_not_run()
     );
     assert_eq!(world.delegated.len(), 1, "descriptor membership does not compare the dynamic call ticket");
     let owner = world.delegated[0];
-    world.step(session::Event::Answered { owner, text: b"accepted".as_slice().into(), error: false, spent: 0 });
+    world.step(session::Event::Answered { owner, text: bytes(b"accepted"), error: false, spent: 0 });
     world.close();
 }

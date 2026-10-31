@@ -7,4 +7,4 @@ pub mod person;
 pub mod referee;
 mod world;
 
-pub use world::{Cut, GitFault, Store, StoreFault, World};
+pub use world::{Cut, GitFault, Scenario, Store, StoreFault, World};

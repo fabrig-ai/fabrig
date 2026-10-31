@@ -28,7 +28,7 @@ pub const RELAY_FLAG: &str = "--mcp-relay";
 /// Private configuration environment entry (protocol/programs.md, section 9).
 pub const SECRET_ENV: &str = "SMITH_MCP_SECRET";
 
-/// Lowercase hexadecimal bytes for 256 bits of entropy (programs.md, section 9).
+/// Lowercase hexadecimal bytes for 256 bits of entropy (smith/docs/design/protocol/programs.md, section 9).
 pub const SECRET_BYTES: usize = 64;
 
 /// Negotiated MCP versions, newest first (protocol/programs.md, section 5.3).
@@ -55,7 +55,23 @@ pub struct Limits {
     pub unauthenticated: Time,
 }
 
-/// One unanswered call, sent by the server to its owner (programs.md, 5.3).
+/// Small listener limits for deterministic scenarios (testing-strategy.md, 1).
+#[cfg(any(test, feature = "fixture"))]
+pub mod fixture {
+    use super::Limits;
+    use skein_lib::Time;
+
+    /// Two calls with bounded JSON and a short authentication deadline.
+    pub const SMALL: Limits = Limits {
+        message_bytes: 4096,
+        answer_bytes: 4096,
+        schema_bytes: 4096,
+        calls: 2,
+        unauthenticated: Time::from_nanos(10),
+    };
+}
+
+/// One unanswered call, sent by the server to its owner (smith/docs/design/protocol/programs.md, 5.3).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct CallId(u32);
 
@@ -103,7 +119,7 @@ pub enum Verdict {
     Deny { message: Box<[u8]> },
 }
 
-/// Startup refusal returned to the backend before any listener (programs.md, 5.3).
+/// Startup refusal returned to the backend before any listener (smith/docs/design/protocol/programs.md, 5.3).
 #[derive(Debug)]
 pub enum Refused {
     /// The tool inventory exceeds a configured schema or answer bound.
@@ -168,17 +184,16 @@ impl core::fmt::Debug for Server {
 /// Hexadecimal text used only for authentication and the private MCP file (9).
 #[must_use]
 pub fn secret_text(entropy: &[u8; 32]) -> [u8; SECRET_BYTES] {
-    let digits = b"0123456789abcdef";
     let mut text = [0; SECRET_BYTES];
     for (pair, byte) in text.chunks_exact_mut(2).zip(entropy) {
-        *pair.first_mut().expect("hex pair") = *digits.get(usize::from(byte >> 4_u8)).expect("hex digit");
-        *pair.last_mut().expect("hex pair") = *digits.get(usize::from(byte & 15)).expect("hex digit");
+        *pair.first_mut().expect("hex pair") = skein_lib::bytes::hex_digit(byte >> 4_u8);
+        *pair.last_mut().expect("hex pair") = skein_lib::bytes::hex_digit(*byte);
     }
     text
 }
 
 impl Server {
-    /// Listen on IPv4 loopback; tool-list refusal has no I/O effects (programs.md, 9).
+    /// Listen on IPv4 loopback; tool-list refusal has no I/O effects (smith/docs/design/protocol/programs.md, 9).
     pub fn new(
         first: Token,
         port: u16,
@@ -234,13 +249,13 @@ impl Server {
             || self.pending.last().expect("pending slot").owner == owner
     }
 
-    /// Secret bytes for the private MCP configuration file alone (programs.md, 9).
+    /// Secret bytes for the private MCP configuration file alone (smith/docs/design/protocol/programs.md, 9).
     #[must_use]
     pub fn secret(&self) -> &[u8] {
         self.secret.expose()
     }
 
-    /// Drain the upward records after each entry point (programs.md, 5.3).
+    /// Drain the upward records after each entry point (smith/docs/design/protocol/programs.md, 5.3).
     pub fn up(&mut self) -> Option<Up> {
         self.above.pop()
     }
@@ -332,7 +347,15 @@ impl Server {
                     below.push(io::Request::Bind { socket, owner: pending.owner });
                     below.push(io::Request::Stream {
                         stream: socket,
-                        down: stream::Down::Demand { read: stream::Read::Line { max: 65 }, room: 0 },
+                        down: stream::Down::Demand {
+                            read: stream::Read::Line {
+                                max: u32::try_from(SECRET_BYTES)
+                                    .expect("secret length")
+                                    .checked_add(1)
+                                    .expect("secret newline"),
+                            },
+                            room: 0,
+                        },
                     });
                     return;
                 }
@@ -355,7 +378,7 @@ impl Server {
     fn authenticate(&mut self, owner: Token, up: stream::Up, below: &mut Queue<io::Request>) {
         let valid = match up {
             stream::Up::Bytes(bytes) => {
-                bytes.len() == 65
+                bytes.len() == SECRET_BYTES.checked_add(1).expect("secret newline")
                     && bytes.last() == Some(&b'\n')
                     && sha256::equal(bytes.get(..SECRET_BYTES).expect("64 authentication bytes"), self.secret.expose())
             }
@@ -472,7 +495,6 @@ impl Server {
     }
 
     /// Return the backend's permission decision to a live prompt call (5.4).
-    #[expect(clippy::manual_map, reason = "the protocol subset uses exhaustive matches without callbacks")]
     pub fn verdict(&mut self, call: CallId, verdict: Verdict, below: &mut Queue<io::Request>) {
         let Some(id) = self.take_call(call) else {
             return;

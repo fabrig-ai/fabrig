@@ -192,7 +192,7 @@ impl Plan {
                 let job = self.jobs.get_mut(self.position).expect("failed job position");
                 job.steps = job.steps.checked_add(1).ok_or(api::Error::TooLarge)?;
                 if step.status == d::StepStatus::Failure && job.step.is_none() {
-                    let size = u64::try_from(step.name.len()).expect("step size");
+                    let size = skein_lib::len_u64(step.name.len());
                     job.step = Some(api::Step { number: step.number, name: step.name });
                     self.add(size, bounds)?;
                 }

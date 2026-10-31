@@ -29,7 +29,9 @@ pub enum Error {
     Limits,
 }
 
-pub(crate) struct Face {
+/// One listening host's io passes and queues (skein/docs/design/testing.md, 5).
+/// The host routes events, retains its listener and address, and closes admission.
+pub struct Face {
     pub io: io::Io,
     pub limits: Limits,
     pub events: Queue<io::Event>,
@@ -85,6 +87,7 @@ impl Face {
         }
     }
 
+    #[must_use]
     pub fn work_pending(&self) -> bool {
         self.io.is_ready()
             || !self.completions.is_empty()
@@ -93,6 +96,7 @@ impl Face {
             || (self.stopping && self.listener.is_some())
     }
 
+    #[must_use]
     pub fn is_empty(&self) -> bool {
         self.io.is_empty()
             && self.events.is_empty()
@@ -115,4 +119,62 @@ pub(crate) fn valid(limits: &Limits) -> bool {
         && limits.ciphertext >= 18_432
         && limits.io.intake >= 18_432
         && limits.io.output >= limits.ciphertext
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{Error, Face, Limits};
+    use skein_io::{self as io, kernel};
+    use skein_lib::{Time, Token, Wall};
+
+    fn limits() -> Limits {
+        Limits {
+            io: io::Limits { intake: 18_432, output: 18_432, ..io::Limits::TEST },
+            connections: 1,
+            queue: 64,
+            plaintext: 1024,
+            ciphertext: 18_432,
+            observations: 1,
+            observation_bytes: 1024,
+        }
+    }
+
+    #[test]
+    fn a_public_face_drives_a_listen_refusal_and_drains_on_shutdown() {
+        let mut face = Face::new("127.0.0.1:0".parse().expect("loopback"), limits()).expect("usable limits");
+        assert!(face.work_pending());
+        face.down(Time::ZERO, Wall::EPOCH);
+        let submit = face.submissions.pop().expect("socket submission");
+        face.completions.push(kernel::Complete {
+            op: submit.op,
+            kind: submit.kind,
+            result: Err(kernel::Error::TooManyOpenFiles),
+        });
+        face.up(Time::ZERO, Wall::EPOCH);
+        assert!(face.events.pop().expect("refusal").owner().is_some());
+        assert!(face.events.pop().expect("closed").is_closed());
+        face.shutdown();
+        face.close_listener();
+        face.down(Time::ZERO, Wall::EPOCH);
+        assert!(face.is_empty());
+        assert!(!face.work_pending());
+    }
+
+    #[test]
+    fn limits_and_loopback_are_checked_before_starting() {
+        assert!(matches!(Face::new("192.0.2.1:0".parse().expect("address"), limits()), Err(Error::Limits)));
+        let mut invalid = limits();
+        invalid.queue = 63;
+        assert!(matches!(Face::new("127.0.0.1:0".parse().expect("address"), invalid), Err(Error::Limits)));
+        let mut face = Face::new("127.0.0.1:0".parse().expect("address"), limits()).expect("usable limits");
+        face.requests.clear();
+        face.listener = Some(Token::new(3));
+        face.close_listener();
+        assert!(face.requests.is_empty());
+        face.shutdown();
+        face.close_listener();
+        assert_eq!(face.requests.pop(), Some(io::Request::Close { entity: Token::new(3) }));
+        face.close_listener();
+        assert!(face.requests.is_empty());
+    }
 }

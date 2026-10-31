@@ -14,7 +14,7 @@ use super::{Item, Observation, Observer};
 
 /// The pinned standalone Codex invocation, supplied to the common supervisor.
 #[derive(Debug)]
-pub struct Prepared {
+pub struct PreparedCodex {
     pub overrides: Vec<(String, String)>,
     pub credential: PathBuf,
     pub expires: skein_lib::Wall,
@@ -30,14 +30,14 @@ pub struct Prepared {
 /// The observer and exact configuration selected for this attempt.
 #[derive(Debug)]
 pub struct Observing {
-    pub prepared: Box<Prepared>,
+    pub prepared: Box<PreparedCodex>,
     pub observer: Observer,
     pub collected: Option<super::Rollouts>,
     pub collection_error: Option<String>,
 }
 
 /// Prepare a version-matched Codex command without touching its existing login.
-pub fn prepare(context: &Context<'_>) -> Result<Prepared, Setup> {
+pub fn prepare(context: &Context<'_>) -> Result<PreparedCodex, Setup> {
     let configuration = (|| {
         if !context.task.person.is_empty() {
             return Err("Codex does not accept later person lines".into());
@@ -109,7 +109,7 @@ pub fn prepare(context: &Context<'_>) -> Result<Prepared, Setup> {
             "model_reasoning_effort".into(),
             toml::Value::String(context.model.effort.clone().expect("validated effort")).to_string(),
         ));
-        Ok(Prepared {
+        Ok(PreparedCodex {
             overrides,
             credential: PathBuf::new(),
             expires: skein_lib::Wall::EPOCH,
@@ -139,7 +139,7 @@ pub fn prepare(context: &Context<'_>) -> Result<Prepared, Setup> {
     Ok(prepared)
 }
 
-impl Prepared {
+impl PreparedCodex {
     /// Render the standalone JSON-lines command with exact pinned settings.
     #[must_use]
     pub fn command(&self) -> Invocation {

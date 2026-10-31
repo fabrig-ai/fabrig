@@ -4,6 +4,9 @@
 use serde::Serialize;
 use std::{collections::BTreeMap, path::PathBuf};
 
+mod accounts;
+pub(crate) use accounts::{accounts, name, named_field};
+
 pub(crate) mod environment;
 mod layers;
 #[cfg(test)]
@@ -26,26 +29,6 @@ pub fn from_sources(
     sources: &[Source],
 ) -> Result<Settings, Refusal> {
     merge(shared, workspace, sources)
-}
-
-pub(crate) fn name(part: &str) -> String {
-    if part.is_empty() || part.contains(['.', '"', '\\']) {
-        serde_json::to_string(part).expect("setting name")
-    } else {
-        part.into()
-    }
-}
-
-/// Split one encoded setting name from its field without dropping malformed input.
-pub(crate) fn named_field(path: &str) -> Result<(String, &str), ()> {
-    if path.starts_with('"') {
-        let mut parts = serde_json::Deserializer::from_str(path).into_iter::<String>();
-        let name = parts.next().ok_or(())?.map_err(|_| ())?;
-        let field = path.get(parts.byte_offset()..).and_then(|rest| rest.strip_prefix('.')).ok_or(())?;
-        Ok((name, field))
-    } else {
-        path.split_once('.').map(|(name, field)| (name.into(), field)).ok_or(())
-    }
 }
 
 /// Startup's supplied path environment (protocol/hosts.md, section 5.2).

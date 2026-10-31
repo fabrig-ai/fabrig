@@ -15,6 +15,9 @@ use skein_lib::Wall;
 use skein_shell::{Clock, Config, Kernel};
 use std::path::{Path, PathBuf};
 
+/// Kernel operations held by the result file owner.
+pub const RESULT_FILE_OPERATIONS: u32 = 4;
+
 /// The agent placement chosen by the product or supplied by a library host.
 #[derive(Clone)]
 pub enum AgentKind {
@@ -91,11 +94,6 @@ pub(crate) struct Opened {
     document: Option<Box<[u8]>>,
 }
 
-/// Read the product layers and one complete prompt before any credentials are inspected.
-pub(crate) fn open(invocation: Exec, wall: Wall, clock: &Clock, kind: &AgentKind) -> Result<(Opened, Kernel), Refused> {
-    open_mode(invocation, wall, clock, None, kind)
-}
-
 fn open_mode(
     invocation: Exec,
     wall: Wall,
@@ -126,7 +124,7 @@ fn open_settings(
                 Refused::Local(startup::Failure::Configuration { detail: "local operation bound overflows".into() })
             })?;
     let operations = operations
-        .checked_add(if invocation.output.is_some() { 4 } else { 0 })
+        .checked_add(if invocation.output.is_some() { RESULT_FILE_OPERATIONS } else { 0 })
         .ok_or_else(|| Refused::Usage(Usage("the output operation bound overflows".into())))?;
     let mut kernel = Kernel::open(Config { operations })
         .map_err(|why| Refused::Local(startup::Failure::Host { detail: format!("local kernel: {why}") }))?;
@@ -157,10 +155,6 @@ fn open_settings(
     Ok((Opened { resolved, invocation, seed, wall, input_closed, interactive, document }, kernel))
 }
 
-struct Composed {
-    local: crate::Local,
-}
-
 /// Compose native roots and the account driver; a spawned child receives generated JSON.
 fn compose(
     opened: Opened,
@@ -169,7 +163,7 @@ fn compose(
     files: &mut Files,
     kernel: &mut Kernel,
     clock: &Clock,
-) -> Result<Composed, Refused> {
+) -> Result<crate::Local, Refused> {
     let Opened { mut resolved, invocation, seed, wall, input_closed, interactive, document } = opened;
     let interactive =
         interactive.map(|plain| plain || skein_shell::terminal_modes(skein_io::kernel::Fd::new(0)).is_err());
@@ -201,22 +195,20 @@ fn compose(
     trace_admission(&resolved, &workspace)?;
     deliver_contract(&mut resolved.local, invocation.deliver);
     let WorkspaceRoots { paths, delivery_roots, effect_roots } = workspace_roots(&resolved.local, kind)?;
-    let host_limits = host_limits(&resolved.agent, matches!(kind, AgentKind::Spawned { .. })).map_err(|why| {
-        Refused::Local(startup::Failure::Configuration {
-            detail: String::from_utf8_lossy(&smith_agent_service::profile::words(&why)).into_owned(),
-        })
-    })?;
+    let host_limits = host_limits(&resolved.agent, matches!(kind, AgentKind::Spawned { .. }))
+        .map_err(|why| Refused::Local(startup::Failure::Configuration { detail: startup::profile_refusal(why) }))?;
     if matches!(kind, AgentKind::Spawned { .. }) {
         resolved.limits.agent = smith_local_domain::AgentLimits::Spawned(host_limits);
     }
     let mut limits = service_limits(resolved.limits, host_limits, &resolved.agent.service)
         .map_err(|detail| Refused::Local(startup::Failure::Configuration { detail }))?;
-    let (trace, header) = files.prepare_stream(
+    let (trace, header) = prepare_stream(
         &mut resolved.agent,
         &resolved.local.chat,
         &mut limits,
         invocation.json,
         wall,
+        files.teardown_bound()?,
         interactive.is_some(),
     )?;
     let front = prepare_front(interactive, input_closed, invocation.json, &resolved.agent, &limits, files)?;
@@ -259,7 +251,7 @@ fn compose(
     start_stream(&mut local, trace, header, now)?;
     local.result_file(files.output.take());
     files.composed();
-    Ok(Composed { local })
+    Ok(local)
 }
 
 fn recheck_programs(
@@ -485,14 +477,14 @@ pub(crate) fn prepare_stream(
     use std::path::PathBuf;
     let trace = agent.trace.take();
     let capture = if front && !json {
-        smith_agent_service::sinks::Capture::None
+        smith_protocol_events::sinks::Capture::None
     } else {
-        smith_agent_service::sinks::Capture::Everything
+        smith_protocol_events::sinks::Capture::Everything
     };
     let specification = smith_agent_shell::trace::TraceConfig {
         path: trace.as_ref().map_or_else(|| PathBuf::from("stdout"), |trace| trace.path.clone()),
         capture: trace.as_ref().map_or(capture, |trace| trace.capture),
-        delivery: trace.as_ref().map_or(smith_agent_service::sinks::Delivery::Complete, |trace| trace.delivery),
+        delivery: trace.as_ref().map_or(smith_protocol_events::sinks::Delivery::Complete, |trace| trace.delivery),
     };
     let destinations = u32::from(trace.is_some()).checked_add(u32::from(json)).expect("two destinations");
     let mut header = crate::Local::prepare_header(
@@ -572,11 +564,7 @@ pub fn run(
     interactive: Option<bool>,
     kind: &AgentKind,
 ) -> Result<u8, Refused> {
-    let opened = if interactive.is_none() {
-        open(invocation, at.wall, clock, kind)?
-    } else {
-        open_mode(invocation, at.wall, clock, interactive, kind)?
-    };
+    let opened = open_mode(invocation, at.wall, clock, interactive, kind)?;
     run_opened(opened, at, clock, kind)
 }
 
@@ -588,7 +576,7 @@ fn run_opened(
 ) -> Result<u8, Refused> {
     let mut files = Files::prepare(&opened.invocation, &opened.resolved, opened.seed)?;
     let result = compose(opened, kind, at.now, &mut files, &mut kernel, clock).map(|mut started| {
-        match skein_shell::drive(&mut kernel, clock, &mut started.local) {
+        match skein_shell::drive(&mut kernel, clock, &mut started) {
             skein_io::kernel::Exit::Code(code) => code,
             skein_io::kernel::Exit::Signal(_) => 130,
         }
@@ -598,76 +586,4 @@ fn run_opened(
 }
 
 #[cfg(test)]
-mod trace_admission_tests {
-    use super::*;
-
-    #[test]
-    fn trace_admission_resolves_existing_files_absent_files_and_aliases_before_opening() {
-        let scratch = smith_real_world::Scratch::new();
-        let chats = scratch.path().join("chats");
-        let chat = chats.join("old");
-        std::fs::create_dir_all(&chat).unwrap();
-        let state = chat.join("state");
-        std::fs::write(&state, b"older bytes").unwrap();
-        let outside = scratch.path().join("outside");
-        trace_outside(&outside, &chats).unwrap_or_else(|why| panic!("{}", why.line()));
-        assert!(!outside.exists(), "admission does not open an ordinary outside destination");
-        let alias = scratch.path().join("alias");
-        std::os::unix::fs::symlink(&chat, &alias).unwrap();
-        let link = scratch.path().join("linked-file");
-        std::os::unix::fs::symlink(&state, &link).unwrap();
-        for path in [&state, &chat.join("trace"), &alias.join("state"), &alias.join("trace"), &link] {
-            let Err(refused) = trace_outside(path, &chats) else {
-                panic!("trace inside chats must refuse");
-            };
-            assert_eq!(refused.code(), 2);
-            assert!(refused.line().contains("inside this workspace's chats tree"));
-            assert_eq!(std::fs::read(&state).unwrap(), b"older bytes");
-            assert!(!chat.join("trace").exists());
-        }
-    }
-}
-
-#[cfg(test)]
-mod configured_trace_tests {
-    use super::*;
-
-    #[test]
-    fn configured_local_and_generated_child_traces_are_admitted_before_any_open() {
-        let scratch = smith_real_world::Scratch::new();
-        let workspace = scratch.path().canonicalize().unwrap();
-        let paths =
-            settings::Paths { state_home: Some(scratch.path().join("state").into()), ..settings::Paths::default() };
-        let tree = chats_tree(&workspace, &paths).unwrap_or_else(|why| panic!("{}", why.line()));
-        let chat = tree.join("old");
-        std::fs::create_dir_all(&chat).unwrap();
-        std::fs::write(chat.join("state"), b"old state").unwrap();
-        let alias = scratch.path().join("alias");
-        std::os::unix::fs::symlink(&chat, &alias).unwrap();
-        let certificate =
-            skein_scratch::paths::tree().join("tests/protocol-llm/fixtures/root.der").display().to_string();
-        for (path, allowed) in
-            [(scratch.path().join("outside"), true), (chat.join("state"), false), (alias.join("trace"), false)]
-        {
-            let source = settings::Source {
-                layer: settings::Layer::User,
-                path: "trace-admission.toml".into(),
-                text: format!(
-                    "model='codex/gpt-6-luna'\ntrace.path='{}'\n[accounts.codex]\nsource='env'\nvariable='SMITH_FIXTURE_TOKEN'\n[endpoints.codex]\naddress='127.0.0.1:443'\ntrust.system=false\ntrust.der=['{certificate}']\n",
-                    path.display()
-                ),
-            };
-            let mut settings = settings::from_sources(&crate::command::Shared::default(), workspace.clone(), &[source])
-                .unwrap_or_else(|why| panic!("{}", why.line()));
-            settings.paths = paths.clone();
-            let (resolved, document) =
-                settings::resolve::resolve_startup(&settings).unwrap_or_else(|why| panic!("{}", why.line()));
-            let document: serde_json::Value = serde_json::from_slice(&document).unwrap();
-            assert_eq!(document["trace"]["path"].as_str(), path.to_str());
-            assert_eq!(trace_admission(&resolved, &workspace).is_ok(), allowed);
-            assert_eq!(std::fs::read(chat.join("state")).unwrap(), b"old state");
-            assert!(!chat.join("trace").exists());
-            assert!(!scratch.path().join("outside").exists());
-        }
-    }
-}
+mod tests;

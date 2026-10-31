@@ -1,9 +1,9 @@
 //! Resume admission and recoverable teardown (protocol/programs.md 5.8).
 //! Reuses the stopped invocation's storage; never reads the session database.
-//! A resumed assistant wait identifies a parked held turn (programs.md 5.9).
-use super::{Backend, Phase, tail};
+//! A resumed assistant wait identifies a parked held turn (smith/docs/design/protocol/programs.md 5.9).
+use super::Complete;
+use super::{Backend, State, tail};
 use smith_domain::llm;
-use smith_protocol_llm::FromDomain;
 
 pub(super) fn restartable(failure: llm::Failure) -> bool {
     match failure {
@@ -13,8 +13,11 @@ pub(super) fn restartable(failure: llm::Failure) -> bool {
         | llm::Failure::RateLimited { .. }
         | llm::Failure::Unauthorized => true,
         llm::Failure::TimedOut { phase } => match phase {
-            llm::Phase::Connect | llm::Phase::Handshake | llm::Phase::Head | llm::Phase::Idle => true,
-            llm::Phase::Whole => false,
+            llm::CompletionPhase::Connect
+            | llm::CompletionPhase::Handshake
+            | llm::CompletionPhase::Head
+            | llm::CompletionPhase::Idle => true,
+            llm::CompletionPhase::Whole => false,
         },
         llm::Failure::Limit { .. }
         | llm::Failure::ApplicationLimit
@@ -34,11 +37,9 @@ impl Backend {
     pub(super) fn resume_input(&mut self) -> Option<()> {
         // A retry of an already recorded invocation has consumed this tail.
         // Only a newly restored window needs the parked-wait explanation.
-        let restored = self.recorded.is_none() || self.recorded != self.running;
-        let (prompt, capture) = match self.request.as_mut()? {
-            FromDomain::Complete { prompt, observation, .. } => (prompt, observation.is_some()),
-            FromDomain::Cancel { .. } | FromDomain::Yield { .. } => return None,
-        };
+        let restored = self.startup.recorded().is_none() || self.startup.recorded() != self.startup.running_session();
+        let Complete { prompt, observation, .. } = self.current.request_mut()?;
+        let capture = observation.is_some();
         let prefix = if restored && parked_wait(prompt) {
             b"(The agent paused your last turn: the run was parked and has resumed.)\n".as_slice()
         } else {
@@ -60,14 +61,14 @@ impl Backend {
     }
 
     pub(super) fn exit_failure(&self) -> llm::Failure {
-        if self.phase == Phase::Starting
-            && self.resuming
+        if self.startup.phase() == State::Starting
+            && self.startup.resuming()
             && !self.stderr_wrapped
-            && self.stderr.as_slice().starts_with(b"No conversation found with session ID")
+            && self.stderr.to_boxed().starts_with(b"No conversation found with session ID")
         {
             return llm::Failure::SessionGone;
         }
-        llm::Failure::Program { exit: self.exit }
+        llm::Failure::Program { exit: self.process.exit() }
     }
 }
 

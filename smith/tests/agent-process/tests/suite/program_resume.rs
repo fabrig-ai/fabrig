@@ -1,40 +1,27 @@
-//! Carried windows cross the shipped channel, service and program boundary (programs.md 5.8).
+//! Carried windows cross the shipped channel, service and program boundary (smith/docs/design/protocol/programs.md 5.8).
 use skein_fake_llm_domain::api;
-use skein_lib::{Reader, Writer};
 use smith_agent_process_world::{
     World, program,
     program_world::{self, Case},
 };
 use smith_channel::RunResult;
-use smith_fake_claude::{End, Resume, Seen, Step, Story, Turn};
+use smith_fake_claude::{Resume, Seen, Step, Story, Turn};
 
 fn charter() -> Box<[u8]> {
-    let mut parts = smith_charter::Charter::decode(
-        &smith_charter::CEILINGS,
-        &mut skein_lib::Reader::new(&smith_agent_process_world::charter()),
-    )
-    .expect("charter")
-    .into_parts();
-    parts.resume = true;
-    let mut budget = parts.budget.into_parts();
-    budget.turns = 4;
-    budget.spend = 20;
-    parts.budget = smith_charter::Budget::new(&smith_charter::CEILINGS, budget).expect("budget");
-    let charter = smith_charter::Charter::new(&smith_charter::CEILINGS, parts).expect("charter");
-    let mut writer = skein_lib::Writer::new(charter.measure() as usize);
-    charter.encode(&mut writer).expect("charter");
-    writer.finish()
+    smith_agent_process_world::wire::edit_charter(&smith_agent_process_world::charter(), |parts| {
+        parts.resume = true;
+        smith_agent_process_world::wire::budget(parts, 4, 20);
+    })
 }
 
 fn finish() -> api::Turn {
-    api::Turn {
-        lines: Box::new([api::Line::Call {
+    smith_agent_world::fixture::calls(
+        Box::new([api::Line::Call {
             name: b"finish".as_slice().into(),
             arguments: br#"{"form":"report","text":"done","fields":{}}"#.as_slice().into(),
         }]),
-        finish: api::Finish::ToolCalls,
-        tokens: 1,
-    }
+        1,
+    )
 }
 
 fn story() -> Story {
@@ -95,11 +82,7 @@ fn a_conversation_is_carried_over_to_the_direct_backend() {
     world.restore(turns);
     world.script(Box::new([
         finish(),
-        api::Turn {
-            lines: Box::new([api::Line::Text { text: b"direct summary".as_slice().into() }]),
-            finish: api::Finish::Stop,
-            tokens: 1,
-        },
+        smith_agent_world::fixture::says(Box::new([api::Line::Text { text: b"direct summary".as_slice().into() }]), 1),
     ]));
     assert!(world.settle());
     assert!(matches!(world.answer().expect("answer").result(), RunResult::Accepted(_)), "{:?}", world.answer());
@@ -132,38 +115,25 @@ fn a_compaction_runs_its_own_program() {
 
 #[test]
 fn a_waiting_program_run_reads_its_message() {
-    let mut parts = smith_charter::Charter::decode(
-        &smith_charter::CEILINGS,
-        &mut Reader::new(&smith_agent_process_world::charter()),
-    )
-    .expect("charter")
-    .into_parts();
-    parts.waiting = skein_lib::Duration::from_secs(1);
-    let mut tools = parts.tools.into_parts();
-    tools.wait = true;
-    parts.tools = smith_charter::Tools::new(&smith_charter::CEILINGS, tools).expect("wait granted");
-    let mut budget = parts.budget.into_parts();
-    budget.turns = 8;
-    budget.spend = 20;
-    parts.budget = smith_charter::Budget::new(&smith_charter::CEILINGS, budget).expect("budget");
-    let charter = smith_charter::Charter::new(&smith_charter::CEILINGS, parts).expect("wait charter");
-    let mut body = Writer::new(charter.measure() as usize);
-    charter.encode(&mut body).expect("charter bytes");
+    let charter = smith_agent_process_world::wire::edit_charter(&smith_agent_process_world::charter(), |parts| {
+        parts.waiting = skein_lib::Duration::from_secs(1);
+        let mut tools = parts.tools.clone().into_parts();
+        tools.wait = true;
+        parts.tools = smith_charter::Tools::new(&smith_charter::CEILINGS, tools).expect("wait granted");
+        smith_agent_process_world::wire::budget(parts, 8, 20);
+    });
     let story = Story {
-        turns: vec![Turn {
-            steps: vec![
-                Step::CallChecked {
-                    tool: "wait".into(),
-                    input: serde_json::json!({}),
-                    contains: "The next instruction".into(),
-                },
-                Step::Outcome { input: serde_json::json!({"outcome":{"form":"report", "text":"done", "fields":{}}}) },
-            ],
-            end: End::default(),
-        }],
+        turns: vec![Turn::new(vec![
+            Step::CallChecked {
+                tool: "wait".into(),
+                input: serde_json::json!({}),
+                contains: "The next instruction".into(),
+            },
+            Step::Outcome { input: serde_json::json!({"outcome":{"form":"report", "text":"done", "fields":{}}}) },
+        ])],
         ..Story::default()
     };
-    let run = program_world::run(Case::Waiting, &story, Some(b"claude.ai"), &body.finish(), &program(b"source"), None);
+    let run = program_world::run(Case::Waiting, &story, Some(b"claude.ai"), &charter, &program(b"source"), None);
     assert!(
         matches!(run.answer().expect("answer").result(), smith_channel::RunResult::Accepted(_)),
         "answer={:?}; frames={:?}; errors={}",
@@ -181,17 +151,12 @@ fn a_waiting_program_run_reads_its_message() {
 }
 
 fn waiting_charter() -> Box<[u8]> {
-    let mut parts = smith_charter::Charter::decode(&smith_charter::CEILINGS, &mut Reader::new(&charter()))
-        .expect("charter")
-        .into_parts();
-    parts.waiting = skein_lib::Duration::from_millis(10);
-    let mut tools = parts.tools.into_parts();
-    tools.wait = true;
-    parts.tools = smith_charter::Tools::new(&smith_charter::CEILINGS, tools).expect("wait");
-    let charter = smith_charter::Charter::new(&smith_charter::CEILINGS, parts).expect("charter");
-    let mut writer = Writer::new(charter.measure() as usize);
-    charter.encode(&mut writer).expect("charter");
-    writer.finish()
+    smith_agent_process_world::wire::edit_charter(&charter(), |parts| {
+        parts.waiting = skein_lib::Duration::from_millis(10);
+        let mut tools = parts.tools.clone().into_parts();
+        tools.wait = true;
+        parts.tools = smith_charter::Tools::new(&smith_charter::CEILINGS, tools).expect("wait");
+    })
 }
 
 fn session_argument<'a>(invocation: &'a smith_fake_claude::Observation, flag: &str) -> &'a str {

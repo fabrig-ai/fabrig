@@ -8,16 +8,16 @@ use probe::Probe;
 fn live_probes_have_distinct_private_state() {
     let first = Probe::new();
     let second = Probe::new();
-    assert_ne!(first.home, second.home);
+    assert_ne!(first.home.path(), second.home.path());
     assert_ne!(first.session, second.session);
     assert_eq!(first.session.len(), 36);
     assert_eq!(second.session.len(), 36);
-    for home in [&first.home, &second.home] {
+    for home in [first.home.path(), second.home.path()] {
         assert!(home.is_dir());
         assert_eq!(std::fs::metadata(home).expect("private home").permissions().mode() & 0o777, 0o700);
     }
-    let removed = first.home.clone();
+    let removed = first.home.path().to_owned();
     drop(first);
     assert!(!removed.exists());
-    assert!(second.home.is_dir(), "one probe does not remove another's home");
+    assert!(second.home.path().is_dir(), "one probe does not remove another's home");
 }

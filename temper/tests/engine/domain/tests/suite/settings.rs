@@ -800,7 +800,7 @@ fn a_run_reads_the_settings_and_proposes_a_change_an_owner_accepts() {
     driver.settle();
     let next = driver.last_assignment();
     assert_ne!(next.attempt, run.attempt);
-    let smith_domain::Event::Start { messages, .. } = temper_engine_smith::start(
+    let smith_domain::Event::Start(smith_domain::Start { messages, .. }) = temper_engine_smith::start(
         &next,
         None,
         None,

@@ -2,7 +2,7 @@
 use super::super::{Account, Directory, host_id, registration, sign_in};
 use super::{Environment, LoginOutcome};
 use crate::settings::Settings;
-use driver::{Login, Stage};
+use driver::{Login, State};
 use skein_lib::{List, Queue};
 use skein_shell::Clock;
 use smith_local_service::Accounts;
@@ -19,31 +19,22 @@ pub(in crate::credentials) enum Operation {
     SignOut,
 }
 
-/// The endpoint defaults used for a configured registration.
-#[derive(Clone, Copy)]
-pub(in crate::credentials) enum Registration {
-    /// Use the declaration without Codex defaults.
-    Configured,
-    /// Use the Codex endpoint defaults.
-    Codex,
-}
-
 pub(in crate::credentials) fn run(
     account: &Account,
     file: &Path,
     settings: &Settings,
-    kind: Registration,
+    codex: bool,
     operation: Operation,
     clock: &Clock,
     environment: &Environment,
 ) -> Result<LoginOutcome, String> {
     let logout = operation == Operation::SignOut;
-    let prior = sign_in::record(file)?;
+    let prior = sign_in::record(file).map_err(sign_in::RecordFailure::line)?;
     if logout && prior.is_none() {
         eprintln!("account {}: signed out", account.name);
         return Ok(LoginOutcome::Usable);
     }
-    let provider = account.fields.get("provider").and_then(|value| value.value.as_str()) == Some("openai");
+    let provider = account.provider() == Some(crate::settings::resolve::Provider::OpenAi);
     let registered = if provider {
         let host = if logout {
             String::new()
@@ -53,14 +44,7 @@ pub(in crate::credentials) fn run(
         };
         registration::configured(account, &host, &settings.workspace)
     } else {
-        registration(
-            account,
-            match kind {
-                Registration::Configured => false,
-                Registration::Codex => true,
-            },
-            &settings.workspace,
-        )
+        registration(account, codex, &settings.workspace)
     }
     .map_err(|why| why.line())?;
     let first_plan =
@@ -121,7 +105,7 @@ pub(in crate::credentials) fn run(
         driver,
         name: account.name.clone(),
         outcome: None,
-        operation: if logout { Stage::SignOut } else { Stage::SignIn },
+        state: if logout { State::SignOut } else { State::SignIn },
         closing: false,
         notice: provider && first_plan,
         others,

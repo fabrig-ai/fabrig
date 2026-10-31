@@ -56,17 +56,7 @@ fn calls() -> Vec<Record> {
 }
 
 fn observed(records: &[Record], capture: &Capture) -> Observer {
-    let lines: Vec<_> = records
-        .iter()
-        .map(|record| smith_events::write(record, capture, &LIMITS).expect("bounded controls").expect("metadata"))
-        .collect();
-    let ceiling = u32::try_from(lines.iter().map(|line| line.len()).max().expect("session")).expect("bounded");
-    let mut observer = Observer::with_ceiling(&LIMITS, ceiling).expect("actual outside reader");
-    for line in lines {
-        observer.feed(&line).expect("actual captured codec");
-    }
-    observer.finish().expect("finished stream");
-    observer
+    crate::common::captured(records, capture, &LIMITS)
 }
 
 #[test]
@@ -78,9 +68,8 @@ fn a_path_requires_captured_input_and_its_exact_successful_terminal() {
     assert!(matches!(observed(&records, &Capture::None).check(&path_check(), "").passed, Measure::Unavailable { .. }));
     for path in ["/spec/./rules.txt", "/spec//rules.txt", "../spec/rules.txt", "./../spec/rules.txt"] {
         let mut records = records.clone();
-        if let Event::ToolStarted(start) = &mut records[5].event {
-            start.input = Some(serde_json::to_vec(&serde_json::json!({"path":path})).expect("JSON").into());
-        }
+        crate::common::edit::tool_started(&mut records[5]).input =
+            Some(serde_json::to_vec(&serde_json::json!({"path":path})).expect("JSON").into());
         assert_eq!(
             observed(&records, &Capture::Everything).check(&path_check(), "").passed,
             Measure::Observed { value: true }
@@ -88,9 +77,8 @@ fn a_path_requires_captured_input_and_its_exact_successful_terminal() {
     }
     for path in ["spec/rules.txt", "/app/rules.txt", "/spec/../spec/rules.txt", "/spec/rules.txt.extra"] {
         let mut records = records.clone();
-        if let Event::ToolStarted(start) = &mut records[5].event {
-            start.input = Some(serde_json::to_vec(&serde_json::json!({"path":path})).expect("JSON").into());
-        }
+        crate::common::edit::tool_started(&mut records[5]).input =
+            Some(serde_json::to_vec(&serde_json::json!({"path":path})).expect("JSON").into());
         assert_eq!(
             observed(&records, &Capture::Everything).check(&path_check(), "").passed,
             Measure::Observed { value: false }
@@ -98,9 +86,7 @@ fn a_path_requires_captured_input_and_its_exact_successful_terminal() {
     }
     for input in [b"{bad".as_slice(), b"{\"path\":7}", b"{}"] {
         let mut records = records.clone();
-        if let Event::ToolStarted(start) = &mut records[5].event {
-            start.input = Some(input.into());
-        }
+        crate::common::edit::tool_started(&mut records[5]).input = Some(input.into());
         assert_eq!(
             observed(&records, &Capture::Everything).check(&path_check(), "").passed,
             Measure::Observed { value: false }
@@ -108,7 +94,8 @@ fn a_path_requires_captured_input_and_its_exact_successful_terminal() {
     }
     for mutation in 0..5 {
         let mut records = records.clone();
-        if let Event::ToolCompleted(end) = &mut records[6].event {
+        {
+            let end = crate::common::edit::tool_completed(&mut records[6]);
             match mutation {
                 0 => end.run = 1,
                 1 => end.conversation = 1,
@@ -118,11 +105,11 @@ fn a_path_requires_captured_input_and_its_exact_successful_terminal() {
                 _ => unreachable!("bounded test cases"),
             }
         }
-        let actual = observed(&records, &Capture::Everything).check(&path_check(), "").passed;
+        let got = observed(&records, &Capture::Everything).check(&path_check(), "").passed;
         if mutation == 4 {
-            assert_eq!(actual, Measure::Observed { value: false });
+            assert_eq!(got, Measure::Observed { value: false });
         } else {
-            assert!(matches!(actual, Measure::Unavailable { .. }), "{mutation}: {actual:?}");
+            assert!(matches!(got, Measure::Unavailable { .. }), "{mutation}: {got:?}");
         }
     }
     let mut no_terminal = records.clone();
@@ -154,9 +141,7 @@ fn a_path_requires_captured_input_and_its_exact_successful_terminal() {
         Measure::Unavailable { .. }
     ));
     let mut relative = records;
-    if let Event::ToolStarted(start) = &mut relative[5].event {
-        start.input = Some(Box::from(&b"{\"path\":\"./input.txt\"}"[..]));
-    }
+    crate::common::edit::tool_started(&mut relative[5]).input = Some(Box::from(&b"{\"path\":\"./input.txt\"}"[..]));
     let relative_check =
         EventCheck::ToolPath { tool: "read".into(), path: "input.txt".into(), aliases: vec![], verdict: "read".into() };
     assert_eq!(
@@ -167,9 +152,9 @@ fn a_path_requires_captured_input_and_its_exact_successful_terminal() {
 
 #[test]
 fn the_frozen_path_tasks_keep_namespace_authority_and_two_completion_bounds() {
-    let project = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let project = crate::common::repository();
     let task = smith_bench::check_task(&project.join("tasks/probes/paths/task.toml"), &project.join("../docs/design"))
-        .expect("actual task validation");
+        .expect("task validation");
     let suite = smith_bench::read_suite(&project.join("suites/probes.toml")).expect("native suite");
     let agent =
         suite.agents.iter().find(|agent| agent.tasks.iter().any(|name| name == "probes/paths")).expect("probe pin");

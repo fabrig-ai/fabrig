@@ -1,4 +1,4 @@
-//! Scripted agent domain world (domain/run.md, sections 13 and 14).
+//! Scripted agent domain world (smith/docs/design/domain/run.md, section 13).
 //! It keeps schedules, pending boundary requests, checkout bytes and observations.
 //! It never knows provider grammar or transport bytes. Entry points start a
 //! charter, drive the typed fake LLM, inject parent input, and return host
@@ -11,50 +11,48 @@ use std::hash::{Hash, Hasher};
 
 use skein_fake_checkout::Checkout;
 use skein_fake_llm_domain as provider;
-use skein_lib::{Duration, ReplyTo, Rng, Time, Token, Wall};
+use skein_lib::{Duration, ReplyTo, Rng, Time, Token};
 use skein_world::domain::{Key, Ledger, Referee, Schedule, Span, Stage, Trace};
 use smith_domain::session::llm::Block as SavedBlock;
 use smith_domain::{self as agent, Event, Fact, Grant, GrantName, Limits, Request, llm, run, tools};
 use smith_tools_world::translate as io;
 
+use crate::backend::{Backend, Typed};
+
 use crate::{
     BUDGET, LIMITS, fixture,
     referee::{Meeting, Seen},
     script::{self, Job},
-    translate,
 };
 
-/// Scripted host choice; materialized as a sealed actual terminal at submission.
+/// Scripted host choice; materialized as a sealed terminal at submission.
 /// It is scenario data, not a second protocol or delivery implementation.
-/// Contract: domain/run.md, sections 8.2 and 13; testing-strategy.md, section 2.2.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 #[expect(
     clippy::large_enum_variant,
     reason = "scenario choices retain the sealed fixed diagnostic inline and stay Copy"
 )]
 pub enum HostReply {
-    /// Real changed-directory receipt. Contract: domain/run.md, section 8.2.
+    /// Real changed-directory receipt.
     Delivered,
-    /// Maximum sealed non-UTF8 receipt, supplied as an actual successful terminal.
-    /// Contract: domain/run.md, sections 8.2 and 13; testing-strategy.md, section 7.
+    /// Maximum sealed non-UTF8 receipt, supplied as a successful terminal.
     OpaqueDelivered,
-    /// No changed directory. Contract: domain/run.md, section 8.2.
+    /// No changed directory.
     Nothing,
-    /// Named conflict marker. Contract: domain/run.md, sections 8.1 and 8.2.
+    /// Named conflict marker.
     Refused,
-    /// Fixed generic failed operation. Contract: domain/run.md, section 8.2.
+    /// Fixed generic failed operation.
     Failed(
-        /// Sealed fixed-size reason and diagnostic emitted at the actual host
-        /// deadline. Contract: domain/run.md, section 8.2.
+        /// Sealed fixed-size reason and diagnostic emitted at the host
+        /// Deadline.
         run::DeliveryFailure,
     ),
-    /// Moved host context. Contract: domain/run.md, section 8.2.
+    /// Moved host context.
     Stale,
 }
 
 /// One sealed scripted-host receipt, used only by boundary fixtures.
 /// Its opaque text has no domain interpretation; mount zero is writable.
-/// Contract: domain/run.md, sections 8.2 and 13; testing-strategy.md, section 2.2.
 #[must_use]
 pub fn delivered() -> run::Delivery {
     run::Delivery::Delivered(
@@ -72,7 +70,7 @@ impl HostReply {
             Self::OpaqueDelivered => run::Delivery::Delivered(
                 run::Delivered::new(Box::new([run::Receipt::new(0, vec![0xff; run::Receipt::CAPACITY].into())
                     .expect("maximum sealed opaque receipt")]))
-                .expect("one actual changed directory"),
+                .expect("one changed directory"),
             ),
             Self::Nothing => run::Delivery::Nothing,
             Self::Refused => run::Delivery::Refused(
@@ -89,75 +87,44 @@ impl HostReply {
 }
 
 /// Immutable deterministic scenario inputs for the composed agent on a
-/// scripted typed host; terminal choices are sealed only at actual submission.
-/// Contract: domain/run.md, sections 8 and 13; testing-strategy.md, section 7.
+/// Scripted typed host; terminal choices are sealed only at submission.
 #[derive(Clone, Copy, Debug)]
 pub struct Settings {
     /// Usable context window shared by the model declaration and charter.
     pub window: u32,
     /// Host selects supplied history explicitly; false starts fresh even if present.
-    /// Contract: domain/run.md, sections 3 and 13.
     pub resume: bool,
     /// Positive idle threshold; independent run wall time never pauses.
-    /// Contract: domain/run.md, sections 6 and 10.
     pub waiting: Duration,
 
-    /// Generic-host recovery schedule. Contract: domain/run.md, sections 5.2 and 13.
     pub host: HostSchedule,
     /// Replay seed for the host, agent and provider, independently derived.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 7.
     pub seed: u64,
     /// Script selected by the charter's brief.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 7.
     pub job: Job,
-    /// The agent's immutable admission and ownership limits.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 7.
+    /// Host tool name declared by the fixture charter.
+    pub host_tool_name: &'static [u8],
     pub limits: Limits,
     /// The run's token and wall-time allowance, shared across conversations.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 7.
     pub budget: run::Budget,
-    /// Whether the scripted host grants checkout modification.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 7.
     pub writable: bool,
     /// The fake provider's latency, failures and ownership limits.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 7.
     pub provider: provider::Config,
     /// Latency of host and IO terminals; zero is permitted.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 7.
     pub network: Span,
     /// Time spent by the fixture's checks, capped by their request deadline.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 7.
     pub check: Span,
     /// The host's reply to each push; refusal feedback remains typed and bounded.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 7.
     pub push: HostReply,
-    /// Explicit host cancellation time; `None` sends no cancel.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 7.
     pub cancel_at: Option<Duration>,
     /// A cancel loses to its existing terminal with this chance per mille.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 7.
     pub races: u32,
     /// Whether the scripted parent retains drained facts; false drains without a sink.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 7.
     pub drain_facts: bool,
 }
 
 impl Settings {
     /// A coding charter, ample bounds and a successful typed host, from `seed`.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 7.
     #[must_use]
     pub fn calm(seed: u64) -> Settings {
         let provider = smith_session_world::Settings::calm(seed).provider;
@@ -167,6 +134,7 @@ impl Settings {
             waiting: Duration::from_secs(30),
             seed,
             job: Job::Coding,
+            host_tool_name: b"host_action",
             limits: LIMITS,
             budget: BUDGET,
             writable: true,
@@ -182,48 +150,42 @@ impl Settings {
     }
 }
 
-/// Finite typed host choices; responses settle actual attempts before recovery.
-/// Contract: domain/run.md, sections 5.2 and 13.
+/// Finite typed host choices; responses settle attempts before recovery.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum HostSchedule {
-    /// Immediate first recorded answer. Contract: domain/run.md, section 5.2.
+    /// Immediate first recorded answer.
     Answer,
     /// One decided write answer exceeds the receiving cap.
     TooLarge,
-    /// Busy, lost committed answer, then replay first recorded answer. Contract: domain/run.md, section 5.2.
+    /// Busy, lost committed answer, then replay first recorded answer.
     Replay,
-    /// Wait beyond declared deadline, settle withdrawn, then recover. Contract: domain/run.md, section 5.2.
+    /// Wait beyond declared deadline, settle withdrawn, then recover.
     Withdraw,
-    /// Wait for withdrawal, but replay actual recorded answer. Contract: domain/run.md, section 5.2.
+    /// Wait for withdrawal, but replay recorded answer.
     LateAnswer,
 }
 
-/// Outside record of an actual root delivery handed to an opt-in parent bridge.
+/// Outside record of a root delivery handed to an opt-in parent bridge.
 /// The World retains at most 256 bounded submission records. They expose no private state.
-/// The existing flight ledger retains each operation until its actual terminal.
-/// Contract: domain/run.md, sections 8.2, 10 and 14; domain/host.md, sections 2 and 9.
+/// The existing flight ledger retains each operation until its terminal.
 #[derive(Clone, Debug)]
 pub struct DeliverySubmission {
-    /// Original parent logical scope, echoed unchanged. Contract: domain/run.md, section 8.2.
+    /// Original parent logical scope, echoed unchanged.
     pub host_run: Token,
 
-    /// Actual callback right, distinct from the durable name. Contract: domain/run.md, section 8.2.
+    /// Callback right, distinct from the durable name.
     pub owner: Token,
 
-    /// Actual transcript-derived operation identity. Contract: domain/run.md, section 8.2.
+    /// Transcript-derived operation identity.
     pub name: run::CallName,
 
     /// Whole validated opaque metadata, bounded by root outcome limits.
-
-    /// Contract: domain/run.md, sections 7.1 and 8.2; domain/host.md, section 2.
     pub change: run::outcome::Change,
 
-    /// Actual operation deadline; withdrawal never consumes this right.
-
-    /// Contract: domain/run.md, sections 8.2 and 10.
+    /// Operation deadline; withdrawal never consumes this right.
     pub deadline: Time,
 
-    /// Observed root submission clock. Contract: domain/run.md, section 14.
+    /// Observed root submission clock.
     pub at: Time,
 }
 
@@ -263,132 +225,69 @@ struct Flight {
     completion_index: Option<usize>,
 }
 
-#[derive(Debug)]
-enum Backend {
-    Typed {
-        provider: provider::Domain,
-        stage: Stage<provider::Config, provider::Event, provider::Request>,
-        calls: Ledger<Token, (tools::Grants, Box<[llm::Served]>, llm::Asker)>,
-    },
-}
-
-impl Backend {
-    fn typed(settings: &Settings) -> Self {
-        Self::Typed {
-            provider: crate::scripted_provider(&settings.provider, settings.seed ^ 0x25),
-            stage: Stage::uncapped(settings.provider),
-            calls: Ledger::new("fake provider call"),
-        }
-    }
-
-    fn has_events(&self) -> bool {
-        match self {
-            Self::Typed { stage, .. } => stage.has_events(),
-        }
-    }
-
-    fn is_settled(&self) -> bool {
-        match self {
-            Self::Typed { provider, .. } => provider.calls() == 0,
-        }
-    }
-
-    fn next_deadline(&self) -> Option<Time> {
-        match self {
-            Self::Typed { provider, .. } => provider.next_deadline(),
-        }
-    }
-}
-
-/// Actual lower requests observed without inspecting domain state.
-/// Contract: domain/run.md, sections 3.2 and 14; testing-strategy.md, section 7.
+/// Lower requests observed without inspecting domain state.
 #[derive(Clone, Debug)]
 pub enum Boundary {
-    /// Actual guide discovery. Contract: domain/run.md, section 3.3.
-    Read {
-        /// Accepted lower place. Contract: domain/run.md, section 3.3.
-        at: run::Place,
-    },
-    /// Actual writable check discovery. Contract: domain/run.md, section 8.1.
-    Probe {
-        /// Accepted lower place. Contract: domain/run.md, section 8.1.
-        at: run::Place,
-    },
-    /// Actual checked snapshot. Contract: domain/run.md, section 8.1.
-    Check {
-        /// Accepted lower program. Contract: domain/run.md, section 8.1.
-        program: run::Place,
-    },
-    /// Actual session filesystem/program operation. Contract: domain/tools.md, section 2.
-    Io {
-        /// Existing tools boundary. Contract: domain/tools.md, section 2.
-        op: tools::Op,
-    },
+    /// Guide discovery.
+    Read { at: run::Place },
+    /// Writable check discovery.
+    Probe { at: run::Place },
+    /// Checked snapshot.
+    Check { program: run::Place },
+    /// Session filesystem/program operation.
+    Io { op: tools::Op },
 }
 
-/// One actual provider admission and terminal, observed outside accounting.
+/// One provider admission and terminal, observed outside accounting.
 /// A finite turn/conversation/block/retry bound caps this fixture activation; model bytes are
 /// copied from the original Complete, never inferred from a Turn.
-/// Contract: domain/run.md, sections 9 and 14; testing-strategy.md, section 7.
 #[derive(Clone, Debug)]
 pub struct CompletionObservation {
-    /// Actual callback owner. Contract: domain/run.md, section 14.
     pub owner: Token,
 
-    /// Caller-selected model from actual Complete. Contract: domain/run.md, section 9.
+    /// Caller-selected model from Complete.
     pub model: Box<[u8]>,
 
-    /// Grant selected at actual dispatch, including its generation.
+    /// Grant selected at dispatch, including its generation.
     pub grant: Option<GrantName>,
 
-    /// Actual completion start clock. Contract: domain/run.md, section 10.
     pub started: Time,
 
-    /// Actual terminal clock and SDK-shaped usage, or failure/cancellation.
+    /// Terminal clock and typed usage, or failure/cancellation.
     /// Pending is None; failure/cancellation has no invented usage.
-    /// Contract: domain/run.md, sections 9 and 10.
     pub terminal: Option<(Time, CompletionTerminal)>,
 }
 
-/// Actual completion terminal class, independent of Session's price calculation.
-/// Contract: domain/run.md, sections 9 and 10; testing-strategy.md, section 7.
+/// Completion terminal class, independent of Session's price calculation.
 #[derive(Clone, Copy, Debug)]
 pub enum CompletionTerminal {
     /// All four exact accepted provider counters.
-    /// Contract: domain/run.md, section 9; scratch/client.md, section 4.
     Completed(
-        /// SDK usage shape copied at the terminal.
-        /// Contract: scratch/client.md, section 4.
+        /// Typed usage copied at the terminal.
         llm::Usage,
     ),
 
-    /// Genuine provider failure. Contract: scratch/client.md, section 4.
+    /// Provider failure.
     Failed,
 
-    /// Genuine settled cancellation. Contract: scratch/client.md, section 5.
+    /// Settled cancellation.
     Cancelled,
 }
 
-/// The agent on a typed scripted host or actual wire backend. [`World::run`]
+/// The agent on a typed scripted host. [`World::run`]
 /// drives every boundary to settlement, then checks its ledgers, referee and facts.
-/// The selected backend owns only its corresponding provider state and queues.
-///
-/// Scripted-world contract: domain/run.md, sections 13 and 14; scratch/client.md,
-/// sections 1 and 5; testing-strategy.md, section 7.
+/// The backend owns the typed provider state and queues.
 #[derive(Debug)]
-pub struct World {
+pub struct World<B: Backend = Typed> {
     jobs: BTreeMap<Token, jobs::Held>,
     writing_opened: BTreeSet<u32>,
     settings: Settings,
-    failure: Option<(agent::llm::Failure, agent::llm::Evidence)>,
-    failure_report: agent::llm::Report,
-    failure_count: Option<u32>,
     unauthorized: Vec<(Time, GrantName)>,
     now: Time,
     rng: Rng,
     agent: agent::Domain,
     stage: Stage<Limits, Event, Request>,
-    backend: Backend,
+    backend: B,
     parent_deliveries: bool,
     parent_host_calls: bool,
     host_run: Token,
@@ -428,7 +327,6 @@ pub struct World {
     agent_facts_not_written: u64,
     trace: Trace,
     referee: Referee<Meeting>,
-    stimuli: Vec<()>,
     terminals: u32,
 }
 
@@ -441,62 +339,26 @@ fn choose_start(
     selected_start: Option<Event>,
 ) -> (Event, Token) {
     match selected_start {
-        Some(Event::Start {
-            reply_to,
-            host_run,
-            activation,
-            identity,
-            window,
-            messages,
-            charter,
-            workspace,
-            grants,
-            transcript,
-            answered,
-        }) => {
-            let token = reply_to.into_token();
-            (
-                Event::Start {
-                    reply_to: ReplyTo::new(token),
-                    host_run,
-                    activation,
-                    identity,
-                    window,
-                    messages,
-                    charter,
-                    workspace,
-                    grants,
-                    transcript,
-                    answered,
-                },
-                token,
-            )
+        Some(Event::Start(mut start)) => {
+            let token = start.reply_to.into_token();
+            start.reply_to = ReplyTo::new(token);
+            (Event::Start(start), token)
         }
         Some(_) => panic!("the caller supplies a complete Start event"),
         None => (
-            Event::Start {
-                messages: Box::default(),
-                reply_to: ReplyTo::new(Token::new(1)),
-                host_run: Token::new(1),
-                identity: None,
+            Event::Start(smith_domain::Start {
                 activation: if settings.resume { 2 } else { 1 },
-                window: agent::Window { turns: u32::MAX, bytes: u64::MAX },
-                charter: selected_charter.unwrap_or_else(|| charter(settings)),
                 workspace,
-                grants: Box::new([Grant {
-                    renewable: true,
-                    name: GrantName { account: 0, generation: 1 },
-                    valid: Duration::from_secs(7200),
-                }]),
                 transcript,
                 answered,
-            },
+                ..fixture::start(selected_charter.unwrap_or_else(|| charter(settings)))
+            }),
             Token::new(1),
         ),
     }
 }
 
-impl World {
+impl<B: Backend> World<B> {
     /// Queue a host's grant before the pending start, which names no new grant.
     pub fn hold_grant(&mut self, account: u32) {
         let start = self.stage.next_event().expect("pending start");
@@ -510,147 +372,31 @@ impl World {
         self.stage.push(start);
     }
 
-    /// Creates one host request and a fresh agent tree. Fixed queue slack
-    /// exercises output pressure; finite trace and delivery caps fail fast.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 7.
-    #[must_use]
-    pub fn new(settings: Settings) -> World {
-        Self::with_history(settings, None)
-    }
-
-    /// A real fake-provider failure with the selected typed terminal metadata.
-    #[must_use]
-    pub fn with_failure(mut settings: Settings, failure: agent::llm::Failure, evidence: agent::llm::Evidence) -> Self {
-        settings.provider.overloaded = 1000;
-        let mut world = Self::new(settings);
-        world.failure = Some((failure, evidence));
-        world
-    }
-
-    /// Script this many genuine fake-provider failures before its ordinary successful script.
-    /// Uses the same typed terminal metadata as `with_failure`; the referee still sees every call.
-    pub fn fail_calls(&mut self, count: u32, failure: agent::llm::Failure, evidence: agent::llm::Evidence) {
-        self.failure_count = Some(count);
-        self.failure = Some((failure, evidence));
-    }
-
     /// Schedule an existing host grant independently of an in-flight provider call.
     pub fn grant_at(&mut self, at: Time, grant: Grant) {
         self.schedule.send(at, Delivery::Grant { grant });
     }
 
-    /// Actual unauthorized notices, retaining their rejected generations.
+    /// Unauthorized notices, retaining their rejected generations.
     #[must_use]
     pub fn unauthorized(&self) -> &[(Time, GrantName)] {
         &self.unauthorized
     }
 
-    /// The root's remaining alarm after its actual boundary observations.
+    /// The root's remaining alarm after its boundary observations.
     #[must_use]
     pub fn next_deadline(&self) -> Option<Time> {
         self.agent.next_deadline()
     }
 
-    /// Installs the bounded report accompanying scripted provider failures.
-    pub fn failure_report(&mut self, report: agent::llm::Report) {
-        self.failure_report = report;
-    }
-
-    /// Typed V2 entrance from saved turns, with no later answers supplied.
-    /// History is host-owned; root/session admission decides before provider work.
-    /// Contract: domain/run.md, sections 3 and 13; domain/session.md, section 3.
+    /// Start with the seeded checkout and the selected provider face.
     #[must_use]
-    pub fn with_history(settings: Settings, transcript: Option<agent::Transcript>) -> World {
-        Self::with_backend(&settings, transcript, Box::default(), Backend::typed(&settings))
-    }
-
-    /// Starts from saved turns and host decisions made after their last turn.
-    #[must_use]
-    pub fn with_history_answers(
-        settings: Settings,
-        transcript: Option<agent::Transcript>,
-        answered: Box<[agent::AnsweredCall]>,
-    ) -> World {
-        Self::with_backend(&settings, transcript, answered, Backend::typed(&settings))
-    }
-
-    /// Starts with the caller's complete host event and the usual fixture
-    /// checkout and typed provider. The caller may enable the host-call bridge
-    /// before driving this world.
-    /// Contract: domain/run.md, sections 3.1, 5.2 and 14; domain/host.md, section 9.
-    #[must_use]
-    pub fn with_start(settings: Settings, start: Event) -> World {
-        let mut disk = Checkout::new();
-        fixture::seed(&mut disk);
-        Self::with_selected_backend(
-            &settings,
-            None,
-            Box::default(),
-            None,
-            disk,
-            Backend::typed(&settings),
-            None,
-            Some(start),
-        )
-    }
-
-    /// Start before any work arrives, with the host's waiting authority.
-    #[must_use]
-    pub fn with_empty_brief(settings: Settings) -> World {
-        let mut charter = charter(&settings);
-        charter.brief.sections = Box::default();
-        charter.instructions = script::cue(settings.job).unwrap_or(b"Look into the code.").into();
-        charter.grants.wait = true;
-        let start = Event::Start {
-            messages: Box::default(),
-            reply_to: ReplyTo::new(Token::new(1)),
-            host_run: Token::new(1),
-            identity: None,
-            activation: 1,
-            window: agent::Window { turns: 100, bytes: u64::MAX },
-            charter,
-            workspace: None,
-            transcript: None,
-            answered: Box::default(),
-            grants: Box::new([Grant {
-                renewable: true,
-                name: GrantName { account: 0, generation: 1 },
-                valid: Duration::from_secs(7200),
-            }]),
-        };
-        Self::with_start(settings, start)
-    }
-
-    /// Start a scripted run with the host's specified acknowledgement credit.
-    #[must_use]
-    pub fn with_window(settings: Settings, window: agent::Window) -> World {
-        let start = Event::Start {
-            messages: Box::default(),
-            reply_to: ReplyTo::new(Token::new(1)),
-            host_run: Token::new(1),
-            identity: None,
-            activation: 1,
-            window,
-            charter: charter(&settings),
-            workspace: None,
-            transcript: None,
-            answered: Box::default(),
-            grants: Box::new([Grant {
-                renewable: true,
-                name: GrantName { account: 0, generation: 1 },
-                valid: Duration::from_secs(7200),
-            }]),
-        };
-        Self::with_start(settings, start)
-    }
-
-    fn with_backend(
+    pub fn with_backend(
         settings: &Settings,
         transcript: Option<agent::Transcript>,
         answered: Box<[agent::AnsweredCall]>,
-        backend: Backend,
-    ) -> World {
+        backend: B,
+    ) -> Self {
         let mut disk = Checkout::new();
         let root = fixture::seed(&mut disk);
         let workspace = Some(run::Workspace {
@@ -670,27 +416,30 @@ impl World {
         clippy::too_many_arguments,
         reason = "the scripted world accepts each independent Start and backend fixture"
     )]
-    fn with_selected_backend(
+    /// Start with caller-owned checkout, history and optional complete Start.
+    #[must_use]
+    pub fn with_selected_backend(
         settings: &Settings,
         transcript: Option<agent::Transcript>,
         answered: Box<[agent::AnsweredCall]>,
         workspace: Option<run::Workspace>,
         disk: Checkout,
-        backend: Backend,
+        mut backend: B,
         selected_charter: Option<run::Charter>,
         selected_start: Option<Event>,
-    ) -> World {
+    ) -> Self {
         let mut stage = Stage::uncapped(settings.limits);
         let supplied_start = selected_start.is_some();
         let (start, reply_to) =
             choose_start(settings, transcript, answered, workspace, selected_charter, selected_start);
-        let Event::Start { host_run, charter, workspace, messages, .. } = &start else {
+        let Event::Start(smith_domain::Start { host_run, charter, workspace, messages, .. }) = &start else {
             unreachable!("the selected event is Start")
         };
         let root = workspace
             .as_ref()
             .and_then(|workspace| workspace.directories.first())
             .map(|directory| directory.root.raw());
+        backend.contract(charter.outcome.clone(), charter.grants.deliver.clone());
         let observed_contract = charter.outcome.clone();
         let delivery = charter.grants.deliver.is_some();
         let checks = !supplied_start
@@ -712,7 +461,6 @@ impl World {
             schedule.send(Time::ZERO.saturating_add(after), Delivery::Cancel);
         }
         let mut referee = Referee::new(Meeting::default());
-        let mut stimuli = Vec::new();
         referee.observe(
             Time::ZERO,
             Seen::Started {
@@ -722,7 +470,7 @@ impl World {
                 delivery,
                 within,
             },
-            &mut stimuli,
+            &mut Vec::new(),
         );
         World {
             settings: *settings,
@@ -772,120 +520,34 @@ impl World {
             writing_opened: BTreeSet::new(),
             trace: Trace::default(),
             referee,
-            stimuli,
             terminals: 0,
-            failure: None,
-            failure_report: agent::llm::Report::none(),
-            failure_count: None,
             unauthorized: Vec::new(),
         }
     }
 
-    /// Caller-selected workspace/disk and actual typed scripts; no default roots
-    /// are seeded. All accepted metadata and lower terminals use the existing world.
-    /// Contract: domain/run.md, sections 3.2, 8.3 and 14; testing-strategy.md, section 2.3.
-    #[must_use]
-    pub fn with_workspace_scripts(
-        settings: Settings,
-        transcript: Option<agent::Transcript>,
-        workspace: Option<run::Workspace>,
-        disk: Checkout,
-        scripts: Box<[provider::api::Script]>,
-    ) -> World {
-        let mut backend = Backend::typed(&settings);
-        match &mut backend {
-            Backend::Typed { provider, .. } => {
-                *provider = provider::Domain::configured(
-                    &settings.provider,
-                    settings.seed ^ 0x25,
-                    scripts,
-                    smith_session_world::provider::menu(),
-                )
-                .expect("caller scripts obey provider admission");
-            }
-        }
-        Self::with_selected_backend(&settings, transcript, Box::default(), workspace, disk, backend, None, None)
+    /// Read only the selected lower backend's outside observations.
+    pub fn backend(&self) -> &B {
+        &self.backend
     }
 
-    /// Caller supplies the complete typed Charter before the original Start;
-    /// sections and instructions are never derived from the job settings. The
-    /// admission path decides refusal, or one terminal Answer after settling.
-    /// Existing receiving bounds, typed backend exclusivity and history apply.
-    /// Contract: domain/run.md, sections 3.1, 3.3, 5.3, 13 and 14.
-    #[must_use]
-    pub fn with_workspace_scripts_charter(
-        settings: Settings,
-        transcript: Option<agent::Transcript>,
-        workspace: Option<run::Workspace>,
-        disk: Checkout,
-        scripts: Box<[provider::api::Script]>,
-        charter: run::Charter,
-    ) -> World {
-        let mut backend = Backend::typed(&settings);
-        match &mut backend {
-            Backend::Typed { provider, .. } => {
-                *provider = provider::Domain::configured(
-                    &settings.provider,
-                    settings.seed ^ 0x25,
-                    scripts,
-                    smith_session_world::provider::menu(),
-                )
-                .expect("caller scripts obey provider admission");
-            }
-        }
-        Self::with_selected_backend(
-            &settings,
-            transcript,
-            Box::default(),
-            workspace,
-            disk,
-            backend,
-            Some(charter),
-            None,
-        )
-    }
-
-    /// Starts with the caller's complete host event, checkout and provider
-    /// scripts. The world does not replace any Start field from the settings.
-    /// Contract: domain/run.md, sections 3.1, 5.2 and 14; domain/host.md, section 9.
-    #[must_use]
-    pub fn with_workspace_scripts_start(
-        settings: Settings,
-        disk: Checkout,
-        scripts: Box<[provider::api::Script]>,
-        start: Event,
-    ) -> World {
-        let mut backend = Backend::typed(&settings);
-        match &mut backend {
-            Backend::Typed { provider, .. } => {
-                *provider = provider::Domain::configured(
-                    &settings.provider,
-                    settings.seed ^ 0x25,
-                    scripts,
-                    smith_session_world::provider::menu(),
-                )
-                .expect("caller scripts obey provider admission");
-            }
-        }
-        Self::with_selected_backend(&settings, None, Box::default(), None, disk, backend, None, Some(start))
+    /// Inject the host wall clock independently of monotonic time.
+    pub fn wall_at(&mut self, wall: skein_lib::Wall) {
+        self.stage.env.wall = wall;
     }
 
     /// Route subsequent checked submissions to the outside parent.
-    /// Contract: domain/run.md, sections 8.2 and 10.
     pub fn enable_parent_deliveries(&mut self) {
         self.parent_deliveries = true;
     }
 
     /// Hands host calls to the caller instead of the fixture's canned host.
     /// Call before driving the world.
-    /// Contract: domain/run.md, sections 5.2 and 14; domain/host.md, section 9.
     pub fn enable_parent_host_calls(&mut self) {
         self.parent_host_calls = true;
     }
 
     /// Host calls awaiting a caller terminal, in submission order. Each record
     /// contains the complete emitted call, including relay, input and deadline.
-    /// Contract: domain/run.md, sections 5.2 and 14; testing-strategy.md, section 2.3.
     #[must_use]
     pub fn pending_host_calls(&self) -> Vec<&crate::host_referee::Submission> {
         self.host_history
@@ -897,8 +559,6 @@ impl World {
 
     /// Queues the caller's terminal for a pending host relay. Withdrawal keeps
     /// this right alive; the scheduled terminal settles it in the next drive.
-    /// Contract: domain/run.md, sections 5.2 and 10; domain/host.md, section 9.
-    ///
     /// # Errors
     /// Refuses non-bridge worlds, unknown relays and duplicate replies.
     pub fn return_host_reply(&mut self, relay: run::RelayName, reply: run::HostReply) -> Result<(), &'static str> {
@@ -915,69 +575,39 @@ impl World {
         Ok(())
     }
 
-    /// Actual fake filesystem state, with no domain-private authority inspection.
-    /// Contract: domain/run.md, section 14; testing-strategy.md, section 4.3.
+    /// Fake filesystem state, with no domain-private authority inspection.
     #[must_use]
     pub fn disk(&self) -> &Checkout {
         &self.disk
     }
 
     /// A parent submission grants access to its current exclusive snapshot.
-    /// The actual host terminal remains owed and is supplied by `return_delivery`.
-    /// Contract: domain/run.md, sections 8.2 and 10; testing-strategy.md, section 4.3.
+    /// The host terminal remains owed and is supplied by `return_delivery`.
     pub fn delivery_checkout(&mut self, owner: Token) -> &mut Checkout {
         assert!(
             self.parent_deliveries && self.snapshots.contains_key(&owner),
-            "only an actual pending parent submission exposes its checkout"
+            "only a pending parent submission exposes its checkout"
         );
         &mut self.disk
     }
 
-    /// Actual lower boundary observations, in emission order at injected time.
-    /// Contract: domain/run.md, sections 3.2 and 14; testing-strategy.md, section 7.
+    /// Lower boundary observations, in emission order at injected time.
     #[must_use]
     pub fn boundaries(&self) -> &[(Time, Boundary)] {
         &self.boundaries
     }
 
-    /// Set the externally injected wall clock before the next iteration.
-    /// Monotonic deadlines keep running independently; the same wall is handed
-    /// to root, shared Client, scripted domain and byte peer.
-    /// Contract: scratch/client.md, section 1; programming-model.md, section 9.
-    pub fn wall_at(&mut self, wall: Wall) {
-        self.stage.env.wall = wall;
-        match &mut self.backend {
-            Backend::Typed { stage, .. } => stage.env.wall = wall,
-        }
-    }
-
-    /// Original Start/discovery with actual delivery rights routed to the outside
-    /// parent rather than automatically answered. Existing schedule and ledger
-    /// retain ownership; drive yields at the current clock while a parent reply
-    /// is owed. Caller must supply that actual terminal through `return_delivery`.
-    /// At most 256 bounded submission records are retained by this fixture.
-    /// Contract: domain/run.md, sections 8.2, 10 and 14; domain/host.md, section 9.
-    #[must_use]
-    pub fn with_parent_deliveries(settings: Settings) -> World {
-        let mut world = Self::new(settings);
-        world.parent_deliveries = true;
-        world
-    }
-
-    /// Actual root submissions observed by the opt-in parent; default worlds
+    /// Root submissions observed by the opt-in parent; default worlds
     /// expose none. Records carry the whole bounded request and no extra right.
-    /// Contract: domain/run.md, sections 8.2 and 14; testing-strategy.md, section 2.3.
     #[must_use]
     pub fn delivery_submissions(&self) -> &[DeliverySubmission] {
         &self.delivery_submissions
     }
 
-    /// Parent supplies one actual sealed operation terminal for a previously
+    /// Parent supplies one sealed operation terminal for an
     /// observed root submission. It enters the existing shared schedule at now;
-    /// only its actual delivery consumes the existing flight/snapshot/referee.
+    /// Only its delivery consumes the existing flight/snapshot/referee.
     /// Cancellation never substitutes a reply or removes the operation right.
-    /// Contract: domain/run.md, sections 8.2 and 10; domain/host.md, sections 2 and 9.
-    ///
     /// # Errors
     /// Refuses non-bridge worlds, unknown callbacks and already queued terminals
     /// before scheduling any effect. The refused supplied value is dropped.
@@ -986,10 +616,10 @@ impl World {
             return Err("parent delivery bridge is disabled");
         }
         let Some(flight) = self.flights.get_mut((Family::Delivery, owner)) else {
-            return Err("no actual parent delivery right");
+            return Err("no parent delivery right");
         };
         if flight.key.is_some() {
-            return Err("actual parent terminal is already queued");
+            return Err("parent terminal is already queued");
         }
         flight.key = Some(self.schedule.send(
             self.now,
@@ -999,22 +629,19 @@ impl World {
     }
 
     /// Queue a parent cancellation for the admitted original run. Its
-    /// Start reply and all actual lower terminals remain owed through close.
-    /// Contract: domain/run.md, sections 10 and 13; scratch/client.md, section 5.
+    /// Start reply and all lower terminals remain owed through close.
     pub fn cancel_run(&mut self) {
-        assert!(self.admitted.is_some(), "parent cancellation follows actual admission");
+        assert!(self.admitted.is_some(), "parent cancellation follows admission");
         self.schedule.send(self.now, Delivery::Cancel);
     }
 
     /// Current injected monotonic clock, for outside chronology controls.
-    /// Contract: domain/run.md, sections 6 and 10; programming-model.md, section 9.
     #[must_use]
     pub const fn now(&self) -> Time {
         self.now
     }
 
-    /// Script an actual parent input; delivery requires prior Admitted, as the host does.
-    /// Contract: domain/run.md, section 6; testing-strategy.md, section 7.
+    /// Script a parent input; delivery requires prior Admitted, as the host does.
     pub fn message_at(&mut self, at: Time, name: Token, label: Box<[u8]>, text: Box<[u8]>) {
         self.schedule.send(at, Delivery::Message { finish_requested: false, name, label, text });
     }
@@ -1030,7 +657,6 @@ impl World {
     }
 
     /// Record root entrance outputs and facts without changing their scheduling.
-    /// Contract: dynamic-memory.md, section 4.6; domain/run.md, section 14.
     pub fn record_entrances(&mut self) {
         self.orders = Some(crate::orders::Recorder::default());
     }
@@ -1042,7 +668,6 @@ impl World {
     }
 
     /// Hold the outer sink's writes while continuing to drain root facts normally.
-    /// Contract: domain/run.md, section 11; testing-strategy.md, section 7.
     pub fn hold_fact_writes(&mut self) {
         assert!(self.held_facts.is_none(), "one pending outer fact sink");
         self.held_facts = Some(Vec::new());
@@ -1074,8 +699,6 @@ impl World {
 
     /// Runs at most `iterations` deterministic shell rounds. Success means the
     /// one start answered, every boundary settled, and every expectation passed.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 7.
     pub fn run(&mut self, iterations: u32) {
         assert!(
             self.drive(iterations),
@@ -1087,20 +710,17 @@ impl World {
 
     /// Advance up to this many loop rounds, allowing another domain
     /// to translate the emitted boundary records before the next round. Returns
-    /// true only after the original root/provider/IO ledgers actually settle.
+    /// True only after the original root/provider/IO ledgers settle.
     /// An opt-in parent delivery awaiting its external terminal keeps the current
     /// clock and returns control; it never advances a deadline in place of that
-    /// parent. The caller schedules the actual reply before driving settlement.
-    /// Contract: domain/host.md, section 9; testing-strategy.md, section 2.3.
+    /// Parent. The caller schedules the reply before driving settlement.
     pub fn drive(&mut self, iterations: u32) -> bool {
         for _ in 0..iterations {
             if let Some(orders) = &mut self.orders {
                 orders.round += 1;
             }
             self.stage.tick(self.now);
-            match &mut self.backend {
-                Backend::Typed { stage, .. } => stage.tick(self.now),
-            }
+
             while let Some(delivery) = self.schedule.next(self.now) {
                 self.deliver(delivery);
             }
@@ -1133,14 +753,12 @@ impl World {
                 self.trace.log(self.now, format!("agent -> {request:?}"));
                 self.request(request);
             }
-            self.advance_provider();
+            let lower_immediate = self.advance_provider();
             self.agent.reclaim();
             self.record_entrance(crate::orders::Entrance::Reclaim, self.stage.out.len());
-            match &mut self.backend {
-                Backend::Typed { provider, .. } => provider.reclaim(),
-            }
+
             if self.referee.is_due(self.now) {
-                self.referee.fire(self.now, &mut self.stimuli);
+                self.referee.fire(self.now, &mut Vec::new());
             }
             self.referee.assert_holding(self.settings.seed);
             assert!(
@@ -1161,10 +779,11 @@ impl World {
             if self.parent_host_calls && self.host_pending.values().any(Option::is_none) {
                 return false;
             }
-            let immediate = (self.parent_deliveries
-                && self.flights.keys().any(|key| {
-                    key.0 == Family::Delivery && self.flights.get(*key).is_some_and(|flight| flight.key.is_none())
-                }))
+            let immediate = lower_immediate
+                || (self.parent_deliveries
+                    && self.flights.keys().any(|key| {
+                        key.0 == Family::Delivery && self.flights.get(*key).is_some_and(|flight| flight.key.is_none())
+                    }))
                 || self.stage.has_events()
                 || self.backend.has_events()
                 || self.agent.is_ready();
@@ -1185,10 +804,11 @@ impl World {
     }
 
     fn log_event(&mut self, event: &mut Event) {
-        let saved = if let Event::Start { transcript, .. } = event { transcript.clone() } else { None };
+        let saved =
+            if let Event::Start(smith_domain::Start { transcript, .. }) = event { transcript.clone() } else { None };
         let mut lengths = Vec::new();
         let mut digest = DefaultHasher::new();
-        if let Event::Start { transcript: Some(transcript), .. } = event {
+        if let Event::Start(smith_domain::Start { transcript: Some(transcript), .. }) = event {
             for block in
                 transcript.turns.iter_mut().flat_map(|turn| &mut turn.messages).flat_map(|message| &mut message.content)
             {
@@ -1211,68 +831,35 @@ impl World {
         } else {
             self.trace.log(self.now, format!("agent <- {event:?}; large payload lengths {lengths:?}, envelope and first/last 512-byte fingerprint {:016x}", digest.finish()));
         }
-        if let Event::Start { transcript, .. } = event {
+        if let Event::Start(smith_domain::Start { transcript, .. }) = event {
             *transcript = saved;
         }
     }
 
     fn advance_provider(&mut self) -> bool {
-        match &mut self.backend {
-            Backend::Typed { provider, stage, .. } => {
-                while let Some(event) = stage.next_event() {
-                    if matches!(&event, provider::Event::Call { .. })
-                        && let Some(remaining) = self.failure_count.as_mut()
-                    {
-                        stage.env.limits.overloaded = if *remaining > 0 { 1000 } else { 0 };
-                        *remaining = remaining.saturating_sub(1);
-                    }
-                    provider::step(provider, &stage.env, event, &mut stage.out);
-                }
-                while provider.is_due(self.now) {
-                    provider::fire(provider, &stage.env, &mut stage.out);
-                }
-            }
+        let progress = self.backend.advance(self.now, self.stage.env.wall, self.answer.is_some());
+        for query in progress.queries {
+            self.record_query(query);
         }
-        loop {
-            let reply = match &mut self.backend {
-                Backend::Typed { stage, calls, .. } => stage.out.pop().map(|request| {
-                    let (to, result) = match request {
-                        provider::Request::Reply { to, result } => (to, result),
-                        other @ (provider::Request::Piece { .. } | provider::Request::Hold { .. }) => {
-                            panic!("typed provider expected a terminal reply, got {other:?}")
-                        }
-                    };
-                    let owner = to.into_token();
-                    let (grants, served, asker) = calls.end(owner);
-                    (owner, grants, served, asker, result)
-                }),
-            };
-            let Some((owner, grants, served, asker, result)) = reply else { break };
+        for (owner, event) in progress.terminals {
             if self.flights.get((Family::Completion, owner)).is_some_and(|flight| !flight.cancelled) {
-                let event = match result {
-                    Ok(answer) => {
-                        Event::Completed { owner, completion: translate::completion(answer, grants, &served, asker) }
-                    }
-                    Err(error) => {
-                        let (failure, evidence) =
-                            self.failure.unwrap_or((translate::failure(error.error), agent::llm::Evidence::Unknown));
-                        Event::Failed {
-                            owner,
-                            failure,
-                            evidence,
-                            detail: Box::default(),
-                            report: self.failure_report.clone(),
-                        }
-                    }
-                };
-                self.send(Family::Completion, owner, event);
+                if progress.delay_terminals {
+                    self.send(Family::Completion, owner, event);
+                } else {
+                    self.terminal(Family::Completion, owner, event);
+                }
             }
         }
-        false
+        progress.immediate
+    }
+
+    fn record_query(&mut self, query: provider::api::Query) {
+        self.messages_seen.push((self.now, crate::messages_referee::Seen::Prompt { query: query.clone() }));
+        self.prompts.push(query);
     }
 
     fn observe(&mut self, seen: Seen) {
-        self.referee.observe(self.now, seen, &mut self.stimuli);
+        self.referee.observe(self.now, seen, &mut Vec::new());
     }
 
     fn gather(&mut self) {
@@ -1386,14 +973,17 @@ impl World {
                     self.check_notices.push((self.now, false));
                 }
             }
-            Request::Complete { owner, prompt, grant, .. } => {
+            request @ Request::Lower(smith_domain::Lower::Complete { .. }) => {
+                let Request::Lower(smith_domain::Lower::Complete { owner, ref prompt, grant, .. }) = request else {
+                    unreachable!("completion")
+                };
                 if prompt.asker == llm::Asker::Child
                     && (prompt.tools.modify || prompt.tools.shell)
                     && self.writing_opened.insert(prompt.affinity.thread)
                 {
                     self.observe(Seen::WritingChild);
                 }
-                self.host_history.prompt(&prompt).expect("exact feedback for observed provider host call");
+                self.host_history.prompt(prompt).expect("exact feedback for observed provider host call");
                 self.observe(Seen::Completing { owner });
                 let starts = u64::from(self.settings.limits.run.budget.turns)
                     .checked_add(u64::from(self.settings.limits.run.conversations))
@@ -1405,8 +995,8 @@ impl World {
                     .checked_mul(u64::from(self.settings.limits.session.retries) + 1)
                     .expect("fixture retry attempts");
                 assert!(
-                    u64::try_from(self.completions.len()).expect("fixture observation count") < starts,
-                    "bounded actual provider chronology from receiving turn/concurrency/retry limits"
+                    skein_lib::len_u64(self.completions.len()) < starts,
+                    "bounded provider chronology from receiving turn/concurrency/retry limits"
                 );
                 let completion_index = self.completions.len();
                 self.completions.push(CompletionObservation {
@@ -1416,8 +1006,7 @@ impl World {
                     started: self.now,
                     terminal: None,
                 });
-                let completion_message =
-                    u32::try_from(prompt.messages.len()).expect("bounded actual prompt message count");
+                let completion_message = u32::try_from(prompt.messages.len()).expect("bounded prompt message count");
                 self.flights.open(
                     (Family::Completion, owner),
                     Flight {
@@ -1427,22 +1016,18 @@ impl World {
                         completion_index: Some(completion_index),
                     },
                 );
-                match &mut self.backend {
-                    Backend::Typed { stage, calls, .. } => {
-                        calls.open(owner, (prompt.tools, prompt.served.clone(), prompt.asker));
-                        let query = translate::query(prompt);
-                        self.messages_seen
-                            .push((self.now, crate::messages_referee::Seen::Prompt { query: query.clone() }));
-                        self.prompts.push(query.clone());
-                        stage.push(provider::Event::Call { reply_to: ReplyTo::new(owner), call: owner, query });
-                    }
+                let queries = self.backend.start(request, self.now, self.stage.env.wall);
+                for query in queries {
+                    self.observe(Seen::Prompt { owner, query: query.clone() });
+                    self.record_query(query);
                 }
-                self.observe(Seen::Prompt { owner, query: self.prompts.last().expect("actual typed request").clone() });
             }
-            Request::Cancel { owner } => match &mut self.backend {
-                Backend::Typed { .. } => self.cancel(Family::Completion, owner, Event::Cancelled { owner }),
-            },
-            Request::Io { owner, op, deadline } => {
+            Request::Lower(smith_domain::Lower::Cancel { owner }) => {
+                if !self.backend.cancel(owner, self.now, self.stage.env.wall) {
+                    self.cancel(Family::Completion, owner, Event::Below(smith_domain::Below::Cancelled { owner }));
+                }
+            }
+            Request::Lower(smith_domain::Lower::Io { owner, op, deadline }) => {
                 if self.start_job(owner, &op, deadline) {
                     return;
                 }
@@ -1474,9 +1059,11 @@ impl World {
                                     Some(key);
                                 return;
                             }
-                            Err(done) => {
-                                Delivery::Terminal { family: Family::Io, owner, event: Event::Done { owner, done } }
-                            }
+                            Err(done) => Delivery::Terminal {
+                                family: Family::Io,
+                                owner,
+                                event: Event::Below(smith_domain::Below::Done { owner, done }),
+                            },
                         }
                     }
                     op @ (tools::Op::Load { .. }
@@ -1487,14 +1074,18 @@ impl World {
                 };
                 self.schedule_flight(Family::Io, owner, delivery);
             }
-            Request::Job { owner, act } => self.job_act(owner, act),
-            Request::CancelIo { owner } => {
+            Request::Lower(smith_domain::Lower::Job { owner, act }) => self.job_act(owner, act),
+            Request::Lower(smith_domain::Lower::CancelIo { owner }) => {
                 if self.cancel_job(owner) {
                     return;
                 }
-                self.cancel(Family::Io, owner, Event::Done { owner, done: tools::Done::Cancelled });
+                self.cancel(
+                    Family::Io,
+                    owner,
+                    Event::Below(smith_domain::Below::Done { owner, done: tools::Done::Cancelled }),
+                );
             }
-            Request::Read { owner, at, max, deadline } => {
+            Request::Lower(smith_domain::Lower::Read { owner, at, max, deadline }) => {
                 self.boundaries.push((self.now, Boundary::Read { at: at.clone() }));
                 let complete = self.now.saturating_add(self.settings.network.draw(&mut self.rng));
                 let read = if complete > deadline {
@@ -1507,14 +1098,18 @@ impl World {
                 };
                 let key = self.schedule.send(
                     complete.min(deadline),
-                    Delivery::Terminal { family: Family::Read, owner, event: Event::Read { owner, read } },
+                    Delivery::Terminal {
+                        family: Family::Read,
+                        owner,
+                        event: Event::Below(smith_domain::Below::Read { owner, read }),
+                    },
                 );
                 self.flights.open(
                     (Family::Read, owner),
                     Flight { key: Some(key), cancelled: false, completion_message: None, completion_index: None },
                 );
             }
-            Request::Probe { owner, at, deadline } => {
+            Request::Lower(smith_domain::Lower::Probe { owner, at, deadline }) => {
                 self.boundaries.push((self.now, Boundary::Probe { at: at.clone() }));
                 let complete = self.now.saturating_add(self.settings.network.draw(&mut self.rng));
                 let executable = complete <= deadline
@@ -1524,14 +1119,18 @@ impl World {
                         .is_ok_and(|(content, _)| content.starts_with(b"#!"));
                 let key = self.schedule.send(
                     complete.min(deadline),
-                    Delivery::Terminal { family: Family::Probe, owner, event: Event::Probed { owner, executable } },
+                    Delivery::Terminal {
+                        family: Family::Probe,
+                        owner,
+                        event: Event::Below(smith_domain::Below::Probed { owner, executable }),
+                    },
                 );
                 self.flights.open(
                     (Family::Probe, owner),
                     Flight { key: Some(key), cancelled: false, completion_message: None, completion_index: None },
                 );
             }
-            Request::Check { owner, program, deadline, tail } => {
+            Request::Lower(smith_domain::Lower::Check { owner, program, deadline, tail }) => {
                 self.boundaries.push((self.now, Boundary::Check { program: program.clone() }));
                 self.observe(Seen::Checking { owner, tree: self.code() });
                 assert_eq!(&*program.path, fixture::CHECKS, "the host explicitly selected its Temper fixture checks");
@@ -1548,7 +1147,9 @@ impl World {
                 );
                 self.flights.get_mut((Family::Check, owner)).expect("the check is pending").key = Some(key);
             }
-            Request::Abort { owner } => self.cancel(Family::Check, owner, Event::Aborted { owner }),
+            Request::Lower(smith_domain::Lower::Abort { owner }) => {
+                self.cancel(Family::Check, owner, Event::Below(smith_domain::Below::Aborted { owner }));
+            }
             Request::Deliver { host_run, owner, change, name, deadline } => {
                 // Title/body are this fixture host's final-Change policy only.
                 // The Report-only mid-run fixture instead requires opaque ticket.
@@ -1576,7 +1177,7 @@ impl World {
                     Flight { key: None, cancelled: false, completion_message: None, completion_index: None },
                 );
                 if self.parent_deliveries {
-                    assert!(self.delivery_submissions.len() < 256, "finite actual parent delivery story ceiling");
+                    assert!(self.delivery_submissions.len() < 256, "finite parent delivery story ceiling");
                     self.delivery_submissions.push(DeliverySubmission {
                         host_run,
                         owner,
@@ -1595,7 +1196,7 @@ impl World {
                     && self
                         .disk
                         .load(self.root.expect("marker scenario has a workspace"), b"conflict.txt", u64::MAX)
-                        .is_ok_and(|(bytes, _)| bytes.windows(7).any(|part| part == b"<<<<<<<"))
+                        .is_ok_and(|(bytes, _)| skein_lib::bytes::find(&bytes, b"<<<<<<<").is_some())
                 {
                     run::Delivery::Refused(
                         run::DeliveryRefusal::new(
@@ -1693,14 +1294,14 @@ impl World {
                 assert!(self.host_pending.insert((relay.owner.raw(), relay.attempt), Some(key)).is_none());
             }
             Request::WithdrawHost { relay } => {
-                self.host_history.withdraw(relay).expect("withdraw retains actual terminal");
+                self.host_history.withdraw(relay).expect("withdraw retains terminal");
                 assert!(self.host_pending.contains_key(&(relay.owner.raw(), relay.attempt)));
             }
             Request::Unauthorized { grant } => self.unauthorized.push((self.now, grant)),
             Request::MessageRefused { .. }
             | Request::Refused { .. }
             | Request::Limited { .. }
-            | Request::Yield { .. } => {}
+            | Request::Lower(smith_domain::Lower::Yield { .. }) => {}
         }
     }
 
@@ -1747,7 +1348,7 @@ impl World {
                 rendered.extend_from_slice(&text);
                 self.messages_seen
                     .push((self.now, crate::messages_referee::Seen::Input { name, text: rendered.into_boxed_slice() }));
-                let run = self.admitted.expect("parent sends only after actual admission");
+                let run = self.admitted.expect("parent sends only after admission");
                 self.stage.push(Event::Message { finish_requested, label, run, name, text });
             }
             Delivery::Acknowledge { turn } => {
@@ -1756,7 +1357,7 @@ impl World {
             }
             Delivery::Host { relay, reply } => {
                 self.host_terminals.push((relay, self.now, reply.clone()));
-                self.host_history.terminal(self.now, relay, &reply).expect("one actual host terminal");
+                self.host_history.terminal(self.now, relay, &reply).expect("one host terminal");
                 self.host_pending.remove(&(relay.owner.raw(), relay.attempt)).expect("host relay pending");
                 self.stage.push(Event::HostReturned { relay, reply });
                 self.terminals += 1;
@@ -1770,7 +1371,7 @@ impl World {
             Delivery::Terminal { family, owner, event } => self.terminal(family, owner, event),
             Delivery::Io { owner, op, deadline } => {
                 let done = if self.now > deadline { tools::Done::TimedOut } else { io::perform(&mut self.disk, op) };
-                self.terminal(Family::Io, owner, Event::Done { owner, done });
+                self.terminal(Family::Io, owner, Event::Below(smith_domain::Below::Done { owner, done }));
             }
             Delivery::Command { owner, process, head, tail, timed_out } => {
                 if !timed_out {
@@ -1778,7 +1379,7 @@ impl World {
                 }
                 let exit = if timed_out { None } else { Some(process.program.exit) };
                 let done = io::exited(exit, &process.program.output, head, tail);
-                self.terminal(Family::Io, owner, Event::Done { owner, done });
+                self.terminal(Family::Io, owner, Event::Below(smith_domain::Below::Done { owner, done }));
             }
             Delivery::Job { owner } => self.job_tick(owner),
             Delivery::Check { owner, passed, output, timed_out, tail } => {
@@ -1790,7 +1391,7 @@ impl World {
                     output: output[cut..].into(),
                     cut: u64::try_from(cut).expect("fixture output fits"),
                 };
-                self.terminal(Family::Check, owner, Event::Checked { owner, ran });
+                self.terminal(Family::Check, owner, Event::Below(smith_domain::Below::Checked { owner, ran }));
             }
         }
     }
@@ -1807,8 +1408,8 @@ impl World {
                 } if completion.stop == llm::Stop::ToolUse => {
                     self.host_history
                         .called(
-                            message.expect("actual completion flight retains its prompt origin"),
-                            u32::try_from(position).expect("bounded actual completion block position"),
+                            message.expect("completion flight retains its prompt origin"),
+                            u32::try_from(position).expect("bounded completion block position"),
                             id.clone(),
                             name.clone(),
                             input.clone(),
@@ -1824,33 +1425,33 @@ impl World {
     }
 
     /// Observe the original owner's terminal before forwarding its event.
-    /// Native usage comes directly from the matching SDK binding; typed usage
-    /// is the exact callback value. No event or completion body is cloned.
-    /// Contract: scratch/client.md, section 4; domain/run.md, sections 9 and 13.
+    /// Usage is the exact typed callback value. No event or completion body is cloned.
     fn observe_completion_terminal(&mut self, index: usize, event: &Event) {
         let outcome = match event {
-            Event::Completed { completion, .. } => {
-                let usage = match &self.backend {
-                    Backend::Typed { .. } => completion.usage,
-                };
+            Event::Below(smith_domain::Below::Completed { completion, .. }) => {
+                let usage = completion.usage;
                 CompletionTerminal::Completed(usage)
             }
-            Event::Failed { .. } => CompletionTerminal::Failed,
-            Event::Cancelled { .. } => CompletionTerminal::Cancelled,
-            Event::BuiltinResult { .. }
-            | Event::ReadVersion { .. }
-            | Event::HostReturned { .. }
-            | Event::Start { .. }
+            Event::Below(smith_domain::Below::Failed { .. }) => CompletionTerminal::Failed,
+            Event::Below(smith_domain::Below::Cancelled { .. }) => CompletionTerminal::Cancelled,
+            Event::HostReturned { .. }
+            | Event::Start(_)
             | Event::Message { .. }
             | Event::Acknowledge { .. }
             | Event::Grant { .. }
             | Event::Cancel { .. }
             | Event::Delivered { .. }
-            | Event::Done { .. }
-            | Event::Read { .. }
-            | Event::Probed { .. }
-            | Event::Checked { .. }
-            | Event::Aborted { .. } => panic!("completion flight receives only actual provider terminals"),
+            | Event::Below(
+                smith_domain::Below::BuiltinResult { .. }
+                | smith_domain::Below::ReadVersion { .. }
+                | smith_domain::Below::Done { .. }
+                | smith_domain::Below::Read { .. }
+                | smith_domain::Below::Probed { .. }
+                | smith_domain::Below::Checked { .. }
+                | smith_domain::Below::Aborted { .. },
+            ) => {
+                panic!("completion flight receives only provider terminals")
+            }
         };
         assert!(self.completions[index].terminal.replace((self.now, outcome)).is_none());
     }
@@ -1862,9 +1463,9 @@ impl World {
             self.observe_completion_terminal(index, &event);
         }
         match &event {
-            Event::Completed { completion, .. } => {
+            Event::Below(smith_domain::Below::Completed { completion, .. }) => {
                 self.observe_host_call(completion, flight.completion_message);
-                let index = flight.completion_index.expect("actual completion observation");
+                let index = flight.completion_index.expect("completion observation");
                 let prices = self.model_prices[&self.completions[index].model];
                 let usage = completion.usage;
                 let units = observed_price(prices, usage).unwrap_or(0);
@@ -1881,8 +1482,10 @@ impl World {
                     },
                 });
             }
-            Event::Failed { .. } | Event::Cancelled { .. } => self.observe(Seen::CompletionEnded { owner }),
-            Event::Checked { ran, .. } => {
+            Event::Below(smith_domain::Below::Failed { .. } | smith_domain::Below::Cancelled { .. }) => {
+                self.observe(Seen::CompletionEnded { owner });
+            }
+            Event::Below(smith_domain::Below::Checked { ran, .. }) => {
                 self.checked.push(ran.exit == (run::Exit::Code { code: 0 }));
                 self.check_terminals.push(self.now);
                 self.observe(Seen::Checked { owner, exit: Some(ran.exit) });
@@ -1896,46 +1499,50 @@ impl World {
                 }
                 self.observe(Seen::Delivered { owner, push: push.clone(), tree: landed });
             }
-            Event::Aborted { .. } => {
+            Event::Below(smith_domain::Below::Aborted { .. }) => {
                 self.check_terminals.push(self.now);
                 self.observe(Seen::Checked { owner, exit: None });
             }
-            Event::BuiltinResult { .. }
-            | Event::ReadVersion { .. }
-            | Event::HostReturned { .. }
+            Event::HostReturned { .. }
             | Event::Message { .. }
             | Event::Acknowledge { .. }
-            | Event::Start { .. }
+            | Event::Start(_)
             | Event::Grant { .. }
             | Event::Cancel { .. }
-            | Event::Done { .. }
-            | Event::Read { .. }
-            | Event::Probed { .. } => {}
+            | Event::Below(
+                smith_domain::Below::BuiltinResult { .. }
+                | smith_domain::Below::ReadVersion { .. }
+                | smith_domain::Below::Done { .. }
+                | smith_domain::Below::Read { .. }
+                | smith_domain::Below::Probed { .. },
+            ) => {}
         }
         match &event {
-            Event::Completed { completion, .. } => self.messages_seen.push((
+            Event::Below(smith_domain::Below::Completed { completion, .. }) => self.messages_seen.push((
                 self.now,
                 crate::messages_referee::Seen::Completed {
                     parts: crate::messages_referee::completion_parts(&completion.content),
                 },
             )),
-            Event::Failed { .. } | Event::Cancelled { .. } => {
+            Event::Below(smith_domain::Below::Failed { .. } | smith_domain::Below::Cancelled { .. }) => {
                 self.messages_seen.push((self.now, crate::messages_referee::Seen::CompletionEnded));
             }
-            Event::BuiltinResult { .. }
-            | Event::ReadVersion { .. }
-            | Event::Cancel { .. }
-            | Event::Start { .. }
+            Event::Cancel { .. }
+            | Event::Start(_)
             | Event::Message { .. }
             | Event::Acknowledge { .. }
             | Event::Grant { .. }
             | Event::HostReturned { .. }
             | Event::Delivered { .. }
-            | Event::Read { .. }
-            | Event::Probed { .. }
-            | Event::Checked { .. }
-            | Event::Aborted { .. }
-            | Event::Done { .. } => {}
+            | Event::Below(
+                smith_domain::Below::BuiltinResult { .. }
+                | smith_domain::Below::ReadVersion { .. }
+                | smith_domain::Below::Read { .. }
+                | smith_domain::Below::Probed { .. }
+                | smith_domain::Below::Checked { .. }
+                | smith_domain::Below::Aborted { .. }
+                | smith_domain::Below::Done { .. },
+            ) => {}
         }
         self.stage.push(event);
     }
@@ -1947,12 +1554,10 @@ impl World {
         };
         self.host_history
             .finish(continuation)
-            .expect("normal continuation owes exact host feedback; shutdown settles actual relays");
+            .expect("normal continuation owes exact host feedback; shutdown settles relays");
         assert!(self.host_pending.is_empty());
         self.flights.assert_settled();
-        match &self.backend {
-            Backend::Typed { calls, .. } => calls.assert_settled(),
-        }
+        self.backend.assert_settled();
         self.referee.assert_passed(self.settings.seed);
         assert_eq!(
             (self.agent.run().runs(), self.agent.run().conversations(), self.agent.run().calls()),
@@ -2020,40 +1625,36 @@ impl World {
     }
 
     /// Exact time-ordered outside observations for the independent chat oracle.
-    /// Contract: domain/run.md, sections 6 and 13; testing-strategy.md, section 7.
     #[must_use]
     pub fn messages_seen(&self) -> &[(Time, crate::messages_referee::Seen)] {
         &self.messages_seen
     }
 
-    /// Actual main concrete turns, in emitted order. Contract: domain/run.md, section 13.
+    /// Main concrete turns, in emitted order.
     #[must_use]
     pub fn turns(&self) -> &[agent::Turn] {
         &self.turns
     }
 
-    /// Actual activation numbers/read fences/token usage. Contract: domain/run.md, sections 6 and 13.
+    /// Activation numbers/read fences/token usage.
     #[must_use]
     pub fn turn_metadata(&self) -> &[(u32, Option<Token>, run::Spend)] {
         &self.turn_metadata
     }
 
-    /// Actual settled Waiting notices. Contract: domain/run.md, section 6.
+    /// Settled Waiting notices.
     #[must_use]
     pub fn waiting(&self) -> &[(Time, Option<Token>)] {
         &self.waiting
     }
 
-    /// Actual final root output after every lower terminal and main Turn.
-    /// Contract: domain/run.md, section 13; testing-strategy.md, section 7.
+    /// Final root output after every lower terminal and main Turn.
     #[must_use]
     pub fn answer(&self) -> &run::Answer {
         self.answer.as_ref().expect("the world has settled")
     }
 
-    /// Check outcomes actually delivered to the agent, in request order.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 7.
+    /// Check outcomes delivered to the agent, in request order.
     #[must_use]
     pub fn checked(&self) -> &[bool] {
         &self.checked
@@ -2065,23 +1666,19 @@ impl World {
         &self.check_notices
     }
 
-    /// Actual check and abort terminal times, for outside span checks.
+    /// Check and abort terminal times, for outside span checks.
     #[must_use]
     pub fn check_terminals(&self) -> &[Time] {
         &self.check_terminals
     }
 
-    /// Typed push replies actually delivered by the scripted host.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 7.
+    /// Typed push replies delivered by the scripted host.
     #[must_use]
     pub fn pushes(&self) -> &[run::Delivery] {
         &self.pushes
     }
 
     /// Bytes of the fixture code in the shared checkout, independent of the agent.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 7.
     #[must_use]
     pub fn code(&self) -> Vec<u8> {
         self.root
@@ -2089,97 +1686,78 @@ impl World {
     }
 
     /// Bytes retained by a successful host push; empty when nothing landed.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 7.
     #[must_use]
     pub fn landed(&self) -> &[u8] {
         &self.landed
     }
 
     /// Native observations drained and counted when this parent has no retained sink.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 7.
     #[must_use]
     pub fn agent_facts_not_written(&self) -> u64 {
         self.agent_facts_not_written
     }
 
-    /// Actual native observations retained by this scripted parent.
+    /// Native observations retained by this scripted parent.
     #[must_use]
     pub fn facts(&self) -> &[Fact] {
         &self.facts
     }
 
     /// Optional content observations omitted by the capture buffer.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 7.
     #[must_use]
     pub fn lost(&self) -> u64 {
         self.agent.content_lost()
     }
 
     /// Provider queries observed at its boundary, including returned tool IDs.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 7.
     #[must_use]
     pub fn prompts(&self) -> &[provider::api::Query] {
         &self.prompts
     }
 
     /// Host-owned recorded decisions, distinct from relay attempts.
-    /// Contract: domain/run.md, sections 5.2 and 13.
     #[must_use]
     pub const fn host_decisions(&self) -> u32 {
         self.host_decisions
     }
 
-    /// Actual host relay terminals, retained only by this outside world.
-    /// Contract: domain/run.md, sections 5.2 and 13.
+    /// Host relay terminals, retained only by this outside world.
     #[must_use]
     pub fn host_terminals(&self) -> &[(run::RelayName, Time, run::HostReply)] {
         &self.host_terminals
     }
 
-    /// Actual observed cancellation/failed-run boundary time.
-    /// Contract: domain/run.md, sections 5.2 and 10.
+    /// Observed cancellation/failed-run boundary time.
     #[must_use]
     pub const fn host_shutdown_at(&self) -> Option<Time> {
         self.host_history.shutdown_at()
     }
 
     /// Immutable opaque relay observations for replay and recovery checks.
-    /// Contract: domain/run.md, sections 5.2 and 14.
     #[must_use]
     pub fn host_submissions(&self) -> &[crate::host_referee::Submission] {
         self.host_history.submissions()
     }
 
-    /// Stable host names and submission times observed from actual delivery.
-    /// Contract: domain/run.md, sections 8.2 and 13; testing-strategy.md, section 7.
+    /// Stable host names and submission times observed from delivery.
     #[must_use]
     pub fn delivery_names(&self) -> &[(run::CallName, Time)] {
         &self.delivery_names
     }
 
     /// Ordered boundary trace for same-seed replay comparisons.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 7.
     #[must_use]
     pub fn trace(&self) -> &[String] {
         self.trace.lines()
     }
 
     /// Injected monotonic time when the host received the answer.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 7.
     #[must_use]
     pub fn answered_at(&self) -> Time {
         self.answered.expect("the world has settled")
     }
 
-    /// Actual safety checks and met liveness obligations from the shared referee.
-    ///
-    /// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 7.
+    /// Safety checks and met liveness obligations from the shared referee.
     #[must_use]
     pub fn judged(&self) -> (u64, u64) {
         self.referee.judged()
@@ -2237,7 +1815,7 @@ pub fn charter(settings: &Settings) -> run::Charter {
             agents: true,
             host_tools: if settings.job == Job::HostTools {
                 Box::new([run::HostTool {
-                    name: b"host_action".as_slice().into(),
+                    name: settings.host_tool_name.into(),
                     description: b"Opaque host write".as_slice().into(),
                     schema: br#"{"type":"object"}"#.as_slice().into(),
                     effect: run::HostEffect::Write,
@@ -2309,30 +1887,25 @@ fn copy_answer(answer: &run::Answer) -> run::Answer {
     }
 }
 
-impl World {
-    /// Bounded actual start/terminal chronology from Complete and callbacks.
-    /// Native exact SDK usage is also retained on each physical wire Binding.
-    /// Contract: domain/run.md, sections 9 and 14; scratch/client.md, section 4.
+impl<B: Backend> World<B> {
+    /// Bounded start/terminal chronology from Complete and callbacks.
     #[must_use]
     pub fn completions(&self) -> &[CompletionObservation] {
         &self.completions
     }
 }
 
-// Independent outside scalar oracle from caller data and actual provider counts.
+// Independent outside scalar oracle from caller data and provider counts.
 fn observed_price(prices: run::Prices, usage: llm::Usage) -> Option<u64> {
     let denominator = u128::from(prices.unit);
     let fresh = u128::from(usage.input_tokens.expect("scripted peer supplies count"));
     let numerator = fresh
         .checked_mul(u128::from(prices.input))?
         .checked_add(
-            u128::from(usage.cache_write_tokens.expect("scripted peer supplies count"))
+            u128::from(usage.cache_write_tokens.unwrap_or(0))
                 .checked_mul(u128::from(prices.cache_write.unwrap_or(prices.input)))?,
         )?
-        .checked_add(
-            u128::from(usage.cache_read_tokens.expect("scripted peer supplies count"))
-                .checked_mul(u128::from(prices.cached))?,
-        )?
+        .checked_add(u128::from(usage.cache_read_tokens.unwrap_or(0)).checked_mul(u128::from(prices.cached))?)?
         .checked_add(
             u128::from(usage.output_tokens.expect("scripted peer supplies count"))
                 .checked_mul(u128::from(prices.output))?,
@@ -2341,7 +1914,7 @@ fn observed_price(prices: run::Prices, usage: llm::Usage) -> Option<u64> {
     u64::try_from(rounded).ok()
 }
 
-/// Observe the actual Start batch before its admission and first provider query.
+/// Observe the Start batch before its admission and first provider query.
 fn opening_observations(
     charter: &run::Charter,
     messages: &[run::Message],
@@ -2432,47 +2005,201 @@ pub fn world(settings: &Settings, charter: run::Charter, granted: &[u32]) -> Wor
         .collect();
     World::with_start(
         *settings,
-        Event::Start {
-            messages: Box::default(),
-            reply_to: ReplyTo::new(Token::new(1)),
-            host_run: Token::new(1),
-            identity: None,
-            activation: 1,
-            window: agent::Window { turns: u32::MAX, bytes: u64::MAX },
-            charter,
-            workspace: None,
-            grants,
-            transcript: None,
-            answered: Box::new([]),
-        },
+        Event::Start(smith_domain::Start { grants, ..smith_domain::fixture::start(Token::new(1), charter) }),
     )
+}
+
+impl World<Typed> {
+    /// Creates one host request and a fresh agent tree. Fixed queue slack
+    /// exercises output pressure; finite trace and delivery caps fail fast.
+    #[must_use]
+    pub fn new(settings: Settings) -> World {
+        Self::with_history(settings, None)
+    }
+
+    /// A real fake-provider failure with the selected typed terminal metadata.
+    #[must_use]
+    pub fn with_failure(mut settings: Settings, failure: agent::llm::Failure, evidence: agent::llm::Evidence) -> Self {
+        settings.provider.overloaded = 1000;
+        let mut world = Self::new(settings);
+        world.backend.failure = Some((failure, evidence));
+        world
+    }
+
+    /// Script this many fake-provider failures before its ordinary successful script.
+    /// Uses the same typed terminal metadata as `with_failure`; the referee still sees every call.
+    pub fn fail_calls(&mut self, count: u32, failure: agent::llm::Failure, evidence: agent::llm::Evidence) {
+        self.backend.failure_count = Some(count);
+        self.backend.failure = Some((failure, evidence));
+    }
+
+    /// Installs the bounded report accompanying scripted provider failures.
+    pub fn failure_report(&mut self, report: agent::llm::Report) {
+        self.backend.failure_report = report;
+    }
+
+    /// Typed entrance from saved turns, with no later answers supplied.
+    /// History is host-owned; root/session admission decides before provider work.
+    #[must_use]
+    pub fn with_history(settings: Settings, transcript: Option<agent::Transcript>) -> World {
+        Self::with_backend(&settings, transcript, Box::default(), Typed::new(&settings))
+    }
+
+    /// Starts from saved turns and host decisions made after their last turn.
+    #[must_use]
+    pub fn with_history_answers(
+        settings: Settings,
+        transcript: Option<agent::Transcript>,
+        answered: Box<[agent::AnsweredCall]>,
+    ) -> World {
+        Self::with_backend(&settings, transcript, answered, Typed::new(&settings))
+    }
+
+    /// Starts with the caller's complete host event and the usual fixture
+    /// checkout and typed provider. The caller may enable the host-call bridge
+    /// before driving this world.
+    #[must_use]
+    pub fn with_start(settings: Settings, start: Event) -> World {
+        let mut disk = Checkout::new();
+        fixture::seed(&mut disk);
+        Self::with_selected_backend(
+            &settings,
+            None,
+            Box::default(),
+            None,
+            disk,
+            Typed::new(&settings),
+            None,
+            Some(start),
+        )
+    }
+
+    /// Start before any work arrives, with the host's waiting authority.
+    #[must_use]
+    pub fn with_empty_brief(settings: Settings) -> World {
+        let mut charter = charter(&settings);
+        charter.brief.sections = Box::default();
+        charter.instructions = script::cue(settings.job).unwrap_or(b"Look into the code.").into();
+        charter.grants.wait = true;
+        let start = Event::Start(smith_domain::Start {
+            window: agent::Window { turns: 100, bytes: u64::MAX },
+            ..fixture::start(charter)
+        });
+        Self::with_start(settings, start)
+    }
+
+    /// Start a scripted run with the host's specified acknowledgement credit.
+    #[must_use]
+    pub fn with_window(settings: Settings, window: agent::Window) -> World {
+        let start = Event::Start(smith_domain::Start { window, ..fixture::start(charter(&settings)) });
+        Self::with_start(settings, start)
+    }
+
+    /// Caller-selected workspace/disk and typed scripts; no default roots
+    /// are seeded. All accepted metadata and lower terminals use the existing world.
+    #[must_use]
+    pub fn with_workspace_scripts(
+        settings: Settings,
+        transcript: Option<agent::Transcript>,
+        workspace: Option<run::Workspace>,
+        disk: Checkout,
+        scripts: Box<[provider::api::Script]>,
+    ) -> World {
+        let mut backend = Typed::new(&settings);
+        backend.provider = provider::Domain::configured(
+            &settings.provider,
+            settings.seed ^ 0x25,
+            scripts,
+            smith_session_world::provider::menu(),
+        )
+        .expect("caller scripts obey provider admission");
+        Self::with_selected_backend(&settings, transcript, Box::default(), workspace, disk, backend, None, None)
+    }
+
+    /// Caller supplies the complete typed Charter before the original Start;
+    /// sections and instructions are never derived from the job settings. The
+    /// admission path decides refusal, or one terminal Answer after settling.
+    /// Existing receiving bounds and history apply.
+    #[must_use]
+    pub fn with_workspace_scripts_charter(
+        settings: Settings,
+        transcript: Option<agent::Transcript>,
+        workspace: Option<run::Workspace>,
+        disk: Checkout,
+        scripts: Box<[provider::api::Script]>,
+        charter: run::Charter,
+    ) -> World {
+        let mut backend = Typed::new(&settings);
+        backend.provider = provider::Domain::configured(
+            &settings.provider,
+            settings.seed ^ 0x25,
+            scripts,
+            smith_session_world::provider::menu(),
+        )
+        .expect("caller scripts obey provider admission");
+        Self::with_selected_backend(
+            &settings,
+            transcript,
+            Box::default(),
+            workspace,
+            disk,
+            backend,
+            Some(charter),
+            None,
+        )
+    }
+
+    /// Starts with the caller's complete host event, checkout and provider
+    /// scripts. The world does not replace any Start field from the settings.
+    #[must_use]
+    pub fn with_workspace_scripts_start(
+        settings: Settings,
+        disk: Checkout,
+        scripts: Box<[provider::api::Script]>,
+        start: Event,
+    ) -> World {
+        let mut backend = Typed::new(&settings);
+        backend.provider = provider::Domain::configured(
+            &settings.provider,
+            settings.seed ^ 0x25,
+            scripts,
+            smith_session_world::provider::menu(),
+        )
+        .expect("caller scripts obey provider admission");
+        Self::with_selected_backend(&settings, None, Box::default(), None, disk, backend, None, Some(start))
+    }
+
+    /// Original Start/discovery with delivery rights routed to the outside
+    /// parent rather than automatically answered. Existing schedule and ledger
+    /// retain ownership; drive yields at the current clock while a parent reply
+    /// Is owed. Caller must supply that terminal through `return_delivery`.
+    /// At most 256 bounded submission records are retained by this fixture.
+    #[must_use]
+    pub fn with_parent_deliveries(settings: Settings) -> World {
+        let mut world = Self::new(settings);
+        world.parent_deliveries = true;
+        world
+    }
 }
 
 #[cfg(test)]
 mod bridge_tests {
     use super::*;
-    use provider::api::{Finish, Line, Script, Turn};
+    use provider::api::{Line, Script};
 
     #[test]
     fn a_caller_start_and_host_reply_cross_the_parent_bridge() {
         let settings = Settings { job: Job::HostTools, ..Settings::calm(811) };
-        let start = Event::Start {
-            messages: Box::default(),
-            answered: Box::default(),
-            reply_to: ReplyTo::new(Token::new(71)),
+        let start = Event::Start(smith_domain::Start {
             host_run: Token::new(73),
-            identity: None,
             activation: 4,
-            window: agent::Window { turns: u32::MAX, bytes: u64::MAX },
-            charter: charter(&settings),
-            workspace: None,
             grants: Box::new([Grant {
                 renewable: true,
                 name: GrantName { account: 0, generation: 1 },
                 valid: Duration::from_secs(7200),
             }]),
-            transcript: None,
-        };
+            ..smith_domain::fixture::start(Token::new(71), charter(&settings))
+        });
         let mut world = World::with_start(settings, start);
         world.enable_parent_host_calls();
         assert!(!world.drive(20_000), "the world yields before answering the host call");
@@ -2503,42 +2230,30 @@ mod bridge_tests {
         let settings = Settings { job: Job::HostTools, ..Settings::calm(819) };
         let mut charter = charter(&settings);
         charter.grants.host_tools[0].name = b"message".as_slice().into();
-        let start = Event::Start {
-            messages: Box::default(),
-            answered: Box::default(),
-            reply_to: ReplyTo::new(Token::new(71)),
+        let start = Event::Start(smith_domain::Start {
             host_run: Token::new(73),
-            identity: None,
             activation: 4,
-            window: agent::Window { turns: u32::MAX, bytes: u64::MAX },
-            charter,
-            workspace: None,
             grants: Box::new([Grant {
                 renewable: true,
                 name: GrantName { account: 0, generation: 1 },
                 valid: Duration::from_secs(7200),
             }]),
-            transcript: None,
-        };
+            ..smith_domain::fixture::start(Token::new(71), charter)
+        });
         let scripts = Box::new([Script {
             cue: b"@hosttools".as_slice().into(),
             turns: Box::new([
-                Turn {
-                    lines: Box::new([Line::Call {
-                        name: b"message".as_slice().into(),
-                        arguments: b"{}".as_slice().into(),
-                    }]),
-                    finish: Finish::ToolCalls,
-                    tokens: 8,
-                },
-                Turn {
-                    lines: Box::new([Line::Call {
+                crate::fixture::calls(
+                    Box::new([Line::Call { name: b"message".as_slice().into(), arguments: b"{}".as_slice().into() }]),
+                    8,
+                ),
+                crate::fixture::calls(
+                    Box::new([Line::Call {
                         name: b"finish".as_slice().into(),
                         arguments: br#"{"report":"Host completed.","source":"host"}"#.as_slice().into(),
                     }]),
-                    finish: Finish::ToolCalls,
-                    tokens: 8,
-                },
+                    8,
+                ),
             ]),
         }]);
         let mut world = World::with_workspace_scripts_start(settings, Checkout::new(), scripts, start);

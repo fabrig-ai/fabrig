@@ -14,7 +14,7 @@ use smith_local_protocol::{Action, History, Store, StoreLimits, StoreRequest};
 
 const SIGNAL: Token = Token::new(u64::MAX);
 fn limits() -> StoreLimits {
-    StoreLimits { file_bytes: 4096, turns: 2, deliveries: 2, scan_bytes: 4096 }
+    smith_local_protocol::fixture::STORE
 }
 struct Owner {
     store: Store,
@@ -240,27 +240,22 @@ fn initial_files(initial: Initial) -> Vec<skein_fake_machine::Item> {
             let mut items = initial_files(Initial::Current);
             let endpoints = smith_local_process_world::process::lower_configuration().channel_endpoints;
             let turn = smith_domain::Turn {
-                version: smith_domain::session::record::VERSION,
-                kind: smith_domain::session::record::Kind::First(Box::new(smith_domain::session::record::Opener {
-                    affinity: smith_domain::llm::Affinity { key: [0; 16], thread: 0 },
-                    account: None,
-                    backend: smith_domain::session::record::Backend::Direct,
-                })),
-                endpoint: Some(smith_domain::session::llm::Endpoint(0)),
                 dialect: 1,
-                model: b"model".as_slice().into(),
-                effort: None,
-                sequence: 1,
-                usage: smith_domain::session::llm::Usage::ZERO,
-                spent: 0,
-                jobs: 0,
-                messages: Box::new([smith_domain::session::llm::Message {
-                    role: smith_domain::session::llm::Role::Assistant,
-                    content: Box::new([smith_domain::session::llm::Block::Text {
-                        text: Box::new([b'x'; 3000]),
-                        replay: None,
+                ..smith_domain::session::fixture::turn(
+                    b"model".as_slice().into(),
+                    smith_domain::session::record::Kind::First(Box::new(smith_domain::session::record::Opener {
+                        affinity: smith_domain::llm::Affinity { key: [0; 16], thread: 0 },
+                        account: None,
+                        backend: smith_domain::session::record::Backend::Direct,
+                    })),
+                    Box::new([smith_domain::session::llm::Message {
+                        role: smith_domain::session::llm::Role::Assistant,
+                        content: Box::new([smith_domain::session::llm::Block::Text {
+                            text: Box::new([b'x'; 3000]),
+                            replay: None,
+                        }]),
                     }]),
-                }]),
+                )
             };
             let file =
                 smith_local_protocol::save_turn(1, None, true, &turn, &smith_transcript::CEILINGS, &endpoints).unwrap();

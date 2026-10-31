@@ -89,7 +89,7 @@ fn a_window_of_more_than_sixty_four_turns_resumes() {
             turn.kind = record::Kind::Ordinary;
         }
         bodies.push(
-            smith_protocol_channel::encode_turn(
+            smith_protocol_translate::encode_turn(
                 &turn,
                 &limits.channel.transcript,
                 &smith_channel_world::test_endpoints(),

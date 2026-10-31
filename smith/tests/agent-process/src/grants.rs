@@ -1,5 +1,5 @@
 //! Tagged wire fixtures shared by the process stories.
-use skein_lib::{Secret, Writer};
+use skein_lib::Secret;
 use smith_channel::{CEILINGS, GrantValue, Scheme};
 
 /// A host's bearer wire value.
@@ -62,9 +62,5 @@ pub(crate) fn refresh(value: GrantValue) -> skein_channel::Frame {
         },
     )
     .expect("refresh");
-    let mut body = Writer::new(usize::try_from(record.measure()).expect("body length"));
-    record.encode(&mut body).expect("measured refresh");
-    let mut frame = skein_channel::frame_writer(0x0104, record.measure()).expect("refresh frame");
-    frame.put(&body.finish()).expect("frame body");
-    frame.finish().expect("refresh frame")
+    crate::frame!(0x0104, record)
 }

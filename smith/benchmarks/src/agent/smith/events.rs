@@ -224,51 +224,36 @@ impl Observer {
         let mut seen = Vec::new();
         match &record.event {
             Event::SessionEnded(ended) => session.ended = Some(ended.clone()),
-            Event::ResponseCompleted(response) => {
+            Event::ResponseCompleted(response)
                 if !session.records.iter().any(|previous| {
                     matches!(&previous.event,
                     Event::ResponseCompleted(value) if value.run == response.run && value.response == response.response)
-                }) {
-                    seen.push(Seen::Response);
-                }
+                }) =>
+            {
+                seen.push(Seen::Response);
             }
             Event::ToolStarted(tool) => {
                 seen.push(Seen::ToolCall { tool: String::from_utf8_lossy(&tool.tool).into_owned() });
             }
-            Event::ConversationOpened(conversation) => {
-                if conversation.kind == smith_events::ConversationKind::Child {
-                    seen.push(Seen::Child);
-                }
+            Event::ConversationOpened(conversation) if conversation.kind == smith_events::ConversationKind::Child => {
+                seen.push(Seen::Child);
             }
             // A terminal, including a failure, lets the scripted person close.
-            Event::RunCompleted(run) => {
+            Event::RunCompleted(run)
                 if !session.records.iter().any(|previous| {
                     matches!(&previous.event,
                     Event::RunCompleted(value) if value.run == run.run)
-                }) {
-                    seen.push(Seen::Answer);
-                }
+                }) =>
+            {
+                seen.push(Seen::Answer);
             }
-            Event::SessionStarted(_)
-            | Event::RunStarted(_)
-            | Event::ConversationClosed(_)
-            | Event::ResponseStarted(_)
-            | Event::TextDelta(_)
-            | Event::JobEnded(_)
-            | Event::ToolCompleted(_)
-            | Event::CheckStarted(_)
-            | Event::CheckCompleted(_)
-            | Event::MessageReceived(_)
-            | Event::MessageRead(_)
-            | Event::MessageUnread(_)
-            | Event::Budget(_)
-            | Event::Notice(_) => {}
+            _ => {}
         }
         session.records.push(record);
         Ok(seen)
     }
 
-    /// Count per-response usage once within each session and run's actual scope.
+    /// Count per-response usage once within each session and run's scope.
     pub fn tokens(&self) -> Result<Vec<TokenRecord>, HarnessFault> {
         usage::tokens(&self.sessions, &mut Vec::new()).map_err(fault)
     }
@@ -298,7 +283,7 @@ impl Observer {
         usage::counts(&self.sessions)
     }
 
-    /// Hold genuine exit and force against the last authoritative run answer.
+    /// Hold exit and force against the last authoritative run answer.
     #[must_use]
     pub fn classify(&self, exit: Exit, forced: Forced) -> Classification {
         classify::classify(self, exit, forced)
@@ -390,7 +375,7 @@ fn run(event: &Event) -> Option<u64> {
         Event::MessageRead(value) => Some(value.run),
         Event::MessageUnread(value) => Some(value.run),
         Event::Notice(value) => value.run,
-        Event::SessionStarted(_) | Event::SessionEnded(_) => None,
+        _ => None,
     }
 }
 

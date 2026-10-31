@@ -12,7 +12,7 @@ pub fn backend_valid(settings: &Settings) -> bool {
 
 fn backend_edges(settings: &Settings) -> Option<()> {
     settings.path_bytes.checked_mul(2)?.checked_add(1)?;
-    settings.receiving.max_completion_blocks.checked_mul(5)?;
+    settings.ledger_slots()?;
     measures::capacity(settings)?;
     settings.adapter.client.tools.checked_add(u32::try_from(super::policy::BUILTINS.len()).ok()?.checked_add(1)?)?;
     super::redaction::capacity(settings)?;

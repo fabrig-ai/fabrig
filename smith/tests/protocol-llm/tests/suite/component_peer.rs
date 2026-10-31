@@ -13,58 +13,18 @@ use skein_lib::{Duration, Env, Intake, Queue, Rng, Time, Token};
 use skein_llm::{Credential, Provider};
 use skein_tls_world::{drive::Wire, pki, server::Server};
 use smith_domain::{GrantName, llm, run, tools};
-use smith_protocol_llm_world::adapter::{
-    self as adapter, Component, ComponentLimits, ConfiguredEndpoint, Endpoints, FromDomain, Receiving, ToDomain,
+use smith_protocol_llm_world::codec::{
+    Component, ComponentLimits, ConfiguredEndpoint, Endpoints, FromDomain, ToDomain,
 };
 
 fn limits() -> ComponentLimits {
-    let client = skein_llm_world::limits();
-    let decoded_call_bytes = 4096;
-    ComponentLimits {
-        adapter: adapter::Limits {
-            client,
-            tool_bytes: 32768,
-            history_bytes: u64::from(client.request),
-            rendered_result: client.strings,
-            stated: smith_protocol_llm_world::adapter::stated(),
-        },
-        connection: skein_llm_connection::Limits {
-            memory: 1 << 40,
-            endpoints: 1,
-            connections: 1,
-            calls: 1,
-            per_endpoint: 1,
-            idle_keep: smith_agent_service::profile::standard().policy.connection_keep,
-            io: skein_io::Limits {
-                sockets: 1,
-                names: 0,
-                refusals: 1,
-                intake: 19_000,
-                receive: 1024,
-                output: 19_000,
-                sends: 2,
-                accepts: 1,
-                backlog: 1,
-                close_timeout: Duration::from_secs(1),
-                retry: Duration::from_millis(10),
-            },
-            tls: skein_tls::client::Limits {
-                read: skein_llm::client::largest_read(&client),
-                send: 4096,
-                records: skein_tls::client::MAX_RECORD,
-            },
-        },
-        receiving: Receiving {
-            max_completion_bytes: adapter::completion_bound(&client, decoded_call_bytes).expect("receiving bound"),
-            max_completion_blocks: client.output_items,
-            decoded_call_bytes,
-            max_failure_bytes: client.detail_bytes,
-        },
-        contract_bytes: 4096,
-        llms: 1,
-        accounts: 1,
-        grant_value_bytes: 128,
-    }
+    let mut fixture_limits = smith_protocol_llm_world::fixture::component();
+    fixture_limits.connection.calls = 1;
+    fixture_limits.connection.connections = 1;
+    fixture_limits.connection.per_endpoint = 1;
+    fixture_limits.connection.io.sockets = 1;
+    fixture_limits.connection.io.backlog = 1;
+    fixture_limits
 }
 
 // Three later owner entrances wait through each seeded sink hold.
@@ -72,7 +32,7 @@ const LATER_ENTRANCES: u32 = 3;
 const ORDER_SEED: u64 = 0x504f_0102;
 const TRACE_SINK: Token = Token::new(400);
 // The Sinks unit fixture's record limits cover its fixed event vocabulary.
-const SINK_RECORDS: smith_events::Limits = smith_events::Limits { string: 64, content: 1024, items: 19 };
+const SINK_RECORDS: smith_events::Limits = smith_events::Limits { items: 19, ..smith_events::fixture::SMALL };
 // Four authoritative/teardown slots and a two-record fact handoff (Sinks::LINE_SLOTS).
 const SINK_LINES: u32 = 6;
 // The Sinks unit fixture's destination write deadline; virtual time stays at zero.
@@ -111,7 +71,7 @@ struct Story {
 }
 
 struct Recorder {
-    sink: smith_agent_service::sinks::Sinks,
+    sink: smith_protocol_events::sinks::Sinks,
     pending: VecDeque<Entrance>,
     order: Vec<Order>,
     captured: Vec<smith_protocol_llm::Measure>,
@@ -123,10 +83,9 @@ struct Recorder {
 
 impl Recorder {
     fn new(pressure: Pressure, seed: u64) -> Self {
-        use smith_agent_service::sinks::{Capture, Delivery, Destination, SinkLimits, Sinks};
+        use smith_protocol_events::sinks::{Capture, Delivery, Destination, SinkLimits, Sinks};
         let records = SINK_RECORDS;
         let mut bounds = SinkLimits {
-            destinations: 1,
             output: 0,
             records,
             answer_bytes: records.content,
@@ -134,8 +93,7 @@ impl Recorder {
             metadata_items: records.items,
             scalar_content: records.content,
             observation_line: 0,
-            fact_extra: 0,
-            conversations: 1,
+            ..smith_protocol_events::sinks::fixture::small()
         };
         bounds.output =
             bounds.line_ceiling(Capture::None).expect("marker line").checked_mul(SINK_LINES).expect("sink output");
@@ -403,7 +361,7 @@ fn run_story(
     if observed {
         assert!(io.is_empty(), "the observed prompt is recorded before the request reaches the connection");
         assert!(up.is_empty(), "a provider terminal cannot precede its recorded prompt");
-        assert!(!component.measures_drained(), "the held handoff owes its actual prompt observation");
+        assert!(!component.measures_drained(), "the held handoff owes its observed prompt observation");
     }
     for _ in 0_u32..40_000 {
         if !recorder.drain(&mut component, &env, &mut up, &mut io) {
@@ -629,7 +587,7 @@ fn run_story(
                     assert_eq!(prompt.system.as_deref(), Some(b"connection-world".as_slice()));
                     assert_eq!(prompt.messages.len(), 1);
                     assert_eq!(
-                        prompt.messages.get(0).expect("first actual message").blocks.as_slice(),
+                        prompt.messages.get(0).expect("first observed message").blocks.as_slice(),
                         &[smith_events::Block::Text { text: b"hi".to_vec().into() }]
                     );
                     assert_eq!(
@@ -703,13 +661,13 @@ fn anthropic_tool_input_is_typed_through_the_owned_connection() {
 }
 
 #[test]
-fn captured_native_codex_text_and_calls_keep_actual_prompt_and_deltas() {
+fn captured_native_codex_text_and_calls_keep_observed_prompt_and_deltas() {
     run(Provider::OpenAiCodex, false, true, false);
     run(Provider::OpenAiCodex, true, true, false);
 }
 
 #[test]
-fn captured_native_anthropic_text_and_calls_keep_actual_prompt_and_deltas() {
+fn captured_native_anthropic_text_and_calls_keep_observed_prompt_and_deltas() {
     run(Provider::Anthropic, false, true, false);
     run(Provider::Anthropic, true, true, false);
 }

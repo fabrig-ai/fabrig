@@ -1,30 +1,26 @@
 //! Lossless neutral failure/evidence and bounded mechanical invalid-input feedback.
-//! No diagnostic wording participates in application decisions.
+//! No diagnostic wording participates in tool decisions.
 
 use alloc::boxed::Box;
 
 use skein_lib::{Decimal, Token, Writer, bytes};
-use skein_llm::{self as shared, client};
+use skein_llm::client;
 use smith_domain::{Event, llm};
 
 use crate::{Context, Error};
 
-/// Moves one actual shared Failed terminal into the root boundary unchanged in meaning.
+/// Moves one observed shared Failed terminal into the root boundary unchanged in meaning.
 /// Detail is exact under the secured receiving cap; the policy consumes/drops it
 /// after observation and retains only typed class/evidence in facts and End.
-/// Incorrect owner or over-cap diagnostic is a sender contract refusal.
-/// The actual Client remains owned until its independent lower Closed terminal.
+/// An over-cap diagnostic is a sender contract refusal.
+/// The component retains the lower client until its independent Closed terminal.
 pub fn failed(
     context: Context,
-    owner: Token,
-    failure: shared::Failure,
+    failure: skein_llm::Failure,
     evidence: client::Evidence,
     detail: Box<[u8]>,
-    report: shared::Report,
+    report: skein_llm::Report,
 ) -> Result<Event, Error> {
-    if owner != context.owner {
-        return Err(Error::Invalid);
-    }
     if detail.len() > usize::try_from(context.receiving.max_failure_bytes).expect("u32 fits usize") {
         return Err(Error::Limit);
     }
@@ -34,48 +30,50 @@ pub fn failed(
         client::Evidence::Unknown => llm::Evidence::Unknown,
         client::Evidence::Response { status } => llm::Evidence::Response { status: Some(status) },
     };
-    Ok(Event::Failed {
-        owner,
+    Ok(Event::Below(smith_domain::Below::Failed {
+        owner: context.owner,
         failure,
         evidence,
         detail,
         report: llm::Report { code: report.code, request: report.request, field: report.field },
-    })
+    }))
 }
 
 /// Each shared failure keeps its session class (domain/session.md, section 4).
-pub(crate) fn class(failure: shared::Failure) -> llm::Failure {
+pub(crate) fn class(failure: skein_llm::Failure) -> llm::Failure {
     match failure {
-        shared::Failure::Overloaded => llm::Failure::Overloaded,
-        shared::Failure::RateLimited { retry_after } => llm::Failure::RateLimited { retry_after },
-        shared::Failure::Unavailable => llm::Failure::Unavailable,
-        shared::Failure::TimedOut { phase } => llm::Failure::TimedOut {
+        skein_llm::Failure::Overloaded => llm::Failure::Overloaded,
+        skein_llm::Failure::RateLimited { retry_after } => llm::Failure::RateLimited { retry_after },
+        skein_llm::Failure::Unavailable => llm::Failure::Unavailable,
+        skein_llm::Failure::TimedOut { phase } => llm::Failure::TimedOut {
             phase: match phase {
-                shared::Phase::Connect => llm::Phase::Connect,
-                shared::Phase::Handshake => llm::Phase::Handshake,
-                shared::Phase::Head => llm::Phase::Head,
-                shared::Phase::Idle => llm::Phase::Idle,
-                shared::Phase::Whole => llm::Phase::Whole,
+                skein_llm::Phase::Connect => llm::CompletionPhase::Connect,
+                skein_llm::Phase::Handshake => llm::CompletionPhase::Handshake,
+                skein_llm::Phase::Head => llm::CompletionPhase::Head,
+                skein_llm::Phase::Idle => llm::CompletionPhase::Idle,
+                skein_llm::Phase::Whole => llm::CompletionPhase::Whole,
             },
         },
-        shared::Failure::ContextTooLong => llm::Failure::ContextTooLong,
-        shared::Failure::Refused => llm::Failure::Refused,
-        shared::Failure::Unsupported => llm::Failure::Unsupported,
-        shared::Failure::Invalid => llm::Failure::Invalid,
-        shared::Failure::Unauthorized => llm::Failure::Unauthorized,
-        shared::Failure::Exhausted { retry_after } => llm::Failure::Exhausted { retry_after },
-        shared::Failure::Limit { which, bound } => llm::Failure::Limit { which: llm::Limit::Path(cap(which)), bound },
-        shared::Failure::Protocol => llm::Failure::Protocol,
-        shared::Failure::Cancelled => llm::Failure::Cancelled,
+        skein_llm::Failure::ContextTooLong => llm::Failure::ContextTooLong,
+        skein_llm::Failure::Refused => llm::Failure::Refused,
+        skein_llm::Failure::Unsupported => llm::Failure::Unsupported,
+        skein_llm::Failure::Invalid => llm::Failure::Invalid,
+        skein_llm::Failure::Unauthorized => llm::Failure::Unauthorized,
+        skein_llm::Failure::Exhausted { retry_after } => llm::Failure::Exhausted { retry_after },
+        skein_llm::Failure::Limit { which, bound } => {
+            llm::Failure::Limit { which: llm::Limit::Path(cap(which)), bound }
+        }
+        skein_llm::Failure::Protocol => llm::Failure::Protocol,
+        skein_llm::Failure::Cancelled => llm::Failure::Cancelled,
     }
 }
 
-/// Translates the actual shared cancellation terminal after real lower settlement.
+/// Translates the observed shared cancellation terminal after real lower settlement.
 /// A cancellation request alone never permits calling this function; already
 /// won Completed/Failed terminals keep their values and consume context instead.
-/// An incorrect callback owner is Invalid and confers no terminal authority.
-pub fn cancelled(context: Context, owner: Token) -> Result<Event, Error> {
-    if owner == context.owner { Ok(Event::Cancelled { owner }) } else { Err(Error::Invalid) }
+#[must_use]
+pub fn cancelled(context: Context) -> Event {
+    Event::Below(smith_domain::Below::Cancelled { owner: context.owner })
 }
 
 /// Reports a preparation refusal as an unsent root terminal; no wire call existed.
@@ -84,17 +82,23 @@ pub fn cancelled(context: Context, owner: Token) -> Result<Event, Error> {
 #[must_use]
 pub fn refusal(owner: Token, error: Error, max_failure_bytes: u32) -> Event {
     let (failure, text): (llm::Failure, &[u8]) = match error {
-        Error::Limit => (llm::Failure::ApplicationLimit, b"shared Client preparation exceeds receiving limits"),
+        Error::Limit => (llm::Failure::ApplicationLimit, b"skein Client preparation exceeds receiving limits"),
         Error::PathLimit { which, bound } => (
             llm::Failure::Limit { which: llm::Limit::Path(which), bound },
             b"native Client preparation exceeds its named path bound",
         ),
-        Error::Invalid => (llm::Failure::Invalid, b"invalid application prompt or configured call"),
+        Error::Invalid => (llm::Failure::Invalid, b"invalid tool prompt or configured call"),
         Error::Unsupported => (llm::Failure::Invalid, b"unsupported replay or configured call"),
     };
     let length = text.len().min(usize::try_from(max_failure_bytes).expect("u32 fits usize"));
     let detail = bytes::copy_of(text.get(..length).expect("clipped fixed local diagnostic"));
-    Event::Failed { owner, failure, evidence: llm::Evidence::Unsent, detail, report: llm::Report::none() }
+    Event::Below(smith_domain::Below::Failed {
+        owner,
+        failure,
+        evidence: llm::Evidence::Unsent,
+        detail,
+        report: llm::Report::none(),
+    })
 }
 
 pub(crate) fn problem(problem: llm::Problem, maximum: u32) -> Result<Box<[u8]>, Error> {
@@ -157,8 +161,8 @@ pub(crate) fn problem(problem: llm::Problem, maximum: u32) -> Result<Box<[u8]>, 
             if printable(byte) {
                 output.put(&[byte]).expect("measured literal field byte");
             } else {
-                let high = hex(byte >> 4_u8);
-                let low = hex(byte & 15_u8);
+                let high = bytes::hex_digit(byte >> 4_u8);
+                let low = bytes::hex_digit(byte & 15_u8);
                 output.put(&[b'\\', b'x', high, low]).expect("measured escaped field byte");
             }
         }
@@ -171,15 +175,10 @@ fn printable(byte: u8) -> bool {
     (32..=126).contains(&byte) && byte != b'"' && byte != b'\\'
 }
 
-fn hex(value: u8) -> u8 {
-    *b"0123456789abcdef".get(usize::from(value)).expect("four-bit escaped field byte")
-}
-
 pub(crate) const WRITE_SIZE_SUFFIX: &[u8] = b" bytes; make a smaller write or an edit. For a larger file, write its first part within the bound, then extend it with edits; put as many edits in one call as fit the bound";
 
 fn call_size_problem(bytes: u64, bound: Option<u32>, maximum: u32) -> Result<Box<[u8]>, Error> {
     let size = Decimal::of(bytes);
-    #[expect(clippy::manual_map, reason = "production subset uses exhaustive matches without mapping callbacks")]
     let bound = match bound {
         Some(bound) => Some(Decimal::of(u64::from(bound))),
         None => None,
@@ -208,29 +207,29 @@ fn call_size_problem(bytes: u64, bound: Option<u32>, maximum: u32) -> Result<Box
     Ok(output.finish())
 }
 
-pub(crate) const fn cap(which: shared::Cap) -> llm::Cap {
+pub(crate) const fn cap(which: skein_llm::Cap) -> llm::Cap {
     match which {
-        shared::Cap::Request => llm::Cap::Request,
-        shared::Cap::RequestHead => llm::Cap::RequestHead,
-        shared::Cap::ResponseHead => llm::Cap::ResponseHead,
-        shared::Cap::ResponseFields => llm::Cap::ResponseFields,
-        shared::Cap::Skip => llm::Cap::Skip,
-        shared::Cap::Field => llm::Cap::Field,
-        shared::Cap::Retained => llm::Cap::Retained,
-        shared::Cap::Tokens => llm::Cap::Tokens,
-        shared::Cap::Depth => llm::Cap::Depth,
-        shared::Cap::Strings => llm::Cap::Strings,
-        shared::Cap::Number => llm::Cap::Number,
-        shared::Cap::Reasoning => llm::Cap::Reasoning,
-        shared::Cap::OutputItems => llm::Cap::OutputItems,
-        shared::Cap::Metadata => llm::Cap::Metadata,
-        shared::Cap::Tools => llm::Cap::Tools,
-        shared::Cap::HistoryItems => llm::Cap::HistoryItems,
-        shared::Cap::Output => llm::Cap::Output,
-        shared::Cap::Answer => llm::Cap::Answer,
-        shared::Cap::ErrorBody => llm::Cap::ErrorBody,
-        shared::Cap::Value => llm::Cap::AccessToken,
-        shared::Cap::AccountId => llm::Cap::AccountId,
+        skein_llm::Cap::Request => llm::Cap::Request,
+        skein_llm::Cap::RequestHead => llm::Cap::RequestHead,
+        skein_llm::Cap::ResponseHead => llm::Cap::ResponseHead,
+        skein_llm::Cap::ResponseFields => llm::Cap::ResponseFields,
+        skein_llm::Cap::Skip => llm::Cap::Skip,
+        skein_llm::Cap::Field => llm::Cap::Field,
+        skein_llm::Cap::Retained => llm::Cap::Retained,
+        skein_llm::Cap::Tokens => llm::Cap::Tokens,
+        skein_llm::Cap::Depth => llm::Cap::Depth,
+        skein_llm::Cap::Strings => llm::Cap::Strings,
+        skein_llm::Cap::Number => llm::Cap::Number,
+        skein_llm::Cap::Reasoning => llm::Cap::Reasoning,
+        skein_llm::Cap::OutputItems => llm::Cap::OutputItems,
+        skein_llm::Cap::Metadata => llm::Cap::Metadata,
+        skein_llm::Cap::Tools => llm::Cap::Tools,
+        skein_llm::Cap::HistoryItems => llm::Cap::HistoryItems,
+        skein_llm::Cap::Output => llm::Cap::Output,
+        skein_llm::Cap::Answer => llm::Cap::Answer,
+        skein_llm::Cap::ErrorBody => llm::Cap::ErrorBody,
+        skein_llm::Cap::Value => llm::Cap::AccessToken,
+        skein_llm::Cap::AccountId => llm::Cap::AccountId,
     }
 }
 

@@ -8,11 +8,15 @@
 //! Send names protect reuse, and only Waiting establishes a watchdog claim.
 //! Turns move to the parent, with exact commitment ACK metadata retained here.
 //! Content-free facts are retained losslessly until the parent drains them.
-//! Actual deliveries survive EOF and tree cleanup; `Gone` is the separate process
+//! Deliveries survive EOF and tree cleanup; `Gone` is the separate process
 //! containment terminal, after every outstanding right. Reclaim at the iteration boundary
 //! (programming-model.md, sections 4.5, 5 and 6; domain/host.md, sections 4 and 6).
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
+#![expect(
+    clippy::manual_map,
+    reason = "closures are out of step code (programming-model.md 10.3), so an Option is mapped by a match"
+)]
 extern crate alloc;
 
 mod boundary;
@@ -29,6 +33,9 @@ mod domain;
 mod facts;
 
 mod inbox;
+
+#[cfg(any(test, feature = "fixture"))]
+pub mod fixture;
 
 mod limits;
 
@@ -53,8 +60,7 @@ pub use channel::{
 };
 
 pub use delivery::{
-    Delivered, Delivery, DeliveryFailure, DeliveryReason, DeliveryRefusal, DeliveryStatus, Diagnostic, MAX_DIRECTORIES,
-    Marker, Receipt,
+    Delivered, Delivery, DeliveryFailure, DeliveryReason, DeliveryRefusal, Diagnostic, MAX_DIRECTORIES, Marker, Receipt,
 };
 
 pub use domain::{Domain, fire, step};

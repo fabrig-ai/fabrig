@@ -1,10 +1,8 @@
 //! The independent channel referee accepts a complete run and rejects
 //! duplicate answers, missing terminals, gaps and credential leakage.
 
-use skein_channel::StreamMode;
 use skein_lib::{Time, Token};
 use skein_world::domain::{Referee, Verdict};
-use smith_channel::CEILINGS;
 use smith_channel_world::{
     World,
     referee::{Meeting, Seen, review},
@@ -12,12 +10,7 @@ use smith_channel_world::{
 
 #[test]
 fn a_completed_world_meets_the_answer_and_end_obligations() {
-    let mut world = World::new(CEILINGS, CEILINGS, StreamMode::Two);
-    world.settle();
-    world.send_start(Box::from(
-        &include_bytes!("../../../../crates/smith-charter/golden/v4/record_charter_smallest.bin")[..],
-    ));
-    world.settle();
+    let mut world = World::started();
     world.agent_admits_and_parks();
     world.settle();
     review(world.observations(), Box::from(*b"secret")).assert_passed(0);
@@ -25,14 +18,7 @@ fn a_completed_world_meets_the_answer_and_end_obligations() {
 
 #[test]
 fn a_host_call_terminal_pairs_across_both_halves() {
-    let mut world = World::new(CEILINGS, CEILINGS, StreamMode::Two);
-    world.settle();
-    world.send_start(Box::from(
-        &include_bytes!("../../../../crates/smith-charter/golden/v4/record_charter_smallest.bin")[..],
-    ));
-    world.settle();
-    world.agent_admits();
-    world.settle();
+    let mut world = World::admitted();
     let name = smith_domain::run::CallName { activation: 1, completion: 1, position: 0 };
     let relay = smith_domain::run::RelayName { owner: Token::new(1), attempt: 1 };
     world.agent_calls_host(name, relay);

@@ -1,57 +1,42 @@
 //! Downward passes from queued domain requests to lower components.
 //! Facts, messages and lower requests stay in the service; this stage never
-//! chooses their domain meaning. Contract: protocol/agent.md, sections 4–6.
+//! chooses their domain meaning. Contract: smith/docs/design/protocol/agent.md, sections 4–6.
 
 use super::request::domain_request;
 use super::routing::component_owner;
-use super::{Failure, Owner, PendingMessage, Service, program};
+use super::{Frame, Owner, PendingMessage, Stages, face, program};
 use skein_channel::Lower as ChannelLower;
 use skein_io::{self as io, file, file_layer, kernel};
 use skein_lib::stream;
 use smith_domain as domain;
-use smith_protocol_channel as channel;
 use smith_protocol_machine as machine;
 
-pub(super) fn domain_down(service: &mut Service) {
-    drain_facts(service);
-    match &service.domain {
+pub(super) fn domain_down(service: &mut Stages, mut frame: Option<&mut Frame>) {
+    drain_facts(service, frame.as_deref_mut());
+    match face::domain(frame.as_deref()) {
         Some(domain) if domain.has_facts() => return,
         Some(_) | None => {}
     }
-    let channel_room = channel::edge_room(&service.limits.channel);
     if let Some(run) = service.admitted {
         for _ in 0..service.pending_messages.capacity() {
-            if !super::admits(service) {
+            if !super::pending_message_ready(service) {
                 break;
             }
-            let PendingMessage { finish_requested, name, label, text } = match service.pending_messages.pop() {
-                Some(message) => message,
-                None => break,
+            let Some(PendingMessage { finish_requested, name, label, text }) = service.pending_messages.pop() else {
+                break;
             };
             service.domain_events.push(domain::Event::Message { finish_requested, run, name, label, text });
         }
     }
     for _ in 0..service.limits.queue {
-        match &service.events {
-            Some(events) if !events.sinks.takes() => break,
-            Some(_) | None => {}
-        }
-        if !channel_takes(service)
-            || !service.llm.measures_drained()
-            || (service.channel.is_some()
-                && (service.channel_events.room() < channel_room.to_domain
-                    || service.channel_below.room() < channel_room.below))
-        {
+        if !super::domain_request_credit(service, frame.as_deref()) {
             break;
         }
         if program::wait_for_close(service) {
             break;
         }
-        let request = match service.domain_requests.pop() {
-            Some(request) => request,
-            None => break,
-        };
-        domain_request(service, request);
+        let Some(request) = service.domain_requests.pop() else { break };
+        domain_request(service, frame.as_deref_mut(), request);
     }
     match service.admitted {
         Some(run) if service.cancel_pending => {
@@ -60,12 +45,12 @@ pub(super) fn domain_down(service: &mut Service) {
         }
         Some(_) | None => {}
     }
-    drain_facts(service);
+    drain_facts(service, frame);
 }
 
 /// A queued request waits on kernel output credit; a colocated runtime has no channel.
-pub(super) fn channel_takes(service: &Service) -> bool {
-    match &service.channel {
+pub(super) fn channel_takes(frame: Option<&Frame>) -> bool {
+    match face::channel(frame) {
         Some(channel) => channel.takes(),
         None => true,
     }
@@ -73,13 +58,12 @@ pub(super) fn channel_takes(service: &Service) -> bool {
 
 /// A single take offers each observation to the independent sinks. The trace
 /// continues through answer and settlement; channel projection owns its phase.
-pub(super) fn drain_facts(service: &mut Service) {
+pub(super) fn drain_facts(service: &mut Stages, mut frame: Option<&mut Frame>) {
     for _ in 0..service.limits.queue {
-        match &service.events {
-            Some(events) if !events.sinks.takes() => break,
-            Some(_) | None => {}
+        if !super::sinks_take(service) {
+            break;
         }
-        let fact = match &mut service.domain {
+        let fact = match face::domain_mut(frame.as_deref_mut()) {
             Some(domain) => match domain.pop_fact() {
                 Some(fact) => fact,
                 None => break,
@@ -87,24 +71,27 @@ pub(super) fn drain_facts(service: &mut Service) {
             None => break,
         };
         let token = service.next_send();
-        if let Some(channel) = &mut service.channel
-            && channel
-                .send_fact(&fact, service.run_started, token, &mut service.channel_events, &mut service.channel_below)
-                .is_err()
-        {
-            service.mark_failed(Failure::Send);
+        if let Some(channel) = face::channel_mut(frame.as_deref_mut()) {
+            let result = channel.send_fact(
+                &fact,
+                service.run_started,
+                token,
+                &mut service.channel_events,
+                &mut service.channel_below,
+            );
+            super::link::sent(service, result.is_ok());
         }
         if let Some(events) = &mut service.events {
             events.fact(&fact);
         }
     }
-    let drained = match &service.domain {
+    let drained = match face::domain(frame.as_deref()) {
         Some(domain) => !domain.has_facts(),
         None => true,
     };
     if drained && let Some(events) = &mut service.events {
         for _ in 0..service.limits.domain.run.conversations {
-            if !events.sinks.takes() || !events.sinks.facts_drained(events.origin()) {
+            if !events.takes() || !events.facts_drained() {
                 break;
             }
         }
@@ -112,12 +99,9 @@ pub(super) fn drain_facts(service: &mut Service) {
 }
 
 #[expect(clippy::too_many_lines, reason = "bounded lower routing stays in one down-pass stage")]
-pub(super) fn component_down(service: &mut Service) {
+pub(super) fn component_down(service: &mut Stages) {
     for _ in 0..service.channel_below.capacity() {
-        let request = match service.channel_below.pop() {
-            Some(request) => request,
-            None => break,
-        };
+        let Some(request) = service.channel_below.pop() else { break };
         match request {
             ChannelLower::Read(down) => {
                 if let Some(input) = service.input {
@@ -138,10 +122,7 @@ pub(super) fn component_down(service: &mut Service) {
     }
     program::down(service);
     for _ in 0..service.limits.queue {
-        let request = match service.llm_below.pop() {
-            Some(request) => request,
-            None => break,
-        };
+        let Some(request) = service.llm_below.pop() else { break };
         match request {
             io::Request::Connect { owner, addr } => {
                 let route = service.owners.insert(Owner::Llm(owner)).expect("LLM connection route capacity");
@@ -174,10 +155,7 @@ pub(super) fn component_down(service: &mut Service) {
         if waits_for_file {
             break;
         }
-        let request = match service.machine_below.pop() {
-            Some(request) => request,
-            None => break,
-        };
+        let Some(request) = service.machine_below.pop() else { break };
         match request {
             machine::Below::File { request, deadline } => {
                 service.files.seed_randomness(service.next_operation);

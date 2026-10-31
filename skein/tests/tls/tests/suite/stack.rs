@@ -215,7 +215,7 @@ impl Connection {
     fn demand_body(&mut self) {
         let read = match self.status {
             Some((_, Framing::Length(length))) => {
-                let left = length - u64::try_from(self.body.len()).expect("fits");
+                let left = length - skein_lib::len_u64(self.body.len());
                 Read::Fill(u32::try_from(left.min(1_000)).expect("fits").max(1))
             }
             Some((_, Framing::Chunked | Framing::UntilEnd | Framing::Empty)) | None => Read::Arrived { max: 1_000 },
@@ -270,7 +270,7 @@ fn a_get_reads_a_response_by_length_over_tls() {
     let mut connection = Connection::new(call, Vec::new());
     connection.run(&response, Ending::Open);
     assert_eq!(connection.agreed, Some(Agreed { version: Version::Tls13, alpn: Some(b"http/1.1"[..].into()) }));
-    assert_eq!(connection.status, Some((200, Framing::Length(u64::try_from(body.len()).expect("fits")))));
+    assert_eq!(connection.status, Some((200, Framing::Length(skein_lib::len_u64(body.len())))));
     assert_eq!(connection.body, body);
     assert_eq!(connection.done, Some(Reuse::Keep));
     assert!(connection.http_closed && connection.tls_closed);
@@ -295,7 +295,7 @@ fn a_post_uploads_records_of_its_body_and_reads_a_chunked_response() {
         method: Method::Post,
         target: b"/v1/messages"[..].into(),
         headers: vec![header("Host", "skein.test"), header("Content-Type", "application/json")].into(),
-        body: Body::Length(u64::try_from(upload.len()).expect("fits")),
+        body: Body::Length(skein_lib::len_u64(upload.len())),
         close: false,
     };
     let mut connection = Connection::new(call, upload.clone());

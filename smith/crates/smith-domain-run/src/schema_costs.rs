@@ -1,7 +1,7 @@
 //! Plain byte costs supplied at startup by the protocol's schema renderer.
 //! This module holds no JSON grammar or provider policy. `finish` and `deliver`
 //! sum element costs and supplied text widths before entrance effects.
-//! Contract: protocol/limits.md, section 3.9, "How the run counts what the protocol renders".
+//! Contract: smith/docs/design/protocol/limits.md, section 3.9, "How the run counts what the protocol renders".
 
 use crate::outcome::{ChangeSpec, FieldRule, OutcomeSpec};
 

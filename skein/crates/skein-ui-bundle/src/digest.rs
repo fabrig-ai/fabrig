@@ -19,7 +19,7 @@ pub(crate) fn of(files: &BTreeMap<String, Vec<u8>>) -> Digest {
     for (path, bytes) in files {
         state.update(path.as_bytes());
         state.update(&[0]);
-        state.update(&u64::try_from(bytes.len()).expect("file length fits u64").to_le_bytes());
+        state.update(&skein_lib::len_u64(bytes.len()).to_le_bytes());
         state.update(bytes);
     }
     let hash = state.finish();

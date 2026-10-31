@@ -9,11 +9,19 @@
 
 extern crate alloc;
 
+#[cfg(any(test, feature = "fixture"))]
+pub mod fixture;
+
 #[rustfmt::skip]
 #[path = "generated/v5.rs"]
 pub mod v5;
 
+mod frame;
+pub mod kind;
 mod kinds;
+pub mod reason;
+
+pub use frame::{Body, frame};
 
 pub use kinds::{KindRule, Overflow, V5, peer_terms_gap, schema};
 pub use v5::{

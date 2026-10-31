@@ -6,6 +6,7 @@
 
 extern crate std;
 
+use super::fixtures;
 use super::{files, mcp, start::Names, stream};
 use alloc::boxed::Box;
 use skein_lib::Secret;
@@ -101,7 +102,7 @@ static HEAP: skein_heap::Counting = skein_heap::Counting;
 #[test]
 #[expect(clippy::print_stdout, reason = "record the measured peak beside its bound")]
 fn compaction_rendering_stays_under_its_scenario_ceiling() {
-    use super::lifecycle_tests::{backend, request};
+    use super::fixtures::{backend, request};
     use smith_domain::llm;
     use smith_protocol_llm::{FromDomain, Observation};
 
@@ -140,8 +141,8 @@ fn compaction_rendering_stays_under_its_scenario_ceiling() {
             ]),
         }]);
         let messages = span.end().net;
-        backend.begin_prompt(&next);
-        backend.request = Some(next);
+        fixtures::begin_prompt(&next, &mut backend);
+        fixtures::retain_request(next, &mut backend);
 
         let span = skein_heap::Span::start();
         let rendered = backend.compaction_input();
@@ -159,7 +160,7 @@ fn compaction_rendering_stays_under_its_scenario_ceiling() {
 
 #[test]
 fn invalid_limits_are_refused() {
-    let mut settings = super::lifecycle_tests::backend().settings;
+    let mut settings = fixtures::backend().settings;
     assert!(super::backend_valid(&settings));
     let path = settings.path_bytes;
     settings.path_bytes = u32::MAX;

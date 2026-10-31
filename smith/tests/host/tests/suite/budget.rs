@@ -11,9 +11,7 @@ fn commit(world: &mut World, number: u32) {
 }
 
 fn recorded(number: u32, spent: u64) -> Up {
-    Up::Turn {
-        turn: Turn { opens_window: number == 1, number, spent, read: None, body: smith_host_world::turn_value(1) },
-    }
+    Up::Turn { turn: Turn { spent, ..smith_host_world::turn(number, smith_host_world::turn_value(1)) } }
 }
 
 fn ended(turns: u32, spent: u64) -> Up {

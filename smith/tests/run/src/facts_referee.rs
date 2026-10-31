@@ -1,11 +1,11 @@
 //! Independent cumulative budget-fact oracle, using host ceilings and real callbacks.
-//! Contract: domain/run.md, sections 9.1, 11 and 13.
+//! Contract: smith/docs/design/domain/run.md, sections 9.1, 11 and 13.
 
 use skein_lib::{Duration, Time};
 use skein_world::domain::{Expectations, Judge, Referee, Verdict};
 use smith_domain_run::{Budget, Spend, charter::Reserve, facts::Standing};
 
-/// A host allowance and cumulative actual callback accounting, observed outside the domain.
+/// A host allowance and cumulative callback accounting, observed outside the domain.
 #[derive(Clone, Copy, Debug)]
 pub struct Charged {
     pub spent: Spend,
@@ -40,7 +40,7 @@ impl Expectations for Meeting {
                 && got.time.as_nanos().is_multiple_of(1_000_000)
                 && got.time >= outside.time
                 && got.time.as_nanos().saturating_sub(outside.time.as_nanos()) < 1_000_000,
-            "budget facts reproduce actual completion callbacks and the injected clock",
+            "budget facts reproduce completion callbacks and the injected clock",
         );
         judge.check(
             got.turns_limit == outside.budget.turns
@@ -56,7 +56,7 @@ impl Expectations for Meeting {
     }
 }
 
-/// Judge actual fact/callback pairs using Skein's shared referee.
+/// Judge fact/callback pairs using Skein's shared referee.
 #[must_use]
 pub fn judge(seen: &[(Time, Seen)]) -> Verdict {
     let mut referee = Referee::new(Meeting);

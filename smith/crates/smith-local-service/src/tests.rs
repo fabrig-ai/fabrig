@@ -50,24 +50,7 @@ fn a_resize_during_a_window_read_is_read_after_its_terminal() {
 const EXTERNAL_QUEUE_SLOTS: u32 = 64;
 
 pub(crate) fn config() -> Config {
-    let mut local_limits = local::Limits {
-        smith: smith_agent_world::LIMITS,
-        agent: local::AgentLimits::inline(
-            smith_agent_world::LIMITS,
-            2,
-            Duration::from_secs(60),
-            Duration::from_secs(5),
-        )
-        .expect("bounded inline child"),
-        endpoints: Box::new([Endpoint(4)]),
-        chat_bytes: 64,
-        text_bytes: 1024,
-        models: 1,
-        line_bytes: 256,
-        show_bytes: 1024,
-        unsaved: 2,
-        facts: 16,
-    };
+    let mut local_limits = local::Limits { models: 1, ..local::fixture::small(smith_agent_world::LIMITS) };
     let mut host_limits = smith_host_world::limits();
     host_limits.agents = 1;
     host_limits.accounts = 1;
@@ -75,30 +58,34 @@ pub(crate) fn config() -> Config {
     let queue = EXTERNAL_QUEUE_SLOTS;
     let agent_limits = smith_agent_process_world::limits();
     let mut process = ProcessLimits {
-        io: skein_io::Limits {
-            sockets: 8,
-            names: 0,
-            refusals: 1,
-            intake: 4096,
-            receive: 4096,
-            output: 1_000_000,
-            sends: 8,
-            accepts: 1,
-            backlog: 2,
-            close_timeout: Duration::from_secs(1),
-            retry: Duration::from_millis(1),
-        },
-        channel: smith_host_protocol::Limits {
-            bodies: agent_limits.channel.bodies,
-            charter: agent_limits.channel.charter,
-            transcript: agent_limits.channel.transcript,
-            endpoints: agent_limits.channel.endpoints,
-            channel: agent_limits.channel.channel,
-            start_bytes: agent_limits.channel.start_bytes,
-            calls: host_limits.calls,
-        },
         detail_bytes: host_limits.detail_bytes,
         queue,
+        ..crate::fixture::process(
+            skein_io::Limits {
+                sockets: 8,
+                names: 0,
+                refusals: 1,
+                intake: 4096,
+                receive: 4096,
+                output: 1_000_000,
+                sends: 8,
+                accepts: 1,
+                backlog: 2,
+                close_timeout: Duration::from_secs(1),
+                retry: Duration::from_millis(1),
+            },
+            {
+                let mut fixture_limits = smith_host_protocol::fixture::small();
+                fixture_limits.bodies = agent_limits.channel.bodies;
+                fixture_limits.charter = agent_limits.channel.charter;
+                fixture_limits.transcript = agent_limits.channel.transcript;
+                fixture_limits.endpoints = agent_limits.channel.endpoints;
+                fixture_limits.channel = agent_limits.channel.channel;
+                fixture_limits.start_bytes = agent_limits.channel.start_bytes;
+                fixture_limits.calls = host_limits.calls;
+                fixture_limits
+            },
+        )
     };
     process.channel.channel.output_bytes =
         smith_host_protocol::output_bytes(&process.channel).expect("host directional frame");
@@ -139,8 +126,8 @@ pub(crate) fn config() -> Config {
             workspace: None,
             push: None,
         },
-        limits: Limits { local: local_limits, envelope_bytes, process, queue, watermark: queue },
-        endpoints: smith_protocol_channel::Endpoints::new(List::with_capacity(0)),
+        limits: Limits { envelope_bytes, queue, watermark: queue, ..crate::fixture::small(local_limits, process) },
+        endpoints: smith_protocol_translate::Endpoints::new(List::with_capacity(0)),
         paths: Box::new([]),
         launch: Launch {
             program: Box::from(&b"smith"[..]),
@@ -157,7 +144,7 @@ fn the_local_service_loads_then_routes_durable_start_requests_to_the_shell() {
     let mut service = Service::new(config(), 7).expect("bounded local service");
     iterate(&mut service, Time::ZERO, Wall::EPOCH);
     let Some(smith_local_protocol::StoreRequest::Load) = service.store_requests().pop() else { panic!("load first") };
-    service.local_event(local::Event::Loaded { state: None, transcript: None, deliveries: Box::new([]) });
+    service.local_event(local::fixture::loaded());
     for byte in b"hello\n" {
         service.feed(*byte);
     }
@@ -180,7 +167,7 @@ fn idle_chat_selection_routes_to_the_store_and_back_before_loading() {
     let Some(smith_local_protocol::StoreRequest::Load) = service.store_requests().pop() else {
         panic!("load selected chat")
     };
-    service.local_event(local::Event::Loaded { state: None, transcript: None, deliveries: Box::new([]) });
+    service.local_event(local::fixture::loaded());
     iterate(&mut service, Time::ZERO, Wall::EPOCH);
     service.local_event(local::Event::SelectChat { name: b"next".as_slice().into(), create: true });
     iterate(&mut service, Time::ZERO, Wall::EPOCH);
@@ -213,7 +200,7 @@ fn line_mode_selects_the_initial_chat_before_loading_and_shows_its_read_fence() 
     let Some(smith_local_protocol::StoreRequest::Load) = service.store_requests().pop() else {
         panic!("load selection")
     };
-    service.local_event(local::Event::Loaded { state: None, transcript: None, deliveries: Box::new([]) });
+    service.local_event(local::fixture::loaded());
     iterate(&mut service, Time::ZERO, Wall::EPOCH);
     assert_eq!(service.output().pop().unwrap().as_ref(), b"> ");
 }
@@ -224,7 +211,7 @@ fn slash_new_and_resume_route_only_to_the_idle_store() {
     service.line_mode(true);
     iterate(&mut service, Time::ZERO, Wall::EPOCH);
     service.store_requests().pop().unwrap();
-    service.local_event(local::Event::Loaded { state: None, transcript: None, deliveries: Box::new([]) });
+    service.local_event(local::fixture::loaded());
     iterate(&mut service, Time::ZERO, Wall::EPOCH);
     for (line, expected, create) in [(b"/new\n".as_slice(), b"7".as_slice(), true), (b"/resume main\n", b"main", false)]
     {
@@ -245,7 +232,7 @@ fn slash_new_and_resume_route_only_to_the_idle_store() {
         let Some(smith_local_protocol::StoreRequest::Load) = service.store_requests().pop() else {
             panic!("load selection")
         };
-        service.local_event(local::Event::Loaded { state: None, transcript: None, deliveries: Box::new([]) });
+        service.local_event(local::fixture::loaded());
         iterate(&mut service, Time::ZERO, Wall::EPOCH);
     }
 }
@@ -256,7 +243,7 @@ fn an_unknown_slash_line_never_requests_a_credential_or_starts_a_run() {
     service.line_mode(true);
     iterate(&mut service, Time::ZERO, Wall::EPOCH);
     service.store_requests().pop().unwrap();
-    service.local_event(local::Event::Loaded { state: None, transcript: None, deliveries: Box::new([]) });
+    service.local_event(local::fixture::loaded());
     iterate(&mut service, Time::ZERO, Wall::EPOCH);
     while service.output().pop().is_some() {}
     for byte in b"/unknown\n" {
@@ -274,7 +261,7 @@ fn model_and_effort_are_refused_in_words_without_changing_the_chat() {
     service.line_mode(true);
     iterate(&mut service, Time::ZERO, Wall::EPOCH);
     service.store_requests().pop().unwrap();
-    service.local_event(local::Event::Loaded { state: None, transcript: None, deliveries: Box::new([]) });
+    service.local_event(local::fixture::loaded());
     iterate(&mut service, Time::ZERO, Wall::EPOCH);
     while service.output().pop().is_some() {}
     for (line, words) in [
@@ -304,9 +291,7 @@ fn a_local_service_refuses_lower_configuration_for_the_other_agent_kind() {
     let mut spawned = config();
     spawned.agent =
         crate::AgentConfig::Inline { configuration: smith_agent_process_world::configuration(), roots: Box::new([]) };
-    let Err(crate::Error::Process) = Service::new(spawned, 95) else {
-        panic!("spawned limits require the process adapter")
-    };
+    let Err(crate::Error::Process) = Service::new(spawned, 95) else { panic!("spawned limits require the host IO") };
 }
 
 #[test]
@@ -330,16 +315,19 @@ fn original_conflict_files_are_read_through_the_services_kernel_routes() {
     let pid = sim.spawn_process();
     let root = sim.root(pid, skein_sim::Handle::new(handle.raw()));
     let config = config();
-    let mut process =
-        crate::process::ProcessAdapter::new(&config.limits.process, config.launch, config.endpoints, 1).unwrap();
+    let mut process = crate::host_io::HostIo::new(&config.limits.process, config.launch, config.endpoints, 1).unwrap();
     process.adopt_delivery_roots(Box::new([root]), Box::new([]));
     let mut local_events = Queue::with_capacity(256);
     let mut host_events = Queue::with_capacity(256);
     let mut host_requests = Queue::with_capacity(256);
     let mut terminal_events = Queue::with_capacity(256);
-    let mut terminal =
-        smith_local_protocol::Terminal::new(smith_local_protocol::TerminalLimits { line_bytes: 256, show_bytes: 1024 })
-            .unwrap();
+    let mut terminal = smith_local_protocol::Terminal::new({
+        let mut fixture_limits = smith_local_protocol::fixture::TERMINAL;
+        fixture_limits.line_bytes = 256;
+        fixture_limits.show_bytes = 1024;
+        fixture_limits
+    })
+    .unwrap();
     process.start_markers(
         Token::new(7),
         0,
@@ -392,7 +380,7 @@ fn original_conflict_files_are_read_through_the_services_kernel_routes() {
 }
 
 pub(crate) fn settle_file_io(
-    process: &mut crate::process::ProcessAdapter,
+    process: &mut crate::host_io::HostIo,
     sim: &mut skein_sim::Sim,
     machine: &mut skein_fake_machine::Machine,
     pid: skein_sim::Pid,
@@ -404,9 +392,13 @@ pub(crate) fn settle_file_io(
     let mut host_events = skein_lib::Queue::with_capacity(256);
     let mut host_requests = skein_lib::Queue::with_capacity(256);
     let mut terminal_events = skein_lib::Queue::with_capacity(256);
-    let mut terminal =
-        smith_local_protocol::Terminal::new(smith_local_protocol::TerminalLimits { line_bytes: 256, show_bytes: 1024 })
-            .unwrap();
+    let mut terminal = smith_local_protocol::Terminal::new({
+        let mut fixture_limits = smith_local_protocol::fixture::TERMINAL;
+        fixture_limits.line_bytes = 256;
+        fixture_limits.show_bytes = 1024;
+        fixture_limits
+    })
+    .unwrap();
     for _ in 0..FILE_IO_PASSES {
         sim.reap(pid, process.completions());
         process.io_up(&process.at(sim.now(), sim.wall()));
@@ -454,8 +446,7 @@ fn plain_status_uses_the_runs_snapshot_and_refreshes_it_before_the_next_run() {
     let pid = sim.spawn_process();
     let root = sim.root(pid, skein_sim::Handle::new(handle.raw()));
     let config = config();
-    let mut process =
-        crate::process::ProcessAdapter::new(&config.limits.process, config.launch, config.endpoints, 1).unwrap();
+    let mut process = crate::host_io::HostIo::new(&config.limits.process, config.launch, config.endpoints, 1).unwrap();
     process.adopt_delivery_roots(Box::new([root]), Box::new([]));
     let mut events = Queue::with_capacity(256);
     let mut directories = List::with_capacity(1);
@@ -522,11 +513,7 @@ fn a_colocated_chat_routes_a_turn_through_the_shared_plaintext_effects_without_s
         while let Some(request) = service.store_requests().pop() {
             match request {
                 smith_local_protocol::StoreRequest::Load => {
-                    service.local_event(local::Event::Loaded {
-                        state: None,
-                        transcript: None,
-                        deliveries: Box::new([]),
-                    });
+                    service.local_event(local::fixture::loaded());
                     if !sent {
                         for byte in b"hello\n" {
                             service.feed(*byte);
@@ -625,7 +612,7 @@ fn colocated_down(
 #[expect(clippy::wildcard_enum_match_arm, reason = "the story names unexpected shell and store requests")]
 #[expect(clippy::too_many_lines, reason = "one loaded entrance-order story includes its trace and cleanup")]
 fn a_later_entrance_keeps_its_facts_behind_the_earlier_entrances_requests() {
-    use smith_agent_service::sinks;
+    use smith_protocol_events::sinks;
     // The neighbouring plaintext story settles in fewer than 2000 passes.
     const SETTLE_PASSES: u32 = 2000;
     // Two request/append round trips expose facts even with the shell held.
@@ -644,11 +631,7 @@ fn a_later_entrance_keeps_its_facts_behind_the_earlier_entrances_requests() {
         while let Some(request) = service.store_requests().pop() {
             match request {
                 smith_local_protocol::StoreRequest::Load => {
-                    service.local_event(local::Event::Loaded {
-                        state: None,
-                        transcript: None,
-                        deliveries: Box::new([]),
-                    });
+                    service.local_event(local::fixture::loaded());
                     service.local_event(local::Event::Line { text: b"hello".as_slice().into() });
                 }
                 smith_local_protocol::StoreRequest::SaveState { .. } => state_pending = true,
@@ -700,17 +683,13 @@ fn a_later_entrance_keeps_its_facts_behind_the_earlier_entrances_requests() {
         while let Some(output) = service.output().pop() {
             text.extend_from_slice(&output);
         }
-        command_crossed |= text.windows(COMMAND_REFUSAL.len()).any(|part| part == COMMAND_REFUSAL);
+        command_crossed |= skein_lib::bytes::find(&text, COMMAND_REFUSAL).is_some();
         if message_receipts(&trace_records(&machine, trace, &events)) != 0 {
             assert!(command_crossed, "the message fact reached the trace before the command Show crossed");
         }
         while let Some(request) = service.store_requests().pop() {
             match request {
-                smith_local_protocol::StoreRequest::Load => service.local_event(local::Event::Loaded {
-                    state: None,
-                    transcript: None,
-                    deliveries: Box::new([]),
-                }),
+                smith_local_protocol::StoreRequest::Load => service.local_event(local::fixture::loaded()),
                 smith_local_protocol::StoreRequest::SaveTurn { number, .. } => {
                     turns.push(number);
                     service.local_event(local::Event::TurnSaved { number });
@@ -742,19 +721,13 @@ fn a_later_entrance_keeps_its_facts_behind_the_earlier_entrances_requests() {
     machine.close(root);
 }
 
-pub(crate) fn recording_colocated_config() -> (Config, smith_agent_service::EventLimits) {
-    use smith_agent_service::sinks;
+pub(crate) fn recording_colocated_config() -> (Config, smith_protocol_events::EventLimits) {
+    use smith_protocol_events::sinks;
     let mut config = colocated_config();
     let crate::AgentConfig::Inline { configuration: lower, .. } = &mut config.agent else { panic!("inline") };
-    let events = smith_agent_service::EventLimits::derive(
-        &lower.limits,
-        sinks::Capture::Calls,
-        1,
-        0,
-        &[],
-        Duration::from_secs(30),
-    )
-    .expect("bounded event stream");
+    let events =
+        smith_agent_service::event_limits(&lower.limits, sinks::Capture::Calls, 1, 0, &[], Duration::from_secs(30))
+            .expect("bounded event stream");
     lower.limits.events = Some(events);
     (config, events)
 }
@@ -766,7 +739,7 @@ fn colocated_grant(service: &mut Service) {
             renewable: true,
             valid: Duration::from_secs(7200),
         },
-        smith_protocol_channel::GrantValue::Withdrawn {
+        smith_protocol_translate::GrantValue::Withdrawn {
             account_id: Box::from(&b"acc"[..]),
             bearer: Box::from(&b"token"[..]),
         },
@@ -791,9 +764,9 @@ fn message_receipts(records: &[smith_events::Record]) -> usize {
 fn trace_records(
     machine: &skein_fake_machine::Machine,
     trace: skein_fake_machine::Opened,
-    events: &smith_agent_service::EventLimits,
+    events: &smith_protocol_events::EventLimits,
 ) -> Vec<smith_events::Record> {
-    // Read the whole one-turn fixture; the machine owns the file's actual bound.
+    // Read the whole one-turn fixture; the machine owns the file's bound.
     machine
         .read(trace, 0, u32::MAX)
         .expect("trace file")
@@ -954,7 +927,7 @@ pub(crate) fn trace_append(service: &mut Service, trace: skein_io::kernel::Fd) -
 
 #[test]
 fn an_inline_trace_whose_append_fails_is_given_up_once_with_why() {
-    use smith_agent_service::{Destination, GivenUp, Why, sinks};
+    use smith_protocol_events::{Destination, GivenUp, Why, sinks};
     let trace = skein_io::kernel::Fd::new(20);
     let (config, _) = recording_colocated_config();
     let mut service = Service::new(config, 8).expect("colocated service");
@@ -973,12 +946,12 @@ fn an_inline_trace_whose_append_fails_is_given_up_once_with_why() {
 
 #[test]
 fn a_spawned_trace_is_held_to_the_configured_write_deadline() {
-    use smith_agent_service::{Destination, GivenUp, Why, sinks};
+    use smith_protocol_events::{Destination, GivenUp, Why, sinks};
     let trace = skein_io::kernel::Fd::new(20);
     let deadline = Duration::from_secs(1);
     let mut product = smith_agent_process_world::configuration();
     product.limits.events = Some(
-        smith_agent_service::EventLimits::derive(&product.limits, sinks::Capture::Calls, 1, 0, &[], deadline)
+        smith_agent_service::event_limits(&product.limits, sinks::Capture::Calls, 1, 0, &[], deadline)
             .expect("bounded event stream"),
     );
     let mut local = config();

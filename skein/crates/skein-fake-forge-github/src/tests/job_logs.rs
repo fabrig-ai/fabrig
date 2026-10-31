@@ -105,7 +105,7 @@ fn github_fake_blob_record_and_origins_stay_within_admitted_bounds() {
     assert_eq!(records.len(), limits.blob_records);
     let mut held = skein_lib::Queue::<crate::logs::Record>::price(limits.blob_records).unwrap();
     for row in records {
-        held = held.checked_add(u64::try_from(row.path.len()).unwrap()).unwrap();
+        held = held.checked_add(skein_lib::len_u64(row.path.len())).unwrap();
     }
     assert!(held <= FAKE_GITHUB_BLOB_RECORDS_HELD_CEILING);
     service.set_blob_origin(f::boxed(b"http://logs.example.test")).unwrap();

@@ -2,6 +2,7 @@
 //! facts. Repository access is only head/message/files; the referee never
 //! reads Sim or Machine (protocol/hosts.md, section 7).
 
+use crate::fixture::contains;
 use skein_fake_checkout::git::Tree;
 use skein_fake_llm_domain::api::Query;
 use skein_io::kernel;
@@ -50,6 +51,8 @@ pub struct OAuthSeen {
 #[derive(Clone, Debug)]
 pub enum Ending {
     Report(Vec<u8>),
+    /// A report after workspace reads, with no repository change.
+    ReadReport(Vec<u8>),
     Cancelled,
     /// A headless answer failed because its turn budget ran out.
     Budget,
@@ -96,241 +99,236 @@ impl Expectations for Meeting {
 
     fn observe(&mut self, observation: Observation, judge: &mut Judge<Self::Name, Self::Stimulus>) {
         match observation {
-            Observation::Fact(fact) => match fact {
-                Fact::Started { activation } => {
-                    judge.check(
-                        self.activation.is_none() || self.answered,
-                        "an activation starts only after the one before it answered",
-                    );
-                    self.activation = Some(activation);
-                    self.next_turn = 1;
-                    self.answered = false;
-                    self.shown = false;
-                    judge.rearm("terminal", Duration::from_secs(60));
-                }
-                Fact::Message { .. } => {
-                    judge.check(self.activation.is_some() && !self.answered, "message belongs to a live activation")
-                }
-                Fact::Turn { number } => {
-                    judge.check(
-                        self.activation.is_some() && !self.answered && number == self.next_turn,
-                        "consecutive activation-local turns before answer",
-                    );
-                    self.next_turn += 1;
-                }
-                Fact::Unread { .. } => {}
-                Fact::Answered { activation, .. } => {
-                    judge
-                        .check(self.activation == Some(activation) && !self.answered, "one answer for this activation");
-                    self.answered = true;
-                }
-                Fact::Shown { activation } => {
-                    judge.check(
-                        self.activation == Some(activation) && self.answered && !self.shown,
-                        "one shown answer follows its answer fact",
-                    );
-                    self.shown = true;
-                }
-                Fact::DeliveryReturned { name } => {
-                    judge.check(self.activation == Some(name.activation), "delivery belongs to this activation")
-                }
-            },
+            Observation::Fact(fact) => self.fact(fact, judge),
             Observation::Terminal { shown, errors, exit, queries } => {
-                let borrowed = self.borrowed_notice.as_deref();
-                let borrowed_text = borrowed.and_then(|line| line.strip_prefix(b"smith: "));
-                let expected = match &self.ending {
-                    Ending::Report(text) => text.as_slice(),
-                    Ending::Cancelled => b"interrupted: the run was cancelled",
-                    Ending::Budget => b"run failed: out of turns",
-                    Ending::Dropped => b"not delivered",
-                    Ending::AgentEnded => b"run failed: the agent ended without answering",
-                    Ending::Change { .. } => b"Change delivered",
-                    Ending::Unavailable => {
-                        borrowed_text.unwrap_or(b"Line 1 not delivered: the run ended without reading it")
-                    }
-                    Ending::HostFailure | Ending::HostFailureBeforeAnswer => b"could not be kept: write failed",
-                    Ending::OlderStore => b"was kept by an older build of smith",
-                };
-                if matches!(self.ending, Ending::Unavailable | Ending::OlderStore) {
-                    judge.check(
-                        self.activation.is_none() && !self.answered && !self.shown,
-                        "a refused account starts no run",
-                    );
-                } else if matches!(self.ending, Ending::HostFailure | Ending::HostFailureBeforeAnswer) {
-                    judge.check(self.activation.is_some() && !self.shown, "failed store owns the terminal failure");
-                } else if matches!(self.ending, Ending::Dropped | Ending::AgentEnded) {
-                    judge.check(
-                        self.activation.is_some() && !self.answered && !self.shown,
-                        "a dropped run never answers",
-                    );
-                } else if self.require_facts {
-                    judge.check(self.shown && self.answered, "the invocation actually answered and showed it");
-                }
-                let code = match self.ending {
-                    Ending::HostFailure | Ending::HostFailureBeforeAnswer | Ending::AgentEnded | Ending::OlderStore => {
-                        1
-                    }
-                    Ending::Dropped => 130,
-                    Ending::Budget => 4,
-                    _ => 0,
-                };
-                judge.check(exit == Some(kernel::Exit::Code(code)), "shell exit matches the host terminal");
-                judge.check(
-                    if matches!(self.ending, Ending::Unavailable | Ending::AgentEnded | Ending::OlderStore) {
-                        queries == 0
-                    } else {
-                        queries > 0
-                    },
-                    "provider work matches account availability",
-                );
-                let start = b"smith: local host started\n";
-                let older = format!("smith: {}\n", smith_local_domain::Older::Unrecorded.words().join("main"));
-                let diagnostic = if matches!(self.ending, Ending::OlderStore) {
-                    errors.strip_suffix(older.as_bytes())
-                } else if matches!(self.ending, Ending::HostFailure | Ending::HostFailureBeforeAnswer) {
-                    errors.strip_suffix(b"smith: run failed: chat main: turn 2 could not be kept: write failed\n")
-                } else if matches!(self.ending, Ending::Dropped) {
-                    errors.strip_suffix(b"smith: interrupted: the run was dropped before it answered\n")
-                } else if matches!(self.ending, Ending::AgentEnded) {
-                    errors.strip_suffix(b"smith: run failed: the agent ended without answering (exit 7); terminated\n")
-                } else if matches!(self.ending, Ending::Budget) {
-                    errors
-                        .strip_suffix(
-                            b"smith: run failed: out of turns: used 3 of 3: iled: out of turns: used 3 of 3\n",
-                        )
-                        .or_else(|| errors.strip_suffix(b"smith: run failed: out of turns: used 3 of 3\n"))
-                } else if matches!(self.ending, Ending::Cancelled) {
-                    errors.strip_suffix(b"smith: interrupted: the run was cancelled\n").or_else(|| {
-                        errors
-                            .strip_suffix(
-                                b"smith: interrupted: the run was cancelled: n failed: the run was cancelled\n",
-                            )
-                            .or_else(|| {
-                                errors.strip_suffix(
-                                    b"smith: interrupted: the run was cancelled: call aborted by its owner\n",
-                                )
-                            })
-                    })
-                } else if matches!(self.ending, Ending::Unavailable) {
-                    errors
-                        .strip_suffix(b"smith: account 0 has no credential: run `smith login 0`\n")
-                        .or_else(|| {
-                            errors
-                                .strip_suffix(b"smith: account 0 could not renew its credential: run `smith login 0`\n")
-                        })
-                        .or_else(|| borrowed.and_then(|line| errors.strip_suffix(line)))
-                } else {
-                    Some(errors.as_slice())
-                };
-                let diagnostic = diagnostic.map(|bytes| {
-                    let bytes = if let Some(at) = bytes.windows(19).rposition(|part| part == b"smith: accepted in ") {
-                        &bytes[..at]
-                    } else {
-                        bytes
-                    };
-                    bytes
-                        .strip_suffix(b"smith: warning: agent forced to exit after answering (signal 9); killed\n")
-                        .or_else(|| {
-                            bytes.strip_suffix(
-                                b"smith: warning: agent forced to exit after answering (signal 15); terminated\n",
-                            )
-                        })
-                        .or_else(|| {
-                            bytes.strip_suffix(
-                                b"smith: warning: agent forced to exit after answering (exit 0); terminated\n",
-                            )
-                        })
-                        .unwrap_or(bytes)
-                });
-                let expected_diagnostic = diagnostic.is_some_and(|bytes| {
-                    bytes.is_empty()
-                        || bytes.strip_prefix(b"smith: chat main\n").is_some_and(|tail| {
-                            tail.split_inclusive(|byte| *byte == b'\n')
-                                .all(|line| line == b"smith: tool finish\n" || line == b"smith: tool read\n")
-                        })
-                        || bytes == start
-                });
-                judge.check(expected_diagnostic, "only the expected local operator start and failure lines");
-                judge.check(
-                    shown.windows(expected.len()).any(|part| part == expected)
-                        || (matches!(self.ending, Ending::OlderStore) && errors.ends_with(older.as_bytes()))
-                        || (matches!(self.ending, Ending::Budget)
-                            && errors.starts_with(b"smith: chat main\n")
-                            && (errors.ends_with(b"smith: run failed: out of turns: used 3 of 3\n")
-                                || errors.ends_with(
-                                    b"smith: run failed: out of turns: used 3 of 3: iled: out of turns: used 3 of 3\n",
-                                ))),
-                    "expected terminal text",
-                );
-                let private = borrowed_text.and_then(|line| shown.strip_suffix(line)).unwrap_or(&shown);
-                judge.check(
-                    !private.windows(7).any(|part| part == b"refresh")
-                        && !private.windows(5).any(|part| part == b"token"),
-                    "terminal never reveals credentials",
-                );
-                if self.require_facts && !matches!(self.ending, Ending::Unavailable | Ending::OlderStore) {
-                    let met = judge.meet(&"terminal");
-                    judge.check(met, "terminal settles the activation");
-                }
+                self.terminal(shown, errors, exit, queries, judge)
             }
-            Observation::Peer { queries, oauth } => {
-                judge.check(queries.len() <= 64, "bounded observed provider requests");
-                for query in &queries {
-                    judge.check(
-                        (query.model.as_ref() == b"fake" || query.model.as_ref() == b"alternate")
-                            && query.max_tokens > 0,
-                        "configured model reaches the provider and its declared ceiling is positive",
-                    );
-                    judge.check(
-                        query.system.windows(12).any(|part| part == b"@local-shell"),
-                        "configured instructions reach the provider",
-                    );
-                }
-                if let Some(oauth) = oauth {
-                    judge.check(
-                        oauth.posts == self.expected_token_posts && oauth.pages <= 1,
-                        "the expected token exchanges and at most one page visit",
-                    );
-                    judge.check(oauth.pages == 0 || oauth.browser_replied, "the browser heard the loopback reply");
-                    judge.check(
-                        queries.is_empty() || oauth.saved_before_query,
-                        "token saved before the peer saw grant use",
-                    );
-                }
+            Observation::Peer { queries, oauth } => self.peer(queries, oauth, judge),
+            Observation::Commit { head, message, files, pushed } => self.commit(head, message, files, pushed, judge),
+        }
+    }
+}
+
+impl Meeting {
+    fn fact(&mut self, fact: Fact, judge: &mut Judge<&'static str, ()>) {
+        match fact {
+            Fact::Started { activation } => {
+                judge.check(
+                    self.activation.is_none() || self.answered,
+                    "an activation starts only after the one before it answered",
+                );
+                self.activation = Some(activation);
+                self.next_turn = 1;
+                self.answered = false;
+                self.shown = false;
+                judge.rearm("terminal", Duration::from_secs(60));
             }
-            Observation::Commit { head, message, files, pushed } => {
-                if let Ending::Change { before } = &self.ending {
-                    judge.check(head.as_ref().is_some_and(|head| head != before), "a new local commit exists");
-                    judge.check(
-                        message.starts_with(b"Updated result\n\nCreated the result file"),
-                        "result fields form the message",
-                    );
-                    judge.check(
-                        message.windows(15).any(|part| part == b"Smith-Delivery:"),
-                        "commit carries its delivery identity",
-                    );
-                    judge.check(
-                        files.get(b"result.txt".as_slice()).is_some_and(|bytes| bytes == b"new\n"),
-                        "commit contains the agent's change",
-                    );
-                } else if matches!(self.ending, Ending::HostFailureBeforeAnswer | Ending::Budget)
-                    || matches!(&self.ending, Ending::Report(text) if text.as_slice() == b"After three tools")
-                {
-                    judge.check(
-                        head.as_deref() == Some(b"0000000000000000000000000000000000000001"),
-                        "read leaves the repository head unchanged",
-                    );
-                    judge.check(
-                        files.len() == 1
-                            && files.get(b"original.txt".as_slice()).is_some_and(|bytes| bytes == b"original\n"),
-                        "read leaves the repository files unchanged",
-                    );
-                } else {
-                    judge.check(head.is_none(), "report or cancellation has no repository effect");
-                }
-                judge.check(!pushed, "no push without configuration");
+            Fact::Message { .. } => {
+                judge.check(self.activation.is_some() && !self.answered, "message belongs to a live activation")
+            }
+            Fact::Turn { number } => {
+                judge.check(
+                    self.activation.is_some() && !self.answered && number == self.next_turn,
+                    "consecutive activation-local turns before answer",
+                );
+                self.next_turn += 1;
+            }
+            Fact::Unread { .. } => {}
+            Fact::Answered { activation, .. } => {
+                judge.check(self.activation == Some(activation) && !self.answered, "one answer for this activation");
+                self.answered = true;
+            }
+            Fact::Shown { activation } => {
+                judge.check(
+                    self.activation == Some(activation) && self.answered && !self.shown,
+                    "one shown answer follows its answer fact",
+                );
+                self.shown = true;
+            }
+            Fact::DeliveryReturned { name } => {
+                judge.check(self.activation == Some(name.activation), "delivery belongs to this activation")
             }
         }
+    }
+
+    fn terminal(
+        &self,
+        shown: Vec<u8>,
+        errors: Vec<u8>,
+        exit: Option<kernel::Exit>,
+        queries: usize,
+        judge: &mut Judge<&'static str, ()>,
+    ) {
+        let borrowed = self.borrowed_notice.as_deref();
+        let borrowed_text = borrowed.and_then(|line| line.strip_prefix(b"smith: "));
+        let expected = match &self.ending {
+            Ending::Report(text) | Ending::ReadReport(text) => text.as_slice(),
+            Ending::Cancelled => b"interrupted: the run was cancelled",
+            Ending::Budget => b"run failed: out of turns",
+            Ending::Dropped => b"not delivered",
+            Ending::AgentEnded => b"run failed: the agent ended without answering",
+            Ending::Change { .. } => b"Change delivered",
+            Ending::Unavailable => borrowed_text.unwrap_or(b"Line 1 not delivered: the run ended without reading it"),
+            Ending::HostFailure | Ending::HostFailureBeforeAnswer => b"could not be kept: write failed",
+            Ending::OlderStore => b"was kept by an older build of smith",
+        };
+        if matches!(self.ending, Ending::Unavailable | Ending::OlderStore) {
+            judge.check(self.activation.is_none() && !self.answered && !self.shown, "a refused account starts no run");
+        } else if matches!(self.ending, Ending::HostFailure | Ending::HostFailureBeforeAnswer) {
+            judge.check(self.activation.is_some() && !self.shown, "failed store owns the terminal failure");
+        } else if matches!(self.ending, Ending::Dropped | Ending::AgentEnded) {
+            judge.check(self.activation.is_some() && !self.answered && !self.shown, "a dropped run never answers");
+        } else if self.require_facts {
+            judge.check(self.shown && self.answered, "the invocation answered and showed it");
+        }
+        let code = match self.ending {
+            Ending::HostFailure | Ending::HostFailureBeforeAnswer | Ending::AgentEnded | Ending::OlderStore => 1,
+            Ending::Dropped => 130,
+            Ending::Budget => 4,
+            _ => 0,
+        };
+        judge.check(exit == Some(kernel::Exit::Code(code)), "shell exit matches the host terminal");
+        judge.check(
+            if matches!(self.ending, Ending::Unavailable | Ending::AgentEnded | Ending::OlderStore) {
+                queries == 0
+            } else {
+                queries > 0
+            },
+            "provider work matches account availability",
+        );
+        let start = b"smith: local host started\n";
+        let older = format!("smith: {}\n", smith_local_domain::Older::Unrecorded.words().join("main"));
+        let diagnostic = if matches!(self.ending, Ending::OlderStore) {
+            errors.strip_suffix(older.as_bytes())
+        } else if matches!(self.ending, Ending::HostFailure | Ending::HostFailureBeforeAnswer) {
+            errors.strip_suffix(b"smith: run failed: chat main: turn 2 could not be kept: write failed\n")
+        } else if matches!(self.ending, Ending::Dropped) {
+            errors.strip_suffix(b"smith: interrupted: the run was dropped before it answered\n")
+        } else if matches!(self.ending, Ending::AgentEnded) {
+            errors.strip_suffix(b"smith: run failed: the agent ended without answering (exit 7); terminated\n")
+        } else if matches!(self.ending, Ending::Budget) {
+            errors
+                .strip_suffix(b"smith: run failed: out of turns: used 3 of 3: iled: out of turns: used 3 of 3\n")
+                .or_else(|| errors.strip_suffix(b"smith: run failed: out of turns: used 3 of 3\n"))
+        } else if matches!(self.ending, Ending::Cancelled) {
+            errors.strip_suffix(b"smith: interrupted: the run was cancelled\n").or_else(|| {
+                errors
+                    .strip_suffix(b"smith: interrupted: the run was cancelled: n failed: the run was cancelled\n")
+                    .or_else(|| {
+                        errors.strip_suffix(b"smith: interrupted: the run was cancelled: call aborted by its owner\n")
+                    })
+            })
+        } else if matches!(self.ending, Ending::Unavailable) {
+            errors
+                .strip_suffix(b"smith: account 0 has no credential: run `smith login 0`\n")
+                .or_else(|| {
+                    errors.strip_suffix(b"smith: account 0 could not renew its credential: run `smith login 0`\n")
+                })
+                .or_else(|| borrowed.and_then(|line| errors.strip_suffix(line)))
+        } else {
+            Some(errors.as_slice())
+        };
+        let diagnostic = diagnostic.map(|bytes| {
+            let bytes = if let Some(at) = bytes.windows(19).rposition(|part| part == b"smith: accepted in ") {
+                &bytes[..at]
+            } else {
+                bytes
+            };
+            bytes
+                .strip_suffix(b"smith: warning: agent forced to exit after answering (signal 9); killed\n")
+                .or_else(|| {
+                    bytes
+                        .strip_suffix(b"smith: warning: agent forced to exit after answering (signal 15); terminated\n")
+                })
+                .or_else(|| {
+                    bytes.strip_suffix(b"smith: warning: agent forced to exit after answering (exit 0); terminated\n")
+                })
+                .unwrap_or(bytes)
+        });
+        let expected_diagnostic = diagnostic.is_some_and(|bytes| {
+            bytes.is_empty()
+                || bytes.strip_prefix(b"smith: chat main\n").is_some_and(|tail| {
+                    tail.split_inclusive(|byte| *byte == b'\n')
+                        .all(|line| line == b"smith: tool finish\n" || line == b"smith: tool read\n")
+                })
+                || bytes == start
+        });
+        judge.check(expected_diagnostic, "only the expected local operator start and failure lines");
+        judge.check(
+            contains(&shown, expected)
+                || (matches!(self.ending, Ending::OlderStore) && errors.ends_with(older.as_bytes()))
+                || (matches!(self.ending, Ending::Budget)
+                    && errors.starts_with(b"smith: chat main\n")
+                    && (errors.ends_with(b"smith: run failed: out of turns: used 3 of 3\n")
+                        || errors.ends_with(
+                            b"smith: run failed: out of turns: used 3 of 3: iled: out of turns: used 3 of 3\n",
+                        ))),
+            "expected terminal text",
+        );
+        let private = borrowed_text.and_then(|line| shown.strip_suffix(line)).unwrap_or(&shown);
+        judge.check(
+            !contains(private, b"refresh") && !contains(private, b"token"),
+            "terminal never reveals credentials",
+        );
+        if self.require_facts && !matches!(self.ending, Ending::Unavailable | Ending::OlderStore) {
+            let met = judge.meet(&"terminal");
+            judge.check(met, "terminal settles the activation");
+        }
+    }
+
+    fn peer(&self, queries: Vec<Query>, oauth: Option<OAuthSeen>, judge: &mut Judge<&'static str, ()>) {
+        judge.check(queries.len() <= 64, "bounded observed provider requests");
+        for query in &queries {
+            judge.check(
+                (query.model.as_ref() == b"fake" || query.model.as_ref() == b"alternate") && query.max_tokens > 0,
+                "configured model reaches the provider and its declared ceiling is positive",
+            );
+            judge.check(contains(&query.system, b"@local-shell"), "configured instructions reach the provider");
+        }
+        if let Some(oauth) = oauth {
+            judge.check(
+                oauth.posts == self.expected_token_posts && oauth.pages <= 1,
+                "the expected token exchanges and at most one page visit",
+            );
+            judge.check(oauth.pages == 0 || oauth.browser_replied, "the browser heard the loopback reply");
+            judge.check(queries.is_empty() || oauth.saved_before_query, "token saved before the peer saw grant use");
+        }
+    }
+
+    fn commit(
+        &self,
+        head: Option<Vec<u8>>,
+        message: Vec<u8>,
+        files: Tree,
+        pushed: bool,
+        judge: &mut Judge<&'static str, ()>,
+    ) {
+        if let Ending::Change { before } = &self.ending {
+            judge.check(head.as_ref().is_some_and(|head| head != before), "a new local commit exists");
+            judge.check(
+                message.starts_with(b"Updated result\n\nCreated the result file"),
+                "result fields form the message",
+            );
+            judge.check(contains(&message, b"Smith-Delivery:"), "commit carries its delivery identity");
+            judge.check(
+                files.get(b"result.txt".as_slice()).is_some_and(|bytes| bytes == b"new\n"),
+                "commit contains the agent's change",
+            );
+        } else if matches!(self.ending, Ending::HostFailureBeforeAnswer | Ending::Budget)
+            || matches!(self.ending, Ending::ReadReport(_))
+        {
+            judge.check(
+                head.as_deref() == Some(b"0000000000000000000000000000000000000001"),
+                "read leaves the repository head unchanged",
+            );
+            judge.check(
+                files.len() == 1 && files.get(b"original.txt".as_slice()).is_some_and(|bytes| bytes == b"original\n"),
+                "read leaves the repository files unchanged",
+            );
+        } else {
+            judge.check(head.is_none(), "report or cancellation has no repository effect");
+        }
+        judge.check(!pushed, "no push without configuration");
     }
 }
 
@@ -442,7 +440,7 @@ impl SignIn {
         }
         if self.start.is_none() {
             let suffix = shown.get(self.search..).expect("terminal observations append");
-            if let Some(at) = suffix.windows(9).position(|bytes| bytes == b"Sign in: ") {
+            if let Some(at) = skein_lib::bytes::find(suffix, b"Sign in: ") {
                 self.start = Some(self.search + at + 9);
             } else {
                 self.search = shown.len().saturating_sub(8);
@@ -563,7 +561,7 @@ impl skein_world::Referee<crate::process::Proc> for Run {
         }
         let wait = procs.iter().any(|proc| match proc {
             Proc::Local(local) => local.wait_seen(),
-            Proc::Agent(_, _, wait) => *wait,
+            Proc::Agent(agent) => agent.wait_seen(),
             Proc::Terminal(_)
             | Proc::Peer(_)
             | Proc::Issuer(_)
@@ -621,7 +619,7 @@ impl skein_world::Referee<crate::process::Proc> for Run {
                         browser.shutdown();
                     }
                 }
-                Proc::Local(_) | Proc::Agent(_, _, _) | Proc::Ended(_) | Proc::Git(_) | Proc::LingeringAgent(_) => {}
+                Proc::Local(_) | Proc::Agent(_) | Proc::Ended(_) | Proc::Git(_) | Proc::LingeringAgent(_) => {}
             }
         }
     }
@@ -654,7 +652,7 @@ impl skein_world::Referee<crate::process::Proc> for Run {
         if authenticated && !self.saved_before_query && self.queries > 0 {
             let tokens = crate::credential_fixture::Tokens::new(
                 &self.token_directory,
-                smith_local_shell::local_host::token_limits(),
+                smith_local_shell::credentials::token_limits(),
             )
             .expect("private store");
             assert_eq!(
@@ -672,7 +670,7 @@ impl skein_world::Referee<crate::process::Proc> for Run {
             && procs.iter().any(|p| matches!(p, Proc::Browser(browser) if browser.pages() == 0));
         let wait = procs.iter().any(|proc| match proc {
             Proc::Local(local) => local.wait_seen(),
-            Proc::Agent(_, _, wait) => *wait,
+            Proc::Agent(agent) => agent.wait_seen(),
             Proc::Terminal(_)
             | Proc::Peer(_)
             | Proc::Issuer(_)

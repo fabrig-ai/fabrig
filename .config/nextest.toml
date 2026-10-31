@@ -67,7 +67,7 @@ slow-timeout = { period = "1000ms" }
 
 # smith: start the focused tests measured over one second before the worlds.
 [[profile.default.overrides]]
-filter = "package(=smith-agent-shell) & test(=config::tests::native_validated_dense_prompts_fit_the_actual_joint_receiving_ceiling)"
+filter = "package(=smith-agent-shell) & test(=config::tests::native_validated_dense_prompts_fit_the_seen_joint_receiving_ceiling)"
 priority = 20
 
 # Every tree: the tests under tests/ first, the longest, then the many short

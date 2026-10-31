@@ -406,7 +406,7 @@ impl Machine {
     /// Writes each piece whole at the file's current end, preserving earlier bytes.
     pub fn append(&mut self, file: Opened, bytes: &[u8]) -> Result<(), Refusal> {
         let at = match &self.node(self.handle(file).node).body {
-            Body::File(contents) => u64::try_from(contents.len()).expect("a file's length fits u64"),
+            Body::File(contents) => skein_lib::len_u64(contents.len()),
             Body::Directory { .. } | Body::Link(_) | Body::Special(_) => fail("only a file is opened to append"),
         };
         self.write(file, at, bytes)
@@ -498,17 +498,9 @@ impl Machine {
         let owner = node.owner;
         let links = node.links;
         match &node.body {
-            Body::File(bytes) => Facts {
-                is: Is::File,
-                size: u64::try_from(bytes.len()).expect("a usize fits a u64"),
-                mode,
-                owner,
-                links,
-            },
+            Body::File(bytes) => Facts { is: Is::File, size: skein_lib::len_u64(bytes.len()), mode, owner, links },
             Body::Directory { .. } => Facts { is: Is::Directory, size: 0, mode, owner, links },
-            Body::Link(target) => {
-                Facts { is: Is::Link, size: u64::try_from(target.len()).expect("bounded target"), mode, owner, links }
-            }
+            Body::Link(target) => Facts { is: Is::Link, size: skein_lib::len_u64(target.len()), mode, owner, links },
             Body::Special(is) => Facts { is: *is, size: 0, mode, owner, links },
         }
     }

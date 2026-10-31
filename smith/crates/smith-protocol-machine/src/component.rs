@@ -8,6 +8,7 @@
 //! knows descriptors, file content before io reports it, or the domain's
 //! state.
 
+use crate::files::other;
 use alloc::boxed::Box;
 
 use skein_io as io;
@@ -15,7 +16,7 @@ use skein_lib::{Env, List, Map, Queue, Time, Token};
 use smith_domain::{run, tools};
 
 use crate::boundary::{Below, BelowEvent, FromDomain, ToDomain};
-use crate::guide::{Guide, Step};
+use crate::guide::{Guide, Next as GuideNext};
 use crate::limits::Limits;
 use crate::process::Process;
 
@@ -352,26 +353,12 @@ impl Component {
     fn start_process(
         &mut self,
         owner: Token,
-        mut process: Process,
+        process: Process,
         request: Below,
         below: &mut Queue<Below>,
         to_domain: &mut Queue<ToDomain>,
     ) {
-        let purpose = process.purpose;
-        let request = match purpose {
-            crate::process::Purpose::List => match request {
-                Below::Spawn { owner, root, spawn } => process.open_directory(owner, root, spawn),
-                Below::File { .. }
-                | Below::OpenRead { .. }
-                | Below::OpenDirectory { .. }
-                | Below::Remove { .. }
-                | Below::CancelFile { .. }
-                | Below::Process(_) => unreachable!("listing prepares one spawn"),
-            },
-            crate::process::Purpose::Shell | crate::process::Purpose::Check | crate::process::Purpose::Search => {
-                request
-            }
-        };
+        let purpose = process.purpose();
         match self.processes.insert(owner, process) {
             Ok(None) => below.push(request),
             Ok(Some(_)) => unreachable!("owner checked"),
@@ -408,13 +395,13 @@ impl Component {
                 let owner = event.owner();
                 if let Some(guide) = self.guides.remove(&owner) {
                     match guide.event(owner, event, below) {
-                        Step::Continue(guide) => {
+                        GuideNext::Continue(guide) => {
                             self.guides.insert(owner, guide).expect("guide slot returned");
                         }
-                        Step::Done(terminal) => to_domain.push(terminal),
+                        GuideNext::Done(terminal) => to_domain.push(terminal),
                     }
                 } else if let Some(process) = self.processes.get_mut(&owner) {
-                    process.directory_event(owner, event, below);
+                    process.directory_event(event, below);
                     self.advance(owner, env.now, to_domain, below);
                 } else {
                     let done = match self.pending.remove(&owner).expect("file terminal has admitted owner") {
@@ -450,22 +437,7 @@ impl Component {
         to_domain: &mut Queue<ToDomain>,
         below: &mut Queue<Below>,
     ) {
-        let owner = match &event {
-            io::Event::Spawned { owner, .. }
-            | io::Event::Exited { owner, .. }
-            | io::Event::Failed { owner, .. }
-            | io::Event::Closed { owner } => *owner,
-            io::Event::Listening { .. }
-            | io::Event::Accepted { .. }
-            | io::Event::Connecting { .. }
-            | io::Event::Connected { .. }
-            | io::Event::Stream { .. }
-            | io::Event::Output { .. }
-            | io::Event::Usage { .. }
-            | io::Event::Resized
-            | io::Event::Window { .. }
-            | io::Event::Shutdown { .. } => unreachable!("child progress carries a domain owner"),
-        };
+        let owner = event.owner().expect("child progress carries a domain owner");
         let process = self.processes.get_mut(&owner).expect("process event has admitted owner");
         match event {
             io::Event::Spawned { child, pipes, .. } => {
@@ -489,21 +461,7 @@ impl Component {
     }
 
     fn pipe_event(&mut self, now: Time, event: io::Event, to_domain: &mut Queue<ToDomain>, below: &mut Queue<Below>) {
-        let pipe = match &event {
-            io::Event::Stream { owner, .. } | io::Event::Closed { owner } => *owner,
-            io::Event::Listening { .. }
-            | io::Event::Accepted { .. }
-            | io::Event::Connecting { .. }
-            | io::Event::Connected { .. }
-            | io::Event::Output { .. }
-            | io::Event::Spawned { .. }
-            | io::Event::Exited { .. }
-            | io::Event::Usage { .. }
-            | io::Event::Resized
-            | io::Event::Window { .. }
-            | io::Event::Failed { .. }
-            | io::Event::Shutdown { .. } => unreachable!("a read pipe emits only stream progress and Closed"),
-        };
+        let pipe = event.owner().expect("a read pipe emits only stream progress and Closed");
         let owner = *self.routes.get(&pipe).expect("pipe event has a live route");
         let process = self.processes.get_mut(&owner).expect("pipe route has admitted process");
         match event {
@@ -599,10 +557,6 @@ impl Component {
         }
         first
     }
-}
-
-fn other() -> tools::Done {
-    tools::Done::Failed { fault: tools::Fault::Other }
 }
 
 fn failed_check(owner: Token, to_domain: &mut Queue<ToDomain>) {

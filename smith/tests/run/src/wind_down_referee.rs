@@ -1,19 +1,18 @@
-//! Independent final-request allowance at the actual run/provider boundaries.
-//! It retains admitted quotas and actual reservations, never run state or facts.
-//! Contract: domain/run.md, sections 9.1 and 13.
+//! Independent final-request allowance at the run/provider boundaries.
+//! It retains admitted quotas and reservations, never run state or facts.
+//! Contract: smith/docs/design/domain/run.md, sections 9.1 and 13.
 
 use skein_lib::{Time, Token};
-use skein_world::domain::{Expectations, Judge, Referee, Verdict};
-use std::collections::BTreeMap;
+use skein_world::domain::{Expectations, Judge, Verdict};
 
-/// An external admission, actual provider reservation or authoritative answer.
+/// An external admission, provider reservation or authoritative answer.
 #[derive(Clone, Copy, Debug)]
 pub enum Seen {
     /// The host's admitted final-completion allowance.
     Admitted { reserve: u32 },
-    /// A final provider request actually reserved credit.
+    /// A final provider request reserved credit.
     Final { main: bool, live_children: u32 },
-    /// The actual answer names a turns failure or a full wall-time failure.
+    /// The answer names a turns failure or a full wall-time failure.
     Answer { turns_failure: bool, time_failure: bool, time_expired: bool },
 }
 
@@ -51,10 +50,5 @@ impl Expectations for Meeting {
 /// Skein judges each admitted run's ordered external evidence.
 #[must_use]
 pub fn judge(seen: &[(Time, Token, Seen)]) -> Vec<Verdict> {
-    let mut meetings = BTreeMap::new();
-    for (at, run, seen) in seen {
-        let meeting = meetings.entry(*run).or_insert_with(|| Referee::new(Meeting::default()));
-        meeting.observe(*at, *seen, &mut Vec::new());
-    }
-    meetings.values().map(Referee::verdict).collect()
+    crate::referee::judge::<Meeting>(seen)
 }

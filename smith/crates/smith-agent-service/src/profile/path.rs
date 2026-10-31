@@ -1,7 +1,7 @@
 //! Endpoint derivation keeps native limits and the shared history minima.
 //! It knows only numeric declarations, never credentials or transport addresses.
 //! `client` derives one endpoint; `path` composes their receiving maxima.
-//! Contract: protocol/limits.md, sections 3.1 and 3.2.
+//! Contract: smith/docs/design/protocol/limits.md, sections 3.1 and 3.2.
 
 use skein_llm::{self as shared, client};
 
@@ -14,7 +14,7 @@ pub(super) struct Path {
     pub framing: u64,
 }
 
-/// Derive an endpoint from its largest actual model declarations, before transport pieces.
+/// Derive an endpoint from its largest model declarations, before transport pieces.
 pub fn client(profile: &Profile, endpoint: &Endpoint, history_items: u32) -> Result<client::Limits, Refusal> {
     let mut declared = declarations(profile, endpoint)?;
     declared.history_items = history_items;
@@ -82,7 +82,7 @@ fn declarations(profile: &Profile, endpoint: &Endpoint) -> Result<shared::Declar
 }
 
 // The native declaration bounds complete unescaped arguments, whereas the
-// deployment declares a content piece. Rule 2 of protocol/limits.md, section 3:
+// deployment declares a content piece. Rule 2 of smith/docs/design/protocol/limits.md, section 3:
 // content and the longest path each expand by ESCAPE; fixed Write keys and
 // punctuation need room too. Round their bytes upward into the native declaration
 // so its existing checked escape factor covers the entire compact call.

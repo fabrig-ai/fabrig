@@ -1,4 +1,4 @@
-//! Host policy retained by one admitted run (domain/run.md, section 3.1).
+//! Host policy retained by one admitted run (smith/docs/design/domain/run.md, section 3.1).
 //! Admission checks counts and owned bytes before effects; this module knows no
 //! task vocabulary, provider credentials or meaning behind the supplied text.
 //!
@@ -20,7 +20,7 @@ pub use crate::conventions::Conventions;
 
 pub use crate::host::{HostEffect, HostTool};
 
-/// What the host keeps for main to finish with (domain/run.md, section 9.1).
+/// What the host keeps for main to finish with (smith/docs/design/domain/run.md, section 9.1).
 /// Spend is derived from main's completions and is never supplied separately.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct Reserve {
@@ -28,7 +28,7 @@ pub struct Reserve {
     pub time: Duration,
 }
 
-/// Host-selected lifecycle of main; the run answers once in either mode (domain/run.md, section 3.1).
+/// Host-selected lifecycle of main; the run answers once in either mode (smith/docs/design/domain/run.md, section 3.1).
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Mode {
     /// The host permits main to finish with a result accepted by the run.
@@ -195,7 +195,6 @@ pub struct Llm {
     /// Optional host account named by the charter; none sends no credential.
     pub account: Option<u32>,
     pub endpoint: Endpoint,
-    /// The provider's name for the model.
     pub model: Box<[u8]>,
     /// Reasoning effort requested by this activation, absent for the provider default.
     pub effort: Option<Effort>,
@@ -248,7 +247,7 @@ pub(crate) fn check(charter: &Charter, workspace: Option<&crate::Workspace>, lim
         Ok(()) => {}
         Err(rate) => return Err(Invalid::Price(rate)),
     }
-    if !valid_llm(llm) {
+    if !valid_llm(llm, limits.effort_bytes) {
         return Err(Invalid::Llm);
     }
     let checks = if outcome.change.is_some() || grants.deliver.is_some() { Some(limits.check_timeout) } else { None };
@@ -267,7 +266,7 @@ pub(crate) fn check(charter: &Charter, workspace: Option<&crate::Workspace>, lim
             Ok(()) => {}
             Err(rate) => return Err(Invalid::Price(rate)),
         }
-        if !valid_llm(model) {
+        if !valid_llm(model, limits.effort_bytes) {
             return Err(Invalid::Llm);
         }
     }
@@ -320,7 +319,7 @@ pub(crate) fn check(charter: &Charter, workspace: Option<&crate::Workspace>, lim
 }
 
 /// Bytes of the host part left for a run's brief after all other charter and
-/// workspace bytes counted at admission (domain/run.md, section 4), including
+/// workspace bytes counted at admission (smith/docs/design/domain/run.md, section 4), including
 /// empty-guide scaffolding. Compare with `brief_bytes`; the current brief is
 /// ignored. Returns `None` if the non-brief bytes exceed `limits.host_part`,
 /// the count overflows, or the remaining room cannot be represented as a `u32`.
@@ -333,46 +332,23 @@ pub fn brief_room(charter: &Charter, workspace: Option<&crate::Workspace>, limit
 fn non_brief_host_bytes(charter: &Charter, workspace: Option<&crate::Workspace>, limits: &Limits) -> Option<u64> {
     let outcome = &charter.outcome;
     let grants = &charter.grants;
-    let mut host = crate::prompt::non_brief_host_bytes(charter, workspace, 0);
+    let mut host = crate::prompt::non_brief_host_bytes(charter, workspace, 0)?;
     match charter.mode {
         Mode::Finite => {
-            host = match host {
-                Some(bytes) => match limits.schema_costs.finish(outcome) {
-                    Some(schema) => match bytes.checked_add(schema) {
-                        Some(total) => total.checked_add(limits.schema_costs.finish_text),
-                        None => None,
-                    },
-                    None => None,
-                },
-                None => None,
-            };
+            host =
+                host.checked_add(limits.schema_costs.finish(outcome)?)?.checked_add(limits.schema_costs.finish_text)?;
         }
         Mode::Open => {}
     }
     if let Some(change) = &grants.deliver {
-        host = match host {
-            Some(bytes) => match limits.schema_costs.deliver(change) {
-                Some(schema) => match bytes.checked_add(schema) {
-                    Some(total) => total.checked_add(limits.schema_costs.deliver_text),
-                    None => None,
-                },
-                None => None,
-            },
-            None => None,
-        };
+        host = host.checked_add(limits.schema_costs.deliver(change)?)?.checked_add(limits.schema_costs.deliver_text)?;
     }
     for tool in &grants.host_tools {
         for text in [&tool.name, &tool.description, &tool.schema] {
-            host = match host {
-                Some(bytes) => match len(text) {
-                    Some(length) => bytes.checked_add(length),
-                    None => None,
-                },
-                None => None,
-            };
+            host = host.checked_add(len(text)?)?;
         }
     }
-    host
+    Some(host)
 }
 
 fn check_window_parts(
@@ -468,9 +444,9 @@ pub(crate) fn cost(charter: &Charter) -> Option<u64> {
 }
 
 /// Whether an LLM declares positive quantities and a positive price unit.
-fn valid_llm(llm: &Llm) -> bool {
+fn valid_llm(llm: &Llm, effort_bytes: u32) -> bool {
     if let Some(effort) = &llm.effort
-        && effort.len() > usize::try_from(smith_charter::CEILINGS.llm_effort_some).expect("effort bound fits usize")
+        && effort.len() > usize::try_from(effort_bytes).expect("effort bound fits usize")
     {
         return false;
     }
@@ -511,7 +487,7 @@ pub(crate) fn len(bytes: &[u8]) -> Option<u64> {
     u64::try_from(bytes.len()).ok()
 }
 
-/// Smith-owned tool names that a host declaration cannot take (domain/run.md, section 5.1).
+/// Smith-owned tool names that a host declaration cannot take (smith/docs/design/domain/run.md, section 5.1).
 pub(crate) const RESERVED_NAMES: [&[u8]; 12] = [
     b"finish",
     b"deliver",
@@ -563,18 +539,24 @@ pub(crate) fn line(llm: &Llm, material: u64) -> u64 {
         .expect("admitted model leaves compaction material above its line")
 }
 
-fn has_spare(llm: &Llm, limits: &Limits) -> bool {
+fn threshold(llm: &Llm, limits: &Limits) -> Option<u64> {
     let [numerator, denominator] = limits.compaction_threshold;
-    let within = match u64::from(llm.window).checked_mul(u64::from(numerator)) {
-        Some(product) => product.checked_div(u64::from(denominator)),
-        None => None,
-    };
-    match within {
-        Some(within) => match u64::from(llm.window).checked_sub(within) {
-            Some(headroom) => match u64::from(llm.output).checked_add(limits.compaction_material) {
-                Some(required) => headroom >= required,
-                None => false,
-            },
+    u64::from(llm.window).checked_mul(u64::from(numerator))?.checked_div(u64::from(denominator))
+}
+
+fn spare(llm: &Llm, limits: &Limits) -> Option<u64> {
+    u64::from(llm.window).checked_sub(threshold(llm, limits)?)
+}
+
+fn room(llm: &Llm, limits: &Limits) -> Option<u64> {
+    let outputs = u64::from(llm.output).checked_mul(2).expect("two u32 outputs fit u64");
+    threshold(llm, limits)?.checked_sub(outputs)
+}
+
+fn has_spare(llm: &Llm, limits: &Limits) -> bool {
+    match spare(llm, limits) {
+        Some(headroom) => match u64::from(llm.output).checked_add(limits.compaction_material) {
+            Some(required) => headroom >= required,
             None => false,
         },
         None => false,
@@ -582,17 +564,8 @@ fn has_spare(llm: &Llm, limits: &Limits) -> bool {
 }
 
 fn has_room(llm: &Llm, limits: &Limits) -> bool {
-    let [numerator, denominator] = limits.compaction_threshold;
-    let within = match u64::from(llm.window).checked_mul(u64::from(numerator)) {
-        Some(product) => product.checked_div(u64::from(denominator)),
-        None => None,
-    };
-    let outputs = u64::from(llm.output).checked_mul(2).expect("two u32 outputs fit u64");
-    match within {
-        Some(within) => match within.checked_sub(outputs) {
-            Some(room) => room >= limits.room,
-            None => false,
-        },
+    match room(llm, limits) {
+        Some(room) => room >= limits.room,
         None => false,
     }
 }

@@ -6,14 +6,14 @@ use alloc::boxed::Box;
 use core::mem;
 
 use skein_lib::{Decimal, List, Token, Writer, bytes};
-use skein_llm::{self as shared, Credential};
+use skein_llm::Credential;
 use smith_domain::{Event, llm};
 
 use crate::{EndpointOptions, Error};
 
 /// Measure the body added after `from`, restoring every moved message.
 pub(crate) fn measure(
-    request: &mut shared::Prompt,
+    request: &mut skein_llm::Prompt,
     credential: Option<&Credential>,
     options: &EndpointOptions,
     from: usize,
@@ -21,9 +21,9 @@ pub(crate) fn measure(
     if from > request.messages.len() {
         return Err(Error::Invalid);
     }
-    let whole = match shared::client::measure(request, credential, &options.endpoint, &options.client) {
+    let whole = match skein_llm::client::measure(request, credential, &options.endpoint, &options.client) {
         Ok(measured) => measured,
-        Err(error) => return Err(Error::from_shared(error)),
+        Err(error) => return Err(Error::from_client(error)),
     };
     let capacity = u32::try_from(request.messages.len()).or(Err(Error::Limit))?;
     let mut prefix = List::with_capacity(capacity);
@@ -36,7 +36,7 @@ pub(crate) fn measure(
         }
     }
     request.messages = prefix.into_boxed();
-    let cut = shared::client::measure(request, credential, &options.endpoint, &options.client);
+    let cut = skein_llm::client::measure(request, credential, &options.endpoint, &options.client);
     let mut restored = List::with_capacity(capacity);
     for message in mem::replace(&mut request.messages, Box::new([])) {
         restored.push(message).expect("bounded prefix");
@@ -47,7 +47,7 @@ pub(crate) fn measure(
     request.messages = restored.into_boxed();
     let cut = match cut {
         Ok(measured) => measured,
-        Err(error) => return Err(Error::from_shared(error)),
+        Err(error) => return Err(Error::from_client(error)),
     };
     Ok(u64::from(whole.body.checked_sub(cut.body).ok_or(Error::Invalid)?))
 }
@@ -55,7 +55,7 @@ pub(crate) fn measure(
 /// Return an unsent terminal only when the guard or its measurement refuses.
 pub(crate) fn check(
     purpose: llm::Purpose,
-    request: &mut shared::Prompt,
+    request: &mut skein_llm::Prompt,
     credential: Option<&Credential>,
     options: &EndpointOptions,
     owner: Token,
@@ -73,13 +73,13 @@ pub(crate) fn check(
         Some(total) if total <= guard.line => return None,
         Some(_) | None => {}
     }
-    Some(Event::Failed {
+    Some(Event::Below(smith_domain::Below::Failed {
         owner,
         failure: llm::Failure::ContextTooLong,
         evidence: llm::Evidence::Unsent,
         detail: detail(guard, measured, max_failure_bytes),
         report: llm::Report::none(),
-    })
+    }))
 }
 
 fn detail(guard: llm::Guard, measured: u64, maximum: u32) -> Box<[u8]> {

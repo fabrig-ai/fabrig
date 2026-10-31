@@ -103,11 +103,7 @@ impl Exchange {
             method: if id.is_some() { Method::Post } else { Method::Get },
             target: bytes::copy_of(target),
             headers: headers.into_boxed_slice(),
-            body: if id.is_some() {
-                http::Body::Length(u64::try_from(body.len()).expect("bounded upload"))
-            } else {
-                http::Body::None
-            },
+            body: if id.is_some() { http::Body::Length(skein_lib::len_u64(body.len())) } else { http::Body::None },
             close: true,
         }));
         if id.is_some() {

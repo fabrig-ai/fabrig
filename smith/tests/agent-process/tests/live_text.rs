@@ -3,7 +3,7 @@ use skein_fake_llm_domain::api;
 use skein_lib::Duration;
 use skein_world::domain::heap::Counting;
 use smith_agent_process_world::{TraceCase, World, charter};
-use smith_agent_service::sinks::Capture;
+use smith_protocol_events::sinks::Capture;
 
 #[global_allocator]
 static HEAP: Counting = Counting;
@@ -74,7 +74,7 @@ fn a_sub_agents_completion_gives_no_piece() {
             deltas.extend_from_slice(&delta.text);
         }
     }
-    assert_eq!(deltas, b"actual child answer", "the event owner's child deltas remain observable");
+    assert_eq!(deltas, b"child answer", "the event owner's child deltas remain observable");
 }
 
 const HOLD: &[u8] = b"h";
@@ -91,16 +91,15 @@ const TURN_KIND: u16 = 0x0109;
 const FIRST_BYTES: u64 = 3;
 
 fn held_after(first: &[u8], hold: &[u8], last: &[u8]) -> Box<[api::Turn]> {
-    Box::new([api::Turn {
-        lines: Box::new([api::Line::Pieces {
+    Box::new([smith_agent_world::fixture::says(
+        Box::new([api::Line::Pieces {
             pieces: Box::new([
                 api::Piece { text: first.into(), hold: None },
                 api::Piece { text: last.into(), hold: Some(hold.into()) },
             ]),
         }]),
-        finish: api::Finish::Stop,
-        tokens: 1,
-    }])
+        1,
+    )])
 }
 
 fn held_world(queries: usize) -> World {
@@ -143,7 +142,7 @@ fn no_retry_piece_follows_its_turns_record() {
     assert!(last_piece < turn, "no piece follows its turn");
 }
 
-// limits.md 3.6's held-byte bound; one frame leaves no room for live pieces.
+// smith/docs/design/protocol/limits.md 3.6's held-byte bound; one frame leaves no room for live pieces.
 const HELD_BYTES: usize = 16_384;
 const NO_LIVE_ROOM: u32 = 1;
 static HELD_REPLY: [u8; HELD_BYTES] = [b'x'; HELD_BYTES];
@@ -161,11 +160,10 @@ fn a_channel_with_no_room_holds_the_bound_and_drops_the_newest() {
         world.observe_facts(TraceCase::Failed, NO_LIVE_ROOM);
         world.output_tokens(PRESSURE_OUTPUT_TOKENS);
         world.ask(true, false, false);
-        world.script(Box::new([api::Turn {
-            lines: Box::new([api::Line::Pieces { pieces: Box::new([api::Piece { text: reply.into(), hold: None }]) }]),
-            finish: api::Finish::Stop,
-            tokens: 1,
-        }]));
+        world.script(Box::new([smith_agent_world::fixture::says(
+            Box::new([api::Line::Pieces { pieces: Box::new([api::Piece { text: reply.into(), hold: None }]) }]),
+            1,
+        )]));
         assert!(world.settle());
         assert_eq!(world.lost_live_bytes(), lost, "reply bytes={}", reply.len());
         assert!(world.pieces().is_empty(), "one frame reserves no live room");

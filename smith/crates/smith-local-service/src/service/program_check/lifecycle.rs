@@ -32,7 +32,7 @@ impl Checks {
     }
 }
 
-impl crate::process::ProcessAdapter {
+impl crate::host_io::HostIo {
     pub(crate) fn program_owns(&self, owner: Option<super::Token>) -> bool {
         match &self.programs {
             Some(checks) => match owner {

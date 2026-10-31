@@ -1,7 +1,7 @@
 //! One shipped credential command against a listening provider fixture.
 //! The referee keeps readiness and browser progress, never credential values;
-//! entry points observe sign-in ownership (protocol/hosts.md, section 5.4)
-//! through shipped commands (testing.md, sections 2.3 and 5).
+//! entry points observe sign-in ownership (smith/docs/design/protocol/hosts.md, section 5.4)
+//! through shipped commands (smith/docs/design/testing.md, sections 2.3 and 5).
 use super::{Process, Ran};
 use skein_lib::{Duration, Time};
 use skein_shell::{Clock, Host};
@@ -207,7 +207,7 @@ pub fn terminal_key(scratch: &Scratch, name: &str) -> Ran {
     let descriptors = streams.descriptors();
     let Streams::Terminal { stream } = streams else { unreachable!() };
     let mut world =
-        real::World::new(super::Refusal::new(clock.now().now, clock.now().now.saturating_add(Duration::from_secs(2))));
+        real::World::new(super::Settling::new(clock.now().now, clock.now().now.saturating_add(Duration::from_secs(2))));
     world.spawn_with_fds(binary.descriptors(), || Process::Binary(Box::new(binary)));
     world.spawn_with_fds(descriptors, || {
         Process::Script(Proc::Terminal(Box::new(Terminal::attached(stream, Vec::new()))))

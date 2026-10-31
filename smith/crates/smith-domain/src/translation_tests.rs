@@ -1,5 +1,5 @@
 //! Exact tables at the session to run sibling boundary.
-//! Contract: domain/session.md, sections 3–6; domain/run.md, sections 5, 9 and 13.
+//! Contract: smith/docs/design/domain/session.md, sections 3–6; smith/docs/design/domain/run.md, sections 5, 9 and 13.
 
 use skein_lib::Duration;
 use smith_domain_run as run;
@@ -90,8 +90,8 @@ fn every_completion_failure_and_transport_evidence_maps_without_inference() {
         (llm::Failure::Overloaded, run::CompletionFailure::Overloaded),
         (llm::Failure::Unavailable, run::CompletionFailure::Unavailable),
         (
-            llm::Failure::TimedOut { phase: llm::Phase::Whole },
-            run::CompletionFailure::TimedOut { phase: run::Phase::Whole },
+            llm::Failure::TimedOut { phase: llm::CompletionPhase::Whole },
+            run::CompletionFailure::TimedOut { phase: run::CompletionPhase::Whole },
         ),
         (llm::Failure::ContextTooLong, run::CompletionFailure::ContextTooLong),
         (llm::Failure::Invalid, run::CompletionFailure::Invalid),

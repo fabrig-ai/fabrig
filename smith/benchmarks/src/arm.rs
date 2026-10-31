@@ -55,13 +55,9 @@ pub enum ArmRef {
     Built(Build),
 }
 
-fn hexadecimal(value: &str, length: usize) -> bool {
-    value.len() == length && value.bytes().all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
-}
-
 /// Name an arm from its full commit and the product executable's SHA-256.
 pub fn arm_name(commit: &str, sha256: &str) -> Result<String, String> {
-    if !hexadecimal(commit, 40) || !hexadecimal(sha256, 64) {
+    if !crate::formats::lowercase_hex(commit, 40) || !crate::formats::lowercase_hex(sha256, 64) {
         return Err("arm identity needs a full lowercase commit and SHA-256".into());
     }
     Ok(format!("{commit}-{sha256}"))
@@ -106,7 +102,7 @@ pub(crate) fn commit(repository: &Path, reference: &str) -> Result<String, Strin
         "resolve commit",
     )?;
     let commit = commit.trim();
-    if !hexadecimal(commit, 40) {
+    if !crate::formats::lowercase_hex(commit, 40) {
         return Err("unknown or unsupported commit".into());
     }
     Ok(commit.into())
@@ -290,7 +286,7 @@ pub fn read_build(program: &Path) -> Result<Build, String> {
     for binary in &arm.binaries {
         if binary.name.is_empty()
             || !binary.name.bytes().all(|byte| byte.is_ascii_alphanumeric() || byte == b'-' || byte == b'_')
-            || !hexadecimal(&binary.sha256, 64)
+            || !crate::formats::lowercase_hex(&binary.sha256, 64)
             || !names.insert(&binary.name)
         {
             return Err("arm manifest has an unsafe or repeated binary identity".into());
@@ -368,7 +364,8 @@ mod tests {
 
     #[test]
     fn a_build_waits_while_another_holds_the_build_lock() {
-        let root = std::env::temp_dir().join(format!("smith-build-lock-{}", std::process::id()));
+        let scratch = skein_scratch::Scratch::new("bench-arm");
+        let root = scratch.path().to_path_buf().join(format!("smith-build-lock-{}", std::process::id()));
         fs::create_dir(&root).expect("isolated fixture");
         let guard = Guard::new(&root.join("home"), &root.join("config"), &root.join("state"), &[]).expect("guard");
         let owner = build_lock(&guard, &root).expect("first build owns its lock");
@@ -378,7 +375,6 @@ mod tests {
         owner.unlock().expect("first build ends");
         contender.try_lock().expect("second build can now start");
         contender.unlock().expect("second build ends");
-        fs::remove_dir_all(root).expect("remove fixture");
     }
 
     #[test]
@@ -394,7 +390,8 @@ mod tests {
 
     #[test]
     fn dirty_and_unknown_commits_are_refused_before_any_build_write() {
-        let root = std::env::temp_dir().join(format!("smith-bench-arm-source-{}", std::process::id()));
+        let scratch = skein_scratch::Scratch::new("bench-arm");
+        let root = scratch.path().to_path_buf().join(format!("smith-bench-arm-source-{}", std::process::id()));
         fs::create_dir(&root).expect("isolated source");
         output(git(&root).args(["init", "--quiet"]), "test git init").expect("init");
         output(
@@ -419,6 +416,5 @@ mod tests {
         fs::write(root.join("dirty"), "synthetic untracked change").expect("dirty source");
         assert!(resolve_commit(&root, "HEAD").expect_err("dirty source").contains("dirty"));
         assert!(outside_repositories(&root.join("private/arms")).is_err());
-        fs::remove_dir_all(root).expect("remove only the synthetic repository");
     }
 }

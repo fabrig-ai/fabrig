@@ -2,10 +2,10 @@
 //! `oversized_check` and `check` join native payload `TooLarge` with captured content
 //! or preserve attested protocol Oversized blocks. They never infer an unrecorded
 //! argument or namespace, and never relabel the protocol block counter.
-//! Protocol-only judgments use the authored actual call-input bound; the elided
+//! Protocol-only judgments use the authored call-input bound; the elided
 //! refusal path is never known. Accepted piece paths remain independently judged.
 //! In protocol-probe mode no trigger is a separate not-exercised observation;
-//! accepted pieces still replay on one actual run/conversation scope.
+//! accepted pieces still replay on one run/conversation scope.
 //! Captured arguments reconstruct only reported successful mutations; a failed
 //! edit is retained as evidence and changes nothing. Missing content stays
 //! unavailable. Replay scratch is bounded by the task's unchanged file cap.
@@ -143,7 +143,7 @@ fn evaluate(
     let Some(content) = content else {
         return measured(false);
     };
-    if edits == 0 || u64::try_from(content.len()).expect("bounded replay") <= above {
+    if edits == 0 || skein_lib::len_u64(content.len()) <= above {
         return measured(false);
     }
     match crate::grade::file(workspace, path).and_then(|file| std::fs::read(file).map_err(|error| error.to_string())) {
@@ -249,7 +249,7 @@ fn protocol_refusals(
                     if let Block::Oversized { call, tool, bytes } = block { Some((call, tool, bytes)) } else { None }
                 })
                 .collect();
-            if u64::try_from(blocks.len()).expect("bounded blocks") != response.oversized {
+            if skein_lib::len_u64(blocks.len()) != response.oversized {
                 return Err(Measure::Observed { value: false });
             }
             for (call, tool, bytes) in blocks {
@@ -318,7 +318,7 @@ fn native_refusals(
             let Some(content) = input.get("content").and_then(serde_json::Value::as_str) else {
                 return Err(Measure::unavailable("oversized write content is unavailable"));
             };
-            let bytes = u64::try_from(content.len()).expect("captured input fits");
+            let bytes = skein_lib::len_u64(content.len());
             if bytes <= above {
                 return Err(Measure::Observed { value: false });
             }
@@ -351,15 +351,15 @@ fn mutation(
     let Ok(input) = serde_json::from_slice::<serde_json::Value>(input) else {
         return Err(Measure::unavailable("piece arguments are not decoded JSON"));
     };
-    let Some(actual_path) = input.get("path").and_then(serde_json::Value::as_str) else {
+    let Some(emitted_path) = input.get("path").and_then(serde_json::Value::as_str) else {
         return Err(Measure::unavailable("piece path is absent"));
     };
-    let actual_path = Path::new(actual_path);
-    let actual_path = actual_path.strip_prefix(workspace).unwrap_or(actual_path);
-    let Some(actual_path) = super::written_file::relative(actual_path) else {
+    let emitted_path = Path::new(emitted_path);
+    let emitted_path = emitted_path.strip_prefix(workspace).unwrap_or(emitted_path);
+    let Some(emitted_path) = super::written_file::relative(emitted_path) else {
         return Err(Measure::unavailable("piece namespace cannot be resolved by this file predicate"));
     };
-    if actual_path != path {
+    if emitted_path != path {
         return Ok(None);
     }
     let ends: Vec<_> = session
@@ -398,7 +398,7 @@ fn apply(
         let Some(first) = input.get("content").and_then(serde_json::Value::as_str) else {
             return Err(Measure::unavailable("first piece content is absent"));
         };
-        if u64::try_from(first.len()).expect("bounded first piece") > maximum {
+        if skein_lib::len_u64(first.len()) > maximum {
             return Err(Measure::Observed { value: false });
         }
         *content = Some(first.to_owned());

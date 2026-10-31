@@ -63,8 +63,8 @@ fn host_id_drawn_by_two_processes_is_one_value() {
         std::fs::write(directory.host_id().with_file_name(format!("seen-{serial}")), value).unwrap();
         return;
     }
-    let files = Files::new();
-    let base = files.0.join("installation");
+    let files = Files::new("smith-credentials");
+    let base = files.path().join("installation");
     let clock = Clock::new();
     let mut world = real::World::new(Judge);
     for serial in ["3", "4"] {
@@ -76,12 +76,12 @@ fn host_id_drawn_by_two_processes_is_one_value() {
                     "credentials::host_id::process_tests::host_id_drawn_by_two_processes_is_one_value".into(),
                 ],
                 environment: vec![
-                    ("HOME".into(), files.0.clone().into()),
-                    ("XDG_CONFIG_HOME".into(), files.0.join("config").into()),
+                    ("HOME".into(), files.path().to_path_buf().into()),
+                    ("XDG_CONFIG_HOME".into(), files.path().join("config").into()),
                     ("SMITH_HOST_ID_TEST".into(), base.clone().into()),
                     ("SMITH_HOST_ID_SERIAL".into(), serial.into()),
                 ],
-                directory: files.0.clone(),
+                directory: files.path().to_path_buf(),
             },
             Mode::Pipes,
             4096,

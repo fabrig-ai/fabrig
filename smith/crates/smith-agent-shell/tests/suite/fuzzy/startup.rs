@@ -1,17 +1,10 @@
 //! Random startup declarations preserve capacities and named refusals.
 
 #![cfg(test)]
-#![allow(
-    clippy::indexing_slicing,
-    clippy::arithmetic_side_effects,
-    clippy::unwrap_used,
-    clippy::missing_assert_message,
-    reason = "programming-model.md section 10.2: deterministic test fixtures use ordinary Rust"
-)]
 
 use smith_agent_service as service;
-use smith_agent_service::sinks::Capture;
 use smith_agent_shell::config;
+use smith_protocol_events::sinks::Capture;
 
 #[path = "../../support/product.rs"]
 mod product;
@@ -77,7 +70,7 @@ fn drawn_declarations_preserve_capacities_or_name_their_refusal() {
         validate::machine(&limits.machine, &limits.domain).expect("machine holds tools");
         assert!(limits.file_bytes >= limits.domain.session.tools.file_bytes);
         let effort = smith_charter::CEILINGS.llm_effort_some;
-        service::EventLimits::derive(&limits, Capture::Everything, 1, effort, &[], profile.policy.write_deadline)
+        smith_agent_service::event_limits(&limits, Capture::Everything, 1, effort, &[], profile.policy.write_deadline)
             .expect("drawn event ownership");
         let configured = config::from_value(document.clone()).expect("drawn native endpoints");
         assert_eq!(configured.declarations, declarations, "the independent drawn declarations match startup");

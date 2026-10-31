@@ -562,7 +562,7 @@ fn skip_checks_every_value_and_counts_only_its_bytes() {
     for &value in values {
         assert_eq!(
             scripted(value, limits, &[Request::Skip, Request::Next]),
-            [Event::Skipped(u64::try_from(value.len()).unwrap()), Event::Done]
+            [Event::Skipped(skein_lib::len_u64(value.len())), Event::Done]
         );
         let mut array = vec![b'[', b' ', b'\n'];
         array.extend(value);
@@ -571,7 +571,7 @@ fn skip_checks_every_value_and_counts_only_its_bytes() {
             scripted(&array, limits, &[Request::Next, Request::Skip, Request::Skip, Request::Skip, Request::Next]),
             [
                 Event::Token(Token::ArrayStart),
-                Event::Skipped(u64::try_from(value.len()).unwrap()),
+                Event::Skipped(skein_lib::len_u64(value.len())),
                 Event::Skipped(4),
                 Event::Token(Token::ArrayEnd),
                 Event::Done
@@ -585,7 +585,7 @@ fn skip_checks_every_value_and_counts_only_its_bytes() {
             [
                 Event::Token(Token::ObjectStart),
                 Event::Token(key(b"")),
-                Event::Skipped(u64::try_from(value.len()).unwrap()),
+                Event::Skipped(skein_lib::len_u64(value.len())),
                 Event::Token(Token::ObjectEnd),
                 Event::Done
             ]

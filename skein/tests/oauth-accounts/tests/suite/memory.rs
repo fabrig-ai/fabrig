@@ -219,7 +219,7 @@ impl ListenerSockets {
         use skein_world::stream::Wire;
         match request {
             IoRequest::Connect { owner, .. } => {
-                let socket = Token::new(100 + u64::try_from(self.web.len()).expect("self.web index"));
+                let socket = Token::new(100 + skein_lib::len_u64(self.web.len()));
                 component.up(env, IoEvent::Connecting { owner, socket }, above, below, &mut Queue::with_capacity(1));
                 component.up(env, IoEvent::Connected { owner }, above, below, &mut Queue::with_capacity(1));
                 let mut wire = Wire::new(socket.raw());
@@ -232,7 +232,7 @@ impl ListenerSockets {
                 component.up(env, IoEvent::Closed { owner }, above, below, &mut Queue::with_capacity(1));
             }
             IoRequest::Listen { owner, addr } => {
-                let index = u64::try_from(self.wires.len()).expect("four listeners");
+                let index = skein_lib::len_u64(self.wires.len());
                 let listener = Token::new(20 + index);
                 let socket = Token::new(40 + index);
                 component.up(

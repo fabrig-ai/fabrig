@@ -1,5 +1,5 @@
 //! Allowed workspace operations through the shared simulated process face
-//! (protocol/programs.md, sections 5.3, 5.4 and 8).
+//! (smith/docs/design/protocol/programs.md, sections 5.3, 5.4 and 8).
 
 use crate::support::{Run, print};
 use serde_json::{Value, json};
@@ -36,8 +36,6 @@ fn observations(run: &Run) -> Vec<Seen> {
     seen(run.observations.as_ref().expect("observations"))
 }
 
-/// Lower test of binary::the_binary_edits_its_working_directory_file
-/// (top tiers test wiring only).
 #[test]
 fn an_allowed_edit_changes_the_file() {
     let run = run(vec![edit("before", "after", false)], Some(ORIGINAL), Vec::new());

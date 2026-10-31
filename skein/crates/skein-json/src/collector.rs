@@ -614,7 +614,7 @@ fn token(collector: &mut Collector, token: &Token) -> Result<(), Error> {
                     Keep::Text(cap)
                         if u32::try_from(value.len()).expect("bounded string") > cap_value(collector, cap) =>
                     {
-                        push_long(collector, u64::try_from(value.len()).expect("bounded string"))?;
+                        push_long(collector, skein_lib::len_u64(value.len()))?;
                     }
                     Keep::Text(_) | Keep::Value | Keep::Into(_) | Keep::Tagged(_) => {
                         push(collector, token)?;

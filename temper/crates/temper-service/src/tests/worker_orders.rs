@@ -100,9 +100,9 @@ fn an_entrances_requests_are_dispatched_before_the_next_entrance() {
     peer.settle(&mut stand.worker);
     let mut delivered = List::with_capacity(PROCESS_RECORDS);
     while let Some(event) = peer.events.pop() {
-        if let channel::OpenEvent::Message { name, .. } = event {
+        if let channel::Heard::Message { name, .. } = event {
             delivered.push(Some(name)).expect("two messages and cancellation");
-        } else if let channel::OpenEvent::Cancel = event {
+        } else if let channel::Heard::Cancel = event {
             delivered.push(None).expect("two messages and cancellation");
         }
     }
@@ -353,7 +353,7 @@ fn progress_taken_in_an_iteration_beats_a_watchdog_due_in_it() {
     peer.settle(&mut stand.worker);
     let mut cancelled = false;
     while let Some(event) = peer.events.pop() {
-        if let channel::OpenEvent::Cancel = event {
+        if let channel::Heard::Cancel = event {
             cancelled = true;
         }
     }

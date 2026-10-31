@@ -12,8 +12,6 @@
 //! | Scanning | last node | completed snapshot |
 //! | Scanning | refusal | unknown tree, counted as changed |
 
-#![expect(clippy::manual_let_else, reason = "explicit bounded transition matches")]
-
 use alloc::boxed::Box;
 use skein_io::{digest, file, kernel};
 use skein_lib::{List, Time, Token, Writer};
@@ -91,9 +89,8 @@ impl Plain {
                         kernel::Kind::File | kernel::Kind::Directory => {}
                         kernel::Kind::Symlink | kernel::Kind::Other => return PlainAction::Failed,
                     }
-                    let path = match join(&parent, &entry.name, self.limits.path_bytes) {
-                        Some(path) => path,
-                        None => return PlainAction::Failed,
+                    let Some(path) = join(&parent, &entry.name, self.limits.path_bytes) else {
+                        return PlainAction::Failed;
                     };
                     if self.snapshot.entries.push(Entry { path, kind: entry.kind, digest: None }).is_err() {
                         return PlainAction::Failed;
@@ -133,9 +130,8 @@ impl Plain {
     }
 
     fn request(&self) -> PlainAction {
-        let entry = match self.snapshot.entries.get(self.next) {
-            Some(entry) => entry,
-            None => return PlainAction::Done,
+        let Some(entry) = self.snapshot.entries.get(self.next) else {
+            return PlainAction::Done;
         };
         let request = match entry.kind {
             kernel::Kind::Directory => file::Request::Scan {

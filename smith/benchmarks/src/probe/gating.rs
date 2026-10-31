@@ -3,7 +3,7 @@
 
 use std::collections::BTreeSet;
 
-use crate::{CatalogueTask, Judgment, batch::Batch, run::Prepared};
+use crate::{CatalogueTask, Judgment, batch::Batch, run::Request};
 
 /// Select smoke tasks whose effective calibration digests still match.
 pub fn smoke_tasks(entries: &[CatalogueTask], names: &[String]) -> Result<Vec<String>, String> {
@@ -18,7 +18,7 @@ pub fn smoke_tasks(entries: &[CatalogueTask], names: &[String]) -> Result<Vec<St
     Ok(selected)
 }
 
-pub(crate) fn uncalibrated(requests: &[Prepared]) -> Result<BTreeSet<String>, String> {
+pub(crate) fn uncalibrated(requests: &[Request]) -> Result<BTreeSet<String>, String> {
     let mut names = BTreeSet::new();
     for request in requests {
         if request.identity.task.starts_with("probes/")
@@ -33,7 +33,7 @@ pub(crate) fn uncalibrated(requests: &[Prepared]) -> Result<BTreeSet<String>, St
 pub(crate) fn suite_tasks(
     suite: &crate::Suite,
     logical: bool,
-    requests: &[Prepared],
+    requests: &[Request],
 ) -> Result<BTreeSet<String>, String> {
     if suite.name == "probes" && !logical { uncalibrated(requests) } else { Ok(BTreeSet::new()) }
 }

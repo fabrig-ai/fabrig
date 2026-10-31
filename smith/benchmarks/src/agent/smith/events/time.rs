@@ -67,25 +67,7 @@ impl Observer {
                     }
                 }
                 Event::RunCompleted(run) if run.run == main.run => end = Some(record.t_ms),
-                Event::Budget(_)
-                | Event::SessionStarted(_)
-                | Event::SessionEnded(_)
-                | Event::RunStarted(_)
-                | Event::RunCompleted(_)
-                | Event::ConversationOpened(_)
-                | Event::ConversationClosed(_)
-                | Event::ResponseStarted(_)
-                | Event::ResponseCompleted(_)
-                | Event::TextDelta(_)
-                | Event::ToolStarted(_)
-                | Event::ToolCompleted(_)
-                | Event::CheckStarted(_)
-                | Event::CheckCompleted(_)
-                | Event::MessageReceived(_)
-                | Event::MessageRead(_)
-                | Event::MessageUnread(_)
-                | Event::JobEnded(_)
-                | Event::Notice(_) => {}
+                _ => {}
             }
         }
         let Some(end) = end else { return };
@@ -106,24 +88,6 @@ impl Observer {
 fn main(session: &Session) -> Option<(&ConversationOpened, u64)> {
     session.records.iter().find_map(|record| match &record.event {
         Event::ConversationOpened(opened) if opened.kind == ConversationKind::Main => Some((opened, record.t_ms)),
-        Event::Budget(_)
-        | Event::SessionStarted(_)
-        | Event::SessionEnded(_)
-        | Event::RunStarted(_)
-        | Event::RunCompleted(_)
-        | Event::ConversationOpened(_)
-        | Event::ConversationClosed(_)
-        | Event::ResponseStarted(_)
-        | Event::ResponseCompleted(_)
-        | Event::TextDelta(_)
-        | Event::ToolStarted(_)
-        | Event::ToolCompleted(_)
-        | Event::CheckStarted(_)
-        | Event::CheckCompleted(_)
-        | Event::MessageReceived(_)
-        | Event::MessageRead(_)
-        | Event::MessageUnread(_)
-        | Event::JobEnded(_)
-        | Event::Notice(_) => None,
+        _ => None,
     })
 }

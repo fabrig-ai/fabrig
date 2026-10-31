@@ -2,9 +2,9 @@
 //! Original spawn tokens stay live until IO settles; cancelled terminals and
 //! bounded unread output stay until read or close. Provider ids are never known.
 //! Same-job reads reach the machine one at a time.
-//! Contract: domain/tools.md, section 5; programming-model.md, sections 5.2 and 6.3.
+//! Contract: smith/docs/design/domain/tools.md, section 5; skein/docs/foundation/programming-model.md, sections 5.2 and 6.3.
 
-use crate::command::{Kept, Timed};
+use crate::command::{Kept, SelectedTimeout};
 use crate::domain::Domain;
 use crate::facts::{self, FactKind};
 use crate::flight::{self, Flight};
@@ -16,7 +16,7 @@ use skein_lib::{Env, Id, Map, Queue, ReplyTo, Time, Token};
 #[derive(Debug)]
 pub(crate) struct Jobs {
     held: Map<u32, Job>,
-    reads: Map<u64, Read>,
+    reads: Map<u64, JobRead>,
     highest: u32,
     next_read: u64,
     cancelling: bool,
@@ -39,11 +39,11 @@ enum State {
 }
 
 #[derive(Debug)]
-pub(crate) struct Read {
+pub(crate) struct JobRead {
     job: JobNumber,
     reply_to: ReplyTo,
     observation: Option<CallInfo>,
-    timed: Timed,
+    timed: SelectedTimeout,
     kept: Kept,
     deadline: Time,
     stop: bool,
@@ -73,7 +73,7 @@ impl Jobs {
         self.reads.len()
     }
 
-    pub(crate) fn held(&mut self, owner: Id<Flight>, observation: Option<CallInfo>, started: Time) -> JobNumber {
+    pub(crate) fn hold(&mut self, owner: Id<Flight>, observation: Option<CallInfo>, started: Time) -> JobNumber {
         self.highest = self.highest.checked_add(1).expect("a conversation's job numbers fit u32");
         let number = JobNumber(self.highest);
         let call = match observation {
@@ -116,7 +116,7 @@ impl Jobs {
 }
 
 /// Enqueue a read; another read of this number must consume its answer first.
-pub(crate) fn call(domain: &mut Domain, env: &Env<Limits>, id: Id<Kit>, read: Read, out: &mut Queue<Request>) {
+pub(crate) fn call(domain: &mut Domain, env: &Env<Limits>, id: Id<Kit>, read: JobRead, out: &mut Queue<Request>) {
     let kit = domain.kits.get_mut(id).expect("the session owns its kit");
     let job = read.job;
     let problem = if kit.jobs.held.contains_key(&job.0) { None } else { Some(JobProblem::Unknown { job }) };
@@ -146,7 +146,7 @@ pub(crate) fn call(domain: &mut Domain, env: &Env<Limits>, id: Id<Kit>, read: Re
         let ended = kit.jobs.held.remove(&job.0).expect("one terminal read");
         match ended.state {
             State::Ended { head, tail, dropped, end, .. } => {
-                answer(kit::session(kit), read, Done::Job { head, tail, dropped, end }, &mut domain.facts, out);
+                answer(kit::session(kit), read, &head, &tail, dropped, end, &mut domain.facts, out);
             }
             State::Running | State::Cancelling => unreachable!("checked ended"),
         }
@@ -162,12 +162,12 @@ pub(crate) fn read(
     job: JobNumber,
     reply_to: ReplyTo,
     observation: Option<CallInfo>,
-    timed: Timed,
+    timed: SelectedTimeout,
     kept: Kept,
     deadline: Time,
     stop: bool,
-) -> Read {
-    Read { job, reply_to, observation, timed, kept, deadline, stop, hastened: false }
+) -> JobRead {
+    JobRead { job, reply_to, observation, timed, kept, deadline, stop, hastened: false }
 }
 
 /// The session names a pending reply; a queued read keeps its shortened wait.
@@ -264,7 +264,7 @@ pub(crate) fn done(
     }
     if let Some(reader) = job.reader.take() {
         let read = kit.jobs.reads.remove(&reader).expect("an active read owns its reply right");
-        answer(kit::session(kit), read, Done::Job { head, tail, dropped, end }, &mut domain.facts, out);
+        answer(kit::session(kit), read, &head, &tail, dropped, end, &mut domain.facts, out);
     } else {
         assert!(ended, "only cancellation answers an unpolled job");
         job.state = State::Ended { head, tail, dropped, end, at: env.now };
@@ -313,6 +313,8 @@ fn cancel_one(job: &mut Job, limits: &Limits, out: &mut Queue<Request>) {
     match job.state {
         State::Running => {
             if job.reader.is_none() {
+                // An unpolled held owner still owes a cancellation terminal.
+                // Wait for that terminal without a polling timeout winning first.
                 out.push(Request::Job {
                     owner: job.owner.token(),
                     act: JobAct::Read {
@@ -352,9 +354,8 @@ fn cancelled(kit: &mut Kit, out: &mut Queue<Request>) {
 fn tell(session: Token, number: JobNumber, job: &Job, facts: &mut facts::Facts) {
     match &job.state {
         State::Ended { head, tail, dropped, end, at } => {
-            let unread_bytes = u64::try_from(head.len())
-                .expect("bounded head")
-                .checked_add(u64::try_from(tail.len()).expect("bounded tail"))
+            let unread_bytes = skein_lib::len_u64(head.len())
+                .checked_add(skein_lib::len_u64(tail.len()))
                 .expect("bounded kept bytes")
                 .checked_add(*dropped)
                 .expect("machine's total output fits u64");
@@ -374,28 +375,20 @@ fn tell(session: Token, number: JobNumber, job: &Job, facts: &mut facts::Facts) 
     }
 }
 
-fn answer(session: Token, read: Read, done: Done, facts: &mut facts::Facts, out: &mut Queue<Request>) {
-    let (head, tail, dropped, end) = match done {
-        Done::Job { head, tail, dropped, end } => (head, tail, dropped, end),
-        Done::Loaded { .. }
-        | Done::Listed { .. }
-        | Done::Removed
-        | Done::NotEmpty
-        | Done::Stored { .. }
-        | Done::Conflict { .. }
-        | Done::Exited { .. }
-        | Done::Held { .. }
-        | Done::Found { .. }
-        | Done::Missing
-        | Done::NotFile
-        | Done::Linked
-        | Done::NotDirectory
-        | Done::TooLarge { .. }
-        | Done::Escapes
-        | Done::Failed { .. }
-        | Done::TimedOut
-        | Done::Cancelled => unreachable!("retained terminal is a job"),
-    };
+#[expect(
+    clippy::too_many_arguments,
+    reason = "a job answer carries its four terminal fields beside its reply and observation sinks"
+)]
+fn answer(
+    session: Token,
+    read: JobRead,
+    head: &[u8],
+    tail: &[u8],
+    dropped: u64,
+    end: JobEnd,
+    facts: &mut facts::Facts,
+    out: &mut Queue<Request>,
+) {
     let total = head.len().checked_add(tail.len()).expect("bounded output");
     let first = usize::try_from(read.kept.head).expect("head fits").min(if dropped > 0 { head.len() } else { total });
     let last = usize::try_from(read.kept.tail).expect("tail fits").min(if dropped > 0 {

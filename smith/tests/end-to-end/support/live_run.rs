@@ -1,5 +1,5 @@
 //! Live outcome policy beside Smith 04's binary and scripted terminal on the
-//! shared real ring (testing.md, sections 2.3 and 5). No service state is read.
+//! shared real ring (smith/docs/design/testing.md, sections 2.3 and 5). No service state is read.
 
 use super::{Process, start};
 use skein_io::kernel::Exit;
@@ -82,7 +82,7 @@ impl Referee<Process> for Judge {
         assert!(
             records.iter().any(|record| matches!(&record.event,
                 smith_events::Event::ToolStarted(started) if started.tool.as_ref() == b"finish")),
-            "the shipped live agent actually called finish"
+            "the shipped live agent called finish"
         );
         assert!(
             records.iter().any(|record| matches!(&record.event,
@@ -98,14 +98,14 @@ impl Referee<Process> for Judge {
             assert!(head != *before, "live run creates a new commit");
             let message = self.checkout.message(&head);
             assert!(
-                message.windows(15).any(|bytes| bytes == b"Smith-Delivery:"),
+                skein_lib::bytes::find(&message, b"Smith-Delivery:").is_some(),
                 "commit carries the delivery identity"
             );
             let files = self.checkout.files(&head);
             for (path, expected) in &self.expectation.files {
                 assert!(
                     files.get(path).is_some_and(|bytes| bytes == expected),
-                    "the actual committed file has its prescribed content"
+                    "the committed file has its prescribed content"
                 );
                 assert!(
                     std::fs::read(self.directory.join("repo").join(std::str::from_utf8(path).expect("test path")))
@@ -118,8 +118,8 @@ impl Referee<Process> for Judge {
                 .find_map(|proc| if let Process::Script(Proc::Terminal(person)) = proc { Some(person) } else { None })
                 .expect("live person");
             assert!(
-                person.shown().windows(16).any(|bytes| bytes == b"Change delivered"),
-                "terminal observed actual delivery"
+                skein_lib::bytes::find(person.shown(), b"Change delivered").is_some(),
+                "terminal observed delivery"
             );
         }
         self.reviewed = true;
@@ -219,7 +219,7 @@ fn run_with_peer(
     assert_no_children();
 }
 
-// Startup's content-free root counts (skein shell.md, section 6.2).
+// Startup's content-free root counts (skein/docs/design/shell.md, section 6.2).
 fn trust_notice(line: &str) -> bool {
     line.strip_prefix("smith: trust roots: ").is_some_and(|counts| {
         let fields: Vec<_> = counts.split(", ").collect();

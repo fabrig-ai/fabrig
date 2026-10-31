@@ -29,7 +29,7 @@ impl Service {
             }
         }
         self.interrupted_credentials = credentials;
-        self.below.process_mut().cancel_programs();
+        self.io.cancel_programs();
     }
 
     pub(crate) fn interrupted_program_request(&mut self, account: u32) -> bool {
@@ -37,7 +37,7 @@ impl Service {
             return false;
         }
         self.interrupted_credentials = self.interrupted_credentials.checked_sub(1).expect("interrupted prefix");
-        if self.below.process_mut().program_account(account) {
+        if self.io.program_account(account) {
             self.local_events
                 .push(local::Event::NoCredential { account, reason: local::CredentialFailure::ProgramInterrupted });
             return true;
@@ -47,11 +47,11 @@ impl Service {
 
     pub(crate) fn drain_program_interruptions(&mut self) -> bool {
         let notify = !self.closing();
-        self.below.process_mut().drain_program_interruptions(&mut self.local_events, notify)
+        self.io.drain_program_interruptions(&mut self.local_events, notify)
     }
 }
 
-impl crate::process::ProcessAdapter {
+impl crate::host_io::HostIo {
     fn program_account(&self, account: u32) -> bool {
         match &self.programs {
             Some(checks) => checks.account_index(account).is_some(),

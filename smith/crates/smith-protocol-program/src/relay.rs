@@ -35,7 +35,7 @@ pub enum Usage {
     Secret,
 }
 
-/// The relay's settled outcome, returned to the shell (programs.md, section 9).
+/// The relay's settled outcome, returned to the shell (smith/docs/design/protocol/programs.md, section 9).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Exit {
     /// Both directions reached EOF.
@@ -392,7 +392,7 @@ impl Relay {
         self.stop(Exit::Terminated, below);
     }
 
-    /// The outcome once stdin, stdout and the socket are closed (programs.md, 9).
+    /// The outcome once stdin, stdout and the socket are closed (smith/docs/design/protocol/programs.md, 9).
     #[must_use]
     pub fn ended(&self) -> Option<Exit> {
         if self.open_input || self.open_output || self.open_socket { None } else { self.exit }

@@ -1,4 +1,4 @@
-//! smith's patch set, as data (transcript.md, 12): hand-written in the shape
+//! smith's patch set, as data (smith/docs/design/protocol/transcript.md, 12): hand-written in the shape
 //! `skein-codegen patch` generates, and empty until the baseline, whose run
 //! of the command (`--baseline`) writes `patches/mod.rs` in its place.
 
@@ -6,11 +6,11 @@ use skein_codec::patch::{Build, Halt, Old, Site};
 use skein_codec::value::Node;
 
 mod context {
-    /// The owner's per-record inputs to written patch functions (codec.md, 11.5).
+    /// The owner's per-record inputs to written patch functions (skein/docs/design/codec.md, 11.5).
     #[derive(Debug)]
     pub struct Context {}
 
-    // Default by contract (codec.md, 11.5; transcript.md, 12), and empty: no
+    // Default by contract (skein/docs/design/codec.md, 11.5; smith/docs/design/protocol/transcript.md, 12), and empty: no
     // live state. Written out, since crates/clippy.toml refuses the derive and
     // clippy reports a derive's disallowed macro at the crate alone, where an
     // expectation would cover every item.

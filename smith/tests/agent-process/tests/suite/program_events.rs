@@ -1,39 +1,27 @@
-#![expect(
-    clippy::wildcard_enum_match_arm,
-    reason = "ordinary fixture selects event kinds; the shared referee checks every variant"
-)]
 use serde_json::json;
-use skein_lib::{Reader, Writer};
 use smith_agent_process_world::{
     charter, events, program,
     program_world::{self, Case, Run},
 };
 use smith_events::{Backend, Event, FailureClass, Outcome};
-use smith_fake_claude::{End, Step, Story, Turn};
+use smith_fake_claude::{Step, Story, Turn};
 
 fn run(steps: Vec<Step>, agents: bool) -> Run {
-    scripted(&Story { turns: vec![Turn { steps, end: End::default() }], ..Default::default() }, agents)
+    scripted(&Story { turns: vec![Turn::new(steps)], ..Default::default() }, agents)
 }
 
 fn scripted(story: &Story, agents: bool) -> Run {
-    let mut parts = smith_charter::Charter::decode(&smith_charter::CEILINGS, &mut Reader::new(&charter()))
-        .expect("bounded event fixture")
-        .into_parts();
-    let mut budget = parts.budget.into_parts();
-    budget.turns = 8;
-    budget.spend = 20;
-    parts.budget = smith_charter::Budget::new(&smith_charter::CEILINGS, budget).expect("bounded event fixture");
-    let mut tools = parts.tools.into_parts();
-    tools.families = smith_charter::Families::new(
-        &smith_charter::CEILINGS,
-        smith_charter::FamiliesParts { skein_bools: [false, false, false, agents] },
-    )
-    .expect("bounded event fixture");
-    parts.tools = smith_charter::Tools::new(&smith_charter::CEILINGS, tools).expect("bounded event fixture");
-    let charter = smith_charter::Charter::new(&smith_charter::CEILINGS, parts).expect("bounded event fixture");
-    let mut writer = Writer::new(charter.measure() as usize);
-    charter.encode(&mut writer).expect("bounded event fixture");
-    let run = program_world::run(Case::Events, story, Some(b"claude.ai"), &writer.finish(), &program(b"source"), None);
+    let charter = smith_agent_process_world::wire::edit_charter(&charter(), |parts| {
+        smith_agent_process_world::wire::budget(parts, 8, 20);
+        let mut tools = parts.tools.clone().into_parts();
+        tools.families = smith_charter::Families::new(
+            &smith_charter::CEILINGS,
+            smith_charter::FamiliesParts { skein_bools: [false, false, false, agents] },
+        )
+        .expect("bounded event fixture");
+        parts.tools = smith_charter::Tools::new(&smith_charter::CEILINGS, tools).expect("bounded event fixture");
+    });
+    let run = program_world::run(Case::Events, story, Some(b"claude.ai"), &charter, &program(b"source"), None);
     assert!(
         matches!(run.answer().expect("bounded event fixture").result(), smith_channel::RunResult::Accepted(_)),
         "{:?} {}",
@@ -148,20 +136,16 @@ fn the_run_s_tools_withhold_sub_agents() {
 
 #[test]
 fn a_program_deadline_keeps_unknown_transport_measures() {
-    let mut parts = smith_charter::Charter::decode(&smith_charter::CEILINGS, &mut Reader::new(&charter()))
-        .expect("charter")
-        .into_parts();
-    let mut budget = parts.budget.into_parts();
-    budget.time = skein_lib::Duration::from_secs(1);
-    parts.budget = smith_charter::Budget::new(&smith_charter::CEILINGS, budget).expect("short budget");
-    let charter = smith_charter::Charter::new(&smith_charter::CEILINGS, parts).expect("short run");
-    let mut writer = Writer::new(charter.measure() as usize);
-    charter.encode(&mut writer).expect("charter bytes");
+    let charter = smith_agent_process_world::wire::edit_charter(&charter(), |parts| {
+        let mut budget = parts.budget.clone().into_parts();
+        budget.time = skein_lib::Duration::from_secs(1);
+        parts.budget = smith_charter::Budget::new(&smith_charter::CEILINGS, budget).expect("short budget");
+    });
     let run = program_world::run(
         Case::Events,
-        &Story { turns: vec![Turn { steps: vec![Step::Hang], end: End::default() }], ..Default::default() },
+        &Story { turns: vec![Turn::new(vec![Step::Hang])], ..Default::default() },
         Some(b"claude.ai"),
-        &writer.finish(),
+        &charter,
         &program(b"source"),
         None,
     );
@@ -199,10 +183,7 @@ fn a_retry_abandons_its_partial_attempt() {
 
 #[test]
 fn a_slow_init_precedes_the_response_start() {
-    let mut story = Story {
-        turns: vec![Turn { steps: vec![Step::Text("words".into()), finish()], end: End::default() }],
-        ..Default::default()
-    };
+    let mut story = Story { turns: vec![Turn::new(vec![Step::Text("words".into()), finish()])], ..Default::default() };
     story.init.delay_ms = Some(200);
     let run = scripted(&story, false);
     let started = run
@@ -231,10 +212,7 @@ fn a_slow_init_precedes_the_response_start() {
 fn the_program_referee_checks_sent_message_order() {
     let run = scripted(
         &Story {
-            turns: vec![
-                Turn { steps: vec![Step::Text("first answer".into())], end: End::default() },
-                Turn { steps: vec![finish()], end: End::default() },
-            ],
+            turns: vec![Turn::new(vec![Step::Text("first answer".into())]), Turn::new(vec![finish()])],
             ..Default::default()
         },
         false,

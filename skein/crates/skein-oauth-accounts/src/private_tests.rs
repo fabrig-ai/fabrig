@@ -599,7 +599,7 @@ impl Owner {
     pub(super) fn response(body: &[u8]) -> Box<[u8]> {
         const PREFIX: &[u8] = b"HTTP/1.1 200 OK\r\nContent-Length: ";
         const SUFFIX: &[u8] = b"\r\nConnection: close\r\n\r\n";
-        let length = skein_lib::Decimal::of(u64::try_from(body.len()).expect("body length fits"));
+        let length = skein_lib::Decimal::of(skein_lib::len_u64(body.len()));
         let mut response = skein_lib::Writer::new(
             PREFIX
                 .len()

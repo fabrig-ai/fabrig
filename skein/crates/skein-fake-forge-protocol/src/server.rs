@@ -861,7 +861,7 @@ fn respond(server: &mut Server, reply: response::Reply) {
     }
     server.state = State::Streaming;
     server.offset = 0;
-    let length = u64::try_from(reply.body.len()).expect("bounded body");
+    let length = skein_lib::len_u64(reply.body.len());
     server.reply = if length == 0 { None } else { Some(reply.body) };
     server.requests.push(http::Request::Respond(http::Response {
         status: reply.status,

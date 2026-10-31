@@ -124,7 +124,7 @@ fn carried(records: &[Record], position: usize, opening: &ConversationOpened) ->
         .collect::<Vec<_>>()
         .join(&b"\n\n"[..]);
     if !prompt.messages.iter().next().is_some_and(|message| {
-        message.blocks.iter().any(|block| matches!(block, Block::Text { text: actual } if actual.as_ref() == text))
+        message.blocks.iter().any(|block| matches!(block, Block::Text { text: got } if got.as_ref() == text))
     }) {
         return Ok(Some("missing summary in next window's first message".into()));
     }

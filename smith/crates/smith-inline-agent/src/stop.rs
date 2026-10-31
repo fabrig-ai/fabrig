@@ -4,8 +4,6 @@
 //! turns unacknowledged. Answered roots still hear their owed terminals;
 //! dropped roots hear nothing. The injected clock bounds cancellation grace.
 
-#![expect(clippy::manual_let_else, reason = "checked slot lookup remains exhaustive")]
-
 use alloc::boxed::Box;
 use skein_lib::{Env, Id, List, Queue, Time};
 use smith_domain as smith;
@@ -15,13 +13,12 @@ use crate::domain::{Domain, Slot, observe, root_step};
 use crate::{FactKind, Limits, Lower, Output};
 
 pub(crate) fn cancel(agent: &mut Domain, env: &Env<Limits>, id: Id<Slot>, out: &mut Queue<Output>) {
-    let slot = match agent.slots.get_mut(id) {
-        Some(slot) => slot,
-        None => return,
+    let Some(slot) = agent.slots.get_mut(id) else {
+        return;
     };
     match slot.state {
-        Stage::Live => slot.state = Stage::Cancelling { grace: env.now.saturating_add(env.limits.cancel_grace) },
-        Stage::Cancelling { .. } | Stage::Settling(_) | Stage::Gone => return,
+        State::Live => slot.state = State::Cancelling { grace: env.now.saturating_add(env.limits.cancel_grace) },
+        State::Cancelling { .. } | State::Settling(_) | State::Gone => return,
     }
     let run = slot.run;
     let client = slot.client;
@@ -34,34 +31,31 @@ pub(crate) fn cancel(agent: &mut Domain, env: &Env<Limits>, id: Id<Slot>, out: &
 pub(crate) fn finish(agent: &mut Domain, now: Time, id: Id<Slot>, out: &mut Queue<Output>) {
     let slot = agent.slots.get_mut(id).expect("answer belongs to a retained slot");
     match slot.state {
-        Stage::Live | Stage::Cancelling { .. } => slot.state = Stage::Settling(Settling::Answered),
-        Stage::Settling(_) | Stage::Gone => unreachable!("a root answers exactly once"),
+        State::Live | State::Cancelling { .. } => slot.state = State::Settling(Settling::Answered),
+        State::Settling(_) | State::Gone => unreachable!("a root answers exactly once"),
     }
     cleanup(agent, now, id, out);
 }
 
 pub(crate) fn drop_run(agent: &mut Domain, now: Time, id: Id<Slot>, out: &mut Queue<Output>) {
-    let slot = match agent.slots.get_mut(id) {
-        Some(slot) => slot,
-        None => return,
+    let Some(slot) = agent.slots.get_mut(id) else {
+        return;
     };
     let unanswered = match slot.state {
-        Stage::Live | Stage::Cancelling { .. } => true,
-        Stage::Settling(Settling::Answered) => false,
-        Stage::Settling(Settling::Dropped) | Stage::Gone => return,
+        State::Live | State::Cancelling { .. } => true,
+        State::Settling(Settling::Answered) => false,
+        State::Settling(Settling::Dropped) | State::Gone => return,
     };
     if unanswered {
-        slot.state = Stage::Settling(Settling::Dropped);
+        slot.state = State::Settling(Settling::Dropped);
     }
-    slot.turns = skein_lib::Map::with_capacity(slot.turns.capacity());
+    slot.turns = skein_lib::Set::with_capacity(slot.turns.capacity());
     let client = slot.client;
     if unanswered {
         if let Some(names) = slot.inbox.report() {
             out.push(Output::Parent(parent::Request::Unread { client, names }));
         }
         out.push(Output::Parent(parent::Request::Faulted { client, fault: smith_host_domain::Fault::Exited }));
-    }
-    if unanswered {
         observe(agent, now, FactKind::Dropped { client });
     }
     cleanup(agent, now, id, out);
@@ -96,7 +90,7 @@ fn cleanup(agent: &mut Domain, now: Time, id: Id<Slot>, out: &mut Queue<Output>)
 pub(crate) fn settle(agent: &mut Domain, now: Time, id: Id<Slot>, out: &mut Queue<Output>) {
     let slot = agent.slots.get_mut(id).expect("settlement belongs to a retained slot");
     match slot.state {
-        Stage::Settling(_) => {
+        State::Settling(_) => {
             if !slot.completions.is_empty()
                 || !slot.io.is_empty()
                 || !slot.machine.is_empty()
@@ -105,7 +99,7 @@ pub(crate) fn settle(agent: &mut Domain, now: Time, id: Id<Slot>, out: &mut Queu
             {
                 return;
             }
-            slot.state = Stage::Gone;
+            slot.state = State::Gone;
             let client = slot.client;
             if let Some(names) = slot.inbox.report() {
                 out.push(Output::Parent(parent::Request::Unread { client, names }));
@@ -113,13 +107,13 @@ pub(crate) fn settle(agent: &mut Domain, now: Time, id: Id<Slot>, out: &mut Queu
             out.push(Output::Parent(parent::Request::Gone { client, end: End::Settled, detail: Box::default() }));
             observe(agent, now, FactKind::Gone { client, end: End::Settled });
         }
-        Stage::Live | Stage::Cancelling { .. } | Stage::Gone => {}
+        State::Live | State::Cancelling { .. } | State::Gone => {}
     }
 }
 
 /// A retained slot's end, owned by cancellation and settlement.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub(crate) enum Stage {
+pub(crate) enum State {
     /// The root runs and receives its inputs.
     Live,
     /// The root heard cancellation and has until the host's grace to answer.

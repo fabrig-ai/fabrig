@@ -1,6 +1,6 @@
 use super::*;
-use crate::service::ending::Ending;
-use smith_agent_service::{Close, Step};
+use crate::service::ending::{Ending, State};
+use smith_agent_service::Close;
 
 #[test]
 fn service_ending_waits_for_the_check_root() {
@@ -20,23 +20,23 @@ fn service_ending_waits_for_the_check_root() {
     service.account_request(7);
     service.shell.pop().expect("covered request");
     service.account_request(7);
-    let adapter = service.below.process_mut();
+    let adapter = &mut service.io;
     let Some(io::Request::Spawn { owner, .. }) = adapter.io_requests().pop() else { panic!("status spawn") };
     adapter.close();
     service.ending = Ending::Closing {
         at: Time::ZERO,
         exit: local::ExitStatus::Accepted,
         close: Close::Graceful,
-        step: Step::Components,
+        step: State::Components,
         shell_closed: true,
     };
     assert!(!service.end_work());
-    let adapter = service.below.process_mut();
+    let adapter = &mut service.io;
     adapter.programs.as_mut().expect("check").receive(io::Event::Closed { owner }, &mut adapter.io_requests);
-    service.below.process_mut().programs_pass(Time::ZERO, &mut service.local_events, &mut service.shell, false);
+    service.io.programs_pass(Time::ZERO, &mut service.local_events, &mut service.shell, false);
     assert!(service.local_events.is_empty(), "the local domain already said its last word");
     assert!(!service.end_work());
-    let checks = service.below.process_mut().programs.as_mut().expect("program root");
+    let checks = service.io.programs.as_mut().expect("program root");
     assert_eq!(checks.closing_root(), Some(kernel::Fd::new(3)));
     checks.root_closed();
     assert!(service.end_work());

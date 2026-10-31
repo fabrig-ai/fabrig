@@ -594,7 +594,7 @@ fn respond(server: &mut Server, limits: &Limits, mut reply: Response, mut locati
     }
     let mut headers = List::with_capacity(11);
     if server.blob && server.first_byte && reply.status == 200 && !reply.body.is_empty() {
-        let size = skein_lib::Decimal::of(u64::try_from(reply.body.len()).expect("bounded blob"));
+        let size = skein_lib::Decimal::of(skein_lib::len_u64(reply.body.len()));
         let value = crate::service::joined(b"bytes 0-0/", size.as_bytes()).expect("range header");
         headers.push(Header { name: bytes::copy_of(b"Content-Range"), value }).expect("range slot");
         reply.status = 206;
@@ -621,7 +621,7 @@ fn respond(server: &mut Server, limits: &Limits, mut reply: Response, mut locati
         headers.push(Header { name: bytes::copy_of(b"Location"), value: location }).expect("location slot");
     }
     let bodyless = status_has_no_body(reply.status);
-    let length = if bodyless { 0 } else { u64::try_from(reply.body.len()).expect("bounded reply") };
+    let length = if bodyless { 0 } else { skein_lib::len_u64(reply.body.len()) };
     if length > 0 {
         headers
             .push(Header { name: bytes::copy_of(b"Content-Type"), value: bytes::copy_of(reply.content_type.bytes()) })

@@ -5,8 +5,8 @@
 //! one host answer; these encoders know neither host policy nor callbacks.
 
 use alloc::boxed::Box;
-use skein_channel::{Frame, frame_writer};
-use skein_lib::{Duration, List, Writer};
+use skein_channel::Frame;
+use skein_lib::{Duration, List};
 use smith_channel as wire;
 use smith_domain::run;
 
@@ -21,8 +21,12 @@ pub(crate) fn host_call(
     deadline: Duration,
     limits: &wire::Limits,
 ) -> Result<Frame, Error> {
-    let ask =
-        wire::Ask::Host(wire::HostAsk::new(limits, wire::HostAskParts { tool, input: Box::from(input.bytes()) })?);
+    let ask = wire::Ask::Host(
+        match wire::HostAsk::new(limits, wire::HostAskParts { tool, input: Box::from(input.bytes()) }) {
+            Ok(value) => value,
+            Err(problem) => return Err(Error::ChannelBody(problem)),
+        },
+    );
     call(name, effect, ask, deadline, limits)
 }
 
@@ -34,16 +38,22 @@ pub(crate) fn delivery_call(
     limits: &wire::Limits,
 ) -> Result<Frame, Error> {
     let Ok(count) = u32::try_from(change.fields.len()) else {
-        return Err(Error::ResultCapacity);
+        return Err(Error::Capacity);
     };
     let mut fields = List::with_capacity(count);
     for field in change.fields {
-        let value = wire::Field::new(limits, wire::FieldParts { name: field.name, text: field.value })?;
+        let value = match wire::Field::new(limits, wire::FieldParts { name: field.name, text: field.value }) {
+            Ok(value) => value,
+            Err(problem) => return Err(Error::ChannelBody(problem)),
+        };
         if fields.push(value).is_err() {
-            return Err(Error::ResultCapacity);
+            return Err(Error::Capacity);
         }
     }
-    let ask = wire::Ask::Deliver(wire::DeliverAsk::new(limits, wire::DeliverAskParts { fields })?);
+    let ask = wire::Ask::Deliver(match wire::DeliverAsk::new(limits, wire::DeliverAskParts { fields }) {
+        Ok(value) => value,
+        Err(problem) => return Err(Error::ChannelBody(problem)),
+    });
     call(name, run::HostEffect::Write, ask, deadline, limits)
 }
 
@@ -54,40 +64,46 @@ fn call(
     deadline: Duration,
     limits: &wire::Limits,
 ) -> Result<Frame, Error> {
-    let name = wire::CallName::new(
+    let name = match wire::CallName::new(
         limits,
         wire::CallNameParts { activation: name.activation, completion: name.completion, position: name.position },
-    )?;
+    ) {
+        Ok(value) => value,
+        Err(problem) => return Err(Error::ChannelBody(problem)),
+    };
     let effect = match effect {
         run::HostEffect::Read => wire::Effect::Read,
         run::HostEffect::Write => wire::Effect::Write,
     };
-    let record = wire::Call::new(limits, wire::CallParts { name, effect, deadline, ask })?;
-    let Ok(length) = usize::try_from(record.measure()) else {
-        return Err(Error::ResultCapacity);
+    let record = match wire::Call::new(limits, wire::CallParts { name, effect, deadline, ask }) {
+        Ok(value) => value,
+        Err(problem) => return Err(Error::ChannelBody(problem)),
     };
-    let mut body = Writer::new(length);
-    record.encode(&mut body)?;
-    let mut frame = frame_writer(0x0107, record.measure())?;
-    frame.put(&body.finish())?;
-    Ok(frame.finish()?)
+    let frame = match smith_channel::frame(smith_channel::Body::Call(record)) {
+        Ok(value) => value,
+        Err(problem) => return Err(Error::Frame(problem)),
+    };
+    Ok(frame)
 }
 
 /// Ask the host to settle one relay without releasing its durable name.
 pub(crate) fn withdraw(name: run::CallName, limits: &wire::Limits) -> Result<Frame, Error> {
-    let name = wire::CallName::new(
+    let name = match wire::CallName::new(
         limits,
         wire::CallNameParts { activation: name.activation, completion: name.completion, position: name.position },
-    )?;
-    let record = wire::Withdraw::new(limits, wire::WithdrawParts { name })?;
-    let Ok(length) = usize::try_from(record.measure()) else {
-        return Err(Error::ResultCapacity);
+    ) {
+        Ok(value) => value,
+        Err(problem) => return Err(Error::ChannelBody(problem)),
     };
-    let mut body = Writer::new(length);
-    record.encode(&mut body)?;
-    let mut frame = frame_writer(0x0108, record.measure())?;
-    frame.put(&body.finish())?;
-    Ok(frame.finish()?)
+    let record = match wire::Withdraw::new(limits, wire::WithdrawParts { name }) {
+        Ok(value) => value,
+        Err(problem) => return Err(Error::ChannelBody(problem)),
+    };
+    let frame = match smith_channel::frame(smith_channel::Body::Withdraw(record)) {
+        Ok(value) => value,
+        Err(problem) => return Err(Error::Frame(problem)),
+    };
+    Ok(frame)
 }
 
 /// Interpret one host terminal for a declared tool; temporary refusals stay distinct.

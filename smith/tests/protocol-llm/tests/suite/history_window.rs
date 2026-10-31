@@ -1,14 +1,14 @@
-//! Derived history ownership at its boundary, through an actual shared Client.
+//! Derived history ownership at its boundary, through an observed shared Client.
 //! Contract: protocol/limits.md, section 3.2; domain/session.md, section 4.
 
-use skein_fake_llm_domain::api::{Finish, Line, Script, Turn};
+use skein_fake_llm_domain::api::{Line, Script};
 use skein_lib::{Duration, Queue, Token};
 use smith_domain::{Event, llm, session};
 use smith_protocol_llm_world::{
-    adapter,
-    wire::{self, Wire},
+    client_peer::{self, ClientPeer},
+    codec,
 };
-use smith_session_world::recorded::{World, opening};
+use smith_session_world::recorded::{Scripted, opening};
 
 #[test]
 fn a_derived_history_at_its_bound_is_sent_and_one_byte_more_is_refused_typed() {
@@ -38,7 +38,7 @@ fn fixture(provider: skein_llm::Provider) -> Fixture {
         calls_per_response: 1,
         conversations: 1,
     };
-    let mut client = skein_llm::Limits::derive(&declared).expect("tiny actual model").dialect(provider);
+    let mut client = skein_llm::Limits::derive(&declared).expect("tiny observed model").dialect(provider);
     client.http.request = 4096;
     client.http.read = 256;
     client.http.send = 256;
@@ -67,7 +67,7 @@ fn fixture(provider: skein_llm::Provider) -> Fixture {
     .expect("native history derives");
     let decoded = u64::from(client.input)
         + u64::from(client.output_items) * u64::try_from(size_of::<llm::Decoded>()).expect("decoded cell");
-    limits.completion_bytes = adapter::completion_bound(&client, decoded).expect("native completion ownership");
+    limits.completion_bytes = codec::completion_bound(&client, decoded).expect("native completion ownership");
     Fixture { declared, client, limits, decoded, allowance }
 }
 
@@ -84,7 +84,7 @@ fn history_edge(provider: skein_llm::Provider) {
     limits.history_bytes += u64::try_from(size_of::<session::llm::Block>()).expect("summary cell")
         + u64::from(limits.tools.path_bytes) * u64::from(limits.completion_blocks);
     for extra in [0, 1] {
-        let mut world = World::new(4800 + extra);
+        let mut world = Scripted::new(4800 + extra);
         world.env.limits = limits;
         world.domain = session::Domain::new(&limits, 4800 + extra);
         world.out = Queue::uncapped();
@@ -127,28 +127,29 @@ fn history_edge(provider: skein_llm::Provider) {
                 }]),
             }]),
         };
-        let adapter_limits = adapter::Limits {
-            client,
+        let translation_limits = codec::Limits {
             tool_bytes: 1024,
-            history_bytes: u64::from(client.request),
             rendered_result: 1024,
-            stated: adapter::Stated::from_tools(&tools, client.input).expect("effective numeric descriptions"),
+            ..smith_protocol_llm::fixture::small(
+                client,
+                codec::Stated::from_tools(&tools, client.input).expect("effective numeric descriptions"),
+            )
         };
-        let receiving = adapter::Receiving {
+        let receiving = codec::Receiving {
             max_completion_bytes: limits.completion_bytes,
             max_completion_blocks: limits.completion_blocks,
             decoded_call_bytes: decoded,
             max_failure_bytes: limits.failure_bytes,
         };
-        let mut connection = Wire::prepare(
+        let mut connection = ClientPeer::prepare(
             Token::new(48),
             prompt,
             receiving,
-            &wire::configurations()[configuration],
-            &adapter_limits,
+            &client_peer::configurations()[configuration],
+            &translation_limits,
             scripts(system),
         )
-        .expect("admitted history prepares the actual Client");
+        .expect("admitted history prepares the observed Client");
         let mut terminals = connection.start();
         for _ in 0..100_000 {
             let (progress, returned) = connection.tick();
@@ -158,10 +159,10 @@ fn history_edge(provider: skein_llm::Provider) {
             }
         }
         assert_eq!(connection.peer.queries.len(), 1, "outside peer receives the exact admitted history");
-        let [Event::Completed { completion, .. }] = terminals.as_slice() else {
-            panic!("actual completion expected: {terminals:?}");
+        let [Event::Below(smith_domain::Below::Completed { completion, .. })] = terminals.as_slice() else {
+            panic!("observed completion expected: {terminals:?}");
         };
-        let [llm::Said::Text { text, .. }] = completion.content.as_ref() else { panic!("one actual text") };
+        let [llm::Said::Text { text, .. }] = completion.content.as_ref() else { panic!("one observed text") };
         world.complete(
             Box::new([session::llm::Block::Text { text: text.clone(), replay: None }]),
             session::llm::Stop::EndTurn,
@@ -176,11 +177,10 @@ fn history_edge(provider: skein_llm::Provider) {
 fn scripts(system: &[u8]) -> Box<[Script]> {
     Box::new([Script {
         cue: system.into(),
-        turns: Box::new([Turn {
-            lines: Box::new([Line::Text { text: b"done".as_slice().into() }]),
-            finish: Finish::Stop,
-            tokens: 1,
-        }]),
+        turns: Box::new([smith_protocol_llm_world::fixture::says(
+            Box::new([Line::Text { text: b"done".as_slice().into() }]),
+            1,
+        )]),
     }])
 }
 

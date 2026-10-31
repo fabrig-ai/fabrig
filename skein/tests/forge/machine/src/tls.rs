@@ -204,7 +204,7 @@ fn outcome(world: &mut Machine, complete: bool) -> (u64, u64, u64, u64) {
     };
     assert_eq!(answer.result, expected);
     let cost = u64::from(answer.cost);
-    let terminals = u64::try_from(world.deliveries().len()).expect("small count");
+    let terminals = skein_lib::len_u64(world.deliveries().len());
     assert!(world.close());
     assert_eq!(world.event_order().last(), Some(&"closed"));
     (written, cost, terminals, u64::from(world.closed_events()))

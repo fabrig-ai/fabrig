@@ -1,13 +1,14 @@
-//! Permission replies wait for the domain's next Complete (programs.md 5.7).
+//! Permission replies wait for the domain's next Complete (smith/docs/design/protocol/programs.md 5.7).
 //! Held prompts share the MCP queue's capacity and payload bound. Correlation
 //! uses the provider's tool id, or its name/input when the id is absent.
 
-use super::{Backend, Phase, policy};
+use super::Complete;
+use super::PIPE_BYTES;
+use super::{Backend, State, policy};
 use crate::mcp::{self, json};
 use alloc::boxed::Box;
 use skein_lib::List;
 use smith_domain::llm;
-use smith_protocol_llm::FromDomain;
 
 impl Backend {
     pub(super) fn permission(&mut self, prompt: mcp::Up) {
@@ -17,8 +18,8 @@ impl Backend {
                 unreachable!("permission prompt")
             }
         };
-        if self.phase == Phase::Ending || self.stop != super::stop::Stop::None {
-            self.server.as_mut().expect("stopped permission prompt").verdict(
+        if self.startup.phase() == State::Ending || self.stopping.waiting() {
+            self.startup.server_mut().expect("stopped permission prompt").verdict(
                 call,
                 mcp::Verdict::Deny { message: super::stop::INTERRUPTED.into() },
                 &mut self.io,
@@ -33,8 +34,8 @@ impl Backend {
             self.calls.push(mcp::Up::Prompt { call, tool_name, input, tool_use_id }).expect("bounded held prompts");
             return;
         };
-        let verdict = match &self.request {
-            Some(FromDomain::Complete { prompt, .. }) => match &prompt.choice {
+        let verdict = match self.current.request() {
+            Some(Complete { prompt, .. }) => match &prompt.choice {
                 llm::ToolChoice::Auto => {
                     policy::judge(&tool_name, &input, self.grants(), &self.mounts, self.settings.path_bytes)
                 }
@@ -43,14 +44,14 @@ impl Backend {
                     mcp::Verdict::Deny { message: b"not run: allowed calls now: none".as_slice().into() }
                 }
             },
-            Some(FromDomain::Cancel { .. } | FromDomain::Yield { .. }) | None => return,
+            None => return,
         };
         match verdict {
             mcp::Verdict::Allow { updated_input } => {
                 self.native_permission(index, &tool_name, &input, call, updated_input);
             }
             verdict @ mcp::Verdict::Deny { .. } => {
-                self.server.as_mut().expect("permission server").verdict(call, verdict, &mut self.io);
+                self.startup.server_mut().expect("permission server").verdict(call, verdict, &mut self.io);
             }
         }
     }
@@ -75,7 +76,7 @@ impl Backend {
                         )
                 }
             };
-            if held.builtin && !held.answered && !held.prompted && same && held.message < self.permitted {
+            if held.builtin && !held.answered && !held.prompted && same && held.message < self.permitted_message {
                 held.prompted = true;
                 return Some(index);
             }
@@ -85,7 +86,7 @@ impl Backend {
 }
 
 pub(super) fn outside(names: &[llm::Served]) -> Box<[u8]> {
-    let mut bytes = List::with_capacity(4096);
+    let mut bytes = List::with_capacity(PIPE_BYTES);
     for byte in b"not run: allowed calls now: " {
         bytes.push(*byte).expect("prefix fits");
     }

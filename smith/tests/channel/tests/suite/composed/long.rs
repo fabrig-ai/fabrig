@@ -22,12 +22,7 @@ impl LongWorld {
         bounds.unacknowledged_bytes = bounds.turn_bytes;
         let mut host = smith_host_world::World::new(97, bounds);
         host.live();
-        let mut wire = World::new(CEILINGS, CEILINGS, StreamMode::Two);
-        wire.settle();
-        wire.send_start(Box::from(
-            &include_bytes!("../../../../../crates/smith-charter/golden/v4/record_charter_smallest.bin")[..],
-        ));
-        wire.settle();
+        let wire = World::started();
         Self {
             domain: agent::Domain::new(&limits, configuration(), 97),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
@@ -61,7 +56,6 @@ impl LongWorld {
         panic!("bounded ready handoffs settle");
     }
 
-    #[expect(clippy::wildcard_enum_match_arm, reason = "the composed script rejects every unexpected root effect")]
     fn outputs(&mut self) {
         while let Some(request) = self.out.pop() {
             match request {
@@ -70,11 +64,11 @@ impl LongWorld {
                     self.wire.agent_admits();
                     self.wire.settle();
                 }
-                AgentRequest::Read { owner, .. } => {
-                    self.step(AgentEvent::Read { owner, read: agent::run::Read::Missing });
+                AgentRequest::Lower(smith_domain::Lower::Read { owner, .. }) => {
+                    self.step(AgentEvent::Below(smith_domain::Below::Read { owner, read: agent::run::Read::Missing }));
                 }
-                AgentRequest::Probe { owner, .. } => {
-                    self.step(AgentEvent::Probed { owner, executable: false });
+                AgentRequest::Lower(smith_domain::Lower::Probe { owner, .. }) => {
+                    self.step(AgentEvent::Below(smith_domain::Below::Probed { owner, executable: false }));
                 }
                 AgentRequest::Long { operation, until, .. } => {
                     let span = until.saturating_since(self.env.now);
@@ -90,10 +84,12 @@ impl LongWorld {
                     self.wire.settle();
                     self.host.up(Up::LongDone);
                 }
-                AgentRequest::Complete { owner, .. } => self.completion = Some(owner),
-                AgentRequest::Io { owner, op: agent::tools::Op::Spawn { .. }, .. } => self.command = Some(owner),
-                AgentRequest::Job { .. } => unreachable!("the tools issue no job act yet"),
-                AgentRequest::CancelIo { owner } => {
+                AgentRequest::Lower(smith_domain::Lower::Complete { owner, .. }) => self.completion = Some(owner),
+                AgentRequest::Lower(smith_domain::Lower::Io { owner, op: agent::tools::Op::Spawn { .. }, .. }) => {
+                    self.command = Some(owner);
+                }
+                AgentRequest::Lower(smith_domain::Lower::Job { .. }) => unreachable!("the tools issue no job act yet"),
+                AgentRequest::Lower(smith_domain::Lower::CancelIo { owner }) => {
                     assert_eq!(Some(owner), self.command);
                     self.cancelled = true;
                 }
@@ -107,7 +103,7 @@ impl LongWorld {
                             spent: spent.units,
                             opens_window,
                             body: host::TurnValue::new(turn, self.host.stage.env.limits.turn_bytes)
-                                .expect("actual turn fits declared credit"),
+                                .expect("observed turn fits declared credit"),
                         },
                     });
                     self.host.event(host::Input::Parent(host::parent::Event::Acknowledge {
@@ -122,7 +118,7 @@ impl LongWorld {
                 AgentRequest::Answer { answer, read, .. } => {
                     self.wire.agent_answers_with_fence(answer, read);
                     self.wire.settle();
-                    let answer = self.wire.take_host_answer().expect("actual answer crosses the framed halves");
+                    let answer = self.wire.take_host_answer().expect("observed answer crosses the framed halves");
                     self.host.up(Up::Answer { answer });
                 }
                 other => panic!("unexpected command story request: {other:?}"),
@@ -132,20 +128,13 @@ impl LongWorld {
 }
 
 #[test]
-fn an_actual_command_crosses_the_channel_and_outlasts_no_progress_until_its_terminal() {
+fn an_observed_command_crosses_the_channel_and_outlasts_no_progress_until_its_terminal() {
     let mut world = LongWorld::new();
     let mut charter = composed_charter().into_value();
     charter.grants.tools.shell = true;
-    world.step(AgentEvent::Start {
-        messages: Box::default(),
-        identity: None,
-        activation: 1,
+    world.step(AgentEvent::Start(smith_domain::Start {
         host_run: Token::new(7),
-        reply_to: ReplyTo::new(Token::new(1)),
         window: agent::Window { turns: 100, bytes: u64::MAX },
-        charter,
-        transcript: None,
-        answered: Box::default(),
         workspace: Some(agent::run::Workspace {
             directories: Box::from([agent::run::Directory {
                 host: Box::from(b"/host".as_slice()),
@@ -161,9 +150,10 @@ fn an_actual_command_crosses_the_channel_and_outlasts_no_progress_until_its_term
             renewable: true,
             valid: Duration::from_secs(7200),
         }]),
-    });
-    let owner = world.completion.take().expect("actual provider request");
-    world.step(AgentEvent::Completed {
+        ..smith_domain::fixture::start(Token::new(1), charter)
+    }));
+    let owner = world.completion.take().expect("observed provider request");
+    world.step(AgentEvent::Below(smith_domain::Below::Completed {
         owner,
         completion: agent::llm::Completion {
             reasoning_dropped: Box::default(),
@@ -184,17 +174,17 @@ fn an_actual_command_crosses_the_channel_and_outlasts_no_progress_until_its_term
                 },
             }]),
         },
-    });
-    let command = world.command.expect("actual command IO was issued");
+    }));
+    let command = world.command.expect("observed command IO was issued");
     assert_eq!(world.notices, [Some(agent::Operation::Completion), None, Some(agent::Operation::Command)]);
     world.env.now = Time::ZERO.saturating_add(Duration::from_secs(11));
     world.host.at(11);
-    assert_eq!(world.host.seen.fault, None, "actual command stretches the ten-second no-progress watchdog");
-    world.step(AgentEvent::Cancel { run: world.run.expect("actual admitted run") });
+    assert_eq!(world.host.seen.fault, None, "observed command stretches the ten-second no-progress watchdog");
+    world.step(AgentEvent::Cancel { run: world.run.expect("observed admitted run") });
     world.ready();
     assert!(world.cancelled);
     assert_eq!(world.notices.len(), 3, "a cancel request is not the command terminal");
-    world.step(AgentEvent::Done { owner: command, done: agent::tools::Done::Cancelled });
+    world.step(AgentEvent::Below(smith_domain::Below::Done { owner: command, done: agent::tools::Done::Cancelled }));
     world.ready();
     assert_eq!(world.notices, [Some(agent::Operation::Completion), None, Some(agent::Operation::Command), None]);
     assert!(matches!(

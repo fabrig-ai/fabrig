@@ -282,7 +282,7 @@ pub fn protocol(seed: u64, story: Story) -> (Vec<Fact>, Vec<String>) {
                         if address.port() == 0 {
                             address.set_port(41000 + u16::try_from(listeners.len()).expect("two listeners"));
                         }
-                        let token = Token::new(20 + u64::try_from(listeners.len()).expect("two listeners"));
+                        let token = Token::new(20 + skein_lib::len_u64(listeners.len()));
                         listeners.push((identity, token, address.port()));
                         client.component.as_mut().expect("component").up(
                             &env,
@@ -489,7 +489,7 @@ pub fn protocol(seed: u64, story: Story) -> (Vec<Fact>, Vec<String>) {
                     server_requests.push(http::Request::Respond(http::Response {
                         status: answer.status,
                         headers: Box::new([]),
-                        body: http::Body::Length(u64::try_from(answer.body.len()).expect("bounded response")),
+                        body: http::Body::Length(skein_lib::len_u64(answer.body.len())),
                         close: true,
                     }));
                     server_requests.push(http::Request::Reply(Down::Demand {

@@ -9,8 +9,6 @@ use crate::{Checkouts, Settings, Span, host};
 
 /// Settings drawn from `seed`: small limits, charters that sometimes do not fit
 /// them, faults, cancels, and latencies that race the deadlines.
-///
-/// Scripted-world contract: domain/run.md, sections 13 and 14; testing-strategy.md, section 2.2.
 #[must_use]
 pub fn noisy(seed: u64) -> Settings {
     let mut rng = Rng::new(seed);
@@ -43,9 +41,9 @@ pub fn noisy(seed: u64) -> Settings {
     let host = host::Script {
         recancels: small(pick(0, 300)),
         late_cancels: small(pick(0, 300)),
-        push: Span::millis(0, pick(0, 3_000)),
+        delivery: Span::millis(0, pick(0, 3_000)),
         moved: small(pick(0, 300)),
-        push_failures: small(pick(0, 200)),
+        delivery_failures: small(pick(0, 200)),
         ..host
     };
     let partner = Script {

@@ -1,7 +1,7 @@
 //! Per-request program checks (domain/host.md, section 8; protocol/hosts.md,
 //! section 2). Keeps startup coverage, one child and an arrival-ordered queue;
 //! knows no login contents. Requests, I/O, deadlines and cancellation settle
-//! through the process adapter before a credential is lent or refused.
+//! through the host IO before a credential is lent or refused.
 use alloc::boxed::Box;
 use skein_io::{self as io, kernel};
 use skein_lib::{Duration, List, Queue, Time, Token};

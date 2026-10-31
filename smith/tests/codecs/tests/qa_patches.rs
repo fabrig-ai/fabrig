@@ -1,8 +1,9 @@
-//! Independent attacks on transcript.md, section 12, through the kept set alone.
+//! Independent attacks on smith/docs/design/protocol/transcript.md, section 12, through the kept set alone.
 
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU32, Ordering};
+
+use skein_scratch::Scratch;
 
 use skein_codec::patch::{self, Capacity, Halt, PatchWrong, Patcher, Site, Step};
 use skein_codec::schema::{self, FieldIx, Held, Schema, Shape, Type};
@@ -13,6 +14,8 @@ use smith_transcript_patches::patches;
 #[path = "support/patches.rs"]
 mod host;
 
+use host::{PLANS, TEXT_BYTES, fixture_capacity, kept_patcher, planned_patcher};
+
 const CURRENT_TEXT: &str = include_str!("../../../crates/smith-transcript/schema/transcript-v6.schema");
 const KEPT_V1: &str = include_str!("../../transcript-patches/schema/kept/fixture-turn-v1.schema");
 const KEPT_V2: &str = include_str!("../../transcript-patches/schema/kept/fixture-turn-v2.schema");
@@ -20,15 +23,11 @@ const FIXTURE_PATCH: &str = include_str!("../../transcript-patches/patches/0001.
 const SMALLEST: &[u8] =
     include_bytes!("../../transcript-patches/patches/golden/0001/fixture-turn/record_turn_smallest.bin");
 const FULL: &[u8] = include_bytes!("../../transcript-patches/patches/golden/0001/fixture-turn/record_turn_full.bin");
-// transcript.md, section 12: Found.hits alone has the pieces word.
+// smith/docs/design/protocol/transcript.md, section 12: Found.hits alone has the pieces word.
 const HIT_BYTES: u32 = 2_097_152;
 // Both fields of the fixture's kept version 1 have a ceiling of 64 bytes.
 const FIELD_BYTES: usize = 64;
 const PAST_FIELD_BYTES: usize = FIELD_BYTES + 1;
-// codec.md, 11.6: two kept versions and one conversion plan for this fixture.
-const VERSIONS: u32 = 2;
-const PLANS: u32 = 1;
-const TEXT_BYTES: u32 = 256;
 const NO_PLANS: u32 = 0;
 const SHORT_NODES: u32 = host::NODES - 1;
 // Version first, then a u32 length before each of the two fields.
@@ -56,27 +55,6 @@ const FROZEN_TEXT_PATH: &str = "schema/kept/fixture-turn-v1.schema";
 const FROZEN_GOLDEN_PATH: &str = "patches/golden/0001/fixture-turn/record_turn_smallest.bin";
 // Current schema, two kept texts, one patch and its two goldens.
 const OWNER_DATA_FILES: usize = 6;
-static NEXT_DIRECTORY: AtomicU32 = AtomicU32::new(0);
-
-fn fixture_capacity() -> Capacity {
-    Capacity { versions: VERSIONS, patches: PLANS, text: TEXT_BYTES, bytes: host::RECORD_BYTES, nodes: host::NODES }
-}
-
-fn kept_patcher(capacity: Capacity) -> Patcher {
-    let mut patcher = Patcher::new(capacity);
-    for text in patches::kept::fixture_turn::TEXTS {
-        patcher.keep(text.as_bytes()).expect("keep the fixture owner's texts");
-    }
-    patcher
-}
-
-fn planned_patcher(capacity: Capacity) -> Patcher {
-    let mut patcher = kept_patcher(capacity);
-    for text in patches::PATCHES {
-        patcher.plan(text.as_bytes()).expect("plan the fixture owner's set");
-    }
-    patcher
-}
 
 fn kept_turn(said: &[u8], replay: &[u8]) -> Box<[u8]> {
     let mut record = VERSION_ONE.to_be_bytes().to_vec();
@@ -143,13 +121,11 @@ fn waiting_holder(turn: &[u8]) -> (Patcher, skein_codec::value::Node, schema::Sp
 }
 
 /// A fixture owner made only from allowed data; all mutations die with it.
-struct FixtureOwner(PathBuf);
+struct FixtureOwner(Scratch);
 
 impl FixtureOwner {
     fn new() -> Self {
-        let serial = NEXT_DIRECTORY.fetch_add(1, Ordering::Relaxed);
-        let owner = Self(std::env::temp_dir().join(format!("smith-qa-patches-{}-{serial}", std::process::id())));
-        fs::create_dir(&owner.0).expect("make a fresh temporary fixture owner");
+        let owner = Self(Scratch::new("smith-codec-patches"));
         let files: [(&str, &[u8]); OWNER_DATA_FILES] = [
             ("schema/fixture-turn-v2.schema", KEPT_V2.as_bytes()),
             (FROZEN_TEXT_PATH, KEPT_V1.as_bytes()),
@@ -159,7 +135,7 @@ impl FixtureOwner {
             ("patches/golden/0001/fixture-turn/record_turn_full.bin", FULL),
         ];
         for (relative, bytes) in files {
-            let destination = owner.0.join(relative);
+            let destination = owner.path().join(relative);
             fs::create_dir_all(destination.parent().expect("fixture data has a parent")).expect("fixture directories");
             fs::write(destination, bytes).expect("copy only the fixture owner's data");
         }
@@ -167,13 +143,7 @@ impl FixtureOwner {
     }
 
     fn path(&self) -> &Path {
-        &self.0
-    }
-}
-
-impl Drop for FixtureOwner {
-    fn drop(&mut self) {
-        fs::remove_dir_all(&self.0).expect("remove the temporary fixture owner");
+        self.0.path()
     }
 }
 
@@ -194,7 +164,7 @@ fn found_hits_names_hit_as_held_pieces_at_its_bound() {
     assert_eq!(
         schema.ty(schema.field(hits).ty),
         Type::Bytes { bound: HIT_BYTES, held: Held::Pieces(schema.find(b"Hit").expect("Hit declaration")) },
-        "transcript.md 12 owes the pieces word without moving version 6"
+        "smith/docs/design/protocol/transcript.md 12 owes the pieces word without moving version 6"
     );
     assert_eq!(schema.version(), CURRENT_VERSION);
 }

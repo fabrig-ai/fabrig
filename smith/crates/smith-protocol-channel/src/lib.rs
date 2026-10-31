@@ -8,42 +8,44 @@
 //!
 //! | State | Input | Output |
 //! |---|---|---|
-//! | Opening | Open | Accept the highest shared version |
-//! | Opening | Ready | Check host receive terms, then Opened or Refuse limits |
-//! | Opened | Start | Decode its charter and resolve endpoint names, or answer invalid |
-//! | Started | Admitted | Send the domain's admission notice once |
+//! | Opening | Open/Ready | Agree version and receive terms, then Opened |
+//! | Opened | Start | Resolve charter, transcript and grants, or answer invalid |
+//! | Started | Message/Cancel | Deliver a labelled message or the single cancel |
+//! | Started | Admitted | Send admission; retain the live request and turn window |
+//! | Admitted | `HostAnswer`/`GrantRefresh` | Settle a call or retain a new generation |
+//! | Admitted | Acknowledge | Release the durably kept turn prefix |
 //! | Started/Admitted | Answer | Send the final answer and finish writes |
-//! | Opened | End/Closed | Ended |
+//! | Answered | Acknowledge | Release remaining turn credit |
+//! | Any | End/Closed | Emit the independent Ended terminal once |
 
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
+#![expect(
+    clippy::manual_map,
+    reason = "closures are out of step code (programming-model.md 10.3), so an Option is mapped by a match"
+)]
 
 extern crate alloc;
 
+#[cfg(any(test, feature = "fixture"))]
+pub mod fixture;
+
 mod calls;
-mod charter;
 mod component;
 mod credentials;
 mod facts;
 mod limits;
 mod live;
-mod result;
-mod transcript;
-mod translate;
-mod turn;
 
 #[cfg(test)]
 mod tests;
 
-pub use charter::encode_charter;
-pub use component::{Component, OpenEvent};
-pub use credentials::{GrantValue, program_name};
+pub use component::{Component, Heard};
 pub use limits::{EdgeRoom, Error, Limits, edge_room, schema, schema_for_start, valid};
 pub use live::{Piece, PieceKind};
-pub use result::decode_declared;
-pub use transcript::{decode_transcript, decode_turn, transcript_piece};
-pub use translate::{
-    DecodedStart, Endpoint, Endpoints, Grant, Mount, answer_record, decode_charter, encode_result, host_path,
-    start_context,
+
+pub use smith_protocol_translate::{
+    DecodedStart, Endpoint, Endpoints, Grant, GrantValue, Mount, answer_record, decode_charter, decode_declared,
+    decode_transcript, decode_turn, encode_charter, encode_result, encode_turn, host_path, program_name, start_context,
+    transcript_piece,
 };
-pub use turn::encode_turn;

@@ -4,6 +4,8 @@
 
 use std::collections::VecDeque;
 
+pub mod fixture;
+
 use skein_channel::{Closed, Control, Lower, LowerEvent, StreamMode, control_frame};
 use skein_lib::stream::{self, OutputOutcome};
 use skein_lib::{Queue, Token};
@@ -14,18 +16,18 @@ pub mod referee;
 
 /// The current bearer grant fixture.
 #[must_use]
-pub fn initial_grant() -> agent::GrantValue {
-    agent::GrantValue::Bearer(Box::from(b"secret".as_slice()))
+pub fn initial_grant() -> smith_protocol_translate::GrantValue {
+    smith_protocol_translate::GrantValue::Bearer(Box::from(b"secret".as_slice()))
 }
 /// The first refreshed bearer grant fixture.
 #[must_use]
-pub fn refreshed_grant() -> agent::GrantValue {
-    agent::GrantValue::Bearer(Box::from(b"new-secret".as_slice()))
+pub fn refreshed_grant() -> smith_protocol_translate::GrantValue {
+    smith_protocol_translate::GrantValue::Bearer(Box::from(b"new-secret".as_slice()))
 }
 /// The second refreshed bearer grant fixture.
 #[must_use]
-pub fn latest_grant() -> agent::GrantValue {
-    agent::GrantValue::Bearer(Box::from(b"latest".as_slice()))
+pub fn latest_grant() -> smith_protocol_translate::GrantValue {
+    smith_protocol_translate::GrantValue::Bearer(Box::from(b"latest".as_slice()))
 }
 
 /// An opening observation independent of which half emitted it.
@@ -145,8 +147,8 @@ enum HostReads {
 struct Peer {
     half: Half,
     below: Queue<Lower>,
-    host_events: Queue<host::OpenEvent>,
-    agent_events: Queue<agent::OpenEvent>,
+    host_events: Queue<host::Received>,
+    agent_events: Queue<agent::Heard>,
     incoming: VecDeque<u8>,
     incoming_ended: bool,
     end_reported: bool,
@@ -155,7 +157,7 @@ struct Peer {
     cut_after: Option<usize>,
     received_bytes: usize,
     host_answer: Option<smith_host_domain::channel::Answer>,
-    agent_start: Option<Box<agent::DecodedStart>>,
+    agent_start: Option<Box<smith_protocol_translate::DecodedStart>>,
     raw_start: Option<RawStart>,
     host_reads: HostReads,
     host_read_count: u64,
@@ -264,7 +266,8 @@ impl Peer {
                             let mut parts = start.into_parts();
                             parts.charter = charter;
                             parts.transcript =
-                                agent::transcript_piece(&transcript.unwrap_or_default()).expect("fixture piece");
+                                smith_protocol_translate::transcript_piece(&transcript.unwrap_or_default())
+                                    .expect("fixture piece");
                             let start = smith_channel::Start::new(&smith_channel::CEILINGS, parts)
                                 .expect("wire fixture bounds");
                             let mut writer =
@@ -315,50 +318,53 @@ impl Peer {
     fn observations(&mut self, output: &mut Vec<Observation>) {
         while let Some(event) = self.host_events.pop() {
             let read_next = match &event {
-                host::OpenEvent::Hangup { .. }
-                | host::OpenEvent::Sent { .. }
-                | host::OpenEvent::Unsent { .. }
-                | host::OpenEvent::WriteFailed => false,
-                host::OpenEvent::Opened { .. }
-                | host::OpenEvent::MessageRefused { .. }
-                | host::OpenEvent::Admitted
-                | host::OpenEvent::Waiting { .. }
-                | host::OpenEvent::Long { .. }
-                | host::OpenEvent::LongDone
-                | host::OpenEvent::Turn { .. }
-                | host::OpenEvent::Live { .. }
-                | host::OpenEvent::Fact { .. }
-                | host::OpenEvent::Unauthorized { .. }
-                | host::OpenEvent::Limited { .. }
-                | host::OpenEvent::Refused { .. }
-                | host::OpenEvent::Call { .. }
-                | host::OpenEvent::Withdraw { .. }
-                | host::OpenEvent::Answer { .. } => true,
+                host::Received::Hangup { .. }
+                | host::Received::Sent { .. }
+                | host::Received::Unsent { .. }
+                | host::Received::WriteFailed => false,
+                host::Received::Opened { .. }
+                | host::Received::Message { .. }
+                | host::Received::Live { .. }
+                | host::Received::Answer { .. } => true,
             };
             match event {
-                host::OpenEvent::Opened { version } => output.push(Observation::HostOpened(version)),
-                host::OpenEvent::Hangup { why } => output.push(Observation::HostEnded(why)),
-                host::OpenEvent::Sent { token } => output.push(Observation::HostSent(token)),
-                host::OpenEvent::Unsent { token, why } => output.push(Observation::HostUnsent(token, why)),
-                host::OpenEvent::MessageRefused { name, reason } => {
+                host::Received::Opened { version } => output.push(Observation::HostOpened(version)),
+                host::Received::Hangup { why } => output.push(Observation::HostEnded(why)),
+                host::Received::Sent { token } => output.push(Observation::HostSent(token)),
+                host::Received::Unsent { token, why } => output.push(Observation::HostUnsent(token, why)),
+                host::Received::Message { message: smith_host_domain::Up::MessageRefused { name, reason } } => {
                     output.push(Observation::HostMessageRefused { name, reason });
                 }
-                host::OpenEvent::Admitted => output.push(Observation::HostAdmitted),
-                host::OpenEvent::Waiting { read } => output.push(Observation::HostWaiting { read }),
-                host::OpenEvent::Long { operation, span } => output.push(Observation::HostLong { operation, span }),
-                host::OpenEvent::LongDone => output.push(Observation::HostLongDone),
-                host::OpenEvent::Turn { turn } => output.push(Observation::HostTurn {
-                    opens_window: turn.opens_window,
-                    number: turn.number,
-                    spent: turn.spent,
-                    read: turn.read,
-                    body: agent::encode_turn(turn.body.value(), &smith_transcript::CEILINGS, &test_endpoints())
+                host::Received::Message { message: smith_host_domain::Up::Admitted } => {
+                    output.push(Observation::HostAdmitted);
+                }
+                host::Received::Message { message: smith_host_domain::Up::Waiting { read } } => {
+                    output.push(Observation::HostWaiting { read });
+                }
+                host::Received::Message { message: smith_host_domain::Up::Long { operation, span } } => {
+                    output.push(Observation::HostLong { operation, span });
+                }
+                host::Received::Message { message: smith_host_domain::Up::LongDone } => {
+                    output.push(Observation::HostLongDone);
+                }
+                host::Received::Message { message: smith_host_domain::Up::Turn { turn } } => {
+                    output.push(Observation::HostTurn {
+                        opens_window: turn.opens_window,
+                        number: turn.number,
+                        spent: turn.spent,
+                        read: turn.read,
+                        body: smith_protocol_translate::encode_turn(
+                            turn.body.value(),
+                            &smith_transcript::CEILINGS,
+                            &test_endpoints(),
+                        )
                         .expect("store codec"),
-                }),
-                host::OpenEvent::Live { turn, retry, kind, offset, bytes, call } => {
+                    });
+                }
+                host::Received::Live { turn, retry, kind, offset, bytes, call } => {
                     output.push(Observation::HostLive { turn, retry, kind, offset, bytes, call });
                 }
-                host::OpenEvent::Fact { body } => {
+                host::Received::Message { message: smith_host_domain::Up::Fact { body } } => {
                     let fact =
                         smith_channel::Fact::decode(&smith_channel::CEILINGS, &mut skein_lib::Reader::new(&body))
                             .expect("validated fact");
@@ -368,21 +374,26 @@ impl Peer {
                         count: fact.count(),
                     });
                 }
-                host::OpenEvent::Unauthorized { account, generation } => {
+                host::Received::Message { message: smith_host_domain::Up::Unauthorized { account, generation } } => {
                     output.push(Observation::HostUnauthorized { account, generation });
                 }
-                host::OpenEvent::Limited { account, reset } => {
+                host::Received::Message { message: smith_host_domain::Up::Limited { account, reset } } => {
                     output.push(Observation::HostLimited { account, reset });
                 }
-                host::OpenEvent::Refused { account, code, reason } => {
+                host::Received::Message { message: smith_host_domain::Up::Refused { account, code, reason } } => {
                     output.push(Observation::HostRefused { account, code, reason });
                 }
-                host::OpenEvent::WriteFailed => output.push(Observation::HostWriteFailed),
-                host::OpenEvent::Call { call, name, deadline, ask } => {
+                host::Received::WriteFailed => output.push(Observation::HostWriteFailed),
+                host::Received::Message { message: smith_host_domain::Up::Call { call, name, deadline, ask } } => {
                     output.push(Observation::HostCall { call, name, deadline, ask: Box::new(ask) });
                 }
-                host::OpenEvent::Withdraw { call } => output.push(Observation::HostWithdraw { call }),
-                host::OpenEvent::Answer { answer, record } => {
+                host::Received::Message { message: smith_host_domain::Up::Withdraw { call } } => {
+                    output.push(Observation::HostWithdraw { call });
+                }
+                host::Received::Message { message: smith_host_domain::Up::Answer { .. } } => {
+                    unreachable!("answer retains its audit record")
+                }
+                host::Received::Answer { answer, record } => {
                     assert_eq!((answer.turns, answer.spent), (record.turns(), record.spent()));
                     output.push(Observation::HostAnswer { turns: answer.turns, spent: answer.spent });
                     if let smith_channel::RunResult::Refused(refused) = record.result()
@@ -414,8 +425,8 @@ impl Peer {
         }
         while let Some(event) = self.agent_events.pop() {
             match event {
-                agent::OpenEvent::Opened { version } => output.push(Observation::AgentOpened(version)),
-                agent::OpenEvent::Start { start } => {
+                agent::Heard::Opened { version } => output.push(Observation::AgentOpened(version)),
+                agent::Heard::Start { start } => {
                     output.push(Observation::AgentStart);
                     if let Some(transcript) = &start.transcript
                         && let Some(turn) = transcript.turns.first()
@@ -446,25 +457,28 @@ impl Peer {
                     }
                     assert!(self.agent_start.replace(start).is_none(), "one decoded Start per channel");
                 }
-                agent::OpenEvent::Ended { why } => output.push(Observation::AgentEnded(why)),
-                agent::OpenEvent::Message { finish_requested, name, label, text } => {
+                agent::Heard::Ended { why } => output.push(Observation::AgentEnded(why)),
+                agent::Heard::Message { finish_requested, name, label, text } => {
                     output.push(Observation::AgentMessage { finish_requested, name, label, text });
                 }
-                agent::OpenEvent::HostReturned { relay, reply } => {
-                    output.push(Observation::AgentHostReturned { relay, reply });
-                }
-                agent::OpenEvent::Delivered { owner, delivery } => {
-                    output.push(Observation::AgentDelivered { owner, delivery });
-                }
-                agent::OpenEvent::DeliveryUnsent { owner } => output.push(Observation::AgentDeliveryUnsent { owner }),
-                agent::OpenEvent::Acknowledged { turn } => output.push(Observation::AgentAcknowledged { turn }),
-                agent::OpenEvent::Grant { grant } => output.push(Observation::AgentGrant {
+                agent::Heard::Event { event } => match *event {
+                    smith_domain::Event::HostReturned { relay, reply } => {
+                        output.push(Observation::AgentHostReturned { relay, reply });
+                    }
+                    smith_domain::Event::Delivered { owner, delivery } => {
+                        output.push(Observation::AgentDelivered { owner, delivery: Box::new(delivery) });
+                    }
+                    _ => panic!("channel emits only host and delivery terminals as domain events"),
+                },
+                agent::Heard::DeliveryUnsent { owner } => output.push(Observation::AgentDeliveryUnsent { owner }),
+                agent::Heard::Acknowledged { turn } => output.push(Observation::AgentAcknowledged { turn }),
+                agent::Heard::Grant { grant } => output.push(Observation::AgentGrant {
                     account: grant.name.account,
                     generation: grant.name.generation,
                     valid: grant.valid,
                 }),
-                agent::OpenEvent::Cancel => output.push(Observation::AgentCancel),
-                agent::OpenEvent::WriteFailed => output.push(Observation::AgentWriteFailed),
+                agent::Heard::Cancel => output.push(Observation::AgentCancel),
+                agent::Heard::WriteFailed => output.push(Observation::AgentWriteFailed),
             }
         }
     }
@@ -472,10 +486,12 @@ impl Peer {
 
 /// The shared endpoint names and dialect used by channel stories.
 #[must_use]
-pub fn test_endpoints() -> agent::Endpoints {
+pub fn test_endpoints() -> smith_protocol_translate::Endpoints {
     let mut entries = skein_lib::List::with_capacity(1);
-    entries.push(agent::Endpoint { name: Box::default(), number: 0, dialect: 0 }).expect("one endpoint");
-    agent::Endpoints::new(entries)
+    entries
+        .push(smith_protocol_translate::Endpoint { name: Box::default(), number: 0, dialect: 0 })
+        .expect("one endpoint");
+    smith_protocol_translate::Endpoints::new(entries)
 }
 
 fn channel_limits(bodies: smith_channel::Limits) -> skein_channel::Limits {
@@ -501,6 +517,27 @@ pub struct World {
 }
 
 impl World {
+    /// Open both halves and deliver the smallest valid Start.
+    #[must_use]
+    pub fn started() -> World {
+        let mut world = World::new(smith_channel::CEILINGS, smith_channel::CEILINGS, StreamMode::Two);
+        world.settle();
+        world.send_start(Box::from(
+            &include_bytes!("../../../crates/smith-charter/golden/v4/record_charter_smallest.bin")[..],
+        ));
+        world.settle();
+        world
+    }
+
+    /// Open, start and admit the smallest valid run.
+    #[must_use]
+    pub fn admitted() -> World {
+        let mut world = Self::started();
+        world.agent_admits();
+        world.settle();
+        world
+    }
+
     /// Build both halves with independent receiving limits.
     #[must_use]
     pub fn new(host_bodies: smith_channel::Limits, agent_bodies: smith_channel::Limits, mode: StreamMode) -> World {
@@ -508,15 +545,12 @@ impl World {
         let host = Peer::host(
             &host::Limits {
                 bodies: host_bodies,
-                charter: smith_charter::CEILINGS,
-                transcript: smith_transcript::CEILINGS,
-                endpoints: 1,
                 channel,
                 start_bytes: u32::try_from(
                     smith_channel::Start::encoded_bound(&host_bodies).expect("fixture Start bound"),
                 )
                 .expect("fixture frame"),
-                calls: 8,
+                ..smith_host_protocol::fixture::small()
             },
             mode,
         );
@@ -527,17 +561,13 @@ impl World {
                     smith_channel::Start::encoded_bound(&agent_bodies).expect("fixture Start bound"),
                 )
                 .expect("fixture frame"),
-                charter: smith_charter::CEILINGS,
-                transcript: smith_transcript::CEILINGS,
                 resume_turns: 256,
-                search_hits: 256,
                 channel,
                 endpoints: 1,
                 calls: 8,
                 turns: 8,
-                fact_reserve_frames: 1,
-                fact_reserve_bytes: 128,
                 grants: 8,
+                ..agent::fixture::small()
             },
             mode,
         );
@@ -547,14 +577,16 @@ impl World {
     /// Open the two halves at the agent fixture's derived deployment bounds.
     #[must_use]
     pub fn with_agent_limits(limits: agent::Limits, mode: StreamMode) -> World {
-        let mut host_limits = host::Limits {
-            bodies: limits.bodies,
-            charter: limits.charter,
-            transcript: limits.transcript,
-            endpoints: limits.endpoints,
-            channel: limits.channel,
-            start_bytes: limits.start_bytes,
-            calls: limits.calls,
+        let mut host_limits = {
+            let mut fixture_limits = smith_host_protocol::fixture::small();
+            fixture_limits.bodies = limits.bodies;
+            fixture_limits.charter = limits.charter;
+            fixture_limits.transcript = limits.transcript;
+            fixture_limits.endpoints = limits.endpoints;
+            fixture_limits.channel = limits.channel;
+            fixture_limits.start_bytes = limits.start_bytes;
+            fixture_limits.calls = limits.calls;
+            fixture_limits
         };
         host_limits.channel.output_bytes = host::output_bytes(&host_limits).expect("host directional frame");
         World {
@@ -576,7 +608,7 @@ impl World {
         self.host.read_host();
     }
 
-    /// Actual application demands, excluding opening and control continuation.
+    /// Observed application demands, excluding opening and control continuation.
     #[must_use]
     pub fn host_read_count(&self) -> u64 {
         self.host.host_read_count
@@ -608,7 +640,7 @@ impl World {
         }
     }
 
-    /// Actual bytes each side received from the wire, including opening bytes.
+    /// Observed bytes each side received from the wire, including opening bytes.
     #[must_use]
     pub fn received_bytes(&self) -> (usize, usize) {
         (self.host.received_bytes, self.agent.received_bytes)
@@ -654,8 +686,8 @@ impl World {
             });
         }
         let typed_charter = typed_charter(&charter);
-        let typed_transcript = agent::decode_transcript(
-            &agent::transcript_piece(transcript.as_deref().unwrap_or(&[])).expect("fixture piece"),
+        let typed_transcript = smith_protocol_translate::decode_transcript(
+            &smith_protocol_translate::transcript_piece(transcript.as_deref().unwrap_or(&[])).expect("fixture piece"),
             256,
             u32::MAX,
             &smith_transcript::CEILINGS,
@@ -686,7 +718,7 @@ impl World {
         );
     }
 
-    /// Route the host domain's actual first Send through the host protocol half.
+    /// Route the host domain's observed first Send through the host protocol half.
     pub fn send_domain_start(
         &mut self,
         start: smith_host_domain::channel::Start,
@@ -721,8 +753,8 @@ impl World {
     ) {
         self.observed.push(Observation::HostStarted);
         let typed_charter = typed_charter(&charter);
-        let typed_transcript = agent::decode_transcript(
-            &agent::transcript_piece(transcript.as_deref().unwrap_or(&[])).expect("fixture piece"),
+        let typed_transcript = smith_protocol_translate::decode_transcript(
+            &smith_protocol_translate::transcript_piece(transcript.as_deref().unwrap_or(&[])).expect("fixture piece"),
             256,
             u32::MAX,
             &smith_transcript::CEILINGS,
@@ -810,12 +842,12 @@ impl World {
         self.agent_answers(smith_domain::run::Answer::Parked { spent: smith_domain::run::Spend::ZERO, turns: 0 });
     }
 
-    /// Send one actual typed domain answer through the agent half.
+    /// Send one observed typed domain answer through the agent half.
     pub fn agent_answers(&mut self, answer: smith_domain::run::Answer) {
         self.agent_answers_with_fence(answer, None);
     }
 
-    /// Send the final fence with its one actual domain terminal.
+    /// Send the final fence with its one observed domain terminal.
     pub fn agent_answers_with_fence(&mut self, answer: smith_domain::run::Answer, read: Option<Token>) {
         if let Half::Agent(agent) = &mut self.agent.half {
             agent
@@ -840,7 +872,7 @@ impl World {
         }
     }
 
-    /// Tell one actual run refusal through the agent half.
+    /// Tell one observed run refusal through the agent half.
     pub fn agent_refuses_message(&mut self, name: Token, reason: smith_domain::run::MessageRefusal) {
         if let Half::Agent(agent) = &mut self.agent.half {
             agent
@@ -886,7 +918,7 @@ impl World {
         }
     }
 
-    /// Try to end one actual open span; false means an ordering refusal.
+    /// Try to end one observed open span; false means an ordering refusal.
     pub fn agent_try_ends_long(&mut self) -> bool {
         if let Half::Agent(agent) = &mut self.agent.half {
             return agent
@@ -896,7 +928,7 @@ impl World {
         false
     }
 
-    /// Tell the host that one begun span has actually ended.
+    /// Tell the host that one begun span has ended.
     pub fn agent_ends_long(&mut self) {
         assert!(self.agent_try_ends_long(), "one begun span owns the terminal");
     }
@@ -968,7 +1000,6 @@ impl World {
     }
 
     /// Attempt a scripted turn while the host may still hold all its credit.
-    ///
     /// # Errors
     /// Returns the channel's flow-control or encoding error.
     pub fn try_agent_tells_turn(
@@ -1003,7 +1034,12 @@ impl World {
     }
 
     /// Refresh one service-owned credential under a new generation.
-    pub fn host_refreshes_grant(&mut self, account: u32, generation: u64, credential: agent::GrantValue) {
+    pub fn host_refreshes_grant(
+        &mut self,
+        account: u32,
+        generation: u64,
+        credential: smith_protocol_translate::GrantValue,
+    ) {
         if let Half::Host(host) = &mut self.host.half {
             host.send_grant(
                 smith_host_domain::channel::Grant {
@@ -1023,7 +1059,7 @@ impl World {
 
     /// Read the agent half's credential table as a service would during LLM preparation.
     #[must_use]
-    pub fn agent_grant_value(&self, account: u32, generation: u64) -> Option<agent::GrantValue> {
+    pub fn agent_grant_value(&self, account: u32, generation: u64) -> Option<smith_protocol_translate::GrantValue> {
         if let Half::Agent(agent) = &self.agent.half {
             let name = smith_domain::GrantName { account, generation };
             return agent.grant_value(name).cloned();
@@ -1192,7 +1228,7 @@ impl World {
     }
 
     /// Take the agent protocol half's translated Start for the real agent domain.
-    pub fn take_agent_start(&mut self) -> Option<Box<agent::DecodedStart>> {
+    pub fn take_agent_start(&mut self) -> Option<Box<smith_protocol_translate::DecodedStart>> {
         self.agent.agent_start.take()
     }
 }
@@ -1200,22 +1236,23 @@ impl World {
 /// Decode fixture policy for the typed host boundary; malformed wire fixtures use a neutral fallback.
 #[must_use]
 pub fn typed_charter(bytes: &[u8]) -> smith_host_domain::Charter {
-    let value = agent::decode_charter(bytes, &smith_charter::CEILINGS, &test_endpoints()).unwrap_or_else(|_| {
-        agent::decode_charter(
-            include_bytes!("../../../crates/smith-charter/golden/v4/record_charter_smallest.bin"),
-            &smith_charter::CEILINGS,
-            &test_endpoints(),
-        )
-        .expect("fallback fixture policy")
-    });
+    let value = smith_protocol_translate::decode_charter(bytes, &smith_charter::CEILINGS, &test_endpoints())
+        .unwrap_or_else(|_| {
+            smith_protocol_translate::decode_charter(
+                include_bytes!("../../../crates/smith-charter/golden/v4/record_charter_smallest.bin"),
+                &smith_charter::CEILINGS,
+                &test_endpoints(),
+            )
+            .expect("fallback fixture policy")
+        });
     smith_host_domain::Charter::new(value, u64::MAX).expect("fixture ownership")
 }
 
 /// Decode a valid history fixture before a typed host Start.
 #[must_use]
 pub fn typed_transcript(bytes: &[Box<[u8]>]) -> Option<smith_host_domain::Transcript> {
-    agent::decode_transcript(
-        &agent::transcript_piece(bytes).expect("fixture piece"),
+    smith_protocol_translate::decode_transcript(
+        &smith_protocol_translate::transcript_piece(bytes).expect("fixture piece"),
         256,
         u32::MAX,
         &smith_transcript::CEILINGS,
@@ -1230,26 +1267,14 @@ pub fn typed_transcript(bytes: &[Box<[u8]>]) -> Option<smith_host_domain::Transc
 pub fn window_turn_fixture() -> smith_domain_session::record::Turn {
     use smith_domain_session::{llm, record};
     let affinity = llm::Affinity { key: [0; 16], thread: 0 };
-    record::Turn {
-        model: b"model".as_slice().into(),
-        effort: None,
-        kind: record::Kind::First(Box::new(record::Opener {
-            affinity,
-            account: None,
-            backend: record::Backend::Direct,
-        })),
-        version: record::VERSION,
-        endpoint: Some(llm::Endpoint(0)),
-        dialect: 0,
-        sequence: 1,
-        usage: llm::Usage::ZERO,
-        spent: 0,
-        jobs: 0,
-        messages: Box::new([llm::Message {
+    smith_domain::session::fixture::turn(
+        b"model".as_slice().into(),
+        record::Kind::First(Box::new(record::Opener { affinity, account: None, backend: record::Backend::Direct })),
+        Box::new([llm::Message {
             role: llm::Role::User,
             content: Box::new([llm::Block::Text { text: b"the task and summary".as_slice().into(), replay: None }]),
         }]),
-    }
+    )
 }
 
 #[cfg(test)]
@@ -1303,5 +1328,50 @@ mod read_tests {
             world.observations().iter().filter(|event| **event == Observation::HostEnded(Closed::Stream)).count(),
             1
         );
+    }
+    fn inject_agent(world: &mut World, body: smith_channel::Body) {
+        let frame = smith_channel::frame(body).expect("bounded scripted peer frame");
+        world.agent.incoming.extend(frame.bytes().iter().copied());
+        world.settle();
+    }
+
+    #[test]
+    fn a_second_cancel_is_refused_without_a_second_terminal() {
+        let mut world = World::started();
+        for _ in 0..2 {
+            let record = smith_channel::Cancel::new(&smith_channel::CEILINGS, smith_channel::CancelParts {})
+                .expect("bounded peer record");
+            inject_agent(&mut world, smith_channel::Body::Cancel(record));
+        }
+        assert_eq!(world.observations().iter().filter(|event| **event == Observation::AgentCancel).count(), 1);
+        assert_eq!(world.observations().iter().filter(|event| matches!(event, Observation::AgentEnded(_))).count(), 1);
+    }
+
+    #[test]
+    fn answered_turn_credit_accepts_a_late_acknowledgement() {
+        let mut world = World::admitted();
+        world.agent_tells_turn(1, None, &window_turn_fixture());
+        world.settle();
+        world.agent_parks();
+        world.settle();
+        let record =
+            smith_channel::Acknowledge::new(&smith_channel::CEILINGS, smith_channel::AcknowledgeParts { number: 1 })
+                .expect("bounded peer record");
+        inject_agent(&mut world, smith_channel::Body::Acknowledge(record));
+        assert_eq!(
+            world.observations().iter().filter(|event| **event == Observation::AgentAcknowledged { turn: 1 }).count(),
+            1
+        );
+    }
+
+    #[test]
+    fn a_cancel_before_start_is_refused_without_reaching_the_service() {
+        let mut world = World::new(smith_channel::CEILINGS, smith_channel::CEILINGS, StreamMode::Two);
+        world.settle();
+        let record = smith_channel::Cancel::new(&smith_channel::CEILINGS, smith_channel::CancelParts {})
+            .expect("bounded peer record");
+        inject_agent(&mut world, smith_channel::Body::Cancel(record));
+        assert!(!world.observations().contains(&Observation::AgentCancel));
+        assert_eq!(world.observations().iter().filter(|event| matches!(event, Observation::AgentEnded(_))).count(), 1);
     }
 }

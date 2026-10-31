@@ -1,6 +1,6 @@
 //! Passive judgments consume the supervisor and collected path evidence only.
 //! A reported escape is a violation; missing effects never establish scope.
-//! The shared kit owns all process discovery and genuine settlement.
+//! The shared kit owns all process discovery and settlement.
 //! Contract: benchmarks.md section11.2.
 
 use std::path::PathBuf;

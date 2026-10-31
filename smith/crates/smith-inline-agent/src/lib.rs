@@ -7,8 +7,8 @@
 //! lower requests. The owner routes every lower terminal, drains observations
 //! each pass, and calls `reclaim` only after handing the outputs onward.
 //! Workspace operations keep exact mounted IO roots and machine terminal rights.
-//! Stop cancels and waits within the wall bound; the later stop increment adds
-//! the host's cancel grace and explicit drop.
+//! Stop cancels and waits within the wall bound, with the host's cancel grace
+//! and explicit drop.
 //!
 //! | State | Input | Next state | Emits |
 //! |---|---|---|---|
@@ -21,13 +21,21 @@
 
 #![cfg_attr(not(test), no_std)]
 #![forbid(unsafe_code)]
+#![expect(
+    clippy::manual_map,
+    reason = "closures are out of step code (programming-model.md 10.3), so an Option is mapped by a match"
+)]
 
 extern crate alloc;
 
 mod boundary;
 mod domain;
 mod facts;
+#[cfg(any(test, feature = "fixture"))]
+pub mod fixture;
+
 mod limits;
+mod route;
 mod stop;
 mod translate;
 mod workspace;

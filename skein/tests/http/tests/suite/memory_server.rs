@@ -99,7 +99,7 @@ fn serve_observed(
         }
         let input_size = match &input {
             Input::Down(Request::Respond(response)) => size_of_response(response),
-            Input::Down(Request::Reply(Down::Send(piece))) => u64::try_from(piece.len()).expect("fits a u64"),
+            Input::Down(Request::Reply(Down::Send(piece))) => skein_lib::len_u64(piece.len()),
             Input::Up(_) | Input::Down(_) => 0,
         };
         meter.start();

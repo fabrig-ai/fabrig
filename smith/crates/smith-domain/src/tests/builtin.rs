@@ -1,8 +1,8 @@
-#![allow(
+#![expect(
     clippy::disallowed_macros,
     clippy::disallowed_methods,
     clippy::disallowed_types,
-    reason = "programming-model.md section 10.2: deterministic test harnesses use ordinary Rust"
+    reason = "test modules are ordinary Rust: programming-model.md 10.2"
 )]
 
 use super::*;
@@ -27,7 +27,12 @@ fn a_builtin_result_reaches_the_session() {
     assert!(harness.turns.is_empty());
     assert!(
         harness
-            .step(Event::BuiltinResult { owner, id: bytes(b"read"), text: bytes(b"contents"), error: false })
+            .step(Event::Below(crate::Below::BuiltinResult {
+                owner,
+                id: bytes(b"read"),
+                text: bytes(b"contents"),
+                error: false
+            }))
             .is_empty()
     );
     assert_eq!(harness.turns.len(), 1);
@@ -61,14 +66,21 @@ fn a_builtin_result_for_a_gone_session_is_dropped() {
     drop(completing(harness.next()));
     assert!(harness.step(Event::Cancel { run }).is_empty());
     let cancelled = harness.next();
-    assert!(cancelled.iter().any(|request| request == &Request::Cancel { owner }));
-    drop(harness.step(Event::Cancelled { owner }));
+    assert!(cancelled.iter().any(|request| request == &Request::Lower(crate::Lower::Cancel { owner })));
+    drop(harness.step(Event::Below(crate::Below::Cancelled { owner })));
     drop(harness.next());
     assert_eq!(harness.domain.sessions.len(), 0);
     harness.keep_facts();
     let count = harness.turns.len();
     assert!(
-        harness.step(Event::BuiltinResult { owner, id: bytes(b"read"), text: bytes(b"late"), error: false }).is_empty()
+        harness
+            .step(Event::Below(crate::Below::BuiltinResult {
+                owner,
+                id: bytes(b"read"),
+                text: bytes(b"late"),
+                error: false
+            }))
+            .is_empty()
     );
     assert_eq!(harness.turns.len(), count);
     assert_eq!(harness.domain.pop_fact(), None);

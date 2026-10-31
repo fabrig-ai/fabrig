@@ -18,7 +18,11 @@ pub(crate) fn check<'a>(resolved: &Resolved, accounts: impl Iterator<Item = &'a 
 pub(crate) fn needed(resolved: &Resolved, clock: &Clock) -> ProgramStates {
     check(
         resolved,
-        resolved.accounts.iter().filter(|account| account.source() == "program").map(|account| account.name.as_str()),
+        resolved
+            .accounts
+            .iter()
+            .filter(|account| account.source() == crate::settings::resolve::AccountSource::Program)
+            .map(|account| account.name.as_str()),
         clock,
     )
 }

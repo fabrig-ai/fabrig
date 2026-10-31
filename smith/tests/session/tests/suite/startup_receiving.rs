@@ -1,10 +1,14 @@
 //! The frozen phase-one control must be refused before effects or service four turns.
-//! Contract: protocol/limits.md, sections 3.2 and 4; domain/session.md, section 5.
+//! Contract: smith/docs/design/protocol/limits.md, sections 3.2 and 4; smith/docs/design/domain/session.md, section 5.
+
+use smith_session_world::said;
+
+use smith_session_world::bytes;
 
 use skein_lib::{Duration, Queue, Token};
 use smith_agent_service::profile::{self, Check, Configuration, Endpoint, Model, OversizedReasoning, Refusal, Value};
 use smith_domain_session::{self as session, llm};
-use smith_session_world::recorded::{World, opening};
+use smith_session_world::recorded::{Scripted, opening};
 
 #[test]
 fn the_frozen_control_is_refused_at_startup_or_services_finish_after_four_turns() {
@@ -25,7 +29,7 @@ fn the_frozen_control_is_refused_at_startup_or_services_finish_after_four_turns(
             handshake: Duration::from_secs(30),
             models: Box::new([Model {
                 efforts: Box::new([]),
-                name: b"gpt-6-luna".as_slice().into(),
+                name: bytes(b"gpt-6-luna"),
                 window: 131_072,
                 output: 4096,
                 reasoning_item: 65_536,
@@ -50,18 +54,18 @@ fn the_frozen_control_is_refused_at_startup_or_services_finish_after_four_turns(
             );
             return;
         }
-        Err(refusal) => panic!("the frozen control needs its actual receiving refusal: {refusal:?}"),
+        Err(refusal) => panic!("the frozen control needs its receiving refusal: {refusal:?}"),
     };
     assert!(limits.domain.session.history_messages > 4, "the defect is not six-message room");
     let allowance = profile::endpoint_allowance(&profile, &configuration.endpoints[0], &limits.domain.session.tools)
         .expect("real fixed schemas and framing");
-    let mut world = World::new(415);
+    let mut world = Scripted::new(415);
     world.env.limits = limits.domain.session;
     world.domain = session::Domain::new(&world.env.limits, 415);
     world.out = Queue::uncapped();
     let mut start = opening(None, 1_000_000_000);
     start.spec.endpoint = llm::Endpoint(1);
-    start.spec.model = b"gpt-6-luna".as_slice().into();
+    start.spec.model = bytes(b"gpt-6-luna");
     start.spec.output = 4096;
     start.spec.protocol_allowance = allowance;
     start.spec.budget = world.env.limits.budget;
@@ -70,20 +74,16 @@ fn the_frozen_control_is_refused_at_startup_or_services_finish_after_four_turns(
     world.open(start);
     for turn in 0..3 {
         assert!(world.completing.is_some(), "provider turn {} admitted: {:?}", turn + 1, world.end);
-        world.complete(
-            Box::new([llm::Block::Text { text: b"read complete".as_slice().into(), replay: None }]),
-            llm::Stop::EndTurn,
-            llm::Usage::ZERO,
-        );
+        world.complete(said(b"read complete"), llm::Stop::EndTurn, llm::Usage::ZERO);
         world.step(session::Event::Continue {
             session: world.session.expect("an admitted conversation remains open"),
-            content: b"continue to finish".as_slice().into(),
+            content: bytes(b"continue to finish"),
         });
     }
     world.complete(
         Box::new([llm::Block::ToolCall {
-            id: b"finish-four".as_slice().into(),
-            name: b"finish".as_slice().into(),
+            id: bytes(b"finish-four"),
+            name: bytes(b"finish"),
             input: br#"{"form":"report","text":"ALPHA"}"#.as_slice().into(),
             call: llm::Decoded::Delegated {
                 descriptor: Token::new(19),
@@ -97,12 +97,7 @@ fn the_frozen_control_is_refused_at_startup_or_services_finish_after_four_turns(
         llm::Usage::ZERO,
     );
     assert_eq!(world.delegated.len(), 1, "fourth-turn finish must be served: {:?}", world.end);
-    world.step(session::Event::Answered {
-        owner: world.delegated[0],
-        text: b"ALPHA".as_slice().into(),
-        error: false,
-        spent: 0,
-    });
-    assert!(world.delegated.is_empty(), "actual finish receiving right has its terminal");
+    world.step(session::Event::Answered { owner: world.delegated[0], text: bytes(b"ALPHA"), error: false, spent: 0 });
+    assert!(world.delegated.is_empty(), "finish receiving right has its terminal");
     world.close();
 }

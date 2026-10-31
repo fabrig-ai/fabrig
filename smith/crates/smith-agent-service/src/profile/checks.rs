@@ -1,6 +1,6 @@
-//! Startup comparisons retain the first broken relationship and its actual
+//! Startup comparisons retain the first broken relationship and its
 //! values. No provider wire or operator formatting is known here. Entry points
-//! check declarations and composed limits. Contract: protocol/limits.md,
+//! check declarations and composed limits. Contract: smith/docs/design/protocol/limits.md,
 //! sections 4 and 8.
 
 use skein_llm_connection::EndpointError;
@@ -55,7 +55,7 @@ pub enum Check {
 }
 
 impl Check {
-    /// The relationship's name in protocol/limits.md, section 4.
+    /// The relationship's name in smith/docs/design/protocol/limits.md, section 4.
     #[must_use]
     pub const fn name(self) -> &'static str {
         match self {

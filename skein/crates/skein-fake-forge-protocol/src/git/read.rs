@@ -55,19 +55,9 @@ fn kind(doc: &Document, at: u32) -> Result<Kind, ()> {
     Ok(doc.token(at).ok_or(())?.kind)
 }
 fn after(doc: &Document, at: u32) -> Result<u32, ()> {
-    let mut depth = 0_u32;
-    for index in at..doc.len() {
-        match kind(doc, index)? {
-            Kind::ObjectStart | Kind::ArrayStart => depth = depth.checked_add(1).ok_or(())?,
-            Kind::ObjectEnd | Kind::ArrayEnd => depth = depth.checked_sub(1).ok_or(())?,
-            Kind::Key | Kind::String | Kind::Number | Kind::True | Kind::False | Kind::Null | Kind::Long => {}
-        }
-        if depth == 0 {
-            return index.checked_add(1).ok_or(());
-        }
-    }
-    Err(())
+    doc.value_end(at).ok_or(())
 }
+
 fn text(doc: &Document, at: u32, expected: Kind) -> Result<&[u8], ()> {
     let record = doc.token(at).ok_or(())?;
     if record.kind != expected {

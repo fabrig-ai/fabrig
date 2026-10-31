@@ -1,4 +1,4 @@
-//! Live account setup and command policy (testing.md, section 2.3).
+//! Live account setup and command policy (smith/docs/design/testing.md, section 2.3).
 //! Keeps only the guarded live root; smith owns all credential reads and writes.
 
 use smith_real_world::Scratch;
@@ -185,7 +185,7 @@ mod tests {
             earliest_refresh_at: None,
             metadata: None,
         };
-        let bytes = skein_oauth::encode_record(&record, &smith_local_shell::local_host::token_limits())
+        let bytes = skein_oauth::encode_record(&record, &smith_local_shell::credentials::token_limits())
             .expect("synthetic native record");
         let file = login.join("tokens/chatgpt");
         std::fs::write(&file, &bytes).expect("synthetic record file");

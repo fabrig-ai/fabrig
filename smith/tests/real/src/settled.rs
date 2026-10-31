@@ -218,16 +218,16 @@ impl Before {
     }
 }
 
-/// Outside observation after the loop drained: no actual git, rg, sh or check
+/// Outside observation after the loop drained: no git, rg, sh or check
 /// child remains, including a zombie awaiting wait. Hosted agents use the
 /// shared world's own process/descriptor ledger and exit assertions.
 pub fn assert_no_children() {
     for task in std::fs::read_dir("/proc/self/task").expect("Linux task observations") {
         let path = task.expect("task entry").path().join("children");
         match std::fs::read_to_string(path) {
-            Ok(children) => assert!(children.trim().is_empty(), "every actual child was reaped: {children}"),
+            Ok(children) => assert!(children.trim().is_empty(), "every child was reaped: {children}"),
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
-            Err(error) => panic!("actual child observation: {error}"),
+            Err(error) => panic!("child observation: {error}"),
         }
     }
 }

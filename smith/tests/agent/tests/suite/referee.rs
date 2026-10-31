@@ -1,5 +1,5 @@
 //! Deliberately bad boundary transcripts must fail the independent referee
-//! (testing-strategy.md, section 7; domain/run.md, section 14).
+//! (skein/docs/foundation/testing-strategy.md, section 7; smith/docs/design/domain/run.md, section 13).
 
 use skein_lib::{Duration, Time, Token};
 use skein_world::domain::{Referee, Verdict};
@@ -274,7 +274,7 @@ fn both_ordinary_and_interrupted_mid_delivery_histories_are_valid() {
         };
         referee.observe(Time::ZERO, Seen::Answered { answer, pending: 0 }, &mut Vec::new());
         assert_eq!(referee.verdict(), Verdict::Passed);
-        assert_eq!(referee.judged().1, 1, "one final answer obligation is actually met");
+        assert_eq!(referee.judged().1, 1, "one final answer obligation is met");
     }
 }
 
@@ -313,7 +313,7 @@ fn duplicate_terminal_and_reused_durable_name_are_rejected_after_positive_prefix
             name: smith_domain::run::CallName { activation: 1, completion: 2, position: 1 },
             tree: b"checked".to_vec(),
         },
-        "durable names are nonzero and distinct across actual submissions",
+        "durable names are nonzero and distinct across submissions",
     );
 }
 

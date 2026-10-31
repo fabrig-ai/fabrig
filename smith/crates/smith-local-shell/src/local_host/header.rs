@@ -54,7 +54,7 @@ impl Local {
         for _ in 0..2 {
             let header = names(configuration, limits, result_file)?;
             configuration.service.limits.events = Some(
-                smith_agent_service::EventLimits::derive(
+                smith_agent_service::event_limits(
                     &configuration.service.limits,
                     trace.capture,
                     view.destinations,

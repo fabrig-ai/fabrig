@@ -28,11 +28,9 @@ fn run(seed: u64, requests: &[FromDomain], delays: &[Duration]) -> (Vec<ToDomain
 fn job(end: tools::JobEnd) -> tools::Done {
     tools::Done::Job { head: Box::default(), tail: Box::default(), dropped: 0, end }
 }
-
-/// Lower test of smith-machine-world's `jobs::a_command_past_its_yield_is_held_and_read_to_its_end` (top tiers test wiring only).
 #[test]
 fn a_yielded_command_is_read_to_its_end() {
-    let root = World::new(71, &[]).root();
+    let root = World::ROOT;
     let (replies, _) = run(
         71,
         &[
@@ -55,13 +53,11 @@ fn a_yielded_command_is_read_to_its_end() {
         }
     );
 }
-
-/// Lower test of smith-machine-world's `jobs::a_jobs_output_past_its_kept_bound_is_head_tail_and_counted_once` (top tiers test wiring only).
 #[test]
 fn held_output_is_partitioned_and_counted_only_once() {
     // Three alphabets contain 78 bytes: four head, four tail, 70 dropped.
     const DROPPED_BYTES: u64 = 70;
-    let root = World::new(72, &[]).root();
+    let root = World::ROOT;
     let (replies, _) = run(
         72,
         &[
@@ -92,11 +88,9 @@ fn held_output_is_partitioned_and_counted_only_once() {
         }
     );
 }
-
-/// Lower test of smith-machine-world's `jobs::a_stopped_job_answers_stopped` (top tiers test wiring only).
 #[test]
 fn a_stopped_job_settles_and_answers_stopped() {
-    let root = World::new(73, &[]).root();
+    let root = World::ROOT;
     let (replies, _) = run(
         73,
         &[
@@ -107,13 +101,11 @@ fn a_stopped_job_settles_and_answers_stopped() {
     );
     assert_eq!(done(&replies[1]), job(tools::JobEnd::Stopped));
 }
-
-/// Lower test of smith-machine-world's `jobs::a_job_past_its_deadline_answers_timed_out` (top tiers test wiring only).
 #[test]
 fn the_original_deadline_ends_a_held_job() {
     // The original fixture yields at 30 ms and expires at 60 ms.
     const DEADLINE: Time = Time::from_nanos(60_000_000);
-    let root = World::new(74, &[]).root();
+    let root = World::ROOT;
     let (replies, now) = run(
         74,
         &[spawn(root, b"sleep 5", KEEP_BYTES, KEEP_BYTES, DEADLINE), read(KEEP_BYTES, KEEP_BYTES, READ_WAIT)],
@@ -132,27 +124,21 @@ fn cancel(seed: u64, command: &[u8], delay: Duration) -> tools::Done {
     );
     done(&replies[1])
 }
-
-/// Lower test of smith-machine-world's `jobs::a_cancelled_held_job_answers_cancelled` (top tiers test wiring only).
 #[test]
 fn cancelling_a_running_held_job_answers_cancelled() {
     assert_eq!(cancel(76, b"sleep 5", Duration::ZERO), job(tools::JobEnd::Cancelled));
 }
-
-/// Lower test of smith-machine-world's `jobs::a_cancelled_held_job_answers_cancelled` (top tiers test wiring only).
 #[test]
 fn cancelling_a_finished_job_preserves_its_successful_exit() {
     // The counterpart cancels 80 ms after the 30 ms yield of a 60 ms command.
     const CANCEL_DELAY: Duration = Duration::from_millis(80);
     assert_eq!(cancel(77, b"sleep 0.06", CANCEL_DELAY), job(tools::JobEnd::Ended(tools::Exit::Code { code: 0 })));
 }
-
-/// Lower test of smith-machine-world's `jobs::a_hastened_read_answers_at_once` (top tiers test wiring only).
 #[test]
 fn a_hastened_read_finishes_before_its_virtual_wait() {
     // The real counterpart must settle before 500 ms of its one-second wait.
     const BEFORE_END: Time = Time::from_nanos(500_000_000);
-    let root = World::new(78, &[]).root();
+    let root = World::ROOT;
     let (replies, now) = run(
         78,
         &[

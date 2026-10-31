@@ -1,5 +1,5 @@
 //! Trace settings decoded before startup, with no sink or credential opened.
-//! Contract: protocol/events.md, section 2.
+//! Contract: smith/docs/design/protocol/events.md, section 2.
 use super::{ConfigurationRefusal, TraceDocument};
 use crate::trace::{Capture, Delivery, TraceConfig};
 

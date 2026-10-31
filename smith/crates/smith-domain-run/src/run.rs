@@ -1,5 +1,5 @@
 //! Run admission, main and child lifetimes, shared spend and terminal rights
-//! (domain/run.md, sections 3, 6–10). State retains the charter, prepared
+//! (smith/docs/design/domain/run.md, sections 3, 6–10). State retains the charter, prepared
 //! guides/checks, run identity, never-reused child ordinals, conversation bindings,
 //! call ownership, the wind-down's budget or host cause, and one pending ending.
 //! Entrances below act only through bounded queues, slabs and injected time.
@@ -12,11 +12,11 @@
 //! completion's maximum across all conversations before the root sends it and
 //! returns unused credit on its terminal. Global accounting sums monotonic own
 //! deltas, while inclusive subtree totals transfer only as child bills. A charge that cannot fit ends the
-//! session before it is added (domain/run.md, sections 9 and 10).
+//! session before it is added (smith/docs/design/domain/run.md, sections 9 and 10).
 //!
 //! The run and its conversations move through these retained phases. Each row
 //! names the event that changes the phase; all issued operations still owe their
-//! typed terminal while the run winds down (domain/run.md, sections 5.2, 6,
+//! typed terminal while the run winds down (smith/docs/design/domain/run.md, sections 5.2, 6,
 //! 8.2 and 10).
 //!
 //! ```text
@@ -56,7 +56,7 @@
 //! ```
 //!
 //! The two calls with independent lower terminals keep their own phases
-//! (domain/run.md, sections 5.2 and 8.2):
+//! (smith/docs/design/domain/run.md, sections 5.2 and 8.2):
 //!
 //! ```text
 //! operation  phase       event                          next        outward action
@@ -79,25 +79,36 @@
 
 use alloc::boxed::Box;
 
+mod child;
+mod gate;
 mod jobs;
-use core::mem;
-pub(crate) use jobs::cancelled as jobs_cancelled;
+pub(crate) mod relay;
+mod yielding;
+pub(crate) use yielding::yielded;
 
-use skein_lib::bytes::copy_of;
+use child::{Wanted, sub_agent};
+use core::mem;
+pub use gate::Most;
+use gate::{account_state, begin_wind_down, final_remaining};
+pub use gate::{completion_overflow, completion_permit, reserve, settle_reservation};
+pub(crate) use gate::{priced, used};
+pub(crate) use jobs::cancelled as jobs_cancelled;
+pub(crate) use relay::{host_alarm, host_returned};
+use relay::{host_call, host_stop};
+
 use skein_lib::{Deadlines, Duration, Env, Id, Queue, ReplyTo, Slab, Time, Token};
 
-use crate::agent::{self, Child, Means};
+use crate::Workspace;
+use crate::agent;
 use crate::boundary::{
-    Answer, Ask, AskRefusal, End, Failure, Fault, Invalid, Opening, Policy, Ran, Read, Refusal, Request, Returned,
-    Stop, Window,
+    Answer, Ask, AskRefusal, End, Failure, Fault, Invalid, Policy, Ran, Read, Refusal, Request, Returned, Stop, Window,
 };
 use crate::budget::{Exhausted, Spend};
-use crate::call::{self, Call, Calls, Withdrawal, Work};
+use crate::call::{Call, Calls, Withdrawal, Work};
 use crate::charter::{self, Charter, Families, Mode, count};
 use crate::delivery::{CallName, Delivery};
 use crate::domain::Domain;
 use crate::facts::{Asked, FactKind, Facts};
-use crate::host::{Relay as HostRelay, Stage as HostStage};
 use crate::inbox::{self, Entrance, Inbox};
 use crate::land::{self, Settled};
 use crate::limits::Limits;
@@ -105,7 +116,6 @@ use crate::outcome::{self, Change, Declared};
 use crate::prepare::{self, Found, Step};
 use crate::wind_down::Cause;
 use crate::workspace;
-use crate::{CompletionPermit, HostEffect, HostInput, HostProblem, HostReply, RelayName, Share, Workspace};
 use crate::{opening, prompt};
 
 #[derive(Debug)]
@@ -186,6 +196,7 @@ enum State {
 enum Ending {
     Parked,
     Accepted(Declared),
+    Over(Exhausted),
     Failed(Failure),
 }
 
@@ -204,7 +215,7 @@ pub(crate) struct Conversation {
     subtree_spent: u64,
     /// The one provider completion this conversation has reserved with the run.
     reservation: Option<(Token, Most)>,
-    /// A budget close keeps its cause through the actual session terminal.
+    /// A budget close keeps its cause through the session terminal.
     budget_close: Option<Exhausted>,
     /// Its calls to the run in flight.
     calls: u32,
@@ -217,7 +228,7 @@ enum Phase {
     Pending,
     /// Opened, and not started yet.
     Opening,
-    /// Opened, not started yet, and no longer wanted: closed once it starts.
+    /// Opened, not started yet, and unwanted: closed once it starts.
     Unwanted,
     /// Started, and addressed as `peer`.
     Running { peer: Token },
@@ -474,7 +485,7 @@ pub(crate) fn turn(
 ) {
     let conversation = domain.conversations.get(Id::from_token(conversation)).expect("turn precedes session end");
     assert!(conversation.asker.is_none(), "only main enters the host transcript");
-    let run = domain.runs.get_mut(conversation.run).expect("run outlives its actual turns");
+    let run = domain.runs.get_mut(conversation.run).expect("run outlives its turns");
     match run.sequence {
         Some(previous) => assert!(previous.checked_add(1) == Some(sequence), "exact historical turn prefix"),
         None => assert!(sequence > 0, "historical sequence is one-based"),
@@ -514,7 +525,7 @@ pub(crate) fn park(domain: &mut Domain, id: Id<Run>, out: &mut Queue<Request>) {
             &mut domain.conversations,
             reply_to,
             main,
-            finished(Ending::Parked, run.spent, run.turns),
+            Answer::Parked { spent: run.spent, turns: run.turns },
             out,
         ),
         State::Listening { reply_to, main, until: _ } => {
@@ -630,278 +641,6 @@ pub(crate) fn started(domain: &mut Domain, conversation: Token, peer: Token, out
     };
 }
 
-pub(crate) fn yielded(
-    domain: &mut Domain,
-    env: &Env<Limits>,
-    conversation: Token,
-    stop: Stop,
-    text: &[u8],
-    out: &mut Queue<Request>,
-) {
-    let Domain { rng: _, runs, conversations, calls, alarms, facts, ready } = domain;
-    let id = Id::<Conversation>::from_token(conversation);
-    let conversation = conversations.get(id).expect("a conversation lives until it has ended");
-    facts.about(conversation.run.token());
-    let peer = match &conversation.phase {
-        Phase::Running { peer } => *peer,
-        // The yield crossed the run's close: there is nothing left to decide.
-        Phase::Closing => return,
-        Phase::Pending | Phase::Opening | Phase::Unwanted | Phase::Closed => {
-            unreachable!("a conversation yields only between starting and ending")
-        }
-    };
-    // A sub-agent that yields is done: its last message is its answer.
-    if let Some(asker) = conversation.asker {
-        let call = calls.get_mut(asker).expect("a sub-agent's call lives until it has ended");
-        let close_child = match &mut call.work {
-            Work::Child(child) => agent::yielded(child, text, stop, &env.limits),
-            Work::Landing(_) | Work::Host(_) => unreachable!("a sub-agent serves a sub-agent's call"),
-        };
-        if let Some(child) = close_child {
-            close(conversations, child, out);
-        }
-        return;
-    }
-    let run_id = conversation.run;
-    let run = runs.get_mut(run_id).expect("a run lives until its conversations have ended");
-    let state = mem::replace(&mut run.state, State::Closed);
-    run.state = match state {
-        State::Working { reply_to, main } => {
-            assert!(main == id, "a conversation with no asker is main");
-            assert!(conversation.calls == 0, "a main yield follows every actual call terminal");
-            let replied = match run.charter.mode {
-                Mode::Finite => false,
-                Mode::Open => match stop {
-                    Stop::EndTurn => !text.is_empty(),
-                    Stop::Budget | Stop::MaxTokens | Stop::Refusal | Stop::NoCalls => false,
-                },
-            };
-            let final_reply = match &run.wind_down {
-                Some(crate::wind_down::WindDown::Finishing { noted: true, .. }) => true,
-                Some(
-                    crate::wind_down::WindDown::Finishing { noted: false, .. }
-                    | crate::wind_down::WindDown::Settling { .. },
-                )
-                | None => false,
-            };
-            if replied && final_reply {
-                out.push(Request::Waiting { host_run: run.host_name, read: run.inbox.fence() });
-                wind_down(conversations, reply_to, main, Ending::Parked, out)
-            } else if run.wind_down.is_some() {
-                match final_remaining(run, env.now) {
-                    Ok(()) if run.inbox.has_queued() => continue_messages(run, reply_to, main, peer, &env.limits, out),
-                    Ok(()) => {
-                        let note = match run.charter.mode {
-                            Mode::Finite => prompt::finish_now(),
-                            Mode::Open => prompt::last_reply(),
-                        };
-                        say(reply_to, main, peer, note, out)
-                    }
-                    Err(exhausted) => wind_down(
-                        conversations,
-                        reply_to,
-                        main,
-                        Ending::Failed(Failure::Budget { exhausted, used: None, bound: None }),
-                        out,
-                    ),
-                }
-            } else if run.inbox.has_queued() {
-                continue_messages(run, reply_to, main, peer, &env.limits, out)
-            } else if replied {
-                out.push(Request::Waiting { host_run: run.host_name, read: run.inbox.fence() });
-                if run.charter.waiting == Duration::ZERO {
-                    wind_down(conversations, reply_to, main, Ending::Parked, out)
-                } else {
-                    State::Listening { reply_to, main, until: env.now.saturating_add(run.charter.waiting) }
-                }
-            } else {
-                match nudge(run, stop, &env.limits) {
-                    Ok(()) => say(
-                        reply_to,
-                        main,
-                        peer,
-                        prompt::nudge(run.charter.mode, stop, run.nudges, env.limits.nudges),
-                        out,
-                    ),
-                    Err(failure) => wind_down(conversations, reply_to, main, Ending::Failed(failure), out),
-                }
-            }
-        }
-
-        State::Awaiting { .. }
-        | State::Preparing { .. }
-        | State::Stopping { .. }
-        | State::Listening { .. }
-        | State::Waiting { .. }
-        | State::Winding { .. }
-        | State::Closed => {
-            unreachable!("main yields only while its run works: it is closed when the run winds down")
-        }
-    };
-    follow(runs, alarms, facts, ready, run_id);
-}
-
-/// Session own prices are monotonic activation totals. Stale names are inert;
-/// subtree updates do not add global spend.
-#[must_use]
-pub fn completion_overflow(domain: &Domain, conversation: Token, price: u64, usage: Spend) -> Option<Failure> {
-    let conversation =
-        domain.conversations.get(Id::from_token(conversation)).expect("provider owner has a live run conversation");
-    let run = domain.runs.get(conversation.run).expect("conversation retains its run");
-    if run.spent.units.checked_add(price).is_none() {
-        return Some(Failure::Budget {
-            exhausted: Exhausted::Overflow(crate::Overflow::Spend),
-            used: None,
-            bound: None,
-        });
-    }
-    let raw_total = Spend { units: 0, ..run.spent };
-    let raw_increment = Spend { units: 0, ..usage };
-    if raw_total.accumulate(raw_increment).is_none() {
-        return Some(Failure::Budget {
-            exhausted: Exhausted::Overflow(crate::Overflow::Usage),
-            used: None,
-            bound: None,
-        });
-    }
-    None
-}
-
-/// Session own prices are monotonic activation totals. Stale names are inert;
-/// subtree updates do not add global spend.
-pub(crate) fn priced(domain: &mut Domain, conversation: Token, own: u64, subtree: u64, out: &mut Queue<Request>) {
-    let id = Id::<Conversation>::from_token(conversation);
-    let Some(conversation) = domain.conversations.get_mut(id) else {
-        return;
-    };
-    match conversation.phase {
-        Phase::Running { .. } | Phase::Closing => {}
-        Phase::Pending | Phase::Opening | Phase::Unwanted | Phase::Closed => return,
-    }
-    let run_id = conversation.run;
-    if own < conversation.spent.units || subtree < conversation.subtree_spent {
-        return;
-    }
-    let delta = own.checked_sub(conversation.spent.units).expect("checked monotonic own total");
-    let run = domain.runs.get_mut(run_id).expect("conversation retains run");
-    let Some(total) = run.spent.accumulate(Spend { units: delta, ..Spend::ZERO }) else {
-        let state = mem::replace(&mut run.state, State::Closed);
-        run.state = hard_stop(
-            state,
-            &mut domain.conversations,
-            Failure::Budget { exhausted: Exhausted::Overflow(crate::Overflow::Spend), used: None, bound: None },
-            out,
-        );
-        follow(&mut domain.runs, &mut domain.alarms, &mut domain.facts, &mut domain.ready, run_id);
-        return;
-    };
-    conversation.spent.units = own;
-    conversation.subtree_spent = subtree;
-    run.spent = total;
-    if account_state(run, &mut domain.ready, run_id, domain.facts.now()) {
-        domain.facts.about(run_id.token());
-        domain.facts.push(FactKind::Budget {
-            run: run_id.token(),
-            standing: standing(run, domain.facts.now()),
-            call: None,
-        });
-    }
-    follow(&mut domain.runs, &mut domain.alarms, &mut domain.facts, &mut domain.ready, run_id);
-}
-
-pub(crate) fn used(domain: &mut Domain, conversation: Token, spend: Spend, out: &mut Queue<Request>) {
-    let id = Id::<Conversation>::from_token(conversation);
-    let Some(conversation) = domain.conversations.get_mut(id) else {
-        return;
-    };
-    match conversation.phase {
-        Phase::Running { .. } | Phase::Closing => {}
-        Phase::Pending | Phase::Opening | Phase::Unwanted | Phase::Closed => return,
-    }
-    let run_id = conversation.run;
-    let raw = Spend { units: 0, ..spend };
-    let run = domain.runs.get_mut(run_id).expect("conversation retains run");
-    let added = conversation.spent.accumulate(raw).zip(run.spent.accumulate(raw));
-    let Some((conversation_total, run_total)) = added else {
-        let state = mem::replace(&mut run.state, State::Closed);
-        run.state = hard_stop(
-            state,
-            &mut domain.conversations,
-            Failure::Budget { exhausted: Exhausted::Overflow(crate::Overflow::Usage), used: None, bound: None },
-            out,
-        );
-        follow(&mut domain.runs, &mut domain.alarms, &mut domain.facts, &mut domain.ready, run_id);
-        return;
-    };
-    conversation.spent = conversation_total;
-    run.spent = run_total;
-    account_state(run, &mut domain.ready, run_id, domain.facts.now());
-    domain.facts.about(run_id.token());
-    domain.facts.push(FactKind::Budget {
-        run: run_id.token(),
-        standing: standing(run, domain.facts.now()),
-        call: None,
-    });
-    follow(&mut domain.runs, &mut domain.alarms, &mut domain.facts, &mut domain.ready, run_id);
-}
-
-fn account_state(run: &mut Run, ready: &mut crate::wind_down::Ready, id: Id<Run>, now: Time) -> bool {
-    match run.state {
-        State::Working { .. } => {}
-        State::Awaiting { .. }
-        | State::Preparing { .. }
-        | State::Stopping { .. }
-        | State::Listening { .. }
-        | State::Waiting { .. }
-        | State::Winding { .. }
-        | State::Closed => return false,
-    }
-    let ordinary = ordinary_left(run, now);
-    let exhausted = if ordinary.turns == 0 {
-        Some(Exhausted::Turns)
-    } else if ordinary.spend == 0 {
-        Some(Exhausted::Spend)
-    } else if ordinary.time == Duration::ZERO {
-        Some(Exhausted::Time)
-    } else {
-        None
-    };
-    match exhausted {
-        Some(exhausted) => begin_wind_down(run, ready, id, Cause::Budget(exhausted)),
-        None => false,
-    }
-}
-
-fn ordinary_left(run: &Run, now: Time) -> crate::Budget {
-    let reserved_spend =
-        crate::budget::reserve_spend(run.charter.reserve, &run.charter.llm).expect("admission checked reserve spend");
-    crate::budget::ordinary(
-        &run.charter.budget,
-        run.charter.reserve,
-        reserved_spend,
-        run.spent,
-        run.deadline.saturating_since(now),
-    )
-}
-
-fn begin_wind_down(run: &mut Run, ready: &mut crate::wind_down::Ready, id: Id<Run>, cause: Cause) -> bool {
-    match run.wind_down {
-        Some(_) => false,
-        None => {
-            run.wind_down = Some(crate::wind_down::WindDown::new(run.children.len(), cause));
-            match run.charter.mode {
-                Mode::Open => ready.keep(id),
-                Mode::Finite => {
-                    if !run.children.is_empty() {
-                        ready.keep(id);
-                    }
-                }
-            }
-            true
-        }
-    }
-}
-
 fn hard_stop(
     state: State,
     conversations: &mut Slab<Conversation>,
@@ -910,25 +649,25 @@ fn hard_stop(
 ) -> State {
     match state {
         State::Working { reply_to, main } | State::Listening { reply_to, main, until: _ } => {
-            wind_down(conversations, reply_to, main, Ending::Failed(failure), out)
+            wind_down(conversations, reply_to, main, failed_ending(failure), out)
         }
         State::Waiting { reply_to, main, call, .. } => {
             out.push(Request::Return { spent: 0, call, result: Returned::Cancelled });
-            wind_down(conversations, reply_to, main, Ending::Failed(failure), out)
+            wind_down(conversations, reply_to, main, failed_ending(failure), out)
         }
         State::Winding { reply_to, ending } => {
             let ending = hard_ending(ending, failure);
             State::Winding { reply_to, ending }
         }
         State::Awaiting { .. } | State::Preparing { .. } | State::Stopping { .. } | State::Closed => {
-            unreachable!("actual usage is reported only by live admitted conversations")
+            unreachable!("usage is reported only by live admitted conversations")
         }
     }
 }
 
 fn hard_ending(ending: Ending, failure: Failure) -> Ending {
     match failure {
-        Failure::Budget { exhausted: Exhausted::Overflow(_), .. } => Ending::Failed(failure),
+        Failure::Budget { exhausted: Exhausted::Overflow(_), .. } => failed_ending(failure),
         Failure::Transcript(_)
         | Failure::Model(_)
         | Failure::Budget { exhausted: _, .. }
@@ -936,233 +675,8 @@ fn hard_ending(ending: Ending, failure: Failure) -> Ending {
         | Failure::Cancelled
         | Failure::Stale => match ending {
             ending @ Ending::Accepted(Declared::Change(_)) => ending,
-            Ending::Accepted(_) | Ending::Parked | Ending::Failed(_) => Ending::Failed(failure),
+            Ending::Accepted(_) | Ending::Parked | Ending::Over(_) | Ending::Failed(_) => failed_ending(failure),
         },
-    }
-}
-
-/// The completion's spend bound, supplied by the root (protocol/programs.md 5.7).
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum Most {
-    /// The direct backend's priced worst case, released at settlement.
-    Bounded(u64),
-    /// A program's unknown cost, charged in full at settlement.
-    Unreserved,
-}
-
-impl Most {
-    fn reserved(self) -> u64 {
-        match self {
-            Self::Bounded(amount) => amount,
-            Self::Unreserved => 0,
-        }
-    }
-}
-
-/// Admit unsent work, starting the finishing phase before any provider effect.
-pub(crate) fn completion_permit(domain: &mut Domain, conversation: Token, now: Time, most: Most) -> CompletionPermit {
-    let id = Id::<Conversation>::from_token(conversation);
-    let Some(conversation) = domain.conversations.get(id) else {
-        return CompletionPermit::Closing;
-    };
-    match conversation.phase {
-        Phase::Running { .. } => {}
-        Phase::Pending | Phase::Opening | Phase::Unwanted | Phase::Closing | Phase::Closed => {
-            return CompletionPermit::Closing;
-        }
-    }
-    let run_id = conversation.run;
-    let child = conversation.asker.is_some();
-    let run = domain.runs.get_mut(run_id).expect("conversation retains run");
-    match run.state {
-        State::Working { .. } => {}
-        State::Listening { .. }
-        | State::Waiting { .. }
-        | State::Winding { .. }
-        | State::Awaiting { .. }
-        | State::Preparing { .. }
-        | State::Stopping { .. }
-        | State::Closed => return CompletionPermit::Closing,
-    }
-    let ordinary = ordinary_left(run, now);
-    let spend_left = ordinary.spend.saturating_sub(run.reserved);
-    let spend_exhausted = match most {
-        Most::Bounded(amount) => amount > spend_left,
-        Most::Unreserved => spend_left == 0,
-    };
-    let changed = if ordinary.turns <= run.reserved_turns {
-        begin_wind_down(run, &mut domain.ready, run_id, Cause::Budget(Exhausted::Turns))
-    } else if spend_exhausted {
-        begin_wind_down(run, &mut domain.ready, run_id, Cause::Budget(Exhausted::Spend))
-    } else if ordinary.time == Duration::ZERO {
-        begin_wind_down(run, &mut domain.ready, run_id, Cause::Budget(Exhausted::Time))
-    } else {
-        false
-    };
-    if changed {
-        domain.facts.begin(now);
-        domain.facts.about(run_id.token());
-        domain.facts.push(FactKind::Budget { run: run_id.token(), standing: standing(run, now), call: None });
-    }
-    let permit = working_permit(run, child, now);
-    if child && permit == CompletionPermit::Closing {
-        let exhausted = run.wind_down.as_ref().expect("closing child is winding down").cause().exhausted();
-        domain.conversations.get_mut(id).expect("live child").budget_close = exhausted;
-    }
-    follow(&mut domain.runs, &mut domain.alarms, &mut domain.facts, &mut domain.ready, run_id);
-    permit
-}
-
-fn working_permit(run: &mut Run, child: bool, now: Time) -> CompletionPermit {
-    if child && run.wind_down.is_some() {
-        return CompletionPermit::Closing;
-    }
-    if now >= run.deadline {
-        return CompletionPermit::Denied(Exhausted::Time);
-    }
-    if child && ordinary_left(run, now).spend <= run.reserved {
-        return CompletionPermit::Denied(Exhausted::Spend);
-    }
-    if let Some(exhausted) = run.charter.budget.exhausted(run.spent) {
-        return CompletionPermit::Denied(exhausted);
-    }
-    if !child && completion_held(run) {
-        return CompletionPermit::Held;
-    }
-    match &mut run.wind_down {
-        Some(crate::wind_down::WindDown::Settling { .. }) => CompletionPermit::Held,
-        Some(crate::wind_down::WindDown::Finishing { used, noted, cause }) => {
-            if *used >= run.charter.reserve.turns {
-                let reason = if run.charter.reserve.turns == 0 && *cause == Cause::Budget(Exhausted::Spend) {
-                    Exhausted::Spend
-                } else {
-                    Exhausted::Turns
-                };
-                return CompletionPermit::Denied(reason);
-            }
-            let note = if *noted {
-                None
-            } else {
-                *noted = true;
-                Some(prompt::wind_down_note(
-                    run.charter.mode,
-                    *cause,
-                    charter::Reserve {
-                        time: run.charter.reserve.time.min(run.deadline.saturating_since(now)),
-                        ..run.charter.reserve
-                    },
-                ))
-            };
-            CompletionPermit::Final { note }
-        }
-        None => CompletionPermit::Allowed,
-    }
-}
-
-fn final_remaining(run: &Run, now: Time) -> Result<(), Exhausted> {
-    if let Some(exhausted) = run.charter.budget.exhausted(run.spent) {
-        return Err(exhausted);
-    }
-    if now >= run.deadline {
-        return Err(Exhausted::Time);
-    }
-    match &run.wind_down {
-        Some(crate::wind_down::WindDown::Finishing { used, cause, .. }) if *used >= run.charter.reserve.turns => {
-            Err(if run.charter.reserve.turns == 0 && *cause == Cause::Budget(Exhausted::Spend) {
-                Exhausted::Spend
-            } else {
-                Exhausted::Turns
-            })
-        }
-        Some(crate::wind_down::WindDown::Finishing { .. } | crate::wind_down::WindDown::Settling { .. }) | None => {
-            Ok(())
-        }
-    }
-}
-
-fn completion_held(run: &Run) -> bool {
-    let pending = run.turns.checked_sub(run.acknowledged).expect("acknowledged prefix never exceeds turns");
-    let next_bytes = match u64::from(pending).checked_add(1) {
-        Some(count) => count.checked_mul(run.window.largest_turn),
-        None => None,
-    };
-    pending >= run.window.turns
-        || match next_bytes {
-            Some(bytes) => bytes > run.window.bytes,
-            None => true,
-        }
-}
-
-/// Reserve one completion against the run's shared unspent ceiling before the
-/// parent publishes it. Every live conversation can hold at most one.
-pub(crate) fn reserve(domain: &mut Domain, conversation: Token, owner: Token, most: Most) -> Result<(), Exhausted> {
-    let id = Id::<Conversation>::from_token(conversation);
-    let conversation = domain.conversations.get_mut(id).expect("a provider request retains its conversation");
-    assert!(conversation.reservation.is_none(), "a conversation sends one completion at a time");
-    let run = domain.runs.get_mut(conversation.run).expect("conversation retains run");
-    let committed = run.spent.units.checked_add(run.reserved).ok_or(Exhausted::Overflow(crate::Overflow::Spend))?;
-    let total = committed.checked_add(most.reserved()).ok_or(Exhausted::Overflow(crate::Overflow::Spend))?;
-    let final_turn = match &run.wind_down {
-        Some(crate::wind_down::WindDown::Finishing { used, .. }) if conversation.asker.is_none() => {
-            if *used >= run.charter.reserve.turns {
-                return Err(Exhausted::Turns);
-            }
-            true
-        }
-        Some(_) => return Err(Exhausted::Turns),
-        None => false,
-    };
-    if !final_turn {
-        let turn_ceiling = run.charter.budget.turns.checked_sub(run.charter.reserve.turns).expect("admitted reserve");
-        let next_turn = match run.spent.turns.checked_add(run.reserved_turns) {
-            Some(turns) => turns.checked_add(1),
-            None => None,
-        }
-        .ok_or(Exhausted::Overflow(crate::Overflow::Usage))?;
-        if next_turn > turn_ceiling {
-            return Err(Exhausted::Turns);
-        }
-    }
-    let spend_ceiling = if final_turn {
-        run.charter.budget.spend
-    } else {
-        let reserved = crate::budget::reserve_spend(run.charter.reserve, &run.charter.llm).expect("admitted reserve");
-        run.charter.budget.spend.checked_sub(reserved).expect("admitted reserve")
-    };
-    let exhausted = match most {
-        Most::Bounded(_) => total > spend_ceiling,
-        Most::Unreserved => committed >= spend_ceiling,
-    };
-    if exhausted {
-        return Err(Exhausted::Spend);
-    }
-    if final_turn {
-        match &mut run.wind_down {
-            Some(crate::wind_down::WindDown::Finishing { used, .. }) => {
-                *used = used.checked_add(1).expect("bounded final completions");
-            }
-            Some(crate::wind_down::WindDown::Settling { .. }) | None => unreachable!("final turn admitted"),
-        }
-    }
-    run.reserved = run.reserved.checked_add(most.reserved()).expect("checked with total above");
-    run.reserved_turns = run.reserved_turns.checked_add(1).expect("one bounded reservation per conversation");
-    conversation.reservation = Some((owner, most));
-    Ok(())
-}
-
-/// Return unused credit after the provider's terminal. An overbound charge is
-/// rejected by the caller before it can enter the session's spend record.
-pub(crate) fn settle_reservation(domain: &mut Domain, conversation: Token, owner: Token, charge: u64) -> bool {
-    let id = Id::<Conversation>::from_token(conversation);
-    let conversation = domain.conversations.get_mut(id).expect("a provider terminal retains its conversation");
-    let (reserved_owner, most) = conversation.reservation.take().expect("every sent completion was reserved");
-    assert!(reserved_owner == owner, "provider terminal settles its own reservation");
-    let run = domain.runs.get_mut(conversation.run).expect("conversation retains run");
-    run.reserved = run.reserved.checked_sub(most.reserved()).expect("reservation belongs to this run");
-    run.reserved_turns = run.reserved_turns.checked_sub(1).expect("reservation belongs to this run");
-    match most {
-        Most::Bounded(amount) => charge <= amount,
-        Most::Unreserved => true,
     }
 }
 
@@ -1332,7 +846,7 @@ pub(crate) fn withdraw(domain: &mut Domain, conversation: Token, call: Token, ou
     let Some(id) = domain.calls.find(conversation, call) else {
         return;
     };
-    // The call is settling now: its deadline no longer matters.
+    // The call is settling now: its deadline is irrelevant.
     domain.alarms.cancel(Alarm::Call { call: id });
     stop_call(domain, id, Withdrawal::Withdrawn, out);
 }
@@ -1351,7 +865,9 @@ pub(crate) fn checked(domain: &mut Domain, env: &Env<Limits>, owner: Token, ran:
     domain.facts.push(FactKind::CheckFinished { run: call.run.token(), exit: ran.exit });
     out.push(Request::ChecksEnded { host_run: run.host_name });
     let settled = match &mut call.work {
-        Work::Landing(landing) => land::checked(landing, id, call.owner, run, may_finish(&run.state), ran, env, out),
+        Work::Landing(landing) => {
+            land::checked(landing, id, call.owner, run, working_main(&run.state).is_some(), ran, env, out)
+        }
         Work::Child(_) | Work::Host(_) => unreachable!("io and the host answer only a landing's requests"),
     };
     settle(domain, id, settled, out);
@@ -1391,15 +907,8 @@ pub(crate) fn delivered(domain: &mut Domain, owner: Token, delivery: Delivery, o
 }
 
 fn child_ready(run: &Run, out: &mut Queue<Request>) {
-    match run.state {
-        State::Working { main, .. } => out.push(Request::CompletionReady { conversation: main.token() }),
-        State::Preparing { .. }
-        | State::Awaiting { .. }
-        | State::Stopping { .. }
-        | State::Listening { .. }
-        | State::Waiting { .. }
-        | State::Winding { .. }
-        | State::Closed => {}
+    if let Some(main) = working_main(&run.state) {
+        out.push(Request::CompletionReady { conversation: main.token() });
     }
 }
 
@@ -1429,7 +938,7 @@ pub(crate) fn ended(
     detail: Box<[u8]>,
     out: &mut Queue<Request>,
 ) {
-    let Domain { rng: _, runs, conversations, calls, alarms, facts, ready } = domain;
+    let Domain { rng: _, runs, conversations, calls: _, alarms: _, facts, ready } = domain;
     let id = Id::<Conversation>::from_token(conversation);
     let Some(conversation) = conversations.get_mut(id) else {
         return;
@@ -1470,43 +979,93 @@ pub(crate) fn ended(
         run.state = hard_stop(state, conversations, failure, out);
     }
     run.conversations = run.conversations.checked_sub(1).expect("a run counts its conversations");
-    // A sub-agent's end is its call's return.
-    if let Some(asker) = asker {
-        assert!(run.children.remove(&id), "a child is retained until its terminal");
-        let finishing = match &mut run.wind_down {
-            Some(phase) => phase.child_ended(),
-            None => false,
-        };
-        if writing {
-            run.lease.child_returned(asker);
-        }
-        let left = crate::budget::left(&snapshot);
-        let call = calls.get_mut(asker).expect("a sub-agent's call lives until it has ended");
-        let result = match &mut call.work {
-            Work::Child(child) => {
-                let end = match budget_close {
-                    Some(exhausted) if end == End::Closed => End::Budget(exhausted),
-                    Some(_) | None => end,
-                };
-                agent::ended(child, end, used, left)
-            }
-            Work::Landing(_) | Work::Host(_) => unreachable!("a sub-agent serves a sub-agent's call"),
-        };
-        let told = tells_budget(&result);
-        if told || unaccounted.turns > 0 || changed {
-            let call = if told { Some(call.owner) } else { None };
-            facts.push(FactKind::Budget { run: run_id.token(), standing: snapshot, call });
-        }
-        crate::facts::child_returned(facts, run_id.token(), call.owner, &result, used);
-        out.push(Request::Return { spent: bill, call: call.owner, result });
-        retire_call(calls, alarms, conversations, asker);
-        if finishing {
-            ready.keep(run_id);
-            child_ready(run, out);
-        }
-        return;
+    let budget_changed = unaccounted.turns > 0 || changed;
+    match asker {
+        Some(asker) => child_ended(
+            domain,
+            run_id,
+            id,
+            asker,
+            end,
+            budget_close,
+            writing,
+            used,
+            snapshot,
+            bill,
+            budget_changed,
+            out,
+        ),
+        None => main_ended(domain, run_id, id, end, failure, detail, snapshot, budget_changed, out),
     }
-    if unaccounted.turns > 0 || changed {
+}
+
+#[expect(clippy::too_many_arguments, reason = "a cell handler takes the fields it touches")]
+fn child_ended(
+    domain: &mut Domain,
+    run_id: Id<Run>,
+    id: Id<Conversation>,
+    asker: Id<Call>,
+    end: End,
+    budget_close: Option<Exhausted>,
+    writing: bool,
+    used: crate::facts::Used,
+    snapshot: crate::facts::Standing,
+    bill: u64,
+    budget_changed: bool,
+    out: &mut Queue<Request>,
+) {
+    let Domain { rng: _, runs, conversations, calls, alarms, facts, ready } = domain;
+    let run = runs.get_mut(run_id).expect("a run lives until its conversations have ended");
+    assert!(run.children.remove(&id), "a child is retained until its terminal");
+    let finishing = match &mut run.wind_down {
+        Some(phase) => phase.child_ended(),
+        None => false,
+    };
+    if writing {
+        run.lease.child_returned(asker);
+    }
+    let left = crate::budget::left(&snapshot);
+    let call = calls.get_mut(asker).expect("a sub-agent's call lives until it has ended");
+    let result = match &mut call.work {
+        Work::Child(child) => {
+            let end = match budget_close {
+                Some(exhausted) if end == End::Closed => End::Budget(exhausted),
+                Some(_) | None => end,
+            };
+            agent::ended(child, end, used, left)
+        }
+        Work::Landing(_) | Work::Host(_) => unreachable!("a sub-agent serves a sub-agent's call"),
+    };
+    let told = tells_budget(&result);
+    if told || budget_changed {
+        let call = if told { Some(call.owner) } else { None };
+        facts.push(FactKind::Budget { run: run_id.token(), standing: snapshot, call });
+    }
+    crate::facts::child_returned(facts, run_id.token(), call.owner, &result, used);
+    out.push(Request::Return { spent: bill, call: call.owner, result });
+    retire_call(calls, alarms, conversations, asker);
+    if finishing {
+        ready.keep(run_id);
+        child_ready(run, out);
+    }
+    follow(runs, alarms, facts, ready, run_id);
+}
+
+#[expect(clippy::too_many_arguments, reason = "a cell handler takes the fields it touches")]
+fn main_ended(
+    domain: &mut Domain,
+    run_id: Id<Run>,
+    id: Id<Conversation>,
+    end: End,
+    failure: Option<Failure>,
+    detail: Box<[u8]>,
+    snapshot: crate::facts::Standing,
+    budget_changed: bool,
+    out: &mut Queue<Request>,
+) {
+    let Domain { rng: _, runs, conversations: _, calls: _, alarms, facts, ready } = domain;
+    let run = runs.get_mut(run_id).expect("a run lives until its conversations have ended");
+    if budget_changed {
         facts.push(FactKind::Budget { run: run_id.token(), standing: snapshot, call: None });
     }
     let state = mem::replace(&mut run.state, State::Closed);
@@ -1520,10 +1079,10 @@ pub(crate) fn ended(
         }
         State::Winding { reply_to, ending } => {
             let ending = match failure {
-                Some(failure) => Ending::Failed(failure),
+                Some(failure) => failed_ending(failure),
                 None => ending,
             };
-            let completed = budget_answer(finished(ending, run.spent, run.turns), run, facts.now());
+            let completed = finished(ending, run, facts.now());
             answer(reply_to, completed, run.inbox.fence(), detail, out)
         }
         State::Awaiting { .. } | State::Preparing { .. } | State::Stopping { .. } | State::Closed => {
@@ -1545,7 +1104,7 @@ pub(crate) fn deadline(domain: &mut Domain, id: Id<Run>, out: &mut Queue<Request
     let state = mem::replace(&mut run.state, State::Closed);
     run.state = match state {
         State::Awaiting { reply_to, main, until: _ } => {
-            unopened(run, conversations, reply_to, main, finished(Ending::Parked, run.spent, run.turns), out)
+            unopened(run, conversations, reply_to, main, Answer::Parked { spent: run.spent, turns: run.turns }, out)
         }
         State::Listening { reply_to, main, until: _ } => {
             assert!(!run.inbox.has_queued(), "an admitted wake cancels idle expiry");
@@ -1562,7 +1121,7 @@ pub(crate) fn deadline(domain: &mut Domain, id: Id<Run>, out: &mut Queue<Request
                 facts.push(FactKind::Budget { run: id.token(), standing: standing(run, facts.now()), call: None });
                 State::Working { reply_to, main }
             }
-            None | Some(_) => wind_down(conversations, reply_to, main, Ending::Failed(failure), out),
+            None | Some(_) => wind_down(conversations, reply_to, main, failed_ending(failure), out),
         },
         // It was past its budget first.
         State::Stopping { .. } | State::Winding { .. } | State::Closed => {
@@ -1572,7 +1131,7 @@ pub(crate) fn deadline(domain: &mut Domain, id: Id<Run>, out: &mut Queue<Request
     follow(runs, alarms, facts, ready, id);
 }
 
-/// Child parentage copied from its owned call for the actual opening fact.
+/// Child parentage copied from its owned call for the opening fact.
 pub(crate) fn opened(conversations: &Slab<Conversation>, conversation: Token) -> crate::facts::Kind {
     conversations.get(Id::from_token(conversation)).expect("a conversation is told of as it opens").kind
 }
@@ -1682,16 +1241,16 @@ fn follow(
 
 /// Whether a working run may still finish, including its final completion
 /// with main's turn in flight.
-fn may_finish(state: &State) -> bool {
+fn working_main(state: &State) -> Option<Id<Conversation>> {
     match state {
-        State::Working { .. } => true,
+        State::Working { main, .. } => Some(*main),
         State::Awaiting { .. }
         | State::Preparing { .. }
         | State::Stopping { .. }
         | State::Listening { .. }
         | State::Waiting { .. }
         | State::Winding { .. }
-        | State::Closed => false,
+        | State::Closed => None,
     }
 }
 
@@ -1835,7 +1394,14 @@ fn ready(
     }
     out.push(Request::Waiting { host_run: run.host_name, read: None });
     if run.charter.waiting == Duration::ZERO || run.wind_down.is_some() {
-        return unopened(run, conversations, reply_to, main, finished(Ending::Parked, run.spent, run.turns), out);
+        return unopened(
+            run,
+            conversations,
+            reply_to,
+            main,
+            Answer::Parked { spent: run.spent, turns: run.turns },
+            out,
+        );
     }
     State::Awaiting { reply_to, main, until: env.now.saturating_add(run.charter.waiting) }
 }
@@ -1926,7 +1492,7 @@ fn finish(
     env: &Env<Limits>,
     out: &mut Queue<Request>,
 ) -> State {
-    let Asking { name, call, deadline } = made;
+    let call = made.call;
     let conversation = conversations.get(main).expect("main lives while its run works");
     assert!(conversation.calls == 0, "a finish is a write, which a conversation runs alone");
     if run.charter.grants.wait && run.inbox.has_queued() {
@@ -1949,27 +1515,7 @@ fn finish(
             wind_down(conversations, reply_to, main, Ending::Accepted(completed), out)
         }
         Declared::Change(change) => {
-            if name.activation != run.activation || name.completion == 0 {
-                out.push(Request::Return { spent: 0, call, result: Returned::Refused { refusal: AskRefusal::Name } });
-                return State::Working { reply_to, main };
-            }
-            if deadline <= env.now {
-                out.push(Request::Return { spent: 0, call, result: Returned::TimedOut });
-                return State::Working { reply_to, main };
-            }
-            if calls.is_full() {
-                out.push(Request::Return { spent: 0, call, result: Returned::Busy });
-                return State::Working { reply_to, main };
-            }
-            let work = Work::Landing(land::landing(change, name, deadline, true));
-            let id = begin_call(calls, alarms, Call { run: run_id, conversation: main, owner: call, work }, deadline);
-            run.lease.workspace(id.token());
-            match &mut calls.get_mut(id).expect("inserted above").work {
-                Work::Landing(landing) => land::cancel_jobs(landing, jobs::peer(conversations, main), out),
-                Work::Child(_) | Work::Host(_) => unreachable!("inserted as a landing"),
-            }
-            let conversation = conversations.get_mut(main).expect("main lives while its run works");
-            conversation.calls = conversation.calls.saturating_add(1);
+            begin_landing(run, run_id, conversations, calls, alarms, main, made, change, true, env.now, out);
             State::Working { reply_to, main }
         }
     }
@@ -1988,13 +1534,13 @@ fn deliver(
     env: &Env<Limits>,
     out: &mut Queue<Request>,
 ) {
-    let Asking { name, call, deadline } = made;
+    let call = made.call;
     assert!(conversations.get(main).expect("main lives").calls == 0, "delivery is an exclusive write");
     let Some(spec) = &run.charter.grants.deliver else {
         out.push(Request::Return { spent: 0, call, result: Returned::Refused { refusal: AskRefusal::NotGranted } });
         return;
     };
-    let judged = match outcome::change_bytes(&change) {
+    let judged = match change.owned_bytes() {
         Some(bytes) if bytes <= env.limits.outcome_bytes => outcome::judge_change(spec, &change),
         Some(_) | None => Err(outcome::too_large(env.limits.outcome_bytes)),
     };
@@ -2003,11 +1549,29 @@ fn deliver(
         out.push(Request::Return { spent: 0, call, result: Returned::Rejected { problems } });
         return;
     }
+    begin_landing(run, run_id, conversations, calls, alarms, main, made, change, false, env.now, out);
+}
+
+#[expect(clippy::too_many_arguments, reason = "landing admission receives its owning tables and immutable call")]
+fn begin_landing(
+    run: &mut Run,
+    run_id: Id<Run>,
+    conversations: &mut Slab<Conversation>,
+    calls: &mut Calls,
+    alarms: &mut Deadlines<Alarm>,
+    main: Id<Conversation>,
+    made: Asking,
+    change: Change,
+    finish: bool,
+    now: Time,
+    out: &mut Queue<Request>,
+) {
+    let Asking { name, call, deadline } = made;
     if name.activation != run.activation || name.completion == 0 {
         out.push(Request::Return { spent: 0, call, result: Returned::Refused { refusal: AskRefusal::Name } });
         return;
     }
-    if deadline <= env.now {
+    if deadline <= now {
         out.push(Request::Return { spent: 0, call, result: Returned::TimedOut });
         return;
     }
@@ -2015,12 +1579,12 @@ fn deliver(
         out.push(Request::Return { spent: 0, call, result: Returned::Busy });
         return;
     }
-    let work = Work::Landing(land::landing(change, name, deadline, false));
+    let work = Work::Landing(land::landing(change, name, deadline, finish));
     let id = begin_call(calls, alarms, Call { run: run_id, conversation: main, owner: call, work }, deadline);
     run.lease.workspace(id.token());
     match &mut calls.get_mut(id).expect("inserted above").work {
         Work::Landing(landing) => land::cancel_jobs(landing, jobs::peer(conversations, main), out),
-        Work::Child(_) | Work::Host(_) => unreachable!("inserted as delivery"),
+        Work::Child(_) | Work::Host(_) => unreachable!("inserted as landing"),
     }
     let main = conversations.get_mut(main).expect("main lives");
     main.calls = main.calls.checked_add(1).expect("bounded exclusive call");
@@ -2031,171 +1595,6 @@ struct Asking {
     name: CallName,
     call: Token,
     deadline: Time,
-}
-
-/// What a conversation asks for when it asks for a sub-agent.
-struct Wanted {
-    brief: Box<[u8]>,
-    families: Families,
-    llm: Option<Box<[u8]>>,
-    share: Share,
-}
-
-/// Working: the conversation `asker` asked for a sub-agent as `made`. Open
-/// it, with no more time than to the call's deadline, or return why not.
-#[expect(clippy::too_many_arguments, reason = "a cell handler takes the fields it touches")]
-fn sub_agent(
-    run: &mut Run,
-    run_id: Id<Run>,
-    conversations: &mut Slab<Conversation>,
-    calls: &mut Calls,
-    alarms: &mut Deadlines<Alarm>,
-    asker: Id<Conversation>,
-    made: Asking,
-    wanted: Wanted,
-    env: &Env<Limits>,
-    out: &mut Queue<Request>,
-) {
-    let Asking { call, deadline, name: _ } = made;
-    if u64::try_from(wanted.brief.len()).unwrap_or(u64::MAX) > env.limits.host_part {
-        out.push(Request::Return {
-            spent: 0,
-            call,
-            result: Returned::Refused { refusal: AskRefusal::TooLarge { bound: env.limits.host_part } },
-        });
-        return;
-    }
-    let asking = conversations.get(asker).expect("a conversation lives until it has ended");
-    let left = run.deadline.saturating_since(env.now);
-    let means = Means {
-        spent: run.spent,
-        conversations: run.conversations,
-        left,
-        call_left: deadline.saturating_since(env.now),
-    };
-    if run.charter.budget.exhausted(run.spent).is_some() {
-        out.push(Request::Return { spent: 0, call, result: Returned::Refused { refusal: AskRefusal::Over } });
-        return;
-    }
-    let planned = agent::plan(
-        &run.charter,
-        means,
-        asking.families,
-        wanted.families,
-        wanted.llm.as_deref(),
-        wanted.share,
-        &env.limits,
-    );
-    let plan = match planned {
-        Ok(plan) => plan,
-        Err(refusal) => {
-            out.push(Request::Return { spent: 0, call, result: Returned::Refused { refusal } });
-            return;
-        }
-    };
-    assert!(
-        plan.budget == crate::Budget { turns: plan.granted.turns, time: plan.granted.time, spend: plan.granted.spend },
-        "a child's opening budget is exactly its effective grant"
-    );
-    match prompt::child_host_bytes(&run.charter, run.workspace.as_ref(), &run.found, &wanted.brief, plan.families) {
-        Some(bytes) if bytes <= env.limits.host_part => {}
-        Some(_) | None => {
-            out.push(Request::Return {
-                spent: 0,
-                call,
-                result: Returned::Refused { refusal: AskRefusal::TooLarge { bound: env.limits.host_part } },
-            });
-            return;
-        }
-    }
-    if conversations.is_full() || calls.is_full() {
-        out.push(Request::Return { spent: 0, call, result: Returned::Busy });
-        return;
-    }
-    let ordinal = run.next_ordinal;
-    let Some(next_ordinal) = ordinal.checked_add(1) else {
-        out.push(Request::Return { spent: 0, call, result: Returned::Refused { refusal: AskRefusal::TooMany } });
-        return;
-    };
-    // A call is stored before its child, which names it, and holds the child
-    // once the child has a name too.
-    let unnamed = Call { run: run_id, conversation: asker, owner: call, work: Work::Child(Child::Closed) };
-    let id = begin_call(calls, alarms, unnamed, deadline);
-    if plan.families.tools.modify || plan.families.tools.shell {
-        run.lease.child(id);
-    } else {
-        run.lease.assert_free();
-    }
-    let child = Conversation {
-        run: run_id,
-        kind: crate::facts::Kind::Child { parent: asker.token(), call, asked: wanted.share, granted: plan.granted },
-        opened_at: env.now,
-        asker: Some(id),
-        families: plan.families,
-        spent: Spend::ZERO,
-        subtree_spent: 0,
-        reservation: None,
-        budget_close: None,
-        calls: 0,
-        phase: Phase::Opening,
-    };
-    let child = conversations.insert(child).expect("checked for room above");
-    run.children.insert(child).expect("admitted child count fits run slots");
-    calls.get_mut(id).expect("inserted above").work = Work::Child(agent::working(child));
-    let asking = conversations.get_mut(asker).expect("a conversation lives until it has ended");
-    asking.calls = asking.calls.saturating_add(1);
-    run.conversations = run.conversations.saturating_add(1);
-    run.next_ordinal = next_ordinal;
-    let opening = child_opening(run, &wanted.brief, plan, ordinal, &env.limits);
-    if plan_writing(conversations, child) {
-        calls.get_mut(id).expect("admitted child call").work =
-            Work::Child(Child::Cancelling { child, opening: Box::new(opening), deadline, why: None });
-        out.push(Request::CancelJobs { peer: jobs::peer(conversations, asker) });
-    } else {
-        out.push(Request::Open { conversation: child.token(), opening });
-    }
-}
-
-fn plan_writing(conversations: &Slab<Conversation>, child: Id<Conversation>) -> bool {
-    let families = conversations.get(child).expect("admitted child").families;
-    families.tools.modify || families.tools.shell
-}
-
-/// Render an admitted child's immutable opening from its effective grant.
-fn child_opening(run: &Run, brief: &[u8], plan: agent::Plan, ordinal: u32, limits: &Limits) -> Opening {
-    Opening {
-        final_turn: Some(crate::FinalTurn {
-            note: prompt::child_final_note(),
-            allowance: agent::final_allowance(plan.budget.time, limits.wrap_up),
-        }),
-        generated_schema_bytes: 0,
-        identity: run.identity,
-        ordinal,
-        activation: run.activation,
-        transcript: None,
-        wait: false,
-        host_tools: Box::new([]),
-        deliver: false,
-        system: prompt::child(
-            &run.charter,
-            run.workspace.as_ref(),
-            &run.found,
-            brief,
-            plan.families,
-            plan.granted,
-            limits.answer_bytes,
-        ),
-        prompt: copy_of(prompt::BEGIN),
-        summary: copy_of(prompt::SUMMARY),
-        preamble: copy_of(prompt::PREAMBLE),
-        tools: plan.families.tools,
-        workspace: run.workspace.clone(),
-        budget: plan.budget,
-        finish: false,
-        families: plan.families,
-        line: charter::line(&plan.llm, limits.compaction_material),
-        llm: plan.llm,
-    }
 }
 
 /// Stores `call`, there being room, and arms its deadline.
@@ -2257,13 +1656,7 @@ fn working_again(
 ) -> State {
     match final_remaining(run, now) {
         Ok(()) => State::Working { reply_to, main },
-        Err(exhausted) => wind_down(
-            conversations,
-            reply_to,
-            main,
-            Ending::Failed(Failure::Budget { exhausted, used: None, bound: None }),
-            out,
-        ),
+        Err(exhausted) => wind_down(conversations, reply_to, main, Ending::Over(exhausted), out),
     }
 }
 
@@ -2323,22 +1716,36 @@ fn answer(
 fn budget_answer(answer: Answer, run: &Run, now: Time) -> Answer {
     match answer {
         Answer::Failed { failure: Failure::Budget { exhausted, .. }, spent, turns } => {
-            let fields = match exhausted {
-                Exhausted::Turns => Some((u64::from(run.spent.turns), u64::from(run.charter.budget.turns))),
-                Exhausted::Spend => Some((run.spent.units, run.charter.budget.spend)),
-                Exhausted::Time => Some((
-                    now.saturating_since(run.started_at).as_nanos() / 1_000_000,
-                    run.charter.budget.time.as_nanos() / 1_000_000,
-                )),
-                Exhausted::Tokens(_) | Exhausted::Overflow(_) => None,
-            };
-            let (used, bound) = match fields {
-                Some((used, bound)) => (Some(used), Some(bound)),
-                None => (None, None),
-            };
-            Answer::Failed { failure: Failure::Budget { exhausted, used, bound }, spent, turns }
+            Answer::Failed { failure: budget_failure(exhausted, run, now), spent, turns }
         }
         other @ (Answer::Failed { .. } | Answer::Accepted { .. } | Answer::Parked { .. } | Answer::Refused(_)) => other,
+    }
+}
+
+fn budget_failure(exhausted: Exhausted, run: &Run, now: Time) -> Failure {
+    let fields = match exhausted {
+        Exhausted::Turns => Some((u64::from(run.spent.turns), u64::from(run.charter.budget.turns))),
+        Exhausted::Spend => Some((run.spent.units, run.charter.budget.spend)),
+        Exhausted::Time => {
+            Some((now.saturating_since(run.started_at).as_millis(), run.charter.budget.time.as_millis()))
+        }
+        Exhausted::Tokens(_) | Exhausted::Overflow(_) => None,
+    };
+    let (used, bound) = match fields {
+        Some((used, bound)) => (Some(used), Some(bound)),
+        None => (None, None),
+    };
+    Failure::Budget { exhausted, used, bound }
+}
+
+fn failed_ending(failure: Failure) -> Ending {
+    match failure {
+        Failure::Budget { exhausted, .. } => Ending::Over(exhausted),
+        failure @ (Failure::Transcript(_)
+        | Failure::Model(_)
+        | Failure::Policy(_)
+        | Failure::Cancelled
+        | Failure::Stale) => Ending::Failed(failure),
     }
 }
 
@@ -2381,10 +1788,13 @@ fn ending(end: End, spent: Spend, turns: u32) -> Answer {
 }
 
 /// The answer of a run that wound down to `ending`, having spent `spent`.
-fn finished(ending: Ending, spent: Spend, turns: u32) -> Answer {
+fn finished(ending: Ending, run: &Run, now: Time) -> Answer {
+    let spent = run.spent;
+    let turns = run.turns;
     match ending {
         Ending::Parked => Answer::Parked { spent, turns },
         Ending::Accepted(outcome) => Answer::Accepted { outcome, spent, turns },
+        Ending::Over(exhausted) => Answer::Failed { failure: budget_failure(exhausted, run, now), spent, turns },
         Ending::Failed(failure) => Answer::Failed { failure, spent, turns },
     }
 }
@@ -2421,273 +1831,6 @@ fn unfinished(stop: Stop, nudges: u32, rejected: u32) -> Failure {
         Stop::Refusal => Failure::Model(Fault::Declined),
         Stop::NoCalls => Failure::Model(Fault::Malformed),
     }
-}
-
-#[expect(
-    clippy::too_many_arguments,
-    reason = "host admission checks the owning conversation and immutable call fields"
-)]
-fn host_call(
-    run: &Run,
-    run_id: Id<Run>,
-    conversations: &mut Slab<Conversation>,
-    calls: &mut Calls,
-    alarms: &mut Deadlines<Alarm>,
-    conversation: Id<Conversation>,
-    made: Asking,
-    tool: Box<[u8]>,
-    effect: HostEffect,
-    input: HostInput,
-    env: &Env<Limits>,
-    out: &mut Queue<Request>,
-) {
-    let Asking { name, call, deadline } = made;
-    if conversations.get(conversation).expect("caller lives").asker.is_some() {
-        out.push(Request::Return { spent: 0, call, result: Returned::HostRejected(HostProblem::Undeclared) });
-        return;
-    }
-    let mut timeout = None;
-    for declaration in &run.charter.grants.host_tools {
-        if declaration.name == tool {
-            if declaration.effect != effect {
-                out.push(Request::Return { spent: 0, call, result: Returned::HostRejected(HostProblem::Effect) });
-                return;
-            }
-            timeout = Some(declaration.timeout.min(env.limits.host_timeout_max));
-        }
-    }
-    let Some(timeout) = timeout else {
-        out.push(Request::Return { spent: 0, call, result: Returned::HostRejected(HostProblem::Undeclared) });
-        return;
-    };
-    if input.bytes().len() > usize::try_from(env.limits.host_input_bytes).expect("byte cap fits") {
-        out.push(Request::Return { spent: 0, call, result: Returned::HostRejected(HostProblem::TooLarge) });
-        return;
-    }
-    if name.activation != run.activation || name.completion == 0 {
-        out.push(Request::Return { spent: 0, call, result: Returned::Refused { refusal: AskRefusal::Name } });
-        return;
-    }
-    if env.now >= deadline || env.now >= run.deadline {
-        out.push(Request::Return { spent: 0, call, result: Returned::TimedOut });
-        return;
-    }
-    if calls.is_full() {
-        out.push(Request::Return { spent: 0, call, result: Returned::Busy });
-        return;
-    }
-    let relay = HostRelay {
-        name,
-        tool,
-        effect,
-        input,
-        timeout,
-        caller_deadline: deadline.min(run.deadline),
-        stopped: None,
-        unknown: false,
-        stage: HostStage::Closed,
-    };
-    let work = Work::Host(relay);
-    let id = begin_call(calls, alarms, Call { run: run_id, conversation, owner: call, work }, deadline);
-    match &mut calls.get_mut(id).expect("inserted above").work {
-        Work::Host(relay) => host_send(relay, id, run.host_name, 1, env.now, out),
-        Work::Child(_) | Work::Landing(_) => unreachable!("inserted as host relay"),
-    }
-    let caller = conversations.get_mut(conversation).expect("caller lives");
-    caller.calls = caller.calls.checked_add(1).expect("bounded calls");
-    host_follow(calls, alarms, id);
-}
-
-fn host_send(relay: &mut HostRelay, id: Id<Call>, host_run: Token, attempt: u32, now: Time, out: &mut Queue<Request>) {
-    let deadline = now.saturating_add(relay.timeout).min(relay.caller_deadline);
-    assert!(now < deadline, "admission and recovery refuse expired relays");
-    out.push(Request::HostCall {
-        host_run,
-        relay: RelayName { owner: id.token(), attempt },
-        name: relay.name,
-        tool: relay.tool.clone(),
-        effect: relay.effect,
-        input: relay.input.clone(),
-        deadline,
-    });
-    relay.stage = HostStage::Sending { attempt, deadline };
-}
-
-fn host_follow(calls: &Calls, alarms: &mut Deadlines<Alarm>, id: Id<Call>) {
-    let relay = match &calls.get(id).expect("host call lives").work {
-        Work::Host(relay) => relay,
-        Work::Child(_) | Work::Landing(_) => unreachable!("host handler owns its call"),
-    };
-    let at = match relay.stage {
-        HostStage::Sending { deadline, .. } => Some(deadline),
-        HostStage::Backoff { at, .. } => Some(at),
-        HostStage::Withdrawing { .. } | HostStage::Closed => None,
-    };
-    if let Some(at) = at {
-        alarms.arm(Alarm::Host { call: id }, at).expect("two alarm slots per call");
-    } else {
-        alarms.cancel(Alarm::Host { call: id });
-    }
-}
-
-fn host_return(domain: &mut Domain, id: Id<Call>, result: Returned, out: &mut Queue<Request>) {
-    let call = domain.calls.get(id).expect("host call lives");
-    domain.facts.about(call.run.token());
-    let owner = call.owner;
-    out.push(Request::Return { spent: 0, call: owner, result });
-    retire_call(&mut domain.calls, &mut domain.alarms, &mut domain.conversations, id);
-}
-
-fn host_stop(domain: &mut Domain, id: Id<Call>, why: Withdrawal, out: &mut Queue<Request>) {
-    let call = domain.calls.get_mut(id).expect("caller lives until relay settles");
-    let relay = match &mut call.work {
-        Work::Host(relay) => relay,
-        Work::Child(_) | Work::Landing(_) => unreachable!("host stop dispatched by work kind"),
-    };
-    relay.stopped = relay.stopped.or(Some(why));
-    let stage = mem::replace(&mut relay.stage, HostStage::Closed);
-    let result = match stage {
-        HostStage::Sending { attempt, .. } => {
-            out.push(Request::WithdrawHost { relay: RelayName { owner: id.token(), attempt } });
-            relay.stage = HostStage::Withdrawing { attempt };
-            None
-        }
-        HostStage::Withdrawing { attempt } => {
-            relay.stage = HostStage::Withdrawing { attempt };
-            None
-        }
-        HostStage::Backoff { .. } => Some(if relay.unknown { Returned::HostUnknown } else { call::stopped(why) }),
-        HostStage::Closed => unreachable!("only a live call stops"),
-    };
-    if let Some(result) = result {
-        host_return(domain, id, result, out);
-    } else {
-        host_follow(&domain.calls, &mut domain.alarms, id);
-    }
-}
-
-pub(crate) fn host_alarm(domain: &mut Domain, env: &Env<Limits>, id: Id<Call>, out: &mut Queue<Request>) {
-    let call = domain.calls.get_mut(id).expect("alarm belongs to live host call");
-    let run = domain.runs.get(call.run).expect("run waits for calls");
-    let active = host_active(&run.state);
-    let relay = match &mut call.work {
-        Work::Host(relay) => relay,
-        Work::Child(_) | Work::Landing(_) => unreachable!("host alarm belongs to host work"),
-    };
-    let stage = mem::replace(&mut relay.stage, HostStage::Closed);
-    let result = match stage {
-        HostStage::Sending { attempt, .. } => {
-            out.push(Request::WithdrawHost { relay: RelayName { owner: id.token(), attempt } });
-            relay.stage = HostStage::Withdrawing { attempt };
-            None
-        }
-        HostStage::Backoff { attempt, .. } => {
-            if active && relay.stopped.is_none() && env.now < relay.caller_deadline {
-                host_send(relay, id, run.host_name, attempt, env.now, out);
-                None
-            } else {
-                Some(if relay.unknown { Returned::HostUnknown } else { Returned::Busy })
-            }
-        }
-        HostStage::Withdrawing { .. } | HostStage::Closed => unreachable!("non-timed host stage"),
-    };
-    if let Some(result) = result {
-        host_return(domain, id, result, out);
-    } else {
-        host_follow(&domain.calls, &mut domain.alarms, id);
-    }
-}
-
-fn host_active(state: &State) -> bool {
-    match state {
-        State::Working { .. } => true,
-        State::Awaiting { .. }
-        | State::Preparing { .. }
-        | State::Stopping { .. }
-        | State::Listening { .. }
-        | State::Waiting { .. }
-        | State::Winding { .. }
-        | State::Closed => false,
-    }
-}
-
-pub(crate) fn host_returned(
-    domain: &mut Domain,
-    env: &Env<Limits>,
-    name: RelayName,
-    reply: HostReply,
-    out: &mut Queue<Request>,
-) {
-    let id = Id::<Call>::from_token(name.owner);
-    let Some(call) = domain.calls.get(id) else {
-        return;
-    };
-    if domain.calls.find(call.conversation, call.owner) != Some(id) {
-        return;
-    }
-    let relay = match &call.work {
-        Work::Host(relay) => relay,
-        Work::Child(_) | Work::Landing(_) => return,
-    };
-    let expected = match relay.stage {
-        HostStage::Sending { attempt, .. } | HostStage::Withdrawing { attempt } => Some(attempt),
-        HostStage::Backoff { .. } | HostStage::Closed => None,
-    };
-    if expected != Some(name.attempt) {
-        return;
-    }
-    let call = domain.calls.get_mut(id).expect("named call is live");
-    let run = domain.runs.get(call.run).expect("run waits for relay terminal");
-    let active = host_active(&run.state);
-    let relay = match &mut call.work {
-        Work::Host(relay) => relay,
-        Work::Child(_) | Work::Landing(_) => unreachable!("verified host work"),
-    };
-    relay.stage = HostStage::Closed;
-    let result = match reply {
-        HostReply::Answered(answer) => {
-            Some(if answer.text().len() <= usize::try_from(env.limits.host_reply_bytes).expect("cap fits") {
-                Returned::HostAnswered(answer)
-            } else {
-                Returned::HostTooLarge {
-                    bytes: u32::try_from(answer.text().len()).expect("constructor-bounded host answer"),
-                    max: env.limits.host_reply_bytes,
-                }
-            })
-        }
-        HostReply::Busy => {
-            let exhausted = if relay.unknown { Returned::HostUnknown } else { Returned::Busy };
-            host_recover(relay, name.attempt, active, env, exhausted)
-        }
-        HostReply::Withdrawn | HostReply::Unanswered(_) => {
-            relay.unknown = true;
-            host_recover(relay, name.attempt, active, env, Returned::HostUnknown)
-        }
-        HostReply::TooLarge => Some(Returned::HostReportedTooLarge),
-    };
-    if let Some(result) = result {
-        host_return(domain, id, result, out);
-    } else {
-        host_follow(&domain.calls, &mut domain.alarms, id);
-    }
-}
-
-fn host_recover(
-    relay: &mut HostRelay,
-    attempt: u32,
-    active: bool,
-    env: &Env<Limits>,
-    exhausted: Returned,
-) -> Option<Returned> {
-    let at = env.now.saturating_add(env.limits.host_backoff);
-    if !active || relay.stopped.is_some() || at >= relay.caller_deadline {
-        return Some(exhausted);
-    }
-    let Some(next) = attempt.checked_add(1) else {
-        return Some(exhausted);
-    };
-    relay.stage = HostStage::Backoff { attempt: next, at };
-    None
 }
 
 /// Drain one wind-down effect: a child close or main's one yield request.
@@ -2741,16 +1884,7 @@ fn yield_main(run: &Run, conversations: &Slab<Conversation>, out: &mut Queue<Req
         Mode::Finite => return,
         Mode::Open => {}
     }
-    let main = match run.state {
-        State::Working { main, .. } => main,
-        State::Preparing { .. }
-        | State::Awaiting { .. }
-        | State::Listening { .. }
-        | State::Waiting { .. }
-        | State::Stopping { .. }
-        | State::Winding { .. }
-        | State::Closed => return,
-    };
+    let Some(main) = working_main(&run.state) else { return };
     let main = conversations.get(main).expect("working main is retained");
     if main.reservation.is_none() {
         return;

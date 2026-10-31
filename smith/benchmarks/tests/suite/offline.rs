@@ -7,16 +7,16 @@ use std::path::PathBuf;
 use smith_bench::{check_task, check_tree};
 
 fn recorded(name: &str) -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/recorded/tasks").join(name).join("task.toml")
+    crate::common::repository().join("tests/recorded/tasks").join(name).join("task.toml")
 }
 
 fn design() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../docs/design")
+    crate::common::repository().join("../docs/design")
 }
 
 #[test]
 fn fixtures_freeze_their_seeds_and_keep_graders_outside_them() {
-    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tasks/fixtures");
+    let root = crate::common::repository().join("tasks/fixtures");
     for name in ["01-backoff", "02-line-decoder"] {
         let directory = root.join(name);
         let task = check_task(&directory.join("task.toml"), &design()).expect("frozen fixture");
@@ -39,7 +39,7 @@ fn fixtures_freeze_their_seeds_and_keep_graders_outside_them() {
 #[test]
 fn no_fixture_protects_a_path_its_prompt_asks_to_change() {
     for id in ["01-backoff", "02-line-decoder", "03-planner"] {
-        let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tasks/fixtures").join(id).join("task.toml");
+        let manifest = crate::common::repository().join("tasks/fixtures").join(id).join("task.toml");
         let task = smith_bench::read_task(&manifest).expect("fixture task");
         assert!(!task.protected.iter().any(|path| path == std::path::Path::new("tests")), "{id} protects tests");
     }
@@ -48,7 +48,7 @@ fn no_fixture_protects_a_path_its_prompt_asks_to_change() {
 #[test]
 fn every_fixture_grader_holds_the_seeds_test_functions() {
     let names = regex::Regex::new(r"#\[test\]\s*fn\s+(\w+)").expect("test function expression");
-    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tasks/fixtures");
+    let root = crate::common::repository().join("tasks/fixtures");
     for id in ["01-backoff", "02-line-decoder", "03-planner"] {
         let directory = root.join(id);
         let grader = std::fs::read_dir(directory.join("grader/tests"))
@@ -66,7 +66,8 @@ fn every_fixture_grader_holds_the_seeds_test_functions() {
 
 #[test]
 fn a_reference_that_changes_a_protected_path_fails_validation() {
-    let root = std::env::temp_dir().join(format!("smith-bench-protected-reference-{}", std::process::id()));
+    let scratch = skein_scratch::Scratch::new("bench-offline");
+    let root = scratch.path().to_path_buf().join(format!("smith-bench-protected-reference-{}", std::process::id()));
     std::fs::create_dir_all(root.join("seed")).expect("seed");
     std::fs::create_dir(root.join("reference")).expect("reference");
     std::fs::write(root.join("seed/Cargo.toml"), "seed").expect("protected seed");
@@ -82,19 +83,19 @@ fn a_reference_that_changes_a_protected_path_fails_validation() {
     std::fs::write(root.join("task.toml"), manifest).expect("manifest");
     let error = smith_bench::validate::validate(&root, &[]).expect_err("changed protection refuses");
     assert!(error.contains("reference changes Cargo.toml"), "{error}");
-    std::fs::remove_dir_all(root).expect("remove temporary task");
 }
 
-fn comparison_document(name: &str) -> (PathBuf, String) {
-    let directory = std::env::temp_dir().join(format!("smith-bench-{name}-{}", std::process::id()));
+fn comparison_document(name: &str) -> (skein_scratch::Scratch, PathBuf, String) {
+    let scratch = skein_scratch::Scratch::new("bench-offline");
+    let directory = scratch.path().to_path_buf().join(format!("smith-bench-{name}-{}", std::process::id()));
     std::fs::create_dir(&directory).expect("temporary task");
-    let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tasks/fixtures/01-backoff/task.toml");
-    (directory.join("task.toml"), std::fs::read_to_string(manifest).expect("fixture document"))
+    let manifest = crate::common::repository().join("tasks/fixtures/01-backoff/task.toml");
+    (scratch, directory.join("task.toml"), std::fs::read_to_string(manifest).expect("fixture document"))
 }
 
 #[test]
 fn a_comparison_task_with_a_budget_is_refused() {
-    let (file, document) = comparison_document("comparison-budget");
+    let (_scratch, file, document) = comparison_document("comparison-budget");
     for kind in ["fixture", "repository"] {
         for budget in ["[budget]\n", "[budget]\nseconds = 1\n"] {
             let document = document.replace("kind = \"fixture\"", &format!("kind = \"{kind}\""));
@@ -104,12 +105,11 @@ fn a_comparison_task_with_a_budget_is_refused() {
             assert_eq!(error.reason, "comparison task must not name a budget", "{kind}: {budget}");
         }
     }
-    std::fs::remove_dir_all(file.parent().expect("task directory")).expect("remove temporary task");
 }
 
 #[test]
 fn a_comparison_variant_with_a_budget_is_refused() {
-    let (file, document) = comparison_document("comparison-variant-budget");
+    let (_scratch, file, document) = comparison_document("comparison-variant-budget");
     for kind in ["fixture", "repository"] {
         let document = document.replace("kind = \"fixture\"", &format!("kind = \"{kind}\""));
         std::fs::write(&file, format!("{document}\n[[variant]]\nname = 'budget'\n[variant.budget]\n"))
@@ -118,12 +118,11 @@ fn a_comparison_variant_with_a_budget_is_refused() {
         assert_eq!(error.key, "variant[0].budget", "{kind}");
         assert_eq!(error.reason, "comparison task must not name a budget", "{kind}");
     }
-    std::fs::remove_dir_all(file.parent().expect("task directory")).expect("remove temporary task");
 }
 
 #[test]
 fn a_comparison_deadline_at_the_run_defaults_is_refused() {
-    let (file, document) = comparison_document("comparison-deadline");
+    let (_scratch, file, document) = comparison_document("comparison-deadline");
     for kind in ["fixture", "repository"] {
         for deadline in [3_600, 3_601, u64::MAX] {
             let document = document
@@ -138,12 +137,11 @@ fn a_comparison_deadline_at_the_run_defaults_is_refused() {
             );
         }
     }
-    std::fs::remove_dir_all(file.parent().expect("task directory")).expect("remove temporary task");
 }
 
 #[test]
 fn the_compare_suite_names_both_fixtures_and_both_agents() {
-    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let root = crate::common::repository();
     let suite = smith_bench::read_suite(&root.join("suites/compare.toml")).expect("comparison");
     assert_eq!(suite.tasks, ["fixtures/01-backoff", "fixtures/02-line-decoder"]);
     assert_eq!(suite.tier, "working");
@@ -165,7 +163,7 @@ fn refuses(name: &str, key: &str, reason: &str) {
 }
 
 fn every_catalogue_manifest_is_checked_offline() {
-    let tasks = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tasks");
+    let tasks = crate::common::repository().join("tasks");
     // The complete benchmark-tree check validates this same catalogue once.
     // Keep the fixture layout checks here; exercise check_tree on the small
     // recorded catalogue below instead of walking every frozen seed twice.
@@ -177,14 +175,14 @@ fn every_catalogue_manifest_is_checked_offline() {
 }
 
 fn every_committed_suite_and_configuration_pin_is_checked_offline() {
-    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let root = crate::common::repository();
     let counts = smith_bench::check_benchmark_tree_with_bundles(&root, &design(), &root.join("tests/recorded/bundles"))
         .expect("all benchmark manifests validate");
-    assert!(counts.configurations > 0, "committed pins are actually checked");
+    assert!(counts.configurations > 0, "committed pins are checked");
 }
 
 fn the_recorded_suite_resolves_its_frozen_task_and_pin() {
-    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let root = crate::common::repository();
     let suite_file = root.join("tests/recorded/suites/sample.toml");
     let suite = smith_bench::read_suite(&suite_file).expect("recorded suite");
     let tasks =
@@ -251,7 +249,7 @@ fn duplicate_variant_names_are_refused() {
 }
 
 fn a_recorded_attempt_round_trips_without_erasing_measurement_gaps() {
-    let file = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/recorded/results/attempt.json");
+    let file = crate::common::repository().join("tests/recorded/results/attempt.json");
     let result = smith_bench::read_result(&file).expect("recorded result");
     let rendered = smith_bench::render_result(&result).expect("versioned JSON");
     assert_eq!(smith_bench::parse_result(&file, &rendered).expect("round-trip"), result);
@@ -262,14 +260,15 @@ fn a_recorded_attempt_round_trips_without_erasing_measurement_gaps() {
 }
 
 fn a_summary_and_baseline_from_recorded_results_round_trip_offline() {
-    let file = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/recorded/results/attempt.json");
+    let file = crate::common::repository().join("tests/recorded/results/attempt.json");
     let results = smith_bench::read_results(&file).expect("recorded attempts");
     let summary = smith_bench::summarise(&results, "recorded", "small", smith_bench::Design::Single, 123, None, None)
         .expect("summary");
     assert_eq!(summary.groups[0].counts_by_end["completed"], 1);
     assert_eq!(summary.groups[0].metrics["task_wall_ms"].observed, 1);
     let baseline = smith_bench::baseline(&summary).expect("single configuration baseline");
-    let root = std::env::temp_dir().join(format!("smith-bench-summary-{}", std::process::id()));
+    let scratch = skein_scratch::Scratch::new("bench-offline");
+    let root = scratch.path().to_path_buf().join(format!("smith-bench-summary-{}", std::process::id()));
     std::fs::create_dir(&root).expect("fresh test root");
     let summary_file = root.join("summary.json");
     let baseline_file = root.join("baseline.json");
@@ -278,7 +277,6 @@ fn a_summary_and_baseline_from_recorded_results_round_trip_offline() {
     assert_eq!(smith_bench::read_summary(&summary_file).expect("round-trip"), summary);
     assert_eq!(smith_bench::read_baseline(&baseline_file).expect("round-trip"), baseline);
     assert!(smith_bench::write_summary(&summary_file, &summary).is_err(), "committed evidence is not overwritten");
-    std::fs::remove_dir_all(root).expect("test root removed");
 }
 
 // Related offline assertions share a test process to keep startup overhead
@@ -299,14 +297,14 @@ fn recorded_catalogues_and_results() {
 }
 
 fn an_absent_bundle_is_skipped_and_said() {
-    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/recorded");
+    let root = crate::common::repository().join("tests/recorded");
     let manifest = smith_bench::read_bundle_manifest(&root.join("tasks/repository-seed/seed/bundle.toml"))
         .expect("recorded manifest");
     assert_eq!(smith_bench::check_bundle(&manifest, &root.join("bundles/none")), Ok(smith_bench::BundleCheck::Absent));
 }
 
 fn a_bundle_whose_digest_differs_is_refused() {
-    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/recorded");
+    let root = crate::common::repository().join("tests/recorded");
     let mut manifest = smith_bench::read_bundle_manifest(&root.join("tasks/repository-seed/seed/bundle.toml"))
         .expect("recorded manifest");
     manifest.sha256 = "0".repeat(64);
@@ -319,14 +317,14 @@ fn a_bundle_whose_digest_differs_is_refused() {
 }
 
 fn a_present_bundle_matches_its_manifest() {
-    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/recorded");
+    let root = crate::common::repository().join("tests/recorded");
     let manifest = smith_bench::read_bundle_manifest(&root.join("tasks/repository-seed/seed/bundle.toml"))
         .expect("recorded manifest");
     assert_eq!(smith_bench::check_bundle(&manifest, &root.join("bundles")), Ok(smith_bench::BundleCheck::Matches));
 }
 
 fn a_repository_seed_comes_from_its_bundle() {
-    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/recorded");
+    let root = crate::common::repository().join("tests/recorded");
     let task_directory = root.join("tasks/repository-seed");
     let task = check_task(&task_directory.join("task.toml"), &design()).expect("recorded task");
     let (source, digest) =
@@ -360,7 +358,7 @@ fn invalid_recorded_manifests() {
 
 #[test]
 fn committed_summaries_and_baselines_parse_at_result_version_two() {
-    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let root = crate::common::repository();
     assert_eq!(smith_bench::RESULT_VERSION, 4);
     // The catalogue test checks the full inventory; sample each versioned reader here.
     for entry in std::fs::read_dir(root.join("summaries")).expect("summaries") {
@@ -380,7 +378,7 @@ fn committed_summaries_and_baselines_parse_at_result_version_two() {
 }
 
 fn multi_configuration_summary() -> smith_bench::RunSummary {
-    let file = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/recorded/results/attempt.json");
+    let file = crate::common::repository().join("tests/recorded/results/attempt.json");
     let results = smith_bench::read_results(&file).expect("recorded attempts");
     let mut summary =
         smith_bench::summarise(&results, "recorded", "small", smith_bench::Design::Single, 123, None, None)

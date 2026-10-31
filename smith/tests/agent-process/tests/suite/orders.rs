@@ -36,11 +36,7 @@ fn domain_requests_dispatch_before_a_later_entrances_facts() {
     let mut world = pressured(Order::Requests, &two_turn_charter());
     world.anthropic();
     world.ask(true, false, false);
-    let turn = api::Turn {
-        lines: Box::new([api::Line::Text { text: b"Hello".as_slice().into() }]),
-        finish: api::Finish::Stop,
-        tokens: 1,
-    };
+    let turn = smith_agent_world::fixture::says(Box::new([api::Line::Text { text: b"Hello".as_slice().into() }]), 1);
     world.script(Box::new([turn.clone(), turn]));
     assert!(world.settle(), "seed {SEED}");
     let blocked = world.order_snapshot();
@@ -61,16 +57,15 @@ fn domain_requests_dispatch_before_a_later_entrances_facts() {
 fn domain_facts_reach_the_sink_before_the_next_entrance() {
     let mut world = pressured(Order::Facts, &charter());
     world.anthropic();
-    world.script(Box::new([api::Turn {
-        lines: Box::new([api::Line::Pieces {
+    world.script(Box::new([smith_agent_world::fixture::says(
+        Box::new([api::Line::Pieces {
             pieces: Box::new([
                 api::Piece { text: b"prefix".as_slice().into(), hold: None },
                 api::Piece { text: b"suffix".as_slice().into(), hold: Some(HOLD.into()) },
             ]),
         }]),
-        finish: api::Finish::Stop,
-        tokens: 1,
-    }]));
+        1,
+    )]));
     world.release_after(HOLD, 1, PROVIDER_RELEASE);
     assert!(world.settle(), "seed {SEED}");
     let blocked = world.order_snapshot();
@@ -87,16 +82,11 @@ fn domain_facts_reach_the_sink_before_the_next_entrance() {
 
 // The first text turn leaves a second completion request behind its Turn output.
 fn two_turn_charter() -> Box<[u8]> {
-    let mut parts = smith_charter::Charter::decode(&smith_charter::CEILINGS, &mut skein_lib::Reader::new(&charter()))
-        .expect("fixture charter")
-        .into_parts();
-    let mut budget = parts.budget.into_parts();
-    budget.turns = REQUEST_TURNS;
-    parts.budget = smith_charter::Budget::new(&smith_charter::CEILINGS, budget).expect("two-turn budget");
-    let charter = smith_charter::Charter::new(&smith_charter::CEILINGS, parts).expect("two-turn charter");
-    let mut writer = skein_lib::Writer::new(usize::try_from(charter.measure()).expect("charter size"));
-    charter.encode(&mut writer).expect("charter bytes");
-    writer.finish()
+    smith_agent_process_world::wire::edit_charter(&charter(), |parts| {
+        let mut budget = parts.budget.clone().into_parts();
+        budget.turns = REQUEST_TURNS;
+        parts.budget = smith_charter::Budget::new(&smith_charter::CEILINGS, budget).expect("two-turn budget");
+    })
 }
 
 fn receipt_times(records: &[smith_events::Record]) -> Vec<u64> {

@@ -385,12 +385,12 @@ mod tests {
 
     #[test]
     fn a_command_keeps_the_name_of_its_tool_proxy() {
-        let root = std::env::temp_dir().join(format!("smith-bench-proxy-{}", std::process::id()));
+        let scratch = skein_scratch::Scratch::new("bench-isolate");
+        let root = scratch.path().to_path_buf().join(format!("smith-bench-proxy-{}", std::process::id()));
         fs::create_dir(&root).expect("fresh proxy directory");
         std::os::unix::fs::symlink("/bin/sh", root.join("cargo")).expect("tool proxy");
         let machine = Machine { path: root.as_os_str().into(), rustup_home: None };
         assert_eq!(program(&machine, &root, Path::new("cargo")).expect("proxy"), root.join("cargo"));
-        fs::remove_dir_all(root).expect("remove proxy directory");
     }
 
     #[test]
@@ -411,7 +411,8 @@ mod tests {
     #[test]
     fn seed_digest_mismatch_is_refused_before_writing_any_attempt() {
         let seed = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/recorded/tasks/valid/seed");
-        let fake_home = std::env::temp_dir().join(format!("smith-bench-isolation-{}", std::process::id()));
+        let scratch = skein_scratch::Scratch::new("bench-isolate");
+        let fake_home = scratch.path().to_path_buf().join(format!("smith-bench-isolation-{}", std::process::id()));
         let guard = Guard::new(&fake_home, &fake_home.join("config"), &fake_home.join("state"), &[]).expect("guard");
         let attempt = fake_home.join("attempt");
         let refused = prepare(&guard, &seed, &"0".repeat(64), &attempt).expect_err("digest");
@@ -424,7 +425,8 @@ mod tests {
 #[cfg(test)]
 #[test]
 fn readonly_owned_cleanup_restores_directory_permissions_and_never_follows_links() {
-    let root = std::env::temp_dir().join(format!("smith-readonly-cleanup-{}", std::process::id()));
+    let scratch = skein_scratch::Scratch::new("bench-isolate");
+    let root = scratch.path().to_path_buf().join(format!("smith-readonly-cleanup-{}", std::process::id()));
     let guard = Guard::new(&root.join("user"), &root.join("config"), &root.join("state"), &[]).expect("fixture guard");
     let owned = root.join("owned");
     let readonly = owned.join("spec");

@@ -1,5 +1,5 @@
 //! Counted effective inventory of the agent's own layers, with no retained state.
-//! Contract: protocol/limits.md, sections 2 and 9.
+//! Contract: smith/docs/design/protocol/limits.md, sections 2 and 9.
 
 use super::super::{Configuration, Profile};
 use super::{Layer, Limit, LimitName, Per, Value};
@@ -218,6 +218,7 @@ fn run(inventory: &mut Inventory, limits: &smith_domain::run::Limits) -> Option<
         compaction_threshold,
         compaction_material,
         schema_costs: _,
+        effort_bytes: _,
         directories,
         directory_name_bytes,
         host_path_bytes,

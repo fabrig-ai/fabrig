@@ -17,7 +17,7 @@ pub enum Passive {
     BenchmarkUnread,
     /// Authoritative process and run boundaries are complete.
     StreamWhole,
-    /// The actual exit agrees with the answer.
+    /// The exit agrees with the answer.
     ExitAgrees,
     /// Authoritative records survive and sink loss respects delivery.
     NothingLost,

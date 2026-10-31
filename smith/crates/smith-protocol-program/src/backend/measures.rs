@@ -2,6 +2,7 @@
 //! Holds one hand-off's new user text or one stream line's measures. No native
 //! transport timings are inferred. The service drains through `pop_measure`.
 
+use super::Complete;
 use super::{Backend, policy, turns};
 use crate::mcp::json;
 use alloc::boxed::Box;
@@ -9,7 +10,7 @@ use skein_json::Document;
 use skein_lib::{List, Time, Token};
 use smith_domain::llm;
 use smith_events::{Block, Completion, Message, Prompt, Role};
-use smith_protocol_llm::{self as protocol, FromDomain, Measure};
+use smith_protocol_llm::{self as protocol, Measure};
 
 pub(super) const MEASURES: u32 = 16;
 const PROGRAM_TOOLS: usize = policy::BUILTINS.len() + 1;
@@ -30,21 +31,15 @@ impl Backend {
         self.measures.pop()
     }
 
-    pub(super) fn begin_prompt(&mut self, request: &FromDomain) {
+    pub(super) fn begin_prompt(&mut self, observed: bool) {
         self.prompt_pending = None;
-        self.prompt_due = match request {
-            FromDomain::Complete { observation, .. } => observation.is_some(),
-            FromDomain::Cancel { .. } | FromDomain::Yield { .. } => false,
-        };
+        self.prompt_due = observed;
     }
 
     pub(super) fn first_prompt_measure(&mut self, _at: Time) {
-        let prompt = match &self.request {
-            Some(FromDomain::Complete { prompt, observation: Some(_), .. }) => prompt,
-            Some(
-                FromDomain::Complete { observation: None, .. } | FromDomain::Cancel { .. } | FromDomain::Yield { .. },
-            )
-            | None => return,
+        let prompt = match self.current.request() {
+            Some(Complete { prompt, observation: Some(_), .. }) => prompt,
+            Some(Complete { observation: None, .. }) | None => return,
         };
         let mut count = 0_u32;
         for message in &prompt.messages {
@@ -103,14 +98,9 @@ impl Backend {
         if !core::mem::replace(&mut self.prompt_due, false) {
             return;
         }
-        let (owner, prompt, observation) = match &self.request {
-            Some(FromDomain::Complete { owner, prompt, observation: Some(observation), .. }) => {
-                (*owner, prompt, observation)
-            }
-            Some(
-                FromDomain::Complete { observation: None, .. } | FromDomain::Cancel { .. } | FromDomain::Yield { .. },
-            )
-            | None => return,
+        let (owner, prompt, observation) = match self.current.request() {
+            Some(Complete { owner, prompt, observation: Some(observation), .. }) => (*owner, prompt, observation),
+            Some(Complete { observation: None, .. }) | None => return,
         };
         let (system, tools) = if self.compaction() {
             (Some(prompt.system.clone()), Some(List::with_capacity(0)))
@@ -150,12 +140,9 @@ impl Backend {
 
     pub(super) fn completion_measure(&mut self, at: Time, owner: Token, completion: &llm::Completion) {
         self.flush_prompt_measure(at);
-        match &self.request {
-            Some(FromDomain::Complete { observation: Some(_), .. }) => {}
-            Some(
-                FromDomain::Complete { observation: None, .. } | FromDomain::Cancel { .. } | FromDomain::Yield { .. },
-            )
-            | None => return,
+        match self.current.request() {
+            Some(Complete { observation: Some(_), .. }) => {}
+            Some(Complete { observation: None, .. }) | None => return,
         }
         let mut blocks = List::with_capacity(u32::try_from(completion.content.len()).expect("bounded blocks"));
         for block in &completion.content {
@@ -165,9 +152,7 @@ impl Backend {
                 llm::Said::ToolCall { id, name, input, .. } => {
                     Block::Call { call: id.clone(), tool: name.clone(), input: input.clone() }
                 }
-                llm::Said::Opaque { bytes } => {
-                    Block::Opaque { bytes: u64::try_from(bytes.len()).expect("bounded opaque") }
-                }
+                llm::Said::Opaque { bytes } => Block::Opaque { bytes: skein_lib::len_u64(bytes.len()) },
             };
             blocks.push(block).expect("one capture per block");
         }
@@ -175,16 +160,11 @@ impl Backend {
     }
 
     pub(super) fn partial_measure(&mut self, at: Time, document: &Document, event: u32) -> Option<()> {
-        let owner = match &self.request {
-            Some(FromDomain::Complete { owner, deltas: protocol::Deltas { text: true, .. }, .. }) => *owner,
-            Some(
-                FromDomain::Complete { deltas: protocol::Deltas { text: false, .. }, .. }
-                | FromDomain::Cancel { .. }
-                | FromDomain::Yield { .. },
-            )
-            | None => return Some(()),
+        let owner = match self.current.request() {
+            Some(Complete { owner, deltas: protocol::Deltas { text: true, .. }, .. }) => *owner,
+            Some(Complete { deltas: protocol::Deltas { text: false, .. }, .. }) | None => return Some(()),
         };
-        if self.owner != Some(owner) {
+        if self.current.owner() != Some(owner) {
             return Some(());
         }
         match json::text_in(document, json::field(document, event, b"type")) {
@@ -217,7 +197,7 @@ impl Backend {
     pub(super) fn retry_measure(&mut self, at: Time, document: &Document) {
         self.flush_prompt_measure(at);
         self.flush_deltas(at);
-        if let Some(owner) = self.owner {
+        if let Some(owner) = self.current.owner() {
             let status = match turns::number(document, json::field(document, 0, b"error_status")) {
                 Some(status) => u16::try_from(status).ok(),
                 None => None,

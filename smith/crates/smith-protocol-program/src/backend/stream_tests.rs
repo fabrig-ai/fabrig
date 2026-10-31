@@ -1,4 +1,4 @@
-//! Init fixtures follow the owner's 2.1.311 probe, reports/live-claude-shapes.md.
+//! Init fixtures carry the startup metadata required by protocol/programs.md, section 5.
 #![expect(
     clippy::disallowed_macros,
     clippy::disallowed_types,

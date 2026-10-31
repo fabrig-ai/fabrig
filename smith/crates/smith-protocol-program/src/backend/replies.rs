@@ -1,4 +1,4 @@
-//! Replies to held MCP calls and the run's timeout (programs.md 5.3, 5.7).
+//! Replies to held MCP calls and the run's timeout (smith/docs/design/protocol/programs.md 5.3, 5.7).
 //! Keeps no state; every user text in a reply pass belongs to its last held reply.
 
 use super::{Backend, calls};
@@ -49,12 +49,7 @@ pub(super) fn resume(
     let mut synthetic = None;
     // A Complete contains history. Only the tail after the last assistant
     // belongs to this continuation (protocol/programs.md, section 5.9).
-    let mut from = 0;
-    for (index, message) in messages.iter().enumerate() {
-        if message.role == llm::Role::Assistant {
-            from = index.checked_add(1)?;
-        }
-    }
+    let from = super::tail::after_assistant(&messages)?;
     let mut text = false;
     let mut result = false;
     for message in messages.iter().skip(from) {
@@ -72,7 +67,7 @@ pub(super) fn resume(
         }
         // Messages and nudges share the exact tail encoder. Its independent
         // input ceiling admits host offers larger than a tool reply, without
-        // retaining an extra unescaped copy (programs.md 5.9).
+        // retaining an extra unescaped copy (smith/docs/design/protocol/programs.md 5.9).
         prompt.messages = messages;
         let rendered = super::tail::render_observed(
             prompt,
@@ -151,7 +146,7 @@ pub(super) fn environment(base: &[Box<[u8]>], configuration: &[u8], run_time: Du
             entries.push(entry.clone()).ok()?;
         }
     }
-    let milliseconds = Decimal::of(run_time.as_nanos().checked_div(1_000_000)?);
+    let milliseconds = Decimal::of(run_time.as_millis());
     let room = u32::try_from(TIMEOUT_NAME.len().checked_add(U64_DIGITS)?).ok()?;
     let mut timeout = List::with_capacity(room);
     for byte in TIMEOUT_NAME.iter().chain(milliseconds.as_bytes()) {

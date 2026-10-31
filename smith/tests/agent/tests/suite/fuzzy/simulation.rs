@@ -1,5 +1,5 @@
-//! Bounded seeded interleavings of the copied agent tree and scripted
-//! host (domain/run.md, section 14; testing-strategy.md, sections 6 and 7).
+//! Bounded seeded interleavings of the agent tree and scripted
+//! host (smith/docs/design/domain/run.md, section 13; skein/docs/foundation/testing-strategy.md, sections 6 and 7).
 
 use skein_lib::{Duration, Rng};
 use smith_agent_world::{HostReply, Job, Settings, World};

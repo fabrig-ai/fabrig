@@ -1,4 +1,4 @@
-//! A child's final-answer trigger (domain/session.md, section 7). This keeps
+//! A child's final-answer trigger (smith/docs/design/domain/session.md, section 7). This keeps
 //! the opener's note and allowance until the last request, then its final
 //! status through retries and results. It knows no run policy or provider syntax.
 

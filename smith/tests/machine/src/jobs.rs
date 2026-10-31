@@ -8,16 +8,10 @@ use smith_protocol_machine::{FromDomain, ToDomain};
 
 impl World {
     /// Exercise successive job acts in one activation on the real kernel.
-    pub fn jobs(&mut self, requests: Vec<FromDomain>) -> Vec<ToDomain> {
-        self.jobs_after(requests, Vec::new())
-    }
-
-    /// Exercise successive job acts in one activation on the real kernel.
-    pub fn jobs_after(&mut self, mut requests: Vec<FromDomain>, delays: Vec<Duration>) -> Vec<ToDomain> {
+    pub fn jobs(&mut self, mut requests: Vec<FromDomain>) -> Vec<ToDomain> {
         let owner = Job::Request(requests.first().expect("one spawn").clone(), false).owner();
-        let path = std::env::temp_dir().join(format!("smith-machine-jobs-{}-{}", std::process::id(), self.seed));
-        std::fs::create_dir(&path).expect("unique job workspace");
-        let root = skein_shell::open_root(&path).expect("open job workspace");
+        let scratch = skein_scratch::Scratch::new("smith-machine-jobs");
+        let root = skein_shell::open_root(scratch.path()).expect("open job workspace");
         let clock = skein_shell::Clock::new();
         let base = clock.now().now;
         for request in &mut requests {
@@ -46,7 +40,7 @@ impl World {
                 self.writable,
                 Time::ZERO,
                 root,
-                Job::Sequence { requests, delays },
+                Job::Sequence { requests, delays: Vec::new() },
                 self.limits,
                 &self.environment,
             )
@@ -57,7 +51,7 @@ impl World {
         self.now = Time::from_nanos(outcome.end.as_nanos().saturating_sub(outcome.start.as_nanos()));
         let answers = outcome.procs[0].terminals.iter().map(copy_terminal).collect();
         drop(outcome);
-        std::fs::remove_dir(path).expect("job workspace is empty");
+        assert_eq!(std::fs::read_dir(scratch.path()).expect("job workspace").count(), 0, "job workspace is empty");
         answers
     }
 }

@@ -21,7 +21,7 @@ impl Bundle {
         {
             return Err("bundle exceeds its limits or has an invalid digest".into());
         }
-        let mut bytes = u64::try_from(page.len()).expect("page length fits");
+        let mut bytes = skein_lib::len_u64(page.len());
         for (path, content) in &files {
             if path.len() > 1024
                 || !Path::new(path).components().all(|part| matches!(part, Component::Normal(_)))
@@ -30,9 +30,7 @@ impl Bundle {
             {
                 return Err("invalid bundle file".into());
             }
-            bytes = bytes
-                .checked_add(u64::try_from(content.len()).expect("file length fits"))
-                .ok_or("bundle size overflow")?;
+            bytes = bytes.checked_add(skein_lib::len_u64(content.len())).ok_or("bundle size overflow")?;
         }
         if bytes > BUNDLE_BYTES {
             return Err("bundle exceeds its byte limit".into());
@@ -61,7 +59,7 @@ impl Bundle {
         let root = directory.join(&digest);
         let mut pending = vec![root.clone()];
         let mut files = BTreeMap::new();
-        let mut bytes = u64::try_from(page.len()).expect("page fits u64");
+        let mut bytes = skein_lib::len_u64(page.len());
         let mut entries = 0_usize;
         while let Some(dir) = pending.pop() {
             for entry in std::fs::read_dir(dir).map_err(|why| why.to_string())? {
@@ -77,9 +75,7 @@ impl Bundle {
                 } else if kind.is_file() {
                     let content = skein_shell::read_file(&path, FILE_BYTES)
                         .map_err(|why| format!("cannot read bundle file: {why:?}"))?;
-                    bytes = bytes
-                        .checked_add(u64::try_from(content.len()).expect("file fits u64"))
-                        .ok_or("bundle size overflow")?;
+                    bytes = bytes.checked_add(skein_lib::len_u64(content.len())).ok_or("bundle size overflow")?;
                     if bytes > BUNDLE_BYTES || files.len() >= FILES {
                         return Err("bundle exceeds its limits".into());
                     }

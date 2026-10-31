@@ -13,24 +13,39 @@ pub(crate) struct Admission {
     pub programs: Option<smith_protocol_program::Programs>,
 }
 
+/// Startup resource needs without any credential file locations.
+#[derive(Clone, Copy)]
+pub(crate) struct AccountNeeds {
+    pub handed: bool,
+    pub programs: bool,
+}
+
+impl AccountNeeds {
+    pub(crate) fn prepared(prepared: Option<&crate::credentials::Prepared>) -> Self {
+        Self { handed: prepared.is_some(), programs: prepared.is_some_and(has_programs) }
+    }
+}
+
 impl Local {
     /// Validate service limits and derive kernel operations before adoption.
     pub(crate) fn startup_operations(
         limits: &service::Limits,
         lower_routes: u32,
-        handed: Option<&crate::credentials::Prepared>,
+        accounts: AccountNeeds,
         result_file: bool,
     ) -> Result<u32, crate::startup::Failure> {
         let mut io_limits = limits.process.io;
-        let programs = handed.is_some_and(has_programs);
+        let programs = accounts.programs;
         if programs {
             io_limits.sockets = io_limits
                 .sockets
-                .checked_add(3)
+                .checked_add(crate::credentials::PROGRAM_SOCKETS)
                 .ok_or_else(|| configuration_failure("program I/O count overflows".into()))?;
         }
-        let operations = Self::kernel_operations(&io_limits, lower_routes, handed.is_some())
-            .and_then(|operations| operations.checked_add(if result_file { 4 } else { 0 }))
+        let operations = Self::kernel_operations(&io_limits, lower_routes, accounts.handed)
+            .and_then(|operations| {
+                operations.checked_add(if result_file { crate::compose::RESULT_FILE_OPERATIONS } else { 0 })
+            })
             .ok_or_else(|| configuration_failure(derivation_refusal("local_routes")))?;
         if !service::valid(limits) {
             return Err(configuration_failure(derivation_refusal("local_limits")));

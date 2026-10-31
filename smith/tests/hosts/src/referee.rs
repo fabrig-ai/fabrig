@@ -107,7 +107,7 @@ pub fn review(observations: &[Observation]) -> Referee<Meeting> {
     referee
 }
 
-/// Compare the host's actual Gone tail with the shipped agent's diagnostic
+/// Compare the host's Gone tail with the shipped agent's diagnostic
 /// writer (testing.md, section 2.1).
 pub fn review_agent_errors(errors: &[u8], tail: &[u8], answered: bool) {
     assert_eq!(tail, errors, "Gone retains exactly the agent's written diagnostic bytes");

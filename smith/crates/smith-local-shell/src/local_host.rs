@@ -1,9 +1,10 @@
 //! Shared local shell pass (protocol/hosts.md, sections 5.3–5.6). It keeps
 //! chat and token file owners, the terminal writer, and kernel routing. It
-//! knows no simulator or checkout state. `Local::new` takes all directories
+//! knows no simulator or checkout state. `Local::within_memory` takes all directories
 //! and terminal descriptors; `Host::iterate` performs the service and shell
 //! passes. Every store acknowledgement follows file and directory sync.
 
+use crate::front::Front;
 use std::io::Write;
 
 mod credentials;
@@ -11,7 +12,7 @@ mod header;
 mod lend;
 pub use header::View;
 mod memory;
-pub(crate) use memory::Admission;
+pub(crate) use memory::{AccountNeeds, Admission};
 mod words;
 
 use skein_io::{self as io, kernel};
@@ -64,8 +65,7 @@ pub struct Local {
     service: service::Service,
     result_file: Option<Box<crate::compose::ResultFile>>,
     ephemeral_directory: Option<Box<[u8]>>,
-    headless: Option<crate::front::headless::Headless>,
-    interactive: Option<crate::front::interactive::Interactive>,
+    front: Option<Front>,
     credential_locations: skein_lib::List<crate::credentials::Location>,
     lent: lend::Lent,
     writer: Option<io::Io>,
@@ -94,14 +94,18 @@ pub struct Local {
 }
 
 impl Local {
-    /// Compose either agent kind with the same file and terminal shell pass.
-    pub fn new(
-        config: service::Config,
-        lower: Option<agent::Config>,
-        resources: Resources,
-        errors: Box<dyn Write>,
-    ) -> Result<Self, String> {
-        Self::within_memory(config, lower, resources, errors, None, None).map_err(|failure| failure.detail().to_owned())
+    fn settled_below(&self) -> bool {
+        self.terminal == Terminal::Closed
+            && self.writer.as_ref().is_none_or(io::Io::is_empty)
+            && self.result_file.as_ref().is_none_or(|file| file.is_empty())
+            && self.launch_root.is_none()
+            && !self.launch_closing
+            && self.pending.is_none()
+            && !self.live_pending()
+            && self.store_completions.is_empty()
+            && self.store_submissions.is_empty()
+            && self.events.is_empty()
+            && self.requests.is_empty()
     }
 
     /// Configure the shell and its selected front before stream adoption.
@@ -112,7 +116,7 @@ impl Local {
         resources: Resources,
         errors: Box<dyn Write>,
         handed: Option<crate::credentials::Prepared>,
-        front: Option<crate::front::Front>,
+        front: Option<Front>,
     ) -> Result<Self, crate::startup::Failure> {
         Self::with_admission(
             config,
@@ -135,21 +139,16 @@ impl Local {
         admission: Admission,
     ) -> Result<Self, crate::startup::Failure> {
         let Admission { handed, front, producer, programs } = admission;
-        let (front, mut interactive) = match front {
-            Some(crate::front::Front::Headless(front)) => (Some(front), None),
-            Some(crate::front::Front::Interactive(front)) => (None, Some(front)),
-            None => (None, None),
-        };
-        let headless = front.or_else(|| match &config.local.mode {
-            domain::Mode::Headless { .. } => Some(crate::front::headless::Headless::new(
+        let mut front = front.or_else(|| match &config.local.mode {
+            domain::Mode::Headless { .. } => Some(Front::Headless(crate::front::headless::Headless::new(
                 false,
                 skein_shell::OutputKind::Pipe,
                 config.limits.local.show_bytes,
-            )),
+            ))),
             domain::Mode::Chat { .. } => None,
         });
         let lower_routes = lower.as_ref().map_or(0, |configuration| configuration.limits.routes);
-        if let Some(front) = &mut interactive {
+        if let Some(front) = front.as_mut().and_then(Front::interactive_mut) {
             let model = config.local.models.first().expect("configured main");
             let endpoint = config.endpoints.name_for(model.endpoint.0).expect("configured endpoint");
             front.remote_config(endpoint, config.local.budget);
@@ -194,7 +193,7 @@ impl Local {
             None if resources.effect_roots.is_empty() => service::AgentConfig::Spawned,
             None => return Err(configuration_failure("spawned mode cannot adopt inline roots".into())),
         };
-        config.local.live_text = interactive.as_ref().is_some_and(|front| !front.plain())
+        config.local.live_text = front.as_ref().and_then(Front::interactive).is_some_and(|front| !front.plain())
             && matches!(config.agent, service::AgentConfig::Spawned);
         let launch_root = config.launch.root;
         let queue = config.limits.queue;
@@ -204,8 +203,8 @@ impl Local {
         let operations = Self::startup_operations(
             &config.limits,
             lower_routes,
-            handed.as_ref(),
-            headless.as_ref().is_some_and(|front| front.result_file),
+            AccountNeeds::prepared(handed.as_ref()),
+            front.as_ref().and_then(Front::headless).is_some_and(|front| front.result_file),
         )?;
         if handed.as_ref().is_some_and(memory::has_programs) {
             config.limits.process.io.sockets = config
@@ -213,7 +212,7 @@ impl Local {
                 .process
                 .io
                 .sockets
-                .checked_add(3)
+                .checked_add(crate::credentials::PROGRAM_SOCKETS)
                 .ok_or_else(|| configuration_failure("program I/O count overflows".into()))?;
         }
         let mut service = service::Service::new(config, resources.seed)
@@ -222,7 +221,7 @@ impl Local {
             service.prepare_trace(&configuration);
         }
         service.adopt_store(resources.state_root).map_err(|error| host_failure(format!("chat store: {error:?}")))?;
-        if let Some(front) = &interactive {
+        if let Some(front) = front.as_ref().and_then(Front::interactive) {
             service.line_mode(front.plain());
             service.initial_chat();
         }
@@ -244,7 +243,7 @@ impl Local {
             None => (skein_lib::List::with_capacity(0), Map::with_capacity(0)),
         };
         let mut writer = if service.inline() { None } else { Some(io::Io::new(&io_limits)) };
-        let output = if headless.as_ref().is_some_and(|front| front.json) {
+        let output = if front.as_ref().and_then(Front::headless).is_some_and(|front| front.json) {
             None
         } else {
             Some(
@@ -260,8 +259,7 @@ impl Local {
             service,
             result_file: None,
             ephemeral_directory: None,
-            headless,
-            interactive,
+            front,
             lent: lend::Lent::new(lendable),
             credential_locations,
             writer,
@@ -291,7 +289,7 @@ impl Local {
         local
             .service
             .adopt_terminal(
-                if local.headless.as_ref().is_some_and(|front| front.input_closed) {
+                if local.front.as_ref().and_then(Front::headless).is_some_and(|front| front.input_closed) {
                     None
                 } else {
                     Some(resources.input)
@@ -299,10 +297,10 @@ impl Local {
                 resources.signals,
             )
             .map_err(|fd| host_failure(format!("local terminal {} cannot be adopted", fd.raw())))?;
-        if local.interactive.as_ref().is_some_and(|front| !front.plain()) {
+        if local.front.as_ref().and_then(Front::interactive).is_some_and(|front| !front.plain()) {
             local.service.read_window();
         }
-        if let Some(front) = &local.headless
+        if let Some(front) = local.front.as_ref().and_then(Front::headless)
             && front.json
         {
             local
@@ -310,7 +308,7 @@ impl Local {
                 .adopt_output(
                     resources.output,
                     front.output_kind == skein_shell::OutputKind::Append,
-                    agent::sinks::Delivery::Complete,
+                    smith_protocol_events::sinks::Delivery::Complete,
                 )
                 .map_err(|_| host_failure("JSON output cannot be adopted".into()))?;
         }
@@ -333,7 +331,7 @@ impl Local {
         root: Option<kernel::Fd>,
         now: Time,
         header: smith_events::SessionStarted,
-        delivery: agent::sinks::Delivery,
+        delivery: smith_protocol_events::sinks::Delivery,
     ) -> Result<(), kernel::Fd> {
         self.service.adopt_trace(fd, now, header, delivery)?;
         if let Some(fd) = root {
@@ -363,19 +361,8 @@ impl Local {
     }
 
     /// Take one typed best-effort live-view record from the service's event sink.
-    pub fn pop_front(&mut self) -> Option<agent::sinks::View> {
+    pub fn pop_front(&mut self) -> Option<smith_protocol_events::sinks::View> {
         self.service.pop_front()
-    }
-
-    /// Ask the domain to select a chat only when activation and store work are idle.
-    pub fn select_chat(&mut self, name: Box<[u8]>, create: bool) {
-        self.service.local_event(domain::Event::SelectChat { name, create });
-    }
-
-    /// Live-view records dropped by that sink, independent of destination loss.
-    #[must_use]
-    pub fn front_lost(&mut self) -> u64 {
-        self.service.front_lost()
     }
 
     /// Attach the product result owner before its first pass.
@@ -404,7 +391,7 @@ impl Local {
     }
 
     fn files(&mut self) {
-        if let Some(front) = &mut self.headless
+        if let Some(front) = self.front.as_mut().and_then(Front::headless_mut)
             && let Some(turn) = self.service.take_told_turn()
         {
             front.told(&turn, self.errors.as_mut());
@@ -422,7 +409,7 @@ impl Local {
                     self.exit = Some(status);
                 }
                 domain::Request::Answered { answer } => {
-                    let Some(front) = &mut self.headless else { continue };
+                    let Some(front) = self.front.as_mut().and_then(Front::headless_mut) else { continue };
                     let elapsed = self.env.now.saturating_since(self.started.unwrap_or(self.env.now));
                     let ending = front.answered(&answer, self.service.chat_name(), elapsed);
                     if let Some(file) = &mut self.result_file {
@@ -457,6 +444,7 @@ impl Local {
                         domain::Notice::Waiting
                         | domain::Notice::Checking(_)
                         | domain::Notice::NotDelivered { .. }
+                        | domain::Notice::Choice(_)
                         | domain::Notice::ChatRefused { .. } => {
                             unreachable!("only operator notices reach the shell")
                         }
@@ -498,32 +486,25 @@ impl Local {
             self.events.push(event);
         }
         if let Some(writer) = &mut self.writer {
-            while writer.is_ready() {
-                io::resume(writer, &self.env, &mut self.events, &mut self.store_submissions);
-            }
-            for _ in 0..self.store_completions.capacity() {
-                let Some(complete) = self.store_completions.pop() else { break };
-                io::up(writer, &self.env, complete, &mut self.events, &mut self.store_submissions);
-            }
-            for _ in 0..self.env.limits.sockets {
-                if writer.is_ready() {
-                    io::resume(writer, &self.env, &mut self.events, &mut self.store_submissions);
-                }
-                if writer.is_due(self.env.now) {
-                    io::fire(writer, &self.env, &mut self.events, &mut self.store_submissions);
-                }
-            }
+            io::stage::up(
+                writer,
+                &self.env,
+                &mut self.store_completions,
+                &mut self.events,
+                &mut self.store_submissions,
+                self.env.now,
+            );
         }
         while let Some(event) = self.events.pop() {
             match event {
                 io::Event::Resized => {
-                    if self.interactive.as_ref().is_some_and(|front| !front.plain()) {
+                    if self.front.as_ref().and_then(Front::interactive).is_some_and(|front| !front.plain()) {
                         self.service.read_window();
                     }
                 }
                 io::Event::Window { window, .. } => match window {
                     io::Window::Size(size) => {
-                        if let Some(front) = &mut self.interactive {
+                        if let Some(front) = self.front.as_mut().and_then(Front::interactive_mut) {
                             front.columns(size.columns);
                         }
                     }
@@ -652,10 +633,7 @@ impl Local {
             Terminal::Live | Terminal::Closing(_) | Terminal::Closed => {}
         }
         if let Some(writer) = &mut self.writer {
-            while writer.takes() {
-                let Some(request) = self.requests.pop() else { break };
-                io::down(writer, &self.env, request, &mut self.store_submissions);
-            }
+            io::stage::down(writer, &self.env, &mut self.requests, &mut self.store_submissions);
             writer.reclaim();
         } else {
             while let Some(request) = self.requests.pop() {
@@ -668,7 +646,7 @@ impl Local {
         if let Some(text) = self.service.output().pop() {
             return Some(text);
         }
-        let front = self.interactive.as_mut()?;
+        let front = self.front.as_mut().and_then(Front::interactive_mut)?;
         front.remote_activation(self.service.remote_activation());
         if let Some(piece) = self.service.pop_live() {
             return front.piece(piece);
@@ -680,7 +658,7 @@ impl Local {
     }
 
     fn live_pending(&self) -> bool {
-        self.interactive.is_some() && self.service.front_pending()
+        self.front.as_ref().and_then(Front::interactive).is_some() && self.service.front_pending()
     }
     fn submit(&mut self, submit: kernel::Submit, route: Route) {
         let kind = match submit.kind {
@@ -739,7 +717,7 @@ impl Host for Local {
     fn drain(&mut self) {
         if self.announcement == Announcement::BeforeStart {
             self.announcement = Announcement::Running;
-            if self.headless.is_some() || self.interactive.is_some() {
+            if self.front.is_some() {
                 drop(writeln!(self.errors, "smith: chat {}", String::from_utf8_lossy(self.service.chat_name())));
             } else {
                 drop(writeln!(self.errors, "smith: local host started"));
@@ -807,17 +785,7 @@ impl Host for Local {
         self.files();
         self.product_files(now, wall);
         self.writer_down();
-        if self.service.closing()
-            && self.terminal == Terminal::Closed
-            && self.writer.as_ref().is_none_or(io::Io::is_empty)
-            && self.result_file.as_ref().is_none_or(|file| file.is_empty())
-            && self.launch_root.is_none()
-            && !self.launch_closing
-            && self.pending.is_none()
-            && !self.live_pending()
-            && self.store_submissions.is_empty()
-            && self.requests.is_empty()
-        {
+        if self.service.closing() && self.settled_below() {
             self.service.shell_closed();
         }
         while let Some(submit) = self.service.submissions().pop() {
@@ -871,20 +839,12 @@ impl Host for Local {
     }
     fn is_empty(&self) -> bool {
         self.exit.is_some()
-            && self.terminal == Terminal::Closed
-            && self.writer.as_ref().is_none_or(io::Io::is_empty)
-            && self.pending.is_none()
-            && self.result_file.as_ref().is_none_or(|file| file.is_empty())
+            && self.settled_below()
             && self.routes.is_empty()
-            && !self.launch_closing
-            && self.launch_root.is_none()
             && self.completions.is_empty()
             && self.submissions.is_empty()
-            && self.store_completions.is_empty()
-            && self.store_submissions.is_empty()
-            && self.events.is_empty()
-            && self.requests.is_empty()
     }
+
     fn exit(&self) -> Option<kernel::Exit> {
         self.result().map(|result| {
             kernel::Exit::Code(match result {
@@ -899,31 +859,8 @@ impl Host for Local {
     }
 }
 
-/// Bounded saved-token documents shared by both placements and the shell store.
-#[must_use]
-pub fn token_limits() -> skein_oauth::Limits {
-    skein_oauth::Limits {
-        issued_client_bytes: 0,
-        granted_bytes: 1024,
-        subject_bytes: 0,
-        id_token_bytes: 8192,
-        document_bytes: 16_384,
-        string_bytes: 8192,
-        token_bytes: 8192,
-        client_bytes: 1024,
-        detail_bytes: 1024,
-        record_bytes: 32_768,
-        depth: 16,
-        tokens: 1024,
-    }
-}
-
-fn profile_refusal(error: smith_agent_service::profile::Refusal) -> String {
-    String::from_utf8(smith_agent_service::profile::words(&error).into_vec()).expect("refusal words are UTF-8")
-}
-
 fn derivation_refusal(field: &'static str) -> String {
-    profile_refusal(smith_agent_service::profile::Refusal::Derived {
+    crate::startup::profile_refusal(smith_agent_service::profile::Refusal::Derived {
         limit: smith_agent_service::profile::LimitName::deployment(smith_agent_service::profile::Layer::Service, field),
     })
 }

@@ -2,7 +2,7 @@
 //! trace and error writer. It never knows the driving kernel or neighbours.
 //! `Agent` hosts the service and `run` supplies its kernel and clock.
 //! The hosted face takes all resources from its caller; native startup is Unix-only.
-//! Contract: shell.md, sections 2.2 and 2.5; protocol/agent.md, sections 4–6.
+//! Contract: smith/docs/design/shell.md, sections 2.2 and 2.5; smith/docs/design/protocol/agent.md, sections 4–6.
 
 mod agent_shell;
 

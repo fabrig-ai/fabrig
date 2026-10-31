@@ -222,10 +222,7 @@ impl Client {
     fn signed_in(&mut self, env: &Env<accounts::Limits>, account: u32, generation: u64, missing: Box<[u8]>) {
         self.contracts[usize::try_from(account).expect("account index")].signed_in(generation);
         self.facts.push(Fact::SignedIn(generation));
-        assert_eq!(
-            generation,
-            if super::again(self.story) { u64::try_from(self.records.len()).expect("two records") } else { 1 }
-        );
+        assert_eq!(generation, if super::again(self.story) { skein_lib::len_u64(self.records.len()) } else { 1 });
         if self.story == Story::Return(super::Return::After) {
             self.return_to(env, bytes::copy_of(b"https://application.example/stale"));
         }

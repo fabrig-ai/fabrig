@@ -12,13 +12,13 @@ test = false
 doctest = false
 
 [dependencies]
-smith-domain.workspace = true
+smith-domain = { workspace = true, features = ["fixture"] }
 skein-llm-world.workspace = true
 skein-llm.workspace = true
 skein-lib.workspace = true
-smith-domain-session.workspace = true
-smith-domain-tools.workspace = true
-smith-protocol-llm.workspace = true
+smith-domain-session = { workspace = true, features = ["fixture"] }
+smith-domain-tools = { workspace = true, features = ["fixture"] }
+smith-protocol-llm = { workspace = true, features = ["fixture"] }
 smith-tools-world.workspace = true
 skein-fake-checkout.workspace = true
 skein-fake-llm-domain.workspace = true
@@ -28,6 +28,7 @@ skein-world.workspace = true
 smith-transcript.workspace = true
 smith-agent-service.workspace = true
 smith-protocol-channel.workspace = true
+smith-protocol-translate.workspace = true
 
 # Ordinary Rust (programming-model.md, section 10.2), so not the step crates' lints.
 # tests/clippy.toml bans what would make a run unrepeatable.
@@ -39,7 +40,6 @@ unused_must_use = "deny"
 [lints.clippy]
 pedantic = { level = "warn", priority = -1 }
 missing_panics_doc = "allow"          # the world asserts its invariants by panicking
-wildcard_enum_match_arm = "deny"      # a new variant must break the translation
 match_wildcard_for_single_variants = "deny"
 unwrap_used = "deny"
 allow_attributes = "deny"

@@ -1,6 +1,10 @@
 //! The agent's session child domain at random: many noisy worlds, each settled
 //! with every session ended, every way a session ends reached among them.
 
+use smith_session_world::said;
+
+use smith_session_world::bytes;
+
 use std::collections::BTreeSet;
 
 use smith_domain_session::End;
@@ -10,7 +14,6 @@ use smith_session_world::{Ended, World, noisy, submit_noisily};
 const ITERATIONS: u32 = 100_000;
 
 /// Every original scheduled ending class remains mandatory across the full sweep.
-/// World contract: domain/session.md, sections 4, 6, 10 and 12.
 const EXPECTED_ENDS: [&str; 11] =
     ["busy", "invalid", "closed", "failed", "timed out", "Turns", "Input", "Output", "CacheRead", "CacheWrite", "Time"];
 
@@ -112,10 +115,10 @@ fn random_worlds_settle_with_every_session_ended() {
 #[test]
 fn drawn_small_windows_compact_within_them() {
     use smith_domain_session::{Event, llm, record};
-    use smith_session_world::recorded::{World, opening};
+    use smith_session_world::recorded::{Scripted, opening};
     let mut rng = skein_lib::Rng::new(4712);
     for seed in 0..100 {
-        let mut world = World::new(seed);
+        let mut world = Scripted::new(seed);
         world.env.limits.spend = 10_000;
         let mut start = opening(None, world.env.limits.spend);
         start.spec.window = u32::try_from(rng.between(2_000, 3_000)).expect("small window");
@@ -127,7 +130,7 @@ fn drawn_small_windows_compact_within_them() {
         let usage =
             llm::Usage { input_tokens: Some(u64::from(window) * 4 / 5), output_tokens: Some(32), ..llm::Usage::ZERO };
         world.complete(text(b"answer"), llm::Stop::EndTurn, usage);
-        world.step(Event::Continue { session: world.session.expect("opened"), content: b"continue".as_slice().into() });
+        world.step(Event::Continue { session: world.session.expect("opened"), content: bytes(b"continue") });
         world.complete(text(b"summary"), llm::Stop::EndTurn, llm::Usage { output_tokens: Some(8), ..usage });
         assert!(matches!(world.turns.last().expect("window turn").kind, record::Kind::Window(_)));
         let prompt = world.prompts.last().expect("new window prompt");
@@ -139,10 +142,10 @@ fn drawn_small_windows_compact_within_them() {
 #[test]
 fn no_drawn_session_ends_because_its_history_grew() {
     use smith_domain_session::{Event, llm, record};
-    use smith_session_world::recorded::{World, opening, written_calls};
+    use smith_session_world::recorded::{Scripted, opening, written_calls};
     let mut rng = skein_lib::Rng::new(4717);
     for seed in 0..100 {
-        let mut world = World::new(seed);
+        let mut world = Scripted::new(seed);
         world.env.limits.history_bytes = rng.between(24_576, 32_768);
         world.open(opening(None, world.env.limits.spend));
         world.complete(written_calls(16), llm::Stop::ToolUse, llm::Usage::ZERO);
@@ -152,11 +155,7 @@ fn no_drawn_session_ends_because_its_history_grew() {
             world.step(Event::Answered { owner, text: vec![b'r'; count].into_boxed_slice(), error: false, spent: 0 });
         }
         assert!(world.end.is_none());
-        world.complete(
-            Box::new([llm::Block::Text { text: b"summary".as_slice().into(), replay: None }]),
-            llm::Stop::EndTurn,
-            llm::Usage::ZERO,
-        );
+        world.complete(said(b"summary"), llm::Stop::EndTurn, llm::Usage::ZERO);
         assert!(matches!(world.turns.last().expect("window turn").kind, record::Kind::Window(_)));
         world.close();
     }

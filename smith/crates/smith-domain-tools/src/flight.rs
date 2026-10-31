@@ -7,9 +7,9 @@
 //! with a cancel.
 //!
 //! A write stores the file if it is as the kit knows it: at the version its
-//! LLM read or wrote last, or absent if it knows none. An edit runs in two
-//! phases: it loads the file, which must be at the version the kit knows,
-//! makes the edit in memory, and stores the result expecting that version.
+//! LLM read or wrote last, or absent if it knows none. An edit needs no earlier
+//! read: it loads the file, matches its snippets and edits in memory, then stores
+//! the result expecting the version returned by that load.
 //! io compares that with the current file just before it stores, so a change
 //! made since, by another kit or by anything else, is caught: as `Stale` if
 //! the LLM had read the file, and as `NotRead` if it had not and the write
@@ -19,9 +19,9 @@
 //! write's check settles it.
 //!
 //! A command runs until it exits or its deadline, the call's or the tools'
-//! own limit for commands, whichever is sooner. It may change any file the kit
-//! may write; what the kit knows stays as it was, and the version check of
-//! the next write or edit catches what the command changed.
+//! own limit for commands, whichever is sooner. It runs with the agent user's
+//! permissions. File knowledge stays as it was; the next write's version check
+//! or edit's snippet match observes what the command changed.
 //!
 //! The transition table. Every other cell is unreachable by the boundary's
 //! contract: an operation ends only in its own terminals.
@@ -36,8 +36,8 @@
 //! Searching  found                       Done      the lines found
 //!            exited                      Done      how rg failed
 //!            any other                   Done      what it says
-//! Editing    loaded, as known, edited    Storing   (store the edited file)
-//!            loaded, otherwise           Done      stale, no match, ambiguous, too large,
+//! Editing    loaded, matched, edited    Storing   (store the edited file)
+//!            loaded, otherwise           Done      no match, ambiguous, too large,
 //!                                                  or cancelled if the kit is closing
 //!            missing                     Done      not found; nothing is known there
 //!            any other                   Done      what it says
@@ -61,14 +61,14 @@
 //! once it is Done ([`follow`]), which also ends a closing kit with its last
 //! flight and held owner.
 //!
-//! Contract: domain/tools.md, sections 3, 5 and 6; programming-model.md, sections 4.4 and 6.3.
+//! Contract: smith/docs/design/domain/tools.md, sections 3, 5 and 6; skein/docs/foundation/programming-model.md, sections 4.4 and 6.3.
 
 use alloc::boxed::Box;
 use core::mem;
 
 use skein_lib::{Env, Id, Queue, ReplyTo, Slab, Time, Token};
 
-use crate::authority::{self, Checkout};
+use crate::authority::{self, Working};
 use crate::boundary::{Done, Expect, Op, Request};
 use crate::call::Replacement;
 use crate::call::{Outcome, Tool};
@@ -182,7 +182,7 @@ pub(crate) enum Work {
     Shell {
         cwd: Place,
         command: Box<[u8]>,
-        timed: crate::command::Timed,
+        timed: crate::command::SelectedTimeout,
         kept: crate::command::Kept,
         yielded: (Option<skein_lib::Duration>, crate::TimeoutClamp),
     },
@@ -307,15 +307,15 @@ pub(crate) fn done(domain: &mut Domain, env: &Env<Limits>, owner: Token, done: D
     let clamped = state_clamped(&state);
     let next = match state {
         State::Reading { reply_to, place, span } => loaded(kit, reply_to, place, span, done, env.limits.file_bytes),
-        State::Listing { reply_to, place } => scanned(&kit.checkout, reply_to, place, done),
-        State::Searching { reply_to, place } => found(&kit.checkout, reply_to, place, done),
+        State::Listing { reply_to, place } => scanned(&kit.working, reply_to, place, done),
+        State::Searching { reply_to, place } => found(&kit.working, reply_to, place, done),
         State::Editing { reply_to, editing } => to_edit(kit, id, reply_to, editing, done, env, out),
         State::Storing { reply_to, place, change } => {
-            stored(&kit.checkout, &mut kit.knowledge, reply_to, place, change, done, env.limits.file_bytes)
+            stored(&kit.working, &mut kit.knowledge, reply_to, place, change, done, env.limits.file_bytes)
         }
         State::Running { reply_to, place, timeout, output, after } => match done {
             Done::Held { head, tail, dropped } => {
-                let job = kit.jobs.held(id, flight.observation, flight.started);
+                let job = kit.jobs.hold(id, flight.observation, flight.started);
                 assert!(kit.flights.remove(&id), "a yielding command leaves its batch");
                 if kit::closing(kit) {
                     out.push(Request::CancelIo { owner });
@@ -343,7 +343,7 @@ pub(crate) fn done(domain: &mut Domain, env: &Env<Limits>, owner: Token, done: D
             | Done::Escapes
             | Done::Failed { .. }
             | Done::TimedOut
-            | Done::Cancelled) => exited(&kit.checkout, reply_to, place, timeout, output, done),
+            | Done::Cancelled) => exited(&kit.working, reply_to, place, timeout, output, done),
         },
         State::Held { .. } => unreachable!("held terminals use the job table"),
         State::Done => unreachable!("a flight that has answered has nothing in flight"),
@@ -437,15 +437,15 @@ fn loaded(kit: &mut Kit, reply_to: ReplyTo, place: Place, span: Span, done: Done
         }
         Done::Missing => {
             kit.knowledge.forget(&place);
-            Outcome::NotFound { path: authority::resolved(&kit.checkout, &place) }
+            Outcome::NotFound { path: authority::resolved(&kit.working, &place) }
         }
         Done::NotFile => Outcome::NotFile,
-        Done::NotDirectory => Outcome::NotDirectory { path: authority::resolved(&kit.checkout, &place) },
+        Done::NotDirectory => Outcome::NotDirectory { path: authority::resolved(&kit.working, &place) },
         Done::TooLarge { size } => Outcome::TooLarge { what: crate::SizePart::File, size, bound },
-        Done::Escapes => Outcome::Outside { path: authority::resolved(&kit.checkout, &place) },
+        Done::Escapes => Outcome::Outside { path: authority::resolved(&kit.working, &place) },
         Done::Failed { fault } => Outcome::Failed { fault },
         Done::TimedOut => Outcome::TimedOut,
-        Done::Held { .. } | Done::Job { .. } => unreachable!("the tools issue no yield or job act yet"),
+        Done::Held { .. } | Done::Job { .. } => unreachable!("this operation cannot yield a held command"),
         Done::Cancelled => Outcome::Cancelled,
         Done::Listed { .. }
         | Done::Removed
@@ -460,15 +460,15 @@ fn loaded(kit: &mut Kit, reply_to: ReplyTo, place: Place, span: Span, done: Done
 }
 
 /// Listing, ended: answer with the entries.
-fn scanned(checkout: &Checkout, reply_to: ReplyTo, place: Place, done: Done) -> Next {
+fn scanned(working: &Working, reply_to: ReplyTo, place: Place, done: Done) -> Next {
     let outcome = match done {
         Done::Listed { entries, more } => Outcome::Listed { entries, more },
-        Done::Missing => Outcome::NotFound { path: authority::resolved(checkout, &place) },
-        Done::NotDirectory => Outcome::NotDirectory { path: authority::resolved(checkout, &place) },
-        Done::Escapes => Outcome::Outside { path: authority::resolved(checkout, &place) },
+        Done::Missing => Outcome::NotFound { path: authority::resolved(working, &place) },
+        Done::NotDirectory => Outcome::NotDirectory { path: authority::resolved(working, &place) },
+        Done::Escapes => Outcome::Outside { path: authority::resolved(working, &place) },
         Done::Failed { fault } => Outcome::Failed { fault },
         Done::TimedOut => Outcome::TimedOut,
-        Done::Held { .. } | Done::Job { .. } => unreachable!("the tools issue no yield or job act yet"),
+        Done::Held { .. } | Done::Job { .. } => unreachable!("this operation cannot yield a held command"),
         Done::Cancelled => Outcome::Cancelled,
         Done::Loaded { .. }
         | Done::Removed
@@ -485,7 +485,7 @@ fn scanned(checkout: &Checkout, reply_to: ReplyTo, place: Place, done: Done) -> 
 }
 
 /// Searching, ended: answer with the lines found, or how rg failed.
-fn found(checkout: &Checkout, reply_to: ReplyTo, place: Place, done: Done) -> Next {
+fn found(working: &Working, reply_to: ReplyTo, place: Place, done: Done) -> Next {
     let outcome = match done {
         Done::Found { hits, more, timed_out } => Outcome::Found { hits, more, timed_out },
         Done::Exited { exit, head, tail, dropped } => Outcome::Exited {
@@ -496,12 +496,12 @@ fn found(checkout: &Checkout, reply_to: ReplyTo, place: Place, done: Done) -> Ne
             timeout: crate::TimeoutClamp::Within,
             output: crate::BytesClamp::Within,
         },
-        Done::Missing => Outcome::NotFound { path: authority::resolved(checkout, &place) },
-        Done::NotDirectory => Outcome::NotDirectory { path: authority::resolved(checkout, &place) },
-        Done::Escapes => Outcome::Outside { path: authority::resolved(checkout, &place) },
+        Done::Missing => Outcome::NotFound { path: authority::resolved(working, &place) },
+        Done::NotDirectory => Outcome::NotDirectory { path: authority::resolved(working, &place) },
+        Done::Escapes => Outcome::Outside { path: authority::resolved(working, &place) },
         Done::Failed { fault } => Outcome::Failed { fault },
         Done::TimedOut => Outcome::TimedOut,
-        Done::Held { .. } | Done::Job { .. } => unreachable!("the tools issue no yield or job act yet"),
+        Done::Held { .. } | Done::Job { .. } => unreachable!("this operation cannot yield a held command"),
         Done::Cancelled => Outcome::Cancelled,
         Done::Loaded { .. }
         | Done::Listed { .. }
@@ -548,17 +548,17 @@ fn to_edit(
         }
         Done::Missing => {
             kit.knowledge.forget(&place);
-            Outcome::NotFound { path: authority::resolved(&kit.checkout, &place) }
+            Outcome::NotFound { path: authority::resolved(&kit.working, &place) }
         }
         Done::NotFile => Outcome::NotFile,
-        Done::NotDirectory => Outcome::NotDirectory { path: authority::resolved(&kit.checkout, &place) },
+        Done::NotDirectory => Outcome::NotDirectory { path: authority::resolved(&kit.working, &place) },
         Done::TooLarge { size } => {
             Outcome::TooLarge { what: crate::SizePart::File, size, bound: env.limits.file_bytes }
         }
-        Done::Escapes => Outcome::Outside { path: authority::resolved(&kit.checkout, &place) },
+        Done::Escapes => Outcome::Outside { path: authority::resolved(&kit.working, &place) },
         Done::Failed { fault } => Outcome::Failed { fault },
         Done::TimedOut => Outcome::TimedOut,
-        Done::Held { .. } | Done::Job { .. } => unreachable!("the tools issue no yield or job act yet"),
+        Done::Held { .. } | Done::Job { .. } => unreachable!("this operation cannot yield a held command"),
         Done::Cancelled => Outcome::Cancelled,
         Done::Listed { .. }
         | Done::Removed
@@ -575,7 +575,7 @@ fn to_edit(
 /// Storing, ended: answer, and know the version written. `bound` is the
 /// whole-file bound a file larger than io would store is named against.
 fn stored(
-    checkout: &Checkout,
+    working: &Working,
     knowledge: &mut Knowledge,
     reply_to: ReplyTo,
     place: Place,
@@ -617,16 +617,16 @@ fn stored(
         // A directory on the way is missing, or the file replaced is gone.
         Done::Missing => {
             knowledge.forget(&place);
-            Outcome::NotFound { path: authority::resolved(checkout, &place) }
+            Outcome::NotFound { path: authority::resolved(working, &place) }
         }
         Done::NotFile => Outcome::NotFile,
         Done::Linked => Outcome::Linked,
-        Done::NotDirectory => Outcome::NotDirectory { path: authority::resolved(checkout, &place) },
+        Done::NotDirectory => Outcome::NotDirectory { path: authority::resolved(working, &place) },
         Done::TooLarge { size } => Outcome::TooLarge { what: crate::SizePart::File, size, bound },
-        Done::Escapes => Outcome::Outside { path: authority::resolved(checkout, &place) },
+        Done::Escapes => Outcome::Outside { path: authority::resolved(working, &place) },
         Done::Failed { fault } => Outcome::Failed { fault },
         Done::TimedOut => Outcome::TimedOut,
-        Done::Held { .. } | Done::Job { .. } => unreachable!("the tools issue no yield or job act yet"),
+        Done::Held { .. } | Done::Job { .. } => unreachable!("this operation cannot yield a held command"),
         Done::Cancelled => Outcome::Cancelled,
         Done::Loaded { .. } | Done::Listed { .. } | Done::Exited { .. } | Done::Found { .. } => {
             unreachable!("io ends a store with a store's terminal")
@@ -637,7 +637,7 @@ fn stored(
 
 /// Running, ended: answer with how the command ended and what it wrote.
 fn exited(
-    checkout: &Checkout,
+    working: &Working,
     reply_to: ReplyTo,
     place: Place,
     timeout: crate::TimeoutClamp,
@@ -647,12 +647,12 @@ fn exited(
     let outcome = match done {
         Done::Exited { exit, head, tail, dropped } => Outcome::Exited { exit, head, tail, dropped, timeout, output },
         // The working directory.
-        Done::Missing => Outcome::NotFound { path: authority::resolved(checkout, &place) },
-        Done::NotDirectory => Outcome::NotDirectory { path: authority::resolved(checkout, &place) },
-        Done::Escapes => Outcome::Outside { path: authority::resolved(checkout, &place) },
+        Done::Missing => Outcome::NotFound { path: authority::resolved(working, &place) },
+        Done::NotDirectory => Outcome::NotDirectory { path: authority::resolved(working, &place) },
+        Done::Escapes => Outcome::Outside { path: authority::resolved(working, &place) },
         Done::Failed { fault } => Outcome::Failed { fault },
         Done::TimedOut => Outcome::TimedOut,
-        Done::Held { .. } | Done::Job { .. } => unreachable!("the tools issue no yield or job act yet"),
+        Done::Held { .. } | Done::Job { .. } => unreachable!("held commands are handled before exit settlement"),
         Done::Cancelled => Outcome::Cancelled,
         Done::Loaded { .. }
         | Done::Listed { .. }

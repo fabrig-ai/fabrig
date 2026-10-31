@@ -12,12 +12,9 @@ fn scenario() -> Run {
 #[test]
 fn no_credential_variable_reaches_the_program() {
     let story = Story {
-        turns: vec![smith_fake_claude::Turn {
-            steps: vec![smith_fake_claude::Step::Outcome {
-                input: serde_json::json!({"outcome":{"form":"report","text":"done","fields":{}}}),
-            }],
-            end: smith_fake_claude::End::default(),
-        }],
+        turns: vec![smith_fake_claude::Turn::new(vec![smith_fake_claude::Step::Outcome {
+            input: serde_json::json!({"outcome":{"form":"report","text":"done","fields":{}}}),
+        }])],
         ..Story::default()
     };
     let run = program_world::run(Case::Credentials, &story, Some(b"claude.ai"), &charter(), &program(b"source"), None);
@@ -185,14 +182,9 @@ fn a_credential_grant_for_a_program_endpoint_is_refused() {
 }
 
 fn changed_charter(change: impl FnOnce(&mut smith_charter::CharterParts)) -> Box<[u8]> {
-    let mut parts = smith_charter::Charter::decode(&smith_charter::CEILINGS, &mut skein_lib::Reader::new(&charter()))
-        .expect("charter")
-        .into_parts();
-    change(&mut parts);
-    let charter = smith_charter::Charter::new(&smith_charter::CEILINGS, parts).expect("modified charter");
-    let mut writer = skein_lib::Writer::new(usize::try_from(charter.measure()).expect("charter bytes"));
-    charter.encode(&mut writer).expect("charter body");
-    writer.finish()
+    smith_agent_process_world::wire::edit_charter(&charter(), |parts| {
+        change(parts);
+    })
 }
 
 #[test]

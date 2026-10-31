@@ -108,93 +108,6 @@ impl Terminal {
         out.push(Event::Write(notice_text(notice, chat, models, self.limits.show_bytes)));
     }
 
-    /// Render the same bounded notice for the terminal and operator's error output.
-    #[must_use]
-    pub fn notice_text(
-        notice: &local::Notice,
-        chat: &[u8],
-        models: &[smith_domain::run::charter::Llm],
-        cap: u32,
-    ) -> Box<[u8]> {
-        let mut text = Shown { bytes: List::with_capacity(cap), cut: false };
-        match notice {
-            local::Notice::ChatRefused { name, reason } => chat_refused(&mut text, name, *reason),
-            local::Notice::Waiting => append(&mut text, b"Waiting for a message"),
-            local::Notice::Checking(checks) => append(
-                &mut text,
-                match checks {
-                    local::Checks::Started => b"Running checks",
-                    local::Checks::Ended => b"Checks finished",
-                },
-            ),
-            local::Notice::NotDelivered { line, why } => {
-                if let Some(name) = line {
-                    append(&mut text, b"Line ");
-                    decimal(&mut text, name.raw());
-                    append(&mut text, b" not delivered: ");
-                }
-                append(
-                    &mut text,
-                    match why {
-                        local::Undelivered::TooLong => b"Line is too long",
-                        local::Undelivered::Dropped => b"the run ended without reading it",
-                        local::Undelivered::Refused(reason) => match reason {
-                            smith_host_domain::MessageRefusal::TooLarge => b"it is too large",
-                            smith_host_domain::MessageRefusal::Full => b"the inbox is full",
-                            smith_host_domain::MessageRefusal::Ending => b"the run is ending",
-                            smith_host_domain::MessageRefusal::NameInUse => b"its name is in use",
-                        },
-                    },
-                );
-            }
-            local::Notice::Failure(failure) => match failure {
-                local::Failure::NamesExhausted => append(&mut text, b"Chat names exhausted"),
-                local::Failure::Account(account) => failure::account(&mut text, account),
-                local::Failure::HeadUnavailable { directory } => {
-                    append(&mut text, b"run refused: repository ");
-                    append(&mut text, directory);
-                    append(&mut text, b": its head cannot be read");
-                }
-                local::Failure::Run { failure, detail } => {
-                    failure::run(&mut text, failure, detail, models, None, None, None);
-                }
-                local::Failure::Refused(refusal) => failure::refused(&mut text, *refusal),
-                local::Failure::Unstarted(end) => failure::end(&mut text, *end),
-                local::Failure::Credential { account, reason } => {
-                    failure::credential(&mut text, *account, reason.clone());
-                }
-                local::Failure::Agent { failure: why, end, detail } => {
-                    append(&mut text, b"run failed: the agent ");
-                    append(
-                        &mut text,
-                        match why {
-                            local::AgentFailure::NotStarted => b"could not start",
-                            local::AgentFailure::Fault(fault) => match fault {
-                                smith_host_domain::Fault::Exited => b"ended without answering",
-                                smith_host_domain::Fault::Rules => b"broke the channel rules",
-                                smith_host_domain::Fault::TooLarge => b"exceeded its receiving bound",
-                                smith_host_domain::Fault::NoProgress => b"made no progress",
-                                smith_host_domain::Fault::WallTime => b"reached its wall time bound",
-                            },
-                        },
-                    );
-                    failure::end(&mut text, *end);
-                    failure::detail(&mut text, detail);
-                }
-                local::Failure::DeliveryUnsaved => {
-                    append(&mut text, b"A delivery committed, but its answer could not be saved");
-                }
-                local::Failure::Store { turn, reason } => store_failure(&mut text, chat, *turn, *reason),
-            },
-            local::Notice::Warning(local::Warning::ForcedExit { exit, forced }) => {
-                append(&mut text, b"warning: agent forced to exit after answering");
-                failure::end(&mut text, smith_host_domain::End::Exited { exit: *exit, forced: *forced });
-            }
-        }
-        newline(&mut text);
-        text.bytes.into_boxed()
-    }
-
     fn finish_line(&mut self, out: &mut Queue<Event>) {
         if self.discarding {
             self.discarding = false;
@@ -230,7 +143,117 @@ pub fn notice_text(
     models: &[smith_domain::run::charter::Llm],
     cap: u32,
 ) -> Box<[u8]> {
-    Terminal::notice_text(notice, chat, models, cap)
+    let mut text = Shown { bytes: List::with_capacity(cap), cut: false };
+    match notice {
+        local::Notice::Choice(choice) => return choice_text(choice, chat, cap),
+        local::Notice::ChatRefused { name, reason } => chat_refused(&mut text, name, *reason),
+        local::Notice::Waiting => append(&mut text, b"Waiting for a message"),
+        local::Notice::Checking(checks) => append(
+            &mut text,
+            match checks {
+                local::Checks::Started => b"Running checks",
+                local::Checks::Ended => b"Checks finished",
+            },
+        ),
+        local::Notice::NotDelivered { line, why } => {
+            if let Some(name) = line {
+                append(&mut text, b"Line ");
+                decimal(&mut text, name.raw());
+                append(&mut text, b" not delivered: ");
+            }
+            append(
+                &mut text,
+                match why {
+                    local::Undelivered::TooLong => b"Line is too long",
+                    local::Undelivered::Dropped => b"the run ended without reading it",
+                    local::Undelivered::Refused(reason) => match reason {
+                        smith_host_domain::MessageRefusal::TooLarge => b"it is too large",
+                        smith_host_domain::MessageRefusal::Full => b"the inbox is full",
+                        smith_host_domain::MessageRefusal::Ending => b"the run is ending",
+                        smith_host_domain::MessageRefusal::NameInUse => b"its name is in use",
+                    },
+                },
+            );
+        }
+        local::Notice::Failure(failure) => match failure {
+            local::Failure::NamesExhausted => append(&mut text, b"Chat names exhausted"),
+            local::Failure::Account(account) => failure::account(&mut text, account),
+            local::Failure::HeadUnavailable { directory } => {
+                append(&mut text, b"run refused: repository ");
+                append(&mut text, directory);
+                append(&mut text, b": its head cannot be read");
+            }
+            local::Failure::Run { failure, detail } => {
+                failure::run(&mut text, failure, detail, models, None, None, None);
+            }
+            local::Failure::Refused(refusal) => failure::refused(&mut text, *refusal),
+            local::Failure::Unstarted(end) => failure::end(&mut text, *end),
+            local::Failure::Credential { account, reason } => {
+                failure::credential(&mut text, *account, reason.clone());
+            }
+            local::Failure::Agent { failure: why, end, detail } => {
+                append(&mut text, b"run failed: the agent ");
+                append(
+                    &mut text,
+                    match why {
+                        local::AgentFailure::NotStarted => b"could not start",
+                        local::AgentFailure::Fault(fault) => match fault {
+                            smith_host_domain::Fault::Exited => b"ended without answering",
+                            smith_host_domain::Fault::Rules => b"broke the channel rules",
+                            smith_host_domain::Fault::TooLarge => b"exceeded its receiving bound",
+                            smith_host_domain::Fault::NoProgress => b"made no progress",
+                            smith_host_domain::Fault::WallTime => b"reached its wall time bound",
+                        },
+                    },
+                );
+                failure::end(&mut text, *end);
+                failure::detail(&mut text, detail);
+            }
+            local::Failure::DeliveryUnsaved => {
+                append(&mut text, b"A delivery committed, but its answer could not be saved");
+            }
+            local::Failure::Store { turn, reason } => store_failure(&mut text, chat, *turn, *reason),
+        },
+        local::Notice::Warning(local::Warning::ForcedExit { exit, forced }) => {
+            append(&mut text, b"warning: agent forced to exit after answering");
+            failure::end(&mut text, smith_host_domain::End::Exited { exit: *exit, forced: *forced });
+        }
+    }
+    newline(&mut text);
+    text.bytes.into_boxed()
+}
+
+/// Render local choice feedback under the same display bound as domain text.
+#[must_use]
+pub fn choice_text(notice: &local::ChoiceNotice, chat: &[u8], cap: u32) -> Box<[u8]> {
+    match notice {
+        local::ChoiceNotice::Pending => {
+            let mut out = List::with_capacity(cap);
+            choice_put(&mut out, b"One command is waiting for the activation to end");
+            out.into_boxed()
+        }
+        local::ChoiceNotice::Effort { effort, choices, dropped } => {
+            smith_events::effort_words(effort, choices, cap, *dropped)
+        }
+        local::ChoiceNotice::ModelElsewhere { model } => {
+            let mut out = List::with_capacity(cap);
+            choice_put(&mut out, b"Model ");
+            choice_put(&mut out, smith_events::clip(model));
+            choice_put(&mut out, b" needs another invocation: smith --chat ");
+            choice_put(&mut out, chat);
+            choice_put(&mut out, b" -m ");
+            choice_put(&mut out, smith_events::clip(model));
+            out.into_boxed()
+        }
+    }
+}
+
+fn choice_put(out: &mut List<u8>, text: &[u8]) {
+    for byte in text {
+        if out.push(*byte).is_err() {
+            break;
+        }
+    }
 }
 
 /// Render a run failure with names and the host clock from its answer, within the notice cap.
@@ -326,31 +349,45 @@ fn newline(text: &mut Shown) {
     }
 }
 
-fn decimal(text: &mut Shown, mut number: u64) {
-    let mut digits = [0; 20];
-    let mut first = digits.len();
-    for _ in 0..digits.len() {
-        first = first.checked_sub(1).expect("u64 fits twenty decimal digits");
-        *digits.get_mut(first).expect("bounded decimal position") =
-            u8::try_from(number % 10).expect("decimal digit").checked_add(b'0').expect("ASCII digit");
-        number /= 10;
-        if number == 0 {
-            break;
-        }
-    }
-    append(text, digits.get(first..).expect("bounded decimal suffix"));
+fn decimal(text: &mut Shown, number: u64) {
+    append(text, skein_lib::Decimal::of(number).as_bytes());
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    #[test]
+    fn local_choice_words_keep_their_terminal_byte_contract() {
+        use local::ChoiceNotice;
+        let effort = ChoiceNotice::Effort {
+            effort: b"mystery".as_slice().into(),
+            choices: Box::new([b"low".as_slice().into(), b"high".as_slice().into()]),
+            dropped: false,
+        };
+        assert_eq!(
+            choice_text(&effort, b"main", 1024).as_ref(),
+            b"Effort mystery is not declared; accepted: low, high"
+        );
+        let model = ChoiceNotice::ModelElsewhere { model: b"elsewhere/model".as_slice().into() };
+        assert_eq!(
+            choice_text(&model, b"main", 1024).as_ref(),
+            b"Model elsewhere/model needs another invocation: smith --chat main -m elsewhere/model"
+        );
+        assert_eq!(
+            choice_text(&ChoiceNotice::Pending, b"main", 1024).as_ref(),
+            b"One command is waiting for the activation to end"
+        );
+        let effort = ChoiceNotice::Effort { effort: "中文".as_bytes().into(), choices: Box::new([]), dropped: false };
+        assert_eq!(choice_text(&effort, b"main", 10).as_ref(), "Effort 中".as_bytes());
+    }
+
     fn terminal() -> Terminal {
-        Terminal::new(Limits { line_bytes: 32, show_bytes: 32 }).expect("valid terminal")
+        Terminal::new(crate::fixture::TERMINAL).expect("valid terminal")
     }
 
     fn rendered(notice: local::Notice) -> Box<[u8]> {
-        let terminal = Terminal::new(Limits { line_bytes: 32, show_bytes: 128 }).expect("valid terminal");
+        let terminal = Terminal::new(Limits { show_bytes: 128, ..crate::fixture::TERMINAL }).expect("valid terminal");
         let mut out = Queue::uncapped();
         terminal.notice(&notice, b"main", &[], &mut out);
         let Some(Event::Write(text)) = out.pop() else { panic!("one notice written") };
@@ -441,10 +478,8 @@ mod tests {
         }
     }
 
-    fn account_failure_rows() -> [(local::AccountFailure, &'static [u8]); 7] {
+    fn account_failure_rows() -> [(local::AccountFailure, &'static [u8]); 5] {
         [
-            (local::AccountFailure::Unavailable, b"A model account is unavailable\n".as_slice()),
-            (local::AccountFailure::NotRefreshed, b"A model account could not refresh\n".as_slice()),
             (
                 local::AccountFailure::Limited {
                     account: 7,
@@ -501,7 +536,7 @@ mod tests {
 
     #[test]
     fn a_capped_store_notice_ends_on_a_character_boundary_with_a_newline() {
-        let terminal = Terminal::new(Limits { line_bytes: 32, show_bytes: 37 }).expect("valid terminal");
+        let terminal = Terminal::new(Limits { show_bytes: 37, ..crate::fixture::TERMINAL }).expect("valid terminal");
         let mut out = Queue::uncapped();
         terminal.notice(
             &local::Notice::Failure(local::Failure::Store { turn: Some(1), reason: local::StoreFailure::Write }),
@@ -558,7 +593,7 @@ mod tests {
 
     #[test]
     fn an_overlong_line_is_discarded_until_newline() {
-        let mut terminal = Terminal::new(Limits { line_bytes: 3, show_bytes: 32 }).expect("valid terminal");
+        let mut terminal = Terminal::new(Limits { line_bytes: 3, ..crate::fixture::TERMINAL }).expect("valid terminal");
         let mut out = Queue::uncapped();
         for byte in b"abcd\n" {
             terminal.feed(*byte, &mut out);
@@ -791,7 +826,7 @@ mod older_tests {
     use super::*;
 
     #[test]
-    fn actual_store_failure_rendering_keeps_older_words_even_without_a_turn() {
+    fn seen_store_failure_rendering_keeps_older_words_even_without_a_turn() {
         for why in [
             local::Older::Unrecorded,
             local::Older::Layout(local::StoreFamily::Store),

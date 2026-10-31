@@ -1,5 +1,5 @@
-//! A domain world for the agent's session child domain (programming-model.md,
-//! section 4.5; testing-strategy.md, section 2.2): the sessions, with the world as their
+//! A domain world for the agent's session child domain (skein/docs/foundation/programming-model.md,
+//! section 4.5; skein/docs/foundation/testing-strategy.md, section 2.2): the sessions, with the world as their
 //! parent, and a fake LLM provider's domain, driven by one loop,
 //! deterministically from a seed.
 //!
@@ -28,6 +28,7 @@ pub mod tickets;
 pub mod translate;
 mod world;
 
+pub use fixture::{bytes, said};
 pub use noisy::{noisy, submit_noisily};
 pub use skein_world::domain::Span;
 pub use world::{

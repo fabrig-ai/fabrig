@@ -5,6 +5,7 @@
 //! Depth filters emitted entries, not the selected files.
 //! Contract: domain/tools.md, section 3; programming-model.md, sections 4.4 and 6.3.
 
+use crate::files::{in_git, other};
 use alloc::boxed::Box;
 use core::{
     cmp::Ordering,
@@ -137,7 +138,7 @@ impl Listing {
             let entry = self.entries.get(index).expect("retained slot").as_ref().expect("retained entry");
             let cost = u64::try_from(size_of::<tools::Entry>())
                 .expect("entry cell fits")
-                .checked_add(u64::try_from(entry.name.len()).expect("bounded entry name"))
+                .checked_add(skein_lib::len_u64(entry.name.len()))
                 .expect("bounded entry cost");
             let next = used.checked_add(cost).expect("bounded entry prefix");
             if next > self.maximum {
@@ -209,21 +210,4 @@ fn relative(path: &[u8]) -> bool {
 
 fn component(name: &[u8]) -> bool {
     !name.is_empty() && name != b"." && name != b".."
-}
-
-fn in_git(path: &[u8]) -> bool {
-    let mut start = 0_usize;
-    for (index, byte) in path.iter().enumerate() {
-        if *byte == b'/' {
-            if path.get(start..index).expect("path component").eq_ignore_ascii_case(b".git") {
-                return true;
-            }
-            start = index.checked_add(1).expect("path byte index");
-        }
-    }
-    path.get(start..).expect("last component").eq_ignore_ascii_case(b".git")
-}
-
-fn other() -> tools::Done {
-    tools::Done::Failed { fault: tools::Fault::Other }
 }

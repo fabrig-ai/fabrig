@@ -8,7 +8,9 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
-smith-local-protocol = { path = "../../crates/smith-local-protocol" }
+smith-agent-world.workspace = true
+skein-scratch.workspace = true
+smith-local-protocol = { path = "../../crates/smith-local-protocol", features = ["fixture"] }
 skein-shell.workspace = true
 skein-channel.workspace = true
 skein-http.workspace = true
@@ -33,16 +35,17 @@ skein-fake-machine.workspace = true
 skein-fake-checkout.workspace = true
 smith-local-shell.workspace = true
 smith-agent-service.workspace = true
+smith-protocol-events.workspace = true
 smith-agent-shell.workspace = true
 smith-agent-process-world.workspace = true
 smith-local-world.workspace = true
-smith-local-domain.workspace = true
-smith-local-service.workspace = true
+smith-local-domain = { workspace = true, features = ["fixture"] }
+smith-local-service = { workspace = true, features = ["fixture"] }
 smith-host-world.workspace = true
-smith-host-domain.workspace = true
-smith-host-protocol.workspace = true
+smith-host-protocol = { workspace = true, features = ["fixture"] }
 smith-protocol-channel.workspace = true
-smith-domain.workspace = true
+smith-protocol-translate.workspace = true
+smith-domain = { workspace = true, features = ["fixture"] }
 smith-events.workspace = true
 smith-transcript.workspace = true
 serde_json = "1"

@@ -1,5 +1,5 @@
-//! The session child domain's state and its entry points (domain/session.md,
-//! sections 3–7; programming-model.md, sections 4.5 and 6.3). [`Domain`]
+//! The session child domain's state and its entry points (smith/docs/design/domain/session.md,
+//! sections 3–7; skein/docs/foundation/programming-model.md, sections 4.5 and 6.3). [`Domain`]
 //! retains sessions, tools, alarms, deferred ready work, injected randomness
 //! and uncapped facts. [`step`], [`fire`] and [`resume`] emit owned requests.
 //! Facts are kept losslessly and drained by their queued count.
@@ -12,14 +12,14 @@ use smith_domain_tools as tools;
 use crate::boundary::{Event, Request};
 use crate::facts::{Fact, Facts};
 use crate::limits::{self, Limits};
-use crate::session::{self, Alarm, Calls, Ready, Session};
+use crate::session::{self, Alarm, Ready, Session, ToolCalls};
 
 /// The session child domain's state.
 #[derive(Debug)]
 pub struct Domain {
     pub(crate) sessions: Slab<Session>,
     /// What runs the sessions' tool calls: the tools, which the session owns.
-    pub(crate) calls: Calls,
+    pub(crate) calls: ToolCalls,
     pub(crate) alarms: Deadlines<Alarm>,
     /// Sessions resting after a batch answered at once.
     pub(crate) ready: Ready,
@@ -33,8 +33,11 @@ impl Domain {
     pub fn new(limits: &Limits, seed: u64) -> Domain {
         let alarms = limits::alarms(limits).expect("valid limits");
         let runs = limits::runs(limits).expect("valid limits");
-        let calls =
-            Calls { runs: Slab::with_capacity(runs), tools: tools::Domain::new(&limits.tools), out: Queue::uncapped() };
+        let calls = ToolCalls {
+            runs: Slab::with_capacity(runs),
+            tools: tools::Domain::new(&limits.tools),
+            out: Queue::uncapped(),
+        };
         Domain {
             sessions: Slab::with_capacity(limits.sessions),
             calls,
@@ -70,7 +73,7 @@ impl Domain {
         self.calls.tools.kits()
     }
 
-    /// Calls the tools are running, answered ones included until they are
+    /// Tool calls the tools are running, answered ones included until they are
     /// reclaimed.
     #[must_use]
     pub fn flights(&self) -> u32 {
@@ -180,7 +183,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         Event::Cancelled { owner } => session::cancelled(domain, env, owner, out),
         Event::Done { owner, done } => session::io_done(domain, env, owner, done, out),
     }
-    session::pass_on_facts(domain, env);
+    session::pass_on_facts(domain);
 }
 
 /// Fires the earliest alarm due at `env.now` into an uncapped request queue.
@@ -196,7 +199,7 @@ pub fn fire(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
         Alarm::Expiry { session } => session::expire(domain, env, session, out),
         Alarm::Retry { session } => session::retry(domain, env, session, out),
     }
-    session::pass_on_facts(domain, env);
+    session::pass_on_facts(domain);
 }
 
 /// Starts a session on the ready list again, emitting into an uncapped request
@@ -208,5 +211,5 @@ pub fn resume(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) 
         return;
     };
     session::rested(domain, env, id, out);
-    session::pass_on_facts(domain, env);
+    session::pass_on_facts(domain);
 }

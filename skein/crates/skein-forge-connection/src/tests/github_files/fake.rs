@@ -224,7 +224,7 @@ fn encode(response: service::Response) -> Box<[u8]> {
         fields.push(skein_http::Header { name: Box::from(b"ETag".as_slice()), value: etag }).expect("etag header");
     }
     let status = skein_lib::Decimal::of(u64::from(response.status));
-    let length = skein_lib::Decimal::of(u64::try_from(response.body.len()).expect("body length"));
+    let length = skein_lib::Decimal::of(skein_lib::len_u64(response.body.len()));
     let pieces =
         [b"HTTP/1.1 ".as_slice(), status.as_bytes(), b" Answer\r\nContent-Length: ", length.as_bytes(), b"\r\n"];
     let mut size = response.body.len().checked_add(2).expect("body framing");

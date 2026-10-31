@@ -422,21 +422,7 @@ impl Machine {
     }
     fn up(&mut self, event: skein_io::Event) {
         self.events();
-        let owner = match &event {
-            skein_io::Event::Listening { owner, .. }
-            | skein_io::Event::Accepted { owner, .. }
-            | skein_io::Event::Connecting { owner, .. }
-            | skein_io::Event::Connected { owner }
-            | skein_io::Event::Stream { owner, .. }
-            | skein_io::Event::Output { owner, .. }
-            | skein_io::Event::Spawned { owner, .. }
-            | skein_io::Event::Exited { owner, .. }
-            | skein_io::Event::Usage { owner, .. }
-            | skein_io::Event::Window { owner, .. }
-            | skein_io::Event::Failed { owner, .. }
-            | skein_io::Event::Closed { owner } => Some(*owner),
-            skein_io::Event::Resized | skein_io::Event::Shutdown { .. } => None,
-        };
+        let owner = event.owner();
         self.event_source = owner.and_then(|owner| self.connection_generations.get(&owner).copied());
         self.component.up(&self.env, event, &mut self.above, &mut self.below);
         self.events();

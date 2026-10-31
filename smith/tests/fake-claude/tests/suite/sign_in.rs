@@ -1,4 +1,4 @@
-//! Terminal sign-in against the executable fake (protocol/programs.md, 4.1).
+//! Terminal sign-in against the executable fake (smith/docs/design/protocol/programs.md, 4.1).
 
 use skein_scratch::Scratch;
 use smith_agent_shell::program::{prepare, sign_in};

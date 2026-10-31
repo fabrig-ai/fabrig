@@ -5,6 +5,8 @@ use super::{Account, Registered, sign_in};
 use crate::settings::Refusal;
 use skein_oauth as oauth;
 
+pub(super) const REQUIRED_SCOPE: &[u8] = b"chatgpt.tokens.use.direct";
+
 pub(super) const DISCONNECT: &str = "chatgpt.com/settings";
 pub(super) const NOTICE: &str = "You're using your ChatGPT plan. Eligible requests from smith use your plan's included usage; manage it at chatgpt.com/settings/usage.";
 
@@ -65,7 +67,7 @@ pub(super) fn openai(host_id: &str, redirect_port: Option<u16>, moved: &Moved) -
             issued_client_id: true,
             varying_port: true,
             resource: Some(b"https://api.openai.com/v1".as_slice().into()),
-            required_scopes: Some(b"chatgpt.tokens.use.direct".as_slice().into()),
+            required_scopes: Some(REQUIRED_SCOPE.into()),
             revocation_endpoint: Some(address(
                 &moved.revocation_url,
                 "https://auth.openai.com/api/accounts/oauth/revoke",

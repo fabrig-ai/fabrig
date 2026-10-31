@@ -66,7 +66,9 @@ pub fn from_summary(summary: &RunSummary, parent_commit: &str) -> Result<ChangeS
     if commits.len() != 2
         || !commits.contains(parent_commit)
         || summary.groups.iter().any(|group| group.agent != crate::Agent::Smith)
-        || commits.iter().any(|commit| commit.len() != 40 || !commit.bytes().all(|byte| byte.is_ascii_hexdigit()))
+        || commits
+            .iter()
+            .any(|commit| commit.len() != 40 || !commit.bytes().all(|byte| skein_lib::bytes::hex_value(byte).is_some()))
     {
         return Err("change needs two smith source commits including its parent".into());
     }
