@@ -12,3 +12,5 @@ growth_floor 1
 pop_loop 0
 hex_decimal_fn 6
 host_forwarder 4
+comment:actual 79
+comment:genuine 0
