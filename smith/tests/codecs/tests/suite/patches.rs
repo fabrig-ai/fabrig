@@ -70,17 +70,7 @@ fn found_hits_holds_pieces_of_hit_read_from_the_schema() {
                         }
                         Type::Bytes { held: Held::Record { .. }, .. } => panic!("unexpected held record"),
                         Type::List { item, .. } | Type::Option(item) => ty = item,
-                        Type::U8
-                        | Type::U16
-                        | Type::U32
-                        | Type::U64
-                        | Type::Bool
-                        | Type::Duration
-                        | Type::Fixed(_)
-                        | Type::Secret { .. }
-                        | Type::Text(_)
-                        | Type::Bytes { .. }
-                        | Type::Named(_) => break,
+                        _ => break,
                     }
                 }
             }

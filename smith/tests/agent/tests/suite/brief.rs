@@ -340,10 +340,6 @@ fn ordered_sections_and_instructions_reach_main_but_child_receives_only_its_own_
 }
 
 #[test]
-#[expect(
-    clippy::wildcard_enum_match_arm,
-    reason = "the golden collects literal request text rather than every provider part"
-)]
 fn the_first_provider_request_contains_the_carried_messages_with_the_briefs_instruction() {
     use skein_lib::ReplyTo;
     let settings = Settings { job: Job::Reporting, network: Span::millis(1, 1), ..Settings::calm(1191) };

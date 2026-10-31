@@ -137,7 +137,6 @@ fn a_program_grant_starts_claude_with_its_tools() {
 }
 
 #[test]
-#[expect(clippy::wildcard_enum_match_arm, reason = "this observation selects only the Read lifecycle records")]
 fn a_built_in_call_is_told_with_its_text() {
     let run = steps(vec![read("a"), finish()]);
     accepted(&run);

@@ -61,7 +61,6 @@ impl LongWorld {
         panic!("bounded ready handoffs settle");
     }
 
-    #[expect(clippy::wildcard_enum_match_arm, reason = "the composed script rejects every unexpected root effect")]
     fn outputs(&mut self) {
         while let Some(request) = self.out.pop() {
             match request {

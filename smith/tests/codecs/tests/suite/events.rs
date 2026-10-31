@@ -138,43 +138,10 @@ fn capture_filters_only_content_fields_and_live_text() {
                 let line = none.expect("metadata");
                 match read(&line, &limits()).expect("read").expect("event").event {
                     Event::ResponseCompleted(value) => assert!(value.completion.is_none()),
-                    Event::Budget(_)
-                    | Event::SessionStarted(_)
-                    | Event::SessionEnded(_)
-                    | Event::RunStarted(_)
-                    | Event::RunCompleted(_)
-                    | Event::ConversationOpened(_)
-                    | Event::ConversationClosed(_)
-                    | Event::ResponseStarted(_)
-                    | Event::TextDelta(_)
-                    | Event::ToolStarted(_)
-                    | Event::JobEnded(_)
-                    | Event::ToolCompleted(_)
-                    | Event::CheckStarted(_)
-                    | Event::CheckCompleted(_)
-                    | Event::MessageReceived(_)
-                    | Event::MessageRead(_)
-                    | Event::MessageUnread(_)
-                    | Event::Notice(_) => panic!("response"),
+                    _ => panic!("response"),
                 }
             }
-            Event::Budget(_)
-            | Event::SessionStarted(_)
-            | Event::SessionEnded(_)
-            | Event::RunStarted(_)
-            | Event::RunCompleted(_)
-            | Event::ConversationOpened(_)
-            | Event::ConversationClosed(_)
-            | Event::ResponseStarted(_)
-            | Event::ToolStarted(_)
-            | Event::JobEnded(_)
-            | Event::ToolCompleted(_)
-            | Event::CheckStarted(_)
-            | Event::CheckCompleted(_)
-            | Event::MessageReceived(_)
-            | Event::MessageRead(_)
-            | Event::MessageUnread(_)
-            | Event::Notice(_) => {
+            _ => {
                 let line = String::from_utf8(none.expect("metadata").into_vec()).expect("UTF-8");
                 for key in ["\"prompt\":", "\"input\":", "\"text\":", "\"fields\":"] {
                     assert!(!line.contains(key), "content removed under none: {key}");
@@ -203,24 +170,7 @@ fn unknown_types_fields_and_listed_values_are_tolerated_within_this_version() {
         Event::Notice(notice) => {
             assert_eq!(notice.level, smith_events::Level::Unknown(Box::from(b"future".as_slice())));
         }
-        Event::Budget(_)
-        | Event::SessionStarted(_)
-        | Event::SessionEnded(_)
-        | Event::RunStarted(_)
-        | Event::RunCompleted(_)
-        | Event::ConversationOpened(_)
-        | Event::ConversationClosed(_)
-        | Event::ResponseStarted(_)
-        | Event::ResponseCompleted(_)
-        | Event::TextDelta(_)
-        | Event::ToolStarted(_)
-        | Event::JobEnded(_)
-        | Event::ToolCompleted(_)
-        | Event::CheckStarted(_)
-        | Event::CheckCompleted(_)
-        | Event::MessageReceived(_)
-        | Event::MessageRead(_)
-        | Event::MessageUnread(_) => panic!("notice"),
+        _ => panic!("notice"),
     }
     assert_eq!(read(b"{\"v\":99,\"type\":\"future\",\"t_ms\":0}", &limits), Err(Error::Version(99)));
 }
@@ -689,22 +639,7 @@ fn model_window_is_exact_and_independent_of_output_under_every_capture() {
             Event::RunStarted(value) => &mut value.main,
             Event::ConversationOpened(value) => &mut value.model,
             Event::ResponseStarted(value) => &mut value.model,
-            Event::Budget(_)
-            | Event::SessionStarted(_)
-            | Event::SessionEnded(_)
-            | Event::RunCompleted(_)
-            | Event::ConversationClosed(_)
-            | Event::ResponseCompleted(_)
-            | Event::TextDelta(_)
-            | Event::ToolStarted(_)
-            | Event::JobEnded(_)
-            | Event::ToolCompleted(_)
-            | Event::CheckStarted(_)
-            | Event::CheckCompleted(_)
-            | Event::MessageReceived(_)
-            | Event::MessageRead(_)
-            | Event::MessageUnread(_)
-            | Event::Notice(_) => continue,
+            _ => continue,
         };
         model.window_tokens = u64::MAX;
         model.output_tokens = 9_007_199_254_740_993;
@@ -715,22 +650,7 @@ fn model_window_is_exact_and_independent_of_output_under_every_capture() {
                 Event::RunStarted(value) => &value.main,
                 Event::ConversationOpened(value) => &value.model,
                 Event::ResponseStarted(value) => &value.model,
-                Event::Budget(_)
-                | Event::SessionStarted(_)
-                | Event::SessionEnded(_)
-                | Event::RunCompleted(_)
-                | Event::ConversationClosed(_)
-                | Event::ResponseCompleted(_)
-                | Event::TextDelta(_)
-                | Event::ToolStarted(_)
-                | Event::JobEnded(_)
-                | Event::ToolCompleted(_)
-                | Event::CheckStarted(_)
-                | Event::CheckCompleted(_)
-                | Event::MessageReceived(_)
-                | Event::MessageRead(_)
-                | Event::MessageUnread(_)
-                | Event::Notice(_) => panic!("model event preserved"),
+                _ => panic!("model event preserved"),
             };
             assert_eq!(model.window_tokens, u64::MAX);
             assert_eq!(model.output_tokens, 9_007_199_254_740_993);
@@ -768,23 +688,7 @@ fn conversation_thread_and_response_window_are_required_exact_metadata_under_eve
             let observed = match &record.event {
                 Event::ConversationOpened(opened) => opened.thread,
                 Event::ResponseStarted(started) => started.window,
-                Event::Budget(_)
-                | Event::SessionStarted(_)
-                | Event::SessionEnded(_)
-                | Event::RunStarted(_)
-                | Event::RunCompleted(_)
-                | Event::ConversationClosed(_)
-                | Event::ResponseCompleted(_)
-                | Event::TextDelta(_)
-                | Event::ToolStarted(_)
-                | Event::JobEnded(_)
-                | Event::ToolCompleted(_)
-                | Event::CheckStarted(_)
-                | Event::CheckCompleted(_)
-                | Event::MessageReceived(_)
-                | Event::MessageRead(_)
-                | Event::MessageUnread(_)
-                | Event::Notice(_) => panic!("independent conversation or response record"),
+                _ => panic!("independent conversation or response record"),
             };
             assert_eq!(observed, value);
             for capture in [Capture::None, Capture::Calls, Capture::Everything] {

@@ -57,10 +57,6 @@ pub fn check_program(records: &[Record], received: &[serde_json::Value]) {
     clippy::too_many_lines,
     reason = "one exhaustive Smith record referee keeps all18 pairings and count/charge checks together"
 )]
-#[expect(
-    clippy::wildcard_enum_match_arm,
-    reason = "the inner lookback selects one preceding provider call; the outer referee checks every event"
-)]
 fn check_transport(records: &[Record], program: bool) {
     let record_limits = std::cell::OnceCell::new();
     let Event::SessionStarted(header) = &records.first().expect("stream header").event else {
@@ -248,13 +244,7 @@ fn check_transport(records: &[Record], program: bool) {
                     checks.iter().position(|started| *started == check.run).expect("one check start before terminal");
                 checks.remove(index);
             }
-            Event::Budget(_)
-            | Event::TextDelta(_)
-            | Event::MessageReceived(_)
-            | Event::MessageRead(_)
-            | Event::MessageUnread(_)
-            | Event::JobEnded(_)
-            | Event::Notice(_) => {}
+            _ => {}
         }
     }
     assert!(

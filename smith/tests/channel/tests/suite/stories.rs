@@ -483,7 +483,6 @@ fn a_run_resumed_from_a_transcript_restores_the_calls_answered_after_its_last_tu
 }
 
 #[test]
-#[expect(clippy::wildcard_enum_match_arm, reason = "the story selects each activation's one forwarded turn")]
 #[expect(
     clippy::too_many_lines,
     reason = "two activations follow concrete windows, identity, fences and exact turn accounting"
@@ -670,7 +669,6 @@ fn a_long_operation_stretches_progress_until_its_end() {
 }
 
 #[test]
-#[expect(clippy::wildcard_enum_match_arm, reason = "test selects one observed wire turn")]
 fn a_concrete_turn_reaches_the_host_and_its_acknowledgement_returns() {
     use smith_domain_session::{llm, record};
 
@@ -872,7 +870,6 @@ fn admitted_notice_world() -> World {
 
 #[test]
 fn cancellation_records_and_end_each_wait_for_their_read() {
-    #[expect(clippy::wildcard_enum_match_arm, reason = "this story selects the four demanded terminals it queues")]
     fn terminals(world: &World) -> Vec<&'static str> {
         world
             .observations()
@@ -1161,7 +1158,6 @@ fn a_withdrawn_host_call_still_returns_under_its_live_relay() {
 }
 
 #[test]
-#[expect(clippy::wildcard_enum_match_arm, reason = "test extracts one observation from many event kinds")]
 fn a_delivery_keeps_fields_and_a_settled_landing_or_stale_terminal() {
     let mut world = World::new(CEILINGS, CEILINGS, StreamMode::Two);
     world.settle();
