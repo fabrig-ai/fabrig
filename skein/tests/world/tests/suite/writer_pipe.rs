@@ -35,8 +35,8 @@ impl Host for Diagnostic {
     fn work_pending(&self, now: Time) -> bool {
         self.script.work_pending(now)
     }
-    fn next_deadline(&self) -> Option<Time> {
-        self.script.next_deadline()
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        self.script.next_mechanism_deadline()
     }
 
     fn next_policy_deadline(&self) -> Option<Time> {
@@ -97,8 +97,8 @@ impl Host for Process {
     fn work_pending(&self, now: Time) -> bool {
         self.host().work_pending(now)
     }
-    fn next_deadline(&self) -> Option<Time> {
-        self.host().next_deadline()
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        self.host().next_mechanism_deadline()
     }
 
     fn next_policy_deadline(&self) -> Option<Time> {

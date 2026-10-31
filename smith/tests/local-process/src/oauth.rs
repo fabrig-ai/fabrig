@@ -256,7 +256,7 @@ impl Host for Browser {
             || !self.cipher_down.is_empty()
             || !self.completions.is_empty()
     }
-    fn next_deadline(&self) -> Option<Time> {
+    fn next_mechanism_deadline(&self) -> Option<Time> {
         self.io.next_deadline()
     }
     fn next_policy_deadline(&self) -> Option<Time> {

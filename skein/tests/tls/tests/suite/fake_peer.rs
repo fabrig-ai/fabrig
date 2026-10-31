@@ -198,7 +198,7 @@ impl Host for Sender {
             || !self.above.is_empty()
             || !self.below.is_empty()
     }
-    fn next_deadline(&self) -> Option<Time> {
+    fn next_mechanism_deadline(&self) -> Option<Time> {
         self.io.next_deadline()
     }
     fn next_policy_deadline(&self) -> Option<Time> {
@@ -249,8 +249,8 @@ impl Host for Process {
     fn work_pending(&self, now: Time) -> bool {
         self.host().work_pending(now)
     }
-    fn next_deadline(&self) -> Option<Time> {
-        self.host().next_deadline()
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        self.host().next_mechanism_deadline()
     }
     fn next_policy_deadline(&self) -> Option<Time> {
         self.host().next_policy_deadline()

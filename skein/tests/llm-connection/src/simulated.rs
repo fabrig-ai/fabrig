@@ -248,11 +248,8 @@ impl Host for Client {
                 component.has_work() || component.next_deadline().is_some_and(|due| due <= now)
             })
     }
-    fn next_deadline(&self) -> Option<Time> {
-        [self.io.next_deadline(), self.component.as_ref().and_then(Component::next_deadline)]
-            .into_iter()
-            .flatten()
-            .min()
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        self.io.next_deadline()
     }
 
     fn next_policy_deadline(&self) -> Option<Time> {
@@ -313,11 +310,11 @@ impl Host for Process {
             Self::Peer(peer, release) => release.as_ref().is_some_and(|(_, at)| now >= *at) || peer.work_pending(now),
         }
     }
-    fn next_deadline(&self) -> Option<Time> {
+    fn next_mechanism_deadline(&self) -> Option<Time> {
         match self {
-            Self::Client(client) => client.next_deadline(),
+            Self::Client(client) => client.next_mechanism_deadline(),
             Self::Peer(peer, release) => {
-                [peer.next_deadline(), release.as_ref().map(|(_, at)| *at)].into_iter().flatten().min()
+                [peer.next_mechanism_deadline(), release.as_ref().map(|(_, at)| *at)].into_iter().flatten().min()
             }
         }
     }

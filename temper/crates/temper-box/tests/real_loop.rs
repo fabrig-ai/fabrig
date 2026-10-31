@@ -83,8 +83,8 @@ impl Host for Proc {
     fn work_pending(&self, now: Time) -> bool {
         self.host().work_pending(now)
     }
-    fn next_deadline(&self) -> Option<Time> {
-        self.host().next_deadline()
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        self.host().next_mechanism_deadline()
     }
     fn next_policy_deadline(&self) -> Option<Time> {
         self.host().next_policy_deadline()
@@ -234,7 +234,7 @@ impl Host for Synthetic {
             || !self.submissions.is_empty()
             || (self.end.is_none() && !self.writing && self.written < self.released)
     }
-    fn next_deadline(&self) -> Option<Time> {
+    fn next_mechanism_deadline(&self) -> Option<Time> {
         None
     }
     fn next_policy_deadline(&self) -> Option<Time> {

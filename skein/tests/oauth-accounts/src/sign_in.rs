@@ -503,11 +503,10 @@ impl Host for Client {
                 component.has_work() || component.next_deadline().is_some_and(|due| due <= now)
             })
     }
-    fn next_deadline(&self) -> Option<Time> {
+    fn next_mechanism_deadline(&self) -> Option<Time> {
         [
             self.io.next_deadline(),
             self.again_at,
-            self.component.as_ref().and_then(accounts::Component::next_deadline),
             self.file_driver.as_ref().and_then(skein_world::files::Driver::next_deadline),
         ]
         .into_iter()
@@ -574,11 +573,11 @@ impl Host for Process {
             Process::Browser(browser) => browser.work_pending(now),
         }
     }
-    fn next_deadline(&self) -> Option<Time> {
+    fn next_mechanism_deadline(&self) -> Option<Time> {
         match self {
-            Process::Client(client) => client.next_deadline(),
-            Process::Issuer(peer) => peer.next_deadline(),
-            Process::Browser(browser) => browser.next_deadline(),
+            Process::Client(client) => client.next_mechanism_deadline(),
+            Process::Issuer(peer) => peer.next_mechanism_deadline(),
+            Process::Browser(browser) => browser.next_mechanism_deadline(),
         }
     }
 

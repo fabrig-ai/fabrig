@@ -290,8 +290,8 @@ impl Host for Agent {
     fn work_pending(&self, _now: Time) -> bool {
         self.io.is_ready() || !self.completions.is_empty() || !self.events.is_empty() || !self.requests.is_empty()
     }
-    fn next_deadline(&self) -> Option<Time> {
-        self.io.next_deadline().into_iter().chain(self.server.next_deadline()).min()
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        self.io.next_deadline()
     }
     fn next_policy_deadline(&self) -> Option<Time> {
         self.server.next_deadline()
@@ -350,11 +350,11 @@ impl Host for Process {
             Self::Relay(p) => p.work_pending(now),
         }
     }
-    fn next_deadline(&self) -> Option<Time> {
+    fn next_mechanism_deadline(&self) -> Option<Time> {
         match self {
-            Self::Agent(p) => p.next_deadline(),
-            Self::Fake(p) => p.next_deadline(),
-            Self::Relay(p) => p.next_deadline(),
+            Self::Agent(p) => p.next_mechanism_deadline(),
+            Self::Fake(p) => p.next_mechanism_deadline(),
+            Self::Relay(p) => p.next_mechanism_deadline(),
         }
     }
     fn next_policy_deadline(&self) -> Option<Time> {

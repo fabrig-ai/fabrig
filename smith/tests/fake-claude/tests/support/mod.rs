@@ -379,8 +379,8 @@ impl Host for Parent {
             || (!self.waiting && !self.signal_waiting && !self.is_empty())
             || self.signal_at.is_some_and(|at| now >= at)
     }
-    fn next_deadline(&self) -> Option<Time> {
-        self.signal_at
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        None
     }
     fn next_policy_deadline(&self) -> Option<Time> {
         self.signal_at
@@ -422,8 +422,8 @@ impl Host for Process {
     fn work_pending(&self, now: Time) -> bool {
         delegate!(self, host, host.work_pending(now))
     }
-    fn next_deadline(&self) -> Option<Time> {
-        delegate!(self, host, host.next_deadline())
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        delegate!(self, host, host.next_mechanism_deadline())
     }
     fn next_policy_deadline(&self) -> Option<Time> {
         delegate!(self, host, host.next_policy_deadline())

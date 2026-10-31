@@ -1404,7 +1404,7 @@ impl Host for Caller {
         !self.completions.is_empty()
             || if self.closing { self.can_finish() } else { self.released && self.can_advance() }
     }
-    fn next_deadline(&self) -> Option<Time> {
+    fn next_mechanism_deadline(&self) -> Option<Time> {
         None
     }
     fn next_policy_deadline(&self) -> Option<Time> {

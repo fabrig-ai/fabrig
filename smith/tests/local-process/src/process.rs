@@ -232,8 +232,8 @@ impl Host for LocalProcess {
     fn work_pending(&self, now: Time) -> bool {
         self.local.work_pending(now)
     }
-    fn next_deadline(&self) -> Option<Time> {
-        self.local.next_deadline()
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        self.local.next_mechanism_deadline()
     }
     fn next_policy_deadline(&self) -> Option<Time> {
         self.local.next_policy_deadline()
@@ -324,8 +324,8 @@ impl Host for BrowserProcess {
             || !self.completions.is_empty()
             || !self.submissions.is_empty()
     }
-    fn next_deadline(&self) -> Option<Time> {
-        self.browser.as_ref().and_then(Host::next_deadline)
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        self.browser.as_ref().and_then(Host::next_mechanism_deadline)
     }
     fn next_policy_deadline(&self) -> Option<Time> {
         self.browser.as_ref().and_then(Host::next_policy_deadline)
@@ -408,8 +408,8 @@ impl Host for IssuerProcess {
     fn work_pending(&self, now: Time) -> bool {
         self.peer.work_pending(now)
     }
-    fn next_deadline(&self) -> Option<Time> {
-        self.peer.next_deadline()
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        self.peer.next_mechanism_deadline()
     }
     fn next_policy_deadline(&self) -> Option<Time> {
         self.peer.next_policy_deadline()
@@ -493,8 +493,8 @@ impl Host for Proc {
     fn work_pending(&self, now: Time) -> bool {
         self.host().work_pending(now)
     }
-    fn next_deadline(&self) -> Option<Time> {
-        self.host().next_deadline()
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        self.host().next_mechanism_deadline()
     }
     fn next_policy_deadline(&self) -> Option<Time> {
         self.host().next_policy_deadline()

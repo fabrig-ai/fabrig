@@ -402,7 +402,7 @@ impl Host for Output {
             || self.tree == Tree::Settled && self.ended_terminal.is_some()
             || !self.tracing && self.trace.is_some() && self.trace_poll.is_none_or(|deadline| deadline <= now)
     }
-    fn next_deadline(&self) -> Option<Time> {
+    fn next_mechanism_deadline(&self) -> Option<Time> {
         self.trace_poll
     }
     /// The trace poll paces settlement; it is no policy deadline.
@@ -460,8 +460,8 @@ impl Host for Process {
     fn work_pending(&self, now: Time) -> bool {
         self.host().work_pending(now)
     }
-    fn next_deadline(&self) -> Option<Time> {
-        self.host().next_deadline()
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        self.host().next_mechanism_deadline()
     }
     fn next_policy_deadline(&self) -> Option<Time> {
         self.host().next_policy_deadline()

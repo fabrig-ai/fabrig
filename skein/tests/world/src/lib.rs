@@ -312,8 +312,8 @@ impl Host for Script {
         !self.completions.is_empty() || (self.waiting.is_none() && !self.done && !self.paused(now))
     }
 
-    fn next_deadline(&self) -> Option<Time> {
-        if self.done { None } else { self.pause }
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        None
     }
 
     fn next_policy_deadline(&self) -> Option<Time> {

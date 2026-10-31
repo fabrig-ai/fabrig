@@ -764,17 +764,11 @@ impl Host for Client {
                 component.has_work() || component.next_deadline().is_some_and(|due| due <= now)
             })
     }
-    fn next_deadline(&self) -> Option<Time> {
-        [
-            self.io.next_deadline(),
-            self.file_driver.as_ref().and_then(skein_world::files::Driver::next_deadline),
-            self.component.as_ref().and_then(accounts::Component::next_deadline),
-            (self.story == Story::Released && self.component.is_some() && !self.closing)
-                .then(|| self.started.saturating_add(Duration::from_secs(40))),
-        ]
-        .into_iter()
-        .flatten()
-        .min()
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        [self.io.next_deadline(), self.file_driver.as_ref().and_then(skein_world::files::Driver::next_deadline)]
+            .into_iter()
+            .flatten()
+            .min()
     }
 
     fn next_policy_deadline(&self) -> Option<Time> {
@@ -837,10 +831,10 @@ impl Host for Process {
             Process::Issuer(peer) => peer.work_pending(now),
         }
     }
-    fn next_deadline(&self) -> Option<Time> {
+    fn next_mechanism_deadline(&self) -> Option<Time> {
         match self {
-            Process::Client(client) => client.next_deadline(),
-            Process::Issuer(peer) => peer.next_deadline(),
+            Process::Client(client) => client.next_mechanism_deadline(),
+            Process::Issuer(peer) => peer.next_mechanism_deadline(),
         }
     }
 

@@ -496,10 +496,9 @@ impl Host for NativeClient {
             || !self.out.is_empty()
             || (!matches!(self.phase, Phase::Closing { .. }) && self.started() && self.dirty)
     }
-    fn next_deadline(&self) -> Option<Time> {
-        let policy = [self.shell.next_deadline(), self.next_policy_deadline()].into_iter().flatten().min();
+    fn next_mechanism_deadline(&self) -> Option<Time> {
         let next = if matches!(self.phase, Phase::Closing { .. }) { None } else { self.view.next_change() };
-        deadline(policy, next, self.env.now, self.env.wall)
+        deadline(self.shell.next_deadline(), next, self.env.now, self.env.wall)
     }
     fn next_policy_deadline(&self) -> Option<Time> {
         if matches!(self.phase, Phase::Closing { .. }) { None } else { domain::next_deadline(&self.root) }

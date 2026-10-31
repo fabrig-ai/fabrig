@@ -404,7 +404,7 @@ mod no_stdin {
                 || !self.events.is_empty()
                 || !self.requests.is_empty()
         }
-        fn next_deadline(&self) -> Option<Time> {
+        fn next_mechanism_deadline(&self) -> Option<Time> {
             self.io.next_deadline()
         }
         fn next_policy_deadline(&self) -> Option<Time> {
@@ -451,8 +451,8 @@ mod no_stdin {
         fn work_pending(&self, now: Time) -> bool {
             self.host().work_pending(now)
         }
-        fn next_deadline(&self) -> Option<Time> {
-            self.host().next_deadline()
+        fn next_mechanism_deadline(&self) -> Option<Time> {
+            self.host().next_mechanism_deadline()
         }
         fn next_policy_deadline(&self) -> Option<Time> {
             self.host().next_policy_deadline()

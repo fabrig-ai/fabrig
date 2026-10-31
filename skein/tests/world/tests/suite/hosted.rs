@@ -210,8 +210,8 @@ impl Host for CuttingScript {
     fn work_pending(&self, now: Time) -> bool {
         self.script.work_pending(now) || (self.script.is_empty() && self.signal.is_some())
     }
-    fn next_deadline(&self) -> Option<Time> {
-        self.script.next_deadline()
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        self.script.next_mechanism_deadline()
     }
     fn next_policy_deadline(&self) -> Option<Time> {
         self.script.next_policy_deadline()

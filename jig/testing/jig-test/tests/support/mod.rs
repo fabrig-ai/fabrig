@@ -241,8 +241,8 @@ impl Host for Person {
             || (!self.reading && self.output.is_some())
             || self.client.as_ref().is_some_and(|client| client.work_pending(now))
     }
-    fn next_deadline(&self) -> Option<Time> {
-        self.client.as_ref().and_then(Host::next_deadline)
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        self.client.as_ref().and_then(Host::next_mechanism_deadline)
     }
     fn next_policy_deadline(&self) -> Option<Time> {
         self.client.as_ref().and_then(Host::next_policy_deadline)
@@ -297,8 +297,8 @@ impl Host for Process {
     fn work_pending(&self, now: Time) -> bool {
         self.host().work_pending(now)
     }
-    fn next_deadline(&self) -> Option<Time> {
-        self.host().next_deadline()
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        self.host().next_mechanism_deadline()
     }
     fn next_policy_deadline(&self) -> Option<Time> {
         self.host().next_policy_deadline()

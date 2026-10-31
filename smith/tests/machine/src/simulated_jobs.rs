@@ -91,8 +91,8 @@ impl Host for Process {
         self.host().work_pending(now)
     }
 
-    fn next_deadline(&self) -> Option<Time> {
-        self.host().next_deadline()
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        self.host().next_mechanism_deadline()
     }
 
     fn next_policy_deadline(&self) -> Option<Time> {
@@ -263,8 +263,8 @@ impl Host for Shell {
         !self.completions.is_empty() || (!self.waiting && !self.closed && self.until.is_none_or(|at| now >= at))
     }
 
-    fn next_deadline(&self) -> Option<Time> {
-        self.until
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        None
     }
 
     fn next_policy_deadline(&self) -> Option<Time> {

@@ -70,8 +70,8 @@ impl Host for Proc {
         !matches!(self, Self::Agent { paused: true, .. }) && self.host().work_pending(now)
     }
 
-    fn next_deadline(&self) -> Option<Time> {
-        if matches!(self, Self::Agent { paused: true, .. }) { None } else { self.host().next_deadline() }
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        if matches!(self, Self::Agent { paused: true, .. }) { None } else { self.host().next_mechanism_deadline() }
     }
 
     fn next_policy_deadline(&self) -> Option<Time> {
@@ -108,7 +108,7 @@ impl Host for HostService {
         HostService::work_pending(self, now)
     }
 
-    fn next_deadline(&self) -> Option<Time> {
+    fn next_mechanism_deadline(&self) -> Option<Time> {
         HostService::next_deadline(self)
     }
 
@@ -172,7 +172,7 @@ impl Host for ErrorTail {
         !self.completions.is_empty() || (self.offset < 26 && !self.in_flight)
     }
 
-    fn next_deadline(&self) -> Option<Time> {
+    fn next_mechanism_deadline(&self) -> Option<Time> {
         None
     }
 

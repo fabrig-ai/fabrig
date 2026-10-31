@@ -123,7 +123,7 @@ impl Host for ServiceHost {
     fn work_pending(&self, now: Time) -> bool {
         self.service.work_pending(now) || self.relay.ready(now) || (!self.holding && !self.held.is_empty())
     }
-    fn next_deadline(&self) -> Option<Time> {
+    fn next_mechanism_deadline(&self) -> Option<Time> {
         [self.service.next_deadline(), self.relay.until].into_iter().flatten().min()
     }
     fn next_policy_deadline(&self) -> Option<Time> {
@@ -174,8 +174,8 @@ impl Host for Proc {
     fn work_pending(&self, now: Time) -> bool {
         self.host().work_pending(now)
     }
-    fn next_deadline(&self) -> Option<Time> {
-        self.host().next_deadline()
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        self.host().next_mechanism_deadline()
     }
     fn next_policy_deadline(&self) -> Option<Time> {
         self.host().next_policy_deadline()

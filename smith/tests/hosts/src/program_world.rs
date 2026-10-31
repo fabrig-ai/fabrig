@@ -165,8 +165,8 @@ impl Host for Parent {
             || (self.source.is_none() && !self.root_closing)
             || self.source.as_ref().and_then(ProgramSource::next_deadline).is_some_and(|at| at <= now)
     }
-    fn next_deadline(&self) -> Option<Time> {
-        self.io.next_deadline().into_iter().chain(self.next_policy_deadline()).min()
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        self.io.next_deadline()
     }
     fn next_policy_deadline(&self) -> Option<Time> {
         self.source.as_ref().and_then(ProgramSource::next_deadline)
@@ -219,8 +219,8 @@ impl Host for Process {
     fn work_pending(&self, now: Time) -> bool {
         self.host().work_pending(now)
     }
-    fn next_deadline(&self) -> Option<Time> {
-        self.host().next_deadline()
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        self.host().next_mechanism_deadline()
     }
     fn next_policy_deadline(&self) -> Option<Time> {
         self.host().next_policy_deadline()

@@ -1358,14 +1358,8 @@ impl skein_shell::Host for Service {
         }
         false
     }
-    fn next_deadline(&self) -> Option<Time> {
-        let deadline = self.next_policy_deadline();
-        let io_deadline =
-            if self.submissions.room() >= io::MAX_OUT_FIRE.submissions { self.io.next_deadline() } else { None };
-        match (io_deadline, deadline) {
-            (Some(a), Some(b)) => Some(a.min(b)),
-            (a, None) | (None, a) => a,
-        }
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        if self.submissions.room() >= io::MAX_OUT_FIRE.submissions { self.io.next_deadline() } else { None }
     }
     fn next_policy_deadline(&self) -> Option<Time> {
         if !self.policy_timers_ready() {

@@ -29,7 +29,7 @@ impl Host for Service {
     fn work_pending(&self, now: Time) -> bool {
         self.0.work_pending(now)
     }
-    fn next_deadline(&self) -> Option<Time> {
+    fn next_mechanism_deadline(&self) -> Option<Time> {
         self.0.next_deadline()
     }
     fn next_policy_deadline(&self) -> Option<Time> {
@@ -73,8 +73,8 @@ impl Host for Process {
     fn work_pending(&self, now: Time) -> bool {
         self.host().work_pending(now)
     }
-    fn next_deadline(&self) -> Option<Time> {
-        self.host().next_deadline()
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        self.host().next_mechanism_deadline()
     }
     fn next_policy_deadline(&self) -> Option<Time> {
         self.host().next_policy_deadline()

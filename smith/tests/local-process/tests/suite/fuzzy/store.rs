@@ -148,7 +148,7 @@ impl Host for Owner {
     fn work_pending(&self, _: Time) -> bool {
         !self.completions.is_empty() || !self.events.is_empty() || (!self.actions.is_empty() && self.io.takes())
     }
-    fn next_deadline(&self) -> Option<Time> {
+    fn next_mechanism_deadline(&self) -> Option<Time> {
         self.io.next_deadline()
     }
     fn next_policy_deadline(&self) -> Option<Time> {

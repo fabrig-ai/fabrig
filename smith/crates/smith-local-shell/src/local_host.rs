@@ -854,12 +854,14 @@ impl Host for Local {
             || !self.events.is_empty()
             || !self.requests.is_empty()
     }
-    fn next_deadline(&self) -> Option<Time> {
-        [self.service.next_deadline(), self.writer.as_ref().and_then(io::Io::next_deadline)]
-            .into_iter()
-            .flatten()
-            .chain(self.result_file.as_ref().and_then(|file| file.next_deadline()))
-            .min()
+    fn next_mechanism_deadline(&self) -> Option<Time> {
+        [
+            self.writer.as_ref().and_then(io::Io::next_deadline),
+            self.result_file.as_ref().and_then(|file| file.next_deadline()),
+        ]
+        .into_iter()
+        .flatten()
+        .min()
     }
 
     /// The service's and the accounts' deadlines; the terminal writer's io
