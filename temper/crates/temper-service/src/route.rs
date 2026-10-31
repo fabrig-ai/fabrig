@@ -11,6 +11,18 @@ pub(crate) fn request(engine: &mut Engine, request: root::Request) {
         demo.state = engine.domain.demo_state();
     }
     match request {
+        root::Request::ForgeKept(_) => {
+            // t-forge-runtime installs or refreshes the runtime.
+        }
+        root::Request::ForgeGone { .. } => {
+            // t-forge-runtime removes the runtime and erases its secrets.
+        }
+        root::Request::BoxGroup { .. } => {
+            // t-box-groups starts the group by kind.
+        }
+        root::Request::BoxRemove { .. } => {
+            // t-box-groups removes the group.
+        }
         root::Request::Bound { request, answer } => engine.clients.bound(request, answer),
         root::Request::StopGroup { forge } => {
             let mut out = skein_lib::Queue::with_capacity(1);

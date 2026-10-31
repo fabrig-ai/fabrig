@@ -394,6 +394,9 @@ pub enum ApplicationAnswer {
     Adopt(forge::ApplicationOutcome),
     SetUp(forge::SetUpAnswer),
     StartDemo(forge::StartAnswer),
+    RemoveForge(forge::RemoveAnswer),
+    StartPlayground(forge::StartAnswer),
+    EndPlayground(forge::EndAnswer),
     Connect(forge::ConnectAnswer),
     Install(forge::InstallAnswer),
     Accept(forge::AcceptAnswer),
@@ -530,6 +533,19 @@ pub enum PartyInput {
 /// and 4). Every output crosses the journal door in its peer's vocabulary.
 #[derive(PartialEq, Eq, Debug)]
 pub enum Request {
+    /// Forge runtime routing (temper/docs/design/draft/playground-reset.md, 3–4).
+    ForgeKept(forge::ForgeRecord),
+    ForgeGone {
+        forge: u16,
+    },
+    BoxGroup {
+        forge: u16,
+        kind: forge::BoxKind,
+        request: Token,
+    },
+    BoxRemove {
+        forge: u16,
+    },
     /// A sent forge entry left without its outcome at the stop bound (domain/root.md, 9.2).
     Unsettled(Unsettled),
     Bound {

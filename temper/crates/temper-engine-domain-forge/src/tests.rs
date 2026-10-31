@@ -55,6 +55,7 @@ const CLIENT: skein_forge_client::Limits = skein_forge_client::Limits {
     facts: 16,
 };
 const LIMITS: Limits = Limits {
+    forges: 4,
     repositories: 2,
     tasks: 8,
     holds: 8,
@@ -358,6 +359,10 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::SendDemoAct(_)
         | Request::DemoStart { .. }
         | Request::Settled { .. }
+        | Request::ForgeKept(_)
+        | Request::ForgeGone { .. }
+        | Request::BoxGroup { .. }
+        | Request::BoxRemove { .. }
         | Request::RestartDone { .. } => panic!("permission call"),
     };
     assert_eq!(op, skein_forge::api::Op::Read(skein_forge::api::Read::Permission { user: 7 }));
@@ -430,6 +435,10 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::SendDemoAct(_)
         | Request::DemoStart { .. }
         | Request::Settled { .. }
+        | Request::ForgeKept(_)
+        | Request::ForgeGone { .. }
+        | Request::BoxGroup { .. }
+        | Request::BoxRemove { .. }
         | Request::RestartDone { .. } => panic!("branches call"),
     };
     assert!(
@@ -499,6 +508,10 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::SendDemoAct(_)
         | Request::DemoStart { .. }
         | Request::Settled { .. }
+        | Request::ForgeKept(_)
+        | Request::ForgeGone { .. }
+        | Request::BoxGroup { .. }
+        | Request::BoxRemove { .. }
         | Request::RestartDone { .. } => panic!("settings follows collision read"),
     }
 }
@@ -1503,7 +1516,7 @@ fn setup_application(forge: u16, request: Token, token: Token) -> Event {
         retention: Duration::from_secs(60),
         ask: Ask::SetUp {
             playground: false,
-            forge,
+            forge: Making::Kept(forge),
             org: b"work".as_slice().into(),
             repository: b"hello".as_slice().into(),
             project: SetUpProject::Existing(1),
@@ -1680,7 +1693,7 @@ fn a_new_project_is_admitted_and_retained_until_the_repository_is_made() {
             retention: Duration::from_secs(60),
             ask: Ask::SetUp {
                 playground: false,
-                forge: 1,
+                forge: Making::Kept(1),
                 org: b"work".as_slice().into(),
                 repository: b"hello".as_slice().into(),
                 project: project.clone(),
@@ -1749,7 +1762,7 @@ fn setup_names_are_validated_at_admission_on_both_sides_of_the_name_bound() {
                 let accepted = given::check_create(&kit_limits, domain_bound, &plan).is_ok();
                 let ask = Ask::SetUp {
                     playground: false,
-                    forge: 1,
+                    forge: Making::Kept(1),
                     org: org_name.clone(),
                     repository: repository.clone(),
                     project: SetUpProject::Existing(1),
@@ -1810,7 +1823,7 @@ fn admitted_setup_projects_its_fields_as_making_and_the_next_admission_replaces_
         };
         let ask = Ask::SetUp {
             playground: false,
-            forge: 1,
+            forge: Making::Kept(1),
             org: first.org.clone(),
             repository: first.repository.clone(),
             project: first.project.clone(),

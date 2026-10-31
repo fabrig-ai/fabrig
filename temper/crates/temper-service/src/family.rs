@@ -54,7 +54,7 @@ pub fn to_root(
                         carried,
                         request: temper_engine_domain::Application::Forge(forge::Ask::SetUp {
                             playground: value.playground,
-                            forge: value.forge,
+                            forge: forge::Making::Kept(value.forge),
                             org: value.org,
                             repository: value.repository,
                             project: match value.project {
@@ -123,7 +123,7 @@ pub fn to_root(
                                     forge::How::GitHubManifest { back }
                                 }
                             };
-                            forge::Ask::Connect { forge: value.forge, how }
+                            forge::Ask::Connect { forge: forge::Making::Kept(value.forge), how }
                         }
                         w::Request::Accept(value) => {
                             let value = value.into_parts();
@@ -614,6 +614,7 @@ pub fn answer(
             root::ApplicationAnswer::Accept(forge::AcceptAnswer::Refused(why))
             | root::ApplicationAnswer::Reachable(forge::ReachableAnswer::Refused(why))
             | root::ApplicationAnswer::Connect(forge::ConnectAnswer::Refused(why))
+            | root::ApplicationAnswer::RemoveForge(forge::RemoveAnswer::Refused(why))
             | root::ApplicationAnswer::Install(forge::InstallAnswer::Refused(why)),
         ) => w::Outcome::ConnectRefused(
             w::ConnectRefused::new(
@@ -633,7 +634,16 @@ pub fn answer(
             )
             .ok()?,
         ),
-        Some(root::ApplicationAnswer::StartDemo(answer)) => start_answer(answer, limits)?,
+        Some(root::ApplicationAnswer::StartDemo(answer) | root::ApplicationAnswer::StartPlayground(answer)) => {
+            start_answer(answer, limits)?
+        }
+        Some(
+            root::ApplicationAnswer::RemoveForge(forge::RemoveAnswer::Removed)
+            | root::ApplicationAnswer::EndPlayground(forge::EndAnswer::Reset),
+        ) => w::Outcome::Unknown,
+        Some(root::ApplicationAnswer::EndPlayground(forge::EndAnswer::NotOffered)) => {
+            start_answer(forge::StartAnswer::NotOffered, limits)?
+        }
         Some(temper_engine_domain::ApplicationAnswer::SetUp(forge::SetUpAnswer::SettingUp)) => w::Outcome::SettingUp,
         Some(temper_engine_domain::ApplicationAnswer::SetUp(forge::SetUpAnswer::Refused(why))) => {
             w::Outcome::SetUpRefused(
