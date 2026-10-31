@@ -4,9 +4,8 @@
 //! schemas' meaning, host policy, provider IDs or delivery state. A withdrawal
 //! requests relay settlement; only a terminal releases that relay.
 
-use crate::delivery::CallName;
 use alloc::boxed::Box;
-use skein_lib::{Duration, Time, Token};
+use skein_lib::{Duration, Token};
 
 /// Host-declared scheduling effect. Main inherits declarations; children never do.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -173,27 +172,6 @@ pub enum HostReply {
         /// Settled relay status, preserving possible committed effects.
         Unanswered,
     ),
-}
-
-#[derive(Debug)]
-pub(crate) struct Relay {
-    pub(crate) name: CallName,
-    pub(crate) tool: Box<[u8]>,
-    pub(crate) effect: HostEffect,
-    pub(crate) input: HostInput,
-    pub(crate) timeout: Duration,
-    pub(crate) caller_deadline: Time,
-    pub(crate) stopped: Option<crate::call::Withdrawal>,
-    pub(crate) unknown: bool,
-    pub(crate) stage: Stage,
-}
-
-#[derive(Debug)]
-pub(crate) enum Stage {
-    Sending { attempt: u32, deadline: Time },
-    Withdrawing { attempt: u32 },
-    Backoff { attempt: u32, at: Time },
-    Closed,
 }
 
 /// Domain admission feedback before a host effect. No host policy is inferred.
