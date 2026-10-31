@@ -21,6 +21,7 @@
 use std::any::type_name;
 
 use skein_heap::Meter;
+use skein_lib::length::usize_of;
 use skein_lib::stream::{Delimiter, Read};
 use skein_lib::{Deadlines, Id, Intake, Journal, List, Map, Queue, Rng, Set, Slab, Stack, Time};
 
@@ -106,10 +107,6 @@ impl Item for [u64; 8] {
     }
 }
 
-fn index(n: u32) -> usize {
-    usize::try_from(n).expect("a u32 fits a usize")
-}
-
 /// A number in `0..bound`.
 fn below(rng: &mut Rng, bound: u32) -> u32 {
     u32::try_from(rng.below(u64::from(bound))).expect("below a u32")
@@ -133,7 +130,7 @@ fn thinning(next: u32) -> impl Iterator<Item = (u32, u32)> {
 /// Fills a slab to its capacity, refuses one more, and does it again after
 /// half of it, then all of it, is retired and reclaimed.
 fn slab<T: Item>(capacity: u32) {
-    let mut ids: Vec<Id<T>> = Vec::with_capacity(index(capacity));
+    let mut ids: Vec<Id<T>> = Vec::with_capacity(usize_of(capacity));
     let mut metered = slab_meter::<T>(capacity);
     metered.start();
     let mut slab = Slab::with_capacity(capacity);
@@ -268,7 +265,7 @@ const BYTES: [u8; 512] = [b'a'; 512];
 /// to a delimiter that ends the cap, and in a scan that reaches its maximum
 /// with none; then appends and meets at random, wrapping around its buffer.
 fn intake(capacity: u32) {
-    let cap = index(capacity);
+    let cap = usize_of(capacity);
     let mut metered = Metered::growing("Intake", "u8", capacity, Intake::price(capacity));
     metered.start();
     let mut intake = Intake::with_capacity(capacity);
@@ -307,13 +304,13 @@ fn intake(capacity: u32) {
     for _ in 0..8 * capacity + 8 {
         if rng.chance(500) {
             let mut piece = [0_u8; 16];
-            let len = index(below(&mut rng, intake.room().min(16) + 1));
+            let len = usize_of(below(&mut rng, intake.room().min(16) + 1));
             for byte in &mut piece[..len] {
-                *byte = [b'a', b'\r', b'\n'][index(below(&mut rng, 3))];
+                *byte = [b'a', b'\r', b'\n'][usize_of(below(&mut rng, 3))];
             }
             assert!(append(&mut metered, &mut intake, &piece[..len]));
         } else {
-            let until = delimiters[index(below(&mut rng, 3))];
+            let until = delimiters[usize_of(below(&mut rng, 3))];
             let shortest = u32::try_from(until.as_bytes().len()).expect("a delimiter is a few bytes");
             let read = if rng.chance(500) || capacity < shortest {
                 Read::Fill(below(&mut rng, capacity + 1))
@@ -635,9 +632,9 @@ fn request_table_memory<O: Item + Copy + std::fmt::Debug + PartialEq, T: Item + 
         margin: Duration::from_secs(1),
     };
     // Owner/store bookkeeping is allocated before the container's meter.
-    let mut keys = Vec::with_capacity(index(capacity));
-    let mut saved = vec![None; index(capacity)];
-    let mut attempts = Vec::with_capacity(index(capacity));
+    let mut keys = Vec::with_capacity(usize_of(capacity));
+    let mut saved = vec![None; usize_of(capacity)];
+    let mut attempts = Vec::with_capacity(usize_of(capacity));
     // A slab realloc counts both buffers: held storage stays within
     // its price, and a step's peak within twice it.
     let mut metered =
@@ -653,7 +650,7 @@ fn request_table_memory<O: Item + Copy + std::fmt::Debug + PartialEq, T: Item + 
             restored_key[..8].copy_from_slice(&u64::from(n).to_be_bytes());
             let record =
                 RequestRecord { key: restored_key, scope: 7, first_sent: Some(Wall::EPOCH), request: T::nth(n) };
-            saved[index(n)] = Some(record.clone());
+            saved[usize_of(n)] = Some(record.clone());
             table.restore(O::nth(n), 2, record).expect("room for restored records");
             key = restored_key;
         } else {
@@ -674,7 +671,7 @@ fn request_table_memory<O: Item + Copy + std::fmt::Debug + PartialEq, T: Item + 
     table.confirmed(Some(7));
     metered.end(());
     request_table_outputs(&mut table, &mut metered, &keys, &mut saved, &mut attempts, Time::ZERO);
-    assert_eq!(attempts.len(), index(capacity));
+    assert_eq!(attempts.len(), usize_of(capacity));
     if restored {
         metered.start();
         table.retention(Duration::ZERO);
@@ -880,7 +877,7 @@ fn an_intake_grows_to_its_capacity_exactly() {
             let mut metered = Metered::growing("Intake", "u8", capacity, Some(bound));
             let mut intake = Intake::with_capacity(capacity);
             while intake.room() > 0 {
-                let n = index(intake.room().min(chunk));
+                let n = usize_of(intake.room().min(chunk));
                 metered.start();
                 intake.append(&BYTES[..n]).expect("room below the cap");
                 metered.end(());
@@ -892,7 +889,7 @@ fn an_intake_grows_to_its_capacity_exactly() {
             metered.end(());
             metered.start();
             let delivery = intake.meet(Read::Fill(capacity)).expect("full intake");
-            assert_eq!(&*delivery, &BYTES[..index(capacity)]);
+            assert_eq!(&*delivery, &BYTES[..usize_of(capacity)]);
             metered.end(delivery);
             metered.start();
             intake.clear();
@@ -1007,7 +1004,7 @@ fn slab_meter<T>(capacity: u32) -> Metered {
 fn a_slab_grows_to_its_capacity_exactly() {
     for capacity in [1, 3, 5, 300] {
         // Handle storage belongs to the harness, outside the slab's meter.
-        let mut ids = Vec::with_capacity(index(capacity));
+        let mut ids = Vec::with_capacity(usize_of(capacity));
         let mut metered = slab_meter::<u64>(capacity);
         let mut slab = Slab::with_capacity(capacity);
         for n in 0..capacity {

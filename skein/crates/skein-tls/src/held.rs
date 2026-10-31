@@ -4,6 +4,7 @@
 
 use alloc::boxed::Box;
 
+use skein_lib::length::usize_of;
 use skein_lib::{Overflow, Writer, bytes};
 
 /// Bytes held at the front of one box, allocated once at a capacity fixed
@@ -21,7 +22,7 @@ pub(crate) struct Held {
 
 impl Held {
     pub(crate) fn with_capacity(capacity: u32) -> Held {
-        Held { buffer: bytes::zeroed(index(capacity)), len: 0 }
+        Held { buffer: bytes::zeroed(usize_of(capacity)), len: 0 }
     }
 
     pub(crate) fn len(&self) -> u32 {
@@ -43,13 +44,13 @@ impl Held {
 
     /// The bytes held, for rustls to read and change in place.
     pub(crate) fn filled_mut(&mut self) -> &mut [u8] {
-        self.buffer.get_mut(..index(self.len)).expect("no longer than its capacity")
+        self.buffer.get_mut(..usize_of(self.len)).expect("no longer than its capacity")
     }
 
     /// The room after them, for rustls to write into; [`wrote`](Held::wrote)
     /// then counts what it wrote.
     pub(crate) fn spare_mut(&mut self) -> &mut [u8] {
-        self.buffer.get_mut(index(self.len)..).expect("no longer than its capacity")
+        self.buffer.get_mut(usize_of(self.len)..).expect("no longer than its capacity")
     }
 
     /// Counts `n` bytes written into the room after those held.
@@ -74,7 +75,7 @@ impl Held {
     /// Drops the first `n` bytes held, at most all of them, and moves the
     /// rest to the front.
     pub(crate) fn discard(&mut self, n: usize) {
-        let len = index(self.len);
+        let len = usize_of(self.len);
         assert!(n <= len, "rustls discards only what it was given");
         self.buffer.copy_within(n..len, 0);
         self.len = u32::try_from(len.checked_sub(n).expect("checked above")).expect("no longer than before");
@@ -84,10 +85,10 @@ impl Held {
     /// of exactly their length.
     pub(crate) fn take(&mut self, n: u32) -> Box<[u8]> {
         let n = n.min(self.len);
-        let mut writer = Writer::new(index(n));
-        let front = self.buffer.get(..index(n)).expect("no more than is held");
+        let mut writer = Writer::new(usize_of(n));
+        let front = self.buffer.get(..usize_of(n)).expect("no more than is held");
         writer.put(front).expect("a writer of their length");
-        self.discard(index(n));
+        self.discard(usize_of(n));
         writer.finish()
     }
 
@@ -98,10 +99,6 @@ impl Held {
 
     /// The bytes held.
     pub(crate) fn filled(&self) -> &[u8] {
-        self.buffer.get(..index(self.len)).expect("no longer than its capacity")
+        self.buffer.get(..usize_of(self.len)).expect("no longer than its capacity")
     }
-}
-
-fn index(n: u32) -> usize {
-    usize::try_from(n).expect("a u32 fits in a usize")
 }
