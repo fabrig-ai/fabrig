@@ -1,7 +1,7 @@
 //! One local chat and its spawned or colocated agent (protocol/hosts.md,
 //! sections 5–6; protocol/README.md, sections 5–6). The service keeps local
 //! policy and the selected lower components, a credential-value
-//! table, and internal routing queues. The process adapter owns terminal and
+//! table, and internal routing queues. Host IO owns terminal and
 //! delivery descriptors; each lower layer has its own operation tokens.
 //! It never knows OAuth provider responses or token-file paths. [`iterate`]
 //! runs the up, domain and down passes, including the durable store; the shell
@@ -13,8 +13,8 @@
 extern crate alloc;
 
 mod credentials;
+mod host_io;
 mod live;
-mod process;
 mod service;
 pub mod stream;
 
@@ -24,6 +24,6 @@ pub mod profile;
 mod tests;
 
 pub use credentials::{Accounts, CredentialRequest, Settled, Source, accounts_valid};
+pub use host_io::{Launch, ProcessLimits, native_io_valid, to_host_exit};
 pub use live::{LIVE_BYTES, LIVE_SLOTS, LivePiece, RemoteTurn};
-pub use process::{Launch, ProcessLimits, native_io_valid, to_host_exit};
 pub use service::{AgentConfig, Config, Error, Limits, Service, StartValues, iterate, valid};

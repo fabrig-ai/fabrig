@@ -53,7 +53,7 @@ impl PrivateWorld {
 
     fn settle(&mut self) {
         crate::tests::settle_file_io(
-            self.service.below.process_mut(),
+            &mut self.service.io,
             &mut self.sim,
             &mut self.machine,
             self.pid,
@@ -79,7 +79,7 @@ impl PrivateWorld {
                 }),
             },
         ] {
-            self.service.below.process_mut().store_request(request);
+            self.service.io.store_request(request);
             self.settle();
         }
     }
@@ -92,7 +92,7 @@ impl PrivateWorld {
 
     fn finish(&mut self) -> local::ExitStatus {
         let status = finish_output(&mut self.service);
-        assert!(self.service.below.process().closed());
+        assert!(self.service.io.closed());
         self.machine.close(self.root);
         assert_eq!(self.machine.open_handles(), 0, "store, cleanup parent and observer close");
         status

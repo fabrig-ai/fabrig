@@ -89,7 +89,7 @@ impl Live {
             | OpenEvent::Limited { .. }
             | OpenEvent::Refused { .. }
             | OpenEvent::Call { .. }
-            | OpenEvent::Withdraw { .. }) => crate::process::channel_event(run, other),
+            | OpenEvent::Withdraw { .. }) => crate::host_io::channel_event(run, other),
         }
     }
 

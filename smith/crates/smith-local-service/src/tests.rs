@@ -287,9 +287,7 @@ fn a_local_service_refuses_lower_configuration_for_the_other_agent_kind() {
     let mut spawned = config();
     spawned.agent =
         crate::AgentConfig::Inline { configuration: smith_agent_process_world::configuration(), roots: Box::new([]) };
-    let Err(crate::Error::Process) = Service::new(spawned, 95) else {
-        panic!("spawned limits require the process adapter")
-    };
+    let Err(crate::Error::Process) = Service::new(spawned, 95) else { panic!("spawned limits require the host IO") };
 }
 
 #[test]
@@ -313,8 +311,7 @@ fn original_conflict_files_are_read_through_the_services_kernel_routes() {
     let pid = sim.spawn_process();
     let root = sim.root(pid, skein_sim::Handle::new(handle.raw()));
     let config = config();
-    let mut process =
-        crate::process::ProcessAdapter::new(&config.limits.process, config.launch, config.endpoints, 1).unwrap();
+    let mut process = crate::host_io::HostIo::new(&config.limits.process, config.launch, config.endpoints, 1).unwrap();
     process.adopt_delivery_roots(Box::new([root]), Box::new([]));
     let mut local_events = Queue::with_capacity(256);
     let mut host_events = Queue::with_capacity(256);
@@ -375,7 +372,7 @@ fn original_conflict_files_are_read_through_the_services_kernel_routes() {
 }
 
 pub(crate) fn settle_file_io(
-    process: &mut crate::process::ProcessAdapter,
+    process: &mut crate::host_io::HostIo,
     sim: &mut skein_sim::Sim,
     machine: &mut skein_fake_machine::Machine,
     pid: skein_sim::Pid,
@@ -437,8 +434,7 @@ fn plain_status_uses_the_runs_snapshot_and_refreshes_it_before_the_next_run() {
     let pid = sim.spawn_process();
     let root = sim.root(pid, skein_sim::Handle::new(handle.raw()));
     let config = config();
-    let mut process =
-        crate::process::ProcessAdapter::new(&config.limits.process, config.launch, config.endpoints, 1).unwrap();
+    let mut process = crate::host_io::HostIo::new(&config.limits.process, config.launch, config.endpoints, 1).unwrap();
     process.adopt_delivery_roots(Box::new([root]), Box::new([]));
     let mut events = Queue::with_capacity(256);
     let mut directories = List::with_capacity(1);

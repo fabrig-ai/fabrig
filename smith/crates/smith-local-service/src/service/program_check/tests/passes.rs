@@ -21,7 +21,7 @@ fn a_line_before_interrupt_never_spawns_its_silent_check() {
     service.local_event(local::Event::Line { text: b"hello".as_slice().into() });
     service.local_event(local::Event::Interrupt);
     iterate(&mut service, Time::ZERO, Wall::EPOCH);
-    assert!(service.below.process_mut().programs.as_ref().unwrap().active.is_none(), "no silent check starts");
+    assert!(service.io.programs.as_ref().unwrap().active.is_none(), "no silent check starts");
     let Some(smith_local_protocol::StoreRequest::SaveState { .. }) = service.store_requests().pop() else {
         panic!("save")
     };
@@ -52,7 +52,7 @@ fn a_line_after_interrupt_runs_its_check_in_the_same_pass() {
     service.local_event(local::Event::Line { text: b"hello".as_slice().into() });
     service.local_event(loaded());
     iterate(&mut service, Time::ZERO, Wall::EPOCH);
-    let adapter = service.below.process_mut();
+    let adapter = &mut service.io;
     let checks = adapter.programs.as_ref().unwrap();
     let active = checks.active.as_ref().expect("the later request starts");
     assert!(!active.cancelled);
@@ -93,7 +93,7 @@ fn drop_cancels_a_credential_left_in_the_previous_pass() {
     while service.shell.pop().is_some() {}
     service.local_event(local::Event::Drop);
     iterate(&mut service, Time::ZERO, Wall::EPOCH);
-    assert!(service.below.process_mut().programs.as_ref().unwrap().active.is_none());
+    assert!(service.io.programs.as_ref().unwrap().active.is_none());
     let Some(local::Event::NoCredential { account: 7, reason: local::CredentialFailure::ProgramInterrupted }) =
         service.local_events.pop()
     else {

@@ -24,7 +24,7 @@ use smith_local_domain as local;
 use smith_local_protocol as protocol;
 use smith_protocol_channel as channel;
 
-use crate::process::{Launch, ProcessAdapter, ProcessLimits};
+use crate::host_io::{HostIo, Launch, ProcessLimits};
 
 /// Immutable bounds for one local chat and its host process slot.
 #[derive(Clone, Debug)]
@@ -59,48 +59,8 @@ pub struct Config {
 pub enum AgentConfig {
     /// LLM and machine components with separately owned workspace descriptors.
     Inline { configuration: agent_service::Config, roots: Box<[kernel::Fd]> },
-    /// The process adapter uses the common launch configuration.
+    /// The host IO uses the common launch configuration.
     Spawned,
-}
-
-/// Components below the chosen child, plus common terminal and delivery IO.
-#[derive(Debug)]
-#[expect(clippy::large_enum_variant, reason = "the selected lower components move once into the service")]
-enum Effects {
-    /// The process adapter here owns only common terminal, git and plain-directory IO.
-    Inline { agent: agent_service::Effects, local: ProcessAdapter },
-    /// Common IO and the spawned child's process and pipes.
-    Spawned(ProcessAdapter),
-}
-
-impl Effects {
-    fn process(&self) -> &ProcessAdapter {
-        match self {
-            Self::Inline { local, .. } => local,
-            Self::Spawned(process) => process,
-        }
-    }
-
-    fn process_mut(&mut self) -> &mut ProcessAdapter {
-        match self {
-            Self::Inline { local, .. } => local,
-            Self::Spawned(process) => process,
-        }
-    }
-
-    fn inline(&self) -> Option<&agent_service::Effects> {
-        match self {
-            Self::Inline { agent, .. } => Some(agent),
-            Self::Spawned(_) => None,
-        }
-    }
-
-    fn inline_mut(&mut self) -> Option<&mut agent_service::Effects> {
-        match self {
-            Self::Inline { agent, .. } => Some(agent),
-            Self::Spawned(_) => None,
-        }
-    }
 }
 
 /// Startup cannot allocate or represent the requested local composition.
@@ -128,7 +88,7 @@ pub fn valid(limits: &Limits) -> bool {
             line_bytes: limits.local.line_bytes,
             show_bytes: limits.local.show_bytes,
         })
-        && crate::process::valid(&limits.process, framed)
+        && crate::host_io::valid(&limits.process, framed)
         && agent::max_turn_bytes(&limits.local.smith).is_some()
 }
 
@@ -148,7 +108,8 @@ pub struct Service {
     remote_timing: crate::live::Timing,
     limits: Limits,
     local: local::Domain,
-    below: Effects,
+    io: HostIo,
+    effects: Option<agent_service::Effects>,
     lower_agent: Option<Token>,
     capture_time: skein_lib::Duration,
     completions: Queue<kernel::Complete>,
@@ -222,8 +183,7 @@ impl Service {
             Ok(local) => local,
             Err(error) => return Err(Error::Local(error)),
         };
-        let process =
-            ProcessAdapter::new(&config.limits.process, config.launch, config.endpoints, seed).ok_or(Error::Process)?;
+        let io = HostIo::new(&config.limits.process, config.launch, config.endpoints, seed).ok_or(Error::Process)?;
         let terminal = protocol::Terminal::new(protocol::TerminalLimits {
             line_bytes: config.limits.local.line_bytes,
             show_bytes: config.limits.local.show_bytes,
@@ -236,10 +196,8 @@ impl Service {
             accounts: None,
             limits: config.limits,
             local,
-            below: match native {
-                Some(agent) => Effects::Inline { agent, local: process },
-                None => Effects::Spawned(process),
-            },
+            io,
+            effects: native,
             lower_agent: None,
             capture_time,
             completions: Queue::with_capacity(queue),
@@ -273,7 +231,7 @@ impl Service {
 
     /// Configure the spawned product's producer before adopting its destination.
     pub fn prepare_trace(&mut self, configuration: &agent_service::Config) {
-        assert!(self.below.inline().is_none(), "inline effects already own their producer");
+        assert!(self.effects.as_ref().is_none(), "inline effects already own their producer");
         self.stream = crate::stream::Spawned::configured(configuration);
     }
 
@@ -286,7 +244,7 @@ impl Service {
         delivery: agent_service::sinks::Delivery,
     ) -> Result<(), kernel::Fd> {
         if let Some(stream) = &mut self.stream {
-            let token = self.below.process_mut().adopt_trace(fd, stream.write_deadline)?;
+            let token = self.io.adopt_trace(fd, stream.write_deadline)?;
             stream
                 .producer
                 .sinks()
@@ -295,18 +253,14 @@ impl Service {
             stream.producer.started(now, header);
             return Ok(());
         }
-        match &mut self.below {
-            Effects::Inline { agent, local } => {
-                agent.adopt_destination(fd, agent_service::Destination::Trace, delivery, true, local.io())?;
-                agent.start_session(now, header);
-            }
-            Effects::Spawned(_) => return Err(fd),
-        }
+        let Some(agent) = self.effects.as_mut() else { return Err(fd) };
+        agent.adopt_destination(fd, agent_service::Destination::Trace, delivery, true, self.io.io())?;
+        agent.start_session(now, header);
         Ok(())
     }
 
     fn drain_run_facts(&mut self) -> bool {
-        let Some(effects) = self.below.inline_mut() else {
+        let Some(effects) = self.effects.as_mut() else {
             return match &self.stream {
                 Some(stream) => stream.producer.takes(),
                 None => true,
@@ -340,7 +294,7 @@ impl Service {
     /// Select the already prepared initial chat beneath the adopted chats root.
     pub fn initial_chat(&mut self) {
         let name = self.local.initial_chat();
-        self.below.process_mut().store_request(protocol::StoreRequest::SelectChat { name, create: false });
+        self.io.store_request(protocol::StoreRequest::SelectChat { name, create: false });
     }
 
     /// Enable the product's line commands and terminal prompt before receiving input.
@@ -416,7 +370,7 @@ impl Service {
 
     /// Take a typed live-view record from the same sink that owns the trace.
     pub fn pop_front(&mut self) -> Option<agent_service::sinks::View> {
-        match self.below.inline_mut() {
+        match self.effects.as_mut() {
             Some(effects) => match effects.front_sinks() {
                 Some(sinks) => sinks.pop_front(),
                 None => None,
@@ -434,13 +388,13 @@ impl Service {
             Some(_) if self.remote => Some(self.remote_timing.number),
             Some(_) | None => None,
         };
-        self.below.process_mut().live.pop_through(through)
+        self.io.live.pop_through(through)
     }
 
     /// Live pieces omitted by the local front queue.
     #[must_use]
     pub fn live_lost(&self) -> u64 {
-        self.below.process().live.lost()
+        self.io.live.lost()
     }
 
     /// The activation whose text and told turns the interactive front shows.
@@ -468,10 +422,10 @@ impl Service {
     /// Whether the product has a typed record to consume on its next pass.
     #[must_use]
     pub fn front_pending(&self) -> bool {
-        if self.below.process().live.pending() || (self.remote && self.told.is_some()) {
+        if self.io.live.pending() || (self.remote && self.told.is_some()) {
             return true;
         }
-        match self.below.inline() {
+        match self.effects.as_ref() {
             Some(effects) => effects.front_pending(),
             None => match &self.stream {
                 Some(stream) => stream.producer.front_pending(),
@@ -483,7 +437,7 @@ impl Service {
     /// Loss in the typed view, kept apart from every destination's own loss.
     #[must_use]
     pub fn front_lost(&mut self) -> u64 {
-        match self.below.inline_mut() {
+        match self.effects.as_mut() {
             Some(effects) => match effects.front_sinks() {
                 Some(sinks) => sinks.front_lost(),
                 None => 0,
@@ -499,7 +453,7 @@ impl Service {
     /// standard error (protocol/events.md, section 5.2).
     #[must_use]
     pub fn pop_given_up(&mut self) -> Option<agent_service::GivenUp> {
-        match self.below.inline_mut() {
+        match self.effects.as_mut() {
             Some(effects) => match effects.front_sinks() {
                 Some(sinks) => sinks.pop_given_up(),
                 None => None,
@@ -533,7 +487,7 @@ impl Service {
             });
             return;
         }
-        if let Some(effects) = self.below.inline_mut()
+        if let Some(effects) = self.effects.as_mut()
             && effects.grant(grant, &value, self.now).is_err()
         {
             self.local_events.push(local::Event::NoCredential {
@@ -548,7 +502,7 @@ impl Service {
 
     #[cfg(test)]
     pub(crate) fn store_requests(&mut self) -> &mut Queue<protocol::StoreRequest> {
-        self.below.process_mut().store_requests()
+        self.io.store_requests()
     }
 
     /// Shell work, including credential requests and the final exit.
@@ -565,8 +519,8 @@ impl Service {
                 Some(accounts) => accounts.next_deadline(),
                 None => None,
             },
-            self.below.process().next_deadline(),
-            match self.below.inline() {
+            self.io.next_deadline(),
+            match self.effects.as_ref() {
                 Some(effects) => effects.next_deadline(),
                 None => None,
             },
@@ -585,8 +539,8 @@ impl Service {
     // Entries between the service's own children (protocol/limits.md 3.8).
     // Include the local domain and inline effects' handoffs; edges and Accounts stay outside.
     fn backlog(&self) -> u64 {
-        let mut total = u64::from(self.below.process().backlog());
-        let effects = match self.below.inline() {
+        let mut total = u64::from(self.io.backlog());
+        let effects = match self.effects.as_ref() {
             Some(effects) => effects.backlog(),
             None => 0,
         };
@@ -677,7 +631,7 @@ impl Service {
             Some(accounts) if accounts.work_pending(now) => return true,
             Some(_) | None => {}
         }
-        let takes = match self.below.inline() {
+        let takes = match self.effects.as_ref() {
             Some(effects) => effects.takes(),
             None => match &self.stream {
                 Some(stream) => stream.producer.takes(),
@@ -688,7 +642,7 @@ impl Service {
             || !self.completions.is_empty()
             || !self.submissions.is_empty()
             || (takes && self.local_requests_dispatched() && (self.local.is_ready() || self.local.is_due(now)))
-            || match self.below.inline() {
+            || match self.effects.as_ref() {
                 Some(effects) => effects.work_pending(now),
                 None => false,
             }
@@ -696,16 +650,16 @@ impl Service {
             || (takes && !self.local_requests.is_empty() && self.local_request_ready() && self.told.is_none())
             || !self.host_events.is_empty()
             || (self.terminal_head_ready() && self.output.room() > 0)
-            || self.below.process().work_pending(now)
+            || self.io.work_pending(now)
             || match &self.stream {
                 Some(stream) => {
                     stream.producer.has_work()
                         || (stream.needs_measure()
-                            && self.below.process().settled(
+                            && self.io.settled(
                                 stream
                                     .producer
                                     .streams()
-                                    .checked_add(self.below.process().signal_streams())
+                                    .checked_add(self.io.signal_streams())
                                     .expect("bounded retained streams"),
                             ))
                 }
@@ -715,7 +669,7 @@ impl Service {
 
     #[must_use]
     pub fn failed(&self) -> bool {
-        self.failed || self.below.process().failed()
+        self.failed || self.io.failed()
     }
 
     /// Kernel completions for the child process and its three pipes.
@@ -725,51 +679,48 @@ impl Service {
 
     /// Adopt the separately opened chat root into the store's IO owner.
     pub fn adopt_store(&mut self, root: kernel::Fd) -> Result<(), Error> {
-        self.below.process_mut().adopt_store(root).ok_or(Error::Memory)
+        self.io.adopt_store(root).ok_or(Error::Memory)
     }
 
     /// The private chat's known-name cleanup owns this parent directory.
     pub fn ephemeral(&mut self, parent: kernel::Fd, name: Box<[u8]>) -> Result<(), kernel::Fd> {
-        self.below.process_mut().ephemeral(parent, name)
+        self.io.ephemeral(parent, name)
     }
 
     /// One warning from a private store cleanup that could not finish.
     pub fn cleanup_warning(&mut self) -> Option<kernel::Error> {
-        self.below.process_mut().cleanup_warning()
+        self.io.cleanup_warning()
     }
 
     /// Whether the local domain and effects live in this process.
     #[must_use]
     pub fn inline(&self) -> bool {
-        match self.below {
-            Effects::Inline { .. } => true,
-            Effects::Spawned(_) => false,
-        }
+        self.effects.is_some()
     }
 
     /// Adopt the shell writer into the inline product's single IO.
     pub fn adopt_writer(&mut self, fd: kernel::Fd) -> Result<Token, kernel::Fd> {
-        self.below.process_mut().adopt_writer(fd)
+        self.io.adopt_writer(fd)
     }
 
     /// Queue one request of the shell's adopted writer behind the service's own IO.
     pub fn writer_request(&mut self, request: skein_io::Request) {
-        self.below.process_mut().io_requests().push(request);
+        self.io.io_requests().push(request);
     }
 
     /// Terminals of the shell's adopted output stream.
     pub fn writer_events(&mut self) -> &mut Queue<skein_io::Event> {
-        self.below.process_mut().shell_events()
+        self.io.shell_events()
     }
 
     /// Read the adopted input's size after the shell hears a window change.
     pub fn read_window(&mut self) {
-        self.below.process_mut().read_window();
+        self.io.read_window();
     }
 
     /// Adopt terminal input and blocked termination signals into the IO pass.
     pub fn adopt_terminal(&mut self, input: Option<kernel::Fd>, signals: kernel::Fd) -> Result<(), kernel::Fd> {
-        self.below.process_mut().adopt_terminal(input, signals, !self.local.headless())?;
+        self.io.adopt_terminal(input, signals, !self.local.headless())?;
         self.ending = Ending::Live { shell_closed: false };
         Ok(())
     }
@@ -794,7 +745,7 @@ impl Service {
                 return Err(Error::Memory);
             }
         }
-        self.below.process_mut().adopt_delivery_roots(roots, environment);
+        self.io.adopt_delivery_roots(roots, environment);
         Ok(())
     }
 
@@ -817,7 +768,7 @@ impl Service {
     /// Configured endpoint text for the operator, without provider addresses.
     #[must_use]
     pub fn endpoint_name(&self, number: u32) -> Option<&[u8]> {
-        self.below.process().endpoint_name(number)
+        self.io.endpoint_name(number)
     }
 
     /// One headless told turn, retained until the shell renders its status.
@@ -835,9 +786,9 @@ impl Service {
                     result: complete.result,
                 });
             } else if complete.op.raw() & EFFECT_OPERATION_BIT == 0 {
-                self.below.process_mut().completions().push(complete);
+                self.io.completions().push(complete);
             } else {
-                self.below.inline_mut().expect("effect namespace belongs to colocated mode").completions().push(
+                self.effects.as_mut().expect("effect namespace belongs to colocated mode").completions().push(
                     kernel::Complete {
                         op: Token::new(complete.op.raw() & !EFFECT_OPERATION_BIT),
                         kind: complete.kind,
@@ -862,10 +813,10 @@ impl Service {
             if self.submissions.room() == 0 {
                 break;
             }
-            let Some(submit) = self.below.process_mut().submissions().pop() else { break };
+            let Some(submit) = self.io.submissions().pop() else { break };
             self.submissions.push(namespace_submit(submit, 0));
         }
-        if let Some(effects) = self.below.inline_mut() {
+        if let Some(effects) = self.effects.as_mut() {
             for _ in 0..self.limits.queue {
                 if self.submissions.room() == 0 {
                     break;
@@ -898,14 +849,14 @@ impl Service {
             }
             local::Request::Git { owner, directory, op, deadline } => match op {
                 local::GitOp::Markers { paths } => {
-                    self.below.process_mut().start_markers(owner, directory, paths, deadline, &mut self.local_events);
+                    self.io.start_markers(owner, directory, paths, deadline, &mut self.local_events);
                 }
                 op @ (local::GitOp::Head
                 | local::GitOp::Status
                 | local::GitOp::Inspect { .. }
                 | local::GitOp::Commit { .. }
                 | local::GitOp::Push { .. }) => {
-                    self.below.process_mut().start_git(owner, directory, op, deadline, &mut self.local_events);
+                    self.io.start_git(owner, directory, op, deadline, &mut self.local_events);
                 }
             },
             local::Request::Lower { agent, request } => {
@@ -913,9 +864,9 @@ impl Service {
                     Some(current) => assert_eq!(current, agent, "one inline slot owns every outstanding lower right"),
                     None => self.lower_agent = Some(agent),
                 }
-                self.below.inline_mut().expect("native IO belongs to inline mode").request(to_root_request(request));
+                self.effects.as_mut().expect("native IO belongs to inline mode").request(to_root_request(request));
             }
-            local::Request::Input { reading } => self.below.process_mut().input(reading),
+            local::Request::Input { reading } => self.io.input(reading),
             local::Request::Notice { notice } => self.notice(now, notice),
             local::Request::Show { text } => {
                 if !self.local.headless() {
@@ -926,18 +877,18 @@ impl Service {
                 self.lower_agent = None;
                 self.capture_activation = None;
                 self.terminal.answer_finished();
-                self.below.process_mut().store_request(protocol::StoreRequest::Load);
+                self.io.store_request(protocol::StoreRequest::Load);
             }
             local::Request::SelectChat { name, create } => {
-                self.below.process_mut().store_request(protocol::StoreRequest::SelectChat { name, create });
+                self.io.store_request(protocol::StoreRequest::SelectChat { name, create });
             }
             local::Request::PlainStatus { owner, directory, deadline } => {
-                self.below.process_mut().plain_status(owner, directory, deadline, &mut self.local_events);
+                self.io.plain_status(owner, directory, deadline, &mut self.local_events);
             }
             local::Request::SaveState { state, fresh } => self.save_state(now, state, fresh),
             local::Request::Answered { answer } => {
                 self.release_accounts(now);
-                if let Some(effects) = self.below.inline_mut() {
+                if let Some(effects) = self.effects.as_mut() {
                     effects.answered(now, crate::stream::answered(&answer, effects.capture()));
                 }
                 if let Some(stream) = &mut self.stream {
@@ -963,8 +914,8 @@ impl Service {
                     step: Step::Components,
                     shell_closed,
                 };
-                self.below.process_mut().close();
-                if let Some(effects) = self.below.inline_mut() {
+                self.io.close();
+                if let Some(effects) = self.effects.as_mut() {
                     effects.close();
                 }
             }
@@ -972,7 +923,7 @@ impl Service {
                 self.save_turn(now, number, read, opens_window, turn);
             }
             local::Request::SaveDelivery { record } => {
-                self.below.process_mut().store_request(protocol::StoreRequest::SaveDelivery { record });
+                self.io.store_request(protocol::StoreRequest::SaveDelivery { record });
             }
             local::Request::Credential { account } => self.account_request(account),
         }
@@ -981,21 +932,19 @@ impl Service {
     fn save_state(&mut self, now: Time, state: local::ChatState, fresh: bool) {
         if self.capture_activation != Some(state.activation) {
             self.capture_activation = Some(state.activation);
-            self.below.process_mut().live.clear();
+            self.io.live.clear();
             self.remote_timing.activate(now);
             let (charter, messages) = self.local.charter();
-            if let Some(effects) = self.below.inline_mut() {
+            if let Some(effects) = self.effects.as_mut() {
                 effects.starting(state.activation, messages, &charter);
             }
             if let Some(stream) = &mut self.stream {
                 stream.starting(now, state.activation, messages, &charter);
             }
             self.snapshot_state = SnapshotState::Capturing { saved: false };
-            self.below
-                .process_mut()
-                .capture_plain(self.plain_directories.clone(), now.saturating_add(self.capture_time));
+            self.io.capture_plain(self.plain_directories.clone(), now.saturating_add(self.capture_time));
         }
-        self.below.process_mut().store_request(protocol::StoreRequest::SaveState {
+        self.io.store_request(protocol::StoreRequest::SaveState {
             state,
             history: if fresh { protocol::History::Fresh } else { protocol::History::Kept },
         });
@@ -1007,7 +956,7 @@ impl Service {
             assert!(self.told.is_none(), "one told turn waits for the front end");
             self.told = Some(turn.clone());
         }
-        self.below.process_mut().store_request(protocol::StoreRequest::SaveTurn { number, read, opens_window, turn });
+        self.io.store_request(protocol::StoreRequest::SaveTurn { number, read, opens_window, turn });
     }
 
     fn notice(&mut self, now: Time, notice: local::Notice) {
@@ -1068,7 +1017,7 @@ impl Service {
 
     fn unanswered(&mut self, now: Time, cause: local::EndCause, turns: u32, spent: u64, read: Option<Token>) {
         let answer = crate::stream::unanswered(cause, turns, spent, read);
-        if let Some(effects) = self.below.inline_mut() {
+        if let Some(effects) = self.effects.as_mut() {
             effects.answered(now, answer.clone());
         }
         if let Some(stream) = &mut self.stream {
@@ -1127,7 +1076,7 @@ impl Service {
     }
 
     fn start_captured(&mut self) {
-        match self.below.process_mut().take_capture_done() {
+        match self.io.take_capture_done() {
             Some(true) => {
                 let state = core::mem::replace(&mut self.snapshot_state, SnapshotState::Idle);
                 match state {
@@ -1181,7 +1130,7 @@ impl Service {
         for _ in 0..self.limits.queue {
             match self.host_events.pop() {
                 Some(host::Input::Process(event)) => self.local_events.push(local::Event::Process(event)),
-                Some(host::Input::Parent(_)) => unreachable!("the process adapter supplies process terminals only"),
+                Some(host::Input::Parent(_)) => unreachable!("the host IO supplies process terminals only"),
                 None => break,
             }
         }
@@ -1230,13 +1179,12 @@ pub fn iterate(service: &mut Service, now: Time, wall: Wall) {
     service.wall = wall;
     service.route_completions();
     service.accounts_pass(now, wall);
-    let process_env = service.below.process().at(now, wall);
-    service.below.process_mut().io_up(&process_env);
-    match &mut service.below {
-        Effects::Inline { agent, local } => local.effects_up(agent),
-        Effects::Spawned(_) => {}
+    let process_env = service.io.at(now, wall);
+    service.io.io_up(&process_env);
+    if let Some(agent) = service.effects.as_mut() {
+        service.io.effects_up(agent);
     }
-    if let Some(effects) = service.below.inline_mut() {
+    if let Some(effects) = service.effects.as_mut() {
         effects.up(now, wall);
         for _ in 0..service.limits.queue {
             let Some(event) = effects.event() else { break };
@@ -1246,7 +1194,7 @@ pub fn iterate(service: &mut Service, now: Time, wall: Wall) {
             });
         }
     }
-    service.below.process_mut().up(
+    service.io.up(
         &process_env,
         &mut service.host_events,
         &mut service.terminal,
@@ -1254,7 +1202,7 @@ pub fn iterate(service: &mut Service, now: Time, wall: Wall) {
         &mut service.local_events,
         &mut service.stream,
     );
-    if service.below.process_mut().take_shutdown() {
+    if service.io.take_shutdown() {
         service.shutdown();
     }
     service.drain_terminal();
@@ -1262,8 +1210,8 @@ pub fn iterate(service: &mut Service, now: Time, wall: Wall) {
     service.process_terminals();
     local_pass(service, now, wall);
     let notify = !service.closing();
-    service.below.process_mut().programs_pass(now, &mut service.local_events, &mut service.shell, notify);
-    service.below.process_mut().down(
+    service.io.programs_pass(now, &mut service.local_events, &mut service.shell, notify);
+    service.io.down(
         &process_env,
         &mut service.lower,
         &mut service.start_values,
@@ -1271,15 +1219,12 @@ pub fn iterate(service: &mut Service, now: Time, wall: Wall) {
         &mut service.host_events,
         &mut service.stream,
     );
-    match &mut service.below {
-        Effects::Inline { agent, local } => {
-            agent.down();
-            for _ in 0..service.limits.queue {
-                let Some(request) = agent.io_requests().pop() else { break };
-                local.io_requests().push(request);
-            }
+    if let Some(agent) = service.effects.as_mut() {
+        agent.down();
+        for _ in 0..service.limits.queue {
+            let Some(request) = agent.io_requests().pop() else { break };
+            service.io.io_requests().push(request);
         }
-        Effects::Spawned(_) => {}
     }
     service.flush_submissions();
     service.advance_end();

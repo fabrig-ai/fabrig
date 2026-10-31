@@ -65,7 +65,7 @@ fn the_shell_writer_requests_wait_only_on_io_credit() {
         let descriptor = 10_i32 + i32::try_from(offset).unwrap();
         writers.push(service.adopt_writer(kernel::Fd::new(descriptor)).unwrap()).unwrap();
     }
-    let adapter = service.below.process_mut();
+    let adapter = &mut service.io;
     let env = adapter.at(Time::ZERO, Wall::EPOCH);
     io::down(
         adapter.io(),
@@ -82,7 +82,7 @@ fn the_shell_writer_requests_wait_only_on_io_credit() {
             down: stream::Down::Demand { read: stream::Read::Nothing, room: 1 },
         });
     }
-    let adapter = service.below.process_mut();
+    let adapter = &mut service.io;
     adapter.down(
         &env,
         &mut Queue::uncapped(),
@@ -98,7 +98,7 @@ fn the_shell_writer_requests_wait_only_on_io_credit() {
     let mut rooms = List::with_capacity(WRITERS);
     for remaining in [1, 0, 0] {
         super::iterate(&mut service, Time::ZERO, Wall::EPOCH);
-        assert_eq!(service.below.process_mut().io_requests().len(), remaining, "each down pass keeps its work bound");
+        assert_eq!(service.io.io_requests().len(), remaining, "each down pass keeps its work bound");
         while let Some(event) = service.writer_events().pop() {
             let io::Event::Stream { owner, up: stream::Up::Room } = event else {
                 panic!("one room terminal per shell request: {event:?}");
