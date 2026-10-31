@@ -164,7 +164,7 @@ impl Peer {
                 value: bytes::copy_of(line[colon + 1..].strip_prefix(b" ").unwrap_or(&line[colon + 1..])),
             });
         }
-        let length = u64::try_from(post.body.len()).expect("bounded body");
+        let length = skein_lib::len_u64(post.body.len());
         client::down(
             &mut outbound.client,
             &env,

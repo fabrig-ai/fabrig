@@ -91,7 +91,7 @@ impl Connection {
         let body = match &encoded.body {
             Some(body) => {
                 headers.push(field(b"Content-Type", b"application/json")).expect("four headers");
-                http::Body::Length(u64::try_from(body.len()).expect("bounded body"))
+                http::Body::Length(skein_lib::len_u64(body.len()))
             }
             None => http::Body::None,
         };
@@ -162,7 +162,7 @@ impl Connection {
         let body = match &encoded.body {
             Some(body) => {
                 headers.push(field(b"Content-Type", b"application/json")).expect("six headers");
-                http::Body::Length(u64::try_from(body.len()).expect("bounded body"))
+                http::Body::Length(skein_lib::len_u64(body.len()))
             }
             None => http::Body::None,
         };

@@ -382,7 +382,7 @@ fn checks(config: &Config, setup: &Store, request: &Request, values: &[a::CheckS
         .expect("sized statuses");
     }
     Ok(Answer::CombinedStatus {
-        state: d::CombinedStatus { state: combined, total_count: u64::try_from(values.len()).expect("domain bound") },
+        state: d::CombinedStatus { state: combined, total_count: skein_lib::len_u64(values.len()) },
         sha,
         statuses: rows.into_boxed(),
     })
@@ -435,7 +435,7 @@ pub fn read(config: &Config, setup: &Store, request: &Request, answer: &a::Answe
             for value in values {
                 out.push(action_run(config, request, value)?).expect("sized runs");
             }
-            Ok(Answer::Runs { total_count: u64::try_from(values.len()).expect("domain bound"), runs: out.into_boxed() })
+            Ok(Answer::Runs { total_count: skein_lib::len_u64(values.len()), runs: out.into_boxed() })
         }
         a::Answer::Run(value) => Ok(Answer::Run(action_run(config, request, value)?)),
         a::Answer::Job { job, steps } => Ok(job_answer(job, steps)),
@@ -460,7 +460,7 @@ pub fn read(config: &Config, setup: &Store, request: &Request, answer: &a::Answe
                 out.push(routes::object(*value)).expect("sized commits");
             }
             Ok(Answer::Compare {
-                compare: d::Compare { total_commits: u64::try_from(commits.len()).expect("domain bound") },
+                compare: d::Compare { total_commits: skein_lib::len_u64(commits.len()) },
                 commits: out.into_boxed(),
                 files: compared(request, values),
             })

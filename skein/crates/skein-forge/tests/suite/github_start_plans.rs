@@ -135,7 +135,7 @@ fn reachable_page(ids: &[u64]) -> (List<Row>, Body) {
         rows.push(repository(*id)).unwrap();
     }
     let mut out = output();
-    server::reachable(rows.as_slice(), u64::try_from(ids.len()).unwrap(), &mut out).unwrap();
+    server::reachable(rows.as_slice(), skein_lib::len_u64(ids.len()), &mut out).unwrap();
     decode(Kind::ReachableRows, &bytes(out))
 }
 fn mint_body() -> Body {

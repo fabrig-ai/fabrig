@@ -238,7 +238,7 @@ fn a_codex_request_sends_its_rendered_body_gzip_encoded_with_its_length() {
     let wide = |value: u32| usize::try_from(value).unwrap();
     assert_eq!(wide(measured.body), rendered.len());
     assert_eq!(wide(measured.compressed), room.len());
-    assert_eq!(world.client.request_bytes(), u64::try_from(world.sent.len()).unwrap());
+    assert_eq!(world.client.request_bytes(), skein_lib::len_u64(world.sent.len()));
     let digits = |length: usize| length.to_string().len();
     assert_eq!(wide(measured.head), head.len() - digits(body.len()) + digits(room.len()), "measured at the bound");
 }
@@ -264,7 +264,7 @@ fn a_codex_body_compresses_only_while_it_and_its_room_fit_the_request_bound() {
             assert_eq!(body, &*as_rendered.unwrap(), "a body past the bound's room is sent as rendered");
             assert_eq!(usize::try_from(measured.head).unwrap(), head.len());
         }
-        assert_eq!(world.client.request_bytes(), u64::try_from(world.sent.len()).unwrap());
+        assert_eq!(world.client.request_bytes(), skein_lib::len_u64(world.sent.len()));
         // The call stays within the largest reservation and its head within
         // the largest head the endpoint's bounds measure.
         assert!(reservation(measured, &bounds).unwrap() <= largest_reservation(&bounds).unwrap());
@@ -288,7 +288,7 @@ fn an_openai_request_sends_its_rendered_body_as_it_is() {
     let measured = world.client.measured();
     let wide = |value: u32| usize::try_from(value).unwrap();
     assert_eq!((wide(measured.head), wide(measured.body), measured.compressed), (head.len(), body.len(), 0));
-    assert_eq!(world.client.request_bytes(), u64::try_from(world.sent.len()).unwrap());
+    assert_eq!(world.client.request_bytes(), skein_lib::len_u64(world.sent.len()));
 }
 
 #[test]

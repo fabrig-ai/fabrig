@@ -397,7 +397,7 @@ impl Callback {
         self.requests.push(http::Request::Respond(http::Response {
             status,
             headers,
-            body: http::Body::Length(u64::try_from(self.page.len()).expect("fixed page")),
+            body: http::Body::Length(skein_lib::len_u64(self.page.len())),
             close: true,
         }));
         self.requests.push(http::Request::Reply(Down::Demand {

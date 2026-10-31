@@ -17,7 +17,7 @@ pub fn mutated(rng: &mut Rng, golden: &[u8]) -> Vec<u8> {
 pub fn mutated_into(rng: &mut Rng, golden: &[u8], bytes: &mut Vec<u8>) {
     bytes.clear();
     bytes.extend_from_slice(golden);
-    let length = u64::try_from(bytes.len()).expect("a byte length fits");
+    let length = skein_lib::len_u64(bytes.len());
     match rng.below(3) {
         0 if !bytes.is_empty() => {
             let at = usize::try_from(rng.below(length)).expect("a byte position fits");

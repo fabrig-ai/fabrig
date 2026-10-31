@@ -143,7 +143,7 @@ pub(super) fn response_error(server: &mut Server, _service: &Service, env: &Env<
     server.requests.push(http::Request::Respond(http::Response {
         status,
         headers: headers.into_boxed(),
-        body: http::Body::Length(u64::try_from(body.len()).expect("bounded document")),
+        body: http::Body::Length(skein_lib::len_u64(body.len())),
         close: false,
     }));
     server.reply = Some(body);

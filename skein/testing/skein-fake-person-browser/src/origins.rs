@@ -234,11 +234,7 @@ impl Pages {
                         server::Request::Respond(Response {
                             status,
                             headers: headers.into_boxed_slice(),
-                            body: if status == 204 {
-                                Body::None
-                            } else {
-                                Body::Length(u64::try_from(body.len()).expect("page length fits"))
-                            },
+                            body: if status == 204 { Body::None } else { Body::Length(skein_lib::len_u64(body.len())) },
                             close: true,
                         }),
                     );

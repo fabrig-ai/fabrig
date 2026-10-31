@@ -93,7 +93,7 @@ fn exchange(
         }
         let input = next(&mut flags, &mut intake, &limits, read, interrupt, steps);
         let input_size = match &input {
-            Input::Down(Request::Upload(Down::Send(piece))) => u64::try_from(piece.len()).expect("fits a u64"),
+            Input::Down(Request::Upload(Down::Send(piece))) => skein_lib::len_u64(piece.len()),
             Input::Up(_) | Input::Down(_) => 0,
         };
         meter.start();

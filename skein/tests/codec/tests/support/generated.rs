@@ -100,7 +100,7 @@ fn draw_named(schema: &Schema, name: &str, rng: &mut Rng, bytes: &mut Vec<u8>) {
             }
         }
         Declaration::Enum(enumeration) => {
-            let tag = rng.below(u64::try_from(enumeration.variants.len()).expect("variant count fits"));
+            let tag = rng.below(skein_lib::len_u64(enumeration.variants.len()));
             bytes.push(u8::try_from(tag).expect("tag fits"));
             let variant =
                 enumeration.variants.get(usize::try_from(tag).expect("tag fits index")).expect("chosen variant");

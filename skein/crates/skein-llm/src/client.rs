@@ -426,7 +426,7 @@ fn content_length(body: u32, compressed: u32) -> u64 {
 /// encoded, is `sent` long: a gzip head was measured with the bound's
 /// `Content-Length` digits, so the sent length's digits replace them.
 fn sent_bytes(measured: Measured, sent: u64) -> u64 {
-    let digits = |length: u64| u64::try_from(Decimal::of(length).as_bytes().len()).expect("digits fit u64");
+    let digits = |length: u64| skein_lib::len_u64(Decimal::of(length).as_bytes().len());
     let bytes = || {
         let head = u64::from(measured.head).checked_sub(digits(content_length(measured.body, measured.compressed)))?;
         head.checked_add(digits(sent))?.checked_add(sent)
@@ -1940,30 +1940,25 @@ fn block_size(block: &Block) -> u64 {
     let mut bytes = 0_u64;
     let replay = match block {
         Block::Text { text, replay } | Block::Refusal { text, replay } => {
-            bytes = u64::try_from(text.len()).expect("a slice length fits u64");
+            bytes = skein_lib::len_u64(text.len());
             replay.as_ref()
         }
         Block::ToolCall { id, name, arguments, replay } => {
             for part in [id, name, arguments] {
-                bytes = bytes.saturating_add(u64::try_from(part.len()).expect("a slice length fits u64"));
+                bytes = bytes.saturating_add(skein_lib::len_u64(part.len()));
             }
             replay.as_ref()
         }
         Block::Oversize { id, name, .. } => {
-            return u64::try_from(id.len())
-                .expect("slice length fits u64")
-                .saturating_add(u64::try_from(name.len()).expect("slice length fits u64"));
+            return skein_lib::len_u64(id.len()).saturating_add(skein_lib::len_u64(name.len()));
         }
         Block::Cut { id, name, arguments } => {
-            return u64::try_from(id.len())
-                .expect("slice length fits u64")
-                .saturating_add(u64::try_from(name.len()).expect("slice length fits u64"))
-                .saturating_add(u64::try_from(arguments.len()).expect("slice length fits u64"));
+            return skein_lib::len_u64(id.len())
+                .saturating_add(skein_lib::len_u64(name.len()))
+                .saturating_add(skein_lib::len_u64(arguments.len()));
         }
         Block::ToolResult { id, text, .. } => {
-            return u64::try_from(id.len())
-                .expect("a slice length fits u64")
-                .saturating_add(u64::try_from(text.len()).expect("a slice length fits u64"));
+            return skein_lib::len_u64(id.len()).saturating_add(skein_lib::len_u64(text.len()));
         }
         Block::Reasoning { replay } => Some(replay),
         Block::Dropped { .. } => return 0,

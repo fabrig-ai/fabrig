@@ -473,7 +473,7 @@ pub fn last_page(body: &[u8]) -> Box<[u8]> {
     response_with_fields(200, body, b"X-HasMore: false\r\n")
 }
 pub fn response_with_fields(code: u16, body: &[u8], fields: &[u8]) -> Box<[u8]> {
-    let decimal = skein_lib::Decimal::of(u64::try_from(body.len()).expect("body length"));
+    let decimal = skein_lib::Decimal::of(skein_lib::len_u64(body.len()));
     let mut out = skein_lib::Writer::new(
         body.len()
             .saturating_add(fields.len())
@@ -817,7 +817,7 @@ pub fn signed_head(body: &[u8], event: Option<&[u8]>) -> Box<[u8]> {
 pub fn hook_head(body: &[u8], event: Option<&[u8]>, signature: &[u8]) -> Box<[u8]> {
     use skein_forge::forgejo::delivery::{EVENT_HEADER, SIGNATURE_HEADER};
     let target = skein_forge::forgejo::delivery::hook_target(FORGE);
-    let length = skein_lib::Decimal::of(u64::try_from(body.len()).expect("body length"));
+    let length = skein_lib::Decimal::of(skein_lib::len_u64(body.len()));
     let mut pieces = List::with_capacity(16);
     for piece in
         [b"POST ".as_slice(), &target, b" HTTP/1.1\r\nHost: localhost\r\nContent-Length: ", length.as_bytes(), b"\r\n"]

@@ -557,7 +557,7 @@ impl<B: Backend> Run<'_, B> {
         let mut got = Vec::new();
         let mut counts = Vec::new();
         loop {
-            let at = u64::try_from(got.len()).expect("a usize fits a u64");
+            let at = skein_lib::len_u64(got.len());
             let op = Op::read(fd, vec![0; READ_CHUNK].into_boxed_slice(), at).expect("room to read");
             let complete = self.call(process, op);
             match (complete.kind, complete.result) {

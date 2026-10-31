@@ -205,7 +205,7 @@ impl World {
         assert_eq!(kinds.len(), 2, "full fixture");
         // Shared trust is its owner's allocation, as in the TLS machine world.
         let trust = pki::client(&[]);
-        let owned_bytes = 3 + 128 + 2 * u64::try_from("skein.test".len()).expect("name");
+        let owned_bytes = 3 + 128 + 2 * skein_lib::len_u64("skein.test".len());
         let steps = Steps::new(ceiling);
         steps.start();
         let mut configured = List::with_capacity(l.forges);

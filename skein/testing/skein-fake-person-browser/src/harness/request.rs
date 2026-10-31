@@ -24,11 +24,7 @@ impl Exchange {
         let limits = client::Limits { request: 65_536, head: 65_536, headers: 128, read: 1, send: 65_536 };
         let mut headers = vec![skein_http::Header { name: b"Host".as_slice().into(), value: asked.host }];
         headers.extend(asked.headers.into_iter().map(|(name, value)| skein_http::Header { name, value }));
-        let body = if asked.body.is_empty() {
-            Body::None
-        } else {
-            Body::Length(u64::try_from(asked.body.len()).expect("body fits"))
-        };
+        let body = if asked.body.is_empty() { Body::None } else { Body::Length(skein_lib::len_u64(asked.body.len())) };
         Self {
             person,
             status: None,

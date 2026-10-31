@@ -65,7 +65,7 @@ mod tests {
     }
 
     fn mutations(bytes: &[u8], rng: &mut Rng) -> [Vec<u8>; 3] {
-        let length = u64::try_from(bytes.len()).expect("wire length");
+        let length = skein_lib::len_u64(bytes.len());
         let mut changed = bytes.to_vec();
         if length > 0 {
             let at = usize::try_from(rng.below(length)).expect("wire index");

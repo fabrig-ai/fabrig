@@ -1300,7 +1300,7 @@ pub fn cancel_append<B: Backend>(backend: &mut B) -> Cancelling {
     let reader = open_patiently(&mut run, process, root);
     let mut read = Vec::new();
     loop {
-        let at = u64::try_from(read.len()).expect("file length fits");
+        let at = skein_lib::len_u64(read.len());
         let token = run.start(process, Op::read(reader, Box::from([0; 16]), at).expect("room to read"));
         let complete = match run.within(process, token, BRIEFLY) {
             Some(complete) => complete,

@@ -259,7 +259,7 @@ impl Store {
         while let Some(pending) = self.queue.pop() {
             self.queued_bytes = self
                 .queued_bytes
-                .checked_sub(u64::try_from(pending.frame.len()).expect("length fits u64"))
+                .checked_sub(skein_lib::len_u64(pending.frame.len()))
                 .expect("queued bytes account for every frame");
             self.active.push(pending);
         }
@@ -528,7 +528,7 @@ pub fn down(
                 above.push(Event::Refused { owner, refusal });
                 return;
             }
-            let total = store.queued_bytes.checked_add(u64::try_from(bytes.len()).expect("frame length fits u64"));
+            let total = store.queued_bytes.checked_add(skein_lib::len_u64(bytes.len()));
             if total.is_none_or(|total| total > env.limits.queued_bytes) {
                 above.push(Event::Refused { owner, refusal: Refusal::Busy });
                 return;
@@ -673,7 +673,7 @@ pub fn up(
             below.push(file::Request::ReadAt { owner: IO_OWNER, file, offset: 0, max: env.limits.chunk });
         }
         (Phase::ReadingSnapshot { file, len, at, mut bytes }, file::Event::Read { bytes: read, .. }) => {
-            let next = at.checked_add(u64::try_from(read.len()).expect("length fits u64"));
+            let next = at.checked_add(skein_lib::len_u64(read.len()));
             if read.is_empty() || next.is_none_or(|next| next > len) {
                 open_failed_file(store, file, Failure::Corrupt, below);
                 return;
@@ -709,7 +709,7 @@ pub fn up(
             }
         }
         (Phase::ReadingLog { file, first, len, at, mut bytes }, file::Event::Read { bytes: read, .. }) => {
-            let next = at.checked_add(u64::try_from(read.len()).expect("length fits u64"));
+            let next = at.checked_add(skein_lib::len_u64(read.len()));
             if read.is_empty() || next.is_none_or(|next| next > len) {
                 open_failed_file(store, file, Failure::Corrupt, below);
                 return;
@@ -773,9 +773,7 @@ pub fn up(
                 let used = store.map.check(&pending.ops, &env.limits).expect("a queued commit passed admission");
                 store.map.apply(&pending.ops, used);
                 store.last = pending.number;
-                bytes = bytes
-                    .checked_add(u64::try_from(pending.frame.len()).expect("frame length fits u64"))
-                    .expect("batch size fits u64");
+                bytes = bytes.checked_add(skein_lib::len_u64(pending.frame.len())).expect("batch size fits u64");
                 above.push(Event::Committed { owner: pending.owner, number: pending.number });
             }
             let offset = offset.checked_add(bytes).expect("segment offset fits u64");
@@ -913,7 +911,7 @@ pub fn fire(store: &mut Store, env: &Env<Limits>, _above: &mut Queue<Event>, bel
         SnapStage::Header => {
             let file = snap.file.expect("snapshot file opened");
             let bytes = snapshot::header(snap.start);
-            let len = u64::try_from(bytes.len()).expect("header length fits");
+            let len = skein_lib::len_u64(bytes.len());
             (SnapAction::Header { len }, file::Request::WriteAt { owner: IO_OWNER, file, offset: snap.offset, bytes })
         }
         SnapStage::Chunk => {
@@ -942,16 +940,16 @@ pub fn fire(store: &mut Store, env: &Env<Limits>, _above: &mut Queue<Event>, bel
                 snap.stage = SnapStage::Trailer;
                 let file = snap.file.expect("snapshot file opened");
                 let bytes = snapshot::trailer(snap.rows, snap.payload);
-                let len = u64::try_from(bytes.len()).expect("trailer length fits");
+                let len = skein_lib::len_u64(bytes.len());
                 (
                     SnapAction::Trailer { len },
                     file::Request::WriteAt { owner: IO_OWNER, file, offset: snap.offset, bytes },
                 )
             } else {
                 let last = rows.last().expect("a chunk has rows").key.clone();
-                let count = u64::try_from(rows.len()).expect("count fits u64");
+                let count = skein_lib::len_u64(rows.len());
                 let bytes = snapshot::chunk(&rows, env.limits.chunk).expect("limits hold one row per chunk");
-                let len = u64::try_from(bytes.len()).expect("chunk length fits");
+                let len = skein_lib::len_u64(bytes.len());
                 let file = snap.file.expect("snapshot file opened");
                 (
                     SnapAction::Chunk { last, rows: count, payload, len },
@@ -962,7 +960,7 @@ pub fn fire(store: &mut Store, env: &Env<Limits>, _above: &mut Queue<Event>, bel
         SnapStage::Trailer => {
             let file = snap.file.expect("snapshot file opened");
             let bytes = snapshot::trailer(snap.rows, snap.payload);
-            let len = u64::try_from(bytes.len()).expect("trailer length fits");
+            let len = skein_lib::len_u64(bytes.len());
             (SnapAction::Trailer { len }, file::Request::WriteAt { owner: IO_OWNER, file, offset: snap.offset, bytes })
         }
         SnapStage::Sync => {
