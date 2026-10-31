@@ -25,6 +25,7 @@ impl Core {
                 Phase::LoadInbox
             }
             Phase::LoadInbox => {
+                self.start_inbox_done();
                 assert!(self.census_position.is_none(), "census pair complete before Link");
                 match self.connectors.first() {
                     Some(&connector) => Phase::RestoreConnector { connector },
@@ -36,6 +37,7 @@ impl Core {
                 None => Phase::Link,
             },
             Phase::Link => {
+                self.start_projections_link();
                 let before = out.len();
                 self.start_link(env, out);
                 if let Some(failure) = self.start_failure() {
@@ -85,6 +87,17 @@ impl Core {
         assert!(self.start.phase == Some(Phase::Sweep) && self.start.waiting.is_none(), "sweep waits for its commit");
         match input {
             SweepInput::Record(record) => {
+                match &record {
+                    // The sweep erases only expired rows (jig/docs/design/domain/engine.md, 6).
+                    people::Stored::Policy { .. } | people::Stored::EndedRead { .. } => return Action::Idle,
+                    people::Stored::Acted { .. }
+                    | people::Stored::Person { .. }
+                    | people::Stored::ReadResults { .. }
+                    | people::Stored::ReadConversation { .. }
+                    | people::Stored::SignIn { .. }
+                    | people::Stored::Roles { .. }
+                    | people::Stored::Answer { .. } => {}
+                }
                 let mut child = Queue::uncapped();
                 self.people.start_sweep_row(
                     &Env { now: env.now, wall: self.start.at, limits: env.limits.people },

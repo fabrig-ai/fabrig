@@ -344,8 +344,11 @@ pub fn step(core: &mut Core, env: &Env<Limits>, event: Event) -> Requests {
                         assert!(core.start_loading(), "rows load before Link and outside a seed commit");
                     }
                     Event::SettingsCommit { .. } => assert!(phase == Phase::Sweep, "settings cleanup follows Link"),
-                    Event::EffectConnector(crate::connector::Event::Resource { .. }) => {
-                        assert!(matches_restore_connector(phase), "connector resources load before Link");
+                    Event::EffectConnector(crate::connector::Event::Resource { name, .. }) => {
+                        assert!(
+                            matches_restore_connector(phase, name.connector),
+                            "connector resources load before Link"
+                        );
                     }
                     _ => unreachable!("operational input requires durable Wires"),
                 }
@@ -417,9 +420,9 @@ pub fn want_accounts(core: &mut Core, env: &Env<Limits>) -> Requests {
     Requests::Out(out)
 }
 
-fn matches_restore_connector(phase: crate::start::Phase) -> bool {
+fn matches_restore_connector(phase: crate::start::Phase, connector: u16) -> bool {
     match phase {
-        crate::start::Phase::RestoreConnector { .. } => true,
+        crate::start::Phase::RestoreConnector { connector: expected } => connector == expected,
         crate::start::Phase::LoadCore
         | crate::start::Phase::LoadInbox
         | crate::start::Phase::Link

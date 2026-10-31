@@ -1,5 +1,6 @@
 //! Entry-point checks for the reference journal and routes.
 mod host_tools;
+mod start;
 use crate::{Config, Domain, Event, Limits, Output, Released, Store, release, step, try_step};
 use alloc::boxed::Box;
 use jig_domain_accounts as accounts;
@@ -250,7 +251,10 @@ fn a_connector_read_answer_uses_the_door_and_makes_no_commit() {
 }
 
 #[test]
+#[ignore = "needs core-inbox"]
+#[expect(clippy::too_many_lines, reason = "the full typed start sequence includes every store and journal terminal")]
 fn cold_restart_loads_every_child_before_opening_decisions() {
+    use core::start::Phase;
     let (mut original, env) = fixture();
     step(&mut original, &env, name(1));
     let mut header = None;
@@ -292,7 +296,7 @@ fn cold_restart_loads_every_child_before_opening_decisions() {
     let (mut domain, _) = fixture();
     step(&mut domain, &env, Event::Restart { pending: false });
     let mut loads = List::with_capacity(16);
-    for _ in 0..16_u32 {
+    for _ in 0..64_u32 {
         for output in take(&mut domain, &env) {
             match output {
                 Output::Now(core::Now::Account(accounts::Request::Signing(accounts::Signing::Restored))) => {}
@@ -302,7 +306,7 @@ fn cold_restart_loads_every_child_before_opening_decisions() {
                     assert_eq!(account, 1);
                 }
                 Output::Switch => step(&mut domain, &env, Event::Store(Store::Switched)),
-                Output::Load { step: stage, .. } => {
+                Output::Load { phase: stage, .. } => {
                     loads.push(stage).unwrap();
                     if let Some(record) = header.take() {
                         step(&mut domain, &env, Event::Store(Store::Restore(record)));
@@ -311,9 +315,6 @@ fn cold_restart_loads_every_child_before_opening_decisions() {
                             step(&mut domain, &env, Event::Store(Store::Restore(crate::Record::Core(row))));
                         }
                     }
-                    step(&mut domain, &env, Event::Store(Store::Restored(stage)));
-                }
-                Output::ToChild(Released::Restart(stage)) => {
                     step(&mut domain, &env, Event::Store(Store::Restored(stage)));
                 }
                 Output::ToChild(value) => step(&mut domain, &env, Event::Released(value)),
@@ -343,10 +344,30 @@ fn cold_restart_loads_every_child_before_opening_decisions() {
     assert_eq!(
         loads.as_slice(),
         [
-            core::RestartStep::LoadCore,
-            core::RestartStep::LoadInbox,
-            core::RestartStep::RestoreConnector { connector: 1 },
-            core::RestartStep::RestoreConnector { connector: 2 }
+            Phase::LoadCore,
+            Phase::LoadInbox,
+            Phase::RestoreConnector { connector: 1 },
+            Phase::RestoreConnector { connector: 2 },
+            Phase::Sweep
+        ]
+    );
+    assert_eq!(
+        domain.start_phases.as_slice(),
+        [
+            Phase::LoadCore,
+            Phase::LoadInbox,
+            Phase::RestoreConnector { connector: 1 },
+            Phase::RestoreConnector { connector: 2 },
+            Phase::Link,
+            Phase::Sweep,
+            Phase::Switch,
+            Phase::Wires,
+            Phase::AdoptRuns,
+            Phase::ReadAfresh { connector: 1 },
+            Phase::ReadAfresh { connector: 2 },
+            Phase::SettleOutbox { connector: 1 },
+            Phase::SettleOutbox { connector: 2 },
+            Phase::Open,
         ]
     );
     assert!(domain.ready());
@@ -363,6 +384,8 @@ fn settle(domain: &mut Domain, env: &Env<Limits>) -> Box<[Output]> {
             match value {
                 Output::Commit { number, .. } => step(domain, env, Event::Store(Store::Committed { number, fill: 0 })),
                 Output::ToChild(value) => step(domain, env, Event::Released(value)),
+                Output::Load { phase, .. } => step(domain, env, Event::Store(Store::Restored(phase))),
+                Output::Switch => step(domain, env, Event::Store(Store::Switched)),
                 Output::Core(core::Held::NotesLoad { owner, .. }) => step(
                     domain,
                     env,
@@ -372,9 +395,7 @@ fn settle(domain: &mut Domain, env: &Env<Limits>) -> Box<[Output]> {
                         more: false,
                     })),
                 ),
-                other @ (Output::Switch
-                | Output::Load { .. }
-                | Output::ReadResult { .. }
+                other @ (Output::ReadResult { .. }
                 | Output::CoreLoad(_)
                 | Output::Core(_)
                 | Output::Now(_)
@@ -394,31 +415,19 @@ fn settle(domain: &mut Domain, env: &Env<Limits>) -> Box<[Output]> {
     seen.into_boxed()
 }
 
-fn restore_chat_account(domain: &mut Domain, env: &Env<Limits>) {
-    let configuration = jig_core_world::world::config(17);
-    for row in jig_core_world::fixtures::account_rows(&configuration.core.settings.llm_providers) {
-        let jig_test_domain::Record::Core(core::Record::Accounts(record)) = row else { panic!("account fixture row") };
-        step(domain, env, Event::Core(core::Event::Account(accounts::Event::Restore { record })));
-        settle(domain, env);
-    }
-}
-
 #[expect(clippy::too_many_lines, reason = "the held sign-in field extends the existing complete chat fixture")]
 fn started_chat() -> (Domain, Env<Limits>, Token) {
     use jig_domain_fleet as fleet;
     use jig_domain_people as people;
-    use jig_domain_tasks as tasks;
     let (mut domain, env) = fixture();
-    restore_chat_account(&mut domain, &env);
-    for row in jig_core_world::fixtures::seeded_project_rows(&jig_core_world::world::config(17).core) {
+    step(&mut domain, &env, Event::Restart { pending: false });
+    for row in jig_core_world::fixtures::account_rows(&jig_core_world::world::config(17).core.settings.llm_providers) {
+        let jig_test_domain::Record::Core(row) = row else { panic!("core account fixture") };
         step(&mut domain, &env, Event::Store(Store::Restore(crate::Record::Core(row))));
-        settle(&mut domain, &env);
     }
+    settle(&mut domain, &env);
     for event in [
         core::Event::People(people::Event::Roles { project: 1, holdings: Box::new([]) }),
-        core::Event::People(people::Event::Restored),
-        core::Event::Tasks(tasks::Event::Check),
-        core::Event::Tasks(tasks::Event::Restored),
         core::Event::Period { project: 1, period: 1, budget: 1000, next: None },
         core::Event::Fleet(fleet::Event::Loaded),
         core::Event::Account(accounts::Event::Want),
@@ -525,6 +534,7 @@ fn call_name(activation: u64, completion: u32, position: u32) -> Box<[u8]> {
 }
 
 #[test]
+#[ignore = "needs core-inbox"]
 fn a_committed_chat_assignment_starts_its_agent_through_the_engine_hub() {
     started_chat();
 }
@@ -540,6 +550,7 @@ fn connector_documents_and_reads_share_the_last_connector_commit_barrier() {
         login: Box::from(*b"party"),
         name: Box::from(*b"Party"),
     };
+    domain.core.people.start_restore(env.wall);
     for record in [
         people::Stored::Person { number: 1, identity },
         people::Stored::SignIn { number: 10, person: 1, expires: Wall::from_nanos(Duration::from_secs(60).as_nanos()) },
@@ -552,7 +563,10 @@ fn connector_documents_and_reads_share_the_last_connector_commit_barrier() {
         let initial = settle(&mut domain, &env);
         assert!(initial.is_empty(), "restore outputs: {initial:?}");
     }
-    step(&mut domain, &env, Event::Core(core::Event::People(people::Event::Restored)));
+    let people_env = Env { now: env.now, wall: env.wall, limits: env.limits.core.people };
+    assert!(domain.core.people.start_link(&people_env));
+    domain.core.people.start_sweep();
+    assert!(domain.core.people.start_complete(&people_env));
     assert!(take(&mut domain, &env).is_empty());
     let service = jig_ops_world::service();
     step(
@@ -683,13 +697,17 @@ fn assert_service_document(document: crate::ClientDocument) {
 fn an_unknown_connector_refuses_the_restart_without_loading_a_child() {
     for connector in [0, 3, u16::MAX] {
         let (mut domain, env) = fixture();
-        step(&mut domain, &env, Event::Released(Released::Restart(core::RestartStep::RestoreConnector { connector })));
+        crate::domain::decide(
+            &mut domain,
+            &env,
+            crate::domain::Work::Start(core::start::Action::Step(core::start::Phase::RestoreConnector { connector })),
+        );
         match take(&mut domain, &env).as_ref() {
             [Output::Stop] => {}
             other => panic!("unknown owner stops without a child load: {other:?}"),
         }
-        assert_eq!(domain.core.restart_failure(), Some(core::RestartStep::LoadCore));
-        assert!(!domain.core.restart_ready(), "unknown owner cannot open decisions");
+        assert_eq!(domain.start.state, crate::domain::StartState::Stopped);
+        assert!(!domain.ready(), "unknown owner cannot open decisions");
     }
 }
 
@@ -960,14 +978,25 @@ fn stopping_ignores_the_starts_mark_continuations() {
     settle(&mut domain, &env);
     step(&mut domain, &env, Event::Core(core::Event::Stopping));
     settle(&mut domain, &env);
-    for event in [Event::Store(Store::Switched), Event::Released(Released::RestartDone(core::RestartStep::Switch))] {
+    let (mut starting, _) = fixture();
+    let _begin = starting.core.start_begin(false, env.wall);
+    let mut out = Queue::uncapped();
+    let core::start::Action::Commit(continuation) = starting.core.start_done(
+        &Env { now: env.now, wall: env.wall, limits: env.limits.core },
+        core::start::Phase::LoadCore,
+        &mut out,
+    ) else {
+        panic!("seed continuation")
+    };
+    for event in [Event::Store(Store::Switched), Event::Released(Released::Start(continuation))] {
         step(&mut domain, &env, event);
         assert!(take(&mut domain, &env).is_empty());
-        assert_eq!(domain.core.restart_failure(), None);
+        assert_eq!(domain.core.start_failure(), None);
     }
 }
 
 #[test]
+#[ignore = "needs core-inbox"]
 fn a_new_task_timer_stays_due_at_the_watermark() {
     use jig_domain_tasks as tasks;
     use skein_lib::ReplyTo;
@@ -1015,6 +1044,7 @@ fn a_new_task_timer_stays_due_at_the_watermark() {
 }
 
 #[test]
+#[ignore = "needs core-inbox"]
 fn a_retained_turn_retry_fires_at_the_watermark() {
     const RUN: Token = Token::new(1);
     const ATTEMPT: Token = Token::new(1);

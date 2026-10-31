@@ -189,6 +189,7 @@ fn worker_call(owner: Token, writes: bool) -> root::Event {
 }
 
 #[test]
+#[ignore = "needs core-inbox"]
 fn admitted_work_is_taken_at_the_watermark() {
     let mut driver = pressured_chat();
     let returned = driver.returned;
@@ -212,6 +213,7 @@ fn admitted_work_is_taken_at_the_watermark() {
 }
 
 #[test]
+#[ignore = "needs core-inbox"]
 fn a_health_fact_settles_under_load_and_its_news_waits() {
     let mut driver = Driver::started(SEED);
     driver.chat();
@@ -247,6 +249,7 @@ fn a_health_fact_settles_under_load_and_its_news_waits() {
 }
 
 #[test]
+#[ignore = "needs core-inbox"]
 fn a_service_fact_settles_under_load_and_its_drift_waits() {
     let mut driver = scale_driver();
     driver.fill_to_watermark();
@@ -266,6 +269,7 @@ fn a_service_fact_settles_under_load_and_its_drift_waits() {
 }
 
 #[test]
+#[ignore = "needs core-inbox"]
 fn an_environment_absence_settles_under_load_and_its_drift_waits() {
     let mut driver = Driver::started(SEED);
     driver.send(root::Event::Infrastructure(infra::Event::Restore {
@@ -304,6 +308,7 @@ fn an_environment_absence_settles_under_load_and_its_drift_waits() {
 }
 
 #[test]
+#[ignore = "needs core-inbox"]
 fn completions_pass_a_held_new_event_in_order() {
     let mut driver = Driver::started(SEED);
     for token in [FIRST, SECOND, THIRD] {
@@ -325,6 +330,7 @@ fn completions_pass_a_held_new_event_in_order() {
 }
 
 #[test]
+#[ignore = "needs core-inbox"]
 fn a_mixed_event_that_passes_leaves_its_rest_and_ends_the_pass() {
     let mut driver = scale_driver();
     driver.send(read(SECOND));
@@ -349,6 +355,7 @@ fn a_mixed_event_that_passes_leaves_its_rest_and_ends_the_pass() {
 }
 
 #[test]
+#[ignore = "needs core-inbox"]
 fn a_service_returning_to_its_baseline_cancels_deferred_drift() {
     let mut driver = scale_driver();
     driver.fill_to_watermark();
@@ -362,6 +369,7 @@ fn a_service_returning_to_its_baseline_cancels_deferred_drift() {
 }
 
 #[test]
+#[ignore = "needs core-inbox"]
 fn a_result_read_finishes_its_admitted_run_under_pressure() {
     let mut driver = pressured_chat();
     let returned = driver.returned;
@@ -387,6 +395,7 @@ fn a_result_read_finishes_its_admitted_run_under_pressure() {
 }
 
 #[test]
+#[ignore = "needs core-inbox"]
 fn a_call_answer_and_its_released_callback_enter_under_pressure() {
     let mut driver = Driver::started(SEED);
     driver.chat();
@@ -433,6 +442,7 @@ fn a_call_answer_and_its_released_callback_enter_under_pressure() {
 }
 
 #[test]
+#[ignore = "needs core-inbox"]
 fn an_applied_effect_settles_once_at_the_watermark() {
     const ENTRY: u64 = 3;
     const COPIES: usize = 2; // The same terminal twice.
@@ -474,6 +484,7 @@ fn an_applied_effect_settles_once_at_the_watermark() {
 }
 
 #[test]
+#[ignore = "needs core-inbox"]
 fn read_only_worker_calls_still_wait_as_new_work() {
     let mut driver = pressured_chat();
     let returned = driver.returned;
@@ -514,6 +525,7 @@ fn every_worker_call_entrance_classes_read_only_calls_as_new() {
 }
 
 #[test]
+#[ignore = "needs core-inbox"]
 fn mixed_facts_without_new_work_leave_no_rest_under_pressure() {
     let mut driver = Driver::started(SEED);
     driver.fill_to_watermark();

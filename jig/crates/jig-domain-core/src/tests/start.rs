@@ -1,4 +1,7 @@
 //! Start selection and phase discipline (jig/docs/design/domain/engine.md, 6).
+mod connectors;
+mod inbox;
+mod projections;
 mod rows;
 use super::{Core, Env, Queue, Time, Wall, config, limits, tasks};
 use crate::start::{Action, Failure, Phase, SweepInput};
@@ -142,14 +145,8 @@ fn every_operational_entrance_consumes_selection() {
         Entrance {
             name: "census",
             input: |core, env| {
-                let mut out = Queue::uncapped();
-                people::step(
-                    &mut core.people,
-                    &Env { now: env.now, wall: env.wall, limits: env.limits.people },
-                    people::Event::Restored,
-                    &mut out,
-                );
-                core.restart = crate::restart::Restart::Waiting(crate::RestartStep::LoadInbox);
+                let _begin = core.start_begin(false, env.wall);
+                finish_core_load(core, env, &mut Queue::uncapped());
                 let _census = core.census(&env.limits);
             },
         },
@@ -648,6 +645,32 @@ fn every_start_reaches_switch_and_waits_for_wires() {
             assert!(core.people.ready());
         }
     }
+}
+
+#[test]
+fn core_owned_people_rows_survive_sweep() {
+    let limits = limits();
+    let configured = config(41);
+    let value = crate::policy::snapshot(&configured.seed_projects[0].policy.policy, &[], &[]).expect("bounded policy");
+    let stored = [
+        people::Stored::Policy { project: 1, name: Box::from("Project 1"), value },
+        people::Stored::EndedRead { task: 2, party: 1, through: 0 },
+    ];
+    let mut core = Core::new(configured, &limits).expect("valid core configuration");
+    let env = Env { now: Time::ZERO, wall: Wall::from_nanos(10), limits };
+    let mut out = Queue::uncapped();
+    step_phase(core.start_begin(false, env.wall), Phase::LoadCore);
+    through_link(&mut core, &env, &mut out);
+    for row in stored {
+        match core.start_sweep(&env, SweepInput::Record(row), &mut out) {
+            Action::Idle => {}
+            Action::Step(_) | Action::Commit(_) | Action::Refused(_) => panic!("core-owned row remains stored"),
+        }
+        assert!(out.is_empty());
+        assert_eq!(core.start_phase(), Some(Phase::Sweep));
+    }
+    step_phase(core.start_sweep(&env, SweepInput::Finished, &mut out), Phase::Switch);
+    assert!(out.is_empty());
 }
 
 #[test]
