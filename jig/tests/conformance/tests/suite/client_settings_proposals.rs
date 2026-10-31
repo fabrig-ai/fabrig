@@ -78,10 +78,7 @@ fn settings_proposals_and_running_decisions_keep_the_client_contract() {
         );
         let w::Ask::Decide(wire) = wire_ask else { panic!("decide") };
         let w::DecideOn::Proposal(wire) = wire.on() else { panic!("proposal decision") };
-        assert_eq!(
-            translate::settings::restore_running(wire.running().as_ref().expect("running choice"), &limits),
-            Ok(running)
-        );
+        assert_eq!(translate::settings::restore_running(wire.running().as_ref().expect("running choice")), Ok(running));
     }
 }
 #[test]

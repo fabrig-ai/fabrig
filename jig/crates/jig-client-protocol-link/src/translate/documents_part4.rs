@@ -10,12 +10,10 @@ pub(crate) fn cursor_fields(value: &w::Cursor, limits: &Limits) -> Result<c::Cur
     }
 }
 
-pub(crate) fn object_key_fields(value: &w::ObjectKey, limits: &Limits) -> c::ObjectKey {
+pub(crate) fn object_key_fields(value: &w::ObjectKey) -> c::ObjectKey {
     match value {
         w::ObjectKey::Task(row) => c::ObjectKey::Task(row.value()),
-        w::ObjectKey::Proposal(row) => {
-            c::ObjectKey::Proposal(crate::translate::answers::proposal_key(row.value(), limits))
-        }
+        w::ObjectKey::Proposal(row) => c::ObjectKey::Proposal(crate::translate::answers::proposal_key(row.value())),
         w::ObjectKey::Escalation(row) => c::ObjectKey::Escalation(row.value()),
         w::ObjectKey::Question(row) => c::ObjectKey::Question { task: row.task(), message: row.message() },
         w::ObjectKey::PersonTask(row) => c::ObjectKey::PersonTask(row.value()),
@@ -24,7 +22,7 @@ pub(crate) fn object_key_fields(value: &w::ObjectKey, limits: &Limits) -> c::Obj
     }
 }
 
-pub(crate) fn inbox_group_fields(value: &w::InboxGroup, _limits: &Limits) -> c::InboxGroup {
+pub(crate) fn inbox_group_fields(value: &w::InboxGroup) -> c::InboxGroup {
     match value {
         w::InboxGroup::Questions => c::InboxGroup::Questions,
         w::InboxGroup::Proposals => c::InboxGroup::Proposals,
@@ -46,7 +44,7 @@ pub(crate) fn inbox_entry_fields(value: &w::InboxEntry, limits: &Limits) -> Resu
         None => None,
     };
     let opt2 = match value.recipient() {
-        Some(item) => Some(crate::translate::facts::recipient(item, limits)),
+        Some(item) => Some(crate::translate::facts::recipient(item)),
         None => None,
     };
     let opt3 = match value.stall() {
@@ -59,9 +57,9 @@ pub(crate) fn inbox_entry_fields(value: &w::InboxEntry, limits: &Limits) -> Resu
         goal: opt1,
         recipient: opt2,
         stall: opt3,
-        object: object_key_fields(value.object(), limits),
+        object: object_key_fields(value.object()),
         project: value.project(),
-        group: inbox_group_fields(value.group(), limits),
+        group: inbox_group_fields(value.group()),
         position: value.position(),
         at: Wall::from_nanos(value.at()),
     })
@@ -96,7 +94,7 @@ pub(crate) fn inbox_entry_piece(bytes: &[u8], limits: &Limits, bound: u32) -> Re
     Err(too_large())
 }
 
-pub(crate) fn read_position_fields(value: &w::ReadPosition, _limits: &Limits) -> c::ReadPosition {
+pub(crate) fn read_position_fields(value: &w::ReadPosition) -> c::ReadPosition {
     c::ReadPosition { task: value.task(), through: value.through() }
 }
 
@@ -106,19 +104,19 @@ pub(crate) fn inbox_fields(value: &w::Inbox, limits: &Limits) -> Result<c::Inbox
     }
     let mut list0 = List::with_capacity(value.replies_seen().len());
     for item in value.replies_seen() {
-        list0.push(read_position_fields(item, limits)).expect("reserved supplied list");
+        list0.push(read_position_fields(item)).expect("reserved supplied list");
     }
     Ok(c::Inbox {
         entries: inbox_entry_piece(value.entries(), limits, limits.client.rows)?,
-        needs: needs_fields(value.needs(), limits),
-        updates: count_fields(value.updates(), limits),
+        needs: needs_fields(value.needs()),
+        updates: count_fields(value.updates()),
         results_seen: value.results_seen(),
         replies_seen: list0,
         more: value.more(),
     })
 }
 
-pub(crate) fn owner_phase_counts_fields(value: &w::OwnerPhaseCounts, _limits: &Limits) -> c::OwnerPhaseCounts {
+pub(crate) fn owner_phase_counts_fields(value: &w::OwnerPhaseCounts) -> c::OwnerPhaseCounts {
     c::OwnerPhaseCounts {
         waiting: value.waiting(),
         idle: value.idle(),

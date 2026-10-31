@@ -381,5 +381,5 @@ fn an_offer_decodes_the_effect_with_its_counts_or_reservation() {
     assert_eq!((impact.live_runs, impact.proposals), (11, 13));
     assert_eq!(impact.tasks, fixtures::read_value_impact().tasks);
     let effect = w::Effect::MoveTask(w::EffectMove::new(&limits.wire, w::EffectMoveParts { reservation: 17 }).unwrap());
-    assert_eq!(translate::documents::effect_fields(&effect, &limits), c::Effect::Move { reservation: 17 });
+    assert_eq!(translate::documents::effect_fields(&effect), c::Effect::Move { reservation: 17 });
 }

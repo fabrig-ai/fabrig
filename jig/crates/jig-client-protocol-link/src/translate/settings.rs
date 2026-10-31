@@ -8,7 +8,7 @@ use skein_lib::{List, Reader, Wall, Writer, bytes};
 pub fn wire_setting_number(value: &c::SettingNumber, limits: &w::Limits) -> Result<w::SettingNumber, w::Problem> {
     w::SettingNumber::new(limits, w::SettingNumberParts { number: value.number })
 }
-pub fn restore_setting_number(value: &w::SettingNumber, _limits: &Limits) -> Result<c::SettingNumber, w::Problem> {
+pub fn restore_setting_number(value: &w::SettingNumber) -> Result<c::SettingNumber, w::Problem> {
     Ok(c::SettingNumber { number: value.number() })
 }
 pub fn wire_setting(value: &c::Setting, limits: &w::Limits) -> Result<w::Setting, w::Problem> {
@@ -19,11 +19,11 @@ pub fn wire_setting(value: &c::Setting, limits: &w::Limits) -> Result<w::Setting
         c::Setting::Rules => w::Setting::Rules,
     })
 }
-pub fn restore_setting(value: &w::Setting, limits: &Limits) -> Result<c::Setting, w::Problem> {
+pub fn restore_setting(value: &w::Setting) -> Result<c::Setting, w::Problem> {
     Ok(match value {
-        w::Setting::Charter(item) => c::Setting::Charter(restore_setting_number(item, limits)?),
-        w::Setting::Template(item) => c::Setting::Template(restore_setting_number(item, limits)?),
-        w::Setting::Policy(item) => c::Setting::Policy(restore_setting_number(item, limits)?),
+        w::Setting::Charter(item) => c::Setting::Charter(restore_setting_number(item)?),
+        w::Setting::Template(item) => c::Setting::Template(restore_setting_number(item)?),
+        w::Setting::Policy(item) => c::Setting::Policy(restore_setting_number(item)?),
         w::Setting::Rules => c::Setting::Rules,
     })
 }
@@ -60,7 +60,7 @@ pub fn wire_setting_model(value: &c::SettingModel, limits: &w::Limits) -> Result
         },
     )
 }
-pub fn restore_setting_model(value: &w::SettingModel, _limits: &Limits) -> Result<c::SettingModel, w::Problem> {
+pub fn restore_setting_model(value: &w::SettingModel) -> Result<c::SettingModel, w::Problem> {
     let mut efforts = List::with_capacity(value.efforts().len());
     for item in value.efforts() {
         efforts.push(text(item, 32)?).expect("same capacity");
@@ -90,14 +90,14 @@ pub fn restore_setting_model(value: &w::SettingModel, _limits: &Limits) -> Resul
         },
     })
 }
-pub fn wire_setting_hosts(value: &c::SettingHosts, _limits: &w::Limits) -> Result<w::SettingHosts, w::Problem> {
+pub fn wire_setting_hosts(value: &c::SettingHosts) -> Result<w::SettingHosts, w::Problem> {
     Ok(match value {
         c::SettingHosts::Workers => w::SettingHosts::Workers,
         c::SettingHosts::Engine => w::SettingHosts::Engine,
         c::SettingHosts::Both => w::SettingHosts::Both,
     })
 }
-pub fn restore_setting_hosts(value: &w::SettingHosts, _limits: &Limits) -> Result<c::SettingHosts, w::Problem> {
+pub fn restore_setting_hosts(value: &w::SettingHosts) -> Result<c::SettingHosts, w::Problem> {
     Ok(match value {
         w::SettingHosts::Workers => c::SettingHosts::Workers,
         w::SettingHosts::Engine => c::SettingHosts::Engine,
@@ -123,15 +123,15 @@ pub fn wire_charter(value: &c::Charter, limits: &w::Limits) -> Result<w::Charter
             model: wire_setting_model(&value.model, limits)?,
             alternatives,
             call_timeout: value.call_timeout,
-            hosts: wire_setting_hosts(&value.hosts, limits)?,
+            hosts: wire_setting_hosts(&value.hosts)?,
             spend: value.spend,
         },
     )
 }
-pub fn restore_charter(value: &w::Charter, limits: &Limits) -> Result<c::Charter, w::Problem> {
+pub fn restore_charter(value: &w::Charter) -> Result<c::Charter, w::Problem> {
     let mut alternatives = List::with_capacity(value.alternatives().len());
     for item in value.alternatives() {
-        alternatives.push(restore_setting_model(item, limits)?).expect("same capacity");
+        alternatives.push(restore_setting_model(item)?).expect("same capacity");
     }
     Ok(c::Charter {
         number: value.number(),
@@ -142,14 +142,14 @@ pub fn restore_charter(value: &w::Charter, limits: &Limits) -> Result<c::Charter
         time: value.time(),
         reserve_turns: value.reserve_turns(),
         reserve_time: value.reserve_time(),
-        model: restore_setting_model(value.model(), limits)?,
+        model: restore_setting_model(value.model())?,
         alternatives,
         inspect: value.inspect(),
         modify: value.modify(),
         shell: value.shell(),
         agents: value.agents(),
         call_timeout: value.call_timeout(),
-        hosts: restore_setting_hosts(value.hosts(), limits)?,
+        hosts: restore_setting_hosts(value.hosts())?,
         spend: value.spend(),
     })
 }
@@ -194,7 +194,7 @@ pub fn wire_setting_policy(value: &c::SettingPolicy, limits: &w::Limits) -> Resu
 pub fn restore_setting_policy(value: &w::SettingPolicy, limits: &Limits) -> Result<c::SettingPolicy, w::Problem> {
     let mut projections = List::with_capacity(value.projections().len());
     for item in value.projections() {
-        projections.push(super::documents::owner_grant_fields(item, limits)).expect("same capacity");
+        projections.push(super::documents::owner_grant_fields(item)).expect("same capacity");
     }
     let mut roles = List::with_capacity(value.roles().len());
     for item in value.roles() {
@@ -202,11 +202,11 @@ pub fn restore_setting_policy(value: &w::SettingPolicy, limits: &Limits) -> Resu
     }
     let mut requirements = List::with_capacity(value.requirements().len());
     for item in value.requirements() {
-        requirements.push(super::documents::policy_requirement_fields(item, limits)).expect("same capacity");
+        requirements.push(super::documents::policy_requirement_fields(item)).expect("same capacity");
     }
     let mut permissions = List::with_capacity(value.permissions().len());
     for item in value.permissions() {
-        permissions.push(super::documents::policy_permission_fields(item, limits)).expect("same capacity");
+        permissions.push(super::documents::policy_permission_fields(item)).expect("same capacity");
     }
     let mut templates = List::with_capacity(value.templates().len());
     for item in value.templates() {
@@ -261,7 +261,7 @@ pub fn restore_rules(value: &w::Rules, limits: &Limits) -> Result<c::Rules, w::P
     }
     let mut requirements = List::with_capacity(value.requirements().len());
     for item in value.requirements() {
-        requirements.push(super::documents::policy_requirement_fields(item, limits)).expect("same capacity");
+        requirements.push(super::documents::policy_requirement_fields(item)).expect("same capacity");
     }
     Ok(c::Rules {
         ceiling: super::documents::owner_authority_fields(value.ceiling(), limits)?,
@@ -282,7 +282,7 @@ pub fn wire_setting_value(value: &c::SettingValue, limits: &w::Limits) -> Result
 }
 pub fn restore_setting_value(value: &w::SettingValue, limits: &Limits) -> Result<c::SettingValue, w::Problem> {
     Ok(match value {
-        w::SettingValue::Charter(item) => c::SettingValue::Charter(Box::new(restore_charter(item, limits)?)),
+        w::SettingValue::Charter(item) => c::SettingValue::Charter(Box::new(restore_charter(item)?)),
         w::SettingValue::Template(item) => {
             c::SettingValue::Template(Box::new(super::documents::me::template(item, limits)?))
         }
@@ -320,18 +320,15 @@ pub fn wire_setting_item(value: &c::SettingItem, limits: &w::Limits) -> Result<w
     )
 }
 pub fn restore_setting_item(value: &w::SettingItem, limits: &Limits) -> Result<c::SettingItem, w::Problem> {
-    Ok(c::SettingItem {
-        setting: restore_setting(value.setting(), limits)?,
-        edit: restore_setting_edit(value.edit(), limits)?,
-    })
+    Ok(c::SettingItem { setting: restore_setting(value.setting())?, edit: restore_setting_edit(value.edit(), limits)? })
 }
-pub fn wire_running(value: &c::Running, _limits: &w::Limits) -> Result<w::Running, w::Problem> {
+pub fn wire_running(value: &c::Running) -> Result<w::Running, w::Problem> {
     Ok(match value {
         c::Running::Stays => w::Running::Stays,
         c::Running::Moves => w::Running::Moves,
     })
 }
-pub fn restore_running(value: &w::Running, _limits: &Limits) -> Result<c::Running, w::Problem> {
+pub fn restore_running(value: &w::Running) -> Result<c::Running, w::Problem> {
     Ok(match value {
         w::Running::Stays => c::Running::Stays,
         w::Running::Moves => c::Running::Moves,
@@ -343,7 +340,7 @@ pub fn wire_change_settings(value: &c::ChangeSettings, limits: &w::Limits) -> Re
         w::ChangeSettingsParts {
             against: value.against,
             items: encode_setting_item_pieces(&value.items, limits)?,
-            running: wire_running(&value.running, limits)?,
+            running: wire_running(&value.running)?,
         },
     )
 }
@@ -351,7 +348,7 @@ pub fn restore_change_settings(value: &w::ChangeSettings, limits: &Limits) -> Re
     Ok(c::ChangeSettings {
         against: value.against(),
         items: decode_setting_item_pieces(value.items(), limits)?,
-        running: restore_running(value.running(), limits)?,
+        running: restore_running(value.running())?,
     })
 }
 pub fn wire_outcome_settings_changed(
@@ -362,14 +359,13 @@ pub fn wire_outcome_settings_changed(
 }
 pub fn restore_outcome_settings_changed(
     value: &w::OutcomeSettingsChanged,
-    _limits: &Limits,
 ) -> Result<c::OutcomeSettingsChanged, w::Problem> {
     Ok(c::OutcomeSettingsChanged { revision: value.revision() })
 }
 pub fn wire_refusal_stale(value: &c::RefusalStale, limits: &w::Limits) -> Result<w::RefusalStale, w::Problem> {
     w::RefusalStale::new(limits, w::RefusalStaleParts { newest: value.newest })
 }
-pub fn restore_refusal_stale(value: &w::RefusalStale, _limits: &Limits) -> Result<c::RefusalStale, w::Problem> {
+pub fn restore_refusal_stale(value: &w::RefusalStale) -> Result<c::RefusalStale, w::Problem> {
     Ok(c::RefusalStale { newest: value.newest() })
 }
 pub fn wire_refusal_full(value: &c::RefusalFull, limits: &w::Limits) -> Result<w::RefusalFull, w::Problem> {
@@ -379,14 +375,14 @@ pub fn wire_refusal_full(value: &c::RefusalFull, limits: &w::Limits) -> Result<w
     }
     w::RefusalFull::new(limits, w::RefusalFullParts { revision: value.revision, tasks, more: value.more })
 }
-pub fn restore_refusal_full(value: &w::RefusalFull, _limits: &Limits) -> Result<c::RefusalFull, w::Problem> {
+pub fn restore_refusal_full(value: &w::RefusalFull) -> Result<c::RefusalFull, w::Problem> {
     let mut tasks = List::with_capacity(value.tasks().len());
     for item in value.tasks() {
         tasks.push(*item).expect("same capacity");
     }
     Ok(c::RefusalFull { revision: value.revision(), tasks, more: value.more() })
 }
-pub fn wire_setting_fault(value: &c::SettingFault, _limits: &w::Limits) -> Result<w::SettingFault, w::Problem> {
+pub fn wire_setting_fault(value: &c::SettingFault) -> Result<w::SettingFault, w::Problem> {
     Ok(match value {
         c::SettingFault::Shape => w::SettingFault::Shape,
         c::SettingFault::Count => w::SettingFault::Count,
@@ -397,7 +393,7 @@ pub fn wire_setting_fault(value: &c::SettingFault, _limits: &w::Limits) -> Resul
         c::SettingFault::Owner => w::SettingFault::Owner,
     })
 }
-pub fn restore_setting_fault(value: &w::SettingFault, _limits: &Limits) -> Result<c::SettingFault, w::Problem> {
+pub fn restore_setting_fault(value: &w::SettingFault) -> Result<c::SettingFault, w::Problem> {
     Ok(match value {
         w::SettingFault::Shape => c::SettingFault::Shape,
         w::SettingFault::Count => c::SettingFault::Count,
@@ -416,17 +412,14 @@ pub fn wire_malformed_settings(
         limits,
         w::MalformedSettingsParts {
             setting: wire_setting(&value.setting, limits)?,
-            fault: wire_setting_fault(&value.fault, limits)?,
+            fault: wire_setting_fault(&value.fault)?,
         },
     )
 }
-pub fn restore_malformed_settings(
-    value: &w::MalformedSettings,
-    limits: &Limits,
-) -> Result<c::MalformedSettings, w::Problem> {
+pub fn restore_malformed_settings(value: &w::MalformedSettings) -> Result<c::MalformedSettings, w::Problem> {
     Ok(c::MalformedSettings {
-        setting: restore_setting(value.setting(), limits)?,
-        fault: restore_setting_fault(value.fault(), limits)?,
+        setting: restore_setting(value.setting())?,
+        fault: restore_setting_fault(value.fault())?,
     })
 }
 pub fn wire_read_setting(value: &c::ReadSetting, limits: &w::Limits) -> Result<w::ReadSetting, w::Problem> {
@@ -442,12 +435,12 @@ pub fn wire_read_setting(value: &c::ReadSetting, limits: &w::Limits) -> Result<w
         },
     )
 }
-pub fn restore_read_setting(value: &w::ReadSetting, limits: &Limits) -> Result<c::ReadSetting, w::Problem> {
+pub fn restore_read_setting(value: &w::ReadSetting) -> Result<c::ReadSetting, w::Problem> {
     Ok(c::ReadSetting {
-        setting: restore_setting(value.setting(), limits)?,
+        setting: restore_setting(value.setting())?,
         revision: value.revision(),
         proposal: match value.proposal() {
-            Some(proposal) => Some(super::answers::proposal_key(proposal, limits)),
+            Some(proposal) => Some(super::answers::proposal_key(proposal)),
             None => None,
         },
     })
@@ -455,7 +448,7 @@ pub fn restore_read_setting(value: &w::ReadSetting, limits: &Limits) -> Result<c
 pub fn wire_read_revision(value: &c::ReadRevision, limits: &w::Limits) -> Result<w::ReadRevision, w::Problem> {
     w::ReadRevision::new(limits, w::ReadRevisionParts { number: value.number })
 }
-pub fn restore_read_revision(value: &w::ReadRevision, _limits: &Limits) -> Result<c::ReadRevision, w::Problem> {
+pub fn restore_read_revision(value: &w::ReadRevision) -> Result<c::ReadRevision, w::Problem> {
     Ok(c::ReadRevision { number: value.number() })
 }
 pub fn wire_read_revisions(value: &c::ReadRevisions, limits: &w::Limits) -> Result<w::ReadRevisions, w::Problem> {
@@ -469,7 +462,7 @@ pub fn wire_read_revisions(value: &c::ReadRevisions, limits: &w::Limits) -> Resu
         },
     )
 }
-pub fn restore_read_revisions(value: &w::ReadRevisions, _limits: &Limits) -> Result<c::ReadRevisions, w::Problem> {
+pub fn restore_read_revisions(value: &w::ReadRevisions) -> Result<c::ReadRevisions, w::Problem> {
     Ok(c::ReadRevisions {
         before: match value.before() {
             Some(item) => Some(*item),
@@ -477,13 +470,13 @@ pub fn restore_read_revisions(value: &w::ReadRevisions, _limits: &Limits) -> Res
         },
     })
 }
-pub fn wire_setting_follows(value: &c::SettingFollows, _limits: &w::Limits) -> Result<w::SettingFollows, w::Problem> {
+pub fn wire_setting_follows(value: &c::SettingFollows) -> Result<w::SettingFollows, w::Problem> {
     Ok(match value {
         c::SettingFollows::Default => w::SettingFollows::Default,
         c::SettingFollows::Change => w::SettingFollows::Change,
     })
 }
-pub fn restore_setting_follows(value: &w::SettingFollows, _limits: &Limits) -> Result<c::SettingFollows, w::Problem> {
+pub fn restore_setting_follows(value: &w::SettingFollows) -> Result<c::SettingFollows, w::Problem> {
     Ok(match value {
         w::SettingFollows::Default => c::SettingFollows::Default,
         w::SettingFollows::Change => c::SettingFollows::Change,
@@ -498,26 +491,26 @@ pub fn wire_setting_line(value: &c::SettingLine, limits: &w::Limits) -> Result<w
                 Some(item) => Some(wire_document_text(item, limits)?),
                 None => None,
             },
-            follows: wire_setting_follows(&value.follows, limits)?,
+            follows: wire_setting_follows(&value.follows)?,
             last: value.last,
         },
     )
 }
 pub fn restore_setting_line(value: &w::SettingLine, limits: &Limits) -> Result<c::SettingLine, w::Problem> {
     Ok(c::SettingLine {
-        setting: restore_setting(value.setting(), limits)?,
+        setting: restore_setting(value.setting())?,
         name: match value.name() {
             Some(item) => Some(super::facts::document_text(item, limits)?),
             None => None,
         },
-        follows: restore_setting_follows(value.follows(), limits)?,
+        follows: restore_setting_follows(value.follows())?,
         last: value.last(),
     })
 }
 pub fn wire_revision_party(value: &c::RevisionParty, limits: &w::Limits) -> Result<w::RevisionParty, w::Problem> {
     w::RevisionParty::new(limits, w::RevisionPartyParts { number: value.number })
 }
-pub fn restore_revision_party(value: &w::RevisionParty, _limits: &Limits) -> Result<c::RevisionParty, w::Problem> {
+pub fn restore_revision_party(value: &w::RevisionParty) -> Result<c::RevisionParty, w::Problem> {
     Ok(c::RevisionParty { number: value.number() })
 }
 pub fn wire_revision_decider(value: &c::RevisionDecider, limits: &w::Limits) -> Result<w::RevisionDecider, w::Problem> {
@@ -527,11 +520,11 @@ pub fn wire_revision_decider(value: &c::RevisionDecider, limits: &w::Limits) -> 
         c::RevisionDecider::Party(item) => w::RevisionDecider::Party(wire_revision_party(item, limits)?),
     })
 }
-pub fn restore_revision_decider(value: &w::RevisionDecider, limits: &Limits) -> Result<c::RevisionDecider, w::Problem> {
+pub fn restore_revision_decider(value: &w::RevisionDecider) -> Result<c::RevisionDecider, w::Problem> {
     Ok(match value {
         w::RevisionDecider::FirstStart => c::RevisionDecider::FirstStart,
         w::RevisionDecider::Release => c::RevisionDecider::Release,
-        w::RevisionDecider::Party(item) => c::RevisionDecider::Party(restore_revision_party(item, limits)?),
+        w::RevisionDecider::Party(item) => c::RevisionDecider::Party(restore_revision_party(item)?),
     })
 }
 pub fn wire_revision_head(value: &c::RevisionHead, limits: &w::Limits) -> Result<w::RevisionHead, w::Problem> {
@@ -550,14 +543,14 @@ pub fn wire_revision_head(value: &c::RevisionHead, limits: &w::Limits) -> Result
         },
     )
 }
-pub fn restore_revision_head(value: &w::RevisionHead, limits: &Limits) -> Result<c::RevisionHead, w::Problem> {
+pub fn restore_revision_head(value: &w::RevisionHead) -> Result<c::RevisionHead, w::Problem> {
     Ok(c::RevisionHead {
         number: value.number(),
         against: value.against(),
         at: Wall::from_nanos(value.at()),
-        by: restore_revision_decider(value.by(), limits)?,
+        by: restore_revision_decider(value.by())?,
         proposal: match value.proposal() {
-            Some(item) => Some(super::answers::proposal_key(item, limits)),
+            Some(item) => Some(super::answers::proposal_key(item)),
             None => None,
         },
         moved: value.moved(),
@@ -569,8 +562,8 @@ pub fn wire_held_revision(value: &c::HeldRevision, limits: &w::Limits) -> Result
         w::HeldRevisionParts { head: wire_revision_head(&value.head, limits)?, holders: value.holders },
     )
 }
-pub fn restore_held_revision(value: &w::HeldRevision, limits: &Limits) -> Result<c::HeldRevision, w::Problem> {
-    Ok(c::HeldRevision { head: restore_revision_head(value.head(), limits)?, holders: value.holders() })
+pub fn restore_held_revision(value: &w::HeldRevision) -> Result<c::HeldRevision, w::Problem> {
+    Ok(c::HeldRevision { head: restore_revision_head(value.head())?, holders: value.holders() })
 }
 pub fn wire_settings_proposal(
     value: &c::SettingsProposal,
@@ -584,11 +577,8 @@ pub fn wire_settings_proposal(
         },
     )
 }
-pub fn restore_settings_proposal(
-    value: &w::SettingsProposal,
-    limits: &Limits,
-) -> Result<c::SettingsProposal, w::Problem> {
-    Ok(c::SettingsProposal { proposer: super::answers::proposer(value.proposer(), limits), number: value.number() })
+pub fn restore_settings_proposal(value: &w::SettingsProposal) -> Result<c::SettingsProposal, w::Problem> {
+    Ok(c::SettingsProposal { proposer: super::answers::proposer(value.proposer()), number: value.number() })
 }
 pub fn wire_settings_document(
     value: &c::SettingsDocument,
@@ -618,11 +608,11 @@ pub fn restore_settings_document(
     }
     let mut held = List::with_capacity(value.held().len());
     for item in value.held() {
-        held.push(restore_held_revision(item, limits)?).expect("same capacity");
+        held.push(restore_held_revision(item)?).expect("same capacity");
     }
     let mut pending = List::with_capacity(value.pending().len());
     for item in value.pending() {
-        pending.push(restore_settings_proposal(item, limits)?).expect("same capacity");
+        pending.push(restore_settings_proposal(item)?).expect("same capacity");
     }
     Ok(c::SettingsDocument { newest: value.newest(), settings, held, pending })
 }
@@ -638,7 +628,7 @@ pub fn wire_setting_document(value: &c::SettingDocument, limits: &w::Limits) -> 
 }
 pub fn restore_setting_document(value: &w::SettingDocument, limits: &Limits) -> Result<c::SettingDocument, w::Problem> {
     Ok(c::SettingDocument {
-        setting: restore_setting(value.setting(), limits)?,
+        setting: restore_setting(value.setting())?,
         revision: value.revision(),
         value: restore_setting_value(value.value(), limits)?,
     })
@@ -646,7 +636,7 @@ pub fn restore_setting_document(value: &w::SettingDocument, limits: &Limits) -> 
 pub fn wire_size(value: &c::Size, limits: &w::Limits) -> Result<w::Size, w::Problem> {
     w::Size::new(limits, w::SizeParts { bytes: value.bytes })
 }
-pub fn restore_size(value: &w::Size, _limits: &Limits) -> Result<c::Size, w::Problem> {
+pub fn restore_size(value: &w::Size) -> Result<c::Size, w::Problem> {
     Ok(c::Size { bytes: value.bytes() })
 }
 pub fn wire_revision_edit(value: &c::RevisionEdit, limits: &w::Limits) -> Result<w::RevisionEdit, w::Problem> {
@@ -660,7 +650,7 @@ pub fn wire_revision_edit(value: &c::RevisionEdit, limits: &w::Limits) -> Result
 pub fn restore_revision_edit(value: &w::RevisionEdit, limits: &Limits) -> Result<c::RevisionEdit, w::Problem> {
     Ok(match value {
         w::RevisionEdit::Set(item) => c::RevisionEdit::Set(restore_setting_set(item, limits)?),
-        w::RevisionEdit::TooLarge(item) => c::RevisionEdit::TooLarge(restore_size(item, limits)?),
+        w::RevisionEdit::TooLarge(item) => c::RevisionEdit::TooLarge(restore_size(item)?),
         w::RevisionEdit::Removed => c::RevisionEdit::Removed,
         w::RevisionEdit::Reset => c::RevisionEdit::Reset,
     })
@@ -676,7 +666,7 @@ pub fn wire_revision_item(value: &c::RevisionItem, limits: &w::Limits) -> Result
 }
 pub fn restore_revision_item(value: &w::RevisionItem, limits: &Limits) -> Result<c::RevisionItem, w::Problem> {
     Ok(c::RevisionItem {
-        setting: restore_setting(value.setting(), limits)?,
+        setting: restore_setting(value.setting())?,
         edit: restore_revision_edit(value.edit(), limits)?,
     })
 }
@@ -697,7 +687,7 @@ pub fn restore_revision_document(
     limits: &Limits,
 ) -> Result<c::RevisionDocument, w::Problem> {
     Ok(c::RevisionDocument {
-        head: restore_revision_head(value.head(), limits)?,
+        head: restore_revision_head(value.head())?,
         items: decode_revision_item_pieces(value.items(), limits)?,
     })
 }
@@ -707,10 +697,7 @@ pub fn wire_revision_forgotten(
 ) -> Result<w::RevisionForgotten, w::Problem> {
     w::RevisionForgotten::new(limits, w::RevisionForgottenParts { oldest: value.oldest })
 }
-pub fn restore_revision_forgotten(
-    value: &w::RevisionForgotten,
-    _limits: &Limits,
-) -> Result<c::RevisionForgotten, w::Problem> {
+pub fn restore_revision_forgotten(value: &w::RevisionForgotten) -> Result<c::RevisionForgotten, w::Problem> {
     Ok(c::RevisionForgotten { oldest: value.oldest() })
 }
 pub fn wire_revision_answer(value: &c::RevisionAnswer, limits: &w::Limits) -> Result<w::RevisionAnswer, w::Problem> {
@@ -723,7 +710,7 @@ pub fn wire_revision_answer(value: &c::RevisionAnswer, limits: &w::Limits) -> Re
 pub fn restore_revision_answer(value: &w::RevisionAnswer, limits: &Limits) -> Result<c::RevisionAnswer, w::Problem> {
     Ok(match value {
         w::RevisionAnswer::Revision(item) => c::RevisionAnswer::Revision(restore_revision_document(item, limits)?),
-        w::RevisionAnswer::Forgotten(item) => c::RevisionAnswer::Forgotten(restore_revision_forgotten(item, limits)?),
+        w::RevisionAnswer::Forgotten(item) => c::RevisionAnswer::Forgotten(restore_revision_forgotten(item)?),
         w::RevisionAnswer::Unknown => c::RevisionAnswer::Unknown,
     })
 }
@@ -742,20 +729,14 @@ pub fn restore_read_revision_answer(
 ) -> Result<c::ReadRevisionAnswer, w::Problem> {
     Ok(c::ReadRevisionAnswer { value: restore_revision_answer(value.value(), limits)? })
 }
-pub fn wire_revision_item_edit(
-    value: &c::RevisionItemEdit,
-    _limits: &w::Limits,
-) -> Result<w::RevisionItemEdit, w::Problem> {
+pub fn wire_revision_item_edit(value: &c::RevisionItemEdit) -> Result<w::RevisionItemEdit, w::Problem> {
     Ok(match value {
         c::RevisionItemEdit::Set => w::RevisionItemEdit::Set,
         c::RevisionItemEdit::Removed => w::RevisionItemEdit::Removed,
         c::RevisionItemEdit::Reset => w::RevisionItemEdit::Reset,
     })
 }
-pub fn restore_revision_item_edit(
-    value: &w::RevisionItemEdit,
-    _limits: &Limits,
-) -> Result<c::RevisionItemEdit, w::Problem> {
+pub fn restore_revision_item_edit(value: &w::RevisionItemEdit) -> Result<c::RevisionItemEdit, w::Problem> {
     Ok(match value {
         w::RevisionItemEdit::Set => c::RevisionItemEdit::Set,
         w::RevisionItemEdit::Removed => c::RevisionItemEdit::Removed,
@@ -770,17 +751,14 @@ pub fn wire_revision_item_head(
         limits,
         w::RevisionItemHeadParts {
             setting: wire_setting(&value.setting, limits)?,
-            edit: wire_revision_item_edit(&value.edit, limits)?,
+            edit: wire_revision_item_edit(&value.edit)?,
         },
     )
 }
-pub fn restore_revision_item_head(
-    value: &w::RevisionItemHead,
-    limits: &Limits,
-) -> Result<c::RevisionItemHead, w::Problem> {
+pub fn restore_revision_item_head(value: &w::RevisionItemHead) -> Result<c::RevisionItemHead, w::Problem> {
     Ok(c::RevisionItemHead {
-        setting: restore_setting(value.setting(), limits)?,
-        edit: restore_revision_item_edit(value.edit(), limits)?,
+        setting: restore_setting(value.setting())?,
+        edit: restore_revision_item_edit(value.edit())?,
     })
 }
 pub fn wire_revision_row(value: &c::RevisionRow, limits: &w::Limits) -> Result<w::RevisionRow, w::Problem> {
@@ -793,12 +771,12 @@ pub fn wire_revision_row(value: &c::RevisionRow, limits: &w::Limits) -> Result<w
         w::RevisionRowParts { head: wire_revision_head(&value.head, limits)?, items, more: value.more },
     )
 }
-pub fn restore_revision_row(value: &w::RevisionRow, limits: &Limits) -> Result<c::RevisionRow, w::Problem> {
+pub fn restore_revision_row(value: &w::RevisionRow) -> Result<c::RevisionRow, w::Problem> {
     let mut items = List::with_capacity(value.items().len());
     for item in value.items() {
-        items.push(restore_revision_item_head(item, limits)?).expect("same capacity");
+        items.push(restore_revision_item_head(item)?).expect("same capacity");
     }
-    Ok(c::RevisionRow { head: restore_revision_head(value.head(), limits)?, items, more: value.more() })
+    Ok(c::RevisionRow { head: restore_revision_head(value.head())?, items, more: value.more() })
 }
 pub fn wire_revisions_page(value: &c::RevisionsPage, limits: &w::Limits) -> Result<w::RevisionsPage, w::Problem> {
     let mut rows = List::with_capacity(value.rows.len());
@@ -817,10 +795,10 @@ pub fn wire_revisions_page(value: &c::RevisionsPage, limits: &w::Limits) -> Resu
         },
     )
 }
-pub fn restore_revisions_page(value: &w::RevisionsPage, limits: &Limits) -> Result<c::RevisionsPage, w::Problem> {
+pub fn restore_revisions_page(value: &w::RevisionsPage) -> Result<c::RevisionsPage, w::Problem> {
     let mut rows = List::with_capacity(value.rows().len());
     for item in value.rows() {
-        rows.push(restore_revision_row(item, limits)?).expect("same capacity");
+        rows.push(restore_revision_row(item)?).expect("same capacity");
     }
     Ok(c::RevisionsPage {
         rows,

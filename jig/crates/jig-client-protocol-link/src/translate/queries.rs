@@ -98,7 +98,7 @@ pub(super) fn line(value: &w::TaskLine, limits: &Limits) -> Result<c::TaskLine, 
     Ok(c::TaskLine {
         chip: documents::chip_fields(value.chip(), limits)?,
         project: value.project(),
-        requester: facts::owner_requester(value.requester(), limits),
+        requester: facts::owner_requester(value.requester()),
         tracked: *value.tracked(),
         label: value.label(),
         flags: flags(value.flags()),
@@ -108,15 +108,13 @@ pub(super) fn line(value: &w::TaskLine, limits: &Limits) -> Result<c::TaskLine, 
             None => None,
             Some(v) => Some(Wall::from_nanos(v)),
         },
-        budget: facts::owner_budget(value.budget(), limits),
+        budget: facts::owner_budget(value.budget()),
         waits_on: waits(value.waits_on()),
-        phases: documents::owner_phase_counts_fields(value.phases(), limits),
+        phases: documents::owner_phase_counts_fields(value.phases()),
         held_below: value.held_below(),
         conversation: match value.conversation() {
             None => None,
-            Some(v) => {
-                Some(c::ConversationRead { seen: v.seen(), unread: documents::count_fields(v.unread(), limits) })
-            }
+            Some(v) => Some(c::ConversationRead { seen: v.seen(), unread: documents::count_fields(v.unread()) }),
         },
     })
 }

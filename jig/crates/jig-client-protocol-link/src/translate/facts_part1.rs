@@ -20,7 +20,7 @@ pub(crate) fn chip_phase_fields(
 ) -> Result<c::ChipPhase, w::Problem> {
     Ok(match value {
         w::ChipPhaseFields::Owner(row) => c::ChipPhase::Owner {
-            phase: owner_chip_phase(row.phase(), limits),
+            phase: owner_chip_phase(row.phase()),
             details: Box::new(take_owner_chip_details(row.details(), index, children)?),
         },
         w::ChipPhaseFields::Active(row) => c::ChipPhase::Active(active_run(row.value(), limits)?),
@@ -30,7 +30,7 @@ pub(crate) fn chip_phase_fields(
                 list0.push(*item).expect("reserved supplied list");
             }
             let opt1 = match &row.hold() {
-                Some(item) => Some(part(item, limits)),
+                Some(item) => Some(part(item)),
                 None => None,
             };
             c::ChipPhase::Waiting { dependencies: list0, hold: opt1 }
@@ -41,7 +41,7 @@ pub(crate) fn chip_phase_fields(
             let opt0 = match &row.tool() {
                 Some(item) => Some(match c::Text::new(bytes::copy_of(item), limits.client.text) {
                     Ok(value) => value,
-                    Err(problem) => return Err(text_problem(problem)),
+                    Err(_) => return Err(text_problem()),
                 }),
                 None => None,
             };
@@ -54,13 +54,13 @@ pub(crate) fn chip_phase_fields(
             at: Wall::from_nanos(row.at()),
             attempt: row.attempt(),
             tries: row.tries(),
-            class: failure_class(row.class(), limits),
+            class: failure_class(row.class()),
             reason: match c::Text::new(bytes::copy_of(row.reason()), limits.client.text) {
                 Ok(value) => value,
-                Err(problem) => return Err(text_problem(problem)),
+                Err(_) => return Err(text_problem()),
             },
         },
-        w::ChipPhaseFields::Procedure(row) => c::ChipPhase::Procedure { panel: part(row.panel(), limits) },
+        w::ChipPhaseFields::Procedure(row) => c::ChipPhase::Procedure { panel: part(row.panel()) },
         w::ChipPhaseFields::Person(row) => {
             let opt0 = match &row.taken() {
                 Some(item) => Some(taken_by(item, limits)?),
@@ -70,7 +70,7 @@ pub(crate) fn chip_phase_fields(
                 Some(item) => Some(Wall::from_nanos(*item)),
                 None => None,
             };
-            c::ChipPhase::Person { addressed: recipient(row.addressed(), limits), taken: opt0, since: opt1 }
+            c::ChipPhase::Person { addressed: recipient(row.addressed()), taken: opt0, since: opt1 }
         }
         w::ChipPhaseFields::Closing(row) => c::ChipPhase::Closing(take_closing(row.value(), index, children)?),
         w::ChipPhaseFields::Held(row) => {
@@ -81,7 +81,7 @@ pub(crate) fn chip_phase_fields(
             c::ChipPhase::Held {
                 reason: take_hold_reason(row.reason(), index, children)?,
                 since: Wall::from_nanos(row.since()),
-                revision: revision(row.revision(), limits),
+                revision: revision(row.revision()),
                 was: opt0,
             }
         }
@@ -94,7 +94,6 @@ pub(crate) fn chip_phase_fields(
 #[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn closing_fields(
     value: &w::ClosingFields,
-    limits: &Limits,
     index: u32,
     children: &mut Map<u32, Child>,
 ) -> Result<c::Closing, w::Problem> {
@@ -109,7 +108,7 @@ pub(crate) fn closing_fields(
         None => None,
     };
     let opt1 = match &value.stage() {
-        Some(item) => Some(closing_stage(item, limits)),
+        Some(item) => Some(closing_stage(item)),
         None => None,
     };
     let opt2 = match &value.ending() {
@@ -119,7 +118,7 @@ pub(crate) fn closing_fields(
     Ok(c::Closing { delegates: value.delegates(), connectors: opt0, stage: opt1, ending: opt2 })
 }
 
-pub(crate) fn actor(value: &w::Actor, _limits: &Limits) -> c::Actor {
+pub(crate) fn actor(value: &w::Actor) -> c::Actor {
     match value {
         w::Actor::Party(row) => c::Actor::Party(row.value()),
         w::Actor::Task(row) => c::Actor::Task(row.value()),
@@ -128,7 +127,7 @@ pub(crate) fn actor(value: &w::Actor, _limits: &Limits) -> c::Actor {
     }
 }
 
-pub(crate) fn party_kind(value: &w::PartyKind, _limits: &Limits) -> c::PartyKind {
+pub(crate) fn party_kind(value: &w::PartyKind) -> c::PartyKind {
     match value {
         w::PartyKind::Person => c::PartyKind::Person,
         w::PartyKind::Service => c::PartyKind::Service,
@@ -138,10 +137,10 @@ pub(crate) fn party_kind(value: &w::PartyKind, _limits: &Limits) -> c::PartyKind
 pub(crate) fn party(value: &w::Party, limits: &Limits) -> Result<c::Party, w::Problem> {
     Ok(c::Party {
         number: value.number(),
-        kind: party_kind(value.kind(), limits),
+        kind: party_kind(value.kind()),
         name: match c::Text::new(bytes::copy_of(value.name()), limits.client.text) {
             Ok(value) => value,
-            Err(problem) => return Err(text_problem(problem)),
+            Err(_) => return Err(text_problem()),
         },
     })
 }
@@ -153,7 +152,7 @@ pub(crate) fn decision(value: &w::Decision, limits: &Limits) -> Result<c::Decisi
         w::Decision::Rejected(row) => c::Decision::Rejected {
             reason: match c::Text::new(bytes::copy_of(row.reason()), limits.client.text) {
                 Ok(value) => value,
-                Err(problem) => return Err(text_problem(problem)),
+                Err(_) => return Err(text_problem()),
             },
         },
         w::Decision::PassedUp => c::Decision::PassedUp,
@@ -167,7 +166,7 @@ pub(crate) fn decision(value: &w::Decision, limits: &Limits) -> Result<c::Decisi
         w::Decision::LeftHeld(row) => c::Decision::LeftHeld {
             reason: match c::Text::new(bytes::copy_of(row.reason()), limits.client.text) {
                 Ok(value) => value,
-                Err(problem) => return Err(text_problem(problem)),
+                Err(_) => return Err(text_problem()),
             },
         },
     })
@@ -187,7 +186,7 @@ pub(crate) fn ending_fields(
             let opt0 = match &row.reason() {
                 Some(item) => Some(match c::Text::new(bytes::copy_of(item), limits.client.text) {
                     Ok(value) => value,
-                    Err(problem) => return Err(text_problem(problem)),
+                    Err(_) => return Err(text_problem()),
                 }),
                 None => None,
             };
@@ -197,7 +196,7 @@ pub(crate) fn ending_fields(
             let opt0 = match &row.reason() {
                 Some(item) => Some(match c::Text::new(bytes::copy_of(item), limits.client.text) {
                     Ok(value) => value,
-                    Err(problem) => return Err(text_problem(problem)),
+                    Err(_) => return Err(text_problem()),
                 }),
                 None => None,
             };
@@ -205,12 +204,12 @@ pub(crate) fn ending_fields(
                 Some(item) => Some(Wall::from_nanos(*item)),
                 None => None,
             };
-            c::Ending::Cancelled { by: actor(row.by(), limits), reason: opt0, at: opt1 }
+            c::Ending::Cancelled { by: actor(row.by()), reason: opt0, at: opt1 }
         }
         w::EndingFields::Withdrawn(row) => c::Ending::Withdrawn {
             reason: match c::Text::new(bytes::copy_of(row.reason()), limits.client.text) {
                 Ok(value) => value,
-                Err(problem) => return Err(text_problem(problem)),
+                Err(_) => return Err(text_problem()),
             },
         },
         w::EndingFields::Decided(row) => {
@@ -244,10 +243,10 @@ pub(crate) fn held_runtime_fields(
 pub(crate) fn attempt_failure(value: &w::AttemptFailure, limits: &Limits) -> Result<c::AttemptFailure, w::Problem> {
     Ok(c::AttemptFailure {
         attempt: value.attempt(),
-        class: failure_class(value.class(), limits),
+        class: failure_class(value.class()),
         reason: match c::Text::new(bytes::copy_of(value.reason()), limits.client.text) {
             Ok(value) => value,
-            Err(problem) => return Err(text_problem(problem)),
+            Err(_) => return Err(text_problem()),
         },
         at: Wall::from_nanos(value.at()),
     })
@@ -271,39 +270,39 @@ pub(crate) fn hold_reason_fields(
             since: Wall::from_nanos(row.since()),
             waiting: match c::Text::new(bytes::copy_of(row.waiting()), limits.client.text) {
                 Ok(value) => value,
-                Err(problem) => return Err(text_problem(problem)),
+                Err(_) => return Err(text_problem()),
             },
         },
         w::HoldReasonFields::Dependency(row) => {
             c::HoldReason::Dependency { task: row.task(), how: take_ending(row.how(), index, children)? }
         }
-        w::HoldReasonFields::Drift(row) => c::HoldReason::Drift { part: part(row.part(), limits) },
-        w::HoldReasonFields::EffectFailed(row) => c::HoldReason::EffectFailed { part: part(row.part(), limits) },
-        w::HoldReasonFields::EffectUncertain(row) => c::HoldReason::EffectUncertain { part: part(row.part(), limits) },
+        w::HoldReasonFields::Drift(row) => c::HoldReason::Drift { part: part(row.part()) },
+        w::HoldReasonFields::EffectFailed(row) => c::HoldReason::EffectFailed { part: part(row.part()) },
+        w::HoldReasonFields::EffectUncertain(row) => c::HoldReason::EffectUncertain { part: part(row.part()) },
         w::HoldReasonFields::Budget(row) => c::HoldReason::Budget { spent: row.spent(), limit: row.limit() },
         w::HoldReasonFields::Deadline(row) => c::HoldReason::Deadline { at: Wall::from_nanos(row.at()) },
         w::HoldReasonFields::Stopped(row) => {
             c::HoldReason::Stopped { by: party(row.by(), limits)?, at: Wall::from_nanos(row.at()) }
         }
         w::HoldReasonFields::Resource(row) => {
-            c::HoldReason::Resource { resource: part(row.resource(), limits), holder: actor(row.holder(), limits) }
+            c::HoldReason::Resource { resource: part(row.resource()), holder: actor(row.holder()) }
         }
-        w::HoldReasonFields::Pool(row) => c::HoldReason::Pool { part: part(row.part(), limits) },
-        w::HoldReasonFields::Procedure(row) => c::HoldReason::Procedure { part: part(row.part(), limits) },
+        w::HoldReasonFields::Pool(row) => c::HoldReason::Pool { part: part(row.part()) },
+        w::HoldReasonFields::Procedure(row) => c::HoldReason::Procedure { part: part(row.part()) },
     })
 }
 
-pub(crate) fn owner_executor(value: &w::OwnerExecutor, limits: &Limits) -> c::OwnerExecutor {
+pub(crate) fn owner_executor(value: &w::OwnerExecutor) -> c::OwnerExecutor {
     match value {
         w::OwnerExecutor::Agent(row) => c::OwnerExecutor::Agent { charter: row.charter() },
         w::OwnerExecutor::Procedure(row) => {
             c::OwnerExecutor::Procedure { connector: row.connector(), code: row.code() }
         }
-        w::OwnerExecutor::Person(row) => c::OwnerExecutor::Person(person_address(row.value(), limits)),
+        w::OwnerExecutor::Person(row) => c::OwnerExecutor::Person(person_address(row.value())),
     }
 }
 
-pub(crate) fn wake_rule(value: &w::WakeRule, _limits: &Limits) -> c::WakeRule {
+pub(crate) fn wake_rule(value: &w::WakeRule) -> c::WakeRule {
     match value {
         w::WakeRule::Never => c::WakeRule::Never,
         w::WakeRule::Immediate => c::WakeRule::Immediate,
@@ -311,7 +310,7 @@ pub(crate) fn wake_rule(value: &w::WakeRule, _limits: &Limits) -> c::WakeRule {
     }
 }
 
-pub(crate) fn results_wake(value: &w::ResultsWake, _limits: &Limits) -> c::ResultsWake {
+pub(crate) fn results_wake(value: &w::ResultsWake) -> c::ResultsWake {
     match value {
         w::ResultsWake::Never => c::ResultsWake::Never,
         w::ResultsWake::Each => c::ResultsWake::Each,
@@ -319,29 +318,26 @@ pub(crate) fn results_wake(value: &w::ResultsWake, _limits: &Limits) -> c::Resul
     }
 }
 
-pub(crate) fn owner_wake_policy(value: &w::OwnerWakePolicy, limits: &Limits) -> c::OwnerWakePolicy {
+pub(crate) fn owner_wake_policy(value: &w::OwnerWakePolicy) -> c::OwnerWakePolicy {
     c::OwnerWakePolicy {
-        words: wake_rule(value.words(), limits),
-        notices: wake_rule(value.notices(), limits),
-        news: wake_rule(value.news(), limits),
-        results: results_wake(value.results(), limits),
+        words: wake_rule(value.words()),
+        notices: wake_rule(value.notices()),
+        news: wake_rule(value.news()),
+        results: results_wake(value.results()),
         questions: value.questions(),
         answers: value.answers(),
         timers: value.timers(),
     }
 }
 
-pub(crate) fn owner_person_stall_notice(
-    value: &w::OwnerPersonStallNotice,
-    _limits: &Limits,
-) -> c::OwnerPersonStallNotice {
+pub(crate) fn owner_person_stall_notice(value: &w::OwnerPersonStallNotice) -> c::OwnerPersonStallNotice {
     c::OwnerPersonStallNotice { message: value.message(), at: Wall::from_nanos(value.at()), activity: value.activity() }
 }
 
 #[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
-pub(crate) fn owner_person_wait(value: &w::OwnerPersonWait, limits: &Limits) -> c::OwnerPersonWait {
+pub(crate) fn owner_person_wait(value: &w::OwnerPersonWait) -> c::OwnerPersonWait {
     let opt0 = match &value.notice() {
-        Some(item) => Some(owner_person_stall_notice(item, limits)),
+        Some(item) => Some(owner_person_stall_notice(item)),
         None => None,
     };
     c::OwnerPersonWait {
@@ -352,7 +348,7 @@ pub(crate) fn owner_person_wait(value: &w::OwnerPersonWait, limits: &Limits) -> 
     }
 }
 
-pub(crate) fn owner_part_kind(value: &w::OwnerPartKind, _limits: &Limits) -> c::OwnerPartKind {
+pub(crate) fn owner_part_kind(value: &w::OwnerPartKind) -> c::OwnerPartKind {
     match value {
         w::OwnerPartKind::Resource => c::OwnerPartKind::Resource,
         w::OwnerPartKind::Pool => c::OwnerPartKind::Pool,
@@ -364,7 +360,7 @@ pub(crate) fn owner_part_kind(value: &w::OwnerPartKind, _limits: &Limits) -> c::
     }
 }
 
-pub(crate) fn owner_part_key(value: &w::OwnerPartKey, _limits: &Limits) -> c::OwnerPartKey {
+pub(crate) fn owner_part_key(value: &w::OwnerPartKey) -> c::OwnerPartKey {
     match value {
         w::OwnerPartKey::Path(row) => {
             let mut list0 = List::with_capacity(row.value().len());
@@ -377,23 +373,19 @@ pub(crate) fn owner_part_key(value: &w::OwnerPartKey, _limits: &Limits) -> c::Ow
     }
 }
 
-pub(crate) fn owner_part(value: &w::OwnerPart, limits: &Limits) -> c::OwnerPart {
-    c::OwnerPart {
-        connector: value.connector(),
-        kind: owner_part_kind(value.kind(), limits),
-        key: owner_part_key(value.key(), limits),
-    }
+pub(crate) fn owner_part(value: &w::OwnerPart) -> c::OwnerPart {
+    c::OwnerPart { connector: value.connector(), kind: owner_part_kind(value.kind()), key: owner_part_key(value.key()) }
 }
 
-pub(crate) fn owner_prior_phase(value: &w::OwnerPriorPhase, limits: &Limits) -> c::OwnerPriorPhase {
+pub(crate) fn owner_prior_phase(value: &w::OwnerPriorPhase) -> c::OwnerPriorPhase {
     match value {
         w::OwnerPriorPhase::Waiting => c::OwnerPriorPhase::Waiting,
-        w::OwnerPriorPhase::Active(row) => c::OwnerPriorPhase::Active(run_stage(row.value(), limits)),
-        w::OwnerPriorPhase::Closing(row) => c::OwnerPriorPhase::Closing(closing_stage(row.value(), limits)),
+        w::OwnerPriorPhase::Active(row) => c::OwnerPriorPhase::Active(run_stage(row.value())),
+        w::OwnerPriorPhase::Closing(row) => c::OwnerPriorPhase::Closing(closing_stage(row.value())),
     }
 }
 
-pub(crate) fn owner_escalation_holder(value: &w::OwnerEscalationHolder, _limits: &Limits) -> c::OwnerEscalationHolder {
+pub(crate) fn owner_escalation_holder(value: &w::OwnerEscalationHolder) -> c::OwnerEscalationHolder {
     match value {
         w::OwnerEscalationHolder::Task(row) => c::OwnerEscalationHolder::Task(row.value()),
         w::OwnerEscalationHolder::Person(row) => c::OwnerEscalationHolder::Person(row.value()),
@@ -410,7 +402,7 @@ pub(crate) fn owner_hold_escalation(
     Ok(match value {
         w::OwnerHoldEscalation::Routing => c::OwnerHoldEscalation::Routing,
         w::OwnerHoldEscalation::Waiting(row) => c::OwnerHoldEscalation::Waiting {
-            holder: owner_escalation_holder(row.holder(), limits),
+            holder: owner_escalation_holder(row.holder()),
             entry: row.entry(),
             since: Wall::from_nanos(row.since()),
         },
@@ -420,7 +412,7 @@ pub(crate) fn owner_hold_escalation(
     })
 }
 
-pub(crate) fn owner_failure_tries(value: &w::OwnerFailureTries, _limits: &Limits) -> c::OwnerFailureTries {
+pub(crate) fn owner_failure_tries(value: &w::OwnerFailureTries) -> c::OwnerFailureTries {
     c::OwnerFailureTries {
         transient: value.transient(),
         permanent: value.permanent(),
@@ -434,11 +426,11 @@ pub(crate) fn owner_failure_tries(value: &w::OwnerFailureTries, _limits: &Limits
 #[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn owner_chip_hold(value: &w::OwnerChipHold, limits: &Limits) -> Result<c::OwnerChipHold, w::Problem> {
     let opt0 = match &value.account() {
-        Some(item) => Some(owner_part(item, limits)),
+        Some(item) => Some(owner_part(item)),
         None => None,
     };
     let opt1 = match &value.source() {
-        Some(item) => Some(owner_part(item, limits)),
+        Some(item) => Some(owner_part(item)),
         None => None,
     };
     let opt2 = match &value.escalation() {
@@ -461,16 +453,16 @@ pub(crate) fn owner_chip_hold(value: &w::OwnerChipHold, limits: &Limits) -> Resu
         },
         account: opt0,
         source: opt1,
-        reason: hold_category(value.reason(), limits),
+        reason: hold_category(value.reason()),
         revision: value.revision(),
-        before: owner_prior_phase(value.before(), limits),
+        before: owner_prior_phase(value.before()),
         escalation: opt2,
-        tries: owner_failure_tries(value.tries(), limits),
+        tries: owner_failure_tries(value.tries()),
         hold_wait_since: opt3,
     })
 }
 
-pub(crate) fn owner_numbers(value: &w::OwnerNumbers, _limits: &Limits) -> c::OwnerNumbers {
+pub(crate) fn owner_numbers(value: &w::OwnerNumbers) -> c::OwnerNumbers {
     c::OwnerNumbers {
         budget: value.budget(),
         spent: value.spent(),

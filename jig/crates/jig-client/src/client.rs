@@ -278,9 +278,6 @@ impl Client {
     }
     pub fn reclaim(&mut self) {
         domain::reclaim(&mut self.domain);
-        if let Some(link) = &mut self.link {
-            link.reclaim();
-        }
     }
     #[must_use]
     pub fn document(&self, handle: Handle) -> Option<Document<'_>> {

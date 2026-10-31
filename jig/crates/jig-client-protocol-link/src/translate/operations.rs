@@ -27,7 +27,7 @@ pub(super) fn decide(value: &c::DecideOn, limits: &w::Limits) -> Result<w::Decid
             limits,
             w::DecideProposalParts {
                 running: match running {
-                    Some(value) => Some(super::settings::wire_running(value, limits)?),
+                    Some(value) => Some(super::settings::wire_running(value)?),
                     None => None,
                 },
                 proposal: asks::wire_proposal_key(proposal, limits)?,
@@ -339,7 +339,7 @@ fn restore_task(v: &w::NewTask, limits: &crate::Limits) -> Result<c::NewTask, w:
             w::NewDeadline::Named => c::NewDeadline::Named,
             w::NewDeadline::Span(value) => c::NewDeadline::Span(value.value()),
         },
-        executor: super::facts::owner_executor(v.executor(), limits),
+        executor: super::facts::owner_executor(v.executor()),
         spec: super::pages::specification_fields(v.spec(), limits)?,
         contract,
         authority: super::documents::owner_authority_fields(v.authority(), limits)?,
@@ -347,7 +347,7 @@ fn restore_task(v: &w::NewTask, limits: &crate::Limits) -> Result<c::NewTask, w:
             w::NewBudget::Named => c::NewBudget::Named,
             w::NewBudget::AsAllowed(v) => c::NewBudget::AsAllowed { cap: *v.cap() },
         },
-        wake: restore_wake(v.wake().as_ref(), limits),
+        wake: restore_wake(v.wake().as_ref()),
         dependencies,
         named: super::documents::owner_grant_piece(v.named(), limits, limits.client.authority)?,
         tracked: *v.tracked(),
@@ -413,7 +413,7 @@ pub(super) fn restore_propose(value: &w::Propose, limits: &crate::Limits) -> Res
         w::ProposeAction::Batch(value) => c::ProposeAction::Batch { tasks: restore_batch(value.tasks(), limits)? },
         w::ProposeAction::Amendment(value) => c::ProposeAction::Amendment {
             task: value.task(),
-            revision: super::answers::revision(value.revision(), limits),
+            revision: super::answers::revision(value.revision()),
             change: Box::new(super::pages::amendment_fields(value.change(), limits)?),
         },
     };
@@ -421,7 +421,7 @@ pub(super) fn restore_propose(value: &w::Propose, limits: &crate::Limits) -> Res
     Ok(c::Ask::Propose { project: value.project(), action, reason })
 }
 
-fn restore_wake(value: Option<&w::OwnerWakePolicy>, limits: &crate::Limits) -> Option<c::OwnerWakePolicy> {
+fn restore_wake(value: Option<&w::OwnerWakePolicy>) -> Option<c::OwnerWakePolicy> {
     let wake = value?;
-    Some(super::facts::owner_wake_policy(wake, limits))
+    Some(super::facts::owner_wake_policy(wake))
 }

@@ -9,7 +9,6 @@ mod model_sets;
 mod operations;
 pub(crate) mod programs;
 mod task_wait;
-use alloc::boxed::Box;
 use jig_client_protocol_wire::v19 as w;
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Undecodable {
@@ -20,7 +19,7 @@ pub enum Undecodable {
 pub(crate) fn too_large() -> w::Problem {
     w::Problem { path: w::Path::OwnedRecord, reason: skein_codec::Reason::Bound }
 }
-pub(crate) fn text_problem(_: Box<[u8]>) -> w::Problem {
+pub(crate) fn text_problem() -> w::Problem {
     too_large()
 }
 pub(crate) fn piece_problem(reason: skein_codec::Reason) -> w::Problem {
@@ -45,3 +44,16 @@ mod account_hosts;
 
 pub mod settings;
 pub mod settings_proposals;
+
+pub(crate) fn classify(problem: w::Problem) -> Undecodable {
+    match problem.reason {
+        skein_codec::Reason::Bound => Undecodable::TooLarge,
+        skein_codec::Reason::Malformed
+        | skein_codec::Reason::Tag
+        | skein_codec::Reason::Utf8
+        | skein_codec::Reason::Short
+        | skein_codec::Reason::Bool
+        | skein_codec::Reason::Version
+        | skein_codec::Reason::Trailing => Undecodable::Malformed,
+    }
+}

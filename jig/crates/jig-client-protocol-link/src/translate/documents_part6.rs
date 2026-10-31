@@ -37,7 +37,7 @@ pub(crate) fn owner_account_fields(
         holder: super::owner_account_holder(value.holder()),
         sources: super::owner_account_source_piece(value.sources(), limits, room)?,
         generation: opt0,
-        state: owner_account_state_fields(value.state(), limits),
+        state: owner_account_state_fields(value.state()),
         usable: value.usable(),
         expiring: value.expiring(),
         attention: value.attention(),
@@ -68,22 +68,19 @@ pub(crate) fn owner_account_piece(
     Ok(rows)
 }
 
-pub(crate) fn owner_capacity_fields(value: &w::OwnerCapacity, _limits: &Limits) -> c::OwnerCapacity {
+pub(crate) fn owner_capacity_fields(value: &w::OwnerCapacity) -> c::OwnerCapacity {
     c::OwnerCapacity { used: value.used(), limit: value.limit() }
 }
 
-pub(crate) fn owner_project_capacity_fields(
-    value: &w::OwnerProjectCapacity,
-    limits: &Limits,
-) -> c::OwnerProjectCapacity {
+pub(crate) fn owner_project_capacity_fields(value: &w::OwnerProjectCapacity) -> c::OwnerProjectCapacity {
     c::OwnerProjectCapacity {
         project: value.project(),
-        tasks: owner_capacity_fields(value.tasks(), limits),
+        tasks: owner_capacity_fields(value.tasks()),
         proposals: value.proposals(),
     }
 }
 
-pub(crate) fn owner_agent_shortfall_fields(value: &w::OwnerAgentShortfall, _limits: &Limits) -> c::OwnerAgentShortfall {
+pub(crate) fn owner_agent_shortfall_fields(value: &w::OwnerAgentShortfall) -> c::OwnerAgentShortfall {
     match value {
         w::OwnerAgentShortfall::Model(row) => {
             c::OwnerAgentShortfall::Model { charter: row.charter(), model: row.model() }
@@ -105,10 +102,10 @@ pub(crate) fn owner_agent_shortfall_fields(value: &w::OwnerAgentShortfall, _limi
     }
 }
 
-pub(crate) fn owner_hello_refusal_fields(value: &w::OwnerHelloRefusal, limits: &Limits) -> c::OwnerHelloRefusal {
+pub(crate) fn owner_hello_refusal_fields(value: &w::OwnerHelloRefusal) -> c::OwnerHelloRefusal {
     match value {
         w::OwnerHelloRefusal::Agent(row) => {
-            c::OwnerHelloRefusal::Agent { why: owner_agent_shortfall_fields(row.why(), limits) }
+            c::OwnerHelloRefusal::Agent { why: owner_agent_shortfall_fields(row.why()) }
         }
         w::OwnerHelloRefusal::ReservedChannel => c::OwnerHelloRefusal::ReservedChannel,
         w::OwnerHelloRefusal::Workers(row) => c::OwnerHelloRefusal::Workers { limit: row.limit() },
@@ -117,26 +114,22 @@ pub(crate) fn owner_hello_refusal_fields(value: &w::OwnerHelloRefusal, limits: &
     }
 }
 
-pub(crate) fn owner_hello_refusal_line_fields(
-    value: &w::OwnerHelloRefusalLine,
-    limits: &Limits,
-) -> c::OwnerHelloRefusalLine {
+pub(crate) fn owner_hello_refusal_line_fields(value: &w::OwnerHelloRefusalLine) -> c::OwnerHelloRefusalLine {
     c::OwnerHelloRefusalLine {
         channel: value.channel(),
         at: Wall::from_nanos(value.at()),
         slots: value.slots(),
         stop_bound: value.stop_bound(),
-        why: owner_hello_refusal_fields(value.why(), limits),
+        why: owner_hello_refusal_fields(value.why()),
     }
 }
 
-pub(crate) fn owner_request_key_fields(value: &w::OwnerRequestKey, _limits: &Limits) -> c::OwnerRequestKey {
+pub(crate) fn owner_request_key_fields(value: &w::OwnerRequestKey) -> c::OwnerRequestKey {
     c::OwnerRequestKey { person: value.person(), key: *value.key() }
 }
 
 pub(crate) fn owner_person_capacity_action_fields(
     value: &w::OwnerPersonCapacityAction,
-    limits: &Limits,
 ) -> c::OwnerPersonCapacityAction {
     match value {
         w::OwnerPersonCapacityAction::AccountSignIn => c::OwnerPersonCapacityAction::AccountSignIn,
@@ -155,7 +148,7 @@ pub(crate) fn owner_person_capacity_action_fields(
         w::OwnerPersonCapacityAction::Pool(row) => c::OwnerPersonCapacityAction::Pool { person: row.person() },
         w::OwnerPersonCapacityAction::Escalation(row) => c::OwnerPersonCapacityAction::Escalation { task: row.task() },
         w::OwnerPersonCapacityAction::Proposal(row) => c::OwnerPersonCapacityAction::Proposal {
-            proposer: crate::translate::answers::proposer(row.proposer(), limits),
+            proposer: crate::translate::answers::proposer(row.proposer()),
             number: row.number(),
         },
         w::OwnerPersonCapacityAction::Words(row) => c::OwnerPersonCapacityAction::Words { task: row.task() },
@@ -176,48 +169,41 @@ pub(crate) fn owner_person_capacity_action_fields(
         w::OwnerPersonCapacityAction::Lift(row) => c::OwnerPersonCapacityAction::Lift { hold: row.hold() },
         w::OwnerPersonCapacityAction::Release(row) => c::OwnerPersonCapacityAction::Release { task: row.task() },
         w::OwnerPersonCapacityAction::MarkSeen(row) => {
-            c::OwnerPersonCapacityAction::MarkSeen { seen: crate::translate::answers::seen(row.seen(), limits) }
+            c::OwnerPersonCapacityAction::MarkSeen { seen: crate::translate::answers::seen(row.seen()) }
         }
     }
 }
 
-pub(crate) fn owner_person_capacity_cause_fields(
-    value: &w::OwnerPersonCapacityCause,
-    limits: &Limits,
-) -> c::OwnerPersonCapacityCause {
+pub(crate) fn owner_person_capacity_cause_fields(value: &w::OwnerPersonCapacityCause) -> c::OwnerPersonCapacityCause {
     match value {
         w::OwnerPersonCapacityCause::Requests(row) => c::OwnerPersonCapacityCause::Requests { limit: row.limit() },
         w::OwnerPersonCapacityCause::Pending(row) => c::OwnerPersonCapacityCause::Pending { limit: row.limit() },
         w::OwnerPersonCapacityCause::Waiters(row) => c::OwnerPersonCapacityCause::Waiters { limit: row.limit() },
-        w::OwnerPersonCapacityCause::Limit(row) => c::OwnerPersonCapacityCause::Limit {
-            which: crate::translate::answers::admission_limit(row.which(), limits),
-        },
+        w::OwnerPersonCapacityCause::Limit(row) => {
+            c::OwnerPersonCapacityCause::Limit { which: crate::translate::answers::admission_limit(row.which()) }
+        }
     }
 }
 
 #[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
 pub(crate) fn owner_person_capacity_refusal_fields(
     value: &w::OwnerPersonCapacityRefusal,
-    limits: &Limits,
 ) -> c::OwnerPersonCapacityRefusal {
     let opt0 = match value.project() {
         Some(item) => Some(*item),
         None => None,
     };
     c::OwnerPersonCapacityRefusal {
-        key: owner_request_key_fields(value.key(), limits),
+        key: owner_request_key_fields(value.key()),
         project: opt0,
-        action: owner_person_capacity_action_fields(value.action(), limits),
+        action: owner_person_capacity_action_fields(value.action()),
         at: Wall::from_nanos(value.at()),
-        cause: owner_person_capacity_cause_fields(value.cause(), limits),
+        cause: owner_person_capacity_cause_fields(value.cause()),
     }
 }
 
 #[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
-pub(crate) fn owner_task_capacity_action_fields(
-    value: &w::OwnerTaskCapacityAction,
-    limits: &Limits,
-) -> c::OwnerTaskCapacityAction {
+pub(crate) fn owner_task_capacity_action_fields(value: &w::OwnerTaskCapacityAction) -> c::OwnerTaskCapacityAction {
     match value {
         w::OwnerTaskCapacityAction::Batch(row) => {
             let opt0 = match row.first() {
@@ -234,7 +220,7 @@ pub(crate) fn owner_task_capacity_action_fields(
             c::OwnerTaskCapacityAction::Message { task: row.task(), number: row.number() }
         }
         w::OwnerTaskCapacityAction::Source(row) => {
-            c::OwnerTaskCapacityAction::Source { funder: crate::translate::facts::funder(row.funder(), limits) }
+            c::OwnerTaskCapacityAction::Source { funder: crate::translate::facts::funder(row.funder()) }
         }
         w::OwnerTaskCapacityAction::Introduce(row) => {
             c::OwnerTaskCapacityAction::Introduce { left: row.left(), right: row.right() }
@@ -250,10 +236,7 @@ pub(crate) fn owner_task_capacity_action_fields(
     }
 }
 
-pub(crate) fn owner_task_capacity_cause_fields(
-    value: &w::OwnerTaskCapacityCause,
-    _limits: &Limits,
-) -> c::OwnerTaskCapacityCause {
+pub(crate) fn owner_task_capacity_cause_fields(value: &w::OwnerTaskCapacityCause) -> c::OwnerTaskCapacityCause {
     match value {
         w::OwnerTaskCapacityCause::PlacedHolds(row) => c::OwnerTaskCapacityCause::PlacedHolds { limit: row.limit() },
         w::OwnerTaskCapacityCause::ProjectPlacedHolds(row) => {
@@ -289,28 +272,22 @@ pub(crate) fn owner_task_capacity_cause_fields(
 }
 
 #[expect(clippy::manual_map, reason = "step code matches optional fields without closures")]
-pub(crate) fn owner_task_capacity_request_fields(
-    value: &w::OwnerTaskCapacityRequest,
-    limits: &Limits,
-) -> c::OwnerTaskCapacityRequest {
+pub(crate) fn owner_task_capacity_request_fields(value: &w::OwnerTaskCapacityRequest) -> c::OwnerTaskCapacityRequest {
     let opt0 = match value.project() {
         Some(item) => Some(*item),
         None => None,
     };
     c::OwnerTaskCapacityRequest {
         project: opt0,
-        by: crate::translate::facts::owner_requester(value.by(), limits),
-        action: owner_task_capacity_action_fields(value.action(), limits),
-        cause: owner_task_capacity_cause_fields(value.cause(), limits),
+        by: crate::translate::facts::owner_requester(value.by()),
+        action: owner_task_capacity_action_fields(value.action()),
+        cause: owner_task_capacity_cause_fields(value.cause()),
     }
 }
 
-pub(crate) fn owner_task_capacity_refusal_fields(
-    value: &w::OwnerTaskCapacityRefusal,
-    limits: &Limits,
-) -> c::OwnerTaskCapacityRefusal {
+pub(crate) fn owner_task_capacity_refusal_fields(value: &w::OwnerTaskCapacityRefusal) -> c::OwnerTaskCapacityRefusal {
     c::OwnerTaskCapacityRefusal {
-        request: owner_task_capacity_request_fields(value.request(), limits),
+        request: owner_task_capacity_request_fields(value.request()),
         at: Wall::from_nanos(value.at()),
     }
 }
@@ -326,28 +303,28 @@ pub(crate) fn owner_deployment_fields(
     }
     let mut list0 = List::with_capacity(value.projects().len());
     for item in value.projects() {
-        list0.push(owner_project_capacity_fields(item, limits)).expect("reserved supplied list");
+        list0.push(owner_project_capacity_fields(item)).expect("reserved supplied list");
     }
     if value.hello_refusals().len() > limits.client.rows {
         return Err(too_large());
     }
     let mut list1 = List::with_capacity(value.hello_refusals().len());
     for item in value.hello_refusals() {
-        list1.push(owner_hello_refusal_line_fields(item, limits)).expect("reserved supplied list");
+        list1.push(owner_hello_refusal_line_fields(item)).expect("reserved supplied list");
     }
     if value.person_room_refusals().len() > limits.client.rows {
         return Err(too_large());
     }
     let mut list2 = List::with_capacity(value.person_room_refusals().len());
     for item in value.person_room_refusals() {
-        list2.push(owner_person_capacity_refusal_fields(item, limits)).expect("reserved supplied list");
+        list2.push(owner_person_capacity_refusal_fields(item)).expect("reserved supplied list");
     }
     if value.task_room_refusals().len() > limits.client.rows {
         return Err(too_large());
     }
     let mut list3 = List::with_capacity(value.task_room_refusals().len());
     for item in value.task_room_refusals() {
-        list3.push(owner_task_capacity_refusal_fields(item, limits)).expect("reserved supplied list");
+        list3.push(owner_task_capacity_refusal_fields(item)).expect("reserved supplied list");
     }
     if value.connectors().len() > limits.client.rows {
         return Err(too_large());
@@ -362,15 +339,15 @@ pub(crate) fn owner_deployment_fields(
         key_bytes: value.key_bytes(),
         readiness: super::catalogue::readiness(value.readiness(), limits, &mut room)?,
         readiness_cut: value.readiness_cut(),
-        store: store_fill_fields(value.store(), limits),
+        store: store_fill_fields(value.store()),
         hosts: owner_host_piece(value.hosts(), limits, limits.client.rows, &mut room)?,
         attempts: owner_host_run_piece(value.attempts(), limits, limits.client.rows)?,
         accounts: owner_account_piece(value.accounts(), limits, &mut room)?,
-        tasks: owner_capacity_fields(value.tasks(), limits),
-        workers: owner_capacity_fields(value.workers(), limits),
-        attempts_capacity: owner_capacity_fields(value.attempts_capacity(), limits),
+        tasks: owner_capacity_fields(value.tasks()),
+        workers: owner_capacity_fields(value.workers()),
+        attempts_capacity: owner_capacity_fields(value.attempts_capacity()),
         waiting_attempts: value.waiting_attempts(),
-        proposals: owner_capacity_fields(value.proposals(), limits),
+        proposals: owner_capacity_fields(value.proposals()),
         projects: list0,
         grace_bound: value.grace_bound(),
         hello_refusals: list1,
@@ -387,10 +364,7 @@ pub(crate) fn owner_deployment_fields(
     })
 }
 
-pub(crate) fn owner_project_resource_role_fields(
-    value: &w::OwnerProjectResourceRole,
-    _limits: &Limits,
-) -> c::OwnerProjectResourceRole {
+pub(crate) fn owner_project_resource_role_fields(value: &w::OwnerProjectResourceRole) -> c::OwnerProjectResourceRole {
     match value {
         w::OwnerProjectResourceRole::Owned => c::OwnerProjectResourceRole::Owned,
         w::OwnerProjectResourceRole::Participant => c::OwnerProjectResourceRole::Participant,
@@ -399,12 +373,9 @@ pub(crate) fn owner_project_resource_role_fields(
     }
 }
 
-pub(crate) fn owner_project_resource_fields(
-    value: &w::OwnerProjectResource,
-    limits: &Limits,
-) -> c::OwnerProjectResource {
+pub(crate) fn owner_project_resource_fields(value: &w::OwnerProjectResource) -> c::OwnerProjectResource {
     c::OwnerProjectResource {
-        part: crate::translate::facts::owner_part(value.part(), limits),
-        role: owner_project_resource_role_fields(value.role(), limits),
+        part: crate::translate::facts::owner_part(value.part()),
+        role: owner_project_resource_role_fields(value.role()),
     }
 }

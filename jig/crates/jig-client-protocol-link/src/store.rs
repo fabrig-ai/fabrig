@@ -16,7 +16,7 @@ pub(super) struct Store {
     held: Queue<Held>,
 }
 impl Store {
-    pub(super) fn new(_limits: &Limits) -> Self {
+    pub(super) fn new() -> Self {
         Self { waiting: false, failed: false, held: Queue::uncapped() }
     }
 }
