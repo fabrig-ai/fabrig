@@ -525,7 +525,7 @@ pub enum SystemEvent {
 /// What the root tells the connector for this part of its contract.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Event {
-    /// Release project adoptions (temper/docs/design/draft/playground-reset.md, 5).
+    /// Release project adoptions (jig/docs/design/domain/people.md, 5.2).
     ReleaseProject {
         project: u32,
     },

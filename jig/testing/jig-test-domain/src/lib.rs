@@ -410,7 +410,7 @@ pub struct Domain {
 }
 
 impl Domain {
-    /// Let a world supply connector release answers (temper/docs/design/draft/playground-reset.md, 5).
+    /// Let a world supply connector release answers (jig/docs/design/domain/people.md, 5.2).
     pub fn script_project_releases(&mut self) {
         if self.scripted_project_releases.is_none() {
             self.scripted_project_releases = Some(Queue::uncapped());

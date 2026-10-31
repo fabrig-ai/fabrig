@@ -599,7 +599,7 @@ fn report_adoption(domain: &Domain, project: u32, resource: &Path, out: &mut Que
     out.push(Request::Resource { project, resource: Named { path: resource.clone(), role, hold: spec.hold } });
 }
 
-/// Release the connector's project rows (temper/docs/design/draft/playground-reset.md, 5).
+/// Release the connector's project rows (jig/docs/design/domain/people.md, 5.2).
 fn release_project(domain: &mut Domain, project: u32, out: &mut Queue<Request>) {
     // At most the configured adoption capacity is visited and erased.
     for _ in 0..domain.adoptions.len() {

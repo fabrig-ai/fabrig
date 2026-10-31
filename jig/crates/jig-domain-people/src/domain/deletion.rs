@@ -54,7 +54,7 @@ pub(super) fn forget(domain: &mut Domain, project: u32, out: &mut Queue<Request>
     }
 }
 
-/// A removal's terminal stays until the deletion finishes (temper/docs/design/draft/playground-reset.md, 5).
+/// A removal's terminal stays until the deletion finishes (jig/docs/design/domain/people.md, 5.2).
 pub(super) fn kept_answer(domain: &Domain, outcome: &Outcome) -> bool {
     for (&project, _) in &domain.deletions {
         if *outcome == (Outcome::ProjectRemoved { project }) {

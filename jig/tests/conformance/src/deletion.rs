@@ -1,4 +1,4 @@
-//! Store-family deletion stories (temper/docs/design/draft/playground-reset.md, 5 and 8).
+//! Store-family deletion stories (jig/docs/design/domain/people.md, 5.2 and 8).
 use crate::{Config, Testing, actions::World};
 use jig_conformance::{Cut, Harness};
 use jig_domain_accounts as accounts;
