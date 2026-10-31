@@ -10,10 +10,9 @@ fn codec_module(name: &str) -> bool {
     let Some((family, version)) = name.rsplit_once("_v") else {
         return false;
     };
-    super::tests::kit_root()
-        .join("crates/jig-protocol-store/schema")
-        .join(format!("{family}-v{version}.schema"))
-        .is_file()
+    ["crates/jig-protocol-store/schema", "crates/jig-client-view/schema"]
+        .iter()
+        .any(|directory| super::tests::kit_root().join(directory).join(format!("{family}-v{version}.schema")).is_file())
 }
 
 fn forbidden_name(name: &str, codec: bool) -> bool {

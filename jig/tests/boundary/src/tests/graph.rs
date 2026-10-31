@@ -67,7 +67,7 @@ fn core_and_children_use_only_the_kit_and_foundation_even_when_empty() {
 }
 
 #[test]
-fn hosts_and_translation_use_no_core_crates_even_when_empty() {
+fn hosts_and_translation_use_only_their_core_vocabularies_even_when_empty() {
     let failures: Vec<_> = manifests()
         .into_iter()
         .filter(|manifest| matches!(manifest.name.as_deref(), Some("jig-domain-host" | "jig-protocol-charter")))
@@ -75,7 +75,12 @@ fn hosts_and_translation_use_no_core_crates_even_when_empty() {
             manifest
                 .dependencies
                 .iter()
-                .filter(|name| CORE_FAMILY.contains(&name.as_str()))
+                .filter(|name| {
+                    CORE_FAMILY.contains(&name.as_str())
+                        // jig/docs/design/domain/hosts.md, 8: assignment translates the run charter and task contract.
+                        && !(manifest.name.as_deref() == Some("jig-protocol-charter")
+                            && ["jig-domain-core", "jig-domain-tasks"].contains(&name.as_str()))
+                })
                 .map(|name| format!("{}: {name}", manifest.path.display()))
                 .collect::<Vec<_>>()
         })
