@@ -188,9 +188,7 @@ impl Harness {
                 deployment: configuration.first.deployment,
                 task,
                 purpose: 7,
-                attempt: 1,
-                completion: 1,
-                position: 0,
+                origin: jig_test_connector::Purpose::Call { attempt: 1, completion: 1, position: 0 },
             },
             effect: connector::Effect {
                 kind: kind.kind,

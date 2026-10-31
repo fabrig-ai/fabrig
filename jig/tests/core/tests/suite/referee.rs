@@ -8,8 +8,8 @@ mod settings;
 
 use std::collections::{BTreeMap, BTreeSet};
 
+use jig_conformance::referee::{EffectKey as SystemKey, EffectObserved as Effect};
 use jig_core_world::referee::*;
-use jig_test_system::{Copy, Name as SystemName, Observed as Effect, SystemKey, ValueObserved};
 
 const PROPOSER: u64 = 1;
 
@@ -69,7 +69,7 @@ fn authority_checks_policy_at_the_effects_decision_and_the_admitted_payload() {
         let mut copy = effect();
         match variant {
             0 => copy.kind = 6,
-            1 => copy.resources[0].0[0] = b"foreign".to_vec(),
+            1 => copy.resources[0].path[0] = b"foreign".to_vec(),
             2 => copy.target = 14,
             3 => copy.condition = Some(7),
             _ => unreachable!(),

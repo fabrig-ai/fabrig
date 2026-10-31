@@ -3,7 +3,7 @@ use jig_conformance::referee as r;
 use jig_domain_core as core;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
-use jig_test_system::SystemKey;
+use r::EffectKey;
 use std::collections::{BTreeMap, BTreeSet};
 use temper_engine_domain as root;
 use temper_engine_domain_forge as forge;
@@ -64,18 +64,33 @@ pub fn parts(write: &skein_forge::api::Write) -> (u16, Vec<r::Name>, Option<u64>
 }
 #[must_use]
 #[expect(clippy::wildcard_enum_match_arm, reason = "only named effect call rows identify this outbox entry")]
-pub fn key(store: &Store, entry: &skein_forge_client::Entry) -> SystemKey {
+pub fn key(store: &Store, entry: &skein_forge_client::Entry) -> EffectKey {
     let call = store.rows.values().find_map(|row| match row {
         root::Record::Core(core::Record::Core(core::CoreRecord::Call(row))) if matches!(row.part, core::CallPart::Effect { entry: n, .. } if n == entry.number) => Some(row.key),
         _ => None,
     });
-    SystemKey {
+    EffectKey {
         deployment: [31; 16],
         task: entry.task,
         purpose: entry.number,
-        attempt: call.map_or(0, |x| x.attempt),
-        completion: call.map_or(0, |x| x.completion),
-        position: call.map_or(0, |x| x.position),
+        origin: call.map_or_else(
+            || {
+                if store.rows.values().any(|record| {
+                    matches!(record,
+                root::Record::Core(core::Record::Tasks(tasks::Stored::Live(task) | tasks::Stored::Ended(task)))
+                    if task.number == entry.task && task.tracked.is_some())
+                }) {
+                    r::EffectOrigin::Projection
+                } else {
+                    r::EffectOrigin::Procedure
+                }
+            },
+            |call| r::EffectOrigin::Call {
+                attempt: call.attempt,
+                completion: call.completion,
+                position: call.position,
+            },
+        ),
     }
 }
 #[must_use]
@@ -243,7 +258,7 @@ pub fn snapshot(store: &Store) -> r::Snapshot {
                     );
                 }
                 snapshot.decisions.push(r::Decision {
-                    projection: key.attempt == 0 && store.rows.values().any(|record| matches!(record,root::Record::Core(core::Record::Tasks(tasks::Stored::Live(task)|tasks::Stored::Ended(task))) if task.number==row.task && task.tracked.is_some())),
+                    projection: key.origin == r::EffectOrigin::Projection,
                     connector: 0,
                     key,
                     kind,
@@ -293,9 +308,9 @@ pub struct EffectEvidence {
 pub fn resolved(
     store: &Store,
     snapshot: &mut r::Snapshot,
-    seen: &mut BTreeMap<SystemKey, EffectEvidence>,
-    held: &mut BTreeMap<SystemKey, u16>,
-    settled: &mut BTreeSet<SystemKey>,
+    seen: &mut BTreeMap<EffectKey, EffectEvidence>,
+    held: &mut BTreeMap<EffectKey, u16>,
+    settled: &mut BTreeSet<EffectKey>,
 ) {
     let mut live = BTreeSet::new();
     for record in store.rows.values() {
@@ -327,9 +342,12 @@ pub fn resolved(
         let answer = store.rows.values().find_map(|record| match record {
             root::Record::Core(core::Record::Core(core::CoreRecord::Call(call)))
                 if call.key.task == key.task
-                    && call.key.attempt == key.attempt
-                    && call.key.completion == key.completion
-                    && call.key.position == key.position =>
+                    && key.origin
+                        == (r::EffectOrigin::Call {
+                            attempt: call.key.attempt,
+                            completion: call.key.completion,
+                            position: call.key.position,
+                        }) =>
             {
                 match call.part {
                     core::CallPart::Effect { entry, outcome, .. } if entry == key.purpose => Some(outcome),

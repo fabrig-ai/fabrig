@@ -139,7 +139,7 @@ fn keep(domain: &mut Domain, kind: u16, entry: u64, purpose: u64, target: u64) -
             token,
             entry,
             task: 4,
-            key: Key { deployment: [9; 16], task: 4, purpose, attempt: 0, completion: 0, position: 0 },
+            key: Key { deployment: [9; 16], task: 4, purpose, origin: jig_test_connector::Purpose::Procedure },
         },
     )
 }

@@ -1,4 +1,4 @@
-//! Shared client fixtures for the settings contract; tasks B/C supply the engine maps.
+//! Shared client fixtures for the settings wire contract.
 
 use jig_client_domain::contract as c;
 use jig_client_protocol_link::{Limits, translate};

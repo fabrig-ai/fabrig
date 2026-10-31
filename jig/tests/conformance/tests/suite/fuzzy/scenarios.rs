@@ -3,13 +3,11 @@ use jig_conformance::{
     scenarios::{ALL, run},
 };
 use jig_conformance_world::{Testing, replay};
-use std::time::Instant;
 
 #[test]
 fn every_shared_story_survives_every_commit_and_seeded_random_cuts() {
     let mut random = skein_lib::Rng::new(31);
     for scenario in ALL {
-        let started = Instant::now();
         let seed = random.below(1000);
         let cuts = std::rc::Rc::new(std::cell::RefCell::new(Vec::new()));
         let reached = std::rc::Rc::clone(&cuts);
@@ -23,6 +21,5 @@ fn every_shared_story_survives_every_commit_and_seeded_random_cuts() {
         run::<Testing>(scenario, cut, seed)
             .unwrap_or_else(|error| panic!("{scenario:?}, {cut:?}: {error:?}"))
             .expect("bound kinds");
-        eprintln!("shared scenario {scenario:?}: {:?}", started.elapsed());
     }
 }

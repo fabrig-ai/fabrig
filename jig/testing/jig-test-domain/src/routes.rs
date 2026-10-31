@@ -794,23 +794,18 @@ fn route_effect_ask(domain: &mut Domain, number: u16, ask: core::connector::Ask,
         core::connector::Ask::DropProposal { proposal } => connector::Event::DropProposal { number: proposal },
         core::connector::Ask::Keep { owner, entry, task, key } => {
             domain.effect_procedures.remove(&owner);
-            let (attempt, completion, position) = match key.origin {
-                core::EffectPurpose::Call { attempt, completion, position } => (attempt, completion, position),
-                core::EffectPurpose::Procedure { .. } => (0, 0, 0),
-                core::EffectPurpose::Projection { .. } => (0, 0, 1),
+            let origin = match key.origin {
+                core::EffectPurpose::Call { attempt, completion, position } => {
+                    connector::Purpose::Call { attempt, completion, position }
+                }
+                core::EffectPurpose::Procedure { .. } => connector::Purpose::Procedure,
+                core::EffectPurpose::Projection { .. } => connector::Purpose::Projection,
             };
             connector::Event::Keep {
                 token: owner,
                 entry,
                 task,
-                key: connector::Key {
-                    deployment: key.deployment,
-                    task: key.task,
-                    purpose: key.purpose,
-                    attempt,
-                    completion,
-                    position,
-                },
+                key: connector::Key { deployment: key.deployment, task: key.task, purpose: key.purpose, origin },
             }
         }
         core::connector::Ask::Drop { owner, .. } => {

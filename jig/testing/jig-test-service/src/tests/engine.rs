@@ -301,7 +301,12 @@ fn effect(target: u64) -> jig_test_connector::Effect {
     }
 }
 fn key() -> jig_test_connector::Key {
-    jig_test_connector::Key { deployment: [1; 16], task: 1, purpose: 1, attempt: 1, completion: 1, position: 1 }
+    jig_test_connector::Key {
+        deployment: [1; 16],
+        task: 1,
+        purpose: 1,
+        origin: jig_test_connector::Purpose::Call { attempt: 1, completion: 1, position: 1 },
+    }
 }
 #[test]
 fn the_system_applies_an_effect_and_reads_it_back() {

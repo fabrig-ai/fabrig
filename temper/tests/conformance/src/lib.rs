@@ -139,11 +139,11 @@ pub struct Peers {
     calls: std::collections::BTreeMap<u64, (u64, u64, engine::Call)>,
     retries: std::collections::BTreeMap<u64, u64>,
     generation: u64,
-    uncertain: std::collections::BTreeMap<jig_test_system::SystemKey, u16>,
+    uncertain: std::collections::BTreeMap<r::EffectKey, u16>,
     words: std::collections::BTreeSet<(u64, u64)>,
-    effects: std::collections::BTreeMap<jig_test_system::SystemKey, observations::EffectEvidence>,
-    held: std::collections::BTreeMap<jig_test_system::SystemKey, u16>,
-    settled: std::collections::BTreeSet<jig_test_system::SystemKey>,
+    effects: std::collections::BTreeMap<r::EffectKey, observations::EffectEvidence>,
+    held: std::collections::BTreeMap<r::EffectKey, u16>,
+    settled: std::collections::BTreeSet<r::EffectKey>,
 }
 /// Released outputs, drained without inspecting the root.
 #[derive(Debug)]

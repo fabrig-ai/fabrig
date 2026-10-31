@@ -131,8 +131,8 @@ fn an_explicit_effect_proposal_is_kept_across_a_restart_and_checked_again_before
             .rows
             .contains_key(&root::Key::Connector { number: 1, key: connector::RecordKey::Proposal(proposal) })
     );
-    assert_eq!(world.systems[0].observed()[0].key.attempt, world.call_key(1).attempt);
-    assert_eq!(world.systems[0].observed()[0].key.completion, 1);
+    assert!(matches!(world.systems[0].observed()[0].key.origin,
+        jig_conformance::referee::EffectOrigin::Call { attempt, completion: 1, .. } if attempt == world.call_key(1).attempt));
     assert_eq!(world.spent(), 0, "the proposal's accepter funds the effect");
     assert_eq!(world.holder_spent(), 3);
 }

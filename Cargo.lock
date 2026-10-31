@@ -778,7 +778,6 @@ name = "jig-conformance"
 version = "0.0.0"
 dependencies = [
  "jig-fake-store",
- "jig-test-system",
  "skein-lib",
  "skein-world",
 ]
@@ -1210,7 +1209,6 @@ dependencies = [
  "jig-protocol-transcript",
  "jig-test-domain",
  "jig-test-service",
- "jig-test-system",
  "sha2",
  "skein-fake-person",
  "skein-http",
@@ -1693,6 +1691,7 @@ dependencies = [
 name = "jig-test-system"
 version = "0.0.0"
 dependencies = [
+ "jig-conformance",
  "jig-test-connector",
  "skein-lib",
 ]
@@ -4260,7 +4259,6 @@ dependencies = [
  "jig-domain-people",
  "jig-domain-tasks",
  "jig-fake-workers",
- "jig-test-system",
  "skein-fake-forge-domain",
  "skein-forge",
  "skein-forge-client",
