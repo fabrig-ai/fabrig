@@ -17,6 +17,8 @@ files = [
   "temper/tools/gallery/**",
   "temper/docs/design/client/journeys/welcome-set-up/**",
   "temper/docs/design/client/journeys/welcome-playground/**",
+  "temper/scripts/bundle.sh",
+  "temper/tools/journeys/src/main.rs",
 ]
 effort = "high"
 minutes = 90
@@ -292,3 +294,30 @@ change, stop and ask.
     and a refusal is a question.
   - Report each of these bridges, file and line, for `cl-play-domain`
     and `cl-welcome`.
+
+2026-10-31 (third).
+
+- **`again` cannot run: `scripts/bundle.sh` runs
+  `target/debug/skein-ui-bundle` from `temper/`, where no target
+  directory is (exit 127); may cl-wire fix it?** Yes, the first option:
+  the fix is yours, beyond call sites, and no other task owns either
+  file. Since temper moved into the workspace, cargo builds into the
+  workspace root's `target/` (heavy sets no target directory), and both
+  places that find the build there still assume `temper/target`:
+  - `temper/scripts/bundle.sh`: after its `cd`, set
+    `target=${CARGO_TARGET_DIR:-../target}` (cargo reads a relative
+    `CARGO_TARGET_DIR` from the directory it runs in, `temper/`, as
+    here) and run `"$target/debug/skein-ui-bundle"` with
+    `--module "$target/wasm32-unknown-unknown/$profile/temper_client_shell_web.wasm"`.
+    Nothing else in the script changes.
+  - `temper/tools/journeys/src/main.rs` `build`: the same rule for the
+    binary's path, `CARGO_TARGET_DIR` joined to `root` as today, else
+    `root.join("../target")`, so `again` starts the `temper` it built.
+  - Check: `sh -n scripts/bundle.sh`; `heavy cargo clippy -p
+    temper-client-journeys --all-targets -- -D warnings`; then Steps 7
+    as written: `again welcome-set-up` and `again welcome-playground`,
+    a refusal of the walk is still a question, and any other failure of
+    `again` after this fix is one too, with its log. Then the journeys'
+    tests alone, the combined focused run of Steps 6, and Steps 8,
+    with the bundler fix a commit of its own.
+  - Report the fix, file and line, beside the bridges.
