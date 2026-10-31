@@ -3,7 +3,6 @@
 use smith_bench::agent::smith::events::Observer;
 use smith_bench::{CheckVerdict, EventCheck, Measure};
 use smith_events::{Block, Capture, Event, Record};
-use std::path::PathBuf;
 
 use crate::common;
 
@@ -129,7 +128,7 @@ fn absent_transport_content_wrong_join_and_failed_terminal_cannot_pass() {
 
 #[test]
 fn frozen_slow_task_uses_high_effort_native_only_and_the_declared_preset_bounds() {
-    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let root = crate::common::repository();
     let task =
         smith_bench::check_task(&root.join("tasks/probes/slow-completion/task.toml"), &root.join("../docs/design"))
             .expect("frozen task");

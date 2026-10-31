@@ -1,16 +1,16 @@
 //! Failure probes inspect outside terminals; synthetic records are not live proof.
 
-use std::path::PathBuf;
 
 use smith_bench::agent::smith::events::Observer;
 use smith_bench::{End, EventCheck, Exit, Forced, Measure, OutcomeCheck};
 use smith_events::{AnswerClass, AnswerFailure, Event, Status};
 
 use crate::common;
+use crate::common::observe;
 
 #[test]
 fn failure_variants_keep_their_class_codes_and_do_not_invent_startup_terminals() {
-    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let root = crate::common::repository();
     let task = smith_bench::check_task(&root.join("tasks/probes/failures/task.toml"), &root.join("../docs/design"))
         .expect("authored task and unchanged seed");
     for name in ["unknown-model", "one-turn"] {
@@ -179,26 +179,12 @@ fn set_completion_failure(records: &mut [smith_events::Record], completion: &smi
     }
 }
 
-fn observe(records: &[smith_events::Record]) -> Observer {
-    let mut observer = Observer::new(&common::events::LIMITS).expect("reader");
-    observer.feed(&common::events::bytes(records)).expect("synthetic codec records");
-    observer.finish().expect("complete framing");
-    observer
-}
 
 // The fixture envelope admits a deliberate 1025-byte defect. The authored
 // predicate still enforces the independently derived native 1024-byte cap.
 fn observe_provider(records: &[smith_events::Record]) -> Observer {
     let limits = smith_events::Limits { string: 2048, content: 2048, items: 16 };
-    let mut observer = Observer::new(&limits).expect("reader");
-    for record in records {
-        let line = smith_events::write(record, &smith_events::Capture::Everything, &limits)
-            .expect("typed fixture")
-            .expect("retained fixture");
-        observer.feed(&line).expect("real codec fixture");
-    }
-    observer.finish().expect("complete framing");
-    observer
+    crate::common::captured(records, &smith_events::Capture::Everything, &limits)
 }
 
 #[test]
@@ -279,13 +265,5 @@ fn reserve_refusal_requires_exact_typed_identity_under_every_capture() {
 }
 
 fn observe_capture(records: &[smith_events::Record], capture: &smith_events::Capture) -> Observer {
-    let mut observer = Observer::new(&common::events::LIMITS).expect("reader");
-    for record in records {
-        let line = smith_events::write(record, capture, &common::events::LIMITS)
-            .expect("synthetic typed fixture")
-            .expect("retained metadata");
-        observer.feed(&line).expect("native codec");
-    }
-    observer.finish().expect("complete framing");
-    observer
+    crate::common::captured(records, capture, &common::events::LIMITS)
 }

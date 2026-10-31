@@ -32,18 +32,7 @@ fn passed(observer: &Observer, name: &str) -> Measure<bool> {
 }
 
 fn captured(records: &[Record], capture: &smith_events::Capture, limits: &Limits) -> Observer {
-    let lines: Vec<_> = records
-        .iter()
-        .map(|record| smith_events::write(record, capture, limits).expect("bounded record").expect("metadata retained"))
-        .collect();
-    let ceiling = u32::try_from(lines.iter().map(|line| line.len()).max().expect("outside records"))
-        .expect("bounded encoded lines");
-    let mut observer = Observer::with_ceiling(limits, ceiling).expect("writer ceiling");
-    for line in &lines {
-        observer.feed(line).expect("outside captured reader");
-    }
-    observer.finish().expect("complete stream");
-    observer
+    crate::common::captured(records, capture, limits)
 }
 
 fn event_chunks_keep_exact_usage_and_authoritative_exits() {
@@ -324,7 +313,7 @@ fn observed_passive_contradictions_survive_loss_but_missing_records_do_not() {
 }
 
 fn every_codec_golden_remains_readable_as_outside_recorded_bytes() {
-    let directory = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../crates/smith-events/golden/v4");
+    let directory = crate::common::repository().join("../crates/smith-events/golden/v4");
     let mut files: Vec<_> =
         std::fs::read_dir(directory).expect("codec goldens").map(|entry| entry.expect("entry").path()).collect();
     files.sort();
@@ -1509,7 +1498,7 @@ fn expected_entrance_refusal_requires_captured_reason_and_no_request() {
 fn the_resolved_window_comes_from_each_agents_stream() {
     use smith_bench::agent::codex::{RolloutFile, Rollouts};
     let mut identity = smith_bench::read_result(
-        &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/recorded/results/attempt.json"),
+        &crate::common::repository().join("tests/recorded/results/attempt.json"),
     )
     .expect("recorded identity")
     .identity

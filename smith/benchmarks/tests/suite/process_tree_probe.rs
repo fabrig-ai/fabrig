@@ -1,9 +1,7 @@
 //! Process-tree controls exercise the harness codec, not a provider or product run.
 
-use smith_bench::agent::smith::events::Observer;
 use smith_bench::{EventCheck, Measure};
 use smith_events::{Capture, Event, Record};
-use std::path::PathBuf;
 
 use crate::common;
 
@@ -11,7 +9,7 @@ const COMMAND: &str = "sh -c 'sleep 600 & wait'";
 
 #[test]
 fn nested_process_task_freezes_the_command_profile_and_tree_criterion() {
-    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let root = crate::common::repository();
     let task = smith_bench::check_task(&root.join("tasks/probes/process-tree/task.toml"), &root.join("../docs/design"))
         .expect("frozen seed and task");
     assert_eq!(task.version, 2);
@@ -128,11 +126,5 @@ fn nested_command_requires_retained_input_and_its_later_exact_terminal() {
 }
 
 fn observed(records: &[Record], check: &EventCheck, capture: &Capture) -> Measure<bool> {
-    let mut observer = Observer::new(&common::events::LIMITS).expect("reader");
-    for record in records {
-        let line = smith_events::write(record, capture, &common::events::LIMITS).expect("writer").expect("record");
-        observer.feed(&line).expect("codec input");
-    }
-    observer.finish().expect("complete stream");
-    observer.check(check, "task").passed
+    crate::common::captured(records, capture, &common::events::LIMITS).check(check, "task").passed
 }

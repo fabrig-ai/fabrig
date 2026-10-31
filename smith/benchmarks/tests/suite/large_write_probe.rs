@@ -2,13 +2,12 @@
 
 use std::fmt::Write as _;
 use std::fs;
-use std::path::PathBuf;
 
-use smith_bench::agent::smith::events::Observer;
 use smith_bench::{Count, EventCheck, Measure};
 use smith_events::{Effect, Event, Source, Verdict};
 
 use crate::common;
+use crate::common::observe;
 
 #[test]
 fn oversized_write_without_a_call_past_the_bound_is_not_exercised() {
@@ -340,15 +339,6 @@ fn piece(records: &mut Vec<smith_events::Record>, tool: &str, call: &str, input:
     records.insert(at + 1, completed);
 }
 
-fn observe(records: &[smith_events::Record]) -> Observer {
-    let bytes = common::events::bytes(records);
-    let ceiling = bytes.split_inclusive(|byte| *byte == b'\n').map(<[u8]>::len).max().expect("fixture lines");
-    let ceiling = u32::try_from(ceiling).expect("bounded fixture line");
-    let mut observer = Observer::with_ceiling(&common::events::LIMITS, ceiling).expect("reader");
-    observer.feed(&bytes).expect("synthetic codec records");
-    observer.finish().expect("complete framing");
-    observer
-}
 
 #[test]
 fn payload_too_large_write_then_observed_pieces_is_a_valid_oversized_refusal() {
@@ -461,15 +451,13 @@ fn native_oversized_refusal_rejects_wrong_pairs_small_content_loss_and_absent_ca
 
 #[test]
 fn oversized_refusal_threshold_must_equal_the_native_tool_payload() {
-    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let root = crate::common::repository();
     let source = root.join("tasks/probes/large-write");
     let scratch = skein_scratch::Scratch::new("bench-large_write_probe");
     let directory = scratch.path().to_path_buf().join(format!("smith-refusal-declaration-{}", std::process::id()));
     std::fs::create_dir(&directory).expect("fresh task");
     std::fs::create_dir(directory.join("seed")).expect("seed directory");
-    for name in ["source.txt"] {
-        std::fs::copy(source.join("seed").join(name), directory.join("seed").join(name)).expect("same seed bytes");
-    }
+    std::fs::copy(source.join("seed/source.txt"), directory.join("seed/source.txt")).expect("same seed bytes");
     let document = std::fs::read_to_string(source.join("task.toml"))
         .expect("current task")
         .replace("content_bytes_above = 2048", "content_bytes_above = 2047");

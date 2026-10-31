@@ -3,13 +3,12 @@
 use smith_bench::agent::smith::events::Observer;
 use smith_bench::{EventCheck, Measure};
 use smith_events::{Event, JobEnded, Record, Verdict};
-use std::path::PathBuf;
 
 use crate::common;
 
 #[test]
 fn tool_output_inputs_and_deciders_match_the_authored_cases() {
-    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let root = crate::common::repository();
     let task = smith_bench::check_task(&root.join("tasks/probes/tool-output/task.toml"), &root.join("../docs/design"))
         .expect("frozen inputs and checks");
     let suite_file = root.join("suites/probes.toml");
@@ -213,13 +212,7 @@ fn observed_capture(
     check: &EventCheck,
     capture: &smith_events::Capture,
 ) -> smith_bench::CheckVerdict {
-    let mut observer = Observer::new(&common::events::LIMITS).expect("reader");
-    for record in records {
-        let line = smith_events::write(record, capture, &common::events::LIMITS).expect("Writer").expect("record");
-        observer.feed(&line).expect("Reader");
-    }
-    observer.finish().expect("complete stream");
-    observer.check(check, "task")
+    crate::common::captured(records, capture, &common::events::LIMITS).check(check, "task")
 }
 
 const JOB_NUMBER: u64 = 1;

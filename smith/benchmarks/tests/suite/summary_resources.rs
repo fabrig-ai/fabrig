@@ -4,7 +4,7 @@ use smith_bench::{Agent, AttemptResult, Design, Measure, PeakScope, RunSummary};
 
 fn result() -> AttemptResult {
     smith_bench::read_result(
-        &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/recorded/results/attempt.json"),
+        &crate::common::repository().join("tests/recorded/results/attempt.json"),
     )
     .expect("recorded attempt")
 }
@@ -71,7 +71,7 @@ fn a_null_peak_record_leaves_smiths_own_unavailable() {
 fn parity_reports_the_medians_without_changing_its_criteria() {
     const RESPONSES: u64 = 10;
     const PEAK_BYTES: u64 = 8192;
-    let file = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/recorded/parity/on-par.json");
+    let file = crate::common::repository().join("tests/recorded/parity/on-par.json");
     let mut summary = smith_bench::read_summary(&file).expect("recorded parity");
     let before = smith_bench::parity::from_summary(&summary).expect("verdict");
     for row in &mut summary.attempts {

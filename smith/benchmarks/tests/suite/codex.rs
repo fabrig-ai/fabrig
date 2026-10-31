@@ -39,7 +39,7 @@ fn archived_streams_preserve_root_only_evidence_and_real_failure() {
     for record in manifest["records"].as_array().expect("records") {
         let file = record["file"].as_str().expect("file");
         assert_eq!(record["provenance"], "archived");
-        let path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/recorded/codex").join(file);
+        let path = crate::common::repository().join("tests/recorded/codex").join(file);
         assert_eq!(smith_bench::arm::binary_digest(&path).expect("record digest"), record["sha256"]);
     }
 }

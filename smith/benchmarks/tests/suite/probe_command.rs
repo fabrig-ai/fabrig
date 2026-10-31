@@ -13,8 +13,7 @@ fn root(name: &str) -> skein_scratch::Scratch {
 
 #[test]
 fn a_line_prints_an_unavailable_spend_as_a_dash() {
-    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let mut result = smith_bench::read_result(&root.join("tests/recorded/results/attempt.json")).expect("recorded");
+    let mut result = crate::common::attempt();
     result.spend.usd = Measure::unavailable("no prices for this model");
     let text = smith_bench::probe::line(&result).to_string();
     assert!(text.starts_with(&format!("{}/{} ", result.identity.run, result.identity.attempt)), "{text}");
@@ -23,8 +22,7 @@ fn a_line_prints_an_unavailable_spend_as_a_dash() {
 
 #[test]
 fn calibration_stops_at_ten_passes_or_once_ten_are_out_of_reach() {
-    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let result = smith_bench::read_result(&root.join("tests/recorded/results/attempt.json")).expect("recorded");
+    let result = crate::common::attempt();
     assert_eq!(smith_bench::judge(&result), Judgment::Pass);
     let results = vec![result; 10];
     let count = smith_bench::probe::count(&results, 10, 12);
@@ -98,8 +96,7 @@ fn replay_arm(directory: &Path) -> PathBuf {
 }
 
 fn recorded_passes() -> Vec<smith_bench::AttemptResult> {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR"));
-    let result = smith_bench::read_result(&root.join("tests/recorded/results/attempt.json")).expect("recorded");
+    let result = crate::common::attempt();
     (1..=10)
         .map(|index| {
             let mut result = result.clone();

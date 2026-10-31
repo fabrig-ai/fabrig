@@ -5,6 +5,7 @@ use smith_bench::{EventCheck, Measure};
 use smith_events::{ConversationKind, Event, Record};
 
 use crate::common;
+use crate::common::observe;
 
 #[test]
 fn children_overlap_requires_positive_time_in_the_same_run() {
@@ -24,7 +25,7 @@ fn children_overlap_requires_positive_time_in_the_same_run() {
 
 #[test]
 fn parallel_tasks_are_frozen_and_decide_observed_call_and_child_evidence() {
-    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let root = crate::common::repository();
     let read =
         smith_bench::check_task(&root.join("tasks/probes/parallel-read/task.toml"), &root.join("../docs/design"))
             .expect("parallel reads");
@@ -90,15 +91,7 @@ fn set_calls(record: &mut Record, count: u32) {
 
 fn observe_wide(records: &[Record]) -> Observer {
     let limits = smith_events::Limits { items: 64, ..common::events::LIMITS };
-    let mut observer = Observer::new(&limits).expect("twenty-call fixture");
-    for record in records {
-        let line = smith_events::write(record, &smith_events::Capture::Everything, &limits)
-            .expect("typed fixture")
-            .expect("captured fixture");
-        observer.feed(&line).expect("real codec");
-    }
-    observer.finish().expect("complete framing");
-    observer
+    crate::common::captured(records, &smith_events::Capture::Everything, &limits)
 }
 
 fn children(intervals: [(u64, u64, u64); 2]) -> Vec<Record> {
@@ -132,9 +125,3 @@ fn children(intervals: [(u64, u64, u64); 2]) -> Vec<Record> {
     records
 }
 
-fn observe(records: &[Record]) -> Observer {
-    let mut observer = Observer::new(&common::events::LIMITS).expect("reader");
-    observer.feed(&common::events::bytes(records)).expect("real codec");
-    observer.finish().expect("complete framing");
-    observer
-}

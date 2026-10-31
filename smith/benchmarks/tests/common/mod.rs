@@ -71,3 +71,15 @@ pub fn task(name: &str) -> smith_bench::Task {
 pub fn repository() -> std::path::PathBuf {
     std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
 }
+
+#[must_use]
+pub fn attempt() -> smith_bench::AttemptResult {
+    smith_bench::read_result(&repository().join("tests/recorded/results/attempt.json")).expect("recorded attempt")
+}
+
+mod observe;
+pub use observe::{captured, observe};
+
+use smith_bench as bench;
+mod request;
+pub use request::request;

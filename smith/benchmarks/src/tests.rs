@@ -23,9 +23,7 @@ fn person_document(name: &str, suffix: &str) -> Result<crate::Task, crate::Refus
     std::fs::create_dir_all(root.join("seed")).expect("empty seed");
     let file = root.join("task.toml");
     std::fs::write(&file, format!("{DOCUMENT}{suffix}")).expect("task document");
-    let result = check_task(&file, &PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../docs/design"));
-
-    result
+    check_task(&file, &PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../docs/design"))
 }
 
 #[test]

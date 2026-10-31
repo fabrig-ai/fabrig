@@ -113,14 +113,7 @@ fn sequence(records: &mut [Record]) {
 }
 
 fn observed(records: &[Record], check: &EventCheck) -> Measure<bool> {
-    let bytes = common::events::bytes(records);
-    let ceiling = u32::try_from(bytes.split_inclusive(|byte| *byte == b'\n').map(<[u8]>::len).max().expect("records"))
-        .expect("bounded fixture lines");
-    let mut observer = smith_bench::agent::smith::events::Observer::with_ceiling(&common::events::LIMITS, ceiling)
-        .expect("reader with the exact encoded ceiling and unchanged semantic limits");
-    observer.feed(&bytes).expect("outside codec records");
-    observer.finish().expect("whole stream");
-    observer.check(check, "task").passed
+    crate::common::observe(records).check(check, "task").passed
 }
 
 fn checked(records: &mut [Record], check: &EventCheck) -> Measure<bool> {

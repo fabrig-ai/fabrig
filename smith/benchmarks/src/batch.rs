@@ -818,22 +818,7 @@ mod tests {
                 let mut identity = result.identity.clone();
                 identity.arm = arm.into();
                 identity.attempt = format!("{arm}-{repetition}");
-                requests.push(Prepared {
-                    task: root.join("tests/recorded/tasks/valid/task.toml"),
-                    identity,
-                    program: "/bin/sh".into(),
-                    arguments: Vec::new(),
-                    codex_home: None,
-                    configuration: None,
-                    teardown_ms: 50,
-                    grace_ms: 20,
-                    settlement_ms: 200,
-                    setup_deadline_seconds: 1,
-                    max_stdout_bytes: 4096,
-                    max_stderr_bytes: 4096,
-                    disk_estimate_bytes: 4096,
-                    force_walk: true,
-                });
+                requests.push(crate::request_fixture::request(root.join("tests/recorded/tasks/valid/task.toml"), identity));
             }
         }
         (suite, requests)
@@ -980,21 +965,16 @@ mod native_suite_pin_tests {
         identity.model.requested_model = "gpt-6-luna".into();
         identity.model.requested_effort = "low".into();
         let mut request = Prepared {
-            task: task_file,
-            identity,
-            program: directory.join("smith"),
-            arguments: vec![],
-            codex_home: None,
-            configuration: Some(pin_file),
-            teardown_ms: 1,
-            grace_ms: 1,
-            settlement_ms: 1,
-            setup_deadline_seconds: 1,
-            max_stdout_bytes: 1,
-            max_stderr_bytes: 1,
-            disk_estimate_bytes: 1,
-            force_walk: true,
-        };
+program: directory.join("smith"),
+configuration: Some(pin_file),
+teardown_ms: 1,
+grace_ms: 1,
+settlement_ms: 1,
+max_stdout_bytes: 1,
+max_stderr_bytes: 1,
+disk_estimate_bytes: 1,
+..crate::request_fixture::request(task_file, identity)
+};
         let suite_file = root.join("suites/calibrate.toml");
         let valid = check_requests(&suite_file, &suite, std::slice::from_ref(&request));
         // Do not execute or read credentials; this is the real admission seam.
@@ -1062,21 +1042,12 @@ mod cache_order_tests {
                 let mut identity = result.identity.clone();
                 identity.attempt = format!("{position:02}");
                 Prepared {
-                    task: root.join("tasks/probes/cache-reuse/task.toml"),
-                    identity,
-                    program: "/nonexecuted".into(),
-                    arguments: vec![],
-                    codex_home: None,
-                    configuration: None,
-                    teardown_ms: 0,
-                    grace_ms: 1,
-                    settlement_ms: 1,
-                    setup_deadline_seconds: 1,
-                    max_stdout_bytes: 4096,
-                    max_stderr_bytes: 4096,
-                    disk_estimate_bytes: 4096,
-                    force_walk: true,
-                }
+program: "/nonexecuted".into(),
+teardown_ms: 0,
+grace_ms: 1,
+settlement_ms: 1,
+..crate::request_fixture::request(root.join("tasks/probes/cache-reuse/task.toml"), identity)
+}
             })
             .collect();
         assert_eq!(order(&suite, requests.clone(), 1, true).expect("ten triplets").len(), 30);
@@ -1112,21 +1083,16 @@ mod agent_task_tests {
         identity.model.requested_model = "gpt-6-luna".into();
         identity.model.requested_effort = "low".into();
         let mut request = Prepared {
-            task: root.join("tasks/probes/large-write/task.toml"),
-            identity,
-            program: "/nonexecuted".into(),
-            arguments: vec![],
-            codex_home: None,
-            configuration: Some(pin_file),
-            teardown_ms: 0,
-            grace_ms: 1,
-            settlement_ms: 1,
-            setup_deadline_seconds: 1,
-            max_stdout_bytes: 1,
-            max_stderr_bytes: 1,
-            disk_estimate_bytes: 1,
-            force_walk: true,
-        };
+program: "/nonexecuted".into(),
+configuration: Some(pin_file),
+teardown_ms: 0,
+grace_ms: 1,
+settlement_ms: 1,
+max_stdout_bytes: 1,
+max_stderr_bytes: 1,
+disk_estimate_bytes: 1,
+..crate::request_fixture::request(root.join("tasks/probes/large-write/task.toml"), identity)
+};
         assert_eq!(selected_configuration_matches(&suite.agents, std::slice::from_ref(&pin), &request), Ok(true));
         request.identity.task = "probes/smoke-tools".into();
         request.task = root.join("tasks/probes/smoke-tools/task.toml");

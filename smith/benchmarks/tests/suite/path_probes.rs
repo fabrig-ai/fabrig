@@ -56,17 +56,7 @@ fn calls() -> Vec<Record> {
 }
 
 fn observed(records: &[Record], capture: &Capture) -> Observer {
-    let lines: Vec<_> = records
-        .iter()
-        .map(|record| smith_events::write(record, capture, &LIMITS).expect("bounded controls").expect("metadata"))
-        .collect();
-    let ceiling = u32::try_from(lines.iter().map(|line| line.len()).max().expect("session")).expect("bounded");
-    let mut observer = Observer::with_ceiling(&LIMITS, ceiling).expect("outside reader");
-    for line in lines {
-        observer.feed(&line).expect("captured codec");
-    }
-    observer.finish().expect("finished stream");
-    observer
+    crate::common::captured(records, capture, &LIMITS)
 }
 
 #[test]
@@ -167,7 +157,7 @@ fn a_path_requires_captured_input_and_its_exact_successful_terminal() {
 
 #[test]
 fn the_frozen_path_tasks_keep_namespace_authority_and_two_completion_bounds() {
-    let project = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let project = crate::common::repository();
     let task = smith_bench::check_task(&project.join("tasks/probes/paths/task.toml"), &project.join("../docs/design"))
         .expect("task validation");
     let suite = smith_bench::read_suite(&project.join("suites/probes.toml")).expect("native suite");

@@ -77,7 +77,7 @@ fn codex_refuses_later_person_lines_before_reading_a_login() {
     let guard = smith_bench::guard::Guard::new(&root.join("user"), &root.join("config"), &root.join("state"), &[])
         .expect("guard");
     let scratch = smith_bench::isolate::empty(&guard, &root.join("scratch")).expect("private scratch");
-    let project = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let project = crate::common::repository();
     let pin_file = project.join("agents/codex/standard.pin.toml");
     let pin = smith_bench::read_configuration(&pin_file).expect("Codex pin");
     let mut task = smith_bench::read_task(&project.join("tests/recorded/tasks/valid/task.toml")).expect("task");
@@ -170,7 +170,7 @@ fn the_pinned_adapter_refuses_version_drift_and_isolates_the_user_home() {
     let guard = Guard::new(&root.join("user"), &root.join("config"), &root.join("state"), std::slice::from_ref(&home))
         .expect("guard");
     let private = empty(&guard, &root.join("scratch")).expect("private scratch");
-    let directory = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let directory = crate::common::repository();
     let (pin_file, pin, arm) = codex_pin_fixture(&root);
     let task = read_task(&directory.join("tests/recorded/tasks/valid/task.toml")).expect("sample task");
     let model = ModelChoice { model: Some("gpt-6-luna".into()), effort: Some("low".into()) };
@@ -444,7 +444,7 @@ fn paths_use_the_declared_working_directory_and_refuse_escaped_paths_before_cred
     let auth = synthetic_auth(500);
     std::fs::write(home.join("auth.json"), &auth).expect("unissued source record");
     let guard = Guard::new(&root.join("user"), &root.join("config"), &root.join("state"), &[]).expect("guard");
-    let project = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let project = crate::common::repository();
     let task = smith_bench::check_task(&project.join("tasks/probes/paths/task.toml"), &project.join("../docs/design"))
         .expect("frozen paths task");
     let private = smith_bench::isolate::prepare(
@@ -706,7 +706,7 @@ impl CodexAttempt {
         let private = smith_bench::isolate::empty(&guard, &root.join("scratch")).expect("fixture attempt");
         let (pin_file, pin, arm) = codex_pin_fixture(&root);
         let task = smith_bench::read_task(
-            &PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tests/recorded/tasks/valid/task.toml"),
+            &crate::common::repository().join("tests/recorded/tasks/valid/task.toml"),
         )
         .expect("fixture task");
         let model = smith_bench::ModelChoice { model: Some("gpt-6-luna".into()), effort: Some("low".into()) };
@@ -754,7 +754,7 @@ fn a_codex_binary_whose_digest_differs_from_its_pin_is_refused() {
 
 #[test]
 fn the_codex_pin_names_only_the_keys_an_attempt_must_own() {
-    let pin_file = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("agents/codex/standard.pin.toml");
+    let pin_file = crate::common::repository().join("agents/codex/standard.pin.toml");
     let pin = smith_bench::read_configuration(&pin_file).expect("shipped pin");
     assert_eq!(pin.pin.sha256.as_deref(), Some("12eb3e81114588aca3b7998f4f19e8997b056aca08e57a7ca7c8a3ec8c652aad"));
     assert_eq!(pin.pin.package.as_deref(), Some(Path::new("tools/codex-0.160.0")));

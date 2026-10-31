@@ -1,15 +1,15 @@
 //! Offline cache triplets retain repetitions, pooled misses and real evidence gaps.
 
-use std::path::PathBuf;
 
 use smith_bench::{CacheObservation, CheckVerdict, End, EventCheck, Judgment, Measure};
 use smith_events::{Block, Event};
 
 use crate::common;
+use crate::common::observe;
 
 #[test]
 fn the_crossing_variant_waits_once_at_medium_effort() {
-    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let root = crate::common::repository();
     let base = smith_bench::check_task(&root.join("tasks/probes/cache-reuse/task.toml"), &root.join("../docs/design"))
         .expect("cache task");
     let task = base.with_variant("crossing").expect("crossing");
@@ -35,8 +35,7 @@ fn the_crossing_variant_waits_once_at_medium_effort() {
 }
 
 fn repetition(position: u32, read: u64, misses: u64) -> smith_bench::AttemptResult {
-    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-    let mut value = smith_bench::read_result(&root.join("tests/recorded/results/attempt.json")).expect("fixture");
+    let mut value = crate::common::attempt();
     value.identity.task = "probes/cache-reuse".into();
     value.identity.attempt = format!("{position:02}");
     value.outcome.end = End::Completed;
@@ -98,7 +97,7 @@ fn cache_triplets_judge_the_median_and_pool_misses_without_passing_a_partial_tri
 
 #[test]
 fn cache_task_freezes_twelve_pointer_reads_and_two_sequential_children() {
-    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let root = crate::common::repository();
     let directory = root.join("tasks/probes/cache-reuse");
     let task =
         smith_bench::check_task(&directory.join("task.toml"), &root.join("../docs/design")).expect("authored task");
@@ -152,12 +151,6 @@ fn one_read_each_rejects_batched_calls_and_retains_missing_capture() {
     assert!(matches!(observe(&records).check(&check, "task").passed, Measure::Unavailable { .. }));
 }
 
-fn observe(records: &[smith_events::Record]) -> smith_bench::agent::smith::events::Observer {
-    let mut value = smith_bench::agent::smith::events::Observer::new(&common::events::LIMITS).expect("reader");
-    value.feed(&common::events::bytes(records)).expect("outside codec records");
-    value.finish().expect("complete lines");
-    value
-}
 
 #[test]
 fn sequential_children_wait_for_the_parent_return_and_require_both_returns() {

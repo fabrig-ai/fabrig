@@ -3,7 +3,6 @@ use super::{Duration, End, Forced, Path, PathBuf, common, root};
 
 pub(super) struct ExecFixture {
     _scratch: skein_scratch::Scratch,
-    root: PathBuf,
     source: PathBuf,
     guard: smith_bench::guard::Guard,
     private: smith_bench::isolate::Private,
@@ -106,7 +105,6 @@ impl ExecFixture {
         Self {
             _scratch: scratch,
             source: root.join("logins/smith"),
-            root,
             guard,
             private,
             pin,
