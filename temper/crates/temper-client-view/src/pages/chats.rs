@@ -30,8 +30,8 @@ fn ready_to_start(root: &Domain) -> bool {
     let Some(chats) = root.pages().chats() else { return false };
     crate::choice::can_send(root)
         && chats.start.is_none()
-        && !root.forge().demo_starting()
-        && root.forge().demo_failure().is_none()
+        && !root.forge().playground_starting()
+        && root.forge().playground_failure().is_none()
 }
 pub(crate) fn main(
     b: &mut Builder,
@@ -43,9 +43,9 @@ pub(crate) fn main(
 ) {
     b.open(Role::Main);
     b.style(crate::look::MAIN);
-    let demo = demo_start(root);
-    if let Some(demo) = demo {
-        start(b, root, demo, words, bindings);
+    let playground = playground_start(root);
+    if let Some(playground) = playground {
+        start(b, root, playground, words, bindings);
     } else {
         b.style(crate::look::PAGE);
         b.open(Role::Slot);
@@ -55,7 +55,7 @@ pub(crate) fn main(
     }
     if let Some(chats) = root.pages().chats() {
         if root.pages().me(root.client()).is_some() && root.pages().project().is_some() {
-            if demo.is_none() {
+            if playground.is_none() {
                 text(b, Role::Heading { level: 2 }, &words.say(Word::StartChat, &[]));
             }
             crate::choice::composer(b, root, None, words, bindings, times);
@@ -194,7 +194,7 @@ fn before(a: (skein_lib::Wall, u64), b: (skein_lib::Wall, u64)) -> bool {
 fn start(
     b: &mut Builder,
     root: &Domain,
-    demo: &temper_client_domain::forge::Demo,
+    playground: &temper_client_domain::forge::Playground,
     words: &Words,
     bindings: &mut Bindings,
 ) {
@@ -202,17 +202,17 @@ fn start(
     b.style(crate::look::CHATBAR);
     b.open(Role::Slot);
     text(b, Role::Paragraph, &words.say(Word::NewChat, &[]));
-    let full = match root.forge().demo_request() {
+    let full = match root.forge().playground_request() {
         Some(request) => crate::cards::full_progress(b, words, root, request),
         None => false,
     };
     if !full {
         b.open(Role::Status);
         b.style(crate::look::STATUS_QUIET);
-        let status = if root.forge().demo_starting() {
-            Word::DemoStarting
-        } else if root.forge().demo_failure().is_some() {
-            Word::DemoNotStarted
+        let status = if root.forge().playground_starting() {
+            Word::PlaygroundStarting
+        } else if root.forge().playground_failure().is_some() {
+            Word::PlaygroundNotStarted
         } else {
             Word::Ready
         };
@@ -223,13 +223,13 @@ fn start(
     }
     b.close();
     b.open(Role::Slot);
-    text(b, Role::Paragraph, &words.say(Word::DemoModelName, &[]));
+    text(b, Role::Paragraph, &words.say(Word::PlaygroundModelName, &[]));
     b.close();
     b.close();
     if let Some(project) = root.pages().project() {
         super::chat::context(b, root, project, words);
     }
-    suggestions(b, root, demo, words, bindings);
+    suggestions(b, root, playground, words, bindings);
 }
 
 pub(crate) fn ended(chip: &jig_client::contract::Chip) -> bool {
@@ -262,7 +262,7 @@ pub(crate) fn row(
     // Keep the number's link in a container: a paragraph is flattened to text
     // by the terminal, hiding the command promised by client/README.md, 3.5.
     b.open(Role::Slot);
-    if let Some(project) = super::project_name(root.pages().me(root.client()), root.forge().demo(), line.project, words)
+    if let Some(project) = super::project_name(root.pages().me(root.client()), root.forge().playground(), line.project, words)
     {
         b.text(Run::Plain, &project);
         words.text(b, Word::ToolSeparator, &[]);
@@ -449,11 +449,11 @@ fn closed_status(b: &mut Builder, words: &Words) {
     b.close();
 }
 
-/// The demo whose start the Chats page shows, when it shows one.
-pub(crate) fn demo_start(root: &Domain) -> Option<&temper_client_domain::forge::Demo> {
+/// The playground whose start the Chats page shows, when it shows one.
+pub(crate) fn playground_start(root: &Domain) -> Option<&temper_client_domain::forge::Playground> {
     let Address::Chats { .. } = root.pages().address() else { return None };
-    match root.demo() {
-        Some((demo, halves)) if halves.model && root.pages().project() == Some(demo.project) => Some(demo),
+    match root.playground() {
+        Some((playground, halves)) if halves.model && root.pages().project() == Some(playground.project) => Some(playground),
         _ => None,
     }
 }
@@ -461,12 +461,12 @@ pub(crate) fn demo_start(root: &Domain) -> Option<&temper_client_domain::forge::
 fn suggestions(
     b: &mut Builder,
     root: &Domain,
-    demo: &temper_client_domain::forge::Demo,
+    playground: &temper_client_domain::forge::Playground,
     words: &Words,
     bindings: &mut Bindings,
 ) {
     let Some(chats) = root.pages().chats() else { return };
-    let heading = words.say(Word::DemoHeading, &[]);
+    let heading = words.say(Word::PlaygroundHeading, &[]);
     b.open(Role::Region);
     b.name(&heading);
     b.style(crate::look::INVITATION);
@@ -474,33 +474,33 @@ fn suggestions(
     text(
         b,
         Role::Paragraph,
-        &words.say(Word::DemoRequest, &[Hole::Name(demo.owner.clone()), Hole::Name(demo.name.clone())]),
+        &words.say(Word::PlaygroundRequest, &[Hole::Name(playground.owner.clone()), Hole::Name(playground.name.clone())]),
     );
-    if let Some(failure) = root.forge().demo_failure() {
-        use temper_client_domain::forge::demo::StartFailure;
+    if let Some(failure) = root.forge().playground_failure() {
+        use temper_client_domain::forge::model::StartFailure;
         let message = match failure {
             StartFailure::Group(why) => {
-                words.say(Word::DemoGroupFailed, &[Hole::Name(temper_client_domain::forge::words::lossy(why))])
+                words.say(Word::PlaygroundGroupFailed, &[Hole::Name(temper_client_domain::forge::words::lossy(why))])
             }
-            StartFailure::Account => words.say(Word::DemoAccountFailed, &[]),
+            StartFailure::Account => words.say(Word::PlaygroundAccountFailed, &[]),
             StartFailure::Adoption => {
-                words.say(Word::DemoAdoptionFailed, &[Hole::Name(demo.owner.clone()), Hole::Name(demo.name.clone())])
+                words.say(Word::PlaygroundAdoptionFailed, &[Hole::Name(playground.owner.clone()), Hole::Name(playground.name.clone())])
             }
-            StartFailure::NotConnected => words.say(Word::DemoNotConnected, &[]),
+            StartFailure::NotConnected => words.say(Word::PlaygroundNotConnected, &[]),
         };
         text(b, Role::Alert, &message);
         b.open(Role::Button);
-        b.name(&words.say(Word::DemoTryAgain, &[]));
+        b.name(&words.say(Word::PlaygroundTryAgain, &[]));
         b.bind(bindings.insert(Act::RetryPlayground));
         b.close();
     }
     b.open(Role::List);
     b.name(&words.say(Word::SuggestedRequests, &[]));
-    for (cue, value) in demo.cues.iter().enumerate() {
+    for (cue, value) in playground.cues.iter().enumerate() {
         b.open(Role::Item);
         b.open(Role::Button);
         b.name(value);
-        if chats.start.is_some() || root.forge().demo_starting() || root.forge().demo_failure().is_some() {
+        if chats.start.is_some() || root.forge().playground_starting() || root.forge().playground_failure().is_some() {
             b.state(State::Disabled);
         }
         b.bind(bindings.insert(Act::Suggest { cue: u8::try_from(cue).expect("eight cue indices fit") }));
@@ -508,6 +508,6 @@ fn suggestions(
         b.close();
     }
     b.close();
-    text(b, Role::Paragraph, &words.say(Word::DemoScript, &[]));
+    text(b, Role::Paragraph, &words.say(Word::PlaygroundScript, &[]));
     b.close();
 }

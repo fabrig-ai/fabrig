@@ -133,7 +133,7 @@ pub(crate) fn main(
     b.style(look::MAIN);
     b.style(look::WELCOME);
     steps(b, root, w, step);
-    let playground = root.demo_answered() && root.forge().demo().is_some() && !real_forge_connected(root);
+    let playground = root.playground_answered() && root.forge().playground().is_some() && !real_forge_connected(root);
     match step {
         Step::Welcome => {
             text(b, w, Role::Heading { level: 1 }, Word::WelcomeTitle);
@@ -305,8 +305,8 @@ fn real_forge_connected(root: &Domain) -> bool {
         for row in rows {
             if row.mode != temper_client_domain::forge::forges::Mode::Fake
                 && let Connection::Connected { .. } = row.connection
-                && match root.forge().demo() {
-                    Some(demo) => row.number != demo.forge,
+                && match root.forge().playground() {
+                    Some(playground) => row.number != playground.forge,
                     None => true,
                 }
             {

@@ -124,13 +124,8 @@ fn project_buttons(builder: &mut Builder, root: &Domain, words: &crate::words::W
         let mut projects = false;
         for selected in [true, false] {
             for row in &me.projects {
-                if let Some(demo) = root.forge().retired_demo()
-                    && demo.project == row.project
-                {
-                    continue;
-                }
                 if (Some(row.project) == root.pages().project()) == selected {
-                    let name = crate::pages::project_name(Some(me), root.forge().demo(), row.project, words)
+                    let name = crate::pages::project_name(Some(me), root.forge().playground(), row.project, words)
                         .expect("project from me has a name");
                     builder.open(Role::Button);
                     builder.name(&name);
@@ -356,12 +351,12 @@ pub(crate) fn playground_banner(
     bindings: &mut crate::forge::bindings::Bindings,
 ) {
     use crate::words::Word;
-    if unavailable(root).is_some() || (!root.forge().demo_running() && !root.forge().leaving()) {
+    if unavailable(root).is_some() || (!root.forge().playground_running() && !root.forge().leaving()) {
         return;
     }
     b.open(Role::Region);
     b.style(crate::look::ACCOUNTS);
-    b.name(&words.say(Word::Demo, &[]));
+    b.name(&words.say(Word::Playground, &[]));
     b.open(Role::Paragraph);
     if root.forge().leaving() {
         words.text(b, Word::PlaygroundLeaving, &[]);

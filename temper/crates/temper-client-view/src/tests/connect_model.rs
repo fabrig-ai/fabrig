@@ -34,15 +34,15 @@ fn offer(provider: u32, name: &[u8], sign_in: bool, program: bool) -> c::Provide
 pub(super) fn text(value: &[u8]) -> c::DocumentText {
     c::DocumentText::complete(c::Text::new(Box::from(value), 64).unwrap())
 }
-fn ways_root(offers: List<c::ProviderOffer>, demo: bool) -> d::Domain {
+fn ways_root(offers: List<c::ProviderOffer>, playground: bool) -> d::Domain {
     let limits = fixtures::limits();
     let (mut root, watch, _) = fixtures::root_at(d::Address::ConnectModel { way: None }, &limits);
     let mut me = d::pages::accounts::current_me(root.client()).unwrap().clone();
     me.providers = offers;
     me.providers_cut = true;
     me.deployment_role = Some(c::HeldRole::Owner);
-    if demo {
-        return fixtures::demo_frame_root(
+    if playground {
+        return fixtures::playground_frame_root(
             d::Address::ConnectModel { way: None },
             fixtures::PROJECT,
             true,
@@ -443,7 +443,7 @@ fn ready_remembers_that_the_playgrounds_scripted_model_stepped_aside() {
     let mut me = d::pages::accounts::current_me(offered_root().client()).unwrap().clone();
     me.providers = List::with_capacity(1);
     me.providers.push(offer(provider, b"openai", false, false)).unwrap();
-    let (mut root, accounts_watch) = fixtures::demo_frame_with_watch(
+    let (mut root, accounts_watch) = fixtures::playground_frame_with_watch(
         d::Address::ConnectModel { way: Some(d::ModelWay { source: None, provider, kind: d::WayKind::Key }) },
         fixtures::PROJECT,
         true,
@@ -460,7 +460,7 @@ fn ready_remembers_that_the_playgrounds_scripted_model_stepped_aside() {
     doc.accounts.get_mut(0).unwrap().provider = Some(provider);
     doc.cut = false;
     super::accounts::deliver(&mut root, accounts_watch, doc);
-    assert!(!root.demo().unwrap().1.model);
+    assert!(!root.playground().unwrap().1.model);
     assert!(words(&root).contains("The playground’s scripted model stepped aside."));
 }
 

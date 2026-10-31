@@ -1,6 +1,6 @@
 use super::fixtures as f;
 use crate::{
-    forge::{self, playground as demo},
+    forge::{self, playground},
     pages::Act,
 };
 use jig_client::{Handle, Link, Readable, Readout, Told, contract as c};
@@ -41,9 +41,9 @@ pub(super) fn page_with_state(state: w::PlaygroundState) -> Readout {
 }
 fn read(side: &mut forge::Side) -> Handle {
     let mut out = Queue::with_capacity(1);
-    assert!(!demo::told(side, &Told::Link { link: Link::Live }, f::limits().forge, &mut out));
+    assert!(!playground::told(side, &Told::Link { link: Link::Live }, f::limits().forge, &mut out));
     let Some(forge::Request::Client { asked: jig_client::Event::Read { handle, read } }) = out.pop() else {
-        panic!("demo read");
+        panic!("playground read");
     };
     let Readable::Family { scope, window, record } = read else { panic!("family read") };
     assert_eq!(scope, c::Scope::Deployment);
@@ -55,7 +55,7 @@ fn read(side: &mut forge::Side) -> Handle {
     handle
 }
 #[test]
-fn the_demo_is_read_once_per_live_link_and_replaced_pages_are_dropped() {
+fn the_playground_is_read_once_per_live_link_and_replaced_pages_are_dropped() {
     for (row, gap, reads) in [
         ("live again", Link::Live, false),
         ("offline then live", Link::Offline, true),
@@ -64,27 +64,27 @@ fn the_demo_is_read_once_per_live_link_and_replaced_pages_are_dropped() {
         let mut side = forge::Side::new(&f::limits().forge, f::SEED);
         let first = read(&mut side);
         let mut out = Queue::with_capacity(1);
-        assert!(!demo::told(&mut side, &Told::Link { link: gap }, f::limits().forge, &mut out), "{row}");
+        assert!(!playground::told(&mut side, &Told::Link { link: gap }, f::limits().forge, &mut out), "{row}");
         assert!(out.is_empty(), "{row}");
         if reads {
             let next = read(&mut side);
             assert_ne!(first, next, "{row}");
-            assert!(demo::told(&mut side, &Told::Page { handle: first, page: page() }, f::limits().forge, &mut out));
-            assert!(side.demo().is_none(), "{row}: replaced page dropped");
-            demo::told(&mut side, &Told::Page { handle: next, page: page() }, f::limits().forge, &mut out);
-            assert!(side.demo().is_some(), "{row}");
+            assert!(playground::told(&mut side, &Told::Page { handle: first, page: page() }, f::limits().forge, &mut out));
+            assert!(side.playground().is_none(), "{row}: replaced page dropped");
+            playground::told(&mut side, &Told::Page { handle: next, page: page() }, f::limits().forge, &mut out);
+            assert!(side.playground().is_some(), "{row}");
         } else {
-            assert!(!demo::told(&mut side, &Told::Link { link: Link::Live }, f::limits().forge, &mut out));
+            assert!(!playground::told(&mut side, &Told::Link { link: Link::Live }, f::limits().forge, &mut out));
             assert!(out.is_empty(), "{row}");
         }
     }
 }
 #[test]
-fn a_demo_page_replaces_the_last_answer_or_clears_it() {
+fn a_playground_page_replaces_the_last_answer_or_clears_it() {
     let mut another_version = answer(CUE);
     *another_version.get_mut(1).unwrap() = u8::try_from(wire::CLIENT_VERSION + 1).unwrap();
     for (row, page, present) in [
-        ("demo", page(), true),
+        ("playground", page(), true),
         ("none", Readout::Family { family: wire::FORGE, record: None }, false),
         ("not served", Readout::NotServed { family: Some(wire::FORGE), served: None }, false),
         ("limit", Readout::Limit, false),
@@ -96,23 +96,23 @@ fn a_demo_page_replaces_the_last_answer_or_clears_it() {
     ] {
         let mut side = forge::Side::new(&f::limits().forge, f::SEED);
         let first = read(&mut side);
-        assert!(!side.demo_answered(), "{row}: no answer yet");
-        demo::told(
+        assert!(!side.playground_answered(), "{row}: no answer yet");
+        playground::told(
             &mut side,
             &Told::Page { handle: first, page: self::page() },
             f::limits().forge,
             &mut Queue::with_capacity(1),
         );
         let shown = forge::shown(&side);
-        demo::told(&mut side, &Told::Link { link: Link::Offline }, f::limits().forge, &mut Queue::with_capacity(1));
-        assert!(side.demo().is_some(), "{row}: keep the last answer across the gap");
-        assert!(side.demo_answered(), "{row}: keep that the read answered across the gap");
+        playground::told(&mut side, &Told::Link { link: Link::Offline }, f::limits().forge, &mut Queue::with_capacity(1));
+        assert!(side.playground().is_some(), "{row}: keep the last answer across the gap");
+        assert!(side.playground_answered(), "{row}: keep that the read answered across the gap");
         let handle = read(&mut side);
         assert!(
-            demo::told(&mut side, &Told::Page { handle, page }, f::limits().forge, &mut Queue::with_capacity(1)),
+            playground::told(&mut side, &Told::Page { handle, page }, f::limits().forge, &mut Queue::with_capacity(1)),
             "{row}"
         );
-        assert_eq!(side.demo().is_some(), present, "{row}");
+        assert_eq!(side.playground().is_some(), present, "{row}");
         assert_eq!(forge::shown(&side) != shown, !present, "{row}: redraw only on change");
     }
 }
@@ -183,7 +183,7 @@ fn opened(cue: &[u8]) -> (crate::Domain, skein_lib::Token) {
             },
         );
     }
-    deliver_demo_read(&mut root, Readout::Family { family: wire::FORGE, record: Some(answer(cue)) });
+    deliver_playground_read(&mut root, Readout::Family { family: wire::FORGE, record: Some(answer(cue)) });
     event(
         &mut root,
         crate::Event::Went {
@@ -199,7 +199,7 @@ fn a_suggestion_starts_one_chat_with_its_cue_and_preserves_the_draft() {
     at_bound.fill(b'a');
     let above_receiving_fixture = [b'a'; 33];
     for (row, words, pending, project, model, cue, count) in [
-        ("demo project", CUE, false, f::PROJECT, true, 0, 1),
+        ("playground project", CUE, false, f::PROJECT, true, 0, 1),
         ("at the composer's bound", &at_bound, false, f::PROJECT, true, 0, 1),
         ("above the receiving fixture", &above_receiving_fixture, false, f::PROJECT, true, 0, 1),
         ("pending", CUE, true, f::PROJECT, true, 0, 0),
@@ -216,7 +216,7 @@ fn a_suggestion_starts_one_chat_with_its_cue_and_preserves_the_draft() {
             let mut parts = wire::decode_playground_answer(&answer(CUE), &limits).unwrap().into_parts();
             parts.project = Some(project);
             let record = wire::playground_answer(&w::PlaygroundAnswer::new(&limits, parts).unwrap());
-            deliver_demo_read(&mut root, Readout::Family { family: wire::FORGE, record: Some(record) });
+            deliver_playground_read(&mut root, Readout::Family { family: wire::FORGE, record: Some(record) });
         }
         if !model {
             event(
@@ -264,7 +264,7 @@ fn a_suggestion_starts_one_chat_with_its_cue_and_preserves_the_draft() {
 }
 
 #[test]
-fn the_first_demo_read_answer_counts_even_when_it_has_no_record() {
+fn the_first_playground_read_answer_counts_even_when_it_has_no_record() {
     for page in [
         Readout::Family { family: wire::FORGE, record: None },
         Readout::NotServed { family: Some(wire::FORGE), served: None },
@@ -274,19 +274,18 @@ fn the_first_demo_read_answer_counts_even_when_it_has_no_record() {
         let mut side = forge::Side::new(&f::limits().forge, f::SEED);
         let handle = read(&mut side);
         let before = forge::shown(&side);
-        demo::told(&mut side, &Told::Page { handle, page }, f::limits().forge, &mut Queue::with_capacity(1));
-        assert!(side.demo_answered());
-        assert!(side.demo().is_none());
-        assert_eq!(side.demo_provider(), None);
-        assert_eq!(side.retired_demo(), None);
+        playground::told(&mut side, &Told::Page { handle, page }, f::limits().forge, &mut Queue::with_capacity(1));
+        assert!(side.playground_answered());
+        assert!(side.playground().is_none());
+        assert_eq!(side.playground_provider(), None);
         assert!(forge::shown(&side) > before, "an answered absence redraws the welcome");
-        demo::told(&mut side, &Told::Link { link: Link::Offline }, f::limits().forge, &mut Queue::with_capacity(1));
-        assert!(side.demo_answered());
+        playground::told(&mut side, &Told::Link { link: Link::Offline }, f::limits().forge, &mut Queue::with_capacity(1));
+        assert!(side.playground_answered());
     }
 }
 
 pub(super) type DeploymentAccount = (Option<u32>, bool, bool, c::OwnerAccountHolder);
-pub(super) const DEMO_ACCOUNT: DeploymentAccount = (Some(PROVIDER), true, false, c::OwnerAccountHolder::Deployment);
+pub(super) const PLAYGROUND_ACCOUNT: DeploymentAccount = (Some(PROVIDER), true, false, c::OwnerAccountHolder::Deployment);
 pub(super) const OTHER_ACCOUNT: DeploymentAccount =
     (Some(PROVIDER + 1), true, false, c::OwnerAccountHolder::Deployment);
 pub(super) fn deployment(rows: &[DeploymentAccount]) -> c::OwnerDeployment {
@@ -364,12 +363,12 @@ pub(super) fn deployment_watch(out: &mut Queue<crate::Request>) -> Option<skein_
     *out = rest;
     watch
 }
-pub(super) fn deliver_demo_read(root: &mut crate::Domain, page: Readout) -> Queue<crate::Request> {
-    demo::told(&mut root.forge, &Told::Link { link: Link::Offline }, f::limits().forge, &mut Queue::with_capacity(1));
+pub(super) fn deliver_playground_read(root: &mut crate::Domain, page: Readout) -> Queue<crate::Request> {
+    playground::told(&mut root.forge, &Told::Link { link: Link::Offline }, f::limits().forge, &mut Queue::with_capacity(1));
     let handle = read(&mut root.forge);
     let mut out = Queue::uncapped();
     crate::route::told(root, &f::env(&f::limits()), Told::Page { handle, page }, &mut out);
-    crate::route::demo_progress(root, &f::env(&f::limits()), &mut out);
+    crate::route::playground_progress(root, &f::env(&f::limits()), &mut out);
     out
 }
 pub(super) fn removed(out: &mut Queue<crate::Request>) -> List<skein_lib::Token> {
@@ -432,15 +431,15 @@ fn sent(out: &mut Queue<forge::Request>, expected: w::Request) -> skein_lib::Tok
     request
 }
 fn refresh(side: &mut forge::Side, page: Readout) -> Queue<forge::Request> {
-    demo::told(side, &Told::Link { link: Link::Offline }, f::limits().forge, &mut Queue::uncapped());
+    playground::told(side, &Told::Link { link: Link::Offline }, f::limits().forge, &mut Queue::uncapped());
     let handle = read(side);
     let mut out = Queue::uncapped();
-    assert!(demo::told(side, &Told::Page { handle, page }, f::limits().forge, &mut out));
+    assert!(playground::told(side, &Told::Page { handle, page }, f::limits().forge, &mut out));
     out
 }
 fn result(side: &mut forge::Side, request: skein_lib::Token, outcome: w::Outcome) -> Queue<forge::Request> {
     let mut out = Queue::uncapped();
-    assert!(demo::told(
+    assert!(playground::told(
         side,
         &Told::Answered {
             key: jig_client::Key { asker: crate::owner::Owner::Forge.asker(), number: request.raw() },
@@ -500,7 +499,7 @@ fn a_resetting_read_after_a_restart_shows_leaving() {
         panic!("reset reread")
     };
     assert!(out.is_empty());
-    demo::told(
+    playground::told(
         &mut side,
         &Told::Page { handle, page: Readout::Family { family: wire::FORGE, record: None } },
         f::limits().forge,
@@ -569,16 +568,16 @@ fn no_account_removal_is_ever_sent_by_the_client() {
             },
         },
     );
-    let mut out = deliver_demo_read(&mut root, page());
+    let mut out = deliver_playground_read(&mut root, page());
     let watch = deployment_watch(&mut out).expect("owner deployment watch");
-    for document in [deployment(&[DEMO_ACCOUNT, OTHER_ACCOUNT]), deployment(&[OTHER_ACCOUNT]), deployment(&[])] {
+    for document in [deployment(&[PLAYGROUND_ACCOUNT, OTHER_ACCOUNT]), deployment(&[OTHER_ACCOUNT]), deployment(&[])] {
         let mut out = deliver_deployment(&mut root, watch, document);
         assert!(removed(&mut out).is_empty());
         assert!(root.forge().playground().is_some(), "a real account does not end the playground");
     }
     let mut out = event(&mut root, crate::Event::Act { action: crate::Action::Forge(forge::Act::EndPlayground) });
     assert!(removed(&mut out).is_empty());
-    let mut out = deliver_demo_read(&mut root, Readout::Family { family: wire::FORGE, record: None });
+    let mut out = deliver_playground_read(&mut root, Readout::Family { family: wire::FORGE, record: None });
     assert!(removed(&mut out).is_empty());
 }
 
@@ -613,7 +612,7 @@ fn a_failed_start_can_retry_with_a_new_key_before_resetting() {
             w::StartFailed::new(&w::CEILINGS, w::StartFailedParts { why: w::StartFailure::Account }).unwrap(),
         ),
     );
-    assert_eq!(side.playground_failure(), Some(&demo::StartFailure::Account));
+    assert_eq!(side.playground_failure(), Some(&playground::StartFailure::Account));
     assert!(!side.playground_starting());
     refresh(&mut side, page_with_state(w::PlaygroundState::Starting));
     let retry = sent(&mut choose(&mut side, forge::Act::StartPlayground), w::Request::StartPlayground);

@@ -1,4 +1,4 @@
-use super::{demo, fixtures as f};
+use super::{playground, fixtures as f};
 use crate::ChatsFilter;
 use crate::{
     Address, Choice, Event, Place, Request, Step,
@@ -65,8 +65,8 @@ fn the_flow_shows_the_step_its_row_is_at() {
         };
         assert_eq!(connect::step(choice, &State::Unknown, None), Shown::Details(Choice::Elsewhere));
     }
-    let demo = forge::family::demo(&demo::answer(b"title"), &w::CEILINGS).unwrap();
-    assert_eq!(connect::step(Some(Choice::Forge(demo.forge)), &rows(C::NotSetUp), Some(demo.forge)), Shown::Choose);
+    let playground = forge::family::playground(&playground::answer(b"title"), &w::CEILINGS).unwrap();
+    assert_eq!(connect::step(Some(Choice::Forge(playground.forge)), &rows(C::NotSetUp), Some(playground.forge)), Shown::Choose);
     let github = State::Rows(Box::new([row(2, Kind::GitHub, Mode::Managed, C::NotConnected, Offer::NotOffered)]));
     assert_eq!(connect::step(Some(Choice::Forge(2)), &github, None), Shown::Details(Choice::Forge(2)));
     let fake = State::Rows(Box::new([row(HERE, Kind::Forgejo, Mode::Fake, C::NotSetUp, Offer::Offered)]));
@@ -342,13 +342,13 @@ fn the_dot_is_red_for_a_forge_that_needs_the_person_else_amber_while_one_sets_up
             if connections[0] == C::Connecting { 2 } else { HERE }
         );
     }
-    let demo = forge::family::demo(&demo::answer(b"title"), &w::CEILINGS).unwrap();
+    let playground = forge::family::playground(&playground::answer(b"title"), &w::CEILINGS).unwrap();
     let state = State::Rows(Box::new([
-        row(demo.forge, Kind::GitHub, Mode::Managed, C::Connecting, Offer::NotOffered),
+        row(playground.forge, Kind::GitHub, Mode::Managed, C::Connecting, Offer::NotOffered),
         row(HERE, Kind::Forgejo, Mode::Fake, C::Stopped { reason: Box::default() }, Offer::NotOffered),
     ]));
-    assert_eq!(listed::dot(&state, Some(demo.forge)), Dot::Amber);
-    assert!(connect::underway_forge(&state, Some(demo.forge)).is_none());
+    assert_eq!(listed::dot(&state, Some(playground.forge)), Dot::Amber);
+    assert!(connect::underway_forge(&state, Some(playground.forge)).is_none());
 }
 
 fn sent(mut out: Queue<Request>) -> (Token, skein_lib::RequestKey, w::Request) {

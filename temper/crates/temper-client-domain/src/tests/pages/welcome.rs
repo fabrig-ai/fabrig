@@ -1,5 +1,5 @@
 use crate::ChatsFilter;
-use crate::tests::{demo, fixtures as f};
+use crate::tests::{playground, fixtures as f};
 use crate::{
     Action, Address, Domain, Event, Place, Request, Step, forge,
     pages::{self, Act, welcome::FirstRun},
@@ -24,14 +24,14 @@ fn deliver(root: &mut Domain, watch: Token, delivery: c::Delivery) -> Queue<Requ
 }
 fn answer(root: &mut Domain, present: bool) {
     let mut out = Queue::with_capacity(1);
-    forge::demo::told(&mut root.forge, &Told::Link { link: Link::Offline }, f::limits().forge, &mut out);
-    forge::demo::told(&mut root.forge, &Told::Link { link: Link::Live }, f::limits().forge, &mut out);
+    forge::playground::told(&mut root.forge, &Told::Link { link: Link::Offline }, f::limits().forge, &mut out);
+    forge::playground::told(&mut root.forge, &Told::Link { link: Link::Live }, f::limits().forge, &mut out);
     let Some(forge::Request::Client { asked: jig_client::Event::Read { handle, .. } }) = out.pop() else {
-        panic!("demo read")
+        panic!("playground read")
     };
     let page = if present {
         let mut parts =
-            wire::decode_playground_answer(&demo::answer(b"Change the title"), &w::CEILINGS).unwrap().into_parts();
+            wire::decode_playground_answer(&playground::answer(b"Change the title"), &w::CEILINGS).unwrap().into_parts();
         parts.state = w::PlaygroundState::Starting;
         Readout::Family {
             family: wire::FORGE,
@@ -178,7 +178,7 @@ fn forge_rows(root: &mut Domain, watch: Token, number: Option<u16>, adopted: boo
     )
 }
 fn account(root: &mut Domain, watch: Token, provider: u32, usable: bool) -> Queue<Request> {
-    deliver(root, watch, c::Delivery::OwnerAccounts(Box::new(demo::accounts(Some(provider), usable, false))))
+    deliver(root, watch, c::Delivery::OwnerAccounts(Box::new(playground::accounts(Some(provider), usable, false))))
 }
 fn moved(mut out: Queue<Request>, replace: bool) -> bool {
     while let Some(request) = out.pop() {
@@ -321,9 +321,9 @@ fn a_new_playgrounds_project_is_selected_when_its_membership_arrives() {
     deliver(&mut root, me, c::Delivery::Me(Box::new(frame.clone())));
     assert_eq!(root.pages().project(), Some(f::PROJECT + 1));
     event(&mut root, Event::Act { action: Action::Pages(Act::Playground) });
-    demo::deliver_demo_read(
+    playground::deliver_playground_read(
         &mut root,
-        Readout::Family { family: wire::FORGE, record: Some(demo::answer(b"Change the title")) },
+        Readout::Family { family: wire::FORGE, record: Some(playground::answer(b"Change the title")) },
     );
     assert_eq!(root.pages().project(), Some(f::PROJECT + 1));
     let other = frame.projects.get(0).unwrap().clone();
@@ -343,7 +343,7 @@ fn retry_playground_requires_a_failure_and_retries_the_start() {
     event(&mut root, Event::Act { action: Action::Pages(Act::RetryPlayground) });
     assert!(!root.forge().playground_starting());
     event(&mut root, Event::Act { action: Action::Pages(Act::Playground) });
-    let first = root.forge().demo_request().unwrap();
+    let first = root.forge().playground_request().unwrap();
     crate::route::told(
         &mut root,
         &f::env(&f::limits()),
@@ -375,7 +375,7 @@ fn retry_playground_requires_a_failure_and_retries_the_start() {
     event(&mut root, Event::Act { action: Action::Pages(Act::RetryPlayground) });
     assert!(root.forge().playground_starting());
     assert!(root.forge().playground_failure().is_none());
-    assert_ne!(root.forge().demo_request().unwrap(), first);
+    assert_ne!(root.forge().playground_request().unwrap(), first);
 }
 #[test]
 fn the_model_step_sends_the_accounts_acts() {
@@ -459,9 +459,9 @@ fn an_invalid_forges_document_counts_as_no_forge() {
 fn the_playground_forge_shows_while_the_forge_half_holds() {
     let (mut root, _, accounts, forges) = opened(true, Step::Model { way: None });
     let watch = forges.unwrap();
-    demo::deliver_demo_read(
+    playground::deliver_playground_read(
         &mut root,
-        Readout::Family { family: wire::FORGE, record: Some(demo::answer(b"Change the title")) },
+        Readout::Family { family: wire::FORGE, record: Some(playground::answer(b"Change the title")) },
     );
     event(&mut root, Event::Act { action: Action::Pages(Act::Playground) });
     account(&mut root, accounts, 18, true);
@@ -472,11 +472,11 @@ fn the_playground_forge_shows_while_the_forge_half_holds() {
 }
 
 #[test]
-fn without_a_demo_model_usable_reads_the_documents_usable() {
+fn without_a_playground_model_usable_reads_the_documents_usable() {
     for (document_usable, line_usable) in [(true, false), (false, true), (false, false), (true, true)] {
         let (mut root, _, accounts, _) = opened(false, Step::Model { way: None });
         answer(&mut root, false);
-        let mut document = demo::accounts(Some(18), line_usable, false);
+        let mut document = playground::accounts(Some(18), line_usable, false);
         document.usable = document_usable;
         deliver(&mut root, accounts, c::Delivery::OwnerAccounts(Box::new(document)));
         assert_eq!(pages::welcome::model_usable(&root), Some(document_usable));
@@ -484,13 +484,13 @@ fn without_a_demo_model_usable_reads_the_documents_usable() {
 }
 
 #[test]
-fn with_a_demo_model_usable_reads_other_providers_lines() {
+fn with_a_playground_model_usable_reads_other_providers_lines() {
     for (provider, document_usable, line_usable, expected) in
         [(18, true, false, false), (18, false, true, true), (17, true, true, false)]
     {
         let (mut root, _, accounts, _) = opened(false, Step::Model { way: None });
         answer(&mut root, true);
-        let mut document = demo::accounts(Some(provider), line_usable, false);
+        let mut document = playground::accounts(Some(provider), line_usable, false);
         document.usable = document_usable;
         deliver(&mut root, accounts, c::Delivery::OwnerAccounts(Box::new(document)));
         assert_eq!(pages::welcome::model_usable(&root), Some(expected));
@@ -501,24 +501,24 @@ fn with_a_demo_model_usable_reads_other_providers_lines() {
 fn ready_and_the_strip_count_an_owners_deployment_model() {
     let (mut root, _, accounts, _) = opened(true, Step::Model { way: None });
     account(&mut root, accounts, 18, false);
-    let mut out = demo::deliver_demo_read(
+    let mut out = playground::deliver_playground_read(
         &mut root,
-        Readout::Family { family: wire::FORGE, record: Some(demo::answer(b"Change the title")) },
+        Readout::Family { family: wire::FORGE, record: Some(playground::answer(b"Change the title")) },
     );
-    let watch = demo::deployment_watch(&mut out).expect("owner start opens the deployment watch");
+    let watch = playground::deployment_watch(&mut out).expect("owner start opens the deployment watch");
     let mut out =
-        demo::deliver_deployment(&mut root, watch, demo::deployment(&[demo::DEMO_ACCOUNT, demo::OTHER_ACCOUNT]));
-    assert!(demo::removed(&mut out).is_empty(), "removal waits for the running read");
+        playground::deliver_deployment(&mut root, watch, playground::deployment(&[playground::PLAYGROUND_ACCOUNT, playground::OTHER_ACCOUNT]));
+    assert!(playground::removed(&mut out).is_empty(), "removal waits for the running read");
     assert_eq!(pages::welcome::model_usable(&root), Some(true));
 
-    let mut out = demo::deliver_demo_read(
+    let mut out = playground::deliver_playground_read(
         &mut root,
-        Readout::Family { family: wire::FORGE, record: Some(demo::answer(b"Change the title")) },
+        Readout::Family { family: wire::FORGE, record: Some(playground::answer(b"Change the title")) },
     );
-    assert!(demo::removed(&mut out).is_empty());
+    assert!(playground::removed(&mut out).is_empty());
     assert_eq!(pages::welcome::model_usable(&root), Some(true), "the watch keeps the model after removal");
-    demo::deliver_deployment(&mut root, watch, demo::deployment(&[demo::OTHER_ACCOUNT]));
-    assert_eq!(pages::welcome::model_usable(&root), Some(true), "removed demo account changes nothing");
+    playground::deliver_deployment(&mut root, watch, playground::deployment(&[playground::OTHER_ACCOUNT]));
+    assert_eq!(pages::welcome::model_usable(&root), Some(true), "removed playground account changes nothing");
 
     let (mut member, _, accounts, _) = opened(false, Step::Model { way: None });
     answer(&mut member, true);

@@ -1,64 +1,12 @@
-//! Reader bridges; t-view-drop removes them.
-pub(crate) use super::playground::told;
-pub use super::playground::{StartAnswer, StartFailure, answer};
+//! Account facts for the playground (temper/docs/design/draft/playground-reset.md, 6.3).
 use super::{Request, Side};
 use jig_client::{Client, Handle, Latest, contract as c};
-use skein_lib::{Queue, Token};
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum DemoState {
-    NotStarted,
-    Running,
-    Ended,
-}
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct RetiredDemo {
-    pub forge: u16,
-    pub provider: u32,
-    pub project: u32,
-}
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Halves {
-    pub model: bool,
-    pub forge: bool,
-}
-pub(crate) fn current(side: &Side, _accounts: Option<&c::OwnerAccounts>, _client: &Client) -> Halves {
-    let running = side.playground().is_some();
-    Halves { model: running, forge: running }
-}
-
-impl Side {
-    #[must_use]
-    pub fn serves_pages(&self, forge: u16) -> bool {
-        match self.playground() {
-            Some(playground) => playground.forge != forge,
-            None => true,
-        }
-    }
-    #[must_use]
-    pub fn demo_request(&self) -> Option<Token> {
-        Some(self.playground.start.as_ref()?.request)
-    }
-    #[must_use]
-    pub const fn retired_demo(&self) -> Option<RetiredDemo> {
-        None
-    }
-    #[must_use]
-    pub fn demo_provider(&self) -> Option<u32> {
-        self.playground_provider()
-    }
-}
-pub(crate) fn progress(
-    side: &mut Side,
-    _accounts: Option<&c::OwnerAccounts>,
-    client: &Client,
-    out: &mut Queue<Request>,
-) {
-    watch_deployment(side, client, out);
-}
-/// A usable source of a provider other than the demo's, or any provider without a demo.
+use skein_lib::Queue;
+pub(crate) fn progress(side: &mut Side, client: &Client, out: &mut Queue<Request>) { watch_deployment(side, client, out); }
+/// A usable source of a provider other than the playground's, or any provider without a playground.
 #[must_use]
-pub fn usable_account(line: &c::OwnerAccountLine, demo_provider: Option<u32>) -> bool {
-    if demo_provider.is_some() && line.provider == demo_provider {
+pub fn usable_account(line: &c::OwnerAccountLine, playground_provider: Option<u32>) -> bool {
+    if playground_provider.is_some() && line.provider == playground_provider {
         return false;
     }
     usable_sources(&line.sources)
@@ -73,38 +21,38 @@ fn usable_sources(sources: &skein_lib::List<c::OwnerAccountSource>) -> bool {
     false
 }
 
-/// A usable model of a provider other than the demo's: one of the person's `accounts`
+/// A usable model of a provider other than the playground's: one of the person's `accounts`
 /// lines, or, for an owner, a deployment-held account of its delivered, uncut
 /// `deployment` document (client/README.md, 3.5 and 4.8).
 #[must_use]
 pub fn other_model_usable(
     accounts: &c::OwnerAccounts,
     deployment: Option<&c::OwnerDeployment>,
-    demo_provider: u32,
+    playground_provider: u32,
 ) -> bool {
     for line in &accounts.accounts {
-        if usable_account(line, Some(demo_provider)) {
+        if usable_account(line, Some(playground_provider)) {
             return true;
         }
     }
     match deployment {
-        Some(deployment) => deployment_model(deployment, demo_provider).is_some(),
+        Some(deployment) => deployment_model(deployment, playground_provider).is_some(),
         None => false,
     }
 }
 
-/// The first deployment-held account of another provider than the demo's that is usable
+/// The first deployment-held account of another provider than the playground's that is usable
 /// and uncut, in an owner's delivered, uncut `deployment` (client/README.md, 3.5, 4.8).
 #[must_use]
 #[expect(clippy::manual_find, reason = "step code uses bounded loops without closures")]
-pub fn deployment_model(deployment: &c::OwnerDeployment, demo_provider: u32) -> Option<&c::OwnerAccount> {
+pub fn deployment_model(deployment: &c::OwnerDeployment, playground_provider: u32) -> Option<&c::OwnerAccount> {
     if deployment.cut {
         return None;
     }
     for account in &deployment.accounts {
         if !account.cut
             && account.holder == c::OwnerAccountHolder::Deployment
-            && account.provider != Some(demo_provider)
+            && account.provider != Some(playground_provider)
             && usable_sources(&account.sources)
         {
             return Some(account);
@@ -113,7 +61,7 @@ pub fn deployment_model(deployment: &c::OwnerDeployment, demo_provider: u32) -> 
     None
 }
 
-/// The owner's delivered, uncut deployment, through the demo's one live watch.
+/// The owner's delivered, uncut deployment, through the playground's one live watch.
 #[must_use]
 pub fn owner_deployment<'a>(side: &Side, client: &'a Client) -> Option<&'a c::OwnerDeployment> {
     if !owner(client) {
@@ -160,18 +108,3 @@ fn owner(client: &Client) -> bool {
     me.deployment_role == Some(c::HeldRole::Owner)
 }
 
-/// t-view-drop removes the ctl reader bridge.
-#[must_use]
-pub fn ask(limits: &super::Limits) -> Option<jig_client::Ask> {
-    use temper_client_protocol_wire::{self as wire, v1 as w};
-    let record =
-        w::Requesting::new(&super::wire_limits(limits)?, w::RequestingParts { request: w::Request::StartDemo }).ok()?;
-    Some(jig_client::Ask::Family {
-        scope: c::Scope::Deployment,
-        record: jig_client::Family {
-            family: wire::FORGE,
-            version: wire::CLIENT_VERSION,
-            bytes: wire::requesting(&record),
-        },
-    })
-}

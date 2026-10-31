@@ -495,7 +495,7 @@ fn first_repository_decodes_each_state_project_and_creation_step() {
 }
 
 #[test]
-fn demo_start_outcomes_fit_neither_adopt_nor_setup() {
+fn playground_start_outcomes_fit_neither_adopt_nor_setup() {
     let link =
         jig_client_protocol_link::Limits::new(fixtures::limits().client.domain, fixtures::limits().client.exchanges)
             .unwrap();

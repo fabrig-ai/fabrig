@@ -1,12 +1,9 @@
 //! Kept forges and their navigation dot (temper/docs/design/draft/playground-reset.md, 3, 6.1).
 use super::{
-    Demo, connect,
+    Playground, connect,
     forges::{Connection, Mode, Row, State},
 };
-use crate::{
-    Domain, Step,
-    pages::{accounts, welcome},
-};
+use crate::Domain;
 use skein_lib::List;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -58,15 +55,12 @@ pub fn dot(state: &State, playground: Option<u16>) -> Dot {
     dot
 }
 #[must_use]
-pub fn playground(root: &Domain) -> Option<(&Demo, &Row)> {
-    let (demo, halves) = root.demo()?;
-    if !halves.forge {
-        return None;
-    }
+pub fn playground(root: &Domain) -> Option<(&Playground, &Row)> {
+    let playground = root.forge().playground()?;
     if let State::Rows(rows) = root.forges() {
         for row in rows {
-            if row.number == demo.forge {
-                return Some((demo, row));
+            if row.number == playground.forge {
+                return Some((playground, row));
             }
         }
     }

@@ -13,14 +13,14 @@ pub(crate) mod welcome;
 
 pub(crate) fn project_name(
     me: Option<&jig_client::contract::Me>,
-    demo: Option<&temper_client_domain::forge::Demo>,
+    playground: Option<&temper_client_domain::forge::Playground>,
     project: u32,
     words: &crate::words::Words,
 ) -> Option<Box<[u8]>> {
-    if let Some(demo) = demo
-        && demo.project == project
+    if let Some(playground) = playground
+        && playground.project == project
     {
-        return Some(words.say(crate::words::Word::Demo, &[]));
+        return Some(words.say(crate::words::Word::Playground, &[]));
     }
     for row in &me?.projects {
         if row.project == project {

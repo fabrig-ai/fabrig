@@ -131,14 +131,14 @@ impl ConnectModel {
     }
     #[expect(
         clippy::too_many_arguments,
-        reason = "the page resolves its way against borrowed identity, address and demo facts"
+        reason = "the page resolves its way against borrowed identity, address and playground facts"
     )]
     pub(crate) fn act(
         &mut self,
         client: &Client,
         current: &Address,
         chosen: Option<Way>,
-        demo: Option<u32>,
+        playground: Option<u32>,
         act: Act,
         serial: &mut u64,
         out: &mut Queue<Output>,
@@ -183,7 +183,7 @@ impl ConnectModel {
             Act::Cancel => self.request.cancel(),
             Act::SignIn { name, way } | Act::SignInElsewhere { name, way } => {
                 if model_way(way).kind != WayKind::SignIn
-                    || !accounts::ways(&me.providers, demo, self.holder).as_slice().contains(&way)
+                    || !accounts::ways(&me.providers, playground, self.holder).as_slice().contains(&way)
                 {
                     return;
                 }

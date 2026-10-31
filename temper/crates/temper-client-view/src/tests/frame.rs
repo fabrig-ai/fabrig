@@ -35,8 +35,8 @@ fn the_project_chosen_is_the_first_of_me_at_start() {
     assert_eq!(root.pages().project(), Some(fixtures::PROJECT));
 }
 #[test]
-fn the_running_demo_project_button_is_named_playground() {
-    let root = fixtures::demo_root(
+fn the_running_playground_project_button_is_named_playground() {
+    let root = fixtures::playground_root(
         temper_client_domain::Address::Chats { filter: ChatsFilter::All, start: false },
         fixtures::PROJECT,
         true,
@@ -44,7 +44,7 @@ fn the_running_demo_project_button_is_named_playground() {
     for words in [fixtures::words(), fixtures::browser_words()] {
         let mut view = fixtures::view_of(words);
         fixtures::build(&mut view, &root);
-        let button = fixtures::find(view.tree(), Role::Button, b"Playground").expect("demo project");
+        let button = fixtures::find(view.tree(), Role::Button, b"Playground").expect("playground project");
         assert_eq!(
             crate::act(&mut view, button, Act::Press),
             Some(Action::Pages(pages::Act::Project { project: fixtures::PROJECT }))
@@ -847,15 +847,15 @@ fn accounts_navigation_uses_only_the_first_supplied_source_even_when_cut() {
 }
 
 #[test]
-fn accounts_navigation_ignores_the_demo_provider_and_other_holders() {
+fn accounts_navigation_ignores_the_playground_provider_and_other_holders() {
     use jig_client::contract as c;
-    let (mut root, _, _, _, watch) = fixtures::root_at_with_demo(
+    let (mut root, _, _, _, watch) = fixtures::root_at_with_playground(
         temper_client_domain::Address::Accounts,
         &fixtures::domain_limits(),
         b"Shop",
         Some((fixtures::PROJECT, true)),
     );
-    let provider = root.demo().unwrap().0.provider;
+    let provider = root.playground().unwrap().0.provider;
     let mut doc = navigation_accounts(&[c::OwnerAccountState::SignInAgain; 3]);
     doc.accounts.get_mut(0).unwrap().provider = Some(provider);
     doc.accounts.get_mut(1).unwrap().holder = c::OwnerAccountHolder::Deployment;
@@ -1009,7 +1009,7 @@ fn the_banner_is_one_line_with_its_set_up_link() {
         Address::Welcome { step: Step::Welcome },
         Address::Chats { filter: ChatsFilter::All, start: false },
     ] {
-        let mut root = f::demo_root(Address::Chats { filter: ChatsFilter::All, start: false }, f::PROJECT, true);
+        let mut root = f::playground_root(Address::Chats { filter: ChatsFilter::All, start: false }, f::PROJECT, true);
         f::root_event(
             &mut root,
             temper_client_domain::Event::Went { place: temper_client_domain::Place::Address(address) },
@@ -1046,7 +1046,7 @@ fn the_banner_is_one_line_with_its_set_up_link() {
 fn the_link_sends_end_playground_and_shows_leaving() {
     use super::fixtures as f;
     use temper_client_domain::{Address, Event, forge};
-    let mut root = f::demo_root(Address::Forges, f::PROJECT, true);
+    let mut root = f::playground_root(Address::Forges, f::PROJECT, true);
     let mut view = f::page_view(&root);
     let link = f::find(view.tree(), Role::Link, b"set up temper").unwrap();
     let action = crate::act(&mut view, link, Act::Press).unwrap();

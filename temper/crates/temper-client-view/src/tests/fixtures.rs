@@ -253,25 +253,25 @@ pub(super) fn root_at_full(
     limits: &Limits,
     project_name: &[u8],
 ) -> (temper_client_domain::Domain, Token, Option<Token>, Option<Token>, Option<Token>) {
-    root_at_with_demo(address, limits, project_name, None)
+    root_at_with_playground(address, limits, project_name, None)
 }
 #[expect(clippy::manual_map, reason = "fixtures use the same closure-free steps as the client")]
-pub(super) fn root_at_with_demo(
+pub(super) fn root_at_with_playground(
     address: temper_client_domain::Address,
     limits: &Limits,
     project_name: &[u8],
-    demo: Option<(u32, bool)>,
+    playground: Option<(u32, bool)>,
 ) -> (temper_client_domain::Domain, Token, Option<Token>, Option<Token>, Option<Token>) {
     let state = if let temper_client_domain::Address::Welcome { .. } = address {
-        w::DemoState::NotStarted
+        w::PlaygroundState::Starting
     } else {
-        w::DemoState::Running
+        w::PlaygroundState::Running
     };
     root_at_with_activity(
         address,
         limits,
         project_name,
-        match demo {
+        match playground {
             Some((project, model)) => Some((project, model, state)),
             None => None,
         },
@@ -283,12 +283,12 @@ fn root_at_with_activity(
     address: temper_client_domain::Address,
     limits: &Limits,
     project_name: &[u8],
-    demo: Option<(u32, bool, w::DemoState)>,
+    playground: Option<(u32, bool, w::PlaygroundState)>,
     activity: Option<c::ActivityPage>,
     forge_rows: Option<List<w::ForgeRow>>,
 ) -> (temper_client_domain::Domain, Token, Option<Token>, Option<Token>, Option<Token>) {
     let (root, me, page, tree, accounts, _) =
-        root_at_with_forges(address, limits, project_name, demo, activity, forge_rows);
+        root_at_with_forges(address, limits, project_name, playground, activity, forge_rows);
     (root, me, page, tree, accounts)
 }
 
@@ -297,7 +297,7 @@ pub(super) fn root_at_with_forges(
     address: temper_client_domain::Address,
     limits: &Limits,
     project_name: &[u8],
-    demo: Option<(u32, bool, w::DemoState)>,
+    playground: Option<(u32, bool, w::PlaygroundState)>,
     activity: Option<c::ActivityPage>,
     forge_rows: Option<List<w::ForgeRow>>,
 ) -> (temper_client_domain::Domain, Token, Option<Token>, Option<Token>, Option<Token>, Option<Token>) {
@@ -425,7 +425,7 @@ pub(super) fn root_at_with_forges(
         );
     }
 
-    if demo.is_some() || welcome || forge_rows_answered {
+    if playground.is_some() || welcome || forge_rows_answered {
         let mut read = None;
         while let Some(request) = out.pop() {
             if let Request::Client {
@@ -438,8 +438,8 @@ pub(super) fn root_at_with_forges(
                 read = Some(token);
             }
         }
-        if let Some((project, model, state)) = demo {
-            deliver_demo(
+        if let Some((project, model, state)) = playground {
+            deliver_playground(
                 &mut root,
                 read.expect("live link reads playground"),
                 account_watch.expect("accounts watch"),
@@ -448,12 +448,12 @@ pub(super) fn root_at_with_forges(
                 state,
             );
         } else {
-            deliver_no_demo(&mut root, read.expect("playground read"), account_watch.expect("accounts watch"));
+            deliver_no_playground(&mut root, read.expect("playground read"), account_watch.expect("accounts watch"));
         }
     }
     (root, watch.expect("me opened"), inbox_watch, tree_watch, account_watch, forges)
 }
-fn deliver_no_demo(root: &mut temper_client_domain::Domain, read: Token, watch: Token) {
+fn deliver_no_playground(root: &mut temper_client_domain::Domain, read: Token, watch: Token) {
     deliver_no_playground(root, read);
     root_event(
         root,
@@ -1130,29 +1130,29 @@ fn fixture_me(project_name: &[u8]) -> c::Me {
         deployment_role: None,
     }
 }
-pub const DEMO_CUE: &[u8] = b"Change the title";
-pub const DEMO_OTHER_CUE: &[u8] = b"Add a test";
-pub fn demo_root(address: temper_client_domain::Address, project: u32, model: bool) -> temper_client_domain::Domain {
-    demo_choice_root(address, project, model, None)
+pub const PLAYGROUND_CUE: &[u8] = b"Change the title";
+pub const PLAYGROUND_OTHER_CUE: &[u8] = b"Add a test";
+pub fn playground_root(address: temper_client_domain::Address, project: u32, model: bool) -> temper_client_domain::Domain {
+    playground_choice_root(address, project, model, None)
 }
-pub fn demo_choice_root(
+pub fn playground_choice_root(
     address: temper_client_domain::Address,
     project: u32,
     model: bool,
     llm: Option<c::LlmChoice>,
 ) -> temper_client_domain::Domain {
-    demo_frame_root(address, project, model, llm, None)
+    playground_frame_root(address, project, model, llm, None)
 }
-pub fn demo_frame_root(
+pub fn playground_frame_root(
     address: temper_client_domain::Address,
     project: u32,
     model: bool,
     llm: Option<c::LlmChoice>,
     frame: Option<c::Me>,
 ) -> temper_client_domain::Domain {
-    demo_frame_with_watch(address, project, model, llm, frame).0
+    playground_frame_with_watch(address, project, model, llm, frame).0
 }
-pub fn demo_frame_with_watch(
+pub fn playground_frame_with_watch(
     address: temper_client_domain::Address,
     project: u32,
     model: bool,
@@ -1160,7 +1160,7 @@ pub fn demo_frame_with_watch(
     frame: Option<c::Me>,
 ) -> (temper_client_domain::Domain, Token) {
     let (mut root, me_watch, task_watch, _, accounts_watch) =
-        root_at_with_demo(address.clone(), &domain_limits(), b"Project", Some((project, model)));
+        root_at_with_playground(address.clone(), &domain_limits(), b"Project", Some((project, model)));
     let template = chat::messaging_root();
     let mut me = match frame {
         Some(me) => me,
@@ -1168,7 +1168,7 @@ pub fn demo_frame_with_watch(
     };
     if me.providers.is_empty() {
         me.providers = List::with_capacity(1);
-        me.providers.push(demo_provider()).unwrap();
+        me.providers.push(playground_provider()).unwrap();
     }
     let mut models = List::with_capacity(2);
     for name in [b"demo".as_slice(), b"selected"] {
@@ -1187,7 +1187,7 @@ pub fn demo_frame_with_watch(
     me.projects.get_mut(0).unwrap().models = models;
     let mut charters = List::with_capacity(1);
     charters.push(1).expect("chat charter");
-    me.projects.get_mut(0).expect("demo project").creating = Some(c::Creating {
+    me.projects.get_mut(0).expect("playground project").creating = Some(c::Creating {
         within: c::CreateBounds {
             authority: Box::new(c::OwnerAuthorityDocument::complete(c::OwnerAuthority {
                 models: None,
@@ -1250,12 +1250,12 @@ pub fn demo_frame_with_watch(
     (root, accounts_watch.unwrap())
 }
 
-/// T1 keeps its demo account after another provider's key becomes usable.
-pub fn demo_kept_root() -> temper_client_domain::Domain {
+/// T1 keeps its playground account after another provider's key becomes usable.
+pub fn playground_kept_root() -> temper_client_domain::Domain {
     let address = temper_client_domain::Address::Chat { task: 1 };
     let (mut root, me_watch, task_watch, _, account_watch) =
-        root_at_with_demo(address.clone(), &domain_limits(), b"Shop", Some((PROJECT, false)));
-    let template = demo_root(address, PROJECT, false);
+        root_at_with_playground(address.clone(), &domain_limits(), b"Shop", Some((PROJECT, false)));
+    let template = playground_root(address, PROJECT, false);
     let mut me = template.pages().me(template.client()).unwrap().clone();
     let mut models = List::with_capacity(3);
     let mut other = me.projects.get(0).unwrap().models.get(0).unwrap().clone();
@@ -1308,11 +1308,11 @@ pub fn demo_kept_root() -> temper_client_domain::Domain {
     root
 }
 
-pub fn hidden_demo_root(ready: Option<c::Readiness>, payer: u64) -> temper_client_domain::Domain {
+pub fn hidden_playground_root(ready: Option<c::Readiness>, payer: u64) -> temper_client_domain::Domain {
     let address = temper_client_domain::Address::Chat { task: 1 };
     let (mut root, me_watch, task_watch, _, account_watch) =
-        root_at_with_demo(address.clone(), &domain_limits(), b"Shop", Some((PROJECT, true)));
-    let template = demo_root(address, PROJECT, true);
+        root_at_with_playground(address.clone(), &domain_limits(), b"Shop", Some((PROJECT, true)));
+    let template = playground_root(address, PROJECT, true);
     let me = template.pages().me(template.client()).unwrap().clone();
     let mut task = template.pages().chat().unwrap().task(template.client()).unwrap().clone();
     task.llm = Some(c::LlmChoice {
@@ -1321,7 +1321,7 @@ pub fn hidden_demo_root(ready: Option<c::Readiness>, payer: u64) -> temper_clien
         subagents: List::with_capacity(0),
     });
     task.budget.funder = c::Funder::Pool { project: PROJECT, person: payer, period: 1 };
-    let mut doc = demo_accounts(true);
+    let mut doc = playground_accounts(true);
     doc.accounts.clear();
     match ready {
         Some(ready) => doc.readiness.get_mut(0).unwrap().readiness = ready,
@@ -1344,7 +1344,7 @@ pub fn hidden_demo_root(ready: Option<c::Readiness>, payer: u64) -> temper_clien
     root
 }
 
-fn demo_provider() -> c::ProviderOffer {
+fn playground_provider() -> c::ProviderOffer {
     c::ProviderOffer {
         provider: 17,
         name: c::DocumentText::complete(c::Text::new(Box::from(b"demo".as_slice()), 32).unwrap()),
@@ -1359,7 +1359,7 @@ fn demo_provider() -> c::ProviderOffer {
     }
 }
 
-fn demo_accounts(model: bool) -> c::OwnerAccounts {
+fn playground_accounts(model: bool) -> c::OwnerAccounts {
     let mut rows = List::with_capacity(2);
     let mut sources = List::with_capacity(1);
     sources
@@ -1383,7 +1383,7 @@ fn demo_accounts(model: bool) -> c::OwnerAccounts {
         provider: Some(17),
         provider_name: None,
         manage_usage: None,
-        display: c::DocumentText::complete(c::Text::new(Box::from(b"Demo".as_slice()), 32).unwrap()),
+        display: c::DocumentText::complete(c::Text::new(Box::from(b"Playground".as_slice()), 32).unwrap()),
         holder: c::OwnerAccountHolder::Deployment,
         sources,
         cut: false,
@@ -1436,8 +1436,8 @@ pub fn deliver_playground(
     project: Option<u32>,
 ) {
     let mut cues = List::with_capacity(2);
-    cues.push(Box::from(DEMO_CUE)).expect("first cue");
-    cues.push(Box::from(DEMO_OTHER_CUE)).expect("second cue");
+    cues.push(Box::from(PLAYGROUND_CUE)).expect("first cue");
+    cues.push(Box::from(PLAYGROUND_OTHER_CUE)).expect("second cue");
     let answer = w::PlaygroundAnswer::new(
         &w::CEILINGS,
         w::PlaygroundAnswerParts {
@@ -1469,28 +1469,28 @@ fn playground_read_answer(root: &mut temper_client_domain::Domain, read: Token, 
         },
     );
 }
-pub fn demo_read_answer(root: &mut temper_client_domain::Domain, read: Token, project: u32, state: w::DemoState) {
+pub fn playground_read_answer(root: &mut temper_client_domain::Domain, read: Token, project: u32, state: w::PlaygroundState) {
     match state {
-        w::DemoState::NotStarted => {
+        w::PlaygroundState::Starting => {
             deliver_playground(root, read, w::PlaygroundState::Starting, wire::FORGE, Some(project));
         }
-        w::DemoState::Running => {
+        w::PlaygroundState::Running => {
             deliver_playground(root, read, w::PlaygroundState::Running, wire::FORGE, Some(project));
         }
-        w::DemoState::Ended => deliver_no_playground(root, read),
+        w::PlaygroundState::Resetting => deliver_no_playground(root, read),
     }
 }
 
-fn deliver_demo(
+fn deliver_playground(
     root: &mut temper_client_domain::Domain,
     read: Token,
     watch: Token,
     project: u32,
     model: bool,
-    state: w::DemoState,
+    state: w::PlaygroundState,
 ) {
-    demo_read_answer(root, read, project, state);
-    let accounts = demo_accounts(model);
+    playground_read_answer(root, read, project, state);
+    let accounts = playground_accounts(model);
     root_event(
         root,
         temper_client_domain::Event::Client {
@@ -1506,10 +1506,10 @@ fn deliver_demo(
 
 pub mod panel;
 
-/// First-run facts answered, with or without the deployment's demo.
-pub fn welcome_root(step: temper_client_domain::Step, demo: bool) -> temper_client_domain::Domain {
+/// First-run facts answered, with or without the deployment's playground.
+pub fn welcome_root(step: temper_client_domain::Step, playground: bool) -> temper_client_domain::Domain {
     let address = temper_client_domain::Address::Welcome { step };
-    root_at_with_demo(address, &domain_limits(), b"Shop", if demo { Some((PROJECT, true)) } else { None }).0
+    root_at_with_playground(address, &domain_limits(), b"Shop", if playground { Some((PROJECT, true)) } else { None }).0
 }
 
 /// A flow's rows delivered through the session watch.
@@ -1531,32 +1531,32 @@ pub fn welcome_account(root: &mut temper_client_domain::Domain, watch: Token) {
             event: jig_client::Event::Up {
                 up: jig_client::Up::Watched {
                     watch,
-                    event: c::WatchEvent::Delivered(c::Delivery::OwnerAccounts(Box::new(demo_accounts(true)))),
+                    event: c::WatchEvent::Delivered(c::Delivery::OwnerAccounts(Box::new(playground_accounts(true)))),
                 },
             },
         },
     );
 }
 
-/// A demo and explicit forge rows share the session watch.
-pub fn demo_forges_root(
+/// A playground and explicit forge rows share the session watch.
+pub fn playground_forges_root(
     address: temper_client_domain::Address,
     rows: List<w::ForgeRow>,
 ) -> temper_client_domain::Domain {
-    demo_forges_state_root(address, rows, w::DemoState::Running)
+    playground_forges_state_root(address, rows, w::PlaygroundState::Running)
 }
-pub fn demo_forges_state_root(
+pub fn playground_forges_state_root(
     address: temper_client_domain::Address,
     rows: List<w::ForgeRow>,
-    state: w::DemoState,
+    state: w::PlaygroundState,
 ) -> temper_client_domain::Domain {
     root_at_with_activity(address, &domain_limits(), b"Shop", Some((PROJECT, true, state)), None, Some(rows)).0
 }
 
-pub fn demo_state_root(address: temper_client_domain::Address, state: w::DemoState) -> temper_client_domain::Domain {
+pub fn playground_state_root(address: temper_client_domain::Address, state: w::PlaygroundState) -> temper_client_domain::Domain {
     root_at_with_activity(address, &domain_limits(), b"Shop", Some((PROJECT, true, state)), None, None).0
 }
-pub fn demo_start_attempt(root: &mut temper_client_domain::Domain) -> Token {
+pub fn playground_start_attempt(root: &mut temper_client_domain::Domain) -> Token {
     let limits = domain_limits();
     let mut out = Queue::uncapped();
     temper_client_domain::step(
@@ -1574,14 +1574,14 @@ pub fn demo_start_attempt(root: &mut temper_client_domain::Domain) -> Token {
                     down: jig_client::Down::Send { attempt, request: jig_client::Ask::Family { record, .. }, .. },
                 },
         } = request
-            && *wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request() == w::Request::StartDemo
+            && *wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request() == w::Request::StartPlayground
         {
             return attempt;
         }
     }
-    panic!("demo start sent");
+    panic!("playground start sent");
 }
-pub fn demo_start_answer(
+pub fn playground_start_answer(
     root: &mut temper_client_domain::Domain,
     attempt: Token,
     outcome: w::Outcome,

@@ -46,10 +46,10 @@ pub(crate) fn main(
         State::Ended => crate::cards::refusal(b, w, &jig_client::contract::Refusal::NotOffered),
         State::Rows(_) => {
             connect::text(b, w, Role::Paragraph, Word::ForgesDescription);
-            if !root.forge().demo_running() {
+            if !root.forge().playground_running() {
                 connect::link(b, w, bindings, Word::AddForge, Address::ConnectForge { forge: None });
             }
-            if count == 0 && !root.forge().demo_running() {
+            if count == 0 && !root.forge().playground_running() {
                 connect::text(b, w, Role::Paragraph, Word::NoForges);
                 connect::link(b, w, bindings, Word::ConnectForge, Address::ConnectForge { forge: None });
             }
@@ -58,12 +58,12 @@ pub(crate) fn main(
                     personal(b, root, w, bindings, forge, row, sign_in);
                 }
             }
-            if let Some((demo, row)) = listed::playground(root) {
+            if let Some((playground, row)) = listed::playground(root) {
                 connect::text(b, w, Role::Heading { level: 2 }, Word::ForgePlaygroundHeading);
                 b.open(Role::Disclosure);
                 b.style(look::FORGE_ROW);
                 b.name(&w.say(Word::ForgePlayground, &[]));
-                b.description(&forge::words::full_name(&demo.owner, &demo.name));
+                b.description(&forge::words::full_name(&playground.owner, &playground.name));
                 account(b, w, row);
                 b.close();
             }

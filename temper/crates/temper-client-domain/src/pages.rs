@@ -37,7 +37,7 @@ pub struct Pages {
     connect_model: Option<Box<connect_model::ConnectModel>>,
     pub(crate) playground_provider: Option<u32>,
     pub(crate) playground_choice: PlaygroundChoice,
-    pub(crate) demo_model: bool,
+    pub(crate) playground_model: bool,
     pub(crate) choice: choice::Draft,
     accounts_open: bool,
     welcome: Option<welcome::Welcome>,
@@ -169,7 +169,7 @@ impl Pages {
             connect_model: None,
             playground_provider: None,
             playground_choice: PlaygroundChoice::Idle,
-            demo_model: false,
+            playground_model: false,
             choice: choice::Draft::default(),
             accounts_open: false,
             welcome: None,
@@ -343,7 +343,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
                 pages.connect_model = Some(Box::new(connect_model::ConnectModel::default()));
             }
             if let Some(page) = &mut pages.connect_model {
-                page.playground |= pages.demo_model;
+                page.playground |= pages.playground_model;
                 page.act(client, &pages.address, chosen, pages.playground_provider, act, &mut pages.serial, out);
             }
         }

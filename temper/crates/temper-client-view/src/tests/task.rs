@@ -15,8 +15,8 @@ const ONE: u32 = 1;
 const NO_ROWS: u32 = 0;
 const HEADINGS: u32 = 5;
 #[test]
-fn the_task_header_names_the_demo_project_playground() {
-    let (mut root, _, watch, _, _) = fixtures::root_at_with_demo(
+fn the_task_header_names_the_playground_project_playground() {
+    let (mut root, _, watch, _, _) = fixtures::root_at_with_playground(
         temper_client_domain::Address::Task { task: TASK, filter: PlanFilter::All },
         &fixtures::domain_limits(),
         b"Project 1",

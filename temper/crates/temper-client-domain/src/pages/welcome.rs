@@ -112,9 +112,9 @@ pub fn model_usable(root: &Domain) -> Option<bool> {
     };
     let Some(accounts) = accounts else { return Some(false) };
     let Some(provider) = root.forge().playground_provider() else { return Some(accounts.usable) };
-    Some(forge::demo::other_model_usable(
+    Some(forge::model::other_model_usable(
         accounts,
-        forge::demo::owner_deployment(root.forge(), root.client()),
+        forge::model::owner_deployment(root.forge(), root.client()),
         provider,
     ))
 }

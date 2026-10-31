@@ -300,7 +300,7 @@ fn the_welcome_tagline_and_lead_are_named_and_emphasize_what_and_how() {
     );
 }
 #[test]
-fn a_document_with_no_demo_has_neither_the_playground_card_nor_the_closing_line() {
+fn a_document_with_no_playground_has_neither_the_playground_card_nor_the_closing_line() {
     let root = f::welcome_root(Step::Welcome, false);
     assert!(root.pages().welcome().unwrap().decided);
     let view = f::page_view(&root);
@@ -372,12 +372,12 @@ fn the_model_step_offers_the_accounts_ways() {
     assert!(view.tree().nodes().iter().any(|node| node.role == Role::TextField));
 }
 #[test]
-fn each_later_step_offers_back_later_and_the_playground_while_the_demo_is_answered() {
+fn each_later_step_offers_back_later_and_the_playground_while_the_playground_is_answered() {
     for (step, back) in
         [(Step::Forge { forge: None }, Step::Welcome), (Step::Model { way: None }, Step::Forge { forge: None })]
     {
-        for demo in [false, true] {
-            let root = f::welcome_root(step, demo);
+        for playground in [false, true] {
+            let root = f::welcome_root(step, playground);
             assert_eq!(
                 press(&root, Role::Link, "‹ Back"),
                 d::Action::Pages(pages::Act::Go { address: Address::Welcome { step: back } })
@@ -400,8 +400,8 @@ fn each_later_step_offers_back_later_and_the_playground_while_the_demo_is_answer
                         .contains(&crate::look::FLOW_QUIET)
                 );
             }
-            assert_eq!(f::find(view.tree(), Role::Button, b"Try the playground instead").is_some(), demo);
-            if demo {
+            assert_eq!(f::find(view.tree(), Role::Button, b"Try the playground instead").is_some(), playground);
+            if playground {
                 let id = node(view.tree(), Role::Button, "Try the playground instead");
                 assert!(
                     !view
@@ -576,8 +576,8 @@ fn selected_forge_choices_have_one_back_to_choose() {
 
 #[test]
 fn ready_has_no_foot_controls() {
-    for demo in [false, true] {
-        let root = f::welcome_root(Step::Ready, demo);
+    for playground in [false, true] {
+        let root = f::welcome_root(Step::Ready, playground);
         let view = f::page_view(&root);
         for (role, name) in
             [(Role::Link, "‹ Back"), (Role::Link, "Later"), (Role::Button, "Try the playground instead")]
@@ -601,8 +601,8 @@ fn a_connected_real_forge_hides_the_playground_before_its_end_is_read() {
     }
     for rows in cases {
         for step in [Step::Forge { forge: None }, Step::Model { way: None }] {
-            let root = f::demo_forges_root(Address::Welcome { step }, rows.clone());
-            assert!(root.forge().demo().is_some(), "the cached answer has not been reread yet");
+            let root = f::playground_forges_root(Address::Welcome { step }, rows.clone());
+            assert!(root.forge().playground().is_some(), "the cached answer has not been reread yet");
             let view = f::page_view(&root);
             assert!(f::find(view.tree(), Role::Button, b"Try the playground instead").is_none());
         }
@@ -647,7 +647,7 @@ fn model_choose_excludes_the_playgrounds_provider_before_and_after_retirement() 
     let check = |root: &d::Domain| {
         let mut view = f::page_view(root);
         let tree = view.tree();
-        assert!(f::find(tree, Role::Heading { level: 2 }, b"A demo API key").is_none());
+        assert!(f::find(tree, Role::Heading { level: 2 }, b"A playground API key").is_none());
         node(tree, Role::Heading { level: 2 }, "ChatGPT");
         node(tree, Role::Heading { level: 2 }, "An OpenAI API key");
         let headings: Vec<_> = tree

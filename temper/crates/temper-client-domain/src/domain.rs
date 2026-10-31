@@ -69,20 +69,6 @@ impl Domain {
         self.signed_out
     }
     #[must_use]
-    pub const fn demo_answered(&self) -> bool {
-        self.forge.demo_answered()
-    }
-    #[must_use]
-    pub fn demo(&self) -> Option<(&forge::Demo, forge::demo::Halves)> {
-        if !self.forge.demo_running() {
-            return None;
-        }
-        let answer = self.forge.demo()?;
-        let halves = forge::demo::current(&self.forge, self.pages.accounts_document(&self.client), &self.client);
-        if halves.model || halves.forge { Some((answer, halves)) } else { None }
-    }
-
-    #[must_use]
     pub const fn pages(&self) -> &crate::pages::Pages {
         &self.pages
     }
@@ -106,7 +92,7 @@ impl Domain {
 pub fn step(root: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     route::event(root, env, event, out);
     route::picker_progress(root, env, out);
-    route::demo_progress(root, env, out);
+    route::playground_progress(root, env, out);
     crate::authorize::progress(root, env, out);
     welcome(root, out);
 }
@@ -116,7 +102,7 @@ pub fn fire(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     route::route_client(root, env, &mut client, out);
     route::fire_pages(root, env, out);
     route::picker_progress(root, env, out);
-    route::demo_progress(root, env, out);
+    route::playground_progress(root, env, out);
     crate::authorize::progress(root, env, out);
     welcome(root, out);
 }
