@@ -87,16 +87,11 @@ fn domain_facts_reach_the_sink_before_the_next_entrance() {
 
 // The first text turn leaves a second completion request behind its Turn output.
 fn two_turn_charter() -> Box<[u8]> {
-    let mut parts = smith_charter::Charter::decode(&smith_charter::CEILINGS, &mut skein_lib::Reader::new(&charter()))
-        .expect("fixture charter")
-        .into_parts();
-    let mut budget = parts.budget.into_parts();
-    budget.turns = REQUEST_TURNS;
-    parts.budget = smith_charter::Budget::new(&smith_charter::CEILINGS, budget).expect("two-turn budget");
-    let charter = smith_charter::Charter::new(&smith_charter::CEILINGS, parts).expect("two-turn charter");
-    let mut writer = skein_lib::Writer::new(usize::try_from(charter.measure()).expect("charter size"));
-    charter.encode(&mut writer).expect("charter bytes");
-    writer.finish()
+    smith_agent_process_world::wire::edit_charter(&charter(), |parts| {
+        let mut budget = parts.budget.clone().into_parts();
+        budget.turns = REQUEST_TURNS;
+        parts.budget = smith_charter::Budget::new(&smith_charter::CEILINGS, budget).expect("two-turn budget");
+    })
 }
 
 fn receipt_times(records: &[smith_events::Record]) -> Vec<u64> {

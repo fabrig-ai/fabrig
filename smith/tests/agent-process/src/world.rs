@@ -918,27 +918,19 @@ fn child_peer(anthropic: bool, three: bool, credential: skein_llm::Credential) -
 }
 
 fn child_charter(bytes: &[u8]) -> Box<[u8]> {
-    let mut parts = smith_charter::Charter::decode(&smith_charter::CEILINGS, &mut skein_lib::Reader::new(bytes))
-        .expect("source charter")
-        .into_parts();
-    parts.instructions = b"@event-main".as_slice().into();
-    let mut budget = parts.budget.into_parts();
-    budget.turns = 8;
-    budget.spend = 100;
-    parts.budget = smith_charter::Budget::new(&smith_charter::CEILINGS, budget).expect("child budget");
-    let mut models = skein_lib::List::with_capacity(1);
-    models.push(parts.main.clone()).expect("one permitted child model");
-    parts.models = models;
-    let mut tools = parts.tools.into_parts();
-    let mut families = tools.families.into_parts();
-    families.skein_bools[0] = true;
-    families.skein_bools[3] = true;
-    tools.families = smith_charter::Families::new(&smith_charter::CEILINGS, families).expect("child authority");
-    parts.tools = smith_charter::Tools::new(&smith_charter::CEILINGS, tools).expect("tools");
-    let charter = smith_charter::Charter::new(&smith_charter::CEILINGS, parts).expect("child charter");
-    let mut writer = skein_lib::Writer::new(usize::try_from(charter.measure()).expect("wire size"));
-    charter.encode(&mut writer).expect("wire");
-    writer.finish()
+    crate::wire::edit_charter(bytes, |parts| {
+        parts.instructions = b"@event-main".as_slice().into();
+        crate::wire::budget(parts, 8, 100);
+        let mut models = skein_lib::List::with_capacity(1);
+        models.push(parts.main.clone()).expect("one permitted child model");
+        parts.models = models;
+        let mut tools = parts.tools.clone().into_parts();
+        let mut families = tools.families.into_parts();
+        families.skein_bools[0] = true;
+        families.skein_bools[3] = true;
+        tools.families = smith_charter::Families::new(&smith_charter::CEILINGS, families).expect("child authority");
+        parts.tools = smith_charter::Tools::new(&smith_charter::CEILINGS, tools).expect("tools");
+    })
 }
 
 fn environment_peer() -> skein_fake_peers::llm::Peer {
@@ -1164,24 +1156,18 @@ impl World {
     /// Grant a shell over startup roots and ask the peer to call it once.
     pub fn configured_environment(&mut self) {
         self.environment = true;
-        let source =
-            smith_charter::Charter::decode(&smith_charter::CEILINGS, &mut skein_lib::Reader::new(&self.charter))
-                .expect("charter");
-        let mut parts = source.into_parts();
-        let mut budget = parts.budget.into_parts();
-        budget.turns = 2;
-        parts.budget = smith_charter::Budget::new(&smith_charter::CEILINGS, budget).expect("two turns");
-        let mut tools = parts.tools.into_parts();
-        tools.families = smith_charter::Families::new(
-            &smith_charter::CEILINGS,
-            smith_charter::FamiliesParts { skein_bools: [true, false, true, false] },
-        )
-        .expect("shell family");
-        parts.tools = smith_charter::Tools::new(&smith_charter::CEILINGS, tools).expect("tools");
-        let record = smith_charter::Charter::new(&smith_charter::CEILINGS, parts).expect("configured charter");
-        let mut writer = skein_lib::Writer::new(usize::try_from(record.measure()).expect("charter bytes"));
-        record.encode(&mut writer).expect("charter encoding");
-        self.charter = writer.finish();
+        self.charter = crate::wire::edit_charter(&self.charter, |parts| {
+            let mut budget = parts.budget.clone().into_parts();
+            budget.turns = 2;
+            parts.budget = smith_charter::Budget::new(&smith_charter::CEILINGS, budget).expect("two turns");
+            let mut tools = parts.tools.clone().into_parts();
+            tools.families = smith_charter::Families::new(
+                &smith_charter::CEILINGS,
+                smith_charter::FamiliesParts { skein_bools: [true, false, true, false] },
+            )
+            .expect("shell family");
+            parts.tools = smith_charter::Tools::new(&smith_charter::CEILINGS, tools).expect("tools");
+        });
     }
 
     /// Machine-seam observations of commands spawned by the agent.
@@ -1211,26 +1197,20 @@ impl World {
             self.charter = child_charter(&self.charter);
         }
         if case == TraceCase::Parked || case == TraceCase::Refused {
-            let mut parts =
-                smith_charter::Charter::decode(&smith_charter::CEILINGS, &mut skein_lib::Reader::new(&self.charter))
-                    .expect("charter")
-                    .into_parts();
-            if case == TraceCase::Refused {
-                let mut main = parts.main.into_parts();
-                main.model = b"undeclared-model".as_slice().into();
-                parts.main = smith_charter::Llm::new(&smith_charter::CEILINGS, main).expect("undeclared model");
-            }
-            let mut budget = parts.budget.into_parts();
-            budget.turns = if case == TraceCase::Parked { 4 } else { 1 };
-            parts.budget = smith_charter::Budget::new(&smith_charter::CEILINGS, budget).expect("park budget");
-            let mut tools = parts.tools.into_parts();
-            tools.wait = case == TraceCase::Parked;
-            parts.tools = smith_charter::Tools::new(&smith_charter::CEILINGS, tools).expect("wait authority");
-            parts.waiting = Duration::ZERO;
-            let record = smith_charter::Charter::new(&smith_charter::CEILINGS, parts).expect("park charter");
-            let mut writer = skein_lib::Writer::new(usize::try_from(record.measure()).expect("wire size"));
-            record.encode(&mut writer).expect("wire");
-            self.charter = writer.finish();
+            self.charter = crate::wire::edit_charter(&self.charter, |parts| {
+                if case == TraceCase::Refused {
+                    let mut main = parts.main.clone().into_parts();
+                    main.model = b"undeclared-model".as_slice().into();
+                    parts.main = smith_charter::Llm::new(&smith_charter::CEILINGS, main).expect("undeclared model");
+                }
+                let mut budget = parts.budget.clone().into_parts();
+                budget.turns = if case == TraceCase::Parked { 4 } else { 1 };
+                parts.budget = smith_charter::Budget::new(&smith_charter::CEILINGS, budget).expect("park budget");
+                let mut tools = parts.tools.clone().into_parts();
+                tools.wait = case == TraceCase::Parked;
+                parts.tools = smith_charter::Tools::new(&smith_charter::CEILINGS, tools).expect("wait authority");
+                parts.waiting = Duration::ZERO;
+            });
         }
     }
 

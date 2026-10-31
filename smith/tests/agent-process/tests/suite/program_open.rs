@@ -1,5 +1,5 @@
 //! Open conversations on one program input (smith/docs/design/protocol/programs.md 5.9).
-use skein_lib::{Duration, Reader, Writer};
+use skein_lib::{Duration, Reader};
 use smith_agent_process_world::program_world::{self, HostMessage, Run, When};
 use smith_fake_claude::{Seen, Step, Story, Turn};
 
@@ -11,29 +11,24 @@ const ORDINARY_TURNS: u32 = 8;
 const WAITING: Duration = Duration::from_millis(10);
 
 fn open_charter() -> Box<[u8]> {
-    let mut parts = smith_charter::Charter::decode(&smith_charter::CEILINGS, &mut Reader::new(&opening::charter()))
-        .expect("charter")
-        .into_parts();
-    parts.mode = smith_charter::Mode::Open;
-    parts.waiting = WAITING;
-    parts.resume = true;
-    let mut tools = parts.tools.into_parts();
-    tools.wait = true;
-    tools.deliver = None;
-    parts.tools = smith_charter::Tools::new(&smith_charter::CEILINGS, tools).expect("Open tools");
-    let mut budget = parts.budget.into_parts();
-    budget.turns = ORDINARY_TURNS + RESERVE_TURNS;
-    budget.spend = 20; // Same small allowance as the existing program-turn fixture.
-    budget.reserve = smith_charter::Reserve::new(
-        &smith_charter::CEILINGS,
-        smith_charter::ReserveParts { turns: RESERVE_TURNS, time: Duration::from_secs(1) },
-    )
-    .expect("reserve");
-    parts.budget = smith_charter::Budget::new(&smith_charter::CEILINGS, budget).expect("budget");
-    let charter = smith_charter::Charter::new(&smith_charter::CEILINGS, parts).expect("Open charter");
-    let mut writer = Writer::new(charter.measure() as usize);
-    charter.encode(&mut writer).expect("charter body");
-    writer.finish()
+    smith_agent_process_world::wire::edit_charter(&opening::charter(), |parts| {
+        parts.mode = smith_charter::Mode::Open;
+        parts.waiting = WAITING;
+        parts.resume = true;
+        let mut tools = parts.tools.clone().into_parts();
+        tools.wait = true;
+        tools.deliver = None;
+        parts.tools = smith_charter::Tools::new(&smith_charter::CEILINGS, tools).expect("Open tools");
+        let mut budget = parts.budget.clone().into_parts();
+        budget.turns = ORDINARY_TURNS + RESERVE_TURNS;
+        budget.spend = 20; // Same small allowance as the existing program-turn fixture.
+        budget.reserve = smith_charter::Reserve::new(
+            &smith_charter::CEILINGS,
+            smith_charter::ReserveParts { turns: RESERVE_TURNS, time: Duration::from_secs(1) },
+        )
+        .expect("reserve");
+        parts.budget = smith_charter::Budget::new(&smith_charter::CEILINGS, budget).expect("budget");
+    })
 }
 
 fn turn(steps: Vec<Step>) -> Turn {

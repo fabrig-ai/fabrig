@@ -761,40 +761,30 @@ fn fixture_file(files: &mut Files, base: Opened, path: &[u8]) -> Option<Vec<u8>>
 pub(crate) fn cancel() -> skein_channel::Frame {
     let record =
         smith_channel::Cancel::new(&smith_channel::CEILINGS, smith_channel::CancelParts {}).expect("cancel record");
-    let mut writer = skein_lib::Writer::new(usize::try_from(record.measure()).expect("cancel bytes"));
-    record.encode(&mut writer).expect("cancel record");
-    let mut frame = skein_channel::frame_writer(0x0105, record.measure()).expect("cancel frame");
-    frame.put(&writer.finish()).expect("cancel body");
-    frame.finish().expect("cancel frame")
+    crate::frame!(0x0105, record)
 }
 
 fn with_transcript(charter: &[u8], value: &smith_channel::GrantValue) -> skein_channel::Frame {
     let frame = crate::start_workspace_message(charter, 8, false, None, value, None);
-    let mut start = smith_channel::Start::decode(&smith_channel::CEILINGS, &mut Reader::new(&frame.bytes()[8..]))
-        .expect("start fixture")
-        .into_parts();
-    let source = include_bytes!("../../../crates/smith-transcript/golden/v6/record_turn_smallest.bin");
-    let mut turn = smith_transcript::Turn::decode(&smith_transcript::CEILINGS, &mut Reader::new(source))
-        .expect("turn fixture")
-        .into_parts();
-    turn.place = 1;
-    turn.opening = Some(
-        smith_transcript::Opening::decode(
-            &smith_transcript::CEILINGS,
-            &mut Reader::new(include_bytes!("../../../crates/smith-transcript/golden/v6/record_opening_smallest.bin")),
-        )
-        .expect("opening fixture"),
-    );
-    let turn = smith_transcript::Turn::new(&smith_transcript::CEILINGS, turn).expect("opening turn");
-    let mut bytes = skein_lib::Writer::new(usize::try_from(turn.measure()).expect("turn length"));
-    turn.encode(&mut bytes).expect("turn body");
-    start.transcript = smith_protocol_channel::transcript_piece(&[bytes.finish()]).expect("transcript piece");
-    let start = smith_channel::Start::new(&smith_channel::CEILINGS, start).expect("start with history");
-    let mut bytes = skein_lib::Writer::new(usize::try_from(start.measure()).expect("start bytes"));
-    start.encode(&mut bytes).expect("start body");
-    let mut frame = skein_channel::frame_writer(0x0100, start.measure()).expect("start frame");
-    frame.put(&bytes.finish()).expect("start body");
-    frame.finish().expect("start frame")
+    crate::wire::edit_start(&frame, |start| {
+        let source = include_bytes!("../../../crates/smith-transcript/golden/v6/record_turn_smallest.bin");
+        let mut turn = smith_transcript::Turn::decode(&smith_transcript::CEILINGS, &mut Reader::new(source))
+            .expect("turn fixture")
+            .into_parts();
+        turn.place = 1;
+        turn.opening = Some(
+            smith_transcript::Opening::decode(
+                &smith_transcript::CEILINGS,
+                &mut Reader::new(include_bytes!(
+                    "../../../crates/smith-transcript/golden/v6/record_opening_smallest.bin"
+                )),
+            )
+            .expect("opening fixture"),
+        );
+        let turn = smith_transcript::Turn::new(&smith_transcript::CEILINGS, turn).expect("opening turn");
+        start.transcript =
+            smith_protocol_channel::transcript_piece(&[crate::encoded!(turn)]).expect("transcript piece");
+    })
 }
 
 fn redacted_invocations(bytes: &[u8]) -> Vec<smith_fake_claude::Observation> {
@@ -814,39 +804,33 @@ fn redacted_invocations(bytes: &[u8]) -> Vec<smith_fake_claude::Observation> {
 
 fn tools_start(charter: &[u8], value: &smith_channel::GrantValue) -> skein_channel::Frame {
     let frame = crate::start_workspace_message(charter, 8, false, None, value, None);
-    let mut start = smith_channel::Start::decode(&smith_channel::CEILINGS, &mut Reader::new(&frame.bytes()[8..]))
-        .expect("start")
-        .into_parts();
-    let mut directories = skein_lib::List::with_capacity(2);
-    for (name, path, writable) in
-        [(b"repo".as_slice(), b"/work/repo".as_slice(), true), (b"library".as_slice(), b"/library".as_slice(), false)]
-    {
-        directories
-            .push(
-                smith_channel::Directory::new(
-                    &smith_channel::CEILINGS,
-                    smith_channel::DirectoryParts {
-                        name: name.into(),
-                        path: path.into(),
-                        writable,
-                        git: false,
-                        conflicts: skein_lib::List::with_capacity(0),
-                    },
+    crate::wire::edit_start(&frame, |start| {
+        let mut directories = skein_lib::List::with_capacity(2);
+        for (name, path, writable) in [
+            (b"repo".as_slice(), b"/work/repo".as_slice(), true),
+            (b"library".as_slice(), b"/library".as_slice(), false),
+        ] {
+            directories
+                .push(
+                    smith_channel::Directory::new(
+                        &smith_channel::CEILINGS,
+                        smith_channel::DirectoryParts {
+                            name: name.into(),
+                            path: path.into(),
+                            writable,
+                            git: false,
+                            conflicts: skein_lib::List::with_capacity(0),
+                        },
+                    )
+                    .expect("workspace directory"),
                 )
-                .expect("workspace directory"),
-            )
-            .expect("two roots");
-    }
-    start.workspace = Some(
-        smith_channel::Workspace::new(&smith_channel::CEILINGS, smith_channel::WorkspaceParts { directories })
-            .expect("workspace"),
-    );
-    let start = smith_channel::Start::new(&smith_channel::CEILINGS, start).expect("workspace start");
-    let mut bytes = skein_lib::Writer::new(start.measure() as usize);
-    start.encode(&mut bytes).expect("start body");
-    let mut frame = skein_channel::frame_writer(0x0100, start.measure()).expect("start frame");
-    frame.put(&bytes.finish()).expect("start bytes");
-    frame.finish().expect("workspace start frame")
+                .expect("two roots");
+        }
+        start.workspace = Some(
+            smith_channel::Workspace::new(&smith_channel::CEILINGS, smith_channel::WorkspaceParts { directories })
+                .expect("workspace"),
+        );
+    })
 }
 
 pub(crate) fn answer_host(parent: &mut Parent) {
@@ -866,11 +850,7 @@ pub(crate) fn answer_host(parent: &mut Parent) {
                 smith_channel::HostAnswerParts { name: call.name().clone(), reply: smith_channel::Reply::Host(reply) },
             )
             .expect("host answer");
-            let mut body = skein_lib::Writer::new(answer.measure() as usize);
-            answer.encode(&mut body).expect("answer body");
-            let mut frame = skein_channel::frame_writer(0x0102, answer.measure()).expect("host frame");
-            frame.put(&body.finish()).expect("host body");
-            parent.peer.play(frame.finish().expect("host answer frame"));
+            parent.peer.play(crate::frame!(0x0102, answer));
             parent.program_host_answers = Some(parent.program_host_answers.expect("enabled host") + 1);
         }
     }

@@ -2,10 +2,10 @@
 //! speaking the real channel schema. The fake machine owns any filesystem and
 //! child-process effects. Contract: smith/docs/design/protocol/agent.md, sections 4–6.
 
-use skein_channel::{Role, StreamMode, frame_writer};
+use skein_channel::{Role, StreamMode};
 use skein_fake_channel::ScriptedPeer;
 use skein_io::kernel;
-use skein_lib::{Duration, List, Writer};
+use skein_lib::{Duration, List};
 use smith_agent_service as agent;
 use smith_protocol_channel as channel;
 use smith_protocol_llm as llm;
@@ -13,6 +13,7 @@ use smith_protocol_llm as llm;
 pub mod fake;
 #[path = "program.rs"]
 pub mod program_world;
+pub mod wire;
 
 pub mod events;
 mod tracing;
@@ -397,32 +398,19 @@ pub(crate) fn start_workspace_message(
         },
     )
     .expect("Start record");
-    let mut body = Writer::new(usize::try_from(record.measure()).expect("body size"));
-    record.encode(&mut body).expect("measured body");
-    let body = body.finish();
-    let mut frame = frame_writer(0x0100, u32::try_from(body.len()).expect("body length")).expect("Start frame");
-    frame.put(&body).expect("measured frame");
-    frame.finish().expect("full frame")
+    crate::frame!(0x0100, record)
 }
 
 pub(crate) fn start_root(charter: &[u8], path: &[u8]) -> skein_channel::Frame {
     let frame = start_workspace_message(charter, 8, true, None, &withdrawn(b"acc", b"token"), None);
-    let mut start =
-        smith_channel::Start::decode(&smith_channel::CEILINGS, &mut skein_lib::Reader::new(&frame.bytes()[8..]))
-            .expect("workspace Start")
-            .into_parts();
-    let mut workspace = start.workspace.take().expect("workspace").into_parts();
-    let mut directory = workspace.directories.get(0).expect("first directory").clone().into_parts();
-    directory.path = path.into();
-    *workspace.directories.get_mut(0).expect("first directory") =
-        smith_channel::Directory::new(&smith_channel::CEILINGS, directory).expect("root path");
-    start.workspace = Some(smith_channel::Workspace::new(&smith_channel::CEILINGS, workspace).expect("workspace"));
-    let start = smith_channel::Start::new(&smith_channel::CEILINGS, start).expect("Start with requested root");
-    let mut body = Writer::new(usize::try_from(start.measure()).expect("Start bytes"));
-    start.encode(&mut body).expect("Start body");
-    let mut frame = frame_writer(0x0100, start.measure()).expect("Start frame");
-    frame.put(&body.finish()).expect("Start body");
-    frame.finish().expect("Start frame")
+    crate::wire::edit_start(&frame, |start| {
+        let mut workspace = start.workspace.take().expect("workspace").into_parts();
+        let mut directory = workspace.directories.get(0).expect("first directory").clone().into_parts();
+        directory.path = path.into();
+        *workspace.directories.get_mut(0).expect("first directory") =
+            smith_channel::Directory::new(&smith_channel::CEILINGS, directory).expect("root path");
+        start.workspace = Some(smith_channel::Workspace::new(&smith_channel::CEILINGS, workspace).expect("workspace"));
+    })
 }
 
 /// Private credential fixture for checking that channel content stays credential-free.
@@ -444,54 +432,49 @@ fn scenario_credential(anthropic: bool, private_grant: bool) -> skein_llm::Crede
 #[must_use]
 pub fn charter() -> Box<[u8]> {
     let smallest = include_bytes!("../../../crates/smith-charter/golden/v4/record_charter_smallest.bin");
-    let source = smith_charter::Charter::decode(&smith_charter::CEILINGS, &mut skein_lib::Reader::new(smallest))
-        .expect("golden charter");
-    let mut parts = source.into_parts();
-    parts.budget = smith_charter::Budget::new(
-        &smith_charter::CEILINGS,
-        smith_charter::BudgetParts {
-            turns: 1,
-            spend: 2,
-            time: Duration::from_secs(60),
-            reserve: smith_charter::Reserve::new(
-                &smith_charter::CEILINGS,
-                smith_charter::ReserveParts { turns: 0, time: Duration::ZERO },
-            )
-            .expect("bounded reserve"),
-        },
-    )
-    .expect("workable budget");
-    parts.contract = smith_charter::Contract::new(
-        &smith_charter::CEILINGS,
-        smith_charter::ContractParts {
-            report: Some(
-                smith_charter::TextRule::new(
+    crate::wire::edit_charter(smallest, |parts| {
+        parts.budget = smith_charter::Budget::new(
+            &smith_charter::CEILINGS,
+            smith_charter::BudgetParts {
+                turns: 1,
+                spend: 2,
+                time: Duration::from_secs(60),
+                reserve: smith_charter::Reserve::new(
                     &smith_charter::CEILINGS,
-                    smith_charter::TextRuleParts { max: 128, fields: List::with_capacity(0) },
+                    smith_charter::ReserveParts { turns: 0, time: Duration::ZERO },
                 )
-                .expect("report rule"),
-            ),
-            verdicts: List::with_capacity(0),
-            change: None,
-            failure: None,
-        },
-    )
-    .expect("outcome contract");
-    let mut llm = parts.main.into_parts();
-    llm.account = Some(0);
-    llm.model = Box::from(*b"fake");
-    llm.window = declarations(0).endpoints[0].models[0].window;
-    llm.output = declarations(0).endpoints[0].models[0].output;
-    llm.prices = smith_charter::Prices::new(
-        &smith_charter::CEILINGS,
-        smith_charter::PricesParts { input: 1, cached: 1, cache_write: None, output: 1, unit: 1_000_000 },
-    )
-    .expect("prices");
-    parts.main = smith_charter::Llm::new(&smith_charter::CEILINGS, llm).expect("model");
-    let record = smith_charter::Charter::new(&smith_charter::CEILINGS, parts).expect("charter");
-    let mut writer = Writer::new(usize::try_from(record.measure()).expect("charter size"));
-    record.encode(&mut writer).expect("measured charter");
-    writer.finish()
+                .expect("bounded reserve"),
+            },
+        )
+        .expect("workable budget");
+        parts.contract = smith_charter::Contract::new(
+            &smith_charter::CEILINGS,
+            smith_charter::ContractParts {
+                report: Some(
+                    smith_charter::TextRule::new(
+                        &smith_charter::CEILINGS,
+                        smith_charter::TextRuleParts { max: 128, fields: List::with_capacity(0) },
+                    )
+                    .expect("report rule"),
+                ),
+                verdicts: List::with_capacity(0),
+                change: None,
+                failure: None,
+            },
+        )
+        .expect("outcome contract");
+        let mut llm = parts.main.clone().into_parts();
+        llm.account = Some(0);
+        llm.model = Box::from(*b"fake");
+        llm.window = declarations(0).endpoints[0].models[0].window;
+        llm.output = declarations(0).endpoints[0].models[0].output;
+        llm.prices = smith_charter::Prices::new(
+            &smith_charter::CEILINGS,
+            smith_charter::PricesParts { input: 1, cached: 1, cache_write: None, output: 1, unit: 1_000_000 },
+        )
+        .expect("prices");
+        parts.main = smith_charter::Llm::new(&smith_charter::CEILINGS, llm).expect("model");
+    })
 }
 
 pub use world::{Order, OrderSnapshot, TraceCase, World};
@@ -503,11 +486,7 @@ mod world;
 fn acknowledge(number: u32) -> skein_channel::Frame {
     let record = smith_channel::Acknowledge::new(&smith_channel::CEILINGS, smith_channel::AcknowledgeParts { number })
         .expect("durable prefix acknowledgement");
-    let mut body = Writer::new(usize::try_from(record.measure()).expect("ACK body size"));
-    record.encode(&mut body).expect("ACK body");
-    let mut frame = frame_writer(0x0103, record.measure()).expect("ACK frame");
-    frame.put(&body.finish()).expect("ACK body fits frame");
-    frame.finish().expect("ACK frame filled")
+    crate::frame!(0x0103, record)
 }
 
 mod grants;

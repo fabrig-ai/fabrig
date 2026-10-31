@@ -1,5 +1,5 @@
 //! Host-owned window transfers; the service receives only ordinary wire frames.
-use skein_lib::{Reader, Writer};
+use skein_lib::Reader;
 
 /// Extract the transcript bodies the agent gave its host, without inspecting domains.
 #[must_use]
@@ -24,14 +24,7 @@ pub fn start_with_window(
 ) -> skein_channel::Frame {
     let message = super::waiting::initial(true);
     let frame = crate::start_workspace_message(charter, 8, false, message.as_ref(), value, None);
-    let mut start = smith_channel::Start::decode(&smith_channel::CEILINGS, &mut Reader::new(&frame.bytes()[8..]))
-        .expect("start")
-        .into_parts();
-    start.transcript = smith_protocol_channel::transcript_piece(turns).expect("saved window");
-    let start = smith_channel::Start::new(&smith_channel::CEILINGS, start).expect("restored start");
-    let mut body = Writer::new(start.measure() as usize);
-    start.encode(&mut body).expect("start body");
-    let mut frame = skein_channel::frame_writer(0x0100, start.measure()).expect("frame");
-    frame.put(&body.finish()).expect("frame body");
-    frame.finish().expect("frame")
+    crate::wire::edit_start(&frame, |start| {
+        start.transcript = smith_protocol_channel::transcript_piece(turns).expect("saved window");
+    })
 }

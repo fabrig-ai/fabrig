@@ -261,26 +261,18 @@ fn a_provider_refusal_ends_standard_error_with_its_clipped_text() {
 }
 
 fn stopped_reasoning_charter() -> Box<[u8]> {
-    let mut parts = smith_charter::Charter::decode(&smith_charter::CEILINGS, &mut skein_lib::Reader::new(&charter()))
-        .expect("ordinary charter")
-        .into_parts();
-    let mut main = parts.main.into_parts();
-    main.window = 272_000;
-    main.output = 16_384;
-    parts.main = smith_charter::Llm::new(&smith_charter::CEILINGS, main).expect("live window");
-    let mut budget = parts.budget.into_parts();
-    budget.turns = 8;
-    budget.spend = 1_000_000;
-    parts.budget = smith_charter::Budget::new(&smith_charter::CEILINGS, budget).expect("three-turn story");
-    let mut tools = parts.tools.into_parts();
-    let mut families = tools.families.into_parts();
-    families.skein_bools[0] = true;
-    tools.families = smith_charter::Families::new(&smith_charter::CEILINGS, families).expect("read authority");
-    parts.tools = smith_charter::Tools::new(&smith_charter::CEILINGS, tools).expect("read and finish");
-    let record = smith_charter::Charter::new(&smith_charter::CEILINGS, parts).expect("stopped-turn charter");
-    let mut bytes = skein_lib::Writer::new(usize::try_from(record.measure()).expect("charter size"));
-    record.encode(&mut bytes).expect("charter bytes");
-    bytes.finish()
+    smith_agent_process_world::wire::edit_charter(&charter(), |parts| {
+        let mut main = parts.main.clone().into_parts();
+        main.window = 272_000;
+        main.output = 16_384;
+        parts.main = smith_charter::Llm::new(&smith_charter::CEILINGS, main).expect("live window");
+        smith_agent_process_world::wire::budget(parts, 8, 1_000_000);
+        let mut tools = parts.tools.clone().into_parts();
+        let mut families = tools.families.into_parts();
+        families.skein_bools[0] = true;
+        tools.families = smith_charter::Families::new(&smith_charter::CEILINGS, families).expect("read authority");
+        parts.tools = smith_charter::Tools::new(&smith_charter::CEILINGS, tools).expect("read and finish");
+    })
 }
 
 #[test]

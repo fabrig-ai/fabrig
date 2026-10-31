@@ -54,22 +54,16 @@ impl World {
 
 pub(super) fn start(parent: &mut Parent, charter: &[u8]) {
     let frame = crate::start_workspace(charter, 8, true);
-    let mut parts = smith_channel::Start::decode(&smith_channel::CEILINGS, &mut Reader::new(&frame.bytes()[8..]))
-        .expect("workspace Start")
-        .into_parts();
-    let mut workspace = parts.workspace.take().expect("workspace").into_parts();
-    let directory = workspace.directories.get_mut(0).expect("coding root");
-    let mut root = directory.clone().into_parts();
-    root.writable = true;
-    *directory = smith_channel::Directory::new(&smith_channel::CEILINGS, root).expect("writable root");
-    parts.workspace = Some(smith_channel::Workspace::new(&smith_channel::CEILINGS, workspace).expect("workspace"));
-    let start = smith_channel::Start::new(&smith_channel::CEILINGS, parts).expect("coding Start");
-    let mut body = Writer::new(usize::try_from(start.measure()).expect("Start size"));
-    start.encode(&mut body).expect("Start bytes");
-    let mut frame = skein_channel::frame_writer(0x0100, start.measure()).expect("Start frame");
-    frame.put(&body.finish()).expect("frame body");
+    let frame = crate::wire::edit_start(&frame, |parts| {
+        let mut workspace = parts.workspace.take().expect("workspace").into_parts();
+        let directory = workspace.directories.get_mut(0).expect("coding root");
+        let mut root = directory.clone().into_parts();
+        root.writable = true;
+        *directory = smith_channel::Directory::new(&smith_channel::CEILINGS, root).expect("writable root");
+        parts.workspace = Some(smith_channel::Workspace::new(&smith_channel::CEILINGS, workspace).expect("workspace"));
+    });
     parent.peer = crate::host_with_limits(configuration().limits.channel);
-    parent.peer.play(frame.finish().expect("frame"));
+    parent.peer.play(frame);
     parent.coding_deliveries = Some(0);
 }
 

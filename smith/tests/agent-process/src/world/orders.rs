@@ -4,7 +4,7 @@
 
 use super::Proc;
 use skein_io::kernel::{Complete, Op, Submit};
-use skein_lib::{Duration, Time, Token, Writer};
+use skein_lib::{Duration, Time, Token};
 
 /// The real output whose completion the process adapter withholds.
 #[derive(Clone, Copy, Debug)]
@@ -172,9 +172,5 @@ fn message(index: usize) -> skein_channel::Frame {
         },
     )
     .expect("bounded message");
-    let mut body = Writer::new(usize::try_from(message.measure()).expect("message size"));
-    message.encode(&mut body).expect("message body");
-    let mut frame = skein_channel::frame_writer(0x0101, message.measure()).expect("message frame");
-    frame.put(&body.finish()).expect("message bytes");
-    frame.finish().expect("whole message frame")
+    crate::frame!(0x0101, message)
 }
