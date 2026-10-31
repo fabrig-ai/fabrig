@@ -40,8 +40,9 @@ fn delayed_routes(mut routes: route::Routes) {
         let mut requests = skein_lib::Queue::uncapped();
         let mut flights = alloc::collections::BTreeMap::new();
         for connector in 1..=FLIGHTS {
-            let step = core::RestartStep::RestoreConnector { connector };
-            let request = route::down(&mut routes, StoreOut::Restart { step, census: None }).expect("admitted route");
+            let step = core::start::Phase::RestoreConnector { connector };
+            let request =
+                route::down(&mut routes, StoreOut::Start { phase: step, census: None }).expect("admitted route");
             let jig_protocol_store::Request::Restore { owner, .. } = &request else {
                 panic!("restart page request");
             };
@@ -68,12 +69,12 @@ fn delayed_routes(mut routes: route::Routes) {
                 route::up(&mut routes, event, &mut outputs);
                 while let Some(output) = outputs.pop() {
                     match output {
-                        Up::Restore(row) => {
+                        Up::Root(root::Event::StartRecord(row)) => {
                             assert_eq!(*terminals, 0, "rows precede their terminal");
                             rows.push(row).expect("one copy of each fixture row");
                         }
-                        Up::Root(root::Event::RestartDone(step)) => {
-                            assert_eq!(step, core::RestartStep::RestoreConnector { connector: *connector });
+                        Up::Root(root::Event::StartDone(step)) => {
+                            assert_eq!(step, core::start::Phase::RestoreConnector { connector: *connector });
                             *terminals = terminals.checked_add(1).expect("bounded terminal count");
                         }
                         Up::Ask(request) => {
@@ -83,7 +84,7 @@ fn delayed_routes(mut routes: route::Routes) {
                             assert_eq!(*next, owner);
                             requests.push(request);
                         }
-                        Up::Root(_) => panic!("only the matching restart terminal"),
+                        Up::Root(_) => panic!("only the matching start terminal"),
                     }
                 }
             }
@@ -130,27 +131,25 @@ fn load_core_pages_reach_the_root_then_people_restored() {
     let outputs = fixtures::routed(
         &mut component,
         &mut routes,
-        StoreOut::Restart { step: core::RestartStep::LoadCore, census: None },
+        StoreOut::Start { phase: core::start::Phase::LoadCore, census: None },
     );
     let mut rows = 0_u32;
     let mut restored = false;
     for output in outputs {
         match output {
-            Up::Restore(_) => {
+            Up::Root(root::Event::StartRecord(_)) => {
                 assert!(!restored);
                 rows = rows.checked_add(1).expect("bounded rows");
             }
-            Up::Root(root::Event::Core(core::Event::People(people::Event::Restored))) => {
+            Up::Root(root::Event::StartDone(step)) => {
                 assert_eq!(rows, 3);
                 restored = true;
+                assert_eq!(step, core::start::Phase::LoadCore);
             }
-            Up::Root(root::Event::RestartDone(step)) => {
-                assert!(restored);
-                assert_eq!(step, core::RestartStep::LoadCore);
-            }
-            Up::Root(_) | Up::Ask(_) => unreachable!("restart rows and terminals only"),
+            Up::Root(_) | Up::Ask(_) => unreachable!("start rows and terminals only"),
         }
     }
+    assert!(restored);
 }
 #[test]
 fn a_connectors_step_restores_its_records() {
@@ -168,12 +167,12 @@ fn a_connectors_step_restores_its_records() {
     let outputs = fixtures::routed(
         &mut component,
         &mut routes,
-        StoreOut::Restart { step: core::RestartStep::RestoreConnector { connector: fixtures::FIRST }, census: None },
+        StoreOut::Start { phase: core::start::Phase::RestoreConnector { connector: fixtures::FIRST }, census: None },
     );
     match outputs.as_ref() {
         [
-            Up::Restore(row),
-            Up::Root(root::Event::RestartDone(core::RestartStep::RestoreConnector { connector: 1 })),
+            Up::Root(root::Event::StartRecord(row)),
+            Up::Root(root::Event::StartDone(core::start::Phase::RestoreConnector { connector: 1 })),
         ] => {
             assert_eq!(*row, fixtures::root_record(record));
         }
@@ -246,7 +245,7 @@ fn a_window_read_reaches_the_root_as_transcript_pages() {
                 }
                 assert_eq!(done, expected_turn == 4);
             }
-            Up::Root(_) | Up::Restore(_) | Up::Ask(_) => unreachable!("only transcript pages"),
+            Up::Root(_) | Up::Ask(_) => unreachable!("only transcript pages"),
         }
     }
     assert_eq!(pages, 2);
@@ -266,12 +265,12 @@ fn writer_admitted_rows_restore_above_the_ordinary_read_allowance() {
         &mut routes,
         StoreOut::Commit { number: 1, writes: Box::new([fixtures::header(1), root::Write::Save(record.clone())]) },
     );
-    let step = core::RestartStep::RestoreConnector { connector: fixtures::FIRST };
-    let outputs = fixtures::routed(&mut component, &mut routes, StoreOut::Restart { step, census: None });
+    let step = core::start::Phase::RestoreConnector { connector: fixtures::FIRST };
+    let outputs = fixtures::routed(&mut component, &mut routes, StoreOut::Start { phase: step, census: None });
     let mut outputs = outputs.into_iter();
-    let Some(Up::Restore(row)) = outputs.next() else { panic!("restored writer row") };
+    let Some(Up::Root(root::Event::StartRecord(row))) = outputs.next() else { panic!("restored writer row") };
     assert_eq!(row, record);
-    let Some(Up::Root(root::Event::RestartDone(done))) = outputs.next() else { panic!("restart terminal") };
+    let Some(Up::Root(root::Event::StartDone(done))) = outputs.next() else { panic!("restart terminal") };
     assert_eq!(done, step);
     assert!(outputs.next().is_none());
     assert!(routes.idle());
@@ -282,7 +281,7 @@ fn writer_admitted_rows_restore_above_the_ordinary_read_allowance() {
 fn missing_restore_configuration_panics_before_routing() {
     let mut routes = route::Routes::new(1);
     routes.configure(&fixtures::root_limits());
-    let _request = route::down(&mut routes, StoreOut::Restart { step: core::RestartStep::LoadCore, census: None });
+    let _request = route::down(&mut routes, StoreOut::Start { phase: core::start::Phase::LoadCore, census: None });
 }
 
 #[test]
@@ -359,7 +358,7 @@ fn start_connector_pages_decode_rows_in_order_then_finish_the_phase() {
                 assert_eq!(found, phase);
                 done = true;
             }
-            Up::Root(_) | Up::Restore(_) | Up::Ask(_) => panic!("start rows then its terminal"),
+            Up::Root(_) | Up::Ask(_) => panic!("start rows then its terminal"),
         }
     }
     assert!(done);
@@ -382,7 +381,7 @@ fn start_core_page_records_reach_the_root_without_people_restored() {
                 records.push(row).expect("fixture row");
             }
             Up::Root(root::Event::StartDone(Phase::LoadCore)) => assert_eq!(records.len(), 3),
-            Up::Root(_) | Up::Restore(_) | Up::Ask(_) => panic!("only start records and done"),
+            Up::Root(_) | Up::Ask(_) => panic!("only start records and done"),
         }
     }
     assert_eq!(records.len(), 3);

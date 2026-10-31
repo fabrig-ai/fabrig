@@ -1,4 +1,4 @@
-//! Decision opening gates stale listings for either start interface (engine.md, 6, 8).
+//! Decision opening gates stale listings when the start opens (engine.md, 6, 8).
 use jig_core_world::{fixtures, world};
 use jig_domain_core::{
     self as core,
@@ -25,19 +25,7 @@ fn selected_to_open(core: &mut core::Core, env: &Env<core::Limits>) {
         };
         out.clear();
     }
-    panic!("bounded selected start");
-}
-
-fn default_to_open(core: &mut core::Core) {
-    let mut request = core.restart_begin(false);
-    for _ in 0..16 {
-        let core::RestartRequest::Step(done) = request else { panic!("restart reaches Open") };
-        if done == core::RestartStep::Open {
-            return;
-        }
-        request = core.restart_done(done);
-    }
-    panic!("bounded default start");
+    panic!("bounded start");
 }
 
 fn listing(core: &mut core::Core, env: &Env<core::Limits>, worker: u32) -> Vec<(Token, Token, Token)> {
@@ -72,28 +60,24 @@ fn listing(core: &mut core::Core, env: &Env<core::Limits>, worker: u32) -> Vec<(
 
 #[test]
 fn stale_worker_listings_cancel_only_after_either_start_opens() {
-    for selected in [false, true] {
+    {
         let mut limits = world::limits().core;
         limits.fleet.workers = 2;
         let mut configured = world::config(301).core;
         configured.worker_names = Box::new([Box::from(b"alpha".as_slice()), Box::from(b"beta".as_slice())]);
         let mut core = core::Core::new(configured, &limits).expect("configured core");
         let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
-        if selected {
+        {
             selected_to_open(&mut core, &env);
-        } else {
-            default_to_open(&mut core);
         }
         assert!(!core.start_opened());
-        assert!(!core.restart_ready());
+        assert!(!core.start_opened());
         assert!(listing(&mut core, &env, 0).is_empty());
-        if selected {
+        {
             assert!(matches!(core.start_done(&env, Phase::Open, &mut Queue::uncapped()), Action::Idle));
-        } else {
-            assert_eq!(core.restart_done(core::RestartStep::Open), core::RestartRequest::Idle);
         }
         assert!(core.start_opened());
-        assert!(core.restart_ready());
+        assert!(core.start_opened());
         assert_eq!(listing(&mut core, &env, 1), [(Token::new(8), Token::new(42), Token::new(11))]);
     }
 }

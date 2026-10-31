@@ -7,33 +7,6 @@ use skein_lib::{Duration, Env, ReplyTo, Time, Token, Wall};
 
 mod start;
 
-#[test]
-fn restored_application_tokens_cannot_exceed_the_deployments_allocations() {
-    let (mut core, _) = make_tree();
-    let connector = core.connectors[0];
-    let token = fresh(&mut core.counters, Family::Application).expect("application token");
-    let mut record = people::Stored::Answer {
-        models: Box::new([]),
-        key: people::RequestKey { person: 1, key: [1; 16] },
-        ask: Box::new(people::Ask::Application {
-            scope: jig_domain_people::ApplicationScope::Project(1),
-            connector,
-            digest: [1; 32],
-        }),
-        outcome: people::Outcome::Applied { connector, token: Token::new(token.checked_add(1).expect("next token")) },
-        at: Wall::EPOCH,
-    };
-    assert!(!core.restore_people_row(&record));
-    if let people::Stored::Answer { outcome, .. } = &mut record {
-        *outcome = people::Outcome::Applied { connector, token: Token::new(token) };
-    }
-    assert!(core.restore_people_row(&record));
-    if let people::Stored::Answer { outcome, .. } = &mut record {
-        *outcome = people::Outcome::Applied { connector: u16::MAX, token: Token::new(token) };
-    }
-    assert!(!core.restore_people_row(&record));
-}
-
 pub(crate) fn limits() -> Limits {
     let retry = tasks::Retry { retries: 1, base: Duration::from_millis(10), max: Duration::from_secs(1) };
     let tasks = tasks::Limits {
@@ -299,7 +272,7 @@ pub(crate) fn restoring_sized_policy(bytes: u64) -> (Core, Limits, ConfiguredPol
     }
     config.seed_projects = Box::new([]);
     let mut core = Core::new(config, &limits).expect("restoring core");
-    core.restart_begin(false);
+    let _start = core.start_begin(false, Wall::EPOCH);
     let mut deployment = core.counters.deployment();
     deployment.projects = u64::from(RESTORE_PROJECT);
     deployment.commits = 1;
@@ -503,7 +476,20 @@ fn clear_projects(core: &mut Core, limits: &Limits) {
 
 fn seeded_core(config: Config, limits: &Limits) -> Result<Core, Problem> {
     let mut core = Core::new(config, limits)?;
-    routing::first_start::seed_projects(&mut core);
+    let projects = core::mem::replace(&mut core.seed_projects, Box::new([]));
+    for project in projects {
+        let mut out = Queue::uncapped();
+        authority::step(
+            &mut core.authority,
+            authority::Event::Policy { project: project.number, policy: project.policy.policy },
+            &mut out,
+        );
+        assert_eq!(out.pop(), Some(authority::PolicyFact::Added { project: project.number }));
+        core.projects.push(project.number).expect("fixture projects");
+        core.names.insert(project.number, project.name).expect("fixture names");
+        core.permission_roles.insert(project.number, project.policy.permissions).expect("fixture roles");
+        core.template_overrides.insert(project.number, project.policy.templates).expect("fixture templates");
+    }
     Ok(core)
 }
 
@@ -3408,7 +3394,6 @@ mod sign_ins;
 
 mod fill;
 mod inbox_selection;
-mod restore_admission;
 
 mod project_period_watches;
 
@@ -3700,28 +3685,6 @@ fn projection_readiness_shares_generation_restore_and_pending_connector_rules() 
     assert!(!core.finish_owed(), "an untracked goal waits on its closing connectors first");
     core.projections.get_mut(&1).unwrap().changed = true;
     assert!(!core.finish_owed(), "pending connectors take precedence over changed");
-
-    // The durable projection header is independently restored and still owes
-    // its changed pass; no private dirty flag can stand in for this state.
-    let (mut restored, restored_limits) = self::core();
-    fresh(&mut restored.counters, Family::Task).unwrap();
-    restored.counters.next_commit();
-    let row = ProjectionRecord::Goal {
-        goal: ProjectionGoal {
-            number: 1,
-            project: 1,
-            priority: 0,
-            words: b"restored".as_slice().into(),
-            phase: tasks::Phase::Waiting,
-        },
-        pending: Box::new([]),
-        changed: true,
-        fed_at: None,
-    };
-    assert_eq!(restored.restore_core(CoreRecord::Projection(row), &restored_limits), Restored::Live);
-    assert!(restored.finish_owed());
-    finish_watch_outputs(&mut restored, &restored_limits);
-    assert!(!restored.finish_owed());
 }
 
 fn assert_decided_only(out: &[Request]) {
@@ -3741,7 +3704,6 @@ fn assert_one_watch_ending(out: &[Request], expected: views::End) {
     assert_eq!(endings, 1);
 }
 
-mod project_names;
 mod projects;
 
 #[test]
@@ -3769,21 +3731,7 @@ fn configured_policies_are_retained_by_the_core() {
     assert!(policy.templates.is_empty());
 }
 
-#[test]
-fn a_restored_policy_cannot_pass_the_deployments_projects_mark() {
-    let limits = limits();
-    let config = config(41);
-    let value = policy::snapshot(&config.seed_projects[0].policy.policy, &[], &[]).expect("bounded policy");
-    let mut core = Core::new(config, &limits).expect("restoring core");
-    core.counters.deployment.projects = 0;
-    assert!(!core.restore_policy(&limits, 1, Box::from("Project 1"), value.clone()));
-    core.counters.deployment.projects = 1;
-    assert!(core.restore_policy(&limits, 1, Box::from("Project 1"), value));
-}
-
 mod ended_watches;
-
-mod restart_checks;
 
 fn placed(task: u64, person: u64, number: u64) -> tasks::Event {
     tasks::Event::Place {
@@ -3826,4 +3774,25 @@ fn validity_keeps_document_settings_and_route_refusals() {
     selected = original;
     selected.people.program_hosts = selected.fleet.configured_workers;
     assert!(!valid(&selected), "engine outcomes need a host beyond the workers");
+}
+
+pub(crate) fn finish_start(core: &mut Core, env: &Env<Limits>) -> Queue<Request> {
+    let action = core.start_begin(false, env.wall);
+    finish_started(core, env, action)
+}
+
+pub(crate) fn finish_started(core: &mut Core, env: &Env<Limits>, mut action: crate::start::Action) -> Queue<Request> {
+    let mut out = Queue::uncapped();
+    for _ in 0_u16..64 {
+        action = match action {
+            crate::start::Action::Step(crate::start::Phase::Sweep) => {
+                core.start_sweep(env, crate::start::SweepInput::Finished, &mut out)
+            }
+            crate::start::Action::Step(phase) => core.start_done(env, phase, &mut out),
+            crate::start::Action::Commit(token) => core.start_resume(env, token, &mut out),
+            crate::start::Action::Idle => return out,
+            crate::start::Action::Refused(why) => panic!("fixture start refused {why:?}"),
+        };
+    }
+    panic!("bounded fixture start");
 }

@@ -89,7 +89,7 @@ impl World {
                 }
                 self.projections.push((self.commits.len(), connector, *feed));
             }
-            root::Delivery::Restart(_) => unreachable!("the world starts through the start script"),
+
             root::Delivery::CallBusy { name, .. } => self.busy_calls.push(name),
             root::Delivery::Core(core::Held::TurnBusy { run, attempt, turn, .. }) => {
                 self.busy_turns.push((run.raw(), attempt.raw(), turn));

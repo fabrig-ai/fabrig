@@ -7,16 +7,16 @@ use crate::{
     Restored,
 };
 
-fn loaded(selected: bool) -> (Core, Limits) {
-    loaded_policy(selected, true)
+fn loaded() -> (Core, Limits) {
+    loaded_policy(true)
 }
 
-fn loaded_policy(selected: bool, policy: bool) -> (Core, Limits) {
+fn loaded_policy(policy: bool) -> (Core, Limits) {
     let limits = limits();
     let configured = config(401);
     let project = &config(401).seed_projects[0];
     let mut core = Core::new(configured, &limits).expect("configured core");
-    if selected {
+    {
         let _begin = core.start_begin(false, Wall::EPOCH);
     }
     let mut header = core.counters.deployment();
@@ -72,13 +72,10 @@ fn restore(core: &mut Core, limits: &Limits, row: ProjectionRecord) -> Restored 
     core.restore_core(CoreRecord::Projection(row), limits)
 }
 fn retained(row: ProjectionRecord, header: bool) {
-    let (mut default, limits) = loaded(false);
-    let (mut selected, _) = loaded(true);
+    let (mut selected, limits) = loaded();
     if header {
-        assert_eq!(restore(&mut default, &limits, goal(1)), Restored::Live);
         assert_eq!(restore(&mut selected, &limits, goal(1)), Restored::Live);
     }
-    assert_eq!(restore(&mut default, &limits, row.clone()), Restored::Rejected);
     assert_eq!(restore(&mut selected, &limits, row), Restored::Live);
     assert_eq!(selected.start_failure(), None);
     selected.start_projections_link();
@@ -128,9 +125,7 @@ fn milestone_shape_and_zero_position_are_not_admission_rules() {
 
 #[test]
 fn policy_is_linked_after_loading_and_deployment_needs_none() {
-    let (mut default, limits) = loaded_policy(false, false);
-    assert_eq!(restore(&mut default, &limits, goal(1)), Restored::Rejected);
-    let (mut core, _) = loaded_policy(true, false);
+    let (mut core, limits) = loaded_policy(false);
     let project = &config(401).seed_projects[0];
     assert_eq!(restore(&mut core, &limits, goal(1)), Restored::Live);
     assert!(core.restore_policy(
@@ -169,8 +164,8 @@ fn pending_on_a_live_tracked_goal_is_retained() {
     let ProjectionRecord::Goal { goal, pending, .. } = &mut row else { unreachable!() };
     goal.phase = live.phase.clone();
     *pending = Box::new([config(401).connectors[0]]);
-    for selected in [false, true] {
-        let (mut core, limits) = loaded(selected);
+    {
+        let (mut core, limits) = loaded();
         let record = tasks::Stored::Live(Box::new(live.clone()));
         let mut out = super::Queue::uncapped();
         tasks::step(
@@ -179,11 +174,8 @@ fn pending_on_a_live_tracked_goal_is_retained() {
             tasks::Event::Restore { record },
             &mut out,
         );
-        assert_eq!(
-            restore(&mut core, &limits, row.clone()),
-            if selected { Restored::Live } else { Restored::Rejected }
-        );
-        if selected {
+        assert_eq!(restore(&mut core, &limits, row.clone()), { Restored::Live });
+        {
             core.start_projections_link();
             assert_eq!(
                 core.projections.get(&1).expect("linked live projection").pending.as_ref(),
@@ -196,12 +188,13 @@ fn pending_on_a_live_tracked_goal_is_retained() {
 #[test]
 fn pieces_in_any_order_finalize_to_the_default_projection() {
     let rows = [goal(1), task(1), task(2), milestone(1), milestone(2)];
-    let (mut default, limits) = loaded(false);
+    let (mut expected, limits) = loaded();
     for row in &rows {
-        assert_eq!(restore(&mut default, &limits, row.clone()), Restored::Live);
+        assert_eq!(restore(&mut expected, &limits, row.clone()), Restored::Live);
     }
+    expected.start_projections_link();
     for order in [[1, 4, 2, 3, 0], [4, 0, 3, 2, 1], [0, 1, 2, 3, 4]] {
-        let (mut selected, _) = loaded(true);
+        let (mut selected, _) = loaded();
         for index in order {
             assert_eq!(restore(&mut selected, &limits, rows[index].clone()), Restored::Live);
         }
@@ -215,7 +208,7 @@ fn pieces_in_any_order_finalize_to_the_default_projection() {
         );
         assert_eq!(assembly.milestones.len(), 2);
         selected.start_projections_link();
-        assert_eq!(selected.projections.get(&1), default.projections.get(&1));
+        assert_eq!(selected.projections.get(&1), expected.projections.get(&1));
         assert!(selected.start.projections.is_none());
     }
 }
@@ -223,7 +216,7 @@ fn pieces_in_any_order_finalize_to_the_default_projection() {
 #[test]
 #[should_panic(expected = "Core(Projection(Task { goal: 1, task: 2 })) links missing Core(Projection(Goal(1)))")]
 fn orphan_task_panics_at_link_with_its_key() {
-    let (mut core, limits) = loaded(true);
+    let (mut core, limits) = loaded();
     assert_eq!(restore(&mut core, &limits, task(2)), Restored::Live);
     let assembly = core.start.projections.as_ref().expect("assembly").get(&1).expect("orphan");
     assert_eq!(assembly.header, None);
@@ -240,7 +233,7 @@ fn orphan_task_panics_at_link_with_its_key() {
 #[test]
 #[should_panic(expected = "Projection(Lifecycle { goal: 1, task: 2, position: 1 })")]
 fn orphan_milestone_panics_at_link_with_its_key() {
-    let (mut core, limits) = loaded(true);
+    let (mut core, limits) = loaded();
     assert_eq!(restore(&mut core, &limits, milestone(2)), Restored::Live);
     core.start_projections_link();
 }
@@ -257,7 +250,7 @@ fn refused(core: &mut Core, limits: &Limits, row: ProjectionRecord, held: u64, l
 #[test]
 fn table_capacity_counts_headerless_goals() {
     for headers in [false, true] {
-        let (mut core, limits) = loaded(true);
+        let (mut core, limits) = loaded();
         for number in 1..=core.projections.capacity() {
             let row = if headers {
                 goal(u64::from(number))
@@ -283,7 +276,7 @@ fn table_capacity_counts_headerless_goals() {
 fn words_phase_and_pending_fits_keep_the_row_key() {
     let limits = limits();
     for row in [goal(1), task(2), milestone(2)] {
-        let (mut core, _) = loaded(true);
+        let (mut core, _) = loaded();
         let mut row = row;
         let (words, bound) = match &mut row {
             ProjectionRecord::Goal { goal, .. } => (&mut goal.words, limits.tasks.spec_bytes),
@@ -295,7 +288,7 @@ fn words_phase_and_pending_fits_keep_the_row_key() {
         *words = vec![b'x'; usize::try_from(bound + 1).expect("fixture bytes")].into_boxed_slice();
         refused(&mut core, &limits, row, u64::from(bound) + 1, u64::from(bound));
     }
-    let (mut core, _) = loaded(true);
+    let (mut core, _) = loaded();
     let mut row = goal(1);
     let ProjectionRecord::Goal { pending, .. } = &mut row else { unreachable!() };
     let bound = core.connectors.len();
@@ -308,7 +301,7 @@ fn words_phase_and_pending_fits_keep_the_row_key() {
         u64::try_from(bound).expect("fixture count"),
     );
     for mut row in [goal(1), task(2), milestone(2)] {
-        let (mut core, _) = loaded(true);
+        let (mut core, _) = loaded();
         let phase = match &mut row {
             ProjectionRecord::Goal { goal, .. } => &mut goal.phase,
             ProjectionRecord::Task { task, .. } => &mut task.phase,
@@ -332,7 +325,7 @@ fn words_phase_and_pending_fits_keep_the_row_key() {
 fn piece_limits_apply_before_and_after_headers() {
     for headers in [false, true] {
         for milestones in [false, true] {
-            let (mut core, limits) = loaded(true);
+            let (mut core, limits) = loaded();
             core.routes = 2;
             if headers {
                 assert_eq!(restore(&mut core, &limits, goal(1)), Restored::Live);
@@ -362,7 +355,7 @@ fn piece_limits_apply_before_and_after_headers() {
 #[test]
 fn duplicate_rows_assert_without_replacing_the_assembled_value() {
     for row in [goal(1), task(2), milestone(2)] {
-        let (mut core, limits) = loaded(true);
+        let (mut core, limits) = loaded();
         assert_eq!(restore(&mut core, &limits, row.clone()), Restored::Live);
         let duplicate =
             std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| restore(&mut core, &limits, row.clone())));
@@ -382,7 +375,7 @@ fn duplicate_rows_assert_without_replacing_the_assembled_value() {
 #[test]
 #[should_panic(expected = "Core(Projection(Goal(1))) links missing project 2")]
 fn a_missing_project_panics_at_link() {
-    let (mut core, limits) = loaded(true);
+    let (mut core, limits) = loaded();
     let mut row = goal(1);
     let ProjectionRecord::Goal { goal, .. } = &mut row else { unreachable!() };
     goal.project = 2;
@@ -393,7 +386,7 @@ fn a_missing_project_panics_at_link() {
 #[test]
 #[should_panic(expected = "Core(Projection(Goal(1))) links missing connector 99")]
 fn a_missing_pending_connector_panics_at_link() {
-    let (mut core, limits) = loaded(true);
+    let (mut core, limits) = loaded();
     let mut row = goal(1);
     let ProjectionRecord::Goal { pending, .. } = &mut row else { unreachable!() };
     *pending = Box::new([99]);
@@ -404,7 +397,7 @@ fn a_missing_pending_connector_panics_at_link() {
 #[test]
 #[should_panic(expected = "Core(Projection(Goal(1))) links missing Tasks(Live(1))")]
 fn an_open_goal_requires_its_live_task_at_link() {
-    let (mut core, limits) = loaded(true);
+    let (mut core, limits) = loaded();
     let mut row = goal(1);
     let ProjectionRecord::Goal { goal, .. } = &mut row else { unreachable!() };
     goal.phase = tasks::Phase::Waiting;
@@ -422,7 +415,7 @@ fn duplicate_pending_numbers_are_stored_values_not_admission_rules() {
 
 #[test]
 fn exact_word_and_phase_bounds_remain_loadable() {
-    let (mut core, limits) = loaded(true);
+    let (mut core, limits) = loaded();
     for mut row in [goal(1), task(2), milestone(2)] {
         let (words, bound, phase) = match &mut row {
             ProjectionRecord::Goal { goal, .. } => (&mut goal.words, limits.tasks.spec_bytes, &mut goal.phase),

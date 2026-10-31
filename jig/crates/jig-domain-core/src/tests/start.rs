@@ -82,38 +82,9 @@ fn every_operational_entrance_consumes_selection() {
         },
         Entrance { name: "record_call", input: |core, _| core.record_call(call_key(), crate::CallPart::Controlled) },
         Entrance {
-            name: "restore_call",
-            input: |core, _| {
-                let _accepted = core.restore_call(call_key(), crate::CallPart::Controlled);
-            },
-        },
-        Entrance {
             name: "retire_calls",
             input: |core, _| {
                 let _retired = core.retire_calls(1, 1, 1, 1);
-            },
-        },
-        Entrance {
-            name: "restore_proof",
-            input: |core, env| {
-                let _accepted = core.restore_proof(proof(), env.limits.tasks.result_bytes);
-            },
-        },
-        Entrance {
-            name: "restore_task_row",
-            input: |core, _| {
-                let _accepted = core.restore_task_row(&tasks::Stored::Stub(tasks::Stub {
-                    task: 1,
-                    phase: tasks::Status::Done,
-                    result: Token::new(1),
-                }));
-            },
-        },
-        Entrance {
-            name: "restore_core",
-            input: |core, env| {
-                let _accepted =
-                    core.restore_core(crate::CoreRecord::Deployment(core.counters.deployment()), &env.limits);
             },
         },
         Entrance {
@@ -130,19 +101,6 @@ fn every_operational_entrance_consumes_selection() {
             input: |core, env| {
                 let name = tasks::Name { connector: 1, path: Box::new([Box::from(b"resource".as_slice())]) };
                 let _accepted = core.restore_resource_role(env, 1, name, crate::connector::ResourceRole::Context);
-            },
-        },
-        Entrance {
-            name: "restore_inbox_row",
-            input: |core, env| {
-                let _accepted = core.restore_inbox_row(
-                    &env.limits,
-                    &crate::Record::Tasks(tasks::Stored::Stub(tasks::Stub {
-                        task: 1,
-                        phase: tasks::Status::Done,
-                        result: Token::new(1),
-                    })),
-                );
             },
         },
         Entrance {
@@ -166,36 +124,6 @@ fn every_operational_entrance_consumes_selection() {
                     setting: crate::settings::Setting::Rules,
                     fault: crate::settings::Fault::Shape,
                 });
-            },
-        },
-        Entrance {
-            name: "restart_begin",
-            input: |core, _| {
-                let _step = core.restart_begin(false);
-            },
-        },
-        Entrance {
-            name: "restart_done",
-            input: |core, _| {
-                let _step = core.restart_done(crate::RestartStep::LoadCore);
-            },
-        },
-        Entrance {
-            name: "restart_refuse",
-            input: |core, _| {
-                let _refused = core.restart_refuse();
-            },
-        },
-        Entrance {
-            name: "restart_checked",
-            input: |core, _| {
-                assert!(!core.restart_checked());
-            },
-        },
-        Entrance {
-            name: "restart_admit_claims",
-            input: |core, _| {
-                assert!(!core.restart_admit_claims());
             },
         },
         Entrance {
@@ -464,19 +392,6 @@ fn refused_start_cannot_be_selected_again() {
     let _refused = core.start_refuse(Failure::ProjectPolicy { project: 1 });
     let repeated = std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| core.start_begin(true, Wall::EPOCH)));
     let _panic = repeated.expect_err("refused start cannot be selected again");
-}
-
-#[test]
-fn start_and_restart_selections_cannot_mix() {
-    for completion in [false, true] {
-        let limits = limits();
-        let mut core = Core::new(config(41), &limits).expect("valid core configuration");
-        let _begin = core.start_begin(false, Wall::EPOCH);
-        let mixed = std::panic::catch_unwind(core::panic::AssertUnwindSafe(|| {
-            if completion { core.restart_done(crate::RestartStep::LoadCore) } else { core.restart_begin(false) }
-        }));
-        let _panic = mixed.expect_err("start and restart selections cannot mix");
-    }
 }
 
 #[test]

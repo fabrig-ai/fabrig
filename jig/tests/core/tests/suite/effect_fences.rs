@@ -16,33 +16,7 @@ fn recovered_with(
     limits: &root::Limits,
 ) -> (core::Core, Env<core::Limits>) {
     let env = Env { now: Time::from_nanos(world.wall_time().as_nanos()), wall: world.wall_time(), limits: limits.core };
-    let mut core = core::Core::new(configuration.core, &env.limits).expect("fixture core configuration");
-    for row in world.store.rows.values() {
-        if let root::Record::Core(core::Record::Core(row @ core::CoreRecord::Deployment(_))) = row {
-            assert!(matches!(core.restore_core(row.clone(), &env.limits), core::Restored::Deployment { .. }));
-        }
-    }
-    jig_core_world::fixtures::restore_project_policies(&mut core, &env.limits, &world.store);
-    for row in world.store.rows.values() {
-        if let root::Record::Core(core::Record::Tasks(row)) = row {
-            if !row.key().live() {
-                continue;
-            }
-            assert!(core.restore_task_row(row));
-            let _requests =
-                core::step(&mut core, &env, core::Event::Tasks(tasks::Event::Restore { record: row.clone() }));
-        }
-    }
-    for row in world.store.rows.values() {
-        if let root::Record::Core(core::Record::Core(
-            row @ (core::CoreRecord::RunProof(_) | core::CoreRecord::Call(_)),
-        )) = row
-        {
-            assert_eq!(core.restore_core(row.clone(), &env.limits), core::Restored::Live);
-        }
-    }
-    core::step(&mut core, &env, core::Event::Tasks(tasks::Event::Check));
-    let _requests = core::step(&mut core, &env, core::Event::Tasks(tasks::Event::Restored));
+    let core = super::start_links::recovered(world, configuration.core, &env);
     (core, env)
 }
 

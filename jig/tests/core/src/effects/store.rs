@@ -49,7 +49,6 @@ impl World {
     pub(super) fn restore_pages(&mut self) {
         for answer in self.store.answers() {
             match answer {
-                Up::Restore(_) => unreachable!("the store opens with typed start pages"),
                 Up::Root(event) => self.events.push_back(event),
                 Up::Ask(_) => panic!("adapter follows its own page continuations"),
             }

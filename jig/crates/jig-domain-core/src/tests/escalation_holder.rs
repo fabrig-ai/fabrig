@@ -118,17 +118,6 @@ fn a_person_task_for_policy_role_five_is_offered_to_delegation() {
 }
 
 #[test]
-fn a_restored_person_task_for_policy_role_five_is_supported() {
-    let (mut core, limits) = tree_core();
-    make_task(&mut core, &limits, TASK);
-    let mut row = core.tasks.task(TASK).unwrap().clone();
-    row.executor = tasks::Executor::Person(tasks::PersonAddress::Role(POLICY_ROLE));
-    assert_eq!(fresh(&mut core.counters, Family::Task), Some(TASK));
-    assert_eq!(fresh(&mut core.counters, Family::Person), Some(REQUESTER));
-    assert!(core.restore_task_row(&tasks::Stored::Live(Box::new(row))));
-}
-
-#[test]
 fn a_move_is_refused_while_nobody_holds_its_escalations() {
     let (mut core, limits) = tree_core();
     make_task(&mut core, &limits, TASK);

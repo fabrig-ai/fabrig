@@ -36,7 +36,6 @@ fn loaded() -> (Core, Env<crate::Limits>) {
 }
 
 fn restore_person(core: &mut Core, env: &Env<crate::Limits>, record: people::Stored) {
-    assert!(core.restore_people_row(&record));
     let crate::Requests::Out(mut out) = crate::step(core, env, Event::People(people::Event::Restore { record }));
     while let Some(request) = out.pop() {
         if let Request::Now(now) = request
@@ -97,7 +96,7 @@ fn applied_tokens_are_not_judged_and_missing_connectors_are_links() {
     for (connector, token) in [(1, 0), (1, u64::MAX), (99, 0), (99, u64::MAX)] {
         let (mut core, env) = loaded();
         let row = answer(people::Outcome::Applied { connector, token: Token::new(token) });
-        assert!(core.restore_people_row(&row));
+
         restore_person(&mut core, &env, row);
         let result = catch_unwind(AssertUnwindSafe(|| link(&mut core, &env)));
         if connector == 1 {
@@ -107,7 +106,6 @@ fn applied_tokens_are_not_judged_and_missing_connectors_are_links() {
             assert_eq!(core.start_phase(), Some(Phase::Link));
         }
         assert_eq!(core.start_failure(), None);
-        assert_eq!(core.restart_failure(), None);
     }
 }
 
@@ -136,7 +134,6 @@ fn tasks_fit_refusal_keeps_the_key_without_failing_the_other_script() {
             }
         };
         assert_eq!(core.start_failure(), Some(expected));
-        assert_eq!(core.restart_failure(), None);
     }
 }
 
@@ -168,7 +165,6 @@ fn people_fit_refusal_keeps_the_key_without_failing_the_other_script() {
             limit: u64::from(env.limits.people.identity_bytes),
         })
     );
-    assert_eq!(core.restart_failure(), None);
 }
 
 #[test]
@@ -185,7 +181,6 @@ fn stored_llm_choice_names_the_task_that_configuration_cannot_hold() {
     assert_eq!(core.start_failure(), None);
     let Action::Refused(failure) = link(&mut core, &env) else { panic!("configured choice refuses") };
     assert_eq!(failure, Failure::LlmChoice { key: Key::Tasks(tasks::Key::Live(1)) });
-    assert_eq!(core.restart_failure(), None);
 }
 
 #[test]
@@ -316,7 +311,6 @@ fn unmade(core: &mut Core, env: &Env<crate::Limits>) {
     let _panic = catch_unwind(AssertUnwindSafe(|| link(core, env))).expect_err("missing link asserts");
     assert_eq!(core.start_phase(), Some(Phase::Link));
     assert_eq!(core.start_failure(), None);
-    assert_eq!(core.restart_failure(), None);
 }
 
 #[test]

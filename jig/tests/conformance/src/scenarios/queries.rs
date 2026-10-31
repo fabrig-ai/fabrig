@@ -146,7 +146,6 @@ fn line(store: &Store, line: &documents::TaskLine) {
 }
 pub(crate) fn delivered(peers: &mut Neighbours, store: &Store, delivery: &root::Delivery) {
     match delivery {
-        root::Delivery::Start(_) => unreachable!("the start driver is not selected here"),
         root::Delivery::Core(core::Held::Delivery { watcher, document }) if *watcher == Token::new(WATCH) => {
             let documents::Document::Lines(lines) = document.as_ref() else { panic!("watched query") };
             for value in &lines.lines {
@@ -171,13 +170,13 @@ pub(crate) fn delivered(peers: &mut Neighbours, store: &Store, delivery: &root::
         | root::Delivery::Application { .. }
         | root::Delivery::Projection { .. }
         | root::Delivery::Message { .. }
-        | root::Delivery::Restart(_)
         | root::Delivery::Core(_)
         | root::Delivery::CallAnswer { .. }
         | root::Delivery::Assigned { .. }
         | root::Delivery::Fleet(_)
         | root::Delivery::System { .. }
         | root::Delivery::LostRead { .. }
+        | root::Delivery::Start(_)
         | root::Delivery::Procedure { .. } => {}
     }
 }

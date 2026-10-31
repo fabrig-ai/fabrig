@@ -63,51 +63,6 @@ fn applied_without_answer(world: &mut World) {
 }
 
 #[test]
-fn the_restart_script_waits_for_each_step_and_each_connector() {
-    let limits = jig_core_world::world::limits().core;
-    let config = jig_core_world::world::config(111).core;
-    let mut core = core::Core::new(config, &limits).expect("fixture core configuration");
-    let steps = [
-        core::RestartStep::LoadCore,
-        core::RestartStep::LoadInbox,
-        core::RestartStep::RestoreConnector { connector: 1 },
-        core::RestartStep::RestoreConnector { connector: 2 },
-        core::RestartStep::Switch,
-        core::RestartStep::AdoptRuns,
-        core::RestartStep::ReadAfresh { connector: 1 },
-        core::RestartStep::ReadAfresh { connector: 2 },
-        core::RestartStep::SettleOutbox { connector: 1 },
-        core::RestartStep::SettleOutbox { connector: 2 },
-        core::RestartStep::Open,
-    ];
-    let mut request = core.restart_begin(false);
-    for step in steps {
-        assert_eq!(request, core::RestartRequest::Step(step));
-        assert_eq!(core.restart_step(), Some(step));
-        assert!(!core.restart_ready());
-        assert_eq!(core.restart_begin(false), core::RestartRequest::Idle);
-        request = core.restart_done(step);
-    }
-    assert_eq!(request, core::RestartRequest::Idle);
-    assert!(core.restart_ready());
-    assert_eq!(core.restart_done(core::RestartStep::Open), core::RestartRequest::Idle);
-}
-
-#[test]
-fn an_out_of_order_restart_completion_refuses_the_start_naming_its_step() {
-    let limits = jig_core_world::world::limits().core;
-    let mut core =
-        core::Core::new(jig_core_world::world::config(112).core, &limits).expect("fixture core configuration");
-    assert_eq!(core.restart_begin(false), core::RestartRequest::Step(core::RestartStep::LoadCore));
-    assert_eq!(
-        core.restart_done(core::RestartStep::Open),
-        core::RestartRequest::Refused { step: core::RestartStep::LoadCore }
-    );
-    assert_eq!(core.restart_failure(), Some(core::RestartStep::LoadCore));
-    assert!(!core.restart_ready());
-}
-
-#[test]
 fn an_uncertain_effect_across_restarts_is_made_before_its_retry_deadline_and_once() {
     let mut world = World::new(113, false);
     world.enable_tracing();
@@ -698,29 +653,6 @@ fn a_restart_keeps_an_unread_goal_older_than_an_unread_conversation() {
 }
 
 #[test]
-fn a_restart_without_connectors_still_switches_before_adoption() {
-    for pending in [false, true] {
-        let limits = jig_core_world::world::limits().core;
-        let mut config = jig_core_world::world::config(111).core;
-        config.connectors = Box::new([]);
-        config.grants = Box::new([]);
-        let mut core = core::Core::new(config, &limits).expect("no-connector fixture");
-        let mut request = core.restart_begin(pending);
-        for step in [
-            core::RestartStep::LoadCore,
-            core::RestartStep::LoadInbox,
-            core::RestartStep::Switch,
-            core::RestartStep::AdoptRuns,
-            core::RestartStep::Open,
-        ] {
-            assert_eq!(request, core::RestartRequest::Step(step));
-            request = core.restart_done(step);
-        }
-        assert!(core.restart_ready());
-    }
-}
-
-#[test]
 fn a_durable_placed_stop_restores_with_its_task_and_releases_after_restart() {
     use jig_core_world::fixtures::{ask_as, live_row};
     use jig_domain_people as people;
@@ -735,7 +667,7 @@ fn a_durable_placed_stop_restores_with_its_task_and_releases_after_restart() {
     let durable = world.store.rows[&key].clone();
     let assignments = world.assignments.len();
     world.restart(2210, false);
-    assert_eq!(world.domain.restart_failure(), None);
+    assert_eq!(world.domain.start_failure(), None);
     assert!(world.domain.ready());
     assert_eq!(world.assignments.len(), assignments);
     assert_eq!(world.store.rows.get(&key), Some(&durable));

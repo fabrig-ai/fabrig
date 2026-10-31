@@ -47,15 +47,14 @@ impl Core {
 
     pub fn census(&mut self, limits: &Limits) -> Census {
         self.start_input();
-        let selected = {
+        {
             assert!(
                 self.start_phase() == Some(Phase::LoadInbox) && self.start_failure().is_none(),
                 "census requires unrefused LoadInbox"
             );
-            true
-        };
+        }
         self.project_live_inbox(limits);
-        if selected && self.start_failure().is_some() {
+        if self.start_failure().is_some() {
             return Census { questions: Box::new([]), results: Box::new([]) };
         }
         let mut questions = List::with_capacity(super::question_capacity(limits).expect("validated question bound"));
@@ -66,7 +65,6 @@ impl Core {
             }
             for credit in &row.questions {
                 if questions.push((row.number, credit.line)).is_err() {
-                    assert!(selected, "reserved answer slot bounds original questions");
                     self.start_room(
                         LiveSet::Census,
                         crate::Key::Tasks(tasks::Key::Live(row.number)),
@@ -83,7 +81,6 @@ impl Core {
                         outgoing |= credit.line == line.line;
                     }
                     if line.answer.is_none() && !outgoing && questions.push((row.number, line.line)).is_err() {
-                        assert!(selected, "reserved notice slot bounds received questions");
                         self.start_room(
                             LiveSet::Census,
                             crate::Key::Tasks(tasks::Key::Live(row.number)),
@@ -97,19 +94,17 @@ impl Core {
         }
         let mut results = List::with_capacity(limits.people.people);
         for party in &self.people.parties() {
-            if selected
-                && (!self.start_room(
-                    LiveSet::Census,
-                    crate::Key::People(people::Key::Person(*party)),
-                    self.census_progress.len(),
-                    self.census_progress.capacity(),
-                ) || !self.start_room(
-                    LiveSet::ReadResults,
-                    crate::Key::People(people::Key::Person(*party)),
-                    results.len(),
-                    results.capacity(),
-                ))
-            {
+            if !self.start_room(
+                LiveSet::Census,
+                crate::Key::People(people::Key::Person(*party)),
+                self.census_progress.len(),
+                self.census_progress.capacity(),
+            ) || !self.start_room(
+                LiveSet::ReadResults,
+                crate::Key::People(people::Key::Person(*party)),
+                results.len(),
+                results.capacity(),
+            ) {
                 break;
             }
             self.census_progress
@@ -177,52 +172,46 @@ impl Core {
     #[must_use]
     pub fn restore_inbox_row(&mut self, limits: &Limits, record: &crate::Record) -> bool {
         self.start_input();
-        let selected = {
+        {
             assert!(
                 self.start_phase() == Some(Phase::LoadInbox) && self.start_failure().is_none(),
                 "inbox row requires unrefused LoadInbox"
             );
-            true
-        };
-        self.load_census_row(limits, record, selected)
+        }
+        self.load_census_row(limits, record)
     }
 
-    fn load_census_question(&mut self, limits: &Limits, line: &tasks::ActivityLine, selected: bool) -> bool {
-        if selected {
-            self.prune_questions(line.task);
-            if !self.question_activity.contains_key(&(line.task, line.position))
-                && !self.start_room(
-                    LiveSet::Census,
-                    crate::Key::Tasks(tasks::Key::Activity { task: line.task, position: line.position }),
-                    self.question_activity.len(),
-                    self.question_activity.capacity(),
-                )
-            {
-                return false;
-            }
-            self.question_activity.insert((line.task, line.position), line.clone()).expect("question fit checked");
-        } else if !self.remember_question(line) {
+    fn load_census_question(&mut self, limits: &Limits, line: &tasks::ActivityLine) -> bool {
+        self.prune_questions(line.task);
+        if !self.question_activity.contains_key(&(line.task, line.position))
+            && !self.start_room(
+                LiveSet::Census,
+                crate::Key::Tasks(tasks::Key::Activity { task: line.task, position: line.position }),
+                self.question_activity.len(),
+                self.question_activity.capacity(),
+            )
+        {
             return false;
         }
+        self.question_activity.insert((line.task, line.position), line.clone()).expect("question fit checked");
+
         let owner = self.tasks.task(line.task).expect("named question owner");
         let entries = self.waiting_entries(limits, owner);
         self.project(limits, people::RestoreProjection::Waiting { task: line.task, entries });
         self.start_failure().is_none()
     }
 
-    fn load_census_row(&mut self, limits: &Limits, record: &crate::Record, selected: bool) -> bool {
+    fn load_census_row(&mut self, limits: &Limits, record: &crate::Record) -> bool {
         if let crate::Record::Tasks(tasks::Stored::Activity(line)) = record {
-            return self.load_census_question(limits, line, selected);
+            return self.load_census_question(limits, line);
         }
         if let crate::Record::People(people::Stored::EndedRead { task, party, through }) = record {
             if let Some((previous, party, _)) = self.census_position {
-                assert!(
-                    !selected,
+                unreachable!(
                     "{:?} must precede its ended owner before {:?}",
                     crate::Key::People(people::Key::EndedRead { task: previous, party }),
                     record.key()
                 );
-                return false;
             }
             self.census_position = Some((*task, *party, *through));
             return true;
@@ -235,33 +224,22 @@ impl Core {
                 Some(through)
             }
             Some((task, party, _)) => {
-                assert!(
-                    !selected,
+                unreachable!(
                     "{:?} links mismatched {:?}",
                     crate::Key::People(people::Key::EndedRead { task, party }),
                     record.key()
                 );
-                return false;
             }
             None => None,
         };
-        if !selected && (!super::matches_ended(&row.phase) || !super::valid_header(self, limits, row)) {
-            return false;
-        }
+
         match row.requester {
             tasks::Party::Person(party) => {
-                if !selected && self.people.identity(party).is_none() {
-                    return false;
-                }
                 let at = match row.ended_at {
                     Some(at) => at,
-                    None if selected => row.changed,
-                    None => return false,
+                    None => row.changed,
                 };
-                if !selected && (row.result_position == 0 || row.result_position > self.counters.deployment().messages)
-                {
-                    return false;
-                }
+
                 if let Some(progress) = self.census_progress.get_mut(&party) {
                     let mark =
                         if seen.is_none() { &mut progress.unread_result } else { &mut progress.read_conversation };
@@ -270,8 +248,6 @@ impl Core {
                         return true;
                     }
                     *mark = position;
-                } else {
-                    assert!(selected, "party census initialised");
                 }
                 self.project_ended_row(limits, row, party, at, seen);
             }
@@ -283,8 +259,7 @@ impl Core {
             tasks::Party::Task(_) | tasks::Party::Deployment { .. } => false,
         };
         if visible && (seen.is_some() || !self.archived_chats.contains_key(&row.number)) {
-            if selected
-                && !self.archived_chats.contains_key(&row.number)
+            if !self.archived_chats.contains_key(&row.number)
                 && !self.start_room(
                     LiveSet::Conversations,
                     record.key(),

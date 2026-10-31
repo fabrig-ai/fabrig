@@ -243,18 +243,14 @@ pub(crate) fn store(
                         domain.core.restore_policy(&env.limits.core, project, name, value)
                     }
                     Record::Core(core::Record::People(row)) => {
-                        if domain.core.restore_people_row(&row) {
-                            let mut out = Queue::uncapped();
-                            people::step(
-                                &mut domain.core.people,
-                                &Env { now: env.now, wall: env.wall, limits: env.limits.core.people },
-                                people::Event::Restore { record: row },
-                                &mut out,
-                            );
-                            out.is_empty()
-                        } else {
-                            false
-                        }
+                        let mut out = Queue::uncapped();
+                        people::step(
+                            &mut domain.core.people,
+                            &Env { now: env.now, wall: env.wall, limits: env.limits.core.people },
+                            people::Event::Restore { record: row },
+                            &mut out,
+                        );
+                        out.is_empty()
                     }
                     Record::Core(core::Record::Notes(row)) => {
                         work.push(Work::Core(core::Event::Notes(notes::Event::Restore { record: row })));

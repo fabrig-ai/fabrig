@@ -109,7 +109,7 @@ fn open(core: &mut Core, env: &Env<crate::Limits>, out: &mut Queue<Request>) {
     }
     let Action::Idle = action else { panic!("opened start is idle") };
     assert!(core.start_opened());
-    assert!(core.restart_ready());
+    assert!(core.start_opened());
 }
 
 #[test]

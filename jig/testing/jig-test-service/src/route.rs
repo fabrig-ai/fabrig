@@ -16,7 +16,7 @@ pub(super) fn request(engine: &mut Engine, request: root::Request) {
             );
         }
         root::Request::Start { phase, census } => restart(engine, phase, census),
-        root::Request::Restart(_) => unreachable!("the service begins the start"),
+
         root::Request::Deliver(delivery) => deliver(engine, delivery),
         root::Request::Now(now) => immediate(engine, now),
         root::Request::Busy { event } => {
@@ -35,7 +35,7 @@ fn deliver(engine: &mut Engine, delivery: root::Delivery) {
     match delivery {
         root::Delivery::Start(_) => unreachable!("the root resumes its own start continuation"),
         root::Delivery::ProjectMade { .. } => {}
-        root::Delivery::Restart(_) => unreachable!("the service begins the start"),
+
         root::Delivery::System { connector: number, call } => {
             let read = match &call {
                 connector::SystemRequest::ReadFact { .. } => true,

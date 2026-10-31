@@ -423,13 +423,6 @@ impl Observer {
             self.observe(now, observed);
         }
         match event {
-            root::Event::StartRecord(_)
-            | root::Event::StartMissing { .. }
-            | root::Event::StartPageRefused { .. }
-            | root::Event::StartBegin { .. }
-            | root::Event::StartDone(_) => {
-                unreachable!("the start driver is not selected here")
-            }
             root::Event::Core(core::Event::People(people::Event::Ask { models: _, reply_to, sign_in, key, ask })) => {
                 let person = store.rows.values().find_map(|row| match row {
                     root::Record::Core(core::Record::People(people::Stored::SignIn { number, person, .. }))
@@ -487,9 +480,6 @@ impl Observer {
             | root::Event::WatchApplication { .. }
             | root::Event::ReadApplication { .. }
             | root::Event::Stop
-            | root::Event::Switched
-            | root::Event::RestartBegin { .. }
-            | root::Event::RestartDone(_)
             | root::Event::Timer(_)
             | root::Event::Core(_)
             | root::Event::Credential { .. }
@@ -498,6 +488,11 @@ impl Observer {
             | root::Event::CallAnswered { .. }
             | root::Event::TopicCall { .. }
             | root::Event::EffectCall { .. }
+            | root::Event::StartRecord(_)
+            | root::Event::StartMissing { .. }
+            | root::Event::StartPageRefused { .. }
+            | root::Event::StartBegin { .. }
+            | root::Event::StartDone(_)
             | root::Event::TranscriptLoaded { .. }
             | root::Event::Committed { .. }
             | root::Event::WriterRead { .. }
@@ -1088,7 +1083,6 @@ impl Observer {
         }
         let mut requires = Vec::new();
         match delivery {
-            root::Delivery::Start(_) => unreachable!("the start driver is not selected here"),
             root::Delivery::Assigned { assignment, .. } => {
                 self.observe(
                     now,
@@ -1161,8 +1155,7 @@ impl Observer {
                     },
                 );
             }
-            root::Delivery::Restart(_)
-            | root::Delivery::Core(_)
+            root::Delivery::Core(_)
             | root::Delivery::Fleet(_)
             | root::Delivery::ApplicationDocument { .. }
             | root::Delivery::ApplicationRead { .. }
@@ -1170,6 +1163,7 @@ impl Observer {
             | root::Delivery::Link { .. }
             | root::Delivery::ProjectMade { .. }
             | root::Delivery::CallBusy { .. }
+            | root::Delivery::Start(_)
             | root::Delivery::System { .. } => {}
         }
         self.observe(now, r::Observed::Released { requires });

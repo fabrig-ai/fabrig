@@ -101,7 +101,6 @@ pub(crate) fn immediate(now: core::Now, admission: &mut Option<Token>) -> Option
 
 pub(crate) fn application(value: root::Delivery) -> Option<kit::Event> {
     let value = match value {
-        root::Delivery::Start(_) => unreachable!("the start driver is not selected here"),
         root::Delivery::ApplicationDocument { watcher, number, document } => {
             kit::FromApplication::Delivery { watcher, family: number, record: codec::document(&document) }
         }
@@ -116,13 +115,13 @@ pub(crate) fn application(value: root::Delivery) -> Option<kit::Event> {
         | root::Delivery::CallBusy { .. }
         | root::Delivery::Projection { .. }
         | root::Delivery::Message { .. }
-        | root::Delivery::Restart(..)
         | root::Delivery::Core(..)
         | root::Delivery::CallAnswer { .. }
         | root::Delivery::Assigned { .. }
         | root::Delivery::Fleet(..)
         | root::Delivery::System { .. }
         | root::Delivery::LostRead { .. }
+        | root::Delivery::Start(_)
         | root::Delivery::Procedure { .. } => return None,
     };
     Some(kit::Event::Application(value))

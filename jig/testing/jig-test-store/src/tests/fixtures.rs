@@ -251,7 +251,7 @@ pub fn routed(component: &mut Component, routes: &mut crate::route::Routes, out:
                 };
                 match output {
                     crate::Up::Ask(request) => requests.push(request),
-                    other @ (crate::Up::Restore(_) | crate::Up::Root(_)) => {
+                    other @ crate::Up::Root(_) => {
                         found.push(other).expect("bounded fixture");
                     }
                 }

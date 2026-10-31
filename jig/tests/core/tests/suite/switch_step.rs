@@ -129,22 +129,31 @@ fn a_first_start_takes_the_switch_step() {
 }
 
 #[test]
-fn a_restart_refused_before_the_switch_leaves_the_old_generation_active() {
+fn a_live_set_past_lowered_limits_leaves_the_old_generation_active() {
     let mut world = before();
     let source = world.store.generation_contents(b"generations/1");
     let rows = world.store.rows.clone();
     let last = world.store.applied;
     let mut limits = world::limits();
-    limits.core.policy_bytes = 1; // The saved project policy exceeds one byte.
+    limits.core.authority.projects = 0;
     world.store.patch_sets(f::AFTER);
     let mut config = jig_core_world::effects::fixture(f::SEED, false).0;
     // Projects already exist in the store; this build seeds no new policies.
     config.core.seed_projects = Box::new([]);
+    config.core.defaults.policies = skein_lib::Map::with_capacity(0);
     world.restart_with_limits(config, limits);
     assert!(world.stopped);
     assert_eq!(
         world.domain.start_failure(),
-        Some((Some(core::start::Phase::LoadCore), core::start::Failure::ProjectPolicy { project: 1 }))
+        Some((
+            Some(core::start::Phase::LoadCore),
+            core::start::Failure::LiveSet {
+                set: core::start::LiveSet::Projects,
+                key: core::Key::People(jig_domain_people::Key::Policy(1)),
+                held: 1,
+                limit: 0,
+            }
+        ))
     );
     assert!(!world.restart_steps.contains(&core::start::Phase::Switch));
     assert_eq!(world.store.switch_requests, 0);
@@ -213,18 +222,8 @@ fn stopping_with_the_mark_held_does_not_adopt_runs() {
     assert!(!world.restart_steps.contains(&core::start::Phase::AdoptRuns));
 }
 
-#[test]
-fn a_broken_task_set_refuses_before_the_switch() {
-    let mut world = before();
-    let mut row = jig_core_world::fixtures::live_row(&world, world.task()).clone();
-    // Valid on its own, but its declared root is absent from the restored set.
-    row.root = u64::MAX;
-    world.seed(Box::new([root::Record::Core(core::Record::Tasks(jig_domain_tasks::Stored::Live(Box::new(row))))]));
-    refuses_before_switch(world, core::RestoreChild::Tasks);
-}
-
 // Every refusal must leave A byte-for-byte reopenable by the earlier build.
-fn refuses_before_switch(mut world: World, _child: core::RestoreChild) {
+fn refuses_before_switch(mut world: World) {
     // Each caller deliberately seeds an unmade link and inspects the unfinished copy.
     world.broken();
     world.store.crash(f::SEED);
@@ -255,32 +254,10 @@ fn refuses_before_switch(mut world: World, _child: core::RestoreChild) {
     // including every map, through the earlier build's actual store open.
     assert_eq!(world.store.generation_contents(b"generations/1"), source);
     assert!(!world.store.generation_pending);
+    std::panic::resume_unwind(linked.expect_err("required project link"));
 }
 
-const PERSON: u64 = 1;
-const ABSENT_PERSON: u64 = 2;
-const ABSENT_TASK: u64 = 999;
-const ABSENT_ACCOUNT: u32 = 999;
-const ORPHAN_SOURCE: u32 = 998;
 const PROJECT: u32 = 1;
-
-fn orphan_source() -> root::Record {
-    root::Record::Core(core::Record::Accounts(jig_domain_accounts::Stored::Source {
-        account: ABSENT_ACCOUNT,
-        number: ORPHAN_SOURCE,
-        place: 0,
-        kind: jig_domain_accounts::Kind::Key,
-        name: Box::new([]),
-        held: None,
-    }))
-}
-
-#[test]
-fn a_patched_account_the_accounts_child_would_leave_refuses_before_the_switch() {
-    let mut world = before();
-    world.seed(Box::new([orphan_source()]));
-    refuses_before_switch(world, core::RestoreChild::Accounts);
-}
 
 #[test]
 fn an_account_source_without_its_account_panics_at_link_on_the_active_generation() {
@@ -300,39 +277,15 @@ fn an_account_source_without_its_account_panics_at_link_on_the_active_generation
 }
 
 #[test]
-fn a_task_naming_a_project_the_copy_does_not_hold_refuses_before_the_switch() {
+#[should_panic(expected = "Tasks(Live(1)) links missing project 1")]
+fn a_task_naming_a_missing_project_panics_before_the_switch() {
     let mut world = before();
     let row = jig_core_world::fixtures::live_row(&world, world.task()).clone();
+    assert_eq!(row.number, 1);
     // Leave the task and its funding internally consistent, but without its project.
     world.erase(root::Key::Core(core::Key::People(jig_domain_people::Key::Policy(PROJECT))));
     world.seed(Box::new([root::Record::Core(core::Record::Tasks(jig_domain_tasks::Stored::Live(Box::new(row))))]));
-    refuses_before_switch(world, core::RestoreChild::Tasks);
-}
-
-#[test]
-fn a_task_naming_a_party_the_copy_does_not_hold_refuses_before_the_switch() {
-    let mut world = before();
-    let mut row = jig_core_world::fixtures::live_row(&world, world.task()).clone();
-    row.grace = Some(jig_domain_tasks::Grace {
-        by: jig_domain_tasks::Party::Person(ABSENT_PERSON),
-        until: skein_lib::Wall::from_nanos(Duration::from_secs(60).as_nanos()),
-        reason: Box::new([]),
-        message: 1,
-    });
-    row.last_message = 1;
-    world.seed(Box::new([root::Record::Core(core::Record::Tasks(jig_domain_tasks::Stored::Live(Box::new(row))))]));
-    refuses_before_switch(world, core::RestoreChild::Tasks);
-}
-
-#[test]
-fn a_read_position_over_a_conversation_the_copy_does_not_hold_refuses_before_the_switch() {
-    let mut world = before();
-    world.seed(Box::new([root::Record::Core(core::Record::People(jig_domain_people::Stored::ReadConversation {
-        party: PERSON,
-        task: ABSENT_TASK,
-        through: 1,
-    }))]));
-    refuses_before_switch(world, core::RestoreChild::People);
+    refuses_before_switch(world);
 }
 
 #[test]
