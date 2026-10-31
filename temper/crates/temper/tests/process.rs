@@ -3,6 +3,8 @@
 mod box_kinds;
 #[path = "fake_backends/mod.rs"]
 mod fake_backends;
+#[path = "suite/startover.rs"]
+mod startover;
 pub mod support;
 use skein_io::kernel::{Exit, Signal};
 use skein_lib::Duration;

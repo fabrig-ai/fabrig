@@ -987,3 +987,111 @@ pub fn dying_with_test(mut command: Command) -> Command {
     }
     command
 }
+
+/// Cut the box when a process-tier probe observes its named setup boundary.
+/// The keeper drains every descendant before the deployment is started again.
+#[must_use]
+pub fn run_ctl_until_killed(
+    directory: &Path,
+    flags: Vec<String>,
+    steps: Vec<super::ctl::Step>,
+    mut cut: impl FnMut(&Binary, &super::ctl::Calls) -> bool,
+) -> CtlOutcome<()> {
+    struct CutJudge<'a, F> {
+        inner: CtlJudge<'a, fn(&Binary), ()>,
+        cut: &'a mut F,
+        killed: &'a Cell<bool>,
+        next_probe: Time,
+    }
+    impl<F: FnMut(&Binary, &super::ctl::Calls) -> bool> Referee<Process> for CutJudge<'_, F> {
+        fn act(&mut self, now: Time, procs: &mut [Process]) {
+            let [Process::Binary(binary), Process::Calls(calls), ..] = procs else { panic!("box and ctl") };
+            if !self.killed.get() && binary.exit_status().is_none() && (self.cut)(binary, calls) {
+                binary.signal(Signal::Kill);
+                calls.cancel();
+                self.inner.stopping = true;
+                self.killed.set(true);
+            }
+            self.next_probe = now.saturating_add(Duration::from_millis(2));
+            self.inner.act(now, procs);
+        }
+        fn observe(&mut self, now: Time, procs: &[Process]) {
+            self.inner.observe(now, procs);
+        }
+        fn next_deadline(&self) -> Option<Time> {
+            if self.inner.settled { None } else { Some(self.next_probe) }
+        }
+        fn passed(&self) -> bool {
+            self.inner.passed()
+        }
+    }
+    fn check(_: &Binary) {}
+    let clock = Clock::new();
+    let mut binary = Binary::start_with_tree(
+        dying_with_test(Command {
+            program: skein_scratch::paths::binary("temper"),
+            arguments: std::iter::once("box".into()).chain(flags.into_iter().map(Into::into)).collect(),
+            directory: directory.into(),
+            environment: vec![("PATH".into(), "/usr/bin:/bin".into())],
+        }),
+        Mode::Pipes,
+        262_144,
+        Expectation::Supervise,
+        false,
+    )
+    .expect("temper box starts");
+    let streams = binary.take_streams().expect("box pipes");
+    let mut fds = streams.descriptors();
+    let root = skein_shell::open_root(directory).expect("client root");
+    fds.push(root);
+    let checked = Cell::new(None);
+    let visits = Cell::new(Vec::new());
+    let killed = Cell::new(false);
+    let mut world = real::World::new(CutJudge {
+        inner: CtlJudge {
+            fail_on_panic: Some(()),
+            expected_exits: Vec::new(),
+            release_answers: None,
+            next_release: None,
+            restart_at: None,
+            face: None,
+            visit: Visit::AwaitingAddress,
+            tab: None,
+            tab_visit: Visit::AwaitingAddress,
+            visits: &visits,
+            reply: None,
+            on_link: None,
+            check: Some(check as fn(&Binary)),
+            checked: &checked,
+            stopping: false,
+            cleanup: false,
+            settled: false,
+            deadline: action_deadline("the box's named cut", BOX_DEADLINE, &binary),
+            cleanup_deadline: clock.now().now.saturating_add(BOX_DEADLINE),
+        },
+        cut: &mut cut,
+        killed: &killed,
+        next_probe: Time::ZERO,
+    });
+    world.spawn_with_fds(binary.descriptors(), || Process::Binary(Box::new(binary)));
+    world.spawn_with_fds(fds, || {
+        Process::Calls(Box::new(super::ctl::Calls::new(root, steps, Some(&streams), None).with_box_stderr()))
+    });
+    let ended = world.run(&clock, BOX_DEADLINE);
+    assert!(ended.procs.iter().all(Host::is_empty), "the killed box's tree and ctl settle");
+    let [Process::Binary(binary), Process::Calls(calls)] = ended.procs.as_slice() else { panic!("box and ctl") };
+    CtlOutcome {
+        model: None,
+        exit: binary.exit_status(),
+        stdout: calls.stdout().to_vec(),
+        stderr: binary.stderr().to_vec(),
+        left: binary.tree_status().live_at_leader_exit.clone(),
+        calls: calls
+            .ends()
+            .iter()
+            .map(|call| super::Ended { exit: call.exit, stdout: call.stdout.clone(), stderr: call.stderr.clone() })
+            .collect(),
+        checked: killed.get().then_some(()),
+        visits: Vec::new(),
+    }
+}
