@@ -27,6 +27,9 @@ pub(crate) fn seed(d: &mut Domain, out: &mut Queue<Request>) {
 
 pub(crate) fn kept(d: &Domain, out: &mut Queue<Request>) {
     for (_, row) in &d.forge_records {
+        if row.removing {
+            continue;
+        }
         out.push(Request::ForgeKept { forge: Box::new(row.clone()) });
     }
 }
