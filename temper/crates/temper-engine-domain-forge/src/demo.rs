@@ -107,7 +107,11 @@ pub(crate) fn start(d: &mut Domain, request: Token, token: Token, out: &mut Queu
         });
     }
     if needs_group(d) {
-        out.push(Request::SetUpGroup { forge: d.demo.as_ref().expect("offered demo").adoption.forge, request });
+        out.push(Request::SetUpGroup {
+            forge: d.demo.as_ref().expect("offered demo").adoption.forge,
+            request,
+            entry: Box::new([]),
+        });
     }
     out.push(Request::DemoStart { request });
 }
@@ -128,6 +132,7 @@ pub(crate) fn restart(d: &Domain, out: &mut Queue<Request>) {
         out.push(Request::SetUpGroup {
             forge: d.demo.as_ref().expect("configured demo").adoption.forge,
             request: Token::new(u64::MAX),
+            entry: Box::new([]),
         });
     }
 }

@@ -10,6 +10,14 @@ pub const BINDING: u8 = 18;
 pub const DEMO_ACT: u8 = 19;
 /// A write with a committed attempt (protocol/store.md, 2).
 pub const FLIGHT: u8 = 21;
+/// A forge the deployment keeps (temper/docs/design/draft/playground-reset.md, 3).
+pub const FORGE: u8 = 31;
+/// The next forge number (temper/docs/design/draft/playground-reset.md, 3).
+pub const FORGE_NUMBERS: u8 = 32;
+/// The playground row (temper/docs/design/draft/playground-reset.md, 6).
+pub const PLAYGROUND: u8 = 33;
+/// A removal's kept act (temper/docs/design/draft/playground-reset.md, 4).
+pub const KEPT_ACT: u8 = 34;
 
 fn write_name(writer: &mut KeyWriter, name: &forge::Name) {
     writer.u64(u64::from(name.forge)).u64(u64::from(name.repository));
@@ -78,9 +86,22 @@ pub fn largest(limits: &forge::Limits) -> Option<u32> {
 
 /// Encode one relative key, or refuse it when it exceeds `limit`.
 #[must_use]
+#[expect(clippy::too_many_lines, reason = "one exhaustive encoder preserves every family's key order")]
 pub fn encode(key: &forge::Key, limit: u32) -> Option<Box<[u8]>> {
     let mut writer = KeyWriter::new(limit);
     match key {
+        forge::Key::Forge(number) => {
+            writer.tag(FORGE).u64(u64::from(*number));
+        }
+        forge::Key::ForgeNumbers => {
+            writer.tag(FORGE_NUMBERS);
+        }
+        forge::Key::Playground => {
+            writer.tag(PLAYGROUND);
+        }
+        forge::Key::KeptAct(key) => {
+            writer.tag(KEPT_ACT).bytes(key);
+        }
         forge::Key::Landing(task) => {
             writer.tag(23).u64(*task);
         }
@@ -185,6 +206,10 @@ pub fn encode(key: &forge::Key, limit: u32) -> Option<Box<[u8]>> {
 pub fn decode(bytes: &[u8], limits: &forge::Limits) -> Option<forge::Key> {
     let mut reader = KeyReader::new(bytes);
     let key = match reader.tag()? {
+        FORGE => forge::Key::Forge(u16::try_from(reader.u64()?).ok()?),
+        FORGE_NUMBERS => forge::Key::ForgeNumbers,
+        PLAYGROUND => forge::Key::Playground,
+        KEPT_ACT => forge::Key::KeptAct(reader.bytes()?.as_ref().try_into().ok()?),
         0 => forge::Key::Call(forge::NamedCall {
             task: reader.u64()?,
             attempt: reader.u64()?,

@@ -226,6 +226,7 @@ impl Service {
         };
         let workers = workers::Workers::configured(&mut settings, seeds.deployment)?;
         let config = temper_engine_domain::Config {
+            machine: temper_engine_domain_forge::Machine::bare(),
             period_span: crate::stock::PERIOD_SPAN,
             core: jig_protocol_config::core(&settings.jig, seeds.deployment, seeds.seed),
             landing: settings.landing,

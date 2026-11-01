@@ -32,6 +32,7 @@ const CLIENT: skein_forge_client::Limits = skein_forge_client::Limits {
 };
 pub const LIMITS: top::Limits = top::Limits {
     repositories: 2,
+    forges: 4,
     tasks: 8,
     holds: 8,
     subscriptions: 8,
@@ -786,6 +787,13 @@ impl World {
                 | top::Request::Install { .. }
                 | top::Request::Accept { .. }
                 | top::Request::Manifest { .. }
+                | top::Request::RemoveGroup { .. }
+                | top::Request::EraseSecrets { .. }
+                | top::Request::Register(_)
+                | top::Request::Unregister { .. }
+                | top::Request::SendKeptAct(_)
+                | top::Request::PlaygroundStart { .. }
+                | top::Request::ResetAct(_)
                 | top::Request::CarriedUnused { .. }
                 | top::Request::EraseCarried { .. }
                 | top::Request::Resource { .. }
@@ -893,6 +901,10 @@ impl World {
 
 fn key(row: &top::Stored) -> top::Key {
     match row {
+        top::Stored::Forge(row) => top::Key::Forge(row.number),
+        top::Stored::ForgeNumbers { .. } => top::Key::ForgeNumbers,
+        top::Stored::Playground(_) => top::Key::Playground,
+        top::Stored::KeptAct(row) => top::Key::KeptAct(row.key),
         top::Stored::Landing(row) => top::Key::Landing(row.landing.task),
         top::Stored::Receipt { key, .. } => top::Key::Receipt(key.clone()),
         top::Stored::Call { key, .. } => top::Key::Call(*key),

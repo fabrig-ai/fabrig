@@ -23,7 +23,7 @@ impl State {
             previous: Map::with_capacity(bound),
         }
     }
-    fn answer(&mut self, request: Token, token: Token, answer: Answered, out: &mut Queue<Request>) {
+    pub(crate) fn answer(&mut self, request: Token, token: Token, answer: Answered, out: &mut Queue<Request>) {
         if self.answers.len() == self.answers.capacity() && !self.answers.contains_key(&token) {
             let oldest = *self.answers.first().expect("full answers").0;
             self.answers.remove(&oldest);
@@ -57,7 +57,10 @@ pub(crate) fn start(
         | Ask::Reachable { .. }
         | Ask::Adopt(_)
         | Ask::SetUp { .. }
-        | Ask::StartDemo => unreachable!("connect admission"),
+        | Ask::MakeForge { .. }
+        | Ask::RemoveForge { .. }
+        | Ask::EndPlayground
+        | Ask::StartPlayground => unreachable!("connect admission"),
     };
     let (connected, connecting) = match d.connection(forge) {
         Connection::Connected { .. } => (true, false),
@@ -144,7 +147,10 @@ fn send(d: &mut Domain, request: Token, forge: u16, ask: Ask, carried: Option<Ca
         | Ask::Reachable { .. }
         | Ask::Adopt(_)
         | Ask::SetUp { .. }
-        | Ask::StartDemo => unreachable!("connect admission"),
+        | Ask::MakeForge { .. }
+        | Ask::RemoveForge { .. }
+        | Ask::EndPlayground
+        | Ask::StartPlayground => unreachable!("connect admission"),
     }
 }
 /// Admission for the string-managed Forgejo form (client/README.md, 8).

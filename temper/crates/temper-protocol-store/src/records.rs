@@ -1,5 +1,5 @@
 //! Total translations between durable domain rows and generated records.
-use crate::{Bounds, Undecodable, v10 as w};
+use crate::{Bounds, Undecodable, v11 as w};
 use alloc::boxed::Box;
 use skein_lib::{Reader, Writer};
 use temper_engine_domain_forge as d;
@@ -11,6 +11,7 @@ mod client;
 #[cfg(test)]
 pub(crate) use api::encode_error;
 mod entries;
+mod forges;
 mod issues;
 mod landing;
 mod names;
@@ -21,6 +22,12 @@ const FITS: &str = "admitted fields fit the schema";
 #[must_use]
 pub fn encode(value: &d::Stored) -> Box<[u8]> {
     let value = match value {
+        d::Stored::Forge(row) => w::Value::Forge(forges::encode(row)),
+        d::Stored::ForgeNumbers { next } => w::Value::ForgeNumbers(
+            w::ForgeNumbers::new(&w::CEILINGS, w::ForgeNumbersParts { next: *next }).expect(FITS),
+        ),
+        d::Stored::Playground(row) => w::Value::Playground(forges::encode_playground(*row)),
+        d::Stored::KeptAct(row) => w::Value::KeptAct(forges::encode_kept(*row)),
         d::Stored::Landing(row) => w::Value::Landing(landing::encode(row)),
         d::Stored::Receipt { key, receipt } => w::Value::Receipt(landing::encode_receipt(key, receipt)),
         d::Stored::Application { token, until, outcome } => {
@@ -130,6 +137,10 @@ pub fn decode(bytes: &[u8], bounds: &Bounds) -> Result<d::Stored, Undecodable> {
                 },
             })
         }
+        w::Value::Forge(value) => d::Stored::Forge(forges::decode(value)),
+        w::Value::ForgeNumbers(value) => d::Stored::ForgeNumbers { next: value.next() },
+        w::Value::Playground(value) => d::Stored::Playground(forges::decode_playground(value)),
+        w::Value::KeptAct(value) => d::Stored::KeptAct(forges::decode_kept(value)),
         w::Value::Writer(value) => {
             let w::ForgeWriterParts { forge, author } = value.into_parts();
             d::Stored::Writer(skein_forge_client::Writer { forge, author })

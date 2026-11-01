@@ -1,5 +1,5 @@
 use super::fixtures;
-use crate::{records, v10};
+use crate::{records, v11};
 use temper_engine_domain_forge as forge;
 
 #[test]
@@ -55,7 +55,7 @@ fn bounds_take_each_limit_from_its_source() {
 #[test]
 fn bounds_refuse_sources_past_schema_ceilings() {
     let mut larger = fixtures::LIMITS;
-    larger.name_bytes = v10::CEILINGS.adopted_host.checked_add(1).expect("one past ceiling");
+    larger.name_bytes = v11::CEILINGS.adopted_host.checked_add(1).expect("one past ceiling");
     assert_eq!(crate::bounds(&larger, fixtures::LIMITS.client.op_bytes), None);
 }
 
@@ -713,21 +713,21 @@ fn every_application_outcome_preserves_its_complete_record() {
     assert!(
         jig_protocol_store::people_v13::Refusal::encoded_bound(&jig_protocol_store::people_v13::CEILINGS)
             .expect("bounded facts")
-            <= u64::from(v10::CEILINGS.core_refused_refusal)
+            <= u64::from(v11::CEILINGS.core_refused_refusal)
     );
 }
 #[test]
 fn application_decoding_refuses_malformed_refusal_facts() {
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
     for refusal in [Box::from([255]), Box::from([2]), Box::from([9, 0])] {
-        let value = v10::CoreRefused::new(&v10::CEILINGS, v10::CoreRefusedParts { refusal }).expect("small piece");
-        let application = v10::Application::new(
-            &v10::CEILINGS,
-            v10::ApplicationParts { token: 9, until: 10, outcome: v10::ApplicationOutcome::CoreRefused(value) },
+        let value = v11::CoreRefused::new(&v11::CEILINGS, v11::CoreRefusedParts { refusal }).expect("small piece");
+        let application = v11::Application::new(
+            &v11::CEILINGS,
+            v11::ApplicationParts { token: 9, until: 10, outcome: v11::ApplicationOutcome::CoreRefused(value) },
         )
         .expect("application");
         let row =
-            v10::Row::new(&v10::CEILINGS, v10::RowParts { value: v10::Value::Application(application) }).expect("row");
+            v11::Row::new(&v11::CEILINGS, v11::RowParts { value: v11::Value::Application(application) }).expect("row");
         assert_eq!(records::decode(&fixtures::encoded_row(&row), &bounds), Err(crate::Undecodable));
     }
 }
@@ -773,7 +773,7 @@ fn forge_writers_round_trip_with_the_v6_golden_bytes() {
         let key = crate::keys::encode(&forge::stored_key(&row), u32::MAX).expect("writer key");
         let bytes = records::encode(&row);
         assert_eq!(bytes.len(), 13); // Row version, family, forge, author.
-        assert_eq!(&bytes[..3], &[0, 10, 16]);
+        assert_eq!(&bytes[..3], &[0, 11, 16]);
         assert_eq!(records::row(&key, &bytes, &bounds), Ok(row));
         if forge == u16::MAX {
             let mut golden = [255; 11];
@@ -797,7 +797,7 @@ fn demo_states_round_trip_and_refuse_a_mismatched_key() {
             let key = crate::keys::encode(&forge::Key::Demo(forge), u32::MAX).expect("demo key");
             let bytes = records::encode(&row);
             assert_eq!(bytes.len(), 6);
-            assert_eq!(&bytes[..3], &[0, 10, 17]);
+            assert_eq!(&bytes[..3], &[0, 11, 17]);
             assert_eq!(records::row(&key, &bytes, &bounds), Ok(row));
             let other = crate::keys::encode(&forge::Key::Demo(forge ^ 1), u32::MAX).expect("other key");
             assert_eq!(records::row(&other, &bytes, &bounds), Err(crate::Undecodable));
@@ -821,7 +821,7 @@ fn binding_rows_round_trip_at_the_field_bounds() {
     ] {
         let row = forge::Stored::Binding { address, subject };
         let bytes = records::encode(&row);
-        assert_eq!(&bytes[..3], &[0, 10, 18]);
+        assert_eq!(&bytes[..3], &[0, 11, 18]);
         let key = crate::keys::encode(&forge::stored_key(&row), u32::MAX).unwrap();
         assert_eq!(records::row(&key, &bytes, &bounds), Ok(row));
         let other =
@@ -846,7 +846,7 @@ fn binding_decoder_preserves_bounded_noncanonical_addresses() {
 }
 #[test]
 fn binding_schema_refuses_fields_one_past_their_bounds() {
-    use crate::v10 as w;
+    use crate::v11 as w;
     for (address, subject) in [
         (Box::from([b'a'; 255]), b"subject".as_slice().into()),
         (b"sam@example.com".as_slice().into(), Box::from([b's'; 256])),
@@ -862,7 +862,7 @@ fn embedded_people_refusals_changed_at_store_nine() {
     let mut after = skein_lib::Writer::new(1);
     jig_protocol_store::people_v13::Refusal::Unknown.encode(&mut after).unwrap();
     assert_eq!(after.finish().as_ref(), &[10]);
-    assert_eq!(crate::STORE_VERSION, 10);
+    assert_eq!(crate::STORE_VERSION, 11);
 }
 
 #[test]
@@ -1247,4 +1247,104 @@ fn admitted_binding_and_writer_saves_obey_writer_rules_before_codec_round_trip()
         }
     }
     assert_eq!(saves, 2, "both real writer APIs emitted durable saves");
+}
+
+fn forge_row_round_trip(row: forge::Stored) {
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture limits");
+    let key = forge::stored_key(&row);
+    let encoded_key = crate::keys::encode(&key, u32::MAX).expect("key fits");
+    let bytes = records::encode(&row);
+    assert_eq!(records::decode(&bytes, &bounds), Ok(row.clone()));
+    assert_eq!(records::row(&encoded_key, &bytes, &bounds), Ok(row));
+    assert_eq!(crate::keys::decode(&encoded_key, &fixtures::LIMITS), Some(key));
+    assert_eq!(records::row(&[255], &bytes, &bounds), Err(crate::Undecodable));
+}
+#[test]
+fn forge_records_round_trip_at_smallest_and_ceiling() {
+    let mut smallest = forge::ForgeRecord::github_com();
+    smallest.api.host = Box::new([]);
+    smallest.api.port = 0;
+    smallest.api.transport = forge::ApiTransport::Plaintext;
+    smallest.git = Box::new([]);
+    smallest.web = None;
+    forge_row_round_trip(forge::Stored::Forge(smallest));
+    for (kind, mode, state) in [
+        (forge::Kind::GitHub, forge::Mode::Managed, forge::ForgeState::Kept),
+        (forge::Kind::Forgejo, forge::Mode::Connected, forge::ForgeState::Removing),
+        (forge::Kind::Forgejo, forge::Mode::Owned, forge::ForgeState::Kept),
+        (forge::Kind::Forgejo, forge::Mode::Fake, forge::ForgeState::Removing),
+    ] {
+        for transport in [
+            forge::ApiTransport::Plaintext,
+            forge::ApiTransport::Tls { server_name: Box::new([b's'; 255]), trust: None },
+            forge::ApiTransport::Tls { server_name: Box::new([b's'; 255]), trust: Some(Box::new([b't'; 4096])) },
+        ] {
+            for project in [forge::SetUpProject::Existing(u32::MAX), forge::SetUpProject::New(Box::new([b'p'; 1024]))] {
+                for first_state in [
+                    forge::FirstState::Making,
+                    forge::FirstState::Made { id: u64::MAX },
+                    forge::FirstState::Failed { step: forge::CreateStep::Admin },
+                    forge::FirstState::Failed { step: forge::CreateStep::Org },
+                    forge::FirstState::Failed { step: forge::CreateStep::Repository },
+                    forge::FirstState::Failed { step: forge::CreateStep::File },
+                ] {
+                    let record = forge::ForgeRecord {
+                        number: u16::MAX,
+                        kind,
+                        mode,
+                        api: forge::Api { host: Box::new([b'h'; 255]), port: u16::MAX, transport: transport.clone() },
+                        git: Box::new([b'g'; 1024]),
+                        git_program: Some(Box::new([b'g'; 4096])),
+                        web: Some(Box::new([b'w'; 1024])),
+                        read_only: true,
+                        bot: forge::Bot {
+                            login: Box::new([b'l'; 255]),
+                            name: Box::new([b'n'; 255]),
+                            email: Box::new([b'e'; 254]),
+                        },
+                        setup: Some(Box::new([b's'; 4096])),
+                        first: Some(forge::First {
+                            playground: true,
+                            org: Box::new([b'o'; 1024]),
+                            repository: Box::new([b'r'; 1024]),
+                            project: project.clone(),
+                            state: first_state,
+                            label: Box::new([b'l'; 64]),
+                        }),
+                        playground: true,
+                        state,
+                    };
+                    forge_row_round_trip(forge::Stored::Forge(record));
+                }
+            }
+        }
+    }
+}
+#[test]
+fn forge_numbers_playground_and_kept_acts_round_trip() {
+    for next in [0, u16::MAX] {
+        forge_row_round_trip(forge::Stored::ForgeNumbers { next });
+    }
+    for state in [
+        forge::PlaygroundState::Running,
+        forge::PlaygroundState::Resetting(forge::ResetStep::Project),
+        forge::PlaygroundState::Resetting(forge::ResetStep::Forge),
+        forge::PlaygroundState::Resetting(forge::ResetStep::Account),
+    ] {
+        for value in [None, Some(u32::MAX)] {
+            forge_row_round_trip(forge::Stored::Playground(forge::Playground {
+                state,
+                forge: u16::MAX,
+                project: value,
+                account: value,
+            }));
+        }
+    }
+    for act in [
+        forge::KeptActKind::Cancel { project: u32::MAX, task: u64::MAX },
+        forge::KeptActKind::RemoveGroup,
+        forge::KeptActKind::EraseSecrets,
+    ] {
+        forge_row_round_trip(forge::Stored::KeptAct(forge::KeptAct { key: [255; 16], forge: u16::MAX, act }));
+    }
 }

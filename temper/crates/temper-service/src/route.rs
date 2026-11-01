@@ -6,18 +6,27 @@ use temper_engine_domain as root;
 pub(crate) mod box_link;
 
 #[expect(clippy::too_many_lines, reason = "one exhaustive dispatcher routes root outputs to their components")]
+#[expect(clippy::match_same_arms, reason = "sv's tasks fill the four independent routes")]
 pub(crate) fn request(engine: &mut Engine, request: root::Request) {
     if let Some(demo) = &mut engine.demo {
         demo.state = engine.domain.demo_state();
     }
     match request {
         root::Request::Bound { request, answer } => engine.clients.bound(request, answer),
+        // sv's removal task supplies the removal's box and secrets routes.
+        root::Request::RemoveGroup { .. } => {}
+        // sv's removal task supplies durable secret erasure.
+        root::Request::EraseSecrets { .. } => {}
+        // sv's runtime task supplies registration in the forge layer and setup host.
+        root::Request::Register(_) => {}
+        // sv's runtime task supplies removal from the forge layer and setup host.
+        root::Request::Unregister { .. } => {}
         root::Request::StopGroup { forge } => {
             let mut out = skein_lib::Queue::with_capacity(1);
             engine.box_link.stop(forge, &mut out);
             box_link::drain(engine, &mut out);
         }
-        root::Request::SetUpGroup { forge, request } => {
+        root::Request::SetUpGroup { forge, request, .. } => {
             let mut out = skein_lib::Queue::with_capacity(3);
             engine.box_link.ask(forge, request, &mut out);
             box_link::drain(engine, &mut out);

@@ -746,6 +746,10 @@ pub(crate) fn stage_now(domain: &mut Domain, out: &mut Queue<Request>) {
             | Request::Accept { .. }
             | Request::EraseCarried { .. }
             | Request::Setup { .. }
+            | Request::RemoveGroup { .. }
+            | Request::EraseSecrets { .. }
+            | Request::Register(_)
+            | Request::Unregister { .. }
             | Request::StopGroup { .. }
             | Request::SetUpGroup { .. }
             | Request::SetUp { .. }

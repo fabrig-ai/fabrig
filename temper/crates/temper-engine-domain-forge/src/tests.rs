@@ -56,6 +56,7 @@ const CLIENT: skein_forge_client::Limits = skein_forge_client::Limits {
 };
 const LIMITS: Limits = Limits {
     repositories: 2,
+    forges: 4,
     tasks: 8,
     holds: 8,
     subscriptions: 8,
@@ -358,6 +359,13 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::SendDemoAct(_)
         | Request::DemoStart { .. }
         | Request::Settled { .. }
+        | Request::RemoveGroup { .. }
+        | Request::EraseSecrets { .. }
+        | Request::Register(_)
+        | Request::Unregister { .. }
+        | Request::SendKeptAct(_)
+        | Request::PlaygroundStart { .. }
+        | Request::ResetAct(_)
         | Request::RestartDone { .. } => panic!("permission call"),
     };
     assert_eq!(op, skein_forge::api::Op::Read(skein_forge::api::Read::Permission { user: 7 }));
@@ -430,6 +438,13 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::SendDemoAct(_)
         | Request::DemoStart { .. }
         | Request::Settled { .. }
+        | Request::RemoveGroup { .. }
+        | Request::EraseSecrets { .. }
+        | Request::Register(_)
+        | Request::Unregister { .. }
+        | Request::SendKeptAct(_)
+        | Request::PlaygroundStart { .. }
+        | Request::ResetAct(_)
         | Request::RestartDone { .. } => panic!("branches call"),
     };
     assert!(
@@ -499,6 +514,13 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::SendDemoAct(_)
         | Request::DemoStart { .. }
         | Request::Settled { .. }
+        | Request::RemoveGroup { .. }
+        | Request::EraseSecrets { .. }
+        | Request::Register(_)
+        | Request::Unregister { .. }
+        | Request::SendKeptAct(_)
+        | Request::PlaygroundStart { .. }
+        | Request::ResetAct(_)
         | Request::RestartDone { .. } => panic!("settings follows collision read"),
     }
 }

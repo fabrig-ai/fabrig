@@ -46,6 +46,7 @@ const CLIENT: skein_forge_client::Limits = skein_forge_client::Limits {
 };
 pub const LIMITS: d::Limits = d::Limits {
     repositories: 2,
+    forges: 4,
     tasks: 8,
     holds: 8,
     subscriptions: 8,
