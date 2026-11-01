@@ -9,6 +9,7 @@ use skein_lib::{Env, Queue, Time, Wall, bytes};
 #[derive(Debug)]
 pub struct Stream {
     reader: sse::Reader,
+    refusal: Option<skein_lib::List<u8>>,
     decoder: Decoder,
     active: bool,
     env: Env<sse::Limits>,
@@ -24,6 +25,7 @@ impl Stream {
         let (decoded, framing) = bounds(*limits).expect("validated stream bounds");
         let mut stream = Self {
             reader: sse::Reader::new(&framing),
+            refusal: None,
             decoder: Decoder::new(Alphabet::Standard, decoded),
             active: true,
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: framing },
@@ -36,9 +38,17 @@ impl Stream {
         stream.demand(sse::Request::Next);
         stream
     }
-    /// A 401 is the stream refused signed out; any other status but 200 ends it.
+    /// A 409 reads a bounded refusal record; a 401 is signed out.
     pub fn opened(&mut self, status: u16, out: &mut Queue<Heard>) {
-        if status == 401 && self.active {
+        if status == 409 && self.active {
+            self.refusal = Some(skein_lib::List::with_capacity(
+                u32::try_from(
+                    jig_client_protocol_wire::StreamsFull::encoded_bound(&jig_client_protocol_wire::CEILINGS)
+                        .expect("fixed refusal bound"),
+                )
+                .expect("fixed refusal fits"),
+            ));
+        } else if status == 401 && self.active {
             self.active = false;
             out.push(Heard::Streamed { message: Streamed::SignedOut });
         } else if status != 200 {
@@ -48,11 +58,41 @@ impl Stream {
     pub fn ended(&mut self, out: &mut Queue<Heard>) {
         if self.active {
             self.active = false;
+            if let Some(body) = self.refusal.take() {
+                let mut reader = skein_lib::Reader::new(body.as_slice());
+                if let Ok(record) =
+                    jig_client_protocol_wire::StreamsFull::decode(&jig_client_protocol_wire::CEILINGS, &mut reader)
+                    && reader.is_empty()
+                {
+                    let bound = match record.bound() {
+                        jig_client_protocol_wire::StreamBound::Component => {
+                            jig_client_protocol_link::StreamBound::Component
+                        }
+                        jig_client_protocol_wire::StreamBound::Transport => {
+                            jig_client_protocol_link::StreamBound::Transport
+                        }
+                    };
+                    out.push(Heard::Streamed {
+                        message: Streamed::Full(jig_client_protocol_link::StreamsFull { bound, size: record.size() }),
+                    });
+                    return;
+                }
+            }
             out.push(Heard::StreamGone);
         }
     }
     pub fn body(&mut self, piece: &[u8], out: &mut Queue<Heard>) {
         if !self.active {
+            return;
+        }
+        if let Some(body) = &mut self.refusal {
+            for byte in piece {
+                if body.push(*byte).is_err() {
+                    self.refusal = None;
+                    self.ended(out);
+                    return;
+                }
+            }
             return;
         }
         if piece.len() > skein_lib::length::usize_of(self.env.limits.chunk) {

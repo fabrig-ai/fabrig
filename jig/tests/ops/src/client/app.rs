@@ -362,6 +362,7 @@ fn client_received(up: &jig_client::Up) -> Vec<Receipt> {
         Up::Served { .. } | Up::WatchEnded { .. } => observe::up_received(up),
         Up::SignedOut => vec![Receipt::Parked],
         Up::SignedIn
+        | Up::StreamsFull { .. }
         | Up::NotKept { .. }
         | Up::FamilyServed { .. }
         | Up::FamilyDelivered { .. }

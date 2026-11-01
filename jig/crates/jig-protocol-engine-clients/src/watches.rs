@@ -117,7 +117,10 @@ impl Component {
     }
     fn stream_open(&mut self, env: &Env<Limits>, owner: Token, sign_in: u64) {
         if self.streams.len() == self.streams.capacity() {
-            self.connections.get_mut(&owner).expect("stream owner").respond(crate::Reply::Conflict);
+            self.connections
+                .get_mut(&owner)
+                .expect("stream owner")
+                .respond(crate::Reply::StreamsFull { size: env.limits.streams });
             return;
         }
         let mut name = [0; 16];

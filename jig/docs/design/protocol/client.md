@@ -1144,6 +1144,11 @@ prefix; jig's test application mounts it at `/jig`.
   before the stream opened (4.2); a `409` whose body names a bound is
   the stream refused full (section 4), told to its caller; any other
   status but `200`, the body's end, or a failure, is `StreamGone`.
+  The full body's record is `StreamsFull { bound, size }`, with bound
+  `component` or `transport` and size a `u32`; it is read within its
+  fixed encoded bound before being told. A missing, malformed or trailing
+  body is gone. The full fact stays beside the client's link state while
+  it retries, until `me` returns or the sign-in ends.
 
 ### 17.3 The credential
 

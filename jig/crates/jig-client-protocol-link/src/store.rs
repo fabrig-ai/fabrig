@@ -111,6 +111,7 @@ impl Link {
                 | Request::NotKept { .. }
                 | Request::OpenStream { .. }
                 | Request::CloseStream
+                | Request::StreamsFull { .. }
                 | Request::Watch { .. }
                 | Request::FamilyDelivery { .. }
                 | Request::Ended { .. }

@@ -879,3 +879,7 @@ enum AccountHolder { deployment, party: AccountHolderParty }
 enum AccountKind { sign_in, key, program, none }
 enum AccountBound { accounts, holder_accounts, sources, sign_ins }
 enum AccountKeyFailure { too_long, not_stored }
+
+# Stream admission refusals precede the hello (protocol/client.md, 4 and 17.2).
+enum StreamBound { component, transport }
+record StreamsFull { bound: StreamBound size: u32 }

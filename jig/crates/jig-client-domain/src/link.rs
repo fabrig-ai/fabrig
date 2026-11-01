@@ -7,6 +7,10 @@ impl Domain {
         self.link
     }
     #[must_use]
+    pub fn streams_full(&self) -> Option<crate::StreamsFull> {
+        self.streams_full
+    }
+    #[must_use]
     pub fn party(&self) -> Option<u64> {
         for (_, watch) in &self.watches {
             if watch.own
@@ -18,6 +22,9 @@ impl Domain {
         None
     }
     pub(crate) fn set_link(&mut self, link: Link, out: &mut Queue<Request>) {
+        if link == Link::Live || link == Link::SignedOut {
+            self.streams_full = None;
+        }
         if self.link != Link::OutOfDate && self.link != link {
             self.link = link;
             tell(out, Told::Link { link });
