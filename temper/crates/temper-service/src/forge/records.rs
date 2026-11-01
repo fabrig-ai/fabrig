@@ -5,6 +5,18 @@ use skein_lib::{List, Map, Secret, Token};
 use temper_protocol_records as records;
 pub(crate) const LOAD: Token = Token::new(crate::tokens::FORGE | 1);
 const FORGES: u32 = 65536;
+pub(crate) const ITEMS: [records::Item; 10] = [
+    records::Item::AdminToken,
+    records::Item::ApiToken,
+    records::Item::GitToken,
+    records::Item::User,
+    records::Item::WebhookSecret,
+    records::Item::AppId,
+    records::Item::AppSlug,
+    records::Item::AppKey,
+    records::Item::Accepted,
+    records::Item::Origin,
+];
 /// The service retains values only for its configured forges. The codec's
 /// general-purpose Rows is filled solely through this holder's checked push.
 #[derive(Debug)]
@@ -193,14 +205,15 @@ pub(crate) fn advance(engine: &mut crate::engine::Engine) {
             engine.forge_records.phase = Phase::Connect { index: index.checked_add(1).expect("configured forges") };
         }
         Phase::Name { after } => {
+            // The durable startup mark follows the connector's kept-forge handoffs.
+            if crate::setup::erasing_records(engine) {
+                return;
+            }
             let rows = &engine.forge_records.rows;
             let found = rows.next_unconfigured(after);
             match found {
                 Some(number) => {
-                    if engine.notes.room() == 0 {
-                        return;
-                    }
-                    engine.notes.push(crate::Note::ForgeUnconfigured { number });
+                    crate::setup::erase_forge(engine, number);
                     engine.forge_records.phase =
                         Phase::Name { after: u32::from(number).checked_add(1).expect("u16 number") };
                 }
@@ -241,18 +254,7 @@ fn unconfigured_numbers_resume_at_the_cursor_without_retaining_values() {
 
 /// Load one runtime forge's bounded secret items from the durable store.
 pub(crate) fn load_one(engine: &mut crate::engine::Engine, forge: u16) -> bool {
-    for item in [
-        records::Item::AdminToken,
-        records::Item::ApiToken,
-        records::Item::GitToken,
-        records::Item::User,
-        records::Item::WebhookSecret,
-        records::Item::AppId,
-        records::Item::AppSlug,
-        records::Item::AppKey,
-        records::Item::Accepted,
-        records::Item::Origin,
-    ] {
+    for item in ITEMS {
         let number = records::number(forge, item);
         match engine.store.secrets(LOAD, Secrets::Get { owner: SecretOwner::Application, number }) {
             Some(Event::Secret { value: Some(jig_protocol_store::SecretValue::Application(value)), .. }) => {

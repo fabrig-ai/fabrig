@@ -694,7 +694,7 @@ fn records_start_erases_carried_rows_before_connecting_without_decoding_them() {
         "unconfigured values are not retained"
     );
     assert_eq!(service.engine.as_ref().expect("engine").store.forge_loads.len(), 4);
-    assert_eq!(service.engine.as_ref().expect("engine").store.erases, 2);
+    assert_eq!(service.engine.as_ref().expect("engine").store.erases, 12);
     for number in [records::CARRIED, records::CARRIED + 1] {
         let Some(jig_protocol_store::Event::Secret { value: None, .. }) = service
             .engine
@@ -754,15 +754,19 @@ fn records_start_erases_carried_rows_before_connecting_without_decoding_them() {
     ] {
         assert!(notes.as_slice().contains(&crate::Note::ForgeNotConnected { number, why }));
     }
-    assert_eq!(notes.len(), 8);
-    assert!(notes.as_slice().contains(&crate::Note::ForgeUnconfigured { number: 77 }));
-    let mut unconfigured = 0_u32;
-    for note in &notes {
-        if *note == (crate::Note::ForgeUnconfigured { number: 77 }) {
-            unconfigured = unconfigured.checked_add(1).unwrap();
-        }
+    assert_eq!(notes.len(), 7);
+    for item in forge::records::ITEMS {
+        let number = records::number(77, item);
+        let Some(jig_protocol_store::Event::Secret { value: None, .. }) = service
+            .engine
+            .as_mut()
+            .unwrap()
+            .store
+            .secrets(Token::new(125), Secrets::Get { owner: SecretOwner::Application, number })
+        else {
+            panic!("unkept forge record erased")
+        };
     }
-    assert_eq!(unconfigured, 1, "all of the unconfigured forge's rows name it once");
     face.select(1);
     assert!(
         face.sent().windows(b"GET /api/v1/user ".len()).any(|part| part == b"GET /api/v1/user "),
@@ -805,6 +809,9 @@ fn assert_records_untouched(service: &mut crate::Service, kept: &skein_lib::List
     use jig_protocol_store::{SecretOwner, Secrets};
     for (number, original) in kept {
         if *number >= temper_protocol_records::CARRIED {
+            continue;
+        }
+        if let Some((_, 77, _)) = temper_protocol_records::parse(*number) {
             continue;
         }
         let Some(jig_protocol_store::Event::Secret {
@@ -881,5 +888,5 @@ fn a_records_key_that_cannot_sign_stops_only_its_forge() {
     assert_eq!(service.end(), None);
     face.select(1);
     assert!(face.sent().starts_with(b"GET /api/v1/user "));
-    assert_eq!(service.engine.as_ref().expect("engine").store.erases, 2);
+    assert_eq!(service.engine.as_ref().expect("engine").store.erases, 12);
 }

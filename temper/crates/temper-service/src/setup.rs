@@ -36,6 +36,8 @@ pub(crate) struct Layer {
     pastes: Map<u64, u16>,
     file_api: Map<u16, Secret>,
     erases: Map<Token, u16>,
+    record_erases: Queue<u64>,
+    record_erase: Option<(Token, u64)>,
     pub(crate) lifecycle: lifecycle::Lifecycle,
     writes: Map<Token, Write>,
     next_write: u64,
@@ -222,7 +224,8 @@ impl Layer {
     }
     /// Drop the forge's settings, runs and callbacks at once.
     #[expect(clippy::too_many_lines, reason = "removal clears every forge association and queued output together")]
-    pub(crate) fn remove_forge(&mut self, forge: u16) {
+    pub(crate) fn drop_forge(&mut self, forge: u16) -> Queue<public::Caller> {
+        let mut callers = Queue::uncapped();
         if let Some((settings, _)) = &mut self.pending {
             let mut kept = skein_lib::List::with_capacity(settings.forges.capacity());
             for held in core::mem::replace(&mut settings.forges, skein_lib::List::with_capacity(0)).into_boxed() {
@@ -260,7 +263,6 @@ impl Layer {
         for token in runs.into_boxed() {
             self.runs.remove(&token);
             self.staged.remove(&token);
-            self.public.remove(&token);
         }
         let mut staged = Map::with_capacity(self.staged.capacity());
         let mut previous = core::mem::replace(&mut self.staged, Map::with_capacity(0));
@@ -284,7 +286,9 @@ impl Layer {
             | public::Caller::AcceptAsked { forge: number, .. }
             | public::Caller::Accept { forge: number, .. }
             | public::Caller::Reachable { forge: number, .. }) = &caller;
-            if *number != forge {
+            if *number == forge {
+                callers.push(caller);
+            } else {
                 public.insert(token, caller).expect("caller capacity");
             }
         }
@@ -330,7 +334,9 @@ impl Layer {
         }
         for _ in 0..self.waiting.len() {
             let value = self.waiting.pop().expect("waiting count");
-            if value.forge != forge {
+            if value.forge == forge {
+                callers.push(public::Caller::Accept { forge, call: value.call, back: value.back });
+            } else {
                 self.waiting.push(value);
             }
         }
@@ -346,6 +352,11 @@ impl Layer {
                 self.backs.push(value);
             }
         }
+        callers
+    }
+    #[cfg(test)]
+    pub(crate) fn remove_forge(&mut self, forge: u16) {
+        let _callers = self.drop_forge(forge);
     }
     #[cfg(test)]
     pub(crate) fn startup_restored(&self) -> bool {
@@ -411,6 +422,8 @@ impl Layer {
             pastes: Map::with_capacity(limits.forges),
             file_api: Map::with_capacity(limits.forges),
             erases: Map::with_capacity(limits.forges),
+            record_erases: Queue::uncapped(),
+            record_erase: None,
             lifecycle: lifecycle::Lifecycle::new(limits.forges, installations),
             writes: Map::with_capacity(limits.runs.checked_add(limits.forges).expect("setup writes")),
             next_write: 1,
@@ -450,6 +463,7 @@ impl Layer {
             return;
         }
         self.closing = true;
+        self.record_erases.clear();
         self.lifecycle.adoptions = Map::with_capacity(self.env.limits.forges);
         self.lifecycle.reconcile = Map::with_capacity(self.env.limits.forges);
         self.pages = Queue::with_capacity(self.env.limits.states);
@@ -488,7 +502,11 @@ impl Layer {
         next
     }
     pub(crate) fn work_pending(&self, now: Time) -> bool {
-        !self.above.is_empty() || !self.io.is_empty() || due(self.next_deadline(), now) || self.waiting_ready()
+        !self.above.is_empty()
+            || !self.io.is_empty()
+            || (self.record_erase.is_none() && !self.record_erases.is_empty())
+            || due(self.next_deadline(), now)
+            || self.waiting_ready()
     }
     fn waiting_ready(&self) -> bool {
         for waiting in &self.waiting {
@@ -734,6 +752,7 @@ fn begin(engine: &mut crate::engine::Engine) {
 pub(crate) fn advance(engine: &mut crate::engine::Engine) {
     engine.setup.env.now = engine.env.now;
     engine.setup.env.wall = engine.env.wall;
+    erase_next(engine);
     begin(engine);
     release(engine);
     routes::advance(engine);
@@ -793,8 +812,47 @@ pub(crate) fn advance(engine: &mut crate::engine::Engine) {
     }
     lifecycle::advance(engine);
 }
+/// Queue every credential item, including absent records, behind the one secrets write in flight.
+pub(crate) fn erase_forge(engine: &mut crate::engine::Engine, forge: u16) {
+    for item in crate::forge::records::ITEMS {
+        engine.setup.record_erases.push(temper_protocol_records::number(forge, item));
+    }
+    erase_next(engine);
+}
+pub(crate) fn erasing_records(engine: &crate::engine::Engine) -> bool {
+    engine.setup.record_erase.is_some() || !engine.setup.record_erases.is_empty()
+}
+fn erase_next(engine: &mut crate::engine::Engine) {
+    if engine.setup.record_erase.is_some() || engine.end.is_some() || engine.setup.closing {
+        return;
+    }
+    let Some(number) = engine.setup.record_erases.pop() else { return };
+    let owner = lifecycle::next_run(&mut engine.setup.lifecycle);
+    engine.setup.record_erase = Some((owner, number));
+    if let Some(event) = engine.store.secrets(
+        owner,
+        jig_protocol_store::Secrets::Erase { owner: jig_protocol_store::SecretOwner::Application, number },
+    ) {
+        answer(engine, event);
+    }
+}
 pub(crate) fn answer(engine: &mut crate::engine::Engine, event: StoreEvent) {
+    if let StoreEvent::SecretsNotReady { owner } = &event
+        && let Some((held, number)) = engine.setup.record_erase
+        && *owner == held
+    {
+        engine.setup.record_erase = None;
+        engine.setup.record_erases.push(number);
+        return;
+    }
     if let StoreEvent::Erased { owner } = event {
+        if let Some((held, _)) = engine.setup.record_erase
+            && owner == held
+        {
+            engine.setup.record_erase = None;
+            erase_next(engine);
+            return;
+        }
         if let Some(forge) = engine.setup.erases.remove(&owner)
             && !engine.setup.closing
             && engine.drain.is_none()

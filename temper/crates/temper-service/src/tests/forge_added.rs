@@ -117,6 +117,10 @@ fn a_removed_forge_leaves_the_component_the_host_and_every_table() {
     table::kept(engine, record.clone());
     crate::setup::public::reachable(engine, 2, Token::new(999), None, 1);
     table::removed(engine, 2);
+    for _ in 0..forge::records::ITEMS.len() {
+        let Some(event @ Event::Erased { .. }) = engine.store.above.pop() else { panic!("credential erase") };
+        crate::setup::answer(engine, event);
+    }
     crate::setup::advance(engine);
     assert!(table::record(engine, 2).is_none());
     assert!(engine.workers.forges.iter().all(|forge| forge.number != 2));
@@ -126,7 +130,7 @@ fn a_removed_forge_leaves_the_component_the_host_and_every_table() {
         Token::new(123),
         Secrets::Get { owner: SecretOwner::Application, number: records::number(2, Item::ApiToken) },
     );
-    let Some(Event::Secret { value: Some(_), .. }) = value else { panic!("removed forge secrets retained") };
+    let Some(Event::Secret { value: None, .. }) = value else { panic!("removed forge credential erased") };
     table::kept(engine, record.clone());
     assert_eq!(table::record(engine, 2), Some(&record));
 }
