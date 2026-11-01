@@ -2266,6 +2266,7 @@ fn live_deadline(budget: Duration, binary: &skein_world::end_to_end::Binary) -> 
 }
 
 /// The live face has only the supervised box and ctl, no issuer, visitor or peer.
+#[expect(clippy::too_many_lines, reason = "the live driver keeps setup, story and teardown together")]
 pub fn run_live(
     plan: LivePlan<'_>,
     budget: Duration,
@@ -2360,6 +2361,7 @@ pub fn run_live(
         return Err(message);
     }
     Ok(super::boxed::CtlOutcome {
+        runs: Vec::new(),
         model: None,
         exit: binary.exit_status(),
         stdout: calls.stdout().to_vec(),

@@ -116,6 +116,10 @@ pub enum Step {
     NextLink,
     /// Cleanly stop the supervised engine while a started ctl remains live.
     RestartEngine,
+    /// Kill the box and its retained process tree, cutting a started call first.
+    KillBox,
+    /// Start the box on the same directories and sign previously signed-in clients in again.
+    StartBox,
     /// Release a scripted response after observing the pending review.
     ReleaseLlm {
         name: &'static [u8],
@@ -190,6 +194,7 @@ enum CallKind {
     Adoption,
 }
 struct Child {
+    sign_in: Option<Call>,
     kind: CallKind,
     base: u64,
     pidfd: Option<Fd>,
@@ -208,6 +213,7 @@ struct Child {
 impl Child {
     fn new(input: Vec<u8>, base: u64) -> Self {
         Self {
+            sign_in: None,
             kind: CallKind::Ordinary,
             base,
             pidfd: None,
@@ -376,6 +382,10 @@ enum Action {
     Signal,
     NextLink,
     RestartEngine,
+    KillBox,
+    StartBox,
+    BoxLink,
+    BoxDying,
     ReleaseLlm { name: &'static [u8], cue: &'static [u8] },
 }
 
@@ -393,6 +403,8 @@ enum BoxStderr {
     Captured,
 }
 pub struct Calls {
+    sign_ins: Vec<Call>,
+    cuts: Vec<usize>,
     root: Option<Fd>,
     client: Box<[u8]>,
     output: Option<Fd>,
@@ -463,6 +475,38 @@ impl Calls {
     }
     pub(super) fn restarting_engine(&self) -> bool {
         matches!(self.action, Some(Action::RestartEngine))
+    }
+    pub(super) fn killing_box(&self) -> bool {
+        matches!(self.action, Some(Action::KillBox | Action::BoxDying)) && self.started.is_none()
+    }
+    pub(super) fn starting_box(&self) -> bool {
+        matches!(self.action, Some(Action::StartBox))
+    }
+    pub(super) fn box_action_waiting(&mut self) {
+        if matches!(self.action, Some(Action::KillBox)) {
+            self.action = Some(Action::BoxDying);
+        }
+        self.referee_work = RefereeWork::Waiting;
+    }
+    pub(super) fn box_drained(&self) -> bool {
+        self.output.is_none() && self.closing == 0
+    }
+    pub(super) fn box_killed(&mut self) {
+        assert!(self.killing_box() && self.box_drained(), "box and its pipes drained");
+        self.action = None;
+        self.finish_step(false);
+    }
+    pub(super) fn box_started(&mut self, streams: &Streams) {
+        assert!(self.starting_box() && self.box_drained(), "new box after drainage");
+        let &Streams::Pipes { input, output } = streams else { panic!("box pipes") };
+        self.selected = self.link.len();
+        self.output = Some(output);
+        self.close(input);
+        self.action = Some(Action::BoxLink);
+        self.box_action_waiting();
+    }
+    pub(super) fn was_cut(&self, index: usize) -> bool {
+        self.cuts.contains(&index)
     }
     pub(super) fn engine_restarting(&mut self) -> usize {
         let (child, index) = self.started.as_ref().expect("live change wait");
@@ -565,6 +609,8 @@ impl Calls {
     }
     pub(super) fn new(root: Fd, steps: Vec<Step>, streams: Option<&Streams>, forgejo: Option<u32>) -> Self {
         let mut calls = Self {
+            sign_ins: Vec::new(),
+            cuts: Vec::new(),
             root: Some(root),
             client: b"client".as_slice().into(),
             output: None,
@@ -653,6 +699,7 @@ impl Calls {
         }
     }
     fn start(&mut self, call: Call, started: bool) {
+        let sign_in = matches!(call.stdin, Stdin::Link).then(|| call.clone());
         let kind = if call.arguments.first().is_some_and(|word| word.as_ref() == b"repository")
             && call.arguments.get(1).is_some_and(|word| word.as_ref() == b"adopt")
         {
@@ -676,25 +723,42 @@ impl Calls {
         let program = call.program.unwrap_or_else(|| skein_scratch::paths::binary("temper"));
         self.spawn(program.as_os_str().as_bytes().into(), args, input, started);
         if started {
-            self.started.as_mut().expect("started call").0.kind = kind;
+            let child = &mut self.started.as_mut().expect("started call").0;
+            child.kind = kind;
+            child.sign_in = sign_in;
         } else {
-            self.child.as_mut().expect("running call").kind = kind;
+            let child = self.child.as_mut().expect("running call");
+            child.kind = kind;
+            child.sign_in = sign_in;
         }
     }
-    fn finish(&mut self, now: Time) {
+    fn signed_in(&mut self, child: &Child) {
+        if child.ended.exit == Some(Exit::Code(0))
+            && let Some(call) = &child.sign_in
+            && !self.sign_ins.iter().any(|signed| signed.client == call.client)
+        {
+            self.sign_ins.push(call.clone());
+        }
+    }
+    fn finish_started(&mut self) {
         if self.started.as_ref().is_some_and(|(child, _)| child.finished()) {
             let (child, index) = self.started.take().expect("finished started call");
             if !self.cancelling {
                 child.check_adoption(self.awaiting_started);
             }
+            self.signed_in(&child);
             self.ends[index] = child.ended;
             self.observed_at[index] = Some(self.wall);
             self.awaiting_started = false;
         }
+    }
+    fn finish(&mut self, now: Time) {
+        self.finish_started();
         if !self.child.as_ref().is_some_and(Child::finished) {
             return;
         }
         let child = self.child.take().expect("finished ctl");
+        self.signed_in(&child);
         let ended = child.ended;
         self.finish_step(true);
         match self.action.take().expect("current action") {
@@ -770,7 +834,13 @@ impl Calls {
             }
             Action::Visit => panic!("a visit has no child"),
             Action::Stderr(_) | Action::ProgramLogin(_) => panic!("a stderr gate has no child"),
-            Action::NextLink | Action::RestartEngine | Action::ReleaseLlm { .. } => {
+            Action::NextLink
+            | Action::RestartEngine
+            | Action::KillBox
+            | Action::StartBox
+            | Action::BoxLink
+            | Action::BoxDying
+            | Action::ReleaseLlm { .. } => {
                 unreachable!("referee action has no child")
             }
             Action::Signal => assert_eq!(
@@ -790,6 +860,13 @@ impl Calls {
         self.deadline = None;
     }
     fn bound(&mut self, _now: Time) {
+        if matches!(self.action, Some(Action::BoxLink)) && super::printed_link(&self.link[self.selected..]).is_some() {
+            self.action = None;
+            self.finish_step(false);
+            for call in self.sign_ins.iter().rev() {
+                self.steps.push_front(Step::Run(call.clone()));
+            }
+        }
         if matches!(self.action, Some(Action::NextLink)) {
             let after =
                 self.selected + self.link[self.selected..].iter().position(|b| *b == b'\n').map_or(0, |n| n + 1);
@@ -844,6 +921,10 @@ impl Calls {
                         | Action::ProgramLogin(_)
                         | Action::NextLink
                         | Action::RestartEngine
+                        | Action::KillBox
+                        | Action::StartBox
+                        | Action::BoxLink
+                        | Action::BoxDying
                         | Action::Visit
                         | Action::ReleaseLlm { .. }
                 )
@@ -867,7 +948,8 @@ impl Calls {
         self.member = Some(member::Member::project(root, scratch, client, name, number));
     }
     fn cut_started(&mut self) {
-        let (child, _) = self.started.as_mut().expect("call still running at cut");
+        let (child, index) = self.started.as_mut().expect("call still running at cut");
+        self.cuts.push(*index);
         child.signals += 1;
         self.awaiting_started = true;
         self.submit.push(Submit {
@@ -917,6 +999,8 @@ impl Calls {
                 self.advance(now);
             }
             Some(Step::RestartEngine) => self.await_box(Action::RestartEngine),
+            Some(Step::KillBox) => self.await_box(Action::KillBox),
+            Some(Step::StartBox) => self.await_box(Action::StartBox),
             Some(Step::Stderr(bytes)) => self.await_box(Action::Stderr(bytes)),
             Some(Step::ProgramLogin(name)) => self.await_box(Action::ProgramLogin(name)),
             Some(Step::NextLink) => {
@@ -1026,6 +1110,16 @@ impl Host for Calls {
         self.bound(now);
         if self.closing == 0 && (self.output.is_none() || super::printed_link(&self.link).is_some()) {
             self.advance(now);
+        }
+        if matches!(self.action, Some(Action::KillBox)) {
+            if !self.awaiting_started
+                && self.started.as_ref().is_some_and(|(child, _)| child.pidfd.is_some() && child.ended.exit.is_none())
+            {
+                self.cut_started();
+            }
+            // A Start can still be awaiting its spawn completion when KillBox
+            // reaches it. Cut only once its pidfd is owned, then drain it.
+            self.referee_work = if self.started.is_none() { RefereeWork::Ready } else { RefereeWork::Waiting };
         }
         if let Some(child) = &mut self.child {
             child.drive(&mut self.submit, self.cancelling);
