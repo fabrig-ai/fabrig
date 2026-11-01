@@ -600,7 +600,10 @@ impl<F: FnOnce(&Binary) -> T, T> Referee<Process> for CtlJudge<'_, F, T> {
                         .last()
                         .and_then(super::sign_in::authorization_address)
                         .expect("last act printed a browser address");
-                    visitor.hand(address);
+                    match calls.visit_hops() {
+                        Some(hops) => visitor.hand_until(address, hops),
+                        None => visitor.hand(address),
+                    }
                     calls.visit_handed();
                     self.tab_visit = Visit::Handed;
                 }
@@ -877,7 +880,7 @@ fn run_ctl_peers<T>(
         CtlModel::Account(probe) => (None, None, Some(probe.face), None),
     };
     configure_face(face.as_ref(), &flags);
-    let tab = steps.iter().any(|step| matches!(step, super::ctl::Step::Visit));
+    let tab = steps.iter().any(|step| matches!(step, super::ctl::Step::Visit | super::ctl::Step::VisitHops(_)));
     assert!(!tab || face.is_none(), "box-owned peers or an independent face");
     let clock = Clock::new();
     let fake_backends = flags.iter().any(|flag| flag == "--fake-backends");

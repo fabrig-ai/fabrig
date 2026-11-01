@@ -98,6 +98,8 @@ pub enum Step {
     Run(Call),
     /// Follow the previous call's printed address on the box referee's visitor.
     Visit,
+    /// Stop following links after this many responses, then drain the visitor.
+    VisitHops(usize),
     /// Form a dependent call from the completed calls' documents.
     Then(NextCall),
     Start(Call),
@@ -368,7 +370,7 @@ impl Child {
 
 enum Action {
     Run,
-    Visit,
+    Visit(Option<usize>),
     Until(Call, ReadCondition),
     TaskExists(Call, u64),
     Stderr(&'static [u8]),
@@ -483,7 +485,11 @@ impl Calls {
         self.referee_work = RefereeWork::Waiting;
     }
     pub(super) fn visiting(&self) -> bool {
-        matches!(self.action, Some(Action::Visit))
+        matches!(self.action, Some(Action::Visit(_)))
+    }
+    pub(super) fn visit_hops(&self) -> Option<usize> {
+        let Some(Action::Visit(hops)) = self.action else { panic!("visit requested") };
+        hops
     }
     pub(super) fn visit_handed(&mut self) {
         assert!(self.visiting(), "visit requested");
@@ -768,7 +774,7 @@ impl Calls {
                     }
                 }
             }
-            Action::Visit => panic!("a visit has no child"),
+            Action::Visit(_) => panic!("a visit has no child"),
             Action::Stderr(_) | Action::ProgramLogin(_) => panic!("a stderr gate has no child"),
             Action::NextLink | Action::RestartEngine | Action::ReleaseLlm { .. } => {
                 unreachable!("referee action has no child")
@@ -844,7 +850,7 @@ impl Calls {
                         | Action::ProgramLogin(_)
                         | Action::NextLink
                         | Action::RestartEngine
-                        | Action::Visit
+                        | Action::Visit(_)
                         | Action::ReleaseLlm { .. }
                 )
             )
@@ -885,6 +891,7 @@ impl Calls {
         self.action = Some(Action::TaskExists(call.clone(), task));
         self.start(call, false);
     }
+    #[expect(clippy::too_many_lines, reason = "each scripted step advances through the same admission boundary")]
     fn advance(&mut self, now: Time) {
         // A box that exits before printing its link must be diagnosed by
         // its referee, rather than panicking while constructing sign-in stdin.
@@ -949,7 +956,11 @@ impl Calls {
                 self.referee_work = RefereeWork::Ready;
             }
             Some(Step::Visit) => {
-                self.action = Some(Action::Visit);
+                self.action = Some(Action::Visit(None));
+                self.referee_work = RefereeWork::Ready;
+            }
+            Some(Step::VisitHops(hops)) => {
+                self.action = Some(Action::Visit(Some(hops)));
                 self.referee_work = RefereeWork::Ready;
             }
             Some(Step::Run(call)) => {
