@@ -1,3 +1,4 @@
+mod ci_poll;
 use skein_fake_forge_domain::{Observation, api::Kind};
 use skein_fake_forge_protocol::Route;
 use skein_forge_machine_world::joint::REPO;
@@ -824,45 +825,13 @@ const PENDING_INSTALLATION_REQUESTS_PER_MINUTE: u64 =
 #[expect(clippy::too_many_lines, reason = "one no-hint CI story with its clock, root names and cost referee")]
 fn a_github_change_waits_out_a_ninety_second_ci_and_merges_on_its_verdict() {
     use skein_fake_forge_domain::api::Check;
-    use skein_forge_machine_world::joint;
     use skein_lib::Duration;
     use temper_service::limits::{Profile, profile};
 
     let shipped = profile(Profile::Small).forge;
-    assert_eq!(shipped.change_policy.stall, Duration::from_secs(30 * 60));
-    let mut limits = temper_engine_forge_world::LIMITS;
-    limits.client = shipped.client;
-    limits.change_policy.stall = shipped.change_policy.stall;
-    limits.resources_per_task = shipped.resources_per_task;
-    let mut checks = joint::checks(1000);
-    checks.latency_min = Duration::from_secs(90);
-    checks.latency_max = Duration::from_secs(90);
-    let mut world = Protocol::github_with_limits(71, checks, &limits);
-    world.adopt();
-    let run = branch_name(b"temper/1/r1");
-    world.event(top::Event::Names { task: 1, resources: Box::new([run.clone()]) });
-    world.event(top::Event::Hold { task: 1, resource: run, from: None });
-    let mut row = change_row();
-    row.change.since = world.wall();
-    world.event(top::Event::Change { row });
-    let branch = branch_name(b"temper/51");
-    world.event(top::Event::Names { task: 51, resources: Box::new([branch.clone(), branch_name(b"main")]) });
-    world.event(top::Event::Hold { task: 51, resource: branch.clone(), from: None });
-    world.run_for(0);
-    assert_eq!(
-        change_step(&mut world, 2, change::Status::Unknown, Box::new([])),
-        change::Decision::Delegate(change::Delegate::Produce)
-    );
-    let pushed = world.wall();
-    world.produce(b"temper/51");
-    let head = world.branch(b"temper/51");
-    let verdict = Wall::from_nanos(pushed.as_nanos() + Duration::from_secs(90).as_nanos());
+    let (mut world, pushed, verdict, head) = ci_poll::pending_github_change(1000);
     let deadline =
         Wall::from_nanos(verdict.as_nanos() + shipped.client.poll_max.as_nanos() + Duration::from_secs(1).as_nanos());
-    assert_eq!(
-        change_step(&mut world, 3, change::Status::Passed, Box::new([])),
-        change::Decision::Effect(change::Effect::Open)
-    );
     let mut named_pull = false;
     let mut due = true;
     let mut until = None;
@@ -872,18 +841,8 @@ fn a_github_change_waits_out_a_ninety_second_ci_and_merges_on_its_verdict() {
     // Play the root's procedure scheduler: wakes and the procedure's actual wait,
     // never a periodic StepChange that could discover CI on the keep's behalf.
     while world.wall() <= deadline {
-        if !named_pull
-            && let Some(top::Stored::Change(row)) = world.stored().get(&top::Key::Change(51))
-            && let Some(number) = row.pull
-        {
-            world.event(top::Event::Rename {
-                task: 51,
-                resources: Box::new([
-                    branch.clone(),
-                    top::Name { forge: REPO.forge, repository: REPO.repository, what: top::What::Pull(number) },
-                ]),
-            });
-            named_pull = true;
+        if !named_pull {
+            named_pull = ci_poll::name_pull(&mut world);
         }
         for request in world.take_seen() {
             #[expect(clippy::wildcard_enum_match_arm, reason = "only this change's scheduler requests drive the story")]

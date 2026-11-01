@@ -4548,6 +4548,25 @@ fn landing_read(
     publish(d, pending.topic, News::Landing { before: pending.before, after: pending.after, files }, out);
 }
 
+/// A changed pull invalidates a gather even while its procedure is already due.
+fn wake_pull_changes(d: &mut Domain, repository: skein_forge::api::Repository, pull: &skein_forge::api::Pull) {
+    for (_, row) in &d.changes {
+        if row.repository != repository || row.pull != Some(pull.number) {
+            continue;
+        }
+        let mut reading = None;
+        for (owner, pending) in &d.steps {
+            if pending.task == row.task && pending.pull.as_ref() != Some(pull) {
+                reading = Some(*owner);
+            }
+        }
+        if let Some(owner) = reading {
+            d.steps.get_mut(&owner).expect("change's pending gather").woken = true;
+        }
+        d.procedure_wakes.insert(row.task, true).expect("one pending wake per change");
+    }
+}
+
 fn pull_changed(
     d: &mut Domain,
     env: &Env<Limits>,
@@ -4570,12 +4589,12 @@ fn pull_changed(
         }
         (Some(_), None) | (None, _) => true,
     };
+    if wakes {
+        wake_pull_changes(d, resource.repository, &pull);
+    }
     let mut changed = List::with_capacity(env.limits.changes);
     for (_, row) in &d.changes {
         if row.repository == resource.repository && row.pull == Some(pull.number) {
-            if wakes {
-                d.procedure_wakes.insert(row.task, true).expect("one pending wake per change");
-            }
             // A cancelled change's release closes its own pull (8.6): no drift.
             let cancelling = match d.releases.get(&row.task) {
                 Some(release) => release.ending == ReleaseEnding::Cancelled,
