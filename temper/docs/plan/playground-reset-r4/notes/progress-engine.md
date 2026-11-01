@@ -6,6 +6,8 @@ final: tasks/sk-conn-add.md
 final: tasks/sk-setup-forges.md
 final: tasks/sk-client-remove.md
 final: tasks/sk-conn-remove.md
+final: tasks/fr-limits.md
+final: tasks/fr-surface.md
 
 ## Parts
 
@@ -30,6 +32,9 @@ final: tasks/sk-conn-remove.md
 - New answers: `RemoveAnswer::{Removing, Refused(NotOffered | NoSuchForge | Role)}`, `EndAnswer::{Reset, NotOffered}` (answered once the playground is gone); `StartPlayground` answers as `StartDemo` (`StartAnswer`).
 
 - skein's runtime forges are methods (`Component::add`/`remove`, `Host::add`/`remove`, `skein_forge_client::remove_forge`), no new `Request`/`Event`/`Why` variant, so the skein branches force no temper arm; skein's `forge-setup.md` 6.5 (settings fixed for the host's life) is departed from, named in the commit for its designer.
+
+- `fr-surface` lands the vocabulary of every later forge-records/forge-removal body (connector `Request::{ForgeKept, ForgeRemoved, SendKept, ProjectReleased}`, `Event::{SendKept, KeptAnswered, BoxRemoved, ReleaseProject}`, root `Request::{ForgeKept, ForgeRemoved, BoxRemove}`) routed to stubs in new module files (`kept.rs`, `release.rs`, `removal.rs`, `make.rs`, root `route/kept.rs`, service `forge/table.rs`), so the bodies own disjoint files and run in parallel instead of queueing on `domain.rs`.
+- A kept `BoxRemove` answered `failed` stays kept (the box designer's contract problem, accepted by the lead): `Event::BoxRemoved { removed: false }`.
 
 ## Contract problems
 
