@@ -337,7 +337,7 @@ pub(crate) fn iterate(engine: &mut Engine, now: Time, wall: Wall) {
     let open = !engine.begin && engine.domain.ready() && engine.forge_records.done() && engine.first_periods.is_empty();
     engine.clients.starting = if open { None } else { Some(()) };
     if let Some(demo) = &mut engine.demo {
-        demo.state = engine.domain.demo_state();
+        demo.state = engine.domain.playground();
     }
     engine.clients.iterate(
         now,

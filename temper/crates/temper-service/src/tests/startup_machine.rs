@@ -286,7 +286,7 @@ fn the_root_config_carries_the_machine() {
     let input = demo(&document(Some(&machine(OWNED, GITHUB, "null"))), PROJECT);
     let mut service = start(&input);
     assert!(service.engine_domain().is_some());
-    let acts = forge::demo_act_bound(&service.engine.as_ref().unwrap().env.limits.forge).unwrap();
+    let acts = service.engine.as_ref().unwrap().env.limits.forge.tasks.checked_add(1).unwrap();
     assert_eq!(service.notes().capacity(), TEMPLATE_NOTES + acts);
     assert_eq!(named(&input).machine.owned.unwrap().mode, Mode::Owned);
 }

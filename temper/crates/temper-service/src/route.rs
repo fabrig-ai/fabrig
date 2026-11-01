@@ -9,7 +9,7 @@ pub(crate) mod box_link;
 #[expect(clippy::match_same_arms, reason = "sv's tasks fill the four independent routes")]
 pub(crate) fn request(engine: &mut Engine, request: root::Request) {
     if let Some(demo) = &mut engine.demo {
-        demo.state = engine.domain.demo_state();
+        demo.state = engine.domain.playground();
     }
     match request {
         root::Request::Bound { request, answer } => engine.clients.bound(request, answer),

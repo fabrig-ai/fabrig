@@ -81,10 +81,6 @@ fn row(kind: RecordKind, number: u32) -> Stored {
             Stored::Binding { address: Box::new([u8::try_from(number).unwrap()]), subject: Box::new([]) }
         }
         RecordKind::Flight => Stored::Flight { task: n, entry: n },
-        RecordKind::DemoAct => Stored::DemoAct(DemoAct {
-            key: [u8::try_from(number).unwrap(); 16],
-            act: DemoActKind::Close { project: 5, task: n },
-        }),
         RecordKind::Writer => {
             Stored::Writer(skein_forge_client::Writer { forge: u16::try_from(number).unwrap(), author: n })
         }
@@ -118,8 +114,7 @@ fn row(kind: RecordKind, number: u32) -> Stored {
         | RecordKind::ForgeNumbers
         | RecordKind::Playground
         | RecordKind::KeptAct
-        | RecordKind::Client
-        | RecordKind::Demo => panic!("no own table"),
+        | RecordKind::Client => panic!("no own table"),
     }
 }
 fn application(token: u64, until: Wall) -> Stored {
@@ -149,7 +144,6 @@ fn owned_tables_fit_at_limit_replace_and_refuse_one_more() {
         (K::Entry, LIMITS.entries),
         (K::Binding, LIMITS.bindings),
         (K::Flight, LIMITS.entries),
-        (K::DemoAct, demo_act_bound(&LIMITS).unwrap()),
         (K::Writer, CLIENT.repositories),
         (K::Change, LIMITS.changes),
         (K::Issue, LIMITS.issues),
@@ -615,9 +609,6 @@ fn noncanonical_binding_bytes_restore_unchanged_while_bind_normalizes() {
 }
 
 fn unlinked_row(kind: RecordKind, number: u32) -> Stored {
-    if kind == RecordKind::Demo {
-        return Stored::Demo(Demo { forge: u16::try_from(number).unwrap(), state: DemoState::Ended });
-    }
     let mut record = row(kind, number);
     if let Stored::Repository(row) = &mut record {
         row.provider.forge = 99;
@@ -665,7 +656,6 @@ fn missing_links_keep_their_source_key_across_lower_insertions_and_replacements(
         K::Receipt,
         K::Flight,
         K::Writer,
-        K::Demo,
     ] {
         let mut d = domain();
         let first = unlinked_row(kind, FIRST);

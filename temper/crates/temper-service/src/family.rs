@@ -276,12 +276,10 @@ pub fn to_root(
                     limits,
                     w::PlaygroundAnswerParts {
                         state: match demo.state {
-                            Some(forge::DemoState::Running) => {
-                                // The playground and demo share the running state.
+                            Some(forge::Playground { state: forge::PlaygroundState::Running, .. }) => {
                                 w::PlaygroundState::Running
                             }
-                            Some(forge::DemoState::Ended) => {
-                                // A retired demo reads as resetting until the reset is routed.
+                            Some(forge::Playground { state: forge::PlaygroundState::Resetting(_), .. }) => {
                                 w::PlaygroundState::Resetting
                             }
                             None => w::PlaygroundState::NotStarted,

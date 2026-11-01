@@ -180,7 +180,12 @@ fn the_playground_read_answers_the_configured_demo() {
     let demo = crate::settings::Demo {
         project_name: "".into(),
         project_policy: 0,
-        state: Some(forge::DemoState::Running),
+        state: Some(forge::Playground {
+            state: forge::PlaygroundState::Running,
+            forge: 1,
+            project: Some(1),
+            account: None,
+        }),
         landing: b"main".as_slice().into(),
         key_file: b"/demo-key".as_slice().into(),
         project: 1,
@@ -1295,8 +1300,24 @@ fn playground_read_tracks_not_started_running_and_resetting() {
     let demo = service.engine.as_mut().unwrap().demo.as_mut().unwrap();
     for (state, expected) in [
         (None, Some(w::PlaygroundState::NotStarted)),
-        (Some(forge::DemoState::Running), Some(w::PlaygroundState::Running)),
-        (Some(forge::DemoState::Ended), Some(w::PlaygroundState::Resetting)),
+        (
+            Some(forge::Playground {
+                state: forge::PlaygroundState::Running,
+                forge: 1,
+                project: Some(1),
+                account: None,
+            }),
+            Some(w::PlaygroundState::Running),
+        ),
+        (
+            Some(forge::Playground {
+                state: forge::PlaygroundState::Resetting(forge::ResetStep::Project),
+                forge: 1,
+                project: Some(1),
+                account: None,
+            }),
+            Some(w::PlaygroundState::Resetting),
+        ),
     ] {
         demo.state = state;
         let Err(answer) =

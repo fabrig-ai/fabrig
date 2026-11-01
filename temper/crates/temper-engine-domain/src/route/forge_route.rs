@@ -2987,9 +2987,6 @@ pub(crate) fn outputs(
             forge::Request::Bound { request, answer } => {
                 emit(decision, &env.limits, Delivery::Bound { request, answer });
             }
-            forge::Request::ListDemoActs => super::demo::list_end_acts(domain),
-            forge::Request::SendDemoAct(row) => super::demo::send_end_act(domain, row),
-            forge::Request::DemoStart { request } => super::demo::start(domain, env, decision, request),
             forge::Request::ProjectReleased { project } => super::kept::released(domain, project),
             forge::Request::SendKeptAct(row) => super::kept::send_kept(domain, row),
             forge::Request::ResetAct(act) => super::kept::send_reset(domain, act),
@@ -3007,12 +3004,12 @@ pub(crate) fn outputs(
                 assert!(super::now(domain, Request::Unregister { forge }), "unregister door");
             }
             forge::Request::StopGroup { forge } => {
-                assert!(super::now(domain, Request::StopGroup { forge }), "demo stop door reserved");
+                assert!(super::now(domain, Request::StopGroup { forge }), "forge stop door reserved");
             }
             forge::Request::SetUpGroup { forge, request, entry } => {
                 assert!(
                     super::now(domain, Request::SetUpGroup { forge, request, entry }),
-                    "demo box group door reserved"
+                    "forge box group door reserved"
                 );
             }
             forge::Request::SetUp { forge, request, org, repository, playground } => {
@@ -3026,11 +3023,11 @@ pub(crate) fn outputs(
                 super::applications::part(domain, request, adoption, repository);
             }
             forge::Request::ApplicationDone { request, token } => {
-                super::demo::done(domain, env, decision, request, true);
+                super::playground::done(domain, env, decision, request, true);
                 super::applications::finished(domain, request, Ok(token));
             }
             forge::Request::ApplicationAgain { request, why } => {
-                super::demo::done(domain, env, decision, request, false);
+                super::playground::done(domain, env, decision, request, false);
                 super::applications::finished(domain, request, Err(why));
             }
             forge::Request::WakeProcedure { task } => {

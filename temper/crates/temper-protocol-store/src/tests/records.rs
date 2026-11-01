@@ -789,25 +789,6 @@ fn forge_writers_round_trip_with_the_v6_golden_bytes() {
 }
 
 #[test]
-fn demo_states_round_trip_and_refuse_a_mismatched_key() {
-    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
-    for forge in [0, 1, u16::MAX] {
-        for state in [forge::DemoState::Running, forge::DemoState::Ended] {
-            let row = forge::Stored::Demo(forge::Demo { forge, state });
-            let key = crate::keys::encode(&forge::Key::Demo(forge), u32::MAX).expect("demo key");
-            let bytes = records::encode(&row);
-            assert_eq!(bytes.len(), 6);
-            assert_eq!(&bytes[..3], &[0, 11, 17]);
-            assert_eq!(records::row(&key, &bytes, &bounds), Ok(row));
-            let other = crate::keys::encode(&forge::Key::Demo(forge ^ 1), u32::MAX).expect("other key");
-            assert_eq!(records::row(&other, &bytes, &bounds), Err(crate::Undecodable));
-            let other = crate::keys::encode(&forge::Key::Writer(forge), u32::MAX).expect("other family");
-            assert_eq!(records::row(&other, &bytes, &bounds), Err(crate::Undecodable));
-        }
-    }
-}
-
-#[test]
 fn binding_rows_round_trip_at_the_field_bounds() {
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
     // protocol/sign-in.md, 3.1 and 5: address <=254, subject <=255 bytes.
@@ -821,7 +802,7 @@ fn binding_rows_round_trip_at_the_field_bounds() {
     ] {
         let row = forge::Stored::Binding { address, subject };
         let bytes = records::encode(&row);
-        assert_eq!(&bytes[..3], &[0, 11, 18]);
+        assert_eq!(&bytes[..3], &[0, 11, 17]);
         let key = crate::keys::encode(&forge::stored_key(&row), u32::MAX).unwrap();
         assert_eq!(records::row(&key, &bytes, &bounds), Ok(row));
         let other =
@@ -863,21 +844,6 @@ fn embedded_people_refusals_changed_at_store_nine() {
     jig_protocol_store::people_v13::Refusal::Unknown.encode(&mut after).unwrap();
     assert_eq!(after.finish().as_ref(), &[10]);
     assert_eq!(crate::STORE_VERSION, 11);
-}
-
-#[test]
-fn demo_end_acts_round_trip_with_their_keys() {
-    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
-    for act in [
-        forge::DemoActKind::Close { project: u32::MAX, task: u64::MAX },
-        forge::DemoActKind::RemoveAccount { account: u32::MAX },
-    ] {
-        let row = forge::Stored::DemoAct(forge::DemoAct { key: [255; 16], act });
-        let key = crate::keys::encode(&forge::stored_key(&row), u32::MAX).unwrap();
-        assert_eq!(key[0], 19);
-        assert_eq!(crate::keys::decode(&key, &fixtures::LIMITS), Some(forge::stored_key(&row)));
-        assert_eq!(records::row(&key, &records::encode(&row), &bounds), Ok(row));
-    }
 }
 
 #[test]

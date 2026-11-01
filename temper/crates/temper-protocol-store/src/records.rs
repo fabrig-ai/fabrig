@@ -52,36 +52,6 @@ pub fn encode(value: &d::Stored) -> Box<[u8]> {
         d::Stored::Flight { task, entry } => {
             w::Value::Flight(w::Flight::new(&w::CEILINGS, w::FlightParts { task: *task, entry: *entry }).expect(FITS))
         }
-        d::Stored::DemoAct(row) => w::Value::DemoAct(
-            w::DemoAct::new(
-                &w::CEILINGS,
-                w::DemoActParts {
-                    key: row.key,
-                    act: match row.act {
-                        d::DemoActKind::Close { project, task } => w::DemoActKind::Close(
-                            w::DemoClose::new(&w::CEILINGS, w::DemoCloseParts { project, task }).expect(FITS),
-                        ),
-                        d::DemoActKind::RemoveAccount { account } => w::DemoActKind::RemoveAccount(
-                            w::DemoRemoveAccount::new(&w::CEILINGS, w::DemoRemoveAccountParts { account }).expect(FITS),
-                        ),
-                    },
-                },
-            )
-            .expect(FITS),
-        ),
-        d::Stored::Demo(value) => w::Value::Demo(
-            w::Demo::new(
-                &w::CEILINGS,
-                w::DemoParts {
-                    forge: value.forge,
-                    state: match value.state {
-                        d::DemoState::Running => w::DemoState::Running,
-                        d::DemoState::Ended => w::DemoState::Ended,
-                    },
-                },
-            )
-            .expect(FITS),
-        ),
         d::Stored::Writer(value) => w::Value::Writer(
             w::ForgeWriter::new(&w::CEILINGS, w::ForgeWriterParts { forge: value.forge, author: value.author })
                 .expect(FITS),
@@ -112,30 +82,6 @@ pub fn decode(bytes: &[u8], bounds: &Bounds) -> Result<d::Stored, Undecodable> {
         w::Value::Flight(row) => {
             let w::FlightParts { task, entry } = row.into_parts();
             d::Stored::Flight { task, entry }
-        }
-        w::Value::DemoAct(row) => {
-            let w::DemoActParts { key, act } = row.into_parts();
-            let act = match act {
-                w::DemoActKind::Close(row) => {
-                    let w::DemoCloseParts { project, task } = row.into_parts();
-                    d::DemoActKind::Close { project, task }
-                }
-                w::DemoActKind::RemoveAccount(row) => {
-                    let w::DemoRemoveAccountParts { account } = row.into_parts();
-                    d::DemoActKind::RemoveAccount { account }
-                }
-            };
-            d::Stored::DemoAct(d::DemoAct { key, act })
-        }
-        w::Value::Demo(value) => {
-            let w::DemoParts { forge, state } = value.into_parts();
-            d::Stored::Demo(d::Demo {
-                forge,
-                state: match state {
-                    w::DemoState::Running => d::DemoState::Running,
-                    w::DemoState::Ended => d::DemoState::Ended,
-                },
-            })
         }
         w::Value::Forge(value) => d::Stored::Forge(forges::decode(value)),
         w::Value::ForgeNumbers(value) => d::Stored::ForgeNumbers { next: value.next() },

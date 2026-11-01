@@ -340,14 +340,14 @@ fn closing_the_pipe_drops_active_and_held_stops() {
 }
 
 #[test]
-fn demo_end_diagnostics_reach_serves_named_notes() {
+fn act_diagnostics_reach_serves_named_notes() {
     let mut service = super::fixtures::demo_service();
     let engine = service.engine.as_mut().unwrap();
     for _ in 0..engine.notes.len() {
         engine.notes.pop().unwrap();
     }
-    let line = b"demo end: chat 7 not closed: no first owner configured".as_slice();
-    let cohort = temper_engine_domain_forge::demo_act_bound(&engine.env.limits.forge).unwrap();
+    let line = b"forge removal: task 7 not cancelled: no first owner configured".as_slice();
+    let cohort = engine.env.limits.forge.tasks.checked_add(1).unwrap();
     for _ in 0..cohort {
         crate::route::request(
             engine,

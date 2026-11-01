@@ -5,8 +5,7 @@ use super::{Decision, Delivery, Domain, Env, Limits, Work, applications, core, e
 use alloc::boxed::Box;
 use skein_lib::{ReplyTo, Time, Token};
 
-// Task numbers start at one. The connector runs either start flow, whose
-// internal adoption reply uses zero, as the demo's does.
+// Task numbers start at one; the internal adoption reply uses zero.
 const ADOPTION: u64 = 0;
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -129,7 +128,7 @@ pub(crate) fn begin(
 ) {
     let until = env.now.saturating_add(domain.forge.demo().expect("offered playground").deadline);
     let maker = if row.project.is_none() {
-        let context = domain.demo_contexts.get(&request).expect("admitted start context");
+        let context = domain.playground_contexts.get(&request).expect("admitted start context");
         Some(domain.core.people.sign_in_person(context.sign_in).expect("admitted starting person"))
     } else {
         None
@@ -208,10 +207,12 @@ pub(crate) fn progress(domain: &mut Domain, env: &Env<Limits>, decision: &mut De
 fn prepare(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision) {
     let start = domain.playground_start.as_ref().expect("active start");
     let demo = domain.forge.demo().expect("offered playground");
-    let context = domain.demo_contexts.get(&start.request).expect("admitted start context");
+    let context = domain.playground_contexts.get(&start.request).expect("admitted start context");
     let (phase, purpose, act, carried) = if let Some(project) = start.row.project {
         if start.row.account.is_some() {
-            if let Some(carried) = domain.demo_contexts.get_mut(&start.request).expect("start context").carried.take() {
+            if let Some(carried) =
+                domain.playground_contexts.get_mut(&start.request).expect("start context").carried.take()
+            {
                 emit(decision, &env.limits, Delivery::CarriedUnused { number: carried.number });
             }
             domain.playground_start.as_mut().expect("active start").phase = Phase::Connecting;
@@ -260,7 +261,7 @@ fn prepare(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision) {
 
 fn connect(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision) {
     let start = domain.playground_start.as_ref().expect("active start");
-    if !super::demo::connected(&domain.forge.connection(start.row.forge)) {
+    if !connected(&domain.forge.connection(start.row.forge)) {
         if env.now >= start.until {
             finish(domain, env, decision, forge::StartAnswer::Failed(forge::StartFailure::NotConnected));
         }
@@ -280,7 +281,7 @@ fn connect(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision) {
     let mut adoption = demo.adoption.clone();
     adoption.forge = start.row.forge;
     adoption.project = project;
-    let context = domain.demo_contexts.get(&start.request).expect("active start context");
+    let context = domain.playground_contexts.get(&start.request).expect("active start context");
     let admission = applications::Admission {
         reply_to: ReplyTo::new(Token::new(ADOPTION)),
         sign_in: context.sign_in,
@@ -310,7 +311,7 @@ pub(crate) fn acted(
         return;
     }
     if reply.phase == Phase::Account {
-        let carried = domain.demo_contexts.get_mut(&reply.request).expect("active context").carried.take();
+        let carried = domain.playground_contexts.get_mut(&reply.request).expect("active context").carried.take();
         if start.unused
             && let Some(carried) = carried
         {
@@ -370,7 +371,7 @@ pub(crate) fn acted(
 pub(crate) fn carried_unused(domain: &mut Domain, number: u64) -> bool {
     let Some(start) = &mut domain.playground_start else { return false };
     if start.phase == Phase::Account
-        && let Some(context) = domain.demo_contexts.get(&start.request)
+        && let Some(context) = domain.playground_contexts.get(&start.request)
         && let Some(carried) = context.carried
         && carried.number == number
     {
@@ -413,7 +414,7 @@ pub(crate) fn adopted(
 
 pub(crate) fn finish(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, answer: forge::StartAnswer) {
     let Some(start) = domain.playground_start.take() else { return };
-    if let Some(context) = domain.demo_contexts.get_mut(&start.request)
+    if let Some(context) = domain.playground_contexts.get_mut(&start.request)
         && let Some(carried) = context.carried.take()
     {
         emit(decision, &env.limits, Delivery::CarriedUnused { number: carried.number });
@@ -427,5 +428,31 @@ pub(crate) fn connection(domain: &mut Domain, env: &Env<Limits>, decision: &mut 
         start.failed =
             Some(forge::StartFailure::Group { why: why.get(..why.len().min(256)).expect("bounded reason").into() });
         progress(domain, env, decision);
+    }
+}
+
+#[derive(Debug)]
+pub(crate) struct Context {
+    pub sign_in: u64,
+    pub carried: Option<core::Carried>,
+}
+pub(crate) fn connected(connection: &forge::Connection) -> bool {
+    match connection {
+        forge::Connection::Connected { .. } => true,
+        forge::Connection::Connecting
+        | forge::Connection::NotConnected
+        | forge::Connection::NotSetUp
+        | forge::Connection::SettingUp { .. }
+        | forge::Connection::SetUpFailed { .. }
+        | forge::Connection::Stopped { .. } => false,
+    }
+}
+
+pub(crate) fn done(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, request: Token, success: bool) {
+    if let Some(context) = domain.playground_contexts.remove(&request)
+        && success
+        && let Some(carried) = context.carried
+    {
+        emit(decision, &env.limits, Delivery::CarriedUnused { number: carried.number });
     }
 }

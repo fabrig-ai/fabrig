@@ -1094,15 +1094,12 @@ impl Service {
     }
 }
 
-// One forge cohort and the end's bounded act answers can be named together.
+// One forge cohort and a task-sized cohort of act answers can be named together.
 fn note_bound(settings: &settings::Engine, root: &temper_engine_domain::Limits) -> Option<u32> {
     let templates = 1_u32
         .checked_add(u32::from(settings.machine.owned.is_some()))?
         .checked_add(u32::from(settings.machine.playground.is_some()))?;
-    u32::try_from(settings.forges.len())
-        .ok()?
-        .checked_add(templates)?
-        .checked_add(temper_engine_domain_forge::demo_act_bound(&root.forge)?)
+    u32::try_from(settings.forges.len()).ok()?.checked_add(templates)?.checked_add(root.forge.tasks.checked_add(1)?)
 }
 
 #[cfg(test)]
