@@ -4,9 +4,15 @@ Designer of draft section 5, its testing in section 8, the jig half of 6.2, and 
 
 ## Specs
 
-(none yet)
+| id | state | needs |
+|---|---|---|
+| pd-acts | final | - |
+| pd-vocabulary | final | pd-acts |
 
 ## Contract requests
+
+All five answered by the lead (yes to each recommendation or default); contracts.md J4, J7
+and J8 now say so. Kept here for the record.
 
 1. **People store version (J4, "people's store version moves by one").** jig's store design
    says the opposite: `jig/docs/design/protocol/store.md`, 5 (lines 382-386): "Until the first
