@@ -104,7 +104,7 @@ fn target(words: &mut List<u8>, write: &Write) {
     }
 }
 
-fn error_words(error: Error) -> &'static [u8] {
+pub(crate) fn error_words(error: Error) -> &'static [u8] {
     match error {
         Error::Forbidden => b"forge refused permission",
         Error::Protected => b"forge protection refused the write",

@@ -6,6 +6,10 @@ use skein_lib::{Env, Queue, ReplyTo, Token, Wall};
 use temper_engine_domain_forge as forge;
 
 pub(super) fn live_goal(tracked: Option<u32>) -> (crate::Domain, Env<crate::Limits>, u64) {
+    live_task(tracked, tasks::Executor::Procedure { connector: 0, code: 1 })
+}
+
+pub(crate) fn live_task(tracked: Option<u32>, executor: tasks::Executor) -> (crate::Domain, Env<crate::Limits>, u64) {
     let (mut domain, env) = super::resume_fixture::root();
     let goal = crate::fresh(&mut domain.core.counters, crate::Family::Task).unwrap();
     let task_env = Env { now: env.now, wall: env.wall, limits: env.limits.tasks };
@@ -21,7 +25,7 @@ pub(super) fn live_goal(tracked: Option<u32>) -> (crate::Domain, Env<crate::Limi
                 project: 1,
                 label: 0,
                 flags: tasks::Flags::PLAIN,
-                executor: tasks::Executor::Procedure { connector: 0, code: 1 },
+                executor,
                 llm: None,
                 spec: tasks::Spec {
                     asks: false,

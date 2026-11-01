@@ -328,6 +328,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::Erase { .. }
         | Request::Taken { .. }
         | Request::Refused { .. }
+        | Request::LostReadFailed { .. }
         | Request::Outcome { .. }
         | Request::ProjectionOutcome { .. }
         | Request::NotMade { .. }
@@ -402,6 +403,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::Erase { .. }
         | Request::Taken { .. }
         | Request::Refused { .. }
+        | Request::LostReadFailed { .. }
         | Request::Outcome { .. }
         | Request::ProjectionOutcome { .. }
         | Request::NotMade { .. }
@@ -473,6 +475,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::Erase { .. }
         | Request::Taken { .. }
         | Request::Refused { .. }
+        | Request::LostReadFailed { .. }
         | Request::Outcome { .. }
         | Request::ProjectionOutcome { .. }
         | Request::NotMade { .. }
@@ -1017,6 +1020,70 @@ fn restarted_lost_writer() -> Domain {
 }
 
 #[test]
+fn a_failed_goals_lost_writer_reports_its_read_failure() {
+    let mut d = domain();
+    outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+    outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+    outputs(&mut d, Event::ReadAfresh);
+    outputs(&mut d, Event::SettleOutbox);
+    let name = run_branch(b"7");
+    outputs(&mut d, Event::Hold { task: 7, resource: name.clone(), from: None });
+    outputs(&mut d, Event::Claim { task: 7, attempt: 4, writes: Box::new([name.clone()]), holders: Box::new([]) });
+    assert!(d.change(7).is_none(), "a goal has no change procedure");
+    outputs(&mut d, Event::Lost { task: 7, attempt: 4 });
+    let answered = fixtures::answer_next(&mut d, Err(skein_forge::api::Error::Refused));
+    assert!(!answered.contains(&Request::Refused { task: 7 }), "a failed run needs its reread cause");
+    assert!(answered.contains(&Request::LostReadFailed {
+        task: 7,
+        attempt: 4,
+        resource: name.clone(),
+        reason: b"forge policy refused the operation",
+    }));
+    assert_eq!(d.hold(&name).unwrap().writer, Some(Writer::Lost { task: 7, attempt: 4 }));
+}
+
+#[test]
+fn a_task_can_claim_its_own_stale_writer() {
+    for lost in [false, true] {
+        let mut d = domain();
+        outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+        outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+        outputs(&mut d, Event::ReadAfresh);
+        outputs(&mut d, Event::SettleOutbox);
+        let name = run_branch(b"7");
+        outputs(&mut d, Event::Hold { task: 7, resource: name.clone(), from: None });
+        outputs(&mut d, Event::Claim { task: 7, attempt: 4, writes: Box::new([name.clone()]), holders: Box::new([]) });
+        if lost {
+            outputs(&mut d, Event::Lost { task: 7, attempt: 4 });
+        }
+        let claimed = outputs(
+            &mut d,
+            Event::Claim { task: 7, attempt: 5, writes: Box::new([name.clone()]), holders: Box::new([]) },
+        );
+        assert!(!claimed.contains(&Request::Taken { task: 7, resource: name.clone(), by: 7 }));
+        assert_eq!(d.hold(&name).unwrap().writer, Some(Writer::Run { task: 7, attempt: 5 }));
+        outputs(&mut d, Event::Claim { task: 7, attempt: 4, writes: Box::new([name.clone()]), holders: Box::new([]) });
+        assert_eq!(d.hold(&name).unwrap().writer, Some(Writer::Run { task: 7, attempt: 5 }));
+        let other = outputs(
+            &mut d,
+            Event::Claim { task: 8, attempt: 1, writes: Box::new([name.clone()]), holders: Box::new([7]) },
+        );
+        assert!(other.contains(&Request::Taken { task: 8, resource: name.clone(), by: 7 }));
+        if lost {
+            let answered = fixtures::answer_next(&mut d, Err(skein_forge::api::Error::Refused));
+            assert!(!answered.contains(&Request::Refused { task: 7 }), "an old reread cannot hold the new run");
+            assert!(!answered.contains(&Request::LostReadFailed {
+                task: 7,
+                attempt: 4,
+                resource: name.clone(),
+                reason: b"forge policy refused the operation",
+            }));
+            assert_eq!(d.hold(&name).unwrap().writer, Some(Writer::Run { task: 7, attempt: 5 }));
+        }
+    }
+}
+
+#[test]
 fn a_lost_writers_read_answered_not_connected_is_asked_again_when_its_forge_connects() {
     for result in [
         Err(skein_forge::api::Error::Missing),
@@ -1043,7 +1110,15 @@ fn a_lost_writers_read_answered_not_connected_is_asked_again_when_its_forge_conn
         assert_eq!(d.hold(&run_branch(b"7")).unwrap().writer, Some(Writer::Lost { task: 9, attempt: 1 }));
         let refused = result == Err(skein_forge::api::Error::Refused);
         let answered = fixtures::answer(&mut d, call, result);
-        assert_eq!(answered.contains(&Request::Refused { task: 9 }), refused);
+        assert_eq!(
+            answered.contains(&Request::LostReadFailed {
+                task: 9,
+                attempt: 1,
+                resource: run_branch(b"7"),
+                reason: b"forge policy refused the operation",
+            }),
+            refused
+        );
         assert_eq!(d.hold(&run_branch(b"7")).unwrap().writer.is_some(), refused);
     }
 }

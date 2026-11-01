@@ -3225,33 +3225,25 @@ pub(crate) fn outputs(
                     domain.work.push(Work::Tasks(event));
                 }
             }
-            forge::Request::Taken { task, .. } | forge::Request::Refused { task } => {
-                if domain.core.claiming.contains_key(&task) {
-                    domain.work.push(Work::Core(jig_domain_core::Event::ClaimRefused { task }));
-                    continue;
+            forge::Request::Taken { task, resource, by } => {
+                if admission_refused(domain, task) {
+                    let words = holds::taken_words(domain, &resource, by);
+                    holds::hold_as(domain, task, tasks::Hold::HoldsWaited, &words);
                 }
-                let mut failed = None;
-                for (&entry, (_, key)) in &domain.forge_effecting {
-                    if key.task == task {
-                        failed = Some(entry);
-                        break;
-                    }
+            }
+            forge::Request::Refused { task } => {
+                if admission_refused(domain, task) {
+                    holds::hold_as(
+                        domain,
+                        task,
+                        tasks::Hold::ResourceUnavailable,
+                        b"forge resource request refused; check resource access and configured bounds",
+                    );
                 }
-                if let Some(entry) = failed {
-                    let (_, key) = domain.forge_effecting.remove(&entry).expect("effect awaiting connector admission");
-                    domain
-                        .forge
-                        .named_outcome(entry, skein_forge_client::Outcome::Failed(skein_forge::api::Error::Busy));
-                    domain.work.push(Work::Core(jig_domain_core::Event::EffectConnector(
-                        jig_domain_core::effects::connector::Event::Outbox {
-                            connector: domain.config.forge_connector,
-                            entry,
-                            task: key.task,
-                            outcome: jig_domain_core::effects::connector::OutboxOutcome::Failed,
-                        },
-                    )));
-                }
-                holds::hold(domain, task, b"forge resource admission needs a decision");
+            }
+            forge::Request::LostReadFailed { task, attempt, resource, reason } => {
+                let words = holds::lost_words(domain, task, attempt, &resource, reason);
+                holds::hold_as(domain, task, tasks::Hold::ResourceUnavailable, &words);
             }
             forge::Request::NotMade { entry, task } => {
                 domain.work.push(Work::Core(jig_domain_core::Event::EffectConnector(
@@ -3567,6 +3559,33 @@ pub(crate) enum EffectFlight {
         task: u64,
         evidence: Box<forge::ChangeEvidence>,
     },
+}
+
+fn admission_refused(domain: &mut Domain, task: u64) -> bool {
+    if domain.core.claiming.contains_key(&task) {
+        domain.work.push(Work::Core(jig_domain_core::Event::ClaimRefused { task }));
+        return false;
+    }
+    let mut failed = None;
+    for (&entry, (_, key)) in &domain.forge_effecting {
+        if key.task == task {
+            failed = Some(entry);
+            break;
+        }
+    }
+    if let Some(entry) = failed {
+        let (_, key) = domain.forge_effecting.remove(&entry).expect("effect awaiting connector admission");
+        domain.forge.named_outcome(entry, skein_forge_client::Outcome::Failed(skein_forge::api::Error::Busy));
+        domain.work.push(Work::Core(jig_domain_core::Event::EffectConnector(
+            jig_domain_core::effects::connector::Event::Outbox {
+                connector: domain.config.forge_connector,
+                entry,
+                task: key.task,
+                outcome: jig_domain_core::effects::connector::OutboxOutcome::Failed,
+            },
+        )));
+    }
+    true
 }
 
 /// Installation is missing access, not a transient busy adoption (domain/forge.md, 4.3).
