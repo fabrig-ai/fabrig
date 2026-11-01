@@ -287,6 +287,9 @@ fn forges(world: World) -> Box<[u8]> {
     }
     let limits = temper_client_domain::forge::wire_limits(&limits().forge).expect("wire limits");
     let mut rows = List::with_capacity(3);
+    if world == (FirstRun { step: 24 }) {
+        return wire::forges(&w::Forges::new(&limits, w::ForgesParts { forges: rows }).expect("empty forges"));
+    }
     if matches_demo(world) && world != (FirstRun { step: 7 }) {
         rows.push(
             w::ForgeRow::new(
@@ -2519,7 +2522,7 @@ pub(super) fn now(w: World) -> Wall {
     let minutes = match w {
         FirstRun { step } => match step {
             // Synthetic connection frames have no relative timestamps on screen.
-            0 | 1 | 20..=23 => 0,
+            0 | 1 | 20..=24 => 0,
             2 => 2,
             3 => 4,
             4 => 6,
