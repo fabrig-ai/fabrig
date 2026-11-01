@@ -1,0 +1,71 @@
++++
+id = "bx-story-playground"
+part = "pg"
+kind = "feature"
+needs = ["bx-walks", "fe-playground-forge", "fe-playground-root", "fe-kept-root", "pd-core-release", "sv-removal", "sv-playground", "sv-family", "cl-ctl"]
+files = ["temper/crates/temper/tests/reset/**", "temper/crates/temper/tests/process.rs"]
+effort = "high"
+minutes = 75
++++
+
+## Goal
+
+Draft section 8's first process story: a first run into the playground and out by its
+reset, the store then read as empty, the welcome at Forge. On the shipped binary under
+`temper box`, through `temper ctl` alone.
+
+Acceptance:
+- A new module of binary `process`, `tests/reset/mod.rs` (`#[path = "reset/mod.rs"] mod
+  reset;` in `tests/process.rs`), with `tests/reset/playground.rs` holding
+  `a_first_run_into_the_playground_and_out_by_its_reset_leaves_the_store_empty`:
+  - a fresh scratch, `temper init`, `support::own_listener_files`, then a ctl story
+    (`support::boxed::run_ctl`): sign in; `playground start` until it answers running
+    (`support::forges::playground_start`, then `forge list --json` until the playground's
+    forge reads connected); the scripted account is listed (`accounts list --json` or the
+    tool that lists them); the playground's project `Playground` is listed;
+    `box/groups/N` exists for the playground's forge N, and `forge-N/admin_token`;
+  - then `playground reset` (`support::forges::playground_reset`) until it answers `reset`;
+  - then, read through ctl: no forge (`forge list --json` lists none), no account of the
+    scripted provider, no project named `Playground`, the playground's state `not_started`;
+    on disk: no `box/groups/N`, no `box/started/N`, no `forge-N`;
+  - the box exits 0 at the story's end with nothing left running.
+- Run alone:
+  `heavy cargo nextest run -p temper --profile process-temper --test process -E 'test(=reset::playground::a_first_run_into_the_playground_and_out_by_its_reset_leaves_the_store_empty)'`.
+
+## Inputs
+
+- Draft `temper/docs/design/draft/playground-reset.md`, sections 6.1, 6.2, 6.3 and 8.
+- `temper/docs/plan/playground-reset-r6/notes/common.md`.
+- `temper/docs/plan/playground-reset-r6/notes/contracts.md`, T3, T5, T6.
+- `temper/docs/plan/playground-reset-r6/tasks/cl-ctl.md` (the tools' words); bx-harness's
+  report (`support::forges`, `KillBox`/`StartBox`).
+- The story it replaces in spirit: `a_first_run_answers_on_the_demo` and
+  `a_first_run_ctl_demo_start_answers_running_twice` in `temper/crates/temper/tests/process.rs`.
+
+## Owns and may change
+
+- Owns: `temper/crates/temper/tests/reset/**` and its `mod` line in `tests/process.rs`.
+- May change: `temper/crates/temper/tests/support/forges.rs`, adding a read helper (a ctl
+  call and its JSON reading) the story needs.
+- Options, pre-approved:
+  - "The welcome at Forge" is read as the client's state from ctl if a tool reads it;
+    otherwise the empty reads above stand for it (no forge, no account, `not_started`):
+    say which in the report.
+  - The demo's old process stories (`a_first_run_answers_on_the_demo`,
+    `a_first_run_ctl_demo_start_answers_running_twice`,
+    `a_first_run_answers_on_the_demo_and_a_second_finds_it_running`,
+    `a_second_forge_ends_the_playground_for_good_closing_its_chat_and_account`) that fail
+    on the playground of records: change the first three to the new words if that is
+    all; mark the last `#[ignore = "the demo's end on another forge's connect is gone (draft playground-reset.md, 6.3)"]`.
+    List each.
+
+## Steps
+
+1. The story; `heavy cargo check -p temper --tests`.
+2. Run it alone (command above); read a failure's log before anything reruns.
+3. `cargo fmt`; `heavy cargo clippy -p temper --all-targets`. Old forms never raised.
+   Commit and push.
+
+## Report
+
+The story's steps as run, its time, and what each read showed.
