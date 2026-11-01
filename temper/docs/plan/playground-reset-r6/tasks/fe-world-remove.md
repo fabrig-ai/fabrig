@@ -3,7 +3,7 @@ id = "fe-world-remove"
 part = "rf"
 kind = "feature"
 needs = ["fe-remove", "fe-kept-root", "pd-vocabulary", "pd-core-decide"]
-files = ["temper/tests/engine/domain/**"]
+files = ["temper/tests/engine/domain/**", "temper/crates/temper-engine-domain-forge/**"]
 effort = "high"
 minutes = 90
 +++
@@ -146,3 +146,51 @@ The report explicitly says “Acceptance is not met”; the pushed branch theref
 The next run checks repaired implementations against all four stories at both seeds, completes the remaining cuts and assertions, and runs the specified checks.
 Leave `demo.rs` to `fe-world-reset`.
 The requested report file could not be written because this session’s filesystem is read-only.
+
+### 2026-11-01: three removal stories fail on the trunk (a Flight kept in the decision, rows naming the repository after the end, a task row differing after cut 0); wait for owners, or revise? (playground-reset-r6/fe-world-remove-7)
+
+Neither: this replaces the two answers above that said to wait for "the connector/root owners".
+`fe-remove` is done and landed, so no other run will take these; this task now settles them.
+Two of the three failures are the stories asking more than the contract `fe-remove` was
+given (its Answers, and draft section 4); one is a connector fault, now this task's to fix.
+
+1. **Flights** (`removing_a_forge_cancels_its_changes_and_ends_whole`). `fe-remove`'s Answers
+   amend the decision: an entry not handed to the client settles, with its `Flight`, in the
+   decision; an entry whose call is out settles, with its flight, at that call's terminal
+   (serve's `Unregister` ends the forge's open calls). Change the story: the `Writer` is
+   erased in the decision; the `Flight` of entry 100 is gone once the call's terminal is
+   delivered (the story sends it as serve would after `Unregister`, `NotConnected`, if the
+   world's driver does not), and in any case before the Cancel's answer is asserted.
+2. **How the cancel ends.** A cancel whose task has a write that settles failed holds at the
+   closing's effects stage (`jig/crates/jig-domain-tasks/src/closing.rs`, `Held { was:
+   Closing }`): that is how a cancel ends such a task, and jig's rule stays. Assert, for the
+   change and the producer, a cancel by `Deployment { project: 1 }` with reason
+   `Forge removed`, the phase either `Ended(Cancelled)` or `Held { was: Closing }` with that
+   ending; the chat stays open as specified. The `Change` row then stays as its task leaves it.
+3. **Rows after the end** (`nothing_of_a_removed_forge_is_read_but_its_repositories`). Draft
+   section 4 keeps a repository's rows "once no kept task names them", and `fe-remove`'s
+   report lists the task-owned families that keep naming its repository. Narrow the
+   forbidden list to the rows of the forge itself: `Forge`, `Writer`, `Flight`, `KeptAct`,
+   `Entry`, `Subscription`, `Client`. Rows naming the kept repository and owned by a kept
+   task (`Hold`, `Names`, `Change`, the adoption's `Application` answer) and its caches
+   (`BranchHead`, `PullState`, `Ci`) are allowed, but each must name only `REPOSITORY`. The
+   list, panel, chat, adoption-refusal and restart assertions stay.
+4. **The row differing after cut 0** is a connector fault, and this task fixes it: after a
+   cold start, a `Removing` forge's restored entries must settle `Failed(NotConnected)` at
+   `SendKeptActs` without any call reaching the forge (`fe-remove`'s Answers: "At a start,
+   for each restored Removing record, SendKeptActs steps Retire again ... and settles its
+   not-handed entries"); the run saw `forge refused permission` instead, so the entry was
+   sent again, or answered by another path, before retirement. Find where, fix it in the
+   connector, and add a unit test beside `fe-remove`'s in
+   `temper/crates/temper-engine-domain-forge/src/tests/removal.rs` (a restored `Removing`
+   record with an attempted entry: no call after restore; the entry settles `NotConnected`).
+   If instead the difference comes from this world's driver or fakes, fix it here and say so.
+
+Owns and may change, widened: `temper/crates/temper-engine-domain-forge/**` for item 4 only,
+with its crate's checks (`heavy cargo nextest run -p temper-engine-domain-forge --lib`, its
+clippy). The run is `Done` when the four stories pass at both seeds, every cut (0 to 3)
+walked. `demo.rs` stays `fe-world-reset`'s.
+
+Do not ask again whether owners will repair. A further fault outside these two directories
+that keeps a story red ends the run `Failed:` with the failing story and the row, not a
+question.
