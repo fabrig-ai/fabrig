@@ -17,6 +17,7 @@ mod credentials;
 mod crossed_claims;
 mod deadline_spans;
 mod decision_reads;
+mod deletion_vocabulary;
 mod deployment_acts;
 mod effect_fences;
 mod effects;

@@ -60,6 +60,8 @@ pub enum Write {
     Save(Record),
     /// Remove the row under its key.
     Erase(Key),
+    /// Drop the task's transcript whole.
+    DropTranscript { task: u64 },
 }
 
 /// What the journal releases after its commit, or through its read door.
@@ -1407,4 +1409,24 @@ pub fn initial_settings_current(current: &core::settings::Current) -> Box<[core:
     rows.push(core::Record::Core(core::CoreRecord::Settings(s::Record::Extent { oldest: 0 })))
         .expect("fixture settings count");
     rows.into_boxed()
+}
+
+/// Route a scripted core handoff through the test root, exposing its synchronous
+/// core replies before they are consumed. Connector work needs the full root step.
+pub fn route_requests(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    decision: &mut Decision<Write, Delivery>,
+    requests: core::Requests,
+) -> Queue<core::Event> {
+    let mut work = Queue::uncapped();
+    route_core(domain, env, decision, requests, &mut work);
+    let mut replies = Queue::uncapped();
+    for _ in 0..work.len() {
+        let Work::Core(event) = work.pop().expect("counted synchronous replies") else {
+            unreachable!("scripted handoff requires only core replies");
+        };
+        replies.push(event);
+    }
+    replies
 }

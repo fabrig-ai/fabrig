@@ -175,6 +175,10 @@ pub enum Event {
         kept: bool,
     },
     Close,
+    /// Forget the project from account uses (contracts J4).
+    ForgetProject {
+        project: u32,
+    },
 }
 
 /// What a failed run says its account turned.
@@ -498,6 +502,7 @@ pub enum Change {
         provider: u32,
         join: Option<u32>,
         carried: u64,
+        uses: Option<Box<[Use]>>,
     },
     ReplaceKey {
         source: u32,
