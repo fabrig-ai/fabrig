@@ -202,6 +202,23 @@ pub(crate) fn keep(engine: &mut crate::engine::Engine, forge: Forge) -> bool {
         engine.notes.push(crate::Note::ForgeNotConnected { number, why: crate::NotConnected::Unreachable { host } });
         return false;
     }
+    if let skein_io::Addr::Ip(address) = endpoint.address {
+        engine.setup.resolved(crate::ForgeRuntime {
+            number,
+            address,
+            transport: match &endpoint.transport {
+                skein_forge_connection::settings::Transport::Plaintext { name } => {
+                    skein_forge_connection::settings::Transport::Plaintext { name: name.clone() }
+                }
+                skein_forge_connection::settings::Transport::Tls { server_name, trust } => {
+                    skein_forge_connection::settings::Transport::Tls {
+                        server_name: server_name.clone(),
+                        trust: trust.clone(),
+                    }
+                }
+            },
+        });
+    }
     endpoint.access = None;
     engine.forge.down(skein_forge_connection::Request::Add(endpoint));
     if engine.forge.component.start(number).is_none() {
