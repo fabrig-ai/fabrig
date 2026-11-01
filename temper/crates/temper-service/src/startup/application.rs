@@ -1,6 +1,7 @@
 //! Temper's members, read strictly with jig's readers (protocol/configuration.md, 3, 4, 10).
 mod demo;
 mod landing;
+mod machine;
 mod public;
 mod read;
 pub mod sign_in;
@@ -21,6 +22,7 @@ pub struct Members {
     pub webhooks: Option<Webhooks>,
     pub forges: Box<[Forge]>,
     pub demo: Option<settings::Demo>,
+    pub machine: temper_engine_domain_forge::Machine,
     pub asked_owned: Box<[u16]>,
     pub identities: Box<[Identity]>,
     pub landing: temper_engine_domain::LandingPolicy,
@@ -766,6 +768,23 @@ fn webhooks(document: &Document, at: Option<u32>, path: &Path, problems: &mut Pr
     let value = clients(document, at, &path.member(b"webhooks"), false, problems)?;
     Some(Webhooks { listener: value.listener })
 }
+fn optional_list(
+    object: &mut config::read::Object,
+    document: &Document,
+    name: &[u8],
+    max: u32,
+    path: &Path,
+    problems: &mut Problems,
+) -> Option<List<u32>> {
+    let at = object.member(document, name)?;
+    match config::read::list(document, at, max) {
+        Ok(value) => Some(value),
+        Err(what) => {
+            problems.push(path.member(name), What::Jig(what));
+            None
+        }
+    }
+}
 #[expect(clippy::too_many_lines, reason = "startup reads and checks the application members together")]
 pub fn parse(
     document: &Document,
@@ -777,7 +796,8 @@ pub fn parse(
     let path = Path::root().member(b"application");
     let mut object = read::object(document, at, &path, problems)?;
     let mut overrides = List::with_capacity(document.len());
-    let setup_at = read::required(&mut object, document, b"setup", &path, problems);
+    let setup_at = object.member(document, b"setup");
+    let machine_at = object.member(document, b"machine");
     let demo_at = read::required(&mut object, document, b"demo", &path, problems);
     let limit_at = read::required(&mut object, document, b"limits", &path, problems);
     let limits = match limit_at {
@@ -785,9 +805,9 @@ pub fn parse(
         None => None,
     };
     let bounds = limits.unwrap_or(limits::profile(limits::Profile::Small));
-    let forge_ats = read::list(&mut object, document, b"forges", bounds.forge.client.repositories, &path, problems);
+    let forge_ats = optional_list(&mut object, document, b"forges", bounds.forge.client.repositories, &path, problems);
     let identity_ats =
-        read::list(&mut object, document, b"identities", jig.limits.core.accounts.credentials, &path, problems);
+        optional_list(&mut object, document, b"identities", jig.limits.core.accounts.credentials, &path, problems);
     let workers_ats = read::list(&mut object, document, b"workers", jig.limits.core.fleet.workers, &path, problems);
     let charter = read::number(&mut object, document, b"charter", &path, problems);
     let clients_at = read::required(&mut object, document, b"clients", &path, problems);
@@ -809,9 +829,6 @@ pub fn parse(
         Some(ats) => ats.len(),
         None => 0,
     };
-    if forge_ats.is_some() && forge_count == 0 {
-        problems.push(path.member(b"forges"), What::Jig(config::What::Bound));
-    }
     if identity_ats.is_some() && forge_ats.is_some() && identity_count != forge_count {
         problems.push(path.member(b"identities"), What::Jig(config::What::Bound));
     }
@@ -844,7 +861,9 @@ pub fn parse(
         sign_in::check_forges(&sign_in.forges, forges.as_slice(), jig, document, setup_at, problems);
     }
     github_listener(&forges, clients.as_ref(), &path, problems);
-    let demo = demo::parse(document, demo_at, setup_at, &forges, directories, problems);
+    let mut machine = machine::parse(document, machine_at, &bounds.setup.plan(), directories, problems)?;
+    let demo =
+        demo::parse(document, demo_at, setup_at, &forges, &bounds.setup.plan(), &mut machine, directories, problems);
     let workers = workers(document, workers_ats, jig.limits.core.fleet.workers, directories, &path, problems);
     if let Some(charter) = charter
         && forges.len() == forge_count
@@ -866,6 +885,7 @@ pub fn parse(
         webhooks,
         forges: forges.into_boxed(),
         demo,
+        machine,
         asked_owned: asked_owned(document, setup_at),
         identities: identities.into_boxed(),
         workers: workers.into_boxed(),

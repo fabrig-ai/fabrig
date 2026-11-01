@@ -270,7 +270,7 @@ fn records_and_installations_override_and_check_both_bounds() {
         let mut own = defaults;
         limits::apply(&mut own, name, value).unwrap();
         let mut problems = crate::startup::Problems::empty();
-        crate::startup::checks::records(&jig, &own, &[], &mut problems);
+        crate::startup::checks::records(&jig, &own, &[], &temper_engine_domain_forge::Machine::bare(), &mut problems);
         let lines = crate::startup::lines(&problems);
         assert!(lines.windows(name.len()).any(|part| part == name), "{name:?}");
         assert!(lines.windows(other.len()).any(|part| part == other), "{other:?}");
@@ -283,7 +283,7 @@ fn records_and_installations_override_and_check_both_bounds() {
     assert_eq!(own.forge_component.key_bytes, 2000);
     assert_eq!(own.forge_component.renew_before, Duration::from_secs(60));
     let mut problems = crate::startup::Problems::empty();
-    crate::startup::checks::records(&jig, &own, &[], &mut problems);
+    crate::startup::checks::records(&jig, &own, &[], &temper_engine_domain_forge::Machine::bare(), &mut problems);
     assert!(problems.is_empty());
 }
 #[test]
@@ -325,7 +325,7 @@ fn encoded_setup_writes_fit_exactly_and_name_the_short_bound() {
         own.forge_component.installations = installations;
         own.records.value_bytes = value;
         let mut problems = Problems::empty();
-        checks::records(&settings.jig, &own, &[], &mut problems);
+        checks::records(&settings.jig, &own, &[], &settings.machine, &mut problems);
         assert_eq!(crate::startup::lines(&problems).as_ref(), expected.as_bytes());
     }
 }
@@ -345,7 +345,7 @@ fn log_limits_check_zero_capacity_and_timing_relations() {
         let mut own = defaults;
         limits::apply(&mut own, name.as_bytes(), 0).unwrap();
         let mut problems = crate::startup::Problems::empty();
-        crate::startup::checks::records(&jig, &own, &[], &mut problems);
+        crate::startup::checks::records(&jig, &own, &[], &temper_engine_domain_forge::Machine::bare(), &mut problems);
         let mut expected = format!("application.limits.overrides.{name}: must agree with {name} (above 0)\n");
         if name == "forge_component.log_origins" {
             expected +=
@@ -379,7 +379,7 @@ fn log_limits_check_zero_capacity_and_timing_relations() {
         own.forge_component.log_poll = Duration::from_millis(poll);
         own.forge_component.log_catch_up = Duration::from_millis(catch_up);
         let mut problems = crate::startup::Problems::empty();
-        crate::startup::checks::records(&jig, &own, &[], &mut problems);
+        crate::startup::checks::records(&jig, &own, &[], &temper_engine_domain_forge::Machine::bare(), &mut problems);
         let expected = [if expected.is_empty() { "" } else { "application.limits.overrides." }, expected].concat();
         assert_eq!(crate::startup::lines(&problems).as_ref(), expected.as_bytes());
     }
@@ -412,8 +412,12 @@ fn origin_inventory_keeps_configured_text_prefixes_and_forge_indices() {
         assert_eq!(&encoded[..2], &records::VERSION.to_be_bytes());
         let index = usize::try_from(forges.len()).unwrap();
         forges.push(forge).unwrap();
-        let inventory = checks::record_writes(&fixtures::engine().limits, forges.as_slice());
-        assert_eq!(inventory.len(), forges.len() + 5);
+        let inventory = checks::record_writes(
+            &fixtures::engine().limits,
+            forges.as_slice(),
+            &temper_engine_domain_forge::Machine::bare(),
+        );
+        assert_eq!(inventory.len(), forges.len() + 6);
         assert_eq!(
             *inventory.get(u32::try_from(index + 5).unwrap()).unwrap(),
             (Some(u64::try_from(length).unwrap()), b"Origin".as_slice(), Some(index))
@@ -454,7 +458,7 @@ fn installation_capacity_fits_the_client_row_at_64_and_refuses_65() {
         own.forges.installations = installations;
         own.forge_component.installations = installations;
         let mut problems = crate::startup::Problems::empty();
-        crate::startup::checks::records(&jig, &own, &[], &mut problems);
+        crate::startup::checks::records(&jig, &own, &[], &temper_engine_domain_forge::Machine::bare(), &mut problems);
         assert_eq!(problems.is_empty(), accepted);
     }
 }
@@ -468,7 +472,7 @@ fn picker_page_has_its_own_override_and_startup_bounds() {
         limits::apply(&mut own, b"picker.page", page).unwrap();
         assert_eq!(u64::from(own.picker.page), page);
         let mut found = crate::startup::Problems::empty();
-        crate::startup::checks::records(&settings.jig, &own, &[], &mut found);
+        crate::startup::checks::records(&settings.jig, &own, &[], &settings.machine, &mut found);
         let lines = crate::startup::lines(&found);
         assert_eq!(skein_lib::bytes::find(&lines, b"picker.page").is_some(), page == 0 || page > 100);
     }
@@ -535,7 +539,7 @@ fn token_rows_include_schema_framing_in_startup_admission() {
     ] {
         own.records.value_bytes = value;
         let mut problems = Problems::empty();
-        checks::records(&settings.jig, &own, &[], &mut problems);
+        checks::records(&settings.jig, &own, &[], &settings.machine, &mut problems);
         assert_eq!(crate::startup::lines(&problems).as_ref(), expected.as_bytes());
     }
 }

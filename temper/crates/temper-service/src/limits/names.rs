@@ -207,6 +207,7 @@ pub(super) fn apply(limits: &mut Limits, name: &[u8], value: u64) -> Result<(), 
             limits.forge_component.key_bytes = u32::try_from(value).or(Err(Refused::Range))?;
         }
         b"forge_component.renew_before_ms" => limits.forge_component.renew_before = duration(value)?,
+        b"forge.forges" => limits.forge.forges = u32::try_from(value).or(Err(Refused::Range))?,
         b"forge_component.forges" => limits.forge_component.forges = u32::try_from(value).or(Err(Refused::Range))?,
         b"forge_component.token_bytes" => {
             limits.forge_component.token_bytes = u32::try_from(value).or(Err(Refused::Range))?;
