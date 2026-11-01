@@ -88,3 +88,46 @@ Acceptance:
 
 Fab's sections; that the story was not run; the cut and the Go on ask as
 written.
+
+## Answers
+
+2026-11-01. **May the story extend the shared browser harness and the
+forge rows' JSON, or must a predecessor supply them?** The story extends
+them, narrowly and additively, as edits allowed for this question; no
+predecessor task is added. Existing steps, tests and JSON keys stay as
+they are.
+
+- **A bounded visit,** for the cut. `support/sign_in_browser.rs`:
+  `Visitor` gains a hop limit (`hand_until(url, hops)`, or `hand` taking
+  `Option<usize>`, whichever changes less): once it has recorded that many
+  hops it follows no further `Location`, closes and drains as after a
+  landing page. `support/ctl.rs`: a `Step::VisitHops(usize)` beside
+  `Step::Visit`, its `Action` counted as visiting (`visiting()`), its
+  limit read by the referee. `support/boxed.rs`: the tab's hand passes the
+  limit, and `calls.visited` takes the last recorded hop's status (302
+  here) as today. `walk.rs`: an `Act::VisitHops(usize)` mapped to it.
+  `Step::Visit` keeps following every hop; the other walks are unchanged.
+  Run 1 visits with a limit of three: manifest 200, create 200,
+  conversion 302, the installation link not followed.
+- **The row's facts, in `forge list --json`.** In
+  `temper-client-tools/src/forges.rs`, `encode_rows` writes the domain
+  `Row`'s existing `finished` (boolean) and `app` (`"manifest"`,
+  `"pasted"` or `null`), after `state`'s keys and before `installations`.
+  Scalars only: `ROWS_JSON_DEPTH` stays 7. Update the pinned JSON in
+  `temper-client-tools/src/tests/forges.rs` and run its focused tests. No
+  field naming Go on or Start over: those are the welcome's actions, not
+  the row's facts.
+- **What the story asserts of the row:** after run 1's conversion, and
+  again at run 2's first read, forge 2 has `app == "manifest"`,
+  `finished == false`, and no installation with `stray == false`. Go on
+  before Start over is asserted by the view's
+  `temper-client-view/src/tests/start_over.rs::github_not_finished_offers_go_on_before_start_over`;
+  the story names that test in a comment and does not render the page.
+- **Go on is `forge install 2 --key walk-go-on`,** the spec's second
+  option: `Connect` of the existing forge asks for a manifest again, and
+  the walk allows one manifest only. The report says so.
+- **The restart is a second `Walk::run`** on the same `Walk`; no new
+  `Walk` method.
+- **Checks:** the spec's step 2, plus `heavy cargo nextest run -p
+  temper-client-tools --lib` for the JSON. The process story is still not
+  run.
