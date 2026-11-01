@@ -14,6 +14,19 @@ fn read(
     repository: skein_forge::api::Repository,
     read: Read,
 ) -> Result<Answer, Error> {
+    match read_answer(world, run, number, repository, read) {
+        engine::CallAnswer::ForgeRead(result) => *result,
+        answer => panic!("forge answer: {answer:?}"),
+    }
+}
+
+fn read_answer(
+    world: &mut World,
+    run: &engine::Assignment,
+    number: u32,
+    repository: skein_forge::api::Repository,
+    read: Read,
+) -> engine::CallAnswer {
     let before = world.answers.len();
     let event = world.protocol.call(
         CHANNEL,
@@ -26,8 +39,7 @@ fn read(
     for _ in 0..MAX_TICKS {
         world.tick();
         if let Some(answer) = world.answers.get(before) {
-            let engine::CallAnswer::ForgeRead(result) = answer else { panic!("forge answer: {answer:?}") };
-            return *result.clone();
+            return answer.clone();
         }
     }
     panic!("forge read was not answered");
@@ -246,6 +258,22 @@ fn a_changes_grants_name_its_repository_alone() {
     );
     // A second adopted repository in the same project makes this an authority refusal,
     // rather than a missing-repository or cross-project refusal.
+    restore_sibling_repository(&mut world);
+    let answer = read_answer(
+        &mut world,
+        &reviewer,
+        11,
+        skein_forge::api::Repository { repository: 3, ..forge_world::REPO },
+        Read::File { head, path: b"ci.yml".as_slice().into(), max_bytes: 1024 },
+    );
+    assert!(
+        matches!(&answer, engine::CallAnswer::ToolDenied { findings, .. }
+            if findings.contains(&authority::Finding::Grant { source: authority::Source::Task })),
+        "review read must retain the refusing authority layer: {answer:?}"
+    );
+}
+
+fn restore_sibling_repository(world: &mut World) {
     let mut other = world
         .store
         .rows
@@ -266,16 +294,6 @@ fn a_changes_grants_name_its_repository_alone() {
     world.send(engine::Event::Forge(Box::new(forge_top::Event::Restore {
         record: forge_top::Stored::Repository(other),
     })));
-    assert_eq!(
-        read(
-            &mut world,
-            &reviewer,
-            11,
-            skein_forge::api::Repository { repository: 3, ..forge_world::REPO },
-            Read::Pull { number: 1 }
-        ),
-        Err(Error::Forbidden)
-    );
 }
 
 fn pattern(value: &tasks::Pattern) -> authority::Pattern {
