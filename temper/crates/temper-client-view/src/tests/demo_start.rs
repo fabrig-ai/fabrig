@@ -83,11 +83,9 @@ fn the_start_draws_the_frame_banner_before_its_chatbar_context_and_invitation() 
 
 #[test]
 fn other_chats_keep_their_heading_and_no_start() {
-    for (row, project, model, demo) in [
-        ("other project", f::SECOND_PROJECT, true, true),
-        ("forge alone", f::PROJECT, false, true),
-        ("no answer", f::PROJECT, true, false),
-    ] {
+    for (row, project, model, demo) in
+        [("other project", f::SECOND_PROJECT, true, true), ("no answer", f::PROJECT, true, false)]
+    {
         let root = if demo {
             f::demo_root(Address::Chats { filter: ChatsFilter::All, start: false }, project, model)
         } else {
@@ -168,7 +166,7 @@ fn the_context_names_the_deployment_owner_then_the_project_owner_then_the_person
 }
 
 #[test]
-fn a_chats_context_follows_the_chatbar_only_in_the_demo_project_even_without_its_model() {
+fn a_chats_context_follows_the_chatbar_only_in_the_playground_project_with_a_real_account() {
     for (row, project, model, demo, shown) in [
         ("demo", f::PROJECT, true, true, true),
         ("forge alone", f::PROJECT, false, true, true),
@@ -299,17 +297,6 @@ fn starting_waits_and_each_failure_explains_why_with_try_again() {
             crate::act(&mut view, again, skein_ui::Act::Press),
             Some(temper_client_domain::Action::Pages(temper_client_domain::pages::Act::RetryDemo))
         );
-    }
-}
-#[test]
-fn a_not_started_demo_has_the_setup_strip_and_no_context_or_demo_banner() {
-    use temper_client_protocol_wire::v1 as w;
-    for address in [Address::Chats { filter: ChatsFilter::All, start: false }, Address::Chat { task: 41 }] {
-        let root = f::demo_state_root(address, w::PlaygroundState::NotStarted);
-        let view = f::page_view(&root);
-        assert!(f::find(view.tree(), Role::Region, b"The playground").is_none());
-        assert!(f::find(view.tree(), Role::Region, b"Setup").is_some());
-        assert!(view.tree().nodes().iter().all(|node| !node.styles.as_slice().contains(&crate::look::CONTEXT)));
     }
 }
 

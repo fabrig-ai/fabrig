@@ -39,6 +39,7 @@ mod resolve;
 
 mod box_link;
 mod bundle;
+mod erase;
 mod server;
 
 pub(crate) mod sign_in;

@@ -73,13 +73,11 @@ impl Domain {
         self.forge.demo_answered()
     }
     #[must_use]
-    pub fn demo(&self) -> Option<(&forge::Demo, forge::demo::Halves)> {
-        if !self.forge.demo_running() {
+    pub fn demo(&self) -> Option<&forge::Demo> {
+        if !self.forge.demo_running() && !self.forge.leaving() {
             return None;
         }
-        let answer = self.forge.demo()?;
-        let halves = forge::demo::current(&self.forge, self.pages.accounts_document(&self.client), &self.client);
-        if halves.model || halves.forge { Some((answer, halves)) } else { None }
+        self.forge.demo()
     }
 
     #[must_use]

@@ -338,8 +338,8 @@ fn suggest(root: &mut Domain, env: &Env<Limits>, cue: u8, out: &mut Queue<Reques
     if root.forge.demo_starting() || root.forge.demo_failure().is_some() {
         return;
     }
-    let Some((demo, halves)) = root.demo() else { return };
-    if !halves.model || root.pages.project() != Some(demo.project) {
+    let Some(demo) = root.demo() else { return };
+    if root.pages.project() != Some(demo.project) {
         return;
     }
     let Some(words) = demo.cues.get(usize::from(cue)) else { return };
@@ -398,25 +398,15 @@ fn forge_forges(root: &mut Domain, env: &Env<Limits>, told: &jig_client::Told, o
     consumed
 }
 
-#[expect(clippy::manual_map, reason = "step code reads retained identity without closures")]
 fn demo_facts(root: &mut Domain) {
     root.pages.demo_provider = root.forge.demo_provider();
-    root.pages.retired_project = match root.forge.retired_demo() {
-        Some(demo) => Some(demo.project),
-        None => None,
-    };
     crate::pages::project_changed(&mut root.pages, &root.client);
-    root.pages.demo_model = match root.demo() {
-        Some((_, halves)) => halves.model,
-        None => false,
-    };
 }
 
-/// Reconcile demo lifecycle after the shared client's account and forge tells.
+/// Poll the playground reset and reconcile its project selection.
 pub(crate) fn demo_progress(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     let mut child = Queue::uncapped();
     forge::demo::poll(&mut root.forge, env.now, &mut child);
-    forge::demo::progress(&mut root.forge, root.pages.accounts_document(&root.client), &root.client, &mut child);
     route_forge(root, env, &mut child, out);
     select_playground_project(root, env, out);
     demo_facts(root);

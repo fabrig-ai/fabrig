@@ -4003,6 +4003,8 @@ dependencies = [
  "skein-world",
  "smith-agent-shell",
  "temper-engine-domain",
+ "temper-engine-domain-forge",
+ "temper-github-app",
 ]
 
 [[package]]
@@ -4599,6 +4601,7 @@ dependencies = [
  "skein-lib",
  "skein-scratch",
  "skein-shell",
+ "temper-engine-domain-forge",
  "temper-protocol-records",
  "temper-protocol-store",
  "temper-service",

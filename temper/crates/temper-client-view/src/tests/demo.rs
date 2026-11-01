@@ -68,11 +68,11 @@ fn the_playground_banner_is_one_line_on_every_page_but_the_welcome() {
     }
 }
 #[test]
-fn suggestions_show_only_in_the_demo_project_with_the_model_half() {
+fn suggestions_show_only_in_the_playground_project() {
     for (row, project, model, demo, shown) in [
         ("demo project", f::PROJECT, true, true, true),
         ("other project", f::SECOND_PROJECT, true, true, false),
-        ("no model half", f::PROJECT, false, true, false),
+        ("real account", f::PROJECT, false, true, true),
         ("no demo", f::PROJECT, true, false, false),
     ] {
         let root = if demo {
@@ -257,7 +257,7 @@ fn the_demo_account_always_names_default_whatever_the_model_or_project() {
         ("default", f::PROJECT, true, false, "Using Scripted model · Default"),
         ("requested", f::PROJECT, true, true, "Using Scripted model · Default"),
         ("another project", f::SECOND_PROJECT, true, false, "Using Scripted model · Default"),
-        ("forge alone", f::PROJECT, false, false, "No model yet · Connect a model"),
+        ("real account", f::PROJECT, false, false, "Using Scripted model · Default"),
     ] {
         let choice = if requested {
             Some(c::LlmChoice {
@@ -343,7 +343,7 @@ fn pending_words_without_a_party_are_named_you() {
 #[test]
 fn t1_keeps_the_demo_line_after_another_providers_key() {
     let root = f::demo_kept_root();
-    assert!(!root.demo().unwrap().1.model);
+    assert!(root.demo().is_some());
     let view = f::page_view(&root);
     assert!(f::find(view.tree(), Role::Paragraph, "Using Scripted model · Default".as_bytes()).is_some());
 }
@@ -396,12 +396,8 @@ fn the_playground_account_is_in_its_own_folded_section() {
     assert_eq!(count, Some(b"0".as_slice()));
     assert!(f::find(view.tree(), Role::Paragraph, b"No model of yours yet.").is_some());
     assert!(
-        f::find(
-            view.tree(),
-            Role::Disclosure,
-            "Scripted model · the playground’s, until a model of yours connects · held by the deployment".as_bytes()
-        )
-        .is_some()
+        f::find(view.tree(), Role::Disclosure, "Scripted model · the playground’s · held by the deployment".as_bytes())
+            .is_some()
     );
 }
 
@@ -475,6 +471,7 @@ fn leaving_replaces_the_line_with_its_status() {
         assert!(root.forge().leaving());
         let view = f::page_view(&root);
         assert!(f::find(view.tree(), Role::Status, "Leaving the playground…".as_bytes()).is_some());
+        assert!(f::find(view.tree(), Role::Heading { level: 1 }, b"What shall we change?").is_some());
         assert!(f::find(view.tree(), Role::Link, b"set up temper").is_none());
         assert!(f::find(view.tree(), Role::Region, b"Setup").is_none());
     }
@@ -496,8 +493,7 @@ fn forges_and_accounts_offer_nothing_to_add_while_it_runs() {
                     f::find(
                         view.tree(),
                         Role::Disclosure,
-                        "Scripted model · the playground’s, until a model of yours connects · held by the deployment"
-                            .as_bytes()
+                        "Scripted model · the playground’s · held by the deployment".as_bytes()
                     )
                     .is_some()
                 );
@@ -508,16 +504,24 @@ fn forges_and_accounts_offer_nothing_to_add_while_it_runs() {
 #[test]
 fn a_persons_own_account_is_listed_beside_the_scripted_model() {
     let root = f::demo_root(Address::Accounts, f::PROJECT, false);
-    assert!(!root.demo().unwrap().1.model, "another provider supplies the model half");
+    assert!(root.demo().is_some());
     let view = f::page_view(&root);
     let text = f::text(view.tree());
     assert!(skein_lib::bytes::find(&text, b"Other").is_some(), "personal account");
     assert!(
-        f::find(
-            view.tree(),
-            Role::Disclosure,
-            "Scripted model · the playground’s, until a model of yours connects · held by the deployment".as_bytes()
-        )
-        .is_some()
+        f::find(view.tree(), Role::Disclosure, "Scripted model · the playground’s · held by the deployment".as_bytes())
+            .is_some()
     );
+}
+
+#[test]
+fn a_real_forge_connecting_leaves_the_playground_running() {
+    let (mut root, watch) = super::choice::playground_offers_root(Address::Forges, true);
+    super::choice::connect_real_forge(&mut root, watch);
+    let view = f::page_view(&root);
+    assert!(f::find(view.tree(), Role::Region, b"The playground").is_some());
+    assert!(f::find(view.tree(), Role::Link, b"set up temper").is_some());
+    assert!(f::find(view.tree(), Role::Link, b"Connect a model").is_none());
+    assert!(f::find(view.tree(), Role::Link, b"Connect a forge").is_none());
+    assert!(root.forge().playground_running());
 }

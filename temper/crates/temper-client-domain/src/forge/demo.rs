@@ -1,8 +1,7 @@
 //! The playground read, start and reset (temper/docs/design/draft/playground-reset.md, 6.1–6.2).
-//! The retained halves follow temper/docs/design/client/README.md, 4.8.
 use super::{Demo, Limits, Request, Side, family, wire_limits};
 use alloc::boxed::Box;
-use jig_client::{Client, Handle, Latest, Link, Readable, Readout, Told, contract as c};
+use jig_client::{Handle, Link, Readable, Readout, Told, contract as c};
 use skein_lib::{Duration, Queue, RequestProgress, Time, Token};
 
 use temper_client_protocol_wire::{self as wire, v1 as w};
@@ -23,11 +22,6 @@ pub(super) struct State {
     pub reset_navigation: bool,
     pub reset_opened: bool,
     pub selection: ProjectSelection,
-    pub settled: bool,
-    pub deployment: Option<(Handle, u32)>,
-    pub ended: Option<RetiredDemo>,
-    pub model_ended: bool,
-    pub forge_ended: bool,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum ProjectSelection {
@@ -53,13 +47,6 @@ pub enum EndAnswer {
     NotOffered,
     Unknown,
     EntranceRefused(c::EntranceRefusal),
-}
-/// Identity retained when the playground ends (client/README.md, 5.6).
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct RetiredDemo {
-    pub forge: u16,
-    pub provider: u32,
-    pub project: u32,
 }
 impl Side {
     #[must_use]
@@ -99,15 +86,12 @@ impl Side {
         core::mem::replace(&mut self.demo.reset_navigation, false)
     }
 
-    /// The demo forge serves no pages, including after its end (playground.md, 6).
+    /// The playground's forge serves no pages while it runs or leaves.
     #[must_use]
     pub fn serves_pages(&self, forge: u16) -> bool {
         match self.demo.answer.as_ref() {
-            Some(demo) => demo.forge != forge,
-            None => match self.demo.ended {
-                Some(demo) => demo.forge != forge,
-                None => true,
-            },
+            Some(demo) if self.demo_running() || self.leaving() => demo.forge != forge,
+            Some(_) | None => true,
         }
     }
 
@@ -116,22 +100,13 @@ impl Side {
     pub fn demo_request(&self) -> Option<Token> {
         Some(self.demo.start.as_ref()?.request)
     }
-    /// The retired playground, including an end observed in this session.
+    /// The playground's provider from its current answer.
     #[must_use]
-    pub fn retired_demo(&self) -> Option<RetiredDemo> {
-        if self.demo.forge_ended { self.demo.ended } else { None }
-    }
-
-    /// The playground's provider, retained after its end for account-offer policy.
-    #[must_use]
-    #[expect(clippy::manual_map, reason = "step code reads retained identity without closures")]
+    #[expect(clippy::manual_map, reason = "step code reads the answer without closures")]
     pub fn demo_provider(&self) -> Option<u32> {
         match self.demo.answer.as_ref() {
             Some(demo) => Some(demo.provider),
-            None => match self.demo.ended {
-                Some(demo) => Some(demo.provider),
-                None => None,
-            },
+            None => None,
         }
     }
 }
@@ -150,11 +125,6 @@ impl State {
             reset_navigation: false,
             reset_opened: false,
             selection: ProjectSelection::None,
-            settled: false,
-            deployment: None,
-            ended: None,
-            model_ended: false,
-            forge_ended: false,
         }
     }
 }
@@ -241,55 +211,6 @@ pub(crate) fn told(side: &mut Side, told: &Told, limits: Limits, out: &mut Queue
         | Told::Dropped { .. } => false,
     }
 }
-/// Whether the demo's model and forge still supply the deployment's work.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Halves {
-    pub model: bool,
-    pub forge: bool,
-}
-#[must_use]
-pub fn halves(
-    answer: Option<&Demo>,
-    accounts: Option<&c::OwnerAccounts>,
-    deployment: Option<&c::OwnerDeployment>,
-    forges: &super::forges::State,
-) -> Halves {
-    let mut halves = Halves { model: false, forge: false };
-    let Some(answer) = answer else { return halves };
-    if answer.state == DemoState::Ended || answer.state == DemoState::Resetting {
-        return halves;
-    }
-    if let super::forges::State::Rows(rows) = forges {
-        halves.forge = true;
-        for row in rows {
-            if row.number != answer.forge
-                && let super::forges::Connection::Connected { .. } = row.connection
-            {
-                halves.forge = false;
-                break;
-            }
-        }
-    }
-    let Some(accounts) = accounts else { return halves };
-    if accounts.cut {
-        return halves;
-    }
-    for line in &accounts.accounts {
-        if line.provider != Some(answer.provider) && line.cut {
-            return halves;
-        }
-    }
-    halves.model = !other_model_usable(accounts, deployment, answer.provider);
-    halves
-}
-
-pub(crate) fn current(side: &Side, accounts: Option<&c::OwnerAccounts>, client: &Client) -> Halves {
-    let mut halves = halves(side.demo.answer.as_ref(), accounts, owner_deployment(side, client), &side.forges);
-    halves.model &= !side.demo.model_ended;
-    halves.forge &= !side.demo.forge_ended;
-    halves
-}
-
 /// A usable source of a provider other than the demo's, or any provider without a demo.
 #[must_use]
 pub fn usable_account(line: &c::OwnerAccountLine, demo_provider: Option<u32>) -> bool {
@@ -306,180 +227,6 @@ fn usable_sources(sources: &skein_lib::List<c::OwnerAccountSource>) -> bool {
         }
     }
     false
-}
-
-/// A usable model of a provider other than the demo's: one of the person's `accounts`
-/// lines, or, for an owner, a deployment-held account of its delivered, uncut
-/// `deployment` document (client/README.md, 3.5 and 4.8).
-#[must_use]
-pub fn other_model_usable(
-    accounts: &c::OwnerAccounts,
-    deployment: Option<&c::OwnerDeployment>,
-    demo_provider: u32,
-) -> bool {
-    for line in &accounts.accounts {
-        if usable_account(line, Some(demo_provider)) {
-            return true;
-        }
-    }
-    match deployment {
-        Some(deployment) => deployment_model(deployment, demo_provider).is_some(),
-        None => false,
-    }
-}
-
-/// The first deployment-held account of another provider than the demo's that is usable
-/// and uncut, in an owner's delivered, uncut `deployment` (client/README.md, 3.5, 4.8).
-#[must_use]
-#[expect(clippy::manual_find, reason = "step code uses bounded loops without closures")]
-pub fn deployment_model(deployment: &c::OwnerDeployment, demo_provider: u32) -> Option<&c::OwnerAccount> {
-    if deployment.cut {
-        return None;
-    }
-    for account in &deployment.accounts {
-        if !account.cut
-            && account.holder == c::OwnerAccountHolder::Deployment
-            && account.provider != Some(demo_provider)
-            && usable_sources(&account.sources)
-        {
-            return Some(account);
-        }
-    }
-    None
-}
-
-/// The owner's delivered, uncut deployment, through the demo's one live watch.
-#[must_use]
-pub fn owner_deployment<'a>(side: &Side, client: &'a Client) -> Option<&'a c::OwnerDeployment> {
-    if !owner(client) {
-        return None;
-    }
-    let (handle, _) = side.demo.deployment?;
-    let document = client.document(handle)?;
-    if document.state != jig_client::State::Live {
-        return None;
-    }
-    let Some(Latest::Jig(c::Delivery::OwnerDeployment(deployment))) = document.latest else { return None };
-    if deployment.cut {
-        return None;
-    }
-    Some(deployment)
-}
-
-/// Observe positive evidence of an end; unavailable or cut documents are not ends.
-/// Session latches keep a lost credential from bringing the model half back.
-pub(crate) fn progress(
-    side: &mut Side,
-    accounts: Option<&c::OwnerAccounts>,
-    client: &Client,
-    out: &mut Queue<Request>,
-) {
-    watch_deployment(side, client, out);
-    observe_end(side, accounts, client, out);
-    remove(side, client, out);
-    watch_deployment(side, client, out);
-}
-
-fn observe_end(side: &mut Side, accounts: Option<&c::OwnerAccounts>, client: &Client, out: &mut Queue<Request>) {
-    let Some(demo) = side.demo.answer.as_ref() else { return };
-    if demo.state == DemoState::Ended || demo.state == DemoState::Resetting {
-        return;
-    }
-    let model_ended = demo.state == DemoState::Running
-        && match accounts {
-            Some(accounts) => other_model_usable(accounts, owner_deployment(side, client), demo.provider),
-            None => false,
-        };
-    let mut forge_ended = false;
-    if let super::forges::State::Rows(rows) = &side.forges {
-        for row in rows {
-            if row.number != demo.forge
-                && let super::forges::Connection::Connected { .. } = row.connection
-            {
-                forge_ended = true;
-                break;
-            }
-        }
-    }
-    let reread = forge_ended && !side.demo.forge_ended;
-    let changed = (model_ended && !side.demo.model_ended) || reread;
-    side.demo.model_ended |= model_ended;
-    side.demo.forge_ended |= forge_ended;
-    if model_ended || forge_ended {
-        // Retain the identity after the engine retires the demo or the owner watch closes.
-        side.demo.ended = Some(RetiredDemo { forge: demo.forge, provider: demo.provider, project: demo.project });
-    }
-    if reread {
-        read(side, out);
-    }
-    if changed {
-        side.changed();
-    }
-}
-
-fn watch_deployment(side: &mut Side, client: &Client, out: &mut Queue<Request>) {
-    let needed = owner(client) && (side.demo_running() || (side.demo.model_ended && !side.demo.settled));
-    if !needed {
-        if let Some((handle, _)) = side.demo.deployment.take() {
-            out.push(Request::Client { asked: jig_client::Event::Unwatch { handle } });
-        }
-        return;
-    }
-    if side.demo.deployment.is_some() {
-        return;
-    }
-    let provider = match side.demo.answer.as_ref() {
-        Some(demo) => demo.provider,
-        None => match side.demo.ended {
-            Some(demo) => demo.provider,
-            None => return,
-        },
-    };
-    side.serial = side.serial.checked_add(1).expect("forge handles fit");
-    let handle = Handle { asker: crate::owner::Owner::Forge.asker(), number: side.serial };
-    side.demo.deployment = Some((handle, provider));
-    out.push(Request::Client {
-        asked: jig_client::Event::Watch { handle, subject: jig_client::Watchable::Jig(c::Subject::Deployment) },
-    });
-}
-
-fn owner(client: &Client) -> bool {
-    let Some(document) = client.document(super::me::handle()) else { return false };
-    if document.state != jig_client::State::Live {
-        return false;
-    }
-    let Some(Latest::Jig(c::Delivery::Me(me))) = document.latest else { return false };
-    me.deployment_role == Some(c::HeldRole::Owner)
-}
-
-/// Only the model's end needs client cleanup; the engine owns cleanup at the forge's end.
-fn remove(side: &mut Side, client: &Client, out: &mut Queue<Request>) {
-    if side.demo.forge_ended {
-        side.demo.settled = true;
-    }
-    if side.demo.settled || !side.demo.model_ended || !owner(client) {
-        return;
-    }
-    let Some((_, provider)) = side.demo.deployment else { return };
-    let Some(deployment) = owner_deployment(side, client) else { return };
-    for account in &deployment.accounts {
-        if account.provider == Some(provider) && account.holder == c::OwnerAccountHolder::Deployment {
-            side.serial = side.serial.checked_add(1).expect("forge request serial fits");
-            // No pending page operation owns this key: every outcome is dropped.
-            out.push(Request::Client {
-                asked: jig_client::Event::Send {
-                    key: jig_client::Key { asker: crate::owner::Owner::Forge.asker(), number: side.serial },
-                    name: None,
-                    request: jig_client::Ask::Jig(Box::new(c::Ask::AccountChange {
-                        holder: c::AccountHolder::Deployment,
-                        change: c::AccountChange::Remove { account: account.number },
-                    })),
-                },
-            });
-            break;
-        }
-    }
-    side.demo.settled = true;
 }
 
 fn read(side: &mut Side, out: &mut Queue<Request>) {
@@ -511,7 +258,6 @@ pub enum DemoState {
     NotStarted,
     Running,
     Resetting,
-    Ended,
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum StartFailure {
@@ -600,12 +346,7 @@ fn start_key(side: &Side, key: jig_client::Key) -> bool {
     }
 }
 pub(crate) fn start(side: &mut Side, limits: Limits, out: &mut Queue<Request>) {
-    if side.party.is_none()
-        || side.served == super::Served::OutOfDate
-        || side.demo.start.is_some()
-        || side.retired_demo().is_some()
-        || side.leaving()
-    {
+    if side.party.is_none() || side.served == super::Served::OutOfDate || side.demo.start.is_some() || side.leaving() {
         return;
     }
     let Some(demo) = side.demo.answer.as_ref() else { return };
@@ -738,7 +479,7 @@ fn resetting(side: &Side) -> bool {
     }
 }
 fn read_answer(side: &mut Side, page: &Readout, limits: Limits) {
-    let mut answer = match page {
+    let answer = match page {
         Readout::Family { family: number, record: Some(record) } if *number == wire::FORGE => {
             match wire_limits(&limits) {
                 Some(limits) => family::demo(record, &limits),
@@ -760,25 +501,9 @@ fn read_answer(side: &mut Side, page: &Readout, limits: Limits) {
         }
     }
     side.demo.retry_at = None;
-    let retired = match answer.as_ref() {
-        Some(demo) if demo.state == DemoState::Ended => {
-            Some(RetiredDemo { forge: demo.forge, provider: demo.provider, project: demo.project })
-        }
-        _ => None,
-    };
-    let retirement_changed = retired.is_some() && side.retired_demo() != retired;
-    if let Some(retired) = retired {
-        side.demo.ended = Some(retired);
-        side.demo.model_ended = true;
-        side.demo.forge_ended = true;
-        side.demo.settled = true;
-        side.demo.start = None;
-        side.demo.failure = None;
-        answer = None;
-    }
     let first = !side.demo.answered;
     side.demo.answered = true;
-    if first || side.demo.answer != answer || retirement_changed {
+    if first || side.demo.answer != answer {
         side.demo.answer = answer;
         side.changed();
     }

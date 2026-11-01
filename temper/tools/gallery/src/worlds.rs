@@ -97,7 +97,7 @@ fn frame(w: World, connecting: bool) -> c::Me {
         let mut hello = member.clone();
         hello.project = 2;
         hello.name = doc("hello");
-        projects.push(member.clone()).expect("retired playground");
+        projects.push(member.clone()).expect("playground project");
         projects.push(hello).expect("new project");
         me.projects = projects;
     }
@@ -267,7 +267,7 @@ fn first_run_ready(root: &mut Domain, w: World, forge_watch: Option<Token>, out:
         adopt_owned_sample(root, forge_watch.expect("owned forge watch"), out);
     }
     if matches!(w, FirstRun { step: 1..=4 }) {
-        assert!(root.demo().expect("answered demo").1.model);
+        assert!(root.demo().is_some(), "answered playground");
     }
 }
 fn forges_watched(root: &mut Domain, world: World, watch: Token, out: &mut Queue<Request>) {
