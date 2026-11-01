@@ -21,7 +21,7 @@ pub(super) fn run() {
     acts.push(Act::Visit);
     acts.extend(first_chat());
     let seen = walk.run(acts);
-    assert_adopted(&seen, 2, "widget");
+    assert_adopted(&seen, made(&seen.answers), "widget");
     assert_reply(&seen);
     let [github, sign_in] = seen.visits.as_slice() else { panic!("GitHub and ChatGPT departing tabs") };
     assert_eq!(github.iter().map(|hop| hop.status).collect::<Vec<_>>(), [200, 200, 302, 302, 200]);

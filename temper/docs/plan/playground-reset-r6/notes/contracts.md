@@ -108,7 +108,9 @@ as a connector's `Acted` is (J4).
 - `Act::AddKey` gains `uses: Option<Box<[jig_domain_people::Use]>>` (people's own `Use`, which the core
   translates to accounts'), the uses the new
   account is made with (`None` as today): the playground's scripted account is made with
-  `Some([people::Use::Project(playground's project)])`, serving that project alone.
+  `Some([people::Use::Party(starting person), people::Use::Project(playground's project)])`.
+  A person's chat is funded by their pool, so its payer is the person, never the project
+  (jig's `domain/accounts.md`, 4.1): a project alone in the uses would serve no chat.
 
 ## T. temper (draft sections 3, 4, 6)
 
@@ -281,8 +283,8 @@ stay unused). Bounds: `Forge` and `ForgeNumbers` by `forge.forges` (T4); `KeptAc
   true`, mode `Fake`; `Register` and `SetUpGroup` for it; then as the deployment's acts,
   each keyed from the start's key and kept until answered: `MakeProject` of
   `application.demo.project` (its number written to the row), `AddKey` of the scripted key
-  with `uses: Some([Use::Project(project)])` (its account written to the row), and, once the
-  fake forge connects, `Adopt` of `playground/widget` into the project. Answered `Running`
+  with `uses: Some([Use::Party(starting person), Use::Project(project)])` (J8; its account
+  written to the row), and, once the fake forge connects, `Adopt` of `playground/widget` into the project. Answered `Running`
   once all are done; `StartAnswer` keeps its other values.
 - End: in one decision the row reads `Resetting(Project)`; then, in order, each step after
   the last one's answer, resumed at each start from the row: `Project`, jig's
