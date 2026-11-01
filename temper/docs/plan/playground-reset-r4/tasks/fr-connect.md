@@ -7,6 +7,8 @@ files = [
   "temper/crates/temper-engine-domain-forge/src/connect.rs",
   "temper/crates/temper-engine-domain-forge/src/origin.rs",
   "temper/crates/temper-engine-domain-forge/src/lib.rs",
+  "temper/crates/temper-engine-domain-forge/src/domain.rs",
+  "temper/crates/temper-engine-domain-forge/src/make.rs",
   "temper/crates/temper-engine-domain-forge/src/tests/connect_new.rs",
   "temper/crates/temper-engine-domain-forge/src/tests.rs",
 ]
@@ -108,3 +110,21 @@ Pre-approved options:
 
 fab's sections, and `## Interfaces`: `origin::forgejo`, the records each
 `ConnectForge` makes, and the refusal mapping.
+
+## Answers
+
+2026-11-01. May fr-connect edit `domain.rs` to pass its `Env` into
+`connect::start`, and `make.rs` to remove `make`'s `dead_code`
+expectation? Yes, both, and nothing else in those files:
+
+- `temper-engine-domain-forge/src/domain.rs`: `step` already holds
+  `env: &Env<Limits>`; pass it at the `connect::start` call (and add the
+  `env` parameter to `start`). No other change there.
+- `temper-engine-domain-forge/src/make.rs`: remove the
+  `#[cfg_attr(not(test), expect(dead_code, ...))]` line on `make`, which
+  your production caller leaves unfulfilled. `fr-setup` owns `make.rs`
+  and may remove the same line; the same removal on both branches merges
+  cleanly, and if the trunk you start from has it gone already, leave
+  `make.rs` alone.
+
+Both files are added to this task's `files`.
