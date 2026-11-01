@@ -52,6 +52,7 @@ fn project() -> c::Project {
                 key: c::PartKey::Path(list(vec![b"src".as_slice().into(), b"lib.rs".as_slice().into()])),
             },
             role: c::ProjectResourceRole::Owned,
+            home: true,
         }]),
         policy: c::ProjectPolicy {
             templates: list(vec![]),
@@ -112,6 +113,27 @@ fn project_show_prints_the_open_period_and_each_pool() {
     assert_eq!(printed.status, 0);
     f::check_golden("project_show", &printed.stdout);
 }
+#[test]
+fn project_show_lists_a_fork_home_and_keeps_an_owned_non_home_out() {
+    let mut project = project();
+    let mut home = project.resources.get(0).unwrap().clone();
+    home.role = c::ProjectResourceRole::Fork;
+    let mut other = home.clone();
+    other.role = c::ProjectResourceRole::Owned;
+    other.home = false;
+    other.part.key = c::PartKey::Path(list(vec![b"other".as_slice().into()]));
+    project.resources = list(vec![home, other]);
+    let printed = read(&["project", "show", "1"], project.clone());
+    assert_eq!(printed.status, 0);
+    let text = String::from_utf8_lossy(&printed.stdout);
+    assert_eq!(text.lines().nth(1), Some("homes: src/lib.rs"));
+    let printed = read(&["project", "show", "1", "--json"], project);
+    f::unique_keys(&printed.stdout).expect("valid JSON with unique keys");
+    let json = String::from_utf8_lossy(&printed.stdout);
+    assert!(json.contains(r#""role":"fork","home":true"#), "{json}");
+    assert!(json.contains(r#""role":"owned","home":false"#), "{json}");
+}
+
 #[test]
 fn project_show_says_when_no_next_start_is_known() {
     let mut project = project();

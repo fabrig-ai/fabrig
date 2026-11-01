@@ -97,6 +97,30 @@ pub fn adopt_repository_ask(
     })
 }
 
+/// Report stored adoption facts to jig (jig/docs/design/domain/connectors.md, 12 and 14).
+pub(crate) fn report_adoption(domain: &mut Domain, repository: &forge::Repository) {
+    use jig_domain_core::effects::connector::{AdoptionRole, Event};
+    let role = match repository.role {
+        forge::Role::Owned => AdoptionRole::Owned,
+        forge::Role::Adopted => AdoptionRole::Participant,
+        forge::Role::Fork => AdoptionRole::Fork,
+        forge::Role::Context => AdoptionRole::Context,
+    };
+    let name = tasks::Name {
+        connector: domain.config.forge_connector,
+        path: Box::new([
+            Box::from(repository.provider.forge.to_be_bytes()),
+            Box::from(repository.provider.repository.to_be_bytes()),
+        ]),
+    };
+    domain.work.push(Work::Core(jig_domain_core::Event::EffectConnector(Event::Adopted {
+        project: repository.project,
+        name,
+        role,
+        home: repository.home,
+    })));
+}
+
 fn permission_number(permission: skein_forge::api::Permission) -> u16 {
     match permission {
         skein_forge::api::Permission::None => 0,
@@ -3159,6 +3183,7 @@ pub(crate) fn outputs(
                             parties.into_boxed(),
                         ) {
                             Ok(seeds) => {
+                                report_adoption(domain, &adopted.repository);
                                 domain.work.push(Work::People(people::Event::Seed {
                                     project: adopted.repository.project,
                                     collaborators: seeds,

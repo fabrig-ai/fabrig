@@ -166,9 +166,10 @@ pub enum Event {
         size: u32,
     },
     Adopted {
-        owner: Token,
         project: u32,
-        role: people::ResourceRole,
+        name: tasks::Name,
+        role: AdoptionRole,
+        home: bool,
     },
     Drift {
         task: u64,
@@ -205,6 +206,15 @@ pub enum RestartStage {
     Restored,
     ReadAfresh,
     Settled,
+}
+
+/// A project's durable adoption role (domain/core.md, 6.1; domain/connectors.md, 12).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum AdoptionRole {
+    Owned,
+    Participant,
+    Fork,
+    Context,
 }
 
 /// One party the connector learned while adopting a resource.

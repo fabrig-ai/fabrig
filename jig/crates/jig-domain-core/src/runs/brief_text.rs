@@ -562,12 +562,15 @@ fn contract_text(contract: &tasks::Contract) -> Box<[u8]> {
     writer.finish()
 }
 
-/// Render an agent task's spec and contract from its activation snapshot.
+/// Render an agent task's spec and, if its result ends it, its contract.
 fn task_read(record: &tasks::RunContext, parts: u32, bytes: u32) -> BriefRead {
     if parts == 0 {
         return BriefRead::Failed;
     }
-    let contract = contract_text(&record.contract);
+    let contract = match record.ended_by {
+        tasks::EndedBy::Result => contract_text(&record.contract),
+        tasks::EndedBy::Requester => Box::new([]),
+    };
     let first = text_part(&record.spec.words, b"\n", &contract, b"", bytes);
     let remaining =
         bytes.checked_sub(u32::try_from(first.bytes.len()).expect("bounded task part")).expect("part within read");

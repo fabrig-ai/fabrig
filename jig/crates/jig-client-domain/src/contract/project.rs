@@ -30,11 +30,13 @@ pub struct Project {
 pub struct ProjectResource {
     pub part: Part,
     pub role: ProjectResourceRole,
+    pub home: bool,
 }
-/// The four roles supplied by the resource owner.
+/// The roles supplied by the resource owner.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum ProjectResourceRole {
     Owned,
+    Fork,
     Participant,
     Unavailable,
     Context,

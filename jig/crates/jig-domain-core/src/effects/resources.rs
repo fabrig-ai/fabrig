@@ -171,6 +171,13 @@ pub(crate) struct Key {
     pub name: tasks::Name,
 }
 
+/// A connector's stored adoption, re-reported at restart (domain/connectors.md, 12 and 14).
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct Adoption {
+    pub role: connector::AdoptionRole,
+    pub home: bool,
+}
+
 /// Remember current adoption facts. At capacity, unknown names fail closed;
 /// a cached narrowing is never discarded to make room for another name.
 pub(crate) fn role(core: &mut Core, limits: &Limits, project: u32, name: tasks::Name, role: connector::ResourceRole) {
