@@ -8,6 +8,7 @@ mod change;
 #[path = "tests/brief.rs"]
 mod ci_brief;
 mod connect;
+mod connect_new;
 mod demo;
 mod fixtures;
 mod flight;

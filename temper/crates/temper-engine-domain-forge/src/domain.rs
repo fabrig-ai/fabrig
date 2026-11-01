@@ -1257,7 +1257,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
             | crate::Ask::Install { .. }
             | crate::Ask::Accept { .. }
             | crate::Ask::Reachable { .. }) => {
-                crate::connect::start(d, request, token, ask, role, carried, out);
+                crate::connect::start(d, env, request, token, ask, role, carried, out);
             }
             crate::Ask::RemoveForge { .. } => crate::asks::refuse(
                 d,
