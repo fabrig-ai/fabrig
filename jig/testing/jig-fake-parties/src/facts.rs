@@ -58,6 +58,8 @@ pub enum Refusal {
 /// Authority missing from a party's request.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Lack {
+    /// A policy ceiling, with the bound and requested scalar values when supplied.
+    Ceiling { holder: CeilingHolder, dimension: CeilingDimension, value: Option<u64>, asked: Option<u64> },
     /// No policy role may accept this kind of party proposal.
     Approver,
     /// Requested spend exceeds what this source can supply.
@@ -346,4 +348,26 @@ pub enum Bound {
     Window,
     /// The model's declared output ceiling: tokens.
     Output,
+}
+
+/// The holder of a ceiling a policy edit passes (jig/docs/design/domain/authority.md, 6).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum CeilingHolder {
+    Rules,
+    Policy,
+    Role(u32),
+}
+
+/// A ceiling's dimension; list dimensions carry no contents.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum CeilingDimension {
+    PeriodSpend,
+    Spend,
+    Tools,
+    Tasks,
+    Depth,
+    Executors,
+    Grants,
+    Deadline,
+    Notes,
 }

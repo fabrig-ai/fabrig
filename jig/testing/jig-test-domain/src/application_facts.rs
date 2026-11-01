@@ -66,6 +66,7 @@ pub(super) fn refusal(value: people::Refusal) -> application::Refusal {
 
 pub(super) fn lack(value: people::Lack) -> application::Lack {
     match value {
+        people::Lack::Ceiling { .. } => unreachable!("the application routes Release, never policy edits"),
         people::Lack::Approver => application::Lack::Approver,
         people::Lack::Again { required } => application::Lack::Again { required },
         people::Lack::Budget { needs, left } => application::Lack::Budget { needs, left },

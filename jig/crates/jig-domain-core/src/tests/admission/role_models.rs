@@ -155,3 +155,92 @@ fn role_spend_for_an_absent_role_refuses_unknown_and_keeps_the_policy() {
         assert_eq!(core.authority.policy(1), Some(&before));
     }
 }
+
+#[test]
+fn project_spend_past_rules_names_the_ceiling() {
+    let (mut core, limits) = make_tree();
+    let before = core.authority.policy(1).unwrap().clone();
+    let asked = core.authority.rules().period_spend + 1;
+    let refusal = core.change_policy(&limits, 1, 1, people::PolicyChange::ProjectSpend { period_spend: asked });
+    assert_eq!(
+        refusal,
+        Err(people::Refusal::Authority {
+            proposable: None,
+            lacking: people::Lack::Ceiling {
+                holder: people::CeilingHolder::Rules,
+                dimension: people::CeilingDimension::PeriodSpend,
+                value: Some(1000),
+                asked: Some(1001),
+            }
+        })
+    );
+    assert_eq!(core.authority.policy(1), Some(&before));
+}
+
+#[test]
+fn project_spend_at_rules_is_admitted() {
+    let (mut core, limits) = make_tree();
+    let amount = core.authority.rules().period_spend;
+    drop(core.change_policy(&limits, 1, 1, people::PolicyChange::ProjectSpend { period_spend: amount }).unwrap());
+    assert_eq!(core.authority.policy(1).unwrap().period_spend, 1000);
+}
+
+#[test]
+fn role_spend_past_policy_names_the_ceiling() {
+    let (mut core, limits) = make_tree();
+    let before = core.authority.policy(1).unwrap().clone();
+    assert_eq!(
+        core.change_policy(&limits, 1, 1, people::PolicyChange::RoleSpend { role: 0, period_spend: 1001 }),
+        Err(people::Refusal::Authority {
+            proposable: None,
+            lacking: people::Lack::Ceiling {
+                holder: people::CeilingHolder::Policy,
+                dimension: people::CeilingDimension::PeriodSpend,
+                value: Some(1000),
+                asked: Some(1001),
+            }
+        })
+    );
+    assert_eq!(core.authority.policy(1), Some(&before));
+}
+
+#[test]
+fn project_spend_cut_names_the_roles_floor() {
+    let (mut core, limits) = make_tree();
+    let before = core.authority.policy(1).unwrap().clone();
+    assert_eq!(
+        core.change_policy(&limits, 1, 1, people::PolicyChange::ProjectSpend { period_spend: 499 }),
+        Err(people::Refusal::Authority {
+            proposable: None,
+            lacking: people::Lack::Ceiling {
+                holder: people::CeilingHolder::Role(0),
+                dimension: people::CeilingDimension::PeriodSpend,
+                value: Some(500),
+                asked: Some(499),
+            }
+        })
+    );
+    assert_eq!(core.authority.policy(1), Some(&before));
+}
+
+#[test]
+fn project_funding_rechecks_a_narrowed_rules_authority() {
+    let (mut core, limits) = make_tree();
+    let before = core.authority.policy(1).unwrap().clone();
+    let mut rules = core.authority.rules().clone();
+    rules.ceiling.budget.spend = 499;
+    authority::step(&mut core.authority, authority::Event::Rules(Box::new(rules)), &mut Queue::uncapped());
+    assert_eq!(
+        core.change_policy(&limits, 1, 1, people::PolicyChange::ProjectSpend { period_spend: 1000 }),
+        Err(people::Refusal::Authority {
+            proposable: None,
+            lacking: people::Lack::Ceiling {
+                holder: people::CeilingHolder::Rules,
+                dimension: people::CeilingDimension::Spend,
+                value: Some(499),
+                asked: Some(1000),
+            }
+        })
+    );
+    assert_eq!(core.authority.policy(1), Some(&before));
+}

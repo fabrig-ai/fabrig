@@ -121,6 +121,15 @@ pub(in crate::codec) fn wire_lacking(value: &c::Lacking, limits: &w::Limits) -> 
             limits,
             w::LackingHoldOwnerParts { hold: *(hold), owner: wire_hold_owner(owner, limits)? },
         )?),
+        c::Lacking::Ceiling { holder, dimension, value, asked } => w::Lacking::Ceiling(w::LackingCeiling::new(
+            limits,
+            w::LackingCeilingParts {
+                holder: ceiling_holder(*holder, limits)?,
+                dimension: ceiling_dimension(*dimension),
+                value: *value,
+                asked: *asked,
+            },
+        )?),
         c::Lacking::Approver => w::Lacking::Approver,
         c::Lacking::Budget { needed, left } => w::Lacking::Budget(w::LackingBudget::new(
             limits,
@@ -323,4 +332,27 @@ pub(in crate::codec) fn wire_hold_failure(
         c::HoldFailure::Lost => w::HoldFailure::Lost,
         c::HoldFailure::Invalid => w::HoldFailure::Invalid,
     })
+}
+
+fn ceiling_holder(value: c::CeilingHolder, limits: &w::Limits) -> Result<w::CeilingHolder, w::Problem> {
+    Ok(match value {
+        c::CeilingHolder::Rules => w::CeilingHolder::Rules,
+        c::CeilingHolder::Policy => w::CeilingHolder::Policy,
+        c::CeilingHolder::Role(role) => {
+            w::CeilingHolder::Role(w::CeilingRole::new(limits, w::CeilingRoleParts { role })?)
+        }
+    })
+}
+fn ceiling_dimension(value: c::CeilingDimension) -> w::CeilingDimension {
+    match value {
+        c::CeilingDimension::PeriodSpend => w::CeilingDimension::PeriodSpend,
+        c::CeilingDimension::Spend => w::CeilingDimension::Spend,
+        c::CeilingDimension::Tools => w::CeilingDimension::Tools,
+        c::CeilingDimension::Tasks => w::CeilingDimension::Tasks,
+        c::CeilingDimension::Depth => w::CeilingDimension::Depth,
+        c::CeilingDimension::Executors => w::CeilingDimension::Executors,
+        c::CeilingDimension::Grants => w::CeilingDimension::Grants,
+        c::CeilingDimension::Deadline => w::CeilingDimension::Deadline,
+        c::CeilingDimension::Notes => w::CeilingDimension::Notes,
+    }
 }

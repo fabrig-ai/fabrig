@@ -248,6 +248,15 @@ pub(super) fn encode_lack(value: &domain::Lack, limits: &wire::Limits) -> Result
             limits,
             wire::LackHoldOwnerParts { hold: *hold, owner: encode_hold_owner(owner, limits)? },
         )?),
+        domain::Lack::Ceiling { holder, dimension, value, asked } => wire::Lack::Ceiling(wire::LackCeiling::new(
+            limits,
+            wire::LackCeilingParts {
+                holder: encode_ceiling_holder(*holder, limits)?,
+                dimension: encode_ceiling_dimension(*dimension),
+                value: *value,
+                asked: *asked,
+            },
+        )?),
         domain::Lack::Approver => wire::Lack::Approver,
         domain::Lack::Budget { needs, left } => {
             wire::Lack::Budget(wire::LackBudget::new(limits, wire::LackBudgetParts { needs: *needs, left: *left })?)
@@ -304,6 +313,12 @@ pub(super) fn decode_lack(value: wire::Lack) -> domain::Lack {
             let wire::LackHoldOwnerParts { hold, owner } = value.into_parts();
             domain::Lack::HoldOwner { hold, owner: decode_hold_owner(owner) }
         }
+        wire::Lack::Ceiling(row) => domain::Lack::Ceiling {
+            holder: decode_ceiling_holder(row.holder()),
+            dimension: decode_ceiling_dimension(row.dimension()),
+            value: *row.value(),
+            asked: *row.asked(),
+        },
         wire::Lack::Approver => domain::Lack::Approver,
         wire::Lack::Budget(value) => {
             let wire::LackBudgetParts { needs, left } = value.into_parts();
@@ -880,5 +895,51 @@ pub(super) fn decode_hold_owner(value: wire::HoldOwner) -> domain::HoldOwner {
     match value {
         wire::HoldOwner::Party(value) => domain::HoldOwner::Party { person: value.person() },
         wire::HoldOwner::Task(value) => domain::HoldOwner::Task { task: value.task() },
+    }
+}
+
+fn encode_ceiling_holder(
+    value: domain::CeilingHolder,
+    limits: &wire::Limits,
+) -> Result<wire::CeilingHolder, wire::Problem> {
+    Ok(match value {
+        domain::CeilingHolder::Rules => wire::CeilingHolder::Rules,
+        domain::CeilingHolder::Policy => wire::CeilingHolder::Policy,
+        domain::CeilingHolder::Role(role) => {
+            wire::CeilingHolder::Role(wire::CeilingRole::new(limits, wire::CeilingRoleParts { role })?)
+        }
+    })
+}
+fn decode_ceiling_holder(value: &wire::CeilingHolder) -> domain::CeilingHolder {
+    match value {
+        wire::CeilingHolder::Rules => domain::CeilingHolder::Rules,
+        wire::CeilingHolder::Policy => domain::CeilingHolder::Policy,
+        wire::CeilingHolder::Role(row) => domain::CeilingHolder::Role(row.role()),
+    }
+}
+fn encode_ceiling_dimension(value: domain::CeilingDimension) -> wire::CeilingDimension {
+    match value {
+        domain::CeilingDimension::PeriodSpend => wire::CeilingDimension::PeriodSpend,
+        domain::CeilingDimension::Spend => wire::CeilingDimension::Spend,
+        domain::CeilingDimension::Tools => wire::CeilingDimension::Tools,
+        domain::CeilingDimension::Tasks => wire::CeilingDimension::Tasks,
+        domain::CeilingDimension::Depth => wire::CeilingDimension::Depth,
+        domain::CeilingDimension::Executors => wire::CeilingDimension::Executors,
+        domain::CeilingDimension::Grants => wire::CeilingDimension::Grants,
+        domain::CeilingDimension::Deadline => wire::CeilingDimension::Deadline,
+        domain::CeilingDimension::Notes => wire::CeilingDimension::Notes,
+    }
+}
+fn decode_ceiling_dimension(value: &wire::CeilingDimension) -> domain::CeilingDimension {
+    match value {
+        wire::CeilingDimension::PeriodSpend => domain::CeilingDimension::PeriodSpend,
+        wire::CeilingDimension::Spend => domain::CeilingDimension::Spend,
+        wire::CeilingDimension::Tools => domain::CeilingDimension::Tools,
+        wire::CeilingDimension::Tasks => domain::CeilingDimension::Tasks,
+        wire::CeilingDimension::Depth => domain::CeilingDimension::Depth,
+        wire::CeilingDimension::Executors => domain::CeilingDimension::Executors,
+        wire::CeilingDimension::Grants => domain::CeilingDimension::Grants,
+        wire::CeilingDimension::Deadline => domain::CeilingDimension::Deadline,
+        wire::CeilingDimension::Notes => domain::CeilingDimension::Notes,
     }
 }

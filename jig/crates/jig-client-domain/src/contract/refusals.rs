@@ -6,6 +6,13 @@ use skein_lib::Wall;
 /// The authority the engine found lacking.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Lacking {
+    /// A policy edit passes this ceiling; scalar values use their dimension's unit.
+    Ceiling {
+        holder: CeilingHolder,
+        dimension: CeilingDimension,
+        value: Option<u64>,
+        asked: Option<u64>,
+    },
     HoldOwner {
         hold: u64,
         owner: HoldOwner,
@@ -321,4 +328,26 @@ pub enum SignInRedirectWhy {
     State,
     /// Too many states from other sign-ins; it still waits for its browser.
     TooMany,
+}
+
+/// The holder of a ceiling a policy edit passes (jig/docs/design/domain/authority.md, 6).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum CeilingHolder {
+    Rules,
+    Policy,
+    Role(u32),
+}
+
+/// A ceiling's dimension; list dimensions carry no contents.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum CeilingDimension {
+    PeriodSpend,
+    Spend,
+    Tools,
+    Tasks,
+    Depth,
+    Executors,
+    Grants,
+    Deadline,
+    Notes,
 }

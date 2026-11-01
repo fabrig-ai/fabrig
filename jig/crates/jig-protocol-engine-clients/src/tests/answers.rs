@@ -254,8 +254,16 @@ fn admission_refusals_keep_the_category_without_a_guessed_bound() {
 }
 #[test]
 fn authority_refusals_keep_the_known_facts_and_optional_proposal_verdict() {
+    // The 21 entrance lack cases and ten ceiling cases share every proposal verdict.
+    const AUTHORITY_REFUSAL_CASES: u32 = 31;
     let limits = f::wire();
-    let cases = f::lacks();
+    let mut cases = skein_lib::List::with_capacity(AUTHORITY_REFUSAL_CASES);
+    for case in f::lacks() {
+        cases.push(case).expect("entrance lack cases fit");
+    }
+    for case in f::ceiling_lacks() {
+        cases.push(case).expect("ceiling cases fit");
+    }
     for (proposable, boolean) in
         [(None, None), (Some(p::Accepter::Nobody), Some(false)), (Some(p::Accepter::Role(0)), Some(true))]
     {
