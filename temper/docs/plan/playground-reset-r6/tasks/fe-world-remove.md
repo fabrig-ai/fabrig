@@ -93,3 +93,13 @@ The current checkout routes RemoveForge and its answers through `temper/crates/t
 The reported stubs therefore no longer describe this checkout.
 The next run checks the four removal stories against these implementations and completes the specified checks; acceptance remains unproven.
 The requested report file could not be written because this session’s filesystem is read-only.
+
+### 2026-11-01: Refresh this task branch with the supplied fe-remove tip b301e3c700 and pd-core-decide tip 12bebefd3a (recommended), or authorize merging those tips in this slot? The checkout still contains both prerequisite stubs, so all four removal stories fail. (playground-reset-r6/fe-world-remove-3, foreman playground-reset-r6/fe-world-remove/foreman-2)
+
+Resume fe-world-remove with fe-remove and pd-core-decide supplied, as the existing answer requires; fab refreshes the task branch.
+The existing answer says: “Resume fe-world-remove with fe-remove and pd-core-decide supplied; prerequisite implementations remain with their named tasks.”
+The boundary remains: “May change: nothing else” and “do not fix it here.”
+Both requested tips, `b301e3c700` and `12bebefd3a`, are ancestors of this integration checkout; its removal and Cancel routes contain the implementations.
+The next run uses the refreshed prerequisites, runs the four removal stories, and completes the specified checks. Acceptance remains unproven.
+This does not authorize the implementer to merge prerequisite tips in its slot.
+The requested report file could not be written because this session’s filesystem is read-only.
