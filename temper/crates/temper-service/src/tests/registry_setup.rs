@@ -32,7 +32,7 @@ fn record(kind: Kind, mode: Mode, setup: Option<&[u8]>) -> domain::ForgeRecord {
     record
 }
 fn config() -> settings::Engine {
-    fixture::local_config(true, false).engine
+    fixture::local_config(true, false)
 }
 fn service() -> crate::Service {
     let mut service = support::setup_service(config(), fixtures::ready().engine.unwrap().store);
@@ -442,4 +442,77 @@ fn record_for_refusal() -> domain::ForgeRecord {
     let mut record = record(Kind::Forgejo, Mode::Connected, None);
     record.number = 3;
     record
+}
+
+fn owned_setup() -> (crate::Service, u16) {
+    let mut config = fixtures::engine();
+    config.machine.owned = Some(record(Kind::Forgejo, Mode::Owned, Some(OWNED)));
+    fixtures::fill_files(&mut config);
+    let mut service = support::setup_service(config, fixtures::memory_store());
+    fixtures::restart(&mut service);
+    assert!(service.engine_domain().unwrap().forges().rows.is_empty());
+    let engine = service.engine.as_mut().unwrap();
+    engine.step(root::Event::Forge(Box::new(domain::Event::Application {
+        role: None,
+        carried: None,
+        request: Token::new(91),
+        token: Token::new(92),
+        retention: skein_lib::Duration::from_secs(60),
+        ask: domain::Ask::MakeForge { choice: domain::ForgeChoice::Owned },
+    })));
+    for _ in 0_u32..256 {
+        crate::engine::iterate(service.engine.as_mut().unwrap(), Time::ZERO, skein_lib::Wall::EPOCH);
+    }
+    let rows = service.engine_domain().unwrap().forges().rows;
+    assert_eq!(rows.len(), 1);
+    let number = rows[0].number;
+    assert_eq!(rows[0].connection, domain::Connection::NotSetUp);
+    assert_eq!(rows[0].offer, domain::Offer::Offered);
+    let engine = service.engine.as_mut().unwrap();
+    engine.step(root::Event::Forge(Box::new(domain::Event::Application {
+        role: None,
+        carried: None,
+        request: Token::new(93),
+        token: Token::new(94),
+        retention: skein_lib::Duration::from_secs(60),
+        ask: domain::Ask::SetUp {
+            forge: number,
+            playground: false,
+            org: b"work".as_slice().into(),
+            repository: b"hello".as_slice().into(),
+            project: domain::SetUpProject::Existing(1),
+        },
+    })));
+    for _ in 0_u32..256 {
+        crate::engine::iterate(service.engine.as_mut().unwrap(), Time::ZERO, skein_lib::Wall::EPOCH);
+    }
+    (service, number)
+}
+
+#[test]
+fn an_owned_forge_made_after_startup_is_offered_and_its_setup_is_admitted() {
+    let (mut service, number) = owned_setup();
+    let write = service.take_group_write().expect("admitted setup writes its group");
+    service.group_written(write.forge, Ok(()));
+    for _ in 0_u32..256 {
+        crate::engine::iterate(service.engine.as_mut().unwrap(), Time::ZERO, skein_lib::Wall::EPOCH);
+    }
+    let engine = service.engine.as_ref().unwrap();
+    assert_eq!(engine.domain.forges().rows[0].connection, domain::Connection::SettingUp { step: None });
+    assert!(engine.records.get(&number).unwrap().first.is_some());
+}
+
+#[test]
+fn an_owned_forge_made_after_startup_writes_its_group_before_asking_start() {
+    let (mut service, number) = owned_setup();
+    assert_eq!(number, 1, "the first runtime forge in the empty registry");
+    let write = service.take_group_write().expect("one group write for the admitted setup");
+    assert_eq!(write.forge, number);
+    let engine = service.engine.as_ref().unwrap();
+    let entry = engine.records.get(&number).unwrap().setup.as_deref().unwrap();
+    assert_eq!(write.text, temper_forge_setup::setup::group_settings(entry, number).unwrap());
+    assert!(engine.box_link.write.is_none());
+    assert!(service.take_group_write().is_none());
+    service.group_written(number, Ok(()));
+    assert_eq!(service.engine.as_ref().unwrap().box_link.write.as_deref(), Some(b"start 1\n".as_slice()));
 }

@@ -14,7 +14,7 @@ use jig_domain_core as core;
 use jig_domain_fleet as fleet;
 use jig_domain_host as host;
 use jig_domain_tasks as tasks;
-use skein_lib::{Decimal, Reader, Secret, Token};
+use skein_lib::{Decimal, Reader, Token};
 use smith_domain_run as run;
 use temper_engine_domain as engine;
 use temper_protocol_worker_wire::v1;
@@ -37,9 +37,6 @@ pub fn assignment(assignment: &engine::Assignment) -> (host::Assignment, wire::W
         git_program: None,
         web: None,
         app_read_only: false,
-        api_token: Some(Secret::new(Box::new([]))),
-        webhook_secret: None,
-        user: 1,
         identity: 1,
     }];
     let items = translate::items(assignment, &forges, &temper_service::forge::tokens::Tokens::empty(), &v1::CEILINGS)

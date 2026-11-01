@@ -1,7 +1,7 @@
 //! One process, joined through io's workers channel (protocol/README.md, 8).
 use crate::{
     AccountsRuntime, End, Stop, Worker, accounts, clients, engine, limits, route::box_link, settings, stop, store,
-    translate, values, workers,
+    values, workers,
 };
 use alloc::boxed::Box;
 use jig_protocol_config::{Path, Problems, What};
@@ -145,21 +145,19 @@ impl Service {
         settings: settings::Engine,
         seeds: &settings::Seeds,
         accounts: Option<AccountsRuntime>,
-        forges: List<crate::ForgeRuntime>,
     ) -> Result<Self, Problems> {
         let io = settings.jig.limits.io;
-        Self::new(settings, seeds, accounts, forges, None, io)
+        Self::new(settings, seeds, accounts, None, io)
     }
     /// Join the configured engine and worker in one io, on the same ring.
     pub(crate) fn new(
         settings: settings::Engine,
         seeds: &settings::Seeds,
         accounts: Option<AccountsRuntime>,
-        forges: List<crate::ForgeRuntime>,
         worker: Option<Worker>,
         io_limits: io::Limits,
     ) -> Result<Self, Problems> {
-        let forges = crate::forge::prepare(&settings, forges)?;
+        let forges = crate::forge::prepare(&settings)?;
         Self::prepared(settings, seeds, accounts, forges, worker, io_limits, None)
     }
     pub(crate) fn prepared(
@@ -177,7 +175,7 @@ impl Service {
         if !temper_engine_domain::valid(&limits) {
             return Err(start_problem(b"memory_bytes", What::Bound));
         }
-        let mut forge_settings = forges;
+        let forge_settings = forges;
         let shared = crate::forge::shared(&settings.limits, &settings.jig.limits.io);
         settings.jig.limits.clients.wire.keyed_value_some =
             limits::client_value_bytes(&settings.jig.limits, &settings.limits);
@@ -192,9 +190,8 @@ impl Service {
         let accounts = accounts_driver(&settings, seeds, accounts, &store_limits.secrets)?;
         let mut values =
             values::Values::new(settings.jig.limits.driver.accounts, values::credential_bytes(&settings.jig));
-        let wire = translate::limits(&settings.limits).ok_or(start_problem(b"limits", What::Bound))?;
-        values.fill(&settings, &wire)?;
-        let (forge_config, identities) = crate::forge::config(&settings, seeds.deployment);
+        values.fill(&settings);
+        let forge_config = crate::forge::config(seeds.deployment);
         let mut first_periods = List::with_capacity(limits.authority.projects);
         for project in &settings.jig.projects {
             first_periods
@@ -212,16 +209,13 @@ impl Service {
         if let Some(sign_in) = &settings.sign_in {
             clients.configure_google(sign_in, settings.limits.sign_in, seeds, &settings.jig);
         }
-        let setup = crate::setup::prepare(&settings, &mut forge_settings, &seeds.crypto, box_line_bytes.is_some())?;
-        let forge =
-            crate::forge::Layer::new(forge_settings, settings.limits.forge_component, &shared, &settings.forges)
-                .expect("checked forge limits");
-        forget_handover(&mut settings);
+        let setup = crate::setup::prepare(&settings, &seeds.crypto, box_line_bytes.is_some())?;
+        let forge = crate::forge::Layer::new(forge_settings, settings.limits.forge_component, &shared)
+            .expect("checked forge limits");
         let notes = Queue::with_capacity(note_bound(&settings, &limits).expect("validated diagnostic room"));
-        let configured = crate::startup::application::configured(&settings);
         // Workers take the forge settings; derive the demo's adoption host first.
         let demo_config = match &settings.demo {
-            Some(demo) => Some(demo.domain(&settings.forges, &settings.machine, settings.limits.setup.deadline)),
+            Some(demo) => Some(demo.domain(&settings.machine, settings.limits.setup.deadline)),
             None => None,
         };
         let workers = workers::Workers::configured(&mut settings, seeds.deployment)?;
@@ -231,9 +225,9 @@ impl Service {
             core: jig_protocol_config::core(&settings.jig, seeds.deployment, seeds.seed),
             landing: settings.landing,
             forge: forge_config,
-            identities,
+            identities: Box::new([]),
             forge_charter: settings.charter,
-            forges: configured,
+            forges: Box::new([]),
             under_box: box_line_bytes.is_some(),
             demo: demo_config,
         };
@@ -976,15 +970,6 @@ fn startup_operations(io: &io::Limits, worker_operations: u32) -> Option<u32> {
     worker_alone_operations(io, worker_operations)?.checked_add(store::OPERATIONS)
 }
 
-fn forget_handover(settings: &mut settings::Engine) {
-    for configured in &mut settings.forges {
-        configured.api_token = None;
-    }
-    for setup in &mut settings.setup {
-        setup.handover = None;
-    }
-}
-
 fn box_notes_full(service: &Service) -> bool {
     let Some(engine) = &service.engine else { return false };
     let Some(pipe) = &service.box_pipe else { return false };
@@ -1117,10 +1102,7 @@ fn note_bound(settings: &settings::Engine, root: &temper_engine_domain::Limits) 
     let templates = 1_u32
         .checked_add(u32::from(settings.machine.owned.is_some()))?
         .checked_add(u32::from(settings.machine.playground.is_some()))?;
-    u32::try_from(settings.forges.len())
-        .ok()?
-        .checked_add(templates)?
-        .checked_add(temper_engine_domain_forge::demo_act_bound(&root.forge)?)
+    templates.checked_add(temper_engine_domain_forge::demo_act_bound(&root.forge)?)
 }
 
 #[cfg(test)]

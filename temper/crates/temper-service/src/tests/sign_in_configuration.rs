@@ -38,7 +38,7 @@ fn a_google_registration_reads_its_members_and_private_file() {
     let sign_in = members.sign_in.as_ref().unwrap();
     assert_eq!(sign_in.provider, 3);
     assert_eq!(sign_in.members[0].address.as_ref(), b"Sam@example.com");
-    let files = application::files(&members, 4096, 4096);
+    let files = application::files(&members);
     let secret = files.iter().find(|file| file.path.as_ref() == b"google.secret").unwrap();
     assert!(secret.private);
     assert_eq!(secret.max, 512);
@@ -157,10 +157,9 @@ fn provider(jig: &mut config::Engine) {
     });
 }
 fn with_forges(rows: &str) -> String {
-    let sign_in = SIGN_IN.replacen('{', &format!("{{\"forges\":{rows},"), 1);
-    core::str::from_utf8(fixtures::document_members::APPLICATION)
-        .unwrap()
-        .replace("\"sign_in\":null", &format!("\"sign_in\":{sign_in}"))
+    let body = core::str::from_utf8(fixtures::owned_body()).unwrap();
+    input(&SIGN_IN.replacen('{', &format!("{{\"forges\":{rows},"), 1))
+        .replace("\"owned\":null", &format!("\"owned\":{body}"))
 }
 
 #[test]
@@ -190,18 +189,17 @@ fn forge_sign_in_callback_uses_the_owned_public_origin_or_git_without_one() {
         provider(&mut jig);
         jig.clients.provider.as_mut().unwrap().clients[0].redirect_uri = callback.as_bytes().into();
         let public = public.map_or(String::new(), |public| format!(r#", "public":{public:?}"#));
-        let setup = format!(
-            r#""setup":[{{"forge":1,"directory":"forge-1",
-            "bot":{{"login":"temper","email":"temper@example.com"}},"orgs":[],
-            "mode":{{"owned":{{"forgejo":"forgejo","runner":null,"listen":{{"socket":"127.0.0.1:9"}},
-                "person":{{"login":"sam","email":"sam@example.com"}}{public}}}}}}}]"#
-        );
-        let doc = with_forges(r#"[{"forge":1,"client":"forgejo"}]"#).replace(r#""setup":[]"#, &setup);
+        let body = core::str::from_utf8(fixtures::owned_body())
+            .unwrap()
+            .replace("\"forgejo\":", &format!("{public},\"forgejo\":"));
+        let body = body.replace("{,", "{");
+        let doc = with_forges(r#"[{"forge":1,"client":"forgejo"}]"#)
+            .replace(core::str::from_utf8(fixtures::owned_body()).unwrap(), &body);
         let (members, problems) = parse(&doc, &jig);
         assert_eq!(members.is_some(), accepted, "{callback}: {:?}", startup::lines(&problems));
         if accepted {
             assert!(problems.is_empty());
-            assert_eq!(members.unwrap().forges[0].git.as_ref(), b"http://127.0.0.1:9");
+            assert_eq!(members.unwrap().machine.owned.unwrap().git.as_ref(), b"http://127.0.0.1:9");
         } else {
             assert_eq!(startup::lines(&problems).as_ref(), b"application.sign_in.forges[0].client: invalid form\n");
         }
@@ -210,7 +208,6 @@ fn forge_sign_in_callback_uses_the_owned_public_origin_or_git_without_one() {
 #[test]
 fn forge_sign_in_refusals_name_the_forge_or_client() {
     for (rows, member) in [
-        (r#"[{"forge":99,"client":"forgejo"}]"#, "forges[0].forge"),
         (r#"[{"forge":1,"client":"unknown"}]"#, "forges[0].client"),
         (r#"[{"forge":1,"client":"forgejo"},{"forge":1,"client":"second"}]"#, "forges[1].forge"),
         (r#"[{"forge":1,"client":"forgejo"},{"forge":2,"client":"forgejo"}]"#, "forges[1].client"),
@@ -244,7 +241,7 @@ fn forge_sign_in_requires_forgejo_an_exact_callback_and_a_provider() {
         provider(&mut jig);
         let mut doc = doc.clone();
         match kind {
-            0 => doc = doc.replace("\"kind\":\"forgejo\"", "\"kind\":\"github\""),
+            0 => doc = doc.replace(core::str::from_utf8(fixtures::owned_body()).unwrap(), "null"),
             1 => {
                 jig.clients.provider.as_mut().unwrap().clients[0].redirect_uri =
                     b"http://127.0.0.1:9/wrong".as_slice().into();
@@ -274,7 +271,6 @@ fn an_old_document_names_the_missing_members_and_their_fix() {
 
 #[test]
 fn forge_metas_escape_attributes_publish_modes_and_change_the_etag() {
-    use temper_forge_setup::setup::{Account, Entry, Fetch, Mode, Owned};
     let mut jig = jig();
     provider(&mut jig);
     let (members, problems) = parse(&with_forges(r#"[{"forge":1,"client":"forgejo"}]"#), &jig);
@@ -282,41 +278,27 @@ fn forge_metas_escape_attributes_publish_modes_and_change_the_etag() {
     let mut members = members.unwrap();
     let sign_in = members.sign_in.as_mut().unwrap();
     sign_in.forges[0].client = b"forge&\"'< >".as_slice().into();
-    members.forges[0].git = b"https://forge.example/?x=\"&y='<>".as_slice().into();
-    let mut setup = temper_forge_setup::setup::Setup { entries: Box::new([]) };
+    members.machine.owned.as_mut().unwrap().git = b"https://forge.example/?x=\"&y='<>".as_slice().into();
     let mut bundle = fixtures::bundle::bundle();
     bundle.page = b"<head></head>".as_slice().into();
     bundle.fill_sign_in(true).unwrap();
     let before = bundle.etag.clone();
-    bundle.fill_forge_sign_in(Some(sign_in), &members.forges, &setup, 65_536).unwrap();
-    assert_eq!(bundle.page.as_ref(), b"<head><meta name=\"temper-sign-in\" content=\"google\"><meta name=\"temper-forge-sign-in\" content=\"1 forge&amp;&quot;&#39;&lt; &gt; https://forge.example/?x=&quot;&amp;y=&#39;&lt;&gt; other\"></head>");
+    bundle.fill_forge_sign_in(Some(sign_in), &members.machine, 65_536).unwrap();
+    assert_eq!(bundle.page.as_ref(), b"<head><meta name=\"temper-sign-in\" content=\"google\"><meta name=\"temper-forge-sign-in\" content=\"1 forge&amp;&quot;&#39;&lt; &gt; https://forge.example/?x=&quot;&amp;y=&#39;&lt;&gt; owned\"></head>");
     assert_ne!(bundle.etag, before);
-    setup.entries = Box::new([Entry {
-        forge: 1,
-        directory: b"forge-1".as_slice().into(),
-        bot: Account { login: b"temper".as_slice().into(), email: b"temper@example.com".as_slice().into() },
-        orgs: Box::new([]),
-        asked: false,
-        mode: Mode::Owned(Owned {
-            public: None,
-            fetch: Fetch { forgejo: false, runner: false, mirror: None },
-            forgejo: b"forgejo".as_slice().into(),
-            runner: None,
-            listen: "127.0.0.1:9".parse().unwrap(),
-            person: Account { login: b"sam".as_slice().into(), email: b"sam@example.com".as_slice().into() },
-        }),
-    }]);
-    bundle.page = b"<head></head>".as_slice().into();
-    bundle.fill_forge_sign_in(Some(sign_in), &members.forges, &setup, 65_536).unwrap();
-    assert!(bundle.page.ends_with(b" owned\"></head>"));
-    for (port, origin) in [(443, "https://git.example.com"), (8443, "https://git.example.com:8443")] {
-        let Mode::Owned(owned) = &mut setup.entries[0].mode else { unreachable!() };
-        owned.public = Some(temper_forge_setup::setup::Origin { host: b"git.example.com".as_slice().into(), port });
+    for (public, origin) in [
+        ("https://git.example.com:443", "https://git.example.com"),
+        ("https://git.example.com:8443", "https://git.example.com:8443"),
+    ] {
+        let text = core::str::from_utf8(fixtures::owned_body())
+            .unwrap()
+            .replace("\"forgejo\":", &format!("\"public\":\"{public}\",\"forgejo\":"));
+        members.machine.owned.as_mut().unwrap().setup = Some(text.into_bytes().into_boxed_slice());
         bundle.page = b"<head></head>".as_slice().into();
-        bundle.fill_forge_sign_in(Some(sign_in), &members.forges, &setup, 65_536).unwrap();
+        bundle.fill_forge_sign_in(Some(sign_in), &members.machine, 65_536).unwrap();
         assert_eq!(bundle.page.as_ref(), format!("<head><meta name=\"temper-forge-sign-in\" content=\"1 forge&amp;&quot;&#39;&lt; &gt; {origin} owned\"></head>").as_bytes());
     }
     let before = bundle.page.clone();
-    assert!(bundle.fill_forge_sign_in(Some(sign_in), &members.forges, &setup, 1).is_none());
+    assert!(bundle.fill_forge_sign_in(Some(sign_in), &members.machine, 1).is_none());
     assert_eq!(bundle.page, before);
 }

@@ -85,9 +85,11 @@ fn reachable_stages_github_pages_beside_a_writer_and_counts_both_against_runs() 
 #[test]
 fn reachable_on_a_connected_forgejo_uses_its_api_token_and_filters_push_access() {
     let mut config = picker_config();
-    config.engine.limits.picker.page = 2;
-    let mut service = local_service(config, fixtures::records_store());
+    config.limits.picker.page = 2;
+    let mut service = crate::Service::engine(config, &fixtures::seeds(), None).unwrap();
+    fixtures::register_forges(&mut service, &[fixtures::forge_record(1)]);
     fixtures::seed_forge_records(&mut service, &[fixtures::forge_record(1)]);
+    service.engine.as_mut().unwrap().store = fixtures::records_store();
     for _ in 0_u32..8 {
         crate::forge::records::advance(service.engine.as_mut().unwrap());
     }
@@ -237,10 +239,11 @@ fn the_same_key_answers_the_same_page_without_a_run_and_is_unknown_after_store_r
     assert!(restarted.engine.as_ref().unwrap().setup.runs.is_empty());
 }
 
-fn picker_config() -> Config {
-    let mut engine = fixtures::engine();
-    fixtures::fill_files(&mut engine);
-    Config { engine, records: Box::new([fixtures::forge_record(1)]), handover: None, under_box: false }
+fn picker_config() -> crate::settings::Engine {
+    let mut config = fixtures::engine();
+    config.machine.owned = Some(fixtures::forge_record(1));
+    fixtures::fill_files(&mut config);
+    config
 }
 
 fn sent(face: &mut Face, service: &mut crate::Service) {
@@ -257,7 +260,7 @@ fn sent(face: &mut Face, service: &mut crate::Service) {
         engine.events,
         engine.notes,
         engine.setup.answers,
-        engine.workers.forges.as_slice()[0].api_token.is_some()
+        engine.forge_records.rows.forge(1).is_some_and(|rows| rows.has(Item::ApiToken))
     );
 }
 

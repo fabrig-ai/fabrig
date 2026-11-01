@@ -763,7 +763,6 @@ impl Bounded {
             &self.agent,
             &self.seeds,
             accounts.as_ref(),
-            self.forges(),
             value.get("engine").map(|_| &self.setup),
         )
     }
@@ -780,7 +779,6 @@ impl Bounded {
                 root: skein_io::kernel::Fd::new(9),
                 path: b"/worker".as_slice().into(),
             }),
-            self.forges(),
             Some(&self.setup),
             None,
         )
@@ -912,16 +910,7 @@ pub fn deployment_profile(directory: &Path, relative: &str) -> Bounded {
                 panic!("{relative}: {}", String::from_utf8_lossy(&temper_service::startup::lines(&why)))
             });
         let setup = checked_setup(&document, &named);
-        let mut forges = skein_lib::List::with_capacity(u32::try_from(named.forges.len()).expect("forges"));
-        for forge in &named.forges {
-            forges
-                .push(temper_service::ForgeRuntime {
-                    number: forge.number,
-                    address: "127.0.0.1:3000".parse().expect("fake forge"),
-                    transport: skein_forge_connection::settings::Transport::Plaintext { name: None },
-                })
-                .expect("forge count");
-        }
+        let forges = skein_lib::List::with_capacity(0);
         (named.files, setup, forges.into_boxed())
     } else {
         let part = temper_service::startup::worker_part(&document, &jig_protocol_config::Directories::working())
@@ -966,7 +955,7 @@ pub fn deployment_profile(directory: &Path, relative: &str) -> Bounded {
 fn bounded_document(
     directory: &Path,
     mut value: serde_json::Value,
-    forge: Option<temper_service::ForgeRuntime>,
+    _forge: Option<temper_service::ForgeRuntime>,
 ) -> Bounded {
     use skein_lib::{List, Secret};
     use temper_service::settings::{Files, PROGRAM_PATH_BYTES, Seeds};
@@ -976,42 +965,12 @@ fn bounded_document(
     let document = serde_json::to_vec(&value).expect("bounded JSON");
     let named =
         temper_service::named(&document, &jig_protocol_config::Directories::working()).expect("bounded example named");
-    let mut forges = List::with_capacity(u32::try_from(named.forges.len()).expect("forge count"));
-    for local in &named.forges {
-        if forge.as_ref().is_none_or(|forge| local.number != forge.number) {
-            let jig_protocol_config::Address::Addr(address) = &local.api else {
-                panic!("additional bounded forges have socket addresses")
-            };
-            assert!(matches!(local.transport, temper_service::startup::Transport::Plaintext));
-            forges
-                .push(temper_service::ForgeRuntime {
-                    number: local.number,
-                    address: address.socket().expect("local forge socket"),
-                    transport: skein_forge_connection::settings::Transport::Plaintext { name: None },
-                })
-                .expect("configured forge count");
-        }
-    }
-    if let Some(forge) = forge {
-        forges.push(forge).expect("primary forge");
-    }
     let mut agent = agent::preflight(&named).expect("ordinary agent declarations");
     assert_eq!(agent.programs.len(), 1, "owned example declares Claude Code");
     agent.programs[0].path = path.as_bytes().into();
     agent.programs[0].directory = path.as_bytes().into();
     let setup = checked_setup(&document, &named);
-    let mut named_files = named.files.into_vec();
-    named_files.extend(temper_service::startup::setup_files(&setup));
-    for read in temper_service::startup::handover_reads(&document, &jig_protocol_config::Directories::working(), &setup)
-        .expect("bounded handover declarations")
-    {
-        named_files.push(jig_protocol_config::File {
-            at: jig_protocol_config::Path::root(),
-            path: read.path,
-            max: read.max,
-            private: true,
-        });
-    }
+    let named_files = named.files.into_vec();
     let mut entries = List::with_capacity(u32::try_from(named_files.len()).expect("file count"));
     let token_bytes =
         temper_service::limits::profile(temper_service::limits::Profile::Small).forge_component.token_bytes;
@@ -1037,14 +996,14 @@ fn bounded_document(
         files: Files { entries },
         agent,
         seeds: Seeds { deployment: [7; 16], installation: [8; 16], seed: 7, crypto: Secret::new(Box::new([9; 32])) },
-        forges: forges.into_boxed(),
+        forges: Box::new([]),
     }
 }
 
 // The bounded strings are synthetic, but the setup check is the shell's check on these same members.
 fn checked_setup(bytes: &[u8], named: &temper_service::Named) -> temper_forge_setup::check::Checked {
     use jig_protocol_config::{self as config, read};
-    use temper_forge_setup::check::{self, Members, User};
+    use temper_forge_setup::check::{self, Members};
     let document = config::document(bytes, &config::DocumentLimits { bytes: 1_048_576, tokens: 1_048_576, depth: 32 })
         .expect("bounded document");
     let application = read::Object::new(&document, 0)
@@ -1052,34 +1011,7 @@ fn checked_setup(bytes: &[u8], named: &temper_service::Named) -> temper_forge_se
         .member(&document, b"application")
         .expect("bounded application");
     let at = read::Object::new(&document, application).expect("bounded application object").member(&document, b"setup");
-    let mut forges = Vec::new();
-    for forge in &named.forges {
-        let mut identity = None;
-        for candidate in &named.identities {
-            if candidate.number == forge.identity {
-                identity = Some(candidate);
-                break;
-            }
-        }
-        let identity = identity.expect("named forge identity");
-        forges.push(check::Forge {
-            number: forge.number,
-            api: match &forge.api {
-                config::Address::Addr(address) => address.socket(),
-                config::Address::Host { .. } => None,
-            },
-            plaintext: matches!(forge.transport, temper_service::startup::Transport::Plaintext),
-            git: forge.git.clone(),
-            user: match &forge.user {
-                temper_service::startup::User::Id(id) => User::Id(*id),
-                temper_service::startup::User::File(path) => User::File(path.clone()),
-            },
-            api_token: forge.api_token.clone(),
-            webhook_secret: forge.webhook_secret.clone(),
-            identity_token: identity.token.clone(),
-            identity_login: identity.login.clone(),
-        });
-    }
+    let forges = Vec::new();
     let mut listeners = Vec::new();
     if let config::Address::Addr(address) = &named.clients {
         listeners.extend(address.socket());

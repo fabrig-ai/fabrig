@@ -293,7 +293,7 @@ fn a_scripted_box_answers_keyed_setup_requests_through_the_clients_family() {
         Connection::SettingUp { step: None }
     );
     assert_eq!(stand.service.engine.as_ref().unwrap().domain.forge_connection(OTHER), Connection::NotSetUp);
-    assert!(stand.service.notes().is_empty());
+    assert!(stand.service.notes().is_empty(), "notes: {:?}", stand.service.notes());
 
     for byte in b"started 9\n" {
         stand.kernel.box_answers.push(*byte);
@@ -308,7 +308,7 @@ fn a_scripted_box_answers_keyed_setup_requests_through_the_clients_family() {
         stand.service.notes().pop(),
         Some(crate::Note::BoxLink { line: b"box link: dropped started for forge 9, not asked".as_slice().into() })
     );
-    assert!(stand.service.notes().is_empty());
+    assert!(stand.service.notes().is_empty(), "notes: {:?}", stand.service.notes());
 }
 
 // The system story uses the actual clients component: an HTTP family request
@@ -381,6 +381,10 @@ fn box_setup(
     request.encode(&mut bytes).unwrap();
     let mut client = peer::Peer::new(engine, b"POST", b"/jig/v1/request", &bytes.finish(), Some(bearer));
     client.pump(engine, true);
+    if let Some(write) = engine.group_writes.pop() {
+        crate::route::box_link::group_written(engine, write.forge, Ok(()));
+        client.pump(engine, true);
+    }
     let at = skein_lib::bytes::find(client.received(), b"\r\n\r\n").unwrap().checked_add(4).unwrap();
     let mut reader = Reader::new(client.received().get(at..).unwrap());
     let j::KeyedAnswer::FinalAnswer(answer) =
@@ -439,14 +443,8 @@ fn a_new_webhook_after_idle_gets_its_whole_delivery_period() {
     const LISTENER: Token = Token::new(1_u64 << 59);
     let mut service = fixtures::ready();
     let config = fixtures::engine();
-    let mut found = jig_protocol_config::Problems::empty();
-    let mut settings = crate::forge::settings(
-        &fixtures::forges(),
-        fixtures::loopback_runtime(),
-        Some(skein_forge_connection::hooks::Webhooks { listener: fixtures::http::address() }),
-        &mut found,
-    )
-    .unwrap();
+    let mut settings = fixtures::connection_settings();
+    settings.webhooks = Some(skein_forge_connection::hooks::Webhooks { listener: fixtures::http::address() });
     for at in 0..settings.forges.len() {
         settings.forges.get_mut(at).unwrap().access = None;
     }

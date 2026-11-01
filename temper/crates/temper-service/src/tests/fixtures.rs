@@ -67,7 +67,6 @@ pub fn engine() -> settings::Engine {
         directories: jig_protocol_config::Directories::given(b"/config", b"/data", b"/cache").unwrap(),
 
         machine: temper_engine_domain_forge::Machine::bare(),
-        records_only: Box::new([]),
         jig,
         webhooks: None,
         sign_in: None,
@@ -77,10 +76,7 @@ pub fn engine() -> settings::Engine {
             public: None,
         },
         files: settings::Files { entries: skein_lib::List::with_capacity(0) },
-        forges: Box::new([]),
         demo: None,
-        setup: Box::new([]),
-        identities: Box::new([]),
         landing: temper_engine_domain::LandingPolicy {
             deployment: Box::new([]),
             projects: skein_lib::Map::with_capacity(0),
@@ -144,40 +140,6 @@ pub fn forge_settings(records: &[temper_engine_domain_forge::ForgeRecord]) -> Bo
 }
 pub fn forges() -> Box<[settings::Forge]> {
     forge_settings(&[forge_record(1)])
-}
-
-/// File-era settings for tests whose subject is the document's access or setup path.
-pub fn document_engine() -> settings::Engine {
-    let mut settings = engine();
-    settings.forges = document_forges();
-    settings.identities = Box::new([settings::Identity {
-        number: 1,
-        forge: 1,
-        token: Secret::new(b"forge-token-1234".as_slice().into()),
-        login: b"temper".as_slice().into(),
-        author: settings::Author {
-            name: b"temper".as_slice().into(),
-            email: b"temper@forge.example".as_slice().into(),
-        },
-    }]);
-    settings
-}
-pub fn document_forges() -> Box<[settings::Forge]> {
-    Box::new([settings::Forge {
-        mode: temper_engine_domain_forge::Mode::Connected,
-        number: 1,
-        kind: settings::Kind::Forgejo,
-        api: jig_protocol_config::Address::Host { name: Box::from(&b"forge.example"[..]), port: 443 },
-        transport: settings::Transport::Plaintext,
-        git: Box::from(&b"https://forge.example"[..]),
-        git_program: None,
-        web: None,
-        app_read_only: false,
-        api_token: Some(Secret::new(Box::from(&b"api-token"[..]))),
-        webhook_secret: None,
-        user: 42,
-        identity: 1,
-    }])
 }
 
 pub const OWNER: Token = Token::new(91);
@@ -443,9 +405,9 @@ pub fn root() -> (temper_engine_domain::Domain, skein_lib::Env<temper_engine_dom
         },
         identities: Box::new([temper_engine_domain_forge::GitIdentity { forge: 1, credential: 1 }]),
         forge_charter: settings.charter,
-        forges: Box::new([]),
         under_box: false,
         demo: None,
+        forges: Box::new([]),
     };
     (
         root::Domain::new(config, &limits).expect("valid engine configuration"),
@@ -550,7 +512,7 @@ fn start_with_worker(
     };
     let worker_io = if worker.is_some() { Some(worker_settings().jig.limits.io) } else { None };
     let io = crate::startup::checks::process_io(&settings.jig.limits.io, worker_io.as_ref()).unwrap();
-    let endpoints = crate::forge::prepare(&settings, skein_lib::List::with_capacity(0)).unwrap();
+    let endpoints = crate::forge::prepare(&settings).unwrap();
     let mut service = crate::Service::prepared(
         settings,
         &seeds(),
@@ -593,7 +555,6 @@ pub fn restart(service: &mut crate::Service) {
 pub fn ready() -> crate::Service {
     let mut service = started();
     restart(&mut service);
-    // Ready stories observe subsequent connection requests.
     service.engine.as_mut().unwrap().forge.starts.clear();
     service
 }
@@ -871,6 +832,7 @@ fn restored_key() -> crate::Service {
     while bootstrap.engine.as_mut().expect("engine").store.above.pop().is_some() {}
     let mut service = start_with_store(&[(1, 100)], Some(bootstrap.engine.expect("engine").store));
     restart(&mut service);
+    service.engine.as_mut().unwrap().forge.starts.clear();
     service
 }
 
@@ -972,39 +934,13 @@ pub fn clients() -> crate::clients::Clients {
     crate::clients::Clients::new(&engine.jig, &engine.clients, &seeds(), &engine.limits.root.journal, None, &[])
         .unwrap()
 }
-#[path = "fixtures/document.rs"]
-pub mod document_members;
 mod startup;
 pub use startup::{
     APPLICATION, demo_application, demo_service, document, engine_alone_document, files, owned_worker_agent,
     owned_worker_alone_document, startup_agent, value, webhook_document, with, without, worker_alone_document,
     worker_runtime,
 };
-pub fn startup_runtime(input: &[u8]) -> skein_lib::List<crate::ForgeRuntime> {
-    use jig_protocol_config::{self as config, read};
-    let document =
-        config::document(input, &config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 }).unwrap();
-    let application = read::Object::new(&document, 0).unwrap().member(&document, b"application").unwrap();
-    let forges = read::Object::new(&document, application).unwrap().member(&document, b"forges");
-    if let Some(at) = forges
-        && !read::list(&document, at, 16_384).unwrap().is_empty()
-    {
-        return loopback_runtime();
-    }
-    skein_lib::List::with_capacity(0)
-}
-pub fn forge_start(engine: &crate::engine::Engine, number: u16) -> Option<&skein_forge_connection::Access> {
-    for (forge, access) in &engine.forge.starts {
-        if *forge == number {
-            return Some(access);
-        }
-    }
-    None
-}
 pub fn forge_runtime() -> skein_lib::List<crate::ForgeRuntime> {
-    skein_lib::List::with_capacity(0)
-}
-pub fn loopback_runtime() -> skein_lib::List<crate::ForgeRuntime> {
     let mut runtime = skein_lib::List::with_capacity(1);
     runtime
         .push(crate::ForgeRuntime {
@@ -1093,29 +1029,6 @@ pub fn chat(project: u32, words: &[u8]) -> jig_domain_people::Ask {
     };
     member.label = 1;
     people::Ask::Create { project, batch: Box::new([member]) }
-}
-
-// Public setup configuration only; the transport story never runs these binaries.
-pub fn owned_setup(forge: u16) -> settings::Setup {
-    use temper_forge_setup::setup::{Account, Entry, Fetch, Mode, Owned};
-    settings::Setup {
-        entry: Entry {
-            forge,
-            directory: b"/data/forge".as_slice().into(),
-            bot: Account { login: b"temper".as_slice().into(), email: b"temper@example.test".as_slice().into() },
-            orgs: Box::new([]),
-            asked: true,
-            mode: Mode::Owned(Owned {
-                public: None,
-                fetch: Fetch { forgejo: false, runner: false, mirror: None },
-                forgejo: b"/bin/forgejo".as_slice().into(),
-                runner: None,
-                listen: ([127, 0, 0, 1], 9).into(),
-                person: Account { login: b"owner".as_slice().into(), email: b"owner@example.test".as_slice().into() },
-            }),
-        },
-        handover: None,
-    }
 }
 
 #[expect(clippy::disallowed_macros, reason = "test fixture supplies unique numbered project names")]
@@ -1221,7 +1134,7 @@ pub fn register_forges(service: &mut crate::Service, records: &[temper_engine_do
 pub fn with_forges(records: &[temper_engine_domain_forge::ForgeRecord]) -> crate::Service {
     let mut settings = engine();
     fill_files(&mut settings);
-    let mut service = crate::Service::engine(settings, &seeds(), None, skein_lib::List::with_capacity(0)).unwrap();
+    let mut service = crate::Service::engine(settings, &seeds(), None).unwrap();
     service.engine.as_mut().unwrap().store = memory_store();
     register_forges(&mut service, records);
     seed_forge_records(&mut service, records);
@@ -1254,4 +1167,30 @@ pub fn seed_forge_records(service: &mut crate::Service, records: &[temper_engine
 }
 pub fn owned_body() -> &'static [u8] {
     br#"{"bot":{"login":"temper","email":"temper@example.test"},"mode":{"owned":{"forgejo":"/bin/forgejo","runner":null,"listen":{"socket":"127.0.0.1:9"},"person":{"login":"owner","email":"owner@example.test"}}}}"#
+}
+
+/// Connection component fixtures use public record endpoints, independently of startup.
+pub fn connection_settings() -> skein_forge_connection::Settings {
+    let mut settings = crate::forge::prepare(&engine()).unwrap();
+    settings
+        .forges
+        .push(skein_forge_connection::settings::Forge {
+            number: 1,
+            kind: skein_forge_connection::settings::Kind::Forgejo,
+            address: skein_io::Addr::Ip(([127, 0, 0, 1], 3000).into()),
+            transport: skein_forge_connection::settings::Transport::Plaintext { name: None },
+            access: None,
+            log_origins: skein_lib::List::with_capacity(0),
+        })
+        .unwrap();
+    settings
+}
+
+pub fn forge_start(engine: &crate::engine::Engine, number: u16) -> Option<&skein_forge_connection::Access> {
+    for (forge, access) in &engine.forge.starts {
+        if *forge == number {
+            return Some(access);
+        }
+    }
+    None
 }

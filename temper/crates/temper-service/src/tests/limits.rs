@@ -1,6 +1,7 @@
 use super::fixtures;
 use crate::{limits, tokens};
 use skein_lib::{Duration, Token};
+use temper_protocol_records as records;
 
 #[test]
 fn no_two_component_prefixes_meet() {
@@ -117,7 +118,7 @@ fn the_small_profile_passes_each_domains_validity() {
 
 #[test]
 fn the_wire_admits_a_moved_file_and_temper_values_stay_at_their_bound() {
-    let mut settings = fixtures::document_engine();
+    let settings = fixtures::engine();
     let moved = jig_protocol_accounts::moved::bound(&settings.jig.limits.driver.client.document);
     let value = settings.limits.records.value_bytes;
     assert!(moved > u64::from(value));
@@ -132,33 +133,6 @@ fn the_wire_admits_a_moved_file_and_temper_values_stay_at_their_bound() {
         limits::client_value_bytes(&larger, &settings.limits),
         settings.jig.limits.clients.wire.keyed_value_some
     );
-
-    settings.setup = Box::new([fixtures::owned_setup(1)]);
-    settings.records_only = Box::new([1]);
-    settings.forges[0].api_token = None;
-    for bytes in [value, value + 1] {
-        let mut handover = skein_lib::bytes::zeroed(usize::try_from(bytes).unwrap());
-        handover.fill(b'x');
-        settings.setup[0].handover = Some(skein_lib::Secret::new(handover));
-        let mut forges = crate::forge::prepare(&settings, fixtures::loopback_runtime()).unwrap();
-        let result = crate::setup::prepare(&settings, &mut forges, &fixtures::seeds().crypto, false);
-        if bytes == value {
-            assert!(result.is_ok());
-        } else {
-            let refused = result.err().expect("setup refuses the oversized value");
-            assert_eq!(refused.problems.len(), 1);
-            let problem = refused.problems.get(0).unwrap();
-            assert_eq!(problem.what, jig_protocol_config::What::Bound);
-            assert_eq!(
-                problem.path,
-                jig_protocol_config::Path::root()
-                    .member(b"application")
-                    .member(b"limits")
-                    .member(b"overrides")
-                    .member(b"records.value_bytes")
-            );
-        }
-    }
 }
 
 #[test]
@@ -270,7 +244,7 @@ fn records_and_installations_override_and_check_both_bounds() {
         let mut own = defaults;
         limits::apply(&mut own, name, value).unwrap();
         let mut problems = crate::startup::Problems::empty();
-        crate::startup::checks::records(&jig, &own, &[], &temper_engine_domain_forge::Machine::bare(), &mut problems);
+        crate::startup::checks::records(&jig, &own, &temper_engine_domain_forge::Machine::bare(), &mut problems);
         let lines = crate::startup::lines(&problems);
         assert!(lines.windows(name.len()).any(|part| part == name), "{name:?}");
         assert!(lines.windows(other.len()).any(|part| part == other), "{other:?}");
@@ -283,13 +257,12 @@ fn records_and_installations_override_and_check_both_bounds() {
     assert_eq!(own.forge_component.key_bytes, 2000);
     assert_eq!(own.forge_component.renew_before, Duration::from_secs(60));
     let mut problems = crate::startup::Problems::empty();
-    crate::startup::checks::records(&jig, &own, &[], &temper_engine_domain_forge::Machine::bare(), &mut problems);
+    crate::startup::checks::records(&jig, &own, &temper_engine_domain_forge::Machine::bare(), &mut problems);
     assert!(problems.is_empty());
 }
 #[test]
 fn encoded_setup_writes_fit_exactly_and_name_the_short_bound() {
     use crate::startup::{Problems, checks};
-    use temper_protocol_records as records;
     let settings = fixtures::engine();
     let mut own = settings.limits;
     let key = skein_lib::bytes::zeroed(usize::try_from(own.forge_component.key_bytes).unwrap());
@@ -325,7 +298,7 @@ fn encoded_setup_writes_fit_exactly_and_name_the_short_bound() {
         own.forge_component.installations = installations;
         own.records.value_bytes = value;
         let mut problems = Problems::empty();
-        checks::records(&settings.jig, &own, &[], &settings.machine, &mut problems);
+        checks::records(&settings.jig, &own, &settings.machine, &mut problems);
         assert_eq!(crate::startup::lines(&problems).as_ref(), expected.as_bytes());
     }
 }
@@ -345,7 +318,7 @@ fn log_limits_check_zero_capacity_and_timing_relations() {
         let mut own = defaults;
         limits::apply(&mut own, name.as_bytes(), 0).unwrap();
         let mut problems = crate::startup::Problems::empty();
-        crate::startup::checks::records(&jig, &own, &[], &temper_engine_domain_forge::Machine::bare(), &mut problems);
+        crate::startup::checks::records(&jig, &own, &temper_engine_domain_forge::Machine::bare(), &mut problems);
         let mut expected = format!("application.limits.overrides.{name}: must agree with {name} (above 0)\n");
         if name == "forge_component.log_origins" {
             expected +=
@@ -379,49 +352,26 @@ fn log_limits_check_zero_capacity_and_timing_relations() {
         own.forge_component.log_poll = Duration::from_millis(poll);
         own.forge_component.log_catch_up = Duration::from_millis(catch_up);
         let mut problems = crate::startup::Problems::empty();
-        crate::startup::checks::records(&jig, &own, &[], &temper_engine_domain_forge::Machine::bare(), &mut problems);
+        crate::startup::checks::records(&jig, &own, &temper_engine_domain_forge::Machine::bare(), &mut problems);
         let expected = [if expected.is_empty() { "" } else { "application.limits.overrides." }, expected].concat();
         assert_eq!(crate::startup::lines(&problems).as_ref(), expected.as_bytes());
     }
 }
 #[test]
-#[expect(clippy::disallowed_methods, reason = "ordinary tests inspect diagnostic text")]
 fn origin_inventory_keeps_configured_text_prefixes_and_forge_indices() {
     use crate::startup::checks;
-    use jig_protocol_config::{Address, Directories};
-    use temper_protocol_records as records;
-    let document = fixtures::document_members::document();
-    let input = super::startup::github_input(core::str::from_utf8(&document).unwrap());
-    let mut forges = skein_lib::List::with_capacity(5);
-    forges.push(crate::named(&document, &Directories::working()).unwrap().forges.into_vec().pop().unwrap()).unwrap();
-    for (api, length) in [
-        (Address::Host { name: Box::from(b"api.github.com".as_slice()), port: 443 }, 26),
-        (Address::Host { name: Box::from(b"forge.example".as_slice()), port: 12345 }, 27),
-        (Address::Addr(skein_io::Addr::Ip("127.0.0.1:3000".parse().unwrap())), 22),
-        (Address::Addr(skein_io::Addr::Ip("[::1]:3000".parse().unwrap())), 18),
+    let mut machine = temper_engine_domain_forge::Machine::bare();
+    for (host, port, length) in [
+        (b"api.github.com".as_slice(), 443, 26),
+        (b"forge.example".as_slice(), 12345, 27),
+        (b"127.0.0.1".as_slice(), 3000, 22),
+        (b"::1".as_slice(), 3000, 18),
     ] {
-        let mut forge =
-            crate::named(input.as_bytes(), &Directories::working()).unwrap().forges.into_vec().pop().unwrap();
-        forge.api = api;
-        let encoded = records::encode(
-            records::Item::Origin,
-            &records::origin(skein_forge_connection::settings::Kind::GitHub, &forge.api).encode(),
-        )
-        .unwrap();
-        assert_eq!(encoded.len(), length);
-        assert_eq!(&encoded[..2], &records::VERSION.to_be_bytes());
-        let index = usize::try_from(forges.len()).unwrap();
-        forges.push(forge).unwrap();
-        let inventory = checks::record_writes(
-            &fixtures::engine().limits,
-            forges.as_slice(),
-            &temper_engine_domain_forge::Machine::bare(),
-        );
-        assert_eq!(inventory.len(), forges.len() + 6);
-        assert_eq!(
-            *inventory.get(u32::try_from(index + 5).unwrap()).unwrap(),
-            (Some(u64::try_from(length).unwrap()), b"Origin".as_slice(), Some(index))
-        );
+        machine.github.api.host = host.into();
+        machine.github.api.port = port;
+        let inventory = checks::record_writes(&fixtures::engine().limits, &machine);
+        assert_eq!(inventory.len(), 6);
+        assert_eq!(*inventory.get(5).unwrap(), (Some(length), b"Origin".as_slice(), None));
     }
 }
 #[test]
@@ -435,14 +385,11 @@ fn github_component_checks_key_deadline_and_renewal() {
         (b"forge_component.installations", 0, "forge_component"),
     ] {
         let mut config = fixtures::engine();
-        let mut record = fixtures::forge_record(1);
-        record.kind = temper_engine_domain_forge::Kind::GitHub;
-        config.forges = fixtures::forge_settings(&[record]);
         limits::apply(&mut config.limits, name, value).unwrap();
         if name == b"forge_component.deadline_ms" {
             config.limits.forge.client.lifetime = Duration::from_secs(300);
         }
-        let Err(found) = crate::forge::prepare(&config, fixtures::loopback_runtime()) else { panic!("{expected}") };
+        let Err(found) = crate::forge::prepare(&config) else { panic!("{expected}") };
         let found = crate::startup::Problems::jig(found, &jig_protocol_config::Path::root());
         let lines = crate::startup::lines(&found);
         assert!(core::str::from_utf8(&lines).unwrap().contains(expected), "{expected}: {lines:?}");
@@ -459,7 +406,7 @@ fn installation_capacity_fits_the_client_row_at_64_and_refuses_65() {
         own.forges.installations = installations;
         own.forge_component.installations = installations;
         let mut problems = crate::startup::Problems::empty();
-        crate::startup::checks::records(&jig, &own, &[], &temper_engine_domain_forge::Machine::bare(), &mut problems);
+        crate::startup::checks::records(&jig, &own, &temper_engine_domain_forge::Machine::bare(), &mut problems);
         assert_eq!(problems.is_empty(), accepted);
     }
 }
@@ -473,7 +420,7 @@ fn picker_page_has_its_own_override_and_startup_bounds() {
         limits::apply(&mut own, b"picker.page", page).unwrap();
         assert_eq!(u64::from(own.picker.page), page);
         let mut found = crate::startup::Problems::empty();
-        crate::startup::checks::records(&settings.jig, &own, &[], &settings.machine, &mut found);
+        crate::startup::checks::records(&settings.jig, &own, &settings.machine, &mut found);
         let lines = crate::startup::lines(&found);
         assert_eq!(skein_lib::bytes::find(&lines, b"picker.page").is_some(), page == 0 || page > 100);
     }
@@ -540,7 +487,7 @@ fn token_rows_include_schema_framing_in_startup_admission() {
     ] {
         own.records.value_bytes = value;
         let mut problems = Problems::empty();
-        checks::records(&settings.jig, &own, &[], &settings.machine, &mut problems);
+        checks::records(&settings.jig, &own, &settings.machine, &mut problems);
         assert_eq!(crate::startup::lines(&problems).as_ref(), expected.as_bytes());
     }
 }

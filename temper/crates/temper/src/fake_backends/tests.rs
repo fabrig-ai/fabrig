@@ -762,8 +762,6 @@ fn the_effective_document_passes_ordinary_admission_with_no_forge() {
     let scratch = Scratch::new("no-forge-admission");
     let (_source, first) = prepared_source(&scratch);
     let checked = crate::setup::check(&first.bytes, &first.directories.jig()).expect("ordinary admission");
-    assert!(checked.named.forges.is_empty());
-    assert!(checked.named.identities.is_empty());
     assert!(checked.checked.setup.entries.is_empty());
     let document = read_json(&first.directories.document());
     for member in ["forges", "identities", "setup"] {

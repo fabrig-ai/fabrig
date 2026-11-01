@@ -1,9 +1,6 @@
 //! The provider clients joined to Forgejo (protocol/sign-in.md, 9.7).
-use super::super::{Forge, read};
-use crate::{
-    settings,
-    startup::{Problems, What},
-};
+use super::super::read;
+use crate::startup::{Problems, What};
 use alloc::boxed::Box;
 use jig_protocol_config::{self as config, Path};
 use skein_json::Document;
@@ -49,29 +46,30 @@ pub(super) fn parse(
     }
     rows.into_boxed()
 }
-// Setup owns validation of these members; this view only joins the owned public origin.
-fn public(document: &Document, setup: Option<u32>, number: u16) -> Option<temper_forge_setup::setup::Origin> {
-    for at in config::read::list(document, setup?, document.len()).ok()?.into_boxed() {
-        let mut entry = config::read::Object::new(document, at).ok()?;
-        if config::read::integer(document, entry.member(document, b"forge")?, u64::from(u16::MAX)).ok()?
-            != u64::from(number)
-        {
-            continue;
-        }
-        let mut mode = config::read::Object::new(document, entry.member(document, b"mode")?).ok()?;
-        let mut owned = config::read::Object::new(document, mode.member(document, b"owned")?).ok()?;
-        let value = config::read::text(document, owned.member(document, b"public")?, 4096).ok()?;
-        let parsed = skein_forge::github::redirect::parse(&value, 4096, 1).ok()?;
-        return Some(temper_forge_setup::setup::Origin { host: parsed.origin.host, port: parsed.origin.port });
-    }
-    None
+/// The machine's owned template supplies the public browser origin for sign-in.
+pub(crate) fn origin(machine: &temper_engine_domain_forge::Machine) -> Option<Box<[u8]>> {
+    let record = machine.owned.as_ref()?;
+    let text = record.setup.as_ref()?;
+    let document = config::document(text, &config::DocumentLimits { bytes: 4096, tokens: 4096, depth: 32 }).ok()?;
+    let mut entry = config::read::Object::new(&document, 0).ok()?;
+    let mut mode = config::read::Object::new(&document, entry.member(&document, b"mode")?).ok()?;
+    let mut owned = config::read::Object::new(&document, mode.member(&document, b"owned")?).ok()?;
+    let public = match owned.member(&document, b"public") {
+        Some(at) => match config::read::text(&document, at, 4096) {
+            Ok(value) => {
+                let parsed = skein_forge::github::redirect::parse(&value, 4096, 1).ok()?;
+                Some(temper_forge_setup::setup::Origin { host: parsed.origin.host, port: parsed.origin.port })
+            }
+            Err(_) => None,
+        },
+        None => None,
+    };
+    Some(super::super::forge_origin(&record.git, public.as_ref()))
 }
 pub(crate) fn check(
     rows: &[ForgeSignIn],
-    forges: &[Forge],
+    machine: &temper_engine_domain_forge::Machine,
     jig: &config::Engine,
-    document: &Document,
-    setup: Option<u32>,
     problems: &mut Problems,
 ) {
     let path = super::path().member(b"forges");
@@ -86,13 +84,8 @@ pub(crate) fn check(
         if !visible {
             problems.push(path.member(b"client"), What::Jig(config::What::Form));
         }
-        let mut forge = None;
-        for configured in forges {
-            if configured.number == row.forge && configured.kind == settings::Kind::Forgejo {
-                forge = Some(configured);
-            }
-        }
-        if forge.is_none() {
+        let origin = origin(machine);
+        if origin.is_none() {
             problems.push(path.member(b"forge"), What::Jig(config::What::Refers));
         }
         let Some(provider) = &jig.clients.provider else {
@@ -103,8 +96,7 @@ pub(crate) fn check(
         for client in &provider.clients {
             if client.id == row.client {
                 found = true;
-                if let Some(forge) = forge {
-                    let origin = super::super::forge_origin(&forge.git, public(document, setup, forge.number).as_ref());
+                if let Some(origin) = &origin {
                     let suffix = client.redirect_uri.strip_prefix(origin.as_ref());
                     if suffix != Some(b"/user/oauth2/temper/callback".as_slice()) {
                         problems.push(path.member(b"client"), What::Jig(config::What::Form));

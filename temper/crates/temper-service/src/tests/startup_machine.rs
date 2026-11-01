@@ -19,15 +19,14 @@ const PROJECT: &[u8] = br#"{"name":"Playground","policy":1}"#;
 fn document(machine: Option<&str>) -> Box<[u8]> {
     let input = fixtures::document();
     let input = core::str::from_utf8(&input).unwrap();
-    let input = input.replace("\"machine\":{\"owned\":null,\"github\":{\"api\":null,\"transport\":null,\"git\":null,\"web\":null},\"git_program\":null},", "");
+    let bare =
+        r#""machine":{"owned":null,"github":{"api":null,"transport":null,"git":null,"web":null},"git_program":null},"#;
     match machine {
-        Some(machine) => input
-            .replace("\"demo\":null", &format!("\"machine\":{machine},\"demo\":null"))
-            .into_bytes()
-            .into_boxed_slice(),
-        None => input.into_bytes().into_boxed_slice(),
+        Some(machine) => input.replace(bare, &format!("\"machine\":{machine},")).into_bytes().into_boxed_slice(),
+        None => input.replace(bare, "").into_bytes().into_boxed_slice(),
     }
 }
+
 fn machine(owned: &str, github: &str, git_program: &str) -> Box<str> {
     format!(r#"{{"owned":{owned},"github":{github},"git_program":{git_program}}}"#).into_boxed_str()
 }
@@ -44,7 +43,6 @@ fn start(input: &[u8]) -> crate::Service {
         &fixtures::seeds(),
         None,
         fixtures::worker_runtime(),
-        skein_lib::List::with_capacity(0),
     )
     .unwrap_or_else(|found| panic!("{}", core::str::from_utf8(&lines(&found)).unwrap()))
 }
@@ -87,30 +85,11 @@ fn local_record(mode: Mode, port: u16, text: &str, playground: bool, git_program
 
 #[test]
 fn a_document_with_no_forge_identity_or_setup_starts() {
-    let settings = fixtures::engine();
-    assert!(settings.forges.is_empty());
-    assert!(settings.identities.is_empty());
-    assert!(settings.setup.is_empty());
-    assert!(settings.records_only.is_empty());
-    let parsed = config::document(
-        fixtures::APPLICATION,
-        &config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 },
-    )
-    .unwrap();
-    for member in [b"forges".as_slice(), b"identities", b"setup"] {
-        assert!(config::read::Object::new(&parsed, 0).unwrap().member(&parsed, member).is_none());
-    }
-    let input = document(None);
+    let input = document(Some(&machine("null", GITHUB, "null")));
     let named = named(&input);
-    assert!(named.forges.is_empty());
-    assert!(named.identities.is_empty());
     assert_eq!(named.machine, Machine::bare());
     let service = start(&input);
     assert_eq!(service.engine_domain().unwrap().forges().rows.len(), 0);
-    // Explicit empty lists remain accepted too.
-    let input = fixtures::with(&fixtures::document_members::document(), b"application.forges", b"[]");
-    let input = fixtures::with(&input, b"application.identities", b"[]");
-    start(&input);
 }
 #[test]
 fn the_machines_owned_body_becomes_an_owned_record_template() {
@@ -171,7 +150,7 @@ fn the_machines_github_members_replace_the_defaults() {
         record.web = Some(b"https://web.example.test".as_slice().into());
         let machine = named(&input).machine;
         assert_eq!(machine.github, record);
-        let writes = crate::startup::checks::record_writes(&fixtures::engine().limits, &[], &machine);
+        let writes = crate::startup::checks::record_writes(&fixtures::engine().limits, &machine);
         assert_eq!(*writes.get(5).unwrap(), (Some(origin_bytes), b"Origin".as_slice(), None));
     }
 }
@@ -220,7 +199,7 @@ fn a_machine_member_unknown_is_refused() {
 }
 #[test]
 fn a_demo_of_t4s_shape_reads_its_fake_body_and_project() {
-    let input = demo(&document(None), PROJECT);
+    let input = demo(&document(Some(&machine("null", GITHUB, "null"))), PROJECT);
     assert_eq!(
         named(&input).machine.playground,
         Some(local_record(Mode::Fake, 8369, FAKE, true, Some(b"demo/bin/git".as_slice().into())))
@@ -234,7 +213,7 @@ fn a_demo_of_t4s_shape_reads_its_fake_body_and_project() {
     );
     assert_eq!(demo.cues.as_ref(), &[Box::<[u8]>::from(b"Add CSV export to widget".as_slice())]);
     assert_eq!(demo.key_file.as_ref(), b"demo/llm.key");
-    let domain = demo.domain(&[], &named(&input).machine, skein_lib::Duration::from_secs(120));
+    let domain = demo.domain(&named(&input).machine, skein_lib::Duration::from_secs(120));
     assert_eq!(
         (domain.project_name.as_ref(), domain.project_policy, domain.adoption.host.as_ref()),
         ("Playground", 1, b"127.0.0.1:8369".as_slice())
@@ -243,7 +222,10 @@ fn a_demo_of_t4s_shape_reads_its_fake_body_and_project() {
 #[test]
 fn a_demo_project_name_past_64_bytes_or_policy_0_is_refused() {
     let name = "x".repeat(PROJECT_NAME_BYTES);
-    let input = demo(&document(None), format!(r#"{{"name":"{name}","policy":4294967295}}"#).as_bytes());
+    let input = demo(
+        &document(Some(&machine("null", GITHUB, "null"))),
+        format!(r#"{{"name":"{name}","policy":4294967295}}"#).as_bytes(),
+    );
     start(&input);
     for (project, member, what) in [
         (format!(r#"{{"name":"{name}x","policy":1}}"#), b"name".as_slice(), config::What::Bound),
@@ -252,40 +234,16 @@ fn a_demo_project_name_past_64_bytes_or_policy_0_is_refused() {
         (r#"{"name":"Playground","policy":4294967296}"#.into(), b"policy".as_slice(), config::What::Bound),
     ] {
         assert_problem(
-            &demo(&document(None), project.as_bytes()),
+            &demo(&document(Some(&machine("null", GITHUB, "null"))), project.as_bytes()),
             Path::root().member(b"application").member(b"demo").member(b"project").member(member),
             what,
         );
     }
 }
 #[test]
-fn todays_demo_shape_reads_as_before() {
-    let application = fixtures::document_members::demo_application();
-    let input = fixtures::with(
-        &fixtures::document_members::document(),
-        b"application.demo",
-        &fixtures::value(&application, b"demo"),
-    );
-    let input = fixtures::with(&input, b"application.setup", &fixtures::value(&application, b"setup"));
-    let service = crate::startup(
-        &input,
-        &config::Directories::working(),
-        &fixtures::files(),
-        &fixtures::startup_agent(),
-        &fixtures::seeds(),
-        None,
-        fixtures::worker_runtime(),
-        fixtures::loopback_runtime(),
-    )
-    .unwrap();
-    let demo = service.engine.as_ref().unwrap().demo.as_ref().unwrap();
-    assert_eq!((demo.project, demo.forge, demo.project_name.as_ref(), demo.project_policy), (1, 1, "", 0));
-    assert!(named(&input).machine.playground.is_none());
-}
-#[test]
 fn forge_forges_is_an_override_and_must_fit_the_component() {
     let input = fixtures::with(
-        &document(None),
+        &document(Some(&machine("null", GITHUB, "null"))),
         b"application.limits.overrides",
         br#"{"forge.forges":4,"forge_component.forges":4}"#,
     );
@@ -305,4 +263,44 @@ fn the_root_config_carries_the_machine() {
     let acts = forge::demo_act_bound(&service.engine.as_ref().unwrap().env.limits.forge).unwrap();
     assert_eq!(service.notes().capacity(), TEMPLATE_NOTES + acts);
     assert_eq!(named(&input).machine.owned.unwrap().mode, Mode::Owned);
+}
+
+#[test]
+fn a_document_naming_forges_is_refused() {
+    unknown(b"forges");
+}
+#[test]
+fn a_document_naming_identities_is_refused() {
+    unknown(b"identities");
+}
+#[test]
+fn a_document_naming_setup_is_refused() {
+    unknown(b"setup");
+}
+fn unknown(member: &[u8]) {
+    for value in ["[]", "null", "7", "{}"] {
+        let input = fixtures::document();
+        let input = core::str::from_utf8(&input).unwrap().replacen(
+            "\"application\":{",
+            &format!("\"application\":{{\"{}\":{value},", core::str::from_utf8(member).unwrap()),
+            1,
+        );
+        assert_problem(input.as_bytes(), Path::root().member(b"application").member(member), config::What::Unknown);
+    }
+}
+#[test]
+fn a_document_without_machine_is_refused() {
+    assert_problem(&document(None), Path::root().member(b"application").member(b"machine"), config::What::Missing);
+}
+#[test]
+fn a_demo_of_todays_shape_is_refused() {
+    let input = demo(&fixtures::document(), PROJECT);
+    for member in [b"forge".as_slice(), b"project"] {
+        let input = fixtures::with(
+            &input,
+            &format!("application.demo.{}", core::str::from_utf8(member).unwrap()).into_bytes(),
+            b"1",
+        );
+        assert_problem(&input, Path::root().member(b"application").member(b"demo").member(member), config::What::Form);
+    }
 }

@@ -13,12 +13,13 @@ use jig_protocol_store::{SecretOwner, Secrets};
 
 const ADMIN: &[u8] = b"admin-token-placeholder-0123";
 
-fn config() -> Config {
+fn config() -> crate::settings::Engine {
     let mut config = local_config(true, false);
-    config.records[0].mode = domain::Mode::Managed;
-    config.records[0].setup =
+    let record = config.machine.owned.as_mut().unwrap();
+    record.mode = domain::Mode::Managed;
+    record.bot.login = b"temper".as_slice().into();
+    record.setup =
         Some(br#"{"bot":{"login":"temper","email":"temper@example.test"},"mode":"managed"}"#.as_slice().into());
-    config.records[0].bot.login = b"temper".as_slice().into();
     config
 }
 fn store(forge: &Forge) -> crate::store::Store {
@@ -246,7 +247,7 @@ fn admin_paste_reconciles_creates_with_its_label_then_keeps_and_restarts_from_re
     assert_eq!(
         engine.domain.forges().rows[0].first.as_ref().unwrap().state,
         domain::FirstState::Made { id: 1 },
-        "restart retains the completed first intent"
+        "restart retains the completed intent"
     );
 }
 #[test]
@@ -348,23 +349,7 @@ fn both_admin_plans_read_the_paste_even_with_different_records_and_adoptions() {
         .setup
         .lifecycle
         .adoptions
-        .insert(
-            1,
-            lifecycle::Adoption {
-                next: core::num::NonZeroU64::new(1).unwrap(),
-                repositories: 1,
-                files: Some(lifecycle::AdoptionFiles {
-                    admin_token: Secret::new(b"different-adoption-token".as_slice().into()),
-                    access: skein_forge_connection::Access {
-                        credential: skein_forge::credential::Credential::Token(Secret::new(
-                            b"different-api-token".as_slice().into(),
-                        )),
-                        user: 3,
-                        webhook_secret: None,
-                    },
-                }),
-            },
-        )
+        .insert(1, lifecycle::Adoption { next: core::num::NonZeroU64::new(1).unwrap(), repositories: 1 })
         .unwrap();
     let carried = {
         let value = bundle(1, ADMIN);
@@ -529,10 +514,10 @@ fn pending(service: &mut crate::Service) -> Token {
         crate::engine::iterate(engine, Time::ZERO, Wall::EPOCH);
         if let Some((run, _)) = engine.setup.public.first() {
             let run = *run;
-            for _ in 0_u32..8 {
-                scan(engine);
+            for _ in 0_u8..4 {
                 crate::engine::iterate(engine, Time::ZERO, Wall::EPOCH);
             }
+            scan(engine);
             return run;
         }
     }
@@ -548,11 +533,13 @@ fn busy_admin_connect_erases_its_unused_paste() {
     let digest = skein_lib::sha256::digest(value.expose());
     let number = records::CARRIED.checked_add(1).unwrap();
     engine.store.secrets(Token::new(901), fixtures::application_request(number, value));
+    let actual = engine.store.above.pop();
     assert!(
-        (match engine.store.above.pop() {
+        match actual {
             Some(StoreEvent::Carried { number: found, .. }) => found == number,
             _ => false,
-        })
+        },
+        "carry answer: {actual:?}"
     );
     public::admin_connect(engine, 1, Token::new(92), None, jig_domain_core::Carried { number, digest });
     assert_eq!(engine.store.erases, 1);
@@ -586,7 +573,8 @@ fn a_failed_keep_ends_the_admin_caller_and_erases_before_the_engine_stops() {
         records::Origin { kind: skein_forge_connection::settings::Kind::Forgejo, api: "127.0.0.1:3000".into() }
             .encode();
     lifecycle::keep(engine, 1, Item::Origin, &origin, Purpose::Host(run));
-    let Some(StoreEvent::Kept { owner }) = engine.store.above.pop() else { panic!("pending keep") };
+    let actual = engine.store.above.pop();
+    let Some(StoreEvent::Kept { owner }) = actual else { panic!("pending keep: {actual:?}") };
     answer(engine, StoreEvent::Corrupt { owner });
     assert!(engine.end.is_some());
     assert!(engine.setup.public.is_empty());
@@ -621,20 +609,6 @@ fn an_ended_forge_finishes_the_admin_run_without_keeping_the_token() {
     let mut service = service(&forge);
     let run = pending(&mut service);
     let engine = service.engine.as_mut().unwrap();
-    engine.demo = Some(crate::settings::Demo {
-        project_name: "".into(),
-        project_policy: 0,
-        project: 1,
-        forge: 1,
-        provider: 1,
-        owner: b"owner".as_slice().into(),
-        name: b"ended".as_slice().into(),
-        cues: Box::new([]),
-        landing: b"main".as_slice().into(),
-        key_file: Box::new([]),
-        state: Some(domain::DemoState::Ended),
-        playground: None,
-    });
     let mut record = engine.records.get(&1).unwrap().clone();
     record.state = domain::ForgeState::Removing;
     engine.step(root::Event::Forge(Box::new(domain::Event::Restore { record: domain::Stored::Forge(record) })));
@@ -707,7 +681,7 @@ fn reconcile_and_create_use_the_paste_instead_of_an_older_admin_record() {
 fn string_managed_serves_no_listener_even_when_owned_forges_have_webhooks() {
     let forge = forge(true, true, false);
     let mut config = config();
-    config.engine.webhooks =
+    config.webhooks =
         Some(skein_forge_connection::hooks::Webhooks { listener: skein_io::Addr::Ip(([127, 0, 0, 1], 7101).into()) });
     let service = local_service(config, store(&forge));
     let engine = service.engine.as_ref().unwrap();
