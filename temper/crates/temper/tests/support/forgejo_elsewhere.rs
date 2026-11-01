@@ -147,6 +147,10 @@ fn configure(root: &Path, forge: &Forge<'_>) {
     value["engine"]["hosts"]["workers"][0]["digest"] = "worker.digest".into();
     fs::rename(config.join("worker.secret"), root.join("data/worker.secret")).expect("data worker secret");
     fs::remove_dir_all(config.join("secrets")).expect("remove obsolete file credentials");
+    let legacy = super::legacy_configuration::check_document(&config);
+    for member in ["forges", "identities", "setup"] {
+        value["application"][member] = legacy["application"][member].clone();
+    }
     let entry = value["application"]["forges"][0].as_object_mut().expect("forge");
     for member in ["api_token", "user", "webhook_secret", "identity"] {
         entry.remove(member);

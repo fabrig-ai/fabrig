@@ -62,11 +62,8 @@ pub fn documents(directory: &Path, program: &str) -> (Vec<u8>, Vec<u8>) {
     value["application"] = serde_json::json!({
         "webhooks":null,
 "clients":{"listener":{"socket":"127.0.0.1:0"},"public":null,"bundle":null},
-        "forges":[{"number":1,"kind":"forgejo","api":{"socket":"127.0.0.1:9"},"transport":"plaintext",
-            "git":"http://127.0.0.1:9","webhook_secret":null,"api_token":"secrets/forge-1.api-token","user":{"file":"secrets/forge-1.user"},"identity":1}],
-        "identities":[{"number":1,"token":"secrets/forge-1.git-token","login":"temper",
-            "author":{"name":"Temper","email":"temper@example.test"}}],
-        "setup":[],"demo":null,"sign_in":null,"landing":{"deployment":[],"projects":[]},"charter":1,
+        "machine":{"owned":null,"github":{"api":null,"transport":null,"git":null,"web":null},"git_program":null},
+        "demo":null,"sign_in":null,"landing":{"deployment":[],"projects":[]},"charter":1,
         "limits":{"profile":"small","overrides":{"checkout.name_bytes":256,"checkout.repositories":2,
             "checkout.message_bytes":4096,"forge.name_bytes":64,"forge.judge_projects":3,"forge.resources_per_task":2,"git_component.stdout_bytes":2048}},
         "workers":[{"root":"worker-root","git":"/usr/bin/git"}]});
@@ -112,33 +109,17 @@ pub fn fake_entry(entry: &mut serde_json::Value, listen: &str) {
     }});
 }
 
-/// temper-15: the explicit old-form fake and managed command fixtures, without creating files.
+/// A deployment with no configured forge or playground.
 #[must_use]
 pub fn old_form_check_document(directory: &Path) -> serde_json::Value {
-    let (_, bytes) = documents(directory, "/fixture/temper");
-    let mut value: serde_json::Value = serde_json::from_slice(&bytes).expect("deployment JSON");
-    value["application"]["setup"] = serde_json::json!([{
-        "forge":1, "directory":"forge-1", "bot":{"login":"temper","email":"temper@example.test"}
-    }]);
-    fake_entry(&mut value["application"]["setup"][0], "127.0.0.1:9");
-    value["application"]["forges"][0]["api_token"] = "forge-1/api_token".into();
-    value["application"]["forges"][0]["user"] = serde_json::json!({"file":"forge-1/user"});
-    value["application"]["identities"][0]["token"] = "forge-1/git_token".into();
-    value
+    check_document(directory)
 }
 
-/// The fake starts from records; its identity joins the forge explicitly.
+/// Runtime provisioning supplies the forge independently of this document.
 #[must_use]
 pub fn check_document(directory: &Path) -> serde_json::Value {
-    let mut value = old_form_check_document(directory);
-    let forge = value["application"]["forges"][0].as_object_mut().expect("forge");
-    for member in ["api_token", "user", "webhook_secret", "identity"] {
-        forge.remove(member);
-    }
-    let identity = value["application"]["identities"][0].as_object_mut().expect("identity");
-    identity.remove("token");
-    identity.insert("forge".into(), 1.into());
-    value
+    let (_, bytes) = documents(directory, "/fixture/temper");
+    serde_json::from_slice(&bytes).expect("deployment JSON")
 }
 
 /// A demo model whose one plaintext endpoint listens at the supplied address.
@@ -162,6 +143,9 @@ pub fn demo_document(directory: &Path, listen: &str) -> serde_json::Value {
     value["application"]["demo"] = serde_json::json!({"llm":{
         "listen":{"socket":listen}, "provider":3, "key":"demo/llm.key",
         "asked":[{"cue":"say hello", "turns":["hello from QA"]}], "otherwise":["fallback"]},
-        "forge":1, "project":1});
+        "forge":{"bot":{"login":"temper","email":"temper@example.test"},
+            "mode":{"fake":{"listen":{"socket":"127.0.0.1:9"},"git":"demo/bin/git",
+                "owner":"playground","repositories":[{"name":"widget","landing":"main"}]}}},
+        "project":{"name":"Playground","policy":1}});
     value
 }

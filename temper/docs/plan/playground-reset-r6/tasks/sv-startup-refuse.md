@@ -3,7 +3,7 @@ id = "sv-startup-refuse"
 part = "fs"
 kind = "migration"
 needs = ["sv-service-fixtures", "sv-world-one-process", "sv-world-real-loop", "sv-world-client-browser", "bx-init", "bx-fixtures", "bx-walks"]
-files = ["temper/crates/temper-service/**", "temper/crates/temper/src/lib.rs", "temper/crates/temper/src/setup.rs"]
+files = ["temper/crates/temper-service/**", "temper/crates/temper/src/lib.rs", "temper/crates/temper/src/setup.rs", "temper/crates/temper/tests/fake_backends/walk/adoption.rs", "temper/crates/temper/tests/fake_backends/walk/here_key.rs", "temper/crates/temper/tests/fake_backends/walk/program_here.rs"]
 effort = "high"
 minutes = 120
 +++
@@ -94,3 +94,24 @@ Acceptance:
 
 - The checks lost with the document, each with one line.
 - The old-forms counts lowered.
+
+## Answers
+
+2026-11-01, from bx-walks' question. A forge made at runtime by `MakeForge` is registered
+by `setup::register` (`temper-service/src/setup.rs`), which puts a restored record in
+`NotSetUp` only when `record.playground`; an owned record made after startup is left with no
+connection state, which reads `NotConnected`, so `Domain::offer` refuses its setup
+(`not_offered`). With the document's forges gone, every owned record with a setup entry
+registered and not yet set up starts `NotSetUp`, made at runtime or restored, as the
+document's asked owned forge did (`temper/docs/design/protocol/setup.md`, 6; draft
+`playground-reset.md`, 3 and 6.4); a restored record whose setup ran keeps the state its
+lifecycle restores. Added to this task:
+- That repair in temper-service, with a test in the crate: an owned forge made after startup
+  reads `offer: offered` under the box and its setup is admitted.
+- Remove the `#[ignore = "a made owned forge is not offered: sv-startup-refuse"]` that
+  bx-walks put on `walk/adoption.rs`, `walk/here_key.rs` and `walk/program_here.rs` (the
+  attribute alone; `files` now names the three), and run each alone with the
+  `process-temper` profile (`fake_backends::walk::adoption::context_preserves_the_writer_and_a_refused_setup_preserves_the_first_key`,
+  `fake_backends::walk::here_key::forgejo_here_and_a_key_reach_a_first_chat_on_the_fake_box`,
+  `fake_backends::walk::program_here::a_program_and_forgejo_here_reach_ready_on_the_fake_box`;
+  each selects 1). A failure past the offer, read, is reported as a question.

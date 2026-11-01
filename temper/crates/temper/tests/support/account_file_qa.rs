@@ -28,16 +28,8 @@ fn configure(directory: &Path) -> oauth::Peer {
         skein_scratch::paths::binary("temper").to_str().expect("a UTF-8 path"),
     );
     let fixture: serde_json::Value = serde_json::from_slice(&fixture).expect("fixture JSON");
-    for field in ["forges", "identities", "setup", "demo", "webhooks", "workers", "clients"] {
+    for field in ["machine", "demo", "webhooks", "workers", "clients"] {
         value["application"][field] = fixture["application"][field].clone();
-    }
-    fs::create_dir_all(directory.join("secrets")).expect("fixture secrets");
-    for (file, bytes) in [
-        ("forge-1.user", b"42\n".as_slice()),
-        ("forge-1.api-token", b"forge-1-api-token-value"),
-        ("forge-1.git-token", b"forge-1-git-token-value"),
-    ] {
-        super::write_private(&directory.join("secrets").join(file), bytes);
     }
     super::write_private(&path, &serde_json::to_vec(&value).expect("configuration JSON"));
     // Moving the one exported record back invalidates the file's refresh token.

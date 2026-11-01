@@ -192,3 +192,36 @@ fn the_clusters_documents_check_as_their_shapes() {
     }
     scratch.remove();
 }
+
+#[test]
+fn process_documents_leave_forges_to_runtime_provisioning() {
+    let scratch = support::Scratch::startup("runtime-forge-document");
+    support::configuration(scratch.path(), &support::Forge::Unreached);
+    let written: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(scratch.path().join("temper.json")).expect("deployment")).expect("JSON");
+    for document in [
+        written,
+        support::configuration::check_document(scratch.path()),
+        support::configuration::old_form_check_document(scratch.path()),
+        support::configuration::demo_document(scratch.path(), "127.0.0.1:8370"),
+    ] {
+        for member in ["forges", "identities", "setup"] {
+            assert!(document["application"].get(member).is_none(), "document still names {member}");
+        }
+        assert!(document["application"]["machine"].is_object());
+        if document["application"]["demo"].is_null() {
+            temper::operations_in(
+                &support::configuration::directories(scratch.path()),
+                &serde_json::to_vec(&document).expect("JSON"),
+            )
+            .expect("T4 document admitted");
+        }
+    }
+    for name in ["user", "api-token", "git-token"] {
+        assert!(!scratch.path().join(format!("secrets/forge-1.{name}")).exists());
+    }
+    let forge = support::forges::fixture(scratch.path()).expect("runtime fixture manifest");
+    assert_eq!(forge["kind"], "forgejo");
+    assert!(forge["admin"].is_null());
+    scratch.remove();
+}
