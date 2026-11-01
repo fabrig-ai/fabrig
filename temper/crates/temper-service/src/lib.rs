@@ -5,6 +5,7 @@ extern crate alloc;
 use alloc::boxed::Box;
 pub mod diagnostics;
 pub mod forge;
+mod forges;
 pub use forge::ForgeRuntime;
 pub mod limits;
 pub mod settings;
@@ -195,6 +196,9 @@ pub enum Note {
     ForgeNotConnected {
         number: u16,
         why: NotConnected,
+    },
+    ForgeRecordChanged {
+        number: u16,
     },
     ForgeUnconfigured {
         number: u16,

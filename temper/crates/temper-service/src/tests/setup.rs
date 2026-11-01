@@ -211,7 +211,7 @@ fn an_install_can_evict_a_manifests_state_while_its_page_lives() {
     // The slug above only made an Install-purpose state; no App remains in this host-state fixture.
     service.engine.as_mut().expect("engine").forge_records.rows = crate::forge::records::Loader::new(
         &fixtures::engine().limits,
-        &service.engine.as_ref().expect("engine").workers.forges,
+        service.engine.as_ref().expect("engine").workers.forges.as_slice(),
     )
     .rows;
     start(&mut service, 3, host::Plan::Convert { forge: 1, code: code(), state });
@@ -702,7 +702,8 @@ fn an_unresolved_forge_keeps_its_setup_entry_but_restored_and_asked_connects_nev
     assert_eq!(settings.forges.get(0).unwrap().address, skein_io::Addr::Ip(crate::forge::HELD_ADDRESS));
     lifecycle_tests::app(&mut service);
     let engine = service.engine.as_mut().unwrap();
-    let expected = records::origin(skein_forge_connection::settings::Kind::GitHub, &engine.workers.forges[0].api);
+    let expected =
+        records::origin(skein_forge_connection::settings::Kind::GitHub, &engine.workers.forges.as_slice()[0].api);
     assert!(
         records::access(
             skein_forge_connection::settings::Kind::GitHub,

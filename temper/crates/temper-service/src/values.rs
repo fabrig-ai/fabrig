@@ -46,6 +46,9 @@ impl Identities {
             .expect("configured identity capacity");
         1
     }
+    pub(crate) fn remove(&mut self, number: u32) {
+        self.entries.remove(&number);
+    }
     /// Either of the two newest generations, or none for an older one.
     #[must_use]
     pub fn get(&self, number: u32, generation: u64) -> Option<&Secret> {
@@ -137,7 +140,7 @@ impl Values {
         use jig_protocol_config::What;
         let identities = &settings.identities;
         self.tokens = crate::forge::tokens::Tokens::new(settings);
-        self.identities = Identities::with_capacity(u32::try_from(identities.len()).expect("identity count"));
+        self.identities = Identities::with_capacity(settings.limits.forge_component.forges);
         for identity in identities {
             // GitHub gathers tokens until its first Connected.
             if identity.token.expose().is_empty() {

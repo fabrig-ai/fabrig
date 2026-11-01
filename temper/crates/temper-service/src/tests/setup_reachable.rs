@@ -257,7 +257,7 @@ fn sent(face: &mut Face, service: &mut crate::Service) {
         engine.events,
         engine.notes,
         engine.setup.answers,
-        engine.workers.forges[0].api_token.is_some()
+        engine.workers.forges.as_slice()[0].api_token.is_some()
     );
 }
 
