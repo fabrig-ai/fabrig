@@ -16,12 +16,8 @@ pub(crate) struct Rows {
     unconfigured: Map<u16, ()>,
 }
 impl Rows {
-    fn new(forges: &[crate::settings::Forge], capacity: u32) -> Self {
-        let mut configured = Map::with_capacity(capacity);
-        for forge in forges {
-            configured.insert(forge.number, ()).expect("configured forges");
-        }
-        Self { values: records::Rows::new(), configured, unconfigured: Map::with_capacity(FORGES) }
+    fn new(capacity: u32) -> Self {
+        Self { values: records::Rows::new(), configured: Map::with_capacity(capacity), unconfigured: Map::with_capacity(FORGES) }
     }
     pub(crate) fn register(&mut self, forge: u16) {
         self.configured.insert(forge, ()).expect("admitted forge");
@@ -75,11 +71,11 @@ enum Phase {
     Done,
 }
 impl Loader {
-    pub(crate) fn new(limits: &crate::limits::Limits, forges: &[crate::settings::Forge]) -> Self {
+    pub(crate) fn new(limits: &crate::limits::Limits) -> Self {
         Self {
             #[cfg(test)]
             inspected: List::with_capacity(128),
-            rows: Rows::new(forges, limits.forge_component.forges),
+            rows: Rows::new(limits.forge_component.forges),
             phase: Phase::Load { after: None },
             value_bytes: limits.records.value_bytes,
             bounds: skein_forge_setup::item::Bounds {
@@ -213,7 +209,7 @@ pub(crate) fn advance(engine: &mut crate::engine::Engine) {
 #[test]
 fn unconfigured_numbers_resume_at_the_cursor_without_retaining_values() {
     let settings = crate::tests::fixtures::engine();
-    let mut rows = Rows::new(&settings.forges, settings.limits.forge_component.forges);
+    let mut rows = Rows::new(settings.limits.forge_component.forges);
     for forge in [u16::MAX, 77, 0, 77] {
         for item in [records::Item::AppKey, records::Item::Origin] {
             rows.push(records::number(forge, item), Secret::new(Box::from([2, 255])), 4096);
@@ -230,12 +226,13 @@ fn unconfigured_numbers_resume_at_the_cursor_without_retaining_values() {
     assert_eq!(rows.next_unconfigured(u32::from(u16::MAX)), Some(u16::MAX));
     assert_eq!(rows.next_unconfigured(FORGES), None);
     assert_eq!(rows.next_unconfigured(u32::MAX), None);
+    rows.register(1);
     rows.push(records::number(1, records::Item::User), Secret::new(Box::from([1, 9])), 4096);
     assert!(rows.forge(1).is_some());
     assert_eq!(rows.unconfigured.len(), 4);
 }
 
-/// Apply the loader's connection rule to one registered or document forge.
+/// Apply the loader's connection rule to one registered forge.
 pub(crate) fn connect(engine: &mut crate::engine::Engine, number: u16) {
     let mut configured = None;
     for forge in &engine.workers.forges {
@@ -285,8 +282,6 @@ pub(crate) fn connect(engine: &mut crate::engine::Engine, number: u16) {
         crate::forge::connect(engine, number, start);
     } else if engine.setup.records_only(number) {
         // The root restore releases Reconcile; the loader never starts it.
-    } else if let Some(host) = engine.forge.unreachable(number) {
-        // Document access and setup starts still name an unresolved host.
-        engine.notes.push(crate::Note::ForgeNotConnected { number, why: crate::NotConnected::Unreachable { host } });
+
     }
 }

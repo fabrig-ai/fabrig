@@ -177,7 +177,6 @@ pub(super) fn parse(
     at: u32,
     jig: &config::Engine,
     limits: &limits::Limits,
-    forges: &[super::Forge],
     problems: &mut Problems,
 ) -> Option<(engine::LandingPolicy, Box<[u32]>)> {
     let path = Path::root().member(b"application").member(b"landing");
@@ -198,7 +197,7 @@ pub(super) fn parse(
             let project = read::number(&mut object, document, b"project", &path, problems);
             let ats =
                 read::list(&mut object, document, b"rules", jig.limits.core.authority.requirements, &path, problems);
-            let landing = project_landing(&mut object, document, &path, &limits.forge, forges, problems);
+            let landing = project_landing(&mut object, document, &path, &limits.forge, problems);
             read::finish(object, document, &path, problems);
             if let Some(project) = project
                 && let Some(ats) = ats
@@ -411,7 +410,6 @@ fn project_landing(
     document: &Document,
     path: &Path,
     limits: &temper_engine_domain_forge::Limits,
-    forges: &[super::Forge],
     problems: &mut Problems,
 ) -> Option<engine::ProjectLanding> {
     let by = optional_word(object, document, b"by", b"queue", path, problems)?;
@@ -428,20 +426,6 @@ fn project_landing(
     for (index, at) in ats.iter().enumerate() {
         let path = read::index(&path.member(b"gates"), index);
         if let Some(checks) = repository_checks(document, *at, &path, limits, problems) {
-            let mut found = false;
-            for forge in forges {
-                if forge.number == checks.repository.forge {
-                    found = true;
-                    read::form(
-                        by != engine::Way::Turn || forge.kind != crate::settings::Kind::GitHub,
-                        path.member(b"repository"),
-                        problems,
-                    );
-                }
-            }
-            if !found {
-                problems.push(path.member(b"forge"), What::Jig(config::What::Refers));
-            }
             for previous in &repositories {
                 let previous: &engine::RepositoryChecks = previous;
                 if previous.repository == checks.repository {

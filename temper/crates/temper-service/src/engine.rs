@@ -127,7 +127,7 @@ impl Engine {
         values: crate::values::Values,
         first_periods: List<(u32, u64)>,
     ) -> Result<Self, jig_protocol_config::Problems> {
-        let forge_records = crate::forge::records::Loader::new(&children.limits, children.workers.forges.as_slice());
+        let forge_records = crate::forge::records::Loader::new(&children.limits);
         let Children { accounts, workers, mut clients, demo, forge, setup, notes, limits: own } = children;
         clients.query_bytes = own.routes.query_bytes;
         let credentials = values.identities.numbers();

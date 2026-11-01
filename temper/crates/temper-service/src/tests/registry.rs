@@ -242,56 +242,10 @@ fn records_restored_before_the_load_connect_a_forgejo_record_from_its_records() 
     let engine = service.engine.as_ref().unwrap();
     assert!(registered_before_load, "root restoration registers the forge before secrets load");
     assert!(engine.forge_records.done());
-    let (number, access) = engine.forge.starts.get(0).unwrap();
+    let (number, access) = engine.forge.starts.iter().find(|(number, _)| *number == 3).unwrap();
     assert_eq!((*number, access.user), (3, 9));
     assert_eq!(
         access.credential,
         skein_forge::credential::Credential::Token(Secret::new(b"fixture-api-token".as_slice().into()))
     );
-}
-#[test]
-fn the_document_forges_seed_the_registry_unchanged() {
-    let mut settings = fixtures::document_engine();
-    let mut second = fixtures::document_forges().into_iter().next().unwrap();
-    second.number = 2;
-    settings.forges = Box::new([settings.forges.into_iter().next().unwrap(), second]);
-    fixtures::fill_files(&mut settings);
-    let mut runtime = fixtures::forge_runtime();
-    let mut second = fixtures::forge_runtime().into_boxed().into_iter().next().unwrap();
-    second.number = 2;
-    runtime = {
-        let mut all = skein_lib::List::with_capacity(2);
-        all.push(runtime.into_boxed().into_iter().next().unwrap()).unwrap();
-        all.push(second).unwrap();
-        all
-    };
-    let mut service = crate::Service::engine(settings, &fixtures::seeds(), None, runtime).unwrap();
-    let engine = service.engine.as_mut().unwrap();
-    assert_eq!(engine.workers.forges.len(), 2);
-    for (index, number) in [(0, 1), (1, 2)] {
-        let before = engine.workers.forges.get(index).unwrap();
-        let git = before.git.clone();
-        let api = before.api.clone();
-        let token = before.api_token.clone();
-        let identity = before.identity;
-        register(
-            engine,
-            fixtures::record(
-                number,
-                Kind::GitHub,
-                Mode::Managed,
-                Api { host: b"different.example".as_slice().into(), port: 80, transport: ApiTransport::Plaintext },
-            ),
-        );
-        let after = engine.workers.forges.get(index).unwrap();
-        assert_eq!(after.number, number);
-        assert_eq!(after.git, git);
-        assert_eq!(after.api, api);
-        assert_eq!(after.api_token, token);
-        assert_eq!(after.identity, identity);
-        assert_eq!(after.mode, Mode::Managed);
-        assert_eq!(after.kind, crate::settings::Kind::Forgejo);
-    }
-    assert!(engine.records.is_empty());
-    assert!(engine.notes.is_empty());
 }

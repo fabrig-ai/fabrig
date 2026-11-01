@@ -22,7 +22,6 @@ fn started(document: &[u8]) -> Box<[u8]> {
         &fixtures::seeds(),
         None,
         fixtures::worker_runtime(),
-        fixtures::forge_runtime(),
     ) {
         Ok(service) => {
             drop(service);
@@ -85,25 +84,11 @@ fn the_hub_check_refuses_a_charter_the_engine_may_host() {
 }
 
 #[test]
-fn an_identity_past_the_accounts_credentials_refuses_the_start() {
-    let document = fixtures::with(&fixtures::document(), b"application.identities[0].number", b"4");
-    let document = fixtures::with(&document, b"application.forges[0].identity", b"4");
-    assert_eq!(
-        &*started(&document),
-        b"application.identities[0].number: must be from 1 to accounts.credentials, in engine.limits and in the worker's limits\n"
-    );
-    let document = overridden(
-        &fixtures::document(),
-        b"workers[0].limits.overrides",
-        WORKER_OVERRIDES,
-        r#""accounts.credentials":1"#,
-    );
-    let document = fixtures::with(&document, b"application.identities[0].number", b"2");
-    let document = fixtures::with(&document, b"application.forges[0].identity", b"2");
-    assert_eq!(
-        &*started(&document),
-        b"application.identities[0].number: must be from 1 to accounts.credentials, in engine.limits and in the worker's limits\n"
-    );
+fn the_machines_templates_must_fit_the_accounts_credentials() {
+    let input = fixtures::document();
+    let input = fixtures::with(&input, b"application.machine.owned", fixtures::owned_body());
+    let input = overridden(&input, b"workers[0].limits.overrides", WORKER_OVERRIDES, r#""accounts.credentials":1"#);
+    assert_eq!(started(&input).as_ref(), b"application.machine: must be from 1 to accounts.credentials, in engine.limits and in the worker's limits\n");
 }
 #[test]
 fn the_engines_repositories_below_the_checkouts_refuse_the_start() {

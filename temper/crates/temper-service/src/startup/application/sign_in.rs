@@ -1,6 +1,7 @@
 //! Members and issuer configuration (protocol/sign-in.md, 3.1).
-mod forges;
-use super::{Transport, read, resolved_transport};
+pub(crate) mod forges;
+use super::read;
+use crate::settings::Transport;
 use crate::{
     limits::SignIn as Limits,
     settings,
@@ -186,7 +187,7 @@ fn endpoints(
     let token = endpoint(document, &mut object, b"token", path, limits, problems);
     let keys = endpoint(document, &mut object, b"keys", path, limits, problems);
     let at = read::required(&mut object, document, b"transport", path, problems);
-    let transport = super::transport(document, at?, &path.member(b"transport"), problems);
+    let transport = transport(document, at?, &path.member(b"transport"), problems);
     read::finish(object, document, path, problems);
     let mut transport = transport?;
     if let Transport::Tls { trust: Some(trust), .. } = &mut transport
@@ -406,4 +407,53 @@ pub(super) fn resolve(
         members: sign_in.members.clone(),
         forges: sign_in.forges.clone(),
     })
+}
+
+pub(super) fn transport(document: &Document, at: u32, path: &Path, problems: &mut Problems) -> Option<Transport> {
+    if document.token(at)?.kind == Kind::String {
+        let value = match config::read::text(document, at, 16) {
+            Ok(value) => value,
+            Err(what) => {
+                problems.push(path.clone(), What::Jig(what));
+                return None;
+            }
+        };
+        read::form(value.as_ref() == b"plaintext", path.clone(), problems);
+        return Some(Transport::Plaintext);
+    }
+    let mut outer = read::object(document, at, path, problems)?;
+    let tls = read::required(&mut outer, document, b"tls", path, problems);
+    read::finish(outer, document, path, problems);
+    let path = path.member(b"tls");
+    let mut object = read::object(document, tls?, &path, problems)?;
+    let server_name = read::text(&mut object, document, b"server_name", &path, problems);
+    let at = read::required(&mut object, document, b"trust", &path, problems);
+    let mut trust = None;
+    if let Some(at) = at
+        && document.token(at)?.kind != Kind::Null
+    {
+        match config::read::text(document, at, 1_048_576) {
+            Ok(value) => trust = Some(value),
+            Err(what) => problems.push(path.member(b"trust"), What::Jig(what)),
+        }
+    }
+    read::finish(object, document, &path, problems);
+    Some(Transport::Tls { server_name: server_name?, trust })
+}
+fn resolved_transport(
+    transport: &Transport,
+    files: &settings::Files,
+    path: &Path,
+    problems: &mut Problems,
+) -> Transport {
+    match transport {
+        Transport::Plaintext => Transport::Plaintext,
+        Transport::Tls { server_name, trust } => {
+            let trust = match trust {
+                Some(name) => super::contents(files, name, 1_048_576, path.member(b"transport").member(b"tls").member(b"trust"), problems),
+                None => None,
+            };
+            Transport::Tls { server_name: server_name.clone(), trust }
+        }
+    }
 }

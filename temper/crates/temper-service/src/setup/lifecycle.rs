@@ -42,12 +42,6 @@ pub(super) struct Run {
 pub(super) struct Adoption {
     pub(super) next: NonZeroU64,
     pub(super) repositories: u64,
-    pub(super) files: Option<AdoptionFiles>,
-}
-#[derive(Debug)]
-pub(super) struct AdoptionFiles {
-    pub(super) admin_token: Secret,
-    pub(super) access: connection::Access,
 }
 #[derive(Debug)]
 pub(crate) struct Intent {
@@ -368,11 +362,8 @@ pub(super) fn done(engine: &mut crate::engine::Engine, token: Token, outcome: re
             adoption.next = NonZeroU64::new(adoption.next.get().checked_add(1).expect("bounded repositories"))
                 .expect("next repository");
         } else {
-            let adoption = engine.setup.lifecycle.adoptions.remove(&forge).expect("last adoption");
-            match adoption.files {
-                Some(files) => crate::forge::connect(engine, forge, Ok(crate::forge::Start::Adopted(files.access))),
-                None => connect_local(engine, forge),
-            }
+            engine.setup.lifecycle.adoptions.remove(&forge).expect("last adoption");
+            connect_local(engine, forge);
         }
     }
     if kind == Kind::Paste {
@@ -642,31 +633,11 @@ pub(crate) fn connected(engine: &mut crate::engine::Engine, forge: u16) {
         login.put(slug).expect("slug room");
         login.put(domain::BOT_LOGIN_SUFFIX).expect("suffix room");
         (id, login.finish())
-    } else if let Some(local) = engine.setup.lifecycle.local(forge) {
-        let rows = engine.forge_records.rows.forge(forge).expect("Connected has records");
-        let id =
-            skein_forge_setup::item::user(rows.get(Item::User).expect("connected User")).expect("valid User").get();
-        (id, local.bot_login.clone())
     } else {
-        let mut id = config.user;
-        if let Some(rows) = engine.forge_records.rows.forge(forge)
-            && let Ok(user) = rows.get(Item::User)
-        {
-            id = skein_forge_setup::item::user(user).expect("valid User").get();
-        }
-        let mut login: Box<[u8]> = Box::from([]);
-        if let Some(record) = engine.records.get(&forge) {
-            login.clone_from(&record.bot.login);
-        } else if let Some((_, value)) = engine.values.identities.newest(config.identity) {
-            let mut reader = skein_lib::Reader::new(value.expose());
-            let identity = temper_protocol_worker_wire::v1::Identity::decode(
-                &temper_protocol_worker_wire::v1::CEILINGS,
-                &mut reader,
-            )
-            .expect("configured identity");
-            login = Box::from(identity.login());
-        }
-        (id, login)
+        let rows = engine.forge_records.rows.forge(forge).expect("Connected has records");
+        let id = skein_forge_setup::item::user(rows.get(Item::User).expect("connected User")).expect("valid User").get();
+        let record = engine.records.get(&forge).expect("registered Forgejo");
+        (id, record.bot.login.clone())
     };
     state(engine, forge, domain::Connection::Connected { id, login });
     if github {
@@ -880,9 +851,12 @@ pub(crate) fn restored(engine: &mut crate::engine::Engine) {
     engine.setup.lifecycle.restored = true;
 }
 fn local_stopped(engine: &mut crate::engine::Engine, forge: u16, why: crate::SetupStopped) {
+    let owned = match engine.records.get(&forge) { Some(record) => record.mode == domain::Mode::Owned, None => false };
     let local = engine.setup.lifecycle.local_mut(forge).expect("local failure");
     local.handover = None;
     let connection = match local.trigger {
+        Trigger::Start if why == crate::SetupStopped::NotPrepared
+            && owned => domain::Connection::NotSetUp,
         Trigger::Start => domain::Connection::NotConnected,
         Trigger::StartAsked if why == crate::SetupStopped::NotPrepared => domain::Connection::NotSetUp,
         Trigger::StartDemo | Trigger::StartAsked | Trigger::Asked => {
@@ -912,7 +886,14 @@ fn start_local(engine: &mut crate::engine::Engine, forge: u16) {
     let local = engine.setup.lifecycle.local_mut(forge).expect("local start");
     assert!(local.source != Source::Managed || local.handover.is_none(), "managed string form never stages TakeOver");
     local.pending = false;
-    if local.trigger == Trigger::StartDemo {
+    if local.trigger == Trigger::StartAsked && local.handover.is_none() {
+        let prepared = match engine.forge_records.rows.forge(forge) { Some(rows) => rows.has(Item::AdminToken), None => false };
+        if !prepared {
+            state(engine, forge, domain::Connection::NotSetUp);
+            return;
+        }
+    }
+    if engine.setup.lifecycle.local(forge).expect("local start").trigger == Trigger::StartDemo {
         state(engine, forge, domain::Connection::NotSetUp);
         return;
     }
@@ -1031,9 +1012,6 @@ fn adoption_repository(engine: &mut crate::engine::Engine, forge: u16) -> Option
         return None;
     }
     let adoption = engine.setup.lifecycle.adoptions.get(&forge).expect("pending adoption");
-    if adoption.files.is_some() {
-        return Some(adoption.next);
-    }
     let adopted = engine.domain.adopted_ids(forge);
     for id in adoption.next.get()..=adoption.repositories {
         if !adopted.contains(&id) {
@@ -1148,7 +1126,7 @@ fn adopt_local(engine: &mut crate::engine::Engine, forge: u16) {
         .setup
         .lifecycle
         .adoptions
-        .insert(forge, Adoption { next: NonZeroU64::new(1).expect("first repository"), repositories, files: None })
+        .insert(forge, Adoption { next: NonZeroU64::new(1).expect("first repository"), repositories })
         .expect("one adoption per local fake");
 }
 pub(super) fn connect_local(engine: &mut crate::engine::Engine, forge: u16) {
@@ -1549,7 +1527,7 @@ pub(crate) fn test_unregister(engine: &mut crate::engine::Engine, forge: u16) {
         let lifecycle = &mut engine.setup.lifecycle;
         lifecycle
             .adoptions
-            .insert(number, Adoption { next: NonZeroU64::new(1).unwrap(), repositories: 1, files: None })
+            .insert(number, Adoption { next: NonZeroU64::new(1).unwrap(), repositories: 1 })
             .unwrap();
         lifecycle.reconcile.insert(number, Reconcile::GitHub).unwrap();
         lifecycle.deleting.insert(number, ()).unwrap();

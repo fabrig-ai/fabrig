@@ -332,7 +332,7 @@ fn checked_peers(dirs: &Directories, bytes: &[u8]) -> Result<Peers, String> {
 fn validate(dirs: &Directories, bytes: &[u8], expected: &Path) -> Result<(), String> {
     let deployment = crate::setup::check(bytes, &dirs.jig())?;
     let named = &deployment.named;
-    for file in named.files.iter().chain(&named.asked_files) {
+    for file in &named.files {
         if !(contained(&dirs.config, &file.path) && !file.private || contained(&dirs.data, &file.path)) {
             return Err(format!(
                 "{}: effective resource must stay under its sandbox config/data",

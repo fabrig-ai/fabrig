@@ -1591,7 +1591,7 @@ fn qa_uninstalled_store() -> crate::store::Store {
         kept_record(&mut store, 1, item, &value);
     }
     let config = github_config(8, Duration::from_secs(3600), None);
-    let origin = records::origin(connection::settings::Kind::GitHub, &config.forges[0].api).encode();
+    let origin = records::origin(connection::settings::Kind::GitHub, &crate::forges::settings(&config.machine.github).api).encode();
     kept_record(&mut store, 1, Item::Origin, &origin);
     store
 }

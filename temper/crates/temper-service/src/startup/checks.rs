@@ -212,18 +212,15 @@ pub fn provider(engine: &config::Engine, problems: &mut Problems) {
 pub fn credentials(
     engine: &config::Engine,
     workers: &[config::Worker],
-    identities: &[super::Identity],
+    machine: &temper_engine_domain_forge::Machine,
     problems: &mut Problems,
 ) {
     let mut bound = engine.limits.core.accounts.credentials;
     for worker in workers {
         bound = bound.min(worker.limits.core.accounts.credentials);
     }
-    for (index, identity) in identities.iter().enumerate() {
-        if identity.number == 0 || identity.number > bound {
-            let path = at(index, Path::root().member(b"application").member(b"identities"));
-            problems.push(path.member(b"number"), What::Credentials);
-        }
+    if templates(machine).len() > bound {
+        problems.push(Path::root().member(b"application").member(b"machine"), What::Credentials);
     }
 }
 /// Check the optional listener and the secret paths that require it.
@@ -238,12 +235,6 @@ pub fn webhooks(members: &super::application::Members, problems: &mut Problems) 
             }
             config::Address::Addr(_) | config::Address::Host { .. } => {
                 problems.push(path.member(b"webhooks").member(b"listener"), What::Loopback);
-            }
-        }
-    } else {
-        for (index, forge) in members.forges.iter().enumerate() {
-            if forge.webhook_secret.is_some() {
-                problems.push(at(index, path.member(b"forges")).member(b"webhook_secret"), What::NoWebhooks);
             }
         }
     }
@@ -325,9 +316,9 @@ pub fn limits(limits: &limits::Limits, git: &temper_worker_protocol_git::Limits,
     }
 }
 /// The longest routed remote: base, two separators, owner, name and `.git`.
-pub fn longest_remote(forges: &[settings::Forge], name_bytes: u32) -> Option<u64> {
+pub fn longest_remote(machine: &temper_engine_domain_forge::Machine, name_bytes: u32) -> Option<u64> {
     let mut base = 0;
-    for forge in forges {
+    for forge in [machine.owned.as_ref(), Some(&machine.github), machine.playground.as_ref()].into_iter().flatten() {
         base = base.max(u64::try_from(forge.git.len()).ok()?);
     }
     remote(base, name_bytes)
@@ -390,12 +381,12 @@ fn bounded(bounds: &payload::Bounds, engine: bool, problems: &mut Problems) -> O
 pub fn channel(
     engine: Option<&payload::Bounds>,
     worker: Option<&payload::Bounds>,
-    forges: &[settings::Forge],
+    machine: &temper_engine_domain_forge::Machine,
     limits: &limits::Limits,
     problems: &mut Problems,
 ) {
     if engine.is_some() {
-        names(longest_remote(forges, limits.forge.name_bytes), limits, problems);
+        names(longest_remote(machine, limits.forge.name_bytes), limits, problems);
     }
     // The engine's terms take the smaller of the two repository bounds
     // (translate::limits), so a checkout's larger one makes the worker's
@@ -443,10 +434,10 @@ pub fn channel(
     }
 }
 /// The identity's complete encoded value must fit one grant.
-pub fn identities(identities: &[settings::Identity], limits: &payload::v1::Limits, problems: &mut Problems) {
-    for (index, identity) in identities.iter().enumerate() {
-        let path = at(index, Path::root().member(b"application").member(b"identities"));
-        match crate::translate::identity(identity, limits) {
+pub fn identities(machine: &temper_engine_domain_forge::Machine, limits: &payload::v1::Limits, problems: &mut Problems) {
+    for (record, path) in templates(machine).into_boxed() {
+        let identity = crate::forges::identity(record);
+        match crate::translate::identity(&identity, limits) {
             Ok(value) => {
                 let bytes = u64::try_from(value.expose().len()).expect("bounded identity");
                 let bound = u64::from(jig_protocol_worker_wire::CEILINGS.application_value_secret);
@@ -664,20 +655,20 @@ pub fn root(
     problems: &mut Problems,
 ) {
     let landing = landing_config(engine);
-    let (forge, identities) = crate::forge::config(engine, seeds.deployment);
+    let forge = crate::forge::config(seeds.deployment);
     let config = domain::Config {
         machine: engine.machine.clone(),
         period_span: crate::stock::PERIOD_SPAN,
         demo: match &engine.demo {
-            Some(demo) => Some(demo.domain(&engine.forges, &engine.machine, engine.limits.setup.deadline)),
+            Some(demo) => Some(demo.domain(&engine.machine, engine.limits.setup.deadline)),
             None => None,
         },
         core,
         landing,
         forge,
-        identities,
+        identities: Box::new([]),
         forge_charter: engine.charter,
-        forges: super::application::configured(engine),
+        forges: Box::new([]),
         under_box: false,
     };
     let mut numbers = List::with_capacity(engine.jig.limits.core.authority.projects);
@@ -1020,15 +1011,10 @@ pub(super) fn raw_worker(document: &skein_json::Document, at: u32, path: &Path, 
 /// Encoded active writes; `AppId`/`User` are 9 bytes, dominated by admitted `AppKey`.
 pub(crate) fn record_writes(
     limits: &limits::Limits,
-    forges: &[super::application::Forge],
     machine: &temper_engine_domain_forge::Machine,
 ) -> List<(Option<u64>, &'static [u8], Option<usize>)> {
     use temper_protocol_records as records;
-    let capacity = u32::try_from(forges.len())
-        .expect("bounded configured forges")
-        .checked_add(8)
-        .expect("five scalars and three templates");
-    let mut writes = List::with_capacity(capacity);
+    let mut writes = List::with_capacity(8);
     let accepted = match u64::from(limits.forges.installations).checked_mul(8) {
         Some(bytes) => bytes.checked_add(7),
         None => None,
@@ -1043,24 +1029,6 @@ pub(crate) fn record_writes(
         (u64::from(limits.forge.name_bytes).checked_add(7), b"AppSlug (forge.name_bytes)"),
     ] {
         writes.push((bytes, source, None)).expect("five scalar writes");
-    }
-    for (index, forge) in forges.iter().enumerate() {
-        // Already refused by application::forge_endpoint; never encode its socket.
-        if let config::Address::Addr(Addr::InProcess(_)) = &forge.api {
-            continue;
-        }
-        let kind = match forge.kind {
-            settings::Kind::Forgejo => skein_forge_connection::settings::Kind::Forgejo,
-            settings::Kind::GitHub => skein_forge_connection::settings::Kind::GitHub,
-        };
-        let origin = records::origin(kind, &forge.api).encode();
-        writes
-            .push((
-                u64::try_from(records::encode(records::Item::Origin, &origin).expect("configured origin").len()).ok(),
-                b"Origin",
-                Some(index),
-            ))
-            .expect("configured origins");
     }
     for record in [machine.owned.as_ref(), Some(&machine.github), machine.playground.as_ref()].into_iter().flatten() {
         let origin = template_origin(record).encode();
@@ -1108,7 +1076,6 @@ fn template_origin(record: &temper_engine_domain_forge::ForgeRecord) -> temper_p
 pub fn records(
     jig: &config::Engine,
     limits: &limits::Limits,
-    forges: &[super::application::Forge],
     machine: &temper_engine_domain_forge::Machine,
     problems: &mut Problems,
 ) {
@@ -1166,19 +1133,14 @@ pub fn records(
         }
     }
     let mut largest = (0, b"AppKey (forge_component.key_bytes)".as_slice(), None);
-    for (bytes, source, index) in record_writes(limits, forges, machine).into_boxed() {
+    for (bytes, source, index) in record_writes(limits, machine).into_boxed() {
         if bytes.unwrap_or(u64::MAX) > largest.0 {
             largest = (bytes.unwrap_or(u64::MAX), source, index);
         }
     }
     if u64::from(value) < largest.0 {
         against(problems, b"records.value_bytes", largest.1);
-        if let Some(index) = largest.2 {
-            problems.push(
-                at(index, Path::root().member(b"application").member(b"forges")).member(b"api"),
-                What::Against { other: b"Origin (records.value_bytes)" },
-            );
-        }
+
     }
     // Every observed installation must fit the deployment's client document (client/README.md, 4.6).
     let bound = temper_client_protocol_wire::INSTALLATIONS;
@@ -1233,4 +1195,19 @@ pub(crate) fn membership(problem: fleet::WorkerProblem) -> (Path, config::What) 
             (hosts.child(Segment::Index(worker)).member(b"name"), config::What::Bound)
         }
     }
+}
+
+fn templates(machine: &temper_engine_domain_forge::Machine) -> List<(&temper_engine_domain_forge::ForgeRecord, Path)> {
+    let application = Path::root().member(b"application");
+    let mut records = List::with_capacity(3);
+    for (record, path) in [
+        (machine.owned.as_ref(), application.member(b"machine").member(b"owned")),
+        (Some(&machine.github), application.member(b"machine").member(b"github")),
+        (machine.playground.as_ref(), application.member(b"demo").member(b"forge")),
+    ] {
+        if let Some(record) = record {
+            records.push((record, path)).expect("three templates");
+        }
+    }
+    records
 }

@@ -1,5 +1,6 @@
 //! Machine forge templates (temper/docs/design/draft/playground-reset.md, 3).
-use super::{Problems, Transport, What, read};
+use super::{Problems, What, read, sign_in::transport};
+use crate::settings::Transport;
 use alloc::boxed::Box;
 use jig_protocol_config::{self as config, Path};
 use skein_json::{Document, document::Kind, writer};
@@ -170,9 +171,9 @@ fn github(
     let transport = if document.token(at)?.kind == Kind::Null {
         Transport::Tls { server_name: b"api.github.com".as_slice().into(), trust: None }
     } else {
-        super::transport(document, at, &path.member(b"transport"), problems)?
+        transport(document, at, &path.member(b"transport"), problems)?
     };
-    super::forge_endpoint(&api, &transport, path, problems);
+    forge_endpoint(&api, &transport, path, problems);
     let (host, port) = match api {
         config::Address::Host { name, port } => (name, port),
         config::Address::Addr(skein_io::Addr::Ip(socket)) => {
@@ -209,4 +210,23 @@ fn github(
     }
     read::finish(object, document, path, problems);
     Some(record)
+}
+
+fn forge_endpoint(api: &config::Address, transport: &Transport, path: &Path, problems: &mut Problems) {
+    match api {
+        config::Address::Addr(skein_io::Addr::InProcess(_)) => read::form(false, path.member(b"api"), problems),
+        config::Address::Addr(skein_io::Addr::Ip(_)) | config::Address::Host { .. } => {}
+    }
+    match transport {
+        Transport::Plaintext => {
+            let loopback = match api {
+                config::Address::Addr(skein_io::Addr::Ip(socket)) => socket.ip().is_loopback(),
+                config::Address::Addr(skein_io::Addr::InProcess(_)) | config::Address::Host { .. } => false,
+            };
+            if !loopback {
+                problems.push(path.member(b"transport"), What::Loopback);
+            }
+        }
+        Transport::Tls { .. } => {}
+    }
 }

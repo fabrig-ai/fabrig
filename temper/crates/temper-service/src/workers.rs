@@ -512,7 +512,7 @@ pub fn limits(settings: &crate::settings::Engine) -> Option<kit::Limits> {
         models: ceilings.bounds_models,
         workstreams: core.fleet.workstreams,
         accounts: core.accounts.accounts,
-        credentials: u32::try_from(settings.identities.len()).ok()?,
+        credentials: core.accounts.credentials,
         facts: link.facts,
     };
     let limits = kit::Limits {
@@ -564,10 +564,7 @@ impl Workers {
                 })
                 .expect("endpoint count");
         }
-        let mut forges = List::with_capacity(settings.limits.forge_component.forges);
-        for forge in core::mem::replace(&mut settings.forges, Box::new([])) {
-            forges.push(forge).expect("checked forge capacity");
-        }
+        let forges = List::with_capacity(settings.limits.forge_component.forges);
         let workers = Self::new(
             &settings.jig,
             &settings.files,

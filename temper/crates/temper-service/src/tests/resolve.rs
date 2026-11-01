@@ -171,10 +171,10 @@ fn the_loader_waits_for_an_outstanding_resolve_then_connects_from_records() {
         fixtures::turn(&mut service);
     }
     assert!(!service.engine.as_ref().unwrap().forge_records.done());
-    assert!(service.engine.as_ref().unwrap().forge.starts.is_empty());
+    assert!(service.engine.as_ref().unwrap().forge.starts.iter().all(|(number, _)| *number != FORGE));
     assert!(service.take_resolve().is_none());
     service.resolved(FORGE, Ok(answer()));
-    assert!(service.engine.as_ref().unwrap().forge.starts.is_empty(), "the loader owns the initial connect");
+    assert!(service.engine.as_ref().unwrap().forge.starts.iter().all(|(number, _)| *number != FORGE), "the loader owns the initial connect");
     for _ in 0..TURNS {
         fixtures::turn(&mut service);
         if service.engine.as_ref().unwrap().forge_records.done() {
@@ -183,8 +183,8 @@ fn the_loader_waits_for_an_outstanding_resolve_then_connects_from_records() {
     }
     let engine = service.engine.as_ref().unwrap();
     assert!(engine.forge_records.done());
-    assert_eq!(engine.forge.starts.len(), 1);
-    assert_eq!(engine.forge.starts.get(0).unwrap().1.user, 9);
+    assert_eq!(engine.forge.starts.iter().filter(|(number, _)| *number == FORGE).count(), 1);
+    assert_eq!(engine.forge.starts.iter().find(|(number, _)| *number == FORGE).unwrap().1.user, 9);
     assert_eq!(unreachable_notes(&mut service), 0);
 }
 #[test]

@@ -37,9 +37,6 @@ pub fn assignment(assignment: &engine::Assignment) -> (host::Assignment, wire::W
         git_program: None,
         web: None,
         app_read_only: false,
-        api_token: Some(Secret::new(Box::new([]))),
-        webhook_secret: None,
-        user: 1,
         identity: 1,
     }];
     let items = translate::items(assignment, &forges, &temper_service::forge::tokens::Tokens::empty(), &v1::CEILINGS)

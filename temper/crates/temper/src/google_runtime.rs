@@ -17,13 +17,13 @@ pub(super) fn resolve(sign_in: Option<&service::startup::SignIn>) -> Result<Runt
             .next()
             .ok_or_else(|| format!("{field}: {hostname}: no addresses"))?;
         let transport = match &sign_in.endpoints.transport {
-            Some(service::startup::Transport::Plaintext) => {
+            Some(service::settings::Transport::Plaintext) => {
                 if tls || !address.ip().is_loopback() {
                     return Err(format!("{field}: plaintext requires loopback"));
                 }
                 Transport::Plaintext
             }
-            Some(service::startup::Transport::Tls { server_name: name, trust: file }) => {
+            Some(service::settings::Transport::Tls { server_name: name, trust: file }) => {
                 let trust = trust(file.as_deref()).map_err(|why| format!("{field}.transport: {why}"))?;
                 Transport::Tls {
                     server_name: server_name(name)

@@ -32,7 +32,6 @@ pub(crate) fn seed_tables(service: &mut crate::Service, forge: u16) {
         let token = Token::new(u64::from(number).checked_add(100).unwrap());
         layer.staged.insert(token, host::Plan::Install { forge: number }).unwrap();
         layer.public.insert(token, public::Caller::Install { forge: number, request: token, back: None }).unwrap();
-        layer.file_api.insert(number, Secret::new(b"fixture-api".as_slice().into())).unwrap();
         layer.pastes.insert(u64::from(number), number).unwrap();
         layer.erases.insert(token, number).unwrap();
         layer.backs.push(public::ReturnTo {
@@ -58,10 +57,8 @@ pub(crate) fn removed(service: &crate::Service, forge: u16) {
     let layer = &service.engine.as_ref().unwrap().setup;
     assert!(!layer.served.contains_key(&forge));
     assert!(!layer.unserved.contains_key(&forge));
-    assert!(!layer.file_api.contains_key(&forge));
     assert!(!layer.lifecycle.reconcile.contains_key(&forge));
     assert!(layer.lifecycle.reconcile.contains_key(&2));
-    assert!(layer.file_api.contains_key(&2));
     for (_, run) in &layer.runs {
         assert_ne!(run.forge, forge);
     }
@@ -108,7 +105,7 @@ pub(crate) fn handover(service: &mut crate::Service) -> crate::HandoverRead {
 }
 pub(crate) fn setup_service(config: crate::settings::Engine, store: crate::store::Store) -> crate::Service {
     let io = config.jig.limits.io;
-    let forges = crate::forge::prepare(&config, skein_lib::List::with_capacity(0)).unwrap();
+    let forges = crate::forge::prepare(&config).unwrap();
     let mut service = crate::Service::prepared(config, &fixtures::seeds(), None, forges, None, io, Some(128)).unwrap();
     service.engine.as_mut().unwrap().store = store;
     service

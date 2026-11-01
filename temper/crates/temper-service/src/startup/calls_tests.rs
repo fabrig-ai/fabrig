@@ -52,7 +52,6 @@ fn omitted_call_answers_reach_the_core_store_and_both_wire_sides() {
             &fixtures::files(),
             Some(&agent),
             &fixtures::seeds(),
-            fixtures::forge_runtime(),
             None,
         )
         .unwrap();
@@ -71,7 +70,6 @@ fn omitted_call_answers_reach_the_core_store_and_both_wire_sides() {
             &fixtures::seeds(),
             None,
             fixtures::worker_runtime(),
-            fixtures::forge_runtime(),
         )
         .unwrap();
         let engine = service.engine.as_ref().unwrap();
@@ -86,7 +84,6 @@ fn omitted_call_answers_reach_the_core_store_and_both_wire_sides() {
             &agent,
             &fixtures::seeds(),
             None,
-            fixtures::forge_runtime(),
             None,
         )
         .unwrap();
@@ -119,7 +116,7 @@ fn worker_only_runtime_and_checks_use_the_same_composed_limits() {
         agent.tool_payload = 40_960;
         let part = worker_part(&input, &directories).unwrap();
         let service = worker_alone(part, &fixtures::files(), &agent, fixtures::worker_runtime(), 7).unwrap();
-        check(&input, &directories, &fixtures::files(), &agent, &fixtures::seeds(), None, List::with_capacity(0), None)
+        check(&input, &directories, &fixtures::files(), &agent, &fixtures::seeds(), None, None)
             .unwrap();
         assert!(service.engine.is_none());
         let mut part = worker_part(&input, &directories).unwrap();
@@ -156,7 +153,6 @@ fn standalone_refusals(input: &[u8], agent: &settings::Agent) -> [Problems; 3] {
             &fixtures::seeds(),
             None,
             fixtures::worker_runtime(),
-            fixtures::forge_runtime(),
         )
         .err()
         .unwrap(),
@@ -168,7 +164,6 @@ fn standalone_refusals(input: &[u8], agent: &settings::Agent) -> [Problems; 3] {
             agent,
             &fixtures::seeds(),
             None,
-            fixtures::forge_runtime(),
             None,
         )
         .unwrap_err(),
@@ -187,7 +182,7 @@ fn worker_refusals(input: &[u8], agent: &settings::Agent) -> [Problems; 2] {
         )
         .err()
         .unwrap(),
-        check(input, &directories, &fixtures::files(), agent, &fixtures::seeds(), None, List::with_capacity(0), None)
+        check(input, &directories, &fixtures::files(), agent, &fixtures::seeds(), None, None)
             .unwrap_err(),
     ]
 }
@@ -212,7 +207,6 @@ fn core_answer_floor(engine: bool) {
         &fixtures::seeds(),
         None,
         fixtures::worker_runtime(),
-        fixtures::forge_runtime(),
     )
     .unwrap();
     assert_eq!(service.engine.as_ref().unwrap().env.limits.call_answer_bytes, 2048);
@@ -264,7 +258,6 @@ fn a_local_agents_tool_payload_must_hold_the_documentation_answer() {
         &fixtures::seeds(),
         None,
         fixtures::worker_runtime(),
-        fixtures::forge_runtime(),
     )
     .unwrap();
     worker_alone(
@@ -325,7 +318,6 @@ fn explicit_short_call_inputs_refuse_every_standalone_entrance() {
                 &fixtures::seeds(),
                 None,
                 fixtures::worker_runtime(),
-                fixtures::forge_runtime(),
             )
             .err()
             .unwrap(),
@@ -337,7 +329,6 @@ fn explicit_short_call_inputs_refuse_every_standalone_entrance() {
                 &agent,
                 &fixtures::seeds(),
                 None,
-                fixtures::forge_runtime(),
                 None,
             )
             .unwrap_err(),
@@ -384,7 +375,6 @@ fn explicit_short_call_inputs_refuse_every_worker_only_entrance() {
                 &agent,
                 &fixtures::seeds(),
                 None,
-                List::with_capacity(0),
                 None,
             )
             .unwrap_err(),
@@ -409,7 +399,6 @@ fn an_engine_without_a_local_agent_keeps_its_explicit_call_bound() {
             &fixtures::files(),
             Some(&agent),
             &fixtures::seeds(),
-            fixtures::forge_runtime(),
             None,
         )
         .unwrap();

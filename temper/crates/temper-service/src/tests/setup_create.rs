@@ -229,8 +229,6 @@ impl Forge {
 }
 fn configured(forge: &Forge) -> crate::Service {
     let mut config = local_config(true, false);
-    config.setup[0].entry.asked = true;
-    config.setup[0].entry.orgs = Box::new([]);
     config.webhooks =
         Some(skein_forge_connection::hooks::Webhooks { listener: skein_io::Addr::Ip(([127, 0, 0, 1], 7101).into()) });
     let mut store = fixtures::records_store();
@@ -243,10 +241,12 @@ fn configured(forge: &Forge) -> crate::Service {
         kept_record(&mut store, 1, item, bytes);
     }
     kept_record(&mut store, 1, Item::User, &forge.service.setup().find(b"temper").unwrap().id.to_le_bytes());
+    let service_record = config.machine.owned.clone().unwrap();
     let io = config.jig.limits.io;
-    let endpoints = crate::forge::prepare(&config, fixtures::forge_runtime()).unwrap();
+    let endpoints = crate::forge::prepare(&config).unwrap();
     let mut service =
         crate::Service::prepared(config, &fixtures::seeds(), None, endpoints, None, io, Some(256)).unwrap();
+    fixtures::register_forges(&mut service, &[service_record]);
     service.engine.as_mut().unwrap().store = store;
     service.engine.as_mut().unwrap().box_link = crate::route::box_link::Link::new(256, true, 4);
     service.engine.as_mut().unwrap().setup.lifecycle.local_mut(1).unwrap().pending = false;

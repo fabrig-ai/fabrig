@@ -683,7 +683,6 @@ pub(crate) fn service(inherited: &Inherited) -> Proc {
         &fixtures::seeds(),
         None,
         Some(temper_service::WorkerRuntime { root: worker, path: b"/worker".as_slice().into() }),
-        skein_lib::List::with_capacity(0),
         None,
         None,
         &stories::given(&serde_json::from_slice(&fixtures::document()).expect("deployment JSON")),

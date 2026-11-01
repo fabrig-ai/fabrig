@@ -3,24 +3,13 @@ pub(crate) mod records;
 pub mod tokens;
 use crate::{limits, settings};
 use alloc::boxed::Box;
-use jig_protocol_config::{Path, Problems, Segment, What};
+use jig_protocol_config::{Path, Problems, What};
 use skein_lib::{Duration, Env, List, Map, Queue, Time, Wall};
 use temper_engine_domain as root;
 use temper_engine_domain_forge as forge;
 
 /// The domain's ended forges gate service paths (draft playground-reset.md, 4).
 pub(crate) fn ended(engine: &crate::engine::Engine, forge: u16) -> bool {
-    // Document forges retain the demo gate until startup accepts records alone.
-    if !engine.records.contains_key(&forge) {
-        for configured in &engine.workers.forges {
-            if configured.number == forge {
-                return match &engine.demo {
-                    Some(demo) => demo.forge == forge && demo.state == Some(forge::DemoState::Ended),
-                    None => false,
-                };
-            }
-        }
-    }
     engine.domain.forge_ended(forge)
 }
 
@@ -33,102 +22,12 @@ const WORD: &[u8] = b"temper";
 /// `forge::connect` and the setup gate refuse a held forge before either component is asked.
 pub const HELD_ADDRESS: core::net::SocketAddr =
     core::net::SocketAddr::V4(core::net::SocketAddrV4::new(core::net::Ipv4Addr::LOCALHOST, 0));
-fn held(api: &jig_protocol_config::Address, address: core::net::SocketAddr) -> bool {
-    match api {
-        jig_protocol_config::Address::Host { .. } => address == HELD_ADDRESS,
-        jig_protocol_config::Address::Addr(_) => false,
-    }
-}
 /// A forge's endpoint and TLS transport, supplied by the shell; an unresolved host uses [`HELD_ADDRESS`].
 #[derive(Debug)]
 pub struct ForgeRuntime {
     pub number: u16,
     pub address: core::net::SocketAddr,
     pub transport: skein_forge_connection::settings::Transport,
-}
-/// Pair the configuration and shell endpoints by forge number.
-pub fn settings(
-    forges: &[settings::Forge],
-    runtime: List<ForgeRuntime>,
-    webhooks: Option<skein_forge_connection::hooks::Webhooks>,
-    found: &mut Problems,
-) -> Option<skein_forge_connection::settings::Settings> {
-    let mut endpoints = List::with_capacity(runtime.len());
-    for endpoint in runtime.into_boxed() {
-        endpoints.push(Some(endpoint)).expect("runtime capacity");
-    }
-    let mut configured = List::with_capacity(u32::try_from(forges.len()).expect("configured forges"));
-    for (index, forge) in forges.iter().enumerate() {
-        let mut endpoint = None;
-        for at in 0..endpoints.len() {
-            let candidate = endpoints.get_mut(at).expect("runtime entry");
-            if let Some(value) = candidate.as_ref()
-                && value.number == forge.number
-            {
-                endpoint = candidate.take();
-                break;
-            }
-        }
-        let path = forge_path(u32::try_from(index).expect("forge index")).member(b"api");
-        let Some(endpoint) = endpoint else {
-            found.push(path, What::Refers);
-            continue;
-        };
-        let name = match &forge.api {
-            jig_protocol_config::Address::Host { name, .. } => Some(name.clone()),
-            jig_protocol_config::Address::Addr(skein_io::Addr::Ip(_)) => None,
-            jig_protocol_config::Address::Addr(skein_io::Addr::InProcess(_)) => {
-                found.push(path, What::Plaintext);
-                continue;
-            }
-        };
-        let transport = match endpoint.transport {
-            skein_forge_connection::settings::Transport::Plaintext { .. } => {
-                skein_forge_connection::settings::Transport::Plaintext { name }
-            }
-            transport @ skein_forge_connection::settings::Transport::Tls { .. } => transport,
-        };
-        configured
-            .push(skein_forge_connection::settings::Forge {
-                number: forge.number,
-                kind: match forge.kind {
-                    settings::Kind::Forgejo => skein_forge_connection::settings::Kind::Forgejo,
-                    settings::Kind::GitHub => skein_forge_connection::settings::Kind::GitHub,
-                },
-                address: skein_io::Addr::Ip(endpoint.address),
-                transport,
-                access: if held(&forge.api, endpoint.address) { None } else { file_access(forge) },
-                log_origins: List::with_capacity(0),
-            })
-            .expect("configured forge capacity");
-    }
-    for (index, endpoint) in endpoints.iter().enumerate() {
-        if endpoint.is_some() {
-            found.push(forge_path(u32::try_from(index).expect("runtime index")).member(b"api"), What::Refers);
-        }
-    }
-    if found.is_empty() {
-        Some(skein_forge_connection::settings::Settings {
-            forges: configured,
-            webhooks,
-            word: Box::from(WORD),
-            user_agent: Box::from(USER_AGENT.as_bytes()),
-        })
-    } else {
-        None
-    }
-}
-// Transitional Forgejo files; temper-15 replaces them with records.
-fn file_access(forge: &settings::Forge) -> Option<skein_forge_connection::Access> {
-    let token = forge.api_token.as_ref()?;
-    Some(skein_forge_connection::Access {
-        credential: skein_forge::credential::Credential::Token(token.clone()),
-        user: forge.user,
-        webhook_secret: forge.webhook_secret.clone(),
-    })
-}
-fn forge_path(index: u32) -> Path {
-    Path::root().member(b"application").member(b"forges").child(Segment::Index(index))
 }
 /// Limits shared with the domain client and io.
 #[must_use]
@@ -233,21 +132,9 @@ impl Layer {
         settings: skein_forge_connection::settings::Settings,
         limits: skein_forge_connection::Limits,
         shared: &skein_forge_connection::Shared,
-        configured: &[settings::Forge],
     ) -> Result<Self, skein_forge_connection::Unusable> {
-        let mut held_hosts = Map::with_capacity(limits.forges);
-        for endpoint in &settings.forges {
-            for forge in configured {
-                if endpoint.number == forge.number
-                    && endpoint.address == skein_io::Addr::Ip(HELD_ADDRESS)
-                    && let jig_protocol_config::Address::Host { name, .. } = &forge.api
-                {
-                    held_hosts.insert(forge.number, name.clone()).expect("configured held forge");
-                }
-            }
-        }
         Ok(Self {
-            held: held_hosts,
+            held: Map::with_capacity(limits.forges),
             endpoints: Map::with_capacity(limits.forges),
             component: skein_forge_connection::Component::new(settings, &limits, shared)?,
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
@@ -487,72 +374,42 @@ pub(crate) fn tag(mut request: skein_io::Request) -> skein_io::Request {
     request
 }
 
-pub(crate) fn indexed(
-    unusable: skein_forge_connection::Unusable,
-    forges: &[settings::Forge],
-) -> skein_forge_connection::Unusable {
-    let mut unusable = unusable;
-    if let skein_forge_connection::Unusable::Duplicate { forge }
-    | skein_forge_connection::Unusable::Number { forge }
-    | skein_forge_connection::Unusable::Secret { forge }
-    | skein_forge_connection::Unusable::Key { forge }
-    | skein_forge_connection::Unusable::Token { forge }
-    | skein_forge_connection::Unusable::Credential { forge }
-    | skein_forge_connection::Unusable::User { forge }
-    | skein_forge_connection::Unusable::PlaintextName { forge }
-    | skein_forge_connection::Unusable::Request { forge }
-    | skein_forge_connection::Unusable::Origin { forge, .. }
-    | skein_forge_connection::Unusable::LogOrigins { forge, .. }
-    | skein_forge_connection::Unusable::Address { forge } = &mut unusable
-    {
-        for (index, configured) in forges.iter().enumerate() {
-            if configured.number == *forge {
-                *forge = u16::try_from(index).expect("bounded forge index");
-                break;
-            }
+pub(crate) fn prepare(config: &settings::Engine) -> Result<skein_forge_connection::settings::Settings, Problems> {
+    let prepared = skein_forge_connection::settings::Settings {
+        forges: List::with_capacity(config.limits.forge_component.forges),
+        webhooks: config.webhooks.clone(),
+        word: Box::from(WORD),
+        user_agent: Box::from(USER_AGENT.as_bytes()),
+    };
+    for record in [config.machine.owned.as_ref(), Some(&config.machine.github), config.machine.playground.as_ref()].into_iter().flatten() {
+        let mut checking = skein_forge_connection::settings::Settings {
+            forges: List::with_capacity(1), webhooks: config.webhooks.clone(),
+            word: Box::from(WORD), user_agent: Box::from(USER_AGENT.as_bytes()),
+        };
+        checking.forges.push(skein_forge_connection::settings::Forge {
+            number: 1,
+            kind: match record.kind { forge::Kind::Forgejo => skein_forge_connection::settings::Kind::Forgejo, forge::Kind::GitHub => skein_forge_connection::settings::Kind::GitHub },
+            address: skein_io::Addr::Ip(HELD_ADDRESS),
+            transport: skein_forge_connection::settings::Transport::Plaintext { name: Some(record.api.host.clone()) },
+            access: None, log_origins: List::with_capacity(0),
+        }).expect("one template");
+        if let Err(why) = skein_forge_connection::limits::check(&config.limits.forge_component, &shared(&config.limits, &config.jig.limits.io), &checking) {
+            let mut found = Problems::empty();
+            problems(why, &mut found);
+            return Err(found);
         }
-    }
-    unusable
-}
-
-pub(crate) fn prepare(
-    config: &settings::Engine,
-    runtime: List<ForgeRuntime>,
-) -> Result<skein_forge_connection::settings::Settings, Problems> {
-    let mut found = Problems::empty();
-    let prepared = settings(&config.forges, runtime, config.webhooks.clone(), &mut found).ok_or(found)?;
-    if let Err(why) = skein_forge_connection::limits::check(
-        &config.limits.forge_component,
-        &shared(&config.limits, &config.jig.limits.io),
-        &prepared,
-    ) {
-        let mut found = Problems::empty();
-        problems(indexed(why, &config.forges), &mut found);
-        return Err(found);
     }
     Ok(prepared)
 }
 
-pub(crate) fn config(
-    settings: &settings::Engine,
-    deployment: [u8; 16],
-) -> (skein_forge_client::Config, Box<[forge::GitIdentity]>) {
-    let count = u32::try_from(settings.forges.len()).expect("configured forges");
-    let mut identities = List::with_capacity(count);
-    for forge in &settings.forges {
-        identities
-            .push(forge::GitIdentity { forge: forge.number, credential: forge.identity })
-            .expect("forge identities");
-    }
-    (skein_forge_client::Config { namespace: Box::new(deployment), writers: Box::new([]) }, identities.into_boxed())
+pub(crate) fn config(deployment: [u8; 16]) -> skein_forge_client::Config {
+    skein_forge_client::Config { namespace: Box::new(deployment), writers: Box::new([]) }
 }
 
 /// What a forge connect starts from.
 pub(crate) enum Start {
     /// The forge's records, with their accepted installations.
     Restored(temper_protocol_records::Start),
-    /// An adoption's fresh access.
-    Adopted(skein_forge_connection::Access),
 }
 /// Every forge connect enters here. A held forge is refused first, naming its host, and
 /// nothing reaches skein's connection; otherwise the start goes down, or the reason it
@@ -583,9 +440,6 @@ pub(crate) fn connect(engine: &mut crate::engine::Engine, number: u16, start: Re
                     .down(skein_forge_connection::Request::Installations { forge: number, accepted: start.accepted });
             }
         }
-        Ok(Start::Adopted(access)) => {
-            engine.forge.down(skein_forge_connection::Request::Connect { forge: number, access });
-        }
         Err(why) => engine.notes.push(crate::Note::ForgeNotConnected { number, why }),
     }
 }
@@ -595,4 +449,9 @@ pub(crate) fn unreachable_text(host: &[u8]) -> Box<[u8]> {
     out.put(b"unreachable: ").expect("prefix");
     out.put(host).expect("host");
     out.finish()
+}
+
+fn forge_path(number: u32) -> Path {
+    let number = skein_lib::Decimal::of(u64::from(number));
+    Path::root().member(b"forges").member(number.as_bytes())
 }

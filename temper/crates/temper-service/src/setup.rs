@@ -32,7 +32,6 @@ pub(crate) struct Layer {
     public: Map<Token, public::Caller>,
     backs: Queue<public::ReturnTo>,
     pastes: Map<u64, u16>,
-    file_api: Map<u16, Secret>,
     erases: Map<Token, u16>,
     lifecycle: lifecycle::Lifecycle,
     writes: Map<Token, Write>,
@@ -136,7 +135,6 @@ impl Layer {
             public: Map::with_capacity(limits.runs),
             backs: Queue::with_capacity(limits.states),
             pastes: Map::with_capacity(limits.forges),
-            file_api: Map::with_capacity(limits.forges),
             erases: Map::with_capacity(limits.forges),
             lifecycle: lifecycle::Lifecycle::new(limits.forges, installations),
             writes: Map::with_capacity(limits.runs.checked_add(limits.forges).expect("setup writes")),
@@ -237,7 +235,6 @@ impl Layer {
         self.held = Queue::with_capacity(self.env.limits.forges);
         self.backs = Queue::with_capacity(self.env.limits.states);
         self.public = Map::with_capacity(self.env.limits.runs);
-        self.file_api = Map::with_capacity(self.env.limits.forges);
         self.staged = Map::with_capacity(self.env.limits.runs);
         if self.component.is_some() {
             self.down(host::Request::Close);
@@ -391,7 +388,7 @@ pub(crate) fn register(engine: &mut crate::engine::Engine, record: &temper_engin
             .reconcile
             .insert(number, lifecycle::Reconcile::Local(local))
             .expect("registered local forge");
-        if record.playground && engine.setup.lifecycle.startup_restored() {
+        if record.playground || record.mode == temper_engine_domain_forge::Mode::Owned {
             lifecycle::state(engine, number, temper_engine_domain_forge::Connection::NotSetUp);
         }
     }
@@ -462,7 +459,6 @@ pub(crate) fn unregister(engine: &mut crate::engine::Engine, forge: u16) {
     let layer = &mut engine.setup;
     layer.remove(forge);
     layer.unserved.remove(&forge);
-    layer.file_api.remove(&forge);
     layer.lifecycle.remove(forge);
     let mut runs = skein_lib::List::with_capacity(layer.runs.len());
     for (token, run) in &layer.runs {
@@ -849,14 +845,7 @@ fn run_plan(engine: &mut crate::engine::Engine, run: Token, plan: host::Plan) {
 }
 
 /// Connected Forgejo's legacy file input remains a host-local credential.
-fn file_api_token(engine: &crate::engine::Engine, forge: u16) -> Option<&[u8]> {
-    match engine.setup.file_api.get(&forge) {
-        Some(value) => Some(value.expose()),
-        None => None,
-    }
-}
 
-#[expect(clippy::manual_map, reason = "the step subset uses explicit matches")]
 fn read_item(
     engine: &crate::engine::Engine,
     run: Token,
@@ -881,24 +870,8 @@ fn read_item(
         return None;
     }
     let item = item_record(item).expect("record item");
-    let files = match engine.setup.lifecycle.adoptions.get(&forge) {
-        Some(adoption) => adoption.files.as_ref(),
-        None => None,
-    };
-    let value = match (files, item) {
-        (Some(adoption), Item::AdminToken) => Some(adoption.admin_token.expose()),
-        (Some(adoption), Item::WebhookSecret) => match &adoption.access.webhook_secret {
-            Some(secret) => Some(secret.expose()),
-            None => None,
-        },
-        _ => match engine.forge_records.rows.forge(forge) {
-            Some(rows) => rows.get(item).ok(),
-            None => None,
-        },
-    };
-    let value = match value {
-        Some(value) => Some(value),
-        None if item == Item::ApiToken => file_api_token(engine, forge),
+    let value = match engine.forge_records.rows.forge(forge) {
+        Some(rows) => rows.get(item).ok(),
         None => None,
     };
     match value {

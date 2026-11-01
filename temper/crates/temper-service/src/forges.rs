@@ -29,9 +29,6 @@ pub(crate) fn settings(record: &ForgeRecord) -> settings::Forge {
         git_program: record.git_program.clone(),
         web: record.web.clone(),
         app_read_only: record.read_only,
-        api_token: None,
-        webhook_secret: None,
-        user: 0,
         identity: u32::from(record.number),
     }
 }
@@ -58,11 +55,7 @@ pub(crate) fn register(engine: &mut Engine, record: ForgeRecord) {
         }
     }
     if let Some(at) = index {
-        let Some(previous) = engine.records.get(&number) else {
-            // The document's forge keeps its connection, identity and settings.
-            engine.workers.forges.get_mut(at).expect("document forge").mode = record.mode;
-            return;
-        };
+        let previous = engine.records.get(&number).expect("registered forge");
         if previous.kind != record.kind || previous.api != record.api {
             engine.notes.push(crate::Note::ForgeRecordChanged { number });
             return;

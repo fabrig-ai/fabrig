@@ -22,23 +22,14 @@ pub struct Demo {
 impl Demo {
     pub(crate) fn domain(
         &self,
-        forges: &[Forge],
         machine: &temper_engine_domain_forge::Machine,
         deadline: skein_lib::Duration,
     ) -> temper_engine_domain_forge::DemoConfig {
         use temper_engine_domain_forge as forge;
-        let mut host = Box::default();
-        for forge in forges {
-            if forge.number == self.forge {
-                host = crate::family::host(&forge.git);
-                break;
-            }
-        }
-        if !self.project_name.is_empty()
-            && let Some(playground) = &machine.playground
-        {
-            host = crate::family::host(&playground.git);
-        }
+        let host = match &machine.playground {
+            Some(playground) => crate::family::host(&playground.git),
+            None => Box::default(),
+        };
         forge::DemoConfig {
             project_name: self.project_name.clone(),
             project_policy: self.project_policy,
@@ -61,7 +52,7 @@ impl Demo {
     }
 }
 
-/// A forge temper works on (protocol/configuration.md, section 3, `forges`).
+/// A registered forge's public routing metadata (temper/docs/design/draft/playground-reset.md, 3).
 #[derive(Debug)]
 pub struct Forge {
     pub mode: temper_engine_domain_forge::Mode,
@@ -77,11 +68,6 @@ pub struct Forge {
     pub web: Option<Box<[u8]>>,
     /// The pasted GitHub App, its hook and installations belong to another owner.
     pub app_read_only: bool,
-    /// The API token, read from its private file: the forge component's alone.
-    pub api_token: Option<Secret>,
-    pub webhook_secret: Option<Secret>,
-    /// The forge user the API token belongs to: the forge writer.
-    pub user: u64,
     /// The number of this forge's git identity.
     pub identity: u32,
 }
@@ -136,14 +122,6 @@ pub struct Seeds {
     pub installation: [u8; 16],
 }
 
-/// One checked setup entry and its start-time handover (protocol/setup.md, 8.4).
-#[derive(Debug)]
-pub struct Setup {
-    pub entry: temper_forge_setup::setup::Entry,
-    /// The private handover for `TakeOver`; temper-15 removes the old fake-adoption use.
-    pub handover: Option<Secret>,
-}
-
 /// The engine's settings: jig's part, typed by jig-protocol-config, and
 /// temper's members (protocol/configuration.md, sections 2 and 3).
 #[derive(Debug)]
@@ -155,13 +133,8 @@ pub struct Engine {
     pub sign_in: Option<SignIn>,
     pub webhooks: Option<skein_forge_connection::hooks::Webhooks>,
     pub files: Files,
-    pub forges: Box<[Forge]>,
     pub machine: temper_engine_domain_forge::Machine,
     pub demo: Option<Demo>,
-    pub setup: Box<[Setup]>,
-    /// Checked local entries whose access comes from records.
-    pub records_only: Box<[u16]>,
-    pub identities: Box<[Identity]>,
     pub landing: temper_engine_domain::LandingPolicy,
     pub charter: u32,
     pub limits: super::limits::Limits,

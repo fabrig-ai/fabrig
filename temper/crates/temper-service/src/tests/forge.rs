@@ -431,9 +431,7 @@ fn a_hook_server_over_io_names_both_limits() {
 #[test]
 fn temper_word_keeps_the_marker_bytes_and_length() {
     let config = fixtures::engine();
-    let mut found = jig_protocol_config::Problems::empty();
-    let settings =
-        forge::settings(&config.forges, fixtures::forge_runtime(), None, &mut found).expect("fixture settings");
+    let settings = fixtures::connection_settings();
     let defaults = config.limits.forge_component;
     assert!(settings.forges.get(0).unwrap().log_origins.is_empty());
     assert_eq!((defaults.log_origins, defaults.log_pages, defaults.delivery_bytes), (4, 10, 1_048_576));
@@ -455,33 +453,14 @@ fn problem_lines(refusal: skein_forge_connection::Unusable) -> Box<[u8]> {
 fn the_component_s_new_refusals_are_problems_naming_their_members() {
     let rows: [(skein_forge_connection::Unusable, &[u8]); 2] = [
         (skein_forge_connection::Unusable::Word, b"application.limits.overrides.forge_component: past its bound\n"),
-        (skein_forge_connection::Unusable::PlaintextName { forge: 1 }, b"application.forges[1].api: past its bound\n"),
+        (skein_forge_connection::Unusable::PlaintextName { forge: 1 }, b"forges.1.api: past its bound\n"),
     ];
     for (refusal, expected) in rows {
         assert_eq!(problem_lines(refusal).as_ref(), expected);
     }
 }
 
-#[test]
-fn the_forge_fixture_number_differs_from_its_index() {
-    let config = fixtures::engine();
-    assert_ne!(config.forges[0].number, 0);
-}
 
-#[test]
-fn a_refusal_naming_a_forge_is_indexed_to_the_configured_forge() {
-    use skein_forge_connection::Unusable;
-    let config = fixtures::engine();
-    let number = config.forges[0].number;
-    let rows: [(Unusable, &[u8]); 3] = [
-        (Unusable::PlaintextName { forge: number }, b"application.forges[0].api: past its bound\n"),
-        (Unusable::Origin { forge: number, origin: skein_forge::github::redirect::Origin { tls: false, host: Box::from(b"logs.test".as_slice()), port: 80 } }, b"application.forges[0].log_origins: past its bound\n"),
-        (Unusable::LogOrigins { forge: number, origins: 5, limit: 4 }, b"application.forges[0].log_origins: past its bound\napplication.limits.overrides.forge_component.log_origins: past its bound\n"),
-    ];
-    for (refusal, expected) in rows {
-        assert_eq!(problem_lines(forge::indexed(refusal, &config.forges)).as_ref(), expected);
-    }
-}
 
 #[test]
 fn the_start_request_carries_the_user_agent_and_the_host() {
@@ -490,7 +469,7 @@ fn the_start_request_carries_the_user_agent_and_the_host() {
     face.connected(&mut service);
     assert_eq!(
         face.sent(),
-        b"GET /api/v1/user HTTP/1.1\r\nHost: forge.example:3000\r\n\
+        b"GET /api/v1/user HTTP/1.1\r\nHost: 127.0.0.1:3000\r\n\
         Authorization: token api-token\r\nUser-Agent: temper/0.0.0\r\n\r\n"
     );
 }
@@ -531,7 +510,7 @@ fn the_shared_numbers_are_the_clients_plain_numbers() {
     );
 }
 
-const HEAD_PROBLEMS: &[u8] = b"application.forges[0].api_token: past its bound\n\
+const HEAD_PROBLEMS: &[u8] = b"forges.1.api_token: past its bound\n\
     application.limits.overrides.forge_component.target_bytes: past its bound\n\
     application.limits.overrides.forge_component.token_bytes: past its bound\n\
     application.limits.overrides.forge_component.tls.send: past its bound\n\
@@ -541,7 +520,7 @@ const HEAD_PROBLEMS: &[u8] = b"application.forges[0].api_token: past its bound\n
 fn a_head_past_the_request_room_is_a_problem_naming_its_members_and_the_forge() {
     let forges = fixtures::forges();
     let refusal = skein_forge_connection::Unusable::Request { forge: forges[0].number };
-    assert_eq!(problem_lines(forge::indexed(refusal, &forges)).as_ref(), HEAD_PROBLEMS);
+    assert_eq!(problem_lines(refusal).as_ref(), HEAD_PROBLEMS);
 }
 
 // The output room is 1,048,576 bytes, less the fixed 192, Host's 18,
@@ -554,11 +533,11 @@ fn the_longest_head_of_the_shipped_forge_fits_its_room_to_the_byte() {
     let mut config = fixtures::engine();
     for (target_bytes, expected) in [(FITTING_TARGET_BYTES, None), (REFUSED_TARGET_BYTES, Some(HEAD_PROBLEMS))] {
         config.limits.forge_component.target_bytes = target_bytes;
-        let problems = match forge::prepare(&config, fixtures::forge_runtime()) {
-            Ok(_) => None,
-            Err(found) => {
-                Some(crate::startup::lines(&crate::startup::Problems::jig(found, &jig_protocol_config::Path::root())))
-            }
+        let mut settings = fixtures::connection_settings();
+        settings.forges.get_mut(0).unwrap().transport = skein_forge_connection::settings::Transport::Plaintext { name: Some(b"forge.example".as_slice().into()) };
+        let problems = match skein_forge_connection::limits::check(&config.limits.forge_component, &forge::shared(&config.limits, &config.jig.limits.io), &settings) {
+            Ok(()) => None,
+            Err(why) => Some(problem_lines(why)),
         };
         assert_eq!(problems.as_deref(), expected, "target_bytes={target_bytes}");
     }
@@ -606,43 +585,29 @@ fn connected_then_token_refused_keeps_the_note_and_engine_running() {
 }
 
 fn records_service() -> (crate::Service, skein_lib::Secret) {
-    use crate::settings::{Kind, Transport};
+    use temper_engine_domain_forge::{ApiTransport, Kind};
     use skein_lib::List;
     let mut settings = fixtures::engine();
+    settings.limits.forge.forges = 9;
     settings.limits.forge_component.forges = 9;
     settings.limits.forge_component.repositories = 9;
     settings.limits.forge.repositories = 9;
     settings.limits.forge.client.repositories = 9;
     settings.limits.forge.output = 256;
     let mut forges = List::with_capacity(9);
-    let mut runtime = List::with_capacity(9);
     for number in 1..=9_u16 {
-        let mut forge = fixtures::forges().into_iter().next().unwrap();
-        forge.number = number;
-        if number != 1 {
-            forge.kind = Kind::GitHub;
-            forge.api_token = None;
-        }
-        forge.api = jig_protocol_config::Address::Addr(skein_io::Addr::Ip(
-            ([127, 0, 0, 1], 2999_u16.checked_add(number).unwrap()).into(),
-        ));
-        forge.transport = Transport::Plaintext;
-        forges.push(forge).unwrap();
-        runtime
-            .push(crate::ForgeRuntime {
-                number,
-                address: ([127, 0, 0, 1], 2999_u16.checked_add(number).unwrap()).into(),
-                transport: skein_forge_connection::settings::Transport::Plaintext { name: None },
-            })
-            .unwrap();
+        let mut record = fixtures::forge_record(number);
+        if number != 1 { record.kind = Kind::GitHub; }
+        record.api.transport = ApiTransport::Plaintext;
+        forges.push(record).unwrap();
     }
-    settings.forges = forges.into_boxed();
     fixtures::fill_files(&mut settings);
-    let file_token = settings.forges[0].api_token.clone().unwrap();
-    let mut service = crate::Service::engine(settings, &fixtures::seeds(), None, runtime).unwrap();
+    let mut service = crate::Service::engine(settings, &fixtures::seeds(), None).unwrap();
+    fixtures::register_forges(&mut service, forges.as_slice());
     service.engine.as_mut().expect("engine").store = fixtures::records_store();
-    (service, file_token)
+    (service, skein_lib::Secret::new(skein_lib::Decimal::of(skein_lib::Rng::new(512).next_u64()).as_bytes().into()))
 }
+
 #[expect(clippy::disallowed_macros, reason = "ordinary fixtures build versioned row bytes")]
 fn startup_records() -> skein_lib::List<(u64, skein_lib::Secret)> {
     use skein_lib::{List, Secret};
@@ -763,8 +728,8 @@ fn records_start_erases_carried_rows_before_connecting_without_decoding_them() {
         service.engine.as_ref().expect("engine").forge_records.inspected.len(),
         kept.len().checked_sub(2).unwrap()
     );
-    assert_eq!(service.engine.as_ref().expect("engine").forge.starts.len(), 1);
-    let (number, access) = service.engine.as_mut().expect("engine").forge.starts.get(0).unwrap();
+    assert_eq!(service.engine.as_ref().expect("engine").forge.starts.len(), 2);
+    let (number, access) = service.engine.as_mut().expect("engine").forge.starts.iter().find(|(number, _)| *number == 2).unwrap();
     assert_eq!((*number, access.user), (2, 9));
     let skein_forge::credential::Credential::App { id, key } = &access.credential else { panic!("App credential") };
     assert_eq!(*id, 7);

@@ -53,7 +53,7 @@ fn application_grants_answer_either_retained_generation() {
     assert!(filled[3].is_none());
 }
 #[test]
-fn identities_are_announced_before_the_restart() {
+fn identities_start_empty_until_records_restore() {
     let mut service = fixtures::started();
     service.engine.as_mut().expect("engine").store.opened = true;
     let _listen = service.engine.as_mut().expect("engine").workers.io.pop().unwrap();
@@ -70,10 +70,7 @@ fn identities_are_announced_before_the_restart() {
     }
     assert!(!service.engine.as_ref().expect("engine").forge_records.done(), "secrets follow the mark");
     assert!(service.engine.as_ref().expect("engine").credentials.is_empty());
-    assert_eq!(
-        service.engine.as_ref().expect("engine").domain.next_deadline(&service.engine.as_ref().expect("engine").env),
-        Some(Time::from_nanos(u64::MAX))
-    );
+    assert_eq!(service.engine.as_ref().expect("engine").domain.next_deadline(&service.engine.as_ref().expect("engine").env), None);
     assert!(service.engine.as_ref().expect("engine").store.routed.is_empty(), "the restart has not asked for a load");
     fixtures::restart(&mut service);
 }

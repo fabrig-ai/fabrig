@@ -1,4 +1,5 @@
 use super::*;
+use temper_protocol_records as records;
 use crate::tests::fixtures;
 use skein_fake_forge_protocol as fake;
 use skein_lib::List;
@@ -47,7 +48,11 @@ fn start_adoption(
     token: Secret,
     access: skein_forge_connection::Access,
 ) {
-    // Match settings::prepare's files adoption, retaining access until the last Adopt completes.
+    // Adoption reads the same records as every other setup plan.
+    let engine = service.engine.as_mut().unwrap();
+    for (item, value) in [(Item::AdminToken, token.expose()), (Item::ApiToken, match &access.credential { skein_forge::credential::Credential::Token(token) => token.expose(), _ => unreachable!() })] {
+        engine.forge_records.rows.push(records::number(1, item), Secret::new(records::encode(item, value).unwrap().into_boxed_slice()), 4096);
+    }
     // The sequential fake-start helpers use repositories 1 and 2; this scope fixture targets 7.
     service
         .engine
@@ -61,7 +66,6 @@ fn start_adoption(
             lifecycle::Adoption {
                 next: repository,
                 repositories: repository.get(),
-                files: Some(lifecycle::AdoptionFiles { admin_token: token, access }),
             },
         )
         .unwrap();
@@ -72,9 +76,9 @@ fn start_adoption(
 fn preparations_four_scopes_grant_adopt_and_without_repository_it_is_refused_at_repository() {
     for without_repository in [false, true] {
         let mut config = fixtures::engine();
-        config.setup = Box::new([fixtures::owned_setup(1)]);
-        let Mode::Owned(owned) = &config.setup[0].entry.mode else { panic!("owned fixture") };
-        let place = Place { directory: config.setup[0].entry.directory.clone(), user: b"fixture".as_slice().into() };
+        let entry = temper_forge_setup::setup::Entry::body_text(fixtures::owned_body(), 1, &config.limits.setup.plan(), &config.directories).unwrap();
+        let Mode::Owned(owned) = &entry.mode else { panic!("owned fixture") };
+        let place = Place { directory: entry.directory.clone(), user: b"fixture".as_slice().into() };
         let spec = spec::admin_token(owned, &place, b"temper-admin-0123456789abcdef");
         // Preparation issues four scopes; the refusal case removes only repository access.
         let mut scopes = List::with_capacity(4);
@@ -95,9 +99,14 @@ fn preparations_four_scopes_grant_adopt_and_without_repository_it_is_refused_at_
             }
         }
         fixtures::fill_files(&mut config);
-        let mut endpoints = crate::forge::prepare(&config, fixtures::forge_runtime()).unwrap();
-        let access = endpoints.forges.get_mut(0).unwrap().access.take().expect("file access");
-        let mut service = crate::Service::engine(config, &fixtures::seeds(), None, fixtures::forge_runtime()).unwrap();
+        let access = skein_forge_connection::Access {
+            credential: skein_forge::credential::Credential::Token(Secret::new(b"api-token".as_slice().into())),
+            user: 42, webhook_secret: None,
+        };
+        let mut service = crate::Service::engine(config, &fixtures::seeds(), None).unwrap();
+        let mut record = fixtures::forge_record(1);
+        record.setup = Some(fixtures::owned_body().into());
+        fixtures::register_forges(&mut service, &[record]);
         service.engine.as_mut().expect("engine").store = fixtures::records_store();
         for _ in 0_u32..8 {
             crate::forge::records::advance(service.engine.as_mut().expect("engine"));
@@ -152,13 +161,14 @@ fn preparations_four_scopes_grant_adopt_and_without_repository_it_is_refused_at_
                 break;
             }
         }
-        let end = terminal(&mut service);
         if without_repository {
-            let root::SetupEnd::Stopped { forge: number, reason } = end else { panic!("repository scope refused") };
-            assert_eq!(number, 1);
-            assert_eq!(reason.as_ref(), b"setup Repository 7: Refused(403)");
+            assert!(service.engine.as_ref().unwrap().notes.iter().any(|note| *note == crate::Note::ForgeSetupStopped {
+                number: 1,
+                why: crate::SetupStopped::Stopped { plan: crate::SetupPlan::Adopt, step: crate::SetupStep { stage: skein_forge_setup::reconcile::Stage::Repository, why: skein_forge_setup::reconcile::Why::Refused(403) } },
+            }));
             assert_eq!(forge.setup().collaborator(7, b"temper"), None);
         } else {
+            let end = terminal(&mut service);
             let root::SetupEnd::Done { forge: 1, outcome: root::SetupOutcome::Done } = end else {
                 panic!("adoption: {end:?}");
             };

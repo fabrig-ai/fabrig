@@ -313,61 +313,13 @@ pub fn run(directories: &super::Directories, arguments: &[OsString], ssl_cert_fi
         }
     }
 }
-/// Checks the transport before reading files, then prepares the private directory.
+/// Document setup entries are absent; record setup belongs to the running service.
 pub fn reconcile_settings(
-    named: &temper_service::startup::Named,
-    checked: &temper_forge_setup::check::Checked,
-    number: u16,
+    _named: &temper_service::startup::Named,
+    _checked: &temper_forge_setup::check::Checked,
+    _number: u16,
 ) -> Result<temper_forge_setup_shell::reconcile::Settings, String> {
-    use skein_forge_connection::limits;
-    let forge = named.forges.iter().find(|forge| forge.number == number).ok_or("the setup has no entry for it")?;
-    let entry = checked.setup.entry(number).ok_or("the setup has no entry for it")?;
-    let directory = super::path(&entry.directory).to_path_buf();
-    let admin_token = match &entry.mode {
-        Mode::Managed { admin_token: Some(admin_token) } => super::path(admin_token).to_path_buf(),
-        Mode::Managed { admin_token: None } => {
-            return Err(format!(
-                "forge {number}'s admin’s token is given from the client: connect it as its admin there"
-            ));
-        }
-        Mode::Owned(_) | Mode::Fake(_) => directory.join("admin_token"),
-    };
-    if !matches!(forge.transport, temper_service::startup::Transport::Plaintext) {
-        return Err("its transport is TLS, and reconcile speaks plaintext to loopback alone".into());
-    }
-    if forge.records_only && matches!(entry.mode, Mode::Owned(_) | Mode::Fake(_)) {
-        return Err(format!("forge {number} starts from its records: `temper serve` takes its handover"));
-    }
-    // temper-15 removes the legacy command's file-backed entries.
-    if !directory.exists() {
-        fs::DirBuilder::new().recursive(true).mode(0o700).create(&directory).map_err(|why| why.to_string())?;
-    }
-    super::private_root(&directory, skein_shell::effective_user())
-        .map_err(|why| format!("{}: {why}", directory.display()))?;
-    let address = super::address(&forge.api)?;
-    let mut profile = temper_service::limits::profile(temper_service::limits::Profile::Small);
-    for (name, value) in &named.overrides {
-        if !name.starts_with(b"setup.") && !name.starts_with(b"box.") {
-            temper_service::limits::apply(&mut profile, name, *value).map_err(|why| format!("limits: {why:?}"))?;
-        }
-    }
-    let io = jig_protocol_config::profile(jig_protocol_config::Profile::Small).io;
-    let setup_index = checked.setup.entries.iter().position(|entry| entry.forge == number).expect("checked entry");
-    let given = temper_forge_setup::given::values(entry, webhook_listener(named)?, &checked.limits);
-    Ok(temper_forge_setup_shell::reconcile::Settings {
-        setup_index: u32::try_from(setup_index).expect("bounded setup entries"),
-        given,
-        address,
-        host: skein_forge::host::host(address, None).expect("checked address"),
-        user_agent: temper_service::forge::USER_AGENT,
-        directory,
-        admin_token,
-        token_bytes: profile.forge_component.token_bytes,
-        hook_secret_bytes: profile.forge_component.hook_secret_bytes,
-        http: limits::http(&profile.forge_component, false, &io),
-        documents: limits::documents(&profile.forge_component),
-        io,
-    })
+    Err("the setup has no entry for it".into())
 }
 
 fn webhook_listener(named: &temper_service::startup::Named) -> Result<Option<core::net::SocketAddr>, String> {

@@ -376,45 +376,6 @@ fn serve_prepares_a_worker_alone_without_a_deployment_or_setup_host() {
 }
 
 #[test]
-fn unresolved_forge_names_prepare_without_refusing_or_resolving_socket_forges() {
-    fn reject_names(configured: &jig_protocol_config::Address) -> Result<std::net::SocketAddr, String> {
-        match configured {
-            jig_protocol_config::Address::Host { .. } => Err("no resolver in this test".into()),
-            jig_protocol_config::Address::Addr(address) => Ok(address.socket().expect("socket fixture")),
-        }
-    }
-    let (_, bytes) = configuration::documents(std::path::Path::new("/fixture"), "/fixture/temper");
-    let mut document: serde_json::Value = serde_json::from_slice(&bytes).expect("fixture JSON");
-    let mut host = document["application"]["forges"][0].clone();
-    host["api"] = serde_json::json!({"host":"forge.example", "port":443});
-    let scratch = skein_scratch::paths::tree().join("target/reject-forge-names");
-    std::fs::create_dir_all(&scratch).expect("test directory");
-    let trust = scratch.join("root.der");
-    std::fs::write(&trust, skein_tls_world::pki::ROOT).expect("fixture trust");
-    host["transport"] = serde_json::json!({"tls":{"server_name":"forge.example", "trust":trust}});
-    let mut socket = host.clone();
-    socket["number"] = 2.into();
-    socket["identity"] = 2.into();
-    socket["transport"] = "plaintext".into();
-    socket["api"] = serde_json::json!({"socket":"127.0.0.1:3001"});
-    document["application"]["forges"] = serde_json::json!([host, socket]);
-    let mut identity = document["application"]["identities"][0].clone();
-    identity["number"] = 2.into();
-    document["application"]["identities"].as_array_mut().expect("identities").push(identity);
-    document["engine"]["limits"]["overrides"]["accounts.credentials"] = 2.into();
-    let bytes = serde_json::to_vec(&document).expect("JSON");
-    let named = temper_service::named(&bytes, &jig_protocol_config::Directories::working()).expect("names");
-    let endpoints = super::forges(&named.forges, reject_names).expect("DNS never refuses a start");
-    assert_eq!(endpoints.len(), 2);
-    assert_eq!(endpoints.get(0).expect("host endpoint").address, temper_service::forge::HELD_ADDRESS);
-    assert!(
-        matches!(&named.forges[0].api, jig_protocol_config::Address::Host { name, .. } if name.as_ref() == b"forge.example")
-    );
-    assert_eq!(endpoints.get(1).expect("socket endpoint").address, ([127, 0, 0, 1], 3001).into());
-    std::fs::remove_dir_all(scratch).expect("remove fixture");
-}
-
-#[test]
 fn box_echo_resolves_its_default_variable_and_flag_without_consuming_other_arguments() {
     use temper_box::host::Echo;
     for (flags, variable, expected) in [
