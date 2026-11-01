@@ -122,6 +122,7 @@ impl Referee {
                             | people::Stored::ReadConversation { .. }
                             | people::Stored::EndedRead { .. }
                             | people::Stored::SignIn { .. }
+                            | people::Stored::Deletion { .. }
                             | people::Stored::Acted { .. }
                             | people::Stored::Policy { .. }
                             | people::Stored::Answer { .. },
@@ -172,6 +173,7 @@ impl Referee {
                             | people::Stored::EndedRead { .. }
                             | people::Stored::SignIn { .. }
                             | people::Stored::Roles { .. }
+                            | people::Stored::Deletion { .. }
                             | people::Stored::Acted { .. }
                             | people::Stored::Policy { .. },
                         )

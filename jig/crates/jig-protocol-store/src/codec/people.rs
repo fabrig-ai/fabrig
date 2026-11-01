@@ -46,6 +46,8 @@ pub fn derived_limits(domain: &core::Limits) -> Option<wire::Limits> {
     let authority = &domain.authority;
     let mut limits = wire::Limits {
         act_close_reason: people.words,
+        act_cancel_reason: people.words,
+        act_add_key_uses_some: domain::USES,
         refusal_circle_tasks: domain.tasks.circle,
         refusal_full_tasks: domain.tasks.circle,
         refusal_kept_pending: domain.tasks.dependencies,
@@ -152,6 +154,17 @@ fn derive_verdicts(amendment_bytes: u32, limits: &mut wire::Limits) -> Option<()
 /// a policy row keeps beside its roles' models (protocol/store.md, 5.1).
 pub fn encode(row: &domain::Stored, limits: &wire::Limits, names: &[Box<[u8]>]) -> Result<Box<[u8]>, wire::Problem> {
     let value = match row {
+        domain::Stored::Deletion { project, stage } => wire::Value::Deletion(wire::StoredDeletion::new(
+            limits,
+            wire::StoredDeletionParts {
+                project: *project,
+                stage: match stage {
+                    domain::Stage::Ending => wire::Stage::Ending,
+                    domain::Stage::Erasing => wire::Stage::Erasing,
+                    domain::Stage::Releasing => wire::Stage::Releasing,
+                },
+            },
+        )?),
         domain::Stored::Person { number, identity } => wire::Value::Person(wire::StoredPerson::new(
             limits,
             wire::StoredPersonParts { number: *number, identity: encode_identity(identity, limits)? },
@@ -218,6 +231,17 @@ pub fn encode(row: &domain::Stored, limits: &wire::Limits, names: &[Box<[u8]>]) 
 pub fn decode(bytes: &[u8], limits: &wire::Limits, names: &[Box<[u8]>]) -> Result<domain::Stored, wire::Problem> {
     let wire::RowParts { value } = wire::Row::decode(limits, &mut Reader::new(bytes))?.into_parts();
     let row = match value {
+        wire::Value::Deletion(value) => {
+            let wire::StoredDeletionParts { project, stage } = value.into_parts();
+            domain::Stored::Deletion {
+                project,
+                stage: match stage {
+                    wire::Stage::Ending => domain::Stage::Ending,
+                    wire::Stage::Erasing => domain::Stage::Erasing,
+                    wire::Stage::Releasing => domain::Stage::Releasing,
+                },
+            }
+        }
         wire::Value::Person(value) => {
             let wire::StoredPersonParts { number, identity } = value.into_parts();
             domain::Stored::Person { number, identity: decode_identity(identity) }

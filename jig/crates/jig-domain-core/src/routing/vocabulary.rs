@@ -1027,6 +1027,9 @@ fn people_new_work(event: &people::Event) -> bool {
         | people::Event::ApplyRoles { .. }
         | people::Event::Decided { .. }
         | people::Event::Restore { .. }
+        | people::Event::Deletion { .. }
+        | people::Event::EraseTask { .. }
+        | people::Event::DropProject { .. }
         | people::Event::Restored => false,
     }
 }

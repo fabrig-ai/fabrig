@@ -17,8 +17,8 @@ use inbox::{conversation_seen_decision, mark_seen, prune_unheld_roles, replace_w
 
 use crate::{
     Again, Ask, Entry, EntryKind, Event, Fact, Holding, Identity, IdentityKey, InitialOwner, Key, Kind, LimitKind,
-    Limits, Outcome, ProjectRole, Refusal, Reply, Request, RequestKey, ResultRef, Role, Seed, Seen, Stored, Update,
-    Whom,
+    Limits, Outcome, ProjectRole, Refusal, Reply, Request, RequestKey, ResultRef, Role, Seed, Seen, Stage, Stored,
+    Update, Whom,
 };
 use alloc::boxed::Box;
 use skein_lib::{Deadlines, Env, Id, List, Map, Queue, ReplyTo, Set, Slab, Time, Token, Wall};
@@ -132,6 +132,7 @@ pub struct Domain {
     alarms: Deadlines<u64>,
     expiries: Set<(Wall, u64)>,
     roles: Map<u32, Box<[Holding]>>,
+    deletions: Map<u32, Stage>,
     /// The deployment's first owners, who decide its LLM accounts (accounts.md, 3.2) for as long
     /// as it runs; their first sign-ins seed their roles only while `seeding`.
     owners: Box<[InitialOwner]>,
@@ -267,6 +268,7 @@ impl Domain {
             alarms: Deadlines::with_capacity(limits.sign_ins),
             expiries: Set::with_capacity(limits.sign_ins),
             roles: Map::with_capacity(limits.projects),
+            deletions: Map::with_capacity(limits.projects),
             owners,
             seeding: true,
             answers: Map::with_capacity(limits.requests),
@@ -412,6 +414,18 @@ impl Domain {
 
     fn kind_of(&self, identity: &Identity) -> Kind {
         if identity.key.provider == self.deployment_provider { Kind::Service } else { Kind::Person }
+    }
+
+    /// A deleting project's stage (temper/docs/design/draft/playground-reset.md, 5).
+    #[must_use]
+    pub fn deletion(&self, project: u32) -> Option<Stage> {
+        self.deletions.get(&project).copied()
+    }
+
+    /// All deleting projects' stages (temper/docs/design/draft/playground-reset.md, 5).
+    #[must_use]
+    pub const fn deletions(&self) -> &Map<u32, Stage> {
+        &self.deletions
     }
 
     /// Ordinary project roles of a retained party, bounded by the role table; no admission changes.
@@ -570,6 +584,24 @@ pub fn outputs_bound(limits: &Limits) -> u32 {
 pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     domain.touched = true;
     match event {
+        Event::Deletion { project, stage } => {
+            if !domain.ready() {
+                return;
+            }
+            match stage {
+                Some(stage) => {
+                    assert!(project != 0, "a deletion names a project");
+                    domain.deletions.insert(project, stage).expect("root admits bounded project deletions");
+                    out.push(Request::Save { record: Stored::Deletion { project, stage } });
+                }
+                None => {
+                    if domain.deletions.remove(&project).is_some() {
+                        out.push(Request::Erase { key: Key::Deletion(project) });
+                    }
+                }
+            }
+        }
+        Event::EraseTask { .. } | Event::DropProject { .. } => {}
         Event::Act { reply_to, connector, key, act } => {
             acts::admit(domain, env, reply_to, crate::ActKey { connector, key }, *act, out);
         }
@@ -713,6 +745,7 @@ fn outcome_reply(outcome: Outcome) -> Reply {
         | Outcome::Amended { .. }
         | Outcome::RolesSet { .. }
         | Outcome::PolicyChanged { .. }
+        | Outcome::ProjectRemoved { .. }
         | Outcome::Renamed { .. }
         | Outcome::ProjectMade { .. }
         | Outcome::SettingsChanged { .. }
@@ -767,6 +800,7 @@ fn apply_roles(
         | Ask::EditNote { .. }
         | Ask::Adopt { .. }
         | Ask::ChangePolicy { .. }
+        | Ask::RemoveProject { .. }
         | Ask::Rename { .. }
         | Ask::MakeProject { .. }
         | Ask::ChangeSettings { .. }
@@ -820,6 +854,7 @@ fn apply_roles(
         | Ask::EditNote { .. }
         | Ask::Adopt { .. }
         | Ask::ChangePolicy { .. }
+        | Ask::RemoveProject { .. }
         | Ask::Rename { .. }
         | Ask::MakeProject { .. }
         | Ask::ChangeSettings { .. }
@@ -948,6 +983,7 @@ fn make_service(domain: &mut Domain, env: &Env<Limits>, request: Token, person: 
         | Ask::Amend { .. }
         | Ask::SetRoles { .. }
         | Ask::ChangePolicy { .. }
+        | Ask::RemoveProject { .. }
         | Ask::Rename { .. }
         | Ask::MakeProject { .. }
         | Ask::ChangeSettings { .. }
@@ -1172,7 +1208,8 @@ fn project(ask: &Ask) -> u32 {
         | Ask::AccountSignOut { .. }
         | Ask::AccountChange { .. } => 0,
         Ask::MakeProject { .. } | Ask::ChangeSettings { .. } | Ask::MoveToNewest { .. } => crate::DEPLOYMENT,
-        Ask::Rename { project, .. }
+        Ask::RemoveProject { project }
+        | Ask::Rename { project, .. }
         | Ask::Compound { project, .. }
         | Ask::EditNote { project, .. }
         | Ask::MakeService { project, .. }
@@ -1311,7 +1348,8 @@ pub(crate) fn valid_ask(limits: &Limits, ask: &Ask) -> bool {
         | Ask::Application { .. }
         | Ask::AccountSignIn { .. }
         | Ask::AccountSignOut { .. }
-        | Ask::AccountChange { .. } => true,
+        | Ask::AccountChange { .. }
+        | Ask::RemoveProject { .. } => true,
         Ask::EditNote { name, scope, change, .. } => valid_note(limits, *name, scope, change),
         Ask::MakeService { name, .. } => {
             let Some(bytes) = name.len().checked_add(size_of::<u64>()) else {
@@ -1427,7 +1465,8 @@ pub(crate) fn invalid_ask(limits: &Limits, ask: &Ask) -> Refusal {
         Ask::Create { batch, .. } | Ask::Propose { action: crate::Action::Batch(batch), .. } => {
             crate::batch::invalid(limits, batch)
         }
-        Ask::Rename { .. }
+        Ask::RemoveProject { .. }
+        | Ask::Rename { .. }
         | Ask::MakeProject { .. }
         | Ask::ChangeSettings { .. }
         | Ask::MoveToNewest { .. }
@@ -1496,6 +1535,7 @@ fn valid_answer_shape(ask: &Ask, outcome: Outcome) -> bool {
         Amend(u64, bool),
         Roles(u32, bool),
         Policy(u32),
+        RemoveProject(u32),
         Rename(u32),
         MakeProject,
         ChangeSettings,
@@ -1551,6 +1591,7 @@ fn valid_answer_shape(ask: &Ask, outcome: Outcome) -> bool {
             Expected::Roles(*project, valid)
         }
         Ask::ChangePolicy { project, .. } => Expected::Policy(*project),
+        Ask::RemoveProject { project } => Expected::RemoveProject(*project),
         Ask::Rename { project, .. } => Expected::Rename(*project),
         Ask::MakeProject { .. } => Expected::MakeProject,
         Ask::ChangeSettings { .. } => Expected::ChangeSettings,
@@ -1613,6 +1654,7 @@ fn valid_answer_shape(ask: &Ask, outcome: Outcome) -> bool {
         }
         Outcome::RolesSet { project } => expected == Expected::Roles(project, true),
         Outcome::PolicyChanged { project } => expected == Expected::Policy(project),
+        Outcome::ProjectRemoved { project } => expected == Expected::RemoveProject(project),
         Outcome::Renamed { project } => expected == Expected::Rename(project),
         Outcome::MovedToNewest { newest, .. } => expected == Expected::MoveToNewest && newest != 0,
         Outcome::SettingsChanged { revision } => expected == Expected::ChangeSettings && revision != 0,
@@ -1874,6 +1916,7 @@ fn reserves_answer(ask: &Ask) -> bool {
         | Ask::Adopt { .. }
         | Ask::SetRoles { .. }
         | Ask::ChangePolicy { .. }
+        | Ask::RemoveProject { .. }
         | Ask::Rename { .. }
         | Ask::MakeProject { .. }
         | Ask::ChangeSettings { .. }
@@ -1947,6 +1990,7 @@ pub(super) fn answer_decided(
         | Outcome::Adopted { .. }
         | Outcome::RolesSet { .. }
         | Outcome::PolicyChanged { .. }
+        | Outcome::ProjectRemoved { .. }
         | Outcome::Renamed { .. }
         | Outcome::ProjectMade { .. }
         | Outcome::SettingsChanged { .. }
@@ -1992,6 +2036,7 @@ fn restore(domain: &mut Domain, env: &Env<Limits>, record: Stored, out: &mut Que
     }
 }
 
+#[expect(clippy::too_many_lines, reason = "restore validates and loads each people row in one exhaustive pass")]
 fn restore_default(domain: &mut Domain, env: &Env<Limits>, record: Stored, out: &mut Queue<Request>) {
     match domain.phase {
         Phase::Ready => {
@@ -2001,7 +2046,13 @@ fn restore_default(domain: &mut Domain, env: &Env<Limits>, record: Stored, out: 
         Phase::Restoring => {}
     }
     let key = record.key();
+    if key == Key::Deletion(0) {
+        return restore_failed(domain, key, Refusal::Unknown, out);
+    }
     let valid = match &record {
+        Stored::Deletion { project, .. } => {
+            !domain.deletions.contains_key(project) && domain.deletions.len() < env.limits.projects
+        }
         Stored::Acted { key, act, outcome, at } => {
             acts::valid(&env.limits, act).is_ok()
                 && valid_program_outcome(&env.limits, outcome)
@@ -2051,6 +2102,9 @@ fn restore_default(domain: &mut Domain, env: &Env<Limits>, record: Stored, out: 
         return restore_failed(domain, key, Refusal::Limit { which: LimitKind::Restore }, out);
     }
     match record {
+        Stored::Deletion { project, stage } => {
+            domain.deletions.insert(project, stage).expect("deletion restore fit checked");
+        }
         Stored::Acted { key, act, outcome, at } => acts::restore(domain, env, key, act, outcome, at, out),
         Stored::Person { number, identity } => {
             let indexed = domain.identities.insert(identity.key.clone(), number);
@@ -2150,6 +2204,7 @@ fn restored(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                 | Ask::MakeService { .. }
                 | Ask::Adopt { .. }
                 | Ask::ChangePolicy { .. }
+                | Ask::RemoveProject { .. }
                 | Ask::Rename { .. }
                 | Ask::MakeProject { .. }
                 | Ask::ChangeSettings { .. }
@@ -2184,6 +2239,7 @@ fn restored(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
             | Outcome::NoteEdited { .. }
             | Outcome::Adopted { .. }
             | Outcome::PolicyChanged { .. }
+            | Outcome::ProjectRemoved { .. }
             | Outcome::Renamed { .. }
             | Outcome::ProjectMade { .. }
             | Outcome::SettingsChanged { .. }
@@ -2266,6 +2322,7 @@ pub fn application_part(domain: &mut Domain, env: &Env<Limits>, request: Token, 
         | Ask::Adopt { .. }
         | Ask::SetRoles { .. }
         | Ask::ChangePolicy { .. }
+        | Ask::RemoveProject { .. }
         | Ask::Rename { .. }
         | Ask::MakeProject { .. }
         | Ask::ChangeSettings { .. }
@@ -2307,6 +2364,7 @@ pub fn application_part(domain: &mut Domain, env: &Env<Limits>, request: Token, 
         | Ask::Adopt { .. }
         | Ask::SetRoles { .. }
         | Ask::ChangePolicy { .. }
+        | Ask::RemoveProject { .. }
         | Ask::Rename { .. }
         | Ask::MakeProject { .. }
         | Ask::ChangeSettings { .. }
@@ -2392,6 +2450,7 @@ fn admission(domain: &Domain, person: u64, _project: u32, role: Option<Role>, as
         | Ask::Adopt { .. }
         | Ask::SetRoles { .. }
         | Ask::ChangePolicy { .. }
+        | Ask::RemoveProject { .. }
         | Ask::Rename { .. }
         | Ask::MakeProject { .. }
         | Ask::SetPool { .. }
@@ -2483,6 +2542,7 @@ fn valid_program_outcome(limits: &Limits, outcome: &Outcome) -> bool {
         | Outcome::Amended { .. }
         | Outcome::RolesSet { .. }
         | Outcome::PolicyChanged { .. }
+        | Outcome::ProjectRemoved { .. }
         | Outcome::Renamed { .. }
         | Outcome::ProjectMade { .. }
         | Outcome::SettingsChanged { .. }

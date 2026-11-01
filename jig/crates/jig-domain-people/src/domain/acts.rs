@@ -30,7 +30,7 @@ impl Acted {
 
 pub(super) fn valid(limits: &Limits, act: &Act) -> Result<(), Refusal> {
     match act {
-        Act::Close { task, reason, .. } => {
+        Act::Close { task, reason, .. } | Act::Cancel { task, reason, .. } => {
             if *task == 0 {
                 return Err(Refusal::Unknown);
             }
@@ -48,7 +48,23 @@ pub(super) fn valid(limits: &Limits, act: &Act) -> Result<(), Refusal> {
                 return Err(Refusal::Limit { which: LimitKind::Words });
             }
         }
-        Act::AddKey { .. } | Act::RemoveAccount { .. } => {}
+        Act::RemoveProject { project } => {
+            if *project == 0 {
+                return Err(Refusal::Unknown);
+            }
+        }
+        Act::AddKey { uses: Some(uses), .. } => {
+            if uses.len() > usize::try_from(crate::USES).expect("uses fit usize") {
+                return Err(Refusal::Limit { which: LimitKind::Resource });
+            }
+            for at in 0..uses.len() {
+                let value = uses.get(at).expect("use index within list");
+                if uses.get(..at).expect("use prefix within list").contains(value) {
+                    return Err(Refusal::Limit { which: LimitKind::Resource });
+                }
+            }
+        }
+        Act::AddKey { uses: None, .. } | Act::RemoveAccount { .. } => {}
     }
     Ok(())
 }
@@ -59,6 +75,8 @@ fn kind(act: &Act) -> ActKind {
         Act::AddKey { .. } => ActKind::AddKey,
         Act::RemoveAccount { .. } => ActKind::RemoveAccount,
         Act::Adopt { .. } => ActKind::Adopt,
+        Act::RemoveProject { .. } => ActKind::RemoveProject,
+        Act::Cancel { .. } => ActKind::Cancel,
     }
 }
 fn answer(to: ReplyTo, outcome: Outcome, out: &mut Queue<Request>) {
@@ -220,6 +238,7 @@ fn permanent(outcome: &Outcome) -> bool {
         | Outcome::Adopted { .. }
         | Outcome::RolesSet { .. }
         | Outcome::PolicyChanged { .. }
+        | Outcome::ProjectRemoved { .. }
         | Outcome::Renamed { .. }
         | Outcome::ProjectMade { .. }
         | Outcome::SettingsChanged { .. }
@@ -259,7 +278,7 @@ pub(super) fn valid_outcome(limits: &Limits, act: &Act, outcome: &Outcome) -> bo
         return true;
     }
     match act {
-        Act::Close { project, .. } => match outcome {
+        Act::Close { project, .. } | Act::Cancel { project, .. } => match outcome {
             Outcome::Compound { project: answered, operations, first_message } => {
                 answered == project && *operations != 0 && *operations <= limits.operations && *first_message != 0
             }
@@ -273,6 +292,7 @@ pub(super) fn valid_outcome(limits: &Limits, act: &Act, outcome: &Outcome) -> bo
             | Outcome::Adopted { .. }
             | Outcome::RolesSet { .. }
             | Outcome::PolicyChanged { .. }
+            | Outcome::ProjectRemoved { .. }
             | Outcome::Renamed { .. }
             | Outcome::ProjectMade { .. }
             | Outcome::SettingsChanged { .. }
@@ -305,7 +325,8 @@ pub(super) fn valid_outcome(limits: &Limits, act: &Act, outcome: &Outcome) -> bo
             | Outcome::AccountSignedOut { .. }
             | Outcome::Refused(_) => false,
         },
-        Act::AddKey { provider, join, digest } => super::valid_answer_shape(
+        Act::RemoveProject { project } => *outcome == Outcome::ProjectRemoved { project: *project },
+        Act::AddKey { provider, join, digest, .. } => super::valid_answer_shape(
             &crate::Ask::AccountChange {
                 holder: crate::AccountHolder::Deployment,
                 change: crate::AccountChange::AddKey { provider: *provider, join: *join, digest: *digest },

@@ -62,6 +62,8 @@ fn grant(document: &Document, at: u32, path: &Path, problems: &mut Problems) -> 
             b"remove_account" => ActKind::RemoveAccount,
             b"adopt" => ActKind::Adopt,
             b"make_project" => ActKind::MakeProject,
+            b"remove_project" => ActKind::RemoveProject,
+            b"cancel" => ActKind::Cancel,
             _ => {
                 problems.push(path, What::Form);
                 continue;

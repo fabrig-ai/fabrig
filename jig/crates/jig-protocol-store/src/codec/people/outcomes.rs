@@ -9,6 +9,10 @@ use facts::{
 #[expect(clippy::too_many_lines, reason = "one exhaustive permanent outcome translation table")]
 pub(super) fn encode_outcome(value: &domain::Outcome, limits: &wire::Limits) -> Result<wire::Outcome, wire::Problem> {
     Ok(match value {
+        domain::Outcome::ProjectRemoved { project } => wire::Outcome::ProjectRemoved(wire::OutcomeProjectRemoved::new(
+            limits,
+            wire::OutcomeProjectRemovedParts { project: *project },
+        )?),
         domain::Outcome::MovedToNewest { newest, moved, stayed } => {
             wire::Outcome::MovedToNewest(wire::OutcomeMovedToNewest::new(
                 limits,
@@ -293,6 +297,7 @@ pub(super) fn decode_outcome(value: wire::Outcome) -> domain::Outcome {
             let wire::OutcomeRolesSetParts { project } = value.into_parts();
             domain::Outcome::RolesSet { project }
         }
+        wire::Outcome::ProjectRemoved(value) => domain::Outcome::ProjectRemoved { project: value.project() },
         wire::Outcome::Renamed(value) => domain::Outcome::Renamed { project: value.project() },
         wire::Outcome::ProjectMade(value) => domain::Outcome::ProjectMade { project: value.project() },
         wire::Outcome::PolicyChanged(value) => {

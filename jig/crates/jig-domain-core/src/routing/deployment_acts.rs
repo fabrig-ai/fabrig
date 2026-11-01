@@ -22,7 +22,9 @@ pub(super) fn start(
         people::Act::MakeProject { .. }
         | people::Act::Close { .. }
         | people::Act::RemoveAccount { .. }
-        | people::Act::Adopt { .. } => None,
+        | people::Act::Adopt { .. }
+        | people::Act::RemoveProject { .. }
+        | people::Act::Cancel { .. } => None,
     };
     let valid = match carried {
         Some(carried) => digest == Some(carried.digest),
@@ -54,6 +56,9 @@ pub(super) fn route(
     act: people::Act,
 ) {
     match act {
+        people::Act::RemoveProject { .. } | people::Act::Cancel { .. } => {
+            refused(work, request, people::Refusal::NotOffered);
+        }
         people::Act::MakeProject { maker, name, policy } => {
             super::projects::make_project_act(core, env, work, out, request, maker, name, policy);
         }
@@ -65,7 +70,7 @@ pub(super) fn route(
                 refused(work, request, why);
             }
         }
-        people::Act::AddKey { provider, join, digest } => {
+        people::Act::AddKey { provider, join, digest, .. } => {
             account(core, work, request, people::AccountChange::AddKey { provider, join, digest });
         }
         people::Act::RemoveAccount { account: number } => {
