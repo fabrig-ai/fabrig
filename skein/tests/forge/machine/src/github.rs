@@ -472,20 +472,7 @@ fn fixture_domain(seed: u64, logs: bool) -> (fake::Domain, fake::Config) {
                 default: Box::from(if id == 4 { b"queue".as_slice() } else { b"main".as_slice() }),
                 tree: Box::from([]),
                 labels: Box::from([]),
-                checks: if logs && id == 2 {
-                    crate::joint::checks(0)
-                } else {
-                    a::Checks {
-                        cues: Box::new([]),
-                        contexts: Box::from([]),
-                        latency_min: Duration::ZERO,
-                        latency_max: Duration::ZERO,
-                        silent: 0,
-                        passes: 1000,
-                        reruns: 0,
-                        cue: None,
-                    }
-                },
+                checks: fixture_checks(logs && id == 2),
                 protection: (id == 4).then(|| a::Protection {
                     linear: false,
                     code_owners: false,
@@ -509,23 +496,57 @@ fn fixture_domain(seed: u64, logs: bool) -> (fake::Domain, fake::Config) {
             a::Settings { default: Box::from(b"main".as_slice()), merge: true, squash: true, rebase: false },
         );
         if id == 2 {
-            for branch in [b"alpha".as_slice(), b"feature/one"] {
-                domain_reply(
-                    &mut domain,
-                    &config,
-                    Wall::EPOCH,
-                    fake::Event::Call {
-                        reply_to: ReplyTo::new(Token::new(77)),
-                        user: 9,
-                        repository: Box::from(name),
-                        op: a::Op::Write(a::Write::CreateBranch { branch: Box::from(branch), commit: first }),
-                    },
-                )
-                .expect("fixture branch");
+            widget_branches(&mut domain, &config, first);
+            if logs {
+                log_head(&mut domain, &config);
             }
         }
     }
     (domain, config)
+}
+
+fn widget_branches(domain: &mut fake::Domain, config: &fake::Config, first: u64) {
+    for branch in [b"alpha".as_slice(), b"feature/one"] {
+        fixture_call(
+            domain,
+            config,
+            b"acme/widgets",
+            a::Op::Write(a::Write::CreateBranch { branch: Box::from(branch), commit: first }),
+        );
+    }
+}
+
+fn fixture_checks(logs: bool) -> a::Checks {
+    let mut checks = crate::joint::checks(if logs { 0 } else { 1000 });
+    if logs {
+        checks.cue = Some(a::Cue::PullFile {
+            path: Box::from(b"changes/31.md".as_slice()),
+            no_pull: a::Check::Failed,
+            step: Box::from(b"changes".as_slice()),
+            log: Box::from(b"Missing changes/31.md with the line: opened 2026-11-01T14:07:25Z".as_slice()),
+        });
+    } else {
+        checks.contexts = Box::from([]);
+    }
+    checks
+}
+
+fn log_head(domain: &mut fake::Domain, config: &fake::Config) {
+    let commit = fake::commit(
+        domain,
+        config,
+        1,
+        Box::new([a::File { path: Box::from(b"widget".as_slice()), content: Box::from(b"repair".as_slice()) }]),
+        b"another failed head",
+    )
+    .expect("fixture commit")
+    .expect("changed fixture");
+    fixture_call(
+        domain,
+        config,
+        b"acme/widgets",
+        a::Op::Git(a::Git::Push { branch: Box::from(b"alpha".as_slice()), commit, expected: None }),
+    );
 }
 
 // More timers than a fixture's queue and CI can have due at once.

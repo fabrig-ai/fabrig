@@ -2,7 +2,7 @@
 use alloc::boxed::Box;
 use skein_fake_forge_domain::{Domain, api as a};
 use skein_forge::{api, github::document as d};
-use skein_lib::{List, Wall, bytes::copy_of};
+use skein_lib::{Decimal, List, Wall, Writer, bytes::copy_of};
 
 use super::commit;
 use crate::{
@@ -90,13 +90,13 @@ fn run_page(
         };
         rows.push(d::Run {
             check,
-            id: Some(job.job),
+            id: Some(job.job ^ (1_u64 << 63_u32)),
             head: Some(commit(count)),
             completed,
             started: Some(at),
             name: summary.status.context,
             title: summary.description,
-            url: summary.link,
+            url: actions_url(repository, job.run, job.job),
             app: Some(copy_of(b"github-actions")),
         })
         .expect("one descriptor per page row");
@@ -146,4 +146,20 @@ pub(super) fn job(answer: a::Answer, repository: &[u8], limits: &Limits, domain:
         &Body::Job(&d::Job { id: job.id, run: job.run, attempt: job.attempt, head: commit(count), step: None }),
         limits,
     )
+}
+
+fn actions_url(repository: &[u8], run: u64, job: u64) -> Box<[u8]> {
+    let run = Decimal::of(run);
+    let job = Decimal::of(job);
+    let parts: [&[u8]; 6] =
+        [b"https://github.com/", repository, b"/actions/runs/", run.as_bytes(), b"/job/", job.as_bytes()];
+    let mut length = 0_usize;
+    for part in parts {
+        length = length.checked_add(part.len()).expect("bounded repository and ids");
+    }
+    let mut out = Writer::new(length);
+    for part in parts {
+        out.put(part).expect("measured URL");
+    }
+    out.finish()
 }

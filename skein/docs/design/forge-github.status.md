@@ -4,3 +4,10 @@
 
 - **Built:** 2 to 12: dialect foundation, paged repository/issue/pull/status reads, protection joins, JWT and installation startup, signed deliveries and log, job-log redirect, manifest and App conversion documents.
 - **Not yet:** Other read plans and write waits; remaining 4 to 14 behavior. 4.3, 15: batched GraphQL reads and conditional reads beyond the delivery log.
+
+- **Built:** 4.1, 4.4: failed Actions checks resolve the linked job id
+  independently of the check-run id, validating repository, head, run
+  and positive attempt before pinning. Missing App metadata can resolve
+  through the same validated Actions link; an explicit other App stays
+  unpinned. Step and fake-GitHub machine regressions compose Checks and
+  Job for two failed heads and retain the gate's timestamp in the log tail.

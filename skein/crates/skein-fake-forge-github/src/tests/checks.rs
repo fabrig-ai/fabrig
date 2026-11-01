@@ -44,20 +44,7 @@ fn github_fake_ci_contexts_keep_actions_run_job_and_rerun_attempt_ids() {
             assert_eq!((attempt.run, attempt.job, attempt.attempt), (1, job, if reruns == 0 { 1 } else { 2 }));
             assert_eq!(row.check, api::Check::Failed);
         }
-        let request = Request::CheckRuns {
-            owner: f::boxed(b"acme"),
-            name: f::boxed(b"widgets"),
-            commit: r::object(commit),
-            page: 1,
-            per_page: 2,
-        };
-        let encoded = github::request::encode(&request, &h.limits.github).unwrap();
-        let answer = h.ask(Method::Get, &encoded.target, Some(token.expose()), b"");
-        let (runs, _) = h.decode(Kind::CheckRuns, &answer);
-        for row in &runs {
-            let github::document::Row::Run(row) = row else { panic!("run") };
-            assert_eq!(row.app.as_deref(), Some(b"github-actions".as_slice()));
-        }
+        check_identities(&mut h, &token, commit);
     }
 }
 
@@ -107,5 +94,24 @@ fn github_fake_reported_statuses_stay_statuses_and_empty_combined_is_pending_zer
                 assert_eq!(combined.check, if reported { api::Check::Passed } else { api::Check::Pending });
             }
         }
+    }
+}
+
+fn check_identities(h: &mut f::Harness, token: &skein_lib::Secret, commit: u64) {
+    let request = Request::CheckRuns {
+        owner: f::boxed(b"acme"),
+        name: f::boxed(b"widgets"),
+        commit: r::object(commit),
+        page: 1,
+        per_page: 2,
+    };
+    let encoded = github::request::encode(&request, &h.limits.github).unwrap();
+    let answer = h.ask(Method::Get, &encoded.target, Some(token.expose()), b"");
+    let (runs, _) = h.decode(Kind::CheckRuns, &answer);
+    for row in &runs {
+        let github::document::Row::Run(row) = row else { panic!("run") };
+        assert_eq!(row.app.as_deref(), Some(b"github-actions".as_slice()));
+        assert!(row.id.expect("check id") >= (1_u64 << 63_u32));
+        assert!(row.url.starts_with(b"https://github.com/acme/widgets/actions/runs/"));
     }
 }
