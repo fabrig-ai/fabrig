@@ -137,7 +137,11 @@ fn ended(world: &World, task: u64) -> bool {
 }
 impl ScenarioApplication for Temper {
     fn configuration(scenario: Scenario, seed: u64) -> Option<Config> {
-        if scenario == Scenario::ShrinkingPool { None } else { Some(Config::new(seed, Some(scenario))) }
+        if matches!(scenario, Scenario::ShrinkingPool | Scenario::ProjectDeleted) {
+            None
+        } else {
+            Some(Config::new(seed, Some(scenario)))
+        }
     }
     #[expect(
         clippy::too_many_lines,
@@ -147,6 +151,9 @@ impl ScenarioApplication for Temper {
     )]
     fn action(world: &mut World, action: Action) -> Result<(), Violation> {
         match action {
+            Action::FillForDeletion | Action::RemoveProject => {
+                unreachable!("deletion is bound by jig's testing application")
+            }
             Action::Compound | Action::CompoundAgain | Action::CancelWithGrace | Action::Finish => {
                 let mut phase = 0;
                 while lifecycle::advance(world, action, &mut phase)? {
@@ -569,6 +576,7 @@ impl ScenarioApplication for Temper {
     }
     fn check(world: &World, scenario: Scenario) -> Result<(), Violation> {
         match scenario {
+            Scenario::ProjectDeleted => unreachable!("deletion is bound by jig's testing application"),
             Scenario::Compound | Scenario::Grace => lifecycle::check_ending(world, scenario),
             Scenario::ConversationEndsWhileRead => conversations::check_ending(world),
             Scenario::QueryWatchedWhileTasksEnd => queries::check_ending(world),
