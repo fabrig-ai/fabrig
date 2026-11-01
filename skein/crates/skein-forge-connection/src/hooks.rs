@@ -98,6 +98,19 @@ impl Hooks {
             self.slab.get_mut(*id).expect("indexed hook").refused(hinted.hint);
         }
     }
+    /// Drops a removed forge's delivery state while io settles its socket.
+    pub fn remove(&mut self, env: &Env<Limits>, forge: u16, io: &mut Queue<skein_io::Request>) {
+        for (_, id) in &self.connections {
+            let c = self.slab.get_mut(*id).expect("indexed hook");
+            if c.forge == forge && (c.mac.is_some() || c.hint.is_some()) {
+                if c.closing != Closing::Aborted {
+                    io.push(skein_io::Request::Abort { entity: c.socket });
+                }
+                *c = Hooked::new(c.socket, env);
+                c.closing = Closing::Aborted;
+            }
+        }
+    }
     pub fn offer(&mut self) {
         for (_, id) in &self.connections {
             self.slab.get_mut(*id).expect("indexed hook").offer();

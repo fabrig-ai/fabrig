@@ -1,5 +1,5 @@
 //! Waiting calls, runtime forges and answers (skein/docs/design/forge-connection.md, 2, 3, 8;
-//! temper/docs/design/draft/playground-reset.md, 3).
+//! temper/docs/design/draft/playground-reset.md, 3, 4).
 use crate::{
     boundary::{Answered, Event, Request},
     connection::{self, Connection, Exchange, Phase},
@@ -243,6 +243,65 @@ impl Component {
             self.drive(env, up, io);
         }
         Ok(())
+    }
+    /// Removes a forge at once: its calls answered `NotConnected`, its
+    /// connections aborted, its access, start and GitHub state dropped
+    /// (forge-connection.md, 8.5; playground-reset.md, 4).
+    pub fn remove(&mut self, env: &Env<Limits>, forge: u16, up: &mut Queue<Event>, io: &mut Queue<skein_io::Request>) {
+        let mut position = None;
+        for at in 0..self.settings.forges.len() {
+            if self.settings.forges.get(at).expect("configured forge").number == forge {
+                position = Some(at);
+                break;
+            }
+        }
+        let Some(at) = position else {
+            return;
+        };
+        for _ in 0..self.calls.len() {
+            let mut next = None;
+            for (call, id) in &self.calls {
+                if self.waiting.get(*id).expect("indexed call").repository.forge == forge {
+                    next = Some((*call, *id));
+                    break;
+                }
+            }
+            let Some((call, id)) = next else {
+                break;
+            };
+            self.finish(call, id, Err(api::Error::NotConnected), up);
+        }
+        let own = *self.own_tokens.get(at).expect("configured slot");
+        for (owner, id) in &self.connections {
+            let c = self.connection_slab.get_mut(*id).expect("indexed connection");
+            if c.forge == forge || own == Some(*owner) {
+                c.abort(io);
+            }
+        }
+        self.hooks.remove(env, forge, io);
+        let forges = core::mem::replace(&mut self.settings.forges, List::with_capacity(env.limits.forges));
+        let starts = core::mem::replace(&mut self.starts, List::with_capacity(env.limits.forges));
+        let github = core::mem::replace(&mut self.github, List::with_capacity(env.limits.forges));
+        let tokens = core::mem::replace(&mut self.own_tokens, List::with_capacity(env.limits.forges));
+        let plans = core::mem::replace(&mut self.own_plans, List::with_capacity(env.limits.forges));
+        for ((((kept, start), github), token), plan) in forges
+            .into_boxed()
+            .into_iter()
+            .zip(starts.into_boxed())
+            .zip(github.into_boxed())
+            .zip(tokens.into_boxed())
+            .zip(plans.into_boxed())
+        {
+            if kept.number == forge {
+                continue;
+            }
+            self.settings.forges.push(kept).expect("kept forge count");
+            self.starts.push(start).expect("kept forge count");
+            self.github.push(github).expect("kept forge count");
+            self.own_tokens.push(token).expect("kept forge count");
+            self.own_plans.push(plan).expect("kept forge count");
+        }
+        self.drive(env, up, io);
     }
     #[cfg(test)]
     pub(crate) fn test_calls_ready(&mut self) {
@@ -541,6 +600,9 @@ impl Component {
                     && let Some(c) = self.connection_slab.get_mut(*id)
                 {
                     c.socket = Some(socket);
+                    if c.phase == Phase::Closed {
+                        c.abort(io);
+                    }
                 }
             }
             skein_io::Event::Connected { owner } => {

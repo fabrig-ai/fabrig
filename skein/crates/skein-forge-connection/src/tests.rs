@@ -17,6 +17,7 @@ mod hooks;
 mod puller;
 mod reads;
 mod runtime_add;
+mod runtime_remove;
 mod writes;
 use crate::{
     Component, StartRead, Stopped,
