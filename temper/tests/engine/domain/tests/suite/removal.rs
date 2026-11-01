@@ -38,6 +38,9 @@ fn world(seed: u64) -> forge_routes::World {
 fn config(seed: u64, granted: bool) -> engine::Config {
     let mut config = world(seed).cold_config.expect("independent cold configuration");
     config.under_box = true;
+    // This forge is configured by its stored record, with no document identity to keep it connected.
+    config.identities = Box::new([]);
+    config.forge.writers = Box::new([]);
     config.core.grants = Box::new([people::ActGrant {
         connector: config.core.connectors[0],
         may: if granted { Box::new([people::ActKind::Cancel]) } else { Box::new([]) },
@@ -144,6 +147,15 @@ fn application(d: &mut Driver, request: forge::Ask, token: Token, key: u8) {
 
 fn remove(d: &mut Driver) {
     application(d, forge::Ask::RemoveForge { forge: FORGE }, REMOVE, 220);
+    // Immediate outputs leave the journal one at a time, without a commit terminal.
+    for _ in 0..200 {
+        if d.immediate.iter().any(|request| matches!(request, engine::Request::Unregister { forge: FORGE })) {
+            return;
+        }
+        engine::release(&mut d.root, &d.env, &mut d.out);
+        d.collect();
+    }
+    panic!("Unregister must be immediate");
 }
 
 fn answer(d: &mut Driver, act: forge::KeptActKind) {
@@ -235,11 +247,11 @@ fn removing_a_forge_cancels_its_changes_and_ends_whole() {
         assert!(matches!(d.store.rows.get(&Key::Forge(forge::Key::Forge(FORGE))),
             Some(Record::Forge { row }) if matches!(row.as_ref(), forge::Stored::Forge(row) if row.state == forge::ForgeState::Removing)));
         assert!(d.immediate.iter().any(|request| matches!(request, engine::Request::Unregister { forge: FORGE })));
-        assert!(
-            !cuts::forge_rows(&d.store)
-                .iter()
-                .any(|row| matches!(row, forge::Stored::Writer(_) | forge::Stored::Flight { .. }))
-        );
+        let retained: Vec<_> = cuts::forge_rows(&d.store)
+            .into_iter()
+            .filter(|row| matches!(row, forge::Stored::Writer(_) | forge::Stored::Flight { .. }))
+            .collect();
+        assert!(retained.is_empty(), "writer and flights erased in the removal decision: {retained:?}");
         d.send(engine::Event::Store(engine::StoreInput::Committed { number, fill: 0 }));
         d.pump();
         assert_removing(d);
@@ -280,6 +292,17 @@ fn comparable(d: &Driver) -> std::collections::BTreeMap<Key, Record> {
     rows
 }
 
+fn commit_erasure(d: &mut Driver, key: [u8; 16]) -> u64 {
+    for _ in 0..200 {
+        let number = cuts::commit(d);
+        if !d.store.rows.contains_key(&Key::Forge(forge::Key::KeptAct(key))) {
+            return number;
+        }
+        d.send(engine::Event::Store(engine::StoreInput::Committed { number, fill: 0 }));
+    }
+    panic!("kept act answer did not commit");
+}
+
 #[test]
 fn a_removal_cut_after_each_kept_act_resumes_to_the_same_end() {
     for seed in SEEDS {
@@ -299,7 +322,11 @@ fn a_removal_cut_after_each_kept_act_resumes_to_the_same_end() {
             if cut > 0 {
                 d.send(engine::Event::Store(engine::StoreInput::Committed { number, fill: 0 }));
                 // Commit the connector's erasure of Cancel, losing that decision's terminal.
-                let number = cuts::commit(d);
+                let cancel = original
+                    .iter()
+                    .find(|row| matches!(row.act, forge::KeptActKind::Cancel { .. }))
+                    .expect("kept Cancel");
+                let number = commit_erasure(d, cancel.key);
                 assert!(
                     !cuts::kept_acts(&d.store).iter().any(|row| matches!(row.act, forge::KeptActKind::Cancel { .. }))
                 );
@@ -347,7 +374,15 @@ fn a_removal_cut_after_each_kept_act_resumes_to_the_same_end() {
                 }
             }
             finish(&mut story.driver);
-            assert_eq!(comparable(&story.driver), expected, "seed {seed}, cut {cut}");
+            let resumed = comparable(&story.driver);
+            assert_eq!(
+                resumed.keys().collect::<Vec<_>>(),
+                expected.keys().collect::<Vec<_>>(),
+                "seed {seed}, cut {cut}"
+            );
+            for (key, row) in resumed {
+                assert_eq!(Some(&row), expected.get(&key), "seed {seed}, cut {cut}, row {key:?}");
+            }
         }
     }
 }
