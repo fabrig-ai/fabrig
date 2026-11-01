@@ -24,7 +24,7 @@ const STEPS: u32 = 256;
 // The forge setup world covers four configured forges and their project allocations.
 const FORGE_SETUP_WRITES: u32 = 2126;
 
-fn config(under_box: bool) -> engine::Config {
+fn config(under_box: bool, asked: bool) -> engine::Config {
     let mut config = walking::config(fixtures::SEED);
     config.core.connectors = Box::new([fixtures::FORGE]);
     config.under_box = under_box;
@@ -39,7 +39,7 @@ fn config(under_box: bool) -> engine::Config {
             number: FORGE,
             kind: forge::Kind::Forgejo,
             mode: forge::Mode::Owned,
-            asked: true,
+            asked,
         },
         forge::Configured {
             admin_connect: false,
@@ -51,7 +51,7 @@ fn config(under_box: bool) -> engine::Config {
             number: OTHER,
             kind: forge::Kind::Forgejo,
             mode: forge::Mode::Owned,
-            asked: true,
+            asked,
         },
         forge::Configured {
             admin_connect: false,
@@ -98,6 +98,9 @@ struct World {
 }
 impl World {
     fn new(under_box: bool) -> Self {
+        Self::with_setup(under_box, true)
+    }
+    fn with_setup(under_box: bool, asked: bool) -> Self {
         let mut limits = temper_engine_domain_world::fixtures::forge_limits();
         limits.authority = temper_engine_domain_world::walking::limits().authority;
         limits.people.projects = 3;
@@ -111,15 +114,16 @@ impl World {
         limits.documents.lines = tools::limits::client().client.domain.projects;
         limits.journal.writes = FORGE_SETUP_WRITES;
         assert!(engine::valid(&limits), "the story profile covers the larger cohort");
-        let store = temper_engine_domain_world::fixtures::restored_over(Store::new(), config(under_box), &limits);
-        let configuration = config(under_box);
+        let store =
+            temper_engine_domain_world::fixtures::restored_over(Store::new(), config(under_box, asked), &limits);
+        let configuration = config(under_box, asked);
         let mut transport = Transport::new(c::VersionRange {
             first: jig_client_protocol_wire::VERSION,
             last: jig_client_protocol_wire::VERSION,
         });
         transport.models.clone_from(&configuration.core.settings.models);
         transport.providers = configuration.core.settings.llm_providers.clone();
-        let mut engine = Driver::configured(store, [config(under_box), configuration], &limits);
+        let mut engine = Driver::configured(store, [config(under_box, asked), configuration], &limits);
         engine.settle();
         engine.sign_in();
         engine.settle();
@@ -372,7 +376,7 @@ fn without_the_box_the_row_and_setup_refusal_name_the_manual_commands() {
 }
 #[test]
 fn a_forge_not_owned_or_not_asked_does_not_offer_setup() {
-    let mut world = World::new(true);
+    let mut world = World::with_setup(true, false);
     for number in [b"5".as_slice(), b"6", b"9"] {
         let printed = world.invoke(&[b"forge", b"setup", number]);
         assert_eq!((printed.status, printed.stderr.as_ref()), (2, b"refused: not offered\n".as_slice()));

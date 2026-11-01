@@ -23,7 +23,7 @@ impl State {
             previous: Map::with_capacity(bound),
         }
     }
-    fn answer(&mut self, request: Token, token: Token, answer: Answered, out: &mut Queue<Request>) {
+    pub(crate) fn answer(&mut self, request: Token, token: Token, answer: Answered, out: &mut Queue<Request>) {
         if self.answers.len() == self.answers.capacity() && !self.answers.contains_key(&token) {
             let oldest = *self.answers.first().expect("full answers").0;
             self.answers.remove(&oldest);
@@ -41,23 +41,54 @@ pub(crate) fn start(
     carried: Option<Carried>,
     out: &mut Queue<Request>,
 ) {
+    match &ask {
+        Ask::Connect { forge: crate::ConnectForge::GitHub | crate::ConnectForge::Forgejo { .. }, .. } => {
+            if let Some(value) = carried {
+                out.push(Request::CarriedUnused { number: value.number });
+            }
+            d.connect.answer(request, token, Answered::Connect(ConnectAnswer::Refused(ForgeRefusal::NoSuchForge)), out);
+            return;
+        }
+        Ask::Connect { forge: crate::ConnectForge::Existing(_), .. }
+        | Ask::Adopt(_)
+        | Ask::SetUp { .. }
+        | Ask::StartDemo
+        | Ask::StartPlayground
+        | Ask::EndPlayground
+        | Ask::RemoveForge { .. }
+        | Ask::Install { .. }
+        | Ask::Accept { .. }
+        | Ask::Reachable { .. } => {}
+    }
     if let Ask::Reachable { forge, installation, page } = ask {
         reachable(d, request, token, forge, installation, page, role, carried, out);
         return;
     }
-    if let Ask::Connect { forge, how: how @ crate::How::ForgejoAdmin { .. } } = ask {
+    if let Ask::Connect { forge: crate::ConnectForge::Existing(forge), how: how @ crate::How::ForgejoAdmin { .. } } =
+        ask
+    {
         admin(d, request, token, forge, how, role, carried, out);
         return;
     }
     let (forge, install, manifest) = match &ask {
-        Ask::Connect { forge, how: crate::How::GitHubApp { .. } } => (*forge, false, false),
-        Ask::Connect { forge, how: crate::How::GitHubManifest { .. } } => (*forge, false, true),
+        Ask::Connect { forge: crate::ConnectForge::Existing(forge), how: crate::How::GitHubApp { .. } } => {
+            (*forge, false, false)
+        }
+        Ask::Connect { forge: crate::ConnectForge::Existing(forge), how: crate::How::GitHubManifest { .. } } => {
+            (*forge, false, true)
+        }
         Ask::Install { forge, .. } | Ask::Accept { forge, .. } => (*forge, true, false),
         Ask::Connect { how: crate::How::ForgejoAdmin { .. }, .. }
         | Ask::Reachable { .. }
         | Ask::Adopt(_)
         | Ask::SetUp { .. }
-        | Ask::StartDemo => unreachable!("connect admission"),
+        | Ask::StartDemo
+        | Ask::RemoveForge { .. }
+        | Ask::StartPlayground
+        | Ask::EndPlayground
+        | Ask::Connect { forge: crate::ConnectForge::GitHub | crate::ConnectForge::Forgejo { .. }, .. } => {
+            unreachable!("connect admission")
+        }
     };
     let (connected, connecting) = match d.connection(forge) {
         Connection::Connected { .. } => (true, false),
@@ -144,7 +175,10 @@ fn send(d: &mut Domain, request: Token, forge: u16, ask: Ask, carried: Option<Ca
         | Ask::Reachable { .. }
         | Ask::Adopt(_)
         | Ask::SetUp { .. }
-        | Ask::StartDemo => unreachable!("connect admission"),
+        | Ask::StartDemo
+        | Ask::RemoveForge { .. }
+        | Ask::StartPlayground
+        | Ask::EndPlayground => unreachable!("connect admission"),
     }
 }
 /// Admission for the string-managed Forgejo form (client/README.md, 8).

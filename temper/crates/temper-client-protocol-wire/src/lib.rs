@@ -78,6 +78,7 @@ pub struct Bounds {
 #[must_use]
 pub fn limits(bounds: &Bounds) -> Option<v1::Limits> {
     let limits = v1::Limits {
+        new_forgejo_address: ADDRESS_BYTES,
         authority_hold_reason: 512,
         owned_forge_forgejo: 64,
         owned_forge_runner_some: 64,
@@ -253,17 +254,23 @@ pub fn decode_requesting(bytes: &[u8], limits: &v1::Limits) -> Option<v1::Reques
         return None;
     }
     match record.request() {
-        v1::Request::Connect(connect) => match connect.how() {
-            v1::How::GithubApp(app) if app.id() == 0 => return None,
-            v1::How::GithubApp(_) | v1::How::GithubManifest(_) => {}
-            v1::How::ForgejoAdmin(admin) => {
-                if let Some(first) = admin.first()
-                    && !runner_label(first.label())
-                {
-                    return None;
+        v1::Request::Connect(connect) => {
+            match connect.forge() {
+                v1::ConnectForge::Forgejo(forge) if forge.address().is_empty() => return None,
+                v1::ConnectForge::Existing(_) | v1::ConnectForge::Github | v1::ConnectForge::Forgejo(_) => {}
+            }
+            match connect.how() {
+                v1::How::GithubApp(app) if app.id() == 0 => return None,
+                v1::How::GithubApp(_) | v1::How::GithubManifest(_) => {}
+                v1::How::ForgejoAdmin(admin) => {
+                    if let Some(first) = admin.first()
+                        && !runner_label(first.label())
+                    {
+                        return None;
+                    }
                 }
             }
-        },
+        }
         v1::Request::Accept(value) if value.installation() == 0 => return None,
         v1::Request::Reachable(value) if value.page() == 0 => return None,
         v1::Request::Reachable(_)
@@ -272,6 +279,9 @@ pub fn decode_requesting(bytes: &[u8], limits: &v1::Limits) -> Option<v1::Reques
         | v1::Request::Return(_)
         | v1::Request::Adopt(_)
         | v1::Request::SetUp(_)
+        | v1::Request::RemoveForge(_)
+        | v1::Request::StartPlayground
+        | v1::Request::EndPlayground
         | v1::Request::StartDemo => {}
     }
     Some(record)

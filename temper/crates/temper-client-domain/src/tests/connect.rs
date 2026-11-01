@@ -496,6 +496,7 @@ fn deliver_first_record(
         w::ForgeRow::new(
             &w::CEILINGS,
             w::ForgeRowParts {
+                skein_bools: [false, false, false, false],
                 number: HERE,
                 kind: w::Kind::Forgejo,
                 mode: w::Mode::Owned,
@@ -508,8 +509,6 @@ fn deliver_first_record(
                 web: None,
                 repositories: List::with_capacity(0),
                 owned: None,
-                admin: false,
-                read_only: false,
                 ended_stop: None,
             },
         )
@@ -1011,6 +1010,7 @@ fn deliver_picker(root: &mut crate::Domain, watch: Token, changed: bool) -> Queu
         w::ForgeRow::new(
             &w::CEILINGS,
             w::ForgeRowParts {
+                skein_bools: [false, false, false, false],
                 number: 2,
                 kind: w::Kind::Github,
                 mode: w::Mode::Connected,
@@ -1023,8 +1023,6 @@ fn deliver_picker(root: &mut crate::Domain, watch: Token, changed: bool) -> Queu
                 web: None,
                 repositories: List::with_capacity(0),
                 owned: None,
-                admin: false,
-                read_only: false,
                 ended_stop: None,
             },
         )
@@ -1300,7 +1298,6 @@ fn at_once_sends_fixed_names_without_reading_or_marking_the_form() {
     let (_, _, w::Request::SetUp(value)) = sent(f::form_act(&mut root, forge::Act::SetUpAtOnce { forge: HERE })) else {
         panic!("setup")
     };
-    assert_eq!(value.forge(), HERE);
     assert_eq!((value.org(), value.repository(), value.playground()), (b"work".as_slice(), b"hello".as_slice(), false));
     let w::SetUpProject::New(project) = value.project() else { panic!("new project") };
     assert_eq!(project.name(), b"Default");

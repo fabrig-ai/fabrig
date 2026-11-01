@@ -292,6 +292,7 @@ fn forges(world: World) -> Box<[u8]> {
             w::ForgeRow::new(
                 &limits,
                 w::ForgeRowParts {
+                    skein_bools: [false, false, false, false],
                     number: FORGE,
                     kind: w::Kind::Forgejo,
                     mode: w::Mode::Fake,
@@ -307,8 +308,6 @@ fn forges(world: World) -> Box<[u8]> {
                     web: None,
                     repositories: List::with_capacity(0),
                     owned: None,
-                    admin: false,
-                    read_only: false,
                     ended_stop: None,
                 },
             )
@@ -331,6 +330,7 @@ fn forges(world: World) -> Box<[u8]> {
             w::ForgeRow::new(
                 &limits,
                 w::ForgeRowParts {
+                    skein_bools: [false, false, false, false],
                     number: 2,
                     kind: w::Kind::Github,
                     mode: w::Mode::Managed,
@@ -346,8 +346,6 @@ fn forges(world: World) -> Box<[u8]> {
                     web: None,
                     repositories: List::with_capacity(0),
                     owned: None,
-                    admin: false,
-                    read_only: false,
                     ended_stop: None,
                 },
             )
@@ -360,6 +358,7 @@ fn forges(world: World) -> Box<[u8]> {
             w::ForgeRow::new(
                 &limits,
                 w::ForgeRowParts {
+                    skein_bools: [false, false, false, false],
                     number: 2,
                     kind: w::Kind::Github,
                     mode: w::Mode::Managed,
@@ -372,8 +371,6 @@ fn forges(world: World) -> Box<[u8]> {
                     web: None,
                     repositories: List::with_capacity(0),
                     owned: None,
-                    admin: false,
-                    read_only: false,
                     ended_stop: None,
                 },
             )
@@ -407,6 +404,7 @@ fn forges(world: World) -> Box<[u8]> {
             w::ForgeRow::new(
                 &limits,
                 w::ForgeRowParts {
+                    skein_bools: [step == 23, false, false, false],
                     number: 3,
                     kind: w::Kind::Forgejo,
                     mode: if step == 23 { w::Mode::Connected } else { w::Mode::Owned },
@@ -462,8 +460,6 @@ fn forges(world: World) -> Box<[u8]> {
                             .expect("owned pins"),
                         )
                     },
-                    admin: step == 23,
-                    read_only: false,
                     ended_stop: None,
                 },
             )

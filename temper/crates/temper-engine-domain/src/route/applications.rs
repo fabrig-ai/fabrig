@@ -24,6 +24,9 @@ pub(super) fn start(domain: &mut Domain, admission: Admission, request: Applicat
     let scope = match &request {
         Application::Forge(
             forge::Ask::SetUp { .. }
+            | forge::Ask::RemoveForge { .. }
+            | forge::Ask::StartPlayground
+            | forge::Ask::EndPlayground
             | forge::Ask::StartDemo
             | forge::Ask::Connect { .. }
             | forge::Ask::Install { .. }
@@ -137,6 +140,9 @@ pub(super) fn answer(domain: &Domain, token: Token) -> Option<ApplicationAnswer>
     match domain.forge.application_answer(token) {
         Some(forge::Answered::Adopt(answer)) => Some(ApplicationAnswer::Adopt(answer)),
         Some(forge::Answered::SetUp(answer)) => Some(ApplicationAnswer::SetUp(answer)),
+        Some(forge::Answered::RemoveForge(answer)) => Some(ApplicationAnswer::RemoveForge(answer)),
+        Some(forge::Answered::StartPlayground(answer)) => Some(ApplicationAnswer::StartPlayground(answer)),
+        Some(forge::Answered::EndPlayground(answer)) => Some(ApplicationAnswer::EndPlayground(answer)),
         Some(forge::Answered::StartDemo(answer)) => Some(ApplicationAnswer::StartDemo(answer)),
         Some(forge::Answered::Connect(answer)) => Some(ApplicationAnswer::Connect(answer)),
         Some(forge::Answered::Reachable(answer)) => Some(ApplicationAnswer::Reachable(answer)),

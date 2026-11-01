@@ -118,7 +118,6 @@ fn setup(key: u8) -> Event {
         carried: None,
         request: crate::Application::Forge(forge::Ask::SetUp {
             playground: false,
-            forge: 1,
             org: b"work".as_slice().into(),
             repository: b"hello".as_slice().into(),
             project: forge::SetUpProject::Existing(1),
@@ -205,6 +204,8 @@ fn the_deployment_owner_watches_forges_again_after_a_connection_changes() {
             watcher: WATCHER,
             forges: forge::Forges {
                 rows: Box::new([forge::Row {
+                    finished: false,
+                    playground: false,
                     number: 1,
                     kind: forge::Kind::Forgejo,
                     mode: forge::Mode::Owned,
@@ -246,6 +247,8 @@ fn a_party_without_a_deployment_role_cannot_watch_forges_or_ask_the_box() {
 
 fn row(connection: forge::Connection) -> forge::Row {
     forge::Row {
+        finished: false,
+        playground: false,
         number: 1,
         kind: forge::Kind::Forgejo,
         mode: forge::Mode::Owned,
@@ -286,7 +289,7 @@ fn public_connect_preserves_the_admitted_owner_and_carry_then_root_orders_its_er
         &env,
         public_request(
             forge::Ask::Connect {
-                forge: 1,
+                forge: forge::ConnectForge::Existing(1),
                 how: forge::How::GitHubApp { app: core::num::NonZeroU64::new(7).unwrap() },
             },
             Some(carried),
@@ -372,7 +375,7 @@ fn public_connect_refuses_other_deployment_roles_and_names_their_carry_unused_on
             &env,
             public_request(
                 forge::Ask::Connect {
-                    forge: 1,
+                    forge: forge::ConnectForge::Existing(1),
                     how: forge::How::GitHubApp { app: core::num::NonZeroU64::new(7).unwrap() },
                 },
                 Some(carried),
@@ -656,7 +659,10 @@ fn admin_connect_routes_the_whole_how_and_erases_at_both_ends() {
             crate::try_step(
                 &mut domain,
                 &env,
-                public_request(forge::Ask::Connect { forge: 1, how: how.clone() }, Some(carried)),
+                public_request(
+                    forge::Ask::Connect { forge: forge::ConnectForge::Existing(1), how: how.clone() },
+                    Some(carried),
+                ),
             )
             .unwrap();
             let requests = settle(&mut domain, &env);
@@ -742,7 +748,10 @@ fn admin_connect_role_refusals_deliver_the_carried_value_unused() {
             &mut domain,
             &env,
             public_request(
-                forge::Ask::Connect { forge: 1, how: forge::How::ForgejoAdmin { first: None } },
+                forge::Ask::Connect {
+                    forge: forge::ConnectForge::Existing(1),
+                    how: forge::How::ForgejoAdmin { first: None },
+                },
                 Some(carried),
             ),
         )
@@ -893,4 +902,38 @@ fn public_accept_defers_the_keyed_answer_until_the_verified_installation_is_kept
             outcome: Some(crate::ApplicationAnswer::Accept(answer)),
         }))]
     );
+}
+
+#[test]
+fn remove_forge_is_admitted_at_the_deployment_scope_and_refused_not_offered() {
+    let (mut domain, env) = signed_in(Some(people::Role::Owner));
+    // This person holds only deployment ownership. The caller's project scope cannot admit the ask.
+    crate::try_step(&mut domain, &env, public_request(forge::Ask::RemoveForge { forge: 1 }, None)).unwrap();
+    assert_eq!(
+        settle(&mut domain, &env).as_ref(),
+        [Request::Party(PartyRequest::Deliver(Delivery::Application {
+            to: ReplyTo::new(Token::new(90)),
+            outcome: Some(crate::ApplicationAnswer::RemoveForge(forge::RemoveAnswer::Refused(
+                forge::RemoveRefusal::NotOffered
+            ))),
+        }))]
+    );
+}
+#[test]
+fn playground_asks_are_admitted_at_the_deployment_scope_and_refused_not_offered() {
+    for (ask, answer) in [
+        (forge::Ask::StartPlayground, crate::ApplicationAnswer::StartPlayground(forge::StartAnswer::NotOffered)),
+        (forge::Ask::EndPlayground, crate::ApplicationAnswer::EndPlayground(forge::EndAnswer::NotOffered)),
+    ] {
+        let (mut domain, env) = signed_in(Some(people::Role::Owner));
+        crate::try_step(&mut domain, &env, public_request(ask, None)).unwrap();
+        assert!(domain.application_demo.is_none());
+        assert_eq!(
+            settle(&mut domain, &env).as_ref(),
+            [Request::Party(PartyRequest::Deliver(Delivery::Application {
+                to: ReplyTo::new(Token::new(90)),
+                outcome: Some(answer),
+            }))]
+        );
+    }
 }

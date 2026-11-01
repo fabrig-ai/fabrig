@@ -223,8 +223,14 @@ struct Intent {
     project: SetUpProject,
 }
 #[derive(Debug)]
+enum SetUpIntent {
+    Live(Intent),
+    Kept,
+    Demo,
+}
+#[derive(Debug)]
 struct SettingUp {
-    intent: Option<Intent>,
+    intent: SetUpIntent,
     called: Option<Called>,
 }
 #[derive(Debug)]
@@ -378,6 +384,10 @@ fn send(state: &mut Forges, client: &Client, env: &Env<Limits>, called: Called, 
             Some(name) => Some(crate::key::engine(name)),
             None => None,
         };
+        let intent = match intent {
+            Some(intent) => SetUpIntent::Live(intent),
+            None => SetUpIntent::Demo,
+        };
         state.pending.insert(key, SettingUp { intent, called: Some(called) });
         out.push(Out::Client { event: Event::Send { key, name, request } });
     } else {
@@ -450,17 +460,22 @@ pub(crate) fn told(state: &mut Forges, client: &Client, env: &Env<Limits>, told:
                 None => state.json,
             };
             let printed = match &pending.intent {
-                Some(intent) => setup_print(intent.forge, outcome, json, pending.called.is_none(), &env.limits),
-                None => crate::demo::print(outcome, json, pending.called.is_none(), &env.limits),
+                SetUpIntent::Live(intent) => {
+                    setup_print(Some(intent.forge), outcome, json, pending.called.is_none(), &env.limits)
+                }
+                SetUpIntent::Kept => setup_print(None, outcome, json, true, &env.limits),
+                SetUpIntent::Demo => crate::demo::print(outcome, json, pending.called.is_none(), &env.limits),
             };
             match pending.called {
-                Some(called) if printed.status == 0 && pending.intent.is_some() => {
-                    out.push(Out::Progress {
-                        line: if called.json { render::outcome::newline(&printed.stdout) } else { printed.stdout },
-                    });
-                    watch_first(state, env, *key, called, pending.intent.expect("setup intent"), out);
-                }
-                Some(called) => finish(called, printed, out),
+                Some(called) => match pending.intent {
+                    SetUpIntent::Live(intent) if printed.status == 0 => {
+                        out.push(Out::Progress {
+                            line: if called.json { render::outcome::newline(&printed.stdout) } else { printed.stdout },
+                        });
+                        watch_first(state, env, *key, called, intent, out);
+                    }
+                    SetUpIntent::Live(_) | SetUpIntent::Kept | SetUpIntent::Demo => finish(called, printed, out),
+                },
                 None => out.push(Out::Kept { line: if printed.status == 0 { printed.stdout } else { printed.stderr } }),
             }
         }
@@ -499,29 +514,16 @@ fn restore(state: &mut Forges, env: &Env<Limits>, key: Key, request: &jig_client
     let Some(limits) = temper_client_domain::forge::wire_limits(&env.limits.domain.forge) else { return };
     let Some(request) = temper_client_protocol_wire::decode_requesting(&record.bytes, &limits) else { return };
     let intent = match request.into_parts().request {
-        temper_client_protocol_wire::v1::Request::SetUp(request) => {
-            let request = request.into_parts();
-            Some(Intent {
-                playground: request.playground,
-                forge: request.forge,
-                org: request.org,
-                repository: request.repository,
-                project: match request.project {
-                    temper_client_protocol_wire::v1::SetUpProject::Existing(project) => {
-                        SetUpProject::Existing(project.project())
-                    }
-                    temper_client_protocol_wire::v1::SetUpProject::New(project) => {
-                        SetUpProject::New(project.into_parts().name)
-                    }
-                },
-            })
-        }
-        temper_client_protocol_wire::v1::Request::StartDemo => None,
+        temper_client_protocol_wire::v1::Request::SetUp(_) => SetUpIntent::Kept,
+        temper_client_protocol_wire::v1::Request::StartDemo => SetUpIntent::Demo,
         temper_client_protocol_wire::v1::Request::Reachable(_)
         | temper_client_protocol_wire::v1::Request::Adopt(_)
         | temper_client_protocol_wire::v1::Request::Return(_)
         | temper_client_protocol_wire::v1::Request::Connect(_)
         | temper_client_protocol_wire::v1::Request::Accept(_)
+        | temper_client_protocol_wire::v1::Request::RemoveForge(_)
+        | temper_client_protocol_wire::v1::Request::StartPlayground
+        | temper_client_protocol_wire::v1::Request::EndPlayground
         | temper_client_protocol_wire::v1::Request::Install(_) => return,
     };
     state.pending.insert(key, SettingUp { intent, called: None });
@@ -928,7 +930,7 @@ pub(crate) fn print_rows(rows: Option<&[Row]>, json: bool, met: Option<bool>, li
         stderr: Box::default(),
     }
 }
-fn setup_text(forge: u16, answer: &SetUpAnswer, kept: bool, limits: &Limits, out: &mut Text) {
+fn setup_text(forge: Option<u16>, answer: &SetUpAnswer, kept: bool, limits: &Limits, out: &mut Text) {
     if kept {
         out.put(b"kept: forge-setup ");
     }
@@ -938,7 +940,9 @@ fn setup_text(forge: u16, answer: &SetUpAnswer, kept: bool, limits: &Limits, out
             out.put(b"refused: ");
             out.put(words::set_up_refusal(*why));
             out.put(b"\n");
-            if *why == SetUpRefusal::NotUnderTheBox {
+            if *why == SetUpRefusal::NotUnderTheBox
+                && let Some(forge) = forge
+            {
                 out.put(&words::set_up_commands(forge));
                 out.put(b"\n");
             }
@@ -950,7 +954,7 @@ fn setup_text(forge: u16, answer: &SetUpAnswer, kept: bool, limits: &Limits, out
         }
     }
 }
-fn setup_json(forge: u16, answer: &SetUpAnswer, kept: bool, out: &mut Encoder) {
+fn setup_json(forge: Option<u16>, answer: &SetUpAnswer, kept: bool, out: &mut Encoder) {
     if kept {
         out.object_start();
         out.key(b"operation");
@@ -976,7 +980,9 @@ fn setup_json(forge: u16, answer: &SetUpAnswer, kept: bool, out: &mut Encoder) {
                 SetUpRefusal::Invalid => b"invalid",
             });
             out.object_end();
-            if *why == SetUpRefusal::NotUnderTheBox {
+            if *why == SetUpRefusal::NotUnderTheBox
+                && let Some(forge) = forge
+            {
                 out.key(b"next");
                 out.string(&words::set_up_commands(forge));
             }
@@ -999,7 +1005,13 @@ fn setup_json(forge: u16, answer: &SetUpAnswer, kept: bool, out: &mut Encoder) {
         out.object_end();
     }
 }
-pub(crate) fn setup_print(forge: u16, outcome: &Outcome, json: bool, kept: bool, limits: &Limits) -> jig::Printed {
+pub(crate) fn setup_print(
+    forge: Option<u16>,
+    outcome: &Outcome,
+    json: bool,
+    kept: bool,
+    limits: &Limits,
+) -> jig::Printed {
     let answer = match outcome {
         Outcome::Full { held, room_at } => {
             return render::answers_full(crate::root::DIAGNOSTIC_PREFIX, *held, *room_at);
@@ -1007,17 +1019,17 @@ pub(crate) fn setup_print(forge: u16, outcome: &Outcome, json: bool, kept: bool,
         Outcome::Answered(answer) => domain::answer(answer, &limits.domain.forge),
         Outcome::Unknown => Some(SetUpAnswer::Outcome(SetUpOutcome::Unknown)),
         Outcome::Held | Outcome::Limit | Outcome::Unconfirmed | Outcome::NotKept | Outcome::Unsent | Outcome::Lost => {
-            let mut operation = render::outcome::Operation::of(
-                &domain::ask(
-                    forge,
+            let mut operation = render::outcome::Operation::of(&jig_client::Ask::Family {
+                scope: jig_client::contract::Scope::Deployment,
+                record: temper_client_domain::forge::family::set_up(
                     b"work".as_slice().into(),
                     b"hello".as_slice().into(),
                     SetUpProject::New(b"hello".as_slice().into()),
                     false,
-                    &limits.domain.forge,
+                    &temper_client_domain::forge::wire_limits(&limits.domain.forge).expect("checked limits"),
                 )
                 .expect("checked limits"),
-            );
+            });
             operation.word = b"forge-setup";
             if kept {
                 return jig::Printed {

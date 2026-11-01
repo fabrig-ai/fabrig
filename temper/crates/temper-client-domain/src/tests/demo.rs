@@ -624,6 +624,7 @@ fn forge_document(connected: bool) -> jig_client::Family {
             w::ForgeRow::new(
                 &w::CEILINGS,
                 w::ForgeRowParts {
+                    skein_bools: [false, false, false, false],
                     number: wire::FORGE + 1,
                     kind: w::Kind::Forgejo,
                     mode: w::Mode::Owned,
@@ -636,8 +637,6 @@ fn forge_document(connected: bool) -> jig_client::Family {
                     web: None,
                     repositories: List::with_capacity(0),
                     owned: None,
-                    admin: false,
-                    read_only: false,
                     ended_stop: None,
                 },
             )

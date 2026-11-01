@@ -204,7 +204,10 @@ fn connect_request(app: u64) -> w::Request {
         w::Connect::new(
             &w::CEILINGS,
             w::ConnectParts {
-                forge: FORGE,
+                forge: w::ConnectForge::Existing(
+                    w::ExistingForge::new(&w::CEILINGS, w::ExistingForgeParts { forge: FORGE })
+                        .expect("existing forge"),
+                ),
                 how: w::How::GithubApp(w::GitHubApp::new(&w::CEILINGS, w::GitHubAppParts { id: app }).unwrap()),
             },
         )

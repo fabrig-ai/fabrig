@@ -28,6 +28,7 @@ fn row(
     w::ForgeRow::new(
         &w::CEILINGS,
         w::ForgeRowParts {
+            skein_bools: [admin, false, false, false],
             number: FORGE,
             kind: w::Kind::Forgejo,
             mode: w::Mode::Managed,
@@ -40,8 +41,6 @@ fn row(
             web: None,
             repositories: List::with_capacity(0),
             owned: None,
-            admin,
-            read_only: false,
             ended_stop: stop,
         },
     )

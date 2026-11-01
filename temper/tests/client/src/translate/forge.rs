@@ -118,6 +118,7 @@ pub fn digest(value: &forge::Adoption) -> [u8; 32] {
     writer.finish().as_ref().try_into().expect("32-byte SHA-256")
 }
 #[must_use]
+#[expect(clippy::too_many_lines, reason = "one exhaustive match translates the client family requests")]
 pub fn request(
     transport: &mut Transport,
     who: ClientId,
@@ -152,7 +153,12 @@ pub fn request(
                 request: engine::Application::Forge(owner::Ask::Install { forge: value.forge, back: value.back }),
             });
         }
-        v1::Request::Accept(_) | v1::Request::Reachable(_) | v1::Request::StartDemo => {
+        v1::Request::Accept(_)
+        | v1::Request::Reachable(_)
+        | v1::Request::RemoveForge(_)
+        | v1::Request::StartPlayground
+        | v1::Request::EndPlayground
+        | v1::Request::StartDemo => {
             panic!("client sends no demo start yet")
         }
         v1::Request::Connect(connect) => {
@@ -239,6 +245,7 @@ fn admin_request(
 ) -> engine::Event {
     use temper_client_protocol_wire::v1;
     let connect = connect.into_parts();
+    let v1::ConnectForge::Existing(forge) = connect.forge else { panic!("kept admin forge") };
     let v1::How::ForgejoAdmin(admin) = connect.how else { panic!("admin fixture") };
     let first = admin.into_parts().first.map(|first| {
         let first = first.into_parts();
@@ -266,7 +273,7 @@ fn admin_request(
         digest: skein_lib::sha256::digest(&ask.bytes),
         carried,
         request: engine::Application::Forge(owner::Ask::Connect {
-            forge: connect.forge,
+            forge: owner::ConnectForge::Existing(forge.forge()),
             how: owner::How::ForgejoAdmin { first },
         }),
     })
@@ -578,7 +585,6 @@ fn set_up_request(
         carried: None,
         request: temper_engine_domain::Application::Forge(owner::Ask::SetUp {
             playground: setup.playground,
-            forge: setup.forge,
             org: setup.org,
             repository: setup.repository,
             project: match setup.project {

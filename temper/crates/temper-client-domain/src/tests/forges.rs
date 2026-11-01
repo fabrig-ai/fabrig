@@ -32,11 +32,9 @@ fn set_up_is_a_deployment_request_and_forges_a_deployment_watch() {
     };
     assert_eq!(scope, c::Scope::Deployment);
     assert_eq!((record.family, record.version), (wire::FORGE, wire::CLIENT_VERSION));
-    let w::Request::SetUp(request) = wire::decode_requesting(&record.bytes, &limits()).unwrap().into_parts().request
-    else {
+    let w::Request::SetUp(_) = wire::decode_requesting(&record.bytes, &limits()).unwrap().into_parts().request else {
         panic!("set up")
     };
-    assert_eq!(request.forge(), 3);
     let Watchable::Family { scope, window, record } = watch(&fixtures::limits().forge).unwrap() else {
         panic!("family")
     };
@@ -212,6 +210,7 @@ fn every_connection_decodes_into_the_forges_words() {
                 w::ForgeRow::new(
                     &limits(),
                     w::ForgeRowParts {
+                        skein_bools: [false, false, false, false],
                         number,
                         kind,
                         mode,
@@ -240,8 +239,6 @@ fn every_connection_decodes_into_the_forges_words() {
                             adopted
                         },
                         owned: fixture_wire_owned(m),
-                        admin: false,
-                        read_only: false,
                         ended_stop: None,
                     },
                 )
@@ -343,6 +340,7 @@ fn an_out_of_order_document_is_refused() {
                 w::ForgeRow::new(
                     &limits(),
                     w::ForgeRowParts {
+                        skein_bools: [false, false, false, false],
                         number,
                         kind: w::Kind::Forgejo,
                         mode: w::Mode::Owned,
@@ -355,8 +353,6 @@ fn an_out_of_order_document_is_refused() {
                         web: None,
                         repositories: List::with_capacity(0),
                         owned: None,
-                        admin: false,
-                        read_only: false,
                         ended_stop: None,
                     },
                 )
@@ -389,7 +385,6 @@ fn setup_carries_each_field_and_new_project_names_without_semantic_form_checks()
         else {
             panic!("setup")
         };
-        assert_eq!(request.forge(), 3);
         assert_eq!(request.org(), b"");
         assert_eq!(request.repository(), b"widget");
         match (project, request.project()) {
@@ -452,6 +447,7 @@ fn first_repository_decodes_each_state_project_and_creation_step() {
                     w::ForgeRow::new(
                         &limits(),
                         w::ForgeRowParts {
+                            skein_bools: [false, false, false, false],
                             number: 3,
                             kind: w::Kind::Forgejo,
                             mode: w::Mode::Owned,
@@ -464,8 +460,6 @@ fn first_repository_decodes_each_state_project_and_creation_step() {
                             web: None,
                             repositories: List::with_capacity(0),
                             owned: None,
-                            admin: false,
-                            read_only: false,
                             ended_stop: None,
                         },
                     )
@@ -536,6 +530,7 @@ fn installation_accounts_flags_and_connect_ends_survive_client_decode() {
             w::ForgeRow::new(
                 &limits,
                 w::ForgeRowParts {
+                    skein_bools: [false, false, false, false],
                     number: 1,
                     kind: w::Kind::Github,
                     mode: w::Mode::Connected,
@@ -554,8 +549,6 @@ fn installation_accounts_flags_and_connect_ends_survive_client_decode() {
                     web: None,
                     repositories: List::with_capacity(0),
                     owned: None,
-                    admin: false,
-                    read_only: false,
                     ended_stop: None,
                 },
             )
@@ -603,6 +596,7 @@ fn admin_form_and_typed_stops_survive_client_decode() {
                     w::ForgeRow::new(
                         &limits,
                         w::ForgeRowParts {
+                            skein_bools: [admin, false, false, false],
                             number: 1,
                             kind: w::Kind::Forgejo,
                             mode: w::Mode::Managed,
@@ -615,8 +609,6 @@ fn admin_form_and_typed_stops_survive_client_decode() {
                             web: None,
                             repositories: List::with_capacity(0),
                             owned: None,
-                            admin,
-                            read_only: false,
                             ended_stop: stop.clone(),
                         },
                     )

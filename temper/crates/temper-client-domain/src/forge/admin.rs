@@ -168,7 +168,18 @@ pub(crate) fn send(side: &mut Side, limits: Limits, forge: u16, out: &mut Queue<
     let how = w::How::ForgejoAdmin(
         w::ForgejoAdmin::new(&bounds, w::ForgejoAdminParts { first: Some(first) }).expect("first fits"),
     );
-    let request = w::Request::Connect(w::Connect::new(&bounds, w::ConnectParts { forge, how }).expect("connect fits"));
+    let request = w::Request::Connect(
+        w::Connect::new(
+            &bounds,
+            w::ConnectParts {
+                forge: w::ConnectForge::Existing(
+                    w::ExistingForge::new(&w::CEILINGS, w::ExistingForgeParts { forge }).expect("existing forge"),
+                ),
+                how,
+            },
+        )
+        .expect("connect fits"),
+    );
     let record = w::Requesting::new(&bounds, w::RequestingParts { request }).expect("request fits");
     let request = Ask::Family {
         scope: c::Scope::Deployment,

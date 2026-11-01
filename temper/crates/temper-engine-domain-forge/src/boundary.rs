@@ -151,12 +151,66 @@ pub struct Adoption {
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Ask {
     Adopt(Adoption),
-    SetUp { forge: u16, org: Box<[u8]>, repository: Box<[u8]>, project: SetUpProject, playground: bool },
+    /// Sets up the box's owned Forgejo (contracts, 5 and 6).
+    SetUp {
+        org: Box<[u8]>,
+        repository: Box<[u8]>,
+        project: SetUpProject,
+        playground: bool,
+    },
     StartDemo,
-    Connect { forge: u16, how: How },
-    Install { forge: u16, back: Option<Box<[u8]>> },
-    Accept { forge: u16, installation: core::num::NonZeroU64 },
-    Reachable { forge: u16, installation: Option<u64>, page: u32 },
+    /// The playground, made when chosen (draft 6.1).
+    StartPlayground,
+    /// The playground's reset (draft 6.2).
+    EndPlayground,
+    Connect {
+        forge: ConnectForge,
+        how: How,
+    },
+    /// A forge removed whole (draft 4).
+    RemoveForge {
+        forge: u16,
+    },
+    Install {
+        forge: u16,
+        back: Option<Box<[u8]>>,
+    },
+    Accept {
+        forge: u16,
+        installation: core::num::NonZeroU64,
+    },
+    Reachable {
+        forge: u16,
+        installation: Option<u64>,
+        page: u32,
+    },
+}
+/// The forge a connect keeps or makes (temper/docs/plan/playground-reset-r4/notes/contracts.md, 5).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum ConnectForge {
+    /// A kept forge: GitHub's Go on, a reconnect, or a seeded forge.
+    Existing(u16),
+    /// GitHub at its public addresses.
+    GitHub,
+    /// A Forgejo at the supplied origin (`https://host[:port]`).
+    Forgejo { address: Box<[u8]> },
+}
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum RemoveAnswer {
+    Removing,
+    Refused(RemoveRefusal),
+}
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum RemoveRefusal {
+    NotOffered,
+    NoSuchForge,
+    Role,
+}
+/// The reset answers once the playground is gone (draft 6.2).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum EndAnswer {
+    Reset,
+    NotOffered,
 }
 /// The first repository requested when connecting a Forgejo (client/README.md, 8).
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -185,6 +239,9 @@ pub enum Answered {
     Adopt(ApplicationOutcome),
     SetUp(SetUpAnswer),
     StartDemo(StartAnswer),
+    RemoveForge(RemoveAnswer),
+    StartPlayground(StartAnswer),
+    EndPlayground(EndAnswer),
     Connect(ConnectAnswer),
     Install(InstallAnswer),
     Accept(AcceptAnswer),
@@ -376,7 +433,15 @@ pub struct AdoptedRow {
 
 /// One configured forge, including its connection, offer and first repository.
 #[derive(Clone, PartialEq, Eq, Debug)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "the forges document carries independent connection and playground facts"
+)]
 pub struct Row {
+    /// Connected with at least one adopted repository (draft 6.3).
+    pub finished: bool,
+    /// This is the configured demo's forge.
+    pub playground: bool,
     pub read_only: bool,
     pub number: u16,
     pub kind: Kind,

@@ -840,7 +840,7 @@ fn requesting() -> w::Requesting {
 }
 
 #[test]
-fn setup_requests_preserve_the_keyed_envelope_and_forge() {
+fn setup_requests_preserve_the_keyed_envelope() {
     let request = w::Requesting::new(
         &w::CEILINGS,
         w::RequestingParts {
@@ -849,7 +849,6 @@ fn setup_requests_preserve_the_keyed_envelope_and_forge() {
                     &w::CEILINGS,
                     w::SetUpParts {
                         playground: false,
-                        forge: 3,
                         org: b"work".as_slice().into(),
                         repository: b"hello".as_slice().into(),
                         project: w::SetUpProject::Existing(
@@ -883,7 +882,6 @@ fn setup_requests_preserve_the_keyed_envelope_and_forge() {
             [7; 32],
             root::Application::Forge(forge::Ask::SetUp {
                 playground: false,
-                forge: 3,
                 org: b"work".as_slice().into(),
                 repository: b"hello".as_slice().into(),
                 project: forge::SetUpProject::Existing(1)
@@ -959,6 +957,8 @@ fn forge_row(
     offer: forge::Offer,
 ) -> forge::Row {
     forge::Row {
+        finished: false,
+        playground: false,
         number,
         kind,
         mode,
@@ -981,6 +981,8 @@ fn configured_forge_rows() -> forge::Forges {
     forge::Forges {
         rows: Box::new([
             forge::Row {
+                finished: false,
+                playground: false,
                 number: 1,
                 kind: forge::Kind::Forgejo,
                 mode: forge::Mode::Owned,
@@ -1028,7 +1030,11 @@ fn configured_forge_rows() -> forge::Forges {
 }
 #[test]
 fn forges_encode_the_domains_rows_without_settings() {
-    let value = configured_forge_rows();
+    let mut value = configured_forge_rows();
+    for row in &mut value.rows {
+        row.finished = true;
+        row.playground = true;
+    }
     for (failed, expected) in [
         (None, None),
         (Some(forge::FailedStep::Fetch), Some(w::FailedStep::Fetch)),
@@ -1077,6 +1083,7 @@ fn expected_forge_row(
     w::ForgeRow::new(
         &w::CEILINGS,
         w::ForgeRowParts {
+            skein_bools: [false, false, true, true],
             number,
             kind,
             mode,
@@ -1103,8 +1110,6 @@ fn expected_forge_row(
             } else {
                 None
             },
-            admin: false,
-            read_only: false,
             ended_stop: None,
         },
     )
@@ -1164,7 +1169,6 @@ fn setup_projects_and_first_repository_states_translate_without_losing_fields() 
                         &w::CEILINGS,
                         w::SetUpParts {
                             playground: false,
-                            forge: 3,
                             org: b"team".as_slice().into(),
                             repository: b"widget".as_slice().into(),
                             project: wire_project.clone(),
@@ -1187,7 +1191,6 @@ fn setup_projects_and_first_repository_states_translate_without_losing_fields() 
             request,
             root::Application::Forge(forge::Ask::SetUp {
                 playground: false,
-                forge: 3,
                 org: b"team".as_slice().into(),
                 repository: b"widget".as_slice().into(),
                 project: project.clone()
@@ -1408,7 +1411,10 @@ fn return_install_and_manifest_paths_are_bounded_visible_paths_on_this_listener(
                     w::Connect::new(
                         &w::CEILINGS,
                         w::ConnectParts {
-                            forge: 1,
+                            forge: w::ConnectForge::Existing(
+                                w::ExistingForge::new(&w::CEILINGS, w::ExistingForgeParts { forge: 1 })
+                                    .expect("existing forge"),
+                            ),
                             how: w::How::GithubManifest(
                                 w::GitHubManifest::new(
                                     &w::CEILINGS,
@@ -1439,8 +1445,10 @@ fn return_install_and_manifest_paths_are_bounded_visible_paths_on_this_listener(
                         }
                         root::Application::Forge(ask) => {
                             let (forge::Ask::Install { forge, back: Some(back) }
-                            | forge::Ask::Connect { forge, how: forge::How::GitHubManifest { back: Some(back) } }) =
-                                ask
+                            | forge::Ask::Connect {
+                                forge: forge::ConnectForge::Existing(forge),
+                                how: forge::How::GitHubManifest { back: Some(back) },
+                            }) = ask
                             else {
                                 panic!("{name}: install")
                             };
@@ -1492,6 +1500,8 @@ fn installations_and_the_last_connect_end_encode_unchanged() {
     let bytes = family::forges(
         forge::Forges {
             rows: Box::new([forge::Row {
+                finished: false,
+                playground: false,
                 number: 1,
                 kind: forge::Kind::GitHub,
                 mode: forge::Mode::Connected,
@@ -1567,6 +1577,8 @@ fn owned_details_fit_their_bounds_and_an_overlong_field_drops_only_the_details()
     ] {
         let value = forge::Forges {
             rows: Box::new([forge::Row {
+                finished: false,
+                playground: false,
                 number: 1,
                 kind: forge::Kind::Forgejo,
                 mode: forge::Mode::Owned,
@@ -1842,4 +1854,112 @@ fn the_landings_subject_names_no_task() {
     };
     let kit::Event::WatchRefused { watcher, why } = *refused else { panic!("unknown watch") };
     assert_eq!((watcher, why), (WATCHER, jig_domain_core::WatchRefusal::Unknown));
+}
+
+fn connect_request(forge: w::ConnectForge) -> w::Request {
+    w::Request::Connect(
+        w::Connect::new(
+            &w::CEILINGS,
+            w::ConnectParts {
+                forge,
+                how: w::How::GithubManifest(
+                    w::GitHubManifest::new(&w::CEILINGS, w::GitHubManifestParts { back: None }).unwrap(),
+                ),
+            },
+        )
+        .unwrap(),
+    )
+}
+#[test]
+fn remove_forge_and_playground_requests_decode_to_their_asks() {
+    for (request, expected) in [
+        (
+            w::Request::RemoveForge(w::RemoveForge::new(&w::CEILINGS, w::RemoveForgeParts { forge: 3 }).unwrap()),
+            forge::Ask::RemoveForge { forge: 3 },
+        ),
+        (w::Request::StartPlayground, forge::Ask::StartPlayground),
+        (w::Request::EndPlayground, forge::Ask::EndPlayground),
+        (
+            connect_request(w::ConnectForge::Existing(
+                w::ExistingForge::new(&w::CEILINGS, w::ExistingForgeParts { forge: 3 }).unwrap(),
+            )),
+            forge::Ask::Connect {
+                forge: forge::ConnectForge::Existing(3),
+                how: forge::How::GitHubManifest { back: None },
+            },
+        ),
+        (
+            connect_request(w::ConnectForge::Github),
+            forge::Ask::Connect { forge: forge::ConnectForge::GitHub, how: forge::How::GitHubManifest { back: None } },
+        ),
+        (
+            connect_request(w::ConnectForge::Forgejo(
+                w::NewForgejo::new(
+                    &w::CEILINGS,
+                    w::NewForgejoParts { address: b"https://forge.example".as_slice().into() },
+                )
+                .unwrap(),
+            )),
+            forge::Ask::Connect {
+                forge: forge::ConnectForge::Forgejo { address: b"https://forge.example".as_slice().into() },
+                how: forge::How::GitHubManifest { back: None },
+            },
+        ),
+    ] {
+        let requesting = w::Requesting::new(&w::CEILINGS, w::RequestingParts { request }).unwrap();
+        let event = family::to_root(
+            exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&requesting)),
+            &[],
+            None,
+            &w::CEILINGS,
+        )
+        .unwrap();
+        let root::Event::Party(root::PartyInput::Application { reply_to, sign_in, key, digest, request, .. }) = event
+        else {
+            panic!("application")
+        };
+        assert_eq!(
+            (reply_to, sign_in, key, digest, request),
+            (REPLY, 3, REQUEST_KEY, [7; 32], root::Application::Forge(expected))
+        );
+    }
+}
+#[test]
+fn remove_and_end_answers_encode_their_outcomes() {
+    let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small).clients.wire;
+    let mut rows = List::uncapped();
+    for (why, expected) in [
+        (forge::RemoveRefusal::NotOffered, w::RemoveRefusal::NotOffered),
+        (forge::RemoveRefusal::NoSuchForge, w::RemoveRefusal::NoSuchForge),
+        (forge::RemoveRefusal::Role, w::RemoveRefusal::Role),
+    ] {
+        rows.push((
+            root::ApplicationAnswer::RemoveForge(forge::RemoveAnswer::Refused(why)),
+            w::Outcome::RemoveRefused(
+                w::RemoveRefused::new(&w::CEILINGS, w::RemoveRefusedParts { why: expected }).unwrap(),
+            ),
+        ))
+        .unwrap();
+    }
+    rows.push((root::ApplicationAnswer::RemoveForge(forge::RemoveAnswer::Removing), w::Outcome::Removing)).unwrap();
+    rows.push((root::ApplicationAnswer::EndPlayground(forge::EndAnswer::Reset), w::Outcome::Reset)).unwrap();
+    rows.push((
+        root::ApplicationAnswer::EndPlayground(forge::EndAnswer::NotOffered),
+        w::Outcome::EndRefused(
+            w::EndRefused::new(&w::CEILINGS, w::EndRefusedParts { why: w::EndRefusal::NotOffered }).unwrap(),
+        ),
+    ))
+    .unwrap();
+    rows.push((root::ApplicationAnswer::StartPlayground(forge::StartAnswer::Running), w::Outcome::Running)).unwrap();
+    rows.push((
+        root::ApplicationAnswer::StartPlayground(forge::StartAnswer::NotOffered),
+        w::Outcome::StartRefused(
+            w::StartRefused::new(&w::CEILINGS, w::StartRefusedParts { why: w::StartRefusal::NotOffered }).unwrap(),
+        ),
+    ))
+    .unwrap();
+    for (answer, expected) in rows.into_boxed() {
+        let bytes = family::answer(Some(answer), &w::CEILINGS, &jig).unwrap();
+        assert_eq!(w::Answer::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap().into_parts().outcome, expected);
+    }
 }

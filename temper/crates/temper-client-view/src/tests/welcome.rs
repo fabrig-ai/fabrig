@@ -22,7 +22,7 @@ fn rows_with_an_admin_forgejo() -> skein_lib::List<w::ForgeRow> {
     let mut parts =
         forge::row(ADMIN, w::Kind::Forgejo, w::Mode::Managed, w::Connection::NotConnected, w::Offer::NotOffered)
             .into_parts();
-    parts.admin = true;
+    parts.skein_bools[0] = true;
     rows.push(w::ForgeRow::new(&w::CEILINGS, parts).unwrap()).unwrap();
     rows
 }
@@ -827,7 +827,7 @@ fn managed_forgejo_ready_names_its_adopted_repository_and_opens_its_project() {
     let mut parts = rows.get(0).unwrap().clone().into_parts();
     parts.number = ELSEWHERE;
     parts.mode = w::Mode::Managed;
-    parts.admin = true;
+    parts.skein_bools[0] = true;
     *rows.get_mut(0).unwrap() = w::ForgeRow::new(&w::CEILINGS, parts).unwrap();
     let root = ready_root(rows);
     let view = f::page_view(&root);
