@@ -61,6 +61,7 @@ pub struct Domain {
     pub(crate) application_demo: Option<crate::route::demo::Context>,
     pub(crate) demo_contexts: Map<Token, crate::route::demo::Context>,
     pub(crate) demo_start: Option<crate::route::demo::Start>,
+    pub(crate) playground_start: Option<crate::route::playground::Start>,
     pub(crate) demo_reply: Option<(Token, crate::route::demo::Phase)>,
     pub(crate) demo_act_replies: Map<Token, forge::DemoAct>,
     pub(crate) next_act_reply: u64,
@@ -413,6 +414,7 @@ impl Domain {
             application_demo: None,
             demo_contexts: Map::with_capacity(limits.forge.applications),
             demo_start: None,
+            playground_start: None,
             demo_reply: None,
             demo_act_replies: Map::with_capacity(forge::demo_act_bound(&limits.forge).expect("validated act bound")),
             next_act_reply: 1,
@@ -527,6 +529,7 @@ impl Domain {
             && self.archive_reads.is_empty()
             && self.store_answers.is_empty()
             && self.adoption_restore.is_empty()
+            && self.playground_start.is_none()
             && self.forge_subscribing.is_empty()
             && self.forge_unsubscribing.is_empty()
             && self.forge_reading.is_empty()
@@ -877,6 +880,13 @@ pub(crate) fn resume_routed(domain: &mut Domain, env: &Env<Limits>, out: &mut Qu
         return;
     }
     if domain.ready() || connector_restarting(domain) {
+        if crate::route::playground::retrying(domain) {
+            let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
+            crate::route::playground::resume(domain, env, &mut decision);
+            route_into(domain, env, &mut decision);
+            close(domain, env, decision, out);
+            return;
+        }
         if domain.forge.is_ready() {
             domain.settled = None;
             let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
@@ -957,7 +967,10 @@ pub(crate) fn fire_routed(domain: &mut Domain, env: &Env<Limits>, out: &mut Queu
         forge::fire(&mut domain.forge, &environment_forge(env), &mut forge_out);
         forge_route::outputs(domain, env, &mut decision, &mut forge_out);
     }
-    crate::route::demo::progress(domain, env, &mut decision);
+    if domain.demo_start.is_some() {
+        crate::route::demo::progress(domain, env, &mut decision);
+    }
+    crate::route::playground::progress(domain, env, &mut decision);
     route_into(domain, env, &mut decision);
     if domain.ready() {
         if !domain.core.stopping()
