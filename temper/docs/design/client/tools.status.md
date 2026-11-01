@@ -29,3 +29,6 @@
   as provider lines and keeps `cut:`. Model text keeps its field lines.
 
 - **Built:** 5.5: ctl connect `--read-only` carries and keeps the hook policy, and writable connects name the hook repair.
+
+- **Built (2026-11-01, plan phase-case):** 5.4: `--until phase:PHASE` parses its word in any ASCII case, `backing-off` also as `BackingOff` and `backing_off`; `help task show` and the `ctl` page say so.
+- **Not yet (14):** `--until phase:` in the header's words. The request asked that the spelling `task show` prints parse; the header prints jig's phrase-book word, which is the phase word only for `Waiting`, `Running`, `Closing` and `Held`. `Waiting for news`, `Due to run`, `Preparing a host`, `Claimed by a host`, `Retrying` and `ChipExecutor active` still give the usage line; `--json`'s words all parse.
