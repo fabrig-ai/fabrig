@@ -11,6 +11,7 @@ pub enum Meaning {
     Ci,
     Adopt,
     Remove(u16),
+    StartOver(u16),
     ConfirmRemove,
     CancelRemove,
     AdminToken,
@@ -99,6 +100,7 @@ pub fn decode(bindings: &Bindings, token: Token, act: Act) -> Option<Action> {
                     Action::Forge(forge::Act::Install { forge, back: temper_client_domain::address::print(&back) })
                 }
                 Meaning::Remove(forge) => Action::Forge(forge::Act::Remove { forge }),
+                Meaning::StartOver(forge) => Action::Forge(forge::Act::StartOver { forge }),
                 Meaning::ConfirmRemove => Action::Forge(forge::Act::ConfirmRemove),
                 Meaning::CancelRemove => Action::Forge(forge::Act::CancelRemove),
                 Meaning::Adopt => Action::Forge(forge::Act::Adopt),

@@ -14,6 +14,7 @@ mod look;
 mod playground;
 mod project_delete;
 mod project_settings;
+mod start_over;
 use jig_client::contract::{Part, PartScope};
 use skein_ui::Role;
 

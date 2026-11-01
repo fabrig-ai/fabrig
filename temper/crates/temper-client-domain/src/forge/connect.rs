@@ -138,6 +138,31 @@ pub fn choices(rows: &State, demo: Option<&Demo>) -> List<Choice> {
     choices
 }
 
+/// A live step is running in temper; GitHub awaiting installation is idle.
+#[must_use]
+pub fn live(row: &Row) -> bool {
+    if let Connection::SettingUp { .. } | Connection::Connecting = row.connection {
+        return true;
+    }
+    match &row.first {
+        Some(first) => first.state == super::forges::FirstState::Making,
+        None => false,
+    }
+}
+/// A set up cut short, excluding untouched choices (draft playground-reset.md, 6.4).
+#[must_use]
+#[expect(clippy::needless_lifetimes, reason = "the signature names the row's borrow of the supplied state")]
+#[expect(clippy::manual_find, reason = "step code uses bounded loops without closures")]
+pub fn unfinished<'a>(rows: &'a State) -> Option<&'a Row> {
+    let State::Rows(rows) = rows else { return None };
+    for row in rows {
+        if !row.playground && !row.finished && !live(row) && row.connection != Connection::NotSetUp && !offered(row) {
+            return Some(row);
+        }
+    }
+    None
+}
+
 /// The welcome follows the person's forge once its setup has started.
 #[must_use]
 pub fn personal<'a>(rows: &'a State, demo: Option<&Demo>) -> Option<&'a Row> {

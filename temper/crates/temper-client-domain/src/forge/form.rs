@@ -69,6 +69,9 @@ pub enum Act {
     Remove {
         forge: u16,
     },
+    StartOver {
+        forge: u16,
+    },
     ConfirmRemove,
     CancelRemove,
     StartDemo,
