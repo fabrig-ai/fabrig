@@ -3,6 +3,8 @@
 ## Specs
 
 final: tasks/jig-acts.md
+final: tasks/pd-store.md
+final: tasks/pd-cancel.md
 
 ## Parts
 

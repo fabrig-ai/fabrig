@@ -2,6 +2,8 @@
 
 final: tasks/box-pipe.md
 final: tasks/bx-machine.md
+final: tasks/bx-sweep.md
+final: tasks/bx-kinds.md
 
 ## Parts
 
