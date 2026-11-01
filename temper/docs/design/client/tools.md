@@ -982,7 +982,10 @@ The default: plain UTF-8 lines, no colour, no wrapping. A document
 prints its header line, its fields, its acts and, for a watch's
 subject, its digest (5.4). A met text inbox wait uses the plain inbox
 read, including question details and continuation calls, then prints
-`met`. A goal waiting on the agent:
+`met`. A cut inbox question's `read whole: task activity TASK` names the
+asked task whose activity holds its words, the same TASK as its
+`answer: task answer TASK N TEXT` call; JSON's `read_whole` names it too.
+A goal waiting on the agent:
 
 ```
 task 41 · goal · Running · shop · priority 2
@@ -1370,6 +1373,11 @@ temper ctl help [GROUP [VERB]]
   beside the link: a sign-in kept leaves `token` as it was. Its
   answers, each exit 1 with one line, and none writing `token` or
   `address`:
+  - *empty* (no link after stripping one trailing newline): `temper ctl:
+    sign-in: stdin held no link; give the box's sign-in link on stdin:
+    temper ctl DIR sign-in -`; stdin's end is kept even when it arrives
+    before DIRECTORY is ready, so empty stdin is refused without waiting
+    or sending a sign-in;
   - *refused* (the link spent, expired or unknown): `temper ctl: the
     sign-in link was refused`; `temper serve` prints a fresh link;
   - *full* (jig's `domain/people.md`, section 3): `temper ctl: all N

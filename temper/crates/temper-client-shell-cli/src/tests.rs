@@ -495,6 +495,24 @@ fn sign_in_dash_reads_stdin() {
     assert_eq!(f.exit(), Some(Exit::Code(0)));
 }
 #[test]
+fn sign_in_dash_refuses_empty_stdin() {
+    for input in [b"".as_slice(), b"\n"] {
+        let mut f = fixtures::Disk::act(&[b"sign-in", b"-"]);
+        f.input = input;
+        f.drain();
+        assert_eq!(f.exit(), Some(Exit::Code(1)));
+        assert_eq!(
+            f.stderr(),
+            b"temper ctl: sign-in: stdin held no link; give the box's sign-in link on stdin: temper ctl DIR sign-in -\n"
+        );
+        assert!(f.stderr().len() <= 240);
+        assert_eq!(f.requests(), 0);
+        assert_eq!(f.stdout(), b"");
+        assert_eq!(f.stored(b"token"), None);
+        assert_eq!(f.stored(b"address"), None);
+    }
+}
+#[test]
 fn close_kept_line() {
     let mut f = fixtures::Disk::act_with(fixtures::local::kept_close());
     f.answer_kept();

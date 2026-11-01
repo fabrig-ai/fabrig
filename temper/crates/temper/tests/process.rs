@@ -4344,9 +4344,8 @@ fn a_green_light_answers_the_goals_207_byte_question_from_the_inbox_and_lands_it
     let stderr = String::from_utf8_lossy(&outcome.stderr);
     assert_plan_box("long-question", true, &outcome, &stderr);
     let inbox = String::from_utf8_lossy(&outcome.calls[inbox_at].stdout);
-    assert!(inbox.contains("(cut)\nread whole: temper ctl DIR task activity 2\n"), "{inbox}");
-    // Activity is paged at init's two-line bound; the first page need not
-    // contain the older question. The printed command succeeds and reads on.
+    assert!(inbox.contains("(cut)\nread whole: temper ctl DIR task activity 1\n"), "{inbox}");
+    // The asked chat's activity holds the question relayed from its delegate.
     assert_eq!(outcome.calls[inbox_at + 1].exit, Some(Exit::Code(0)));
     assert_eq!(outcome.calls[answer_at].exit, Some(Exit::Code(0)));
     let change = support::ctl::json(&outcome.calls[answer_at + 2]);

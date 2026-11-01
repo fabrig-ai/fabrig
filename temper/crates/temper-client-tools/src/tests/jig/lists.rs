@@ -347,11 +347,11 @@ fn inbox_questions_print_words_and_calls_within_and_past_the_text_bound() {
             let printed = core::str::from_utf8(&answer.stdout).expect("cut at a character");
             if json {
                 assert_eq!(printed.contains("\"cut\":true"), engine_cut);
-                assert_eq!(printed.contains("temper ctl DIR task activity 42"), engine_cut);
+                assert_eq!(printed.contains("temper ctl DIR task activity 41"), engine_cut);
                 assert!(!printed.contains("answer: "), "{printed}");
             } else {
                 assert_eq!(printed.contains(" (cut)\n"), cut, "{printed}");
-                assert_eq!(printed.contains("read whole: temper ctl DIR task activity 42\n"), cut, "{printed}");
+                assert_eq!(printed.contains("read whole: temper ctl DIR task activity 41\n"), cut, "{printed}");
                 assert!(printed.contains("answer: temper ctl DIR task answer 41 2 TEXT\n"), "{printed}");
                 if !cut || engine_cut {
                     assert!(printed.contains("The plan continues"), "{printed}");

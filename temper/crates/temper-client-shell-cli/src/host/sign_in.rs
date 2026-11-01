@@ -7,6 +7,27 @@ impl OneShot {
             return;
         }
         if self.signing.is_none() && self.directory.ready() && self.input.is_none() {
+            if self.directory.link.is_none()
+                && let Some(Parsed::Call { call, json }) = self.call.take()
+            {
+                match call.values.first() {
+                    Some(Some(Values::One(Value::Stdin))) => {
+                        if self.stdin_ended.is_some() {
+                            self.directory.link = Some(Box::new([]));
+                        } else {
+                            self.input = Some(Vec::new());
+                            self.read_input();
+                        }
+                    }
+                    Some(Some(Values::One(Value::File(path)))) => self.directory.load_link(path),
+                    _ => {
+                        self.fail(b"a sign-in file is required");
+                        return;
+                    }
+                }
+                let Parsed::Call { call, .. } = arguments::parse(&[b"me"]).expect("me call") else { unreachable!() };
+                self.call = Some(Parsed::Call { call, json });
+            }
             if let Some(bytes) = self.directory.link.take() {
                 match Signing::new(
                     &bytes,
@@ -24,20 +45,6 @@ impl OneShot {
                     }
                     Err(error) => self.fail(error),
                 }
-            } else if let Some(Parsed::Call { call, json }) = self.call.take() {
-                match call.values.first() {
-                    Some(Some(Values::One(Value::Stdin))) => {
-                        self.input = Some(Vec::new());
-                        self.read_input();
-                    }
-                    Some(Some(Values::One(Value::File(path)))) => self.directory.load_link(path),
-                    _ => {
-                        self.fail(b"a sign-in file is required");
-                        return;
-                    }
-                }
-                let Parsed::Call { call, .. } = arguments::parse(&[b"me"]).expect("me call") else { unreachable!() };
-                self.call = Some(Parsed::Call { call, json });
             }
         }
         let Some(signing) = &mut self.signing else { return };
