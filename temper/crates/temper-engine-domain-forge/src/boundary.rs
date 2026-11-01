@@ -327,7 +327,7 @@ pub enum Mode {
     Fake,
 }
 /// Public owned-forge startup details (protocol/setup.md, 6.5).
-/// The password field is an absolute file path, never the password itself.
+/// The password field is a file path, relative to the data directory for a record.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Owned {
     pub forgejo: Box<[u8]>,
@@ -349,7 +349,7 @@ pub struct Configured {
     pub number: u16,
     pub kind: Kind,
     pub mode: Mode,
-    /// The configuration's `start: asked`; false is the ordinary automatic start.
+    /// The document's `start: asked`, or a record with a setup entry.
     pub asked: bool,
 }
 /// A forge the deployment keeps (temper/docs/design/draft/playground-reset.md, 3); secret-free.
@@ -1126,6 +1126,10 @@ pub struct ChangeDependencies {
 /// A parent or child input to the connector (temper/docs/design/draft/playground-reset.md, 4, 6).
 #[derive(PartialEq, Eq, Debug)]
 pub enum Event {
+    /// Release the connector's rows for a project (contracts J5).
+    ReleaseProject {
+        project: u32,
+    },
     OrderLanding {
         task: u64,
         changes: Box<[u64]>,
@@ -1522,6 +1526,10 @@ pub enum Event {
 /// The connector's output to the root (temper/docs/design/draft/playground-reset.md, 3, 4, 6).
 #[derive(PartialEq, Eq, Debug)]
 pub enum Request {
+    /// The connector has released a project (contracts J5).
+    ProjectReleased {
+        project: u32,
+    },
     LandingDecision {
         task: u64,
         decision: landing::Decision,
@@ -1952,6 +1960,43 @@ pub struct Unfinished {
 }
 
 impl ForgeRecord {
+    /// The configured projection of a kept forge (temper/docs/design/draft/playground-reset.md, 3).
+    #[must_use]
+    pub fn configured(&self) -> Configured {
+        use skein_forge::forgejo::pin;
+        Configured {
+            admin_connect: self.kind == Kind::Forgejo && self.mode == Mode::Managed,
+            bot: if self.setup.is_some() { self.bot.login.clone() } else { Box::new([]) },
+            owned: if self.mode == Mode::Owned {
+                let digits = skein_lib::Decimal::of(u64::from(self.number));
+                let length =
+                    digits.as_bytes().len().checked_add(b"forge-/person_password".len()).expect("u16 path width");
+                let mut password = skein_lib::Writer::new(length);
+                password.put(b"forge-").expect("sized password path");
+                password.put(digits.as_bytes()).expect("sized password path");
+                password.put(b"/person_password").expect("sized password path");
+                Some(Owned {
+                    forgejo: Box::from(pin::VERSION.as_bytes()),
+                    runner: Some(Box::from(pin::RUNNER_VERSION.as_bytes())),
+                    password: password.finish(),
+                })
+            } else {
+                None
+            },
+            git: if self.git.len() <= usize::try_from(crate::PULL_ADDRESS_BYTES).expect("u32 fits usize") {
+                self.git.clone()
+            } else {
+                Box::new([])
+            },
+            web: self.web.clone(),
+            read_only: self.read_only,
+            number: self.number,
+            kind: self.kind,
+            mode: self.mode,
+            asked: self.setup.is_some(),
+        }
+    }
+
     /// The GitHub defaults (temper/docs/design/draft/playground-reset.md, 3).
     #[must_use]
     pub fn github_com() -> Self {

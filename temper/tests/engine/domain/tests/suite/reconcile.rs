@@ -93,3 +93,27 @@ fn landing_history_outlives_its_task_and_the_start_goes_on() {
     assert!(driver.root.connectors_restored(), "adoption stage completed");
     assert!(driver.root.ready(), "start continues into decisions");
 }
+
+#[test]
+fn a_seeded_forge_record_is_listed_and_registered_after_a_restart() {
+    use temper_engine_domain_world::forges;
+    let (running, _) = Driver::chat();
+    let mut store = running.store;
+    let row = forges::record(7, forge::Kind::Forgejo, forge::Mode::Owned);
+    store.seed(forges::rows(core::slice::from_ref(&row)), Box::new([]));
+    store.crash(9762);
+    let mut driver = Driver::cold(store, walking::config(91), &walking::limits());
+    for _ in 0..STEPS {
+        driver.advance(true);
+    }
+    assert!(driver.root.ready());
+    assert_eq!(driver.root.forges().rows.len(), 1);
+    let listed = &driver.root.forges().rows[0];
+    assert_eq!((listed.number, listed.kind, listed.mode), (7, forge::Kind::Forgejo, forge::Mode::Owned));
+    let registered: Vec<_> = driver
+        .immediate
+        .iter()
+        .filter_map(|request| if let engine::Request::Register(row) = request { Some(row) } else { None })
+        .collect();
+    assert_eq!(registered, [&row]);
+}

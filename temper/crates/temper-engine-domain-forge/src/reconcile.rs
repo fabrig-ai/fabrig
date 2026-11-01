@@ -87,7 +87,8 @@ pub(crate) fn capacity(l: &Limits) -> Option<u32> {
         .checked_add(l.issues.checked_mul(2)?)? // Issue: repository and live goal.
         .checked_add(l.tasks.checked_mul(3)?)? // Release: task, root, pending name.
         .checked_add(l.applications)? // Application: adopted repository, if any.
-        .checked_add(l.client.repositories)? // Writer: configured forge.
+        .checked_add(l.client.repositories)? // Writer: document forge.
+        .checked_add(l.forges)? // Writer: forge record.
         .checked_add(l.landings.checked_mul(l.landing_members)?)?
         .checked_add(l.repositories.checked_mul(l.gates)?.checked_mul(l.receipts_per_gate)?)?
         .checked_add(1) // Demo: configured demo's forge.
@@ -283,7 +284,7 @@ impl Domain {
                 }
                 Need::Forge(_) | Need::Demo(_) | Need::Repository(_) => false,
             };
-            if !self.reference_resolves(reference.need, live) {
+            if !self.reference_resolves(reference.kind, reference.need, live) {
                 return Some(MissingLink {
                     kind: reference.kind,
                     key: self.restored_link_key(
@@ -303,18 +304,23 @@ impl Domain {
         self.reconciliation.verdict
     }
     fn configured_forge(&self, forge: u16) -> bool {
-        self.configured.contains_key(&forge) || self.identities.contains_key(&forge)
+        self.records.contains_key(&forge)
+            || self.configured.contains_key(&forge)
+            || self.identities.contains_key(&forge)
     }
-    fn reference_resolves(&self, need: Need, live: bool) -> bool {
+    fn reference_resolves(&self, kind: RecordKind, need: Need, live: bool) -> bool {
         match need {
             // Identities are constructor facts too; a restored writer is never one.
-            Need::Forge(forge) => self.configured_forge(forge),
+            Need::Forge(forge) => {
+                self.configured_forge(forge) || (kind == RecordKind::Repository && self.forge_ended(forge))
+            }
             Need::Demo(forge) => match &self.demo {
                 Some(demo) => demo.adoption.forge == forge,
                 None => false,
             },
             Need::Repository(repository) => {
-                self.configured_forge(repository.forge) && self.repositories.contains_key(&repository)
+                (self.configured_forge(repository.forge) || self.forge_ended(repository.forge))
+                    && self.repositories.contains_key(&repository)
             }
             Need::Task { retired, .. } => {
                 live || match retired {
@@ -383,7 +389,7 @@ pub(crate) fn references_resolve(d: &Domain, limits: &Limits, row: &Stored, live
                 return false;
             }
         }
-        if !d.reference_resolves(reference.need, live) {
+        if !d.reference_resolves(reference.kind, reference.need, live) {
             return false;
         }
     }

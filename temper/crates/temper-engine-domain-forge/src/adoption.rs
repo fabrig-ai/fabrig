@@ -90,7 +90,7 @@ pub(crate) fn start(
         return again(request, people::Again::Busy, out);
     }
     let pending = Pending { token, retention, observed: None };
-    if !d.identities.contains_key(&adoption.forge) && !d.writers.contains_key(&adoption.forge) {
+    if d.git_identity(adoption.forge).is_none() && !d.writers.contains_key(&adoption.forge) {
         return finish(d, env, request, pending, ApplicationOutcome::ForgeRefused(AdoptionRefusal::NoSuchForge), out);
     }
     let connected = match d.connection(adoption.forge) {

@@ -709,6 +709,7 @@ fn paste_row(limits: &domain::Limits, request: Token, connected: bool, why: Opti
             mode: domain::Mode::Connected,
             asked: false,
         }],
+        domain::Machine::bare(),
         false,
     )
     .unwrap();
