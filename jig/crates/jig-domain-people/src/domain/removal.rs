@@ -174,6 +174,15 @@ pub(super) fn names_project(ask: &Ask, project: u32) -> bool {
             crate::ApplicationScope::Project(named) => *named == project,
             crate::ApplicationScope::Own | crate::ApplicationScope::Deployment => false,
         },
+        Ask::AccountChange { change: crate::AccountChange::SetUses { uses: Some(uses), .. }, .. } => {
+            for value in uses {
+                match value {
+                    crate::Use::Project(named) if *named == project => return true,
+                    crate::Use::Project(_) | crate::Use::Party(_) => {}
+                }
+            }
+            false
+        }
         Ask::Lift { .. }
         | Ask::MarkSeen { .. }
         | Ask::AccountSignIn { .. }

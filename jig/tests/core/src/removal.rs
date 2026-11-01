@@ -9,7 +9,8 @@ use jig_test_connector as connector;
 use jig_test_domain as root;
 
 /// Every stored row naming the project or its collected task numbers, except
-/// the project's closed period and pool totals, which outlive deletion.
+/// the project's closed period and pool totals and the connector's records of
+/// objects it made, which outlive deletion.
 #[must_use]
 pub fn rows_naming(world: &World, project: u32, tasks: &[u64]) -> Vec<root::Key> {
     world.store.rows.iter().filter(|(_, row)| names(row, project, tasks)).map(|(key, _)| key.clone()).collect()
@@ -86,10 +87,10 @@ fn names(row: &root::Record, project: u32, ids: &[u64]) -> bool {
             }
             connector::Record::Result { task, .. } | connector::Record::Subscription { task, .. } => ids.contains(task),
             connector::Record::Outbox(row) => ids.contains(&row.task) || ids.contains(&row.key.task),
-            connector::Record::Made { key, .. } => ids.contains(&key.task),
             connector::Record::ApplicationObject { .. }
             | connector::Record::ApplicationAnswer { .. }
-            | connector::Record::Pool { .. } => false,
+            | connector::Record::Pool { .. }
+            | connector::Record::Made { .. } => false,
         },
     }
 }
@@ -232,6 +233,9 @@ fn ask_project(ask: &people::Ask, project: u32) -> bool {
             people::ApplicationScope::Project(named) => *named == project,
             people::ApplicationScope::Own | people::ApplicationScope::Deployment => false,
         },
+        people::Ask::AccountChange { change: people::AccountChange::SetUses { uses: Some(uses), .. }, .. } => {
+            uses.iter().any(|value| matches!(value, people::Use::Project(named) if *named == project))
+        }
         people::Ask::Lift { .. }
         | people::Ask::MarkSeen { .. }
         | people::Ask::AccountSignIn { .. }

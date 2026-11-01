@@ -156,6 +156,14 @@ impl Store {
     pub fn file_bytes(&mut self, name: &[u8]) -> Option<Vec<u8>> {
         self.disk.as_mut().expect("directory-backed fixture").read(name)
     }
+    /// The task's transcript file's bytes, or `None` when it has none,
+    /// whichever store backs the shell.
+    pub fn transcript_bytes(&mut self, task: u64) -> Option<Vec<u8>> {
+        match &mut self.disk {
+            Some(disk) => disk.read(format!("transcripts/{:016x}/{task:016x}", task >> 12).as_bytes()),
+            None => self.files.transcript_bytes(task),
+        }
+    }
     pub fn generation_contents(&mut self, name: &[u8]) -> BTreeMap<Vec<u8>, Vec<u8>> {
         self.disk.as_mut().expect("directory-backed fixture").contents(name)
     }
@@ -619,5 +627,58 @@ pub fn component_limits(root: &root::Limits) -> Limits {
         reads: root.core.load_slots.checked_add(root.core.tasks.tasks).expect("bounded readers"),
         orphan_erases: 1,
         held: 2,
+    }
+}
+
+#[cfg(test)]
+mod transcript_bytes_tests {
+    use super::*;
+    #[test]
+    fn a_memory_transcript_reads_back_and_a_dropped_one_is_absent() {
+        let mut store = Store::new(&jig_core_world::world::limits(), &[]);
+        assert_eq!(store.transcript_bytes(1), None);
+        let turn = jig_domain_core::TurnRecord {
+            task: 1,
+            attempt: 1,
+            turn: 1,
+            opens_window: true,
+            spent: 0,
+            read: None,
+            at: Wall::EPOCH,
+            transcript: Box::from(b"written transcript".as_slice()),
+        };
+        let header = jig_domain_core::Deployment {
+            id: [0; 16],
+            tasks: 1,
+            people: 0,
+            sign_ins: 0,
+            messages: 0,
+            runs: 1,
+            calls: 0,
+            connector_rows: 0,
+            projects: 0,
+            applications: 0,
+            commits: 1,
+        };
+        store.submit(
+            1,
+            Box::new([
+                root::Write::Wires,
+                root::Write::Save(root::Record::Core(jig_domain_core::Record::Core(
+                    jig_domain_core::CoreRecord::Deployment(header),
+                ))),
+                root::Write::Save(root::Record::Core(jig_domain_core::Record::Core(
+                    jig_domain_core::CoreRecord::Turn(turn.clone()),
+                ))),
+            ]),
+            0,
+        );
+        assert_eq!(store.tick(false), Ok(Some(1)));
+        let bytes = store.transcript_bytes(1).expect("written transcript file");
+        assert!(bytes.windows(turn.transcript.len()).any(|part| part == &*turn.transcript));
+        assert_eq!(store.transcript_bytes(1), Some(bytes));
+        store.submit(2, Box::new([root::Write::DropTranscript(1)]), 0);
+        assert_eq!(store.tick(false), Ok(Some(2)));
+        assert_eq!(store.transcript_bytes(1), None);
     }
 }

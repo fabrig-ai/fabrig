@@ -129,6 +129,10 @@ impl Config {
                     .rules()
                     .clone();
         }
+        if self.scenario == Some(Scenario::ProjectRemoved) {
+            config.core.grants =
+                Box::new([people::ActGrant { connector: 1, may: Box::new([people::ActKind::RemoveProject]) }]);
+        }
         jig_core_world::peers::journal(&mut limits);
         (config, limits)
     }
@@ -310,7 +314,8 @@ impl Application for Testing {
                 | Scenario::UncertainRestarts
                 | Scenario::ChangedJudge
                 | Scenario::NarrowingPolicy
-                | Scenario::RacingDecisions,
+                | Scenario::RacingDecisions
+                | Scenario::ProjectRemoved,
             ) => Box::new([
                 Script::Wait,
                 Script::Turn { body: b"whole turn".as_slice().into(), cost: 2, read: None },

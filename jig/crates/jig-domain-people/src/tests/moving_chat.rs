@@ -43,3 +43,22 @@ fn a_moved_conversations_new_requester_starts_with_nothing_read() {
     assert_eq!(test.d.conversation_seen(2, 9), Some(0));
     assert_eq!(out[1], Request::Save { record: Stored::ReadConversation { party: 2, task: 9, through: 0 } });
 }
+
+#[test]
+fn a_moved_conversations_zero_position_restores_cold() {
+    let (_, out) = moving_chat();
+    let Request::Save { record } = &out[1] else { panic!("move saves the new position") };
+    let mut test = Test::new(LIMITS);
+    test.d = Domain::new(&test.env.limits, Box::new([]), 0, Box::new([]));
+    let mut restored = Vec::new();
+    for record in [
+        Stored::Person { number: 1, identity: identity(0, 1) },
+        Stored::Person { number: 2, identity: identity(0, 2) },
+        record.clone(),
+    ] {
+        restored.extend(test.send(Event::Restore { record }));
+    }
+    restored.extend(test.send(Event::Restored));
+    assert!(restored.is_empty(), "{restored:?}");
+    assert_eq!(test.d.conversation_seen(2, 9), Some(0));
+}

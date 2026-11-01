@@ -99,7 +99,9 @@ pub(super) fn advance(world: &mut World, action: Action, phase: &mut u8) -> Resu
             )?;
             world.peers.query.checks += 1;
         }
-        Action::Compound
+        Action::MakeProjectRows
+        | Action::RemoveProject
+        | Action::Compound
         | Action::CompoundAgain
         | Action::CancelWithGrace
         | Action::Finish

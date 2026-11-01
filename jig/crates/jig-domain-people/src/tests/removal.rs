@@ -300,3 +300,46 @@ fn an_erased_task_leaves_no_partys_read_position_or_inbox_entry() {
     assert!(test.d.task_needs(SERVICE, OTHER_TASK));
     assert_eq!(test.d.conversation_seen(SERVICE, OTHER_TASK), Some(1));
 }
+
+#[test]
+fn a_gone_project_erases_a_retained_set_uses_answer_naming_it() {
+    let mut test = Test::new(Limits { requests: ANSWERS, words: 128, ..LIMITS });
+    test.d = Domain::new(&test.env.limits, Box::new([]), 0, Box::new([]));
+    test.send(Event::Restore { record: Stored::Person { number: OWNER, identity: identity(0, OWNER) } });
+    for (key, uses) in [
+        (1, Some(Box::<[Use]>::from([Use::Project(PROJECT)]))),
+        (2, Some(Box::<[Use]>::from([Use::Project(OTHER)]))),
+        (3, None),
+    ] {
+        let restored = test.send(Event::Restore {
+            record: Stored::Answer {
+                key: RequestKey { person: OWNER, key: [key; 16] },
+                ask: Box::new(Ask::AccountChange {
+                    holder: AccountHolder::Own,
+                    change: AccountChange::SetUses { account: 1, uses },
+                }),
+                models: Box::new([]),
+                outcome: Outcome::AccountChanged,
+                at: Wall::EPOCH,
+            },
+        });
+        assert!(restored.is_empty(), "{restored:?}");
+    }
+    test.send(Event::Restored);
+    let rows = test.send(Event::ProjectGone { project: PROJECT });
+    assert_eq!(erased(&rows), BTreeSet::from([answer_key(OWNER, 1)]));
+    test.env.now = Time::from_nanos(LIMITS.request_retention.as_nanos());
+    test.env.wall = Wall::from_nanos(LIMITS.request_retention.as_nanos());
+    let mut expired = BTreeSet::new();
+    for _ in 0..ANSWERS {
+        let mut out = Queue::uncapped();
+        fire(&mut test.d, &test.env, &mut out);
+        while let Some(row) = out.pop() {
+            if let Request::Erase { key } = row {
+                expired.insert(key);
+            }
+        }
+    }
+    expired.remove(&Key::SignIn(SIGN_IN));
+    assert_eq!(expired, BTreeSet::from([answer_key(OWNER, 2), answer_key(OWNER, 3)]));
+}

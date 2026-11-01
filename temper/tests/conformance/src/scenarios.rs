@@ -137,7 +137,11 @@ fn ended(world: &World, task: u64) -> bool {
 }
 impl ScenarioApplication for Temper {
     fn configuration(scenario: Scenario, seed: u64) -> Option<Config> {
-        if scenario == Scenario::ShrinkingPool { None } else { Some(Config::new(seed, Some(scenario))) }
+        if matches!(scenario, Scenario::ShrinkingPool | Scenario::ProjectRemoved) {
+            None
+        } else {
+            Some(Config::new(seed, Some(scenario)))
+        }
     }
     #[expect(
         clippy::too_many_lines,
@@ -561,6 +565,7 @@ impl ScenarioApplication for Temper {
             }
             Action::PartyAmend => revisions::party_amend(world)?,
             Action::RunAmend => revisions::run_amend(world),
+            Action::MakeProjectRows | Action::RemoveProject => panic!("project removal story unsupported"),
             Action::FillPool | Action::ShrinkPool | Action::FinishHolder(_) => {
                 panic!("ShrinkingPool is not applicable: forge has no pooled holds")
             }
@@ -629,6 +634,7 @@ impl ScenarioApplication for Temper {
                     )
                 },
             ),
+            Scenario::ProjectRemoved => panic!("project removal story unsupported"),
             Scenario::ShrinkingPool => panic!("no pooled holds"),
         }
     }

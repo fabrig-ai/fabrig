@@ -41,6 +41,14 @@ impl Files {
         self.machine.sync(file);
         self.machine.close(file);
     }
+    /// Read a transcript without changing its bytes or retained handles.
+    pub(super) fn transcript_bytes(&mut self, task: u64) -> Option<Vec<u8>> {
+        let name = format!("{:016x}/{task:016x}", task >> 12);
+        let file = self.machine.open(self.root, name.as_bytes(), How::Read).ok()?;
+        let bytes = self.machine.read(file, 0, u32::MAX).expect("readable transcript");
+        self.machine.close(file);
+        Some(bytes)
+    }
     /// Answer every operation the store's persistent file face reaches.
     #[must_use]
     pub fn answer(&mut self, request: file::Request) -> Arrived {

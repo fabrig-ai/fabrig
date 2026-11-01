@@ -9,6 +9,7 @@ mod client_settings_proposals;
 mod faults;
 mod memory;
 mod referee;
+mod removal;
 mod restart;
 mod scenarios;
 mod simulation;
