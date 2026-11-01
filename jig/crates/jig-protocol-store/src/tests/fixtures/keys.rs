@@ -30,7 +30,7 @@ pub fn own(rng: &mut Rng) -> Own {
     }
 }
 pub fn core_key(rng: &mut Rng) -> CoreKey {
-    match rng.below(8) {
+    match rng.below(10) {
         0 => CoreKey::Deployment,
         1 => CoreKey::Projection(match rng.below(4) {
             0 => ProjectionKey::Goal(number(rng)),
@@ -65,6 +65,11 @@ pub fn people_key(rng: &mut Rng) -> people::Key {
         3 => people::Key::SignIn(number(rng)),
         4 => people::Key::Roles(narrow(rng)),
         5 => people::Key::Policy(narrow(rng)),
+        8 => people::Key::Acted(people::ActKey {
+            connector: u16::try_from(rng.below(65_536)).expect("u16 range"),
+            key: [255; 16],
+        }),
+        9 => people::Key::Deletion(narrow(rng)),
         7 => people::Key::EndedRead { task: number(rng), party: number(rng) },
         _ => {
             let mut key = [0; 16];

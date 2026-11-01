@@ -1,5 +1,5 @@
 //! Asks values retained by people (protocol/store.md, 5.1).
-mod account_changes;
+pub(super) mod account_changes;
 use super::{
     Box, decode_amendment, decode_holdings, decode_numbers, decode_pattern, decode_policy_change, decode_role,
     decode_segments, domain, encode_amendment, encode_holdings, encode_numbers, encode_pattern, encode_policy_change,
@@ -297,6 +297,10 @@ pub(super) fn decode_escalation_decision(value: wire::EscalationDecision) -> dom
 #[expect(clippy::manual_map, reason = "step code translates optional fields through exhaustive matches")]
 pub fn encode_ask(value: &domain::Ask, limits: &wire::Limits) -> Result<wire::Ask, wire::Problem> {
     Ok(match value {
+        domain::Ask::RemoveProject { project } => wire::Ask::RemoveProject(wire::AskRemoveProject::new(
+            limits,
+            wire::AskRemoveProjectParts { project: *project },
+        )?),
         domain::Ask::MoveToNewest { revision } => wire::Ask::MoveToNewest(wire::AskMoveToNewest::new(
             limits,
             wire::AskMoveToNewestParts { revision: *revision },
@@ -640,6 +644,7 @@ pub fn decode_ask(value: wire::Ask, limits: &wire::Limits) -> Result<domain::Ask
             let wire::AskSetRolesParts { project, holdings } = value.into_parts();
             domain::Ask::SetRoles { project, holdings: decode_holdings(holdings) }
         }
+        wire::Ask::RemoveProject(value) => domain::Ask::RemoveProject { project: value.project() },
         wire::Ask::Rename(value) => {
             let wire::AskRenameParts { project, name } = value.into_parts();
             domain::Ask::Rename { project, name: project_name(&name, wire::Path::AskRenameName)? }

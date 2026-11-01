@@ -1012,6 +1012,7 @@ fn application_answer(outcome: people::Outcome) -> connector::ApplicationCoreAns
         | people::Outcome::QuestionAnswered { .. }
         | people::Outcome::Amended { .. }
         | people::Outcome::RolesSet { .. }
+        | people::Outcome::ProjectRemoved { .. }
         | people::Outcome::Renamed { .. }
         | people::Outcome::ProjectMade { .. }
         | people::Outcome::SettingsChanged { .. }

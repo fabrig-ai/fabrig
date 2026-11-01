@@ -522,3 +522,17 @@ fn an_empty_page_can_advance_its_interval_with_the_same_key() {
         crate::pages::Decoded { rows: Box::new([]), next: Some(Cursor { interval: 2, after: cursor.after.clone() }) };
     crate::restore::assert_progress(Some(cursor), &walked);
 }
+
+#[test]
+fn deletion_rows_are_loaded_at_start_from_the_second_people_interval() {
+    let mut store = live_store();
+    let deletion =
+        Record::People(jig_domain_people::Stored::Deletion { project: 3, stage: jig_domain_people::Stage::Erasing });
+    fixtures::committed(&mut store, Box::new([fixtures::header(2), fixtures::save(deletion.clone())]));
+    let (rows, next) = page(live_page(&mut store, None, 8, 65_536));
+    assert_eq!(next, None);
+    assert_eq!(
+        jig_rows(rows).as_ref(),
+        &[fixtures::header_record(2), fixtures::person(ALICE), deletion, fixtures::live_task(LIVE)]
+    );
+}

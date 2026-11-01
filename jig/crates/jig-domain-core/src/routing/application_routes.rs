@@ -247,6 +247,7 @@ impl Core {
                 | people::Outcome::Amended { .. }
                 | people::Outcome::RolesSet { .. }
                 | people::Outcome::PolicyChanged { .. }
+                | people::Outcome::ProjectRemoved { .. }
                 | people::Outcome::Renamed { .. }
                 | people::Outcome::ProjectMade { .. }
                 | people::Outcome::SettingsChanged { .. }
@@ -271,6 +272,7 @@ impl Core {
             | people::Stored::SignIn { .. }
             | people::Stored::Roles { .. }
             | people::Stored::Acted { .. }
+            | people::Stored::Deletion { .. }
             | people::Stored::Policy { .. } => true,
         }
     }

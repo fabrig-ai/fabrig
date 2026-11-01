@@ -63,7 +63,7 @@ fn any_act_with_no_owner_lacks_the_role_and_is_unsaved() {
     let mut world = World::configured(Settings::calm(952), Box::new([]), grants());
     for act in [
         close(),
-        Act::AddKey { provider: 1, join: None, digest: [7; 32] },
+        Act::AddKey { provider: 1, join: None, digest: [7; 32], uses: None },
         Act::RemoveAccount { account: 1 },
         Act::MakeProject { maker: 1, name: "Tally".into(), policy: 1 },
         Act::Adopt {

@@ -161,6 +161,9 @@ fn people_gate(event: people::Event) -> Result<Event, Requests> {
         | people::Event::Roles { .. }
         | people::Event::Decided { .. }
         | people::Event::Restore { .. }
+        | people::Event::Deletion { .. }
+        | people::Event::EraseTask { .. }
+        | people::Event::DropProject { .. }
         | people::Event::Restored) => Ok(Event::People(event)),
     }
 }
