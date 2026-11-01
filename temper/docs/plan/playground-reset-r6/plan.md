@@ -23,6 +23,7 @@ domain, view, tools and the client world.
 | Batch | Tasks |
 |---|---|
 | 1 | `sv-skein-connection`, `sv-skein-setup` (T7, skein only) |
+| 2 | `bx-pipe`, `bx-steps`, `cl-wire` |
 
 ## Critical path (as it stands)
 

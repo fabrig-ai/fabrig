@@ -41,8 +41,8 @@ deletion is answered at its start, not at its end.
 
 ### J4. The deletion row and its stages (kept until whole)
 
-- One row per deleting project, in the people family (people's store version moves by
-  one), keyed by the project's number: `{ project: u32, stage: Stage }` with
+- One row per deleting project, in the people family (people v13 changes in place: schema, generated code, goldens and the layouts
+  fingerprint, as `jig/docs/design/protocol/store.md`, 5 says before the first release), keyed by the project's number: `{ project: u32, stage: Stage }` with
   `Stage::{Ending, Erasing, Releasing}`. The row's exact record is jig's
   (`jig-protocol-store`), inside.
 - *Ending:* waits until every task of the project has ended (its grace honoured).
@@ -85,7 +85,8 @@ deletion is answered at its start, not at its end.
 ### J7. jig's client
 
 - jig's client wire, link and engine-clients carry `Ask::RemoveProject { project }`, its
-  outcome and its offer as they carry `Rename`'s (one more client wire version).
+  outcome and its offer as they carry `Rename`'s (client-v19 changes in place, as `jig/docs/design/protocol/client.md`
+  says before the first release).
 - `jig-client-view`'s project settings (`/projects/N/settings`) offers **Delete project**
   to an owner when offered: a confirmation that asks the person to type the project's name,
   its send disabled until the typed text equals the project's current name; on its answer
@@ -94,15 +95,20 @@ deletion is answered at its start, not at its end.
 
 ### J8. Two more deployment acts temper's removal and playground need
 
+Order: `Act::{…, Adopt, RemoveProject, Cancel}`; `ActKind::{…, MakeProject, RemoveProject,
+Cancel}`, `ALL` in that order. A party's retained `Answer` naming a deleted project is kept
+as a connector's `Acted` is (J4).
+
 - `Act::Cancel { project: u32, task: u64, reason: Box<[u8]> }`, `ActKind::Cancel`, grant
   word `cancel`: the deployment's compound cancel of one live task of the project, whoever
   requested it, with its delegates cancelled first (as `Close`'s compound, without `Close`'s
   "a person's conversation" rule); answered as a compound request. Refused `Ended` for a task
   that has ended, which the connector takes as done. temper's `RemoveForge` uses it for each
   change on the forge's repositories.
-- `Act::AddKey` gains `uses: Option<Box<[jig_domain_accounts::Use]>>`, the uses the new
+- `Act::AddKey` gains `uses: Option<Box<[jig_domain_people::Use]>>` (people's own `Use`, which the core
+  translates to accounts'), the uses the new
   account is made with (`None` as today): the playground's scripted account is made with
-  `Some([Use::Project(playground's project)])`, serving that project alone.
+  `Some([people::Use::Project(playground's project)])`, serving that project alone.
 
 ## T. temper (draft sections 3, 4, 6)
 
@@ -296,7 +302,9 @@ stay unused). Bounds: `Forge` and `ForgeNumbers` by `forge.forges` (T4); `KeptAc
 
 ### T8. The client wire, version 12
 
-`temper-client-protocol-wire`'s family `temper-client-wire` moves to 12, once for the run:
+`temper-client-protocol-wire`'s family `temper-client-wire` moves to 12, once for the run, in
+the client's last task with the journeys recorded again; until then the shapes below are
+built at version 11, renamed variants keeping their tags and new ones appended:
 
 - `Request::start_playground` replaces `start_demo`; new `end_playground`;
   new `remove_forge { forge: u16 }`; new `make_forge { choice: ForgeChoice }`,
