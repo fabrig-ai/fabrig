@@ -2,6 +2,7 @@
 # fab's first probe of a fabrig plan from intake to main, kept to one direct part of one task.
 draft = "phase-case"
 repo = "fabrig"
+retired = true
 sources = ["temper/docs/plan/phase-case/inputs/request.md", "AGENTS.md"]
 
 [[part]]
