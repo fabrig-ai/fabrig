@@ -174,3 +174,41 @@ fn forgejo_takes_its_listener_only_when_the_shell_can_identify_signal_senders() 
         }
     }
 }
+
+#[test]
+fn owned_group_has_the_asked_groups_steps() {
+    for (runner, fetch_forgejo, fetch_runner, listens) in [
+        (true, false, false, false),
+        (false, false, false, true),
+        (true, true, false, true),
+        (true, false, true, false),
+    ] {
+        let mut setup = fixtures::setup();
+        let mut entry = setup.entries[1].clone();
+        entry.forge = 7;
+        entry.asked = true;
+        let Mode::Owned(owned) = &mut entry.mode else { panic!("owned") };
+        if !runner {
+            owned.runner = None;
+        }
+        owned.fetch.forgejo = fetch_forgejo;
+        owned.fetch.runner = fetch_runner;
+        let group = crate::step::owned_group(7, owned, &flags(), listens);
+        assert_eq!(group.forge, 7);
+        assert_eq!(group.label.as_ref(), b"Forge 7 (Forgejo)");
+        assert!(group.recorded);
+        assert_eq!(group.before, 0);
+        assert_eq!(group.steps.len(), 2 + usize::from(runner) + usize::from(fetch_forgejo || fetch_runner));
+        if fetch_forgejo || fetch_runner {
+            assert_eq!(group.steps[0].0, crate::Stage::Fetch);
+            assert_eq!(group.steps[0].1.name(), b"fetch 7");
+        }
+        let first = setup.entries[1].clone();
+        setup.entries = Box::new([first, entry]);
+        let commands = steps(&setup, &flags(), Box::new([]), listens);
+        let mut expected = commands.asked[0].clone();
+        assert_eq!(expected.before, 3);
+        expected.before = 0;
+        assert_eq!(group, expected);
+    }
+}

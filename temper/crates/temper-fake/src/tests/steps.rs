@@ -221,3 +221,61 @@ fn first_steps_precede_fakes_and_both_groups_without_entering_the_playground() {
         assert_eq!(given.label, ordinary.label);
     }
 }
+
+fn read_entry(value: &Value) -> temper_forge_setup::setup::Entry {
+    let bytes = serde_json::to_vec(&json!([value])).unwrap();
+    let d = config::document(&bytes, &config::DocumentLimits { bytes: 4096, tokens: 4096, depth: 32 }).unwrap();
+    let directories = config::Directories::given(b"/config", b"/data", b"/cache").unwrap();
+    let setup = Setup::read(&d, 0, &temper_forge_setup::limits::small(), &directories, &mut problem::Problems::empty())
+        .unwrap();
+    setup.entries[0].clone()
+}
+fn group_flags() -> Box<[Box<[u8]>]> {
+    ["--config", "C", "--data", "D", "--cache", "K"].iter().map(|flag| Box::from(flag.as_bytes())).collect()
+}
+#[test]
+fn playground_group_has_the_demos_steps_and_is_recorded() {
+    let fake = demo::fixture()["application"]["setup"][0].clone();
+    let value = document(json!([fake]), true);
+    let entry = read_entry(&fake);
+    let temper_forge_setup::setup::Mode::Fake(fake) = &entry.mode else { panic!("fake") };
+    let demo = demo::read(&value).unwrap().unwrap();
+    let group = steps::playground_group(entry.forge, fake, demo.llm().listen(), &group_flags());
+    assert!(group.recorded);
+    assert_eq!(group.before, 0);
+    assert_eq!(group.label.as_ref(), b"Playground");
+    let first = Box::new([command("first", &["first"], Kind::Once)]);
+    let commands = checked_steps(&value, first);
+    let mut expected = commands.asked[0].clone();
+    assert!(!expected.recorded);
+    assert_eq!(expected.before, 1);
+    expected.recorded = true;
+    expected.before = 0;
+    assert_eq!(group, expected);
+}
+#[test]
+fn group_picks_by_mode() {
+    let fixture = demo::fixture();
+    let fake = read_entry(&fixture["application"]["setup"][0]);
+    let owned: Value = serde_json::from_slice(include_bytes!("../../../../docs/examples/owned.json")).unwrap();
+    let owned = read_entry(&owned["application"]["setup"][0]);
+    let llm = "127.0.0.1:8370".parse().unwrap();
+    for listens in [false, true] {
+        let temper_forge_setup::setup::Mode::Owned(settings) = &owned.mode else { panic!("owned") };
+        assert_eq!(
+            steps::group(&owned, None, &group_flags(), listens),
+            Some(temper_forge_setup::step::owned_group(owned.forge, settings, &group_flags(), listens))
+        );
+        let temper_forge_setup::setup::Mode::Fake(settings) = &fake.mode else { panic!("fake") };
+        assert_eq!(
+            steps::group(&fake, Some(llm), &group_flags(), listens),
+            Some(steps::playground_group(fake.forge, settings, llm, &group_flags()))
+        );
+        assert_eq!(steps::group(&fake, None, &group_flags(), listens), None);
+    }
+    let mut managed = owned;
+    for token in [None, Some(Box::from(b"/data/admin".as_slice()))] {
+        managed.mode = temper_forge_setup::setup::Mode::Managed { admin_token: token };
+        assert_eq!(steps::group(&managed, Some(llm), &group_flags(), true), None);
+    }
+}
