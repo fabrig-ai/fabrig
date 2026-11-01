@@ -221,12 +221,12 @@ impl Service {
         let configured = crate::startup::application::configured(&settings);
         // Workers take the forge settings; derive the demo's adoption host first.
         let demo_config = match &settings.demo {
-            Some(demo) => Some(demo.domain(&settings.forges, settings.limits.setup.deadline)),
+            Some(demo) => Some(demo.domain(&settings.forges, &settings.machine, settings.limits.setup.deadline)),
             None => None,
         };
         let workers = workers::Workers::configured(&mut settings, seeds.deployment)?;
         let config = temper_engine_domain::Config {
-            machine: temper_engine_domain_forge::Machine::bare(),
+            machine: settings.machine.clone(),
             period_span: crate::stock::PERIOD_SPAN,
             core: jig_protocol_config::core(&settings.jig, seeds.deployment, seeds.seed),
             landing: settings.landing,
@@ -1096,7 +1096,13 @@ impl Service {
 
 // One forge cohort and the end's bounded act answers can be named together.
 fn note_bound(settings: &settings::Engine, root: &temper_engine_domain::Limits) -> Option<u32> {
-    u32::try_from(settings.forges.len()).ok()?.checked_add(temper_engine_domain_forge::demo_act_bound(&root.forge)?)
+    let templates = 1_u32
+        .checked_add(u32::from(settings.machine.owned.is_some()))?
+        .checked_add(u32::from(settings.machine.playground.is_some()))?;
+    u32::try_from(settings.forges.len())
+        .ok()?
+        .checked_add(templates)?
+        .checked_add(temper_engine_domain_forge::demo_act_bound(&root.forge)?)
 }
 
 #[cfg(test)]

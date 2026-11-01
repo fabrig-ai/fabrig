@@ -5,6 +5,8 @@ use skein_lib::{Duration, Time, Token};
 use temper_engine_domain as root;
 #[test]
 fn a_stopped_forge_is_named_and_only_its_calls_are_not_connected() {
+    // Two configured forges and the machine's GitHub template.
+    const ORIGIN_NOTES: u32 = 3;
     use skein_forge::api::{Answer, Error, Op, Read, Repository};
     let mut service = fixtures::started_with_two_forges();
     let mut face = fixtures::ForgeFace::new();
@@ -16,7 +18,7 @@ fn a_stopped_forge_is_named_and_only_its_calls_are_not_connected() {
         "a stopped forge never starts the engine's drain"
     );
     let acts = temper_engine_domain_forge::demo_act_bound(&service.engine.as_ref().unwrap().env.limits.forge).unwrap();
-    assert_eq!(service.notes().capacity(), 2 + acts);
+    assert_eq!(service.notes().capacity(), ORIGIN_NOTES + acts);
     assert_eq!(
         service.notes().pop(),
         Some(crate::Note::ForgeStopped { number: 1, why: Stopped::Refused { read: StartRead::User, status: 401 } })
