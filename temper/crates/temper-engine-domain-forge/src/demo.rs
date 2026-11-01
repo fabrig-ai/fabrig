@@ -42,9 +42,18 @@ impl Domain {
     pub const fn demo_state(&self) -> Option<DemoState> {
         self.demo_state
     }
-    /// Ended state comes from the demo record, independently of routing events.
+    /// Removed forges and the ended demo stay ended independently of routing events.
     #[must_use]
     pub fn forge_ended(&self, forge: u16) -> bool {
+        if crate::removal::removing(self, forge) {
+            return true;
+        }
+        if let Some(next) = self.next_forge
+            && forge < next
+            && !self.configured.contains_key(&forge)
+        {
+            return true;
+        }
         self.demo_state == Some(DemoState::Ended)
             && match &self.demo {
                 Some(demo) => demo.adoption.forge == forge,

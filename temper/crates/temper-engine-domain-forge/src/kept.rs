@@ -1,9 +1,8 @@
 //! Kept acts (temper/docs/plan/playground-reset-r4/notes/contracts.md, D4;
 //! temper/docs/design/protocol/setup.md, 8.4): retry until a saved answer.
 use crate::{Domain, Kept, KeptAct, Key, Request, Stored};
-use skein_lib::Queue;
+use skein_lib::{Env, Queue};
 
-#[cfg_attr(not(test), expect(dead_code, reason = "removal and playground decisions supply kept rows"))]
 pub(crate) fn keep(d: &mut Domain, acts: &[Kept], out: &mut Queue<Request>) {
     for row in acts {
         if d.kept.contains_key(&row.key) {
@@ -15,7 +14,6 @@ pub(crate) fn keep(d: &mut Domain, acts: &[Kept], out: &mut Queue<Request>) {
     }
 }
 
-#[cfg_attr(not(test), expect(dead_code, reason = "removal and playground decisions derive their kept keys"))]
 pub(crate) fn key(kind: &[u8], numbers: &[u64]) -> [u8; 16] {
     let mut hash = skein_lib::sha256::Sha256::new();
     hash.update(b"temper kept\0");
@@ -43,14 +41,22 @@ pub(crate) fn send_all(d: &Domain, out: &mut Queue<Request>) {
     }
 }
 
-pub(crate) fn answered(d: &mut Domain, key: [u8; 16], keep: bool, out: &mut Queue<Request>) {
+pub(crate) fn answered(d: &mut Domain, env: &Env<crate::Limits>, key: [u8; 16], keep: bool, out: &mut Queue<Request>) {
     if !keep {
         erase(d, key, out);
     }
+    crate::removal::finish(d, env, out);
 }
 
-pub(crate) fn box_answered(d: &mut Domain, forge: u16, removed: bool, out: &mut Queue<Request>) {
+pub(crate) fn box_answered(
+    d: &mut Domain,
+    env: &Env<crate::Limits>,
+    forge: u16,
+    removed: bool,
+    out: &mut Queue<Request>,
+) {
     if !removed {
+        crate::removal::finish(d, env, out);
         return;
     }
     let mut index = 0_usize;
@@ -63,9 +69,9 @@ pub(crate) fn box_answered(d: &mut Domain, forge: u16, removed: bool, out: &mut 
             index = index.checked_add(1).expect("kept index space");
         }
     }
+    crate::removal::finish(d, env, out);
 }
 
-#[cfg_attr(not(test), expect(dead_code, reason = "forge removal waits for its own kept rows"))]
 pub(crate) fn erased_for(d: &Domain, forge: u16) -> bool {
     for (_, act) in &d.kept {
         match *act {

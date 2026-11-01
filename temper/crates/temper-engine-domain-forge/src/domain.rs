@@ -184,8 +184,8 @@ pub struct Domain {
     pub(crate) reconciliation: crate::reconcile::Reconciliation,
     restore_started: Option<skein_lib::Wall>,
     restore_fit: Option<Box<RestoreFit>>,
-    client: skein_forge_client::Domain,
-    client_out: Queue<skein_forge_client::Request>,
+    pub(crate) client: skein_forge_client::Domain,
+    pub(crate) client_out: Queue<skein_forge_client::Request>,
     // A refused brief read waits for the next client reclamation.
     pub(crate) brief_reclaim: u64,
     pub(crate) brief_fetches: Map<Token, brief::BriefFetch>,
@@ -1151,8 +1151,8 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         Event::DemoActAnswered { key, keep } => crate::demo::act_answered(d, key, keep, out),
         Event::SendDemoActs => crate::demo::send_acts(d, out),
         Event::SendKept => crate::kept::send_all(d, out),
-        Event::KeptAnswered { key, keep } => crate::kept::answered(d, key, keep, out),
-        Event::BoxRemoved { forge, removed } => crate::kept::box_answered(d, forge, removed, out),
+        Event::KeptAnswered { key, keep } => crate::kept::answered(d, env, key, keep, out),
+        Event::BoxRemoved { forge, removed } => crate::kept::box_answered(d, env, forge, removed, out),
         Event::ReleaseProject { request, project } => crate::release::release(d, request, project, out),
         Event::PlaygroundMade { project, account } => crate::playground::made(d, project, account, out),
         Event::PlaygroundAnswered { answer } => crate::playground::answered(d, answer, out),
@@ -1285,13 +1285,9 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
             | crate::Ask::Reachable { .. }) => {
                 crate::connect::start(d, env, request, token, ask, role, carried, out);
             }
-            crate::Ask::RemoveForge { .. } => crate::asks::refuse(
-                d,
-                request,
-                token,
-                crate::Answered::RemoveForge(crate::RemoveAnswer::Refused(crate::RemoveRefusal::NotOffered)),
-                out,
-            ),
+            crate::Ask::RemoveForge { forge } => {
+                crate::asks::remove_forge(d, env, request, token, forge, role, out);
+            }
             crate::Ask::StartPlayground => crate::playground::start(d, env, request, token, out),
             crate::Ask::EndPlayground => crate::asks::refuse(
                 d,
@@ -1660,7 +1656,7 @@ pub(crate) fn child(d: &mut Domain, env: &Env<Limits>, event: skein_forge_client
     clippy::too_many_lines,
     reason = "one client-output cohort updates connector state before routing its outcomes"
 )]
-fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
+pub(crate) fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     for _ in 0..d.client_out.len() {
         let request = d.client_out.pop().expect("counted child output");
         match request {
@@ -1681,7 +1677,15 @@ fn drain(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                 };
                 emit(out, Request::Save { read_afresh: None, release: None, record });
             }
-            skein_forge_client::Request::Erase { key } => emit(out, Request::Erase { key: Key::Client(key) }),
+            skein_forge_client::Request::Erase { key } => {
+                let key = match key {
+                    skein_forge_client::Key::Writer(forge) => Key::Writer(forge),
+                    key @ (skein_forge_client::Key::Live(_) | skein_forge_client::Key::Repository(_)) => {
+                        Key::Client(key)
+                    }
+                };
+                emit(out, Request::Erase { key });
+            }
             skein_forge_client::Request::Progress { entry } => keep_entry(d, entry, None, out),
             skein_forge_client::Request::Outcome { entry, task, outcome } => {
                 let account = match d.entries.get(&entry) {
@@ -5100,6 +5104,7 @@ fn restored(d: &mut Domain, env: &Env<Limits>, clock: skein_forge_client::Recove
     d.restore_phase = RestorePhase::Restoring;
     child(d, env, skein_forge_client::Event::Restored { clock }, out);
     retire_ended(d, env, out);
+    crate::removal::finish(d, env, out);
     // The client's transient watcher flags are rebuilt from the connector's
     // durable writers before any fresh background read can classify a push.
     {
@@ -5179,8 +5184,15 @@ fn read_afresh(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
 
 // A permanently retired forge has no future observation to await. Its
 // historical rows stay; its live watches and local release gates do not.
-fn retire_ended(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
-    if d.demo_state != Some(crate::DemoState::Ended) {
+pub(crate) fn retire_ended(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
+    let mut ended = d.demo_state == Some(crate::DemoState::Ended);
+    for (_, row) in &d.forge_records {
+        ended |= row.removing;
+    }
+    for (repository, _) in &d.repositories {
+        ended |= d.forge_ended(repository.forge);
+    }
+    if !ended {
         return;
     }
     let mut removed = List::with_capacity(env.limits.holds);
