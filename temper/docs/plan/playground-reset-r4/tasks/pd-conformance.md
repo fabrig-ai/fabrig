@@ -11,6 +11,9 @@ files = [
   "jig/tests/conformance/tests/suite/main.rs",
   "jig/testing/jig-test-store-files/src/store.rs",
   "jig/testing/jig-test-store-files/src/files.rs",
+  "jig/crates/jig-domain-people/src/domain/removal.rs",
+  "jig/crates/jig-domain-people/src/tests/removal.rs",
+  "jig/tests/core/src/removal.rs",
 ]
 effort = "high"
 minutes = 55
@@ -149,3 +152,39 @@ Ownership remains settled: “Route the retained-answer defect and reference-aud
 Inspection confirms both predicates still classify AccountChange as project-free in `jig/crates/jig-domain-people/src/domain/removal.rs` and `jig/tests/core/src/removal.rs`.
 After the repaired base is supplied, pd-conformance implements its pending scenario and transcript accessor within existing ownership, completes checks, commits and pushes.
 Acceptance remains unmet; this is not acceptance as done.
+
+### 2026-11-01: the retained `AccountChange::SetUses` answer, after four runs parked on it (playground-reset-r4/pd-conformance-4)
+
+This answer replaces the three above that wait for a repaired base.
+`pd-delete` and `pd-people-gone` have both landed, so no task of theirs
+will make the repair. It is this task's now, as neighbour edits. The
+code to change is the one match arm named below, in two files:
+
+- `jig/crates/jig-domain-people/src/domain/removal.rs` `names_project`:
+  take `Ask::AccountChange { .. }` out of the `false` arm and add
+  `Ask::AccountChange { change: crate::AccountChange::SetUses { uses:
+  Some(uses), .. }, .. }`, which is true when any `Use::Project(named)`
+  in `uses` equals `project`. Every other `AccountChange` stays
+  `false` (follow `domain.rs`'s `SetUses { uses: Some(uses), .. }`
+  arm). `gone` then erases that retained answer at `ProjectGone`, as
+  the draft's section 5 ("an act's retained answer that named it")
+  asks.
+- `jig/tests/core/src/removal.rs` `ask_project`: the same arm, so that
+  `rows_naming` finds such an answer.
+- Its test: in `jig/crates/jig-domain-people/src/tests/removal.rs`, add
+  `a_gone_project_erases_a_retained_set_uses_answer_naming_it`. Save an
+  `AccountChange::SetUses` answer whose uses name P, a second whose
+  uses name only another project, and a `SetUses { uses: None }`. After
+  `ProjectGone { P }`, the first is erased and the other two stay. Add
+  one `mod` line if that file needs it.
+
+No other line of those files changes; the `files` list above now names all three. The next run builds the scenario,
+the transcript accessor (the first answer) and the tests on its base.
+Run 2 built them but did not commit, so it left nothing to start from.
+Then it makes the repair above and runs step 4's checks, adding
+`heavy cargo nextest run -p jig-domain-people --lib -E
+'test(=tests::removal::a_gone_project_erases_a_retained_set_uses_answer_naming_it)'`
+and `-p jig-core-world --test suite -E 'test(/removal_stages/)'`. It
+commits and pushes. A row the scenario finds that the deletion does
+not erase, other than this one, is still a question. A boundary this
+answer already grants is not asked again.

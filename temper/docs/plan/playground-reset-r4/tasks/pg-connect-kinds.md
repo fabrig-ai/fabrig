@@ -127,3 +127,19 @@ question.
 
 fab's sections; `## Interfaces`: `Choice`'s variants and encodings,
 `choices`' order, the acts' new forms.
+
+## Answers
+
+2026-11-01. Q: may existing choice-list assertions in the domain tests
+change to include the new kind choices? A: yes, option (1). The
+acceptance's `choices` order makes the old expected slices untrue, so
+those expectations follow it as neighbour edits. Change only the
+expected slices: in `temper/crates/temper-client-domain/src/tests/connect.rs`,
+`choose_offers_github_forgejo_here_and_elsewhere_by_offer` gains
+`Forgejo` before `Elsewhere`, and in `src/tests/admin.rs`,
+`only_the_configured_admin_form_has_a_card` gains `GitHub` and
+`Forgejo` where the acceptance places them. Leave each test's name,
+setup and other assertions as they are. Any other existing test whose
+expected choices change by the same rule gets the same edit, and the
+report's Changed names it. A test that fails for another reason is
+still a question.
