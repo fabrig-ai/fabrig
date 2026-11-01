@@ -156,3 +156,15 @@ The client’s `Event` enum still lacks `Retire`.
 The next run uses the completed prerequisite and implements removal as the existing Answers specify, changing no skein file.
 Acceptance remains pending; this task cannot be accepted as done.
 Report file was not written because this session permits filesystem reads only.
+
+### 2026-11-01: Restart fe-remove with completed sv-skein-retire included (recommended), or revise the retirement contract? The required skein_forge_client::Event::Retire API is still absent from this checkout. (playground-reset-r6/fe-remove-4, foreman playground-reset-r6/fe-remove/foreman-4)
+
+Restart fe-remove with completed sv-skein-retire included; retain the retirement contract.
+The spec declares `needs = ["fe-make", "sv-skein-retire"]`.
+Its Answers state: “a prerequisite provides it, and this task now needs it” and “Change no skein file here.”
+The previous answer explicitly requires restarting with the completed prerequisite.
+The prerequisite spec exists in this checkout and requires `Event::Retire { forge: u16 }`.
+The client’s `Event` enum still lacks `Retire`.
+The next run uses the completed prerequisite and implements removal as the existing Answers specify.
+Acceptance remains pending; this task cannot be accepted as done.
+Report file was not written because this session permits filesystem reads only.
