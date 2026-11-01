@@ -8,6 +8,8 @@ final: tasks/pg-wire.md
 final: tasks/pg-client-read.md
 final: tasks/pg-playground-pages.md
 final: tasks/pg-project-delete.md
+final: tasks/pg-forge-remove.md
+final: tasks/pg-welcome-states.md
 
 ## Parts
 

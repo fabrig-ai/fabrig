@@ -9,6 +9,7 @@ final: tasks/pd-sweep.md
 final: tasks/pd-wire.md
 final: tasks/pd-people-gone.md
 final: tasks/pd-close.md
+final: tasks/pd-erase-task.md
 
 ## Parts
 

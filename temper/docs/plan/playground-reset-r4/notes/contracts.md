@@ -138,6 +138,12 @@ builds `Configured` by hand once the seed task lands.
   A `start FORGE` for a forge with no group in memory reads
   `box/groups/FORGE` first; with no file it answers `failed FORGE not
   asked`, as today.
+- **`remove` refused,** as `stop` is: `failed FORGE busy`, `failed FORGE
+  stopping`, `failed FORGE files not removed`. A kept `BoxRemove` answered
+  `failed` stays kept and is sent again; only `removed FORGE` erases it.
+  The group file holds those two members alone (`file::read` refuses any
+  other), and an owned entry's `start` is `"asked"`. One forge of a kind
+  runs at a time: `start` for a second answers `failed FORGE busy`.
 - **The box stays wiring:** it knows kinds (owned Forgejo, fake), never
   forges; the steps of a kind are `temper-forge-setup`'s and
   `temper-fake`'s, given an entry.
