@@ -135,7 +135,7 @@ fn classify(outcome: &people::Outcome, grant: &'static str) -> (bool, Option<&'s
             (false, None)
         }
         people::Outcome::Refused(why) | people::Outcome::CompoundRefused { why, .. } => {
-            (false, Some(super::demo::refusal_name(why)))
+            (false, Some(refusal_name(why)))
         }
         people::Outcome::ProjectRemoved { .. } if grant == "remove_project" => (false, None),
         people::Outcome::AccountRemoved { .. } if grant == "remove_account" => (false, None),
@@ -201,4 +201,35 @@ pub(crate) fn release(domain: &mut Domain, connector: u16, project: u32) {
 
 pub(crate) fn released(domain: &mut Domain, project: u32) {
     domain.work.push(Work::Core(core::Event::ProjectReleased { project, connector: domain.config.forge_connector }));
+}
+
+pub(super) fn refusal_name(why: &people::Refusal) -> &'static str {
+    use people::Refusal;
+    match why {
+        Refusal::Stale { .. } => "Stale",
+        Refusal::Full { .. } => "Full",
+        Refusal::NameTaken => "NameTaken",
+        Refusal::NotWellFormed { why: people::Malformed::Name(_), .. } => "Name",
+        Refusal::Circle { .. } => "Circle",
+        Refusal::Dependency { .. } => "Dependency",
+        Refusal::Kept { .. } => "Kept",
+        Refusal::Account { .. } => "Account",
+        Refusal::NotWellFormed { .. } => "NotWellFormed",
+        Refusal::Role { .. } => "Role",
+        Refusal::Authority { .. } => "Authority",
+        Refusal::Limit { .. } => "Limit",
+        Refusal::Moved { .. } => "Moved",
+        Refusal::Ended { .. } => "Ended",
+        Refusal::Taken { .. } => "Taken",
+        Refusal::NotWaiting => "NotWaiting",
+        Refusal::NoFurther => "NoFurther",
+        Refusal::Unknown => "Unknown",
+        Refusal::NotOffered => "NotOffered",
+        Refusal::Provider => "Provider",
+        Refusal::SignInRedirect { .. } => "SignInRedirect",
+        Refusal::KeyConflict => "KeyConflict",
+        Refusal::NoEscalationHolder => "NoEscalationHolder",
+        Refusal::Llm { .. } => "Llm",
+        Refusal::AccountMove { .. } => "AccountMove",
+    }
 }

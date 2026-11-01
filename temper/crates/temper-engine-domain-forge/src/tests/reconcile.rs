@@ -209,8 +209,6 @@ fn historical_records_need_no_live_task_or_member() {
         Stored::Change(fixtures::opening_row()),
         issue(true),
         Stored::Binding { address: b"former@example.com".as_slice().into(), subject: b"former".as_slice().into() },
-        Stored::DemoAct(DemoAct { key: [1; 16], act: DemoActKind::Close { project: 1, task: OTHER_TASK } }),
-        Stored::DemoAct(DemoAct { key: [2; 16], act: DemoActKind::RemoveAccount { account: 99 } }),
         Stored::Application {
             token: 1,
             until: Wall::EPOCH,
@@ -249,11 +247,6 @@ fn flights_refuse_an_absent_entry_or_another_tasks_entry() {
     for row in [Stored::Flight { task: TASK, entry: 99 }, Stored::Flight { task: OTHER_TASK, entry: ENTRY }] {
         assert!(!resolved(&d, &row, true), "{row:?}");
     }
-}
-#[test]
-fn a_demo_record_requires_the_configured_demo() {
-    let d = held_domain();
-    assert!(!resolved(&d, &Stored::Demo(Demo { forge: 1, state: DemoState::Ended }), false));
 }
 
 // Measured peak: 3,072 bytes; 25% headroom, rounded up to two significant digits.
@@ -295,50 +288,6 @@ fn populated_reconciliation_owner_fits_its_heap_ceiling() {
     let measured = meter.end();
     meter.check(measured, RECONCILIATION_HEAP_CEILING, &LIMITS);
     assert!(resolved(&d, &Stored::Flight { task: TASK, entry: ENTRY }, true));
-}
-
-// Measured peak: 9,170 bytes; 25% headroom, rounded up to two significant digits.
-const DEMO_HEAP_CEILING: u64 = 12_000;
-
-#[test]
-fn retained_demo_and_its_owner_fit_their_heap_ceiling() {
-    let meter = Meter::new();
-    meter.start();
-    // The boxed owner includes its optional demo record in the measured heap.
-    let d = Box::new(demo_domain());
-    let measured = meter.end();
-    meter.check(measured, DEMO_HEAP_CEILING, &LIMITS);
-    assert!(resolved(&d, &Stored::Demo(Demo { forge: 1, state: DemoState::Ended }), false));
-}
-
-fn demo_domain() -> Domain {
-    let mut d = held_domain();
-    d.configure_demo(Some(DemoConfig {
-        project_name: "Playground".into(),
-        project_policy: 1,
-        provider: 1,
-        adoption: fixtures::adoption(),
-        deadline: Duration::from_secs(10),
-    }));
-    outputs(&mut d, Event::Restore { record: Stored::Demo(Demo { forge: 1, state: DemoState::Ended }) });
-    d
-}
-#[test]
-fn an_ended_demo_does_not_excuse_an_absent_task_owner() {
-    let d = demo_domain();
-    assert!(!d.forge_ended(1));
-    assert!(!resolved(&d, &Stored::Names { task: OTHER_TASK, resources: Box::new([branch()]) }, false));
-}
-#[test]
-fn an_ended_demo_does_not_resolve_a_different_demo_record() {
-    assert!(!resolved(&demo_domain(), &Stored::Demo(Demo { forge: OTHER_FORGE, state: DemoState::Ended }), false));
-}
-#[test]
-fn a_mixed_resource_set_still_requires_its_live_owner() {
-    let d = demo_domain();
-    let mut other = branch();
-    other.forge = OTHER_FORGE;
-    assert!(!resolved(&d, &Stored::Names { task: OTHER_TASK, resources: Box::new([branch(), other]) }, false));
 }
 
 #[test]
@@ -666,4 +615,12 @@ fn opaque_client_links_report_repository_and_writer_keys_but_cannot_recover_live
 #[test]
 fn references_keep_the_base_footprint() {
     assert_eq!(size_of::<crate::reconcile::Reference>(), 32);
+}
+
+#[test]
+fn a_mixed_resource_set_still_requires_its_live_owner() {
+    let d = held_domain();
+    let mut other = branch();
+    other.forge = OTHER_FORGE;
+    assert!(!resolved(&d, &Stored::Names { task: OTHER_TASK, resources: Box::new([branch(), other]) }, false));
 }

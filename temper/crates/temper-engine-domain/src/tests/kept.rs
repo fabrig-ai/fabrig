@@ -1,6 +1,6 @@
 //! Root handoffs for removal and reset (draft playground-reset.md, 4 and 6.2).
 use super::resume_fixture::root;
-use crate::route::{asks, demo, forge_route, held, kept};
+use crate::route::{asks, forge_route, held, kept};
 use crate::{Decision, Delivery, Domain, Limits, Request, Work};
 use alloc::boxed::Box;
 use jig_domain_core as core;
@@ -13,7 +13,6 @@ const FORGE: u16 = 3;
 const PROJECT: u32 = 5;
 const TASK: u64 = 7;
 const ACCOUNT: u32 = 5;
-const DEMO_ACCOUNT: u32 = 6;
 // An initial send and one resend, across fresh roots for reset keys.
 const SENDS: u32 = 2;
 // The fixture's restart script has fewer than sixteen steps.
@@ -251,7 +250,6 @@ fn the_start_asks_for_kept_acts_after_the_core_opens() {
             let mut decision = Decision::decide(&mut domain.journal, &limits.journal);
             crate::restart::restart_request(&mut domain, &env, &mut decision, request);
             assert!(domain.ready());
-            let Some(Work::Forge(forge::Event::SendDemoActs)) = domain.work.pop() else { panic!("demo acts first") };
             let Some(Work::Forge(forge::Event::SendKeptActs)) = domain.work.pop() else { panic!("kept acts next") };
             assert!(domain.work.is_empty());
             return;
@@ -289,21 +287,14 @@ fn a_release_reaches_the_connector_and_its_answer_the_core() {
 }
 
 #[test]
-fn interleaved_demo_kept_and_reset_answers_find_their_own_maps() {
+fn interleaved_kept_and_reset_answers_find_their_own_maps() {
     let (mut domain, env) = root();
-    demo::send_end_act(
-        &mut domain,
-        forge::DemoAct { key: [21; 16], act: forge::DemoActKind::RemoveAccount { account: DEMO_ACCOUNT } },
-    );
-    let (demo, _, _) = act(&mut domain);
     outputs(&mut domain, &env, forge::Request::SendKeptAct(cancel()));
     let (kept, _, _) = act(&mut domain);
     outputs(&mut domain, &env, forge::Request::ResetAct(forge::ResetAct::RemoveProject { project: PROJECT }));
     let (reset, _, _) = act(&mut domain);
-    let tokens = [reset.into_token(), demo.into_token(), kept.into_token()];
+    let tokens = [reset.into_token(), kept.into_token()];
     assert_ne!(tokens[0], tokens[1]);
-    assert_ne!(tokens[1], tokens[2]);
-    assert_ne!(tokens[0], tokens[2]);
     for token in tokens {
         let mut out = Queue::uncapped();
         crate::domain::step_released(
@@ -318,6 +309,5 @@ fn interleaved_demo_kept_and_reset_answers_find_their_own_maps() {
         assert!(!domain.journal.stopped());
         assert!(out.is_empty());
     }
-    assert!(domain.demo_act_replies.is_empty());
     assert_eq!(domain.playground(), domain.forge.playground().copied());
 }

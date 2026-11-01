@@ -423,29 +423,6 @@ fn a_running_start_asks_only_a_dormant_group_under_the_box() {
 }
 
 #[test]
-fn a_legacy_ended_demo_has_no_effect_on_the_playground_forge() {
-    let mut d = playground(true);
-    d.configure_demo(Some(DemoConfig {
-        project_name: "Playground".into(),
-        project_policy: 1,
-        provider: 1,
-        adoption: fixtures::adoption(),
-        deadline: Duration::from_secs(10),
-    }));
-    outputs(&mut d, Event::Restore { record: Stored::Demo(Demo { forge: 1, state: DemoState::Ended }) });
-    start(&mut d, 1);
-    assert_eq!(d.playground(), Some(&running()));
-    assert!(!d.forge_ended(1));
-    assert_eq!(d.forges().rows.len(), 1);
-    outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
-    for request in outputs(&mut d, Event::ReadAfresh) {
-        if let Request::SetUpGroup { .. } | Request::StopGroup { .. } | Request::ListDemoActs = request {
-            panic!("legacy demo state must not start or end a group");
-        }
-    }
-}
-
-#[test]
 fn a_resumed_removal_with_no_acts_begins_the_account_step_once() {
     let row = resetting(Playground { project: Some(7), account: Some(9), ..running() }, ResetStep::Forge);
     let mut d = restore(row, Some(ForgeRecord { number: 1, state: ForgeState::Removing, ..template() }));

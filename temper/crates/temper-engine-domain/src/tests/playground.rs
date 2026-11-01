@@ -1,7 +1,7 @@
 //! Root start phases on the domain fixture, with the connector's row supplied
 //! at the start seam (`temper/docs/design/draft/playground-reset.md`, 6.1).
 use super::resume_fixture::root;
-use crate::route::{demo, held, kept, playground};
+use crate::route::{held, kept, playground};
 use crate::{Decision, Delivery, Domain, Limits, Work};
 use alloc::boxed::Box;
 use jig_domain_accounts as accounts;
@@ -59,12 +59,11 @@ fn fixture(carried: bool) -> (Domain, Env<Limits>) {
         &mut out,
     );
     domain
-        .demo_contexts
+        .playground_contexts
         .insert(
             REQUEST,
-            demo::Context {
+            playground::Context {
                 sign_in: SIGN_IN,
-                key: [31; 16],
                 carried: if carried { Some(core::Carried { number: CARRIED, digest: [37; 32] }) } else { None },
             },
         )
@@ -279,8 +278,23 @@ fn a_start_makes_the_project_then_the_account_serving_it_alone() {
     );
     assert!(deliveries(&mut domain, &env, decision).is_empty());
     assert_eq!(answer(&mut domain), forge::StartAnswer::Running);
-    assert!(domain.demo_start.is_none());
-    assert!(domain.demo_reply.is_none());
+}
+
+#[test]
+fn a_start_with_a_project_kept_scopes_the_account_to_the_starting_person_and_project() {
+    let (mut domain, env) = fixture(true);
+    assert!(begin(&mut domain, &env, row(Some(PROJECT), None)).is_empty());
+    let (_, _, account, carried) = act(&mut domain);
+    assert_eq!(
+        account,
+        people::Act::AddKey {
+            provider: 1,
+            join: None,
+            digest: [37; 32],
+            uses: Some(Box::new([people::Use::Party(PERSON), people::Use::Project(PROJECT)])),
+        }
+    );
+    assert_eq!(carried.unwrap().number, CARRIED);
 }
 
 #[test]
@@ -368,14 +382,11 @@ fn the_start_acts_carry_keys_derived_from_the_playground_forge() {
     for (project, expected, purpose) in
         [(None, PROJECT_KEY, b"project".as_slice()), (Some(PROJECT), ACCOUNT_KEY, b"account".as_slice())]
     {
-        for original in [[31; 16], [41; 16]] {
-            let (mut domain, env) = fixture(true);
-            domain.demo_contexts.get_mut(&REQUEST).unwrap().key = original;
-            assert!(begin(&mut domain, &env, row(project, None)).is_empty());
-            let (_, key, _, _) = act(&mut domain);
-            assert_eq!(key, expected);
-            assert_ne!(key, playground::start_key(FORGE + 1, purpose));
-        }
+        let (mut domain, env) = fixture(true);
+        assert!(begin(&mut domain, &env, row(project, None)).is_empty());
+        let (_, key, _, _) = act(&mut domain);
+        assert_eq!(key, expected);
+        assert_ne!(key, playground::start_key(FORGE + 1, purpose));
     }
 }
 

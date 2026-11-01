@@ -90,10 +90,6 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::StepLanding { .. }
             | forge::Event::Settle
             | forge::Event::AppRecorded { .. }
-            | forge::Event::DemoActs { .. }
-            | forge::Event::DemoActAnswered { .. }
-            | forge::Event::SendDemoActs
-            | forge::Event::DemoAnswered { .. }
             | forge::Event::BoxClosed
             | forge::Event::ConnectAnswered { .. }
             | forge::Event::ReachableAnswered { .. }

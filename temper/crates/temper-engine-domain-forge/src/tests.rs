@@ -7,7 +7,6 @@ mod change;
 #[path = "tests/brief.rs"]
 mod ci_brief;
 mod connect;
-mod demo;
 mod fixtures;
 mod flight;
 #[path = "tests/landing.rs"]
@@ -360,9 +359,6 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::EraseCarried { .. }
         | Request::SetUp { .. }
         | Request::Bound { .. }
-        | Request::ListDemoActs
-        | Request::SendDemoAct(_)
-        | Request::DemoStart { .. }
         | Request::Settled { .. }
         | Request::RemoveGroup { .. }
         | Request::EraseSecrets { .. }
@@ -440,9 +436,6 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::EraseCarried { .. }
         | Request::SetUp { .. }
         | Request::Bound { .. }
-        | Request::ListDemoActs
-        | Request::SendDemoAct(_)
-        | Request::DemoStart { .. }
         | Request::Settled { .. }
         | Request::RemoveGroup { .. }
         | Request::EraseSecrets { .. }
@@ -517,9 +510,6 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::EraseCarried { .. }
         | Request::SetUp { .. }
         | Request::Bound { .. }
-        | Request::ListDemoActs
-        | Request::SendDemoAct(_)
-        | Request::DemoStart { .. }
         | Request::Settled { .. }
         | Request::RemoveGroup { .. }
         | Request::EraseSecrets { .. }
