@@ -39,7 +39,7 @@ pub(crate) fn settings(record: &ForgeRecord) -> settings::Forge {
 fn ip(host: &[u8]) -> Option<IpAddr> {
     core::str::from_utf8(host).ok()?.parse().ok()
 }
-fn identity(record: &ForgeRecord) -> settings::Identity {
+pub(crate) fn identity(record: &ForgeRecord) -> settings::Identity {
     settings::Identity {
         number: u32::from(record.number),
         forge: record.number,
@@ -92,9 +92,11 @@ pub(crate) fn register(engine: &mut Engine, record: ForgeRecord) {
     if record.kind == Kind::GitHub {
         engine.values.tokens.add(number, &identity(&record), engine.forge_records.bounds.installations);
     }
+    crate::setup::register(engine, &record);
     engine.records.insert(number, record).expect("connection admits forge");
 }
 pub(crate) fn unregister(engine: &mut Engine, forge: u16) {
+    crate::setup::unregister(engine, forge);
     engine.forge.remove(forge);
     let capacity = engine.workers.forges.capacity();
     let forges = core::mem::replace(&mut engine.workers.forges, List::with_capacity(capacity));
