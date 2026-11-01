@@ -1,0 +1,103 @@
+# temper v0.1.0's QA ladder (temper/docs/design/draft/v0.1.0.md, 2 to 4), walked by QA and
+# taken by fab's findings loop (the agents repository's docs/design/qa.md, 2). Each rung is a
+# story on one backend: its brief is the kit, the backend's kit, then the story's brief, read in
+# order; a rung's edition is their bytes at origin/main. The stories were first climbed by hand
+# on 11-01 (owned Forgejo on ChatGPT and Claude Code, 0 to B2; GitHub connected 0 to B0).
+draft = "v0.1.0-ladder"
+repo = "fabrig"
+landing = "queue"
+
+[ladder]
+happy_path = "temper/docs/design/draft/v0.1.0.md, 2 and 4"
+backlog = "temper/docs/design/debt/v0.1.0-ladder.md"
+
+[[rung]]
+id = "r0"
+backend = "chatgpt-forgejo"
+brief = ["kit.md", "rung-0.md"]
+after = []
+
+[[rung]]
+id = "ra"
+backend = "chatgpt-forgejo"
+brief = ["kit.md", "rung-a.md"]
+after = ["r0"]
+
+[[rung]]
+id = "rb0"
+backend = "chatgpt-forgejo"
+brief = ["kit.md", "rung-b0.md"]
+after = ["ra"]
+
+[[rung]]
+id = "rb1"
+backend = "chatgpt-forgejo"
+brief = ["kit.md", "rung-b1.md"]
+after = ["rb0"]
+
+[[rung]]
+id = "rb2"
+backend = "chatgpt-forgejo"
+brief = ["kit.md", "rung-b2.md"]
+after = ["rb1"]
+
+[[rung]]
+id = "r0-claude"
+backend = "claude-forgejo"
+brief = ["kit.md", "kit-claude.md", "rung-0.md"]
+after = ["r0"]
+
+[[rung]]
+id = "ra-claude"
+backend = "claude-forgejo"
+brief = ["kit.md", "kit-claude.md", "rung-a.md"]
+after = ["r0-claude", "ra"]
+
+[[rung]]
+id = "rb0-claude"
+backend = "claude-forgejo"
+brief = ["kit.md", "kit-claude.md", "rung-b0.md"]
+after = ["ra-claude", "rb0"]
+
+[[rung]]
+id = "rb1-claude"
+backend = "claude-forgejo"
+brief = ["kit.md", "kit-claude.md", "rung-b1.md"]
+after = ["rb0-claude", "rb1"]
+
+[[rung]]
+id = "rb2-claude"
+backend = "claude-forgejo"
+brief = ["kit.md", "kit-claude.md", "rung-b2.md"]
+after = ["rb1-claude", "rb2"]
+
+[[rung]]
+id = "r0-github"
+backend = "chatgpt-github"
+brief = ["kit.md", "kit-github.md", "rung-0.md"]
+after = ["r0"]
+
+[[rung]]
+id = "ra-github"
+backend = "chatgpt-github"
+brief = ["kit.md", "kit-github.md", "rung-a.md"]
+after = ["r0-github", "ra"]
+
+[[rung]]
+id = "rb0-github"
+backend = "chatgpt-github"
+brief = ["kit.md", "kit-github.md", "rung-b0.md"]
+after = ["ra-github", "rb0"]
+
+[[rung]]
+id = "rb1-github"
+backend = "chatgpt-github"
+brief = ["kit.md", "kit-github.md", "rung-b1.md"]
+after = ["rb0-github", "rb1"]
+
+[[rung]]
+id = "rb2-github"
+backend = "chatgpt-github"
+brief = ["kit.md", "kit-github.md", "rung-b2.md"]
+after = ["rb1-github", "rb2"]
+
