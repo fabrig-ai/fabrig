@@ -198,3 +198,24 @@ log. Not this task's acceptance, and not to be repaired here:
 failures. Run each once at the task's base (`f4b9d27143`): failing
 there too, list it under "Left" as found at the base, and push; passing
 there, this change caused it: stop and ask with both logs.
+
+2026-11-01. The task has run four times without landing; is it to be
+split or re-scoped? No. Each run stopped at a scope boundary, never at a
+fault, and each is answered above; the work stands as run 4 left it
+(record-driven `kept`/`removed`/`record`, `NotHeld`, `connect_one`,
+864 service and 23 system-world tests passing). The next run resumes
+from it: add the one-process resolver, rerun the focused one-process
+tests, then classify `fake::refused_start` and the six client-world
+failures at the base as the answer above says. To spare a fifth stop:
+if a one-process red remains after the resolver and its log shows a
+fixture input in `temper/tests/one-process/src/world.rs` describing a
+forge the old way (a typed setting the service no longer reads, a
+local state taken before the start's `ForgeKept`), repair that input
+there under the service fixture answer's rules (no assertion,
+credential, declared host, story or outcome changes; no production
+file) and list it in the report. A red a fixture input cannot explain,
+or one in another one-process file, is still a question with its log.
+No restore flag is needed: the run showed the connector's `ForgeKept`
+records precede `RestartDone { stage: Restored }` and the durable
+start mark that `records::advance` waits for; the report says so under
+`## Interfaces`, as run 4's did.
