@@ -25,10 +25,10 @@ fn refused(ask: Ask, expected: Answered) {
     assert_eq!(d.application_answer(ANSWER), Some(expected));
 }
 #[test]
-fn remove_forge_is_refused_not_offered() {
+fn an_absent_forge_cannot_be_removed() {
     refused(
         Ask::RemoveForge { forge: REPO.forge },
-        Answered::RemoveForge(RemoveAnswer::Refused(RemoveRefusal::NotOffered)),
+        Answered::RemoveForge(RemoveAnswer::Refused(RemoveRefusal::NoSuchForge)),
     );
 }
 #[test]
@@ -41,8 +41,8 @@ fn start_and_end_playground_are_refused_not_offered() {
     }
 }
 #[test]
-fn connect_to_a_forge_to_make_is_refused_no_such_forge() {
-    for forge in [ConnectForge::GitHub, ConnectForge::Forgejo { address: b"https://forge.example".as_slice().into() }] {
+fn connect_to_an_absent_kept_forge_is_refused_no_such_forge() {
+    for forge in [ConnectForge::Existing(2), ConnectForge::Existing(3)] {
         let mut d = domain();
         let ask = Ask::Connect { forge, how: How::GitHubManifest { back: None } };
         assert_eq!(

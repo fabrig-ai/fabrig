@@ -50,7 +50,7 @@ fn start(source: &Directories, bundle: Option<&Path>) -> Result<Prepared, String
         write(&adapter, b"#!/bin/sh\nexit 1\n", false).expect("fixture adapter");
         fs::set_permissions(&adapter, fs::Permissions::from_mode(0o700)).expect("executable fixture adapter");
     }
-    prepare(source, bundle, &adapter)
+    prepare(source, bundle, &adapter, false)
 }
 fn provision_bundle(path: &Path) -> PathBuf {
     make_private(&path.join("0000000000000001"), skein_shell::effective_user()).expect("private fixture bundle");
@@ -86,6 +86,9 @@ fn fake_backends_is_an_additive_box_only_switch() {
     let environment = [(Box::<[u8]>::from(b"HOME".as_slice()), Box::<[u8]>::from(b"/fixture/home".as_slice()))];
     for (words, expected) in [
         (vec!["box", "--fake-backends"], true),
+        (vec!["box", "--fake-backends", "--empty-store"], true),
+        (vec!["box", "--empty-store"], false),
+        (vec!["box", "--fake-backends", "--empty-store", "--empty-store"], false),
         (vec!["box", "--fake-backends", "--config", "/c", "--data", "/d", "--cache", "/k"], true),
         (vec!["box", "--fake-backends", "--fake-backends"], false),
         (vec!["box", "--fake-backends", "extra"], false),
@@ -893,4 +896,33 @@ fn own_app_key_is_the_seeded_apps_private_pem() {
     drop(prepared);
     let _again = start(&source, None).expect("reuse keeps the key");
     assert_eq!(fs::read(&path).expect("retained key"), key);
+}
+
+#[test]
+fn empty_store_fixture_keeps_the_welcome_templates_and_survives_reopening() {
+    let scratch = Scratch::new("empty-store-welcome");
+    let source = provisioned_source(&scratch);
+    let seeded = start(&source, None).expect("seeded sandbox");
+    let adapter = scratch.0.join("fake-claude");
+    let fixture = empty_store_fixture(&seeded.bytes).expect("empty-store fixture");
+    let checked = crate::setup::check(&fixture, &seeded.directories.jig()).expect("ordinary empty-store admission");
+    assert!(checked.named.forges.is_empty());
+    assert!(checked.named.identities.is_empty());
+    assert!(checked.checked.setup.entries.is_empty());
+    assert!(checked.owned.is_some());
+    assert!(checked.demo.is_some());
+    let before = Json::decode(&seeded.bytes).expect("seeded document");
+    let after = Json::decode(&fixture).expect("fixture document");
+    for member in ["owned", "demo"] {
+        assert_eq!(before.at(&format!("application/{member}")), after.at(&format!("application/{member}")));
+    }
+    drop(seeded);
+    fs::remove_dir_all(crate::path(&source.data).join("box/fake-backends")).expect("remove fixture sandbox");
+    let first = prepare(&source, None, &adapter, true).expect("empty-store startup");
+    let content = first.bytes.clone();
+    drop(first);
+    let reopened = prepare(&source, None, &adapter, true).expect("reopen empty-store sandbox");
+    assert_eq!(reopened.bytes, content);
+    drop(reopened);
+    assert!(prepare(&source, None, &adapter, false).is_err(), "fixture modes cannot share a sandbox");
 }

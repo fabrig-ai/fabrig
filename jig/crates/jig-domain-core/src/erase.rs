@@ -1,6 +1,6 @@
 //! Whole ended-task erasure, with its record erased last
 //! (jig/docs/design/protocol/store.md, 11.1;
-//! temper/docs/design/draft/playground-reset.md, 5).
+//! jig/docs/design/domain/core.md, 11).
 use crate::{Core, Event, Held, Key, Limits, Record, Request, Requests, Write, reads::Sweep};
 use alloc::boxed::Box;
 use jig_domain_people as people;

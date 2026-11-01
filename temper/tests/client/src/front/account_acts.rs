@@ -226,6 +226,9 @@ fn fixture_root(
                 )
             }]);
         }
+        if matches!(forge, WelcomeForge::Demo { running: false, .. }) && !adoption {
+            config.seed = Box::new([]);
+        }
         let mut engine_limits = engine_limits();
         if adoption {
             // The chat needs one delegation below its own template's depth.

@@ -101,7 +101,8 @@ fn a_removing_record_leaves_the_rows() {
     let mut d = seeded(&[row.clone()]);
     assert!(d.forges().rows.len() == 1);
     let out = restored(&mut d);
-    assert_eq!(kept(&out).as_ref(), [row]);
+    assert!(kept(&out).is_empty());
+    assert!(d.forge_record(row.number).is_none());
     assert!(d.forges().rows.is_empty());
 }
 #[test]

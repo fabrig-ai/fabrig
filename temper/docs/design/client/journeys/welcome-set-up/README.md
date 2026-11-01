@@ -1,6 +1,6 @@
 # welcome-set-up
 
-On a fresh `temper box --fake-backends` (client/journeys.md, 3.5): the
+On a fresh `temper box --fake-backends --empty-store` (client/journeys.md, 3.5): the
 box's printed sign-in link opened, the welcome drawn, "Set up temper"
 pressed, then "Run on this machine" on the Forgejo card. This sets
 Forgejo on this machine up at once with `work/hello` into a new project

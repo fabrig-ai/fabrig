@@ -260,8 +260,7 @@ impl Application for Temper {
                 _ => Box::new([workers::Script::Wait]),
             }
         };
-        // The referee must see receipt one and receipt two separately, even though
-        // both are durable before the harness begins restoring the live root.
+        // The referee sees each first-start commit before the live root restores.
         let first = temper_engine_domain_world::fixtures::first_start_over(
             Store::with_limits(&config.limits),
             config::root(config.seed, config.scenario, config.story).0,
@@ -643,10 +642,11 @@ impl Application for Temper {
     fn observed(peers: &mut Peers, systems: &systems::FakeForge, store: &Store, _: Clock) -> Vec<r::Observed> {
         let mut observations = Vec::new();
         if let Some(snapshot) = peers.first_start.take() {
-            // The bootstrap rows and its separate wires mark have the same public snapshot.
+            // Bootstrap rows, forge seeds and the wires mark share this public snapshot.
             observations.push(r::Observed::Durable { number: 1, snapshot: snapshot.clone() });
-            observations.push(r::Observed::Durable { number: 2, snapshot });
-            peers.applied = 2;
+            observations.push(r::Observed::Durable { number: 2, snapshot: snapshot.clone() });
+            observations.push(r::Observed::Durable { number: 3, snapshot });
+            peers.applied = 3;
         }
         if peers.applied != store.applied {
             peers.applied = store.applied;

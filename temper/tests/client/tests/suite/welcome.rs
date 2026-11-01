@@ -9,12 +9,12 @@ use temper_client_domain::{
 use temper_client_world::{app::Temper, fixtures, front::account_acts as accounts};
 
 #[test]
-fn a_first_run_welcome_without_a_demo() {
+fn a_kept_forge_resumes_the_welcome_without_a_demo() {
     let (mut front, mut root) = accounts::welcome_fixture(fixtures::SEED);
     let person = root.person();
     assert!(person.demo_answered());
     assert!(person.demo().is_none());
-    assert!(person.pages().welcome().expect("welcome opened").decided);
+    assert_eq!(person.pages().address(), &Address::Welcome { step: Step::Forge { forge: None } });
     let document = d::pages::accounts::document(person.client()).expect("accounts delivered");
     assert!(!document.accounts.iter().any(|line| d::forge::demo::usable_account(line, None)));
     let limits = fixtures::domain_limits();
@@ -26,7 +26,7 @@ fn a_first_run_welcome_without_a_demo() {
         view.tree()
             .nodes()
             .iter()
-            .any(|node| node.role == Role::Region && node.name.as_deref() == Some(b"Set up temper"))
+            .any(|node| node.role == Role::Heading { level: 1 } && node.name.as_deref() == Some(b"Connect a forge"))
     );
     assert!(!view.tree().nodes().iter().any(|node| node.name.as_deref() == Some(b"Try the playground")));
 

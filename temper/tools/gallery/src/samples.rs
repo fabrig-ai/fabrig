@@ -181,7 +181,13 @@ fn github_sample(name: &'static str, step: u8) -> Sample {
     Sample {
         name,
         world: World::FirstRun { step },
-        address: Address::ConnectForge { forge: Some(temper_client_domain::Choice::Forge(2)) },
+        address: Address::ConnectForge {
+            forge: Some(if step == 0 {
+                temper_client_domain::Choice::GitHub
+            } else {
+                temper_client_domain::Choice::Forge(2)
+            }),
+        },
         then: Then::Shown,
     }
 }
@@ -195,7 +201,13 @@ fn owned_sample(name: &'static str, step: u8, ready: bool) -> Sample {
         address: if ready {
             Address::Welcome { step: temper_client_domain::Step::Ready }
         } else {
-            Address::ConnectForge { forge: Some(temper_client_domain::Choice::Forge(3)) }
+            Address::ConnectForge {
+                forge: Some(if step == 0 {
+                    temper_client_domain::Choice::Owned
+                } else {
+                    temper_client_domain::Choice::Forge(3)
+                }),
+            }
         },
         then: Then::Shown,
     }

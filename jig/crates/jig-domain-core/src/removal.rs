@@ -1,4 +1,4 @@
-//! Kept project deletion (temper/docs/design/draft/playground-reset.md, 5;
+//! Kept project deletion (jig/docs/design/domain/core.md, 11;
 //! jig/docs/design/domain/people.md, 5.2).
 
 /// A project's deletion, kept until its last step (draft 5).

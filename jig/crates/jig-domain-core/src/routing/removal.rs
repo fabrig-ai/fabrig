@@ -1,4 +1,4 @@
-//! A project closes in its removal decision (temper/docs/design/draft/playground-reset.md, 5;
+//! A project closes in its removal decision (jig/docs/design/domain/core.md, 11;
 //! jig/docs/design/domain/people.md, 5.2).
 use crate::{
     Ask, Core, CoreKey, CoreRecord, Event, Held, Key, Limits, Record, Removal, RemovalStage, Request, Requests, Write,

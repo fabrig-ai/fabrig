@@ -224,7 +224,7 @@ fn payload(events: &[Event]) -> &[u8] {
 #[test]
 fn every_read_kind_patches_each_kept_frame_without_writing() {
     const KINDS: u8 = 6; // resume, point, activity, page, tail's window path, party point
-    for body in [5, 6] {
+    for body in [5, 6, 7] {
         for version in [1, 2] {
             let bytes = frames::frame(body, &turn(version, REPLAY));
             let (mut disk, mut store) = scene(&bytes, SETS);
@@ -258,7 +258,7 @@ fn unread(events: &[Event]) -> bool {
 fn every_machine_halt_is_an_unread_frame() {
     const SHORT: &[u8] = &[0];
     for transcript in [turn(0, REPLAY), turn(3, REPLAY), turn(1, b""), Box::from(SHORT)] {
-        for body in [5, 6] {
+        for body in [5, 6, 7] {
             let (mut disk, mut store) = scene(&frames::frame(body, &transcript), SETS);
             for kind in 0..6 {
                 let events = disk.request(&mut store, request(kind, BUDGET));
@@ -267,7 +267,7 @@ fn every_machine_halt_is_an_unread_frame() {
             }
         }
     }
-    for body in [4, 7] {
+    for body in [4, 8] {
         let (mut disk, mut store) = scene(&frames::frame(body, &turn(2, REPLAY)), SETS);
         for kind in 0..6 {
             let events = disk.request(&mut store, request(kind, BUDGET));
@@ -387,7 +387,7 @@ fn empty_kept_sets_make_no_machine_and_the_same_requests() {
             },
         ],
     };
-    let bytes = frames::frame(6, &turn(2, REPLAY));
+    let bytes = frames::frame(7, &turn(2, REPLAY));
     for kind in 0..6 {
         let (mut disk, mut store) = scene(&bytes, PatchSets::NONE);
         let events = disk.request(&mut store, request(kind, BUDGET));
@@ -561,7 +561,7 @@ fn the_turn_machine_reads_its_kept_texts_most_nodes_and_one_past_is_unread() {
     let sets = PatchSets { sets: &[SMITH] };
     for (count, accepted) in [(ITEMS, true), (ITEMS.checked_add(1).expect("one past"), false)] {
         let transcript = node_turn(1, count);
-        let bytes = frames::frame(6, &transcript);
+        let bytes = frames::frame(7, &transcript);
         let (mut disk, mut store) = scene(&bytes, sets);
         let machine = store.transcripts.machines.turn.as_ref().expect("smith's machine");
         assert_eq!(machine.capacity.nodes, ITEMS.checked_add(OVERHEAD).expect("nodes"), "the kept texts' most");
@@ -675,7 +675,7 @@ fn serving_machines_follow_the_switch_without_overlapping_the_copy() {
     }
     assert!(patch_steps > 0, "the open patched a copy");
     let Some(Event::Opened { last: 2, .. }) = events.last() else { panic!("switched open: {events:?}") };
-    assert_eq!(store.transcripts.machines.body.as_ref().expect("serving body").last, 6);
+    assert_eq!(store.transcripts.machines.body.as_ref().expect("serving body").last, 7);
     assert_eq!(store.transcripts.machines.turn.as_ref().expect("serving turn").last, 2);
 }
 

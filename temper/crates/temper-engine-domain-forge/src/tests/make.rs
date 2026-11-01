@@ -143,13 +143,13 @@ fn a_made_forge_is_configured_and_told() {
 }
 
 #[test]
-fn identity_numbers_follow_the_highest_kept() {
+fn identity_numbers_follow_the_highest_remaining_record() {
     let removing = Forge { removing: true, ..record(2, 90) };
     let mut d = started(&[record(1, 40), removing, record(3, 12)]);
     let mut out = Queue::uncapped();
     assert_eq!(make(&mut d, &env(), record(0, u32::MAX), &mut out), Ok(4));
-    assert_eq!(d.forge_record(4), Some(&record(4, 91)));
-    assert_eq!(d.identities.get(&4), Some(&91));
+    assert_eq!(d.forge_record(4), Some(&record(4, 41)));
+    assert_eq!(d.identities.get(&4), Some(&41));
 }
 
 #[test]
@@ -196,8 +196,7 @@ fn connected_managed_and_other_fake_forges_do_not_take_a_box_kind() {
 
 #[test]
 fn full_and_invalid_records_change_nothing() {
-    let removing = Forge { removing: true, ..record(4, 4) };
-    let mut full = started(&[record(1, 1), record(2, 2), record(3, 3), removing]);
+    let mut full = started(&[record(1, 1), record(2, 2), record(3, 3), record(4, 4)]);
     refused(&mut full, records::forge(), Refusal::Full);
     let invalid = Forge { git: skein_lib::bytes::zeroed(r::PATH_BYTES.checked_add(1).unwrap()), ..records::forge() };
     let mut d = started(&[record(1, 1)]);

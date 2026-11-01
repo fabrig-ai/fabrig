@@ -74,8 +74,10 @@ fn scratch() -> io::Result<PathBuf> {
 }
 
 fn build(root: &Path, scratch: &Path, chromium: PathBuf) -> Result<Paths, String> {
+    let target = env::var_os("CARGO_TARGET_DIR").map_or_else(|| root.join("../target"), |target| root.join(target));
     let status = Command::new("cargo")
         .current_dir(root)
+        .env("CARGO_TARGET_DIR", &target)
         .env("TEMPER_BUNDLE", "none")
         .args(["build", "-p", "temper", "-p", "temper-fake-claude"])
         .status()
@@ -86,6 +88,7 @@ fn build(root: &Path, scratch: &Path, chromium: PathBuf) -> Result<Paths, String
     let bundle = scratch.join("bundle");
     let status = Command::new(root.join("scripts/bundle.sh"))
         .current_dir(root)
+        .env("CARGO_TARGET_DIR", &target)
         .env("TEMPER_BUNDLE", "none")
         .args(["--loopback", "--record"])
         .arg(&bundle)
@@ -94,7 +97,6 @@ fn build(root: &Path, scratch: &Path, chromium: PathBuf) -> Result<Paths, String
     if !status.success() {
         return Err(format!("scripts/bundle.sh failed: {status}"));
     }
-    let target = env::var_os("CARGO_TARGET_DIR").map_or_else(|| root.join("target"), |target| root.join(target));
     Ok(Paths { temper: target.join("debug/temper"), bundle, chromium, scratch: scratch.to_owned() })
 }
 

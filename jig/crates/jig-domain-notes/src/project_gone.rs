@@ -1,5 +1,5 @@
 //! Forget a deleted project's cached indexes (domain/engine.md, 10;
-//! temper/docs/design/draft/playground-reset.md, 5). The core erases stored rows.
+//! jig/docs/design/domain/core.md, 11). The core erases stored rows.
 use crate::{Domain, Scope};
 use skein_lib::List;
 

@@ -159,7 +159,7 @@ fn the_ended_sweep_skips_other_projects_and_erases_one_task_at_a_time() {
     }));
 }
 
-fn legacy_open(stage: RemovalStage) -> (Core, Env<Limits>) {
+fn cold_open(stage: RemovalStage) -> (Core, Env<Limits>) {
     let limits = limits();
     let mut core = Core::new(config(41), &limits).expect("fixture core configuration");
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
@@ -178,8 +178,8 @@ fn legacy_open(stage: RemovalStage) -> (Core, Env<Limits>) {
 }
 
 #[test]
-fn a_persisted_erasing_row_resumes_from_the_first_task_after_legacy_open() {
-    let (mut core, env) = legacy_open(RemovalStage::Erasing);
+fn a_persisted_erasing_row_resumes_from_the_first_task_after_cold_open() {
+    let (mut core, env) = cold_open(RemovalStage::Erasing);
     assert!(core.removal_sweeps.is_empty());
     let Requests::Out(out) = resume_removals(&mut core, &env);
     assert_eq!(core.removal_sweeps.len(), 1);
@@ -187,8 +187,8 @@ fn a_persisted_erasing_row_resumes_from_the_first_task_after_legacy_open() {
 }
 
 #[test]
-fn a_cold_legacy_releasing_row_resends_every_connector_ask() {
-    let (mut core, env) = legacy_open(RemovalStage::Releasing);
+fn a_cold_cold_releasing_row_resends_every_connector_ask() {
+    let (mut core, env) = cold_open(RemovalStage::Releasing);
     let Requests::Out(out) = resume_removals(&mut core, &env);
     let asks = releases(&out);
     assert_eq!(asks.iter().map(|ask| ask.0).collect::<Vec<_>>(), CONNECTORS);
@@ -202,7 +202,7 @@ fn a_cold_legacy_releasing_row_resends_every_connector_ask() {
 
 #[test]
 fn releasing_without_connectors_completes_and_an_empty_resume_routes_nothing() {
-    let (mut core, env) = legacy_open(RemovalStage::Releasing);
+    let (mut core, env) = cold_open(RemovalStage::Releasing);
     core.connectors = Box::new([]);
     let Requests::Out(out) = resume_removals(&mut core, &env);
     assert!(releases(&out).is_empty());

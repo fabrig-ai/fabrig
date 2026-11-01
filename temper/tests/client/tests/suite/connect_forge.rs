@@ -144,9 +144,7 @@ fn setting_up_forgejo_here_from_the_welcome() {
         d::Event::Went { place: d::Place::Address(Address::Chats { filter: ChatsFilter::All, start: false }) },
     );
     let strip = view(&root);
-    node(&strip, Role::Region, b"Setup");
-    node(&strip, Role::Link, b"View");
-    node(&strip, Role::Paragraph, "Forgejo on this machine · Setting up: preparing".as_bytes());
+    assert!(!strip.tree().nodes().iter().any(|n| n.role == Role::Region && n.name.as_deref() == Some(b"Setup")));
     assert!(strip.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&temper_client_view::look::NAV_LIMITED)));
     connection(&mut front, Connection::Connected { id: 1, login: b"temper".as_slice().into() });
     pump(
@@ -230,8 +228,7 @@ fn a_connected_forge_and_usable_model_remove_the_setup_strip_and_dot() {
         d::Event::Went { place: d::Place::Address(Address::Chats { filter: ChatsFilter::All, start: false }) },
     );
     let strip = view(&root);
-    node(&strip, Role::Region, b"Setup");
-    node(&strip, Role::Link, b"View");
+    assert!(!strip.tree().nodes().iter().any(|n| n.role == Role::Region && n.name.as_deref() == Some(b"Setup")));
     let way = d::ModelWay { source: None, provider: accounts::PROVIDER, kind: d::WayKind::Key };
     for event in [
         d::Event::Went { place: d::Place::Address(Address::Welcome { step: Step::Model { way: Some(way) } }) },
