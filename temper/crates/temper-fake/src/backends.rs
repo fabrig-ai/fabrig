@@ -368,6 +368,7 @@ pub fn rewrite(temper: &[u8], agent: &[u8], paths: &Paths, peers: &Peers) -> Res
     let d = read::document(temper)?;
     let a = read::document(agent)?;
     duplicates(&d)?;
+    let d = seed(d)?;
     duplicates(&a)?;
     let root = Path::root();
     let mut edits = Edits::new();
@@ -421,6 +422,39 @@ pub fn rewrite(temper: &[u8], agent: &[u8], paths: &Paths, peers: &Peers) -> Res
             br#", "owner":"fake-person","repositories":[{"name":"widget","landing":"main","ci":null}]}"#,
         ]),
     })
+}
+// The welcome peers keep their seeded numbers beside the machine templates (contracts, D1).
+fn seed(mut d: Document) -> Result<Document, Refusal> {
+    let p = Path::root().member(b"application");
+    for (name, key, value) in [
+        (
+            b"forges".as_slice(),
+            b"number".as_slice(),
+            br#"{"number":2,"kind":"github","api":null,"web":null,"git":null,"transport":null}"#.as_slice(),
+        ),
+        (b"identities", b"forge", br#"{"number":1,"forge":2,"login":null,"author":null}"#),
+        (b"setup", b"forge", b""),
+    ] {
+        let application = member(&d, 0, b"application", &Path::root())?;
+        let at = read::object(&d, application, &p)?.member(&d, name);
+        let mut edits = Edits::new();
+        if let Some(at) = at {
+            let rows = read::list(&d, at, 0, &p.member(name))?;
+            let mut found = value.is_empty();
+            for row in &rows {
+                let at = member(&d, *row, key, &p.member(name))?;
+                found |= read::integer(&d, at, u64::from(u32::MAX), &p.member(name))? == 2;
+            }
+            if found {
+                continue;
+            }
+            append(&d, at, value, &mut edits)?;
+        } else {
+            object_member(&d, application, name, &read::joined(&[b"[", value, b"]"]), &mut edits)?;
+        }
+        d = read::document(&edits.finish(&d)?)?;
+    }
+    Ok(d)
 }
 // Insert at the closing token so edits to existing children remain independent.
 fn append(d: &Document, at: u32, bytes: &[u8], edits: &mut Edits) -> Result<(), Refusal> {

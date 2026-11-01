@@ -54,6 +54,15 @@ fn parsed(input: &[u8], files: &settings::Files) -> Result<settings::Engine, Pro
 }
 fn template() -> Box<[u8]> {
     let input = include_str!("../../../temper-init/template/temper.json");
+    let mut input = input.to_owned();
+    for member in ["forges", "identities", "setup"] {
+        let seeded = fixtures::value(include_bytes!("seeded-forges.json"), member.as_bytes());
+        input = input.replace(
+            &format!("\"{member}\": []"),
+            &format!("\"{member}\": {}", core::str::from_utf8(&seeded).unwrap()),
+        );
+    }
+    let input = input.replacen("\"demo\": {", "\"demo\": {\"forge\": 1,", 1);
     let input = input.replace("$forge_git", "http://127.0.0.1:8369").replace("$owned_git", "http://127.0.0.1:8368");
     let input = input
         .replace("$forge", "127.0.0.1:8369")
@@ -69,7 +78,7 @@ fn template() -> Box<[u8]> {
     input.into_bytes().into_boxed_slice()
 }
 #[test]
-fn the_template_seeds_its_three_forges() {
+fn a_document_seeds_its_three_forges() {
     let settings = parsed(&template(), &settings::Files { entries: List::with_capacity(0) }).unwrap();
     let [fake, github, owned] = settings.seed.as_ref() else { panic!("three template records") };
     assert_eq!((fake.number, github.number, owned.number), (1, 2, 3));

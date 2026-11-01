@@ -19,7 +19,7 @@ use skein_forge_setup::host;
 use skein_lib::{List, Secret};
 use temper_engine_domain_forge::{Forge, record as r};
 
-// The template contains three forges; these ports are its fixture listeners.
+// The seeded fixture contains three forges at these listeners.
 const TEMPLATE_FORGES: usize = 3;
 // The setup host is pending before restart and running once ready.
 const HOST_STATES: usize = 2;
@@ -106,7 +106,23 @@ fn template() -> settings::Engine {
     for file in answer.files {
         if file.name == b"temper.json" {
             let temper_init::Content::Bytes { bytes, .. } = file.content else { panic!("template document") };
-            return parsed(&bytes, &empty_files());
+            let mut input = core::str::from_utf8(&bytes).unwrap().to_owned();
+            for member in ["forges", "identities", "setup"] {
+                let seeded = fixtures::value(include_bytes!("seeded-forges.json"), member.as_bytes());
+                input = input.replace(
+                    &format!("\"{member}\": []"),
+                    &format!("\"{member}\": {}", core::str::from_utf8(&seeded).unwrap()),
+                );
+            }
+            let input = input
+                .replace("$forge_git", "http://127.0.0.1:8369")
+                .replace("$owned_git", "http://127.0.0.1:8368")
+                .replace("$forge", "127.0.0.1:8369")
+                .replace("$owned", "127.0.0.1:8368")
+                .replace("$login", "person")
+                .replace("$email", "person@localhost")
+                .replacen("\"demo\": {", "\"demo\": {\"forge\": 1,", 1);
+            return parsed(input.as_bytes(), &empty_files());
         }
     }
     panic!("template document")

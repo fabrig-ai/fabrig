@@ -535,6 +535,11 @@ fn refused_deployment_start(root: &Path) {
             String::from_utf8(output.stderr).expect("refusal"),
             if own_document {
                 "temper fake forge: invalid arguments\nusage: temper fake forge [DIRECTORIES] FORGE [--ready PREFIX] [--seed N] [--observations FILE]\nusage: temper fake forge --document FILE [--ready PREFIX] [--seed N] [--observations FILE]\n".into()
+            } else if name == "no_entry" {
+                format!(
+                    "temper fake forge: forge {number}: {reason} and {} is absent\n",
+                    dir.join("box/groups/2").display()
+                )
             } else {
                 format!("temper fake forge: {location}{reason}\n")
             },

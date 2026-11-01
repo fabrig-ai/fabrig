@@ -13,7 +13,7 @@ use jig_protocol_config::{self as config, Path};
 
 fn fixture(forge: u16) -> String {
     let root = std::path::PathBuf::from(std::env::var("CARGO_MANIFEST_DIR").unwrap());
-    let source = std::fs::read_to_string(root.join("../temper-init/template/temper.json")).unwrap();
+    let source = std::fs::read_to_string(root.join("src/tests/seeded-forges.json")).unwrap();
     let source = source.split_once("\"setup\": [").unwrap().1;
     let marker = format!("\"forge\": {forge},");
     let member = source.find(&marker).unwrap();

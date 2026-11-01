@@ -297,6 +297,7 @@ fn checked_peers(dirs: &Directories, bytes: &[u8]) -> Result<Peers, String> {
             ports.push(ready.port());
         }
     }
+    machine_ports(&deployment, &mut ports);
     let peers = Peers { github: github.listen(), oauth: oauth.listen(), llm: llm.listen(), forgejo: forgejo.listen() };
     for (name, listen) in [
         ("github.json", peers.github),
@@ -328,6 +329,18 @@ fn checked_peers(dirs: &Directories, bytes: &[u8]) -> Result<Peers, String> {
     }
     Ok(peers)
 }
+fn machine_ports(deployment: &crate::setup::Deployment, ports: &mut Vec<u16>) {
+    for template in deployment.owned.iter().chain(deployment.demo.iter().filter_map(temper_fake::demo::Demo::fake)) {
+        match &template.mode {
+            temper_forge_setup::setup::Mode::Owned(owned) => ports.push(owned.listen.port()),
+            temper_forge_setup::setup::Mode::Fake(fake) => ports.push(fake.listen.port()),
+            temper_forge_setup::setup::Mode::Managed { .. } => {}
+        }
+    }
+    if let Some(demo) = &deployment.demo {
+        ports.push(demo.llm().listen().port());
+    }
+}
 fn validate(dirs: &Directories, bytes: &[u8], expected: &Path) -> Result<(), String> {
     let deployment = crate::setup::check(bytes, &dirs.jig())?;
     let named = &deployment.named;
@@ -352,6 +365,16 @@ fn validate(dirs: &Directories, bytes: &[u8], expected: &Path) -> Result<(), Str
             matches!(entry.mode, temper_forge_setup::setup::Mode::Managed { .. }) && entry.directory.is_empty();
         if !directoryless && !contained(&dirs.data, &entry.directory) {
             return Err("application.setup.directory: must stay under effective data".into());
+        }
+    }
+    for template in deployment.owned.iter().chain(deployment.demo.iter().filter_map(temper_fake::demo::Demo::fake)) {
+        if !contained(&dirs.data, &template.directory) {
+            return Err("application machine directory: must stay under effective data".into());
+        }
+        if let temper_forge_setup::setup::Mode::Fake(fake) = &template.mode
+            && !contained(&dirs.data, &fake.git)
+        {
+            return Err("application.demo.fake.mode.fake.git: must stay under effective data".into());
         }
     }
     let tree = Json::decode(bytes)?;
@@ -565,6 +588,7 @@ fn prepare(source_dirs: &Directories, bundle: Option<&Path>, adapter: &Path) -> 
     if let Some(demo) = &deployment.demo {
         excluded.push(demo.llm().listen().port());
     }
+    machine_ports(&deployment, &mut excluded);
     let github = reserve(&excluded)?;
     excluded.push(addr(&github)?.port());
     let oauth = reserve(&excluded)?;

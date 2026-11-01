@@ -56,7 +56,24 @@ fn document(directories: &crate::Directories) -> Value {
     .expect("init template");
     let file = answer.files.iter().find(|file| file.name == b"temper.json").expect("document");
     let Content::Bytes { bytes, .. } = &file.content else { panic!("document bytes") };
-    serde_json::from_slice(bytes).expect("template JSON")
+    let mut document: Value = serde_json::from_slice(bytes).expect("init JSON");
+    let seeded: Value = serde_json::from_str(
+        &include_str!("../../tests/support/seeded-forges.json")
+            .replace("$forge_git", "http://127.0.0.1:8369")
+            .replace("$owned_git", "http://127.0.0.1:3000")
+            .replace("$forge", "127.0.0.1:8369")
+            .replace("$owned", "127.0.0.1:3000")
+            .replace("$login", "person")
+            .replace("$email", "person@localhost"),
+    )
+    .expect("seeded fixture");
+    for member in ["forges", "identities", "setup"] {
+        document["application"][member] = seeded[member].clone();
+    }
+    document["application"].as_object_mut().expect("application").remove("owned");
+    document["application"]["demo"].as_object_mut().expect("demo").remove("fake");
+    document["application"]["demo"]["forge"] = 1.into();
+    document
 }
 fn read(directories: &crate::Directories, document: &Value) -> crate::setup::Deployment {
     crate::setup::check(&serde_json::to_vec(document).expect("JSON"), &directories.jig()).expect("checked document")

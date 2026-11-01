@@ -406,7 +406,8 @@ fn refused_box(scratch: &support::Scratch, value: &serde_json::Value) -> String 
     .expect_err("box refused")
 }
 #[test]
-fn a_box_on_a_fresh_init_reaches_serves_link_with_forge_3_dormant() {
+fn a_box_on_a_fresh_init_reaches_serves_link_with_its_kinds_held() {
+    use std::{io::Read, os::fd::AsRawFd};
     let scratch = support::Scratch::startup("box-fresh-init");
     let init = std::process::Command::new(skein_scratch::paths::binary("temper"))
         .arg("init")
@@ -416,15 +417,73 @@ fn a_box_on_a_fresh_init_reaches_serves_link_with_forge_3_dormant() {
     assert!(init.status.success(), "{}", String::from_utf8_lossy(&init.stderr));
     // init's ports are fixed when free; tests run side by side, so each listener moves to a drawn one.
     support::own_listener_files(scratch.path());
-    let ended = support::boxed::run(scratch.path(), None, support::boxed::Plan::Stop, support::boxed::BOX_DEADLINE);
+    let document: serde_json::Value =
+        serde_json::from_slice(&fs::read(scratch.path().join("temper.json")).expect("document")).expect("JSON");
+    let mut child = std::process::Command::new(skein_scratch::paths::binary("temper"))
+        .arg("box")
+        .args(support::configuration::flags(scratch.path()))
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped())
+        .spawn()
+        .expect("box");
+    let mut deadline = skein_world::Deadline::arm("the fresh box's serve link", support::WITHIN);
+    deadline.watch_process(child.id());
+    let mut stdout = Vec::new();
+    loop {
+        let pipe = child.stdout.as_mut().expect("stdout pipe");
+        if !skein_shell::wait_readable(skein_io::kernel::Fd::new(pipe.as_raw_fd()), deadline.remaining())
+            .expect("stdout readiness")
+        {
+            support::parent::end_child(&mut child);
+            match deadline.expired() {
+                skein_world::Expired::Starved(starved) => starved.pass(),
+                skein_world::Expired::Failed(figures) => panic!("serve link did not arrive: {figures}"),
+            }
+        }
+        let mut bytes = [0; 1024];
+        let count = pipe.read(&mut bytes).expect("stdout");
+        if count == 0 {
+            break;
+        }
+        stdout.extend_from_slice(&bytes[..count]);
+        if support::printed_link(&stdout).is_some() {
+            break;
+        }
+    }
+    let mut held = Vec::new();
+    for pointer in ["/application/owned/mode/owned/listen/socket", "/application/demo/fake/mode/fake/listen/socket"] {
+        let address =
+            document.pointer(pointer).expect("machine listener").as_str().expect("socket").parse().expect("address");
+        let connected = support::socket::Socket::connect(
+            address,
+            "the dormant kind's backlog",
+            support::WITHIN,
+            ["dormant read", "dormant write"],
+            true,
+            None,
+        );
+        held.push(connected);
+    }
+    #[cfg(target_os = "linux")]
+    let observed = support::parent::Guard::observing_test();
+    support::parent::signal(&mut child, "TERM");
+    let ended = child.wait_with_output().expect("box stopped");
+    #[cfg(target_os = "linux")]
+    assert!(observed.all_exited(), "no process outlived the box");
+    stdout.extend_from_slice(&ended.stdout);
     let diagnostic = String::from_utf8_lossy(&ended.stderr);
-    let link = support::printed_link(&ended.stdout).unwrap_or_else(|| panic!("serve's link: {diagnostic}"));
+    let link = support::printed_link(&stdout).unwrap_or_else(|| panic!("serve's link: {diagnostic}"));
     assert!(skein_lib::bytes::find(link, b"/jig/v1/sign-in/link?secret=").is_some(), "{diagnostic}");
-    assert!(!diagnostic.contains("application.setup"), "{diagnostic}");
-    assert_eq!(ended.exit, Some(skein_io::kernel::Exit::Code(0)), "{diagnostic}");
-    assert_eq!(ended.left, Some(Vec::new()), "no process outlived the box: {diagnostic}");
-    // Forge 3 is asked: its group never ran, so it has no directory and nothing was fetched.
-    for absent in ["forge-3", "forgejo", "forgejo-runner"] {
+    assert!(ended.status.success(), "{diagnostic}");
+    for name in ["Forge ", "Playground"] {
+        assert!(!String::from_utf8_lossy(&stdout).contains(name), "no group ran");
+        assert!(!diagnostic.contains(name), "no group ran: {diagnostic}");
+    }
+    for connection in held {
+        assert!(connection.is_ok(), "the box holds each dormant kind's listener");
+    }
+    for absent in ["forge-3", "demo/forge", "forgejo", "forgejo-runner", "box/groups"] {
         assert!(!scratch.path().join(absent).exists(), "{absent}: {diagnostic}");
     }
     scratch.remove();
