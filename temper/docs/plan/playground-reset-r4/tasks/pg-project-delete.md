@@ -79,6 +79,9 @@ Neighbour files, edits allowed:
   to it, as the pages' other keyed requests are.
 - `temper-client-view/src/root.rs`: the page's call passes what the
   section needs, if its signature changes.
+- `temper-client-view/src/frame.rs`: in `Bindings::decode`, one arm
+  turning an input on `Act::DeleteWords` into `Act::DeleteWords { words:
+  value }`, beside `ChatWords`' (see Answers).
 
 Pre-approved:
 
@@ -160,3 +163,15 @@ fab's sections; `## Interfaces`: `pages::project::{Settings,
 Deletion}`, the two acts, `Pages::settings`; whether the engine's
 answer was exercised (it refuses *not offered* until `pd-close`; the
 unit tests script the answers).
+
+## Answers
+
+2026-11-01. May the task add the `DeleteWords` input arm to
+`temper-client-view/src/frame.rs`' `Bindings::decode`? Yes (option 1):
+the file is now a neighbour file, edits allowed. Add only, beside
+`ChatWords`' input arm:
+`(Act::DeleteWords { .. }, skein_ui::Act::Input { value }) =>
+Act::DeleteWords { words: value },`. No `Submit` arm (the field does not
+submit; the button deletes) and nothing else in the file changes.
+`pg-project-page` and `pg-playground-pages`, which own `frame.rs`, are
+this task's `needs`, so the arm lands on their work.
