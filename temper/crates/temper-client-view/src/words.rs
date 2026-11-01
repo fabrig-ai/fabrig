@@ -627,6 +627,46 @@ pub enum Word {
     TaskMalformed,
 
     MessageOnceRuns,
+
+    // The playground reset's words (draft playground-reset.md, 4, 5, 6.1, 6.2, 6.4).
+    PlaygroundBanner,
+    PlaygroundSetUp,
+    PlaygroundLeaving,
+    PlaygroundNotLeft,
+    PlaygroundTryAgain,
+    PlaygroundForgeLine,
+    PlaygroundNothingToAdd,
+    ForgeNotFinished,
+    ForgeNotFinishedDescription,
+    ForgeGitHubNotFinished,
+    ForgeGitHubStartOver,
+    ForgeStartOver,
+    ForgeGoOn,
+    ForgeStartingOver,
+    ForgeAppSettings,
+    ForgeRemove,
+    ForgeRemoveTitle,
+    ForgeRemoveGoes,
+    ForgeRemoveOwned,
+    ForgeRemoveManaged,
+    ForgeRemoveConnected,
+    ForgeRemoveGitHub,
+    ForgeRemoveFake,
+    ForgeRemoveConfirm,
+    ForgeRemoving,
+    ForgeRemoveRefused,
+    ProjectSettings,
+    ProjectSettingsTitle,
+    ProjectSettingsNumber,
+    ProjectDelete,
+    ProjectDeleteDescription,
+    ProjectDeleteName,
+    ProjectDeleteConfirm,
+    ProjectDeleting,
+    ProjectDeleteRefused,
+    ProjectDeleteOwners,
+    ProjectDeleted,
+    ProjectGone,
 }
 // Room for temper, jig, account, card and forge phrases.
 // Six chat projection phrases, alongside the agent's original work-line words.
@@ -664,9 +704,10 @@ pub enum Word {
 // The paste of a sign-in's address adds fifteen phrases and twenty-one segments.
 // M1's Model details add eight phrases and sixteen segments.
 // The welcome's Forgejo card adds four literal phrases and segments.
-const PHRASES: u32 = 1180;
-const SEGMENTS: u32 = 2079;
-const ALL: [Word; 598] = [
+// The playground reset adds thirty-eight words.
+const PHRASES: u32 = 1218;
+const SEGMENTS: u32 = 2145;
+const ALL: [Word; 636] = [
     Word::WelcomeForgejo,
     Word::WelcomeForgejoDescription,
     Word::WelcomeForgejoRun,
@@ -1265,11 +1306,88 @@ const ALL: [Word; 598] = [
     Word::TaskTooLinked,
     Word::TaskMalformed,
     Word::MessageOnceRuns,
+    Word::PlaygroundBanner,
+    Word::PlaygroundSetUp,
+    Word::PlaygroundLeaving,
+    Word::PlaygroundNotLeft,
+    Word::PlaygroundTryAgain,
+    Word::PlaygroundForgeLine,
+    Word::PlaygroundNothingToAdd,
+    Word::ForgeNotFinished,
+    Word::ForgeNotFinishedDescription,
+    Word::ForgeGitHubNotFinished,
+    Word::ForgeGitHubStartOver,
+    Word::ForgeStartOver,
+    Word::ForgeGoOn,
+    Word::ForgeStartingOver,
+    Word::ForgeAppSettings,
+    Word::ForgeRemove,
+    Word::ForgeRemoveTitle,
+    Word::ForgeRemoveGoes,
+    Word::ForgeRemoveOwned,
+    Word::ForgeRemoveManaged,
+    Word::ForgeRemoveConnected,
+    Word::ForgeRemoveGitHub,
+    Word::ForgeRemoveFake,
+    Word::ForgeRemoveConfirm,
+    Word::ForgeRemoving,
+    Word::ForgeRemoveRefused,
+    Word::ProjectSettings,
+    Word::ProjectSettingsTitle,
+    Word::ProjectSettingsNumber,
+    Word::ProjectDelete,
+    Word::ProjectDeleteDescription,
+    Word::ProjectDeleteName,
+    Word::ProjectDeleteConfirm,
+    Word::ProjectDeleting,
+    Word::ProjectDeleteRefused,
+    Word::ProjectDeleteOwners,
+    Word::ProjectDeleted,
+    Word::ProjectGone,
 ];
 impl Word {
     #[expect(clippy::too_many_lines, reason = "one exhaustive table keeps the frame phrase IDs stable")]
     fn id(self, connector: u16) -> PhraseId {
         let number = match self {
+            Self::PlaygroundBanner => 2200,
+            Self::PlaygroundSetUp => 2201,
+            Self::PlaygroundLeaving => 2202,
+            Self::PlaygroundNotLeft => 2203,
+            Self::PlaygroundTryAgain => 2204,
+            Self::PlaygroundForgeLine => 2205,
+            Self::PlaygroundNothingToAdd => 2206,
+            Self::ForgeNotFinished => 2207,
+            Self::ForgeNotFinishedDescription => 2208,
+            Self::ForgeGitHubNotFinished => 2209,
+            Self::ForgeGitHubStartOver => 2210,
+            Self::ForgeStartOver => 2211,
+            Self::ForgeGoOn => 2212,
+            Self::ForgeStartingOver => 2213,
+            Self::ForgeAppSettings => 2214,
+            Self::ForgeRemove => 2215,
+            Self::ForgeRemoveTitle => 2216,
+            Self::ForgeRemoveGoes => 2217,
+            Self::ForgeRemoveOwned => 2218,
+            Self::ForgeRemoveManaged => 2219,
+            Self::ForgeRemoveConnected => 2220,
+            Self::ForgeRemoveGitHub => 2221,
+            Self::ForgeRemoveFake => 2222,
+            Self::ForgeRemoveConfirm => 2223,
+            Self::ForgeRemoving => 2224,
+            Self::ForgeRemoveRefused => 2225,
+            Self::ProjectSettings => 2226,
+            Self::ProjectSettingsTitle => 2227,
+            Self::ProjectSettingsNumber => 2228,
+            Self::ProjectDelete => 2229,
+            Self::ProjectDeleteDescription => 2230,
+            Self::ProjectDeleteName => 2231,
+            Self::ProjectDeleteConfirm => 2232,
+            Self::ProjectDeleting => 2233,
+            Self::ProjectDeleteRefused => 2234,
+            Self::ProjectDeleteOwners => 2235,
+            Self::ProjectDeleted => 2236,
+            Self::ProjectGone => 2237,
+
             Self::WelcomeForgejo => 2132,
             Self::WelcomeForgejoDescription => 2133,
             Self::WelcomeForgejoRun => 2134,
@@ -1928,7 +2046,10 @@ fn hole_bytes(word: Word, kind: HoleKind, last: bool, joined: u32) -> Result<u32
     if word == Word::DemoGroupFailed {
         return Ok(temper_client_domain::forge::DEMO_WHY_BYTES);
     }
-    if kind == HoleKind::Name && (word == Word::RefusalSentences || word == Word::WaitRefused) {
+    if kind == HoleKind::Name
+        && [Word::RefusalSentences, Word::WaitRefused, Word::ForgeRemoveRefused, Word::ProjectDeleteRefused]
+            .contains(&word)
+    {
         return Ok(REFUSAL_BYTES);
     }
     if word == Word::DemoRequest
@@ -2137,6 +2258,45 @@ const DEMO_REQUEST: &[&[u8]] = &[b"Try a request in ", b"/", b". Follow the task
 fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [HoleKind]) {
     use HoleKind::{Name, Number};
     match word {
+        Word::PlaygroundBanner => (&[b"This is the playground: a scripted model and in-memory forge. Use the wizard to "], &[]),
+        Word::PlaygroundSetUp => (&[b"set up temper"], &[]),
+        Word::PlaygroundLeaving => (&[b"Leaving the playground\xe2\x80\xa6"], &[]),
+        Word::PlaygroundNotLeft => (&[b"The playground was not left: ", b"."], &[Name]),
+        Word::PlaygroundTryAgain => (&[b"Try again"], &[]),
+        Word::PlaygroundForgeLine => (&[b"Playground forge \xc2\xb7 in memory \xc2\xb7 ", b"/", b""], &[Name, Name]),
+        Word::PlaygroundNothingToAdd => (&[b"Nothing to add while the playground runs: set up temper to bring your own."], &[]),
+        Word::ForgeNotFinished => (&[b"", b" \xc2\xb7 not finished"], &[Name]),
+        Word::ForgeNotFinishedDescription => (&[b"Its set up was cut short. Start over removes it, and you choose again."], &[]),
+        Word::ForgeGitHubNotFinished => (&[b"temper\xe2\x80\x99s App is made on GitHub. Go on to install it, or start over."], &[]),
+        Word::ForgeGitHubStartOver => (&[b"Starting over removes this forge from temper. Its App stays on GitHub, yours to delete from its settings."], &[]),
+        Word::ForgeStartOver => (&[b"Start over"], &[]),
+        Word::ForgeGoOn => (&[b"Go on"], &[]),
+        Word::ForgeStartingOver => (&[b"Starting over\xe2\x80\xa6"], &[]),
+        Word::ForgeAppSettings => (&[b"The App\xe2\x80\x99s settings on GitHub"], &[]),
+        Word::ForgeRemove => (&[b"Remove"], &[]),
+        Word::ForgeRemoveTitle => (&[b"Remove ", b"?"], &[Name]),
+        Word::ForgeRemoveGoes => (&[b"temper stops using it at once: its live changes are cancelled, its repositories leave their projects, and its tokens and secrets are erased. Chats that worked on it stay."], &[]),
+        Word::ForgeRemoveOwned => (&[b"Forgejo on this machine stops, and its directory is removed with its repositories. Its downloaded binaries stay in the cache."], &[]),
+        Word::ForgeRemoveManaged => (&[b"On the forge, temper\xe2\x80\x99s bot and webhooks stay: remove them there if you wish."], &[]),
+        Word::ForgeRemoveConnected => (&[b"On the forge, nothing changes: revoke the bot\xe2\x80\x99s tokens there if you wish."], &[]),
+        Word::ForgeRemoveGitHub => (&[b"On GitHub, temper\xe2\x80\x99s App stays yours: delete it from its settings."], &[]),
+        Word::ForgeRemoveFake => (&[b"The in-memory forge stops, and what it held is gone."], &[]),
+        Word::ForgeRemoveConfirm => (&[b"Remove forge"], &[]),
+        Word::ForgeRemoving => (&[b"Removing ", b"\xe2\x80\xa6"], &[Name]),
+        Word::ForgeRemoveRefused => (&[b"Not removed: ", b"."], &[Name]),
+        Word::ProjectSettings => (&[b"Settings"], &[]),
+        Word::ProjectSettingsTitle => (&[b"", b" \xc2\xb7 settings"], &[Name]),
+        Word::ProjectSettingsNumber => (&[b"Project ", b""], &[Name]),
+        Word::ProjectDelete => (&[b"Delete project"], &[]),
+        Word::ProjectDeleteDescription => (&[b"Its chats and tasks are cancelled, then erased with their transcripts, and its repositories leave it. Its spend stays in the deployment\xe2\x80\x99s totals. This cannot be undone."], &[]),
+        Word::ProjectDeleteName => (&[b"Type ", b" to confirm"], &[Name]),
+        Word::ProjectDeleteConfirm => (&[b"Delete ", b""], &[Name]),
+        Word::ProjectDeleting => (&[b"Deleting ", b"\xe2\x80\xa6"], &[Name]),
+        Word::ProjectDeleteRefused => (&[b"Not deleted: ", b"."], &[Name]),
+        Word::ProjectDeleteOwners => (&[b"Only the project\xe2\x80\x99s owners can delete it."], &[]),
+        Word::ProjectDeleted => (&[b"", b" is deleted."], &[Name]),
+        Word::ProjectGone => (&[b"This project is gone."], &[]),
+
         Word::NoProjectYet => (&[b"No project yet"], &[]),
         Word::ModelKeyDescription => (&[b"From ", b"\xe2\x80\x99s platform, under API keys. What temper\xe2\x80\x99s agents use is billed to the key\xe2\x80\x99s organization."], &[Name]),
         Word::ModelKeyField => (&[b"Key (pasted once)"], &[]),
