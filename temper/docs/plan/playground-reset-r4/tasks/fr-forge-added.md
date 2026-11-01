@@ -13,6 +13,7 @@ files = [
   "temper/crates/temper-service/src/tests/forge_added.rs",
   "temper/crates/temper-protocol-records/src/forge.rs",
   "temper/crates/temper-service/src/tests/**",
+  "temper/tests/one-process/src/world.rs",
 ]
 effort = "high"
 minutes = 60
@@ -179,3 +180,21 @@ joins the header, for test-only edits under these rules:
   behaviour), stop and ask with it.
 
 List each fixture and test file changed in the report, with why.
+
+2026-11-01. May this task give the one-process world's service start
+(`temper/tests/one-process/src/world.rs`, its `with_setup_given` call)
+a plain fixture address resolver instead of `Shell::refusing()`? Yes
+(option A); B would leave the world red for a fixture input. The file
+joins the header for that call only, under the rules of the fixture
+answer above: a `forge::table::Shell` of plain functions, `address`
+mapping a socket address (`Address::Addr(Addr::Ip(_))`) to itself and
+refusing every other form with a fixed ASCII reason, `trust` kept as
+`Shell::refusing().trust` (the fixture's endpoints are plaintext
+loopback); no DNS, no clock, written in the file's style. No assertion,
+credential, declared host, story or outcome changes. If a one-process
+red remains that this resolver does not explain, stop and ask with its
+log. Not this task's acceptance, and not to be repaired here:
+`temper::suite fake::refused_start` and the six `temper-client-world`
+failures. Run each once at the task's base (`f4b9d27143`): failing
+there too, list it under "Left" as found at the base, and push; passing
+there, this change caused it: stop and ask with both logs.
