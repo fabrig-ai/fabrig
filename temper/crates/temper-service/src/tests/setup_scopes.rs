@@ -69,12 +69,12 @@ fn start_adoption(
 }
 
 #[test]
+#[expect(clippy::too_many_lines, reason = "one scope-enforcing peer walk checks adoption through its terminal answer")]
 fn preparations_four_scopes_grant_adopt_and_without_repository_it_is_refused_at_repository() {
     for without_repository in [false, true] {
-        let mut config = fixtures::engine();
-        config.setup = Box::new([fixtures::owned_setup(1)]);
-        let Mode::Owned(owned) = &config.setup[0].entry.mode else { panic!("owned fixture") };
-        let place = Place { directory: config.setup[0].entry.directory.clone(), user: b"fixture".as_slice().into() };
+        let entry = fixtures::owned_setup(1).entry;
+        let Mode::Owned(owned) = &entry.mode else { panic!("owned fixture") };
+        let place = Place { directory: entry.directory, user: b"fixture".as_slice().into() };
         let spec = spec::admin_token(owned, &place, b"temper-admin-0123456789abcdef");
         // Preparation issues four scopes; the refusal case removes only repository access.
         let mut scopes = List::with_capacity(4);
@@ -94,11 +94,22 @@ fn preparations_four_scopes_grant_adopt_and_without_repository_it_is_refused_at_
                 from = to.saturating_add(1);
             }
         }
-        fixtures::fill_files(&mut config);
-        let mut endpoints = crate::forge::prepare(&config, fixtures::forge_runtime()).unwrap();
-        let access = endpoints.forges.get_mut(0).unwrap().access.take().expect("file access");
-        let mut service = crate::Service::engine(config, &fixtures::seeds(), None, fixtures::forge_runtime()).unwrap();
-        service.engine.as_mut().expect("engine").store = fixtures::records_store();
+        let mut service = fixtures::with_forges(&[fixtures::forge_record(1)]);
+        let engine = service.engine.as_ref().unwrap();
+        let origin = temper_protocol_records::origin(
+            skein_forge_connection::settings::Kind::Forgejo,
+            &engine.workers.forges.get(0).unwrap().api,
+        );
+        let access = temper_protocol_records::access(
+            skein_forge_connection::settings::Kind::Forgejo,
+            &origin,
+            engine.forge_records.rows.forge(1).unwrap(),
+            &engine.forge_records.bounds,
+            false,
+        )
+        .unwrap()
+        .access;
+        service.engine.as_mut().unwrap().store = fixtures::records_store();
         for _ in 0_u32..8 {
             crate::forge::records::advance(service.engine.as_mut().expect("engine"));
         }

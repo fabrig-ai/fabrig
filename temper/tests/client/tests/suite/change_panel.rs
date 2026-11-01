@@ -511,23 +511,19 @@ fn demo_change_page(demo_forge: u16, resetting: bool) {
     fixtures::adopt_change_repository(world.front());
     world.front().engine.forge.as_mut().expect("story's forge").push_branch(REPOSITORY.repository, BRANCH);
     let goal = fixtures::goal_with_pushed_change(world.front(), BRANCH);
-    let mut cues = skein_lib::List::with_capacity(1);
-    cues.push(b"Change the title".as_slice().into()).expect("one cue");
-    world.front().demo = Some(
-        w::PlaygroundAnswer::new(
-            &w::CEILINGS,
-            w::PlaygroundAnswerParts {
-                state: if resetting { w::PlaygroundState::Resetting } else { w::PlaygroundState::Running },
-                project: 1,
-                forge: demo_forge,
-                provider: 17,
-                owner: b"acme".as_slice().into(),
-                name: b"shop".as_slice().into(),
-                cues,
+    world.front().playground_config = Some(fixtures::playground_config());
+    world.front().engine.send(engine::Event::Forge(Box::new(temper_engine_domain_forge::Event::Restore {
+        record: temper_engine_domain_forge::Stored::Playground(temper_engine_domain_forge::Playground {
+            state: if resetting {
+                temper_engine_domain_forge::PlaygroundState::Resetting(temper_engine_domain_forge::ResetStep::Forge)
+            } else {
+                temper_engine_domain_forge::PlaygroundState::Running
             },
-        )
-        .expect("scripted demo read beside the real engine"),
-    );
+            project: Some(1),
+            forge: demo_forge,
+            account: None,
+        }),
+    })));
     let person = world.client(fixtures::PARTY, fixtures::task_page(goal));
     let on_demo = demo_forge == REPOSITORY.forge;
     let link = Find::exactly_named(Role::Link, "View on forge ↗".as_bytes());

@@ -308,18 +308,6 @@ pub(crate) fn configure(value: &mut serde_json::Value) {
         overrides.remove(name);
     }
     if STORY.with(|slot| matches!(slot.get(), Story::HeldChange)) {
-        let forge = value["application"]["forges"][0].as_object_mut().expect("forge");
-        for name in ["api_token", "user", "webhook_secret", "identity"] {
-            forge.remove(name);
-        }
-        let identity = value["application"]["identities"][0].as_object_mut().expect("identity");
-        identity.remove("token");
-        identity.insert("forge".into(), 1.into());
-        value["application"]["setup"] = serde_json::json!([
-            {"forge":1,"directory":"forge-1","bot":{"login":"worker","email":"worker@example.invalid"},
-             "mode":{"owned":{"forgejo":"fetched","runner":null,"listen":{"socket":"127.0.0.1:3000"},
-                "person":{"login":"person","email":"person@example.invalid"}}}}
-        ]);
         value["application"]["landing"]["deployment"] = serde_json::json!([{
             "connector": 1, "kind": 4,
             "pattern": {"segments": ["forge", "127.0.0.1:3000"], "last": "open", "value": "acme"},

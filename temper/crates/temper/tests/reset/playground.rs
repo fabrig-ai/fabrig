@@ -26,7 +26,7 @@ fn a_first_run_into_the_playground_and_out_by_its_reset_leaves_the_store_empty()
     support::own_listener_files(&paths[0]);
     let running_data = paths[1].clone();
     let reset_data = paths[1].clone();
-    let seen = support::boxed::run_ctl(
+    let seen = support::boxed::run_ctl_with_exits(
         scratch.path(),
         flags,
         scratch.path(),
@@ -42,7 +42,11 @@ fn a_first_run_into_the_playground_and_out_by_its_reset_leaves_the_store_empty()
                 assert_playground_project(&calls[4], true);
                 assert!(running_data.join(format!("box/groups/{forge}")).is_file(), "playground group settings");
                 assert!(running_data.join(format!("box/started/{forge}")).is_file(), "playground group started");
-                assert!(running_data.join(format!("forge-{forge}/admin_token")).is_file(), "playground admin token");
+                assert!(running_data.join(format!("forge-{forge}")).is_dir(), "playground forge directory");
+                assert!(
+                    !running_data.join(format!("forge-{forge}/admin_token")).exists(),
+                    "the engine consumed the handover before connecting"
+                );
                 forges::playground_reset()
             })),
             Step::Run(Call::new(&["forge", "list"]).json()),
@@ -54,20 +58,32 @@ fn a_first_run_into_the_playground_and_out_by_its_reset_leaves_the_store_empty()
                 assert_removed(&reset_data, running_forge(&calls[2]));
                 Call::new(&["me"]).json()
             })),
+            Step::Run(Call::new(&["playground", "reset", "--key", "read-not-started"])),
         ],
         support::boxed::BOX_DEADLINE,
-        |_| (),
+        || (),
+        &[(9, 2)],
     );
     let stderr = String::from_utf8_lossy(&seen.stderr);
     assert_eq!(seen.exit, Some(Exit::Code(0)), "box stopped cleanly: {stderr}");
     assert_eq!(seen.left, Some(Vec::new()), "nothing outlived the box: {stderr}");
     assert_eq!(seen.checked, Some(()), "all calls completed before stopping: {stderr}");
-    let [_signed, started, running, accounts, projects, reset, empty_forges, empty_accounts, empty_projects] =
-        seen.calls.as_slice()
+    let [
+        _signed,
+        started,
+        running,
+        accounts,
+        projects,
+        reset,
+        empty_forges,
+        empty_accounts,
+        empty_projects,
+        not_started,
+    ] = seen.calls.as_slice()
     else {
-        panic!("sign-in, playground start, three running reads, reset, three empty reads: {stderr}")
+        panic!("sign-in, playground start, three running reads, reset, three empty reads, refused reset: {stderr}")
     };
-    for call in &seen.calls {
+    for call in &seen.calls[..9] {
         assert_eq!(call.exit, Some(Exit::Code(0)), "{}; box: {stderr}", String::from_utf8_lossy(&call.stderr));
         assert!(call.stderr.is_empty(), "{}", String::from_utf8_lossy(&call.stderr));
     }
@@ -79,7 +95,15 @@ fn a_first_run_into_the_playground_and_out_by_its_reset_leaves_the_store_empty()
     assert_empty_forges(empty_forges);
     assert_reset_accounts(empty_accounts);
     assert_playground_project(empty_projects, false);
+    assert_eq!(not_started.exit, Some(Exit::Code(2)));
+    assert!(not_started.stdout.is_empty());
+    assert_eq!(not_started.stderr, b"refused: not offered\n");
     assert_removed(&paths[1], forge);
+    eprintln!(
+        "reset: reset; forges empty; no scripted provider 3 account; no Playground project; \
+         second keyed reset refused: not offered (not_started); group, started marker and forge directory absent; \
+         box exit 0 with no remaining processes"
+    );
     eprintln!("playground reset story: {} ms", clock.now().now.saturating_since(began).as_nanos() / 1_000_000);
     scratch.remove();
 }

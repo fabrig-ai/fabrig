@@ -20,7 +20,7 @@ pub(crate) enum Phase {
 #[derive(Debug)]
 pub(crate) struct Start {
     request: Token,
-    maker: Option<u64>,
+    maker: u64,
     pub(crate) row: forge::Playground,
     pub(crate) phase: Phase,
     pub(crate) until: Time,
@@ -128,12 +128,8 @@ pub(crate) fn begin(
     row: forge::Playground,
 ) {
     let until = env.now.saturating_add(domain.forge.demo().expect("offered playground").deadline);
-    let maker = if row.project.is_none() {
-        let context = domain.demo_contexts.get(&request).expect("admitted start context");
-        Some(domain.core.people.sign_in_person(context.sign_in).expect("admitted starting person"))
-    } else {
-        None
-    };
+    let context = domain.demo_contexts.get(&request).expect("admitted start context");
+    let maker = domain.core.people.sign_in_person(context.sign_in).expect("admitted starting person");
     domain.playground_start = Some(Start {
         request,
         maker,
@@ -228,12 +224,12 @@ fn prepare(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision) {
                 provider: demo.provider,
                 join: None,
                 digest: carried.digest,
-                uses: Some(Box::new([people::Use::Project(project)])),
+                uses: Some(Box::new([people::Use::Party(start.maker), people::Use::Project(project)])),
             },
             Some(carried),
         )
     } else {
-        let maker = start.maker.expect("starting person kept before the act");
+        let maker = start.maker;
         (
             Phase::Project,
             b"project".as_slice(),
