@@ -58,15 +58,17 @@ Neighbours, each edit the line or arm named:
 
 - `jig-domain-tasks`: `boundary.rs` (one `Event::ProjectGone { project
   }` variant), `domain.rs` (its dispatch arm), `lib.rs`/`tests.rs`
-  (`mod` lines);
+  (`mod` lines); `holds.rs`, `placed.rs`, `person_proposals.rs` (one
+  `pub(crate) fn project_gone` each: Answers, 2026-11-01, third);
 - `jig-domain-accounts`: `boundary.rs` (`Event::ProjectGone { project
   }`), `domain.rs` (dispatch), `lib.rs` (`mod` line);
   `jig/tests/accounts/tests/suite/main.rs` (`mod project_gone;`);
 - `jig-domain-notes`: `boundary.rs` (`Event::ProjectGone { project }`,
   dropping any cached line or entry of the project's scopes; its rows
   are erased by the core's sweep), `domain.rs`, `lib.rs`;
-- `jig-domain-core`: `reads/sweep.rs` (one `Sweep::Recurring { project
-  }` variant, its `admits` arm and its test's cases), `lib.rs` (`mod
+- `jig-domain-core`: `reads/sweep.rs` (the `Sweep::Recurring { project
+  }` and `Sweep::Proposals` variants, their `admits` arms and their
+  test's cases), `lib.rs` (`mod
   project_rows;`, and the field `pub(crate) row_sweeps: Map<Token,
   reads::Sweep>` beside `erasures`, made in `Core::new` with
   `Map::with_capacity(limits.authority.projects)`), `tests.rs` (`mod project_rows;`), `erase.rs` (`swept` hands a page whose owner is not
@@ -75,8 +77,9 @@ Neighbours, each edit the line or arm named:
   `Core.template_overrides`): one removal each;
 - `jig-protocol-store`: `intervals.rs` (the `Sweep::Recurring` arm:
   `numbered_prefix(&[keys::JIG, 1, 7, 2], project)`, the
-  `ClosedLedger` family's `Funder::Recurring` tag), `tests/sweep.rs`
-  (one test);
+  `ClosedLedger` family's `Funder::Recurring` tag; the
+  `Sweep::Proposals` arm: `Range::prefix(&[keys::JIG, 1, 8])`, the
+  `DecidedProposal` family), `tests/sweep.rs` (two tests);
 - compiler arms for the three new events and the sweep anywhere in
   `jig/**` and `temper/**`.
 
@@ -117,20 +120,24 @@ Pre-approved:
    project } }`. `swept`: erase each line and its entry; sweep again on
    `more`; else `Sweep::Recurring { project }` (the archived
    `ClosedLedger(Funder::Recurring { project, .. })` rows), each erased
-   by key, again on `more`; else `rows_done` (empty but for `// pd-delete continues the
+   by key, again on `more`; else `Sweep::Proposals` (Answers,
+   2026-11-01, third), again on `more`; else `rows_done` (empty but for `// pd-delete continues the
    project's deletion here.`).
 2. Tests:
    - `jig-domain-tasks` `src/tests/project_gone.rs`:
      `a_gone_projects_period_and_pools_are_closed_and_its_templates_dropped`,
-     `a_gone_projects_recurring_ledgers_post_into_its_period_and_go`;
+     `a_gone_projects_recurring_ledgers_post_into_its_period_and_go`,
+     `a_gone_projects_access_holds_and_pending_proposals_go_unanswered`;
    - `jig-protocol-store` `src/tests/sweep.rs`:
-     `the_recurring_sweep_admits_only_its_projects_closed_recurring_ledgers`;
+     `the_recurring_sweep_admits_only_its_projects_closed_recurring_ledgers`,
+     `the_proposals_sweep_admits_the_decided_proposals_family_only`;
    - `jig-accounts-world` `tests/suite/project_gone.rs`:
      `each_accounts_use_of_a_gone_project_is_dropped`;
    - `jig-domain-core` `src/tests/project_rows.rs`:
      `erasing_a_projects_rows_closes_its_ledgers_and_sweeps_its_notes`,
      `a_notes_page_erases_each_line_and_its_entry`,
-     `the_last_notes_page_sweeps_the_closed_recurring_ledgers`.
+     `the_last_notes_page_sweeps_the_closed_recurring_ledgers`,
+     `a_proposals_page_erases_only_the_projects_decisions_and_their_updates`.
 3. Checks: `cargo fmt`; clippy on the four crates; their `--lib`
    tests; `heavy cargo nextest run -p jig-tasks-world`, `-p
    jig-accounts-world`, `-p jig-notes-world`; `heavy cargo nextest run
@@ -167,3 +174,37 @@ sweep's last page removes it before `rows_done`. `erase::swept` hands a
 page whose owner is not in `erasures` to `project_rows::swept`, which
 ignores an owner in neither map, as `erase::swept` does. The notes
 design in Inputs is `jig/docs/design/domain/engine.md`, section 10.
+
+2026-11-01, from this task's question (may it clear the tasks child's
+resource access, placed holds and person proposals, retained decided
+ones too?): option A; acceptance stands as written (draft 5: "no row
+names the project", which `pd-conformance`'s end check asserts per
+family). The edits, in Owns and Steps above:
+
+- `tasks::Event::ProjectGone` also calls, after the ledgers, one
+  `pub(crate) fn project_gone(domain, .., project)` in each of
+  `holds.rs` (every `resource_access` entry whose `ResourceKey.project`
+  is the project dropped; memory only, its source rows are the
+  settings temper erases: draft 5), `placed.rs` (every `PlacedHold`
+  whose `project` is the project, lifted or not, removed from `placed`
+  and `Key::PlacedHold(number)` erased; its tasks are erased already,
+  so none names it) and `person_proposals.rs` (every pending
+  `PersonProposal` whose `project` is the project, settings ones with
+  them, removed from `person_proposals`, its alarm cancelled as
+  `withdraw` cancels it and `Key::PersonProposal(number)` erased; no
+  decision, `DecidedProposal` or `Update` written: the project is
+  gone, not the proposal withdrawn).
+- Decided proposals are stored rows keyed by number alone, so a third
+  sweep, `Sweep::Proposals`, admits the whole `DecidedProposal` family
+  (`[JIG, 1, 8]`); `swept` filters by value: each page row whose
+  `PersonProposal.project` is the project is erased by
+  `Key::DecidedProposal(number)`, with its core
+  `CoreKey::ProposalDecision { proposer: Proposer::Party(proposer),
+  proposal: number }` and its proposer's `Update` row (the key
+  `reads/indexed.rs`' `proposal_position` builds, its `at` from
+  `proposals::decision_record`); rows of other projects stay. The
+  stage follows `Sweep::Recurring` under the same `row_sweeps` owner;
+  its last page removes the owner before `rows_done`.
+- Task-origin proposals live on task records and went with the tasks
+  (`pd-erase-task`); hold kinds, resources, pools and writers are keyed
+  by name, not project, and stay.
