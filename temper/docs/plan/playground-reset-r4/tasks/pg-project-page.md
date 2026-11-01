@@ -169,3 +169,12 @@ Pre-approved:
 fab's sections; `## Interfaces`: `Address::ProjectSettings`,
 `pages::project::settings`'s signature; each neighbour file given a
 forced arm.
+
+## Answers
+
+2026-11-01. May the compiler-required `Address::ProjectSettings` arm go
+into `temper/crates/temper-client-view/src/tests/fixtures.rs`? Yes: that
+one arm, in `root_at_with_forges`' `welcome` match, in the `false` arm
+beside `Accounts`, and nothing else in the file. "Read only, do not
+change `fixtures.rs`" forbids new or changed fixtures; it gives way to the
+neighbour rule's compiler-forced arm, which does what `Accounts`' does.
