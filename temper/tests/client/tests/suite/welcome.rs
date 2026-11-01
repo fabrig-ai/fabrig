@@ -112,7 +112,7 @@ fn a_first_run_welcome_without_a_demo() {
 }
 
 #[test]
-fn a_configured_model_hides_the_banner_and_the_strips_model_half() {
+fn a_configured_model_hides_the_account_banner_and_no_setup_strip_shows() {
     let (mut front, mut root) = accounts::welcome_fixture(fixtures::SEED);
     let person = root.person();
     assert!(person.demo_answered());
@@ -137,7 +137,8 @@ fn a_configured_model_hides_the_banner_and_the_strips_model_half() {
     let nodes = view.tree().nodes();
     assert!(!nodes.iter().any(|node| node.name.as_deref() == Some(b"Agents need an LLM account to run.")));
     assert!(!nodes.iter().any(|node| node.name.as_deref() == Some(b"temper has no model yet.")));
-    assert!(nodes.iter().any(|node| node.name.as_deref() == Some(b"temper has no forge yet.")));
+    assert!(!nodes.iter().any(|node| node.name.as_deref() == Some(b"temper has no forge yet.")));
+    assert!(!nodes.iter().any(|node| node.role == Role::Region && node.name.as_deref() == Some(b"Setup")));
     front.engine.send(temper_engine_domain::Event::Forge(Box::new(temper_engine_domain_forge::Event::Connection {
         forge: 1,
         state: temper_engine_domain_forge::Connection::Connected { id: 1, login: b"bot".as_slice().into() },

@@ -95,27 +95,21 @@ fn press(front: &mut Joint, root: &mut Root, name: &[u8]) {
     pump(front, root, d::Event::Act { action });
 }
 #[test]
-fn not_started_welcome_and_strip_start_the_playground_in_its_project() {
-    for strip in [false, true] {
-        let (mut front, mut root) = accounts::demo_fixture(f::SEED, &w::PlaygroundState::NotStarted);
-        assert!(has(&root, Role::Heading { level: 1 }, b"Welcome to temper"));
-        assert!(has(&root, Role::Button, b"Try the playground"));
-        assert!(!has(&root, Role::Region, b"Playground"));
-        assert!(front.demo_starts.is_empty());
-        if strip {
-            go(&mut front, &mut root, Address::Chats { filter: ChatsFilter::All, start: false });
-            assert!(has(&root, Role::Region, b"Setup"));
-        }
-        press(&mut front, &mut root, b"Try the playground");
-        assert_eq!(front.demo_starts.len(), 1);
-        assert_eq!(root.person().pages().address(), &Address::Chats { filter: ChatsFilter::All, start: false });
-        assert_eq!(root.person().pages().project(), Some(1));
-        assert!(has(&root, Role::Region, b"Playground"));
-        assert!(!has(&root, Role::Region, b"Setup"));
-        assert!(has(&root, Role::Status, b"Ready"));
-        pump(&mut front, &mut root, d::Event::Act { action: d::Action::Pages(Act::Playground) });
-        assert_eq!(front.demo_starts.len(), 1);
-    }
+fn not_started_welcome_starts_the_playground_in_its_project() {
+    let (mut front, mut root) = accounts::demo_fixture(f::SEED, &w::PlaygroundState::NotStarted);
+    assert!(has(&root, Role::Heading { level: 1 }, b"Welcome to temper"));
+    assert!(has(&root, Role::Button, b"Try the playground"));
+    assert!(!has(&root, Role::Region, b"Playground"));
+    assert!(front.demo_starts.is_empty());
+    press(&mut front, &mut root, b"Try the playground");
+    assert_eq!(front.demo_starts.len(), 1);
+    assert_eq!(root.person().pages().address(), &Address::Chats { filter: ChatsFilter::All, start: false });
+    assert_eq!(root.person().pages().project(), Some(1));
+    assert!(has(&root, Role::Region, b"Playground"));
+    assert!(!has(&root, Role::Region, b"Setup"));
+    assert!(has(&root, Role::Status, b"Ready"));
+    pump(&mut front, &mut root, d::Event::Act { action: d::Action::Pages(Act::Playground) });
+    assert_eq!(front.demo_starts.len(), 1);
 }
 #[test]
 fn failed_start_survives_navigation_and_try_again_uses_a_new_key() {
@@ -146,14 +140,14 @@ fn running_read_sends_no_start_and_welcome_moves_once() {
     assert_eq!(replaces, 1);
     assert_eq!(front.demo_starts.len(), 0);
     go(&mut front, &mut root, Address::Welcome { step: Step::Ready });
-    assert!(!has(&root, Role::Region, b"Playground"));
+    assert!(has(&root, Role::Region, b"Playground"));
     assert!(!has(&root, Role::Region, b"Setup"));
 }
 #[test]
-fn absent_demo_still_has_the_setup_strip() {
+fn absent_demo_has_no_setup_strip() {
     let (mut front, mut root) = accounts::forge_fixture(f::SEED);
     go(&mut front, &mut root, Address::Chats { filter: ChatsFilter::All, start: false });
-    assert!(has(&root, Role::Region, b"Setup"));
+    assert!(!has(&root, Role::Region, b"Setup"));
     assert!(!has(&root, Role::Region, b"Playground"));
 }
 

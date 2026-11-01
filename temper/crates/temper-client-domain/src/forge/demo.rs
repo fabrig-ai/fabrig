@@ -1,5 +1,4 @@
-//! The playground's read and start (temper/docs/design/draft/playground-reset.md, 6.1).
-//! Its reset belongs to pg-playground-banner.
+//! The playground's read, start and reset (temper/docs/design/draft/playground-reset.md, 6.1–6.2).
 use super::{Demo, Limits, Request, Side, family, wire_limits};
 use alloc::boxed::Box;
 use jig_client::{Handle, Link, Readable, Readout, Told, contract as c};
@@ -7,6 +6,10 @@ use skein_lib::{Queue, Token};
 use temper_client_protocol_wire::{self as wire, v1 as w};
 
 #[derive(Debug)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "the playground's read, start and reset keep independent session flags (draft 6.2)"
+)]
 pub(super) struct State {
     pub answer: Option<Demo>,
     pub pending: Option<Handle>,
@@ -15,12 +18,31 @@ pub(super) struct State {
     pub start: Option<Starting>,
     pub failure: Option<StartFailure>,
     pub select: bool,
+    pub end: Option<Starting>,
+    pub end_failure: Option<EndFailure>,
+    pub left: bool,
+    pub resend: bool,
+    pub ending: bool,
 }
 #[derive(Debug)]
 pub(super) struct Starting {
     pub request: Token,
 }
 impl Side {
+    #[must_use]
+    pub fn demo_leaving(&self) -> bool {
+        self.demo.end.is_some() || self.demo.ending || (self.demo.end_failure.is_none() && self.demo_resetting())
+    }
+
+    #[must_use]
+    pub const fn demo_end_failure(&self) -> Option<EndFailure> {
+        self.demo.end_failure
+    }
+
+    pub(crate) fn take_playground_left(&mut self) -> bool {
+        core::mem::replace(&mut self.demo.left, false)
+    }
+
     /// The playground's forge serves no pages (playground.md, 6).
     #[must_use]
     pub fn serves_pages(&self, forge: u16) -> bool {
@@ -59,7 +81,20 @@ impl Side {
 
 impl State {
     pub const fn new() -> Self {
-        Self { answer: None, pending: None, live: false, answered: false, start: None, failure: None, select: false }
+        Self {
+            answer: None,
+            pending: None,
+            live: false,
+            answered: false,
+            start: None,
+            failure: None,
+            select: false,
+            end: None,
+            end_failure: None,
+            left: false,
+            resend: false,
+            ending: false,
+        }
     }
 }
 /// A link tell remains available to the other children; every forge read page is consumed.
@@ -92,6 +127,7 @@ pub(crate) fn told(side: &mut Side, told: &Told, limits: Limits, out: &mut Queue
                     side.demo.answer = answer;
                     side.changed();
                 }
+                read_end(side, limits, out);
             }
             true
         }
@@ -122,6 +158,10 @@ pub(crate) fn told(side: &mut Side, told: &Told, limits: Limits, out: &mut Queue
             side.changed();
             true
         }
+        Told::Answered { key, outcome } if end_key(side, *key) => {
+            ended(side, outcome, limits, out);
+            true
+        }
         Told::Page { .. }
         | Told::Changed { .. }
         | Told::Ended { .. }
@@ -131,6 +171,55 @@ pub(crate) fn told(side: &mut Side, told: &Told, limits: Limits, out: &mut Queue
         | Told::Kept { .. }
         | Told::Dropped { .. } => false,
     }
+}
+
+fn read_end(side: &mut Side, limits: Limits, out: &mut Queue<Request>) {
+    let state = match side.demo.answer.as_ref() {
+        Some(answer) => answer.state,
+        None => return,
+    };
+    if state == DemoState::Resetting {
+        side.demo.ending = true;
+        resume_end(side, limits, out);
+    } else {
+        side.demo.resend = false;
+        if side.demo.end.is_none() && side.demo.ending {
+            side.demo.ending = false;
+            if state == DemoState::NotStarted {
+                side.demo.left = true;
+                side.demo.select = false;
+                side.demo.end_failure = None;
+            }
+            side.changed();
+        }
+    }
+}
+
+fn ended(side: &mut Side, outcome: &jig_client::Outcome, limits: Limits, out: &mut Queue<Request>) {
+    let answer = match outcome {
+        jig_client::Outcome::Answered(value) => end_answer(value, &limits),
+        jig_client::Outcome::Unknown
+        | jig_client::Outcome::Limit
+        | jig_client::Outcome::Held
+        | jig_client::Outcome::NotKept
+        | jig_client::Outcome::Unsent
+        | jig_client::Outcome::Full { .. }
+        | jig_client::Outcome::Lost
+        | jig_client::Outcome::Unconfirmed => Some(EndAnswer::Unknown),
+    };
+    side.demo.end = None;
+    match answer {
+        Some(EndAnswer::NotOffered) => {
+            side.demo.end_failure = Some(EndFailure::NotOffered);
+            side.demo.ending = false;
+        }
+        Some(EndAnswer::Reset) => read(side, out),
+        Some(EndAnswer::Unknown | EndAnswer::EntranceRefused(_)) | None => {
+            side.demo.resend = false;
+            read(side, out);
+        }
+    }
+    side.changed();
 }
 /// A usable source of a provider other than the demo's, or any provider without a demo.
 #[must_use]
@@ -195,6 +284,109 @@ pub enum StartAnswer {
     Failed(StartFailure),
     Unknown,
     EntranceRefused(c::EntranceRefusal),
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum EndFailure {
+    NotOffered,
+}
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum EndAnswer {
+    Reset,
+    NotOffered,
+    Unknown,
+    EntranceRefused(c::EntranceRefusal),
+}
+#[must_use]
+pub fn end_ask(limits: &Limits) -> Option<jig_client::Ask> {
+    let limits = wire_limits(limits)?;
+    let record = w::Requesting::new(&limits, w::RequestingParts { request: w::Request::EndPlayground }).ok()?;
+    Some(jig_client::Ask::Family {
+        scope: c::Scope::Deployment,
+        record: jig_client::Family {
+            family: wire::FORGE,
+            version: wire::CLIENT_VERSION,
+            bytes: wire::requesting(&record),
+        },
+    })
+}
+#[must_use]
+pub fn end_answer(value: &jig_client::Answered, limits: &Limits) -> Option<EndAnswer> {
+    let record = match value {
+        jig_client::Answered::Family(record) => record,
+        jig_client::Answered::Jig(c::Answer::Refused { refusal, .. }) => {
+            return Some(EndAnswer::EntranceRefused(c::EntranceRefusal::new(refusal.clone()).ok()?));
+        }
+        jig_client::Answered::Jig(c::Answer::Done(_)) => return None,
+    };
+    if record.family != wire::FORGE || record.version != wire::CLIENT_VERSION {
+        return None;
+    }
+    let mut reader = skein_lib::Reader::new(&record.bytes);
+    let value = w::Answer::decode(&wire_limits(limits)?, &mut reader).ok()?;
+    if !reader.is_empty() {
+        return None;
+    }
+    Some(match value.into_parts().outcome {
+        w::Outcome::Reset => EndAnswer::Reset,
+        w::Outcome::Unknown => EndAnswer::Unknown,
+        w::Outcome::EndRefused(value) => match value.into_parts().why {
+            w::EndRefusal::NotOffered => EndAnswer::NotOffered,
+        },
+        w::Outcome::Connecting
+        | w::Outcome::Link(_)
+        | w::Outcome::ConnectRefused(_)
+        | w::Outcome::Page(_)
+        | w::Outcome::Accepted(_)
+        | w::Outcome::Adopted(_)
+        | w::Outcome::CoreRefused(_)
+        | w::Outcome::ForgeRefused(_)
+        | w::Outcome::SettingUp
+        | w::Outcome::SetUpRefused(_)
+        | w::Outcome::Removing
+        | w::Outcome::RemoveRefused(_)
+        | w::Outcome::Running
+        | w::Outcome::StartRefused(_)
+        | w::Outcome::StartFailed(_)
+        | w::Outcome::Returning => return None,
+    })
+}
+
+fn end_key(side: &Side, key: jig_client::Key) -> bool {
+    if key.asker != crate::owner::Owner::Forge.asker() {
+        return false;
+    }
+    match side.demo.end.as_ref() {
+        Some(end) => end.request.raw() == key.number,
+        None => false,
+    }
+}
+
+pub(crate) fn end(side: &mut Side, limits: Limits, out: &mut Queue<Request>) {
+    if side.demo_leaving() || (!side.demo_running() && !side.demo_resetting()) {
+        return;
+    }
+    send_end(side, limits, out);
+}
+
+fn send_end(side: &mut Side, limits: Limits, out: &mut Queue<Request>) {
+    if side.party.is_none() || side.served == super::Served::OutOfDate || side.demo.end.is_some() {
+        return;
+    }
+    let Some(ask) = end_ask(&limits) else { return };
+    side.serial = side.serial.checked_add(1).expect("forge request serial fits");
+    let request = Token::new(side.serial);
+    side.demo.end = Some(Starting { request });
+    side.demo.end_failure = None;
+    side.demo.ending = true;
+    side.demo.resend = true;
+    out.push(Request::Send { request, name: None, ask });
+    side.changed();
+}
+
+pub(crate) fn resume_end(side: &mut Side, limits: Limits, out: &mut Queue<Request>) {
+    if side.demo_resetting() && side.demo.end.is_none() && !side.demo.resend {
+        send_end(side, limits, out);
+    }
 }
 #[must_use]
 pub fn ask(limits: &Limits) -> Option<jig_client::Ask> {
@@ -267,7 +459,11 @@ fn start_key(side: &Side, key: jig_client::Key) -> bool {
     }
 }
 pub(crate) fn start(side: &mut Side, limits: Limits, out: &mut Queue<Request>) {
-    if side.party.is_none() || side.served == super::Served::OutOfDate || side.demo.start.is_some() {
+    if side.party.is_none()
+        || side.served == super::Served::OutOfDate
+        || side.demo.start.is_some()
+        || side.demo_leaving()
+    {
         return;
     }
     let Some(demo) = side.demo.answer.as_ref() else { return };

@@ -336,6 +336,7 @@ pub(crate) fn main(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
     b.style(crate::look::PAGEBAR);
     text(b, w, Role::Heading { level: 1 }, W::Accounts);
     b.close();
+    let playground = root.demo().is_some() && !root.forge().demo_resetting();
     // The heading's row, as the inbox's: the heading, its count, and the link to connect one.
     b.open(Role::Slot);
     b.style(crate::look::HEADING);
@@ -353,9 +354,18 @@ pub(crate) fn main(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
         b.name(&said);
         b.text(Run::Plain, &said);
         b.close();
-        connect(b, w, bindings, W::ConnectAdd);
+        if !playground {
+            connect(b, w, bindings, W::ConnectAdd);
+        }
     }
-    crate::cards::text(b, Role::Paragraph, &w.say(crate::words::Word::AccountLead, &[]));
+    crate::cards::text(
+        b,
+        Role::Paragraph,
+        &w.say(
+            if playground { crate::words::Word::PlaygroundNothingToAdd } else { crate::words::Word::AccountLead },
+            &[],
+        ),
+    );
     b.close();
     if let Some(doc) = accounts::document(root.client()) {
         if count == 0 {
@@ -363,7 +373,9 @@ pub(crate) fn main(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
             b.open(Role::Slot);
             b.style(crate::look::EMPTY);
             text(b, w, Role::Paragraph, W::NoOwn);
-            connect(b, w, bindings, W::Connect);
+            if !playground {
+                connect(b, w, bindings, W::Connect);
+            }
             b.close();
         }
         let mut shown = 0;

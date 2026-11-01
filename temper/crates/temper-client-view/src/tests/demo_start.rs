@@ -300,13 +300,13 @@ fn starting_waits_and_each_failure_explains_why_with_try_again() {
     }
 }
 #[test]
-fn a_not_started_demo_has_the_setup_strip_and_no_context_or_demo_banner() {
+fn a_not_started_playground_has_no_strip_context_or_playground_banner() {
     use temper_client_protocol_wire::v1 as w;
     for address in [Address::Chats { filter: ChatsFilter::All, start: false }, Address::Chat { task: 41 }] {
         let root = f::demo_state_root(address, w::PlaygroundState::NotStarted);
         let view = f::page_view(&root);
         assert!(f::find(view.tree(), Role::Region, b"Playground").is_none());
-        assert!(f::find(view.tree(), Role::Region, b"Setup").is_some());
+        assert!(f::find(view.tree(), Role::Region, b"Setup").is_none());
         assert!(view.tree().nodes().iter().all(|node| !node.styles.as_slice().contains(&crate::look::CONTEXT)));
     }
 }

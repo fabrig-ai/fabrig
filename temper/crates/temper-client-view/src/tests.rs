@@ -10,6 +10,7 @@ mod forges;
 mod frame;
 mod inbox;
 mod look;
+mod playground;
 mod project_settings;
 use jig_client::contract::{Part, PartScope};
 use skein_ui::Role;

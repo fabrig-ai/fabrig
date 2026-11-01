@@ -13,6 +13,7 @@ mod form;
 mod pages;
 mod panel;
 mod playground;
+mod playground_end;
 mod project_settings;
 use crate::{Address, Event, Fact, Request, forge};
 use jig_client::contract;

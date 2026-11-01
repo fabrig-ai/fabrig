@@ -16,7 +16,7 @@ fn the_demo_banner_follows_the_frame_on_work_pages() {
         ("chat", Address::Chat { task: 1 }, f::PROJECT, true, true),
         ("inbox", Address::Inbox { filter: temper_client_domain::address::Filter::ALL }, f::SECOND_PROJECT, true, true),
         ("task", Address::Task { task: 9, filter: PlanFilter::All }, f::SECOND_PROJECT, true, true),
-        ("accounts", Address::Accounts, f::PROJECT, true, false),
+        ("accounts", Address::Accounts, f::PROJECT, true, true),
         ("welcome", Address::Welcome { step: temper_client_domain::Step::Welcome }, f::PROJECT, true, false),
         ("no demo", Address::Chats { filter: ChatsFilter::All, start: false }, f::PROJECT, false, false),
     ] {
@@ -28,15 +28,15 @@ fn the_demo_banner_follows_the_frame_on_work_pages() {
                 f::find(
                     view.tree(),
                     Role::Paragraph,
-                    b"This is the playground: a scripted model and a playground forge."
+                    b"This is the playground: a scripted model and in-memory forge. Use the wizard to set up temper"
                 )
                 .is_some(),
                 "{row}"
             );
-            let link = f::find(view.tree(), Role::Link, b"Connect a model").expect("model link");
+            let link = f::find(view.tree(), Role::Link, b"set up temper").expect("reset link");
             assert_eq!(
                 crate::act(&mut view, link, skein_ui::Act::Press),
-                Some(Action::Pages(Act::Go { address: Address::ConnectModel { way: None } })),
+                Some(Action::Pages(Act::LeavePlayground)),
                 "{row}"
             );
             let mut roles = skein_lib::List::with_capacity(3);
@@ -168,12 +168,16 @@ fn the_demo_banner_is_absent_when_the_link_is_unavailable() {
 }
 
 #[test]
-fn the_playground_keeps_both_links_with_a_real_model() {
+fn the_playground_keeps_its_reset_link_with_a_real_model() {
     let root = f::demo_root(Address::Chats { filter: ChatsFilter::All, start: false }, f::PROJECT, false);
     let mut view = f::page_view(&root);
     assert!(
-        f::find(view.tree(), Role::Paragraph, b"This is the playground: a scripted model and a playground forge.")
-            .is_some()
+        f::find(
+            view.tree(),
+            Role::Paragraph,
+            b"This is the playground: a scripted model and in-memory forge. Use the wizard to set up temper"
+        )
+        .is_some()
     );
     let mut banner = None;
     for (index, node) in view.tree().nodes().iter().enumerate() {
@@ -183,12 +187,9 @@ fn the_playground_keeps_both_links_with_a_real_model() {
         }
     }
     let banner = banner.unwrap();
-    assert!(skein_lib::bytes::find(&f::node_text(view.tree(), banner), b"Connect a model").is_some());
-    let link = f::find(view.tree(), Role::Link, b"Connect a forge").unwrap();
-    assert_eq!(
-        crate::act(&mut view, link, skein_ui::Act::Press),
-        Some(Action::Pages(Act::Go { address: Address::ConnectForge { forge: None } }))
-    );
+    assert!(skein_lib::bytes::find(&f::node_text(view.tree(), banner), b"set up temper").is_some());
+    let link = f::find(view.tree(), Role::Link, b"set up temper").unwrap();
+    assert_eq!(crate::act(&mut view, link, skein_ui::Act::Press), Some(Action::Pages(Act::LeavePlayground)));
 }
 
 #[test]
@@ -435,7 +436,7 @@ fn the_accounts_banner_precedes_the_playground_when_both_show() {
 }
 
 #[test]
-fn the_resetting_playground_keeps_the_whole_banner() {
+fn the_resetting_playground_shows_the_leaving_line() {
     use temper_client_protocol_wire::v1 as w;
     let root = f::demo_forges_state_root(
         Address::Chats { filter: ChatsFilter::All, start: false },
@@ -447,11 +448,8 @@ fn the_resetting_playground_keeps_the_whole_banner() {
     let view = f::page_view(&root);
     assert!(f::find(view.tree(), Role::Region, b"Playground").is_some());
     assert!(f::find(view.tree(), Role::Region, b"Setup").is_none());
-    assert!(
-        f::find(view.tree(), Role::Paragraph, b"This is the playground: a scripted model and a playground forge.")
-            .is_some()
-    );
+    assert!(f::find(view.tree(), Role::Paragraph, "Leaving the playground…".as_bytes()).is_some());
     for name in [b"Connect a model".as_slice(), b"Connect a forge"] {
-        assert!(f::find(view.tree(), Role::Link, name).is_some());
+        assert!(f::find(view.tree(), Role::Link, name).is_none());
     }
 }

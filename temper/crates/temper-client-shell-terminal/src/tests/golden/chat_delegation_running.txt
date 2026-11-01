@@ -6,10 +6,11 @@ Menu:
     [3] Inbox
     [4] Chats (current)
     [5] Adopt a repository
-    [6] Forges
-    [7] Accounts
+    [6] Settings
+    [7] Forges
+    [8] Accounts
   * Pat
-  [8] Sign out
+  [9] Sign out
 T1 · Add CSV export to widget:
   * waiting on 1 delegate
   0 spent · of 1
@@ -30,10 +31,10 @@ Conversation:
       - Pull request opened
       - CI passed
       - Landed
-    [9] Task 2 ↗
+    [10] Task 2 ↗
   1 tool call: wait
     wait
 Using the default model
-[10] Message: (empty) (enter sends)
+[11] Message: (empty) (enter sends)
 Enter to send · Shift+Enter for newline
-[11] Send
+[12] Send

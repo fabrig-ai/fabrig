@@ -58,6 +58,9 @@ pub(crate) fn event(root: &mut Domain, env: &Env<Limits>, event: Event, out: &mu
                 forge(root, env, forge::Event::Act { act: forge::Act::StartDemo }, out);
             }
             Action::Pages(crate::pages::Act::Playground) => playground(root, env, out),
+            Action::Pages(crate::pages::Act::LeavePlayground) => {
+                forge(root, env, forge::Event::Act { act: forge::Act::EndPlayground }, out);
+            }
             Action::Pages(crate::pages::Act::Suggest { cue }) => suggest(root, env, cue, out),
             Action::Pages(act) => pages(root, env, crate::pages::Event::Act { act }, out),
             Action::Forge(act) => forge(root, env, forge::Event::Act { act }, out),
@@ -294,6 +297,7 @@ fn forge_me(root: &mut Domain, env: &Env<Limits>, told: &jig_client::Told, out: 
     let consumed = forge::me::told(&mut root.forge, &root.client, told, &mut child);
     if consumed {
         forge::forges::configure(&mut root.forge, env.limits.forge, &mut child);
+        forge::demo::resume_end(&mut root.forge, env.limits.forge, &mut child);
     }
     route_forge(root, env, &mut child, out);
     consumed
@@ -321,6 +325,12 @@ fn forge_demo(root: &mut Domain, env: &Env<Limits>, told: &jig_client::Told, out
     // A demo answer can arrive after the page and account watch. Way resolution
     // must exclude its provider on that same rebuild.
     demo_facts(root);
+    if root.forge.take_playground_left() {
+        out.push(Request::Show {
+            address: Address::Welcome { step: crate::Step::Forge { forge: None } },
+            replace: false,
+        });
+    }
     select_playground(root, env, out);
     consumed
 }

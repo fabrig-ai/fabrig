@@ -6,14 +6,13 @@ Menu:
     [3] Inbox
     [4] Chats (current)
     [5] Adopt a repository
-    [6] Forges
-    [7] Accounts
+    [6] Settings
+    [7] Forges
+    [8] Accounts
   * Pat
-  [8] Sign out
+  [9] Sign out
 Playground:
-  This is the playground: a scripted model and a playground forge.
-  [9] Connect a model
-  [10] Connect a forge
+  This is the playground: a scripted model and in-memory forge. Use the wizard to [10] set up temper
 New chat
 * Ready
 Scripted model

@@ -29,6 +29,7 @@ pub(crate) fn main(
     b.style(look::MAIN);
     b.style(look::FORGES);
     connect::text(b, w, Role::Heading { level: 1 }, Word::ForgesTitle);
+    let playground = root.demo().is_some() && !root.forge().demo_resetting();
     let rows = listed::rows(root.forges(), root.forge().demo());
     let count = u64::from(rows.len());
     let heading = match root.forges() {
@@ -40,11 +41,15 @@ pub(crate) fn main(
         State::Unknown => {}
         State::Ended => crate::cards::refusal(b, w, &jig_client::contract::Refusal::NotOffered),
         State::Rows(_) => {
-            connect::text(b, w, Role::Paragraph, Word::ForgesDescription);
-            connect::link(b, w, bindings, Word::AddForge, Address::ConnectForge { forge: None });
-            if count == 0 {
-                connect::text(b, w, Role::Paragraph, Word::NoForges);
-                connect::link(b, w, bindings, Word::ConnectForge, Address::ConnectForge { forge: None });
+            if playground {
+                connect::text(b, w, Role::Paragraph, Word::PlaygroundNothingToAdd);
+            } else {
+                connect::text(b, w, Role::Paragraph, Word::ForgesDescription);
+                connect::link(b, w, bindings, Word::AddForge, Address::ConnectForge { forge: None });
+                if count == 0 {
+                    connect::text(b, w, Role::Paragraph, Word::NoForges);
+                    connect::link(b, w, bindings, Word::ConnectForge, Address::ConnectForge { forge: None });
+                }
             }
             for row in &rows {
                 personal(b, root, w, bindings, forge, row, sign_in);
@@ -53,10 +58,9 @@ pub(crate) fn main(
                 connect::text(b, w, Role::Heading { level: 2 }, Word::ForgePlaygroundHeading);
                 b.open(Role::Disclosure);
                 b.style(look::FORGE_ROW);
-                b.name(&w.say(
-                    Word::ForgePlaygroundSummary,
-                    &[Hole::Name(demo.owner.clone()), Hole::Name(demo.name.clone())],
-                ));
+                b.name(
+                    &w.say(Word::PlaygroundForgeLine, &[Hole::Name(demo.owner.clone()), Hole::Name(demo.name.clone())]),
+                );
                 account(b, w, row);
                 b.close();
             }

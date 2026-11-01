@@ -95,7 +95,7 @@ fn header(tree: &Tree, name: &[u8], status: Option<Region>, out: &mut List<u8>) 
     }
     raw(out, b"== ");
     match title {
-        Some(at) => content(tree, at, out, 0, false),
+        Some(at) => content(tree, at, out, 0, false, None),
         None => safe(out, name, 0, false),
     }
     raw(out, b" == ");
@@ -111,7 +111,7 @@ fn header(tree: &Tree, name: &[u8], status: Option<Region>, out: &mut List<u8>) 
             if !first {
                 raw(out, b"; ");
             }
-            content(tree, child, out, 0, false);
+            content(tree, child, out, 0, false, None);
             next = child.saturating_add(tree.get(child).expect("link child exists").size);
             first = false;
         }
@@ -239,7 +239,7 @@ fn node(tree: &Tree, at: u32, indent: u32, print: &mut Print) -> Option<u32> {
             start(&mut print.text, indent);
             raw(&mut print.text, b"- ");
             if n.size == 1 {
-                content(tree, at, &mut print.text, indent, false);
+                content(tree, at, &mut print.text, indent, false, None);
                 finish(n, &mut print.text);
             }
             Some(indent.saturating_add(2))
@@ -265,7 +265,7 @@ fn node(tree: &Tree, at: u32, indent: u32, print: &mut Print) -> Option<u32> {
                     if !first {
                         raw(&mut print.text, b" | ");
                     }
-                    content(tree, child, &mut print.text, indent, false);
+                    content(tree, child, &mut print.text, indent, false, None);
                     sort(cell, &mut print.text);
                     first = false;
                 }
@@ -279,7 +279,7 @@ fn node(tree: &Tree, at: u32, indent: u32, print: &mut Print) -> Option<u32> {
                 raw(&mut print.text, b"#");
             }
             raw(&mut print.text, b" ");
-            content(tree, at, &mut print.text, indent, false);
+            content(tree, at, &mut print.text, indent, false, None);
             finish(n, &mut print.text);
             None
         }
@@ -297,7 +297,7 @@ fn node(tree: &Tree, at: u32, indent: u32, print: &mut Print) -> Option<u32> {
         | Role::Quote
         | Role::Separator
         | Role::Image => {
-            line(tree, at, indent, &mut print.text);
+            line(tree, at, indent, print);
             None
         }
     }
@@ -349,7 +349,7 @@ fn control(tree: &Tree, at: u32, indent: u32, print: &mut Print) {
     let n = tree.get(at).expect("control exists");
     start(&mut print.text, indent);
     if n.external.is_none() {
-        number(tree, n, print);
+        number(tree, n, &mut print.text, &mut print.numbers);
     }
     if n.role == Role::Choice || n.role == Role::Option {
         raw(&mut print.text, if has(n, State::Selected) { b"(*) " } else { b"( ) " });
@@ -357,7 +357,7 @@ fn control(tree: &Tree, at: u32, indent: u32, print: &mut Print) {
     if n.role == Role::Check {
         raw(&mut print.text, if has(n, State::Pressed) || has(n, State::Selected) { b"[x] " } else { b"[ ] " });
     }
-    content(tree, at, &mut print.text, indent, false);
+    content(tree, at, &mut print.text, indent, false, None);
     if n.role == Role::TextField || n.role == Role::TextArea {
         raw(&mut print.text, b": ");
         match &n.value {
@@ -463,7 +463,8 @@ fn reverse(out: &mut List<u8>, begin: u32, end: u32) {
         *out.get_mut(right).expect("annotation byte exists") = byte;
     }
 }
-fn line(tree: &Tree, at: u32, mut indent: u32, out: &mut List<u8>) {
+fn line(tree: &Tree, at: u32, mut indent: u32, print: &mut Print) {
+    let out = &mut print.text;
     let n = tree.get(at).expect("line node exists");
     if n.role == Role::Code {
         indent = indent.saturating_add(4);
@@ -488,7 +489,7 @@ fn line(tree: &Tree, at: u32, mut indent: u32, out: &mut List<u8>) {
     if n.role == Role::Separator {
         raw(out, b"--");
     } else {
-        content(tree, at, out, indent, quote);
+        content(tree, at, out, indent, quote, Some(&mut print.numbers));
     }
     if n.role == Role::Term {
         raw(out, b":");
@@ -526,15 +527,15 @@ fn start(out: &mut List<u8>, indent: u32) {
 fn has(n: &Node, state: State) -> bool {
     n.states.as_slice().contains(&state)
 }
-fn number(tree: &Tree, n: &Node, print: &mut Print) {
-    raw(&mut print.text, b"[");
+fn number(tree: &Tree, n: &Node, out: &mut List<u8>, numbers: &mut List<NodeId>) {
+    raw(out, b"[");
     if (n.binding.is_some() || n.link.is_some()) && !tree.disabled(n.id) {
-        print.numbers.push(n.id).expect("numbers fit nodes");
-        raw(&mut print.text, Decimal::of(u64::from(print.numbers.len())).as_bytes());
+        numbers.push(n.id).expect("numbers fit nodes");
+        raw(out, Decimal::of(u64::from(numbers.len())).as_bytes());
     } else {
-        raw(&mut print.text, b"-");
+        raw(out, b"-");
     }
-    raw(&mut print.text, b"] ");
+    raw(out, b"] ");
 }
 fn states(n: &Node, out: &mut List<u8>) {
     for state in [
@@ -573,7 +574,7 @@ fn states(n: &Node, out: &mut List<u8>) {
         }
     }
 }
-fn content(tree: &Tree, at: u32, out: &mut List<u8>, indent: u32, quote: bool) {
+fn content(tree: &Tree, at: u32, out: &mut List<u8>, indent: u32, quote: bool, mut numbers: Option<&mut List<NodeId>>) {
     let root = tree.get(at).expect("content root exists");
     let end = at.saturating_add(root.size);
     let mut found = false;
@@ -588,6 +589,19 @@ fn content(tree: &Tree, at: u32, out: &mut List<u8>, indent: u32, quote: bool) {
             external = None;
         }
         let node = tree.get(index).expect("content descendant exists");
+        if index != at
+            && node.role == Role::Link
+            && node.external.is_none()
+            && let Some(numbers) = numbers.as_deref_mut()
+        {
+            number(tree, node, out, numbers);
+            if !text_within(tree, index)
+                && let Some(name) = &node.name
+            {
+                safe(out, name, indent, quote);
+                found = true;
+            }
+        }
         for run in &node.text {
             found = true;
             match run.run {
@@ -615,6 +629,16 @@ fn content(tree: &Tree, at: u32, out: &mut List<u8>, indent: u32, quote: bool) {
         raw(out, b">");
     }
 }
+fn text_within(tree: &Tree, at: u32) -> bool {
+    let end = at.saturating_add(tree.get(at).expect("text root exists").size);
+    for index in at..end {
+        if !tree.get(index).expect("text descendant exists").text.is_empty() {
+            return true;
+        }
+    }
+    false
+}
+
 fn raw(out: &mut List<u8>, bytes: &[u8]) {
     for byte in bytes {
         out.push(*byte).expect("text fits its derived print bound");
