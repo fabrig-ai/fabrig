@@ -62,3 +62,16 @@ Acceptance:
 ## Report
 
 Each reader removed, and each help page that names a removed command or member.
+
+## Rebase (2026-11-01, step merge, foreman playground-reset-r6/bx-unforge/foreman-1)
+
+Resolve setup.rs registration conflict by preserving the integration branch’s trigger-based condition.
+The merge conflicts in `temper/crates/temper-service/src/setup.rs`, function `register`.
+Integration commit `4dc85b4efd` (“Offer setup for newly registered owned forges”) introduced the conflicting change; it is retained in `60ad37688a`.
+Keep its `asked` calculation before moving `local` into `lifecycle.reconcile`:
+`StartDemo | StartAsked => true`, `Start | Asked => false`.
+Keep `if asked && engine.setup.lifecycle.startup_restored()` around the `Connection::NotSetUp` update.
+Drop the refused branch’s competing `record.playground || record.mode == Mode::Owned` condition.
+This file’s only difference from the current integration tip is that hunk; retain integration’s version without further service changes.
+Preserve bx-unforge’s changes within its owned files.
+No files changed, builds run, or pushes made. The read-only environment prevents writing report.md; this response is the report.
