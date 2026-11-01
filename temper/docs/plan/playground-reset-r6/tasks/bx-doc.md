@@ -3,7 +3,7 @@ id = "bx-doc"
 part = "fs"
 kind = "migration"
 needs = ["bx-compose", "sv-startup-machine"]
-files = ["temper/crates/temper-fake/src/demo.rs", "temper/crates/temper-fake/src/steps.rs", "temper/crates/temper-fake/src/tests/demo.rs", "temper/crates/temper-fake/src/tests/steps.rs", "temper/crates/temper-forge-setup/src/check.rs", "temper/crates/temper-forge-setup/src/tests/members.rs", "temper/crates/temper/src/setup.rs", "temper/crates/temper/src/box_command.rs", "temper/crates/temper/src/box_command/**", "temper/crates/temper/tests/suite/startup.rs", "temper/crates/temper/tests/suite/box_listeners.rs"]
+files = ["temper/crates/temper-fake/src/demo.rs", "temper/crates/temper-fake/src/steps.rs", "temper/crates/temper-fake/src/tests/demo.rs", "temper/crates/temper-fake/src/tests/steps.rs", "temper/crates/temper-forge-setup/src/check.rs", "temper/crates/temper-forge-setup/src/problem.rs", "temper/crates/temper-forge-setup/src/tests/members.rs", "temper/crates/temper/src/setup.rs", "temper/crates/temper/src/box_command.rs", "temper/crates/temper/src/box_command/**", "temper/crates/temper/tests/suite/startup.rs", "temper/crates/temper/tests/suite/box_listeners.rs"]
 effort = "high"
 minutes = 100
 +++
@@ -110,3 +110,17 @@ Acceptance:
 
 The T4 members the binary reads and where (file, function), and every reader left of
 today's shapes (`Demo::forge()`, `checked.setup`), for the task that drops them.
+
+## Answers
+
+2026-11-01. Q: may bx-doc add a structured read of `Problems` in
+`temper-forge-setup/src/problem.rs`, so `demo::read` keeps `Entry::body`'s own paths and
+reasons? A: yes (option A); `problem.rs` is added to `files` for this alone. Add
+`Problems::first(&self) -> Option<(&Path, What)>` (the first kept entry, its `What` copied),
+read-only, documented, with a test in `src/tests/members.rs`; no other change there. In
+`temper-fake/src/demo.rs` convert it to `Refusal`: `What::Reason(words)` gives
+`Refusal { path, words }`; `Own(_)` and `Against(_)` (which `Entry::body` does not produce)
+and `None` give `invalid form` at the entry's own path (`application.demo.forge`). Never
+parse `lines()` back. Everything else in the task stands as written, including the
+`Named.machine` findings of run 1: take the owned record from `Named` where it holds it,
+and give the T4 fixtures `git_program: null`.
