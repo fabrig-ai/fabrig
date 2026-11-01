@@ -64,6 +64,8 @@ pub fn engine() -> settings::Engine {
     // This typed fixture reaches the core's start; policy 1 needs 3250 bytes.
 
     settings::Engine {
+        directories: jig_protocol_config::Directories::given(b"/config", b"/data", b"/cache").unwrap(),
+
         machine: temper_engine_domain_forge::Machine::bare(),
         records_only: Box::new([]),
         jig,
