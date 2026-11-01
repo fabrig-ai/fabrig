@@ -133,3 +133,23 @@ missing: in `temper/tests/{one-process,real-loop,client-browser,system}/src/` an
   under the compiler-forced edits.
 - Your pushed branch is the start of the next run. Then resume at Steps 3: the whole runs
   one at a time, and the three walks alone under `process-temper`.
+
+2026-11-01, from this task's run 2. Q: who diagnoses and repairs the real-loop chat stall
+(task 1 `state=due`, no attempt, no LLM request), this task or another? A: not this task. The
+same stall fails on the trunk without this branch: the integration repair `repair-5`
+reproduced `account_key::a_private_file_key_reaches_the_chats_llm` alone at `c9b559102d`, and
+`fe-world-remove` run 8 saw the same thirteen real-loop failures; `sv-world-real-loop` had
+all 232 passing at its merge (`658edf3bdb`). The trunk's repair (`repair-5`) owns it. So:
+- This task's real-loop acceptance is every test of `temper-real-loop-world` passing except
+  those of the trunk's stall, the thirteen `repair-5` and `fe-world-remove` run 8 list
+  (`live_text.rs`, `suite/{account_key,case_5_3,cluster,github,github_land,lock,lost,
+  restart,terminal,tools}.rs`, `src/world/diagnostics/tests.rs`), when each fails the same
+  way (a task left due, or `case_5_3`'s unknown task). Any other real-loop failure is this
+  task's. List the excepted ones under `## Left`, naming `repair-5`.
+- Do not diagnose or change dispatch, the real-loop fixtures beyond the earlier answer's
+  bare machine, or any expectation for it.
+- Resume at Steps 3 from your pushed branch: `-p temper-client-world`, `-p
+  temper-system-world`, `-p temper` (failures in files a pending task owns, such as
+  `bx-unforge`'s `src/forge/tests.rs`, `src/tests.rs`, `src/fake/check.rs`, go under
+  `## Left` with their owner), `heavy cargo check --workspace --all-targets`, then the three
+  walks alone under `process-temper`; then Step 4.
