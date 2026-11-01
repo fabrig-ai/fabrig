@@ -818,6 +818,7 @@ fn a_change_produced_opened_checked_queued_and_landed() {
                 | top::Request::ListDemoActs
                 | top::Request::SendDemoAct(_)
                 | top::Request::DemoStart { .. }
+                | top::Request::PlaygroundStart { .. }
                 | top::Request::StopGroup { .. }
                 | top::Request::SetUpGroup { .. }
                 | top::Request::ForgeKept { .. }

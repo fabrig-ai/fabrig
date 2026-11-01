@@ -781,6 +781,7 @@ impl World {
                 | top::Request::ListDemoActs
                 | top::Request::SendDemoAct(_)
                 | top::Request::DemoStart { .. }
+                | top::Request::PlaygroundStart { .. }
                 | top::Request::StopGroup { .. }
                 | top::Request::SetUpGroup { .. }
                 | top::Request::ForgeKept { .. }

@@ -1445,6 +1445,15 @@ pub enum Event {
     ReadAfresh,
     /// Look for each restored uncertain entry before procedures step.
     SettleOutbox,
+    /// Save a completed playground start step (draft 6.1).
+    PlaygroundMade {
+        project: Option<u32>,
+        account: Option<u32>,
+    },
+    /// Complete every pending playground start (draft 6.1).
+    PlaygroundAnswered {
+        answer: StartAnswer,
+    },
 }
 /// The connector's output to the root, including child API calls.
 #[derive(PartialEq, Eq, Debug)]
@@ -1716,6 +1725,10 @@ pub enum Request {
     /// The requested restart phase finished; the root may request the next.
     RestartDone {
         stage: RestartStage,
+    },
+    /// Run the person's playground start acts in the root (draft 6.1).
+    PlaygroundStart {
+        request: Token,
     },
 }
 
