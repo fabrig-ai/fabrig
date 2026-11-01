@@ -17,6 +17,13 @@ mode = "direct"
 needs = []
 design = "temper/docs/design/draft/playground-reset.md, 3"
 
+[[part]]
+id = "playground"
+title = "The playground made when chosen as ordinary records, and reset to the welcome's Forge step; the demo and its halves gone"
+mode = "direct"
+needs = []
+design = "temper/docs/design/draft/playground-reset.md, 6.1-6.3"
+
 [[slice]]
 id = 3
 story = "An owner deletes a project: it is gone at once, its tasks erased, no row names it, and a restart mid-way ends it whole"
@@ -27,4 +34,10 @@ walk = false
 id = 1
 story = "A forge made by SetUp or Connect is a record: listed, numbered next, kept across a restart with its first repository's intent, its box group run from the file serve wrote"
 parts = ["forge-records"]
+walk = false
+
+[[slice]]
+id = 4
+story = "A first run into the playground and out by its reset: the store then empty, the welcome at Forge, a restart mid-reset ending it whole"
+parts = ["playground"]
 walk = false
