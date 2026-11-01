@@ -493,7 +493,11 @@ fn production_link_asserts_a_missing_configured_forge() {
     outputs(&mut d, Event::Restore { record: Stored::Repository(repository) });
     assert_eq!(
         d.missing_link(&empty_tasks()),
-        Some(MissingLink { kind: RecordKind::Repository, key, need: Need::Forge(OTHER_FORGE) })
+        Some(MissingLink {
+            kind: RecordKind::Repository,
+            key,
+            need: Need::Repository(skein_forge::api::Repository { forge: OTHER_FORGE, repository: REPO.repository })
+        })
     );
 }
 
@@ -690,4 +694,46 @@ fn opaque_client_links_report_repository_and_writer_keys_but_cannot_recover_live
 #[test]
 fn references_keep_the_base_footprint() {
     assert_eq!(size_of::<crate::reconcile::Reference>(), 32);
+}
+
+// Removed repositories and their history remain readable (contracts D3).
+fn removed_repository_domain(next: Option<u16>) -> Domain {
+    let mut d = Domain::new(
+        &LIMITS,
+        4,
+        skein_forge_client::Config { namespace: Box::from(&b"test"[..]), writers: Box::new([]) },
+        &[],
+        &[],
+        &[],
+        false,
+    )
+    .expect("valid connector");
+    outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+    if let Some(next) = next {
+        outputs(&mut d, Event::Restore { record: Stored::Forges { next } });
+    }
+    d
+}
+
+#[test]
+fn a_removed_forges_repository_restores() {
+    let mut d = removed_repository_domain(Some(2));
+    outputs(&mut d, Event::Restore { record: Stored::Change(fixtures::opening_row()) });
+    outputs(&mut d, Event::Restore { record: Stored::Names { task: OTHER_TASK, resources: Box::new([branch()]) } });
+    d.reconcile(&empty_tasks());
+    assert_eq!(d.reconciliation(), Ok(()));
+    for row in repository_rows(REPO) {
+        assert!(resolved(&d, &row, true), "{row:?}");
+    }
+    assert!(!resolved(&d, &Stored::Writer(skein_forge_client::Writer { forge: 1, author: 7 }), false));
+    let mut later = adopted();
+    later.provider.forge = 2;
+    outputs(&mut d, Event::Restore { record: Stored::Repository(later.clone()) });
+    assert!(!resolved(&d, &Stored::Repository(later), false), "next forge is not removed");
+}
+
+#[test]
+#[should_panic(expected = "forge link Repository -> Repository")]
+fn a_repository_without_its_forge_or_forge_counter_still_panics() {
+    removed_repository_domain(None).reconcile(&empty_tasks());
 }

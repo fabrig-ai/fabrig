@@ -24,6 +24,7 @@ mod panel_before_change;
 mod panels;
 mod periods;
 mod playground;
+mod playground_crash;
 mod playground_reset;
 mod preparation;
 mod reconcile;
