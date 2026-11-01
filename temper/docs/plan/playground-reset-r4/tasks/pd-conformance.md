@@ -9,6 +9,8 @@ files = [
   "jig/tests/conformance/src/scenarios/removal.rs",
   "jig/tests/conformance/tests/suite/removal.rs",
   "jig/tests/conformance/tests/suite/main.rs",
+  "jig/testing/jig-test-store-files/src/store.rs",
+  "jig/testing/jig-test-store-files/src/files.rs",
 ]
 effort = "high"
 minutes = 55
@@ -94,3 +96,29 @@ absence only.
 fab's sections; `## Interfaces`: the kit's new variants; each family's
 rows the scenario built; any row the check found that no deletion step
 erases (with its key), which is a question for `pd-delete`'s family.
+
+## Answers
+
+2026-11-01. Q: may `Testing::store` build a directory-backed store for
+`Scenario::ProjectRemoved` (A), or may `jig-test-store-files` gain a
+read-only transcript accessor for memory stores (B)? A: (B). The world
+keeps one store construction for every scenario: a directory-backed
+store needs a nonempty patch-set fixture, which runs patches at open
+and puts this one scenario on another store than the rest. The memory
+store already keeps its transcripts in `Files` (its `unread_transcript`
+names them `{task >> 12:016x}/{task:016x}`, relative to the transcripts
+root; the disk's names carry `transcripts/`). Add, in `store.rs`,
+`pub fn transcript_bytes(&mut self, task: u64) -> Option<Vec<u8>>`,
+"the task's transcript file's bytes, or `None` when it has none,
+whichever store backs the shell", answering from `disk` (by `read` on
+the `transcripts/...` name) or from `files` (a `pub(super)` read in
+`files.rs` beside `unread_transcript`, opening read-only and closing
+what it opens); read-only, no other change to either backing, and
+`file_bytes` stays as it is. Its own test: a unit test or a case in the
+store tests of `jig-test-store-files`'s package that a written
+transcript reads back and a dropped one reads `None`, on a memory
+store. `removal.rs`'s check calls it for every task recorded before
+the removal and finds `None`. `lib.rs` keeps only the
+`ActKind::RemoveProject` grant. The `files` list above now names
+both `jig-test-store-files` files; `pd-sweep`, which owned them, has
+landed.
