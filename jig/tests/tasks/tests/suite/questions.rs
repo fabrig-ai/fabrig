@@ -585,3 +585,101 @@ fn an_inbox_too_small_for_the_fixed_reminder_refuses_asks_at_creation() {
     assert!(matches!(reply, Reply::Refused(problem) if problem.why == Refusal::Spec));
     assert!(!world.records.contains_key(&Key::Live(REQUESTER)));
 }
+
+const NOTHING_AWAITED: &[u8] =
+    b"Nothing more will come: your delegates have ended and no question waits. Finish with your result.";
+
+#[test]
+fn a_result_ended_task_parking_after_its_delegate_ends_is_due_with_a_notice() {
+    let mut world = pair();
+    world.finish(ASKER);
+    world.settle(ASKER);
+    world.claim(REQUESTER, ATTEMPT);
+    let read = world.record(REQUESTER).last_message;
+    response(&mut world, |reply_to| Event::Turn {
+        reply_to,
+        task: REQUESTER,
+        attempt: ATTEMPT,
+        turn: 1,
+        read: Some(read),
+        refused: Box::new([]),
+        cumulative: 0,
+        offered: Some(read),
+        outstanding: Box::new([]),
+    });
+    world.terminal(REQUESTER, End::Parked);
+    let row = world.record(REQUESTER);
+    assert_eq!(row.phase, Phase::Active(Active::Due));
+    assert_eq!(row.tries.run, 1);
+    assert!(row.inbox.iter().any(|word| word.words.as_ref() == NOTHING_AWAITED));
+}
+
+fn read_inbox(world: &mut World, task: u64, attempt: u64) {
+    let read = world.record(task).last_message;
+    if read > 0 {
+        response(world, |reply_to| Event::Turn {
+            reply_to,
+            task,
+            attempt,
+            turn: 1,
+            read: Some(read),
+            offered: Some(read),
+            refused: Box::new([]),
+            outstanding: Box::new([]),
+            cumulative: 0,
+        });
+    }
+}
+
+#[test]
+fn parking_with_nothing_awaited_exhausts_run_tries() {
+    let mut world = pair();
+    let attempts = u64::from(world.env.limits.retries.run.retries) + 1;
+    for attempt in 1..=attempts {
+        if attempt > ATTEMPT {
+            world.claim(ASKER, attempt);
+        }
+        read_inbox(&mut world, ASKER, attempt);
+        world.terminal(ASKER, End::Parked);
+        if attempt < attempts {
+            assert_eq!(u64::from(world.record(ASKER).tries.run), attempt);
+            world.restart();
+        }
+    }
+    assert_eq!(u64::from(world.record(ASKER).tries.run), attempts);
+    assert!(matches!(world.record(ASKER).phase, Phase::Closing(Closing { ending: Ending::Failed { .. }, .. })));
+    world.settle(ASKER);
+    assert!(matches!(world.results[&ASKER], Ending::Failed { .. }));
+}
+
+#[test]
+fn a_live_delegate_is_something_to_await() {
+    let mut world = pair();
+    world.claim(REQUESTER, ATTEMPT);
+    world.terminal(REQUESTER, End::Parked);
+    assert_eq!(world.record(REQUESTER).phase, Phase::Active(Active::Idle));
+    assert_eq!(world.record(REQUESTER).tries, Tries::NONE);
+}
+
+#[test]
+fn only_timers_and_task_watches_count_as_pending_arrivals() {
+    for kind in [
+        SubscriptionKind::Timer { at: Wall::from_nanos(1_000_000), period: None },
+        SubscriptionKind::Task { target: REQUESTER, held: true, result: true },
+        SubscriptionKind::Topic { connector: 1, topic: 1 },
+    ] {
+        let mut world = pair();
+        let subscription = Subscription { number: 1, kind };
+        let reply = response(&mut world, |reply_to| match kind {
+            SubscriptionKind::Topic { .. } => Event::SubscribeTopic { reply_to, task: ASKER, subscription },
+            SubscriptionKind::Task { .. } | SubscriptionKind::Timer { .. } => {
+                Event::Subscribe { reply_to, task: ASKER, subscription }
+            }
+        });
+        assert_eq!(reply, Reply::Done);
+        world.terminal(ASKER, End::Parked);
+        let topic = matches!(kind, SubscriptionKind::Topic { .. });
+        assert_eq!(world.record(ASKER).phase, Phase::Active(if topic { Active::Due } else { Active::Idle }));
+        assert_eq!(world.record(ASKER).tries.run, u32::from(topic));
+    }
+}

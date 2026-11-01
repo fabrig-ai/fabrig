@@ -53,7 +53,7 @@ fn delegate_question(world: &mut jig_core_world::world::World, parent: u64) {
         panic!("admitted delegate")
     };
     let child = numbers[0].task;
-    world.end(tasks::End::Parked, 0);
+    world.park_for_message(0);
     assert_eq!(world.assigned.as_ref().expect("delegate assigned").task, child);
     world.send(root::Event::Core(core::Event::NamedAction {
         to: ReplyTo::new(Token::new(4002)),
@@ -227,12 +227,12 @@ const QUERY_MORE_REQUEST: u8 = 31;
 fn a_task_query_reads_a_partys_live_tasks_in_last_activity_order() {
     let mut world = world(1206);
     let older = world.assigned.as_ref().expect("first task").task;
-    world.end(tasks::End::Parked, 0);
+    world.park_for_message(0);
     world.advance(skein_lib::Duration::from_secs(1));
     let new_chat = jig_core_world::fixtures::chat(&world, 1, b"new task".as_slice().into());
     request(&mut world, QUERY_REQUEST, new_chat);
     let newer = world.assigned.as_ref().expect("second task").task;
-    world.end(tasks::End::Parked, 0);
+    world.park_for_message(0);
     world.advance(skein_lib::Duration::from_secs(1));
     request(
         &mut world,
@@ -251,7 +251,7 @@ fn a_task_query_reads_a_partys_live_tasks_in_last_activity_order() {
 fn a_task_query_read_pages_its_live_group_and_then_ends() {
     let mut world = crate::read_support::world_with_rows(1207, 1);
     let mut expected = vec![world.assigned.as_ref().expect("first task").task];
-    world.end(tasks::End::Parked, 0);
+    world.park_for_message(0);
     let later_chat = jig_core_world::fixtures::chat(&world, 1, b"next task".as_slice().into());
     request(&mut world, QUERY_REQUEST, later_chat);
     expected.push(world.assigned.as_ref().expect("next task").task);
@@ -362,7 +362,7 @@ fn a_projectless_query_without_a_requester_keeps_the_asking_partys_tasks_alone()
     let mut world = world(1212);
     let own = world.assigned.as_ref().expect("first party's task").task;
     let first = world.sign_in.expect("first party signed in");
-    world.end(tasks::End::Parked, 0);
+    world.park_for_message(0);
     let second = jig_core_world::fixtures::second_party(&mut world, b"query-second", people::Role::Owner);
     let other_partys_chat = jig_core_world::fixtures::chat(&world, 1, b"other party's task".as_slice().into());
     jig_core_world::fixtures::ask_as(&mut world, second, QUERY_MORE_REQUEST, other_partys_chat);

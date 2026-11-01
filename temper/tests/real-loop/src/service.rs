@@ -126,7 +126,7 @@ impl ServiceHost {
             fixtures::finish_configuration(&path, &mut value).expect("world defaults separated from startup");
         }
         if let Some(shape) = &cluster {
-            shape.write(path.parent().expect("cluster scratch"));
+            shape.write(path.parent().expect("cluster scratch"), fixture.is_none() && github.is_none());
         }
         if let Some(address) = issuer {
             fixtures::sign_in_documents(&path, address).expect("local issuer registration");
@@ -429,7 +429,10 @@ impl Host for ServiceHost {
             if self.state != LifeState::Second {
                 fixtures::bind(&self.path, address, forge).expect("bound standalone documents");
                 if let Some(shape) = &self.cluster {
-                    shape.write(self.path.parent().expect("cluster scratch"));
+                    shape.write(
+                        self.path.parent().expect("cluster scratch"),
+                        self.fixture.is_none() && self.github.is_none(),
+                    );
                 }
             }
             let mut service = self.prepare_service();

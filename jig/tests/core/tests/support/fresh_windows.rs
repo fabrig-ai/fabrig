@@ -54,11 +54,11 @@ pub fn parked() -> World {
     let mut world = World::new(Setup { seed: SEED, patch_sets: BEFORE, ..Setup::default() });
     world.store.transcript_text(turn_text);
     world.turn(1, 1, None, &turn(b"earlier window"));
-    world.end(tasks::End::Parked, 1);
+    world.park_for_message(1);
     let read = world.say(86);
     world.window_turn(1, 1, Some(read), &turn(b"closed window"));
     world.turn(2, 2, Some(read), &turn(b"window continuation"));
-    world.end(tasks::End::Parked, 2);
+    world.park_for_message(2);
     world
 }
 

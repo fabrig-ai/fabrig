@@ -912,3 +912,28 @@ fn an_owing_delegates_early_finish_commits_the_reminder_and_resumes() {
     finish_chat(&mut world, delegate);
     world.restart(809, false);
 }
+
+#[test]
+fn parking_with_nothing_awaited_commits_the_notice_and_resumes() {
+    let (mut world, _) = question_world(814, None);
+    let task = chat_task(&world);
+    world.turn(1, 1, None, b"waiting after work");
+    let attempt = run_key(&world, task, 0).attempt;
+    world.send(root::Event::Answer {
+        read: None,
+        refused: Box::new([]),
+        channel: skein_lib::Token::new(7),
+        task,
+        attempt,
+        cumulative: 1,
+        end: tasks::End::Parked,
+    });
+    let assigned = world.assigned.as_ref().expect("immediate next run");
+    assert_eq!(assigned.task, task);
+    assert!(assigned.attempt > attempt);
+    assert!(assigned.messages.iter().any(|word| word.kind == tasks::MessageKind::NothingAwaited
+        && word.words.as_ref()
+            == b"Nothing more will come: your delegates have ended and no question waits. Finish with your result."));
+    finish_chat(&mut world, task);
+    world.restart(814, false);
+}

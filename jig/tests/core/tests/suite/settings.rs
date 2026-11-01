@@ -852,7 +852,7 @@ fn settings_watch_marks_when_an_agent_task_is_added_and_ends() {
         key: [62; 16],
         ask: people::Ask::Cancel { project: 1, task, reason: Box::from(b"finished".as_slice()), grace: None },
     })));
-    world.end(jig_domain_tasks::End::Parked, 0);
+    world.park_for_message(0);
     assert_eq!(watched_holders(&world), [0, 1, 0]);
 }
 
@@ -984,6 +984,8 @@ fn held_run() -> (World, u64, u64) {
 fn held_run_with_history(history: u32) -> (World, u64, u64) {
     let (mut config, mut limits) = configuration();
     limits.core.settings.history = history;
+    // The waiting goal keeps timer and tracked-news room beside the next words.
+    limits.core.tasks.inbox_bytes += limits.core.tasks.message_bytes;
     config.core.defaults.rules.maximum_run_spend = 20;
     let mut world = World::new(Setup {
         configuration: Some(config),
@@ -1020,7 +1022,7 @@ fn a_charter_changed_while_its_goal_runs_keeps_the_run_and_the_goal_on_their_ver
     assert_eq!(world.assignments, assignments);
     assert_eq!(world.assigned.as_ref().expect("unchanged assignment").run.policy, old_policy);
     assert!(world.cancellations.is_empty());
-    world.end(jig_domain_tasks::End::Parked, 0);
+    world.park_for_message(0);
     let reply =
         ask(&mut world, signed, 103, people::Ask::Say { project: 1, task: goal, words: b"Continue".as_slice().into() });
     assert!(matches!(reply, people::Reply::Outcome(people::Outcome::Said { .. })), "{reply:?}");
@@ -1049,7 +1051,7 @@ fn a_delegate_is_made_on_the_newest_whatever_its_parents_revision() {
     let delegate = fixtures::delegate(&mut world, (goal, attempt), 1, member);
     assert_eq!(fixtures::live_row(&world, delegate).settings.task, 2);
     assert_eq!(fixtures::live_row(&world, goal).settings.task, 1);
-    world.end(jig_domain_tasks::End::Parked, 0);
+    world.park_for_message(0);
     let assigned = world.assigned.as_ref().expect("delegate run");
     assert_eq!(assigned.task, delegate);
     assert_eq!(assigned.run.policy.instructions.as_ref(), b"Instructions from revision two.");
@@ -1277,7 +1279,7 @@ fn moving_change(world: &mut World, signed: u64, request: u8, against: u32, item
 #[test]
 fn a_change_moving_running_work_moves_the_waiting_goal_and_keeps_the_live_run() {
     let (mut world, signed, parked) = held_run();
-    world.end(jig_domain_tasks::End::Parked, 0);
+    world.park_for_message(0);
     let live = held_goal(&mut world, signed, 103);
     let assignments = world.assignments.clone();
     let old_policy = world.assigned.as_ref().expect("live run").run.policy.clone();
@@ -1303,7 +1305,7 @@ fn a_change_moving_running_work_moves_the_waiting_goal_and_keeps_the_live_run() 
     for number in [parked, live] {
         assert!(decision.iter().any(|write| matches!(write, root::Write::Save(root::Record::Core(core::Record::Tasks(jig_domain_tasks::Stored::Live(row)))) if row.number == number && row.settings.task == 2)));
     }
-    world.end(jig_domain_tasks::End::Parked, 0);
+    world.park_for_message(0);
     assert!(!world.store.rows.contains_key(&key(settings::Key::Held(1))));
     assert_eq!(revision(&world, 1, true).head.number, 1);
     let reply = ask(
@@ -1324,7 +1326,7 @@ fn a_change_moving_running_work_moves_the_waiting_goal_and_keeps_the_live_run() 
 #[test]
 fn move_to_newest_moves_a_held_revisions_tasks_and_releases_it() {
     let (mut world, signed, goal) = held_run();
-    world.end(jig_domain_tasks::End::Parked, 0);
+    world.park_for_message(0);
     change_instructions(&mut world, signed);
     let before = world.commits.len();
     assert_eq!(
@@ -1372,7 +1374,7 @@ fn a_move_uses_the_room_freed_by_its_tasks_for_heads_and_versions() {
     world.send(root::Event::Core(core::Event::Period { project: 1, period: 1, budget: 100, next: None }));
     ready_host(&mut world);
     let first = held_goal(&mut world, signed, 101);
-    world.end(jig_domain_tasks::End::Parked, 0);
+    world.park_for_message(0);
     change_instructions(&mut world, signed);
     let second = held_goal(&mut world, signed, 103);
     let item = instructions_edit(&world, b"Revision three.");
@@ -1424,7 +1426,7 @@ fn runs_after_held_restart(world: &mut World, goal: u64, newest_instructions: &[
 fn a_restart_keeps_an_old_revision_held_and_its_goal_runs_on_its_version() {
     let (mut world, signed, goal) = held_run();
     seed_restart_accounts(&mut world);
-    world.end(jig_domain_tasks::End::Parked, 0);
+    world.park_for_message(0);
     change_instructions(&mut world, signed);
     restart(&mut world, held_restart_configuration());
     runs_after_held_restart(&mut world, goal, b"Instructions from revision two.");
@@ -1436,7 +1438,7 @@ fn a_restart_keeps_an_old_revision_held_and_its_goal_runs_on_its_version() {
 fn a_release_at_a_restart_keeps_the_old_default_for_the_revision_held() {
     let (mut world, _, goal) = held_run();
     seed_restart_accounts(&mut world);
-    world.end(jig_domain_tasks::End::Parked, 0);
+    world.park_for_message(0);
     let mut config = held_restart_configuration();
     config.core.defaults.charters[0].policy.instructions = b"Released default instructions".as_slice().into();
     restart(&mut world, config);
@@ -1477,7 +1479,7 @@ fn held_revisions_past_a_lowered_limit_refuse_the_start_naming_the_limit() {
     ready_host(&mut world);
     for number in 1..=2 {
         held_goal(&mut world, signed, 110 + number);
-        world.end(jig_domain_tasks::End::Parked, 0);
+        world.park_for_message(0);
         let item = instructions_edit(&world, &[number]);
         changed(&change(&mut world, signed, 120 + number, u32::from(number), Box::new([item])), u32::from(number) + 1);
     }
@@ -1505,7 +1507,7 @@ fn held_revisions_past_a_lowered_limit_refuse_the_start_naming_the_limit() {
 fn an_unheld_task_or_run_revision_refuses_the_start_naming_the_task() {
     for run in [false, true] {
         let (mut world, _, goal) = held_run();
-        world.end(jig_domain_tasks::End::Parked, 0);
+        world.park_for_message(0);
         let mut row = fixtures::live_row(&world, goal).clone();
         if run {
             row.settings.run = Some(91);
@@ -1543,7 +1545,7 @@ fn a_release_past_either_held_limit_refuses_without_committing() {
     for which in [core::HeldLimit::Revisions, core::HeldLimit::Versions] {
         let (mut world, _, _) = held_run();
         seed_restart_accounts(&mut world);
-        world.end(jig_domain_tasks::End::Parked, 0);
+        world.park_for_message(0);
         let mut config = held_restart_configuration();
         config.core.defaults.charters[0].policy.instructions = b"A release that cannot fit".as_slice().into();
         let mut limits = configuration().1;
@@ -1596,6 +1598,7 @@ fn a_restored_run_must_have_a_charter_on_its_held_revision() {
 #[test]
 fn a_goal_on_an_older_revision_runs_where_its_version_allows() {
     let (mut config, mut limits) = configuration();
+    limits.core.tasks.inbox_bytes += limits.core.tasks.message_bytes;
     config.core.defaults.charters[0].hosts = fleet::Kinds::Engine;
     config.core.defaults.rules.maximum_run_spend = 20;
     limits.core.fleet.engine_slots = 1;
@@ -1637,7 +1640,7 @@ fn a_goal_on_an_older_revision_runs_where_its_version_allows() {
         ),
         2,
     );
-    world.end(jig_domain_tasks::End::Parked, 0);
+    world.park_for_message(0);
     let reply =
         ask(&mut world, signed, 103, people::Ask::Say { project: 1, task: goal, words: b"Continue".as_slice().into() });
     assert!(matches!(reply, people::Reply::Outcome(people::Outcome::Said { .. })), "{reply:?}");
@@ -1695,7 +1698,7 @@ fn the_bound_reached_its_named_tasks_moved_and_the_change_then_made() {
     world.send(root::Event::Core(core::Event::Period { project: 1, period: 1, budget: 100, next: None }));
     ready_host(&mut world);
     let oldest = held_goal(&mut world, signed, 101);
-    world.end(jig_domain_tasks::End::Parked, 0);
+    world.park_for_message(0);
     change_instructions(&mut world, signed);
     let newest = held_goal(&mut world, signed, 103);
     let item = instructions_edit(&world, b"Revision three after the move.");
@@ -1973,7 +1976,7 @@ fn a_held_versions_documents_show_its_charter_and_nothing_once_released() {
     let documents::ProposalAction::Amend { before, after, .. } = review.action else { panic!("amendment review") };
     assert_eq!(before.instructions.as_ref().expect("current fallback").bytes, old_instructions);
     assert_eq!(after.instructions.as_ref().expect("proposed fallback").bytes, old_instructions);
-    world.end(jig_domain_tasks::End::Parked, 0);
+    world.park_for_message(0);
     world.send(root::Event::Core(core::Event::Fleet(fleet::Event::Lost { channel: Token::new(7) })));
     world.send(root::Event::Core(core::Event::Fleet(fleet::Event::Hello {
         worker: 0,

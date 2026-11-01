@@ -9,9 +9,9 @@ fn a_chat_answers_parks_and_resumes() {
     let mut world = World::new(Setup { seed: 101, ..Setup::default() });
     let first = world.assigned.as_ref().expect("chat assigned").attempt;
     world.turn(1, 3, None, b"first opaque turn");
-    world.end(tasks::End::Parked, 3);
+    world.park_for_message(3);
     let parked = world.store.applied;
-    world.end(tasks::End::Parked, 3);
+    world.park_for_message(3);
     assert_eq!(world.store.applied, parked, "duplicate terminal changes nothing");
     let read = world.say(71);
     let second = world.assigned.as_ref().expect("woken chat");
@@ -19,7 +19,7 @@ fn a_chat_answers_parks_and_resumes() {
     assert_eq!(second.transcript.as_ref(), [Box::<[u8]>::from(&b"first opaque turn"[..])]);
     world.turn(1, 2, Some(read), b"second opaque turn");
     assert!(world.store.rows.values().any(|row| matches!(row, root::Record::Core(core::Record::Core(core::CoreRecord::Turn(turn))) if turn.transcript.as_ref()==b"second opaque turn")), "{:?}", world.trace);
-    world.end(tasks::End::Parked, 2);
+    world.park_for_message(2);
     world.say(72);
     let third = world.assigned.as_ref().expect("chat resumes across attempts");
     assert!(third.transcript.len() == 2, "{:?}", world.trace);
@@ -85,7 +85,7 @@ fn settled_delivery_evidence_survives_restart_and_resume_until_a_turn_carries_it
     assert_eq!(world.host_answers.len(), 1);
     let saved = world.host_answers[0].1.clone();
     assert_ne!(saved.serial, 0);
-    world.end(tasks::End::Parked, 1);
+    world.park_for_message(1);
     world.restart(103, false);
     world.send(root::Event::Core(core::Event::Fleet(jig_domain_fleet::Event::Hello {
         worker: 0,
@@ -104,7 +104,7 @@ fn settled_delivery_evidence_survives_restart_and_resume_until_a_turn_carries_it
     assert_eq!(world.assigned.as_ref().expect("resumed chat").answered.as_ref(), [core::Settled { key, call: saved }]);
     world.turn(1, 1, Some(read), b"answers carried by this turn");
     assert!(!world.store.rows.contains_key(&root::Key::Core(core::Key::Core(core::CoreKey::Call(key)))));
-    world.end(tasks::End::Parked, 1);
+    world.park_for_message(1);
     world.say(75);
     assert!(world.assigned.as_ref().expect("resumed again").answered.is_empty());
 }
@@ -113,7 +113,7 @@ fn a_chat_past_the_resume_limit_starts_fresh() {
     let mut world = World::new(Setup { seed: 104, ..Setup::default() });
     world.turn(1, 1, None, &[b'a'; 200]);
     world.turn(2, 2, None, &[b'b'; 100]);
-    world.end(tasks::End::Parked, 2);
+    world.park_for_message(2);
     world.say(76);
     assert!(world.assigned.as_ref().expect("fresh chat").transcript.is_empty());
 }
@@ -260,7 +260,7 @@ fn a_closed_windows_unread_tail_starts_fresh_without_counting() {
 fn an_unusable_transcript_fails_transient_and_the_next_conversation_starts_fresh() {
     let mut world = World::new(Setup { seed: 106, ..Setup::default() });
     world.turn(1, 1, None, b"unusable bytes");
-    world.end(tasks::End::Parked, 1);
+    world.park_for_message(1);
     let read = world.say(77);
     assert_eq!(world.assigned.as_ref().expect("resumed attempt").transcript.len(), 1);
     world.end(tasks::End::Failed(tasks::Class::Transient), 0);
@@ -269,7 +269,7 @@ fn an_unusable_transcript_fails_transient_and_the_next_conversation_starts_fresh
     assert!(!fresh.run.policy.resume);
     assert!(fresh.transcript.is_empty());
     world.turn(1, 1, Some(read), b"fresh conversation");
-    world.end(tasks::End::Parked, 1);
+    world.park_for_message(1);
     world.say(78);
     assert_eq!(
         world.assigned.as_ref().expect("resumed usable conversation").transcript.as_ref(),
@@ -314,7 +314,7 @@ fn settled_answers_resume_in_commit_order_and_a_replay_preserves_exact_bytes() {
     }));
     assert_eq!(world.host_answers.last().expect("replayed answer").1, first);
     assert_eq!(world.store.applied, before);
-    world.end(tasks::End::Parked, 0);
+    world.park_for_message(0);
     world.say(79);
     let answers = &world.assigned.as_ref().expect("resumed answers").answered;
     assert_eq!(answers.len(), 2);
@@ -543,7 +543,7 @@ fn a_conversations_attempts_name_one_first_attempt() {
     let first = world.assigned.as_ref().expect("first assignment").attempt;
     for key in [81, 82] {
         world.turn(1, 1, None, b"conversation turn");
-        world.end(tasks::End::Parked, 1);
+        world.park_for_message(1);
         world.say(key);
         let assigned = world.assigned.as_ref().expect("resumed chat");
         let key = root::Key::Core(core::Key::Core(core::CoreKey::RunProof(assigned.task)));
@@ -597,7 +597,7 @@ fn a_resumed_run_names_its_first_runs_attempt() {
     let first = world.assigned.as_ref().expect("first assignment").attempt;
     for key in [83, 84] {
         world.turn(1, 1, None, b"conversation turn");
-        world.end(tasks::End::Parked, 1);
+        world.park_for_message(1);
         world.say(key);
         let assignment = world.assigned.as_ref().expect("resumed assignment");
         assert_eq!(assignment.conversation, first);
@@ -636,7 +636,7 @@ fn account_granted(world: &mut World) {
 #[test]
 fn a_run_waits_while_its_account_must_sign_in_again() {
     let mut world = World::new(Setup { seed: 141, ..Setup::default() });
-    world.end(tasks::End::Parked, 0);
+    world.park_for_message(0);
     account_failed(&mut world);
     let assigned = world.assignments.len();
     world.say(83);
@@ -648,7 +648,7 @@ fn a_run_waits_while_its_account_must_sign_in_again() {
 #[test]
 fn a_run_waiting_for_its_account_starts_once_granted() {
     let mut world = World::new(Setup { seed: 142, ..Setup::default() });
-    world.end(tasks::End::Parked, 0);
+    world.park_for_message(0);
     account_failed(&mut world);
     let assigned = world.assignments.len();
     world.say(84);
@@ -661,7 +661,7 @@ fn a_run_waiting_for_its_account_starts_once_granted() {
 fn an_account_unusable_at_the_second_check_waits_and_is_not_held() {
     let mut world = World::new(Setup { seed: 143, ..Setup::default() });
     world.turn(1, 1, None, b"turn to resume");
-    world.end(tasks::End::Parked, 1);
+    world.park_for_message(1);
     world.fail_account_before_workspace = true;
     let assigned = world.assignments.len();
     world.say(85);
@@ -696,7 +696,7 @@ fn a_window_turn_moves_the_tasks_window_in_its_commit() {
         panic!("committed window turn")
     };
     assert!(turn.opens_window);
-    world.end(tasks::End::Parked, 2);
+    world.park_for_message(2);
     world.say(85);
     assert_eq!(current_window_proof(&world).window, Some(core::CurrentWindow { attempt, turn: 2, closed: false }));
 }
@@ -733,5 +733,5 @@ fn a_transcript_read_as_unread_fails_the_run_and_the_next_starts_fresh() {
 }
 
 fn park_chat(world: &mut World, spent: u64) {
-    world.end(tasks::End::Parked, spent);
+    world.park_for_message(spent);
 }

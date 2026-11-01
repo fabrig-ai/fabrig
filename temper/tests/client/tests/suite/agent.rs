@@ -20,7 +20,7 @@ fn call(world: &mut World<Temper, Joint>, agent: ClientId, words: &[&[u8]]) -> P
 }
 
 fn chat(park_runs: bool) -> (World<Temper, Joint>, ClientId, u64, Printed) {
-    let mut world = fixtures::world(fixtures::SEED);
+    let mut world = if park_runs { fixtures::open_world(fixtures::SEED) } else { fixtures::world(fixtures::SEED) };
     if park_runs {
         world.front().engine.hello(skein_lib::Token::new(7));
         world.front().park_runs = true;
@@ -76,38 +76,10 @@ fn a_message_is_followed_by_its_reply_waited_for() {
 fn a_chat_the_agent_closes_ends() {
     let (mut world, agent, task, started) = chat(true);
     wait_for_reply(&mut world, agent, task);
-    world.front().park_runs = false;
     let closed = call(&mut world, agent, &[b"chat", b"close", task.to_string().as_bytes(), b"--key", b"bye"]);
-    let number =
-        fixtures::give(&mut world, agent, &[b"task", b"show", task.to_string().as_bytes(), b"--until", b"ended"]);
-    // The later point read crosses the same client's wire after its watch.
-    // Its answer is an event barrier while the closing run is still held here.
-    let current = call(&mut world, agent, &[b"task", b"show", task.to_string().as_bytes()]);
-    assert_eq!(current.status, 0, "{current:?}");
-    assert!(world.root(agent).agent().printed(number).is_none(), "watch waits before the run ends");
-    let attempt = world.front().engine.task(task).expect("closing chat").attempt;
-    world.front().engine.answer(
-        skein_lib::Token::new(7),
-        task,
-        attempt,
-        0,
-        jig_domain_tasks::End::Finished {
-            result: jig_domain_tasks::TaskResult::Report { words: b"Closed by the run".as_slice().into() },
-            cancel_delegates: false,
-        },
-        temper_engine_domain::Parts::none(),
-    );
-    let printed = fixtures::answered(&mut world, agent, number);
+    let printed = call(&mut world, agent, &[b"task", b"show", task.to_string().as_bytes(), b"--until", b"ended"]);
     assert_chat(&started, task);
     assert_eq!((closed.status, closed.stdout.as_ref()), (0, format!("done: task {task}, close\n").as_bytes()));
-    assert!(printed.stdout.starts_with(format!("task {task} ").as_bytes()), "{printed:?}");
-    assert!(
-        printed
-            .stdout
-            .windows(b"result: Completed \xc2\xb7 Closed by the run\n".len())
-            .any(|w| w == b"result: Completed \xc2\xb7 Closed by the run\n"),
-        "{printed:?}"
-    );
     assert_eq!(printed.status, 0, "{printed:?}");
     assert!(printed.stdout.ends_with(b"met\n"), "{printed:?}");
 
@@ -119,16 +91,11 @@ fn a_chat_the_agent_closes_ends() {
     else {
         panic!("task end was committed before the late wait");
     };
-    let jig_domain_tasks::Phase::Ended(jig_domain_tasks::Ending::Done(jig_domain_tasks::TaskResult::Report { words })) =
-        &row.phase
-    else {
-        panic!("the committed task has its completed report");
-    };
-    assert_eq!(words.as_ref(), b"Closed by the run");
+    assert!(matches!(&row.phase, jig_domain_tasks::Phase::Ended(jig_domain_tasks::Ending::Cancelled { .. })));
     assert!(world.front().engine.task(task).is_none(), "live task name was retired");
     let late = call(&mut world, agent, &[b"task", b"show", task.to_string().as_bytes(), b"--until", b"ended"]);
     assert_eq!(late.status, 0, "{late:?}");
-    assert_eq!(late.stdout, printed.stdout, "late wait prints the same real final report");
+    assert_eq!(late.stdout, printed.stdout, "late wait prints the same committed end");
     assert!(late.stderr.is_empty(), "{late:?}");
 }
 

@@ -800,6 +800,38 @@ impl World {
         });
     }
 
+    /// A scripted executor takes a timer so its later park can await input.
+    pub fn await_timer(&mut self, task: u64) {
+        const SUBSCRIPTION: u64 = u64::MAX;
+        if self
+            .domain
+            .core()
+            .tasks
+            .task(task)
+            .expect("timer task")
+            .subscriptions
+            .iter()
+            .any(|item| item.number == SUBSCRIPTION)
+        {
+            return;
+        }
+        self.send(root::Event::Core(core::Event::Tasks(tasks::Event::Subscribe {
+            reply_to: ReplyTo::new(Token::new(SUBSCRIPTION)),
+            task,
+            subscription: tasks::Subscription {
+                number: SUBSCRIPTION,
+                kind: tasks::SubscriptionKind::Timer { at: Wall::from_nanos(u64::MAX), period: None },
+            },
+        })));
+    }
+
+    /// Park a scripted executor that is waiting for a later input.
+    pub fn park_for_message(&mut self, cumulative: u64) {
+        let task = self.assigned.as_ref().expect("assigned chat").task;
+        self.await_timer(task);
+        self.end(tasks::End::Parked, cumulative);
+    }
+
     pub fn end(&mut self, end: tasks::End, cumulative: u64) {
         let event = self.end_event(end, cumulative);
         self.send(event);

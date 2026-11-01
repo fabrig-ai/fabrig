@@ -970,3 +970,22 @@ fn a_chats_plain_change_request_calls_change() {
     report(&mut world, &chat, CHAT_TURNS, b"CSV export landed");
     assert!(record(&world, chat.task).last_reply > 0);
 }
+
+#[test]
+fn a_goal_parking_after_both_changes_land_is_not_left_idle() {
+    let (mut world, chat) = stock_world();
+    let task = goal(&mut world, &chat, false);
+    answer(&mut world, &chat, CHAT_TURNS, tasks::End::Parked);
+    let work = admitted(&world, task);
+    agree_plan(&mut world, chat.task, &work);
+    let work = admitted(&world, task);
+    let (first, _) = land_change(&mut world, &work);
+    let work = admitted(&world, task);
+    let (second, _) = land_change(&mut world, &work);
+    assert!(landed(&world, first));
+    assert!(landed(&world, second));
+    let work = admitted(&world, task);
+    answer(&mut world, &work, WORK_TURNS, tasks::End::Parked);
+    assert_ne!(record(&world, task).phase, tasks::Phase::Active(tasks::Active::Idle));
+    assert!(record(&world, task).inbox.iter().any(|word| word.kind == tasks::MessageKind::NothingAwaited));
+}

@@ -645,7 +645,7 @@ fn a_source_switch_keeps_the_account_and_committed_conversation() {
         [jig_domain_authority::AccountBinding { provider: PROVIDER, account, source: first }]
     );
     world.turn(1, 1, None, b"committed plain and opaque conversation");
-    world.end(jig_domain_tasks::End::Parked, 1);
+    world.park_for_message(1);
     carry(
         &mut world,
         41,

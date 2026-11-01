@@ -8,7 +8,7 @@ const BODY: &[u8] = b"old window";
 
 /// Restore a parked task with an existing window, as an upgrade would.
 fn parked_window(closed: bool) -> (Driver, engine::Assignment) {
-    let (mut driver, first) = Driver::chat();
+    let (mut driver, first) = Driver::open_chat();
     driver.send(protocol::turn(CHANNEL, first.task, first.attempt, 1, 1, None, BODY));
     driver.settle();
     driver.answer(CHANNEL, first.task, first.attempt, 1, tasks::End::Parked, engine::Parts::none());

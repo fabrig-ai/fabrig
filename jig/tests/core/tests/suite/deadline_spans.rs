@@ -266,7 +266,7 @@ fn a_parked_delegate_past_its_wall_is_held_and_its_creator_told() {
     f::clock(&mut world, 10);
     let child = delegate(&mut world, creator, 1, child);
     assert_eq!(world.assigned.as_ref().expect("delegate running").task, child);
-    world.end(tasks::End::Parked, 0);
+    world.park_for_message(0);
     assert_eq!(live_row(&world, child).phase, tasks::Phase::Active(tasks::Active::Idle));
     let deadline = live_row(&world, child).authority.budget.deadline.expect("span wall");
     world.fire_due(Time::from_nanos(deadline.as_nanos()), deadline);

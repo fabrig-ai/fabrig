@@ -85,10 +85,13 @@ impl Shape {
     pub(crate) fn ready(&self) -> bool {
         !matches!(self, Self::Worker { engine: None, .. } | Self::Worker { started: false, .. })
     }
-    pub(crate) fn write(&self, path: &Path) {
+    pub(crate) fn write(&self, path: &Path, standing: bool) {
         use serde_json::json;
         let config = path.join("config");
         let data = path.join("data");
+        if standing {
+            fixtures::standing_chats(&data).expect("standing cluster chats");
+        }
         for name in ["config", "cache"] {
             std::fs::DirBuilder::new()
                 .mode(0o700)
