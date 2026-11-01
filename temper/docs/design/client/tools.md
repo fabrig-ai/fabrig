@@ -1084,16 +1084,17 @@ digest: task 7c1e09a2b44f0d13
 - **A tree** prints `tree:`, then its root and each row its window
   holds, a chip a line. The engine answers the tools' window within its
   own rows (jig's `client/domain/contract.md`, 7.2), so a tree larger
-  than either folds the rest, and its text says so on one line after
-  the rows: `cut: 3 more not shown (1 Waiting, 2 Running); read on
-  with: task list --project 1 --parent 41`, the folded tasks' count, then
-  each phase that has any, in a chip's words and jig's order of phases,
-  then the call that lists the root's delegates, the project's number
-  from the root's document. A tree's window opens at its start only
-  (jig's wire carries no cursor for it), so the rest is read as the
-  root's delegates, a page at a time by `--after`, and each one's tree
-  by `task show TASK --tree`. With nothing folded, no line. Under `--json`,
-  `more` and `folded` as the document carries them.
+  than either folds the rest. Its text prints one total line after the
+  rows: `cut: 3 more not shown (1 Waiting, 2 Running)`, the folded tasks'
+  count, then each phase that has any, in a chip's words and jig's order
+  of phases. Then one `read on with: task list --project 1 --parent 41`
+  line per distinct fold parent lists that parent's delegates, with the
+  project's number from the root's document. A tree's window opens at
+  its start only (jig's wire carries no cursor for it), so read on with
+  the folds' parents' delegates, a page at a time by `--after`, and each
+  one's tree by `task show TASK --tree`. With nothing folded, no cut or
+  read-on lines. Under `--json`, `more` and `folded` as the document
+  carries them.
 - **An activity page** cut before its first row (jig's
   `protocol/store.md`, 7.3) prints no rows and its `read on with:` call,
   never `no more`; under `--json`, `"cut":true` and the position to read
