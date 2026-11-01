@@ -31,8 +31,8 @@ impl Acted {
 pub(super) fn valid(limits: &Limits, act: &Act) -> Result<(), Refusal> {
     match act {
         // Refused until pd-close gives it a body.
-        Act::RemoveProject { .. } | Act::Cancel { .. } => return Err(Refusal::NotOffered),
-        Act::Close { task, reason, .. } => {
+        Act::RemoveProject { .. } => return Err(Refusal::NotOffered),
+        Act::Close { task, reason, .. } | Act::Cancel { task, reason, .. } => {
             if *task == 0 {
                 return Err(Refusal::Unknown);
             }

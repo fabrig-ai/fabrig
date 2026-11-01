@@ -30,6 +30,9 @@ fn grants() -> Box<[ActGrant]> {
 fn close() -> Act {
     Act::Close { project: PROJECT, task: TASK, grace: None, reason: b"finished".as_slice().into() }
 }
+fn cancel() -> Act {
+    Act::Cancel { project: PROJECT, task: TASK, grace: None, reason: b"finished".as_slice().into() }
+}
 fn world() -> World {
     World::configured(Settings::calm(950), owners(), grants())
 }
@@ -221,40 +224,35 @@ fn acts_share_the_answer_room_and_retention() {
 #[test]
 fn out_of_bounds_acts_are_unsaved_with_the_partys_refusal() {
     let mut world = world();
+    let too_long: Box<[u8]> =
+        vec![0; usize::try_from(jig_people_world::LIMITS.words + 1).expect("bounded deployment act fixture")].into();
     for (act, why) in [
         (Act::Close { project: PROJECT, task: 0, grace: None, reason: Box::new([]) }, Refusal::Unknown),
+        (Act::Cancel { project: PROJECT, task: 0, grace: None, reason: Box::new([]) }, Refusal::Unknown),
         (
-            Act::Close {
-                project: PROJECT,
-                task: TASK,
-                grace: None,
-                reason: vec![
-                    0;
-                    usize::try_from(jig_people_world::LIMITS.words + 1)
-                        .expect("bounded deployment act fixture")
-                ]
-                .into(),
-            },
+            Act::Close { project: PROJECT, task: TASK, grace: None, reason: too_long.clone() },
+            Refusal::Limit { which: LimitKind::Words },
+        ),
+        (
+            Act::Cancel { project: PROJECT, task: TASK, grace: None, reason: too_long },
             Refusal::Limit { which: LimitKind::Words },
         ),
     ] {
         let call = world.act(CONNECTOR, KEY, act);
         answer(&world, call, Outcome::Refused(why));
     }
-    let accepted = world.act(
-        CONNECTOR,
-        KEY,
-        Act::Close {
-            project: PROJECT,
-            task: TASK,
-            grace: Some(Duration::from_secs(9999)),
-            reason: vec![0; usize::try_from(jig_people_world::LIMITS.words).expect("bounded deployment act fixture")]
-                .into(),
-        },
-    );
-    world.decide_acts(&DECIDED);
-    world.commit_all();
-    answer(&world, accepted, DECIDED);
+    let reason: Box<[u8]> =
+        vec![0; usize::try_from(jig_people_world::LIMITS.words).expect("bounded deployment act fixture")].into();
+    let at_bound = [
+        Act::Close { project: PROJECT, task: TASK, grace: Some(Duration::from_secs(9999)), reason: reason.clone() },
+        Act::Cancel { project: PROJECT, task: TASK, grace: Some(Duration::from_secs(9999)), reason },
+    ];
+    for (connector, act) in [CONNECTOR, OTHER].into_iter().zip(at_bound) {
+        let accepted = world.act(connector, KEY, act);
+        world.decide_acts(&DECIDED);
+        world.commit_all();
+        answer(&world, accepted, DECIDED);
+    }
 }
 
 #[test]
@@ -296,15 +294,10 @@ fn full_party_answers_name_the_oldest_deployment_answer_expiry() {
 }
 
 #[test]
-fn remove_project_and_cancel_are_not_offered_and_unsaved() {
+fn remove_project_is_not_offered_and_unsaved() {
     let mut world = world();
-    for act in [
-        Act::RemoveProject { project: PROJECT },
-        Act::Cancel { project: PROJECT, task: TASK, grace: None, reason: b"finished".as_slice().into() },
-    ] {
-        let call = world.act(CONNECTOR, KEY, act);
-        answer(&world, call, Outcome::Refused(Refusal::NotOffered));
-    }
+    let call = world.act(CONNECTOR, KEY, Act::RemoveProject { project: PROJECT });
+    answer(&world, call, Outcome::Refused(Refusal::NotOffered));
     world.commit_all();
     assert!(world.acts.is_empty());
     assert!(
@@ -318,6 +311,26 @@ fn remove_project_and_cancel_are_not_offered_and_unsaved() {
     world.decide_acts(&DECIDED);
     world.commit_all();
     answer(&world, call, DECIDED);
+    world.assert_settled();
+}
+
+#[test]
+fn a_cancel_is_routed_and_its_answer_saved() {
+    let mut world = world();
+    let call = world.act(CONNECTOR, KEY, cancel());
+    assert_eq!(world.acts.len(), 1);
+    world.decide_acts(&DECIDED);
+    assert_eq!(world.reply(call), None);
+    world.commit_all();
+    answer(&world, call, DECIDED);
+    assert!(matches!(
+        world.records().get(&jig_domain_people::Key::Acted(jig_domain_people::ActKey { connector: CONNECTOR, key: KEY })),
+        Some(jig_domain_people::Stored::Acted { act, outcome: DECIDED, .. }) if *act == cancel()
+    ));
+    world.reconfigure(Box::new([]), Box::new([]));
+    let replay = world.act(CONNECTOR, KEY, cancel());
+    answer(&world, replay, DECIDED);
+    assert_eq!(world.stats().routes, 1);
     world.assert_settled();
 }
 
