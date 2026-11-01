@@ -2,6 +2,7 @@
 use crate::ChatsFilter;
 use crate::{Action, Address, Domain, Event, Fact, Limits, Place, Request, forge, owner::Owner};
 use skein_lib::{Env, Queue};
+#[expect(clippy::manual_map, reason = "step code reads the retained request without closures")]
 pub(crate) fn forge(root: &mut Domain, env: &Env<Limits>, event: forge::Event, out: &mut Queue<Request>) {
     // Any first-repository adoption advances the welcome, whichever flow asked for it
     // (client/README.md, The welcome). Standalone ConnectForge keeps its Ready card.
@@ -24,7 +25,16 @@ pub(crate) fn forge(root: &mut Domain, env: &Env<Limits>, event: forge::Event, o
         }
     }
     let mut child = Queue::uncapped();
+    let before_make = match root.forge.making() {
+        Some(making) => Some(making.request),
+        None => None,
+    };
     forge::step(&mut root.forge, &Env { now: env.now, wall: env.wall, limits: env.limits.forge }, event, &mut child);
+    if let Some(making) = root.forge.making()
+        && Some(making.request) != before_make
+    {
+        root.forge.making_address = Some(root.pages.address().clone());
+    }
     route_forge(root, env, &mut child, out);
     if adopted_in_welcome {
         out.push(Request::Show {
@@ -179,6 +189,7 @@ pub(crate) fn route_forge(
 ) {
     for _ in 0..child.len() {
         match child.pop().expect("counted forge output") {
+            forge::Request::Replace { address } => out.push(Request::Show { address, replace: true }),
             forge::Request::PanelEnded { subject } => refresh_panel(root, env, subject, true, out),
             forge::Request::Client { asked } => client(root, env, asked, out),
             forge::Request::Leave { to } => out.push(Request::Leave { to, replace: false }),
@@ -348,10 +359,12 @@ fn playground(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
 
 fn forge_forges(root: &mut Domain, env: &Env<Limits>, told: &jig_client::Told, out: &mut Queue<Request>) -> bool {
     let mut child = Queue::uncapped();
-    let consumed = forge::picker::told(&mut root.forge, &root.client, told, env.limits.forge)
-        || forge::admin::told(&mut root.forge, &root.client, told, env.limits.forge, &mut child)
-        || forge::github::told(&mut root.forge, &root.client, told, env.limits.forge, &mut child)
-        || forge::forges::told(&mut root.forge, &root.client, told, env.limits.forge, &mut child);
+    let consumed =
+        forge::making::told(&mut root.forge, &root.client, told, env.limits.forge, root.pages.address(), &mut child)
+            || forge::picker::told(&mut root.forge, &root.client, told, env.limits.forge)
+            || forge::admin::told(&mut root.forge, &root.client, told, env.limits.forge, &mut child)
+            || forge::github::told(&mut root.forge, &root.client, told, env.limits.forge, &mut child)
+            || forge::forges::told(&mut root.forge, &root.client, told, env.limits.forge, &mut child);
     if consumed
         && let jig_client::Told::Answered { .. } = told
         && let Some(last) = root.forge.set_up()

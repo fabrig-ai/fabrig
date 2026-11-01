@@ -35,6 +35,11 @@ pub enum Broken {
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Act {
+    MakeAndSetUp,
+    MakeAndSetUpAtOnce,
+    MakeAndConnectGitHub { back: Box<[u8]> },
+    ElsewhereWrite { field: super::making::Field, text: Box<[u8]> },
+    MakeElsewhere,
     Go { address: Address },
     Write { field: Text, text: Box<[u8]>, typed: Typed },
     Choose { role: Role },

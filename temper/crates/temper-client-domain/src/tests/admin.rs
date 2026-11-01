@@ -79,11 +79,28 @@ fn write(root: &mut crate::Domain, field: Field, bytes: &[u8]) {
 }
 #[test]
 fn only_the_configured_admin_form_has_a_card() {
-    for (admin, expected) in [(false, &[Choice::Elsewhere][..]), (true, &[Choice::Forge(FORGE), Choice::Elsewhere][..])]
-    {
+    for (admin, expected) in [
+        (
+            false,
+            &[
+                forge::connect::Card::GitHub { forge: None },
+                forge::connect::Card::Here { forge: None },
+                forge::connect::Card::Elsewhere,
+            ][..],
+        ),
+        (
+            true,
+            &[
+                forge::connect::Card::GitHub { forge: None },
+                forge::connect::Card::Here { forge: None },
+                forge::connect::Card::Admin { forge: FORGE },
+                forge::connect::Card::Elsewhere,
+            ][..],
+        ),
+    ] {
         let (mut root, watch) = opened();
         deliver(&mut root, watch, row(admin, w::Connection::NotConnected, None, None));
-        assert_eq!(forge::connect::choices(root.forges(), None).as_slice(), expected);
+        assert_eq!(forge::connect::cards(root.forges(), None).as_slice(), expected);
     }
 }
 #[test]

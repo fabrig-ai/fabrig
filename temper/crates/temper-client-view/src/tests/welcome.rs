@@ -1197,3 +1197,23 @@ fn welcome_forgejo_card_runs_under_the_box_and_links_to_details_elsewhere() {
         );
     }
 }
+
+#[test]
+fn the_welcomes_forge_step_with_no_rows_makes_on_run_here() {
+    let root = f::forge_root(Address::Welcome { step: Step::Forge { forge: None } }, skein_lib::List::with_capacity(0));
+    let mut view = f::page_view(&root);
+    forge::words_in_order(
+        view.tree(),
+        &[
+            "GitHub",
+            "Connect GitHub",
+            "Forgejo",
+            "Here · about a minute",
+            "Run on this machine",
+            "Or connect your deployment",
+        ],
+    );
+    let id = node(view.tree(), Role::Button, "Run on this machine");
+    assert_eq!(crate::act(&mut view, id, Act::Press), Some(d::Action::Forge(d::forge::Act::MakeAndSetUpAtOnce)));
+    assert!(f::find(view.tree(), Role::Heading { level: 2 }, b"A Forgejo elsewhere").is_none());
+}

@@ -5,6 +5,11 @@ use skein_ui::{Act, Binding};
 use temper_client_domain::{Action, forge};
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Meaning {
+    MakeAndSetUp,
+    MakeAndSetUpAtOnce,
+    MakeAndConnectGitHub { back: temper_client_domain::Address },
+    ElsewhereField(forge::making::Field),
+    MakeElsewhere,
     Field(forge::Text),
     Role(forge::Role),
     Home,
@@ -60,6 +65,9 @@ pub fn decode(bindings: &Bindings, token: Token, act: Act) -> Option<Action> {
             continue;
         }
         return match (entry.meaning.clone(), act) {
+            (Meaning::ElsewhereField(field), Act::Input { value }) => {
+                Some(Action::Forge(forge::Act::ElsewhereWrite { field, text: value }))
+            }
             (Meaning::PickerName(forge), Act::Input { value }) => {
                 Some(Action::Forge(forge::Act::Picker { forge, act: forge::picker::Act::Write(value) }))
             }
@@ -81,6 +89,12 @@ pub fn decode(bindings: &Bindings, token: Token, act: Act) -> Option<Action> {
                 Some(Action::Forge(forge::Act::Write { field, text: value, typed }))
             }
             (meaning, Act::Press | Act::Toggle) => Some(match meaning {
+                Meaning::MakeAndSetUp => Action::Forge(forge::Act::MakeAndSetUp),
+                Meaning::MakeAndSetUpAtOnce => Action::Forge(forge::Act::MakeAndSetUpAtOnce),
+                Meaning::MakeAndConnectGitHub { back } => Action::Forge(forge::Act::MakeAndConnectGitHub {
+                    back: temper_client_domain::address::print(&back),
+                }),
+                Meaning::MakeElsewhere => Action::Forge(forge::Act::MakeElsewhere),
                 Meaning::Role(role) => Action::Forge(forge::Act::Choose { role }),
                 Meaning::Home => Action::Forge(forge::Act::Home),
                 Meaning::Ci => Action::Forge(forge::Act::Ci),
@@ -98,7 +112,8 @@ pub fn decode(bindings: &Bindings, token: Token, act: Act) -> Option<Action> {
                 Meaning::Adopt => Action::Forge(forge::Act::Adopt),
                 Meaning::Picker { forge, act } => Action::Forge(forge::Act::Picker { forge, act }),
                 Meaning::StartIn(forge) => Action::Forge(forge::Act::StartIn { forge }),
-                Meaning::PickerName(_)
+                Meaning::ElsewhereField(_)
+                | Meaning::PickerName(_)
                 | Meaning::AdminField(_)
                 | Meaning::AdminToken
                 | Meaning::AppId

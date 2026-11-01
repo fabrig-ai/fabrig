@@ -103,8 +103,8 @@ fn choose_draws_a_card_per_choice_in_order() {
             "Here · about a minute",
             "Choose",
             "A Forgejo elsewhere",
-            "Your own Forgejo server. temper connects as its admin, or with its bot’s tokens.",
-            "Needs a change to temper’s configuration and a restart",
+            "Your own Forgejo server. temper connects as its site admin, makes its bot and your first repository.",
+            "Its admin's token · a few minutes",
             "Show how",
         ],
     );
@@ -226,27 +226,38 @@ fn forgejo_here_without_the_box_lists_its_four_commands() {
     );
 }
 #[test]
-fn elsewhere_details_give_the_next_unused_number() {
-    let view = f::page_view(&root(Some(Choice::Elsewhere), w::Connection::NotSetUp, w::Offer::Offered));
+fn elsewhere_details_draw_the_address_form_and_send_its_make() {
+    let mut root = f::forge_root(Address::ConnectForge { forge: Some(Choice::Elsewhere) }, List::with_capacity(0));
+    let view = f::page_view(&root);
     words_in_order(
         view.tree(),
         &[
             "A Forgejo elsewhere",
-            "Add its address to the configuration and restart temper box. Then connect as its admin, and temper makes and keeps its bot, or paste its bot’s tokens.",
-            "application.forges",
-            "\"number\": 4",
-            "\"kind\": \"forgejo\"",
-            "\"host\": \"forge.example\"",
-            "\"log_origins\": null",
-            "application.identities",
-            "\"number\": 4, \"forge\": 4",
-            "application.setup",
-            "\"forge\": 4",
-            "\"mode\": \"managed\"",
-            "Without it, temper takes its bot’s tokens only.",
-            "Restart temper box, then connect it from this page.",
+            "Your own Forgejo server. temper connects as its site admin, makes its bot and your first repository.",
+            "API address",
+            "HOST:PORT, where temper reaches its API",
+            "Git address",
+            "The URL git clones from",
+            "Web address",
+            "Its URL in a browser, when not the git address",
+            "Add this Forgejo",
         ],
     );
+    for (name, field) in [
+        (b"API address".as_slice(), d::forge::making::Field::Api),
+        (b"Git address", d::forge::making::Field::Git),
+        (b"Web address", d::forge::making::Field::Web),
+    ] {
+        let mut view = f::page_view(&root);
+        let id = node(view.tree(), Role::TextField, name);
+        let action = crate::act(&mut view, id, Act::Input { value: b"address".as_slice().into() }).unwrap();
+        assert_eq!(
+            action,
+            d::Action::Forge(d::forge::Act::ElsewhereWrite { field, text: b"address".as_slice().into() })
+        );
+        f::root_event(&mut root, d::Event::Act { action });
+    }
+    assert_eq!(press(&root, Role::Button, b"Add this Forgejo"), d::Action::Forge(d::forge::Act::MakeElsewhere));
 }
 #[test]
 fn setting_up_marks_the_rows_step() {
@@ -2434,4 +2445,167 @@ fn welcome_not_under_the_box_links_to_details_with_all_four_commands() {
         ],
     );
     assert!(f::find(view.tree(), Role::Button, b"Run on this machine").is_none());
+}
+
+#[test]
+fn choose_with_no_rows_draws_github_here_and_elsewhere_in_order() {
+    let root = f::forge_root(Address::ConnectForge { forge: None }, List::with_capacity(0));
+    let view = f::page_view(&root);
+    words_in_order(
+        view.tree(),
+        &["GitHub", "Connect GitHub", "Forgejo on this machine", "Choose", "A Forgejo elsewhere", "Show how"],
+    );
+    assert_eq!(
+        press(&root, Role::Button, b"Connect GitHub"),
+        d::Action::Forge(d::forge::Act::MakeAndConnectGitHub {
+            back: b"/forges/connect?forge=github".as_slice().into()
+        })
+    );
+    assert_eq!(
+        press(&root, Role::Link, b"Choose"),
+        d::Action::Pages(pages::Act::Go { address: Address::ConnectForge { forge: Some(Choice::Here) } })
+    );
+}
+#[test]
+fn here_details_with_no_record_set_up_by_making() {
+    let root = f::forge_root(Address::ConnectForge { forge: Some(Choice::Here) }, List::with_capacity(0));
+    let view = f::page_view(&root);
+    for name in [b"Organization".as_slice(), b"Repository", b"Into a new project, named"] {
+        node(view.tree(), Role::TextField, name);
+    }
+    assert_eq!(press(&root, Role::Button, b"Set up"), d::Action::Forge(d::forge::Act::MakeAndSetUp));
+}
+#[test]
+fn a_targeted_card_draws_as_before() {
+    let root = root(None, w::Connection::NotSetUp, w::Offer::Offered);
+    assert_eq!(
+        press(&root, Role::Button, b"Connect GitHub"),
+        d::Action::Forge(d::forge::Act::ConnectManifest {
+            forge: GITHUB,
+            back: b"/forges/connect?forge=2".as_slice().into()
+        })
+    );
+    assert_eq!(
+        press(&root, Role::Link, b"Choose"),
+        d::Action::Pages(pages::Act::Go { address: Address::ConnectForge { forge: Some(Choice::Forge(HERE)) } })
+    );
+    choose_draws_a_card_per_choice_in_order();
+}
+#[test]
+fn a_make_refusal_shows_under_its_control() {
+    use jig_client::{Answered, Down, Family};
+    use skein_lib::{Env, Queue, RequestEnvelope, Time};
+    use temper_client_protocol_wire as wire;
+    for (address, action, name, outcome, line) in [
+        (
+            Address::ConnectForge { forge: Some(Choice::Here) },
+            d::forge::Act::MakeAndSetUp,
+            b"Set up".as_slice(),
+            w::Outcome::Full,
+            b"This deployment keeps as many forges as it may: remove one first.".as_slice(),
+        ),
+        (
+            Address::Welcome { step: Step::Forge { forge: None } },
+            d::forge::Act::MakeAndSetUpAtOnce,
+            b"Run on this machine",
+            w::Outcome::NotOffered,
+            b"Not offered here: this deployment runs no Forgejo of temper's.",
+        ),
+        (
+            Address::ConnectForge { forge: None },
+            d::forge::Act::MakeAndConnectGitHub { back: b"/forges/connect?forge=github".as_slice().into() },
+            b"Connect GitHub",
+            w::Outcome::NotOffered,
+            b"Not offered on this deployment.",
+        ),
+        (
+            Address::ConnectForge { forge: Some(Choice::Elsewhere) },
+            d::forge::Act::MakeElsewhere,
+            b"Add this Forgejo",
+            w::Outcome::Full,
+            b"This deployment keeps as many forges as it may: remove one first.",
+        ),
+        (
+            Address::ConnectForge { forge: Some(Choice::Elsewhere) },
+            d::forge::Act::MakeElsewhere,
+            b"Add this Forgejo",
+            w::Outcome::NotOffered,
+            b"Not offered on this deployment.",
+        ),
+    ] {
+        let mut root = f::forge_root(address, List::with_capacity(0));
+        if action == d::forge::Act::MakeElsewhere {
+            for field in [d::forge::making::Field::Api, d::forge::making::Field::Git] {
+                f::root_event(
+                    &mut root,
+                    d::Event::Act {
+                        action: d::Action::Forge(d::forge::Act::ElsewhereWrite {
+                            field,
+                            text: b"address".as_slice().into(),
+                        }),
+                    },
+                );
+            }
+        }
+        let limits = f::domain_limits();
+        let env = Env { now: Time::ZERO, wall: f::NOW, limits };
+        let mut out = Queue::uncapped();
+        d::step(&mut root, &env, d::Event::Act { action: d::Action::Forge(action) }, &mut out);
+        let mut attempt = None;
+        while let Some(request) = out.pop() {
+            if let d::Request::Client {
+                request: jig_client::Request::Down { down: Down::Send { attempt: sent, .. } },
+            } = request
+            {
+                attempt = Some(sent);
+            }
+        }
+        let view = f::page_view(&root);
+        let button = node(view.tree(), Role::Button, name);
+        assert!(
+            view.tree().nodes().iter().find(|n| n.id == button).unwrap().states.as_slice().contains(&State::Disabled)
+        );
+        let record = Family {
+            family: wire::FORGE,
+            version: wire::CLIENT_VERSION,
+            bytes: wire::answer(&w::Answer::new(&w::CEILINGS, w::AnswerParts { outcome }).unwrap()),
+        };
+        d::step(
+            &mut root,
+            &env,
+            d::Event::Client {
+                event: jig_client::Event::Up {
+                    up: jig_client::Up::Answer {
+                        attempt: attempt.unwrap(),
+                        envelope: RequestEnvelope::Final,
+                        answer: Some(Answered::Family(record)),
+                        why: None,
+                    },
+                },
+            },
+            &mut out,
+        );
+        let view = f::page_view(&root);
+        let button = node(view.tree(), Role::Button, name);
+        let alert = node(view.tree(), Role::Alert, line);
+        let nodes = view.tree().nodes();
+        assert!(nodes.iter().position(|n| n.id == button).unwrap() < nodes.iter().position(|n| n.id == alert).unwrap());
+        assert!(!nodes.iter().find(|n| n.id == button).unwrap().states.as_slice().contains(&State::Disabled));
+    }
+}
+
+#[test]
+fn a_kind_address_with_a_target_shows_that_forges_details() {
+    let root = root(Some(Choice::GitHub), w::Connection::NotSetUp, w::Offer::Offered);
+    let view = f::browser_page_view(&root);
+    node(view.tree(), Role::Heading { level: 2 }, b"An App of your own");
+    assert!(f::find(view.tree(), Role::Item, b"Details").is_none());
+    let root = f::forge_root(
+        Address::ConnectForge { forge: Some(Choice::Here) },
+        rows(w::Connection::NotSetUp, w::Offer::Offered),
+    );
+    assert_eq!(
+        press(&root, Role::Button, b"Set up a Forgejo here"),
+        d::Action::Forge(d::forge::Act::SetUp { forge: HERE })
+    );
 }

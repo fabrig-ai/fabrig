@@ -30,8 +30,10 @@ pub fn row<'a>(number: u16, rows: &'a State, demo: Option<&Demo>) -> Option<&'a 
 }
 #[must_use]
 pub fn step(choice: Option<Choice>, rows: &State, demo: Option<&Demo>) -> Shown {
+    let choice = target(choice, rows, demo);
     match choice {
-        None => Shown::Choose,
+        Some(Choice::Here) => Shown::Details(Choice::Here),
+        Some(Choice::GitHub) | None => Shown::Choose,
         Some(Choice::Elsewhere) => Shown::Details(Choice::Elsewhere),
         Some(Choice::Forge(number)) => {
             let Some(row) = row(number, rows, demo) else { return Shown::Choose };
@@ -76,6 +78,7 @@ pub fn at_once(row: &Row) -> bool {
 }
 #[must_use]
 pub fn welcome_step(choice: Option<Choice>, rows: &State, demo: Option<&Demo>) -> Shown {
+    let choice = target(choice, rows, demo);
     if let Some(Choice::Forge(number)) = choice
         && let Some(row) = row(number, rows, demo)
         && at_once(row)
@@ -117,25 +120,77 @@ fn offered(row: &Row) -> bool {
         }
     }
 }
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Card {
+    GitHub { forge: Option<u16> },
+    Here { forge: Option<u16> },
+    Admin { forge: u16 },
+    Elsewhere,
+}
+fn visible(row: &Row, demo: Option<&Demo>) -> bool {
+    if row.mode == Mode::Fake {
+        return false;
+    }
+    if let Some(demo) = demo
+        && demo.forge == row.number
+    {
+        return false;
+    }
+    true
+}
+fn unbegun(row: &Row) -> bool {
+    row.first.is_none() && row.app.is_none() && row.installations.is_empty() && row.repositories.is_empty()
+}
 #[must_use]
-pub fn choices(rows: &State, demo: Option<&Demo>) -> List<Choice> {
-    let mut choices = List::with_capacity(temper_client_protocol_wire::FORGES.checked_add(1).expect("choices fit"));
+pub fn cards(rows: &State, demo: Option<&Demo>) -> List<Card> {
+    let mut cards = List::with_capacity(temper_client_protocol_wire::FORGES.checked_add(3).expect("cards fit"));
+    let mut github_seen = false;
+    let mut here_seen = false;
+    let mut github = None;
+    let mut here = None;
     if let State::Rows(rows) = rows {
-        for kind in [Kind::GitHub, Kind::Forgejo] {
-            // The forges decoder admits rows in increasing number order.
-            for row in rows {
-                let demo = match demo {
-                    Some(demo) => row.number == demo.forge,
-                    None => false,
-                };
-                if row.kind == kind && row.mode != Mode::Fake && !demo && offered(row) {
-                    choices.push(Choice::Forge(row.number)).expect("bounded rows");
+        for row in rows {
+            if !visible(row, demo) {
+                continue;
+            }
+            if row.kind == Kind::GitHub {
+                github_seen = true;
+                if github.is_none() && offered(row) && unbegun(row) {
+                    github = Some(row.number);
+                }
+            } else if row.mode == Mode::Owned {
+                here_seen = true;
+                if here.is_none() && offered(row) && unbegun(row) {
+                    here = Some(row.number);
                 }
             }
         }
     }
-    choices.push(Choice::Elsewhere).expect("one extra choice");
-    choices
+    if github.is_some() || !github_seen {
+        cards.push(Card::GitHub { forge: github }).expect("kind card fits");
+    }
+    if here.is_some() || !here_seen {
+        cards.push(Card::Here { forge: here }).expect("kind card fits");
+    }
+    if let State::Rows(rows) = rows {
+        for row in rows {
+            if row.kind == Kind::Forgejo && visible(row, demo) && row.admin && offered(row) {
+                cards.push(Card::Admin { forge: row.number }).expect("bounded rows");
+            }
+        }
+    }
+    cards.push(Card::Elsewhere).expect("extra card fits");
+    cards
+}
+fn target(choice: Option<Choice>, rows: &State, demo: Option<&Demo>) -> Option<Choice> {
+    for card in &cards(rows, demo) {
+        match (*card, choice) {
+            (Card::GitHub { forge: Some(number) }, Some(Choice::GitHub))
+            | (Card::Here { forge: Some(number) }, Some(Choice::Here)) => return Some(Choice::Forge(number)),
+            _ => {}
+        }
+    }
+    choice
 }
 
 /// The welcome follows the person's forge once its setup has started.
@@ -213,16 +268,6 @@ pub fn underway_forge<'a>(rows: &'a State, demo: Option<&Demo>) -> Option<&'a Ro
         return Some(row);
     }
     None
-}
-#[must_use]
-pub fn next_number(rows: &State) -> u32 {
-    let mut largest = 0;
-    if let State::Rows(rows) = rows {
-        for row in rows {
-            largest = largest.max(u32::from(row.number));
-        }
-    }
-    largest.checked_add(1).expect("u16 forge numbers fit u32")
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Name {

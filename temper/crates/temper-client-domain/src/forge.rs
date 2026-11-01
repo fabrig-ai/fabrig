@@ -10,6 +10,7 @@ pub mod forges;
 mod form;
 pub mod github;
 pub mod listed;
+pub mod making;
 pub(crate) mod me;
 pub mod panel;
 pub mod picker;
@@ -40,6 +41,7 @@ pub enum Event {
 }
 #[derive(Debug)]
 pub enum Request {
+    Replace { address: crate::Address },
     PanelEnded { subject: panel::Subject },
     Show { address: Address },
     Leave { to: Box<[u8]> },
@@ -53,6 +55,9 @@ pub struct Side {
     forges_open: bool,
     set_up: Option<Box<forges::SetUp>>,
     setup_form: forges::Draft,
+    making: Option<making::Making>,
+    pub(crate) making_address: Option<crate::Address>,
+    elsewhere_form: making::Draft,
     pickers: skein_lib::List<picker::Picker>,
     admin_form: admin::Draft,
     admin: Option<admin::Pending>,
@@ -78,6 +83,9 @@ impl Side {
             forges: forges::State::Unknown,
             forges_open: false,
             set_up: None,
+            making: None,
+            making_address: None,
+            elsewhere_form: making::Draft::new(),
             setup_form: forges::Draft::new(),
             pickers: skein_lib::List::with_capacity(forges::ROWS),
             admin_form: admin::Draft::new(),
@@ -149,6 +157,14 @@ impl Side {
     #[must_use]
     pub const fn setup_form(&self) -> &forges::Draft {
         &self.setup_form
+    }
+    #[must_use]
+    pub const fn making(&self) -> Option<&making::Making> {
+        self.making.as_ref()
+    }
+    #[must_use]
+    pub const fn elsewhere_form(&self) -> &making::Draft {
+        &self.elsewhere_form
     }
     #[must_use]
     pub const fn admin_form(&self) -> &admin::Draft {
@@ -250,6 +266,13 @@ pub fn step(side: &mut Side, env: &Env<Limits>, event: Event, out: &mut Queue<Re
 }
 fn act_on(side: &mut Side, limits: Limits, act: Act, out: &mut Queue<Request>) {
     match act {
+        Act::MakeAndSetUp => making::send(side, limits, making::MakeChoice::Here, making::Then::SetUp, out),
+        Act::MakeAndSetUpAtOnce => making::send(side, limits, making::MakeChoice::Here, making::Then::SetUpAtOnce, out),
+        Act::MakeAndConnectGitHub { back } => {
+            making::send(side, limits, making::MakeChoice::GitHub, making::Then::ConnectManifest { back }, out);
+        }
+        Act::ElsewhereWrite { field, text } => making::write(side, limits, field, text),
+        Act::MakeElsewhere => making::elsewhere(side, limits, out),
         Act::Picker { forge, act } => picker::act(side, limits, forge, act, out),
         Act::Go { address } => out.push(Request::Show { address }),
         Act::AdminWrite { field, text } => admin::write(side, limits, field, text),
@@ -261,7 +284,11 @@ fn act_on(side: &mut Side, limits: Limits, act: Act, out: &mut Queue<Request>) {
         Act::StartDemo => demo::start(side, limits, out),
         Act::SetUp { forge } => forges::set_up(side, limits, forge, out),
         Act::SetUpAtOnce { forge } => forges::set_up_at_once(side, limits, forge, out),
-        Act::SetupWrite { field, text } => forges::write(side, limits, field, text),
+        Act::SetupWrite { field, text } => {
+            if !making::busy(side) {
+                forges::write(side, limits, field, text);
+            }
+        }
         Act::StartIn { forge } => forges::retry_start(side, limits, forge, out),
         Act::Adopt => {
             let Some(_party) = side.party else {
@@ -337,6 +364,12 @@ fn served(side: &mut Side, served: Served) {
         && set_up.progress.is_some()
     {
         set_up.progress = Some(skein_lib::RequestProgress::Parked);
+    }
+    if served == Served::OutOfDate
+        && let Some(making) = &mut side.making
+        && making.progress.is_some()
+    {
+        making.progress = Some(skein_lib::RequestProgress::Parked);
     }
     if let Some(draft) = &mut side.form {
         draft.served = side.served;

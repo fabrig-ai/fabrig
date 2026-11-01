@@ -326,6 +326,9 @@ pub(crate) fn configure(side: &mut super::Side, limits: super::Limits, out: &mut
         side.forges = State::Unknown;
         if side.link == Link::SignedOut {
             side.set_up = None;
+            side.making = None;
+            side.making_address = None;
+            side.elsewhere_form = super::making::Draft::new();
             side.pickers.clear();
             side.admin_form = super::admin::Draft::new();
             side.admin = None;
