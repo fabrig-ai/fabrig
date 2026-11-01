@@ -24,7 +24,7 @@ fn the_forges_page_says_its_words_and_folds_each_row() {
         view.tree(),
         &[
             "Forges",
-            "Your forges 1",
+            "Your forges 2",
             "Each forge temper is connected to, or setting up. Add one to bring its repositories to temper.",
             "+ Add a forge",
         ],
@@ -118,7 +118,7 @@ fn a_forge_row_opened_offers_its_action() {
 }
 #[test]
 fn no_forge_of_yours_yet_offers_connect_a_forge() {
-    let root = root(Address::Forges, w::Connection::NotSetUp);
+    let root = f::forge_root(Address::Forges, List::with_capacity(0));
     let view = f::page_view(&root);
     assert!(f::find(view.tree(), Role::Paragraph, b"No forge of yours yet.").is_some());
     for name in [b"+ Add a forge".as_slice(), b"Connect a forge"] {
@@ -615,4 +615,245 @@ fn a_pasted_app_hides_the_setup_strips_playground_before_installation_and_the_re
     let view = f::page_view(&root);
     assert!(f::find(view.tree(), Role::Region, b"Setup").is_some());
     assert!(f::find(view.tree(), Role::Link, b"Try the playground").is_none());
+}
+
+fn press_remove(root: &mut d::Domain, name: &[u8]) -> skein_lib::Queue<d::Request> {
+    let mut view = f::page_view(root);
+    let row = view
+        .tree()
+        .nodes()
+        .iter()
+        .position(|node| {
+            node.role == Role::Disclosure
+                && node.description.as_deref().is_some_and(|description| description.starts_with(b"forge 3 "))
+        })
+        .expect("target forge row");
+    let end = row.checked_add(usize::try_from(view.tree().nodes()[row].size).unwrap()).unwrap();
+    let node = view.tree().nodes()[row..end]
+        .iter()
+        .find(|node| node.role == Role::Button && node.name.as_deref() == Some(name))
+        .expect("owned forge control")
+        .id;
+    let action = crate::act(&mut view, node, Act::Press).expect("bound forge control");
+    let mut out = skein_lib::Queue::uncapped();
+    d::step(
+        root,
+        &skein_lib::Env { now: skein_lib::Time::ZERO, wall: skein_lib::Wall::EPOCH, limits: f::domain_limits() },
+        d::Event::Act { action },
+        &mut out,
+    );
+    out
+}
+fn removing(root: &mut d::Domain) -> skein_lib::Token {
+    press_remove(root, "Remove forge…".as_bytes());
+    let mut out = press_remove(root, b"Remove forge");
+    while let Some(request) = out.pop() {
+        if let d::Request::Client {
+            request: jig_client::Request::Down { down: jig_client::Down::Send { attempt, .. } },
+        } = request
+        {
+            return attempt;
+        }
+    }
+    panic!("removal sends its request")
+}
+fn remove_answer(root: &mut d::Domain, attempt: skein_lib::Token, answer: jig_client::Answered) {
+    f::root_event(
+        root,
+        d::Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Answer {
+                    attempt,
+                    envelope: skein_lib::RequestEnvelope::Final,
+                    answer: Some(answer),
+                    why: None,
+                },
+            },
+        },
+    );
+}
+fn outcome(outcome: w::Outcome) -> jig_client::Answered {
+    jig_client::Answered::Family(jig_client::Family {
+        family: wire::FORGE,
+        version: wire::CLIENT_VERSION,
+        bytes: wire::answer(&w::Answer::new(&w::CEILINGS, w::AnswerParts { outcome }).unwrap()),
+    })
+}
+#[test]
+fn a_record_nothing_begun_on_is_listed_with_its_connection() {
+    for (connection, words) in [(w::Connection::NotSetUp, "Not set up"), (w::Connection::NotConnected, "Not connected")]
+    {
+        let mut rows = List::with_capacity(1);
+        rows.push(cf::row(HERE, w::Kind::Forgejo, w::Mode::Owned, connection, w::Offer::Offered)).unwrap();
+        let root = f::forge_root(Address::Forges, rows);
+        let view = f::page_view(&root);
+        assert!(f::find(view.tree(), Role::Heading { level: 2 }, b"Your forges 1").is_some());
+        assert!(f::find(view.tree(), Role::Paragraph, b"No forge of yours yet.").is_none());
+        let row = view
+            .tree()
+            .nodes()
+            .iter()
+            .find(|n| n.role == Role::Disclosure && n.name.as_deref() == Some(b"Forgejo on this machine"))
+            .unwrap();
+        assert!(skein_lib::bytes::find(row.description.as_deref().unwrap(), words.as_bytes()).is_some());
+        assert_eq!(
+            action(&root, Role::Button, "Remove forge…".as_bytes()),
+            d::Action::Forge(d::forge::Act::AskRemove { forge: HERE })
+        );
+    }
+}
+#[test]
+fn an_opened_row_offers_remove_and_confirms_in_place() {
+    let mut root = root(Address::Forges, cf::connected());
+    assert!(press_remove(&mut root, "Remove forge…".as_bytes()).is_empty());
+    let view = f::page_view(&root);
+    let row = view
+        .tree()
+        .nodes()
+        .iter()
+        .find(|n| n.role == Role::Disclosure && n.name.as_deref() == Some(b"Forgejo on this machine"))
+        .unwrap();
+    assert!(row.states.as_slice().contains(&State::Expanded));
+    assert!(f::find(view.tree(), Role::Heading { level: 3 }, b"Remove forge 3?").is_some());
+    let controls = view
+        .tree()
+        .nodes()
+        .iter()
+        .position(|node| node.styles.as_slice().contains(&crate::look::TASK_ACTS))
+        .expect("danger button container");
+    let end = controls.checked_add(usize::try_from(view.tree().nodes()[controls].size).unwrap()).unwrap();
+    let button = view.tree().nodes()[controls..end]
+        .iter()
+        .find(|node| node.role == Role::Button && node.name.as_deref() == Some(b"Remove forge"))
+        .unwrap();
+    assert!(button.styles.as_slice().contains(&crate::look::TASK_DANGER));
+    assert_eq!(
+        action(&root, Role::Button, b"Remove forge"),
+        d::Action::Forge(d::forge::Act::RemoveForge { forge: HERE })
+    );
+    assert_eq!(action(&root, Role::Button, b"Keep it"), d::Action::Forge(d::forge::Act::KeepForge));
+    assert!(press_remove(&mut root, b"Keep it").is_empty());
+    assert!(f::find(f::page_view(&root).tree(), Role::Heading { level: 3 }, b"Remove forge 3?").is_none());
+}
+#[test]
+fn each_kind_says_what_goes_and_what_stays() {
+    const COMMON: &str = "temper forgets this forge: it stops working on it, cancels the changes open on its repositories, takes them out of their projects and erases its records and secrets. Chats that worked on it stay readable.";
+    const OWNED: &str = "Forgejo on this machine goes with it: temper stops it and deletes its directory, every repository on it with it. Its downloaded binaries stay, for a next set up.";
+    const MANAGED: &str = "On the forge, its bot and its webhooks stay: delete them there if you no longer want them.";
+    const GITHUB: &str = "On GitHub, temper's App stays yours: delete it in its settings.";
+    for (kind, mode, web, expected, url) in [
+        (w::Kind::Forgejo, w::Mode::Owned, None, OWNED, None),
+        (w::Kind::Forgejo, w::Mode::Managed, None, MANAGED, None),
+        (w::Kind::Forgejo, w::Mode::Connected, None, MANAGED, None),
+        (w::Kind::Github, w::Mode::Managed, None, GITHUB, Some("https://github.com/settings/apps")),
+        (
+            w::Kind::Github,
+            w::Mode::Connected,
+            Some("https://github.example/"),
+            GITHUB,
+            Some("https://github.example/settings/apps"),
+        ),
+    ] {
+        let mut row = cf::row(HERE, kind, mode, cf::connected(), w::Offer::NotOffered).into_parts();
+        row.web = web.map(|s| s.as_bytes().into());
+        let mut rows = List::with_capacity(1);
+        rows.push(w::ForgeRow::new(&w::CEILINGS, row).unwrap()).unwrap();
+        let mut root = f::forge_root(Address::Forges, rows);
+        press_remove(&mut root, "Remove forge…".as_bytes());
+        let view = f::page_view(&root);
+        for words in [COMMON, expected] {
+            assert!(f::find(view.tree(), Role::Paragraph, words.as_bytes()).is_some(), "{words}");
+        }
+        let link = f::find(view.tree(), Role::Link, "The App's settings on GitHub ↗".as_bytes());
+        assert_eq!(link.is_some(), url.is_some());
+        if let Some(url) = url {
+            assert_eq!(
+                view.tree().nodes().iter().find(|node| Some(node.id) == link).unwrap().external.as_deref(),
+                Some(url.as_bytes())
+            );
+        }
+    }
+}
+#[test]
+fn removing_shows_its_progress_then_the_row_goes() {
+    let (mut root, watch) = f::forge_root_watch(Address::Forges, cf::rows(cf::connected(), w::Offer::Offered));
+    let attempt = removing(&mut root);
+    let view = f::page_view(&root);
+    assert!(f::find(view.tree(), Role::Status, "Removing forge 3…".as_bytes()).is_some());
+    for name in [b"Remove forge".as_slice(), b"Keep it"] {
+        let button = f::find(view.tree(), Role::Button, name).unwrap();
+        assert!(
+            view.tree()
+                .nodes()
+                .iter()
+                .find(|node| node.id == button)
+                .unwrap()
+                .states
+                .as_slice()
+                .contains(&State::Disabled)
+        );
+    }
+    remove_answer(&mut root, attempt, outcome(w::Outcome::Removing));
+    assert!(
+        f::find(
+            f::page_view(&root).tree(),
+            Role::Status,
+            b"Removing forge 3: temper is ending its work and erasing its records."
+        )
+        .is_some()
+    );
+    f::root_event(
+        &mut root,
+        d::Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::FamilyDelivered {
+                    watch,
+                    record: jig_client::Family {
+                        family: wire::FORGE,
+                        version: wire::CLIENT_VERSION,
+                        bytes: wire::forges(
+                            &w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: List::with_capacity(0) }).unwrap(),
+                        ),
+                    },
+                },
+            },
+        },
+    );
+    let view = f::page_view(&root);
+    assert!(f::find(view.tree(), Role::Disclosure, b"Forgejo on this machine").is_none());
+    assert!(f::find(view.tree(), Role::Heading { level: 2 }, b"Your forges 0").is_some());
+    assert!(root.forge().removal().is_none());
+}
+#[test]
+fn a_refused_removal_says_why() {
+    for (answer, role, words) in [
+        (
+            outcome(w::Outcome::ConnectRefused(
+                w::ConnectRefused::new(&w::CEILINGS, w::ConnectRefusedParts { why: w::ForgeRefusal::NoSuchForge })
+                    .unwrap(),
+            )),
+            Role::Alert,
+            "This forge is gone already.",
+        ),
+        (outcome(w::Outcome::Playground), Role::Alert, "The playground's forge goes with the playground."),
+        (outcome(w::Outcome::Unknown), Role::Status, "The engine no longer knows this request."),
+        (
+            jig_client::Answered::Jig(jig_client::contract::Answer::Refused {
+                refusal: jig_client::contract::Refusal::NotOffered,
+                at: None,
+            }),
+            Role::Alert,
+            "This act is not offered",
+        ),
+    ] {
+        let mut root = root(Address::Forges, cf::connected());
+        let attempt = removing(&mut root);
+        remove_answer(&mut root, attempt, answer);
+        let view = f::page_view(&root);
+        assert!(
+            f::find(view.tree(), role, words.as_bytes()).is_some()
+                || skein_lib::bytes::find(&f::text(view.tree()), words.as_bytes()).is_some(),
+            "{words}"
+        );
+    }
 }

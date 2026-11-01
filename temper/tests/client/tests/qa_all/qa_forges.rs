@@ -717,7 +717,7 @@ fn connecting_and_connected_rows_select_their_flow_steps() {
 }
 
 #[test]
-fn forges_omit_unstarted_and_fake_rows_and_offer_add_link() {
+fn forges_list_unstarted_records_but_not_fake_rows_and_offer_add_link() {
     let mut world = world_for(FAKE);
     connection(&mut world, OWNED, forge::Connection::NotSetUp);
     connection(&mut world, FAKE, connected());
@@ -727,9 +727,9 @@ fn forges_omit_unstarted_and_fake_rows_and_offer_add_link() {
         client,
         vec![
             see(Role::Link, b"+ Add a forge"),
-            see(Role::Paragraph, b"No forge of yours yet."),
-            gone(Role::Disclosure, b"Forgejo on this machine"),
-            gone(Role::Disclosure, b"GitHub"),
+            gone(Role::Paragraph, b"No forge of yours yet."),
+            see(Role::Disclosure, b"Forgejo on this machine"),
+            see(Role::Disclosure, b"GitHub"),
             gone(Role::Disclosure, b"Playground forge"),
         ],
     );
