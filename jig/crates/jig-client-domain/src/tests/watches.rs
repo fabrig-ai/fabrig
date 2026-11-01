@@ -257,3 +257,27 @@ fn a_delivery_answers_a_closing_watch_without_reviving_its_handle() {
     assert!(c.downs().is_empty());
     assert!(c.told().is_empty());
 }
+
+#[test]
+fn a_full_stream_tells_its_caller_and_keeps_retrying_until_me_returns() {
+    for bound in [StreamBound::Component, StreamBound::Transport] {
+        let mut c = Client::started();
+        let full = StreamsFull { bound, size: 2 };
+        c.end(fixtures::ME_WATCH, contract::WatchEnd::Dropped);
+        c.told();
+        c.downs();
+        c.step(Event::Up { up: Up::StreamsFull { full } });
+        assert_eq!(c.domain.streams_full(), Some(full));
+        assert_eq!(c.told().as_ref(), &[Told::Link { link: Link::Offline }]);
+        c.at(next_deadline(&c.domain).unwrap());
+        assert_eq!(c.downs().len(), 1);
+        assert_eq!(c.domain.streams_full(), Some(full));
+        let name = c.name(Watchable::Jig(contract::Subject::Me));
+        let mut up = fixtures::me(fixtures::PARTY, Duration::from_secs(1));
+        let Up::Watched { watch, .. } = &mut up else { unreachable!("me delivery") };
+        *watch = name;
+        c.step(Event::Up { up });
+        assert_eq!(c.domain.link(), Link::Live);
+        assert_eq!(c.domain.streams_full(), None);
+    }
+}

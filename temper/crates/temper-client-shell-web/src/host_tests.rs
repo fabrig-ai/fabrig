@@ -508,3 +508,21 @@ fn validity_accepts_stock_limits_and_refuses_invalid_edges() {
     client.forge.field_bytes = 6; // The client refuses a field too small for its form.
     assert!(!limits::valid(&client));
 }
+
+#[test]
+fn a_stream_refused_full_reaches_the_client_link() {
+    use jig_client_protocol_wire as w;
+    for bound in [w::StreamBound::Component, w::StreamBound::Transport] {
+        let mut host = Host::new(11, Time::ZERO, Wall::EPOCH, temper_client_view::sign_in::Ways::NONE);
+        host.start(b"/", Vec::new(), None);
+        host.requests();
+        host.heard(Heard::StreamRefused { status: 409 });
+        let record = w::StreamsFull::new(&w::CEILINGS, w::StreamsFullParts { bound, size: 2 }).expect("full record");
+        let mut writer = skein_lib::Writer::new(usize::try_from(record.measure()).expect("fixed refusal"));
+        record.encode(&mut writer).expect("refusal bytes");
+        host.heard(Heard::Piece { bytes: writer.finish() });
+        host.heard(Heard::StreamEnded);
+        assert_eq!(host.root.client().link().streams_full.as_ref().map(|full| full.size), Some(2));
+        assert!(host.requests().iter().any(|request| matches!(request, Asked::CloseStream)));
+    }
+}

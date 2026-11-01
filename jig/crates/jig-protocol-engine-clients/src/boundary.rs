@@ -264,6 +264,7 @@ pub enum Reply {
     Record(Box<[u8]>),
     NotARecord,
     Conflict,
+    StreamsFull { size: u32 },
 }
 #[derive(Debug)]
 pub enum Streamed {

@@ -54,12 +54,18 @@ fn an_old_streams_end_cannot_end_its_replacement() {
 }
 
 #[test]
-fn a_stream_refused_reports_its_status_and_ends() {
+fn a_stream_refused_reports_its_status_then_reads_its_bounded_body() {
     let mut fetch = crate::fetch::Fetch::new(1);
     let ticket = fetch.open_stream(2);
     assert_eq!(fetch.refuse_stream(ticket, 401), Some(crate::fetch::Report::StreamRefused { status: 401 }));
+    assert_eq!(fetch.stream_ticket(), Some(ticket));
+    assert_eq!(
+        fetch.stream_piece(ticket, Box::from(*b"full")),
+        Some(crate::fetch::Report::StreamPiece { bytes: Box::from(*b"fu") })
+    );
+    assert_eq!(fetch.read_on(), Some(crate::fetch::Report::StreamPiece { bytes: Box::from(*b"ll") }));
+    assert_eq!(fetch.end_stream(ticket), Some(crate::fetch::Report::StreamEnded));
     assert_eq!(fetch.stream_ticket(), None);
-    assert_eq!(fetch.end_stream(ticket), None);
 }
 
 #[test]

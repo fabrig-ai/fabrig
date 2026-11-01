@@ -97,6 +97,7 @@ pub enum Event {
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Up {
+    StreamsFull { full: StreamsFull },
     SignedIn,
     SignedOut,
     NotKept { key: RequestKey },
@@ -199,4 +200,16 @@ pub enum Link {
     Live,
     Offline,
     OutOfDate,
+}
+
+/// The stream admission bound reached (jig/docs/design/protocol/client.md, 4).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum StreamBound {
+    Component,
+    Transport,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct StreamsFull {
+    pub bound: StreamBound,
+    pub size: u32,
 }

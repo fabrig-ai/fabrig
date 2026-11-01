@@ -522,3 +522,23 @@ fn valid_refuses_each_unrepresentable_limit() {
         assert!(!crate::valid(&limits), "case {case}");
     }
 }
+
+#[test]
+fn a_full_stream_refusal_without_a_line_ending_reaches_the_link() {
+    use jig_client_protocol_wire as w;
+    let mut peer = Peer::new();
+    peer.shell.down(Time::ZERO, client::Request::OpenStream { credential: None }, &mut peer.below);
+    let record = w::StreamsFull::new(&w::CEILINGS, w::StreamsFullParts { bound: w::StreamBound::Transport, size: 2 })
+        .expect("full record");
+    let mut writer = Writer::new(usize::try_from(record.measure()).expect("fixed record"));
+    record.encode(&mut writer).expect("full bytes");
+    let body = writer.finish();
+    assert!(!body.contains(&b'\n'));
+    let mut response = format!("HTTP/1.1 409 Conflict\r\nContent-Length: {}\r\n\r\n", body.len()).into_bytes();
+    response.extend_from_slice(&body);
+    peer.respond(&response);
+    assert!(
+        matches!(peer.up.pop(), Some(client::Event::Streamed { message: client::Streamed::Full(full) }) if full == client::StreamsFull { bound: client::StreamBound::Transport, size: 2 })
+    );
+    assert!(peer.up.is_empty());
+}

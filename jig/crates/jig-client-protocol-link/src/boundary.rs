@@ -1,6 +1,7 @@
 //! Owner routing and shell exchanges (protocol/client.md, 2 and 5).
 use alloc::boxed::Box;
 use jig_client_domain::{Answered, Ask, Family, Readable, Readout, Retry, Watchable, contract};
+pub use jig_client_domain::{StreamBound, StreamsFull};
 use skein_lib::{List, RequestEnvelope, RequestKey, RequestRecord, Secret, Token};
 /// A record the shell read with its 16-byte request key.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -71,6 +72,9 @@ pub enum Event {
 }
 #[derive(Debug, PartialEq, Eq)]
 pub enum Request {
+    StreamsFull {
+        full: StreamsFull,
+    },
     Authorized(Authorized),
     Save {
         record: Record,
@@ -187,6 +191,7 @@ pub enum Heard {
 /// One whole message cut by the transport from its stream.
 #[derive(Debug, PartialEq, Eq)]
 pub enum Streamed {
+    Full(StreamsFull),
     Record(Box<[u8]>),
     Heartbeat,
     /// The stream refused, its opening answered signed out.

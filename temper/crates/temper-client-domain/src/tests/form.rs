@@ -350,6 +350,7 @@ fn version_refused() -> (crate::Domain, jig_client::Key) {
             link::Request::Save { .. }
             | link::Request::Erase { .. }
             | link::Request::Kept { .. }
+            | link::Request::StreamsFull { .. }
             | link::Request::Dropped
             | link::Request::Exchange { .. }
             | link::Request::NotKept { .. }

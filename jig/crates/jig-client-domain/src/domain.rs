@@ -24,6 +24,7 @@ pub struct Domain {
     pub(crate) due: List<u64>,
     started: bool,
     pub(crate) link: crate::Link,
+    pub(crate) streams_full: Option<crate::StreamsFull>,
     pub(crate) table: RequestTable<crate::Key, crate::Held>,
     pub(crate) requests: Map<crate::Key, crate::requests::PendingRequest>,
     pub(crate) owners: List<Owner>,
@@ -57,6 +58,7 @@ impl Domain {
             due: List::with_capacity(limits.watches),
             started: false,
             link: crate::Link::SignedOut,
+            streams_full: None,
             table: RequestTable::new(&limits.requests, seed),
             requests: Map::with_capacity(limits.requests.requests),
             carried: Map::with_capacity(limits.requests.requests),
@@ -278,6 +280,10 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         Event::Unwatch { handle } => domain.unwatch(handle, out),
         Event::Read { handle, read } => domain.read(env, handle, read, out),
         Event::Up { up } => match up {
+            crate::Up::StreamsFull { full } => {
+                domain.streams_full = Some(full);
+                tell(out, Told::Link { link: domain.link() });
+            }
             crate::Up::SignedIn => domain.signed_in(out),
             crate::Up::SignedOut => domain.signed_out(out),
             crate::Up::NotKept { key } => domain.not_kept(key, out),

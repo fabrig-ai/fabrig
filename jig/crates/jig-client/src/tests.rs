@@ -100,3 +100,41 @@ fn presentation_reads_the_clients_configured_receiving_bounds() {
     let client = crate::Client::unlinked(&limits, 1).unwrap();
     assert_eq!(client.domain_limits(), &limits.domain);
 }
+
+#[test]
+fn a_full_stream_reaches_the_domain_and_reopens_after_backoff() {
+    for bound in [StreamBound::Component, StreamBound::Transport] {
+        let mut c = Client::new();
+        c.step(Event::SignIn { with: With::Held(skein_lib::Secret::new(Box::new([7; 40]))) });
+        let full = StreamsFull { bound, size: 2 };
+        c.step(Event::Streamed { message: Streamed::Full(full) });
+        assert_eq!(c.machine.link().streams_full, Some(full));
+        assert_eq!(c.machine.link().state, Link::Offline);
+        let mut told = false;
+        let mut closed = false;
+        for request in c.requests() {
+            if let Request::Told { told: Told::Link { .. } } = request {
+                told = true;
+            }
+            if let Request::CloseStream = request {
+                closed = true;
+            }
+        }
+        assert!(told);
+        assert!(closed);
+        c.fire(c.machine.next_deadline().unwrap());
+        let mut opened = false;
+        for request in c.requests() {
+            if let Request::OpenStream { .. } = request {
+                opened = true;
+            }
+        }
+        assert!(opened);
+        assert_eq!(c.machine.link().streams_full, Some(full));
+        c.stream(fixtures::hello(jig_client_protocol_wire::VERSION));
+        let watch = c.opened_watch();
+        c.stream(fixtures::frame(watch));
+        assert_eq!(c.machine.link().state, Link::Live);
+        assert_eq!(c.machine.link().streams_full, None);
+    }
+}

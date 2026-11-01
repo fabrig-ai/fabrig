@@ -12,9 +12,11 @@ pub(super) enum Callback {
     Record(Box<[u8]>),
     Gone,
     Heartbeat,
+    Full(jig_client::StreamsFull),
 }
 pub(super) fn callback(event: &jig_client::Event) -> Option<Callback> {
     match event {
+        jig_client::Event::Streamed { message: jig_client::Streamed::Full(full) } => Some(Callback::Full(*full)),
         jig_client::Event::Reply { exchange, .. } => Some(Callback::Reply(*exchange)),
         jig_client::Event::Streamed { message: jig_client::Streamed::Record(bytes) } => {
             Some(Callback::Record(bytes.clone()))

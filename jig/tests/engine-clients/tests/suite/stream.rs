@@ -21,6 +21,40 @@ fn two_streams_of_one_sign_in_each_open_with_their_own_names() {
     assert_eq!(peer.events(second), vec![hello(second)]);
 }
 #[test]
+fn a_third_stream_on_the_small_profile_is_refused_full() {
+    let (mut peer, first) = streaming();
+    let second = peer.open_stream();
+    let third = peer.request_stream();
+    let (status, body) = peer.response(third);
+    assert_eq!(status, Some(409));
+    let small = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
+    let full = w::StreamsFull::decode(&w::CEILINGS, &mut Reader::new(body)).expect("full record");
+    assert_eq!(full.bound(), &w::StreamBound::Transport);
+    assert_eq!(full.size(), small.clients_http.streams);
+    assert_eq!(full.size(), 2);
+    assert_eq!(peer.events(first), vec![hello(first)]);
+    assert_eq!(peer.events(second), vec![hello(second)]);
+}
+#[test]
+fn the_component_stream_bound_is_also_refused_full() {
+    let mut peer = Peer::signed_in_with_bounds(
+        &fixtures::settings(),
+        fixtures::FIRST_SIGN_IN,
+        fixtures::limits(),
+        jig_protocol_engine_clients_http::Limits { streams: 3, ..fixtures::http_limits() },
+    );
+    let first = peer.open_stream();
+    let second = peer.open_stream();
+    let third = peer.request_stream();
+    let (status, body) = peer.response(third);
+    assert_eq!(status, Some(409));
+    let full = w::StreamsFull::decode(&w::CEILINGS, &mut Reader::new(body)).expect("full record");
+    assert_eq!(full.bound(), &w::StreamBound::Component);
+    assert_eq!(full.size(), 2);
+    assert_eq!(peer.events(first), vec![hello(first)]);
+    assert_eq!(peer.events(second), vec![hello(second)]);
+}
+#[test]
 fn a_stream_opens_with_its_hello() {
     let (peer, stream) = streaming();
     assert_ne!(stream, [0; 16]);

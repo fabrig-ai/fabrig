@@ -18,6 +18,7 @@ enum Callback {
     Record(Box<[u8]>),
     Gone,
     Heartbeat,
+    Full(jig_client::StreamsFull),
 }
 struct Side {
     connections: Connections,
@@ -287,6 +288,7 @@ impl Bytes {
 }
 fn callback(event: &Event) -> Option<Callback> {
     match event {
+        Event::Streamed { message: Streamed::Full(full) } => Some(Callback::Full(*full)),
         Event::Reply { exchange, .. } => Some(Callback::Reply(*exchange)),
         Event::Streamed { message: Streamed::Record(bytes) } => Some(Callback::Record(bytes.clone())),
         Event::Streamed { message: Streamed::Heartbeat } => Some(Callback::Heartbeat),
