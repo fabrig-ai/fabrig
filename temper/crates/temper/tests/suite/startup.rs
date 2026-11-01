@@ -205,7 +205,7 @@ fn a_configuration_file_past_its_bound_is_refused() {
 fn a_secret_file_readable_by_others_refuses_the_start_naming_it() {
     let scratch = support::Scratch::startup("public-token");
     let directory = scratch.path();
-    support::configuration(directory, &support::Forge::Unreached);
+    support::legacy_configuration::configuration(directory);
     fs::set_permissions(directory.join("secrets/forge-1.git-token"), fs::Permissions::from_mode(0o644))
         .expect("public permissions");
     let refused = temper::prepare_in(&support::configuration::directories(directory)).err().expect("start refused");
@@ -318,7 +318,7 @@ fn an_address_with_no_token_in_the_directory_is_not_signed_in() {
 #[test]
 fn a_user_file_readable_by_others_refuses_the_start_naming_it() {
     let scratch = support::Scratch::startup("public-user");
-    support::configuration(scratch.path(), &support::Forge::Unreached);
+    support::legacy_configuration::configuration(scratch.path());
     fs::set_permissions(scratch.path().join("secrets/forge-1.user"), fs::Permissions::from_mode(0o644))
         .expect("fixture operation");
     assert_eq!(
@@ -331,10 +331,15 @@ fn a_user_file_readable_by_others_refuses_the_start_naming_it() {
     scratch.remove();
 }
 fn managed(directory: &std::path::Path, move_files: bool) -> serde_json::Value {
-    support::configuration(directory, &support::Forge::Unreached);
+    support::legacy_configuration::configuration(directory);
     let mut value: serde_json::Value =
         serde_json::from_slice(&fs::read(directory.join("temper.json")).expect("configuration bytes"))
             .expect("fixture operation");
+    let legacy = support::legacy_configuration::document(directory);
+    for member in ["forges", "identities", "setup"] {
+        value["application"][member] = legacy["application"][member].clone();
+    }
+    support::legacy_configuration::files(directory);
     value["application"]["setup"] = serde_json::json!([{
         "forge":1,"directory":"forge-1","bot":{"login":"temper","email":"temper@example.test"},
         "orgs":["acme"],"mode":{"managed":{"admin_token":"secrets/forgejo-admin"}}
@@ -1149,7 +1154,7 @@ fn programs_directories_are_checked_at_the_name_before_startup_effects() {
     for row in ["missing", "private", "link", "linked-parent", "mode", "file"] {
         let scratch = support::Scratch::startup(&format!("programs-{row}"));
         let directory = scratch.path();
-        support::configuration(directory, &support::Forge::Unreached);
+        support::legacy_configuration::configuration(directory);
         let target = directory.join("programs");
         if row != "missing" {
             if row == "file" {

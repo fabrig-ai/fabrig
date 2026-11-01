@@ -123,3 +123,26 @@ So, before anything else: `git fetch origin`, `git merge --no-edit origin/playgr
 This merge is the only change outside `temper/tests/engine/domain/` you make; the prerequisites' code stays theirs: a fault the stories then show in the connector or the core is a report item, as the spec says.
 Then go on from Steps 2: the four removal stories, the whole suite, fmt, clippy, old_forms; commit and push.
 Do not ask this again: a merge that conflicts, or tips missing from the trunk, is `Failed:` with the evidence.
+
+### 2026-11-01: Resume after the connector/root owners repair the removal retention and replay failures below (recommended), or revise the acceptance contract? The supplied prerequisites are present; three removal stories still fail, and their production fixes are outside this task's allowed files. (playground-reset-r6/fe-world-remove-5, foreman playground-reset-r6/fe-world-remove/foreman-4)
+
+Resume fe-world-remove after the connector/root owners repair the reported failures; acceptance remains unchanged.
+The boundary says: “A fault this world shows in the connector or the root is a report item, with the failing story; do not fix it here.”
+The latest answer confirms: “the prerequisites' code stays theirs.”
+Acceptance requires “the writer and flights are erased,” “the end state equals the uncut run's,” and “no row names the forge.”
+The report records three failing removal stories and unverified remaining cuts and assertions, so acceptance is not met; this is not Accept.
+Production repairs remain outside this task’s allowed files.
+The next run checks the repaired implementations against all four stories at both seeds, completes the remaining cuts and assertions, and runs the specified checks.
+Leave `demo.rs` to `fe-world-reset`, as specified.
+The requested report file could not be written because this session’s filesystem is read-only.
+
+### 2026-11-01: Supply the connector/root repairs and resume this branch (recommended), or assign a separate production-repair task? Three required removal stories still fail on the supplied trunk, and their production fixes are outside this task's allowed files. (playground-reset-r6/fe-world-remove-6, foreman playground-reset-r6/fe-world-remove/foreman-5)
+
+Resume fe-world-remove after the connector/root owners repair the reported failures; acceptance remains unchanged.
+The existing answer says: “Resume fe-world-remove after the connector/root owners repair the reported failures; acceptance remains unchanged.”
+The boundary says: “A fault this world shows in the connector or the root is a report item, with the failing story; do not fix it here.”
+Production repairs remain with those owners, outside this task’s allowed files.
+The report explicitly says “Acceptance is not met”; the pushed branch therefore does not qualify for Accept.
+The next run checks repaired implementations against all four stories at both seeds, completes the remaining cuts and assertions, and runs the specified checks.
+Leave `demo.rs` to `fe-world-reset`.
+The requested report file could not be written because this session’s filesystem is read-only.
