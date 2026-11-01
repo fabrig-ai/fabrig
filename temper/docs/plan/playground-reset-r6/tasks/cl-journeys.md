@@ -8,6 +8,7 @@ files = [
   "temper/docs/design/client/journeys/welcome-playground/**",
   "temper/docs/design/client/journeys/welcome-set-up/**",
   "temper/scripts/bundle.sh",
+  "temper/crates/temper-service/src/tests/family.rs",
   "temper/tools/journeys/**",
 ]
 effort = "high"
@@ -101,3 +102,13 @@ the change to `main.rs` is the only widening of `tools/journeys/` besides the `w
 references, which include `tests/suite/look_refresh.rs` lines 11, 12 and 32. Check the script
 by hand once (`temper/scripts/bundle.sh --loopback DIR` under `heavy`), then resume at step 3;
 the stop conditions stand for any failure after this repair.
+
+2026-11-01. Q: may this task move `temper-service/src/tests/family.rs`' pin of the client
+wire from 11 to 12? A: Yes, in this task: the version move is this task's (T8), and the pin
+records it. In `embedded_client_refusals_keep_their_bytes_at_client_eleven` the last line
+becomes `assert_eq!(wire::CLIENT_VERSION, 12);` and the test is renamed
+`embedded_client_refusals_keep_their_bytes_at_client_twelve`; its refusal-byte assertion
+and comment stay. `family.rs` is added to the files for that test alone. Then run the
+service family filter and the steps not yet run (step 4's clippy and wasm clippy).
+`temper/tests/client/tests/suite/names.rs` (`temper-github-app`) is not this task's: leave
+it under `## Left`, as reported.
