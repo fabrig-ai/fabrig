@@ -26,6 +26,7 @@ mod connect;
 mod demo;
 mod domain;
 mod effect_words;
+mod forges;
 mod gates;
 mod held;
 pub mod items;

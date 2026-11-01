@@ -116,6 +116,13 @@ pub(crate) fn start(
 fn send(d: &mut Domain, request: Token, forge: u16, ask: Ask, carried: Option<Carried>, out: &mut Queue<Request>) {
     match ask {
         Ask::Connect { how: how @ crate::How::GitHubApp { .. }, .. } => {
+            if let Some(mut record) = d.records.get(&forge).cloned()
+                && record.kind == crate::Kind::GitHub
+                && record.mode == crate::Mode::Managed
+            {
+                record.mode = crate::Mode::Connected;
+                crate::forges::keep_record(d, record, out);
+            }
             let carried = carried.expect("admitted key");
             d.connect.running.insert(forge, (request, Some(carried))).expect("room checked");
             d.connections.insert(forge, (Connection::Connecting, None)).expect("configured forge");
@@ -234,7 +241,7 @@ fn admin(
                 .expect("configured forges bound first repositories");
         }
     }
-    out.push(Request::MarkedForges);
+    d.keep_first(forge, out);
     out.push(Request::Connect { forge, request, how, carried });
 }
 pub(crate) fn connected(d: &mut Domain, forge: u16, request: Token, answer: ConnectAnswer, out: &mut Queue<Request>) {
