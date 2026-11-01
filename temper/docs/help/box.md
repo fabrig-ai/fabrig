@@ -251,9 +251,9 @@ temper ctl DIR change show CHANGE --until landed --timeout 3600
 temper ctl DIR change show CHANGE
 ```
 
-The change waits for CI at its head; the starter workflow passes.
-The pull request printed by `change show` has its diff, reviews,
-CI runs and logs.
+The starter CI passes.
+The pull request printed by `change show` has its diff, CI runs and
+logs; temper's review gate is read with `change show`.
 
 Expect: the change's panel, its first line `change CHANGE ·
 work/hello on forge FORGE · `, its branch and `into main`, then `met`;
