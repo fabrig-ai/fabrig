@@ -577,7 +577,10 @@ Held by skein's `forge-client.md`, section 3. temper's part:
 
   A change watches its branch and its base until its pull is known, then
   its branch and its pull. A change of the pull it owns wakes the change,
-  as a hint does.
+  as a hint does. A pull observation that changes the gathered facts also
+  invalidates any in-flight gather for that change. Before deciding, the
+  gather restarts its fresh reads; a wake coalesced while the procedure is
+  already due cannot leave it waiting on an older CI verdict.
 - **Its capacity:** `forge.client.resources` live resources and
   `forge.client.repositories` repositories. A batch naming resources past
   it is refused.
