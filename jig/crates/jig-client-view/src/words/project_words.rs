@@ -11,6 +11,7 @@ pub enum ProjectPhrase {
     Project,
     Resource,
     Owned,
+    Fork,
     Participant,
     Unavailable,
     Context,
@@ -39,10 +40,11 @@ pub enum ProjectPhrase {
     ConfiguredPeriod,
     PoolAbsent,
 }
-pub const ALL: [ProjectPhrase; 30] = [
+pub const ALL: [ProjectPhrase; 31] = [
     ProjectPhrase::Project,
     ProjectPhrase::Resource,
     ProjectPhrase::Owned,
+    ProjectPhrase::Fork,
     ProjectPhrase::Participant,
     ProjectPhrase::Unavailable,
     ProjectPhrase::Context,
@@ -80,6 +82,7 @@ impl ProjectPhrase {
                 Self::Project => 9000,
                 Self::Resource => 9001,
                 Self::Owned => 9002,
+                Self::Fork => 9030,
                 Self::Participant => 9003,
                 Self::Unavailable => 9004,
                 Self::Context => 9005,
@@ -116,6 +119,7 @@ impl ProjectPhrase {
                 Some(HoleKind::Number)
             }
             Self::Resource
+            | Self::Fork
             | Self::Owned
             | Self::Participant
             | Self::Unavailable
@@ -145,6 +149,7 @@ impl ProjectPhrase {
             Self::Project => b"Project",
             Self::Resource => b"Resource role",
             Self::Owned => b"Owned",
+            Self::Fork => b"Fork",
             Self::Participant => b"Participant",
             Self::Unavailable => b"Unavailable",
             Self::Context => b"Context",
@@ -206,4 +211,4 @@ pub fn language() -> Language {
         phrases: values.into_boxed(),
     }
 }
-const COUNT: u32 = 30;
+const COUNT: u32 = 31;

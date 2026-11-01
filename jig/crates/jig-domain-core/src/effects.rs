@@ -404,6 +404,14 @@ pub(crate) fn connector(
             };
             work.push(Work::Event(Event::Tasks(tasks::Event::Resource { name, hold })));
         }
+        connector::Event::Adopted { project, name, role, home } => {
+            if core.connectors.contains(&name.connector) && tasks::valid_name(&env.limits.tasks, &name) {
+                core.adoptions
+                    .insert(resources::Key { project, name }, resources::Adoption { role, home })
+                    .expect("adoptions are bounded at the connector entrance");
+                core.touch_project_objects(project);
+            }
+        }
         connector::Event::PoolSlots { name, slots } => {
             work.push(Work::Event(Event::Tasks(tasks::Event::Slots { pool: name, slots })));
         }
@@ -415,7 +423,6 @@ pub(crate) fn connector(
         connector::Event::Procedure { .. }
         | connector::Event::SectionReady { .. }
         | connector::Event::WorkspaceReady { .. }
-        | connector::Event::Adopted { .. }
         // The root maps connector completion to start_done for the phase it is serving.
         | connector::Event::RestartDone { .. } => {}
     }

@@ -162,6 +162,10 @@ the shell: fetch, skein's HTTP client, a socket            skein's HTTP server, 
   wire and its connectors' vocabularies, and the application between
   its wire and its own. Each is a module of small total functions,
   exhaustive both ways, as the channel's are (`channel.md`, section 3).
+- **A project document** carries each adopted resource's connector part,
+  role and independent `home` boolean. A fork retains its fork role.
+  Ownership and live hold reports imply no home (`../domain/core.md`,
+  6.1; `../domain/connectors.md`, 12 and 14).
 - **Documents are decoded whole,** into the client's types, and checked
   against the client's limits before they reach `jig-client-domain`: a
   document past its bytes, rows, a path's segments, an authority's

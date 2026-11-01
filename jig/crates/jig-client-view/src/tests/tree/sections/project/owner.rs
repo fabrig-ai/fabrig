@@ -143,7 +143,7 @@ fn source() -> Project {
                 ProjectResourceRole::Unavailable,
                 ProjectResourceRole::Context,
             ]
-            .map(|role| ProjectResource { part: part(), role }),
+            .map(|role| ProjectResource { part: part(), role, home: false }),
         ),
         policy: ProjectPolicy {
             templates: List::with_capacity(0),

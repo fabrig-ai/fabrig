@@ -713,8 +713,8 @@ record ShownResult { task: TaskLink result: option ResultDocument }
 record PersonTask { task: Chip revision: Revision requester: Requester spec: SpecificationDocument address: PersonAddress taken_by: option u64 since: option u64 stall: option duration deadline: option u64 contract: TaskContractDocument results: bytes 16777216 cut: bool acts: bytes 16777216 }
 enum RecurringOverlap { skip, wait }
 record Recurring { chip: Chip key: u32 batch: bytes 16777216 budget: u64 overlap: RecurringOverlap current_period: u64 began: option u64 next: option u64 last_period: u64 pending_period: option u64 last_batch: list 32 u64 cut: bool }
-enum ProjectResourceRole { owned, participant, unavailable, context }
-record ProjectResource { part: Part role: ProjectResourceRole }
+enum ProjectResourceRole { owned, participant, unavailable, context, fork }
+record ProjectResource { part: Part role: ProjectResourceRole home: bool }
 record ProjectPolicyRole { number: u32 authority: AuthorityDocument period_spend: u64 requests: u16 decides: u8 }
 record ProjectPolicy { templates: list 16 TemplateOverride ceiling: AuthorityDocument period_spend: u64 escalation_role: option u32 projections: bytes 16777216 roles: bytes 16777216 requirements: bytes 16777216 permissions: option list 32 PolicyPermission permissions_cut: bool cut: bool }
 record ProjectMember { party: u64 kind: PartyKind role: HeldRole login: DocumentText name: DocumentText }

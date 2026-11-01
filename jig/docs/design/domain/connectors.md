@@ -737,6 +737,10 @@ release the writer; Uncertain and Held retain it for connector recovery.
   the project's home there (core.md, 6.1). Configuration adopts
   nothing: a deployment's first start seeds projects without resources
   (`../protocol/configuration.md`, section 3).
+- **The project document** gets each adopted resource from the connector
+  with its project, stable name, adoption role and home flag
+  (`Event::Adopted`). Live hold reports do not replace these facts.
+
 - **Nothing is required** of the system beyond the access the
   application is given. What is missing narrows what may be done there
   or slows it down, and the client says so: a system without hints is
@@ -789,10 +793,11 @@ asks for each step:
 Then, as decisions open, it steps each of its procedures once, on what
 it read. Nothing it held in memory before the restart is needed.
 
-Restoration may report facts to the core: the reference connector emits
-`Request::Resource` for a restored adoption. This rebuilds the core's
-resource report; it asks for no external action. Restoration makes no
-new effect or write.
+Restoration reports each stored adoption to the core through
+`Event::Adopted`, with its project, stable name, role and home flag.
+The reference connector also emits `Request::Resource` to rebuild the
+core's hold report. These reports ask for no external action. Restoration
+makes no new effect or write.
 
 - **A restart reports completion after every refresh and the outbox
   settle.** `read_afresh_complete` requires all fresh reads to finish

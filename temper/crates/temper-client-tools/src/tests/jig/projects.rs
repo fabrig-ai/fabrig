@@ -52,6 +52,7 @@ fn project() -> c::Project {
                 key: c::PartKey::Path(list(vec![b"src".as_slice().into(), b"lib.rs".as_slice().into()])),
             },
             role: c::ProjectResourceRole::Owned,
+            home: true,
         }]),
         policy: c::ProjectPolicy {
             templates: list(vec![]),

@@ -279,6 +279,7 @@ pub struct Core {
     pub(crate) flight_tasks_capacity: u32,
     pub(crate) flights: skein_lib::Slab<flight::Flight>,
     pub(crate) person_task_capacity: u32,
+    pub(crate) adoptions: Map<resources::Key, resources::Adoption>,
     pub(crate) resource_roles: Map<resources::Key, effects::connector::ResourceRole>,
     pub(crate) resource_roles_full: bool,
     /// At most one committed word per run awaiting host delivery.
@@ -476,6 +477,7 @@ impl Core {
             flight_tasks_capacity: limits.tasks.tasks,
             flights: skein_lib::Slab::with_capacity(u32::MAX),
             person_task_capacity: limits.people.pending,
+            adoptions: Map::uncapped(),
             resource_roles: Map::with_capacity(limits.tasks.resource_reports),
             resource_roles_full: false,
             relaying: Map::with_capacity(limits.tasks.tasks),
