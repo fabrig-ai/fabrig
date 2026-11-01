@@ -289,10 +289,13 @@ fn text(operation: &Operation, outcome: &Outcome, me: Option<&c::Me>, limits: &L
             out.number(u64::from(*source));
             out.put(b": ");
             out.put(name);
-            out.put(b"\nRun on each host: ");
+            out.put(b"\nRun on each host, with its directories: ");
             out.put(limits.program_login);
             out.put(b" ");
             out.put(name);
+            out.put(b"\nSkip it where the programs directory's ");
+            out.put(name);
+            out.put(b" is already signed in. Then: account verify ACCOUNT --source program, ACCOUNT as account list shows it");
         }
         c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::AccountChanged)) if operation.word == b"verify" => {
             out.put(b"asked\naccount list --until settled");
@@ -422,7 +425,7 @@ fn encode(
     )))) = outcome
     {
         out.key(b"next");
-        out.string_parts(&[b"Run on each host: ", limits.program_login, b" ", name]);
+        out.string_parts(&[b"Run on each host, with its directories: ", limits.program_login, b" ", name]);
     }
     if let Some(next) = account_follow_up(operation, outcome) {
         out.key(b"next");

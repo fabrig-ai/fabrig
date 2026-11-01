@@ -354,7 +354,13 @@ sources in its holder's order. temper configures the LLM providers
 - **`temper program-login [DIRECTORIES] NAME`:**
   - `NAME` is a program source's name, 1 to 32 of `a` to `z`, `0` to `9`
     and `-` (jig's `domain/accounts.md`, 3.4), as the accounts page and
-    `temper ctl account declare` give it with this command.
+    `temper ctl account declare` give it with this command. The tools'
+    printed act is `temper program-login --config CONFIG --data DATA
+    --cache CACHE NAME`: CONFIG, DATA and CACHE stand for that box's
+    directories; ctl reads no box configuration. Skip the command where
+    the programs directory's NAME is already signed in. Then
+    `account verify ACCOUNT --source program`, ACCOUNT as `account list`
+    shows it.
   - It reads and checks the document in its configuration directory
     (configuration.md, section 12) as `temper serve` does
     (configuration.md, section 8), and the agent's configuration it
@@ -400,8 +406,11 @@ sources in its holder's order. temper configures the LLM providers
   for one holder at a time (agents' `logins`), points the programs
   directory at its parent and declares the source by its name: temper
   neither moves nor reads it, and the host's half checks it as any
-  (above). One deployment uses it at a time, since two programs
-  refreshing one login race (smith's `protocol/programs.md`, section 9,
+  (above). The printed `account declare` act's CONFIG, DATA and CACHE
+  are that box's directories. Skip `program-login` where NAME is already
+  signed in, then `account verify ACCOUNT --source program`, ACCOUNT
+  as `account list` shows it. One deployment uses it at a time, since two
+  programs refreshing one login race (smith's `protocol/programs.md`, section 9,
   runs at once on one login).
 - **A program's sign-out** is the host's half's, on each host, by the
   program's own (smith's `protocol/hosts.md`, section 2; jig's
