@@ -145,6 +145,10 @@ pub struct Peers {
 }
 /// Released outputs, drained without inspecting the root.
 #[derive(Debug)]
+#[expect(
+    clippy::large_enum_variant,
+    reason = "the test driver moves native requests inline without allocating per output"
+)]
 pub enum Delivery {
     Root(engine::Request),
     /// An input admission handed back, for its peer to send again.
