@@ -206,13 +206,15 @@ fn accept_link(service: &mut crate::Service, answer: &w::Outcome) {
     status(&peer, b"200");
 }
 
-fn connect_request(app: u64) -> w::Request {
+fn connect_request_with_policy(app: u64, read_only: Option<bool>) -> w::Request {
     w::Request::Connect(
         w::Connect::new(
             &w::CEILINGS,
             w::ConnectParts {
                 forge: w::Making::Kept(w::Kept::new(&w::CEILINGS, w::KeptParts { forge: FORGE }).unwrap()),
-                how: w::How::GithubApp(w::GitHubApp::new(&w::CEILINGS, w::GitHubAppParts { id: app }).unwrap()),
+                how: w::How::GithubApp(
+                    w::GitHubApp::new(&w::CEILINGS, w::GitHubAppParts { id: app, read_only }).unwrap(),
+                ),
             },
         )
         .unwrap(),
@@ -245,12 +247,22 @@ fn http_owner() -> (crate::Service, Box<[u8]>) {
 }
 
 fn http_paste(service: &mut crate::Service, bearer: &[u8], key: u8, app: u64) -> w::Outcome {
+    http_paste_with_policy(service, bearer, key, app, None)
+}
+fn http_paste_with_policy(
+    service: &mut crate::Service,
+    bearer: &[u8],
+    key: u8,
+    app: u64,
+    read_only: Option<bool>,
+) -> w::Outcome {
     use jig_client_protocol_wire::v19 as j;
     let (_, bundle) = carried_pem();
     let engine = service.engine.as_mut().unwrap();
     let limits = &engine.clients.env.limits.wire;
     let record = wire::requesting(
-        &w::Requesting::new(&w::CEILINGS, w::RequestingParts { request: connect_request(app) }).unwrap(),
+        &w::Requesting::new(&w::CEILINGS, w::RequestingParts { request: connect_request_with_policy(app, read_only) })
+            .unwrap(),
     );
     let family = j::FamilyRequest::new(limits, j::FamilyRequestParts { scope: j::Scope::Deployment, record }).unwrap();
     let mut bytes = skein_lib::Writer::new(usize::try_from(family.measure()).unwrap());
@@ -278,6 +290,43 @@ fn http_paste(service: &mut crate::Service, bearer: &[u8], key: u8, app: u64) ->
         panic!("family terminal")
     };
     w::Answer::decode(&w::CEILINGS, &mut Reader::new(answer.record())).unwrap().into_parts().outcome
+}
+
+#[test]
+fn a_read_only_connect_keeps_its_policy_and_leaves_the_hook_at_paste_and_reconcile() {
+    let (mut service, bearer) = http_owner();
+    assert_eq!(http_paste_with_policy(&mut service, &bearer, 1, 7, Some(true)), w::Outcome::Connecting);
+    let mut face = Face::new();
+    let mut github = skein_forge_machine_world::github::Fake::new(7);
+    // App, bot, hook: a differing hook must finish paste without a PATCH.
+    for _ in 0_u32..3 {
+        github_reply(&mut service, &mut face, &mut github);
+        assert!(!contains(&face.wire.received, b"PATCH "));
+    }
+    let _settled = pump(&mut service);
+    assert!(service.engine.as_ref().unwrap().setup.runs.is_empty(), "paste completed without hook repair");
+    let kept = fixtures::load(&mut service.engine.as_mut().unwrap().store, root::Range::Forge);
+    assert!(
+        kept.iter().any(|row| {
+            if let root::Record::Forge { row } = row
+                && let domain::Stored::Forge(record) = row.as_ref()
+            {
+                record.number == FORGE && record.read_only
+            } else {
+                false
+            }
+        }),
+        "the hook policy is durable"
+    );
+    show_connected(&mut service);
+    // App, hook, two installation pages and the terminal empty page.
+    for _ in 0_u32..5 {
+        github_reply(&mut service, &mut face, &mut github);
+        assert!(!contains(&face.wire.received, b"PATCH "));
+        assert!(!contains(&face.wire.received, b"DELETE "));
+    }
+    assert!(service.engine.as_ref().unwrap().setup.runs.is_empty(), "reconcile completed without hook repair");
+    assert_eq!(github.installation_ids(), [1, 2, 3]);
 }
 
 #[test]

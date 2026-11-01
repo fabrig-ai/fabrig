@@ -7,3 +7,5 @@
 - **Built:** 8.3: the demo's 177,523-token window, matching the agent declaration and yielding the 51,870-byte host part.
 
 - **Built:** 8.3: kept GitHub records join the running setup host with the forge component's TLS endpoint. Held setup entries keep `127.0.0.1:0`; startup name resolution replaces both components' entries before setup can dial.
+
+- **Built:** 17.3 to 17.7: every GitHub forge keeps unaccepted installations; ctl `--read-only` persists the hook policy and leaves the hook as read at paste and reconcile.

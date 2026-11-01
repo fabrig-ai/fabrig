@@ -224,7 +224,7 @@ fn the_github_row_draws_its_app_installations_and_last_connect() {
             "my-app · ",
             "acme",
             ", installation 2 · suspended",
-            ", installation 3 · not accepted · uninstalled at the next reconcile",
+            ", installation 3 · not accepted · kept",
             "The last connect stopped: fixture stopped",
             "Install on another account",
         ],

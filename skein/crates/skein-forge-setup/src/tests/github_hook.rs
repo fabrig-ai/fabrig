@@ -79,7 +79,7 @@ fn a_correct_hook_is_read_without_a_patch() {
 }
 
 #[test]
-fn a_read_only_hook_completes_whatever_its_url() {
+fn a_hook_without_repair_permission_completes_whatever_its_url() {
     for url in [URL, WRONG, b""] {
         let mut machine = with_repair(SLUG, false);
         assert_eq!(go(&mut machine, Event::Begin), send(Request::HookConfig));

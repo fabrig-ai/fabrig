@@ -10,3 +10,5 @@
 - **Built:** 13.4: the stock chat reads a fix's premise and the coder refuses an absent fault; the stock host part and maximal brief leave 1,564 bytes in the small profile.
 
 - **Built:** 3, 8: each kept forge supplies the setup host with the forge component's admitted address, transport, TLS server name and trust, at startup and while serving.
+
+- **Built:** 3: `app_read_only` is set on the kept forge by ctl connect `--read-only`; every GitHub forge keeps strays.

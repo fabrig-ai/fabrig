@@ -1386,7 +1386,9 @@ for its kind, its user's login and its installations. Its nodes:
   admission is jig's answer, as for `Adopt`.
 - **`Connect`:** of the deployment's scope (section 8): the forge's
   number (u16) and how it connects, `How`: `github_app`, `GitHubApp`,
-  the App's id (u64, never 0). The manifest's way and the Forgejo ways
+  the App's id (u64, never 0) and optional `read_only` (bool, absent
+  meaning false), set by ctl connect `--read-only` and kept on the forge
+  record (`../protocol/setup.md`, 17.7). The manifest's way and the Forgejo ways
   join `How` with their work (section 8's table). The App's key is no
   field: it rides beside the record as jig's carried value, a bundle of
   one `Pasted` item (`../protocol/credentials.md`, 2.2). Its outcome,
@@ -3550,7 +3552,7 @@ does for the client:
   | Request | The value it carries | What the engine does | Its outcome |
   |---|---|---|---|
   | `Connect { forge, how: GitHubManifest { back? } }` | none | the setup's host's `Manifest` run, for the person's own account, always (`forge.md`, 9.1), ending `Done(Manifest { state, target, manifest })`, from which temper renders the manifest's page (`forge.md`, 9.1); the page and `back` held with the state | a link to the manifest's page for a fresh state (the routes, above): with `back`, a path on the page's own origin, `/forges/N/github/manifest?state=S`; without it, the terminal's whole address on the clients' listener |
-  | `Connect { forge, how: GitHubApp { id, key } }` | `key`, the App's private key, PEM as GitHub gives it; `id` rides in the request | `Paste`: the key decoded and matched to the App `id` names, the App's user found, its hook pointed at `https://SLUG.invalid/` (no webhook secret on GitHub: changes are heard from the App's delivery log), its permissions and events checked | connecting |
+  | `Connect { forge, how: GitHubApp { id, read_only?, key } }` | `key`, the App's private key, PEM as GitHub gives it; `id` rides in the request | `Paste`: the key decoded and matched to the App `id` names, the App's user found, its hook pointed at `https://SLUG.invalid/` unless `read_only` leaves it as read (no webhook secret on GitHub: changes are heard from the App's delivery log), its permissions and events checked | connecting |
   | `Connect { forge, how: ForgejoAdmin { first? } }` | the site admin's token, item 1 of the carried bundle (at most 4 KiB including its six-byte header) | `Reconcile` with the paste, its `AdminOrigin` write kept, then `Create` of `first` when given; only after Done is `AdminToken` kept, then the forge connects; every end erases the carried value; never `TakeOver` (`../protocol/setup.md`, 5.5); the configured string-managed form (`ForgeRow.admin`) offers the client's admin Details, with `first`'s org, repository, new project and runner label | connecting; then the watched row, its typed `ended_stop` on a stop, or `first` made and its adoption on Ready |
   | `Install { forge, back? }` | none | `Install`, GitHub alone; `back` held with the state | a link, the install page for a fresh state |
   | `Accept { forge, installation }` | none | `Accept` with no state, GitHub alone (`../protocol/setup.md`, 17.4) | accepted; forge refused, not found |

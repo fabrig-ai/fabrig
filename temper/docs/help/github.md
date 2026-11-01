@@ -47,6 +47,9 @@ temper ctl DIR forge connect github-app APP FILE --key KEY
 temper ctl DIR forge list --until settled
 ```
 
+With an App another person or tool also uses, add --read-only: temper
+then leaves the App's webhook and installations as they are.
+
 temper's App, made from its manifest: open the address it prints in
 a browser on the engine's machine, create the App, then install it:
 
@@ -90,10 +93,8 @@ Expect: `accepted: installation INSTALLATION on forge FORGE`, then the
 listed, then `met`.
 
 If not: `GitHub has no installation INSTALLATION of this App` (exit
-2): read `forge list` for its ids. On fake backends, the installation
-listed right after the connect answers so: install through
-`forge install` instead. An installation not accepted is
-uninstalled at the next reconcile: accept it first.
+2): read `forge list` for its ids. An installation not accepted is kept
+and shown; accept the one temper works through.
 
 ## 4. Adopt a repository
 

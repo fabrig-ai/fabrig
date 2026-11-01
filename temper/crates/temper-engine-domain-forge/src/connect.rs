@@ -239,7 +239,22 @@ fn make(
             }
         }
     };
-    match crate::forges::make(d, kind, mode, place, git_program, crate::domain::make::bot(), false, first, out) {
+    let read_only = match how {
+        crate::How::GitHubApp { read_only, .. } => *read_only,
+        crate::How::GitHubManifest { .. } | crate::How::ForgejoAdmin { .. } => false,
+    };
+    match crate::forges::make(
+        d,
+        kind,
+        mode,
+        place,
+        git_program,
+        read_only,
+        crate::domain::make::bot(),
+        false,
+        first,
+        out,
+    ) {
         Some(forge) => Ok(forge),
         None => Err(ForgeRefusal::Busy),
     }
@@ -247,7 +262,15 @@ fn make(
 
 fn send(d: &mut Domain, request: Token, forge: u16, ask: Ask, carried: Option<Carried>, out: &mut Queue<Request>) {
     match ask {
-        Ask::Connect { how: how @ crate::How::GitHubApp { .. }, .. } => {
+        Ask::Connect { how: how @ crate::How::GitHubApp { read_only, .. }, .. } => {
+            if let Some(record) = d.record(forge)
+                && record.read_only != read_only
+            {
+                let mut record = record.clone();
+                record.read_only = read_only;
+                crate::forges::save(d, record.clone(), out);
+                out.push(Request::ForgeKept(record));
+            }
             let carried = carried.expect("admitted key");
             d.connect.running.insert(forge, (request, Some(carried))).expect("room checked");
             d.connections.insert(forge, (Connection::Connecting, None)).expect("configured forge");

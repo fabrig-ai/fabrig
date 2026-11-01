@@ -1093,12 +1093,12 @@ pub fn app_line(row: &super::forges::Row) -> Option<Box<[u8]>> {
     }
     for (index, installation) in row.installations.iter().enumerate() {
         let separator: &[u8] = if index == 0 { b"" } else { b", " };
-        line = join_words(&[&line, separator, &installation_words(installation, row.read_only)]);
+        line = join_words(&[&line, separator, &installation_words(installation)]);
     }
     Some(line)
 }
 #[must_use]
-pub fn installation_words(installation: &super::forges::Installation, read_only: bool) -> Box<[u8]> {
+pub fn installation_words(installation: &super::forges::Installation) -> Box<[u8]> {
     let account = match &installation.account {
         Some(account) => lossy(&account.login),
         None => join_words(&[b"installation ", skein_lib::Decimal::of(installation.id).as_bytes()]),
@@ -1106,15 +1106,7 @@ pub fn installation_words(installation: &super::forges::Installation, read_only:
     join_words(&[
         &account,
         if installation.suspended { b" \xc2\xb7 suspended" } else { b"" },
-        if installation.stray {
-            if read_only {
-                b" \xc2\xb7 not accepted \xc2\xb7 kept: the App is read-only"
-            } else {
-                b" \xc2\xb7 not accepted \xc2\xb7 uninstalled at the next reconcile"
-            }
-        } else {
-            b""
-        },
+        if installation.stray { b" \xc2\xb7 not accepted \xc2\xb7 kept" } else { b"" },
     ])
 }
 #[must_use]
@@ -1168,6 +1160,6 @@ pub fn app_head(slug: &[u8], empty: bool) -> Box<[u8]> {
     join_words(&[&lossy(slug), b" \xc2\xb7 ", if empty { b"installed nowhere yet" } else { b"" }])
 }
 #[must_use]
-pub fn app_installation(installation: &super::forges::Installation, first: bool, read_only: bool) -> Box<[u8]> {
-    join_words(&[if first { b"" } else { b", " }, &installation_words(installation, read_only)])
+pub fn app_installation(installation: &super::forges::Installation, first: bool) -> Box<[u8]> {
+    join_words(&[if first { b"" } else { b", " }, &installation_words(installation)])
 }

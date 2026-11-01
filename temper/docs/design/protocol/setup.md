@@ -3443,8 +3443,9 @@ listener's (`../client/forge.md`, the browser's steps).
 
 - **The person makes an App** on GitHub with 17.1's permissions and
   events, and pastes its id and its private key as GitHub gives it,
-  PEM: "Connect an App of your own" (`Connect` with `GitHubApp { id, key
-  }`). No webhook secret is asked: the paste check sets the App's hook.
+  PEM: "Connect an App of your own" (`Connect` with `GitHubApp { id, read_only?, key
+  }`). No webhook secret is asked: the paste check sets the App's hook
+  unless `--read-only` leaves it as read (17.7).
 - **Its setup URL is the person's to give** on GitHub's form, since no
   plan can set it: `http://<listener>/forges/<n>/github/setup`, with
   redirect on update, no callback URL and no user's authorization at
@@ -3454,7 +3455,7 @@ listener's (`../client/forge.md`, the browser's steps).
   `forge-setup.md`, 5.8): the key, kept by jig until its run ends,
   decoded to DER; the App read with it, its id the one pasted, else
   `OtherApp`; its bot user found; its hook set to
-  `https://<slug>.invalid/`; its permissions and events checked as its
+  `https://<slug>.invalid/` unless read-only (17.7); its permissions and events checked as its
   reconcile checks them. It writes `AppId`, `AppSlug`, `AppKey` and
   `User`, the records the manifest flow writes, and ends done, or
   `Lacking` with each permission or event named, never refused for it.
@@ -3482,9 +3483,10 @@ listener's (`../client/forge.md`, the browser's steps).
   refused otherwise. The forge
   component reads an installation's repositories again on its events.
 - **An installation temper did not accept,** a stray made with no
-  state of temper's, is shown, and uninstalled by the next reconcile
-  once older than a state's life, unless the App is read-only (17.7);
-  one deleted on GitHub leaves `Accepted`; one suspended is shown.
+  state of temper's, is shown as "not accepted · kept", regardless of
+  age. A person's App's installations are theirs: temper uninstalls
+  nothing it did not make. One deleted on GitHub leaves `Accepted`;
+  one suspended is shown.
 - **Accepting a stray,** `Accept { forge, installation }` (the tools'
   `forge accept`, `../client/tools.md`, 5.5): an installation that
   exists already, made on GitHub before temper knew it, is taken by the
@@ -3501,7 +3503,7 @@ listener's (`../client/forge.md`, the browser's steps).
 - **`Reconcile { forge }`** (skein's `forge-setup.md`, 5.6) runs after
   each `Connected`: the App's key, permissions, events and installations
   checked. It repairs only its hook's address, and with `app_read_only`
-  (17.7) nothing: the hook is left and a stray is never uninstalled.
+  (17.7) leaves the hook as read. A stray is always kept, never uninstalled.
 - **A key GitHub refuses** stops the forge: the forge component, which
   signs with the same key, stops it (forge.md, 2.3), named, with
   Replace (17.3); the reconcile's own `Stop` is named to the root and
@@ -3524,12 +3526,18 @@ listener's (`../client/forge.md`, the browser's steps).
 
 ### 17.7 A pasted App another owns: read-only
 
-- **A forge's `app_read_only`** (configuration.md, section 3) says the
+- **`forge connect [FORGE] github-app APP FILE --read-only`** sets the
+  kept forge's `read_only`, called `app_read_only` by configuration.md,
+  section 3. The wire's `GitHubApp.read_only` is optional, absent meaning
+  false; it travels through the engine's `How::GitHubApp` to that record.
+  It says the
   pasted App (17.3), its hook and its installations are another's to
   change: a probe App shared with skein's conformance, whose hook stays
   where its owner put it, as the live tier's (`../domain/testing.md`,
-  2.7). The setup host gives it to skein's GitHub plans as their given
-  `read_only` (skein's `forge-setup.md`, GitHub's plans).
+  2.7). The setup host gives skein `repair_hook: !read_only` and
+  `uninstall_strays: false` (skein's `forge-setup.md`, 5.10). Without the
+  flag, ctl says in one line that temper points the App's webhook at
+  `https://SLUG.invalid/` and to connect with `--read-only` to leave it.
 - **What changes:** the paste check (17.3) and reconcile (17.5) read
   the App's hook and leave it; reconcile lists the installations and
   keeps `Accepted` as it says, and a stray (17.4) is shown as kept,

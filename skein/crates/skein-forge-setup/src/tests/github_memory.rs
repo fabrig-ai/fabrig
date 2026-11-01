@@ -44,7 +44,8 @@ fn repeated(n: u32, byte: u8) -> Box<[u8]> {
 }
 fn maximum() -> Given {
     let mut given = fixtures::given();
-    given.read_only = false;
+    given.repair_hook = true;
+    given.uninstall_strays = true;
     let mut url = repeated(u32::try_from(URL_BYTES).expect("URL bound"), b'x');
     for (slot, byte) in url.iter_mut().zip(b"https://") {
         *slot = *byte;

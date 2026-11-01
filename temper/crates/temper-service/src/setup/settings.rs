@@ -42,8 +42,9 @@ pub(super) fn github(
     let number = skein_lib::Decimal::of(u64::from(forge));
     let given = github::given::Given {
         forge,
-        // Another owner's App: its hook and installations are read, never changed (setup.md 17.7).
-        read_only,
+        // A person's installations are kept; a shared App's hook is left as read (setup.md, 17.7).
+        repair_hook: !read_only,
+        uninstall_strays: false,
         word: Box::from(b"temper".as_slice()),
         web: match web {
             Some(web) => Box::from(web),

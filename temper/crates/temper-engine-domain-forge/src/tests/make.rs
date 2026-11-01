@@ -114,7 +114,11 @@ fn a_second_owned_set_up_is_refused() {
 }
 #[test]
 fn connect_new_github_makes_a_record_at_the_machines_place() {
-    for how in [How::GitHubApp { app: NonZeroU64::new(7).unwrap() }, How::GitHubManifest { back: None }] {
+    for how in [
+        How::GitHubApp { app: NonZeroU64::new(7).unwrap(), read_only: false },
+        How::GitHubApp { app: NonZeroU64::new(7).unwrap(), read_only: true },
+        How::GitHubManifest { back: None },
+    ] {
         let mut d = fresh(true);
         let out = application(&mut d, 1, Ask::Connect { forge: Making::New(ForgeAsk::GitHub), how: how.clone() });
         let record = saved(&out);
@@ -125,7 +129,8 @@ fn connect_new_github_makes_a_record_at_the_machines_place() {
         assert_eq!(record.first, None);
         assert!(!record.asked);
         match how {
-            How::GitHubApp { .. } => {
+            How::GitHubApp { read_only, .. } => {
+                assert_eq!(record.read_only, read_only);
                 assert!(out.contains(&Request::Connect { forge: 1, request: Token::new(1), how, carried: VALUE }));
             }
             How::GitHubManifest { .. } => {
@@ -203,7 +208,7 @@ fn kept_is_todays_path() {
     assert!(out.iter().any(|r| if let Request::SetUp { forge: 1, .. } = r { true } else { false }));
     assert!(d.records.is_empty());
     let mut d = fresh(true);
-    let how = How::GitHubApp { app: NonZeroU64::new(7).unwrap() };
+    let how = How::GitHubApp { app: NonZeroU64::new(7).unwrap(), read_only: false };
     application(&mut d, 1, Ask::Connect { forge: Making::New(ForgeAsk::GitHub), how: how.clone() });
     outputs(&mut d, Event::ConnectEnded { forge: 1, request: Token::new(1), connected: false, why: None, stop: None });
     let out = application(&mut d, 2, Ask::Connect { forge: Making::Kept(1), how: how.clone() });

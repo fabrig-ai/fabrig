@@ -128,7 +128,9 @@ pub(crate) fn send(side: &mut Side, limits: Limits, forge: u16, back: Option<Box
                 &bounds,
                 w::ConnectParts {
                     forge: forges::making(side, forge, &bounds).expect("valid target"),
-                    how: w::How::GithubApp(w::GitHubApp::new(&bounds, w::GitHubAppParts { id }).expect("valid App id")),
+                    how: w::How::GithubApp(
+                        w::GitHubApp::new(&bounds, w::GitHubAppParts { id, read_only: None }).expect("valid App id"),
+                    ),
                 },
             )
             .expect("connect fits"),

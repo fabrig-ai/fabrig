@@ -44,11 +44,12 @@ run instead.
 ## forge connect
 
 ```
-forge connect FORGE github-app APP FILE --key KEY
+forge connect FORGE github-app APP FILE [--read-only] --key KEY
   FORGE (forge): a number from 1 to 65535; required. GitHub's forge number
   github-app (way): one of github-app; required. An App of your own, or one another owns
   APP (id): a number from 1 to 18446744073709551615; required. The App's id
   FILE (file): a file; required. The private file of the App's PEM key
+  --read-only: a switch. Leave the App's webhook as it is
 forge connect FORGE github --key KEY
   FORGE (forge): a number from 1 to 65535; required. GitHub's forge number
   github (way): one of github; required. temper's App, made in a browser from its manifest
@@ -63,10 +64,11 @@ forge connect FORGE forgejo-admin FILE [--first ORG/REPOSITORY] [--project PROJE
   --first ORG/REPOSITORY: text, at most 1048576 bytes; optional. Make this first repository, ORG/NAME
   --project PROJECT: a project's name or number; optional. Adopt it into this project; a new one named after it when absent
   --label LABEL: text, at most 1048576 bytes; optional. The runner's label; docker when absent
-forge connect github-app APP FILE --key KEY
+forge connect github-app APP FILE [--read-only] --key KEY
   github-app (way): one of github-app; required. An App of your own, or one another owns
   APP (id): a number from 1 to 18446744073709551615; required. The App's id
   FILE (file): a file; required. The private file of the App's PEM key
+  --read-only: a switch. Leave the App's webhook as it is
 forge connect github --key KEY
   github (way): one of github; required. temper's App, made in a browser from its manifest
 forge connect forgejo-admin FILE [--first ORG/REPOSITORY] [--project PROJECT] [--label LABEL] --api HOST:PORT [--tls NAME] --git URL [--web URL] [--git-program FILE] --key KEY

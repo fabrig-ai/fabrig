@@ -39,7 +39,7 @@ pub(crate) fn request(engine: &mut Engine, request: root::Request) {
             box_link::drain(engine, &mut out);
         }
         root::Request::Connect { forge, request, how, carried } => match how {
-            temper_engine_domain_forge::How::GitHubApp { app } => {
+            temper_engine_domain_forge::How::GitHubApp { app, .. } => {
                 crate::setup::public::connect(engine, forge, request, app, carried);
             }
             temper_engine_domain_forge::How::ForgejoAdmin { first } => {
