@@ -787,6 +787,7 @@ pub(super) fn tag_tasks(
                                 | Ask::Effect(_)
                                 | Ask::Document { .. }
                                 | Ask::Read { .. }
+                                | Ask::ReleaseProject { .. }
                                 | Ask::DropDocument { .. } => unreachable!("subscription handoff"),
                             },
                         });

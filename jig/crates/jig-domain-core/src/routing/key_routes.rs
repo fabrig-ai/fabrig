@@ -66,11 +66,8 @@ pub(super) fn admitted(
 ) -> Result<accounts::Change, people::Refusal> {
     let change = match change {
         people::AccountChange::AddKey { provider, join, .. } => {
-            let carried = take(core, request, false)?;
-            if let Some(account) = join {
-                held(core, holder, account)?;
-            }
-            accounts::Change::AddKey { provider, join, carried }
+            let carried = admitted_key(core, request, holder, join)?;
+            accounts::Change::AddKey { provider, join, carried, uses: None }
         }
         people::AccountChange::FinishSignIn { source, .. } => accounts::Change::FinishSignIn {
             source,
@@ -98,6 +95,19 @@ pub(super) fn admitted(
     };
     Ok(change)
 }
+pub(super) fn admitted_key(
+    core: &mut Core,
+    request: Token,
+    holder: accounts::Holder,
+    join: Option<u32>,
+) -> Result<u64, people::Refusal> {
+    let carried = take(core, request, false)?;
+    if let Some(account) = join {
+        held(core, holder, account)?;
+    }
+    Ok(carried)
+}
+
 fn take(core: &mut Core, request: Token, always_unused: bool) -> Result<u64, people::Refusal> {
     let carried = core.key_input.take().ok_or(people::Refusal::NotOffered)?;
     let flight = Flight { number: carried.number, always_unused };

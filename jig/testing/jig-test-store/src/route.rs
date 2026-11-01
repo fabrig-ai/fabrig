@@ -66,6 +66,7 @@ pub fn down(routes: &mut Routes, out: StoreOut) -> Option<Request> {
             for write in writes {
                 let write = match write {
                     root::Write::Wires => store::Write::Wires,
+                    root::Write::DropTranscript { task } => store::Write::DropTranscript { task },
                     root::Write::CopySettingsRevision(number) => store::Write::CopySettingsRevision(number),
                     root::Write::Save(root::Record::Core(row)) => store::Write::Save(row),
                     root::Write::Erase(root::Key::Core(key)) => store::Write::Erase(key),
