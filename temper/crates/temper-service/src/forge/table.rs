@@ -496,3 +496,7 @@ pub(crate) fn setup_entry(record: &Forge) -> Option<s::Entry> {
         },
     })
 }
+
+#[cfg(test)]
+#[path = "../tests/start_over.rs"]
+mod start_over;
