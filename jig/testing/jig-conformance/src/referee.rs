@@ -292,6 +292,8 @@ pub struct Policy {
 #[expect(clippy::large_enum_variant, reason = "durable observations own the complete atomic snapshot")]
 #[derive(Clone, Debug)]
 pub enum Observed {
+    /// A successful deletion answer and the durable deletion-row erase were observed.
+    ProjectDeleted { project: u32 },
     /// A decision names the specification or hold it saw.
     Named { task: u64, revision: Revision },
     /// A party, run or terminal explicitly asked to propose (domain/testing.md, 6).
@@ -502,6 +504,11 @@ impl Referee {
     fn durable(&mut self, number: u64, snapshot: Snapshot, now: u64) -> Result<(), Violation> {
         require(number == self.commit + 1, Promise::Commit, "commits apply whole in number order")?;
         for task in snapshot.tasks.values() {
+            require(
+                self.policy.projects.contains_key(&task.project),
+                Promise::Authority,
+                "task decision names a deleted or unknown project",
+            )?;
             let before = self.last.tasks.get(&task.number);
             settings::task(before, task, snapshot.newest)?;
             require(
@@ -943,6 +950,10 @@ impl Referee {
                 require(at == self.commit, Promise::Commit, "drain preceded its durable commit barrier")?;
                 self.drained = Some(at);
                 self.drained_receipts = Some(self.last.receipts.clone());
+            }
+            Observed::ProjectDeleted { project } => {
+                self.policy.projects.remove(&project);
+                self.policy.projections.remove(&project);
             }
             Observed::Forgotten { task } => {
                 require(!self.last.tasks.contains_key(&task), Promise::Commit, "forgotten owner remains durable")?;

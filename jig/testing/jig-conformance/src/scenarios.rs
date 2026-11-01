@@ -6,6 +6,8 @@ use crate::{Application, Cut, Harness, Outcome};
 /// An adversarial story shared by every application with the required kinds.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Scenario {
+    /// A project and every durable family naming it are deleted across crashes.
+    ProjectDeleted,
     /// A keyed compound is made whole across crashes and duplicate requests.
     Compound,
     /// A grace survives two restarts and ends by completion or cancellation.
@@ -35,7 +37,7 @@ pub enum Scenario {
 }
 
 /// Every shared story, in a stable order for focused cuts and sweeps.
-pub const ALL: [Scenario; 13] = [
+pub const ALL: [Scenario; 14] = [
     Scenario::LateCopy,
     Scenario::OtherHand,
     Scenario::UncertainRestarts,
@@ -49,11 +51,16 @@ pub const ALL: [Scenario; 13] = [
     Scenario::QueryWatchedWhileTasksEnd,
     Scenario::Compound,
     Scenario::Grace,
+    Scenario::ProjectDeleted,
 ];
 
 /// One scenario action, translated at the application's outside boundaries.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Action {
+    /// Populate every reachable project-owned store family.
+    FillForDeletion,
+    /// The granted connector removes the populated project.
+    RemoveProject,
     /// Move and cancel two delegates, and ask their conversation to finish.
     Compound,
     /// Send the identical compound under its original request key.
@@ -151,6 +158,10 @@ pub enum Step {
 #[must_use]
 pub fn program(scenario: Scenario) -> Vec<Step> {
     let mut steps = vec![Step::Drain, Step::Action(Action::Ready), Step::Drain];
+    if scenario == Scenario::ProjectDeleted {
+        deletion(&mut steps);
+        return steps;
+    }
     if matches!(scenario, Scenario::Compound | Scenario::Grace) {
         lifecycle(&mut steps, scenario);
         return steps;
@@ -191,7 +202,8 @@ pub fn program(scenario: Scenario) -> Vec<Step> {
         }
         Scenario::RunBudget => &[Action::Resume],
         Scenario::RacingDecisions => &[Action::PartyAmend, Action::RunAmend],
-        Scenario::Compound
+        Scenario::ProjectDeleted
+        | Scenario::Compound
         | Scenario::Grace
         | Scenario::QueryWatchedWhileTasksEnd
         | Scenario::ConversationEndsWhileRead => {
@@ -230,7 +242,8 @@ pub fn program(scenario: Scenario) -> Vec<Step> {
             }
             steps.push(Step::Drain);
         }
-        Scenario::Compound
+        Scenario::ProjectDeleted
+        | Scenario::Compound
         | Scenario::Grace
         | Scenario::ShrinkingPool
         | Scenario::StandingTask
@@ -262,6 +275,17 @@ pub fn run<A: ScenarioApplication>(scenario: Scenario, cut: Cut, seed: u64) -> R
     }
     A::check(&world, scenario).map_err(|violation| world.diagnostic(violation))?;
     Ok(Some(world.outcome()))
+}
+
+fn deletion(steps: &mut Vec<Step>) {
+    steps.extend([
+        Step::Action(Action::FillForDeletion),
+        Step::Drain,
+        Step::Action(Action::RemoveProject),
+        Step::Drain,
+        Step::Advance(6_000_000_000),
+        Step::Drain,
+    ]);
 }
 
 fn conversation(steps: &mut Vec<Step>) {

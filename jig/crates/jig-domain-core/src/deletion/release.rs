@@ -122,6 +122,7 @@ pub(crate) fn loaded(core: &mut Core, env: &Env<Limits>, load: Token, result: Lo
 }
 
 fn release(core: &mut Core, env: &Env<Limits>, project: u32, out: &mut Queue<Request>) {
+    crate::projections::forget_project(core, project, out);
     out.push(Request::Write(Write::Erase(Key::People(people::Key::Policy(project)))));
     let mut projects = List::with_capacity(core.projects.capacity());
     for &number in &core.projects {

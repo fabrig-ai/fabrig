@@ -194,3 +194,34 @@ walked. `demo.rs` stays `fe-world-reset`'s.
 Do not ask again whether owners will repair. A further fault outside these two directories
 that keeps a story red ends the run `Failed:` with the failing story and the row, not a
 question.
+
+### 2026-11-01: the change task stays `Closing { stage: Delegates }` behind its held producer, and a removed forge's change panel is still served; change jig's rule, or the connector? (playground-reset-r6/fe-world-remove-8)
+
+Keep your branch (`8145452d37`) and go on from it; cuts 0 to 3, the grant story and the
+connector regression stand.
+
+1. **The change's closing.** jig's rule stays (`jig/crates/jig-domain-tasks/src/closing.rs`,
+   `Stage::Delegates` advances only once `delegates` is empty): a held delegate is live, so
+   its cancelled requester waits at `Delegates`. That is how a cancel ends a task whose
+   delegate's write failed, and it widens item 2 above. Assert, for the producer, the
+   cancelled ending inside `Held { was: Closing { .. } }` (or `Ended(Cancelled)`); for the
+   change, `Ended(Cancelled)`, `Held { was: Closing }`, or `Closing { stage: Delegates }`
+   while its producer is held, each with the ending `Cancelled { by: Deployment { project:
+   1 }, reason: "Forge removed" }`. The `Core(Tasks(Live(2)))` row then stays, as a kept
+   task's; the cut comparisons are unchanged.
+2. **The panel is a connector fault, and this task fixes it.** Draft section 4: an ended
+   forge has no call served and no list shows it. `Domain::panel`
+   (`temper/crates/temper-engine-domain-forge/src/panel.rs`) returns `None` when the change's
+   repository's forge is ended (`Domain::forge_ended`, `domain.rs`), so the watch ends
+   `Gone`. Add a unit test in `src/tests/removal.rs`: a change on a `Removing` forge, and on a
+   removed number, reads no panel. If another read of a change or repository (a list, a
+   view) shows the same leak when the story goes on, fix it the same way, by
+   `forge_ended`, and name it in the report.
+
+Owns and may change: as the previous answer, with `temper/crates/temper-engine-domain-forge/**`
+widened to item 2 here too. Then the rest of `nothing_of_a_removed_forge_is_read_but_its_repositories`
+(chat, workspace, adoption refusal, restart) runs; a fault there inside these two
+directories is yours, outside them `Failed:` with the story and the row. The failures the
+report lists under `## Left` outside these directories (`demo.rs`, the client's names test,
+`temper`'s and `temper-engine-domain`'s legacy tests, the real-loop worlds) stay left; they
+do not block `Done`.
