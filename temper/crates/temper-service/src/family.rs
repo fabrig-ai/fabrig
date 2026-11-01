@@ -43,22 +43,6 @@ pub fn to_root(
                 }
             };
             let request = match request {
-                w::Request::MakeForge(_) | w::Request::RemoveForge(_) | w::Request::EndPlayground => {
-                    if carried.is_some() {
-                        return Err(Box::new(kit::Event::Application(kit::FromApplication::Undecodable {
-                            to: reply_to,
-                        })));
-                    }
-                    // These requests have no route to the root
-                    // (temper/docs/design/draft/playground-reset.md, sections 3 and 4).
-                    let answer = w::Answer::new(limits, w::AnswerParts { outcome: w::Outcome::NotOffered })
-                        .expect("fieldless outcome");
-                    return Err(Box::new(kit::Event::Application(kit::FromApplication::Answered {
-                        to: reply_to,
-                        family: wire::FORGE,
-                        record: wire::answer(&answer),
-                    })));
-                }
                 w::Request::SetUp(value) => {
                     let value = value.into_parts();
                     return Ok(root::Event::Party(root::PartyInput::Application {
@@ -191,6 +175,41 @@ pub fn to_root(
                         digest,
                         carried,
                         request: root::Application::Forge(forge::Ask::StartPlayground),
+                    }));
+                }
+                w::Request::MakeForge(value) => {
+                    return Ok(root::Event::Party(root::PartyInput::Application {
+                        scope,
+                        reply_to,
+                        sign_in,
+                        key,
+                        digest,
+                        carried,
+                        request: root::Application::Forge(forge::Ask::MakeForge {
+                            choice: choice(value.into_parts().choice),
+                        }),
+                    }));
+                }
+                w::Request::RemoveForge(value) => {
+                    return Ok(root::Event::Party(root::PartyInput::Application {
+                        scope,
+                        reply_to,
+                        sign_in,
+                        key,
+                        digest,
+                        carried,
+                        request: root::Application::Forge(forge::Ask::RemoveForge { forge: value.forge() }),
+                    }));
+                }
+                w::Request::EndPlayground => {
+                    return Ok(root::Event::Party(root::PartyInput::Application {
+                        scope,
+                        reply_to,
+                        sign_in,
+                        key,
+                        digest,
+                        carried,
+                        request: root::Application::Forge(forge::Ask::EndPlayground),
                     }));
                 }
                 w::Request::Reachable(value) => {
@@ -508,6 +527,16 @@ pub fn host(git: &[u8]) -> Box<[u8]> {
     }
     rest.get(first..end).expect("host within URL authority").into()
 }
+fn choice(value: w::ForgeChoice) -> forge::ForgeChoice {
+    match value {
+        w::ForgeChoice::Owned => forge::ForgeChoice::Owned,
+        w::ForgeChoice::Github => forge::ForgeChoice::GitHub,
+        w::ForgeChoice::Forgejo(value) => {
+            let value = value.into_parts();
+            forge::ForgeChoice::Forgejo { api: value.api, git: value.git, web: value.web }
+        }
+    }
+}
 fn role(role: w::Role) -> forge::Role {
     match role {
         w::Role::Owned => forge::Role::Owned,
@@ -527,7 +556,6 @@ fn encoded_role(role: forge::Role) -> w::Role {
 /// Encode one durable terminal, or the unknown terminal past its retention.
 #[must_use]
 #[expect(clippy::too_many_lines, reason = "one exhaustive family outcome translation")]
-#[expect(clippy::match_same_arms, reason = "sv supplies wire answers for the three surface refusals")]
 pub fn answer(
     outcome: Option<temper_engine_domain::ApplicationAnswer>,
     limits: &w::Limits,
@@ -678,11 +706,26 @@ pub fn answer(
                 .ok()?,
             )
         }
+        Some(root::ApplicationAnswer::MakeForge(forge::MakeAnswer::Made { forge })) => {
+            w::Outcome::Made(w::MadeForge::new(limits, w::MadeForgeParts { forge }).ok()?)
+        }
+        Some(root::ApplicationAnswer::MakeForge(forge::MakeAnswer::Refused(forge::MakeRefusal::Full))) => {
+            w::Outcome::Full
+        }
         Some(
-            root::ApplicationAnswer::MakeForge(_)
-            | root::ApplicationAnswer::RemoveForge(_)
-            | root::ApplicationAnswer::EndPlayground(_),
-        ) => w::Outcome::Unknown,
+            root::ApplicationAnswer::MakeForge(forge::MakeAnswer::Refused(forge::MakeRefusal::NotOffered))
+            | root::ApplicationAnswer::EndPlayground(forge::EndAnswer::NotOffered),
+        ) => w::Outcome::NotOffered,
+        Some(root::ApplicationAnswer::RemoveForge(forge::RemoveAnswer::Removing)) => w::Outcome::Removing,
+        Some(root::ApplicationAnswer::RemoveForge(forge::RemoveAnswer::Refused(forge::RemoveRefusal::NoSuchForge))) => {
+            w::Outcome::ConnectRefused(
+                w::ConnectRefused::new(limits, w::ConnectRefusedParts { why: w::ForgeRefusal::NoSuchForge }).ok()?,
+            )
+        }
+        Some(root::ApplicationAnswer::RemoveForge(forge::RemoveAnswer::Refused(forge::RemoveRefusal::Playground))) => {
+            w::Outcome::Playground
+        }
+        Some(root::ApplicationAnswer::EndPlayground(forge::EndAnswer::Reset)) => w::Outcome::Reset,
         None => w::Outcome::Unknown,
     };
     let answer = w::Answer::new(limits, w::AnswerParts { outcome }).ok()?;
