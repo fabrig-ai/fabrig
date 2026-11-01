@@ -309,7 +309,10 @@ pub fn step(core: &mut Core, env: &Env<Limits>, event: Event) -> Queue<Request> 
                 assert!(core.start_loading(), "rows load before Link and outside a seed commit");
             }
             Event::SettingsCommit { .. } => unreachable!("the start commits settings itself"),
-            Event::EffectConnector(crate::effects::connector::Event::Resource { name, .. }) => {
+            Event::EffectConnector(
+                crate::effects::connector::Event::Resource { name, .. }
+                | crate::effects::connector::Event::Adopted { name, .. },
+            ) => {
                 assert!(takes_connector_resource(phase, name.connector), "connector resources load before Link");
             }
             _ => {}

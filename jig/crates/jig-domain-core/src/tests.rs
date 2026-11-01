@@ -1721,15 +1721,26 @@ fn documents_project_exposes_two_roles_members_pool_and_resource_parts() {
             budget: 200,
         },
     );
-    core.resource_roles
-        .insert(
-            resources::Key {
-                project: 1,
-                name: tasks::Name { connector: 2, path: Box::new([Box::from(&b"resource"[..])]) },
-            },
-            connector::ResourceRole::Owned,
-        )
-        .unwrap();
+    let name = tasks::Name { connector: 2, path: Box::new([Box::from(&b"resource"[..])]) };
+    let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
+    let mut work = Queue::uncapped();
+    connector(
+        &mut core,
+        &env,
+        &mut work,
+        connector::Event::Adopted { project: 1, name: name.clone(), role: connector::AdoptionRole::Owned, home: true },
+    );
+    connector(
+        &mut core,
+        &env,
+        &mut work,
+        connector::Event::Resource {
+            project: 1,
+            name,
+            role: connector::ResourceRole::Owned,
+            hold: connector::HoldKind::Shared,
+        },
+    );
     let Document::Project(project) =
         make(&core, &limits, 1, &Subject::Project { project: 1 }, &window(), Wall::EPOCH).unwrap()
     else {
@@ -1741,8 +1752,10 @@ fn documents_project_exposes_two_roles_members_pool_and_resource_parts() {
     assert_eq!(project.members.get(1).unwrap().role, people::Role::Maintainer);
     assert_eq!(project.current_period.unwrap().numbers.reserved, 300);
     assert_eq!(project.pools.get(0).unwrap().left, 200);
+    assert_eq!(project.resources.len(), 1, "connector adoption belongs in the project document");
     assert_eq!(project.resources.get(0).unwrap().part.connector, 2);
     assert_eq!(project.resources.get(0).unwrap().role, ResourceRole::Owned);
+    assert!(project.resources.get(0).unwrap().home);
     assert_eq!(project.spend.get(0).unwrap().chip.number, 1);
     assert_eq!(project.spend.get(0).unwrap().numbers.reserved, 30);
 }

@@ -371,14 +371,12 @@ pub fn project() -> Project {
         last_batch: list([8, 9]),
         cut: false,
     };
-    let resource = ProjectResource {
-        part: Part {
-            connector: jig_client_test_domain::FIRST,
-            kind: PartKind::Resource,
-            key: PartKey::Path(list([Box::from(b"project".as_slice())])),
-        },
-        role: ProjectResourceRole::Owned,
+    let part = Part {
+        connector: jig_client_test_domain::FIRST,
+        kind: PartKind::Resource,
+        key: PartKey::Path(list([Box::from(b"project".as_slice())])),
     };
+    let resource = ProjectResource { part, role: ProjectResourceRole::Owned, home: true };
     let pool = |person| PoolLedger {
         source: Funder::Pool { project: 1, person, period: 3 },
         parent: None,
