@@ -10,6 +10,8 @@ files = [
   "temper/crates/temper-client-view/src/forge/connect.rs",
   "temper/crates/temper-client-view/src/forge/bindings.rs",
   "temper/crates/temper-client-view/src/tests/start_over.rs",
+  "temper/crates/temper-client-view/src/tests/connect_forge.rs",
+  "temper/crates/temper-client-view/src/tests/welcome.rs",
 ]
 effort = "high"
 minutes = 50
@@ -138,3 +140,36 @@ Pre-approved:
 
 fab's sections; `## Interfaces`: `connect::live`, `connect::unfinished`,
 `Act::StartOver`, `Meaning::StartOver`.
+
+## Answers
+
+2026-11-01. A GitHub `NotConnected` row before a live Forgejo row makes
+`tests/connect_forge.rs`'s `a_forge_under_way_is_no_choice_in_the_welcome`
+draw GitHub's card: update the fixture, or let a live row win? Update
+the fixture (the run's recommendation); the selection rule stands as the
+acceptance says: `unfinished` is the first row not `playground`, not
+`finished` and not `live`, and the welcome draws its card whatever other
+row is live. The `rows` helper's GitHub `NotConnected` row is the old
+preconfigured slot, which the store's forge records no longer have (the
+draft, section 3, "Its client"). `tests/connect_forge.rs` and
+`tests/welcome.rs` (view) are now in this task's header, for fixtures
+only:
+
+- in `a_forge_under_way_is_no_choice_in_the_welcome`, build the rows
+  with the Forgejo `Connecting` row alone (a local list, as `rows` makes
+  its second row), keeping every assertion; leave the shared `rows`
+  helper as it is for the Connect a forge tests, which it still serves;
+- any other existing test of the two packages that fails for this same
+  cause (a `NotConnected`/`NotSetUp` slot row now drawn as not finished
+  on the welcome's Forge step): the same, its slot row dropped from its
+  own rows, its assertions kept, each named in the report's Changed; a
+  test outside the two header files, a neighbour edit of that kind
+  alone;
+- add one view test to `tests/start_over.rs`,
+  `an_unfinished_forge_shows_before_another_live_one` (a GitHub
+  `SetUpFailed` or App-not-installed row, then a Forgejo `Connecting`:
+  GitHub's card), so the rule is pinned;
+- a failure for any other reason, or one that needs an assertion
+  changed, is a question.
+
+`connect::personal` for Model and Ready stays as pre-approved.
