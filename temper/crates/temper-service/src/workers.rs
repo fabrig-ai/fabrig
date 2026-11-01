@@ -89,7 +89,6 @@ impl Workers {
             bad_parts: 0,
         })
     }
-    #[cfg_attr(not(test), expect(dead_code, reason = "fr-forge-added calls the dynamic table operations"))]
     pub(crate) fn add_forge(&mut self, forge: Forge) -> Result<(), crate::forge::table::NotKept> {
         for held in &self.forges {
             if held.number == forge.number {
@@ -98,7 +97,6 @@ impl Workers {
         }
         self.forges.push(forge).or(Err(crate::forge::table::NotKept::Bound))
     }
-    #[cfg_attr(not(test), expect(dead_code, reason = "fr-forge-added calls the dynamic table operations"))]
     pub(crate) fn remove_forge(&mut self, forge: u16) {
         let mut kept = List::with_capacity(self.forges.capacity());
         for held in ::core::mem::replace(&mut self.forges, List::with_capacity(0)).into_boxed() {

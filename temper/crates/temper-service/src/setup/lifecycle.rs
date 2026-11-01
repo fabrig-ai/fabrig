@@ -122,7 +122,6 @@ pub(crate) struct Lifecycle {
     restored: bool,
 }
 impl Lifecycle {
-    #[cfg_attr(not(test), expect(dead_code, reason = "fr-forge-added calls the dynamic table operations"))]
     pub(crate) fn add_forge(&mut self, forge: u16, reconcile: Reconcile) -> Result<(), crate::forge::table::NotKept> {
         if self.reconcile.contains_key(&forge) {
             return Ok(());

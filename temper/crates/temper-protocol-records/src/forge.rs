@@ -120,6 +120,10 @@ impl ForgeRows {
 }
 #[derive(PartialEq, Eq, Debug)]
 pub enum NotConnected {
+    /// Operator diagnostic; never a wire or stored value.
+    NotHeld {
+        reason: Box<[u8]>,
+    },
     /// Start could not resolve this host; an operator diagnostic, never a wire value.
     Unreachable {
         host: Box<[u8]>,
@@ -141,6 +145,10 @@ impl core::fmt::Display for NotConnected {
             Self::Unreachable { host } => {
                 out.write_str("unreachable: ")?;
                 out.write_str(core::str::from_utf8(host).expect("checked host"))
+            }
+            Self::NotHeld { reason } => {
+                out.write_str("the service could not hold it: ")?;
+                out.write_str(core::str::from_utf8(reason).expect("service ASCII reason"))
             }
             Self::NoRecords => out.write_str("it has no records"),
             Self::Incomplete => out.write_str("its records are incomplete"),

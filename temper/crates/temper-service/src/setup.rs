@@ -15,11 +15,13 @@ use temper_engine_domain as root;
 use temper_protocol_records::Item;
 
 /// Plans are staged in the protocol layer: the root names them, never their credentials.
+#[expect(clippy::struct_excessive_bools, reason = "the setup layer retains independent lifecycle and listener facts")]
 pub(crate) struct Layer {
     component: Option<host::Host>,
     pending: Option<(host::Settings, CryptoRng)>,
     pub(crate) context: Option<settings::Context>,
     waiting_for_webhooks: bool,
+    webhooks_bound: bool,
     pub(crate) env: Env<host::Limits>,
     pub(crate) above: Queue<host::Event>,
     pub(crate) io: Queue<skein_io::Request>,
@@ -43,6 +45,8 @@ pub(crate) struct Layer {
     listener: Box<[u8]>,
     life: Duration,
     value_bytes: u32,
+    local_limits: skein_forge_setup::limits::Limits,
+    under_box: bool,
     #[cfg(test)]
     pub(crate) answers: Queue<(Token, host::Answer)>,
 }
@@ -75,8 +79,92 @@ struct Held {
 }
 
 impl Layer {
+    /// Retain machine-wide settings after checking the document's seed.
+    pub(crate) fn empty(&mut self, config: &crate::settings::Engine, under_box: bool) {
+        let bound = self.env.limits.forges;
+        if let Some((settings, _)) = &mut self.pending {
+            settings.forges = skein_lib::List::with_capacity(bound);
+        }
+        self.served = Map::with_capacity(bound);
+        self.unserved = Map::with_capacity(bound);
+        self.file_api = Map::with_capacity(bound);
+        self.lifecycle = lifecycle::Lifecycle::new(bound, config.limits.forges.installations);
+        self.local_limits = config.limits.setup.plan();
+        self.local_limits.repositories = config.limits.forge.client.repositories;
+        self.under_box = under_box;
+        self.webhooks_bound = config.webhooks.is_none();
+    }
+    pub(crate) fn hold_record(
+        &mut self,
+        record: &temper_engine_domain_forge::Forge,
+        source: &crate::settings::Forge,
+        mut identity: crate::settings::Identity,
+        handover: Option<Secret>,
+        restored: bool,
+    ) -> Result<(), crate::forge::table::NotKept> {
+        if record.files.is_some() {
+            if let Some(entry) = crate::forge::table::setup_entry(record)
+                && let temper_forge_setup::setup::Mode::Fake(fake) = entry.mode
+                && let Some(access) = crate::forge::file_access(source)
+            {
+                self.lifecycle
+                    .adoptions
+                    .insert(
+                        record.number,
+                        lifecycle::Adoption {
+                            next: core::num::NonZeroU64::new(1).expect("first repository"),
+                            repositories: u64::try_from(fake.repositories.len()).expect("bounded repositories"),
+                            files: Some(lifecycle::AdoptionFiles {
+                                admin_token: handover.expect("checked fake handover"),
+                                access,
+                            }),
+                        },
+                    )
+                    .expect("admitted forge");
+            }
+            return Ok(());
+        }
+        let Some(entry) = crate::forge::table::setup_entry(record) else { return Ok(()) };
+        let managed = match &entry.mode {
+            temper_forge_setup::setup::Mode::Managed { .. } => true,
+            temper_forge_setup::setup::Mode::Owned(_) | temper_forge_setup::setup::Mode::Fake(_) => false,
+        };
+        if identity.login.is_empty() {
+            identity.login.clone_from(&entry.bot.login);
+        }
+        let local = lifecycle::Local {
+            source: if managed { lifecycle::Source::Managed } else { lifecycle::Source::Prepared },
+            first: None,
+            repositories: match &entry.mode {
+                temper_forge_setup::setup::Mode::Fake(fake) => {
+                    u64::try_from(fake.repositories.len()).expect("bounded repositories")
+                }
+                temper_forge_setup::setup::Mode::Managed { .. } | temper_forge_setup::setup::Mode::Owned(_) => 0,
+            },
+            pending: true,
+            restored,
+            limits: self.local_limits.clone(),
+            webhooks: match &self.context {
+                Some(context) => context.webhooks.is_some() && !managed,
+                None => false,
+            },
+            bot_login: entry.bot.login.clone(),
+            identity,
+            handover,
+            path: temper_forge_setup::place::Place { directory: entry.directory, user: Box::new([]) }
+                .path(temper_forge_setup::place::File::AdminToken),
+            file: lifecycle::FileStep::Idle,
+            trigger: if record.playground && self.under_box {
+                lifecycle::Trigger::StartDemo
+            } else if entry.asked {
+                lifecycle::Trigger::StartAsked
+            } else {
+                lifecycle::Trigger::Start
+            },
+        };
+        self.lifecycle.add_forge(record.number, lifecycle::Reconcile::Local(local))
+    }
     /// Add a forge to the pending settings or the running host.
-    #[cfg_attr(not(test), expect(dead_code, reason = "fr-forge-added calls the dynamic table operations"))]
     pub(crate) fn add_forge(
         &mut self,
         number: u16,
@@ -84,6 +172,9 @@ impl Layer {
         file_api: Option<Secret>,
     ) -> Result<(), crate::forge::table::NotKept> {
         use crate::forge::table::NotKept;
+        if self.closing || self.closed {
+            return Err(NotKept::Started);
+        }
         if self.served.contains_key(&number) || self.unserved.contains_key(&number) {
             return Ok(());
         }
@@ -95,12 +186,28 @@ impl Layer {
                 if forge.number() != number {
                     return Err(NotKept::Unresolved);
                 }
+                let listener = match &forge.kind {
+                    host::Kind::GitHub(given) => Some(given.url.clone()),
+                    host::Kind::Forgejo(_) => None,
+                };
+                let wait = match &forge.kind {
+                    host::Kind::Forgejo(given) => given.listener.is_some() && !self.webhooks_bound,
+                    host::Kind::GitHub(_) => false,
+                };
                 if let Some((settings, _)) = &mut self.pending {
                     settings.forges.push(forge).or(Err(NotKept::Bound))?;
                 } else if let Some(host) = &mut self.component {
-                    host.add(&self.env.limits, forge).or(Err(NotKept::Bound))?;
+                    if let Err(why) = host.add(&self.env.limits, forge) {
+                        return Err(NotKept::Host(why));
+                    }
                 } else {
                     return Err(NotKept::Started);
+                }
+                if let Some(listener) = listener {
+                    self.listener = listener;
+                }
+                if self.pending.is_some() && wait {
+                    self.waiting_for_webhooks = true;
                 }
                 self.served.insert(number, ()).expect("admitted setup forge");
             }
@@ -113,8 +220,8 @@ impl Layer {
         }
         Ok(())
     }
-    /// Drop the forge's cached settings; callers end its live runs before removal.
-    #[cfg_attr(not(test), expect(dead_code, reason = "fr-forge-added calls the dynamic table operations"))]
+    /// Drop the forge's settings, runs and callbacks at once.
+    #[expect(clippy::too_many_lines, reason = "removal clears every forge association and queued output together")]
     pub(crate) fn remove_forge(&mut self, forge: u16) {
         if let Some((settings, _)) = &mut self.pending {
             let mut kept = skein_lib::List::with_capacity(settings.forges.capacity());
@@ -132,6 +239,113 @@ impl Layer {
         self.unserved.remove(&forge);
         self.file_api.remove(&forge);
         self.lifecycle.drop_forge(forge);
+        let mut runs = skein_lib::List::with_capacity(self.runs.capacity());
+        for (token, run) in &self.runs {
+            if run.forge == forge {
+                runs.push(*token).expect("run capacity");
+            }
+        }
+        for _ in 0..self.above.len() {
+            let event = self.above.pop().expect("host output count");
+            let removed = match &event {
+                host::Event::Need { run, .. } | host::Event::Done { run, .. } | host::Event::Stop { run, .. } => {
+                    runs.as_slice().contains(run)
+                }
+                host::Event::Closed => false,
+            };
+            if !removed {
+                self.above.push(event);
+            }
+        }
+        for token in runs.into_boxed() {
+            self.runs.remove(&token);
+            self.staged.remove(&token);
+            self.public.remove(&token);
+        }
+        let mut staged = Map::with_capacity(self.staged.capacity());
+        let mut previous = core::mem::replace(&mut self.staged, Map::with_capacity(0));
+        while let Some((token, _)) = previous.first() {
+            let token = *token;
+            let plan = previous.remove(&token).expect("held entry");
+            if self::forge(&plan) != forge {
+                staged.insert(token, plan).expect("plan capacity");
+            }
+        }
+        self.staged = staged;
+        let mut public = Map::with_capacity(self.public.capacity());
+        let mut previous = core::mem::replace(&mut self.public, Map::with_capacity(0));
+        while let Some((token, _)) = previous.first() {
+            let token = *token;
+            let caller = previous.remove(&token).expect("held entry");
+            let (public::Caller::Manifest { forge: number, .. }
+            | public::Caller::Redirect { forge: number, .. }
+            | public::Caller::Connect { forge: number, .. }
+            | public::Caller::Install { forge: number, .. }
+            | public::Caller::AcceptAsked { forge: number, .. }
+            | public::Caller::Accept { forge: number, .. }
+            | public::Caller::Reachable { forge: number, .. }) = &caller;
+            if *number != forge {
+                public.insert(token, caller).expect("caller capacity");
+            }
+        }
+        self.public = public;
+        let mut pastes = Map::with_capacity(self.pastes.capacity());
+        let mut previous = core::mem::replace(&mut self.pastes, Map::with_capacity(0));
+        while let Some((token, _)) = previous.first() {
+            let token = *token;
+            let number = previous.remove(&token).expect("held entry");
+            if number != forge {
+                pastes.insert(token, number).expect("paste capacity");
+            }
+        }
+        self.pastes = pastes;
+        let mut erases = Map::with_capacity(self.erases.capacity());
+        let mut previous = core::mem::replace(&mut self.erases, Map::with_capacity(0));
+        while let Some((token, _)) = previous.first() {
+            let token = *token;
+            let number = previous.remove(&token).expect("held entry");
+            if number != forge {
+                erases.insert(token, number).expect("erase capacity");
+            }
+        }
+        self.erases = erases;
+        let mut writes = Map::with_capacity(self.writes.capacity());
+        let mut previous = core::mem::replace(&mut self.writes, Map::with_capacity(0));
+        while let Some((token, _)) = previous.first() {
+            let token = *token;
+            let write = previous.remove(&token).expect("held entry");
+            if match temper_protocol_records::parse(write.number) {
+                Some((_, number, _)) => number != forge,
+                None => true,
+            } {
+                assert!(writes.insert(token, write).is_ok(), "write capacity");
+            }
+        }
+        self.writes = writes;
+        for _ in 0..self.pages.len() {
+            let value = self.pages.pop().expect("page count");
+            if value.forge != forge {
+                self.pages.push(value);
+            }
+        }
+        for _ in 0..self.waiting.len() {
+            let value = self.waiting.pop().expect("waiting count");
+            if value.forge != forge {
+                self.waiting.push(value);
+            }
+        }
+        for _ in 0..self.held.len() {
+            let value = self.held.pop().expect("held count");
+            if value.forge != forge {
+                self.held.push(value);
+            }
+        }
+        for _ in 0..self.backs.len() {
+            let value = self.backs.pop().expect("back count");
+            if value.forge != forge {
+                self.backs.push(value);
+            }
+        }
     }
     #[cfg(test)]
     pub(crate) fn startup_restored(&self) -> bool {
@@ -152,6 +366,10 @@ impl Layer {
             }
         }
         self.waiting_for_webhooks = false;
+        self.webhooks_bound = true;
+    }
+    pub(crate) fn adopting(&self, forge: u16) -> bool {
+        self.lifecycle.adoptions.contains_key(&forge)
     }
     pub(crate) fn records_only(&self, forge: u16) -> bool {
         self.lifecycle.local(forge).is_some()
@@ -178,6 +396,7 @@ impl Layer {
             pending: Some((settings, crypto)),
             context: None,
             waiting_for_webhooks: false,
+            webhooks_bound: false,
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
             above: Queue::uncapped(),
             io: Queue::uncapped(),
@@ -200,6 +419,8 @@ impl Layer {
             held: Queue::with_capacity(limits.forges),
             life,
             value_bytes,
+            local_limits: crate::limits::profile(crate::limits::Profile::Small).setup.plan(),
+            under_box: false,
             #[cfg(test)]
             answers: Queue::with_capacity(64),
         }
@@ -584,7 +805,7 @@ pub(crate) fn answer(engine: &mut crate::engine::Engine, event: StoreEvent) {
         return;
     }
     if let StoreEvent::Kept { owner } = event {
-        let write = engine.setup.writes.remove(&owner).expect("setup keep owner");
+        let Some(write) = engine.setup.writes.remove(&owner) else { return };
         engine.forge_records.rows.push(write.number, write.value, engine.setup.value_bytes);
         if !engine.setup.closing {
             lifecycle::kept(engine, write.purpose);

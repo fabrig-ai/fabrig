@@ -1,12 +1,184 @@
 //! Service forge-table handoffs (temper/docs/design/draft/playground-reset.md, 3 and 4).
 //! Document compatibility follows temper/docs/plan/playground-reset-r4/notes/contracts.md, D1.
-#![cfg_attr(not(test), expect(dead_code, reason = "record handoffs are wired by fr-forge-added"))]
 use crate::engine::Engine;
 use temper_engine_domain_forge::Forge;
 
-pub(crate) fn kept(_engine: &mut Engine, _forge: Forge) {}
+pub(crate) fn kept(engine: &mut Engine, forge: Forge) {
+    let number = forge.number;
+    if record(engine, number) == Some(&forge) {
+        return;
+    }
+    if record(engine, number).is_some() {
+        removed(engine, number);
+    }
+    if let Err(why) = hold(engine, forge) {
+        let why = match why {
+            NotKept::File | NotKept::Trust | NotKept::Bound => crate::NotConnected::Unreadable,
+            NotKept::Unresolved => crate::NotConnected::Unreachable { host: Box::from(b"forge address".as_slice()) },
+            NotKept::Unserved => not_held(b"Host::add: unserved"),
+            NotKept::Started => not_held(b"Host::add: unavailable"),
+            NotKept::Host(why) => not_held(host_reason(why)),
+            NotKept::ComponentClosed => not_held(b"Component::add: Added::Closed"),
+            NotKept::Component(why) => not_held(component_reason(why)),
+        };
+        engine.notes.push(crate::Note::ForgeNotConnected { number, why });
+    }
+}
+fn not_held(reason: &[u8]) -> crate::NotConnected {
+    crate::NotConnected::NotHeld { reason: Box::from(reason) }
+}
+fn component_reason(why: skein_forge_connection::Unusable) -> &'static [u8] {
+    use skein_forge_connection::Unusable as U;
+    match why {
+        U::LogOrigins { .. } => b"Component::add: Added::Unusable LogOrigins",
+        U::Origin { .. } => b"Component::add: Added::Unusable Origin",
+        U::Zero => b"Component::add: Added::Unusable Zero",
+        U::Word => b"Component::add: Added::Unusable Word",
+        U::PlaintextName { .. } => b"Component::add: Added::Unusable PlaintextName",
+        U::SecretBytes { .. } => b"Component::add: Added::Unusable SecretBytes",
+        U::Secret { .. } => b"Component::add: Added::Unusable Secret",
+        U::Listener => b"Component::add: Added::Unusable Listener",
+        U::Connections { .. } => b"Component::add: Added::Unusable Connections",
+        U::Deadline { .. } => b"Component::add: Added::Unusable Deadline",
+        U::BodyBytes { .. } => b"Component::add: Added::Unusable BodyBytes",
+        U::StringBytes { .. } => b"Component::add: Added::Unusable StringBytes",
+        U::Repositories { .. } => b"Component::add: Added::Unusable Repositories",
+        U::PageSize { .. } => b"Component::add: Added::Unusable PageSize",
+        U::Documents(_) => b"Component::add: Added::Unusable Documents",
+        U::Stack { .. } => b"Component::add: Added::Unusable Stack",
+        U::Forges { .. } => b"Component::add: Added::Unusable Forges",
+        U::Duplicate { .. } => b"Component::add: Added::Unusable Duplicate",
+        U::Credential { .. } => b"Component::add: Added::Unusable Credential",
+        U::Token { .. } => b"Component::add: Added::Unusable Token",
+        U::Key { .. } => b"Component::add: Added::Unusable Key",
+        U::AppDeadline { .. } => b"Component::add: Added::Unusable AppDeadline",
+        U::RenewBefore { .. } => b"Component::add: Added::Unusable RenewBefore",
+        U::KeyBytes { .. } => b"Component::add: Added::Unusable KeyBytes",
+        U::GitHubDocuments(_) => b"Component::add: Added::Unusable GitHubDocuments",
+        U::User { .. } => b"Component::add: Added::Unusable User",
+        U::Address { .. } => b"Component::add: Added::Unusable Address",
+        U::Request { .. } => b"Component::add: Added::Unusable Request",
+    }
+}
+fn host_reason(why: skein_forge_setup::host::Unusable) -> &'static [u8] {
+    use skein_forge_setup::host::Unusable as U;
+    match why {
+        U::Zero => b"Host::add: Unusable Zero",
+        U::TokenBytes { .. } => b"Host::add: Unusable TokenBytes",
+        U::Documents(_) => b"Host::add: Unusable Documents",
+        U::GitHubDocuments(_) => b"Host::add: Unusable GitHubDocuments",
+        U::GitHubMetadata { .. } => b"Host::add: Unusable GitHubMetadata",
+        U::Stack { .. } => b"Host::add: Unusable Stack",
+        U::Forges { .. } => b"Host::add: Unusable Forges",
+        U::Duplicate { .. } => b"Host::add: Unusable Duplicate",
+        U::Address { .. } => b"Host::add: Unusable Address",
+        U::PlaintextName { .. } => b"Host::add: Unusable PlaintextName",
+        U::Request { .. } => b"Host::add: Unusable Request",
+        U::Given { .. } => b"Host::add: Unusable Given",
+        U::GitHubGiven { .. } => b"Host::add: Unusable GitHubGiven",
+        U::Reachable { .. } => b"Host::add: Unusable Reachable",
+    }
+}
+#[expect(clippy::manual_map, reason = "record conversions use explicit matches")]
+fn hold(engine: &mut Engine, record: Forge) -> Result<(), NotKept> {
+    let number = record.number;
+    let mut source = settings_forge(&record, &engine.forge.files)?;
+    let identity = identity(&record, &engine.forge.files)?;
+    let endpoint = endpoint(&record, engine.forge.shell)?;
+    let host = match host_forge(engine, &record, &endpoint) {
+        Ok(host) => Ok(host),
+        Err(NotKept::Unserved) => Err(b"setup host serves plaintext only on loopback".as_slice()),
+        Err(why) => return Err(why),
+    };
+    let held = match &record.api {
+        r::Address::Host { name, .. } if endpoint.address == skein_io::Addr::Ip(super::HELD_ADDRESS) => {
+            Some(name.clone())
+        }
+        r::Address::Host { .. } | r::Address::Socket(_) => None,
+    };
+    let handover = match &record.setup {
+        Some(setup) => {
+            let path = temper_forge_setup::place::Place { directory: setup.directory.clone(), user: Box::new([]) }
+                .path(temper_forge_setup::place::File::AdminToken);
+            match engine.forge.files.contents(&path) {
+                Some(value) => Some(Secret::new(Box::from(value))),
+                None => None,
+            }
+        }
+        None => None,
+    };
+    if held.is_none()
+        && record.files.is_some()
+        && source.api_token.is_some()
+        && let Some(setup) = &record.setup
+        && match &setup.mode {
+            r::SetupMode::Fake(_) => true,
+            r::SetupMode::Owned(_) | r::SetupMode::Managed { .. } => false,
+        }
+        && handover.is_none()
+    {
+        return Err(NotKept::File);
+    }
+    match engine.forge.component.add(&engine.forge.env, endpoint, &mut engine.forge.above, &mut engine.forge.io) {
+        Ok(()) => {}
+        Err(skein_forge_connection::Added::Closed) => return Err(NotKept::ComponentClosed),
+        Err(skein_forge_connection::Added::Unusable(why)) => return Err(NotKept::Component(why)),
+    }
+    if let Err(why) = engine.setup.add_forge(number, host, source.api_token.clone()) {
+        engine.forge.component.remove(&engine.forge.env, number, &mut engine.forge.above, &mut engine.forge.io);
+        return Err(match why {
+            NotKept::Bound => {
+                NotKept::Host(skein_forge_setup::host::Unusable::Forges { forges: engine.setup.env.limits.forges })
+            }
+            why @ (NotKept::Unresolved
+            | NotKept::Trust
+            | NotKept::File
+            | NotKept::Unserved
+            | NotKept::Started
+            | NotKept::Host(_)
+            | NotKept::ComponentClosed
+            | NotKept::Component(_)) => why,
+        });
+    }
+    if let Some(host) = &held {
+        engine.forge.add_held(number, host.clone()).expect("component admitted forge");
+    }
+    engine.forge_records.rows.add(number).expect("component admitted forge");
+    if source.kind == settings::Kind::GitHub {
+        engine
+            .values
+            .tokens
+            .add(number, &identity, engine.forge.env.limits.installations)
+            .expect("component admitted forge");
+    }
+    if held.is_none() || record.files.is_none() {
+        engine
+            .setup
+            .hold_record(&record, &source, identity, handover, engine.domain.ready())
+            .expect("component admitted forge");
+    }
+    source.api_token = None;
+    engine.workers.add_forge(source).expect("component admitted forge");
+    engine.forge.records.insert(number, record).expect("component admitted forge");
+    if engine.forge_records.past_connect() && super::records::load_one(engine, number) {
+        super::records::connect_one(engine, number);
+    }
+    Ok(())
+}
+/// The whole connector record, retained for the box's group file.
+pub(crate) fn record(engine: &Engine, forge: u16) -> Option<&Forge> {
+    engine.forge.records.get(&forge)
+}
 
-pub(crate) fn removed(_engine: &mut Engine, _forge: u16) {}
+pub(crate) fn removed(engine: &mut Engine, forge: u16) {
+    engine.forge.component.remove(&engine.forge.env, forge, &mut engine.forge.above, &mut engine.forge.io);
+    engine.setup.remove_forge(forge);
+    engine.forge.records.remove(&forge);
+    engine.forge.remove_held(forge);
+    engine.forge_records.rows.remove(forge);
+    engine.values.tokens.remove(forge);
+    engine.workers.remove_forge(forge);
+}
 
 pub(crate) fn box_remove(_engine: &mut Engine, _forge: u16) {}
 
@@ -38,7 +210,7 @@ fn refuse_trust(_: Option<&[u8]>) -> Result<skein_tls::Config, Box<[u8]>> {
     Err(Box::from(b"trust resolution refused".as_slice()))
 }
 /// A record could not supply a bounded service entry.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Eq, Debug)]
 pub(crate) enum NotKept {
     Unresolved,
     Trust,
@@ -46,8 +218,11 @@ pub(crate) enum NotKept {
     Bound,
     Unserved,
     Started,
+    Host(skein_forge_setup::host::Unusable),
+    ComponentClosed,
+    Component(skein_forge_connection::Unusable),
 }
-fn address(record: &Forge) -> config::Address {
+pub(super) fn address(record: &Forge) -> config::Address {
     match &record.api {
         r::Address::Socket(address) => config::Address::Addr(skein_io::Addr::Ip(*address)),
         r::Address::Host { name, port } => config::Address::Host { name: name.clone(), port: *port },

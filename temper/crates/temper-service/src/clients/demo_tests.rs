@@ -116,7 +116,12 @@ fn start_playground_reads_each_time_and_carries_the_key_before_admission() {
     engine.demo.as_mut().unwrap().forge = None;
     engine.clients.starting = None;
     enqueue_playground(&mut engine.clients);
-    engine.clients.advance(&mut engine.events, &engine.workers.forges, engine.demo.as_ref(), &mut engine.accounts);
+    engine.clients.advance(
+        &mut engine.events,
+        engine.workers.forges.as_slice(),
+        engine.demo.as_ref(),
+        &mut engine.accounts,
+    );
     assert!(engine.events.is_empty());
     let read = service.take_handover_read().unwrap();
     assert_eq!(read.forge, 0);
@@ -131,7 +136,12 @@ fn start_playground_reads_each_time_and_carries_the_key_before_admission() {
     while let Some(answer) = store.above.pop() {
         engine.clients.secret_answer(answer);
     }
-    engine.clients.advance(&mut engine.events, &engine.workers.forges, engine.demo.as_ref(), &mut engine.accounts);
+    engine.clients.advance(
+        &mut engine.events,
+        engine.workers.forges.as_slice(),
+        engine.demo.as_ref(),
+        &mut engine.accounts,
+    );
     let Some(root::Event::Party(root::PartyInput::Application {
         request: root::Application::Forge(temper_engine_domain_forge::Ask::StartPlayground),
         carried: Some(carried),
@@ -164,7 +174,12 @@ fn start_playground_reads_each_time_and_carries_the_key_before_admission() {
     };
     assert_eq!(value.expose(), b"test-key\n");
     enqueue_playground(&mut engine.clients);
-    engine.clients.advance(&mut engine.events, &engine.workers.forges, engine.demo.as_ref(), &mut engine.accounts);
+    engine.clients.advance(
+        &mut engine.events,
+        engine.workers.forges.as_slice(),
+        engine.demo.as_ref(),
+        &mut engine.accounts,
+    );
     let next = engine.clients.demo_read().unwrap();
     assert_eq!(next.path, read.path);
     assert_ne!(next.run, read.run);

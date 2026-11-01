@@ -168,6 +168,7 @@ impl Service {
         clippy::too_many_arguments,
         reason = "the checked start carries the shell resolvers beside its runtime resources"
     )]
+    #[expect(clippy::too_many_lines, reason = "checked construction keeps startup diagnostic ordering together")]
     pub(crate) fn prepared(
         mut settings: settings::Engine,
         seeds: &settings::Seeds,
@@ -201,6 +202,14 @@ impl Service {
             values::Values::new(settings.jig.limits.driver.accounts, values::credential_bytes(&settings.jig));
         let wire = translate::limits(&settings.limits).ok_or(start_problem(b"limits", What::Bound))?;
         values.fill(&settings, &wire)?;
+        let mut identities = values::Identities::with_capacity(
+            settings.limits.forge.forges.max(u32::try_from(settings.identities.len()).expect("checked identities")),
+        );
+        for number in &values.identities.numbers() {
+            let (_, value) = values.identities.newest(*number).expect("filled identity");
+            identities.put(*number, value.clone());
+        }
+        values.identities = identities;
         let (forge_config, _identities) = crate::forge::config(&settings, seeds.deployment);
         let mut first_periods = List::with_capacity(limits.authority.projects);
         for project in &settings.jig.projects {
@@ -219,7 +228,9 @@ impl Service {
         if let Some(sign_in) = &settings.sign_in {
             clients.configure_google(sign_in, settings.limits.sign_in, seeds, &settings.jig);
         }
-        let setup = crate::setup::prepare(&settings, &mut forge_settings, &seeds.crypto, box_line_bytes.is_some())?;
+        let mut setup = crate::setup::prepare(&settings, &mut forge_settings, &seeds.crypto, box_line_bytes.is_some())?;
+        setup.empty(&settings, box_line_bytes.is_some());
+        forge_settings.forges = List::with_capacity(settings.limits.forge.forges);
         let mut forge =
             crate::forge::Layer::new(forge_settings, settings.limits.forge_component, &shared, &settings.forges, shell)
                 .expect("checked forge limits");
@@ -231,6 +242,8 @@ impl Service {
             Some(demo) => Some(demo.domain(&settings.forges, settings.limits.setup.deadline)),
             None => None,
         };
+        settings.forges = Box::new([]);
+        values.tokens = crate::forge::tokens::Tokens::new(&settings);
         let workers = workers::Workers::configured(&mut settings, seeds.deployment)?;
         let config = temper_engine_domain::Config {
             period_span: crate::stock::PERIOD_SPAN,
