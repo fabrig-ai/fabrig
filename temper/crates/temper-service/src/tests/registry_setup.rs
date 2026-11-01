@@ -157,6 +157,27 @@ fn a_registered_owned_record_is_served_and_waits_for_its_group() {
     assert_eq!(local.identity.number, 1);
     assert_eq!(local.identity.author.name, record.bot.name);
     assert_eq!(local.identity.author.email, record.bot.email);
+    let engine = service.engine.as_mut().unwrap();
+    let mut not_set_up = false;
+    for event in &engine.events {
+        if let root::Event::Forge(event) = event
+            && let domain::Event::Connection { forge: 1, state: domain::Connection::NotSetUp } = event.as_ref()
+        {
+            not_set_up = true;
+        }
+    }
+    assert!(not_set_up);
+    engine.step(root::Event::Forge(Box::new(domain::Event::Connection {
+        forge: 1,
+        state: domain::Connection::NotSetUp,
+    })));
+    let mut offer = None;
+    for forge in &engine.domain.forges().rows {
+        if forge.number == 1 {
+            offer = Some(forge.offer);
+        }
+    }
+    assert_eq!(offer, Some(domain::Offer::Offered));
     for _ in 0_u32..4 {
         advance(&mut service);
     }
