@@ -366,7 +366,7 @@ impl Child {
         assert!(
             self.kind != CallKind::Adoption
                 || self.ended.exit == Some(Exit::Code(0))
-                || cut && self.ended.exit == Some(Exit::Code(143)),
+                || cut && matches!(self.ended.exit, Some(Exit::Code(143) | Exit::Signal(15))),
             "adoption ended refused: exit={:?}; {}",
             self.ended.exit,
             String::from_utf8_lossy(&self.ended.stderr)

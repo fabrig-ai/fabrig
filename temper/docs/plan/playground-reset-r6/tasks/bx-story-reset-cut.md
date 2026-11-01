@@ -3,7 +3,7 @@ id = "bx-story-reset-cut"
 part = "pg"
 kind = "feature"
 needs = ["bx-story-playground"]
-files = ["temper/crates/temper/tests/reset/**"]
+files = ["temper/crates/temper/tests/reset/**", "temper/crates/temper/tests/support/boxed.rs", "temper/crates/temper/tests/support/ctl.rs", "temper/crates/temper-engine-domain-forge/src/domain.rs", "temper/crates/temper-engine-domain-forge/src/adoption.rs", "temper/crates/temper-engine-domain-forge/src/tests/adoption.rs"]
 effort = "high"
 minutes = 60
 +++
@@ -88,3 +88,40 @@ answer). Each state is read through what ctl already lists, and T6's order of st
 - **The shared first half** stops once the playground runs and its forge is connected; it
   does not take the story's `forge-N/admin_token` check, which bx-story-playground's answer
   replaces. Its failing assertion on the prerequisite branch is that task's, not yours.
+
+2026-11-01. Q: the immediate cut dies by signal 15, which the harness judges a failure, and
+the restart after a probed cut panics in the forge connector's reconcile (`forge link
+Application -> Repository(...)`): wait for the harness and forge owners, or widen this task?
+
+A: Widen this task; do not wait. `bx-harness` and `fe-remove` have landed, so no other run
+takes these. Two repairs, then the stories as the answer above says.
+
+1. **The cut is the probe's, not the immediate fallback's.** Your phase-probe run cut where
+   the answer above asks (the `Playground` project gone, the fake forge still listed); the
+   restart failed only on item 2. Go back to the probe for every kill. The immediate
+   fallback stays only for a kill whose probe is missed, as the answer above says.
+2. **The connector erases an adoption's retained answer with its repository.** A
+   `Stored::Application` whose outcome is `Adopted` names a repository; when the connector
+   erases that `Repository` row (the project's release, `domain.rs` near 273; a forgotten
+   adoption, `Event::ForgetAdoption`'s `None` arm; and forge removal, if it erases
+   repository rows by another path), it also erases each kept `Application` answer naming
+   it: removed from `d.application.kept` and `Request::Erase { key: Key::Application(..) }`
+   in the same output. That is draft section 5's "an act's retained answer that named it,
+   which answers unknown, as one past its retention does"; reconcile's panic stays, since
+   a dangling link is then a writer bug again. One helper beside `adoption.rs`'s
+   retention erase, called from each site. Unit test in
+   `temper/crates/temper-engine-domain-forge/src/tests/adoption.rs`: an adoption answered
+   `Adopted`, its project released, then a restore of the saved rows reconciles without a
+   panic and the answer reads unknown. Run `heavy cargo nextest run -p
+   temper-engine-domain-forge --lib` and its clippy. `fe-world-remove` is running in the
+   same crate on `removal.rs` and `tests/removal.rs`: stay out of both.
+3. **A cut call that dies by SIGTERM before ctl's handler is a cut.** In
+   `tests/support/boxed.rs` (both judgments, near 686 and 750) and `tests/support/ctl.rs`'s
+   `check_adoption`, accept `Exit::Signal(15)` beside `Exit::Code(143)` for a call
+   `was_cut`. Nothing else in the harness changes; no sleep, and no new readiness point.
+
+Owns and may change, widened: the files in the front matter, for these items only. The
+inherited `fake::check::tests::verb` failure is not yours: leave it under `## Left`. The run
+is `Done` when both stories pass run alone. A further fault outside these files that keeps
+a story red ends the run `Failed:` with the story, the cut's step and the log, not a
+question.
