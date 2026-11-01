@@ -271,10 +271,10 @@ fn the_chats_words_send_plain_changes_to_change() {
 }
 
 #[test]
-fn the_chats_words_tell_the_person_when_its_change_holds() {
+fn the_chats_words_tell_the_person_when_its_change_or_goal_holds() {
     let words = include_str!("../stock/chat.txt");
     let chat = words.split("\n\n").last().expect("chat paragraph");
-    assert!(chat.contains("When a change you started holds, tell them at once why, in its hold's words, and that they decide: release it to go on, or cancel it; then wait."));
+    assert!(chat.contains("When a change or goal you started holds, tell the person at once in words what it waits on and that it waits in their inbox for them to decide: release it to go on, or cancel it; then wait."));
 }
 
 #[test]
