@@ -36,7 +36,7 @@ pub(crate) fn observe(domain: &mut Domain, project: u32, period: u64, next: Opti
 }
 
 /// Close the project's accounting after its last task has been erased
-/// (temper/docs/design/draft/playground-reset.md, 5).
+/// (jig/docs/design/domain/core.md, 11).
 pub(crate) fn project_gone(domain: &mut Domain, project: u32, out: &mut Queue<Request>) {
     let mut recurring = skein_lib::List::with_capacity(domain.funding.len());
     let mut pools = skein_lib::List::with_capacity(domain.funding.len());

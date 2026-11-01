@@ -15,7 +15,7 @@ const TURN_ONLY: PatchSets = PatchSets { sets: &[SETS.sets[1]] };
 #[test]
 fn each_serving_machine_decodes_its_kept_frames() {
     let limits = jig_store_world::patches::limits();
-    for (label, sets, body) in [("body and turn", SETS, 5), ("body", BODY_ONLY, 5), ("turn", TURN_ONLY, 6)] {
+    for (label, sets, body) in [("body and turn", SETS, 5), ("body", BODY_ONLY, 5), ("turn", TURN_ONLY, 7)] {
         let raw = frames::frame(body, &turn(1, b"hello", b"r", 0));
         let (mut component, env) = closed(sets, &limits);
         open(&mut component, &env);

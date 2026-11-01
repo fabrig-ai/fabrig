@@ -356,7 +356,7 @@ fn under_the_box_setup_is_followed_through_each_step_to_settled() {
     assert!(world.saved.is_empty());
 }
 #[test]
-fn without_the_box_the_row_and_setup_refusal_name_the_manual_commands() {
+fn without_the_box_the_row_names_the_manual_commands_and_setup_refuses() {
     use temper_client_domain::forge::{forges::Offer, words};
     let mut world = World::new(false);
     world.read();
@@ -366,7 +366,7 @@ fn without_the_box_the_row_and_setup_refusal_name_the_manual_commands() {
     let printed = world.invoke(&[b"forge", b"setup", b"3"]);
     assert_eq!(printed.status, 2);
     assert!(contains(&printed.stderr, b"refused: not under the box"));
-    assert!(contains(&printed.stderr, &words::set_up_commands(FORGE)));
+    assert_eq!(&*printed.stderr, b"refused: not under the box\n");
     assert_eq!(world.box_calls, 0);
 }
 #[test]

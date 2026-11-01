@@ -241,6 +241,7 @@ fn a_scripted_box_answers_keyed_setup_requests_through_the_clients_family() {
     let mut stand = fixtures::system::one_process_under_box(true);
     stand.service.adopt_box(Fd::new(3), Fd::new(4), Fd::new(90), 0, LINE_BYTES).unwrap();
     super::box_link::until_hosting(&mut stand);
+    turns(&mut stand);
     // SystemStand has fixed membership and an in-memory store. Startup's
     // absent-file state is tested separately; inject its root inputs here.
     for forge in [OWNED, OTHER] {
@@ -248,7 +249,7 @@ fn a_scripted_box_answers_keyed_setup_requests_through_the_clients_family() {
     }
     turns(&mut stand);
     let bearer = box_sign_in(&mut stand);
-    assert_eq!(box_setup(&mut stand, &bearer, OWNED, 1), w::Outcome::SettingUp);
+    assert_eq!(box_setup(&mut stand, &bearer, OWNED, 1), w::Outcome::SettingUp, "{:?}", stand.service.engine.as_ref().unwrap().domain.forges());
     turns(&mut stand);
     assert_eq!(stand.kernel.box_written.as_slice(), b"start 1\n");
     assert_eq!(
@@ -264,7 +265,7 @@ fn a_scripted_box_answers_keyed_setup_requests_through_the_clients_family() {
         stand.service.engine.as_ref().unwrap().domain.forge_connection(OWNED),
         Connection::SettingUp { step: Some(SetUpStep::Prepare) }
     );
-    assert_eq!(box_setup(&mut stand, &bearer, OWNED, 1), w::Outcome::SettingUp);
+    assert_eq!(box_setup(&mut stand, &bearer, OWNED, 1), w::Outcome::SettingUp, "{:?}", stand.service.engine.as_ref().unwrap().domain.forges());
     assert_eq!(stand.kernel.box_written.as_slice(), b"start 1\n");
 
     for byte in b"failed 1 prepare 1 exited 1\n" {

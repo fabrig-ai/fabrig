@@ -287,6 +287,9 @@ fn forges(world: World) -> Box<[u8]> {
     }
     let limits = temper_client_domain::forge::wire_limits(&limits().forge).expect("wire limits");
     let mut rows = List::with_capacity(3);
+    if world == (FirstRun { step: 0 }) {
+        return wire::forges(&w::Forges::new(&limits, w::ForgesParts { forges: rows, owned: w::Offer::Offered }).expect("empty first run"));
+    }
     if matches_demo(world) && world != (FirstRun { step: 7 }) {
         rows.push(
             w::ForgeRow::new(

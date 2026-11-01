@@ -294,23 +294,16 @@ fn full_party_answers_name_the_oldest_deployment_answer_expiry() {
 }
 
 #[test]
-fn remove_project_is_not_offered_and_unsaved() {
+fn a_remove_project_act_is_routed_and_answered_once_durable() {
     let mut world = world();
+    let outcome = Outcome::ProjectRemoved { project: PROJECT };
     let call = world.act(CONNECTOR, KEY, Act::RemoveProject { project: PROJECT });
-    answer(&world, call, Outcome::Refused(Refusal::NotOffered));
+    assert_eq!(world.acts.len(), 1);
+    world.decide_acts(&outcome);
+    assert_eq!(world.reply(call), None);
     world.commit_all();
-    assert!(world.acts.is_empty());
-    assert!(
-        !world
-            .records()
-            .contains_key(&jig_domain_people::Key::Acted(jig_domain_people::ActKey { connector: CONNECTOR, key: KEY }))
-    );
-    assert_eq!(world.stats().routes, 0);
-    world.assert_settled();
-    let call = world.act(CONNECTOR, KEY, close());
-    world.decide_acts(&DECIDED);
-    world.commit_all();
-    answer(&world, call, DECIDED);
+    answer(&world, call, outcome);
+    assert_eq!(world.stats().routes, 1);
     world.assert_settled();
 }
 
@@ -335,24 +328,18 @@ fn a_cancel_is_routed_and_its_answer_saved() {
 }
 
 #[test]
-fn a_project_owners_remove_project_is_not_offered_and_unsaved() {
-    use jig_domain_people::{Ask, Holding, Key, RequestKey, Role};
+fn a_project_owners_remove_project_is_routed_and_saved() {
+    use jig_domain_people::{Ask, Holding, Role};
     let mut world = world();
     world.roles(PROJECT, Box::new([Holding { person: REQUESTER, role: Role::Owner }]));
     world.signin(PARTY_SIGN_IN, REQUESTER);
     world.commit_all();
     let call = world.request(PARTY_SIGN_IN, PARTY_KEY, Ask::RemoveProject { project: PROJECT });
-    assert_eq!(world.reply(call), Some(Reply::Refused(Refusal::NotOffered)));
+    assert_eq!(world.reply(call), None);
     world.commit_all();
-    assert!(!world.records().contains_key(&Key::Answer(RequestKey { person: REQUESTER, key: PARTY_KEY })));
-    assert_eq!(world.stats().routes, 0);
-    world.assert_settled();
-    let call = world.request(
-        PARTY_SIGN_IN,
-        PARTY_KEY,
-        Ask::MarkSeen { seen: jig_domain_people::Seen::Results { through: 0 } },
-    );
-    world.commit_all();
-    answer(&world, call, Outcome::MarkedSeen { seen: jig_domain_people::Seen::Results { through: 0 } });
+    answer(&world, call, Outcome::ProjectRemoved { project: PROJECT });
+    let replay = world.request(PARTY_SIGN_IN, PARTY_KEY, Ask::RemoveProject { project: PROJECT });
+    answer(&world, replay, Outcome::ProjectRemoved { project: PROJECT });
+    assert_eq!(world.stats().routes, 1);
     world.assert_settled();
 }

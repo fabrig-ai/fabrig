@@ -49,7 +49,7 @@ const APPLICATION: PatchSet = PatchSet {
     patches: app::PATCHES,
 };
 const JIG: PatchSet =
-    PatchSet { fresh: None, owner: Owner::Jig, name: upstream::NAME, families: &[NOTE], patches: jig::PATCHES };
+    PatchSet { fresh: None, owner: Owner::Jig, name: upstream::NAME, families: &[NOTE], patches: &[jig::PATCHES[0], jig::PATCHES[1]] };
 pub const SETS: PatchSets = PatchSets { sets: &[APPLICATION, JIG] };
 pub const BASE: PatchSets = PatchSets {
     sets: &[

@@ -166,6 +166,7 @@ fn a_forgejo_admin_connect_makes_a_managed_forgejo_from_its_origin() {
                 name: b"Temper".as_slice().into(),
                 email: b"temper@localhost".as_slice().into(),
             },
+            first: first.as_ref().map(|first| r::FirstIntent { org: first.org.clone(), repository: first.repository.clone(), project: first.project.clone(), label: first.label.clone() }),
             setup: Some(r::Setup {
                 directory: Box::new([]),
                 bot: r::Account { login: b"temper".as_slice().into(), email: b"temper@localhost".as_slice().into() },

@@ -301,7 +301,7 @@ fn restart_configuration_preserves_the_ordinary_read_allowance() {
 }
 
 #[test]
-fn a_sweep_returns_one_typed_page_and_its_more_flag() {
+fn a_sweep_returns_one_page_and_its_more_flag() {
     let mut routes = fixtures::routes();
     let owner = Token::new(81);
     let sweep = core::reads::Sweep::Task(21);

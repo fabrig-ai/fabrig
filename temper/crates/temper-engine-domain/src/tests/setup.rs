@@ -915,7 +915,7 @@ fn public_accept_defers_the_keyed_answer_until_the_verified_installation_is_kept
 }
 
 #[test]
-fn remove_forge_is_admitted_at_the_deployment_scope_and_refused_not_offered() {
+fn remove_forge_is_admitted_at_the_deployment_scope_and_refuses_an_absent_record() {
     let (mut domain, env) = signed_in(Some(people::Role::Owner));
     // This person holds only deployment ownership. The caller's project scope cannot admit the ask.
     crate::try_step(&mut domain, &env, public_request(forge::Ask::RemoveForge { forge: 1 }, None)).unwrap();
@@ -924,7 +924,7 @@ fn remove_forge_is_admitted_at_the_deployment_scope_and_refused_not_offered() {
         [Request::Party(PartyRequest::Deliver(Delivery::Application {
             to: ReplyTo::new(Token::new(90)),
             outcome: Some(crate::ApplicationAnswer::RemoveForge(forge::RemoveAnswer::Refused(
-                forge::RemoveRefusal::NotOffered
+                forge::RemoveRefusal::NoSuchForge
             ))),
         }))]
     );

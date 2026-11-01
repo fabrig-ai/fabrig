@@ -79,15 +79,17 @@ fn set_up_with_only_the_template_makes_and_sets_up_its_forge() {
     let mut d = started(&[records::forge()], true, true);
     let emitted = ask(&mut d, 91, b"work");
     let mut expected = owned(3);
+    expected.first = Some(r::FirstIntent { org: b"work".as_slice().into(), repository: b"hello".as_slice().into(), project: SetUpProject::Existing(1), label: b"temper-host".as_slice().into() });
     expected.identity.number = 2;
     assert_eq!(d.forge_record(3), Some(&expected));
     assert_eq!(
         emitted.as_ref(),
         [
-            Request::Save { record: Stored::Forge(expected.clone()), release: None, read_afresh: None },
+            Request::Save { record: Stored::Forge(Forge { first: None, ..expected.clone() }), release: None, read_afresh: None },
             Request::Save { record: Stored::Forges { next: 4 }, release: None, read_afresh: None },
             Request::MarkedForges,
-            Request::ForgeKept { forge: Box::new(expected) },
+            Request::ForgeKept { forge: Box::new(Forge { first: None, ..expected.clone() }) },
+            Request::Save { record: Stored::Forge(expected), release: None, read_afresh: None },
             Request::MarkedForges,
             Request::SetUp {
                 forge: 3,
@@ -105,9 +107,10 @@ fn set_up_sets_up_a_kept_owned_forge_without_making_one() {
     for template in [false, true] {
         let mut d = started(&[owned(3)], template, true);
         let emitted = ask(&mut d, 91, b"work");
-        assert_eq!(emitted.len(), 2);
-        assert_eq!(emitted[1], setup_request(3, 91));
-        assert_eq!(d.forge_record(3), Some(&owned(3)));
+        let mut expected = owned(3);
+        expected.first = Some(r::FirstIntent { org: b"work".as_slice().into(), repository: b"hello".as_slice().into(), project: SetUpProject::Existing(1), label: b"temper-host".as_slice().into() });
+        assert_eq!(emitted.as_ref(), &[Request::Save { record: Stored::Forge(expected.clone()), release: None, read_afresh: None }, Request::MarkedForges, setup_request(3, 91)]);
+        assert_eq!(d.forge_record(3), Some(&expected));
         assert_eq!(d.forge_records.len(), 1);
         assert_eq!(d.next_forge(), 4);
     }

@@ -1,5 +1,5 @@
 //! A deleted project's explicit account uses (domain/accounts.md, 4.2;
-//! temper/docs/design/draft/playground-reset.md, 5).
+//! jig/docs/design/domain/core.md, 11).
 use crate::{Domain, Request, Use};
 use skein_lib::{List, Queue};
 

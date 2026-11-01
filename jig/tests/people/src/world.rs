@@ -653,7 +653,8 @@ impl World {
                         | Ask::MarkSeen { .. }
                         | Ask::Release { .. }
                         | Ask::Amend { .. }
-                        | Ask::Say { .. } => RouteKind::Control,
+                        | Ask::Say { .. }
+                        | Ask::RemoveProject { .. } => RouteKind::Control,
                         Ask::AccountSignIn { .. } | Ask::AccountSignOut { .. } | Ask::AccountChange { .. } => {
                             RouteKind::Account
                         }
@@ -665,7 +666,6 @@ impl World {
                         | Ask::AnswerQuestion { .. }
                         | Ask::SetRoles { .. }
                         | Ask::Rename { .. }
-                        | Ask::RemoveProject { .. }
                         | Ask::MakeProject { .. }
                         | Ask::ChangeSettings { .. }
                         | Ask::MoveToNewest { .. }
@@ -719,6 +719,9 @@ impl World {
                         self.deferred.push((request, key));
                     } else {
                         match *ask {
+                            Ask::RemoveProject { project } => {
+                                people::step(&mut self.domain, &self.env, Event::Decided { request, outcome: Outcome::ProjectRemoved { project } }, &mut self.out);
+                            }
                             Ask::Compound { project, operations } => {
                                 let outcome = if self.settings.authority_refuses {
                                     Outcome::CompoundRefused { at: 1, why: Refusal::Unknown }
@@ -1095,8 +1098,7 @@ impl World {
                             | Ask::AnswerQuestion { .. }
                             | Ask::SetRoles { .. }
                             | Ask::Rename { .. }
-                            | Ask::RemoveProject { .. }
-                            | Ask::MakeProject { .. }
+                                | Ask::MakeProject { .. }
                             | Ask::ChangeSettings { .. }
                             | Ask::MoveToNewest { .. }
                             | Ask::ChangePolicy { .. }

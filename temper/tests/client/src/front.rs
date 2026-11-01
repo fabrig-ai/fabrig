@@ -1118,7 +1118,7 @@ impl Joint {
                 w::ForgeRow::new(
                     &w::CEILINGS,
                     w::ForgeRowParts {
-                        skein_bools: [false, false, false, false],
+                        skein_bools: [false, true, false, false],
                         number: forge,
                         kind: w::Kind::Forgejo,
                         mode: w::Mode::Fake,

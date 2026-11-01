@@ -553,6 +553,7 @@ fn start_with_settings(
             Secret::new(b"8f7be71db3941de11249a5e3fba7750a41c7d9958083ef522cb79e9fd7822878".as_slice().into()),
         );
     }
+    reseed(&mut settings);
     if let Some(seed) = seed {
         settings.limits.forge.forges = settings.limits.forge.forges.max(u32::try_from(seed.seed.len()).unwrap());
         settings.limits.forge_component.forges = settings.limits.forge.forges;

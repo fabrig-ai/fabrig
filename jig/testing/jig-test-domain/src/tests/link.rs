@@ -331,6 +331,7 @@ fn program_source_lifecycle_routes_without_run_payloads() {
 fn stopping_continues_a_projection_deferred_watch_without_another_commit() {
     use skein_lib::{Env, Wall};
     let (mut domain, env, watcher) = settled_frame_watch(Wall::from_nanos(u64::MAX));
+    domain.core.projects.push(1).expect("one serving project");
     let mut out = Queue::uncapped();
     let mut policy_out = Queue::uncapped();
     jig_domain_authority::step(

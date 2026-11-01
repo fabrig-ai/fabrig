@@ -20,6 +20,12 @@ family fixture-frame 5 to 6
 widen TurnRecord.spent u32 u64
 add TurnRecord.read option u64 none
 ",
+    r"patch 1
+owner fixture-jig 3
+
+family fixture-frame 6 to 7
+add Removal
+",
 ];
 
 pub mod kept {
@@ -30,6 +36,10 @@ versioned record TurnRecord { opens_window: bool task: u64 attempt: u64 turn: u3
 ",
             r"family fixture-frame 6
 versioned record TurnRecord { opens_window: bool task: u64 attempt: u64 turn: u32 spent: u64 read: option u64 at: u64 transcript: bytes 8388608 holds fixture-turn Turn }
+",
+            r"family fixture-frame 7
+versioned record TurnRecord { opens_window: bool task: u64 attempt: u64 turn: u32 spent: u64 read: option u64 at: u64 transcript: bytes 8388608 holds fixture-turn Turn }
+record Removal { project: u32 }
 ",
         ];
         pub mod v5 {
@@ -57,9 +67,30 @@ versioned record TurnRecord { opens_window: bool task: u64 attempt: u64 turn: u3
                 pub const TRANSCRIPT: FieldIx = FieldIx::new(7);
             }
         }
+        pub mod v7 {
+            pub mod turn_record {
+                use skein_codec::schema::FieldIx;
+                pub const OPENS_WINDOW: FieldIx = FieldIx::new(0);
+                pub const TASK: FieldIx = FieldIx::new(1);
+                pub const ATTEMPT: FieldIx = FieldIx::new(2);
+                pub const TURN: FieldIx = FieldIx::new(3);
+                pub const SPENT: FieldIx = FieldIx::new(4);
+                pub const READ: FieldIx = FieldIx::new(5);
+                pub const AT: FieldIx = FieldIx::new(6);
+                pub const TRANSCRIPT: FieldIx = FieldIx::new(7);
+            }
+            pub mod removal {
+                use skein_codec::schema::FieldIx;
+                pub const PROJECT: FieldIx = FieldIx::new(8);
+            }
+        }
         pub mod p0002 {
             pub use super::v5 as old;
             pub use super::v6 as new;
+        }
+        pub mod p0003 {
+            pub use super::v6 as old;
+            pub use super::v7 as new;
         }
     }
     pub mod fixture_note {
@@ -118,5 +149,10 @@ mod tests {
     #[test]
     fn p0002_goldens() {
         assert_eq!(skein_codegen::patch::goldens(&owner(), 2, super::written), Ok(()), "patch 0002 goldens");
+    }
+
+    #[test]
+    fn p0003_goldens() {
+        assert_eq!(skein_codegen::patch::goldens(&owner(), 3, super::written), Ok(()), "patch 0003 goldens");
     }
 }

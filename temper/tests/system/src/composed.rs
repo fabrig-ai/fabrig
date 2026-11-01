@@ -730,6 +730,7 @@ impl World {
                 watch.text.extend_from_slice(&text);
                 self.root_events.push_back(engine::Event::Party(engine::PartyInput::StreamDelivered { watcher }));
             }
+            engine::Request::ForgeKept { .. } => {}
             other @ (engine::Request::Store(engine::StoreRequest::Read { .. })
             | engine::Request::Worker(
                 engine::WorkerRequest::Host(_) | engine::WorkerRequest::ReadResult { .. },
@@ -739,7 +740,6 @@ impl World {
             )
             | engine::Request::Account(_)
             | engine::Request::SetUpGroup { .. }
-            | engine::Request::ForgeKept { .. }
             | engine::Request::ForgeRemoved { .. }
             | engine::Request::BoxRemove { .. }
             | engine::Request::Connect { .. }

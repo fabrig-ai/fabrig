@@ -874,7 +874,7 @@ pub(crate) fn startup_check(domain: &Domain, limits: &Limits) -> bool {
     true
 }
 
-/// Forget the deleted project's retained state (temper/docs/design/draft/playground-reset.md, 5).
+/// Forget the deleted project's retained state (jig/docs/design/domain/core.md, 11).
 pub(crate) fn project_gone(domain: &mut Domain, project: u32, out: &mut Queue<Request>) {
     let mut keys = List::with_capacity(domain.placed.len());
     for (key, row) in &domain.placed {

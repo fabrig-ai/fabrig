@@ -1,4 +1,4 @@
-//! A deleted project's own rows (temper/docs/design/draft/playground-reset.md, 5).
+//! A deleted project's own rows (jig/docs/design/domain/core.md, 11).
 //! Period and pool spending outlives the project; recurring spending belongs to its period.
 use crate::{
     Core, CoreKey, Event, Held, Key, Limits, Now, ProposalDecisionRecord, Record, Request, Requests, Write,
