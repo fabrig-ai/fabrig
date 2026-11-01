@@ -950,9 +950,14 @@ mod tests {
         listener.fire(Time::ZERO);
         assert!(listener.connections[&first].reading);
         assert!(!listener.connections[&second].reading);
+        assert!(listener.requests.iter().any(|request| matches!(request,
+            io::Request::Stream { down: stream::Down::Demand { read: stream::Read::Scan { until, .. }, .. }, .. }
+            if *until == stream::Delimiter::new(b"\n").expect("LF"))));
+        // The stream's scan gives only the first line of a two-line write.
         bytes(&mut listener, first, b"{}\n", Time::ZERO);
         let (owner, n, line) = listener.call().unwrap();
         assert_eq!((owner, n, line), (first, 1, b"{}".to_vec()));
+        assert!(listener.call().is_none(), "one line yields one call");
         listener.answer(first, b"{}\n".to_vec());
         listener.event(io::Event::Stream { owner: first, up: stream::Up::Room }, Time::ZERO).unwrap();
         listener.fire(Time::ZERO);

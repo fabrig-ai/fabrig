@@ -1,7 +1,7 @@
 //! Facts on the lab's reads, served and driven by the real loop.
 #![expect(clippy::disallowed_types, reason = "the kit's own tests of the look's reads (browser.md, 5.1)")]
 use super::{Event, PAGE, Request, Rig, Stage, Token, fonts, query, serve};
-use skein_browser::boundary::{Go, Look, Looked, Motion, Rect, Scheme};
+use skein_browser::boundary::{Go, Look, Looked, Motion, Rect, Refusal, Scheme};
 use skein_lib::{Duration, List};
 const READ: Token = Token::new(40);
 const GO: Token = Token::new(41);
@@ -18,8 +18,8 @@ body {margin:0;color:rgb(17,17,17);font-size:16px}
 #fallback {top:2060px;font-family:monospace}
 </style></head><body>
 <h1 id="media">Dark reduced 390</h1><div><h2>Second</h2></div><h3>Third</h3>
-<input aria-label="Words" value="Old words" autofocus><textarea aria-label="Lines">Several lines</textarea>
-<input type="checkbox" aria-label="Checked" checked><button disabled>Disabled</button>
+<input id="words" aria-label="Words" value="Old words" autofocus><textarea id="lines" aria-label="Lines">Several lines</textarea>
+<input id="placeholder" placeholder="Placeholder text"><input type="checkbox" aria-label="Checked" checked><button disabled>Disabled</button>
 <div id="nobox" style="display:none">Hidden</div><button id="styled">Styled</button><button id="fallback">Fallback<div><span style="font-family:Fixture">Nested</span></div></button>
 <script>document.fonts.load('16px Fixture').then(()=>document.fonts.ready).then(()=>{let p=document.createElement('p');p.setAttribute('role','status');p.setAttribute('aria-label','Fonts ready');p.textContent='Fonts ready';document.body.append(p);window.scrollTo(0,100)})</script>
 </body></html>"#;
@@ -69,6 +69,10 @@ impl Rig {
                 let url = format!("http://{}/facts", self.pages.addr.expect("page server"));
                 self.ask(Request::Go { page: PAGE, op: GO, to: Go::Address(url.into_bytes().into()) });
             }
+            Event::Done { op: GO } if self.look.step == 20 => {
+                self.look_ask(21, Look::Style { node: self.look.node, properties: List::with_capacity(0) });
+            }
+            Event::Refused { op: READ, why: Refusal::Gone } if self.look.step == 21 => self.close_browser(),
             Event::Done { op: GO } => {
                 self.ask(Request::Await {
                     page: PAGE,
@@ -132,6 +136,13 @@ impl Rig {
                     self.look.node = selected.expect("styled after shot");
                     self.style_ask(10);
                 }
+                14 | 16 | 18 => {
+                    self.look.node = selected.expect("form control node");
+                    self.look_ask(
+                        self.look.step + 1,
+                        Look::Style { node: self.look.node, properties: List::with_capacity(0) },
+                    );
+                }
                 12 => {
                     self.look.node = selected.expect("hidden node exists");
                     self.style_ask(13);
@@ -143,10 +154,12 @@ impl Rig {
                 other => panic!("unexpected selection at {other}"),
             },
             Event::Looked { op: READ, looked: Looked::Style { values, faces, rect } } => {
-                assert_eq!(
-                    values.iter().map(|p| p.value.as_ref()).collect::<Vec<_>>(),
-                    [b"rgb(17, 17, 17)".as_slice(), b"16px"]
-                );
+                if ![15, 17, 19].contains(&self.look.step) {
+                    assert_eq!(
+                        values.iter().map(|p| p.value.as_ref()).collect::<Vec<_>>(),
+                        [b"rgb(17, 17, 17)".as_slice(), b"16px"]
+                    );
+                }
                 match self.look.step {
                     5 => {
                         assert_eq!(rect, Some(EXPECTED));
@@ -161,7 +174,26 @@ impl Rig {
                     }
                     13 => {
                         assert_eq!(rect, None);
-                        self.close_browser();
+                        self.look_ask(14, Look::Select { selector: b"#words".as_slice().into() });
+                    }
+                    15 | 17 | 19 => {
+                        let glyphs: u32 = faces.iter().map(|face| face.glyphs).sum();
+                        let expected = match self.look.step {
+                            15 => 9,
+                            17 => 13,
+                            19 => 16,
+                            other => panic!("control step {other}"),
+                        };
+                        assert_eq!(glyphs, expected, "control text at {}: {faces:?}", self.look.step);
+                        match self.look.step {
+                            15 => self.look_ask(16, Look::Select { selector: b"#lines".as_slice().into() }),
+                            17 => self.look_ask(18, Look::Select { selector: b"#placeholder".as_slice().into() }),
+                            19 => {
+                                self.look.step = 20;
+                                self.ask(Request::Go { page: PAGE, op: GO, to: Go::Reload });
+                            }
+                            other => panic!("control step {other}"),
+                        }
                     }
                     10 => {
                         assert_eq!(rect, self.look.rect, "captureBeyondViewport must preserve layout");
