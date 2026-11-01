@@ -294,6 +294,8 @@ pub enum Ask {
     Rename { project: u32, name: Box<str> },
     /// Deployment owner makes a project from a configured policy (people.md, 5.2).
     MakeProject { name: Box<str>, policy: u32 },
+    /// The project's owner deletes it whole (people.md, 5.2; draft 5).
+    RemoveProject { project: u32 },
     /// Owner changes one person's current-period pool, preserving already spent and reserved funds.
     SetPool { project: u32, person: u64, budget: u64 },
     /// Decide one held chat's exact semantic revision. Root verifies current waiting recipient and
@@ -534,6 +536,11 @@ pub enum Outcome {
     ProjectMade {
         project: u32,
     },
+    /// The project is closed and its deletion under way; it is gone to
+    /// every request from this answer on (draft 5).
+    ProjectRemoved {
+        project: u32,
+    },
     /// One person's finite pool was opened or resized in its original period.
     PoolSet {
         project: u32,
@@ -666,6 +673,18 @@ pub enum Act {
         project: u32,
         adoption: Adoption,
     },
+    /// The deployment deletes a project whole (people.md, 5.3).
+    RemoveProject {
+        project: u32,
+    },
+    /// The deployment's compound cancel of one live task of the project,
+    /// its delegates with it (tasks.md, section 7), whoever requested it.
+    Cancel {
+        project: u32,
+        task: u64,
+        grace: Option<Duration>,
+        reason: Box<[u8]>,
+    },
 }
 
 /// Which acts the configuration grants a connector (people.md, 5.3).
@@ -676,11 +695,21 @@ pub enum ActKind {
     RemoveAccount,
     Adopt,
     MakeProject,
+    RemoveProject,
+    Cancel,
 }
 
 impl ActKind {
     /// Every deployment act kind; also bounds a configured grant's owned entries.
-    pub const ALL: &[Self] = &[Self::Close, Self::AddKey, Self::RemoveAccount, Self::Adopt, Self::MakeProject];
+    pub const ALL: &[Self] = &[
+        Self::Close,
+        Self::AddKey,
+        Self::RemoveAccount,
+        Self::Adopt,
+        Self::MakeProject,
+        Self::RemoveProject,
+        Self::Cancel,
+    ];
 }
 
 /// A connector's configured deployment authority (people.md, 5.3).

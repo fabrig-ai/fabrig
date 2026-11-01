@@ -136,6 +136,7 @@ impl Core {
             | people::Ask::SetRoles { .. }
             | people::Ask::Adopt { .. }
             | people::Ask::Rename { .. }
+            | people::Ask::RemoveProject { .. }
             | people::Ask::MakeProject { .. }
             | people::Ask::ChangeSettings { .. }
             | people::Ask::MoveToNewest { .. }

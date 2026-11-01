@@ -30,6 +30,8 @@ impl Acted {
 
 pub(super) fn valid(limits: &Limits, act: &Act) -> Result<(), Refusal> {
     match act {
+        // Refused until pd-close gives it a body.
+        Act::RemoveProject { .. } | Act::Cancel { .. } => return Err(Refusal::NotOffered),
         Act::Close { task, reason, .. } => {
             if *task == 0 {
                 return Err(Refusal::Unknown);
@@ -55,6 +57,8 @@ pub(super) fn valid(limits: &Limits, act: &Act) -> Result<(), Refusal> {
 fn kind(act: &Act) -> ActKind {
     match act {
         Act::MakeProject { .. } => ActKind::MakeProject,
+        Act::RemoveProject { .. } => ActKind::RemoveProject,
+        Act::Cancel { .. } => ActKind::Cancel,
         Act::Close { .. } => ActKind::Close,
         Act::AddKey { .. } => ActKind::AddKey,
         Act::RemoveAccount { .. } => ActKind::RemoveAccount,
@@ -222,6 +226,7 @@ fn permanent(outcome: &Outcome) -> bool {
         | Outcome::PolicyChanged { .. }
         | Outcome::Renamed { .. }
         | Outcome::ProjectMade { .. }
+        | Outcome::ProjectRemoved { .. }
         | Outcome::SettingsChanged { .. }
         | Outcome::MovedToNewest { .. }
         | Outcome::PoolSet { .. }
@@ -259,7 +264,7 @@ pub(super) fn valid_outcome(limits: &Limits, act: &Act, outcome: &Outcome) -> bo
         return true;
     }
     match act {
-        Act::Close { project, .. } => match outcome {
+        Act::Close { project, .. } | Act::Cancel { project, .. } => match outcome {
             Outcome::Compound { project: answered, operations, first_message } => {
                 answered == project && *operations != 0 && *operations <= limits.operations && *first_message != 0
             }
@@ -275,6 +280,7 @@ pub(super) fn valid_outcome(limits: &Limits, act: &Act, outcome: &Outcome) -> bo
             | Outcome::PolicyChanged { .. }
             | Outcome::Renamed { .. }
             | Outcome::ProjectMade { .. }
+            | Outcome::ProjectRemoved { .. }
             | Outcome::SettingsChanged { .. }
             | Outcome::MovedToNewest { .. }
             | Outcome::PoolSet { .. }
@@ -321,6 +327,9 @@ pub(super) fn valid_outcome(limits: &Limits, act: &Act, outcome: &Outcome) -> bo
         ),
         Act::MakeProject { name, policy, .. } => {
             super::valid_answer_shape(&crate::Ask::MakeProject { name: name.clone(), policy: *policy }, outcome.clone())
+        }
+        Act::RemoveProject { project } => {
+            super::valid_answer_shape(&crate::Ask::RemoveProject { project: *project }, outcome.clone())
         }
         Act::Adopt { project, adoption } => super::valid_answer_shape(
             &crate::Ask::Adopt { project: *project, adoption: adoption.clone() },

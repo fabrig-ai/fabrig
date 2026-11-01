@@ -61,6 +61,7 @@ pub(super) fn ask(
             | people::Ask::Amend { .. }
             | people::Ask::SetRoles { .. }
             | people::Ask::Rename { .. }
+            | people::Ask::RemoveProject { .. }
             | people::Ask::MakeProject { .. }
             | people::Ask::ChangeSettings { .. }
             | people::Ask::MoveToNewest { .. }

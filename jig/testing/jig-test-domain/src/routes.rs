@@ -784,6 +784,13 @@ pub(super) fn route_connector(
 /// Translate the core's choice without choosing a judge or admitting a write.
 fn route_effect_ask(domain: &mut Domain, number: u16, ask: core::connector::Ask, work: &mut Queue<Work>) {
     let event = match ask {
+        core::connector::Ask::ReleaseProject { request, project } => {
+            work.push(Work::Core(core::Event::EffectConnector(core::connector::Event::ProjectReleased {
+                request,
+                project,
+            })));
+            return;
+        }
         core::connector::Ask::ResolveUncertain { entry, again } => connector::Event::Resolve { entry, repeat: again },
         core::connector::Ask::Describe { owner } => connector::Event::Describe {
             token: owner,
@@ -1014,6 +1021,7 @@ fn application_answer(outcome: people::Outcome) -> connector::ApplicationCoreAns
         | people::Outcome::RolesSet { .. }
         | people::Outcome::Renamed { .. }
         | people::Outcome::ProjectMade { .. }
+        | people::Outcome::ProjectRemoved { .. }
         | people::Outcome::SettingsChanged { .. }
         | people::Outcome::MovedToNewest { .. }
         | people::Outcome::PolicyChanged { .. }

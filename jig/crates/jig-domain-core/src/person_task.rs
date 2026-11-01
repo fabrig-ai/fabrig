@@ -26,6 +26,7 @@ pub(crate) fn number(ask: &people::Ask) -> u64 {
         | people::Ask::SetRoles { .. }
         | people::Ask::Adopt { .. }
         | people::Ask::Rename { .. }
+        | people::Ask::RemoveProject { .. }
         | people::Ask::MakeProject { .. }
         | people::Ask::ChangeSettings { .. }
         | people::Ask::MoveToNewest { .. }
@@ -175,6 +176,7 @@ impl Core {
             | people::Ask::SetRoles { .. }
             | people::Ask::Adopt { .. }
             | people::Ask::Rename { .. }
+            | people::Ask::RemoveProject { .. }
             | people::Ask::MakeProject { .. }
             | people::Ask::ChangeSettings { .. }
             | people::Ask::MoveToNewest { .. }
@@ -215,6 +217,7 @@ fn person_act(ask: &people::Ask) -> crate::acts::Act {
         | people::Ask::SetRoles { .. }
         | people::Ask::Adopt { .. }
         | people::Ask::Rename { .. }
+        | people::Ask::RemoveProject { .. }
         | people::Ask::MakeProject { .. }
         | people::Ask::ChangeSettings { .. }
         | people::Ask::MoveToNewest { .. }

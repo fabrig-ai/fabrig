@@ -297,6 +297,8 @@ pub(super) fn decode_escalation_decision(value: wire::EscalationDecision) -> dom
 #[expect(clippy::manual_map, reason = "step code translates optional fields through exhaustive matches")]
 pub fn encode_ask(value: &domain::Ask, limits: &wire::Limits) -> Result<wire::Ask, wire::Problem> {
     Ok(match value {
+        // Encoded from pd-store on.
+        domain::Ask::RemoveProject { .. } => return Err(super::problem()),
         domain::Ask::MoveToNewest { revision } => wire::Ask::MoveToNewest(wire::AskMoveToNewest::new(
             limits,
             wire::AskMoveToNewestParts { revision: *revision },

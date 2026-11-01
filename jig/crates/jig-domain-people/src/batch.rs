@@ -225,6 +225,7 @@ pub(crate) fn restore_shaped(ask: &crate::Ask) -> bool {
         | crate::Ask::SetRoles { .. }
         | crate::Ask::ChangePolicy { .. }
         | crate::Ask::Rename { .. }
+        | crate::Ask::RemoveProject { .. }
         | crate::Ask::MakeProject { .. }
         | crate::Ask::ChangeSettings { .. }
         | crate::Ask::MoveToNewest { .. }

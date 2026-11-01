@@ -9,6 +9,8 @@ use facts::{
 #[expect(clippy::too_many_lines, reason = "one exhaustive permanent outcome translation table")]
 pub(super) fn encode_outcome(value: &domain::Outcome, limits: &wire::Limits) -> Result<wire::Outcome, wire::Problem> {
     Ok(match value {
+        // Encoded from pd-store on.
+        domain::Outcome::ProjectRemoved { .. } => return Err(super::problem()),
         domain::Outcome::MovedToNewest { newest, moved, stayed } => {
             wire::Outcome::MovedToNewest(wire::OutcomeMovedToNewest::new(
                 limits,
