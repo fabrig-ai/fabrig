@@ -535,7 +535,7 @@ fn the_forges_git_program_reaches_startup_without_fake_setup() {
     let input = with_forge_git_program(&fixtures::document(), r#""/opt/custom/git""#);
     let service = start_with_git_program(&input, None).unwrap();
     assert_eq!(
-        service.engine.as_ref().unwrap().workers.forges[0].git_program.as_deref(),
+        service.engine.as_ref().unwrap().workers.forges.as_slice()[0].git_program.as_deref(),
         Some(b"/opt/custom/git".as_slice())
     );
 }
@@ -563,7 +563,7 @@ fn startup_refuses_both_sources_of_a_forges_git_program() {
 #[test]
 fn the_checked_fake_git_program_reaches_the_services_forge_settings() {
     let service = start_with_git_program(&fixtures::document(), Some(&checked_fake_setup())).unwrap();
-    let forge = &service.engine.as_ref().expect("engine").workers.forges[0];
+    let forge = &service.engine.as_ref().expect("engine").workers.forges.as_slice()[0];
     assert_eq!(forge.mode, temper_engine_domain_forge::Mode::Fake);
     assert_eq!(forge.git_program.as_deref(), Some(b"/data/demo/bin/git".as_slice()));
     assert_eq!(forge.git.as_ref(), b"http://127.0.0.1:9");
@@ -1429,7 +1429,7 @@ fn a_configured_github_forge_without_records_starts_not_connected() {
         fixtures::forge_runtime(),
     )
     .unwrap();
-    assert_eq!(service.engine.as_ref().expect("engine").workers.forges[0].kind, settings::Kind::GitHub);
+    assert_eq!(service.engine.as_ref().expect("engine").workers.forges.as_slice()[0].kind, settings::Kind::GitHub);
     service.engine.as_mut().expect("engine").store = fixtures::memory_store();
     let mut face = fixtures::ForgeFace::new();
     for _ in 0_u8..32 {
@@ -1463,7 +1463,7 @@ fn an_unresolved_github_forge_starts_not_connected_naming_its_host() {
         runtime,
     )
     .unwrap();
-    assert_eq!(service.engine.as_ref().expect("engine").workers.forges[0].kind, settings::Kind::GitHub);
+    assert_eq!(service.engine.as_ref().expect("engine").workers.forges.as_slice()[0].kind, settings::Kind::GitHub);
     service.engine.as_mut().expect("engine").store = fixtures::memory_store();
     let mut face = fixtures::ForgeFace::new();
     for _ in 0_u8..32 {
@@ -1804,7 +1804,7 @@ fn an_unasked_owned_forges_absent_api_token_still_refuses_startup() {
 fn an_asked_owned_forge_with_all_files_starts_from_their_access() {
     let mut service = start_owned(true, &fixtures::files()).unwrap();
     let engine = service.engine.as_mut().unwrap();
-    assert_eq!(engine.workers.forges[0].user, 42);
+    assert_eq!(engine.workers.forges.as_slice()[0].user, 42);
     assert!(engine.values.identities.newest(1).is_some(), "identity from its file");
     engine.store = fixtures::memory_store();
     let mut face = fixtures::ForgeFace::new();

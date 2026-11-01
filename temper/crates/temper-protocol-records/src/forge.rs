@@ -99,6 +99,10 @@ impl Rows {
             Err(Unreadable) => row.unreadable_items |= bit,
         }
     }
+    /// Drop all retained values of a removed forge.
+    pub fn drop_forge(&mut self, forge: u16) {
+        self.forges.remove(&forge);
+    }
     #[must_use]
     pub fn forge(&self, forge: u16) -> Option<&ForgeRows> {
         self.forges.get(&forge)
@@ -259,4 +263,21 @@ fn origin_from_record(value: v1::Origin) -> Result<Origin, Unreadable> {
         v1::Kind::Github => Kind::GitHub,
     };
     Ok(Origin { kind, api: Box::from(core::str::from_utf8(&parts.api).or(Err(Unreadable))?) })
+}
+
+#[cfg(test)]
+#[test]
+fn dropping_a_forge_keeps_the_other_forges_rows() {
+    let mut rows = Rows::new();
+    for forge in [1, 2] {
+        rows.push(
+            crate::number(forge, Item::User),
+            Secret::new(crate::encode(Item::User, &7_u64.to_le_bytes()).unwrap().into_boxed_slice()),
+            4096,
+        );
+    }
+    rows.drop_forge(1);
+    rows.drop_forge(1);
+    assert!(rows.forge(1).is_none());
+    assert!(rows.forge(2).is_some());
 }
