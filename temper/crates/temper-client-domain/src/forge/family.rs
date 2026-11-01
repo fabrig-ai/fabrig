@@ -173,7 +173,7 @@ pub fn demo(record: &[u8], limits: &w::Limits) -> Option<forge::Demo> {
         state: match answer.state {
             w::PlaygroundState::NotStarted => forge::demo::DemoState::NotStarted,
             w::PlaygroundState::Running => forge::demo::DemoState::Running,
-            w::PlaygroundState::Resetting => forge::demo::DemoState::Ended,
+            w::PlaygroundState::Resetting => forge::demo::DemoState::Resetting,
         },
         project: answer.project,
         forge: answer.forge,

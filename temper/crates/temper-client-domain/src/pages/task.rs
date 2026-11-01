@@ -450,6 +450,7 @@ impl Task {
             | Act::StartChat
             | Act::RetryDemo
             | Act::Playground
+            | Act::LeavePlayground
             | Act::Suggest { .. }
             | Act::Stop
             | Act::Close
@@ -546,6 +547,7 @@ impl Task {
             | Act::StartChat
             | Act::RetryDemo
             | Act::Playground
+            | Act::LeavePlayground
             | Act::Suggest { .. }
             | Act::MessageWords { .. }
             | Act::Send

@@ -67,8 +67,8 @@ pub fn dot(state: &State, demo: Option<&Demo>) -> Dot {
 }
 #[must_use]
 pub fn playground(root: &Domain) -> Option<(&Demo, &Row)> {
-    let (demo, halves) = root.demo()?;
-    if !halves.forge {
+    let demo = root.forge().demo()?;
+    if !root.forge().playground_running() {
         return None;
     }
     if let State::Rows(rows) = root.forges() {
