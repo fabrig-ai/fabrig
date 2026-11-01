@@ -1,11 +1,41 @@
 //! The demo and fake processes around forge-setup's commands (protocol/setup.md, 7.3).
 use crate::demo::Demo;
 use alloc::boxed::Box;
+use core::net::SocketAddr;
 use skein_lib::{Decimal, List, Writer, bytes};
 use temper_forge_setup::{
     Group, Kind, Stage, Step, Steps,
-    setup::{Mode, Setup},
+    setup::{Entry, Fake, Mode, Setup},
 };
+
+/// The playground's recorded group, before position zero (protocol/setup.md, 8.4; notes contracts T3).
+#[must_use]
+pub fn playground_group(forge: u16, fake: &Fake, llm: SocketAddr, flags: &[Box<[u8]>]) -> Group {
+    Group {
+        forge,
+        label: bytes::copy_of(b"Playground"),
+        recorded: true,
+        before: 0,
+        steps: Box::new([
+            (Stage::Run, command(b"fake llm", &[b"fake", b"llm"], flags, None, Kind::Long).listening(Box::new([llm]))),
+            (Stage::Prepare, command(b"prepare", &[b"forge", b"prepare"], flags, Some(forge), Kind::Once)),
+            (
+                Stage::Run,
+                command(b"fake forge", &[b"fake", b"forge"], flags, Some(forge), Kind::Long)
+                    .listening(Box::new([fake.listen])),
+            ),
+        ]),
+    }
+}
+/// Picks one recorded group by the entry's mode (notes contracts T3).
+#[must_use]
+pub fn group(entry: &Entry, llm: Option<SocketAddr>, flags: &[Box<[u8]>], forgejo_listens: bool) -> Option<Group> {
+    match &entry.mode {
+        Mode::Owned(owned) => Some(temper_forge_setup::step::owned_group(entry.forge, owned, flags, forgejo_listens)),
+        Mode::Fake(fake) => Some(playground_group(entry.forge, fake, llm?, flags)),
+        Mode::Managed { .. } => None,
+    }
+}
 
 /// The demo's group, the fake LLM, then the demo forge's preparation
 /// and its fake forge (`application.demo.forge`, 8.4), is always asked,
@@ -22,7 +52,7 @@ pub fn steps(
     setup: &Setup,
     demo: Option<&Demo>,
     flags: &[Box<[u8]>],
-    listeners: Box<[core::net::SocketAddr]>,
+    listeners: Box<[SocketAddr]>,
     forgejo_listens: bool,
     first: Box<[Step]>,
 ) -> Steps {
@@ -74,30 +104,10 @@ pub fn steps(
         let Mode::Fake(fake) = &setup.entry(demo.forge()).expect("checked demo forge").mode else {
             unreachable!("demo has a fake forge")
         };
-        asked
-            .push(Group {
-                forge: demo.forge(),
-                label: bytes::copy_of(b"Playground"),
-                recorded: false,
-                before: first_len,
-                steps: Box::new([
-                    (
-                        Stage::Run,
-                        command(b"fake llm", &[b"fake", b"llm"], flags, None, Kind::Long)
-                            .listening(Box::new([demo.llm().listen()])),
-                    ),
-                    (
-                        Stage::Prepare,
-                        command(b"prepare", &[b"forge", b"prepare"], flags, Some(demo.forge()), Kind::Once),
-                    ),
-                    (
-                        Stage::Run,
-                        command(b"fake forge", &[b"fake", b"forge"], flags, Some(demo.forge()), Kind::Long)
-                            .listening(Box::new([fake.listen])),
-                    ),
-                ]),
-            })
-            .expect("demo group counted");
+        let mut group = playground_group(demo.forge(), fake, demo.llm().listen(), flags);
+        group.recorded = false;
+        group.before = first_len;
+        asked.push(group).expect("demo group counted");
     }
     for mut group in given.asked {
         group.before = group.before.checked_add(prefix).expect("bounded group position");

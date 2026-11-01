@@ -436,3 +436,153 @@ fn an_owned_entry_refuses_entry_orgs_as_an_unknown_member() {
         b"application.setup[1].orgs: unknown member\n",
     );
 }
+
+fn entry_text(list: &[u8], forge: u16) -> Box<[u8]> {
+    let prefix = crate::check::joined(&[b"{\"forge\":", skein_lib::Decimal::of(u64::from(forge)).as_bytes()]);
+    let start = skein_lib::bytes::find(list, &prefix).unwrap();
+    let rest = &list[start..];
+    let end = skein_lib::bytes::find(rest, b"\n").unwrap();
+    rest[..end].into()
+}
+fn owned_body() -> Box<[u8]> {
+    fixtures::changed_in(&entry_text(fixtures::TWO, 2), br#""forge":2,"directory":"forge-2","#, b"")
+}
+#[test]
+fn a_group_file_reads_as_its_list_entry_reads() {
+    let directories = jig_protocol_config::Directories::given(b"/configuration", b"/data", b"/cache").unwrap();
+    for (list, forge) in [(Box::from(fixtures::TWO), 2), (fixtures::three(), 3)] {
+        let mut ps = Problems::empty();
+        let setup = Setup::read(&fixtures::document(&list), 0, &limits::small(), &directories, &mut ps).unwrap();
+        assert!(ps.is_empty());
+        let mut expected = setup.entry(forge).unwrap().clone();
+        expected.asked = true;
+        assert_eq!(crate::setup::Entry::group(&entry_text(&list, forge), &limits::small(), &directories), Ok(expected));
+    }
+}
+#[test]
+fn a_body_takes_its_forge_and_directory_from_its_caller() {
+    let directories = jig_protocol_config::Directories::given(b"/configuration", b"/data", b"/cache").unwrap();
+    let body = fixtures::changed_in(&owned_body(), br#""forgejo":"/opt/forgejo/forgejo""#, br#""forgejo":"fetched""#);
+    let entry = crate::setup::Entry::body_text(&body, 7, &limits::small(), &directories).unwrap();
+    assert_eq!(entry.forge, 7);
+    assert_eq!(entry.directory.as_ref(), b"/data/forge-7");
+    assert!(entry.asked);
+    let Mode::Owned(owned) = &entry.mode else { panic!("owned") };
+    assert!(owned.fetch.forgejo);
+    assert_eq!(
+        owned.forgejo,
+        crate::check::joined(&[b"/cache/forgejo/", skein_forge::forgejo::pin::VERSION.as_bytes(), b"/forgejo",])
+    );
+    let document = fixtures::document(&crate::check::joined(&[b"{\"template\":", &body, b"}"]));
+    let at = jig_protocol_config::read::Object::new(&document, 0).unwrap().member(&document, b"template").unwrap();
+    let mut ps = Problems::empty();
+    assert_eq!(
+        crate::setup::Entry::body(
+            &document,
+            at,
+            &jig_protocol_config::Path::root().member(b"template"),
+            7,
+            &limits::small(),
+            &directories,
+            &mut ps
+        ),
+        Some(entry)
+    );
+    assert!(ps.is_empty());
+    let managed = br#"{"bot":{"login":"temper","email":"temper@example.invalid"},"mode":"managed"}"#;
+    let entry = crate::setup::Entry::body_text(managed, 7, &limits::small(), &directories).unwrap();
+    assert!(entry.directory.is_empty());
+    assert!(entry.asked);
+}
+#[test]
+fn a_body_naming_forge_directory_or_start_is_refused() {
+    for (member, expected) in [
+        (br#""forge":2,"#.as_slice(), b"forge: unknown member\n".as_slice()),
+        (br#""directory":"forge-2","#, b"directory: unknown member\n"),
+        (br#""start":"asked","#, b"start: unknown member\n"),
+    ] {
+        let body = crate::check::joined(&[b"{", member, &owned_body()[1..]]);
+        let ps =
+            crate::setup::Entry::body_text(&body, 2, &limits::small(), &jig_protocol_config::Directories::working())
+                .unwrap_err();
+        assert_eq!(problem::lines(&ps).as_ref(), expected);
+        let mut ps = Problems::empty();
+        assert!(
+            crate::setup::Entry::body(
+                &fixtures::document(&body),
+                0,
+                &jig_protocol_config::Path::root().member(b"application").member(b"machine").member(b"owned"),
+                2,
+                &limits::small(),
+                &jig_protocol_config::Directories::working(),
+                &mut ps
+            )
+            .is_none()
+        );
+        assert_eq!(problem::lines(&ps), crate::check::joined(&[b"application.machine.owned.", expected]));
+    }
+}
+#[test]
+fn a_group_file_without_forge_or_directory_is_refused() {
+    for (member, expected) in [
+        (br#""forge":2,"#.as_slice(), b"forge: missing\n".as_slice()),
+        (br#""directory":"forge-2","#, b"directory: missing\n"),
+    ] {
+        let text = fixtures::changed_in(&entry_text(fixtures::TWO, 2), member, b"");
+        let ps = crate::setup::Entry::group(&text, &limits::small(), &jig_protocol_config::Directories::working())
+            .unwrap_err();
+        assert_eq!(problem::lines(&ps).as_ref(), expected);
+    }
+    let text = fixtures::changed_in(&entry_text(fixtures::TWO, 2), br#""forge":2"#, br#""forge":2,"start":"asked""#);
+    let ps =
+        crate::setup::Entry::group(&text, &limits::small(), &jig_protocol_config::Directories::working()).unwrap_err();
+    assert_eq!(problem::lines(&ps).as_ref(), b"start: unknown member\n");
+}
+#[test]
+fn group_settings_adds_forge_and_directory_and_reads_back() {
+    let directories = jig_protocol_config::Directories::given(b"/configuration", b"/data", b"/cache").unwrap();
+    let body = owned_body();
+    let text = crate::setup::group_settings(&body, 7).unwrap();
+    assert!(text.starts_with(br#"{"forge":7,"directory":"forge-7","#));
+    assert_eq!(
+        crate::setup::Entry::group(&text, &limits::small(), &directories),
+        crate::setup::Entry::body_text(&body, 7, &limits::small(), &directories)
+    );
+    for invalid in [b"{}".as_slice(), b"[]", b"{", b"{} {}", b"{\"bot\":true,}", &[b' '; 4097]] {
+        assert_eq!(crate::setup::group_settings(invalid, 7), None);
+    }
+    let spaced = crate::check::joined(&[b" \n { \"nested\": {\"braces\":\"{}\"}} \n"]);
+    assert!(crate::setup::group_settings(&spaced, u16::MAX).is_some());
+    assert_eq!(crate::setup::directory(u16::MAX).as_ref(), b"forge-65535");
+}
+#[test]
+fn entry_text_readers_bound_bytes_depth_and_name_parse_failures_at_root() {
+    let directories = jig_protocol_config::Directories::working();
+    for invalid in [b"{".as_slice(), b"{} {}", b"[]", &[b' '; 4097]] {
+        let ps = crate::setup::Entry::body_text(invalid, 1, &limits::small(), &directories).unwrap_err();
+        assert_eq!(
+            problem::lines(&ps).as_ref(),
+            if invalid == b"[]" { b": wrong value kind\n".as_slice() } else { b": invalid form\n".as_slice() }
+        );
+    }
+    let ps = crate::setup::Entry::group(&[b' '; 4161], &limits::small(), &directories).unwrap_err();
+    assert_eq!(problem::lines(&ps).as_ref(), b": invalid form\n");
+    let mut at_bound = [b' '; 4096];
+    for (to, from) in at_bound.iter_mut().zip(owned_body().iter()) {
+        *to = *from;
+    }
+    let entry = crate::setup::Entry::body_text(&at_bound, 1, &limits::small(), &directories).unwrap();
+    assert_eq!(entry.forge, 1);
+    let mut group_bound = [b' '; 4160];
+    let group = crate::setup::group_settings(&owned_body(), 1).unwrap();
+    for (to, from) in group_bound.iter_mut().zip(group.iter()) {
+        *to = *from;
+    }
+    assert_eq!(crate::setup::Entry::group(&group_bound, &limits::small(), &directories), Ok(entry));
+    let mut nested = [b' '; 67];
+    nested[..33].fill(b'[');
+    nested[33] = b'0';
+    nested[34..].fill(b']');
+    let ps = crate::setup::Entry::body_text(&nested, 1, &limits::small(), &directories).unwrap_err();
+    assert_eq!(problem::lines(&ps).as_ref(), b": invalid form\n");
+}

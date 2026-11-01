@@ -8,7 +8,11 @@ use skein_forge_setup::{
     limits::Limits,
 };
 use skein_json::{Document, document::Kind};
-use skein_lib::List;
+use skein_lib::{Decimal, List};
+/// A setup entry's body at most, as a forge record holds it (notes contracts T3).
+pub const BODY_BYTES: u32 = 4096;
+/// A group's settings file at most: a body with its forge and directory.
+pub const GROUP_BYTES: u32 = BODY_BYTES + 64;
 /// A Forgejo account temper names.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Account {
@@ -105,51 +109,7 @@ impl Setup {
         {
             for (index, entry) in setup.entries.iter_mut().enumerate() {
                 let p = p.child(config::Segment::Index(u32::try_from(index).expect("bounded entries")));
-                if !entry.directory.is_empty() {
-                    resolve_path(
-                        directories,
-                        config::Directory::Data,
-                        &mut entry.directory,
-                        p.member(b"directory"),
-                        &mut ps,
-                    );
-                }
-                match &mut entry.mode {
-                    Mode::Managed { admin_token: Some(admin_token) } => resolve_path(
-                        directories,
-                        config::Directory::Data,
-                        admin_token,
-                        p.member(b"mode").member(b"managed").member(b"admin_token"),
-                        &mut ps,
-                    ),
-                    Mode::Managed { admin_token: None } => {}
-                    Mode::Fake(fake) => resolve_path(
-                        directories,
-                        config::Directory::Data,
-                        &mut fake.git,
-                        p.member(b"mode").member(b"fake").member(b"git"),
-                        &mut ps,
-                    ),
-                    Mode::Owned(owned) => {
-                        let p = p.member(b"mode").member(b"owned");
-                        resolve_path(
-                            directories,
-                            config::Directory::Cache,
-                            &mut owned.forgejo,
-                            p.member(b"forgejo"),
-                            &mut ps,
-                        );
-                        if let Some(runner) = &mut owned.runner {
-                            resolve_path(
-                                directories,
-                                config::Directory::Cache,
-                                &mut runner.binary,
-                                p.member(b"runner").member(b"binary"),
-                                &mut ps,
-                            );
-                        }
-                    }
-                }
+                entry.resolve(directories, &p, &mut ps);
             }
         }
         let clean = ps.is_empty();
@@ -167,6 +127,149 @@ impl Setup {
         }
         found
     }
+}
+
+#[derive(Clone, Copy)]
+enum Shape {
+    List,
+    Group,
+    Body(u16),
+}
+impl Entry {
+    /// Reads `<data>/box/groups/N`, resolving paths as `Setup::read` does (protocol/setup.md, 8).
+    pub fn group(bytes: &[u8], limits: &Limits, directories: &config::Directories) -> Result<Entry, Problems> {
+        Self::from_text(bytes, GROUP_BYTES, Shape::Group, limits, directories)
+    }
+    /// Reads a record's setup body under `path`, using its caller's forge and data directory (notes contracts T3).
+    pub fn body(
+        d: &Document,
+        at: u32,
+        path: &Path,
+        forge: u16,
+        limits: &Limits,
+        directories: &config::Directories,
+        problems: &mut Problems,
+    ) -> Option<Entry> {
+        let mut ps = config::Problems::empty();
+        let result = Self::read(d, at, path, Shape::Body(forge), limits, directories, &mut ps);
+        problems.append(ps);
+        result
+    }
+    /// Reads a record's setup text, at most `BODY_BYTES` (notes contracts T3).
+    pub fn body_text(
+        bytes: &[u8],
+        forge: u16,
+        limits: &Limits,
+        directories: &config::Directories,
+    ) -> Result<Entry, Problems> {
+        Self::from_text(bytes, BODY_BYTES, Shape::Body(forge), limits, directories)
+    }
+    fn from_text(
+        bytes: &[u8],
+        bound: u32,
+        shape: Shape,
+        limits: &Limits,
+        directories: &config::Directories,
+    ) -> Result<Entry, Problems> {
+        let mut ps = config::Problems::empty();
+        let result = match config::document(bytes, &config::DocumentLimits { bytes: bound, tokens: bound, depth: 32 }) {
+            Ok(d) => Self::read(&d, 0, &Path::root(), shape, limits, directories, &mut ps),
+            Err(problem) => {
+                ps.push(problem.path, problem.what);
+                None
+            }
+        };
+        match result {
+            Some(entry) => Ok(entry),
+            None => {
+                let mut problems = Problems::empty();
+                problems.append(ps);
+                Err(problems)
+            }
+        }
+    }
+    fn read(
+        d: &Document,
+        at: u32,
+        p: &Path,
+        shape: Shape,
+        limits: &Limits,
+        directories: &config::Directories,
+        ps: &mut config::Problems,
+    ) -> Option<Entry> {
+        let mut result = entry(d, at, limits, p, shape, ps);
+        if ps.is_empty()
+            && let Some(entry) = &mut result
+        {
+            entry.resolve(directories, p, ps);
+        }
+        if ps.is_empty() { result } else { None }
+    }
+    fn resolve(&mut self, directories: &config::Directories, p: &Path, ps: &mut config::Problems) {
+        if !self.directory.is_empty() {
+            resolve_path(directories, config::Directory::Data, &mut self.directory, p.member(b"directory"), ps);
+        }
+        match &mut self.mode {
+            Mode::Managed { admin_token: Some(admin_token) } => resolve_path(
+                directories,
+                config::Directory::Data,
+                admin_token,
+                p.member(b"mode").member(b"managed").member(b"admin_token"),
+                ps,
+            ),
+            Mode::Managed { admin_token: None } => {}
+            Mode::Fake(fake) => resolve_path(
+                directories,
+                config::Directory::Data,
+                &mut fake.git,
+                p.member(b"mode").member(b"fake").member(b"git"),
+                ps,
+            ),
+            Mode::Owned(owned) => {
+                let p = p.member(b"mode").member(b"owned");
+                resolve_path(directories, config::Directory::Cache, &mut owned.forgejo, p.member(b"forgejo"), ps);
+                if let Some(runner) = &mut owned.runner {
+                    resolve_path(
+                        directories,
+                        config::Directory::Cache,
+                        &mut runner.binary,
+                        p.member(b"runner").member(b"binary"),
+                        ps,
+                    );
+                }
+            }
+        }
+    }
+}
+/// `forge-N`, the forge's directory under the data directory, for every mode (notes contracts T3).
+#[must_use]
+pub fn directory(forge: u16) -> Box<[u8]> {
+    crate::check::joined(&[b"forge-", Decimal::of(u64::from(forge)).as_bytes()])
+}
+/// Adds a forge and directory to one non-empty JSON object's members (notes contracts T3).
+#[must_use]
+pub fn group_settings(body: &[u8], forge: u16) -> Option<Box<[u8]>> {
+    let d =
+        config::document(body, &config::DocumentLimits { bytes: BODY_BYTES, tokens: BODY_BYTES, depth: 32 }).ok()?;
+    read::Object::new(&d, 0).ok()?;
+    if d.token(1)?.kind != Kind::Key {
+        return None;
+    }
+    let mut open = None;
+    for (index, byte) in body.iter().enumerate() {
+        if *byte == b'{' {
+            open = Some(index.checked_add(1)?);
+            break;
+        }
+    }
+    Some(crate::check::joined(&[
+        b"{\"forge\":",
+        Decimal::of(u64::from(forge)).as_bytes(),
+        b",\"directory\":\"",
+        &directory(forge),
+        b"\",",
+        body.get(open?..)?,
+    ]))
 }
 fn object(d: &Document, at: u32, p: &Path, ps: &mut config::Problems) -> Option<read::Object> {
     match read::Object::new(d, at) {
@@ -448,26 +551,34 @@ fn mode(d: &Document, at: u32, p: &Path, ps: &mut config::Problems) -> Option<Mo
         Some(Mode::Fake(fake(d, fake_at?, &p.member(b"fake"), ps)?))
     }
 }
-fn entry(d: &Document, at: u32, limits: &Limits, p: &Path, ps: &mut config::Problems) -> Option<Entry> {
+fn entry(d: &Document, at: u32, limits: &Limits, p: &Path, shape: Shape, ps: &mut config::Problems) -> Option<Entry> {
     let mut o = object(d, at, p, ps)?;
-    let forge_at = o.required(d, b"forge", p, ps);
-    let directory_at = o.member(d, b"directory");
+    let (forge_at, directory_at, start_at) = match shape {
+        Shape::List => (o.required(d, b"forge", p, ps), o.member(d, b"directory"), o.member(d, b"start")),
+        Shape::Group => (o.required(d, b"forge", p, ps), o.required(d, b"directory", p, ps), None),
+        Shape::Body(_) => (None, None, None),
+    };
     let bot_at = o.required(d, b"bot", p, ps);
     let mode_at = o.required(d, b"mode", p, ps);
-    let start_at = o.member(d, b"start");
     let mode = match mode_at {
         Some(at) => mode(d, at, &p.member(b"mode"), ps),
         None => None,
     };
-    let directory = if let Some(Mode::Managed { admin_token: None }) = &mode {
-        valid(directory_at.is_none(), p.member(b"directory"), ps);
-        Some(Box::<[u8]>::default())
-    } else {
-        match directory_at {
+    let plain_managed = match &mode {
+        Some(Mode::Managed { admin_token: None }) => true,
+        Some(Mode::Managed { admin_token: Some(_) } | Mode::Owned(_) | Mode::Fake(_)) | None => false,
+    };
+    let directory = match shape {
+        Shape::Body(forge) => Some(if plain_managed { Box::new([]) } else { directory(forge) }),
+        Shape::List if plain_managed => {
+            valid(directory_at.is_none(), p.member(b"directory"), ps);
+            Some(Box::<[u8]>::default())
+        }
+        Shape::List | Shape::Group => match directory_at {
             Some(at) => match read::text(d, at, 4096) {
                 Ok(value) => {
                     valid(path(&value) && !value.ends_with(b"/"), p.member(b"directory"), ps);
-                    Some(value)
+                    Some(if plain_managed { Box::new([]) } else { value })
                 }
                 Err(what) => {
                     ps.push(p.member(b"directory"), what);
@@ -475,10 +586,13 @@ fn entry(d: &Document, at: u32, limits: &Limits, p: &Path, ps: &mut config::Prob
                 }
             },
             None => {
-                ps.push(p.member(b"directory"), config::What::Missing);
+                match shape {
+                    Shape::List => ps.push(p.member(b"directory"), config::What::Missing),
+                    Shape::Group | Shape::Body(_) => {}
+                }
                 None
             }
-        }
+        },
     };
     let orgs: Option<Box<[Box<[u8]>]>> = match &mode {
         Some(Mode::Fake(_) | Mode::Managed { admin_token: None }) => {
@@ -520,14 +634,20 @@ fn entry(d: &Document, at: u32, limits: &Limits, p: &Path, ps: &mut config::Prob
         );
         true
     } else {
-        false
-    };
-    let forge = match read::integer(d, forge_at?, u64::from(u16::MAX)) {
-        Ok(n) => u16::try_from(n).expect("forge bounded"),
-        Err(w) => {
-            ps.push(p.member(b"forge"), w);
-            return None;
+        match shape {
+            Shape::List => false,
+            Shape::Group | Shape::Body(_) => true,
         }
+    };
+    let forge = match shape {
+        Shape::Body(forge) => forge,
+        Shape::List | Shape::Group => match read::integer(d, forge_at?, u64::from(u16::MAX)) {
+            Ok(n) => u16::try_from(n).expect("forge bounded"),
+            Err(w) => {
+                ps.push(p.member(b"forge"), w);
+                return None;
+            }
+        },
     };
     let directory = directory?;
     Some(Entry { forge, directory, bot: account(d, bot_at?, &p.member(b"bot"), ps)?, orgs: orgs?, mode, asked })
@@ -542,9 +662,14 @@ fn list(d: &Document, at: u32, limits: &Limits, p: &Path, ps: &mut config::Probl
     };
     let mut entries = List::with_capacity(items.len());
     for (i, at) in items.iter().enumerate() {
-        if let Some(e) =
-            entry(d, *at, limits, &p.child(config::Segment::Index(u32::try_from(i).expect("bounded list"))), ps)
-        {
+        if let Some(e) = entry(
+            d,
+            *at,
+            limits,
+            &p.child(config::Segment::Index(u32::try_from(i).expect("bounded list"))),
+            Shape::List,
+            ps,
+        ) {
             entries.push(e).expect("entry capacity");
         }
     }
