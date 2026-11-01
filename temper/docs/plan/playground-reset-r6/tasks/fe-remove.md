@@ -131,3 +131,16 @@ Acceptance:
     held answers nothing), and settles its not-handed entries as above.
   - Add the test `a_removed_forges_entries_settle_and_none_is_named_afterwards` (an unsent,
     a sent and a held entry on the forge, one on another forge untouched).
+
+### 2026-11-01: Should fab restart fe-remove with sv-skein-retire included (recommended), or revise the retirement contract? The required skein_forge_client::Event::Retire API is absent from this checkout. (playground-reset-r6/fe-remove-2, foreman playground-reset-r6/fe-remove/foreman-2)
+
+Restart fe-remove with its declared prerequisite sv-skein-retire included; retain the retirement contract.
+The spec declares `needs = ["fe-make", "sv-skein-retire"]`.
+Its Answers section states: “a prerequisite provides it, and this task now needs it”.
+It also states: “Change no skein file here.”
+The prerequisite spec exists at `temper/docs/plan/playground-reset-r6/tasks/sv-skein-retire.md` and requires `Event::Retire { forge: u16 }`.
+The API remains absent from this checkout.
+The next run uses the completed prerequisite and implements removal and restored Removing records as the existing answer specifies.
+The task cannot be accepted as done: implementation and acceptance checks remain pending.
+
+Report file was not written because this session permits filesystem reads only.
