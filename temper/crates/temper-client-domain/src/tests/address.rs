@@ -317,3 +317,23 @@ fn chats_and_plan_drop_each_unreadable_field_independently() {
         assert_eq!(parse(path), parse(canonical), "{path:?}");
     }
 }
+
+#[test]
+fn the_kind_choices_print_and_parse_on_both_flows() {
+    for (choice, connect, welcome) in [
+        (
+            crate::Choice::GitHub,
+            b"/forges/connect?forge=github".as_slice(),
+            b"/welcome?at=forge&forge=github".as_slice(),
+        ),
+        (crate::Choice::Here, b"/forges/connect?forge=here".as_slice(), b"/welcome?at=forge&forge=here".as_slice()),
+    ] {
+        for (address, printed) in [
+            (Address::ConnectForge { forge: Some(choice) }, connect),
+            (Address::Welcome { step: Step::Forge { forge: Some(choice) } }, welcome),
+        ] {
+            assert_eq!(print(&address).as_ref(), printed);
+            assert_eq!(parse(printed), Place::Address(address));
+        }
+    }
+}

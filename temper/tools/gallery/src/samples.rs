@@ -61,7 +61,7 @@ pub struct Sample {
     pub address: Address,
     pub then: Then,
 }
-pub const N: usize = 81;
+pub const N: usize = 83;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All, start: false };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -86,6 +86,18 @@ pub fn samples() -> [Sample; N] {
             name: "connect-forge-choose",
             world: FirstRun { step: 0 },
             address: Address::ConnectForge { forge: None },
+            then: Shown,
+        },
+        Sample {
+            name: "connect-forge-no-records",
+            world: FirstRun { step: 24 },
+            address: Address::ConnectForge { forge: None },
+            then: Shown,
+        },
+        Sample {
+            name: "connect-forge-elsewhere",
+            world: FirstRun { step: 24 },
+            address: Address::ConnectForge { forge: Some(temper_client_domain::Choice::Elsewhere) },
             then: Shown,
         },
         welcome_sample("welcome-forge-choose", temper_client_domain::Step::Forge { forge: None }),
@@ -316,12 +328,15 @@ pub fn mockup(sample: &Sample) -> Option<String> {
         Address::ConnectForge { forge: Some(temper_client_domain::Choice::Forge(number)) } => {
             format!("&forge={number}")
         }
+        Address::ConnectForge { forge: Some(temper_client_domain::Choice::GitHub) } => "&forge=github".to_owned(),
+        Address::ConnectForge { forge: Some(temper_client_domain::Choice::Here) } => "&forge=here".to_owned(),
+        Address::ConnectForge { forge: Some(temper_client_domain::Choice::Elsewhere) } => "&forge=elsewhere".to_owned(),
         Address::Inbox { .. }
         | Address::Chats { .. }
         | Address::Accounts
         | Address::ConnectModel { .. }
         | Address::Forges
-        | Address::ConnectForge { forge: None | Some(temper_client_domain::Choice::Elsewhere) }
+        | Address::ConnectForge { forge: None }
         | Address::Welcome { .. }
         | Address::Chat { .. }
         | Address::Task { .. }

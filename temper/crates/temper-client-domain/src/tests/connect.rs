@@ -86,13 +86,11 @@ fn choose_offers_github_forgejo_here_and_elsewhere_by_offer() {
     ]));
     // Demo numbers belong to their own fixture; the other six numbers stay distinct.
     assert_eq!(
-        connect::choices(&state, Some(&demo)).as_slice(),
-        &[Choice::Forge(2), Choice::Forge(3), Choice::Forge(7), Choice::Elsewhere]
+        connect::cards(&state, Some(&demo)).as_slice(),
+        &[connect::Card::GitHub { forge: Some(2) }, connect::Card::Here { forge: Some(3) }, connect::Card::Elsewhere]
     );
-    assert_eq!(connect::next_number(&State::Rows(Box::new([]))), 1);
-    assert_eq!(connect::next_number(&rows(C::NotSetUp)), 4);
 }
-fn event(root: &mut crate::Domain, event: Event) -> Queue<Request> {
+pub(super) fn event(root: &mut crate::Domain, event: Event) -> Queue<Request> {
     event_at(root, event, Time::ZERO)
 }
 fn event_at(root: &mut crate::Domain, event: Event, now: Time) -> Queue<Request> {
@@ -407,7 +405,7 @@ fn the_dot_is_red_for_a_forge_that_needs_the_person_else_amber_while_one_sets_up
     assert!(connect::underway_forge(&state, Some(&demo)).is_none());
 }
 
-fn sent(mut out: Queue<Request>) -> (Token, skein_lib::RequestKey, w::Request) {
+pub(super) fn sent(mut out: Queue<Request>) -> (Token, skein_lib::RequestKey, w::Request) {
     let mut found = None;
     while let Some(request) = out.pop() {
         if let Request::Client {
@@ -425,7 +423,7 @@ fn sent(mut out: Queue<Request>) -> (Token, skein_lib::RequestKey, w::Request) {
     }
     found.expect("sent family request")
 }
-fn reply(root: &mut crate::Domain, attempt: Token, outcome: w::Outcome) -> Queue<Request> {
+pub(super) fn reply(root: &mut crate::Domain, attempt: Token, outcome: w::Outcome) -> Queue<Request> {
     reply_at(root, attempt, outcome, Time::ZERO)
 }
 fn reply_at(root: &mut crate::Domain, attempt: Token, outcome: w::Outcome, now: Time) -> Queue<Request> {
@@ -1344,4 +1342,35 @@ fn accepting_at_once_on_either_welcome_forge_address_moves_to_model() {
         }
         assert!(moved, "accepted setup opens Model");
     }
+}
+
+#[test]
+fn with_no_rows_the_cards_are_github_here_and_elsewhere() {
+    assert_eq!(
+        connect::cards(&State::Rows(Box::new([])), None).as_slice(),
+        &[connect::Card::GitHub { forge: None }, connect::Card::Here { forge: None }, connect::Card::Elsewhere]
+    );
+}
+#[test]
+fn a_kept_record_nothing_begun_on_is_its_cards_target() {
+    let state = State::Rows(Box::new([
+        row(2, Kind::GitHub, Mode::Managed, C::NotConnected, Offer::NotOffered),
+        row(3, Kind::Forgejo, Mode::Owned, C::NotSetUp, Offer::Offered),
+    ]));
+    assert_eq!(
+        connect::cards(&state, None).as_slice(),
+        &[connect::Card::GitHub { forge: Some(2) }, connect::Card::Here { forge: Some(3) }, connect::Card::Elsewhere]
+    );
+    assert_eq!(connect::step(Some(Choice::Here), &state, None), Shown::Details(Choice::Forge(3)));
+    assert_eq!(connect::welcome_step(Some(Choice::Here), &state, None), Shown::Choose);
+}
+#[test]
+fn a_begun_record_of_a_kind_draws_no_card_of_that_kind() {
+    let mut github = row(2, Kind::GitHub, Mode::Managed, C::NotConnected, Offer::NotOffered);
+    github.app = Some(forges::AppWay::Manifest);
+    let state = State::Rows(Box::new([
+        github,
+        row(3, Kind::Forgejo, Mode::Owned, C::SettingUp { step: None }, Offer::Offered),
+    ]));
+    assert_eq!(connect::cards(&state, None).as_slice(), &[connect::Card::Elsewhere]);
 }

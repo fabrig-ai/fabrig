@@ -8,6 +8,8 @@ chats-first-run-1
 connect-forge-first-run-6
 forges-first-run-7
 connect-forge-choose
+connect-forge-no-records
+connect-forge-elsewhere
 welcome-forge-choose
 welcome-forge-details
 welcome-model-choose
