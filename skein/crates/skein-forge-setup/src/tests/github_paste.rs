@@ -165,9 +165,10 @@ fn paste_keeps_four_items_before_done_and_never_writes_pasted() {
     kept(&mut machine, need, Box::new([]));
 }
 #[test]
-fn read_only_paste_keeps_items_without_repairing_the_hook() {
+fn paste_without_repair_permission_keeps_items_without_repairing_the_hook() {
     let mut given = fixtures::given();
-    given.read_only = true;
+    given.repair_hook = false;
+    given.uninstall_strays = false;
     let mut machine = at_with_given(&given, 4);
     let app = lacking_app();
     let lacking = checks::lacks(&app);

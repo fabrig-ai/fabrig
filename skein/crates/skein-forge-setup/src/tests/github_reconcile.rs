@@ -101,7 +101,8 @@ fn at_with_given(given: &Given, accepted: &[u64], phase: usize) -> Reconcile {
 }
 fn read_only_listing(accepted: &[u64]) -> (Reconcile, Need) {
     let mut given = fixtures::given();
-    given.read_only = true;
+    given.repair_hook = false;
+    given.uninstall_strays = false;
     let mut machine = at_with_given(&given, accepted, 4);
     let mut app = fixtures::app();
     app.permissions = Box::new([]);

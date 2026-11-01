@@ -172,32 +172,63 @@ fn retained_accepted_ids_are_written_in_ascending_order() {
 }
 
 #[test]
-fn a_stray_is_uninstalled_only_past_the_state_life() {
-    for (created, suspended) in [(BOUND, false), (YOUNGER, false), (FUTURE, false), (NOW, true)] {
-        let mut machine = begun(&[]);
-        go(&mut machine, rows(&[row(3, created, suspended)]));
-        assert_eq!(go(&mut machine, rows(&[])), Progress::Complete);
-        silent(&mut machine);
-    }
-    for (created, suspended) in [(PAST_BOUND, false), (Wall::EPOCH, true)] {
-        let mut machine = begun(&[7]);
-        go(&mut machine, rows(&[row(3, created, suspended), row(7, Wall::EPOCH, true)]));
-        assert_eq!(go(&mut machine, rows(&[])), send(Request::Uninstall { id: 3 }));
-        assert_eq!(go(&mut machine, Event::Reply(Reply::Empty)), Progress::Complete);
-        silent(&mut machine);
+fn a_preexisting_installation_is_kept_without_permission_to_uninstall() {
+    let mut given = given();
+    given.uninstall_strays = false;
+    let mut machine = Sweep::new(
+        &given,
+        Kept::new(NonZeroU64::new(APP).expect("nonzero App"), secret(KEY)),
+        Box::from([]),
+        Wall::from_nanos(2_419_200_000_000_000),
+    );
+    assert_eq!(go(&mut machine, Event::Begin), page(1));
+    assert_eq!(go(&mut machine, rows(&[row(3, Wall::EPOCH, false)])), page(2));
+    assert_eq!(go(&mut machine, rows(&[])), Progress::Complete);
+    silent(&mut machine);
+}
+
+#[test]
+fn a_stray_is_uninstalled_only_when_permitted_and_past_the_state_life() {
+    for uninstall_strays in [false, true] {
+        let mut given = given();
+        given.uninstall_strays = uninstall_strays;
+        for (created, suspended) in
+            [(BOUND, false), (YOUNGER, false), (FUTURE, false), (NOW, true), (PAST_BOUND, false), (Wall::EPOCH, true)]
+        {
+            let mut machine = new(&given, &[7]);
+            go(&mut machine, Event::Begin);
+            go(&mut machine, rows(&[row(3, created, suspended), row(7, Wall::EPOCH, true)]));
+            if uninstall_strays && created < BOUND {
+                assert_eq!(go(&mut machine, rows(&[])), send(Request::Uninstall { id: 3 }));
+                assert_eq!(go(&mut machine, Event::Reply(Reply::Empty)), Progress::Complete);
+            } else {
+                assert_eq!(go(&mut machine, rows(&[])), Progress::Complete);
+            }
+            silent(&mut machine);
+        }
     }
 }
 
 #[test]
-fn a_sweep_deletes_strays_in_id_order_and_accepts_404() {
-    let mut machine = begun(&[]);
-    assert_eq!(go(&mut machine, rows(&[row(9, Wall::EPOCH, false), row(1, Wall::EPOCH, true)])), page(2));
-    assert_eq!(go(&mut machine, rows(&[row(7, Wall::EPOCH, false)])), page(3));
-    assert_eq!(go(&mut machine, rows(&[])), send(Request::Uninstall { id: 1 }));
-    assert_eq!(go(&mut machine, Event::Reply(Reply::Status(404))), send(Request::Uninstall { id: 7 }));
-    assert_eq!(go(&mut machine, Event::Reply(Reply::Empty)), send(Request::Uninstall { id: 9 }));
-    assert_eq!(go(&mut machine, Event::Reply(Reply::Status(404))), Progress::Complete);
-    silent(&mut machine);
+fn a_sweep_deletes_strays_in_id_order_and_accepts_404_only_when_permitted() {
+    for uninstall_strays in [false, true] {
+        let mut given = given();
+        given.uninstall_strays = uninstall_strays;
+        let mut machine = new(&given, &[]);
+        go(&mut machine, Event::Begin);
+        assert_eq!(go(&mut machine, rows(&[row(9, Wall::EPOCH, false), row(1, Wall::EPOCH, true)])), page(2));
+        assert_eq!(go(&mut machine, rows(&[row(7, Wall::EPOCH, false)])), page(3));
+        if !uninstall_strays {
+            assert_eq!(go(&mut machine, rows(&[])), Progress::Complete);
+            silent(&mut machine);
+            continue;
+        }
+        assert_eq!(go(&mut machine, rows(&[])), send(Request::Uninstall { id: 1 }));
+        assert_eq!(go(&mut machine, Event::Reply(Reply::Status(404))), send(Request::Uninstall { id: 7 }));
+        assert_eq!(go(&mut machine, Event::Reply(Reply::Empty)), send(Request::Uninstall { id: 9 }));
+        assert_eq!(go(&mut machine, Event::Reply(Reply::Status(404))), Progress::Complete);
+        silent(&mut machine);
+    }
 }
 
 #[test]
@@ -260,18 +291,31 @@ fn a_nonempty_page_at_the_page_bound_is_crowded() {
 }
 
 #[test]
-fn a_page_at_the_bound_uninstalls_strays_then_ends_crowded() {
-    let mut machine = begun(&[1, 9]);
-    assert_eq!(go(&mut machine, rows(&[row(8, Wall::EPOCH, false), row(1, Wall::EPOCH, true)])), page(2));
-    assert_eq!(go(&mut machine, rows(&[row(3, PAST_BOUND, true)])), page(3));
-    assert_eq!(
-        go(&mut machine, rows(&[row(2, Wall::EPOCH, false), row(7, FUTURE, false)])),
-        send(Request::Uninstall { id: 2 })
-    );
-    assert_eq!(go(&mut machine, Event::Reply(Reply::Status(404))), send(Request::Uninstall { id: 3 }));
-    assert_eq!(go(&mut machine, Event::Reply(Reply::Empty)), send(Request::Uninstall { id: 8 }));
-    assert_eq!(go(&mut machine, Event::Reply(Reply::Status(404))), listing_failure(Why::Crowded));
-    silent(&mut machine);
+fn a_page_at_the_bound_uninstalls_permitted_strays_then_ends_crowded() {
+    for uninstall_strays in [false, true] {
+        let mut given = given();
+        given.uninstall_strays = uninstall_strays;
+        let mut machine = new(&given, &[1, 9]);
+        go(&mut machine, Event::Begin);
+        assert_eq!(go(&mut machine, rows(&[row(8, Wall::EPOCH, false), row(1, Wall::EPOCH, true)])), page(2));
+        assert_eq!(go(&mut machine, rows(&[row(3, PAST_BOUND, true)])), page(3));
+        if !uninstall_strays {
+            assert_eq!(
+                go(&mut machine, rows(&[row(2, Wall::EPOCH, false), row(7, FUTURE, false)])),
+                listing_failure(Why::Crowded)
+            );
+            silent(&mut machine);
+            continue;
+        }
+        assert_eq!(
+            go(&mut machine, rows(&[row(2, Wall::EPOCH, false), row(7, FUTURE, false)])),
+            send(Request::Uninstall { id: 2 })
+        );
+        assert_eq!(go(&mut machine, Event::Reply(Reply::Status(404))), send(Request::Uninstall { id: 3 }));
+        assert_eq!(go(&mut machine, Event::Reply(Reply::Empty)), send(Request::Uninstall { id: 8 }));
+        assert_eq!(go(&mut machine, Event::Reply(Reply::Status(404))), listing_failure(Why::Crowded));
+        silent(&mut machine);
+    }
 }
 
 #[test]
@@ -287,10 +331,10 @@ fn a_crowded_sweep_with_no_stray_ends_crowded_at_once() {
 }
 
 #[test]
-fn a_read_only_sweep_leaves_strays_and_ends_crowded() {
+fn a_sweep_without_uninstall_permission_leaves_strays_and_ends_crowded() {
     for pages in [1, PAGES] {
         let mut given = given();
-        given.read_only = true;
+        given.uninstall_strays = false;
         given.limits.pages = pages;
         let mut machine = new(&given, &[1, 9]);
         assert_eq!(go(&mut machine, Event::Begin), page(1));

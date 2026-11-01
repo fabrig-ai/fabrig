@@ -178,7 +178,7 @@ impl Paste {
                         self.given.forge,
                         Kept::new(self.app, checked.key.clone()),
                         &checked.slug,
-                        !self.given.read_only,
+                        self.given.repair_hook,
                     );
                     self.hook(child, checked, Event::Begin)
                 }

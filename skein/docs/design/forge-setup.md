@@ -600,7 +600,9 @@ or the status it answers.
   set down (forge-connection.md, section 4.4).
 - **Only installations accepted this way are the service's.** Another
   account may install a public App: such an installation is never used
-  until it is accepted, and reconcile uninstalls it (5.6).
+  until it is accepted. Reconcile keeps it unless the owner permits
+  uninstalling strays (5.6, 5.10); an installation made before the
+  service knew the App can be accepted with no state as above.
 
 ### 5.5 The hook, at no listener
 
@@ -632,21 +634,22 @@ accepted set; then:
    person to approve what a newer service asks more, on the App's page.
 3. **Its hook,** `GET /app/hook/config`; one whose URL is not
    `https://<slug>.invalid/` is set to it (`PATCH /app/hook/config`),
-   unless the App is read-only (5.10).
+   when `repair_hook` is true (5.10); otherwise it is read and left.
 4. **Its installations,** `GET /app/installations`, paged: an accepted
    id gone is dropped from the set, which is written; one not accepted,
    made more than `state_life` ago, is uninstalled (`DELETE
-   /app/installations/{id}`; a `404` is as good), unless the App is
-   read-only (5.10). A younger one may be waiting for its person's
-   `Accept`.
+   /app/installations/{id}`; a `404` is as good) only when
+   `uninstall_strays` is true (5.10). Otherwise it is kept for the owner
+   to show and accept, regardless of age. A younger one may be waiting
+   for its person's `Accept`.
 
 The setup host's rows-only replies make an empty page the installation
 listing's terminal marker; even a short nonempty page is followed.
 `pages` counts that terminal response. The accepted set is pruned only
-after a complete listing; the strays seen are uninstalled either way.
-A listing past `pages` ends `Crowded` at `Installation`, naming
-`installations`, once its strays are gone, leaving the accepted set
-unpruned.
+after a complete listing; permitted stray uninstalls happen even at the
+page bound. A listing past `pages` ends `Crowded` at `Installation`,
+naming `installations`, after any permitted uninstalls, leaving the
+accepted set unpruned.
 
 A second run with nothing changed writes nothing.
 
@@ -678,7 +681,7 @@ and private key pasted. The owner serves the pasted key as `Pasted`
 3. **The bot's id** (5.3); a forge that has a user kept must find the
    same (`OtherUser`).
 4. **Its hook** set, and **its permissions and events** checked, as
-   5.6's steps 2 and 3; a read-only App's hook is read and left (5.10).
+   5.6's steps 2 and 3; with `repair_hook` false it is read and left (5.10).
 5. **The writes:** the App's id, slug, key (DER) and bot's id, then
    `Done`, carrying what it lacks.
 
@@ -714,22 +717,27 @@ picker.
   conformance reads an installation's repositories on the probe App
   (section 10), and revokes each token it mints.
 
-### 5.10 An App kept read-only
+### 5.10 The owner's permissions to change the App
 
-GitHub's given values hold `read_only`, false unless the owner says
-otherwise: the App, its hook and its installations are another's to
-change, as a probe App shared with a conformance suite is, and the
-plans change none of them.
+GitHub's given values hold two independent permissions, `repair_hook`
+and `uninstall_strays`. The owner chooses both for each forge.
 
-- **The hook is read and left:** 5.6's step 3 and 5.8's step 4 read
+- **`repair_hook` false:** 5.6's step 3 and 5.8's step 4 read
   `GET /app/hook/config` and complete whatever its URL, sending no
-  `PATCH`.
-- **A stray is left installed:** 5.6's step 4 lists the installations
+  `PATCH`. True permits the hook repair those steps describe.
+- **`uninstall_strays` false:** 5.6's step 4 lists the installations
   and keeps the accepted set as it says, pruning an accepted id gone,
-  and sends no `DELETE`; a stray stays the owner's to show.
+  and sends no `DELETE`; a stray stays the owner's to show and accept,
+  however long before the connect it was made. True permits uninstalling
+  a stray past `state_life`, as for strangers' installations of a public App.
+- **A shared App:** the owner gives both as false when another person
+  or tool uses it, as a probe App shared with a conformance suite is.
+  temper always gives `uninstall_strays` false: a person's App's
+  installations are theirs; temper uninstalls nothing it did not make.
 - **The rest is unchanged:** `Manifest` and `Convert`, `Install`'s
-  link, `Accept`'s read of an installation, `Reachable`'s mint and page, and the checks of the App's
-  id, key, permissions and events, which still name what it lacks.
+  link, `Accept`'s read of an installation, `Reachable`'s mint and page,
+  and the checks of the App's id, key, permissions and events, which
+  still name what it lacks.
 
 ## 6. The crate, and its host
 
@@ -952,8 +960,8 @@ The tiers and budgets are testing-strategy.md's and skein's `testing.md`.
   (fake-forge.md, sections 7 and 6). No suite calls GitHub itself.
 - **The App never changes live** (fake-forge.md, section 11, which holds
   the rule). The probe App's fixture installations are accepted by no
-  state, so GitHub's reconcile (5.6) would uninstall them and set the
-  App's hook. No plan of section 5 runs against github.com: a live run
+  state; GitHub's reconcile (5.6) with `uninstall_strays` and
+  `repair_hook` true would uninstall them and set the App's hook. No plan of section 5 runs against github.com: a live run
   never sends `DELETE /app/installations/<id>` or
   `PATCH /app/hook/config` and changes nothing of the App; strays, the
   uninstall and the hook's set are shown on the fake alone; and a

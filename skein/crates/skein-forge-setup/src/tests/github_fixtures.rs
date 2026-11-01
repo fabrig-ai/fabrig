@@ -73,7 +73,8 @@ pub fn limits() -> github::limits::Limits {
 pub fn given() -> github::given::Given {
     github::given::Given {
         forge: 4,
-        read_only: false,
+        repair_hook: true,
+        uninstall_strays: true,
         word: b"kit".as_slice().into(),
         web: b"https://github.test".as_slice().into(),
         url: b"https://kit.test/".as_slice().into(),
