@@ -248,6 +248,8 @@ pub enum ActKind {
     SetPool,
     /// Withdraw the party's own pending proposal.
     Withdraw,
+    /// Delete a project.
+    RemoveProject,
 }
 
 /// What the engine says would happen on an act.

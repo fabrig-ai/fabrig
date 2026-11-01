@@ -30,8 +30,6 @@ pub struct Pages {
     accounts: accounts::Accounts,
     connect_model: Option<Box<connect_model::ConnectModel>>,
     pub(crate) demo_provider: Option<u32>,
-    pub(crate) retired_project: Option<u32>,
-    pub(crate) demo_model: bool,
     pub(crate) choice: choice::Draft,
     accounts_open: bool,
     welcome: Option<welcome::Welcome>,
@@ -53,6 +51,7 @@ pub enum Act {
     Choice(choice::Act),
     SignOut,
     Playground,
+    LeavePlayground,
     RetryDemo,
     Accounts(accounts::Act),
     ConnectModel(connect_model::Act),
@@ -162,8 +161,6 @@ impl Pages {
             accounts: accounts::Accounts::default(),
             connect_model: None,
             demo_provider: None,
-            retired_project: None,
-            demo_model: false,
             choice: choice::Draft::default(),
             accounts_open: false,
             welcome: None,
@@ -337,7 +334,6 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
                 pages.connect_model = Some(Box::new(connect_model::ConnectModel::default()));
             }
             if let Some(page) = &mut pages.connect_model {
-                page.playground |= pages.demo_model;
                 page.act(client, &pages.address, chosen, pages.demo_provider, act, &mut pages.serial, out);
             }
         }
@@ -362,7 +358,7 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
             }
         }
         Event::Act { act: Act::StartChat } => start_chat(pages, env, client, out),
-        Event::Act { act: Act::Suggest { .. } | Act::Playground | Act::RetryDemo } => {
+        Event::Act { act: Act::Suggest { .. } | Act::Playground | Act::LeavePlayground | Act::RetryDemo } => {
             unreachable!("suggestions are resolved by the root")
         }
         Event::Act { act: Act::ClosedChats } => closed_chats(pages, out),
@@ -815,6 +811,7 @@ fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act,
         | Act::ChatWords { .. }
         | Act::StartChat
         | Act::Playground
+        | Act::LeavePlayground
         | Act::RetryDemo
         | Act::Suggest { .. }
         | Act::MessageWords { .. }
@@ -905,18 +902,15 @@ fn me_changed(pages: &mut Pages, client: &Client, out: &mut Queue<Request>) {
     project_changed(pages, client);
 }
 
+#[expect(clippy::manual_map, reason = "step code reads the selected project without closures")]
 pub(crate) fn project_changed(pages: &mut Pages, client: &Client) {
     if let Some(me) = pages.me(client)
-        && (!contains(me, pages.project) || pages.project == pages.retired_project)
+        && !contains(me, pages.project)
     {
-        let mut project = None;
-        for row in &me.projects {
-            if Some(row.project) != pages.retired_project {
-                project = Some(row.project);
-                break;
-            }
-        }
-        pages.project = project;
+        pages.project = match me.projects.get(0) {
+            Some(row) => Some(row.project),
+            None => None,
+        };
     }
 }
 // jig ends every pending read at a credential boundary and replays none

@@ -250,6 +250,10 @@ pub enum Ask {
         name: Text,
         policy: u32,
     },
+    /// Delete a project as its owner (contract.md, 3.2).
+    RemoveProject {
+        project: u32,
+    },
     /// Set a party pool preserving spend and reservations.
     SetPool {
         project: u32,

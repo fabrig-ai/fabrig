@@ -550,6 +550,9 @@ fn settle(domain: &mut Ui, env: &Env<Limits>, out: &mut Queue<Request>, lent: &j
 }
 fn act_event(domain: &mut Ui, env: &Env<Limits>, act: Act, out: &mut Queue<Request>, lent: &jig_client::Client) {
     match act {
+        Act::OpenProjectDelete => crate::page::project::owner_form::open_delete(domain),
+        Act::TypeProjectName { text } => crate::page::project::owner_form::type_name(domain, text),
+        Act::DeleteProject => crate::page::project::owner_form::send_delete(domain, out),
         Act::ProjectSettings { ask } => crate::page::project::owner_form::review(domain, ask),
         Act::ProjectServiceRole { role } => crate::page::project::owner_form::service_role(domain, role),
         Act::Go { address } => {
@@ -902,6 +905,11 @@ fn confirm_act(domain: &mut Ui, out: &mut Queue<Request>, lent: &jig_client::Cli
     }
 }
 fn dismiss_act(domain: &mut Ui) {
+    if domain.project_page.settings.delete.take().is_some() {
+        domain.project_page.settings.refused = None;
+        domain.changed();
+        return;
+    }
     if domain.project_page.settings.review.take().is_some() {
         domain.project_page.settings.before = None;
         domain.project_page.settings.pool_period = None;

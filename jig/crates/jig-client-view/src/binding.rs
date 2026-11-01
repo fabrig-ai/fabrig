@@ -12,6 +12,8 @@ pub enum JigMeaning {
     ProjectSetting { ask: Box<jig_client::contract::Ask>, field: crate::owner_project::Field },
     /// A new service name, after an explicit supplied role choice.
     ProjectServiceName { project: u32, role: jig_client::contract::HeldRole },
+    /// The exact project name typed for deletion.
+    ProjectDeleteName,
     /// An explicit budget for one supplied party in the configured target.
     ProjectPoolBudget { project: u32, party: u64 },
     /// Pressing, submitting or toggling asks this already typed action.
@@ -88,6 +90,7 @@ impl JigBindings {
                     | JigMeaning::Priority
                     | JigMeaning::Amendment { .. }
                     | JigMeaning::ProjectSetting { .. }
+                    | JigMeaning::ProjectDeleteName
                     | JigMeaning::ProjectServiceName { .. }
                     | JigMeaning::ProjectPoolBudget { .. }
                     | JigMeaning::GoalField { .. }
@@ -111,6 +114,7 @@ impl JigBindings {
                     | JigMeaning::Priority
                     | JigMeaning::Amendment { .. }
                     | JigMeaning::ProjectSetting { .. }
+                    | JigMeaning::ProjectDeleteName
                     | JigMeaning::ProjectServiceName { .. }
                     | JigMeaning::ProjectPoolBudget { .. }
                     | JigMeaning::GoalField { .. }
@@ -162,6 +166,9 @@ impl JigBindings {
                         | crate::action::Act::BeginConversation { .. }
                         | crate::action::Act::ProjectSettings { .. }
                         | crate::action::Act::ProjectServiceRole { .. }
+                        | crate::action::Act::OpenProjectDelete
+                        | crate::action::Act::TypeProjectName { .. }
+                        | crate::action::Act::DeleteProject
                         | crate::action::Act::GoalForm { .. }
                         | crate::action::Act::FilterTasks { .. }
                         | crate::action::Act::FilterNotes { .. }
@@ -177,6 +184,7 @@ impl JigBindings {
                     | JigMeaning::Priority
                     | JigMeaning::Amendment { .. }
                     | JigMeaning::ProjectSetting { .. }
+                    | JigMeaning::ProjectDeleteName
                     | JigMeaning::ProjectServiceName { .. }
                     | JigMeaning::ProjectPoolBudget { .. }
                     | JigMeaning::GoalField { .. }
@@ -203,6 +211,12 @@ pub fn decode(view: &mut JigBindings, token: Token, act: Act) -> Option<crate::a
                             budget: number(&value)?,
                         }))
                     }
+                    Act::Press | Act::Submit | Act::Toggle | Act::Drawing { .. } => None,
+                },
+                JigMeaning::ProjectDeleteName => match act {
+                    Act::Input { value } => Some(crate::action::Act::TypeProjectName {
+                        text: jig_client::contract::Text::new(value, view.text_limit).ok()?,
+                    }),
                     Act::Press | Act::Submit | Act::Toggle | Act::Drawing { .. } => None,
                 },
                 JigMeaning::ProjectServiceName { project, role } => match act {

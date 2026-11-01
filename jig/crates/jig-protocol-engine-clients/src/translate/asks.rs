@@ -132,6 +132,7 @@ fn decode(
             let v = value.into_parts();
             p::Ask::Rename { project: v.project, name: project_name(&v.name, w::Path::RenameName)? }
         }
+        w::Ask::RemoveProject(value) => p::Ask::RemoveProject { project: value.project() },
         w::Ask::MakeProject(value) => {
             let v = value.into_parts();
             p::Ask::MakeProject { name: project_name(&v.name, w::Path::MakeProjectName)?, policy: v.policy }

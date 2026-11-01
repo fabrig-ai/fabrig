@@ -63,6 +63,9 @@ impl Domain {
         let mut visible = List::with_capacity(limits.inbox_entries);
         if let Some(entries) = self.waiting.get(&Whom::Person(person)) {
             for &entry in entries {
+                if self.deletion(entry.project).is_some() {
+                    continue;
+                }
                 match entry.kind {
                     EntryKind::Reply { .. } | EntryKind::ChatReply { .. } if !unread_reply(self, person, entry) => {
                         continue;
@@ -78,6 +81,9 @@ impl Domain {
             }
         }
         for (project, holdings) in &self.roles {
+            if self.deletion(*project).is_some() {
+                continue;
+            }
             for holding in holdings {
                 if holding.person == person
                     && let Some(entries) =
@@ -123,7 +129,10 @@ impl Domain {
                     continue;
                 }
                 let visible = match item.update {
-                    Update::Result(row) => row.position > *self.results_seen.get(&person).unwrap_or(&0),
+                    Update::Result(row) => {
+                        self.deletion(row.project).is_none()
+                            && row.position > *self.results_seen.get(&person).unwrap_or(&0)
+                    }
                     Update::ChatReply(reply) => unread_reply(self, person, reply.entry),
                     Update::Reply(entry) => {
                         let mut present = false;
@@ -259,12 +268,12 @@ impl Domain {
         let needs = self.needs(person)?;
         let mut unread = 0_u128;
         for ((owner, project), count) in &self.chat_updates {
-            if *owner == person && role(self, person, *project).is_some() {
+            if *owner == person && visible_role(self, person, *project).is_some() {
                 unread = unread.checked_add(*count).expect("issued reply census");
             }
         }
         for ((owner, project), refs) in &self.result_census {
-            if *owner == person && role(self, person, *project).is_some() {
+            if *owner == person && visible_role(self, person, *project).is_some() {
                 unread = unread
                     .checked_add(u128::try_from(refs.len()).expect("bounded results"))
                     .expect("bounded result census");
@@ -548,7 +557,7 @@ fn unread_reply(domain: &Domain, person: u64, entry: Entry) -> bool {
         | EntryKind::Question { .. }
         | EntryKind::PersonTask => return false,
     };
-    entry.whom == Whom::Person(person) && role(domain, person, entry.project).is_some() && message > seen
+    entry.whom == Whom::Person(person) && visible_role(domain, person, entry.project).is_some() && message > seen
 }
 
 pub(super) fn mark_seen(domain: &mut Domain, limits: &Limits, party: u64, seen: Seen, out: &mut Queue<Request>) {
@@ -654,7 +663,7 @@ pub(super) fn erase_task(domain: &mut Domain, limits: &Limits, task: u64, _proje
 }
 
 fn addressed(domain: &Domain, person: u64, need: Need) -> bool {
-    let Some(held) = role(domain, person, need.project) else { return false };
+    let Some(held) = visible_role(domain, person, need.project) else { return false };
     match need.whom {
         Whom::Person(owner) => owner == person,
         Whom::Role { project, role } => project == need.project && held.number() == role,
@@ -912,4 +921,8 @@ fn remember_project_result(domain: &mut Domain, limits: &Limits, party: u64, ent
         domain.result_census.insert((party, entry.project), kept.into_boxed()).is_ok(),
         "one census per party/project"
     );
+}
+
+fn visible_role(domain: &Domain, person: u64, project: u32) -> Option<Role> {
+    if domain.deletion(project).is_some() { None } else { role(domain, person, project) }
 }

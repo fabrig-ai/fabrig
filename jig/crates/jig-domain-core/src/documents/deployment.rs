@@ -235,7 +235,7 @@ pub(super) fn deployment(
     party: u64,
     clock: Option<DocumentClock>,
 ) -> Result<Deployment, Missing> {
-    if core.people.role(party, people::DEPLOYMENT).is_none() {
+    if core.visible_role(party, people::DEPLOYMENT).is_none() {
         return Err(Missing::NotAllowed);
     }
     let source_hosts = core.fleet.host_views();
@@ -391,7 +391,7 @@ pub(super) fn deployment(
             .push(Account {
                 number: value.account,
                 place: account.place(),
-                uses: super::accounts::uses(account),
+                uses: super::accounts::uses(core, account),
                 plan: account.plan(),
                 provider: Some(account.provider()),
                 provider_name: super::accounts::provider_name(core, account, limits.documents.text_bytes),
@@ -417,6 +417,9 @@ pub(super) fn deployment(
     let mut proposal_count = 0_u32;
     let mut projects = List::with_capacity(limits.documents.lines);
     for project in &core.projects {
+        if core.deleting(*project) {
+            continue;
+        }
         let mut live = 0_u32;
         let mut proposed = 0_u32;
         for row in &rows {

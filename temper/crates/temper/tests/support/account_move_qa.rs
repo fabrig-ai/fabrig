@@ -39,8 +39,7 @@ fn save(directory: &Path, value: &serde_json::Value) {
     super::write_private(&directory.join("temper.json"), &serde_json::to_vec(value).expect("configuration JSON"));
 }
 
-// Reuse the landed story's init, issuer and unreachable-forge helpers. Its
-// private configure function cannot be called from this sibling module.
+// Use init's LLM registration and issuer, with no forge or demo.
 fn configure(directory: &Path) -> oauth::Peer {
     fs::create_dir(directory).expect("deployment");
     let issuer = sign_in::configuration(directory);
@@ -48,18 +47,10 @@ fn configure(directory: &Path) -> oauth::Peer {
     let (_, fixture) =
         configuration::documents(directory, skein_scratch::paths::binary("temper").to_str().expect("a UTF-8 path"));
     let fixture: serde_json::Value = serde_json::from_slice(&fixture).expect("fixture JSON");
-    for field in ["forges", "identities", "setup", "demo", "webhooks", "workers", "clients"] {
+    for field in ["machine", "demo", "webhooks", "workers", "clients"] {
         value["application"][field] = fixture["application"][field].clone();
     }
     value["engine"]["limits"]["overrides"]["accounts.move_deadline_ms"] = DEADLINE_MS.into();
-    fs::create_dir_all(directory.join("secrets")).expect("fixture secrets");
-    for (file, bytes) in [
-        ("forge-1.user", b"42\n".as_slice()),
-        ("forge-1.api-token", b"forge-1-api-token-value"),
-        ("forge-1.git-token", b"forge-1-git-token-value"),
-    ] {
-        super::write_private(&directory.join("secrets").join(file), bytes);
-    }
     save(directory, &value);
     issuer
 }

@@ -82,13 +82,9 @@ pub(crate) fn banner(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut B
     }
     b.close();
 }
-/// The setup strip and composers read the same account and demo facts.
+/// Composers can use the playground's scripted account while it runs.
 pub(crate) fn can_send(root: &Domain) -> bool {
-    let demo_model = match root.demo() {
-        Some((_, halves)) => halves.model,
-        None => false,
-    };
-    demo_model || temper_client_domain::pages::welcome::model_usable(root) != Some(false)
+    root.demo().is_some() || temper_client_domain::pages::welcome::model_usable(root) != Some(false)
 }
 pub(crate) fn composer(
     b: &mut Builder,

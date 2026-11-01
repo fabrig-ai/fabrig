@@ -557,6 +557,9 @@ fn append(requests: Requests, out: &mut Queue<Request>) {
 
 fn visibility_end(core: &Core, watcher: Token, binding: &crate::WatchBinding) -> Option<views::End> {
     let subject = &core.view_names.get(binding.subject).expect("bound subject").subject;
+    if core.deleting_subject(subject) {
+        return Some(views::End::Gone);
+    }
     match subject {
         Subject::Application { scope, .. } => {
             if *scope == ApplicationScope::Own || core.people.role(binding.party, scope.project()).is_some() {

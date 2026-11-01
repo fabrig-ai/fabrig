@@ -284,12 +284,11 @@ pub(super) fn row(d: &Domain, l: &Limits, row: &Stored) -> Result<(), RestoreFit
             d.records.capacity(),
             d.records.contains_key(&record.number),
         ),
+        Stored::KeptAct(row) => {
+            room(K::KeptAct, Rows(K::KeptAct), d.kept.len(), d.kept.capacity(), d.kept.contains_key(&row.key))
+        }
         // This family has one key; repeated restores replace its value.
-        Stored::ForgeNumbers { .. }
-        | Stored::Playground(_)
-        | Stored::KeptAct(_)
-        | Stored::Demo(_)
-        | Stored::Client(_) => Ok(()),
+        Stored::ForgeNumbers { .. } | Stored::Playground(_) | Stored::Demo(_) | Stored::Client(_) => Ok(()),
     }
 }
 

@@ -12,7 +12,7 @@ use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::{Duration, Env, Queue, ReplyTo, Time, Token};
 
-pub(super) fn append_people(core: &mut Core, env: &Env<Limits>, event: people::Event, out: &mut Queue<Request>) {
+pub(crate) fn append_people(core: &mut Core, env: &Env<Limits>, event: people::Event, out: &mut Queue<Request>) {
     super::view_routes::touch_people_event(core, &env.limits, &event);
     let mut child = Queue::uncapped();
     people::step(&mut core.people, &Env { now: env.now, wall: env.wall, limits: env.limits.people }, event, &mut child);
@@ -33,7 +33,7 @@ pub(super) fn append_people(core: &mut Core, env: &Env<Limits>, event: people::E
     }
 }
 
-pub(super) fn append_tasks(core: &mut Core, env: &Env<Limits>, event: tasks::Event, out: &mut Queue<Request>) {
+pub(crate) fn append_tasks(core: &mut Core, env: &Env<Limits>, event: tasks::Event, out: &mut Queue<Request>) {
     let mut child = Queue::uncapped();
     tasks::step(&mut core.tasks, &Env { now: env.now, wall: env.wall, limits: env.limits.tasks }, event, &mut child);
     let Requests::Out(mut routed) = tag_tasks(core, env, child, false, false, false);
@@ -446,7 +446,7 @@ fn run_failed(now: Time, turned: fleet::Turned) -> accounts::Event {
     }
 }
 
-fn append_account(core: &mut Core, env: &Env<Limits>, event: accounts::Event, out: &mut Queue<Request>) {
+pub(crate) fn append_account(core: &mut Core, env: &Env<Limits>, event: accounts::Event, out: &mut Queue<Request>) {
     let mut work = Queue::uncapped();
     let Requests::Out(mut routed) = route_account(core, env, &mut work, event);
     assert!(work.is_empty(), "a run's account turn answers no party");

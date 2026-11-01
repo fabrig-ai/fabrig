@@ -2993,8 +2993,7 @@ pub(crate) fn outputs(
             forge::Request::ProjectReleased { project } => super::kept::released(domain, project),
             forge::Request::SendKeptAct(row) => super::kept::send_kept(domain, row),
             forge::Request::ResetAct(act) => super::kept::send_reset(domain, act),
-            // fe-playground-root routes the start.
-            forge::Request::PlaygroundStart { .. } => {}
+            forge::Request::PlaygroundStart { request } => super::playground::start(domain, env, decision, request),
             forge::Request::RemoveGroup { forge } => {
                 assert!(super::now(domain, Request::RemoveGroup { forge }), "remove group door");
             }

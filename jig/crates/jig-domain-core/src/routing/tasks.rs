@@ -559,8 +559,12 @@ pub(super) fn tag_tasks(
             }
             tasks::Request::CompoundRefused { reply_to, at, problem } => {
                 let request = reply_to.into_token();
-                let Some(PersonTaskRoute::Compound { .. }) = core.person_tasks.remove(&request) else {
-                    unreachable!("compound continuation");
+                let route = core.person_tasks.remove(&request).expect("compound continuation");
+                if route == PersonTaskRoute::Deletion {
+                    continue;
+                }
+                let PersonTaskRoute::Compound { .. } = route else {
+                    unreachable!("compound continuation kind");
                 };
                 let outcome = person_problem_refusal(core, problem);
                 let outcome = if let people::Outcome::Refused(why) = outcome {
@@ -575,6 +579,7 @@ pub(super) fn tag_tasks(
                 let token = reply_to.into_token();
                 if let Some(route) = core.person_tasks.remove(&token) {
                     let outcome = match route {
+                        PersonTaskRoute::Deletion => continue,
                         PersonTaskRoute::Compound { project, operations, first_message } => {
                             people::Outcome::Compound { project, operations, first_message }
                         }
@@ -1154,6 +1159,7 @@ pub(super) fn tag_tasks(
                 continue;
             }
             tasks::Request::Ended { task, requester, ending } => {
+                super::deletion::ended(core, env, &mut out);
                 let _pending = core.pending_note_briefs.remove(&task);
                 let position = core.ending_positions.remove(&task).expect("ended row assigned its result position");
                 let Requests::Out(mut ended) = super::view_routes::route_view(
@@ -1234,7 +1240,10 @@ pub(super) fn tag_tasks(
                     append_people(core, env, people::Event::Decided { request: token, outcome }, &mut out);
                     continue;
                 }
-                if core.person_tasks.remove(&token).is_some() {
+                if let Some(route) = core.person_tasks.remove(&token) {
+                    if route == PersonTaskRoute::Deletion {
+                        continue;
+                    }
                     append_people(
                         core,
                         env,
@@ -1708,10 +1717,17 @@ pub(super) fn route_tasks(
     } else {
         event
     };
+    let restored = event == tasks::Event::Restored;
     let event = question_event(core, event);
     tasks::step(&mut core.tasks, &Env { now: env.now, wall: env.wall, limits: env.limits.tasks }, event, &mut out);
     crate::resources::resume(core, work);
-    tag_tasks(core, env, out, false, false, false)
+    let Requests::Out(mut routed) = tag_tasks(core, env, out, false, false, false);
+    if restored {
+        super::deletion::resume_ending(core, env, &mut routed);
+        crate::deletion::erase::begin(core, env, &mut routed);
+        crate::deletion::release::begin(core, env, &mut routed);
+    }
+    Requests::Out(routed)
 }
 // Direct-answer authority stays inside the core's question admission.
 fn question_event(core: &Core, event: tasks::Event) -> tasks::Event {

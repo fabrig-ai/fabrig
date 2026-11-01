@@ -67,6 +67,14 @@ impl skein_shell::Host for Host {
         Some(Exit::Code(code))
     }
     fn drain(&mut self) {
+        while let Some(resolve) = self.service.take_resolve() {
+            let answer = resolve_forge(&resolve);
+            self.service.resolved(resolve.forge, answer);
+        }
+        while let Some(write) = self.service.take_group_write() {
+            let answer = write_group(crate::path(&self.directories.data), &write);
+            self.service.group_written(write.forge, answer);
+        }
         while let Some(read) = self.service.take_handover_read() {
             let answer = read_handover(&read);
             self.service.handover_read(read.forge, read.run, answer);
@@ -106,6 +114,22 @@ impl skein_shell::Host for Host {
     }
 }
 
+fn resolve_forge(resolve: &temper_service::Resolve) -> Result<temper_service::ForgeRuntime, Box<[u8]>> {
+    use jig_protocol_config::Address;
+    use skein_forge_connection::settings::Transport;
+    let endpoint = Address::Host { name: resolve.host.clone(), port: resolve.port };
+    let address = crate::address(&endpoint)
+        .map_err(|why| format!("{}: {why}", String::from_utf8_lossy(&resolve.host)).into_bytes().into_boxed_slice())?;
+    let transport = match &resolve.tls {
+        None => Transport::Plaintext { name: Some(resolve.host.clone()) },
+        Some(tls) => Transport::Tls {
+            trust: crate::trust(tls.trust.as_deref()).map_err(|why| why.into_bytes().into_boxed_slice())?,
+            server_name: crate::server_name(&tls.server_name).map_err(|why| why.into_bytes().into_boxed_slice())?,
+        },
+    };
+    Ok(temper_service::ForgeRuntime { number: resolve.forge, address, transport })
+}
+
 pub(crate) fn read_handover(
     read: &temper_service::HandoverRead,
 ) -> Result<Option<skein_lib::Secret>, temper_service::HandoverUnread> {
@@ -123,6 +147,42 @@ pub(crate) fn read_handover(
         Err(skein_shell::Unread::Kernel(error)) => Err(HandoverUnread::Kernel(crate::errno(error))),
     }
 }
+/// The host owns paths and publishes a complete private group file (contracts T3).
+fn write_group(data: &std::path::Path, write: &temper_service::GroupWrite) -> Result<(), i32> {
+    use std::os::unix::fs::{DirBuilderExt, OpenOptionsExt, PermissionsExt};
+    // Keep the directory's privacy even when it already existed.
+    fn write_group_file(
+        directory: &std::path::Path,
+        temporary: &std::path::Path,
+        target: &std::path::Path,
+        text: &[u8],
+    ) -> std::io::Result<()> {
+        std::fs::DirBuilder::new().recursive(true).mode(0o700).create(directory)?;
+        std::fs::set_permissions(directory, std::fs::Permissions::from_mode(0o700))?;
+        match std::fs::remove_file(temporary) {
+            Ok(()) => {}
+            Err(why) if why.kind() == std::io::ErrorKind::NotFound => {}
+            Err(why) => return Err(why),
+        }
+        let mut file = std::fs::OpenOptions::new().write(true).create_new(true).mode(0o600).open(temporary)?;
+        file.write_all(text)?;
+        file.sync_all()?;
+        std::fs::rename(temporary, target)?;
+        std::fs::File::open(directory)?.sync_all()
+    }
+    let directory = data.join("box/groups");
+    let temporary = directory.join(format!(".{}.tmp", write.forge));
+    let target = directory.join(write.forge.to_string());
+    let result = write_group_file(&directory, &temporary, &target, &write.text);
+    if result.is_err() {
+        let _removed = std::fs::remove_file(&temporary);
+    }
+    match result {
+        Ok(()) => Ok(()),
+        Err(why) => Err(why.raw_os_error().expect("group file io returns an errno")),
+    }
+}
+
 fn remove_handover(remove: &temper_service::HandoverRemoval) -> Result<(), i32> {
     match std::fs::remove_file(crate::path(&remove.path)) {
         Ok(()) => Ok(()),
@@ -709,4 +769,57 @@ fn forge_fit_endings_name_step_family_set_and_measured_limit() {
         assert_eq!(line, format!("temper serve: restart refused during connector 7 restore: {detail}\n"));
         assert_eq!(code, 1);
     }
+}
+
+#[test]
+#[expect(clippy::disallowed_types, reason = "the task measures the blocking host lookup on the builder")]
+fn resolve_forge_resolves_localhost_and_reads_machine_trust() {
+    let resolve = temper_service::Resolve {
+        forge: 7,
+        host: Box::from(b"localhost".as_slice()),
+        port: 443,
+        tls: Some(temper_service::Tls { server_name: Box::from(b"localhost".as_slice()), trust: None }),
+    };
+    let began = std::time::Instant::now();
+    let runtime = resolve_forge(&resolve).expect("localhost and machine trust");
+    eprintln!("resolve_forge localhost (including machine trust): {:?}", began.elapsed());
+    assert_eq!(runtime.number, resolve.forge);
+    assert!(runtime.address.ip().is_loopback());
+    assert_eq!(runtime.address.port(), 443);
+    let skein_forge_connection::settings::Transport::Tls { server_name, .. } = runtime.transport else {
+        panic!("resolved TLS transport")
+    };
+    assert_eq!(server_name, crate::server_name(b"localhost").expect("valid localhost name"));
+}
+#[test]
+#[expect(clippy::disallowed_types, reason = "the task measures the blocking host lookup on the builder")]
+fn resolve_forge_names_an_unknown_host() {
+    let resolve =
+        temper_service::Resolve { forge: 7, host: Box::from(b"unknown.invalid".as_slice()), port: 443, tls: None };
+    let began = std::time::Instant::now();
+    let words = resolve_forge(&resolve).expect_err("the reserved invalid domain cannot resolve");
+    eprintln!("resolve_forge unknown.invalid: {:?}", began.elapsed());
+    assert!(String::from_utf8_lossy(&words).contains("unknown.invalid"));
+}
+
+#[test]
+fn write_group_writes_whole_with_private_modes() {
+    use std::os::unix::fs::PermissionsExt;
+    let directory = std::env::temp_dir().join(format!("temper-group-{}", skein_shell::seed().expect("scratch name")));
+    std::fs::create_dir(&directory).expect("group fixture");
+    let mut write = temper_service::GroupWrite { forge: 7, text: b"first settings".as_slice().into() };
+    assert_eq!(write_group(&directory, &write), Ok(()));
+    std::fs::write(directory.join("box/groups/.7.tmp"), b"interrupted write").expect("group fixture");
+    write.text = b"replacement".as_slice().into();
+    assert_eq!(write_group(&directory, &write), Ok(()));
+    let groups = directory.join("box/groups");
+    assert_eq!(std::fs::read(groups.join("7")).expect("group fixture"), write.text.as_ref());
+    assert_eq!(std::fs::metadata(groups.join("7")).expect("group fixture").permissions().mode() & 0o777, 0o600);
+    assert_eq!(std::fs::metadata(&groups).expect("group fixture").permissions().mode() & 0o777, 0o700);
+    assert!(!groups.join(".7.tmp").exists());
+    std::fs::create_dir(groups.join(".7.tmp")).expect("group fixture");
+    write.text = b"never published".as_slice().into();
+    assert!(write_group(&directory, &write).is_err());
+    assert_eq!(std::fs::read(groups.join("7")).expect("group fixture"), b"replacement");
+    std::fs::remove_dir_all(directory).expect("group fixture");
 }

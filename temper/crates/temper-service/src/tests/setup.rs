@@ -1251,7 +1251,7 @@ pub(crate) fn box_started(service: &mut crate::Service) -> crate::HandoverRead {
     while service.notes().pop().is_some() {}
     let engine = service.engine.as_mut().unwrap();
     let mut out = Queue::with_capacity(3);
-    engine.box_link = crate::route::box_link::Link::new(128, true);
+    engine.box_link = crate::route::box_link::Link::new(128, true, 4);
     engine.box_link.ask(1, Token::new(456), &mut out);
     crate::route::box_link::drain(engine, &mut out);
     engine.box_link.write = None;
@@ -1641,6 +1641,7 @@ fn the_demo_waits_for_started_only_under_the_box_even_with_retained_access() {
             landing: b"main".as_slice().into(),
             key_file: b"demo/llm.key".as_slice().into(),
             state: None,
+            playground: None,
         });
         config.setup[0].handover = Some(Secret::new(b"stale-handover".as_slice().into()));
         let configured = crate::startup::application::configured(&config);
@@ -1714,6 +1715,7 @@ fn demo_config() -> crate::settings::Engine {
         landing: b"main".as_slice().into(),
         key_file: b"demo/llm.key".as_slice().into(),
         state: None,
+        playground: None,
     });
     config
 }

@@ -1,9 +1,9 @@
 //! The process tier's deployment, copied: `documents` from `crates/temper/tests/support/configuration.rs`
 //! and `write` from `support::configuration` with `Forge::Unreached`, which are test modules of package
-//! `temper` and cannot be imported. Three changes: the LLM endpoint is unreached at `127.0.0.1:9`, beside
-//! the forge; `application.clients.bundle` names the bundle; and every relative path is made absolute
-//! under the scratch, as jig's `tests/client-browser` does, since `temper serve` joins paths to its working
-//! directory and the harness starts it in the test's.
+//! `temper` and cannot be imported. The forge is seeded as a store record, the LLM endpoint is
+//! unreached at `127.0.0.1:9`, `application.clients.bundle` names the bundle, and every relative path
+//! is made absolute under the scratch, as jig's `tests/client-browser` does, since `temper serve`
+//! joins paths to its working directory and the harness starts it in the test's.
 #[path = "../../real-loop/src/turn_bounds.rs"]
 mod turn_bounds;
 use std::{fs, os::unix::fs::PermissionsExt, path::Path};
@@ -11,16 +11,7 @@ use std::{fs, os::unix::fs::PermissionsExt, path::Path};
 /// A closed loopback port: the forge's and the LLM endpoint's, which no story reaches.
 pub(crate) const UNREACHED: &str = "127.0.0.1:9";
 /// The paths the deployment names, each relative to its directory.
-const RELATIVE: &[&str] = &[
-    "secrets/worker-a.digest",
-    "app.secret",
-    "worker.secret",
-    "secrets/forge-1.user",
-    "secrets/forge-1.api-token",
-    "secrets/forge-1.git-token",
-    "state",
-    "worker-root",
-];
+const RELATIVE: &[&str] = &["secrets/worker-a.digest", "app.secret", "worker.secret", "state", "worker-root"];
 
 pub(crate) fn documents(directory: &Path, program: &Path, bundle: &Path) -> (Box<[u8]>, Box<[u8]>) {
     let agent = serde_json::json!({
@@ -81,11 +72,8 @@ pub(crate) fn documents(directory: &Path, program: &Path, bundle: &Path) -> (Box
     value["application"] = serde_json::json!({
         "webhooks":null,
         "clients":{"listener":{"socket":"127.0.0.1:0"},"public":null,"bundle":bundle},
-        "forges":[{"number":1,"kind":"forgejo","api":{"socket":UNREACHED},"transport":"plaintext",
-            "git":format!("http://{UNREACHED}"),"webhook_secret":null,"api_token":"secrets/forge-1.api-token","user":{"file":"secrets/forge-1.user"},"identity":1}],
-        "identities":[{"number":1,"token":"secrets/forge-1.git-token","login":"temper",
-            "author":{"name":"Temper","email":"temper@example.test"}}],
-        "setup":[],"demo":null,"sign_in":null,"landing":{"deployment":[],"projects":[]},"charter":1,
+        "machine":{"owned":null,"github":{"api":null,"transport":null,"git":null,"web":null},"git_program":null},
+        "demo":null,"sign_in":null,"landing":{"deployment":[],"projects":[]},"charter":1,
         "limits":{"profile":"small","overrides":{"checkout.name_bytes":256,"checkout.repositories":2,
             "checkout.message_bytes":4096,"forge.name_bytes":64,"forge.resources_per_task":2,"git_component.stdout_bytes":2048}},
         "workers":[{"root":"worker-root","git":"/usr/bin/git"}]});
@@ -122,6 +110,14 @@ pub(crate) fn private(path: &Path, bytes: &[u8]) {
     fs::write(path, bytes).expect("fixture file");
     fs::set_permissions(path, fs::Permissions::from_mode(0o600)).expect("private fixture");
 }
+/// The browser stories keep a forge but never connect it or supply credentials for it.
+pub(crate) fn unreached_forge() -> temper_engine_domain_forge::ForgeRecord {
+    temper_github_app::forgejo(
+        1,
+        UNREACHED.parse().expect("unreached socket"),
+        format!("http://{UNREACHED}").as_bytes(),
+    )
+}
 /// The deployment's files and its two documents, `agent.json` and `temper.json`, in `directory`.
 pub(crate) fn write(directory: &Path, program: &Path, bundle: &Path) {
     assert!(Path::new("/usr/bin/git").is_file(), "/usr/bin/git is required");
@@ -136,13 +132,12 @@ pub(crate) fn write(directory: &Path, program: &Path, bundle: &Path) {
         private(&directory.join(std::str::from_utf8(&name).expect("fixture path")), bytes.expose());
     }
     private(&directory.join("worker.secret"), b"worker-secret");
-    private(&directory.join("secrets/forge-1.user"), b"42\n");
-    private(&directory.join("secrets/forge-1.api-token"), b"forge-1-api-token-value");
-    private(&directory.join("secrets/forge-1.git-token"), b"forge-1-git-token-value");
     private(&directory.join("root.der"), skein_tls_world::pki::ROOT);
     let (agent, value) = documents(directory, program, bundle);
     private(&directory.join("agent.json"), &agent);
     private(&directory.join("temper.json"), &value);
+    temper_github_app::seed_forges(&directory.join("state"), &[unreached_forge()], &[])
+        .expect("seed the unreached forge");
 }
 
 /// The three directories share the scratch root, as the process tier's flags do.
@@ -161,7 +156,7 @@ pub(crate) fn demo(directory: &Path, program: &Path, bundle: &Path) {
         serde_json::from_slice(&fs::read(&path).expect("demo deployment")).expect("JSON");
     let sockets = [
         &value["application"]["clients"]["listener"]["socket"],
-        &value["application"]["forges"][0]["api"]["socket"],
+        &value["application"]["demo"]["forge"]["mode"]["fake"]["listen"]["socket"],
         &value["application"]["demo"]["llm"]["listen"]["socket"],
         &value["application"]["webhooks"]["listener"]["socket"],
     ];

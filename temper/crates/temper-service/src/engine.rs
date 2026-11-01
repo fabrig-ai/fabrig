@@ -16,10 +16,15 @@ pub(crate) struct Engine {
     pub(crate) workers: crate::workers::Workers,
     pub(crate) clients: crate::clients::Clients,
     pub(crate) demo: Option<crate::settings::Demo>,
+    pub(crate) group_writes: Queue<crate::GroupWrite>,
+    pub(crate) group_starts: Map<u16, skein_lib::Token>,
+    pub(crate) erasing: crate::erase::Layer,
     pub(crate) box_link: route::box_link::Link,
     pub(crate) setup: crate::setup::Layer,
     pub(crate) forge: crate::forge::Layer,
     pub(crate) records: Map<u16, temper_engine_domain_forge::ForgeRecord>,
+    pub(crate) resolves: Queue<crate::Resolve>,
+    pub(crate) resolving: Map<u16, ()>,
     pub(crate) forge_records: crate::forge::records::Loader,
     pub(crate) admission: Option<skein_lib::Token>,
     pub(crate) facts: u64,
@@ -147,8 +152,13 @@ impl Engine {
             demo,
             forge,
             setup,
-            box_link: route::box_link::Link::new(0, false),
+            group_writes: Queue::with_capacity(own.forge_component.forges),
+            group_starts: Map::with_capacity(own.forge_component.forges),
+            erasing: crate::erase::Layer::new(own.forge_component.forges),
+            box_link: route::box_link::Link::new(0, false, own.forge_component.forges),
             records: Map::with_capacity(own.forge_component.forges),
+            resolves: Queue::with_capacity(own.forge_component.forges),
+            resolving: Map::with_capacity(own.forge_component.forges),
             forge_records,
             admission: None,
             facts: 0,
@@ -338,6 +348,7 @@ pub(crate) fn iterate(engine: &mut Engine, now: Time, wall: Wall) {
     engine.clients.starting = if open { None } else { Some(()) };
     if let Some(demo) = &mut engine.demo {
         demo.state = engine.domain.demo_state();
+        demo.playground = engine.domain.playground();
     }
     engine.clients.iterate(
         now,

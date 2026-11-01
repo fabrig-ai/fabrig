@@ -1063,6 +1063,12 @@ pub enum JigPhrase {
     SpecificationInput,
     /// The owner supplied an incomplete specification.
     SpecificationCut,
+    /// Delete the owner project.
+    DeleteProject,
+    /// What deleting the named project erases and preserves.
+    DeleteProjectWarning,
+    /// Exact name confirmation for project deletion.
+    DeleteProjectName,
 }
 impl JigPhrase {
     /// Stable phrase identity within jig's owner.
@@ -1071,6 +1077,9 @@ impl JigPhrase {
     pub const fn id(self) -> PhraseId {
         let number = match self {
             Self::TooLinked => 7990,
+            Self::DeleteProject => 7991,
+            Self::DeleteProjectWarning => 7992,
+            Self::DeleteProjectName => 7993,
             Self::SettingsChanged => 7900,
             Self::MovedToNewest => 7919,
             Self::SettingsStale => 7901,
@@ -2109,6 +2118,8 @@ impl JigPhrase {
             | Self::BeforeHold
             | Self::Confirmation
             | Self::Confirm
+            | Self::DeleteProject
+            | Self::DeleteProjectName
             | Self::Dismiss
             | Self::WillPropose
             | Self::ChangedConfirmation
@@ -2182,6 +2193,7 @@ impl JigPhrase {
             | Self::Reason
             | Self::ApprovalState
             | Self::TakenBy
+            | Self::DeleteProjectWarning
             | Self::StalledOn => Box::new([HoleShape { kind: HoleKind::Name, bytes: text }]),
             Self::SettingsChanged
             | Self::SettingsStale
@@ -2418,7 +2430,7 @@ impl JigPhrase {
     }
 }
 /// Every jig phrase; loading checks this whole contract.
-pub const ALL: [JigPhrase; 645] = [
+pub const ALL: [JigPhrase; 648] = [
     JigPhrase::TooLinked,
     JigPhrase::SettingsChanged,
     JigPhrase::MovedToNewest,
@@ -3064,6 +3076,9 @@ pub const ALL: [JigPhrase; 645] = [
     JigPhrase::RecurringLastPeriod,
     JigPhrase::RecurringPendingPeriod,
     JigPhrase::RecurringCut,
+    JigPhrase::DeleteProject,
+    JigPhrase::DeleteProjectWarning,
+    JigPhrase::DeleteProjectName,
 ];
 /// Shapes with names bounded by the client's text capacity.
 #[must_use]

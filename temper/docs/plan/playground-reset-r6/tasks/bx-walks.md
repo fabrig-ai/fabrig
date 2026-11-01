@@ -66,3 +66,22 @@ Acceptance:
 ## Report
 
 Each walk run, its time, and each one ignored or left failing with the reason.
+
+## Answers
+
+2026-11-01. Wait for fe-make-git and the owned-forge admission fix, or make those production
+repairs here? Neither. Waiting cannot happen: `sv-startup-refuse` needs this task, and
+`fe-make-git` needs `fe-config-drop`, which needs `sv-startup-refuse`. The repairs stay
+with their owners (both specs now say so), and this task lands the migration as pushed
+(`0ef0f77df`), with the four walks the repairs block ignored:
+- `walk.rs`'s `forgejo_elsewhere_and_a_key_reach_a_first_chat_on_the_fake_box`:
+  `#[ignore = "managed Forgejo's git program: fe-make-git"]`.
+- `walk/adoption.rs`'s `context_preserves_the_writer_and_a_refused_setup_preserves_the_first_key`,
+  `walk/here_key.rs`'s `forgejo_here_and_a_key_reach_a_first_chat_on_the_fake_box`,
+  `walk/program_here.rs`'s `a_program_and_forgejo_here_reach_ready_on_the_fake_box`:
+  `#[ignore = "a made owned forge is not offered: sv-startup-refuse"]`.
+Keep each ignored walk's migration whole: it is to pass unchanged once its owner's fix is in.
+Acceptance is then the other runs of the list passing, and each of the four, run alone with
+`--run-ignored all`, failing only for its reason (the elsewhere walk: no committed reply; the
+owned three: `not_offered`). Leave `temper/crates/temper/src/fake/check/tests.rs`'s `verb`
+failure under `## Left` (not this task's). Change nothing outside `tests/fake_backends/**`.

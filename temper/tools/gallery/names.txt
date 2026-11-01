@@ -4,6 +4,8 @@ inbox-solo
 task-solo-T3
 accounts-solo
 welcome-first-run-0
+chats-playground
+chats-playground-leaving
 chats-first-run-1
 connect-forge-first-run-6
 forges-first-run-7
@@ -43,7 +45,7 @@ welcome-forge-not-finished
 welcome-forge-go-on
 welcome-ready-under-way
 welcome-ready-adopted
-chats-setup-strip
+chats-not-started
 adoption
 adoption-filled
 adoption-refused

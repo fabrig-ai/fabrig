@@ -283,12 +283,18 @@ pub struct Observer {
     policy_changes: BTreeMap<(u64, [u8; 16]), (u32, people::PolicyChange)>,
     applied_changes: BTreeSet<(u64, [u8; 16])>,
     forgetting: BTreeMap<u64, Vec<u64>>,
+    erasing: BTreeMap<u64, BTreeSet<u64>>,
+    erased_activity: BTreeMap<u64, Vec<(u64, u64)>>,
     recorded: Option<Vec<r::Observed>>,
 }
 
 impl Observer {
     /// Capture policy from scenario configuration before constructing the root.
     #[must_use]
+    #[expect(
+        clippy::too_many_lines,
+        reason = "the observer initializes its policy and independent boundary evidence together"
+    )]
     pub fn new(configuration: &root::Config) -> Self {
         let deployment = &configuration.core.defaults.rules;
         let mut policy = r::Policy {
@@ -390,6 +396,8 @@ impl Observer {
             policy_changes: BTreeMap::new(),
             applied_changes: BTreeSet::new(),
             forgetting: BTreeMap::new(),
+            erasing: BTreeMap::new(),
+            erased_activity: BTreeMap::new(),
             recorded: None,
             intents: intents::Intents::configured(configuration),
             project_makes: projects::Makes::new(configuration),
@@ -608,6 +616,8 @@ impl Observer {
         // An uncommitted forget is lost with the old root. A start's mark may
         // reuse its number without forgetting the task.
         self.forgetting.retain(|commit, _| *commit <= store.applied);
+        self.erasing.retain(|commit, _| *commit <= store.applied);
+        self.erased_activity.retain(|commit, _| *commit <= store.applied);
         let receipts = store
             .rows
             .values()
@@ -694,9 +704,28 @@ impl Observer {
                     }
                 }
             }
-            let mut tasks = Vec::new();
+            let mut forgotten = Vec::new();
+            let mut erasing = BTreeSet::new();
+            let mut activity = Vec::new();
             for write in &pending.writes {
+                if let root::Write::Erase(root::Key::Core(core::Key::Tasks(tasks::Key::Activity { task, position }))) =
+                    write
+                    && erasing_task(store, *task)
+                {
+                    activity.push((*task, *position));
+                    erasing.insert(*task);
+                }
+                if let root::Write::Erase(root::Key::Core(core::Key::Core(core::CoreKey::Terminal { task, .. }))) =
+                    write
+                    && erasing_task(store, *task)
+                {
+                    erasing.insert(*task);
+                }
                 if let root::Write::Erase(root::Key::Core(core::Key::Tasks(tasks::Key::Ended(task)))) = write {
+                    if pending.writes.contains(&root::Write::DropTranscript { task: *task }) {
+                        erasing.insert(*task);
+                        continue;
+                    }
                     for key in store.rows.keys() {
                         if matches!(key, root::Key::Core(core::Key::People(people::Key::ReadConversation { task: chat, .. })) if chat == task)
                         {
@@ -706,11 +735,17 @@ impl Observer {
                             );
                         }
                     }
-                    tasks.push(*task);
+                    forgotten.push(*task);
                 }
             }
-            if !tasks.is_empty() {
-                self.forgetting.insert(pending.number, tasks);
+            if !forgotten.is_empty() {
+                self.forgetting.insert(pending.number, forgotten);
+            }
+            if !erasing.is_empty() {
+                self.erasing.insert(pending.number, erasing);
+            }
+            if !activity.is_empty() {
+                self.erased_activity.insert(pending.number, activity);
             }
         }
         if !self.application_requests {
@@ -1052,6 +1087,12 @@ impl Observer {
                 }
             }
         }
+        let applied: Vec<_> = self.erased_activity.keys().copied().filter(|commit| *commit <= number).collect();
+        for number in applied {
+            for key in self.erased_activity.remove(&number).expect("submitted activity erases") {
+                self.activity.remove(&key);
+            }
+        }
         for ((task, position), kept) in &self.activity {
             let key = root::Key::Core(core::Key::Tasks(tasks::Key::Activity { task: *task, position: *position }));
             assert!(
@@ -1065,6 +1106,12 @@ impl Observer {
         for number in applied {
             for task in self.forgetting.remove(&number).expect("submitted retention") {
                 self.observe(now, r::Observed::Forgotten { task });
+            }
+        }
+        let applied: Vec<_> = self.erasing.keys().copied().filter(|commit| *commit <= number).collect();
+        for number in applied {
+            for task in self.erasing.remove(&number).expect("submitted whole-task erasure") {
+                self.observe(now, r::Observed::Erased { task });
             }
         }
         for (task, message) in words {
@@ -1287,6 +1334,18 @@ impl Heap {
     pub fn observed(&self) -> r::Observed {
         r::Observed::Heap { held: self.meter.held(), maximum: self.maximum }
     }
+}
+
+fn erasing_task(store: &Store, task: u64) -> bool {
+    let key = root::Key::Core(core::Key::Tasks(tasks::Key::Ended(task)));
+    let Some(root::Record::Core(core::Record::Tasks(tasks::Stored::Ended(row)))) = store.rows.get(&key) else {
+        return false;
+    };
+    store.rows.get(&root::Key::Core(core::Key::People(people::Key::Deletion(row.project))))
+        == Some(&root::Record::Core(core::Record::People(people::Stored::Deletion {
+            project: row.project,
+            stage: people::Stage::Erasing,
+        })))
 }
 
 #[cfg(test)]

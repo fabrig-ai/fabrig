@@ -353,7 +353,9 @@ pub(crate) fn main(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
         b.name(&said);
         b.text(Run::Plain, &said);
         b.close();
-        connect(b, w, bindings, W::ConnectAdd);
+        if !root.forge().playground_running() {
+            connect(b, w, bindings, W::ConnectAdd);
+        }
     }
     crate::cards::text(b, Role::Paragraph, &w.say(crate::words::Word::AccountLead, &[]));
     b.close();
@@ -363,7 +365,9 @@ pub(crate) fn main(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
             b.open(Role::Slot);
             b.style(crate::look::EMPTY);
             text(b, w, Role::Paragraph, W::NoOwn);
-            connect(b, w, bindings, W::Connect);
+            if !root.forge().playground_running() {
+                connect(b, w, bindings, W::Connect);
+            }
             b.close();
         }
         let mut shown = 0;
@@ -396,9 +400,7 @@ pub(crate) fn main(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bin
             }
         }
     }
-    if let Some((_, halves)) = root.demo()
-        && halves.model
-    {
+    if root.demo().is_some() {
         text(b, w, Role::Heading { level: 2 }, W::Playground);
         b.open(Role::Disclosure);
         b.style(crate::look::ACCOUNT_ROW);
@@ -710,23 +712,7 @@ pub(crate) fn first_usable_heading(root: &Domain, w: &Words) -> Option<Box<[u8]>
         }
         return Some(account_heading(root, w, row));
     }
-    let demo = root.forge().demo()?;
-    let deployment = temper_client_domain::forge::demo::owner_deployment(root.forge(), root.client())?;
-    let account = temper_client_domain::forge::demo::deployment_model(deployment, demo.provider)?;
-    let supplied = provider_name(account.provider_name.as_ref()).unwrap_or(b"");
-    let shown = crate::choice::provider_shown(root, account.provider, supplied, w);
-    let name = if supplied.is_empty() { None } else { Some(shown.as_ref()) };
-    Some(heading(
-        w,
-        account.number,
-        account.provider,
-        name,
-        &account.display,
-        account.holder,
-        account.plan,
-        &account.sources,
-        accounts::current_me(root.client()),
-    ))
+    None
 }
 
 /// Ready names an own sign-in with the same provider words as its offered way.

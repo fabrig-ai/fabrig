@@ -1,7 +1,7 @@
 //! Executable calls beside serve, with every descriptor on one real ring.
 //! temper/docs/design/domain/testing.md, 2.6.
 mod member;
-use super::{Ended, Process, WITHIN, patience::Patience};
+use super::{Ended, Process, WITHIN, forges::FixturePhase, patience::Patience};
 use skein_io::kernel::{Complete, Done, Error, Exit, Fd, Op, Pipe, Signal, Spawn, Submit, Target, Way};
 use skein_lib::{Duration, Queue, Time, Token, Wall};
 use skein_shell::{Clock, Host};
@@ -90,6 +90,8 @@ impl Call {
 }
 pub type NextCall = Box<dyn FnOnce(&[Ended]) -> Call>;
 pub enum Step {
+    /// Complete runtime provisioning and start recording the caller's evidence.
+    FixtureReady,
     Mark(&'static str),
     /// Wait for bytes in the box's captured stderr; requires a box referee.
     Stderr(&'static [u8]),
@@ -116,6 +118,10 @@ pub enum Step {
     NextLink,
     /// Cleanly stop the supervised engine while a started ctl remains live.
     RestartEngine,
+    /// Kill the box and its retained process tree, cutting a started call first.
+    KillBox,
+    /// Start the box on the same directories and sign previously signed-in clients in again.
+    StartBox,
     /// Release a scripted response after observing the pending review.
     ReleaseLlm {
         name: &'static [u8],
@@ -190,6 +196,7 @@ enum CallKind {
     Adoption,
 }
 struct Child {
+    sign_in: Option<Call>,
     kind: CallKind,
     base: u64,
     pidfd: Option<Fd>,
@@ -208,6 +215,7 @@ struct Child {
 impl Child {
     fn new(input: Vec<u8>, base: u64) -> Self {
         Self {
+            sign_in: None,
             kind: CallKind::Ordinary,
             base,
             pidfd: None,
@@ -376,6 +384,10 @@ enum Action {
     Signal,
     NextLink,
     RestartEngine,
+    KillBox,
+    StartBox,
+    BoxLink,
+    BoxDying,
     ReleaseLlm { name: &'static [u8], cue: &'static [u8] },
 }
 
@@ -393,6 +405,10 @@ enum BoxStderr {
     Captured,
 }
 pub struct Calls {
+    fixture: FixturePhase,
+    provisioning_client: Option<Box<[u8]>>,
+    sign_ins: Vec<Call>,
+    cuts: Vec<usize>,
     root: Option<Fd>,
     client: Box<[u8]>,
     output: Option<Fd>,
@@ -464,6 +480,38 @@ impl Calls {
     pub(super) fn restarting_engine(&self) -> bool {
         matches!(self.action, Some(Action::RestartEngine))
     }
+    pub(super) fn killing_box(&self) -> bool {
+        matches!(self.action, Some(Action::KillBox | Action::BoxDying)) && self.started.is_none()
+    }
+    pub(super) fn starting_box(&self) -> bool {
+        matches!(self.action, Some(Action::StartBox))
+    }
+    pub(super) fn box_action_waiting(&mut self) {
+        if matches!(self.action, Some(Action::KillBox)) {
+            self.action = Some(Action::BoxDying);
+        }
+        self.referee_work = RefereeWork::Waiting;
+    }
+    pub(super) fn box_drained(&self) -> bool {
+        self.output.is_none() && self.closing == 0
+    }
+    pub(super) fn box_killed(&mut self) {
+        assert!(self.killing_box() && self.box_drained(), "box and its pipes drained");
+        self.action = None;
+        self.finish_step(false);
+    }
+    pub(super) fn box_started(&mut self, streams: &Streams) {
+        assert!(self.starting_box() && self.box_drained(), "new box after drainage");
+        let &Streams::Pipes { input, output } = streams else { panic!("box pipes") };
+        self.selected = self.link.len();
+        self.output = Some(output);
+        self.close(input);
+        self.action = Some(Action::BoxLink);
+        self.box_action_waiting();
+    }
+    pub(super) fn was_cut(&self, index: usize) -> bool {
+        self.cuts.contains(&index)
+    }
     pub(super) fn engine_restarting(&mut self) -> usize {
         let (child, index) = self.started.as_ref().expect("live change wait");
         assert!(child.pidfd.is_some() && child.ended.exit.is_none(), "wait is running before restart");
@@ -525,12 +573,12 @@ impl Calls {
     /// Completed calls, in the order their steps ran.
     #[must_use]
     pub fn ends(&self) -> &[Ended] {
-        &self.ends
+        if matches!(self.fixture, FixturePhase::Provisioning) { &[] } else { &self.ends }
     }
     /// Wall input at completed response observation, parallel to ends (not server sample time).
     #[must_use]
     pub fn observed_at(&self) -> &[Option<Wall>] {
-        &self.observed_at
+        if matches!(self.fixture, FixturePhase::Provisioning) { &[] } else { &self.observed_at }
     }
     /// All bytes read from the box's stdout, including an incomplete link on failure.
     pub(super) fn stdout(&self) -> &[u8] {
@@ -563,8 +611,28 @@ impl Calls {
             self.advance(now);
         }
     }
+    #[must_use]
+    pub fn with_fixture(mut self, directory: &Path) -> Self {
+        if let Some(forge) = super::forges::fixture(directory) {
+            let at = self.steps.iter().position(|step| !matches!(step, Step::Mark(_))).expect("story sign-in");
+            let Some(Step::Run(sign_in @ Call { stdin: Stdin::Link, .. })) = self.steps.remove(at) else {
+                panic!("a forge story starts with sign-in");
+            };
+            self.provisioning_client.clone_from(&sign_in.client);
+            let mut prefix: VecDeque<_> = self.steps.drain(..at).collect();
+            prefix.extend(super::forges::fixture_steps(&forge, sign_in));
+            prefix.append(&mut self.steps);
+            self.steps = prefix;
+            self.fixture = FixturePhase::Provisioning;
+        }
+        self
+    }
     pub(super) fn new(root: Fd, steps: Vec<Step>, streams: Option<&Streams>, forgejo: Option<u32>) -> Self {
         let mut calls = Self {
+            fixture: FixturePhase::Story,
+            provisioning_client: None,
+            sign_ins: Vec::new(),
+            cuts: Vec::new(),
             root: Some(root),
             client: b"client".as_slice().into(),
             output: None,
@@ -652,7 +720,11 @@ impl Calls {
             self.child = Some(child);
         }
     }
-    fn start(&mut self, call: Call, started: bool) {
+    fn start(&mut self, mut call: Call, started: bool) {
+        if matches!(self.fixture, FixturePhase::Provisioning) && call.client.is_none() {
+            call.client.clone_from(&self.provisioning_client);
+        }
+        let sign_in = matches!(call.stdin, Stdin::Link).then(|| call.clone());
         let kind = if call.arguments.first().is_some_and(|word| word.as_ref() == b"repository")
             && call.arguments.get(1).is_some_and(|word| word.as_ref() == b"adopt")
         {
@@ -676,26 +748,55 @@ impl Calls {
         let program = call.program.unwrap_or_else(|| skein_scratch::paths::binary("temper"));
         self.spawn(program.as_os_str().as_bytes().into(), args, input, started);
         if started {
-            self.started.as_mut().expect("started call").0.kind = kind;
+            let child = &mut self.started.as_mut().expect("started call").0;
+            child.kind = kind;
+            child.sign_in = sign_in;
         } else {
-            self.child.as_mut().expect("running call").kind = kind;
+            let child = self.child.as_mut().expect("running call");
+            child.kind = kind;
+            child.sign_in = sign_in;
         }
     }
-    fn finish(&mut self, now: Time) {
+    fn signed_in(&mut self, child: &Child) {
+        if child.ended.exit == Some(Exit::Code(0))
+            && let Some(call) = &child.sign_in
+            && !self.sign_ins.iter().any(|signed| signed.client == call.client)
+        {
+            self.sign_ins.push(call.clone());
+        }
+    }
+    fn finish_started(&mut self) {
         if self.started.as_ref().is_some_and(|(child, _)| child.finished()) {
             let (child, index) = self.started.take().expect("finished started call");
             if !self.cancelling {
                 child.check_adoption(self.awaiting_started);
             }
+            self.signed_in(&child);
             self.ends[index] = child.ended;
             self.observed_at[index] = Some(self.wall);
             self.awaiting_started = false;
         }
+    }
+    fn fixture_answer(&self, ended: &Ended) {
+        if matches!(self.fixture, FixturePhase::Provisioning) && !self.cancelling {
+            assert_eq!(
+                ended.exit,
+                Some(Exit::Code(0)),
+                "fixture provisioning: stdout {}; stderr {}",
+                String::from_utf8_lossy(&ended.stdout),
+                String::from_utf8_lossy(&ended.stderr)
+            );
+        }
+    }
+    fn finish(&mut self, now: Time) {
+        self.finish_started();
         if !self.child.as_ref().is_some_and(Child::finished) {
             return;
         }
         let child = self.child.take().expect("finished ctl");
+        self.signed_in(&child);
         let ended = child.ended;
+        self.fixture_answer(&ended);
         self.finish_step(true);
         match self.action.take().expect("current action") {
             Action::Run => {
@@ -770,7 +871,13 @@ impl Calls {
             }
             Action::Visit => panic!("a visit has no child"),
             Action::Stderr(_) | Action::ProgramLogin(_) => panic!("a stderr gate has no child"),
-            Action::NextLink | Action::RestartEngine | Action::ReleaseLlm { .. } => {
+            Action::NextLink
+            | Action::RestartEngine
+            | Action::KillBox
+            | Action::StartBox
+            | Action::BoxLink
+            | Action::BoxDying
+            | Action::ReleaseLlm { .. } => {
                 unreachable!("referee action has no child")
             }
             Action::Signal => assert_eq!(
@@ -790,6 +897,13 @@ impl Calls {
         self.deadline = None;
     }
     fn bound(&mut self, _now: Time) {
+        if matches!(self.action, Some(Action::BoxLink)) && super::printed_link(&self.link[self.selected..]).is_some() {
+            self.action = None;
+            self.finish_step(false);
+            for call in self.sign_ins.iter().rev() {
+                self.steps.push_front(Step::Run(call.clone()));
+            }
+        }
         if matches!(self.action, Some(Action::NextLink)) {
             let after =
                 self.selected + self.link[self.selected..].iter().position(|b| *b == b'\n').map_or(0, |n| n + 1);
@@ -844,6 +958,10 @@ impl Calls {
                         | Action::ProgramLogin(_)
                         | Action::NextLink
                         | Action::RestartEngine
+                        | Action::KillBox
+                        | Action::StartBox
+                        | Action::BoxLink
+                        | Action::BoxDying
                         | Action::Visit
                         | Action::ReleaseLlm { .. }
                 )
@@ -867,7 +985,8 @@ impl Calls {
         self.member = Some(member::Member::project(root, scratch, client, name, number));
     }
     fn cut_started(&mut self) {
-        let (child, _) = self.started.as_mut().expect("call still running at cut");
+        let (child, index) = self.started.as_mut().expect("call still running at cut");
+        self.cuts.push(*index);
         child.signals += 1;
         self.awaiting_started = true;
         self.submit.push(Submit {
@@ -884,6 +1003,26 @@ impl Calls {
             Call::new(&["task", "list", "--project", &project.to_string(), "--parent", &parent.to_string()]).json();
         self.action = Some(Action::TaskExists(call.clone(), task));
         self.start(call, false);
+    }
+    fn fixture_ready(&mut self, now: Time) {
+        for call in &self.ends {
+            assert_eq!(
+                call.exit,
+                Some(Exit::Code(0)),
+                "fixture provisioning: {}",
+                String::from_utf8_lossy(&call.stderr)
+            );
+        }
+        eprintln!(
+            "fixture forge make/connect: {} ms",
+            self.phase.take().map_or(0, |began| now.saturating_since(began).as_nanos() / 1_000_000)
+        );
+        self.fixture = FixturePhase::Story;
+        self.ends.truncate(1);
+        self.observed_at.truncate(1);
+        self.spans.truncate(1);
+        self.tokens.clear();
+        self.advance(now);
     }
     fn advance(&mut self, now: Time) {
         // A box that exits before printing its link must be diagnosed by
@@ -910,6 +1049,7 @@ impl Calls {
             self.deadline = Some(Patience::arm("the measured ctl step", within));
         }
         match self.steps.pop_front() {
+            Some(Step::FixtureReady) => self.fixture_ready(now),
             Some(Step::Mark(name)) => {
                 if let Some(began) = self.phase.replace(now) {
                     eprintln!("{name}: {} ms", now.saturating_since(began).as_nanos() / 1_000_000);
@@ -917,6 +1057,8 @@ impl Calls {
                 self.advance(now);
             }
             Some(Step::RestartEngine) => self.await_box(Action::RestartEngine),
+            Some(Step::KillBox) => self.await_box(Action::KillBox),
+            Some(Step::StartBox) => self.await_box(Action::StartBox),
             Some(Step::Stderr(bytes)) => self.await_box(Action::Stderr(bytes)),
             Some(Step::ProgramLogin(name)) => self.await_box(Action::ProgramLogin(name)),
             Some(Step::NextLink) => {
@@ -1026,6 +1168,16 @@ impl Host for Calls {
         self.bound(now);
         if self.closing == 0 && (self.output.is_none() || super::printed_link(&self.link).is_some()) {
             self.advance(now);
+        }
+        if matches!(self.action, Some(Action::KillBox)) {
+            if !self.awaiting_started
+                && self.started.as_ref().is_some_and(|(child, _)| child.pidfd.is_some() && child.ended.exit.is_none())
+            {
+                self.cut_started();
+            }
+            // A Start can still be awaiting its spawn completion when KillBox
+            // reaches it. Cut only once its pidfd is owned, then drain it.
+            self.referee_work = if self.started.is_none() { RefereeWork::Ready } else { RefereeWork::Waiting };
         }
         if let Some(child) = &mut self.child {
             child.drive(&mut self.submit, self.cancelling);
@@ -1183,7 +1335,7 @@ pub fn run(story: Story<'_>) -> Seen {
     });
     world.spawn_with_fds(serve.descriptors(), || Process::Binary(Box::new(serve)));
     world.spawn_with_fds(fds, || {
-        let mut calls = Calls::new(root, story.steps, Some(&streams), story.forgejo);
+        let mut calls = Calls::new(root, story.steps, Some(&streams), story.forgejo).with_fixture(story.scratch);
         calls.within = story.measured.then_some(WITHIN);
         if story.measured {
             let began = clock.now();
@@ -1206,6 +1358,29 @@ pub fn run(story: Story<'_>) -> Seen {
         tokens: std::mem::take(&mut calls.tokens),
     }
 }
+/// Provision a terminal story before its typist starts, keeping the same signed-in directory.
+pub fn provision_linked(directory: &Path, client: &Path, link: &[u8]) -> bool {
+    if super::forges::fixture(directory).is_none() {
+        return false;
+    }
+    let clock = Clock::new();
+    let mut calls = Calls::linked(std::str::from_utf8(link).expect("printed link"), client);
+    calls.push(Step::Run(Call::sign_in()));
+    calls = calls.with_fixture(directory);
+    let root = calls.root.expect("fixture root");
+    let mut world = real::World::new(Judge {
+        stopped: false,
+        settled: false,
+        deadline: clock.now().now.saturating_add(WITHIN),
+        scratch: directory.into(),
+        token_names: Vec::new(),
+    });
+    world.spawn_with_fds(vec![root], || Process::Calls(Box::new(calls)));
+    let ended = world.run(&clock, WITHIN);
+    assert!(ended.procs.iter().all(Host::is_empty), "fixture calls settle before the terminal starts");
+    true
+}
+
 #[must_use]
 pub fn alone(scratch: &Path, call: Call) -> Ended {
     let clock = Clock::new();

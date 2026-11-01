@@ -444,7 +444,7 @@ fn deployment_command(kind: &str, directory: &Path) -> Command {
     command
 }
 fn forge_setup(directory: &Path, listen: &str) -> Value {
-    let mut config = support::configuration::check_document(directory);
+    let mut config = support::legacy_configuration::check_document(directory);
     config["application"]["forges"][0]["api"] = json!({"socket":listen});
     config["application"]["forges"][0]["git"] = json!(format!("http://{listen}"));
     let fake = &mut config["application"]["setup"][0]["mode"]["fake"];
@@ -503,7 +503,7 @@ fn refused_deployment_start(root: &Path) {
                 },
             ),
             "managed" => {
-                config = support::configuration::old_form_check_document(&dir);
+                config = support::legacy_configuration::old_form_check_document(&dir);
                 config["application"]["setup"][0]["mode"] = json!({"managed":{"admin_token":"admin_token"}});
                 config["application"]["setup"][0]["orgs"] = json!(["acme"]);
             }
@@ -746,7 +746,7 @@ fn the_old_form_prepared_fake_reconciles_twice_before_it_stops() {
     let scratch = support::Scratch::new("fake_forge_reconcile");
     let (_, path, token) = prepared_forge(scratch.path());
     // temper-15 retains the explicit file-writing reconcile command.
-    let mut config = support::configuration::old_form_check_document(scratch.path());
+    let mut config = support::legacy_configuration::old_form_check_document(scratch.path());
     let prepared: Value =
         serde_json::from_slice(&fs::read(scratch.path().join("temper.json")).expect("prepared document"))
             .expect("prepared JSON");
@@ -1335,7 +1335,7 @@ fn check_run() {
     let (agent, _) = support::configuration::documents(directory, env!("CARGO_BIN_EXE_temper"));
     support::write_private(&directory.join("agent.json"), &agent);
     support::write_private(&directory.join("root.der"), skein_tls_world::pki::ROOT);
-    document(&directory.join("temper.json"), &support::configuration::check_document(directory));
+    document(&directory.join("temper.json"), &support::legacy_configuration::check_document(directory));
     let observations = directory.join("observations");
     fs::write(&observations, b"{\"observations_lost\":0}\n").expect("checkpoint");
     let store = directory.join("copy");

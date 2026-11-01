@@ -51,3 +51,66 @@ fn validity_does_not_price_retained_payloads() {
         assert!(crate::valid(&limits));
     }
 }
+
+#[test]
+fn offered_acts_fill_their_bound_exactly() {
+    use crate::contract::{ActKind, MAX_OFFERED_ACTS};
+    let acts = [
+        ActKind::Message,
+        ActKind::Answer,
+        ActKind::Take,
+        ActKind::HandBack,
+        ActKind::Accept,
+        ActKind::Reject,
+        ActKind::PassUp,
+        ActKind::Release,
+        ActKind::LeaveHeld,
+        ActKind::Amend,
+        ActKind::Stop,
+        ActKind::Cancel,
+        ActKind::Move,
+        ActKind::Reorder,
+        ActKind::Seen,
+        ActKind::EditNote,
+        ActKind::DeleteNote,
+        ActKind::Adopt,
+        ActKind::ChangePolicy,
+        ActKind::Rename,
+        ActKind::SetRoles,
+        ActKind::MakeService,
+        ActKind::SetPool,
+        ActKind::Withdraw,
+        ActKind::RemoveProject,
+    ];
+    assert_eq!(u32::try_from(acts.len()).unwrap(), MAX_OFFERED_ACTS);
+    for (at, act) in acts.into_iter().enumerate() {
+        let position = match act {
+            ActKind::Message => 0,
+            ActKind::Answer => 1,
+            ActKind::Take => 2,
+            ActKind::HandBack => 3,
+            ActKind::Accept => 4,
+            ActKind::Reject => 5,
+            ActKind::PassUp => 6,
+            ActKind::Release => 7,
+            ActKind::LeaveHeld => 8,
+            ActKind::Amend => 9,
+            ActKind::Stop => 10,
+            ActKind::Cancel => 11,
+            ActKind::Move => 12,
+            ActKind::Reorder => 13,
+            ActKind::Seen => 14,
+            ActKind::EditNote => 15,
+            ActKind::DeleteNote => 16,
+            ActKind::Adopt => 17,
+            ActKind::ChangePolicy => 18,
+            ActKind::Rename => 19,
+            ActKind::SetRoles => 20,
+            ActKind::MakeService => 21,
+            ActKind::SetPool => 22,
+            ActKind::Withdraw => 23,
+            ActKind::RemoveProject => 24,
+        };
+        assert_eq!(at, position);
+    }
+}

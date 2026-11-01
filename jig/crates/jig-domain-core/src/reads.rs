@@ -301,10 +301,15 @@ pub(crate) fn start(core: &mut Core, env: &Env<Limits>, reply: ReplyTo, sign_in:
         let why = if core.people.ready() { Why::SignedOut } else { Why::Unknown };
         return refused_application(reply, &read, why);
     };
+    if let Some(subject) = subject(&read, party)
+        && core.deleting_subject(&subject)
+    {
+        return refused_application(reply, &read, Why::Unknown);
+    }
     match &read {
         Read::Application { scope, connector, read: name, window } => {
             if (*scope != jig_domain_people::ApplicationScope::Own
-                && core.people.role(party, scope.project()).is_none())
+                && core.visible_role(party, scope.project()).is_none())
                 || !core.connectors.as_ref().contains(connector)
             {
                 return refused_application(reply, &read, Why::Unknown);
@@ -561,6 +566,13 @@ pub(crate) fn loaded(core: &mut Core, env: &Env<Limits>, load: Token, result: Lo
     };
     let answer = match (core.reads.get_mut(name).expect("live read").tasks.take(), answer) {
         (Some(mut tasks), Answer::Page(page)) => {
+            let mut visible = List::with_capacity(tasks.live.capacity());
+            for line in tasks.live.into_boxed() {
+                if !core.deleting(line.project) {
+                    visible.push(line).expect("admitted live page");
+                }
+            }
+            tasks.live = visible;
             let mut lines = List::with_capacity(env.limits.documents.rows);
             for row in page.rows.into_boxed() {
                 let PageRow::Line(line) = row else { unreachable!("task index supplies lines") };

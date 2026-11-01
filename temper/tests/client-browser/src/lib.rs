@@ -201,13 +201,19 @@ impl Tier {
         let address = listener.local_addr().expect("GitHub address");
         let path = tier.scratch.path().join("temper.json");
         let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("deployment")).expect("JSON");
-        value["application"]["forges"] = serde_json::json!([{
-            "number":1, "kind":"github", "api":{"socket":address.to_string()}, "transport":"plaintext",
+        value["application"]["machine"]["github"] = serde_json::json!({
+            "api":{"socket":address.to_string()}, "transport":"plaintext",
             "git":format!("http://{address}"), "web":format!("http://{address}")
-        }]);
-        value["application"]["identities"] = serde_json::json!([{"number":1,"forge":1,"login":null,"author":null}]);
+        });
         github::project_creation(&mut value, address);
         configuration::private(&path, &serde_json::to_vec(&value).expect("GitHub deployment JSON"));
+        let mut forge = temper_github_app::github(1, address, b"localhost", None);
+        forge.api.transport = temper_engine_domain_forge::ApiTransport::Plaintext;
+        forge.git = format!("http://{address}").into_bytes().into();
+        forge.web = Some(forge.git.clone());
+        // Manifest stories create and install the App through the browser, so it has no records yet.
+        temper_github_app::seed_forges(&tier.scratch.path().join("state"), &[forge], &[])
+            .expect("seed the GitHub forge");
         let mut peer = github::peer(address);
         peer.adopt_listener(skein_io::kernel::Fd::new(listener.as_raw_fd()), address).expect("held GitHub listener");
         let _ = listener.into_raw_fd();
@@ -320,10 +326,14 @@ fn copy_bundle(from: &Path, to: &Path) {
 mod tests {
     use super::configuration::{UNREACHED, documents};
     use std::path::Path;
-    fn tier_configuration() -> (serde_json::Value, serde_json::Value) {
+    fn tier_configuration() -> (serde_json::Value, serde_json::Value, temper_engine_domain_forge::ForgeRecord) {
         let (agent, value) =
             documents(Path::new("/private/test"), Path::new("/test/temper"), Path::new("/test/bundle"));
-        (serde_json::from_slice(&agent).expect("agent JSON"), serde_json::from_slice(&value).expect("deployment JSON"))
+        (
+            serde_json::from_slice(&agent).expect("agent JSON"),
+            serde_json::from_slice(&value).expect("deployment JSON"),
+            super::configuration::unreached_forge(),
+        )
     }
     #[test]
     fn the_tier_names_the_bundle_for_its_server() {
@@ -335,18 +345,35 @@ mod tests {
     }
     #[test]
     fn the_tiers_forge_is_unreached() {
-        assert_eq!(tier_configuration().1["application"]["forges"][0]["api"]["socket"], UNREACHED);
+        let forge = tier_configuration().2;
+        assert_eq!(
+            format!("{}:{}", std::str::from_utf8(&forge.api.host).expect("forge host"), forge.api.port),
+            UNREACHED
+        );
     }
     #[test]
     fn the_tiers_llm_endpoint_is_unreached() {
-        let (agent, value) = tier_configuration();
+        let (agent, value, _) = tier_configuration();
         assert_eq!(value["engine"]["llm"]["endpoints"][0]["address"]["socket"], UNREACHED);
         assert_eq!(agent["endpoints"][0]["address"], UNREACHED);
     }
     #[test]
     fn the_tiers_paths_are_absolute() {
         let value = tier_configuration().1;
-        assert_eq!(value["application"]["forges"][0]["api_token"], "/private/test/secrets/forge-1.api-token");
         assert_eq!(value["application"]["workers"][0]["root"], "/private/test/worker-root");
+    }
+    #[test]
+    fn the_tier_keeps_forges_out_of_the_document_and_secret_files() {
+        let scratch = skein_scratch::Scratch::new("browser-forge-record");
+        super::configuration::write(scratch.path(), Path::new("/test/temper"), Path::new("/test/bundle"));
+        let value: serde_json::Value =
+            serde_json::from_slice(&std::fs::read(scratch.path().join("temper.json")).expect("deployment"))
+                .expect("deployment JSON");
+        for member in ["forges", "identities", "setup"] {
+            assert!(value["application"].get(member).is_none(), "document names {member}");
+        }
+        for entry in std::fs::read_dir(scratch.path().join("secrets")).expect("secrets directory") {
+            assert!(!entry.expect("fixture file").file_name().to_str().expect("fixture name").starts_with("forge-1."));
+        }
     }
 }

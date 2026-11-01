@@ -1,5 +1,5 @@
 //! Drives the box through its pipes, signals and supervised process tree.
-use super::{Process, StdoutReader, patience::Patience, printed_link};
+use super::{Process, StdoutReader, forges::FixturePhase, patience::Patience, printed_link};
 use skein_io::kernel::{Exit, Signal};
 use skein_lib::{Duration, Time};
 use skein_shell::{Clock, Host};
@@ -298,6 +298,7 @@ pub struct StoryOutcome<T> {
     pub checked: T,
 }
 struct StoryJudge<'a, F, T> {
+    fixture: FixturePhase,
     check: Option<F>,
     checked: &'a Cell<Option<T>>,
     dormant_checked: &'a Cell<bool>,
@@ -309,6 +310,15 @@ struct StoryJudge<'a, F, T> {
 }
 impl<F: FnOnce() -> T, T> Referee<Process> for StoryJudge<'_, F, T> {
     fn act(&mut self, _now: Time, procs: &mut [Process]) {
+        if matches!(self.fixture, FixturePhase::Provisioning) {
+            let Process::Calls(calls) = &procs[2] else { panic!("fixture provisioning") };
+            if calls.idle() {
+                let link = calls.link().to_vec();
+                let Process::Person(person) = &mut procs[1] else { panic!("native person") };
+                person.ctl_ready(&link);
+                self.fixture = FixturePhase::Story;
+            }
+        }
         let Process::Person(person) = &procs[1] else { panic!("native person") };
         let finished = person.finished && person.client.as_ref().is_some_and(Host::is_empty);
         let Process::Binary(binary) = &mut procs[0] else { panic!("binary") };
@@ -377,6 +387,9 @@ pub fn run_story<T>(
     deadline: Duration,
     check: impl FnOnce() -> T,
 ) -> StoryOutcome<T> {
+    let config = flags.windows(2).find(|pair| pair[0] == "--config").expect("explicit config directory");
+    let configuration = PathBuf::from(&config[1]);
+    let provisioning = super::forges::fixture(&configuration).is_some();
     let data = flags.windows(2).find(|pair| pair[0] == "--data").expect("explicit data directory");
     let logs = Path::new(&data[1]).join("box/logs");
     let clock = Clock::new();
@@ -399,10 +412,10 @@ pub fn run_story<T>(
     let mut fds = streams.descriptors();
     let Streams::Pipes { input, output } = streams else { panic!("pipes mode") };
     let root = skein_shell::open_root(client).expect("client's parent root");
-    fds.push(root);
     let checked = Cell::new(None);
     let dormant_checked = Cell::new(false);
     let mut world = real::World::new(StoryJudge {
+        fixture: if provisioning { FixturePhase::Provisioning } else { FixturePhase::Story },
         check: Some(check),
         checked: &checked,
         dormant_checked: &dormant_checked,
@@ -413,7 +426,28 @@ pub fn run_story<T>(
         deadline: action_deadline("the box person's settlement", deadline, &binary),
     });
     world.spawn_with_fds(binary.descriptors(), || Process::Binary(Box::new(binary)));
-    world.spawn_with_fds(fds, || Process::Person(Box::new(super::person::Person::new(root, input, output, script))));
+    if provisioning {
+        world.spawn_with_fds(vec![root], || {
+            Process::Person(Box::new(super::person::Person::waiting_for_ctl_with_key(root, script)))
+        });
+        let ctl_root = skein_shell::open_root(client).expect("fixture client root");
+        fds.push(ctl_root);
+        world.spawn_with_fds(fds, || {
+            Process::Calls(Box::new(
+                super::ctl::Calls::new(
+                    ctl_root,
+                    vec![super::ctl::Step::Run(super::ctl::Call::sign_in().in_directory("private"))],
+                    Some(&streams),
+                    None,
+                )
+                .with_fixture(&configuration),
+            ))
+        });
+    } else {
+        fds.push(root);
+        world
+            .spawn_with_fds(fds, || Process::Person(Box::new(super::person::Person::new(root, input, output, script))));
+    }
     let ended = world.run(&clock, deadline);
     assert!(ended.procs.iter().all(Host::is_empty), "all real io settles");
     let Process::Binary(binary) = &ended.procs[0] else { panic!("binary") };
@@ -431,6 +465,8 @@ pub fn run_story<T>(
 
 /// A box driven through ctl, with evidence taken before its stop.
 pub struct CtlOutcome<T> {
+    /// Each start's streams and descendants observed at its leader's exit.
+    pub runs: Vec<CtlRun>,
     pub model: Option<super::forge_land::Seen>,
     pub exit: Option<Exit>,
     pub stdout: Vec<u8>,
@@ -440,7 +476,87 @@ pub struct CtlOutcome<T> {
     pub checked: Option<T>,
     pub visits: Vec<Vec<super::sign_in_browser::Hop>>,
 }
+/// One start's evidence (temper/docs/design/protocol/setup.md, 13.4).
+pub struct CtlRun {
+    pub exit: Option<Exit>,
+    pub stdout: Vec<u8>,
+    pub stderr: Vec<u8>,
+    pub left: Option<Vec<u32>>,
+}
+enum BoxPhase {
+    Running,
+    Killing,
+    Down,
+}
+struct BoxControl<'a> {
+    command: Command,
+    phase: BoxPhase,
+    stdout_from: usize,
+    runs: &'a Cell<Vec<CtlRun>>,
+}
+impl BoxControl<'_> {
+    fn advance(&mut self, calls: &mut super::ctl::Calls, binary: &mut Binary) {
+        if calls.killing_box() {
+            calls.box_action_waiting();
+            match self.phase {
+                BoxPhase::Running => {
+                    binary.signal_tree(Signal::Kill);
+                    self.phase = BoxPhase::Killing;
+                }
+                BoxPhase::Killing if binary.is_empty() && calls.box_drained() => {
+                    assert!(binary.tree_status().live_pids.is_empty(), "killed box leaves no process");
+                    self.record(calls, binary);
+                    self.phase = BoxPhase::Down;
+                    calls.box_killed();
+                }
+                BoxPhase::Killing => {}
+                BoxPhase::Down => panic!("KillBox needs a running box"),
+            }
+        }
+        if calls.starting_box() {
+            assert!(matches!(self.phase, BoxPhase::Down), "StartBox follows KillBox");
+            let mut next = start_ctl_box(&self.command);
+            self.stdout_from = calls.stdout().len();
+            calls.box_started(&next.take_streams().expect("restarted box pipes"));
+            *binary = next;
+            self.phase = BoxPhase::Running;
+        }
+    }
+    fn running(&self) -> bool {
+        matches!(self.phase, BoxPhase::Running)
+    }
+    fn record(&self, calls: &super::ctl::Calls, binary: &Binary) {
+        let mut runs = self.runs.take();
+        runs.push(ctl_run(binary, &calls.stdout()[self.stdout_from..]));
+        self.runs.set(runs);
+    }
+}
+fn ctl_run(binary: &Binary, stdout: &[u8]) -> CtlRun {
+    CtlRun {
+        exit: binary.exit_status(),
+        stdout: stdout.to_vec(),
+        stderr: binary.stderr().to_vec(),
+        left: binary.tree_status().live_at_leader_exit.clone(),
+    }
+}
+fn start_ctl_box(command: &Command) -> Binary {
+    Binary::start_with_tree(
+        Command {
+            program: command.program.clone(),
+            arguments: command.arguments.clone(),
+            environment: command.environment.clone(),
+            directory: command.directory.clone(),
+        },
+        Mode::Pipes,
+        262_144,
+        Expectation::Supervise,
+        false,
+    )
+    .expect("temper box starts")
+}
 struct CtlJudge<'a, F, T> {
+    box_control: BoxControl<'a>,
+    next_box: Option<Time>,
     fail_on_panic: Option<()>,
     expected_exits: Vec<(usize, u8)>,
     release_answers: Option<usize>,
@@ -549,7 +665,7 @@ impl<F, T> CtlJudge<'_, F, T> {
         if !self.stopping
             && !calls.idle()
             && !failed
-            && binary.exit_status().is_none()
+            && (binary.exit_status().is_none() || !self.box_control.running())
             && let Some(figures) = self.deadline.failed()
         {
             if let Some(read) = calls.last_unmet() {
@@ -565,7 +681,9 @@ impl<F: FnOnce(&Binary) -> T, T> Referee<Process> for CtlJudge<'_, F, T> {
         let Process::Calls(calls) = &procs[1] else { panic!("ctl") };
         let failed = calls.ends().iter().enumerate().any(|(index, call)| {
             let expected = self.expected_exits.iter().find(|(at, _)| *at == index).map_or(0, |(_, code)| *code);
-            calls.observed_at()[index].is_some() && call.exit != Some(Exit::Code(expected))
+            calls.observed_at()[index].is_some()
+                && call.exit != Some(Exit::Code(expected))
+                && !(calls.was_cut(index) && call.exit == Some(Exit::Code(143)))
         });
         if let Some(face) = &self.face {
             let Process::Calls(calls) = &mut procs[1] else { panic!("ctl") };
@@ -608,6 +726,10 @@ impl<F: FnOnce(&Binary) -> T, T> Referee<Process> for CtlJudge<'_, F, T> {
         }
         let (drivers, peers) = procs.split_at_mut(2);
         let [Process::Binary(binary), Process::Calls(calls)] = drivers else { panic!("box and ctl") };
+        self.box_control.advance(calls, binary);
+        // Settlement can drain the last ring operation before the referee's
+        // next turn. Keep observing the kill until it releases the ctl step.
+        self.next_box = (!self.box_control.running()).then(|| now.saturating_add(Duration::from_millis(10)));
         restart_engine(calls, binary, now, &mut self.restart_at, &mut self.expected_exits);
         release_llm(calls, peers, &mut self.release_answers);
         // A release before the response reaches its hold changes nothing.
@@ -623,13 +745,15 @@ impl<F: FnOnce(&Binary) -> T, T> Referee<Process> for CtlJudge<'_, F, T> {
         // The box's stderr may end a call: judge the calls again after it.
         let failed = calls.ends().iter().enumerate().any(|(index, call)| {
             let expected = self.expected_exits.iter().find(|(at, _)| *at == index).map_or(0, |(_, code)| *code);
-            calls.observed_at()[index].is_some() && call.exit != Some(Exit::Code(expected))
+            calls.observed_at()[index].is_some()
+                && call.exit != Some(Exit::Code(expected))
+                && !(calls.was_cut(index) && call.exit == Some(Exit::Code(143)))
         });
         let failed = failed
             || self.fail_on_panic.is_some()
                 && binary.stderr().windows(b"panicked at".len()).any(|part| part == b"panicked at");
         self.bound(calls, binary, failed);
-        if !self.stopping && (calls.idle() || failed || binary.exit_status().is_some()) {
+        if !self.stopping && (calls.idle() || failed || self.box_control.running() && binary.exit_status().is_some()) {
             if self.face.is_some() || failed {
                 report_face_stop(calls, binary.stderr(), failed, false);
                 eprintln!("pending scripted release: {:?}", calls.llm_release());
@@ -658,13 +782,18 @@ impl<F: FnOnce(&Binary) -> T, T> Referee<Process> for CtlJudge<'_, F, T> {
             self.stopping = true;
         }
         let left = binary.tree_status().live_at_leader_exit.as_ref().is_some_and(|pids| !pids.is_empty());
-        if !self.cleanup && (left || now >= self.cleanup_deadline) && !binary.is_empty() {
+        if self.box_control.running() && !self.cleanup && (left || now >= self.cleanup_deadline) && !binary.is_empty() {
             binary.signal_tree(Signal::Kill);
             self.cleanup = true;
         }
     }
     fn observe(&mut self, _now: Time, procs: &[Process]) {
-        self.settled = self.stopping && procs.iter().all(Host::is_empty);
+        let settled = self.stopping && procs.iter().all(Host::is_empty);
+        if settled && !self.settled && self.box_control.running() {
+            let [Process::Binary(binary), Process::Calls(calls), ..] = procs else { panic!("box and ctl") };
+            self.box_control.record(calls, binary);
+        }
+        self.settled = settled;
         if self.face.is_some() && self.cleanup && !self.settled {
             eprintln!("face drain: {:?}", procs.iter().map(Host::is_empty).collect::<Vec<_>>());
         }
@@ -675,7 +804,7 @@ impl<F: FnOnce(&Binary) -> T, T> Referee<Process> for CtlJudge<'_, F, T> {
         } else if self.stopping {
             Some(self.cleanup_deadline)
         } else {
-            [self.deadline.until(), self.next_release, self.restart_at].into_iter().flatten().min()
+            [self.deadline.until(), self.next_release, self.restart_at, self.next_box].into_iter().flatten().min()
         }
     }
     fn passed(&self) -> bool {
@@ -853,6 +982,13 @@ fn configure_face(face: Option<&super::forge_land::Face>, flags: &[String]) {
     }
 }
 
+fn configuration_directory(directory: &Path, flags: &[String]) -> PathBuf {
+    flags
+        .windows(2)
+        .find(|pair| pair[0] == "--config")
+        .map_or_else(|| directory.to_path_buf(), |pair| PathBuf::from(&pair[1]))
+}
+
 fn run_ctl_peers<T>(
     directory: &Path,
     flags: Vec<String>,
@@ -877,37 +1013,35 @@ fn run_ctl_peers<T>(
         CtlModel::Account(probe) => (None, None, Some(probe.face), None),
     };
     configure_face(face.as_ref(), &flags);
+    let configuration = configuration_directory(directory, &flags);
     let tab = steps.iter().any(|step| matches!(step, super::ctl::Step::Visit));
     assert!(!tab || face.is_none(), "box-owned peers or an independent face");
     let clock = Clock::new();
     let fake_backends = flags.iter().any(|flag| flag == "--fake-backends");
-    let mut binary = Binary::start_with_tree(
-        dying_with_test(Command {
-            program: skein_scratch::paths::binary("temper"),
-            arguments: std::iter::once("box".into()).chain(flags.into_iter().map(Into::into)).collect(),
-            directory: directory.into(),
-            // Real repository stories, including a fake box's owned Forgejo,
-            // need init to discover system git for their first chat's checkout.
-            environment: if on_link.is_some() || face.is_some() || fake_backends {
-                account_environment(account_probe, cut.as_deref())
-            } else {
-                Vec::new()
-            },
-        }),
-        Mode::Pipes,
-        262_144,
-        Expectation::Supervise,
-        false,
-    )
-    .expect("temper box starts");
+    let command = dying_with_test(Command {
+        program: skein_scratch::paths::binary("temper"),
+        arguments: std::iter::once("box".into()).chain(flags.into_iter().map(Into::into)).collect(),
+        directory: directory.into(),
+        // Real repository stories, including a fake box's owned Forgejo,
+        // need init to discover system git for their first chat's checkout.
+        environment: if on_link.is_some() || face.is_some() || fake_backends {
+            account_environment(account_probe, cut.as_deref())
+        } else {
+            Vec::new()
+        },
+    });
+    let mut binary = start_ctl_box(&command);
     let streams = binary.take_streams().expect("box pipes");
     let mut fds = streams.descriptors();
     let root = skein_shell::open_root(client_root).expect("client root");
     fds.push(root);
     let checked = Cell::new(None);
     let visits = Cell::new(Vec::new());
+    let runs = Cell::new(Vec::new());
     let follow_reply = reply.is_some();
     let mut world = real::World::new(CtlJudge {
+        box_control: BoxControl { command, phase: BoxPhase::Running, stdout_from: 0, runs: &runs },
+        next_box: None,
         fail_on_panic,
         expected_exits: peers.expected_exits,
         release_answers: None,
@@ -931,7 +1065,8 @@ fn run_ctl_peers<T>(
     });
     world.spawn_with_fds(binary.descriptors(), || Process::Binary(Box::new(binary)));
     world.spawn_with_fds(fds, || {
-        let mut calls = super::ctl::Calls::new(root, steps, Some(&streams), None).with_box_stderr();
+        let mut calls =
+            super::ctl::Calls::new(root, steps, Some(&streams), None).with_fixture(&configuration).with_box_stderr();
         if follow_reply {
             calls.hold();
         }
@@ -946,12 +1081,15 @@ fn run_ctl_peers<T>(
     let ended = world.run(&clock, deadline);
     assert!(ended.procs.iter().all(Host::is_empty), "box, ctl and peer io settles");
     let [Process::Binary(binary), Process::Calls(calls), ..] = ended.procs.as_slice() else { panic!("box and ctl") };
+    let runs = runs.take();
+    let stderr = runs.iter().flat_map(|run| run.stderr.iter().copied()).collect();
     (
         CtlOutcome {
+            runs,
             model: peer.map(|index| super::forge_land::peer_seen(&ended.procs, index)),
             exit: binary.exit_status(),
             stdout: calls.stdout().to_vec(),
-            stderr: binary.stderr().to_vec(),
+            stderr,
             left: binary.tree_status().live_at_leader_exit.clone(),
             calls: calls
                 .ends()

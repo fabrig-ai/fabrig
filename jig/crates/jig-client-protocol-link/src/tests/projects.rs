@@ -93,3 +93,32 @@ fn neither_project_request_can_be_a_compound_operation() {
             .expect_err("a project request is not a compound operation");
     }
 }
+
+#[test]
+fn a_project_removal_round_trips_and_is_no_compound_operation() {
+    let limits = fixtures::limits();
+    let ask = c::Ask::RemoveProject { project: u32::MAX };
+    let wire = asks::ask(&ask, &limits.wire).unwrap();
+    let mut bytes = Writer::new(usize::try_from(wire.measure()).unwrap());
+    wire.encode(&mut bytes).unwrap();
+    let bytes = bytes.finish();
+    let decoded = w::Ask::decode(&limits.wire, &mut Reader::new(&bytes)).unwrap();
+    assert_eq!(store::restore_ask(decoded, &limits), Ok(ask));
+
+    let outcome = w::OwnerOutcome::ProjectRemoved(
+        w::OwnerOutcomeProjectRemoved::new(&limits.wire, w::OwnerOutcomeProjectRemovedParts { project: u32::MAX })
+            .unwrap(),
+    );
+    let mut encoded = Writer::new(usize::try_from(outcome.measure()).unwrap());
+    outcome.encode(&mut encoded).unwrap();
+    let decoded = w::OwnerOutcome::decode(&limits.wire, &mut Reader::new(&encoded.finish())).unwrap();
+    assert_eq!(answers::owner_outcome(&decoded, &limits), Ok(c::OwnerOutcome::ProjectRemoved { project: u32::MAX }));
+    assert_eq!(translate::documents::act_kind_fields(&w::ActKind::RemoveProject, &limits), c::ActKind::RemoveProject);
+
+    let mut pieces = Writer::new(bytes.len().checked_add(4).unwrap());
+    pieces.put(&u32::try_from(bytes.len()).unwrap().to_be_bytes()).unwrap();
+    pieces.put(&bytes).unwrap();
+    let compound =
+        w::Compound::new(&limits.wire, w::CompoundParts { project: u32::MAX, operations: pieces.finish() }).unwrap();
+    store::restore_ask(w::Ask::Compound(compound), &limits).expect_err("project removal is not a compound operation");
+}

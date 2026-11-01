@@ -3,7 +3,7 @@ id = "sv-world-real-loop"
 part = "fs"
 kind = "migration"
 needs = ["sv-seed-kit", "sv-registry-setup"]
-files = ["temper/tests/real-loop/**"]
+files = ["temper/tests/real-loop/**", "temper/crates/temper-service/src/setup/lifecycle.rs", "temper/crates/temper-service/src/tests/registry_setup.rs", "temper/crates/temper-service/src/forge/records.rs", "temper/crates/temper-service/src/forges.rs", "temper/crates/temper-service/src/tests/git_tokens.rs"]
 effort = "high"
 minutes = 110
 +++
@@ -67,3 +67,96 @@ Acceptance:
 ## Report
 
 - The seeding point taken; every story whose expectations changed and why.
+
+## Answers
+
+2026-11-01. Q: the records-only webhook story panics with `same forge writer` because
+`setup::lifecycle::connected` reports `config.user` (0) for a registered Forgejo without a
+setup entry; may this task fix it in `temper-service`? A: yes, this task fixes it. The
+owners cannot take it in time: `sv-registry-setup` is merged, `sv-startup-refuse` waits on
+this task, and `sv-resolve` is about held records. The task's `files` now name
+`temper/crates/temper-service/src/setup/lifecycle.rs` and
+`temper/crates/temper-service/src/tests/registry_setup.rs`, and nothing else of the service.
+- In `connected`'s last branch (no GitHub, no `Local`): when the forge's records hold
+  `Item::User`, report that id, as the `Local` branch does; take the login from the
+  registered record's `bot.login` when the forge is registered (the registry
+  `crate::forges` keeps; the same login `setup.rs` gives the host's `Given` for a
+  record with no entry); otherwise, for a document forge, keep `config.user` and the
+  identity table as today. Change nothing else of `connected` or the file.
+- Add one case to `src/tests/registry_setup.rs`: a registered Forgejo record with no setup
+  entry and a seeded `User` connects as `Connected { id: <the record's User>, login:
+  <its bot login> }`. Run it with `heavy cargo nextest run -p temper-service --lib -E
+  'test(/tests::registry_setup::/)'` (a module of the lib's tests, not a test binary), then this task's own acceptance (the whole `temper-real-loop-world`
+  default run).
+- Keep the empty-start seeding point you took. Leave the other service readers your report
+  lists under `## Left` (`startup/application.rs`, `forge.rs::config`,
+  `setup/settings.rs::fixed`) to `sv-startup-refuse`.
+
+2026-11-01. Q (run 2): the answer names `temper-service/tests/registry_setup.rs`, which does
+not exist; may the case go into `src/tests/registry_setup.rs`? A: yes, that path was the
+answer's slip, corrected above in `files` and the bullets: add the case to the lib's
+existing module `src/tests/registry_setup.rs` and run it with `heavy cargo nextest run -p
+temper-service --lib -E 'test(/tests::registry_setup::/)'`. `sv-world-one-process` now
+waits on this task for the `connected` fix, so land it before anything else.
+
+2026-11-01. Q (run 3): may this task also fix the records-only Forgejo's webhook access and
+git-credential publication, or should `sv-startup-refuse` supply them? A: this task fixes
+both, narrowly. `sv-startup-refuse` and `sv-world-one-process` wait on this task, so they
+cannot supply what its acceptance needs. The task's `files` now add
+`temper/crates/temper-service/src/forge/records.rs`; `src/forge.rs` stays unchanged, and
+`setup/lifecycle.rs` may now change beyond `connected`'s last branch only as below.
+- Webhook access: in `forge/records.rs`'s restored branch (a registered record with no
+  setup entry), pass `records::access`'s `webhooks` as true for a Forgejo record whose rows
+  hold `Item::WebhookSecret`; GitHub's call and every other caller stay as they are.
+- Git credential: move the identity-publishing block of `setup/lifecycle.rs::connect_local`
+  (the `GitToken` read and check, `translate::identity`, `values.identities.put`,
+  `root::Event::Credential`) into one `pub(crate)` helper taking the forge's
+  `settings::Identity` and its rows; `connect_local` calls it as before, and the restored
+  Forgejo branch of `forge/records.rs` calls it with `crate::forges::identity(record)` (its
+  number is the forge's) before `crate::forge::connect`, when its rows hold `GitToken`.
+- Two cases in `src/tests/registry_setup.rs`: a registered Forgejo with no setup entry and a
+  seeded `WebhookSecret` connects with the secret in its `Connect` access; with a seeded
+  `GitToken` it publishes one `Credential` for identity <the forge's number> and the
+  identities table holds it. Run the module as above, then the whole
+  `temper-real-loop-world` default run.
+- If `forced_overdue_observes_real_tasks_operations_and_dispatch` still stalls after both
+  fixes, do not widen further: report its log and diagnosis as a question.
+
+2026-11-01. Q (run 4): may this task fix registered GitHub git authentication, whose record's
+bot login (`temper`) reaches git's Basic user where the fake GitHub, as GitHub, takes only
+`x-access-token`? A: yes, this task fixes it, narrowly: its acceptance cannot hold without
+it and `sv-startup-refuse` waits on this task. `protocol/credentials.md`, 4 ("On GitHub")
+fixes the login as `x-access-token`; the record's bot stays the author. The task's `files`
+now add `temper/crates/temper-service/src/forges.rs` and `src/tests/git_tokens.rs`;
+`forge/tokens.rs` stays unchanged.
+- In `forges.rs::register`'s GitHub branch only (`engine.values.tokens.add(number,
+  &identity(&record), ..)`), pass the record's identity with an empty `login`, so that
+  `translate::github_identity` gives `x-access-token` as for a document's `null` login,
+  and its author the record's bot name and email. `forges::identity` itself and its other
+  callers (the Forgejo paths, `setup.rs`, `setup/settings.rs`) stay as they are: on Forgejo
+  the bot's login is git's user. A document forge's configured login still overrides
+  (`configured_login_and_author_override_the_app_defaults` passes unchanged).
+- Add one case to `src/tests/git_tokens.rs`: a registered GitHub record whose bot is
+  `temper`/`Temper`/`temper@example.test`, connected with a token, announces an identity
+  whose login is `x-access-token` and whose author is the bot's name and email. Run it with
+  `heavy cargo nextest run -p temper-service --lib -E 'test(/tests::git_tokens::/)'`, then
+  the whole `temper-real-loop-world` default run.
+- Leave what the report lists under `## Left` outside the real-loop world (the client
+  names check, the engine world's demo tests, `tests/setup.rs`'s restored-ended-demo case,
+  the document-forge readers): other tasks and the trunk's end check take them. If a GitHub
+  story still fails after this fix, report its log and diagnosis as a question; do not widen
+  further.
+
+2026-11-01. Judgement after four runs without landing: run once more, on the answers above.
+Each run closed a distinct, real blocker (the `connected` id, the Forgejo webhook access and
+git credential, now the GitHub git login), and run 4's branch holds all but the last; its
+question is the one answered just above, so nothing new is open. This run is the task's last:
+- Apply the GitHub login fix as answered (`forges.rs::register`'s GitHub branch, one case in
+  `src/tests/git_tokens.rs`), run that module, then the whole `temper-real-loop-world`
+  default run.
+- If a real-loop story still fails after that fix, do not ask: diagnose it once from its
+  log, push the branch with every fix that passes its own regression, and report the
+  failing stories, their logs and the diagnosis under `## Left`, with acceptance stated as
+  not met for them. fab merges it so that `sv-world-one-process` and `sv-startup-refuse`
+  start; the trunk's end check and its repair take what is left.
+- Change no file beyond `files`; what lies outside stays under `## Left` as answered above.

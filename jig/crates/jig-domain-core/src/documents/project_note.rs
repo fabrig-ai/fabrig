@@ -311,7 +311,7 @@ pub(super) fn project(
     number: u32,
     decision: Wall,
 ) -> Result<Project, Missing> {
-    if core.people.role(party, number).is_none() {
+    if core.visible_role(party, number).is_none() {
         return Err(Missing::NotAllowed);
     }
     let value = core.authority.policy(number).ok_or(Missing::Unknown)?;
@@ -513,7 +513,7 @@ pub fn note_from_entry(core: &Core, limits: &Limits, party: u64, value: &notes::
     if core.people.identity(party).is_none() {
         return Err(Missing::Unknown);
     }
-    if core.people.role(party, project).is_none() {
+    if core.visible_role(party, project).is_none() {
         return Err(Missing::NotAllowed);
     }
     let scope = match &value.scope {

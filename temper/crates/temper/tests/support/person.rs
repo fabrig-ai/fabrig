@@ -64,6 +64,17 @@ pub struct Script {
     steps: Box<[Step<Address>]>,
     begin: Begin,
 }
+/// Read the fixture forge after ctl has provisioned it and handed over its sign-in.
+#[must_use]
+pub fn fixture_forge() -> Script {
+    Script {
+        begin: Begin::Token,
+        steps: Box::new([
+            Step::Go { address: Address::Forges },
+            Step::See { find: Find::exactly_named(skein_ui::Role::Disclosure, b"Forgejo"), within: START_WITHIN },
+        ]),
+    }
+}
 #[must_use]
 pub fn answered_chat(words: &[u8], answer: &[u8]) -> Script {
     Script {
@@ -764,10 +775,8 @@ pub fn adopt_and_change(_forgejo: &super::forgejo::Throwaway) -> Script {
         Step::Go { address: Address::Forges },
         // The Account slot of this row is rendered only for Connected.
         Step::See {
-            find: Find::named(Role::Description, b"temper \xc2\xb7 user ").within(Box::new([Target::ExactRole {
-                role: Role::Disclosure,
-                name: b"Forgejo on this machine".as_slice().into(),
-            }])),
+            find: Find::named(Role::Description, b"temper \xc2\xb7 user ")
+                .within(Box::new([Target::Role { role: Role::Disclosure, name: b"Forgejo".as_slice().into() }])),
             within: super::WITHIN,
         },
         Step::Go {
