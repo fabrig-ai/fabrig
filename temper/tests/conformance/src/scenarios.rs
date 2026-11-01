@@ -592,7 +592,15 @@ impl ScenarioApplication for Temper {
                 "uncertain status set did not resolve one operation",
             ),
             Scenario::StandingTask => {
-                check(world.peers.assignments.len() == 6, "standing task did not run five funding periods")
+                // The setup task may resume to read its nothing-awaited notice.
+                let setup = world.peers.assignments[0].task;
+                let batches = world.peers.assignments.iter().filter(|a| a.task != setup).count();
+                check_lazy(batches == 5, || {
+                    format!(
+                        "standing task did not run five funding periods: assignments {:?}",
+                        world.peers.assignments.iter().map(|a| (a.task, a.attempt)).collect::<Vec<_>>()
+                    )
+                })
             }
             Scenario::RunBudget => check(
                 world.peers.worker.actual_spent == 20 && world.peers.worker.turn_acks == 12,
