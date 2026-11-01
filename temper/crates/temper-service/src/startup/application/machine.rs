@@ -158,6 +158,15 @@ fn github(
 ) -> Option<ForgeRecord> {
     let mut object = read::object(document, at, path, problems)?;
     let mut record = ForgeRecord::github_com();
+    if let Some(at) = object.member(document, b"app_read_only") {
+        record.read_only = match config::read::boolean(document, at) {
+            Ok(value) => value,
+            Err(what) => {
+                problems.push(path.member(b"app_read_only"), What::Jig(what));
+                return None;
+            }
+        };
+    }
     let at = read::required(&mut object, document, b"api", path, problems)?;
     let api = if document.token(at)?.kind == Kind::Null {
         config::Address::Host { name: record.api.host.clone(), port: record.api.port }

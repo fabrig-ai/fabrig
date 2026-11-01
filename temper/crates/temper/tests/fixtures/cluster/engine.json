@@ -184,53 +184,7 @@
       "bundle": null,
       "public": null
     }},
-    "forges": [
-      {{
-        "number": 1,
-        "kind": "forgejo",
-        "api": {{
-          "socket": "{proc.forge.ready.address}"
-        }},
-        "transport": "plaintext",
-        "git": "http://{proc.forge.ready.address}"
-      }}
-    ],
-    "identities": [
-      {{
-        "number": 1,
-        "forge": 1,
-        "login": "temper",
-        "author": {{
-          "name": "Temper",
-          "email": "temper@example.test"
-        }}
-      }}
-    ],
-    "setup": [
-      {{
-        "forge": 1,
-        "directory": "{proc.forge.dir}/setup",
-        "bot": {{
-          "login": "temper",
-          "email": "temper@example.test"
-        }},
-        "mode": {{
-          "fake": {{
-            "listen": {{
-              "socket": "{proc.forge.ready.address}"
-            }},
-            "git": "{artifact.git}",
-            "owner": "fake",
-            "repositories": [
-              {{
-                "name": "widget",
-                "landing": "main"
-              }}
-            ]
-          }}
-        }}
-      }}
-    ],
+    "machine": {{"owned":null,"github":{{"api":null,"transport":null,"git":null,"web":null}},"git_program":null}},
     "demo": null,
     "sign_in": null,
     "landing": {{

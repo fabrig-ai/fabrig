@@ -1,6 +1,6 @@
 //! Standalone command fixtures use group files (temper/docs/design/draft/playground-reset.md, 3).
 use crate::support;
-use serde_json::{Value, json};
+use serde_json::Value;
 use std::{fs, os::unix::fs::PermissionsExt, path::Path};
 
 pub fn write(directory: &Path, forge: u16, entry: &Value) {
@@ -34,22 +34,9 @@ pub fn save(directory: &Path, mut document: Value) {
     support::write_private(&directory.join("temper.json"), &serde_json::to_vec(&document).expect("document JSON"));
 }
 pub fn template(document: &mut Value) {
-    let application = &mut document["application"];
-    let owned = application["setup"]
-        .as_array()
-        .and_then(|entries| entries.iter().find(|entry| entry["mode"].get("owned").is_some()))
-        .map(body);
-    if application.get("machine").is_none() {
-        application["machine"] =
-            json!({"owned":null,"github":{"api":null,"transport":null,"git":null,"web":null},"git_program":null});
-    }
-    if let Some(owned) = owned {
-        application["machine"]["owned"] = owned;
-    }
-    for name in ["forges", "identities", "setup"] {
-        application.as_object_mut().expect("application").remove(name);
-    }
+    support::owned::machine_template(document);
 }
+
 pub fn migrate(directory: &Path) {
     let document =
         serde_json::from_slice(&fs::read(directory.join("temper.json")).expect("configuration")).expect("JSON");

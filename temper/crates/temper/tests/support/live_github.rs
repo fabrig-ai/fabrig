@@ -152,7 +152,7 @@ fn render_owner(value: &mut Value, owner: &str) {
 pub(crate) fn configure_engine(value: &mut Value, owner: &str, api: SocketAddr, git: SocketAddr, workers: SocketAddr) {
     render_owner(value, owner);
     value["engine"]["hosts"]["listener"][0]["socket"] = workers.to_string().into();
-    value["application"]["forges"][0] = json!({"number":1,"kind":"github","api":{"socket":api.to_string()},"transport":"plaintext","git":format!("http://{git}"),"web":null,"app_read_only":true});
+    value["application"]["machine"]["github"] = json!({"api":{"socket":api.to_string()},"transport":"plaintext","git":format!("http://{git}"),"web":null,"app_read_only":true});
     github_land::configure_landing(value, git, owner, REPOSITORY);
     value["application"]["limits"]["overrides"]["forge_component.log_poll_ms"] = 15000.into();
 }

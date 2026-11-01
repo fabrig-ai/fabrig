@@ -954,6 +954,7 @@ fn bounded_document(
 ) -> Bounded {
     use skein_lib::{List, Secret};
     use temper_service::settings::{Files, PROGRAM_PATH_BYTES, Seeds};
+    machine_template(&mut value);
     let path = format!("/{}", "p".repeat(PROGRAM_PATH_BYTES - 1));
     value["workers"][0]["agent"]["program"] = path.clone().into();
     value["workers"][0]["agent"]["arguments"][2] = path.clone().into();
@@ -1048,5 +1049,29 @@ pub fn adopt(
             .exchange(&Outgoing::json("POST", "/api/v1/repos/acme/widget/hooks", Some(person), &body))
             .expect("hook answers");
         assert_eq!(response.status, 201, "repository hook");
+    }
+}
+
+/// Keep machine templates while process stories provision their forges at runtime.
+pub fn machine_template(document: &mut serde_json::Value) {
+    let application = &mut document["application"];
+    let owned = application["setup"]
+        .as_array()
+        .and_then(|entries| entries.iter().find(|entry| entry["mode"].get("owned").is_some()))
+        .map(|entry| {
+            let mut body = entry.clone();
+            for name in ["forge", "directory", "start"] {
+                body.as_object_mut().expect("setup body").remove(name);
+            }
+            body
+        });
+    if application.get("machine").is_none() {
+        application["machine"] = serde_json::json!({"owned":null,"github":{"api":null,"transport":null,"git":null,"web":null},"git_program":null});
+    }
+    if let Some(owned) = owned {
+        application["machine"]["owned"] = owned;
+    }
+    for name in ["forges", "identities", "setup"] {
+        application.as_object_mut().expect("application").remove(name);
     }
 }
