@@ -200,6 +200,10 @@ stay unused). Bounds: `Forge` and `ForgeNumbers` by `forge.forges` (T4); `KeptAc
     as `temper init` wrote forge 3's (its listener the box's owned port), or null for none;
   - `github`: `{"api", "transport", "git", "web"}`, each null for github.com's, as
     `application.forges[]`' GitHub entry spelled them.
+  - `git_program`: null, or a data path: the git program of every forge the connector makes
+    but the owned one and the playground's (whose setup entry's `git` is its own). serve puts
+    it in `Machine.github.git_program`; a Forgejo elsewhere's record takes the same
+    (`fe-make-git`). `temper init` writes null; `temper box --fake-backends` sets it.
 - `application.demo` keeps its name: its `llm` as today; `forge`, now the playground's fake
   forge's entry body `{"bot", "mode": {"fake": ...}}` (as setup entry 1 was, its listener the
   box's fake forge port, its `git` `demo/bin/git`); `project`, now `{"name": "Playground",
