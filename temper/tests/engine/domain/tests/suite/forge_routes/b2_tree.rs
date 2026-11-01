@@ -970,3 +970,43 @@ fn a_chats_plain_change_request_calls_change() {
     report(&mut world, &chat, CHAT_TURNS, b"CSV export landed");
     assert!(record(&world, chat.task).last_reply > 0);
 }
+
+#[test]
+fn a_stock_chat_reads_an_absent_fix_and_replies_without_a_change() {
+    const REQUEST: &[u8] = b"Fix widget's empty search state";
+    const CODE: &[u8] = b"fn main() { println!(\"name count\"); }\n";
+    const REPLY: &[u8] = b"Widget prints a table; it has no search or empty search state to fix. No files changed.";
+    let defaults = defaults();
+    let world = World::configured_stock_limits(&defaults, &model(), &box_limits());
+    let (mut world, chat) = started_world_with_words(world, &defaults, REQUEST);
+    let words = core::str::from_utf8(&chat.run.policy.instructions).expect("stock chat words");
+    assert!(words.contains("When they ask you to fix something, first read the code it names with the forge's reads (read_branch for its head, then read_file); if what they call broken is not there, change nothing and tell them so in words, saying what the code has."));
+    let head =
+        fake::advance(&mut world.fake, &world.fake_env, b"org/repo", b"main", b"file", CODE, 1).expect("table printer");
+    let answer = super::change_tool::named_read(&mut world, &chat, 93, b"read_branch", br#"{"branch":"main"}"#);
+    let rendered = temper_engine_smith::answer(&answer);
+    let digits = engine::commit_text(&translate::commit(head));
+    assert!(!rendered.error(), "{answer:?}");
+    assert!(rendered.text().windows(digits.len()).any(|part| part == digits.as_ref()));
+    let input = format!(r#"{{"head":"{}","path":"file"}}"#, core::str::from_utf8(&digits).expect("commit hex"));
+    let answer = super::change_tool::named_read(&mut world, &chat, 94, b"read_file", input.as_bytes());
+    let rendered = temper_engine_smith::answer(&answer);
+    assert!(!rendered.error(), "{answer:?}");
+    assert!(rendered.text().windows(CODE.len()).any(|part| part == CODE));
+    // The scripted worker follows the stock instructions using the code it read.
+    world.send(protocol::turn(CHANNEL, chat.task, chat.attempt, 1, 0, None, REPLY));
+    park_after_turn(&mut world, &chat, None, 1);
+    for _ in 0..STEPS {
+        world.tick();
+    }
+    let reads::Answer::Ended(past) =
+        world.party_read(reads::Read::Turn { task: chat.task, attempt: chat.attempt, turn: 1 })
+    else {
+        panic!("person reads the reply")
+    };
+    let reads::EndedValue::Turn(turn) = past.value else { panic!("chat turn") };
+    assert_eq!(turn.transcript.as_ref(), REPLY);
+    assert_eq!(world.assigned.len(), 1, "no change producer was started");
+    assert_eq!(world.merges, 0);
+    assert_eq!(world.fake.branch(b"org/repo", b"main"), Some(head));
+}

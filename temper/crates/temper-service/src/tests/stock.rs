@@ -254,7 +254,7 @@ fn a_stock_policy_past_its_limit_is_refused_while_naming_files() {
 fn the_chats_words_send_plain_changes_to_change() {
     let words = include_str!("../stock/chat.txt");
     assert!(words.starts_with("Help the person with their work.\n"));
-    assert!(words.contains("When they ask for a change to a repository, call change, even where the code must be read first: its coder reads it; then tell them what landed."));
+    assert!(words.contains("When they ask for a change to a repository, call change."));
     assert!(words.contains("Call goal only when they want to hear a plan or give a go-ahead before anything changes"));
     assert!(words.contains("never call change for work they want agreed first"));
     assert!(!words.contains("never call change yourself"));
@@ -595,3 +595,21 @@ fn stock_and_init_admit_the_landing_procedure_and_its_effects() {
 
 #[path = "stock_brief.rs"]
 mod brief;
+
+#[test]
+fn the_chats_words_read_a_fixs_premise_before_changing_anything() {
+    let words = include_str!("../stock/chat.txt");
+    assert!(words.contains("When they ask you to fix something, first read the code it names with the forge's reads (read_branch for its head, then read_file); if what they call broken is not there, change nothing and tell them so in words, saying what the code has."));
+}
+
+#[test]
+fn the_chats_words_report_only_the_landed_results_or_pull_requests_change() {
+    let words = include_str!("../stock/chat.txt");
+    assert!(words.contains("When a change lands, tell them so with the pull request and merge commit its Landed line names, and what it changed only as its result or its pull request says, never by restating their request as done."));
+}
+
+#[test]
+fn the_coders_words_refuse_an_absent_fix_instead_of_adding_a_feature() {
+    let words = include_str!("../stock/coding.txt");
+    assert!(words.contains("Change only what your words ask: if what they name as broken or to fix is not in the code, write nothing and finish with a failure saying what the code has instead; never add a feature in a fix's place."));
+}
