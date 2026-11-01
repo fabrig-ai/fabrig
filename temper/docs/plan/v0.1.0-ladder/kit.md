@@ -78,20 +78,8 @@ Read with the rung's brief; together they are the rung's acceptance and are reru
   jq -e '.endpoints[0].models[0] | .name == "gpt-6-luna" and .output == 8192' CONFIG/agent.json
   ```
 
-- **The budget,** raised right after sign-in as qa.md 3 says. First start already made
-  project 1 and its owner; `forge setup` adopts the repository into that existing project.
-  Apply the raised rules and policy-1 settings first; policy 1 sizes future projects,
-  and this does not resize the existing period or owner's pool. Then use the project
-  listed by `temper ctl DIR me` and fund it with distinct operation keys:
-
-  ```
-  temper ctl DIR project fund PROJECT 449696 --key budget-period
-  temper ctl DIR project fund PROJECT 415104 --role 0 --key budget-owner
-  temper ctl DIR project show PROJECT
-  ```
-
-  Verify the open period's budget is 449,696 and the owner's pool's is 415,104, and read
-  their reserved, spent and left balances; say the figures in the report. After the
+- **The budget,** raised right after the sign-in and before `forge setup` makes the project,
+  as qa.md 3 says (one `settings apply` with its figures); say them in the report. After the
   start, `temper ctl DIR settings show charter 1` names `gpt-6-luna`; a box that shows
   otherwise is a setup to redo. Chats start with `--model gpt-6-luna --effort medium`.
 
