@@ -8,6 +8,7 @@ final: tasks/pd-cancel.md
 final: tasks/pd-sweep.md
 final: tasks/pd-wire.md
 final: tasks/pd-people-gone.md
+final: tasks/pd-close.md
 
 ## Parts
 
