@@ -10,8 +10,52 @@ mode = "direct"
 needs = []
 design = "temper/docs/design/draft/playground-reset.md, 3"
 
+[[part]]
+id = "rf"
+title = "Removing a forge, whole and kept until whole, and a set up started over"
+mode = "direct"
+needs = []
+design = "temper/docs/design/draft/playground-reset.md, 4"
+
+[[part]]
+id = "pd"
+title = "Deleting a project, jig's: closed at once, its tasks ended and erased, its rows released"
+mode = "direct"
+needs = []
+design = "temper/docs/design/draft/playground-reset.md, 5"
+
+[[part]]
+id = "pg"
+title = "The playground as ordinary records, its reset, and what goes"
+mode = "direct"
+needs = []
+design = "temper/docs/design/draft/playground-reset.md, 6"
+
 [[slice]]
 id = 1
 story = "A forge made at runtime is kept in the store and connects; the box runs its group from its file"
 parts = ["fs"]
 walk = false
+
+[[slice]]
+id = 2
+story = "A forge removed from Forges leaves nothing of it but what a task still names, and a restart mid-removal ends it whole"
+parts = ["rf"]
+walk = false
+
+[[slice]]
+id = 3
+story = "An owner deletes a project; its tasks end and are erased, and no row names it afterwards, across a crash"
+parts = ["pd"]
+walk = false
+
+[[slice]]
+id = 4
+story = "A first run into the playground and out by its reset reaches the welcome's Forge step on an empty store"
+parts = ["pg"]
+walk = false
+
+[[question]]
+id = "welcome-set-up-walk"
+text = "The journey welcome-set-up is deleted by the run (its walk changes once forges are made at runtime). Walk it again on a fresh `temper box --fake-backends` and add it with the journeys tool's `add welcome-set-up FILE` after the run? Recommendation: yes; no task waits for it."
+parts = ["fs"]

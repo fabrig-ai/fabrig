@@ -61,3 +61,37 @@
    constant, compiler-forced); sv's `sv-startup-machine` adds the override name
    `forge.forges` (`limits/names.rs`) and checks `forge_component.forges` and the setup
    host's `forges` at least `forge.forges` at start.
+5. **`fe-records` would turn the trunk red (request 1, made concrete).** `fe-records` drops
+   `root::Config.forges` and `identities` and expects temper-service's and the one-process
+   world's tests that read configured forges to fail after it ("they are sv's to move to
+   records", its Report). Every document-driven deployment and world (temper-service's
+   tests, tests/one-process, tests/real-loop, the binary's process fixtures, a fresh `temper
+   init`) configures its forges in the document until the worlds move (request 1 (c)), so the
+   engine would know none of them. Two facts make it worse: the engine's git identity becomes
+   `credential: forge as u32`, while serve keys each document identity by its own number
+   (`temper init` writes forge 1 with identity 2 and forge 2 with identity 1), so a worker's
+   credential lookup would miss. **Recommendation:** `fe-records` keeps the trunk green by
+   itself, two small additions in its task:
+   - (a) a transitional seed: `root::Config` gains `seed: Box<[forge::ForgeRecord]>` (doc:
+     "the document's forges, until sv-startup-refuse"); temper-service's `system.rs` fills it
+     from today's `startup::application::configured(&settings)` through a pub
+     `ForgeRecord::from_configured(&Configured)` in the forge crate (fe-records' world helper,
+     moved there); at restoration's end the connector saves each seed record whose number
+     has no restored `Forge` row, and moves `ForgeNumbers` past the highest, before it sends
+     the `Register`s. So a document's forges become records at their first start.
+   - (b) serve keys a document identity's values by its forge's number (`values.rs::fill`,
+     `translate::identity`'s number, `setup/settings.rs::local_starts`' identity number,
+     `forge/tokens.rs`), the four sites the compiler will not name, so that the worker's
+     credential `forge as u32` is found.
+   serve's registry (`sv-registry`) treats a `Register` of a number the document configures as
+   the document's forge (only its mode taken), so the seeded records change nothing in
+   serve. `sv-startup-refuse` removes the seed and the document path together. If the lead
+   prefers, (b) can be an sv task that `fe-records` names in `needs`, landing in the same
+   merge window; it cannot land alone (before `fe-records` the root still uses the identity
+   numbers).
+6. **`bx-doc` edits a temper-service test file** (`src/tests/startup.rs`, `check::checked`'s
+   new `Option`), concurrently with `sv-registry` (both after `sv-startup-machine`): two
+   writers of temper-service at once. **Recommendation:** `bx-doc` keeps
+   `check::checked(.., at: u32)` and adds `check::checked_at(.., at: Option<u32>)`, so it
+   writes no temper-service file; `sv-startup-refuse` moves the call. Until answered, sv's
+   specs assume this.

@@ -25,6 +25,7 @@ domain, view, tools and the client world.
 | 1 | `sv-skein-connection`, `sv-skein-setup` (T7, skein only) |
 | 2 | `bx-pipe`, `bx-steps`, `cl-wire` |
 | 3 | `fe-surface`, `bx-compose` |
+| 4 | `cl-choices`, `cl-ctl`, `cl-forges`, `cl-welcome` |
 
 ## Critical path (as it stands)
 

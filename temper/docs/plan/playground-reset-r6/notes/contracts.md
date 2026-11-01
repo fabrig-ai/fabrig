@@ -213,7 +213,10 @@ stay unused). Bounds: `Forge` and `ForgeNumbers` by `forge.forges` (T4); `KeptAc
   when it makes a forge: `owned` from `application.machine.owned` (mode `Owned`), `github`
   from `application.machine.github` (mode `Managed` until a `Connect` with a pasted App sets
   `Connected`), `playground` from `application.demo.forge` (mode `Fake`). A Forgejo
-  elsewhere is made from the request's addresses, mode `Managed`, no setup entry.
+  elsewhere is made from the request's addresses, mode `Managed`, with a managed
+  setup entry and no admin token (`{"bot": {"login": "temper", "email":
+  "temper@localhost"}, "mode": "managed"}`), so its row offers the admin connect (`admin`)
+  and the setup host has its settings.
 - The request that makes a forge: `forge::Ask::MakeForge { choice: ForgeChoice }`,
   `ForgeChoice::{Owned, GitHub, Forgejo { api: Box<[u8]>, git: Box<[u8]>, web:
   Option<Box<[u8]>> }}`, deployment scope, admitted for owners as `SetUp` is; answered
@@ -317,3 +320,12 @@ built at version 11, renamed variants keeping their tags and new ones appended:
 - `Outcome` gains `removing`, `reset`, and the refusals `playground` (`remove_forge` of the
   playground's forge) and `not_offered` where it lacks one.
 - `ForgeRow` keeps its members; the engine lists every `Kept` record, `Removing` ones never.
+
+## G. Generated files under docs/
+
+A task may commit what a generator rewrites under `docs/`, never a hand edit there: the ctl
+reference pages `temper/docs/help/reference/ctl-*.md` (`SKEIN_CODEGEN_WRITE=1`, checked by
+`every_ctl_group_page_is_what_the_table_renders`) and a journey's reprinted pages
+`temper/docs/design/client/journeys/*/NN.html` (`heavy cargo run -p temper-client-journeys`),
+never a recording. The journey `welcome-set-up`, whose walk changes with forges made at
+runtime, is deleted by the client's last task, to be walked again by a person after the run.
