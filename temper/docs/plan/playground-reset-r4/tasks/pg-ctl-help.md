@@ -139,3 +139,16 @@ Owned: the three pages above. Nothing else.
 
 fab's sections; any rule of temper-docs that made you change a word,
 with the word.
+
+## Answers
+
+2026-11-01. Who repairs the E0004 in `temper/tests/client/src/translate.rs`
+(`unsupported_people` lacks `ProjectClosed`, `ProjectGone`, `TaskErased`,
+added by `pd-people-gone`) that stops step 1 from compiling? The answer
+call repairs it: three arms in the function's own pattern,
+`people::Event::<Variant> { .. } => panic!("the client kit does not make
+People::<Variant>")`, after `Act`. If your base already has them, own
+nothing more. If it does not, add exactly those three arms and nothing
+else in that file: this task owns `translate.rs` for that alone, and the
+report names it under `## Interfaces` as a compile repair. Any other
+compile error outside the three pages is a question again.
