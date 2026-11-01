@@ -116,7 +116,8 @@ pub(super) fn opened(
     let header = match record {
         Record::Core(CoreRecord::Deployment(header)) => header,
         Record::Core(
-            CoreRecord::Settings(_)
+            CoreRecord::Removal(_)
+            | CoreRecord::Settings(_)
             | CoreRecord::Projection(_)
             | CoreRecord::Call(_)
             | CoreRecord::RunProof(_)
@@ -349,7 +350,8 @@ fn cross_row(store: &mut Store, walking: &mut Walking, row: pages::WalkRow) -> O
     let mut proof = match record {
         Record::Core(CoreRecord::RunProof(proof)) => proof,
         Record::Core(
-            CoreRecord::Settings(_)
+            CoreRecord::Removal(_)
+            | CoreRecord::Settings(_)
             | CoreRecord::Deployment(_)
             | CoreRecord::Projection(_)
             | CoreRecord::Call(_)

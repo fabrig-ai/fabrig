@@ -42,7 +42,9 @@ pub(super) fn keeps(range: &Range, key: &Key) -> bool {
             true
         }
         Range::Core(CoreRange::RunProofs) => {
-            let Key::Core(core::Key::Core(core::CoreKey::RunProof(_))) = key else { return false };
+            let Key::Core(core::Key::Core(core::CoreKey::RunProof(_) | core::CoreKey::Removal(_))) = key else {
+                return false;
+            };
             true
         }
         Range::Core(_) | Range::Forge => range.contains(key),

@@ -23,7 +23,11 @@ pub fn restore_cursor(ranges: &[RestoreRange], key: &Key) -> Option<(u32, Key)> 
 fn place(range: &RestoreRange, key: &Key) -> Option<(u32, Option<u32>)> {
     let admitted = range.admits(key);
     let (count, interval) = match range {
-        RestoreRange::Deployment | RestoreRange::Settings | RestoreRange::Core => (1, 0),
+        RestoreRange::Deployment | RestoreRange::Settings => (1, 0),
+        RestoreRange::Core => {
+            let interval = if let Key::Core(crate::CoreKey::Removal(_)) = key { 1 } else { 0 };
+            (2, interval)
+        }
         RestoreRange::Accounts => {
             let interval = match key {
                 Key::Accounts(jig_domain_accounts::Key::Issued { .. }) => 0,

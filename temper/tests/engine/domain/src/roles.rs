@@ -252,6 +252,7 @@ impl World {
                         | jig_domain_core::CoreRecord::Call(_)
                         | jig_domain_core::CoreRecord::Deployment(_)
                         | jig_domain_core::CoreRecord::Turn(_)
+                        | jig_domain_core::CoreRecord::Removal(_)
                         | jig_domain_core::CoreRecord::RunProof(_)
                         | jig_domain_core::CoreRecord::Terminal(_)
                         | jig_domain_core::CoreRecord::EscalationDecision(_)

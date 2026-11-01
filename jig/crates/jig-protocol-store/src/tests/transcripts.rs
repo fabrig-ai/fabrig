@@ -713,7 +713,7 @@ fn configured_read_room_and_frame_capacity_are_measured_separately() {
         let codec = crate::codec::limits(&configured.core).expect("profile codec");
         assert_eq!(u64::from(configured.core.resume_bytes), request);
         assert_eq!(configured.store.store.page.bytes, page);
-        assert_eq!(crate::core_v6::TurnRecord::encoded_bound(&codec.core).expect("body") + 12, MAX_FRAME);
+        assert_eq!(crate::core_v7::TurnRecord::encoded_bound(&codec.core).expect("body") + 12, MAX_FRAME);
         assert!(request.min(u64::from(page)) < MAX_FRAME);
     }
     let limits = fixtures::store_limits();

@@ -277,15 +277,15 @@ pub fn valid(limits: &Limits) -> bool {
 
 fn frame_bound(limits: &Limits) -> Option<u64> {
     let codec = codec::limits(&limits.core)?;
-    core_v6::TurnRecord::encoded_bound(&codec.core)?.checked_add(12)
+    core_v7::TurnRecord::encoded_bound(&codec.core)?.checked_add(12)
 }
 
 // Bound for two decoded records, including their wire values and the census's joined task.
 pub(crate) fn decoded_records_bound(limits: &Limits) -> Option<u64> {
     let codec = codec::limits(&limits.core)?;
-    core_v6::Row::decoded_bound(&codec.core)?
+    core_v7::Row::decoded_bound(&codec.core)?
         .checked_add(tasks_v9::Row::decoded_bound(&codec.tasks)?)?
-        .checked_add(people_v13::Row::decoded_bound(&codec.people)?)?
+        .checked_add(people_v14::Row::decoded_bound(&codec.people)?)?
         .checked_add(notes_v1::Row::decoded_bound(&codec.notes)?)?
         .checked_add(accounts_v2::Row::decoded_bound(&accounts_v2::CEILINGS)?)?
         .checked_add(settings_v1::Revision::decoded_bound(&codec.settings)?)?
@@ -364,14 +364,14 @@ pub mod component_v2;
 pub mod notes_v1;
 #[rustfmt::skip]
 #[expect(clippy::similar_names, reason = "generated StoredActed retains its domain fields act and at")]
-#[path = "generated/people_v13.rs"]
-pub mod people_v13;
+#[path = "generated/people_v14.rs"]
+pub mod people_v14;
 #[rustfmt::skip]
 #[path = "generated/tasks_v9.rs"]
 pub mod tasks_v9;
 #[rustfmt::skip]
-#[path = "generated/core_v6.rs"]
-pub mod core_v6;
+#[path = "generated/core_v7.rs"]
+pub mod core_v7;
 pub mod keys;
 pub use boundary::{
     Arrived, Below, CARRIED, CarriedKind, Check, Cursor, Event, Family, Generations, Get, HELD, Io, Load, Older,

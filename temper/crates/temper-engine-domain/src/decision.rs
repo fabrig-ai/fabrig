@@ -320,6 +320,7 @@ impl Decision {
                         jig_domain_core::CoreKey::Settings(_)
                         | jig_domain_core::CoreKey::Call(_)
                         | jig_domain_core::CoreKey::Turn { .. }
+                        | jig_domain_core::CoreKey::Removal(..)
                         | jig_domain_core::CoreKey::RunProof(..)
                         | jig_domain_core::CoreKey::Terminal { .. }
                         | jig_domain_core::CoreKey::Projection(_),
@@ -357,6 +358,7 @@ impl Decision {
                     | jig_domain_core::Record::Core(
                         jig_domain_core::CoreRecord::Settings(_)
                         | jig_domain_core::CoreRecord::Projection(_)
+                        | jig_domain_core::CoreRecord::Removal(_)
                         | jig_domain_core::CoreRecord::RunProof(_)
                         | jig_domain_core::CoreRecord::Terminal(_),
                     )

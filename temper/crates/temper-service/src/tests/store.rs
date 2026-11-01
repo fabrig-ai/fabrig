@@ -97,7 +97,7 @@ fn shipped_maximum_frame_fits_small_page_and_out_of_codec_admission_refuses() {
     let checked = store::limits(&root, &root.forge, &profile).expect("shipped maximum fits Small");
     assert_eq!(checked.store.page.bytes, 1_590_110);
     assert_eq!(checked.store.page.bytes, profile.store.page.bytes);
-    for transcript in [jig_protocol_store::core_v6::CEILINGS.turn_record_transcript + 1, u32::MAX] {
+    for transcript in [jig_protocol_store::core_v7::CEILINGS.turn_record_transcript + 1, u32::MAX] {
         root.loads.transcript_bytes = transcript;
         assert!(store::limits(&root, &root.forge, &profile).is_none());
     }

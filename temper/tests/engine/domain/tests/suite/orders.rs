@@ -600,6 +600,7 @@ fn attempt_records(driver: &Driver, assignment: &engine::Assignment) -> Vec<(usi
                 | core::CoreRecord::Settings(_)
                 | core::CoreRecord::Projection(_)
                 | core::CoreRecord::ProposalDecision(_)
+                | core::CoreRecord::Removal(_)
                 | core::CoreRecord::EscalationDecision(_) => continue,
             };
             if task == assignment.task && attempt == assignment.attempt {

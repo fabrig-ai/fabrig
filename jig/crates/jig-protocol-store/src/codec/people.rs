@@ -1,5 +1,5 @@
 //! People rows translated exhaustively (protocol/store.md, 5.1).
-use crate::people_v13 as wire;
+use crate::people_v14 as wire;
 use alloc::boxed::Box;
 use jig_domain_core as core;
 use jig_domain_people as domain;
@@ -33,11 +33,11 @@ pub fn limits(domain: &core::Limits) -> Option<wire::Limits> {
     Some(limits)
 }
 
-/// Derive the people-v13 bounds before checking its schema ceilings.
+/// Derive the people-v14 bounds before checking its schema ceilings.
 ///
 /// `None` means the derivation's checked arithmetic cannot represent a bound.
-/// A returned value may exceed `people_v13::CEILINGS`; callers must use
-/// `people_v13::check_limits` before using it to encode or decode records.
+/// A returned value may exceed `people_v14::CEILINGS`; callers must use
+/// `people_v14::check_limits` before using it to encode or decode records.
 /// Configuration uses this diagnostic seam to explain an envelope refusal
 /// (protocol/configuration.md, section 6).
 #[must_use]
@@ -46,6 +46,7 @@ pub fn derived_limits(domain: &core::Limits) -> Option<wire::Limits> {
     let authority = &domain.authority;
     let mut limits = wire::Limits {
         act_close_reason: people.words,
+        act_cancel_reason: people.words,
         refusal_circle_tasks: domain.tasks.circle,
         refusal_full_tasks: domain.tasks.circle,
         refusal_kept_pending: domain.tasks.dependencies,

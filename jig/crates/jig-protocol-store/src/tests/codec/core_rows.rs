@@ -181,3 +181,16 @@ fn outstanding_offers_use_the_run_inbox_bound_on_write_and_read() {
         skein_codec::Reason::Bound
     );
 }
+
+#[test]
+fn removal_rows_read_back_at_both_project_bounds_and_every_stage() {
+    for project in [0, u32::MAX] {
+        for stage in [core::RemovalStage::Ending, core::RemovalStage::Erasing, core::RemovalStage::Releasing] {
+            let row = core::CoreRecord::Removal(core::Removal { project, stage });
+            let key = core::Key::Core(row.key());
+            let bytes = crate::keys::encode(&key, super::fixtures::KEY_LIMIT).expect("bounded removal key");
+            assert_eq!(crate::keys::decode(&bytes), Some(key));
+            core_round_trip(row);
+        }
+    }
+}

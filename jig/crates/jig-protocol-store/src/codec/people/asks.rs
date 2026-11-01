@@ -297,8 +297,10 @@ pub(super) fn decode_escalation_decision(value: wire::EscalationDecision) -> dom
 #[expect(clippy::manual_map, reason = "step code translates optional fields through exhaustive matches")]
 pub fn encode_ask(value: &domain::Ask, limits: &wire::Limits) -> Result<wire::Ask, wire::Problem> {
     Ok(match value {
-        // Encoded from pd-store on.
-        domain::Ask::RemoveProject { .. } => return Err(super::problem()),
+        domain::Ask::RemoveProject { project } => wire::Ask::RemoveProject(wire::AskRemoveProject::new(
+            limits,
+            wire::AskRemoveProjectParts { project: *project },
+        )?),
         domain::Ask::MoveToNewest { revision } => wire::Ask::MoveToNewest(wire::AskMoveToNewest::new(
             limits,
             wire::AskMoveToNewestParts { revision: *revision },
@@ -642,6 +644,7 @@ pub fn decode_ask(value: wire::Ask, limits: &wire::Limits) -> Result<domain::Ask
             let wire::AskSetRolesParts { project, holdings } = value.into_parts();
             domain::Ask::SetRoles { project, holdings: decode_holdings(holdings) }
         }
+        wire::Ask::RemoveProject(value) => domain::Ask::RemoveProject { project: value.project() },
         wire::Ask::Rename(value) => {
             let wire::AskRenameParts { project, name } = value.into_parts();
             domain::Ask::Rename { project, name: project_name(&name, wire::Path::AskRenameName)? }

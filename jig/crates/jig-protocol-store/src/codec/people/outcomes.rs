@@ -9,8 +9,10 @@ use facts::{
 #[expect(clippy::too_many_lines, reason = "one exhaustive permanent outcome translation table")]
 pub(super) fn encode_outcome(value: &domain::Outcome, limits: &wire::Limits) -> Result<wire::Outcome, wire::Problem> {
     Ok(match value {
-        // Encoded from pd-store on.
-        domain::Outcome::ProjectRemoved { .. } => return Err(super::problem()),
+        domain::Outcome::ProjectRemoved { project } => wire::Outcome::ProjectRemoved(wire::OutcomeProjectRemoved::new(
+            limits,
+            wire::OutcomeProjectRemovedParts { project: *project },
+        )?),
         domain::Outcome::MovedToNewest { newest, moved, stayed } => {
             wire::Outcome::MovedToNewest(wire::OutcomeMovedToNewest::new(
                 limits,
@@ -182,6 +184,7 @@ fn account_sign_in_started(source: u32, address: &[u8], limits: &wire::Limits) -
 #[expect(clippy::too_many_lines, reason = "one exhaustive permanent outcome translation table")]
 pub(super) fn decode_outcome(value: wire::Outcome) -> domain::Outcome {
     match value {
+        wire::Outcome::ProjectRemoved(value) => domain::Outcome::ProjectRemoved { project: value.project() },
         wire::Outcome::MovedToNewest(value) => {
             domain::Outcome::MovedToNewest { newest: value.newest(), moved: value.moved(), stayed: value.stayed() }
         }

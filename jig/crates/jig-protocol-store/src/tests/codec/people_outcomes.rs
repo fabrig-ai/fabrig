@@ -198,8 +198,8 @@ fn an_account_sign_in_address_over_its_bound_is_an_encode_error() {
     let result = crate::codec::people::encode(&row, &super::people_limits(), &fixtures::model_names(&[]));
     assert_eq!(
         result,
-        Err(crate::people_v13::Problem {
-            path: crate::people_v13::Path::OutcomeAccountSignInStartedAddress,
+        Err(crate::people_v14::Problem {
+            path: crate::people_v14::Path::OutcomeAccountSignInStartedAddress,
             reason: skein_codec::Reason::Bound,
         })
     );
@@ -257,4 +257,11 @@ fn placed_hold_requests_answers_and_owner_facts_round_trip_in_people_13() {
     people_round_trip(values::answered(domain::Outcome::Refused(domain::Refusal::Moved {
         now: domain::Moved::PlacedHold { revision: 2 },
     })));
+}
+
+#[test]
+fn project_removed_answers_read_back_at_both_project_bounds() {
+    for project in [0, u32::MAX] {
+        people_round_trip(values::answered(domain::Outcome::ProjectRemoved { project }));
+    }
 }
