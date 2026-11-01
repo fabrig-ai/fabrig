@@ -223,3 +223,45 @@ These are neighbour edits:
   passed to `resume_removals`, sweeps `Ended` from the first task.
   The crash case then goes green with no other change. The step-4
   cross-tree `cargo check` covers the three roots.
+
+2026-11-01. Run 4's push to `playground-reset-r4/pd-delete` was refused
+as non-fast-forward: may its work go to a fresh branch
+(`playground-reset-r4/pd-delete-4`), or does fab reconcile the existing
+one? Neither: the work goes to `playground-reset-r4/pd-delete`, made a
+fast-forward by a merge in the run's own branch. fab finds a task's work
+by its branch's name, so a fresh name would leave it unmerged and the
+stale branch in its place. The branch on origin holds run 3's checkpoint
+(`9cb9a14b91`), which the run's base (a newer trunk) does not contain;
+run 4's commits (`ba6eb013b2`, `d20446d94c`) exist only in the slot it
+ran in. The next run, before its first edit:
+
+- if `git cat-file -e d20446d94ceb82f3991d4c9af4952a37b4f82046` succeeds
+  in its checkout, `git merge --no-edit d20446d94c` (run 4's work), then
+  `git merge -s ours --no-edit origin/playground-reset-r4/pd-delete`,
+  the message saying run 4's commits supersede run 3's checkpoint;
+- otherwise `git merge --no-edit origin/playground-reset-r4/pd-delete`
+  (run 3's checkpoint) and carries on from it through the answers above;
+  run 4's report (`fab/runs/playground-reset-r4/pd-delete-4/report.md`
+  on the dispatcher) says what it built.
+
+Either way the push is the plain `git push origin
+HEAD:refs/heads/playground-reset-r4/pd-delete`; no rebase, no force,
+no other branch. A push refused again is reported, never worked round.
+
+2026-11-01, from run 4's "Left". `src/tests/erase.rs`
+`a_task_requesters_ended_delegate_edge_is_erased` expects the exact set
+erased, without the `Delegate` index the approved `erase_record` repair
+now erases: may this task change it? Yes, that expected set only: add
+`Key::Tasks(tasks::Key::Delegate { requester: PARENT, task: TASK })`
+beside the `EndedDelegate` key.
+
+2026-11-01, from run 4's "Left". `jig-test-domain`
+`tests::link::stopping_continues_a_projection_deferred_watch_without_another_commit`
+fails at "the goal is live before Stop", and whether it fails without
+this task is unknown. The task changes that root's `RestartStep::Open`
+arm, so the failure may be its own: run that test once on the run's base
+before the first edit (the run's merges above aside). Failing there, it
+is inherited: name it under Left with both logs, it is not this task's.
+Passing there, it is this task's: `resume_removals` with no kept removal
+must route nothing and leave the root's decision as it was; fix it in
+`routing/mod.rs` or the root's Open arm, no other line.
