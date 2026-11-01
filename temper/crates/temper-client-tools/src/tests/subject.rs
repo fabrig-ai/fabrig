@@ -16,6 +16,9 @@ const UNTIL: &[(&[&str], bool)] = &[
     (&["inbox", "--until", "updates"], true),
     (&["inbox", "--until", "waiting"], true),
     (&["task", "show", "41", "--until", "phase:backing-off"], true),
+    (&["task", "show", "41", "--until", "phase:Running"], true),
+    (&["task", "show", "41", "--until", "phase:BackingOff"], true),
+    (&["task", "show", "41", "--until", "phase:Done"], false),
     (&["task", "tree", "41", "--until", "replied"], false),
     (&["task", "tree", "41", "--until", "waiting-on-me"], false),
     (&["task", "tree", "41", "--until", "ended"], true),
@@ -64,6 +67,28 @@ fn each_phase_word_names_one_of_jigs_phases_and_back() {
         assert_eq!(subject::condition(&Subject::Task(41), &condition.finish()).is_ok(), *live, "{word}");
     }
     assert_eq!(subject::phase(b"unknown"), None);
+}
+/// `task show` prints a phase capitalised: that spelling parses as the lower-case word.
+#[test]
+fn the_printed_spelling_parses_as_the_lower_case_one() {
+    for (word, phase, _) in PHASES {
+        let mut buffer = [0_u8; 16];
+        for (at, byte) in word.bytes().enumerate() {
+            buffer[at] = byte;
+        }
+        let spelling = &mut buffer[..word.len()];
+        spelling[..1].make_ascii_uppercase();
+        assert_eq!(subject::phase(spelling), Some(*phase), "{word}");
+        spelling.make_ascii_uppercase();
+        assert_eq!(subject::phase(spelling), Some(*phase), "{word}");
+    }
+    for word in ["BackingOff", "backingoff", "backing_off", "BACKING-OFF"] {
+        assert_eq!(subject::phase(word.as_bytes()), Some(Phase::BackingOff), "{word}");
+    }
+    for word in ["", "unknown", "runnin", "Backing off", "backing--off"] {
+        assert_eq!(subject::phase(word.as_bytes()), None, "{word}");
+    }
+    assert_eq!(subject::condition(&Subject::Task(41), b"phase:Done"), Err(Usage::TerminalPhase { phase: Phase::Done }),);
 }
 /// Seconds at the default and ceiling, with the first refused second beside them.
 const DEFAULT_SECONDS: u64 = 300;
