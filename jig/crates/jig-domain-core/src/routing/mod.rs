@@ -504,10 +504,8 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<E
             application_routes::finished(core, env, work, request, outcome)
         }
         Event::ProjectionSettled { goal, connector } => route_projection_settled(core, goal, connector),
-        Event::ProjectReleased { .. } => {
-            let mut out = Queue::uncapped();
-            out.push(Request::Decided);
-            Requests::Out(out)
+        Event::ProjectReleased { project, connector } => {
+            crate::deletion::release::answered(core, env, project, connector)
         }
         Event::SettledCall { to, key, name, call } => {
             crate::conversation::settle(core, &env.limits, to, key, name, call)
@@ -520,7 +518,9 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<E
         Event::EffectDeadline => crate::effects::deadline(core, env),
         Event::SignIn { reply_to, identity, held } => sign_in(core, env, work, reply_to, identity, held),
         Event::ReadLoaded { load, result } => {
-            if crate::deletion::erase::owns(load) {
+            if crate::deletion::release::owns(core, load) {
+                crate::deletion::release::loaded(core, env, load, result)
+            } else if crate::deletion::erase::owns(load) {
                 crate::deletion::erase::loaded(core, env, load, result)
             } else {
                 crate::reads::loaded(core, env, load, result)
