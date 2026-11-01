@@ -1214,6 +1214,53 @@ fn reconcile_converges_an_owned_forgejo_and_a_second_run_writes_nothing() {
 }
 
 #[test]
+fn a_box_killed_and_started_again_serves_the_same_store() {
+    use support::ctl::{Call, Step};
+    let scratch = support::Scratch::new("box-killed-and-started");
+    let (_, flags) = first_run_directories(&scratch);
+    let seen = support::boxed::run_ctl(
+        scratch.path(),
+        flags,
+        scratch.path(),
+        vec![
+            Step::Run(Call::sign_in()),
+            Step::Run(Call::new(&["forge", "list"]).json()),
+            Step::KillBox,
+            Step::StartBox,
+            Step::Run(Call::new(&["forge", "list"]).json()),
+            Step::KillBox,
+            Step::StartBox,
+            Step::Run(Call::new(&["forge", "list"]).json()),
+        ],
+        BOX_DEADLINE,
+        |_| (),
+    );
+    let stderr = String::from_utf8_lossy(&seen.stderr);
+    assert_eq!(seen.checked, Some(()), "the restarted box served every call: {stderr}");
+    assert_eq!(seen.exit, Some(Exit::Code(0)), "the restarted box stopped cleanly: {stderr}");
+    assert_eq!(seen.left, Some(Vec::new()), "nothing left at the end: {stderr}");
+    let [first, second, last] = seen.runs.as_slice() else { panic!("all three starts retain evidence: {stderr}") };
+    for killed in [first, second] {
+        assert_eq!(killed.exit, Some(Exit::Signal(9)), "the whole box was killed");
+        assert!(killed.left.is_some(), "the killed tree was observed through leader exit");
+    }
+    assert_eq!(last.exit, Some(Exit::Code(0)));
+    assert_eq!(last.left, Some(Vec::new()));
+    for run in &seen.runs {
+        assert!(support::printed_link(&run.stdout).is_some(), "each start printed a link");
+    }
+    let [sign_in, before, signed_in_again, after, signed_in_third, third] = seen.calls.as_slice() else {
+        panic!("sign-in and a read on each start: {stderr}")
+    };
+    for call in [sign_in, before, signed_in_again, after, signed_in_third, third] {
+        assert_eq!(call.exit, Some(Exit::Code(0)), "{}; box: {stderr}", String::from_utf8_lossy(&call.stderr));
+    }
+    assert_eq!(support::ctl::json(before), support::ctl::json(after), "the same store's forge list answers again");
+    assert_eq!(support::ctl::json(before), support::ctl::json(third), "the same store answers after a second kill");
+    scratch.remove();
+}
+
+#[test]
 fn temper_box_prints_its_link_and_stops_its_processes() {
     let scratch = support::Scratch::new("box_stop");
     let owned = boxed_example(&scratch);
