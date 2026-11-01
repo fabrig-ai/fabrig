@@ -96,6 +96,13 @@ impl Loader {
             Phase::Connect { .. } | Phase::Name { .. } | Phase::Done => false,
         }
     }
+    pub(crate) fn passed(&self, index: u32) -> bool {
+        match self.phase {
+            Phase::Connect { index: next } => index < next,
+            Phase::Name { .. } | Phase::Done => true,
+            Phase::Load { .. } | Phase::Sweep { .. } => false,
+        }
+    }
     pub(crate) fn done(&self) -> bool {
         matches_done(&self.phase)
     }
@@ -172,32 +179,12 @@ pub(crate) fn advance(engine: &mut crate::engine::Engine) {
                 return;
             }
             let number = forge.number;
-            if forge.kind == crate::settings::Kind::GitHub
-                || engine.records.contains_key(&number)
-                    && !engine.setup.records_only(number)
-                    && engine.records.get(&number).expect("registered record").setup.is_none()
-            {
-                let kind = match forge.kind {
-                    crate::settings::Kind::GitHub => skein_forge_connection::settings::Kind::GitHub,
-                    crate::settings::Kind::Forgejo => skein_forge_connection::settings::Kind::Forgejo,
-                };
-                let expected = records::origin(kind, &forge.api);
-                let start = match engine.forge_records.rows.forge(number) {
-                    Some(rows) => records::access(kind, &expected, rows, &engine.forge_records.bounds, false),
-                    None => Err(records::NotConnected::NoRecords),
-                };
-                let start = match start {
-                    Ok(start) => Ok(crate::forge::Start::Restored(start)),
-                    Err(why) => Err(why),
-                };
-                crate::forge::connect(engine, number, start);
-            } else if engine.setup.records_only(number) {
-                // The root restore releases Reconcile; the loader never starts it.
-            } else if let Some(host) = engine.forge.unreachable(number) {
-                // Document access and setup starts still name an unresolved host.
-                engine
-                    .notes
-                    .push(crate::Note::ForgeNotConnected { number, why: crate::NotConnected::Unreachable { host } });
+            if engine.resolving.contains_key(&number) {
+                return;
+            }
+            // A refused resolve already named the registered held record once.
+            if !engine.records.contains_key(&number) || engine.forge.unreachable(number).is_none() {
+                connect(engine, number);
             }
             engine.forge_records.phase = Phase::Connect { index: index.checked_add(1).expect("configured forges") };
         }
@@ -246,4 +233,41 @@ fn unconfigured_numbers_resume_at_the_cursor_without_retaining_values() {
     rows.push(records::number(1, records::Item::User), Secret::new(Box::from([1, 9])), 4096);
     assert!(rows.forge(1).is_some());
     assert_eq!(rows.unconfigured.len(), 4);
+}
+
+/// Apply the loader's connection rule to one registered or document forge.
+pub(crate) fn connect(engine: &mut crate::engine::Engine, number: u16) {
+    let mut configured = None;
+    for forge in &engine.workers.forges {
+        if forge.number == number {
+            configured = Some(forge);
+            break;
+        }
+    }
+    let Some(forge) = configured else { return };
+    if forge.kind == crate::settings::Kind::GitHub
+        || engine.records.contains_key(&number)
+            && !engine.setup.records_only(number)
+            && engine.records.get(&number).expect("registered record").setup.is_none()
+    {
+        let kind = match forge.kind {
+            crate::settings::Kind::GitHub => skein_forge_connection::settings::Kind::GitHub,
+            crate::settings::Kind::Forgejo => skein_forge_connection::settings::Kind::Forgejo,
+        };
+        let expected = records::origin(kind, &forge.api);
+        let start = match engine.forge_records.rows.forge(number) {
+            Some(rows) => records::access(kind, &expected, rows, &engine.forge_records.bounds, false),
+            None => Err(records::NotConnected::NoRecords),
+        };
+        let start = match start {
+            Ok(start) => Ok(crate::forge::Start::Restored(start)),
+            Err(why) => Err(why),
+        };
+        crate::forge::connect(engine, number, start);
+    } else if engine.setup.records_only(number) {
+        // The root restore releases Reconcile; the loader never starts it.
+    } else if let Some(host) = engine.forge.unreachable(number) {
+        // Document access and setup starts still name an unresolved host.
+        engine.notes.push(crate::Note::ForgeNotConnected { number, why: crate::NotConnected::Unreachable { host } });
+    }
 }

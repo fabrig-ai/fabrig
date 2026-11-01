@@ -212,6 +212,7 @@ pub(crate) struct Layer {
     pub(crate) closed: bool,
     begun: bool,
     held: Map<u16, Box<[u8]>>,
+    endpoints: Map<u16, ForgeRuntime>,
     #[cfg(test)]
     pub(crate) starts: List<(u16, skein_forge_connection::Access)>,
     #[cfg(test)]
@@ -239,6 +240,7 @@ impl Layer {
         }
         Ok(Self {
             held: held_hosts,
+            endpoints: Map::with_capacity(limits.forges),
             component: skein_forge_connection::Component::new(settings, &limits, shared)?,
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
             above: Queue::uncapped(),
@@ -282,6 +284,42 @@ impl Layer {
     pub(crate) fn remove(&mut self, forge: u16) {
         self.down(skein_forge_connection::Request::Remove { forge });
         self.held.remove(&forge);
+        self.endpoints.remove(&forge);
+    }
+    pub(crate) fn endpoint(&self, forge: u16) -> Option<&ForgeRuntime> {
+        self.endpoints.get(&forge)
+    }
+    pub(crate) fn resolve(&mut self, forge: &settings::Forge, runtime: ForgeRuntime) -> bool {
+        let settings = skein_forge_connection::settings::Forge {
+            number: forge.number,
+            kind: match forge.kind {
+                settings::Kind::Forgejo => skein_forge_connection::settings::Kind::Forgejo,
+                settings::Kind::GitHub => skein_forge_connection::settings::Kind::GitHub,
+            },
+            address: skein_io::Addr::Ip(runtime.address),
+            transport: match &runtime.transport {
+                skein_forge_connection::settings::Transport::Plaintext { name } => {
+                    skein_forge_connection::settings::Transport::Plaintext { name: name.clone() }
+                }
+                skein_forge_connection::settings::Transport::Tls { server_name, trust } => {
+                    skein_forge_connection::settings::Transport::Tls {
+                        server_name: server_name.clone(),
+                        trust: trust.clone(),
+                    }
+                }
+            },
+            access: None,
+            log_origins: List::with_capacity(0),
+        };
+        let host = self.unreachable(forge.number).expect("held resolve");
+        self.remove(forge.number);
+        if self.component.admits(&self.env.limits, &settings).is_err() {
+            assert!(self.add(forge, Endpoint::Held { host }), "held forge remains admitted");
+            return false;
+        }
+        self.down(skein_forge_connection::Request::Add { forge: forge.number, settings });
+        self.endpoints.insert(forge.number, runtime).expect("registered endpoint");
+        true
     }
     pub(crate) fn unreachable(&self, forge: u16) -> Option<Box<[u8]>> {
         self.held.get(&forge).cloned()

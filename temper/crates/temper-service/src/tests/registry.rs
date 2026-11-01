@@ -1,6 +1,6 @@
 //! Runtime registration at the root's service boundary (draft playground-reset.md, 3).
 use super::fixtures;
-use crate::{NotConnected, Note, route};
+use crate::{Note, route};
 use skein_lib::{Secret, Token};
 use temper_engine_domain as root;
 use temper_engine_domain_forge::{self as forge, Api, ApiTransport, Kind, Mode};
@@ -79,7 +79,7 @@ fn a_registered_forgejo_record_is_held_by_the_connection_and_read_by_the_documen
     );
 }
 #[test]
-fn a_registered_record_with_a_host_name_is_held_and_named_unreachable() {
+fn a_registered_record_needing_io_is_held_until_the_host_answers() {
     for tls in [false, true] {
         let mut service = fixtures::started();
         let engine = service.engine.as_mut().unwrap();
@@ -96,10 +96,13 @@ fn a_registered_record_with_a_host_name_is_held_and_named_unreachable() {
         register(engine, record);
         assert!(engine.forge.component.start(3).is_some());
         assert_eq!(engine.forge.unreachable(3), Some(host.clone()));
-        assert_eq!(
-            engine.notes.pop(),
-            Some(Note::ForgeNotConnected { number: 3, why: NotConnected::Unreachable { host } })
-        );
+        assert_eq!(engine.resolves.len(), 1);
+        for note in &engine.notes {
+            assert_ne!(
+                note,
+                &Note::ForgeNotConnected { number: 3, why: crate::NotConnected::Unreachable { host: host.clone() } }
+            );
+        }
         for request in &engine.forge.io {
             if let skein_io::Request::Connect { addr, .. } = request {
                 assert_ne!(*addr, skein_io::Addr::Ip(crate::forge::HELD_ADDRESS));

@@ -886,6 +886,9 @@ fn local_stopped(engine: &mut crate::engine::Engine, forge: u16, why: crate::Set
     state(engine, forge, connection);
 }
 fn start_pending(engine: &mut crate::engine::Engine, forge: u16) -> bool {
+    if engine.resolving.contains_key(&forge) {
+        return true;
+    }
     if let Some(local) = engine.setup.lifecycle.local(forge)
         && local.restored
         && local.pending
