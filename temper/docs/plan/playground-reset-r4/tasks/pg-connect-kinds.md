@@ -11,6 +11,7 @@ files = [
   "temper/crates/temper-client-domain/src/forge/forges.rs",
   "temper/crates/temper-client-domain/src/forge/form.rs",
   "temper/crates/temper-client-domain/src/tests/connect_kinds.rs",
+  "temper/crates/temper-client-domain/src/route.rs",
   "temper/crates/temper-client-view/src/forge/connect.rs",
   "temper/crates/temper-client-view/src/forge/bindings.rs",
   "temper/crates/temper-client-view/src/tests/connect_kinds.rs",
@@ -143,3 +144,31 @@ setup and other assertions as they are. Any other existing test whose
 expected choices change by the same rule gets the same edit, and the
 report's Changed names it. A test that fails for another reason is
 still a question.
+
+2026-11-01. Q: may this task extend `route.rs`' `forge_forges` and
+`went` so a kind request's forge-free flow moves to the row it made,
+and going back to Choose starts afresh? A: yes, as the report
+proposes; `route.rs` joins the owned files for that edit alone (its
+earlier owners, `pg-client-read` and `pg-playground-pages`, have
+landed). The rule:
+
+- When a told first resolves the step's `Following` to a row, and the
+  page shows that kind's forge-free flow (Connect a forge at that
+  kind, or the welcome's Forge step), the root pushes `Request::Show`
+  of the same flow at `Choice::Forge(n)`, `replace: true`, beside the
+  existing push to the Model step in `forge_forges`; the forge-free
+  address is never left in history to come back to.
+- Going to Choose (All choices, Add a forge from Forges, a fresh
+  `/forges/connect` or `/welcome?at=forge` that the root did not push
+  itself) drops the `Following`, so Choose draws the kinds again; the
+  welcome's `personal` preference stays as it is today.
+- While the `Following` names a row, the welcome reads that row as the
+  step under way (GitHub's installation next), not as unfinished: an
+  unfinished row is one found, not one this session just made.
+- No wire change. Tests: in `src/tests/connect_kinds.rs`,
+  `a_made_forge_replaces_the_kind_address_with_its_row` and
+  `all_choices_after_a_made_forge_opens_choose_again`, and one welcome
+  case that the just-made GitHub row continues its installation; the
+  nine dependent failures the report lists stay out of scope, but each
+  is run once alone and the report says whether this task's change
+  reaches it.
