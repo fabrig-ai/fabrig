@@ -4919,7 +4919,15 @@ fn an_empty_deployment_recovers_after_its_first_start_commit() {
     until_pending(&mut driver);
     let cut = driver.store.apply();
     assert_eq!(cut, 1, "the first-start transaction is receipt one");
-    let first = driver.store.rows.clone();
+    let mut first = driver.store.rows.clone();
+    let seeded = config(91).seed;
+    for row in seeded {
+        let record = Record::Forge { row: Box::new(temper_engine_domain_forge::Stored::Forge(row)) };
+        first.insert(record.key(), record);
+    }
+    let record = Record::Forge { row: Box::new(temper_engine_domain_forge::Stored::Forges { next: 2 }) };
+    first.insert(record.key(), record);
+    let first = temper_engine_domain_world::store::with_start_mark(first);
     // Lose the acknowledgement and all volatile root state immediately after durability.
     let mut store = driver.store;
     store.crash(91);

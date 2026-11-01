@@ -25,13 +25,9 @@ pub struct Config {
     pub landing: LandingPolicy,
     /// Forge writer identities and this deployment's branch namespace.
     pub forge: skein_forge_client::Config,
-    /// Each forge's git identity, an application credential (D10;
-    /// protocol/credentials.md, "each repository to a git identity").
-    pub identities: Box<[forge::GitIdentity]>,
     /// The charter the forge's procedures start their agent work under, one
     /// of the core's charters (domain/root.md, 6).
     pub forge_charter: u32,
-    pub forges: Box<[forge::Configured]>,
     /// First-start forge records (contracts, D1).
     pub seed: Box<[forge::Forge]>,
     pub owned: Option<forge::Forge>,

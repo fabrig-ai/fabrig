@@ -14,8 +14,16 @@ fn resolved(d: &Domain, row: &Stored, live: bool) -> bool {
     let tasks: &[u64] = if live { &[TASK] } else { &[] };
     crate::reconcile::references_resolve(d, &LIMITS, row, tasks)
 }
+// Reference checks use the seeded forge's membership and need no client writer.
 fn held_domain() -> Domain {
-    let mut d = domain();
+    let mut d = Domain::new(
+        &LIMITS,
+        4,
+        skein_forge_client::Config { namespace: b"test".as_slice().into(), writers: Box::new([]) },
+        &[Forge::connected(1, Kind::Forgejo, &[])],
+        false,
+    )
+    .unwrap();
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     outputs(&mut d, Event::Restore { record: Stored::Entry { entry: status(ENTRY, TASK), held: true } });
     d
@@ -627,8 +635,6 @@ fn removed_repository_domain(next: Option<u16>) -> Domain {
         &LIMITS,
         4,
         skein_forge_client::Config { namespace: Box::from(&b"test"[..]), writers: Box::new([]) },
-        &[],
-        &[],
         &[],
         false,
     )

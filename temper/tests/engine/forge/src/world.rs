@@ -295,9 +295,15 @@ impl World {
             &limits,
             seed,
             skein_forge_client::Config { namespace: Box::from(&b"world"[..]), writers: writer.into_iter().collect() },
-            &[top::GitIdentity { forge: REPO.forge, credential: 1 }],
-            &[],
-            &[],
+            &[top::Forge {
+                identity: top::record::Identity {
+                    number: 1,
+                    login: Box::new([]),
+                    name: Box::new([]),
+                    email: Box::new([]),
+                },
+                ..top::Forge::connected(REPO.forge, top::Kind::Forgejo, &[])
+            }],
             false,
         )
         .expect("valid connector configuration");
@@ -510,9 +516,15 @@ impl World {
                 namespace: Box::from(&b"world"[..]),
                 writers: self.writer.into_iter().collect(),
             },
-            &[top::GitIdentity { forge: REPO.forge, credential: 1 }],
-            &[],
-            &[],
+            &[top::Forge {
+                identity: top::record::Identity {
+                    number: 1,
+                    login: Box::new([]),
+                    name: Box::new([]),
+                    email: Box::new([]),
+                },
+                ..top::Forge::connected(REPO.forge, top::Kind::Forgejo, &[])
+            }],
             false,
         )
         .expect("same configured connector");

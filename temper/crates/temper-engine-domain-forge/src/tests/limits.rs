@@ -61,8 +61,6 @@ fn internal_output_envelopes_do_not_constrain_admission() {
             4,
             skein_forge_client::Config { namespace: Box::from(&b"test"[..]), writers: Box::new([]) },
             &[],
-            &[],
-            &[],
             false,
         )
         .expect("internal output does not bound admission");

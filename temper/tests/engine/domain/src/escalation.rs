@@ -165,6 +165,7 @@ pub struct World {
 // separate direct Release permission. Restart reconstructs this same policy.
 fn config(seed: u64) -> engine::Config {
     let mut config = walking::config(seed);
+    config.seed = Box::new([]);
     config.core.owners = Box::new([
         people::InitialOwner {
             project: 1,

@@ -104,9 +104,7 @@ fn domain() -> Domain {
             namespace: Box::from(&b"test"[..]),
             writers: Box::new([skein_forge_client::Writer { forge: 1, author: 7 }]),
         },
-        &[GitIdentity { forge: 1, credential: 1 }],
-        &[],
-        &[],
+        &[Forge::connected(1, Kind::Forgejo, &[])],
         false,
     )
     .expect("valid connector")
@@ -186,8 +184,6 @@ fn new(row: Forge, under_box: bool) -> Domain {
         &LIMITS,
         4,
         skein_forge_client::Config { namespace: b"removal".as_slice().into(), writers: Box::new([]) },
-        &[],
-        &[],
         &[row],
         under_box,
     )

@@ -205,7 +205,7 @@ pub fn account_rows(providers: &jig_domain_accounts::Providers) -> Box<[engine::
     rows.into_boxed_slice()
 }
 
-/// Keep temper's actual first-start transaction and wires mark, then account rows at receipt three.
+/// Keep the first-start rows, forge seed and wires mark, then account rows at receipt four.
 /// Callers construct a second identical configuration for their cold root; no domain
 /// configuration is cloned by hand and no account/session request precedes the story.
 #[must_use]
@@ -233,8 +233,8 @@ pub fn first_start_over(
     config: engine::Config,
     limits: &engine::Limits,
 ) -> crate::store::Store {
-    // First-start rows, then the separate header-and-wires mark (domain/root.md, 9.1).
-    const FIRST_START_COMMITS: u64 = 2;
+    // First-start rows, forge seeds, then the header-and-wires mark (domain/root.md, 9.1).
+    const FIRST_START_COMMITS: u64 = 3;
     let mut driver = Driver::cold(store, config, limits);
     driver.period_sent = true;
     driver.settle();

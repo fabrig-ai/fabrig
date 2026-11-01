@@ -21,18 +21,21 @@ fn configured(under_box: bool) -> ClientWorld {
     let mut limits = world.front().engine.env.limits;
     let configs = std::array::from_fn(|_| {
         let mut config = walking::config(fixtures::SEED);
-        config.forges = Box::new([forge::Configured {
-            admin_connect: false,
-            bot: Box::new([]),
-            owned: None,
-            git: Box::new([]),
-            web: None,
-            read_only: false,
-            number: FORGE,
-            kind: forge::Kind::Forgejo,
-            mode: forge::Mode::Owned,
-            asked: true,
-        }]);
+        config.seed =
+            Box::new([forge::Forge::connected(FORGE, forge::Kind::Forgejo, &[]).with_setup(forge::record::Setup {
+                directory: Box::new([]),
+                bot: forge::record::Account { login: Box::new([]), email: Box::new([]) },
+                orgs: Box::new([]),
+                mode: forge::record::SetupMode::Owned(forge::record::OwnedEntry {
+                    public: None,
+                    fetch: forge::record::Fetch { forgejo: true, runner: false, mirror: None },
+                    forgejo: Box::new([]),
+                    runner: None,
+                    listen: ([127, 0, 0, 1], 3000).into(),
+                    person: forge::record::Account { login: Box::new([]), email: Box::new([]) },
+                }),
+                asked: true,
+            })]);
         config.under_box = under_box;
         config.core.connectors = Box::new([temper_client_protocol_wire::FORGE]);
         temper_client_world::front::first_run_projects(&mut config, &mut limits);

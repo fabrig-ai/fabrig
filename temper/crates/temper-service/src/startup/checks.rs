@@ -661,7 +661,7 @@ pub fn root(
     problems: &mut Problems,
 ) {
     let landing = landing_config(engine);
-    let (forge, _identities) = crate::forge::config(engine, seeds.deployment);
+    let forge = crate::forge::config(seeds.deployment);
     let config = domain::Config {
         seed: engine.seed.clone(),
         period_span: crate::stock::PERIOD_SPAN,
@@ -672,9 +672,7 @@ pub fn root(
         core,
         landing,
         forge,
-        identities: Box::new([]),
         forge_charter: engine.charter,
-        forges: Box::new([]),
         owned: None,
         under_box: false,
     };

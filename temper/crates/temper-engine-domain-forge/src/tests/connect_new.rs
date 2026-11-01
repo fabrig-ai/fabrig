@@ -19,8 +19,6 @@ fn started_with(limits: &Limits) -> Domain {
         4,
         skein_forge_client::Config { namespace: b"connect-new".as_slice().into(), writers: Box::new([]) },
         &[],
-        &[],
-        &[],
         false,
     )
     .unwrap();

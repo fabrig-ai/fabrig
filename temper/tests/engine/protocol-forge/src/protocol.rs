@@ -135,9 +135,15 @@ impl Protocol {
                 namespace: Box::from(b"world".as_slice()),
                 writers: Box::new([skein_forge_client::Writer { forge: REPO.forge, author }]),
             },
-            &[top::GitIdentity { forge: REPO.forge, credential: 1 }],
-            &[],
-            &[],
+            &[top::Forge {
+                identity: top::record::Identity {
+                    number: 1,
+                    login: Box::new([]),
+                    name: Box::new([]),
+                    email: Box::new([]),
+                },
+                ..top::Forge::connected(REPO.forge, top::Kind::Forgejo, &[])
+            }],
             false,
         )
         .expect("configured connector")

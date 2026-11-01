@@ -1,5 +1,6 @@
 //! Owned Forgejo's welcome facts, read through the existing Joint.
 use jig_client_world::harness::{App, ClientId, Front};
+use skein_forge::forgejo::pin;
 use skein_lib::Queue;
 use temper_client_domain::{Address, Choice, Step};
 use temper_client_world::{
@@ -23,21 +24,27 @@ fn owned_fixture(runner: Option<&[u8]>) -> (Joint, Root) {
         first_run_projects(&mut config, &mut bounds);
         config.under_box = true;
         config.core.connectors = Box::new([fixtures::FORGE]);
-        config.forges = Box::new([forge::Configured {
-            number: 1,
-            kind: forge::Kind::Forgejo,
-            mode: forge::Mode::Owned,
-            admin_connect: false,
-            bot: Box::new([]),
-            read_only: false,
-            asked: true,
-            git: Box::new([]),
+        config.seed = Box::new([forge::Forge {
             web: Some(b"http://forge.test:3000".as_slice().into()),
-            owned: Some(forge::Owned {
-                forgejo: b"71.2.3".as_slice().into(),
-                runner: runner.map(Into::into),
-                password: b"fixture/person_password".as_slice().into(),
-            }),
+            ..forge::Forge::connected(1, forge::Kind::Forgejo, &[]).with_setup(forge::record::Setup {
+                directory: b"fixture".as_slice().into(),
+                bot: forge::record::Account { login: Box::new([]), email: Box::new([]) },
+                orgs: Box::new([]),
+                mode: forge::record::SetupMode::Owned(forge::record::OwnedEntry {
+                    public: None,
+                    fetch: forge::record::Fetch { forgejo: true, runner: false, mirror: None },
+                    forgejo: Box::new([]),
+                    runner: runner.map(|_| forge::record::Runner {
+                        binary: Box::new([]),
+                        labels: Box::new([]),
+                        capacity: 1,
+                        path: Box::new([]),
+                    }),
+                    listen: ([127, 0, 0, 1], 3000).into(),
+                    person: forge::record::Account { login: Box::new([]), email: Box::new([]) },
+                }),
+                asked: true,
+            })
         }]);
         config
     });
@@ -84,7 +91,7 @@ fn owned_details_names_its_configured_forgejo_version() {
         .map(|r| String::from_utf8_lossy(&r.text))
         .collect::<Vec<_>>()
         .join("");
-    assert!(shown.contains("downloads Forgejo 71.2.3 and its runner"), "{shown}");
+    assert!(shown.contains(&format!("downloads Forgejo {} and its runner", pin::VERSION)), "{shown}");
 }
 fn act(front: &mut Joint, root: &mut Root, role: skein_ui::Role, name: &[u8], action: skein_ui::Act) {
     let mut view = draw(root);
@@ -115,7 +122,10 @@ fn owned_setup_progress_names_both_pins_on_welcome_and_standalone() {
     front.engine.settle();
     h::settle(&mut front, &mut root);
     let shown = text(&root);
-    assert!(shown.contains("Fetching Forgejo 71.2.3 and its runner 64.5.6"), "{shown}");
+    assert!(
+        shown.contains(&format!("Fetching Forgejo {} and its runner {}", pin::VERSION, pin::RUNNER_VERSION)),
+        "{shown}"
+    );
     assert!(
         !Temper::tree(&draw(&root)).nodes().iter().any(|n| n.name.as_deref() == Some("Open Forgejo ↗".as_bytes())),
         "not offered before adoption"
@@ -128,17 +138,23 @@ fn owned_setup_progress_names_both_pins_on_welcome_and_standalone() {
         front.engine.settle();
         h::settle(&mut front, &mut root);
         let shown = text(&root);
-        assert!(shown.contains("Fetched Forgejo 71.2.3 and its runner 64.5.6"), "{shown}");
+        assert!(
+            shown.contains(&format!("Fetched Forgejo {} and its runner {}", pin::VERSION, pin::RUNNER_VERSION)),
+            "{shown}"
+        );
     }
     h::event(&mut front, &mut root, Temper::went(Address::ConnectForge { forge: Some(Choice::Forge(1)) }));
     let shown = text(&root);
-    assert!(shown.contains("Fetched Forgejo 71.2.3 and its runner 64.5.6"), "{shown}");
+    assert!(
+        shown.contains(&format!("Fetched Forgejo {} and its runner {}", pin::VERSION, pin::RUNNER_VERSION)),
+        "{shown}"
+    );
     assert!(shown.contains("Preparing: its database, temper’s admin, your account"), "{shown}");
 }
 #[test]
 fn owned_missing_runner_pin_keeps_the_progress_unversioned() {
     let (mut front, mut root) = owned_fixture(None);
-    assert!(text(&root).contains("downloads Forgejo 71.2.3 and its runner"));
+    assert!(text(&root).contains(&format!("downloads Forgejo {} and its runner", pin::VERSION)));
     act(&mut front, &mut root, skein_ui::Role::Button, b"Set up a Forgejo here", skein_ui::Act::Press);
     let (forge, request) = front.set_ups()[0];
     front.engine.send(engine::Event::Forge(Box::new(forge::Event::Connection {
@@ -154,16 +170,15 @@ fn owned_missing_runner_pin_keeps_the_progress_unversioned() {
     h::settle(&mut front, &mut root);
     let shown = text(&root);
     assert!(shown.contains("Fetching Forgejo and its runner"), "{shown}");
-    assert!(!shown.contains("Fetching Forgejo 71.2.3"), "{shown}");
+    assert!(!shown.contains(&format!("Fetching Forgejo {}", pin::VERSION)), "{shown}");
 }
 
 #[test]
-fn owned_details_without_pins_use_the_fallback_on_connect_a_forge() {
+fn owned_details_use_the_record_pins_on_connect_a_forge() {
     let (mut front, mut root) = h::forge_fixture(fixtures::SEED);
     h::event(&mut front, &mut root, Temper::went(Address::ConnectForge { forge: Some(Choice::Forge(1)) }));
     let shown = text(&root);
-    assert!(shown.contains("downloads Forgejo and its runner"), "{shown}");
-    assert!(!shown.contains("71.2.3"), "{shown}");
+    assert!(shown.contains(&format!("downloads Forgejo {} and its runner", pin::VERSION)), "{shown}");
 }
 
 #[test]

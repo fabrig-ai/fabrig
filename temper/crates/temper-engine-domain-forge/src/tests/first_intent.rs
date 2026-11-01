@@ -36,8 +36,6 @@ fn cold(seed: &[Forge]) -> Domain {
         &LIMITS,
         4,
         skein_forge_client::Config { namespace: b"first-intent".as_slice().into(), writers: Box::new([]) },
-        &[],
-        &[],
         seed,
         true,
     )

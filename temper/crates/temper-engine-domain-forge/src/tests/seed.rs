@@ -12,8 +12,6 @@ fn seeded(seed: &[Forge]) -> Domain {
         &LIMITS,
         4,
         skein_forge_client::Config { namespace: b"seed".as_slice().into(), writers: Box::new([]) },
-        &[],
-        &[],
         seed,
         false,
     )
@@ -114,26 +112,4 @@ fn the_playground_record_says_playground() {
     restored(&mut d);
     assert!(d.forges().rows[0].playground);
     assert!(d.demo.is_none());
-}
-#[test]
-fn a_seed_and_either_hand_built_parameter_are_refused() {
-    let identities = [GitIdentity { forge: 1, credential: 1 }];
-    let forges = configured();
-    for identity_path in [true, false] {
-        let identities = if identity_path { identities.as_slice() } else { &[] };
-        let forges = if identity_path { &[] } else { &forges[..1] };
-        let config = skein_forge_client::Config { namespace: b"seed".as_slice().into(), writers: Box::new([]) };
-        assert_eq!(
-            Domain::new(&LIMITS, 4, config, identities, forges, &[record(1)], false).unwrap_err(),
-            skein_forge::api::Error::Refused
-        );
-    }
-}
-#[test]
-fn hand_built_parameters_keep_their_startup_path() {
-    let mut d = domain();
-    let out = restored(&mut d);
-    assert!(kept(&out).is_empty());
-    assert!(d.forge_records.is_empty());
-    assert_eq!(d.identities.get(&1), Some(&1));
 }

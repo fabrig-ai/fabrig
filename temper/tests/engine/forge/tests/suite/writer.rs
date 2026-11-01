@@ -7,9 +7,10 @@ use temper_engine_forge_world::{REPO, World};
 fn a_runtime_writer_is_kept_once_and_refused_writers_keep_nothing() {
     let mut world = World::writerless(104);
     let writer = Writer { forge: REPO.forge, author: 1 };
+    let before = world.stored().len();
     assert!(!world.give_writer(Writer { author: 0, ..writer }));
     assert_eq!(world.writer_saves(), 0);
-    assert!(world.stored().is_empty());
+    assert_eq!(world.stored().len(), before);
     assert!(world.give_writer(writer));
     assert_eq!(world.writer_saves(), 1);
     assert_eq!(world.stored().get(&top::Key::Writer(REPO.forge)), Some(&top::Stored::Writer(writer)));
@@ -18,7 +19,7 @@ fn a_runtime_writer_is_kept_once_and_refused_writers_keep_nothing() {
         assert!(!world.give_writer(refused));
     }
     assert_eq!(world.writer_saves(), 1);
-    assert_eq!(world.stored().len(), 1);
+    assert_eq!(world.stored().len(), before + 1);
 }
 
 #[test]

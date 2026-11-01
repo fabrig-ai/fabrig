@@ -132,6 +132,9 @@ fn client_limits_must_be_coherent_and_their_capacities_representable() {
 }
 
 fn domain() -> Domain {
+    domain_with_seed(&[Forge::connected(1, Kind::Forgejo, &[])])
+}
+fn domain_with_seed(seed: &[Forge]) -> Domain {
     Domain::new(
         &LIMITS,
         4,
@@ -139,9 +142,7 @@ fn domain() -> Domain {
             namespace: Box::from(&b"test"[..]),
             writers: Box::new([skein_forge_client::Writer { forge: 1, author: 7 }]),
         },
-        &[GitIdentity { forge: 1, credential: 1 }],
-        &[],
-        &[],
+        seed,
         false,
     )
     .expect("valid connector")
@@ -281,7 +282,16 @@ fn an_outbox_entry_waits_for_its_commit() {
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     assert_eq!(
         outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic }).as_ref(),
-        &[Request::RestartDone { stage: RestartStage::Restored }],
+        &[
+            Request::Save {
+                record: Stored::Forge(Forge::connected(1, Kind::Forgejo, &[])),
+                release: None,
+                read_afresh: None
+            },
+            Request::Save { record: Stored::Forges { next: 2 }, release: None, read_afresh: None },
+            Request::ForgeKept { forge: Box::new(Forge::connected(1, Kind::Forgejo, &[])) },
+            Request::RestartDone { stage: RestartStage::Restored },
+        ],
     );
     assert_eq!(
         outputs(&mut d, Event::ReadAfresh).as_ref(),
@@ -559,7 +569,16 @@ fn restored_ci_subscriptions_are_read_in_the_fresh_step_and_delay_its_completion
     );
     assert_eq!(
         outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic }).as_ref(),
-        &[Request::RestartDone { stage: RestartStage::Restored }]
+        &[
+            Request::Save {
+                record: Stored::Forge(Forge::connected(1, Kind::Forgejo, &[])),
+                release: None,
+                read_afresh: None
+            },
+            Request::Save { record: Stored::Forges { next: 2 }, release: None, read_afresh: None },
+            Request::ForgeKept { forge: Box::new(Forge::connected(1, Kind::Forgejo, &[])) },
+            Request::RestartDone { stage: RestartStage::Restored },
+        ]
     );
     let fresh = outputs(&mut d, Event::ReadAfresh);
     assert!(fresh.is_empty(), "the subscription read is scheduled before completion");
@@ -747,7 +766,16 @@ fn a_held_effect_survives_a_restart_out_of_the_clients_outbox() {
     let mut d = held_restored();
     assert_eq!(
         outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic }).as_ref(),
-        &[Request::RestartDone { stage: RestartStage::Restored }]
+        &[
+            Request::Save {
+                record: Stored::Forge(Forge::connected(1, Kind::Forgejo, &[])),
+                release: None,
+                read_afresh: None
+            },
+            Request::Save { record: Stored::Forges { next: 2 }, release: None, read_afresh: None },
+            Request::ForgeKept { forge: Box::new(Forge::connected(1, Kind::Forgejo, &[])) },
+            Request::RestartDone { stage: RestartStage::Restored },
+        ]
     );
     assert_eq!(
         outputs(&mut d, Event::ReadAfresh).as_ref(),
@@ -1190,9 +1218,7 @@ fn routing_domain() -> Domain {
         &LIMITS,
         4,
         skein_forge_client::Config { namespace: Box::from(b"test".as_slice()), writers: Box::new([]) },
-        &[GitIdentity { forge: 1, credential: 1 }],
-        &[],
-        &[],
+        &[Forge::connected(1, Kind::Forgejo, &[])],
         false,
     )
     .unwrap()
@@ -1235,35 +1261,31 @@ fn routing_connection_states_are_volatile_and_connected_gives_the_writer_once() 
     );
     assert_eq!(restarted.connection(1), Connection::NotConnected, "restored writer is no connection claim");
 }
-fn configured() -> [Configured; 2] {
-    [
-        Configured {
-            admin_connect: false,
-            bot: Box::new([]),
-            owned: None,
+fn forge_mode(number: u16, kind: Kind, mode: Mode, asked: bool) -> Forge {
+    let forge = Forge::connected(number, kind, &[]);
+    let mode = match mode {
+        Mode::Connected => return forge,
+        Mode::Owned => record::SetupMode::Owned(records::owned()),
+        Mode::Managed => record::SetupMode::Managed { admin_token: Some(Box::new([])) },
+        Mode::Fake => record::SetupMode::Fake(record::FakeEntry {
+            listen: ([127, 0, 0, 1], 3000).into(),
             git: Box::new([]),
-            web: None,
-            read_only: false,
-            number: 1,
-            kind: Kind::Forgejo,
-            mode: Mode::Owned,
-            asked: true,
-        },
-        Configured {
-            admin_connect: false,
-            bot: Box::new([]),
-            owned: None,
-            git: Box::new([]),
-            web: None,
-            read_only: false,
-            number: 2,
-            kind: Kind::GitHub,
-            mode: Mode::Owned,
-            asked: true,
-        },
-    ]
+            owner: Box::new([]),
+            repositories: Box::new([]),
+        }),
+    };
+    forge.with_setup(record::Setup {
+        directory: Box::new([]),
+        bot: record::Account { login: Box::new([]), email: Box::new([]) },
+        orgs: Box::new([]),
+        mode,
+        asked,
+    })
 }
-fn setup_domain(forges: &[Configured], under_box: bool) -> Domain {
+fn configured() -> [Forge; 2] {
+    [forge_mode(1, Kind::Forgejo, Mode::Owned, true), forge_mode(2, Kind::GitHub, Mode::Owned, true)]
+}
+fn setup_domain(forges: &[Forge], under_box: bool) -> Domain {
     Domain::new(
         &LIMITS,
         4,
@@ -1271,15 +1293,13 @@ fn setup_domain(forges: &[Configured], under_box: bool) -> Domain {
             namespace: Box::from(b"test".as_slice()),
             writers: Box::new([skein_forge_client::Writer { forge: 1, author: 7 }]),
         },
-        &[],
         forges,
-        &[],
         under_box,
     )
     .unwrap()
 }
 #[test]
-fn a_configured_git_base_is_bounded_by_its_priced_pull_address_bytes() {
+fn a_record_git_base_is_truncated_to_its_priced_pull_address_bytes() {
     let base = [b'g'; 2049];
     for length in [2048, 2049] {
         let mut forge = configured()[0].clone();
@@ -1288,19 +1308,15 @@ fn a_configured_git_base_is_bounded_by_its_priced_pull_address_bytes() {
             &LIMITS,
             4,
             skein_forge_client::Config { namespace: b"test".as_slice().into(), writers: Box::new([]) },
-            &[],
             &[forge],
-            &[],
             false,
         );
+        let domain = result.expect("the record retains bases within its path bound");
+        let configured = domain.configured(1).unwrap();
         if length == 2048 {
-            assert!(result.is_ok(), "the priced base is admitted");
+            assert_eq!(configured.git.as_ref(), &base[..length]);
         } else {
-            assert_eq!(
-                result.err(),
-                Some(skein_forge::api::Error::TooLarge),
-                "a larger base is refused before retaining it"
-            );
+            assert!(configured.git.is_empty(), "a larger base cannot form a pull address");
         }
     }
 }
@@ -1321,7 +1337,7 @@ fn setup_row(number: u16, kind: Kind, connection: Connection, offer: Offer) -> R
         app: None,
         web: None,
         repositories: Box::new([]),
-        owned: None,
+        owned: Configured::from_record(&forge_mode(number, kind, Mode::Owned, true)).owned,
         admin: false,
         read_only: false,
         ended_stop: None,
@@ -1381,11 +1397,11 @@ fn setup_rows_and_answers_agree_in_every_connection_state() {
 }
 #[test]
 fn setup_is_not_offered_without_owned_asked_configuration() {
-    let rows: [Box<[Configured]>; 5] = [
-        Box::new([Configured { mode: Mode::Connected, ..configured()[0].clone() }]),
-        Box::new([Configured { mode: Mode::Managed, ..configured()[0].clone() }]),
-        Box::new([Configured { mode: Mode::Fake, ..configured()[0].clone() }]),
-        Box::new([Configured { asked: false, ..configured()[0].clone() }]),
+    let rows: [Box<[Forge]>; 5] = [
+        Box::new([forge_mode(1, Kind::Forgejo, Mode::Connected, true)]),
+        Box::new([forge_mode(1, Kind::Forgejo, Mode::Managed, true)]),
+        Box::new([forge_mode(1, Kind::Forgejo, Mode::Fake, true)]),
+        Box::new([forge_mode(1, Kind::Forgejo, Mode::Owned, false)]),
         Box::new([]),
     ];
     for forges in rows {
@@ -1449,13 +1465,11 @@ fn configured_forges_are_bounded_at_construction() {
     let count = usize::try_from(LIMITS.forges).unwrap();
     let mut forges = skein_lib::List::with_capacity(LIMITS.forges.checked_add(1).unwrap());
     for number in 0..=count {
-        forges
-            .push(Configured { owned: None, number: u16::try_from(number).unwrap(), ..configured()[0].clone() })
-            .unwrap();
+        forges.push(forge_mode(u16::try_from(number).unwrap(), Kind::Forgejo, Mode::Owned, true)).unwrap();
     }
-    Domain::new(&LIMITS, 4, config(), &[], &forges.as_slice()[..count], &[], false).unwrap();
+    Domain::new(&LIMITS, 4, config(), &forges.as_slice()[..count], false).unwrap();
     assert_eq!(
-        Domain::new(&LIMITS, 4, config(), &[], forges.as_slice(), &[], false).unwrap_err(),
+        Domain::new(&LIMITS, 4, config(), forges.as_slice(), false).unwrap_err(),
         skein_forge::api::Error::TooLarge
     );
 }
@@ -1934,18 +1948,7 @@ fn pushed_heads_match_their_own_forge_only() {
 fn forges_lists_web_and_only_each_forges_adoptions_for_every_kind() {
     for kind in [Kind::Forgejo, Kind::GitHub] {
         let mut d = setup_domain(
-            &[Configured {
-                admin_connect: false,
-                bot: Box::new([]),
-                owned: None,
-                number: 1,
-                kind,
-                mode: Mode::Connected,
-                asked: false,
-                git: Box::new([]),
-                web: Some(Box::from(b"https://forge.example".as_slice())),
-                read_only: false,
-            }],
+            &[Forge { web: Some(Box::from(b"https://forge.example".as_slice())), ..Forge::connected(1, kind, &[]) }],
             false,
         );
         let own = adopted();
@@ -1962,7 +1965,7 @@ fn forges_lists_web_and_only_each_forges_adoptions_for_every_kind() {
 
 #[test]
 fn forgetting_or_restoring_an_adoption_publishes_the_forges_row() {
-    let mut d = setup_domain(&[Configured { mode: Mode::Connected, ..configured()[0].clone() }], false);
+    let mut d = setup_domain(&[forge_mode(1, Kind::Forgejo, Mode::Connected, true)], false);
     let own = adopted();
     outputs(&mut d, Event::Restore { record: Stored::Repository(own.clone()) });
     let out = outputs(&mut d, Event::ForgetAdoption { repository: own.provider, restore: None });
@@ -1975,15 +1978,10 @@ fn forgetting_or_restoring_an_adoption_publishes_the_forges_row() {
 
 #[test]
 fn forges_carry_owned_startup_details_for_the_owned_row_alone() {
-    let owned = Owned {
-        forgejo: b"17.0.0".as_slice().into(),
-        runner: Some(b"13.2.0".as_slice().into()),
-        password: b"/fake/forge/person_password".as_slice().into(),
-    };
-    let configs = [
-        Configured { owned: Some(owned.clone()), ..configured()[0].clone() },
-        Configured { owned: None, mode: Mode::Managed, ..configured()[1].clone() },
-    ];
+    let mut owned_record = forge_mode(1, Kind::Forgejo, Mode::Owned, true);
+    owned_record.setup.as_mut().unwrap().directory = b"/fake/forge".as_slice().into();
+    let owned = Configured::from_record(&owned_record).owned.unwrap();
+    let configs = [owned_record, forge_mode(2, Kind::GitHub, Mode::Managed, true)];
     let domain = setup_domain(&configs, true);
     let rows = domain.forges().rows;
     assert_eq!(rows[0].owned, Some(owned));

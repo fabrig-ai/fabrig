@@ -157,17 +157,9 @@ impl Joint {
             let mut engine_limits = engine_limits();
             first_run_projects(&mut config, &mut engine_limits);
             config.core.connectors = Box::new([fixtures::FORGE]);
-            config.forges = Box::new([forge::Configured {
-                admin_connect: false,
-                bot: Box::new([]),
-                owned: None,
-                number: 1,
-                kind: forge::Kind::GitHub,
-                mode: forge::Mode::Connected,
-                git: Box::new([]),
+            config.seed = Box::new([forge::Forge {
                 web: Some(b"https://github.test".as_slice().into()),
-                read_only: false,
-                asked: false,
+                ..forge::Forge::connected(1, forge::Kind::GitHub, &[])
             }]);
             (config, engine_limits)
         });
