@@ -192,3 +192,34 @@ this task's controller makes untrue for a project with no live task
 (`Erasing` in the same decision): may this task change it? Yes, that
 assertion only: a project with a live task saves `Ending`; one with
 none saves `Ending` and then `Erasing` (or later) in the same decision.
+
+2026-11-01. The `start/script.rs` `Phase::Open` call is unreachable from
+the roots, which all open through the legacy `restart_done(Open)`: add a
+resume entry point and call it from the roots, or move the roots to the
+newer start API? The entry point. Moving the roots is out of this task.
+These are neighbour edits:
+
+- `routing/mod.rs`, beside `resume_fleet` and in its shape: `pub fn
+  resume_removals(core: &mut Core, env: &Env<Limits>) -> Requests`.
+  When stopping it is empty, as `resume_fleet` is. Otherwise it runs
+  `removal::resume` and drains the sibling work through `step`, as
+  `Phase::Open` does now, then `finish_extent`. It asserts the core is
+  open (`Restart::Open`, or the start script past `Open`).
+  Re-export it in `lib.rs` beside `resume_fleet`. `start/script.rs`
+  `Phase::Open` calls it and pushes its output into `out`, so that
+  both paths run one body.
+- Each root's existing `RestartStep::Open` arm, in the same decision
+  right after `restart_done(step)`, calls `resume_removals` and routes
+  its `Requests` the way that root routes `resume_fleet`'s:
+  `jig/testing/jig-test-domain/src/lib.rs` (`route_core`),
+  `jig/examples/ops/domain/src/restart.rs` (its core routing, before
+  `SendCloses`) and `temper/crates/temper-engine-domain/src/restart.rs`
+  (`route_core_requests`). Any other root found calling
+  `restart_done` with `Open` gets the same call. No other line of
+  those files changes. `restart_done`'s signature and the stored
+  format stay as they are.
+- Test: add a case to `src/tests/removal_stages.rs` where a persisted
+  `Erasing` row, restored through the legacy restart to `Open` and then
+  passed to `resume_removals`, sweeps `Ended` from the first task.
+  The crash case then goes green with no other change. The step-4
+  cross-tree `cargo check` covers the three roots.
