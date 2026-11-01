@@ -42,7 +42,7 @@ pub(crate) fn text(b: &mut Builder, w: &Words, role: Role, word: Word) {
 pub(crate) fn link(b: &mut Builder, w: &Words, bindings: &mut Bindings, word: Word, address: Address) {
     let name = w.say(word, &[]);
     let to = bindings.insert(Act::Go { address });
-    let action = if word == Word::ConnectForge {
+    let action = if word == Word::ConnectForge || word == Word::ForgeGoOn {
         Control::PrimaryLink { name: &name, to }
     } else if word == Word::AddForge || word == Word::ForgeConnectApp {
         Control::SecondaryLink { name: &name, to }
@@ -172,7 +172,18 @@ pub(crate) fn welcome(
     choice: Option<Choice>,
     sign_in: &crate::forge_sign_in::Forges,
 ) {
-    if let Some(row) = personal(root) {
+    let unfinished = connect::unfinished(root.forges());
+    if choice.is_none()
+        && let Some(row) = unfinished
+    {
+        not_finished(b, root, w, bindings, forge, row);
+        return;
+    }
+    let personal = match unfinished {
+        Some(row) if choice == Some(Choice::Forge(row.number)) => Some(row),
+        Some(_) | None => personal(root),
+    };
+    if let Some(row) = personal {
         if row.admin {
             match connect::step(Some(Choice::Forge(row.number)), root.forges(), root.forge().demo()) {
                 Shown::Details(_) => admin_details(b, root, w, forge, row),
@@ -200,6 +211,65 @@ pub(crate) fn welcome(
         body(b, root, w, bindings, forge, choice, Place::Welcome);
     }
 }
+/// Starting over removes the unfinished forge without a confirmation (draft 6.4).
+fn not_finished(
+    b: &mut Builder,
+    root: &Domain,
+    w: &Words,
+    bindings: &mut Bindings,
+    forge: &mut ForgeBindings,
+    row: &Row,
+) {
+    use forge::remove::{RemoveRefusal, State as Removal};
+    flow::card(b, &w.say(Word::ForgeNotFinished, &[Hole::Name(name(w, row, root))]));
+    status(b, root, w, row, false);
+    match root.forge().removal(row.number) {
+        Some(Removal::Removing { .. } | Removal::Removed(_)) => {
+            text(b, w, Role::Status, Word::ForgeStartingOver);
+            b.close();
+            return;
+        }
+        Some(Removal::Refused { why, .. }) => {
+            let refusal = match why {
+                RemoveRefusal::NotOffered => jig_client::contract::Refusal::NotOffered,
+                RemoveRefusal::Role => jig_client::contract::Refusal::Role { held: None },
+            };
+            let words = w.say_word(jig_client::words::Word::refusal(&refusal), &[]);
+            crate::cards::text(b, Role::Status, &w.say(Word::ForgeRemoveRefused, &[Hole::Name(words)]));
+        }
+        Some(Removal::Confirming(_)) | None => {}
+    }
+    if row.kind == Kind::GitHub {
+        text(b, w, Role::Paragraph, Word::ForgeGitHubNotFinished);
+        link(
+            b,
+            w,
+            bindings,
+            Word::ForgeGoOn,
+            Address::Welcome { step: Step::Forge { forge: Some(Choice::Forge(row.number)) } },
+        );
+        text(b, w, Role::Paragraph, Word::ForgeGitHubStartOver);
+        flow::control(
+            b,
+            Control::External {
+                name: &w.say(Word::ForgeAppSettings, &[]),
+                address: b"https://github.com/settings/apps",
+            },
+        );
+    } else {
+        text(b, w, Role::Paragraph, Word::ForgeNotFinishedDescription);
+    }
+    let label = w.say(Word::ForgeStartOver, &[]);
+    let to = forge.insert(Meaning::StartOver(row.number));
+    let control = if row.kind == Kind::GitHub {
+        Control::Button { name: &label, to }
+    } else {
+        Control::PrimaryButton { name: &label, to }
+    };
+    flow::control(b, control);
+    b.close();
+}
+
 fn choose(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, forge: &mut ForgeBindings, place: Place) {
     b.open(Role::Slot);
     b.style(look::FLOW_CHOICES);

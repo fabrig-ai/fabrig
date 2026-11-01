@@ -269,6 +269,7 @@ fn act_on(side: &mut Side, limits: Limits, act: Act, out: &mut Queue<Request>) {
         Act::ConnectApp { forge } => github::send(side, limits, forge, None, out),
         Act::Install { forge, back } => github::send(side, limits, forge, Some(back), out),
         Act::Remove { forge } => remove::confirm(side, forge),
+        Act::StartOver { forge } => remove::request(side, forge, limits, out),
         Act::ConfirmRemove => match side.remove {
             Some(remove::State::Confirming(forge)) => remove::request(side, forge, limits, out),
             Some(remove::State::Removing { .. } | remove::State::Refused { .. } | remove::State::Removed(_)) | None => {
