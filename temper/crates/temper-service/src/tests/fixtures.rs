@@ -391,6 +391,7 @@ pub fn root() -> (temper_engine_domain::Domain, skein_lib::Env<temper_engine_dom
     let settings = engine();
     let limits = limits::engine(&settings.jig.limits, &settings.limits).unwrap();
     let config = root::Config {
+        machine: temper_engine_domain_forge::Machine::bare(),
         period_span: crate::stock::PERIOD_SPAN,
         core: jig_protocol_config::core(&settings.jig, [7; 16], 7),
         landing: settings.landing,
@@ -742,6 +743,10 @@ pub fn settle_root(
                     crate::route::request(engine, request);
                 }
                 root::Request::Setup { .. }
+                | root::Request::RemoveGroup { .. }
+                | root::Request::EraseSecrets { .. }
+                | root::Request::Register(_)
+                | root::Request::Unregister { .. }
                 | root::Request::StopGroup { .. }
                 | root::Request::SetUpGroup { .. }
                 | root::Request::Connect { .. }

@@ -171,7 +171,7 @@ pub fn to_root(
                         key,
                         digest,
                         carried,
-                        request: root::Application::Forge(forge::Ask::StartDemo),
+                        request: root::Application::Forge(forge::Ask::StartPlayground),
                     }));
                 }
                 w::Request::Reachable(value) => {
@@ -502,6 +502,7 @@ fn encoded_role(role: forge::Role) -> w::Role {
 /// Encode one durable terminal, or the unknown terminal past its retention.
 #[must_use]
 #[expect(clippy::too_many_lines, reason = "one exhaustive family outcome translation")]
+#[expect(clippy::match_same_arms, reason = "sv supplies wire answers for the three surface refusals")]
 pub fn answer(
     outcome: Option<temper_engine_domain::ApplicationAnswer>,
     limits: &w::Limits,
@@ -633,7 +634,7 @@ pub fn answer(
             )
             .ok()?,
         ),
-        Some(root::ApplicationAnswer::StartDemo(answer)) => start_answer(answer, limits)?,
+        Some(root::ApplicationAnswer::StartPlayground(answer)) => start_answer(answer, limits)?,
         Some(temper_engine_domain::ApplicationAnswer::SetUp(forge::SetUpAnswer::SettingUp)) => w::Outcome::SettingUp,
         Some(temper_engine_domain::ApplicationAnswer::SetUp(forge::SetUpAnswer::Refused(why))) => {
             w::Outcome::SetUpRefused(
@@ -652,6 +653,11 @@ pub fn answer(
                 .ok()?,
             )
         }
+        Some(
+            root::ApplicationAnswer::MakeForge(_)
+            | root::ApplicationAnswer::RemoveForge(_)
+            | root::ApplicationAnswer::EndPlayground(_),
+        ) => w::Outcome::Unknown,
         None => w::Outcome::Unknown,
     };
     let answer = w::Answer::new(limits, w::AnswerParts { outcome }).ok()?;

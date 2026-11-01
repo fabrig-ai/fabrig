@@ -1376,7 +1376,7 @@ impl Joint {
                 self.transport.unused(*number);
             }
 
-            if let engine::Request::SetUpGroup { forge, request } | engine::Request::SetUp { forge, request, .. } =
+            if let engine::Request::SetUpGroup { forge, request, .. } | engine::Request::SetUp { forge, request, .. } =
                 &request
             {
                 self.set_ups.push((*forge, *request));

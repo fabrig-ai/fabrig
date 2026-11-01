@@ -41,7 +41,7 @@ fn start_demo_reads_each_time_and_carries_the_key_before_admission() {
     }
     engine.clients.advance(&mut engine.events, &engine.workers.forges, engine.demo.as_ref(), &mut engine.accounts);
     let Some(root::Event::Party(root::PartyInput::Application {
-        request: root::Application::Forge(temper_engine_domain_forge::Ask::StartDemo),
+        request: root::Application::Forge(temper_engine_domain_forge::Ask::StartPlayground),
         carried: Some(carried),
         ..
     })) = engine.events.pop()
@@ -96,7 +96,7 @@ fn unreadable_empty_and_oversize_demo_keys_carry_nothing() {
         let engine = service.engine.as_mut().unwrap();
         engine.clients.advance(&mut engine.events, &engine.workers.forges, engine.demo.as_ref(), &mut engine.accounts);
         let Some(root::Event::Party(root::PartyInput::Application {
-            request: root::Application::Forge(temper_engine_domain_forge::Ask::StartDemo),
+            request: root::Application::Forge(temper_engine_domain_forge::Ask::StartPlayground),
             carried: None,
             ..
         })) = engine.events.pop()

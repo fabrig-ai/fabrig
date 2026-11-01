@@ -1129,6 +1129,10 @@ impl World {
                     _ => {}
                 },
                 engine::Request::Account(_)
+                | engine::Request::RemoveGroup { .. }
+                | engine::Request::EraseSecrets { .. }
+                | engine::Request::Register(_)
+                | engine::Request::Unregister { .. }
                 | engine::Request::StopGroup { .. }
                 | engine::Request::SetUpGroup { .. }
                 | engine::Request::Connect { .. }
