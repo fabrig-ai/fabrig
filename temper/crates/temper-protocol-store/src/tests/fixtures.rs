@@ -149,7 +149,7 @@ fn client_key(random: &mut Rng) -> skein_forge_client::Key {
 #[expect(clippy::disallowed_macros, reason = "property inputs number canonical member addresses")]
 pub fn key(random: &mut Rng) -> top::Key {
     let number = random.next_u64();
-    match random.below(27) {
+    match random.below(25) {
         0 => top::Key::Call(top::NamedCall {
             task: number,
             attempt: random.next_u64(),
@@ -172,12 +172,10 @@ pub fn key(random: &mut Rng) -> top::Key {
         14 => top::Key::Release(number),
         15 => top::Key::Application(number),
         16 => top::Key::Writer(u16::try_from(random.below(65_536)).expect("u16")),
-        17 => top::Key::Demo(u16::try_from(random.below(65_536)).expect("u16")),
-        18 => top::Key::Binding(alloc::format!("member{number}@example.com").into_bytes().into_boxed_slice()),
-        19 => top::Key::DemoAct([u8::try_from(random.below(256)).expect("byte"); 16]),
-        20 => top::Key::Flight { task: number, entry: random.next_u64() },
-        21 => top::Key::Landing(number),
-        22 => top::Key::Receipt(top::ReceiptKey {
+        17 => top::Key::Binding(alloc::format!("member{number}@example.com").into_bytes().into_boxed_slice()),
+        18 => top::Key::Flight { task: number, entry: random.next_u64() },
+        19 => top::Key::Landing(number),
+        20 => top::Key::Receipt(top::ReceiptKey {
             project: u32::try_from(random.below(4_294_967_296)).expect("u32"),
             repository: repository(random),
             check: if random.below(2) == 0 {
@@ -187,9 +185,9 @@ pub fn key(random: &mut Rng) -> top::Key {
             },
             key: commit(random),
         }),
-        23 => top::Key::Forge(u16::try_from(random.below(65_536)).expect("u16")),
-        24 => top::Key::Forges,
-        25 => top::Key::Playground,
+        21 => top::Key::Forge(u16::try_from(random.below(65_536)).expect("u16")),
+        22 => top::Key::Forges,
+        23 => top::Key::Playground,
         _ => top::Key::Kept([u8::try_from(random.below(256)).expect("byte"); 16]),
     }
 }

@@ -672,7 +672,6 @@ fn key(row: &top::Stored) -> top::Key {
         top::Stored::Change(row) => top::Key::Change(row.task),
         top::Stored::Issue(row) => top::Key::Issue(row.goal),
         top::Stored::Binding { address, .. } => top::Key::Binding(address.clone()),
-        top::Stored::Demo(_) | top::Stored::DemoAct(_) => unreachable!("legacy demo rows are discarded"),
         top::Stored::Forge(row) => top::Key::Forge(row.number),
         top::Stored::Forges { .. } => top::Key::Forges,
         top::Stored::Playground(_) => top::Key::Playground,

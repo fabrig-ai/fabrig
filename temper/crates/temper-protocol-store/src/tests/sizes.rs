@@ -49,21 +49,6 @@ fn the_store_version_is_eleven() {
 }
 
 #[test]
-fn demo_row_sizes_fit_the_existing_application_ceiling() {
-    use crate::v11 as w;
-    assert_eq!(w::Demo::encoded_bound(&w::CEILINGS), Some(3));
-    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
-    for state in [forge::DemoState::Running, forge::DemoState::Ended] {
-        let row = forge::Stored::Demo(forge::Demo { forge: u16::MAX, state });
-        let value = records::encode(&row);
-        let key = keys::encode(&forge::stored_key(&row), u32::MAX).expect("key");
-        assert_eq!(key.len(), 9);
-        assert_eq!(value.len(), 6);
-        assert_eq!(records::row(&key, &value, &bounds), Ok(row));
-    }
-}
-
-#[test]
 fn plan_text_uses_the_body_bound_without_changing_the_format() {
     // Eight items grow from 256 bytes of text each to 512 bytes each.
     const EXTRA_PLAN_BYTES: u64 = 2048;

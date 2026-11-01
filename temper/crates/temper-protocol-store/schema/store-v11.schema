@@ -203,16 +203,8 @@ record Application { token: u64 until: u64 outcome: ApplicationOutcome }
 # Family 16: each forge's writer, before restored effects (protocol/store.md, 2).
 record ForgeWriter { forge: u16 author: u64 }
 
-# Family 17: the demo's state (protocol/store.md, 2; protocol/setup.md, 8.4).
-enum DemoState { running, ended }
-record Demo { forge: u16 state: DemoState }
 # Family 18: first Google subject for a folded member address (protocol/sign-in.md, 5).
 record Binding { address: bytes 254 subject: bytes 255 }
-# Family 19: the end's acts, kept until a saved answer (protocol/setup.md, 8.4).
-record DemoClose { project: u32 task: u64 }
-record DemoRemoveAccount { account: u32 }
-enum DemoActKind { close: DemoClose, remove_account: DemoRemoveAccount }
-record DemoAct { key: fixed 16 act: DemoActKind }
 # Family 21: writes with a committed attempt (protocol/store.md, 2).
 # Key family 20 is reserved for Setting, still design-only. Value tags are codec-local.
 record Flight { task: u64 entry: u64 }
@@ -283,5 +275,5 @@ record KeptAccount { account: u32 }
 record KeptForge { forge: u16 }
 enum KeptAct { cancel: KeptCancel, remove_project: KeptProject, remove_account: KeptAccount, box_remove: KeptForge, remove_forge: KeptForge }
 record Kept { key: fixed 16 act: KeptAct }
-enum Value { call: Call, proposed_effect: ProposedEffect, repository: Adopted, hold: Hold, names: Names, subscription: Subscriber, branch_head: BranchHead, pull_state: PullState, ci: CiState, landed: Landed, entry: EntryRow, client: ClientRow, change: boxed ChangeRow, issue: boxed IssueRow, release: ReleaseRow, application: Application, writer: ForgeWriter, demo: Demo, binding: Binding, demo_act: DemoAct, flight: Flight, landing: LandingRow, receipt: ReceiptRow, forge: boxed Forge, forges: Forges, playground: Playground, kept: Kept }
+enum Value { call: Call, proposed_effect: ProposedEffect, repository: Adopted, hold: Hold, names: Names, subscription: Subscriber, branch_head: BranchHead, pull_state: PullState, ci: CiState, landed: Landed, entry: EntryRow, client: ClientRow, change: boxed ChangeRow, issue: boxed IssueRow, release: ReleaseRow, application: Application, writer: ForgeWriter, binding: Binding, flight: Flight, landing: LandingRow, receipt: ReceiptRow, forge: boxed Forge, forges: Forges, playground: Playground, kept: Kept }
 versioned record Row { value: Value }

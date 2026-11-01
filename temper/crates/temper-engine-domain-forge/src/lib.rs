@@ -260,9 +260,7 @@ pub fn stored_key(row: &Stored) -> Key {
         Stored::Release(row) => Key::Release(row.task),
         Stored::Application { token, .. } => Key::Application(*token),
         Stored::Writer(row) => Key::Writer(row.forge),
-        Stored::Demo(row) => Key::Demo(row.forge),
         Stored::Binding { address, .. } => Key::Binding(address.clone()),
-        Stored::DemoAct(row) => Key::DemoAct(row.key),
         Stored::Flight { task, entry } => Key::Flight { task: *task, entry: *entry },
     }
 }
@@ -426,8 +424,6 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
         | Stored::Ci(_)
         | Stored::Landed { .. }
         | Stored::Writer(_)
-        | Stored::Demo(_)
-        | Stored::DemoAct(_)
         | Stored::Flight { .. } => Some(0),
         Stored::ProposedEffect(row) => {
             let resource = match &row.resource {

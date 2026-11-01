@@ -140,9 +140,7 @@ pub fn evidence(forge: u16, rows: &[(Box<[u8]>, Box<[u8]>)], limits: &d::Limits)
                     }
                 }
             }
-            d::Stored::Demo(_)
-            | d::Stored::DemoAct(_)
-            | d::Stored::Forge(_)
+            d::Stored::Forge(_)
             | d::Stored::Forges { .. }
             | d::Stored::Playground(_)
             | d::Stored::Kept(_)

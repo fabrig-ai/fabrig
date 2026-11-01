@@ -23,9 +23,7 @@ pub enum RecordKind {
     Release,
     Application,
     Writer,
-    Demo,
     Binding,
-    DemoAct,
     Flight,
     Landing,
     Receipt,
@@ -244,8 +242,6 @@ impl Reconciliation {
             // including after their target ended or was removed.
             Stored::Landed { .. }
             | Stored::Binding { .. }
-            | Stored::Demo(_)
-            | Stored::DemoAct(_)
             | Stored::Forge(_)
             | Stored::Forges { .. }
             | Stored::Playground(_)
