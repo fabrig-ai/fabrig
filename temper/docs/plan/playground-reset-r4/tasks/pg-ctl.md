@@ -87,6 +87,9 @@ Neighbour files, edits allowed:
   `EVERY_TOOL` cases and `TOOL_FORMS` raised by their forms (62 to
   64); `src/tests/golden/help.txt` and `help_groups.txt`: the
   playground group's new line and the new tools' lines.
+- `temper-client-tools/src/tests/jig/replays.rs`: two `DIRECT_CALLS`
+  entries, `["playground", "reset", "--key", "reset"]` and `["forge",
+  "remove", "3", "--key", "remove"]`, nothing else.
 - `temper/crates/temper/src/tests/commands.rs`: nothing (its test stays
   red until `pg-ctl-help`, as stated).
 
@@ -161,3 +164,14 @@ group and `playground reset` after `playground start`. Acceptance and
 neighbour files amended above: `tests/fixtures.rs` (the two
 `EVERY_TOOL` cases, `TOOL_FORMS` 62 to 64) and the goldens `help.txt`
 and `help_groups.txt` are yours to update.
+
+2026-11-01. Q (pg-ctl-2): may pg-ctl add the two new tools to
+`DIRECT_CALLS` in `src/tests/jig/replays.rs`, which
+`replay_cases_cover_every_keyed_verb_in_the_tools_table` requires of
+every keyed tool? A: yes. The file is a neighbour now (amended above):
+append `["playground", "reset", "--key", "reset"]` and `["forge",
+"remove", "3", "--key", "remove"]` after `playground start`, nothing
+else in it changes. `direct` answers each `NotOffered` and expects exit
+2 and the same key, request and print on replay, which the acceptance's
+`refused: not offered` already gives. `forge setup 3` stays as it is:
+the positional is optional, not gone.
