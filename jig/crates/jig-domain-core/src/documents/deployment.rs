@@ -401,7 +401,7 @@ pub(super) fn deployment(
                 sources,
                 generation: value.generation,
                 state: account_state(value.state),
-                usable: value.usable,
+                usable: super::accounts::account_usable(core, account),
                 expiring: value.expiring,
                 attention: value.attention,
                 spent_until: match value.spent_until {

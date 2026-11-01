@@ -245,6 +245,67 @@ fn readiness_reads_a_usable_program_login() {
 }
 
 #[test]
+fn usable_requires_a_current_program_login() {
+    let (mut core, env) = catalogue_host(accounts::Holder::Party(ALICE), true);
+    drop(step(&mut core, &env, Event::Account(accounts::Event::Limited { account: 1, reset: None })));
+    let assert_usable = |core: &Core, usable| {
+        let doc = document(core, &env, ALICE);
+        assert_eq!(doc.usable, usable);
+        assert_eq!(doc.accounts.get(0).unwrap().sources.get(0).unwrap().usable, usable);
+    };
+    assert_usable(&core, true);
+    change_account(
+        &mut core,
+        &env,
+        accounts::Holder::Party(ALICE),
+        accounts::Change::MoveSource { account: 0, source: 1, place: 0 },
+    );
+    assert!(!document(&core, &env, ALICE).usable, "a limited key holds the later usable program");
+    change_account(
+        &mut core,
+        &env,
+        accounts::Holder::Party(ALICE),
+        accounts::Change::MoveSource { account: 0, source: 1, place: 1 },
+    );
+    assert_usable(&core, true);
+    drop(step(
+        &mut core,
+        &env,
+        Event::Fleet(fleet::Event::Sources {
+            sources: Box::new([
+                fleet::SourceName::new(b"personal").unwrap(),
+                fleet::SourceName::new(b"pending").unwrap(),
+            ]),
+        }),
+    ));
+    assert_usable(&core, false);
+    for host in core.fleet.host_views().as_slice().to_vec() {
+        drop(step(
+            &mut core,
+            &env,
+            Event::Fleet(fleet::Event::Logins {
+                channel: host.channel,
+                logins: Box::new([
+                    fleet::Login {
+                        name: fleet::SourceName::new(b"personal").unwrap(),
+                        state: fleet::LoginState::Usable,
+                    },
+                    fleet::Login {
+                        name: fleet::SourceName::new(b"pending").unwrap(),
+                        state: fleet::LoginState::NotSignedIn,
+                    },
+                ]),
+            }),
+        ));
+    }
+    assert_usable(&core, true);
+    for host in core.fleet.host_views().as_slice().to_vec() {
+        drop(step(&mut core, &env, Event::Fleet(fleet::Event::Lost { channel: host.channel })));
+    }
+    assert_usable(&core, false);
+}
+
+#[test]
 fn readiness_requires_one_models_source_and_host_together() {
     let (mut core, env) = serving();
     let mut direct = core.settings.models[0].clone();

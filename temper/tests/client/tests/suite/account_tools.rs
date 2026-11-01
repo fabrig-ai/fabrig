@@ -168,7 +168,7 @@ fn a_tools_declaration_is_visible_with_its_host_in_accounts() {
     let text = std::str::from_utf8(&printed.stdout).expect("accounts JSON");
     for fact in [
         "Scripted",
-        "\"kind\":\"program\"",
+        "\"kind\":\"program\",\"state\":{\"kind\":\"granted\"},\"usable\":false",
         "\"name\":\"claude-work\"",
         "\"program_hosts\":[{\"name\":\"worker\"",
         "\"connected\":true",
