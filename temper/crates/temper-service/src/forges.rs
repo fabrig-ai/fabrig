@@ -85,7 +85,9 @@ pub(crate) fn register(engine: &mut Engine, record: ForgeRecord) {
         engine.forge_records.rows.register(number);
     }
     if record.kind == Kind::GitHub {
-        engine.values.tokens.add(number, &identity(&record), engine.forge_records.bounds.installations);
+        let mut identity = identity(&record);
+        identity.login = Box::new([]);
+        engine.values.tokens.add(number, &identity, engine.forge_records.bounds.installations);
     }
     crate::setup::register(engine, &record);
     engine.records.insert(number, record).expect("connection admits forge");
