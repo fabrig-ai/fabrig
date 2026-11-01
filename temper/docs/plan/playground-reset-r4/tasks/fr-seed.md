@@ -19,6 +19,14 @@ files = [
   "temper/crates/temper-service/src/startup/checks.rs",
   "temper/crates/temper-service/src/tests/seed.rs",
   "temper/crates/temper-engine-domain-forge/src/tests/restore_fit.rs",
+  "temper/crates/temper-service/src/tests/fixtures.rs",
+  "temper/crates/temper-service/src/tests/startup.rs",
+  "temper/crates/temper-service/src/tests/engine.rs",
+  "temper/crates/temper-service/src/tests/setup.rs",
+  "temper/crates/temper-service/src/tests/setup_lifecycle.rs",
+  "temper/crates/temper-service/src/tests/setup_github.rs",
+  "temper/crates/temper-service/src/tests/setup_admin.rs",
+  "temper/crates/temper-service/src/tests/setup_adoption.rs",
 ]
 effort = "high"
 minutes = 70
@@ -43,7 +51,7 @@ Acceptance:
 
 - `temper_engine_domain::Config` has `seed: Box<[forge::Forge]>`;
   `forge::Domain::new` takes `seed: &[crate::Forge]` beside today's
-  parameters. With `forges` empty, the seed path holds: before restore,
+  parameters. With `forges` and `identities` both empty, the seed path holds: before restore,
   `configured` and `identities` are the seed's (`Configured::from_record`,
   `identity.number`); a restored `Forge` row replaces its number's; at
   `Event::Restored`, if a `Forges` row was restored, every seeded forge
@@ -52,8 +60,10 @@ Acceptance:
   next: highest + 1 }` (1 with no seed) are saved, in that decision or
   the first one the root allows after (option). Then one
   `Request::ForgeKept` per kept record, in number order.
-- With `forges` non-empty (a world's hand-built `Configured`), today's
-  behaviour holds, nothing seeded and no `ForgeKept`.
+- With `forges` or `identities` non-empty (a world's hand-built
+  `Configured` or `GitIdentity`), today's behaviour holds, nothing
+  seeded and no `ForgeKept`; a non-empty seed beside either is refused
+  at construction.
 - `forges()`'s rows come from `configured` as today, skip a record whose
   `removing` is true, and take `playground` from the record (the demo's
   forge when the record is absent, the old path).
@@ -178,3 +188,35 @@ change those two rows and the `Domain::new` call's new argument, nothing
 else. If the fixture's `LIMITS.forges` makes another row of the test
 unreachable (a constructor writer outside the restored keys, say), fix
 the fixture's rows to fit the new bound and say so in the report.
+
+2026-11-01. May fr-seed migrate the hand-built fixtures that fail under
+the seed path and the obsolete missing-setup assertion (A), or leave the
+reds to `fr-seed-worlds` (B)? Neither as asked: the old path is chosen
+by `forges` or `identities` non-empty, the seed path by both empty
+(acceptance amended above), and the service's fixtures build their seed
+as the service does. Reason: the old path is `Config.forges` and
+`identities` together (Goal), and the connector's fixtures that pass an
+identity with no `Configured` (`tests.rs`'s `domain()` and
+`routing_domain()`, `adoption.rs`, `reconcile.rs`, `demo.rs`) are
+hand-built worlds; `fr-seed-worlds` moves them to records, so the
+connector's test files change here only by the `&[]` argument. The
+seed path is not weakened: the service passes both empty, and
+`tests/seed.rs` passes both empty. A non-empty seed beside either old
+parameter is an `api::Error` at construction.
+
+The service uses the seed alone, so its tests' fixtures must hold one:
+the files added to the header may change only so that
+`fixtures::engine()` (and each setup test that mutates the document's
+forges, identities or setup entries in its `settings::Engine`) sets
+`seed` from its document by `startup::seed::seed`, recomputed after the
+mutation (D1: a fixture naming forges in its document keeps doing so);
+no `Forge` record is built by hand there. Two expectations the task
+makes plainly wrong change too, and are listed in the report:
+`startup.rs`'s `a_missing_setup_or_demo_is_refused_naming_its_path`
+drops its `setup` case (absent `setup` is accepted; rename it
+`a_missing_demo_is_refused_naming_its_path`), and `engine.rs`'s
+`startup_admission_does_not_promise_a_connected_forge` finds its one
+`Application` row among the `Forge` range's rows, the seed's `Forge`
+rows and `Forges` beside it. Every other assertion stays. If a service
+test still fails after its fixture holds the seed, stop and ask with
+the test and its log.
