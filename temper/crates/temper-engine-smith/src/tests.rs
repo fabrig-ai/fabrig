@@ -130,6 +130,14 @@ fn root_charter_becomes_a_smith_start_with_ordered_brief_and_exact_budget() {
     assert!(transcript.is_none());
 }
 
+fn goal_tools(timeout: Duration) -> Box<[run::HostTool]> {
+    let mut expected = tools(timeout);
+    for tool in &mut expected {
+        tool.reserve = tool.name.as_ref() == b"message";
+    }
+    expected
+}
+
 #[test]
 fn settings_tools_are_offered_only_with_the_runs_settings_family() {
     for allowed in [false, true] {
@@ -149,7 +157,7 @@ fn settings_tools_are_offered_only_with_the_runs_settings_family() {
             }
             assert_eq!(found, allowed);
         }
-        for tool in tools(Duration::from_secs(10)) {
+        for tool in goal_tools(Duration::from_secs(10)) {
             if tool.name.as_ref() != b"settings" && tool.name.as_ref() != b"propose_settings" {
                 assert!(charter.grants.host_tools.contains(&tool), "unchanged declaration: {:?}", tool.name);
             }
@@ -171,7 +179,7 @@ fn message_is_offered_only_with_the_runs_message_family() {
             let mut assignment = assignment();
             assignment.run.authority.tools = tasks::Tools(authority | if settings { families.settings } else { 0 });
             let charter = crate::charter(&assignment);
-            let expected = tools(Duration::from_secs(10));
+            let expected = goal_tools(Duration::from_secs(10));
             let mut offered = charter.grants.host_tools.iter();
             for tool in &expected {
                 if (!settings && (tool.name.as_ref() == b"settings" || tool.name.as_ref() == b"propose_settings"))

@@ -931,6 +931,75 @@ fn an_agreed_goal_finishing_before_asking_is_parked_then_woken_and_asks() {
 }
 
 #[test]
+fn an_agreed_goal_asks_in_its_reserve_turn() {
+    use skein_fake_llm_domain::api::{Line, Script};
+    use smith_agent_world::{Settings, fixture};
+
+    let (mut world, chat) = stock_world();
+    let task = goal(&mut world, &chat, false);
+    advance(&mut world);
+    let work = admitted(&world, task);
+    let mut charter = temper_engine_smith::charter(&work);
+    let mut settings = Settings::calm(713);
+    settings.limits.run.host_tools = u32::try_from(charter.grants.host_tools.len()).expect("stock tool count");
+    settings.limits.run.brief_sections = u32::try_from(charter.brief.sections.len()).expect("stock sections");
+    // The fake provider supplies the model binding; stock turns and reserve stay unchanged.
+    charter.llm = smith_agent_world::scripted_charter(&settings).llm;
+    charter.models = Box::new([]);
+    let input = format!(
+        r#"{{"target":{},"form":"question","words":"{}"}}"#,
+        chat.task,
+        core::str::from_utf8(PLAN).expect("plan text")
+    );
+    let mut turns = Vec::new();
+    for _ in 0..charter.budget.turns - charter.reserve.turns {
+        turns.push(fixture::calls(
+            Box::new([Line::Call { name: b"finish".as_slice().into(), arguments: b"{}".as_slice().into() }]),
+            OUTPUT_PER_TURN,
+        ));
+    }
+    turns.push(fixture::calls(
+        Box::new([Line::Call { name: b"message".as_slice().into(), arguments: input.as_bytes().into() }]),
+        OUTPUT_PER_TURN,
+    ));
+    let scripts = Box::new([Script { cue: WORK_WORDS.into(), turns: turns.into() }]);
+    let mut agent = smith_agent_world::World::with_workspace_scripts_charter(
+        settings,
+        None,
+        None,
+        temper_fake_checkout::Checkout::new(),
+        scripts,
+        charter,
+    );
+    agent.run(20_000);
+    let [question] = agent.host_submissions() else { panic!("reserve question was not relayed: {:?}", agent.answer()) };
+    let temper_engine_smith::Decoded::Call(decoded) =
+        temper_engine_smith::call(question.name, &question.tool, &question.input).expect("message decoded")
+    else {
+        panic!("message reaches the root")
+    };
+    let engine::CallAnswer::Sent { message } = call(&mut world, &work, decoded.tool) else {
+        panic!("reserve question accepted")
+    };
+    let reads::Answer::Page(inbox) = world.party_read(reads::Read::Inbox {
+        group: reads::Group::Questions,
+        filter: reads::Filter { project: Some(PROJECT), goal: None },
+        from: None,
+    }) else {
+        panic!("person's question inbox")
+    };
+    assert!(inbox.rows.as_slice().iter().any(|row| matches!(row,
+        reads::PageRow::Inbox(entry) if entry.object == documents::InboxObject::Question { message })));
+    let reads::Answer::Document(document) = world.party_read(reads::Read::Question { task: chat.task, message }) else {
+        panic!("person can read the reserve question")
+    };
+    let documents::Document::Question(question) = document.as_ref() else { panic!("question document") };
+    assert_eq!(question.words.bytes.as_ref(), PLAN);
+    assert!(record(&world, task).asked_requester);
+    assert_eq!(world.merges, 0);
+}
+
+#[test]
 fn an_agreed_goal_changes_once_answered() {
     let (mut world, chat, work, question) = questioning_goal();
     answer(&mut world, &chat, CHAT_TURNS, tasks::End::Parked);

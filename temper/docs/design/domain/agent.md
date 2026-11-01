@@ -633,6 +633,7 @@ today's, until those land.
   the person's inbox, and answers the goal once it has the person's
   answer. The rest of this section is today's route, which this
   replaces once jig's rule is built.
+- Every Finite charter 1 run keeps `message` in smith's reserve; the owing fact is enforced at the root and is not known when the worker builds the charter.
 - **The goal asks its requester,** the chat, with `message` in the
   question form, before it calls `change`, and waits. jig puts the
   question in the inbox of the chat's person, since the person requested
