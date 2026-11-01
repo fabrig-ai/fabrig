@@ -67,6 +67,25 @@ enum Part {
 }
 const HOLDS: [Holds; samples::N] = [
     Holds {
+        name: "connect-forge-no-records",
+        heading: "Connect a forge",
+        parts: &[
+            Part::Named { role: Role::Region, name: "GitHub" },
+            Part::Named { role: Role::Region, name: "Forgejo on this machine" },
+            Part::Named { role: Role::Region, name: "A Forgejo elsewhere" },
+        ],
+    },
+    Holds {
+        name: "connect-forge-elsewhere",
+        heading: "Connect a forge",
+        parts: &[
+            Part::Named { role: Role::TextField, name: "API address" },
+            Part::Named { role: Role::TextField, name: "Git address" },
+            Part::Named { role: Role::TextField, name: "Web address" },
+            Part::Named { role: Role::Button, name: "Add this Forgejo" },
+        ],
+    },
+    Holds {
         name: "chat-first-run-7-T1",
         heading: "T1 · Add CSV export to widget",
         parts: &[Part::Named { role: Role::Status, name: "Closed 21:19" }],
