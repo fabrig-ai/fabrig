@@ -70,25 +70,33 @@ pub(super) fn parse(word: &[u8]) -> Option<Condition> {
         }
     })
 }
+/// A phase's word in any ASCII case; `backing-off` also `BackingOff` and `--json`'s `backing_off`.
 #[must_use]
 pub fn phase(word: &[u8]) -> Option<Phase> {
-    Some(match word {
-        b"waiting" => Phase::Waiting,
-        b"idle" => Phase::Idle,
-        b"due" => Phase::Due,
-        b"preparing" => Phase::Preparing,
-        b"claimed" => Phase::Claimed,
-        b"running" => Phase::Running,
-        b"backing-off" => Phase::BackingOff,
-        b"active" => Phase::Active,
-        b"closing" => Phase::Closing,
-        b"held" => Phase::Held,
-        b"ended" => Phase::Ended,
-        b"done" => Phase::Done,
-        b"failed" => Phase::Failed,
-        b"cancelled" => Phase::Cancelled,
-        _ => return None,
-    })
+    for phase in [
+        Phase::Waiting,
+        Phase::Idle,
+        Phase::Due,
+        Phase::Preparing,
+        Phase::Claimed,
+        Phase::Running,
+        Phase::BackingOff,
+        Phase::Active,
+        Phase::Closing,
+        Phase::Held,
+        Phase::Ended,
+        Phase::Done,
+        Phase::Failed,
+        Phase::Cancelled,
+    ] {
+        if word.eq_ignore_ascii_case(phase_word(phase)) {
+            return Some(phase);
+        }
+    }
+    if word.eq_ignore_ascii_case(b"backingoff") || word.eq_ignore_ascii_case(b"backing_off") {
+        return Some(Phase::BackingOff);
+    }
+    None
 }
 #[must_use]
 pub fn phase_word(phase: Phase) -> &'static [u8] {
