@@ -269,6 +269,26 @@ const HOLDS: [Holds; samples::N] = [
         parts: &[Part::Named { role: Role::Link, name: "Open widget" }],
     },
     Holds {
+        name: "welcome-forge-not-finished",
+        heading: "Connect a forge",
+        parts: &[
+            Part::Named { role: Role::Heading { level: 2 }, name: "Forgejo on this machine · not finished" },
+            Part::Named { role: Role::Button, name: "Start over" },
+            Part::Named { role: Role::Link, name: "View" },
+            Part::Absent { role: Role::Button, name: "Go on" },
+        ],
+    },
+    Holds {
+        name: "welcome-forge-go-on",
+        heading: "Connect a forge",
+        parts: &[
+            Part::Named { role: Role::Heading { level: 2 }, name: "GitHub · not finished" },
+            Part::Named { role: Role::Button, name: "Go on" },
+            Part::Named { role: Role::Button, name: "Start over" },
+            Part::Named { role: Role::Link, name: "View" },
+        ],
+    },
+    Holds {
         name: "welcome-forge-choose",
         heading: "Connect a forge",
         parts: &[

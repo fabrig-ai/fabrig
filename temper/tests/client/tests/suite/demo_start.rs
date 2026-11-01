@@ -258,7 +258,7 @@ fn a_model_connected_removes_the_scripted_account_and_leaves_the_playground_forg
     assert!(root.person().forge().demo().is_none());
 }
 #[test]
-fn a_forge_connected_clears_the_demo_everywhere_and_welcome_moves_when_a_model_is_usable() {
+fn a_forge_connected_clears_the_demo_and_welcome_resumes_forge_until_adoption() {
     let (mut front, mut root) = accounts::demo_fixture(f::SEED, &w::PlaygroundState::Running);
     assert!(demo_account(&mut front, &mut root));
     go(&mut front, &mut root, Address::Forges);
@@ -280,7 +280,7 @@ fn a_forge_connected_clears_the_demo_everywhere_and_welcome_moves_when_a_model_i
     // account before reopening Welcome, exercising both sources of usable facts.
     add_model(&mut front, &mut root);
     assert_eq!(go(&mut front, &mut root, Address::Welcome { step: Step::Welcome }), 1);
-    assert_eq!(root.person().pages().address(), &Address::Chats { filter: ChatsFilter::All, start: false });
+    assert_eq!(root.person().pages().address(), &Address::Welcome { step: Step::Forge { forge: None } });
     assert_eq!(front.demo_starts.len(), 0);
     assert_eq!(front.demo_removals.len(), 0);
 }

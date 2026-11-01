@@ -11,6 +11,11 @@ use skein_ui::{
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Word {
     ForgeAskRemove,
+    ForgeNotFinished,
+    ForgeGoOn,
+    ForgeStartOver,
+    ForgeStartOverBody,
+    ForgeStartOverOwned,
     ForgeRemoveTitle,
     ForgeRemove,
     ForgeKeep,
@@ -682,11 +687,16 @@ pub enum Word {
 // The paste of a sign-in's address adds fifteen phrases and twenty-one segments.
 // M1's Model details add eight phrases and sixteen segments.
 // The welcome's Forgejo card adds four literal phrases and segments.
-const PHRASES: u32 = 1197;
-const SEGMENTS: u32 = 2094;
+const PHRASES: u32 = 1202;
+const SEGMENTS: u32 = 2101;
 // Thirteen forge removal phrases join the 602 frame and forge phrases.
-const ALL: [Word; 615] = [
+const ALL: [Word; 620] = [
     Word::ForgeAskRemove,
+    Word::ForgeNotFinished,
+    Word::ForgeGoOn,
+    Word::ForgeStartOver,
+    Word::ForgeStartOverBody,
+    Word::ForgeStartOverOwned,
     Word::ForgeRemoveTitle,
     Word::ForgeRemove,
     Word::ForgeKeep,
@@ -1306,6 +1316,11 @@ impl Word {
     #[expect(clippy::too_many_lines, reason = "one exhaustive table keeps the frame phrase IDs stable")]
     fn id(self, connector: u16) -> PhraseId {
         let number = match self {
+            Self::ForgeNotFinished => 4025,
+            Self::ForgeGoOn => 4026,
+            Self::ForgeStartOver => 4027,
+            Self::ForgeStartOverBody => 4028,
+            Self::ForgeStartOverOwned => 4029,
             Self::ForgeAskRemove => 4012,
             Self::ForgeRemoveTitle => 4013,
             Self::ForgeRemove => 4014,
@@ -2350,6 +2365,11 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ForgeTerminal => (&[b"Set it up from a terminal"], &[]),
         Word::ForgeTerminalNext => (&[b"Once it is connected, make your first repository here."], &[]),
         Word::ForgeTerminalDetails => (&[b"temper was not started by temper box, so it does not start a Forgejo itself. Run these, keep the last two running (a service manager is best), then restart temper:"], &[]),
+        Word::ForgeNotFinished => (&[b"", b" \xc2\xb7 not finished"], &[Name]),
+        Word::ForgeGoOn => (&[b"Go on"], &[]),
+        Word::ForgeStartOver => (&[b"Start over"], &[]),
+        Word::ForgeStartOverBody => (&[b"Start over removes this forge and its records; the choices open again."], &[]),
+        Word::ForgeStartOverOwned => (&[b"Forgejo on this machine is set up afresh; its downloaded binaries are kept."], &[]),
         Word::ForgeAskRemove => (&[b"Remove forge\xe2\x80\xa6"], &[]),
         Word::ForgeRemoveTitle => (&[b"Remove forge ", b"?"], &[Number]),
         Word::ForgeRemove => (&[b"Remove forge"], &[]),

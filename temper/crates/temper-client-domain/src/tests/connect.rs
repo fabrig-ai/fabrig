@@ -1369,3 +1369,38 @@ fn a_begun_record_of_a_kind_draws_no_card_of_that_kind() {
     ]));
     assert_eq!(connect::cards(&state, None).as_slice(), &[connect::Card::Elsewhere]);
 }
+
+#[test]
+fn a_made_first_repository_makes_a_connected_real_forge_whole() {
+    for (state, whole) in [
+        (forges::FirstState::Making, false),
+        (forges::FirstState::Failed { step: forges::CreateStep::Repository }, false),
+        (forges::FirstState::Made { id: 42 }, true),
+    ] {
+        let mut row =
+            row(HERE, Kind::Forgejo, Mode::Owned, C::Connected { id: 1, login: Box::default() }, Offer::Offered);
+        assert!(!connect::whole(&row));
+        row.first = Some(first(state));
+        assert_eq!(connect::whole(&row), whole);
+        row.mode = Mode::Fake;
+        assert!(!connect::whole(&row));
+        row.mode = Mode::Owned;
+        row.connection = C::NotConnected;
+        assert!(!connect::whole(&row));
+        assert!(connect::begun(&row));
+    }
+}
+#[test]
+fn unfinished_skips_the_playground_fakes_and_untouched_choices() {
+    let demo = forge::family::demo(&demo::answer(b"title"), &w::CEILINGS).unwrap();
+    let state = State::Rows(Box::new([
+        row(demo.forge, Kind::Forgejo, Mode::Owned, C::Connecting, Offer::Offered),
+        row(2, Kind::Forgejo, Mode::Fake, C::Connecting, Offer::Offered),
+        row(3, Kind::Forgejo, Mode::Owned, C::NotSetUp, Offer::Offered),
+        row(4, Kind::Forgejo, Mode::Managed, C::Stopped { reason: Box::default() }, Offer::NotOffered),
+        row(5, Kind::Forgejo, Mode::Managed, C::Connecting, Offer::NotOffered),
+    ]));
+    assert_eq!(connect::unfinished(&state, Some(&demo)).unwrap().number, 4);
+    assert!(connect::unfinished(&State::Unknown, None).is_none());
+    assert!(connect::unfinished(&State::Ended, None).is_none());
+}

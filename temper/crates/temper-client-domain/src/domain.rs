@@ -153,13 +153,15 @@ fn welcome(root: &mut Domain, out: &mut Queue<Request>) {
     if page.decided {
         return;
     }
-    if let Some(over) = crate::pages::welcome::decision(root) {
+    if let Some(state) = crate::pages::welcome::state(root) {
         root.pages.decide_welcome();
-        if over {
-            out.push(Request::Show {
-                address: crate::Address::Chats { filter: crate::ChatsFilter::All, start: false },
-                replace: true,
-            });
-        }
+        let address = match state {
+            crate::pages::welcome::State::Whole => {
+                crate::Address::Chats { filter: crate::ChatsFilter::All, start: false }
+            }
+            crate::pages::welcome::State::Unfinished(step) => crate::Address::Welcome { step },
+            crate::pages::welcome::State::Empty => return,
+        };
+        out.push(Request::Show { address, replace: true });
     }
 }

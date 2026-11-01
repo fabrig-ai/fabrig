@@ -16,6 +16,7 @@ pub enum RemoveAnswer {
 pub struct Removal {
     pub forge: u16,
     pub confirming: bool,
+    pub start_over: bool,
     pub request: Option<Token>,
     pub progress: Option<RequestProgress>,
     pub answer: Option<RemoveAnswer>,
@@ -92,11 +93,11 @@ pub(crate) fn busy(side: &Side) -> bool {
         None => false,
     }
 }
-pub(crate) fn confirm(side: &mut Side, forge: u16) {
+pub(crate) fn confirm(side: &mut Side, forge: u16, start_over: bool) {
     if busy(side) || !listed(side, forge) {
         return;
     }
-    side.removal = Some(Removal { forge, confirming: true, request: None, progress: None, answer: None });
+    side.removal = Some(Removal { forge, start_over, confirming: true, request: None, progress: None, answer: None });
     side.changed();
 }
 pub(crate) fn keep(side: &mut Side) {
@@ -119,8 +120,10 @@ pub(crate) fn send(side: &mut Side, limits: Limits, forge: u16, out: &mut Queue<
     let Some(ask) = ask(forge, &limits) else { return };
     side.serial = side.serial.checked_add(1).expect("forge request serial fits");
     let request = Token::new(side.serial);
+    let start_over = removal.start_over;
     side.removal = Some(Removal {
         forge,
+        start_over,
         confirming: false,
         request: Some(request),
         progress: Some(RequestProgress::Parked),

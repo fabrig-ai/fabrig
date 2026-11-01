@@ -350,7 +350,7 @@ fn remove_control(
 ) {
     b.open(Role::Button);
     b.name(&w.say(word, &[]));
-    if word == Word::ForgeRemove {
+    if word == Word::ForgeRemove || word == Word::ForgeStartOver {
         b.style(look::TASK_DANGER);
     }
     if disabled {
@@ -360,7 +360,7 @@ fn remove_control(
     }
     b.close();
 }
-fn removal(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut ForgeBindings, row: &Row) {
+pub(super) fn removal(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut ForgeBindings, row: &Row) {
     use super::bindings::Meaning;
     use forge::removing::RemoveAnswer;
     let removal = root.forge().removal();
@@ -379,14 +379,25 @@ fn removal(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut ForgeBindin
     let number = &[Hole::Number(u64::from(row.number))];
     if removal.confirming || removal.progress.is_some() {
         b.open(Role::Alert);
-        crate::cards::text(b, Role::Heading { level: 3 }, &w.say(Word::ForgeRemoveTitle, number));
-        connect::text(b, w, Role::Paragraph, Word::ForgeRemoveBody);
+        if !removal.start_over {
+            crate::cards::text(b, Role::Heading { level: 3 }, &w.say(Word::ForgeRemoveTitle, number));
+        }
+        connect::text(
+            b,
+            w,
+            Role::Paragraph,
+            if removal.start_over { Word::ForgeStartOverBody } else { Word::ForgeRemoveBody },
+        );
         match row.kind {
             Kind::Forgejo => connect::text(
                 b,
                 w,
                 Role::Paragraph,
-                if row.mode == Mode::Owned { Word::ForgeRemoveOwned } else { Word::ForgeRemoveManaged },
+                if row.mode == Mode::Owned {
+                    if removal.start_over { Word::ForgeStartOverOwned } else { Word::ForgeRemoveOwned }
+                } else {
+                    Word::ForgeRemoveManaged
+                },
             ),
             Kind::GitHub => {
                 connect::text(b, w, Role::Paragraph, Word::ForgeRemoveGitHub);
@@ -405,7 +416,14 @@ fn removal(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut ForgeBindin
         b.open(Role::Slot);
         b.style(look::TASK_ACTS);
         let disabled = busy || root.forge().served() == forge::Served::OutOfDate;
-        remove_control(b, w, bindings, Word::ForgeRemove, Meaning::RemoveForge(row.number), disabled);
+        remove_control(
+            b,
+            w,
+            bindings,
+            if removal.start_over { Word::ForgeStartOver } else { Word::ForgeRemove },
+            Meaning::RemoveForge(row.number),
+            disabled,
+        );
         remove_control(b, w, bindings, Word::ForgeKeep, Meaning::KeepForge, busy);
         b.close();
         b.close();
@@ -427,6 +445,13 @@ fn removal(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut ForgeBindin
         }
     }
     if !busy && !removal.confirming {
-        remove_control(b, w, bindings, Word::ForgeAskRemove, Meaning::AskRemove(row.number), false);
+        remove_control(
+            b,
+            w,
+            bindings,
+            if removal.start_over { Word::ForgeStartOver } else { Word::ForgeAskRemove },
+            if removal.start_over { Meaning::StartOver(row.number) } else { Meaning::AskRemove(row.number) },
+            false,
+        );
     }
 }

@@ -218,7 +218,7 @@ fn model_follows_forgejo_from_setup_to_its_first_repository() {
 }
 
 #[test]
-fn a_connected_forge_and_usable_model_remove_the_setup_strip_and_dot() {
+fn a_connected_forge_and_usable_model_keep_setup_until_a_repository_is_adopted() {
     use d::pages::connect_model::Act as A;
     let (mut front, mut root) = accounts::forge_fixture(fixtures::SEED);
     let mut now = Time::ZERO.saturating_add(Duration::from_secs(1));
@@ -249,7 +249,11 @@ fn a_connected_forge_and_usable_model_remove_the_setup_strip_and_dot() {
         d::Event::Went { place: d::Place::Address(Address::Chats { filter: ChatsFilter::All, start: false }) },
     );
     let ready = view(&root);
-    assert!(!ready.tree().nodes().iter().any(|n| n.role == Role::Region && n.name.as_deref() == Some(b"Setup")));
+    node(&ready, Role::Region, b"Setup");
+    assert_eq!(
+        d::pages::welcome::state(root.person()),
+        Some(d::pages::welcome::State::Unfinished(Step::Forge { forge: None }))
+    );
     assert!(!ready.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&temper_client_view::look::NAV_LIMITED)
         || n.styles.as_slice().contains(&temper_client_view::look::NAV_NEEDS)));
 }
@@ -266,6 +270,11 @@ fn github_ready_picks_adopts_into_a_new_project_and_stays_adopted_after_reload()
             place: d::Place::Address(Address::Welcome { step: Step::Forge { forge: Some(Choice::Forge(1)) } }),
         },
     );
+    let mut unfinished = view(&root);
+    node(&unfinished, Role::Heading { level: 2 }, "GitHub · not finished".as_bytes());
+    let open = node(&unfinished, Role::Link, b"View");
+    let action = temper_client_view::act(&mut unfinished, open, skein_ui::Act::Press).expect("view forge");
+    pump(&mut front, &mut root, &mut now, d::Event::Act { action });
     let mut picker = view(&root);
     node(&picker, Role::Heading { level: 2 }, b"Choose a repository to start in");
     let row = node(&picker, Role::Choice, b"acme/second");

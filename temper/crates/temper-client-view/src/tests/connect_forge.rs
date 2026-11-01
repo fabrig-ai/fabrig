@@ -913,12 +913,25 @@ fn connecting_on_github_offers_install_with_its_way_back() {
     ] {
         let root = f::forge_root(address.clone(), github_rows(false));
         let view = f::browser_page_view(&root);
-        words_in_order(
-            view.tree(),
-            &["Install temper’s App", "my-app is connected to temper, and installed nowhere yet.", "Install on GitHub"],
-        );
+        let control = if let Address::Welcome { .. } = address {
+            words_in_order(
+                view.tree(),
+                &["GitHub · not finished", "no installation accepted yet", "Go on", "Start over"],
+            );
+            b"Go on".as_slice()
+        } else {
+            words_in_order(
+                view.tree(),
+                &[
+                    "Install temper’s App",
+                    "my-app is connected to temper, and installed nowhere yet.",
+                    "Install on GitHub",
+                ],
+            );
+            b"Install on GitHub".as_slice()
+        };
         let mut view = f::browser_page_view(&root);
-        let button = node(view.tree(), Role::Button, b"Install on GitHub");
+        let button = node(view.tree(), Role::Button, control);
         assert_eq!(
             crate::act(&mut view, button, Act::Press),
             Some(d::Action::Forge(d::forge::Act::Install { forge: GITHUB, back: d::address::print(&address) }))

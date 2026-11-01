@@ -41,6 +41,7 @@ pub enum Act {
     ElsewhereWrite { field: super::making::Field, text: Box<[u8]> },
     MakeElsewhere,
     AskRemove { forge: u16 },
+    StartOver { forge: u16 },
     KeepForge,
     RemoveForge { forge: u16 },
     Go { address: Address },

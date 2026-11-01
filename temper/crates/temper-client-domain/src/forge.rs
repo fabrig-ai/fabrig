@@ -273,7 +273,8 @@ pub fn step(side: &mut Side, env: &Env<Limits>, event: Event, out: &mut Queue<Re
 }
 fn act_on(side: &mut Side, limits: Limits, act: Act, out: &mut Queue<Request>) {
     match act {
-        Act::AskRemove { forge } => removing::confirm(side, forge),
+        Act::AskRemove { forge } => removing::confirm(side, forge, false),
+        Act::StartOver { forge } => removing::confirm(side, forge, true),
         Act::KeepForge => removing::keep(side),
         Act::RemoveForge { forge } => removing::send(side, limits, forge, out),
         Act::MakeAndSetUp => making::send(side, limits, making::MakeChoice::Here, making::Then::SetUp, out),

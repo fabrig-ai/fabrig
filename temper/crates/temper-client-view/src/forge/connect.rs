@@ -180,8 +180,20 @@ pub(crate) fn welcome(
     choice: Option<Choice>,
     sign_in: &crate::forge_sign_in::Forges,
 ) {
-    if let Some(row) = personal(root) {
-        if row.admin {
+    let unfinished = connect::unfinished(root.forges(), root.forge().demo());
+    let row = match unfinished {
+        Some(row) => Some(row),
+        None => personal(root),
+    };
+    if let Some(row) = row {
+        let github_unaccepted = if let Connection::Connected { .. } = row.connection {
+            row.kind == Kind::GitHub && !forge::forges::accepted(row)
+        } else {
+            false
+        };
+        if unfinished.is_some() && (!connect::underway(row) || github_unaccepted) {
+            not_finished(b, root, w, bindings, forge, row);
+        } else if row.admin {
             match connect::step(Some(Choice::Forge(row.number)), root.forges(), root.forge().demo()) {
                 Shown::Details(_) => admin_details(b, root, w, forge, row),
                 Shown::Ready(_) => ready_card(b, root, w, bindings, forge, row, sign_in),
@@ -207,6 +219,42 @@ pub(crate) fn welcome(
     } else {
         body(b, root, w, bindings, forge, choice, Place::Welcome);
     }
+}
+fn not_finished(
+    b: &mut Builder,
+    root: &Domain,
+    w: &Words,
+    bindings: &mut Bindings,
+    forge: &mut ForgeBindings,
+    row: &Row,
+) {
+    flow::card(b, &w.say(Word::ForgeNotFinished, &[Hole::Name(name(w, row, root))]));
+    status(b, root, w, row, false);
+    first_line(b, root, w, row);
+    if connect::failed(row) {
+        progress_in(b, Some(root), w, row);
+    }
+    let removal = root.forge().removal();
+    let starting_over = match removal {
+        Some(removal) => removal.forge == row.number && removal.start_over,
+        None => false,
+    };
+    if starting_over {
+        super::forges::removal(b, root, w, forge, row);
+    } else {
+        if row.kind == Kind::GitHub {
+            app_control(b, root, w, forge, row.number, Word::ForgeGoOn, Some(root.pages().address().clone()));
+        }
+        flow::control(
+            b,
+            Control::Button {
+                name: &w.say(Word::ForgeStartOver, &[]),
+                to: forge.insert(Meaning::StartOver(row.number)),
+            },
+        );
+    }
+    link(b, w, bindings, Word::ForgeView, Address::ConnectForge { forge: Some(Choice::Forge(row.number)) });
+    b.close();
 }
 fn card_choice(card: connect::Card) -> Choice {
     match card {
