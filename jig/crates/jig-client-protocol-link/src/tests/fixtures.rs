@@ -135,6 +135,7 @@ impl Harness {
             | Request::Signing { .. }
             | Request::ServiceCredential { .. }
             | Request::Authorized(_)
+            | Request::StreamsFull { .. }
             | Request::Fact { .. }) => {
                 panic!("expected exchange: {other:?}")
             }
@@ -171,6 +172,7 @@ impl Harness {
                 | Request::Signing { .. }
                 | Request::ServiceCredential { .. }
                 | Request::Authorized(_)
+                | Request::StreamsFull { .. }
                 | Request::Fact { .. } => {}
             }
         }
@@ -204,6 +206,7 @@ impl Harness {
                 | Request::Signing { .. }
                 | Request::ServiceCredential { .. }
                 | Request::Authorized(_)
+                | Request::StreamsFull { .. }
                 | Request::Fact { .. } => {}
             }
         }

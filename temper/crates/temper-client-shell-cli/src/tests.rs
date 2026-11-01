@@ -2,6 +2,7 @@ pub(crate) mod fixtures;
 use crate::{directory, limits};
 use skein_io::kernel::{Exit, ServiceSignal};
 const SIGN_IN_FIRST: skein_lib::Duration = skein_lib::Duration::from_millis(100);
+const DEADLINE_TICK: skein_lib::Duration = skein_lib::Duration::from_nanos(1); // The clock's smallest step.
 const SIGN_IN_FILE_CALL: &[u8] = br#"{"tool":"sign-in","arguments":{"file":"link-file"}}"#;
 #[test]
 fn memory_exchanges_wait_for_closing_sockets() {
@@ -150,6 +151,43 @@ fn an_unheard_read_exits_1_at_the_link_deadline() {
     f.advance_past(limits::DEADLINE);
     assert_eq!(f.stderr(), b"temper ctl: the engine at http://127.0.0.1:4000 did not answer within 30 s\n");
     assert_eq!(f.exit(), Some(Exit::Code(1)));
+}
+#[test]
+fn streams_full_exits_one_at_the_link_deadline() {
+    for bound in [jig_client_protocol_wire::StreamBound::Component, jig_client_protocol_wire::StreamBound::Transport] {
+        for words in [&["me"][..], &["task", "show", "41", "--until", "changed"][..]] {
+            let mut f = fixtures::Engine::full_streams(words, bound.clone(), fixtures::FULL_STREAMS);
+            f.advance_past(skein_lib::Duration::from_nanos(limits::DEADLINE.as_nanos() - DEADLINE_TICK.as_nanos()));
+            assert_eq!(f.exit(), None);
+            assert!(f.stderr().is_empty());
+            f.advance_past(DEADLINE_TICK);
+            assert_eq!(f.exit(), Some(Exit::Code(1)));
+            assert_eq!(f.stderr(), b"temper ctl: the engine's 2 streams are all in use, by waits and open clients; end one, or wait and call again\n");
+            assert!(f.stderr().len() <= 240);
+            assert!(f.stdout().is_empty());
+        }
+    }
+}
+#[test]
+fn streams_full_uses_the_reported_size_within_the_diagnostic_bound() {
+    let mut f = fixtures::Engine::full_streams(&["me"], jig_client_protocol_wire::StreamBound::Transport, u32::MAX);
+    f.advance_past(limits::DEADLINE);
+    assert_eq!(f.exit(), Some(Exit::Code(1)));
+    assert_eq!(f.stderr(), b"temper ctl: the engine's 4294967295 streams are all in use, by waits and open clients; end one, or wait and call again\n");
+    assert!(f.stderr().len() <= 240);
+}
+#[test]
+fn streams_full_retries_and_succeeds_when_a_stream_frees_before_the_deadline() {
+    for bound in [jig_client_protocol_wire::StreamBound::Component, jig_client_protocol_wire::StreamBound::Transport] {
+        let mut f = fixtures::Engine::full_streams(&["me", "--json"], bound, fixtures::FULL_STREAMS);
+        f.streams_full = None;
+        f.sign_in_then_deliver_me();
+        f.advance_past(limits::native().root.domain.client.domain.backoff.first);
+        assert_eq!(f.exit(), Some(Exit::Code(0)));
+        assert!(f.stdout().starts_with(b"{\""));
+        assert!(f.stderr().is_empty());
+        assert_eq!(f.host.root.client().link().streams_full, None);
+    }
 }
 #[test]
 fn a_read_sends_no_stream_gone() {
@@ -495,6 +533,24 @@ fn sign_in_dash_reads_stdin() {
     assert_eq!(f.exit(), Some(Exit::Code(0)));
 }
 #[test]
+fn sign_in_dash_refuses_empty_stdin() {
+    for input in [b"".as_slice(), b"\n"] {
+        let mut f = fixtures::Disk::act(&[b"sign-in", b"-"]);
+        f.input = input;
+        f.drain();
+        assert_eq!(f.exit(), Some(Exit::Code(1)));
+        assert_eq!(
+            f.stderr(),
+            b"temper ctl: sign-in: stdin held no link; give the box's sign-in link on stdin: temper ctl DIR sign-in -\n"
+        );
+        assert!(f.stderr().len() <= 240);
+        assert_eq!(f.requests(), 0);
+        assert_eq!(f.stdout(), b"");
+        assert_eq!(f.stored(b"token"), None);
+        assert_eq!(f.stored(b"address"), None);
+    }
+}
+#[test]
 fn close_kept_line() {
     let mut f = fixtures::Disk::act_with(fixtures::local::kept_close());
     f.answer_kept();
@@ -689,6 +745,27 @@ fn usage_exits_1_before_directory_opens() {
         b"temper ctl: usage: temper ctl DIR GROUP VERB [ARGUMENT...]; temper ctl help GROUP VERB prints one tool\n"
     );
     assert!(f.no_directory());
+}
+#[test]
+fn a_json_argument_refusal_names_the_tool_before_opening_the_directory() {
+    for path in ["-", "/elsewhere/call.json"] {
+        let mut f = fixtures::Frame::read(&["--call", path]);
+        let call = br#"{"tool":"task activity","arguments":{"task":2,"limit":40}}"#;
+        if path == "-" {
+            f.input = call;
+        } else {
+            f.link = call;
+        }
+        f.drain();
+        assert_eq!(f.exit(), Some(Exit::Code(1)));
+        assert_eq!(
+            f.stderr(),
+            b"temper ctl: task activity: --limit COUNT takes a count from 1 to 32; temper ctl help task activity\n"
+        );
+        assert!(f.stdout().is_empty());
+        assert!(!f.opened(b"directory"));
+        assert_eq!(f.requests(), 0);
+    }
 }
 #[test]
 fn a_terminal_task_phase_names_until_ended_and_sends_nothing() {

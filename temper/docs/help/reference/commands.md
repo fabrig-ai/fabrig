@@ -142,7 +142,7 @@ Act in a deployment as one party, one call a process: the agents' command line.
 - `VERB`: One of the group's tools; temper ctl help GROUP lists them.
 - `FILE`: One call as JSON, {"tool": "GROUP VERB", "arguments": {...}}, or - for stdin.
 
-temper ctl help prints how to work through it, then the groups.
+temper ctl help prints how to work through it, then the groups. A call holds one of the engine's streams while it runs, a wait for its whole span; past the engine's bound a call says so.
 
 ## temper open
 

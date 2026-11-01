@@ -17,22 +17,22 @@ pub(super) fn valid(
     limits: &Limits,
 ) -> Result<(), Usage> {
     if spec.place == Place::Switch {
-        return if *value == Value::Switch { Ok(()) } else { Err(Usage::Kind { argument }) };
+        return if *value == Value::Switch { Ok(()) } else { Err(Usage::Kind { tool: 0, form: 0, argument }) };
     }
     let correct = match spec.kind {
         Kind::Number | Kind::Count | Kind::NumberRange { .. } => return valid_number(spec, value, argument, limits),
         Kind::NamedNumber { words, prefixes, .. } => {
             let Value::Text(bytes) = value else {
-                return Err(Usage::Kind { argument });
+                return Err(Usage::Kind { tool: 0, form: 0, argument });
             };
             let Bound::Numbers { least, most } = bound(spec, limits) else {
-                return Err(Usage::Kind { argument });
+                return Err(Usage::Kind { tool: 0, form: 0, argument });
             };
             named_number(bytes, words, prefixes, least, most)
         }
         Kind::Word { set } => {
             let Value::Word(index) = value else {
-                return Err(Usage::Kind { argument });
+                return Err(Usage::Kind { tool: 0, form: 0, argument });
             };
             set.get(usize::from(*index)).is_some()
         }
@@ -42,56 +42,56 @@ pub(super) fn valid(
         Kind::Project { empty } => return valid_project(value, argument, empty),
         Kind::Turn => {
             let Value::Turn(_) = value else {
-                return Err(Usage::Kind { argument });
+                return Err(Usage::Kind { tool: 0, form: 0, argument });
             };
             true
         }
         Kind::Group => {
             let Value::Group(_) = value else {
-                return Err(Usage::Kind { argument });
+                return Err(Usage::Kind { tool: 0, form: 0, argument });
             };
             true
         }
         Kind::Order => {
             let Value::Order(_) = value else {
-                return Err(Usage::Kind { argument });
+                return Err(Usage::Kind { tool: 0, form: 0, argument });
             };
             true
         }
         Kind::Cursor => {
             let Value::Cursor(bytes) = value else {
-                return Err(Usage::Kind { argument });
+                return Err(Usage::Kind { tool: 0, form: 0, argument });
             };
             !bytes.is_empty()
         }
         Kind::Duration => return valid_duration(spec, value, argument, limits),
         Kind::Proposal => {
             let Value::Proposal(_) = value else {
-                return Err(Usage::Kind { argument });
+                return Err(Usage::Kind { tool: 0, form: 0, argument });
             };
             true
         }
         Kind::Digest => {
             let Value::Digest(_) = value else {
-                return Err(Usage::Kind { argument });
+                return Err(Usage::Kind { tool: 0, form: 0, argument });
             };
             true
         }
         Kind::Condition => {
             let Value::Condition(_) = value else {
-                return Err(Usage::Kind { argument });
+                return Err(Usage::Kind { tool: 0, form: 0, argument });
             };
             true
         }
 
         Kind::Tool => {
             let Value::Tool(id) = value else {
-                return Err(Usage::Kind { argument });
+                return Err(Usage::Kind { tool: 0, form: 0, argument });
             };
             table.get(usize::from(*id)).is_some()
         }
     };
-    if correct { Ok(()) } else { Err(Usage::Kind { argument }) }
+    if correct { Ok(()) } else { Err(Usage::Kind { tool: 0, form: 0, argument }) }
 }
 pub(crate) fn decode(table: &[&Tool], kind: Kind, bounds: Bound, word: &[u8]) -> Option<Value> {
     Some(match kind {
@@ -325,12 +325,12 @@ fn valid_text(spec: &Argument, value: &Value, argument: u8, limits: &Limits) -> 
         return Ok(());
     }
     let Value::Text(text) = value else {
-        return Err(Usage::Kind { argument });
+        return Err(Usage::Kind { tool: 0, form: 0, argument });
     };
     if let Bound::Bytes { most } = bound(spec, limits)
         && u64::try_from(text.len()).unwrap_or(u64::MAX) > most
     {
-        return Err(Usage::Long { argument });
+        return Err(Usage::Long { tool: 0, form: 0, argument });
     }
     Ok(())
 }
@@ -347,7 +347,7 @@ fn duration(word: &[u8]) -> Option<Duration> {
 
 fn valid_project(value: &Value, argument: u8, empty: bool) -> Result<(), Usage> {
     let Value::Project(project) = value else {
-        return Err(Usage::Kind { argument });
+        return Err(Usage::Kind { tool: 0, form: 0, argument });
     };
     match project {
         Project::Number(_) => Ok(()),
@@ -359,19 +359,23 @@ fn valid_project(value: &Value, argument: u8, empty: bool) -> Result<(), Usage> 
             for byte in name {
                 digits &= byte.is_ascii_digit();
             }
-            if name.is_empty() || digits { Err(Usage::Kind { argument }) } else { Ok(()) }
+            if name.is_empty() || digits { Err(Usage::Kind { tool: 0, form: 0, argument }) } else { Ok(()) }
         }
     }
 }
 
 fn valid_number(spec: &Argument, value: &Value, argument: u8, limits: &Limits) -> Result<(), Usage> {
     let Value::Number(number) = value else {
-        return Err(Usage::Kind { argument });
+        return Err(Usage::Kind { tool: 0, form: 0, argument });
     };
     if let Bound::Numbers { least, most } = bound(spec, limits)
         && (*number < least || *number > most)
     {
-        return Err(if spec.kind == Kind::Count { Usage::Rows { argument } } else { Usage::Kind { argument } });
+        return Err(if spec.kind == Kind::Count {
+            Usage::Rows { tool: 0, form: 0, argument }
+        } else {
+            Usage::Kind { tool: 0, form: 0, argument }
+        });
     }
     Ok(())
 }
@@ -392,14 +396,18 @@ fn named_number(word: &[u8], words: &[&[u8]], prefixes: &[&[u8]], min: u64, max:
 
 fn valid_duration(spec: &Argument, value: &Value, argument: u8, limits: &Limits) -> Result<(), Usage> {
     let Value::Duration(duration) = value else {
-        return Err(Usage::Kind { argument });
+        return Err(Usage::Kind { tool: 0, form: 0, argument });
     };
     if let Bound::Seconds { most } = bound(spec, limits)
         && *duration > Duration::from_secs(most)
     {
-        return Err(Usage::Rows { argument });
+        return Err(Usage::Rows { tool: 0, form: 0, argument });
     }
-    if duration.as_nanos().checked_rem(1_000_000_000) == Some(0) { Ok(()) } else { Err(Usage::Kind { argument }) }
+    if duration.as_nanos().checked_rem(1_000_000_000) == Some(0) {
+        Ok(())
+    } else {
+        Err(Usage::Kind { tool: 0, form: 0, argument })
+    }
 }
 fn bounded_number(word: &[u8], min: u64, max: u64) -> Option<u64> {
     let n = number(word)?;
@@ -419,7 +427,7 @@ fn valid_file(spec: &Argument, value: &Value, argument: u8, limits: &Limits) -> 
         return Ok(());
     }
     let Value::File(_) = value else {
-        return Err(Usage::Kind { argument });
+        return Err(Usage::Kind { tool: 0, form: 0, argument });
     };
     Ok(())
 }

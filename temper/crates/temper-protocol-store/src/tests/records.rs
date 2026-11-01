@@ -435,7 +435,9 @@ fn application(outcome: forge::ApplicationOutcome) -> forge::Stored {
 }
 fn application_refusals() -> Box<[jig_domain_people::Refusal]> {
     use jig_domain_people as p;
-    let mut rows = skein_lib::List::with_capacity(192);
+    // The refusal fixtures include three ceiling cases under all three proposal verdicts.
+    const REFUSAL_CASES: u32 = 201;
+    let mut rows = skein_lib::List::with_capacity(REFUSAL_CASES);
     rows.push(p::Refusal::NameTaken).expect("bounded application cases");
     for rule in [p::NameRule::Empty, p::NameRule::Long, p::NameRule::Control, p::NameRule::Space, p::NameRule::Digits] {
         rows.push(p::Refusal::NotWellFormed { at: 0, why: p::Malformed::Name(rule) })
@@ -475,6 +477,24 @@ fn application_refusals() -> Box<[jig_domain_people::Refusal]> {
         rows.push(p::Refusal::Role { held: Some(held) }).expect("bounded application cases");
     }
     for lacking in [
+        p::Lack::Ceiling {
+            holder: p::CeilingHolder::Rules,
+            dimension: p::CeilingDimension::PeriodSpend,
+            value: Some(1000),
+            asked: Some(1001),
+        },
+        p::Lack::Ceiling {
+            holder: p::CeilingHolder::Policy,
+            dimension: p::CeilingDimension::Tools,
+            value: None,
+            asked: None,
+        },
+        p::Lack::Ceiling {
+            holder: p::CeilingHolder::Role(0),
+            dimension: p::CeilingDimension::PeriodSpend,
+            value: Some(500),
+            asked: Some(499),
+        },
         p::Lack::HoldOwner { hold: u64::MAX, owner: p::HoldOwner::Party { person: u64::MAX } },
         p::Lack::HoldOwner { hold: u64::MAX, owner: p::HoldOwner::Task { task: u64::MAX } },
         p::Lack::Approver,

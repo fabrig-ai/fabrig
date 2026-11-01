@@ -176,3 +176,18 @@ fn a_lifted_outcome_names_the_hold_and_released_count() {
         b"Hold 7 lifted, 2 released"
     );
 }
+
+#[test]
+fn a_ceiling_refusal_has_its_own_english_phrase() {
+    let refusal = crate::contract::Refusal::Authority {
+        lacking: crate::contract::Lacking::Ceiling {
+            holder: crate::contract::CeilingHolder::Rules,
+            dimension: crate::contract::CeilingDimension::PeriodSpend,
+            value: Some(1000),
+            asked: Some(1001),
+        },
+        proposable: None,
+    };
+    let book = book(Box::new([words::english()]));
+    assert_eq!(book.say(0, Word::refusal(&refusal).id(), &[]).unwrap().text.as_ref(), b"Policy ceiling exceeded");
+}

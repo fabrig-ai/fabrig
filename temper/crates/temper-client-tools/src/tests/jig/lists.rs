@@ -41,7 +41,10 @@ fn a_composite_task_closes_its_related_watches() {
 }
 #[test]
 fn an_inbox_cursor_of_another_group_than_its_kind_exits_1() {
-    assert_eq!(fixtures::parse(fixtures::WRONG_INBOX_GROUP), Err(crate::jig::argv::Usage::Kind { argument: 3 }));
+    assert_eq!(
+        fixtures::parse(fixtures::WRONG_INBOX_GROUP),
+        Err(crate::jig::argv::Usage::Kind { tool: 1, form: 0, argument: 3 })
+    );
 }
 
 #[test]
@@ -208,7 +211,7 @@ fn parent_tasks_keep_the_other_query_keys_and_continuation() {
     for bad in ["x", "-1", "18446744073709551616"] {
         assert_eq!(
             fixtures::parse(&["task", "list", "--project", "3", "--parent", bad]),
-            Err(crate::jig::argv::Usage::Kind { argument: 7 })
+            Err(crate::jig::argv::Usage::Kind { tool: 2, form: 0, argument: 7 })
         );
     }
 }
@@ -247,9 +250,9 @@ fn tree_answer(folded: bool) -> crate::jig::Printed {
             })
             .expect("tree row");
     }
-    tree.folded = List::with_capacity(2);
-    // Independent parents ensure the summary adds every fold, not just the root's.
-    for (parent, waiting, running) in [(41, 1, 1), (42, 0, 1)] {
+    tree.folded = List::with_capacity(3);
+    // Independent parents contribute to the total; a repeated parent gets one read-on call.
+    for (parent, waiting, running) in [(41, 1, 1), (42, 0, 1), (42, 0, 0)] {
         tree.folded
             .push(c::TreeFold {
                 parent,
@@ -344,11 +347,11 @@ fn inbox_questions_print_words_and_calls_within_and_past_the_text_bound() {
             let printed = core::str::from_utf8(&answer.stdout).expect("cut at a character");
             if json {
                 assert_eq!(printed.contains("\"cut\":true"), engine_cut);
-                assert_eq!(printed.contains("temper ctl DIR task activity 42"), engine_cut);
+                assert_eq!(printed.contains("temper ctl DIR task activity 41"), engine_cut);
                 assert!(!printed.contains("answer: "), "{printed}");
             } else {
                 assert_eq!(printed.contains(" (cut)\n"), cut, "{printed}");
-                assert_eq!(printed.contains("read whole: temper ctl DIR task activity 42\n"), cut, "{printed}");
+                assert_eq!(printed.contains("read whole: temper ctl DIR task activity 41\n"), cut, "{printed}");
                 assert!(printed.contains("answer: temper ctl DIR task answer 41 2 TEXT\n"), "{printed}");
                 if !cut || engine_cut {
                     assert!(printed.contains("The plan continues"), "{printed}");
@@ -360,5 +363,21 @@ fn inbox_questions_print_words_and_calls_within_and_past_the_text_bound() {
                 }
             }
         }
+    }
+}
+
+#[test]
+fn an_inbox_answer_is_acknowledged_in_task_activity() {
+    for argv in [fixtures::ACTIVITY_CALL, fixtures::LIMITED_TASK_CALL] {
+        let (mut root, call) = fixtures::read_call(argv);
+        if argv == fixtures::LIMITED_TASK_CALL {
+            root.serve(call, fixtures::task_result(fixtures::goal(fixtures::TASK, fixtures::waiting_on_me())));
+        }
+        root.serve(call, fixtures::answered_question());
+        let answer = root.answer(call).expect("activity answered");
+        assert_eq!(answer.status, 0);
+        assert!(
+            skein_lib::bytes::find(&answer.stdout, b"10 \xc2\xb7 You answered question 2 in your inbox\n").is_some()
+        );
     }
 }

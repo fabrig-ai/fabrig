@@ -696,7 +696,9 @@ keeps (`../protocol/configuration.md`, section 2).
     asks its name, 1 to 32 of `a` to `z`, `0` to `9` and `-`, `claude-`
     and the person's first name by default (`claude-alice`), and shows
     the command to run on each host, `temper program-login NAME`
-    (`../protocol/credentials.md`, section 3).
+    (`../protocol/credentials.md`, section 3). The tools' printed act
+    includes the box's directory placeholders and the signed-in skip
+    rule (`tools.md`, 5.5, area 5).
   - *Ready* says the account is made, in 5.5's words, with "Start a
     chat", to the chats page, and a plan's "Manage usage".
   - *Its steps,* the flow's list (5.2, A flow's parts): "Choose",
@@ -1991,6 +1993,9 @@ The words for each offered source are:
   agents run on, in a terminal there:", the command, `temper
   program-login claude-alice`, and "Claude Code asks you to sign in.
   temper never reads its login."; for a sign-in, A sign-in's (below).
+  The tools' declaration act names the box's three directories as
+  placeholders and skips a directory already signed in (`tools.md`,
+  5.5, area 5).
   Sign-in cards are headed "Signing in to ChatGPT" until a successful
   Made end supplies "Signed in to ChatGPT as ADDRESS". The welcome's
   successful end adds "ChatGPT · ADDRESS is on the Accounts page, with

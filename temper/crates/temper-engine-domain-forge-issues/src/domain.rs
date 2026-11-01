@@ -269,8 +269,10 @@ fn counted(count: usize, last: &str, bound: u32) -> Box<str> {
     cut(&boxed_text(text), room)
 }
 
+#[expect(clippy::disallowed_methods, reason = "the shared title projection preserves already validated UTF-8")]
 fn fit_words(goal: &mut GoalView, limits: &Limits) {
-    goal.title = cut(&goal.title, usize::try_from(limits.title_bytes).expect("u32 fits usize"));
+    let title = crate::text::title(goal.title.as_bytes(), usize::try_from(limits.title_bytes).expect("u32 fits usize"));
+    goal.title = Box::from(core::str::from_utf8(&title).expect("fitted UTF-8 title"));
     let mut fixed = 9usize.checked_add(label(goal.phase).len()).expect("fixed syntax");
     let mut text = goal.goal_text.len();
     for item in &goal.plan {

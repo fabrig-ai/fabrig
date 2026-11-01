@@ -1,7 +1,7 @@
 use crate::tests::fixtures;
 use jig_client::{
     Readout,
-    contract::{ReadNone, ReadResult},
+    contract::{ReadNone, ReadResult, ReadValue},
 };
 #[test]
 fn a_turn_past_the_read_bound_exits_0() {
@@ -15,6 +15,27 @@ fn a_turn_past_the_read_bound_exits_0() {
 fn a_large_page_turn_prints_its_read_call() {
     let printed = fixtures::read_answer(fixtures::ACTIVITY_CALL, fixtures::activity_too_large());
     assert_eq!(printed.stdout, fixtures::golden("activity_turn"));
+}
+#[test]
+fn a_page_turn_that_fits_prints_whole() {
+    let ReadResult::Value(ReadValue::Turn(turn)) = fixtures::turn_call(None) else { panic!("decoded turn") };
+    let mut rows = skein_lib::List::with_capacity(fixtures::PAGE_ROWS);
+    rows.push(crate::tests::documents::turn(1, turn.at, turn.name, turn.turn)).expect("one decoded turn row");
+    let printed = fixtures::read_answer(
+        fixtures::ACTIVITY_CALL,
+        ReadResult::Value(ReadValue::Activity(Box::new(jig_client::contract::ActivityPage {
+            cut: false,
+            rows,
+            before: None,
+            after: None,
+        }))),
+    );
+    assert_eq!(printed.status, 0);
+    assert_eq!(
+        printed.stdout.as_ref(),
+        b"turn 3.7\ncall 2 \xc2\xb7 read\nrequest\nreply\nresult 2 \xc2\xb7 failed\nsummary\nno more\n"
+    );
+    assert!(skein_lib::bytes::find(&printed.stdout, b"read with:").is_none());
 }
 #[test]
 fn a_turn_part_is_cut_with_its_continuation() {

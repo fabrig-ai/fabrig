@@ -271,6 +271,12 @@ pub(crate) fn placed(value: Option<&w::PlacedLine>, limits: &Limits) -> Result<O
 }
 pub(crate) fn lacking(value: &w::Lacking) -> c::Lacking {
     match value {
+        w::Lacking::Ceiling(row) => c::Lacking::Ceiling {
+            holder: ceiling_holder(row.holder()),
+            dimension: ceiling_dimension(row.dimension()),
+            value: *row.value(),
+            asked: *row.asked(),
+        },
         w::Lacking::Approver => c::Lacking::Approver,
         w::Lacking::Budget(row) => c::Lacking::Budget { needed: row.needed(), left: row.left() },
         w::Lacking::GrantKind(row) => c::Lacking::GrantKind { kind: row.kind() },
@@ -666,5 +672,26 @@ fn original_nonzero_recipient_survives_wire_decoding_and_contract_translation() 
             document_outcome(&decoded, &limits).expect("contract translation"),
             c::DocumentOutcome::Proposed { proposal: 31, to }
         );
+    }
+}
+
+fn ceiling_holder(value: &w::CeilingHolder) -> c::CeilingHolder {
+    match value {
+        w::CeilingHolder::Rules => c::CeilingHolder::Rules,
+        w::CeilingHolder::Policy => c::CeilingHolder::Policy,
+        w::CeilingHolder::Role(row) => c::CeilingHolder::Role(row.role()),
+    }
+}
+fn ceiling_dimension(value: &w::CeilingDimension) -> c::CeilingDimension {
+    match value {
+        w::CeilingDimension::PeriodSpend => c::CeilingDimension::PeriodSpend,
+        w::CeilingDimension::Spend => c::CeilingDimension::Spend,
+        w::CeilingDimension::Tools => c::CeilingDimension::Tools,
+        w::CeilingDimension::Tasks => c::CeilingDimension::Tasks,
+        w::CeilingDimension::Depth => c::CeilingDimension::Depth,
+        w::CeilingDimension::Executors => c::CeilingDimension::Executors,
+        w::CeilingDimension::Grants => c::CeilingDimension::Grants,
+        w::CeilingDimension::Deadline => c::CeilingDimension::Deadline,
+        w::CeilingDimension::Notes => c::CeilingDimension::Notes,
     }
 }

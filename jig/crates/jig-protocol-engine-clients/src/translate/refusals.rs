@@ -166,6 +166,15 @@ fn role(value: p::Role, limits: &w::Limits) -> Result<w::HeldRole, w::Problem> {
 }
 fn lack(value: p::Lack, limits: &w::Limits) -> Result<w::Lacking, w::Problem> {
     Ok(match value {
+        p::Lack::Ceiling { holder, dimension, value, asked } => w::Lacking::Ceiling(w::LackingCeiling::new(
+            limits,
+            w::LackingCeilingParts {
+                holder: ceiling_holder(holder, limits)?,
+                dimension: ceiling_dimension(dimension),
+                value,
+                asked,
+            },
+        )?),
         p::Lack::Approver => w::Lacking::Approver,
         p::Lack::Funding => w::Lacking::Funding,
         p::Lack::Tool => w::Lacking::Tool,
@@ -424,5 +433,28 @@ fn encode_setting_fault(value: p::SettingFault) -> w::SettingFault {
         p::SettingFault::Budget => w::SettingFault::Budget,
         p::SettingFault::Grace => w::SettingFault::Grace,
         p::SettingFault::Owner => w::SettingFault::Owner,
+    }
+}
+
+fn ceiling_holder(value: p::CeilingHolder, limits: &w::Limits) -> Result<w::CeilingHolder, w::Problem> {
+    Ok(match value {
+        p::CeilingHolder::Rules => w::CeilingHolder::Rules,
+        p::CeilingHolder::Policy => w::CeilingHolder::Policy,
+        p::CeilingHolder::Role(role) => {
+            w::CeilingHolder::Role(w::CeilingRole::new(limits, w::CeilingRoleParts { role })?)
+        }
+    })
+}
+fn ceiling_dimension(value: p::CeilingDimension) -> w::CeilingDimension {
+    match value {
+        p::CeilingDimension::PeriodSpend => w::CeilingDimension::PeriodSpend,
+        p::CeilingDimension::Spend => w::CeilingDimension::Spend,
+        p::CeilingDimension::Tools => w::CeilingDimension::Tools,
+        p::CeilingDimension::Tasks => w::CeilingDimension::Tasks,
+        p::CeilingDimension::Depth => w::CeilingDimension::Depth,
+        p::CeilingDimension::Executors => w::CeilingDimension::Executors,
+        p::CeilingDimension::Grants => w::CeilingDimension::Grants,
+        p::CeilingDimension::Deadline => w::CeilingDimension::Deadline,
+        p::CeilingDimension::Notes => w::CeilingDimension::Notes,
     }
 }

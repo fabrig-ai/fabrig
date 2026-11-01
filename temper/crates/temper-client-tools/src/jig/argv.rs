@@ -19,12 +19,12 @@ pub enum Usage {
     NoTool { group: u16, verb: u16 },
     Unknown { at: u16 },
     Extra { at: u16 },
-    Missing { argument: u8 },
-    Twice { argument: u8 },
-    Kind { argument: u8 },
-    Rows { argument: u8 },
-    Long { argument: u8 },
-    Many { argument: u8 },
+    Missing { tool: u8, form: u8, argument: u8 },
+    Twice { tool: u8, form: u8, argument: u8 },
+    Kind { tool: u8, form: u8, argument: u8 },
+    Rows { tool: u8, form: u8, argument: u8 },
+    Long { tool: u8, form: u8, argument: u8 },
+    Many { tool: u8, form: u8, argument: u8 },
     Stdin,
     Key,
     Condition,
@@ -33,6 +33,37 @@ pub enum Usage {
     WaitPart { tool: u8, argument: u8 },
     Json,
     AmendmentRevision,
+}
+impl Usage {
+    /// Argument indexes belong to the form that refused them.
+    pub(crate) fn at(mut self, tool: u8, form: u8) -> Self {
+        match &mut self {
+            Self::Kind { tool: t, form: f, .. }
+            | Self::Rows { tool: t, form: f, .. }
+            | Self::Long { tool: t, form: f, .. }
+            | Self::Missing { tool: t, form: f, .. }
+            | Self::Twice { tool: t, form: f, .. }
+            | Self::Many { tool: t, form: f, .. } => {
+                *t = tool;
+                *f = form;
+            }
+            Self::Tool
+            | Self::NoGroup { .. }
+            | Self::NeedsVerb { .. }
+            | Self::NoTool { .. }
+            | Self::Unknown { .. }
+            | Self::Extra { .. }
+            | Self::Stdin
+            | Self::Key
+            | Self::Condition
+            | Self::TerminalPhase { .. }
+            | Self::Timeout
+            | Self::WaitPart { .. }
+            | Self::Json
+            | Self::AmendmentRevision => {}
+        }
+        self
+    }
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Unwritten {
@@ -94,12 +125,12 @@ pub fn parse(table: &[&Tool], words: &[&[u8]], limits: &Limits) -> Result<Parsed
                     let call = Call { tool, form, values: parsed.values, key: parsed.key };
                     match check(table, &call, limits) {
                         Ok(()) => return Ok(Parsed::Call { call, json: parsed.json }),
-                        Err(failed) => error = failed,
+                        Err(failed) => error = failed.at(tool, form),
                     }
                 }
                 Err(failed) => {
                     if error == Usage::Tool {
-                        error = failed;
+                        error = failed.at(tool, form);
                     }
                 }
             }
@@ -208,7 +239,7 @@ fn form_values(
         let spec = arguments.get(usize::from(argument)).ok_or(Usage::Tool)?;
         let slot = values.get_mut(u32::from(argument)).ok_or(Usage::Tool)?;
         if slot.is_some() && !repeated(spec.occurs) {
-            return Err(Usage::Twice { argument });
+            return Err(Usage::Twice { tool: 0, form: 0, argument });
         }
         let value = if spec.place == Place::Switch {
             Value::Switch
@@ -216,14 +247,14 @@ fn form_values(
             let text = if flag {
                 let next = index.checked_add(1).ok_or(Usage::Tool)?;
                 skip = Some(next);
-                *words.get(next).ok_or(Usage::Missing { argument })?
+                *words.get(next).ok_or(Usage::Missing { tool: 0, form: 0, argument })?
             } else {
                 *word
             };
             decode(table, spec.kind, bound(spec, limits), text).ok_or(if spec.kind == Kind::Condition {
                 Usage::Condition
             } else {
-                Usage::Kind { argument }
+                Usage::Kind { tool: 0, form: 0, argument }
             })?
         };
         valid(table, spec, &value, argument, limits)?;
@@ -234,7 +265,7 @@ fn form_values(
         let slot = values.get_mut(index).ok_or(Usage::Tool)?;
         if slot.is_none() {
             if argument.occurs == Occurs::Required {
-                return Err(Usage::Missing { argument: u8::try_from(index).or(Err(Usage::Tool))? });
+                return Err(Usage::Missing { tool: 0, form: 0, argument: u8::try_from(index).or(Err(Usage::Tool))? });
             }
             if argument.kind == Kind::Order {
                 *slot = Some(Values::One(Value::Order(QueryOrder::Number)));
@@ -253,6 +284,12 @@ fn repeated(occurs: Occurs) -> bool {
 }
 /// The same validation is used for typed JSON calls.
 pub fn check(table: &[&Tool], call: &Call, limits: &Limits) -> Result<(), Usage> {
+    match check_form(table, call, limits) {
+        Ok(()) => Ok(()),
+        Err(failed) => Err(failed.at(call.tool, call.form)),
+    }
+}
+fn check_form(table: &[&Tool], call: &Call, limits: &Limits) -> Result<(), Usage> {
     let tool = table.get(usize::from(call.tool)).ok_or(Usage::Tool)?;
     let args = *tool.forms.get(usize::from(call.form)).ok_or(Usage::Tool)?;
     match tool.keyed {
@@ -279,7 +316,7 @@ pub fn check(table: &[&Tool], call: &Call, limits: &Limits) -> Result<(), Usage>
             if let Some(Values::One(Value::Number(n))) = slot
                 && ((*n == 0 && arg.name == b"position") || u32::try_from(*n).is_err())
             {
-                return Err(Usage::Kind { argument: u8::try_from(index).expect("argument") });
+                return Err(Usage::Kind { tool: 0, form: 0, argument: u8::try_from(index).expect("argument") });
             }
             if arg.kind == Kind::File && *slot == Some(Values::One(Value::Stdin)) {
                 return Err(Usage::Stdin);
@@ -290,13 +327,13 @@ pub fn check(table: &[&Tool], call: &Call, limits: &Limits) -> Result<(), Usage>
         for (index, bound) in [(1, crate::jig::call::PROGRAM_ADAPTER), (2, crate::jig::call::PROGRAM_NAME)] {
             let argument = u8::try_from(index).expect("argument");
             let Some(Value::Text(bytes)) = crate::jig::call::value(call, index) else {
-                return Err(Usage::Kind { argument });
+                return Err(Usage::Kind { tool: 0, form: 0, argument });
             };
             if bytes.len() > usize::try_from(bound).expect("name bound fits") {
-                return Err(Usage::Long { argument });
+                return Err(Usage::Long { tool: 0, form: 0, argument });
             }
             if index == 2 && !jig_client::contract::valid_program_name(bytes) {
-                return Err(Usage::Kind { argument });
+                return Err(Usage::Kind { tool: 0, form: 0, argument });
             }
         }
     }
@@ -405,20 +442,22 @@ fn check_values(table: &[&Tool], args: &[Argument], values: &[Option<Values>], l
     for (index, (argument, values)) in args.iter().zip(values).enumerate() {
         let id = u8::try_from(index).or(Err(Usage::Tool))?;
         match values {
-            None if argument.occurs == Occurs::Required => return Err(Usage::Missing { argument: id }),
+            None if argument.occurs == Occurs::Required => {
+                return Err(Usage::Missing { tool: 0, form: 0, argument: id });
+            }
             None => {}
             Some(Values::One(value)) => {
                 if repeated(argument.occurs) {
-                    return Err(Usage::Many { argument: id });
+                    return Err(Usage::Many { tool: 0, form: 0, argument: id });
                 }
                 checked_value(table, argument, value, id, limits, &mut stdin)?;
             }
             Some(Values::Many(values)) => {
                 let Occurs::Repeated { most } = argument.occurs else {
-                    return Err(Usage::Many { argument: id });
+                    return Err(Usage::Many { tool: 0, form: 0, argument: id });
                 };
                 if values.is_empty() || u32::try_from(values.len()).unwrap_or(u32::MAX) > most {
-                    return Err(Usage::Many { argument: id });
+                    return Err(Usage::Many { tool: 0, form: 0, argument: id });
                 }
                 for value in values {
                     checked_value(table, argument, value, id, limits, &mut stdin)?;
@@ -552,13 +591,13 @@ fn store(slot: &mut Option<Values>, occurs: Occurs, value: Value, argument: u8) 
             match slot {
                 Some(Values::Many(old)) => {
                     for value in old.iter() {
-                        many.push(value.clone()).or(Err(Usage::Many { argument }))?;
+                        many.push(value.clone()).or(Err(Usage::Many { tool: 0, form: 0, argument }))?;
                     }
                 }
-                Some(Values::One(_)) => return Err(Usage::Many { argument }),
+                Some(Values::One(_)) => return Err(Usage::Many { tool: 0, form: 0, argument }),
                 None => {}
             }
-            many.push(value).or(Err(Usage::Many { argument }))?;
+            many.push(value).or(Err(Usage::Many { tool: 0, form: 0, argument }))?;
             *slot = Some(Values::Many(many.into_boxed()));
         }
         Occurs::Required | Occurs::Optional => *slot = Some(Values::One(value)),
@@ -572,12 +611,12 @@ fn check_inbox(call: &Call) -> Result<(), Usage> {
     let group = match bytes.first() {
         Some(0) => InboxReadGroup::Needs,
         Some(1) => InboxReadGroup::Updates,
-        _ => return Err(Usage::Kind { argument: 3 }),
+        _ => return Err(Usage::Kind { tool: 0, form: 0, argument: 3 }),
     };
     if let Some(Value::Group(kind)) = crate::jig::call::value(call, 1)
         && InboxReadGroup::of(*kind) != group
     {
-        return Err(Usage::Kind { argument: 3 });
+        return Err(Usage::Kind { tool: 0, form: 0, argument: 3 });
     }
     Ok(())
 }
@@ -588,18 +627,18 @@ fn check_choice(call: &Call, model: usize, effort: usize, limits: &Limits) -> Re
     for index in [model, effort] {
         let argument = u8::try_from(index).or(Err(Usage::Tool))?;
         if let Some(value) = crate::jig::call::value(call, index) {
-            let Value::Text(text) = value else { return Err(Usage::Kind { argument }) };
+            let Value::Text(text) = value else { return Err(Usage::Kind { tool: 0, form: 0, argument }) };
             if text.len() > usize::try_from(limits.text).expect("text bound fits") {
-                return Err(Usage::Long { argument });
+                return Err(Usage::Long { tool: 0, form: 0, argument });
             }
             if core::str::from_utf8(text).is_err() {
-                return Err(Usage::Kind { argument });
+                return Err(Usage::Kind { tool: 0, form: 0, argument });
             }
         }
     }
     if crate::jig::call::value(call, effort).is_some() && crate::jig::call::value(call, model).is_none() {
         let argument = u8::try_from(model).or(Err(Usage::Tool))?;
-        return Err(Usage::Missing { argument });
+        return Err(Usage::Missing { tool: 0, form: 0, argument });
     }
     Ok(())
 }
@@ -624,18 +663,18 @@ fn check_amend(call: &Call, limits: &Limits) -> Result<(), Usage> {
         return Err(Usage::AmendmentRevision);
     }
     if !change {
-        return Err(Usage::Missing { argument: 2 });
+        return Err(Usage::Missing { tool: 0, form: 0, argument: 2 });
     }
     for (first, second) in [(2, 3), (4, 5), (8, 9)] {
         if present(call, first) && present(call, second) {
-            return Err(Usage::Twice { argument: u8::try_from(second).expect("amend argument") });
+            return Err(Usage::Twice { tool: 0, form: 0, argument: u8::try_from(second).expect("amend argument") });
         }
     }
     if let Some(Value::Text(text)) = crate::jig::call::value(call, 4) {
-        deadline(text).ok_or(Usage::Kind { argument: 4 })?;
+        deadline(text).ok_or(Usage::Kind { tool: 0, form: 0, argument: 4 })?;
     }
     if let Some(priority) = crate::jig::call::number(call, 2) {
-        u32::try_from(priority).or(Err(Usage::Kind { argument: 2 }))?;
+        u32::try_from(priority).or(Err(Usage::Kind { tool: 0, form: 0, argument: 2 }))?;
     }
     Ok(())
 }

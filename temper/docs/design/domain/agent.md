@@ -317,15 +317,19 @@ and the root builds the one delegate from the run's own, then decides
 it as any `delegate`:
 
 - **the delegate:** under the run's charter (a chat's, charter 1),
-  whose instructions stay its instructions, the words its brief, opening
-  with the root's own line that it is a goal, the work its person asked
-  for, as an advisor's opens with its own, so that it reads the
+  whose instructions stay its instructions, the caller's words first in
+  its brief, then a blank line and the root's own line that it is a goal,
+  the work its person asked for, as an advisor's follows its caller's
+  words with its own line. The task's title, its spec's first line, is
+  the work. The root's line tells it to read the
   instructions meant for a goal as its own and those meant for a chat
-  as not (charter 1's instructions name each), and, for an agreed goal
-  (8.2), carrying after the words its person's last words to the chat,
-  whole, under their own heading, so that a request the chat cut short
+  as not (charter 1's instructions name each). For an agreed goal
+  (8.2), the root's lines are followed by its person's last words to the
+  chat, whole, under their own heading, so that a request the chat cut short
   still reaches the goal entire (cut only past the brief's room, and
-  then marked with the bytes cut); tracked
+  then marked with the bytes cut). The goal takes its label and flags
+  from the goal template (template 2): label 2, listed, no conversation,
+  kept, and ended by its result. It is tracked
   at the run's own priority, or last among the project's goals where the
   run is untracked: one past the largest tracked priority in the
   project, saturating, or 0 with none (the lower first, jig's
@@ -352,12 +356,14 @@ it as any `delegate`:
   `change`'s. A change the goal then makes has half of the goal's,
   so at most a quarter of the chat's: defaults, open to tuning;
 - **an advisor,** with `advisor` set, its report bounded as a goal's,
-  its brief opening with the root's own line that it is an advisor,
-  which reads and reports and changes nothing, before the run's words,
-  the line counted with them within the spec's bytes (a request is
+  its brief opening with the caller's words, then a blank line and the
+  root's own line that it is an advisor, which reads and reports and
+  changes nothing, so that its task's title is the work,
+  the line counted with the words within the spec's bytes (a request is
   refused as too long with the line included, never cut to make room),
   so that it knows what it is without a convention in those words:
-  untracked, so that no goal of its
+  unlabelled, with plain flags (not listed, no conversation, kept,
+  ended by its result), and untracked, so that no goal of its
   is projected on the forge; reads alone, no grant of a forge effect, no
   delegation (no kinds, tasks or depth) and no notes, so that it reads
   and reports and can change nothing beyond its own workspace, which it
@@ -603,7 +609,10 @@ today's, until those land.
   never sets `advisor` for such work, writes the plan or asks the
   go-ahead in its own reply, nor calls `change`. The goal, once it has
   asked, waits for the answer: it never finishes before it, nor before
-  every agreed change has landed.
+  every agreed change has landed. The brief opens with the caller's words
+  so that the task's title is the work (4.3.2); a blank line follows,
+  then the root's goal line and its line that the work is to be agreed,
+  then the person's heading and words.
 - **Designed, not built (J7, J8):** the goal's question stays with the
   chat (jig's `domain/tasks.md`, 8.5): the chat, woken by it, answers
   from what it knows (its person's priorities, its notes), or asks its

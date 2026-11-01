@@ -6,6 +6,6 @@ fn small_template_pages_keep_every_activity_and_live_delegate() {
     let tree = seen.tree.split_once("tree:\n").expect("tree").1.split_once("digest:").expect("digest").0;
     assert_eq!(tree.lines().filter(|line| line.contains(" · ")).count(), 3);
     assert!(tree.starts_with("1 · "));
-    assert!(tree.contains("cut: 1 more not shown (1 Waiting); read on with: task list --project 1 --parent 1\n"));
+    assert!(tree.contains("cut: 1 more not shown (1 Waiting)\nread on with: task list --project 1 --parent 1\n"));
     assert_eq!(seen.delegates, [4, 5, 6]);
 }

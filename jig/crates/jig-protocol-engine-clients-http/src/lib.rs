@@ -114,7 +114,11 @@ impl Mount {
                     value.respond(413, Box::new([]), &env.limits);
                 } else if value.route == dispatch::Route::Stream && streams >= env.limits.streams {
                     value.route = dispatch::Route::Missing;
-                    value.respond(409, Box::new([]), &env.limits);
+                    value.respond(
+                        409,
+                        streams_full(jig_client_protocol_wire::StreamBound::Transport, env.limits.streams),
+                        &env.limits,
+                    );
                 } else {
                     value.read(&env.limits);
                 }
@@ -166,6 +170,9 @@ impl Mount {
                     kit::Reply::Record(body) => (200, body),
                     kit::Reply::NotARecord => (400, Box::new([])),
                     kit::Reply::Conflict => (409, Box::new([])),
+                    kit::Reply::StreamsFull { size } => {
+                        (409, streams_full(jig_client_protocol_wire::StreamBound::Component, size))
+                    }
                 };
                 let (body, cookie) =
                     if status == 200 { dispatch::reply(&self.settings, call, env.wall, body) } else { (body, None) };
@@ -218,4 +225,12 @@ mod tests;
 #[must_use]
 pub fn link_page() -> skein_http::Header {
     skein_http::Header { name: Box::from(b"referrer-policy".as_slice()), value: Box::from(b"no-referrer".as_slice()) }
+}
+
+fn streams_full(bound: jig_client_protocol_wire::StreamBound, size: u32) -> Box<[u8]> {
+    use jig_client_protocol_wire::{CEILINGS, StreamsFull, StreamsFullParts};
+    let record = StreamsFull::new(&CEILINGS, StreamsFullParts { bound, size }).expect("fixed refusal");
+    let mut writer = skein_lib::Writer::new(skein_lib::length::usize_of(record.measure()));
+    record.encode(&mut writer).expect("measured refusal");
+    writer.finish()
 }

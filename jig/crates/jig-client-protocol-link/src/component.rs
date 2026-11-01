@@ -639,6 +639,11 @@ impl Link {
         let Some(stream) = &mut self.stream else { return };
         stream.progress(now);
         let result = match message {
+            Streamed::Full(full) => {
+                self.drop_stream(out);
+                out.push(Request::StreamsFull { full });
+                return;
+            }
             Streamed::Heartbeat => {
                 self.watches.alive(out);
                 return;

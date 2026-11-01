@@ -409,23 +409,39 @@ impl Composition {
         }
     }
 
+    fn transport_reply(&mut self, exchange: Token, reply: clients::Reply) {
+        match reply {
+            clients::Reply::StreamsFull { size } => {
+                let client = self
+                    .streams
+                    .iter()
+                    .find_map(|(client, stream)| (*stream == exchange).then_some(*client))
+                    .expect("opening stream");
+                self.link(
+                    client,
+                    link::Event::Streamed {
+                        message: link::Streamed::Full(link::StreamsFull { bound: link::StreamBound::Component, size }),
+                    },
+                );
+            }
+            clients::Reply::Record(message) => {
+                if let Some((client, local)) = self.exchanges.remove(&exchange) {
+                    self.link(client, link::Event::Reply { exchange: local, message });
+                }
+            }
+            clients::Reply::NotARecord | clients::Reply::Conflict => {
+                if let Some((client, local)) = self.exchanges.remove(&exchange) {
+                    self.link(client, link::Event::Lost { exchange: local });
+                }
+            }
+        }
+    }
     fn request(&mut self, request: Request, transport: &mut Transport) {
         match request {
             Request::Core(event) => self.core(transport, *event),
             Request::Application(request) => self.application(request, transport),
             Request::Transport(message) => match message {
-                clients::ToTransport::Reply { exchange, reply } => {
-                    if let Some((client, local)) = self.exchanges.remove(&exchange) {
-                        match reply {
-                            clients::Reply::Record(message) => {
-                                self.link(client, link::Event::Reply { exchange: local, message });
-                            }
-                            clients::Reply::NotARecord | clients::Reply::Conflict => {
-                                self.link(client, link::Event::Lost { exchange: local });
-                            }
-                        }
-                    }
-                }
+                clients::ToTransport::Reply { exchange, reply } => self.transport_reply(exchange, reply),
                 clients::ToTransport::Streamed { stream, message } => {
                     let client = self
                         .streams
@@ -505,6 +521,7 @@ impl Composition {
 
     fn link_request(&mut self, client: ClientId, request: link::Request, transport: &mut Transport) {
         let up = match request {
+            link::Request::StreamsFull { full } => jig_client::Up::StreamsFull { full },
             link::Request::Exchange { exchange, credential, message } => {
                 let name = self.token();
                 self.exchanges.insert(name, (client, exchange));

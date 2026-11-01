@@ -22,6 +22,7 @@ impl Domain {
     pub(crate) fn up(&mut self, env: &Env<Limits>, up: Up, out: &mut Queue<Request>) {
         let name = match &up {
             Up::SignedIn
+            | Up::StreamsFull { .. }
             | Up::SignedOut
             | Up::NotKept { .. }
             | Up::Served { .. }
@@ -43,6 +44,7 @@ impl Domain {
         };
         match up {
             Up::SignedIn
+            | Up::StreamsFull { .. }
             | Up::SignedOut
             | Up::NotKept { .. }
             | Up::Served { .. }

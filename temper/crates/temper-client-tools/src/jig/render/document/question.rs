@@ -1,6 +1,5 @@
 //! Question words keep the engine's independent cut marker.
 use crate::jig::runner::reads::Reading;
-use jig_client::contract as c;
 use skein_json::writer::Encoder;
 pub(super) fn encode(reading: &Reading, out: &mut Encoder) {
     let mut present = false;
@@ -28,22 +27,15 @@ pub(super) fn encode(reading: &Reading, out: &mut Encoder) {
         out.object_end();
         if question.words.cut {
             out.key(b"read_whole");
-            let task = asking_task(question);
             let mut measured = super::Text::measure();
-            whole(reading.command_prefix, task, &mut measured);
+            whole(reading.command_prefix, question.task.task, &mut measured);
             let mut bytes = super::Text::writing_exact(measured);
-            whole(reading.command_prefix, task, &mut bytes);
+            whole(reading.command_prefix, question.task.task, &mut bytes);
             out.string(&bytes.finish());
         }
         out.object_end();
     }
     out.array_end();
-}
-pub(crate) fn asking_task(question: &c::Question) -> u64 {
-    match question.from {
-        Some(c::Requester::Task(task)) => task,
-        _ => question.task.task,
-    }
 }
 fn whole(prefix: &[u8], task: u64, out: &mut super::Text) {
     out.put(prefix);

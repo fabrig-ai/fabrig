@@ -104,7 +104,7 @@ fn a_named_amend_without_an_offer_still_reaches_the_engine() {
 fn amend_requires_a_change() {
     assert_eq!(
         f::parse(&["task", "amend", "41", "--rev", "7", "because"]),
-        Err(crate::jig::argv::Usage::Missing { argument: 2 })
+        Err(crate::jig::argv::Usage::Missing { tool: 31, form: 0, argument: 2 })
     );
 }
 #[test]
@@ -118,7 +118,7 @@ fn amend_requires_a_revision_for_a_model_change() {
 fn amend_requires_a_reason() {
     assert_eq!(
         f::parse(&["task", "amend", "41", "--rev", "7", "--model", "chosen-model"]),
-        Err(crate::jig::argv::Usage::Missing { argument: 12 })
+        Err(crate::jig::argv::Usage::Missing { tool: 31, form: 0, argument: 12 })
     );
 }
 #[test]

@@ -81,7 +81,7 @@ pub fn tools() -> crate::jig::Limits {
     crate::jig::Limits {
         rows: client.rows,
         settings,
-        program_login: b"temper program-login",
+        program_login: b"temper program-login --config CONFIG --data DATA --cache CACHE",
         application: b"temper",
         ask_bytes: client.ask_bytes,
         result_bytes: RESULT_BYTES,

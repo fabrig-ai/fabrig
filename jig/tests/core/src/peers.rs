@@ -601,6 +601,16 @@ fn party_refusal(why: people::Refusal) -> parties::Refusal {
 
 fn party_lack(value: people::Lack) -> parties::Lack {
     match value {
+        people::Lack::Ceiling { holder, dimension, value, asked } => parties::Lack::Ceiling {
+            holder: match holder {
+                people::CeilingHolder::Rules => parties::CeilingHolder::Rules,
+                people::CeilingHolder::Policy => parties::CeilingHolder::Policy,
+                people::CeilingHolder::Role(role) => parties::CeilingHolder::Role(role),
+            },
+            dimension: party_ceiling_dimension(dimension),
+            value,
+            asked,
+        },
         people::Lack::Approver => parties::Lack::Approver,
         people::Lack::Budget { needs, left } => parties::Lack::Budget { needs, left },
         people::Lack::Grant { kind } => parties::Lack::Grant { kind },
@@ -797,4 +807,18 @@ fn closing(project: u32, task: parties::Task, disposals: Box<[parties::DelegateC
         })
         .expect("chat last");
     people::Ask::Compound { project, operations }
+}
+
+fn party_ceiling_dimension(value: people::CeilingDimension) -> parties::CeilingDimension {
+    match value {
+        people::CeilingDimension::PeriodSpend => parties::CeilingDimension::PeriodSpend,
+        people::CeilingDimension::Spend => parties::CeilingDimension::Spend,
+        people::CeilingDimension::Tools => parties::CeilingDimension::Tools,
+        people::CeilingDimension::Tasks => parties::CeilingDimension::Tasks,
+        people::CeilingDimension::Depth => parties::CeilingDimension::Depth,
+        people::CeilingDimension::Executors => parties::CeilingDimension::Executors,
+        people::CeilingDimension::Grants => parties::CeilingDimension::Grants,
+        people::CeilingDimension::Deadline => parties::CeilingDimension::Deadline,
+        people::CeilingDimension::Notes => parties::CeilingDimension::Notes,
+    }
 }

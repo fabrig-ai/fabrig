@@ -74,6 +74,7 @@ pub struct LinkView<'a> {
     pub not_served: &'a [u16],
     pub sign_out_lost: bool,
     pub not_signed_in: Option<NotSignedIn>,
+    pub streams_full: Option<domain::StreamsFull>,
     pub credential: Option<&'a Secret>,
 }
 #[derive(Debug)]
@@ -304,6 +305,7 @@ impl Client {
     pub fn link(&self) -> LinkView<'_> {
         LinkView {
             state: self.domain.link(),
+            streams_full: self.domain.streams_full(),
             party: self.domain.party(),
             not_served: self.domain.not_served(),
             sign_out_lost: self.sign_out_lost,
@@ -330,7 +332,8 @@ impl Client {
                         self.signing_out = false;
                         self.sign_out_lost = false;
                     }
-                    Up::Served { .. }
+                    Up::StreamsFull { .. }
+                    | Up::Served { .. }
                     | Up::FamilyServed { .. }
                     | Up::Answer { .. }
                     | Up::NotKept { .. }
@@ -585,6 +588,7 @@ impl Client {
                     Up::Answer { attempt, envelope: skein_lib::RequestEnvelope::Lost, answer: None, why: None },
                 );
             }
+            link::Request::StreamsFull { full } => self.up(env, Up::StreamsFull { full }),
             link::Request::Watch { watch, event } => self.up(env, Up::Watched { watch, event }),
             link::Request::FamilyDelivery { watch, record } => self.up(env, Up::FamilyDelivered { watch, record }),
             link::Request::Ended { watch, end } => self.up(env, Up::WatchEnded { watch, end }),

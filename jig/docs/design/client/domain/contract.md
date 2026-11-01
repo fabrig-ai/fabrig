@@ -665,7 +665,10 @@ served is held, kept and unsent, for its owner's version (client.md,
     them;
   - *a tree:* a task's live subtree, as chips, with the proposals waiting
     on each, folded beyond the watch's window into counts by phase, with
-    counts of what is held below;
+    counts of what is held below. Each unshown descendant folds under
+    its nearest shown ancestor, including the root. There are at most
+    as many folds as window rows; overflow joins the root's fold,
+    retaining every phase and held count;
   - *an inbox:* the party's entries, each naming its object and its
     project, in its groups, within a window, with the party's read
     positions: one over results, one per conversation over its turns;

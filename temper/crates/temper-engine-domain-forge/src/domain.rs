@@ -3112,18 +3112,9 @@ fn change_write(row: &ChangeRow, effect: change::Effect, limits: &Limits) -> Opt
                 .expect("u32 fits usize")
                 .saturating_sub(row.branch.len())
                 .saturating_sub(row.base.len());
-            let mut end = row.title.len();
-            for (index, byte) in row.title.iter().enumerate() {
-                if *byte == b'\n' {
-                    end = index;
-                    break;
-                }
-            }
-            let first = row.title.get(..end).expect("first line");
-            let first = first.strip_suffix(b"\r").unwrap_or(first);
             let marker = "…\nThe change's full words are on its task in temper.".as_bytes();
             let title_room = room.saturating_sub(marker.len().min(row.body.len()));
-            let title = crate::text::fit(first, title_room.min(256), "…".as_bytes());
+            let title = crate::text::title(&row.title, title_room.min(256));
             let body = crate::text::fit(&row.body, room.saturating_sub(title.len()), marker);
             Some(skein_forge::api::Write::OpenPull { title, body, head: row.branch.clone(), base: row.base.clone() })
         }

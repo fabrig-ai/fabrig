@@ -280,6 +280,7 @@ impl Core {
         } {
             return Err(people::Refusal::Limit { which: people::LimitKind::Policy });
         }
+        self.check_policy_ceilings(project, &policy)?;
         let resize = self.resize(project, self.authority.policy(project).expect("existing policy"), &policy, limits)?;
         let mut facts = Queue::uncapped();
         crate::routing::step::step_authority(self, authority::Event::Policy { project, policy }, &mut facts);
@@ -289,13 +290,25 @@ impl Core {
                 assert!(self.template_overrides.insert(project, templates).is_ok(), "admitted template policy");
                 Ok((snapshot, resize))
             }
-            authority::PolicyFact::Refused { .. } => {
-                Err(people::Refusal::Authority { proposable: None, lacking: people::Lack::Shape })
-            }
+            authority::PolicyFact::Refused { .. } => unreachable!("policy checked before resize"),
             authority::PolicyFact::Added { .. } | authority::PolicyFact::Dropped { .. } => {
                 unreachable!("existing project policy replacement")
             }
         }
+    }
+
+    fn check_policy_ceilings(&self, project: u32, policy: &authority::Policy) -> Result<(), people::Refusal> {
+        if let Some(ceiling) = authority::policy_ceiling(
+            self.authority.rules(),
+            self.authority.policy(project).expect("existing policy"),
+            policy,
+        ) {
+            return Err(ceiling_refusal(ceiling));
+        }
+        if authority::policy_refusal(self.authority.rules(), self.authority.limits(), policy).is_some() {
+            return Err(people::Refusal::Authority { proposable: None, lacking: people::Lack::Shape });
+        }
+        Ok(())
     }
 
     /// Add a project from its committed row alone before admitting party requests.
@@ -410,4 +423,34 @@ fn grants_to_people(grants: &[authority::Grant]) -> Option<Box<[people::Grant]>>
         result.push(grant_to_people(grant)).ok()?;
     }
     Some(result.into_boxed())
+}
+
+fn ceiling_dimension(value: authority::CeilingDimension) -> people::CeilingDimension {
+    match value {
+        authority::CeilingDimension::PeriodSpend => people::CeilingDimension::PeriodSpend,
+        authority::CeilingDimension::Spend => people::CeilingDimension::Spend,
+        authority::CeilingDimension::Tools => people::CeilingDimension::Tools,
+        authority::CeilingDimension::Tasks => people::CeilingDimension::Tasks,
+        authority::CeilingDimension::Depth => people::CeilingDimension::Depth,
+        authority::CeilingDimension::Executors => people::CeilingDimension::Executors,
+        authority::CeilingDimension::Grants => people::CeilingDimension::Grants,
+        authority::CeilingDimension::Deadline => people::CeilingDimension::Deadline,
+        authority::CeilingDimension::Notes => people::CeilingDimension::Notes,
+    }
+}
+
+fn ceiling_refusal(ceiling: authority::Ceiling) -> people::Refusal {
+    people::Refusal::Authority {
+        proposable: None,
+        lacking: people::Lack::Ceiling {
+            holder: match ceiling.holder {
+                authority::CeilingHolder::Rules => people::CeilingHolder::Rules,
+                authority::CeilingHolder::Policy => people::CeilingHolder::Policy,
+                authority::CeilingHolder::Role(role) => people::CeilingHolder::Role(role),
+            },
+            dimension: ceiling_dimension(ceiling.dimension),
+            value: ceiling.value,
+            asked: ceiling.asked,
+        },
+    }
 }

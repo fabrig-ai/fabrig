@@ -46,7 +46,7 @@ pub const TASKS: Tool = Tool {
         flag(b"label", b"chat|goal", Kind::Word { set: &[b"chat", b"goal"] }, Optional, b"Only chats, or only goals"),
         switch(b"tracked", b"Only tracked tasks"),
         switch(b"mine", b"Only the tasks your party asked for"),
-        switch(b"ended", b"Ended tasks, not live ones"),
+        switch(b"ended", b"Ended tasks, not live ones: a project's ended goals; ended chats with --mine, a task's ended delegates with --parent"),
         flag(b"order", b"activity|priority", Kind::Order, Optional, b"By last activity or by priority; by number when absent"),
         flag(b"after", b"CURSOR", Kind::Cursor, Optional, b"The cursor a page printed, to read on"),
         flag(b"parent", b"TASK", Kind::Number, Optional, b"Only this task's delegates"),
@@ -101,7 +101,7 @@ pub const ACTIVITY: Tool = Tool {
     ]],
     keyed: Keyed::Never,
     area: 1,
-    notes: b"A turn prints as its size and `read with: task turn TASK TURN`.\nWith `--limit`, the page keeps its last COUNT lines, and `read on\nwith:` repeats the read without the limit.\n",
+    notes: b"A turn prints whole, each part cut at 16 KB with `read on with:`;\na turn past a page's bytes prints as its size and\n`read with: task turn TASK TURN`.\nWith `--limit`, the page keeps its last COUNT lines, and `read on\nwith:` repeats the read without the limit.\n",
 };
 pub const TURN: Tool = Tool {
     name: b"task turn",
@@ -528,7 +528,7 @@ pub const DECLARE: Tool = Tool {
     keyed: Keyed::Required,
     area: 5,
     notes:
-        b"No program runs for you: run the printed command on each host that\nruns the program, then account verify.\n",
+        b"No program runs for you: run the printed command on each host that\nruns the program; skip it where the directory is already signed in.\nThen account verify.\n",
 };
 pub const VERIFY: Tool = Tool {
     name: b"account verify",

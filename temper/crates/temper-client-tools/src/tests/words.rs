@@ -321,3 +321,80 @@ fn no_tool_is_named_wait() {
     assert_eq!(refusal(&["wait", "me"]).as_ref(), b"temper ctl: no group wait; temper ctl help lists them\n");
     assert_eq!(fixtures::json(br#"{"tool":"wait","arguments":{"subject":"me"}}"#), Err(Usage::Tool));
 }
+
+#[test]
+fn a_bounded_argument_refusal_names_the_tool_and_bound() {
+    assert_eq!(
+        refusal(&["task", "activity", "2", "--limit", "40"]).as_ref(),
+        b"temper ctl: task activity: --limit COUNT takes a count from 1 to 32; temper ctl help task activity\n"
+    );
+}
+#[test]
+fn a_json_argument_refusal_names_the_tool_and_bound() {
+    let why = fixtures::json(br#"{"tool":"task activity","arguments":{"task":2,"limit":40}}"#).expect_err("past limit");
+    let mut measured = skein_lib::Writer::new(240);
+    write_refusal(why, &[], &mut measured);
+    let mut out = skein_lib::Writer::new(measured.written());
+    write_refusal(why, &[], &mut out);
+    assert_eq!(
+        &out.finish()[..],
+        b"temper ctl: task activity: --limit COUNT takes a count from 1 to 32; temper ctl help task activity\n"
+    );
+}
+
+#[test]
+fn every_argument_refusal_fits_one_line_with_its_help_call() {
+    for (tool, row) in table::TOOLS.iter().enumerate() {
+        for (form, arguments) in row.forms.iter().enumerate() {
+            for (argument, _) in arguments.iter().enumerate() {
+                let tool = u8::try_from(tool).unwrap();
+                let form = u8::try_from(form).unwrap();
+                let argument = u8::try_from(argument).unwrap();
+                for why in [
+                    Usage::Kind { tool, form, argument },
+                    Usage::Rows { tool, form, argument },
+                    Usage::Long { tool, form, argument },
+                    Usage::Missing { tool, form, argument },
+                    Usage::Twice { tool, form, argument },
+                    Usage::Many { tool, form, argument },
+                ] {
+                    let mut measured = skein_lib::Writer::new(240);
+                    write_refusal(why, &[], &mut measured);
+                    let mut exact = skein_lib::Writer::new(measured.written());
+                    write_refusal(why, &[], &mut exact);
+                    let line = exact.finish();
+                    assert_eq!(skein_lib::bytes::count(&line, b"\n", 2), 1, "{why:?}");
+                    assert!(line.strip_suffix(b"\n").unwrap().ends_with(row.name), "{why:?}");
+                }
+            }
+        }
+    }
+}
+
+#[test]
+fn a_json_argument_of_the_wrong_kind_keeps_its_form() {
+    let why = fixtures::json(br#"{"tool":"task activity","arguments":{"task":2,"limit":"many"}}"#)
+        .expect_err("count required");
+    assert_eq!(why, Usage::Kind { tool: jig::rows::ACTIVITY_AT, form: 0, argument: 2 });
+}
+#[test]
+fn a_call_that_names_no_tool_keeps_the_usage_line() {
+    assert_eq!(
+        refusal(&[]).as_ref(),
+        b"temper ctl: usage: temper ctl DIR GROUP VERB [ARGUMENT...]; temper ctl help GROUP VERB prints one tool\n"
+    );
+}
+
+#[test]
+fn a_json_switch_refusal_says_how_to_omit_it() {
+    let why =
+        fixtures::json(br#"{"tool":"task show","arguments":{"task":2,"tree":false}}"#).expect_err("switch takes true");
+    let mut measured = skein_lib::Writer::new(240);
+    write_refusal(why, &[], &mut measured);
+    let mut out = skein_lib::Writer::new(measured.written());
+    write_refusal(why, &[], &mut out);
+    assert_eq!(
+        out.finish().as_ref(),
+        b"temper ctl: task show: --tree is a switch: omit it or use true in --call; temper ctl help task show\n"
+    );
+}

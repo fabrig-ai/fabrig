@@ -162,6 +162,7 @@ pub struct Peer {
     server: jig_test_service::server::Server,
     server_out: Queue<jig_test_service::server::Routed>,
     mount: mapping::Mount,
+    http_limits: mapping::Limits,
     refused: skein_lib::Map<Token, ()>,
     mount_out: Queue<mapping::Request>,
     component: Component,
@@ -207,6 +208,10 @@ impl Peer {
     }
     #[must_use]
     pub fn with_limits(settings: &Settings, limits: Limits) -> Self {
+        Self::with_bounds(settings, limits, fixtures::http_limits())
+    }
+    #[must_use]
+    pub fn with_bounds(settings: &Settings, limits: Limits, http_limits: mapping::Limits) -> Self {
         let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
         let mut out = Queue::with_capacity(64);
         let component = Component::new(fixtures::copy_settings(settings), &env, &mut out).expect("component starts");
@@ -215,6 +220,7 @@ impl Peer {
             server: fixtures::server(),
             server_out: Queue::with_capacity(64),
             mount: fixtures::mount(),
+            http_limits,
             refused: skein_lib::Map::with_capacity(fixtures::server_limits().connections),
             mount_out: Queue::with_capacity(64),
             env,
@@ -269,7 +275,7 @@ impl Peer {
         self.pump();
     }
     fn mount_env(&self) -> Env<mapping::Limits> {
-        self.env.with(fixtures::http_limits())
+        self.env.with(self.http_limits)
     }
     fn mount_event(&mut self, event: mapping::Event) {
         self.mount.down(&self.mount_env(), event);
@@ -477,7 +483,16 @@ impl Peer {
     }
     #[must_use]
     pub fn signed_in(settings: &Settings, sign_in: u64) -> Self {
-        let mut peer = Self::started(settings);
+        Self::signed_in_with_bounds(settings, sign_in, fixtures::limits(), fixtures::http_limits())
+    }
+    #[must_use]
+    pub fn signed_in_with_bounds(
+        settings: &Settings,
+        sign_in: u64,
+        limits: Limits,
+        http_limits: mapping::Limits,
+    ) -> Self {
+        let mut peer = Self::with_bounds(settings, limits, http_limits);
         let exchange = peer.post_link(&peer.printed_link());
         peer.answer_signed_in(sign_in, fixtures::FIRST_PERSON);
         peer.answer_kept(sign_in);
@@ -490,6 +505,16 @@ impl Peer {
         peer
     }
     pub fn open_stream(&mut self) -> [u8; 16] {
+        let socket = self.request_stream();
+        let events = self.stream_records(socket);
+        let Some(w::StreamEvent::Hello(hello)) = events.first() else {
+            panic!("hello first: {:?}", self.sockets.get(&socket).expect("stream").body);
+        };
+        let name = *hello.stream();
+        self.streams.insert(name, socket);
+        name
+    }
+    pub fn request_stream(&mut self) -> Token {
         let socket = Token::new(self.next_socket);
         self.next_socket += 1;
         self.sockets.insert(
@@ -501,13 +526,12 @@ impl Peer {
             &mut self.server_out,
         );
         self.pump();
-        let events = self.stream_records(socket);
-        let Some(w::StreamEvent::Hello(hello)) = events.first() else {
-            panic!("hello first: {:?}", self.sockets.get(&socket).expect("stream").body);
-        };
-        let name = *hello.stream();
-        self.streams.insert(name, socket);
-        name
+        socket
+    }
+    #[must_use]
+    pub fn response(&self, socket: Token) -> (Option<u16>, &[u8]) {
+        let exchange = self.sockets.get(&socket).expect("requested exchange");
+        (exchange.status, &exchange.body)
     }
     fn stream_records(&self, socket: Token) -> Vec<w::StreamEvent> {
         let body = &self.sockets.get(&socket).expect("stream").body;

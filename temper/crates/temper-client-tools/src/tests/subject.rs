@@ -81,11 +81,14 @@ fn a_timeout_defaults_to_300_seconds_and_stops_at_3600() {
         assert_eq!(call.values[2], Some(Values::One(Value::Duration(Duration::from_secs(*seconds)))), "{word}");
         assert_eq!(fixtures::printed(&call), Parsed::Call { call, json: false }, "{word}");
     }
-    assert_eq!(fixtures::parse(&["me", "--until", "changed", "--timeout", "3601"]), Err(Usage::Rows { argument: 2 }));
+    assert_eq!(
+        fixtures::parse(&["me", "--until", "changed", "--timeout", "3601"]),
+        Err(Usage::Rows { tool: 0, form: 0, argument: 2 })
+    );
     for word in ["-1", "0.5", "1d", "18446744073709551615h"] {
         assert_eq!(
             fixtures::parse(&["me", "--until", "changed", "--timeout", word]),
-            Err(Usage::Kind { argument: 2 }),
+            Err(Usage::Kind { tool: 0, form: 0, argument: 2 }),
             "{word}"
         );
     }
@@ -178,7 +181,11 @@ fn since_and_until_parse_together() {
         assert_eq!(fixtures::printed(&call), Parsed::Call { call, json: false }, "{word}");
     }
     for word in ["00112233445566", "001122334455667788", "00112233445566AA"] {
-        assert_eq!(fixtures::parse(&["me", "--since", word]), Err(Usage::Kind { argument: 0 }), "{word}");
+        assert_eq!(
+            fixtures::parse(&["me", "--since", word]),
+            Err(Usage::Kind { tool: 0, form: 0, argument: 0 }),
+            "{word}"
+        );
     }
     let call = fixtures::call(&["task", "list", "--until", "changed", "--timeout", "5m", "--project", "shop"]);
     assert_eq!(fixtures::printed(&call), Parsed::Call { call, json: false });
@@ -188,7 +195,11 @@ fn typed_wait_calls_follow_the_same_subject_condition_and_duration_checks() {
     let base = fixtures::call(&["task", "show", "41", "--until", "ended"]);
     for (slot, value, error) in [
         (5, Value::Condition(Condition::Phase(Phase::Done)), Usage::TerminalPhase { phase: Phase::Done }),
-        (6, Value::Duration(Duration::from_secs(MOST_SECONDS.checked_add(1).unwrap())), Usage::Rows { argument: 6 }),
+        (
+            6,
+            Value::Duration(Duration::from_secs(MOST_SECONDS.checked_add(1).unwrap())),
+            Usage::Rows { tool: 3, form: 0, argument: 6 },
+        ),
         (1, Value::Switch, Usage::WaitPart { tool: 3, argument: 1 }),
     ] {
         let mut call = base.clone();

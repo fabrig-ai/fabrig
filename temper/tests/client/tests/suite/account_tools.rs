@@ -155,7 +155,13 @@ fn a_tools_declaration_is_visible_with_its_host_in_accounts() {
     );
     let declared = root.agent().printed(1).expect("durable declaration");
     assert_eq!(declared.status, 0, "{declared:?}");
-    assert!(skein_lib::bytes::find(&declared.stdout, b"temper program-login claude-work").is_some());
+    assert!(
+        skein_lib::bytes::find(
+            &declared.stdout,
+            b"temper program-login --config CONFIG --data DATA --cache CACHE claude-work"
+        )
+        .is_some()
+    );
     call(&mut front, &mut root, 2, &[b"account", b"list", b"--json"], None);
     let printed = root.agent().printed(2).expect("declared source and hosts");
     assert_eq!(printed.status, 0);

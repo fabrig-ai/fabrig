@@ -5,7 +5,7 @@ use jig_domain_tasks as tasks;
 use skein_lib::{Decimal, List, Writer};
 use temper_engine_domain_forge as forge;
 
-/// The root names an advisor before the requester's words (domain/agent.md, 4.3.2).
+/// The root names an advisor after the caller's words (domain/agent.md, 4.3.2).
 const ADVISOR_SCOPE: &[u8] =
     b"You are an advisor: you read what your brief asks and report what you found; you change nothing and ask no one.";
 
@@ -102,6 +102,12 @@ pub(crate) fn goal(
     };
     let agree = person_words.is_some();
     let words = brief(env.limits.tasks.spec_bytes, words, advisor, person_words)?;
+    let (label, flags) = if advisor {
+        (0, tasks::Flags::PLAIN)
+    } else {
+        let template = domain.core.current.template(2).ok_or(tasks::Refusal::Unknown)?;
+        (template.label, template.flags)
+    };
     Ok(Delegate {
         executor: tasks::Executor::Agent { charter },
         spec: tasks::Spec { asks: agree, words, parameters: Box::new([]), inputs: Box::new([]) },
@@ -113,8 +119,8 @@ pub(crate) fn goal(
         dependencies: Box::new([]),
         wake: tasks::WakePolicy::DEFAULT,
         tracked,
-        label: 0,
-        flags: tasks::Flags::PLAIN,
+        label,
+        flags,
         budget: jig_domain_people::Budget::Named,
     })
 }
@@ -132,7 +138,7 @@ fn brief(
     let heading = if person_words.is_some() { PERSON_WORDS } else { b"" };
     let before_heading = if heading.is_empty() { b"".as_slice() } else { b"\n\n".as_slice() };
     let after_heading = if heading.is_empty() { b"".as_slice() } else { b"\n".as_slice() };
-    let parts = [scope, separator, agreed, b"\n\n".as_slice(), &words, before_heading, heading, after_heading];
+    let parts = [words.as_ref(), b"\n\n".as_slice(), scope, separator, agreed, before_heading, heading, after_heading];
     let mut length = 0_usize;
     for part in parts {
         length = length.checked_add(part.len()).ok_or(tasks::Refusal::Spec)?;

@@ -49,3 +49,23 @@ fn a_pool_raise_exactly_fills_the_period_and_one_unit_more_is_refused() {
         assert_eq!(core.authority.policy(1), Some(&policy_before));
     }
 }
+
+#[test]
+fn a_role_raise_past_ceiling_and_room_names_ceiling_first() {
+    let (mut core, limits) = make_tree();
+    let period = tasks::Funder::Period { project: 1, period: 1 };
+    let before = *core.tasks.funding(period).unwrap();
+    assert_eq!(
+        core.change_policy(&limits, 1, 1, people::PolicyChange::RoleSpend { role: 0, period_spend: 1001 }),
+        Err(people::Refusal::Authority {
+            proposable: None,
+            lacking: people::Lack::Ceiling {
+                holder: people::CeilingHolder::Policy,
+                dimension: people::CeilingDimension::PeriodSpend,
+                value: Some(1000),
+                asked: Some(1001),
+            }
+        })
+    );
+    assert_eq!(core.tasks.funding(period), Some(&before));
+}

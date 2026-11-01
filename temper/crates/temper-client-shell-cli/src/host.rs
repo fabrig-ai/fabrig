@@ -71,6 +71,7 @@ pub struct OneShot {
     signals: Option<Token>,
     stdin: Option<Token>,
     input: Option<Vec<u8>>,
+    stdin_ended: Option<()>,
     value: Option<skein_lib::Secret>,
     preparing: bool,
     complete: Queue<Complete>,
@@ -158,6 +159,7 @@ impl OneShot {
             signals,
             stdin,
             input: None,
+            stdin_ended: None,
             value: None,
             preparing: true,
             complete: Queue::with_capacity(ROOM),
@@ -577,6 +579,10 @@ impl OneShot {
                 self.fail(b"temper is busy; this link stays usable until it expires");
                 return;
             }
+            if let Some(full) = self.root.client().link().streams_full {
+                self.fail(format!("the engine's {} streams are all in use, by waits and open clients; end one, or wait and call again", full.size).as_bytes());
+                return;
+            }
             let address = std::str::from_utf8(self.directory.address.as_deref().expect("loaded address"))
                 .expect("numeric address");
             self.fail(format!("the engine at {address} did not answer within 30 s").as_bytes());
@@ -613,8 +619,12 @@ impl OneShot {
                     true,
                 ),
                 io::Event::Stream { owner, up } => {
-                    if Some(owner) == self.stdin && self.input.is_some() {
-                        self.input_event(up);
+                    if Some(owner) == self.stdin {
+                        if self.input.is_some() {
+                            self.input_event(up);
+                        } else if matches!(up, Up::End) {
+                            self.stdin_ended = Some(());
+                        }
                         continue;
                     }
                     if !self.closed

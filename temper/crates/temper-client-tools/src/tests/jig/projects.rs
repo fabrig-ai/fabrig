@@ -283,11 +283,29 @@ fn a_spent_pool_refusal_names_the_project_role_and_remedy() {
         root.answered(call, spent_pool_refusal());
         let printed = root.answer(call).unwrap();
         assert_eq!(printed.status, 2);
-        let numbers = if pool_known { " has 0 left; budget 114" } else { " is spent" };
+        assert_eq!(
+            String::from_utf8_lossy(&printed.stderr),
+            "chat start: refused: your pool in project 1 had 0 left, 1 needed\nread it: project show 1\nraise it: project fund 1 AMOUNT --role 0, and first the project's if its period has no room: project fund 1 AMOUNT\n"
+        );
+    }
+}
+#[test]
+fn a_kept_spent_pool_refusal_with_room_now_names_the_new_key_remedy() {
+    for left in [1, 40] {
+        let mut root = f::chat_root(100, f::SEED);
+        let mut me = f::chat_me(100);
+        let mut pool = project().pools.get(0).unwrap().clone();
+        pool.left = left;
+        me.projects.get_mut(0).unwrap().pool = Some(pool);
+        root.deliver(c::Delivery::Me(Box::new(me)));
+        let call = root.submit(f::CREATE_CHAT_CALL);
+        root.answered(call, spent_pool_refusal());
+        let printed = root.answer(call).unwrap();
+        assert_eq!(printed.status, 2);
         assert_eq!(
             String::from_utf8_lossy(&printed.stderr),
             format!(
-                "chat start: refused: your pool in project 1{numbers}\nread it: project show 1\nraise it: project fund 1 AMOUNT --role 0, and first the project's if its period has no room: project fund 1 AMOUNT\n"
+                "chat start: refused: your pool in project 1 had 0 left, 1 needed\nnow: your pool has {left} left; budget 100; this key keeps its first answer: start new work with a new --key\n"
             )
         );
     }
@@ -376,4 +394,87 @@ fn project_fund_marks_missing_period_and_cut_flags_as_current_reads() {
         root.answer(call).unwrap().stdout.as_ref(),
         b"project 1: spend per period 0\nnow: period: none open\nnow: project: cut\nnow: configured pools: cut\n"
     );
+}
+
+#[test]
+fn project_fund_ceiling_refusals_name_the_bound_and_remedy() {
+    for (holder, role, expected) in [
+        (
+            c::CeilingHolder::Rules,
+            None,
+            "project fund: past the rules' period spend, 1000; raise the rules first with temper ctl settings apply\n",
+        ),
+        (
+            c::CeilingHolder::Policy,
+            Some("0"),
+            "project fund: past the project's period spend, 1000; fund the project first: temper ctl project fund 1 AMOUNT\n",
+        ),
+        (
+            c::CeilingHolder::Role(0),
+            None,
+            "project fund: below role 0's period spend, 1000; lower the role first: temper ctl project fund 1 AMOUNT --role 0\n",
+        ),
+    ] {
+        let mut root = f::signed_in(f::PARTY);
+        let mut argv = vec!["project", "fund", "1", "1001", "--key", "fund"];
+        if let Some(role) = role {
+            argv.extend(["--role", role]);
+        }
+        let call = root.submit(&argv);
+        root.answered(call, ceiling_refusal(holder, c::CeilingDimension::PeriodSpend, Some(1000), Some(1001)));
+        let printed = root.answer(call).unwrap();
+        assert_eq!(printed.status, 2);
+        assert_eq!(printed.stderr.as_ref(), expected.as_bytes());
+        assert!(root.reads.is_empty());
+    }
+}
+
+#[test]
+fn project_fund_rechecks_the_rules_authority_ceiling() {
+    for (dimension, value, expected) in [
+        (
+            c::CeilingDimension::Spend,
+            Some(500),
+            "project fund: the project's authority is past the rules' spend, 500; raise the rules with temper ctl settings apply, or narrow the project's policy\n",
+        ),
+        (
+            c::CeilingDimension::Tools,
+            None,
+            "project fund: the project's authority is past the rules' tools; raise the rules with temper ctl settings apply, or narrow the project's policy\n",
+        ),
+    ] {
+        let mut root = f::signed_in(f::PARTY);
+        let call = root.submit(&["project", "fund", "1", "1000", "--key", "fund"]);
+        root.answered(call, ceiling_refusal(c::CeilingHolder::Rules, dimension, value, None));
+        let printed = root.answer(call).unwrap();
+        assert_eq!(printed.status, 2);
+        assert_eq!(printed.stderr.as_ref(), expected.as_bytes());
+    }
+}
+fn ceiling_refusal(
+    holder: c::CeilingHolder,
+    dimension: c::CeilingDimension,
+    value: Option<u64>,
+    asked: Option<u64>,
+) -> c::Answer {
+    c::Answer::Refused {
+        refusal: c::Refusal::Authority {
+            lacking: c::Lacking::Ceiling { holder, dimension, value, asked },
+            proposable: None,
+        },
+        at: None,
+    }
+}
+
+#[test]
+fn project_fund_json_preserves_the_ceiling_facts() {
+    let mut root = f::signed_in(f::PARTY);
+    let call = root.submit(&["project", "fund", "1", "1001", "--key", "fund", "--json"]);
+    root.answered(
+        call,
+        ceiling_refusal(c::CeilingHolder::Rules, c::CeilingDimension::PeriodSpend, Some(1000), Some(1001)),
+    );
+    let printed = root.answer(call).unwrap();
+    assert_eq!(printed.status, 2);
+    assert_eq!(printed.stderr.as_ref(), br#"{"operation":"project fund","outcome":{"refused":{"refusal":{"authority":{"lacking":{"ceiling":{"holder":"rules","dimension":"period_spend","value":1000}},"proposable":null}},"at":null}},"task":null,"to":null}"#);
 }

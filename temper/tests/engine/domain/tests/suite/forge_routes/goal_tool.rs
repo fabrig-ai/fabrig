@@ -2,9 +2,9 @@
 use super::*;
 
 const WORDS: &[u8] = b"Plan the fix, ask me, then make it";
-const ADVISOR_PREFIX: &[u8] = b"You are an advisor: you read what your brief asks and report what you found; you change nothing and ask no one.\n\n";
-const GOAL_PREFIX: &[u8] = b"You are a goal: the work your person asked for, yours to plan and to change; you start no goal but an advisor.\n\n";
-const AGREED_PREFIX: &[u8] = b"You are a goal: the work your person asked for, yours to plan and to change; you start no goal but an advisor.\nThe work is to be agreed: before anything is changed, ask your requester your plan with message, as a question, and wait for the answer.\n\n";
+const ADVISOR_SUFFIX: &[u8] = b"\n\nYou are an advisor: you read what your brief asks and report what you found; you change nothing and ask no one.";
+const GOAL_SUFFIX: &[u8] = b"\n\nYou are a goal: the work your person asked for, yours to plan and to change; you start no goal but an advisor.";
+const AGREED_SUFFIX: &[u8] = b"\n\nYou are a goal: the work your person asked for, yours to plan and to change; you start no goal but an advisor.\nThe work is to be agreed: before anything is changed, ask your requester your plan with message, as a question, and wait for the answer.";
 const PERSON_HEADING: &[u8] = b"\n\nYour person's words, whole:\n";
 const PERSON_REQUEST: &[u8] = b"First: read the code and ask me.\nThen: keep the second paragraph too.";
 const PERSON_BYTES: usize = 128; // The root world's existing people.words bound and adoption request size.
@@ -91,8 +91,10 @@ fn a_chats_goal_is_unchanged() {
     assert_eq!(row.requester, tasks::Party::Task(chat.task));
     assert_eq!(row.project, live(&world, chat.task).project);
     assert_eq!(row.tracked, Some(0));
+    assert_eq!(row.label, 2);
+    assert!(row.flags.listed);
     assert!(matches!(row.contract, tasks::Contract::Report { .. }));
-    assert_eq!(row.spec.words.as_ref(), [GOAL_PREFIX, WORDS].concat());
+    assert_eq!(row.spec.words.as_ref(), [WORDS, GOAL_SUFFIX].concat());
     assert!(row.spec.parameters.is_empty() && row.spec.inputs.is_empty());
     assert_eq!(delegated(goal(&mut world, &chat, 93, false)), task, "named retry makes no second goal");
 }
@@ -158,6 +160,8 @@ fn an_advisor_reads_alone_untracked() {
     let task = delegated(goal(&mut world, &run, NESTED_GOAL_CALL, true));
     let row = live(&world, task);
     assert_eq!(row.tracked, None);
+    assert_eq!(row.label, 0);
+    assert_eq!(row.flags, tasks::Flags::PLAIN);
     assert_eq!(row.authority.tools, tasks::Tools(jig_domain_core::ToolFamilies::JIG.read.0));
     assert!(!row.authority.grants.is_empty());
     assert!(row.authority.grants.iter().all(|g| g.connector == 0 && g.kind == 1));
@@ -194,6 +198,56 @@ fn a_goal_with_half_the_remainder_at_minimum_is_refused_as_funding() {
 
 fn running_goal() -> (World, engine::Assignment, engine::Assignment) {
     running_goal_with_agreement(false)
+}
+
+#[test]
+fn a_chats_ended_goal_is_listed_by_project() {
+    use jig_domain_core::{documents, reads};
+    let (mut world, _, run) = running_goal();
+    let project = live(&world, run.task).project;
+    let event = world.protocol.answer(
+        Token::new(7),
+        run.task,
+        run.attempt,
+        1,
+        tasks::End::Finished {
+            result: tasks::TaskResult::Report { words: b"done".as_slice().into() },
+            cancel_delegates: false,
+        },
+        engine::Parts::none(),
+    );
+    world.send(event);
+    let ended = Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Ended(run.task)));
+    for _ in 0..200 {
+        world.tick();
+        if world.store.rows.contains_key(&ended) {
+            break;
+        }
+    }
+    assert!(world.store.rows.contains_key(&ended), "the goal ended");
+    assert!(
+        world.store.rows.values().any(|record| matches!(record,
+            Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::EndedByProject(row)))
+                if row.project == project && row.task == run.task && row.label == 2
+        )),
+        "the ended goal is indexed by project and goal label"
+    );
+    for label in [None, Some(2)] {
+        let query = documents::TaskQuery {
+            project: Some(project),
+            requester: None,
+            phase: Some(documents::PhaseClass::Ended),
+            label,
+            ..jig_test_profile::fixtures::OWN_TASKS
+        };
+        let answer = super::paths::read(&mut world, reads::Read::Tasks { query, live: None, ended: None });
+        let Some(reads::Answer::Tasks(page)) = answer else { panic!("ended project tasks: {answer:?}") };
+        assert!(page.live.is_empty());
+        let reads::EndedGroup::Rows { rows, next, cut } = &page.ended else { panic!("ended project group") };
+        assert_eq!(rows.len(), 1, "project query with label {label:?}");
+        assert_eq!(rows.get(0).expect("one ended goal").chip.number, run.task);
+        assert!(next.is_none() && !cut);
+    }
 }
 
 fn running_goal_with_agreement(agree: bool) -> (World, engine::Assignment, engine::Assignment) {
@@ -358,16 +412,16 @@ fn oversized_goal_words_are_refused_as_a_delegate_spec() {
 }
 
 #[test]
-fn an_advisors_brief_opens_with_the_roots_line() {
+fn an_advisors_brief_puts_the_roots_line_after_the_callers_words() {
     let (mut world, _, run) = running_goal();
     let task = delegated(goal(&mut world, &run, NESTED_GOAL_CALL, true));
-    assert_eq!(live(&world, task).spec.words.as_ref(), [ADVISOR_PREFIX, WORDS].concat());
+    assert_eq!(live(&world, task).spec.words.as_ref(), [WORDS, ADVISOR_SUFFIX].concat());
 }
 
 fn advisor_at_spec_edge(extra: usize) -> (World, engine::CallAnswer) {
     let (mut world, _, run) = running_goal();
     let bound = usize::try_from(world.env.limits.tasks.spec_bytes).expect("u32 fits usize");
-    let words = vec![b'x'; bound - ADVISOR_PREFIX.len() + extra];
+    let words = vec![b'x'; bound - ADVISOR_SUFFIX.len() + extra];
     let answer = call(
         &mut world,
         &run,
@@ -422,21 +476,21 @@ fn an_agreed_goals_brief_carries_its_persons_words_whole() {
     let (world, _, run) = running_goal_with_agreement(true);
     let row = live(&world, run.task);
     assert!(row.spec.asks);
-    assert_eq!(row.spec.words.as_ref(), [AGREED_PREFIX, WORDS, PERSON_HEADING, PERSON_REQUEST].concat());
+    assert_eq!(row.spec.words.as_ref(), [WORDS, AGREED_SUFFIX, PERSON_HEADING, PERSON_REQUEST].concat());
 }
 
 #[test]
-fn every_goals_brief_opens_with_the_roots_goal_line() {
-    for (agree, prefix) in [(false, GOAL_PREFIX), (true, AGREED_PREFIX)] {
+fn every_goals_brief_puts_the_roots_lines_after_the_callers_words() {
+    for (agree, suffix) in [(false, GOAL_SUFFIX), (true, AGREED_SUFFIX)] {
         let (world, _, run) = running_goal_with_agreement(agree);
-        assert!(live(&world, run.task).spec.words.starts_with(prefix));
+        assert!(live(&world, run.task).spec.words.starts_with(&[WORDS, suffix].concat()));
     }
 }
 
 fn agreed_at_spec_edge(extra: usize, person_words: &[u8]) -> (World, u64, Box<[u8]>) {
     let world = World::configured(true, true);
     let bound = usize::try_from(world.env.limits.tasks.spec_bytes).expect("u32 fits usize");
-    let fixed = AGREED_PREFIX.len() + PERSON_HEADING.len() + PERSON_BYTES;
+    let fixed = AGREED_SUFFIX.len() + PERSON_HEADING.len() + PERSON_BYTES;
     let words = vec![b's'; bound - fixed + extra].into_boxed_slice();
     let (mut world, chat) = start_chat(world, 400, 11, 3, Some(person_words));
     let task = delegated(call(
@@ -452,7 +506,7 @@ fn agreed_at_spec_edge(extra: usize, person_words: &[u8]) -> (World, u64, Box<[u
 fn an_agreed_brief_fits_its_persons_words_at_the_spec_bound() {
     let person = [b'x'; PERSON_BYTES];
     let (world, task, words) = agreed_at_spec_edge(AT_BOUND, &person);
-    assert_eq!(live(&world, task).spec.words.as_ref(), [AGREED_PREFIX, &words, PERSON_HEADING, &person].concat());
+    assert_eq!(live(&world, task).spec.words.as_ref(), [&words, AGREED_SUFFIX, PERSON_HEADING, &person].concat());
     assert_eq!(
         live(&world, task).spec.words.len(),
         usize::try_from(world.env.limits.tasks.spec_bytes).expect("u32 fits usize")
@@ -467,7 +521,7 @@ fn an_agreed_brief_cuts_its_persons_words_at_the_spec_bound() {
     let kept = [b'x'; PERSON_BYTES - OMITTED];
     assert_eq!(
         live(&world, task).spec.words.as_ref(),
-        [AGREED_PREFIX, &words, PERSON_HEADING, &kept, b"\n[17 bytes cut]\n"].concat()
+        [&words, AGREED_SUFFIX, PERSON_HEADING, &kept, b"\n[17 bytes cut]\n"].concat()
     );
     assert_eq!(
         live(&world, task).spec.words.len(),
@@ -484,7 +538,7 @@ fn an_agreed_brief_cuts_at_a_whole_character() {
     let kept = "é".repeat((PERSON_BYTES - OMITTED) / "é".len());
     assert_eq!(
         live(&world, task).spec.words.as_ref(),
-        [AGREED_PREFIX, &words, PERSON_HEADING, kept.as_bytes(), b"\n[18 bytes cut]\n"].concat()
+        [&words, AGREED_SUFFIX, PERSON_HEADING, kept.as_bytes(), b"\n[18 bytes cut]\n"].concat()
     );
     assert!(core::str::from_utf8(&live(&world, task).spec.words).is_ok());
 }
@@ -551,5 +605,5 @@ fn an_agreed_brief_uses_the_persons_newest_consumed_chat_words() {
         GOAL_CALL,
         engine::Tool::Goal { words: WORDS.into(), advisor: false, agree: true },
     ));
-    assert_eq!(live(&world, task).spec.words.as_ref(), [AGREED_PREFIX, WORDS, PERSON_HEADING, NEWEST].concat());
+    assert_eq!(live(&world, task).spec.words.as_ref(), [WORDS, AGREED_SUFFIX, PERSON_HEADING, NEWEST].concat());
 }

@@ -128,8 +128,8 @@ impl Fetch {
         self.stream = None;
         Some(Report::StreamEnded)
     }
-    /// The stream's answer came with a status other than 200: the stream is closed.
+    /// The stream's opening status; its body follows as bounded pieces.
     pub fn refuse_stream(&mut self, ticket: u64, status: u16) -> Option<Report> {
-        self.end_stream(ticket).map(|_| Report::StreamRefused { status })
+        (self.stream_ticket() == Some(ticket)).then_some(Report::StreamRefused { status })
     }
 }
