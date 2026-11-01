@@ -140,6 +140,18 @@ fn after(key: &[u8]) -> Box<[u8]> {
 pub fn scope(party: u64, scope: &core::reads::Scope) -> Option<Box<[Range]>> {
     use core::reads::Scope;
     Some(match scope {
+        Scope::ProjectRows { .. } => Box::new([Range::prefix(&[keys::JIG, 1, 6]), Range::prefix(&[keys::JIG, 1, 8])]),
+        Scope::TaskRows { task } => Box::new([
+            numbered_prefix(&[keys::JIG, 0, 5], *task),
+            numbered_prefix(&[keys::JIG, 0, 6, 0], *task),
+            numbered_prefix(&[keys::JIG, 0, 7], *task),
+            numbered_prefix(&[keys::JIG, 1, 9], *task),
+            numbered_prefix(&[keys::JIG, 1, 10], *task),
+            numbered_prefix(&[keys::JIG, 1, 11], *task),
+            numbered_prefix(&[keys::JIG, 1, 17], *task),
+            numbered_prefix(&[keys::JIG, 1, 18], *task),
+            numbered_prefix(&[keys::JIG, 2, 7], *task),
+        ]),
         Scope::SettingsHistory { first, last, newest, .. } => {
             let mut ranges = List::with_capacity(2);
             if first < newest {
@@ -208,9 +220,7 @@ pub fn scope(party: u64, scope: &core::reads::Scope) -> Option<Box<[Range]>> {
             | core::reads::Group::Questions
             | core::reads::Group::PersonTasks => return None,
         },
-        Scope::ProjectRows { .. }
-        | Scope::TaskRows { .. }
-        | Scope::Proposal { proposer: jig_domain_people::Proposer::Task(_), .. }
+        Scope::Proposal { proposer: jig_domain_people::Proposer::Task(_), .. }
         | Scope::Escalation { .. }
         | Scope::Question { .. }
         | Scope::Turn { .. }
