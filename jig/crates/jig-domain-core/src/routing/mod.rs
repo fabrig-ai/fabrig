@@ -68,7 +68,7 @@ pub(crate) mod procedure_steps;
 mod projects;
 mod proposal_revisions;
 pub(crate) mod refusals;
-mod removal;
+pub(crate) mod removal;
 mod run_controls;
 mod run_delegation;
 mod run_payloads;

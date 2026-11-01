@@ -306,6 +306,8 @@ pub struct Core {
     pub(crate) census_position: Option<(u64, u64, u64)>,
     pub(crate) ended_marks: Map<Token, ended_marks::Loaded>,
     pub(crate) erasures: Map<Token, erase::Erasing>,
+    pub(crate) removal_sweeps: Map<Token, routing::removal::EndedSweep>,
+    pub(crate) removal_releases: Map<Token, u32>,
     pub(crate) row_sweeps: Map<Token, project_rows::RowSweep>,
     pub(crate) archived_chats: Map<u64, inbox::ArchivedChat>,
     pub(crate) proposed_input: Option<Result<Box<settings::Proposal>, people::Malformed>>,
@@ -694,6 +696,10 @@ impl Core {
             census_position: None,
             ended_marks: Map::with_capacity(limits.people.pending),
             erasures: Map::with_capacity(limits.authority.projects),
+            removal_sweeps: Map::with_capacity(limits.authority.projects),
+            removal_releases: Map::with_capacity(
+                limits.authority.projects.checked_mul(limits.connectors).expect("bounded removal releases"),
+            ),
             row_sweeps: Map::with_capacity(limits.authority.projects),
             archived_chats: Map::with_capacity(
                 limits
