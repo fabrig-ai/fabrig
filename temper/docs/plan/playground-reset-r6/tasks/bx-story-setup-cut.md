@@ -147,6 +147,25 @@ then `start 1\n`. Run `-p temper-service --lib -E 'test(/tests::registry_setup::
 failure (`temper-github-app`) is not this task's: report it under `## Left`. A third blocker
 outside these files is a question again.
 
+
+2026-11-01, after run 4. Q: four runs without landing; what is left? A: Only the merge. Run 4
+met the acceptance (the four stories pass alone, within budget, pushed at `f0afa6877`), but
+its branch merged a trunk from before `0544f90a5` (`mod reset_cut;`), so it still conflicts in
+`tests/reset/mod.rs`. The next run does nothing else:
+- Merge the trunk's tip into the branch (`git merge origin/playground-reset-r6/integration`,
+  no rebase, no force-push) and resolve `reset/mod.rs` as the Rebase section below says.
+- `sv-startup-refuse` was answered the same `Request::SetUp` → `box_link::set_up_group`
+  repair in `route.rs`. If the trunk already holds it when you merge, keep the trunk's
+  `route.rs` and `route/box_link.rs`, add this branch's `Busy` guard only if the trunk lacks
+  one, and keep this branch's `registry_setup.rs` assertions where they still hold; one
+  write and one `start N`, never two.
+- Then `heavy cargo check -p temper -p temper-service --tests`; on a service conflict,
+  `-p temper-service --lib -E 'test(/tests::registry_setup::/)'`; the four stories alone
+  once each, and `reset::reset_cut`'s tests once alone to show the two modules coexist.
+  Commit the merge, push the branch.
+- The run-4 `## Left` items stay left: they are other tasks' or the trunk's end check's.
+  No new work, measurement or report table beyond what this step reruns.
+
 ## Rebase (2026-11-01, step merge, foreman playground-reset-r6/bx-story-setup-cut/foreman-4)
 
 resolve reset/mod.rs by retaining both reset_cut and setup_cut module declarations.
