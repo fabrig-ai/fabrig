@@ -156,30 +156,3 @@ fn pending_starts_share_the_answer_and_resume_without_making_again() {
         [Request::SetUpGroup { forge: 1, request: Token::new(3) }, Request::PlaygroundStart { request: Token::new(3) },]
     );
 }
-
-#[test]
-fn restored_demo_rows_are_discarded() {
-    let mut d = configured();
-    for number in 0..=LIMITS.tasks.checked_add(1).unwrap() {
-        assert!(
-            outputs(
-                &mut d,
-                Event::Restore {
-                    record: Stored::DemoAct(DemoAct {
-                        key: [u8::try_from(number).unwrap(); 16],
-                        act: DemoActKind::Close { project: 5, task: u64::from(number) },
-                    }),
-                }
-            )
-            .is_empty()
-        );
-    }
-    for state in [DemoState::Running, DemoState::Ended] {
-        assert!(outputs(&mut d, Event::Restore { record: Stored::Demo(Demo { forge: 1, state }) }).is_empty());
-    }
-    assert_eq!(d.restore_fit_failure(), None);
-    assert_eq!(d.reconciliation.len(), 0);
-    assert!(!d.forge_ended(1));
-    assert_eq!(d.playground(), None);
-    assert!(!start(&mut d, 1).is_empty());
-}

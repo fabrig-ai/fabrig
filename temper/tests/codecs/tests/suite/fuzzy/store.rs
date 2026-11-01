@@ -37,23 +37,6 @@ fn row_and_key(row: &forge::Stored, rng: &mut Rng, bounds: &Bounds) {
     key(&bytes);
     key(&temper_codecs_world::mutated(rng, &bytes));
 }
-fn end_act(rng: &mut Rng, bounds: &Bounds) {
-    let act = if rng.below(2) == 0 {
-        forge::DemoActKind::Close {
-            project: u32::try_from(rng.below(u64::from(u32::MAX))).expect("u32"),
-            task: rng.next_u64(),
-        }
-    } else {
-        forge::DemoActKind::RemoveAccount { account: u32::try_from(rng.below(u64::from(u32::MAX))).expect("u32") }
-    };
-    let row = forge::Stored::DemoAct(forge::DemoAct { key: [u8::try_from(rng.below(256)).expect("byte"); 16], act });
-    let bytes = records::encode(&row);
-    record(&bytes, bounds);
-    record(&temper_codecs_world::mutated(rng, &bytes), bounds);
-    let bytes = keys::encode(&forge::stored_key(&row), u32::MAX).expect("act key");
-    key(&bytes);
-    key(&temper_codecs_world::mutated(rng, &bytes));
-}
 fn forge_rows(rng: &mut Rng, bounds: &Bounds) {
     use forge::record as r;
     let number = u16::try_from(rng.below(65_536)).expect("u16");
@@ -109,12 +92,6 @@ fn store_decoders_never_panic_and_reencode_the_same() {
         row_and_key(&binding, &mut rng, &bounds);
         record(&temper_codecs_world::drawn(&mut rng, 512), &bounds);
         key(&temper_codecs_world::drawn(&mut rng, 512));
-        let demo = forge::Stored::Demo(forge::Demo {
-            forge: u16::try_from(rng.below(65_536)).expect("u16"),
-            state: if rng.below(2) == 0 { forge::DemoState::Running } else { forge::DemoState::Ended },
-        });
-        row_and_key(&demo, &mut rng, &bounds);
-        end_act(&mut rng, &bounds);
         forge_rows(&mut rng, &bounds);
         let writer = forge::Stored::Writer(skein_forge_client::Writer {
             forge: u16::try_from(rng.below(65_536)).expect("u16"),

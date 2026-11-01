@@ -5034,7 +5034,6 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
         Stored::Kept(row) => {
             d.kept.insert(row.key, row.act).expect("restored kept act within limits");
         }
-        Stored::Demo(_) | Stored::DemoAct(_) => {}
         Stored::Writer(row) => {
             let mut discarded = Queue::uncapped();
             child(
@@ -5466,10 +5465,8 @@ impl Domain {
             Stored::Client(_)
             | Stored::Flight { .. }
             | Stored::Writer(_)
-            | Stored::Demo(_)
             | Stored::Landed { .. }
             | Stored::Binding { .. }
-            | Stored::DemoAct(_)
             | Stored::Forge(_)
             | Stored::Forges { .. }
             | Stored::Playground(_)
@@ -5574,8 +5571,6 @@ impl Domain {
             },
             RecordKind::Landed
             | RecordKind::Binding
-            | RecordKind::Demo
-            | RecordKind::DemoAct
             | RecordKind::Forge
             | RecordKind::Forges
             | RecordKind::Playground

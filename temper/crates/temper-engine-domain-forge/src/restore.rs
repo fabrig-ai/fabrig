@@ -280,9 +280,7 @@ pub(super) fn row(d: &Domain, l: &Limits, row: &Stored) -> Result<(), RestoreFit
             d.releases.capacity(),
             d.releases.contains_key(&row.task),
         ),
-        Stored::Demo(_) | Stored::DemoAct(_) | Stored::Client(_) | Stored::Forges { .. } | Stored::Playground(_) => {
-            Ok(())
-        }
+        Stored::Client(_) | Stored::Forges { .. } | Stored::Playground(_) => Ok(()),
     }
 }
 
