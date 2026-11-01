@@ -6,13 +6,12 @@ use skein_fake_llm_domain::api::{Finish, Line, Part, Query, Role, Rule, Script, 
 use skein_io::kernel::Exit;
 use std::path::Path;
 
-// Creating and parking tasks consumes task identities, not message identities.
-// No message precedes the stop, which takes the deployment's first message number.
-const STOP_HOLD: u64 = 1;
+// The child's timer subscription takes the first message identity; the stop takes the next.
+const STOP_HOLD: u64 = 2;
 const HOLD_REVISION: u64 = 1;
 const TASK_HOLD_REVISION: u64 = 1;
-// The owner's resume message takes 2; the coordinator's proposal takes 3.
-const PROPOSAL: &str = "t1/3";
+// The owner's resume message takes 3; the coordinator's proposal takes 4.
+const PROPOSAL: &str = "t1/4";
 
 const GOAL: &str = "@held-goal";
 const CHILD: &str = "@held-child";
@@ -46,7 +45,7 @@ fn delegate(words: &str, children: bool) -> Turn {
             "spec":{"words":words,"parameters":[]},
             "contract":{"kind":"report","words":128},
             "llm":{"main":{"model":0}},
-            "authority":{"tools":if children {3} else {0},"grants":[],
+            "authority":{"tools":if children {3 | 32} else {32},"grants":[],
                 "delegation":{"kinds":if children { json!([{"kind":"agent","number":2}]) } else { json!([]) },
                     "tasks":u8::from(children),"depth":u8::from(children)},
                 "budget":{"spend":if children {20_000} else {8_000}},"notes":0}
@@ -72,7 +71,7 @@ fn scripts() -> Box<[Script]> {
         Script { cue: GOAL.as_bytes().into(), turns: Box::new([delegate(CHILD, false), wait()]) },
         Script {
             cue: CHILD.as_bytes().into(),
-            turns: Box::new([call(b"read_docs", &json!({"topic":"hold"})), wait()]),
+            turns: Box::new([call(b"subscribe", &json!({"kind":"timer","at":u64::MAX})), wait()]),
         },
     ])
 }
@@ -159,9 +158,9 @@ fn initial_steps(scratch: &Path) -> Vec<Step> {
             let rules_document = ctl::json(&calls[2]);
             let mut rules = rules_document["value"].clone();
             let mut policy = ctl::json(&calls[3])["value"].clone();
-            // Give this story's coordinator control and propose, families 4 and 16,
-            // through the public settings path, before creating its project.
-            let tools = rules["ceiling"]["tools"].as_u64().expect("rules tool families") | 4 | 16;
+            // The coordinator controls and proposes (families 4 and 16); the leaf
+            // subscribes (32). The public settings path grants them before the project exists.
+            let tools = rules["ceiling"]["tools"].as_u64().expect("rules tool families") | 4 | 16 | 32;
             rules["ceiling"]["tools"] = tools.into();
             policy["ceiling"]["tools"] = tools.into();
             policy["roles"][0]["authority"]["tools"] = tools.into();

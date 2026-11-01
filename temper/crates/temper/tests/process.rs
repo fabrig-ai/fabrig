@@ -4161,6 +4161,7 @@ fn temper_ctl_running_work_keeps_its_revision() {
     std::fs::write(&key, jig_channel_world::fixtures::KEY).expect("fixture key");
     std::fs::set_permissions(&key, std::os::unix::fs::PermissionsExt::from_mode(0o600)).expect("private key");
     let file = scratch.path().join("settings.json");
+    let timer_file = scratch.path().join("timer-settings.json");
     let steps = vec![
         Step::Mark("An owner reads revision R and its delegate charter"),
         Step::Run(Call::sign_in()),
@@ -4172,6 +4173,15 @@ fn temper_ctl_running_work_keeps_its_revision() {
             "--key",
             "revision-account",
         ])),
+        Step::Run(Call::new(&["settings", "show", "rules", "--json"])),
+        Step::Run(Call::new(&["settings", "show", "policy", "1", "--json"])),
+        Step::Then(Box::new(move |calls| running_revision::timer_authority(&timer_file, &calls[2], &calls[3]))),
+        Step::Project {
+            scratch: scratch.path().into(),
+            client: scratch.path().join("client"),
+            name: "revision-work",
+            number: 2,
+        },
         Step::Run(Call::new(&["settings", "show", "--json"])),
         Step::Run(Call::new(&["settings", "show", "charter", "2", "--json"])),
         Step::Mark("A chat delegates one task, and both park under R"),
@@ -4179,28 +4189,28 @@ fn temper_ctl_running_work_keeps_its_revision() {
             "chat",
             "start",
             "--project",
-            "1",
+            "2",
             "--key",
             "revision-chat",
             "@revision-chat Delegate and wait",
         ])),
-        Step::TaskExists { project: 1, parent: 1, task: 2 },
+        Step::TaskExists { project: 2, parent: 1, task: 2 },
         Step::Until(Call::new(&["task", "show", "2", "--json"]), running_revision::PARKED_DELEGATE),
         Step::Until(Call::new(&["task", "show", "1", "--json"]), b"\"phase\":\"idle\""),
         Step::Mark("Changing the delegate charter makes R+1 while running work keeps R"),
         Step::Then(Box::new(move |calls| {
-            assert_eq!(support::ctl::json(&calls[5])["chip"]["phase"], "idle");
-            support::ctl::charter_change_file(&file, &calls[3], running_revision::INSTRUCTIONS);
-            support::ctl::settings_change(&calls[2], &file, "revision-instructions")
+            assert_eq!(support::ctl::json(&calls[8])["chip"]["phase"], "idle");
+            support::ctl::charter_change_file(&file, &calls[6], running_revision::INSTRUCTIONS);
+            support::ctl::settings_change(&calls[5], &file, "revision-instructions")
         })),
         Step::Run(Call::new(&["task", "show", "2"])),
         Step::Run(Call::new(&["settings", "show", "--json"])),
         Step::Then(Box::new(|calls| {
-            Call::new(&["settings", "show", "charter", "2", "--revision", &support::ctl::newest(&calls[2]).to_string()])
+            Call::new(&["settings", "show", "charter", "2", "--revision", &support::ctl::newest(&calls[5]).to_string()])
         })),
         Step::Mark("The owner moves both live tasks to R+1"),
         Step::Then(Box::new(|calls| {
-            Call::new(&["revision", "advance", &support::ctl::newest(&calls[2]).to_string(), "--key", "move-running"])
+            Call::new(&["revision", "advance", &support::ctl::newest(&calls[5]).to_string(), "--key", "move-running"])
         })),
         Step::Mark("A ctl message wakes the delegate, whose next run reads the new instructions"),
         Step::Run(Call::new(&["task", "message", "2", "Read your revised instructions", "--key", "wake-delegate"])),
@@ -4223,7 +4233,7 @@ fn temper_ctl_running_work_keeps_its_revision() {
     ctl_assert_success(&seen.calls);
     assert_eq!(
         seen.calls.len(),
-        16,
+        19,
         "box {}; model answers {:?}; requests {}",
         String::from_utf8_lossy(&seen.stderr),
         seen.model.as_ref().map(|model| &model.answers),

@@ -30,7 +30,7 @@ pub fn scripts() -> Box<[Script]> {
                         "executor":{"kind":"agent","charter":2},
                         "spec":{"words":"@revision-delegate Wait for the owner's message","parameters":[]},
                         "contract":{"kind":"report","words":128},
-                        "authority":{"tools":0,"grants":[],"delegation":{"kinds":[],"tasks":0,"depth":0},
+                        "authority":{"tools":32,"grants":[],"delegation":{"kinds":[],"tasks":0,"depth":0},
                             "budget":{"spend":spend},"notes":0}
                     }]}),
                 ),
@@ -39,8 +39,37 @@ pub fn scripts() -> Box<[Script]> {
         },
         Script {
             cue: b"@revision-delegate".as_slice().into(),
-            turns: Box::new([call(b"wait", &json!({})), call(b"wait", &json!({}))]),
+            turns: Box::new([
+                call(b"subscribe", &json!({"kind":"timer","at":u64::MAX})),
+                call(b"wait", &json!({})),
+                call(b"wait", &json!({})),
+            ]),
         },
+    ])
+}
+
+#[must_use]
+pub fn timer_authority(file: &std::path::Path, rules: &Ended, policy: &Ended) -> ctl::Call {
+    let document = ctl::json(rules);
+    let mut rules = document["value"].clone();
+    let mut policy = ctl::json(policy)["value"].clone();
+    let tools = rules["ceiling"]["tools"].as_u64().expect("rules tool families") | 32;
+    rules["ceiling"]["tools"] = tools.into();
+    policy["ceiling"]["tools"] = tools.into();
+    policy["roles"][0]["authority"]["tools"] = tools.into();
+    let change = json!({"items":[
+        {"setting":{"kind":"rules"},"set":rules},
+        {"setting":{"kind":"policy","number":1},"set":policy}
+    ]});
+    super::write_private(file, &serde_json::to_vec(&change).expect("timer authority settings"));
+    ctl::Call::new(&[
+        "settings",
+        "apply",
+        file.to_str().expect("settings path"),
+        "--against",
+        &document["revision"].to_string(),
+        "--key",
+        "revision-timer",
     ])
 }
 
@@ -66,43 +95,43 @@ pub fn llm(config: &std::path::Path) -> super::boxed::CtlLlm {
 }
 
 pub fn assert_story(calls: &[Ended], model: &super::forge_land::Seen) {
-    let before = ctl::json(&calls[5]);
-    let after = ctl::json(&calls[14]);
+    let before = ctl::json(&calls[8]);
+    let after = ctl::json(&calls[17]);
     assert_eq!(before["chip"]["phase"], "idle");
     assert_eq!(after["chip"]["phase"], "idle");
     let first_run = before["chip"]["details"]["owner"]["details"]["attempt"].as_u64().expect("first run");
     let next_run = after["chip"]["details"]["owner"]["details"]["attempt"].as_u64().expect("next run");
     assert!(next_run > first_run, "the delegate ran again");
-    let revision = ctl::newest(&calls[2]);
+    let revision = ctl::newest(&calls[5]);
     let newest = revision + 1;
-    assert_eq!(calls[7].stdout, format!("revision {newest}\n").as_bytes());
-    let task = String::from_utf8_lossy(&calls[8].stdout);
+    assert_eq!(calls[10].stdout, format!("revision {newest}\n").as_bytes());
+    let task = String::from_utf8_lossy(&calls[11].stdout);
     assert!(task.lines().any(|line| line == format!("settings: revision {revision} · newest {newest}")), "{task}");
-    let inventory = ctl::json(&calls[9]);
+    let inventory = ctl::json(&calls[12]);
     assert_eq!(inventory["newest"], newest);
     let held = inventory["held"].as_array().expect("held revisions");
     let old_held = held.iter().find(|row| row["head"]["number"] == revision).expect("R is held");
     assert_eq!(old_held["holders"], 2, "{inventory}");
-    let old = ctl::json(&calls[3]);
+    let old = ctl::json(&calls[6]);
     let old_instructions = old["value"]["instructions"].as_str().expect("old instructions").as_bytes();
     assert!(!old_instructions.is_empty());
-    let old_text = String::from_utf8_lossy(&calls[10].stdout);
+    let old_text = String::from_utf8_lossy(&calls[13].stdout);
     assert!(old_text.starts_with(&format!("charter 2, revision {revision}\n")), "{old_text}");
     let printed_instructions = serde_json::to_string(&old["value"]["instructions"]).expect("instruction JSON");
     assert!(old_text.contains(&printed_instructions), "{old_text}");
-    assert_eq!(calls[11].stdout, format!("moved 2 tasks to revision {newest}\n").as_bytes());
+    assert_eq!(calls[14].stdout, format!("moved 2 tasks to revision {newest}\n").as_bytes());
     assert!(after["settings"]["run"].is_null(), "delegate parked: {after}");
-    // Both tasks are parked again, so this count includes two distinct delegate runs.
+    // The first run subscribes then parks; the resumed run parks in one request.
     let delegate: Vec<_> = model
         .requests
         .iter()
         .filter(|query| query.system.windows(b"@revision-delegate".len()).any(|part| part == b"@revision-delegate"))
         .collect();
-    assert_eq!(delegate.len(), 2, "delegate's two run requests");
+    assert_eq!(delegate.len(), 3, "delegate's two runs");
     assert!(delegate[0].system.windows(old_instructions.len()).any(|part| part == old_instructions));
     assert!(!delegate[0].system.windows(INSTRUCTIONS.len()).any(|part| part == INSTRUCTIONS.as_bytes()));
-    assert!(delegate[1].system.windows(INSTRUCTIONS.len()).any(|part| part == INSTRUCTIONS.as_bytes()));
-    let inventory = ctl::json(&calls[15]);
+    assert!(delegate[2].system.windows(INSTRUCTIONS.len()).any(|part| part == INSTRUCTIONS.as_bytes()));
+    let inventory = ctl::json(&calls[18]);
     assert_eq!(inventory["newest"], newest);
     let held = inventory["held"].as_array().expect("held revisions");
     assert!(held.iter().all(|row| row["head"]["number"] != revision), "{inventory}");
