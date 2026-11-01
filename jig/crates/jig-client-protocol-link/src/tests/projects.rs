@@ -74,11 +74,12 @@ fn project_refusals_keep_each_name_rule_and_the_deployment_limit() {
 }
 
 #[test]
-fn neither_project_request_can_be_a_compound_operation() {
+fn project_requests_cannot_be_compound_operations() {
     let limits = fixtures::limits();
     for ask in [
         c::Ask::Rename { project: 1, name: fixtures::store_text() },
         c::Ask::MakeProject { name: fixtures::store_text(), policy: 1 },
+        c::Ask::RemoveProject { project: 1 },
     ] {
         let ask = asks::ask(&ask, &limits.wire).unwrap();
         let mut bytes = Writer::new(usize::try_from(ask.measure()).unwrap());
@@ -92,4 +93,29 @@ fn neither_project_request_can_be_a_compound_operation() {
         store::restore_ask(w::Ask::Compound(compound), &limits)
             .expect_err("a project request is not a compound operation");
     }
+}
+
+#[test]
+fn remove_project_and_its_outcome_cross_the_link() {
+    let limits = fixtures::limits();
+    for project in [0, 17, u32::MAX] {
+        let ask = c::Ask::RemoveProject { project };
+        let record = asks::ask(&ask, &limits.wire).unwrap();
+        let mut bytes = Writer::new(usize::try_from(record.measure()).unwrap());
+        record.encode(&mut bytes).unwrap();
+        let decoded = w::Ask::decode(&limits.wire, &mut Reader::new(&bytes.finish())).unwrap();
+        assert_eq!(
+            decoded,
+            w::Ask::RemoveProject(w::RemoveProject::new(&limits.wire, w::RemoveProjectParts { project }).unwrap())
+        );
+        assert_eq!(store::restore_ask(decoded, &limits), Ok(ask));
+        let outcome = w::OwnerOutcome::ProjectRemoved(
+            w::OwnerOutcomeProjectRemoved::new(&limits.wire, w::OwnerOutcomeProjectRemovedParts { project }).unwrap(),
+        );
+        let mut bytes = Writer::new(usize::try_from(outcome.measure()).unwrap());
+        outcome.encode(&mut bytes).unwrap();
+        let decoded = w::OwnerOutcome::decode(&limits.wire, &mut Reader::new(&bytes.finish())).unwrap();
+        assert_eq!(answers::owner_outcome(&decoded, &limits), Ok(c::OwnerOutcome::ProjectRemoved { project }));
+    }
+    assert_eq!(translate::documents::act_kind_fields(&w::ActKind::RemoveProject, &limits), c::ActKind::RemoveProject);
 }

@@ -299,3 +299,16 @@ fn project_records_reach_people_with_their_whole_name_and_policy() {
         assert_eq!(ask(record, &f::models(), &limits), Ok(expected));
     }
 }
+
+#[test]
+fn remove_project_translates_both_ways() {
+    let limits = f::wire();
+    for project in [0, 3, u32::MAX] {
+        let record = w::Ask::RemoveProject(
+            w::RemoveProject::new(&limits, w::RemoveProjectParts { project }).expect("remove project"),
+        );
+        let client = jig_client_domain::contract::Ask::RemoveProject { project };
+        assert_eq!(jig_client_protocol_link::translate::asks::ask(&client, &limits), Ok(record.clone()));
+        assert_eq!(ask(record, &f::models(), &limits), Ok(p::Ask::RemoveProject { project }));
+    }
+}

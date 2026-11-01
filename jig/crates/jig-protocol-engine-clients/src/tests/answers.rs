@@ -484,3 +484,46 @@ fn older_client_versions_receive_plain_busy_for_full_answers() {
         assert_eq!(exchange.response(owner).1, &[2], "legacy busy tag is unchanged");
     }
 }
+
+#[test]
+fn project_removed_is_an_owner_outcome() {
+    let limits = f::wire();
+    for project in [0, 17, u32::MAX] {
+        let expected = w::Final::Done(
+            w::Done::new(
+                &limits,
+                w::DoneParts {
+                    outcome: w::Outcome::Owner(
+                        w::OutcomeOwner::new(
+                            &limits,
+                            w::OutcomeOwnerParts {
+                                value: w::OwnerOutcome::ProjectRemoved(
+                                    w::OwnerOutcomeProjectRemoved::new(
+                                        &limits,
+                                        w::OwnerOutcomeProjectRemovedParts { project },
+                                    )
+                                    .expect("removed project"),
+                                ),
+                            },
+                        )
+                        .expect("owner"),
+                    ),
+                },
+            )
+            .expect("done"),
+        );
+        let record = crate::translate::answers::answer(
+            &p::Reply::Outcome(p::Outcome::ProjectRemoved { project }),
+            &f::models(),
+            &limits,
+        )
+        .expect("translated answer");
+        assert_eq!(f::final_record(record.clone(), &limits), expected);
+        assert_eq!(
+            jig_client_protocol_link::translate::answers::answer(record, &f::client_limits()),
+            Ok(jig_client_domain::contract::Answer::Done(jig_client_domain::contract::Outcome::Owner(
+                jig_client_domain::contract::OwnerOutcome::ProjectRemoved { project },
+            )))
+        );
+    }
+}

@@ -138,6 +138,10 @@ pub enum OwnerOutcome {
     PolicyChanged {
         project: u32,
     },
+    /// The project deleted whole.
+    ProjectRemoved {
+        project: u32,
+    },
     /// The project was renamed.
     Renamed {
         project: u32,

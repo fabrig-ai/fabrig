@@ -198,6 +198,7 @@ pub(super) fn refused(value: &c::Ask, configured: &[Model]) -> Result<Option<c::
         | c::Ask::Lift { .. }
         | c::Ask::ChangeSettings(_)
         | c::Ask::MoveToNewest(_)
+        | c::Ask::RemoveProject { .. }
         | c::Ask::MakeProject { .. }
         | c::Ask::ChangePolicy { .. }
         | c::Ask::SetRoles { .. }

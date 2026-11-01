@@ -62,6 +62,8 @@ pub enum Act {
     ChangePolicy,
     /// Rename the project.
     Rename,
+    /// Delete the project whole.
+    RemoveProject,
     /// Change roles.
     SetRoles,
     /// Make a service.

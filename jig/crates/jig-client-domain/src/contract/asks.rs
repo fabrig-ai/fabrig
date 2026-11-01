@@ -240,6 +240,10 @@ pub enum Ask {
         name: Text,
         role: HeldRole,
     },
+    /// Delete the project whole as its owner (domain/people.md, 5.1).
+    RemoveProject {
+        project: u32,
+    },
     /// Rename a project as its owner (contract.md, 3.2).
     Rename {
         project: u32,

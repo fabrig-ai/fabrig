@@ -37,6 +37,7 @@ pub const fn act_phrase(act: ActKind) -> JigPhrase {
         ActKind::EditNote => JigPhrase::ActEditNote,
         ActKind::DeleteNote => JigPhrase::ActDeleteNote,
         ActKind::Adopt => JigPhrase::ActAdopt,
+        ActKind::RemoveProject => JigPhrase::ActRemoveProject,
         ActKind::Rename => JigPhrase::ActRename,
         ActKind::ChangePolicy => JigPhrase::ActChangePolicy,
         ActKind::SetRoles => JigPhrase::ActSetRoles,

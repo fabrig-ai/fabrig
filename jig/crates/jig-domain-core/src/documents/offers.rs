@@ -126,6 +126,23 @@ pub(super) fn subject(
     decision: skein_lib::Wall,
 ) -> Result<List<Offered>, Missing> {
     match subject {
+        Subject::Project { project } if core.people.role(party, *project) == Some(people::Role::Owner) => list(
+            core,
+            limits,
+            party,
+            subject,
+            &[
+                Act::Adopt,
+                Act::Reorder,
+                Act::ChangePolicy,
+                Act::Rename,
+                Act::SetRoles,
+                Act::MakeService,
+                Act::SetPool,
+                Act::RemoveProject,
+            ],
+            decision,
+        ),
         Subject::Project { .. } => list(
             core,
             limits,
@@ -423,6 +440,7 @@ fn effect(core: &Core, limits: &Limits, act: Act, subject: &Subject) -> Option<a
         | Act::EditNote
         | Act::DeleteNote
         | Act::Adopt
+        | Act::RemoveProject
         | Act::Rename
         | Act::ChangePolicy
         | Act::SetRoles

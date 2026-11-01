@@ -240,6 +240,8 @@ pub enum ActKind {
     ChangePolicy,
     /// Rename a project.
     Rename,
+    /// Delete the project whole.
+    RemoveProject,
     /// Change roles.
     SetRoles,
     /// Make a service.
