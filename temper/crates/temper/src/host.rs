@@ -71,6 +71,10 @@ impl skein_shell::Host for Host {
             let answer = resolve_forge(&resolve);
             self.service.resolved(resolve.forge, answer);
         }
+        while let Some(write) = self.service.take_group_write() {
+            let answer = write_group(crate::path(&self.directories.data), &write);
+            self.service.group_written(write.forge, answer);
+        }
         while let Some(read) = self.service.take_handover_read() {
             let answer = read_handover(&read);
             self.service.handover_read(read.forge, read.run, answer);
@@ -143,6 +147,42 @@ pub(crate) fn read_handover(
         Err(skein_shell::Unread::Kernel(error)) => Err(HandoverUnread::Kernel(crate::errno(error))),
     }
 }
+/// The host owns paths and publishes a complete private group file (contracts T3).
+fn write_group(data: &std::path::Path, write: &temper_service::GroupWrite) -> Result<(), i32> {
+    use std::os::unix::fs::{DirBuilderExt, OpenOptionsExt, PermissionsExt};
+    // Keep the directory's privacy even when it already existed.
+    fn write_group_file(
+        directory: &std::path::Path,
+        temporary: &std::path::Path,
+        target: &std::path::Path,
+        text: &[u8],
+    ) -> std::io::Result<()> {
+        std::fs::DirBuilder::new().recursive(true).mode(0o700).create(directory)?;
+        std::fs::set_permissions(directory, std::fs::Permissions::from_mode(0o700))?;
+        match std::fs::remove_file(temporary) {
+            Ok(()) => {}
+            Err(why) if why.kind() == std::io::ErrorKind::NotFound => {}
+            Err(why) => return Err(why),
+        }
+        let mut file = std::fs::OpenOptions::new().write(true).create_new(true).mode(0o600).open(temporary)?;
+        file.write_all(text)?;
+        file.sync_all()?;
+        std::fs::rename(temporary, target)?;
+        std::fs::File::open(directory)?.sync_all()
+    }
+    let directory = data.join("box/groups");
+    let temporary = directory.join(format!(".{}.tmp", write.forge));
+    let target = directory.join(write.forge.to_string());
+    let result = write_group_file(&directory, &temporary, &target, &write.text);
+    if result.is_err() {
+        let _removed = std::fs::remove_file(&temporary);
+    }
+    match result {
+        Ok(()) => Ok(()),
+        Err(why) => Err(why.raw_os_error().expect("group file io returns an errno")),
+    }
+}
+
 fn remove_handover(remove: &temper_service::HandoverRemoval) -> Result<(), i32> {
     match std::fs::remove_file(crate::path(&remove.path)) {
         Ok(()) => Ok(()),
@@ -760,4 +800,26 @@ fn resolve_forge_names_an_unknown_host() {
     let words = resolve_forge(&resolve).expect_err("the reserved invalid domain cannot resolve");
     eprintln!("resolve_forge unknown.invalid: {:?}", began.elapsed());
     assert!(String::from_utf8_lossy(&words).contains("unknown.invalid"));
+}
+
+#[test]
+fn write_group_writes_whole_with_private_modes() {
+    use std::os::unix::fs::PermissionsExt;
+    let directory = std::env::temp_dir().join(format!("temper-group-{}", skein_shell::seed().expect("scratch name")));
+    std::fs::create_dir(&directory).expect("group fixture");
+    let mut write = temper_service::GroupWrite { forge: 7, text: b"first settings".as_slice().into() };
+    assert_eq!(write_group(&directory, &write), Ok(()));
+    std::fs::write(directory.join("box/groups/.7.tmp"), b"interrupted write").expect("group fixture");
+    write.text = b"replacement".as_slice().into();
+    assert_eq!(write_group(&directory, &write), Ok(()));
+    let groups = directory.join("box/groups");
+    assert_eq!(std::fs::read(groups.join("7")).expect("group fixture"), write.text.as_ref());
+    assert_eq!(std::fs::metadata(groups.join("7")).expect("group fixture").permissions().mode() & 0o777, 0o600);
+    assert_eq!(std::fs::metadata(&groups).expect("group fixture").permissions().mode() & 0o777, 0o700);
+    assert!(!groups.join(".7.tmp").exists());
+    std::fs::create_dir(groups.join(".7.tmp")).expect("group fixture");
+    write.text = b"never published".as_slice().into();
+    assert!(write_group(&directory, &write).is_err());
+    assert_eq!(std::fs::read(groups.join("7")).expect("group fixture"), b"replacement");
+    std::fs::remove_dir_all(directory).expect("group fixture");
 }

@@ -249,7 +249,7 @@ impl Service {
             first_periods,
         )?;
         if let Some(line_bytes) = box_line_bytes {
-            engine.box_link = box_link::Link::new(line_bytes, false);
+            engine.box_link = box_link::Link::new(line_bytes, false, own.forge_component.forges);
         }
         Ok(Self {
             worker,
@@ -312,6 +312,15 @@ impl Service {
             listeners_closing: 0,
             links: Queue::with_capacity(queue),
         })
+    }
+    /// The host writes these settings before answering `group_written` (contracts T3).
+    pub fn take_group_write(&mut self) -> Option<crate::GroupWrite> {
+        self.engine.as_mut()?.group_writes.pop()
+    }
+    pub fn group_written(&mut self, forge: u16, result: Result<(), i32>) {
+        if let Some(engine) = &mut self.engine {
+            box_link::group_written(engine, forge, result);
+        }
     }
     pub fn take_resolve(&mut self) -> Option<crate::Resolve> {
         self.engine.as_mut()?.resolves.pop()
@@ -512,7 +521,8 @@ impl Service {
         if self.io_env.limits.sockets.saturating_sub(self.io.sockets()) < 2 {
             return Err(BoxRefusal::Sockets { limit: self.io_env.limits.sockets });
         }
-        self.engine.as_mut().expect("box engine").box_link = box_link::Link::new(line_bytes, true);
+        let engine = self.engine.as_mut().expect("box engine");
+        engine.box_link = box_link::Link::new(line_bytes, true, engine.records.capacity());
         let requests = self.io.adopt_write_pipe(requests, None).expect("two reserved pipe slots");
         let answers = self.io.adopt_read_pipe(answers).expect("second reserved pipe slot");
         self.box_pipe = Some(BoxPipe {
