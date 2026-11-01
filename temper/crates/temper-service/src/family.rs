@@ -157,8 +157,7 @@ pub fn to_root(
                         | w::Request::Return(_)
                         | w::Request::RemoveForge(_)
                         | w::Request::StartPlayground
-                        | w::Request::EndPlayground
-                        | w::Request::StartDemo => {
+                        | w::Request::EndPlayground => {
                             unreachable!("connect or install")
                         }
                     };
@@ -179,7 +178,6 @@ pub fn to_root(
                         w::Request::EndPlayground => forge::Ask::EndPlayground,
                         w::Request::Adopt(_)
                         | w::Request::SetUp(_)
-                        | w::Request::StartDemo
                         | w::Request::Return(_)
                         | w::Request::Connect(_)
                         | w::Request::Install(_)
@@ -194,17 +192,6 @@ pub fn to_root(
                         digest,
                         carried,
                         request: root::Application::Forge(request),
-                    }));
-                }
-                w::Request::StartDemo => {
-                    return Ok(root::Event::Party(root::PartyInput::Application {
-                        scope,
-                        reply_to,
-                        sign_in,
-                        key,
-                        digest,
-                        carried,
-                        request: root::Application::Forge(forge::Ask::StartDemo),
                     }));
                 }
                 w::Request::Reachable(value) => {
@@ -267,26 +254,6 @@ pub fn to_root(
                     cues.push(cue.clone()).expect("bounded demo cues");
                 }
                 answer = Some(match reading.read() {
-                    w::Read::Demo => {
-                        let record = w::DemoAnswer::new(
-                            limits,
-                            w::DemoAnswerParts {
-                                state: match demo.state {
-                                    Some(forge::DemoState::Running) => w::DemoState::Running,
-                                    Some(forge::DemoState::Ended) => w::DemoState::Ended,
-                                    None => w::DemoState::NotStarted,
-                                },
-                                project: demo.project,
-                                forge: demo.forge.unwrap_or(0),
-                                provider: demo.provider,
-                                owner: demo.owner.clone(),
-                                name: demo.name.clone(),
-                                cues,
-                            },
-                        )
-                        .expect("demo checked at startup");
-                        wire::demo_answer(&record)
-                    }
                     w::Read::Playground => {
                         let (state, forge, project) = match demo.playground {
                             Some(row) => (
@@ -714,9 +681,7 @@ pub fn answer(
         Some(root::ApplicationAnswer::EndPlayground(forge::EndAnswer::NotOffered)) => w::Outcome::EndRefused(
             w::EndRefused::new(limits, w::EndRefusedParts { why: w::EndRefusal::NotOffered }).ok()?,
         ),
-        Some(root::ApplicationAnswer::StartPlayground(answer) | root::ApplicationAnswer::StartDemo(answer)) => {
-            start_answer(answer, limits)?
-        }
+        Some(root::ApplicationAnswer::StartPlayground(answer)) => start_answer(answer, limits)?,
         Some(temper_engine_domain::ApplicationAnswer::SetUp(forge::SetUpAnswer::SettingUp)) => w::Outcome::SettingUp,
         Some(temper_engine_domain::ApplicationAnswer::SetUp(forge::SetUpAnswer::Refused(why))) => {
             w::Outcome::SetUpRefused(
@@ -735,6 +700,7 @@ pub fn answer(
                 .ok()?,
             )
         }
+        Some(root::ApplicationAnswer::StartDemo(_)) => return None,
         None => w::Outcome::Unknown,
     };
     let answer = w::Answer::new(limits, w::AnswerParts { outcome }).ok()?;
