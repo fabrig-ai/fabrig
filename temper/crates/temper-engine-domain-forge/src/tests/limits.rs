@@ -76,3 +76,19 @@ fn internal_output_envelopes_do_not_constrain_admission() {
         );
     }
 }
+
+#[test]
+fn zero_forges_are_invalid() {
+    assert!(valid(&Limits { forges: 1, ..LIMITS }));
+    assert!(!valid(&Limits { forges: 0, ..LIMITS }));
+}
+
+#[test]
+fn kept_bound_counts_forges() {
+    for forges in [1, 4, 9] {
+        let limits = Limits { forges, ..LIMITS };
+        assert_eq!(kept_bound(&limits), Some(LIMITS.tasks + 1 + 2 * forges + 2));
+    }
+    assert_eq!(kept_bound(&Limits { forges: u32::MAX, ..LIMITS }), None);
+    assert_eq!(kept_bound(&Limits { tasks: u32::MAX - 2, forges: 1, ..LIMITS }), None);
+}

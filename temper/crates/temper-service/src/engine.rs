@@ -134,7 +134,7 @@ impl Engine {
                 return Err(problems);
             }
         };
-        domain.connection_limits(own.forge_component.forges, own.forge_component.installations);
+        domain.connection_limits(own.forge.forges, own.forge_component.installations);
         Ok(Self {
             credentials,
             domain,

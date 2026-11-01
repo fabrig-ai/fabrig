@@ -15,6 +15,8 @@ pub const FIRST_NAME_BYTES: u32 = 1024;
 /// Capacity of each durable top table and its child.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Limits {
+    /// Forges kept at most (`forge.forges`; draft 3).
+    pub forges: u32,
     pub repositories: u32,
     pub tasks: u32,
     pub holds: u32,
@@ -66,7 +68,8 @@ pub struct Limits {
 /// Internal output envelopes and retained heap sums do not constrain admission.
 #[must_use]
 pub fn valid(l: &Limits) -> bool {
-    if l.repositories == 0
+    if l.forges == 0
+        || l.repositories == 0
         || l.tasks == 0
         || l.holds == 0
         || l.subscriptions == 0
@@ -115,7 +118,7 @@ pub const fn kept_bound(l: &Limits) -> Option<u32> {
     let Some(demo) = demo_act_bound(l) else {
         return None;
     };
-    let Some(forges) = l.client.repositories.checked_mul(2) else {
+    let Some(forges) = l.forges.checked_mul(2) else {
         return None;
     };
     let Some(acts) = demo.checked_add(forges) else {

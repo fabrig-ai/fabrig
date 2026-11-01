@@ -551,3 +551,32 @@ fn a_repair_holds_its_task_pull_and_whole_gate_remarks() {
     assert!(brief.read_bytes >= brief.budgets.reviews);
     assert!(limits.forge.brief_bytes >= brief.read_bytes);
 }
+
+#[test]
+fn forge_forges_overrides_the_component_and_host_bounds() {
+    let defaults = limits::profile(limits::Profile::Small);
+    assert_eq!(defaults.forge.forges, 4);
+    assert_eq!(defaults.forge_component.forges, 4);
+    for forges in [1, 4, 9] {
+        let mut config = fixtures::engine();
+        limits::apply(&mut config.limits, b"forge.forges", forges).unwrap();
+        let expected = u32::try_from(forges).unwrap();
+        assert_eq!(config.limits.forge.forges, expected);
+        assert_eq!(config.limits.forge_component.forges, expected);
+        assert_eq!(crate::forge::small(&config.limits.forge).forges, expected);
+        let mut prepared = crate::forge::prepare(&config, fixtures::forge_runtime()).unwrap();
+        let setup = crate::setup::prepare(&config, &mut prepared, &fixtures::seeds().crypto, false).unwrap();
+        assert_eq!(setup.env.limits.forges, expected);
+    }
+    let mut own = defaults;
+    assert_eq!(limits::apply(&mut own, b"forge.forges", u64::from(u32::MAX) + 1), Err(limits::Refused::Range));
+    assert_eq!(own, defaults);
+}
+
+#[test]
+fn forge_component_forges_is_no_longer_a_name() {
+    let mut own = limits::profile(limits::Profile::Small);
+    let before = own;
+    assert_eq!(limits::apply(&mut own, b"forge_component.forges", 9), Err(limits::Refused::Unknown));
+    assert_eq!(own, before);
+}
