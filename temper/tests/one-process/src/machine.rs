@@ -350,11 +350,15 @@ impl Machine {
         });
     }
 }
-pub(crate) fn fresh() -> skein_fake_machine::Machine {
+pub(crate) fn fresh(story: crate::world::Story) -> skein_fake_machine::Machine {
     ROOTS.with(|roots| *roots.borrow_mut() = Roots::default());
+    let mut initialized = crate::world::initialize(layout(Vec::new()), story);
+    layout(crate::fixtures::store::files(&mut initialized, story))
+}
+fn layout(state: Vec<skein_fake_machine::Item>) -> skein_fake_machine::Machine {
     let mut machine = skein_fake_machine::Machine::for_user(1000);
     for items in [
-        vec![],
+        state,
         vec![
             skein_fake_machine::Item::directory(b"workspaces"),
             skein_fake_machine::Item::directory(b"trash"),

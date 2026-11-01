@@ -1,6 +1,7 @@
 //! Serve's playground read, key handover and fake setup host over the engine world's doors
 //! (temper/docs/design/draft/playground-reset.md, 6; domain/testing.md, 6.3).
 use super::{ClientId, Joint, Request, RootEvent, engine};
+use skein_lib::Duration;
 use temper_client_protocol_wire::{self as wire, v1 as w};
 use temper_engine_domain_forge as forge;
 
@@ -112,6 +113,11 @@ impl Joint {
     pub fn connect_playground(&mut self) {
         self.hold_playground_connection = false;
         let row = self.playground().expect("playground made before setup");
+        self.engine.send(engine::Event::Credential {
+            number: u32::from(row.forge),
+            generation: 1,
+            valid: Duration::from_secs(3600),
+        });
         self.engine.send(engine::Event::Forge(Box::new(forge::Event::Connection {
             forge: row.forge,
             state: forge::Connection::Connected { id: 1, login: b"temper".as_slice().into() },

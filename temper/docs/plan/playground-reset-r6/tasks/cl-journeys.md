@@ -7,6 +7,7 @@ files = [
   "temper/crates/temper-client-protocol-wire/**",
   "temper/docs/design/client/journeys/welcome-playground/**",
   "temper/docs/design/client/journeys/welcome-set-up/**",
+  "temper/scripts/bundle.sh",
   "temper/tools/journeys/**",
 ]
 effort = "high"
@@ -85,3 +86,18 @@ Options, pre-approved:
 - Under `## Left`: `welcome-set-up` to walk anew by a person on a fresh `temper box
   --fake-backends` (`add welcome-set-up FILE`), its README's walk: the welcome, "Set up
   temper", "Run on this machine" on the Forgejo card, the Model step.
+
+## Answers
+
+2026-11-01. Repair the bundle's target path, or run elsewhere? Repair it, in this task; no
+builder change. Since temper moved into the one workspace, cargo's target directory is the
+workspace's (the repository root's `target/`, or wherever `CARGO_TARGET_DIR` and heavy put
+it), never `temper/target`; `scripts/bundle.sh` (line 29 and the `--module` path) and
+`tools/journeys/src/main.rs`' `build` (the `temper` binary's path) both assume the latter.
+Both read the target directory from cargo: `cargo metadata --format-version 1 --no-deps`'s
+`target_directory` (in the script, extracted with `sed`, no new tool), and join `debug/` or
+`wasm32-unknown-unknown/$profile/` to it. `temper/scripts/bundle.sh` is added to the files;
+the change to `main.rs` is the only widening of `tools/journeys/` besides the `welcome-set-up`
+references, which include `tests/suite/look_refresh.rs` lines 11, 12 and 32. Check the script
+by hand once (`temper/scripts/bundle.sh --loopback DIR` under `heavy`), then resume at step 3;
+the stop conditions stand for any failure after this repair.

@@ -37,8 +37,6 @@ pub(crate) fn configure(value: &mut Value) {
     if !active() {
         return;
     }
-    value["application"]["forges"] = json!([{"number":1,"kind":"github","api":{"socket":fixtures::FORGE.to_string()},"transport":"plaintext","git":format!("http://{}",fixtures::FORGE),"web":format!("http://{}",fixtures::FORGE)}]);
-    value["application"]["identities"] = json!([{"number":1,"forge":1,"login":null,"author":null}]);
     for project in value["world_settings"]["policies"].as_array_mut().expect("policies") {
         for pointer in ["/policy/ceiling/grants", "/policy/roles/0/authority/grants"] {
             for grant in project.pointer_mut(pointer).expect("grants").as_array_mut().expect("grants") {
@@ -426,7 +424,7 @@ pub fn run(scenario: Scenario) {
     let store = Rc::new(RefCell::new(Store::new()));
     world::lower_store(Some(store.clone()));
     let (forge, peer) = peer();
-    let mut disk = crate::machine::fresh();
+    let mut disk = crate::machine::fresh(Story::Adopt);
     let pem = layer::keys::pem(layer::keys::KEYS[APP.key]).expect("fake App PEM");
     let setup = disk.lay(&[
         skein_fake_machine::Item::file(b"app.pem", &pem).mode(0o600),

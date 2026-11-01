@@ -114,3 +114,23 @@ acceptance cannot hold without them). Merge the trunk into this branch first, th
   with the `demo_start` cases and its rewritten `qa_all` cases passing.
 - Add to your checks: `heavy cargo nextest run -p temper-engine-domain --lib` and `-p
   temper-client-domain --lib`, with clippy `--tests` on both.
+
+2026-11-01. Q: the preserved chat case now stops on `TaskRunWait::Credential`: whose is it?
+
+A: This task's, in the world: the fake setup host never grants the playground forge's git
+identity. A run's workspace names each repository's git identity as an application
+credential (`temper-engine-domain/src/route/now.rs::workspace`); a record forge's identity is
+its own number (`temper-engine-domain-forge/src/domain.rs::git_identity`), and jig waits on
+`Credential` until that number is granted. serve grants a forge's identity when its setup
+keeps the git token (`temper-service/src/setup/lifecycle.rs`, `root::Event::Credential`); the
+world's stand does serve's part, as `fixtures.rs::adopt_change_repository` already does.
+
+- In `front/playground.rs::connect_playground`, before the `Connected` event, send
+  `engine::Event::Credential { number: u32::from(row.forge), generation: 1, valid:
+  Duration::from_secs(3600) }`. Every connect grants it, so a playground started again after
+  a reset, on a new forge number, is granted too.
+- `enter_waits_for_adoption_then_the_chat_can_delegate` stays as it is. No account, use or
+  engine change. Should the chat still stop after this grant, stop and report what it then
+  waits on, with the task document's `run_wait`.
+- Left, unchanged: `forge_route/tests.rs::writable_repositories_exclude_an_ended_forge`
+  (outside the task) and the cases already left.

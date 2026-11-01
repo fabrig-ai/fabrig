@@ -89,6 +89,7 @@ fn try_the_playground_starts_it_on_the_engine_in_its_project() {
     assert!(has(&root, Role::Button, b"Try the playground"));
     assert!(!has(&root, Role::Region, b"The playground"));
     assert!(front.playground().is_none());
+    let person = root.person().pages().me(root.person().client()).expect("starting person").party.number;
     press(&mut front, &mut root, b"Try the playground");
     assert_eq!(front.playground().expect("running row").state, forge::PlaygroundState::Running);
     assert_eq!(root.person().pages().address(), &Address::Chats { filter: ChatsFilter::All, start: false });
@@ -103,7 +104,26 @@ fn try_the_playground_starts_it_on_the_engine_in_its_project() {
             .any(|record| record.number == row.forge && record.playground && record.mode == forge::Mode::Fake)
     );
     assert!(front.engine.forge.as_ref().expect("fake forge stand").calls > 0);
-    assert!(front.engine.store.rows.values().any(|record| matches!(record, engine::Record::Core(jig_domain_core::Record::Accounts(jig_domain_accounts::Stored::Account { number, uses: Some(uses), .. })) if Some(*number) == row.account && uses.as_ref() == [jig_domain_accounts::Use::Project(row.project.expect("project"))])));
+    let uses = front.engine.store.rows.values().find_map(|record| {
+        if let engine::Record::Core(jig_domain_core::Record::Accounts(jig_domain_accounts::Stored::Account {
+            number,
+            uses,
+            ..
+        })) = record
+            && Some(*number) == row.account
+        {
+            Some(uses.as_deref())
+        } else {
+            None
+        }
+    });
+    assert_eq!(
+        uses,
+        Some(Some(
+            [jig_domain_accounts::Use::Party(person), jig_domain_accounts::Use::Project(row.project.expect("project"))]
+                .as_slice()
+        ))
+    );
     assert!(has(&root, Role::Region, b"The playground"));
     assert!(!has(&root, Role::Region, b"Setup"));
     assert!(has(&root, Role::Status, b"Ready"));

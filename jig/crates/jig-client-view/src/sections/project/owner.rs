@@ -1195,7 +1195,7 @@ fn delete_form(
         return;
     }
     let state = &client.project_page().settings;
-    let Some(typed) = &state.delete else {
+    let Some(confirmation) = &state.delete else {
         crate::frame::control(b, words, bindings, Role::Button, JigPhrase::DeleteProject, &[], Act::OpenProjectDelete);
         return;
     };
@@ -1203,7 +1203,7 @@ fn delete_form(
     words.text(b, JigPhrase::DeleteProjectWarning, &[Hole::Name(value.name.bytes.bytes().into())]);
     b.open(Role::TextField);
     b.name(&words.say(JigPhrase::DeleteProjectName, &[]));
-    b.value(typed.bytes(), 0);
+    b.value(confirmation.bytes(), 0);
     let pending = state.pending.is_some();
     if pending {
         b.state(skein_ui::State::Disabled);
@@ -1213,7 +1213,7 @@ fn delete_form(
     b.close();
     b.open(Role::Button);
     b.name(&words.say(JigPhrase::DeleteProject, &[]));
-    if pending || typed.bytes() != value.name.bytes.bytes() {
+    if pending || confirmation.bytes() != value.name.bytes.bytes() {
         b.state(skein_ui::State::Disabled);
     } else {
         b.bind(bindings.insert(JigMeaning::Action(Act::DeleteProject)));

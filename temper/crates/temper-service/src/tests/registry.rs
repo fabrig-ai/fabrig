@@ -114,7 +114,7 @@ fn a_registered_record_needing_io_is_held_until_the_host_answers() {
 }
 #[test]
 fn a_registered_github_record_has_its_tokens_entry_and_identity_room() {
-    let mut service = fixtures::started();
+    let mut service = fixtures::ready();
     let engine = service.engine.as_mut().unwrap();
     register(engine, record(3, Kind::GitHub));
     assert!(engine.values.tokens.contains(3));
@@ -182,7 +182,7 @@ fn an_update_changing_the_api_is_ignored_and_noted() {
 }
 #[test]
 fn unregister_drops_the_forge_from_every_table() {
-    let mut service = fixtures::started();
+    let mut service = fixtures::ready();
     let engine = service.engine.as_mut().unwrap();
     register(engine, record(3, Kind::GitHub));
     engine.values.identities.put(3, engine.values.identities.newest(1).unwrap().1.clone());
@@ -242,8 +242,8 @@ fn records_restored_before_the_load_connect_a_forgejo_record_from_its_records() 
     let engine = service.engine.as_ref().unwrap();
     assert!(registered_before_load, "root restoration registers the forge before secrets load");
     assert!(engine.forge_records.done());
-    let (number, access) = engine.forge.starts.get(0).unwrap();
-    assert_eq!((*number, access.user), (3, 9));
+    let access = fixtures::forge_start(engine, 3).unwrap();
+    assert_eq!(access.user, 9);
     assert_eq!(
         access.credential,
         skein_forge::credential::Credential::Token(Secret::new(b"fixture-api-token".as_slice().into()))
@@ -251,7 +251,21 @@ fn records_restored_before_the_load_connect_a_forgejo_record_from_its_records() 
 }
 #[test]
 fn the_document_forges_seed_the_registry_unchanged() {
-    let mut service = fixtures::started_with_two_forges();
+    let mut settings = fixtures::document_engine();
+    let mut second = fixtures::document_forges().into_iter().next().unwrap();
+    second.number = 2;
+    settings.forges = Box::new([settings.forges.into_iter().next().unwrap(), second]);
+    fixtures::fill_files(&mut settings);
+    let mut runtime = fixtures::loopback_runtime();
+    let mut second = fixtures::loopback_runtime().into_boxed().into_iter().next().unwrap();
+    second.number = 2;
+    runtime = {
+        let mut all = skein_lib::List::with_capacity(2);
+        all.push(runtime.into_boxed().into_iter().next().unwrap()).unwrap();
+        all.push(second).unwrap();
+        all
+    };
+    let mut service = crate::Service::engine(settings, &fixtures::seeds(), None, runtime).unwrap();
     let engine = service.engine.as_mut().unwrap();
     assert_eq!(engine.workers.forges.len(), 2);
     for (index, number) in [(0, 1), (1, 2)] {
