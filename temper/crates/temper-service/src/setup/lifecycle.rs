@@ -122,6 +122,30 @@ pub(super) struct Lifecycle {
     restored: bool,
 }
 impl Lifecycle {
+    pub(crate) fn remove(&mut self, forge: u16) {
+        self.adoptions.remove(&forge);
+        self.reconcile.remove(&forge);
+        self.deleting.remove(&forge);
+        let mut installations = List::with_capacity(self.installations.len());
+        for ((number, id), _) in &self.installations {
+            if *number == forge {
+                installations.push(*id).expect("installation count");
+            }
+        }
+        for id in &installations {
+            self.installations.remove(&(forge, *id));
+        }
+        let mut deleted = List::with_capacity(self.deleted.len());
+        for ((number, id), ()) in &self.deleted {
+            if *number == forge {
+                deleted.push(*id).expect("deleted count");
+            }
+        }
+        for id in &deleted {
+            self.deleted.remove(&(forge, *id));
+        }
+    }
+
     #[cfg(test)]
     pub(crate) const fn startup_restored(&self) -> bool {
         self.restored
@@ -1475,4 +1499,38 @@ fn admin_done(engine: &mut crate::engine::Engine, token: Token, outcome: reconci
         return;
     }
     unreachable!("admin Done belongs to Reconcile or Create");
+}
+
+pub(crate) fn remove(engine: &mut crate::engine::Engine, forge: u16) {
+    engine.setup.lifecycle.remove(forge);
+}
+
+#[cfg(test)]
+pub(crate) fn test_unregister(engine: &mut crate::engine::Engine, forge: u16) {
+    for number in [1, forge] {
+        let lifecycle = &mut engine.setup.lifecycle;
+        lifecycle
+            .adoptions
+            .insert(number, Adoption { next: NonZeroU64::new(1).unwrap(), repositories: 1, files: None })
+            .unwrap();
+        lifecycle.reconcile.insert(number, Reconcile::GitHub).unwrap();
+        lifecycle.deleting.insert(number, ()).unwrap();
+        lifecycle
+            .installations
+            .insert((number, 7), domain::Installation { account: None, stray: false, suspended: false })
+            .unwrap();
+        lifecycle.deleted.insert((number, 8), ()).unwrap();
+    }
+    crate::route::request(engine, root::Request::Unregister { forge });
+    let lifecycle = &engine.setup.lifecycle;
+    assert!(!lifecycle.adoptions.contains_key(&forge));
+    assert!(!lifecycle.reconcile.contains_key(&forge));
+    assert!(!lifecycle.deleting.contains_key(&forge));
+    assert!(!lifecycle.installations.contains_key(&(forge, 7)));
+    assert!(!lifecycle.deleted.contains_key(&(forge, 8)));
+    assert!(lifecycle.adoptions.contains_key(&1));
+    assert!(lifecycle.reconcile.contains_key(&1));
+    assert!(lifecycle.deleting.contains_key(&1));
+    assert!(lifecycle.installations.contains_key(&(1, 7)));
+    assert!(lifecycle.deleted.contains_key(&(1, 8)));
 }

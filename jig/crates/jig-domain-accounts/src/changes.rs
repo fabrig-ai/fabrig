@@ -1,5 +1,5 @@
 //! Holder-owned account changes (accounts.md, section 5).
-use crate::{Answer, Bound, Change, Domain, Holder, Key, Kind, Limits, Refusal, Request, Signing};
+use crate::{Answer, Bound, Change, Domain, Holder, Key, Kind, Limits, Refusal, Request, Signing, Use};
 use alloc::boxed::Box;
 use skein_lib::{Env, List, Map, Queue, Token};
 
@@ -86,8 +86,8 @@ pub(crate) fn change(
             return;
         }
         Change::CheckProgram { source } => crate::programs::check(domain, holder, source, out),
-        Change::AddKey { provider, join, carried } => {
-            crate::keys::add(domain, env, request, holder, provider, join, carried, out);
+        Change::AddKey { provider, join, carried, uses } => {
+            crate::keys::add(domain, env, request, holder, provider, join, carried, out, uses);
             return;
         }
         Change::ReplaceKey { source, carried } => {
@@ -123,6 +123,31 @@ pub(crate) fn change(
     match result {
         Ok(()) => out.push(Request::Answer { request, answer: Answer::Done }),
         Err(refusal) => refuse(request, refusal, out),
+    }
+}
+
+/// Project deletion removes its explicit use, keeping an empty list explicit (accounts.md, 4.2; contracts J4).
+pub(crate) fn forget_project(domain: &mut Domain, project: u32, out: &mut Queue<Request>) {
+    let payer = Use::Project(project);
+    let mut changed = List::with_capacity(domain.accounts.capacity());
+    for (number, account) in &domain.accounts {
+        if let Some(uses) = &account.uses
+            && uses.contains(&payer)
+        {
+            changed.push(*number).expect("one entry per changed account");
+        }
+    }
+    for number in &changed {
+        let account = domain.accounts.get_mut(number).expect("a changed account");
+        let uses = account.uses.as_ref().expect("a changed account has explicit uses");
+        let mut kept = List::with_capacity(crate::records::USES);
+        for other in uses {
+            if *other != payer {
+                kept.push(*other).expect("removing a use stays within the uses bound");
+            }
+        }
+        account.uses = Some(kept.into_boxed());
+        out.push(Request::Save { record: crate::ordering::account_record(domain, *number) });
     }
 }
 

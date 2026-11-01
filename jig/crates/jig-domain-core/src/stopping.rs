@@ -103,6 +103,7 @@ pub(crate) fn gate(core: &mut Core, event: Event) -> Result<Event, Requests> {
         | Event::ApplicationPart { .. }
         | Event::ApplicationFinished { .. }
         | Event::ProjectionSettled { .. }
+        | Event::ProjectReleased { .. }
         | Event::EffectStart { .. }
         | Event::SubscribeTopic { .. }
         | Event::EffectConnector(_)

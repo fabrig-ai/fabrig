@@ -306,10 +306,10 @@ fn person_line(person: temper_init::Person, login: Option<&[u8]>, user: u32) -> 
         temper_init::Person::Found => None,
         temper_init::Person::FellBack => Some(match login {
             Some(login) => format!(
-                "init: {} cannot be a Forgejo login: forge 3's person is person",
+                "init: {} cannot be a Forgejo login: the owned Forgejo's person is person",
                 String::from_utf8_lossy(login)
             ),
-            None => format!("init: uid {user} has no login in /etc/passwd: forge 3's person is person"),
+            None => format!("init: uid {user} has no login in /etc/passwd: the owned Forgejo's person is person"),
         }),
     }
 }

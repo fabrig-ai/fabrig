@@ -2,7 +2,7 @@
 mod diagnostics;
 use crate::{End, route, stop, store::route::Up};
 use alloc::boxed::Box;
-use skein_lib::{Env, List, Queue, Time, Wall};
+use skein_lib::{Env, List, Map, Queue, Time, Wall};
 use temper_engine_domain as root;
 
 // A pass keeps the shipped small profile's 22 release/resume cycles.
@@ -19,6 +19,7 @@ pub(crate) struct Engine {
     pub(crate) box_link: route::box_link::Link,
     pub(crate) setup: crate::setup::Layer,
     pub(crate) forge: crate::forge::Layer,
+    pub(crate) records: Map<u16, temper_engine_domain_forge::ForgeRecord>,
     pub(crate) forge_records: crate::forge::records::Loader,
     pub(crate) admission: Option<skein_lib::Token>,
     pub(crate) facts: u64,
@@ -121,7 +122,7 @@ impl Engine {
         values: crate::values::Values,
         first_periods: List<(u32, u64)>,
     ) -> Result<Self, jig_protocol_config::Problems> {
-        let forge_records = crate::forge::records::Loader::new(&children.limits, &children.workers.forges);
+        let forge_records = crate::forge::records::Loader::new(&children.limits, children.workers.forges.as_slice());
         let Children { accounts, workers, mut clients, demo, forge, setup, notes, limits: own } = children;
         clients.query_bytes = own.routes.query_bytes;
         let credentials = values.identities.numbers();
@@ -147,6 +148,7 @@ impl Engine {
             forge,
             setup,
             box_link: route::box_link::Link::new(0, false),
+            records: Map::with_capacity(own.forge_component.forges),
             forge_records,
             admission: None,
             facts: 0,
@@ -341,7 +343,7 @@ pub(crate) fn iterate(engine: &mut Engine, now: Time, wall: Wall) {
         now,
         wall,
         &mut engine.events,
-        &engine.workers.forges,
+        engine.workers.forges.as_slice(),
         engine.demo.as_ref(),
         &mut engine.accounts,
     );
@@ -424,11 +426,21 @@ fn completes_pending(engine: &Engine) -> Option<bool> {
     }
 }
 fn clients_pass(engine: &mut Engine) {
-    engine.clients.advance(&mut engine.events, &engine.workers.forges, engine.demo.as_ref(), &mut engine.accounts);
+    engine.clients.advance(
+        &mut engine.events,
+        engine.workers.forges.as_slice(),
+        engine.demo.as_ref(),
+        &mut engine.accounts,
+    );
     if engine.end.is_none() && engine.store.component.mark_durable() {
         engine.clients.secrets_step(&mut engine.store);
     }
-    engine.clients.advance(&mut engine.events, &engine.workers.forges, engine.demo.as_ref(), &mut engine.accounts);
+    engine.clients.advance(
+        &mut engine.events,
+        engine.workers.forges.as_slice(),
+        engine.demo.as_ref(),
+        &mut engine.accounts,
+    );
 }
 pub(crate) fn release(engine: &mut Engine) {
     // Clocks are inputs too: Resume can observe a due timer even when normal

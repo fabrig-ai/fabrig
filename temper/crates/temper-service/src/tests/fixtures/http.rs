@@ -108,7 +108,7 @@ impl Peer {
                     now,
                     wall,
                     &mut engine.events,
-                    &engine.workers.forges,
+                    engine.workers.forges.as_slice(),
                     engine.demo.as_ref(),
                     &mut engine.accounts,
                 );

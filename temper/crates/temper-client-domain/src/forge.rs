@@ -14,6 +14,7 @@ pub mod making;
 pub(crate) mod me;
 pub mod panel;
 pub mod picker;
+pub mod removing;
 pub mod start;
 mod vocabulary;
 pub mod words;
@@ -56,6 +57,7 @@ pub struct Side {
     set_up: Option<Box<forges::SetUp>>,
     setup_form: forges::Draft,
     making: Option<making::Making>,
+    removal: Option<removing::Removal>,
     pub(crate) making_address: Option<crate::Address>,
     elsewhere_form: making::Draft,
     pickers: skein_lib::List<picker::Picker>,
@@ -84,6 +86,7 @@ impl Side {
             forges_open: false,
             set_up: None,
             making: None,
+            removal: None,
             making_address: None,
             elsewhere_form: making::Draft::new(),
             setup_form: forges::Draft::new(),
@@ -157,6 +160,10 @@ impl Side {
     #[must_use]
     pub const fn setup_form(&self) -> &forges::Draft {
         &self.setup_form
+    }
+    #[must_use]
+    pub const fn removal(&self) -> Option<&removing::Removal> {
+        self.removal.as_ref()
     }
     #[must_use]
     pub const fn making(&self) -> Option<&making::Making> {
@@ -266,6 +273,10 @@ pub fn step(side: &mut Side, env: &Env<Limits>, event: Event, out: &mut Queue<Re
 }
 fn act_on(side: &mut Side, limits: Limits, act: Act, out: &mut Queue<Request>) {
     match act {
+        Act::AskRemove { forge } => removing::confirm(side, forge, false),
+        Act::StartOver { forge } => removing::confirm(side, forge, true),
+        Act::KeepForge => removing::keep(side),
+        Act::RemoveForge { forge } => removing::send(side, limits, forge, out),
         Act::MakeAndSetUp => making::send(side, limits, making::MakeChoice::Here, making::Then::SetUp, out),
         Act::MakeAndSetUpAtOnce => making::send(side, limits, making::MakeChoice::Here, making::Then::SetUpAtOnce, out),
         Act::MakeAndConnectGitHub { back } => {
@@ -370,6 +381,12 @@ fn served(side: &mut Side, served: Served) {
         && making.progress.is_some()
     {
         making.progress = Some(skein_lib::RequestProgress::Parked);
+    }
+    if served == Served::OutOfDate
+        && let Some(removal) = &mut side.removal
+        && removal.progress.is_some()
+    {
+        removal.progress = Some(skein_lib::RequestProgress::Parked);
     }
     if let Some(draft) = &mut side.form {
         draft.served = side.served;

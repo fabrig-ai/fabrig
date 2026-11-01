@@ -212,7 +212,7 @@ fn peer_reservations_transfer_once_and_close_with_preparation() {
 
 #[test]
 fn retained_peer_edits_are_checked_without_replacement() {
-    for kind in ["edited", "zero", "collision", "ordinary", "outside", "oauth"] {
+    for kind in ["edited", "zero", "collision", "ordinary", "owned", "playground", "demo", "outside", "oauth"] {
         let scratch = Scratch::new(&format!("peer-validation-{kind}"));
         let source = provisioned_source(&scratch);
         let first = start(&source, None).expect("fresh sandbox");
@@ -237,6 +237,7 @@ fn retained_peer_edits_are_checked_without_replacement() {
                 );
                 let mut taken =
                     vec![1455, first.peers.github.port(), first.peers.oauth.port(), first.peers.forgejo.port()];
+                taken.extend(deployment.ports.iter().map(SocketAddr::port));
                 for step in ordinary
                     .always
                     .iter()
@@ -256,6 +257,16 @@ fn retained_peer_edits_are_checked_without_replacement() {
             "ordinary" => {
                 edited["listen"]["socket"] =
                     read_json(&first.directories.document())["application"]["clients"]["listener"]["socket"].clone();
+            }
+            "owned" | "playground" | "demo" => {
+                let document = read_json(&first.directories.document());
+                let socket = match kind {
+                    "owned" => &document["application"]["machine"]["owned"]["mode"]["owned"]["listen"]["socket"],
+                    "playground" => &document["application"]["demo"]["forge"]["mode"]["fake"]["listen"]["socket"],
+                    "demo" => &document["application"]["demo"]["llm"]["listen"]["socket"],
+                    _ => unreachable!("machine listener kind"),
+                };
+                edited["listen"]["socket"] = socket.clone();
             }
             "outside" => edited["key"] = "/outside/llm.key".into(),
             "oauth" => edited["redirect_port"] = 0.into(),
@@ -586,6 +597,8 @@ fn current_init_import_ignores_charter_files_and_rebases_paths() {
     let mut temper = read_json(&source.document());
     // Equivalent absolute resource spelling is admitted without following source D's resources.
     temper["workers"][0]["secret"] = crate::path(&source.data).join("worker.secret").to_str().expect("path").into();
+    temper["application"]["demo"]["forge"]["mode"]["fake"]["git"] =
+        crate::path(&source.data).join("demo/bin/git").to_str().expect("path").into();
     store_json(&source.document(), &temper);
     fs::create_dir_all(crate::path(&source.config).join("charters")).expect("stray public directory");
     write(&crate::path(&source.config).join("charters/chat.txt"), b"A custom public charter.\n", false)
@@ -745,19 +758,25 @@ fn import_preserves_disabled_git_and_adds_the_fake_program() {
 }
 
 #[test]
-fn four_forges_pass_ordinary_admission_with_a_directoryless_managed_entry() {
-    let scratch = Scratch::new("four-forge-admission-r2");
+fn the_effective_document_passes_ordinary_admission_with_no_forge() {
+    let scratch = Scratch::new("no-forge-admission");
     let (_source, first) = prepared_source(&scratch);
     let checked = crate::setup::check(&first.bytes, &first.directories.jig()).expect("ordinary admission");
-    assert_eq!(checked.named.forges.len(), 4);
-    assert_eq!(checked.named.identities.len(), 4);
-    let entry = checked.checked.setup.entry(4).expect("managed four");
-    assert!(entry.directory.is_empty());
-    assert_eq!(temper_forge_setup::given::values(entry, None, &checked.checked.limits).admin_name.as_ref(), b"admin");
+    assert!(checked.named.forges.is_empty());
+    assert!(checked.named.identities.is_empty());
+    assert!(checked.checked.setup.entries.is_empty());
+    let document = read_json(&first.directories.document());
+    for member in ["forges", "identities", "setup"] {
+        assert!(document["application"].get(member).is_none(), "{member}");
+    }
+    assert_eq!(
+        document["application"]["machine"]["git_program"],
+        crate::path(&first.directories.data).join("demo/bin/git").to_str().expect("fake git path")
+    );
     validate(&first.directories, &first.bytes, &scratch.0.join("fake-claude")).expect("sandbox validation");
     let operations = crate::operations_in(&first.directories, &first.bytes).expect("ordinary computed startup sizing");
     assert!(operations > 0);
-    eprintln!("four-forge ordinary sizing: {operations} operations");
+    eprintln!("no-forge ordinary sizing: {operations} operations");
 }
 
 #[test]

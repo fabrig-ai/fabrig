@@ -33,7 +33,7 @@ pub(crate) fn advance(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request
     let Some(until) = deadline(&d.outbox) else { return };
     let mut left = List::with_capacity(env.limits.entries);
     for (number, writing) in &d.outbox.entries {
-        if writing.awaiting_outcome {
+        if !writing.retired && writing.awaiting_outcome {
             left.push(*number).expect("one unfinished result per entry");
         }
     }

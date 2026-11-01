@@ -455,6 +455,18 @@ impl Store {
                 for write in &writes {
                     match write {
                         root::Write::Wires => {}
+                        root::Write::DropTranscript { task } => {
+                            self.rows.retain(|_, row| {
+                                if let root::Record::Core(jig_domain_core::Record::Core(
+                                    jig_domain_core::CoreRecord::Turn(turn),
+                                )) = row
+                                {
+                                    turn.task != *task
+                                } else {
+                                    true
+                                }
+                            });
+                        }
                         root::Write::CopySettingsRevision(number) => {
                             use jig_domain_core as core;
                             let key = root::Key::Core(core::Key::Core(core::CoreKey::Settings(

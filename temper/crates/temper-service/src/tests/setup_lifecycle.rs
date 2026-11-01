@@ -39,7 +39,7 @@ pub(super) fn app(service: &mut crate::Service) {
     }
     let origin = records::origin(
         connection::settings::Kind::GitHub,
-        &service.engine.as_ref().expect("engine").workers.forges[0].api,
+        &service.engine.as_ref().expect("engine").workers.forges.as_slice()[0].api,
     )
     .encode();
     row(service, Item::Origin, &origin);
@@ -539,7 +539,7 @@ fn the_components_first_listing_routes_gone_suspended_and_stray_installations() 
     accepted(&mut service, &[11, 22]);
     let expected = records::origin(
         connection::settings::Kind::GitHub,
-        &service.engine.as_ref().expect("engine").workers.forges[0].api,
+        &service.engine.as_ref().expect("engine").workers.forges.as_slice()[0].api,
     );
     let engine = service.engine.as_mut().expect("engine");
     let start = records::access(
@@ -1150,7 +1150,7 @@ fn setup_unconfigured_forge_is_not_found() {
 fn setup_forgejo_is_not_found() {
     for path in [b"setup".as_slice(), b"manifest", b"redirect"] {
         let mut service = service(8, Duration::from_secs(3600));
-        service.engine.as_mut().unwrap().workers.forges[0].kind = crate::settings::Kind::Forgejo;
+        service.engine.as_mut().unwrap().workers.forges.get_mut(0).unwrap().kind = crate::settings::Kind::Forgejo;
         let peer = visit(&mut service, b"GET", &joined(&[b"/forges/1/github/", path]));
         status(&peer, b"404");
     }

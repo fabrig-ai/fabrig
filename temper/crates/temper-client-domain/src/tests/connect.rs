@@ -328,7 +328,7 @@ fn an_out_of_date_link_unwatches_the_forges() {
 }
 
 #[test]
-fn the_forges_page_lists_the_persons_forges_not_fakes_or_the_demos() {
+fn every_kept_row_is_listed_but_the_playgrounds() {
     use forge::listed;
     let demo = forge::family::demo(&demo::answer(b"title"), &w::CEILINGS).unwrap();
     let connections = [
@@ -341,14 +341,8 @@ fn the_forges_page_lists_the_persons_forges_not_fakes_or_the_demos() {
         C::Stopped { reason: Box::default() },
     ];
     for connection in connections {
-        let expected = match connection {
-            C::NotConnected | C::NotSetUp => false,
-            C::SettingUp { .. } | C::SetUpFailed { .. } | C::Connecting | C::Connected { .. } | C::Stopped { .. } => {
-                true
-            }
-        };
         let candidate = row(HERE, Kind::Forgejo, Mode::Owned, connection, Offer::Offered);
-        assert_eq!(listed::personal(&candidate, Some(&demo)), expected);
+        assert!(listed::personal(&candidate, Some(&demo)));
         let mut fake = candidate.clone();
         fake.mode = Mode::Fake;
         assert!(!listed::personal(&fake, None));
@@ -364,9 +358,10 @@ fn the_forges_page_lists_the_persons_forges_not_fakes_or_the_demos() {
         row(5, Kind::Forgejo, Mode::Owned, C::Stopped { reason: Box::default() }, Offer::Offered),
     ]));
     let listed = listed::rows(&state, Some(&demo));
-    assert_eq!(listed.len(), 2_u32);
+    assert_eq!(listed.len(), 3_u32);
     assert_eq!(listed.as_slice()[0].number, 2_u16);
-    assert_eq!(listed.as_slice()[1].number, 5_u16);
+    assert_eq!(listed.as_slice()[1].number, 4_u16);
+    assert_eq!(listed.as_slice()[2].number, 5_u16);
     assert!(listed::rows(&State::Unknown, None).is_empty());
     assert!(listed::rows(&State::Ended, None).is_empty());
 }
@@ -1373,4 +1368,39 @@ fn a_begun_record_of_a_kind_draws_no_card_of_that_kind() {
         row(3, Kind::Forgejo, Mode::Owned, C::SettingUp { step: None }, Offer::Offered),
     ]));
     assert_eq!(connect::cards(&state, None).as_slice(), &[connect::Card::Elsewhere]);
+}
+
+#[test]
+fn a_made_first_repository_makes_a_connected_real_forge_whole() {
+    for (state, whole) in [
+        (forges::FirstState::Making, false),
+        (forges::FirstState::Failed { step: forges::CreateStep::Repository }, false),
+        (forges::FirstState::Made { id: 42 }, true),
+    ] {
+        let mut row =
+            row(HERE, Kind::Forgejo, Mode::Owned, C::Connected { id: 1, login: Box::default() }, Offer::Offered);
+        assert!(!connect::whole(&row));
+        row.first = Some(first(state));
+        assert_eq!(connect::whole(&row), whole);
+        row.mode = Mode::Fake;
+        assert!(!connect::whole(&row));
+        row.mode = Mode::Owned;
+        row.connection = C::NotConnected;
+        assert!(!connect::whole(&row));
+        assert!(connect::begun(&row));
+    }
+}
+#[test]
+fn unfinished_skips_the_playground_fakes_and_untouched_choices() {
+    let demo = forge::family::demo(&demo::answer(b"title"), &w::CEILINGS).unwrap();
+    let state = State::Rows(Box::new([
+        row(demo.forge, Kind::Forgejo, Mode::Owned, C::Connecting, Offer::Offered),
+        row(2, Kind::Forgejo, Mode::Fake, C::Connecting, Offer::Offered),
+        row(3, Kind::Forgejo, Mode::Owned, C::NotSetUp, Offer::Offered),
+        row(4, Kind::Forgejo, Mode::Managed, C::Stopped { reason: Box::default() }, Offer::NotOffered),
+        row(5, Kind::Forgejo, Mode::Managed, C::Connecting, Offer::NotOffered),
+    ]));
+    assert_eq!(connect::unfinished(&state, Some(&demo)).unwrap().number, 4);
+    assert!(connect::unfinished(&State::Unknown, None).is_none());
+    assert!(connect::unfinished(&State::Ended, None).is_none());
 }

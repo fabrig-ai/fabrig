@@ -4,9 +4,12 @@ use alloc::boxed::Box;
 use core::net::SocketAddr;
 use jig_protocol_config::{self as config, Directory, Path};
 use skein_fake_llm_domain::api;
-use skein_json::Document as Json;
+use skein_json::{Document as Json, document::Kind};
 use skein_lib::{List, bytes};
-use temper_forge_setup::setup::{Mode, Setup};
+use temper_forge_setup::{
+    problem::{Problems, What},
+    setup::{Entry, Fake, Mode, Setup},
+};
 
 /// The key file's read bound: the largest account key and its newline.
 /// jig's client-v11 Keyed.value ceiling is 4096 bytes; account keys are raw bytes.
@@ -47,8 +50,9 @@ pub fn key(file: &[u8]) -> Result<&[u8], KeyRefused> {
 pub struct Demo {
     llm: llm::Document,
     provider: u32,
-    forge: u16,
-    project: u32,
+    forge: Option<u16>,
+    project: Option<u32>,
+    fake: Fake,
 }
 impl Demo {
     #[must_use]
@@ -60,12 +64,16 @@ impl Demo {
         self.provider
     }
     #[must_use]
-    pub fn forge(&self) -> u16 {
+    pub fn forge(&self) -> Option<u16> {
         self.forge
     }
     #[must_use]
-    pub fn project(&self) -> u32 {
+    pub fn project(&self) -> Option<u32> {
         self.project
+    }
+    #[must_use]
+    pub fn fake(&self) -> &Fake {
+        &self.fake
     }
 }
 /// What the demo is checked against, all from the checked document.
@@ -79,6 +87,7 @@ pub struct Facts<'a> {
     pub directories: &'a config::Directories,
 }
 /// `null` is no demo. Every refusal's path is rooted at `application.demo`.
+#[expect(clippy::too_many_lines, reason = "both demo shapes are checked against the same deployment facts")]
 pub fn read(document: &Json, at: u32, facts: &Facts<'_>) -> Result<Option<Demo>, Refusal> {
     if read::is_null(document, at) {
         return Ok(None);
@@ -126,24 +135,69 @@ pub fn read(document: &Json, at: u32, facts: &Facts<'_>) -> Result<Option<Demo>,
     let scripts =
         api::Scripts { cued, asked, otherwise: llm::turns(document, otherwise_at, &lp.member(b"otherwise"))? };
     let llm = llm::Document::checked(listen, key, None, models, scripts, &lp)?;
-    let forge = read::integer(document, forge_at, u64::from(u16::MAX), &p.member(b"forge"))?;
-    let forge = u16::try_from(forge).expect("u16 bound");
-    let fake = match facts.setup.entry(forge) {
-        Some(entry) => match &entry.mode {
-            Mode::Fake(_) => true,
-            Mode::Owned(_) | Mode::Managed { .. } => false,
-        },
-        None => false,
+    let fp = p.member(b"forge");
+    let (forge, project, fake) = if document.token(forge_at).expect("member token").kind == Kind::ObjectStart {
+        let mut problems = Problems::empty();
+        let entry = Entry::body(
+            document,
+            forge_at,
+            &fp,
+            0,
+            &temper_forge_setup::limits::small(),
+            facts.directories,
+            &mut problems,
+        );
+        if !problems.is_empty() {
+            return Err(body_refusal(&problems, &fp));
+        }
+        let Some(entry) = entry else {
+            return Err(body_refusal(&problems, &fp));
+        };
+        let Mode::Fake(fake) = entry.mode else {
+            return Err(read::why(&fp, b"must be a fake forge"));
+        };
+        unique_listen(fake.listen, facts, &fp.member(b"mode").member(b"fake").member(b"listen"))?;
+        if fake.listen == listen {
+            return Err(read::why(&lp.member(b"listen"), b"must be unique"));
+        }
+        let pp = p.member(b"project");
+        let mut object = read::object(document, project_at, &pp)?;
+        let name_at = read::required(&mut object, document, b"name", &pp)?;
+        let policy_at = read::required(&mut object, document, b"policy", &pp)?;
+        read::finish(object, document, &pp)?;
+        let name = read::text(document, name_at, 64, &pp.member(b"name"))?;
+        if name.is_empty() {
+            return Err(read::why(&pp.member(b"name"), b"invalid form"));
+        }
+        let policy = read::integer(document, policy_at, u64::from(u32::MAX), &pp.member(b"policy"))?;
+        if policy == 0 {
+            return Err(read::why(&pp.member(b"policy"), b"invalid form"));
+        }
+        (None, None, fake)
+    } else {
+        let forge = read::integer(document, forge_at, u64::from(u16::MAX), &fp)?;
+        let forge = u16::try_from(forge).expect("u16 bound");
+        let fake = match facts.setup.entry(forge) {
+            Some(entry) => match &entry.mode {
+                Mode::Fake(fake) => fake.clone(),
+                Mode::Owned(_) | Mode::Managed { .. } => return Err(read::why(&fp, b"names no fake setup entry")),
+            },
+            None => return Err(read::why(&fp, b"names no fake setup entry")),
+        };
+        let project = read::integer(document, project_at, u64::from(u32::MAX), &p.member(b"project"))?;
+        let project = u32::try_from(project).expect("u32 bound");
+        if !facts.projects.contains(&project) {
+            return Err(read::why(&p.member(b"project"), b"names no project"));
+        }
+        (Some(forge), Some(project), fake)
     };
-    if !fake {
-        return Err(read::why(&p.member(b"forge"), b"names no fake setup entry"));
+    Ok(Some(Demo { llm, provider, forge, project, fake }))
+}
+fn body_refusal(problems: &Problems, path: &Path) -> Refusal {
+    match problems.first() {
+        Some((path, What::Reason(words))) => Refusal { path: path.clone(), words },
+        Some((_, What::Own(_) | What::Against(_))) | None => read::why(path, b"invalid form"),
     }
-    let project = read::integer(document, project_at, u64::from(u32::MAX), &p.member(b"project"))?;
-    let project = u32::try_from(project).expect("u32 bound");
-    if !facts.projects.contains(&project) {
-        return Err(read::why(&p.member(b"project"), b"names no project"));
-    }
-    Ok(Some(Demo { llm, provider, forge, project }))
 }
 fn data_path(d: &Json, at: u32, directories: &config::Directories, p: &Path) -> Result<Box<[u8]>, Refusal> {
     let text = read::text(d, at, limits::PATH_BYTES, p)?;

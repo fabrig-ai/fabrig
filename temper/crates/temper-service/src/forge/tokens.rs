@@ -23,7 +23,7 @@ struct Forge {
     announced: bool,
     made: List<(Box<[u8]>, u64)>,
 }
-/// Engine-only token state, bounded at startup per configured GitHub forge.
+/// Engine-only token state, bounded by the runtime forge and installation limits.
 #[derive(Debug)]
 pub struct Tokens {
     forges: Map<u16, Forge>,
@@ -34,7 +34,7 @@ impl Tokens {
         Self { forges: Map::with_capacity(0) }
     }
     pub(crate) fn new(settings: &settings::Engine) -> Self {
-        let mut forges = Map::with_capacity(u32::try_from(settings.forges.len()).expect("configured forges"));
+        let mut tokens = Self { forges: Map::with_capacity(settings.limits.forge_component.forges) };
         for forge in &settings.forges {
             if forge.kind != settings::Kind::GitHub {
                 continue;
@@ -47,21 +47,36 @@ impl Tokens {
                 }
             }
             let identity = configured.expect("each forge has an identity");
-            forges
-                .insert(
-                    forge.number,
-                    Forge {
-                        number: identity.number,
-                        login: identity.login.clone(),
-                        author: identity.author.clone(),
-                        entries: Map::with_capacity(settings.limits.forges.installations),
-                        announced: false,
-                        made: List::with_capacity(settings.limits.forges.installations),
-                    },
-                )
-                .expect("configured forges");
+            tokens.add(forge.number, identity, settings.limits.forges.installations);
         }
-        Self { forges }
+        tokens
+    }
+    pub(crate) fn add(&mut self, forge: u16, identity: &settings::Identity, installations: u32) {
+        if let Some(state) = self.forges.get_mut(&forge) {
+            state.login.clone_from(&identity.login);
+            state.author.clone_from(&identity.author);
+            return;
+        }
+        self.forges
+            .insert(
+                forge,
+                Forge {
+                    number: identity.number,
+                    login: identity.login.clone(),
+                    author: identity.author.clone(),
+                    entries: Map::with_capacity(installations),
+                    announced: false,
+                    made: List::with_capacity(installations),
+                },
+            )
+            .expect("admitted forge capacity");
+    }
+    #[cfg(test)]
+    pub(crate) fn contains(&self, forge: u16) -> bool {
+        self.forges.contains_key(&forge)
+    }
+    pub(crate) fn remove(&mut self, forge: u16) {
+        self.forges.remove(&forge);
     }
 }
 pub(crate) fn token(

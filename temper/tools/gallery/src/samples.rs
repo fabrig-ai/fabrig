@@ -20,6 +20,8 @@ pub enum World {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Then {
     Shown,
+    RemoveConfirm,
+    Removing,
     Filled,
     Refused,
     SignedOut,
@@ -61,7 +63,7 @@ pub struct Sample {
     pub address: Address,
     pub then: Then,
 }
-pub const N: usize = 83;
+pub const N: usize = 87;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All, start: false };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -132,6 +134,18 @@ pub fn samples() -> [Sample; N] {
         owned_sample("forge-setting-up-middle", 6, false),
         owned_sample("forge-setup-failed", 9, false),
         owned_sample("welcome-setup-failed", 9, true),
+        Sample {
+            name: "welcome-forge-not-finished",
+            world: World::FirstRun { step: 9 },
+            address: Address::Welcome { step: temper_client_domain::Step::Forge { forge: None } },
+            then: Shown,
+        },
+        Sample {
+            name: "welcome-forge-go-on",
+            world: World::FirstRun { step: 20 },
+            address: Address::Welcome { step: temper_client_domain::Step::Forge { forge: None } },
+            then: Shown,
+        },
         owned_sample("welcome-ready-under-way", 6, true),
         owned_sample("welcome-ready-adopted", 8, true),
         Sample { name: "chats-setup-strip", world: Bare, address: CHATS, then: Shown },
@@ -184,6 +198,13 @@ pub fn samples() -> [Sample; N] {
         Sample { name: "task-solo-T9", world: Solo, address: task(9), then: Shown },
         Sample { name: "forges-github-install", world: FirstRun { step: 20 }, address: Address::Forges, then: Shown },
         owned_sample("forge-admin-details", 23, false),
+        Sample {
+            name: "forges-remove-confirm",
+            world: FirstRun { step: 7 },
+            address: Address::Forges,
+            then: Then::RemoveConfirm,
+        },
+        Sample { name: "forges-removing", world: FirstRun { step: 7 }, address: Address::Forges, then: Then::Removing },
     ]
 }
 fn first_chat(name: &'static str, step: u8, task: u64) -> Sample {
@@ -286,6 +307,8 @@ pub fn mockup(sample: &Sample) -> Option<String> {
             Then::Renewed => "#other-states-renewed",
             Then::SignInRefused => "#other-states-refused",
             Then::Shown
+            | Then::RemoveConfirm
+            | Then::Removing
             | Then::Filled
             | Then::Refused
             | Then::SignedOut
@@ -359,6 +382,7 @@ pub fn domain(sample: &Sample) -> Domain {
     let mut out = Queue::uncapped();
     match sample.then {
         Then::Shown | Then::Held => {}
+        Then::RemoveConfirm | Then::Removing => remove_forge(&mut root, sample.then, &mut out),
         Then::Filled | Then::Refused => adoption(&mut root, sample.then == Then::Refused, &mut out),
         Then::SignedOut | Then::GoogleSignIn => step(&mut root, Event::SignedOut, &mut out),
         Then::OutOfDate => step(
@@ -639,6 +663,45 @@ fn paste(root: &mut Domain, frame: PasteFrame, out: &mut Queue<Request>) {
         root,
         Event::Client {
             event: jig_client::Event::Up { up: jig_client::Up::Answer { attempt, envelope, answer, why: None } },
+        },
+        out,
+    );
+}
+
+fn remove_forge(root: &mut Domain, then: Then, out: &mut Queue<Request>) {
+    use temper_client_domain::forge;
+    step(root, Event::Act { action: Action::Forge(forge::Act::AskRemove { forge: 3 }) }, out);
+    if then != Then::Removing {
+        return;
+    }
+    step(root, Event::Act { action: Action::Forge(forge::Act::RemoveForge { forge: 3 }) }, out);
+    let mut attempt = None;
+    while let Some(request) = out.pop() {
+        if let Some(jig_client::Down::Send { attempt: sent, .. }) = crate::driver::down(request) {
+            attempt = Some(sent);
+        }
+    }
+    let outcome = temper_client_protocol_wire::v1::Outcome::Removing;
+    let answer = temper_client_protocol_wire::v1::Answer::new(
+        &temper_client_protocol_wire::v1::CEILINGS,
+        temper_client_protocol_wire::v1::AnswerParts { outcome },
+    )
+    .expect("removing answer");
+    step(
+        root,
+        Event::Client {
+            event: jig_client::Event::Up {
+                up: jig_client::Up::Answer {
+                    attempt: attempt.expect("remove forge sent"),
+                    envelope: skein_lib::RequestEnvelope::Final,
+                    answer: Some(jig_client::Answered::Family(jig_client::Family {
+                        family: temper_client_protocol_wire::FORGE,
+                        version: temper_client_protocol_wire::CLIENT_VERSION,
+                        bytes: temper_client_protocol_wire::answer(&answer),
+                    })),
+                    why: None,
+                },
+            },
         },
         out,
     );

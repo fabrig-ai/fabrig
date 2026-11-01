@@ -19,7 +19,7 @@ use crate::{
     bounds, recovery,
 };
 use skein_forge::api::{self, Answer, Commit, Error, Op, Read, Repository, Write};
-use skein_lib::{Duration, Env, Map, Queue, Time, Wall};
+use skein_lib::{Duration, Env, List, Map, Queue, Time, Wall};
 
 #[derive(Debug)]
 pub(crate) struct Outbox {
@@ -41,6 +41,7 @@ struct Writing {
     uncertain: bool,
     restart_checked: bool,
     withdrawn: bool,
+    retired: bool,
     /// A person asked for it again: not found after its lifetime, it is made anew.
     again: bool,
     awaiting_outcome: bool,
@@ -213,6 +214,7 @@ pub(crate) fn make(d: &mut Domain, env: &Env<Limits>, entry: Entry, again: bool,
                 uncertain,
                 restart_checked: !uncertain,
                 withdrawn: false,
+                retired: false,
                 again,
                 awaiting_outcome: false,
             },
@@ -238,7 +240,7 @@ pub(crate) fn settle_done(d: &mut Domain) -> bool {
         return false;
     }
     for (_, entry) in &d.outbox.entries {
-        if !entry.restart_checked {
+        if !entry.retired && !entry.restart_checked {
             return false;
         }
     }
@@ -262,6 +264,32 @@ pub(crate) fn withdraw(d: &mut Domain, env: &Env<Limits>, number: u64, out: &mut
         }
     }
     finish(d, env, number, Outcome::Withdrawn, out);
+}
+pub(crate) fn retire(d: &mut Domain, env: &Env<Limits>, forge: u16, out: &mut Queue<Request>) {
+    d.writers.remove(&forge);
+    let mut entries = List::with_capacity(env.limits.entries);
+    for (number, writing) in &d.outbox.entries {
+        if writing.entry.repository.forge == forge {
+            entries.push(*number).expect("retirement names at most the held entries");
+        }
+    }
+    for number in entries.into_boxed() {
+        d.alarms.cancel(Alarm::Entry(number));
+        let cancelled = calls::cancel_entry(&mut d.calls, number);
+        let writing = d.outbox.entries.get_mut(&number).expect("retiring entry remains");
+        writing.retired = true;
+        match writing.state {
+            State::Busy(_) if !cancelled => continue,
+            State::Due(_) | State::Waiting(_) | State::Busy(_) => {}
+        }
+        finish(d, env, number, Outcome::Failed(Error::NotConnected), out);
+    }
+}
+pub(crate) fn retired(outbox: &Outbox, number: u64) -> bool {
+    match outbox.entries.get(&number) {
+        Some(writing) => writing.retired,
+        None => false,
+    }
 }
 pub(crate) fn pump(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) -> bool {
     if !d.outbox.ready || d.outbox.paused || d.calls.is_full() {

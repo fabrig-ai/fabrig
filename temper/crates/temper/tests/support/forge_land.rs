@@ -763,12 +763,7 @@ pub fn live_deployment(paths: &[PathBuf; 3], model: LiveModel<'_>) -> std::net::
     let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
     value["engine"]["limits"]["overrides"]["accounts.sign_in_deadline_ms"] = 600_000.into();
     super::write_private(&path, &serde_json::to_vec(&value).expect("live configuration"));
-    value["application"]["forges"]
-        .as_array()
-        .expect("forges")
-        .iter()
-        .find(|forge| forge["number"] == 3)
-        .expect("owned forge")["api"]["socket"]
+    value["application"]["machine"]["owned"]["mode"]["owned"]["listen"]["socket"]
         .as_str()
         .expect("forge address")
         .parse()

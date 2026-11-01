@@ -17,10 +17,8 @@ pub(crate) fn request(engine: &mut Engine, request: root::Request) {
         root::Request::RemoveGroup { .. } => {}
         // sv's removal task supplies durable secret erasure.
         root::Request::EraseSecrets { .. } => {}
-        // sv's runtime task supplies registration in the forge layer and setup host.
-        root::Request::Register(_) => {}
-        // sv's runtime task supplies removal from the forge layer and setup host.
-        root::Request::Unregister { .. } => {}
+        root::Request::Register(record) => crate::forges::register(engine, record),
+        root::Request::Unregister { forge } => crate::forges::unregister(engine, forge),
         root::Request::StopGroup { forge } => {
             let mut out = skein_lib::Queue::with_capacity(1);
             engine.box_link.stop(forge, &mut out);
@@ -149,7 +147,7 @@ pub(crate) fn request(engine: &mut Engine, request: root::Request) {
                 root::PartyRequest::Deliver(root::Delivery::ForgeDocument { watcher, document }) => {
                     match crate::family::document(
                         *document,
-                        &engine.workers.forges,
+                        engine.workers.forges.as_slice(),
                         &temper_client_protocol_wire::v1::CEILINGS,
                     ) {
                         Some(record) => Some(jig_protocol_engine_clients::Event::Application(
@@ -165,7 +163,7 @@ pub(crate) fn request(engine: &mut Engine, request: root::Request) {
                 root::PartyRequest::Deliver(root::Delivery::Panel { watcher, panel }) => {
                     match crate::family::panel(
                         *panel,
-                        &engine.workers.forges,
+                        engine.workers.forges.as_slice(),
                         &temper_client_protocol_wire::v1::CEILINGS,
                     ) {
                         Some(record) => Some(jig_protocol_engine_clients::Event::Application(

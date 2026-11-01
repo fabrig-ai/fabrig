@@ -92,6 +92,22 @@ fn opened(owner: bool, step: Step) -> (Domain, Token, Token, Option<Token>) {
     }
     (root, me, accounts, forges)
 }
+fn adoption() -> List<w::Adoption> {
+    let mut rows = List::with_capacity(1);
+    rows.push(
+        w::Adoption::new(
+            &w::CEILINGS,
+            w::AdoptionParts {
+                owner: b"work".as_slice().into(),
+                name: b"hello".as_slice().into(),
+                project: f::PROJECT,
+            },
+        )
+        .unwrap(),
+    )
+    .unwrap();
+    rows
+}
 fn rows(root: &mut Domain, watch: Token, number: u16) -> Queue<Request> {
     let limits = forge::wire_limits(&f::limits().forge).unwrap();
     let mut forges = List::with_capacity(1);
@@ -113,7 +129,7 @@ fn rows(root: &mut Domain, watch: Token, number: u16) -> Queue<Request> {
                     ended: None,
                     app: None,
                     web: None,
-                    repositories: List::with_capacity(0),
+                    repositories: adoption(),
                     owned: None,
                     admin: false,
                     read_only: false,
@@ -333,6 +349,8 @@ fn an_invalid_forges_document_counts_as_no_forge() {
 fn strip_forges(root: &mut Domain, watch: Token, connection: Option<w::Connection>) {
     let mut forges = List::with_capacity(1);
     if let Some(connection) = connection {
+        let repositories =
+            if let w::Connection::Connected(_) = connection { adoption() } else { List::with_capacity(0) };
         forges
             .push(
                 w::ForgeRow::new(
@@ -348,7 +366,7 @@ fn strip_forges(root: &mut Domain, watch: Token, connection: Option<w::Connectio
                         ended: None,
                         app: None,
                         web: None,
-                        repositories: List::with_capacity(0),
+                        repositories,
                         owned: None,
                         admin: false,
                         read_only: false,
@@ -498,4 +516,195 @@ fn ready_and_the_strip_count_an_owners_deployment_model() {
     answer(&mut member, true);
     account(&mut member, accounts, 18, false);
     assert_eq!(pages::welcome::model_usable(&member), Some(false));
+}
+
+fn state_case(
+    connection: Option<w::Connection>,
+    adopted: bool,
+    github: Option<bool>,
+    provider: Option<u32>,
+    usable: bool,
+    expected: pages::welcome::State,
+) {
+    let (mut root, _, accounts, watch) = opened(true, Step::Welcome);
+    answer(&mut root, true);
+    deliver(&mut root, accounts, c::Delivery::OwnerAccounts(Box::new(demo::accounts(provider, usable, false))));
+    let mut forges = List::with_capacity(1);
+    if let Some(connection) = connection {
+        let mut installations = List::with_capacity(1);
+        if github == Some(true) {
+            installations
+                .push(
+                    w::Installation::new(
+                        &w::CEILINGS,
+                        w::InstallationParts {
+                            id: 1,
+                            account: Some(
+                                w::Account::new(
+                                    &w::CEILINGS,
+                                    w::AccountParts { id: 1, login: b"sam".as_slice().into() },
+                                )
+                                .unwrap(),
+                            ),
+                            suspended: false,
+                            stray: false,
+                        },
+                    )
+                    .unwrap(),
+                )
+                .unwrap();
+        }
+        forges
+            .push(
+                w::ForgeRow::new(
+                    &w::CEILINGS,
+                    w::ForgeRowParts {
+                        number: 3,
+                        kind: if github.is_some() { w::Kind::Github } else { w::Kind::Forgejo },
+                        mode: w::Mode::Owned,
+                        connection,
+                        offer: w::Offer::Offered,
+                        first: None,
+                        installations,
+                        ended: None,
+                        app: None,
+                        web: None,
+                        repositories: if adopted { adoption() } else { List::with_capacity(0) },
+                        owned: None,
+                        admin: false,
+                        read_only: false,
+                        ended_stop: None,
+                    },
+                )
+                .unwrap(),
+            )
+            .unwrap();
+    }
+    let out = up(
+        &mut root,
+        Up::FamilyDelivered {
+            watch: watch.unwrap(),
+            record: jig_client::Family {
+                family: wire::FORGE,
+                version: wire::CLIENT_VERSION,
+                bytes: wire::forges(&w::Forges::new(&w::CEILINGS, w::ForgesParts { forges }).unwrap()),
+            },
+        },
+    );
+    assert_eq!(pages::welcome::state(&root), Some(expected));
+    let expected_address = match expected {
+        pages::welcome::State::Empty => None,
+        pages::welcome::State::Whole => Some(Address::Chats { filter: ChatsFilter::All, start: false }),
+        pages::welcome::State::Unfinished(step) => Some(Address::Welcome { step }),
+    };
+    let mut shown = None;
+    for request in &out {
+        if let Request::Show { address, replace } = request {
+            assert!(*replace);
+            shown = Some(address.clone());
+        }
+    }
+    assert_eq!(shown, expected_address);
+}
+fn connected() -> w::Connection {
+    w::Connection::Connected(
+        w::Connected::new(&w::CEILINGS, w::ConnectedParts { id: 42, login: b"bot".as_slice().into() }).unwrap(),
+    )
+}
+#[test]
+fn an_empty_deployment_stays_on_the_welcome() {
+    for connection in [None, Some(w::Connection::NotSetUp), Some(w::Connection::NotConnected)] {
+        state_case(connection, false, None, Some(17), true, pages::welcome::State::Empty);
+    }
+}
+#[test]
+fn a_real_account_alone_is_unfinished_at_forge() {
+    for usable in [false, true] {
+        state_case(None, false, None, Some(18), usable, pages::welcome::State::Unfinished(Step::Forge { forge: None }));
+    }
+}
+#[test]
+fn a_forge_set_up_without_its_first_repository_is_unfinished_at_forge() {
+    state_case(
+        Some(connected()),
+        false,
+        None,
+        Some(18),
+        true,
+        pages::welcome::State::Unfinished(Step::Forge { forge: None }),
+    );
+}
+#[test]
+fn a_whole_forge_without_a_model_is_unfinished_at_model() {
+    state_case(
+        Some(connected()),
+        true,
+        None,
+        Some(17),
+        true,
+        pages::welcome::State::Unfinished(Step::Model { way: None }),
+    );
+}
+#[test]
+fn a_whole_forge_and_a_model_move_on_to_the_chats() {
+    state_case(Some(connected()), true, None, Some(18), true, pages::welcome::State::Whole);
+}
+#[test]
+fn a_github_forge_without_an_accepted_installation_is_not_whole() {
+    for accepted in [false, true] {
+        state_case(
+            Some(connected()),
+            true,
+            Some(accepted),
+            Some(18),
+            true,
+            if accepted {
+                pages::welcome::State::Whole
+            } else {
+                pages::welcome::State::Unfinished(Step::Forge { forge: None })
+            },
+        );
+    }
+}
+#[test]
+fn a_running_playground_moves_on_as_before() {
+    let (mut root, _, accounts, forges) = opened(true, Step::Forge { forge: None });
+    answer(&mut root, true);
+    account(&mut root, accounts, 17, true);
+    strip_forges(&mut root, forges.unwrap(), None);
+    event(&mut root, Event::Act { action: Action::Pages(Act::Playground) });
+    assert!(root.forge().demo_running());
+    assert_eq!(pages::welcome::state(&root), Some(pages::welcome::State::Whole));
+    assert!(moved(go(&mut root, Step::Welcome), true));
+}
+#[test]
+fn start_over_confirms_then_removes_and_the_choices_return() {
+    let (mut root, _, _, watch) = opened(true, Step::Forge { forge: None });
+    let watch = watch.unwrap();
+    strip_forges(
+        &mut root,
+        watch,
+        Some(w::Connection::SetUpFailed(
+            w::SetUpFailed::new(&w::CEILINGS, w::SetUpFailedParts { why: b"fetch failed".as_slice().into(), at: None })
+                .unwrap(),
+        )),
+    );
+    assert!(f::form_act(&mut root, forge::Act::StartOver { forge: 3 }).is_empty());
+    assert!(root.forge().removal().unwrap().start_over);
+    assert!(root.forge().removal().unwrap().confirming);
+    f::form_act(&mut root, forge::Act::KeepForge);
+    assert!(root.forge().removal().is_none());
+    f::form_act(&mut root, forge::Act::StartOver { forge: 3 });
+    let (attempt, _, w::Request::RemoveForge(request)) =
+        crate::tests::connect::sent(f::form_act(&mut root, forge::Act::RemoveForge { forge: 3 }))
+    else {
+        panic!("remove")
+    };
+    assert_eq!(request.forge(), 3);
+    assert!(root.forge().removal().unwrap().start_over);
+    crate::tests::connect::reply(&mut root, attempt, w::Outcome::Removing);
+    strip_forges(&mut root, watch, None);
+    assert!(root.forge().removal().is_none());
+    assert!(forge::connect::unfinished(root.forges(), root.forge().demo()).is_none());
+    assert_eq!(forge::connect::cards(root.forges(), root.forge().demo()).len(), 3);
 }
