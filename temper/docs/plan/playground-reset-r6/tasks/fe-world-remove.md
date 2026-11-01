@@ -3,7 +3,7 @@ id = "fe-world-remove"
 part = "rf"
 kind = "feature"
 needs = ["fe-remove", "fe-kept-root", "pd-vocabulary", "pd-core-decide"]
-files = ["temper/tests/engine/domain/**", "temper/crates/temper-engine-domain-forge/**"]
+files = ["temper/tests/engine/domain/**", "temper/crates/temper-engine-domain-forge/**", "jig/crates/jig-domain-core/src/run.rs", "jig/crates/jig-domain-core/src/tests/credentials.rs"]
 effort = "high"
 minutes = 90
 +++
@@ -225,3 +225,41 @@ directories is yours, outside them `Failed:` with the story and the row. The fai
 report lists under `## Left` outside these directories (`demo.rs`, the client's names test,
 `temper`'s and `temper-engine-domain`'s legacy tests, the real-loop worlds) stay left; they
 do not block `Done`.
+
+### 2026-11-01: a removed forge's chat never runs again, its parked attempt's `RunProof` still naming credential 1; fix jig, or fail? (playground-reset-r6/fe-world-remove-9)
+
+Keep your branch (`e33a9df593`) and go on from it; the panel fix, cuts 0 to 3, the grant
+story and the closing assertions stand.
+
+The fault is jig's, and this task fixes it. jig's authority check before a run
+(`jig/docs/design/domain/authority.md`, 8.3) asks that "the application's credentials its
+workspace needs are usable": the workspace about to be prepared, which the connector names
+as it gathers it (`jig/docs/design/domain/connectors.md`, "The credentials they need"). Before
+preparation, `Core::run_credentials` (`jig/crates/jig-domain-core/src/run.rs`) falls back to
+the previous proof's credentials, so a parked attempt's credential that is gone (a removed
+forge's, or any revoked one) holds the task at `Active(Due)` for good, and the new workspace
+that would name the current set is never prepared.
+
+1. **The fix.** `run_credentials` falls back to the proof's credentials only while its
+   attempt is live (`proof.terminal` is `None`); a proof with a terminal names no credential
+   for the next run, whose set comes from its workspace (`workspace_credentials`) at
+   preparation. The checks during a live run (`connector_admit`, the claim's
+   `claim_bindings_usable`) are unchanged, as is the check after preparation
+   (`run_preparation.rs`, `run_admission` with `workspace_credentials`). No other change in
+   jig; the root's `now.rs` stays.
+2. **Its test,** in `jig/crates/jig-domain-core/src/tests/credentials.rs`: a task whose
+   proof has a terminal and names an unusable credential is admitted before preparation
+   (`run_admission` does not wait `Credential`; the task document shows no `Credential`
+   wait), and once preparation names that credential in `workspace_credentials` it waits
+   again. Run `heavy cargo nextest run -p jig-domain-core --lib`, all of it, and
+   `heavy cargo clippy -p jig-domain-core --all-targets -- -D warnings`.
+3. **Then the story.** `nothing_of_a_removed_forge_is_read_but_its_repositories` goes on
+   past the chat's next run: its workspace without the removed forge's repository or
+   credential, the chat's read refused as on a forge not connected (draft section 4), the
+   adoption refusal and the restart, at both seeds.
+
+Owns and may change, widened: `jig/crates/jig-domain-core/src/run.rs` and its
+`src/tests/credentials.rs`, for this fault only, beside the two directories already
+yours. `Done` is the four stories passing at both seeds with every cut walked, and
+jig-domain-core's lib tests green. A further fault outside these files that keeps a story
+red ends the run `Failed:` with the story and the row; `## Left` stays as it was.
