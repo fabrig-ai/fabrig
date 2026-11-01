@@ -181,6 +181,12 @@ fn the_playground_read_answers_the_configured_demo() {
         project_name: "".into(),
         project_policy: 0,
         state: Some(forge::DemoState::Running),
+        playground: Some(forge::Playground {
+            state: forge::PlaygroundState::Running,
+            forge: 2,
+            project: Some(1),
+            account: None,
+        }),
         landing: b"main".as_slice().into(),
         key_file: b"/demo-key".as_slice().into(),
         project: 1,
@@ -1284,8 +1290,22 @@ fn playground_start_reaches_the_root_with_its_admission_envelope() {
     assert_eq!(request, root::Application::Forge(forge::Ask::StartPlayground));
 }
 
+fn assert_playground_read(demo: &crate::settings::Demo, state: w::PlaygroundState, project: u32, forge: u16) {
+    let record = demo_record(demo_read(people::ApplicationScope::Deployment), demo);
+    let answer = wire::decode_playground_answer(&record, &w::CEILINGS).unwrap();
+    assert_eq!(answer.state(), &state);
+    assert_eq!((answer.project(), answer.forge()), (project, forge));
+    assert_eq!(answer.provider(), demo.provider);
+    assert_eq!(answer.owner(), demo.owner.as_ref());
+    assert_eq!(answer.name(), demo.name.as_ref());
+    assert_eq!(answer.cues().len(), u32::try_from(demo.cues.len()).unwrap());
+    for (index, cue) in demo.cues.iter().enumerate() {
+        assert_eq!(answer.cues().get(u32::try_from(index).unwrap()).unwrap().as_ref(), cue.as_ref());
+    }
+}
+
 #[test]
-fn playground_read_tracks_not_started_running_and_resetting() {
+fn the_playground_read_answers_not_started_with_no_row() {
     let Err(answer) = family::to_root(demo_read(people::ApplicationScope::Deployment), &[], None, &w::CEILINGS) else {
         panic!("read")
     };
@@ -1293,30 +1313,61 @@ fn playground_read_tracks_not_started_running_and_resetting() {
     assert!(record.is_none());
     let mut service = fixtures::demo_service();
     let demo = service.engine.as_mut().unwrap().demo.as_mut().unwrap();
-    for (state, expected) in [
-        (None, Some(w::PlaygroundState::NotStarted)),
-        (Some(forge::DemoState::Running), Some(w::PlaygroundState::Running)),
-        (Some(forge::DemoState::Ended), Some(w::PlaygroundState::Resetting)),
-    ] {
+    for state in [None, Some(forge::DemoState::Running), Some(forge::DemoState::Ended)] {
         demo.state = state;
-        let Err(answer) =
-            family::to_root(demo_read(people::ApplicationScope::Deployment), &[], Some(demo), &w::CEILINGS)
-        else {
-            panic!("read")
-        };
-        let kit::Event::Application(kit::FromApplication::Read { record, .. }) = *answer else { panic!("demo read") };
-        let got = match record {
-            Some(record) => {
-                let answer = wire::decode_playground_answer(&record, &w::CEILINGS).unwrap();
-                assert_eq!(
-                    (answer.provider(), answer.project(), answer.forge()),
-                    (demo.provider, demo.project, demo.forge)
-                );
-                Some(answer.state().clone())
-            }
-            None => None,
-        };
-        assert_eq!(got, expected);
+        assert!(demo.playground.is_none());
+        assert_playground_read(demo, w::PlaygroundState::NotStarted, 0, 0);
+    }
+}
+
+#[test]
+fn the_playground_read_answers_running_with_its_project_and_forge() {
+    let mut service = fixtures::demo_service();
+    let demo = service.engine.as_mut().unwrap().demo.as_mut().unwrap();
+    for project in [None, Some(73)] {
+        demo.playground =
+            Some(forge::Playground { state: forge::PlaygroundState::Running, forge: 19, project, account: Some(5) });
+        assert_playground_read(demo, w::PlaygroundState::Running, project.unwrap_or(0), 19);
+    }
+}
+
+#[test]
+fn the_playground_read_answers_resetting_at_each_step() {
+    let mut service = fixtures::demo_service();
+    let demo = service.engine.as_mut().unwrap().demo.as_mut().unwrap();
+    for step in [forge::ResetStep::Project, forge::ResetStep::Forge, forge::ResetStep::Account] {
+        demo.playground = Some(forge::Playground {
+            state: forge::PlaygroundState::Resetting(step),
+            forge: 19,
+            project: Some(73),
+            account: Some(5),
+        });
+        assert_playground_read(demo, w::PlaygroundState::Resetting, 73, 19);
+    }
+}
+
+#[test]
+fn the_playground_row_is_refreshed_before_root_routing_and_client_reads() {
+    let mut service = fixtures::ready();
+    let mut configured = fixtures::demo_service();
+    let engine = service.engine.as_mut().unwrap();
+    engine.demo = configured.engine.as_mut().unwrap().demo.take();
+    for route in [true, false] {
+        let row =
+            forge::Playground { state: forge::PlaygroundState::Running, forge: 19, project: Some(73), account: None };
+        engine.step(root::Event::Forge(Box::new(forge::Event::Restore { record: forge::Stored::Playground(row) })));
+        engine.demo.as_mut().unwrap().playground = None;
+        if route {
+            crate::route::request(
+                engine,
+                root::Request::Party(root::PartyRequest::Deliver(root::Delivery::DemoNote { line: Box::new([]) })),
+            );
+        } else {
+            crate::engine::iterate(engine, skein_lib::Time::from_nanos(1), skein_lib::Wall::from_nanos(1));
+        }
+        let demo = engine.demo.as_ref().unwrap();
+        assert_eq!(demo.playground, Some(row));
+        assert_playground_read(demo, w::PlaygroundState::Running, 73, 19);
     }
 }
 

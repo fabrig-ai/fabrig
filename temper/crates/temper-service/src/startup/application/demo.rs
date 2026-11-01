@@ -106,6 +106,7 @@ pub(super) fn parse(
             landing,
             key_file,
             state: None,
+            playground: None,
         });
     }
     problems.push(path.member(b"forge"), What::Jig(config::What::Refers));
@@ -192,6 +193,7 @@ fn t4(
         cues,
         key_file,
         state: None,
+        playground: None,
     };
     machine.playground = Some(super::machine::playground(&entry, body));
     Some(demo)

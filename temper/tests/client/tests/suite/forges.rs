@@ -21,63 +21,16 @@ const CONNECTED_MODE: u16 = 5;
 const AUTOMATIC: u16 = 6;
 const OUTPUTS: u32 = 128;
 const STEPS: u32 = 256;
-// The forge setup world covers four configured forges and their project allocations.
+// The forge setup world covers four seeded forge records and their project allocations.
 const FORGE_SETUP_WRITES: u32 = 2126;
 
 fn config(under_box: bool) -> engine::Config {
     let mut config = walking::config(fixtures::SEED);
     config.core.connectors = Box::new([fixtures::FORGE]);
     config.under_box = under_box;
-    config.forges = Box::new([
-        forge::Configured {
-            admin_connect: false,
-            bot: Box::new([]),
-            owned: None,
-            git: Box::new([]),
-            web: None,
-            read_only: false,
-            number: FORGE,
-            kind: forge::Kind::Forgejo,
-            mode: forge::Mode::Owned,
-            asked: true,
-        },
-        forge::Configured {
-            admin_connect: false,
-            bot: Box::new([]),
-            owned: None,
-            git: Box::new([]),
-            web: None,
-            read_only: false,
-            number: OTHER,
-            kind: forge::Kind::Forgejo,
-            mode: forge::Mode::Owned,
-            asked: true,
-        },
-        forge::Configured {
-            admin_connect: false,
-            bot: Box::new([]),
-            owned: None,
-            git: Box::new([]),
-            web: None,
-            read_only: false,
-            number: CONNECTED_MODE,
-            kind: forge::Kind::Forgejo,
-            mode: forge::Mode::Connected,
-            asked: false,
-        },
-        forge::Configured {
-            admin_connect: false,
-            bot: Box::new([]),
-            owned: None,
-            git: Box::new([]),
-            web: None,
-            read_only: false,
-            number: AUTOMATIC,
-            kind: forge::Kind::Forgejo,
-            mode: forge::Mode::Owned,
-            asked: false,
-        },
-    ]);
+    config.machine = fixtures::machine();
+    config.forges = Box::new([]);
+    config.identities = Box::new([]);
     let mut limits = temper_engine_domain_world::fixtures::forge_limits();
     temper_client_world::front::first_run_projects(&mut config, &mut limits);
     config
@@ -102,16 +55,30 @@ impl World {
         limits.authority = temper_engine_domain_world::walking::limits().authority;
         limits.people.projects = 3;
         limits.people.holdings = 3;
-        // Four configured forges distinguish both ineligible modes from the two asked ones.
+        // Four seeded forge records distinguish both ineligible modes from the two asked ones.
         let extra = 4 - limits.forge.client.repositories;
         limits.forge.client.repositories = 4;
-        // The forge client's output cohort counts two outputs per configured forge.
+        // The forge client's output cohort counts two outputs per seeded forge.
         limits.forge.output += extra * 2;
         // Frame project allocations fit the tools preset, as the shared front requires.
         limits.documents.lines = tools::limits::client().client.domain.projects;
         limits.journal.writes = FORGE_SETUP_WRITES;
         assert!(engine::valid(&limits), "the story profile covers the larger cohort");
-        let store = temper_engine_domain_world::fixtures::restored_over(Store::new(), config(under_box), &limits);
+        let mut store = temper_engine_domain_world::fixtures::restored_over(Store::new(), config(under_box), &limits);
+        let records = [
+            (FORGE, forge::Mode::Owned, true),
+            (OTHER, forge::Mode::Owned, true),
+            (CONNECTED_MODE, forge::Mode::Connected, false),
+            (AUTOMATIC, forge::Mode::Owned, false),
+        ]
+        .map(|(number, mode, asked)| {
+            let mut record = temper_engine_domain_world::forges::record(number, forge::Kind::Forgejo, mode);
+            if !asked {
+                record.setup = None;
+            }
+            record
+        });
+        store.seed(temper_engine_domain_world::forges::rows(&records), Box::new([]));
         let configuration = config(under_box);
         let mut transport = Transport::new(c::VersionRange {
             first: jig_client_protocol_wire::VERSION,
@@ -325,7 +292,7 @@ fn contains(bytes: &[u8], words: &[u8]) -> bool {
     skein_lib::bytes::find(bytes, words).is_some()
 }
 fn row(world: &World, forge: u16) -> temper_client_domain::forge::forges::Row {
-    world.last_rows().into_iter().find(|row| row.number == forge).expect("configured row")
+    world.last_rows().into_iter().find(|row| row.number == forge).expect("seeded row")
 }
 
 #[test]
@@ -487,4 +454,51 @@ fn invalid_setup_names_are_refused_without_a_box_effect() {
         ));
     }
     assert_eq!(world.box_calls, 0);
+}
+
+#[test]
+fn remove_on_forges_ends_the_forge_and_it_leaves_the_list() {
+    use super::connect_forge::{go, node, owned_welcome, press, view};
+    use skein_ui::Role;
+    use temper_client_domain as d;
+    let (mut front, mut root, mut now) = owned_welcome();
+    front.hold_removals = true;
+    go(&mut front, &mut root, &mut now, d::Address::Forges);
+    node(&view(&root), Role::Disclosure, b"Forgejo on this machine");
+    press(&mut front, &mut root, &mut now, "Remove forge…".as_bytes());
+    assert!(front.removals.is_empty(), "opening the confirmation sends no removal");
+    assert_eq!(front.records()[0].state, forge::ForgeState::Kept);
+    node(&view(&root), Role::Heading { level: 3 }, b"Remove forge 1?");
+    press(&mut front, &mut root, &mut now, b"Remove forge");
+    assert_eq!(front.removals, [1]);
+    let records = front.records();
+    assert_eq!(records.len(), 1);
+    assert_eq!(records[0].state, forge::ForgeState::Removing);
+    let mut acts = Vec::new();
+    for record in front.engine.store.rows.values() {
+        if let engine::Record::Forge { row } = record
+            && let forge::Stored::KeptAct(row) = row.as_ref()
+        {
+            assert_eq!(row.forge, 1);
+            acts.push(row.act);
+        }
+    }
+    assert_eq!(acts.len(), 2, "no open change needs cancellation");
+    assert!(acts.contains(&forge::KeptActKind::RemoveGroup));
+    assert!(acts.contains(&forge::KeptActKind::EraseSecrets));
+    let d::forge::forges::State::Rows(rows) = root.person().forges() else { panic!("forge rows") };
+    assert!(rows.is_empty(), "the forge ends before its kept acts finish");
+    assert!(
+        !view(&root)
+            .tree()
+            .nodes()
+            .iter()
+            .any(|n| n.role == Role::Disclosure && n.name.as_deref() == Some(b"Forgejo on this machine"))
+    );
+    front.finish_removals();
+    temper_client_world::front::account_acts::settle(&mut front, &mut root);
+    assert!(front.records().is_empty());
+    assert!(!front.engine.store.rows.values().any(
+        |record| matches!(record, engine::Record::Forge { row } if matches!(row.as_ref(), forge::Stored::KeptAct(_)))
+    ));
 }

@@ -22,8 +22,25 @@ fn enqueue(clients: &mut Clients) {
 
 #[test]
 fn start_demo_reads_each_time_and_carries_the_key_before_admission() {
+    carries_the_key(false);
+}
+
+#[test]
+fn a_playground_start_of_t4s_shape_carries_the_key() {
+    carries_the_key(true);
+}
+
+fn carries_the_key(t4: bool) {
     let mut service = fixtures::demo_service();
     let engine = service.engine.as_mut().unwrap();
+    if t4 {
+        let demo = engine.demo.as_mut().unwrap();
+        demo.forge = 0;
+        demo.project = 0;
+        demo.project_name = "Playground".into();
+        demo.project_policy = 1;
+    }
+    let expected_forge = engine.demo.as_ref().unwrap().forge;
     engine.clients.starting = None;
     enqueue(&mut engine.clients);
     engine.clients.advance(
@@ -36,6 +53,7 @@ fn start_demo_reads_each_time_and_carries_the_key_before_admission() {
     let read = service.take_handover_read().unwrap();
     assert!(read.path.ends_with(b"demo/llm.key"));
     assert_eq!(read.max, 4097);
+    assert_eq!(read.forge, expected_forge);
     // The shell removes exactly one LF. This remaining LF belongs to the key.
     service.handover_read(read.forge, read.run, Ok(Some(skein_lib::Secret::new(b"test-key\n".as_slice().into()))));
     let engine = service.engine.as_mut().unwrap();
@@ -91,6 +109,7 @@ fn start_demo_reads_each_time_and_carries_the_key_before_admission() {
     );
     let next = engine.clients.demo_read().unwrap();
     assert_eq!(next.path, read.path);
+    assert_eq!(next.forge, expected_forge);
     assert_ne!(next.run, read.run);
 }
 
