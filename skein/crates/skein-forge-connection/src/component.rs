@@ -1,4 +1,5 @@
-//! Waiting calls and returned answers (forge-connection.md, sections 2 and 8).
+//! Waiting calls, runtime forges and answers (skein/docs/design/forge-connection.md, 2, 3, 8;
+//! temper/docs/design/draft/playground-reset.md, 3).
 use crate::{
     boundary::{Answered, Event, Request},
     connection::{self, Connection, Exchange, Phase},
@@ -97,6 +98,12 @@ pub(crate) struct Held {
     pub answer: Answered,
     pub offer: bool,
 }
+/// Why a runtime forge was refused (forge-connection.md, 3).
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum Added {
+    Unusable(Unusable),
+    Closed,
+}
 /// One component per deployment, owning every configured token and start.
 #[derive(Debug)]
 pub struct Component {
@@ -121,10 +128,17 @@ pub struct Component {
     wake: Option<Time>,
 }
 impl Component {
-    pub fn new(settings: Settings, limits: &Limits, shared: &Shared) -> Result<Self, Unusable> {
+    pub fn new(mut settings: Settings, limits: &Limits, shared: &Shared) -> Result<Self, Unusable> {
         limits::check(limits, shared, &settings)?;
+        let connections = limits.connections.checked_add(limits.forges).ok_or(Unusable::Zero)?;
+        if settings.forges.capacity() < limits.forges {
+            let mut forges = List::with_capacity(limits.forges);
+            for forge in settings.forges.into_boxed() {
+                forges.push(forge).expect("checked forge count");
+            }
+            settings.forges = forges;
+        }
         let mut github = List::with_capacity(limits.forges);
-        let mut reserved = 0_u32;
         let mut starts = List::with_capacity(limits.forges);
         let mut own_tokens = List::with_capacity(limits.forges);
         let mut own_plans = List::with_capacity(limits.forges);
@@ -134,7 +148,6 @@ impl Component {
             let state_github = match forge.kind {
                 crate::settings::Kind::Forgejo => None,
                 crate::settings::Kind::GitHub => {
-                    reserved = reserved.checked_add(1).expect("checked connection count");
                     let mut github = crate::installations::GitHub::new(limits.installations);
                     github.said_origins = Queue::with_capacity(limits.log_origins);
                     Some(Box::new(github))
@@ -173,15 +186,63 @@ impl Component {
             lifecycle: Lifecycle::Live,
             diagnostics: Diagnostics { long_bodies: 0, malformed: 0 },
             shared: *shared,
-            connections: Map::with_capacity(limits.connections.checked_add(reserved).expect("checked connections")),
-            connection_slab: Slab::with_capacity(
-                limits.connections.checked_add(reserved).expect("checked connections"),
-            ),
+            connections: Map::with_capacity(connections),
+            connection_slab: Slab::with_capacity(connections),
             own_tokens,
             own_plans,
             next_token: 1,
             wake: None,
         })
+    }
+    /// Adds a forge at runtime, checked as `new` checks a configured
+    /// one, and starts it when it comes with access (3.3, 3.5).
+    pub fn add(
+        &mut self,
+        env: &Env<Limits>,
+        forge: crate::settings::Forge,
+        up: &mut Queue<Event>,
+        io: &mut Queue<skein_io::Request>,
+    ) -> Result<(), Added> {
+        if self.lifecycle != Lifecycle::Live {
+            return Err(Added::Closed);
+        }
+        if let Err(reason) = limits::check_added(&env.limits, &self.shared, &self.settings, &forge) {
+            return Err(Added::Unusable(reason));
+        }
+        let mut first = true;
+        for kept in &self.settings.forges {
+            if kept.kind == forge.kind {
+                first = false;
+            }
+        }
+        let github = match forge.kind {
+            crate::settings::Kind::Forgejo => {
+                if first {
+                    self.forgejo_tables = Tables::new(env.limits.repositories, env.limits.users);
+                }
+                None
+            }
+            crate::settings::Kind::GitHub => {
+                if first {
+                    self.github_tables =
+                        skein_forge::github::plans::tables::Tables::new(env.limits.repositories, env.limits.users);
+                }
+                let mut github = crate::installations::GitHub::new(env.limits.installations);
+                github.said_origins = Queue::with_capacity(env.limits.log_origins);
+                Some(Box::new(github))
+            }
+        };
+        let access = forge.access.is_some();
+        let state = if access { initial(forge.kind, env.limits.start_backoff) } else { Start::Unconnected };
+        self.settings.forges.push(forge).expect("checked forge count");
+        self.starts.push(state).expect("checked forge count");
+        self.github.push(github).expect("checked forge count");
+        self.own_tokens.push(None).expect("checked forge count");
+        self.own_plans.push(None).expect("checked forge count");
+        if access {
+            self.drive(env, up, io);
+        }
+        Ok(())
     }
     #[cfg(test)]
     pub(crate) fn test_calls_ready(&mut self) {
