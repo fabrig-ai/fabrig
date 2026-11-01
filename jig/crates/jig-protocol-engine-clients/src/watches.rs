@@ -7,6 +7,9 @@ use crate::{
 };
 use skein_lib::Reader;
 impl Component {
+    fn issued_name(&self, name: Token) -> bool {
+        name.raw() != 0 && name.raw() < self.next
+    }
     fn stream_owner(&self, name: &[u8; 16], sign_in: u64) -> Option<Token> {
         for (owner, stream) in &self.streams {
             if stream.name == *name && stream.sign_in == sign_in && !stream.closing() {
@@ -293,8 +296,17 @@ impl Component {
             Err(_) => stream.phase = stream::Phase::Closing,
         }
     }
-    pub(super) fn delivery(&mut self, env: &Env<Limits>, watcher: Token, document: &core::documents::Document) {
+    pub(super) fn delivery(
+        &mut self,
+        env: &Env<Limits>,
+        watcher: Token,
+        document: &core::documents::Document,
+        out: &mut Queue<Request>,
+    ) {
         let Some(owner) = self.watcher_owner(watcher) else {
+            if self.issued_name(watcher) {
+                out.push(Request::Core(Box::new(core::Event::Delivered { watcher })));
+            }
             return;
         };
         let watch =
@@ -314,8 +326,18 @@ impl Component {
         );
         self.queue_packet(env, watcher, value, Taken::Delivery(watcher));
     }
-    pub(super) fn application_delivery(&mut self, env: &Env<Limits>, watcher: Token, family: u16, record: Box<[u8]>) {
+    pub(super) fn application_delivery(
+        &mut self,
+        env: &Env<Limits>,
+        watcher: Token,
+        family: u16,
+        record: Box<[u8]>,
+        out: &mut Queue<Request>,
+    ) {
         let Some(owner) = self.watcher_owner(watcher) else {
+            if self.issued_name(watcher) {
+                out.push(Request::Core(Box::new(core::Event::Delivered { watcher })));
+            }
             return;
         };
         let watch =
@@ -327,8 +349,17 @@ impl Component {
         let value = translate::application_packet(family, watch.version, record, watch.name, &env.limits.wire);
         self.queue_packet(env, watcher, value, Taken::Delivery(watcher));
     }
-    pub(super) fn run_text(&mut self, env: &Env<Limits>, watcher: Token, writing: jig_domain_views::Writing) {
+    pub(super) fn run_text(
+        &mut self,
+        env: &Env<Limits>,
+        watcher: Token,
+        writing: jig_domain_views::Writing,
+        out: &mut Queue<Request>,
+    ) {
         let Some(owner) = self.watcher_owner(watcher) else {
+            if self.issued_name(watcher) {
+                out.push(Request::Core(Box::new(core::Event::StreamDelivered { watcher })));
+            }
             return;
         };
         let watch =
@@ -402,18 +433,10 @@ impl Component {
                     connection.ended = Some(stream.ending);
                 }
             }
-            let mut selected = None;
-            for (watcher, watch) in &stream.watches {
-                if !watch.unwatch
-                    || watch.delivery_pending
-                    || watch.text_pending
-                    || watch.end.is_some()
-                    || self.aborting()
-                {
-                    selected = Some(*watcher);
-                    break;
-                }
-            }
+            let selected = match stream.watches.first() {
+                Some((watcher, _)) => Some(*watcher),
+                None => None,
+            };
             if let Some(watcher) = selected {
                 let watch = stream.watches.get_mut(&watcher).expect("closing watch");
                 if !watch.unwatch {

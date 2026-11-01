@@ -1325,7 +1325,9 @@ computes for them is said below (11.1 to 11.5).
   taken the last, is made from the state as it is then. Changes in
   between are coalesced, never queued. A watch ended with a delivery in
   flight ends once that delivery is taken or dropped
-  (`../protocol/client.md`, section 7).
+  (`../protocol/client.md`, section 7). An unwatch whose watcher the
+  core does not know receives an unwatched ending behind the commit
+  barrier, so closing its stream does not wait on an absent watcher.
 - **Finishing belongs to the core** (root.md, section 3). Gathered subject
   changes, retained writing's proof reconciliation and unreported watch
   endings remain owed after a projection pass defers them. A closing watch
