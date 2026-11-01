@@ -1094,9 +1094,9 @@ fn checked_setup(bytes: &[u8], named: &temper_service::Named) -> temper_forge_se
         None => None,
     };
     listeners.extend(listener);
-    check::checked(
+    check::checked_at(
         &document,
-        at,
+        Some(at),
         &config::Directories::working(),
         &Members { forges: forges.into_boxed_slice(), listeners: listeners.into_boxed_slice() },
         listener,
