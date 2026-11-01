@@ -8,6 +8,95 @@ const FIRST_ENTRY: u64 = fixtures::OPEN + 1;
 const LATER_ENTRY: u64 = FIRST_ENTRY + 1;
 const LATER_BRANCH: &[u8] = b"temper/52";
 
+fn producing_with_history(known: bool, pushed: bool, merged: bool) -> Domain {
+    use skein_forge::api::{Answer, State};
+    use temper_engine_domain_forge_change as change;
+    let mut d = domain();
+    outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+    let mut row = fixtures::opening_row();
+    row.pending = None;
+    row.effect = change::EffectResult::None;
+    row.pull = if known { Some(1) } else { None };
+    row.change.state = change::State::Producing { requested: false };
+    row.change.last_head = if pushed { Some(fixtures::HEAD) } else { None };
+    outputs(&mut d, Event::Restore { record: Stored::Change(row) });
+    outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+    outputs(&mut d, Event::ReadAfresh);
+    outputs(&mut d, Event::SettleOutbox);
+    fixtures::step_change(&mut d);
+    fixtures::answer_next(&mut d, Err(skein_forge::api::Error::Missing));
+    fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::BASE)));
+    let mut pull = fixtures::open_pull();
+    pull.state = State::Closed;
+    pull.merged = if merged { Some(fixtures::BASE) } else { None };
+    let (call, op) = fixtures::next_call(&mut d);
+    let expected = if known {
+        skein_forge::api::Read::Pull { number: 1 }
+    } else {
+        skein_forge::api::Read::PullFor {
+            head: Box::from(b"temper/51".as_slice()),
+            base: Box::from(b"main".as_slice()),
+        }
+    };
+    assert_eq!(op, skein_forge::api::Op::Read(expected));
+    fixtures::answer(&mut d, call, Ok(Answer::Pull(pull)));
+    fixtures::answer_next(&mut d, Ok(fixtures::checks(skein_forge::api::Check::Passed)));
+    d
+}
+
+#[test]
+fn foreign_pull_history_does_not_land_or_name_a_producing_change() {
+    use skein_forge::api::{Answer, Op, Read};
+    use temper_engine_domain_forge_change as change;
+    for merged in [true, false] {
+        let mut d = producing_with_history(false, false, merged);
+        let row = d.change(fixtures::CHANGE).expect("producing change");
+        assert_eq!(row.pull, None, "another deployment's number is never recorded");
+        assert_eq!(row.change.state, change::State::Producing { requested: true });
+        assert_eq!(row.drift, None, "foreign history is missing, not drift");
+        // The producer pushes its new head on the reused branch name.
+        fixtures::step_change(&mut d);
+        fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::HEAD)));
+        fixtures::answer_next(&mut d, Ok(Answer::Commit(fixtures::BASE)));
+        let (call, op) = fixtures::next_call(&mut d);
+        assert_eq!(
+            op,
+            Op::Read(Read::PullFor { head: Box::from(b"temper/51".as_slice()), base: Box::from(b"main".as_slice()) })
+        );
+        let mut pull = fixtures::open_pull();
+        pull.state = skein_forge::api::State::Closed;
+        pull.commit = [9; 32];
+        pull.merged = if merged { Some(fixtures::BASE) } else { None };
+        fixtures::answer(&mut d, call, Ok(Answer::Pull(pull)));
+        let finished = fixtures::finish_missing(&mut d);
+        let mut opens = false;
+        for request in &finished {
+            if let Request::ChangeDecision { decision: change::Decision::Effect(change::Effect::Open), .. } = request {
+                opens = true;
+            }
+        }
+        assert!(opens, "the pushed change opens its own pull: {finished:?}");
+        assert_eq!(d.change(fixtures::CHANGE).expect("opening change").pull, None);
+    }
+}
+
+#[test]
+fn a_recorded_merged_pull_lands_without_a_matching_pushed_head() {
+    let d = producing_with_history(true, false, true);
+    assert_eq!(
+        d.change(fixtures::CHANGE).expect("known change").change.state,
+        temper_engine_domain_forge_change::State::Landed { merge: fixtures::BASE }
+    );
+}
+
+#[test]
+fn a_merged_pull_at_the_pushed_head_is_recovered_after_restart() {
+    let d = producing_with_history(false, true, true);
+    let row = d.change(fixtures::CHANGE).expect("recovered change");
+    assert_eq!(row.pull, Some(1));
+    assert_eq!(row.change.state, temper_engine_domain_forge_change::State::Landed { merge: fixtures::BASE });
+}
+
 #[test]
 fn a_pending_prepare_rebase_is_not_branch_drift() {
     use skein_forge::api::{Answer, Hint, Op, Read, UpdateStyle, Write};

@@ -48,6 +48,9 @@ A repository is a forge's repository adopted into a project: owned, a fork or co
   under the prefix is one temper does not know, such as another
   deployment's; choose another prefix. A branch of temper's moved by
   someone else holds its change, never overwritten.
+  A deleted branch's name may be reused: a new change ignores an earlier
+  deployment's closed or merged pull request unless it knows its number
+  or pushed head.
 - **One home a project:** a second is refused, and the refusal prints
   the adoption to make instead.
 - **What it may do is the forge's:** temper writes only where its

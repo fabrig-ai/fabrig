@@ -8,6 +8,53 @@ use temper_engine_forge_world::changes::{
 use temper_engine_forge_world::{REPO, World, translate};
 
 #[test]
+fn a_reused_branch_lands_its_own_pull_after_an_earlier_deployment() {
+    const BRANCH: &[u8] = b"temper/1/c3";
+    let mut world = World::new(142);
+    world.produce_on(BRANCH, b"main");
+    world.status(BRANCH, skein_fake_forge_domain::api::Check::Passed);
+    let earlier = world.open_pull(BRANCH, b"main");
+    let old_merge = world.merge(earlier, BRANCH);
+    world.delete_branch(BRANCH);
+    world.adopt();
+    let mut row = change_row();
+    row.branch = BRANCH.into();
+    world.event(top::Event::Change { row });
+    assert_eq!(
+        change_step(&mut world, 1, change::Status::Unknown, Box::new([])),
+        change::Decision::Delegate(change::Delegate::Produce)
+    );
+    world.produce_on(BRANCH, b"main");
+    world.push(BRANCH, b"this deployment's change");
+    world.status(BRANCH, skein_fake_forge_domain::api::Check::Passed);
+    assert_eq!(
+        change_step(&mut world, 2, change::Status::Passed, Box::new([])),
+        change::Decision::Effect(change::Effect::Open)
+    );
+    assert_eq!(change_step(&mut world, 3, change::Status::Passed, Box::new([])), change::Decision::Ready);
+    let Some(top::Stored::Change(saved)) = world.stored().get(&top::Key::Change(51)) else {
+        panic!("opening retained")
+    };
+    let own = saved.pull.expect("own open recorded");
+    assert_ne!(own, earlier);
+    world.restart();
+    world.take_calls();
+    let mut landed = None;
+    for entry in 4..16 {
+        if let change::Decision::Finish { merge } = change_step(&mut world, entry, change::Status::Passed, Box::new([]))
+        {
+            landed = Some(merge);
+            break;
+        }
+    }
+    assert_eq!(landed, Some(translate::commit(world.branch(b"main"))));
+    assert_ne!(landed, Some(old_merge));
+    let calls = world.take_calls();
+    assert!(calls.contains(&skein_forge::api::Op::Read(skein_forge::api::Read::Pull { number: own })));
+    assert!(!calls.iter().any(|op| matches!(op, skein_forge::api::Op::Read(skein_forge::api::Read::PullFor { .. }))));
+}
+
+#[test]
 fn a_merge_seen_by_the_base_read_before_the_pull_read_is_not_a_retarget() {
     let mut world = World::new(141);
     world.adopt();

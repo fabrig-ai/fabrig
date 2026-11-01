@@ -24,7 +24,10 @@ fn reads_for(world: &World, task: u64) -> Vec<Op> {
     vec![
         Op::Read(Read::Branch { branch: row.branch.clone() }),
         Op::Read(Read::Branch { branch: row.base.clone() }),
-        Op::Read(Read::PullFor { head: row.branch.clone(), base: row.base.clone() }),
+        Op::Read(match row.pull {
+            Some(number) => Read::Pull { number },
+            None => Read::PullFor { head: row.branch.clone(), base: row.base.clone() },
+        }),
         Op::Read(Read::Checks { commit: head }),
         Op::Read(Read::Checks { commit: base }),
         Op::Read(Read::Compare { before: base, after: head }),

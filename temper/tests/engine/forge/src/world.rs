@@ -609,6 +609,20 @@ impl World {
         self.external(raw::Op::Write(raw::Write::Close { number }), 2);
     }
 
+    pub fn delete_branch(&mut self, branch: &[u8]) {
+        self.external(raw::Op::Write(raw::Write::DeleteBranch { branch: branch.into() }), 2);
+    }
+
+    pub fn merge(&mut self, number: u64, branch: &[u8]) -> skein_forge::api::Commit {
+        let head = self.branch(branch);
+        let raw::Answer::Merged(merge) =
+            self.external(raw::Op::Write(raw::Write::Merge { number, head, how: raw::MergeHow::Style }), 1)
+        else {
+            panic!("fixture pull merged")
+        };
+        translate::commit(merge)
+    }
+
     /// Merge at the forge, retaining its preceding pull snapshot for the
     /// connector's next fresh-read chain, whose base read sees the merge.
     pub fn merge_before_pull_read(&mut self, number: u64) -> skein_forge::api::Commit {
@@ -879,8 +893,12 @@ impl World {
                                 };
                                 run.jobs = translate::run_jobs(jobs);
                             }
-                            if matches!(&pending.op, skein_forge::api::Op::Read(skein_forge::api::Read::PullFor { .. }))
-                                && let skein_forge::api::Answer::Pull(pull) = &mut answer
+                            if matches!(
+                                &pending.op,
+                                skein_forge::api::Op::Read(
+                                    skein_forge::api::Read::PullFor { .. } | skein_forge::api::Read::Pull { .. }
+                                )
+                            ) && let skein_forge::api::Answer::Pull(pull) = &mut answer
                                 && let Some(snapshot) = self.pull_snapshot.take()
                             {
                                 *pull = snapshot;
