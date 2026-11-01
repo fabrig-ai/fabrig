@@ -56,6 +56,7 @@ pub(super) fn admit(core: &Core, limits: &Limits, party: u64, act: Act, number: 
                 | Act::EditNote
                 | Act::DeleteNote
                 | Act::Adopt
+                | Act::RemoveProject
                 | Act::Rename
                 | Act::ChangePolicy
                 | Act::SetRoles
@@ -110,6 +111,7 @@ pub(super) fn admit(core: &Core, limits: &Limits, party: u64, act: Act, number: 
         | Act::EditNote
         | Act::DeleteNote
         | Act::Adopt
+        | Act::RemoveProject
         | Act::Rename
         | Act::ChangePolicy
         | Act::SetRoles
@@ -248,6 +250,7 @@ pub(crate) fn person(
         | Act::EditNote
         | Act::DeleteNote
         | Act::Adopt
+        | Act::RemoveProject
         | Act::Rename
         | Act::ChangePolicy
         | Act::SetRoles

@@ -250,7 +250,7 @@ fn pending_keys_and_account_removals_complete_mode(start_restore: bool) {
         );
     }
     run.step(&mut domain, Event::Want, "restored");
-    let change = Change::AddKey { provider: 1, join: Some(0), carried: 1 << 63 };
+    let change = Change::AddKey { provider: 1, join: Some(0), carried: 1 << 63, uses: None };
     assert!(matches!(
         run.step(
             &mut domain,

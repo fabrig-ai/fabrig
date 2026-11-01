@@ -238,6 +238,9 @@ pub(crate) fn core_out(
     let core::Requests::Out(mut out) = requests;
     for _ in 0..out.len() {
         match out.pop().expect("core request count") {
+            core::Request::Write(core::Write::DropTranscript { task }) => {
+                write(domain, decision, Write::DropTranscript { task });
+            }
             core::Request::Write(core::Write::CopySettingsRevision(number)) => {
                 write(domain, decision, Write::CopySettingsRevision(number));
             }
@@ -689,6 +692,9 @@ fn core_ask(
                 section,
                 size: None,
             })));
+        }
+        core::Ask::ReleaseProject { project } => {
+            work.push(Work::Core(core::Event::ProjectReleased { project, connector: number }));
         }
         core::Ask::ProjectGoal { feed } => {
             // These two connectors have no goal projection. Their closing

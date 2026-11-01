@@ -100,7 +100,8 @@ pub fn down(routes: &mut Routes, request: engine::StoreRequest) -> Option<store:
             for write in writes {
                 let translated = match write {
                     engine::Write::Wires => store::Write::Wires,
-                    engine::Write::Erase(engine::Key::Wires) => return None,
+                    engine::Write::Erase(engine::Key::Wires | engine::Key::Transcript(_)) => return None,
+                    engine::Write::DropTranscript { task } => store::Write::DropTranscript { task },
                     engine::Write::CopySettingsRevision(number) => store::Write::CopySettingsRevision(number),
                     engine::Write::Save(engine::Record::Core(row)) => store::Write::Save(row),
                     engine::Write::Erase(engine::Key::Core(key)) => store::Write::Erase(key),

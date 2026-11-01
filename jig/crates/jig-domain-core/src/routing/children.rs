@@ -574,6 +574,7 @@ fn account_party(core: &Core, event: &accounts::Event) -> Option<u64> {
         | accounts::Event::SignedIn { .. }
         | accounts::Event::SignOut { .. }
         | accounts::Event::Change { .. }
+        | accounts::Event::ForgetProject { .. }
         | accounts::Event::Restore { .. }
         | accounts::Event::Want
         | accounts::Event::Component(_)
