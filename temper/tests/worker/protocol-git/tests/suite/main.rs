@@ -9,3 +9,5 @@ mod transcripts;
 mod fuzzy {
     mod protocol_git;
 }
+
+mod git_identity;

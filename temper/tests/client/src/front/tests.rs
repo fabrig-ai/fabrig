@@ -206,7 +206,7 @@ fn an_unconfigured_model_is_answered_immediately() {
 
 // The application route's raw drop reaches temper's own client, not jig's test application.
 #[test]
-fn qa_a_panel_dropped_before_its_first_record_keeps_loading_until_jig_reopens_it() {
+fn a_panel_dropped_before_its_first_record_keeps_loading_until_jig_reopens_it() {
     use client::forge::panel::State;
     use jig_client_test_domain::family::Kind;
     use jig_client_world::harness::{Settings, Until, World};

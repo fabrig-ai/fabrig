@@ -1,10 +1,10 @@
-//! QA1: adversarial task-page behaviour from design and public events.
+//! adversarial task-page behaviour from design and public events.
 #[cfg(test)]
 #[expect(
     clippy::disallowed_types,
     clippy::disallowed_methods,
     clippy::wildcard_enum_match_arm,
-    reason = "QA is an ordinary Rust driver, not step code; selectors collect only the requests each assertion reads"
+    reason = "this is an ordinary Rust driver, not step code; selectors collect only the requests each assertion reads"
 )]
 mod tests {
     use jig_client::contract as c;

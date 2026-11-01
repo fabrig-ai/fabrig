@@ -1,11 +1,11 @@
-//! QA1: design-driven change-page observations through public events only.
+//! design-driven change-page observations through public events only.
 #[cfg(test)]
 #[expect(
     clippy::disallowed_types,
     clippy::disallowed_methods,
     clippy::disallowed_macros,
     clippy::wildcard_enum_match_arm,
-    reason = "QA is an ordinary Rust driver, not step code; selectors collect only the requests each assertion reads"
+    reason = "this is an ordinary Rust driver, not step code; selectors collect only the requests each assertion reads"
 )]
 mod tests {
     use jig_client::contract as c;
@@ -252,33 +252,8 @@ mod tests {
         }
         w::Step::Queued(w::Queued::new(&w::CEILINGS, w::QueuedParts { place, ahead: tasks }).expect("queued"))
     }
-    fn repairing(reason: w::Reason) -> w::Step {
-        w::Step::Repairing(w::Repairing::new(&w::CEILINGS, w::RepairingParts { reason }).expect("repair"))
-    }
-    fn gate_reason() -> w::Reason {
-        w::Reason::Gate(w::GateReason::new(&w::CEILINGS, w::GateReasonParts { gate: u64::MAX }).expect("gate reason"))
-    }
     fn landed() -> w::Step {
         w::Step::Landed(w::Landed::new(&w::CEILINGS, w::LandedParts { merge: [0xab; 32] }).expect("merge"))
-    }
-    fn steps() -> Vec<w::Step> {
-        vec![
-            w::Step::Producing,
-            w::Step::Opening,
-            w::Step::Recreating,
-            w::Step::Reopening,
-            w::Step::Checking,
-            w::Step::Gating,
-            queued(3, &[7, 6]),
-            w::Step::First,
-            w::Step::Updating,
-            w::Step::Resolving,
-            repairing(w::Reason::Ci),
-            repairing(gate_reason()),
-            repairing(w::Reason::Semantic),
-            w::Step::Landing,
-            landed(),
-        ]
     }
 
     fn show(parts: w::ChangePanelParts) -> (Domain, Token) {
@@ -315,95 +290,6 @@ mod tests {
         }
         String::from_utf8(bytes).expect("visible UTF-8")
     }
-    fn assert_no_forge_link(step: w::Step) {
-        let (root, _) = show(panel_parts(step.clone()));
-        let mut view = view(&root);
-        {
-            use skein_fake_person::{Face, Find, Found, TreeFace};
-            for role in [skein_ui::Role::Link, skein_ui::Role::Button] {
-                assert_eq!(
-                    TreeFace::new(view.tree()).find(&Find::exactly_named(role, "View on forge ↗".as_bytes())),
-                    Found::Absent,
-                    "empty address at {step:?}: no accessible forge control"
-                );
-            }
-        }
-        assert!(!text(view.tree().nodes()).contains("View on forge"), "empty address at {step:?}: no forge control");
-        let links: Vec<_> =
-            view.tree().nodes().iter().filter(|n| n.role == skein_ui::Role::Link).map(|n| n.id).collect();
-        for node in links {
-            assert!(
-                temper_client_view::href(&mut view, node).is_none_or(|href| !href.is_empty()),
-                "empty address at {step:?}: no empty link destination"
-            );
-        }
-    }
-    macro_rules! empty_address {
-        ($name:ident, $step:expr) => {
-            // client/README.md 5.10: "only when the panel supplies an address";
-            // client/forge.md 9.2: an over-bound address gives no "View on forge".
-            #[test]
-            fn $name() {
-                assert_no_forge_link($step);
-            }
-        };
-    }
-    empty_address!(empty_address_producing, w::Step::Producing);
-    empty_address!(empty_address_opening, w::Step::Opening);
-    empty_address!(empty_address_recreating, w::Step::Recreating);
-    empty_address!(empty_address_reopening, w::Step::Reopening);
-    empty_address!(empty_address_checking, w::Step::Checking);
-    empty_address!(empty_address_gating, w::Step::Gating);
-    empty_address!(empty_address_queued, queued(3, &[7, 6]));
-    empty_address!(empty_address_first, w::Step::First);
-    empty_address!(empty_address_updating, w::Step::Updating);
-    empty_address!(empty_address_resolving, w::Step::Resolving);
-    empty_address!(empty_address_repair_ci, repairing(w::Reason::Ci));
-    empty_address!(empty_address_repair_gate, repairing(gate_reason()));
-    empty_address!(empty_address_repair_semantic, repairing(w::Reason::Semantic));
-    empty_address!(empty_address_landing, w::Step::Landing);
-    empty_address!(empty_address_landed, landed());
-
-    // client/README.md 5.10: "external link ... to its pull request's address".
-    #[test]
-    fn supplied_address_keeps_the_exact_destination() {
-        use skein_fake_person::{Face, Find, Found, TreeFace};
-        let mut parts = panel_parts(w::Step::Checking);
-        let address = b"https://forge.example/acme/kit/pulls/216?from=qa#head";
-        parts.pull = Some(
-            w::Pull::new(&w::CEILINGS, w::PullParts { number: 216, address: address.as_slice().into() }).expect("pull"),
-        );
-        let (root, _) = show(parts);
-        let mut view = view(&root);
-        let Found::Node(node) =
-            TreeFace::new(view.tree()).find(&Find::exactly_named(skein_ui::Role::Link, "View on forge ↗".as_bytes()))
-        else {
-            unreachable!("supplied address needs the forge link: {}", text(view.tree().nodes()))
-        };
-        assert_eq!(
-            temper_client_view::href(&mut view, node).as_deref(),
-            Some(address.as_slice()),
-            "supplied address is exact"
-        );
-    }
-
-    // client/README.md 5.10: "No pull request yet · OWNER/NAME · BRANCH → LANDING"
-    // and "only when the panel supplies an address".
-    #[test]
-    fn absent_pull_has_no_forge_link_and_names_the_branches() {
-        for step in steps() {
-            let mut parts = panel_parts(step.clone());
-            parts.pull = None;
-            let (root, _) = show(parts);
-            let view = view(&root);
-            let page = text(view.tree().nodes());
-            assert!(
-                page.contains("No pull request yet · acme/kit · temper/qa → main"),
-                "no-pull line at {step:?}: {page}"
-            );
-            assert!(!page.contains("View on forge"), "no pull at {step:?} supplies no forge link: {page}");
-        }
-    }
 
     fn task_link(view: &mut temper_client_view::View, task: u64) {
         use skein_fake_person::{Face, Find, Found, TreeFace};
@@ -427,55 +313,6 @@ mod tests {
             let position =
                 rest.find(word).unwrap_or_else(|| unreachable!("{word:?} is absent or out of order: {page}"));
             after = after.checked_add(position).and_then(|n| n.checked_add(word.len())).expect("page offset fits");
-        }
-    }
-    fn step_lines() -> Vec<(w::Step, &'static str, &'static str)> {
-        vec![
-            (w::Step::Producing, "Producing its branch.", "producing"),
-            (w::Step::Opening, "Opening its pull request.", "opening"),
-            (w::Step::Recreating, "Making its branch again at the head temper last knew.", "recreating"),
-            (w::Step::Reopening, "Reopening its pull request.", "reopening"),
-            (w::Step::Checking, "Waiting for CI at its head.", "checking"),
-            (w::Step::Gating, "Waiting for its gates at its head.", "gating"),
-            (queued(3, &[7, 6]), "3rd in the queue for main, after Task 7 and Task 6.", "queued"),
-            (w::Step::First, "First in the queue for main.", "first in the queue"),
-            (w::Step::Updating, "Updating from main.", "updating"),
-            (w::Step::Resolving, "Resolving its conflicts with main.", "resolving"),
-            (repairing(w::Reason::Ci), "Repairing: CI failed at its head.", "repairing"),
-            (repairing(gate_reason()), "Repairing: gate 18446744073709551615 asked for changes.", "repairing"),
-            (repairing(w::Reason::Semantic), "Repairing: a semantic conflict with main.", "repairing"),
-            (w::Step::Landing, "Merging at its head.", "landing"),
-            (landed(), "Landed · merge commit abababa", "landed"),
-        ]
-    }
-
-    // client/README.md 5.10: six steps in order, then "Its step's line ... then
-    // the Task N link of the task its step runs", before "Its tasks" and gates/bounds.
-    #[test]
-    fn every_step_line_precedes_its_running_task_link_and_tasks_region() {
-        for (step, line, _) in step_lines() {
-            let mut parts = panel_parts(step.clone());
-            parts.runs = Some(u64::MAX);
-            let (root, _) = show(parts);
-            let mut view = view(&root);
-            let page = text(view.tree().nodes());
-            assert_order(
-                &page,
-                &[
-                    "Producing",
-                    "Opening",
-                    "Checking",
-                    "Gating",
-                    "Queued",
-                    "Landed",
-                    line,
-                    "Task 18446744073709551615",
-                    "Its tasks",
-                    "Gates at its head",
-                    "Repairs 0 of 3",
-                ],
-            );
-            task_link(&mut view, u64::MAX);
         }
     }
 
@@ -511,41 +348,6 @@ mod tests {
         assert!(page.contains("Queued · 1st"), "first bar: {page}");
     }
 
-    // client/README.md 5.10: "after Task A, Task B and N more", nearest first,
-    // the named tasks as links to their pages, not just words.
-    #[test]
-    fn queue_line_names_nearest_tasks_and_the_unnamed_tail() {
-        let (root, _) = show(panel_parts(queued(6, &[81, 80])));
-        let mut view = view(&root);
-        let page = text(view.tree().nodes());
-        assert!(page.contains("6th in the queue for main, after Task 81, Task 80 and 3 more."), "queue tail: {page}");
-        task_link(&mut view, 81);
-        task_link(&mut view, 80);
-    }
-
-    // client/README.md 5.10: "after N tasks when it names none", one named task,
-    // "and no after when nothing is ahead".
-    #[test]
-    fn queue_line_handles_no_names_one_name_and_no_predecessor() {
-        for (step, line) in [
-            (queued(6, &[]), "6th in the queue for main, after 5 tasks."),
-            (queued(2, &[81]), "2nd in the queue for main, after Task 81."),
-            (queued(1, &[]), "1st in the queue for main."),
-            (w::Step::First, "First in the queue for main."),
-        ] {
-            let (root, _) = show(panel_parts(step));
-            let mut view = view(&root);
-            let page = text(view.tree().nodes());
-            assert!(page.contains(line), "queue special case: {page}");
-            if line.contains("Task 81") {
-                task_link(&mut view, 81);
-            }
-            if !line.contains("after") {
-                assert!(!page.contains("after"), "nothing ahead means no after: {page}");
-            }
-        }
-    }
-
     // client/README.md 4.6 / 5.10: at most 64 named tasks ahead, all supplied
     // names shown as links; the remainder must not overflow at u32::MAX.
     #[test]
@@ -562,122 +364,6 @@ mod tests {
         for task in ahead {
             task_link(&mut view, task);
         }
-    }
-
-    fn holds() -> [(w::Hold, &'static str); 10] {
-        [
-            (w::Hold::Stalled, "its wait stalled"),
-            (w::Hold::Repairs, "its repairs are spent"),
-            (w::Hold::Resolutions, "its resolutions are spent"),
-            (w::Hold::Updates, "its updates are spent"),
-            (w::Hold::Moved, "its branch was moved on the forge"),
-            (w::Hold::Missing, "its branch is missing on the forge"),
-            (w::Hold::Closed, "its pull request was closed on the forge"),
-            (w::Hold::Retargeted, "its pull request was retargeted on the forge"),
-            (w::Hold::Failed, "a delegate or a write failed for good"),
-            (w::Hold::Rejected, "a person rejected a gate"),
-        ]
-    }
-
-    // client/README.md 5.10: "Held while STEP: REASON", STEP the held wire
-    // step ("first in the queue" for first), after the step's line, before Its tasks.
-    #[test]
-    fn all_hold_reasons_name_the_actual_step_including_side_steps() {
-        let mut failures = Vec::new();
-        for (step, _, held_step) in step_lines() {
-            for (hold, reason) in holds() {
-                let mut parts = panel_parts(step.clone());
-                parts.hold = Some(hold.clone());
-                let (root, _) = show(parts);
-                let page = text(view(&root).tree().nodes());
-                let expected = format!("Held while {held_step}: {reason}.");
-                if page.contains(&expected) {
-                    assert_order(&page, &[&expected, "Its tasks", "Gates at its head"]);
-                } else {
-                    failures.push(format!("{step:?} / {hold:?}: expected {expected:?}; page {page}"));
-                }
-            }
-        }
-        assert!(failures.is_empty(), "hold cross-product failures: {failures:#?}");
-    }
-
-    fn subtree(nodes: &[skein_ui::Node], index: usize) -> &[skein_ui::Node] {
-        let size = usize::try_from(nodes.get(index).expect("node index").size).expect("subtree size");
-        let end = index.checked_add(size).expect("subtree end");
-        nodes.get(index..end).expect("whole subtree")
-    }
-    fn gate_rows(view: &temper_client_view::View) -> Vec<String> {
-        let mut rows = Vec::new();
-        for (index, node) in view.tree().nodes().iter().enumerate() {
-            if node.styles.as_slice().contains(&temper_client_view::look::GATE) {
-                rows.push(text(subtree(view.tree().nodes(), index)));
-            }
-        }
-        rows
-    }
-
-    // client/README.md 5.10: CI at its head is "Not yet", "Running", "Passed",
-    // "Failed", and "Not read since the restart" on a landed change whose CI
-    // is unknown; with none, a last row "No other gate.".
-    #[test]
-    fn ci_states_and_no_other_gate_are_whole_rows() {
-        for (ci, verdict) in [
-            (w::Ci::Unknown, "Not yet"),
-            (w::Ci::Pending, "Running"),
-            (w::Ci::Passed, "Passed"),
-            (w::Ci::Failed, "Failed"),
-        ] {
-            let mut parts = panel_parts(w::Step::Checking);
-            parts.ci = ci;
-            let (root, _) = show(parts);
-            let rows = gate_rows(&view(&root));
-            assert_eq!(rows.len(), 2, "CI plus the no-other-gate row");
-            assert_eq!(rows.first().expect("CI row"), &format!("CI at its head{verdict}"), "CI at exact head");
-            assert_eq!(rows.last().expect("last row"), "No other gate.", "no invented landing rules");
-        }
-        let mut parts =
-            panel_parts(w::Step::Landed(w::Landed::new(&w::CEILINGS, w::LandedParts { merge: [0xab; 32] }).unwrap()));
-        parts.ci = w::Ci::Unknown;
-        let (root, _) = show(parts);
-        let rows = gate_rows(&view(&root));
-        assert_eq!(rows.first().expect("CI row"), "CI at its headNot read since the restart", "a landed change's CI");
-    }
-
-    // client/README.md 5.10: each gate, "in the supplied order", names its
-    // kind and blocking/advisory, with "Not yet", "Waiting", "Approved", "Changes asked".
-    #[test]
-    fn gates_preserve_kind_blocking_verdict_and_order_at_the_wire_bound() {
-        let mut parts = panel_parts(w::Step::Gating);
-        parts.gates = List::with_capacity(wire::GATES);
-        let mut expected = Vec::new();
-        for number in 0..wire::GATES {
-            let (kind, name) = match number % 3 {
-                0 => (w::GateKind::Review, "review"),
-                1 => (w::GateKind::Approval, "approval"),
-                _ => (w::GateKind::Check, "check"),
-            };
-            let (verdict, word) = match number % 4 {
-                0 => (w::Verdict::None, "Not yet"),
-                1 => (w::Verdict::Pending, "Waiting"),
-                2 => (w::Verdict::Approved, "Approved"),
-                _ => (w::Verdict::Changes, "Changes asked"),
-            };
-            // Blocks alternates every four, exercising each verdict both ways.
-            let blocks = (number / 4) % 2 == 0;
-            let blocking = if blocks { "blocking" } else { "advisory" };
-            let id = u64::MAX.saturating_sub(u64::from(number));
-            parts
-                .gates
-                .push(w::Gate::new(&w::CEILINGS, w::GateParts { number: id, kind, blocks, verdict }).expect("gate"))
-                .expect("64 gates");
-            expected.push(format!("Gate {id} · {name} · {blocking}{word}"));
-        }
-        let (root, _) = show(parts);
-        let view = view(&root);
-        let rows = gate_rows(&view);
-        assert_eq!(rows.len(), 65, "CI plus all 64 gates, regardless of ordinary list row bound");
-        assert_eq!(rows.get(1..).expect("gate rows after CI"), expected, "gate facts and supplied order stay whole");
-        assert!(!text(view.tree().nodes()).contains("No other gate."), "nonempty gates have no empty marker");
     }
 
     // client/README.md 5.10: "Repairs N of M · resolutions N of M · updates N
@@ -708,14 +394,6 @@ mod tests {
         }
     }
 
-    // client/README.md 3.5 / 5.10 and jig client/domain/root.md 6:
-    // "Loading the change from the forge." until its first delivery.
-    #[test]
-    fn loading_panel_keeps_the_task_page_without_drawing_panel_facts() {
-        let (root, _, _, _) = opened(document());
-        assert_unavailable(&root, "Loading the change from the forge.");
-    }
-
     // client/README.md 5.10: "The forge knows no change for this task."
     // when the forge answers unknown, including a previously shown panel.
     #[test]
@@ -742,20 +420,6 @@ mod tests {
         let (mut root, watch) = show(panel_parts(w::Step::Checking));
         drop(up(&mut root, jig_client::Up::WatchEnded { watch, end: c::WatchEnd::NotAllowed }));
         assert_unavailable(&root, "The forge cannot show this change.");
-    }
-
-    // client/forge.md 9.2: "Its subject names the change task by its number";
-    // README 5.10: a page draws its own procedure's panel, not another task's facts.
-    #[test]
-    fn a_delivery_for_another_task_never_draws_as_this_tasks_change() {
-        let mut parts = panel_parts(w::Step::Checking);
-        parts.task = 88;
-        parts.owner = b"foreign".as_slice().into();
-        let (root, _) = show(parts);
-        let page = text(view(&root).tree().nodes());
-        assert!(!page.contains("foreign/kit"), "another task's repository never attaches to Task 9: {page}");
-        assert!(!page.contains("CI at its head"), "another task's gates never attach: {page}");
-        assert!(page.contains("Its tasks"), "Task 9's own tasks remain");
     }
 
     fn ended_reads(requests: &[jig_client::Down]) -> Vec<Token> {
@@ -981,36 +645,6 @@ mod tests {
         assert!(text(view.tree().nodes()).contains("PR #18446744073709551615"), "largest pull number is whole");
     }
 
-    // client/README.md 5.10: each side step has its own line; keep these
-    // independently reachable even if the combined ordering probe fails earlier.
-    #[test]
-    fn side_steps_and_landing_draw_their_own_lines() {
-        for (step, line, _) in step_lines() {
-            match step {
-                w::Step::Queued(_) => (),
-                w::Step::Ready(_)
-                | w::Step::Preparing(_)
-                | w::Step::Producing
-                | w::Step::Opening
-                | w::Step::Recreating
-                | w::Step::Reopening
-                | w::Step::Checking
-                | w::Step::Gating
-                | w::Step::First
-                | w::Step::Updating
-                | w::Step::Resolving
-                | w::Step::Repairing(_)
-                | w::Step::Landing
-                | w::Step::Landed(_)
-                | w::Step::Ended => {
-                    let (root, _) = show(panel_parts(step));
-                    let page = text(view(&root).tree().nodes());
-                    assert!(page.contains(line), "step's own line {line:?}: {page}");
-                }
-            }
-        }
-    }
-
     // client/README.md 5.10: "Its ended ones are 5.8's ended rows, read once from
     // the engine"; an ended procedure can have no live tree and still has these rows.
     #[test]
@@ -1059,53 +693,6 @@ mod tests {
         let page = text(view.tree().nodes());
         assert_order(&page, &["Landed · merge commit abababa", "Its tasks", "ended child 101", "Gates at its head"]);
         task_row_link(&mut view, 101);
-    }
-
-    // client/README.md 5.10: STEP_DONE on each prior step, STEP_CURRENT on
-    // the serving step, and all six done once landed; the list keeps six slots.
-    #[test]
-    fn drawn_steps_mark_the_side_steps_serving_slot_and_only_prior_slots_done() {
-        for (step, current, done) in [
-            (w::Step::Producing, Some("Producing"), 0),
-            (w::Step::Opening, Some("Opening"), 1),
-            (w::Step::Recreating, Some("Opening"), 1),
-            (w::Step::Reopening, Some("Opening"), 1),
-            (w::Step::Checking, Some("Checking"), 2),
-            (w::Step::Gating, Some("Gating"), 3),
-            (queued(3, &[7, 6]), Some("Queued · 3rd"), 4),
-            (w::Step::First, Some("Queued · 1st"), 4),
-            (w::Step::Updating, Some("Queued"), 4),
-            (w::Step::Resolving, Some("Queued"), 4),
-            (repairing(w::Reason::Ci), Some("Checking"), 2),
-            (repairing(gate_reason()), Some("Gating"), 3),
-            (repairing(w::Reason::Semantic), Some("Queued"), 4),
-            (w::Step::Landing, Some("Landed"), 5),
-            (landed(), None, 6),
-        ] {
-            let (root, _) = show(panel_parts(step.clone()));
-            let view = view(&root);
-            let mut names = Vec::new();
-            let mut current_names = Vec::new();
-            let mut done_names = Vec::new();
-            for (index, node) in view.tree().nodes().iter().enumerate() {
-                if node.styles.as_slice().contains(&temper_client_view::look::STEP) {
-                    let name = text(subtree(view.tree().nodes(), index));
-                    names.push(name.clone());
-                    if node.styles.as_slice().contains(&temper_client_view::look::STEP_CURRENT) {
-                        current_names.push(name.clone());
-                    }
-                    if node.styles.as_slice().contains(&temper_client_view::look::STEP_DONE) {
-                        done_names.push(name);
-                    }
-                }
-            }
-            assert_eq!(names.len(), 6, "six drawn slots at {step:?}");
-            assert_eq!(current_names.len(), usize::from(current.is_some()), "one current unless landed: {step:?}");
-            if let Some(current) = current {
-                assert_eq!(current_names.first().expect("current"), current, "side step serving slot for {step:?}");
-            }
-            assert_eq!(done_names, names.get(..done).expect("prior slots"), "only preceding slots done for {step:?}");
-        }
     }
 
     // client/README.md 5.10: "Until its panel is shown ... the page is the

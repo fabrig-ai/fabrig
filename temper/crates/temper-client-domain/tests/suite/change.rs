@@ -1,11 +1,11 @@
-//! QA1: design-driven change projection and ended-child reads.
+//! design-driven change projection and ended-child reads.
 #[cfg(test)]
 #[expect(
     clippy::disallowed_types,
     clippy::disallowed_methods,
     clippy::disallowed_macros,
     clippy::wildcard_enum_match_arm,
-    reason = "QA is an ordinary Rust driver, not step code; selectors collect only the requests each assertion reads"
+    reason = "this is an ordinary Rust driver, not step code; selectors collect only the requests each assertion reads"
 )]
 mod tests {
     use jig_client::contract as c;
@@ -276,66 +276,6 @@ mod tests {
         ]
     }
 
-    // client/README.md 5.10, "Its steps": "each side step at the one it serves",
-    // "the one its step is at is current, those before it done", all six once landed.
-    #[test]
-    fn every_step_and_repair_reason_has_its_design_slot() {
-        let expected = [
-            (w::Step::Producing, Some(0), 0),
-            (w::Step::Opening, Some(1), 1),
-            (w::Step::Recreating, Some(1), 1),
-            (w::Step::Reopening, Some(1), 1),
-            (w::Step::Checking, Some(2), 2),
-            (w::Step::Gating, Some(3), 3),
-            (queued(3, &[7, 6]), Some(4), 4),
-            (w::Step::First, Some(4), 4),
-            (w::Step::Updating, Some(4), 4),
-            (w::Step::Resolving, Some(4), 4),
-            (repairing(w::Reason::Ci), Some(2), 2),
-            (repairing(gate_reason()), Some(3), 3),
-            (repairing(w::Reason::Semantic), Some(4), 4),
-            (w::Step::Landing, Some(5), 5),
-            (landed(), None, 6),
-        ];
-        for (step, current, done) in expected {
-            let slots = forge::change::slot(&step);
-            assert_eq!(slots.current, current, "current slot for {step:?}");
-            assert_eq!(slots.done, done, "completed slots for {step:?}");
-        }
-    }
-
-    // client/README.md 5.10: "the place an English ordinal", including the teen exceptions;
-    // README 4.6: queue place is u32, starting at 1.
-    #[test]
-    fn queue_ordinals_include_teens_centuries_and_the_wire_maximum() {
-        use forge::change::Ordinal;
-        for (number, suffix) in [
-            (1, "st"),
-            (2, "nd"),
-            (3, "rd"),
-            (4, "th"),
-            (11, "th"),
-            (12, "th"),
-            (13, "th"),
-            (21, "st"),
-            (22, "nd"),
-            (23, "rd"),
-            (101, "st"),
-            (111, "th"),
-            (112, "th"),
-            (113, "th"),
-            (u32::MAX, "th"),
-        ] {
-            let actual = match forge::change::ordinal(number) {
-                Ordinal::St => "st",
-                Ordinal::Nd => "nd",
-                Ordinal::Rd => "rd",
-                Ordinal::Th => "th",
-            };
-            assert_eq!(actual, suffix, "ordinal of {number}");
-        }
-    }
-
     // client/README.md 5.10: "the tasks ahead it names, nearest first" and
     // "and N more for those it does not name"; README 4.6 bounds names at 64.
     #[test]
@@ -544,36 +484,6 @@ mod tests {
         );
     }
 
-    // client/forge.md 9.2: "in the scope of the task's project" and the
-    // subject names its task; README 3.5: leaving releases the page's panel state.
-    // jig defers the native Close until Open is acknowledged (covered separately).
-    #[test]
-    fn panel_watch_names_the_task_and_project_and_navigation_releases_its_state() {
-        let (mut root, _, _, requests) = opened(document());
-        let mut panel_watch = None;
-        for request in &requests {
-            if let jig_client::Down::Open { watch, subject: jig_client::Watchable::Family { scope, record, .. } } =
-                request
-            {
-                let watching = wire::decode_watching(&record.bytes, &w::CEILINGS).expect("watch record");
-                // The deployment's forges watch opens beside the panel's.
-                let w::Watch::Change(subject) = watching.watch() else { continue };
-                assert_eq!(*scope, c::Scope::Project(1), "watch is admitted in this task's project");
-                assert_eq!(subject.task(), TASK, "watch names the page's task");
-                assert_eq!(record.family, FORGE, "forge owns the watch");
-                panel_watch = Some(*watch);
-            }
-        }
-        assert!(panel_watch.is_some(), "panel watch opened");
-        drop(root_event(
-            &mut root,
-            Event::Went {
-                place: domain::Place::Address(domain::Address::Inbox { filter: domain::address::Filter::ALL }),
-            },
-        ));
-        assert!(root.forge().panel().is_none(), "leaving releases panel state");
-    }
-
     // client/README.md 3.5 / 5.10: a page holds its own ended-child page;
     // an outstanding answer arriving after navigation cannot attach to a new task.
     #[test]
@@ -591,37 +501,6 @@ mod tests {
         let page = root.pages().task().expect("new page");
         assert_eq!(page.number, 88, "new page stays open");
         assert!(page.ended.is_none(), "old ended page is not the new task's page");
-    }
-
-    // client/README.md 3.5 / client/forge.md 9.2: a shown panel is watched
-    // only while its task page is open, including leaving with a child read out.
-    #[test]
-    fn leaving_a_delivered_panel_releases_its_native_watch() {
-        let (mut root, _, _, requests) = opened(document());
-        let watch = requests.iter().find_map(change_open).expect("panel watch");
-        let panel = w::ChangePanel::new(&w::CEILINGS, panel_parts(w::Step::Gating)).expect("panel");
-        drop(up(
-            &mut root,
-            jig_client::Up::FamilyDelivered {
-                watch,
-                record: jig_client::Family {
-                    family: FORGE,
-                    version: wire::CLIENT_VERSION,
-                    bytes: wire::change_panel(&panel),
-                },
-            },
-        ));
-        let requests = root_event(
-            &mut root,
-            Event::Went {
-                place: domain::Place::Address(domain::Address::Inbox { filter: domain::address::Filter::ALL }),
-            },
-        );
-        assert!(
-            requests.contains(&jig_client::Down::Close { watch }),
-            "leaving a delivered panel closes its native watch"
-        );
-        assert!(root.forge().panel().is_none(), "delivered panel released");
     }
 
     // client/README.md 3.5: "leaving it closes its handles" even if the

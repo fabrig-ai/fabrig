@@ -21,10 +21,6 @@ fn each_operation_ends_once_with_its_transcript_s_outcome() {
         scenario.expected = Expected::fault(git::Fault::Broken);
         assert_eq!(world::run(&scenario, fixtures::SEED).verdict, Verdict::Passed);
     }
-    let mut missing = fixtures::fetch();
-    missing.identity = false;
-    missing.expected = Expected::fault(git::Fault::Broken);
-    assert_eq!(world::run(&missing, fixtures::SEED).spawns, 0);
 }
 
 #[test]

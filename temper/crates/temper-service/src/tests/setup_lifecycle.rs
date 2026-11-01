@@ -1545,7 +1545,7 @@ fn pasted_app_key_form_and_401_failures_use_the_persons_words() {
 }
 
 // client/forge.md 9.1: QA observes the browser's status, shell and destination.
-fn qa_ended(peer: &fixtures::http::Peer) {
+fn ended(peer: &fixtures::http::Peer) {
     status(peer, b"410");
     assert!(contains(peer.received(), b"<h2>This link has ended</h2>"));
     assert!(contains(peer.received(), b"href=\"/forges/connect?forge=1\""));
@@ -1554,7 +1554,7 @@ fn qa_ended(peer: &fixtures::http::Peer) {
 }
 
 #[test]
-fn qa_a_members_request_explains_ownership_and_consumes_its_back() {
+fn a_members_request_explains_ownership_and_consumes_its_back() {
     // F-m3-1: the fake has no member-request outcome; stage GitHub's GET.
     let mut service = service(8, Duration::from_secs(3600));
     app(&mut service);
@@ -1572,7 +1572,7 @@ fn qa_a_members_request_explains_ownership_and_consumes_its_back() {
         assert!(contains(peer.received(), words));
     }
     let again = visit(&mut service, b"GET", &target);
-    qa_ended(&again);
+    ended(&again);
     // The routing back is consumed, while the host's install state lives until
     // expiry (9.1). A later real installation has only the close-tab destination.
     let mut accepted = visit(&mut service, b"GET", &setup_target(&state));
@@ -1583,7 +1583,7 @@ fn qa_a_members_request_explains_ownership_and_consumes_its_back() {
 }
 
 #[test]
-fn qa_an_accepted_link_ends_with_the_fallback_back() {
+fn an_accepted_link_ends_with_the_fallback_back() {
     let mut service = service(8, Duration::from_secs(3600));
     app(&mut service);
     let state = install_link(&mut service, Some(b"/welcome?at=forge&forge=1"));
@@ -1592,19 +1592,19 @@ fn qa_an_accepted_link_ends_with_the_fallback_back() {
     complete_accept(&mut service, &mut peer);
     status(&peer, b"303");
     assert!(contains(peer.received(), b"Location: /welcome?at=forge&forge=1\r\n"));
-    qa_ended(&visit(&mut service, b"GET", &target));
+    ended(&visit(&mut service, b"GET", &target));
 }
 
 #[test]
-fn qa_an_expired_link_ends_with_the_fallback_back() {
+fn an_expired_link_ends_with_the_fallback_back() {
     let mut service = service(8, Duration::from_secs(3));
     app(&mut service);
     let state = install_link(&mut service, Some(b"/welcome?at=forge&forge=1"));
     service.engine.as_mut().unwrap().env.now = Time::ZERO.saturating_add(Duration::from_secs(3));
-    qa_ended(&visit(&mut service, b"GET", &setup_target(&state)));
+    ended(&visit(&mut service, b"GET", &setup_target(&state)));
 }
 
-fn qa_uninstalled_store() -> crate::store::Store {
+fn uninstalled_store() -> crate::store::Store {
     let mut store = fixtures::records_store();
     for (item, value) in [
         (Item::AppId, Box::from(7_u64.to_le_bytes())),
@@ -1619,7 +1619,7 @@ fn qa_uninstalled_store() -> crate::store::Store {
     kept_record(&mut store, 1, Item::Origin, &origin);
     store
 }
-fn qa_restore(store: crate::store::Store) -> (crate::Service, Face) {
+fn restore(store: crate::store::Store) -> (crate::Service, Face) {
     let config = github_config(8, Duration::from_secs(3600), None);
     let mut service = local_service(config, store);
     load_routing(&mut service);
@@ -1633,22 +1633,22 @@ fn qa_restore(store: crate::store::Store) -> (crate::Service, Face) {
 }
 
 #[test]
-fn qa_a_link_forgotten_by_restart_ends_with_the_fallback_back() {
-    let (mut before, _before_face) = qa_restore(qa_uninstalled_store());
+fn a_link_forgotten_by_restart_ends_with_the_fallback_back() {
+    let (mut before, _before_face) = restore(uninstalled_store());
     let state = install_link(&mut before, Some(b"/welcome?at=forge&forge=1"));
     let store = core::mem::replace(&mut before.engine.as_mut().unwrap().store, fixtures::records_store());
     drop(before);
-    let (mut after, _after_face) = qa_restore(store);
-    qa_ended(&visit(&mut after, b"GET", &setup_target(&state)));
+    let (mut after, _after_face) = restore(store);
+    ended(&visit(&mut after, b"GET", &setup_target(&state)));
 }
 
 #[test]
-fn qa_restart_before_acceptance_restores_connecting_then_install_accept_and_reachable_work() {
-    let (mut before, _before_face) = qa_restore(qa_uninstalled_store());
+fn restart_before_acceptance_restores_connecting_then_install_accept_and_reachable_work() {
+    let (mut before, _before_face) = restore(uninstalled_store());
     let _abandoned = install_link(&mut before, Some(b"/welcome?at=forge&forge=1"));
     let store = core::mem::replace(&mut before.engine.as_mut().unwrap().store, fixtures::records_store());
     drop(before);
-    let (mut after, mut connection) = qa_restore(store);
+    let (mut after, mut connection) = restore(store);
     assert!(contains(&connection.wire.received, b"GET /app/installations"));
     connection_reply(&mut after, &mut connection, b"[]");
     crate::engine::forge_pass(after.engine.as_mut().unwrap());
@@ -1707,7 +1707,7 @@ fn qa_restart_before_acceptance_restores_connecting_then_install_accept_and_reac
 }
 
 #[test]
-fn qa_install_again_after_an_abandoned_tab_offers_a_fresh_state_and_accepts() {
+fn install_again_after_an_abandoned_tab_offers_a_fresh_state_and_accepts() {
     let mut service = service(8, Duration::from_secs(3600));
     app(&mut service);
     let abandoned = install_link(&mut service, Some(b"/welcome?at=forge&forge=1"));
