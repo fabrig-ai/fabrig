@@ -579,7 +579,9 @@ fn forge_event(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, 
         playground::connection(domain, *forge, b"the box closed the pipe");
     }
     let mut out = Queue::uncapped();
-    forge::step(&mut domain.forge, &environment_forge(env), event, &mut out);
+    if let Some(event) = applications::set_up_project(domain, env, event, &mut out) {
+        forge::step(&mut domain.forge, &environment_forge(env), event, &mut out);
+    }
     if refuse_forge_fit(domain) {
         return;
     }

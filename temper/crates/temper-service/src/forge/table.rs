@@ -151,12 +151,19 @@ fn hold(engine: &mut Engine, record: Forge) -> Result<(), NotKept> {
             .add(number, &identity, engine.forge.env.limits.installations)
             .expect("component admitted forge");
     }
-    if held.is_none() || record.files.is_none() {
+    if held.is_none() || record.files.is_none() || record.first.is_some() {
+        // A kept first repository needs Create even with legacy file inputs.
+        let local = if record.first.is_some() { Some(Forge { files: None, ..record.clone() }) } else { None };
+        let local_record = match &local {
+            Some(record) => record,
+            None => &record,
+        };
         engine
             .setup
-            .hold_record(&record, &source, identity, handover, engine.domain.ready())
+            .hold_record(local_record, &source, identity, handover, engine.domain.ready())
             .expect("component admitted forge");
     }
+    crate::setup::lifecycle::restored_intent(engine, &record);
     source.api_token = None;
     engine.workers.add_forge(source).expect("component admitted forge");
     engine.forge.records.insert(number, record).expect("component admitted forge");

@@ -195,11 +195,11 @@ fn forges(driver: &mut Driver) -> forge::Forges {
 }
 
 #[test]
-fn first_repository_row_is_volatile_across_restart() {
-    // protocol/setup.md, 6.7: even made(id) is volatile, never recovered as an adoption.
+fn first_repository_intent_survives_a_restart() {
+    // contracts, 2: unfinished intent is kept; restore starts Making again.
     let mut driver = driver(true);
+    event(&mut driver, forge::Event::Restore { record: forge::Stored::Forge(first_forge()) });
     let _ = setup(&mut driver, 58, b"work", b"hello");
-    event(&mut driver, forge::Event::FirstMade { forge: 1, id: 2 });
     let rows = forges(&mut driver);
     assert!(rows.rows[0].first.is_some());
     let store = driver.store.fork();
@@ -228,10 +228,14 @@ fn first_repository_row_is_volatile_across_restart() {
     restarted.settle();
     restarted.sign_in();
     restarted.settle();
-    assert!(forges(&mut restarted).rows[0].first.is_none(), "restart must forget the first repository's made row");
+    let rows = forges(&mut restarted);
+    let first = rows.rows[0].first.as_ref().expect("kept intent restored");
+    assert_eq!(first.state, forge::FirstState::Making);
+    assert_eq!(first.org.as_ref(), b"work");
+    assert_eq!(first.repository.as_ref(), b"hello");
     assert!(
         !restarted.immediate.iter().any(|request| matches!(request, engine::Request::SetUp { .. })),
-        "a restart must not replay volatile intent"
+        "the service resumes Create at the next connect; the domain does not ask the box again"
     );
 }
 
@@ -321,5 +325,43 @@ fn engine_name_limit_is_checked_even_when_forge_grammar_allows_the_names() {
             Some(engine::ApplicationAnswer::SetUp(forge::SetUpAnswer::Refused(forge::SetUpRefusal::Invalid)))
         };
         assert_eq!(answer, expected, "org {org:?}, repository {name:?}, name_bytes = 4");
+    }
+}
+
+fn first_forge() -> forge::Forge {
+    use forge::record as r;
+    forge::Forge {
+        number: 1,
+        kind: forge::Kind::Forgejo,
+        api: r::Address::Socket(([127, 0, 0, 1], 3000).into()),
+        transport: r::Transport::Plaintext,
+        git: b"http://127.0.0.1:3000".as_slice().into(),
+        git_program: None,
+        web: None,
+        read_only: false,
+        identity: r::Identity {
+            number: 1,
+            login: b"temper".as_slice().into(),
+            name: b"Temper".as_slice().into(),
+            email: b"temper@localhost".as_slice().into(),
+        },
+        files: None,
+        first: None,
+        playground: false,
+        removing: false,
+        setup: Some(r::Setup {
+            directory: b"forge".as_slice().into(),
+            bot: r::Account { login: b"temper".as_slice().into(), email: Box::new([]) },
+            orgs: Box::new([]),
+            asked: true,
+            mode: r::SetupMode::Owned(r::OwnedEntry {
+                public: None,
+                fetch: r::Fetch { forgejo: true, runner: false, mirror: None },
+                forgejo: b"forgejo".as_slice().into(),
+                runner: None,
+                listen: ([127, 0, 0, 1], 3000).into(),
+                person: r::Account { login: b"owner".as_slice().into(), email: Box::new([]) },
+            }),
+        }),
     }
 }

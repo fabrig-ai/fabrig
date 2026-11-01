@@ -162,3 +162,146 @@ pub(super) fn answer(domain: &Domain, token: Token) -> Option<ApplicationAnswer>
         None => None,
     }
 }
+
+/// Reuse the welcome's empty named project before connector admission (contracts, D5).
+#[expect(
+    clippy::wildcard_enum_match_arm,
+    reason = "only setup project admission is intercepted; every other event is forwarded"
+)]
+#[expect(
+    clippy::disallowed_methods,
+    reason = "the setup project is validated text carried as bytes; the core's name reader takes str"
+)]
+pub(super) fn set_up_project(
+    domain: &mut Domain,
+    env: &skein_lib::Env<crate::Limits>,
+    event: forge::Event,
+    out: &mut skein_lib::Queue<forge::Request>,
+) -> Option<forge::Event> {
+    match event {
+        forge::Event::Application {
+            request,
+            token,
+            retention,
+            role,
+            carried,
+            ask: forge::Ask::SetUp { org, repository, project: forge::SetUpProject::New(name), playground },
+        } => {
+            let project = match ::core::str::from_utf8(&name) {
+                Ok(name) => domain.core.project_named(name),
+                Err(_) => None,
+            };
+            let project = match project {
+                Some(project) if domain.forge.project_has_repository(project) => {
+                    domain.forge.refuse_set_up(
+                        &super::environment_forge(env),
+                        request,
+                        token,
+                        retention,
+                        forge::SetUpRefusal::NewProject,
+                        out,
+                    );
+                    return None;
+                }
+                Some(project) => forge::SetUpProject::Existing(project),
+                None => forge::SetUpProject::New(name),
+            };
+            Some(forge::Event::Application {
+                request,
+                token,
+                retention,
+                role,
+                carried,
+                ask: forge::Ask::SetUp { org, repository, project, playground },
+            })
+        }
+        event => Some(event),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::tests::resume_fixture;
+    use skein_lib::Queue;
+
+    fn application() -> forge::Event {
+        forge::Event::Application {
+            request: Token::new(91),
+            token: Token::new(92),
+            retention: Duration::from_secs(60),
+            role: Some(people::Role::Owner),
+            carried: None,
+            ask: forge::Ask::SetUp {
+                org: b"work".as_slice().into(),
+                repository: b"hello".as_slice().into(),
+                playground: false,
+                project: forge::SetUpProject::New(b"dEfAuLt".as_slice().into()),
+            },
+        }
+    }
+    fn root() -> (Domain, skein_lib::Env<crate::Limits>) {
+        let mut config = resume_fixture::config(7);
+        config.core.seed_projects[0].name = "Default".into();
+        resume_fixture::root_with_config(config)
+    }
+    #[test]
+    fn a_default_project_made_before_is_reused() {
+        let (mut domain, env) = root();
+        let mut out = Queue::uncapped();
+        let event = set_up_project(&mut domain, &env, application(), &mut out).expect("empty project reused");
+        let forge::Event::Application { ask: forge::Ask::SetUp { project, .. }, .. } = event else {
+            panic!("setup application")
+        };
+        assert_eq!(project, forge::SetUpProject::Existing(1));
+        assert!(out.is_empty());
+    }
+    #[test]
+    fn a_named_project_with_a_repository_is_refused() {
+        let (mut domain, env) = root();
+        let mut out = Queue::uncapped();
+        let repository = forge::Repository {
+            project: 1,
+            home: true,
+            provider: skein_forge::api::Repository { forge: 1, repository: 2 },
+            host: b"forge.example".as_slice().into(),
+            owner: b"work".as_slice().into(),
+            name: b"hello".as_slice().into(),
+            prefix: b"temper/".as_slice().into(),
+            role: forge::Role::Owned,
+            ci: false,
+            checks: Box::new([]),
+            kinds: forge::Kinds {
+                read: true,
+                push: true,
+                open: true,
+                land: true,
+                review: true,
+                status: true,
+                comment: true,
+                issue: true,
+                branch: true,
+            },
+            protection: forge::Protection::Absent,
+            settings: skein_forge::api::Settings {
+                default_branch: b"main".as_slice().into(),
+                merge: true,
+                squash: true,
+                rebase: false,
+            },
+        };
+        forge::step(
+            &mut domain.forge,
+            &super::super::environment_forge(&env),
+            forge::Event::Restore { record: forge::Stored::Repository(repository) },
+            &mut out,
+        );
+        assert!(set_up_project(&mut domain, &env, application(), &mut out).is_none());
+        assert_eq!(
+            domain.forge.application_answer(Token::new(92)),
+            Some(forge::Answered::SetUp(forge::SetUpAnswer::Refused(forge::SetUpRefusal::NewProject)))
+        );
+        assert_eq!(out.pop(), Some(forge::Request::ApplicationDone { request: Token::new(91), token: Token::new(92) }));
+        assert!(out.is_empty());
+    }
+}

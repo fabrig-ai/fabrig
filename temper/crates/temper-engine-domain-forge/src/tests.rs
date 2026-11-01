@@ -10,6 +10,7 @@ mod ci_brief;
 mod connect;
 mod connect_new;
 mod demo;
+mod first_intent;
 mod fixtures;
 mod flight;
 mod kept;

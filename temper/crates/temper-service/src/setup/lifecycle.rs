@@ -1022,7 +1022,7 @@ fn create_local(engine: &mut crate::engine::Engine, forge: u16) -> bool {
     let Some(first) = local.first.take() else { return false };
     let starter = host::File {
         path: temper_forge_setup::STARTER_PATH.into(),
-        content: temper_forge_setup::starter_workflow(b"temper-host").expect("owned runner label"),
+        content: temper_forge_setup::starter_workflow(&first.label).expect("admitted runner label"),
     };
     let files: Box<[host::File]> = if first.playground {
         Box::new([
@@ -1347,6 +1347,20 @@ fn file_answer(engine: &mut crate::engine::Engine, forge: u16) -> bool {
     true
 }
 
+/// Rebuild the service's Create input when it holds a forge record (contracts, 2).
+pub(crate) fn restored_intent(engine: &mut crate::engine::Engine, record: &domain::Forge) {
+    if let Some(first) = &record.first
+        && let Some(local) = engine.setup.lifecycle.local_mut(record.number)
+    {
+        local.first = Some(Intent {
+            playground: record.playground,
+            org: first.org.clone(),
+            repository: first.repository.clone(),
+            label: first.label.clone(),
+        });
+    }
+}
+
 pub(crate) fn first(
     engine: &mut crate::engine::Engine,
     forge: u16,
@@ -1434,6 +1448,11 @@ fn keep_admin(engine: &mut crate::engine::Engine, run: Token) {
     keep(engine, forge, Item::AdminToken, value.expose(), Purpose::Admin(run));
 }
 fn admin_create(engine: &mut crate::engine::Engine, token: Token) {
+    let forge = engine.setup.runs.get(&token).expect("admin reconcile waits for Origin").forge;
+    let first = engine.setup.lifecycle.local_mut(forge).expect("managed configuration").first.take();
+    if engine.setup.runs.get(&token).expect("admin run").first.is_none() {
+        engine.setup.runs.get_mut(&token).expect("admin run").first = first;
+    }
     let run = engine.setup.runs.get_mut(&token).expect("admin reconcile waits for Origin");
     let forge = run.forge;
     let Some(first) = &run.first else {
@@ -1496,3 +1515,7 @@ fn admin_done(engine: &mut crate::engine::Engine, token: Token, outcome: reconci
     }
     unreachable!("admin Done belongs to Reconcile or Create");
 }
+
+#[cfg(test)]
+#[path = "../tests/first_intent.rs"]
+mod first_intent;
