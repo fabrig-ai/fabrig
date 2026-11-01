@@ -158,6 +158,27 @@ fn a_removed_forge_is_in_no_list_and_its_repositories_stay_readable_by_tag() {
 }
 
 #[test]
+fn a_removing_or_removed_forges_change_has_no_panel() {
+    let mut d = restored(true, record(1));
+    let mut change = fixtures::opening_row();
+    change.pending = None;
+    outputs(&mut d, Event::Restore { record: Stored::Change(change) });
+    let scope = jig_domain_people::ApplicationScope::Project(5);
+    assert!(d.panel(fixtures::CHANGE, scope, env().wall, &LIMITS).is_some());
+    application(&mut d, 100, Ask::RemoveForge { forge: 1 });
+    assert_eq!(d.records.get(&1).unwrap().state, ForgeState::Removing);
+    assert!(d.change(fixtures::CHANGE).is_some());
+    assert!(d.panel(fixtures::CHANGE, scope, env().wall, &LIMITS).is_none());
+    let cancel = act(1, KeptActKind::Cancel { project: 5, task: fixtures::CHANGE });
+    outputs(&mut d, Event::KeptActAnswered { key: cancel.key, keep: false });
+    outputs(&mut d, Event::GroupRemoved { forge: 1 });
+    outputs(&mut d, Event::SecretsErased { forge: 1 });
+    assert!(d.removed(1));
+    assert!(d.change(fixtures::CHANGE).is_some());
+    assert!(d.panel(fixtures::CHANGE, scope, env().wall, &LIMITS).is_none());
+}
+
+#[test]
 fn the_playground_and_an_unknown_forge_are_refused() {
     let mut row = record(1);
     row.playground = true;

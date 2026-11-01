@@ -106,7 +106,7 @@ impl Domain {
         let ApplicationScope::Project(project) = scope else { return None };
         let row = self.changes.get(&task)?;
         let repository = self.repositories.get(&row.repository)?;
-        if repository.project != project {
+        if repository.project != project || self.forge_ended(repository.provider.forge) {
             return None;
         }
         let mut state = &row.change.state;

@@ -7,7 +7,7 @@ use jig_domain_tasks as tasks;
 use skein_lib::{ReplyTo, Token};
 use temper_engine_domain::{self as engine, Delivery, Key, Record, Write};
 use temper_engine_domain_forge as forge;
-use temper_engine_domain_world::{cuts, direct::Driver, fixtures, forge_routes, forges};
+use temper_engine_domain_world::{cuts, direct::Driver, fixtures, forge_routes, forges, protocol};
 
 const SEEDS: [u64; 2] = [71, 9762];
 const FORGE: u16 = 1;
@@ -52,6 +52,23 @@ fn live(seed: u64, granted: bool) -> Story {
     let mut world = world(seed);
     world.store.seed(forges::rows(&[forges::record(FORGE, forge::Kind::Forgejo, forge::Mode::Owned)]), Box::new([]));
     let (mut world, chat, producer, _) = forge_routes::change_world_in(world, forge_routes::Change::default());
+    // Finish the chat's run, keeping its delegated change live for removal.
+    let read = chat.messages.last().map(|word| word.number);
+    world.send(protocol::turn(Token::new(7), chat.task, chat.attempt, 1, 0, read, b"Change delegated"));
+    world.until(forge_routes::Until::Ready);
+    let mut event =
+        world.protocol.answer(Token::new(7), chat.task, chat.attempt, 0, tasks::End::Parked, engine::Parts::none());
+    let engine::Event::Worker(engine::WorkerInput::Link {
+        link: engine::Link::Up { up: jig_domain_host::LinkUp::Answer { answer, .. }, .. },
+        ..
+    }) = &mut event
+    else {
+        unreachable!("worker answer")
+    };
+    answer.read = read.map(Token::new);
+    answer.turns = 1;
+    world.send(event);
+    world.until(forge_routes::Until::Ready);
     // Drain the assignment's commit before taking the store into the cut driver.
     for _ in 0..20 {
         world.tick();
@@ -230,6 +247,16 @@ fn assert_cancelled(story: &Story) {
         let ending = match phase {
             tasks::Phase::Ended(ending) => ending,
             tasks::Phase::Held { was: tasks::Was::Closing(closing), .. } => &closing.ending,
+            tasks::Phase::Closing(closing)
+                if task == story.change
+                    && closing.stage == tasks::Stage::Delegates
+                    && matches!(
+                        d.task(story.producer).map(|row| &row.phase),
+                        Some(tasks::Phase::Held { was: tasks::Was::Closing(_), .. })
+                    ) =>
+            {
+                &closing.ending
+            }
             tasks::Phase::Waiting | tasks::Phase::Active(_) | tasks::Phase::Closing(_) | tasks::Phase::Held { .. } => {
                 panic!(
                     "cancelled task {task}: {phase:?}; producer phase: {:?}",
@@ -475,7 +502,7 @@ fn assert_absent(story: &mut Story, key: u8) {
     );
     assert!(d.delivered.iter().any(|delivery| matches!(delivery,
         Delivery::WatchEnded { watcher, why: jig_domain_views::End::Gone } if *watcher == Token::new(u64::from(key)))));
-    d.hello(Token::new(7));
+    d.send(protocol::hello_slots(Token::new(7), 2, Box::new([])));
     d.send(engine::Event::Party(engine::PartyInput::Ask {
         reply_to: ReplyTo::new(Token::new(u64::from(key) + 1)),
         sign_in: session(d),
@@ -484,6 +511,13 @@ fn assert_absent(story: &mut Story, key: u8) {
         ask: people::Ask::Say { project: 1, task: story.chat, words: b"What remains?".as_slice().into() },
     }));
     d.pump();
+    assert!(
+        d.delivered.iter().any(|delivery| matches!(delivery, Delivery::Assigned { .. })),
+        "chat resumes at {key}: {:?}; proof {:?}; deliveries {:?}",
+        d.task(story.chat).map(|row| &row.phase),
+        d.store.rows.get(&Key::Core(core::Key::Core(core::CoreKey::RunProof(story.chat)))),
+        d.delivered
+    );
     let chat = d.last_assignment();
     assert_eq!(chat.task, story.chat, "the chat stays open for its next run");
     assert!(chat.workspace.repositories.is_empty(), "the project's repository list is empty");
