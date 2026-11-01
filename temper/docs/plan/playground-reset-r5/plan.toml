@@ -55,3 +55,16 @@ id = 4
 story = "A fresh deployment's SetUp of an owned Forgejo makes its record, the box starts its group from its file, and the forge connects"
 parts = ["forge-records"]
 walk = false
+
+[[part]]
+id = "remove-forge"
+title = "RemoveForge: a forge ended at once, its work cancelled, its group and records gone, kept until whole; a set up cut short started over"
+mode = "direct"
+needs = ["forge-records", "jig-remove-project"]
+design = "temper/docs/design/draft/playground-reset.md, 4, 6.4"
+
+[[slice]]
+id = 5
+story = "A forge removed from Forges ends at once and goes whole across a restart; an unfinished set up found later is started over"
+parts = ["remove-forge"]
+walk = false
