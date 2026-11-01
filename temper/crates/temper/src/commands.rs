@@ -216,7 +216,7 @@ pub const COMMANDS: [Row; 21] = [
             },
         ],
         settings: &[],
-        notes: "temper ctl help prints how to work through it, then the groups.",
+        notes: "temper ctl help prints how to work through it, then the groups. A call holds one of the engine's streams while it runs, a wait for its whole span; past the engine's bound a call says so.",
         transition: false,
     },
     Row {

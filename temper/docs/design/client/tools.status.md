@@ -7,3 +7,5 @@
 - **Not yet:** 5.1, 5.5: project names/new-project continuation. 5.5, 7, 9 to 15: program declare/verify, goal model flags, deployment-key box proof, remaining catalogue/host facts and areas 2 to 4. 14: MCP endpoint. The joined model-amendment story remains. task hold, project hold, hold list. 11.4: running work's revision story moves from the process tier to the system world.
 
 - **Built:** 5.4, 6: a met text inbox wait prints the plain inbox read, with question words, read-whole and answer calls, and continuation, then `met`.
+
+- **Built:** 8.2: a full stream opening exits 1 immediately with the engine's stream count and the wait/open-client remedy, within 240 bytes; the command reference notes explain that a call holds a stream for its span.

@@ -229,6 +229,11 @@ impl OneShot {
     }
     fn root_event(&mut self, event: jig_client::Event) {
         root::step(&mut self.root, &self.root_env, root::Event::Client { event }, &mut self.requests);
+        if self.status.is_none()
+            && let Some(full) = self.root.client().link().streams_full
+        {
+            self.fail(format!("the engine's {} streams are all in use, by waits and open clients; end one, or wait and call again", full.size).as_bytes());
+        }
     }
 
     fn local_start(&mut self) {
