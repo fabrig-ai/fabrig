@@ -432,11 +432,11 @@ pub fn host_setup(name: &[u8]) -> bool {
     .contains(&name)
 }
 
-/// Server bounds follow jig's shipped small profile, with its HTTP intake bounds.
+/// Server connections admit the mount's calls, with at least small's eight connections.
 #[must_use]
 pub fn server(jig: &jig_protocol_config::Limits) -> crate::server::Limits {
     crate::server::Limits {
-        connections: 8,
+        connections: jig.clients_http.calls.max(8),
         http: skein_http::server::Limits {
             head: 4096,
             headers: 32,

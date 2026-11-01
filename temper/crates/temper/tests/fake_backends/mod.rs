@@ -49,6 +49,13 @@ fn flags(config: &Path, data: &Path, cache: &Path, bundle: Option<&Path>) -> Vec
 }
 fn get_root(config: &Path, binary: &skein_world::end_to_end::Binary) -> Vec<u8> {
     let document = value(&config.join("temper.json"));
+    let limits = &document["engine"]["limits"]["overrides"];
+    for name in ["clients.streams", "clients_http.streams"] {
+        assert_eq!(limits[name], 8_u32, "the running box's {name}");
+    }
+    for name in ["clients.exchanges", "clients_http.calls"] {
+        assert_eq!(limits[name], 12_u32, "the running box's {name}");
+    }
     let address: SocketAddr = document["application"]["clients"]["listener"]["socket"]
         .as_str()
         .expect("effective clients socket")

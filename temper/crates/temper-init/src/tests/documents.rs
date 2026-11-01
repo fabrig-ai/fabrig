@@ -12,6 +12,20 @@ fn every_forge() -> Value {
 }
 
 #[test]
+fn the_box_keeps_eight_streams_and_four_calls_beside_them() {
+    for source in [fixtures::OWNED, template::TEMPER] {
+        let value = parse(source);
+        let limits = &value["engine"]["limits"]["overrides"];
+        for name in ["clients.streams", "clients_http.streams"] {
+            assert_eq!(limits[name], 8_u32, "{name}");
+        }
+        for name in ["clients.exchanges", "clients_http.calls"] {
+            assert_eq!(limits[name], 12_u32, "{name}");
+        }
+    }
+}
+
+#[test]
 fn the_owned_example_offers_openai_keys_and_chatgpts_sign_in() {
     let owned = parse(fixtures::OWNED);
     assert_eq!(

@@ -30,6 +30,11 @@ pub fn documents(directory: &Path, llm: SocketAddr, forge: SocketAddr) -> (serde
     let mut value: serde_json::Value =
         serde_json::from_slice(&jig_channel_world::fixtures::engine_document()).expect("engine JSON");
     value.as_object_mut().expect("whole object").remove("service");
+    for (name, count) in
+        [("clients.streams", 8_u32), ("clients.exchanges", 12), ("clients_http.streams", 8), ("clients_http.calls", 12)]
+    {
+        value["engine"]["limits"]["overrides"][name] = count.into();
+    }
     let worker: serde_json::Value =
         serde_json::from_slice(jig_channel_world::fixtures::WORKER_DOCUMENT).expect("worker JSON");
     value["workers"] = worker["workers"].clone();
@@ -188,7 +193,7 @@ pub(crate) fn private(path: &Path, bytes: &[u8]) -> std::io::Result<()> {
 
 /// The tools' executable is hosted once per call, with two concurrent slots.
 pub const CTL: &[u8] = b"/real-loop/temper-ctl";
-pub const CALLS_AT_ONCE: u32 = 2;
+pub const CALLS_AT_ONCE: u32 = 3;
 #[must_use]
 pub fn directory(scratch: &Path, at: crate::calls::Dir) -> std::path::PathBuf {
     scratch.join("clients").join(format!("client-{}", at.0))
