@@ -1,242 +1,305 @@
 # The code pipeline
 
 Draft, 2026-11-01. Nothing here is adopted until the user approves it.
-How work goes from the person's word to a branch ready to land, written
-as jig's primitives and temper's configuration and mechanisms on them.
-What follows ready is `landing-pipeline.md`. Together they replace
-`landing-model.md` revision 5. `reference-case.md` is one story that
-runs both, step by step, and lists what jig and temper lack for it.
+The first half of `landing-model.md` revision 4 (10-30), split off at
+the user's word and brought loosely in line with how fabrig's lab runs
+today (fab, the agents repository at 1dc102c): how work goes from the
+person's word to a change ready to land. What follows ready is
+`landing-pipeline.md`; `reference-case.md` runs both. It is one model
+over jig's primitives (tasks, executors, messages, authority,
+connectors: jig's `domain/core.md`, 3), with temper's configuration and
+its forge connector on them; fabrig's way is one configuration
+(section 5). Gap ids (L, J, F) are revision 4's, and new ones carry on
+from them (section 6). Machines, slots and sign-ins are left out for
+now (section 7).
 
-The source is the code pipeline fab runs today (the agents repository,
-`docs/design/` and `fab/` at 1dc102c); section 5 is fab's way as
-configuration, section 6 where fab departs from this design. Machines,
-slots and sign-ins are left out for now. Unqualified, `forge.md`,
-`landing.md` and `agent.md` are temper's `../domain/` documents; jig's
-are named as jig's.
+Unqualified, `landing.md`, `forge.md` and `agent.md` are temper's
+`../domain/` documents; jig's are named as jig's.
 
 ## 1. In one page
 
-- **jig's primitives carry it:** a task (spec, result contract,
-  requester, dependencies, executor, wake policy), made in batches; an
-  executor (an agent under a charter, a procedure, a job, a person);
-  messages, the inbox and wakes; authority, proposals and escalations;
-  connectors (jig `core.md` 3). Nothing here needs a new primitive; a
-  few knobs are missing (section 7).
-- **temper adds configuration and its forge connector:** charters,
-  templates and settings for each role, and the forge's procedures and
-  records: the change procedure, a goal's branch, updates and
-  resolutions, repairs, checks (`forge.md`).
-- **An LLM for judgement, code for mechanisms:** every agent task
-  judges; every procedure and job is mechanics. Each section says which.
-- **The shape:** the person talks to a chat; the chat starts a goal; the
-  goal's agent plans and delegates changes in batches; each change's
-  procedure runs a producer, answers what it can, and lands the change
-  into the goal's branch; the goal's branch is checked, kept up with
-  main, repaired, and made ready (`forge.md` 15.1 is this, in small).
+- **jig's primitives carry the work; temper configures them.** A goal is
+  a tree of jig tasks; its agents are charters; its mechanics are
+  temper's forge procedures and jig's jobs. jig knows nothing of code or
+  branches; temper keeps its own state about them in the store, never
+  in a repository, which holds only the project's code and documents.
+- **An LLM for judgement, code for mechanisms:** planning, producing,
+  answering, reviewing and resolving are agent tasks; scheduling,
+  merging, checking, holding and routing are code.
+- **No hand work:** the person talks to a chat through `temper ctl` and
+  answers their inbox; everything else is tasks.
+- **The work is a tree of goals** (section 2): the person and their
+  chat; a goal per draft, whose agent plans and delegates the plan's
+  changes in batches, the certain ones first; its delegates. Questions
+  go to the requester; holds have owners and modes; news goes to roles.
+- **A goal may land through a branch of its own** (2.6), checked along
+  the way, kept up with main and checked whole before it is ready.
+- **Checked before ready, by the same keys** (section 3): a change's
+  deterministic gates run at its head merged onto main, before it is
+  ready; their receipts serve its landing.
 
-## 2. Intake (LLM)
+## 2. The work around a landing
 
-- **The person talks to a chat** through `temper ctl`: jig's chat, an
-  agent task made from a template (jig `people.md` 7) whose charter the
-  person chose: a director, or a department such as QA.
-- **The chat starts a goal** with temper's `goal` tool (`agent.md`
-  4.3.2): a tracked agent task (jig `core.md` 6.2) whose spec names the
-  draft or the request ("fix this"), and whose settings come from the
-  chat's template (section 5).
-- **A small request** may need no goal: the chat makes one change
-  (`forge.md` 15.1).
+### 2.1 The tree
 
-## 3. A goal, as tasks
+- **The person** directs the work, sets budgets and priorities, and
+  answers what is theirs to answer. **Their chat** is a coordinator: an
+  agent conversation, made from a template the person chose (a
+  director, or a department such as QA), whose charter lets it make
+  goals and steer them (jig's `domain/people.md`, 7), reached through
+  `temper ctl`. No hold over the project holds it (2.4).
+- **A draft's goal plans:** its agent, under a planning charter, cuts the
+  draft into parts and slices (stories that run end to end) and
+  delegates each part's changes in batches with their specs and
+  dependencies (jig's `domain/tasks.md`, 3 and 4), at once for the parts
+  that are certain while it plans the rest. Several goals run in one
+  project at once, each on its own draft. A part may instead be a goal
+  of its own, owning one area of the code; depth is policy (authority's
+  depth), not a fixed set of layers.
+- **A small request** ("fix this") needs no plan: the chat makes one
+  change, or a goal of one change.
+- **Delegates** are agents (producers, reviewers, verdict tasks,
+  investigators, testers), procedures (a change, a landing), jobs (a
+  gate's commands) or people (a question, an approval). Each runs under
+  a charter that names its model and effort; a delegate's charter is one
+  its parent's authority allows.
+- **Briefs, notes and results:** a goal starts from its brief, keeps
+  notes while it works, and ends with a result that says what it did and
+  what is left, which can be the next goal's brief.
+- **Checks on a period:** a goal wakes on its delegates' results and on
+  news, and a timer or a recurring task wakes it on a period as well
+  (jig's `domain/tasks.md`, 3 and 8.1).
+- **Standing rules are instructions:** contracts that cross parts written
+  first, an interface step landed before its readers, one writer per
+  package within a batch, what a producer may edit outside its paths.
+  Such rules live in the charters, are judged by the agents that read
+  them, and reach live tasks with a charter's new revision (jig's
+  `MoveToNewest`, `domain/engine.md`, 17.4). Only what section 5 lists
+  is enforced by code.
+- **Work goes on while a goal is away:** a park of its own or a usage
+  limit on its own runs stops none of its running delegates, and
+  delegates it made ahead, ordered by dependencies, start as the ones
+  before them end, without waking it.
+- **Each goal's times are recorded:** its start, its first delegate, its
+  changes' ready and landed times, its questions and how long they
+  waited; a project's report of its flow is computed from them (gap
+  L19).
 
-### 3.1 Planning (LLM; the batches are jig's)
+### 2.2 A change
 
-- **The goal's agent plans,** in a run under a planning charter: parts,
-  slices (stories that run end to end), the person's questions, and each
-  change's spec (words, and typed parameters: what it owns, its kind,
-  its options with defaults) with its dependencies (jig `tasks.md` 3).
-  It may delegate read-only surveys and design help first.
-- **It delegates the plan in batches** (jig `tasks.md` 4): the changes
-  that depend on nothing first, then each batch that holds together,
-  while it plans the rest. Each batch's tasks start at once; the plan is
-  the goal's subtree (jig `core.md` 7.1). Nothing of it is written to a
-  repository.
-- **Questions for the person** are person tasks (jig `people.md` 8); the
-  parts that wait for an answer depend on them.
-- **Scaffolds:** a part may first get a change whose producer writes its
-  types and empty bodies, its other changes depending on it, started
-  beside it before it lands (jig `connectors.md` 6.1, a procedure that
-  starts kept beside its dependency).
+- **The change procedure** (`forge.md`, 8) takes a change from produced
+  to landed in its landing branch: it delegates the producer, an agent
+  task in a workspace, pushes what it commits, runs its checks before
+  ready (section 3) and its review, and lands it.
+- **The producer's run** finishes, parks on a question (the change is
+  kept, jig's `domain/tasks.md`, 5.7), or fails. A failure's class
+  (transient, the agent's own, lost) is code's, from the run and its
+  tools, never from the agent's words; the tries per class are jig's
+  (5.5). Past them the change is held and escalated to its requester.
+- **What it left:** a producer that finishes may list what lies outside
+  its change and stays red, for its owner or the goal's final check.
 
-### 3.2 A change (code; its producer is LLM)
+### 2.3 Asking and answering
 
-- **The change procedure** (`forge.md` 8) takes each change from
-  produced to landed in its landing branch: here the goal's branch
-  (3.4). It delegates the producer, an agent task in a workspace on a
-  worker, under the producer's charter (model, effort, tools, what it
-  may edit beyond its paths).
-- **The producer** edits, tests and commits; the procedure pushes. Its
-  run finishes, parks on a question (the change is kept, jig `tasks.md`
-  5.7), or fails. A failure's class (transient, the agent's own, lost)
-  is code's, from the run and the tools, and the tries per class are
-  jig's (jig `tasks.md` 5.5). Past them the change is held and escalated
-  to the goal.
-- **Before it is ready,** the procedure runs the change's own checks
-  (`landing-pipeline.md` 2).
+- **Any task may ask the person** if its authority lets it make a person
+  task addressed to them. A question carries its options and a
+  recommendation (an instruction, not a mechanism).
+- **A question to the requester keeps the asker** until it is answered,
+  and moves with it. A change's question goes to its goal, whose agent
+  answers it: from the spec's options when they settle it (perhaps by a
+  cheap verdict task first), else by judgement, preferring to leave what
+  is not the change's to its owner; what is the person's, it asks the
+  person.
+- **When a goal wakes for questions** is its wake policy: at once when
+  one holds up other work, else in a batch by count or age (gap J14).
+- **Questions to the chat stay with the chat** (gap J7): a delegate that
+  asks its requester, the chat, is asking the chat, which answers itself
+  or asks the person in its own words (gap J8). Where person answers are
+  on, the person's answer goes straight to the asking task and the chat
+  hears a notice.
+- **An answer after its asker ended** goes to the asker's successor
+  (2.5); with none, to its requester, as news naming the question.
+- **On the forge, optionally:** a question projected as an issue, its
+  comments answered or recorded by a reply task (`forge.md`, 12.1).
 
-### 3.3 Questions and answers (LLM; routing is jig's)
+### 2.4 Holds
 
-- **A change's question goes to its requester,** the goal (jig
-  `tasks.md` 5.7), whose agent answers it: from the spec's options when
-  they settle it, else by judgement, preferring to leave what is not the
-  change's to its owner. What is the person's (budgets, accounts, what
-  is hard to reverse, a change of direction) the goal asks the person,
-  in their inbox.
-- **When the goal wakes for questions** is its wake policy (jig
-  `tasks.md` 8.3): at once when one holds up other work, else in a batch
-  by count or age (a knob jig lacks: section 7).
-- **A cheaper first pass** is configuration: the goal may delegate a
-  verdict task under a cheap charter, which answers from the options or
-  passes the question on.
+- **A hold has an owner,** the party or task that placed it: only the
+  owner lifts it, or a party whose role stands above the owner's; a task
+  above a party's hold may only propose its lift, which waits in the
+  owner's inbox (gap J1).
+- **Two modes:** **stop** cancels runs at once and holds the tasks;
+  **drain** lets running runs finish their turn and running changes
+  finish, landing included, starts nothing new, and holds each task as
+  it goes idle (gap J2).
+- **Three scopes:** a task's subtree; a project, which tasks made later
+  inherit and the person's chat is exempt from (gap J3); and a kind of
+  procedure's admission in a project, such as the landing pipeline's
+  (gap J9).
+- **Parked until an event** (gap J4): a task-owned hold that lifts
+  itself when a named event comes: a landing on a branch, a task's end,
+  a time.
+- **Held past a bound:** a change past its tries, or a goal's branch
+  past its bounds (2.6), is held and escalated to the task above it
+  (jig's `domain/tasks.md`, 5.5 and 9), whose agent decides.
 
-### 3.4 The goal's branch (code; conflicts are LLM)
+### 2.5 Handing over
 
-- **A goal may land through a branch of its own** (`forge.md` 11.1): its
-  changes land into it; it is a change of its own, landed into main by
-  the change procedure once the goal's changes have (the landing
-  pipeline). Or each change lands into main: a goal setting (section 5).
+- **A long-lived goal starts afresh from its notes** (gap J11): when its
+  context nears its charter's bound, its run ends with a handover note,
+  and its next run starts from its brief, its notes and the handover
+  rather than its transcript.
+- **A successor** (gap J6): a goal that ends can name a live goal as its
+  successor, which receives its open questions' answers, its
+  subscriptions and kept news.
+- **A live goal moved under another task** (gap J5): its results,
+  questions and escalations go to the new parent from then on.
+
+### 2.6 A goal's branch
+
+- **A goal may land through a branch of its own** (`forge.md`, 11.1; gap
+  L21): its changes land into it through the change procedure; it is a
+  change of its own, landed into main once its changes have. Or each
+  change lands into main: a goal's setting (section 5).
 - **Dependents start from it:** a change that depends on another starts
-  once that one has landed into the goal's branch (jig dependencies), or
-  earlier, beside it (3.1's started kept, `early_start`).
-- **A conflict** landing into the goal's branch is a resolution
-  (`forge.md` 8.4): the workspace starts from a merge in progress, an
-  agent settles the conflicting files with no git writes of its own, the
-  procedure commits. A conflict the project's tooling knows (a counted
-  baseline, recounted) is settled by its tooling (`landing.md` 5.3).
-- **Checks of the goal's branch:** a job (jig `tasks.md` 5.3.1) runs the
-  project's gates on its tip on a cadence while changes land (every
-  `interim_every` landings or `interim_after` minutes), and in full once
-  all have landed. A red is a repair (`forge.md` 8.4), a change of the
-  goal's branch.
-- **Updates:** the goal's branch takes main as it moves, by an update
-  (`forge.md` 10) on a timer (`update_after`), a conflict being a
-  resolution.
-- **Bounds:** past `update_refusals`, `final_reds` or `queue_refusals`
-  the goal's branch change is held and escalated to the goal (jig
-  `tasks.md` 5.5, 9), whose agent decides: a fresh resolution, a repair,
-  or a question to the person.
-- **Ready:** green in full, the goal's branch change is ready, and
-  `landing-pipeline.md` takes it.
+  once that one has landed into the goal's branch, or earlier, beside
+  it, from its pushed branch, merged again before it lands (gap J13: a
+  task started beside its dependency, jig's `domain/connectors.md`,
+  6.1).
+- **Conflicts:** one the project's tooling knows (a counted baseline,
+  recounted) its tooling settles (`landing.md`, 5.3); any other is a
+  resolution (`forge.md`, 8.4): the workspace starts from a merge in
+  progress, an agent settles the files, the procedure commits.
+- **Checks along the way and at the end:** a job runs the project's
+  gates on the goal's branch on a cadence while changes land, and in
+  full once all have; a red is a repair, a change of the goal's branch.
+- **Kept up with main** by an update (`forge.md`, 10) on a timer, a
+  conflict being a resolution.
+- **Bounds:** past a number of refused updates, red final checks or
+  rejections by the landing queue, the goal's branch is held and
+  escalated to the goal (2.4).
+- **Ready:** green in full, it is ready; `landing-pipeline.md` takes it.
+- **Goals beside each other:** a goal hears when another goal's branch
+  touches the same paths (merging both with main in memory); its
+  planning brief lists the goals beside it (gap L23).
 
-### 3.5 Review (LLM; counts are code)
+### 2.7 Who hears what
 
-- **A change's review** is a gate of the change procedure under the
-  reviewer's charter (`forge.md` 8.3); its remarks are a repair
-  (`forge.md` 8.4).
-- **A plan's review** is a verdict task the goal delegates on each batch
-  before it starts (`review`).
-- **Past the bound,** the change or the plan is held and escalated to
-  the goal, or above it to the chat (jig `tasks.md` 9): the holder
-  decides, as an arbiter would.
-- **A structure review,** with `review` on: a recurring verdict task
-  reads what landed since the last one and writes consolidation changes,
-  which start first, and examples for the producers' charter.
+- **News goes to roles in the tree,** resolved when the news is made (gap
+  J10): the change's goal, the goal above it, the person's chat. Which
+  outcome goes to which role is the project's routing table (section
+  5).
+- **What no goal owns** (a red no open goal owns, a tier that cannot
+  run, a finding not the code's) is news to the chat its template names,
+  whose agent decides: start a goal, wait, or ask the person.
+- **A delivery never changes an outcome:** news is an effect through the
+  outbox, sent at least once.
 
-### 3.6 Goals beside each other (code)
+## 3. Before ready
 
-- **Overlaps are news:** a goal hears that another goal's branch touches
-  the same paths, by merging both with main in memory each round; its
-  planning brief lists the goals beside it (`forge.md` 7.3 has the
-  landing half of this).
+- **Ready** when its procedure marks it so: its producer's result is in,
+  and its own deterministic gates hold at its **own candidate**, its
+  head merged onto main's tip, uncommitted, in its workspace (gap L11).
+  Judgement gates (a review, a person's approval) are blocking gates
+  like any (`landing.md`, 7.2).
+- **Its own deterministic gates** are the project's gates of the
+  deterministic class (`landing-pipeline.md`, 3) over the packages the
+  change reaches, and the repository gates whose paths it touches. They
+  run as a job in the workspace; their results are receipts by key.
+- **Measured gates wait for the prover:** tests run before ready (the
+  producer's focused tests, a change of meaning's readers' tests) are
+  advisory there: reported, never a receipt.
+- **What the check meets** is the change's: a conflict onto main is a
+  resolution, a red a repair, a fault of the workspace not the change's.
 
-### 3.7 The goal's end (LLM; the wait is code)
+## 4. fabrig's code pipeline in the model's terms
 
-- **The goal closes** once its changes have landed and its verdict after
-  landing has come (`landing-pipeline.md` 4.3); in its closing run, its
-  agent does the project's duty at the end (the designs' status files
-  current) as one last change (jig `tasks.md` 5.1, closing).
+What fab does today, its term in the model, and where fab departs
+(**gap**: by hand, by an agent where the model has code, or temper's
+data kept in the repository; temper does not copy it).
 
-## 4. The person, alerts and measures
+| fab | The model | Where |
+|---|---|---|
+| the user; the director, a session | the person; their chat | 2.1 |
+| `fab call cut`, by hand (gap); the cut, one Claude call, releasing its plan early | a draft's goal planning and delegating in batches | 2.1 |
+| plan.toml and task specs in the repository (gap) | the goal's plan and specs in the store | 2.1 |
+| Codex implementer runs in builder slots | producers under the change procedure | 2.2 |
+| a run's report line `Done`, `Question`, `Infra`, `Failed` (the transient class from the agent's words: gap) | finished, kept, failed by class | 2.2 |
+| the foreman settling from a spec's options; the answer call | a verdict task; the goal answering | 2.3 |
+| the user's page, forge issues with reply calls | the inbox; questions on the forge | 2.3 |
+| a plan's stop, a note; a hand merge (gap) | a hold escalated to the goal | 2.4, 2.6 |
+| the integration trunk, merges into it, the old-forms recount | a goal's branch | 2.6 |
+| early starts; the implementer merging its needs again (gap) | started beside a dependency | 2.6 |
+| checks along the way, the end check (`fab check`) | jobs on the goal's branch | 2.6 |
+| catch-ups; catch-up repairs that merge and push themselves (gap) | updates, resolutions | 2.6 |
+| the overlap probe | goals beside each other | 2.6 |
+| signals on the page, read by a session (gap) | news to a chat | 2.7 |
+| precheck, run by the implementer (gap); its receipt | the check before ready | 3 |
+| the call review run, amend, settle | a review gate, a repair, a hold escalated | 2.2, 2.4 |
+| skeleton calls (off in fabrig's plans) | a scaffold change, its readers started beside it | 2.6 |
 
-- **The inbox** (jig `people.md` 6): questions, person tasks, results,
-  read and answered in `temper ctl`.
-- **Alerts are news:** what no goal owns (a red no open goal owns, a
-  tier that cannot run, a finding not the code's) is news on a topic the
-  chat subscribes to (jig `tasks.md` 8.4); the chat's agent decides:
-  start a goal, wait, or ask the person.
-- **Questions on the forge,** optionally (`questions_on_forge`): each as
-  an issue, its comments read by a reply task (`forge.md` 12.1).
-- **Measures:** views of the tasks (jig `engine.md` 11); a daily report
-  by a recurring task (jig `tasks.md` 10): runs, results, questions and
-  time to answer, idle gaps, usage and weights per goal.
+## 5. Settings
 
-## 5. fabrig's configuration
+| Setting | Scope | Default | fabrig's |
+|---|---|---|---|
+| a chat's template | party | a director | a director |
+| a goal lands through its own branch | goal | no | yes for a draft |
+| started beside a dependency | goal | off | on |
+| review of a plan's batches | goal | off | off |
+| scaffolds first | goal | off | off |
+| a change's tries; a repair's | project | jig's | 4; 2 |
+| answering: a verdict task first; when the goal wakes | project | no; at once | yes; at once for a goal's branch, else at 4 or after 30 minutes |
+| checks of a goal's branch | project | at the end | every 10 landings or 45 minutes, without the fuzzy tests; in full at the end |
+| updates of a goal's branch | project | before its checks | every 30 minutes |
+| a goal's branch's bounds | project | 3 each | 3 refused updates, 3 red final checks, 3 queue rejections |
+| what a producer may do unasked | charter | nothing | the arms and fields a type it changed forces; a scoped lint exception |
+| models | charter | — | producers Codex at high; verdict tasks Codex at medium; goals and chats Claude |
+| an agent's context | charter | measured | about 600k, measured (the user, 10-30) |
+| questions on the forge | project | off | on |
+| routing: outcome to role | project | 2.7 | the same |
 
-| Choice | fabrig's value |
-|---|---|
-| the chat | one, a director template |
-| a draft's goal | lands through its own branch; `early_start` on; `review` off; no scaffolds |
-| a small fix | a goal of one change, landing into main |
-| charters | producers Codex (gpt-6.1-sol) at high; verdict tasks Codex at medium; the goal's agent and the chat Claude (Opus) at high, answering at medium |
-| a change's tries | 4 runs; 2 for a repair of a red or a finding |
-| the producer may | change, without asking, the arms, fields and literals a type it changed forces anywhere in its tree; add a scoped lint exception on its own item |
-| answering | a verdict task on the options first; the goal at once for a goal branch, else at 4 questions or after 30 minutes |
-| checks of the goal's branch | every 10 landings or 45 minutes, without the fuzzy tests; in full at the end |
-| updates | every 30 minutes; held after 3 refusals |
-| bounds | 3 reds of the final check, 3 rejections by the queue |
-| an agent's context, timeout | about 600k measured (the user, 10-30); 60 minutes for Claude |
-| reports | daily |
+A goal's settings are temper's kinds of setting on jig's settings store
+(gap J15).
 
-## 6. Where fab departs (fab's gaps)
+## 6. What temper and jig have, and what to build
 
-fab does these by hand, by an agent where this design has code, by code
-where it has an agent, or with temper's data in the repository; temper
-does not copy them:
+Revision 4's gaps that this pipeline keeps, and new ones (L21 on, J13
+on). jig's are knobs; none is a new primitive.
 
-- **By hand:** the cut started by a person; answers written into
-  plan.toml; hand-pushed ready refs; a hand merge of main after a stop;
-  the daily reports.
-- **Data in the repository:** plans, specs, answers and repair sections
-  as files (`docs/plan/<draft>/plan.toml`, `tasks/*.md`).
-- **An agent doing mechanics:** the cut pushes its plan and wakes the
-  tick; implementers push, run the check before ready and merge their
-  dependencies again; rebase runs and catch-up repairs rebase, merge and
-  push themselves; a run's transient class read from its own words.
-- **Code doing judgement:** a stop is a note, not a question.
-- **Its own engine and roles:** a tick with a backstop timer; a separate
-  cut call (here the goal's agent); an answer call (here the goal's
-  agent); a foreman (here a verdict task); a settle call (here the
-  holder an escalation reaches); an amender (here a repair); a merge
-  rebased, not resolved; a fault: the rebase onto an amended skeleton
-  repeats in an integration plan, and a retire's branch never reaches
-  main.
+| Id | Gap | Grade |
+|---|---|---|
+| L11 | Checks before ready: a change's own deterministic gates in its workspace at its own candidate | design |
+| L19 | Views and acts in `temper ctl`; the records a report is computed from | design |
+| L21 | A goal's own branch: changes landed into it, checks on a cadence and in full, timed updates, bounds escalated | design (`forge.md`, 11.1) |
+| L23 | Goals beside each other: overlaps as news, the goals beside listed in planning | design |
+| J1 | Owned holds and proposals of their lift | built |
+| J2–J4, J9 | Drain; a project's holds; parked until an event; a hold over admission | design |
+| J5, J6, J11 | A live task moved; a successor; a fresh run from notes | design |
+| J7, J8 | A question to the chat stays with it; the chat asks its person | conflict; design |
+| J10 | An address by role in the tree | design |
+| J13 | A task started beside its dependency (jig's `domain/connectors.md`, 6.1) | design |
+| J14 | Waking on questions by count and age | design |
+| J15 | Application kinds of setting (jig's `domain/engine.md`, 17.5) and a scope under a project | design |
+| J16 | A chat from any template in `temper ctl`; `goal` choosing its template; `change` taking a typed spec and dependencies in a batch | design |
 
-## 7. What it needs
+## 7. Later
 
-**jig: knobs, no new primitive.**
+- Machines, slots and sign-ins (the user, 11-01): workspaces as claimed
+  resources with shares and lends (J12), run targets and calm builders,
+  disk admission, custody of accounts.
+- Leases on paths (L12): fab has none; overlaps are shown instead.
+- Surveys as a stage of their own; test-writers and acceptance runs; a
+  self-critique before ready; probes; a slice complete when its story
+  test passes; a structure review writing consolidation changes.
+- The web UI, a track of its own (the user, 11-01).
 
-- A chat started from any template in `temper ctl` (today template 1).
-- Application setting kinds (jig `engine.md` 17.5, designed) and a scope
-  under a project, so a goal carries temper's settings.
-- Waking on questions by count and age (the wake policy wakes on
-  questions or not).
-- Jobs (designed, not built), for checks.
-- Starting a task beside a dependency (jig `connectors.md` 6.1,
-  designed).
-- `goal` choosing its template, `change` taking typed parameters and
-  dependencies within a batch (temper's tools).
+## 8. Open questions
 
-**temper: its forge connector.**
-
-- A goal's own branch (`forge.md` 11.1, designed), with checks on a
-  cadence, timed updates and its bounds.
-- The overlap news between goals' branches.
-- Questions on the forge (`forge.md` 12.1, designed).
-- Charters and templates for the roles above; a daily report.
-
-## 8. Future ideas
-
-**Not to be carried out now.** Surveys as a stage of their own;
-test-writers and acceptance runs; a self-critique before ready; probes
-and their decisions; a slice complete when its story test passes; a pull
-buffer of ready changes driving planning; machines, slots and sign-ins
-(left out of this draft); the web UI, a track of its own.
+- **H4, routing by role:** an address in jig for the nearest goal of a
+  role above a task (2.7: recommended), or subscriptions each goal
+  makes.
+- **H5, hold scopes:** subtree, project and a kind of procedure's
+  admission (2.4: recommended), or admission held by the serializer's
+  own switch.
+- **H8, handing over:** the same task's fresh run from its notes (2.5:
+  recommended), or a successor task with a warm-up overlap.
