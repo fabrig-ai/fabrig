@@ -1,4 +1,4 @@
-//! Milestone QA from client README 3.5/5.5/5.6 and forge 5.4.
+//! Welcome scenarios from client README 3.5/5.5/5.6 and forge 5.4.
 //! The real client and engine are driven only through the public Joint.
 use jig_client_world::harness::App;
 use skein_lib::Queue;

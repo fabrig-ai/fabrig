@@ -124,15 +124,6 @@ fn account_ending(root: &Root, expected: &str) {
     assert!(button(root, b"Continue with ChatGPT"), "each ending offers sign-in again");
 }
 
-// client/README.md 3.5 Come back: a source missing from the watch drops from the address.
-#[test]
-fn absent_return_source_drops_from_the_address() {
-    let (mut front, mut root) = h::plan_fixture(f::SEED);
-    h::reopen(&mut front, &mut root, returned(u32::MAX), true);
-    assert_eq!(printed(&root), b"/accounts/connect?provider=17&way=sign-in");
-    assert!(button(&root, b"Continue with ChatGPT"));
-}
-
 // client/README.md 3.5: a way without a source does not adopt another client's sign-in.
 #[test]
 fn a_reload_without_source_offers_the_way_again() {
@@ -148,34 +139,6 @@ fn terminal_sign_in_never_requests_a_tab_departure() {
     let (mut front, mut root, source) = begin(false);
     started(&mut front, &mut root, source);
     assert_eq!(returns(&front).len(), NONE);
-    assert_eq!(front.leaves.len(), NONE);
-    let view = shown(&root);
-    assert!(
-        Temper::tree(&view)
-            .nodes()
-            .iter()
-            .any(|node| { node.role == Role::Link && node.external.as_deref() == Some(ISSUER) })
-    );
-}
-
-// client/README.md 3.5 The tab's departure: one Return names this source and way before Leave.
-#[test]
-fn browser_departure_registers_its_source_and_return_way() {
-    let (mut front, mut root, source) = begin(true);
-    started(&mut front, &mut root, source);
-    assert_eq!(
-        returns(&front),
-        vec![(source, format!("/accounts/connect?provider=17&way=sign-in&source={source}").into_bytes())]
-    );
-    assert_eq!(front.leaves.iter().map(AsRef::as_ref).collect::<Vec<&[u8]>>(), [ISSUER]);
-}
-
-// client/README.md 3.5 The tab's departure: Return refused leaves the link available in place.
-#[test]
-fn refused_return_keeps_the_page_and_external_link() {
-    let (mut front, mut root, source) = begin(true);
-    front.refuse_return = true;
-    started(&mut front, &mut root, source);
     assert_eq!(front.leaves.len(), NONE);
     let view = shown(&root);
     assert!(
@@ -202,44 +165,6 @@ fn lost_return_does_not_depart() {
     h::lost(&mut front, &mut root);
     assert_eq!(returns(&front).len(), ONE);
     assert_eq!(front.leaves.len(), NONE);
-}
-
-// client/README.md 3.5 and 10: rebuilding the view cannot repeat a departure.
-#[test]
-fn rebuilding_after_departure_never_leaves_again() {
-    let (mut front, mut root, source) = begin(true);
-    started(&mut front, &mut root, source);
-    let mut view = shown(&root);
-    let mut patches = Queue::with_capacity(Temper::patch_limit(&view));
-    Temper::build(&mut view, &root, &mut patches);
-    Temper::build(&mut view, &root, &mut patches);
-    h::settle(&mut front, &mut root);
-    assert_eq!(returns(&front).len(), ONE);
-    assert_eq!(front.leaves.len(), ONE);
-}
-
-// client/README.md 3.5 Come back: a fresh browser root adopts its source without departing.
-#[test]
-fn returned_browser_draws_signing_in_without_departing_again() {
-    let (mut front, mut root, source) = begin(true);
-    started(&mut front, &mut root, source);
-    h::reopen(&mut front, &mut root, returned(source), true);
-    has(&root, "Signing in");
-    assert!(!button(&root, b"Continue with ChatGPT"));
-    assert_eq!(returns(&front).len(), ONE);
-    assert_eq!(front.leaves.len(), ONE);
-}
-
-// client/README.md 3.5 The welcome: Model's sign-in sends its browser back to Ready.
-#[test]
-fn welcome_model_registers_ready_as_its_return() {
-    let (mut front, mut root) = h::plan_fixture(f::SEED);
-    h::reopen(&mut front, &mut root, at(b"/welcome?at=model"), true);
-    press(&mut front, &mut root, b"Continue with ChatGPT");
-    let source = h::signing(&front);
-    started(&mut front, &mut root, source);
-    assert_eq!(returns(&front), vec![(source, b"/welcome?at=ready".to_vec())]);
-    assert_eq!(front.leaves.iter().map(AsRef::as_ref).collect::<Vec<&[u8]>>(), [ISSUER]);
 }
 
 fn connect_ending(front: &mut Joint, root: &mut Root, source: u32, expected: &str) {

@@ -29,3 +29,24 @@ mod welcome;
 mod fuzzy {
     mod client;
 }
+
+mod accounts_edges;
+mod change_page;
+mod change_panel_edges;
+mod connect_model_edges;
+mod first_repository;
+mod first_run_hooks;
+mod forges_edges;
+mod github_connect;
+mod live_text;
+mod model;
+mod question;
+mod sign_in;
+mod sign_in_paste;
+mod task_pages;
+mod welcome_edges;
+mod welcome_m3;
+mod welcome_m3_owned;
+mod welcome_m4;
+
+mod reloads;

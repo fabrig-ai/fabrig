@@ -1,4 +1,4 @@
-//! GitHub QA on the joint engine/client world, with scripted setup and picker boundaries.
+//! GitHub scenarios on the joint engine/client world, with scripted setup and picker boundaries.
 use temper_client_world::fixtures;
 
 #[test]
@@ -73,7 +73,7 @@ fn install(front: &mut Joint, root: &mut Root, url: &[u8]) {
 }
 
 #[test]
-fn qa_an_abandoned_install_stays_connecting_and_install_again_can_accept() {
+fn an_abandoned_install_stays_connecting_and_install_again_can_accept() {
     // F-m3-2: no fake cancellation response exists. The first install tab is abandoned.
     let (mut front, mut root) = Joint::github_fixture_with(fixtures::SEED, false, false);
     node(&view(&root), Role::Heading { level: 2 }, "Install temper’s App".as_bytes());
@@ -125,7 +125,7 @@ fn qa_an_abandoned_install_stays_connecting_and_install_again_can_accept() {
 }
 
 #[test]
-fn qa_ready_for_an_account_without_repositories_says_none_reachable() {
+fn ready_for_an_account_without_repositories_says_none_reachable() {
     let (front, root) = Joint::github_fixture_with(fixtures::SEED, true, true);
     assert_eq!(front.reachable_reads, [(1, Some(1), 1)]);
     let ready = view(&root);

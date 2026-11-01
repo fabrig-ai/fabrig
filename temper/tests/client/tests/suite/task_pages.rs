@@ -1,4 +1,4 @@
-//! QA1: task pages against B2's real engine, including terminal watch/read order.
+//! task pages against B2's real engine, including terminal watch/read order.
 use jig_client_world::harness::{ClientId, Until, World};
 use skein_fake_person::{Find, Step, Target};
 use skein_ui::Role;
@@ -94,7 +94,7 @@ fn fresh_waiting_delegate_tracks_dependency_completion_then_its_own_result() {
 // 6.10: a fresh client at its address asks the reads (the ended subject has no live watch),
 // and a browser's reload is "a new client at that address". This world's `reload` is a
 // terminal restart, which keeps no address (tests/client/src/front.rs), so the reload is a
-// second client at the address; Chromium's own reload is tests/client-browser's qa_task_pages.
+// second client at the address; Chromium's own reload is tests/client-browser's task_pages.
 #[test]
 fn fresh_ended_advisor_keeps_its_brief_and_result_across_reload() {
     let (mut world, plan) = planned();

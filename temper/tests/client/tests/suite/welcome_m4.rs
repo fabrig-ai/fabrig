@@ -1,4 +1,4 @@
-//! Independent QA from client/README.md 3.5, 4.8, 5.5–5.6 and client/forge.md 5.4.
+//! Independent scenarios from client/README.md 3.5, 4.8, 5.5–5.6 and client/forge.md 5.4.
 use jig_client_world::harness::App;
 use skein_lib::Queue;
 use skein_ui::{Role, Tree};

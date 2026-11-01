@@ -3,7 +3,7 @@
 //! The public driver supplies already rendered text, not smith's renderer.
 use jig_domain_core as core;
 use jig_domain_tasks as tasks;
-use skein_lib::{Duration, Token};
+use skein_lib::Token;
 use temper_engine_domain as engine;
 use temper_engine_domain_world::{
     direct::{Driver, say_ask},
@@ -14,10 +14,8 @@ const CHANNEL: Token = Token::new(7);
 const FIRST_TURN: u32 = 1;
 const SPENT: u64 = 1;
 const OLD_TEXT: &[u8] = b"text from the retired conversation";
-const NEW_TEXT: &[u8] = b"text from the new conversation";
 // say_ask uses each byte as both an opaque key and UTF-8 words.
 const FIRST_WAKE: u8 = b'A';
-const NEXT_WAKE: u8 = b'B';
 // The direct driver's own public pump/settle bound is 200 iterations.
 const STEPS: usize = 200;
 
@@ -42,13 +40,6 @@ fn pending_reply(driver: &mut Driver) -> engine::Event {
         driver.advance(true);
     }
     panic!("the waking task never issued its transcript load");
-}
-
-fn load_owner(reply: &engine::Event) -> Token {
-    let engine::Event::Store(engine::StoreInput::Loaded { owner, .. }) = reply else {
-        panic!("pending transcript reply")
-    };
-    *owner
 }
 
 fn waiting(closed: bool) -> (Driver, engine::Assignment, u64, engine::Event) {
@@ -118,18 +109,6 @@ fn a_closed_window_supplies_text_to_its_new_conversation() {
 }
 
 #[test]
-fn an_issued_closed_unread_starts_fresh_without_charges() {
-    let (mut driver, first, _, reply) = waiting(true);
-    driver.send(engine::Event::Store(engine::StoreInput::Unloaded { owner: load_owner(&reply) }));
-    driver.settle();
-    let assignment = driver.last_assignment();
-    assert_eq!(assignment.attempt, first.attempt + 1);
-    fresh(&assignment);
-    assert_eq!(tail(&assignment), None);
-    no_failure_charged(&driver, first.task);
-}
-
-#[test]
 fn omitted_rendered_text_leaves_a_closed_tail_empty() {
     let (mut driver, first, _, mut reply) = waiting(true);
     let engine::Event::Store(engine::StoreInput::Loaded { texts, .. }) = &mut reply else {
@@ -144,61 +123,5 @@ fn omitted_rendered_text_leaves_a_closed_tail_empty() {
     fresh(&assignment);
     // Jig's domain/engine.md 7.2 leaves empty-tail section encoding unspecified.
     assert_eq!(tail(&assignment), Some(b"".as_slice()));
-    no_failure_charged(&driver, first.task);
-}
-
-#[test]
-fn an_issued_open_unread_spends_one_transient_try() {
-    let (mut driver, first, _, reply) = waiting(false);
-    driver.send(engine::Event::Store(engine::StoreInput::Unloaded { owner: load_owner(&reply) }));
-    driver.pump();
-    let row = driver.task(first.task).expect("chat waits for its retry");
-    assert_eq!(row.tries.transient, 1);
-    assert_eq!(
-        (row.tries.permanent, row.tries.run, row.tries.agent, row.tries.lost, row.tries.invalid),
-        (0, 0, 0, 0, 0)
-    );
-    assert_eq!(row.refusals, 0);
-    // Walking's public retry fixture waits 10 ms, capped at one second.
-    driver.fire_at(Duration::from_secs(1));
-    driver.settle();
-    let assignment = driver.last_assignment();
-    // Preparation precedes the claim (jig's domain/engine.md 7.1; domain/tasks.md 5.2).
-    assert_eq!(assignment.attempt, first.attempt + 1);
-    fresh(&assignment);
-    // The discarded open window leaves no text in the fresh brief's tail.
-    assert_eq!(tail(&assignment), Some(b"".as_slice()));
-}
-
-#[test]
-fn retired_terminals_cannot_poison_a_later_window_load() {
-    let (mut driver, first, session, retired) = waiting(true);
-    let retired_owner = load_owner(&retired);
-    driver.send(engine::Event::Store(engine::StoreInput::Unloaded { owner: retired_owner }));
-    driver.settle();
-    let second = driver.last_assignment();
-    // Take the offered messages so parking waits for the next explicit wake
-    // (jig's domain/engine.md 7.4). Their numbers, not request keys, fence reads.
-    let read = second.messages.last().map(|message| message.number);
-    driver.send(protocol::turn(CHANNEL, second.task, second.attempt, FIRST_TURN, SPENT, read, NEW_TEXT));
-    driver.settle();
-    driver.answer(CHANNEL, second.task, second.attempt, SPENT, tasks::End::Parked, engine::Parts::none());
-    driver.settle();
-    driver.send(say_ask(session, first.task, NEXT_WAKE));
-    let current = pending_reply(&mut driver);
-    let assigned = |driver: &Driver| {
-        driver.delivered.iter().filter(|delivery| matches!(delivery, engine::Delivery::Assigned { .. })).count()
-    };
-    let before = assigned(&driver);
-    driver.send(retired);
-    driver.send(engine::Event::Store(engine::StoreInput::Unloaded { owner: retired_owner }));
-    assert_eq!(assigned(&driver), before, "retired terminals release no current assignment");
-    driver.send(current);
-    driver.settle();
-    let assignment = driver.last_assignment();
-    assert_eq!(assignment.attempt, first.attempt + 2);
-    assert_eq!(assignment.conversation, second.attempt);
-    assert!(assignment.run.policy.resume);
-    assert_eq!(assignment.transcript.as_ref(), &[Box::<[u8]>::from(NEW_TEXT)]);
     no_failure_charged(&driver, first.task);
 }

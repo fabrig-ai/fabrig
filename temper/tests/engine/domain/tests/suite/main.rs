@@ -49,3 +49,10 @@ mod fuzzy {
     mod roles;
     mod walking;
 }
+
+mod added_deps;
+mod change_panel;
+mod first_repository;
+mod github_land;
+mod kept_change;
+mod upgrade_transcripts;

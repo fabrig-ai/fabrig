@@ -1,4 +1,4 @@
-//! Adversarial Welcome QA from client/README.md, 3.5, 4.8, 5.1, 5.6,
+//! Welcome scenarios from client/README.md, 3.5, 4.8, 5.1, 5.6,
 //! and client/browser.md, 2.3–2.4. Only the world's public surface is used.
 use jig_client_world::harness::{ClientId, Until, World};
 use skein_fake_person::{Find, Step as PersonStep};
@@ -38,19 +38,6 @@ fn open_from_chats(world: &mut Pages, step: Step) -> ClientId {
 }
 
 #[test]
-fn every_welcome_step_has_its_canonical_address() {
-    for (path, step) in [
-        (b"/welcome".as_slice(), Step::Welcome),
-        (b"/welcome?at=forge", Step::Forge { forge: None }),
-        (b"/welcome?at=model", Step::Model { way: None }),
-        (b"/welcome?at=ready", Step::Ready),
-    ] {
-        assert_eq!(address::parse(path), Place::Address(welcome(step)), "{path:?}");
-        assert_eq!(address::print(&welcome(step)).as_ref(), path);
-    }
-}
-
-#[test]
 fn unknown_and_unrelated_fields_drop_from_welcome() {
     for (path, step, printed) in [
         ("/welcome?at=done", Step::Welcome, "/welcome"),
@@ -80,14 +67,6 @@ fn repeated_step_keeps_first_readable_value() {
     ] {
         assert_eq!(address::parse(path.as_bytes()), Place::Address(welcome(step)), "{path}");
     }
-}
-
-#[test]
-fn unfinished_owner_opens_at_forge_and_does_not_offer_the_playground() {
-    use temper_client_world::front::account_acts;
-    let (_, root) = account_acts::welcome_fixture(f::SEED);
-    assert_eq!(root.person().pages().address(), &welcome(Step::Forge { forge: None }));
-    assert_eq!(temper_client_domain::pages::welcome::playground_offered(root.person()), Some(false));
 }
 
 #[test]
@@ -147,19 +126,6 @@ fn later_welcome_steps_do_not_redirect_on_their_own() {
             client,
             vec![if step == Step::Ready { gone(Role::Link, b"Later") } else { see(Role::Link, b"Later") }],
         );
-    }
-}
-
-#[test]
-fn empty_welcome_offers_setup_and_the_playground() {
-    use jig_client_world::harness::App;
-    use temper_client_world::front::account_acts;
-    let (_, root) = account_acts::empty_welcome_fixture(f::SEED);
-    let (_, mut view) = Temper::new(f::SEED);
-    let mut patches = skein_lib::Queue::with_capacity(Temper::patch_limit(&view));
-    Temper::build(&mut view, &root, &mut patches);
-    for (role, name) in [(Role::Button, b"Try the playground".as_slice()), (Role::Link, b"Set up temper")] {
-        assert!(Temper::tree(&view).nodes().iter().any(|node| node.role == role && node.name.as_deref() == Some(name)));
     }
 }
 

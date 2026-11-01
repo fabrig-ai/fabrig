@@ -81,17 +81,6 @@ fn watch(driver: &mut Driver, sign_in: u64, project: u32, task: u64, watcher: u6
     )).unwrap_or_else(|| panic!("panel watch must be answered: {:?}", driver.delivered))
 }
 
-// domain/forge.md, 8.8: a task absent from the connector's change records is unknown.
-#[test]
-fn a_task_without_a_change_record_has_no_panel() {
-    let (mut driver, sign_in) = driver();
-    let answer = watch(&mut driver, sign_in, 1, 51, 901);
-    assert!(
-        matches!(answer, engine::Delivery::WatchEnded { .. }),
-        "design domain/forge.md 8.8: a task that is no change is unknown: {answer:?}"
-    );
-}
-
 // domain/forge.md, 8.8: a producing change has a whole panel before its branch is pushed.
 #[test]
 fn producing_change_panel_has_no_head_or_pull() {

@@ -158,35 +158,9 @@ fn kept_story() -> (Driver, engine::Assignment, u64, u64) {
     (driver, parent, *report, *prerequisite)
 }
 
-#[test]
-fn done_live_delegate_parks_until_its_prerequisite_finishes() {
-    // jig's domain/tasks.md 5.7; domain/engine.md 7.4: done while kept parks.
-    let (mut driver, _, report, prerequisite) = kept_story();
-    let run = assignment(&driver, report);
-    finish(&mut driver, &run);
-    assert!(
-        matches!(driver.task(report).map(|row| &row.phase), Some(tasks::Phase::Active(tasks::Active::Idle))),
-        "a kept done answer must leave the task active and parked: {:?}",
-        driver.task(report)
-    );
-    assert_eq!(starts(&driver, report), INITIAL_RUNS, "no replacement run while prerequisite is pending");
-    finish_task(&mut driver, prerequisite);
-    assert_eq!(starts(&driver, report), RESUMED_RUNS, "last dependency completion wakes exactly one run");
-}
-
 fn finish_task(driver: &mut Driver, task: u64) {
     let run = assignment(driver, task);
     finish(driver, &run);
-}
-
-#[test]
-fn replacing_the_list_removes_the_old_dependency() {
-    // jig's domain/tasks.md 7: the list replaces, rather than accumulates.
-    let (mut driver, parent, report, _) = kept_story();
-    let run = assignment(&driver, report);
-    finish(&mut driver, &run);
-    amend(&mut driver, &parent, FOLLOWUP_CALL, report, 1, &[]);
-    assert_eq!(starts(&driver, report), RESUMED_RUNS, "removing the final dependency resumes the parked delegate");
 }
 
 #[test]

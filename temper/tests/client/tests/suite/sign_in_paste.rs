@@ -1,4 +1,4 @@
-//! Paste QA through the existing joined client world and its public acts.
+//! Paste scenarios through the existing joined client world and its public acts.
 use jig_client_world::harness::App;
 use jig_domain_accounts as a;
 use skein_lib::{Queue, Secret};

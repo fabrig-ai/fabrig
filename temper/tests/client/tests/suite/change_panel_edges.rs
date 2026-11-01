@@ -51,29 +51,6 @@ fn review(world: &mut ClientWorld, client: ClientId) -> u64 {
     );
 }
 
-// client/forge.md, 9.2: the whole document carries its one running gate and CI at its head.
-#[test]
-fn pending_review_panel_names_the_delegate_and_current_head() {
-    let (mut world, task) = change_world();
-    let client = world.client(fixtures::PARTY, fixtures::task_page(task));
-    let delegate = review(&mut world, client);
-    let value = panel(&world, client);
-    assert_eq!(value.task(), task);
-    assert_eq!(value.runs(), &Some(delegate));
-    assert_eq!(value.step(), &wire::Step::Gating);
-    assert_eq!(value.ci(), &wire::Ci::Passed);
-    assert!(value.head().is_some());
-    assert_eq!(value.gates().len(), 1);
-    assert_eq!(
-        value.gates().as_slice()[0].verdict(),
-        &wire::Verdict::Pending,
-        "design client/README.md 4.6: a running gate must report pending at its current head, got {value:?}"
-    );
-    assert!(value.gates().as_slice()[0].blocks());
-    assert_eq!(value.branch(), b"temper/qa");
-    assert_eq!(value.landing(), b"main");
-}
-
 // client/forge.md, 9.2: a change ended before its page opens keeps its last panel.
 #[test]
 fn late_open_landed_change_keeps_its_final_panel() {

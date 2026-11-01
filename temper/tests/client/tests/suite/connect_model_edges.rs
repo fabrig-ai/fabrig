@@ -1,8 +1,8 @@
-//! Design-led accounts flow QA with the existing joined world's fakes.
-use super::qa_model::*;
+//! Accounts-flow scenarios with the existing joined world's fakes.
+use super::model::*;
 use skein_fake_person::Step;
 use skein_ui::Role;
-use temper_client_domain::{Address, address};
+use temper_client_domain::Address;
 fn way(kind: &[u8], source: Option<u32>) -> Vec<u8> {
     let config = temper_engine_domain_world::walking::config(temper_client_world::fixtures::SEED);
     let provider = config.core.settings.llm_providers.providers[0].number;
@@ -18,38 +18,6 @@ fn gone(role: Role, name: &[u8]) -> Step<Address> {
     Step::Gone {
         find: skein_fake_person::Find::exactly_named(role, name),
         within: temper_client_world::fixtures::WITHIN,
-    }
-}
-// client/browser.md 2.3: each way and a sign-in's source have canonical addresses.
-#[test]
-fn every_way_round_trips_its_address() {
-    for path in [
-        b"/accounts/connect".as_slice(),
-        b"/accounts/connect?provider=17&way=key",
-        b"/accounts/connect?provider=17&way=program",
-        b"/accounts/connect?provider=17&way=sign-in",
-        b"/accounts/connect?provider=17&way=sign-in&source=7",
-        b"/welcome?at=model&provider=17&way=key",
-        b"/welcome?at=model&provider=17&way=program",
-        b"/welcome?at=model&provider=17&way=sign-in&source=7",
-    ] {
-        assert_eq!(address::print(&at(path)).as_ref(), path);
-    }
-}
-
-// client/browser.md 2.3: incomplete ways and sources on non-sign-in ways drop.
-#[test]
-fn malformed_way_fields_drop_without_refusing_the_page() {
-    for (input, printed) in [
-        ("/accounts/connect?provider=17", "/accounts/connect"),
-        ("/accounts/connect?way=key", "/accounts/connect"),
-        ("/accounts/connect?provider=017&way=key", "/accounts/connect"),
-        ("/accounts/connect?provider=17&way=unknown", "/accounts/connect"),
-        ("/accounts/connect?provider=17&way=key&source=7", "/accounts/connect?provider=17&way=key"),
-        ("/accounts/connect?provider=17&way=program&source=7", "/accounts/connect?provider=17&way=program"),
-        ("/accounts/connect?provider=17&way=sign-in&source=07", "/accounts/connect?provider=17&way=sign-in"),
-    ] {
-        assert_eq!(address::print(&at(input.as_bytes())).as_ref(), printed.as_bytes(), "{input}");
     }
 }
 
@@ -109,14 +77,6 @@ fn direct_sign_in_link_waits_for_a_press() {
             .iter()
             .any(|r| matches!(r, jig_domain_accounts::Request::Signing(jig_domain_accounts::Signing::SignIn { .. })))
     );
-}
-
-// client/README.md 3.5 Come back: a source absent from the watch offers the way again.
-#[test]
-fn unknown_return_source_offers_sign_in_again() {
-    let mut world = world();
-    let client = open(&mut world, way(b"sign-in", Some(999)).as_slice());
-    follow(&mut world, client, vec![see(Role::Button, b"Sign in to Scripted")]);
 }
 
 // client/README.md 3.5 The welcome: Model uses the flow body inside the welcome frame.

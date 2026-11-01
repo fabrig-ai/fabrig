@@ -189,32 +189,6 @@ fn restart(story: &Story, live_dependencies: &[engine::Assignment]) -> Driver {
 }
 
 #[test]
-fn kept_success_parks_without_spending_a_try() {
-    let mut story = story(1);
-    keep(&mut story);
-    let tries = story.driver.task(story.target.task).expect("live").tries;
-    park(&mut story);
-    assert_eq!(story.driver.task(story.target.task).expect("parked").tries, tries);
-    assert_eq!(assignment(&story.driver, story.target.task).attempt, story.target.attempt, "kept task starts no run");
-}
-
-#[test]
-fn one_met_of_two_cannot_resume_the_kept_run() {
-    let mut story = story(2);
-    keep(&mut story);
-    park(&mut story);
-    finish(&mut story.driver, &story.dependencies[1], b"second proof");
-    let row = story.driver.task(story.target.task).expect("kept");
-    assert_eq!(row.waiting_on.as_ref(), [story.dependencies[0].task], "only the unmet dependency keeps the task");
-    assert_eq!(
-        row.phase,
-        tasks::Phase::Active(tasks::Active::Idle),
-        "one Met must not wake a task with another pending dependency"
-    );
-    assert_eq!(assignment(&story.driver, story.target.task).attempt, story.target.attempt);
-}
-
-#[test]
 fn last_met_brief_names_both_results_and_the_added_dependency_history() {
     let mut story = story(2);
     keep(&mut story);

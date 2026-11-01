@@ -1,4 +1,4 @@
-//! Design-only adversarial QA: client/forge.md 5.4; client/README.md
+//! Adversarial scenarios: client/forge.md 5.4; client/README.md
 //! 3.5, 4.6, 4.8, 5.1–5.3, 5.6; client/browser.md 2.3.
 use jig_client_world::harness::{ClientId, Fault, Until, World};
 use skein_fake_person::{Find, Step as PersonStep};
