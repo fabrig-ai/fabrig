@@ -1,4 +1,4 @@
-//! Harness contracts run once in focused (testing-strategy.md, 8).
+//! Harness contracts run once in focused (skein/docs/foundation/testing-strategy.md, 8).
 use crate::support;
 
 #[test]

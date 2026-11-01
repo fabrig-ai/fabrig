@@ -2019,6 +2019,35 @@ exec "$@"
 
 // domain/testing.md, 2.6: the chat's connected GitHub change survives both services restarting.
 
+// Shows the retained question and one answer across ws's two lives. Leaves out
+// the hang past grace, three questions and the other limits of testing.md, 5.3's 4.6 row.
+// The retry runs on s1 or s2 by that row's act order: ws stays ended and unlinked
+// until after the ended chat's watch joins; the oracle checks both attempts.
+#[test]
+#[ignore = "waits on jig's fleet: a retry placed on a stopping worker's still-linked channel is rechecked and journaled as an extra refused attempt (3 in 85 runs since the waiting read, all under load); jig is to take a worker out of placement as it drains, before its runs end"]
+fn a_restarted_workstation_keeps_the_directors_question_and_answers_it_once_as_processes_without_a_hang_past_the_grace()
+{
+    use temper_real_loop_world::case::{self, acts, oracle};
+    let run = support::case::run(
+        &["ws", "s1", "s2"],
+        case::fixture_4_6(),
+        case::scripts::step_4_6,
+        case::scripts::step_4_6_rules,
+        acts::step_4_6(0),
+        &[case::HANG],
+    );
+    for (at, call) in run.calls().iter().enumerate() {
+        assert_eq!(
+            call.exit,
+            Some(skein_io::kernel::Exit::Code(0)),
+            "call {at}: {}",
+            String::from_utf8_lossy(&call.stderr)
+        );
+    }
+    oracle::assert_met(&oracle::step_4_6(&run.observed(acts::READS_4_6)));
+    assert_eq!(run.first_placed().get(&case::HANG).map(String::as_str), Some("ws"));
+}
+
 #[test]
 fn an_owned_forgejo_signs_its_member_in_through_temper() {
     let scratch = support::Scratch::new("forgejo_sign_in");

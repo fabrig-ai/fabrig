@@ -1,4 +1,4 @@
-//! Two parked runs retain their settings until the owner's advance (client/tools.md, 11.4).
+//! Two parked runs retain their settings until the owner's advance (temper/docs/design/client/tools.md, 11.4).
 use jig_domain_core::settings as s;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;

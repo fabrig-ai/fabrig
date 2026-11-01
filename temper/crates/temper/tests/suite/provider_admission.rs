@@ -1,4 +1,4 @@
-//! Startup refusals promised by protocol/sign-in.md 9.2 and 9.7.
+//! Startup refusals promised by temper/docs/design/protocol/sign-in.md, 9.2 and 9.7.
 use crate::support;
 
 use std::{

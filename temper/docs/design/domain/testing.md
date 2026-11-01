@@ -830,7 +830,8 @@ terminal client, the captures and the faults.
   holds are jig's core and temper's client-tool tests; two parked tasks
   keeping revision R until the owner's advance is `tests/system`'s
   `running_revision`. Held reviewers' readable budget and owner holds
-  survive cold restart in the engine domain's `reviews::retier` table.
+  survive cold restart in the engine domain's `reviews::retier` table;
+  the pre-call reviewer has attempt zero before and after that restart.
   Producer failure and the chat's explanation are `producer_failure`'s;
   task-exhaustion review holds are `reviews`'s. Long questions and closed
   conversations use the client world's cut-question and open-chat stories,
@@ -1025,11 +1026,11 @@ terminal client, the captures and the faults.
   - *the box and its forge:* `temper init` into three empty private
     directories, the sign-in's and the LLM endpoint's addresses swapped
     for the fakes', then `temper box` on them, which reads that
-    document; forge 3 set up from the client and `work/hello` made and
-    adopted into project 1, by that story's steps;
+    document; the owned forge set up from the client and `work/hello` made and
+    adopted into project 2, by that story's steps;
   - *the change:* the owner connects ChatGPT (`account connect 1`,
     `account list --until settled`) and opens a chat on gpt-6-luna in
-    project 1 asking for one README line, unique to the run. The
+    project 2 asking for one README line, unique to the run. The
     chat's agent calls `change`, naming `work/hello`, and the root
     delegates the change procedure on it (agent.md, 4.3.1; forge.md,
     section 8); the coder edits on the plan's grant, its
@@ -1068,7 +1069,9 @@ terminal client, the captures and the faults.
   These remain in the process profile because SIGKILL/SIGSTOP,
   parent death, delegated cgroups and process exit order are their Musts.
   The reference case's 4.1/4.3 placement, 4.4 pace and 4.5 account choices
-  run only in the real-loop fuzzy stories.
+  run only in the real-loop fuzzy stories. The ignored process 4.6
+  workstation-restart finding remains: a draining OS worker can still
+  receive a retry before its channel is removed from placement.
 
 - **Outside the gate suites:** nextest profile `process-temper`, run once
   the binary and the fake `claude` are built, with `TEMPER_TEST_CLAUDE` set.
@@ -1316,7 +1319,9 @@ section 8; testing-strategy.md, 2.9).
   same code, first walks the whole story offline on the rung's twin
   (2.4). B0's three offline proofs are the ignored `proof_live` binary,
   run by `scripts/proof-live.sh rung-b0-offline` before the live story and never
-  in the process profile, so a driver's own fault is met there, never
+  in the process profile. The offline command selects only `proof_live`
+  under the manual live profile's timeout horizon, overriding its default
+  filter; it admits no live account. A driver's own fault is met there, never
   by spending a held login.
   - **Their stories are the third edition's** of the reference case
     (`../draft/reference-case.md`; the user, 10-27 and 10-30), with

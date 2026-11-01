@@ -11,7 +11,7 @@ if [ "${1-}" = rung-b0-offline ]; then
     export NEXTEST_DOUBLE_SPAWN=0
     # No live account is admitted by the offline proofs.
     [ -n "$heavy" ] || { printf '%s\n' 'heavy is required for offline proofs' >&2; exit 2; }
-    exec "$heavy" cargo nextest run -p temper --test proof_live --run-ignored only --no-fail-fast
+    exec "$heavy" cargo nextest run -p temper --test proof_live --profile live-temper --ignore-default-filter --run-ignored only --no-fail-fast
 fi
 case ${1-} in
     '') test_name=a_real_model_answers_a_chat_and_pushes_a_small_change ;;

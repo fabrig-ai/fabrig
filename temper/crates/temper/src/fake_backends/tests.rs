@@ -875,13 +875,16 @@ fn changed_source_bytes_or_directory_require_explicit_reset_without_writes() {
     let retained = prepared.directories.document();
     let before = fs::read(&retained).expect("effective public document");
     drop(prepared);
-    let original = fs::read(source.document()).expect("source public document");
-    let mut changed: serde_json::Value = serde_json::from_slice(&original).expect("public JSON");
-    changed["engine"]["deployment"]["seed"] = 42.into();
-    store_json(&source.document(), &changed);
-    assert!(start(&source, None).err().expect("changed source refused").contains("changed public source documents"));
-    assert_eq!(fs::read(&retained).expect("retained document"), before);
-    write(&source.document(), &original, true).expect("restore source fixture");
+    for name in ["temper.json", "agent.json"] {
+        let path = crate::path(&source.config).join(name);
+        let original = fs::read(&path).expect("source public document");
+        let changed = [original.as_slice(), b"\n"].concat();
+        write(&path, &changed, true).expect("changed public bytes");
+        let refusal = start(&source, None).err().expect("changed source refused");
+        assert!(refusal.contains("changed public source documents"), "{refusal}");
+        assert_eq!(fs::read(&retained).expect("retained document"), before);
+        write(&path, &original, true).expect("restore source fixture");
+    }
     let relocated = scratch.0.join("other-source");
     make_private(&relocated, skein_shell::effective_user()).expect("second public source");
     for name in ["temper.json", "agent.json"] {
@@ -894,6 +897,7 @@ fn changed_source_bytes_or_directory_require_explicit_reset_without_writes() {
         cache: source.cache.clone(),
         origins: source.origins,
     };
-    assert!(start(&other, None).err().expect("different source refused").contains("incompatible source directories"));
+    let refusal = start(&other, None).err().expect("different source refused");
+    assert!(refusal.contains("remove this sandbox directory explicitly to reset it"), "{refusal}");
     assert_eq!(fs::read(&retained).expect("retained document"), before);
 }

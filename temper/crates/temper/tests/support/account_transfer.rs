@@ -1,4 +1,4 @@
-//! A real CLI export interrupted at its Written boundary (client/tools.md, 11.4).
+//! A real CLI export interrupted at its Written boundary (temper/docs/design/client/tools.md, 11.4).
 #![expect(
     clippy::disallowed_methods,
     reason = "The process fixture joins the socket relay's workers; its gate and process waits use the story's patience."
