@@ -65,6 +65,7 @@ fn a_program_and_forgejo_here_reach_ready_on_the_fake_box() {
                         .contains("temper program-login --config CONFIG --data DATA --cache CACHE claude-owner")
                 );
                 program_account(accounts);
+                assert_eq!(ctl::json(accounts)["accounts"]["usable"], false);
                 // A read after these assertions lets the printed-command step follow the same act sequence.
                 Call::new(&["forge", "list", "--json"])
             })),
@@ -77,7 +78,10 @@ fn a_program_and_forgejo_here_reach_ready_on_the_fake_box() {
                 Call::new(&["account", "verify", &account, "--source", "program", "--json"])
             })),
             Act::Now(Call::new(&["account", "list", "--until", "usable", "--json"])),
-            Act::Now(Call::new(&["forge", "list", "--json"])),
+            Act::After(Box::new(|seen| {
+                assert_program_usable(seen.last().expect("usable wait completed"));
+                Call::new(&["forge", "list", "--json"])
+            })),
             Act::Now(Call::new(&["account", "list", "--json"])),
             Act::Mark("program ready"),
         ])
