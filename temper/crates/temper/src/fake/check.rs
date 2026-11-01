@@ -89,7 +89,8 @@ fn configuration(directories: &Directories, forge: u16) -> Result<temper_service
         .transpose()?;
     let limits = temper_service::startup::store_limits(&bytes, &jig, agent.as_ref())
         .map_err(|why| String::from_utf8_lossy(&temper_service::startup::lines(&why)).into_owned())?;
-    let entry = checked.setup.entry(forge).ok_or_else(|| format!("forge {forge}: the setup has no entry for it"))?;
+    let (entry, _) =
+        crate::setup::entry(directories, &checked, forge).map_err(|why| format!("forge {forge}: {why}"))?;
     match &entry.mode {
         Mode::Fake(_) => Ok(limits),
         Mode::Managed { .. } => Err(format!("forge {forge}: it is managed, not fake")),

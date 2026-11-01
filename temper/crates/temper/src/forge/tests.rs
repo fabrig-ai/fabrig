@@ -96,3 +96,56 @@ fn reconcile_directs_string_managed_to_the_client_before_files() {
         );
     }
 }
+
+#[test]
+fn prepare_reads_a_forge_from_its_group_file() {
+    use std::os::unix::fs::PermissionsExt;
+    let root = crate::directories::tests::scratch("prepare-group-file");
+    let directories = crate::directories::tests::given(&root);
+    let mut document = configuration::check_document(&root);
+    document["application"]["setup"] = serde_json::json!([]);
+    fs::write(directories.document(), serde_json::to_vec(&document).expect("document JSON")).expect("document");
+    let groups = root.join("data/box/groups");
+    fs::create_dir_all(&groups).expect("groups directory");
+    let path = groups.join("7");
+    fs::write(
+        &path,
+        serde_json::to_vec(&serde_json::json!({
+            "setup": {"forge":7, "start":"asked", "directory":"forge-7",
+                "bot":{"login":"temper", "email":"temper@example.test"},
+                "mode":{"owned":{"forgejo":root.join("missing-forgejo"), "runner":null,
+                    "listen":{"socket":"127.0.0.1:3000"},
+                    "person":{"login":"person", "email":"person@example.test"}}}},
+            "playground":false
+        }))
+        .expect("group JSON"),
+    )
+    .expect("group file");
+    fs::set_permissions(&path, fs::Permissions::from_mode(0o600)).expect("private group file");
+    let why = super::start(&directories, &["prepare".into(), "7".into()], None).expect_err("missing binary");
+    assert!(why.line().contains("command could not start"), "{}", why.line());
+    assert_eq!(fs::metadata(root.join("data/forge-7")).expect("forge directory").permissions().mode() & 0o777, 0o700);
+    fs::remove_dir_all(root).expect("scratch removed");
+}
+
+#[test]
+fn commands_name_the_absent_group_file() {
+    let root = crate::directories::tests::scratch("forge-absent-group");
+    let directories = crate::directories::tests::given(&root);
+    let document = configuration::check_document(&root);
+    fs::write(directories.document(), serde_json::to_vec(&document).expect("document JSON")).expect("document");
+    for verb in ["fetch", "prepare", "run", "sign-in"] {
+        let mut arguments = vec![verb.into(), "7".into()];
+        if verb == "run" {
+            arguments.push("forgejo".into());
+        }
+        assert_eq!(
+            super::start(&directories, &arguments, None).expect_err("absent entry").line(),
+            format!(
+                "temper forge {verb}: forge 7: the setup has no entry for it and {} is absent\n",
+                root.join("data/box/groups/7").display()
+            )
+        );
+    }
+    fs::remove_dir_all(root).expect("scratch removed");
+}

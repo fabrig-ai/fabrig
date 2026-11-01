@@ -1,6 +1,7 @@
 //! Machine templates are checked beside the seed's setup entries (contracts, 6).
 use super::*;
 use serde_json::Value;
+use std::{fs, os::unix::fs::PermissionsExt};
 
 fn document() -> Value {
     use core::num::NonZeroU16;
@@ -92,4 +93,57 @@ fn the_machine_listeners_are_unique_among_other_kinds() {
     d["application"]["demo"]["fake"]["mode"]["fake"]["listen"]["socket"] =
         d["application"]["setup"][1]["mode"]["owned"]["listen"]["socket"].clone();
     assert_eq!(read(&d).expect_err("listener collision"), "application.demo.fake.mode.fake.listen: must be unique\n");
+}
+
+#[test]
+fn an_entry_comes_from_the_document_before_its_file() {
+    let root = crate::directories::tests::scratch("entry-document");
+    let directories = crate::directories::tests::given(&root);
+    let deployment = read(&document()).expect("checked document");
+    let groups = crate::path(&directories.data).join("box/groups");
+    fs::create_dir_all(&groups).expect("group directory");
+    // A refused file must not prevent the document's entry from being used.
+    fs::write(groups.join("3"), b"invalid JSON").expect("group file");
+    assert_eq!(
+        entry(&directories, &deployment.checked, 3).expect("document entry"),
+        (deployment.checked.setup.entry(3).expect("owned entry").clone(), false)
+    );
+    fs::remove_dir_all(root).expect("scratch removed");
+}
+
+#[test]
+fn an_entry_absent_from_both_names_the_file() {
+    let root = crate::directories::tests::scratch("entry-absent");
+    let directories = crate::directories::tests::given(&root);
+    let deployment = read(&document()).expect("checked document");
+    assert_eq!(
+        entry(&directories, &deployment.checked, 7).expect_err("absent entry"),
+        format!("the setup has no entry for it and {} is absent", root.join("data/box/groups/7").display())
+    );
+    assert!(!root.join("data").exists(), "lookup creates no files");
+    fs::remove_dir_all(root).expect("scratch removed");
+}
+
+#[test]
+fn a_refused_group_file_is_named() {
+    let root = crate::directories::tests::scratch("entry-refused");
+    let directories = crate::directories::tests::given(&root);
+    let deployment = read(&document()).expect("checked document");
+    let groups = root.join("data/box/groups");
+    fs::create_dir_all(&groups).expect("group directory");
+    let path = groups.join("7");
+    let mut setup = document()["application"]["setup"][1].clone();
+    setup["start"] = "asked".into();
+    let bytes = serde_json::to_vec(&serde_json::json!({"setup": setup, "playground": false})).expect("group JSON");
+    fs::write(&path, &bytes).expect("group file");
+    fs::set_permissions(&path, fs::Permissions::from_mode(0o600)).expect("private group file");
+    assert_eq!(
+        entry(&directories, &deployment.checked, 7).expect_err("mismatched forge"),
+        format!("{}: setup.forge: must match the group number\n", path.display())
+    );
+    fs::set_permissions(&path, fs::Permissions::from_mode(0o644)).expect("public group file");
+    let why = entry(&directories, &deployment.checked, 7).expect_err("unsafe file");
+    assert!(why.starts_with(&format!("{}: ", path.display())), "{why}");
+    assert!(why.contains("readable by others or reached through a link"), "{why}");
+    fs::remove_dir_all(root).expect("scratch removed");
 }
