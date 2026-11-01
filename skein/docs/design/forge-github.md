@@ -165,7 +165,7 @@ the call fails `TooLarge` when a 50th page still has a next.
 | `Read::Branches { prefix }` | `GET R/branches?per_page=<size>&page=<n>`, from 1 until no next | only names starting with the nonempty prefix, within `string_bytes`; a longer one skipped; only matches count against the answer bound, past it `TooLarge`; an empty prefix is `Empty` before any GET |
 | `Read::PullFiles { number, head, page }` | `GET R/pulls/<number>`; `GET R/compare/<base.sha>...<head.sha>?per_page=1`, for `merge_base_commit.sha`; `GET R/pulls/<number>/files?per_page=<size>&page=<page>`; for each file, the raw read (below) at the merge base, at `previous_filename` for `renamed`, but for `added`, and at the head but for `removed` | as forge.md 5.2; a `head.sha` other than `head` is `Stale` before any file is read; `more` from `Link` |
 | `Read::Compare { before, after }` | `GET R/compare/<before>...<after>?per_page=<size>`; for each file, the raw reads at `before` and `after` | `files[].filename` with its sides; `commits[].sha`; `contains_before` when `behind_by` is 0; `TooLarge` when the listed commits are fewer than `total_commits`, or `files` holds 300, GitHub's cap (`compare-files-capped-300`) |
-| `Read::Checks { commit }` | `GET R/commits/<commit>/status?per_page=<size>&page=<n>`, every page; `GET R/commits/<commit>/check-runs?filter=latest&per_page=<size>&page=<n>`, every page; for each failed check run of GitHub Actions, `GET R/actions/jobs/<id>` | each status as for `Statuses`; each check run as a `Status` (4.4), its `job` the commit, the run from `run_id`, the job its `id` and the attempt its `run_attempt` for an Actions run that failed, none otherwise |
+| `Read::Checks { commit }` | `GET R/commits/<commit>/status?per_page=<size>&page=<n>`, every page; `GET R/commits/<commit>/check-runs?filter=latest&per_page=<size>&page=<n>`, every page; for each failed Actions check with a resolvable link, `GET R/actions/jobs/<job>` | each status as for `Statuses`; each check run as a `Status` (4.4), its `job` the commit, the run from `run_id`, the job its `id` and the attempt its `run_attempt`, after validating the linked run and job and the requested head (4.4), none otherwise |
 | `Read::Job { attempt, max_bytes }` | `GET R/actions/jobs/<job>`; `GET R/actions/jobs/<job>/logs`, answered `302`; the redirect followed (section 10) | the failed step: the first of `steps[]` whose `conclusion` is `failure`, its `number` and `name`; the log's last `max_bytes` bytes (10); `MissingJob` on a `404` or `410`, or when `run_id`, `run_attempt` or `head_sha` is not the attempt's |
 | `Read::File { head, path, max_bytes }` | the raw read of `path` at `head` | the first `max_bytes` bytes, `truncated` when more came; `Missing` on a `404`, and on a JSON answer (a directory's listing) |
 | `Read::Protection { branch }` | `GET R/rules/branches/<branch>?per_page=100&page=<n>`, every page; for each ruleset named, `GET R/rulesets/<ruleset_id>`; `GET R/branches/<branch>/protection` | section 5.3 |
@@ -272,8 +272,17 @@ Batched reads are later (temper's draft 18).
 - **Which checks are CI** is the adoption's, the client's: the branch's
   required checks when its rules name them, else the Actions workflows'
   (temper's draft, 9). The dialect reads them all.
-- **An Actions job** is the check run whose `app.slug` is
-  `github-actions`; its id is the job's.
+- **An Actions job** has its own id, separate from the check-run id.
+  For a failed check, `html_url` with the repository's owner and name and
+  `/actions/runs/<run>/job/<job>` supplies candidate run and job ids;
+  an optional query is ignored. `app.slug` may be `github-actions` or
+  absent; an explicit other App and classic statuses have no job pin.
+  The link is only a candidate: skein requests the job through the
+  configured API, never the link's origin, and pins it only when `id`,
+  `run_id` and `head_sha` match that candidate and the requested head,
+  and `run_attempt` is positive. An unresolvable link leaves no pin;
+  conflicting job metadata fails the call. `Read::Job` revalidates the
+  full head/run/job/attempt before reading the log.
 
 ### 4.5 Actions, trees, refs and labels
 

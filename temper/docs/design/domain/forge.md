@@ -1142,6 +1142,11 @@ delegate's terminal wakes it to offer the landed result.
   step failed. The log is read at the job attempt that failed on this
   head, within the brief's byte budget, and its truncation is said; a
   read that fails is said in its place (skein's `forge.md`, 5.2).
+  On GitHub the pin comes from the failed check's resolved Actions job,
+  whose id may differ from the check-run id (skein's `forge-github.md`,
+  4.4). A log cut keeps its end, including a gate's complete timestamp
+  line when it fits, and marks the missing prefix. A pin for another
+  head is never read.
   Planning reserves the repair reason's allotment (CI's or reviews')
   before sizing the pull section's contents, retaining the core's
   context. When the brief cannot hold both section caps, their gathered

@@ -13,3 +13,7 @@
 - **Built:** 16 (`root.md`, 9.1): a restore begins with `restore_begin`, the start's one time; it loads every row, sweeps expired applications, and links at the core's `Link`, judging none. A link it cannot make is a `MissingLink { kind, key, need }`, its panic naming the record's key, found on the failure path from the retained rows and the client's `live_keys()`.
 - **Not yet:** 8.1, 8.3, 8.5: per-change bounds/gates/charters, person gates, review lens, posted verdict status and retargeting release. 8.7: no-CI adoption choice. 8.7 to 8.9, 16, 18: runtime landing settings. 12 to 14: stored findings, participating objects and upstream contributions beyond existing roles/news. GitHub queue/rules completion unknown. 8.1: the change page's line that a change takes no words.
 - **Built:** 8.3: the assembled brief and journal result bounds of 14,592 bytes; the reviews brief budget of 4,608 bytes. 8.3, 8.4: reviews and repairs share the pull section's identity before its contents; repairs carry gate remarks within the reviews cap, cut from their end and marked. Planning reserves the repair reason before pull contents; gathered sizes and priority fit a brief below both caps.
+
+- **Built:** 8.4: the GitHub gate regression retains the complete
+  `opened 2026-11-01T14:07:25Z` line with a marked log cut at the shipped
+  CI brief budget; a pin from another head remains unread.

@@ -94,6 +94,13 @@ A forge is where repositories live, GitHub or Forgejo, numbered when it is set u
 - **Yourself:** read diffs, reviews, CI runs and logs on the forge,
   at the numbers and links ctl prints (temper help ctl).
 
+A CI repair's brief carries the failed check and the end of its job's
+log, with a marker when the log was cut. On GitHub, `read_checks` also
+reports the resolved Actions job attempt for a failed check. Use those
+head, run, job and attempt values with `read_job` to read its log; a
+check-run number can differ from the job number. If no job attempt was
+resolved, the check says so.
+
 ## Limits
 
 - temper cannot replace a forge's key: a second connect is refused

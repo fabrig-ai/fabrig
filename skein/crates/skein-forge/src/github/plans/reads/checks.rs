@@ -79,33 +79,7 @@ impl Plan {
     pub(super) fn checks_row(&mut self, row: document::Row, bounds: Bounds) -> Result<(), api::Error> {
         let (status, job) = match row {
             document::Row::Context(context) if self.stage == Stage::Combined => (reading::status(context), None),
-            document::Row::Run(run) if self.stage == Stage::Runs => {
-                let commit = self.checks_commit()?;
-                let id = run.id.ok_or(api::Error::InvalidAnswer)?;
-                if run.head != Some(commit) {
-                    return Err(api::Error::InvalidAnswer);
-                }
-                let job = if run.check == api::Check::Failed && run.app.as_deref() == Some(b"github-actions") {
-                    Some(id)
-                } else {
-                    None
-                };
-                let at = match run.completed.or(run.started) {
-                    Some(wall) => Time::from_nanos(wall.as_nanos()),
-                    None => Time::ZERO,
-                };
-                (
-                    api::Status {
-                        at,
-                        context: run.name,
-                        check: run.check,
-                        description: run.title,
-                        url: run.url,
-                        job: None,
-                    },
-                    job,
-                )
-            }
+            document::Row::Run(run) if self.stage == Stage::Runs => self.checks_run(run)?,
             document::Row::Context(_)
             | document::Row::Run(_)
             | document::Row::Pull(_)
@@ -146,6 +120,56 @@ impl Plan {
         self.checks.statuses.push(status).ok().ok_or(api::Error::TooLarge)?;
         self.size = total;
         Ok(())
+    }
+    #[expect(clippy::manual_map, reason = "step code uses explicit matches without closure combinators")]
+    fn checks_run(&self, run: document::Run) -> Result<(api::Status, Option<u64>), api::Error> {
+        if run.id.is_none() || run.head != Some(self.checks_commit()?) {
+            return Err(api::Error::InvalidAnswer);
+        }
+        let actions = match run.app.as_deref() {
+            Some(app) => app == b"github-actions",
+            None => true,
+        };
+        let job = if run.check == api::Check::Failed && actions {
+            match self.checks_identity(&run.url) {
+                Some((_, job)) => Some(job),
+                None => None,
+            }
+        } else {
+            None
+        };
+        let at = match run.completed.or(run.started) {
+            Some(wall) => Time::from_nanos(wall.as_nanos()),
+            None => Time::ZERO,
+        };
+        Ok((
+            api::Status { at, context: run.name, check: run.check, description: run.title, url: run.url, job: None },
+            job,
+        ))
+    }
+    fn checks_identity(&self, url: &[u8]) -> Option<(u64, u64)> {
+        let row = self.row.as_ref()?;
+        let rest = match url.strip_prefix(b"https://") {
+            Some(rest) => rest,
+            None => url.strip_prefix(b"http://")?,
+        };
+        let slash = skein_lib::bytes::find(rest, b"/")?;
+        let path = rest
+            .get(slash..)?
+            .strip_prefix(b"/")?
+            .strip_prefix(row.owner.as_ref())?
+            .strip_prefix(b"/")?
+            .strip_prefix(row.name.as_ref())?
+            .strip_prefix(b"/actions/runs/")?;
+        let at = skein_lib::bytes::find(path, b"/job/")?;
+        let run = skein_lib::bytes::decimal(path.get(..at)?)?;
+        let tail = path.get(at.checked_add(b"/job/".len())?..)?;
+        let end = skein_lib::bytes::find(tail, b"?").unwrap_or(tail.len());
+        let job = skein_lib::bytes::decimal(tail.get(..end)?)?;
+        if run == 0 || job == 0 {
+            return None;
+        }
+        Some((run, job))
     }
     fn checks_next(&mut self) -> Result<bool, api::Error> {
         let next = match self.response {
@@ -194,7 +218,9 @@ impl Plan {
             return Err(api::Error::InvalidAnswer);
         }
         let (index, id) = self.checks.jobs.get(self.checks.job).ok_or(api::Error::InvalidAnswer)?;
-        if job.id != *id || job.head != commit {
+        let status = self.checks.statuses.get(*index).ok_or(api::Error::InvalidAnswer)?;
+        let (run, _) = self.checks_identity(&status.url).ok_or(api::Error::InvalidAnswer)?;
+        if job.id != *id || job.head != commit || job.run != run || job.attempt == 0 {
             return Err(api::Error::InvalidAnswer);
         }
         let status = self.checks.statuses.get_mut(*index).ok_or(api::Error::InvalidAnswer)?;

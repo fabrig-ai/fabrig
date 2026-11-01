@@ -30,7 +30,11 @@ fn run(id: u64, check: api::Check, app: &[u8]) -> document::Run {
         head: Some(head()),
         name: Box::from(*b"build"),
         title: Box::from(*b"widgets"),
-        url: Box::from(*b"https://example.invalid/check"),
+        url: alloc::fmt::format(format_args!(
+            "https://example.invalid/acme/widgets/actions/runs/9007199254740993/job/{id}"
+        ))
+        .into_bytes()
+        .into_boxed_slice(),
         app: Some(Box::from(app)),
         completed: Some(fixtures::wall()),
         ..document::Run::new(check)
@@ -184,7 +188,7 @@ fn github_checks_pages_and_actions_fanout() {
             assert_eq!(status.at, Time::from_nanos(fixtures::wall().as_nanos()));
             assert_eq!(status.context.as_ref(), b"build");
             assert_eq!(status.description.as_ref(), b"widgets");
-            assert_eq!(status.url.as_ref(), b"https://example.invalid/check");
+            assert_eq!(status.url, run(id, api::Check::Failed, b"github-actions").url);
             assert_eq!(status.job, Some(api::JobAttempt { head: head(), run: job(id).run, job: id, attempt: 2 }));
         }
     }
@@ -508,6 +512,72 @@ fn github_checks_display_bounds() {
                     assert_eq!(result, Err(Malformed::TooLong { field: key }));
                 }
             }
+        }
+    }
+}
+
+#[test]
+fn github_checks_resolve_actions_url_instead_of_check_run_id() {
+    let json = br#"{"total_count":1,"check_runs":[{"id":901,"head_sha":"0123456789abcdef0123456789abcdef01234567","name":"changes","status":"completed","conclusion":"failure","html_url":"https://github.com/acme/widgets/actions/runs/22/job/31","app":{"id":15368,"slug":"github-actions","name":"GitHub Actions"},"output":{"title":"Missing changes/31.md"}}]}"#;
+    for chunk in [1, 7] {
+        let (rows, decoded) = decode(Kind::CheckRuns, json, chunk, &limits());
+        assert_eq!(decoded, Ok(Document::Rows));
+        let [Row::Run(row)] = rows.as_slice() else { panic!("one check run") };
+        assert_eq!(row.app.as_deref(), Some(b"github-actions".as_slice()));
+        assert_eq!(row.check, api::Check::Failed);
+        let mut call = started(bounds(), chunk);
+        call.statuses(&[], false);
+        let mut out = Writer::new(json.len());
+        out.put(json).unwrap();
+        assert_eq!(call.json(Kind::CheckRuns, out, false), Some(Step::send(job_request(31))));
+        let row = document::Job { id: 31, run: 22, attempt: 2, head: head(), step: None };
+        let checks = answer(call.job(&row));
+        assert_eq!(checks[0].job, Some(api::JobAttempt { head: head(), run: 22, job: 31, attempt: 2 }));
+    }
+}
+
+#[test]
+fn github_checks_validate_linked_run_and_positive_attempt() {
+    for (run, attempt) in [(22, 2), (23, 2), (22, 0)] {
+        let mut call = runs_started(bounds());
+        let mut check = self::run(901, api::Check::Failed, b"github-actions");
+        check.url = Box::from(b"https://github.com/acme/widgets/actions/runs/22/job/31".as_slice());
+        assert_eq!(call.runs(&[check], false), Some(Step::send(job_request(31))));
+        let result = call.job(&document::Job { id: 31, run, attempt, head: head(), step: None });
+        if run == 22 && attempt == 2 {
+            assert!(answer(result)[0].job.is_some());
+        } else {
+            assert_eq!(result, failed(api::Error::InvalidAnswer));
+        }
+    }
+}
+
+#[test]
+#[expect(clippy::manual_map, reason = "the fixture spells out optional copies without closure combinators")]
+fn github_checks_only_resolve_actions_links_for_this_repository() {
+    for (app, url, resolves) in [
+        (None, b"https://github.com/acme/widgets/actions/runs/22/job/31?pr=31".as_slice(), true),
+        (Some(b"github-actions".as_slice()), b"https://github.com/acme/widgets/actions/runs/22/job/31", true),
+        (Some(b"other-app".as_slice()), b"https://github.com/acme/widgets/actions/runs/22/job/31", false),
+        (None, b"https://github.com/other/widgets/actions/runs/22/job/31", false),
+        (None, b"https://github.com/acme/other/actions/runs/22/job/31", false),
+        (None, b"https://github.com/acme/widgets/actions/runs/22/job/0", false),
+        (None, b"https://github.com/acme/widgets/actions/runs/0/job/31", false),
+        (None, b"https://github.com/acme/widgets/actions/runs/22/job/18446744073709551616", false),
+        (None, b"https://github.com/acme/widgets/actions/runs/22/job/31/extra", false),
+    ] {
+        let mut call = runs_started(bounds());
+        let mut check = run(901, api::Check::Failed, b"github-actions");
+        check.app = match app {
+            Some(app) => Some(Box::from(app)),
+            None => None,
+        };
+        check.url = Box::from(url);
+        let result = call.runs(&[check], false);
+        if resolves {
+            assert_eq!(result, Some(Step::send(job_request(31))));
+        } else {
+            assert!(answer(result)[0].job.is_none());
         }
     }
 }

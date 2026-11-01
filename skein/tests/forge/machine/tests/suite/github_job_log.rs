@@ -29,7 +29,7 @@ const REFUSED_COST: u32 = 2;
 // The fake's signed target lives for 600 wall seconds (fake-forge.md, 10.1).
 const SIGNATURE_LIFE: Duration = Duration::from_secs(600);
 // The failing build fixture's complete plaintext log, including setup and completion.
-const WHOLE_LOG: &[u8] = b"set up build\nfailing check build 0\nfailing check build 1\nfailing check build 2\nfailing check build 3\njob build failed\n";
+const WHOLE_LOG: &[u8] = b"set up build\nfailing check build 0\nfailing check build 1\nfailing check build 2\nfailing check build 3\nMissing changes/31.md with the line: opened 2026-11-01T14:07:25Z\njob build failed\n";
 const TAIL_BYTES: u32 = 8;
 
 fn origin(host: &[u8], port: u16) -> Origin {
@@ -224,4 +224,48 @@ fn github_expired_blob_signature_maps_to_forbidden() {
     terminal(&w, 2, FOLLOW_COST, &Err(Error::Forbidden));
     assert_eq!(w.blob_records().len(), 1);
     finish(&mut w, READY_REQUESTS + usize::try_from(FOLLOW_COST).unwrap());
+}
+
+const GATE_LINE: &[u8] = b"Missing changes/31.md with the line: opened 2026-11-01T14:07:25Z";
+
+fn checks_log(w: &mut Machine, head: api::Commit, call: u64) {
+    w.call(call, REPO, Op::Read(Read::Checks { commit: head }));
+    w.run_for(SECOND);
+    let answer = w.answered(call).expect("reviewer's checks");
+    let Ok(Value::Checks(checks)) = &answer.result else { panic!("checks: {answer:?}") };
+    let [check] = checks.as_ref() else { panic!("one failed check") };
+    assert_eq!(check.check, api::Check::Failed);
+    assert!(check.url.windows(b"/job/".len()).any(|bytes| bytes == b"/job/"));
+    let pinned = check.job.expect("Actions job resolved from its link");
+    assert_eq!(pinned.head, head);
+    w.call(call + 1, REPO, Op::Read(Read::Job { attempt: pinned, max_bytes: 96 }));
+    w.run_for(SECOND);
+    let Ok(Value::Job { attempt, log, truncated, .. }) = &w.answered(call + 1).expect("job log").result else {
+        panic!("pinned job log")
+    };
+    assert_eq!(*attempt, pinned);
+    assert!(*truncated);
+    assert!(log.windows(GATE_LINE.len()).any(|line| line == GATE_LINE));
+}
+
+#[test]
+fn github_failed_checks_pin_jobs_whose_logs_keep_the_gate_timestamp() {
+    const STATUS: &str =
+        "GET /repos/acme/widgets/commits/910a2dec89025cc1000000000000000100000000/status?per_page=8&page=1";
+    const CHECKS: &str = "GET /repos/acme/widgets/commits/910a2dec89025cc1000000000000000100000000/check-runs?filter=latest&per_page=8&page=1";
+    const NEXT_STATUS: &str =
+        "GET /repos/acme/widgets/commits/975835de1c9756ce000000000000000200000000/status?per_page=8&page=1";
+    const NEXT_CHECKS: &str = "GET /repos/acme/widgets/commits/975835de1c9756ce000000000000000200000000/check-runs?filter=latest&per_page=8&page=1";
+    const NEXT_JOB: &str = "GET /repos/acme/widgets/actions/jobs/2";
+    const NEXT_LOG: &str = "GET /repos/acme/widgets/actions/jobs/2/logs";
+    const NEXT_BLOB: &str = "GET /logs/2/2/1";
+    let mut w = world(
+        None,
+        None,
+        &[STATUS, CHECKS, JOB, JOB, LOG, BLOB, NEXT_STATUS, NEXT_CHECKS, NEXT_JOB, NEXT_JOB, NEXT_LOG, NEXT_BLOB],
+    );
+    // Both failed heads go through the same checks read exposed to reviewers.
+    checks_log(&mut w, skein_fake_forge_protocol::routes::object(1).bytes, 2);
+    checks_log(&mut w, skein_fake_forge_protocol::routes::object(2).bytes, 4);
+    finish(&mut w, READY_REQUESTS + 12);
 }
