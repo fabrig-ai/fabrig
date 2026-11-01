@@ -2236,6 +2236,9 @@ fn imported_restart_account(scratch: &std::path::Path, paths: &[std::path::PathB
     ctl_assert_success(&donor.calls);
     assert!(donor.checked.is_some(), "donor exported its fixture account: {}", String::from_utf8_lossy(&donor.stderr));
     assert_eq!(donor.exit, Some(Exit::Code(0)));
+    assert_eq!(donor.left, Some(Vec::new()), "the donor tree drained");
+    // Draw the recipient's listeners after the donor's connections have drained.
+    drop(restart_deployment(paths));
     // A move must find the very same provider registration at its destination.
     let read = |path| -> serde_json::Value {
         serde_json::from_slice(&std::fs::read(path).expect("fixture configuration")).expect("configuration JSON")
@@ -2252,7 +2255,6 @@ fn account_transfer_restart(case: &str) {
     use support::ctl::{Call, Step};
     let scratch = support::Scratch::new(case);
     let paths = ["config", "data", "cache"].map(|name| scratch.path().join(name));
-    drop(restart_deployment(&paths));
     imported_restart_account(scratch.path(), &paths);
     let flags = support::boxed::echo_steps(deployment_flags(&paths));
     let file = scratch.path().join("incoming-account.move");
@@ -2287,6 +2289,7 @@ fn account_transfer_restart(case: &str) {
         support::forge_land::fake_face(support::sign_in::restart_issued_issuer(&paths[0]), no_model_scripts()),
     );
     assert_eq!(first.exit, Some(Exit::Code(0)), "{}", String::from_utf8_lossy(&first.stderr));
+    assert_eq!(first.left, Some(Vec::new()), "the interrupted export's box drained");
     ctl_assert_success(&first.calls);
     assert!(first.checked.is_some());
     assert!(!file.exists(), "the account was imported");
@@ -2303,6 +2306,7 @@ fn account_transfer_restart(case: &str) {
         support::forge_land::fake_face(support::sign_in::restart_issued_issuer(&paths[0]), no_model_scripts()),
     );
     assert_eq!(second.exit, Some(Exit::Code(0)), "{}", String::from_utf8_lossy(&second.stderr));
+    assert_eq!(second.left, Some(Vec::new()), "the restarted box drained");
     ctl_assert_success(&second.calls);
     assert!(second.checked.is_some());
     let accounts = support::ctl::json(second.calls.last().expect("accounts read"));
