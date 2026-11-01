@@ -158,7 +158,7 @@ impl Core {
             tasks::Party::Person(party) => party,
             tasks::Party::Task(_) | tasks::Party::Deployment { .. } => return,
         };
-        if self.people.role(party, row.project).is_none() {
+        if self.deleting(row.project) || self.people.role(party, row.project).is_none() {
             return;
         }
         let seen = match seen {
