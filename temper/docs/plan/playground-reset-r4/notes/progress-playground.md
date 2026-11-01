@@ -15,6 +15,7 @@ final: tasks/pg-ctl.md
 final: tasks/pg-ctl-help.md
 final: tasks/pg-demo-out-wire.md
 final: tasks/pg-config.md
+final: tasks/pg-start.md
 
 ## Parts
 
@@ -29,6 +30,12 @@ final: tasks/pg-config.md
 - A project's Delete goes on a new page, a project's settings, `/projects/<project>/settings` (`Address::ProjectSettings`), linked from the navigation beside "Adoption"; temper's client had no project page (client/README.md, 11). `pg-project-page` makes it, `pg-project-delete` adds Delete.
 - Every new client word of the run is added at once by `pg-words` (ids 2200-2237), so the client tasks that run at once never edit `words.rs` (its `ALL` count and `PHRASES`/`SEGMENTS` literals conflict on any two edits).
 - Client tasks put their new tests and fixtures in new test files of their own; shared `fixtures.rs` files take only compiler-forced edits.
+
+- The playground's start makes each act as the person's own request under their sign-in (`MakeProject`, the carried `AddKey`, `SetUses`, the adoption), as the demo's start does today (`route/demo.rs`): jig has no deployment act setting an account's uses, and the person's requests need no new grant. So `engine.acts` needs nothing for the start (`bx-init`); the reset's acts are deployment acts (`remove_project`, `remove_account`, `cancel`).
+- The client keeps its `forge::Demo` names (`pg-client-read`), its `forge` and `project` options; the halves, retirement and the client's account removal go there. The banner, the reset's page and the pages with nothing to add are `pg-playground-pages`.
+- The client learns the playground's state from a new read, `Read::playground` / `PlaygroundAnswer { state: not_started | running | resetting, forge, project, ... }` (`pg-wire`), not by changing `DemoAnswer`; the demo's read leaves the wire in `pg-demo-out-wire`.
+- An `EndPlayground` on a resetting playground waits for the reset's end and answers `reset`; with no playground row it answers `reset` at once (nothing is left to reset); `not offered` only without `application.demo`. So a client that sends it again after a restart, or after the reset ended, is told `reset` (`pg-reset`).
+- `temper ctl` gains `playground reset` and `forge remove FORGE`; `forge setup`'s number is optional (`pg-ctl`); the generated help pages are the lead's (`pg-ctl-help`).
 
 ## Contract problems
 

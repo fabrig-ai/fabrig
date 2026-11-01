@@ -25,6 +25,13 @@ needs = []
 design = "temper/docs/design/draft/playground-reset.md, 3"
 
 [[part]]
+id = "forge-removal"
+title = "A forge removed whole: ended at once, its live work cancelled, its records erased, its box group removed, kept until whole; a set up cut short started over"
+mode = "direct"
+needs = []
+design = "temper/docs/design/draft/playground-reset.md, 4 and 6.4"
+
+[[part]]
 id = "playground"
 title = "The playground made when chosen as ordinary records, and reset to the welcome's Forge step; the demo and its halves gone"
 mode = "direct"
@@ -37,6 +44,12 @@ title = "The box runs a forge's group by its kind from the file serve writes, re
 mode = "direct"
 needs = []
 design = "temper/docs/design/draft/playground-reset.md, 3 and 4"
+
+[[slice]]
+id = 2
+story = "A forge removed whole, and a set up cut short found unfinished and started over, both ending whole across a restart"
+parts = ["forge-removal"]
+walk = false
 
 [[slice]]
 id = 3
