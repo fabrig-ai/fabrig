@@ -10,6 +10,7 @@ final: tasks/pd-wire.md
 final: tasks/pd-people-gone.md
 final: tasks/pd-close.md
 final: tasks/pd-erase-task.md
+final: tasks/pd-project-rows.md
 
 ## Parts
 
