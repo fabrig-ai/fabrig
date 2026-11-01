@@ -237,6 +237,16 @@ pub(super) fn row(d: &Domain, l: &Limits, row: &Stored) -> Result<(), RestoreFit
             d.flights.capacity(),
             d.flights.contains_key(&(*task, *entry)),
         ),
+        Stored::Forge(row) => room(
+            K::Forge,
+            Rows(K::Forge),
+            d.forge_records.len(),
+            d.forge_records.capacity(),
+            d.forge_records.contains_key(&row.number),
+        ),
+        Stored::Kept(row) => {
+            room(K::Kept, Rows(K::Kept), d.kept.len(), d.kept.capacity(), d.kept.contains_key(&row.key))
+        }
         Stored::DemoAct(row) => room(
             K::DemoAct,
             Rows(K::DemoAct),
@@ -277,7 +287,7 @@ pub(super) fn row(d: &Domain, l: &Limits, row: &Stored) -> Result<(), RestoreFit
             d.releases.capacity(),
             d.releases.contains_key(&row.task),
         ),
-        Stored::Demo(_) | Stored::Client(_) => Ok(()),
+        Stored::Demo(_) | Stored::Client(_) | Stored::Forges { .. } | Stored::Playground(_) => Ok(()),
     }
 }
 

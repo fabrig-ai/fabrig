@@ -196,3 +196,36 @@ fn flight_keys_name_task_then_entry_under_family_twenty_one() {
     assert_eq!(keys::flight(&trailing[..16]), None);
     assert_eq!(keys::flight(&[20]), None);
 }
+
+#[test]
+fn forge_keys_follow_receipts_in_order() {
+    use temper_engine_domain_forge::{Check, ReceiptKey};
+    let receipt = Key::Receipt(ReceiptKey {
+        project: u32::MAX,
+        repository: skein_forge::api::Repository { forge: u16::MAX, repository: u32::MAX },
+        check: Check::Tier(Box::from([255; 32])),
+        key: [255; 32],
+    });
+    let mut previous = keys::encode(&receipt, u32::MAX).unwrap();
+    for key in [
+        Key::Forge(0),
+        Key::Forge(1),
+        Key::Forge(u16::MAX),
+        Key::Forges,
+        Key::Playground,
+        Key::Kept([0; 16]),
+        Key::Kept([255; 16]),
+    ] {
+        let encoded = keys::encode(&key, u32::MAX).unwrap();
+        assert!(previous < encoded);
+        assert_eq!(keys::decode(&encoded, &fixtures::LIMITS), Some(key));
+        assert!(encoded.len() <= usize::try_from(keys::largest(&fixtures::LIMITS).unwrap()).unwrap());
+        previous = encoded;
+    }
+    let mut short = skein_kv::KeyWriter::new(u32::MAX);
+    short.tag(keys::KEPT).bytes(&[0; 15]);
+    assert_eq!(keys::decode(&short.finish().unwrap(), &fixtures::LIMITS), None);
+    let mut wide = skein_kv::KeyWriter::new(u32::MAX);
+    wide.tag(keys::FORGE).u64(u64::from(u16::MAX) + 1);
+    assert_eq!(keys::decode(&wide.finish().unwrap(), &fixtures::LIMITS), None);
+}

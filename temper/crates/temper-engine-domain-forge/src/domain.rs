@@ -117,6 +117,10 @@ pub(crate) type ConnectionState = (crate::Connection, Option<crate::FailedStep>)
 /// The bounded forge connector subtree.
 #[derive(Debug)]
 pub struct Domain {
+    pub(crate) forge_records: Map<u16, crate::Forge>,
+    next_forge: Option<u16>,
+    playground: Option<crate::Playground>,
+    pub(crate) kept: Map<[u8; 16], crate::KeptAct>,
     pub(crate) configured: Map<u16, crate::Configured>,
     pub(crate) under_box: bool,
     pub(crate) demo: Option<crate::DemoConfig>,
@@ -192,6 +196,34 @@ pub struct Domain {
 }
 
 impl Domain {
+    /// Return one restored forge by its number.
+    #[must_use]
+    pub fn forge_record(&self, number: u16) -> Option<&crate::Forge> {
+        self.forge_records.get(&number)
+    }
+    /// Iterate restored forges in number order.
+    #[expect(
+        clippy::disallowed_methods,
+        reason = "the required value iterator projects Map's keyed iterator without retained state"
+    )]
+    pub fn forge_records(&self) -> impl Iterator<Item = &crate::Forge> {
+        self.forge_records.iter().map(|(_, row)| row)
+    }
+    /// Return the next forge number, or one without its row (contracts, 2).
+    #[must_use]
+    pub fn next_forge(&self) -> u16 {
+        self.next_forge.unwrap_or(1)
+    }
+    /// Return the restored playground state.
+    #[must_use]
+    pub fn playground(&self) -> Option<&crate::Playground> {
+        self.playground.as_ref()
+    }
+    /// Iterate restored acts in key order.
+    pub fn kept(&self) -> impl Iterator<Item = (&[u8; 16], &crate::KeptAct)> {
+        self.kept.iter()
+    }
+
     /// Before the first input, size the volatile routing tables by the connection component's bounds.
     /// The product of the connection bounds must fit the installation row count.
     pub fn connection_limits(&mut self, forges: u32, installations: u32) {
@@ -489,6 +521,7 @@ impl Domain {
     }
     /// Construct a connector with the deployment namespace and any writers
     /// known at start; invalid limits or writer configuration are refused.
+    #[expect(clippy::too_many_lines, reason = "constructor initializes the connector tables together")]
     pub fn new(
         l: &Limits,
         seed: u64,
@@ -526,6 +559,10 @@ impl Domain {
             }
         }
         Ok(Domain {
+            forge_records: Map::with_capacity(l.client.repositories),
+            next_forge: None,
+            playground: None,
+            kept: Map::with_capacity(crate::kept_bound(l).expect("validated kept bound")),
             configured,
             under_box,
             demo: None,
@@ -4862,6 +4899,14 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
             // Cross-record reconciliation is the later restart stage (domain/root.md, 9.1).
             d.flights.insert((task, entry), ()).expect("restored flights within entry limit");
         }
+        Stored::Forge(row) => {
+            d.forge_records.insert(row.number, row).expect("restored forge within limits");
+        }
+        Stored::Forges { next } => d.next_forge = Some(next),
+        Stored::Playground(row) => d.playground = Some(row),
+        Stored::Kept(row) => {
+            d.kept.insert(row.key, row.act).expect("restored kept act within limits");
+        }
         Stored::DemoAct(row) => {
             d.demo_acts.insert(row.key, row.act).expect("restored demo acts within limits");
         }
@@ -5295,7 +5340,11 @@ impl Domain {
             | Stored::Demo(_)
             | Stored::Landed { .. }
             | Stored::Binding { .. }
-            | Stored::DemoAct(_) => return None,
+            | Stored::DemoAct(_)
+            | Stored::Forge(_)
+            | Stored::Forges { .. }
+            | Stored::Playground(_)
+            | Stored::Kept(_) => return None,
         };
         Some((u32::try_from(position).expect("retained rows fit their table capacity"), inserted))
     }
@@ -5398,7 +5447,13 @@ impl Domain {
                     unreachable!("client forge or repository link")
                 }
             },
-            RecordKind::Landed | RecordKind::Binding | RecordKind::DemoAct => unreachable!("row has no links"),
+            RecordKind::Landed
+            | RecordKind::Binding
+            | RecordKind::DemoAct
+            | RecordKind::Forge
+            | RecordKind::Forges
+            | RecordKind::Playground
+            | RecordKind::Kept => unreachable!("row has no links"),
         };
         Some(key)
     }

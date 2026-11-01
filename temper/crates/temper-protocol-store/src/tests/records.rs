@@ -1,5 +1,5 @@
 use super::fixtures;
-use crate::{records, v10};
+use crate::{records, v11};
 use temper_engine_domain_forge as forge;
 
 #[test]
@@ -44,6 +44,7 @@ fn bounds_take_each_limit_from_its_source() {
     for (name, value, expected) in [
         // Two four-byte lengths per segment, at most name_bytes empty segments.
         ("segments", limits.segments_segments, 1024),
+        ("setup names", limits.setup_name_name, fixtures::LIMITS.name_bytes),
         ("host", limits.adopted_host, 128),
         ("resources", limits.names_resources, 4),
         ("goal tasks", limits.subscriber_goal_tasks_some, 8),
@@ -55,7 +56,7 @@ fn bounds_take_each_limit_from_its_source() {
 #[test]
 fn bounds_refuse_sources_past_schema_ceilings() {
     let mut larger = fixtures::LIMITS;
-    larger.name_bytes = v10::CEILINGS.adopted_host.checked_add(1).expect("one past ceiling");
+    larger.name_bytes = v11::CEILINGS.adopted_host.checked_add(1).expect("one past ceiling");
     assert_eq!(crate::bounds(&larger, fixtures::LIMITS.client.op_bytes), None);
 }
 
@@ -713,21 +714,21 @@ fn every_application_outcome_preserves_its_complete_record() {
     assert!(
         jig_protocol_store::people_v13::Refusal::encoded_bound(&jig_protocol_store::people_v13::CEILINGS)
             .expect("bounded facts")
-            <= u64::from(v10::CEILINGS.core_refused_refusal)
+            <= u64::from(v11::CEILINGS.core_refused_refusal)
     );
 }
 #[test]
 fn application_decoding_refuses_malformed_refusal_facts() {
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
     for refusal in [Box::from([255]), Box::from([2]), Box::from([9, 0])] {
-        let value = v10::CoreRefused::new(&v10::CEILINGS, v10::CoreRefusedParts { refusal }).expect("small piece");
-        let application = v10::Application::new(
-            &v10::CEILINGS,
-            v10::ApplicationParts { token: 9, until: 10, outcome: v10::ApplicationOutcome::CoreRefused(value) },
+        let value = v11::CoreRefused::new(&v11::CEILINGS, v11::CoreRefusedParts { refusal }).expect("small piece");
+        let application = v11::Application::new(
+            &v11::CEILINGS,
+            v11::ApplicationParts { token: 9, until: 10, outcome: v11::ApplicationOutcome::CoreRefused(value) },
         )
         .expect("application");
         let row =
-            v10::Row::new(&v10::CEILINGS, v10::RowParts { value: v10::Value::Application(application) }).expect("row");
+            v11::Row::new(&v11::CEILINGS, v11::RowParts { value: v11::Value::Application(application) }).expect("row");
         assert_eq!(records::decode(&fixtures::encoded_row(&row), &bounds), Err(crate::Undecodable));
     }
 }
@@ -773,7 +774,7 @@ fn forge_writers_round_trip_with_the_v6_golden_bytes() {
         let key = crate::keys::encode(&forge::stored_key(&row), u32::MAX).expect("writer key");
         let bytes = records::encode(&row);
         assert_eq!(bytes.len(), 13); // Row version, family, forge, author.
-        assert_eq!(&bytes[..3], &[0, 10, 16]);
+        assert_eq!(&bytes[..3], &[0, 11, 16]);
         assert_eq!(records::row(&key, &bytes, &bounds), Ok(row));
         if forge == u16::MAX {
             let mut golden = [255; 11];
@@ -797,7 +798,7 @@ fn demo_states_round_trip_and_refuse_a_mismatched_key() {
             let key = crate::keys::encode(&forge::Key::Demo(forge), u32::MAX).expect("demo key");
             let bytes = records::encode(&row);
             assert_eq!(bytes.len(), 6);
-            assert_eq!(&bytes[..3], &[0, 10, 17]);
+            assert_eq!(&bytes[..3], &[0, 11, 17]);
             assert_eq!(records::row(&key, &bytes, &bounds), Ok(row));
             let other = crate::keys::encode(&forge::Key::Demo(forge ^ 1), u32::MAX).expect("other key");
             assert_eq!(records::row(&other, &bytes, &bounds), Err(crate::Undecodable));
@@ -821,7 +822,7 @@ fn binding_rows_round_trip_at_the_field_bounds() {
     ] {
         let row = forge::Stored::Binding { address, subject };
         let bytes = records::encode(&row);
-        assert_eq!(&bytes[..3], &[0, 10, 18]);
+        assert_eq!(&bytes[..3], &[0, 11, 18]);
         let key = crate::keys::encode(&forge::stored_key(&row), u32::MAX).unwrap();
         assert_eq!(records::row(&key, &bytes, &bounds), Ok(row));
         let other =
@@ -846,7 +847,7 @@ fn binding_decoder_preserves_bounded_noncanonical_addresses() {
 }
 #[test]
 fn binding_schema_refuses_fields_one_past_their_bounds() {
-    use crate::v10 as w;
+    use crate::v11 as w;
     for (address, subject) in [
         (Box::from([b'a'; 255]), b"subject".as_slice().into()),
         (b"sam@example.com".as_slice().into(), Box::from([b's'; 256])),
@@ -862,7 +863,7 @@ fn embedded_people_refusals_changed_at_store_nine() {
     let mut after = skein_lib::Writer::new(1);
     jig_protocol_store::people_v13::Refusal::Unknown.encode(&mut after).unwrap();
     assert_eq!(after.finish().as_ref(), &[10]);
-    assert_eq!(crate::STORE_VERSION, 10);
+    assert_eq!(crate::STORE_VERSION, 11);
 }
 
 #[test]
@@ -1247,4 +1248,193 @@ fn admitted_binding_and_writer_saves_obey_writer_rules_before_codec_round_trip()
         }
     }
     assert_eq!(saves, 2, "both real writer APIs emitted durable saves");
+}
+
+fn durable_forge() -> forge::Forge {
+    use forge::record as r;
+    forge::Forge {
+        number: 2,
+        kind: forge::Kind::GitHub,
+        api: r::Address::Host { name: b"api.github.com".as_slice().into(), port: 443 },
+        transport: r::Transport::Tls { server_name: b"api.github.com".as_slice().into(), trust: None },
+        git: Box::new([]),
+        git_program: None,
+        web: None,
+        read_only: false,
+        identity: r::Identity { number: 1, login: Box::new([]), name: Box::new([]), email: Box::new([]) },
+        files: None,
+        setup: None,
+        first: None,
+        playground: false,
+        removing: false,
+    }
+}
+fn setup_account() -> forge::record::Account {
+    forge::record::Account { login: b"temper".as_slice().into(), email: b"temper@example.invalid".as_slice().into() }
+}
+fn setup_origin() -> forge::record::Origin {
+    forge::record::Origin { host: b"forge.example.invalid".as_slice().into(), port: 443 }
+}
+fn full_forge() -> forge::Forge {
+    use forge::record as r;
+    let mut row = durable_forge();
+    row.number = 3;
+    row.kind = forge::Kind::Forgejo;
+    row.api = r::Address::Socket(core::net::SocketAddr::from((core::net::Ipv6Addr::LOCALHOST, 3000)));
+    row.transport = r::Transport::Plaintext;
+    row.git = b"http://[::1]:3000".as_slice().into();
+    row.git_program = Some(b"/bin/git".as_slice().into());
+    row.web = Some(b"https://forge.example.invalid".as_slice().into());
+    row.read_only = true;
+    row.identity = r::Identity {
+        number: u32::MAX,
+        login: b"temper".as_slice().into(),
+        name: b"Temper".as_slice().into(),
+        email: b"temper@example.invalid".as_slice().into(),
+    };
+    row.files = Some(r::Files {
+        api_token: b"secrets/api".as_slice().into(),
+        webhook_secret: Some(b"secrets/webhook".as_slice().into()),
+        user: r::FileUser::File(b"secrets/user".as_slice().into()),
+        git_token: Some(b"secrets/git".as_slice().into()),
+    });
+    row.setup = Some(r::Setup {
+        directory: b"/data/forge-3".as_slice().into(),
+        bot: setup_account(),
+        orgs: Box::new([b"acme".as_slice().into()]),
+        asked: true,
+        mode: r::SetupMode::Owned(r::OwnedEntry {
+            public: Some(setup_origin()),
+            fetch: r::Fetch {
+                forgejo: true,
+                runner: false,
+                mirror: Some(r::Mirror { forgejo: setup_origin(), runner: setup_origin() }),
+            },
+            forgejo: b"/cache/forgejo".as_slice().into(),
+            runner: Some(r::Runner {
+                binary: b"/cache/runner".as_slice().into(),
+                labels: Box::new([b"one:host".as_slice().into(), b"two:host".as_slice().into()]),
+                capacity: u32::MAX,
+                path: b"/bin:/usr/bin".as_slice().into(),
+            }),
+            listen: core::net::SocketAddr::from((core::net::Ipv6Addr::LOCALHOST, 3000)),
+            person: setup_account(),
+        }),
+    });
+    row.first = Some(r::FirstIntent {
+        org: b"acme".as_slice().into(),
+        repository: b"widget".as_slice().into(),
+        project: forge::SetUpProject::New(b"Project".as_slice().into()),
+        label: b"Forge".as_slice().into(),
+    });
+    row.playground = true;
+    row.removing = true;
+    row
+}
+fn round_trip_forge_row(row: forge::Stored) {
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    let value = records::encode(&row);
+    let key = crate::keys::encode(&forge::stored_key(&row), u32::MAX).unwrap();
+    assert_eq!(records::row(&key, &value, &bounds), Ok(row));
+}
+#[test]
+fn forge_rows_round_trip_with_their_keys() {
+    let full = full_forge();
+    for row in [durable_forge(), full.clone()] {
+        assert!(row.fits());
+        round_trip_forge_row(forge::Stored::Forge(row));
+    }
+    let value = records::encode(&forge::Stored::Forge(full.clone()));
+    let wrong = crate::keys::encode(&forge::Key::Forge(full.number + 1), u32::MAX).unwrap();
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    assert_eq!(records::row(&wrong, &value, &bounds), Err(crate::Undecodable));
+}
+#[test]
+fn fake_and_managed_setups_round_trip() {
+    use forge::record as r;
+    for mode in [
+        r::SetupMode::Fake(r::FakeEntry {
+            listen: core::net::SocketAddr::from(([127, 0, 0, 1], 8369)),
+            git: b"/data/demo/bin/git".as_slice().into(),
+            owner: b"playground".as_slice().into(),
+            repositories: Box::new([
+                r::FakeRepository { name: b"one".as_slice().into(), landing: b"main".as_slice().into() },
+                r::FakeRepository { name: b"two".as_slice().into(), landing: b"trunk".as_slice().into() },
+            ]),
+        }),
+        r::SetupMode::Managed { admin_token: None },
+        r::SetupMode::Managed { admin_token: Some(b"secrets/admin".as_slice().into()) },
+    ] {
+        let mut row = full_forge();
+        row.setup.as_mut().unwrap().mode = mode;
+        row.api = r::Address::Socket(core::net::SocketAddr::from(([127, 0, 0, 1], 3000)));
+        row.transport = r::Transport::Tls {
+            server_name: b"forge.example.invalid".as_slice().into(),
+            trust: Some(b"/certificates/root".as_slice().into()),
+        };
+        row.files.as_mut().unwrap().user = r::FileUser::Id(u64::MAX);
+        row.first.as_mut().unwrap().project = forge::SetUpProject::Existing(u32::MAX);
+        assert!(row.fits());
+        round_trip_forge_row(forge::Stored::Forge(row));
+    }
+}
+#[test]
+fn singleton_and_kept_rows_round_trip() {
+    round_trip_forge_row(forge::Stored::Forges { next: u16::MAX });
+    for state in [forge::PlaygroundState::Running, forge::PlaygroundState::Resetting] {
+        for (number, project, account) in [(None, None, None), (Some(u16::MAX), Some(u32::MAX), Some(u32::MAX))] {
+            round_trip_forge_row(forge::Stored::Playground(forge::Playground {
+                state,
+                forge: number,
+                project,
+                account,
+            }));
+        }
+    }
+    for act in [
+        forge::KeptAct::Cancel { project: u32::MAX, task: u64::MAX },
+        forge::KeptAct::RemoveProject { project: u32::MAX },
+        forge::KeptAct::RemoveAccount { account: u32::MAX },
+        forge::KeptAct::BoxRemove { forge: u16::MAX },
+        forge::KeptAct::RemoveForge { forge: u16::MAX },
+    ] {
+        round_trip_forge_row(forge::Stored::Kept(forge::Kept { key: [255; 16], act }));
+    }
+}
+#[test]
+fn forge_socket_drops_ipv6_flow_and_scope() {
+    use core::net::{SocketAddr, SocketAddrV6};
+    let mut row = durable_forge();
+    row.api =
+        forge::record::Address::Socket(SocketAddr::V6(SocketAddrV6::new(core::net::Ipv6Addr::LOCALHOST, 3000, 7, 9)));
+    let bytes = records::encode(&forge::Stored::Forge(row.clone()));
+    row.api = forge::record::Address::Socket(SocketAddr::from((core::net::Ipv6Addr::LOCALHOST, 3000)));
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    assert_eq!(records::decode(&bytes, &bounds), Ok(forge::Stored::Forge(row)));
+}
+
+#[test]
+fn setup_names_follow_the_configured_forge_name_bound() {
+    use forge::record as r;
+    let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).unwrap();
+    for additional in [0, 1] {
+        let mut row = full_forge();
+        let name = skein_lib::bytes::zeroed(usize::try_from(fixtures::LIMITS.name_bytes).unwrap() + additional);
+        row.setup.as_mut().unwrap().orgs = Box::new([name.clone()]);
+        let bytes = records::encode(&forge::Stored::Forge(row.clone()));
+        if additional == 0 {
+            assert_eq!(records::decode(&bytes, &bounds), Ok(forge::Stored::Forge(row.clone())));
+        } else {
+            assert_eq!(records::decode(&bytes, &bounds), Err(crate::Undecodable));
+        }
+        let r::SetupMode::Owned(owned) = &mut row.setup.as_mut().unwrap().mode else { panic!("owned fixture") };
+        owned.runner.as_mut().unwrap().labels = Box::new([name]);
+        row.setup.as_mut().unwrap().orgs = Box::new([]);
+        let bytes = records::encode(&forge::Stored::Forge(row.clone()));
+        if additional == 0 {
+            assert_eq!(records::decode(&bytes, &bounds), Ok(forge::Stored::Forge(row)));
+        } else {
+            assert_eq!(records::decode(&bytes, &bounds), Err(crate::Undecodable));
+        }
+    }
 }

@@ -89,6 +89,7 @@ pub fn valid(l: &Limits) -> bool {
         || l.entries > l.client.entries
         || l.holds > l.client.resources
         || demo_act_bound(l).is_none()
+        || kept_bound(l).is_none()
         || crate::reconcile::capacity(l).is_none()
         || !crate::landing::valid(l)
     {
@@ -106,4 +107,19 @@ pub(crate) const fn connection_valid(forges: u32, installations: u32) -> bool {
 #[must_use]
 pub const fn demo_act_bound(l: &Limits) -> Option<u32> {
     l.tasks.checked_add(1)
+}
+
+/// Demo acts, two removal acts per forge, and playground project and account removal.
+#[must_use]
+pub const fn kept_bound(l: &Limits) -> Option<u32> {
+    let Some(demo) = demo_act_bound(l) else {
+        return None;
+    };
+    let Some(forges) = l.client.repositories.checked_mul(2) else {
+        return None;
+    };
+    let Some(acts) = demo.checked_add(forges) else {
+        return None;
+    };
+    acts.checked_add(2)
 }

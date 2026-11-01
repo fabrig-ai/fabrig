@@ -36,6 +36,8 @@ mod panel;
 pub mod purpose;
 mod result;
 pub use result::{ChangeResult, ResultText};
+pub mod record;
+pub use record::Forge;
 mod reconcile;
 pub mod runs;
 mod views;
@@ -53,7 +55,8 @@ pub use domain::{Domain, RestoreFit, RestoreSet, fire, resume, step, tag, untag,
 pub use gates::{GateCandidate, GateLast, GatePattern, GatePolicy, GateTemplate};
 pub use judge::{Criterion, Freshness as JudgeFreshness, Judges, Reviewer, Verdict as JudgeVerdict};
 pub use limits::{
-    BOT_LOGIN_SUFFIX, CONNECT_WHY_BYTES, FIRST_NAME_BYTES, Limits, STOPPED_TEXT_BYTES, demo_act_bound, valid,
+    BOT_LOGIN_SUFFIX, CONNECT_WHY_BYTES, FIRST_NAME_BYTES, Limits, STOPPED_TEXT_BYTES, demo_act_bound, kept_bound,
+    valid,
 };
 pub use panel::{MARKED, PANEL_AHEAD, PANEL_GATES, PANEL_NAME_BYTES, Panel, PanelGate, PanelStep, PanelUsed};
 pub use temper_engine_domain_forge_landing::{CHECK_NAME_BYTES, WORKFLOW_BYTES};
@@ -221,6 +224,10 @@ pub fn effect_access(repository: &Repository, what: &What, kind: u16) -> Access 
 #[must_use]
 pub fn stored_key(row: &Stored) -> Key {
     match row {
+        Stored::Forge(row) => Key::Forge(row.number),
+        Stored::Forges { .. } => Key::Forges,
+        Stored::Playground(_) => Key::Playground,
+        Stored::Kept(row) => Key::Kept(row.key),
         Stored::Landing(row) => Key::Landing(row.landing.task),
         Stored::Receipt { key, .. } => Key::Receipt(key.clone()),
         Stored::Call { key, .. } => Key::Call(*key),
@@ -318,6 +325,7 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
         }
     }
     match record {
+        Stored::Forge(row) => row.bytes(),
         Stored::Landing(row) => landing::row_bytes(row),
         Stored::Receipt { key, receipt } => landing::receipt_bytes(key, receipt),
         Stored::Call { answer, .. } => match answer {
@@ -405,7 +413,10 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
         Stored::Binding { address, subject } => bytes(address)?.checked_add(bytes(subject)?),
         Stored::BranchHead(row) => name(&row.name),
         Stored::PullState(row) => name(&row.name),
-        Stored::Ci(_)
+        Stored::Forges { .. }
+        | Stored::Playground(_)
+        | Stored::Kept(_)
+        | Stored::Ci(_)
         | Stored::Landed { .. }
         | Stored::Writer(_)
         | Stored::Demo(_)

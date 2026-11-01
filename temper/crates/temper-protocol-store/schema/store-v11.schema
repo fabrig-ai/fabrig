@@ -1,4 +1,4 @@
-family temper-store 10
+family temper-store 11
 
 # 04.2: values the families share (protocol/store.md, 2 and 3).
 record Repository { forge: u16 repository: u32 }
@@ -241,5 +241,47 @@ record ReceiptKey { project: u32 repository: Repository check_name: ReceiptCheck
 record ReceiptRun { id: u64 number: u64 url: bytes 2048 }
 record Receipt { passed: bool run: ReceiptRun candidate: fixed 32 ended: u64 }
 record ReceiptRow { key: ReceiptKey receipt: Receipt }
-enum Value { call: Call, proposed_effect: ProposedEffect, repository: Adopted, hold: Hold, names: Names, subscription: Subscriber, branch_head: BranchHead, pull_state: PullState, ci: CiState, landed: Landed, entry: EntryRow, client: ClientRow, change: boxed ChangeRow, issue: boxed IssueRow, release: ReleaseRow, application: Application, writer: ForgeWriter, demo: Demo, binding: Binding, demo_act: DemoAct, flight: Flight, landing: LandingRow, receipt: ReceiptRow }
+# Families 25 to 28: forges kept in the store, the playground and kept
+# acts (temper/docs/design/draft/playground-reset.md, 3, 4 and 6).
+enum ForgeKind { forgejo, github }
+record ForgeIp4 { ip: fixed 4 port: u16 }
+record ForgeIp6 { ip: fixed 16 port: u16 }
+enum ForgeSocket { ip4: ForgeIp4, ip6: ForgeIp6 }
+record ForgeHost { name: bytes 255 port: u16 }
+record ForgeSocketAddress { socket: ForgeSocket }
+enum ForgeAddress { socket: ForgeSocketAddress, host: ForgeHost }
+record ForgeTls { server_name: bytes 255 trust: option bytes 4096 }
+enum ForgeTransport { plaintext, tls: ForgeTls }
+record ForgeIdentity { number: u32 login: bytes 255 name: bytes 255 email: bytes 255 }
+record ForgeUserId { id: u64 }
+record ForgeUserFile { file: bytes 4096 }
+enum ForgeUser { id: ForgeUserId, file: ForgeUserFile }
+record ForgeFiles { api_token: bytes 4096 webhook_secret: option bytes 4096 user: ForgeUser git_token: option bytes 4096 }
+record SetupAccount { login: bytes 255 email: bytes 255 }
+record SetupName { name: bytes 4096 }
+record SetupOrigin { host: bytes 255 port: u16 }
+record SetupMirror { forgejo: SetupOrigin runner: SetupOrigin }
+record SetupFetch { forgejo: bool runner: bool mirror: option SetupMirror }
+record SetupRunner { binary: bytes 4096 labels: list 8 SetupName capacity: u32 path: bytes 4096 }
+record SetupOwned { public: option SetupOrigin fetch: SetupFetch forgejo: bytes 4096 runner: option SetupRunner listen: ForgeSocket person: SetupAccount }
+record SetupRepository { name: bytes 4096 landing: bytes 4096 }
+record SetupFake { listen: ForgeSocket git: bytes 4096 owner: bytes 4096 repositories: list 64 SetupRepository }
+record SetupManaged { admin_token: option bytes 4096 }
+enum SetupMode { managed: SetupManaged, owned: SetupOwned, fake: SetupFake }
+record ForgeSetup { directory: bytes 4096 bot: SetupAccount orgs: list 1024 SetupName mode: SetupMode asked: bool }
+record FirstExisting { project: u32 }
+record FirstNew { name: bytes 1024 }
+enum FirstProject { existing: FirstExisting, new: FirstNew }
+record FirstIntent { org: bytes 1024 repository: bytes 1024 project: FirstProject label: bytes 64 }
+record Forge { number: u16 kind: ForgeKind api: ForgeAddress transport: ForgeTransport git: bytes 4096 git_program: option bytes 4096 web: option bytes 4096 read_only: bool identity: ForgeIdentity files: option ForgeFiles setup: option ForgeSetup first: option FirstIntent playground: bool removing: bool }
+record Forges { next: u16 }
+enum PlaygroundState { running, resetting }
+record Playground { state: PlaygroundState forge: option u16 project: option u32 account: option u32 }
+record KeptCancel { project: u32 task: u64 }
+record KeptProject { project: u32 }
+record KeptAccount { account: u32 }
+record KeptForge { forge: u16 }
+enum KeptAct { cancel: KeptCancel, remove_project: KeptProject, remove_account: KeptAccount, box_remove: KeptForge, remove_forge: KeptForge }
+record Kept { key: fixed 16 act: KeptAct }
+enum Value { call: Call, proposed_effect: ProposedEffect, repository: Adopted, hold: Hold, names: Names, subscription: Subscriber, branch_head: BranchHead, pull_state: PullState, ci: CiState, landed: Landed, entry: EntryRow, client: ClientRow, change: boxed ChangeRow, issue: boxed IssueRow, release: ReleaseRow, application: Application, writer: ForgeWriter, demo: Demo, binding: Binding, demo_act: DemoAct, flight: Flight, landing: LandingRow, receipt: ReceiptRow, forge: boxed Forge, forges: Forges, playground: Playground, kept: Kept }
 versioned record Row { value: Value }
