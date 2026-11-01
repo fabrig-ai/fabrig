@@ -77,6 +77,24 @@ fn each_ending_reads_back() {
     }
 }
 fn each_lack_reads_back() {
+    for holder in [domain::CeilingHolder::Rules, domain::CeilingHolder::Policy, domain::CeilingHolder::Role(0)] {
+        for (dimension, value, asked) in [
+            (domain::CeilingDimension::PeriodSpend, Some(1000), Some(1001)),
+            (domain::CeilingDimension::Spend, Some(500), Some(501)),
+            (domain::CeilingDimension::Tools, None, None),
+            (domain::CeilingDimension::Tasks, Some(3), Some(4)),
+            (domain::CeilingDimension::Depth, Some(2), Some(3)),
+            (domain::CeilingDimension::Executors, None, None),
+            (domain::CeilingDimension::Grants, None, None),
+            (domain::CeilingDimension::Deadline, Some(10), None),
+            (domain::CeilingDimension::Notes, None, None),
+        ] {
+            people_round_trip(values::answered(domain::Outcome::Refused(domain::Refusal::Authority {
+                lacking: domain::Lack::Ceiling { holder, dimension, value, asked },
+                proposable: None,
+            })));
+        }
+    }
     for value in values::lack_values() {
         people_round_trip(values::answered(domain::Outcome::Refused(domain::Refusal::Authority {
             lacking: value,

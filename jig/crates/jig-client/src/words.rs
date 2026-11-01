@@ -12,7 +12,7 @@ pub use decision::DecisionWord;
 use skein_lib::List;
 use skein_ui::phrases::{HoleKind, HoleShape, Language, PhraseId, PhraseShape};
 /// Phrase count, for a caller composing a bounded phrasebook.
-pub const PHRASES: u32 = 120;
+pub const PHRASES: u32 = 121;
 /// Owner of jig's public enum vocabulary.
 pub const OWNER: skein_ui::Owner = skein_ui::Owner { number: 65_537 };
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -48,6 +48,7 @@ pub enum HoldWord {
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum RefusalWord {
+    Ceiling,
     HoldOwnerParty,
     HoldOwnerTask,
     SignInRedirectNotWaiting,
@@ -154,6 +155,7 @@ impl Word {
                 crate::contract::HoldOwner::Party { .. } => RefusalWord::HoldOwnerParty,
                 crate::contract::HoldOwner::Task { .. } => RefusalWord::HoldOwnerTask,
             },
+            Refusal::Authority { lacking: crate::contract::Lacking::Ceiling { .. }, .. } => RefusalWord::Ceiling,
             Refusal::Authority { .. } => RefusalWord::Authority,
             Refusal::Limit { .. } => RefusalWord::Limit,
             Refusal::Moved { .. } => RefusalWord::Moved,
@@ -224,7 +226,7 @@ impl Word {
     }
 }
 /// All public words, for composing phrasebook capacities without allocation.
-pub const ALL: [Word; 120] = [
+pub const ALL: [Word; 121] = [
     Word::Refusal(RefusalWord::Stale),
     Word::Refusal(RefusalWord::Full),
     Word::Hold(HoldWord::Exceeded(Bound::Reasoning)),
@@ -278,6 +280,7 @@ pub const ALL: [Word; 120] = [
     Word::Refusal(RefusalWord::Taken),
     Word::Refusal(RefusalWord::NotWaiting),
     Word::Refusal(RefusalWord::NoFurther),
+    Word::Refusal(RefusalWord::Ceiling),
     Word::Refusal(RefusalWord::Authority),
     Word::Refusal(RefusalWord::Limit),
     Word::Refusal(RefusalWord::Moved),

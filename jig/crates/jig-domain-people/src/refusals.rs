@@ -132,6 +132,8 @@ pub enum Malformed {
 /// Authority missing from a party's request.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Lack {
+    /// A policy edit passes this ceiling; scalar values use their dimension's unit.
+    Ceiling { holder: CeilingHolder, dimension: CeilingDimension, value: Option<u64>, asked: Option<u64> },
     /// A placed hold waits for its owner (domain/tasks.md, 5.9).
     HoldOwner { hold: u64, owner: HoldOwner },
     /// No policy role may accept this kind of party proposal.
@@ -325,4 +327,26 @@ pub enum DependencyStatus {
 pub enum HoldOwner {
     Party { person: u64 },
     Task { task: u64 },
+}
+
+/// The holder of a ceiling a policy edit passes (jig/docs/design/domain/authority.md, 6).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum CeilingHolder {
+    Rules,
+    Policy,
+    Role(u32),
+}
+
+/// A ceiling's dimension; list dimensions carry no contents.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum CeilingDimension {
+    PeriodSpend,
+    Spend,
+    Tools,
+    Tasks,
+    Depth,
+    Executors,
+    Grants,
+    Deadline,
+    Notes,
 }

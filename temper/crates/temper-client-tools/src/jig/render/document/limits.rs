@@ -13,6 +13,41 @@ pub(super) fn encode_lacking(value: &jig_client::contract::Lacking, out: &mut En
             out.object_end();
             out.object_end();
         }
+        jig_client::contract::Lacking::Ceiling { holder, dimension, value, .. } => {
+            out.object_start();
+            out.key(b"ceiling");
+            out.object_start();
+            out.key(b"holder");
+            match holder {
+                jig_client::contract::CeilingHolder::Rules => out.string(b"rules"),
+                jig_client::contract::CeilingHolder::Policy => out.string(b"policy"),
+                jig_client::contract::CeilingHolder::Role(role) => {
+                    out.object_start();
+                    out.key(b"role");
+                    out.unsigned(u64::from(*role));
+                    out.object_end();
+                }
+            }
+            out.key(b"dimension");
+            out.string(match dimension {
+                jig_client::contract::CeilingDimension::PeriodSpend => b"period_spend",
+                jig_client::contract::CeilingDimension::Spend => b"spend",
+                jig_client::contract::CeilingDimension::Tools => b"tools",
+                jig_client::contract::CeilingDimension::Tasks => b"tasks",
+                jig_client::contract::CeilingDimension::Depth => b"depth",
+                jig_client::contract::CeilingDimension::Executors => b"executors",
+                jig_client::contract::CeilingDimension::Grants => b"grants",
+                jig_client::contract::CeilingDimension::Deadline => b"deadline",
+                jig_client::contract::CeilingDimension::Notes => b"notes",
+            });
+            out.key(b"value");
+            match value {
+                Some(value) => out.unsigned(*value),
+                None => out.null(),
+            }
+            out.object_end();
+            out.object_end();
+        }
         jig_client::contract::Lacking::Approver => out.string(b"approver"),
         jig_client::contract::Lacking::Budget { needed, left } => {
             encode_lacking_budget(*needed, *left, out, budget);
