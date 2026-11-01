@@ -185,7 +185,7 @@ fn owned(d: &mut Domain, intent: FirstIntent, out: &mut Queue<Request>) -> Resul
     if setup_busy(d) {
         return Err(SetUpRefusal::Busy);
     }
-    match crate::forges::make(d, Kind::Forgejo, Mode::Owned, place, None, bot(), true, Some(intent), out) {
+    match crate::forges::make(d, Kind::Forgejo, Mode::Owned, place, None, false, bot(), true, Some(intent), out) {
         Some(forge) => Ok(forge),
         None => Err(SetUpRefusal::Busy),
     }

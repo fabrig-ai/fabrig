@@ -857,9 +857,7 @@ says:
   with its account's login, "all repositories" or "selected
   repositories" (linked to the installation's page, 5.5), "suspended"
   while GitHub suspends it, and a stray, an installation never
-  accepted, "not accepted · uninstalled at the next reconcile", or, the
-  App read-only (`../protocol/setup.md`, 17.7), "not accepted · kept:
-  the App is read-only". The tools accept a stray (`tools.md`, 5.5,
+  accepted, "not accepted · kept" (`../protocol/setup.md`, 17.4). The tools accept a stray (`tools.md`, 5.5,
   `forge accept`); the page offers no act for it yet. When
   connected, it shows the setup URL the person must set on GitHub:
   `http://<listener>/forges/<n>/github/setup`, with redirect on update,
@@ -935,7 +933,7 @@ page, the adoption form and its outcome, a change's panel and its hold.
 | `Missing` otherwise | not found, as `README.md`, 4.7 says |
 | `Stopped { why }`, told to the root | on the forge's row, "Stopped: WHY", with Replace (5.4); its calls answer `NotConnected` until its next connect, shown as that row says |
 | an installation suspended | "suspended" on the installation, on the forge's row and on each repository of it (5.2); its calls are refused as no access |
-| a stray installation | on the forge's row, "not accepted", then "uninstalled at the next reconcile", or, the App read-only, "kept: the App is read-only" (5.4) |
+| a stray installation | on the forge's row, "not accepted · kept" (5.4) |
 | `Lacking`, a GitHub App's `Paste` (a connect of an App of the person's own, or a Replace) whose App lacks permissions or events temper needs | on the forge's row, connected, "temper's App lacks WHAT: grant them in the App's settings, then paste its key again.", WHAT each permission, with its level, and each event, as GitHub names them, until the forge's next check of the App ends (5.4); meanwhile a call that needs what the App lacks is refused by GitHub, as no access; with Replace where the forge is connected, Connect where it is not, and a link to the App's settings, `WEB/settings/apps/SLUG`, or `WEB/organizations/ORG/settings/apps/SLUG` for an organization's App |
 | `Unmarked`, connecting as the admin a forge whose user lacks temper's mark | "LOGIN is not temper's bot: add `temper:bot` to its full name on Forgejo, then connect again." |
 

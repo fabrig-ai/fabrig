@@ -172,7 +172,7 @@ pub struct FirstAsk {
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum How {
     ForgejoAdmin { first: Option<FirstAsk> },
-    GitHubApp { app: core::num::NonZeroU64 },
+    GitHubApp { app: core::num::NonZeroU64, read_only: bool },
     GitHubManifest { back: Option<Box<[u8]>> },
 }
 /// The App records' provenance since this engine started (client/README.md, 4.6).

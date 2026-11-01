@@ -33,7 +33,7 @@ pub(super) fn owns(call: &jig::call::Call) -> bool {
 }
 fn request(
     forge: u16,
-    app: Option<u64>,
+    app: Option<(u64, bool)>,
     installation: Option<u64>,
     manifest: bool,
     admin: Option<w::ForgejoAdmin>,
@@ -66,12 +66,14 @@ fn request(
         )
     } else {
         match app {
-            Some(id) => w::Request::Connect(
+            Some((id, read_only)) => w::Request::Connect(
                 w::Connect::new(
                     &bounds,
                     w::ConnectParts {
                         forge: making,
-                        how: w::How::GithubApp(w::GitHubApp::new(&bounds, w::GitHubAppParts { id }).ok()?),
+                        how: w::How::GithubApp(
+                            w::GitHubApp::new(&bounds, w::GitHubAppParts { id, read_only: Some(read_only) }).ok()?,
+                        ),
                     },
                 )
                 .ok()?,
@@ -84,6 +86,9 @@ fn request(
         scope: c::Scope::Deployment,
         record: Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: wire::requesting(&record) },
     })
+}
+fn pasted_app(call: &jig::call::Call) -> Option<(u64, bool)> {
+    Some((number(call, 2)?, value(call, 4).is_some()))
 }
 // The bundle's item is AdminToken (1), not AppKey (11). Preserve every byte.
 fn admin_token(token: &[u8]) -> Option<skein_lib::Secret> {
@@ -203,7 +208,7 @@ pub(super) fn send(
     let install = tool == INSTALL.name || installation.is_some();
     let manifest = !install && (called.call.form == 1 || called.call.form == 5);
     let forge = u16::try_from(number(&called.call, 0).unwrap_or(0)).expect("checked forge number");
-    let app = if install { None } else { number(&called.call, 2) };
+    let app = if install { None } else { pasted_app(&called.call) };
     let admin = !install && (called.call.form == 3 || called.call.form == 6);
     let first = admin && value(&called.call, 3).is_some();
     let admin_how = if admin {
@@ -434,6 +439,17 @@ fn text(pending: &Pending, answer: &Answer, kept: bool, limits: &Limits, out: &m
         Answer::ForgeRefused(why) => accept_refusal(pending, why, out),
         Answer::Connecting => {
             out.put(b"connecting\n");
+            if let Ask::Family { record, .. } = &pending.request
+                && let Some(bounds) = temper_client_domain::forge::wire_limits(&limits.domain.forge)
+                && let Some(request) = wire::decode_requesting(&record.bytes, &bounds)
+                && let w::Request::Connect(connect) = request.request()
+                && let w::How::GithubApp(app) = connect.how()
+                && !app.read_only().unwrap_or(false)
+            {
+                out.put(
+                    b"temper points the App's webhook at https://SLUG.invalid/; connect with --read-only to leave it\n",
+                );
+            }
             if !install && !manifest && pending.first.is_none() && forge != 0 {
                 out.put(b"temper ctl DIR forge list --until connected:");
                 out.number(u64::from(forge));

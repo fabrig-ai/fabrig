@@ -75,6 +75,7 @@ pub const CONNECT: Tool = Tool {
             ),
             positional(b"id", b"APP", Kind::NumberRange { min: 1, max: u64::MAX }, Required, b"The App's id"),
             positional(b"file", b"FILE", Kind::File, Required, b"The private file of the App's PEM key"),
+            switch(b"read-only", b"Leave the App's webhook as it is"),
         ],
         &[
             positional(b"forge", b"FORGE", Kind::NumberRange { min: 1, max: 65535 }, Required, b"GitHub's forge number"),
@@ -121,6 +122,7 @@ pub const CONNECT: Tool = Tool {
             ),
             positional(b"id", b"APP", Kind::NumberRange { min: 1, max: u64::MAX }, Required, b"The App's id"),
             positional(b"file", b"FILE", Kind::File, Required, b"The private file of the App's PEM key"),
+            switch(b"read-only", b"Leave the App's webhook as it is"),
         ],
         &[
             positional(
@@ -945,7 +947,7 @@ fn text_rows(rows: Option<&[Row]>, digest: Option<Digest>, met: Option<bool>, ou
                     out.number(installation.id);
                     out.put(b" \xc2\xb7 ");
                 }
-                out.put(&words::installation_words(installation, row.read_only));
+                out.put(&words::installation_words(installation));
                 if installation.stray {
                     out.put(b" \xc2\xb7 forge accept ");
                     out.number(u64::from(row.number));

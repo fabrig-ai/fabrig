@@ -871,7 +871,7 @@ fn human_forges_names_the_app_accounts_unknown_installations_and_their_states() 
     assert!(
         skein_lib::bytes::find(
             &plain.stdout,
-            " · my-app\n  installation 11 · acme\n  installation 22 · suspended · not accepted · uninstalled at the next reconcile · forge accept 3 22\n".as_bytes(),
+            " · my-app\n  installation 11 · acme\n  installation 22 · suspended · not accepted · kept · forge accept 3 22\n".as_bytes(),
         )
         .is_some()
     );
@@ -978,7 +978,7 @@ fn human_forges_bounds_the_wire_maximum_installations_with_longest_logins() {
         let plain = forges::print_rows(Some(&rows), false, None, &limits);
         if bounds.account_login == preset.account_login {
             assert_eq!(plain.status, 0);
-            for words in [login.as_ref(), b"suspended", b"uninstalled at the next reconcile"] {
+            for words in [login.as_ref(), b"suspended", b"kept"] {
                 let mut count = 0u32;
                 for window in plain.stdout.windows(words.len()) {
                     if window == words {

@@ -8,3 +8,5 @@
 - **Built:** 3.5, 5.5: the tools' declaration act is distinguished from the browser's command by its directory placeholders and signed-in skip rule.
 
 - **Built:** 3.5: the chat's answer notice carries the person's words cut at 256 bytes; its conversation retains the answered-question line.
+
+- **Built:** 4.6, 8: GitHubApp carries optional `read_only`, absent false; the hook policy is kept with the forge.

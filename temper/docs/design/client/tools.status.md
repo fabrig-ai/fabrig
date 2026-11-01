@@ -27,3 +27,5 @@
   hosts and offers is whole; text shares JSON's bounded projection and digest,
   naming jig's readiness loss. `me` prints configured methods and usage links
   as provider lines and keeps `cut:`. Model text keeps its field lines.
+
+- **Built:** 5.5: ctl connect `--read-only` carries and keeps the hook policy, and writable connects name the hook repair.

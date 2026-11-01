@@ -306,7 +306,7 @@ fn the_github_row_names_its_app_by_slug_and_lists_its_installations() {
     ]);
     assert_eq!(
         forge::words::app_line(&row).unwrap().as_ref(),
-        "my-app · acme, installation 2 · suspended · not accepted · uninstalled at the next reconcile".as_bytes()
+        "my-app · acme, installation 2 · suspended · not accepted · kept".as_bytes()
     );
     assert!(forge::forges::accepted(&row));
 }
@@ -419,15 +419,9 @@ fn github_connecting_words_distinguish_none_from_strays_and_respect_read_only() 
         suspended: false,
     }]);
     assert_eq!(words::forge_connection(&row).as_ref(), b"Connecting: no installation accepted yet");
-    assert_eq!(
-        words::app_line(&row).unwrap().as_ref(),
-        "my-app · acme · not accepted · uninstalled at the next reconcile".as_bytes()
-    );
+    assert_eq!(words::app_line(&row).unwrap().as_ref(), "my-app · acme · not accepted · kept".as_bytes());
     row.read_only = true;
-    assert_eq!(
-        words::app_line(&row).unwrap().as_ref(),
-        "my-app · acme · not accepted · kept: the App is read-only".as_bytes()
-    );
+    assert_eq!(words::app_line(&row).unwrap().as_ref(), "my-app · acme · not accepted · kept".as_bytes());
     row.installations[0].stray = false;
     assert_eq!(words::forge_connection(&row).as_ref(), b"Connected as my-app[bot] (9)");
     row.installations[0].suspended = true;

@@ -288,14 +288,14 @@ fn public_connect_preserves_the_admitted_owner_and_carry_then_root_orders_its_er
         public_request(
             forge::Ask::Connect {
                 forge: forge::Making::Kept(1),
-                how: forge::How::GitHubApp { app: core::num::NonZeroU64::new(7).unwrap() },
+                how: forge::How::GitHubApp { app: core::num::NonZeroU64::new(7).unwrap(), read_only: false },
             },
             Some(carried),
         ),
     )
     .unwrap();
     let requests = settle(&mut domain, &env);
-    let [Request::Connect { forge: 1, request, how: forge::How::GitHubApp { app }, carried: value }] =
+    let [Request::Connect { forge: 1, request, how: forge::How::GitHubApp { app, .. }, carried: value }] =
         requests.as_ref()
     else {
         panic!("connect: {requests:?}")
@@ -374,7 +374,7 @@ fn public_connect_refuses_other_deployment_roles_and_names_their_carry_unused_on
             public_request(
                 forge::Ask::Connect {
                     forge: forge::Making::Kept(1),
-                    how: forge::How::GitHubApp { app: core::num::NonZeroU64::new(7).unwrap() },
+                    how: forge::How::GitHubApp { app: core::num::NonZeroU64::new(7).unwrap(), read_only: false },
                 },
                 Some(carried),
             ),

@@ -67,6 +67,7 @@ fn connect_carries_the_bundle_once_without_saving_it() {
         assert_eq!(connect.forge(), &w::Making::Kept(w::Kept::new(&w::CEILINGS, w::KeptParts { forge: 3 }).unwrap()));
         let w::How::GithubApp(app) = connect.into_parts().how else { panic!("pasted App") };
         assert_eq!(app.id(), 4242);
+        assert_eq!(*app.read_only(), Some(false));
         assert_eq!(root.sent_name(call), Some(f::named("app")));
         let mut expected = skein_lib::Writer::new(pem.len().checked_add(7).expect("bundle length"));
         expected.put(&[0, 1, 10]).expect("header");
@@ -75,6 +76,25 @@ fn connect_carries_the_bundle_once_without_saving_it() {
         assert_eq!(root.carried[&call].expose(), expected.finish().as_ref());
         assert!(root.saved.is_empty());
         assert!(root.answer(call).is_none());
+    }
+}
+#[test]
+fn read_only_connect_carries_the_hook_policy_for_new_and_kept_forges() {
+    for words in [
+        &["forge", "connect", "3", "github-app", "4242", "app.pem", "--read-only", "--key", "app"][..],
+        &["forge", "connect", "github-app", "4242", "app.pem", "--read-only", "--key", "app"][..],
+    ] {
+        let call = f::call(words);
+        assert_eq!(f::back(&call), f::owned(words));
+        let mut root = f::signed_in(f::PARTY);
+        let call = root.submit_value(words, Some(Secret::new(PEM.into())));
+        let w::Request::Connect(connect) = request(&root, call) else { panic!("connect") };
+        let w::How::GithubApp(app) = connect.how() else { panic!("pasted App") };
+        assert_eq!(*app.read_only(), Some(true));
+        root.adoption_answer(call, w::Outcome::Connecting);
+        let printed = root.answer(call).expect("connecting");
+        assert_eq!(printed.status, 0);
+        assert!(skein_lib::bytes::find(&printed.stdout, b"temper points").is_none());
     }
 }
 #[test]
@@ -118,7 +138,7 @@ fn unoffered_ways_exit_two_without_reading_or_sending_a_value() {
 fn connect_and_install_print_their_durable_outcomes() {
     for json in [false, true] {
         for (words, outcome, status, text, structured) in [
-            (CONNECT, w::Outcome::Connecting, 0, b"connecting\ntemper ctl DIR forge list --until connected:3\n".as_slice(), br#"{"connecting":{}}"#.as_slice()),
+            (CONNECT, w::Outcome::Connecting, 0, b"connecting\ntemper points the App's webhook at https://SLUG.invalid/; connect with --read-only to leave it\ntemper ctl DIR forge list --until connected:3\n".as_slice(), br#"{"connecting":{}}"#.as_slice()),
             (ADMIN, w::Outcome::Connecting, 0, b"connecting\ntemper ctl DIR forge list --until connected:3\n".as_slice(), br#"{"connecting":{}}"#.as_slice()),
             (MANIFEST, link(), 0, b"Open this address in a browser on the engine's machine:\nhttps://forge.invalid/install/app\ntemper ctl DIR forge list --until settled\n".as_slice(), br#"{"link":{"address":"https://forge.invalid/install/app"}}"#.as_slice()),
             (INSTALL, link(), 0, b"Open this address in a browser on the engine's machine:\nhttps://forge.invalid/install/app\ntemper ctl DIR forge list --until settled\n", br#"{"link":{"address":"https://forge.invalid/install/app"}}"#),

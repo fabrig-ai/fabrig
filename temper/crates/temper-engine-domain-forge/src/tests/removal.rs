@@ -389,7 +389,18 @@ fn the_record_is_erased_once_whole_and_its_number_stays_spent() {
     let row = record(1, Mode::Fake);
     let mut out = Queue::uncapped();
     assert_eq!(
-        forges::make(&mut d, row.kind, row.mode, row.place, row.git_program, row.bot, false, None, &mut out),
+        forges::make(
+            &mut d,
+            row.kind,
+            row.mode,
+            row.place,
+            row.git_program,
+            row.read_only,
+            row.bot,
+            false,
+            None,
+            &mut out
+        ),
         Some(2)
     );
 }

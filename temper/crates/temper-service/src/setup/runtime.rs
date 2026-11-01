@@ -126,7 +126,12 @@ impl Runtime {
         entry: Option<&setup::Entry>,
     ) -> Option<host::Forge> {
         if let Some(forge) = self.endpoints.get(&record.number) {
-            return Some(forge.clone());
+            let mut forge = forge.clone();
+            if let host::Kind::GitHub(given) = &mut forge.kind {
+                given.repair_hook = !record.read_only;
+                given.uninstall_strays = false;
+            }
+            return Some(forge);
         }
         let (address, transport) = match self.resolved.get(&record.number) {
             Some(endpoint) => (endpoint.address, endpoint.transport.clone()),
@@ -266,6 +271,25 @@ pub(crate) fn keep(engine: &mut crate::engine::Engine, record: &ForgeRecord) {
         Some(entry) if !document => Some(runtime.local(record, &entry, engine.setup.lifecycle.startup_restored())),
         Some(_) | None => None,
     };
+    if let Some(served) = engine.setup.served.get(&record.number)
+        && let (host::Kind::GitHub(old), host::Kind::GitHub(new)) = (&served.kind, &forge.kind)
+        && old.repair_hook != new.repair_hook
+    {
+        let served = forge.clone();
+        if let Some((settings, _)) = &mut engine.setup.pending {
+            for index in 0..settings.forges.len() {
+                let configured = settings.forges.get_mut(index).expect("pending setup forge");
+                if configured.number() == record.number {
+                    *configured = forge.clone();
+                    break;
+                }
+            }
+        } else {
+            engine.setup.down(host::Request::Remove { forge: record.number });
+            engine.setup.down(host::Request::Add(forge.clone()));
+        }
+        engine.setup.served.insert(record.number, served).expect("held setup forge");
+    }
     if !engine.setup.served.contains_key(&record.number) {
         let served = forge.clone();
         if let Some((settings, _)) = &mut engine.setup.pending {

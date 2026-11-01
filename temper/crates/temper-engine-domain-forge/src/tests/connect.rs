@@ -30,7 +30,10 @@ fn github(kind: Kind, mode: Mode) -> Domain {
     .unwrap()
 }
 fn connect(forge: u16) -> Ask {
-    Ask::Connect { forge: Making::Kept(forge), how: How::GitHubApp { app: NonZeroU64::new(7).unwrap() } }
+    Ask::Connect {
+        forge: Making::Kept(forge),
+        how: How::GitHubApp { app: NonZeroU64::new(7).unwrap(), read_only: false },
+    }
 }
 fn application(
     d: &mut Domain,
@@ -125,7 +128,7 @@ fn admitted_connect_marks_connecting_answers_then_erases_once_at_its_end() {
         let out = application(&mut d, 1, connect(1), Some(PartyRole::Owner), Some(VALUE));
         assert_eq!(d.connection(1), Connection::Connecting);
         assert!(out.iter().any(|r| {
-            if let Request::Connect { forge: 1, request, how: How::GitHubApp { app }, carried } = r {
+            if let Request::Connect { forge: 1, request, how: How::GitHubApp { app, .. }, carried } = r {
                 *request == Token::new(1) && app.get() == 7 && *carried == VALUE
             } else {
                 false
@@ -1000,7 +1003,10 @@ fn accept_requires_the_owner_a_real_connected_github_and_a_free_writing_slot() {
 fn a_new_github_is_refused_without_the_machines_place() {
     refused(
         &mut github(Kind::GitHub, Mode::Connected),
-        Ask::Connect { forge: Making::New(ForgeAsk::GitHub), how: How::GitHubApp { app: NonZeroU64::new(7).unwrap() } },
+        Ask::Connect {
+            forge: Making::New(ForgeAsk::GitHub),
+            how: How::GitHubApp { app: NonZeroU64::new(7).unwrap(), read_only: false },
+        },
         Some(PartyRole::Owner),
         Some(VALUE),
         ForgeRefusal::NoSuchForge,

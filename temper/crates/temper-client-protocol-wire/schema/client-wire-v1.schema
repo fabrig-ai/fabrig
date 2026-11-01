@@ -20,7 +20,7 @@ record NewProject { name: bytes 1024 }
 enum SetUpProject { existing: ExistingProject, new: NewProject }
 record SetUp { forge: Making org: bytes 1024 repository: bytes 1024 project: SetUpProject playground: bool }
 record Return { source: u32 path: bytes 512 }
-record GitHubApp { id: u64 }
+record GitHubApp { id: u64 read_only: option bool }
 record GitHubManifest { back: option bytes 512 }
 record FirstAsk { org: bytes 1024 repository: bytes 1024 project: SetUpProject label: bytes 64 }
 record ForgejoAdmin { first: option FirstAsk }

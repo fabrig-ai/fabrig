@@ -747,7 +747,7 @@ fn paste_row(limits: &domain::Limits, request: Token, connected: bool, why: Opti
             retention: Duration::from_secs(3600),
             ask: domain::Ask::Connect {
                 forge: domain::Making::Kept(1),
-                how: domain::How::GitHubApp { app: core::num::NonZeroU64::new(7).unwrap() },
+                how: domain::How::GitHubApp { app: core::num::NonZeroU64::new(7).unwrap(), read_only: false },
             },
             role: Some(jig_domain_people::Role::Owner),
             carried: Some(jig_domain_core::Carried { number: records::CARRIED, digest: [0; 32] }),
@@ -893,6 +893,66 @@ fn paste_connects(pem: Secret, bundle: Secret) {
     advance(service.engine.as_mut().unwrap());
     assert_eq!(service.engine.as_ref().unwrap().setup.runs.first().unwrap().1.kind, Kind::Reconcile);
 }
+// Use the fake's HTTP face, preserving its installation table across paste,
+// reconcile and accept; every request still crosses the real setup codecs.
+fn github_reply(service: &mut crate::Service, face: &mut Face, github: &mut skein_forge_machine_world::github::Fake) {
+    face.sent(service);
+    let wall = service.engine.as_ref().unwrap().env.wall;
+    let reply = github.serve(&face.wire.received, wall);
+    face.wire.write(&reply);
+    for _ in 0_u32..1024 {
+        face.turn(service);
+    }
+}
+
+#[test]
+fn connecting_keeps_preexisting_installations_and_accept_can_take_one_after_reconcile() {
+    let mut service = service(8, Duration::from_secs(3600));
+    // The fake's installations were made near the epoch, weeks before connect.
+    service.engine.as_mut().unwrap().env.wall = Wall::from_nanos(2_419_200_000_000_000);
+    let mut github = skein_forge_machine_world::github::Fake::new(7);
+    let ids = github.installation_ids();
+    let (pem, bundle) = carried_pem();
+    let digest = skein_lib::sha256::digest(bundle.expose());
+    paste_start(&mut service, bundle, digest);
+    let mut face = Face::new();
+    // App, bot, hook read and hook repair.
+    for _ in 0_u32..4 {
+        github_reply(&mut service, &mut face, &mut github);
+    }
+    for item in [Item::AppId, Item::AppSlug, Item::AppKey, Item::User] {
+        keep_next(&mut service, item);
+        face.turn(&mut service);
+    }
+    keep_next(&mut service, Item::Origin);
+    assert_eq!(paste_ended(&mut service, true, pem.expose()), None);
+    service.engine.as_mut().unwrap().forge.above.push(connection::Event::Connected { forge: 1 });
+    crate::engine::forge_pass(service.engine.as_mut().unwrap());
+    run_events(&mut service);
+    advance(service.engine.as_mut().unwrap());
+    assert_eq!(service.engine.as_ref().unwrap().setup.runs.first().unwrap().1.kind, Kind::Reconcile);
+    // App, hook and three pages (the fake's page cap is two), including
+    // the terminal empty page. No installation DELETE may follow.
+    for _ in 0_u32..5 {
+        github_reply(&mut service, &mut face, &mut github);
+        assert!(!contains(&face.wire.received, b"DELETE "));
+    }
+    assert!(service.engine.as_ref().unwrap().setup.runs.is_empty(), "reconcile completed");
+    assert_eq!(github.installation_ids(), ids);
+    assert!(values(&service).is_empty());
+    installation(&mut service, 1, Change::Created);
+    public::accept(service.engine.as_mut().unwrap(), 1, Token::new(91), core::num::NonZeroU64::new(1).unwrap());
+    github_reply(&mut service, &mut face, &mut github);
+    assert_eq!(accept_answer(&mut service), None, "Accept waits for the kept set");
+    keep_next(&mut service, Item::Accepted);
+    for _ in 0_u32..4 {
+        advance(service.engine.as_mut().unwrap());
+    }
+    assert_eq!(accept_answer(&mut service), Some(domain::AcceptAnswer::Accepted { installation: 1 }));
+    assert_eq!(values(&service).as_ref(), [1]);
+    assert_eq!(github.installation_ids(), ids);
+}
+
 #[test]
 fn a_changed_digest_writes_nothing_logs_the_reason_and_erases_after_root_decides() {
     let mut service = service(8, Duration::from_secs(3600));

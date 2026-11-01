@@ -601,8 +601,8 @@ fn playground_start_outcomes_round_trip_at_each_boundary() {
 #[test]
 fn pasted_apps_round_trip_and_check_nonzero_id() {
     let limits = fixtures::limits();
-    for id in [0, 1, u64::MAX] {
-        let app = v1::GitHubApp::new(&limits, v1::GitHubAppParts { id }).unwrap();
+    for (id, read_only) in [(0, None), (1, None), (1, Some(false)), (1, Some(true)), (u64::MAX, Some(true))] {
+        let app = v1::GitHubApp::new(&limits, v1::GitHubAppParts { id, read_only }).unwrap();
         let connect =
             v1::Connect::new(&limits, v1::ConnectParts { forge: kept(1), how: v1::How::GithubApp(app) }).unwrap();
         let record =

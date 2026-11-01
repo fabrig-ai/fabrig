@@ -117,6 +117,7 @@ pub fn to_root(
                                 }
                                 w::How::GithubApp(app) => forge::How::GitHubApp {
                                     app: core::num::NonZeroU64::new(app.id()).expect("decoded nonzero App"),
+                                    read_only: app.read_only().unwrap_or(false),
                                 },
                                 w::How::GithubManifest(manifest) => {
                                     let back = manifest.into_parts().back;
