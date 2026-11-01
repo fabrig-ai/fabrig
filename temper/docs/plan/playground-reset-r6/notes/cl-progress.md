@@ -2,13 +2,37 @@
 
 Specs under `temper/docs/plan/playground-reset-r6/tasks/`; notes `notes/cl-wire.md`.
 
-| Spec | State | Needs |
-|---|---|---|
-| `cl-wire` | final | (none) |
-| `cl-ctl` | final once request 4 is answered | `cl-wire` |
-| `cl-choices` | final | `cl-wire` |
-| `cl-forges` | final | `cl-choices` |
-| `cl-welcome` | final | `cl-forges` |
+| Spec | State | Needs | Crates |
+|---|---|---|---|
+| `cl-wire` | final | (none) | wire, codecs world (client files), forced arms everywhere |
+| `cl-ctl` | final | `cl-wire` | temper-client-tools (+ generated ctl reference pages) |
+| `cl-choices` | final | `cl-wire` | client domain, view, gallery |
+| `cl-forges` | final | `cl-choices` | client domain, view, gallery |
+| `cl-welcome` | final | `cl-forges` | client domain, view, gallery |
+| `cl-pg` | final | `cl-welcome` | client domain, view, gallery |
+| `cl-pg-goes` | final | `cl-pg`, `cl-ctl` | client domain, view, tools, gallery, client world |
+| `cl-world-forges` | final once fe marks `fe-make`, `fe-remove`, `fe-kept-root` final | `cl-pg-goes`, `fe-make`, `fe-remove`, `fe-kept-root` | client world |
+| `cl-world-pg` | not final: needs pd's project-deletion task id (J3-J4), unknown yet | `cl-world-forges`, `fe-playground-forge`, `fe-playground-root` (+ pd's deletion) | client world |
+| `cl-journeys` | not final until the ids it needs are final | `cl-world-pg`, `cl-ctl`, `sv-family`, `sv-startup-machine`, `bx-init`, `bx-compose`, `fe-playground-forge`, `fe-playground-root` | wire (version 12), journeys |
+
+The journeys: no builder needs a browser before `cl-journeys`; it needs headless Chromium
+(`SKEIN_TEST_CHROMIUM`) for `again welcome-playground`, and stops with a question if the
+builder lacks it. `welcome-set-up` is deleted there (lead, request 6 (b)) and left to a
+person.
+
+## Task graph and critical path
+
+- `cl-wire` → `cl-choices` → `cl-forges` → `cl-welcome` → `cl-pg` → `cl-pg-goes`: the
+  client's domain and view, one writer at a time (about 10 h of runs).
+- `cl-ctl` runs beside them from `cl-wire` (tools alone); `cl-pg-goes` waits for it, since
+  it may edit tools.
+- `cl-world-forges` after `cl-pg-goes` (the D+V tasks edit the client world's
+  expectations, so the world has one writer at a time) and fe's make/remove; `cl-world-pg`
+  after it, fe's playground and pd's deletion; `cl-journeys` last, after the box runs
+  the run's code end to end (sv, bx, fe).
+- Critical path: the client chain to `cl-pg-goes` (about 10 h) runs beside the engine's;
+  the part's end is set by fe's and pd's playground and deletion tasks, then
+  `cl-world-pg` (2 h) and `cl-journeys` (1.5 h).
 
 ## Contract requests
 
@@ -32,7 +56,7 @@ Specs under `temper/docs/plan/playground-reset-r6/tasks/`; notes `notes/cl-wire.
    T8 leaves open is `RemoveRefusal::NoSuchForge`, read as the existing
    `connect_refused { why: no_such_forge }`. The `PlaygroundAnswer`'s `project` and
    `forge` are 0 while no `Playground` row exists.
-3. **A Forgejo elsewhere made by `make_forge` lists with `admin: true`** (fe's projection,
+3. **Accepted (lead; contracts T4).** **A Forgejo elsewhere made by `make_forge` lists with `admin: true`** (fe's projection,
    sv's settings). T4 makes it "mode Managed, no setup entry"; today's `admin` (the row's
    offer of the admin connect, `Configured.admin_connect`) is true only for a managed setup
    entry with no admin token (`temper-service/src/startup/application.rs`, `configured`).
@@ -42,14 +66,14 @@ Specs under `temper/docs/plan/playground-reset-r6/tasks/`; notes `notes/cl-wire.
    entry with no admin token (the machine's default bot), so it lists `admin: true` and the
    admin connect's setup host has its settings. Designed around as it stands: the client
    opens the row's Details whatever they offer.
-4. **`cl-ctl` regenerates two help pages.** `temper ctl`'s reference pages are generated
+4. **Accepted (lead; contracts G).** **`cl-ctl` regenerates two help pages.** `temper ctl`'s reference pages are generated
    from the tools' table and checked by the `temper` package's
    `every_ctl_group_page_is_what_the_table_renders`, so new ctl tools cannot land without
    `docs/help/reference/ctl-forge.md` and `ctl-playground.md` rewritten by
    `SKEIN_CODEGEN_WRITE=1`. **Request:** allow `cl-ctl` that generated rewrite (no hand
    edit); the tools' words are in its spec, step 1. `cl-ctl` is final once this is
    answered.
-5. **Reprinting a journey's pages.** A client task that changes a page a journey prints
+5. **Accepted (lead; contracts G).** **Reprinting a journey's pages.** A client task that changes a page a journey prints
    (words, a banner) leaves the gate's journeys test red unless it reprints
    (`temper/docs/design/client/journeys.md`, 1: "a landing that changes a recorded page
    carries its new print"). The client specs allow `heavy cargo run -p
@@ -58,7 +82,7 @@ Specs under `temper/docs/plan/playground-reset-r6/tasks/`; notes `notes/cl-wire.
    task. **Request:** confirm this edit of `docs/design/` (generated output) for cl's
    tasks; `cl-pg` needs it for certain (the playground's chats page, `welcome-playground`'s
    `02.html`, carries the banner).
-6. **`welcome-set-up` will need a person at the end.** On a fresh box with no forge
+6. **Answered (lead): option (b), `cl-journeys` deletes it.** **`welcome-set-up` will need a person at the end.** On a fresh box with no forge
    record, the welcome's "Run on this machine" is `MakeAndSetUpAtOnce`, not today's
    `SetUpAtOnce { forge: 3 }`: the walk's act changes, so `again` cannot record it
    (journeys.md, 8: "walked anew in a browser ... then added"). The client tasks keep the
@@ -69,7 +93,7 @@ Specs under `temper/docs/plan/playground-reset-r6/tasks/`; notes `notes/cl-wire.
    (`add welcome-set-up FILE`), or (b) `cl-journeys` deletes `welcome-set-up` and it is
    walked after the run. Recommendation: (a), the user's walk being three clicks; `cl-journeys`
    then waits for the file.
-7. **The Forges document says nothing of the machine's offers.** With zero records the
+7. **Later (lead).** **The Forges document says nothing of the machine's offers.** With zero records the
    client cannot tell whether Forgejo on this machine is offered (today a row's `offer`).
    Designed around: the card is drawn offered and a `not_offered` answer says so on it.
    **Later** (no change now): a member of `Forges` with the deployment's offers for each
