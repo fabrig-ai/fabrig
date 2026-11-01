@@ -2341,3 +2341,4 @@ fn named_authority_models_price_their_full_allocated_list_and_bytes() {
     assert_eq!(crate::owner_authority::document_bytes(&value, &bounds), None);
 }
 mod projects;
+mod remove_project;

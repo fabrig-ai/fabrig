@@ -2,6 +2,7 @@ mod carried;
 mod fixtures;
 mod limits;
 mod reads;
+mod remove_project;
 mod requests;
 mod text;
 mod versions;
