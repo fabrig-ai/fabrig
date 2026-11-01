@@ -1,6 +1,6 @@
 # engine: status
 
-2026-10-31. Where jig's code lags or departs from [engine.md](engine.md).
+2026-11-01. Where jig's code lags or departs from [engine.md](engine.md).
 
 - **Built:** 7.4: nothing-left-to-await notice and bounded run tries.
 
@@ -10,3 +10,5 @@
 - **Built:** 9: a task's brief includes its contract only when its result ends it; a task its requester ends sees its spec without the contract.
 - **Not yet:** 6: `Core::new` without a start is ready, for the core's unit fixtures only; every root starts it.
 - **Not yet:** 15: 37 core-world stories opt out of the oracle with a named finding: 35 a claim the start settles (6, step 3) changing a task's `chip`, `acts` or run `settings`, which the projection keeps durable; a frame's `needs` with a person proposal left pending; `Deployment.messages` advancing on a retried deadline. The core world's `world` and `direct` drivers run no oracle. 2, 8: inline engine agents, hello placement barrier and two-claim placement balance. 4.2, 5.3: remaining point-load fences. 7.1, 9: brief's Lineage/Calls/Waiting; 7.2: objects made by turn calls. 11.1: resolved preview. 7.3: hold, lift.
+
+- **Built:** 11: an unknown unwatch receives its unwatched ending behind the commit barrier.

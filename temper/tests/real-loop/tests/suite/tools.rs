@@ -2,9 +2,6 @@
 // Each story signs in first; a chat, when present, is the next call.
 const SIGN_IN: usize = 0;
 const CHAT: usize = 1;
-// The replied wait follows the chat; the running ended wait precedes close.
-const WAIT: usize = 3;
-const CLOSE: usize = 4;
 // Each story needs at most one chat's scripted model turn.
 const CHATS: usize = 1;
 #[test]
@@ -64,12 +61,16 @@ fn a_signed_in_directory_is_private_to_its_user() {
 }
 
 #[test]
-fn another_clients_close_meets_a_running_wait() {
+fn a_ctl_wait_and_me_answer_beside_another_wait() {
     use temper_real_loop_world::{
         Exit, argv,
         calls::{D1, call, join, start, task, watching},
         fixtures, run, scripts,
     };
+    const WAIT: usize = 3;
+    const OTHER_WAIT: usize = 4;
+    const ME: usize = 5;
+    const CLOSE: usize = 6;
     let ran = run(
         || scripts::chat_scripts(CHATS),
         || {
@@ -78,13 +79,21 @@ fn another_clients_close_meets_a_running_wait() {
                 call(D1, argv!["task", "show", task(CHAT), "--until", "replied"]),
                 start(D1, argv!["task", "show", task(CHAT), "--until", "ended"]),
                 watching(WAIT),
+                start(D1, argv!["task", "show", task(CHAT), "--until", "ended"]),
+                watching(OTHER_WAIT),
+                call(D1, argv!["me", "--json"]),
                 call(D1, argv!["chat", "close", task(CHAT), "--key", "close-waiting"]),
                 join(WAIT),
+                join(OTHER_WAIT),
             ]);
             steps
         },
     );
     let (wait, close) = (&ran.calls()[WAIT], &ran.calls()[CLOSE]);
+    let me = &ran.calls()[ME];
+    assert_eq!(me.exit, Some(Exit::Code(0)), "{}", String::from_utf8_lossy(&me.stderr));
+    assert!(me.ended < wait.ended, "me answers while the wait is still open");
+    assert_eq!(ran.calls()[OTHER_WAIT].exit, Some(Exit::Code(0)));
     assert_eq!([wait.exit, close.exit], [Some(Exit::Code(0)); 2], "{}", String::from_utf8_lossy(&wait.stderr));
     assert!(wait.ended > close.spawned, "the wait ended at {:?}, before the close", wait.ended);
 }

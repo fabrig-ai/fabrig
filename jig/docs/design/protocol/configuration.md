@@ -368,6 +368,13 @@ host's half reports it (`llm.md`, 5.5).
   frame. Its accounting-only ceiling leaves page rows, chunks, decoder
   capacity, queues and read slots unchanged; the numeric ceiling and its
   derivation live beside `STORE_KV` in the profile.
+- **Stream overrides carry their calls.** `clients.streams`,
+  `clients.exchanges`, `clients_http.streams` and `clients_http.calls`
+  are positive scalar overrides. When any is overridden, both carriers
+  (`clients.exchanges` and `clients_http.calls`) must hold the larger
+  stream bound plus four ordinary exchanges. The component's exchange
+  bound also carries every call the HTTP mount admits. The reader checks them
+  together and refuses an undersized carrier by its bound's name.
 - **Checked whole at startup, where limits size an edge:** the terms of
   the workers' channel follow from the same limits (`channel.md`, section
   11). No sum of worst cases is checked against memory: an engine's

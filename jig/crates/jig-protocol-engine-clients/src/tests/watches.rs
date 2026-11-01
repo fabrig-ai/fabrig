@@ -9,6 +9,112 @@ fn stream_world() -> (fixtures::Exchange, [u8; 16]) {
     let stream = world.open_stream();
     (world, stream)
 }
+fn gone_watch(subject: w::Owned) -> (fixtures::Exchange, Token) {
+    let mut env = fixtures::env();
+    env.limits.streams = 1;
+    let mut world = fixtures::Exchange::with_env(env);
+    let stream = world.open_stream();
+    world.open_record(stream, 17, subject);
+    let watcher = *world.stream().watches.first().expect("watch").0;
+    world.component.down(&world.env, Event::Admitted { watcher }, &mut world.out);
+    let owner = *world.component.streams.first().expect("stream").0;
+    world.component.down(
+        &world.env,
+        Event::Transport(crate::FromTransport::StreamGone { stream: owner }),
+        &mut world.out,
+    );
+    while world.component.up(&world.env, &mut world.out) {}
+    world.out.clear();
+    (world, watcher)
+}
+#[test]
+fn a_gone_stream_releases_its_slot_without_a_core_ending() {
+    let (mut world, _) = gone_watch(fixtures::owned_subject(&fixtures::task_subject()));
+    assert!(world.component.streams.is_empty(), "a lost connection cannot retain stream capacity");
+    world.open_stream();
+    assert_eq!(world.component.streams.len(), 1);
+}
+#[test]
+fn a_late_core_document_after_stream_loss_is_acknowledged() {
+    let (mut world, watcher) = gone_watch(fixtures::owned_subject(&fixtures::task_subject()));
+    world.component.down(
+        &world.env,
+        Event::Delivery {
+            watcher,
+            document: Box::new(core::documents::Document::Frame(fixtures::frame_two_projects())),
+        },
+        &mut world.out,
+    );
+    let Some(Request::Core(event)) = world.out.pop() else { panic!("late delivery acknowledgement") };
+    let core::Event::Delivered { watcher: got } = *event else { panic!("document acknowledgement") };
+    assert_eq!(got, watcher);
+    assert!(world.out.is_empty());
+}
+#[test]
+fn a_late_application_document_after_stream_loss_is_acknowledged() {
+    let (mut world, watcher) = gone_watch(fixtures::family_subject());
+    world.component.down(
+        &world.env,
+        Event::Application(FromApplication::Delivery { watcher, family: 9, record: Box::new([77]) }),
+        &mut world.out,
+    );
+    let Some(Request::Core(event)) = world.out.pop() else { panic!("late delivery acknowledgement") };
+    let core::Event::Delivered { watcher: got } = *event else { panic!("document acknowledgement") };
+    assert_eq!(got, watcher);
+    assert!(world.out.is_empty());
+}
+#[test]
+fn a_late_run_text_after_stream_loss_is_acknowledged() {
+    let subject = w::Subject::Run(
+        w::SubjectRun::new(&fixtures::wire(), w::SubjectRunParts { task: 7, turn: None, offset: 0 }).expect("run"),
+    );
+    let (mut world, watcher) = gone_watch(fixtures::owned_subject(&subject));
+    let writing = fixtures::writing();
+    world.component.down(
+        &world.env,
+        Event::RunText {
+            watcher,
+            turn: writing.turn,
+            from: writing.from,
+            to: writing.to,
+            text: writing.text,
+            cut: writing.cut,
+            call: writing.call,
+            writing: writing.writing,
+        },
+        &mut world.out,
+    );
+    let Some(Request::Core(event)) = world.out.pop() else { panic!("late text acknowledgement") };
+    let core::Event::StreamDelivered { watcher: got } = *event else { panic!("text acknowledgement") };
+    assert_eq!(got, watcher);
+    assert!(world.out.is_empty());
+}
+#[test]
+fn a_delivery_for_a_name_the_component_never_issued_is_ignored() {
+    let mut world = fixtures::Exchange::new();
+    let watcher = Token::new(u64::MAX);
+    let writing = fixtures::writing();
+    for event in [
+        Event::Delivery {
+            watcher,
+            document: Box::new(core::documents::Document::Frame(fixtures::frame_two_projects())),
+        },
+        Event::Application(FromApplication::Delivery { watcher, family: 9, record: Box::new([77]) }),
+        Event::RunText {
+            watcher,
+            turn: writing.turn,
+            from: writing.from,
+            to: writing.to,
+            text: writing.text,
+            cut: writing.cut,
+            call: writing.call,
+            writing: writing.writing,
+        },
+    ] {
+        world.component.down(&world.env, event, &mut world.out);
+        assert!(world.out.is_empty(), "a foreign name settles no watch");
+    }
+}
 fn request_task(world: &mut fixtures::Exchange, stream: [u8; 16], name: u64) -> (Token, Token) {
     let owner = world.open_record(stream, name, fixtures::owned_subject(&fixtures::task_subject()));
     (owner, world.take_watch())
