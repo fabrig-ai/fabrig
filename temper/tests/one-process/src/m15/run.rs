@@ -286,7 +286,7 @@ pub fn delivery(renew: bool) -> observer::Counts {
     let (forge, mut peer) =
         github::peer_with_ci(if renew { TOKEN_LIFE } else { skein_fake_forge_github::installations::TOKEN_LIFE });
     let (app, files) = observer::input(&mut peer);
-    let mut disk = crate::machine::fresh();
+    let mut disk = crate::machine::fresh(Story::Adopt);
     let input = disk.lay(&files);
     disk.close(input);
     let caller = disk.reopen_root(2);

@@ -1,11 +1,12 @@
 //! Configuration bytes, private files and scripts shared by the stories.
 #[cfg(test)]
 pub(crate) mod durable;
+pub(crate) mod store;
 #[path = "../../real-loop/src/turn_bounds.rs"]
 pub mod turn_bounds;
 use crate::world::Settings;
 use jig_channel_world::fixtures as channel;
-use skein_lib::{Duration, List, Secret};
+use skein_lib::{Duration, List};
 use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 pub(crate) const FORGE: SocketAddr = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::LOCALHOST, 3000));
 pub const HOOK_SECRET: &[u8] = b"world-webhook-secret";
@@ -132,10 +133,7 @@ pub(crate) fn world_document() -> serde_json::Value {
     value["application"] = serde_json::json!({
         "webhooks":{"listener":{"socket":"127.0.0.1:0"}},
 "clients":{"listener":{"socket":CLIENTS.to_string()},"public":null,"bundle":null},
-        "forges":[{"number":1,"kind":"forgejo","api":{"socket":FORGE.to_string()},"transport":"plaintext",
-            "git":format!("http://{FORGE}"),"webhook_secret":"secrets/forge-1.webhook-secret","api_token":"secrets/forge.api-token","user":{"file":"secrets/forge-1.user"},"identity":1}],
-        "identities":[{"number":1,"token":"secrets/forge.git-token","login":"worker","author":{"name":"Worker","email":"worker@example.invalid"}}],
-        "setup":[],"demo":null,"sign_in":null,"landing":{"deployment":[],"projects":[]},"charter":1,
+        "demo":null,"sign_in":null,"landing":{"deployment":[],"projects":[]},"charter":1,
         "limits":{"profile":"small","overrides":{"checkout.name_bytes":256,"checkout.repositories":2,"checkout.message_bytes":4096,"forge.name_bytes":64,"forge.resources_per_task":2,"git_component.stdout_bytes":2048}},
         "workers":[{"root":"worker","git":"/usr/bin/git"}]});
     crate::settings::stage_policies(&mut value);
@@ -197,20 +195,6 @@ pub(crate) fn files() -> temper_service::settings::Files {
             let name = if name.as_ref() == b"agent.json" { b"/opt/temper/agent.json".as_slice().into() } else { name };
             entries.push((name, value)).expect("fixture files");
         }
-    }
-    for name in [b"secrets/forge.api-token".as_slice(), b"secrets/forge.git-token"] {
-        entries.push((name.into(), Secret::new(temper_fake_git_hosted::fixtures::TOKEN.into()))).expect("forge files");
-    }
-    entries
-        .push((b"secrets/forge-1.user".as_slice().into(), Secret::new(b"1\n".as_slice().into())))
-        .expect("user file");
-    entries
-        .push((b"secrets/forge-1.webhook-secret".as_slice().into(), Secret::new(HOOK_SECRET.into())))
-        .expect("webhook secret file");
-    if crate::stories::held_change() && crate::stories::first_start() {
-        entries
-            .push((b"forge-1/admin_token".as_slice().into(), Secret::new(crate::restart_control::ADMIN_TOKEN.into())))
-            .expect("fixture handover");
     }
     temper_service::settings::Files { entries }
 }
@@ -298,17 +282,6 @@ pub(crate) fn agent_configuration() -> smith_agent_service::Config {
     )
     .expect("derived provider endpoint");
     config
-}
-pub(crate) fn forges() -> List<temper_service::ForgeRuntime> {
-    let mut forges = List::with_capacity(1);
-    forges
-        .push(temper_service::ForgeRuntime {
-            number: 1,
-            address: FORGE,
-            transport: skein_forge_connection::settings::Transport::Plaintext { name: None },
-        })
-        .expect("one loopback forge");
-    forges
 }
 pub(crate) fn provider() -> skein_fake_peers::llm::Peer {
     let mut script = channel::one_chat(b"Hello");

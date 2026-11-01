@@ -8,6 +8,7 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
+skein-scratch.workspace = true
 temper-fake-git.workspace = true
 skein-fake-forge-github.workspace = true
 temper-github-app.workspace = true
