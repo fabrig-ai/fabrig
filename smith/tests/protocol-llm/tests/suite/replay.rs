@@ -191,7 +191,7 @@ fn resumed_prefix(fixture: &Fixture, tail: bool) -> Vec<Message> {
             Role::User,
             vec![Part::ToolOutput {
                 id: b"call_0000000000000002".as_slice().into(),
-                output: b"Continue the saved conversation.".as_slice().into(),
+                output: smith_agent_world::fixture::RESUME.into(),
                 is_error: false,
             }],
         ));
@@ -201,7 +201,7 @@ fn resumed_prefix(fixture: &Fixture, tail: bool) -> Vec<Message> {
 
 fn waking_prompt() -> Vec<u8> {
     let mut text = b"Earlier host answers absent from the saved transcript:\ncall activation=1 completion=2 position=1 tool=wait result: Messages arrived. Read them before continuing.\n\n".to_vec();
-    text.extend_from_slice(b"Continue the saved conversation.");
+    text.extend_from_slice(smith_agent_world::fixture::RESUME);
     text
 }
 
@@ -275,7 +275,7 @@ fn recorded_wait(turn: &smith_domain::Turn, fixture: &Fixture, opaque: bool) -> 
     let wake_matches = if opaque {
         matches!(wake.content.as_ref(), [llm::Block::Text { text, replay: None }] if text.as_ref() == BEGIN)
     } else {
-        matches!(wake.content.as_ref(), [llm::Block::ToolResult { id, result: llm::Returned::Text { text, error: false, replay: None } }] if id.as_ref() == b"call_0000000000000002" && text.as_ref() == b"Continue the saved conversation.")
+        matches!(wake.content.as_ref(), [llm::Block::ToolResult { id, result: llm::Returned::Text { text, error: false, replay: None } }] if id.as_ref() == b"call_0000000000000002" && text.as_ref() == smith_agent_world::fixture::RESUME)
     };
     if wake.role != llm::Role::User || assistant.role != llm::Role::Assistant || !wake_matches {
         return false;
