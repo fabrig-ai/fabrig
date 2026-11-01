@@ -107,6 +107,7 @@ fn charters_beyond_the_limits_are_refused_as_invalid() {
     let twins: Box<[Directory]> = Box::new([repository(b"a"), repository(b"a")]);
     let host_tools = Box::new([
         HostTool {
+            reserve: false,
             name: bytes(b"reply"),
             description: b"Host action".as_slice().into(),
             schema: b"{}".as_slice().into(),
@@ -114,6 +115,7 @@ fn charters_beyond_the_limits_are_refused_as_invalid() {
             timeout: Duration::from_secs(5),
         },
         HostTool {
+            reserve: false,
             name: bytes(b"reply"),
             description: b"Host action".as_slice().into(),
             schema: b"{}".as_slice().into(),

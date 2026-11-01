@@ -12,3 +12,5 @@
 - **Built:** 4.1, 4.3, 4.6: the small profile's 177,523-token demo window, 51,870-byte host part, 25,935-byte offer and 125,634-byte shared room; the largest stock charter and 14,592-byte brief with framing leave 1,564 bytes; the reviews budget is 4,608 bytes. 4.3: the stock coder's words permit remove after reading. 4.3.1: the stock chat reads a fix's premise before delegating, reports absent faults without changing anything, and describes landings only from the result or pull request; the coder finishes with a failure for an absent fault instead of adding a feature. Brief fitting remains the fallback.
 
 - **Built:** 5, 8.2: a person's inbox answer notice carries the answer words, cut at 256 bytes, to a live run and the inbox at start; empty stored notices keep their words-free line.
+
+- **Built:** 4.3.2, 8.2: every Finite charter 1 run retains `message` in its reserve, so an owed plan question can reach the person on its last turn.

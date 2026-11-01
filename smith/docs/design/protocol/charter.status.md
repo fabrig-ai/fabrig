@@ -4,3 +4,5 @@
 
 - **Built:** 2, 5, 6: charter/result codecs, credential forms and prompt-window material; recorded as built.
 - **Not yet:** —
+
+- **Built:** 2: the host-tool `reserve` flag round-trips in the charter codec and its frozen goldens.

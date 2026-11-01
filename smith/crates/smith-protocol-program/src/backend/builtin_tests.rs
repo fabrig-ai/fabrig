@@ -273,6 +273,7 @@ fn the_server_keeps_only_remove_when_modify_is_granted() {
 
 fn host_tool(schema: &[u8]) -> llm::Served {
     llm::Served::Host(smith_domain::run::HostTool {
+        reserve: false,
         name: b"host_action".as_slice().into(),
         description: b"Host action".as_slice().into(),
         schema: schema.into(),

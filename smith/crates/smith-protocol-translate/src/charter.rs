@@ -40,6 +40,7 @@ pub fn encode_charter(
         let item = match wire::HostTool::new(
             limits,
             wire::HostToolParts {
+                reserve: tool.reserve,
                 name: tool.name.clone(),
                 description: tool.description.clone(),
                 input: tool.schema.clone(),

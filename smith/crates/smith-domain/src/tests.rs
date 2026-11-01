@@ -1302,6 +1302,7 @@ fn delivered() -> run::Delivery {
 
 fn opaque_tool(name: &[u8], effect: run::HostEffect) -> run::HostTool {
     run::HostTool {
+        reserve: false,
         name: bytes(name),
         description: bytes(b"Uninterpreted host operation"),
         schema: bytes(br#"{"type":"object"}"#),

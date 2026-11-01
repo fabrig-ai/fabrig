@@ -100,6 +100,7 @@ fn absent_workspace_suppresses_workspace_families_and_preserves_main_services() 
     policy.grants.tools = Tools { inspect: true, modify: true, shell: true };
     policy.grants.agents = true;
     policy.grants.host_tools = Box::new([HostTool {
+        reserve: false,
         name: bytes(b"host_action"),
         description: bytes(b"Host action"),
         schema: bytes(b"{}"),

@@ -94,6 +94,7 @@ pub fn charter(charter: Charter) -> Option<run::Charter> {
     for tool in charter.tools {
         tools
             .push(run::charter::HostTool {
+                reserve: false,
                 name: tool.name,
                 description: tool.description,
                 schema: tool.schema,

@@ -225,6 +225,7 @@ fn offered_tools(timeout: Duration, settings: bool, message: bool) -> Box<[run::
         }
         tools
             .push(run::HostTool {
+                reserve: false,
                 name: bytes::copy_of(spec.name),
                 description: bytes::copy_of(spec.description),
                 schema: bytes::copy_of(spec.schema),

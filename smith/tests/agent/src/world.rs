@@ -1815,6 +1815,7 @@ pub fn charter(settings: &Settings) -> run::Charter {
             agents: true,
             host_tools: if settings.job == Job::HostTools {
                 Box::new([run::HostTool {
+                    reserve: false,
                     name: settings.host_tool_name.into(),
                     description: b"Opaque host write".as_slice().into(),
                     schema: br#"{"type":"object"}"#.as_slice().into(),
