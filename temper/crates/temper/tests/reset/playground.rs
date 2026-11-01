@@ -12,54 +12,38 @@ fn a_first_run_into_the_playground_and_out_by_its_reset_leaves_the_store_empty()
     let clock = skein_shell::Clock::new();
     let began = clock.now().now;
     let scratch = support::Scratch::new("playground-reset");
-    let (paths, flags) = crate::first_run_directories(&scratch);
-    let initialized = std::process::Command::new(skein_scratch::paths::binary("temper"))
-        .arg("init")
-        .args(&flags)
-        .env_clear()
-        .env("PATH", "/usr/bin:/bin")
-        .stdin(std::process::Stdio::null())
-        .current_dir(scratch.path())
-        .output()
-        .expect("fresh temper init");
-    assert!(initialized.status.success(), "{}", String::from_utf8_lossy(&initialized.stderr));
-    support::own_listener_files(&paths[0]);
+    let (paths, flags) = initialize(&scratch);
     let running_data = paths[1].clone();
     let reset_data = paths[1].clone();
     let seen = support::boxed::run_ctl_with_exits(
         scratch.path(),
         flags,
         scratch.path(),
-        vec![
-            Step::Run(Call::sign_in()),
-            Step::Until(forges::playground_start(), b"running\n"),
-            Step::Until(Call::new(&["forge", "list"]).json(), b"\"state\":\"connected\""),
-            Step::Run(Call::new(&["account", "list"]).json()),
-            Step::Run(Call::new(&["me"]).json()),
-            Step::Then(Box::new(move |calls| {
-                let forge = running_forge(&calls[2]);
-                assert_running_accounts(&calls[3]);
-                assert_playground_project(&calls[4], true);
-                assert!(running_data.join(format!("box/groups/{forge}")).is_file(), "playground group settings");
-                assert!(running_data.join(format!("box/started/{forge}")).is_file(), "playground group started");
-                assert!(running_data.join(format!("forge-{forge}")).is_dir(), "playground forge directory");
-                assert!(
-                    !running_data.join(format!("forge-{forge}/admin_token")).exists(),
-                    "the engine consumed the handover before connecting"
-                );
-                forges::playground_reset()
-            })),
-            Step::Run(Call::new(&["forge", "list"]).json()),
-            Step::Run(Call::new(&["account", "list"]).json()),
-            Step::Then(Box::new(move |calls| {
-                assert_eq!(calls[5].stdout, b"reset\n", "reset finished before reading the store");
-                assert_empty_forges(&calls[6]);
-                assert_reset_accounts(&calls[7]);
-                assert_removed(&reset_data, running_forge(&calls[2]));
-                Call::new(&["me"]).json()
-            })),
-            Step::Run(Call::new(&["playground", "reset", "--key", "read-not-started"])),
-        ],
+        running_steps(&paths[1])
+            .into_iter()
+            .chain(vec![
+                Step::Then(Box::new(move |calls| {
+                    let forge = running_forge(&calls[2]);
+                    assert_running_accounts(&calls[3]);
+                    assert_playground_project(&calls[4], true);
+                    assert!(
+                        !running_data.join(format!("forge-{forge}/admin_token")).exists(),
+                        "the engine consumed the handover before connecting"
+                    );
+                    forges::playground_reset()
+                })),
+                Step::Run(Call::new(&["forge", "list"]).json()),
+                Step::Run(Call::new(&["account", "list"]).json()),
+                Step::Then(Box::new(move |calls| {
+                    assert_eq!(calls[5].stdout, b"reset\n", "reset finished before reading the store");
+                    assert_empty_forges(&calls[6]);
+                    assert_reset_accounts(&calls[7]);
+                    assert_removed(&reset_data, running_forge(&calls[2]));
+                    Call::new(&["me"]).json()
+                })),
+                Step::Run(Call::new(&["playground", "reset", "--key", "read-not-started"])),
+            ])
+            .collect(),
         support::boxed::BOX_DEADLINE,
         || (),
         &[(9, 2)],
@@ -108,7 +92,41 @@ fn a_first_run_into_the_playground_and_out_by_its_reset_leaves_the_store_empty()
     scratch.remove();
 }
 
-fn running_forge(call: &Ended) -> u16 {
+pub(super) fn initialize(scratch: &support::Scratch) -> ([std::path::PathBuf; 3], Vec<String>) {
+    let (paths, flags) = crate::first_run_directories(scratch);
+    let initialized = std::process::Command::new(skein_scratch::paths::binary("temper"))
+        .arg("init")
+        .args(&flags)
+        .env_clear()
+        .env("PATH", "/usr/bin:/bin")
+        .stdin(std::process::Stdio::null())
+        .current_dir(scratch.path())
+        .output()
+        .expect("fresh temper init");
+    assert!(initialized.status.success(), "{}", String::from_utf8_lossy(&initialized.stderr));
+    support::own_listener_files(&paths[0]);
+    (paths, flags)
+}
+
+pub(super) fn running_steps(data: &Path) -> Vec<Step> {
+    let data = data.to_path_buf();
+    vec![
+        Step::Run(Call::sign_in()),
+        Step::Until(forges::playground_start(), b"running\n"),
+        Step::Until(Call::new(&["forge", "list"]).json(), b"\"state\":\"connected\""),
+        Step::Run(Call::new(&["account", "list"]).json()),
+        Step::Then(Box::new(move |calls| {
+            let forge = running_forge(&calls[2]);
+            assert_running_accounts(&calls[3]);
+            assert!(data.join(format!("box/groups/{forge}")).is_file(), "playground group settings");
+            assert!(data.join(format!("box/started/{forge}")).is_file(), "playground group started");
+            assert!(data.join(format!("forge-{forge}")).is_dir(), "playground forge directory");
+            Call::new(&["me"]).json()
+        })),
+    ]
+}
+
+pub(super) fn running_forge(call: &Ended) -> u16 {
     let document = ctl::json(call);
     let [forge] = document["forges"].as_array().expect("forge rows").as_slice() else {
         panic!("only the playground's forge: {document}")
@@ -125,7 +143,7 @@ fn assert_empty_forges(call: &Ended) {
     assert!(document["forges"].as_array().expect("forge rows").is_empty(), "{document}");
 }
 
-fn assert_running_accounts(call: &Ended) {
+pub(super) fn assert_running_accounts(call: &Ended) {
     let document = ctl::json(call);
     let [account] = document["accounts"]["deployment"].as_array().expect("deployment accounts").as_slice() else {
         panic!("only the scripted account: {document}")
@@ -142,7 +160,7 @@ fn assert_reset_accounts(call: &Ended) {
     }
 }
 
-fn assert_playground_project(call: &Ended, present: bool) {
+pub(super) fn assert_playground_project(call: &Ended, present: bool) {
     let document = ctl::json(call);
     let projects = document["projects"].as_array().expect("party projects");
     assert_eq!(projects.iter().any(|project| project["name"]["bytes"] == "Playground"), present, "{document}");
