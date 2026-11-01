@@ -1,5 +1,5 @@
 //! Admission and stack bounds for the host (forge-setup.md, 6.3).
-use super::settings::{self, Kind, Settings, Transport};
+use super::settings::{self, Forge, Kind, Settings, Transport};
 use alloc::boxed::Box;
 use skein_forge::{forgejo::limits as docs, github as dialect};
 use skein_json::{tokenizer, writer};
@@ -182,65 +182,81 @@ pub(super) fn check(l: &Limits, settings: &Settings) -> Result<(), Unusable> {
                 return Err(Unusable::Duplicate { forge: number });
             }
         }
-        let tls = match &forge.transport {
-            Transport::Plaintext { name } => {
-                if let Some(name) = name
-                    && !plaintext_name(name)
-                {
-                    return Err(Unusable::PlaintextName { forge: number });
-                }
-                false
-            }
-            Transport::Tls { .. } => true,
-        };
-        match forge.address {
-            skein_io::Addr::Ip(ip) => {
-                if !tls && !ip.ip().is_loopback() {
-                    return Err(Unusable::Address { forge: number });
-                }
-            }
-            skein_io::Addr::InProcess(_) => return Err(Unusable::Address { forge: number }),
-        }
-        let h = http_transport(l, tls);
-        let host = settings::host(forge).ok_or(Unusable::Request { forge: number })?;
-        let (credential, framing) = match &forge.kind {
-            Kind::Forgejo(_) => (u64::from(l.token_bytes), 192),
-            Kind::GitHub(_) => {
-                if let Err(problem) = dialect::limits::check(&github(l)) {
-                    return Err(Unusable::GitHubDocuments(problem));
-                }
-                app_metadata(l)?;
-                stack(Stacked::JsonOverHttp, tokenizer::largest_demand(&github(l).json), h.read)?;
-                (u64::from(l.token_bytes).max(u64::try_from(dialect::jwt::JWT_BYTES).expect("JWT bound fits")), 320)
-            }
-        };
-        let head = u64::from(l.target_bytes)
-            .saturating_add(u64::try_from(host.len()).expect("host length fits"))
-            .saturating_add(credential)
-            .saturating_add(u64::try_from(settings.user_agent.len()).expect("agent length fits"))
-            .saturating_add(framing);
-        if !header_value(&settings.user_agent) || head > u64::from(h.request) {
-            return Err(Unusable::Request { forge: number });
-        }
-        let reachable = match &forge.kind {
-            Kind::Forgejo(given) => {
-                if let Err(refused) = crate::given::check(given) {
-                    return Err(Unusable::Given { forge: number, refused });
-                }
-                given.limits.reachable
-            }
-            Kind::GitHub(given) => {
-                if let Err(refused) = crate::github::given::check(given) {
-                    return Err(Unusable::GitHubGiven { forge: number, refused });
-                }
-                given.limits.reachable
-            }
-        };
-        if reachable > l.inner {
-            return Err(Unusable::Reachable { forge: number, reachable, inner: l.inner });
-        }
-        capacity_bound(l, &forge.kind, tls).ok_or(Unusable::Zero)?;
+        check_forge(l, settings, forge)?;
     }
+    Ok(())
+}
+pub(super) fn check_added(l: &Limits, settings: &Settings, forge: &Forge) -> Result<(), Unusable> {
+    if settings.forges.len() >= l.forges {
+        return Err(Unusable::Forges { forges: l.forges });
+    }
+    for kept in &settings.forges {
+        if kept.number() == forge.number() {
+            return Err(Unusable::Duplicate { forge: forge.number() });
+        }
+    }
+    check_forge(l, settings, forge)
+}
+fn check_forge(l: &Limits, settings: &Settings, forge: &Forge) -> Result<(), Unusable> {
+    let number = forge.number();
+    let tls = match &forge.transport {
+        Transport::Plaintext { name } => {
+            if let Some(name) = name
+                && !plaintext_name(name)
+            {
+                return Err(Unusable::PlaintextName { forge: number });
+            }
+            false
+        }
+        Transport::Tls { .. } => true,
+    };
+    match forge.address {
+        skein_io::Addr::Ip(ip) => {
+            if !tls && !ip.ip().is_loopback() {
+                return Err(Unusable::Address { forge: number });
+            }
+        }
+        skein_io::Addr::InProcess(_) => return Err(Unusable::Address { forge: number }),
+    }
+    let h = http_transport(l, tls);
+    let host = settings::host(forge).ok_or(Unusable::Request { forge: number })?;
+    let (credential, framing) = match &forge.kind {
+        Kind::Forgejo(_) => (u64::from(l.token_bytes), 192),
+        Kind::GitHub(_) => {
+            if let Err(problem) = dialect::limits::check(&github(l)) {
+                return Err(Unusable::GitHubDocuments(problem));
+            }
+            app_metadata(l)?;
+            stack(Stacked::JsonOverHttp, tokenizer::largest_demand(&github(l).json), h.read)?;
+            (u64::from(l.token_bytes).max(u64::try_from(dialect::jwt::JWT_BYTES).expect("JWT bound fits")), 320)
+        }
+    };
+    let head = u64::from(l.target_bytes)
+        .saturating_add(u64::try_from(host.len()).expect("host length fits"))
+        .saturating_add(credential)
+        .saturating_add(u64::try_from(settings.user_agent.len()).expect("agent length fits"))
+        .saturating_add(framing);
+    if !header_value(&settings.user_agent) || head > u64::from(h.request) {
+        return Err(Unusable::Request { forge: number });
+    }
+    let reachable = match &forge.kind {
+        Kind::Forgejo(given) => {
+            if let Err(refused) = crate::given::check(given) {
+                return Err(Unusable::Given { forge: number, refused });
+            }
+            given.limits.reachable
+        }
+        Kind::GitHub(given) => {
+            if let Err(refused) = crate::github::given::check(given) {
+                return Err(Unusable::GitHubGiven { forge: number, refused });
+            }
+            given.limits.reachable
+        }
+    };
+    if reachable > l.inner {
+        return Err(Unusable::Reachable { forge: number, reachable, inner: l.inner });
+    }
+    capacity_bound(l, &forge.kind, tls).ok_or(Unusable::Zero)?;
     Ok(())
 }
 fn capacity_bound(l: &Limits, kind: &Kind, tls: bool) -> Option<()> {
