@@ -1,0 +1,17 @@
+draft = "playground-reset-r4"
+repo = "fabrig"
+sources = ["temper/docs/design/draft/playground-reset.md", "temper/docs/plan/playground-reset-r4/inputs/brief.md", "temper/docs/plan/playground-reset-r4/inputs/README.md", "AGENTS.md"]
+ready = false
+
+[[part]]
+id = "project-deletion"
+title = "jig deletes a project whole: closed at once, its tasks ended and erased, its rows and its connectors' released, kept until whole"
+mode = "direct"
+needs = []
+design = "temper/docs/design/draft/playground-reset.md, 5"
+
+[[slice]]
+id = 3
+story = "An owner deletes a project: it is gone at once, its tasks erased, no row names it, and a restart mid-way ends it whole"
+parts = ["project-deletion"]
+walk = false
