@@ -430,6 +430,14 @@ impl ServiceHost {
     pub(crate) fn delivered(&self) -> bool {
         self.watch.delivered
     }
+    pub(crate) fn connected_hooks(&self) -> Option<SocketAddr> {
+        let engine = self.service.as_ref()?.engine_domain()?;
+        if matches!(engine.forge_connection(1), temper_engine_domain_forge::Connection::Connected { .. }) {
+            self.hooks
+        } else {
+            None
+        }
+    }
 }
 impl Host for ServiceHost {
     fn drain(&mut self) {
@@ -495,9 +503,17 @@ impl Host for ServiceHost {
             while let Some(note) = service.listening().pop() {
                 if let temper_service::Note::Listening { listener, addr } = note {
                     match listener {
-                        temper_service::Listening::Workers => self.workers_address = Some(addr),
+                        temper_service::Listening::Workers => {
+                            if self.forge_seeded {
+                                self.workers_address = Some(addr);
+                            }
+                        }
                         // The durable mark can leave the workers listening before webhooks.
-                        temper_service::Listening::Webhooks => self.hooks = Some(addr),
+                        temper_service::Listening::Webhooks => {
+                            if self.forge_seeded {
+                                self.hooks = Some(addr);
+                            }
+                        }
                         temper_service::Listening::Clients => {}
                     }
                 }

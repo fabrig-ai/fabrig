@@ -788,7 +788,7 @@ impl Referee<Proc> for Judge {
             if let Some(address) = forge.address() {
                 peer.bind(address);
             }
-            if let Some(hooks) = service.hooks
+            if let Some(hooks) = service.connected_hooks()
                 && !state.hooked
             {
                 state.hand_hooks(hooks);
