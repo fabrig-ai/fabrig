@@ -100,7 +100,7 @@ fn not_started_welcome_and_strip_start_the_playground_in_its_project() {
         let (mut front, mut root) = accounts::demo_fixture(f::SEED, &w::PlaygroundState::NotStarted);
         assert!(has(&root, Role::Heading { level: 1 }, b"Welcome to temper"));
         assert!(has(&root, Role::Button, b"Try the playground"));
-        assert!(!has(&root, Role::Region, b"Playground"));
+        assert!(!has(&root, Role::Region, b"The playground"));
         assert!(front.demo_starts.is_empty());
         if strip {
             go(&mut front, &mut root, Address::Chats { filter: ChatsFilter::All, start: false });
@@ -110,7 +110,7 @@ fn not_started_welcome_and_strip_start_the_playground_in_its_project() {
         assert_eq!(front.demo_starts.len(), 1);
         assert_eq!(root.person().pages().address(), &Address::Chats { filter: ChatsFilter::All, start: false });
         assert_eq!(root.person().pages().project(), Some(1));
-        assert!(has(&root, Role::Region, b"Playground"));
+        assert!(has(&root, Role::Region, b"The playground"));
         assert!(!has(&root, Role::Region, b"Setup"));
         assert!(has(&root, Role::Status, b"Ready"));
         pump(&mut front, &mut root, d::Event::Act { action: d::Action::Pages(Act::Playground) });
@@ -146,7 +146,7 @@ fn running_read_sends_no_start_and_welcome_moves_once() {
     assert_eq!(replaces, 1);
     assert_eq!(front.demo_starts.len(), 0);
     go(&mut front, &mut root, Address::Welcome { step: Step::Ready });
-    assert!(!has(&root, Role::Region, b"Playground"));
+    assert!(!has(&root, Role::Region, b"The playground"));
     assert!(!has(&root, Role::Region, b"Setup"));
 }
 #[test]
@@ -154,7 +154,7 @@ fn absent_demo_still_has_the_setup_strip() {
     let (mut front, mut root) = accounts::forge_fixture(f::SEED);
     go(&mut front, &mut root, Address::Chats { filter: ChatsFilter::All, start: false });
     assert!(has(&root, Role::Region, b"Setup"));
-    assert!(!has(&root, Role::Region, b"Playground"));
+    assert!(!has(&root, Role::Region, b"The playground"));
 }
 
 fn add_model(front: &mut Joint, root: &mut Root) {
@@ -246,8 +246,12 @@ fn a_model_connected_removes_the_scripted_account_and_leaves_the_playground_forg
     let halves = root.person().demo().expect("running playground").1;
     assert_eq!(halves, d::forge::demo::Halves { model: false, forge: true });
     go(&mut front, &mut root, Address::Chats { filter: ChatsFilter::All, start: false });
-    assert!(has(&root, Role::Region, b"Playground"));
-    assert!(has(&root, Role::Paragraph, b"This is the playground: a playground forge."));
+    assert!(has(&root, Role::Region, b"The playground"));
+    assert!(has(
+        &root,
+        Role::Paragraph,
+        b"This is the playground: a scripted model and in-memory forge. Use the wizard to "
+    ));
     assert!(!has(&root, Role::Button, b"Connect a model"));
     assert!(!has(&root, Role::Status, b"Ready"), "no demo start");
     go(&mut front, &mut root, Address::Forges);
@@ -270,10 +274,10 @@ fn a_forge_connected_clears_the_demo_and_welcome_resumes_forge_until_adoption() 
     assert_eq!(front.demo_removals.len(), 0);
     assert!(root.person().forge().demo().is_none());
     assert!(d::forge::listed::playground(root.person()).is_none());
-    assert!(!has(&root, Role::Region, b"Playground"));
+    assert!(!has(&root, Role::Region, b"The playground"));
     assert!(!has(&root, Role::Heading { level: 2 }, b"The playground"));
     go(&mut front, &mut root, Address::Chats { filter: ChatsFilter::All, start: false });
-    assert!(!has(&root, Role::Region, b"Playground"));
+    assert!(!has(&root, Role::Region, b"The playground"));
     assert!(!has(&root, Role::Button, b"Try the playground"));
     assert!(!has(&root, Role::Status, b"Ready"));
     // The fixture also has a usable configured model; connect the other fake

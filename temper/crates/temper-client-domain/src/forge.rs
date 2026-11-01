@@ -222,6 +222,7 @@ pub fn step(side: &mut Side, env: &Env<Limits>, event: Event, out: &mut Queue<Re
         Event::Served { served: value } => served(side, value),
         Event::Act { act } => act_on(side, env.limits, act, out),
         Event::Progress { request, progress } => {
+            demo::end_progress(side, request, progress);
             if progress == skein_lib::RequestProgress::Unknown
                 && (picker::adopted(side, request, &Answer::Unknown)
                     || forges::adopted(side, env.limits, request, &Answer::Unknown, out))
@@ -292,6 +293,7 @@ fn act_on(side: &mut Side, limits: Limits, act: Act, out: &mut Queue<Request>) {
         Act::ConnectManifest { forge, back } => github::manifest(side, limits, forge, back, out),
         Act::ConnectApp { forge } => github::send(side, limits, forge, None, out),
         Act::Install { forge, back } => github::send(side, limits, forge, Some(back), out),
+        Act::EndPlayground => demo::end(side, limits, out),
         Act::StartDemo => demo::start(side, limits, out),
         Act::SetUp { forge } => forges::set_up(side, limits, forge, out),
         Act::SetUpAtOnce { forge } => forges::set_up_at_once(side, limits, forge, out),
@@ -361,7 +363,7 @@ fn act_on(side: &mut Side, limits: Limits, act: Act, out: &mut Queue<Request>) {
 }
 #[must_use]
 pub fn next_deadline(side: &Side) -> Option<Time> {
-    picker::next_deadline(side)
+    [picker::next_deadline(side), side.demo.retry_at].into_iter().flatten().min()
 }
 pub const fn reclaim(_side: &mut Side) {}
 #[must_use]

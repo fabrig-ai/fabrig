@@ -1,9 +1,13 @@
-//! The deployment's demo read and its two independent halves (client/README.md, 4.8).
+//! The playground read, start and reset (temper/docs/design/draft/playground-reset.md, 6.1–6.2).
+//! The retained halves follow temper/docs/design/client/README.md, 4.8.
 use super::{Demo, Limits, Request, Side, family, wire_limits};
 use alloc::boxed::Box;
 use jig_client::{Client, Handle, Latest, Link, Readable, Readout, Told, contract as c};
-use skein_lib::{Queue, Token};
+use skein_lib::{Duration, Queue, RequestProgress, Time, Token};
+
 use temper_client_protocol_wire::{self as wire, v1 as w};
+
+const RESET_WAIT: Duration = Duration::from_secs(2);
 
 #[derive(Debug)]
 #[expect(clippy::struct_excessive_bools, reason = "independent session lifecycle facts (client/README.md, 4.8)")]
@@ -14,15 +18,41 @@ pub(super) struct State {
     pub answered: bool,
     pub start: Option<Starting>,
     pub failure: Option<StartFailure>,
+    pub ending: Option<Ending>,
+    pub retry_at: Option<Time>,
+    pub reset_navigation: bool,
+    pub reset_opened: bool,
+    pub selection: ProjectSelection,
     pub settled: bool,
     pub deployment: Option<(Handle, u32)>,
     pub ended: Option<RetiredDemo>,
     pub model_ended: bool,
     pub forge_ended: bool,
 }
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum ProjectSelection {
+    None,
+    Starting,
+    Reading,
+    Ready(u32),
+}
 #[derive(Debug)]
 pub(super) struct Starting {
     pub request: Token,
+}
+/// The reset request retained through its terminal answer (temper/docs/design/draft/playground-reset.md, 6.2).
+#[derive(Debug)]
+pub struct Ending {
+    pub request: Token,
+    pub progress: Option<RequestProgress>,
+    pub answer: Option<EndAnswer>,
+}
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum EndAnswer {
+    Reset,
+    NotOffered,
+    Unknown,
+    EntranceRefused(c::EntranceRefusal),
 }
 /// Identity retained when the playground ends (client/README.md, 5.6).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -32,6 +62,43 @@ pub struct RetiredDemo {
     pub project: u32,
 }
 impl Side {
+    #[must_use]
+    pub fn leaving(&self) -> bool {
+        if let Some(ending) = &self.demo.ending
+            && ending.progress.is_some()
+        {
+            return true;
+        }
+        resetting(self)
+    }
+    #[must_use]
+    pub fn playground_running(&self) -> bool {
+        let running = match self.demo.answer.as_ref() {
+            Some(demo) => demo.state == DemoState::Running,
+            None => false,
+        };
+        running && !self.leaving()
+    }
+    #[must_use]
+    pub fn ending(&self) -> Option<&Ending> {
+        self.demo.ending.as_ref()
+    }
+    pub(crate) fn select_playground_on_start(&mut self) {
+        self.demo.selection = ProjectSelection::Starting;
+    }
+    pub(crate) fn playground_project(&self) -> Option<u32> {
+        match self.demo.selection {
+            ProjectSelection::Ready(project) => Some(project),
+            ProjectSelection::None | ProjectSelection::Starting | ProjectSelection::Reading => None,
+        }
+    }
+    pub(crate) fn playground_project_selected(&mut self) {
+        self.demo.selection = ProjectSelection::None;
+    }
+    pub(crate) fn take_reset_navigation(&mut self) -> bool {
+        core::mem::replace(&mut self.demo.reset_navigation, false)
+    }
+
     /// The demo forge serves no pages, including after its end (playground.md, 6).
     #[must_use]
     pub fn serves_pages(&self, forge: u16) -> bool {
@@ -78,6 +145,11 @@ impl State {
             answered: false,
             start: None,
             failure: None,
+            ending: None,
+            retry_at: None,
+            reset_navigation: false,
+            reset_opened: false,
+            selection: ProjectSelection::None,
             settled: false,
             deployment: None,
             ended: None,
@@ -101,38 +173,32 @@ pub(crate) fn told(side: &mut Side, told: &Told, limits: Limits, out: &mut Queue
         Told::Page { handle, page } if handle.asker == crate::owner::Owner::Forge.asker() => {
             if Some(*handle) == side.demo.pending {
                 side.demo.pending = None;
-                let mut answer = match page {
-                    Readout::Family { family: number, record: Some(record) } if *number == wire::FORGE => {
-                        match wire_limits(&limits) {
-                            Some(limits) => family::demo(record, &limits),
-                            None => None,
-                        }
-                    }
-                    Readout::Family { .. } | Readout::NotServed { .. } | Readout::Limit | Readout::Jig(_) => None,
-                };
-                let retired = match answer.as_ref() {
-                    Some(demo) if demo.state == DemoState::Ended => {
-                        Some(RetiredDemo { forge: demo.forge, provider: demo.provider, project: demo.project })
-                    }
-                    _ => None,
-                };
-                let retirement_changed = retired.is_some() && side.retired_demo() != retired;
-                if let Some(retired) = retired {
-                    side.demo.ended = Some(retired);
-                    side.demo.model_ended = true;
-                    side.demo.forge_ended = true;
-                    side.demo.settled = true;
-                    side.demo.start = None;
-                    side.demo.failure = None;
-                    answer = None;
-                }
-                let first = !side.demo.answered;
-                side.demo.answered = true;
-                if first || side.demo.answer != answer || retirement_changed {
-                    side.demo.answer = answer;
-                    side.changed();
-                }
+                read_answer(side, page, limits);
             }
+            true
+        }
+        Told::Answered { key, outcome } if end_key(side, *key) => {
+            let answer = match outcome {
+                jig_client::Outcome::Answered(value) => end_answer(value, &limits).unwrap_or(EndAnswer::Unknown),
+                jig_client::Outcome::Unknown
+                | jig_client::Outcome::Limit
+                | jig_client::Outcome::Held
+                | jig_client::Outcome::NotKept
+                | jig_client::Outcome::Unsent
+                | jig_client::Outcome::Full { .. }
+                | jig_client::Outcome::Lost
+                | jig_client::Outcome::Unconfirmed => EndAnswer::Unknown,
+            };
+            if answer == EndAnswer::Reset {
+                reset_done(side);
+                side.demo.answer = None;
+                side.demo.retry_at = None;
+            }
+            let ending = side.demo.ending.as_mut().expect("matching end request");
+            ending.progress = None;
+            ending.answer = Some(answer);
+            read(side, out);
+            side.changed();
             true
         }
         Told::Answered { key, outcome } if start_key(side, *key) => {
@@ -148,6 +214,9 @@ pub(crate) fn told(side: &mut Side, told: &Told, limits: Limits, out: &mut Queue
                 | jig_client::Outcome::Unconfirmed => Some(StartAnswer::Unknown),
             };
             side.demo.start = None;
+            if result == Some(StartAnswer::Running) && side.demo.selection == ProjectSelection::Starting {
+                side.demo.selection = ProjectSelection::Reading;
+            }
             side.demo.failure = match result {
                 Some(StartAnswer::Failed(why)) => Some(why),
                 Some(
@@ -187,7 +256,7 @@ pub fn halves(
 ) -> Halves {
     let mut halves = Halves { model: false, forge: false };
     let Some(answer) = answer else { return halves };
-    if answer.state == DemoState::Ended {
+    if answer.state == DemoState::Ended || answer.state == DemoState::Resetting {
         return halves;
     }
     if let super::forges::State::Rows(rows) = forges {
@@ -313,7 +382,7 @@ pub(crate) fn progress(
 
 fn observe_end(side: &mut Side, accounts: Option<&c::OwnerAccounts>, client: &Client, out: &mut Queue<Request>) {
     let Some(demo) = side.demo.answer.as_ref() else { return };
-    if demo.state == DemoState::Ended {
+    if demo.state == DemoState::Ended || demo.state == DemoState::Resetting {
         return;
     }
     let model_ended = demo.state == DemoState::Running
@@ -441,6 +510,7 @@ fn read(side: &mut Side, out: &mut Queue<Request>) {
 pub enum DemoState {
     NotStarted,
     Running,
+    Resetting,
     Ended,
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -534,6 +604,7 @@ pub(crate) fn start(side: &mut Side, limits: Limits, out: &mut Queue<Request>) {
         || side.served == super::Served::OutOfDate
         || side.demo.start.is_some()
         || side.retired_demo().is_some()
+        || side.leaving()
     {
         return;
     }
@@ -548,4 +619,167 @@ pub(crate) fn start(side: &mut Side, limits: Limits, out: &mut Queue<Request>) {
     side.demo.failure = None;
     out.push(Request::Send { request, name: None, ask });
     side.changed();
+}
+
+fn reset_done(side: &mut Side) {
+    if !side.demo.reset_opened {
+        side.demo.reset_navigation = true;
+        side.demo.reset_opened = true;
+    }
+}
+/// Poll a resetting read without overlapping reads (temper/docs/design/draft/playground-reset.md, 6.2).
+pub(crate) fn poll(side: &mut Side, now: Time, out: &mut Queue<Request>) {
+    if !side.demo.live || side.party.is_none() || side.served == super::Served::OutOfDate {
+        side.demo.retry_at = None;
+        return;
+    }
+    if !resetting(side) || side.demo.pending.is_some() {
+        return;
+    }
+    match side.demo.retry_at {
+        Some(at) if now >= at => {
+            side.demo.retry_at = None;
+            read(side, out);
+        }
+        Some(_) => {}
+        None => side.demo.retry_at = now.checked_add(RESET_WAIT),
+    }
+}
+#[must_use]
+pub fn end_ask(limits: &Limits) -> Option<jig_client::Ask> {
+    let limits = wire_limits(limits)?;
+    let record = w::Requesting::new(&limits, w::RequestingParts { request: w::Request::EndPlayground }).ok()?;
+    Some(jig_client::Ask::Family {
+        scope: c::Scope::Deployment,
+        record: jig_client::Family {
+            family: wire::FORGE,
+            version: wire::CLIENT_VERSION,
+            bytes: wire::requesting(&record),
+        },
+    })
+}
+#[must_use]
+pub fn end_answer(value: &jig_client::Answered, limits: &Limits) -> Option<EndAnswer> {
+    let record = match value {
+        jig_client::Answered::Family(record) => record,
+        jig_client::Answered::Jig(c::Answer::Refused { refusal, .. }) => {
+            return Some(EndAnswer::EntranceRefused(c::EntranceRefusal::new(refusal.clone()).ok()?));
+        }
+        jig_client::Answered::Jig(c::Answer::Done(_)) => return None,
+    };
+    if record.family != wire::FORGE || record.version != wire::CLIENT_VERSION {
+        return None;
+    }
+    let mut reader = skein_lib::Reader::new(&record.bytes);
+    let answer = w::Answer::decode(&wire_limits(limits)?, &mut reader).ok()?;
+    if !reader.is_empty() {
+        return None;
+    }
+    match answer.into_parts().outcome {
+        w::Outcome::Reset => Some(EndAnswer::Reset),
+        w::Outcome::NotOffered => Some(EndAnswer::NotOffered),
+        w::Outcome::Unknown => Some(EndAnswer::Unknown),
+        w::Outcome::Made(_)
+        | w::Outcome::Full
+        | w::Outcome::Removing
+        | w::Outcome::Playground
+        | w::Outcome::Running
+        | w::Outcome::StartRefused(_)
+        | w::Outcome::StartFailed(_)
+        | w::Outcome::Connecting
+        | w::Outcome::Link(_)
+        | w::Outcome::ConnectRefused(_)
+        | w::Outcome::Page(_)
+        | w::Outcome::Accepted(_)
+        | w::Outcome::Adopted(_)
+        | w::Outcome::CoreRefused(_)
+        | w::Outcome::ForgeRefused(_)
+        | w::Outcome::SettingUp
+        | w::Outcome::SetUpRefused(_)
+        | w::Outcome::Returning => None,
+    }
+}
+fn end_key(side: &Side, key: jig_client::Key) -> bool {
+    if key.asker != crate::owner::Owner::Forge.asker() {
+        return false;
+    }
+    match &side.demo.ending {
+        Some(ending) => ending.request.raw() == key.number && ending.progress.is_some(),
+        None => false,
+    }
+}
+pub(crate) fn end(side: &mut Side, limits: Limits, out: &mut Queue<Request>) {
+    if side.party.is_none() || side.served == super::Served::OutOfDate || !side.playground_running() {
+        return;
+    }
+    let Some(ask) = end_ask(&limits) else { return };
+    side.serial = side.serial.checked_add(1).expect("forge request serial fits");
+    let request = Token::new(side.serial);
+    side.demo.ending = Some(Ending { request, progress: Some(RequestProgress::Parked), answer: None });
+    side.demo.reset_opened = false;
+    out.push(Request::Send { request, name: None, ask });
+    side.changed();
+}
+pub(crate) fn end_progress(side: &mut Side, request: Token, progress: RequestProgress) {
+    if let Some(ending) = &mut side.demo.ending
+        && ending.request == request
+        && ending.progress.is_some()
+    {
+        ending.progress =
+            Some(if side.served == super::Served::OutOfDate { RequestProgress::Parked } else { progress });
+        side.changed();
+    }
+}
+
+fn resetting(side: &Side) -> bool {
+    match side.demo.answer.as_ref() {
+        Some(demo) => demo.state == DemoState::Resetting,
+        None => false,
+    }
+}
+fn read_answer(side: &mut Side, page: &Readout, limits: Limits) {
+    let mut answer = match page {
+        Readout::Family { family: number, record: Some(record) } if *number == wire::FORGE => {
+            match wire_limits(&limits) {
+                Some(limits) => family::demo(record, &limits),
+                None => None,
+            }
+        }
+        Readout::Family { .. } | Readout::NotServed { .. } | Readout::Limit | Readout::Jig(_) => None,
+    };
+    let was_resetting = resetting(side);
+    if let Some(demo) = &answer {
+        if was_resetting && demo.state == DemoState::NotStarted {
+            reset_done(side);
+        }
+        if demo.state == DemoState::Running {
+            side.demo.reset_opened = false;
+            if side.demo.selection == ProjectSelection::Reading && demo.project != 0 {
+                side.demo.selection = ProjectSelection::Ready(demo.project);
+            }
+        }
+    }
+    side.demo.retry_at = None;
+    let retired = match answer.as_ref() {
+        Some(demo) if demo.state == DemoState::Ended => {
+            Some(RetiredDemo { forge: demo.forge, provider: demo.provider, project: demo.project })
+        }
+        _ => None,
+    };
+    let retirement_changed = retired.is_some() && side.retired_demo() != retired;
+    if let Some(retired) = retired {
+        side.demo.ended = Some(retired);
+        side.demo.model_ended = true;
+        side.demo.forge_ended = true;
+        side.demo.settled = true;
+        side.demo.start = None;
+        side.demo.failure = None;
+        answer = None;
+    }
+    let first = !side.demo.answered;
+    side.demo.answered = true;
+    if first || side.demo.answer != answer || retirement_changed {
+        side.demo.answer = answer;
+        side.changed();
+    }
 }
