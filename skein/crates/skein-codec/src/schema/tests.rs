@@ -330,3 +330,49 @@ fn deeply_nested_options_are_read_without_recursion() {
 fn the_grammar_pass_precedes_layout() {
     refusal(b"family f 1 enum E {} garbage", 1, Span { start: 21, end: 28 }, Wrong::Expected(Expected::Declaration));
 }
+
+#[test]
+fn encoded_bounds_accept_u32_maximum() {
+    for (text, most) in [
+        ("family f 0 record R { x: fixed 4294967295 }", u32::MAX),
+        ("family f 65535 versioned record R { x: fixed 4294967293 }", u32::MAX),
+        ("family f 1 record R { x: bytes 4294967291 }", u32::MAX),
+        ("family f 1 record R { x: list 0 fixed 4294967295 }", 4),
+    ] {
+        let parsed = parse(text.as_bytes()).expect("encoded maximum fits");
+        assert_eq!(parsed.most_bytes(DeclIx::new(0)), most, "{text}");
+    }
+}
+
+#[test]
+fn encoded_bounds_refuse_the_other_side_of_u32() {
+    for (bad, good, wrong) in [
+        ("record R { x: bytes 4294967292 }", "record R { x: bytes 4294967291 }", Wrong::Large),
+        ("versioned record R { x: fixed 4294967294 }", "versioned record R { x: fixed 4294967293 }", Wrong::Large),
+        ("record R { x: fixed 4294967295 y: u8 }", "record R { x: fixed 4294967294 y: u8 }", Wrong::Large),
+    ] {
+        let passing = format!("family f 1\n{good}");
+        parse(passing.as_bytes()).expect("encoded maximum fits");
+        let source = format!("family f 1\n{bad}");
+        let error = parse(source.as_bytes()).expect_err("encoded maximum exceeded");
+        assert_eq!((error.wrong, error.line), (wrong, 2), "{bad}");
+        assert_eq!(
+            source.as_bytes().get(usize::try_from(error.at.start).unwrap()..usize::try_from(error.at.end).unwrap()),
+            Some(b"R".as_slice())
+        );
+    }
+}
+
+#[test]
+fn declaration_field_and_variant_lines_name_their_names() {
+    let text = b"family f 1\nversioned\nrecord\n R {\n x\n : u8\n}\nenum\n E {\n a\n : boxed R\n b\n}\n";
+    let parsed = parse(text).expect("whitespace separates tokens");
+    assert_eq!(parsed.declaration(DeclIx::new(0)).line, 4);
+    assert_eq!(parsed.field(FieldIx::new(0)).line, 5);
+    assert_eq!(parsed.declaration(DeclIx::new(1)).line, 9);
+    assert_eq!(parsed.variant(super::VariantIx::new(0)).line, 10);
+    assert_eq!(parsed.variant(super::VariantIx::new(1)).line, 12);
+    assert_eq!(parsed.spelled(parsed.declaration(DeclIx::new(0)).name), b"R");
+    assert_eq!(parsed.variant(super::VariantIx::new(0)).record, Some(DeclIx::new(0)));
+    assert!(parsed.variant(super::VariantIx::new(0)).boxed, "boxed payload is recorded");
+}

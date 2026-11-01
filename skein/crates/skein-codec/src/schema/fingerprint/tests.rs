@@ -1,8 +1,12 @@
 //! Encoding goldens and both sides of each layout element.
+#![expect(clippy::disallowed_macros, reason = "canonical fingerprint fixtures format schemas")]
+#![expect(clippy::disallowed_types, reason = "canonical byte tables use ordinary Rust test containers")]
 
 use super::{Fingerprint, Schema};
 use crate::schema::parse;
-use skein_lib::sha256::digest;
+use crate::schema::{DeclIx, MAX_DECLARATIONS};
+use core::fmt::Write;
+use skein_lib::sha256::{Sha256, digest};
 
 fn schema(text: &str) -> Schema {
     parse(text.as_bytes()).expect("valid fingerprint fixture")
@@ -116,7 +120,7 @@ fn names_comments_layout_and_boxing_preserve_every_fingerprint() {
         let other = schema(text).fingerprints();
         assert_eq!(expected.family(), other.family(), "{label}");
         for at in 0..base.declarations() {
-            let at = crate::schema::DeclIx::new(at);
+            let at = DeclIx::new(at);
             assert_eq!(expected.declaration(at), other.declaration(at), "{label}");
         }
     }
@@ -471,4 +475,136 @@ fn layout_elements_move_the_selected_fingerprints_from_both_sides() {
         assert_eq!(left != right, case.moved, "{} forward", case.label);
         assert_eq!(right != left, case.moved, "{} reverse", case.label);
     }
+}
+
+#[test]
+fn each_type_has_its_literal_canonical_encoding() {
+    // codec.md 9.1: version 1, record 1, unversioned 0, one field.
+    const PREFIX: &[u8] = &[1, 1, 0, 0, 0, 0, 1];
+    let cases: &[(&str, &[u8])] = &[
+        ("u8", &[1]),
+        ("u16", &[2]),
+        ("u32", &[3]),
+        ("u64", &[4]),
+        ("bool", &[5]),
+        ("duration", &[6]),
+        ("fixed 258", &[7, 0, 0, 1, 2]),
+        ("secret 258", &[8, 0, 0, 1, 2]),
+        ("text 258", &[9, 0, 0, 1, 2]),
+        ("bytes 258", &[10, 0, 0, 1, 2, 0]),
+        ("list 258 u16", &[11, 0, 0, 1, 2, 2]),
+        ("option u16", &[12, 2]),
+        ("option list 258 option u16", &[12, 11, 0, 0, 1, 2, 12, 2]),
+        ("bytes 258 holds ab cde", &[10, 0, 0, 1, 2, 1, 0, 0, 0, 2, b'a', b'b', 0, 0, 0, 3, b'c', b'd', b'e']),
+        ("bytes 258 holds a bcde", &[10, 0, 0, 1, 2, 1, 0, 0, 0, 1, b'a', 0, 0, 0, 4, b'b', b'c', b'd', b'e']),
+    ];
+    for (ty, suffix) in cases {
+        assert_eq!(selected(&field_schema(ty), Some("R")).digest(), canonical(&[PREFIX, suffix]), "{ty}");
+    }
+}
+
+#[test]
+fn empty_and_versioned_records_have_literal_headers() {
+    let cases: &[(&str, &[u8])] = &[
+        ("family f 258 record R {}", &[1, 1, 0, 0, 0, 0, 0]),
+        ("family f 258 versioned record R {}", &[1, 1, 1, 1, 2, 0, 0, 0, 0]),
+        ("family f 0 versioned record R {}", &[1, 1, 1, 0, 0, 0, 0, 0, 0]),
+        ("family f 65535 versioned record R {}", &[1, 1, 1, 255, 255, 0, 0, 0, 0]),
+    ];
+    for (text, canonical) in cases {
+        assert_eq!(selected(&schema(text), Some("R")).digest(), digest(canonical), "{text}");
+    }
+}
+
+#[test]
+fn named_payload_and_pieces_embed_the_child_digest() {
+    let schema = schema(
+        "family f 258 record Leaf { n: u16 }
+         record Named { f: option Leaf }
+         record Pieces { f: bytes 258 pieces Leaf }
+         enum E { empty, value: boxed Leaf }",
+    );
+    let leaf = digest(&[1, 1, 0, 0, 0, 0, 1, 2]);
+    let named = canonical(&[&[1, 1, 0, 0, 0, 0, 1, 12, 13], &leaf]);
+    let pieces = canonical(&[&[1, 1, 0, 0, 0, 0, 1, 10, 0, 0, 1, 2, 2], &leaf]);
+    let enumeration = canonical(&[&[1, 2, 0, 0, 0, 2, 0, 1], &leaf]);
+    for (name, expected) in [("Leaf", leaf), ("Named", named), ("Pieces", pieces), ("E", enumeration)] {
+        assert_eq!(selected(&schema, Some(name)).digest(), expected, "{name}");
+    }
+    let canonical_family = canonical(&[&[1, 3, 0, 0, 0, 4], &leaf, &named, &pieces, &enumeration]);
+    assert_eq!(schema.fingerprints().family().digest(), canonical_family);
+}
+
+#[test]
+fn empty_family_has_a_literal_canonical_encoding() {
+    assert_eq!(schema("family f 9").fingerprints().family().digest(), digest(&[1, 3, 0, 0, 0, 0]));
+}
+
+#[test]
+fn full_declaration_table_includes_every_unused_root() {
+    let mut text = String::from("family f 1\n");
+    for index in 0..MAX_DECLARATIONS {
+        writeln!(text, "record R{index} {{}}").expect("String write");
+    }
+    let schema = schema(&text);
+    let fingerprints = schema.fingerprints();
+    let empty = digest(&[1, 1, 0, 0, 0, 0, 0]);
+    let mut family = Sha256::new();
+    family.update(&[1, 3, 0, 0, 16, 0]); // 4096 declarations, codec.md 7.3.
+    for index in 0..MAX_DECLARATIONS {
+        assert_eq!(fingerprints.declaration(DeclIx::new(index)).digest(), empty, "R{index}");
+        family.update(&empty);
+    }
+    assert_eq!(fingerprints.family().digest(), family.finish());
+}
+
+#[test]
+fn all_256_variants_have_a_big_endian_count() {
+    const VARIANTS: u32 = 256; // codec.md 7.2: all values of a one-byte tag.
+    let mut text = String::from("family f 1 enum E {");
+    let mut canonical = vec![1, 2, 0, 0, 1, 0];
+    for index in 0..VARIANTS {
+        write!(text, "v{index},").expect("String write");
+        canonical.push(0);
+    }
+    text.push('}');
+    assert_eq!(selected(&schema(&text), Some("E")).digest(), digest(&canonical));
+}
+
+#[test]
+fn long_option_chains_keep_their_canonical_level_order() {
+    const LEVELS: usize = 4096; // A deep chain within MAX_TEXT and the u32 encoded ceiling.
+    let ty = format!("{}u16", "option ".repeat(LEVELS));
+    let mut canonical = vec![1, 1, 0, 0, 0, 0, 1];
+    canonical.extend(core::iter::repeat_n(12, LEVELS));
+    canonical.push(2);
+    assert_eq!(selected(&field_schema(&ty), Some("R")).digest(), digest(&canonical));
+}
+
+#[test]
+fn full_named_chain_uses_each_preceding_declarations_digest() {
+    let mut text = String::from("family f 1 record R0 {}\n");
+    for index in 1..MAX_DECLARATIONS {
+        let prior = index.checked_sub(1).expect("chain starts at one");
+        writeln!(text, "record R{index} {{ f: R{prior} }}").expect("String write");
+    }
+    let fingerprints = schema(&text).fingerprints();
+    let mut expected = digest(&[1, 1, 0, 0, 0, 0, 0]);
+    assert_eq!(fingerprints.declaration(DeclIx::new(0)).digest(), expected);
+    for index in 1..MAX_DECLARATIONS {
+        expected = canonical(&[&[1, 1, 0, 0, 0, 0, 1, 13], &expected]);
+        assert_eq!(fingerprints.declaration(DeclIx::new(index)).digest(), expected, "R{index}");
+    }
+}
+
+fn field_schema(ty: &str) -> Schema {
+    schema(&format!("family f 258 record R {{ f: {ty} }}"))
+}
+
+fn canonical(parts: &[&[u8]]) -> [u8; 32] {
+    let mut hash = Sha256::new();
+    for part in parts {
+        hash.update(part);
+    }
+    hash.finish()
 }
