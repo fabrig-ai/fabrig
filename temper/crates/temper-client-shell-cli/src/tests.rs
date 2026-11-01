@@ -1145,3 +1145,28 @@ fn validity_accepts_large_representable_io_edges() {
     limits.io.sends = u32::MAX;
     assert!(limits::valid(&limits));
 }
+
+#[test]
+fn landing_reads_keep_missing_and_invalid_document_statuses_in_both_modes() {
+    for json in [false, true] {
+        for (task, status, message) in [("7", 2, "no landing for task 7"), ("8", 1, "unexpected landing document")] {
+            let mut words = vec!["landing", "show", task, "--project", "3"];
+            if json {
+                words.push("--json");
+            }
+            let f = fixtures::Frame::change_read(&words);
+            assert_eq!(f.exit(), Some(Exit::Code(status)), "task={task}, json={json}");
+            assert!(f.stdout().is_empty());
+            let expected = if json && status == 2 {
+                format!("{{\"error\":\"{message}\"}}")
+            } else if json {
+                format!("temper ctl: {{\"error\":\"{message}\"}}\n")
+            } else if status == 1 {
+                format!("temper ctl: {message}\n")
+            } else {
+                format!("{message}\n")
+            };
+            assert_eq!(f.stderr(), expected.as_bytes());
+        }
+    }
+}

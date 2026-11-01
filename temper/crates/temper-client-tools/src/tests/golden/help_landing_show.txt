@@ -8,3 +8,4 @@ Key: none.
 A landing lands its changes by turn: each gate is proved by a receipt
 of its key, then main is fast-forwarded to each candidate. A task with
 no landing fails, `no landing for task TASK` (exit 2).
+Queue changes have no landing task; read them with `change show TASK`.

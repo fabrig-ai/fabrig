@@ -164,3 +164,25 @@ fn saving_a_landing_marks_its_subject_and_its_projects_lists() {
     }
     assert!(landing_marked && member_marked);
 }
+
+#[test]
+fn a_landed_queue_change_is_a_change_document_and_has_no_turn_landing() {
+    let mut d = domain();
+    outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+    let mut row = fixtures::opening_row();
+    row.change.state = temper_engine_domain_forge_change::State::Landed { merge: fixtures::HEAD };
+    row.pending = None;
+    outputs(&mut d, Event::Restore { record: Stored::Change(row) });
+    let Document::Change(panel) = document(&d, fixtures::CHANGE) else { panic!("queue change document") };
+    assert_eq!(panel.task, fixtures::CHANGE);
+    assert_eq!(panel.way, temper_engine_domain_forge_change::Way::Queue);
+    assert_eq!(panel.in_landing, None);
+    assert_eq!(panel.step, PanelStep::Landed { merge: fixtures::HEAD });
+    for ended in [false, true] {
+        let panel = list(&d, ended);
+        assert_eq!(panel.project, 5);
+        assert_eq!(panel.turn, None);
+        assert!(panel.landings.is_empty());
+    }
+    assert!(d.document(fixtures::CHANGE, ApplicationScope::Project(6), env().wall, &LIMITS).is_none());
+}

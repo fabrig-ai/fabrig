@@ -6,8 +6,11 @@ const TASK: u64 = 7;
 pub const TIMEOUT: Duration = Duration::from_secs(12);
 impl Frame {
     pub fn change_wait(timeout: &str) -> Self {
-        let mut frame =
-            Self::read(&["change", "show", "7", "--project", "3", "--until", "ci:failed", "--timeout", timeout]);
+        Self::change_read(&["change", "show", "7", "--project", "3", "--until", "ci:failed", "--timeout", timeout])
+    }
+    /// Sign in and deliver a queue change on the requested forge watch.
+    pub fn change_read(words: &[&str]) -> Self {
+        let mut frame = Self::read(words);
         frame.change = true;
         frame.sign_in_then_deliver_me();
         frame
