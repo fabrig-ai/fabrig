@@ -467,7 +467,9 @@ fn forges(world: World) -> Box<[u8]> {
         )
         .expect("forge row");
     }
-    wire::forges(&w::Forges::new(&limits, w::ForgesParts { forges: rows }).expect("gallery forges"))
+    wire::forges(
+        &w::Forges::new(&limits, w::ForgesParts { forges: rows, owned: w::Offer::NotOffered }).expect("gallery forges"),
+    )
 }
 fn change_panel(w: World, task: u64) -> Option<temper_client_protocol_wire::v1::ChangePanel> {
     use temper_client_protocol_wire::v1 as w;

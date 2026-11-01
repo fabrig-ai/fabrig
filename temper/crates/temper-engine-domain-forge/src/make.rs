@@ -5,11 +5,13 @@ use alloc::boxed::Box;
 use skein_lib::{Env, Queue};
 
 #[derive(Debug)]
-pub(crate) struct State;
+pub(crate) struct State {
+    pub(crate) owned: Option<Forge>,
+}
 
 impl State {
     pub(crate) const fn new(_l: &Limits) -> Self {
-        Self
+        Self { owned: None }
     }
 }
 
@@ -76,5 +78,12 @@ fn is_owned(forge: &Forge) -> bool {
             SetupMode::Managed { .. } | SetupMode::Fake(_) => false,
         },
         None => false,
+    }
+}
+
+impl Domain {
+    /// The machine's owned Forgejo template (contracts, 6).
+    pub fn configure_owned(&mut self, owned: Option<Forge>) {
+        self.make.owned = owned;
     }
 }

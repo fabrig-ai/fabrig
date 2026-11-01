@@ -141,8 +141,8 @@ fn setup_and_every_first_repository_state_round_trip_at_version_eleven() {
         .expect("record within schema ceilings");
         let mut rows = skein_lib::List::with_capacity(1);
         rows.push(row).expect("one row capacity");
-        let rows =
-            v1::Forges::new(&v1::CEILINGS, v1::ForgesParts { forges: rows }).expect("record within schema ceilings");
+        let rows = v1::Forges::new(&v1::CEILINGS, v1::ForgesParts { forges: rows, owned: v1::Offer::NotOffered })
+            .expect("record within schema ceilings");
         assert_eq!(wire::decode_forges(&wire::forges(&rows), &v1::CEILINGS), Some(rows));
     }
 }

@@ -64,7 +64,7 @@ fn record_first(connection: w::Connection, first: Option<w::FirstRepository>) ->
     client::Family {
         family: wire::FORGE,
         version: wire::CLIENT_VERSION,
-        bytes: wire::forges(&w::Forges::new(&limits, w::ForgesParts { forges }).unwrap()),
+        bytes: wire::forges(&w::Forges::new(&limits, w::ForgesParts { forges, owned: w::Offer::NotOffered }).unwrap()),
     }
 }
 fn deliver(root: &mut f::Harness, record: client::Family) {
@@ -887,7 +887,9 @@ fn settled_wait_with_installations(count: u32) {
         client::Family {
             family: wire::FORGE,
             version: wire::CLIENT_VERSION,
-            bytes: wire::forges(&w::Forges::new(&limits, w::ForgesParts { forges }).unwrap()),
+            bytes: wire::forges(
+                &w::Forges::new(&limits, w::ForgesParts { forges, owned: w::Offer::NotOffered }).unwrap(),
+            ),
         },
     );
     let printed = root.answer(call).expect("settled wait completes");
@@ -1039,7 +1041,9 @@ fn human_forges_bounds_the_wire_maximum_installations_with_longest_logins() {
         let record = client::Family {
             family: wire::FORGE,
             version: wire::CLIENT_VERSION,
-            bytes: wire::forges(&w::Forges::new(&bounds, w::ForgesParts { forges: rows }).unwrap()),
+            bytes: wire::forges(
+                &w::Forges::new(&bounds, w::ForgesParts { forges: rows, owned: w::Offer::NotOffered }).unwrap(),
+            ),
         };
         let mut domain_limits = limits.domain.forge;
         domain_limits.field_bytes = bounds.account_login;

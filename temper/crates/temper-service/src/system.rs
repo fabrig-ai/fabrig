@@ -256,6 +256,10 @@ impl Service {
             seed: settings.seed,
             under_box: box_line_bytes.is_some(),
             demo: demo_config,
+            owned: match &settings.owned {
+                Some(template) => Some(crate::startup::owned_record::record(template)?),
+                None => None,
+            },
         };
         let store = store::Store::new(&limits, &store_limits, &config.core.settings.models, seeds.installation);
         let demo = settings.demo;

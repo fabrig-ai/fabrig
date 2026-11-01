@@ -154,7 +154,11 @@ fn removed_draws_nothing_until_the_watch_drops_it() {
                         family: wire::FORGE,
                         version: wire::CLIENT_VERSION,
                         bytes: wire::forges(
-                            &w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: List::with_capacity(0) }).unwrap(),
+                            &w::Forges::new(
+                                &w::CEILINGS,
+                                w::ForgesParts { forges: List::with_capacity(0), owned: w::Offer::NotOffered },
+                            )
+                            .unwrap(),
                         ),
                     },
                 },

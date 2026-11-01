@@ -34,6 +34,7 @@ pub struct Config {
     pub forges: Box<[forge::Configured]>,
     /// First-start forge records (contracts, D1).
     pub seed: Box<[forge::Forge]>,
+    pub owned: Option<forge::Forge>,
     pub under_box: bool,
     pub demo: Option<forge::DemoConfig>,
 }

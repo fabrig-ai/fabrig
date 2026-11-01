@@ -363,7 +363,7 @@ fn forges_rows(numbers: &[u16], connection: &v1::Connection) -> v1::Forges {
             )
             .expect("row capacity");
     }
-    v1::Forges::new(&limits, v1::ForgesParts { forges }).expect("forges")
+    v1::Forges::new(&limits, v1::ForgesParts { forges, owned: v1::Offer::NotOffered }).expect("forges")
 }
 
 #[test]
@@ -393,7 +393,7 @@ fn each_forge_offer_round_trips() {
         .expect("forge row");
         forges.push(row).expect("three rows");
     }
-    let record = v1::Forges::new(&limits, v1::ForgesParts { forges }).expect("forges");
+    let record = v1::Forges::new(&limits, v1::ForgesParts { forges, owned: v1::Offer::NotOffered }).expect("forges");
     let bytes = crate::forges(&record);
     assert_eq!(crate::decode_forges(&bytes, &limits), Some(record));
     assert_eq!(crate::decode_forges(&fixtures::trailing(&bytes), &limits), None);
@@ -486,7 +486,8 @@ fn forge_fields_refuse_one_past_their_bounds_on_construction_and_decode() {
         .expect("schema row");
         let mut forges = List::with_capacity(1);
         forges.push(row).expect("one row");
-        let record = v1::Forges::new(&v1::CEILINGS, v1::ForgesParts { forges }).expect("schema forges");
+        let record = v1::Forges::new(&v1::CEILINGS, v1::ForgesParts { forges, owned: v1::Offer::NotOffered })
+            .expect("schema forges");
         assert_eq!(crate::decode_forges(&crate::forges(&record), &limits), None);
     }
 }
@@ -541,6 +542,7 @@ fn forges_refuse_seventeen_rows_unsorted_rows_and_duplicate_numbers() {
         row.encode(&mut writer).expect("row bytes");
     }
     row.encode(&mut writer).expect("extra row bytes");
+    at.owned().encode(&mut writer).expect("owned offer byte");
     assert_eq!(crate::decode_forges(&writer.finish(), &limits), None);
     for numbers in [&[2, 1][..], &[1, 1][..]] {
         let record = forges_rows(numbers, &v1::Connection::NotSetUp);
@@ -589,7 +591,8 @@ fn forge_login_and_stop_reason_round_trip_at_schema_ceilings() {
                     .expect("forge row");
                     let mut forges = List::with_capacity(1);
                     forges.push(row).expect("one forge");
-                    let record = v1::Forges::new(&limits, v1::ForgesParts { forges }).expect("forges");
+                    let record = v1::Forges::new(&limits, v1::ForgesParts { forges, owned: v1::Offer::NotOffered })
+                        .expect("forges");
                     assert_eq!(crate::decode_forges(&crate::forges(&record), &limits), Some(record));
                 }
             }

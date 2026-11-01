@@ -129,7 +129,9 @@ fn rows(root: &mut Domain, watch: Token, number: u16) -> Queue<Request> {
             record: jig_client::Family {
                 family: wire::FORGE,
                 version: wire::CLIENT_VERSION,
-                bytes: wire::forges(&w::Forges::new(&limits, w::ForgesParts { forges }).unwrap()),
+                bytes: wire::forges(
+                    &w::Forges::new(&limits, w::ForgesParts { forges, owned: w::Offer::NotOffered }).unwrap(),
+                ),
             },
         },
     )
@@ -364,7 +366,9 @@ fn strip_forges(root: &mut Domain, watch: Token, connection: Option<w::Connectio
             record: jig_client::Family {
                 family: wire::FORGE,
                 version: wire::CLIENT_VERSION,
-                bytes: wire::forges(&w::Forges::new(&w::CEILINGS, w::ForgesParts { forges }).unwrap()),
+                bytes: wire::forges(
+                    &w::Forges::new(&w::CEILINGS, w::ForgesParts { forges, owned: w::Offer::NotOffered }).unwrap(),
+                ),
             },
         },
     );

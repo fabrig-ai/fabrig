@@ -26,6 +26,7 @@ mod records;
 mod restore_fit;
 mod runs;
 mod seed;
+mod setup_record;
 mod stopping;
 mod views;
 use alloc::boxed::Box;

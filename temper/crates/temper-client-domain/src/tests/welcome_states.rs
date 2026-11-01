@@ -135,7 +135,9 @@ fn rows(root: &mut Domain, watch: Token, row: Option<(bool, bool)>) -> Queue<Req
             record: jig_client::Family {
                 family: wire::FORGE,
                 version: wire::CLIENT_VERSION,
-                bytes: wire::forges(&w::Forges::new(&limits, w::ForgesParts { forges }).unwrap()),
+                bytes: wire::forges(
+                    &w::Forges::new(&limits, w::ForgesParts { forges, owned: w::Offer::NotOffered }).unwrap(),
+                ),
             },
         },
     )

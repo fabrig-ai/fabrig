@@ -69,7 +69,7 @@ enum AppWay { manifest, pasted }
 record Adoption { owner: bytes 1024 name: bytes 1024 project: u32 }
 record OwnedForge { forgejo: bytes 64 runner: option bytes 64 password: bytes 512 }
 record ForgeRow { number: u16 kind: Kind mode: Mode connection: Connection offer: Offer first: option FirstRepository installations: list 64 Installation ended: option ConnectStopped app: option AppWay web: option bytes 2048 repositories: list 16 Adoption owned: option OwnedForge admin: bool ended_stop: option AdminStop read_only: bool finished: bool playground: bool }
-versioned record Forges { forges: list 16 ForgeRow }
+versioned record Forges { forges: list 16 ForgeRow owned: Offer }
 
 # The family's read name and its demo answer (client/README.md, 4.6).
 # No demo is the read's empty answer, with no record.
