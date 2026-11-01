@@ -394,22 +394,12 @@ Each within jig's suites' budgets.
   endpoint, a person's requests answered through a native client on
   loopback, over jig's default HTTP mapping,
   runs taken by smith's real agent processes, then the binary killed and
-  restarted, and the work found where it was; it checks integration, as
-  skein's real-loop tests do. A person's sign-in at skein's fake issuer,
-  through the native client, outlives the binary killed and restarted
-  on its directory: the source is restored and usable, a run's grant
-  the LLM peer refuses is refreshed at the issuer and the run answered
-  on the newer generation, and the sign-out is confirmed by the
-  issuer's revocation, the account gone. An account moves between two
-  binaries, each on its own directory, against one fake issuer: signed
-  in on the first, moved out through the native client, the file
-  written by the test as the application's shell writes it, and
-  *written*; moved into the second, where it is usable once refreshed
-  at the issuer, a run answered on it; the first, restarted, holds
-  nothing, the second, restarted, still holds it, and the file's
-  refresh token is refused by the issuer. A binary told to stop with a
-  sign-in under way ends at once. `ops`'s binary proves its own shape the
-  same way.
+  restarted, and the work found where it was. The focused suite has three
+  paths through `main`: that restart story, a binary told to stop with a
+  sign-in under way, and its fixture bundle served under the reference
+  policy. Each runs through the real loop, whose shared `Deadline`
+  classifies unanswered waits under measured starvation. Account sign-in,
+  refresh, sign-out and moves are covered in their lower worlds.
 - **The live layer:** `jig-test` with a real LLM account, a key added
   by a request, a sign-in made as the test starts, or a program's login
   on its test worker's host (`llm.md`, 5.4 and 5.5), a native client
@@ -419,16 +409,16 @@ Each within jig's suites' budgets.
   and confirmed sign-out; it prints the browser link and the SSH tunnel
   needed for the fixed loopback callback on port 1455, and however the
   run ends, the sign-in's record does not outlive it.
-  Both live tests declare low effort on the engine's and agent's models;
-  the gate reads their configurations through startup's readers, without
-  network or a person.
-  The live sign-in story also runs on fake peers in the process tier.
+  The live story declares low effort on the engine's and agent's models;
+  focused checks read the real, fake and refusing configurations through
+  startup's readers, without network or a person.
   After the sign-in, the story prints a line at each change of the
   chat's run, and a run that can no longer answer (a failed or refused
   attempt, a hold, another ending) fails it at once in those words. A
   failed run prints its agent trace's failures (class, status, code)
-  before the trace is erased. A provider that refuses the plan's grant
-  fails the story on fake peers, in the process tier.
+  before the trace is erased. The refused-plan run-failure words are
+  checked by the focused step test
+  `live_sign_in::tests::a_refused_plan_is_reported_with_the_run_failure`.
 - **The browser tier:** `jig-test` serving jig's test application's
   bundle and the mapping at `/jig`, and Chromium, children of the
   harness's loop, a person in a page, and jig's attack stories against

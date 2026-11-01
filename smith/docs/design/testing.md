@@ -307,8 +307,8 @@ patch and drift tests check the generated `encoded_bound` and
 Local chat layout admission is proven with one crate-local real-directory
 Store/FileIo adapter under `smith-local-protocol/tests/support/disk.rs`:
 Scratch, real FileIo, Kernel and Clock, bounded queues and explicit close.
-Its `store` integration binary holds the core cases; a design-only tester
-uses the same public test surface in `qa_store`. Refusal snapshots compare
+Its `suite` integration binary holds the layout cases over the same public
+test surface. Refusal snapshots compare
 sorted filenames, inode identities, regular-file bytes and no-follow kinds
 and symlink targets. The existing local-process power-loss composition
 covers interrupted creation and refusal immutability; one fake-backed
@@ -562,12 +562,13 @@ The strategy's two suites (testing-strategy.md, section 8) make the gate:
   its jobs' polls, stops and ends among edits (domain/tools.md, section
   7).
 
-Independent adversarial binaries named `qa_*` are excluded from default and
-fuzzy selection and run under `--profile qa-smith`. Their author reads the
-approved design and public adapter surface, without production implementation
-or core tests. An opt-in ignored extra-seed entry in the existing `fuzzy_store`
-composition is run explicitly for the additional-seed proof; normal seeds
-and cut positions remain in the fuzzy suite.
+Codec patch checks run in the focused codec suite. Kit bounds, parsing and
+landed-file mutations belong to skein's tests rather than a second codec
+binary. The fixture owner's landed-data check remains here: the generated
+`current` check compares generated source, not the landed-data findings.
+Live configuration, piped sign-in lines and window patience are checked once
+in the unconditional focused `live_configuration` target. Shared live
+support contains no tests; its stories stay in `live-smith`.
 
 The live tests are a separate suite, outside the gate, under the
 `live-smith` profile only (2.3). Benchmarks are no suite: they run by their
@@ -607,7 +608,8 @@ benchmarks/                      smith-bench, the benchmark harness (benchmarks.
 - **The end-to-end and live tests are the root package's `[[test]]`
   targets** (shell.md, section 3.1). Cargo gives a package's own tests
   the paths of its binaries, and `tests/end-to-end/` holds no manifest,
-  so it is not a package of its own.
+  so it is not a package of its own. The real-program probes in
+  `smith-agent-process-world::live` also belong to `live-smith`.
 - A world's package is `smith-<name>-world`. The world harness, the
   schedule, the referee plumbing and the counting allocator are skein's;
   smith keeps only its worlds, its scripted neighbours and its scenarios.

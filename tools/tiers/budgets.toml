@@ -5,31 +5,6 @@
 # Suite paths are quoted keys, e.g. [tools."tools/tiers/test_run.py"].
 [tools]
 
-[exhaustive-skein]
-cpu_suite_s = 15
-cpu_test_s = 60
-wall_hard_s = 300
-
-[qa-skein]
-cpu_suite_s = 65
-cpu_test_s = 60
-wall_hard_s = 300
-
-[qa-smith]
-cpu_suite_s = 5
-cpu_test_s = 60
-wall_hard_s = 300
-
-[qa-jig]
-cpu_suite_s = 10
-cpu_test_s = 60
-wall_hard_s = 300
-
-[process-jig]
-cpu_suite_s = 5
-cpu_test_s = 60
-wall_hard_s = 300
-
 [browser-skein]
 cpu_suite_s = 145
 cpu_test_s = 60

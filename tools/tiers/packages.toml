@@ -15,10 +15,6 @@ browser-temper = [
     "temper-client-browser-world",
 ]
 
-exhaustive-skein = [
-    "skein-forge-machine-world",
-]
-
 live-jig = [
     "jig-test",
 ]
@@ -36,34 +32,8 @@ live-temper = [
     "temper",
 ]
 
-process-jig = [
-    "jig-test",
-]
-
 process-temper = [
     "temper",
-]
-
-qa-jig = [
-    "jig-channel-world",
-    "jig-conformance-world",
-    "jig-core-world",
-    "jig-fleet-world",
-    "jig-store-world",
-]
-
-qa-skein = [
-    "skein-browser-world",
-    "skein-codec-patches",
-    "skein-codec-tests",
-    "skein-lab-browser",
-    "skein-oauth-accounts-world",
-    "skein-oauth-world",
-]
-
-qa-smith = [
-    "smith-codecs-world",
-    "smith-local-protocol",
 ]
 
 qa-temper = [
@@ -85,16 +55,11 @@ qa-temper = [
 browser-jig = [{ package = "jig-test", bin = "jig-test" }]
 browser-skein = [{ package = "skein-ui-example-server", bin = "skein-ui-example" }]
 browser-temper = [{ package = "temper", bin = "temper" }]
-exhaustive-skein = []
 live-jig = []
 live-skein = []
 live-smith = []
 live-temper = []
-process-jig = []
 process-temper = [{ package = "temper-fake-claude", bin = "fake-claude", env = "TEMPER_TEST_CLAUDE" }]
-qa-jig = []
-qa-skein = []
-qa-smith = []
 qa-temper = [
     { package = "temper", bin = "temper" },
     { package = "temper-fake-claude", bin = "fake-claude" },

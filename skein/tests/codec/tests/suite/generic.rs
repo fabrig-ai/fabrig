@@ -61,3 +61,46 @@ mod tests {
         assert_eq!(compared, 84);
     }
 }
+
+#[cfg(test)]
+mod single_byte {
+    use super::generated::{Decoded, Root};
+    use super::{generated, generic};
+    use skein_codec::schema::{self, Schema};
+    use skein_codec::value::{Refusal, Value};
+
+    fn compare(schema: &Schema, root: &Root, value: &mut Value, bytes: &[u8]) {
+        let decl = schema.find(root.name.as_bytes()).expect("root");
+        match ((root.decode)(bytes), value.decode(schema, decl, bytes.into())) {
+            (Decoded::Value { debug, bytes: encoded }, Ok(node)) => {
+                assert_eq!(value.bytes(), encoded, "{}; input={bytes:02x?}", root.name);
+                assert_eq!(generic::render(schema, value, node, decl), debug, "{}; input={bytes:02x?}", root.name);
+            }
+            (Decoded::Problem { path, reason }, Err(Refusal::Problem(problem))) => {
+                assert_eq!(
+                    (generic::path_name(schema, problem.path), problem.reason),
+                    (path, reason),
+                    "{}; input={bytes:02x?}",
+                    root.name
+                );
+            }
+            (expected, decoded) => {
+                unreachable!("{}; input={bytes:02x?}; generated={expected:?}; generic={decoded:?}", root.name);
+            }
+        }
+    }
+
+    #[test]
+    fn every_possible_single_byte_matches_all_generated_roots() {
+        for family in generated::families() {
+            let schema = schema::parse(family.text.as_bytes()).expect("runtime schema");
+            let mut value = Value::with_room(generic::ROOM);
+            for root in family.roots {
+                for byte in u8::MIN..=u8::MAX {
+                    compare(&schema, root, &mut value, &[byte]);
+                }
+            }
+            assert_eq!(schema.spelled(schema.family()), family.name.as_bytes());
+        }
+    }
+}

@@ -1,4 +1,5 @@
 #![expect(clippy::disallowed_types, reason = "the kit's own tests of the look's reads (browser.md, 5.1)")]
+use crate::referee::Referee;
 use crate::world::{Fault, World};
 use skein_browser::boundary::{Below, Event, Look, Looked, Motion, Rect, Refusal, Request, Scheme};
 use skein_browser::{Limits, up};
@@ -613,4 +614,77 @@ fn tree_reads_cut_values_all_states_and_multiline() {
         }
     );
     assert!(entry.multiline);
+}
+
+#[test]
+fn every_look_command_times_out_and_late_reply_is_harmless() {
+    let cases = [
+        (b"Accessibility.getFullAXTree".as_slice(), Look::Tree),
+        (b"DOM.querySelector".as_slice(), Look::Select { selector: b"#part".as_slice().into() }),
+        (b"CSS.getComputedStyleForNode".as_slice(), Look::Style { node: 7, properties: properties(&[b"color"]) }),
+        (b"DOM.requestChildNodes".as_slice(), Look::Style { node: 7, properties: properties(&[]) }),
+        (b"CSS.getPlatformFontsForNode".as_slice(), Look::Style { node: 7, properties: properties(&[]) }),
+        (b"DOM.getBoxModel".as_slice(), Look::Style { node: 7, properties: properties(&[]) }),
+        (b"Page.captureScreenshot".as_slice(), Look::Shot { clip: None, scale: 1 }),
+        (
+            b"Emulation.setEmulatedMedia".as_slice(),
+            Look::Viewport { width: 400, height: 800, mobile: true, scheme: Scheme::Dark, motion: Motion::Reduce },
+        ),
+    ];
+    for (method, look) in cases {
+        let mut world = world(Limits::default());
+        world.fault(method, Fault::Delay);
+        world.ask(Request::Look { page: PAGE, op: READ, look });
+        assert!(world.above.pop().is_none(), "{method:?} still pending");
+        world.tick(Time::ZERO.saturating_add(world.env.limits.answer));
+        let event = world.above.pop().expect("deadline terminal");
+        assert!(matches!(event, Event::Refused { op: READ, why: Refusal::Timeout }), "{method:?}: {event:?}");
+        world.release_delayed();
+        assert!(world.above.pop().is_none(), "late answer creates no second terminal");
+        world.assert_commands_settled();
+    }
+}
+
+#[test]
+fn faces_read_does_not_keep_the_previous_nodes_fonts() {
+    let mut world = world(Limits::default());
+    let Looked::Style { faces, .. } = looked(ask(&mut world, style(&[]))) else { panic!("style") };
+    assert_eq!(faces.len(), 2);
+    world.children = "[]".into();
+    world.ask(Request::Look {
+        page: PAGE,
+        op: Token::new(42),
+        look: Look::Style { node: 7, properties: properties(&[]) },
+    });
+    let event = world.above.pop().expect("second style terminal");
+    let Event::Looked { op, looked: Looked::Style { faces, .. } } = event else { panic!("{event:?}") };
+    assert_eq!(op, Token::new(42));
+    assert_eq!(faces.len(), 0);
+    assert!(world.above.pop().is_none());
+    world.assert_commands_settled();
+}
+
+#[test]
+fn faces_pending_read_close_cancels_once_and_late_reply_adds_nothing() {
+    let mut world = world(Limits::default());
+    world.fault(b"CSS.getPlatformFontsForNode", Fault::Delay);
+    world.ask(Request::Look { page: PAGE, op: READ, look: Look::Style { node: 7, properties: properties(&[]) } });
+    assert!(world.above.pop().is_none());
+    world.ask(Request::Close { entity: PAGE });
+    let mut referee = Referee::new();
+    referee.look_op(READ, world.env.limits);
+    let mut refused = 0;
+    let mut closed = 0;
+    while let Some(event) = world.above.pop() {
+        referee.event(&event, 0);
+        match event {
+            Event::Refused { op: READ, .. } => refused += 1,
+            Event::Closed { owner: PAGE } => closed += 1,
+            other => panic!("close cancels style once: {other:?}"),
+        }
+    }
+    assert_eq!((refused, closed), (1, 1));
+    world.release_delayed();
+    assert!(world.above.pop().is_none());
+    world.assert_commands_settled();
 }

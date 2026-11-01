@@ -4,3 +4,5 @@
 
 - **Built:** 6, 10, 14, 17: disclosure summaries, external navigation and optional plaintext loopback navigation. 14.2: the face's downloads and the harness's `Setup::downloads`.
 - **Not yet:** 11, 14.2, 15, 16: file picker, other effects, compressed bundles, shared streams/HTTP/2, previous bundle retention, typing into populated fields and richer peer/command harness.
+
+- **Built (2026-11-01):** 14.3: all seven live-tree Chromium checks recorded; successful keep reads share one browser run.

@@ -1,10 +1,12 @@
 //! The checks and accessors on both sides of their bounds (codec.md, 8.3).
 
+#![expect(clippy::disallowed_types, reason = "value boundary fixtures assemble schemas and bytes")]
 #![expect(clippy::disallowed_macros, reason = "tests format Debug to check that content is redacted")]
 
 use super::{Items, Misread, Node, Part, Path, Problem, Refusal, Value};
 use crate::Reason;
 use crate::schema::{DeclIx, FieldIx, Shape, Span, VariantIx, parse};
+use core::fmt::Write;
 
 // Room for the accessor fixture and every smaller refusal fixture.
 const TEST_ROOM: u32 = 32;
@@ -269,4 +271,64 @@ fn debug_redacts_secret_and_text_content() {
     let debug = format!("{value:?}");
     assert!(!debug.contains("120, 121, 122"), "secret bytes are redacted");
     assert!(!debug.contains("97, 98, 99"), "text bytes are redacted");
+}
+
+#[test]
+fn text_checks_noncanonical_utf8_and_accepts_multibyte_at_bound() {
+    const GOOD: &[u8] = b"\x00\x00\x00\x04\xf4\x8f\xbf\xbf";
+    let source = b"family f 1 record R { data: text 4 }";
+    let rows: &[Check] = &[
+        (b"\0\0\0\x02\xc0\x80", GOOD, Part::Field(FieldIx::new(0)), Reason::Utf8),
+        (b"\0\0\0\x03\xed\xa0\x80", GOOD, Part::Field(FieldIx::new(0)), Reason::Utf8),
+        (b"\0\0\0\x04\xf4\x90\x80\x80", GOOD, Part::Field(FieldIx::new(0)), Reason::Utf8),
+        (b"\0\0\0\x01\x80", GOOD, Part::Field(FieldIx::new(0)), Reason::Utf8),
+        (b"\0\0\0\x02\xe2\x82", GOOD, Part::Field(FieldIx::new(0)), Reason::Utf8),
+    ];
+    check(source, b"R", rows);
+    let schema = parse(source).expect("schema");
+    let mut value = Value::with_room(TEST_ROOM);
+    let root = value.decode(&schema, DeclIx::new(0), GOOD.into()).expect("multibyte at bound");
+    assert_eq!(value.content(value.field(root, FieldIx::new(0)).expect("text")), Ok(&GOOD[4..]));
+}
+
+#[test]
+fn enumeration_accepts_the_last_of_all_256_tags() {
+    const TAGS: u32 = 256; // codec.md, 7.2: every one-byte tag.
+    let mut text = String::from("family f 1 enum E {");
+    for index in 0..TAGS {
+        write!(text, "v{index} ").expect("String write");
+    }
+    text.push('}');
+    let schema = parse(text.as_bytes()).expect("all tags");
+    let mut value = Value::with_room(TEST_ROOM);
+    let root = value.decode(&schema, DeclIx::new(0), b"\xff".as_slice().into()).expect("last tag");
+    assert_eq!(value.tag(root), Ok(VariantIx::new(255)));
+}
+
+const TREE: &str =
+    "family f 1 record Atom { n: u16 } enum E { no yes: Atom } record R { xs: list 2 option E after: u8 }";
+// Two options: Some(E::Yes(Atom { n: 0x1234 })) and Some(E::No), then after=9.
+const TREE_BYTES: &[u8] = b"\x00\x00\x00\x02\x01\x01\x12\x34\x01\x00\x09";
+
+#[test]
+fn item_iteration_skips_option_and_payload_subtrees() {
+    let schema = parse(TREE.as_bytes()).expect("schema");
+    let mut value = Value::with_room(TEST_ROOM);
+    let root = value.decode(&schema, schema.find(b"R").expect("R"), TREE_BYTES.into()).expect("tree");
+    let list = value.field(root, FieldIx::new(1)).expect("xs");
+    let mut items = value.items(list).expect("list");
+    let first = value.next_item(&mut items).expect("first option");
+    let first_enum = value.some(first).expect("option").expect("present");
+    let payload = value.payload(first_enum).expect("enum").expect("Atom");
+    let number = value.field(payload, FieldIx::new(0)).expect("n");
+    assert_eq!(value.uint(number), Ok(0x1234));
+    assert_eq!(value.tag(first_enum), Ok(VariantIx::new(1)));
+    assert_eq!(value.span(first), Ok(Span { start: 4, end: 8 }));
+    let second = value.next_item(&mut items).expect("second option");
+    let second_enum = value.some(second).expect("option").expect("present");
+    assert_eq!(value.tag(second_enum), Ok(VariantIx::new(0)));
+    assert_eq!(value.payload(second_enum), Ok(None));
+    assert_eq!(value.span(second), Ok(Span { start: 8, end: 10 }));
+    assert_eq!(value.next_item(&mut items), None);
+    assert_eq!(value.uint(value.field(root, FieldIx::new(2)).expect("after")), Ok(9));
 }

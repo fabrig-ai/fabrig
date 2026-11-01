@@ -891,7 +891,7 @@ Each within skein's suites' budgets (testing-strategy.md, section 8).
 
 ### 14.1 The browser tier
 
-- **In the browser suite,** `--profile browser`, which
+- **In the browser suite,** `--profile browser-skein`, which
   `scripts/browser.sh` runs after it builds the example's bundle, a slow
   tier outside the gate: the
   profile takes the binaries of
@@ -1142,6 +1142,13 @@ parts carry, so that its tier tests each once.
   pending add, which the server makes once; and the closing warning met
   by a reload while an add is pending, and by none once it is made
   (examples.md, 9.2 and 9.5).
+- **Its live tree**, in `browser_stories::live_tree`, checks the platform
+  half in Chromium: a first child gains a group; a child inserts between
+  keyed siblings; a keyed child moves; a rename keeps the same DOM node;
+  removing the last child removes its empty group; a paragraph splits
+  runs that grow and merge in order; and a visible label focuses its
+  named input. These seven cases check DOM structure and identity that
+  the host's pure half cannot observe.
 - **Its shell takes 3.3's steps,** each once: it is the reference shell
   (step 1); its stylesheet, after `skein-ui.css` (step 2); its codec,
   its notes under `/notes/`, and `/bundle/` its bundle's prefix (step

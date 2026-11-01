@@ -1,5 +1,6 @@
 //! Bounded `rg --json` match extraction (domain/tools.md, section 5).
-//! The tokenizer validates each emitted JSON line; only match records count.
+//! The tokenizer validates each emitted JSON line; only match records outside
+//! git directories count. Dot-named paths remain eligible.
 
 use alloc::boxed::Box;
 
@@ -87,6 +88,9 @@ impl Match {
             return None;
         }
         let path = self.path?;
+        if crate::files::in_git(&path) {
+            return None;
+        }
         let mut text = self.text?;
         let mut end = text.len();
         if end > 0 && text.get(end.checked_sub(1)?) == Some(&b'\n') {
@@ -356,6 +360,31 @@ mod tests {
                 }]),
                 more: 0,
                 timed_out: false
+            }
+        );
+    }
+
+    #[test]
+    fn git_components_never_use_search_caps_or_count_as_more() {
+        let mut search = Search::new(1, 64, 256);
+        for path in [".git/config", "nested/.Git/config", ".git", ".forgejo/workflows/ci.yml"] {
+            let prefix = br#"{"type":"match","data":{"path":{"text":""#;
+            let suffix = br#""},"lines":{"text":"workflow marker\n"},"line_number":1}}"#;
+            for byte in prefix.iter().chain(path.as_bytes()).chain(suffix) {
+                search.push(*byte);
+            }
+            search.push(b'\n');
+        }
+        assert_eq!(
+            search.finish(Some(kernel::Exit::Code(0)), false, Box::new([]), Box::new([]), 0),
+            tools::Done::Found {
+                hits: Box::new([tools::Hit {
+                    path: Box::from(b".forgejo/workflows/ci.yml".as_slice()),
+                    line: 1,
+                    text: Box::from(b"workflow marker".as_slice()),
+                }]),
+                more: 0,
+                timed_out: false,
             }
         );
     }

@@ -293,6 +293,10 @@ mod tests {
         krate.kept.get_mut("a-b").expect("family").get_mut(&1).expect("v1").source =
             "family a-b 1\nrecord R { foo: u8 Foo: u8 }\n".into();
         assert_eq!(module_text(&krate), Err(Error::Spelled { first: "foo".into(), second: "Foo".into() }));
+        krate.kept.get_mut("a-b").expect("family").get_mut(&1).expect("v1").source =
+            "family a-b 1\nrecord R { foo: u8 }\n".into();
+        krate.patches.insert(1, "patch 1\nowner sample 1\nfamily a-b 1 to 2\nwritten R.foo\nrefuses bad-input \"one\"\nrefuses bad_input \"two\"\n".into());
+        assert_eq!(module_text(&krate), Err(Error::Spelled { first: "bad-input".into(), second: "bad_input".into() }));
         let patch =
             PatchText::read("patch 1\nowner sample 1\nfamily a-b 1 to 2\nwritten EveryScore\nwritten Every.score\n")
                 .expect("patch");
@@ -301,5 +305,19 @@ mod tests {
             Err(Error::Spelled { first: "EveryScore".into(), second: "Every.score".into() })
         );
         fs::remove_dir_all(root).expect("remove fixture");
+    }
+
+    #[test]
+    fn generated_rust_names_keep_each_capital_and_escape_keywords() {
+        for (name, expected) in [
+            ("HTTP", "h_t_t_p"),
+            ("Http", "http"),
+            ("Every.score", "every_score"),
+            ("bad-input", "bad_input"),
+            ("Match", "r#match"),
+            ("type", "r#type"),
+        ] {
+            assert_eq!(super::ident(&super::snake(name)), expected, "{name}");
+        }
     }
 }

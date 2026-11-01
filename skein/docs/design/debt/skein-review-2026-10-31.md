@@ -1,5 +1,8 @@
 # skein code-quality review, 2026-10-31
 
+
+Resolved 2026-11-01: the eleven QA binaries are removed. Unique rows run in focused step tests/worlds, fuzzy sweeps or the existing browser stories; the real hand main paths are browser tests. Struck lines below preserve the dated assessment.
+
 **Scope.** The whole `skein/` tree of fabrig at `main` = `4a6683c72` (2026-10-31): 34 crates, 13 test kits, 32 test worlds and 2 examples. That is about 470k hand-written lines; about 12k generated codec lines were left out.
 
 **Rubric.** Cleanliness, organisation, taste, naming, primitives (orthogonality and decoupling), elegance, economy and complexity. It was applied to tests as well as code. Correctness was out of scope; bugs seen in passing are collected in section 6.
@@ -34,7 +37,7 @@ The full area reports are in `skein-review-2026-10-31-areas.md`, beside this fil
    - worlds used as kits;
    - `#[path]` reaching across crates;
    - three or four step-test conventions per crate;
-   - 11 `qa_*` binaries that largely repeat gate tests;
+~~   - 11 `qa_*` binaries that largely repeat gate tests;~~
    - harnesses copied, notably four HTTP adapters in front of a fake that already has its own server;
    - fakes that share the product's types, which testing-strategy 4 forbids.
 
@@ -216,10 +219,10 @@ The model says: "no field is meaningful in some states only… never a lifecycle
   - Step tests follow three or four conventions in one crate: `tests.rs` + `src/tests/`, sibling `*_tests.rs` through `#[path]`, and inline modules. skein-oauth, oauth-accounts, skein-shell, fake-person-browser and forge-setup each use three or four.
 - **Worlds double as kits.** Seven world crates are dependencies of others, 17 edges in all. There is one dev cycle (echo-shell ↔ echo-world). 10 of 93 `#[path]` reach outside their tree; for example, `skein-codec/src/lib.rs:16` compiles a file from `tests/codec`.
 
-**Duplicate tests:** 11 `qa_*` binaries (4,824 lines) run only under `qa-skein`, outside the gate, and largely repeat gate tests one for one:
+~~**Duplicate tests:** 11 `qa_*` binaries (4,824 lines) run only under `qa-skein`, outside the gate, and largely repeat gate tests one for one:~~
 - codec 182 tests;
 - oauth-accounts 10 of 12;
-- browser `qa_look` at least 10 pairs;
+~~- browser `qa_look` at least 10 pairs;~~
 - the `s12_*` names are pipeline vocabulary.
 
 **Duplicate harnesses:**
@@ -303,7 +306,7 @@ The model says: "no field is meaningful in some states only… never a lifecycle
 - deliveries cited as forge.md 5 rather than 7 in forgejo.
 
 **Pipeline and history vocabulary:**
-- `qa_*` and `s12_*`;
+~~- `qa_*` and `s12_*`;~~
 - "decision 25", "runtime 20/24", "ruling 106", "director", "task C";
 - "macOS run 40019066645" and "Extracted from temper's … at commit 246164f".
 
@@ -418,7 +421,7 @@ These need a decision from the designer, not just cleanup:
     - two patch-language readers;
     - a generator that edits its own emitted text;
     - tests/codec generating its fixtures twice, the second time a tautology;
-    - six `qa_*` binaries repeating step tests.
+~~    - six `qa_*` binaries repeating step tests.~~
   - The 6-line status file records nothing.
   - Est. −3.5–4k.
   - Note for jig's "mirrors" request: the generator's lossy tree and its text-splicing have to be fixed first (F17).
@@ -438,7 +441,7 @@ These need a decision from the designer, not just cleanup:
   - skein-ui, ui-text and ui-web's pure/platform split are excellent.
   - skein-browser has its own recursive JSON parser and `Vec` tables, with module-wide expects in 6 of its 9 modules.
   - Role sets are written as slice `contains` checks (23), so adding a role breaks none of them, and two copies have drifted.
-  - Four test conventions; `qa_look` duplicates tests that need no Chromium.
+~~  - Four test conventions; `qa_look` duplicates tests that need no Chromium.~~
   - Est. −1.5–1.8k.
 - **A12 sim, world, conformance, kv.**
   - The simulator, the conformance suite and skein-scratch are excellent.
@@ -523,7 +526,7 @@ Not verified by running anything. Items 1, 2 and 5 I checked in the source mysel
 
 5. **Delete the doubled and dead pieces:**
    - tests/codec's second generation and `skein-codec/src/lib.rs:11-17` (A8 F1, F2);
-   - fold or delete the 11 `qa_*` binaries (A0, A8, A10, A11);
+~~   - fold or delete the 11 `qa_*` binaries (A0, A8, A10, A11);~~
    - the dead API: llm F11, oauth's refresh-request codec and `RECORD_VERSION`, forge-connection `limits::Forges`, ui-web's pure `Timer`, forgejo `size.rs`, `time::RFC3339_BYTES`, and vestigial `first()`s.
 6. **Lint configuration** (T7): three profiles with a gate check, the closure lints at workspace level, `testing/clippy.toml`, and true headers.
 7. **Break the world-as-kit edges:** move the shared pieces into `testing/` kits (JSON `generate`/`reference`, LLM fixtures, TLS `pki`/`server`/`drive`/`meter`, the forge machine world's GitHub fixtures, the HTTP `reference`). Then gate "no `-world` dependency" and "no `#[path]` across crates".

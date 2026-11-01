@@ -4,3 +4,5 @@
 
 - **Built:** 2, 3, 6, 8: the program and its calls, its closed network and stable shots, the hand and its look reads.
 - **Not yet:** 9: dark scheme.
+
+- **Built (2026-11-01):** 6, 8.9: capture folds, hand main paths, and fake-clock listener checks; shared JSON library target.

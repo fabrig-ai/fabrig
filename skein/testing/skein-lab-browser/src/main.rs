@@ -2,7 +2,7 @@
 mod calls;
 mod config;
 mod files;
-mod json;
+use skein_lab_browser::json;
 mod outline;
 mod proxy;
 mod redact;

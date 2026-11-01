@@ -445,5 +445,5 @@ other.
   `fresh-windows`; each version-1 golden patched by skein's `Patcher` to
   the version-2 golden; the header marked by `FRESH_WINDOWS`; the pieces
   word read from the schema at run time; and the real set's constants as
-  spelled, empty before the baseline. Each milestone's QA is an
-  independent tester's, from this design.
+  spelled, empty before the baseline; and the fixture owner's landed-data
+  check. These are focused tests; skein owns the patcher's mechanics.
