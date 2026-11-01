@@ -140,7 +140,7 @@ fn account(domain: &mut Domain, env: &Env<Limits>, number: u32) {
             provider: 1,
             holder: accounts::Holder::Deployment,
             place: number,
-            uses: Some(Box::new([accounts::Use::Project(PROJECT)])),
+            uses: Some(Box::new([accounts::Use::Party(PERSON), accounts::Use::Project(PROJECT)])),
             subject: Box::new([]),
             display: Box::new([]),
         },
@@ -247,7 +247,7 @@ fn a_start_makes_the_project_then_the_account_serving_it_alone() {
             provider: 1,
             join: None,
             digest: [37; 32],
-            uses: Some(Box::new([people::Use::Project(PROJECT)])),
+            uses: Some(Box::new([people::Use::Party(PERSON), people::Use::Project(PROJECT)])),
         }
     );
     assert_eq!(carried.unwrap().number, CARRIED);

@@ -3,7 +3,11 @@ id = "bx-story-setup-cut"
 part = "pg"
 kind = "feature"
 needs = ["bx-story-playground", "fe-remove", "fe-make", "sv-registry-setup"]
-files = ["temper/crates/temper/tests/reset/**"]
+files = [
+  "temper/crates/temper/tests/reset/**",
+  "temper/crates/temper-service/src/setup.rs",
+  "temper/crates/temper-service/src/tests/registry_setup.rs",
+]
 effort = "high"
 minutes = 110
 +++
@@ -72,3 +76,50 @@ Acceptance:
 ## Report
 
 Each case's cut point as it landed, its time, and how the cache was shown unused.
+
+## Answers
+
+2026-11-01. Q: the box prints no `step N …` lines on stderr and the lifecycle makes the first
+repository before it connects: have other tasks add cut points, or widen this one?
+
+A: Neither; no box, service or ctl change. The pipe's step lines already reach the forge's
+row: `forge list --json` reads `"state":"setting_up","step":"fetch"|"prepare"|"run"`
+(`temper-client-tools/src/forges.rs`, the row's `state`; serve sets it from `step N …`,
+`temper-service/src/tests/box_link.rs`). After `temper init` names no forge, forge N is the
+list's only row, so each cut is a `Step::Until(forge list --json, BYTES)` then `KillBox`:
+- **fetch:** `BYTES` = `"state":"setting_up"` (any step, the first read once the set up is
+  asked). A seeded fetch is too fast to wait for `"step":"fetch"` alone, which could hang;
+  this is the pre-approved fallback: report the step read at the kill (none, fetch or
+  prepare).
+- **prepare:** `"step":"prepare"` (it hashes two releases). If your runs miss it, the
+  pre-approved fallback applies: report it, with the reads that missed it.
+- **Forgejo running:** `"step":"run"`, then `Step::Stderr` on `forgejo N: ` (echo steps) so
+  Forgejo has printed before the kill; N is known from `forge make here` (1 on a fresh
+  init; assert it, as `Step::Stderr` takes static bytes).
+- **before its first repository:** revised. Connected with the first repository not made
+  is not a state the lifecycle reaches (Create comes before connect,
+  `temper-service/src/setup/lifecycle.rs`), so cut on `"state":"connecting"` after the run
+  step: reconcile, Origin and Create under way. Report the row's `first.state` at the kill
+  (`making`, or `made` if Create won the race); either leaves the forge unfinished (draft
+  6.3: not connected with its first repository adopted), so the rest of the case holds.
+- **No fetch of the binaries:** `assert_cached_binary_unchanged` for both, and the box's
+  stderr after `StartBox` has no line starting `fetch ` or containing `download`, as
+  `assert_forgejo_setup_after_sign_in` checks (`support/forge_land.rs`); no mirror.
+
+2026-11-01. Q: `forge make here` makes forge 1, but `forge setup 1` is refused `not offered`
+(the row reads `not_connected`): owner's repair, or widen? A: Widen, in this task: its
+acceptance cannot hold without it, and the fault is one condition. A record registered
+after the restore gets its `Local` with `pending: false`, so nothing ever sets its
+connection; `setup.rs::register` sets `NotSetUp` only for `record.playground`. Make that
+condition the `Local`'s trigger instead: after the insert, when
+`engine.setup.lifecycle.startup_restored()` and the trigger is `Trigger::StartDemo` or
+`Trigger::StartAsked`, `lifecycle::state(.., Connection::NotSetUp)`, as `local_stopped`
+reads a `StartAsked` forge not prepared. A managed entry's `Start` and a forge registered
+at restore (pending, started by `start_pending`) are unchanged. Its lowest-tier check: in
+`tests/registry_setup.rs`' `a_registered_owned_record_is_served_and_waits_for_its_group`,
+assert the `Connection { forge: 1, state: NotSetUp }` event as the fake record's test does,
+and that `forge.offer(1)` is `Offered` (the fixture is under the box) or, if the fixture is
+not, `NotUnderTheBox`; run `heavy cargo nextest run -p temper-service --lib -E
+'test(/tests::registry_setup::/)'`, then the whole `-p temper-service --lib`. No other
+service, box or ctl change: a second blocker after this one is a question again. Then run
+the four stories as the spec says.

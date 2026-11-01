@@ -57,3 +57,34 @@ Acceptance:
 
 For each case: where the kill landed (the reset's step as read), and what the next start
 resumed.
+
+## Answers
+
+2026-11-01. Q: ctl has no playground-state read, so `resetting` and `not_started` cannot be
+read: add a reader first, or revise acceptance?
+
+A: Revise acceptance; no ctl tool or production code is added (as bx-story-playground's
+answer). Each state is read through what ctl already lists, and T6's order of steps
+(`Project`, `Forge`, `Account`, then the row erased) tells which state they prove:
+- **`resetting`, first case:** after `playground reset` is started (`Step::Start`), poll
+  `me --json` and the forge list; kill as soon as the `Playground` project has left the
+  person's projects while the fake forge still lists. Only the reset deletes that project,
+  so the row then reads resetting at `Project` or `Forge`, and the next start resumed it.
+- **`resetting`, second case:** the first kill as above, `StartBox`; then kill again as soon
+  as the fake forge has left the forge list while the scripted account still lists (or, if
+  the account has gone first, while `box/groups/N`, `box/started/N` or `forge-N` still
+  exists). The account step comes after the forge's, so the row still reads resetting.
+- **`not_started`:** as in bx-story-playground's answer: after the restart, call
+  `playground reset` under a key of its own (never the cut call's) until it prints
+  `refused: not offered` and exits 2 ("no playground runs"); a `reset` answer meanwhile is
+  the resumed reset finishing, so call again under another new key. Then the same empty
+  reads and filesystem checks as the first story, and the box exits 0.
+- **A cut missed** (the cut call answers `reset` before the read shows its phase): the case
+  fails naming what was last read. If that happens in your runs, use the pre-approved
+  fallback for that kill: kill right after the call is sent; a row still `Running` at the
+  kill is reset by the next start anyway (contracts T6, "A start of the engine that finds
+  the row Running resets it"), so the case still checks the whole end; report which kill
+  fell back and that resumption was then not shown.
+- **The shared first half** stops once the playground runs and its forge is connected; it
+  does not take the story's `forge-N/admin_token` check, which bx-story-playground's answer
+  replaces. Its failing assertion on the prerequisite branch is that task's, not yours.

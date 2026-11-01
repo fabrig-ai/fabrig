@@ -1,5 +1,5 @@
-//! Project rows and connector release (temper/docs/design/draft/playground-reset.md, 5;
-//! temper/docs/plan/playground-reset-r6/notes/contracts.md, J4–J5).
+//! Project rows and connector release (jig/docs/design/domain/core.md, 6.1;
+//! jig/docs/design/domain/people.md, 5.2).
 //!
 //! | State | Event | Next | Writes |
 //! | --- | --- | --- | --- |
@@ -122,6 +122,7 @@ pub(crate) fn loaded(core: &mut Core, env: &Env<Limits>, load: Token, result: Lo
 }
 
 fn release(core: &mut Core, env: &Env<Limits>, project: u32, out: &mut Queue<Request>) {
+    crate::projections::forget_project(core, project, out);
     out.push(Request::Write(Write::Erase(Key::People(people::Key::Policy(project)))));
     let mut projects = List::with_capacity(core.projects.capacity());
     for &number in &core.projects {

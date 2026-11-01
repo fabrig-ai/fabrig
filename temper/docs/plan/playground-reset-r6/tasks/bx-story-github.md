@@ -59,3 +59,23 @@ Acceptance:
 ## Report
 
 The hops seen before and after the restart, and what forge N read after it.
+
+## Answers
+
+2026-11-01. Change forge admission so Install runs from kept App records while disconnected?
+No: forge admission stays. After the restart temper retried its kept App key and the fake
+refused it (`KeyRefused`), because the fake GitHub's peer memory lasts one launch
+(`temper/docs/design/draft/fake-backends.md`, 3) and the manifest's converted App went with
+it. An Install of an App whose key is refused cannot reach an installation, on the fake or on
+GitHub, so the refusal is right; on GitHub the App outlives a restart and the forge reads
+connected, as it did here before the kill. The story therefore walks the App the fake keeps
+across launches, its seeded own App (the walk's `own_app` connect, `--app` with the printed id
+and key): `forge make github` → N; connect N with the seeded App, stopping before any
+installation is visited; `KillBox`; `StartBox`; `forge list --json` reads N kept and connected
+(its installations empty or the seeded one); `forge install N`, the visit to the installation
+and back to `/forges/N/github/setup`; then `finish`, with no second connect and the manifest
+route never visited. Keep the test's name; rename nothing else. The manifest-made App's restart
+is not walked: list under `## Left` "a manifest-made App across a box restart needs the fake
+GitHub to keep a converted App across launches (skein's fake forge, fake-backends.md 3)". If N
+does not read connected after the restart with the seeded App, stop with a question quoting
+the row. `fake::check::tests::verb` is not this task's: leave it under `## Left` as reported.

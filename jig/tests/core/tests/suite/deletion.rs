@@ -1316,6 +1316,96 @@ fn answer_release(world: &mut World, project: u32, connector: u16) -> Vec<core::
     core_outputs(world, core::Event::ProjectReleased { project, connector })
 }
 
+fn unsettled_projection_world() -> (World, u64) {
+    let (config, limits) = release_configuration();
+    let mut world = World::configured(SEED, false, config, limits);
+    let goal = world.assigned.as_ref().expect("conversation assigned").task;
+    let revision = live_row(&world, goal).revisions.spec;
+    request(
+        &mut world,
+        60,
+        people::Ask::Amend {
+            project: PROJECT,
+            task: goal,
+            revision,
+            release: None,
+            amendment: people::Amendment {
+                tracked: Some(people::Tracking::Tracked { priority: 1 }),
+                ..jig_core_world::fixtures::person_unchanged(b"track the closing projection")
+            },
+        },
+    );
+    world.hold_projection_settlements = true;
+    jig_core_world::fixtures::finish_chat(&mut world, 0, b"goal ended before deletion");
+    world.reads = Some(jig_core_world::reads::Parties::new(world.store.applied));
+    world.reads.as_mut().expect("release reads").hold_loads = true;
+    remove(&mut world, KEY, PROJECT);
+    while stage(&world, PROJECT) != people::Stage::Releasing {
+        jig_core_world::reads::complete(&mut world);
+    }
+    (world, goal)
+}
+
+#[test]
+fn releasing_forgets_the_projects_projections() {
+    for restart in [false, true] {
+        let (mut world, goal) = unsettled_projection_world();
+        if restart {
+            world.restart_with(release_configuration().0);
+        }
+        let projection_keys: Vec<_> = world
+            .store
+            .rows
+            .keys()
+            .filter(|key| matches!(key, root::Key::Core(core::Key::Core(core::CoreKey::Projection(_)))))
+            .cloned()
+            .collect();
+        assert!(!projection_keys.is_empty(), "closing feed retained with its unsettled cohort");
+        let out = complete_release_at_core(&mut world);
+        let forgotten: Vec<_> = out
+            .iter()
+            .filter_map(|request| match request {
+                core::Request::Ask { connector, ask: core::Ask::ForgetProjection { goal: number } }
+                    if *number == goal =>
+                {
+                    Some(*connector)
+                }
+                core::Request::ProjectMade { .. }
+                | core::Request::Write(_)
+                | core::Request::Ask { .. }
+                | core::Request::Held(_)
+                | core::Request::Now(_)
+                | core::Request::Decided => None,
+            })
+            .collect();
+        assert_eq!(forgotten, [1, 2], "every connector forgets the deleted goal, restart={restart}");
+        for key in projection_keys {
+            let root::Key::Core(erased) = &key else { panic!("core projection key") };
+            assert!(
+                out.iter().any(|request| matches!(request,
+                    core::Request::Write(core::Write::Erase(found)) if found == erased
+                )),
+                "release erases {key:?}"
+            );
+            let _row = world.erase(key);
+        }
+        assert!(
+            !world
+                .store
+                .rows
+                .keys()
+                .any(|key| matches!(key, root::Key::Core(core::Key::Core(core::CoreKey::Projection(_)))))
+        );
+        for connector in [1, 2] {
+            let out = core_outputs(&mut world, core::Event::ProjectionSettled { goal, connector });
+            assert!(
+                out.iter().all(|request| matches!(request, core::Request::Decided)),
+                "late settlement changes nothing"
+            );
+        }
+    }
+}
+
 #[test]
 fn the_row_stays_until_every_connector_answers() {
     let mut world = releasing_world();
