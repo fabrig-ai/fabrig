@@ -12,7 +12,7 @@ pub(super) fn fixed(
     let own = &config.limits;
     let pure = own.setup.plan();
     check(&own.setup)?;
-    let mut configured = List::with_capacity(own.forge_component.forges);
+    let mut configured = List::with_capacity(own.forge.forges);
     for endpoint in &forges.forges {
         let source = source_forge(config, endpoint.number);
         let transport = match &endpoint.transport {
@@ -83,7 +83,7 @@ pub(super) fn fixed(
     }
     let f = own.forge_component;
     let limits = host::Limits {
-        forges: f.forges,
+        forges: own.forge.forges,
         runs: own.setup.runs,
         states: own.setup.states,
         token_bytes: f.token_bytes,
@@ -435,7 +435,7 @@ pub(crate) fn problems(why: host::Unusable, found: &mut Problems) {
             }
             Stacked::JsonOverHttp => &[b"forge_component.chunk"],
         },
-        Unusable::Forges { .. } => &[b"forge_component.forges"],
+        Unusable::Forges { .. } => &[b"forge.forges"],
         Unusable::Duplicate { forge }
         | Unusable::Address { forge }
         | Unusable::PlaintextName { forge }

@@ -164,7 +164,7 @@ pub fn back(event: Box<forge::Event>) -> Result<skein_forge_connection::Answered
 #[must_use]
 pub fn small(forge: &forge::Limits) -> skein_forge_connection::Limits {
     skein_forge_connection::Limits {
-        forges: 4,
+        forges: forge.forges,
         token_bytes: limits::FORGE_TOKEN_BYTES,
         key_bytes: u32::try_from(skein_tls::RS256_KEY_BYTES).expect("RS256 key bound fits u32"),
         installations: limits::FORGE_INSTALLATIONS,
@@ -346,7 +346,7 @@ pub fn problems(unusable: skein_forge_connection::Unusable, found: &mut Problems
             found.push(Path::root().member(b"application").member(b"webhooks").member(b"listener"), What::Plaintext);
             return;
         }
-        Unusable::Forges { .. } => &[b"forge_component.forges"],
+        Unusable::Forges { .. } => &[b"forge.forges"],
         Unusable::Request { forge } => {
             found.push(forge_path(u32::from(forge)).member(b"api_token"), What::Bound);
             &[

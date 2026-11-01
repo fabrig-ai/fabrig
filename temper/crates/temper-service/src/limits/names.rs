@@ -67,6 +67,10 @@ pub(super) fn apply(limits: &mut Limits, name: &[u8], value: u64) -> Result<(), 
         b"root.brief.budgets.notes" => {
             limits.root.brief.budgets.notes = u32::try_from(value).or(Err(Refused::Range))?;
         }
+        b"forge.forges" => {
+            limits.forge.forges = u32::try_from(value).or(Err(Refused::Range))?;
+            limits.forge_component.forges = limits.forge.forges;
+        }
         b"forge.repositories" => limits.forge.repositories = u32::try_from(value).or(Err(Refused::Range))?,
         b"forge.tasks" => limits.forge.tasks = u32::try_from(value).or(Err(Refused::Range))?,
         b"forge.holds" => limits.forge.holds = u32::try_from(value).or(Err(Refused::Range))?,
@@ -207,7 +211,6 @@ pub(super) fn apply(limits: &mut Limits, name: &[u8], value: u64) -> Result<(), 
             limits.forge_component.key_bytes = u32::try_from(value).or(Err(Refused::Range))?;
         }
         b"forge_component.renew_before_ms" => limits.forge_component.renew_before = duration(value)?,
-        b"forge_component.forges" => limits.forge_component.forges = u32::try_from(value).or(Err(Refused::Range))?,
         b"forge_component.token_bytes" => {
             limits.forge_component.token_bytes = u32::try_from(value).or(Err(Refused::Range))?;
         }
