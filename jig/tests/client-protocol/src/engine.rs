@@ -499,6 +499,7 @@ pub fn watcher(event: &core::Event) -> Option<Token> {
         | core::Event::Application { .. }
         | core::Event::ApplicationPart { .. }
         | core::Event::ApplicationFinished { .. }
+        | core::Event::ProjectReleased { .. }
         | core::Event::ProjectionSettled { .. }
         | core::Event::SettledCall { .. }
         | core::Event::EffectStart { .. }

@@ -213,7 +213,10 @@ impl SeenFence {
         let records = store.rows.values().chain(store.pending.iter().flat_map(|pending| {
             pending.writes.iter().filter_map(|write| match write {
                 root::Write::Save(record) => Some(record),
-                root::Write::Wires | root::Write::Erase(_) | root::Write::CopySettingsRevision(_) => None,
+                root::Write::Wires
+                | root::Write::Erase(_)
+                | root::Write::CopySettingsRevision(_)
+                | root::Write::DropTranscript { .. } => None,
             })
         }));
         for record in records {

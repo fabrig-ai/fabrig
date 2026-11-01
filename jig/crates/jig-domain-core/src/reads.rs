@@ -95,7 +95,9 @@ pub fn admits(party: u64, scope: &Scope, key: &crate::Key) -> bool {
             Key::Tasks(TaskKey::Update { party: owner, .. }) => *owner == party,
             Key::Tasks(_) | Key::Core(_) | Key::People(_) | Key::Notes(_) | Key::Accounts(_) => false,
         },
-        Scope::Tasks { .. }
+        Scope::ProjectRows { .. }
+        | Scope::TaskRows { .. }
+        | Scope::Tasks { .. }
         | Scope::Proposal { proposer: Proposer::Task(_), .. }
         | Scope::Escalation { .. }
         | Scope::Question { .. }
@@ -236,7 +238,9 @@ fn subject(read: &Read, party: u64) -> Option<Subject> {
 fn backwards(scope: &Scope) -> bool {
     match scope {
         Scope::Activity { .. } | Scope::Escalation { .. } | Scope::Proposal { .. } => true,
-        Scope::SettingsHistory { .. }
+        Scope::ProjectRows { .. }
+        | Scope::TaskRows { .. }
+        | Scope::SettingsHistory { .. }
         | Scope::Task { .. }
         | Scope::Question { .. }
         | Scope::PersonTask { .. }

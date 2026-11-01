@@ -581,6 +581,8 @@ impl World {
             | Event::QuestionEndedNotice { .. }
             | Event::CancelQuestion { .. }
             | Event::PersonStallNotice { .. }
+            | Event::Erase { .. }
+            | Event::ForgetProject { .. }
             | Event::Notice { .. } => None,
         };
         match event {
@@ -669,6 +671,8 @@ impl World {
             | Event::MetNotice { .. }
             | Event::CancelQuestion { .. }
             | Event::PersonStallNotice { .. }
+            | Event::Erase { .. }
+            | Event::ForgetProject { .. }
             | Event::Turn { .. } => {}
         }
     }
