@@ -8,10 +8,10 @@ person's word to a change ready to land. What follows ready is
 `landing-pipeline.md`; `reference-case.md` runs both. It is one model
 over jig's primitives (tasks, executors, messages, authority,
 connectors: jig's `domain/core.md`, 3), with temper's configuration and
-its forge connector on them; fabrig's way is one configuration
-(section 5). Gap ids (L, J, F) are revision 4's, and new ones carry on
-from them (section 6). Machines, slots and sign-ins are left out for
-now (section 7).
+its forge connector on them; fabrig's way is one configuration (section
+5). Gap ids (L, J, F) are revision 4's, and new ones carry on from them
+(section 6). Machines, slots and sign-ins are left out for now (section
+7).
 
 Unqualified, `landing.md`, `forge.md` and `agent.md` are temper's
 `../domain/` documents; jig's are named as jig's.
@@ -21,8 +21,8 @@ Unqualified, `landing.md`, `forge.md` and `agent.md` are temper's
 - **jig's primitives carry the work; temper configures them.** A goal is
   a tree of jig tasks; its agents are charters; its mechanics are
   temper's forge procedures and jig's jobs. jig knows nothing of code or
-  branches; temper keeps its own state about them in the store, never
-  in a repository, which holds only the project's code and documents.
+  branches; temper keeps its own state about them in the store, never in
+  a repository, which holds only the project's code and documents.
 - **An LLM for judgement, code for mechanisms:** planning, producing,
   answering, reviewing and resolving are agent tasks; scheduling,
   merging, checking, holding and routing are code.
@@ -44,12 +44,12 @@ Unqualified, `landing.md`, `forge.md` and `agent.md` are temper's
 
 - **The person** directs the work, sets budgets and priorities, and
   answers what is theirs to answer. **Their chat** is a coordinator: an
-  agent conversation, made from a template the person chose (a
-  director, or a department such as QA), whose charter lets it make
-  goals and steer them (jig's `domain/people.md`, 7), reached through
-  `temper ctl`. No hold over the project holds it (2.4).
-- **A draft's goal plans:** its agent, under a planning charter, cuts the
-  draft into parts and slices (stories that run end to end) and
+  agent conversation, made from a template the person chose (a director,
+  or a department such as QA), whose charter lets it make goals and
+  steer them (jig's `domain/people.md`, 7), reached through `temper
+  ctl`. No hold over the project holds it (2.4).
+- **A draft's goal plans:** its agent, under a planning charter, cuts
+  the draft into parts and slices (stories that run end to end) and
   delegates each part's changes in batches with their specs and
   dependencies (jig's `domain/tasks.md`, 3 and 4), at once for the parts
   that are certain while it plans the rest. Several goals run in one
@@ -69,11 +69,11 @@ Unqualified, `landing.md`, `forge.md` and `agent.md` are temper's
 - **Checks on a period:** a goal wakes on its delegates' results and on
   news, and a timer or a recurring task wakes it on a period as well
   (jig's `domain/tasks.md`, 3 and 8.1).
-- **Standing rules are instructions:** contracts that cross parts written
-  first, an interface step landed before its readers, one writer per
-  package within a batch, what a producer may edit outside its paths.
-  Such rules live in the charters, are judged by the agents that read
-  them, and reach live tasks with a charter's new revision (jig's
+- **Standing rules are instructions:** contracts that cross parts
+  written first, an interface step landed before its readers, one writer
+  per package within a batch, what a producer may edit outside its
+  paths. Such rules live in the charters, are judged by the agents that
+  read them, and reach live tasks with a charter's new revision (jig's
   `MoveToNewest`, `domain/engine.md`, 17.4). Only what section 5 lists
   is enforced by code.
 - **Work goes on while a goal is away:** a park of its own or a usage
@@ -181,14 +181,14 @@ Unqualified, `landing.md`, `forge.md` and `agent.md` are temper's
 - **Ready:** green in full, it is ready; `landing-pipeline.md` takes it.
 - **Goals beside each other:** a goal hears when another goal's branch
   touches the same paths (merging both with main in memory); its
-  planning brief lists the goals beside it (gap L23).
+  planning brief lists the goals beside it (gap L22).
 
 ### 2.7 Who hears what
 
-- **News goes to roles in the tree,** resolved when the news is made (gap
-  J10): the change's goal, the goal above it, the person's chat. Which
-  outcome goes to which role is the project's routing table (section
-  5).
+- **News goes to roles in the tree,** resolved when the news is made
+  (gap J10): the change's goal, the goal above it, the person's chat.
+  Which outcome goes to which role is the project's routing table
+  (section 5).
 - **What no goal owns** (a red no open goal owns, a tier that cannot
   run, a finding not the code's) is news to the chat its template names,
   whose agent decides: start a goal, wait, or ask the person.
@@ -271,7 +271,7 @@ on). jig's are knobs; none is a new primitive.
 | L11 | Checks before ready: a change's own deterministic gates in its workspace at its own candidate | design |
 | L19 | Views and acts in `temper ctl`; the records a report is computed from | design |
 | L21 | A goal's own branch: changes landed into it, checks on a cadence and in full, timed updates, bounds escalated | design (`forge.md`, 11.1) |
-| L23 | Goals beside each other: overlaps as news, the goals beside listed in planning | design |
+| L22 | Goals beside each other: overlaps as news, the goals beside listed in planning | design |
 | J1 | Owned holds and proposals of their lift | built |
 | J2–J4, J9 | Drain; a project's holds; parked until an event; a hold over admission | design |
 | J5, J6, J11 | A live task moved; a successor; a fresh run from notes | design |
