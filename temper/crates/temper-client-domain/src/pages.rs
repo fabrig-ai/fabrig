@@ -15,12 +15,15 @@ pub mod choice;
 pub mod connect_model;
 pub mod delegation;
 pub mod inbox;
+pub mod project;
 pub mod task;
 pub mod welcome;
 #[derive(Debug)]
 pub struct Pages {
     address: Address,
     project: Option<u32>,
+    settings: Option<project::Settings>,
+    pub(crate) playground_project: Option<u32>,
     watching: bool,
     shown: u64,
     pub(crate) inbox: Option<inbox::Inbox>,
@@ -58,6 +61,10 @@ pub enum Act {
     ChatWords {
         words: Box<[u8]>,
     },
+    DeleteWords {
+        words: Box<[u8]>,
+    },
+    DeleteProject,
     StartChat,
     Suggest {
         cue: u8,
@@ -152,6 +159,8 @@ impl Pages {
         Self {
             address: Address::Inbox { filter: crate::address::Filter::ALL },
             project: None,
+            settings: None,
+            playground_project: None,
             watching: false,
             shown: 0,
             inbox: None,
@@ -281,6 +290,10 @@ impl Pages {
         Self { serial: skein_lib::Rng::new(seed).next_u64(), ..Self::new() }
     }
     #[must_use]
+    pub const fn settings(&self) -> Option<&project::Settings> {
+        self.settings.as_ref()
+    }
+    #[must_use]
     pub const fn project(&self) -> Option<u32> {
         self.project
     }
@@ -305,6 +318,13 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
     match event {
         Event::Started => started(pages, out),
         Event::Went { address } => {
+            if pages.address != address || pages.settings.is_none() {
+                pages.settings = if let Address::ProjectSettings { project } = address {
+                    Some(project::Settings::new(project))
+                } else {
+                    None
+                };
+            }
             if let Address::ProjectSettings { project } = address {
                 choose_project(pages, client, project);
             }
@@ -354,12 +374,28 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
                 page.leave();
             }
             pages.welcome = None;
+            pages.settings = None;
             pages.accounts_open = false;
         }
         Event::Act { act: Act::Choice(act) } => choice::act(pages, client, act, out),
         Event::Act { act: Act::ChatWords { words } } => {
             if let Some(chats) = &mut pages.chats {
                 chats.write(words, &env.limits);
+            }
+        }
+        Event::Act { act: Act::DeleteWords { words } } => {
+            if let Some(settings) = &mut pages.settings
+                && settings.deleting.is_none()
+                && settings.outcome != Some(project::Deletion::Deleted)
+                && words.len() <= usize::try_from(env.limits.client.domain.text).expect("text bound fits")
+            {
+                settings.typed = words;
+            }
+        }
+        Event::Act { act: Act::DeleteProject } => {
+            let me = pages.me(client);
+            if let Some(settings) = &mut pages.settings {
+                settings.delete(me, pages.playground_project, &mut pages.serial, out);
             }
         }
         Event::Act { act: Act::StartChat } => start_chat(pages, env, client, out),
@@ -456,6 +492,11 @@ fn told(pages: &mut Pages, env: &Env<Limits>, client: &Client, told: Told, out: 
         pages.seeing = None;
         return false;
     }
+    if let Some(settings) = &mut pages.settings
+        && settings.told(client, &told, out)
+    {
+        return true;
+    }
     if pages.choice.told(&told) || crate::acts::told(pages, &told) {
         pages.shown = pages.shown.checked_add(1).expect("pages shown fits");
         return false;
@@ -469,6 +510,7 @@ fn started(pages: &mut Pages, out: &mut Queue<Request>) {
         page.leave();
     }
     pages.accounts_open = false;
+    pages.settings = None;
     pages.welcome = None;
     pages.address = Address::Inbox { filter: crate::address::Filter::ALL };
     pages.project = None;
@@ -814,6 +856,8 @@ fn confirmation(pages: &mut Pages, env: &Env<Limits>, client: &Client, act: Act,
         | Act::Accounts(_)
         | Act::ConnectModel(_)
         | Act::SignOut
+        | Act::DeleteWords { .. }
+        | Act::DeleteProject
         | Act::ChatWords { .. }
         | Act::StartChat
         | Act::Playground
@@ -957,6 +1001,7 @@ fn link_changed(pages: &mut Pages, link: Link, out: &mut Queue<Request>) {
             pages.choice = choice::Draft::default();
             pages.party = None;
             pages.project = None;
+            pages.settings = None;
             pages.seen = 0;
             pages.seeing = None;
         }
