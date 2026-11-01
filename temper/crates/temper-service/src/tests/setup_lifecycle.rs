@@ -697,25 +697,31 @@ fn paste_row(limits: &domain::Limits, request: Token, connected: bool, why: Opti
         limits,
         7,
         skein_forge_client::Config { namespace: Box::from(b"fixture".as_slice()), writers: Box::new([]) },
-        &[],
-        &[domain::Configured {
-            bot: Box::new([]),
-            admin_connect: false,
-            owned: None,
-            git: Box::new([]),
-            web: None,
-            read_only: false,
-            number: 1,
-            kind: domain::Kind::GitHub,
-            mode: domain::Mode::Connected,
-            asked: false,
-        }],
         domain::Machine::bare(),
         false,
     )
     .unwrap();
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits };
     let mut out = Queue::uncapped();
+    domain::step(
+        &mut forge,
+        &env,
+        domain::Event::Restore {
+            record: domain::Stored::Forge(temper_engine_domain_world::forges::from_configured(&domain::Configured {
+                bot: Box::new([]),
+                admin_connect: false,
+                owned: None,
+                git: Box::new([]),
+                web: None,
+                read_only: false,
+                number: 1,
+                kind: domain::Kind::GitHub,
+                mode: domain::Mode::Connected,
+                asked: false,
+            })),
+        },
+        &mut out,
+    );
     domain::step(
         &mut forge,
         &env,

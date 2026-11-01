@@ -74,8 +74,6 @@ fn generated() -> (engine::Config, engine::Limits) {
     let seeds = fixtures::seeds();
     let core = config::core(&settings.jig, seeds.deployment, seeds.seed);
     let forge = crate::forge::config(seeds.deployment);
-    let identities = Box::new([]);
-    let forges = Box::new([]);
     let demo = settings.demo.as_ref().map(|demo| demo.domain(&settings.machine, settings.limits.setup.deadline));
     (
         engine::Config {
@@ -83,8 +81,6 @@ fn generated() -> (engine::Config, engine::Limits) {
             period_span: crate::stock::PERIOD_SPAN,
             core,
             forge,
-            identities,
-            forges,
             demo,
             landing: settings.landing,
             forge_charter: settings.charter,
@@ -202,7 +198,17 @@ fn real_init_policy_fits_with_two_long_github_repositories() {
     let mut strict = limits;
     strict.policy_bytes = 4096;
     assert!(engine::refused(generated().0, &strict).is_empty(), "the actual landing join also admits at 4096");
-    let mut driver = Driver::cold(Store::with_limits(&limits), config, &limits);
+    let mut store =
+        temper_engine_domain_world::fixtures::first_start_over(Store::with_limits(&limits), generated().0, &limits);
+    store.seed(
+        temper_engine_domain_world::forges::rows(&[temper_engine_domain_world::forges::record(
+            2,
+            forge::Kind::GitHub,
+            forge::Mode::Connected,
+        )]),
+        Box::new([]),
+    );
+    let mut driver = Driver::cold(store, config, &limits);
     // Chosen GitHub-shaped owner: 39 ASCII bytes; repositories reach the
     // unchanged adoption field bound (64), not GitHub's external name limit.
     // Admission below proves acceptance by the current code, without live API claims.
