@@ -13,6 +13,7 @@ pub mod listed;
 pub(crate) mod me;
 pub mod panel;
 pub mod picker;
+pub mod remove;
 pub mod start;
 mod vocabulary;
 pub mod words;
@@ -49,6 +50,7 @@ pub enum Request {
 #[derive(Debug)]
 pub struct Side {
     demo: demo::State,
+    remove: Option<remove::State>,
     forges: forges::State,
     forges_open: bool,
     set_up: Option<Box<forges::SetUp>>,
@@ -75,6 +77,7 @@ impl Side {
     pub fn new(_limits: &Limits, seed: u64) -> Side {
         Side {
             demo: demo::State::new(),
+            remove: None,
             forges: forges::State::Unknown,
             forges_open: false,
             set_up: None,
@@ -265,6 +268,13 @@ fn act_on(side: &mut Side, limits: Limits, act: Act, out: &mut Queue<Request>) {
         Act::ConnectManifest { forge, back } => github::manifest(side, limits, forge, back, out),
         Act::ConnectApp { forge } => github::send(side, limits, forge, None, out),
         Act::Install { forge, back } => github::send(side, limits, forge, Some(back), out),
+        Act::Remove { forge } => remove::confirm(side, forge),
+        Act::ConfirmRemove => match side.remove {
+            Some(remove::State::Confirming(forge)) => remove::request(side, forge, limits, out),
+            Some(remove::State::Removing { .. } | remove::State::Refused { .. } | remove::State::Removed(_)) | None => {
+            }
+        },
+        Act::CancelRemove => remove::cancel(side),
         Act::StartDemo => demo::start(side, limits, out),
         Act::EndPlayground => demo::end(side, limits, out),
         Act::SetUp { forge } => forges::set_up(side, limits, forge, out),
@@ -333,7 +343,9 @@ fn act_on(side: &mut Side, limits: Limits, act: Act, out: &mut Queue<Request>) {
 pub fn next_deadline(side: &Side) -> Option<Time> {
     picker::next_deadline(side)
 }
-pub const fn reclaim(_side: &mut Side) {}
+pub fn reclaim(side: &mut Side) {
+    remove::refresh(side);
+}
 #[must_use]
 pub const fn shown(side: &Side) -> u64 {
     side.shown

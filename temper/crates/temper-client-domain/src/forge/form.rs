@@ -66,6 +66,11 @@ pub enum Act {
         forge: u16,
         act: super::picker::Act,
     },
+    Remove {
+        forge: u16,
+    },
+    ConfirmRemove,
+    CancelRemove,
     StartDemo,
     /// The banner's "set up temper": the playground's reset (draft 6.2).
     EndPlayground,

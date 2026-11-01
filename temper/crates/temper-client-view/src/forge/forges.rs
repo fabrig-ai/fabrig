@@ -1,5 +1,8 @@
 //! Folded forge rows and the playground apart (client/forge.md, 5.4).
-use super::{bindings::Bindings as ForgeBindings, connect};
+use super::{
+    bindings::{Bindings as ForgeBindings, Meaning},
+    connect,
+};
 use crate::{
     flow,
     frame::Bindings,
@@ -14,6 +17,7 @@ use temper_client_domain::{
         self,
         forges::{Connection, Kind, Mode, Offer, Row, State},
         listed,
+        remove::{RemoveRefusal, State as Removal},
     },
 };
 
@@ -85,6 +89,7 @@ fn connection(row: &Row) -> Box<[u8]> {
         | Connection::Stopped { .. } => forge::words::forge_connection(row),
     }
 }
+#[expect(clippy::too_many_lines, reason = "the forge row keeps its facts and removal controls in display order")]
 fn personal(
     b: &mut Builder,
     root: &Domain,
@@ -94,9 +99,21 @@ fn personal(
     row: &Row,
     sign_in: &crate::forge_sign_in::Forges,
 ) {
+    match root.forge().removal(row.number) {
+        Some(Removal::Removed(_)) => return,
+        Some(Removal::Confirming(_) | Removal::Removing { .. } | Removal::Refused { .. }) | None => {}
+    }
     b.open(Role::Disclosure);
     b.style(look::FORGE_ROW);
     b.name(&connect::name(w, row, root));
+    match root.forge().removal(row.number) {
+        Some(Removal::Confirming(_) | Removal::Removing { .. }) => {
+            removal(b, root, w, forge, row);
+            b.close();
+            return;
+        }
+        Some(Removal::Refused { .. } | Removal::Removed(_)) | None => {}
+    }
     let kind = match row.kind {
         Kind::Forgejo => Word::ForgeOther,
         Kind::GitHub => Word::ForgeGitHub,
@@ -184,7 +201,61 @@ fn personal(
             | Connection::Stopped { .. } => {}
         }
     }
+    removal(b, root, w, forge, row);
     b.close();
+}
+fn removal(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut ForgeBindings, row: &Row) {
+    match root.forge().removal(row.number) {
+        Some(Removal::Confirming(_)) => {
+            crate::cards::text(
+                b,
+                Role::Alert,
+                &w.say(Word::ForgeRemoveTitle, &[Hole::Name(connect::name(w, row, root))]),
+            );
+            connect::text(b, w, Role::Paragraph, Word::ForgeRemoveGoes);
+            let stays = match (row.kind, row.mode) {
+                (Kind::GitHub, Mode::Owned | Mode::Managed | Mode::Connected | Mode::Fake) => Word::ForgeRemoveGitHub,
+                (Kind::Forgejo, Mode::Owned) => Word::ForgeRemoveOwned,
+                (Kind::Forgejo, Mode::Managed) => Word::ForgeRemoveManaged,
+                (Kind::Forgejo, Mode::Connected) => Word::ForgeRemoveConnected,
+                (Kind::Forgejo, Mode::Fake) => Word::ForgeRemoveFake,
+            };
+            connect::text(b, w, Role::Paragraph, stays);
+            if row.kind == Kind::GitHub {
+                flow::control(
+                    b,
+                    flow::Control::External {
+                        name: &w.say(Word::ForgeAppSettings, &[]),
+                        address: b"https://github.com/settings/apps",
+                    },
+                );
+            }
+            remove_button(b, w, bindings, Word::ForgeRemoveConfirm, Meaning::ConfirmRemove);
+            remove_button(b, w, bindings, Word::Cancel, Meaning::CancelRemove);
+        }
+        Some(Removal::Removing { .. }) => {
+            crate::cards::text(
+                b,
+                Role::Status,
+                &w.say(Word::ForgeRemoving, &[Hole::Name(connect::name(w, row, root))]),
+            );
+        }
+        Some(Removal::Refused { why, .. }) => {
+            let refusal = match why {
+                RemoveRefusal::NotOffered => jig_client::contract::Refusal::NotOffered,
+                RemoveRefusal::Role => jig_client::contract::Refusal::Role { held: None },
+            };
+            let words = w.say_word(jig_client::words::Word::refusal(&refusal), &[]);
+            crate::cards::text(b, Role::Status, &w.say(Word::ForgeRemoveRefused, &[Hole::Name(words)]));
+            remove_button(b, w, bindings, Word::ForgeRemove, Meaning::Remove(row.number));
+        }
+        Some(Removal::Removed(_)) => {}
+        None => remove_button(b, w, bindings, Word::ForgeRemove, Meaning::Remove(row.number)),
+    }
+}
+fn remove_button(b: &mut Builder, w: &Words, bindings: &mut ForgeBindings, word: Word, meaning: Meaning) {
+    let to = bindings.insert(meaning);
+    flow::control(b, flow::Control::Button { name: &w.say(word, &[]), to });
 }
 fn github(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, forge: &mut ForgeBindings, row: &Row) {
     if let Some(web) = &row.web {

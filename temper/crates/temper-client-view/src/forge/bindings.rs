@@ -10,6 +10,9 @@ pub enum Meaning {
     Home,
     Ci,
     Adopt,
+    Remove(u16),
+    ConfirmRemove,
+    CancelRemove,
     AdminToken,
     AdminField(forge::admin::Field),
     ConnectAdmin(u16),
@@ -95,6 +98,9 @@ pub fn decode(bindings: &Bindings, token: Token, act: Act) -> Option<Action> {
                 Meaning::Install { forge, back } => {
                     Action::Forge(forge::Act::Install { forge, back: temper_client_domain::address::print(&back) })
                 }
+                Meaning::Remove(forge) => Action::Forge(forge::Act::Remove { forge }),
+                Meaning::ConfirmRemove => Action::Forge(forge::Act::ConfirmRemove),
+                Meaning::CancelRemove => Action::Forge(forge::Act::CancelRemove),
                 Meaning::Adopt => Action::Forge(forge::Act::Adopt),
                 Meaning::Picker { forge, act } => Action::Forge(forge::Act::Picker { forge, act }),
                 Meaning::StartIn(forge) => Action::Forge(forge::Act::StartIn { forge }),

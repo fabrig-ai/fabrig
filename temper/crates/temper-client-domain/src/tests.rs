@@ -7,6 +7,7 @@ mod admin;
 mod amend;
 mod demo;
 pub(crate) mod fixtures;
+mod forge_remove;
 mod forge_words;
 mod forges;
 mod form;
