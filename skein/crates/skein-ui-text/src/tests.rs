@@ -254,3 +254,58 @@ fn a_markdown_table_prints_each_row_with_its_cells() {
     render(&tree, b"ops", None, &mut print);
     assert_eq!(print.text.as_slice(), include_bytes!("tests/golden/markdown-table.txt"));
 }
+
+#[test]
+fn a_link_inside_a_paragraph_is_numbered_in_place() {
+    let tree = fixtures::page(|b| {
+        b.open(Role::Paragraph);
+        b.text(Run::Plain, b"Use the wizard to ");
+        b.open(Role::Link);
+        b.text(Run::Plain, b"set up temper");
+        b.bind(fixtures::binding());
+        b.close();
+        b.close();
+        fixtures::button(b, b"Continue", true);
+    });
+    let mut print = Print::new(&fixtures::LIMITS).unwrap();
+    render(&tree, b"ops", None, &mut print);
+    assert_eq!(print.text.as_slice(), b"== ops == \nUse the wizard to [1] set up temper\n[2] Continue\n");
+    assert_eq!(print.numbers.as_slice(), [tree.get(5).unwrap().id, tree.get(7).unwrap().id]);
+}
+
+#[test]
+fn inline_links_keep_disabled_unbound_and_external_words() {
+    let tree = fixtures::page(|b| {
+        b.open(Role::Quote);
+        b.text(Run::Plain, b"Links: ");
+        b.open(Role::Link);
+        b.text(Run::Plain, b"disabled");
+        b.bind(fixtures::binding());
+        b.state(skein_ui::State::Disabled);
+        b.close();
+        b.text(Run::Plain, b" ");
+        b.open(Role::Link);
+        b.name(b"unbound");
+        b.close();
+        b.text(Run::Plain, b" ");
+        b.open(Role::Link);
+        b.text(Run::Plain, b"external");
+        b.external(b"https://example.com");
+        b.close();
+        b.close();
+        fixtures::button(b, b"Continue", true);
+    });
+    let mut print = Print::new(&fixtures::LIMITS).unwrap();
+    render(&tree, b"ops", None, &mut print);
+    assert_eq!(
+        print.text.as_slice(),
+        b"== ops == \n> Links: [-] disabled [-] unbound external <https://example.com>\n[1] Continue\n"
+    );
+    let mut button = None;
+    for node in tree.nodes() {
+        if node.role == Role::Button {
+            button = Some(node.id);
+        }
+    }
+    assert_eq!(print.numbers.as_slice(), [button.unwrap()]);
+}
