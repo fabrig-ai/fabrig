@@ -619,6 +619,19 @@ pub(crate) fn read_call(
     domain.work.push(Work::Forge(forge::Event::Client(skein_forge_client::Event::Read { owner, repository, read })));
 }
 
+/// Local admission waits in the host's bounded backoff, keeping the logical call unchanged
+/// (temper/docs/design/domain/forge.md, 5.3).
+fn read_answer(domain: &mut Domain, owner: Token, result: Result<skein_forge::api::Answer, skein_forge::api::Error>) {
+    let Some((to, _key)) = domain.forge_reading.remove(&owner) else { return };
+    if result == Err(skein_forge::api::Error::Busy) {
+        let right = to.into_token();
+        domain.call_renders.remove(&right);
+        crate::stopping::call(domain, ReplyTo::new(right));
+    } else {
+        super::host_route::read(domain, to, CallAnswer::ForgeRead(Box::new(result)));
+    }
+}
+
 #[expect(clippy::too_many_arguments, reason = "one typed task and connector subscription is routed together")]
 pub(crate) fn subscribe_call(
     domain: &mut Domain,
@@ -3156,11 +3169,7 @@ pub(crate) fn outputs(
                     emit(decision, &env.limits, Delivery::ForgeCall { call, repository, op });
                 }
             },
-            forge::Request::Read { owner, result } => {
-                if let Some((to, _key)) = domain.forge_reading.remove(&owner) {
-                    super::host_route::read(domain, to, CallAnswer::ForgeRead(Box::new(result)));
-                }
-            }
+            forge::Request::Read { owner, result } => read_answer(domain, owner, result),
             forge::Request::Adopted { reply_to, result } => {
                 let (request, previous) =
                     domain.adoption_restore.remove(&reply_to).expect("one admitted adoption result");

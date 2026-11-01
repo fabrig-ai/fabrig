@@ -835,6 +835,18 @@ impl World {
         }
     }
 
+    /// Replace the forge client's admission bounds before the world's first input.
+    /// The bootstrap rows and scripted worker retain their configured policy.
+    #[must_use]
+    pub fn with_forge_client(mut self, limits: skein_forge_client::Limits) -> Self {
+        assert_eq!(self.env.now, Time::ZERO, "client limits precede world startup");
+        assert!(!self.root.ready(), "client limits precede bootstrap");
+        self.env.limits.forge.client = limits;
+        self.root = engine::Domain::new(crate::oracle::config::copy(&self.restart_config), &self.env.limits)
+            .expect("valid client admission bounds");
+        self
+    }
+
     #[must_use]
     pub fn chat(&self, project: u32, words: &[u8]) -> people::Ask {
         walking::configured_chat(&self.creating, &self.store.rows, self.env.limits.tasks.tree_tasks, project, words)

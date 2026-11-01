@@ -659,6 +659,16 @@ tip, the pull request's reviews, and the files of the pull requests an
 overlap compares. These are also the facts the forge's requirements are
 judged on (8.7).
 
+An agent's fresh read refused `Busy` by the client's local admission
+returns the host's predecision Busy reply, never a rendered forge-read
+error. The root releases that attempt's read correlation and rendering
+flight. The host retries the same logical call after its backoff, within
+the caller's deadline; cancellation ends that wait. Each retry goes
+through the same authority and client admission checks, preserving the
+call slab limit and background reserve (skein's `forge-client.md`, 5–6).
+An admitted answer or any other terminal forge error follows the normal
+read-answer path once.
+
 - **CI on a commit** is read as its checks, skein's `Read::Checks`: the
   commit statuses and, on GitHub, the check runs, each a row with its
   context and verdict (skein's `forge.md`, 5.2; `forge-github.md`, 4.4),
@@ -1080,6 +1090,8 @@ delegate's terminal wakes it to offer the landed result.
   repair's bound on nothing the change's diff did. A change's agents
   hold the forge's reads (kind 1) beside the kinds it makes (section 6),
   so that a reviewer can read its own pull request.
+  Temporary local read contention follows the host backoff in 5.3;
+  it supplies no review failure or verdict while the read can retry.
 - **A blocking gate that says no:** a review that asks for changes, or a
   check that fails, is a repair, given its remarks (8.4); a declined
   approval holds the change, with the person's reason. The verdict
