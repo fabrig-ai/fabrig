@@ -188,3 +188,30 @@ Reconcile with integration commits `83d159eb15`, `4dc85b4efd` and `dcef03bb38`.
 - `workers.rs` auto-merges, but verify `limits().sizes.credentials` retains `core.accounts.credentials` from `dcef03bb38`; the branch’s forge-count assertion must go.
 - Preserve `83d159eb15`’s pending-group Busy refusal in `route/box_link.rs` and its auto-merged registry test, alongside this branch’s runtime-owned group-write tests.
 Verify the registry setup tests and worker receive-terms test before the spec’s remaining checks.
+
+## Answers
+
+2026-11-01, from fab's hold after run 4 (four runs without landing). Q: run this task again,
+or settle it another way? A: one more run, a merge alone. Run 4 met the acceptance (its
+report: temper-service 839 passed, the five refusals, the three walks alone, the exceptions
+the earlier answers allow); it did not land only because the trunk took, meanwhile, its own
+repairs of the same two faults (`4dc85b4efd`, `83d159eb15`) and `dcef03bb38`, and the merge
+conflicts in three temper-service files, all small. So:
+- Merge `origin/playground-reset-r6/integration` into your branch (a merge, as `1f98274a71`
+  did; no rebase, no new branch name) and resolve as the Rebase section says, taking the
+  trunk's side where both do the same thing:
+  - `route.rs`: the trunk's lines (`unwrap_or_default()`, `&entry`).
+  - `setup.rs`, `register`: the trunk's condition, `asked && engine.setup.lifecycle.
+    startup_restored()`; drop the branch's `record.playground || Mode::Owned` line. If one of
+    this branch's registry setup tests then fails, the trunk's repair is the one kept: make
+    the test read the trunk's behaviour only where both tests assert the same offer, else stop
+    and ask with the failure's log.
+  - `tests/worker.rs`: the trunk's test, less its `settings.identities` line.
+- Checks, one at a time: `heavy cargo check --workspace --all-targets`; `-p temper-service
+  --lib -E 'test(/tests::registry_setup::/) | test(/tests::worker::/) |
+  test(/tests::startup_machine::/)'`; `-p temper-service` whole; the three walks alone under
+  `process-temper`; `cargo fmt --all --check`; `heavy cargo clippy -p temper-service -p temper
+  --all-targets -- -D warnings`; old forms. The worlds' and `-p temper`'s whole runs are not
+  repeated: run 4's results and their `## Left` stand, and the trunk's end check runs them.
+- Change nothing past the conflicts and what the merged code's compile forces (list each).
+  Report, then push.
