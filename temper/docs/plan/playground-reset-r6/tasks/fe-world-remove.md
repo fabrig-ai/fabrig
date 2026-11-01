@@ -80,3 +80,16 @@ Acceptance (a new `tests/suite/removal.rs`, registered in `tests/suite/main.rs`)
 ## Report
 
 - The cut points walked, and any row that still names the removed forge.
+
+## Answers
+
+### 2026-11-01: Resume this task after fe-remove and pd-core-decide supply their implementations (recommended), or authorize a separate task to implement those prerequisites? Their current stubs prevent all four removal stories from passing. (playground-reset-r6/fe-world-remove-2, foreman playground-reset-r6/fe-world-remove/foreman-1)
+
+Resume fe-world-remove with fe-remove and pd-core-decide supplied; prerequisite implementations remain with their named tasks.
+The spec declares `needs = ["fe-remove", "fe-kept-root", "pd-vocabulary", "pd-core-decide"]`.
+Its boundary says: “May change: nothing else” and “do not fix it here.”
+Its acceptance requires: “the stories' `Cancel` answers are the core's.”
+The current checkout routes RemoveForge and its answers through `temper/crates/temper-engine-domain-forge/src/removal.rs`; deployment Cancel invokes `cancel` in `jig/crates/jig-domain-core/src/routing/deployment_acts.rs`.
+The reported stubs therefore no longer describe this checkout.
+The next run checks the four removal stories against these implementations and completes the specified checks; acceptance remains unproven.
+The requested report file could not be written because this session’s filesystem is read-only.
