@@ -338,36 +338,16 @@ fn meta_put(writer: &mut skein_lib::Writer, length: &mut usize, measuring: bool,
 }
 fn forge_metas(
     sign_in: &crate::startup::SignIn,
-    forges: &[crate::startup::Forge],
-    setup: &temper_forge_setup::setup::Setup,
+    machine: &temper_engine_domain_forge::Machine,
     writer: &mut skein_lib::Writer,
     measuring: bool,
 ) -> Option<usize> {
     let mut length = 0_usize;
     for row in &sign_in.forges {
-        let mut forge = None;
-        for configured in forges {
-            if configured.number == row.forge {
-                forge = Some(configured);
-                break;
-            }
-        }
-        let forge = forge?;
-        let mut mode = b"other".as_slice();
-        let mut public = None;
-        for entry in &setup.entries {
-            if entry.forge == row.forge
-                && let temper_forge_setup::setup::Mode::Owned(owned) = &entry.mode
-            {
-                mode = b"owned";
-                public = owned.public.as_ref();
-                break;
-            }
-        }
+        let origin = crate::startup::application::sign_in::forges::origin(machine)?;
         meta_put(writer, &mut length, measuring, b"<meta name=\"temper-forge-sign-in\" content=\"")?;
         let number = skein_lib::Decimal::of(u64::from(row.forge));
         meta_put(writer, &mut length, measuring, number.as_bytes())?;
-        let origin = crate::startup::application::forge_origin(&forge.git, public);
         for value in [&row.client, &origin] {
             meta_put(writer, &mut length, measuring, b" ")?;
             for byte in value {
@@ -375,7 +355,7 @@ fn forge_metas(
             }
         }
         meta_put(writer, &mut length, measuring, b" ")?;
-        meta_put(writer, &mut length, measuring, mode)?;
+        meta_put(writer, &mut length, measuring, b"owned")?;
         meta_put(writer, &mut length, measuring, b"\">")?;
     }
     Some(length)
@@ -385,12 +365,11 @@ impl Bundle {
     pub fn fill_forge_sign_in(
         &mut self,
         sign_in: Option<&crate::startup::SignIn>,
-        forges: &[crate::startup::Forge],
-        setup: &temper_forge_setup::setup::Setup,
+        machine: &temper_engine_domain_forge::Machine,
         limit: u32,
     ) -> Option<()> {
         let Some(sign_in) = sign_in else { return Some(()) };
-        let length = forge_metas(sign_in, forges, setup, &mut skein_lib::Writer::new(0), true)?;
+        let length = forge_metas(sign_in, machine, &mut skein_lib::Writer::new(0), true)?;
         if length == 0 {
             return Some(());
         }
@@ -402,7 +381,7 @@ impl Bundle {
             return None;
         }
         let mut out = skein_lib::Writer::new(length);
-        assert_eq!(forge_metas(sign_in, forges, setup, &mut out, false), Some(length), "measured forge metas");
+        assert_eq!(forge_metas(sign_in, machine, &mut out, false), Some(length), "measured forge metas");
         self.insert_meta(&out.finish())
     }
 }

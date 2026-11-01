@@ -34,22 +34,7 @@ impl Tokens {
         Self { forges: Map::with_capacity(0) }
     }
     pub(crate) fn new(settings: &settings::Engine) -> Self {
-        let mut tokens = Self { forges: Map::with_capacity(settings.limits.forge_component.forges) };
-        for forge in &settings.forges {
-            if forge.kind != settings::Kind::GitHub {
-                continue;
-            }
-            let mut configured = None;
-            for identity in &settings.identities {
-                if identity.number == forge.identity {
-                    configured = Some(identity);
-                    break;
-                }
-            }
-            let identity = configured.expect("each forge has an identity");
-            tokens.add(forge.number, identity, settings.limits.forges.installations);
-        }
-        tokens
+        Self { forges: Map::with_capacity(settings.limits.forge_component.forges) }
     }
     pub(crate) fn add(&mut self, forge: u16, identity: &settings::Identity, installations: u32) {
         if let Some(state) = self.forges.get_mut(&forge) {

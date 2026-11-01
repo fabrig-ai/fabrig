@@ -186,7 +186,14 @@ fn the_loader_waits_for_an_outstanding_resolve_then_connects_from_records() {
     }
     let engine = service.engine.as_ref().unwrap();
     assert!(engine.forge_records.done());
-    assert_eq!(fixtures::forge_start(engine, FORGE).unwrap().user, 9);
+    let mut starts = 0_u32;
+    for (number, access) in &engine.forge.starts {
+        if *number == FORGE {
+            starts += 1;
+            assert_eq!(access.user, 9);
+        }
+    }
+    assert_eq!(starts, 1);
     assert_eq!(unreachable_notes(&mut service), 0);
 }
 #[test]

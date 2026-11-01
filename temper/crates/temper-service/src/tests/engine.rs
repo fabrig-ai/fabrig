@@ -403,8 +403,7 @@ fn startup_admission_does_not_promise_a_connected_forge() {
     let limits = crate::limits::engine(&config.jig.limits, &config.limits).expect("root limits");
     let models = jig_protocol_config::core(&config.jig, [7; 16], 7).settings.models;
     let store = fixtures::memory_store_for(&limits, &config.jig.limits.store, &models);
-    let mut service =
-        crate::Service::engine(config, &fixtures::seeds(), None, skein_lib::List::with_capacity(0)).unwrap();
+    let mut service = crate::Service::engine(config, &fixtures::seeds(), None).unwrap();
     fixtures::register_forges(&mut service, &[fixtures::forge_record(1)]);
     service.engine.as_mut().expect("engine").store = store;
     service.engine.as_mut().expect("engine").store.hold_mark = true;
@@ -583,7 +582,7 @@ fn a_zero_byte_budget_refuses_direct_engine_startup() {
     let mut settings = fixtures::engine();
     settings.jig.memory = 0;
     fixtures::fill_files(&mut settings);
-    let problems = crate::Service::engine(settings, &fixtures::seeds(), None, skein_lib::List::with_capacity(0))
+    let problems = crate::Service::engine(settings, &fixtures::seeds(), None)
         .err()
         .expect("a zero byte budget refuses direct startup");
     assert_eq!(problems.problems.len(), 1);
@@ -599,8 +598,7 @@ fn a_started_engines_root_uses_the_documents_engine_memory_bytes() {
     settings.jig.memory += 1;
     let memory = settings.jig.memory;
     fixtures::fill_files(&mut settings);
-    let service =
-        crate::Service::engine(settings, &fixtures::seeds(), None, skein_lib::List::with_capacity(0)).unwrap();
+    let service = crate::Service::engine(settings, &fixtures::seeds(), None).unwrap();
     assert_eq!(service.engine.as_ref().expect("started engine").env.limits.memory_bytes, memory);
 }
 

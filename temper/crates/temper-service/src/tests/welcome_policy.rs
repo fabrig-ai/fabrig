@@ -58,17 +58,13 @@ fn generated() -> (engine::Config, engine::Limits) {
     let mut settings = settings::Engine {
         directories: directories.clone(),
 
-        machine: temper_engine_domain_forge::Machine::bare(),
+        machine: parsed.application.machine,
         jig: parsed.engine,
         clients: parsed.application.clients,
         sign_in: resolved.sign_in,
         webhooks: resolved.webhooks,
         files,
-        forges: resolved.forges,
         demo: parsed.application.demo,
-        setup: Box::new([]),
-        records_only: Box::new([]),
-        identities: resolved.identities,
         landing: parsed.application.landing,
         charter: parsed.application.charter,
         limits: parsed.application.limits,
@@ -77,15 +73,13 @@ fn generated() -> (engine::Config, engine::Limits) {
         .expect("unchanged effective limits");
     let seeds = fixtures::seeds();
     let core = config::core(&settings.jig, seeds.deployment, seeds.seed);
-    let (forge, identities) = crate::forge::config(&settings, seeds.deployment);
-    let forges = application::configured(&settings);
-    let demo = settings
-        .demo
-        .as_ref()
-        .map(|demo| demo.domain(&settings.forges, &settings.machine, settings.limits.setup.deadline));
+    let forge = crate::forge::config(seeds.deployment);
+    let identities = Box::new([]);
+    let forges = Box::new([]);
+    let demo = settings.demo.as_ref().map(|demo| demo.domain(&settings.machine, settings.limits.setup.deadline));
     (
         engine::Config {
-            machine: temper_engine_domain_forge::Machine::bare(),
+            machine: settings.machine,
             period_span: crate::stock::PERIOD_SPAN,
             core,
             forge,

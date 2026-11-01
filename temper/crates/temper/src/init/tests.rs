@@ -321,8 +321,6 @@ fn generated_configuration_passes_the_same_checks_as_serve() {
     let bytes = fs::read(dirs.document()).expect("document");
     let deployment = crate::setup::check(&bytes, &dirs.jig()).expect("init document passes setup and named");
     assert!(deployment.checked.setup.entries.is_empty(), "init declares no forge");
-    assert!(deployment.named.forges.is_empty());
-    assert!(deployment.named.identities.is_empty());
     let document: serde_json::Value = serde_json::from_slice(&bytes).expect("written JSON");
     for member in ["setup", "forges", "identities"] {
         assert!(document["application"].get(member).is_none());

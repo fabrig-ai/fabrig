@@ -564,10 +564,7 @@ impl Workers {
                 })
                 .expect("endpoint count");
         }
-        let mut forges = List::with_capacity(settings.limits.forge_component.forges);
-        for forge in core::mem::replace(&mut settings.forges, Box::new([])) {
-            forges.push(forge).expect("checked forge capacity");
-        }
+        let forges = List::with_capacity(settings.limits.forge_component.forges);
         let workers = Self::new(
             &settings.jig,
             &settings.files,

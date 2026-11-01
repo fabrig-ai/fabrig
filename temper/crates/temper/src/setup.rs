@@ -4,7 +4,7 @@ use temper_forge_setup::{
     check::{self, Checked, Members},
     problem,
 };
-use temper_service::startup::{Named, Transport, User};
+use temper_service::startup::Named;
 
 #[derive(Debug)]
 pub(crate) struct Deployment {
@@ -15,7 +15,6 @@ pub(crate) struct Deployment {
     pub ports: Box<[std::net::SocketAddr]>,
 }
 
-#[expect(clippy::too_many_lines, reason = "deployment checks share the named machine and listener facts")]
 pub(crate) fn check_with(
     bytes: &[u8],
     directories: &config::Directories,
@@ -28,28 +27,6 @@ pub(crate) fn check_with(
         &config::DocumentLimits { bytes: super::CONFIG_BYTES, tokens: super::CONFIG_BYTES, depth: 32 },
     )
     .expect("named checked document");
-    let mut forges = Vec::with_capacity(named.forges.len());
-    for forge in &named.forges {
-        let identity =
-            named.identities.iter().find(|identity| identity.number == forge.identity).expect("named checked identity");
-        forges.push(check::Forge {
-            number: forge.number,
-            api: match &forge.api {
-                config::Address::Addr(a) => a.socket(),
-                config::Address::Host { .. } => None,
-            },
-            plaintext: matches!(forge.transport, Transport::Plaintext),
-            git: forge.git.clone(),
-            user: match &forge.user {
-                User::Id(value) => check::User::Id(*value),
-                User::File(path) => check::User::File(path.clone()),
-            },
-            api_token: forge.api_token.clone(),
-            webhook_secret: forge.webhook_secret.clone(),
-            identity_token: identity.token.clone(),
-            identity_login: identity.login.clone(),
-        });
-    }
     let mut listeners = match &named.clients {
         config::Address::Addr(a) => a.socket().into_iter().collect::<Vec<_>>(),
         config::Address::Host { .. } => Vec::new(),
@@ -60,7 +37,7 @@ pub(crate) fn check_with(
     {
         listeners.push(socket);
     }
-    let members = Members { forges: forges.into_boxed_slice(), listeners: listeners.into_boxed_slice() };
+    let members = Members { forges: Box::new([]), listeners: listeners.into_boxed_slice() };
     let application = super::member(&document, 0, b"application");
     let at = config::read::Object::new(&document, application).expect("named application").member(&document, b"setup");
     let setup_overrides: Vec<_> =

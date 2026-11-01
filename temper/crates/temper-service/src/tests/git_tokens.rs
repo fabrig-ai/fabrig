@@ -116,19 +116,6 @@ fn a_registered_github_uses_the_app_git_login_and_the_recorded_author() {
     assert_eq!(service.engine.as_ref().unwrap().records.get(&1).unwrap(), &record);
 }
 #[test]
-fn configured_login_and_author_override_the_app_defaults() {
-    let mut config = super::github_config(8, Duration::from_secs(3600), None);
-    config.records[0].bot = fixtures::forge_record(1).bot;
-    let mut service = super::local_service(config, fixtures::records_store());
-    super::load_routing(&mut service);
-    lifecycle_tests::app(&mut service);
-    route(&mut service, connection::Event::Connected { forge: 1 });
-    let identity = value(&service, 1).unwrap();
-    assert_eq!(identity.login(), b"x-access-token");
-    assert_eq!(identity.name(), b"temper");
-    assert_eq!(identity.email(), b"temper@forge.example");
-}
-#[test]
 fn an_empty_list_is_announced_at_connected_valid_without_bound() {
     let mut service = github();
     route(&mut service, connection::Event::Connected { forge: 1 });

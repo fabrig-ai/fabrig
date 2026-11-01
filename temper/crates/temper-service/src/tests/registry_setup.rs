@@ -32,7 +32,7 @@ fn record(kind: Kind, mode: Mode, setup: Option<&[u8]>) -> domain::ForgeRecord {
     record
 }
 fn config() -> settings::Engine {
-    fixture::local_config(true, false).engine
+    fixture::local_config(true, false)
 }
 fn service() -> crate::Service {
     let mut service = support::setup_service(config(), fixtures::ready().engine.unwrap().store);
@@ -383,4 +383,52 @@ fn record_for_refusal() -> domain::ForgeRecord {
     let mut record = record(Kind::Forgejo, Mode::Connected, None);
     record.number = 3;
     record
+}
+
+#[test]
+fn an_owned_forge_made_after_startup_is_offered_and_its_setup_is_admitted() {
+    let mut config = fixtures::engine();
+    config.machine.owned = Some(record(Kind::Forgejo, Mode::Owned, Some(OWNED)));
+    fixtures::fill_files(&mut config);
+    let mut service = support::setup_service(config, fixtures::memory_store());
+    fixtures::restart(&mut service);
+    assert!(service.engine_domain().unwrap().forges().rows.is_empty());
+    let engine = service.engine.as_mut().unwrap();
+    engine.step(root::Event::Forge(Box::new(domain::Event::Application {
+        role: None,
+        carried: None,
+        request: Token::new(91),
+        token: Token::new(92),
+        retention: skein_lib::Duration::from_secs(60),
+        ask: domain::Ask::MakeForge { choice: domain::ForgeChoice::Owned },
+    })));
+    for _ in 0_u32..256 {
+        crate::engine::iterate(service.engine.as_mut().unwrap(), Time::ZERO, skein_lib::Wall::EPOCH);
+    }
+    let rows = service.engine_domain().unwrap().forges().rows;
+    assert_eq!(rows.len(), 1);
+    let number = rows[0].number;
+    assert_eq!(rows[0].connection, domain::Connection::NotSetUp);
+    assert_eq!(rows[0].offer, domain::Offer::Offered);
+    let engine = service.engine.as_mut().unwrap();
+    engine.step(root::Event::Forge(Box::new(domain::Event::Application {
+        role: None,
+        carried: None,
+        request: Token::new(93),
+        token: Token::new(94),
+        retention: skein_lib::Duration::from_secs(60),
+        ask: domain::Ask::SetUp {
+            forge: number,
+            playground: false,
+            org: b"work".as_slice().into(),
+            repository: b"hello".as_slice().into(),
+            project: domain::SetUpProject::Existing(1),
+        },
+    })));
+    for _ in 0_u32..256 {
+        crate::engine::iterate(service.engine.as_mut().unwrap(), Time::ZERO, skein_lib::Wall::EPOCH);
+    }
+    let engine = service.engine.as_ref().unwrap();
+    assert_eq!(engine.domain.forges().rows[0].connection, domain::Connection::SettingUp { step: None });
+    assert!(engine.records.get(&number).unwrap().first.is_some());
 }
