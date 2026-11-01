@@ -16,6 +16,7 @@ files = [
   "jig/tests/core/src/removal.rs",
   "jig/crates/jig-domain-people/src/domain.rs",
   "jig/crates/jig-domain-people/src/tests/moving_chat.rs",
+  "jig/testing/jig-conformance/src/harness.rs",
 ]
 effort = "high"
 minutes = 55
@@ -305,3 +306,43 @@ The `files` list above now names both files. A row the scenario finds
 that the deletion does not erase, other than the three excepted above,
 is still a question; so is a restore refusal of a row some writer other
 than `move_chat` saves.
+
+### 2026-11-01: a resumed snapshot's heap meter, which begins after the snapshot it owns (playground-reset-r4/pd-conformance-8)
+
+Extend this task: the repair is in `jig/testing/jig-conformance/src/harness.rs`,
+which the `files` list above now names. No change to `skein-heap`, to the
+ceiling (`A::maximum`) or to tracing.
+A fresh harness takes its `Meter` before the domain and while its store is
+empty, so whatever it later frees was allocated after its base. A resumed
+one takes its `Meter` after the snapshot's store, peers, systems, referee
+and trace were cloned, then owns and frees them; the deletion is the first
+scenario to free enough of the forked store to go below the base. The
+meter must begin before anything the resumed harness owns, so it begins
+where the snapshot does:
+
+- `ColdSnapshot` gains a field `meter: skein_world::domain::heap::Meter`.
+  `cold_snapshot` builds it with `Meter::new()` first, before any clone or
+  `fork`, and stores it; `from_snapshot` drops its own `Meter::new()` and
+  moves `snapshot.meter` into the new harness. Its doc comment says the
+  meter begins at the capture, so the resumed engine's heap counts the
+  outside state it took over as well, a conservative bound as the fresh
+  harness's count of its peers is. No other line of `harness.rs` changes.
+- This counts more than a fresh run (the clones of the systems, peers,
+  referee and trace). If a resumed scenario's held heap then exceeds its
+  maximum, that is a question with the measured `held` and `maximum`, the
+  scenario, the cut and the seed; do not raise the maximum or subtract an
+  estimate.
+- The regression is the untraced
+  `removal::a_deleted_project_cut_at_each_chosen_point_ends_the_same` as it
+  stands, through the ordinary untraced replay helper; do not trace it to
+  pass. Also run `-E 'test(/^snapshot::/)'` of `jig-conformance-world`'s
+  suite, the other users of `from_snapshot`.
+
+Then the rest of step 4: the complete focused suite, `fuzzy` for the
+shared sweep, the core world's `removal_stages`, the two people
+regressions, `cargo fmt`, clippy on every changed package, and
+`heavy cargo check --tests -p jig-ops-world -p temper-conformance-world`.
+Commit and push. Runs 2 and 8 built the work and left it uncommitted, so
+the next run started from nothing: if a run must stop on a question again,
+it first commits what it has and pushes its branch, saying in the report
+which checks that commit has not passed.
