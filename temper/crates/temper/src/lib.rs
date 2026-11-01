@@ -331,6 +331,12 @@ fn trust(file: Option<&[u8]>) -> Result<skein_tls::Config, String> {
     })?;
     Ok(trust)
 }
+fn forge_address(value: &config::Address) -> Result<core::net::SocketAddr, Box<[u8]>> {
+    address(value).map_err(|why| why.into_bytes().into_boxed_slice())
+}
+fn forge_trust(value: Option<&[u8]>) -> Result<skein_tls::Config, Box<[u8]>> {
+    trust(value).map_err(|why| why.into_bytes().into_boxed_slice())
+}
 fn server_name(bytes: &[u8]) -> Result<skein_tls::Name, String> {
     skein_tls::Name::new(std::str::from_utf8(bytes).map_err(|why| why.to_string())?)
         .ok_or_else(|| "invalid server name".into())
@@ -468,6 +474,7 @@ fn prepare_with_limits(
         Some(&checked),
         if under_box { Some(limits.line_bytes) } else { None },
         given,
+        service::forge::table::Shell { address: forge_address, trust: forge_trust },
     )
     .map_err(|why| String::from_utf8_lossy(&service::startup::lines(&why)).into_owned())?;
     service.configure_google_endpoints(google);

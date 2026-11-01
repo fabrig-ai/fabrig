@@ -246,8 +246,17 @@ fn configured(forge: &Forge) -> crate::Service {
     kept_record(&mut store, 1, Item::User, &forge.service.setup().find(b"temper").unwrap().id.to_le_bytes());
     let io = config.jig.limits.io;
     let endpoints = crate::forge::prepare(&config, fixtures::forge_runtime()).unwrap();
-    let mut service =
-        crate::Service::prepared(config, &fixtures::seeds(), None, endpoints, None, io, Some(256)).unwrap();
+    let mut service = crate::Service::prepared(
+        config,
+        &fixtures::seeds(),
+        None,
+        endpoints,
+        None,
+        io,
+        Some(256),
+        crate::forge::table::Shell::refusing(),
+    )
+    .unwrap();
     service.engine.as_mut().unwrap().store = store;
     service.engine.as_mut().unwrap().box_link = crate::route::box_link::Link::new(256, true);
     service.engine.as_mut().unwrap().setup.lifecycle.local_mut(1).unwrap().pending = false;

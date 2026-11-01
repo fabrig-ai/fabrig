@@ -403,7 +403,14 @@ fn startup_admission_does_not_promise_a_connected_forge() {
     let limits = crate::limits::engine(&config.jig.limits, &config.limits).expect("root limits");
     let models = jig_protocol_config::core(&config.jig, [7; 16], 7).settings.models;
     let store = fixtures::memory_store_for(&limits, &config.jig.limits.store, &models);
-    let mut service = crate::Service::engine(config, &fixtures::seeds(), None, fixtures::forge_runtime()).unwrap();
+    let mut service = crate::Service::engine(
+        config,
+        &fixtures::seeds(),
+        None,
+        fixtures::forge_runtime(),
+        crate::forge::table::Shell::refusing(),
+    )
+    .unwrap();
     service.engine.as_mut().expect("engine").store = store;
     service.engine.as_mut().expect("engine").store.hold_mark = true;
     for _ in 0..STARTUP_PASSES {
@@ -587,9 +594,15 @@ fn a_zero_byte_budget_refuses_direct_engine_startup() {
     let mut settings = fixtures::engine();
     settings.jig.memory = 0;
     fixtures::fill_files(&mut settings);
-    let problems = crate::Service::engine(settings, &fixtures::seeds(), None, fixtures::forge_runtime())
-        .err()
-        .expect("a zero byte budget refuses direct startup");
+    let problems = crate::Service::engine(
+        settings,
+        &fixtures::seeds(),
+        None,
+        fixtures::forge_runtime(),
+        crate::forge::table::Shell::refusing(),
+    )
+    .err()
+    .expect("a zero byte budget refuses direct startup");
     assert_eq!(problems.problems.len(), 1);
     let problem = problems.problems.get(0).unwrap();
     assert_eq!(problem.path, jig_protocol_config::Path::root().member(b"engine").member(b"memory_bytes"));
@@ -603,7 +616,14 @@ fn a_started_engines_root_uses_the_documents_engine_memory_bytes() {
     settings.jig.memory += 1;
     let memory = settings.jig.memory;
     fixtures::fill_files(&mut settings);
-    let service = crate::Service::engine(settings, &fixtures::seeds(), None, fixtures::forge_runtime()).unwrap();
+    let service = crate::Service::engine(
+        settings,
+        &fixtures::seeds(),
+        None,
+        fixtures::forge_runtime(),
+        crate::forge::table::Shell::refusing(),
+    )
+    .unwrap();
     assert_eq!(service.engine.as_ref().expect("started engine").env.limits.memory_bytes, memory);
 }
 

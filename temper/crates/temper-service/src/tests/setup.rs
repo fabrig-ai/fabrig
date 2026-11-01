@@ -45,7 +45,9 @@ fn routing_service_at(
         })
         .unwrap();
     let store = fixtures::records_store_with(&config);
-    let mut service = crate::Service::engine(config, &fixtures::seeds(), None, runtime).unwrap();
+    let mut service =
+        crate::Service::engine(config, &fixtures::seeds(), None, runtime, crate::forge::table::Shell::refusing())
+            .unwrap();
     service.engine.as_mut().expect("engine").store = store;
     load_routing(&mut service);
     service
@@ -214,7 +216,7 @@ fn an_install_can_evict_a_manifests_state_while_its_page_lives() {
     // The slug above only made an Install-purpose state; no App remains in this host-state fixture.
     service.engine.as_mut().expect("engine").forge_records.rows = crate::forge::records::Loader::new(
         &fixtures::engine().limits,
-        &service.engine.as_ref().expect("engine").workers.forges,
+        service.engine.as_ref().expect("engine").workers.forges.as_slice(),
     )
     .rows;
     start(&mut service, 3, host::Plan::Convert { forge: 1, code: code(), state });
@@ -517,7 +519,9 @@ fn each_github_tls_entry_keeps_its_prepared_name_trust_and_address() {
 #[test]
 fn admitted_tls_starts_after_rows_and_serves_a_local_manifest() {
     let (config, runtime) = configured(8, 8, true);
-    let mut service = crate::Service::engine(config, &fixtures::seeds(), None, runtime).unwrap();
+    let mut service =
+        crate::Service::engine(config, &fixtures::seeds(), None, runtime, crate::forge::table::Shell::refusing())
+            .unwrap();
     assert!(service.engine.as_ref().expect("engine").setup.component.is_none(), "no host before the rows load");
     let (settings, _) = service.engine.as_ref().expect("engine").setup.pending.as_ref().unwrap();
     assert_eq!(settings.forges.len(), 2);
@@ -699,7 +703,9 @@ fn an_unresolved_forge_keeps_its_setup_entry_but_restored_and_asked_connects_nev
     let mut other = fixtures::forge_runtime().into_boxed().into_iter().next().unwrap();
     other.number = 2;
     endpoints.push(other).unwrap();
-    let mut service = crate::Service::engine(config, &fixtures::seeds(), None, endpoints).unwrap();
+    let mut service =
+        crate::Service::engine(config, &fixtures::seeds(), None, endpoints, crate::forge::table::Shell::refusing())
+            .unwrap();
     let setup = &service.engine.as_ref().unwrap().setup;
     assert!(setup.served.contains_key(&1), "the held forge still has a setup entry");
     let (settings, _) = setup.pending.as_ref().unwrap();
@@ -707,7 +713,8 @@ fn an_unresolved_forge_keeps_its_setup_entry_but_restored_and_asked_connects_nev
     assert_eq!(settings.forges.get(0).unwrap().address, skein_io::Addr::Ip(crate::forge::HELD_ADDRESS));
     lifecycle_tests::app(&mut service);
     let engine = service.engine.as_mut().unwrap();
-    let expected = records::origin(skein_forge_connection::settings::Kind::GitHub, &engine.workers.forges[0].api);
+    let expected =
+        records::origin(skein_forge_connection::settings::Kind::GitHub, &engine.workers.forges.as_slice()[0].api);
     assert!(
         records::access(
             skein_forge_connection::settings::Kind::GitHub,
@@ -877,7 +884,14 @@ fn local_repository() -> domain::Repository {
 }
 fn local_service(mut config: crate::settings::Engine, store: crate::store::Store) -> crate::Service {
     fixtures::reseed(&mut config);
-    let mut service = crate::Service::engine(config, &fixtures::seeds(), None, fixtures::forge_runtime()).unwrap();
+    let mut service = crate::Service::engine(
+        config,
+        &fixtures::seeds(),
+        None,
+        fixtures::forge_runtime(),
+        crate::forge::table::Shell::refusing(),
+    )
+    .unwrap();
     service.engine.as_mut().unwrap().store = store;
     service
 }
@@ -1088,7 +1102,9 @@ fn local_with_other(config: crate::settings::Engine, store: crate::store::Store)
     other.number = 2;
     other.address = ([127, 0, 0, 1], 3000).into();
     runtime.push(other).unwrap();
-    let mut service = crate::Service::engine(config, &fixtures::seeds(), None, runtime).unwrap();
+    let mut service =
+        crate::Service::engine(config, &fixtures::seeds(), None, runtime, crate::forge::table::Shell::refusing())
+            .unwrap();
     service.engine.as_mut().unwrap().store = store;
     service
 }
@@ -1685,6 +1701,7 @@ fn the_demo_waits_for_started_only_under_the_box_even_with_retained_access() {
             None,
             io,
             if under_box { Some(256) } else { None },
+            crate::forge::table::Shell::refusing(),
         )
         .unwrap();
         service.engine.as_mut().unwrap().store = store;

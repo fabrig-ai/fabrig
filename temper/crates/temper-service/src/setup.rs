@@ -4,7 +4,7 @@ pub(crate) mod lifecycle;
 pub(crate) mod public;
 mod routes;
 pub(crate) use routes::{MANIFEST_SCRIPT_HASH, MANIFEST_STYLE_HASH, PAGE_STYLE_HASH, busy};
-mod settings;
+pub(crate) mod settings;
 use alloc::boxed::Box;
 use jig_protocol_store::Event as StoreEvent;
 use lifecycle::{Kind, Purpose, Run};
@@ -18,6 +18,7 @@ use temper_protocol_records::Item;
 pub(crate) struct Layer {
     component: Option<host::Host>,
     pending: Option<(host::Settings, CryptoRng)>,
+    pub(crate) context: Option<settings::Context>,
     waiting_for_webhooks: bool,
     pub(crate) env: Env<host::Limits>,
     pub(crate) above: Queue<host::Event>,
@@ -33,7 +34,7 @@ pub(crate) struct Layer {
     pastes: Map<u64, u16>,
     file_api: Map<u16, Secret>,
     erases: Map<Token, u16>,
-    lifecycle: lifecycle::Lifecycle,
+    pub(crate) lifecycle: lifecycle::Lifecycle,
     writes: Map<Token, Write>,
     next_write: u64,
     pages: Queue<Page>,
@@ -74,12 +75,73 @@ struct Held {
 }
 
 impl Layer {
+    /// Add a forge to the pending settings or the running host.
+    #[cfg_attr(not(test), expect(dead_code, reason = "fr-forge-added calls the dynamic table operations"))]
+    pub(crate) fn add_forge(
+        &mut self,
+        number: u16,
+        forge: Result<host::Forge, &'static [u8]>,
+        file_api: Option<Secret>,
+    ) -> Result<(), crate::forge::table::NotKept> {
+        use crate::forge::table::NotKept;
+        if self.served.contains_key(&number) || self.unserved.contains_key(&number) {
+            return Ok(());
+        }
+        if self.served.len().checked_add(self.unserved.len()).ok_or(NotKept::Bound)? >= self.env.limits.forges {
+            return Err(NotKept::Bound);
+        }
+        match forge {
+            Ok(forge) => {
+                if forge.number() != number {
+                    return Err(NotKept::Unresolved);
+                }
+                if let Some((settings, _)) = &mut self.pending {
+                    settings.forges.push(forge).or(Err(NotKept::Bound))?;
+                } else if let Some(host) = &mut self.component {
+                    host.add(&self.env.limits, forge).or(Err(NotKept::Bound))?;
+                } else {
+                    return Err(NotKept::Started);
+                }
+                self.served.insert(number, ()).expect("admitted setup forge");
+            }
+            Err(reason) => {
+                self.unserved.insert(number, reason).expect("admitted setup forge");
+            }
+        }
+        if let Some(token) = file_api {
+            self.file_api.insert(number, token).expect("admitted setup forge");
+        }
+        Ok(())
+    }
+    /// Drop the forge's cached settings; callers end its live runs before removal.
+    #[cfg_attr(not(test), expect(dead_code, reason = "fr-forge-added calls the dynamic table operations"))]
+    pub(crate) fn remove_forge(&mut self, forge: u16) {
+        if let Some((settings, _)) = &mut self.pending {
+            let mut kept = skein_lib::List::with_capacity(settings.forges.capacity());
+            for held in core::mem::replace(&mut settings.forges, skein_lib::List::with_capacity(0)).into_boxed() {
+                if held.number() != forge {
+                    kept.push(held).expect("configured capacity");
+                }
+            }
+            settings.forges = kept;
+        }
+        if let Some(host) = &mut self.component {
+            host.remove(forge);
+        }
+        self.served.remove(&forge);
+        self.unserved.remove(&forge);
+        self.file_api.remove(&forge);
+        self.lifecycle.drop_forge(forge);
+    }
     #[cfg(test)]
     pub(crate) fn startup_restored(&self) -> bool {
         self.lifecycle.startup_restored()
     }
     /// Consume the listener's typed bind result before any setup plan can copy Given.
     pub(crate) fn webhooks_listening(&mut self, addr: core::net::SocketAddr) {
+        if let Some(context) = &mut self.context {
+            context.webhooks = Some(skein_io::Addr::Ip(addr));
+        }
         if let Some((settings, _)) = &mut self.pending {
             for index in 0..settings.forges.len() {
                 if let host::Kind::Forgejo(given) = &mut settings.forges.get_mut(index).expect("configured forge").kind
@@ -114,6 +176,7 @@ impl Layer {
             listener,
             component: None,
             pending: Some((settings, crypto)),
+            context: None,
             waiting_for_webhooks: false,
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
             above: Queue::uncapped(),

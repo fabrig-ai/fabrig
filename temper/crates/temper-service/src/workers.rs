@@ -31,7 +31,7 @@ pub struct Workers {
     ending: Option<Closing>,
     pub(crate) component_closed: bool,
     pub(crate) encoding: Encoding,
-    pub(crate) forges: Box<[Forge]>,
+    pub(crate) forges: List<Forge>,
     pub(crate) bad_parts: u64,
 }
 fn invalid(what: What) -> Problems {
@@ -44,7 +44,7 @@ impl Workers {
         config: &config::Engine,
         files: &Files,
         encoding: Encoding,
-        forges: Box<[Forge]>,
+        forges: List<Forge>,
         limits: &kit::Limits,
     ) -> Result<Self, Problems> {
         let mut workers = List::with_capacity(limits.names);
@@ -88,6 +88,25 @@ impl Workers {
             forges,
             bad_parts: 0,
         })
+    }
+    #[cfg_attr(not(test), expect(dead_code, reason = "fr-forge-added calls the dynamic table operations"))]
+    pub(crate) fn add_forge(&mut self, forge: Forge) -> Result<(), crate::forge::table::NotKept> {
+        for held in &self.forges {
+            if held.number == forge.number {
+                return Ok(());
+            }
+        }
+        self.forges.push(forge).or(Err(crate::forge::table::NotKept::Bound))
+    }
+    #[cfg_attr(not(test), expect(dead_code, reason = "fr-forge-added calls the dynamic table operations"))]
+    pub(crate) fn remove_forge(&mut self, forge: u16) {
+        let mut kept = List::with_capacity(self.forges.capacity());
+        for held in ::core::mem::replace(&mut self.forges, List::with_capacity(0)).into_boxed() {
+            if held.number != forge {
+                kept.push(held).expect("configured capacity");
+            }
+        }
+        self.forges = kept;
     }
     #[must_use]
     pub fn next_deadline(&self) -> Option<Time> {
@@ -151,7 +170,7 @@ impl Workers {
         value: root::Assignment,
         values: &Values,
     ) -> Option<kit::Event> {
-        crate::assignment::down(value, &self.forges, &self.encoding, values, channel, now)
+        crate::assignment::down(value, self.forges.as_slice(), &self.encoding, values, channel, now)
     }
     pub fn send(
         &mut self,
@@ -564,6 +583,10 @@ impl Workers {
                 })
                 .expect("endpoint count");
         }
+        let mut forges = List::with_capacity(settings.limits.forge.forges);
+        for forge in ::core::mem::replace(&mut settings.forges, Box::new([])) {
+            forges.push(forge).or(Err(invalid(What::Bound)))?;
+        }
         let workers = Self::new(
             &settings.jig,
             &settings.files,
@@ -572,7 +595,7 @@ impl Workers {
                 endpoints: smith_protocol_channel::Endpoints::new(endpoints),
                 deployment,
             },
-            ::core::mem::replace(&mut settings.forges, Box::new([])),
+            forges,
             &worker_limits,
         )?;
         Ok(workers)

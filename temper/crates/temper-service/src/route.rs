@@ -143,7 +143,7 @@ pub(crate) fn request(engine: &mut Engine, request: root::Request) {
                 root::PartyRequest::Deliver(root::Delivery::ForgeDocument { watcher, document }) => {
                     match crate::family::document(
                         *document,
-                        &engine.workers.forges,
+                        engine.workers.forges.as_slice(),
                         &temper_client_protocol_wire::v1::CEILINGS,
                     ) {
                         Some(record) => Some(jig_protocol_engine_clients::Event::Application(
@@ -159,7 +159,7 @@ pub(crate) fn request(engine: &mut Engine, request: root::Request) {
                 root::PartyRequest::Deliver(root::Delivery::Panel { watcher, panel }) => {
                     match crate::family::panel(
                         *panel,
-                        &engine.workers.forges,
+                        engine.workers.forges.as_slice(),
                         &temper_client_protocol_wire::v1::CEILINGS,
                     ) {
                         Some(record) => Some(jig_protocol_engine_clients::Event::Application(

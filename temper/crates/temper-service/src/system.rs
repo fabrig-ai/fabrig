@@ -146,9 +146,10 @@ impl Service {
         seeds: &settings::Seeds,
         accounts: Option<AccountsRuntime>,
         forges: List<crate::ForgeRuntime>,
+        shell: crate::forge::table::Shell,
     ) -> Result<Self, Problems> {
         let io = settings.jig.limits.io;
-        Self::new(settings, seeds, accounts, forges, None, io)
+        Self::new(settings, seeds, accounts, forges, None, io, shell)
     }
     /// Join the configured engine and worker in one io, on the same ring.
     pub(crate) fn new(
@@ -158,10 +159,15 @@ impl Service {
         forges: List<crate::ForgeRuntime>,
         worker: Option<Worker>,
         io_limits: io::Limits,
+        shell: crate::forge::table::Shell,
     ) -> Result<Self, Problems> {
         let forges = crate::forge::prepare(&settings, forges)?;
-        Self::prepared(settings, seeds, accounts, forges, worker, io_limits, None)
+        Self::prepared(settings, seeds, accounts, forges, worker, io_limits, None, shell)
     }
+    #[expect(
+        clippy::too_many_arguments,
+        reason = "the checked start carries the shell resolvers beside its runtime resources"
+    )]
     pub(crate) fn prepared(
         mut settings: settings::Engine,
         seeds: &settings::Seeds,
@@ -170,6 +176,7 @@ impl Service {
         worker: Option<Worker>,
         io_limits: io::Limits,
         box_line_bytes: Option<u32>,
+        shell: crate::forge::table::Shell,
     ) -> Result<Self, Problems> {
         let mut limits =
             limits::engine(&settings.jig.limits, &settings.limits).ok_or(start_problem(b"limits", What::Bound))?;
@@ -213,9 +220,10 @@ impl Service {
             clients.configure_google(sign_in, settings.limits.sign_in, seeds, &settings.jig);
         }
         let setup = crate::setup::prepare(&settings, &mut forge_settings, &seeds.crypto, box_line_bytes.is_some())?;
-        let forge =
-            crate::forge::Layer::new(forge_settings, settings.limits.forge_component, &shared, &settings.forges)
+        let mut forge =
+            crate::forge::Layer::new(forge_settings, settings.limits.forge_component, &shared, &settings.forges, shell)
                 .expect("checked forge limits");
+        forge.files.entries = settings.files.entries.clone();
         forget_handover(&mut settings);
         let notes = Queue::with_capacity(note_bound(&settings, &limits).expect("validated diagnostic room"));
         // Workers take the forge settings; derive the demo's adoption host first.

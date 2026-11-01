@@ -33,6 +33,7 @@ mod startup;
 mod system;
 
 mod forge;
+mod forge_table;
 
 mod box_link;
 mod bundle;

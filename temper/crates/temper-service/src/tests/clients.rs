@@ -252,7 +252,7 @@ fn a_request_before_decisions_open_is_answered_not_ready() {
         skein_lib::Time::ZERO,
         skein_lib::Wall::EPOCH,
         &mut engine.events,
-        &engine.workers.forges,
+        engine.workers.forges.as_slice(),
         engine.demo.as_ref(),
         &mut engine.accounts,
     );
@@ -262,7 +262,7 @@ fn a_request_before_decisions_open_is_answered_not_ready() {
         skein_lib::Time::ZERO,
         skein_lib::Wall::EPOCH,
         &mut engine.events,
-        &engine.workers.forges,
+        engine.workers.forges.as_slice(),
         engine.demo.as_ref(),
         &mut engine.accounts,
     );

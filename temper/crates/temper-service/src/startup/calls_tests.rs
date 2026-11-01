@@ -72,6 +72,7 @@ fn omitted_call_answers_reach_the_core_store_and_both_wire_sides() {
             None,
             fixtures::worker_runtime(),
             fixtures::forge_runtime(),
+            crate::forge::table::Shell::refusing(),
         )
         .unwrap();
         let engine = service.engine.as_ref().unwrap();
@@ -157,6 +158,7 @@ fn standalone_refusals(input: &[u8], agent: &settings::Agent) -> [Problems; 3] {
             None,
             fixtures::worker_runtime(),
             fixtures::forge_runtime(),
+            crate::forge::table::Shell::refusing(),
         )
         .err()
         .unwrap(),
@@ -213,6 +215,7 @@ fn core_answer_floor(engine: bool) {
         None,
         fixtures::worker_runtime(),
         fixtures::forge_runtime(),
+        crate::forge::table::Shell::refusing(),
     )
     .unwrap();
     assert_eq!(service.engine.as_ref().unwrap().env.limits.call_answer_bytes, 2048);
@@ -265,6 +268,7 @@ fn a_local_agents_tool_payload_must_hold_the_documentation_answer() {
         None,
         fixtures::worker_runtime(),
         fixtures::forge_runtime(),
+        crate::forge::table::Shell::refusing(),
     )
     .unwrap();
     worker_alone(
@@ -326,6 +330,7 @@ fn explicit_short_call_inputs_refuse_every_standalone_entrance() {
                 None,
                 fixtures::worker_runtime(),
                 fixtures::forge_runtime(),
+                crate::forge::table::Shell::refusing(),
             )
             .err()
             .unwrap(),
