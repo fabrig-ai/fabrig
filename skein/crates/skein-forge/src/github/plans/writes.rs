@@ -23,6 +23,7 @@ enum Stage {
     New,
     Resolve,
     Pull,
+    VerifyUpdate,
     ResolveUser,
     PullGraphql,
     Enqueue,
@@ -394,6 +395,15 @@ impl Plan {
         if crate::measure::pull(&pull).ok_or(api::Error::TooLarge)? > u64::from(bounds.answer_bytes) {
             return Err(api::Error::TooLarge);
         }
+        if self.stage == Stage::VerifyUpdate {
+            return Err(if Some(pull.commit) != self.pinned {
+                api::Error::Stale
+            } else if pull.state == api::State::Closed {
+                api::Error::Closed
+            } else {
+                api::Error::Conflict
+            });
+        }
         self.pinned = Some(pull.commit);
         self.mutation(bounds, word)
     }
@@ -416,6 +426,35 @@ impl Plan {
             | api::Write::DeleteBranch { .. } => Err(self.invalid()),
         }
     }
+    fn refused_body(
+        &mut self,
+        body: &Body,
+        bounds: Bounds,
+        word: &[u8],
+        tables: &mut Tables,
+    ) -> Result<Option<Step>, api::Error> {
+        if let Some((status, head)) = self.refusal_head() {
+            let refusal = refusal_body(body);
+            if self.stage == Stage::Mutate
+                && self.asked() == Asked::Merge
+                && failure::classify(Asked::Merge, status, head, refusal) == Verdict::Enqueue
+            {
+                return Ok(Some(self.merge_pull()?));
+            }
+            if self.stage == Stage::Mutate
+                && self.asked() == Asked::Update
+                && failure::classify(Asked::Update, status, head, refusal)
+                    == Verdict::Fail(api::Error::Stale, Drop::Nothing)
+            {
+                let step = self.initial(bounds, word)?;
+                self.stage = Stage::VerifyUpdate;
+                return Ok(Some(step));
+            }
+            let answer = self.refusal(status, head, refusal, tables)?;
+            return self.terminal(answer, bounds);
+        }
+        Err(api::Error::InvalidAnswer)
+    }
     #[expect(
         clippy::too_many_lines,
         reason = "write completion exhaustively dispatches prerequisite and mutation documents"
@@ -427,50 +466,8 @@ impl Plan {
         word: &[u8],
         tables: &mut Tables,
     ) -> Result<Option<Step>, api::Error> {
-        if let Some((status, head)) = self.refusal_head() {
-            let refusal = match &body {
-                Body::Document(Document::Error(refusal)) => Some(refusal),
-                Body::Document(
-                    Document::Delivery(_)
-                    | Document::Installation(_)
-                    | Document::Minted(_)
-                    | Document::Viewer(_)
-                    | Document::Merge(_)
-                    | Document::Enqueued(_)
-                    | Document::PullGraphql(_)
-                    | Document::Graphql(_)
-                    | Document::App(_)
-                    | Document::HookConfig(_)
-                    | Document::Conversion(_)
-                    | Document::User(_)
-                    | Document::Compare(_)
-                    | Document::Permission(_)
-                    | Document::Id(_)
-                    | Document::Number(_)
-                    | Document::Done
-                    | Document::Ruleset(_)
-                    | Document::ClassicProtection(_)
-                    | Document::BotUser(_)
-                    | Document::Repository(_)
-                    | Document::Branch(_)
-                    | Document::Issue(_)
-                    | Document::Pull(_)
-                    | Document::Job(_)
-                    | Document::Combined(_)
-                    | Document::Rows,
-                )
-                | Body::Raw { .. }
-                | Body::Empty
-                | Body::Malformed(_) => None,
-            };
-            if self.stage == Stage::Mutate
-                && self.asked() == Asked::Merge
-                && failure::classify(Asked::Merge, status, head, refusal) == Verdict::Enqueue
-            {
-                return Ok(Some(self.merge_pull()?));
-            }
-            let answer = self.refusal(status, head, refusal, tables)?;
-            return self.terminal(answer, bounds);
+        if self.refusal_head().is_some() {
+            return self.refused_body(&body, bounds, word, tables);
         }
         match body {
             Body::Document(Document::PullGraphql(pull)) if self.stage == Stage::PullGraphql => {
@@ -506,7 +503,7 @@ impl Plan {
                 self.row = Some(row);
                 return Ok(Some(self.initial(bounds, word)?));
             }
-            Body::Document(Document::Pull(pull)) if self.stage == Stage::Pull => {
+            Body::Document(Document::Pull(pull)) if self.stage == Stage::Pull || self.stage == Stage::VerifyUpdate => {
                 if self.reviewers_given().is_some() {
                     return self.reviewers_pull(pull, bounds, tables);
                 }
@@ -610,5 +607,43 @@ fn matches_rate(error: api::Error) -> bool {
         | api::Error::Busy
         | api::Error::NotConnected
         | api::Error::NotInstalled => false,
+    }
+}
+
+fn refusal_body(body: &Body) -> Option<&crate::github::document::Refusal> {
+    match body {
+        Body::Document(Document::Error(refusal)) => Some(refusal),
+        Body::Document(
+            Document::Delivery(_)
+            | Document::Installation(_)
+            | Document::Minted(_)
+            | Document::Viewer(_)
+            | Document::Merge(_)
+            | Document::Enqueued(_)
+            | Document::PullGraphql(_)
+            | Document::Graphql(_)
+            | Document::App(_)
+            | Document::HookConfig(_)
+            | Document::Conversion(_)
+            | Document::User(_)
+            | Document::Compare(_)
+            | Document::Permission(_)
+            | Document::Id(_)
+            | Document::Number(_)
+            | Document::Done
+            | Document::Ruleset(_)
+            | Document::ClassicProtection(_)
+            | Document::BotUser(_)
+            | Document::Repository(_)
+            | Document::Branch(_)
+            | Document::Issue(_)
+            | Document::Pull(_)
+            | Document::Job(_)
+            | Document::Combined(_)
+            | Document::Rows,
+        )
+        | Body::Raw { .. }
+        | Body::Empty
+        | Body::Malformed(_) => None,
     }
 }
