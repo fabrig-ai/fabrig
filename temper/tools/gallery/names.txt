@@ -45,7 +45,7 @@ welcome-forge-not-finished
 welcome-forge-go-on
 welcome-ready-under-way
 welcome-ready-adopted
-chats-setup-strip
+chats-not-started
 adoption
 adoption-filled
 adoption-refused

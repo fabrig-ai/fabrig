@@ -389,68 +389,6 @@ fn strip_forges(root: &mut Domain, watch: Token, connection: Option<w::Connectio
         },
     );
 }
-#[test]
-fn the_setup_strip_shows_while_there_is_no_demo_and_the_first_run_is_not_over() {
-    use forge::listed;
-    let (mut root, _, accounts, forges) = opened(true, Step::Model { way: None });
-    event(&mut root, Event::Went { place: Place::Address(Address::Chats { filter: ChatsFilter::All, start: false }) });
-    assert!(listed::setup(&root).is_none());
-    account(&mut root, accounts, 18, false);
-    strip_forges(&mut root, forges.unwrap(), None);
-    assert!(listed::setup(&root).is_none());
-    answer(&mut root, false);
-    assert!(listed::setup(&root).is_some());
-    answer(&mut root, true);
-    assert!(listed::setup(&root).is_some());
-}
-#[test]
-fn the_strip_names_what_is_missing_and_a_non_owner_misses_the_model_alone() {
-    use forge::listed;
-    for owner in [false, true] {
-        let (mut root, _, accounts, forges) = opened(owner, Step::Model { way: None });
-        answer(&mut root, false);
-        account(&mut root, accounts, 18, false);
-        strip_forges(&mut root, forges.unwrap(), None);
-        let setup = listed::setup(&root).unwrap();
-        assert_eq!(setup.forge, owner);
-        assert!(setup.model);
-        account(&mut root, accounts, 18, true);
-        if owner {
-            let setup = listed::setup(&root).unwrap();
-            assert!(setup.forge);
-            assert!(!setup.model);
-        } else {
-            assert!(listed::setup(&root).is_none());
-        }
-    }
-}
-#[test]
-fn continue_setting_up_goes_to_the_first_step_not_done() {
-    use forge::listed;
-    let (mut root, _, accounts, forges) = opened(true, Step::Model { way: None });
-    let watch = forges.unwrap();
-    answer(&mut root, false);
-    account(&mut root, accounts, 18, false);
-    strip_forges(&mut root, watch, None);
-    assert_eq!(listed::setup(&root).unwrap().step, Step::Forge { forge: None });
-    strip_forges(&mut root, watch, Some(w::Connection::Connecting));
-    assert_eq!(listed::setup(&root).unwrap().step, Step::Model { way: None });
-    account(&mut root, accounts, 18, true);
-    assert_eq!(listed::setup(&root).unwrap().step, Step::Ready);
-    strip_forges(
-        &mut root,
-        watch,
-        Some(w::Connection::Connected(
-            w::Connected::new(&w::CEILINGS, w::ConnectedParts { id: 42, login: b"temper".as_slice().into() }).unwrap(),
-        )),
-    );
-    assert!(listed::setup(&root).is_none());
-    account(&mut root, accounts, 18, false);
-    let setup = listed::setup(&root).unwrap();
-    assert!(!setup.forge);
-    assert!(setup.model);
-    assert_eq!(setup.step, Step::Model { way: None });
-}
 
 #[test]
 fn the_playground_forge_shows_while_the_playground_runs() {
@@ -490,33 +428,6 @@ fn with_a_demo_model_usable_reads_other_providers_lines() {
         deliver(&mut root, accounts, c::Delivery::OwnerAccounts(Box::new(document)));
         assert_eq!(pages::welcome::model_usable(&root), Some(expected));
     }
-}
-
-#[test]
-fn ready_and_the_strip_count_an_owners_deployment_model() {
-    let (mut root, _, accounts, _) = opened(true, Step::Model { way: None });
-    answer(&mut root, true);
-    account(&mut root, accounts, 18, false);
-    let mut out = event(&mut root, Event::Act { action: Action::Pages(Act::Playground) });
-    let watch = demo::deployment_watch(&mut out).expect("owner start opens the deployment watch");
-    let mut out =
-        demo::deliver_deployment(&mut root, watch, demo::deployment(&[demo::DEMO_ACCOUNT, demo::OTHER_ACCOUNT]));
-    assert!(demo::removed(&mut out).is_empty(), "removal waits for the running read");
-    assert_eq!(pages::welcome::model_usable(&root), Some(true));
-
-    let mut out = demo::deliver_demo_read(
-        &mut root,
-        Readout::Family { family: wire::FORGE, record: Some(demo::answer(b"Change the title")) },
-    );
-    assert_eq!(demo::removed(&mut out).len(), 1);
-    assert_eq!(pages::welcome::model_usable(&root), Some(true), "the watch keeps the model after removal");
-    demo::deliver_deployment(&mut root, watch, demo::deployment(&[demo::OTHER_ACCOUNT]));
-    assert_eq!(pages::welcome::model_usable(&root), Some(true), "removed demo account changes nothing");
-
-    let (mut member, _, accounts, _) = opened(false, Step::Model { way: None });
-    answer(&mut member, true);
-    account(&mut member, accounts, 18, false);
-    assert_eq!(pages::welcome::model_usable(&member), Some(false));
 }
 
 fn state_case(
