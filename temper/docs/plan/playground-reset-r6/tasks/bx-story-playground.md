@@ -69,3 +69,23 @@ Acceptance:
 ## Report
 
 The story's steps as run, its time, and what each read showed.
+
+## Answers
+
+2026-11-01. Q: the connected forge has no `forge-N/admin_token`, and ctl has no
+playground-state read: which assertions stand instead?
+
+A: Both acceptance items change; no tool or production code is added.
+- **While connected,** assert `forge-N/` exists and `forge-N/admin_token` does *not*:
+  the engine has taken the handover and removed its file before it connects
+  (`temper/docs/design/protocol/setup.md`, 6.5, and its files table). The directory's
+  removal after the reset stays as specified.
+- **`not_started`** is read through ctl as a second `playground reset`, after the first
+  answered `reset`, under a key of its own (never the first call's, whose kept answer
+  would print `reset` again): it must print `refused: not offered` and exit 2, which
+  the tool's notes define as "no playground runs" (cl-ctl's words). That, with the empty
+  forge, account and project reads, stands for the welcome at Forge; say so in the
+  report. Never `playground start` as a read.
+- The inherited `fake::check::tests::verb` failure is not this task's: leave it under
+  `## Left`. The four old demo stories stay as the pre-approved options say: run each
+  once, and change or mark only those that fail.

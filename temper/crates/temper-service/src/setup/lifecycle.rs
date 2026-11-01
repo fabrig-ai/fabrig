@@ -648,9 +648,16 @@ pub(crate) fn connected(engine: &mut crate::engine::Engine, forge: u16) {
             skein_forge_setup::item::user(rows.get(Item::User).expect("connected User")).expect("valid User").get();
         (id, local.bot_login.clone())
     } else {
-        // Forgejo still starts from private files (temper-15); its login is the git identity's.
-        let mut login = Box::from([]);
-        if let Some((_, value)) = engine.values.identities.newest(config.identity) {
+        let mut id = config.user;
+        if let Some(rows) = engine.forge_records.rows.forge(forge)
+            && let Ok(user) = rows.get(Item::User)
+        {
+            id = skein_forge_setup::item::user(user).expect("valid User").get();
+        }
+        let mut login: Box<[u8]> = Box::from([]);
+        if let Some(record) = engine.records.get(&forge) {
+            login.clone_from(&record.bot.login);
+        } else if let Some((_, value)) = engine.values.identities.newest(config.identity) {
             let mut reader = skein_lib::Reader::new(value.expose());
             let identity = temper_protocol_worker_wire::v1::Identity::decode(
                 &temper_protocol_worker_wire::v1::CEILINGS,
@@ -659,7 +666,7 @@ pub(crate) fn connected(engine: &mut crate::engine::Engine, forge: u16) {
             .expect("configured identity");
             login = Box::from(identity.login());
         }
-        (config.user, login)
+        (id, login)
     };
     state(engine, forge, domain::Connection::Connected { id, login });
     if github {
@@ -1165,25 +1172,37 @@ pub(super) fn connect_local(engine: &mut crate::engine::Engine, forge: u16) {
             return;
         }
     };
-    let token = rows.get(Item::GitToken).expect("reconciled GitToken");
+    publish_identity(
+        &mut local.identity,
+        rows,
+        &engine.forge_records.bounds,
+        &engine.workers.encoding.limits,
+        &mut engine.values.identities,
+        &mut engine.events,
+    );
+    crate::forge::connect(engine, forge, Ok(crate::forge::Start::Restored(start)));
+}
+
+/// Publish a Forgejo's recorded git credential (protocol/credentials.md, 4).
+pub(crate) fn publish_identity(
+    identity: &mut crate::settings::Identity,
+    rows: &records::ForgeRows,
+    bounds: &skein_forge_setup::item::Bounds,
+    limits: &temper_protocol_worker_wire::v1::Limits,
+    identities: &mut crate::values::Identities,
+    events: &mut skein_lib::Queue<root::Event>,
+) {
+    let token = rows.get(Item::GitToken).expect("recorded GitToken");
     assert!(
-        skein_forge_setup::item::fits(skein_forge_setup::item::Item::GitToken, token, &engine.forge_records.bounds),
+        skein_forge_setup::item::fits(skein_forge_setup::item::Item::GitToken, token, bounds),
         "kept GitToken validated"
     );
-    {
-        local.identity.token = Secret::new(Box::from(token));
-        let value = crate::translate::identity(&local.identity, &engine.workers.encoding.limits)
-            .expect("checked identity bounds");
-        local.identity.token = Secret::new(Box::new([]));
-        let number = local.identity.number;
-        let generation = engine.values.identities.put(number, value);
-        engine.events.push(root::Event::Credential {
-            number,
-            generation,
-            valid: skein_lib::Duration::from_nanos(u64::MAX),
-        });
-    }
-    crate::forge::connect(engine, forge, Ok(crate::forge::Start::Restored(start)));
+    identity.token = Secret::new(Box::from(token));
+    let value = crate::translate::identity(identity, limits).expect("checked identity bounds");
+    identity.token = Secret::new(Box::new([]));
+    let number = identity.number;
+    let generation = identities.put(number, value);
+    events.push(root::Event::Credential { number, generation, valid: skein_lib::Duration::from_nanos(u64::MAX) });
 }
 
 #[expect(clippy::disallowed_macros, reason = "closed credential-free setup diagnostic")]

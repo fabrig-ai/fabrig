@@ -36,6 +36,7 @@ pub(super) fn assert_ready(seen: &[Ended]) {
 }
 
 #[test]
+#[ignore = "a made owned forge is not offered: sv-startup-refuse"]
 fn forgejo_here_and_a_key_reach_a_first_chat_on_the_fake_box() {
     let walk = Walk::owned("walk-here-key");
     let seen = walk.run(vec![

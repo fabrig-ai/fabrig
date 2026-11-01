@@ -3,7 +3,7 @@ id = "sv-service-fixtures"
 part = "fs"
 kind = "migration"
 needs = ["sv-playground"]
-files = ["temper/crates/temper-service/src/tests/**", "temper/crates/temper-service/src/**/tests.rs", "temper/crates/temper-service/src/clients/demo_tests.rs", "temper/crates/temper-service/src/forge/records.rs", "temper/crates/temper-service/src/route.rs", "temper/crates/temper-service/src/workers.rs"]
+files = ["temper/crates/temper-service/src/tests/**", "temper/crates/temper-service/src/**/tests.rs", "temper/crates/temper-service/src/clients/demo_tests.rs", "temper/crates/temper-service/src/forge/records.rs", "temper/crates/temper-service/src/route.rs", "temper/crates/temper-service/src/workers.rs", "temper/crates/temper-service/src/setup/lifecycle.rs"]
 effort = "high"
 minutes = 120
 +++
@@ -68,3 +68,21 @@ Acceptance:
 ## Report
 
 - The tests left on the document's members, by file and name, and why.
+
+## Answers
+
+2026-11-01, run 1: may the task fix `setup/lifecycle.rs::connected`, which sends a
+registered Forgejo without a setup entry `Connected { id: config.user }`, and so `0` from
+`forges::settings`, and panics the root's `same forge writer`? Yes: this is the task's.
+Its owners (`sv-registry`, `sv-registry-setup`) have landed, and the task's acceptance
+(every temper-service test passing on records) cannot hold without the fix, which a
+records-only deployment needs anyway. `setup/lifecycle.rs` is added to `files` for this
+fix alone. In `connected`'s last branch (a Forgejo with no local setup), take the id from
+the forge's credential rows, `Item::User` decoded by `skein_forge_setup::item::user` as
+the other two branches do, when the rows hold one, and `config.user` otherwise (the
+document's forges until `sv-startup-refuse` deletes them). The login stays the git
+identity's, which `forges::identity` gives a record from its bot's login. No fixture
+workaround that patches the projection's user. A unit test in the service's tests (the
+failing `tests::forge::a_stopped_forge_is_named_and_only_its_calls_are_not_connected` is
+enough if it covers it) shows a registered Forgejo connecting with its `Item::User`.
+

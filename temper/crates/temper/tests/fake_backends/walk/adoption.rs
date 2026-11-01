@@ -36,6 +36,7 @@ fn adoption(project: &'static str, role: &'static str, key: &'static str) -> ctl
 }
 
 #[test]
+#[ignore = "a made owned forge is not offered: sv-startup-refuse"]
 fn context_preserves_the_writer_and_a_refused_setup_preserves_the_first_key() {
     let walk = Walk::owned("walk-context-and-setup-replay");
     let outcome = boxed::run_ctl_with_exits(
