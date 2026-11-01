@@ -1297,6 +1297,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
                 save_change(d, out, saved);
             }
         }
+        Event::ProducedTitle { task, child, title } => produced_title(d, task, child, &title, out),
         Event::Delegated { task, child, kind } => delegated(d, env, task, child, kind, out),
         Event::DelegateRefused { task, child } => delegate_refused(d, env, task, child, out),
         Event::DelegateAdmissionRefused { task, kind } => delegate_admission_refused(d, env, task, kind, out),
@@ -2287,6 +2288,26 @@ fn register_change(d: &mut Domain, env: &Env<Limits>, mut row: ChangeRow, out: &
     save_queue_change(d, env, None, row, out);
 }
 
+fn produced_title(d: &mut Domain, task: u64, child: u64, title: &[u8], out: &mut Queue<Request>) {
+    let Some(row) = d.changes.get_mut(&task) else { return };
+    if row.pull.is_some() || !row.title.is_empty() {
+        return;
+    }
+    if let Some(delegate) = row.delegate
+        && delegate != (child, change::Delegate::Produce)
+    {
+        return;
+    }
+    row.title = if title.is_empty() {
+        Box::from(b"Update repository".as_slice())
+    } else {
+        crate::text::fit(title, 256, "…".as_bytes())
+    };
+    let saved = row.clone();
+    d.procedure_wakes.insert(task, true).expect("one pending wake per change");
+    save_change(d, out, saved);
+}
+
 fn delegated(
     d: &mut Domain,
     env: &Env<Limits>,
@@ -2839,8 +2860,29 @@ fn finish_step(d: &mut Domain, env: &Env<Limits>, pending: PendingStep, out: &mu
     }
 }
 
+fn titled_change(d: &Domain, task: u64, out: &mut Queue<Request>) -> Option<ChangeRow> {
+    let row = d.changes.get(&task)?.clone();
+    let producing = match row.delegate {
+        Some((_, kind)) => kind == change::Delegate::Produce,
+        None => false,
+    };
+    if row.title.is_empty() && (producing || row.delegate_status == change::Status::Passed) {
+        emit(
+            out,
+            Request::ChangeDecision {
+                task: row.task,
+                decision: change::Decision::Wait { until: None },
+                entry: None,
+                evidence: None,
+            },
+        );
+        return None;
+    }
+    Some(row)
+}
+
 fn decide_step(d: &mut Domain, env: &Env<Limits>, pending: &PendingStep, out: &mut Queue<Request>) {
-    let Some(mut row) = d.changes.get(&pending.task).cloned() else { return };
+    let Some(mut row) = titled_change(d, pending.task, out) else { return };
     let before = crate::panel::ready(&row);
     let prior = row.change.clone();
     let Some(base_tip) = pending.base_tip else {
@@ -3129,14 +3171,14 @@ fn emit_change_effect(
 fn change_write(row: &ChangeRow, effect: change::Effect, limits: &Limits) -> Option<skein_forge::api::Write> {
     match effect {
         change::Effect::Open => {
-            // domain/forge.md, 8.1: retain the spec; fit only its forge projection.
+            // domain/forge.md, 8.1: fit the explicit title independently of the brief.
             let room = usize::try_from(limits.client.op_bytes)
                 .expect("u32 fits usize")
                 .saturating_sub(row.branch.len())
                 .saturating_sub(row.base.len());
             let marker = "…\nThe change's full words are on its task in temper.".as_bytes();
             let title_room = room.saturating_sub(marker.len().min(row.body.len()));
-            let title = crate::text::title(&row.title, title_room.min(256));
+            let title = crate::text::fit(&row.title, title_room.min(256), "…".as_bytes());
             let body = crate::text::fit(&row.body, room.saturating_sub(title.len()), marker);
             Some(skein_forge::api::Write::OpenPull { title, body, head: row.branch.clone(), base: row.base.clone() })
         }

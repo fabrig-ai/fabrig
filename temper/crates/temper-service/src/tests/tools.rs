@@ -201,10 +201,10 @@ fn a_change_result_without_settled_resource_is_invalid() {
 #[test]
 fn a_change_result_keeps_the_settled_resource() {
     let change = smith_domain_run::outcome::Declared::Change(smith_domain_run::outcome::Change {
-        fields: Box::new([smith_domain_run::outcome::Field {
-            name: b"body".as_slice().into(),
-            value: b"Changed".as_slice().into(),
-        }]),
+        fields: Box::new([
+            smith_domain_run::outcome::Field { name: b"title".as_slice().into(), value: b"Change".as_slice().into() },
+            smith_domain_run::outcome::Field { name: b"body".as_slice().into(), value: b"Changed".as_slice().into() },
+        ]),
     });
     let bytes = smith_protocol_channel::encode_result(&change, &smith_charter::CEILINGS).unwrap();
     let resource = temper_engine_smith::ChangeResource { connector: 1, kind: 2, resource: 42 };
@@ -215,6 +215,7 @@ fn a_change_result_keeps_the_settled_resource() {
         end,
         jig_domain_tasks::End::Finished {
             result: jig_domain_tasks::TaskResult::Change {
+                title: b"Change".as_slice().into(),
                 connector: 1,
                 kind: 2,
                 resource: 42,

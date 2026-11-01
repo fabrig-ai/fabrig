@@ -1715,9 +1715,28 @@ fn watch_change_pull(domain: &mut Domain, env: &Env<Limits>, row: &forge::Change
     }
 }
 
+fn initial_change_title(parameters: &[tasks::Parameter]) -> Box<[u8]> {
+    let mut handed = false;
+    let mut title = None;
+    for parameter in parameters {
+        match parameter {
+            tasks::Parameter::Bytes { name: 3, .. } => handed = true,
+            tasks::Parameter::Bytes { name: 10, value } => title = Some(value.as_ref()),
+            tasks::Parameter::Bytes { .. } | tasks::Parameter::Number { .. } | tasks::Parameter::Resource { .. } => {}
+        }
+    }
+    if !handed {
+        return Box::new([]);
+    }
+    match title {
+        Some(title) if !title.is_empty() => forge::text::fit(title, 256, "…".as_bytes()),
+        Some(_) | None => Box::from(b"Update repository".as_slice()),
+    }
+}
+
 /// Register the connector's procedure beside the task's first due step.
 /// Parameter 1 names a project-unique repository tag, 2 the base,
-/// 3 an optional already-pushed branch, 4 the pull body, and 5 priority.
+/// 3 an optional already-pushed branch, 4 the pull body, 5 priority, and 10 the pull title.
 #[expect(clippy::too_many_lines, reason = "one procedure registration and fresh-step route")]
 pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tasks::RunContext) -> bool {
     let task = context.task;
@@ -1744,7 +1763,7 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
                 priority = number;
             }
             tasks::Parameter::Number { name: 9, value: 1 } => base_repair = true,
-            tasks::Parameter::Bytes { name: 6, .. } => {}
+            tasks::Parameter::Bytes { name: 6 | 10, .. } => {}
             tasks::Parameter::Number { .. } | tasks::Parameter::Bytes { .. } | tasks::Parameter::Resource { .. } => {
                 return false;
             }
@@ -1788,7 +1807,7 @@ pub(crate) fn start_change(domain: &mut Domain, env: &Env<Limits>, context: &tas
                 repository: provider,
                 branch: branch.clone(),
                 base: base.clone(),
-                title: context.spec.words.clone(),
+                title: initial_change_title(&context.spec.parameters),
                 body: match body {
                     Some(body) => body,
                     None => context.spec.words.clone(),
@@ -2268,7 +2287,7 @@ fn change_delegate(
     let (executor, words, contract) = match kind {
         forge_change::Delegate::Produce => (
             tasks::Executor::Agent { charter: row.producing_charter },
-            produce_words(&row.title, &row.base, &row.branch, env.limits.tasks.spec_bytes),
+            production_words(domain, env, task, row)?,
             change_contract,
         ),
         forge_change::Delegate::Repair(why) => (
@@ -2501,6 +2520,11 @@ fn repair_words(
     append(&mut words, b"\n");
     append(&mut words, previous);
     Some(words.into_boxed())
+}
+
+fn production_words(domain: &Domain, env: &Env<Limits>, task: u64, row: &forge::ChangeRow) -> Option<Box<[u8]>> {
+    let words = &domain.core.tasks.task(task)?.spec.words;
+    Some(produce_words(words, &row.base, &row.branch, env.limits.tasks.spec_bytes))
 }
 
 fn produce_words(title: &[u8], base: &[u8], branch: &[u8], bound: u32) -> Box<[u8]> {
@@ -2886,6 +2910,20 @@ fn cancel_change(domain: &mut Domain, task: u64) {
     }));
 }
 
+fn landed_change(domain: &Domain, task: u64, merge: &[u8; 32], pull: u64, bound: u32) -> tasks::TaskResult {
+    tasks::TaskResult::Change {
+        connector: domain.config.forge_connector,
+        kind: 1,
+        resource: pull,
+        title: forge::text::fit(
+            &domain.forge.change(task).expect("landed change").title,
+            usize::try_from(bound).expect("result bound"),
+            "…".as_bytes(),
+        ),
+        words: change_landing_words(domain, task, merge, pull, bound),
+    }
+}
+
 fn change_decision(domain: &mut Domain, env: &Env<Limits>, task: u64, choice: forge_change::Decision) {
     let Some((connector, code, step)) = domain.core.tasks.procedure_due(task) else { return };
     if connector != domain.config.forge_connector || code != CHANGE_CODE {
@@ -2920,12 +2958,7 @@ fn change_decision(domain: &mut Domain, env: &Env<Limits>, task: u64, choice: fo
                 return;
             };
             let bound = change_result_bound(domain, task);
-            ProcedureStep::new(StepEnd::Result(tasks::TaskResult::Change {
-                connector: domain.config.forge_connector,
-                kind: 1,
-                resource: pull,
-                words: change_landing_words(domain, task, &merge, pull, bound),
-            }))
+            ProcedureStep::new(StepEnd::Result(landed_change(domain, task, &merge, pull, bound)))
         }
         forge_change::Decision::Hold(why) => hold_change_decision(domain, env, task, why),
         forge_change::Decision::CancelGates { head } => cancel_change_gates(domain, task, head),

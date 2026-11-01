@@ -517,6 +517,8 @@ pub enum TaskResult {
         kind: u16,
         /** Opaque resulting resource identifier; root/connector interpretation remains outside tasks. */
         resource: u64,
+        /// Producer-supplied title, bounded independently by the contract and `Limits::result_bytes`.
+        title: Box<[u8]>,
         /** Change-report bytes bounded by the admitted contract and `Limits::result_bytes`. */
         words: Box<[u8]>,
     },

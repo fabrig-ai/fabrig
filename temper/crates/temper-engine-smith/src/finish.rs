@@ -100,23 +100,7 @@ pub fn result(answer: run::Answer, change: Option<ChangeResource>) -> Result<Ter
                     }
                     tasks::TaskResult::Verdict { code, fields: fields.into_boxed(), words: verdict.text }
                 }
-                run::outcome::Declared::Change(change_result) => {
-                    let resource = change.ok_or(Problem::Missing(b"resource"))?;
-                    let mut words = None;
-                    for field in change_result.fields {
-                        match field.name.as_ref() {
-                            b"body" => words = Some(field.value),
-                            b"title" => {}
-                            _ => return Err(Problem::Type(b"fields")),
-                        }
-                    }
-                    tasks::TaskResult::Change {
-                        connector: resource.connector,
-                        kind: resource.kind,
-                        resource: resource.resource,
-                        words: words.ok_or(Problem::Missing(b"body"))?,
-                    }
-                }
+                run::outcome::Declared::Change(declared) => change_result(declared, change)?,
             };
             Ok(Terminal {
                 cumulative: spent.units,
@@ -125,4 +109,24 @@ pub fn result(answer: run::Answer, change: Option<ChangeResource>) -> Result<Ter
             })
         }
     }
+}
+
+fn change_result(declared: run::outcome::Change, change: Option<ChangeResource>) -> Result<tasks::TaskResult, Problem> {
+    let resource = change.ok_or(Problem::Missing(b"resource"))?;
+    let mut title = None;
+    let mut words = None;
+    for field in declared.fields {
+        match field.name.as_ref() {
+            b"body" => words = Some(field.value),
+            b"title" => title = Some(field.value),
+            _ => return Err(Problem::Type(b"fields")),
+        }
+    }
+    Ok(tasks::TaskResult::Change {
+        connector: resource.connector,
+        kind: resource.kind,
+        resource: resource.resource,
+        title: title.ok_or(Problem::Missing(b"title"))?,
+        words: words.ok_or(Problem::Missing(b"body"))?,
+    })
 }

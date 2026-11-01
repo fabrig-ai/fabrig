@@ -2,6 +2,7 @@
 
 2026-11-01. Where jig's code lags or departs from [tasks.md](tasks.md).
 
+- **Built:** 3, 5.6: change results preserve an independently bounded explicit title, accounted with their words and retained in closing and ended rows.
 - **Built:** 5.2, 8.1: nothing-left-to-await notice and bounded run tries.
 - **Built:** 9: holder selection skips conversations ended by their requester; a held delegate under a chat waits for its person at once.
 - **Built:** 5.7: own-question keeps and retirement notices; immutable `asks`, durable `TaskRecord.asked_requester`, and a premature done while owing a question parks and consumes a run try. Credits keep both parties and the question activity position; notice words follow their kind.

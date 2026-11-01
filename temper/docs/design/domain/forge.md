@@ -907,13 +907,19 @@ branch. Its parameters:
 - **the pull request's title and body,** or what to make them from, and
   the goal it is part of. The change's words are its spec, kept whole
   for its producer's brief and bounded by the task's own limits, never
-  by the forge's. The pull's title is the first sentence of the words'
-  first line, with its trailing full stop dropped, cut at a word to the
-  forge's title bound (at a character when no space fits), marked with
-  “…” only when cut mid-sentence. The body holds the words whole, fitted
-  to the forge client's operation bound and marked when cut. A goal's
-  issue title is made the same way from its spec, and a landing's name
-  prefixes the change's title with “Land ”, fitted to its task bound.
+  by the forge's. The producing task's successful result supplies the pull's
+  explicit title, retained with that result and copied into the change before
+  opening. A visible pushed branch waits for this metadata; it alone cannot
+  open the pull. The title is fitted to 256 UTF-8 bytes, preserving punctuation
+  and marking a cut with “…”; it is never interpreted as sentences. A handed-in
+  branch supplies its title as bytes parameter 10. A missing or empty title on
+  that path uses “Update repository”, never context from the brief. The body
+  holds the supplied body or the words whole, fitted to the forge client's
+  operation bound and marked when cut. The complete production brief stays in
+  the task spec, separately from the title and body. A goal's issue title uses
+  its spec's first sentence, with the trailing full stop dropped and a cut at
+  a word marked with “…”; a landing's name prefixes the explicit change title
+  with “Land ”, fitted to its task bound without sentence extraction.
   A change is never refused or held for the length of its words;
 - **its bounds:** repairs, resolutions, updates, and the stall of each
   wait.

@@ -564,6 +564,7 @@ fn a_chat_reads_its_landed_pulls_state_and_the_merge_the_fake_made() {
         5,
         tasks::End::Finished {
             result: tasks::TaskResult::Change {
+                title: b"Change".as_slice().into(),
                 connector: 0,
                 kind: 2,
                 resource: forge_top::tag(forge_world::REPO.forge, forge_world::REPO.repository),
@@ -715,13 +716,162 @@ fn a_chats_two_kib_change_lands_with_its_words_whole_in_the_producers_brief() {
             Record::Core(_) => None,
         })
         .expect("registered past the operation bound");
-    assert_eq!(row.title.as_ref(), words.as_slice());
+    assert_eq!(row.body.as_ref(), words.as_slice());
     let branch = row.branch.clone();
     land_change(&mut world, &producer, &branch);
     assert_eq!(world.merges, 1, "the long change lands on the independent fake forge");
 }
 
 pub(super) fn land_change(world: &mut World, producer: &engine::Assignment, branch: &[u8]) {
+    land_titled_change(world, producer, branch, b"Small fix");
+}
+
+fn land_titled_change(world: &mut World, producer: &engine::Assignment, branch: &[u8], title: &[u8]) {
+    push_change(world, branch);
+    let event = world.protocol.answer(
+        Token::new(7),
+        producer.task,
+        producer.attempt,
+        5,
+        producer_terminal(title),
+        engine::Parts::none(),
+    );
+    world.send(event);
+    for _ in 0..1000 {
+        if world.merges == 1 {
+            break;
+        }
+        world.tick();
+    }
+}
+
+fn producer_terminal(title: &[u8]) -> tasks::End {
+    use smith_domain_run::{Answer, Spend, outcome};
+    temper_engine_smith::result(
+        Answer::Accepted {
+            outcome: outcome::Declared::Change(outcome::Change {
+                fields: Box::new([
+                    outcome::Field { name: b"title".as_slice().into(), value: title.into() },
+                    outcome::Field { name: b"body".as_slice().into(), value: b"pushed".as_slice().into() },
+                ]),
+            }),
+            spent: Spend {
+                input: None,
+                output: None,
+                cache_read: None,
+                cache_write: None,
+                reasoning: None,
+                units: 5,
+                turns: 1,
+            },
+            turns: 1,
+        },
+        Some(temper_engine_smith::ChangeResource {
+            connector: 0,
+            kind: 2,
+            resource: forge_top::tag(forge_world::REPO.forge, forge_world::REPO.repository),
+        }),
+    )
+    .expect("producer result")
+    .end
+}
+
+#[test]
+fn producer_titles_name_changes_when_the_brief_opens_with_context() {
+    for (words, title) in [
+        (b"CSV has landed on main (PR #2, acd48a6). Add JSON export.".as_slice(), b"Add JSON export".as_slice()),
+        (b"In src/main.rs (which has `const TABLE`), add CSV export.".as_slice(), b"Add CSV export".as_slice()),
+        (b"Context. Add a versioned export.".as_slice(), b"Add v1.2. JSON export! Keep CSV.".as_slice()),
+    ] {
+        let (mut world, producer) = producer(words);
+        let assigned = world.assigned[1].clone();
+        let tasks::Party::Task(change) = producer.requester else { panic!("change requester") };
+        let branch = world
+            .store
+            .rows
+            .values()
+            .find_map(|record| match record {
+                Record::Forge { row } => match row.as_ref() {
+                    forge_top::Stored::Change(row) if row.task == change => Some(row.branch.clone()),
+                    _ => None,
+                },
+                Record::Core(_) => None,
+            })
+            .expect("change branch");
+        land_titled_change(&mut world, &assigned, &branch, title);
+        assert_eq!(world.merges, 1, "the titled change lands");
+        let raw::Answer::Item { item: pull, .. } =
+            world.external(1, raw::Op::Read(raw::Read::Item { number: 1, after: 0 }))
+        else {
+            panic!("created pull")
+        };
+        assert_eq!(pull.title.as_ref(), title);
+        assert!(task_brief(&assigned).windows(words.len()).any(|part| part == words));
+    }
+}
+
+fn handed_title(title: &[u8]) -> Box<[u8]> {
+    let (mut world, chat) = chat_world(true);
+    world.fake_env.limits.limits.title_bytes = 256;
+    let branch = b"temper/handed".as_slice();
+    push_change(&mut world, branch);
+    let mut delegate =
+        temper_engine_domain_world::fixtures::report_delegate(b"Context. The complete brief.", Box::new([]));
+    delegate.executor = tasks::Executor::Procedure { connector: 0, code: 2 };
+    delegate.contract = tasks::Contract::Change { connector: 0, kind: 1, words: 128 };
+    delegate.authority = live(&world, chat.task).authority.clone();
+    delegate.authority.budget.spend = 40;
+    delegate.authority.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
+    delegate.spec.parameters = Box::new([
+        tasks::Parameter::Resource {
+            name: 1,
+            connector: 0,
+            resource: forge_top::tag(forge_world::REPO.forge, forge_world::REPO.repository),
+        },
+        tasks::Parameter::Bytes { name: 2, value: b"main".as_slice().into() },
+        tasks::Parameter::Bytes { name: 3, value: branch.into() },
+        tasks::Parameter::Bytes { name: 10, value: title.into() },
+    ]);
+    let event = world.protocol.call(
+        Token::new(7),
+        chat.task,
+        chat.attempt,
+        93,
+        engine::Call { completion: 1, position: 1, tool: engine::Tool::Delegate { batch: Box::new([delegate]) } },
+    );
+    world.send(event);
+    for _ in 0..200 {
+        world.tick();
+        if world.merges == 1 {
+            break;
+        }
+    }
+    assert_eq!(world.merges, 1, "the handed branch lands: {:?}", world.answers);
+    assert_eq!(world.assigned.len(), 1, "no producer is needed");
+    let raw::Answer::Item { item, .. } = world.external(1, raw::Op::Read(raw::Read::Item { number: 1, after: 0 }))
+    else {
+        panic!("handed pull")
+    };
+    assert_eq!(item.body.as_ref(), b"Context. The complete brief.");
+    item.title
+}
+
+#[test]
+fn handed_branches_keep_explicit_titles_and_fit_only_the_forge_bound() {
+    let punctuation = b"Export v1.2. JSON! Keep CSV.";
+    assert_eq!(handed_title(punctuation).as_ref(), punctuation);
+    for length in [255, 256, 257] {
+        let title = vec![b'x'; length];
+        let expected =
+            if length <= 256 { title.clone() } else { [vec![b'x'; 253], "…".as_bytes().to_vec()].concat() };
+        assert_eq!(handed_title(&title).as_ref(), expected);
+    }
+    let title = "é".repeat(129);
+    let expected = format!("{}…", "é".repeat(126));
+    assert_eq!(handed_title(title.as_bytes()).as_ref(), expected.as_bytes());
+}
+
+fn push_change(world: &mut World, branch: &[u8]) {
     world.external(2, raw::Op::Git(raw::Git::Create { branch: branch.into(), commit: 1 }));
     let head = fake::advance(&mut world.fake, &world.fake_env, b"org/repo", branch, b"file", b"fixed", 1)
         .expect("producer pushes its work");
@@ -735,27 +885,4 @@ pub(super) fn land_change(world: &mut World, producer: &engine::Assignment, bran
             link: Box::new([]),
         }),
     );
-    let event = world.protocol.answer(
-        Token::new(7),
-        producer.task,
-        producer.attempt,
-        5,
-        tasks::End::Finished {
-            result: tasks::TaskResult::Change {
-                connector: 0,
-                kind: 2,
-                resource: forge_top::tag(forge_world::REPO.forge, forge_world::REPO.repository),
-                words: b"pushed".as_slice().into(),
-            },
-            cancel_delegates: false,
-        },
-        engine::Parts::none(),
-    );
-    world.send(event);
-    for _ in 0..1000 {
-        if world.merges == 1 {
-            break;
-        }
-        world.tick();
-    }
 }

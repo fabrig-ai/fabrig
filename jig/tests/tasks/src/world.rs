@@ -1372,7 +1372,7 @@ fn result_notice(ending: Ending) -> (ResultKind, Box<[u8]>) {
             }
             TaskResult::Report { words } => (ResultKind::Report, words),
             TaskResult::Verdict { code, words, fields } => (ResultKind::Verdict { code, fields }, words),
-            TaskResult::Change { connector, kind, resource, words } => {
+            TaskResult::Change { connector, kind, resource, words, .. } => {
                 (ResultKind::Change { connector, kind, resource }, words)
             }
             TaskResult::Failure { reason } => (ResultKind::Failed, reason),

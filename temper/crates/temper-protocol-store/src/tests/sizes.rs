@@ -13,7 +13,7 @@ fn the_application_sizes_are_the_largest_key_and_row() {
     // Result evidence adds four 4096-byte prefixes, cut counts, a head and repair count.
     assert_eq!(
         application(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes),
-        Some(jig_protocol_store::sizes::Application { version: 11, key: 511, value: 53_492 })
+        Some(jig_protocol_store::sizes::Application { version: 11, key: 511, value: 53_236 })
     );
 }
 #[test]
@@ -94,8 +94,8 @@ fn plan_text_uses_the_body_bound_without_changing_the_format() {
         assert!(peak <= ceiling, "{name}: {peak} bytes exceeds {ceiling}");
         assert_eq!(decoded, row);
     }
-    assert_eq!(crate::v11::Row::encoded_bound(&before), Some(53_492));
-    assert_eq!(crate::v11::Row::encoded_bound(&after), Some(53_492));
+    assert_eq!(crate::v11::Row::encoded_bound(&before), Some(53_236));
+    assert_eq!(crate::v11::Row::encoded_bound(&after), Some(53_236));
 }
 
 fn full_issue_row(limits: &crate::v11::Limits) -> crate::v11::IssueRow {

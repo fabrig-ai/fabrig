@@ -97,6 +97,7 @@ pub fn limits(domain: &domain::Limits) -> Option<wire::Limits> {
         report_result_words: domain.result_bytes,
         verdict_result_fields: fields,
         verdict_result_words: domain.result_bytes,
+        change_result_title: domain.result_bytes,
         change_result_words: domain.result_bytes,
         failure_result_reason: domain.result_bytes,
         cancelled_reason: domain.result_bytes,

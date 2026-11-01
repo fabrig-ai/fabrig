@@ -288,7 +288,8 @@ fn word_bytes(word: &crate::Word) -> Option<u64> {
 
 fn result_bytes(result: &TaskResult) -> Option<u64> {
     match result {
-        TaskResult::Report { words } | TaskResult::Change { words, .. } => bytes(words.len()),
+        TaskResult::Report { words } => bytes(words.len()),
+        TaskResult::Change { title, words, .. } => bytes(title.len())?.checked_add(bytes(words.len())?),
         TaskResult::Verdict { fields, words, .. } => bytes(words.len())?
             .checked_add(bytes(crate::verdict::fields_bytes(fields)?)?)?
             .checked_add(bytes(size_of_val(&**fields))?),

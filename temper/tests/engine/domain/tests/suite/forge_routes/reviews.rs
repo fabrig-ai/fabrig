@@ -54,6 +54,7 @@ fn produce(world: &mut World, producer: &engine::Assignment, branch: &[u8]) -> [
         5,
         tasks::End::Finished {
             result: tasks::TaskResult::Change {
+                title: b"Small fix".as_slice().into(),
                 connector: 0,
                 kind: 2,
                 resource: forge_top::tag(forge_world::REPO.forge, forge_world::REPO.repository),
@@ -1135,6 +1136,7 @@ fn a_review_at_a_head_whose_ci_fails_is_cancelled_and_the_repair_is_funded() {
         3,
         tasks::End::Finished {
             result: tasks::TaskResult::Change {
+                title: b"Small fix".as_slice().into(),
                 connector: 0,
                 kind: 2,
                 resource: forge_top::tag(forge_world::REPO.forge, forge_world::REPO.repository),
@@ -1207,6 +1209,7 @@ fn a_review_at_a_head_whose_ci_fails_is_cancelled_and_the_repair_is_funded() {
         0,
         tasks::End::Finished {
             result: tasks::TaskResult::Change {
+                title: b"Small fix".as_slice().into(),
                 connector: 0,
                 kind: 2,
                 resource: forge_top::tag(forge_world::REPO.forge, forge_world::REPO.repository),

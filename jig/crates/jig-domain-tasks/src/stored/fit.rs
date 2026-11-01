@@ -126,7 +126,11 @@ fn fields(value: &[ResultField]) -> Result<usize, RestoreCause> {
 
 fn result(value: &TaskResult, limits: &Limits) -> Result<(), RestoreCause> {
     let bytes = match value {
-        TaskResult::Report { words } | TaskResult::Change { words, .. } => words.len(),
+        TaskResult::Report { words } => words.len(),
+        TaskResult::Change { title, words, .. } => {
+            count(RestoreBound::ResultBytes, title.len(), limits.result_bytes)?;
+            words.len()
+        }
         TaskResult::Failure { reason } => reason.len(),
         TaskResult::Approved { state, words } => {
             state.len().checked_add(words.as_deref().unwrap_or(&[]).len()).ok_or(RestoreCause::Accounting)?

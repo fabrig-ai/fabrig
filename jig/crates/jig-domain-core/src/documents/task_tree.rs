@@ -515,7 +515,7 @@ pub(super) fn result_value(limits: &Limits, value: &tasks::TaskResult) -> Result
                 words: super::small::text(words, limits.documents.text_bytes),
             }
         }
-        tasks::TaskResult::Change { connector, kind, resource, words } => ResultValue::Change {
+        tasks::TaskResult::Change { connector, kind, resource, words, .. } => ResultValue::Change {
             kind: *kind,
             part: Part { connector: *connector, kind: PartKind::Result, key: PartKey::Number(*resource) },
             words: super::small::text(words, limits.documents.text_bytes),

@@ -101,7 +101,7 @@ record ResultField { name: bytes 4096 value: bytes 65536 }
 record Approved { state: bytes 65536 words: option bytes 65536 }
 record ReportResult { words: bytes 65536 }
 record VerdictResult { code: u32 fields: bytes 65536 pieces ResultField words: bytes 65536 }
-record ChangeResult { connector: u16 kind: u16 resource: u64 words: bytes 65536 }
+record ChangeResult { connector: u16 kind: u16 resource: u64 title: bytes 65536 words: bytes 65536 }
 record FailureResult { reason: bytes 65536 }
 enum TaskResult { approved: Approved, report: ReportResult, verdict: VerdictResult, change: ChangeResult, failure: FailureResult }
 record Done { result: TaskResult }

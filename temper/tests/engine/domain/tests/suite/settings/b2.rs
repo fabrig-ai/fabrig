@@ -278,6 +278,7 @@ fn repair_change(driver: &mut Driver, coordinator: &engine::Assignment, number: 
             driver,
             &worker,
             tasks::TaskResult::Change {
+                title: b"Change".as_slice().into(),
                 connector: 1,
                 kind: 2,
                 resource: forge::tag(1, 2),
