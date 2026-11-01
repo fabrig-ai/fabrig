@@ -35,8 +35,12 @@ pub struct Host {
     ended: bool,
 }
 impl Host {
-    pub fn new(limits: &Limits, settings: Settings, crypto: CryptoRng) -> Result<Self, Unusable> {
+    pub fn new(limits: &Limits, mut settings: Settings, crypto: CryptoRng) -> Result<Self, Unusable> {
         limits::check(limits, &settings)?;
+        let initial = core::mem::replace(&mut settings.forges, List::with_capacity(limits.forges));
+        for forge in initial.into_boxed() {
+            settings.forges.push(forge).expect("checked initial forges");
+        }
         Ok(Self {
             settings,
             crypto,
@@ -51,6 +55,16 @@ impl Host {
             ended: false,
         })
     }
+    /// Checks whether the host can hold this forge, using start's per-forge checks (6.3).
+    pub fn admits(&self, limits: &Limits, forge: &Forge) -> Result<(), Unusable> {
+        if self.settings.forges.len() >= limits.forges {
+            return Err(Unusable::Forges { forges: limits.forges });
+        }
+        if configured(&self.settings, forge.number()).is_some() {
+            return Err(Unusable::Duplicate { forge: forge.number() });
+        }
+        limits::forge(limits, &self.settings.user_agent, forge)
+    }
     pub fn down(
         &mut self,
         env: &Env<Limits>,
@@ -62,10 +76,28 @@ impl Host {
             return;
         }
         match request {
+            Request::Add { forge, settings } => {
+                if forge == settings.number() && self.admits(&env.limits, &settings).is_ok() {
+                    self.settings.forges.push(settings).expect("admitted forge");
+                }
+            }
+            Request::Remove { forge } => self.remove(env.limits.forges, forge, up),
             Request::Run { run, plan } => {
                 let forge = plan.forge();
                 assert!(!self.runs.contains_key(&run), "one live run per owner token");
-                let configured = configured(&self.settings, forge);
+                let Some(configured) = configured(&self.settings, forge) else {
+                    up.push(Event::Stop {
+                        run,
+                        failure: Failure {
+                            forge,
+                            step: Stage::Admin,
+                            subject: plan.name().into(),
+                            why: Why::Unexpected,
+                        },
+                    });
+                    self.drive(env, up, io);
+                    return;
+                };
                 if let (Kind::Forgejo(given), Plan::Create { .. }) = (&configured.kind, &plan) {
                     crate::given::check_create(&given.limits, env.limits.string_bytes, &plan)
                         .expect("the owner checks a creation plan before sending it");
@@ -122,33 +154,54 @@ impl Host {
                         break;
                     };
                     let token = *token;
-                    let mut run = self.runs.remove(&token).expect("live run");
-                    match &run.pending {
-                        Some(reconcile::Need::Done(_) | reconcile::Need::Stop(_)) => {}
-                        Some(
-                            reconcile::Need::Read(_)
-                            | reconcile::Need::Write { .. }
-                            | reconcile::Need::Send { .. }
-                            | reconcile::Need::Draw(_),
-                        )
-                        | None => cut(&mut run, &mut self.connections, &mut self.plan_out),
-                    }
-                    match run.pending.take() {
-                        Some(reconcile::Need::Done(outcome)) => up.push(Event::Done { run: token, outcome }),
-                        Some(reconcile::Need::Stop(failure)) => up.push(Event::Stop { run: token, failure }),
-                        Some(
-                            reconcile::Need::Read(_)
-                            | reconcile::Need::Write { .. }
-                            | reconcile::Need::Send { .. }
-                            | reconcile::Need::Draw(_),
-                        )
-                        | None => unreachable!("a halted run holds its stop"),
-                    }
+                    self.stop_run(token, up);
                 }
                 self.close();
             }
         }
         self.drive(env, up, io);
+    }
+    fn remove(&mut self, forges: u32, forge: u16, up: &mut Queue<Event>) {
+        let mut ended = List::uncapped();
+        for (token, run) in &self.runs {
+            if run.forge == forge {
+                ended.push(*token).expect("dynamic list");
+            }
+        }
+        for token in &ended {
+            self.stop_run(*token, up);
+        }
+        self.states.forget(forge);
+        let removed = core::mem::replace(&mut self.settings.forges, List::with_capacity(forges));
+        for settings in removed.into_boxed() {
+            if settings.number() != forge {
+                self.settings.forges.push(settings).expect("held forge");
+            }
+        }
+    }
+    fn stop_run(&mut self, token: Token, up: &mut Queue<Event>) {
+        let mut run = self.runs.remove(&token).expect("live run");
+        match &run.pending {
+            Some(reconcile::Need::Done(_) | reconcile::Need::Stop(_)) => {}
+            Some(
+                reconcile::Need::Read(_)
+                | reconcile::Need::Write { .. }
+                | reconcile::Need::Send { .. }
+                | reconcile::Need::Draw(_),
+            )
+            | None => cut(&mut run, &mut self.connections, &mut self.plan_out),
+        }
+        match run.pending.take() {
+            Some(reconcile::Need::Done(outcome)) => up.push(Event::Done { run: token, outcome }),
+            Some(reconcile::Need::Stop(failure)) => up.push(Event::Stop { run: token, failure }),
+            Some(
+                reconcile::Need::Read(_)
+                | reconcile::Need::Write { .. }
+                | reconcile::Need::Send { .. }
+                | reconcile::Need::Draw(_),
+            )
+            | None => unreachable!("a halted run holds its stop"),
+        }
     }
     /// Ends every run unheard and aborts every connection (6.3).
     fn close(&mut self) {
@@ -353,7 +406,7 @@ impl Host {
             cut(run, &mut self.connections, &mut self.plan_out);
             return;
         }
-        let forge = configured(&self.settings, run.forge);
+        let forge = configured(&self.settings, run.forge).expect("removal ends every run of its forge");
         let send = run.send.as_ref().expect("ready send");
         let connection = match open(token, forge, &self.settings.user_agent, send, env) {
             Ok(connection) => connection,
@@ -418,13 +471,14 @@ impl core::fmt::Debug for Host {
     }
 }
 
-fn configured(settings: &Settings, number: u16) -> &Forge {
+#[expect(clippy::manual_find, reason = "step code uses explicit loops (programming-model.md, 10)")]
+fn configured(settings: &Settings, number: u16) -> Option<&Forge> {
     for forge in &settings.forges {
         if forge.number() == number {
-            return forge;
+            return Some(forge);
         }
     }
-    unreachable!("owner names a configured forge")
+    None
 }
 
 pub(super) fn bounds(env_limits: &Limits, forge: &Forge) -> Bounds {

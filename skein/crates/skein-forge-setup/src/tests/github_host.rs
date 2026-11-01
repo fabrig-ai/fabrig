@@ -255,7 +255,7 @@ fn a_started_failed_convert_cannot_reuse_its_state() {
         let mut world = ConvertHost::new();
         let state = world.state(CONVERT_FORGE, Purpose::Convert);
         // A terminal scripted reply or the deadline halts at the conversion step.
-        let forge = super::configured(&world.host.settings, CONVERT_FORGE);
+        let forge = super::configured(&world.host.settings, CONVERT_FORGE).expect("fixture forge");
         let mut run = super::run::Run::new(
             forge,
             Plan::Convert { forge: CONVERT_FORGE, code: secret(CONVERT_CODE), state: state.clone() },

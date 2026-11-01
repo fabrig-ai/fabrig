@@ -440,3 +440,42 @@ fn runs_finishing_together_keep_each_run_s_needs_with_it_and_in_order() {
     }
     assert_eq!(world.needs_by_run().len() - baseline, RUNS.len() * CHECK_READS.len());
 }
+
+#[test]
+fn a_forge_added_reconciles_and_its_removal_mid_run_stops_it_down() {
+    let mut world = HostWorld::added(7);
+    world.run(1);
+    world.finish();
+    assert_eq!(world.heard(), &[done(1)]);
+    assert!(world.connections_closed());
+    world.connect_next(Connect::Silent);
+    world.run(2);
+    world.settle();
+    assert_eq!(world.heard(), &[done(1)], "the second run waits on the forge");
+    assert!(!world.connections_closed());
+    world.remove(1);
+    world.settle();
+    assert_eq!(
+        world.heard(),
+        &[
+            done(1),
+            Heard::Stop {
+                run: Token::new(2),
+                failure: Failure {
+                    forge: 1,
+                    step: Stage::Admin,
+                    subject: b"kit-admin".as_slice().into(),
+                    why: Why::Down
+                },
+                at: Duration::ZERO,
+            },
+        ]
+    );
+    assert_eq!(world.aborts(), 1);
+    assert!(world.connections_closed());
+    world.finish();
+    assert_eq!(world.heard().len(), 2, "no second terminal event");
+    world.close();
+    world.settle();
+    assert_eq!(world.heard().last(), Some(&Heard::Closed { at: Duration::ZERO }));
+}

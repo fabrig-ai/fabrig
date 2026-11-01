@@ -1,4 +1,5 @@
 //! The owner's plans, answers and retained items (forge-setup.md, 6.3).
+use super::Forge;
 use crate::{
     github::manifest::Target,
     item::Item,
@@ -107,8 +108,20 @@ pub(super) enum Dialect {
     GitHub,
     Both,
 }
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, Debug)]
+#[expect(clippy::large_enum_variant, reason = "Add hands the forge settings whole across the host boundary (6.3)")]
 pub enum Request {
+    /// A forge held from now on, as one handed at start is (6.3). Ignored, with nothing
+    /// said, when the host cannot hold it: see `Host::admits`.
+    Add {
+        forge: u16,
+        settings: Forge,
+    },
+    /// A forge held no more: its live runs stop `Down` at once, its one-time states are
+    /// forgotten. Ignored for a forge not held.
+    Remove {
+        forge: u16,
+    },
     Run {
         run: Token,
         plan: Plan,
