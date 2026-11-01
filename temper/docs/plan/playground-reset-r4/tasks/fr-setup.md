@@ -16,6 +16,9 @@ files = [
   "temper/crates/temper-service/src/family.rs",
   "temper/crates/temper-client-protocol-wire/**",
   "temper/crates/temper-service/src/tests/setup_record.rs",
+  "temper/crates/temper-engine-domain-forge/src/domain.rs",
+  "temper/crates/temper-engine-domain-forge/src/boundary.rs",
+  "temper/crates/temper-service/src/tests.rs",
 ]
 effort = "high"
 minutes = 55
@@ -119,3 +122,27 @@ Pre-approved options:
 fab's sections, and `## Interfaces`: `configure_owned`, `Config.owned`,
 `owned_record::record`, the wire's `Forges.owned`, and
 `set_up_forge`'s new body in one paragraph.
+
+## Answers
+
+2026-11-01. May this task edit the connector's `domain.rs` and
+`boundary.rs`, and declare its service test module in the service's
+`tests.rs`? Yes (the recommended option); all three are now in `files`.
+In `temper-engine-domain-forge/src/domain.rs`, only: the
+`Ask::SetUp` arm and `Domain::forges`. In the arm, every refusal is
+decided before anything is made, as today: the expired answers, the
+`applications` bound, the names, the box's offer and a forge setting
+up; `asks::set_up_forge` may stay a read naming the candidate (a kept
+owned record not removing, or the template), with the make done in the
+arm once no refusal stands, its `Busy` mapped to `SetUpRefusal::Busy`
+and `Full`/`Invalid`/`Exhausted` to `NotOffered`, so a refused `SetUp`
+makes nothing. The template's offer is `d.offer`'s rule without a
+record: `Offered` under the box, `NotUnderTheBox` otherwise. In
+`boundary.rs`, only: `Forges` gains `owned: Offer`, filled by
+`Domain::forges` from `make::State`'s template, the box and the listed
+owned rows (the acceptance's three cases), and carried by `family.rs`'s
+`forges` to the wire's `Forges.owned`; `Forges { .. }` literals the
+compiler then names are neighbours (`owned: Offer::NotOffered`). In the
+service's `tests.rs`, only `mod setup_record;`. Other tasks touch
+these files too: keep each change to those places so merges stay
+small.
