@@ -111,3 +111,14 @@ Acceptance:
 
 - The demo tests deleted, and any reader of the demo's state that no longer means anything
   (for `fe-demo-gone`).
+
+## Answers
+
+### 2026-11-01: Rerun this task after fe-remove publishes its removal implementation (recommended), or reassign that missing implementation to this task? The partial playground work is committed and pushed. (playground-reset-r6/fe-playground-forge-1, foreman playground-reset-r6/fe-playground-forge/foreman-1)
+
+Rerun fe-playground-forge after fe-remove publishes its removal implementation; removal remains fe-remove’s work.
+The task spec declares `needs = ["fe-remove"]`.
+Its acceptance requires: “`Forge`: `fe-remove`'s `remove` of the playground's record (no refusal)”.
+The pre-approved option specifies: “`removal::answered` tells the playground module when it erases a record whose number is the row's forge.”
+The next run integrates the completed dependency, combines removal handlers and replay with playground progression, resolves conflicts, and completes all required checks.
+The partial pushed work is not accepted as done: the report explicitly says acceptance is incomplete and tests remain unverified.
