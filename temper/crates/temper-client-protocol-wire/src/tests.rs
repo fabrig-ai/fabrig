@@ -208,7 +208,11 @@ fn playground_cues_obey_their_count_and_text_bounds() {
             );
             assert_eq!(answer.is_ok(), accepted, "{row}");
             if let Ok(answer) = answer {
-                assert_eq!(crate::decode_playground_answer(&crate::playground_answer(&answer), &limits), Some(answer), "{row}");
+                assert_eq!(
+                    crate::decode_playground_answer(&crate::playground_answer(&answer), &limits),
+                    Some(answer),
+                    "{row}"
+                );
             }
         }
     }
@@ -697,8 +701,8 @@ fn playground_states_round_trip_at_smallest_and_ceiling() {
             assert_eq!(crate::decode_playground_answer(&bytes, &limits), Some(record));
         }
     }
-    let record =
-        v1::Requesting::new(&limits, v1::RequestingParts { request: v1::Request::StartPlayground }).expect("start request");
+    let record = v1::Requesting::new(&limits, v1::RequestingParts { request: v1::Request::StartPlayground })
+        .expect("start request");
     assert_eq!(crate::decode_requesting(&crate::requesting(&record), &limits), Some(record));
 }
 

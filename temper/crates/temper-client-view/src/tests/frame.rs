@@ -982,7 +982,7 @@ fn retired_navigation_omits_the_playground_project_after_reload() {
             Address::Chats { filter: ChatsFilter::All, start: false },
             &fixtures::domain_limits(),
             b"Shop",
-            Some((fixtures::PROJECT, true, w::DemoState::Ended)),
+            Some((fixtures::PROJECT, true, w::PlaygroundState::Resetting)),
             None,
             None,
         );

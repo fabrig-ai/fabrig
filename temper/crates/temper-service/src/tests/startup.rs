@@ -363,37 +363,38 @@ fn an_unanswerable_demo_is_refused_at_its_field() {
         (
             "cue at bound",
             "Add CSV export to widget",
-            "x".repeat(usize::try_from(CEILINGS.demo_answer_cues_item).unwrap()),
+            "x".repeat(usize::try_from(CEILINGS.playground_answer_cues_item).unwrap()),
             "",
         ),
         (
             "cue past bound",
             "Add CSV export to widget",
-            "x".repeat(usize::try_from(CEILINGS.demo_answer_cues_item + 1).unwrap()),
+            "x".repeat(usize::try_from(CEILINGS.playground_answer_cues_item + 1).unwrap()),
             "application.demo.llm.asked[0].cue: past its bound\n",
         ),
         (
             "owner at bound",
             "\"owner\":\"demo\"",
-            ["\"owner\":\"", &"x".repeat(usize::try_from(CEILINGS.demo_answer_owner).unwrap()), "\""].concat(),
+            ["\"owner\":\"", &"x".repeat(usize::try_from(CEILINGS.playground_answer_owner).unwrap()), "\""].concat(),
             "",
         ),
         (
             "owner past bound",
             "\"owner\":\"demo\"",
-            ["\"owner\":\"", &"x".repeat(usize::try_from(CEILINGS.demo_answer_owner + 1).unwrap()), "\""].concat(),
+            ["\"owner\":\"", &"x".repeat(usize::try_from(CEILINGS.playground_answer_owner + 1).unwrap()), "\""]
+                .concat(),
             "application.setup[0].mode.fake.owner: past its bound\n",
         ),
         (
             "name at bound",
             "\"name\":\"widget\"",
-            ["\"name\":\"", &"x".repeat(usize::try_from(CEILINGS.demo_answer_name).unwrap()), "\""].concat(),
+            ["\"name\":\"", &"x".repeat(usize::try_from(CEILINGS.playground_answer_name).unwrap()), "\""].concat(),
             "",
         ),
         (
             "name past bound",
             "\"name\":\"widget\"",
-            ["\"name\":\"", &"x".repeat(usize::try_from(CEILINGS.demo_answer_name + 1).unwrap()), "\""].concat(),
+            ["\"name\":\"", &"x".repeat(usize::try_from(CEILINGS.playground_answer_name + 1).unwrap()), "\""].concat(),
             "application.setup[0].mode.fake.repositories[0].name: past its bound\n",
         ),
     ] {

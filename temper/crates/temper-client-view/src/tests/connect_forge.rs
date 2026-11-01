@@ -695,7 +695,7 @@ fn setting_up_names_the_demo_project_playground() {
         Address::ConnectForge { forge: Some(Choice::Forge(HERE)) },
         &f::domain_limits(),
         b"Project 1",
-        Some((f::PROJECT, true, w::DemoState::Running)),
+        Some((f::PROJECT, true, w::PlaygroundState::Running)),
         None,
         Some(first_rows(w::Connection::Connecting, w::FirstState::Making)),
     )

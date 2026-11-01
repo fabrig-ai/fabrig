@@ -258,9 +258,7 @@ pub fn decode_requesting(bytes: &[u8], limits: &v1::Limits) -> Option<v1::Reques
     match record.request() {
         v1::Request::MakeForge(make) => match make.choice() {
             v1::ForgeChoice::Forgejo(choice) => {
-                if choice.api().is_empty()
-                    || choice.git().is_empty()
-                {
+                if choice.api().is_empty() || choice.git().is_empty() {
                     return None;
                 }
                 if let Some(web) = choice.web()

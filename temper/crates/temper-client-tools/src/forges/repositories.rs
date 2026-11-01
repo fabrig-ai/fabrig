@@ -153,6 +153,7 @@ fn json(page: &Page, out: &mut Encoder) {
     out.boolean(page.more);
     out.object_end();
 }
+#[expect(clippy::too_many_lines, reason = "one exhaustive match prints or refuses the family's repository outcomes")]
 fn print(pending: &Pending, outcome: &Outcome, structured: bool, limits: &Limits) -> jig::Printed {
     let value = match outcome {
         Outcome::Full { held, room_at } => {
@@ -218,7 +219,13 @@ fn print(pending: &Pending, outcome: &Outcome, structured: bool, limits: &Limits
             return render::failure(why, structured, 2);
         }
         w::Outcome::Unknown => return render::failure(b"unknown", structured, 1),
-        w::Outcome::Accepted(_)
+        w::Outcome::Made(_)
+        | w::Outcome::Full
+        | w::Outcome::NotOffered
+        | w::Outcome::Removing
+        | w::Outcome::Playground
+        | w::Outcome::Reset
+        | w::Outcome::Accepted(_)
         | w::Outcome::Adopted(_)
         | w::Outcome::CoreRefused(_)
         | w::Outcome::Returning

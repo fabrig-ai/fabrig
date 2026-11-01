@@ -1,21 +1,18 @@
-//! Forge choices and playground requests keep the family's bounds and tags (client/README.md, 4.6).
+//! Forge choices and playground requests keep the family's bounds and tags (temper/docs/design/client/README.md, 4.6).
 use crate::v1;
-use alloc::{boxed::Box, vec};
+use alloc::boxed::Box;
 use skein_lib::{Reader, Writer};
 
+#[expect(clippy::manual_map, reason = "the strict subset constructs optional addresses with an explicit match")]
 fn forgejo(api: usize, git: usize, web: Option<usize>) -> v1::ForgeChoice {
     let web = match web {
-        Some(length) => Some(vec![b'w'; length].into_boxed_slice()),
+        Some(length) => Some(skein_lib::bytes::zeroed(length)),
         None => None,
     };
     v1::ForgeChoice::Forgejo(
         v1::ForgejoChoice::new(
             &v1::CEILINGS,
-            v1::ForgejoChoiceParts {
-                api: vec![b'a'; api].into_boxed_slice(),
-                git: vec![b'g'; git].into_boxed_slice(),
-                web,
-            },
+            v1::ForgejoChoiceParts { api: skein_lib::bytes::zeroed(api), git: skein_lib::bytes::zeroed(git), web },
         )
         .expect("addresses within ceilings"),
     )
@@ -51,9 +48,9 @@ fn make_forge_round_trips_each_choice() {
             v1::ForgejoChoice::new(
                 &v1::CEILINGS,
                 v1::ForgejoChoiceParts {
-                    api: vec![b'a'; api].into_boxed_slice(),
-                    git: vec![b'g'; git].into_boxed_slice(),
-                    web: Some(vec![b'w'; web].into_boxed_slice()),
+                    api: skein_lib::bytes::zeroed(api),
+                    git: skein_lib::bytes::zeroed(git),
+                    web: Some(skein_lib::bytes::zeroed(web)),
                 },
             ),
             Err(v1::Problem { path, reason: skein_codec::Reason::Bound })

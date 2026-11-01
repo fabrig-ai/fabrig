@@ -274,7 +274,10 @@ pub(super) fn told(state: &mut Forges, env: &Env<Limits>, told: &Told, out: &mut
                 | w::Request::Return(_)
                 | w::Request::Adopt(_)
                 | w::Request::SetUp(_)
-                | w::Request::StartDemo => {
+                | w::Request::MakeForge(_)
+                | w::Request::RemoveForge(_)
+                | w::Request::EndPlayground
+                | w::Request::StartPlayground => {
                     return false;
                 }
             };
@@ -350,7 +353,13 @@ fn answer(value: &Answered, limits: &Limits) -> Option<Answer> {
         w::Outcome::Link(value) => Some(Answer::Link(value.into_parts().address)),
         w::Outcome::ConnectRefused(value) => Some(Answer::Refused(value.into_parts().why)),
         w::Outcome::Unknown => Some(Answer::Unknown),
-        w::Outcome::Page(_)
+        w::Outcome::Made(_)
+        | w::Outcome::Full
+        | w::Outcome::NotOffered
+        | w::Outcome::Removing
+        | w::Outcome::Playground
+        | w::Outcome::Reset
+        | w::Outcome::Page(_)
         | w::Outcome::Returning
         | w::Outcome::Adopted(_)
         | w::Outcome::CoreRefused(_)

@@ -48,16 +48,17 @@ fn client_wire_decoders_never_panic_and_reencode_the_same() {
             },
         )
         .expect("forgejo addresses");
-        let make = v1::MakeForge::new(&v1::CEILINGS, v1::MakeForgeParts { choice: v1::ForgeChoice::Forgejo(choice) })
+        let value = v1::MakeForge::new(&v1::CEILINGS, v1::MakeForgeParts { choice: v1::ForgeChoice::Forgejo(choice) })
             .expect("forge choice");
-        let request = v1::Requesting::new(&v1::CEILINGS, v1::RequestingParts { request: v1::Request::MakeForge(make) })
-            .expect("make request");
+        let request =
+            v1::Requesting::new(&v1::CEILINGS, v1::RequestingParts { request: v1::Request::MakeForge(value) })
+                .expect("make request");
         let encoded = temper_client_protocol_wire::requesting(&request);
         requesting(&encoded);
         requesting(&temper_codecs_world::mutated(&mut rng, &encoded));
         let made = v1::MadeForge::new(&v1::CEILINGS, v1::MadeForgeParts { forge: u16::MAX }).expect("forge");
-        let record = v1::Answer::new(&v1::CEILINGS, v1::AnswerParts { outcome: v1::Outcome::Made(made) })
-            .expect("made answer");
+        let record =
+            v1::Answer::new(&v1::CEILINGS, v1::AnswerParts { outcome: v1::Outcome::Made(made) }).expect("made answer");
         let encoded = temper_client_protocol_wire::answer(&record);
         answer(&encoded);
         answer(&temper_codecs_world::mutated(&mut rng, &encoded));

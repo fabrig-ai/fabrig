@@ -706,7 +706,7 @@ fn demo_start_answers_print_their_words_json_and_status() {
             let call = root.submit_prepared(f::call(&["playground", "start", "--key", "playground"]), json, None);
             let client::Ask::Family { scope, record } = root.adoption_bytes(call) else { panic!("family") };
             assert_eq!(*scope, c::Scope::Deployment);
-            assert_eq!(wire::decode_requesting(&record.bytes, l).unwrap().request(), &w::Request::StartDemo);
+            assert_eq!(wire::decode_requesting(&record.bytes, l).unwrap().request(), &w::Request::StartPlayground);
             root.adoption_answer(call, outcome.clone());
             let printed = root.answer(call).unwrap();
             assert_eq!(printed.status, status);

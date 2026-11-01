@@ -108,7 +108,13 @@ pub fn answer(record: &jig_client::Family, limits: &w::Limits, link: &link::Limi
             w::ForgeReason::PrefixOccupied => forge::Reason::PrefixOccupied,
         }),
         w::Outcome::Unknown => forge::Answer::Unknown,
-        w::Outcome::Page(_)
+        w::Outcome::Made(_)
+        | w::Outcome::Full
+        | w::Outcome::NotOffered
+        | w::Outcome::Removing
+        | w::Outcome::Playground
+        | w::Outcome::Reset
+        | w::Outcome::Page(_)
         | w::Outcome::Accepted(_)
         | w::Outcome::Returning
         | w::Outcome::Connecting
@@ -162,12 +168,12 @@ const fn role_from(role: &w::Role) -> forge::Role {
 /// Decode the demo's complete record, including its embedded family version.
 #[must_use]
 pub fn demo(record: &[u8], limits: &w::Limits) -> Option<forge::Demo> {
-    let answer = wire::decode_demo_answer(record, limits)?.into_parts();
+    let answer = wire::decode_playground_answer(record, limits)?.into_parts();
     Some(forge::Demo {
         state: match answer.state {
-            w::DemoState::NotStarted => forge::demo::DemoState::NotStarted,
-            w::DemoState::Running => forge::demo::DemoState::Running,
-            w::DemoState::Ended => forge::demo::DemoState::Ended,
+            w::PlaygroundState::NotStarted => forge::demo::DemoState::NotStarted,
+            w::PlaygroundState::Running => forge::demo::DemoState::Running,
+            w::PlaygroundState::Resetting => forge::demo::DemoState::Ended,
         },
         project: answer.project,
         forge: answer.forge,
@@ -220,7 +226,13 @@ pub fn set_up_answer(record: &jig_client::Family, limits: &w::Limits) -> Option<
             w::SetUpRefusal::Invalid => R::Invalid,
         }),
         w::Outcome::Unknown => O::Unknown,
-        w::Outcome::Page(_)
+        w::Outcome::Made(_)
+        | w::Outcome::Full
+        | w::Outcome::NotOffered
+        | w::Outcome::Removing
+        | w::Outcome::Playground
+        | w::Outcome::Reset
+        | w::Outcome::Page(_)
         | w::Outcome::Accepted(_)
         | w::Outcome::Returning
         | w::Outcome::Connecting

@@ -154,7 +154,7 @@ fn later_after_a_real_forge_connects_retires_the_unstarted_playground_live() {
         let (mut front, mut root) = if github {
             accounts::demo_github_fixture(fixtures::SEED)
         } else {
-            accounts::demo_fixture(fixtures::SEED, &temper_client_protocol_wire::v1::DemoState::NotStarted)
+            accounts::demo_fixture(fixtures::SEED, &temper_client_protocol_wire::v1::PlaygroundState::NotStarted)
         };
         let draw = |root: &temper_client_world::app::Root| {
             let (_, mut view) = Temper::new(fixtures::SEED);
@@ -173,9 +173,9 @@ fn later_after_a_real_forge_connects_retires_the_unstarted_playground_live() {
             })));
         }
         let mut demo = front.demo.take().expect("offered playground").into_parts();
-        demo.state = temper_client_protocol_wire::v1::DemoState::Ended;
+        demo.state = temper_client_protocol_wire::v1::PlaygroundState::Resetting;
         front.demo = Some(
-            temper_client_protocol_wire::v1::DemoAnswer::new(&temper_client_protocol_wire::v1::CEILINGS, demo)
+            temper_client_protocol_wire::v1::PlaygroundAnswer::new(&temper_client_protocol_wire::v1::CEILINGS, demo)
                 .expect("retired demo"),
         );
         front.engine.send(temper_engine_domain::Event::Forge(Box::new(forge::Event::Connection {

@@ -327,8 +327,8 @@ fn playground_states_round_trip_at_smallest_and_ceiling() {
             assert_eq!(temper_client_protocol_wire::decode_playground_answer(&bytes, &limits), Some(record));
         }
     }
-    let record =
-        v1::Requesting::new(&limits, v1::RequestingParts { request: v1::Request::StartPlayground }).expect("start request");
+    let record = v1::Requesting::new(&limits, v1::RequestingParts { request: v1::Request::StartPlayground })
+        .expect("start request");
     assert_eq!(
         temper_client_protocol_wire::decode_requesting(&temper_client_protocol_wire::requesting(&record), &limits),
         Some(record)
