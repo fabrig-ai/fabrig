@@ -35,6 +35,10 @@ A goal is a tracked task: work given a numeric priority, which orders the goals'
   answer to question N`; a goal that finishes before asking is woken to ask.
   `agree` with `advisor` set is refused, `an advisor agrees nothing: set
   agree or advisor, not both`.
+  A goal waiting for your answer can park when its run reaches its turn
+  limit. Its question stays in your inbox. Your answer wakes a new run with
+  a fresh turn allowance; spending still counts against the goal's remaining
+  budget.
 - **Reprioritised:** an amendment of its priority alone needs no
   spec revision; tracking an untracked task, or untracking a goal,
   names the spec revision the amender saw.

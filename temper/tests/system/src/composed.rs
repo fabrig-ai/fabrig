@@ -33,9 +33,11 @@ use temper_worker_checkout_world::{forge::Forge, translate as git};
 use temper_worker_domain as worker;
 use temper_worker_domain_world::protocol as worker_protocol;
 
+mod agreement;
 mod link;
 mod process;
 
+pub use agreement::call;
 use process::{Around, Process};
 
 const CHANNEL: Token = Token::new(7);
@@ -86,6 +88,9 @@ enum Adoption {
 /// A composed deployment: all roots retain their own state, with IO outside.
 pub struct World {
     seed: u64,
+    scripts: VecDeque<Script>,
+    parked: std::collections::BTreeMap<u64, Process>,
+    period_budget: u64,
     creating: jig_test_profile::fixtures::Creating,
     chat_ending: tasks::EndedBy,
     root: engine::Domain,
@@ -350,39 +355,22 @@ impl World {
     }
 
     fn configured_with(seed: u64, script: Script, repository: bool, config: fn(u64) -> engine::Config) -> Self {
-        let [(bootstrap, mut limits), (config, _)] = std::array::from_fn(|_| {
-            let mut config = config(seed);
-            let mut limits = walking::limits();
-            limits.journal.transcript_bytes = 32768;
-            limits.loads.transcript_bytes = 32768;
-            limits.fleet.turns = 64;
-            limits.tasks.inbox_bytes = 1024;
-            limits.journal.result_bytes = 4096;
-            if repository {
-                grant_read(&mut config, &mut limits);
-            }
-            (config, limits)
-        });
-        let mut forge = Forge::new(seed);
-        forge.repository(
-            b"org/repo",
-            b"main",
-            Tree::from([
-                (b"README.md".to_vec(), b"The answer is 42.\n".to_vec()),
-                (b"AGENTS.md".to_vec(), b"Report what you found.\n".to_vec()),
-                (b"src/lib.rs".to_vec(), b"pub fn answer() -> u32 { 42 }\n".to_vec()),
-            ]),
-        );
-        forge.grant(b"org/repo", 1, fake::Permission::Admin);
-        forge.grant(b"org/repo", 7, fake::Permission::Read);
-        let worker_limits = worker_limits();
+        let [(bootstrap, mut limits), (config, _)] =
+            std::array::from_fn(|_| configured_parts(config(seed), repository));
+        let forge = repository_forge(seed);
+        let worker_limits =
+            if config.core.defaults.charters.len() > 1 { agreement::worker_limits() } else { worker_limits() };
         // The engine waits for a lost worker longer than it may take to stop.
         limits.fleet.grace = worker_limits.stop_bound.saturating_add(Duration::from_secs(1));
         assert!(engine::valid(&limits));
         assert!(worker::valid(&worker_limits));
-        let store = temper_engine_domain_world::fixtures::restored_store(bootstrap, &limits);
+        let store =
+            temper_engine_domain_world::fixtures::restored_over(Store::with_limits(&limits), bootstrap, &limits);
         Self {
             seed,
+            scripts: VecDeque::new(),
+            parked: std::collections::BTreeMap::new(),
+            period_budget: config.core.defaults.rules.period_spend,
             creating: jig_test_profile::fixtures::Creating::new(&config.core, limits.tasks.tree_tasks),
             chat_ending: config
                 .core
@@ -484,7 +472,7 @@ impl World {
         let mut around = Around {
             events: &mut self.worker_events,
             observed: &mut self.observed,
-            disk: &self.disk,
+            disk: &mut self.disk,
             store: &self.store,
             assignment: self.assignment.as_ref(),
             repository: self.adoption != Adoption::Without,
@@ -505,7 +493,7 @@ impl World {
     /// The deployment's first period and its git identity's credential, from
     /// outside the root (jig's domain/authority.md, 7; domain/root.md, 7.1).
     fn fund(&mut self) {
-        let period = engine::PartyInput::Period { project: 1, period: 1, budget: 1000, next: None };
+        let period = engine::PartyInput::Period { project: 1, period: 1, budget: self.period_budget, next: None };
         self.root_events.push_back(engine::Event::Party(period));
         let identity = engine::Event::Credential { number: 1, generation: 1, valid: Duration::from_secs(3600) };
         self.root_events.push_back(identity);
@@ -615,6 +603,27 @@ impl World {
         self.assignment.as_ref().expect("committed assignment")
     }
 
+    fn chat_request(&self, project: u32, words: &[u8]) -> people::Ask {
+        let people::Ask::Create { project, mut batch } = walking::configured_chat(
+            &self.creating,
+            &self.store.rows,
+            self.env.limits.tasks.tree_tasks,
+            project,
+            words,
+        ) else {
+            unreachable!("chat creates a task")
+        };
+        if !self.scripts.is_empty() {
+            agreement::quiet(&mut batch[0]);
+        }
+        // As jig_client::shapes::chat does, copy the template's ending into Create.
+        batch[0].flags.ended_by = match self.chat_ending {
+            tasks::EndedBy::Result => people::EndedBy::Result,
+            tasks::EndedBy::Requester => people::EndedBy::Requester,
+        };
+        people::Ask::Create { project, batch }
+    }
+
     fn party_request(&mut self, request: parties::Up) {
         let event = match request {
             parties::Up::SignIn { to, provider, subject } => engine::Event::Party(engine::PartyInput::SignedIn {
@@ -628,23 +637,7 @@ impl World {
             }),
             parties::Up::Request { to, sign_in, project, key, ask } => {
                 let ask = match ask {
-                    parties::Ask::Chat { words } => {
-                        let people::Ask::Create { project, mut batch } = walking::configured_chat(
-                            &self.creating,
-                            &self.store.rows,
-                            self.env.limits.tasks.tree_tasks,
-                            project,
-                            &words,
-                        ) else {
-                            unreachable!("chat creates a task")
-                        };
-                        // As jig_client::shapes::chat does, copy the template's ending into Create.
-                        batch[0].flags.ended_by = match self.chat_ending {
-                            tasks::EndedBy::Result => people::EndedBy::Result,
-                            tasks::EndedBy::Requester => people::EndedBy::Requester,
-                        };
-                        people::Ask::Create { project, batch }
-                    }
+                    parties::Ask::Chat { words } => self.chat_request(project, &words),
                     parties::Ask::Say { task: parties::Task::Number(task), words, release } => {
                         say(project, task, words, release)
                     }
@@ -781,7 +774,16 @@ impl World {
                 }
             },
             engine::Request::Worker(engine::WorkerRequest::ReadResult { payload, outcome }) => {
-                engine::WorkerInput::ResultRead { payload, end: link::end(&outcome) }
+                engine::WorkerInput::ResultRead {
+                    payload,
+                    end: match self.root.change_resource(payload) {
+                        Some((connector, kind, resource)) => link::end_with(
+                            &outcome,
+                            Some(temper_engine_smith::ChangeResource { connector, kind, resource }),
+                        ),
+                        None => link::end(&outcome),
+                    },
+                }
             }
             other @ (engine::Request::Store(_)
             | engine::Request::Worker(_)
@@ -833,6 +835,28 @@ impl World {
         let _moves = self.forge.moves();
     }
 
+    fn assigned(&mut self, channel: Token, assignment: engine::Assignment) {
+        assert_eq!(channel, CHANNEL);
+        let live = Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Live(assignment.task)));
+        assert!(self.store.rows.contains_key(&live), "assignment follows durable task");
+        self.select_process(assignment.task);
+        self.observed.assignments += 1;
+        let repositories = usize::from(self.adoption != Adoption::Without);
+        assert_eq!(assignment.workspace.repositories.len(), repositories);
+        let (hub, items) = link::assignment(&assignment);
+        if self.run_watch.is_some() {
+            self.root_events.push_back(engine::Event::Party(engine::PartyInput::WatchRun {
+                watcher: RUN_WATCH,
+                sign_in: self.party.sign_in.expect("authenticated party"),
+                task: assignment.task,
+                turn: None,
+                offset: 0,
+            }));
+        }
+        self.worker_events.push_back(worker::Event::Assign { assignment: hub, items: Ok(items) });
+        self.assignment = Some(assignment);
+    }
+
     fn delivery(&mut self, delivery: Delivery) {
         match delivery {
             // A run watch first supplies its current document, then streams
@@ -854,26 +878,7 @@ impl World {
                 self.adoption = Adoption::Adopted;
             }
             Delivery::WebReply { to, reply } => self.web_reply(to.into_token(), reply),
-            Delivery::Assigned { channel, assignment } => {
-                assert_eq!(channel, CHANNEL);
-                let live = Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Live(assignment.task)));
-                assert!(self.store.rows.contains_key(&live), "assignment follows durable task");
-                self.observed.assignments += 1;
-                let repositories = usize::from(self.adoption != Adoption::Without);
-                assert_eq!(assignment.workspace.repositories.len(), repositories);
-                let (hub, items) = link::assignment(&assignment);
-                if self.run_watch.is_some() {
-                    self.root_events.push_back(engine::Event::Party(engine::PartyInput::WatchRun {
-                        watcher: RUN_WATCH,
-                        sign_in: self.party.sign_in.expect("authenticated party"),
-                        task: assignment.task,
-                        turn: None,
-                        offset: 0,
-                    }));
-                }
-                self.worker_events.push_back(worker::Event::Assign { assignment: hub, items: Ok(items) });
-                self.assignment = Some(assignment);
-            }
+            Delivery::Assigned { channel, assignment } => self.assigned(channel, assignment),
             Delivery::Link { channel, down } => {
                 assert_eq!(channel, CHANNEL);
                 if let host::LinkDown::TurnKept { .. } = down {
@@ -916,12 +921,15 @@ impl World {
     }
 
     fn web_reply(&mut self, to: Token, reply: people::Reply) {
+        if agreement::answered(to, &reply) {
+            return;
+        }
         let signed_in = matches!(reply, people::Reply::SignedIn { .. });
         let reply = match reply {
             people::Reply::SignedIn { person, sign_in, .. } => parties::Reply::SignedIn { person, sign_in },
             people::Reply::Outcome(people::Outcome::Created { first: task, last, given }) => {
                 assert_eq!(task, last, "one template task");
-                assert_eq!(given, Some(people::Given { task, amount: 500 }), "template funding receipt");
+                assert!(given.is_some_and(|given| given.task == task && given.amount > 0), "template funding receipt");
                 parties::Reply::Started { task }
             }
             people::Reply::Outcome(people::Outcome::Said { task, message }) => parties::Reply::Said { task, message },
@@ -949,6 +957,33 @@ impl World {
 
     /// One of the worker's requests: up the link to the engine, to the
     /// protocol layer's routing, to io's git, or to the agent process.
+    fn worker_answer(
+        &mut self,
+        run: Token,
+        attempt: Token,
+        answer: host::RunAnswer,
+        work: &worker::wire::Work,
+        preparation: Option<worker::wire::Preparation>,
+    ) {
+        self.observed.answers += 1;
+        let (turns, spent) = self.process.answered.expect("Smith ended before the worker answered");
+        assert_eq!((answer.turns, answer.spent), (turns, spent));
+        match (&answer.ending, self.agent().answer()) {
+            (host::Ending::Ended { outcome, .. }, run::Answer::Accepted { outcome: declared, .. }) => {
+                let decoded = smith_protocol_channel::decode_declared(outcome, &smith_charter::CEILINGS);
+                assert_eq!(decoded.as_ref(), Ok(declared), "the answer carries smith's own result");
+            }
+            (host::Ending::Parked { .. }, run::Answer::Parked { .. })
+            | (host::Ending::Failed { .. }, run::Answer::Failed { .. }) => {}
+            (ending, settled) => panic!("the worker's answer {ending:?} follows smith's {settled:?}"),
+        }
+        if self.assignment().workspace.repositories.iter().all(|repository| repository.push.is_none()) {
+            assert!(work.landed.is_empty(), "an inspecting run lands nothing");
+        }
+        let parts = link::parts(work, preparation);
+        self.up(engine::Link::Up { up: host::LinkUp::Answer { run, attempt, answer }, parts });
+    }
+
     fn worker_request(&mut self, request: worker::Request) {
         match request {
             worker::Request::Source { .. } | worker::Request::SourceFault => {
@@ -971,21 +1006,7 @@ impl World {
                 self.up(engine::Link::Up { up, parts: engine::Parts::none() });
             }
             worker::Request::Answer { run, attempt, answer, work, preparation } => {
-                self.observed.answers += 1;
-                let (turns, spent) = self.process.answered.expect("Smith ended before the worker answered");
-                assert_eq!((answer.turns, answer.spent), (turns, spent));
-                match (&answer.ending, self.agent().answer()) {
-                    (host::Ending::Ended { outcome, .. }, run::Answer::Accepted { outcome: declared, .. }) => {
-                        let decoded = smith_protocol_channel::decode_declared(outcome, &smith_charter::CEILINGS);
-                        assert_eq!(decoded.as_ref(), Ok(declared), "the answer carries smith's own result");
-                    }
-                    (host::Ending::Parked { .. }, run::Answer::Parked { .. })
-                    | (host::Ending::Failed { .. }, run::Answer::Failed { .. }) => {}
-                    (ending, settled) => panic!("the worker's answer {ending:?} follows smith's {settled:?}"),
-                }
-                assert!(work.landed.is_empty() && work.saved.is_none(), "an inspecting run lands and saves nothing");
-                let parts = link::parts(&work, preparation);
-                self.up(engine::Link::Up { up: host::LinkUp::Answer { run, attempt, answer }, parts });
+                self.worker_answer(run, attempt, answer, &work, preparation);
             }
             // The link cancels a relay's local wait at once.
             worker::Request::CancelRelay { run, attempt, call } => {
@@ -996,7 +1017,7 @@ impl World {
                 let mut around = Around {
                     events: &mut self.worker_events,
                     observed: &mut self.observed,
-                    disk: &self.disk,
+                    disk: &mut self.disk,
                     store: &self.store,
                     assignment: self.assignment.as_ref(),
                     repository: self.adoption != Adoption::Without,
@@ -1126,3 +1147,40 @@ fn say(project: u32, task: u64, words: Box<[u8]>, release: Option<u64>) -> peopl
 pub const BILLING_ACCOUNT: u32 = 43;
 pub const FIRST_SOURCE: u32 = 17;
 pub const SECOND_SOURCE: u32 = 71;
+
+fn configured_parts(mut config: engine::Config, repository: bool) -> (engine::Config, engine::Limits) {
+    let mut limits = if config.core.defaults.charters.len() > 1 {
+        temper_engine_domain_world::forge_routes::box_limits()
+    } else {
+        walking::limits()
+    };
+    if config.core.defaults.charters.len() == 1 {
+        limits.journal.transcript_bytes = 32768;
+        limits.loads.transcript_bytes = 32768;
+        limits.fleet.turns = 64;
+        limits.tasks.inbox_bytes = 1024;
+        limits.journal.result_bytes = 4096;
+    }
+    if repository && config.core.defaults.charters.len() == 1 {
+        grant_read(&mut config, &mut limits);
+    }
+    (config, limits)
+}
+
+fn repository_forge(seed: u64) -> Forge {
+    let mut forge = Forge::new(seed);
+    forge.repository_with_checks(
+        b"org/repo",
+        b"main",
+        Tree::from([
+            (b"README.md".to_vec(), b"The answer is 42.\n".to_vec()),
+            (b"AGENTS.md".to_vec(), b"Report what you found.\n".to_vec()),
+            (b"src/lib.rs".to_vec(), b"pub fn answer() -> u32 { 42 }\n".to_vec()),
+            (b"src/main.rs".to_vec(), b"fn main() {}\n".to_vec()),
+        ]),
+        agreement::checks(),
+    );
+    forge.grant(b"org/repo", 1, fake::Permission::Admin);
+    forge.grant(b"org/repo", 7, fake::Permission::Read);
+    forge
+}
