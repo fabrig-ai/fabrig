@@ -452,6 +452,16 @@ fn a_program_grant_lends_only_its_validated_name_without_a_table_entry() {
 }
 
 #[test]
+fn worker_credentials_have_room_for_registered_forges_without_document_identities() {
+    let mut settings = fixtures::engine();
+    settings.identities = Box::new([]);
+    for forges in [1, 4, 16] {
+        settings.limits.forge_component.forges = forges;
+        assert_eq!(crate::workers::limits(&settings).unwrap().sizes.credentials, forges);
+    }
+}
+
+#[test]
 fn grant_sizes_take_credentials_source_names_and_generated_identities() {
     let name = u32::try_from(smith_host_domain::SourceName::BYTES).unwrap();
     for (credential, identity, expected) in [
