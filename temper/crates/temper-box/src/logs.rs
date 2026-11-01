@@ -12,6 +12,7 @@ struct Log {
     fd: Option<Fd>,
     size: u32,
     failed: bool,
+    renamed: bool,
 }
 #[derive(Debug)]
 pub(crate) struct Piece {
@@ -45,6 +46,9 @@ enum Phase {
     Rotate,
     Recreate,
     FailedClose,
+    RenameClose,
+    RenameOpen,
+    RenameExisting,
     Cleanup,
     Closed,
 }
@@ -80,7 +84,8 @@ impl Logs {
             }
             // Validate the original name too: '.' must not become a legal '.log'.
             let failed = !kernel::is_name(&name);
-            logs.push(Log { name: joined(&[&name, b".log"]), fd: None, size: 0, failed }).expect("one log per step");
+            logs.push(Log { name: joined(&[&name, b".log"]), fd: None, size: 0, failed, renamed: false })
+                .expect("one log per step");
         }
         Self {
             files: logs,
@@ -102,6 +107,26 @@ impl Logs {
             done: false,
         }
     }
+    pub fn rename(&mut self, step: usize, name: &[u8]) {
+        let mut name = bytes::copy_of(name);
+        for byte in &mut name {
+            if *byte == b' ' {
+                *byte = b'-';
+            }
+        }
+        let log = self.files.get_mut(u32::try_from(step).expect("log index")).expect("log step");
+        log.failed = !kernel::is_name(&name);
+        log.name = joined(&[&name, b".log"]);
+        log.renamed = true;
+    }
+    fn has_renamed(&self) -> bool {
+        for log in &self.files {
+            if log.renamed {
+                return true;
+            }
+        }
+        false
+    }
     pub fn owns(token: Token) -> bool {
         token == OP
     }
@@ -109,7 +134,7 @@ impl Logs {
         self.phase == Phase::Idle && self.notice.is_none()
     }
     pub fn takes(&self) -> bool {
-        self.ready() && self.phase == Phase::Idle && self.piece.is_none()
+        self.ready() && !self.has_renamed() && self.phase == Phase::Idle && self.piece.is_none()
     }
     pub fn failed(&self, step: usize) -> bool {
         self.unavailable || self.files.get(u32::try_from(step).expect("step index")).expect("log step").failed
@@ -166,7 +191,7 @@ impl Logs {
         self.piece.take()
     }
     pub fn settled(&self) -> bool {
-        self.ready() && self.phase == Phase::Idle && self.piece.is_none() && !self.waiting
+        self.ready() && !self.has_renamed() && self.phase == Phase::Idle && self.piece.is_none() && !self.waiting
     }
     pub fn closed(&self) -> bool {
         self.phase == Phase::Closed
@@ -177,7 +202,10 @@ impl Logs {
         self.phase = Phase::Cleanup;
     }
     pub fn pending(&self) -> bool {
-        !self.waiting && self.notice.is_none() && self.phase != Phase::Closed && self.phase != Phase::Idle
+        !self.waiting
+            && self.notice.is_none()
+            && self.phase != Phase::Closed
+            && (self.phase != Phase::Idle || self.has_renamed())
     }
     fn log(&self) -> &Log {
         self.files.get(self.at).expect("active log")
@@ -192,6 +220,7 @@ impl Logs {
         if self.waiting || self.notice.is_some() || out.room() == 0 {
             return;
         }
+        self.rename_next();
         let kind = match self.phase {
             Phase::BoxMake => Op::MakeDirectory { dir: root, name: bytes::copy_of(b"box"), mode: 0o700 },
             Phase::BoxOpen => Op::Open { root, path: bytes::copy_of(b"box"), how: OpenHow::DirectoryNoFollow },
@@ -249,7 +278,9 @@ impl Logs {
                 from: self.written,
                 at: u64::from(self.log().size).checked_add(u64::from(self.written)).expect("log offset"),
             },
-            Phase::RotateClose | Phase::FailedClose => Op::Close { fd: self.log_mut().fd.take().expect("log file") },
+            Phase::RotateClose | Phase::FailedClose | Phase::RenameClose => {
+                Op::Close { fd: self.log_mut().fd.take().expect("log file") }
+            }
             Phase::Rotate => Op::Rename {
                 from_dir: self.dir.expect("logs directory"),
                 from: self.log().name.clone(),
@@ -257,7 +288,12 @@ impl Logs {
                 to: joined(&[&self.log().name, b".1"]),
                 no_replace: false,
             },
-            Phase::Recreate => Op::Open {
+            Phase::RenameExisting => Op::Open {
+                root: self.dir.expect("logs directory"),
+                path: self.log().name.clone(),
+                how: OpenHow::WriteNoFollow,
+            },
+            Phase::Recreate | Phase::RenameOpen => Op::Open {
                 root: self.dir.expect("logs directory"),
                 path: self.log().name.clone(),
                 how: OpenHow::CreateNoFollow { mode: Some(0o600) },
@@ -277,6 +313,21 @@ impl Logs {
         };
         out.push(Submit { op: OP, kind });
         self.waiting = true;
+    }
+    fn rename_next(&mut self) {
+        if self.phase == Phase::Idle && self.piece.is_none() {
+            for index in 0..self.files.len() {
+                if self.files.get(index).expect("log index").renamed {
+                    self.at = index;
+                    self.log_mut().renamed = false;
+                    if self.unavailable {
+                        return;
+                    }
+                    self.phase = if self.log().fd.is_some() { Phase::RenameClose } else { Phase::RenameOpen };
+                    break;
+                }
+            }
+        }
     }
     fn cleanup_fd(&mut self) -> Option<Fd> {
         for index in 0..self.files.len() {
@@ -350,6 +401,17 @@ impl Logs {
             (Phase::Create, Err(error)) => {
                 self.refuse_step(error);
                 self.at = self.at.checked_add(1).expect("log index");
+            }
+            (Phase::RenameClose, Ok(Done::Nothing)) => self.phase = Phase::RenameOpen,
+            (Phase::RenameOpen, Err(Error::Exists)) => self.phase = Phase::RenameExisting,
+            (Phase::RenameOpen | Phase::RenameExisting, Ok(Done::Fd(fd))) => {
+                self.log_mut().fd = Some(fd);
+                self.log_mut().size = 0;
+                self.phase = Phase::Idle;
+            }
+            (Phase::RenameClose | Phase::RenameOpen | Phase::RenameExisting, Err(error)) => {
+                self.refuse_step(error);
+                self.phase = Phase::Idle;
             }
             (Phase::Write, Ok(Done::Count(count))) if count > 0 => {
                 self.written = self.written.checked_add(count).expect("bounded write");
@@ -428,7 +490,7 @@ impl Logs {
 fn ending(piece: &[u8]) -> &'static [u8] {
     if piece.ends_with(b"\n") { b"" } else { b"\n" }
 }
-fn error_name(error: Error) -> Box<[u8]> {
+pub(crate) fn error_name(error: Error) -> Box<[u8]> {
     let name: &[u8] = match error {
         Error::Permission => b"Permission",
         Error::NotFound => b"NotFound",

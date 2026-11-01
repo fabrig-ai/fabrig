@@ -46,14 +46,17 @@ impl Reader {
 pub enum Command {
     Start(u16),
     Stop(u16),
+    Remove(u16),
     Unknown,
 }
 #[must_use]
 pub fn command(line: &[u8]) -> Command {
-    let (rest, stop) = if let Some(rest) = line.strip_prefix(b"start ") {
-        (rest, false)
+    let (rest, verb) = if let Some(rest) = line.strip_prefix(b"start ") {
+        (rest, 0_u8)
     } else if let Some(rest) = line.strip_prefix(b"stop ") {
-        (rest, true)
+        (rest, 1)
+    } else if let Some(rest) = line.strip_prefix(b"remove ") {
+        (rest, 2)
     } else {
         return Command::Unknown;
     };
@@ -76,7 +79,11 @@ pub fn command(line: &[u8]) -> Command {
         };
         number = next;
     }
-    if stop { Command::Stop(number) } else { Command::Start(number) }
+    match verb {
+        0 => Command::Start(number),
+        1 => Command::Stop(number),
+        _ => Command::Remove(number),
+    }
 }
 #[must_use]
 pub fn step(forge: u16, stage: Stage) -> Box<[u8]> {
@@ -89,6 +96,10 @@ pub fn started(forge: u16) -> Box<[u8]> {
 #[must_use]
 pub fn stopped(forge: u16) -> Box<[u8]> {
     joined(&[b"stopped ", Decimal::of(u64::from(forge)).as_bytes(), b"\n"])
+}
+#[must_use]
+pub fn removed(forge: u16) -> Box<[u8]> {
+    joined(&[b"removed ", Decimal::of(u64::from(forge)).as_bytes(), b"\n"])
 }
 #[must_use]
 pub fn failed(forge: u16, why: &[u8], line_bytes: u32) -> Box<[u8]> {

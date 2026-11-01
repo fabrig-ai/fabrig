@@ -1667,3 +1667,117 @@ fn a_box_stop_does_not_withdraw_a_group_stops_spawn_twice() {
     rig.terminate();
     assert_eq!(&*rig.effects(), &[Order::Signal { step: 3 }]);
 }
+
+#[test]
+fn a_kind_is_filled_removed_and_filled_again_by_inputs_alone() {
+    use super::fixtures::grouped_steps;
+    use crate::{
+        layout,
+        machine::{Machine, Said, Why},
+        terminal::Fact,
+    };
+    use skein_lib::{Queue, Time};
+    let mut steps = grouped_steps();
+    steps.asked[0] = steps.asked[0].numbered(u16::MAX);
+    let placed = layout::flatten(steps);
+    let mut machine = Machine::new(&limits::small(), &placed).unwrap();
+    machine.vacate(0);
+    let mut rig = Rig { machine, out: Queue::uncapped(), now: Time::ZERO };
+    rig.machine.start(rig.now, &[], &mut rig.out);
+    assert_eq!(rig.effects().as_ref(), &[Order::Spawn { step: 2 }]);
+    rig.started(2);
+    rig.effects();
+    rig.input(Input::Ask { forge: 7 });
+    assert_eq!(rig.effects().as_ref(), &[Order::Read { forge: 7 }]);
+    for input in [Input::Ask { forge: 8 }, Input::Stop { forge: 8 }, Input::Remove { forge: 8 }] {
+        rig.input(input);
+        assert_eq!(rig.effects().as_ref(), &[Order::Say { said: Said::Failed { forge: 8, why: Why::Busy } }]);
+    }
+    rig.input(Input::Read { forge: 7, playground: None });
+    assert_eq!(rig.effects().as_ref(), &[Order::Say { said: Said::Failed { forge: 7, why: Why::NotAsked } }]);
+    for forge in [7, 8] {
+        rig.input(Input::Ask { forge });
+        assert_eq!(rig.effects().as_ref(), &[Order::Read { forge }]);
+        rig.input(Input::Read { forge, playground: Some(false) });
+        assert_eq!(
+            rig.effects().as_ref(),
+            &[Order::Fill { first: 0, forge }, Order::Spawn { step: 0 }, Order::Say { said: Said::Step { step: 0 } }]
+        );
+        rig.completed(0);
+        assert_eq!(
+            rig.effects().as_ref(),
+            &[Order::Close { step: 0 }, Order::Spawn { step: 1 }, Order::Say { said: Said::Step { step: 1 } }]
+        );
+        rig.started(1);
+        assert_eq!(rig.effects().as_ref(), &[Order::Record { forge }]);
+        rig.input(Input::Written { forge });
+        assert_eq!(rig.effects().as_ref(), &[Order::Say { said: Said::Started { forge } }]);
+        rig.input(Input::Remove { forge });
+        assert_eq!(rig.effects().as_ref(), &[Order::Signal { step: 1 }]);
+        rig.exited(1, Exit::Code(0));
+        assert_eq!(rig.effects().as_ref(), &[Order::Close { step: 1 }]);
+        rig.closed(1);
+        assert_eq!(rig.effects().as_ref(), &[Order::Remove { forge }]);
+        rig.input(Input::Stop { forge });
+        assert_eq!(rig.effects().as_ref(), &[Order::Say { said: Said::Failed { forge, why: Why::Busy } }]);
+        rig.input(Input::Removed { forge });
+        assert_eq!(rig.out.pop(), Some(Order::Terminal { fact: Fact::GroupRemoved { forge } }));
+        assert_eq!(rig.effects().as_ref(), &[Order::Say { said: Said::Removed { forge } }]);
+    }
+    rig.terminate();
+    assert_eq!(rig.effects().as_ref(), &[Order::Signal { step: 2 }]);
+    rig.input(Input::Remove { forge: 8 });
+    assert_eq!(rig.effects().as_ref(), &[Order::Say { said: Said::Failed { forge: 8, why: Why::Stopping } }]);
+    rig.exited(2, Exit::Code(0));
+    rig.closed(2);
+    assert!(rig.machine.is_idle());
+}
+
+#[test]
+fn a_document_group_and_a_kind_cannot_hold_the_same_listener() {
+    use super::fixtures::grouped_steps;
+    use crate::{
+        layout,
+        machine::{Machine, Said, Why},
+    };
+    use skein_lib::{Queue, Time};
+    use temper_forge_setup::Steps;
+    let mut steps = grouped_steps();
+    let address = ([127, 0, 0, 1], 8200).into();
+    steps.asked[0].steps[1].1 = steps.asked[0].steps[1].1.clone().listening(Box::new([address]));
+    let vacant = Box::new([steps.asked[0].numbered(u16::MAX)]);
+    let (placed, firsts) = layout::flatten_kinds(steps, vacant.as_ref());
+    let mut machine = Machine::new(&limits::small(), &placed).unwrap();
+    machine.vacate(firsts[0]);
+    let mut rig = Rig { machine, out: Queue::uncapped(), now: Time::ZERO };
+    rig.input(Input::Ask { forge: 3 });
+    rig.effects();
+    rig.completed(0);
+    rig.effects();
+    rig.started(1);
+    rig.input(Input::Written { forge: 3 });
+    rig.effects();
+    rig.input(Input::Ask { forge: 7 });
+    assert_eq!(rig.effects().as_ref(), &[Order::Read { forge: 7 }]);
+    rig.input(Input::Read { forge: 7, playground: Some(false) });
+    assert_eq!(rig.effects().as_ref(), &[Order::Say { said: Said::Failed { forge: 7, why: Why::Busy } }]);
+    // The reverse direction: a filled kind holds the document group's listener.
+    let mut template = grouped_steps();
+    template.asked[0].steps[1].1 = template.asked[0].steps[1].1.clone().listening(Box::new([address]));
+    let (placed, firsts) = layout::flatten_kinds(
+        Steps { always: template.always, asked: template.asked.clone() },
+        &[template.asked[0].numbered(u16::MAX)],
+    );
+    let mut machine = Machine::new(&limits::small(), &placed).unwrap();
+    machine.vacate(firsts[0]);
+    let mut rig = Rig { machine, out: Queue::uncapped(), now: Time::ZERO };
+    rig.input(Input::Ask { forge: 7 });
+    rig.input(Input::Read { forge: 7, playground: Some(false) });
+    rig.effects();
+    rig.completed(2);
+    rig.started(3);
+    rig.input(Input::Written { forge: 7 });
+    rig.effects();
+    rig.input(Input::Ask { forge: 3 });
+    assert_eq!(rig.effects().as_ref(), &[Order::Say { said: Said::Failed { forge: 3, why: Why::Busy } }]);
+}

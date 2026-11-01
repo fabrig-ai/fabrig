@@ -9,6 +9,7 @@ pub struct Limits {
     pub window: Duration,
     pub grace: Duration,
     pub line_bytes: u32,
+    pub group_file_bytes: u32,
     pub log_bytes: u32,
     pub tail_lines: u32,
 }
@@ -62,6 +63,7 @@ pub fn small() -> Limits {
         window: Duration::from_secs(300),
         grace: Duration::from_secs(10),
         line_bytes: 256,
+        group_file_bytes: 65536,
         log_bytes: 4_194_304,
         tail_lines: 10,
     }
@@ -75,6 +77,7 @@ pub fn apply(limits: &mut Limits, name: &[u8], value: u64) -> Result<(), Refused
         b"box.window_ms",
         b"box.grace_ms",
         b"box.line_bytes",
+        b"box.group_file_bytes",
         b"box.log_bytes",
         b"box.tail_lines",
     ]
@@ -91,6 +94,7 @@ pub fn apply(limits: &mut Limits, name: &[u8], value: u64) -> Result<(), Refused
         b"box.window_ms" => limits.window = duration,
         b"box.grace_ms" => limits.grace = duration,
         b"box.line_bytes" => limits.line_bytes = value,
+        b"box.group_file_bytes" => limits.group_file_bytes = value,
         b"box.log_bytes" => limits.log_bytes = value,
         b"box.tail_lines" => limits.tail_lines = value,
         _ => return Err(Refused::Unknown),

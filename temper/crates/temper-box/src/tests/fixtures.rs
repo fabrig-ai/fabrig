@@ -5,7 +5,7 @@ use crate::{
 use alloc::boxed::Box;
 use skein_io::kernel::Exit;
 use skein_lib::{Duration, List, Queue, Time, bytes};
-use temper_forge_setup::{Kind, Step};
+use temper_forge_setup::{Group, Kind, Step};
 pub const PREPARE: usize = 0;
 pub const FORGEJO: usize = 1;
 pub const RUNNER: usize = 2;
@@ -124,6 +124,7 @@ fn command(name: &[u8], arguments: &[&[u8]], kind: Kind) -> Step {
 pub struct Launch {
     pub name: Box<[u8]>,
     pub environment: Box<[Box<[u8]>]>,
+    pub arguments: Box<[Box<[u8]>]>,
     pub pipes: Box<[skein_io::kernel::Pipe]>,
     pub at: Time,
 }
@@ -138,6 +139,11 @@ pub struct Hosted {
     pub closed: bool,
     pub input: Option<Fd>,
     pub output: Option<Fd>,
+}
+#[derive(Debug)]
+pub struct HeldFile {
+    pub hold: bool,
+    pub call: Option<Call>,
 }
 /// Completions delayed at the shell boundary, grouped by ending endpoint.
 #[derive(Debug)]
@@ -166,6 +172,7 @@ pub struct Harness {
     pub replies: List<Box<[u8]>>,
     pub hold_spawn: Option<Box<[u8]>>,
     pub held_spawn: Option<Call>,
+    pub group_file: HeldFile,
     pub refuse_log: Option<Box<[u8]>>,
     pub hold_log_write: bool,
     pub held_log_write: Option<Call>,
@@ -212,6 +219,28 @@ impl Harness {
         limits: &limits::Limits,
         echo: crate::host::Echo,
     ) -> Self {
+        Self::configured_vacant(steps, Box::new([]), items, stubborn, buffer, limits, echo)
+    }
+    pub fn kinds(vacant: Box<[Group]>, items: &[skein_fake_machine::Item]) -> Self {
+        Self::configured_vacant(
+            temper_forge_setup::Steps { always: Box::new([long(b"serve", &[b"never"])]), asked: Box::new([]) },
+            vacant,
+            items,
+            true,
+            Config::calm().buffer,
+            &limits::small(),
+            crate::host::Echo::Steps,
+        )
+    }
+    pub fn configured_vacant(
+        steps: temper_forge_setup::Steps,
+        vacant: Box<[Group]>,
+        items: &[skein_fake_machine::Item],
+        stubborn: bool,
+        buffer: u32,
+        limits: &limits::Limits,
+        echo: crate::host::Echo,
+    ) -> Self {
         let mut config = Config::calm();
         config.buffer = buffer;
         let mut sim = Sim::new(0x12_02, config);
@@ -231,7 +260,13 @@ impl Harness {
                 open_step_listeners(&mut sim, pid, step, &mut listeners);
             }
         }
+        for group in &vacant {
+            for (_, step) in &group.steps {
+                open_step_listeners(&mut sim, pid, step, &mut listeners);
+            }
+        }
         let settings = Settings {
+            vacant,
             echo,
             data: bytes::copy_of(b"/data"),
             program: bytes::copy_of(b"process_fixture"),
@@ -269,6 +304,7 @@ impl Harness {
             replies: List::with_capacity(128),
             hold_spawn: None,
             held_spawn: None,
+            group_file: HeldFile { hold: false, call: None },
             refuse_log: None,
             hold_log_write: false,
             held_log_write: None,
@@ -288,8 +324,9 @@ impl Harness {
             if let Ask::Spawn { args, env, pipes, .. } = &call.ask {
                 self.launches
                     .push(Launch {
-                        name: args.last().expect("step name last").clone(),
+                        name: crate::host::pressure::spawn_name(&self.service, args),
                         environment: env.clone(),
+                        arguments: args.clone(),
                         pipes: pipes.clone(),
                         at: self.sim.now(),
                     })
@@ -311,6 +348,29 @@ impl Harness {
         }
     }
     fn answer_call(&mut self, call: Call) {
+        if self.group_file.hold {
+            let hold = match &call.ask {
+                Ask::Open { path, .. } => path.starts_with(b"box/groups/"),
+                Ask::Remove { name, .. } => name.as_ref() == b"7",
+                Ask::Lock { .. }
+                | Ask::Spawn { .. }
+                | Ask::Read { .. }
+                | Ask::Write { .. }
+                | Ask::Append { .. }
+                | Ask::Truncate { .. }
+                | Ask::Sync { .. }
+                | Ask::Stat { .. }
+                | Ask::Rename { .. }
+                | Ask::MakeDirectory { .. }
+                | Ask::List { .. }
+                | Ask::Close { .. } => false,
+            };
+            if hold {
+                assert!(self.group_file.call.is_none(), "one group file operation");
+                self.group_file.call = Some(call);
+                return;
+            }
+        }
         if self.hold_log_write
             && let Ask::Write { .. } = &call.ask
         {
@@ -392,7 +452,7 @@ impl Harness {
                 let Op::Spawn { spawn } = &complete.kind else { panic!("hosted spawn") };
                 self.hosted
                     .push(Hosted {
-                        name: spawn.args.last().unwrap().clone(),
+                        name: launched_name(&self.launches, &spawn.args),
                         stdio,
                         parent_pipes: parent_pipes.into_boxed(),
                         pid,
@@ -524,6 +584,11 @@ impl Harness {
             }
         }
         found.expect("live hosted serve")
+    }
+    pub fn release_group_file(&mut self) {
+        self.group_file.hold = false;
+        let call = self.group_file.call.take().expect("held group operation");
+        self.answer_call(call);
     }
     pub fn release_spawn(&mut self) {
         self.hold_spawn = None;
@@ -807,7 +872,10 @@ fn is_effect(order: &Order) -> bool {
         | Order::Signal { .. }
         | Order::Close { .. }
         | Order::Record { .. }
-        | Order::Say { .. } => true,
+        | Order::Say { .. }
+        | Order::Read { .. }
+        | Order::Fill { .. }
+        | Order::Remove { .. } => true,
     }
 }
 
@@ -826,4 +894,13 @@ pub fn grouped_steps() -> temper_forge_setup::Steps {
             ]),
         }]),
     }
+}
+
+fn launched_name(launches: &List<Launch>, arguments: &[Box<[u8]>]) -> Box<[u8]> {
+    for launch in launches {
+        if launch.arguments.as_ref() == arguments {
+            return launch.name.clone();
+        }
+    }
+    panic!("completed spawn was launched")
 }

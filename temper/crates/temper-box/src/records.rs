@@ -35,11 +35,16 @@ pub(crate) struct Records {
     answer: Option<Input>,
 }
 impl Records {
-    pub fn new(steps: &[Placed]) -> Self {
+    pub fn new(steps: &[Placed], vacant: &[usize]) -> Self {
         let count = u32::try_from(steps.len()).expect("bounded steps");
         let mut forges = List::with_capacity(count);
-        for step in steps {
-            if let Some(asked) = step.asked
+        let mut template = false;
+        for (index, step) in steps.iter().enumerate() {
+            if step.label.is_some() {
+                template = vacant.contains(&index);
+            }
+            if !template
+                && let Some(asked) = step.asked
                 && asked.recorded
                 && !forges.as_slice().contains(&asked.forge)
             {
@@ -55,6 +60,17 @@ impl Records {
             notice: None,
             answer: None,
         }
+    }
+    pub fn removed(&mut self, forge: u16) {
+        let mut kept = 0;
+        for index in 0..self.recorded.len() {
+            let number = *self.recorded.get(index).expect("record index");
+            if number != forge {
+                *self.recorded.get_mut(kept).expect("kept record") = number;
+                kept = kept.checked_add(1).expect("bounded records");
+            }
+        }
+        self.recorded.truncate(kept);
     }
     pub fn recorded(&self) -> &[u16] {
         self.recorded.as_slice()
@@ -179,6 +195,9 @@ impl Records {
         }
     }
     fn written(&mut self, forge: u16) {
+        if !self.recorded.as_slice().contains(&forge) {
+            self.recorded.push(forge).expect("bounded records");
+        }
         self.phase = Phase::Idle;
         self.answer = Some(Input::Written { forge });
     }

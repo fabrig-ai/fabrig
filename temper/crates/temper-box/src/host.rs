@@ -1,5 +1,6 @@
 //! The machine on skein-io, with one bounded chunk per child pipe.
 use crate::{
+    groups::Groups,
     layout::{self, Placed},
     limits::{Limits, Unfit},
     lines::{self, Lines, Output},
@@ -20,7 +21,7 @@ use skein_lib::{
     Decimal, Duration, Env, List, Queue, Time, Token, Wall,
     stream::{Down, Read, Up},
 };
-use temper_forge_setup::{Kind, Step, Steps};
+use temper_forge_setup::{Group, Kind, Step, Steps};
 /// Which diagnostic lines also reach the terminal.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Echo {
@@ -34,6 +35,10 @@ pub struct Settings {
     pub environment: Box<[Box<[u8]>]>,
     pub serve: Box<[u8]>,
     pub listeners: Box<[(Fd, core::net::SocketAddr)]>,
+    /// Each kind's group, numbered `u16::MAX`, placed by `before`, dormant
+    /// until filled. Its listeners are among `listeners` (contracts, 3).
+    /// Recorded groups are owned Forgejo; unrecorded groups are playgrounds.
+    pub vacant: Box<[Group]>,
     pub root: Fd,
     pub echo: Echo,
     pub data: Box<[u8]>,
@@ -142,6 +147,7 @@ pub struct Service {
     machine: Machine,
     steps: Box<[Placed]>,
     records: Records,
+    groups: Groups,
     logs: Logs,
     record_wall: Wall,
     control: Option<Control>,
@@ -173,10 +179,18 @@ pub struct Service {
 impl Service {
     /// Checks the policy limits and adopts the binary's descriptors.
     pub fn new(limits: &Limits, steps: Steps, settings: Settings) -> Result<Self, Unfit> {
-        let reply_entries = reply_entries(&steps);
-        let steps = layout::flatten(steps);
-        let machine = Machine::new(limits, &steps)?;
-        let records = Records::new(&steps);
+        let mut reply_entries = reply_entries(&steps);
+        for group in &settings.vacant {
+            assert_eq!(group.forge, u16::MAX, "kind templates use the widest number");
+            reply_entries = reply_entries
+                .max(u32::try_from(group.steps.len()).expect("bounded kind").checked_add(2).expect("reply entries"));
+        }
+        let (mut steps, vacant) = layout::flatten_kinds(steps, &settings.vacant);
+        let mut machine = Machine::new(limits, &steps)?;
+        for first in &vacant {
+            machine.vacate(*first);
+        }
+        let records = Records::new(&steps, &vacant);
         let logs = Logs::new(&steps, &settings.data, limits.log_bytes);
         let count = u32::try_from(steps.len()).expect("steps fit u32");
         let mut bounds = io_limits(count);
@@ -204,6 +218,10 @@ impl Service {
             );
             children.push(Child::new(&settings.serve, step, limits.tail_lines)).expect("one child per step");
         }
+        // Template labels size the terminal, but belong to no forge until a fill.
+        for first in &vacant {
+            steps.get_mut(*first).expect("kind first").label = None;
+        }
         let mut io = Io::new(&bounds);
         let signals = io.adopt_signals(settings.signals).expect("three adopted slots");
         let stdout = io.adopt_write_pipe(settings.stdout, None).expect("stdout slot");
@@ -218,6 +236,7 @@ impl Service {
             machine,
             steps,
             records,
+            groups: Groups::new(limits.group_file_bytes),
             logs,
             record_wall: Wall::EPOCH,
             control: None,
@@ -306,6 +325,7 @@ impl Service {
                     && self.deferred.is_empty()
                     && (self.tail_candidate(*fact).is_some() || self.terminal.takes(1) || self.terminal.failed())
             }
+            Some(Order::Fill { .. }) => self.logs.settled() && self.group_slots_settled(),
             Some(Order::Say { .. }) => self.reply_ready(),
             Some(
                 Order::Spawn { .. }
@@ -314,7 +334,9 @@ impl Service {
                 | Order::Wait { .. }
                 | Order::Signal { .. }
                 | Order::Close { .. }
-                | Order::Record { .. },
+                | Order::Record { .. }
+                | Order::Read { .. }
+                | Order::Remove { .. },
             ) => true,
             None => false,
         }
@@ -558,6 +580,15 @@ impl Service {
         } else if !self.terminal.failed() {
             self.terminal.push(self.formatter.fact(fact, &self.steps, wall));
         }
+        if let Fact::GroupRemoved { forge } = fact {
+            for placed in &mut self.steps {
+                if let Some(asked) = placed.asked
+                    && asked.forge == forge
+                {
+                    placed.label = None;
+                }
+            }
+        }
     }
     fn tail_candidate(&self, fact: Fact) -> Option<usize> {
         let step = terminal::tail_step(fact)?;
@@ -617,6 +648,9 @@ impl Service {
             }
             Order::Terminal { fact } => self.terminal_fact(fact, wall),
             Order::Record { forge } => self.records.write(forge),
+            Order::Read { forge } => self.groups.read(forge),
+            Order::Remove { forge } => self.groups.remove(forge),
+            Order::Fill { first, forge } => self.fill(first, forge),
             Order::Say { said } => {
                 if let Some(control) = &mut self.control {
                     let line = match said {
@@ -626,6 +660,7 @@ impl Service {
                         }
                         Said::Started { forge } => pipe::started(forge),
                         Said::Stopped { forge } => pipe::stopped(forge),
+                        Said::Removed { forge } => pipe::removed(forge),
                         Said::Failed { forge, why } => {
                             let why = terminal::why(why, &self.steps);
                             pipe::failed(forge, &why, self.line_bytes)
@@ -724,7 +759,10 @@ impl Service {
                 | Order::Wait { .. }
                 | Order::Signal { .. }
                 | Order::Close { .. }
-                | Order::Record { .. } => return true,
+                | Order::Record { .. }
+                | Order::Read { .. }
+                | Order::Remove { .. }
+                | Order::Fill { .. } => return true,
             }
         }
         false
@@ -914,6 +952,60 @@ impl Service {
     fn logs_step(&self) -> usize {
         self.logs.step().expect("completed piece")
     }
+    fn group_slots_settled(&self) -> bool {
+        // A closed process can still have output draining. Do not rename its
+        // layout or log until that output has been attributed to its forge.
+        for (index, child) in self.children.iter().enumerate() {
+            if self.steps.get(index).expect("child step").asked.is_some() && child.owner.is_none() {
+                for pipe in &child.pipes {
+                    if !pipe.settled() {
+                        return false;
+                    }
+                }
+                if !child.ready_settled() {
+                    return false;
+                }
+            }
+        }
+        true
+    }
+    fn fill(&mut self, first: usize, forge: u16) {
+        let placed = self.steps.get(first).expect("kind first");
+        let asked = placed.asked.expect("kind group");
+        let mut template = None;
+        for group in &self.settings.vacant {
+            if group.recorded == asked.recorded {
+                template = Some(group);
+                break;
+            }
+        }
+        let group = template.expect("placed kind").numbered(forge);
+        for (offset, (stage, step)) in group.steps.into_iter().enumerate() {
+            let index = first.checked_add(offset).expect("placed kind step");
+            self.logs.rename(index, step.name());
+            *self.steps.get_mut(index).expect("kind step") = Placed {
+                step,
+                asked: Some(layout::Asked { forge, recorded: group.recorded, stage }),
+                label: if offset == 0 { Some(group.label.clone()) } else { None },
+            };
+        }
+    }
+    fn group_work(&mut self) {
+        if self.notice_room()
+            && let Some(notice) = self.groups.take_notice()
+        {
+            self.notice(self.formatter.notice(&notice, self.env.wall));
+        }
+        if !self.groups.has_notice()
+            && let Some(answer) = self.groups.take_answer()
+        {
+            if let Input::Removed { forge } = answer {
+                self.records.removed(forge);
+            }
+            self.input(answer);
+        }
+        self.groups.tick(self.settings.root, &mut self.submissions);
+    }
     fn record_work(&mut self) {
         if self.notice_room()
             && let Some(notice) = self.records.take_notice()
@@ -959,6 +1051,7 @@ impl Service {
             Line::Whole(line) => match pipe::command(&line) {
                 Command::Start(forge) => self.input(Input::Ask { forge }),
                 Command::Stop(forge) => self.input(Input::Stop { forge }),
+                Command::Remove(forge) => self.input(Input::Remove { forge }),
                 Command::Unknown => {
                     if !self.terminal.failed() {
                         self.terminal.push(self.formatter.notice(b"box: serve: unknown pipe line\n", self.env.wall));
@@ -1006,6 +1099,7 @@ impl Service {
         if !self.machine.is_idle()
             || self.machine.outcome().is_none()
             || !self.records.ready()
+            || !self.groups.ready()
             || !self.orders.is_empty()
             || self.failure.is_some()
             || !self.deferred.is_empty()
@@ -1183,6 +1277,8 @@ impl skein_shell::Host for Service {
                 } else if Records::owns(complete.op) {
                     self.record_wall = wall;
                     self.records.complete(complete);
+                } else if Groups::owns(complete.op) {
+                    self.groups.complete(complete);
                 } else if complete.op == ROOT_CLOSE {
                     self.root = Root::Closed;
                 } else {
@@ -1198,6 +1294,7 @@ impl skein_shell::Host for Service {
                 }
             }
         }
+        self.group_work();
         self.record_work();
         self.log_work();
         if self.phase == Phase::New && self.logs.ready() && self.records.ready() {
@@ -1243,6 +1340,7 @@ impl skein_shell::Host for Service {
         self.order_work();
         self.children();
         self.control_work();
+        self.group_work();
         self.record_work();
         self.log_work();
         self.failure_work();
@@ -1293,7 +1391,9 @@ impl skein_shell::Host for Service {
         {
             return true;
         }
-        if self.records.pending() && (!self.records.has_notice() || self.notice_room()) {
+        if (self.records.pending() && (!self.records.has_notice() || self.notice_room()))
+            || (self.groups.pending() && (!self.groups.has_notice() || self.notice_room()))
+        {
             return true;
         }
         if let Some(control) = &self.control
@@ -1399,7 +1499,7 @@ impl skein_shell::Host for Service {
         Some(Exit::Code(u8::from(self.failed || self.machine.outcome() != Some(Outcome::Stopped))))
     }
     fn operations(&self) -> u32 {
-        io::operations(&self.env.limits).expect("io operations").checked_add(3).expect("root, records, logger")
+        io::operations(&self.env.limits).expect("io operations").checked_add(4).expect("root, records, logger, groups")
     }
 }
 
@@ -1434,6 +1534,14 @@ pub(crate) mod pressure {
                 && !self.failure
                 && !self.withdraw
         }
+    }
+    pub fn spawn_name(service: &Service, args: &[Box<[u8]>]) -> Box<[u8]> {
+        for placed in &service.steps {
+            if placed.step.arguments() == args {
+                return bytes::copy_of(placed.step.name());
+            }
+        }
+        panic!("spawn names a placed step")
     }
     pub fn restart_gate(service: &Service) -> RestartGate {
         let mut serve = None;

@@ -20,6 +20,11 @@ pub enum Input {
     Terminate,
     Ask { forge: u16 },
     Stop { forge: u16 },
+    Read { forge: u16, playground: Option<bool> },
+    NotRead { forge: u16, too_long: bool },
+    Remove { forge: u16 },
+    Removed { forge: u16 },
+    NotRemoved { forge: u16 },
     Written { forge: u16 },
     NotWritten { forge: u16 },
 }
@@ -33,6 +38,9 @@ pub enum Order {
     Signal { step: usize },
     Close { step: usize },
     Record { forge: u16 },
+    Read { forge: u16 },
+    Fill { first: usize, forge: u16 },
+    Remove { forge: u16 },
     Say { said: Said },
     Terminal { fact: Fact },
 }
@@ -42,12 +50,16 @@ pub enum Said {
     Step { step: usize },
     Started { forge: u16 },
     Stopped { forge: u16 },
+    Removed { forge: u16 },
     Failed { forge: u16, why: Why },
 }
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Why {
     Busy,
     NotAsked,
+    GroupFileUnreadable,
+    GroupFileTooLong,
+    FilesNotRemoved,
     Stopping,
     Exited { step: usize, exit: Exit },
     NotStarted { step: usize },
@@ -63,14 +75,30 @@ enum Status {
     Failing { why: Why },
     Stopping,
 }
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum Assignment {
+    Given,
+    Vacant,
+    Filled,
+    Gone,
+}
 #[derive(Debug)]
 pub(crate) struct GroupState {
     forge: u16,
     recorded: bool,
+    assignment: Assignment,
     first: usize,
     end: usize,
     chained: bool,
     status: Status,
+}
+impl GroupState {
+    fn assigned(&self) -> bool {
+        self.assignment == Assignment::Given || self.assignment == Assignment::Filled
+    }
+    fn kind(&self) -> bool {
+        self.assignment == Assignment::Vacant || self.assignment == Assignment::Filled
+    }
 }
 /// The result once all children are closed.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -92,6 +120,7 @@ enum Phase {
 #[derive(Debug)]
 pub(crate) struct State {
     kind: Kind,
+    listeners: Box<[core::net::SocketAddr]>,
     ready: bool,
     notice: Option<Fact>,
     waiting: bool,
@@ -117,6 +146,8 @@ pub struct Machine {
     forced: bool,
     begun: bool,
     stop_notice: StopNotice,
+    reading: Option<u16>,
+    removing: Option<u16>,
 }
 impl Machine {
     /// Checks limits and allocates each step's bounded exit history.
@@ -138,7 +169,7 @@ impl Machine {
                     let mut found = None;
                     if let Some(last) = last {
                         let previous: &mut GroupState = groups.get_mut(last).expect("last group");
-                        if previous.forge == asked.forge && previous.end == index {
+                        if previous.forge == asked.forge && previous.end == index && step.label.is_none() {
                             previous.end = index.saturating_add(1);
                             found = Some(usize::try_from(last).expect("group index"));
                         }
@@ -151,6 +182,7 @@ impl Machine {
                                 .push(GroupState {
                                     forge: asked.forge,
                                     recorded: asked.recorded,
+                                    assignment: Assignment::Given,
                                     first: index,
                                     end: index.saturating_add(1),
                                     chained: false,
@@ -166,6 +198,7 @@ impl Machine {
             states
                 .push(State {
                     kind: step.step.kind(),
+                    listeners: Box::from(step.step.listeners()),
                     ready: step.step.ready().is_some(),
                     notice: (!step.step.started_notice().is_empty()).then_some(Fact::Started { step: index }),
                     waiting: false,
@@ -185,14 +218,20 @@ impl Machine {
             forced: false,
             begun: false,
             stop_notice: StopNotice::Unrequested,
+            reading: None,
+            removing: None,
         })
+    }
+    pub(crate) fn vacate(&mut self, first: usize) {
+        let group = self.states.get(first).expect("kind first").group.expect("kind group");
+        self.groups.get_mut(group).expect("kind group").assignment = Assignment::Vacant;
     }
     /// Starts the first step once.
     pub fn start(&mut self, _now: Time, recorded: &[u16], orders: &mut Queue<Order>) {
         if !self.begun && self.outcome.is_none() {
             self.begun = true;
             for group in &mut self.groups {
-                if group.recorded && recorded.contains(&group.forge) {
+                if group.assigned() && group.recorded && recorded.contains(&group.forge) {
                     group.chained = true;
                     group.status = Status::Started;
                 }
@@ -264,6 +303,11 @@ impl Machine {
             Input::Terminate => self.stop(now, orders),
             Input::Ask { forge } => self.ask(forge, orders),
             Input::Stop { forge } => self.stop_group(now, forge, orders),
+            Input::Read { forge, playground } => self.read(forge, playground, orders),
+            Input::NotRead { forge, too_long } => self.not_read(forge, too_long, orders),
+            Input::Remove { forge } => self.remove(now, forge, orders),
+            Input::Removed { forge } => self.removed(forge, true, orders),
+            Input::NotRemoved { forge } => self.removed(forge, false, orders),
             Input::Written { forge } => self.written(forge, orders),
             Input::NotWritten { forge } => {
                 if self.outcome.is_none()
@@ -545,7 +589,7 @@ impl Machine {
     }
     fn group(&self, forge: u16) -> Option<usize> {
         for (index, group) in self.groups.iter().enumerate() {
-            if group.forge == forge {
+            if group.assigned() && group.forge == forge {
                 return Some(index);
             }
         }
@@ -572,6 +616,8 @@ impl Machine {
         let mut why = None;
         if self.outcome.is_some() {
             why = Some(Why::Stopping);
+        } else if self.reading.is_some() || self.removing.is_some() {
+            why = Some(Why::Busy);
         } else {
             for group in &self.groups {
                 let busy = match group.status {
@@ -583,9 +629,6 @@ impl Machine {
                     why = Some(Why::Busy);
                     break;
                 }
-            }
-            if why.is_none() && self.group(forge).is_none() {
-                why = Some(Why::NotAsked);
             }
         }
         if let Some(why) = why {
@@ -599,7 +642,25 @@ impl Machine {
         if self.refused(forge, false, orders) {
             return;
         }
-        let index = self.group(forge).expect("checked group");
+        let Some(index) = self.group(forge) else {
+            let mut kinds = false;
+            for group in &self.groups {
+                kinds |= group.kind();
+            }
+            if !kinds {
+                orders.push(Order::Say { said: Said::Failed { forge, why: Why::NotAsked } });
+                return;
+            }
+            for group in 0..self.groups.len() {
+                if self.group_starting(group) {
+                    orders.push(Order::Say { said: Said::Failed { forge, why: Why::Busy } });
+                    return;
+                }
+            }
+            self.reading = Some(forge);
+            orders.push(Order::Read { forge });
+            return;
+        };
         if self.groups.get(index).expect("group").status == Status::Started {
             orders.push(Order::Say { said: Said::Started { forge } });
             return;
@@ -612,6 +673,10 @@ impl Machine {
                 orders.push(Order::Say { said: Said::Failed { forge, why: Why::Busy } });
                 return;
             }
+        }
+        if self.listeners_busy(index) {
+            orders.push(Order::Say { said: Said::Failed { forge, why: Why::Busy } });
+            return;
         }
         let group = self.groups.get_mut(index).expect("group");
         group.status = Status::Starting;
@@ -629,9 +694,16 @@ impl Machine {
                 return;
             }
         }
-        let index = self.group(forge).expect("checked group");
+        let Some(index) = self.group(forge) else {
+            orders.push(Order::Say { said: Said::Failed { forge, why: Why::NotAsked } });
+            return;
+        };
+        self.begin_stop(now, index, orders);
+    }
+    fn begin_stop(&mut self, now: Time, index: usize, orders: &mut Queue<Order>) {
         let group = self.groups.get_mut(index).expect("group");
-        if group.status == Status::Dormant {
+        let forge = group.forge;
+        if group.status == Status::Dormant && self.removing != Some(forge) {
             orders.push(Order::Say { said: Said::Stopped { forge } });
             return;
         }
@@ -663,8 +735,112 @@ impl Machine {
         }
         let group = self.groups.get_mut(index).expect("group");
         group.status = Status::Dormant;
-        orders.push(Order::Terminal { fact: Fact::GroupStopped { forge: group.forge } });
-        orders.push(Order::Say { said: Said::Stopped { forge: group.forge } });
+        if self.removing == Some(group.forge) {
+            orders.push(Order::Remove { forge: group.forge });
+        } else {
+            orders.push(Order::Terminal { fact: Fact::GroupStopped { forge: group.forge } });
+            orders.push(Order::Say { said: Said::Stopped { forge: group.forge } });
+        }
+    }
+    fn not_read(&mut self, forge: u16, too_long: bool, orders: &mut Queue<Order>) {
+        if self.reading == Some(forge) {
+            self.reading = None;
+            let why = if too_long { Why::GroupFileTooLong } else { Why::GroupFileUnreadable };
+            orders.push(Order::Say { said: Said::Failed { forge, why } });
+        }
+    }
+    fn read(&mut self, forge: u16, playground: Option<bool>, orders: &mut Queue<Order>) {
+        if self.reading != Some(forge) {
+            return;
+        }
+        self.reading = None;
+        if self.outcome.is_some() {
+            orders.push(Order::Say { said: Said::Failed { forge, why: Why::Stopping } });
+            return;
+        }
+        let Some(playground) = playground else {
+            orders.push(Order::Say { said: Said::Failed { forge, why: Why::NotAsked } });
+            return;
+        };
+        for index in 0..self.groups.len() {
+            let group = self.groups.get(index).expect("group index");
+            if group.assignment == Assignment::Vacant && group.recorded != playground && !self.listeners_busy(index) {
+                let group = self.groups.get_mut(index).expect("group index");
+                group.forge = forge;
+                group.assignment = Assignment::Filled;
+                orders.push(Order::Fill { first: group.first, forge });
+                self.ask(forge, orders);
+                return;
+            }
+        }
+        orders.push(Order::Say { said: Said::Failed { forge, why: Why::Busy } });
+    }
+    fn listeners_busy(&self, index: usize) -> bool {
+        let group = self.groups.get(index).expect("group index");
+        for step in group.first..group.end {
+            for address in &self.states.get(step).expect("group step").listeners {
+                for other in &self.states {
+                    if other.group == Some(index) || !other.listeners.contains(address) {
+                        continue;
+                    }
+                    if let Some(other) = other.group {
+                        if self.groups.get(other).expect("other group").assigned()
+                            && self.groups.get(other).expect("other group").status != Status::Dormant
+                        {
+                            return true;
+                        }
+                    } else {
+                        match other.phase {
+                            Phase::Dormant | Phase::Stopped => {}
+                            Phase::Waiting { .. }
+                            | Phase::Starting { .. }
+                            | Phase::Live { .. }
+                            | Phase::Closing { .. }
+                            | Phase::Backoff { .. }
+                            | Phase::Grace { .. } => return true,
+                        }
+                    }
+                }
+            }
+        }
+        false
+    }
+    fn remove(&mut self, now: Time, forge: u16, orders: &mut Queue<Order>) {
+        if self.refused(forge, true, orders) {
+            return;
+        }
+        for group in 0..self.groups.len() {
+            if self.group_starting(group) {
+                orders.push(Order::Say { said: Said::Failed { forge, why: Why::Busy } });
+                return;
+            }
+        }
+        self.removing = Some(forge);
+        if let Some(index) = self.group(forge) {
+            self.begin_stop(now, index, orders);
+        } else {
+            orders.push(Order::Remove { forge });
+        }
+    }
+    fn removed(&mut self, forge: u16, success: bool, orders: &mut Queue<Order>) {
+        if self.removing != Some(forge) {
+            return;
+        }
+        self.removing = None;
+        if success {
+            if let Some(index) = self.group(forge) {
+                self.groups.get_mut(index).expect("removed group").assignment =
+                    if self.groups.get(index).expect("removed group").kind() {
+                        Assignment::Vacant
+                    } else {
+                        Assignment::Gone
+                    };
+                orders.push(Order::Terminal { fact: Fact::GroupRemoved { forge } });
+            }
+            orders.push(Order::Say { said: Said::Removed { forge } });
+        } else {
+            orders.push(Order::Say { said: Said::Failed { forge, why: Why::FilesNotRemoved } });
+        }
     }
     fn advance_group(&mut self, index: usize, next: Option<usize>, orders: &mut Queue<Order>) {
         // The record means the whole group stands (setup.md, 6.6/7.1):
