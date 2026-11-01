@@ -348,6 +348,7 @@ pub(crate) fn iterate(engine: &mut Engine, now: Time, wall: Wall) {
     engine.clients.starting = if open { None } else { Some(()) };
     if let Some(demo) = &mut engine.demo {
         demo.state = engine.domain.demo_state();
+        demo.playground = engine.domain.playground();
     }
     engine.clients.iterate(
         now,

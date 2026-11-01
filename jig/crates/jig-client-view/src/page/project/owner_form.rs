@@ -168,10 +168,10 @@ pub(crate) fn send_delete(domain: &mut Ui, out: &mut Queue<Request>) {
     let Some(doc) = &domain.project_page.owner else {
         return;
     };
-    let Some(typed) = &domain.project_page.settings.delete else {
+    let Some(confirmation) = &domain.project_page.settings.delete else {
         return;
     };
-    if !delete_offered(doc) || typed.bytes() != doc.name.bytes.bytes() {
+    if !delete_offered(doc) || confirmation.bytes() != doc.name.bytes.bytes() {
         return;
     }
     let ask = Box::new(Ask::RemoveProject { project: doc.number });

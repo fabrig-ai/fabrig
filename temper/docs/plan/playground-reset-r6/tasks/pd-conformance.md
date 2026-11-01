@@ -8,6 +8,9 @@ files = [
   "jig/tests/conformance/**",
   "jig/tests/core/src/observations.rs",
   "jig/tests/core/src/observations/**",
+  "jig/crates/jig-domain-core/src/projections.rs",
+  "jig/crates/jig-domain-core/src/deletion/**",
+  "jig/tests/core/tests/suite/deletion.rs",
 ]
 effort = "high"
 minutes = 120
@@ -67,8 +70,9 @@ Acceptance:
 
 ## Owns and may change
 
-Owned: the `files` above. Nothing in the domain crates: a row the deletion leaves that it
-should not is a failure to report, never a domain change here.
+Owned: the `files` above. Nothing else in the domain crates: a row the deletion leaves that it
+should not is a failure to report, never a domain change here, except the projection repair
+the Answers section gives this task.
 
 Options, pre-approved:
 - The world grants `remove_project` (and what the fill needs) to connector 1 in its `Config`
@@ -101,3 +105,32 @@ Options, pre-approved:
 
 The families filled and those the world cannot reach (with why); the fuzzy test's time and
 the number of cuts; any row the check found that the deletion should have erased.
+
+## Answers
+
+2026-11-01. **Q: a core `Projection` Goal row of project 2 (closing, `pending: [1, 2]`)
+survives the deletion after cut 22; who repairs it?** This task, widened (its own acceptance
+cannot hold without it; `pd-core-release` is already in the trunk). A tracked goal's
+projection is the project's own row, so the deletion's *Releasing* stage retires it (J4,
+"the project's own rows"):
+
+- In `deletion/release.rs` `release` (the one decision, also redone at each start), forget
+  every entry of `core.projections` whose `goal.project` is the deleted project, through
+  `projections.rs`'s `forget` made `pub(crate)` (or a `pub(crate) fn forget_project(core,
+  project, out)` beside it): its task, milestone and goal rows erased and
+  `Ask::ForgetProjection { goal }` to every connector. A late settle for it (`route_projection_settled`) then
+  changes nothing (`settled` returns on an absent goal), and the start's restore never meets
+  a projection whose project has no policy.
+- Leave `eligible`/`restore_goal`'s general behaviour (a closing feed restored with its
+  cohort pending is not fed again) as it is: it is not this task's, and the deletion no longer
+  depends on it. Name it in the report under `## Left`, with the cut that shows it, for the
+  domain owner.
+- A core test in `jig/tests/core/tests/suite/deletion.rs`,
+  `releasing_forgets_the_projects_projections` (a tracked goal ended with its closing feed
+  unsettled by a connector, then the project deleted: no `Projection` row names it, and each
+  connector was asked `ForgetProjection`), run with
+  `heavy cargo nextest run -p jig-core-world --test suite -E 'test(/deletion::/)'` and
+  `heavy cargo nextest run -p jig-domain-core --lib`.
+- Then rerun the fuzzy commands from Steps 3 (keep the exhaustive check as it is, no
+  exception). If a further row of another family remains at some cut, repair it the same way
+  only if it is inside the files above; otherwise stop and report it with its family and cut.

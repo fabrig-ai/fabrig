@@ -256,13 +256,32 @@ pub(crate) fn connect(engine: &mut crate::engine::Engine, number: u16) {
         };
         let expected = records::origin(kind, &forge.api);
         let start = match engine.forge_records.rows.forge(number) {
-            Some(rows) => records::access(kind, &expected, rows, &engine.forge_records.bounds, false),
+            Some(rows) => {
+                let webhooks =
+                    kind == skein_forge_connection::settings::Kind::Forgejo && rows.has(records::Item::WebhookSecret);
+                records::access(kind, &expected, rows, &engine.forge_records.bounds, webhooks)
+            }
             None => Err(records::NotConnected::NoRecords),
         };
         let start = match start {
             Ok(start) => Ok(crate::forge::Start::Restored(start)),
             Err(why) => Err(why),
         };
+        if start.is_ok()
+            && kind == skein_forge_connection::settings::Kind::Forgejo
+            && let Some(rows) = engine.forge_records.rows.forge(number)
+            && rows.has(records::Item::GitToken)
+        {
+            let record = engine.records.get(&number).expect("registered Forgejo");
+            crate::setup::lifecycle::publish_identity(
+                &mut crate::forges::identity(record),
+                rows,
+                &engine.forge_records.bounds,
+                &engine.workers.encoding.limits,
+                &mut engine.values.identities,
+                &mut engine.events,
+            );
+        }
         crate::forge::connect(engine, number, start);
     } else if engine.setup.records_only(number) {
         // The root restore releases Reconcile; the loader never starts it.

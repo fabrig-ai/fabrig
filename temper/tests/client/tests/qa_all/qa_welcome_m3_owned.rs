@@ -158,18 +158,21 @@ fn owned_missing_runner_pin_keeps_the_progress_unversioned() {
 }
 
 #[test]
-fn owned_details_without_pins_use_the_fallback_on_connect_a_forge() {
-    let (mut front, mut root) = h::forge_fixture(fixtures::SEED);
+fn owned_record_details_name_the_forgejo_pin_on_connect_a_forge() {
+    let (mut front, mut root) = h::seeded_forge_fixture(fixtures::SEED);
     h::event(&mut front, &mut root, Temper::went(Address::ConnectForge { forge: Some(Choice::Forge(1)) }));
     let shown = text(&root);
-    assert!(shown.contains("downloads Forgejo and its runner"), "{shown}");
-    assert!(!shown.contains("71.2.3"), "{shown}");
+    assert!(shown.contains(skein_forge::forgejo::pin::VERSION), "{shown}");
+    assert!(
+        shown.contains(&format!("downloads Forgejo {} and its runner", skein_forge::forgejo::pin::VERSION)),
+        "{shown}"
+    );
 }
 
 #[test]
 #[ignore = "backlog: the Model step drops the requested target until the first box status (a delivery order)"]
 fn accepted_owned_setup_keeps_its_target_on_model_before_box_status_arrives() {
-    let (mut front, mut root) = h::forge_fixture(fixtures::SEED);
+    let (mut front, mut root) = h::seeded_forge_fixture(fixtures::SEED);
     h::event(
         &mut front,
         &mut root,

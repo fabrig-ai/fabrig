@@ -4,6 +4,59 @@ use skein_forge_connection::{StartRead, Stopped};
 use skein_lib::{Duration, Time, Token};
 use temper_engine_domain as root;
 #[test]
+fn a_removing_records_forge_is_ended_for_every_gate() {
+    use temper_engine_domain_forge as domain;
+    let mut service = fixtures::ready();
+    let engine = service.engine.as_mut().unwrap();
+    let mut record = fixtures::record(
+        3,
+        domain::Kind::Forgejo,
+        domain::Mode::Connected,
+        domain::Api { host: b"127.0.0.1".as_slice().into(), port: 3003, transport: domain::ApiTransport::Plaintext },
+    );
+    engine.step(root::Event::Forge(Box::new(domain::Event::Restore { record: domain::Stored::Forge(record.clone()) })));
+    crate::route::request(engine, root::Request::Register(record.clone()));
+    assert!(!forge::ended(engine, 3));
+    record.state = domain::ForgeState::Removing;
+    engine.step(root::Event::Forge(Box::new(domain::Event::Restore { record: domain::Stored::Forge(record) })));
+    assert!(engine.demo.is_none());
+    assert!(forge::ended(engine, 3));
+    assert!(!forge::ended(engine, 1), "the document's forge retains its gate");
+    while engine.events.pop().is_some() {}
+    let call = Token::new(9001);
+    let repository = skein_forge::api::Repository { forge: 3, repository: 41 };
+    crate::route::request(
+        engine,
+        root::Request::Forge { call, repository, op: skein_forge::api::Op::Read(skein_forge::api::Read::Settings) },
+    );
+    let Some(root::Event::Forge(event)) = engine.events.pop() else { panic!("immediate local answer") };
+    assert_eq!(
+        *event,
+        domain::Event::Client(skein_forge_client::Event::Answered {
+            call,
+            cost: 0,
+            free: 0,
+            rate: None,
+            result: Err(skein_forge::api::Error::NotConnected),
+        })
+    );
+    engine.forge.above.push(skein_forge_connection::Event::Hint(skein_forge_connection::hooks::Hinted {
+        connection: Token::new(9002),
+        hint: skein_forge::api::Hint { repository, change: skein_forge::api::Change::Item(7), key: None },
+    }));
+    crate::engine::forge_pass(engine);
+    assert!(engine.events.is_empty());
+    assert!(engine.forge.above.is_empty());
+    assert!(engine.forge.starts.is_empty());
+    assert!(engine.forge.io.is_empty());
+    crate::route::request(engine, root::Request::Unregister { forge: 3 });
+    assert!(forge::ended(engine, 3), "an unregistered removing forge stays ended");
+    engine.step(root::Event::Forge(Box::new(domain::Event::Restore {
+        record: domain::Stored::ForgeNumbers { next: 5 },
+    })));
+    assert!(forge::ended(engine, 4), "a removed number with no row stays ended");
+}
+#[test]
 fn a_stopped_forge_is_named_and_only_its_calls_are_not_connected() {
     // Two configured forges and the machine's GitHub template.
     const ORIGIN_NOTES: u32 = 3;

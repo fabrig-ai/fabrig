@@ -545,14 +545,21 @@ pub fn binaries() -> (PathBuf, PathBuf) {
 #[must_use]
 pub fn tier_configuration(directory: &Path) -> std::net::SocketAddr {
     let owned = Owned::tier();
-    super::configuration(
+    super::configuration(directory, &super::Forge::Unreached);
+    let path = directory.join("temper.json");
+    let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("deployment")).expect("JSON");
+    super::forgejo::legacy_configuration(
         directory,
         &super::Forge::Throwaway {
             forgejo: &owned.forgejo_binary,
             api: owned.forgejo,
             git: format!("http://{}", owned.forgejo),
+            admin: directory.join("forge-1/admin_token"),
         },
+        &mut value,
     );
+    super::write_private(&path, &serde_json::to_vec(&value).expect("JSON"));
+    fs::remove_file(directory.join("fixture-forge.json")).expect("standalone forge fixture");
     owned.forgejo
 }
 

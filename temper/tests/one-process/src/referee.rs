@@ -267,6 +267,11 @@ impl skein_world::Referee<Proc> for Referee {
     fn act(&mut self, now: Time, procs: &mut [Proc]) {
         let (service, other) = procs.split_at_mut(1);
         let Proc::Service(service) = &mut service[0] else { panic!("service first") };
+        assert!(
+            self.done.is_some() || matches!(self.phase, crate::world::Phase::Refused) || !service.service.is_empty(),
+            "service ended before the story completed: {:?}",
+            service.service.end()
+        );
         if let Some(bound) = service.hooks {
             self.forge.borrow_mut().hand_hooks(bound);
         }

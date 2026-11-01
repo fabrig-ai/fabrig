@@ -24,6 +24,12 @@ pub struct Joint {
     pub leaves: Vec<Box<[u8]>>,
     pub refuse_return: bool,
     set_ups: Vec<(u16, Token)>,
+    pub makes: Vec<temper_engine_domain_forge::ForgeChoice>,
+    pub removals: Vec<u16>,
+    pub manifests: Vec<(u16, Token)>,
+    /// Pause serve's removal answers so a story can inspect the durable decision.
+    pub hold_removals: bool,
+    removal_answers: Vec<temper_engine_domain_forge::Event>,
     pub admin_connects: Vec<(u16, Token)>,
     pub demo: Option<temper_client_protocol_wire::v1::PlaygroundAnswer>,
     pub demo_starts: Vec<skein_lib::RequestKey>,
@@ -94,6 +100,8 @@ const FIRST_RUN_WRITES: u32 = 2120;
 /// Use the real `MakeProject` path, with a configured policy and room for its owner.
 pub fn first_run_projects(config: &mut engine::Config, limits: &mut engine::Limits) {
     limits.authority.projects = 2;
+    // Make, setup, add an account, remove, make and setup again, then project and adoption.
+    limits.people.requests = 8;
     limits.people.projects = 3; // The deployment roster and two projects.
     limits.people.holdings = 3;
     limits.journal.writes = FIRST_RUN_WRITES;
@@ -113,6 +121,34 @@ pub fn first_run_projects(config: &mut engine::Config, limits: &mut engine::Limi
     config.core.defaults.policies.insert(1, policy).expect("first-run policy");
 }
 impl Joint {
+    /// Durable forge records, including a removal awaiting serve's answers.
+    #[must_use]
+    pub fn records(&self) -> Vec<temper_engine_domain_forge::ForgeRecord> {
+        self.engine
+            .store
+            .rows
+            .values()
+            .filter_map(|record| {
+                if let engine::Record::Forge { row } = record
+                    && let temper_engine_domain_forge::Stored::Forge(record) = row.as_ref()
+                {
+                    Some(record.clone())
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
+    /// Answer the kept removal acts through the driver's public event door.
+    pub fn finish_removals(&mut self) {
+        self.hold_removals = false;
+        for answer in std::mem::take(&mut self.removal_answers) {
+            self.engine.send(engine::Event::Forge(Box::new(answer)));
+        }
+        self.engine.settle();
+    }
+
     /// Hold the next demo read's encoded answer, including its original client and read token.
     /// Arming again lets a story hold a newer answer behind the older one.
     pub fn hold_next_demo_read(&mut self) {
@@ -158,21 +194,18 @@ impl Joint {
             let mut engine_limits = engine_limits();
             first_run_projects(&mut config, &mut engine_limits);
             config.core.connectors = Box::new([fixtures::FORGE]);
-            config.forges = Box::new([forge::Configured {
-                admin_connect: false,
-                bot: Box::new([]),
-                owned: None,
-                number: 1,
-                kind: forge::Kind::GitHub,
-                mode: forge::Mode::Connected,
-                git: Box::new([]),
-                web: Some(b"https://github.test".as_slice().into()),
-                read_only: false,
-                asked: false,
-            }]);
+            config.machine = fixtures::machine();
+            config.forges = Box::new([]);
+            config.identities = Box::new([]);
             (config, engine_limits)
         });
-        let mut front = Self::with_engine(seed, &limits, Store::new(), [bootstrap, config], &engine_limits, 1);
+        let mut record = config.machine.github.clone();
+        record.number = 1;
+        record.mode = forge::Mode::Connected;
+        record.web = Some(b"https://github.test".as_slice().into());
+        let mut store = temper_engine_domain_world::fixtures::restored_over(Store::new(), bootstrap, &engine_limits);
+        store.seed(temper_engine_domain_world::forges::rows(&[record]), Box::new([]));
+        let mut front = Self::with_engine(seed, &limits, store, [walking::config(seed), config], &engine_limits, 1);
         front.reachable_empty = empty;
         front.engine.forge = Some(temper_engine_domain_world::forge_stand::ForgeStand::with(&[
             (b"acme", b"shop", 7),
@@ -732,6 +765,11 @@ impl Joint {
             refuse_return: false,
             set_ups: Vec::new(),
             admin_connects: Vec::new(),
+            makes: Vec::new(),
+            removals: Vec::new(),
+            manifests: Vec::new(),
+            hold_removals: false,
+            removal_answers: Vec::new(),
             demo: None,
             demo_starts: Vec::new(),
             demo_removals: Vec::new(),
@@ -811,6 +849,17 @@ impl Joint {
         }
     }
     fn send(&mut self, mut event: engine::Event) {
+        if let engine::Event::Party(engine::PartyInput::Application {
+            request: engine::Application::Forge(ask), ..
+        }) = &event
+        {
+            if let temper_engine_domain_forge::Ask::MakeForge { choice } = ask {
+                self.makes.push(choice.clone());
+            }
+            if let temper_engine_domain_forge::Ask::RemoveForge { forge } = ask {
+                self.removals.push(*forge);
+            }
+        }
         // The deployment front serves a window within the engine's configured page bound.
         if let engine::Event::Party(engine::PartyInput::Watch { window, .. }) = &mut event {
             window.rows = window.rows.min(self.engine.env.limits.documents.rows);
@@ -1353,6 +1402,33 @@ impl Joint {
     fn immediate(&mut self) {
         let immediate = std::mem::take(&mut self.engine.immediate);
         for request in immediate {
+            if let engine::Request::Register(record) = &request
+                && record.mode == temper_engine_domain_forge::Mode::Owned
+                && record.state == temper_engine_domain_forge::ForgeState::Kept
+                && record.first.is_none()
+            {
+                self.engine.send(engine::Event::Forge(Box::new(temper_engine_domain_forge::Event::Connection {
+                    forge: record.number,
+                    state: temper_engine_domain_forge::Connection::NotSetUp,
+                })));
+            }
+            let removal = if let engine::Request::RemoveGroup { forge } = &request {
+                Some(temper_engine_domain_forge::Event::GroupRemoved { forge: *forge })
+            } else if let engine::Request::EraseSecrets { forge } = &request {
+                Some(temper_engine_domain_forge::Event::SecretsErased { forge: *forge })
+            } else {
+                None
+            };
+            if let Some(answer) = removal {
+                if self.hold_removals {
+                    self.removal_answers.push(answer);
+                } else {
+                    self.engine.send(engine::Event::Forge(Box::new(answer)));
+                }
+            }
+            if let engine::Request::Manifest { forge, request, .. } = &request {
+                self.manifests.push((*forge, *request));
+            }
             if let engine::Request::Install { forge, request, .. } = &request {
                 self.installs.push((*forge, *request));
             }

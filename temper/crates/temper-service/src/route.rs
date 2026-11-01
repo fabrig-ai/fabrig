@@ -9,6 +9,7 @@ pub(crate) mod box_link;
 pub(crate) fn request(engine: &mut Engine, request: root::Request) {
     if let Some(demo) = &mut engine.demo {
         demo.state = engine.domain.demo_state();
+        demo.playground = engine.domain.playground();
     }
     match request {
         root::Request::Bound { request, answer } => engine.clients.bound(request, answer),
