@@ -1251,7 +1251,7 @@ pub(crate) fn box_started(service: &mut crate::Service) -> crate::HandoverRead {
     while service.notes().pop().is_some() {}
     let engine = service.engine.as_mut().unwrap();
     let mut out = Queue::with_capacity(3);
-    engine.box_link = crate::route::box_link::Link::new(128, true);
+    engine.box_link = crate::route::box_link::Link::new(128, true, 4);
     engine.box_link.ask(1, Token::new(456), &mut out);
     crate::route::box_link::drain(engine, &mut out);
     engine.box_link.write = None;

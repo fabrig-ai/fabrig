@@ -37,6 +37,7 @@ pub use worker::{Worker, WorkerRuntime};
 pub mod workers;
 pub use accounts::AccountsRuntime;
 mod engine;
+mod erase;
 mod route;
 mod setup;
 mod start_refusal;
@@ -139,6 +140,12 @@ pub struct Resolve {
 pub struct Tls {
     pub server_name: Box<[u8]>,
     pub trust: Option<Box<[u8]>>,
+}
+/// A group's settings, written whole before start (temper/docs/design/draft/playground-reset.md, 3).
+#[derive(Debug)]
+pub struct GroupWrite {
+    pub forge: u16,
+    pub text: Box<[u8]>,
 }
 #[derive(Debug)]
 pub struct HandoverRead {

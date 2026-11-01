@@ -6,17 +6,18 @@ use temper_engine_domain as root;
 pub(crate) mod box_link;
 
 #[expect(clippy::too_many_lines, reason = "one exhaustive dispatcher routes root outputs to their components")]
-#[expect(clippy::match_same_arms, reason = "sv's tasks fill the four independent routes")]
 pub(crate) fn request(engine: &mut Engine, request: root::Request) {
     if let Some(demo) = &mut engine.demo {
         demo.state = engine.domain.demo_state();
     }
     match request {
         root::Request::Bound { request, answer } => engine.clients.bound(request, answer),
-        // sv's removal task supplies the removal's box and secrets routes.
-        root::Request::RemoveGroup { .. } => {}
-        // sv's removal task supplies durable secret erasure.
-        root::Request::EraseSecrets { .. } => {}
+        root::Request::RemoveGroup { forge } => {
+            let mut out = skein_lib::Queue::with_capacity(1);
+            engine.box_link.remove(forge, &mut out);
+            box_link::drain(engine, &mut out);
+        }
+        root::Request::EraseSecrets { forge } => crate::erase::erase(engine, forge),
         root::Request::Register(record) => crate::forges::register(engine, record),
         root::Request::Unregister { forge } => crate::forges::unregister(engine, forge),
         root::Request::StopGroup { forge } => {
@@ -24,11 +25,7 @@ pub(crate) fn request(engine: &mut Engine, request: root::Request) {
             engine.box_link.stop(forge, &mut out);
             box_link::drain(engine, &mut out);
         }
-        root::Request::SetUpGroup { forge, request, .. } => {
-            let mut out = skein_lib::Queue::with_capacity(3);
-            engine.box_link.ask(forge, request, &mut out);
-            box_link::drain(engine, &mut out);
-        }
+        root::Request::SetUpGroup { forge, request, entry } => box_link::set_up_group(engine, forge, request, &entry),
         root::Request::Return { source, path } => {
             if let Some(request) = account_return(engine, source, &path)
                 && let Some(accounts) = &mut engine.accounts

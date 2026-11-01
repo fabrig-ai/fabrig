@@ -248,7 +248,7 @@ fn configured(forge: &Forge) -> crate::Service {
     let mut service =
         crate::Service::prepared(config, &fixtures::seeds(), None, endpoints, None, io, Some(256)).unwrap();
     service.engine.as_mut().unwrap().store = store;
-    service.engine.as_mut().unwrap().box_link = crate::route::box_link::Link::new(256, true);
+    service.engine.as_mut().unwrap().box_link = crate::route::box_link::Link::new(256, true, 4);
     service.engine.as_mut().unwrap().setup.lifecycle.local_mut(1).unwrap().pending = false;
     // Bind is covered independently by setup_bound_webhook; use the checked
     // configured listener here so the fake socket loop owns only forge traffic.
