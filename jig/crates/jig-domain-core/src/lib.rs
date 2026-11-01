@@ -36,6 +36,7 @@ pub mod waits;
 pub use effects::{EffectKey, EffectOrigin, EffectPurpose};
 
 mod ended_marks;
+mod erase;
 pub mod forget;
 mod funding;
 mod goal_of;
@@ -303,6 +304,7 @@ pub struct Core {
     pub(crate) census_progress: Map<u64, inbox::Progress>,
     pub(crate) census_position: Option<(u64, u64, u64)>,
     pub(crate) ended_marks: Map<Token, ended_marks::Loaded>,
+    pub(crate) erasures: Map<Token, erase::Erasing>,
     pub(crate) archived_chats: Map<u64, inbox::ArchivedChat>,
     pub(crate) proposed_input: Option<Result<Box<settings::Proposal>, people::Malformed>>,
     pub(crate) settings_offering: Option<(Token, u64, u32, settings::Proposal)>,
@@ -689,6 +691,7 @@ impl Core {
             census_progress: Map::with_capacity(limits.people.people),
             census_position: None,
             ended_marks: Map::with_capacity(limits.people.pending),
+            erasures: Map::with_capacity(limits.authority.projects),
             archived_chats: Map::with_capacity(
                 limits
                     .people

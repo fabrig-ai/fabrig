@@ -634,7 +634,7 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<E
         Event::Account(event) => route_account(core, env, work, event),
         Event::View(event) => route_view(core, env, event),
         Event::Notes(event) => route_notes(core, env, work, event),
-        Event::Swept { .. } => Requests::Out(Queue::uncapped()), // pd-erase-task consumes it.
+        Event::Swept { owner, rows, more } => crate::erase::swept(core, env, work, owner, rows, more),
     }
 }
 
