@@ -208,3 +208,68 @@ fn an_asked_group_numbered_again_is_the_group_set_up_for_that_number() {
         }
     }
 }
+
+/// All fetch, runner and listener combinations use the same entry's steps.
+#[test]
+fn an_owned_entrys_group_is_its_asked_group_in_steps() {
+    for shape in 0_u8..16 {
+        let entry = owned_shape(shape);
+        let listens = shape & 8 != 0;
+        let expected = crate::group(&entry, &flags(), listens).unwrap();
+        let setup = Setup { entries: Box::new([entry.clone()]) };
+        assert_eq!(steps(&setup, &flags(), Box::new([]), listens).asked.as_ref(), core::slice::from_ref(&expected));
+        let mut entry = entry;
+        entry.asked = false;
+        let setup = Setup { entries: Box::new([entry]) };
+        let always = steps(&setup, &flags(), Box::new([]), listens).always;
+        assert_eq!(always.len(), expected.steps.len().checked_add(1).unwrap());
+        for (step, (_, expected)) in always.iter().zip(expected.steps.iter()) {
+            assert_eq!(step, expected);
+        }
+    }
+    assert!(crate::group(&fixtures::setup().entries[0], &flags(), true).is_none());
+    assert!(crate::group(&fixtures::fake_setup().entries[2], &flags(), true).is_none());
+}
+
+fn owned_shape(shape: u8) -> crate::setup::Entry {
+    let mut entry = fixtures::setup().entries[1].clone();
+    entry.forge = u16::MAX;
+    entry.asked = true;
+    let Mode::Owned(owned) = &mut entry.mode else { panic!("owned") };
+    if shape & 1 == 0 {
+        owned.runner = None;
+    }
+    owned.fetch.forgejo = shape & 2 != 0;
+    owned.fetch.runner = shape & 4 != 0 && owned.runner.is_some();
+    entry
+}
+
+#[test]
+fn a_group_built_for_one_number_and_numbered_is_the_group_for_another() {
+    for shape in 0_u8..16 {
+        let mut entry = owned_shape(shape);
+        let listens = shape & 8 != 0;
+        let mut source = crate::group(&entry, &flags(), listens).unwrap();
+        entry.forge = 7;
+        let mut target = crate::group(&entry, &flags(), listens).unwrap();
+        assert_eq!(source.numbered(7), target);
+        for (group, notice) in [
+            (
+                &mut source,
+                b"Forge 65535 (Forgejo): started\nForge 65535 (Forgejo): api http://127.0.0.1:65535/api/v1\n"
+                    .as_slice(),
+            ),
+            (
+                &mut target,
+                b"Forge 7 (Forgejo): started\nForge 7 (Forgejo): api http://127.0.0.1:65535/api/v1\n".as_slice(),
+            ),
+        ] {
+            for (_, step) in &mut group.steps {
+                if step.ready().is_some() {
+                    step.set_started_notice(Box::from(notice));
+                }
+            }
+        }
+        assert_eq!(source.numbered(7), target);
+    }
+}
