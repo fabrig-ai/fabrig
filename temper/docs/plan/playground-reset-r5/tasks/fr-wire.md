@@ -23,7 +23,8 @@ Acceptance:
 - `temper/crates/temper-client-protocol-wire/schema/client-wire-v1.schema`
   holds exactly the forms of `notes/forge-records.md`, section 6:
   `NewGitHub`, `NewForgejo`, `NewForge { owned, github, forgejo }`,
-  `KeptForge`, `ForgeChoice { new, kept }`; `SetUp.forge` and
+  `KeptForge`, `NewForgeChoice { forge: NewForge }`, `ForgeChoice { new,
+  kept }`; `SetUp.forge` and
   `Connect.forge` typed `ForgeChoice`; `RemoveForge { forge: u16 }` and
   `Request::remove_forge` appended after pg-wire's requests;
   `MakeRefusal`, `MakeRefused`, `Removing`, `RemoveRefusal`,
@@ -106,3 +107,16 @@ Acceptance:
 ## Report
 
 As `notes/common.md` says; every file outside the owned list you edited.
+
+## Answers
+
+2026-11-01. Question: may `ForgeChoice::new` carry a wrapper record
+holding `NewForge`, since skein's schema rejects an enum as a variant's
+payload? Answer: yes. Add `record NewForgeChoice { forge: NewForge }`
+and type `ForgeChoice { new: NewForgeChoice, kept: KeptForge }`;
+`notes/forge-records.md`, section 6, now says so. No skein change: the
+rule is skein's grammar, pinned by its tests. `NewGitHub`, `NewForgejo`
+and `NewForge` stand as written, so `machine::fill(&Machine,
+&v1::NewForge)` (`fr-machine`) is unchanged; validation reads the
+`forgejo` address at `new.forge`. Go on from the pushed commit
+`5343c927fb`.
