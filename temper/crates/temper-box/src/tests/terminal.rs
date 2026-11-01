@@ -82,6 +82,7 @@ fn group_and_failure_facts_use_supplied_labels_and_exact_words() {
         (Fact::GroupStarting { forge: 37 }, b"\xffother\0label: starting\n".as_slice()),
         (Fact::GroupStarted { forge: 37 }, b"\xffother\0label: started\n"),
         (Fact::GroupStopped { forge: 37 }, b"\xffother\0label: stopped\n"),
+        (Fact::GroupRemoved { forge: 37 }, b"\xffother\0label: removed\n"),
         (
             Fact::GroupFailed { forge: 37, why: Why::Exited { step: 0, exit: Exit::Code(7) } },
             b"\xffother\0label: failed, a step exited 7\n",
@@ -198,4 +199,20 @@ fn the_largest_tail_fits_one_output_item_and_reset_releases_every_line() {
     let mut empty = formatter.fact(fact, &steps, Wall::EPOCH);
     tail.append(&mut empty, b"/data/box/logs/last-step.log");
     assert_eq!(empty, formatter.fact(fact, &steps, Wall::EPOCH));
+}
+
+#[test]
+fn a_started_notice_fragment_gets_its_line_ending() {
+    let mut steps = labelled(b"Forge", b"forge");
+    steps[0].step.set_started_notice(bytes::copy_of(b"first\nlast"));
+    let mut formatter = Formatter::new();
+    assert_eq!(
+        formatter.fact(Fact::GroupStarted { forge: 37 }, &steps, wall(0)),
+        item(Target::Stderr, b"first\nlast\n")
+    );
+    formatter.admitted_block();
+    assert_eq!(
+        formatter.fact(Fact::GroupStarted { forge: 37 }, &steps, wall(0)),
+        item(Target::Stderr, b"00:00:00Z first\n00:00:00Z last\n")
+    );
 }

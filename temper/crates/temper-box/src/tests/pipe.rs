@@ -51,7 +51,7 @@ fn only_canonical_start_and_stop_lines_are_known() {
             let expected = match expected {
                 Command::Start(forge) => Command::Stop(forge),
                 Command::Unknown => Command::Unknown,
-                Command::Stop(_) => unreachable!(),
+                Command::Stop(_) | Command::Remove(_) => unreachable!(),
             };
             assert_eq!(pipe::command(&stopped), expected, "{stopped:?}");
         }
@@ -94,4 +94,22 @@ fn box_lines_and_failure_words_have_the_wire_spelling_and_bound() {
             }
         }
     }
+}
+
+#[test]
+fn remove_parses_as_start_and_stop_do() {
+    for (line, expected) in [
+        (b"remove 7\n".as_slice(), Command::Remove(7)),
+        (b"remove 0\n", Command::Remove(0)),
+        (b"remove 65535\n", Command::Remove(65535)),
+        (b"remove 07\n", Command::Unknown),
+        (b"remove 65536\n", Command::Unknown),
+        (b"remove 7", Command::Unknown),
+    ] {
+        assert_eq!(pipe::command(line), expected);
+    }
+}
+#[test]
+fn removed_formats_its_line() {
+    assert_eq!(pipe::removed(7).as_ref(), b"removed 7\n");
 }

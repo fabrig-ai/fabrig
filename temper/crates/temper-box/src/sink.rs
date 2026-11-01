@@ -11,6 +11,7 @@ use skein_lib::{
 /// active item remains counted after its payload moves into io.
 #[derive(Debug)]
 pub struct Terminal {
+    entries: u32,
     tokens: [Token; 2],
     queued: Queue<Item>,
     active: Option<Target>,
@@ -22,6 +23,7 @@ impl Terminal {
     #[must_use]
     pub fn new(stdout: Token, stderr: Token, entries: u32) -> Self {
         Self {
+            entries,
             tokens: [stdout, stderr],
             queued: Queue::with_capacity(entries),
             active: None,
@@ -29,6 +31,11 @@ impl Terminal {
             closing: [false; 2],
             closed: [false; 2],
         }
+    }
+    /// Admission follows held steps within the construction's reserved capacity.
+    pub(crate) fn limit(&mut self, entries: u32) {
+        assert!(entries <= self.queued.capacity(), "admission fits reserved terminal");
+        self.entries = entries;
     }
     #[must_use]
     pub fn owns(&self, token: Token) -> bool {
@@ -42,7 +49,7 @@ impl Terminal {
     pub fn takes(&self, entries: u32) -> bool {
         !self.failed()
             && self.closing == [false; 2]
-            && self.queued.room()
+            && self.entries.saturating_sub(self.queued.len())
                 >= entries
                     .checked_add(u32::from(self.active.is_some() && self.phase == Phase::Flushing))
                     .expect("active slot")

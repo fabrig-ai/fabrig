@@ -95,7 +95,7 @@ impl Rig {
     }
 }
 
-use crate::host::{Service, Settings};
+use crate::host::{Loaded, Service, Settings};
 use skein_fake_machine::Machine as FakeMachine;
 use skein_io::kernel::{Complete, Done, Fd, Op, ServiceSignal, Submit};
 use skein_lib::{Token, Wall};
@@ -148,7 +148,17 @@ pub struct HeldEndings {
     pub completions: Queue<Complete>,
 }
 #[derive(Debug)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "the harness independently holds shell answers and kernel completions"
+)]
 pub struct Harness {
+    pub loads: List<u16>,
+    pub removals: List<u16>,
+    pub settings: skein_lib::Map<u16, Loaded>,
+    pub removal_answers: skein_lib::Map<u16, Result<(), Box<[u8]>>>,
+    pub hold_load: bool,
+    pub hold_removal: bool,
     pub sim: Sim,
     pub pid: Pid,
     pub service: Service,
@@ -255,6 +265,12 @@ impl Harness {
             sim,
             pid,
             service,
+            loads: List::uncapped(),
+            removals: List::uncapped(),
+            settings: skein_lib::Map::uncapped(),
+            removal_answers: skein_lib::Map::uncapped(),
+            hold_load: false,
+            hold_removal: false,
             launches: List::with_capacity(128),
             machine,
             signals,
@@ -279,6 +295,28 @@ impl Harness {
             hold_terminal_ack: false,
             held_terminal_ack: Queue::with_capacity(2),
             endings: HeldEndings { fds: [None; 5], exit: false, completions: Queue::with_capacity(ending_operations) },
+        }
+    }
+    pub fn settings(&mut self, forge: u16, loaded: Loaded) {
+        self.settings.insert(forge, loaded).unwrap();
+    }
+    pub fn removal(&mut self, forge: u16, removed: Result<(), Box<[u8]>>) {
+        self.removal_answers.insert(forge, removed).unwrap();
+    }
+    fn shell(&mut self) {
+        if !self.hold_load
+            && let Some(forge) = self.service.take_load()
+        {
+            self.loads.push(forge).unwrap();
+            let loaded = self.settings.remove(&forge).unwrap_or(Loaded::Absent);
+            self.service.loaded(forge, loaded);
+        }
+        if !self.hold_removal
+            && let Some(forge) = self.service.take_removal()
+        {
+            self.removals.push(forge).unwrap();
+            let removed = self.removal_answers.remove(&forge).unwrap_or(Ok(()));
+            self.service.removed(forge, removed);
         }
     }
     fn answer(&mut self) {
@@ -463,6 +501,7 @@ impl Harness {
         let would_wait = self.service.completions().is_empty() && !due && !self.service.work_pending(self.sim.now());
         self.service.iterate(self.sim.now(), self.wall);
         self.service.drain();
+        self.shell();
         assert!(
             !would_wait || self.service.submissions().is_empty(),
             "box submitted work on a turn with no completion, due deadline or work_pending"
@@ -807,6 +846,9 @@ fn is_effect(order: &Order) -> bool {
         | Order::Signal { .. }
         | Order::Close { .. }
         | Order::Record { .. }
+        | Order::Load { .. }
+        | Order::RemoveFiles { .. }
+        | Order::Forget { .. }
         | Order::Say { .. } => true,
     }
 }
@@ -826,4 +868,30 @@ pub fn grouped_steps() -> temper_forge_setup::Steps {
             ]),
         }]),
     }
+}
+
+/// A recorded runtime group: preparation completes, then Forgejo stays live.
+pub fn loaded_group(forge: u16) -> temper_forge_setup::Group {
+    use temper_forge_setup::{Group, Stage};
+    let digits = skein_lib::Decimal::of(u64::from(forge));
+    let prepare = crate::lines::joined(&[b"prepare ", digits.as_bytes()]);
+    let forgejo = crate::lines::joined(&[b"forgejo ", digits.as_bytes()]);
+    Group {
+        forge,
+        label: crate::lines::joined(&[b"Forge ", digits.as_bytes(), b" (Forgejo)"]),
+        recorded: true,
+        before: u32::MAX,
+        steps: Box::new([
+            (Stage::Prepare, once(&prepare, &[b"exit", b"0"])),
+            (Stage::Run, long(&forgejo, &[b"never"])),
+        ]),
+    }
+}
+
+pub fn repeated(byte: u8, count: u32) -> Box<[u8]> {
+    let mut out = List::with_capacity(count);
+    for _ in 0..count {
+        out.push(byte).unwrap();
+    }
+    out.into_boxed()
 }

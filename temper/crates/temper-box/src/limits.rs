@@ -3,6 +3,7 @@ use skein_lib::Duration;
 /// The box limits, durations in milliseconds at configuration boundaries.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Limits {
+    pub groups: u32,
     pub backoff: Duration,
     pub backoff_max: Duration,
     pub restarts: u32,
@@ -12,6 +13,10 @@ pub struct Limits {
     pub log_bytes: u32,
     pub tail_lines: u32,
 }
+/// Positions per runtime group: fetch, prepare, Forgejo and runner.
+pub const GROUP_STEPS: u32 = 4;
+/// Maximum loaded step name and group label bytes.
+pub const GROUP_NAME_BYTES: u32 = 64;
 /// The most restarts whose exit times can be retained.
 pub const MAX_RESTARTS: u32 = 64;
 /// One timestamp, the longest diagnostic piece, and its added LF.
@@ -25,6 +30,7 @@ pub const MAX_TAIL_LINES: u32 = 100;
 /// The failed cross-check or restart bound.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Unfit {
+    Groups,
     Backoff,
     Window,
     Restarts,
@@ -43,6 +49,7 @@ impl Unfit {
     #[must_use]
     pub fn names(self) -> &'static [&'static [u8]] {
         match self {
+            Self::Groups => &[b"box.groups"],
             Self::Backoff => &[b"box.backoff_ms", b"box.backoff_max_ms"],
             Self::Window => &[b"box.backoff_max_ms", b"box.window_ms"],
             Self::Restarts => &[b"box.restarts"],
@@ -56,6 +63,7 @@ impl Unfit {
 #[must_use]
 pub fn small() -> Limits {
     Limits {
+        groups: 4,
         backoff: Duration::from_millis(500),
         backoff_max: Duration::from_secs(30),
         restarts: 5,
@@ -77,6 +85,7 @@ pub fn apply(limits: &mut Limits, name: &[u8], value: u64) -> Result<(), Refused
         b"box.line_bytes",
         b"box.log_bytes",
         b"box.tail_lines",
+        b"box.groups",
     ]
     .contains(&name)
     {
@@ -93,12 +102,16 @@ pub fn apply(limits: &mut Limits, name: &[u8], value: u64) -> Result<(), Refused
         b"box.line_bytes" => limits.line_bytes = value,
         b"box.log_bytes" => limits.log_bytes = value,
         b"box.tail_lines" => limits.tail_lines = value,
+        b"box.groups" => limits.groups = value,
         _ => return Err(Refused::Unknown),
     }
     Ok(())
 }
 /// Checks relationships in their documented order.
 pub fn check(limits: &Limits) -> Result<(), Unfit> {
+    if limits.groups == 0 || limits.groups > 64 {
+        return Err(Unfit::Groups);
+    }
     if limits.backoff > limits.backoff_max {
         return Err(Unfit::Backoff);
     }

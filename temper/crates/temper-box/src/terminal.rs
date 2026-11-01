@@ -16,6 +16,7 @@ pub enum Fact {
     GroupStarted { forge: u16 },
     GroupFailed { forge: u16, why: Why },
     GroupStopped { forge: u16 },
+    GroupRemoved { forge: u16 },
     Restarting { step: usize, why: Why, delay: Duration },
     GivingUp { step: usize, why: Why },
     Stopping,
@@ -98,6 +99,9 @@ impl Formatter {
             Fact::GroupFailed { forge, why: reason } => {
                 joined(&[layout::label(steps, forge).expect("group label"), b": failed, ", &why(reason, steps), b"\n"])
             }
+            Fact::GroupRemoved { forge } => {
+                joined(&[layout::label(steps, forge).expect("group label"), b": removed\n"])
+            }
             Fact::GroupStopped { forge } => {
                 joined(&[layout::label(steps, forge).expect("group label"), b": stopped\n"])
             }
@@ -122,7 +126,10 @@ impl Formatter {
                 first = end;
             }
         }
-        assert_eq!(first, lines.len(), "public notice lines end in LF");
+        if first < lines.len() {
+            let fragment = joined(&[lines.get(first..).expect("notice fragment"), b"\n"]);
+            writer.put(&self.notice(&fragment, wall).bytes).expect("measured fragment");
+        }
         Item { target: Target::Stderr, bytes: writer.finish() }
     }
     #[must_use]
@@ -143,6 +150,11 @@ impl Formatter {
 #[must_use]
 pub fn why(why: Why, steps: &[Placed]) -> Box<[u8]> {
     match why {
+        Why::NoSettings => skein_lib::bytes::copy_of(b"no settings"),
+        Why::TooMany => skein_lib::bytes::copy_of(b"too many groups"),
+        Why::Unfit => skein_lib::bytes::copy_of(b"settings unfit"),
+        Why::NotRemoved => skein_lib::bytes::copy_of(b"not removed"),
+        Why::Refused => unreachable!("the host holds shell refusal words"),
         Why::Busy => skein_lib::bytes::copy_of(b"busy"),
         Why::NotAsked => skein_lib::bytes::copy_of(b"not asked"),
         Why::Stopping => skein_lib::bytes::copy_of(b"stopping"),
@@ -177,6 +189,9 @@ pub fn max_bytes(steps: &[Placed]) -> u32 {
 }
 fn notice_bytes(lines: &[u8], timed: bool) -> usize {
     let mut length = lines.len();
+    if !lines.is_empty() && !lines.ends_with(b"\n") {
+        length = length.checked_add(if timed { 11 } else { 1 }).expect("notice fragment ending");
+    }
     if timed {
         for byte in lines {
             if *byte == b'\n' {
@@ -263,13 +278,23 @@ pub(crate) fn tail_step(fact: Fact) -> Option<usize> {
         | Fact::Started { .. }
         | Fact::GroupStarting { .. }
         | Fact::GroupStarted { .. }
+        | Fact::GroupRemoved { .. }
         | Fact::GroupStopped { .. }
         | Fact::Stopping
         | Fact::Stopped => return None,
     };
     match why {
         Why::Exited { step, .. } | Why::NotReady { step } => Some(step),
-        Why::NotStarted { .. } | Why::NotWritten | Why::Busy | Why::NotAsked | Why::Stopping => None,
+        Why::NotStarted { .. }
+        | Why::NotWritten
+        | Why::Busy
+        | Why::NotAsked
+        | Why::Stopping
+        | Why::NoSettings
+        | Why::TooMany
+        | Why::Unfit
+        | Why::NotRemoved
+        | Why::Refused => None,
     }
 }
 pub(crate) fn failure_bytes(steps: &[Placed], data: &[u8]) -> u32 {
