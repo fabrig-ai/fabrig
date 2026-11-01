@@ -67,7 +67,12 @@ pub fn restore(range: &RestoreRange) -> Box<[Range]> {
                 Range::prefix(&[keys::JIG, 1, 21]),
             ]);
         }
-        RestoreRange::Core => Range { start: Box::new([keys::JIG, 0, 1]), end: Some(Box::new([keys::JIG, 0, 4])) },
+        RestoreRange::Core => {
+            return Box::new([
+                Range { start: Box::new([keys::JIG, 0, 1]), end: Some(Box::new([keys::JIG, 0, 4])) },
+                Range::prefix(&[keys::JIG, 0, 10]),
+            ]);
+        }
         RestoreRange::Census(census) => return census_ranges(census),
     }])
 }

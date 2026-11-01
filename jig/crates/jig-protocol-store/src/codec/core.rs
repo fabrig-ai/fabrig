@@ -1,5 +1,5 @@
 //! Core rows carried by their generated family (protocol/store.md, 5.1).
-use crate::core_v6 as wire;
+use crate::core_v7 as wire;
 use alloc::boxed::Box;
 use jig_domain_authority as authority;
 use jig_domain_core as domain;
@@ -23,7 +23,7 @@ pub fn limits(domain: &domain::Limits) -> Option<Limits> {
     let tasks = crate::codec::tasks::limits(&domain.tasks)?;
     let notes = crate::codec::notes::limits(&domain.notes)?;
     let core = wire::Limits {
-        settings_refusal_value: u32::try_from(crate::people_v13::Refusal::encoded_bound(&crate::people_v13::CEILINGS)?)
+        settings_refusal_value: u32::try_from(crate::people_v14::Refusal::encoded_bound(&crate::people_v14::CEILINGS)?)
             .ok()?,
         phase_bytes_value: u32::try_from(crate::tasks_v9::PhaseRecord::encoded_bound(&tasks)?).ok()?,
         change_bytes_value: u32::try_from(crate::tasks_v9::ChangeRecord::encoded_bound(&tasks)?).ok()?,
@@ -54,6 +54,17 @@ pub fn limits(domain: &domain::Limits) -> Option<Limits> {
 }
 pub fn encode(row: &domain::CoreRecord, limits: &Limits) -> Result<Box<[u8]>, wire::Problem> {
     let value = match row {
+        domain::CoreRecord::Removal(value) => wire::Value::Removal(wire::Removal::new(
+            &limits.core,
+            wire::RemovalParts {
+                project: value.project,
+                stage: match value.stage {
+                    domain::RemovalStage::Ending => wire::RemovalStage::Ending,
+                    domain::RemovalStage::Erasing => wire::RemovalStage::Erasing,
+                    domain::RemovalStage::Releasing => wire::RemovalStage::Releasing,
+                },
+            },
+        )?),
         domain::CoreRecord::Call(call) => wire::Value::Call(calls::encode_call_record(call, limits)?),
         domain::CoreRecord::Settings(_) => {
             return Err(wire::Problem { path: wire::Path::ValueTag, reason: skein_codec::Reason::Bound });
@@ -81,6 +92,14 @@ pub fn encode(row: &domain::CoreRecord, limits: &Limits) -> Result<Box<[u8]>, wi
 pub fn decode(bytes: &[u8], limits: &Limits) -> Result<domain::CoreRecord, wire::Problem> {
     let wire::RowParts { value } = wire::Row::decode(&limits.core, &mut Reader::new(bytes))?.into_parts();
     Ok(match value {
+        wire::Value::Removal(value) => domain::CoreRecord::Removal(domain::Removal {
+            project: value.project(),
+            stage: match value.stage() {
+                wire::RemovalStage::Ending => domain::RemovalStage::Ending,
+                wire::RemovalStage::Erasing => domain::RemovalStage::Erasing,
+                wire::RemovalStage::Releasing => domain::RemovalStage::Releasing,
+            },
+        }),
         wire::Value::Call(value) => domain::CoreRecord::Call(calls::decode_call_record(value, limits)?),
         wire::Value::Deployment(value) => domain::CoreRecord::Deployment(runs::decode_deployment(value, limits)),
         wire::Value::Projection(value) => {

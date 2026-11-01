@@ -155,10 +155,10 @@ fn behind_plans_before_ready_and_ignores_only_the_application_version() {
 fn behind_keeps_jigs_versions_layouts_deployment_and_numbers_checks() {
     let (key, mut row) = fixture_format();
     row.levels = format::recorded(levels(0, 0));
-    row.core = 5;
+    row.core = 6;
     let mut changed = replacing(skein_kv::Op::Put { key, value: row.encode().expect("format") });
     changed.patch_sets(SETS);
-    refused(&mut changed, OpenRefusal::Format { family: Family::Core, found: 5, wanted: 6 });
+    refused(&mut changed, OpenRefusal::Format { family: Family::Core, found: 6, wanted: 7 });
     let mut changed = store(levels(0, 0), SETS);
     changed.layouts.core[0] ^= 1;
     refused(&mut changed, OpenRefusal::OlderBuild { why: Older::Layout(Family::Core) });

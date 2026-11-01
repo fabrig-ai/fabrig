@@ -560,7 +560,7 @@ fn core_limits() -> jig_domain_core::Limits {
     fixtures::CORE_LIMITS
 }
 
-fn people_limits() -> crate::people_v13::Limits {
+fn people_limits() -> crate::people_v14::Limits {
     crate::codec::people::limits(&core_limits()).expect("within people's ceilings")
 }
 
@@ -577,7 +577,7 @@ fn ask_round_trip(ask: jig_domain_people::Ask) {
     let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("bounded length"));
     value.encode(&mut writer).expect("measured room");
     let bytes = writer.finish();
-    let read = crate::people_v13::Ask::decode(&limits, &mut skein_lib::Reader::new(&bytes)).expect("saved ask");
+    let read = crate::people_v14::Ask::decode(&limits, &mut skein_lib::Reader::new(&bytes)).expect("saved ask");
     assert_eq!(crate::codec::people::decode_ask(read, &limits), Ok(ask));
 }
 
@@ -691,8 +691,8 @@ fn a_person_identity_field_past_its_limit_is_refused() {
             &people_limits(),
             &fixtures::model_names(&[])
         ),
-        Err(crate::people_v13::Problem {
-            path: crate::people_v13::Path::IdentityKeySubject,
+        Err(crate::people_v14::Problem {
+            path: crate::people_v14::Path::IdentityKeySubject,
             reason: skein_codec::Reason::Bound
         })
     );
@@ -706,8 +706,8 @@ fn a_people_row_of_another_version_does_not_decode() {
     *bytes.get_mut(1).expect("version prefix") = 9;
     assert_eq!(
         crate::codec::people::decode(&bytes, &limits, &names),
-        Err(crate::people_v13::Problem {
-            path: crate::people_v13::Path::RowVersion,
+        Err(crate::people_v14::Problem {
+            path: crate::people_v14::Path::RowVersion,
             reason: skein_codec::Reason::Version
         })
     );
@@ -801,7 +801,7 @@ fn a_carried_change_reads_back_as_its_own_family() {
 
 fn core_limits_past_the_settled_answer_ceiling_are_refused() {
     let mut domain = core_limits();
-    domain.call_answer_bytes = crate::core_v6::CEILINGS.settled_answer_host_body + 1;
+    domain.call_answer_bytes = crate::core_v7::CEILINGS.settled_answer_host_body + 1;
     assert!(crate::codec::core::limits(&domain).is_none());
 }
 
@@ -1307,7 +1307,7 @@ fn retained_people_answers_keep_dependency_refusal_facts() {
 #[test]
 #[expect(clippy::disallowed_macros, reason = "ordinary tests build boundary text")]
 fn a_stored_project_name_is_bounded_and_utf8() {
-    use crate::people_v13 as wire;
+    use crate::people_v14 as wire;
     use skein_lib::{Reader, Writer};
     // store.md, 4.4: the name is UTF-8 text, at most 64 bytes.
     const NAME_BOUND: usize = 64;
@@ -1428,4 +1428,40 @@ fn an_owing_reminder_survives_storage_with_small_caller_word_limits() {
     });
     let bytes = crate::codec::tasks::encode(&row, &limits, &[]).expect("fixed reminder fits");
     assert_eq!(crate::codec::tasks::decode(&bytes, &limits, &[]), Ok(row));
+}
+
+#[test]
+fn remove_project_asks_and_acts_read_back_at_both_project_bounds() {
+    use jig_domain_people::{Act, ActKey, Ask, Outcome, Stored};
+    for project in [0, u32::MAX] {
+        ask_round_trip(Ask::RemoveProject { project });
+        people_round_trip(Stored::Acted {
+            key: ActKey { connector: u16::MAX, key: [255; 16] },
+            act: Act::RemoveProject { project },
+            outcome: Outcome::ProjectRemoved { project },
+            at: skein_lib::Wall::from_nanos(u64::MAX),
+        });
+    }
+}
+
+#[test]
+fn cancel_acts_read_back_at_their_smallest_and_fullest() {
+    use jig_domain_people::{Act, ActKey, Outcome, Refusal, Stored};
+    let reason_bytes = usize::try_from(people_limits().act_cancel_reason).expect("reason bound fits");
+    for act in [
+        Act::Cancel { project: 0, task: 0, grace: None, reason: Box::new([]) },
+        Act::Cancel {
+            project: u32::MAX,
+            task: u64::MAX,
+            grace: Some(skein_lib::Duration::from_nanos(u64::MAX)),
+            reason: skein_lib::bytes::zeroed(reason_bytes),
+        },
+    ] {
+        people_round_trip(Stored::Acted {
+            key: ActKey { connector: u16::MAX, key: [255; 16] },
+            act,
+            outcome: Outcome::Refused(Refusal::NotOffered),
+            at: skein_lib::Wall::EPOCH,
+        });
+    }
 }

@@ -142,7 +142,7 @@ pub(crate) fn layout(
     let core = root::core_limits(root);
     let mut kv = profile.store;
     let transcript = root.loads.transcript_bytes;
-    let ceiling = protocol::core_v6::CEILINGS.turn_record_transcript;
+    let ceiling = protocol::core_v7::CEILINGS.turn_record_transcript;
     if transcript > ceiling {
         return Err(Refusal::Transcript { bytes: transcript, ceiling });
     }
@@ -729,7 +729,7 @@ mod sizing_tests {
     #[test]
     fn page_refuses_codec_excess_and_checked_overflow() {
         let (_, core, _) = crate::tests::fixtures::store_limits();
-        let ceiling = jig_protocol_store::core_v6::CEILINGS.turn_record_transcript;
+        let ceiling = jig_protocol_store::core_v7::CEILINGS.turn_record_transcript;
         assert_eq!(page_bytes(&core, ceiling, 3, 4), ceiling.checked_add(64));
         assert_eq!(page_bytes(&core, ceiling.checked_add(1).unwrap(), 3, 4), None);
         assert_eq!(page_bytes(&core, u32::MAX, 3, 4), None);

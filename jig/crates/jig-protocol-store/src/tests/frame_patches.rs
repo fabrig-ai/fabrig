@@ -565,7 +565,7 @@ fn the_turn_machine_reads_its_kept_texts_most_nodes_and_one_past_is_unread() {
         let (mut disk, mut store) = scene(&bytes, sets);
         let machine = store.transcripts.machines.turn.as_ref().expect("smith's machine");
         assert_eq!(machine.capacity.nodes, ITEMS.checked_add(OVERHEAD).expect("nodes"), "the kept texts' most");
-        let events = disk.request(&mut store, request(1, u64::from(crate::core_v6::CEILINGS.turn_record_transcript)));
+        let events = disk.request(&mut store, request(1, u64::from(crate::core_v7::CEILINGS.turn_record_transcript)));
         if accepted {
             assert_eq!(payload(&events), &*node_turn(2, count));
         } else {

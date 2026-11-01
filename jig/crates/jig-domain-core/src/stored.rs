@@ -247,6 +247,8 @@ pub struct CallRecord {
 /// its own child-family variant (domain/engine.md, 5.4).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum CoreRecord {
+    /// A kept project deletion.
+    Removal(crate::Removal),
     /// Settings have their own independently versioned store family.
     Settings(crate::settings::Record),
     /// Bounded goal feed metadata, plan row or pending milestone.
@@ -277,6 +279,7 @@ impl CoreRecord {
             Self::Projection(row) => CoreKey::Projection(row.key()),
             Self::Call(row) => CoreKey::Call(row.key),
             Self::RunProof(row) => CoreKey::RunProof(row.task),
+            Self::Removal(row) => CoreKey::Removal(row.project),
             Self::Turn(row) => CoreKey::Turn { task: row.task, attempt: row.attempt, turn: row.turn },
             Self::Terminal(row) => CoreKey::Terminal { task: row.task, attempt: row.attempt },
             Self::ProposalDecision(row) => CoreKey::ProposalDecision { proposer: row.proposer, proposal: row.proposal },
@@ -306,6 +309,8 @@ pub enum CoreKey {
     EscalationDecision { task: u64, revision: u64 },
     /// The settings live family and its on-demand history.
     Settings(crate::settings::Key),
+    /// A kept deletion, addressed by its project.
+    Removal(u32),
 }
 
 impl CoreKey {
@@ -313,7 +318,7 @@ impl CoreKey {
     #[must_use]
     pub const fn live(&self) -> bool {
         match self {
-            Self::Projection(_) | Self::RunProof(_) | Self::Call(_) => true,
+            Self::Projection(_) | Self::RunProof(_) | Self::Call(_) | Self::Removal(_) => true,
             Self::Settings(_)
             | Self::Deployment
             | Self::Turn { .. }
@@ -635,6 +640,21 @@ impl Core {
                 } else {
                     Restored::Rejected
                 }
+            }
+            CoreRecord::Removal(row) => {
+                if self.start.mode == crate::start::StartMode::LoadAndLink {
+                    let key = Key::Core(CoreKey::Removal(row.project));
+                    assert!(!self.removals.contains_key(&row.project), "duplicate {key:?}");
+                    if !self.start_room(
+                        crate::start::LiveSet::Projects,
+                        key,
+                        self.removals.len(),
+                        self.removals.capacity(),
+                    ) {
+                        return Restored::Rejected;
+                    }
+                }
+                if self.removals.insert(row.project, row).is_ok() { Restored::Live } else { Restored::Rejected }
             }
             CoreRecord::RunProof(proof) => {
                 if self.restore_proof(proof, limits.tasks.result_bytes) {

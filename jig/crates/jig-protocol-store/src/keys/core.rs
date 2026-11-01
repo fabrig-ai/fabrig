@@ -5,6 +5,10 @@ use skein_kv::{KeyReader, KeyWriter};
 pub(super) fn write(writer: &mut KeyWriter, key: &CoreKey) {
     match key {
         CoreKey::Settings(key) => super::settings::write(writer, key),
+        CoreKey::Removal(project) => {
+            writer.tag(10);
+            writer.u64(u64::from(*project));
+        }
         CoreKey::Deployment => {
             writer.tag(0);
         }
@@ -82,6 +86,7 @@ fn projection(writer: &mut KeyWriter, key: &ProjectionKey) {
 }
 pub(super) fn read(reader: &mut KeyReader<'_>) -> Option<CoreKey> {
     Some(match reader.tag()? {
+        10 => CoreKey::Removal(u32::try_from(reader.u64()?).ok()?),
         0 => CoreKey::Deployment,
         1 => CoreKey::Projection(read_projection(reader)?),
         2 => CoreKey::RunProof(reader.u64()?),

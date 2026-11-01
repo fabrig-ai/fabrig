@@ -306,6 +306,7 @@ fn turn_bytes(record: &core::Record) -> Result<u64, Failure> {
             | core::CoreRecord::Deployment(_)
             | core::CoreRecord::Projection(_)
             | core::CoreRecord::Call(_)
+            | core::CoreRecord::Removal(_)
             | core::CoreRecord::RunProof(_)
             | core::CoreRecord::Terminal(_)
             | core::CoreRecord::ProposalDecision(_)

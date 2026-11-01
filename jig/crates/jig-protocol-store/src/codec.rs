@@ -14,9 +14,9 @@ use jig_domain_core as domain;
 #[derive(Clone, Copy, Debug)]
 pub struct Limits {
     pub settings: crate::settings_v1::Limits,
-    pub core: crate::core_v6::Limits,
+    pub core: crate::core_v7::Limits,
     pub tasks: crate::tasks_v9::Limits,
-    pub people: crate::people_v13::Limits,
+    pub people: crate::people_v14::Limits,
     pub notes: crate::notes_v1::Limits,
 }
 

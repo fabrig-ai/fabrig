@@ -538,6 +538,13 @@ pub(crate) fn restore_page_row(domain: &mut Domain, env: &Env<Limits>, row: Reco
             }
             domain.work.push(Work::Tasks(tasks::Event::Restore { record }));
         }
+        Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Removal(row))) => {
+            if domain.core.restore_core(jig_domain_core::CoreRecord::Removal(row), &core_limits(&env.limits))
+                != jig_domain_core::Restored::Live
+            {
+                let _refused = domain.core.restart_refuse();
+            }
+        }
         Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::RunProof(proof))) => {
             if domain.core.restore_core(jig_domain_core::CoreRecord::RunProof(proof), &core_limits(&env.limits))
                 != jig_domain_core::Restored::Live

@@ -43,9 +43,9 @@ pub(crate) fn compare(found: Levels, wanted: Levels) -> Result<Compared, OpenRef
 pub fn current(application: u32, deployment: [u8; 16]) -> component::Format {
     component::Format {
         component: 3,
-        core: 6,
+        core: 7,
         tasks: 9,
-        people: 13,
+        people: 14,
         notes: 1,
         accounts: 2,
         settings: 1,

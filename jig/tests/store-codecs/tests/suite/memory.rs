@@ -1,5 +1,5 @@
 //! Full golden rows decode within their decoded bounds (skein's codec.md, 6).
-use jig_protocol_store::{accounts_v2, component_v3, core_v6, notes_v1, people_v13, secrets_v1, tasks_v9};
+use jig_protocol_store::{accounts_v2, component_v3, core_v7, notes_v1, people_v14, secrets_v1, tasks_v9};
 use skein_heap::Meter;
 use skein_lib::Reader;
 
@@ -34,16 +34,16 @@ fn a_full_tasks_row_decodes_within_its_decoded_bound() {
 }
 #[test]
 fn a_full_core_row_decodes_within_its_decoded_bound() {
-    let bound = core_v6::Row::decoded_bound(&core_v6::CEILINGS).expect("core heap bound");
+    let bound = core_v7::Row::decoded_bound(&core_v7::CEILINGS).expect("core heap bound");
     check("core", "row", bound, |golden| {
-        core_v6::Row::decode(&core_v6::CEILINGS, &mut Reader::new(golden)).expect("full row")
+        core_v7::Row::decode(&core_v7::CEILINGS, &mut Reader::new(golden)).expect("full row")
     });
 }
 #[test]
 fn a_full_people_row_decodes_within_its_decoded_bound() {
-    let bound = people_v13::Row::decoded_bound(&people_v13::CEILINGS).expect("people heap bound");
+    let bound = people_v14::Row::decoded_bound(&people_v14::CEILINGS).expect("people heap bound");
     check("people", "row", bound, |golden| {
-        people_v13::Row::decode(&people_v13::CEILINGS, &mut Reader::new(golden)).expect("full row")
+        people_v14::Row::decode(&people_v14::CEILINGS, &mut Reader::new(golden)).expect("full row")
     });
 }
 #[test]

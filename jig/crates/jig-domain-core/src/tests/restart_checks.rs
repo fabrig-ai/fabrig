@@ -378,3 +378,14 @@ fn a_placed_hold_masked_by_another_still_resolves_its_owner_before_switch() {
     assert!(!core.restart_checked());
     unresolved(&core, RestoreChild::Tasks, 1);
 }
+
+#[test]
+fn a_removal_row_is_restored_into_the_core() {
+    const PROJECT: u32 = 1;
+    let saved = CoreRecord::Removal(Removal { project: PROJECT, stage: RemovalStage::Erasing });
+    let limits = limits();
+    let mut restarted = Core::new(config(41), &limits).expect("restart configuration");
+    let _action = restarted.start_begin(false, Wall::EPOCH);
+    assert_eq!(restarted.restore_core(saved, &limits), Restored::Live);
+    assert_eq!(restarted.removals.get(&PROJECT), Some(&Removal { project: PROJECT, stage: RemovalStage::Erasing }));
+}

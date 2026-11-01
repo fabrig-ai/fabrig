@@ -11,9 +11,9 @@ use std::{
 fn limits() -> codec::Limits {
     codec::Limits {
         settings: store::settings_v1::CEILINGS,
-        core: store::core_v6::CEILINGS,
+        core: store::core_v7::CEILINGS,
         tasks: store::tasks_v9::CEILINGS,
-        people: store::people_v13::CEILINGS,
+        people: store::people_v14::CEILINGS,
         notes: store::notes_v1::CEILINGS,
     }
 }
@@ -27,7 +27,7 @@ pub(crate) fn read(data: &Path, task: u64) -> Result<Vec<smith::Turn>, Refusal> 
     let mut at = 0;
     let mut turns = Vec::new();
     let limits = limits();
-    let maximum = store::core_v6::TurnRecord::encoded_bound(&limits.core).expect("schema ceilings") + 12;
+    let maximum = store::core_v7::TurnRecord::encoded_bound(&limits.core).expect("schema ceilings") + 12;
     loop {
         let mut head = [0; 4];
         // A whole EOF ends the file; an incomplete header is an unheld frame.
@@ -80,8 +80,8 @@ fn decode(bytes: &[u8], limits: &codec::Limits, task: u64, at: u64) -> Result<sm
     let Ok(record) = frame::decode(bytes, limits) else {
         let version = u16::from_be_bytes([bytes[4], bytes[5]]);
         let mut reader = skein_lib::Reader::new(&bytes[4..end - 8]);
-        if let Err(problem) = store::core_v6::TurnRecord::decode(&limits.core, &mut reader)
-            && problem.path == store::core_v6::Path::TurnRecordVersion
+        if let Err(problem) = store::core_v7::TurnRecord::decode(&limits.core, &mut reader)
+            && problem.path == store::core_v7::Path::TurnRecordVersion
         {
             return Err(Refusal::Version { task, version });
         }

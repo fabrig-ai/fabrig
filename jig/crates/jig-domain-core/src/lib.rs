@@ -100,7 +100,9 @@ pub mod charters;
 pub mod fleet_needs;
 pub mod settings;
 pub use charters::Charter;
+mod removal;
 mod stored;
+pub use removal::{Removal, RemovalStage};
 mod translate;
 use run::HistoricalResult;
 pub use run::{
@@ -411,6 +413,8 @@ pub struct Core {
     pub transcripts: Map<u64, Transcript>,
     /// Current durable claim evidence.
     pub proofs: Map<u64, RunProof>,
+    /// Kept project deletions, restored with the live core rows.
+    pub(crate) removals: Map<u32, Removal>,
     /// Durable proof kept aside until a replacement claim commits.
     pub replaced: Map<u64, RunProof>,
     /// Correlation while current proofs are restored.
@@ -770,6 +774,7 @@ impl Core {
             workspace_credentials: Map::with_capacity(limits.tasks.tasks),
             transcripts: Map::with_capacity(limits.tasks.tasks),
             proofs: Map::with_capacity(limits.tasks.tasks),
+            removals: Map::with_capacity(limits.authority.projects),
             replaced: Map::with_capacity(limits.tasks.tasks),
             restoring_proofs: Map::with_capacity(limits.tasks.tasks),
             unreported_restored: Map::with_capacity(limits.tasks.tasks),

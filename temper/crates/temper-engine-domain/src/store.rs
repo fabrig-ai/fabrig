@@ -484,10 +484,11 @@ impl CoreRange {
                 let Core::People(child) = key else { return false };
                 child.live()
             }
-            CoreRange::RunProofs => {
-                let Core::Core(CoreKey::RunProof(task)) = key else { return false };
-                *task != 0
-            }
+            CoreRange::RunProofs => match key {
+                Core::Core(CoreKey::Removal(project)) => *project != 0,
+                Core::Core(CoreKey::RunProof(task)) => *task != 0,
+                Core::Core(_) | Core::Tasks(_) | Core::People(_) | Core::Notes(_) | Core::Accounts(_) => false,
+            },
             CoreRange::EndedRead { task, party } => {
                 *key == jig_domain_core::Key::People(jig_domain_people::Key::EndedRead { task: *task, party: *party })
             }
@@ -618,7 +619,9 @@ pub fn record_bytes(record: &Record) -> Option<u64> {
             })
         }
         Record::Core(jig_domain_core::Record::Core(
-            jig_domain_core::CoreRecord::ProposalDecision(_) | jig_domain_core::CoreRecord::Deployment(_),
+            jig_domain_core::CoreRecord::Removal(_)
+            | jig_domain_core::CoreRecord::ProposalDecision(_)
+            | jig_domain_core::CoreRecord::Deployment(_),
         )) => Some(0),
         Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Turn(turn))) => {
             u64::try_from(turn.transcript.len()).ok()
@@ -852,6 +855,7 @@ pub(crate) fn owned_bytes(write: &Write) -> Option<u64> {
                     | jig_domain_core::CoreKey::EscalationDecision { .. }
                     | jig_domain_core::CoreKey::ProposalDecision { .. }
                     | jig_domain_core::CoreKey::Turn { .. }
+                    | jig_domain_core::CoreKey::Removal(..)
                     | jig_domain_core::CoreKey::RunProof(..)
                     | jig_domain_core::CoreKey::Terminal { .. }
                     | jig_domain_core::CoreKey::Projection(_),
