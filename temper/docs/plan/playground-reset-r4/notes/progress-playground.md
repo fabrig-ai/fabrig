@@ -14,6 +14,7 @@ final: tasks/pg-start-over.md
 final: tasks/pg-ctl.md
 final: tasks/pg-ctl-help.md
 final: tasks/pg-demo-out-wire.md
+final: tasks/pg-config.md
 
 ## Parts
 
