@@ -41,6 +41,7 @@ fn translate_charter(charter: &wire::Charter, endpoints: &Endpoints) -> Result<r
             wire::Effect::Write => run::HostEffect::Write,
         };
         let item = run::HostTool {
+            reserve: tool.reserve(),
             name: Box::from(tool.name()),
             description: Box::from(tool.description()),
             schema: Box::from(tool.input()),

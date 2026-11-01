@@ -323,6 +323,7 @@ fn pending_children_cannot_reserve_the_same_last_ordinary_turn() {
         crate::Mode::Finite,
         crate::wind_down::Cause::Budget(Exhausted::Turns),
         crate::charter::Reserve { turns: 1, time: Duration::ZERO },
+        &[],
     );
     assert_eq!(
         crate::completion_permit(&mut harness.domain, main, harness.env.now, crate::Most::Bounded(0)),
@@ -366,6 +367,7 @@ fn ordinary_time_closes_a_child_then_main_receives_its_final_permit() {
         crate::Mode::Finite,
         crate::wind_down::Cause::Budget(Exhausted::Turns),
         crate::charter::Reserve { turns: 2, time: Duration::from_secs(60) },
+        &[],
     );
     assert_eq!(
         crate::completion_permit(&mut harness.domain, main, harness.env.now, crate::Most::Bounded(0)),

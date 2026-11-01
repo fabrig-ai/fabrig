@@ -379,7 +379,8 @@ open is section 9.
   user message,
   the run's note that the budget is spent and to finish now
   (domain/run.md, 9.1). From then on the agent refuses every call but
-  `finish`, and `deliver` when granted: a built-in's at its permission
+  `finish`, `deliver` when granted and host tools declared for the reserve:
+  a built-in's at its permission
   prompt (5.4), and its own server's tools' as it answers them, each
   answered as not run, naming the calls allowed, as a call outside a
   completion's tool choice is (domain/session.md, section 5). Main then

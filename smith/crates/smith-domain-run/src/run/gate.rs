@@ -294,6 +294,7 @@ fn working_permit(run: &mut Run, child: bool, now: Time) -> CompletionPermit {
                         time: run.charter.reserve.time.min(run.deadline.saturating_since(now)),
                         ..run.charter.reserve
                     },
+                    &run.charter.grants.host_tools,
                 ))
             };
             CompletionPermit::Final { note }

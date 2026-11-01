@@ -19,7 +19,7 @@ use crate::charter::{Brief, Mode, Reserve};
 use skein_lib::{Duration, Writer};
 
 use crate::boundary::Stop;
-use crate::charter::{Charter, Families, Llm, Tools};
+use crate::charter::{Charter, Families, HostTool, Llm, Tools};
 use crate::conventions;
 use crate::outcome::{FieldRule, OutcomeSpec, TextSpec, VerdictRule};
 use crate::prepare::{Found, Guide};
@@ -92,6 +92,7 @@ fn render_fixed(text: &mut Text) {
         crate::wind_down::Cause::Budget(crate::Exhausted::Turns),
         text,
         Reserve { turns: u32::MAX, time: Duration::from_nanos(u64::MAX) },
+        &[],
     );
     text.put(&finish_now());
     text.put(&child_final_note());
@@ -181,11 +182,16 @@ fn begin(brief: bool, resumed: bool, messages: Option<Box<[u8]>>) -> Box<[u8]> {
 }
 
 /// The first final completion receives this appended after the latest results.
-pub(crate) fn wind_down_note(mode: Mode, cause: crate::wind_down::Cause, reserve: Reserve) -> Box<[u8]> {
+pub(crate) fn wind_down_note(
+    mode: Mode,
+    cause: crate::wind_down::Cause,
+    reserve: Reserve,
+    tools: &[HostTool],
+) -> Box<[u8]> {
     let mut measured = Text::measuring();
-    render_wind_down(mode, cause, &mut measured, reserve);
+    render_wind_down(mode, cause, &mut measured, reserve, tools);
     let mut text = measured.writing();
-    render_wind_down(mode, cause, &mut text, reserve);
+    render_wind_down(mode, cause, &mut text, reserve, tools);
     text.finish()
 }
 
@@ -199,7 +205,7 @@ pub(crate) fn last_reply() -> Box<[u8]> {
     skein_lib::bytes::copy_of(b"Reply now with what you have. Use text only; promise no later work.")
 }
 
-fn render_wind_down(mode: Mode, cause: crate::wind_down::Cause, text: &mut Text, reserve: Reserve) {
+fn render_wind_down(mode: Mode, cause: crate::wind_down::Cause, text: &mut Text, reserve: Reserve, tools: &[HostTool]) {
     text.put(match cause {
         crate::wind_down::Cause::Budget(_) => b"The ordinary budget is spent. ",
         crate::wind_down::Cause::Host => b"The host requested wind-down. ",
@@ -211,20 +217,34 @@ fn render_wind_down(mode: Mode, cause: crate::wind_down::Cause, text: &mut Text,
     text.put_decimal(reserve.turns);
     text.put(b" final completions and ");
     render_duration(text, reserve.time);
-    text.put(match mode {
-        Mode::Finite => b" to finish. Use only finish, or deliver when offered.",
-        Mode::Open => b" to reply. Use text only; promise no later work.",
-    });
+    match mode {
+        Mode::Finite => {
+            text.put(b" to finish. Use only finish, or deliver when offered");
+            render_reserve_tools(text, tools);
+            text.put(b".");
+        }
+        Mode::Open => text.put(b" to reply. Use text only; promise no later work."),
+    }
 }
 
-/// Count every charter-dependent system byte, with the selected guide bound.
+fn render_reserve_tools(text: &mut Text, tools: &[HostTool]) {
+    for tool in tools {
+        if tool.reserve {
+            text.put(b", or ");
+            text.put(&tool.name);
+            text.put(b" to meet an outstanding obligation");
+        }
+    }
+}
+
+/// Count charter-dependent system and reserve-note bytes, with the selected guide bound.
 /// This pass renders into a counter and retains no text or filesystem state.
 #[cfg(test)]
 pub(crate) fn host_bytes(charter: &Charter, mounted: Option<&Workspace>, guide_bytes: u32) -> Option<u64> {
     count_host_bytes(charter, mounted, guide_bytes, true)
 }
 
-/// Count charter-dependent system bytes without the brief, including empty-guide scaffolding.
+/// Count charter-dependent system and reserve-note bytes without the brief, including empty-guide scaffolding.
 pub(crate) fn non_brief_host_bytes(charter: &Charter, mounted: Option<&Workspace>, guide_bytes: u32) -> Option<u64> {
     count_host_bytes(charter, mounted, guide_bytes, false)
 }
@@ -243,6 +263,10 @@ fn count_host_bytes(charter: &Charter, mounted: Option<&Workspace>, guide_bytes:
     for directory in repositories {
         let name = if repositories.len() == 1 { None } else { Some(directory.name.as_ref()) };
         count_guide(&mut text, conventions::guide(charter), name, guide_bytes)?;
+    }
+    if charter.mode == Mode::Finite {
+        text.host = true;
+        render_reserve_tools(&mut text, &charter.grants.host_tools);
     }
     text.host_bytes
 }

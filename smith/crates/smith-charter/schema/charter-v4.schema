@@ -9,6 +9,7 @@ enum Mode { finite, open }
 # Schema bytes match HostInput::CAPACITY (65536); host tool names and text
 # are included in the run's aggregate ownership cap.
 record HostTool {
+    reserve: bool
     name: text 64
     description: text 8192
     input: bytes 65536

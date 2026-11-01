@@ -147,6 +147,7 @@ fn tools(source: run::charter::Grants, limits: &wire::Limits) -> Option<wire::To
             wire::HostTool::new(
                 limits,
                 wire::HostToolParts {
+                    reserve: tool.reserve,
                     name: tool.name,
                     description: tool.description,
                     input: tool.schema,

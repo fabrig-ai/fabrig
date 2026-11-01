@@ -449,6 +449,7 @@ impl Host {
         let _retired_forge_draw = self.rng.chance(500);
         let host_tools = if self.rng.chance(script.host_tools) {
             vec![HostTool {
+                reserve: false,
                 name: Box::from(&b"comment"[..]),
                 description: b"Host action".as_slice().into(),
                 schema: b"{}".as_slice().into(),

@@ -81,8 +81,24 @@ impl Peer {
         if !self.offered.finish {
             return sllm::ToolChoice::None;
         }
-        let tickets = if self.offered.deliver { Box::from([FINISH, DELIVER]) } else { Box::from([FINISH]) };
-        sllm::ToolChoice::Only(tickets)
+        let capacity = u32::try_from(self.offered.host_tools.len())
+            .expect("admitted host tools")
+            .checked_add(2)
+            .expect("room for finish and deliver");
+        let mut tickets = List::with_capacity(capacity);
+        tickets.push(FINISH).expect("room for finish");
+        if self.offered.deliver {
+            tickets.push(DELIVER).expect("room for deliver");
+        }
+        for (index, tool) in self.offered.host_tools.iter().enumerate() {
+            if tool.reserve {
+                let ticket = FIRST
+                    .checked_add(u64::try_from(index).expect("admitted tool index"))
+                    .expect("admitted descriptor range");
+                tickets.push(Token::new(ticket)).expect("room for admitted host tools");
+            }
+        }
+        sllm::ToolChoice::Only(tickets.into_boxed())
     }
 
     /// Open implicit waiting counts only assistant text; the session also copies refusal text.

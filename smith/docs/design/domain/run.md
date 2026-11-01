@@ -786,16 +786,18 @@ answers as it was ending; the host has the delivery's own answer.
      and parks, including with unread words queued (section 6).
      In Finite, main then gets at most the reserve's turns of completions,
      the first with the run's note that the budget is spent and it is to finish now
-     with what it has. They offer only `finish`, and `deliver` when
-     granted: the same tool definitions are sent, and the model is told to
-     choose among those only (session.md, section 5).
+     with what it has. They offer only `finish`, `deliver` when granted,
+     and host tools whose declaration sets `reserve`: the same tool definitions
+     are sent, and the note names the reserve host tools for meeting outstanding
+     obligations. The model is told to choose among those only (session.md, section 5).
   3. A result accepted then is accepted (section 10). A main that has not
      finished when the reserve's turns are used, or its time is out,
      answers failed for its budget.
 
   On a program backend, the program's turn is ended and the note sent
   as its next user message. The program's tools are not narrowed, so
-  the agent refuses every call but `finish` and `deliver` from then on,
+  the agent refuses every call but `finish`, granted `deliver` and host tools
+  declared for the reserve from then on,
   each as an invalid call is answered (protocol/programs.md, 5.7).
   An Open run on a program backend gets its last reply as
   protocol/programs.md, 5.9 says.

@@ -126,6 +126,7 @@ fn charter(held: u64) -> Charter {
 
             agents: true,
             host_tools: Box::new([HostTool {
+                reserve: false,
                 name: bytes(1),
                 description: b"Host action".as_slice().into(),
                 schema: b"{}".as_slice().into(),
