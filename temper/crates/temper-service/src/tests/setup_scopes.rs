@@ -100,15 +100,13 @@ fn preparations_four_scopes_grant_adopt_and_without_repository_it_is_refused_at_
         let access = endpoints.forges.get_mut(0).unwrap().access.take().expect("file access");
         fixtures::reseed(&mut config);
         let store = fixtures::records_store_with(&config);
-        let mut service = crate::Service::engine(
-            config,
-            &fixtures::seeds(),
-            None,
-            fixtures::forge_runtime(),
-            crate::forge::table::Shell::refusing(),
-        )
-        .unwrap();
-        service.engine.as_mut().expect("engine").store = store;
+        let mut service =
+            crate::Service::engine(config, &fixtures::seeds(), None, fixtures::forge_runtime(), fixtures::shell())
+                .unwrap();
+        let limits = service.engine.as_ref().unwrap().env.limits;
+        service.engine.as_mut().expect("engine").store = fixtures::reopened_store(store, &limits);
+        fixtures::restore_forges(&mut service);
+        fixtures::restore_mark(&mut service);
         for _ in 0_u32..8 {
             crate::forge::records::advance(service.engine.as_mut().expect("engine"));
         }

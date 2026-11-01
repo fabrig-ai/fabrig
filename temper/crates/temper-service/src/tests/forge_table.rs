@@ -256,7 +256,8 @@ fn a_file_form_record_reads_its_files() {
 }
 #[test]
 fn a_records_only_record_needs_no_file() {
-    let record = fixtures::engine().seed[0].clone();
+    let mut record = fixtures::engine().seed[0].clone();
+    record.files = None;
     assert!(record.files.is_none());
     let converted = table::settings_forge(&record, &empty_files()).unwrap();
     let identity = table::identity(&record, &empty_files()).unwrap();
@@ -282,14 +283,15 @@ fn numbered(record: &Forge, number: u16) -> Forge {
 #[test]
 fn each_table_takes_one_more_forge_and_drops_it() {
     let configuration = fixtures::engine();
-    let record = configuration.seed[0].clone();
+    let mut record = configuration.seed[0].clone();
+    record.files = None;
     let identity = &configuration.identities[0];
     let bound = configuration.limits.forge.forges;
     let starts: [fn() -> crate::Service; HOST_STATES] = [fixtures::started, fixtures::ready];
     for start in starts {
         let mut service = start();
         let engine = service.engine.as_mut().unwrap();
-        (engine.forge.shell.address)(&configuration.forges[0].api).unwrap_err();
+        (engine.forge.shell.address)(&configuration.forges[0].api).unwrap();
         for number in 1..=u16::try_from(bound).unwrap() {
             let record = numbered(&record, number);
             let endpoint = table::endpoint(&record, shell()).unwrap();
@@ -344,3 +346,6 @@ fn each_table_takes_one_more_forge_and_drops_it() {
         assert_eq!(engine.workers.forges.capacity(), bound);
     }
 }
+
+#[path = "forge_added.rs"]
+mod added;

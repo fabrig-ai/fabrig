@@ -597,6 +597,7 @@ fn new_app_admission_changes_neither_a_connected_nor_a_stopped_forges_state() {
         domain::Connection::Stopped { reason: Box::from(b"key refused".as_slice()) },
     ] {
         let mut service = fixtures::ready();
+        service.engine.as_mut().unwrap().forge.starts = List::with_capacity(fixtures::engine().limits.forge.forges);
         // Use the real startup host for this forge's loopback GitHub setup boundary.
         let mut setup = super::service(8, Duration::from_secs(3600));
         app(&mut setup);

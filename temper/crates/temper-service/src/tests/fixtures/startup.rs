@@ -55,7 +55,7 @@ pub fn demo_service() -> crate::Service {
         None,
         worker_runtime(),
         super::forge_runtime(),
-        crate::forge::table::Shell::refusing(),
+        super::shell(),
     )
     .unwrap()
 }
