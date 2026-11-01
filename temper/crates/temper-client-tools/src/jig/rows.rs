@@ -46,7 +46,7 @@ pub const TASKS: Tool = Tool {
         flag(b"label", b"chat|goal", Kind::Word { set: &[b"chat", b"goal"] }, Optional, b"Only chats, or only goals"),
         switch(b"tracked", b"Only tracked tasks"),
         switch(b"mine", b"Only the tasks your party asked for"),
-        switch(b"ended", b"Ended tasks, not live ones"),
+        switch(b"ended", b"Ended tasks, not live ones: a project's ended goals; ended chats with --mine, a task's ended delegates with --parent"),
         flag(b"order", b"activity|priority", Kind::Order, Optional, b"By last activity or by priority; by number when absent"),
         flag(b"after", b"CURSOR", Kind::Cursor, Optional, b"The cursor a page printed, to read on"),
         flag(b"parent", b"TASK", Kind::Number, Optional, b"Only this task's delegates"),

@@ -91,6 +91,8 @@ fn a_chats_goal_is_unchanged() {
     assert_eq!(row.requester, tasks::Party::Task(chat.task));
     assert_eq!(row.project, live(&world, chat.task).project);
     assert_eq!(row.tracked, Some(0));
+    assert_eq!(row.label, 2);
+    assert!(row.flags.listed);
     assert!(matches!(row.contract, tasks::Contract::Report { .. }));
     assert_eq!(row.spec.words.as_ref(), [WORDS, GOAL_SUFFIX].concat());
     assert!(row.spec.parameters.is_empty() && row.spec.inputs.is_empty());
@@ -158,6 +160,8 @@ fn an_advisor_reads_alone_untracked() {
     let task = delegated(goal(&mut world, &run, NESTED_GOAL_CALL, true));
     let row = live(&world, task);
     assert_eq!(row.tracked, None);
+    assert_eq!(row.label, 0);
+    assert_eq!(row.flags, tasks::Flags::PLAIN);
     assert_eq!(row.authority.tools, tasks::Tools(jig_domain_core::ToolFamilies::JIG.read.0));
     assert!(!row.authority.grants.is_empty());
     assert!(row.authority.grants.iter().all(|g| g.connector == 0 && g.kind == 1));
@@ -194,6 +198,56 @@ fn a_goal_with_half_the_remainder_at_minimum_is_refused_as_funding() {
 
 fn running_goal() -> (World, engine::Assignment, engine::Assignment) {
     running_goal_with_agreement(false)
+}
+
+#[test]
+fn a_chats_ended_goal_is_listed_by_project() {
+    use jig_domain_core::{documents, reads};
+    let (mut world, _, run) = running_goal();
+    let project = live(&world, run.task).project;
+    let event = world.protocol.answer(
+        Token::new(7),
+        run.task,
+        run.attempt,
+        1,
+        tasks::End::Finished {
+            result: tasks::TaskResult::Report { words: b"done".as_slice().into() },
+            cancel_delegates: false,
+        },
+        engine::Parts::none(),
+    );
+    world.send(event);
+    let ended = Key::Core(jig_domain_core::Key::Tasks(tasks::Key::Ended(run.task)));
+    for _ in 0..200 {
+        world.tick();
+        if world.store.rows.contains_key(&ended) {
+            break;
+        }
+    }
+    assert!(world.store.rows.contains_key(&ended), "the goal ended");
+    assert!(
+        world.store.rows.values().any(|record| matches!(record,
+            Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::EndedByProject(row)))
+                if row.project == project && row.task == run.task && row.label == 2
+        )),
+        "the ended goal is indexed by project and goal label"
+    );
+    for label in [None, Some(2)] {
+        let query = documents::TaskQuery {
+            project: Some(project),
+            requester: None,
+            phase: Some(documents::PhaseClass::Ended),
+            label,
+            ..jig_test_profile::fixtures::OWN_TASKS
+        };
+        let answer = super::paths::read(&mut world, reads::Read::Tasks { query, live: None, ended: None });
+        let Some(reads::Answer::Tasks(page)) = answer else { panic!("ended project tasks: {answer:?}") };
+        assert!(page.live.is_empty());
+        let reads::EndedGroup::Rows { rows, next, cut } = &page.ended else { panic!("ended project group") };
+        assert_eq!(rows.len(), 1, "project query with label {label:?}");
+        assert_eq!(rows.get(0).expect("one ended goal").chip.number, run.task);
+        assert!(next.is_none() && !cut);
+    }
 }
 
 fn running_goal_with_agreement(agree: bool) -> (World, engine::Assignment, engine::Assignment) {

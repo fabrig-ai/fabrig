@@ -12,7 +12,7 @@ task list --project PROJECT [--label chat|goal] [--tracked] [--mine] [--ended] [
   --label chat|goal: one of chat or goal; optional. Only chats, or only goals
   --tracked: a switch. Only tracked tasks
   --mine: a switch. Only the tasks your party asked for
-  --ended: a switch. Ended tasks, not live ones
+  --ended: a switch. Ended tasks, not live ones: a project's ended goals; ended chats with --mine, a task's ended delegates with --parent
   --order activity|priority: one of activity or priority; optional. By last activity or by priority; by number when absent
   --after CURSOR: a cursor, as a read prints it; optional. The cursor a page printed, to read on
   --parent TASK: a number; optional. Only this task's delegates

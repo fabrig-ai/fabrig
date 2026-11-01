@@ -327,7 +327,9 @@ it as any `delegate`:
   (8.2), the root's lines are followed by its person's last words to the
   chat, whole, under their own heading, so that a request the chat cut short
   still reaches the goal entire (cut only past the brief's room, and
-  then marked with the bytes cut). The goal is tracked
+  then marked with the bytes cut). The goal takes its label and flags
+  from the goal template (template 2): label 2, listed, no conversation,
+  kept, and ended by its result. It is tracked
   at the run's own priority, or last among the project's goals where the
   run is untracked: one past the largest tracked priority in the
   project, saturating, or 0 with none (the lower first, jig's
@@ -358,7 +360,8 @@ it as any `delegate`:
   the line counted with the words within the spec's bytes (a request is
   refused as too long with the line included, never cut to make room),
   so that it knows what it is without a convention in those words:
-  untracked, so that no goal of its
+  unlabelled, with plain flags (not listed, no conversation, kept,
+  ended by its result), and untracked, so that no goal of its
   is projected on the forge; reads alone, no grant of a forge effect, no
   delegation (no kinds, tasks or depth) and no notes, so that it reads
   and reports and can change nothing beyond its own workspace, which it

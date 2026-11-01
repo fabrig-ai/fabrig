@@ -102,6 +102,12 @@ pub(crate) fn goal(
     };
     let agree = person_words.is_some();
     let words = brief(env.limits.tasks.spec_bytes, words, advisor, person_words)?;
+    let (label, flags) = if advisor {
+        (0, tasks::Flags::PLAIN)
+    } else {
+        let template = domain.core.current.template(2).ok_or(tasks::Refusal::Unknown)?;
+        (template.label, template.flags)
+    };
     Ok(Delegate {
         executor: tasks::Executor::Agent { charter },
         spec: tasks::Spec { asks: agree, words, parameters: Box::new([]), inputs: Box::new([]) },
@@ -113,8 +119,8 @@ pub(crate) fn goal(
         dependencies: Box::new([]),
         wake: tasks::WakePolicy::DEFAULT,
         tracked,
-        label: 0,
-        flags: tasks::Flags::PLAIN,
+        label,
+        flags,
         budget: jig_domain_people::Budget::Named,
     })
 }
