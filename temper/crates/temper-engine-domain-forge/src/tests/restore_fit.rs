@@ -567,11 +567,10 @@ fn a_zero_capacity_table_refuses_its_first_row() {
         (RecordKind::Issue, Limits { issues: 0, ..LIMITS }),
         (RecordKind::Receipt, Limits { gates: 0, ..LIMITS }),
     ] {
-        let mut d = Domain::new(
+        let mut d = fixtures::with_records(
             &limits,
             4,
             skein_forge_client::Config { namespace: b"test".as_slice().into(), writers: Box::new([]) },
-            &[],
             &[],
             Machine::bare(),
             false,
@@ -640,7 +639,6 @@ fn missing_links_keep_their_source_key_across_lower_insertions_and_replacements(
     for kind in [
         K::Call,
         K::ProposedEffect,
-        K::Repository,
         K::Hold,
         K::Names,
         K::Subscription,

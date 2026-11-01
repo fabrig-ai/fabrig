@@ -117,9 +117,8 @@ pub(crate) type ConnectionState = (crate::Connection, Option<crate::FailedStep>)
 /// The bounded forge connector subtree.
 #[derive(Debug)]
 pub struct Domain {
-    pub(crate) configured: Map<u16, crate::Configured>,
-    document_forges: Map<u16, crate::Configured>,
-    pub(crate) records: Map<u16, crate::ForgeRecord>,
+    pub(crate) configured: Map<u16, Box<crate::Configured>>,
+    pub(crate) records: Map<u16, Box<crate::ForgeRecord>>,
     pub(crate) next_number: u16,
     pub(crate) machine: crate::Machine,
     pub(crate) under_box: bool,
@@ -169,9 +168,6 @@ pub struct Domain {
     pub(crate) adoptions: Map<Token, adoption::PendingAdoption>,
     pub(crate) application: adoption::State,
     pub(crate) writers: Map<u16, u64>,
-    /// Each forge's git identity, the application credential its runs push
-    /// and fetch with (protocol/credentials.md).
-    pub(crate) identities: Map<u16, u32>,
     pub(crate) capabilities: Map<Token, crate::capabilities::Pending>,
     pub(crate) stopping: bool,
     pub(crate) landing: crate::landing::State,
@@ -203,13 +199,10 @@ impl Domain {
         let number = record.number;
         match record.state {
             crate::ForgeState::Kept => {
-                self.configured.insert(number, record.configured()).expect("configured union fits records");
+                self.configured.insert(number, Box::new(record.configured())).expect("forge records bound projections");
             }
             crate::ForgeState::Removing => {
                 self.configured.remove(&number);
-                if let Some(document) = self.document_forges.get(&number) {
-                    self.configured.insert(number, document.clone()).expect("document fits configured union");
-                }
             }
         }
         self.first.remove(&number);
@@ -218,7 +211,7 @@ impl Domain {
         {
             self.first.insert(number, first.clone()).expect("forge records bound first intents");
         }
-        self.records.insert(number, record).expect("forge record admitted within limits");
+        self.records.insert(number, Box::new(record)).expect("forge record admitted within limits");
     }
 
     /// Erase the project's repository rows; task rows belong to jig's earlier erasure.
@@ -285,28 +278,16 @@ impl Domain {
         self.judges.projects.remove(&project);
     }
 
-    pub(crate) fn document_configures_forges(&self) -> bool {
-        !self.document_forges.is_empty()
-    }
-
     pub(crate) fn git_identity(&self, forge: u16) -> Option<u32> {
-        if let Some(credential) = self.identities.get(&forge) {
-            return Some(*credential);
-        }
         if self.records.contains_key(&forge) { Some(u32::from(forge)) } else { None }
     }
 
-    /// Removing records and removed numbers cannot accept work.
+    /// Removing records and numbers without a record cannot accept work.
     #[must_use]
     pub fn forge_ended(&self, forge: u16) -> bool {
         match self.records.get(&forge) {
             Some(record) => record.state == crate::ForgeState::Removing,
-            None => {
-                forge > 0
-                    && (self.next_number == 0 || forge < self.next_number)
-                    && !self.document_forges.contains_key(&forge)
-                    && !self.identities.contains_key(&forge)
-            }
+            None => true,
         }
     }
 
@@ -321,10 +302,10 @@ impl Domain {
         self.apps = Map::with_capacity(forges);
         self.installations = Map::with_capacity(forges.checked_mul(installations).expect("connection bounds"));
     }
-    /// The document's forges and kept records, with records taking precedence.
+    /// The kept forge record's configured projection.
     #[must_use]
     pub fn configured(&self, forge: u16) -> Option<&crate::Configured> {
-        self.configured.get(&forge)
+        self.configured.get(&forge).map(Box::as_ref)
     }
     #[must_use]
     pub fn connection(&self, forge: u16) -> crate::Connection {
@@ -355,7 +336,7 @@ impl Domain {
         false
     }
     pub(crate) fn keep_first(&mut self, forge: u16, out: &mut Queue<Request>) {
-        if let Some(mut record) = self.records.get(&forge).cloned() {
+        if let Some(mut record) = self.records.get(&forge).map(Box::as_ref).cloned() {
             record.first = self.first.get(&forge).cloned();
             crate::forges::keep_record(self, record, out);
         } else {
@@ -630,8 +611,6 @@ impl Domain {
         l: &Limits,
         seed: u64,
         config: skein_forge_client::Config,
-        identities: &[crate::GitIdentity],
-        forges: &[crate::Configured],
         machine: crate::Machine,
         under_box: bool,
     ) -> Result<Domain, skein_forge::api::Error> {
@@ -642,37 +621,15 @@ impl Domain {
         {
             return Err(skein_forge::api::Error::TooLarge);
         }
-        let mut configured = Map::with_capacity(l.client.repositories);
-        for forge in forges {
-            if forge.git.len() > usize::try_from(crate::PULL_ADDRESS_BYTES).expect("u32 fits usize") {
-                return Err(skein_forge::api::Error::TooLarge);
-            }
-            if configured.insert(forge.number, forge.clone()).is_err() {
-                return Err(skein_forge::api::Error::TooLarge);
-            }
-        }
-        let mut credentials = Map::with_capacity(l.repositories);
-        for identity in identities {
-            if credentials.insert(identity.forge, identity.credential).is_err() {
-                return Err(skein_forge::api::Error::TooLarge);
-            }
-        }
         let mut writers = Map::with_capacity(l.client.repositories);
         for writer in &config.writers {
             if writers.insert(writer.forge, writer.author).is_err() {
                 return Err(skein_forge::api::Error::TooLarge);
             }
         }
-        let document_forges = configured;
-        let mut configured =
-            Map::with_capacity(l.client.repositories.checked_add(l.forges).expect("validated forge capacity"));
-        for (number, forge) in &document_forges {
-            configured.insert(*number, forge.clone()).expect("document fits configured union");
-        }
-        let forge_capacity = configured.capacity();
+        let forge_capacity = l.forges;
         Ok(Domain {
-            configured,
-            document_forges,
+            configured: Map::with_capacity(l.forges),
             records: Map::with_capacity(l.forges),
             next_number: 1,
             machine,
@@ -723,7 +680,6 @@ impl Domain {
             application: adoption::State::new(l),
             capabilities: Map::with_capacity(l.repositories),
             writers,
-            identities: credentials,
             stopping: false,
             landing: crate::landing::State::new(l),
             restore_phase: RestorePhase::Cold,
@@ -5134,7 +5090,7 @@ fn restored(d: &mut Domain, env: &Env<Limits>, clock: skein_forge_client::Recove
     }
     d.restore_phase = RestorePhase::Restoring;
     for (_, record) in &d.records {
-        emit(out, Request::Register(record.clone()));
+        emit(out, Request::Register(record.as_ref().clone()));
     }
     child(d, env, skein_forge_client::Event::Restored { clock }, out);
     retire_ended(d, env, out);

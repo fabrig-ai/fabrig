@@ -135,6 +135,7 @@ pub struct World {
 
 fn config(settings: Settings) -> engine::Config {
     let mut config = walking::config(settings.seed);
+    config.forge.writers = Box::new([]);
     config.core.owners = Box::new([
         people::InitialOwner {
             project: 1,

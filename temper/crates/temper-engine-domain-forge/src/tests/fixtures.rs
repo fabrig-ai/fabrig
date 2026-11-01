@@ -268,3 +268,62 @@ pub(crate) fn restore_records(d: &mut Domain, records: &[ForgeRecord]) {
     }
     outputs(d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
 }
+
+/// One connected forge for stories with a writer or repository on forge 1.
+pub fn configured(number: u16) -> Configured {
+    Configured {
+        number,
+        kind: Kind::Forgejo,
+        mode: Mode::Connected,
+        admin_connect: false,
+        bot: Box::new([]),
+        owned: None,
+        git: Box::new([]),
+        web: None,
+        read_only: false,
+        asked: false,
+    }
+}
+
+pub fn from_configured(config: &Configured) -> ForgeRecord {
+    let mut row = ForgeRecord {
+        number: config.number,
+        kind: config.kind,
+        mode: config.mode,
+        git: config.git.clone(),
+        web: config.web.clone(),
+        read_only: config.read_only,
+        ..ForgeRecord::github_com()
+    };
+    row.bot.login = config.bot.clone();
+    row.setup = if config.asked || !config.bot.is_empty() { Some(b"{}".as_slice().into()) } else { None };
+    row
+}
+
+pub fn with_records(
+    l: &Limits,
+    seed: u64,
+    config: skein_forge_client::Config,
+    forges: &[Configured],
+    machine: Machine,
+    under_box: bool,
+) -> Result<Domain, skein_forge::api::Error> {
+    let mut d = Domain::new(l, seed, config, machine, under_box)?;
+    for config in forges {
+        d.keep_record(from_configured(config));
+        d.next_number = config.number.checked_add(1).unwrap_or(0);
+    }
+    Ok(d)
+}
+
+/// The record write and registry update that precede a first-repository tell.
+pub fn saved_forge(d: &Domain, forge: u16) -> Request {
+    Request::Save {
+        record: Stored::Forge(d.records.get(&forge).unwrap().as_ref().clone()),
+        release: None,
+        read_afresh: None,
+    }
+}
+pub fn registered_forge(d: &Domain, forge: u16) -> Request {
+    Request::Register(d.records.get(&forge).unwrap().as_ref().clone())
+}

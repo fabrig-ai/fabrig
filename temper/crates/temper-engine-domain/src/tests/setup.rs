@@ -16,7 +16,7 @@ fn signed_in(role: Option<people::Role>) -> (Domain, Env<Limits>) {
 }
 fn signed_in_on(role: Option<people::Role>, kind: forge::Kind) -> (Domain, Env<Limits>) {
     let mut config = config(1);
-    config.forges = Box::new([forge::Configured {
+    let forges = [forge::Configured {
         admin_connect: false,
         bot: Box::new([]),
         owned: None,
@@ -27,9 +27,9 @@ fn signed_in_on(role: Option<people::Role>, kind: forge::Kind) -> (Domain, Env<L
         kind,
         mode: forge::Mode::Owned,
         asked: true,
-    }]);
+    }];
     config.under_box = true;
-    signed_in_root(root_with_config(config), role)
+    signed_in_root(root_with_forges(config, &forges), role)
 }
 fn signed_in_root((mut domain, env): (Domain, Env<Limits>), role: Option<people::Role>) -> (Domain, Env<Limits>) {
     domain.core.people = people::Domain::new(&env.limits.people, Box::new([]), 1, Box::new([]));
@@ -138,7 +138,9 @@ fn a_keyed_setup_answers_the_client_and_the_same_key_replays_without_asking_the_
     connection(&mut domain, &env, forge::Connection::NotSetUp);
     crate::try_step(&mut domain, &env, setup(1)).unwrap();
     let requests = settle(&mut domain, &env);
-    let [Request::SetUp { playground: false, forge: 1, request, org, repository }] = requests.as_ref() else {
+    let [Request::Register(_), Request::SetUp { playground: false, forge: 1, request, org, repository }] =
+        requests.as_ref()
+    else {
         panic!("one setup ask: {requests:?}")
     };
     assert_eq!((org.as_ref(), repository.as_ref()), (b"work".as_slice(), b"hello".as_slice()));
@@ -221,7 +223,9 @@ fn the_deployment_owner_watches_forges_again_after_a_connection_changes() {
                     app: None,
                     web: None,
                     repositories: Box::new([]),
-                    owned: None,
+                    owned: forge::ForgeRecord { mode: forge::Mode::Owned, ..super::resume_fixture::forge_record(1) }
+                        .configured()
+                        .owned,
                     admin: false,
                     read_only: false,
                     ended_stop: None,
@@ -262,7 +266,9 @@ fn row(connection: forge::Connection) -> forge::Row {
         app: None,
         web: None,
         repositories: Box::new([]),
-        owned: None,
+        owned: forge::ForgeRecord { mode: forge::Mode::Owned, ..super::resume_fixture::forge_record(1) }
+            .configured()
+            .owned,
         admin: false,
         read_only: false,
         ended_stop: None,
@@ -626,8 +632,8 @@ fn whose_returns_the_live_person_and_none_after_sign_out_or_for_an_unknown_sign_
 }
 
 fn admin_root(role: Option<people::Role>) -> (Domain, Env<Limits>) {
-    let mut config = config(1);
-    config.forges = Box::new([forge::Configured {
+    let config = config(1);
+    let forges = [forge::Configured {
         admin_connect: true,
         bot: Box::new([]),
         owned: None,
@@ -638,8 +644,8 @@ fn admin_root(role: Option<people::Role>) -> (Domain, Env<Limits>) {
         kind: forge::Kind::Forgejo,
         mode: forge::Mode::Managed,
         asked: false,
-    }]);
-    signed_in_root(root_with_config(config), role)
+    }];
+    signed_in_root(root_with_forges(config, &forges), role)
 }
 fn admin_first() -> forge::FirstAsk {
     forge::FirstAsk {
@@ -665,7 +671,9 @@ fn admin_connect_routes_the_whole_how_and_erases_at_both_ends() {
             )
             .unwrap();
             let requests = settle(&mut domain, &env);
-            let [Request::Connect { forge: 1, request, how: actual, carried: value }] = requests.as_ref() else {
+            let [Request::Register(_), Request::Connect { forge: 1, request, how: actual, carried: value }] =
+                requests.as_ref()
+            else {
                 panic!("admin connect: {requests:?}")
             };
             assert_eq!((actual, *value), (&how, carried));
@@ -724,7 +732,19 @@ fn admin_connect_routes_the_whole_how_and_erases_at_both_ends() {
                 })),
             )
             .unwrap();
-            assert_eq!(settle(&mut domain, &env).as_ref(), [Request::EraseCarried { number: carried.number }]);
+            let requests = settle(&mut domain, &env);
+            let expected: Box<[Request]> = if first.is_some() {
+                Box::new([
+                    Request::Register(forge::ForgeRecord {
+                        first: domain.forges().rows[0].first.clone(),
+                        ..forge::ForgeRecord { mode: forge::Mode::Managed, ..super::resume_fixture::forge_record(1) }
+                    }),
+                    Request::EraseCarried { number: carried.number },
+                ])
+            } else {
+                Box::new([Request::EraseCarried { number: carried.number }])
+            };
+            assert_eq!(requests.as_ref(), expected.as_ref());
             assert_eq!(domain.forge_connection(1), if connected { state } else { previous });
             assert_eq!(domain.forges().rows[0].ended, why);
             assert_eq!(
@@ -904,11 +924,11 @@ fn public_accept_defers_the_keyed_answer_until_the_verified_installation_is_kept
 fn the_new_asks_are_the_deployments() {
     for (ask, answer) in [
         (
-            forge::Ask::MakeForge { choice: forge::ForgeChoice::GitHub },
+            forge::Ask::MakeForge { choice: forge::ForgeChoice::Owned },
             crate::ApplicationAnswer::MakeForge(forge::MakeAnswer::Refused(forge::MakeRefusal::NotOffered)),
         ),
         (
-            forge::Ask::RemoveForge { forge: 1 },
+            forge::Ask::RemoveForge { forge: 99 },
             crate::ApplicationAnswer::RemoveForge(forge::RemoveAnswer::Refused(forge::RemoveRefusal::NoSuchForge)),
         ),
         (forge::Ask::EndPlayground, crate::ApplicationAnswer::EndPlayground(forge::EndAnswer::NotOffered)),
@@ -937,4 +957,26 @@ fn the_new_asks_are_the_deployments() {
             }))]
         );
     }
+}
+
+fn root_with_forges(config: crate::Config, forges: &[forge::Configured]) -> (Domain, Env<Limits>) {
+    let (mut domain, env) = root_with_config(config);
+    let mut out = Queue::uncapped();
+    for config in forges {
+        let mut row = super::resume_fixture::forge_record(config.number);
+        row.kind = config.kind;
+        row.mode = config.mode;
+        row.git.clone_from(&config.git);
+        row.web.clone_from(&config.web);
+        row.read_only = config.read_only;
+        row.bot.login.clone_from(&config.bot);
+        row.setup = if config.asked || !config.bot.is_empty() { Some(b"{}".as_slice().into()) } else { None };
+        forge::step(
+            &mut domain.forge,
+            &Env { now: env.now, wall: env.wall, limits: env.limits.forge },
+            forge::Event::Restore { record: forge::Stored::Forge(row) },
+            &mut out,
+        );
+    }
+    (domain, env)
 }

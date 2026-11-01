@@ -192,6 +192,12 @@ fn two_forges() -> (super::Domain, skein_lib::Env<super::Limits>) {
         forge::step(
             &mut domain.forge,
             &skein_lib::Env { now: env.now, wall: env.wall, limits: env.limits.forge },
+            forge::Event::Restore { record: forge::Stored::Forge(crate::tests::resume_fixture::forge_record(number)) },
+            &mut out,
+        );
+        forge::step(
+            &mut domain.forge,
+            &skein_lib::Env { now: env.now, wall: env.wall, limits: env.limits.forge },
             forge::Event::Restore { record: forge::Stored::Repository(adopted(number)) },
             &mut out,
         );
@@ -497,12 +503,6 @@ fn a_changes_saved_pull_replaces_its_base_watch_within_two_names() {
         forge::Event::Restore { record: forge::Stored::Names { task: 7, resources: change_names(None) } },
         &mut out,
     );
-    forge::step(
-        &mut domain.forge,
-        &forge_env,
-        forge::Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic },
-        &mut out,
-    );
     while let Some(request) = out.pop() {
         drop(request);
     }
@@ -542,12 +542,6 @@ fn a_restored_changes_wake_names_its_known_pull_again() {
     {
         forge::step(&mut domain.forge, &forge_env, forge::Event::Restore { record }, &mut out);
     }
-    forge::step(
-        &mut domain.forge,
-        &forge_env,
-        forge::Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic },
-        &mut out,
-    );
     while let Some(request) = out.pop() {
         drop(request);
     }
@@ -589,12 +583,6 @@ fn restored_change(
     for record in records {
         forge::step(&mut domain.forge, &forge_env, forge::Event::Restore { record }, &mut out);
     }
-    forge::step(
-        &mut domain.forge,
-        &forge_env,
-        forge::Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic },
-        &mut out,
-    );
     while let Some(request) = out.pop() {
         drop(request);
     }

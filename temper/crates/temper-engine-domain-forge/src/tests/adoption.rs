@@ -298,12 +298,11 @@ fn not_installed_is_a_terminal_application_refusal_rather_than_a_retry() {
 
 #[test]
 fn a_configured_forge_without_a_writer_refuses_adoption_before_any_read() {
-    let mut d = Domain::new(
+    let mut d = fixtures::with_records(
         &LIMITS,
         4,
         skein_forge_client::Config { namespace: Box::from(b"test".as_slice()), writers: Box::new([]) },
-        &[GitIdentity { forge: 1, credential: 1 }],
-        &[],
+        &[fixtures::configured(1)],
         Machine::bare(),
         false,
     )
@@ -402,15 +401,14 @@ fn each_admission_conflict_keeps_its_own_reason() {
 fn thirty_two_adoptions_are_answered_during_retention() {
     let limits = Limits { applications: 32, ..LIMITS };
     let env = Env { limits, ..env() };
-    let mut d = Domain::new(
+    let mut d = fixtures::with_records(
         &limits,
         4,
         skein_forge_client::Config {
             namespace: Box::from(b"test".as_slice()),
             writers: Box::new([skein_forge_client::Writer { forge: 1, author: 7 }]),
         },
-        &[GitIdentity { forge: 1, credential: 1 }],
-        &[],
+        &[fixtures::configured(1)],
         Machine::bare(),
         false,
     )

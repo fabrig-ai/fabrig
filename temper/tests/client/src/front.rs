@@ -178,8 +178,7 @@ impl Joint {
             first_run_projects(&mut config, &mut engine_limits);
             config.core.connectors = Box::new([fixtures::FORGE]);
             config.machine = fixtures::machine();
-            config.forges = Box::new([]);
-            config.identities = Box::new([]);
+            config.forge.writers = Box::new([]);
             (config, engine_limits)
         });
         let mut record = config.machine.github.clone();

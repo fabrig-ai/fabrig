@@ -39,7 +39,7 @@ fn config(seed: u64, granted: bool) -> engine::Config {
     let mut config = world(seed).cold_config.expect("independent cold configuration");
     config.under_box = true;
     // This forge is configured by its stored record, with no document identity to keep it connected.
-    config.identities = Box::new([]);
+
     config.forge.writers = Box::new([]);
     config.core.grants = Box::new([people::ActGrant {
         connector: config.core.connectors[0],

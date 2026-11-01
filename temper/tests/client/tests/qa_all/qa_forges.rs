@@ -114,7 +114,12 @@ fn configured_accounts(owner: bool, under_box: bool, rows: &[forge::Configured; 
                 writer
             })
             .collect();
-        config.forges = Box::new((*rows).clone());
+        store.seed(
+            temper_engine_domain_world::forges::rows(
+                &rows.iter().map(temper_engine_domain_world::forges::from_configured).collect::<Vec<_>>(),
+            ),
+            Box::new([]),
+        );
         config.under_box = under_box;
         if rows.iter().any(|row| row.admin_connect) {
             temper_client_world::front::first_run_projects(&mut config, &mut limits);

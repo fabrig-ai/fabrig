@@ -8,11 +8,10 @@ use jig_domain_people::Role as PartyRole;
 
 const VALUE: Carried = Carried { number: 1_u64 << 63_u32, digest: [17; 32] };
 fn github(kind: Kind, mode: Mode) -> Domain {
-    Domain::new(
+    fixtures::with_records(
         &LIMITS,
         4,
         skein_forge_client::Config { namespace: Box::from(b"test".as_slice()), writers: Box::new([]) },
-        &[],
         &[Configured {
             owned: None,
             admin_connect: false,
@@ -320,11 +319,10 @@ fn installation_updates_mark_rows_in_id_order_and_deletion_drops_one() {
     let mut limits = LIMITS;
     limits.client.repositories = 3; // The three configured forge fixtures below.
     limits.output = 128; // Includes the client's larger repository burst.
-    let mut d = Domain::new(
+    let mut d = fixtures::with_records(
         &limits,
         4,
         skein_forge_client::Config { namespace: Box::from(b"test".as_slice()), writers: Box::new([]) },
-        &[],
         &[
             Configured {
                 admin_connect: false,
@@ -1002,7 +1000,7 @@ fn unavailable_make_remove_and_end_requests_refuse_and_release_carried_values() 
             Ask::MakeForge { choice: ForgeChoice::Owned },
             Answered::MakeForge(MakeAnswer::Refused(MakeRefusal::NotOffered)),
         ),
-        (Ask::RemoveForge { forge: 1 }, Answered::RemoveForge(RemoveAnswer::Refused(RemoveRefusal::NoSuchForge))),
+        (Ask::RemoveForge { forge: 99 }, Answered::RemoveForge(RemoveAnswer::Refused(RemoveRefusal::NoSuchForge))),
         (Ask::EndPlayground, Answered::EndPlayground(EndAnswer::NotOffered)),
     ] {
         for carried in [None, Some(VALUE)] {

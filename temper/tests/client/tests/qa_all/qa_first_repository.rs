@@ -17,11 +17,11 @@ const REPOSITORY: u32 = 7;
 fn configured(under_box: bool) -> ClientWorld {
     let mut world = fixtures::world(fixtures::SEED);
     world.randomness(0, 0, 0);
-    let store = world.front().engine.store.fork();
+    let mut store = world.front().engine.store.fork();
     let mut limits = world.front().engine.env.limits;
     let configs = std::array::from_fn(|_| {
         let mut config = walking::config(fixtures::SEED);
-        config.forges = Box::new([forge::Configured {
+        let configured: Box<[forge::Configured]> = Box::new([forge::Configured {
             admin_connect: false,
             bot: Box::new([]),
             owned: None,
@@ -33,6 +33,12 @@ fn configured(under_box: bool) -> ClientWorld {
             mode: forge::Mode::Owned,
             asked: true,
         }]);
+        store.seed(
+            temper_engine_domain_world::forges::rows(
+                &configured.iter().map(temper_engine_domain_world::forges::from_configured).collect::<Vec<_>>(),
+            ),
+            Box::new([]),
+        );
         config.under_box = under_box;
         config.core.connectors = Box::new([temper_client_protocol_wire::FORGE]);
         temper_client_world::front::first_run_projects(&mut config, &mut limits);

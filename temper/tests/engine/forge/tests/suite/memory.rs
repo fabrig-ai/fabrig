@@ -48,19 +48,31 @@ fn bounded_connector_tables_and_client_fit_the_declared_heap() {
 }
 
 fn connector(limits: &top::Limits) -> top::Domain {
-    top::Domain::new(
+    let mut domain = top::Domain::new(
         limits,
         9,
         skein_forge_client::Config {
             namespace: Box::from(&b"world"[..]),
             writers: Box::new([skein_forge_client::Writer { forge: REPO.forge, author: 1 }]),
         },
-        &[top::GitIdentity { forge: REPO.forge, credential: 1 }],
-        &[],
         top::Machine::bare(),
         false,
     )
-    .expect("admitted limits")
+    .expect("admitted limits");
+    top::step(
+        &mut domain,
+        &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits },
+        top::Event::Restore {
+            record: top::Stored::Forge(top::ForgeRecord {
+                number: REPO.forge,
+                kind: top::Kind::Forgejo,
+                mode: top::Mode::Connected,
+                ..top::ForgeRecord::github_com()
+            }),
+        },
+        &mut Queue::uncapped(),
+    );
+    domain
 }
 
 // Measured peak: 576 bytes; 25% headroom, rounded up to two significant digits.

@@ -137,16 +137,16 @@ fn queue_place_uses_priority_time_aging_and_the_base_repairs_precedence() {
 fn a_long_queue_counts_every_place_but_carries_only_the_nearest_ahead() {
     const CHANGES: u32 = PANEL_AHEAD + 3;
     let limits = Limits { changes: CHANGES, ..LIMITS };
-    let mut d = Domain::new(
+    let mut d = fixtures::with_records(
         &limits,
         4,
         skein_forge_client::Config { namespace: Box::from(&b"test"[..]), writers: Box::new([]) },
-        &[],
         &[],
         Machine::bare(),
         false,
     )
     .expect("long queue bounds");
+    d.keep_record(fixtures::from_configured(&fixtures::configured(1)));
     let environment = Env { limits, ..env() };
     let mut out = Queue::uncapped();
     step(&mut d, &environment, Event::Restore { record: Stored::Repository(adopted()) }, &mut out);
@@ -270,11 +270,10 @@ fn a_fresh_ci_read_marks_a_changed_verdict_and_restart_forgets_it() {
 fn admission_accepts_large_internal_output_and_rejects_oversized_panel_names() {
     let limits = Limits { output: u32::MAX, ..LIMITS };
     assert!(valid(&limits));
-    Domain::new(
+    fixtures::with_records(
         &limits,
         4,
         skein_forge_client::Config { namespace: Box::from(&b"test"[..]), writers: Box::new([]) },
-        &[],
         &[],
         Machine::bare(),
         false,
@@ -288,11 +287,10 @@ fn admission_accepts_large_internal_output_and_rejects_oversized_panel_names() {
 fn priority_moves_mark_the_nearest_followers_and_stop_at_the_mark_bound() {
     const CHANGES: u32 = MARKED + 3;
     let limits = Limits { changes: CHANGES, ..LIMITS };
-    let mut d = Domain::new(
+    let mut d = fixtures::with_records(
         &limits,
         4,
         skein_forge_client::Config { namespace: Box::from(&b"test"[..]), writers: Box::new([]) },
-        &[],
         &[],
         Machine::bare(),
         false,
