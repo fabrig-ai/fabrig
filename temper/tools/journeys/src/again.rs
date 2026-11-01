@@ -32,8 +32,13 @@ pub fn again(journeys: &Path, name: &str, paths: &Paths) -> Result<(), Refusal> 
     let steps = starting(journeys, name)?;
     let downloads = paths.scratch.join("downloads");
     fs::create_dir(&downloads).map_err(|_| crate::io_refusal(&downloads))?;
-    let mut args =
-        vec!["box".into(), "--fake-backends".into(), "--bundle".into(), paths.bundle.clone().into_os_string()];
+    let mut args = vec![
+        "box".into(),
+        "--fake-backends".into(),
+        "--empty-store".into(),
+        "--bundle".into(),
+        paths.bundle.clone().into_os_string(),
+    ];
     for (flag, directory) in [("--config", "config"), ("--data", "data"), ("--cache", "cache")] {
         args.push(flag.into());
         args.push(paths.scratch.join(directory).into_os_string());

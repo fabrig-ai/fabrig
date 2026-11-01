@@ -36,13 +36,15 @@ struct Prepared {
     // Held through drive; closing the descriptor releases the OS lock even after a crash.
     _lock: locks::Lock,
 }
-pub(crate) fn configure(rest: &[std::ffi::OsString], working: &[u8]) -> Result<Option<PathBuf>, String> {
+pub(crate) fn configure(rest: &[std::ffi::OsString], working: &[u8]) -> Result<(Option<PathBuf>, bool), String> {
     let mut fake = false;
+    let mut empty_store = false;
     let mut bundle = None;
     let mut words = rest.iter();
     while let Some(word) = words.next() {
         match word.as_bytes() {
             b"--fake-backends" if !fake => fake = true,
+            b"--empty-store" if !empty_store => empty_store = true,
             b"--bundle" if bundle.is_none() => {
                 let value = words.next().ok_or("--bundle BUNDLE: missing directory")?;
                 let value = value.as_bytes();
@@ -56,17 +58,23 @@ pub(crate) fn configure(rest: &[std::ffi::OsString], working: &[u8]) -> Result<O
                 }
                 bundle = Some(path);
             }
-            _ => return Err("invalid box arguments: expected --fake-backends [--bundle BUNDLE]".into()),
+            _ => return Err("invalid box arguments: expected --fake-backends [--empty-store] [--bundle BUNDLE]".into()),
         }
     }
     if !fake {
         return Err("--bundle BUNDLE requires --fake-backends".into());
     }
-    Ok(bundle)
+    Ok((bundle, empty_store))
 }
-pub(crate) fn run(source: &Directories, bundle: Option<&Path>, echo: temper_box::host::Echo) -> Result<Exit, String> {
+pub(crate) fn run(
+    source: &Directories,
+    bundle: Option<&Path>,
+    empty_store: bool,
+    echo: temper_box::host::Echo,
+) -> Result<Exit, String> {
     let adapter = sibling(&std::env::current_exe().map_err(|why| why.to_string())?)?;
-    let Prepared { directories, bytes, mut listeners, peers, _lock: lock } = prepare(source, bundle, &adapter)?;
+    let Prepared { directories, bytes, mut listeners, peers, _lock: lock } =
+        prepare(source, bundle, &adapter, empty_store)?;
     let first = backends::steps(&directories.config, &peers);
     let result =
         crate::box_command::run_configuration(&directories, &bytes, std::mem::take(&mut listeners.0), first, echo);
@@ -487,12 +495,25 @@ fn provisioned_program(path: &Path) -> Result<(), String> {
     }
     Ok(())
 }
+// The welcome recorder starts with machine templates and peers, before any forge is connected.
+fn empty_store_fixture(bytes: &[u8]) -> Result<Box<[u8]>, String> {
+    let mut document = Json::decode(bytes)?;
+    for member in ["forges", "identities", "setup"] {
+        document.set(&format!("application/{member}"), Json::Array(Vec::new()))?;
+    }
+    document.encode()
+}
 // The adapter is this temper's fake-claude sibling; it is a parameter so that tests can provision one.
 #[expect(
     clippy::too_many_lines,
     reason = "startup owns its lock and listeners through validation and publishes the prepared marker last"
 )]
-fn prepare(source_dirs: &Directories, bundle: Option<&Path>, adapter: &Path) -> Result<Prepared, String> {
+fn prepare(
+    source_dirs: &Directories,
+    bundle: Option<&Path>,
+    adapter: &Path,
+    empty_store: bool,
+) -> Result<Prepared, String> {
     let (root, effective) = directories(source_dirs)?;
     let source_config = resolved(Path::new("/"), &source_dirs.config)?;
     if source_config.starts_with(&root) {
@@ -508,7 +529,10 @@ fn prepare(source_dirs: &Directories, bundle: Option<&Path>, adapter: &Path) -> 
         Err(why) if why.kind() == std::io::ErrorKind::NotFound => false,
         Err(why) => return Err(format!("{}: {why}", root.display())),
     };
-    let source = Source::read(source_dirs).map_err(|why| if exists { reset(&root, &why) } else { why })?;
+    let mut source = Source::read(source_dirs).map_err(|why| if exists { reset(&root, &why) } else { why })?;
+    if empty_store {
+        source.marker = [source.marker.as_ref(), b"empty-store\n"].concat().into_boxed_slice();
+    }
     // Reuse checks the retained effective bundle, which may differ from the source's directory.
     let provisioned = if exists {
         None
@@ -605,9 +629,12 @@ fn prepare(source_dirs: &Directories, bundle: Option<&Path>, adapter: &Path) -> 
         bundle: bytes(&bundle),
         claude: bytes(adapter),
     };
-    let documents =
+    let mut documents =
         backends::rewrite(&initial, &public(&crate::path(&effective.config).join("agent.json"))?, &paths, &peers)
             .map_err(|why| String::from_utf8_lossy(&why.line()).into_owned())?;
+    if empty_store {
+        documents.temper = empty_store_fixture(&documents.temper)?;
+    }
     // Existing peer decoders check their generated documents before any marker is published.
     let forge = temper_fake::forge::Document::decode(&documents.github)
         .map_err(|why| String::from_utf8_lossy(&why.line()).into_owned())?;

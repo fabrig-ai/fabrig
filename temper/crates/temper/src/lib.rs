@@ -45,20 +45,60 @@ const CONFIG_BYTES: u32 = 1 << 20;
 #[derive(Debug, PartialEq, Eq)]
 pub enum Command {
     Usage(&'static commands::Row),
-    Init { directories: Directories },
-    Serve { directories: Directories, boxed: bool },
-    Box { directories: Directories, echo: temper_box::host::Echo },
-    BoxFakeBackends { directories: Directories, bundle: Option<PathBuf>, echo: temper_box::host::Echo },
-    ProgramLogin { directories: Directories, name: OsString },
-    Agent { configuration: PathBuf },
-    Open { arguments: Vec<OsString> },
-    Ctl { arguments: Vec<OsString> },
-    Help { request: help::Request },
-    Fake { arguments: fake::Arguments },
-    FakeCheck { directories: Directories, check: fake::Check },
-    FakeGit { arguments: Box<[Box<[u8]>]> },
-    ForgeChild { parent: u32, signal: skein_io::kernel::Signal, program: OsString, arguments: Vec<OsString> },
-    Forge { directories: Directories, arguments: Vec<OsString>, ssl_cert_file: Option<PathBuf> },
+    Init {
+        directories: Directories,
+    },
+    Serve {
+        directories: Directories,
+        boxed: bool,
+    },
+    Box {
+        directories: Directories,
+        echo: temper_box::host::Echo,
+    },
+    BoxFakeBackends {
+        directories: Directories,
+        bundle: Option<PathBuf>,
+        empty_store: bool,
+        echo: temper_box::host::Echo,
+    },
+    ProgramLogin {
+        directories: Directories,
+        name: OsString,
+    },
+    Agent {
+        configuration: PathBuf,
+    },
+    Open {
+        arguments: Vec<OsString>,
+    },
+    Ctl {
+        arguments: Vec<OsString>,
+    },
+    Help {
+        request: help::Request,
+    },
+    Fake {
+        arguments: fake::Arguments,
+    },
+    FakeCheck {
+        directories: Directories,
+        check: fake::Check,
+    },
+    FakeGit {
+        arguments: Box<[Box<[u8]>]>,
+    },
+    ForgeChild {
+        parent: u32,
+        signal: skein_io::kernel::Signal,
+        program: OsString,
+        arguments: Vec<OsString>,
+    },
+    Forge {
+        directories: Directories,
+        arguments: Vec<OsString>,
+        ssl_cert_file: Option<PathBuf>,
+    },
 }
 fn prefixed(command: &str, why: &str) -> String {
     let mut lines = String::new();
@@ -153,8 +193,8 @@ fn configure_row(
         ["internal", "serve"] if rest == ["--box"] => Ok(Command::Serve { directories, boxed: true }),
         ["box"] if rest.is_empty() => Ok(Command::Box { directories, echo }),
         ["box"] => {
-            let bundle = fake_backends::configure(&rest, working)?;
-            Ok(Command::BoxFakeBackends { directories, bundle, echo })
+            let (bundle, empty_store) = fake_backends::configure(&rest, working)?;
+            Ok(Command::BoxFakeBackends { directories, bundle, empty_store, echo })
         }
         ["program-login"] if rest.len() == 1 => Ok(Command::ProgramLogin { directories, name: rest[0].clone() }),
         ["forge", verb] => {
@@ -189,8 +229,9 @@ pub fn run(command: Command) -> Result<u8, String> {
         Command::Serve { directories, boxed } => {
             serve(&directories, boxed).map_err(|why| prefixed("temper serve", &why))?
         }
-        Command::BoxFakeBackends { directories, bundle, echo } => {
-            fake_backends::run(&directories, bundle.as_deref(), echo).map_err(|why| prefixed("temper box", &why))?
+        Command::BoxFakeBackends { directories, bundle, empty_store, echo } => {
+            fake_backends::run(&directories, bundle.as_deref(), empty_store, echo)
+                .map_err(|why| prefixed("temper box", &why))?
         }
         Command::Box { directories, echo } => {
             box_command::run(&directories, echo).map_err(|why| prefixed("temper box", &why))?
