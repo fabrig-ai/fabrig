@@ -7,3 +7,5 @@
 - **Not yet:** 5.1, 5.5: project names/new-project continuation. 5.5, 7, 9 to 15: program declare/verify, goal model flags, deployment-key box proof, remaining catalogue/host facts and areas 2 to 4. 14: MCP endpoint. The joined model-amendment story remains. task hold, project hold, hold list. 11.4: running work's revision story moves from the process tier to the system world.
 
 - **Built:** 5.4, 6: a met text inbox wait prints the plain inbox read, with question words, read-whole and answer calls, and continuation, then `met`.
+
+- **Built:** 6.1: a heard question-answer notice prints its inbox acknowledgement in chat and task activity, including when its words are empty. 6.3: argument refusals retain their tool and form for argv and `--call`, and print the argument's type and bound from help's specification, or the missing/repeated/excessive rule, within 240 bytes with the tool's help call.

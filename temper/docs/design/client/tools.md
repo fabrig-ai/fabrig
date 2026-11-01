@@ -1068,6 +1068,8 @@ digest: task 7c1e09a2b44f0d13
   milestone's, `phase changed`: the activity names only the position of
   the task's history row that says which phase, and no tool reads that
   history (section 15).
+  A heard `QuestionAnswered` notice prints `POSITION · You answered
+  question N in your inbox`, including when its words are empty.
 - **Acts as calls,** without the `temper ctl DIRECTORY` prefix; a keyed
   act's call ends with `--key NAME`. A proposable act says to whom; a
   refused one says why, and prints no call. The host gives the
@@ -1160,6 +1162,14 @@ may change with them.
 | 3 | a wait's timeout, or its subject's watch ended, its condition not met | the current document, or the last, and its digest |
 | 128 + N | ended by signal N, `SIGINT` or `SIGTERM`: 130 or 143 (8.2) | nothing more |
 
+- **An argument refused before a call** names the tool, the argument
+  and what it takes from the same specification as help, including its
+  bound: `temper ctl: task activity: --limit COUNT takes a count from 1 to 32; temper ctl help task activity`.
+  The line is at most 240 bytes, ends with the tool's help call, and is
+  the same for argv and `--call`. Missing, repeated and excessive
+  arguments name the rule they broke. A call that names no tool keeps
+  the usage line; an unknown group or tool names it and where help
+  lists it.
 - **2 is the engine's answer alone:** what it decided about the
   request, with the alternatives it names. The client's own answers
   are 1. Two of them never reach a call: unconfirmed, since the runner
