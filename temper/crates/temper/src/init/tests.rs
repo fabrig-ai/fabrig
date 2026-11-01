@@ -326,8 +326,8 @@ fn generated_configuration_passes_the_same_checks_as_serve() {
     assert!(matches!(owned.mode, temper_forge_setup::setup::Mode::Owned(_)));
     let demo = deployment.demo.expect("init declares the demo");
     assert_eq!(demo.provider(), 3);
-    assert_eq!(demo.forge(), 1);
-    assert_eq!(demo.project(), 1);
+    assert_eq!(demo.forge(), Some(1));
+    assert_eq!(demo.project(), Some(1));
     crate::close(written.listeners.into_iter().map(|(fd, _)| fd).collect());
     fs::remove_dir_all(root).expect("cleanup");
 }

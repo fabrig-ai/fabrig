@@ -12,8 +12,10 @@ pub(crate) struct Deployment {
     pub checked: Checked,
     pub limits: temper_box::limits::Limits,
     pub demo: Option<temper_fake::demo::Demo>,
+    pub ports: Box<[std::net::SocketAddr]>,
 }
 
+#[expect(clippy::too_many_lines, reason = "deployment checks share the named machine and listener facts")]
 pub(crate) fn check_with(
     bytes: &[u8],
     directories: &config::Directories,
@@ -60,11 +62,11 @@ pub(crate) fn check_with(
     }
     let members = Members { forges: forges.into_boxed_slice(), listeners: listeners.into_boxed_slice() };
     let application = super::member(&document, 0, b"application");
-    let at = super::member(&document, application, b"setup");
+    let at = config::read::Object::new(&document, application).expect("named application").member(&document, b"setup");
     let setup_overrides: Vec<_> =
         named.overrides.iter().filter(|(name, _)| !name.starts_with(b"box.")).cloned().collect();
     let listener = named.webhooks.as_ref().map(|webhooks| super::address(&webhooks.listener)).transpose()?;
-    let checked = check::checked(&document, at, directories, &members, listener, &setup_overrides)
+    let checked = check::checked_at(&document, at, directories, &members, listener, &setup_overrides)
         .map_err(|why| String::from_utf8_lossy(&problem::lines(&why)).into_owned())?;
     let mut problems = temper_service::startup::Problems::empty();
     for (index, entry) in checked.setup.entries.iter().enumerate() {
@@ -80,17 +82,37 @@ pub(crate) fn check_with(
             temper_service::startup::redirect_ports(&named.redirects, Some(listen.port()), listener, &mut problems);
         }
     }
+    let mut ports = members.listeners.to_vec();
+    if let Some(owned) = &named.machine.owned {
+        let host = std::str::from_utf8(&owned.api.host).expect("named machine IP");
+        let ip = host.parse().expect("named machine IP");
+        let listen = std::net::SocketAddr::new(ip, owned.api.port);
+        if ports.contains(&listen) {
+            return Err("application.machine.owned.mode.owned.listen: must be unique".into());
+        }
+        ports.push(listen);
+        if named.redirects.iter().any(|redirect| redirect.port == listen.port()) {
+            return Err(
+                "application.machine.owned.mode.owned.listen: must differ from LLM sign-in redirect ports".into()
+            );
+        }
+    }
     let projects: Vec<_> = named.projects.iter().map(|project| project.number).collect();
     let facts = temper_fake::demo::Facts {
         llm: &named.llm,
         projects: &projects,
         setup: &checked.setup,
-        listeners: &members.listeners,
+        listeners: &ports,
         directories,
     };
     let demo = temper_fake::demo::read(&document, super::member(&document, application, b"demo"), &facts)
         .map_err(|why| String::from_utf8_lossy(&why.line()).into_owned())?;
     if let Some(demo) = &demo {
+        for listen in [demo.fake().listen, demo.llm().listen()] {
+            if !ports.contains(&listen) {
+                ports.push(listen);
+            }
+        }
         temper_service::startup::redirect_ports(
             &named.redirects,
             Some(demo.llm().listen().port()),
@@ -102,7 +124,7 @@ pub(crate) fn check_with(
         return Err(String::from_utf8_lossy(&temper_service::startup::lines(&problems)).into_owned());
     }
     let limits = box_limits(&named.overrides)?;
-    Ok(Deployment { named, checked, limits, demo })
+    Ok(Deployment { named, checked, limits, demo, ports: ports.into_boxed_slice() })
 }
 pub(crate) fn check(bytes: &[u8], directories: &config::Directories) -> Result<Deployment, String> {
     check_with(bytes, directories, &temper_service::stock::Given::Stock)
