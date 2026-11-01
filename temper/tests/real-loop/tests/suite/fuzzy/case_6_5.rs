@@ -25,8 +25,9 @@ fn a_budget_question_climbs_two_owners_to_the_persons_inbox_and_a_raised_investi
     // neither effort nor spec revision per run: the high task document and
     // the next run after decided revision 1 observe the next try.
     // A alone is tracked, at priority one; A1 has depth one and A1_DEADLINE.
-    // A and A1 carry tool families 7 to delegate, message and amend; a5 has
-    // messages alone, the advisor none. Small admits the singleton tree.
+    // A and A1 carry tool families 39 to delegate, message, amend and subscribe; a5 has
+    // messages and a timer subscription, the advisor none. The timer keeps
+    // a5 awaiting the amendment. Small admits the singleton tree.
     // Source journal pages follow their supplied cursors for all three
     // owners, keeping every parked attempt.
     // Earlier steps stay unchanged; batch_member, held turns, delivery/tool

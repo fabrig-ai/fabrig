@@ -206,6 +206,7 @@ fn answers_question(answer: &ActivityLine, message: u64) -> bool {
             | MessageKind::Met { .. }
             | MessageKind::QuestionAnswered { .. }
             | MessageKind::QuestionOwed
+            | MessageKind::NothingAwaited
             | MessageKind::QuestionEnded { .. }
             | MessageKind::Amendment { .. }
             | MessageKind::Question

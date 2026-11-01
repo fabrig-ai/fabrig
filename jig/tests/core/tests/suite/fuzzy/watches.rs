@@ -3,7 +3,6 @@ use jig_domain_core::{
     self as core,
     documents::{Document, Watched},
 };
-use jig_domain_tasks as tasks;
 use jig_test_domain as root;
 use skein_lib::{Rng, Token};
 
@@ -41,7 +40,7 @@ fn seeded_parties_take_frame_chat_tree_and_inbox_deliveries_at_their_own_pace() 
                 });
             }
             world.send_all(burst);
-            world.end(tasks::End::Parked, 3);
+            world.park_for_message(3);
             let Document::Run(run) = latest(&world, 5) else { panic!("run page") };
             assert!(run.attempt.is_none());
             assert!(run.writing.is_none());

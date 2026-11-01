@@ -22,6 +22,7 @@ pub fn message_kind(value: &t::MessageKind, limits: &w::Limits) -> Result<w::Mes
             w::MessageKindAnswerParts { question: *question },
         )?),
         t::MessageKind::QuestionOwed => w::MessageKind::QuestionOwed,
+        t::MessageKind::NothingAwaited => w::MessageKind::NothingAwaited,
         t::MessageKind::QuestionEnded { question } => w::MessageKind::QuestionEnded(w::MessageKindAnswer::new(
             limits,
             w::MessageKindAnswerParts { question: *question },

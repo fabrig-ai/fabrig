@@ -563,7 +563,14 @@ An owner proposal outcome carries its proposal number and the original admitted 
 - **Ending:** a streamed message naming the watch and why
   (`../client/domain/contract.md`, 7.2); or closing it by an exchange,
   answered once the engine has ended it. A stream that ends ends its
-  watches.
+  watches. Once its connection is closed, the component sends each
+  watch's unwatch and outstanding delivery acknowledgements, then drops
+  the watch without waiting for the core's ending. Late core replies
+  cannot retain the closed stream's slot. A document or run text released
+  after its watch is dropped is acknowledged as dropped when it arrives,
+  so the core can finish its watch and drain. A name the component has
+  never issued is ignored. The core answers an unwatch
+  whose watcher it does not know with an unwatched ending.
 - **A closing follows its opening's answer.** Exchanges cross
   independently, and a closing that overtook its opening would find no
   watch, be answered closed, and leave the watch admitted after it, which

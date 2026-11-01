@@ -108,7 +108,7 @@ fn a_waiting_program_run_resumes_on_its_source() {
         run.observations.iter().any(|row| row.arguments.iter().any(|arg| arg == "--resume")),
         "the committed conversation resumes"
     );
-    assert!(run.received.iter().any(|line| line.to_string().contains("After waiting")));
+    assert!(run.received.iter().any(|line| line.to_string().contains("Nothing more will come")));
     finished(&run);
 }
 #[test]

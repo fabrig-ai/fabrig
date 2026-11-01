@@ -498,7 +498,8 @@ pub(crate) fn given(document: &serde_json::Value) -> temper_service::stock::Give
     document["world_settings"] = fixtures::world_document()["world_settings"].clone();
     let engine = crate::settings::configuration(&document);
     let mut defaults = temper_service::stock::defaults(&engine.llm);
-    let read_wait = STORY.with(|slot| matches!(slot.get(), Story::ChatReadThenWait { .. }));
+    let read_wait =
+        STORY.with(|slot| matches!(slot.get(), Story::ChatReadThenWait { .. })) || crate::lower::github::waiting();
     if read_wait {
         defaults.charters[0].policy.waiting = skein_lib::Duration::from_millis(u64::from(fixtures::CHAT_WAIT_MS));
     } else {

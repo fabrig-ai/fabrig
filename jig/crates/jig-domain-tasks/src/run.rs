@@ -360,6 +360,7 @@ pub(crate) fn activation(
         | Phase::Ended(_) => None,
     };
     let narrowed = old.narrowing;
+    let previous_tries = old.tries;
     let kept = ends::kept(domain, number);
     let discarded = !narrowed && kept.discards(&end);
     let end = if narrowed || discarded { End::Parked } else { end };
@@ -501,7 +502,22 @@ pub(crate) fn activation(
     if !parked || !kept.owes {
         crate::wake::after_run(domain, env, number, out);
     }
+    let nothing_awaited = end_kind == crate::EndKind::Parked
+        && !narrowed
+        && nothing_awaited(record(domain, number).expect("answered task live"));
+    if nothing_awaited {
+        let task = task_mut(domain, number).expect("idle task live");
+        task.record.tries = previous_tries;
+        task.record.tries.add(Class::Run);
+        if task.record.tries.of(Class::Run) > env.limits.retries.run.retries {
+            task.record.phase =
+                Phase::Closing(Closing { stage: Stage::Delegates, ending: Ending::Failed { reason: Box::new([]) } });
+        }
+    }
     publish(domain, env, number, out);
+    if nothing_awaited && record(domain, number).expect("idle task live").phase == Phase::Active(Active::Idle) {
+        out.push(Request::NothingAwaitedDue { task: number });
+    }
     if parked && kept.owes && record(domain, number).expect("owing task live").phase == Phase::Active(Active::Idle) {
         out.push(Request::QuestionOwedDue { task: number });
     }
@@ -671,4 +687,68 @@ fn exceeded(domain: &mut Domain, number: u64, exceeded: crate::Exceeded) -> Phas
     let why = Hold::Exceeded(exceeded);
     fact(domain, Fact::Held { task: number, why });
     Phase::Held { was: Was::Active(Active::Due), why, source: None }
+}
+
+/// Fixed durable notice text (domain/tasks.md, 5.2).
+pub(crate) const NOTHING_AWAITED_WORDS: &[u8] =
+    b"Nothing more will come: your delegates have ended and no question waits. Finish with your result.";
+
+fn nothing_awaited(row: &crate::TaskRecord) -> bool {
+    if row.phase != Phase::Active(Active::Idle)
+        || !ends::for_record(row).finishes_alone()
+        || !row.questions.is_empty()
+        || !row.delegates.is_empty()
+    {
+        return false;
+    }
+    for line in &row.question_lines {
+        if line.answer.is_none() {
+            return false;
+        }
+    }
+    if let Some(proposal) = &row.proposal {
+        match proposal.state {
+            crate::ProposalState::Pending { .. } => return false,
+            crate::ProposalState::Accepted { .. }
+            | crate::ProposalState::Rejected { .. }
+            | crate::ProposalState::Withdrawn => {}
+        }
+    }
+    for subscription in &row.subscriptions {
+        match subscription.kind {
+            crate::SubscriptionKind::Task { .. } | crate::SubscriptionKind::Timer { .. } => return false,
+            crate::SubscriptionKind::Topic { .. } => {}
+        }
+    }
+    true
+}
+
+pub(crate) fn nothing_awaited_notice(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    number: u64,
+    message: u64,
+    out: &mut Queue<Request>,
+) {
+    let Some(row) = record(domain, number) else { return };
+    if !nothing_awaited(row) || message == 0 || message <= row.last_message {
+        return;
+    }
+    let word = crate::Word {
+        number: message,
+        from: crate::Party::Task(number),
+        kind: crate::MessageKind::NothingAwaited,
+        words: Box::from(NOTHING_AWAITED_WORDS),
+        at: env.wall,
+        hits: 1,
+        eligible: true,
+    };
+    let prepared = crate::inbox::prepare(domain, &env.limits, number, word, crate::inbox::Admission::Merged)
+        .expect("nothing-awaited notice shares the met slot");
+    let task = task_mut(domain, number).expect("idle notice task live");
+    task.record.last_message = message;
+    task.record.inbox = prepared.inbox;
+    crate::activity::message(&mut task.record, &prepared.activity_word, env.limits.inbox_messages, out);
+    publish(domain, env, number, out);
+    crate::wake::after_message(domain, env, number, prepared.previous, prepared.word, out);
 }

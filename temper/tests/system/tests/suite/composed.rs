@@ -253,7 +253,7 @@ fn an_adopted_repository_is_prepared_by_the_worker_and_mounted_in_smith() {
 #[test]
 fn a_parked_smith_run_resumes_from_the_prefix_restored_through_both_roots() {
     use skein_fake_llm_domain::api::{Finish, Line, Script, Turn};
-    let mut world = World::chat(
+    let mut world = World::open_chat(
         915,
         Script {
             cue: Box::from(&b"Complete the task within its authority."[..]),

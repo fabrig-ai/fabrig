@@ -307,7 +307,7 @@ fn lost_open_settles(world: &mut World, goal: u64) -> Result<(), Violation> {
 )]
 fn goal_issue(world: &mut World) -> Result<(), Violation> {
     let chat = world.peers.assignments[0].clone();
-    world.peers.worker.cancel(chat.task, chat.attempt);
+    scenarios::ask(world, 81, people::Ask::Cancel { project: 1, task: chat.task, reason: Box::new([]), grace: None });
     world.drain()?;
     scenarios::ask(
         world,

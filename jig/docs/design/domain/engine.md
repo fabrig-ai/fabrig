@@ -1017,7 +1017,8 @@ call writes over a change its run was not shown.
 - **A run answers once:** finished, with its result; parked; or failed,
   with a typed failure. The core commits it, once it has every turn the
   answer counts, and acknowledges it; a finished task closes, a parked
-  one is idle, a failed one retries or is held (tasks.md, 5.5). What the
+  one follows the wake rules (tasks.md, 5.2), a failed one retries or is
+  held (tasks.md, 5.5). What the
   answer says the run left on resources goes to their connectors
   (connectors.md, section 10).
 - **Finished done while kept, it parks.** A run whose task is kept
@@ -1050,6 +1051,10 @@ call writes over a change its run was not shown.
   refused, whatever its fence covers (7.2).
 - **A cancel** ends the run: the host cancels it and answers; what it
   committed before stays committed.
+- **Nothing left to await.** After normal wakes, tasks asks the core to
+  number the always-waking `NothingAwaited` notice for a result-ended
+  task that parks idle with nothing pending (tasks.md, 5.2). Tasks spends
+  a run try on each such park and ends failed when those tries run out.
 - **Saved state.** A run that parks, fails or is cancelled with unfinished
   work has it saved by its host, where its connectors say, and the next
   run of its task starts from it (connectors.md, section 10).
@@ -1325,7 +1330,9 @@ computes for them is said below (11.1 to 11.5).
   taken the last, is made from the state as it is then. Changes in
   between are coalesced, never queued. A watch ended with a delivery in
   flight ends once that delivery is taken or dropped
-  (`../protocol/client.md`, section 7).
+  (`../protocol/client.md`, section 7). An unwatch whose watcher the
+  core does not know receives an unwatched ending behind the commit
+  barrier, so closing its stream does not wait on an absent watcher.
 - **Finishing belongs to the core** (root.md, section 3). Gathered subject
   changes, retained writing's proof reconciliation and unreported watch
   endings remain owed after a projection pass defers them. A closing watch

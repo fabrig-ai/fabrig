@@ -129,6 +129,7 @@ fn kinds() -> Box<[MessageKind]> {
         MessageKind::Timer { subscription: u64::MAX },
         MessageKind::News { subscription: u64::MAX, class: NewsClass::Wakes },
         MessageKind::Result(WordResult::Report),
+        MessageKind::NothingAwaited,
     ])
 }
 #[test]
@@ -166,7 +167,7 @@ fn owner_activity_all_nine_lines_keep_task_commit_clock_and_exact_variant_facts(
 #[test]
 fn owner_activity_all_message_kinds_keep_whole_word_hits_clock_and_flags() {
     let mut goldens = Goldens::new("tree/fragments/activity/owner_activity_all_message");
-    assert_eq!(kinds().len(), 20);
+    assert_eq!(kinds().len(), 21);
     for kind in kinds() {
         let word = fixture(kind);
         let original = word.clone();

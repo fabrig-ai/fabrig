@@ -31,7 +31,7 @@ pub fn workers_at(seed: u64, count: u32, engine: bool, cut: Option<crate::world:
     if engine {
         hosts.insert(0, Worker::new(0, 1, vec![script(1), script(2)]));
     }
-    World::new(Setup {
+    let mut world = World::new(Setup {
         configuration: Some(config),
         limits,
         peers: Some(Peers::new(
@@ -48,7 +48,11 @@ pub fn workers_at(seed: u64, count: u32, engine: bool, cut: Option<crate::world:
         )),
         cut,
         ..Setup::default()
-    })
+    });
+    if let Some(assignment) = &world.assigned {
+        world.await_timer(assignment.task);
+    }
+    world
 }
 
 /// Resume the owner's last chat, retaining the key for reproducible retries.

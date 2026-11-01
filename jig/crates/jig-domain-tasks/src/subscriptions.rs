@@ -25,6 +25,7 @@ fn hint_of(kind: &MessageKind) -> Option<u64> {
         | MessageKind::Met { .. }
         | MessageKind::QuestionAnswered { .. }
         | MessageKind::QuestionOwed
+        | MessageKind::NothingAwaited
         | MessageKind::QuestionEnded { .. }
         | MessageKind::Question
         | MessageKind::Answer { .. }
@@ -231,6 +232,7 @@ fn matches_kind(kind: &MessageKind, subscription: &SubscriptionKind) -> bool {
         | MessageKind::Met { .. }
         | MessageKind::QuestionAnswered { .. }
         | MessageKind::QuestionOwed
+        | MessageKind::NothingAwaited
         | MessageKind::QuestionEnded { .. }
         | MessageKind::Question
         | MessageKind::Answer { .. }

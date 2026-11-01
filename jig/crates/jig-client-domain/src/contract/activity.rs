@@ -55,6 +55,7 @@ pub struct Word {
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum MessageKind {
     QuestionOwed,
+    NothingAwaited,
     SettingsDecision {
         proposal: u64,
         outcome: SettingsOutcome,

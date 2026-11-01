@@ -369,7 +369,9 @@ secrets' store (section 9).
 ## 5. Records
 
 The current tasks family is version 9: its durable `MessageKind` adds
-`FinishRequested { revision }` for a cancel grace. Tasks version 8 stores
+`FinishRequested { revision }` for a cancel grace and `NothingAwaited`
+for a result-ended task with nothing pending (`../domain/tasks.md`, 5.2).
+Tasks version 8 stores
 refuse to open under the existing format check; no migration is added.
 Component2/core5/people8/notes1 remain unchanged. The accounts family
 is version 2: a source's hold adds *moving* (`../domain/accounts.md`,

@@ -55,6 +55,7 @@ fn chat(driver: &mut Driver, key: u8, words: &[u8]) -> engine::Assignment {
     };
     // A named share leaves the fixture's remaining period funds for the
     // other chat; AsAllowed would give the first chat all of them.
+    batch[0].flags.ended_by = people::EndedBy::Requester;
     batch[0].budget = people::Budget::Named;
     batch[0].authority.spend = CHAT_SPEND;
     driver.send(engine::Event::Party(engine::PartyInput::Ask {

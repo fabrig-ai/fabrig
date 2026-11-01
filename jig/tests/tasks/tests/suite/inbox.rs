@@ -256,6 +256,8 @@ fn an_inbox_filling_merges_news_refuses_words_and_still_takes_a_result() {
 fn a_watch_woken_once_by_a_burst_of_news() {
     let mut world = World::new(86, LIMITS);
     let mut watch = task(1, &[]);
+    watch.flags =
+        jig_domain_tasks::Flags { conversation: true, ended_by: jig_domain_tasks::EndedBy::Requester, ..watch.flags };
     watch.wake.news = WakeRule::Batch { count: 2, age: skein_lib::Duration::from_nanos(20) };
     world.make(Party::Person(9), vec![watch]);
     world.claim(1, 1);

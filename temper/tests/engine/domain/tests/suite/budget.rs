@@ -49,6 +49,7 @@ fn parked() -> (Store, Vec<engine::Assignment>) {
         let people::Ask::Create { project, mut batch } = driver.chat_ask(1, b"budget conversation") else {
             unreachable!()
         };
+        batch[0].flags.ended_by = people::EndedBy::Requester;
         batch[0].budget = people::Budget::Named;
         batch[0].authority.spend = 100;
         driver.send(engine::Event::Party(engine::PartyInput::Ask {

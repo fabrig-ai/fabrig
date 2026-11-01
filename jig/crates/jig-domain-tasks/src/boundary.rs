@@ -124,6 +124,8 @@ pub enum MessageKind {
     QuestionAnswered { question: u64 },
     /// Its requester is owed a question before a done finish (domain/tasks.md, 5.7).
     QuestionOwed,
+    /// Nothing remains to await after a result-ended task parks (domain/tasks.md, 5.2).
+    NothingAwaited,
 }
 
 /// Terminal shape carried with a delegate's bounded message words.
@@ -191,6 +193,7 @@ impl Word {
             | MessageKind::Met { .. }
             | MessageKind::QuestionAnswered { .. }
             | MessageKind::QuestionOwed
+            | MessageKind::NothingAwaited
             | MessageKind::QuestionEnded { .. } => false,
         }
     }
@@ -223,6 +226,7 @@ impl Word {
             | MessageKind::Met { .. }
             | MessageKind::QuestionAnswered { .. }
             | MessageKind::QuestionOwed
+            | MessageKind::NothingAwaited
             | MessageKind::QuestionEnded { .. }
             | MessageKind::Question
             | MessageKind::Answer { .. }
@@ -1781,6 +1785,8 @@ pub enum Event {
     QuestionEndedNotice { task: u64, notices: Box<[QuestionNotice]> },
     /// Root numbers the reminder for a run that finished before asking.
     QuestionOwedNotice { task: u64, message: u64 },
+    /// Core-numbered notice after a park with nothing pending.
+    NothingAwaitedNotice { task: u64, message: u64 },
     /// A caller cancels its own unanswered question.
     CancelQuestion { reply_to: ReplyTo, task: u64, question: u64 },
     /// Root numbers the notice that a kept task goes on (domain/tasks.md, 5.7 and 8.1).
@@ -1838,6 +1844,8 @@ pub enum Request {
     QuestionEndedDue { task: u64, questions: Box<[u64]> },
     /// Root supplies the next obligation reminder number.
     QuestionOwedDue { task: u64 },
+    /// Number the always-waking notice for an idle result-ended task.
+    NothingAwaitedDue { task: u64 },
     /// Root supplies one message number for the notice that a kept task goes on (domain/tasks.md, 5.7 and 8.1).
     MetDue { task: u64, dependency: u64, removed: bool, by: Party },
     /// One nonfinal held decision passed its configured wait.
@@ -2164,6 +2172,7 @@ impl MessageKind {
             | Self::Notice { .. }
             | Self::QuestionAnswered { .. }
             | Self::QuestionOwed
+            | Self::NothingAwaited
             | Self::QuestionEnded { .. }
             | Self::Timer { .. }
             | Self::PersonStalled { .. } => None,

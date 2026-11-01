@@ -195,6 +195,7 @@ fn an_idle_kept_agents_inbox_waits_without_waking_then_delivers_after_met() {
     let child = member(&world, tasks::Executor::Agent { charter: 1 }, b"idle report");
     let kept = delegate(&mut world, parent, 1, child);
     let run = running(&world, kept);
+    world.await_timer(kept);
     world.send(root::Event::Answer {
         read: None,
         refused: Box::new([]),

@@ -79,7 +79,8 @@ fn merged_hint(before: &MessageKind, after: &MessageKind) -> bool {
         | (MessageKind::News { subscription: old, .. }, MessageKind::News { subscription: new, .. }) => old == new,
         (MessageKind::Amendment { .. }, MessageKind::Amendment { .. })
         | (MessageKind::Met { .. }, MessageKind::Met { .. })
-        | (MessageKind::QuestionOwed, MessageKind::QuestionOwed) => true,
+        | (MessageKind::QuestionOwed, MessageKind::QuestionOwed)
+        | (MessageKind::NothingAwaited, MessageKind::NothingAwaited) => true,
         _ => false,
     }
 }

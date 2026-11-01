@@ -43,7 +43,7 @@ fn pending_reply(driver: &mut Driver) -> engine::Event {
 }
 
 fn waiting(closed: bool) -> (Driver, engine::Assignment, u64, engine::Event) {
-    let (mut driver, first) = Driver::chat();
+    let (mut driver, first) = Driver::open_chat();
     let session = driver.session();
     driver.send(protocol::turn(CHANNEL, first.task, first.attempt, FIRST_TURN, SPENT, None, OLD_TEXT));
     driver.settle();

@@ -217,6 +217,7 @@ fn reply_to(event: &mut jig_domain_tasks::Event) -> Option<&mut skein_lib::Reply
         | tasks::Event::PersonStallNotice { .. }
         | tasks::Event::QuestionEndedNotice { .. }
         | tasks::Event::QuestionOwedNotice { .. }
+        | tasks::Event::NothingAwaitedNotice { .. }
         | tasks::Event::MetNotice { .. }
         | tasks::Event::Restore { .. }
         | tasks::Event::Check

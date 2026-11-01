@@ -294,6 +294,16 @@ fn closing_an_open_chat_keeps_its_turns_and_settles_its_delegates() {
     reply_and_finish(&mut driver, &run, None, REPLY);
     for child in [cancel, moved] {
         let delegate = assigned_task(&driver, child);
+        let call = 922 + child;
+        tool_call(
+            &mut driver,
+            &delegate,
+            call,
+            engine::Tool::Subscribe {
+                kind: tasks::SubscriptionKind::Timer { at: skein_lib::Wall::from_nanos(u64::MAX), period: None },
+            },
+        );
+        assert!(matches!(driver.answered(call), Some(engine::CallAnswer::Subscribed { .. })));
         park_task(&mut driver, &delegate);
     }
     driver.settle();

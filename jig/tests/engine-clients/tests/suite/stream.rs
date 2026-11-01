@@ -13,6 +13,51 @@ fn watched() -> (Peer, [u8; 16], skein_lib::Token) {
     (peer, stream, watcher)
 }
 #[test]
+fn a_late_delivery_after_stream_loss_settles_the_core() {
+    let (mut peer, stream, watcher) = watched();
+    peer.cut_stream(stream);
+    let before = peer.stream_bytes(stream).len();
+    peer.release_delivery(watcher, fixtures::me_document(7));
+    assert_eq!(peer.taken(watcher), 1);
+    assert_eq!(peer.stream_bytes(stream).len(), before);
+}
+#[test]
+fn a_wait_and_three_reads_keep_independent_streams_with_four_exchanges_free() {
+    let mut limits = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
+    for (name, value) in [
+        (b"clients.streams".as_slice(), 8),
+        (b"clients.exchanges", 12),
+        (b"clients_http.streams", 8),
+        (b"clients_http.calls", 12),
+    ] {
+        jig_protocol_config::overrides::apply(&mut limits, name, value).expect("stream override");
+    }
+    let mut server = fixtures::server_limits();
+    server.connections = 12;
+    let mut http = fixtures::http_limits();
+    http.streams = limits.clients_http.streams;
+    http.calls = limits.clients_http.calls;
+    let mut peer = Peer::signed_in_with_server_bounds(
+        &fixtures::settings(),
+        fixtures::FIRST_SIGN_IN,
+        limits.clients,
+        http,
+        server,
+    );
+    let wait = peer.open_stream();
+    let waiting = peer.open_watch(wait, &fixtures::me_subject());
+    let reads = [peer.open_stream(), peer.open_stream(), peer.open_stream()];
+    let watches = reads.map(|stream| peer.open_watch(stream, &fixtures::me_subject()));
+    for ((stream, watcher), name) in reads.into_iter().zip(watches).zip(2..=4) {
+        peer.release_delivery(watcher, fixtures::me_document(7));
+        assert_eq!(peer.taken(watcher), 1);
+        assert_eq!(peer.events(stream), vec![hello(stream), frame(name, 7)]);
+    }
+    assert_eq!(peer.taken(waiting), 0, "the wait remains open beside all three reads");
+    peer.release_delivery(waiting, fixtures::me_document(7));
+    assert_eq!(peer.taken(waiting), 1);
+}
+#[test]
 fn two_streams_of_one_sign_in_each_open_with_their_own_names() {
     let (mut peer, first) = streaming();
     let second = peer.open_stream();

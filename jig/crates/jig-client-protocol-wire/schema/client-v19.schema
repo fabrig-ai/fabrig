@@ -491,7 +491,7 @@ record MessageKindTimer { subscription: u64 }
 record MessageKindNews { subscription: u64 class: NewsClass }
 record MessageKindResult { value: WordResult }
 record MessageKindMet { dependency: u64 removed: bool }
-enum MessageKind { escalation: MessageKindEscalation, proposal: MessageKindProposal, person_stalled: MessageKindPersonStalled, proposal_decision: MessageKindProposalDecision, words, effect_not_made: MessageKindEffectNotMade, amendment: MessageKindAmendment, question, answer: MessageKindAnswer, notice: MessageKindNotice, timer: MessageKindTimer, news: MessageKindNews, result: MessageKindResult, met: MessageKindMet, settings_decision: MessageKindSettingsDecision, question_ended: MessageKindAnswer, question_answered: MessageKindAnswer, question_owed }
+enum MessageKind { escalation: MessageKindEscalation, proposal: MessageKindProposal, person_stalled: MessageKindPersonStalled, proposal_decision: MessageKindProposalDecision, words, effect_not_made: MessageKindEffectNotMade, amendment: MessageKindAmendment, question, answer: MessageKindAnswer, notice: MessageKindNotice, timer: MessageKindTimer, news: MessageKindNews, result: MessageKindResult, met: MessageKindMet, settings_decision: MessageKindSettingsDecision, question_ended: MessageKindAnswer, question_answered: MessageKindAnswer, question_owed, nothing_awaited }
 record Word { number: u64 from: Requester kind: MessageKind words: text 65536 at: u64 hits: u32 eligible: bool }
 record RunWhyMessage { message: u64 }
 record RunWhyRetry { tries: FailureTries }

@@ -163,13 +163,18 @@ impl Component {
             }
             Event::Admitted { watcher } => self.watch_answer(env, watcher, None),
             Event::WatchRefused { watcher, why } => self.watch_answer(env, watcher, Some(why)),
-            Event::Delivery { watcher, document } => self.delivery(env, watcher, &document),
+            Event::Delivery { watcher, document } => self.delivery(env, watcher, &document, out),
             Event::WatchEnded { watcher, why } => self.watch_ended(env, watcher, why),
             Event::RunText { watcher, turn, from, to, text, cut, call, writing } => {
-                self.run_text(env, watcher, jig_domain_views::Writing { turn, from, to, text, cut, call, writing });
+                self.run_text(
+                    env,
+                    watcher,
+                    jig_domain_views::Writing { turn, from, to, text, cut, call, writing },
+                    out,
+                );
             }
             Event::Application(crate::FromApplication::Delivery { watcher, family, record }) => {
-                self.application_delivery(env, watcher, family, record);
+                self.application_delivery(env, watcher, family, record, out);
             }
             Event::Redeem { exchange, authorization, content_type, body } => {
                 let answer = self.redeem(env, authorization.as_ref(), content_type.as_deref(), body.expose());

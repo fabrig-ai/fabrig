@@ -502,7 +502,11 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<W
             view::routes::open_run(core, env, watcher, sign_in, task, turn, offset)
         }
         Event::Unwatch { watcher } => {
-            let Some(watcher) = core.watch_token(watcher) else { return Queue::uncapped() };
+            let Some(watcher) = core.watch_token(watcher) else {
+                let mut out = Queue::uncapped();
+                out.push(Request::Held(Box::new(Held::WatchEnded { watcher, why: views::End::Unwatched })));
+                return out;
+            };
             route_view(core, env, views::Event::EndWatch { watcher, end: views::End::Unwatched })
         }
         Event::Delivered { watcher } => {

@@ -1281,14 +1281,14 @@ pub fn step_6_5(_forge: SocketAddr) -> Box<[Script]> {
         BUDGET_UP_QUESTION, DEFAULT_MODEL_NUMBER, OWNER_EFFORT_NUMBER, OWNER_MODEL_NUMBER,
     };
     let mut owner = batch_member(Agent::BudgetOwner, 35, 3, 2, A_DEADLINE);
-    owner["authority"]["tools"] = 7.into();
+    owner["authority"]["tools"] = (7 | 32).into();
     owner["tracked"] = json!({"priority":1});
     let mut subowner = batch_member(Agent::BudgetSubowner, 25, 2, 1, A1_DEADLINE);
-    subowner["authority"]["tools"] = 7.into();
+    subowner["authority"]["tools"] = (7 | 32).into();
     let mut a5 = batch_member(Agent::BudgetInvestigator, 10, 0, 0, A1_DEADLINE);
-    a5["authority"]["tools"] = 2.into();
+    a5["authority"]["tools"] = (2 | 32).into();
     a5["llm"] = json!({"main":{"model":DEFAULT_MODEL_NUMBER,"effort":BUDGET_MEDIUM_NUMBER}});
-    let mut advisor = batch_member(Agent::BudgetAdvisor, 10, 0, 0, A1_DEADLINE);
+    let mut advisor = batch_member(Agent::BudgetAdvisor, 9, 0, 0, A1_DEADLINE);
     advisor["spec"]["words"] = BUDGET_ADVISOR_SPEC.into();
     advisor["llm"] = json!({"main":{"model":OWNER_MODEL_NUMBER,"effort":OWNER_EFFORT_NUMBER}});
     Box::new([
@@ -1349,6 +1349,7 @@ pub fn step_6_5(_forge: SocketAddr) -> Box<[Script]> {
         Script {
             cue: Agent::BudgetInvestigator.cue().into(),
             turns: Box::new([
+                call(b"subscribe", &json!({"kind":"timer","at":u64::MAX})),
                 then_wait(
                     call(b"message", &json!({"target":BUDGET_SUBOWNER,"form":"words","words":BUDGET_FINDING})),
                     "a5 awaits a next try.",
@@ -1365,7 +1366,8 @@ pub fn step_6_5(_forge: SocketAddr) -> Box<[Script]> {
 pub fn step_6_5_rules() -> Box<[Box<[Rule]>]> {
     use super::{
         BUDGET_A5_REPORT, BUDGET_ADVISOR_REPORT, BUDGET_ANSWER, BUDGET_FINDING, BUDGET_OWNER_REPORT,
-        BUDGET_PERSON_ANSWER, BUDGET_QUESTION, BUDGET_REASON, BUDGET_SUBOWNER_REPORT, BUDGET_UP_QUESTION,
+        BUDGET_PERSON_ANSWER, BUDGET_QUESTION, BUDGET_REASON, BUDGET_SUBOWNER_REPORT, BUDGET_TIMER_NUMBER,
+        BUDGET_UP_QUESTION,
     };
     let table = |entries: &[(&str, u32)]| -> Box<[Rule]> {
         entries.iter().map(|(cue, turn)| Rule { cue: cue.as_bytes().into(), turn: *turn }).collect()
@@ -1406,12 +1408,13 @@ pub fn step_6_5_rules() -> Box<[Box<[Rule]>]> {
             ("", 5),
         ]),
         table(&[
-            (BUDGET_REASON, 1),
-            (CROSSED, 1),
-            (MESSAGE, 2),
-            ("Held task needs a decision", 2),
+            (BUDGET_REASON, 2),
+            (CROSSED, 2),
+            (MESSAGE, 3),
+            ("Held task needs a decision", 3),
+            (&format!("Subscription {BUDGET_TIMER_NUMBER} added"), 1),
             (BEGIN, 0),
-            ("", 2),
+            ("", 3),
         ]),
         Box::new([]),
     ])

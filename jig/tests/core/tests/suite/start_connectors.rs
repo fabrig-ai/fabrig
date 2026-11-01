@@ -46,7 +46,7 @@ impl Harness {
         let (configuration, limits) = jig_core_world::world::fixture(SEED, false);
         let mut source = World::new(Setup { seed: SEED, ..Setup::default() });
         let task = source.assigned.as_ref().expect("source run").task;
-        source.end(tasks::End::Parked, 0);
+        source.park_for_message(0);
         let path = jig_test_connector_world::path(1, 1);
         let resource = task_name(&path);
         let env = Env {

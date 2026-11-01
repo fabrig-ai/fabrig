@@ -500,3 +500,12 @@ fn a_repair_holds_its_task_pull_and_whole_gate_remarks() {
     assert!(brief.read_bytes >= brief.budgets.reviews);
     assert!(limits.forge.brief_bytes >= brief.read_bytes);
 }
+#[test]
+fn server_connections_carry_the_box_streams_and_four_calls() {
+    let mut jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
+    jig.clients.streams = 8;
+    jig.clients.exchanges = 12;
+    jig.clients_http.streams = 8;
+    jig.clients_http.calls = 12;
+    assert_eq!(limits::server(&jig).connections, 12);
+}

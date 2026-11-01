@@ -163,18 +163,7 @@ impl Stream {
     }
     pub fn ready(&self) -> bool {
         if self.closing() {
-            if !self.closed_connection {
-                return true;
-            }
-            if self.watches.is_empty() {
-                return true;
-            }
-            for (_, watch) in &self.watches {
-                if !watch.unwatch || watch.delivery_pending || watch.text_pending || watch.end.is_some() {
-                    return true;
-                }
-            }
-            return false;
+            return true;
         }
         if self.message.is_some() {
             return true;
