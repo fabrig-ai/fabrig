@@ -40,8 +40,8 @@ real backends, a QA driver types Ines's words through `temper ctl`.
   - packages: `kit`; `ui`, which reads kit; `app`, which reads kit and
     ui;
   - `debts.txt`, a counted baseline, recounted by `tools/count`;
-    - `docs/`, the project's designs and drafts. Goals, plans, specs and
-      findings live in temper's store, never in the repository.
+      - `docs/`, the project's designs and drafts; temper's data lives
+        in its store, never here.
 - **The gates:** formatting, lints, the build, and the `default` and
   `fuzzy` tests: the check before ready runs them in a change's
   workspace, the landing queue in its gate lane, the final check whole.
@@ -453,7 +453,7 @@ an agent where the model has code, or by code where it has an agent
 | finished, left, a question, failed | LLM | `Done:`, `## Left`, `Question:`, `Failed:` | 5.1 |
 | kept, held (5.4, 8.4) | code | parked; `park` marks fab's own (a failed run, the run limit) | 10.5, 5.1 |
 | examiners (fix, retry, accept) | LLM | the foremen | 10.3 |
-| a resolution or a repair, by the refused gate | code | `REBASE_STEPS` | 10.3 |
+| resolution or repair, by gate | code | `REBASE_STEPS` | 10.3 |
 | the answerer (5.4) | LLM | the answer call | 10.4 |
 | an interim check (5.6) | code | `fab check start --default` | 6.3 |
 | overlaps (5.7) | code | `trunks.overlap` | 6.6 |
@@ -462,11 +462,11 @@ an agent where the model has code, or by code where it has an agent
 | the check before ready (6.1) | code | gap: run by the implementer | 7.2 |
 | a candidate, a full selection, bisecting (6.1) | code | `fab queue`, a batch, every fifth full | 7.1, 7.4 |
 | updates (6.2) | code | catch-ups (gap: a repair merges main itself) | 6.4 |
-| a stop, the goal's agent deciding (6.2) | LLM | gap: a note, then a hand merge | 6.4 |
+| a stop, the goal's agent (6.2) | LLM | gap: a note, a hand merge | 6.4 |
 | the final check (5.8, 6.3) | code | `fab check` (`fab precheck --full`) | 6.5 |
 | the gate's fault, readied again (6.4) | code | a batch `error`; re-check, a new ready | 7.1, 6.5 |
-| a flake at the gate (7.1) | code | a collateral red, `reds.classify` | 7.3 |
-| a receipt reused (7.3) | code | the precheck receipt carried at ready | 7.2 |
+| a flake at the gate (7.1) | code | a collateral red | 7.3 |
+| a receipt reused (7.3) | code | the precheck receipt | 7.2 |
 | a retry at the same tip (8.4) | code | `fab queue untry` | 7.5 |
 | the tier runner (7.1 to 7.3) | code | `fab after-landing run` | 8.1 |
 | a red's repair in its owner's goal (7.3) | code | gap: in the newest suspect's plan | 8.2 |
@@ -474,7 +474,7 @@ an agent where the model has code, or by code where it has an agent
 | the chat acting on alerts (7.1) | LLM | gap: read and cleared by a session | 11.2 |
 | the wrap-up (7.4) | LLM | the retire call (gap: on a trunk, never reaches main) | 8.3, 10.6 |
 | a walk started, built, lent, recorded (8.1) | code | gap: a session, `fab qa walk`, `fab qa result` | 9.2 |
-| the walker (8.1) | LLM | the session's walker | 9.2 |
+| the walker (8.1) | LLM | a session's walker | 9.2 |
 | the triager (8.1) | LLM | the triage call | 9.3 |
 | the backlog readied (8.1) | code | `ladder/<draft>/backlog-<n>` (gap: the queue never takes it) | 9.3 |
 | a brief rewritten (8.3) | LLM | gap: a question to the person, then a hand edit | 9.3 |
@@ -515,7 +515,7 @@ Evidence at fabrig 2075ff38b; unqualified documents are temper's
 | A chat from a template; tools that create goals | 4.1 | LLM | generic in part: templates and charters as settings (jig's `protocol/configuration.md` 3.1); the chat's `goal`, `change` and `delegate` tools (`agent.md` 4.3.2, 4.3.1, 4.3) | ctl starting a chat from any template; `goal` choosing its template; `alerts_to` |
 | The planner | 4.2 | LLM; code | lacks | an agent task whose result is a plan of tasks with specs, in the store, in pieces |
 | Changes, specs with options, repairs from records | 4.3 | LLM; code | fixed: the change procedure (`forge.md` 8); briefs from sections (jig's `domain/engine.md` 9) | options settling questions; repairs made from records |
-| A goal's settings | 4.4 | code | lacks: landing settings are per project (`landing.md` 13.1) | settings per goal |
+| A goal's settings (temper's) | 4.4 | code | lacks: per project only (`landing.md` 13.1); jig's application kinds *designed* (jig's `domain/engine.md` 17.5) | temper's kind; jig: a scope under a project |
 | A run, its ends, tries | 5.1 | LLM; code | generic: charters; tries per failure class configured per deployment (jig's `domain/tasks.md` 5.5; `jig-protocol-config` overrides) | tries counted as runs not landed; a list of what was left; fresh tries granted by an answer |
 | Slots, run targets, the order of starts | 5.2 | code | generic in part: slots and placement (jig's `domain/engine.md` 8); priority in hold queues (jig's `domain/tasks.md` 6.2) | a run target and a flow target; calm; repairs first |
 | The goal branch and its merges | 6.1 | code; LLM | lacks (*designed*: `forge.md` 11.1, landing each change gated); resolutions fixed (`forge.md` 8.4) | ungated merges into a goal branch, the recount |
@@ -546,6 +546,8 @@ Evidence at fabrig 2075ff38b; unqualified documents are temper's
 | Workspaces and disk | 12.1 | code | fixed in part: a checkout cache (`worker.md` 5) | disk admission, sweeps, lanes, stale claims released |
 | Custody | 12.2 | code | generic in part: accounts with holders, a run's grant, limited until a reset, export and import (jig's `domain/accounts.md` 3.2, 3.4, 3.5) | swaps, limit checks, credentials lent to walks; moving a program's login between machines conflicts with `accounts.md` 6 |
 | Reports and status | 13 | code | lacks for ctl: recurring tasks fire per spend period, and nothing in ctl starts one (jig's `domain/tasks.md` 10) | the two reports on a daily timer; status counts in ctl; weights |
+
+
 
 
 

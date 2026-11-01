@@ -60,16 +60,27 @@ named `fab:<name>`; jig's are named as jig's.
   accounts and workers take runs (section 12); reports come from the
   store (section 13).
 
-## 2. Words
+## 2. Two layers, and words
 
-Most words are jig's (task, goal, chat, template, charter, plan, spec,
-brief, run, try, kept, held, wake, timer, inbox, worker, slot,
-workspace, job, account, grant) or temper's (change, producer, landing
-queue, candidate, gate, receipt, tier, red, flake, fault, repair,
-resolution, update, finding, triage, and the walk, ladder and rung of
-`draft/v0.1.0.md`, cited from `testing.md` 2.4). jig's tries count
-failed attempts per class; here a change also has `tries`, its runs not
-landed. These are new, for what neither names:
+- **jig is generic:** tasks and their delegation, specs, questions and
+  the inbox, holds, wakes and timers, the store, a settings store with
+  revisions, templates and charters, accounts, workers, slots and jobs.
+  It knows nothing of code, branches or landing, and would serve any
+  application that uses an LLM for judgement and code for mechanisms.
+- **temper is the software-delivery application on it:** changes, goal
+  branches, the landing queue, gates and receipts, tiers, findings,
+  walks and custody of forge credentials are temper's mechanisms, built
+  from jig's primitives. Its settings (4.4, 14.1) are temper's own kinds
+  of setting, declared to jig's settings store as an application's kinds
+  (jig `engine.md` 17.5, designed) and scoped to a goal or a project.
+- **Words:** most are jig's (task, goal, chat, template, charter, plan,
+  spec, brief, run, try, kept, held, wake, timer, inbox, worker, slot,
+  workspace, job, account, grant) or temper's (change, producer, landing
+  queue, candidate, gate, receipt, tier, red, flake, fault, repair,
+  resolution, update, finding, triage, and the walk, ladder and rung of
+  `draft/v0.1.0.md`, cited from `testing.md` 2.4). jig's tries count
+  failed attempts per class; here a change also has `tries`, its runs
+  not landed. These are new, for what neither names:
 
 | Word | What it is |
 |---|---|
@@ -164,7 +175,11 @@ landed. These are new, for what neither names:
   landing, of a finding; the engine makes them from records, their words
   the evidence, the examiner's section and their answers.
 
-### 4.4 A goal's settings (code)
+### 4.4 A goal's settings (code; temper's)
+
+temper's settings for a goal's landing, an application kind on jig's
+settings store, scoped to the goal; jig only stores and scopes them.
+
 
 | Setting | Values | What it sets |
 |---|---|---|
@@ -800,6 +815,7 @@ Each waits for the numbers or the person's word that asks for it.
 - **The web UI:** the chat, the inbox and a public status page in a
   browser; a track of its own (the user, 11-01). Here everything goes
   through `temper ctl`.
+
 
 
 
