@@ -77,11 +77,9 @@ jq --arg model MODEL --arg claude "$(command -v claude)" --arg programs PROGRAMS
   CONFIG/agent.json > DIR/agent.json && cat DIR/agent.json > CONFIG/agent.json
 ```
 
-Expect: no output; `jq -c '[.engine.llm.models[].name]'
-CONFIG/temper.json` prints `["MODEL","demo"]`. Later, `me` lists
-provider 2, Anthropic, program `claude_code`; provider 1 is gone.
-Use Claude Code's way in step 5. Keep the demo: without it a turn
-outgrows init's limits.
+Expect: no output; `me` later lists provider 2, Anthropic, program
+`claude_code`. Use Claude Code's way in step 5. Keep the demo model
+to stay within init's limits.
 
 If not: `temper init: CONFIG/temper.json: already exists` (exit 1):
 Use empty directories.
@@ -134,12 +132,19 @@ temper ctl DIR me
 
 Expect: `party 1 · owner · Owner`; `me` lists `1 · Project 1 · owner`.
 
+First start made project 1 and its owner. After raising limits with
+`settings apply`, use `project fund` for its period, then role 0's
+pool, with distinct keys: temper help weekly-budget. Settings do not
+resize these budgets; policy 1 sizes future projects. Check both
+balances with `project show PROJECT`.
+
 If not: `temper ctl: the sign-in link was refused` (exit 1): spent or
 expired. Use the new link after `A fresh sign-in link:`.
 
 ## 4. Set up Forgejo on this machine
 
-`PROJECT` is 1 on a new box, as `me` lists it.
+Use the project `me` lists, 1 on a new box: setup adopts the repository
+into this existing project.
 
 ```
 temper ctl DIR forge setup --org work --repository hello --project PROJECT --key KEY
@@ -177,8 +182,7 @@ A login exported from another deployment:
 temper ctl DIR account import FILE --key KEY
 ```
 
-A provider's sign-in, opened in a browser on this machine; on fake
-backends, any HTTP client completes it:
+A provider's browser sign-in; any HTTP client completes the fake:
 
 ```
 temper ctl DIR account connect PROVIDER --key KEY
@@ -201,11 +205,9 @@ temper ctl DIR account list
 temper ctl DIR account verify ACCOUNT --source program
 ```
 
-`program-login` signs Claude Code in through this terminal into
-`PROGRAMS/NAME`. To use an existing signed-in directory in place,
-set `PROGRAMS` to its parent and `NAME` to its name; skip
-`program-login`. temper neither moves nor reads it; only one box
-uses it at a time.
+`program-login` signs Claude Code in here into `PROGRAMS/NAME`.
+For an existing login, set `PROGRAMS` to its parent, `NAME` to its
+name and skip `program-login`. Only one box uses it at a time.
 
 Then:
 
@@ -213,9 +215,8 @@ Then:
 temper ctl DIR account list --until usable
 ```
 
-Expect: `moved in: account N`, the address to open, `done: add-key`,
-or `Program source S: NAME` and the command to run on each host,
-then `asked` for the verify; the wait ends with `met`.
+Expect: `moved in: account N`, an address, `done: add-key`, or
+`Program source S: NAME`, then `asked` for verify; the wait ends `met`.
 
 If not: `key file mode 0o644 permits group or other access` (exit 1):
 `chmod 600 FILE`, then the same call with the same key. The person's
@@ -234,11 +235,10 @@ temper ctl DIR task show TASK --until replied
 temper ctl DIR task show TASK --tree
 ```
 
-`TASK` is the chat's number, which the first call prints; the tree
-lists the change it started, `CHANGE`.
+`TASK` is the printed chat number; its tree lists `CHANGE`.
 
-Expect: `done: task TASK, chat`; the wait prints the task, its first
-line `task TASK · chat · ` and its phase, then `met`.
+Expect: `done: task TASK, chat`; the wait prints
+`task TASK · chat · `, its phase, then `met`.
 
 If not: on fake backends, the model answers every request with
 `Hello from the local fake model.` and starts no change: go to step 8.
