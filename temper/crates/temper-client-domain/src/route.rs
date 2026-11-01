@@ -361,6 +361,7 @@ fn forge_forges(root: &mut Domain, env: &Env<Limits>, told: &jig_client::Told, o
     let mut child = Queue::uncapped();
     let consumed =
         forge::making::told(&mut root.forge, &root.client, told, env.limits.forge, root.pages.address(), &mut child)
+            || forge::removing::told(&mut root.forge, &root.client, told, env.limits.forge)
             || forge::picker::told(&mut root.forge, &root.client, told, env.limits.forge)
             || forge::admin::told(&mut root.forge, &root.client, told, env.limits.forge, &mut child)
             || forge::github::told(&mut root.forge, &root.client, told, env.limits.forge, &mut child)
