@@ -158,6 +158,27 @@ fn a_removed_forge_is_in_no_list_and_its_repositories_stay_readable_by_tag() {
 }
 
 #[test]
+fn a_removing_or_removed_forges_change_has_no_panel() {
+    let mut d = restored(true, record(1));
+    let mut change = fixtures::opening_row();
+    change.pending = None;
+    outputs(&mut d, Event::Restore { record: Stored::Change(change) });
+    let scope = jig_domain_people::ApplicationScope::Project(5);
+    assert!(d.panel(fixtures::CHANGE, scope, env().wall, &LIMITS).is_some());
+    application(&mut d, 100, Ask::RemoveForge { forge: 1 });
+    assert_eq!(d.records.get(&1).unwrap().state, ForgeState::Removing);
+    assert!(d.change(fixtures::CHANGE).is_some());
+    assert!(d.panel(fixtures::CHANGE, scope, env().wall, &LIMITS).is_none());
+    let cancel = act(1, KeptActKind::Cancel { project: 5, task: fixtures::CHANGE });
+    outputs(&mut d, Event::KeptActAnswered { key: cancel.key, keep: false });
+    outputs(&mut d, Event::GroupRemoved { forge: 1 });
+    outputs(&mut d, Event::SecretsErased { forge: 1 });
+    assert!(d.removed(1));
+    assert!(d.change(fixtures::CHANGE).is_some());
+    assert!(d.panel(fixtures::CHANGE, scope, env().wall, &LIMITS).is_none());
+}
+
+#[test]
 fn the_playground_and_an_unknown_forge_are_refused() {
     let mut row = record(1);
     row.playground = true;
@@ -386,6 +407,57 @@ fn restored_removing_forges_retire_entries_before_resending_acts() {
     assert!(d.entries.is_empty() && d.flights.is_empty() && d.writers.is_empty());
     assert!(sent_acts(&outputs(&mut d, Event::SendKeptActs)).as_ref() == [act(1, KeptActKind::EraseSecrets)]);
     assert!(ready(&mut d).is_empty());
+}
+
+#[test]
+fn a_restored_removing_forges_attempted_entry_is_not_sent_before_retirement() {
+    let mut d = setup_domain(&[], true);
+    let mut row = record(1);
+    row.state = ForgeState::Removing;
+    let mut entry = held_issue();
+    entry.start.as_mut().unwrap().at = env().now;
+    entry.attempt = Some(skein_forge_client::Attempt {
+        sent: env().now,
+        deadline: env().now.saturating_add(Duration::from_secs(1)),
+        wall: env().wall,
+        expires: Wall::from_nanos(env().wall.as_nanos() + Duration::from_secs(1).as_nanos()),
+    });
+    for record in [
+        Stored::ForgeNumbers { next: 2 },
+        Stored::Forge(row),
+        Stored::Repository(adopted()),
+        Stored::Entry { entry, held: false },
+        Stored::Flight { task: 7, entry: 11 },
+        Stored::KeptAct(act(1, KeptActKind::EraseSecrets)),
+    ] {
+        assert!(outputs(&mut d, Event::Restore { record }).is_empty());
+    }
+    // The root settles the outbox before it opens decisions and sends kept acts.
+    for event in [
+        Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic },
+        Event::ReadAfresh,
+        Event::SettleOutbox,
+    ] {
+        for request in outputs(&mut d, event) {
+            if let Request::Call { .. } = request {
+                panic!("no call before retirement: {request:?}");
+            }
+        }
+    }
+    for request in ready(&mut d) {
+        if let Request::Call { .. } = request {
+            panic!("no resumed call before retirement: {request:?}");
+        }
+    }
+    let out = outputs(&mut d, Event::SendKeptActs);
+    assert_failed(&out, 11, 7);
+    assert_eq!(sent_acts(&out).as_ref(), [act(1, KeptActKind::EraseSecrets)]);
+    assert!(d.entries.is_empty() && d.flights.is_empty());
+    for request in ready(&mut d) {
+        if let Request::Call { .. } = request {
+            panic!("no call after retirement: {request:?}");
+        }
+    }
 }
 
 #[test]
