@@ -1,4 +1,4 @@
-//! Crate-local real-directory Store/FileIo adapter for `store` and `qa_store`.
+//! Crate-local real-directory Store/FileIo adapter for the focused layout tests.
 //! No fake, Host, application trait or generic test framework is used.
 use skein_io::{
     file,

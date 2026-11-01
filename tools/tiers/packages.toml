@@ -61,10 +61,6 @@ qa-skein = [
     "skein-oauth-world",
 ]
 
-qa-smith = [
-    "smith-codecs-world",
-    "smith-local-protocol",
-]
 
 qa-temper = [
     "temper",
@@ -94,7 +90,6 @@ process-jig = []
 process-temper = [{ package = "temper-fake-claude", bin = "fake-claude", env = "TEMPER_TEST_CLAUDE" }]
 qa-jig = []
 qa-skein = []
-qa-smith = []
 qa-temper = [
     { package = "temper", bin = "temper" },
     { package = "temper-fake-claude", bin = "fake-claude" },

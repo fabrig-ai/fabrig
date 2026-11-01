@@ -7,10 +7,10 @@ use skein_world::Referee;
 use smith_local_process_world::process::Proc;
 
 /// How long non-program shipped-binary worlds may take to settle.
-pub(super) const WORLD_PATIENCE: Duration = Duration::from_secs(2);
+pub(crate) const WORLD_PATIENCE: Duration = Duration::from_secs(2);
 
 #[derive(Clone, Copy)]
-pub(super) enum Story {
+pub(crate) enum Story {
     None,
     Modes,
     Resize,
@@ -142,7 +142,7 @@ impl Referee<Process> for Judge {
 }
 
 impl Story {
-    pub(super) fn budget(self, sign_in: bool) -> Duration {
+    pub(crate) fn budget(self, sign_in: bool) -> Duration {
         match self {
             // Widths are this story's subject, so its referee uses the world's
             // patience (skein/docs/foundation/testing-strategy.md, 2.9).
@@ -150,22 +150,5 @@ impl Story {
             Self::ProgramRun | Self::ProgramCheck => Duration::from_secs(30),
             Self::None | Self::Modes => Duration::from_secs(if sign_in { 5 } else { 1 }),
         }
-    }
-}
-
-#[test]
-fn resize_referee_uses_world_patience() {
-    let now = Time::ZERO;
-    let referee = Settling::new(now, now.saturating_add(Story::Resize.budget(false)));
-    assert_eq!(referee.overdue(now.saturating_add(Duration::from_millis(1118))), None);
-    let deadline = now.saturating_add(WORLD_PATIENCE);
-    assert_eq!(referee.next_deadline(), Some(deadline));
-    assert!(referee.overdue(deadline).is_some());
-}
-
-#[test]
-fn program_stories_allow_thirty_seconds_total() {
-    for story in [Story::ProgramRun, Story::ProgramCheck] {
-        assert_eq!(story.budget(false), Duration::from_secs(30));
     }
 }

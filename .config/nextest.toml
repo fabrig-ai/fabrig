@@ -39,7 +39,7 @@ default-filter = """
   & not binary(/^exhaustive_/) & not binary(/^qa_/)
 ) | (
   package(/^smith(-|$)/)
-  & not (kind(test) & test(/^fuzzy::/)) & not binary(/^qa_/)
+  & not (kind(test) & test(/^fuzzy::/))
   & not ((package(=smith) | package(=smith-agent-process-world)) & binary(=live))
 ) | (
   package(/^jig(-|$)/)
@@ -85,7 +85,7 @@ default-filter = """
   & (kind(test) & test(/^fuzzy::/))
 ) | (
   package(/^smith(-|$)/)
-  & (kind(test) & test(/^fuzzy::/)) & not binary(/^qa_/) & not binary(=live)
+  & (kind(test) & test(/^fuzzy::/)) & not binary(=live)
 ) | (
   package(/^jig(-|$)/)
   & (kind(test) & test(/^fuzzy::/)) & not binary(/^(process|live)$/)
@@ -146,11 +146,6 @@ slow-timeout = { period = "120s" }
 test-threads = 1
 retries = 0
 fail-fast = false
-
-[profile.qa-smith]
-default-filter = "binary(/^qa_/) & package(/^smith(-|$)/)"
-global-timeout = "120s"
-slow-timeout = { period = "6s" }
 
 [profile.qa-jig]
 default-filter = "(binary(/^qa_/) | (package(=jig-store-world) & binary(=edges))) & package(/^jig(-|$)/)"
