@@ -185,6 +185,7 @@ impl Referee<Process> for Judge<'_> {
         if matches!(self.chat.phase, ChatPhase::SettingUp) {
             let Process::Calls(calls) = &procs[2] else { panic!("turn settings setup") };
             if calls.ends().len() < SETUP_CALLS {
+                self.poll = now.saturating_add(Duration::from_millis(250));
                 return;
             }
             self.chat.act(now, procs);
@@ -256,7 +257,12 @@ impl Referee<Process> for Judge<'_> {
         self.chat.observe(now, procs);
     }
     fn next_deadline(&self) -> Option<Time> {
-        self.chat.next_deadline().map(|deadline| if self.chat.stopping() { deadline } else { deadline.min(self.poll) })
+        if self.chat.stopping() {
+            self.chat.next_deadline()
+        } else {
+            // This referee drives its own polls; the chat's merge poll is not advanced here.
+            Some(self.progress.1.until().map_or(self.poll, |until| until.min(self.poll)))
+        }
     }
     fn overdue(&self, now: Time) -> Option<String> {
         self.chat.overdue(now)

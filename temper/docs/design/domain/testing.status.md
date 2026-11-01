@@ -15,3 +15,5 @@
   the playground. Provider and codec rows and the watcher-bound scenario run
   below Chromium. The two direct GitHub landing variants share
   `suite::github_land::a_chats_change_lands_on_connected_github`.
+
+- **Harness (11-01):** the turn-restart referee uses its own future poll/progress deadlines; it does not inherit an unadvanced merge poll from the base chat referee. The isolated cancellation proof used 32.509 CPU s after this change, versus 46.750 s before. An earlier full run met an uncertain initial pull update; the unchanged case passed once alone. Both logs are in the al-temper-process report (hetzner6); this intermittent owned-integration finding remains visible.
