@@ -4,6 +4,7 @@ use alloc::boxed::Box;
 use temper_engine_domain as root;
 
 pub(crate) mod box_link;
+pub(crate) mod group_file;
 
 #[expect(clippy::too_many_lines, reason = "one exhaustive dispatcher routes root outputs to their components")]
 pub(crate) fn request(engine: &mut Engine, request: root::Request) {

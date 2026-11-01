@@ -608,7 +608,17 @@ fn serve(directories: &Directories, boxed: bool) -> Result<Exit, String> {
     }
     if boxed {
         owned.extend([Fd::new(requests), Fd::new(answers)]);
-        if let Err(why) = service.adopt_box(Fd::new(requests), Fd::new(answers), line_bytes) {
+        let data = match skein_shell::make_root(path(&directories.data), 0o700) {
+            Ok(data) => data,
+            Err(errno) => {
+                close(owned);
+                return Err(format!("box data directory: errno {errno}"));
+            }
+        };
+        owned.push(data);
+        if let Err(why) =
+            service.adopt_box(Fd::new(requests), Fd::new(answers), data, skein_shell::effective_user(), line_bytes)
+        {
             close(owned);
             return Err(box_refusal(why));
         }

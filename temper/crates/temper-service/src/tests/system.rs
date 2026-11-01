@@ -173,9 +173,12 @@ fn the_box_pipes_carry_no_service_data_and_close_on_drain_or_abort() {
     use skein_io::kernel::Fd;
     for abort in [false, true] {
         let mut stand = fixtures::one_process();
-        stand.service.adopt_box(Fd::new(3), Fd::new(4), 128).unwrap();
-        assert_eq!(stand.service.adopt_box(Fd::new(5), Fd::new(6), 128), Err(crate::system::BoxRefusal::Adopted));
-        fixtures::until_hosting(&mut stand);
+        stand.service.adopt_box(Fd::new(3), Fd::new(4), Fd::new(90), 0, 128).unwrap();
+        assert_eq!(
+            stand.service.adopt_box(Fd::new(5), Fd::new(6), Fd::new(90), 0, 128),
+            Err(crate::system::BoxRefusal::Adopted)
+        );
+        super::box_link::until_hosting(&mut stand);
         let mut pending_reads = 0_u32;
         for submit in &stand.service.submissions {
             if let skein_io::kernel::Op::PipeRead { fd, .. } = &submit.kind
@@ -194,7 +197,7 @@ fn the_box_pipes_carry_no_service_data_and_close_on_drain_or_abort() {
             stand.service.shutdown();
         }
         for _ in 0_u16..256 {
-            stand.turn();
+            super::box_link::turn(&mut stand);
             if stand.service.is_empty() {
                 break;
             }
@@ -231,13 +234,13 @@ fn a_scripted_box_answers_keyed_setup_requests_through_the_clients_family() {
     fn turns(stand: &mut fixtures::system::SystemStand) {
         const TURNS: u8 = 64;
         for _ in 0..TURNS {
-            stand.turn();
+            super::box_link::turn(stand);
         }
     }
     const LINE_BYTES: u32 = fixtures::system::BOX_BYTES;
     let mut stand = fixtures::system::one_process_under_box(true);
-    stand.service.adopt_box(Fd::new(3), Fd::new(4), LINE_BYTES).unwrap();
-    fixtures::until_hosting(&mut stand);
+    stand.service.adopt_box(Fd::new(3), Fd::new(4), Fd::new(90), 0, LINE_BYTES).unwrap();
+    super::box_link::until_hosting(&mut stand);
     // SystemStand has fixed membership and an in-memory store. Startup's
     // absent-file state is tested separately; inject its root inputs here.
     for forge in [OWNED, OTHER] {
@@ -527,7 +530,7 @@ fn a_blocked_told_head_holds_later_events_for_other_destinations() {
     use skein_io::kernel::{Complete, Done, Fd, Op};
     let mut service = fixtures::ready();
     while service.listening().pop().is_some() {}
-    service.adopt_box(Fd::new(3), Fd::new(4), fixtures::system::BOX_BYTES).unwrap();
+    service.adopt_box(Fd::new(3), Fd::new(4), Fd::new(90), 0, fixtures::system::BOX_BYTES).unwrap();
     crate::iterate(&mut service, Time::ZERO, Wall::EPOCH);
     crate::iterate(&mut service, Time::ZERO, Wall::EPOCH);
     let mut read = None;
@@ -617,7 +620,7 @@ fn an_io_continuation_reaches_its_owner_before_a_later_completion() {
     use skein_io::kernel::{Complete, Done, Fd, Op, Submit};
     use skein_lib::Queue;
     let mut service = fixtures::ready();
-    service.adopt_box(Fd::new(3), Fd::new(4), fixtures::system::BOX_BYTES).unwrap();
+    service.adopt_box(Fd::new(3), Fd::new(4), Fd::new(90), 0, fixtures::system::BOX_BYTES).unwrap();
     crate::iterate(&mut service, Time::ZERO, Wall::EPOCH);
     crate::iterate(&mut service, Time::ZERO, Wall::EPOCH);
     let mut read = None;

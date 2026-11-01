@@ -37,6 +37,7 @@ mod forge_table;
 
 mod box_link;
 mod bundle;
+mod group_file;
 mod server;
 
 pub(crate) mod sign_in;
