@@ -48,7 +48,6 @@ pub fn run(directories: &super::Directories, echo: Echo) -> Result<Exit, String>
 }
 
 /// Runs a document already retained in its effective directories. Owns all supplied listeners.
-#[expect(clippy::too_many_lines, reason = "box startup retains listeners while assembling its checked service")]
 pub(crate) fn run_configuration(
     directories: &super::Directories,
     bytes: &[u8],
@@ -81,22 +80,7 @@ pub(crate) fn run_configuration(
         if let Some(webhooks) = &named.webhooks {
             serve.push(super::address(&webhooks.listener)?);
         }
-        let mut steps = temper_fake::steps(
-            &checked.setup,
-            demo.as_ref(),
-            &directories.flags(),
-            serve.into_boxed_slice(),
-            cfg!(target_os = "linux"),
-            first,
-        );
-        owned_notices(&mut steps, &checked.setup);
-        let built = checked
-            .setup
-            .entries
-            .iter()
-            .filter(|entry| !matches!(entry.mode, temper_forge_setup::setup::Mode::Managed { .. }))
-            .map(|entry| entry.forge)
-            .collect::<Vec<_>>();
+        let mut steps = temper_fake::steps(&directories.flags(), serve.into_boxed_slice(), first);
         let context = groups::Context {
             directories: directories.clone(),
             limits: checked,
@@ -105,8 +89,8 @@ pub(crate) fn run_configuration(
         };
         let before = u32::try_from(steps.always.iter().position(|step| step.name() == b"serve").expect("serve step"))
             .expect("bounded steps");
-        let (recorded, lines) = groups::recorded(&context, &built, before)?;
-        steps.asked = steps.asked.into_vec().into_iter().chain(recorded).collect();
+        let (recorded, lines) = groups::recorded(&context, before)?;
+        steps.asked = recorded.into_boxed_slice();
         for line in lines {
             eprintln!("{line}");
         }
@@ -217,23 +201,6 @@ fn open_listeners(
         }
     }
     Ok(listeners)
-}
-
-/// The checked setup supplies the identity and paths; the box keeps only opaque
-/// public lines on the Forgejo step, never credentials or setup configuration.
-fn owned_notices(steps: &mut temper_forge_setup::Steps, setup: &temper_forge_setup::Setup) {
-    for entry in &setup.entries {
-        let Some((address, notice)) = owned_notice(entry) else { continue };
-        for step in steps
-            .always
-            .iter_mut()
-            .chain(steps.asked.iter_mut().flat_map(|group| group.steps.iter_mut().map(|(_, step)| step)))
-        {
-            if step.ready() == Some(address) {
-                step.set_started_notice(notice.clone());
-            }
-        }
-    }
 }
 
 fn owned_notice(entry: &temper_forge_setup::setup::Entry) -> Option<(std::net::SocketAddr, Box<[u8]>)> {

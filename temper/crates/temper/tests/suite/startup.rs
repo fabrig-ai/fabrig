@@ -1,4 +1,4 @@
-use crate::{listeners, support};
+use crate::{groups, listeners, support};
 use std::{
     fmt::Write,
     fs,
@@ -202,24 +202,6 @@ fn a_configuration_file_past_its_bound_is_refused() {
     scratch.remove();
 }
 #[test]
-fn a_secret_file_readable_by_others_refuses_the_start_naming_it() {
-    let scratch = support::Scratch::startup("public-token");
-    let directory = scratch.path();
-    support::legacy_configuration::configuration(directory);
-    fs::set_permissions(directory.join("secrets/forge-1.git-token"), fs::Permissions::from_mode(0o644))
-        .expect("public permissions");
-    let refused = temper::prepare_in(&support::configuration::directories(directory)).err().expect("start refused");
-    assert_eq!(
-        refused,
-        format!(
-            "temper serve: application.identities[0].token: {}: readable by others or reached through a link\n",
-            scratch.path().join("secrets/forge-1.git-token").display()
-        )
-    );
-    assert!(!refused.contains("forge-1-git-token-value"), "no secret in a diagnostic");
-    scratch.remove();
-}
-#[test]
 fn a_worker_root_reached_through_a_link_is_refused() {
     let scratch = support::Scratch::startup("linked-root");
     let directory = scratch.path();
@@ -316,69 +298,9 @@ fn an_address_with_no_token_in_the_directory_is_not_signed_in() {
 }
 
 #[test]
-fn a_user_file_readable_by_others_refuses_the_start_naming_it() {
-    let scratch = support::Scratch::startup("public-user");
-    support::legacy_configuration::configuration(scratch.path());
-    fs::set_permissions(scratch.path().join("secrets/forge-1.user"), fs::Permissions::from_mode(0o644))
-        .expect("fixture operation");
-    assert_eq!(
-        temper::prepare_in(&support::configuration::directories(scratch.path())).err().expect("configuration refused"),
-        format!(
-            "temper serve: application.forges[0].user.file: {}: readable by others or reached through a link\n",
-            scratch.path().join("secrets/forge-1.user").display()
-        )
-    );
-    scratch.remove();
-}
-fn managed(directory: &std::path::Path, move_files: bool) -> serde_json::Value {
-    support::legacy_configuration::configuration(directory);
-    let mut value: serde_json::Value =
-        serde_json::from_slice(&fs::read(directory.join("temper.json")).expect("configuration bytes"))
-            .expect("fixture operation");
-    let legacy = support::legacy_configuration::document(directory);
-    for member in ["forges", "identities", "setup"] {
-        value["application"][member] = legacy["application"][member].clone();
-    }
-    support::legacy_configuration::files(directory);
-    value["application"]["setup"] = serde_json::json!([{
-        "forge":1,"directory":"forge-1","bot":{"login":"temper","email":"temper@example.test"},
-        "orgs":["acme"],"mode":{"managed":{"admin_token":"secrets/forgejo-admin"}}
-    }]);
-    if move_files {
-        fs::create_dir(directory.join("forge-1")).expect("fixture operation");
-        for (from, to) in [
-            ("secrets/forge-1.api-token", "api_token"),
-            ("secrets/forge-1.git-token", "git_token"),
-            ("secrets/forge-1.user", "user"),
-        ] {
-            fs::rename(directory.join(from), directory.join("forge-1").join(to)).expect("fixture operation");
-        }
-        value["application"]["forges"][0]["api_token"] = "forge-1/api_token".into();
-        value["application"]["forges"][0]["user"] = serde_json::json!({"file":"forge-1/user"});
-        value["application"]["identities"][0]["token"] = "forge-1/git_token".into();
-    }
-    support::write_private(&directory.join("temper.json"), &serde_json::to_vec(&value).expect("configuration JSON"));
-    value
-}
-#[test]
-fn a_setup_naming_another_api_token_file_refuses_temper_serve_naming_its_path() {
-    let scratch = support::Scratch::startup("setup-token");
-    let mut value = managed(scratch.path(), true);
-    value["application"]["forges"][0]["api_token"] = "another/api_token".into();
-    support::write_private(
-        &scratch.path().join("temper.json"),
-        &serde_json::to_vec(&value).expect("configuration JSON"),
-    );
-    assert_eq!(
-        temper::prepare_in(&support::configuration::directories(scratch.path())).err().expect("configuration refused"),
-        "temper serve: application.forges[0].api_token: invalid form\n"
-    );
-    scratch.remove();
-}
-#[test]
 fn a_setup_limit_past_its_check_refuses_temper_serve_naming_both_limits() {
     let scratch = support::Scratch::startup("setup-limits");
-    let mut value = managed(scratch.path(), true);
+    let mut value = box_document(&scratch);
     value["application"]["limits"]["overrides"]["setup.backoff_ms"] = 6000.into();
     support::write_private(
         &scratch.path().join("temper.json"),
@@ -388,14 +310,6 @@ fn a_setup_limit_past_its_check_refuses_temper_serve_naming_both_limits() {
         temper::prepare_in(&support::configuration::directories(scratch.path())).err().expect("configuration refused"),
         "temper serve: application.limits.overrides.setup.backoff_ms: must agree with application.limits.overrides.setup.backoff_max_ms\n"
     );
-    scratch.remove();
-}
-#[test]
-fn a_managed_entrys_absent_admin_token_file_does_not_stop_temper_serve() {
-    let scratch = support::Scratch::startup("setup-no-admin");
-    managed(scratch.path(), true);
-    assert!(!scratch.path().join("secrets/forgejo-admin").exists());
-    assert!(temper::prepare_in(&support::configuration::directories(scratch.path())).is_ok());
     scratch.remove();
 }
 fn box_document(scratch: &support::Scratch) -> serde_json::Value {
@@ -483,52 +397,6 @@ fn a_box_refuses_an_unmatched_inherited_listener_naming_its_address() {
     scratch.remove();
 }
 #[test]
-fn a_fake_entrys_handover_is_read_privately_and_checked_before_serve_starts() {
-    for case in ["missing", "public", "short", "uppercase", "valid"] {
-        let scratch = support::Scratch::startup(&format!("fake-handover-{case}"));
-        let mut value = managed(scratch.path(), true);
-        support::configuration::fake_entry(&mut value["application"]["setup"][0], "127.0.0.1:9");
-        let handover = scratch.path().join("forge-1/admin_token");
-        if case != "missing" {
-            let bytes = match case {
-                "short" => b"0123456789abcdef".as_slice(),
-                "uppercase" => b"0123456789abcdef0123456789abcdef0123456A",
-                _ => b"0123456789abcdef0123456789abcdef01234567",
-            };
-            support::write_private(&handover, bytes);
-            if case == "public" {
-                fs::set_permissions(&handover, fs::Permissions::from_mode(0o644)).expect("public handover");
-            }
-        }
-        support::write_private(&scratch.path().join("temper.json"), &serde_json::to_vec(&value).expect("JSON"));
-        let result = temper::operations_in(
-            &support::configuration::directories(scratch.path()),
-            &serde_json::to_vec(&value).expect("JSON"),
-        );
-        match case {
-            "valid" => {
-                assert!(result.is_ok());
-            }
-            "missing" | "public" => {
-                let why = if case == "missing" { "absent" } else { "readable by others or reached through a link" };
-                assert_eq!(
-                    result.expect_err("handover refused"),
-                    format!("temper serve: application.setup[0].admin_token: {}: {why}\n", handover.display())
-                );
-            }
-            _ => assert_eq!(
-                result.expect_err("handover refused"),
-                format!(
-                    "temper serve: application.setup[0].admin_token: {}: admin_token must be exactly 40 lowercase hexadecimal digits\n",
-                    handover.display()
-                )
-            ),
-        }
-        scratch.remove();
-    }
-}
-
-#[test]
 fn a_nonempty_box_configuration_without_a_document_is_refused_naming_it() {
     let scratch = support::Scratch::startup("box-absent-document");
     fs::write(scratch.path().join("other"), b"kept").expect("nonempty configuration");
@@ -551,15 +419,6 @@ fn a_box_configuration_missing_members_is_refused_one_line_each() {
         refused_box(&scratch, &serde_json::json!({})),
         "temper box: engine: missing\ntemper box: workers: missing\ntemper box: application: missing\n"
     );
-    scratch.remove();
-}
-#[test]
-fn a_setup_naming_no_forge_refuses_the_box_before_it_starts() {
-    let scratch = support::Scratch::startup("box-forge");
-    let mut value = managed(scratch.path(), false);
-    value["application"]["setup"][0]["forge"] = 7.into();
-    assert_eq!(refused_box(&scratch, &value), "temper box: application.setup[0].forge: unknown reference\n");
-    assert!(!scratch.path().join("forge-7").exists());
     scratch.remove();
 }
 #[test]
@@ -639,27 +498,14 @@ fn a_box_limit_within_its_check_is_accepted_by_temper_serve() {
     scratch.remove();
 }
 
-#[test]
-fn a_webhook_secret_readable_by_others_refuses_startup() {
-    let scratch = support::Scratch::startup("public-hook-secret");
-    let _ = support::webhooks::configuration(scratch.path());
-    fs::set_permissions(scratch.path().join("secrets/forge-1.webhook-secret"), fs::Permissions::from_mode(0o644))
-        .expect("public permissions");
-    assert_eq!(
-        temper::prepare_in(&support::configuration::directories(scratch.path())).err().expect("configuration refused"),
-        format!(
-            "temper serve: application.forges[0].webhook_secret: {}: readable by others or reached through a link\n",
-            scratch.path().join("secrets/forge-1.webhook-secret").display()
-        )
-    );
-    scratch.remove();
-}
-
 fn owned_example(case: &str) -> support::Scratch {
     let scratch = support::Scratch::startup(case);
     let owned = support::owned::Owned::example();
     support::owned::lay(scratch.path(), &owned);
-    fs::write(scratch.path().join("temper.json"), support::owned::example_document(scratch.path(), &owned))
+    let mut value: serde_json::Value =
+        serde_json::from_slice(&support::owned::example_document(scratch.path(), &owned)).expect("example JSON");
+    groups::template(&mut value);
+    fs::write(scratch.path().join("temper.json"), serde_json::to_vec(&value).expect("example JSON"))
         .expect("example configuration");
     scratch
 }
@@ -861,8 +707,13 @@ fn shipped_bounds_fit_the_configured_charters_and_worker() {
 #[test]
 fn the_owned_example_is_named_without_a_problem() {
     // Only naming a fixture document; no deployment or files are opened.
-    let named = temper_service::named(support::owned::EXAMPLE, &jig_protocol_config::Directories::working())
-        .expect("owned example named");
+    let mut value: serde_json::Value = serde_json::from_slice(support::owned::EXAMPLE).expect("example JSON");
+    groups::template(&mut value);
+    let named = temper_service::named(
+        &serde_json::to_vec(&value).expect("example JSON"),
+        &jig_protocol_config::Directories::working(),
+    )
+    .expect("owned example named");
     assert_eq!(named.worker.as_ref().expect("standalone worker").agent.as_ref(), b"/home/me/temper/owned/agent.json");
     assert_eq!(named.worker.as_ref().expect("standalone worker").root.as_ref(), b"workspaces");
     assert_eq!(named.deployment.as_ref(), b"state");
@@ -1154,7 +1005,7 @@ fn programs_directories_are_checked_at_the_name_before_startup_effects() {
     for row in ["missing", "private", "link", "linked-parent", "mode", "file"] {
         let scratch = support::Scratch::startup(&format!("programs-{row}"));
         let directory = scratch.path();
-        support::legacy_configuration::configuration(directory);
+        support::configuration(directory, &support::Forge::Unreached);
         let target = directory.join("programs");
         if row != "missing" {
             if row == "file" {
@@ -1184,10 +1035,10 @@ fn programs_directories_are_checked_at_the_name_before_startup_effects() {
         agent["programs"] = serde_json::json!({"claude_code":{"path":"/nonexistent/claude", "directory":path}});
         fs::write(agent_path, serde_json::to_vec(&agent).expect("agent JSON")).expect("agent");
         // A later missing secret proves that the preflight neither creates nor inspects a login.
-        fs::remove_file(directory.join("secrets/forge-1.api-token")).expect("absent peer");
+        fs::remove_file(directory.join("worker.secret")).expect("absent peer");
         let refused = temper::prepare_in(&support::configuration::directories(directory)).err().expect("refused");
         if ["missing", "private", "linked-parent"].contains(&row) {
-            assert!(refused.contains("application.forges[0].api_token"), "{row}: {refused}");
+            assert!(refused.contains("worker.secret"), "{row}: {refused}");
             assert!(!refused.contains("programs.claude_code.directory"), "{row}: {refused}");
         } else {
             let reason = match row {
@@ -1486,121 +1337,6 @@ fn serve_claims_its_clients_listener_and_box_pipes_follow_it() {
 }
 
 #[test]
-fn a_legacy_asked_owned_forges_absent_files_are_left_out_but_existing_files_stay_private() {
-    for public in [false, true] {
-        let scratch = owned_example(if public { "asked-public-file" } else { "asked-absent-files" });
-        let config = scratch.path().join("temper.json");
-        let mut value: serde_json::Value =
-            serde_json::from_slice(&fs::read(&config).expect("configuration file")).expect("configuration JSON");
-        // temper-15 removes the old-form file checks; the shipped form names none.
-        support::owned::old_form(&mut value["application"]);
-        value["application"]["setup"][0]["start"] = "asked".into();
-        support::write_private(&config, &serde_json::to_vec(&value).expect("configuration JSON"));
-        if public {
-            fs::create_dir(scratch.path().join("forge-1")).expect("forge directory");
-            support::write_private(&scratch.path().join("forge-1/api_token"), b"api-token");
-            fs::set_permissions(scratch.path().join("forge-1/api_token"), fs::Permissions::from_mode(0o644))
-                .expect("public token permissions");
-        }
-        let prepared = temper::prepare_in(&support::configuration::directories(scratch.path()));
-        if public {
-            assert_eq!(
-                prepared.err().expect("unsafe asked file refused"),
-                format!(
-                    "temper serve: application.forges[0].api_token: {}/forge-1/api_token: readable by others or reached through a link\n",
-                    scratch.path().display()
-                )
-            );
-        } else {
-            assert!(prepared.is_ok(), "absent asked files are allowed: {:?}", prepared.err());
-        }
-        scratch.remove();
-    }
-}
-
-#[test]
-fn records_only_handover_reads_are_private_optional_bounded_and_only_read_admin_token() {
-    for row in ["absent", "exact", "over", "newline", "public", "link", "parent-link", "directory", "unreadable"] {
-        let scratch = owned_example(&format!("handover-{row}"));
-        let directory = scratch.path();
-        let forge = directory.join("forge-1");
-        fs::create_dir(&forge).expect("forge directory");
-        fs::set_permissions(&forge, fs::Permissions::from_mode(0o700)).expect("handover fixture");
-        let token = forge.join("admin_token");
-        // Every other old file is deliberately unsafe and must stay unread.
-        for name in ["api_token", "user", "git_token", "webhook_secret"] {
-            fs::write(forge.join(name), b"unused").expect("handover fixture");
-            fs::set_permissions(forge.join(name), fs::Permissions::from_mode(0o644)).expect("handover fixture");
-        }
-        match row {
-            "absent" => {}
-            "directory" => fs::create_dir(&token).expect("handover fixture"),
-            "link" => symlink(forge.join("api_token"), &token).expect("handover fixture"),
-            "parent-link" => {
-                fs::rename(&forge, directory.join("actual-forge")).expect("handover fixture");
-                symlink(directory.join("actual-forge"), &forge).expect("handover fixture");
-                support::write_private(&token, b"test-admin");
-            }
-            "exact" | "over" => support::write_private(&token, &vec![b'x'; if row == "exact" { 4096 } else { 4097 }]),
-            "newline" => support::write_private(&token, b"test-admin\n"),
-            "public" | "unreadable" => {
-                support::write_private(&token, b"test-admin");
-                fs::set_permissions(&token, fs::Permissions::from_mode(if row == "public" { 0o644 } else { 0o000 }))
-                    .expect("handover fixture");
-            }
-            _ => unreachable!(),
-        }
-        let answer = temper::prepare_in(&support::configuration::directories(directory));
-        if matches!(row, "absent" | "exact" | "newline") || (row == "unreadable" && skein_shell::effective_user() == 0)
-        {
-            assert!(answer.is_ok(), "{row}: bounded private handover accepted");
-        } else {
-            let why = answer.err().expect("unsafe handover refuses startup");
-            assert!(why.contains(&token.display().to_string()), "names the file");
-            assert!(why.contains("the handover is unreadable"));
-            assert!(!why.contains("test-admin"), "no handover in diagnostic");
-        }
-        if row == "unreadable" {
-            fs::set_permissions(&token, fs::Permissions::from_mode(0o600)).expect("handover fixture");
-        }
-        scratch.remove();
-    }
-}
-#[test]
-fn old_form_owned_does_not_read_a_handover() {
-    let scratch = owned_example("old-form-no-handover");
-    let forge = scratch.path().join("forge-1");
-    fs::create_dir(&forge).expect("handover fixture");
-    fs::create_dir(forge.join("admin_token")).expect("handover fixture");
-    // Asked old-form entries permit absent legacy files.
-    let config = scratch.path().join("temper.json");
-    let mut value: serde_json::Value =
-        serde_json::from_slice(&fs::read(&config).expect("handover fixture")).expect("handover fixture");
-    support::owned::old_form(&mut value["application"]);
-    value["application"]["setup"][0]["start"] = "asked".into();
-    support::write_private(&config, &serde_json::to_vec(&value).expect("handover fixture"));
-    assert!(temper::prepare_in(&support::configuration::directories(scratch.path())).is_ok());
-    scratch.remove();
-}
-
-#[test]
-fn tls_is_refused_before_reading_the_handover() {
-    let scratch = owned_example("tls-before-handover");
-    fs::create_dir(scratch.path().join("forge-1")).expect("handover fixture");
-    fs::create_dir(scratch.path().join("forge-1/admin_token")).expect("handover fixture");
-    let config = scratch.path().join("temper.json");
-    let mut value: serde_json::Value =
-        serde_json::from_slice(&fs::read(&config).expect("handover fixture")).expect("handover fixture");
-    value["application"]["forges"][0]["transport"] =
-        serde_json::json!({"tls":{"server_name":"localhost", "trust":null}});
-    support::write_private(&config, &serde_json::to_vec(&value).expect("handover fixture"));
-    let why = temper::prepare_in(&support::configuration::directories(scratch.path())).err().expect("TLS refused");
-    assert!(!why.contains("the handover is unreadable"));
-    assert!(scratch.path().join("forge-1/admin_token").is_dir());
-    scratch.remove();
-}
-
-#[test]
 fn the_store_page_holds_the_templates_largest_turn_frame() {
     let scratch = support::Scratch::startup("turn-store-page");
     let bounded = support::owned::bounded_template(scratch.path());
@@ -1840,7 +1576,7 @@ fn forge_run_refuses_a_listener_at_the_wrong_address_before_taking_the_lock() {
     let scratch = support::Scratch::startup("forge-wrong-listener");
     let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("listener");
     let found = listener.local_addr().expect("address");
-    support::owned::configuration(
+    groups::configuration(
         scratch.path(),
         &support::owned::Names {
             forgejo: std::path::Path::new("/not-run/forgejo"),
@@ -1887,7 +1623,7 @@ printf 'inherited fd 3 after exec\n'
     )
     .expect("fake Forgejo");
     fs::set_permissions(&binary, fs::Permissions::from_mode(0o700)).expect("executable");
-    support::owned::configuration(
+    groups::configuration(
         scratch.path(),
         &support::owned::Names { forgejo: &binary, runner: None, port: address.port(), bot: "temper", person: "ada" },
     );
@@ -1996,7 +1732,7 @@ exit 38
     )
     .expect("fake Forgejo");
     fs::set_permissions(&binary, fs::Permissions::from_mode(0o700)).expect("executable");
-    support::owned::configuration(
+    groups::configuration(
         scratch.path(),
         &support::owned::Names { forgejo: &binary, runner: None, port: address.port(), bot: "temper", person: "ada" },
     );

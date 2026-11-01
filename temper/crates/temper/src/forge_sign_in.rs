@@ -6,7 +6,11 @@ use std::{
     os::unix::fs::{DirBuilderExt, OpenOptionsExt},
     path::{Path, PathBuf},
 };
-use temper_forge_setup::{check::Checked, place::Place, setup::Mode, sign_in};
+use temper_forge_setup::{
+    place::Place,
+    setup::{Entry, Mode},
+    sign_in,
+};
 use temper_forge_setup_shell::process as host;
 use temper_service::startup::Named;
 
@@ -14,7 +18,7 @@ pub(crate) fn run(
     directories: &super::Directories,
     bytes: &[u8],
     named: &Named,
-    checked: &Checked,
+    entry: &Entry,
     number: u16,
 ) -> Result<u8, String> {
     let row = named
@@ -31,11 +35,10 @@ pub(crate) fn run(
         .expect("checked engine");
     let provider = engine.clients.provider.as_ref().ok_or("engine.clients.provider is not configured")?;
     let client = provider.clients.iter().find(|client| client.id == row.client).expect("checked sign-in client");
-    let entry = checked.setup.entry(number);
-    let owned = match entry.map(|entry| &entry.mode) {
-        Some(Mode::Owned(owned)) => Some(owned),
-        Some(Mode::Managed { .. }) | None => None,
-        Some(Mode::Fake(_)) => return Err("it is fake, not a Forgejo sign-in host".into()),
+    let owned = match &entry.mode {
+        Mode::Owned(owned) => Some(owned),
+        Mode::Managed { .. } => None,
+        Mode::Fake(_) => return Err("it is fake, not a Forgejo sign-in host".into()),
     };
     let application = super::member(&document, 0, b"application");
     let clients = super::member(&document, application, b"clients");
@@ -48,10 +51,10 @@ pub(crate) fn run(
     };
     let mut discovery = origin;
     discovery.extend_from_slice(b"/.well-known/openid-configuration");
-    let place = entry.map(|entry| Place { directory: entry.directory.clone(), user: Box::new([]) });
+    let place = Place { directory: entry.directory.clone(), user: Box::new([]) };
     let instructions = sign_in::instructions(
         owned.map_or(b"forgejo".as_slice(), |owned| owned.forgejo.as_ref()),
-        owned.and(place.as_ref()),
+        owned.map(|_| &place),
         &client.id,
         &client.secret,
         &discovery,

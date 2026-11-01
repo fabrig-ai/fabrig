@@ -4,11 +4,11 @@ use alloc::boxed::Box;
 use core::net::SocketAddr;
 use jig_protocol_config::{self as config, Directory, Path};
 use skein_fake_llm_domain::api;
-use skein_json::{Document as Json, document::Kind};
+use skein_json::Document as Json;
 use skein_lib::{List, bytes};
 use temper_forge_setup::{
     problem::{Problems, What},
-    setup::{Entry, Fake, Mode, Setup},
+    setup::{Entry, Fake, Mode},
 };
 
 /// The key file's read bound: the largest account key and its newline.
@@ -50,8 +50,6 @@ pub fn key(file: &[u8]) -> Result<&[u8], KeyRefused> {
 pub struct Demo {
     llm: llm::Document,
     provider: u32,
-    forge: Option<u16>,
-    project: Option<u32>,
     fake: Fake,
 }
 impl Demo {
@@ -64,14 +62,6 @@ impl Demo {
         self.provider
     }
     #[must_use]
-    pub fn forge(&self) -> Option<u16> {
-        self.forge
-    }
-    #[must_use]
-    pub fn project(&self) -> Option<u32> {
-        self.project
-    }
-    #[must_use]
     pub fn fake(&self) -> &Fake {
         &self.fake
     }
@@ -81,13 +71,10 @@ impl Demo {
 #[derive(Debug)]
 pub struct Facts<'a> {
     pub llm: &'a config::Llm,
-    pub projects: &'a [u32],
-    pub setup: &'a Setup,
     pub listeners: &'a [SocketAddr],
     pub directories: &'a config::Directories,
 }
 /// `null` is no demo. Every refusal's path is rooted at `application.demo`.
-#[expect(clippy::too_many_lines, reason = "both demo shapes are checked against the same deployment facts")]
 pub fn read(document: &Json, at: u32, facts: &Facts<'_>) -> Result<Option<Demo>, Refusal> {
     if read::is_null(document, at) {
         return Ok(None);
@@ -136,7 +123,7 @@ pub fn read(document: &Json, at: u32, facts: &Facts<'_>) -> Result<Option<Demo>,
         api::Scripts { cued, asked, otherwise: llm::turns(document, otherwise_at, &lp.member(b"otherwise"))? };
     let llm = llm::Document::checked(listen, key, None, models, scripts, &lp)?;
     let fp = p.member(b"forge");
-    let (forge, project, fake) = if document.token(forge_at).expect("member token").kind == Kind::ObjectStart {
+    let fake = {
         let mut problems = Problems::empty();
         let entry = Entry::body(
             document,
@@ -173,26 +160,11 @@ pub fn read(document: &Json, at: u32, facts: &Facts<'_>) -> Result<Option<Demo>,
         if policy == 0 {
             return Err(read::why(&pp.member(b"policy"), b"invalid form"));
         }
-        (None, None, fake)
-    } else {
-        let forge = read::integer(document, forge_at, u64::from(u16::MAX), &fp)?;
-        let forge = u16::try_from(forge).expect("u16 bound");
-        let fake = match facts.setup.entry(forge) {
-            Some(entry) => match &entry.mode {
-                Mode::Fake(fake) => fake.clone(),
-                Mode::Owned(_) | Mode::Managed { .. } => return Err(read::why(&fp, b"names no fake setup entry")),
-            },
-            None => return Err(read::why(&fp, b"names no fake setup entry")),
-        };
-        let project = read::integer(document, project_at, u64::from(u32::MAX), &p.member(b"project"))?;
-        let project = u32::try_from(project).expect("u32 bound");
-        if !facts.projects.contains(&project) {
-            return Err(read::why(&p.member(b"project"), b"names no project"));
-        }
-        (Some(forge), Some(project), fake)
+        fake
     };
-    Ok(Some(Demo { llm, provider, forge, project, fake }))
+    Ok(Some(Demo { llm, provider, fake }))
 }
+
 fn body_refusal(problems: &Problems, path: &Path) -> Refusal {
     match problems.first() {
         Some((path, What::Reason(words))) => Refusal { path: path.clone(), words },
@@ -209,16 +181,6 @@ fn data_path(d: &Json, at: u32, directories: &config::Directories, p: &Path) -> 
 fn unique_listen(listen: SocketAddr, facts: &Facts<'_>, p: &Path) -> Result<(), Refusal> {
     if facts.listeners.contains(&listen) {
         return Err(read::why(p, b"must be unique"));
-    }
-    for entry in &facts.setup.entries {
-        let local = match &entry.mode {
-            Mode::Managed { .. } => None,
-            Mode::Owned(owned) => Some(owned.listen),
-            Mode::Fake(fake) => Some(fake.listen),
-        };
-        if local == Some(listen) {
-            return Err(read::why(p, b"must be unique"));
-        }
     }
     Ok(())
 }

@@ -348,9 +348,7 @@ fn forge_document(source: &Source, seed: u64, created: &mut Created) -> Result<(
         Source::Setup { directories, forge } => {
             let bytes = read_document(&directories.document(), super::CONFIG_BYTES)?;
             let super::setup::Deployment { checked, .. } = super::setup::check(&bytes, &directories.jig())?;
-            let group = super::box_command::groups::entry(directories, &checked, *forge)?;
-            let entry =
-                group.as_ref().or_else(|| checked.setup.entry(*forge)).ok_or("the setup has no entry for it")?;
+            let entry = super::box_command::groups::required(directories, &checked, *forge)?;
             let fake = match &entry.mode {
                 temper_forge_setup::setup::Mode::Fake(fake) => fake,
                 temper_forge_setup::setup::Mode::Owned(_) => return Err("it is owned, not fake".into()),

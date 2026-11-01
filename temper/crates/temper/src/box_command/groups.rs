@@ -16,7 +16,7 @@ pub(crate) struct Context {
     pub forgejo_listens: bool,
 }
 
-/// Reads a group's settings; absence alone permits the document's setup fallback.
+/// Reads a group's settings from its private file.
 pub(crate) fn entry(directories: &crate::Directories, limits: &Checked, forge: u16) -> Result<Option<Entry>, String> {
     let path = crate::path(&directories.data).join(format!("box/groups/{forge}"));
     let bytes = match skein_shell::read_private_file(&path, GROUP_BYTES, skein_shell::effective_user()) {
@@ -33,6 +33,11 @@ pub(crate) fn entry(directories: &crate::Directories, limits: &Checked, forge: u
         return Err(format!("box/groups/{forge}: forge {}'s settings", entry.forge));
     }
     Ok(Some(entry))
+}
+
+/// A command requires the forge's recorded settings.
+pub(crate) fn required(directories: &crate::Directories, limits: &Checked, forge: u16) -> Result<Entry, String> {
+    entry(directories, limits, forge)?.ok_or_else(|| format!("forge {forge} has no settings: box/groups/{forge}"))
 }
 
 /// `box/groups/N` as the box's load seam answers it.
@@ -82,7 +87,7 @@ pub(crate) fn remove(data: &Path, forge: u16) -> Result<(), Box<[u8]>> {
 }
 
 /// The recorded groups at the box's start, and the terminal lines they leave.
-pub(crate) fn recorded(context: &Context, built: &[u16], before: u32) -> Result<(Vec<Group>, Vec<String>), String> {
+pub(crate) fn recorded(context: &Context, before: u32) -> Result<(Vec<Group>, Vec<String>), String> {
     let path = crate::path(&context.directories.data).join("box/started");
     let entries = match fs::read_dir(&path) {
         Ok(entries) => entries,
@@ -98,9 +103,7 @@ pub(crate) fn recorded(context: &Context, built: &[u16], before: u32) -> Result<
             continue;
         }
         let Ok(forge) = name.parse::<u16>() else { continue };
-        if !built.contains(&forge) {
-            records.push((forge, entry.path()));
-        }
+        records.push((forge, entry.path()));
     }
     records.sort();
     let mut groups = Vec::new();
