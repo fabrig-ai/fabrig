@@ -157,3 +157,38 @@ that file:
   holds may never go) gets the same rule in the same file, each named
   in the report's Changed; a check that fails for another reason, or a
   referee (`r::Referee`) change, is a question.
+
+2026-11-01. A restart after `Ending` is durable refuses at Switch,
+because `restart/joins.rs` and `start/links.rs` require the project's
+policy, which the removal's close erased: may this task change project
+resolution there? Yes, as neighbour edits of those two files:
+
+- one helper beside `task_references_resolve` in `restart/joins.rs`,
+  `project_resolves(&self, project) -> bool`: the project's policy, or
+  a kept `Removal` row for it (`self.removals`; a removal is restored
+  with the core's rows, before Switch). `task_references_resolve` and
+  the placed-hold check in `unresolved_tasks` use it in place of
+  `authority.policy(..).is_some()`; `start/links.rs` `link_project`
+  asserts it the same way. Every other startup check stays as it is;
+- add to `src/tests/restart_checks.rs`
+  `a_live_task_of_a_removing_project_resolves_before_switch`: a live
+  task of a project with no policy and a kept `Removal` resolves, and
+  the same task without the `Removal` does not (the existing tests pass
+  unchanged);
+- the cold-start unit case for a persisted `Releasing` row, which the
+  run left for after this, is then added to `src/tests/removal_stages.rs`.
+
+2026-11-01, from the same run's "Left". `erase.rs` `erase_record`
+leaves the `Delegate { requester, task }` index of an erased delegate
+task, so `rows_naming` finds it: may this task erase it? Yes, as a
+neighbour edit of that function: the `tasks::Party::Task(requester)` arm
+erases `tasks::Key::Delegate { requester, task }` beside
+`EndedDelegate`; the delegate test then goes green with no workaround in
+`routing/removal.rs`.
+
+2026-11-01, from the same run's "Left". The existing
+`src/tests/removal.rs` asserts every saved `Removal` is `Ending`, which
+this task's controller makes untrue for a project with no live task
+(`Erasing` in the same decision): may this task change it? Yes, that
+assertion only: a project with a live task saves `Ending`; one with
+none saves `Ending` and then `Erasing` (or later) in the same decision.
