@@ -80,3 +80,46 @@ Acceptance (a new `tests/suite/removal.rs`, registered in `tests/suite/main.rs`)
 ## Report
 
 - The cut points walked, and any row that still names the removed forge.
+
+## Answers
+
+### 2026-11-01: Resume this task after fe-remove and pd-core-decide supply their implementations (recommended), or authorize a separate task to implement those prerequisites? Their current stubs prevent all four removal stories from passing. (playground-reset-r6/fe-world-remove-2, foreman playground-reset-r6/fe-world-remove/foreman-1)
+
+Resume fe-world-remove with fe-remove and pd-core-decide supplied; prerequisite implementations remain with their named tasks.
+The spec declares `needs = ["fe-remove", "fe-kept-root", "pd-vocabulary", "pd-core-decide"]`.
+Its boundary says: “May change: nothing else” and “do not fix it here.”
+Its acceptance requires: “the stories' `Cancel` answers are the core's.”
+The current checkout routes RemoveForge and its answers through `temper/crates/temper-engine-domain-forge/src/removal.rs`; deployment Cancel invokes `cancel` in `jig/crates/jig-domain-core/src/routing/deployment_acts.rs`.
+The reported stubs therefore no longer describe this checkout.
+The next run checks the four removal stories against these implementations and completes the specified checks; acceptance remains unproven.
+The requested report file could not be written because this session’s filesystem is read-only.
+
+### 2026-11-01: Refresh this task branch with the supplied fe-remove tip b301e3c700 and pd-core-decide tip 12bebefd3a (recommended), or authorize merging those tips in this slot? The checkout still contains both prerequisite stubs, so all four removal stories fail. (playground-reset-r6/fe-world-remove-3, foreman playground-reset-r6/fe-world-remove/foreman-2)
+
+Resume fe-world-remove with fe-remove and pd-core-decide supplied, as the existing answer requires; fab refreshes the task branch.
+The existing answer says: “Resume fe-world-remove with fe-remove and pd-core-decide supplied; prerequisite implementations remain with their named tasks.”
+The boundary remains: “May change: nothing else” and “do not fix it here.”
+Both requested tips, `b301e3c700` and `12bebefd3a`, are ancestors of this integration checkout; its removal and Cancel routes contain the implementations.
+The next run uses the refreshed prerequisites, runs the four removal stories, and completes the specified checks. Acceptance remains unproven.
+This does not authorize the implementer to merge prerequisite tips in its slot.
+The requested report file could not be written because this session’s filesystem is read-only.
+
+### 2026-11-01: Refresh this task branch with supplied fe-remove b301e3c700 and pd-core-decide 12bebefd3a (recommended), or authorize prerequisite implementation in a separate task? This slot still lacks both implementations, so its four removal stories fail. (playground-reset-r6/fe-world-remove-4, foreman playground-reset-r6/fe-world-remove/foreman-3)
+
+Fab refreshes the task branch with fe-remove b301e3c700 and pd-core-decide 12bebefd3a, then resumes fe-world-remove.
+The existing answer says: “Resume fe-world-remove with fe-remove and pd-core-decide supplied, as the existing answer requires; fab refreshes the task branch.”
+It also says: “prerequisite implementations remain with their named tasks.”
+The boundary says: “May change: nothing else” and “do not fix it here.”
+Both supplied tips are ancestors of this integration checkout; its forge removal and deployment Cancel routes contain implementations.
+The next run uses the refreshed prerequisites, runs the four removal stories, and completes the specified checks. Acceptance remains unproven.
+This does not authorize prerequisite implementation or merging prerequisite tips in the implementer’s slot.
+The requested report file could not be written because this session’s filesystem is read-only.
+
+### 2026-11-01: Refresh the branch with fe-remove b301e3c700 and pd-core-decide 12bebefd3a, or implement them elsewhere? (playground-reset-r6/fe-world-remove-4, after three runs on the same stale base)
+
+Your first step merges the trunk into your branch yourself; this replaces "fab refreshes the task branch" in the answers above, which never happened.
+The branch (`3d18a5141a`) took fe-remove and pd-core-decide at their stub commits; their finished tips are on the trunk `origin/playground-reset-r6/integration` (`a7ad02ce20` when this was written; both tips are its ancestors), and `git merge-tree` shows the merge clean.
+So, before anything else: `git fetch origin`, `git merge --no-edit origin/playground-reset-r6/integration` (a merge, never a rebase), then check `git merge-base --is-ancestor b301e3c700 HEAD` and the same for `12bebefd3a` (both 0), and that `temper/crates/temper-engine-domain-forge/src/removal.rs` exists.
+This merge is the only change outside `temper/tests/engine/domain/` you make; the prerequisites' code stays theirs: a fault the stories then show in the connector or the core is a report item, as the spec says.
+Then go on from Steps 2: the four removal stories, the whole suite, fmt, clippy, old_forms; commit and push.
+Do not ask this again: a merge that conflicts, or tips missing from the trunk, is `Failed:` with the evidence.

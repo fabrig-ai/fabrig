@@ -24,6 +24,7 @@ mod compound;
 pub use brief_text::{BriefPart, BriefTextLimits, note_index_text, read_brief_part};
 pub mod connector;
 mod delegation;
+mod deletion;
 pub use amendments::TaskAmendDenied;
 pub use delegation::{
     Delegate, Dependency, ProcedureStep, StepAmendment, StepCancel, StepEnd, StepMessage, resolved_delegate_authority,
@@ -322,6 +323,8 @@ pub struct Core {
     pub(crate) view_names: skein_lib::Slab<WatchedSubject>,
     pub(crate) changed_views: skein_lib::Set<skein_lib::Id<WatchedSubject>>,
     pub(crate) reads: skein_lib::Slab<reads::Pending>,
+    pub(crate) erasing: Option<deletion::erase::Scan>,
+    pub(crate) erase_load: u32,
     /// Historical dependency results held for preparation.
     pub(crate) dependency_results: Map<u64, Box<[HistoricalResult]>>,
     /// Numbered task creation flights.
@@ -715,6 +718,8 @@ impl Core {
             view_names: skein_lib::Slab::with_capacity(limits.views.watchers),
             changed_views: skein_lib::Set::with_capacity(limits.views.watchers),
             reads: skein_lib::Slab::with_capacity(limits.load_slots),
+            erasing: None,
+            erase_load: 0,
             dependency_results: Map::with_capacity(limits.tasks.tasks),
             made: Map::with_capacity(limits.people.pending),
             goal_routes: Map::with_capacity(limits.people.pending),

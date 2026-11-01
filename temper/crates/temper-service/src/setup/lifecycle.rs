@@ -57,35 +57,35 @@ pub(crate) struct Intent {
     pub(crate) repository: Box<[u8]>,
 }
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub(super) enum Source {
+pub(crate) enum Source {
     Prepared,
     Managed,
 }
 #[derive(Debug)]
-pub(super) struct Local {
-    pub(super) source: Source,
+pub(crate) struct Local {
+    pub(crate) source: Source,
     pub(crate) first: Option<Intent>,
-    pub(super) repositories: u64,
-    pub(super) pending: bool,
-    pub(super) restored: bool,
-    pub(super) limits: skein_forge_setup::limits::Limits,
-    pub(super) webhooks: bool,
-    pub(super) bot_login: Box<[u8]>,
-    pub(super) identity: crate::settings::Identity,
-    pub(super) handover: Option<Secret>,
-    pub(super) path: Box<[u8]>,
-    pub(super) file: FileStep,
-    pub(super) trigger: Trigger,
+    pub(crate) repositories: u64,
+    pub(crate) pending: bool,
+    pub(crate) restored: bool,
+    pub(crate) limits: skein_forge_setup::limits::Limits,
+    pub(crate) webhooks: bool,
+    pub(crate) bot_login: Box<[u8]>,
+    pub(crate) identity: crate::settings::Identity,
+    pub(crate) handover: Option<Secret>,
+    pub(crate) path: Box<[u8]>,
+    pub(crate) file: FileStep,
+    pub(crate) trigger: Trigger,
 }
 #[derive(PartialEq, Eq, Debug)]
-pub(super) enum Trigger {
+pub(crate) enum Trigger {
     Start,
     StartAsked,
     StartDemo,
     Asked,
 }
 #[derive(Debug)]
-pub(super) enum FileStep {
+pub(crate) enum FileStep {
     Idle,
     Reading { run: Token, sent: bool },
     Read(Result<Option<Secret>, crate::HandoverUnread>),
@@ -146,7 +146,6 @@ impl Lifecycle {
         }
     }
 
-    #[cfg(test)]
     pub(crate) const fn startup_restored(&self) -> bool {
         self.restored
     }
@@ -528,6 +527,23 @@ fn finish(engine: &mut crate::engine::Engine, token: Token, end: root::SetupEnd)
     }
 }
 pub(super) fn kept(engine: &mut crate::engine::Engine, purpose: Purpose) {
+    match &purpose {
+        Purpose::Host(run)
+        | Purpose::Origin(run)
+        | Purpose::PasteOrigin(run)
+        | Purpose::LocalOrigin(run)
+        | Purpose::AdminOrigin(run)
+        | Purpose::Admin(run) => {
+            if !engine.setup.runs.contains_key(run) {
+                return;
+            }
+        }
+        Purpose::Deleted(forge) => {
+            if !engine.setup.lifecycle.deleting.contains_key(forge) {
+                return;
+            }
+        }
+    }
     match purpose {
         Purpose::AdminOrigin(run) => admin_create(engine, run),
         Purpose::Admin(run) => {
@@ -870,6 +886,9 @@ fn local_stopped(engine: &mut crate::engine::Engine, forge: u16, why: crate::Set
     state(engine, forge, connection);
 }
 fn start_pending(engine: &mut crate::engine::Engine, forge: u16) -> bool {
+    if engine.resolving.contains_key(&forge) {
+        return true;
+    }
     if let Some(local) = engine.setup.lifecycle.local(forge)
         && local.restored
         && local.pending

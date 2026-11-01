@@ -437,15 +437,12 @@ fn the_accounts_banner_links_each_way_to_its_address_and_is_hidden_in_the_flow()
     assert!(!words(&root).contains("Agents need an LLM account to run."));
 }
 #[test]
-fn the_demo_banner_links_to_choose() {
+fn the_playground_banner_leaves_for_the_wizard() {
     let root =
         fixtures::demo_root(d::Address::Chats { filter: d::ChatsFilter::All, start: false }, fixtures::PROJECT, true);
     let mut view = fixtures::page_view(&root);
-    let id = fixtures::find(view.tree(), Role::Link, b"Connect a model").unwrap();
-    assert_eq!(
-        crate::act(&mut view, id, Act::Press),
-        Some(d::Action::Pages(d::pages::Act::Go { address: d::Address::ConnectModel { way: None } }))
-    );
+    let id = fixtures::find(view.tree(), Role::Link, b"set up temper").unwrap();
+    assert_eq!(crate::act(&mut view, id, Act::Press), Some(d::Action::Pages(d::pages::Act::LeavePlayground)));
 }
 #[test]
 fn ready_remembers_that_the_playgrounds_scripted_model_stepped_aside() {
@@ -533,7 +530,7 @@ fn a_returned_source_still_signing_offers_the_paste_unfolded() {
 }
 
 #[test]
-fn a_retired_reload_offers_no_demo_key_or_card() {
+fn a_resetting_read_offers_no_demo_key_or_card() {
     use temper_client_protocol_wire::v1 as w;
     for address in [d::Address::ConnectModel { way: None }, d::Address::Welcome { step: d::Step::Model { way: None } }]
     {

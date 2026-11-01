@@ -12,6 +12,12 @@ pub enum Act {
     ProjectSettings { ask: Box<jig_client::contract::Ask> },
     /// Choose a service role before supplying its explicit name.
     ProjectServiceRole { role: jig_client::contract::HeldRole },
+    /// Open the project deletion confirmation.
+    OpenProjectDelete,
+    /// Edit the exact project name used to confirm deletion.
+    TypeProjectName { text: Text },
+    /// Send the name-confirmed project deletion.
+    DeleteProject,
     /// Go to a jig page.
     Go { address: Address },
     /// Edit a field.

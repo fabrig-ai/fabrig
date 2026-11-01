@@ -81,13 +81,19 @@ pub(crate) fn held(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisi
         core::Held::PeopleReply { to, reply } => {
             let token = to.into_token();
             let to = skein_lib::ReplyTo::new(token);
-            if super::demo::owns(token) {
+            if super::playground::owns(domain, token) {
+                super::playground::adopted(domain, env, decision, None);
+            } else if super::demo::owns(token) {
                 super::demo::reply(domain, env, decision, to, reply);
             } else {
                 emit(decision, &env.limits, Delivery::WebReply { to, reply });
             }
         }
-        core::Held::CarriedUnused { number } => emit(decision, &env.limits, Delivery::CarriedUnused { number }),
+        core::Held::CarriedUnused { number } => {
+            if !super::playground::carried_unused(domain, number) {
+                emit(decision, &env.limits, Delivery::CarriedUnused { number });
+            }
+        }
         core::Held::CallAnswer { to, key, part } => {
             let answer = forge_route::effect_answer(domain, key, &part);
             relay_call(domain, &env.limits, decision, to, answer);
@@ -169,7 +175,10 @@ pub(crate) fn held(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisi
         core::Held::Applied { to, token, .. } => {
             let right = to.into_token();
             let to = skein_lib::ReplyTo::new(right);
-            if super::demo::owns(right) {
+            if super::playground::owns(domain, right) {
+                let outcome = domain.forge.application_answer(token);
+                super::playground::adopted(domain, env, decision, outcome);
+            } else if super::demo::owns(right) {
                 let outcome = domain.forge.application_answer(token);
                 super::demo::adopted(domain, env, decision, outcome);
             } else {

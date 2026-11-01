@@ -128,7 +128,7 @@ fn reply_activity(core: &Core, task: u64, object: InboxObject) -> Option<u64> {
 
 fn archived_conversation(core: &Core, limits: &Limits, party: u64, task: u64) -> Option<TaskLine> {
     let archive = core.archived_chats.get(&task)?;
-    if archive.party != party || core.people.role(party, archive.project).is_none() {
+    if archive.party != party || core.visible_role(party, archive.project).is_none() {
         return None;
     }
     let mut line = archive.line.as_ref()?.clone();
@@ -181,7 +181,7 @@ pub(super) fn inbox(core: &Core, limits: &Limits, party: u64, window: &Window) -
         .checked_add(core.settings_needs(party))
         .ok_or(Missing::TooLarge)?;
     let counts = core.people.counts(&limits.people, party).ok_or(Missing::Unknown)?;
-    if core.people.role(party, people::DEPLOYMENT) == Some(people::Role::Owner) {
+    if core.visible_role(party, people::DEPLOYMENT) == Some(people::Role::Owner) {
         for (&(proposer, number), _) in &core.settings_proposals {
             let Proposer::Task(task) = proposer else { continue };
             let Some(row) = core.tasks.proposal(task, u64::from(number)) else { continue };
@@ -220,7 +220,7 @@ pub(super) fn inbox(core: &Core, limits: &Limits, party: u64, window: &Window) -
         }
     }
     for entry in &entries {
-        if core.people.role(party, entry.project).is_none() {
+        if core.visible_role(party, entry.project).is_none() {
             continue;
         }
         let value = object(core, entry.task, entry.kind);
@@ -247,7 +247,7 @@ pub(super) fn inbox(core: &Core, limits: &Limits, party: u64, window: &Window) -
                 true,
             ),
         };
-        if core.people.role(party, project).is_none() {
+        if core.visible_role(party, project).is_none() {
             continue;
         }
         let cursor = Cursor::Inbox { task, object: value, at: Some(at) };

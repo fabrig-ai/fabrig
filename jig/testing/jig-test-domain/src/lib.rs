@@ -1310,7 +1310,8 @@ fn restore_connector(domain: &mut Domain, env: &Env<Limits>, number: u16, record
             | connector::Request::ApplicationDone { .. }
             | connector::Request::ApplicationAgain { .. }
             | connector::Request::ApplicationRelease { .. }
-            | connector::Request::System(_) => return false,
+            | connector::Request::System(_)
+            | connector::Request::Released { .. } => return false,
         }
     }
     true

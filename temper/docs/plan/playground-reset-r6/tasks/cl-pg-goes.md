@@ -89,3 +89,29 @@ Options, pre-approved:
 - Every removed test, by file, and the item it tested.
 - Under `## Left`: design text naming the halves, the strip or the retired playground
   (`temper/docs/design/client/README.md` 4.8, 5.6; `temper/docs/design/playground.md` 6).
+
+## Answers
+
+2026-11-01, from run `cl-pg-goes-1`.
+
+- **Question:** removing the cleanup watch makes `welcome-playground`'s replay stale (turn
+  12, recording line 55: the deployment watch no longer asked); refresh the recording
+  elsewhere, or re-record it here? **Answer:** neither here. Do not re-record or edit the
+  recording: `cl-journeys`, which already comes after this task (through `cl-world-forges`
+  and `cl-world-pg`), records `welcome-playground` again with `again` on the run's code, and
+  the run's full checks run once at the end, after it. For this task the stale journey is
+  accepted on one condition: `temper-client-journeys --lib` fails only on
+  `welcome-playground`, only at that removed watch (`the_committed_journeys_are_their_print`
+  and `a_reprint_keeps_a_journeys_readme`, nothing else stale). Quote the stale turn in the
+  report and list it under `## Left` for `cl-journeys`. Every other journey still replays;
+  reprint any whose pages alone changed. Then finish step 3's other checks (tools,
+  shell-web, shell-terminal, the client world's suite, `heavy cargo check -p
+  temper-client-world --tests`, clippy `--tests` and the wasm clippy of domain and view),
+  and rerun domain and view in full.
+- **The gallery's `chats-playground-leaving` failure** (this task's own): keep `cl-pg`'s
+  shape. `Domain::demo()` returns the playground's answer whenever the read holds one, while
+  it runs and while it leaves (an end in flight, or `resetting`); leaving does not hide it.
+  So the leaving chats page keeps its suggestions, as the scene expects. What a leaving
+  playground must not show stays on `cl-pg`'s gates, `Side::playground_running()` and
+  `Side::leaving()`: the banner's status line, and the playground's forge serving no pages.
+  Do not change the scene or its expectation.

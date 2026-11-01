@@ -973,7 +973,7 @@ fn signing_out_explains_each_forges_independent_sign_in() {
 }
 
 #[test]
-fn retired_navigation_omits_the_playground_project_after_reload() {
+fn resetting_navigation_keeps_the_playground_project_until_reset_finishes() {
     use jig_client::contract as c;
     use temper_client_domain::{Address, Event};
     use temper_client_protocol_wire::v1 as w;
@@ -1010,10 +1010,10 @@ fn retired_navigation_omits_the_playground_project_after_reload() {
         for words in [fixtures::words(), fixtures::browser_words()] {
             let mut view = fixtures::view_of(words);
             let tree = fixtures::build(&mut view, &root);
-            assert!(fixtures::find(tree, Role::Button, b"Playground").is_none());
+            assert!(fixtures::find(tree, Role::Button, b"Playground").is_some());
             assert!(fixtures::find(tree, Role::Button, b"Shop").is_none());
             assert_eq!(fixtures::find(tree, Role::Button, b"Other").is_some(), another);
-            assert_eq!(fixtures::find(tree, Role::Paragraph, b"No project yet").is_some(), !another);
+            assert!(fixtures::find(tree, Role::Paragraph, b"No project yet").is_none());
         }
     }
 }

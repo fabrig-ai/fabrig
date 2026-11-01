@@ -13,6 +13,7 @@ pub(crate) mod kept;
 pub(crate) mod landing;
 mod now;
 mod panels;
+pub(crate) mod playground;
 pub(crate) mod policy_translate;
 pub(crate) mod proposals;
 mod tools;
@@ -564,6 +565,12 @@ pub(crate) fn save_connector_answer(domain: &Domain, limits: &Limits, decision: 
 fn forge_event(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, event: forge::Event) {
     if let forge::Event::Connection { forge, state: forge::Connection::SetUpFailed { why } } = &event {
         demo::connection(domain, *forge, why);
+        playground::connection(domain, env, decision, *forge, why);
+    }
+    if event == forge::Event::BoxClosed
+        && let Some(start) = &domain.playground_start
+    {
+        playground::connection(domain, env, decision, start.row.forge, b"the box closed the pipe");
     }
     if event == forge::Event::BoxClosed
         && let Some(config) = domain.forge.demo()
@@ -576,7 +583,10 @@ fn forge_event(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, 
         return;
     }
     forge_route::outputs(domain, env, decision, &mut out);
-    demo::progress(domain, env, decision);
+    if domain.demo_start.is_some() {
+        demo::progress(domain, env, decision);
+    }
+    playground::progress(domain, env, decision);
 }
 
 // Refuse at the step still waiting for this connector, before any output translation.

@@ -28,6 +28,7 @@ pub mod forge_sign_in;
 pub mod forgejo;
 pub mod forgejo_elsewhere;
 pub mod forgejo_sign_in;
+pub mod forges;
 pub mod live;
 pub mod live_github;
 pub mod llm;

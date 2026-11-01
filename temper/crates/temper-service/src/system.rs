@@ -313,6 +313,14 @@ impl Service {
             links: Queue::with_capacity(queue),
         })
     }
+    pub fn take_resolve(&mut self) -> Option<crate::Resolve> {
+        self.engine.as_mut()?.resolves.pop()
+    }
+    pub fn resolved(&mut self, forge: u16, answer: Result<crate::ForgeRuntime, Box<[u8]>>) {
+        if let Some(engine) = &mut self.engine {
+            crate::forges::resolved(engine, forge, answer);
+        }
+    }
     pub fn take_handover_read(&mut self) -> Option<crate::HandoverRead> {
         let engine = self.engine.as_mut()?;
         match engine.clients.demo_read() {

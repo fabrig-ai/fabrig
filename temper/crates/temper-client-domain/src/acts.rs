@@ -150,6 +150,7 @@ pub(super) fn step(pages: &mut Pages, _env: &Env<Limits>, act: Act, out: &mut Qu
         | Act::StartChat
         | Act::RetryDemo
         | Act::Playground
+        | Act::LeavePlayground
         | Act::Suggest { .. }
         | Act::ChatFilter { .. }
         | Act::PlanFilter { .. }

@@ -45,11 +45,26 @@ pub struct Lines {
 }
 
 pub(crate) fn admission(core: &Core, party: u64, query: &TaskQuery) -> Result<(), Missing> {
+    for task in [query.root, query.parent] {
+        if let Some(task) = task
+            && core.deleting_task(task)
+        {
+            return Err(Missing::Unknown);
+        }
+    }
+    if let Some(tasks::Party::Task(task)) = query.requester
+        && core.deleting_task(task)
+    {
+        return Err(Missing::Unknown);
+    }
     if let Some(tasks::Party::Deployment { .. }) = query.requester {
         return Err(Missing::Unknown);
     }
     if let Some(project) = query.project {
-        if core.people.role(party, project).is_none() {
+        if core.deleting(project) {
+            return Err(Missing::Unknown);
+        }
+        if core.visible_role(party, project).is_none() {
             return Err(Missing::NotAllowed);
         }
     } else if query.requester.is_some() && query.requester != Some(tasks::Party::Person(party)) {
@@ -142,7 +157,10 @@ pub fn lines(core: &Core, limits: &Limits, party: u64, query: &TaskQuery, window
     let mut order = Map::with_capacity(limits.tasks.tasks);
     for candidate in core.tasks.view_tasks().as_ref() {
         let row = core.tasks.task(candidate.number).expect("live task view");
-        if (query.project.is_some() || row.requester == tasks::Party::Person(party)) && matches(query, row) {
+        if !core.deleting(row.project)
+            && (query.project.is_some() || row.requester == tasks::Party::Person(party))
+            && matches(query, row)
+        {
             order.insert(sort_key(row, query.order), row.number).expect("bounded live order");
         }
     }

@@ -147,6 +147,8 @@ pub struct Setup {
 /// temper's members (protocol/configuration.md, sections 2 and 3).
 #[derive(Debug)]
 pub struct Engine {
+    pub directories: jig_protocol_config::Directories,
+
     pub jig: jig_protocol_config::Engine,
     pub clients: crate::startup::application::Clients,
     pub sign_in: Option<SignIn>,

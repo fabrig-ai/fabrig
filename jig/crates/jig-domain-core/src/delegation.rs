@@ -178,6 +178,9 @@ impl Core {
         batch: &[Delegate],
         decision: Wall,
     ) -> Result<(), CallPart> {
+        if self.deleting_task(key.task) {
+            return Err(delegate_refused(Some(key.task), tasks::Refusal::Unknown));
+        }
         if !self.current_proof(key.task, key.attempt) {
             return Err(delegate_refused(Some(key.task), tasks::Refusal::State));
         }

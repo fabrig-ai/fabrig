@@ -458,3 +458,16 @@ fn a_kept_seen_record_restores_without_resaving_then_erases() {
         assert_eq!(c.domain.pending(KEY), None);
     }
 }
+
+#[test]
+fn a_project_removal_is_kept_before_it_is_sent() {
+    let request = Ask::Jig(Box::new(contract::Ask::RemoveProject { project: u32::MAX }));
+    let mut c = Client::live();
+    c.step(Event::Send { name: None, key: KEY, request: request.clone() });
+    let downs = c.downs();
+    let [Down::Save { record }, Down::Send { request: sent, .. }] = downs.as_ref() else {
+        panic!("save then send");
+    };
+    assert_eq!(record.request.request, request);
+    assert_eq!(*sent, request);
+}

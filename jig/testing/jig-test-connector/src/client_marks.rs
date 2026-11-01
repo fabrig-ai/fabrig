@@ -166,6 +166,7 @@ pub(crate) fn collect(domain: &Domain, env: &Env<Limits>, out: &mut Queue<Reques
                 | Request::ApplicationAgain { .. }
                 | Request::ApplicationRelease { .. }
                 | Request::Resource { .. }
+                | Request::Released { .. }
                 | Request::Closed { .. }
                 | Request::Verdict { .. }
                 | Request::Step { .. }

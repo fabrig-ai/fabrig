@@ -14,7 +14,7 @@ pub(super) fn failure(
 ) -> Answer {
     if range.scope != (Scope::Turn { task, attempt, turn })
         || owner.number != task
-        || core.people.role(range.party, owner.project).is_none()
+        || core.visible_role(range.party, owner.project).is_none()
     {
         return Answer::None(Why::Unknown);
     }

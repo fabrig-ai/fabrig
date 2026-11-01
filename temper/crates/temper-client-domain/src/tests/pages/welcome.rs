@@ -453,11 +453,12 @@ fn continue_setting_up_goes_to_the_first_step_not_done() {
 }
 
 #[test]
-fn the_playground_forge_shows_while_the_forge_half_holds() {
+fn the_playground_forge_shows_while_the_playground_runs() {
     let (mut root, _, accounts, forges) = opened(true, Step::Model { way: None });
     let watch = forges.unwrap();
     answer(&mut root, true);
     event(&mut root, Event::Act { action: Action::Pages(Act::Playground) });
+    demo::deliver_demo_read(&mut root, demo::page_with_state(w::PlaygroundState::Running));
     account(&mut root, accounts, 18, true);
     rows(&mut root, watch, wire::FORGE);
     assert_eq!(forge::listed::playground(&root).unwrap().1.number, wire::FORGE);

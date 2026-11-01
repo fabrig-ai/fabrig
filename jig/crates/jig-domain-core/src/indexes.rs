@@ -3,6 +3,7 @@ use crate::{Core, Record, Request, Write};
 use jig_domain_tasks as tasks;
 use skein_lib::Queue;
 
+#[expect(clippy::manual_map, reason = "step code matches the optional live requester without a closure")]
 pub(crate) fn save(core: &Core, record: &tasks::Stored, at: skein_lib::Wall, out: &mut Queue<Request>) {
     let update = match record {
         tasks::Stored::Ended(task) => {
@@ -13,54 +14,18 @@ pub(crate) fn save(core: &Core, record: &tasks::Stored, at: skein_lib::Wall, out
                 }
                 tasks::Party::Task(_) | tasks::Party::Deployment { .. } => {}
             }
-            match task.requester {
-                tasks::Party::Person(party) => Some(tasks::Update {
-                    party,
-                    at: task.ended_at.expect("ended task has a time"),
-                    task: task.number,
-                    object: tasks::UpdateObject::Result,
-                }),
-                tasks::Party::Task(_) | tasks::Party::Deployment { .. } => None,
-            }
+            result_update(task)
         }
         tasks::Stored::Activity(line) => {
-            let addressed = match &line.line {
-                tasks::Line::Turn { reply, .. } => match core.tasks.task(line.task) {
-                    Some(task) => match task.requester {
-                        tasks::Party::Person(party) => Some((party, *reply)),
-                        tasks::Party::Task(_) | tasks::Party::Deployment { .. } => None,
-                    },
-                    None => None,
-                },
-                tasks::Line::Notified { recipient: tasks::Party::Person(party), word } => Some((*party, word.number)),
-                tasks::Line::Notified { .. }
-                | tasks::Line::Words { .. }
-                | tasks::Line::Heard(_)
-                | tasks::Line::RunBegan { .. }
-                | tasks::Line::RunEnded { .. }
-                | tasks::Line::Decided { .. }
-                | tasks::Line::Kept { .. }
-                | tasks::Line::Milestone { .. } => None,
+            let requester = match core.tasks.task(line.task) {
+                Some(task) => Some(task.requester),
+                None => None,
             };
-            let Some((party, message)) = addressed else { return };
-            Some(tasks::Update {
-                party,
-                at: line.at,
-                task: line.task,
-                object: tasks::UpdateObject::Reply {
-                    message: tasks::Newest::of(message),
-                    activity: tasks::Newest::of(line.position),
-                },
-            })
+            activity_update(line, requester)
         }
         tasks::Stored::DecidedProposal(row) => {
             let Some(decision) = crate::proposals::decision_record(record, at) else { return };
-            Some(tasks::Update {
-                party: row.proposer,
-                at: decision.at,
-                task: row.first(),
-                object: tasks::UpdateObject::Proposal { proposal: tasks::Newest::of(row.number) },
-            })
+            Some(proposal_update(row, decision.at))
         }
         tasks::Stored::Result(_)
         | tasks::Stored::EndedByParty(_)
@@ -81,5 +46,56 @@ pub(crate) fn save(core: &Core, record: &tasks::Stored, at: skein_lib::Wall, out
     };
     if let Some(update) = update {
         out.push(Request::Write(Write::Save(Record::Tasks(tasks::Stored::Update(update)))));
+    }
+}
+
+/// The same result key at save and whole-task erasure.
+pub(crate) fn result_update(task: &tasks::TaskRecord) -> Option<tasks::Update> {
+    match task.requester {
+        tasks::Party::Person(party) => Some(tasks::Update {
+            party,
+            at: task.ended_at.expect("ended task has a time"),
+            task: task.number,
+            object: tasks::UpdateObject::Result,
+        }),
+        tasks::Party::Task(_) | tasks::Party::Deployment { .. } => None,
+    }
+}
+
+/// Reply indexes use the ended owner's requester when its live row is absent.
+pub(crate) fn activity_update(line: &tasks::ActivityLine, requester: Option<tasks::Party>) -> Option<tasks::Update> {
+    let addressed = match &line.line {
+        tasks::Line::Turn { reply, .. } => match requester {
+            Some(tasks::Party::Person(party)) => Some((party, *reply)),
+            Some(tasks::Party::Task(_) | tasks::Party::Deployment { .. }) | None => None,
+        },
+        tasks::Line::Notified { recipient: tasks::Party::Person(party), word } => Some((*party, word.number)),
+        tasks::Line::Notified { .. }
+        | tasks::Line::Words { .. }
+        | tasks::Line::Heard(_)
+        | tasks::Line::RunBegan { .. }
+        | tasks::Line::RunEnded { .. }
+        | tasks::Line::Decided { .. }
+        | tasks::Line::Kept { .. }
+        | tasks::Line::Milestone { .. } => None,
+    };
+    let (party, message) = addressed?;
+    Some(tasks::Update {
+        party,
+        at: line.at,
+        task: line.task,
+        object: tasks::UpdateObject::Reply {
+            message: tasks::Newest::of(message),
+            activity: tasks::Newest::of(line.position),
+        },
+    })
+}
+
+pub(crate) fn proposal_update(row: &tasks::PersonProposal, at: skein_lib::Wall) -> tasks::Update {
+    tasks::Update {
+        party: row.proposer,
+        at,
+        task: row.first(),
+        object: tasks::UpdateObject::Proposal { proposal: tasks::Newest::of(row.number) },
     }
 }
