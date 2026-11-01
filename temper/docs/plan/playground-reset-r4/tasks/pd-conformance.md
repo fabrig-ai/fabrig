@@ -188,3 +188,39 @@ and `-p jig-core-world --test suite -E 'test(/removal_stages/)'`. It
 commits and pushes. A row the scenario finds that the deletion does
 not erase, other than this one, is still a question. A boundary this
 answer already grants is not asked again.
+
+### 2026-11-01: the test connector's `Made` row naming a deleted task (playground-reset-r4/pd-conformance-5)
+
+Neither option: the `Made` row outlives the deletion, and the check
+excepts it as it excepts `ClosedLedger` rows. No connector or root repair,
+and no ownership beyond this spec's `files`.
+A `Made` row is the connector's record of an object it made on its system,
+by the effect's key (jig's `domain/connectors.md`, 4.4: "The connector
+records every object it made, by key, in the store: the ownership of
+section 11"). The object itself stays on the system: a deletion undoes
+nothing there (draft 4, "On the forge itself"). Its key carries the task's
+number as part of the object's identity, and task numbers are never reused.
+It refers to no task row. If the record were erased, a later adoption of the
+same resource would find this deployment's own objects with "no making"
+recorded and refuse them as another deployment's (`connectors.md`, 12, "One
+deployment's"). `ReleaseProject` also could not choose which `Made` rows to
+erase: their keys name tasks, not the project. Ordinary retention does not
+erase `Made` rows either.
+
+- `jig/tests/conformance/src/scenarios/removal.rs`'s check: a
+  `connector::Record::Made` row is not a violation, even when its key's
+  `task` is a task recorded before the removal. Every other connector
+  record keeps its arm. The report lists the `Made` rows the scenario
+  built under "each family's rows" as outliving the deletion.
+- `jig/tests/core/src/removal.rs` `names`: move
+  `connector::Record::Made { .. }` into the `false` arm, beside `Pool`.
+  `rows_naming`'s doc comment then names it: "except the project's closed
+  period and pool totals and the connector's records of objects it made,
+  which outlive deletion". No other line of that file changes beyond the
+  `ask_project` arm the answer above grants. Run the core world's
+  `removal_stages` tests again, as above.
+- Do not change the held effect's release or its settlement: the scenario
+  keeps them, because they are how a `Made` row comes to exist.
+
+A row the scenario finds that the deletion does not erase, other than the
+`SetUses` answer and the `Made` rows, is still a question.
