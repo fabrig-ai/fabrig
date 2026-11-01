@@ -9,7 +9,6 @@ mod change;
 mod ci_brief;
 mod connect;
 mod connect_new;
-mod demo;
 mod fixtures;
 mod flight;
 mod kept;
@@ -354,7 +353,6 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::ApplicationDone { .. }
         | Request::ApplicationAgain { .. }
         | Request::MarkedForges
-        | Request::StopGroup { .. }
         | Request::SetUpGroup { .. }
         | Request::Connect { .. }
         | Request::Manifest { .. }
@@ -365,9 +363,6 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::EraseCarried { .. }
         | Request::SetUp { .. }
         | Request::Bound { .. }
-        | Request::ListDemoActs
-        | Request::SendDemoAct(_)
-        | Request::DemoStart { .. }
         | Request::PlaygroundStart { .. }
         | Request::Settled { .. }
         | Request::ForgeKept { .. }
@@ -431,7 +426,6 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::ApplicationDone { .. }
         | Request::ApplicationAgain { .. }
         | Request::MarkedForges
-        | Request::StopGroup { .. }
         | Request::SetUpGroup { .. }
         | Request::Connect { .. }
         | Request::Manifest { .. }
@@ -442,9 +436,6 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::EraseCarried { .. }
         | Request::SetUp { .. }
         | Request::Bound { .. }
-        | Request::ListDemoActs
-        | Request::SendDemoAct(_)
-        | Request::DemoStart { .. }
         | Request::PlaygroundStart { .. }
         | Request::Settled { .. }
         | Request::ForgeKept { .. }
@@ -505,7 +496,6 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::ApplicationDone { .. }
         | Request::ApplicationAgain { .. }
         | Request::MarkedForges
-        | Request::StopGroup { .. }
         | Request::SetUpGroup { .. }
         | Request::Connect { .. }
         | Request::Manifest { .. }
@@ -516,9 +506,6 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::EraseCarried { .. }
         | Request::SetUp { .. }
         | Request::Bound { .. }
-        | Request::ListDemoActs
-        | Request::SendDemoAct(_)
-        | Request::DemoStart { .. }
         | Request::PlaygroundStart { .. }
         | Request::Settled { .. }
         | Request::ForgeKept { .. }

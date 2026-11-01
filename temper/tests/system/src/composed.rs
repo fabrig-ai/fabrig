@@ -748,7 +748,6 @@ impl World {
             | engine::Request::Install { .. }
             | engine::Request::Accept { .. }
             | engine::Request::EraseCarried { .. }
-            | engine::Request::StopGroup { .. }
             | engine::Request::SetUp { .. }
             | engine::Request::Bound { .. }
             | engine::Request::Return { .. }
@@ -797,7 +796,6 @@ impl World {
             | engine::Request::Install { .. }
             | engine::Request::Accept { .. }
             | engine::Request::EraseCarried { .. }
-            | engine::Request::StopGroup { .. }
             | engine::Request::SetUp { .. }
             | engine::Request::Bound { .. }
             | engine::Request::Return { .. }
@@ -887,8 +885,7 @@ impl World {
             }
             // A live notice to the requester, with no reply right.
             Delivery::Result { .. } => {}
-            other @ (Delivery::DemoActed { .. }
-            | Delivery::DemoNote { .. }
+            other @ (Delivery::DemoNote { .. }
             | Delivery::Host(_)
             | Delivery::Procedure { .. }
             | Delivery::Forges { .. }

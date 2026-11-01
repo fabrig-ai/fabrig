@@ -613,38 +613,6 @@ fn a_failed_keep_ends_the_admin_caller_and_erases_before_the_engine_stops() {
     assert!(admin_record(&service).is_none());
 }
 #[test]
-fn an_ended_forge_finishes_the_admin_run_without_keeping_the_token() {
-    let forge = forge(true, true, false);
-    let mut service = service(&forge);
-    let run = pending(&mut service);
-    let engine = service.engine.as_mut().unwrap();
-    engine.demo = Some(crate::settings::Demo {
-        fake: None,
-        project: 1,
-        forge: Some(1),
-        provider: 1,
-        owner: b"owner".as_slice().into(),
-        name: b"ended".as_slice().into(),
-        cues: Box::new([]),
-        landing: b"main".as_slice().into(),
-        key_file: Box::new([]),
-        state: Some(domain::DemoState::Ended),
-        playground: None,
-    });
-    // Replace the fake host's pending read with its terminal, so no stale Need follows Done.
-    while engine.setup.above.pop().is_some() {}
-    engine.setup.above.push(host::Event::Done { run, outcome: reconcile::Outcome::Nothing });
-    advance(engine);
-    assert!(engine.setup.public.is_empty());
-    assert!(engine.setup.runs.is_empty());
-    scan(engine);
-    // Run the real root's end and erase decision; the fake host still has no HTTP reply.
-    for _ in 0_u32..64 {
-        crate::engine::iterate(engine, Time::ZERO, Wall::EPOCH);
-    }
-    erased(&mut service, false);
-}
-#[test]
 fn a_github_app_paste_cannot_decode_an_admin_bundle() {
     let mut service = routing_service(4, Duration::from_secs(60));
     let engine = service.engine.as_mut().unwrap();

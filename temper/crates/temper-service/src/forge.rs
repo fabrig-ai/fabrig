@@ -10,12 +10,9 @@ use skein_lib::{Duration, Env, List, Map, Queue, Time, Wall};
 use temper_engine_domain as root;
 use temper_engine_domain_forge as forge;
 
-/// The mirrored durable demo state gates every service path (protocol/forge.md, 8.1).
+/// Removed forges cannot start another service operation (draft playground-reset.md, 4).
 pub(crate) fn ended(engine: &crate::engine::Engine, forge: u16) -> bool {
-    match &engine.demo {
-        Some(demo) => demo.forge == Some(forge) && demo.state == Some(forge::DemoState::Ended),
-        None => false,
-    }
+    engine.domain.forge_ended(forge)
 }
 
 /// The user agent every forge request carries; a test pins it.

@@ -393,7 +393,6 @@ pub enum Application {
 pub enum ApplicationAnswer {
     Adopt(forge::ApplicationOutcome),
     SetUp(forge::SetUpAnswer),
-    StartDemo(forge::StartAnswer),
     RemoveForge(forge::RemoveAnswer),
     StartPlayground(forge::StartAnswer),
     EndPlayground(forge::EndAnswer),
@@ -551,11 +550,7 @@ pub enum Request {
         request: Token,
         answer: forge::BindAnswer,
     },
-    /// Stop the ended demo's box group; no request waits for its answer.
-    StopGroup {
-        forge: u16,
-    },
-    /// Start the demo's box group.
+    /// Start the playground's box group.
     SetUpGroup {
         forge: u16,
         request: Token,
@@ -827,7 +822,6 @@ pub struct Released(pub(crate) Delivery);
 pub(crate) fn delivery_output(delivery: Delivery) -> Request {
     match delivery {
         delivery @ (Delivery::ProjectMade { .. }
-        | Delivery::DemoActed { .. }
         | Delivery::ForgeCommitted { .. }
         | Delivery::Fleet(_)
         | Delivery::Relay { .. }

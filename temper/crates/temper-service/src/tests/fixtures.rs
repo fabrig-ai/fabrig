@@ -810,7 +810,6 @@ pub fn settle_root(
                     crate::route::request(engine, request);
                 }
                 root::Request::Setup { .. }
-                | root::Request::StopGroup { .. }
                 | root::Request::SetUpGroup { .. }
                 | root::Request::ForgeKept { .. }
                 | root::Request::ForgeRemoved { .. }

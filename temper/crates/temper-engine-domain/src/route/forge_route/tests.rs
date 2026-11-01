@@ -269,41 +269,6 @@ fn writable_repositories_exclude_context_and_missing_push() {
     assert_eq!(domain.forge.readable_repositories(5).len(), 2);
 }
 
-#[test]
-fn writable_repositories_exclude_an_ended_forge() {
-    use super::forge;
-    let (mut domain, env) = two_forges();
-    domain.forge.configure_demo(Some(forge::DemoConfig {
-        forge: None,
-        provider: 1,
-        adoption: forge::Adoption {
-            project: 5,
-            home: true,
-            forge: 1,
-            host: Box::from(&b"forge.example"[..]),
-            owner: Box::from(&b"org"[..]),
-            name: Box::from(&b"repo"[..]),
-            prefix: Box::from(&b"temper/"[..]),
-            role: forge::Role::Owned,
-            landing: Box::from(&b"main"[..]),
-            ci: true,
-            checks: Box::new([]),
-        },
-        deadline: skein_lib::Duration::from_secs(60),
-    }));
-    let mut out = skein_lib::Queue::uncapped();
-    forge::step(
-        &mut domain.forge,
-        &skein_lib::Env { now: env.now, wall: env.wall, limits: env.limits.forge },
-        forge::Event::Restore { record: forge::Stored::Demo(forge::Demo { forge: 1, state: forge::DemoState::Ended }) },
-        &mut out,
-    );
-    let repositories = domain.forge.writable_repositories(5);
-    assert_eq!(repositories.len(), 1);
-    assert_eq!(repositories[0].provider.forge, 3);
-    assert_eq!(domain.forge.readable_repositories(5).len(), 1);
-}
-
 fn change_row(pull: Option<u64>) -> super::forge::ChangeRow {
     use super::{forge, forge_change as change};
     forge::ChangeRow {

@@ -158,7 +158,6 @@ pub enum Ask {
         project: SetUpProject,
         playground: bool,
     },
-    StartDemo,
     /// The playground, made when chosen (draft 6.1).
     StartPlayground,
     /// The playground's reset (draft 6.2).
@@ -238,7 +237,6 @@ pub enum AppWay {
 pub enum Answered {
     Adopt(ApplicationOutcome),
     SetUp(SetUpAnswer),
-    StartDemo(StartAnswer),
     RemoveForge(RemoveAnswer),
     StartPlayground(StartAnswer),
     EndPlayground(EndAnswer),
@@ -319,7 +317,7 @@ pub enum StartFailure {
     /// The playground's project was refused at its making (draft 6.1).
     Project,
 }
-/// The demo's fake LLM, forge and project (protocol/setup.md, 8.4).
+/// Playground configuration (temper/docs/design/draft/playground-reset.md, 6.1).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct DemoConfig {
     /// The playground's fake forge, with its number assigned at start (draft 6.1).
@@ -1120,17 +1118,6 @@ pub enum Event {
         address: Box<[u8]>,
         subject: Box<[u8]>,
     },
-    DemoActs {
-        acts: Box<[DemoAct]>,
-    },
-    DemoActAnswered {
-        key: [u8; 16],
-        keep: bool,
-    },
-    SendDemoActs,
-    DemoAnswered {
-        answer: StartAnswer,
-    },
     /// The box ended its pipe (domain/forge.md, 4.1).
     BoxClosed,
     /// The routing's answer to a core-admitted connect request.
@@ -1490,19 +1477,9 @@ pub enum Request {
         request: Token,
         answer: BindAnswer,
     },
-    /// Select the live chats and deployment account in this decision.
-    ListDemoActs,
-    SendDemoAct(DemoAct),
-    /// Stop the ended demo's box group; no request waits for its answer.
-    StopGroup {
-        forge: u16,
-    },
-    /// Start the demo's box group.
+    /// Start the playground's box group.
     SetUpGroup {
         forge: u16,
-        request: Token,
-    },
-    DemoStart {
         request: Token,
     },
     /// Ask the box link to set up the forge (protocol/forge.md, 2.8).

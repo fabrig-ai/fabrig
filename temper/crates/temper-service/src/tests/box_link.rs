@@ -276,78 +276,14 @@ fn forge_numbers_at_both_u16_bounds_are_read() {
 }
 
 #[test]
-fn stop_writes_its_line_and_stopped_tells_the_root_nothing() {
-    let mut link = Link::new(LINE_BYTES, true);
-    let mut out = Queue::with_capacity(OUTPUTS);
-    link.stop(FORGE, &mut out);
-    tells(&mut out, &[Out::Write(b"stop 7\n".as_slice().into())]);
-    link.read(b"stopped 8\n", &mut out);
-    tells(&mut out, &[named(b"box link: dropped stopped for forge 8, not asked")]);
-    link.read(b"started 7\n", &mut out);
-    tells(&mut out, &[named(b"box link: dropped started for forge 7, not asked")]);
-    link.read(b"stopped 7\n", &mut out);
-    tells(&mut out, &[]);
-    link.ask(FORGE, REQUEST, &mut out);
-    tells(&mut out, &accepted());
-}
-#[test]
-fn stop_is_held_behind_start_and_failed_is_only_logged() {
-    let (mut link, mut out) = asked();
-    link.stop(OTHER, &mut out);
-    tells(&mut out, &[]);
-    link.read(b"started 7\n", &mut out);
-    tells(&mut out, &[Out::Started { forge: FORGE }, Out::Write(b"stop 8\n".as_slice().into())]);
-    link.read(b"failed 8 run exited 1\n", &mut out);
-    tells(&mut out, &[named(b"box link: stop failed for forge 8: run exited 1")]);
-    link.ask(FORGE, REQUEST, &mut out);
-    tells(&mut out, &accepted());
-}
-#[test]
-fn stop_cancels_a_held_demo_start_and_preserves_another_held_start() {
-    let (mut link, mut out) = asked();
-    link.ask(OTHER, OTHER_REQUEST, &mut out);
-    discard(&mut out);
-    link.stop(OTHER, &mut out);
-    link.read(b"started 7\n", &mut out);
-    tells(&mut out, &[Out::Started { forge: FORGE }, Out::Write(b"stop 8\n".as_slice().into())]);
-    link.read(b"stopped 8\n", &mut out);
-    tells(&mut out, &[]);
-    let (mut link, mut out) = asked();
-    link.ask(OTHER, OTHER_REQUEST, &mut out);
-    discard(&mut out);
-    link.stop(FORGE, &mut out);
-    link.read(b"started 7\n", &mut out);
-    tells(&mut out, &[Out::Started { forge: FORGE }, Out::Write(b"stop 7\n".as_slice().into())]);
-    link.read(b"stopped 7\n", &mut out);
-    tells(&mut out, &[Out::Write(b"start 8\n".as_slice().into())]);
-}
-#[test]
-fn closing_the_pipe_drops_active_and_held_stops() {
-    for active in [false, true] {
-        let mut link = Link::new(LINE_BYTES, true);
-        let mut out = Queue::with_capacity(OUTPUTS);
-        if !active {
-            link.ask(OTHER, OTHER_REQUEST, &mut out);
-        }
-        link.stop(FORGE, &mut out);
-        discard(&mut out);
-        link.closed(&mut out);
-        tells(&mut out, &[named(b"box link: the box closed the pipe"), Out::Closed]);
-        link.read(b"stopped 7\nstarted 8\n", &mut out);
-        link.stop(FORGE, &mut out);
-        tells(&mut out, &[]);
-    }
-}
-
-#[test]
-fn demo_end_diagnostics_reach_serves_named_notes() {
+fn kept_act_diagnostics_reach_serves_named_notes() {
     let mut service = super::fixtures::demo_service();
     let engine = service.engine.as_mut().unwrap();
     for _ in 0..engine.notes.len() {
         engine.notes.pop().unwrap();
     }
-    let line = b"demo end: chat 7 not closed: no first owner configured".as_slice();
-    let cohort = temper_engine_domain_forge::demo_act_bound(&engine.env.limits.forge).unwrap();
+    let line = b"kept act: task 7 not cancelled: no first owner configured".as_slice();
+    let cohort = temper_engine_domain_forge::kept_bound(&engine.env.limits.forge).unwrap();
     for _ in 0..cohort {
         crate::route::request(
             engine,

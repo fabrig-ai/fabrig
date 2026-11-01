@@ -81,9 +81,7 @@ pub(crate) fn held(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisi
         core::Held::PeopleReply { to, reply } => {
             let token = to.into_token();
             let to = skein_lib::ReplyTo::new(token);
-            if super::demo::owns(token) {
-                super::demo::reply(domain, env, decision, to, reply);
-            } else if super::playground::owns(token) {
+            if super::playground::owns(token) {
                 super::playground::reply(domain, env, decision, to, reply);
             } else {
                 emit(decision, &env.limits, Delivery::WebReply { to, reply });
@@ -172,10 +170,7 @@ pub(crate) fn held(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisi
         core::Held::Applied { to, token, .. } => {
             let right = to.into_token();
             let to = skein_lib::ReplyTo::new(right);
-            if super::demo::owns(right) {
-                let outcome = domain.forge.application_answer(token);
-                super::demo::adopted(domain, env, decision, outcome);
-            } else if super::playground::owns(right) {
+            if super::playground::owns(right) {
                 let outcome = domain.forge.application_answer(token);
                 super::playground::adopted(domain, env, decision, outcome);
             } else {
@@ -198,7 +193,7 @@ pub(crate) fn held(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisi
             if super::kept::owns(token) {
                 super::kept::acted(domain, env, decision, to, outcome);
             } else {
-                emit(decision, &env.limits, Delivery::DemoActed { to, outcome });
+                unreachable!("deployment act reply belongs to the kept route");
             }
         }
     }

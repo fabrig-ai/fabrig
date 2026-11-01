@@ -9,7 +9,6 @@ mod accounts_restart;
 mod admission;
 mod applications;
 mod budget;
-mod demo;
 mod document_limits;
 mod escalation;
 mod forge_routes;

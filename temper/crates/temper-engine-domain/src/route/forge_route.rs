@@ -2999,15 +2999,12 @@ pub(crate) fn outputs(
                     jig_domain_core::connector::Event::ProjectReleased { request, project },
                 )));
             }
-            forge::Request::ListDemoActs => super::demo::list_end_acts(domain),
-            forge::Request::SendDemoAct(row) => super::demo::send_end_act(domain, row),
             forge::Request::PlaygroundStart { request } => super::playground::start(domain, env, decision, request),
-            forge::Request::DemoStart { request } => super::demo::start(domain, env, decision, request),
-            forge::Request::StopGroup { forge } => {
-                assert!(super::now(domain, Request::StopGroup { forge }), "demo stop door reserved");
-            }
             forge::Request::SetUpGroup { forge, request } => {
-                assert!(super::now(domain, Request::SetUpGroup { forge, request }), "demo box group door reserved");
+                assert!(
+                    super::now(domain, Request::SetUpGroup { forge, request }),
+                    "playground box group door reserved"
+                );
             }
             forge::Request::SetUp { forge, request, org, repository, playground } => {
                 assert!(
@@ -3020,12 +3017,10 @@ pub(crate) fn outputs(
                 super::applications::part(domain, request, adoption, repository);
             }
             forge::Request::ApplicationDone { request, token } => {
-                super::demo::done(domain, env, decision, request, true);
                 super::playground::done(domain, env, decision, request, true);
                 super::applications::finished(domain, request, Ok(token));
             }
             forge::Request::ApplicationAgain { request, why } => {
-                super::demo::done(domain, env, decision, request, false);
                 super::playground::done(domain, env, decision, request, false);
                 super::applications::finished(domain, request, Err(why));
             }

@@ -222,8 +222,6 @@ fn kept_acts_go_again_after_a_restart() {
                 let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
                 crate::restart::restart_request(&mut domain, &env, &mut decision, request);
                 assert!(domain.ready());
-                let Some(Work::Forge(demo)) = domain.work.pop() else { panic!("restart keeps the demo handoff") };
-                assert_eq!(demo, forge::Event::SendDemoActs);
                 let Some(Work::Forge(event)) = domain.work.pop() else { panic!("restart sends kept rows") };
                 assert_eq!(event, forge::Event::SendKept);
                 forge::step(&mut domain.forge, &crate::translate::environment_forge(&env), event, &mut out);
@@ -318,55 +316,4 @@ fn a_removed_project_answer_erases_its_kept_row() {
     let to = act(&mut domain, row, None);
     let decision = answer(&mut domain, &env, to, people::Outcome::ProjectRemoved { project: 1 }, row, false);
     assert!(decision.empty());
-}
-
-#[test]
-fn kept_and_demo_replies_reach_their_own_handlers() {
-    let (mut domain, env) = crate::tests::resume_fixture::root();
-    let demo = forge::DemoAct { key: [77; 16], act: forge::DemoActKind::RemoveAccount { account: 3 } };
-    crate::route::demo::send_end_act(&mut domain, demo);
-    let Some(Work::Core(core::Event::Act { reply_to: demo_to, .. })) = domain.work.pop() else {
-        panic!("demo deployment act")
-    };
-    let row = forge::Kept { key: [78; 16], act: forge::KeptAct::RemoveAccount { account: 4 } };
-    send(&mut domain, &env, row);
-    let to = act(&mut domain, row, None);
-    let kept_token = to.into_token();
-    let demo_token = demo_to.into_token();
-    assert_ne!(kept_token, demo_token);
-    assert!(crate::route::kept::owns(kept_token));
-    assert!(!crate::route::kept::owns(demo_token));
-    let mut decision = answer(
-        &mut domain,
-        &env,
-        ReplyTo::new(kept_token),
-        people::Outcome::Refused(people::Refusal::Unknown),
-        row,
-        false,
-    );
-    crate::route::held::held(
-        &mut domain,
-        &env,
-        &mut decision,
-        core::Held::Acted { to: ReplyTo::new(demo_token), outcome: people::Outcome::Refused(people::Refusal::Unknown) },
-    );
-    assert!(domain.work.is_empty(), "demo still crosses its durable delivery seam");
-    crate::decision::accept_routed(
-        &mut domain.journal,
-        &mut domain.core.counters,
-        &env.limits.journal,
-        decision,
-        false,
-    )
-    .unwrap();
-    let mut out = Queue::uncapped();
-    crate::decision::resume(&mut domain.journal, &mut out);
-    let Some(JournalOutput::Deliver(Delivery::DemoActed { to, outcome })) = out.pop() else {
-        panic!("demo retains its existing path")
-    };
-    let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
-    crate::route::demo::end_acted(&mut domain, &env, &mut decision, to, outcome);
-    let Some(Work::Forge(event)) = domain.work.pop() else { panic!("demo answer") };
-    assert_eq!(event, forge::Event::DemoActAnswered { key: demo.key, keep: false });
-    assert!(domain.demo_act_replies.is_empty());
 }

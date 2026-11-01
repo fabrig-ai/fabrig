@@ -1,6 +1,9 @@
 //! Playground start and reset (temper/docs/design/draft/playground-reset.md, 6.1, 6.2;
 //! temper/docs/plan/playground-reset-r4/notes/contracts.md, 2).
-use crate::{Connection, Domain, Key, Limits, Playground, PlaygroundState, Request, StartAnswer, StartFailure, Stored};
+use crate::{
+    Connection, DemoConfig, Domain, Key, Limits, Playground, PlaygroundState, Request, StartAnswer, StartFailure,
+    Stored,
+};
 use skein_lib::{Env, Map, Queue, Token};
 
 #[derive(Debug)]
@@ -221,5 +224,57 @@ fn next_step(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                 unreachable!("internal removal has no admission refusal")
             }
         }
+    }
+}
+
+/// Playground configuration bounds (temper/docs/design/draft/playground-reset.md, 6.1).
+impl DemoConfig {
+    #[must_use]
+    pub fn within(&self) -> bool {
+        if let Some(forge) = &self.forge
+            && !forge.fits()
+        {
+            return false;
+        }
+        let adoption = &self.adoption;
+        for bytes in [
+            adoption.host.len(),
+            adoption.owner.len(),
+            adoption.name.len(),
+            adoption.prefix.len(),
+            adoption.landing.len(),
+        ] {
+            if bytes > 1024 {
+                return false;
+            }
+        }
+        adoption.checks.is_empty()
+    }
+}
+/// Playground configuration and forge availability (temper/docs/design/draft/playground-reset.md, 6.1).
+impl Domain {
+    pub fn configure_demo(&mut self, demo: Option<DemoConfig>) {
+        if let Some(demo) = &demo {
+            assert!(demo.within(), "bounded demo configuration");
+        }
+        self.demo = demo;
+    }
+    #[must_use]
+    pub fn demo(&self) -> Option<&DemoConfig> {
+        self.demo.as_ref()
+    }
+    /// Removing and removed forges stay ended (temper/docs/design/draft/playground-reset.md, 4, 6.1).
+    #[must_use]
+    pub fn forge_ended(&self, forge: u16) -> bool {
+        if crate::removal::removing(self, forge) {
+            return true;
+        }
+        if let Some(next) = self.next_forge
+            && forge < next
+            && !self.configured.contains_key(&forge)
+        {
+            return true;
+        }
+        false
     }
 }

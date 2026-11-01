@@ -8,19 +8,11 @@ pub(crate) mod group_file;
 
 #[expect(clippy::too_many_lines, reason = "one exhaustive dispatcher routes root outputs to their components")]
 pub(crate) fn request(engine: &mut Engine, request: root::Request) {
-    if let Some(demo) = &mut engine.demo {
-        demo.state = engine.domain.demo_state();
-    }
     match request {
         root::Request::ForgeKept { forge } => crate::forge::table::kept(engine, *forge),
         root::Request::ForgeRemoved { forge } => crate::forge::table::removed(engine, forge),
         root::Request::BoxRemove { forge } => crate::forge::table::box_remove(engine, forge),
         root::Request::Bound { request, answer } => engine.clients.bound(request, answer),
-        root::Request::StopGroup { forge } => {
-            let mut out = skein_lib::Queue::with_capacity(1);
-            engine.box_link.stop(forge, &mut out);
-            box_link::drain(engine, &mut out);
-        }
         root::Request::SetUpGroup { forge, request } => {
             let mut out = skein_lib::Queue::with_capacity(3);
             engine.box_link.ask(forge, request, &mut out);
@@ -295,8 +287,7 @@ fn worker(engine: &mut Engine, request: root::WorkerRequest) {
                     &mut engine.events,
                 ),
             },
-            root::Delivery::DemoActed { .. }
-            | root::Delivery::DemoNote { .. }
+            root::Delivery::DemoNote { .. }
             | root::Delivery::Procedure { .. }
             | root::Delivery::Application { .. }
             | root::Delivery::Forges { .. }

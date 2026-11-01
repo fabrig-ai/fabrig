@@ -386,3 +386,29 @@ fn a_refused_adoption_admission_fails_the_start_naming_it() {
         [Some(engine::ApplicationAnswer::StartPlayground(forge::StartAnswer::Failed(forge::StartFailure::Adoption)))]
     );
 }
+
+#[test]
+fn another_forge_connecting_ends_nothing() {
+    let (mut d, _) = running();
+    let row = *d.root.playground().expect("running playground");
+    d.send(engine::Event::Forge(Box::new(forge::Event::Restore {
+        record: forge::Stored::Forge(forge::Forge {
+            number: 2,
+            identity: forge::record::Identity { number: 2, ..fake().identity },
+            playground: false,
+            setup: None,
+            ..fake()
+        }),
+    })));
+    d.settle();
+    d.send(engine::Event::Forge(Box::new(forge::Event::Connection {
+        forge: 2,
+        state: forge::Connection::Connected { id: 2, login: b"real".as_slice().into() },
+    })));
+    d.settle();
+    assert_eq!(d.root.forge_connection(2), forge::Connection::Connected { id: 2, login: b"real".as_slice().into() });
+    assert_eq!(row.state, forge::PlaygroundState::Running);
+    assert_eq!(d.root.playground(), Some(&row));
+    assert!(!d.store.rows.values().any(|record| matches!(record,
+        engine::Record::Forge { row } if matches!(row.as_ref(), forge::Stored::Kept(_)))));
+}

@@ -65,7 +65,6 @@ pub(crate) fn start(
         ask @ (Ask::Connect { forge: crate::ConnectForge::Existing(_), .. }
         | Ask::Adopt(_)
         | Ask::SetUp { .. }
-        | Ask::StartDemo
         | Ask::StartPlayground
         | Ask::EndPlayground
         | Ask::RemoveForge { .. }
@@ -95,7 +94,6 @@ pub(crate) fn start(
         | Ask::Reachable { .. }
         | Ask::Adopt(_)
         | Ask::SetUp { .. }
-        | Ask::StartDemo
         | Ask::RemoveForge { .. }
         | Ask::StartPlayground
         | Ask::EndPlayground
@@ -273,7 +271,6 @@ fn send(d: &mut Domain, request: Token, forge: u16, ask: Ask, carried: Option<Ca
         | Ask::Reachable { .. }
         | Ask::Adopt(_)
         | Ask::SetUp { .. }
-        | Ask::StartDemo
         | Ask::RemoveForge { .. }
         | Ask::StartPlayground
         | Ask::EndPlayground => unreachable!("connect admission"),

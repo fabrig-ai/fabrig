@@ -68,11 +68,6 @@ pub enum Delivery {
         request: Token,
         answer: temper_engine_domain_forge::BindAnswer,
     },
-    /// Release an act answer after its core decision commits.
-    DemoActed {
-        to: ReplyTo,
-        outcome: jig_domain_people::Outcome,
-    },
     /// A secret-free diagnostic, at most 256 bytes (protocol/setup.md, 8.4).
     DemoNote {
         line: Box<[u8]>,
@@ -476,10 +471,6 @@ impl Decision {
                 owned <= usize::try_from(limits.result_bytes.max(limits.transcript_bytes)).expect("u32 fits usize")
             }
             Delivery::DemoNote { line } => line.len() <= 256,
-            Delivery::DemoActed { outcome, .. } => match crate::store::program_answer_bytes(outcome) {
-                Some(bytes) => bytes <= u64::from(limits.result_bytes.max(limits.transcript_bytes)),
-                None => false,
-            },
             Delivery::Fleet(event) => fleet_delivery_within(event),
             Delivery::Relay { word, .. } => {
                 word.number != 0
@@ -622,7 +613,6 @@ pub fn resume(journal: &mut Journal, out: &mut Queue<Output>) {
             )
             | crate::Output::Store(_)
             | crate::Output::Setup { .. }
-            | crate::Output::StopGroup { .. }
             | crate::Output::SetUpGroup { .. }
             | crate::Output::ForgeKept { .. }
             | crate::Output::ForgeRemoved { .. }

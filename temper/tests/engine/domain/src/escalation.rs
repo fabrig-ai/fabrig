@@ -670,7 +670,6 @@ impl World {
                 | engine::Request::Party(_)
                 | engine::Request::Store(_)
                 | engine::Request::Account(_)
-                | engine::Request::StopGroup { .. }
                 | engine::Request::SetUpGroup { .. }
                 | engine::Request::ForgeKept { .. }
                 | engine::Request::ForgeRemoved { .. }
@@ -796,8 +795,7 @@ impl World {
                 .result(&self.store.rows, person, task, &words)
                 .expect("independent exact final report and funding"),
             Delivery::Link { down: host::LinkDown::Grant { .. }, .. } => {}
-            Delivery::DemoActed { .. }
-            | Delivery::DemoNote { .. }
+            Delivery::DemoNote { .. }
             | Delivery::Application { .. }
             | Delivery::Forges { .. }
             | Delivery::ForgeDocument { .. }

@@ -81,8 +81,7 @@ fn settle(domain: &mut Domain, env: &Env<Limits>) -> Box<[Request]> {
                     crate::try_step(domain, env, Event::Store(StoreInput::Committed { number, fill: 0 })).unwrap();
                 }
                 Request::ToChild(released) => crate::try_step(domain, env, Event::Released(released)).unwrap(),
-                request @ (Request::StopGroup { .. }
-                | Request::SetUpGroup { .. }
+                request @ (Request::SetUpGroup { .. }
                 | Request::ForgeKept { .. }
                 | Request::ForgeRemoved { .. }
                 | Request::BoxRemove { .. }
@@ -936,7 +935,6 @@ fn playground_asks_are_admitted_at_the_deployment_scope_and_refused_not_offered(
     ] {
         let (mut domain, env) = signed_in(Some(people::Role::Owner));
         crate::try_step(&mut domain, &env, public_request(ask, None)).unwrap();
-        assert!(domain.application_demo.is_none());
         assert_eq!(
             settle(&mut domain, &env).as_ref(),
             [Request::Party(PartyRequest::Deliver(Delivery::Application {

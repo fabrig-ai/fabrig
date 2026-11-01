@@ -15,7 +15,7 @@ fn a_stopped_forge_is_named_and_only_its_calls_are_not_connected() {
         service.engine.as_ref().expect("engine").drain.is_none(),
         "a stopped forge never starts the engine's drain"
     );
-    let acts = temper_engine_domain_forge::demo_act_bound(&service.engine.as_ref().unwrap().env.limits.forge).unwrap();
+    let acts = temper_engine_domain_forge::kept_bound(&service.engine.as_ref().unwrap().env.limits.forge).unwrap();
     assert_eq!(service.notes().capacity(), 2 + acts);
     assert_eq!(
         service.notes().pop(),

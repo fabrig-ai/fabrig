@@ -700,7 +700,6 @@ pub fn answer(
                 .ok()?,
             )
         }
-        Some(root::ApplicationAnswer::StartDemo(_)) => return None,
         None => w::Outcome::Unknown,
     };
     let answer = w::Answer::new(limits, w::AnswerParts { outcome }).ok()?;
