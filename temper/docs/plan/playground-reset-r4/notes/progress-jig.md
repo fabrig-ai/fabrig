@@ -7,6 +7,7 @@ final: tasks/pd-store.md
 final: tasks/pd-cancel.md
 final: tasks/pd-sweep.md
 final: tasks/pd-wire.md
+final: tasks/pd-people-gone.md
 
 ## Parts
 
