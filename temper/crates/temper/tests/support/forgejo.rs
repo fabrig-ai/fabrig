@@ -198,6 +198,7 @@ impl Throwaway {
             forgejo: &self.forgejo,
             api: SocketAddr::from(([127, 0, 0, 1], self.instance.port())),
             git: self.instance.base(),
+            admin: self.directory.join("forge-1/admin_token"),
         }
     }
     fn get(&self, suffix: &str) -> skein_throwaway_forgejo::Exchange {
@@ -339,6 +340,15 @@ impl Throwaway {
 }
 
 pub fn configuration(directory: &Path, forge: &Forge<'_>, value: &mut Value) {
+    deployment(directory, forge, value, false);
+}
+
+/// Standalone preparation has no service or ctl through which to register its forge.
+pub fn legacy_configuration(directory: &Path, forge: &Forge<'_>, value: &mut Value) {
+    deployment(directory, forge, value, true);
+}
+
+fn deployment(directory: &Path, forge: &Forge<'_>, value: &mut Value, legacy: bool) {
     let Forge::Throwaway { api, forgejo, .. } = forge else { return };
     let mut owned = owned::Owned::beside(*api);
     owned.forgejo_binary = forgejo.into();
@@ -347,13 +357,28 @@ pub fn configuration(directory: &Path, forge: &Forge<'_>, value: &mut Value) {
         let previous: Value = serde_json::from_slice(&bytes).expect("previous configuration");
         for (name, listener) in [("clients", &mut owned.clients), ("webhooks", &mut owned.webhooks)] {
             if let Some(address) = previous["application"][name]["listener"]["socket"].as_str() {
-                *listener = address.parse().expect("listener address");
+                let address: SocketAddr = address.parse().expect("listener address");
+                if address.port() != 0 {
+                    *listener = address;
+                }
             }
         }
     }
     let limits = value["application"]["limits"].take();
     value["application"] = owned::application(&owned);
-    owned::old_form(&mut value["application"]);
+    if legacy {
+        owned::old_form(&mut value["application"]);
+    } else {
+        let application = value["application"].as_object_mut().expect("application");
+        for member in ["forges", "identities", "setup"] {
+            application.remove(member);
+        }
+        application.insert(
+            "machine".into(),
+            serde_json::json!({"owned":null,
+            "github":{"api":null,"transport":null,"git":null,"web":null},"git_program":null}),
+        );
+    }
     value["application"]["limits"] = limits;
     value["application"]["limits"]["overrides"]["root.brief.gather_ms"] = BRIEF_GATHER_MS.into();
     let path = directory.join("agent.json");

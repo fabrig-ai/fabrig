@@ -14,6 +14,7 @@ pub mod github;
 pub mod github_land;
 pub mod held_login;
 pub mod landing_by_turn;
+pub mod legacy_configuration;
 pub mod owned;
 pub mod placed_holds;
 pub mod running_revision;
@@ -134,7 +135,7 @@ pub fn own_listener_files(directory: &Path) {
 
 pub enum Forge<'a> {
     Unreached,
-    Throwaway { forgejo: &'a Path, api: std::net::SocketAddr, git: String },
+    Throwaway { forgejo: &'a Path, api: std::net::SocketAddr, git: String, admin: std::path::PathBuf },
 }
 pub(super) fn write_private(path: &Path, bytes: &[u8]) {
     fs::write(path, bytes).expect("fixture file");
@@ -152,15 +153,13 @@ pub fn configuration(directory: &Path, forge: &Forge<'_>) {
         write_private(&directory.join(std::str::from_utf8(&name).expect("fixture path")), bytes.expose());
     }
     write_private(&directory.join("worker.secret"), b"worker-secret");
-    write_private(&directory.join("secrets/forge-1.user"), b"42\n");
-    write_private(&directory.join("secrets/forge-1.api-token"), b"forge-1-api-token-value");
-    write_private(&directory.join("secrets/forge-1.git-token"), b"forge-1-git-token-value");
     write_private(&directory.join("root.der"), skein_tls_world::pki::ROOT);
     let (agent, value) =
         configuration::documents(directory, skein_scratch::paths::binary("temper").to_str().expect("a UTF-8 path"));
     write_private(&directory.join("agent.json"), &agent);
     let mut value: serde_json::Value = serde_json::from_slice(&value).expect("deployment JSON");
     forgejo::configuration(directory, forge, &mut value);
+    forges::record(directory, forge);
     write_private(&directory.join("temper.json"), &serde_json::to_vec(&value).expect("deployment JSON"));
 }
 
@@ -699,7 +698,7 @@ fn run_story(
         panic!("pipes mode");
     };
     let root = skein_shell::open_root(directory).expect("client's parent root");
-    let setting_up = peer.is_some();
+    let setting_up = peer.is_some() || forges::fixture(directory).is_some();
     let mut world = real::World::new(ChatJudge {
         phase: if setting_up { ChatPhase::SettingUp } else { ChatPhase::Running },
         ending,
@@ -720,7 +719,10 @@ fn run_story(
             Process::Person(Box::new(person::Person::waiting_for_ctl_with_key(root, script)))
         });
         world.spawn_with_fds(fds, || {
-            Process::Calls(Box::new(ctl::Calls::new(ctl_root, native_settings_setup(directory), Some(&streams), None)))
+            Process::Calls(Box::new(
+                ctl::Calls::new(ctl_root, native_settings_setup(directory), Some(&streams), None)
+                    .with_fixture(directory),
+            ))
         });
     } else {
         fds.push(root);
