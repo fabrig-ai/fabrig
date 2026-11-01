@@ -83,29 +83,29 @@ pub(crate) fn send_kept(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Reque
     }
     for forge in removing.into_boxed() {
         crate::domain::retire_forge(d, env, forge, out);
-        finish(d, forge, out);
+        finish(d, env, forge, out);
     }
     for (_, row) in &d.kept {
         out.push(Request::SendKeptAct(*row));
     }
 }
 
-pub(crate) fn answered(d: &mut Domain, key: [u8; 16], keep: bool, out: &mut Queue<Request>) {
+pub(crate) fn answered(d: &mut Domain, env: &Env<Limits>, key: [u8; 16], keep: bool, out: &mut Queue<Request>) {
     if !keep && let Some(row) = d.kept.remove(&key) {
         out.push(Request::Erase { key: Key::KeptAct(key) });
-        finish(d, row.forge, out);
+        finish(d, env, row.forge, out);
     }
 }
 
-pub(crate) fn group_removed(d: &mut Domain, forge: u16, out: &mut Queue<Request>) {
-    answer_kind(d, forge, KeptActKind::RemoveGroup, out);
+pub(crate) fn group_removed(d: &mut Domain, env: &Env<Limits>, forge: u16, out: &mut Queue<Request>) {
+    answer_kind(d, env, forge, KeptActKind::RemoveGroup, out);
 }
 
-pub(crate) fn secrets_erased(d: &mut Domain, forge: u16, out: &mut Queue<Request>) {
-    answer_kind(d, forge, KeptActKind::EraseSecrets, out);
+pub(crate) fn secrets_erased(d: &mut Domain, env: &Env<Limits>, forge: u16, out: &mut Queue<Request>) {
+    answer_kind(d, env, forge, KeptActKind::EraseSecrets, out);
 }
 
-fn answer_kind(d: &mut Domain, forge: u16, act: KeptActKind, out: &mut Queue<Request>) {
+fn answer_kind(d: &mut Domain, env: &Env<Limits>, forge: u16, act: KeptActKind, out: &mut Queue<Request>) {
     let mut keys = List::with_capacity(d.kept.len());
     for (key, row) in &d.kept {
         if row.forge == forge && row.act == act {
@@ -113,11 +113,11 @@ fn answer_kind(d: &mut Domain, forge: u16, act: KeptActKind, out: &mut Queue<Req
         }
     }
     for key in keys.into_boxed() {
-        answered(d, key, false, out);
+        answered(d, env, key, false, out);
     }
 }
 
-fn finish(d: &mut Domain, forge: u16, out: &mut Queue<Request>) {
+fn finish(d: &mut Domain, env: &Env<Limits>, forge: u16, out: &mut Queue<Request>) {
     let Some(record) = d.records.get(&forge) else { return };
     if record.state != ForgeState::Removing {
         return;
@@ -129,6 +129,7 @@ fn finish(d: &mut Domain, forge: u16, out: &mut Queue<Request>) {
     }
     d.records.remove(&forge);
     out.push(Request::Erase { key: Key::Forge(forge) });
+    crate::playground::forge_removed(d, env, out);
 }
 
 impl Domain {
