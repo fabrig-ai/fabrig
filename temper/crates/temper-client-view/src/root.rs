@@ -144,6 +144,7 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
         temper_client_domain::Address::Welcome { .. } => {}
         temper_client_domain::Address::ConnectModel { .. }
         | temper_client_domain::Address::Accounts
+        | temper_client_domain::Address::ProjectSettings { .. }
         | temper_client_domain::Address::Chats { .. }
         | temper_client_domain::Address::Chat { .. }
         | temper_client_domain::Address::Task { .. }
@@ -254,6 +255,8 @@ pub fn build(view: &mut View, root: &Domain, wall: Wall, out: &mut Queue<Patch>)
         );
     } else if let temper_client_domain::Address::Adopt { .. } = root.pages().address() {
         view.adoption_main(&mut builder, root);
+    } else if let temper_client_domain::Address::ProjectSettings { project } = root.pages().address() {
+        crate::pages::project::settings(&mut builder, root, &view.forge_words, &mut view.pages, *project);
     }
     builder.close();
     view.next_change = times.next;

@@ -44,7 +44,10 @@ fn account_link(b: &mut Builder, bindings: &mut Bindings, name: &[u8]) {
 pub(crate) fn banner(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings) {
     if crate::frame::unavailable(root).is_some()
         || match root.pages().address() {
-            Address::Accounts | Address::ConnectModel { .. } | Address::Welcome { .. } => true,
+            Address::Accounts
+            | Address::ProjectSettings { .. }
+            | Address::ConnectModel { .. }
+            | Address::Welcome { .. } => true,
             Address::Forges
             | Address::ConnectForge { .. }
             | Address::Inbox { .. }

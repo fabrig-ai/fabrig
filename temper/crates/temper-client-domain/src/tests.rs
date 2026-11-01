@@ -12,6 +12,7 @@ mod forges;
 mod form;
 mod pages;
 mod panel;
+mod project_settings;
 use crate::{Address, Event, Fact, Request, forge};
 use jig_client::contract;
 use skein_lib::{List, Queue};

@@ -230,6 +230,7 @@ fn welcome(root: &Domain) -> bool {
         | Address::Inbox { .. }
         | Address::Chats { .. }
         | Address::Accounts
+        | Address::ProjectSettings { .. }
         | Address::ConnectModel { .. }
         | Address::Chat { .. }
         | Address::Task { .. }

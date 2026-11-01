@@ -319,6 +319,7 @@ pub(super) fn root_at_with_forges(
         | temper_client_domain::Address::ConnectForge { .. }
         | temper_client_domain::Address::Chats { .. }
         | temper_client_domain::Address::Accounts
+        | temper_client_domain::Address::ProjectSettings { .. }
         | temper_client_domain::Address::Inbox { .. }
         | temper_client_domain::Address::Adopt { .. }
         | temper_client_domain::Address::Chat { .. }

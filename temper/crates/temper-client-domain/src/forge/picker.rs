@@ -141,6 +141,7 @@ pub(crate) fn progress(
         crate::Address::Inbox { .. }
         | crate::Address::Chats { .. }
         | crate::Address::Accounts
+        | crate::Address::ProjectSettings { .. }
         | crate::Address::Forges
         | crate::Address::ConnectForge { .. }
         | crate::Address::ConnectModel { .. }

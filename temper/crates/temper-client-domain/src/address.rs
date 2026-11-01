@@ -1,18 +1,41 @@
 //! temper's addresses and the pages' filters (client/README.md, 3.5), and their paths (client/browser.md, 2.3).
+//! Project settings live at `/projects/<project>/settings` (temper/docs/design/draft/playground-reset.md, 5).
 use alloc::boxed::Box;
 use skein_lib::{Decimal, Writer};
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Address {
-    Inbox { filter: Filter },
-    Chats { filter: ChatsFilter, start: bool },
+    Inbox {
+        filter: Filter,
+    },
+    Chats {
+        filter: ChatsFilter,
+        start: bool,
+    },
     Accounts,
     Forges,
-    ConnectForge { forge: Option<Choice> },
-    ConnectModel { way: Option<ModelWay> },
-    Welcome { step: Step },
-    Chat { task: u64 },
-    Task { task: u64, filter: PlanFilter },
-    Adopt { project: u32 },
+    ConnectForge {
+        forge: Option<Choice>,
+    },
+    ConnectModel {
+        way: Option<ModelWay>,
+    },
+    Welcome {
+        step: Step,
+    },
+    Chat {
+        task: u64,
+    },
+    Task {
+        task: u64,
+        filter: PlanFilter,
+    },
+    Adopt {
+        project: u32,
+    },
+    /// A project's settings (temper/docs/design/draft/playground-reset.md, 5).
+    ProjectSettings {
+        project: u32,
+    },
 }
 /// The welcome's query names its step (client/browser.md, 2.3).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -80,7 +103,8 @@ pub enum Place {
 }
 
 /// The page's path (client/browser.md, 2.3): `/`, `/chats`, `/chats/<task>`, `/tasks/<task>`,
-/// `/projects/<project>/adopt`, `/accounts`. The pages add their set filter fields as a query.
+/// `/projects/<project>/adopt`, `/projects/<project>/settings`, `/accounts`.
+/// The pages add their set filter fields as a query.
 #[must_use]
 pub fn print(address: &Address) -> Box<[u8]> {
     let (name, number, tail) = match address {
@@ -110,6 +134,9 @@ pub fn print(address: &Address) -> Box<[u8]> {
         Address::Chat { task } => (b"chats".as_slice(), Some(*task), b"".as_slice()),
         Address::Task { task, .. } => (b"tasks".as_slice(), Some(*task), b"".as_slice()),
         Address::Adopt { project } => (b"projects".as_slice(), Some(u64::from(*project)), b"adopt".as_slice()),
+        Address::ProjectSettings { project } => {
+            (b"projects".as_slice(), Some(u64::from(*project)), b"settings".as_slice())
+        }
     };
     let digits = Decimal::of(number.unwrap_or(0));
     let number = if number.is_some() { digits.as_bytes() } else { b"" };
@@ -193,6 +220,12 @@ pub fn parse(path: &[u8]) -> Place {
                 return Place::Missing;
             };
             Address::Adopt { project }
+        }
+        (b"projects", _, b"settings") => {
+            let Some(project) = project_decimal(number) else {
+                return Place::Missing;
+            };
+            Address::ProjectSettings { project }
         }
         _ => return Place::Missing,
     };
