@@ -603,6 +603,7 @@ fn new_app_admission_changes_neither_a_connected_nor_a_stopped_forges_state() {
         let setup = setup.engine.expect("engine");
         service.engine.as_mut().expect("engine").setup = setup.setup;
         service.engine.as_mut().expect("engine").forge_records.rows = setup.forge_records.rows;
+        service.engine.as_mut().expect("engine").forge.starts.clear();
         service
             .engine
             .as_mut()

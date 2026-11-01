@@ -30,7 +30,7 @@ pub fn demo_document() -> Box<[u8]> {
         .unwrap()
         .replacen(
             "\"engine\":{",
-            "\"engine\":{\"acts\":[{\"connector\":1,\"may\":[\"close\",\"add_key\",\"remove_account\",\"adopt\"]}],",
+            "\"engine\":{\"acts\":[{\"connector\":1,\"may\":[\"make_project\",\"add_key\",\"remove_account\",\"adopt\",\"cancel\",\"remove_project\"]}],",
             1,
         )
         .replace("\"demo\":null", DEMO)

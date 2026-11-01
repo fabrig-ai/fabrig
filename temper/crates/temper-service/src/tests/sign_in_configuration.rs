@@ -161,6 +161,7 @@ fn with_forges(rows: &str) -> String {
     input(&SIGN_IN.replacen('{', &format!("{{\"forges\":{rows},"), 1)).replace("\"owned\":null", &format!("\"owned\":{body}"))
 
 }
+
 #[test]
 fn forge_sign_in_is_optional_and_joins_the_provider_client() {
     let mut jig = jig();

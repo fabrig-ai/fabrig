@@ -114,7 +114,7 @@ fn a_registered_record_needing_io_is_held_until_the_host_answers() {
 }
 #[test]
 fn a_registered_github_record_has_its_tokens_entry_and_identity_room() {
-    let mut service = fixtures::with_forges(&[fixtures::forge_record(1)]);
+    let mut service = fixtures::ready();
     let engine = service.engine.as_mut().unwrap();
     register(engine, record(3, Kind::GitHub));
     assert!(engine.values.tokens.contains(3));
@@ -182,7 +182,7 @@ fn an_update_changing_the_api_is_ignored_and_noted() {
 }
 #[test]
 fn unregister_drops_the_forge_from_every_table() {
-    let mut service = fixtures::started();
+    let mut service = fixtures::ready();
     let engine = service.engine.as_mut().unwrap();
     register(engine, record(3, Kind::GitHub));
     engine.values.identities.put(3, engine.values.identities.newest(1).unwrap().1.clone());

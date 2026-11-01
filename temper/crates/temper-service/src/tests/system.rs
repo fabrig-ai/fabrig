@@ -244,6 +244,8 @@ fn a_scripted_box_answers_keyed_setup_requests_through_the_clients_family() {
         crate::setup::lifecycle::state(stand.service.engine.as_mut().unwrap(), forge, Connection::NotSetUp);
     }
     turns(&mut stand);
+    // The routing story begins after startup names the unprepared forges.
+    stand.service.notes().clear();
     let bearer = box_sign_in(&mut stand);
     assert_eq!(box_setup(&mut stand, &bearer, OWNED, 1), w::Outcome::SettingUp);
     turns(&mut stand);

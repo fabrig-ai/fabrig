@@ -8,10 +8,6 @@ fn configured(hooks: bool) -> crate::settings::Engine {
     if !hooks {
         config.webhooks = None;
     }
-    config.limits.forge.repositories = 3;
-    config.limits.forge.client.repositories = 3;
-    config.limits.forge.output = 96;
-    fixtures::fill_files(&mut config);
     config
 }
 fn record_answers(service: &mut crate::Service) {
@@ -35,7 +31,7 @@ fn reconcile_bot(service: &mut crate::Service, face: &mut Face) {
     }
 }
 #[expect(clippy::disallowed_macros, reason = "the protocol peer formats its repository fixture")]
-fn record_repository(service: &mut crate::Service, face: &mut Face, id: u64, permission: &[u8]) {
+pub(super) fn record_repository(service: &mut crate::Service, face: &mut Face, id: u64, permission: &[u8]) {
     local_sent(service, face, format!("GET /api/v1/repositories/{id} ").as_bytes());
     face.reply(service, format!(r#"{{"id":{id},"owner":{{"id":1,"login":"demo"}},"name":"widget","object_format_name":"sha1","default_branch":"main","default_merge_style":"merge","allow_merge_commits":true,"allow_squash_merge":true,"allow_rebase":true,"html_url":"http://127.0.0.1:9/demo/widget"}}"#).as_bytes());
     local_sent(service, face, b"/collaborators/temper/permission ");
@@ -56,7 +52,7 @@ fn record_hook(service: &mut crate::Service, face: &mut Face, secret: &[u8]) {
         br#"{"id":1,"config":{"url":"http://127.0.0.1:7101/hooks/1"},"events":["push"],"active":true}"#,
     );
 }
-const WRITE_PERMISSION: &[u8] = br#"{"permission":"write","user":{"id":42,"login":"temper"}}"#;
+pub(super) const WRITE_PERMISSION: &[u8] = br#"{"permission":"write","user":{"id":42,"login":"temper"}}"#;
 fn records_reconciled(hooks: bool, handover: bool) -> (crate::Service, Face, Box<[u8]>) {
     let mut config = configured(hooks);
     if handover {

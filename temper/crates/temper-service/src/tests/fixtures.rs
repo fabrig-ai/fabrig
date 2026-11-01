@@ -259,7 +259,9 @@ pub fn records_store() -> crate::store::Store {
     let models = jig_protocol_config::core(&engine().jig, [7; 16], 7).settings.models;
     // Secret-record fixtures start from a real completed deployment, as the
     // store now refuses secrets until that start's mark is durable.
-    let maps = ready().engine.expect("bootstrap engine").store.component.into_stores();
+    let mut bootstrap = with_forges(&[]);
+    restart(&mut bootstrap);
+    let maps = bootstrap.engine.expect("bootstrap engine").store.component.into_stores();
     let limits = crate::store::limits(&root, &root.forge, &profile).expect("record fixture limits");
     let mut store = memory_store_for(&root, &profile, &models);
     store.component = jig_protocol_store::Store::over(
@@ -940,6 +942,14 @@ pub use startup::{
     owned_worker_alone_document, startup_agent, value, webhook_document, with, without, worker_alone_document,
     worker_runtime,
 };
+pub fn forge_start(engine: &crate::engine::Engine, number: u16) -> Option<&skein_forge_connection::Access> {
+    for (forge, access) in &engine.forge.starts {
+        if *forge == number {
+            return Some(access);
+        }
+    }
+    None
+}
 pub fn forge_runtime() -> skein_lib::List<crate::ForgeRuntime> {
     let mut runtime = skein_lib::List::with_capacity(1);
     runtime
@@ -1150,10 +1160,6 @@ pub fn seed_forge_records(service: &mut crate::Service, records: &[temper_engine
         if record.kind != temper_engine_domain_forge::Kind::Forgejo || record.setup.is_some() {
             continue;
         }
-        let mut identity = crate::forges::identity(record);
-        identity.token = Secret::new(b"forge-token-1234".as_slice().into());
-        let value = crate::translate::identity(&identity, &engine.workers.encoding.limits).unwrap();
-        engine.values.identities.put(u32::from(record.number), value);
         let configured = crate::forges::settings(record);
         let origin = records::origin(skein_forge_connection::settings::Kind::Forgejo, &configured.api).encode();
         for (item, bytes) in [

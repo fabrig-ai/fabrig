@@ -799,6 +799,15 @@ pub(crate) fn local_sent(service: &mut crate::Service, face: &mut Face, path: &[
     face.sent(service);
     assert!(contains(&face.wire.received, path), "wanted path {path:?}");
 }
+fn finish_fake_adoption(service: &mut crate::Service, face: &mut Face) {
+    if !service.engine.as_ref().unwrap().setup.lifecycle.adoptions.contains_key(&1) {
+        return;
+    }
+    face.hold_done = false;
+    local_sent(service, face, b"GET /api/v1/user ");
+    face.reply(service, br#"{"id":1,"login":"temper-admin","is_admin":true}"#);
+    adoption_tests::record_repository(service, face, 1, adoption_tests::WRITE_PERMISSION);
+}
 fn reconcile_to_repository(service: &mut crate::Service, face: &mut Face) {
     local_sent(service, face, b"GET /api/v1/user ");
     assert!(contains(&face.wire.received, b"test-admin"));
@@ -861,6 +870,10 @@ fn kept_local_records_wait_for_restore_done_and_origin_before_connecting_as_the_
             panic!("durable Origin");
         };
         answer(engine, StoreEvent::Kept { owner });
+        if fake {
+            finish_fake_adoption(&mut service, &mut face);
+        }
+        let engine = service.engine.as_mut().unwrap();
         assert_eq!(engine.forge.starts.get(0).unwrap().1.user, 42);
         assert!(engine.forge.accepted.is_empty(), "Forgejo has no installation set");
         let (generation, value) = engine.values.identities.newest(1).unwrap();
@@ -1127,6 +1140,8 @@ pub(crate) fn finish_local(service: &mut crate::Service, face: &mut Face) {
     assert!(engine.forge.starts.is_empty());
     let Some(StoreEvent::Kept { owner }) = engine.store.above.pop() else { panic!("durable Origin") };
     answer(engine, StoreEvent::Kept { owner });
+    finish_fake_adoption(service, face);
+    let engine = service.engine.as_mut().unwrap();
     assert_eq!(engine.forge.starts.get(0).unwrap().1.user, 42);
     lifecycle::connected(engine, 1);
 }

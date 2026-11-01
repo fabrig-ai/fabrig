@@ -1217,7 +1217,11 @@ fn turn_configuration_can_name_a_project_adopted_after_the_seed() {
     assert_eq!(landing.by, temper_engine_domain::Way::Turn);
     assert_eq!(landing.repositories[0].gates[0].workflow.as_ref(), b"gate.yml");
     assert!(!members.landing.projects.contains_key(&ADOPTED));
-    let document = fixtures::with(&fixtures::document(), b"application.landing.projects", &turn_projects(ADOPTED));
+    let document = fixtures::with(
+        &fixtures::document(),
+        b"application.landing.projects",
+        &turn_projects(ADOPTED),
+    );
     let started = crate::startup(
         &document,
         &config::Directories::working(),

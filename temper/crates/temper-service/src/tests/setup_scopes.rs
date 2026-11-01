@@ -73,6 +73,7 @@ fn start_adoption(
 }
 
 #[test]
+#[expect(clippy::too_many_lines, reason = "one scope-enforcing peer walk checks adoption through its terminal answer")]
 fn preparations_four_scopes_grant_adopt_and_without_repository_it_is_refused_at_repository() {
     for without_repository in [false, true] {
         let mut config = fixtures::engine();
