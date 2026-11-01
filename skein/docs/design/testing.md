@@ -440,9 +440,12 @@ Chromium and the UI example's browser tier use `browser-skein`
 (`cargo nextest run --workspace --profile browser-skein`; browser.md,
 section 9; ui-web.md, 14.1); their four-minute global timeout is a wall
 backstop, separate from their CPU budget. skein-llm against real endpoints
-uses `live-skein`, with a key or a plan's token from the environment;
-`exhaustive-skein` and `qa-skein` select the other slow tiers. All stay
-out of the gate and have CPU budgets and wall hard limits under 8.1.
+uses `live-skein`, with a key or a plan's token from the environment.
+These two slow tiers stay out of the gate and have CPU budgets and wall
+hard limits under 8.1. Schema, value, fingerprint, diff, patch, redirect
+admission and fake-browser checks run in focused step tests and worlds;
+seeded decoder comparisons, sign-in faults including restart, and the
+forge machine world's every-byte TLS sweep run in fuzzy.
 Measurements use the tier's profile and keep the same budget rule.
 The existing macos-26 focused-suite figure remains the user's 64 seconds,
 one and a half times the 42.4 seconds macOS run 40019066645 took, until

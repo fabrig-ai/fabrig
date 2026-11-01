@@ -276,7 +276,11 @@ The capture's form's; the hand's are 8.9's.
   a selector's node, a style, a clipped shot at scale 2, a page whose
   external stylesheet the proxy refuses (its `network` trouble, and the
   page drawn without it), a call refused, and the end of its input
-  closing everything. Its blank page, opened first at each of the two
+  closing everything. The conversation also closes and opens six page
+  lifetimes past the kit's four-person limit, refuses stale names, and
+  drains console, exception and proxy trouble once. Pure step tests check
+  origin admission (including `data:`), nested source links, output links,
+  call schemas and file limits. Its blank page, opened first at each of the two
   sizes, reports no trouble once the story's other calls are done:
   Chromium's services asked for nothing.
 ## 7. In the lab
@@ -537,7 +541,8 @@ The lab's, outside skein: its tools send a person's calls (8.3) and the sign-in 
   not on the standard error; the outline; each call answered; typing
   replacing; a key into the focused field; a choice; back and forward;
   the link off the origin shown refused, the other listener seeing no
-  connection, its `network` trouble; each refusal of the hand's;
+  connection, its `network` trouble; images, iframes and fetches to that
+  listener also blocked; each refusal of the hand's;
   `wait` met, gone and missed; and `SIGTERM` ending it with status 0.
   Its look reads (8.10): with the text area typed into and focused,
   `look-focus` names it; `look-viewport` to the phone's size and a
@@ -546,6 +551,14 @@ The lab's, outside skein: its tools send a person's calls (8.3) and the sign-in 
   file under `look/`; `look-tree`; `look-viewport` with no size giving
   back the hand's, a person's `shot` then at that size; a `look-shot`
   file that climbs or exists refused.
+
+The built hand has three further paths in `browser_paths`: `SIGINT`
+ends the ready hand with status 0; Chromium's death ends it with status 1
+and a diagnostic; a named `--peer` receives its request while an unnamed
+port remains blocked (8.1 and 8.5). The listener's step tests use a fake
+clock for incomplete-line expiry and log limits, and check the newline
+scan, one call per connection and accept order. The program and these
+tests share `json` through the lab-browser library target.
 
 ### 8.10 The look's reads
 

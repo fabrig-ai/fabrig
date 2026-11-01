@@ -571,13 +571,14 @@ named scenario ceiling with headroom.
   selector's node, and none; a styled part's computed values, its faces (a
   web font served by the fixture, DejaVu Sans from the fonts' directory the
   lab's browser's story names (lab-browser.md, 6), and a fallback) and its
-  box; and a part's shot at scale 2, twice its box's size, far down the
-  page. The keys a native date or time field takes, and their order, are the
+  box; text and placeholder faces of form controls; a style read of an old
+  document's node refused after navigation; and a part's shot at scale 2,
+  twice its box's size, far down the page. The keys a native date or time field takes, and their order, are the
   face's facts, checked with its others in this suite (ui-web.md, 14.1). A
   new Chromium version is a run of these, and a fact that changed is fixed
   in the fake first. They need Chromium and do not replay, so they form a
   suite of their own, beside the focused and fuzzy suites (`--profile
-  browser`, within four minutes (two minutes before the user's doubling of
+  browser-skein`, within four minutes (two minutes before the user's doubling of
   10-22, provisional), which the browser parts' tier shares: ui-web.md,
   14.1). A missing Chromium fails that suite, naming what is missing; it is
   never a skip.

@@ -103,6 +103,20 @@ mod tests {
                         cases = cases.checked_add(1).expect("case count");
                     }
                 }
+                // Eight replay seeds at every cut and each boundary byte (codec.md, 8.3).
+                for seed in 0..8 {
+                    let bytes = generated::draw(&drawn_schema, root.name, &mut Rng::new(seed));
+                    for cut in 0..bytes.len() {
+                        oracle.compare(seed, bytes.get(..cut).expect("prefix"), false);
+                    }
+                    for index in 0..bytes.len() {
+                        let mut changed = bytes.clone();
+                        for replacement in [0, 1, 2, 0x7f, 0x80, 0xff] {
+                            *changed.get_mut(index).expect("chosen byte") = replacement;
+                            oracle.compare(seed, &changed, false);
+                        }
+                    }
+                }
                 for round in 0..ARBITRARY_ROUNDS {
                     let seed = seed(family.name, root.name, DRAWS.checked_add(u64::from(round)).expect("round"));
                     let mut rng = Rng::new(seed);

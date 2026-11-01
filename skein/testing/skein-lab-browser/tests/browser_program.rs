@@ -1,6 +1,5 @@
 //! The built program's story on real Chromium (lab-browser.md, 6).
-#[path = "../src/json.rs"]
-mod json;
+use skein_lab_browser::json;
 #[expect(dead_code, reason = "the shared reader also supports hand sockets and elapsed-time assertions")]
 mod support;
 use json::{Value, number, object, string};
@@ -20,6 +19,8 @@ use support::{Child, Reader, field, integer, text};
 fn browser_program() {
     // lab-browser.md, 6: desktop and phone viewports; a small desktop shot
     // exposes the scrollbar gutter on tall.html's 2000px body.
+    // Six page lifetimes exceed the kit's four concurrent persons.
+    const LIFETIMES: u32 = 6;
     const DESKTOP: (i64, i64) = (1440, 900);
     const PHONE: (i64, i64) = (390, 844);
     const TALL_WIDTH: i64 = 100;
@@ -62,6 +63,25 @@ fn browser_program() {
         stdin.write_all(&bytes).unwrap();
         reader.answer()
     };
+    for index in 0..LIFETIMES {
+        let page = format!("reused-{index}");
+        assert_eq!(
+            call(object([
+                ("call", string("open")),
+                ("page", string(&page)),
+                ("width", number(390)),
+                ("height", number(844)),
+                ("mobile", Value::Bool(true))
+            ])),
+            object([("opened", string(&page))])
+        );
+        assert_eq!(
+            call(object([("call", string("close")), ("page", string(&page))])),
+            object([("closed", string(&page))])
+        );
+        let stale = call(object([("call", string("tree")), ("page", string(page))]));
+        assert_eq!(field(&stale, "refused"), &string("page"));
+    }
     let fixture = skein_scratch::paths::package().join("tests/fixture");
     let served = call(object([
         ("call", string("serve")),
@@ -221,6 +241,20 @@ fn browser_program() {
             .any(|entry| field(entry, "kind") == &string("network")
                 && field(entry, "text") == &string("styles.example:80")),
         "{trouble:?}"
+    );
+    for (kind, message) in [("console", "fixture console"), ("exception", "")] {
+        assert!(
+            trouble
+                .iter()
+                .any(|entry| field(entry, "kind") == &string(kind) && text(field(entry, "text")).contains(message)),
+            "{trouble:?}"
+        );
+    }
+    let drained = call(object([("call", string("trouble")), ("page", string("p"))]));
+    let Value::Array(entries) = field(&drained, "trouble") else { panic!("trouble array") };
+    assert!(
+        entries.iter().all(|entry| !["network", "console", "exception"].contains(&text(field(entry, "kind")))),
+        "{drained:?}"
     );
     let selected = call(object([("call", string("select")), ("page", string("p")), ("selector", string("#part"))]));
     let style = call(object([

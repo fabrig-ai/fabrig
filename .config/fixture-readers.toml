@@ -531,20 +531,8 @@ pair = "fuzzy"
 package = "temper-real-loop-world"
 filter = "all()"
 [[fixture.reader]]
-pair = "exhaustive-skein"
-package = "skein-forge-machine-world"
-filter = "all()"
-[[fixture.reader]]
 pair = "browser-skein"
 package = "skein-ui-web-tests"
-filter = "all()"
-[[fixture.reader]]
-pair = "qa-skein"
-package = "skein-oauth-accounts-world"
-filter = "all()"
-[[fixture.reader]]
-pair = "qa-skein"
-package = "skein-oauth-world"
 filter = "all()"
 [[fixture.reader]]
 pair = "live-smith"

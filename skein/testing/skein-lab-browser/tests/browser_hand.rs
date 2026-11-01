@@ -1,6 +1,5 @@
 //! The hand's conversation with one real Chromium (lab-browser.md, 8.9).
-#[path = "../src/json.rs"]
-mod json;
+use skein_lab_browser::json;
 #[expect(dead_code, reason = "the shared capture helpers also read JSON from stdout and numeric fields")]
 mod support;
 use json::{Value, number, object, string};

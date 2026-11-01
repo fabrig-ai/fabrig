@@ -1,5 +1,8 @@
 # skein code-quality review, 2026-10-31: area reports
 
+
+Resolved 2026-11-01: the eleven QA binaries are removed. Unique rows run in focused step tests/worlds, fuzzy sweeps or the existing browser stories; the real hand main paths are browser tests. Struck lines below preserve the dated assessment.
+
 Companion to `skein-review-2026-10-31.md`. These are the reviewers' own reports, unedited apart from this header and the section dividers. A0 is the coordinator's condensation of the holistic pass, made before the area reviewers started; it is the text they were given. Snapshot: origin/main `4a6683c72`. Paths are relative to `skein/` unless they name another tree. Line numbers refer to the snapshot.
 
 ---
@@ -14,10 +17,10 @@ Verdict: The crate graph points the right way (no crates/* normal dependency on 
 
 Good: clippy.toml (every ban gives reason + replacement); crates/skein-lib/src/lib.rs (priced containers List::price, Intake::price; Secret with length-only Debug; Decimal/bytes::hex_digit); ratchet hygiene (old-forms max_out/JournalRoom/takes/worst_case 0; component kit onto skein_io::stage 39 -> 8 sites, 31 files use stage::); 32/33 design docs have short status files; 32/36 tests/* use tests/suite + tests/suite/fuzzy.
 
-Top: (1) re-sync layout docs + gate layout check (no -world dep, no cross-crate #[path]) ~1 day; (2) three named lint profiles (step, harness, binary) + gate check, testing/clippy.toml; ~1,000 TOML lines; (3) lib/json primitives: bytes::is_utf8 (+prefix), Env::with, u32->usize widen, bytes::concat, slice-fed tokenizer driver, token-namespace helper; ~800-1,200 lines, ~700 sites; ~1 week; (4) fold 11 qa_* (4,824 lines) and 10 other top-level test bins into tests/suite; rename qa-skein; hours; (5) closure-ban lints once in [workspace.lints.clippy] + one #![expect] per tests root; ~200 of 638 expects; hours; (6) merge skein-world's two referee/trace frameworks; move kit pieces from tests/* to testing/; ~300 lines; days.
+~~Top: (1) re-sync layout docs + gate layout check (no -world dep, no cross-crate #[path]) ~1 day; (2) three named lint profiles (step, harness, binary) + gate check, testing/clippy.toml; ~1,000 TOML lines; (3) lib/json primitives: bytes::is_utf8 (+prefix), Env::with, u32->usize widen, bytes::concat, slice-fed tokenizer driver, token-namespace helper; ~800-1,200 lines, ~700 sites; ~1 week; (4) fold 11 qa_* (4,824 lines) and 10 other top-level test bins into tests/suite; rename qa-skein; hours; (5) closure-ban lints once in [workspace.lints.clippy] + one #![expect] per tests root; ~200 of 638 expects; hours; (6) merge skein-world's two referee/trace frameworks; move kit pieces from tests/* to testing/; ~300 lines; days.~~
 
 Findings:
-F1 testing.md 6 layout not the tree's: testing.md:371 "No crate under crates/ has a tests/ directory" vs crates/skein-forge/tests (32 files, 6.7k), skein-fake-forge-protocol/tests, skein-fail-stop/tests; 21 test bins outside tests/suite (11 qa_*, browser_* x7, end_to_end, exhaustive_tls, live); three step-test conventions (tests.rs 71 + src/tests/ 229 files; sibling *_tests.rs 28 files 7.8k mostly oauth/oauth-accounts/browser; inline #[cfg(test)] mod 80 in 76 files); layout omits testing/skein-forge-conformance, skein-lab-browser, tests/oauth-issuer, oauth-accounts, codec-patches, forge/github.
+~~F1 testing.md 6 layout not the tree's: testing.md:371 "No crate under crates/ has a tests/ directory" vs crates/skein-forge/tests (32 files, 6.7k), skein-fake-forge-protocol/tests, skein-fail-stop/tests; 21 test bins outside tests/suite (11 qa_*, browser_* x7, end_to_end, exhaustive_tls, live); three step-test conventions (tests.rs 71 + src/tests/ 229 files; sibling *_tests.rs 28 files 7.8k mostly oauth/oauth-accounts/browser; inline #[cfg(test)] mod 80 in 76 files); layout omits testing/skein-forge-conformance, skein-lab-browser, tests/oauth-issuer, oauth-accounts, codec-patches, forge/github.~~
 F2 Worlds as kits: 17 edges (json-world <- skein-llm dev, tests/http, tests/protocol; llm-world <- fake-peers, llm-connection, oauth, tls; tls-world <- forge/machine, forge/setup, llm-connection, oauth-accounts; forge-machine-world <- forge/protocol, forge/setup; forge-client-world <- forge/protocol; http-world <- tests/llm; echo-world <- echo-shell dev). skein-llm/src/translate.rs:879 uses skein_json_world::generate. Cycle: examples/echo/shell dev-dep skein-echo-world -> skein-echo-shell; shell compiles ../../../tests/echo/tests/end_to_end.rs via [[test]] path. 10/93 #[path] reach outside module tree (skein-codec/src/lib.rs:16 compiles tests/codec/src/generated/v1.rs; tests/fake-peers/tests/suite/github_memory.rs:2; skein-forge/tests/common/mod.rs:9; fake-forge-protocol/tests/suite/memory.rs:4; tests/browser compiles src/pages.rs twice).
 F3 README.md 3 crate graph stale: 8 rows disagree with Cargo.toml (codegen, oauth, fake-oauth, forge-setup :93, ui-bundle, fake-machine :107, fake-person-browser, throwaway-forgejo); skein-playground (:68, :109) doesn't exist; playground.md no status file, absent from STATUS.md; 14 crates absent; README.status says "Built: 1 to 4".
 F4 [lints] hand-copied: 42 workspace=true, 48 own blocks in 14 variants; 9 lack allow_attributes, 7 lack wildcard_enum_match_arm, 6 lack unwrap_used; tests/browser only unsafe_code=deny, tests/ui-web only forbid; crates/skein-ui-web 16 `_ =>` arms (3 in src/page/web.rs).
@@ -30,7 +33,7 @@ F10 UTF-8 three ways: skein_codec::text_is_valid (lib.rs:90, 675 downstream uses
 F11 Lib gaps: Env rewraps 83 (66 in crates/), no Env::with; usize::try_from(..).expect 557 non-test, 137 messages ("u32 fits usize" x169, "u32 fits" x140); u64::try_from(x.len()) 64 vs len_u64 154; measured concat then Writer in 17 files (fake-forge-protocol delivery.rs:140 and fake-forge-github delivery.rs:398 near-identical POST heads); hand namespaces (oauth-accounts route.rs:14 slot*3, forge-connection hooks.rs:19 1<<59, ui-text terminal.rs:12 1<<62, fake-peers forge/shared.rs:8 7<<60, kv store.rs:25 0x4b56); 88 local fn limits(), 62 literal io::Limits { in 45 files, 59 tokenizer::Limits { in 36.
 F12 skein-world two referee frameworks, swapped names: referee.rs:45 trait Referee<P>, :95 struct Expectations<P,X>; domain/referee.rs:22 trait Expectations, :55 struct Referee<X>. Traces: stream.rs:21 pub trace Vec<String>, domain/trace.rs:14 Trace always formats, no off; worlds keep private traces (tests/llm-connection world.rs:283, tests/forge/setup world.rs:26). testing-strategy 7 one referee shape; only 5/36 worlds have referee.rs.
 F13 skein cites temper draft playground-reset.md 11x (forge-connection boundary.rs:60 Add/Remove, component/runtime.rs:1, tests/runtime.rs:1, connection.rs:115; forge-setup host.rs:2,174, host/{boundary.rs:110, settings.rs:2, states.rs:93, runtime_tests.rs:1}); forge-connection.md 3.5 designs connect only; no status record. History comments: fake-checkout lib.rs:3 ("Extracted from temper's ... at commit 246164f"), testing/skein-world/src/domain.rs:2.
-F14 Pipeline vocabulary: 11 qa_* bins (4,824 lines) (tests/codec x5, codec-patches, oauth, oauth-accounts, browser, lab-browser x2); tests/codec/tests/qa_diff.rs:12 expect(dead_code, "The QA oracle ..."); "valid QA schema", "family qa"; skein-forge/src/tests.rs:337 "decision 25"; testing.md:444 qa-skein profile; testing.md 7 history ("before the user's doubling of 10-22", "macOS run 40019066645").
+~~F14 Pipeline vocabulary: 11 qa_* bins (4,824 lines) (tests/codec x5, codec-patches, oauth, oauth-accounts, browser, lab-browser x2); tests/codec/tests/qa_diff.rs:12 expect(dead_code, "The QA oracle ..."); "valid QA schema", "family qa"; skein-forge/src/tests.rs:337 "decision 25"; testing.md:444 qa-skein profile; testing.md 7 history ("before the user's doubling of 10-22", "macOS run 40019066645").~~
 F15 old-forms: comment:actual 79 (tests/llm 23, tests/oauth-accounts 14, tests/io 11; then skein-lib 5, skein-llm/fake-peers 4); 358 "actual" mentions incl 7 test names; growth_floor 1 counts lib's own GROWTH_FLOOR (growth.rs:7) as EXCLUDE lacks it, can never fall; earliest_helper 1 is oauth documents.rs:184 fn earliest(tokens), different meaning; host_forwarder 4 (tests/io x2, oauth-accounts x2) waits on component-kit.md 6.1; io_resume 8; programming-model 6.3 still says "Code written before this model still sums a worst case" though all such forms count 0.
 F16 Naming: "conformance" two unrelated things (kernel-backend conformance testing/skein-conformance, tests/conformance/{sim,real} vs forge-fact recording testing/skein-forge-conformance, packages forgejo-conformance, github-conformance lacking skein- prefix); skein-fake-forge-protocol is Forgejo's layer, fake-forge-github imports its routes and git; skein-forge/tests/common/generated.rs is hand-written seeded values; "Held" names 8 structs. Fix skein-fake-forge-forgejo; skein-forge-facts; generated.rs -> drawn.rs.
 F17 tests/codec generates schemas twice: 6 schemas checked in 8.3k lines (lints/v1.rs 3,778 lines 534KB) and build.rs regenerates all six into OUT_DIR only for tests/suite/names.rs; build.rs:25-29 asserts old worst_case_* absent (finished rename); schema/kept/ 5 files byte-identical to schema/. Other generated (oauth v3, ui view v1) single version, needed.
@@ -1360,7 +1363,7 @@ Tree-wide findings in the area:
   - All three are plain `{ path = ".." }` dependencies, not workspace entries.
   - testing.md 6 places "a reference reader of each" in tests/http, but not their use by others.
 - **T-lints.** Three byte-identical 17-line `[lints]` blocks in `tests/{http,json,protocol}/Cargo.toml` (empty `diff`). The step crates take the workspace lints.
-- **T-layout.** Conforms: `src/tests.rs` + `src/tests/`, `tests/suite/` + `fuzzy/`, no `qa_*`.
+~~- **T-layout.** Conforms: `src/tests.rs` + `src/tests/`, `tests/suite/` + `fuzzy/`, no `qa_*`.~~
 - **T-primitives.**
   - The JSON pump (H6).
   - The calendar (F4).
@@ -1395,7 +1398,7 @@ Incidental:
 
 Scores: Cleanliness 3, Organisation 3, Taste 3, Naming 3, Primitives 2, Elegance 3, Economy 2, Complexity 3
 
-Verdict: skein-codec's step code is the best part of this area. It has one bounded grammar, a two-pass token scan that allocates once, layout checks with no recursion, a small fingerprint encoder, and a patch machine that stops and resumes with no callbacks. That code reads well inside the model. The weight is around it. The design's mechanisms are written twice: 10.1/10.3 matching and comparison exist once in skein-codec's `plan` and again in skein-codegen's `diff`; the patch language has a strict reader and a lenient one; the schema exists as step tables and as a generator tree. The generator writes source as strings and then edits its own output to stay under the lints. tests/codec generates its fixtures twice and runs generated tests up to three times. Six `qa_*` binaries (182 tests, 2,941 lines) repeat step tests outside the gate. I estimate about 3.5–4k of the ~26k hand-written lines can go with no loss of confidence. The status file (6 lines) records none of the departures below.
+~~Verdict: skein-codec's step code is the best part of this area. It has one bounded grammar, a two-pass token scan that allocates once, layout checks with no recursion, a small fingerprint encoder, and a patch machine that stops and resumes with no callbacks. That code reads well inside the model. The weight is around it. The design's mechanisms are written twice: 10.1/10.3 matching and comparison exist once in skein-codec's `plan` and again in skein-codegen's `diff`; the patch language has a strict reader and a lenient one; the schema exists as step tables and as a generator tree. The generator writes source as strings and then edits its own output to stay under the lints. tests/codec generates its fixtures twice and runs generated tests up to three times. Six `qa_*` binaries (182 tests, 2,941 lines) repeat step tests outside the gate. I estimate about 3.5–4k of the ~26k hand-written lines can go with no loss of confidence. The status file (6 lines) records none of the departures below.~~
 
 Good:
 - `crates/skein-codec/src/schema/tokens.rs:12`: `scan(text, Option<&mut List<Token>>)` counts on the first pass and fills on the second, so the table is allocated once at its exact size. Worth copying wherever a parser sizes a table.
@@ -1406,7 +1409,7 @@ Good:
 
 Top recommendations:
 1. **Delete tests/codec's second generation:** `build.rs`, `tests/suite/names.rs`, `[build-dependencies]`, and `crates/skein-codec/src/lib.rs:11-17`. Win: about 80 lines, 56 test processes, an 8.3k-line second compile and a build-script compile of codegen. Effort: under an hour (F1, F2).
-2. **Fold the six `qa_*` binaries into the step tests and `tests/suite` as table rows, and delete the one-for-one duplicates.** Win: about 2k lines, 182 processes and one tier. Effort: about a day (F3).
+~~2. **Fold the six `qa_*` binaries into the step tests and `tests/suite` as table rows, and delete the one-for-one duplicates.** Win: about 2k lines, 182 processes and one tier. Effort: about a day (F3).~~
 3. **Give the tree shared helpers.** A `skein_codegen::drift(schema, code, goldens)` controlled by one write variable; `skein_scratch::Scratch` in the five hand-rolled scratch dirs; one copy each of `rust_type`, `snake`, `pascal` and the keyword list. Win: about 250 lines in skein, and about 300 more downstream (11+ hand drift tests). Effort: low (F8, F9, F10).
 4. **Tidy tests/codec's fixtures.** Fold `scalars` and `secrets` into `every`. Move the patch story to its own owner crate, so the plain fixtures need no kept texts. Key the goldens by family. Move `tests/support` into `src/`. Win: about 700 generated lines, about 420 lines of `patches/mod.rs`, 10 `#[path]`s and four kept copies. Effort: low to medium (F11, F12).
 5. **Keep one diff.** Expose plan's matching, comparison and change list (`patch/plan.rs:105-770`) and have codegen's `diff` only spell the result and propose renames. Win: about 480 lines in codegen, and one definition of 10.1–10.3. Effort: medium to high (F4).
@@ -1418,11 +1421,11 @@ F1. **tests/codec generates its fixtures twice, and the second generation is a t
 
 F2. **A step crate's unit tests compile a test crate's file.** `crates/skein-codec/src/lib.rs:14-17` has `#[path = "../../../tests/codec/src/generated/v1.rs"] pub mod generated_tests` and needs `extern crate self as skein_codec` (line 12) to make it work. The sample's two generated tests then run three times: in skein-codec, in skein-codec-tests' lib, and in the suite through F1. The dependency points the wrong way (crates/ reaching into tests/). Fix: delete lines 11-17.
 
-F3. **The `qa_*` binaries repeat step tests outside the gate.** There are six: `tests/codec/tests/qa_{diff,fingerprint,patch,schema,value}.rs` and `tests/codec-patches/tests/qa_patch.rs`, with 182 `#[test]`s in 2,941 lines (`grep -c '#\[test\]'`, `wc -l`). They run only under `qa-skein` with `test-threads = 1`, and there is one case per test. Sampled names match step tests one for one:
-   - `qa_schema` `held_words_before_colons_are_field_names` = `schema/tests.rs` `holds_and_pieces_can_name_the_next_field`;
+~~F3. **The `qa_*` binaries repeat step tests outside the gate.** There are six: `tests/codec/tests/qa_{diff,fingerprint,patch,schema,value}.rs` and `tests/codec-patches/tests/qa_patch.rs`, with 182 `#[test]`s in 2,941 lines (`grep -c '#\[test\]'`, `wc -l`). They run only under `qa-skein` with `test-threads = 1`, and there is one case per test. Sampled names match step tests one for one:~~
+~~   - `qa_schema` `held_words_before_colons_are_field_names` = `schema/tests.rs` `holds_and_pieces_can_name_the_next_field`;~~
    - `held_clauses_keep_external_names…` = `held_records_and_pieces_keep_their_names`;
    - `characters_are_checked_before_grammar…` = `character_pass_precedes_grammar…`;
-   - codec `qa_patch` `header_reads_levels_marks_without_reading_block_grammar` = `patch/text/tests.rs:176`;
+~~   - codec `qa_patch` `header_reads_levels_marks_without_reading_block_grammar` = `patch/text/tests.rs:176`;~~
    - codec-patches `s12_1_baseline_guard…`, `s12_3_first_patch_requires_owner…`, `s12_3_rederive_keeps_values…`, `s12_3_no_value_types_get_field_sites…`, `s12_2_cancelled_patch_removes…` = `testing/skein-codegen/tests/suite/patch_run.rs:68,468,346,211,387`;
    - `s12_3_skeleton_appends_missing_function…` = `patch/skeleton.rs:87`.
    The `s12_3_` prefixes are pipeline vocabulary (T-naming). Fix: keep each case that no step test has, as a row in the nearest step table or in `tests/suite`, and delete the rest along with the tier.
@@ -1446,7 +1449,7 @@ F8. **Small helpers are copied.**
 
 F9. **There is no drift primitive, and there are three write switches.** Generated-code drift is written by hand in `tests/codec/tests/suite/drift.rs`, `tests/oauth/tests/suite/drift.rs` and `examples/ui/view/src/tests/drift.rs`, plus 8 downstream `drift.rs` files using `SKEIN_CODEGEN_WRITE`. Patch drift has `patch::current`/`goldens`. Three variables carry one concept: `SKEIN_CODEGEN_WRITE`, `SKEIN_DIFF_WRITE` (`suite/diff.rs:30`) and `SKEIN_PATCH_WRITE` (`patch/golden.rs:36`). All five reads use `std::env::var_os`, which avoids the `disallowed-methods` ban on `std::env::var` ("a run's settings come from its code"). Fix: `skein_codegen::drift(schema, code, goldens) -> Result<(), Error>` reading one variable, and record that variable as the exception in clippy.toml.
 
-F10. **Five scratch directories are hand-rolled although `skein_scratch::Scratch` exists.** They are in `testing/skein-codegen/tests/suite/patch_run.rs:23`, `patch_check.rs:16` and `patch_generated.rs:19`, and in `tests/codec-patches/tests/suite/story.rs:36` and `tests/qa_patch.rs:21`, the last with an `AtomicU64` and its own `Drop`. Fix: use `Scratch::new(label)`. See also Incidental 1.
+~~F10. **Five scratch directories are hand-rolled although `skein_scratch::Scratch` exists.** They are in `testing/skein-codegen/tests/suite/patch_run.rs:23`, `patch_check.rs:16` and `patch_generated.rs:19`, and in `tests/codec-patches/tests/suite/story.rs:36` and `tests/qa_patch.rs:21`, the last with an `AtomicU64` and its own `Drop`. Fix: use `Scratch::new(label)`. See also Incidental 1.~~
 
 F11. **tests/codec's fixtures are one crate doing four jobs.**
    - **Redundant families.** `scalars` (Empty, Flag, Scalars) and `secrets` (Credential) are subsets of `every`, which by its own comment holds "every type of the language" (Blank, Light, Numbers, `Strings.key: secret 5`). They are used only in `suite/wire.rs:8,14,25`, `worst.rs:29-32` and `fuzzy/decode.rs:34,42`.
@@ -1455,7 +1458,7 @@ F11. **tests/codec's fixtures are one crate doing four jobs.**
    - **One family, several names.** `lints-v1.schema` holds family `lint-fixture`, its module is `lints`, and its kept constants are `lint_fixture`. The sample family's module is `v1` (`src/lib.rs:11-12`), while the others are named by family, and `every`'s second version is `every_v2`.
    Fix: fold `scalars` and `secrets` into `every`; put the `every` story in an owner of its own (or in `tests/codec-patches`); use `golden/<family>-v<N>/`; name each module and file after its family.
 
-F12. **tests/codec's shared harness lives in `tests/`, reached by `#[path]`.** `tests/support/{generated,generic,reprint}.rs` (464 lines) is wired in four different ways: `suite/main.rs:8`, `suite/support.rs:3,5`, `support/mod.rs` for `qa_patch.rs:15`, and `#[path]` in `qa_value.rs:5,7` and `qa_diff.rs:10,13`. Two of those need `#[expect(dead_code)]` (`support/mod.rs:4`, `qa_diff.rs:12`). testing.md 6 says "what its test binaries share is its library, in `src/`". Fix: move it to `tests/codec/src/support/`, which removes 8 `#[path]`s and both expects.
+~~F12. **tests/codec's shared harness lives in `tests/`, reached by `#[path]`.** `tests/support/{generated,generic,reprint}.rs` (464 lines) is wired in four different ways: `suite/main.rs:8`, `suite/support.rs:3,5`, `support/mod.rs` for `qa_patch.rs:15`, and `#[path]` in `qa_value.rs:5,7` and `qa_diff.rs:10,13`. Two of those need `#[expect(dead_code)]` (`support/mod.rs:4`, `qa_diff.rs:12`). testing.md 6 says "what its test binaries share is its library, in `src/`". Fix: move it to `tests/codec/src/support/`, which removes 8 `#[path]`s and both expects.~~
 
 F13. **A lint workaround changes the generated API.** A record with more than three `bool` fields (`emit_types.rs:55`) gets `pub skein_bools: [bool; N]` in its `Parts` (`:148`), so callers write `skein_bools: [true, false, true, false]` (`tests/codec/tests/suite/wire.rs:196`). There are 806 occurrences downstream (`rg -c skein_bools` over jig, smith and temper). codec.md 4 ("hands its fields back") does not describe this. Fix: set `max-struct-bools` in clippy.toml, which is configuration rather than an allowance, generate named fields, and record the change in codec.md 4.
 
@@ -1485,14 +1488,14 @@ Hypotheses:
   - The `build.rs:25` guard is not needed (F1). The `worst_case_*` reservation itself is in codec.md 4 and could be dropped there.
   - The byte-identical kept copies are needed by the mechanism, but only because the patch story shares an owner with fixtures that never move (F11). Four of them, and about 420 lines of `mod.rs`, go if the story moves.
   - `skein-codec/src/lib.rs:16` is not needed (F2).
-  - The six `qa_*` binaries should fold into the step tests and `tests/suite`, with duplicates deleted (F3).
+~~  - The six `qa_*` binaries should fold into the step tests and `tests/suite`, with duplicates deleted (F3).~~
 - **How the tree-wide findings show up here:**
-  - **T-layout:** `testing/skein-codegen/tests/suite` (2,572 lines) is a `testing/` crate with a `tests/` dir; T-layout's crate list missed `testing/`, which also has skein-lab-browser and skein-throwaway-forgejo. 6 of the 11 `qa_*` binaries are here. `tests/codec-patches` is missing from testing.md 6. skein-codec mixes per-module `tests.rs` (7 files) with `src/tests/piece.rs`; codegen uses `src/tests.rs`, inline modules in 5 files and `tests/suite`.
+~~  - **T-layout:** `testing/skein-codegen/tests/suite` (2,572 lines) is a `testing/` crate with a `tests/` dir; T-layout's crate list missed `testing/`, which also has skein-lab-browser and skein-throwaway-forgejo. 6 of the 11 `qa_*` binaries are here. `tests/codec-patches` is missing from testing.md 6. skein-codec mixes per-module `tests.rs` (7 files) with `src/tests/piece.rs`; codegen uses `src/tests.rs`, inline modules in 5 files and `tests/suite`.~~
   - **T-worlds-as-kits:** `crates/skein-codec/src/lib.rs:16` is a `#[path]` outside its tree. tests/codec has 8 more internal `#[path]`s (F12).
   - **T-lints:** codegen's clippy.toml is a copied variant. There are 26 `#[expect]`s, 6 of them one module-wide wording. `plan.rs:182` is one of the 18 `manual_map` wordings. The `var_os` reads go around the env ban (F9).
   - **T-limits-shape:** the generated `check_limits(&Limits) -> Result<(), Problem>` is a fourth shape. `patch::Capacity` has no check, only `workspace_bound -> Option`.
   - **T-primitives:** `skein_codec::text_is_valid` (`lib.rs:88-145`) is the UTF-8 check lib should own. skein-codec has 18 `u32::try_from(x.len())`, and lib has no `len_u32`.
-  - **T-naming:** the `qa_`/`s12_` names; `check` names two modules (`src/check.rs` and `src/patch/check.rs`); `Op` names two enums (`diff::Op` and `patch::Op`).
+~~  - **T-naming:** the `qa_`/`s12_` names; `check` names two modules (`src/check.rs` and `src/patch/check.rs`); `Op` names two enums (`diff::Op` and `patch::Op`).~~
 
 Status-file cross-check:
 - **Lagging, confirmed:** 13 is not built (no maps, sets or variable-width integers).
@@ -1705,7 +1708,7 @@ Verdict: The crate boundaries follow the design: client, driver, fake and statel
 - `skein-oauth` keeps its own copy of skein-json's document type.
 - None of the crates holds credentials as `skein_lib::Secret`, which already exists. That gap causes most of the area's `#[expect]`s and several workarounds.
 - The fake shares the client's types and codecs, against testing-strategy 4.
-- The tests repeat themselves: two qa_* binaries copy suite tests, tests/oauth-accounts has two owner harnesses, and the test files use three layouts.
+~~- The tests repeat themselves: two qa_* binaries copy suite tests, tests/oauth-accounts has two owner harnesses, and the test files use three layouts.~~
 
 About 1,300–1,500 lines could go with no loss of behaviour or test confidence. oauth-accounts has no design doc of its own: oauth.md section 6 ("The driver") covers it.
 
@@ -1726,7 +1729,7 @@ Top recommendations:
    - Win: about 20 of the area's 25 missing-debug expects, `copy_registration`, 6 push-match workarounds, and record.rs's `secret`/`exposed` helpers (about 80 lines).
    - Effort: medium (about 31 field uses in 16 downstream files become `.expose()`).
 2. **Rebuild `skein_oauth::Json` on `skein_json::parse` and `Document`**, as skein-llm's openai/json.rs does. Win: about 250 lines and one concept. Effort: medium.
-3. **Delete `tests/oauth-accounts/tests/qa_paste.rs` and fold `tests/oauth/tests/qa_paste.rs` into `tests/suite`.** Win: about 350 lines and 2 binaries. Effort: small.
+~~3. **Delete `tests/oauth-accounts/tests/qa_paste.rs` and fold `tests/oauth/tests/qa_paste.rs` into `tests/suite`.** Win: about 350 lines and 2 binaries. Effort: small.~~
 4. **One test layout:** `src/tests/<area>.rs` in skein-oauth and accounts, and the oauth-issuer world harness in `src/lib.rs`. Win: removes 10 `#[path]` and one copy of the fixture keys. Effort: small.
 5. **Give the fake its own vocabulary and writer**, then delete skein-oauth's server-only codecs and its dead refresh-request codec. Win: about 120 lines, and conformance with testing-strategy 4. Effort: medium.
 6. **Make each state one value** (model 5.4): client `Phase` variants own their exchange, the accounts `Purpose::SignIn` owns the sign-in-only fields, and `State::Record`'s 5 bools become enums. Win: about 10 impossible-state fallbacks and 5 parallel lists. Effort: large.
@@ -1791,10 +1794,10 @@ Findings:
   - The issuer uses `src/tests/<area>.rs`, which testing.md 6 reserves for lib, io, JSON, HTTP and TLS.
 - Fix: use `src/tests/<area>.rs` everywhere (the module names already match) and amend testing.md 6.
 
-**F8. The qa_* binaries copy suite tests.**
+~~**F8. The qa_* binaries copy suite tests.**~~
 - Evidence:
-  - 10 of the 12 tests in tests/oauth-accounts/tests/qa_paste.rs (159 lines) run the same `Story` (Paste … Restart) as suite/sign_in.rs:244-365. The suite copies assert exact fact lists; the qa copies only count.
-  - tests/oauth/tests/qa_paste.rs (269 lines) re-tests `admits` and overlaps machine_tests/admits.rs.
+~~  - 10 of the 12 tests in tests/oauth-accounts/tests/qa_paste.rs (159 lines) run the same `Story` (Paste … Restart) as suite/sign_in.rs:244-365. The suite copies assert exact fact lists; the qa copies only count.~~
+~~  - tests/oauth/tests/qa_paste.rs (269 lines) re-tests `admits` and overlaps machine_tests/admits.rs.~~
 - Fix: delete the accounts copy, after moving `RequiredScopes` and the faulted sweep into suite and suite/fuzzy. Fold the oauth copy into suite.
 
 **F9. tests/oauth-accounts has two copies of its owner harness.**
@@ -1842,7 +1845,7 @@ Findings:
 - Evidence:
   - `down`, `up` and `filed` take `_files: &mut Queue<FileLower>` and ignore it (component.rs:210, 482; private.rs:147).
   - `keys_request` takes `_now` (fetch.rs:92).
-  - `Event::Redirected` repeats `Redirect`'s five fields (machine.rs:153 vs 119), and `Event::SignIn` repeats `SignInValues`' ten (:140 vs :198). `step` destructures and rebuilds both, and tests/oauth/tests/qa_paste.rs:11-44 converts them back and forth.
+~~  - `Event::Redirected` repeats `Redirect`'s five fields (machine.rs:153 vs 119), and `Event::SignIn` repeats `SignInValues`' ten (:140 vs :198). `step` destructures and rebuilds both, and tests/oauth/tests/qa_paste.rs:11-44 converts them back and forth.~~
 - Fix: `Redirected { redirect, now }`, `SignIn { registration, values }`, and drop the unused parameters.
 
 **F15. Subset rules held only by review are broken.**
@@ -1873,7 +1876,7 @@ Hypotheses:
 
 Tree-wide findings in this area:
 - **T-layout:**
-  - 2 qa_* binaries (F8).
+~~  - 2 qa_* binaries (F8).~~
   - skein-oauth and skein-oauth-accounts each use all three step-test conventions (F7).
   - testing.md 6 does not list crates/skein-oauth-accounts, crates/skein-oauth-issuer, tests/oauth-accounts or tests/oauth-issuer.
 - **T-worlds-as-kits:**
@@ -1920,7 +1923,7 @@ Incidental:
 
 Scores: Cleanliness 3, Organisation 3, Taste 3, Naming 4, Primitives 2, Elegance 3, Economy 3, Complexity 3
 
-Verdict: The UI kit itself is well made. `skein-ui` is a model step crate: no `Vec`, lib containers throughout, exhaustive role matches, a state table on the view, budgets checked before each allocation. `skein-ui-text`'s renderer and `skein-ui-web`'s pure/platform split, with a host-side DOM model that golden HTML can check, are in the same class. Quality falls off toward the browser end of the area. `skein-browser` is held to the step lints but works around them: a second JSON parser of its own (recursive, `loop`, a hand-written `Iterator`), entity tables built on `Vec`, closures, and `disallowed_types` silenced for the whole module in 6 of its 9 source modules. The test harnesses around it repeat helpers across crates (owner routing, the Chromium locator, the loopback HTTP loop), test layout follows four conventions, and the `qa_*` binaries largely repeat tests that already exist. Role classifications are written out several times, so the compiler cannot point to every place a new role must reach, which ui.md 3 promises. About 1.5-1.8k of the area's ~45k lines could go with no loss.
+~~Verdict: The UI kit itself is well made. `skein-ui` is a model step crate: no `Vec`, lib containers throughout, exhaustive role matches, a state table on the view, budgets checked before each allocation. `skein-ui-text`'s renderer and `skein-ui-web`'s pure/platform split, with a host-side DOM model that golden HTML can check, are in the same class. Quality falls off toward the browser end of the area. `skein-browser` is held to the step lints but works around them: a second JSON parser of its own (recursive, `loop`, a hand-written `Iterator`), entity tables built on `Vec`, closures, and `disallowed_types` silenced for the whole module in 6 of its 9 source modules. The test harnesses around it repeat helpers across crates (owner routing, the Chromium locator, the loopback HTTP loop), test layout follows four conventions, and the `qa_*` binaries largely repeat tests that already exist. Role classifications are written out several times, so the compiler cannot point to every place a new role must reach, which ui.md 3 promises. About 1.5-1.8k of the area's ~45k lines could go with no loss.~~
 
 Good:
 - `crates/skein-ui/src/view.rs:1-9`: the module doc carries the state table (programming-model 5.4), and the code follows it.
@@ -1933,7 +1936,7 @@ Good:
 Top recommendations:
 1. Move `skein-browser` onto skein-json and lib containers (F1, F2). Win: about 450 lines, 6 module-wide expects gone, one JSON reader in the tree. Effort: M-L.
 2. One ordinary-Rust lint profile and one `clippy.toml` per kind for the area's ordinary crates (F3, F6). Win: 10 hand-written `[lints]` blocks in 7 variants become one pattern, 4 mislabelled `clippy.toml` copies are fixed, and 9 own-enum `_` arms come to light. Effort: S.
-3. Fold `qa_look` into `tests/suite`; fold or design `qa_program` and `qa_hand` (F7). Win: about 300 lines, plus helper duplication gone. Effort: S-M.
+~~3. Fold `qa_look` into `tests/suite`; fold or design `qa_program` and `qa_hand` (F7). Win: about 300 lines, plus helper duplication gone. Effort: S-M.~~
 4. Role primitives in `skein-ui`: `Role::ALL`, one `acts(role)`, named exhaustive role sets (F4, F5). Win: about 150 lines, and the compiler reaches every role set. Effort: S-M.
 5. Shared browser-tier helpers (F12): `io::Event::owner`, one Chromium locator, one loopback HTTP host. Win: about 200 lines, 3 copies become 1. Effort: M.
 6. Small deletions: the reference shell's `/test/tree/` fixture moved out, the dead pure `Timer` removed, the boilerplate docs removed (F10, F11, F13). Win: about 200 lines out of the reference shell and the core. Effort: S.
@@ -1952,7 +1955,7 @@ F5. The same role tables appear more than once. `next_role` (51 lines) exists tw
 
 F6. `clippy.toml` copies carry other crates' headers. `crates/skein-ui-web/clippy.toml` and `crates/skein-ui-bundle/clippy.toml` are byte-identical to `testing/skein-world/clippy.toml` ("The world harness is ordinary Rust…"). `examples/ui/server/clippy.toml` is identical to `examples/echo/shell/clippy.toml` ("What the echo's main may not use"). `testing/skein-lab-browser` and `skein-fake-person-browser` copy `tests/clippy.toml` ("the test crates under tests/"). The lab's copy rightly drops the `Look` ban. `examples/ui/server/Cargo.toml` restates 24 workspace lints by hand. The area has 10 hand-written `[lints]` blocks in 7 variants. Fix: per-kind shared files with headers that are true.
 
-F7. The `qa_*` binaries largely repeat the suites. `tests/browser/tests/qa_look.rs` (493 lines) drives the same in-memory `World` as `src/tests/look.rs` (616), with its own `opened`/`answer`/`properties` helpers. At least 10 tests are pairs, for example `tree_entry_bound_counts_visible_entries_without_cutting` / `tree_past_entries_is_refused_whole`, `screenshot_bound_applies_to_decoded_png_bytes` / `shot_at_screenshot_is_kept_and_past_screenshot_refused`, and `every_look_command_times_out…` / `looks_have_command_deadlines…`. It needs no Chromium, yet it runs only under `qa-skein`, outside the gate. `testing/skein-lab-browser/tests/qa_program.rs` (452) and `qa_hand.rs` (510) go beyond lab-browser.md 6 and 8.9, which ask for "one story" per form, and they rebuild the process helpers. All four lab binaries share code through `#[path = "../src/json.rs"]` and need 6 `#[expect(dead_code)]` to do it. One reason reads "the existing Reader…". Fix: merge `qa_look` into `tests/suite/look_world`. Fold the lab `qa_*` tests into the stories, or design them. Expose `json` through a lib target.
+~~F7. The `qa_*` binaries largely repeat the suites. `tests/browser/tests/qa_look.rs` (493 lines) drives the same in-memory `World` as `src/tests/look.rs` (616), with its own `opened`/`answer`/`properties` helpers. At least 10 tests are pairs, for example `tree_entry_bound_counts_visible_entries_without_cutting` / `tree_past_entries_is_refused_whole`, `screenshot_bound_applies_to_decoded_png_bytes` / `shot_at_screenshot_is_kept_and_past_screenshot_refused`, and `every_look_command_times_out…` / `looks_have_command_deadlines…`. It needs no Chromium, yet it runs only under `qa-skein`, outside the gate. `testing/skein-lab-browser/tests/qa_program.rs` (452) and `qa_hand.rs` (510) go beyond lab-browser.md 6 and 8.9, which ask for "one story" per form, and they rebuild the process helpers. All four lab binaries share code through `#[path = "../src/json.rs"]` and need 6 `#[expect(dead_code)]` to do it. One reason reads "the existing Reader…". Fix: merge `qa_look` into `tests/suite/look_world`. Fold the lab `qa_*` tests into the stories, or design them. Expose `json` through a lib target.~~
 
 F8. Test layout uses four conventions and 7 out-of-tree `#[path]`s. `skein-fake-person-browser` alone uses `src/tests.rs`+`src/tests/`, `harness/X/tests.rs` (×4), sibling `harness/X_tests.rs` (×2) and inline `mod tests {` (×3). `skein-browser` mixes sibling `*_tests.rs` through `#[path]` (browser.rs:2280, attribute.rs:130, look.rs:680) with 5 inline modules. These `#[path]`s reach outside their module tree: tests/browser support/real.rs:16 and suite/page_server.rs:4 include `src/pages.rs`, which the lib does not compile; 4 lab test binaries include `../src/json.rs`; ui-web page/fold.rs:20 includes `../tests/fold.rs`. The lab's runtime.rs:2 and hand.rs:2 build a fake module tree with `#[path]`. `tests/browser/src/tests*` holds 1.7k lines of `#[cfg(test)]` unit tests inside a test crate's library, beside its `tests/suite`. `skein-lab-browser` is missing from testing.md 6's layout.
 
@@ -1990,12 +1993,12 @@ Hypotheses:
 - 11, refined. The pure halves are ordinary Rust by design, not step code: ui.md 2 says so in its table, and ui-web.md 1 and 5.1 say "each is ordinary Rust" with `Inbox<R>` generic and closures. So workspace lints would be a redesign, not a fix. ui.md 3 and 4.3 still list "each shell's mapping" as a place an addition must break, so they need the ordinary profile (F3). The 16 `_ =>` arms in skein-ui-web split 9 / 7. Nine are on own enums: page/web.rs:301 (`Op`), tests/page/events.rs:343 and :391, tests/mapping.rs:342 (`Property`), and tests/page.rs:225, :254, :588, :796 and :828. Seven are on `u8`, `&[u8]`, `&str`, `char` or `(Option, Option)` and are fine: mapping.rs:666, svg.rs:139, page.rs:801, dom.rs:65, page/web.rs:767 and :873, tests/page.rs:660. The larger hole is the 14 role-slice checks in ui-web (F4). shell-web's 2 arms are on `&str`/`u64` and are fine. tests/browser's own-enum wildcards include src/tests/look.rs:376 and :416 and src/tests.rs:299.
 
 Tree-wide findings in this area:
-- T-layout: see F8. There are 10 binaries outside `tests/suite` (lab 4, tests/browser 3, tests/ui-web 3), 3 of them `qa_*`. Name-based nextest profiles select them.
+~~- T-layout: see F8. There are 10 binaries outside `tests/suite` (lab 4, tests/browser 3, tests/ui-web 3), 3 of them `qa_*`. Name-based nextest profiles select them.~~
 - T-worlds-as-kits: no area world crate is anyone's dependency.
 - T-lints: see F3 and F6. There are 115 `reason =` strings with 68 distinct.
 - T-limits-shape: consistent with the model here. `skein_ui::valid`, `phrases::valid` and `skein_browser::valid` all return bool. ui-text returns `Option`.
 - T-primitives: hand JSON pumps at lab json.rs:60 and the whole of browser decode.rs. Calendar in F15. 28 `Env {` rewraps (ui-text terminal 4, view 6, browser 5). 117 `usize::try_from(..).expect`. `u64::try_from(len)` 5 times against `len_u64` 11. Token namespaces: ui-text terminal.rs:12 (1<<62, kernel ops, the same space as skein-world files.rs:14's 1<<63), plus the lab's in F12.
-- T-naming: `qa_*` and "ruling 106".
+~~- T-naming: `qa_*` and "ruling 106".~~
 - T-temper-draft: lab-browser.md cites temper's `qa-web.md` 5 times (:175, :288, :336, :505, :553).
 
 Status-file cross-check:
@@ -2006,7 +2009,7 @@ Status-file cross-check:
 - Missed:
   - F1, F2 and F14 (departures).
   - F10 (`/test/tree/`).
-  - `qa_look` and the lab's `qa_*` tests (F7).
+~~  - `qa_look` and the lab's `qa_*` tests (F7).~~
   - lab-browser's absence from testing.md 6.
   - examples.status says "Built: unknown" and says nothing about section 9.
   - browser.md:579 and ui-web.md:894 name `--profile browser`. The profile is `browser-skein` (testing.md:439).
@@ -2073,7 +2076,7 @@ The simulator and its tests are the best code in this area. skein-sim documents 
 **F3. kv's framing and prices are private literals that downstream copies.**
 - `frame.rs:12` `HEADER = 22`, `map.rs:15` `ENTRY = 128`, `snapshot.rs:16-17` `HEADER = 18`, `TRAILER_LEN = 28`.
 - `limits.rs:29` says `commit >= 26` (that is `HEADER + 4`) and `:39` says `+ 20` (chunk overhead plus row lengths). Both are bare numbers.
-- jig production code repeats them: `jig/crates/jig-protocol-store/src/sizes.rs:166` (`key + 9`, `+ 26`), and so do jig's tests (`qa_check.rs:273,287,395`, `patching.rs:121`).
+~~- jig production code repeats them: `jig/crates/jig-protocol-store/src/sizes.rs:166` (`key + 9`, `+ 26`), and so do jig's tests (`qa_check.rs:273,287,395`, `patching.rs:121`).~~
 - Programming-model 6.3 names exactly these: a frame's formula `_bound`, and a stored row's `_price`.
 - `queued <= 32` (`limits.rs:30`) has no reason anywhere.
 - Fix: public `frame_bound(&[Op]) -> Option<usize>` (today's `encoded_len`), `row_price(key, value)`, and named `PUT_OVERHEAD`/`ERASE_OVERHEAD`. Build `is_usable` from them.

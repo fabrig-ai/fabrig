@@ -180,3 +180,53 @@ fn an_empty_optional_value_is_absent_and_the_event_keeps_its_failure_vocabulary(
     assert_eq!(client.admits(&redirect, time(2)), Ok(()));
     let _http = request(deliver(&mut client, redirect, time(2)));
 }
+
+#[test]
+fn admission_checks_deadline_before_address_and_state_without_moving_it() {
+    let client = begin(false, false, false);
+    let mut wrong = redirect();
+    wrong.uri = boxed(b"http://localhost:2345/callback");
+    wrong.state = boxed(b"another-state");
+    for (now, expected) in [
+        (Time::from_nanos(120_999_999_999), Inadmissible::Address),
+        (time(121), Inadmissible::NotWaiting),
+        (time(122), Inadmissible::NotWaiting),
+    ] {
+        assert_eq!(client.admits(&wrong, now), Err(expected));
+    }
+    wrong.uri = redirect().uri;
+    assert_eq!(client.admits(&wrong, time(120)), Err(Inadmissible::State));
+    assert_eq!(client.admits(&redirect(), Time::from_nanos(120_999_999_999)), Ok(()));
+    assert_eq!(client.next_deadline(), Some(time(121)));
+    assert!(!client.is_done());
+}
+
+#[test]
+fn a_late_redirect_keeps_the_original_exchange_deadline() {
+    let mut client = begin(false, false, false);
+    let http = request(deliver(&mut client, redirect(), time(120)));
+    assert_eq!(http.deadline, time(121));
+    assert_eq!(client.next_deadline(), Some(time(121)));
+    assert_eq!(failure(step(&mut client, Event::Tick { now: time(121) })), Failure::TimedOut);
+    assert!(client.is_done());
+}
+
+#[test]
+fn cancelling_needs_reset_and_the_new_attempt_refuses_the_old_state() {
+    let mut client = begin(false, false, false);
+    assert_eq!(failure(step(&mut client, Event::Cancel)), Failure::Cancelled);
+    assert_eq!(client.admits(&redirect(), time(2)), Err(Inadmissible::NotWaiting));
+    assert!(deliver(&mut client, redirect(), time(2)).is_none());
+    drop(step(&mut client, Event::Reset));
+    let mut event = openid::sign_in(registration(true, WireFormat::Form));
+    let mut fresh = redirect();
+    fresh.state = boxed(b"fedcba9876543210");
+    if let Event::SignIn { state, nonce, now, .. } = &mut event {
+        *state = fresh.state.clone();
+        *nonce = None;
+        *now = time(3);
+    }
+    drop(step(&mut client, event));
+    assert_eq!(client.admits(&redirect(), time(4)), Err(Inadmissible::State));
+    assert_eq!(client.admits(&fresh, time(4)), Ok(()));
+}

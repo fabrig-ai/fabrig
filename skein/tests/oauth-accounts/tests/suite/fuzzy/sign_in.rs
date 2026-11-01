@@ -22,6 +22,7 @@ const STORIES: &[Story] = &[
     Story::PasteCancelled,
     Story::PasteClose,
     Story::Public,
+    Story::Restart,
 ];
 #[test]
 fn browser_arrival_wrong_redirects_and_close_replay_under_short_operations() {

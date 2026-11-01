@@ -58,6 +58,48 @@ struct Derived {
     expected: &'static [u8],
 }
 const DERIVED: &[Derived] = &[
+    Derived {
+        old: "record D { a: u8 b: u8 gone: u8 }",
+        new: "record D { b: u8 fresh: u8 renamed: u8 }",
+        lines: "rename D.a renamed\nadd D.fresh u8 99\ndrop D.gone\norder D b renamed\n",
+        bytes: &[11, 22, 33],
+        expected: &[22, 99, 11],
+    },
+    Derived {
+        old: "record D { f: list 2 option u8 }",
+        new: "record D { f: list 3 option option u16 }",
+        lines: "wrap D.f list 2 option u8 list 3 option option u16\n",
+        bytes: &[0, 0, 0, 2, 0, 1, 255],
+        expected: &[0, 0, 0, 2, 0, 1, 1, 0, 255],
+    },
+    Derived {
+        old: "versioned record E {} versioned record D { f: list 3 E }",
+        new: "versioned record E {} versioned record D { f: list 3 E }",
+        lines: "",
+        bytes: &[0, 1, 0, 0, 0, 3, 0, 1, 0, 1, 0, 1],
+        expected: &[0, 2, 0, 0, 0, 3, 0, 2, 0, 2, 0, 2],
+    },
+    Derived {
+        old: "record E { x: u8 } record D { gone: E keep: u8 }",
+        new: "record E { x: u8 } record D { keep: u8 }",
+        lines: "written E.x\ndrop D.gone\n",
+        bytes: &[5, 6],
+        expected: &[6],
+    },
+    Derived {
+        old: "versioned record E { x: u8 } record D { a: E b: E }",
+        new: "record E { x: u8 } record D { b: E a: E }",
+        lines: "unversioned E\norder D b a\n",
+        bytes: &[0, 1, 8, 0, 1, 9],
+        expected: &[9, 8],
+    },
+    Derived {
+        old: "record D { f: bytes 4 }",
+        new: "record D { f: bytes 4 holds other Thing }",
+        lines: "",
+        bytes: &[0, 0, 0, 1, 9],
+        expected: &[0, 0, 0, 1, 9],
+    },
     Derived { old: "record D {}", new: "record D { f: u8 }", lines: "add D.f u8 42\n", bytes: b"", expected: &[42] },
     Derived {
         old: "record D {}",
@@ -664,18 +706,24 @@ fn node_capacity_counts_copies_added_values_and_written_values() {
 
 #[test]
 fn two_passes_find_the_old_root_and_reuse_finished_bytes() {
-    let (mut patcher, first) =
-        planned("versioned record D { f: u8 }", "versioned record D { f: u16 }", "widen D.f u8 u16\n");
+    let (mut patcher, first) = planned(
+        "versioned record D { f: u8 }",
+        "record Added {} versioned record D { f: u16 }",
+        "add Added\nwiden D.f u8 u16\n",
+    );
     patcher.keep(b"family f 3\nversioned record D { f: u32 }").expect("third");
-    let second =
-        patcher.plan(b"patch 1\nowner o 8\nfamily f 2 to 3\nwiden D.f u16 u32\n").expect("patch").expect("family");
+    let second = patcher
+        .plan(b"patch 1\nowner o 8\nfamily f 2 to 3\ndrop Added\nwiden D.f u16 u32\n")
+        .expect("patch")
+        .expect("family");
     assert_eq!(patcher.plan_from(1), Some(first));
     assert_eq!(patcher.plan_from(2), Some(second));
-    assert_eq!(patcher.source(first, D), Some(D));
-    assert_eq!(patcher.source(second, D), Some(D));
+    assert_eq!(patcher.source(first, DeclIx::new(1)), Some(D));
+    assert_eq!(patcher.source(second, D), Some(DeclIx::new(1)));
+    assert_eq!(patcher.counterpart(first, D), Some(DeclIx::new(1)));
     patcher.start(first, D, Box::from([0, 1, 9])).expect("first");
     finished(&mut patcher, "D", &[0, 2, 0, 9]);
-    patcher.next_pass(second, D).expect("second");
+    patcher.next_pass(second, DeclIx::new(1)).expect("second");
     finished(&mut patcher, "D", &[0, 3, 0, 0, 0, 9]);
 }
 
@@ -1202,5 +1250,25 @@ fn entry_and_output_room_grow_in_several_steps() {
         }
         assert!(entry_steps >= MIN_STEPS);
         assert!(output_steps >= MIN_STEPS);
+    }
+}
+
+#[test]
+fn written_fields_follow_new_order_with_old_parent_links() {
+    const OLD: &str = "record E { x: u8 } record D { a: E b: E }";
+    for (current, lines, visits, expected) in [
+        (OLD, "written E.x\n", [10, 20], [10, 20]),
+        ("record E { x: u8 } record D { b: E a: E }", "written E.x\norder D b a\n", [20, 10], [20, 10]),
+    ] {
+        let (mut patcher, _) = started(OLD, current, lines, "D", &[10, 20]);
+        for wanted in visits {
+            let at = stopped(&mut patcher);
+            let (old, new) = patcher.parts();
+            assert_eq!(old.parent(at), Ok(Some(old.root())));
+            let field = old.field(at, F).expect("E.x");
+            assert_eq!(old.uint(field), Ok(wanted));
+            new.carry(old, field).expect("carry old field");
+        }
+        finished(&mut patcher, "D", &expected);
     }
 }
