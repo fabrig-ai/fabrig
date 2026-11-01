@@ -1,5 +1,5 @@
 //! Project deletion at every durable family boundary
-//! (temper/docs/design/draft/playground-reset.md, 5 and 8).
+//! (jig/docs/design/domain/testing.md, 5).
 mod inventory;
 use super::{World, ask, check};
 use crate::Neighbours;

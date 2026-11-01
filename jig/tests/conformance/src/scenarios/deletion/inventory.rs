@@ -1,5 +1,5 @@
 //! Exhaustive project/task ownership inventory for the deletion story
-//! (temper/docs/plan/playground-reset-r6/notes/contracts.md, J4).
+//! (jig/docs/design/domain/testing.md, 5 and 6).
 use super::{CONTROL, PROJECT, World, check};
 use jig_conformance::referee::Violation;
 use jig_domain_accounts as accounts;
