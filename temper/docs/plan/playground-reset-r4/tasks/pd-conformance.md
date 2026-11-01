@@ -122,3 +122,12 @@ the removal and finds `None`. `lib.rs` keeps only the
 `ActKind::RemoveProject` grant. The `files` list above now names
 both `jig-test-store-files` files; `pd-sweep`, which owned them, has
 landed.
+
+### 2026-11-01: Should pd-delete repair retained AccountChange::SetUses answers that name a deleted project (recommended), or should this task's ownership expand to repair the people deletion and its reference audit? (playground-reset-r4/pd-conformance-2, foreman playground-reset-r4/pd-conformance/foreman-2)
+
+The retained AccountChange::SetUses answer is a question for pd-delete’s family; pd-conformance’s ownership does not expand.
+The spec’s Report instruction settles ownership: “any row the check found that no deletion step erases (with its key), which is a question for `pd-delete`’s family.”
+Step 2 requires “every row … whose key or value names the project” to be a violation, except the specified ClosedLedger rows.
+Both `jig/crates/jig-domain-people/src/domain/removal.rs` and `jig/tests/core/src/removal.rs` classify every AccountChange as project-free; neither file belongs to this task.
+Route the retained-answer defect and reference-audit omission to pd-delete’s family.
+After that repair, pd-conformance resumes its required checks, then commits and pushes. Acceptance remains unmet; this is not an acceptance as done.
