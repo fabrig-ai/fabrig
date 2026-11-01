@@ -88,7 +88,10 @@ fn the_machines_templates_must_fit_the_accounts_credentials() {
     let input = fixtures::document();
     let input = fixtures::with(&input, b"application.machine.owned", fixtures::owned_body());
     let input = overridden(&input, b"workers[0].limits.overrides", WORKER_OVERRIDES, r#""accounts.credentials":1"#);
-    assert_eq!(started(&input).as_ref(), b"application.machine: must be from 1 to accounts.credentials, in engine.limits and in the worker's limits\n");
+    assert_eq!(
+        started(&input).as_ref(),
+        b"application.machine: must be from 1 to accounts.credentials, in engine.limits and in the worker's limits\n"
+    );
 }
 #[test]
 fn the_engines_repositories_below_the_checkouts_refuse_the_start() {

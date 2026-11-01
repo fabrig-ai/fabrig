@@ -635,7 +635,8 @@ pub(crate) fn connected(engine: &mut crate::engine::Engine, forge: u16) {
         (id, login.finish())
     } else {
         let rows = engine.forge_records.rows.forge(forge).expect("Connected has records");
-        let id = skein_forge_setup::item::user(rows.get(Item::User).expect("connected User")).expect("valid User").get();
+        let id =
+            skein_forge_setup::item::user(rows.get(Item::User).expect("connected User")).expect("valid User").get();
         let record = engine.records.get(&forge).expect("registered Forgejo");
         (id, record.bot.login.clone())
     };
@@ -851,12 +852,14 @@ pub(crate) fn restored(engine: &mut crate::engine::Engine) {
     engine.setup.lifecycle.restored = true;
 }
 fn local_stopped(engine: &mut crate::engine::Engine, forge: u16, why: crate::SetupStopped) {
-    let owned = match engine.records.get(&forge) { Some(record) => record.mode == domain::Mode::Owned, None => false };
+    let owned = match engine.records.get(&forge) {
+        Some(record) => record.mode == domain::Mode::Owned,
+        None => false,
+    };
     let local = engine.setup.lifecycle.local_mut(forge).expect("local failure");
     local.handover = None;
     let connection = match local.trigger {
-        Trigger::Start if why == crate::SetupStopped::NotPrepared
-            && owned => domain::Connection::NotSetUp,
+        Trigger::Start if why == crate::SetupStopped::NotPrepared && owned => domain::Connection::NotSetUp,
         Trigger::Start => domain::Connection::NotConnected,
         Trigger::StartAsked if why == crate::SetupStopped::NotPrepared => domain::Connection::NotSetUp,
         Trigger::StartDemo | Trigger::StartAsked | Trigger::Asked => {
@@ -887,7 +890,10 @@ fn start_local(engine: &mut crate::engine::Engine, forge: u16) {
     assert!(local.source != Source::Managed || local.handover.is_none(), "managed string form never stages TakeOver");
     local.pending = false;
     if local.trigger == Trigger::StartAsked && local.handover.is_none() {
-        let prepared = match engine.forge_records.rows.forge(forge) { Some(rows) => rows.has(Item::AdminToken), None => false };
+        let prepared = match engine.forge_records.rows.forge(forge) {
+            Some(rows) => rows.has(Item::AdminToken),
+            None => false,
+        };
         if !prepared {
             state(engine, forge, domain::Connection::NotSetUp);
             return;
@@ -1525,10 +1531,7 @@ pub(crate) fn remove(engine: &mut crate::engine::Engine, forge: u16) {
 pub(crate) fn test_unregister(engine: &mut crate::engine::Engine, forge: u16) {
     for number in [1, forge] {
         let lifecycle = &mut engine.setup.lifecycle;
-        lifecycle
-            .adoptions
-            .insert(number, Adoption { next: NonZeroU64::new(1).unwrap(), repositories: 1 })
-            .unwrap();
+        lifecycle.adoptions.insert(number, Adoption { next: NonZeroU64::new(1).unwrap(), repositories: 1 }).unwrap();
         lifecycle.reconcile.insert(number, Reconcile::GitHub).unwrap();
         lifecycle.deleting.insert(number, ()).unwrap();
         lifecycle

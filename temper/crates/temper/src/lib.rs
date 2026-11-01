@@ -350,7 +350,6 @@ fn prepare_with_store(
     prepare_with_limits(directories, bytes, owned, false, &service::stock::Given::Stock)
         .map(|(service, store, _)| (service, store))
 }
-#[expect(clippy::too_many_lines, reason = "startup opens checked resources in dependency order")]
 fn prepare_with_limits(
     directories: &Directories,
     bytes: &[u8],

@@ -460,8 +460,6 @@ fn the_component_s_new_refusals_are_problems_naming_their_members() {
     }
 }
 
-
-
 #[test]
 fn the_start_request_carries_the_user_agent_and_the_host() {
     let mut service = fixtures::started();
@@ -534,8 +532,13 @@ fn the_longest_head_of_the_shipped_forge_fits_its_room_to_the_byte() {
     for (target_bytes, expected) in [(FITTING_TARGET_BYTES, None), (REFUSED_TARGET_BYTES, Some(HEAD_PROBLEMS))] {
         config.limits.forge_component.target_bytes = target_bytes;
         let mut settings = fixtures::connection_settings();
-        settings.forges.get_mut(0).unwrap().transport = skein_forge_connection::settings::Transport::Plaintext { name: Some(b"forge.example".as_slice().into()) };
-        let problems = match skein_forge_connection::limits::check(&config.limits.forge_component, &forge::shared(&config.limits, &config.jig.limits.io), &settings) {
+        settings.forges.get_mut(0).unwrap().transport =
+            skein_forge_connection::settings::Transport::Plaintext { name: Some(b"forge.example".as_slice().into()) };
+        let problems = match skein_forge_connection::limits::check(
+            &config.limits.forge_component,
+            &forge::shared(&config.limits, &config.jig.limits.io),
+            &settings,
+        ) {
             Ok(()) => None,
             Err(why) => Some(problem_lines(why)),
         };
@@ -585,8 +588,8 @@ fn connected_then_token_refused_keeps_the_note_and_engine_running() {
 }
 
 fn records_service() -> (crate::Service, skein_lib::Secret) {
-    use temper_engine_domain_forge::{ApiTransport, Kind};
     use skein_lib::List;
+    use temper_engine_domain_forge::{ApiTransport, Kind};
     let mut settings = fixtures::engine();
     settings.limits.forge.forges = 9;
     settings.limits.forge_component.forges = 9;
@@ -597,7 +600,9 @@ fn records_service() -> (crate::Service, skein_lib::Secret) {
     let mut forges = List::with_capacity(9);
     for number in 1..=9_u16 {
         let mut record = fixtures::forge_record(number);
-        if number != 1 { record.kind = Kind::GitHub; }
+        if number != 1 {
+            record.kind = Kind::GitHub;
+        }
         record.api.transport = ApiTransport::Plaintext;
         forges.push(record).unwrap();
     }
@@ -729,7 +734,8 @@ fn records_start_erases_carried_rows_before_connecting_without_decoding_them() {
         kept.len().checked_sub(2).unwrap()
     );
     assert_eq!(service.engine.as_ref().expect("engine").forge.starts.len(), 2);
-    let (number, access) = service.engine.as_mut().expect("engine").forge.starts.iter().find(|(number, _)| *number == 2).unwrap();
+    let (number, access) =
+        service.engine.as_mut().expect("engine").forge.starts.iter().find(|(number, _)| *number == 2).unwrap();
     assert_eq!((*number, access.user), (2, 9));
     let skein_forge::credential::Credential::App { id, key } = &access.credential else { panic!("App credential") };
     assert_eq!(*id, 7);

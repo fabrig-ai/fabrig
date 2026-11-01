@@ -17,7 +17,11 @@ pub(crate) struct Rows {
 }
 impl Rows {
     fn new(capacity: u32) -> Self {
-        Self { values: records::Rows::new(), configured: Map::with_capacity(capacity), unconfigured: Map::with_capacity(FORGES) }
+        Self {
+            values: records::Rows::new(),
+            configured: Map::with_capacity(capacity),
+            unconfigured: Map::with_capacity(FORGES),
+        }
     }
     pub(crate) fn register(&mut self, forge: u16) {
         self.configured.insert(forge, ()).expect("admitted forge");
@@ -282,6 +286,5 @@ pub(crate) fn connect(engine: &mut crate::engine::Engine, number: u16) {
         crate::forge::connect(engine, number, start);
     } else if engine.setup.records_only(number) {
         // The root restore releases Reconcile; the loader never starts it.
-
     }
 }

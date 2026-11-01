@@ -844,8 +844,7 @@ fn run_plan(engine: &mut crate::engine::Engine, run: Token, plan: host::Plan) {
     }
 }
 
-/// Connected Forgejo's legacy file input remains a host-local credential.
-
+#[expect(clippy::manual_map, reason = "the step subset uses explicit matches")]
 fn read_item(
     engine: &crate::engine::Engine,
     run: Token,

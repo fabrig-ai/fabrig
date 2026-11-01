@@ -14,7 +14,7 @@ pub(super) fn parse(
     directories: &config::Directories,
     problems: &mut Problems,
 ) -> Option<Machine> {
-    let Some(at) = at else { return Some(Machine::bare()) };
+    let at = at?;
     let path = Path::root().member(b"application").member(b"machine");
     let mut object = read::object(document, at, &path, problems)?;
     let owned_at = read::required(&mut object, document, b"owned", &path, problems);

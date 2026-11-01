@@ -1,7 +1,7 @@
 use super::fixtures;
-use temper_protocol_records as records;
 use crate::{limits, tokens};
 use skein_lib::{Duration, Token};
+use temper_protocol_records as records;
 
 #[test]
 fn no_two_component_prefixes_meet() {
@@ -118,7 +118,7 @@ fn the_small_profile_passes_each_domains_validity() {
 
 #[test]
 fn the_wire_admits_a_moved_file_and_temper_values_stay_at_their_bound() {
-    let mut settings = fixtures::engine();
+    let settings = fixtures::engine();
     let moved = jig_protocol_accounts::moved::bound(&settings.jig.limits.driver.client.document);
     let value = settings.limits.records.value_bytes;
     assert!(moved > u64::from(value));
@@ -133,8 +133,6 @@ fn the_wire_admits_a_moved_file_and_temper_values_stay_at_their_bound() {
         limits::client_value_bytes(&larger, &settings.limits),
         settings.jig.limits.clients.wire.keyed_value_some
     );
-
-
 }
 
 #[test]
@@ -360,18 +358,21 @@ fn log_limits_check_zero_capacity_and_timing_relations() {
     }
 }
 #[test]
-#[expect(clippy::disallowed_methods, reason = "ordinary tests inspect diagnostic text")]
 fn origin_inventory_keeps_configured_text_prefixes_and_forge_indices() {
     use crate::startup::checks;
     let mut machine = temper_engine_domain_forge::Machine::bare();
-    for (host, port, length) in [(b"api.github.com".as_slice(), 443, 26), (b"forge.example".as_slice(), 12345, 27), (b"127.0.0.1".as_slice(), 3000, 22), (b"::1".as_slice(), 3000, 18)] {
+    for (host, port, length) in [
+        (b"api.github.com".as_slice(), 443, 26),
+        (b"forge.example".as_slice(), 12345, 27),
+        (b"127.0.0.1".as_slice(), 3000, 22),
+        (b"::1".as_slice(), 3000, 18),
+    ] {
         machine.github.api.host = host.into();
         machine.github.api.port = port;
         let inventory = checks::record_writes(&fixtures::engine().limits, &machine);
         assert_eq!(inventory.len(), 6);
         assert_eq!(*inventory.get(5).unwrap(), (Some(length), b"Origin".as_slice(), None));
     }
-
 }
 #[test]
 #[expect(clippy::disallowed_methods, reason = "ordinary tests inspect diagnostic text")]

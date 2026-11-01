@@ -19,11 +19,7 @@ pub const DEMO: &str = r#""demo":{"llm":{"listen":{"socket":"127.0.0.1:10"},"pro
 "cued":[{"cue":"Export widget's table as CSV","turns":["Code"]}],"otherwise":["Demo"]},
 "forge":{"bot":{"login":"temper","email":"temper@example.test"},"mode":{"fake":{"listen":{"socket":"127.0.0.1:9"},"git":"demo/bin/git","owner":"demo","repositories":[{"name":"widget","landing":"main"},{"name":"other","landing":"main"}]}}},"project":{"name":"Playground","policy":1}}"#;
 pub fn demo_application() -> Box<[u8]> {
-    core::str::from_utf8(APPLICATION)
-        .unwrap()
-        .replace("\"demo\":null", DEMO)
-        .into_bytes()
-        .into_boxed_slice()
+    core::str::from_utf8(APPLICATION).unwrap().replace("\"demo\":null", DEMO).into_bytes().into_boxed_slice()
 }
 pub fn demo_document() -> Box<[u8]> {
     core::str::from_utf8(&document())

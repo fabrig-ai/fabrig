@@ -76,10 +76,7 @@ fn generated() -> (engine::Config, engine::Limits) {
     let forge = crate::forge::config(seeds.deployment);
     let identities = Box::new([]);
     let forges = Box::new([]);
-    let demo = settings
-        .demo
-        .as_ref()
-        .map(|demo| demo.domain(&settings.machine, settings.limits.setup.deadline));
+    let demo = settings.demo.as_ref().map(|demo| demo.domain(&settings.machine, settings.limits.setup.deadline));
     (
         engine::Config {
             machine: settings.machine,

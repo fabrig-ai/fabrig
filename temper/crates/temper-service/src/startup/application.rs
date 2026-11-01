@@ -341,7 +341,6 @@ fn webhooks(document: &Document, at: Option<u32>, path: &Path, problems: &mut Pr
     let value = clients(document, at, &path.member(b"webhooks"), false, problems)?;
     Some(Webhooks { listener: value.listener })
 }
-#[expect(clippy::too_many_lines, reason = "startup reads and checks the application members together")]
 pub fn parse(
     document: &Document,
     at: u32,
@@ -374,8 +373,7 @@ pub fn parse(
     let webhooks = webhooks(document, at, &path, problems);
     read::finish(object, document, &path, problems);
     let mut machine = machine::parse(document, machine_at, &bounds.setup.plan(), directories, problems)?;
-    let demo =
-        demo::parse(document, demo_at, &bounds.setup.plan(), &mut machine, directories, problems);
+    let demo = demo::parse(document, demo_at, &bounds.setup.plan(), &mut machine, directories, problems);
     let workers = workers(document, workers_ats, jig.limits.core.fleet.workers, directories, &path, problems);
     if let Some(sign_in) = &sign_in {
         sign_in::check_forges(&sign_in.forges, &machine, jig, problems);
@@ -466,11 +464,12 @@ pub fn resolve(members: &Members, files: &settings::Files, problems: &mut Proble
     {
         webhooks = Some(skein_forge_connection::hooks::Webhooks { listener: *listener });
     }
-    Some(Resolved {
-        sign_in: match &members.sign_in {
-            Some(sign_in) => sign_in::resolve(sign_in, members.limits.sign_in, files, problems),
-            None => None,
-        },
-        webhooks,
-    })
+    let sign_in = match &members.sign_in {
+        Some(sign_in) => sign_in::resolve(sign_in, members.limits.sign_in, files, problems),
+        None => None,
+    };
+    if !problems.is_empty() {
+        return None;
+    }
+    Some(Resolved { sign_in, webhooks })
 }

@@ -210,9 +210,8 @@ impl Service {
             clients.configure_google(sign_in, settings.limits.sign_in, seeds, &settings.jig);
         }
         let setup = crate::setup::prepare(&settings, &seeds.crypto, box_line_bytes.is_some())?;
-        let forge =
-            crate::forge::Layer::new(forge_settings, settings.limits.forge_component, &shared)
-                .expect("checked forge limits");
+        let forge = crate::forge::Layer::new(forge_settings, settings.limits.forge_component, &shared)
+            .expect("checked forge limits");
         let notes = Queue::with_capacity(note_bound(&settings, &limits).expect("validated diagnostic room"));
         // Workers take the forge settings; derive the demo's adoption host first.
         let demo_config = match &settings.demo {
@@ -1103,9 +1102,7 @@ fn note_bound(settings: &settings::Engine, root: &temper_engine_domain::Limits) 
     let templates = 1_u32
         .checked_add(u32::from(settings.machine.owned.is_some()))?
         .checked_add(u32::from(settings.machine.playground.is_some()))?;
-    0_u32
-        .checked_add(templates)?
-        .checked_add(temper_engine_domain_forge::demo_act_bound(&root.forge)?)
+    templates.checked_add(temper_engine_domain_forge::demo_act_bound(&root.forge)?)
 }
 
 #[cfg(test)]

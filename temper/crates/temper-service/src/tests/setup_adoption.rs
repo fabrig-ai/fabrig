@@ -4,10 +4,12 @@ use temper_engine_domain_forge as domain;
 fn configured(hooks: bool) -> crate::settings::Engine {
     let mut config = local_config(true, true);
     config.machine.owned.as_mut().unwrap().setup = Some(br#"{"bot":{"login":"temper","email":"temper@example.test"},"mode":{"fake":{"listen":{"socket":"127.0.0.1:9"},"git":"/data/git","owner":"demo","repositories":[{"name":"widget","landing":"main"},{"name":"other","landing":"main"}]}}}"#.as_slice().into());
-    config.webhooks = Some(skein_forge_connection::hooks::Webhooks { listener: skein_io::Addr::Ip(([127, 0, 0, 1], 7101).into()) });
+    config.webhooks =
+        Some(skein_forge_connection::hooks::Webhooks { listener: skein_io::Addr::Ip(([127, 0, 0, 1], 7101).into()) });
     if !hooks {
         config.webhooks = None;
     }
+    config.limits.forge.repositories = 3;
     config
 }
 fn record_answers(service: &mut crate::Service) {
@@ -206,7 +208,9 @@ fn records_fake_given_uses_the_webhooks_listener_without_a_file_secret() {
     for hooks in [false, true] {
         let config = configured(hooks);
         let service = local_service(config, local_store(true));
-        let host::Kind::Forgejo(given) = service.engine.as_ref().unwrap().setup.served.get(&1).unwrap() else { panic!("fake Given") };
+        let host::Kind::Forgejo(given) = service.engine.as_ref().unwrap().setup.served.get(&1).unwrap() else {
+            panic!("fake Given")
+        };
         assert_eq!(given.listener, if hooks { Some(([127, 0, 0, 1], 7101).into()) } else { None });
     }
 }

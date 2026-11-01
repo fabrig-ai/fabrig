@@ -142,8 +142,6 @@ pub fn forges() -> Box<[settings::Forge]> {
     forge_settings(&[forge_record(1)])
 }
 
-/// File-era settings for tests whose subject is the document's access or setup path.
-
 pub const OWNER: Token = Token::new(91);
 pub fn routes() -> crate::store::route::Routes {
     let (root, _, _) = store_limits();
@@ -942,14 +940,6 @@ pub use startup::{
     owned_worker_alone_document, startup_agent, value, webhook_document, with, without, worker_alone_document,
     worker_runtime,
 };
-pub fn forge_start(engine: &crate::engine::Engine, number: u16) -> Option<&skein_forge_connection::Access> {
-    for (forge, access) in &engine.forge.starts {
-        if *forge == number {
-            return Some(access);
-        }
-    }
-    None
-}
 pub fn forge_runtime() -> skein_lib::List<crate::ForgeRuntime> {
     let mut runtime = skein_lib::List::with_capacity(1);
     runtime
@@ -1040,8 +1030,6 @@ pub fn chat(project: u32, words: &[u8]) -> jig_domain_people::Ask {
     member.label = 1;
     people::Ask::Create { project, batch: Box::new([member]) }
 }
-
-// Public setup configuration only; the transport story never runs these binaries.
 
 #[expect(clippy::disallowed_macros, reason = "test fixture supplies unique numbered project names")]
 fn project_name(number: u32) -> Box<str> {
@@ -1184,13 +1172,25 @@ pub fn owned_body() -> &'static [u8] {
 /// Connection component fixtures use public record endpoints, independently of startup.
 pub fn connection_settings() -> skein_forge_connection::Settings {
     let mut settings = crate::forge::prepare(&engine()).unwrap();
-    settings.forges.push(skein_forge_connection::settings::Forge {
-        number: 1,
-        kind: skein_forge_connection::settings::Kind::Forgejo,
-        address: skein_io::Addr::Ip(([127, 0, 0, 1], 3000).into()),
-        transport: skein_forge_connection::settings::Transport::Plaintext { name: None },
-        access: None,
-        log_origins: skein_lib::List::with_capacity(0),
-    }).unwrap();
     settings
+        .forges
+        .push(skein_forge_connection::settings::Forge {
+            number: 1,
+            kind: skein_forge_connection::settings::Kind::Forgejo,
+            address: skein_io::Addr::Ip(([127, 0, 0, 1], 3000).into()),
+            transport: skein_forge_connection::settings::Transport::Plaintext { name: None },
+            access: None,
+            log_origins: skein_lib::List::with_capacity(0),
+        })
+        .unwrap();
+    settings
+}
+
+pub fn forge_start(engine: &crate::engine::Engine, number: u16) -> Option<&skein_forge_connection::Access> {
+    for (forge, access) in &engine.forge.starts {
+        if *forge == number {
+            return Some(access);
+        }
+    }
+    None
 }

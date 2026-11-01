@@ -434,7 +434,11 @@ pub fn channel(
     }
 }
 /// The identity's complete encoded value must fit one grant.
-pub fn identities(machine: &temper_engine_domain_forge::Machine, limits: &payload::v1::Limits, problems: &mut Problems) {
+pub fn identities(
+    machine: &temper_engine_domain_forge::Machine,
+    limits: &payload::v1::Limits,
+    problems: &mut Problems,
+) {
     for (record, path) in templates(machine).into_boxed() {
         let identity = crate::forges::identity(record);
         match crate::translate::identity(&identity, limits) {
@@ -1140,7 +1144,6 @@ pub fn records(
     }
     if u64::from(value) < largest.0 {
         against(problems, b"records.value_bytes", largest.1);
-
     }
     // Every observed installation must fit the deployment's client document (client/README.md, 4.6).
     let bound = temper_client_protocol_wire::INSTALLATIONS;

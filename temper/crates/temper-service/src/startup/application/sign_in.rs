@@ -450,7 +450,13 @@ fn resolved_transport(
         Transport::Plaintext => Transport::Plaintext,
         Transport::Tls { server_name, trust } => {
             let trust = match trust {
-                Some(name) => super::contents(files, name, 1_048_576, path.member(b"transport").member(b"tls").member(b"trust"), problems),
+                Some(name) => super::contents(
+                    files,
+                    name,
+                    1_048_576,
+                    path.member(b"transport").member(b"tls").member(b"trust"),
+                    problems,
+                ),
                 None => None,
             };
             Transport::Tls { server_name: server_name.clone(), trust }

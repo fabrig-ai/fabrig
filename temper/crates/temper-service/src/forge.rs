@@ -381,19 +381,37 @@ pub(crate) fn prepare(config: &settings::Engine) -> Result<skein_forge_connectio
         word: Box::from(WORD),
         user_agent: Box::from(USER_AGENT.as_bytes()),
     };
-    for record in [config.machine.owned.as_ref(), Some(&config.machine.github), config.machine.playground.as_ref()].into_iter().flatten() {
+    for record in [config.machine.owned.as_ref(), Some(&config.machine.github), config.machine.playground.as_ref()]
+        .into_iter()
+        .flatten()
+    {
         let mut checking = skein_forge_connection::settings::Settings {
-            forges: List::with_capacity(1), webhooks: config.webhooks.clone(),
-            word: Box::from(WORD), user_agent: Box::from(USER_AGENT.as_bytes()),
+            forges: List::with_capacity(1),
+            webhooks: config.webhooks.clone(),
+            word: Box::from(WORD),
+            user_agent: Box::from(USER_AGENT.as_bytes()),
         };
-        checking.forges.push(skein_forge_connection::settings::Forge {
-            number: 1,
-            kind: match record.kind { forge::Kind::Forgejo => skein_forge_connection::settings::Kind::Forgejo, forge::Kind::GitHub => skein_forge_connection::settings::Kind::GitHub },
-            address: skein_io::Addr::Ip(HELD_ADDRESS),
-            transport: skein_forge_connection::settings::Transport::Plaintext { name: Some(record.api.host.clone()) },
-            access: None, log_origins: List::with_capacity(0),
-        }).expect("one template");
-        if let Err(why) = skein_forge_connection::limits::check(&config.limits.forge_component, &shared(&config.limits, &config.jig.limits.io), &checking) {
+        checking
+            .forges
+            .push(skein_forge_connection::settings::Forge {
+                number: 1,
+                kind: match record.kind {
+                    forge::Kind::Forgejo => skein_forge_connection::settings::Kind::Forgejo,
+                    forge::Kind::GitHub => skein_forge_connection::settings::Kind::GitHub,
+                },
+                address: skein_io::Addr::Ip(HELD_ADDRESS),
+                transport: skein_forge_connection::settings::Transport::Plaintext {
+                    name: Some(record.api.host.clone()),
+                },
+                access: None,
+                log_origins: List::with_capacity(0),
+            })
+            .expect("one template");
+        if let Err(why) = skein_forge_connection::limits::check(
+            &config.limits.forge_component,
+            &shared(&config.limits, &config.jig.limits.io),
+            &checking,
+        ) {
             let mut found = Problems::empty();
             problems(why, &mut found);
             return Err(found);

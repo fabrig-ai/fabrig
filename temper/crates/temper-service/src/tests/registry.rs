@@ -242,8 +242,8 @@ fn records_restored_before_the_load_connect_a_forgejo_record_from_its_records() 
     let engine = service.engine.as_ref().unwrap();
     assert!(registered_before_load, "root restoration registers the forge before secrets load");
     assert!(engine.forge_records.done());
-    let (number, access) = engine.forge.starts.iter().find(|(number, _)| *number == 3).unwrap();
-    assert_eq!((*number, access.user), (3, 9));
+    let access = fixtures::forge_start(engine, 3).unwrap();
+    assert_eq!(access.user, 9);
     assert_eq!(
         access.credential,
         skein_forge::credential::Credential::Token(Secret::new(b"fixture-api-token".as_slice().into()))

@@ -158,8 +158,8 @@ fn provider(jig: &mut config::Engine) {
 }
 fn with_forges(rows: &str) -> String {
     let body = core::str::from_utf8(fixtures::owned_body()).unwrap();
-    input(&SIGN_IN.replacen('{', &format!("{{\"forges\":{rows},"), 1)).replace("\"owned\":null", &format!("\"owned\":{body}"))
-
+    input(&SIGN_IN.replacen('{', &format!("{{\"forges\":{rows},"), 1))
+        .replace("\"owned\":null", &format!("\"owned\":{body}"))
 }
 
 #[test]
@@ -189,9 +189,12 @@ fn forge_sign_in_callback_uses_the_owned_public_origin_or_git_without_one() {
         provider(&mut jig);
         jig.clients.provider.as_mut().unwrap().clients[0].redirect_uri = callback.as_bytes().into();
         let public = public.map_or(String::new(), |public| format!(r#", "public":{public:?}"#));
-        let body = core::str::from_utf8(fixtures::owned_body()).unwrap().replace("\"forgejo\":", &format!("{public},\"forgejo\":"));
+        let body = core::str::from_utf8(fixtures::owned_body())
+            .unwrap()
+            .replace("\"forgejo\":", &format!("{public},\"forgejo\":"));
         let body = body.replace("{,", "{");
-        let doc = with_forges(r#"[{"forge":1,"client":"forgejo"}]"#).replace(core::str::from_utf8(fixtures::owned_body()).unwrap(), &body);
+        let doc = with_forges(r#"[{"forge":1,"client":"forgejo"}]"#)
+            .replace(core::str::from_utf8(fixtures::owned_body()).unwrap(), &body);
         let (members, problems) = parse(&doc, &jig);
         assert_eq!(members.is_some(), accepted, "{callback}: {:?}", startup::lines(&problems));
         if accepted {
@@ -283,8 +286,13 @@ fn forge_metas_escape_attributes_publish_modes_and_change_the_etag() {
     bundle.fill_forge_sign_in(Some(sign_in), &members.machine, 65_536).unwrap();
     assert_eq!(bundle.page.as_ref(), b"<head><meta name=\"temper-sign-in\" content=\"google\"><meta name=\"temper-forge-sign-in\" content=\"1 forge&amp;&quot;&#39;&lt; &gt; https://forge.example/?x=&quot;&amp;y=&#39;&lt;&gt; owned\"></head>");
     assert_ne!(bundle.etag, before);
-    for (public, origin) in [("https://git.example.com:443", "https://git.example.com"), ("https://git.example.com:8443", "https://git.example.com:8443")] {
-        let text = core::str::from_utf8(fixtures::owned_body()).unwrap().replace("\"forgejo\":", &format!("\"public\":\"{public}\",\"forgejo\":"));
+    for (public, origin) in [
+        ("https://git.example.com:443", "https://git.example.com"),
+        ("https://git.example.com:8443", "https://git.example.com:8443"),
+    ] {
+        let text = core::str::from_utf8(fixtures::owned_body())
+            .unwrap()
+            .replace("\"forgejo\":", &format!("\"public\":\"{public}\",\"forgejo\":"));
         members.machine.owned.as_mut().unwrap().setup = Some(text.into_bytes().into_boxed_slice());
         bundle.page = b"<head></head>".as_slice().into();
         bundle.fill_forge_sign_in(Some(sign_in), &members.machine, 65_536).unwrap();

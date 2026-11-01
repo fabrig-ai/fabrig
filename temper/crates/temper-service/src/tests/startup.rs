@@ -348,13 +348,6 @@ fn application(input: &[u8], jig: &config::Engine) -> (Option<application::Membe
     (members, problems)
 }
 
-
-
-
-
-
-
-
 #[test]
 fn the_example_engine_keeps_jigs_chat_and_goal_templates() {
     let jig = fixtures::engine().jig;
@@ -509,7 +502,6 @@ fn members_and_references_are_checked() {
         ("\"project\":1", "\"project\":2", "application.landing.projects[0].project: unknown reference\n"),
         ("\"git\":\"/usr/bin/git\"", "\"git\":\"git\"", "application.workers[0].git: must be an absolute path\n"),
         ("\"git\":\"/usr/bin/git\"", "\"git\":null", ""),
-
     ] {
         let (members, problems) = application(input.replace(from, to).as_bytes(), &jig);
         assert_eq!(members.is_some(), expected.is_empty(), "row {from}: {to}");
@@ -808,14 +800,17 @@ fn paths_are_resolved_by_kind_and_absolute_only_members_refuse_relative_values()
         let tls = [br#"{"tls":{"server_name":"example.test","trust":"#.as_slice(), trust, b"}}"].concat();
         let document = fixtures::with(&fixtures::document(), b"application.machine.github.transport", &tls);
         let named = crate::named(&document, &directories).unwrap();
-        let temper_engine_domain_forge::ApiTransport::Tls { trust: Some(value), .. } = &named.machine.github.api.transport else { panic!("TLS") };
+        let temper_engine_domain_forge::ApiTransport::Tls { trust: Some(value), .. } =
+            &named.machine.github.api.transport
+        else {
+            panic!("TLS")
+        };
         assert_eq!(
             value.as_ref(),
             if trust == br#""roots.der""# { b"/configuration/roots.der".as_slice() } else { b"/kept/roots.der" }
         );
     }
 }
-
 
 #[test]
 fn load_refuses_a_record_one_byte_short_of_app_key() {
@@ -901,8 +896,6 @@ fn load_refuses_log_limits_naming_both_bounds() {
     assert_eq!(loaded.forge_component.log_pages, 13);
     assert_eq!(loaded.forge_component.delivery_bytes, 12_345);
 }
-
-
 
 #[test]
 fn admission_model_words_use_tokens_and_missing_names_make_no_amount_claim() {
@@ -1057,8 +1050,6 @@ fn a_worker_alone_checks_its_application_paths_and_its_git_and_channel_limits() 
     }
 }
 
-
-
 #[test]
 fn a_worker_alone_with_the_owned_examples_worker_fits_one_ring() {
     // Linux's IORING_MAX_ENTRIES, the largest submission ring.
@@ -1083,12 +1074,6 @@ fn a_worker_alone_with_the_owned_examples_worker_fits_one_ring() {
     assert!(service.operations() <= IORING_MAX_ENTRIES);
     assert_eq!(service.operations(), operations, "the start's check and the ring agree");
 }
-
-
-
-
-
-
 
 #[test]
 fn clients_public_keeps_the_parsed_origin_and_jig_name() {
@@ -1191,9 +1176,6 @@ fn clients_public_bounds_dns_labels_and_the_host() {
     }
 }
 
-
-
-
 fn turn_projects(project: u32) -> Box<[u8]> {
     format!(
         r#"[{{"project":{project},"rules":[],"by":"turn","gates":[{{"forge":1,"repository":2,"gates":[{{"name":"gate","workflow":"gate.yml","ignored":["docs"],"blocking":true}}]}}]}}]"#
@@ -1217,11 +1199,7 @@ fn turn_configuration_can_name_a_project_adopted_after_the_seed() {
     assert_eq!(landing.by, temper_engine_domain::Way::Turn);
     assert_eq!(landing.repositories[0].gates[0].workflow.as_ref(), b"gate.yml");
     assert!(!members.landing.projects.contains_key(&ADOPTED));
-    let document = fixtures::with(
-        &fixtures::document(),
-        b"application.landing.projects",
-        &turn_projects(ADOPTED),
-    );
+    let document = fixtures::with(&fixtures::document(), b"application.landing.projects", &turn_projects(ADOPTED));
     let started = crate::startup(
         &document,
         &config::Directories::working(),

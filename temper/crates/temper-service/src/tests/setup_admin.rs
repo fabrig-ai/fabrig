@@ -18,7 +18,8 @@ fn config() -> crate::settings::Engine {
     let record = config.machine.owned.as_mut().unwrap();
     record.mode = domain::Mode::Managed;
     record.bot.login = b"temper".as_slice().into();
-    record.setup = Some(br#"{"bot":{"login":"temper","email":"temper@example.test"},"mode":"managed"}"#.as_slice().into());
+    record.setup =
+        Some(br#"{"bot":{"login":"temper","email":"temper@example.test"},"mode":"managed"}"#.as_slice().into());
     config
 }
 fn store(forge: &Forge) -> crate::store::Store {
@@ -243,7 +244,11 @@ fn admin_paste_reconciles_creates_with_its_label_then_keeps_and_restarts_from_re
         })
     );
     assert!(engine.setup.public.is_empty());
-    assert_eq!(engine.domain.forges().rows[0].first.as_ref().unwrap().state, domain::FirstState::Made { id: 1 }, "restart retains the completed intent");
+    assert_eq!(
+        engine.domain.forges().rows[0].first.as_ref().unwrap().state,
+        domain::FirstState::Made { id: 1 },
+        "restart retains the completed intent"
+    );
 }
 #[test]
 fn admin_connect_without_first_keeps_after_reconcile_and_connects() {
@@ -344,14 +349,7 @@ fn both_admin_plans_read_the_paste_even_with_different_records_and_adoptions() {
         .setup
         .lifecycle
         .adoptions
-        .insert(
-            1,
-            lifecycle::Adoption {
-                next: core::num::NonZeroU64::new(1).unwrap(),
-                repositories: 1,
-
-            },
-        )
+        .insert(1, lifecycle::Adoption { next: core::num::NonZeroU64::new(1).unwrap(), repositories: 1 })
         .unwrap();
     let carried = {
         let value = bundle(1, ADMIN);
@@ -516,7 +514,9 @@ fn pending(service: &mut crate::Service) -> Token {
         crate::engine::iterate(engine, Time::ZERO, Wall::EPOCH);
         if let Some((run, _)) = engine.setup.public.first() {
             let run = *run;
-            for _ in 0_u8..4 { crate::engine::iterate(engine, Time::ZERO, Wall::EPOCH); }
+            for _ in 0_u8..4 {
+                crate::engine::iterate(engine, Time::ZERO, Wall::EPOCH);
+            }
             scan(engine);
             return run;
         }
@@ -534,7 +534,13 @@ fn busy_admin_connect_erases_its_unused_paste() {
     let number = records::CARRIED.checked_add(1).unwrap();
     engine.store.secrets(Token::new(901), fixtures::application_request(number, value));
     let actual = engine.store.above.pop();
-    assert!(matches!(actual, Some(StoreEvent::Carried { number: found, .. }) if found == number), "carry answer: {actual:?}");
+    assert!(
+        match actual {
+            Some(StoreEvent::Carried { number: found, .. }) => found == number,
+            _ => false,
+        },
+        "carry answer: {actual:?}"
+    );
     public::admin_connect(engine, 1, Token::new(92), None, jig_domain_core::Carried { number, digest });
     assert_eq!(engine.store.erases, 1);
     assert!(

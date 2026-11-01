@@ -34,9 +34,7 @@ impl Statics {
         }
     }
 }
-pub(super) fn fixed(
-    config: &crate::settings::Engine,
-) -> Result<(host::Settings, host::Limits), Problems> {
+pub(super) fn fixed(config: &crate::settings::Engine) -> Result<(host::Settings, host::Limits), Problems> {
     let statics = Statics::new(config, false);
     let own = &statics.limits;
     check(&own.setup)?;

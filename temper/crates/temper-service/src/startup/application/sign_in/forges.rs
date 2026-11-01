@@ -1,8 +1,6 @@
 //! The provider clients joined to Forgejo (protocol/sign-in.md, 9.7).
 use super::super::read;
-use crate::{
-    startup::{Problems, What},
-};
+use crate::startup::{Problems, What};
 use alloc::boxed::Box;
 use jig_protocol_config::{self as config, Path};
 use skein_json::Document;

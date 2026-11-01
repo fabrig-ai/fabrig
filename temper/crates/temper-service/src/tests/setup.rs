@@ -193,10 +193,8 @@ fn an_install_can_evict_a_manifests_state_while_its_page_lives() {
     assert!(let_done(terminal(&mut service)));
     assert!(service.setup_page(1, &state, Time::ZERO).is_some());
     // The slug above only made an Install-purpose state; no App remains in this host-state fixture.
-    service.engine.as_mut().expect("engine").forge_records.rows = crate::forge::records::Loader::new(
-        &fixtures::engine().limits,
-    )
-    .rows;
+    service.engine.as_mut().expect("engine").forge_records.rows =
+        crate::forge::records::Loader::new(&fixtures::engine().limits).rows;
     start(&mut service, 3, host::Plan::Convert { forge: 1, code: code(), state });
     let root::SetupEnd::Stopped { forge, reason } = terminal(&mut service) else { panic!("evicted state refused") };
     assert_eq!(forge, 1);
@@ -435,10 +433,10 @@ fn tls_forges() -> (crate::settings::Engine, List<crate::ForgeRuntime>) {
     )
     .unwrap();
     let mut config = github_config(8, Duration::from_secs(3600), None);
-    config.machine.github.api.transport = domain::ApiTransport::Tls { server_name: b"first.test".as_slice().into(), trust: None };
+    config.machine.github.api.transport =
+        domain::ApiTransport::Tls { server_name: b"first.test".as_slice().into(), trust: None };
     let mut runtime = List::with_capacity(2);
-    for (number, name, address) in [(1, "first.test", [192, 0, 2, 7]), (2, "second.test", [192, 0, 2, 8])]
-    {
+    for (number, name, address) in [(1, "first.test", [192, 0, 2, 7]), (2, "second.test", [192, 0, 2, 8])] {
         let (trust, _) = skein_tls::Config::from_der(core::slice::from_ref(&root), &[name.as_bytes()]).unwrap();
         runtime
             .push(crate::ForgeRuntime {
@@ -590,10 +588,9 @@ fn invalid_host_limits_stop_after_load_and_setup_overrides_are_checked() {
     let mut config = github_config(8, Duration::from_secs(3600), None);
     config.limits.forge_component.inner = 13;
     config.limits.picker.page = 1;
-    service.engine.as_mut().expect("engine").setup =
-        prepare(&config, &fixtures::seeds().crypto, false).unwrap();
+    service.engine.as_mut().expect("engine").setup = prepare(&config, &fixtures::seeds().crypto, false).unwrap();
     let record = config.machine.github.clone();
-    crate::setup::register(service.engine.as_mut().unwrap(), &record);
+    register(service.engine.as_mut().unwrap(), &record);
     advance(service.engine.as_mut().expect("engine"));
     assert!(service.end().is_none());
     assert!(service.engine.as_ref().unwrap().setup.unserved.contains_key(&1));
@@ -627,7 +624,9 @@ fn stopped_connection_text_has_a_fixed_bound() {
     }
 }
 fn configured(runs: u32, states: u32, tls: bool) -> (crate::settings::Engine, List<crate::ForgeRuntime>) {
-    let (mut config, runtime) = if tls { tls_forges() } else {
+    let (mut config, runtime) = if tls {
+        tls_forges()
+    } else {
         (github_config(states, Duration::from_secs(3600), None), fixtures::forge_runtime())
     };
     config.limits.setup.runs = runs;
@@ -645,7 +644,6 @@ mod lifecycle_tests;
 #[path = "setup_adoption.rs"]
 mod adoption_tests;
 
-
 #[path = "git_tokens.rs"]
 mod git_tokens;
 
@@ -658,7 +656,9 @@ pub(crate) fn local_config(records: bool, fake: bool) -> crate::settings::Engine
     record.bot.login = b"temper".as_slice().into();
     record.setup = Some(if fake {
         br#"{"bot":{"login":"temper","email":"temper@example.test"},"mode":{"fake":{"listen":{"socket":"127.0.0.1:9"},"git":"/data/git","owner":"demo","repositories":[{"name":"widget","landing":"main"}]}}}"#.as_slice().into()
-    } else { fixtures::owned_body().into() });
+    } else {
+        fixtures::owned_body().into()
+    });
     config.machine.owned = Some(record);
     config.limits.forge.client.repositories = 3;
     config.limits.forge.output = 96;
@@ -751,13 +751,22 @@ pub(crate) fn local_repository() -> domain::Repository {
         },
     }
 }
+#[expect(clippy::manual_map, reason = "the test fixture uses explicit matches")]
 pub(crate) fn local_service(config: crate::settings::Engine, store: crate::store::Store) -> crate::Service {
-    let mut record = match &config.machine.owned { Some(record) => record.clone(), None => config.machine.github.clone() };
+    let mut record = match &config.machine.owned {
+        Some(record) => record.clone(),
+        None => config.machine.github.clone(),
+    };
     record.number = 1;
-    let handover = match config.files.contents(b"/fixture/handover") { Some(bytes) => Some(Secret::new(bytes.into())), None => None };
+    let handover = match config.files.contents(b"/fixture/handover") {
+        Some(bytes) => Some(Secret::new(bytes.into())),
+        None => None,
+    };
     let mut service = crate::Service::engine(config, &fixtures::seeds(), None).unwrap();
     fixtures::register_forges(&mut service, &[record]);
-    if let Some(handover) = handover { service.engine.as_mut().unwrap().setup.lifecycle.local_mut(1).unwrap().handover = Some(handover); }
+    if let Some(handover) = handover {
+        service.engine.as_mut().unwrap().setup.lifecycle.local_mut(1).unwrap().handover = Some(handover);
+    }
     service.engine.as_mut().unwrap().store = store;
     service
 }
@@ -1226,7 +1235,7 @@ fn restart_always_takes_a_present_handover_even_when_the_record_differs() {
 }
 #[test]
 fn an_asked_forge_takes_its_handover_at_started_and_connects() {
-    let mut config = local_config(true, false);
+    let config = local_config(true, false);
     let mut service = local_service(config, local_store(false));
     restore_local(&mut service);
     assert!(!service.engine.as_ref().unwrap().setup.lifecycle.local(1).unwrap().pending);
@@ -1498,7 +1507,6 @@ mod admin_tests;
 #[path = "setup_create.rs"]
 mod create_tests;
 
-
 fn demo_config() -> crate::settings::Engine {
     local_config(true, false)
 }
@@ -1604,7 +1612,9 @@ fn github_service(config: crate::settings::Engine) -> crate::Service {
 fn inject_handover(config: &mut crate::settings::Engine, value: Secret) {
     let mut entries = List::with_capacity(config.files.entries.len().checked_add(1).unwrap());
     for (path, bytes) in core::mem::replace(&mut config.files.entries, List::with_capacity(0)).into_boxed() {
-        if path.as_ref() != b"/fixture/handover" { entries.push((path, bytes)).unwrap(); }
+        if path.as_ref() != b"/fixture/handover" {
+            entries.push((path, bytes)).unwrap();
+        }
     }
     entries.push((b"/fixture/handover".as_slice().into(), value)).unwrap();
     config.files.entries = entries;

@@ -15,7 +15,6 @@ pub(crate) struct Deployment {
     pub ports: Box<[std::net::SocketAddr]>,
 }
 
-#[expect(clippy::too_many_lines, reason = "deployment checks share the named machine and listener facts")]
 pub(crate) fn check_with(
     bytes: &[u8],
     directories: &config::Directories,

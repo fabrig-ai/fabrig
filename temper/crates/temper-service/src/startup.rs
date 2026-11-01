@@ -499,7 +499,11 @@ fn load_document(
         &mut problems,
     );
     checks::limits(&application.limits, &application.limits.git_component, &mut problems);
-    checks::names(checks::longest_remote(&application.machine, application.limits.forge.name_bytes), &application.limits, &mut problems);
+    checks::names(
+        checks::longest_remote(&application.machine, application.limits.forge.name_bytes),
+        &application.limits,
+        &mut problems,
+    );
     if let Some(worker) = workers.first() {
         checks::sockets(
             engine.as_ref().expect("required engine checked"),
@@ -612,7 +616,6 @@ struct CheckedStart {
 /// Every check startup makes, without constructing a service.
 /// # Errors
 /// The problems startup would refuse with, in its order.
-#[expect(clippy::too_many_arguments, reason = "the same inputs as startup, including its checked setup")]
 pub fn check(
     document: &[u8],
     directories: &config::Directories,
@@ -620,20 +623,19 @@ pub fn check(
     agent: &settings::Agent,
     seeds: &settings::Seeds,
     _accounts: Option<&AccountsRuntime>,
-    _setup: Option<&temper_forge_setup::check::Checked>,
+    setup: Option<&temper_forge_setup::check::Checked>,
 ) -> Result<(), Problems> {
     if shape(document, directories)? == Shape::WorkerAlone {
         let mut part = worker_part(document, directories)?;
         check_worker_part(&mut part, files, agent)?;
         return Ok(());
     }
-    checked_start(document, directories, files, Some(agent), seeds, _setup)?;
+    checked_start(document, directories, files, Some(agent), seeds, setup)?;
     Ok(())
 }
 #[expect(
-    clippy::too_many_arguments,
     clippy::too_many_lines,
-    reason = "one checked startup pass preserves diagnostic order beside resolved setup and runtime facts"
+    reason = "one checked startup pass accumulates resolved settings and runtime diagnostics"
 )]
 fn checked_start_with(
     document: &[u8],
@@ -661,7 +663,9 @@ fn checked_start_with(
     let resolved = resolved.expect("resolved files checked");
     let own = &parsed.application.limits;
     checks::turns(Some(&parsed.engine.limits), &parsed.workers, own, agent, &mut problems);
-    let remote = u32::try_from(checks::longest_remote(&parsed.application.machine, own.forge.name_bytes).unwrap_or(u64::MAX)).ok();
+    let remote =
+        u32::try_from(checks::longest_remote(&parsed.application.machine, own.forge.name_bytes).unwrap_or(u64::MAX))
+            .ok();
     let engine_bounds = temper_protocol_worker_wire::Bounds {
         repositories: own.forge.resources_per_task,
         name_bytes: own.forge.name_bytes,
@@ -748,7 +752,10 @@ fn checked_start_with(
         None => checks::process_io(&engine.jig.limits.io, None),
     }
     .ok_or(problem(Path::root().member(b"engine").member(b"limits").member(b"io"), What::Jig(config::What::Bound)))?;
-    let prepared_forges = match crate::forge::prepare(&engine) { Ok(forges) => forges, Err(found) => return Err(Problems::jig(found, &Path::root())) };
+    let prepared_forges = match crate::forge::prepare(&engine) {
+        Ok(forges) => forges,
+        Err(found) => return Err(Problems::jig(found, &Path::root())),
+    };
     Ok(CheckedStart { engine, worker, io, forges: prepared_forges })
 }
 fn checked_start(
@@ -757,9 +764,9 @@ fn checked_start(
     files: &settings::Files,
     agent: Option<&settings::Agent>,
     seeds: &settings::Seeds,
-    _setup: Option<&temper_forge_setup::check::Checked>,
+    setup: Option<&temper_forge_setup::check::Checked>,
 ) -> Result<CheckedStart, Problems> {
-    checked_start_with(document, directories, files, agent, seeds, _setup, &crate::stock::Given::Stock)
+    checked_start_with(document, directories, files, agent, seeds, setup, &crate::stock::Given::Stock)
 }
 /// Build the engine and worker together from the parsed document and read files.
 #[expect(clippy::too_many_arguments, reason = "startup receives the same directories as named plus the runtime facts")]
@@ -773,20 +780,8 @@ pub fn startup_with(
     runtime: WorkerRuntime,
     given: &crate::stock::Given,
 ) -> Result<Service, Problems> {
-    with_setup_given(
-        document,
-        directories,
-        files,
-        Some(agent),
-        seeds,
-        accounts,
-        Some(runtime),
-        None,
-        None,
-        given,
-    )
+    with_setup_given(document, directories, files, Some(agent), seeds, accounts, Some(runtime), None, None, given)
 }
-#[expect(clippy::too_many_arguments, reason = "the Stock entry retains the existing startup inputs")]
 pub fn startup(
     document: &[u8],
     directories: &config::Directories,
@@ -808,12 +803,12 @@ pub fn with_setup_given(
     seeds: &settings::Seeds,
     accounts: Option<AccountsRuntime>,
     runtime: Option<WorkerRuntime>,
-    _setup: Option<&temper_forge_setup::check::Checked>,
+    setup: Option<&temper_forge_setup::check::Checked>,
     box_line_bytes: Option<u32>,
     given: &crate::stock::Given,
 ) -> Result<Service, Problems> {
     let CheckedStart { engine, worker, io, forges } =
-        checked_start_with(document, directories, files, agent, seeds, _setup, given)?;
+        checked_start_with(document, directories, files, agent, seeds, setup, given)?;
     let worker = match worker {
         Some(worker) => match Worker::new(
             &worker,
@@ -828,7 +823,10 @@ pub fn with_setup_given(
         },
         None => None,
     };
-    match Service::prepared(engine, seeds, accounts, forges, worker, io, box_line_bytes) { Ok(service) => Ok(service), Err(found) => Err(Problems::jig(found, &Path::root())) }
+    match Service::prepared(engine, seeds, accounts, forges, worker, io, box_line_bytes) {
+        Ok(service) => Ok(service),
+        Err(found) => Err(Problems::jig(found, &Path::root())),
+    }
 }
 #[expect(clippy::too_many_arguments, reason = "the Stock entry retains the existing startup inputs")]
 pub fn with_setup(
@@ -839,7 +837,7 @@ pub fn with_setup(
     seeds: &settings::Seeds,
     accounts: Option<AccountsRuntime>,
     runtime: Option<WorkerRuntime>,
-    _setup: Option<&temper_forge_setup::check::Checked>,
+    setup: Option<&temper_forge_setup::check::Checked>,
     box_line_bytes: Option<u32>,
 ) -> Result<Service, Problems> {
     with_setup_given(
@@ -850,7 +848,7 @@ pub fn with_setup(
         seeds,
         accounts,
         runtime,
-        _setup,
+        setup,
         box_line_bytes,
         &crate::stock::Given::Stock,
     )

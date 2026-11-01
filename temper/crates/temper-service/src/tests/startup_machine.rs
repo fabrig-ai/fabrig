@@ -19,7 +19,8 @@ const PROJECT: &[u8] = br#"{"name":"Playground","policy":1}"#;
 fn document(machine: Option<&str>) -> Box<[u8]> {
     let input = fixtures::document();
     let input = core::str::from_utf8(&input).unwrap();
-    let bare = r#""machine":{"owned":null,"github":{"api":null,"transport":null,"git":null,"web":null},"git_program":null},"#;
+    let bare =
+        r#""machine":{"owned":null,"github":{"api":null,"transport":null,"git":null,"web":null},"git_program":null},"#;
     match machine {
         Some(machine) => input.replace(bare, &format!("\"machine\":{machine},")).into_bytes().into_boxed_slice(),
         None => input.replace(bare, "").into_bytes().into_boxed_slice(),
@@ -89,7 +90,6 @@ fn a_document_with_no_forge_identity_or_setup_starts() {
     assert_eq!(named.machine, Machine::bare());
     let service = start(&input);
     assert_eq!(service.engine_domain().unwrap().forges().rows.len(), 0);
-
 }
 #[test]
 fn the_machines_owned_body_becomes_an_owned_record_template() {
@@ -222,7 +222,10 @@ fn a_demo_of_t4s_shape_reads_its_fake_body_and_project() {
 #[test]
 fn a_demo_project_name_past_64_bytes_or_policy_0_is_refused() {
     let name = "x".repeat(PROJECT_NAME_BYTES);
-    let input = demo(&document(Some(&machine("null", GITHUB, "null"))), format!(r#"{{"name":"{name}","policy":4294967295}}"#).as_bytes());
+    let input = demo(
+        &document(Some(&machine("null", GITHUB, "null"))),
+        format!(r#"{{"name":"{name}","policy":4294967295}}"#).as_bytes(),
+    );
     start(&input);
     for (project, member, what) in [
         (format!(r#"{{"name":"{name}x","policy":1}}"#), b"name".as_slice(), config::What::Bound),
@@ -278,7 +281,10 @@ fn unknown(member: &[u8]) {
     for value in ["[]", "null", "7", "{}"] {
         let input = fixtures::document();
         let input = core::str::from_utf8(&input).unwrap().replacen(
-            "\"application\":{", &format!("\"application\":{{\"{}\":{value},", core::str::from_utf8(member).unwrap()), 1);
+            "\"application\":{",
+            &format!("\"application\":{{\"{}\":{value},", core::str::from_utf8(member).unwrap()),
+            1,
+        );
         assert_problem(input.as_bytes(), Path::root().member(b"application").member(member), config::What::Unknown);
     }
 }
@@ -290,7 +296,11 @@ fn a_document_without_machine_is_refused() {
 fn a_demo_of_todays_shape_is_refused() {
     let input = demo(&fixtures::document(), PROJECT);
     for member in [b"forge".as_slice(), b"project"] {
-        let input = fixtures::with(&input, &format!("application.demo.{}", core::str::from_utf8(member).unwrap()).into_bytes(), b"1");
+        let input = fixtures::with(
+            &input,
+            &format!("application.demo.{}", core::str::from_utf8(member).unwrap()).into_bytes(),
+            b"1",
+        );
         assert_problem(&input, Path::root().member(b"application").member(b"demo").member(member), config::What::Form);
     }
 }
