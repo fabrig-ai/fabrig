@@ -89,6 +89,20 @@ fn substitute_placeholders(word: &str) -> String {
 }
 
 #[test]
+fn box_walk_reads_the_conversation_after_waiting_for_a_reply() {
+    let page = temper_docs::find(b"box").expect("box walk");
+    let (_, steps) = page.text.split_once("\n## 6. ").expect("step 6");
+    let (step, _) = steps.split_once("\n## 7. ").expect("step 7");
+    let commands = fenced_lines(step);
+    assert!(
+        commands.windows(2).any(|pair| {
+            pair[0].1 == "temper ctl DIR task show TASK --until replied" && pair[1].1 == "temper ctl DIR chat show TASK"
+        }),
+        "box step 6 must read the conversation immediately after waiting for a reply"
+    );
+}
+
+#[test]
 fn every_command_line_in_the_pages_parses() {
     let mut ctl = 0;
     let mut binary = 0;

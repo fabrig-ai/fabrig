@@ -230,19 +230,21 @@ address again, then wait again.
 ```
 temper ctl DIR chat start --project PROJECT - --key KEY < REQUEST
 temper ctl DIR task show TASK --until replied
+temper ctl DIR chat show TASK
 temper ctl DIR task show TASK --tree
 ```
 
-`TASK` is the chat's number, which the first call prints; the tree
-lists the change it started, `CHANGE`.
+The first call names `TASK`; its tree names `CHANGE`.
+`chat show` prints the conversation and continuation commands for
+earlier pages.
 
-Expect: `done: task TASK, chat`; the wait prints the task, its first
-line `task TASK · chat · ` and its phase, then `met`.
+Expect: `done: task TASK, chat`; the wait's panel starts
+`task TASK · chat · ` and its phase, then `met`; `chat show` prints
+the agent's reply.
 
-If not: on fake backends, the model answers every request with
-`Hello from the local fake model.` and starts no change: go to step 8.
-A chat refused with `chat exceeds offered bounds` (exit 1) asks for
-more than the project allows your party: read `me`.
+If not: fake backends reply `Hello from the local fake model.`
+without a change: go to step 8. `chat exceeds offered bounds`
+(exit 1): read `me` for your party's bounds.
 
 ## 7. Follow the change to its landing
 
