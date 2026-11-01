@@ -69,11 +69,14 @@ fn facts(project: &c::Project, out: &mut Encoder, budget: &mut Cut) {
         super::encode_owner_part(&resource.part, out, budget);
         out.key(b"role");
         out.string(match resource.role {
+            c::ProjectResourceRole::Fork => b"fork",
             c::ProjectResourceRole::Owned => b"owned",
             c::ProjectResourceRole::Participant => b"participant",
             c::ProjectResourceRole::Unavailable => b"unavailable",
             c::ProjectResourceRole::Context => b"context",
         });
+        out.key(b"home");
+        out.boolean(resource.home);
         out.object_end();
     }
     out.array_end();
