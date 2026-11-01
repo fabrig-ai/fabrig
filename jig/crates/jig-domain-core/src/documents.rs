@@ -396,6 +396,9 @@ pub fn make(
     }
     let window = &Window { rows: window.rows.min(limits.documents.rows), ..*window };
     core.people.identity(party).ok_or(Missing::Unknown)?;
+    if core.deleting_subject(subject) {
+        return Err(Missing::Unknown);
+    }
     match subject {
         Subject::Application { .. } => Err(Missing::Unknown),
         Subject::Frame { party: owner } => {

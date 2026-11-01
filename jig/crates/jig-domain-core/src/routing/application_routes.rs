@@ -105,6 +105,17 @@ pub(super) fn admitted(
     scope: people::ApplicationScope,
     role: Option<people::Role>,
 ) {
+    let deleting = match scope {
+        people::ApplicationScope::Project(project) => core.deleting(project),
+        people::ApplicationScope::Own | people::ApplicationScope::Deployment => false,
+    };
+    if deleting {
+        work.push(Event::People(people::Event::Decided {
+            request,
+            outcome: people::Outcome::Refused(people::Refusal::Unknown),
+        }));
+        return;
+    }
     let input = core.application_input.take();
     let carried = match input {
         Some(input) => input.carried,

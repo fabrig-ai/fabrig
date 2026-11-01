@@ -680,7 +680,7 @@ pub(super) fn route_period(
         Some(policy) => budget <= policy.period_spend,
         None => false,
     };
-    if period > 0 && period >= core.period(project) && allowed {
+    if !core.deleting(project) && period > 0 && period >= core.period(project) && allowed {
         if period != core.period(project) {
             core.touch_frames();
         }
@@ -712,7 +712,9 @@ pub(super) fn route_start_recurring(
     authority: tasks::Authority,
     template: tasks::RecurringTemplate,
 ) -> Requests {
-    start_recurring(core, work, project, authority, template);
+    if !core.deleting(project) {
+        start_recurring(core, work, project, authority, template);
+    }
     let mut out = Queue::uncapped();
     out.push(Request::Decided);
     Requests::Out(out)
