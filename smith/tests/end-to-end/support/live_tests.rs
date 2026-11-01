@@ -130,8 +130,8 @@ fn pinned_product_check(conversations: i64) -> smith_bench::process::ProcessResu
         },
     )
     .expect("check settles");
-    assert!(!root.join("unopened").exists());
-    assert_eq!(std::fs::read_dir(&private.state).expect("scratch state").count(), 0);
+    assert!(!root.join("unopened").exists(), "check never creates execution output");
+    assert_eq!(std::fs::read_dir(&private.state).expect("scratch state").count(), 0, "check writes no execution state");
     result
 }
 
