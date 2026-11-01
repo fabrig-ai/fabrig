@@ -2,6 +2,13 @@
 
 2026-11-01. Where temper's code lags or departs from [forge.md](forge.md).
 
+- **Built:** 5.3, 8.3: an agent's forge-read admission Busy uses the host's
+  bounded backoff instead of a model-visible error. Root-domain review
+  tests cover the full call slab, the foreground share with background
+  work due, cancellation during backoff, terminal errors, and one correct
+  answer per read after capacity progresses. The regression carries B1
+  edition 2's first review, task activity 6, without a model turn.
+
 - **Built:** 5.1, 5.2: a changed pull invalidates an in-flight fresh-read chain before its procedure decides, including CI-only progress at an unchanged head and PR metadata. Root-domain tests cover first discovery, a repair push and coalesced wakes; GitHub protocol tests cover a ninety-second failing CI without delivery hints.
 
 - **Built:** 6, 8.5, 16: changes ignore closed or merged history on reused branch names unless the recorded pull number or pushed head matches. A known pull is read by number; an unknown open pull or one at the pushed head is recovered across restart.
