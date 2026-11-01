@@ -75,6 +75,7 @@ pub(crate) fn message_kind_fields(value: &w::MessageKind, limits: &Limits) -> Re
         w::MessageKind::Met(row) => c::MessageKind::Met { dependency: row.dependency(), removed: row.removed() },
         w::MessageKind::QuestionAnswered(row) => c::MessageKind::QuestionAnswered { question: row.question() },
         w::MessageKind::QuestionOwed => c::MessageKind::QuestionOwed,
+        w::MessageKind::NothingAwaited => c::MessageKind::NothingAwaited,
         w::MessageKind::QuestionEnded(row) => c::MessageKind::QuestionEnded { question: row.question() },
         w::MessageKind::Words => c::MessageKind::Words,
         w::MessageKind::EffectNotMade(row) => c::MessageKind::EffectNotMade { entry: row.entry() },

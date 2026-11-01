@@ -24,6 +24,16 @@ pub(crate) fn question_owed_due(core: &mut Core, env: &Env<Limits>, task: u64, p
     }
 }
 
+pub(crate) fn nothing_awaited_due(core: &mut Core, env: &Env<Limits>, task: u64, pending: &mut Queue<tasks::Request>) {
+    let message =
+        crate::fresh(&mut core.counters, crate::Family::Message).expect("nothing-awaited notice number admitted");
+    let mut follow = Queue::uncapped();
+    crate::routing::step::step_tasks(core, env, tasks::Event::NothingAwaitedNotice { task, message }, &mut follow);
+    for _ in 0..follow.len() {
+        pending.push(follow.pop().expect("nothing-awaited notice output count"));
+    }
+}
+
 pub(crate) fn question_ended_due(
     core: &mut Core,
     env: &Env<Limits>,

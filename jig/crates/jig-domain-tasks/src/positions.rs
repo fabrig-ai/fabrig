@@ -50,6 +50,7 @@ pub(crate) fn message(task: &mut TaskRecord, word: &Word, bound: u32) {
         | MessageKind::Met { .. }
         | MessageKind::QuestionAnswered { .. }
         | MessageKind::QuestionOwed
+        | MessageKind::NothingAwaited
         | MessageKind::QuestionEnded { .. }
         | MessageKind::Notice { .. }
         | MessageKind::Timer { .. }

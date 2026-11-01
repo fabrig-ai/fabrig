@@ -120,9 +120,10 @@ pub enum ActivityPhrase {
     KeptQuestion,
     QuestionAnswered,
     QuestionOwed,
+    NothingAwaited,
 }
 // Activity captions include question outcomes and the requester obligation.
-pub const ALL: [ActivityPhrase; 111] = [
+pub const ALL: [ActivityPhrase; 112] = [
     ActivityPhrase::Activity,
     ActivityPhrase::Task,
     ActivityPhrase::Position,
@@ -234,6 +235,7 @@ pub const ALL: [ActivityPhrase; 111] = [
     ActivityPhrase::KeptQuestion,
     ActivityPhrase::QuestionAnswered,
     ActivityPhrase::QuestionOwed,
+    ActivityPhrase::NothingAwaited,
 ];
 impl ActivityPhrase {
     #[must_use]
@@ -354,6 +356,7 @@ impl ActivityPhrase {
             Self::KeptQuestion => 7309,
             Self::QuestionAnswered => 7310,
             Self::QuestionOwed => 7311,
+            Self::NothingAwaited => 7312,
         };
         PhraseId { owner: Owner::Jig.opaque(), number }
     }
@@ -436,7 +439,8 @@ impl ActivityPhrase {
             | Self::Change
             | Self::ResultFailed
             | Self::ResultCancelled
-            | Self::QuestionOwed => None,
+            | Self::QuestionOwed
+            | Self::NothingAwaited => None,
             Self::Task
             | Self::Position
             | Self::Message
@@ -590,6 +594,7 @@ impl ActivityPhrase {
             Self::KeptQuestion => b"Kept by question: ",
             Self::QuestionAnswered => b"Person answered question in inbox: ",
             Self::QuestionOwed => b"Owes a question: ask your requester",
+            Self::NothingAwaited => b"Nothing left to await: finish with your result",
         }
     }
 }

@@ -139,6 +139,7 @@ fn kind(b: &mut Builder, value: &MessageKind, words: &Words) {
         }
         MessageKind::QuestionAnswered { question } => number(b, words, P::QuestionAnswered, *question),
         MessageKind::QuestionOwed => caption(b, words, P::QuestionOwed),
+        MessageKind::NothingAwaited => caption(b, words, P::NothingAwaited),
         MessageKind::QuestionEnded { question } => number(b, words, P::QuestionEnded, *question),
         MessageKind::Met { dependency, removed } => words.text(
             b,

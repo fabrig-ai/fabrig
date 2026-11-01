@@ -367,6 +367,7 @@ fn payload(word: &crate::Word, limits: &Limits) -> Result<usize, RestoreCause> {
         | MessageKind::Met { .. }
         | MessageKind::QuestionAnswered { .. }
         | MessageKind::QuestionOwed
+        | MessageKind::NothingAwaited
         | MessageKind::QuestionEnded { .. }
         | MessageKind::Notice { .. }
         | MessageKind::Timer { .. }
@@ -377,7 +378,10 @@ fn payload(word: &crate::Word, limits: &Limits) -> Result<usize, RestoreCause> {
 
 fn ordinary(kind: &MessageKind) -> bool {
     match kind {
-        MessageKind::Amendment { .. } | MessageKind::FinishRequested { .. } | MessageKind::Met { .. } => false,
+        MessageKind::Amendment { .. }
+        | MessageKind::FinishRequested { .. }
+        | MessageKind::Met { .. }
+        | MessageKind::NothingAwaited => false,
         MessageKind::Words
         | MessageKind::Question
         | MessageKind::Answer { .. }
@@ -405,6 +409,10 @@ fn payload_bound(value: &TaskRecord, word: &crate::Word, limits: &Limits) -> (Re
         MessageKind::QuestionOwed => {
             (RestoreBound::ReminderBytes, u32::try_from(crate::questions::OWED_WORDS.len()).expect("fixed reminder"))
         }
+        MessageKind::NothingAwaited => (
+            RestoreBound::ReminderBytes,
+            u32::try_from(crate::run::NOTHING_AWAITED_WORDS.len()).expect("fixed reminder"),
+        ),
         MessageKind::Words
         | MessageKind::Question
         | MessageKind::Answer { .. }
@@ -461,7 +469,9 @@ fn inbox(value: &TaskRecord, limits: &Limits) -> Result<(), RestoreCause> {
             bytes = bytes.checked_add(size).ok_or(RestoreCause::Accounting)?;
         } else {
             match word.kind {
-                MessageKind::Met { .. } => met = met.checked_add(1).ok_or(RestoreCause::Accounting)?,
+                MessageKind::Met { .. } | MessageKind::NothingAwaited => {
+                    met = met.checked_add(1).ok_or(RestoreCause::Accounting)?;
+                }
                 MessageKind::Amendment { .. } | MessageKind::FinishRequested { .. } => {
                     amendments = amendments.checked_add(1).ok_or(RestoreCause::Accounting)?;
                 }
