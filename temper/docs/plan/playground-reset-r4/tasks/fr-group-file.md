@@ -9,6 +9,9 @@ files = [
   "temper/crates/temper-service/src/tests/group_file.rs",
   "temper/crates/temper-service/src/tests/box_link.rs",
   "temper/crates/temper-service/src/system.rs",
+  "temper/crates/temper/src/lib.rs",
+  "temper/crates/temper-service/src/tests/qa_box_link.rs",
+  "temper/crates/temper-service/src/tests/system.rs",
 ]
 effort = "high"
 minutes = 50
@@ -31,7 +34,9 @@ Acceptance:
   bool) -> Box<[u8]>` gives bytes that `temper_forge_setup::file::read`
   accepts and reads to the `Entry` the record stands for, for an owned
   (with runner, mirror and public origin), a fake and a managed entry;
-  paths are written absolute, as the record holds them.
+  paths are written absolute, as the record holds them, except an owned
+  entry's Forgejo or runner binary whose record fetch flag is set,
+  written `"fetched"` (protocol/setup.md, 8).
 - The box link's ask for a forge whose held record has a setup entry
   (`forge::table::record`, `fr-forge-added`) first writes the file:
   `box/groups` made 0700 if absent, the file stored whole (skein-io's
@@ -117,3 +122,23 @@ deadline and close its descriptors on shutdown, as the store's are.
 Rendering and the write's states stay in `route/group_file.rs`, the
 ask's state in `route/box_link.rs`. `fr-setup` also edits `system.rs`:
 keep the change to those places so the merge stays small.
+
+2026-11-01. Where does the link get `<data>`, and how is a fetched
+binary written? Option A for both. (1) The data directory: in
+`temper/crates/temper/src/lib.rs`, in the boxed branch only, open
+`directories.data` (already made private by `Directories::open`) with
+`skein_shell::make_root(.., 0o700)`, push it to `owned`, and pass it
+with the effective user to `adopt_box`, which now takes `(requests,
+answers, data: Fd, effective_user: u32, line_bytes)` and hands both to
+the link, as `adopt_store` hands the deployment root to the store; on
+refusal the caller keeps the descriptor. The link opens its own
+directory beneath that root (`OpenDirectory`, as `store.rs` does) and
+closes its descriptors at shutdown. Repair the callers of `adopt_box`
+(`system.rs`'s own test, `tests/system.rs`, `tests/qa_box_link.rs`;
+now in `files`) with a fixture descriptor, and their expected io where
+a box start now writes its file first; nothing else in those files.
+(2) Fetched binaries: `render` writes `"fetched"` for
+`mode.owned.forgejo` and for the runner's binary when the record's
+`fetch.forgejo` / `fetch.runner` is set, the stored absolute path
+otherwise: that is the entry's form in protocol/setup.md, 8, and reads
+back to the same `Entry`. The reader and the file format are unchanged.
