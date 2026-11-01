@@ -21,12 +21,12 @@ fn note_project(scope: &notes::Scope) -> u32 {
 pub(super) fn scope_allowed(core: &Core, party: u64, scope: &Scope) -> bool {
     match scope {
         Scope::ProjectRows { .. } | Scope::TaskRows { .. } => false,
-        Scope::SettingsHistory { .. } => core.people.role(party, jig_domain_people::DEPLOYMENT).is_some(),
+        Scope::SettingsHistory { .. } => core.visible_role(party, jig_domain_people::DEPLOYMENT).is_some(),
         Scope::Tasks { query } => documents::task_query::admission(core, party, query).is_ok(),
-        Scope::Notes { project } | Scope::Spend { project } => core.people.role(party, *project).is_some(),
-        Scope::ScopedNotes { scope, .. } => core.people.role(party, note_project(scope)).is_some(),
+        Scope::Notes { project } | Scope::Spend { project } => core.visible_role(party, *project).is_some(),
+        Scope::ScopedNotes { scope, .. } => core.visible_role(party, note_project(scope)).is_some(),
         Scope::Inbox { filter, .. } => match filter.project {
-            Some(project) => core.people.role(party, project).is_some(),
+            Some(project) => core.visible_role(party, project).is_some(),
             None => true,
         },
         Scope::Task { task }
@@ -40,7 +40,7 @@ pub(super) fn scope_allowed(core: &Core, party: u64, scope: &Scope) -> bool {
         | Scope::History { task, .. }
         | Scope::Activity { task }
         | Scope::Proposal { proposer: Proposer::Task(task), .. } => match core.tasks.task(*task) {
-            Some(row) => core.people.role(party, row.project).is_some(),
+            Some(row) => core.visible_role(party, row.project).is_some(),
             None => true,
         },
         Scope::Proposal { proposer: Proposer::Party(_), .. } => true,
@@ -1122,7 +1122,7 @@ fn inbox_row(
             for entry in &entries {
                 let addressed = match entry.whom {
                     jig_domain_people::Whom::Person(person) => person == party,
-                    jig_domain_people::Whom::Role { project, role } => match core.people.role(party, project) {
+                    jig_domain_people::Whom::Role { project, role } => match core.visible_role(party, project) {
                         Some(held) => held.number() == role,
                         None => false,
                     },
@@ -1205,7 +1205,7 @@ fn person_proposal_need(
         match entry.whom {
             jig_domain_people::Whom::Person(person) => addressed = addressed || person == party,
             jig_domain_people::Whom::Role { project, role } => {
-                if let Some(held) = core.people.role(party, project) {
+                if let Some(held) = core.visible_role(party, project) {
                     addressed = addressed || held.number() == role;
                 }
             }
@@ -1633,7 +1633,7 @@ fn hydrate_task(
                         }
                     },
                 };
-                if core.people.role(party, parent.project).is_none() {
+                if core.visible_role(party, parent.project).is_none() {
                     return Err(Missing::NotAllowed);
                 }
                 if parent.tracked.is_some() {
@@ -1676,7 +1676,7 @@ fn hydrate_links(
         if let Some(owner) = linked_row(row, number)
             && ended(owner)
         {
-            if core.people.role(party, owner.project).is_none() {
+            if core.visible_role(party, owner.project).is_none() {
                 return Err(Missing::NotAllowed);
             }
             *link = documents::TaskLink::Retained {

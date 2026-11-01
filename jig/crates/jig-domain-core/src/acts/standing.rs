@@ -4,6 +4,9 @@ use crate::Core;
 use jig_domain_people as people;
 
 pub(crate) fn role(core: &Core, project: u32, held: Option<people::Role>, act: Act) -> Result<(), people::Refusal> {
+    if core.deleting(project) {
+        return Err(people::Refusal::Unknown);
+    }
     match act {
         Act::Reorder => match held {
             Some(people::Role::Owner | people::Role::Maintainer) => Ok(()),

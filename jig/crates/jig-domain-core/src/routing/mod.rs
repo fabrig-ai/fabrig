@@ -8,6 +8,7 @@ pub(crate) mod amendment_reads;
 pub(crate) mod application_routes;
 pub(crate) mod create;
 pub(crate) mod deadlines;
+mod deletion;
 mod deployment_acts;
 pub(crate) mod key_routes;
 pub(crate) mod party_inputs;

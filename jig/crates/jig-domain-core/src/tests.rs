@@ -3467,6 +3467,7 @@ mod virtual_words;
 mod templates;
 
 mod forget;
+mod deletion;
 
 mod coverage;
 
