@@ -20,6 +20,19 @@ pub(super) enum Caller {
     Accept { forge: u16, call: Token, back: Option<Box<[u8]>> },
     Reachable { forge: u16, request: Token },
 }
+impl Caller {
+    pub(super) fn forge(&self) -> u16 {
+        match self {
+            Self::Manifest { forge, .. }
+            | Self::Redirect { forge, .. }
+            | Self::Connect { forge, .. }
+            | Self::Install { forge, .. }
+            | Self::AcceptAsked { forge, .. }
+            | Self::Accept { forge, .. }
+            | Self::Reachable { forge, .. } => *forge,
+        }
+    }
+}
 #[derive(Debug)]
 pub(super) enum Pasted {
     App(Secret),
