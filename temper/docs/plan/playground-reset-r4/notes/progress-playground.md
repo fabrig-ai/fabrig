@@ -3,6 +3,7 @@
 ## Specs
 
 final: tasks/pg-words.md
+final: tasks/pg-project-page.md
 
 ## Parts
 
