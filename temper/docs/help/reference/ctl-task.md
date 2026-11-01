@@ -60,7 +60,9 @@ Read a task's activity from its end
 Prints: A line per event, oldest first, then `read on with: task activity TASK --before CURSOR` or `no more`
 --json: the record activity.
 Key: none.
-A turn prints as its size and `read with: task turn TASK TURN`.
+A turn prints whole, each part cut at 16 KB with `read on with:`;
+a turn past a page's bytes prints as its size and
+`read with: task turn TASK TURN`.
 With `--limit`, the page keeps its last COUNT lines, and `read on
 with:` repeats the read without the limit.
 ```

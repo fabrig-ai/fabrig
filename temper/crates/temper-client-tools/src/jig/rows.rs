@@ -101,7 +101,7 @@ pub const ACTIVITY: Tool = Tool {
     ]],
     keyed: Keyed::Never,
     area: 1,
-    notes: b"A turn prints as its size and `read with: task turn TASK TURN`.\nWith `--limit`, the page keeps its last COUNT lines, and `read on\nwith:` repeats the read without the limit.\n",
+    notes: b"A turn prints whole, each part cut at 16 KB with `read on with:`;\na turn past a page's bytes prints as its size and\n`read with: task turn TASK TURN`.\nWith `--limit`, the page keeps its last COUNT lines, and `read on\nwith:` repeats the read without the limit.\n",
 };
 pub const TURN: Tool = Tool {
     name: b"task turn",
