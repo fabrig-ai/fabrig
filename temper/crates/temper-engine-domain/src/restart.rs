@@ -403,6 +403,8 @@ pub(crate) fn restart_request(
             jig_domain_core::RestartStep::Open => {
                 let request = domain.core.restart_done(step);
                 assert_eq!(request, jig_domain_core::RestartRequest::Idle, "decisions open once");
+                let requests = jig_domain_core::resume_removals(&mut domain.core, &environment_core(env));
+                route_core_requests(domain, env, decision, requests);
                 for index in 0..domain.core.projects.len() {
                     let project = *domain.core.projects.get(index).expect("bounded core project");
                     let period = domain.core.period(project);

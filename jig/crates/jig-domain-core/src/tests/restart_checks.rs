@@ -389,3 +389,12 @@ fn a_removal_row_is_restored_into_the_core() {
     assert_eq!(restarted.restore_core(saved, &limits), Restored::Live);
     assert_eq!(restarted.removals.get(&PROJECT), Some(&Removal { project: PROJECT, stage: RemovalStage::Erasing }));
 }
+
+#[test]
+fn a_live_task_of_a_removing_project_resolves_before_switch() {
+    let (mut core, _, mut row) = live();
+    row.project = MISSING_PROJECT;
+    assert!(!core.task_references_resolve(&row));
+    core.removals.insert(MISSING_PROJECT, Removal { project: MISSING_PROJECT, stage: RemovalStage::Ending }).unwrap();
+    assert!(core.task_references_resolve(&row));
+}

@@ -782,6 +782,11 @@ fn decide(domain: &mut Domain, env: &Env<Limits>, first: Work) {
                     }
                     core::RestartStep::Open => {
                         let _request = domain.core.restart_done(step);
+                        let requests = core::resume_removals(
+                            &mut domain.core,
+                            &Env { now: env.now, wall: env.wall, limits: env.limits.core },
+                        );
+                        route_core(domain, env, &mut decision, requests, &mut work);
                     }
                     core::RestartStep::SettleOutbox { connector: number } => {
                         work.push(Work::Connector {

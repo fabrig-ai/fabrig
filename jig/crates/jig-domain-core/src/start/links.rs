@@ -128,7 +128,7 @@ impl Core {
         if project == people::DEPLOYMENT {
             return;
         }
-        assert!(self.authority.policy(project).is_some(), "{source:?} links missing project {project}");
+        assert!(self.project_resolves(project), "{source:?} links missing project {project}");
     }
 
     fn link_task(&self, source: &Key, task: u64) {

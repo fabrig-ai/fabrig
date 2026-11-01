@@ -210,6 +210,7 @@ fn a_task_requesters_ended_delegate_edge_is_erased() {
     let expected = BTreeSet::from([
         Key::Tasks(tasks::Key::Ended(TASK)),
         Key::Tasks(tasks::Key::EndedDelegate { requester: PARENT, task: TASK }),
+        Key::Tasks(tasks::Key::Delegate { requester: PARENT, task: TASK }),
         Key::Tasks(tasks::Key::Ledger(tasks::Funder::Task(TASK))),
         Key::Tasks(tasks::Key::ClosedLedger(tasks::Funder::Task(TASK))),
         Key::Tasks(tasks::Key::Stub(TASK)),

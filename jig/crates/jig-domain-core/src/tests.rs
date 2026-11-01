@@ -3831,3 +3831,5 @@ fn validity_keeps_document_settings_and_route_refusals() {
 }
 
 mod project_rows;
+
+mod removal_stages;

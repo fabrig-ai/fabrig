@@ -420,11 +420,13 @@ pub(crate) fn connector(
                 work.push(Event::Tasks(event));
             }
         }
+        connector::Event::ProjectReleased { request, project } => {
+            crate::routing::removal::released(core, work, &mut out, request, project);
+        }
         connector::Event::Procedure { .. }
         | connector::Event::SectionReady { .. }
         | connector::Event::WorkspaceReady { .. }
         | connector::Event::Adopted { .. }
-        | connector::Event::ProjectReleased { .. }
         | connector::Event::RestartDone { .. } => {}
     }
     end(&mut out);

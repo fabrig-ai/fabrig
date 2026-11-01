@@ -71,6 +71,10 @@ impl Core {
             },
             Phase::Open => {
                 self.start.phase = None;
+                let crate::Requests::Out(mut batch) = crate::resume_removals(self, env);
+                for _ in 0..batch.len() {
+                    out.push(batch.pop().expect("removal resume output"));
+                }
                 return Action::Idle;
             }
         };

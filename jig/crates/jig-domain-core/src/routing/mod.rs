@@ -68,7 +68,7 @@ pub(crate) mod procedure_steps;
 mod projects;
 mod proposal_revisions;
 pub(crate) mod refusals;
-mod removal;
+pub(crate) mod removal;
 mod run_controls;
 mod run_delegation;
 mod run_payloads;
@@ -465,6 +465,35 @@ pub fn resume_fleet(core: &mut Core, env: &Env<Limits>) -> Requests {
     let mut work = Queue::uncapped();
     let Requests::Out(mut out) = tag_fleet(core, env, &mut work, child);
     assert!(work.is_empty(), "fleet resumption produces no sibling continuations");
+    core.finish_extent(oldest, &mut out);
+    Requests::Out(out)
+}
+
+/// Resume kept deletions once the core's restart has opened decisions.
+pub fn resume_removals(core: &mut Core, env: &Env<Limits>) -> Requests {
+    core.start_runtime_input();
+    if core.stopping {
+        return crate::stopping::empty();
+    }
+    assert!(
+        core.restart == crate::restart::Restart::Open
+            || (core.start.mode == crate::start::StartMode::LoadAndLink && core.start.phase.is_none()),
+        "removals resume after Open"
+    );
+    let oldest = core.current.oldest;
+    core.run_now = env.now;
+    core.run_wall = env.wall;
+    let mut work = Queue::uncapped();
+    let mut out = Queue::uncapped();
+    removal::resume(core, env, &mut work, &mut out);
+    for _ in 0..env.limits.routes {
+        let Some(event) = work.pop() else { break };
+        let Requests::Out(mut batch) = step(core, env, event);
+        for _ in 0..batch.len() {
+            out.push(batch.pop().expect("removal resume output"));
+        }
+    }
+    assert!(work.is_empty(), "removal resume routes drained");
     core.finish_extent(oldest, &mut out);
     Requests::Out(out)
 }
