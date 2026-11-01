@@ -6,22 +6,21 @@ Run a whole deployment on one machine, on loopback, from its configuration to a 
 
 ## Before you start
 
-- **The binary:** `temper` on `PATH`, git 2.41 or later. From a checkout:
-  `scripts/install.sh "$HOME/.local"`; builds need Rust's
-  `wasm32-unknown-unknown` target.
+- **The binary:** `temper` on `PATH`, git 2.41+. Install from a checkout:
+  `scripts/install.sh "$HOME/.local"`; builds need `wasm32-unknown-unknown`.
 - **Real or fake backends:** choose before step 2; never mix them.
-  Real needs a model account, fetches Forgejo and its runner on first
-  use. Fake needs no account: GitHub, model, sign-in and remote Forgejo
-  are fakes on loopback; local Forgejo stays real. From a checkout, run
+  Real needs a model account and fetches Forgejo and its runner.
+  Fake needs no account: GitHub, model, sign-in and remote Forgejo
+  are faked on loopback; local Forgejo stays real. Build
   `cargo build -p temper -p temper-fake-claude` to put `fake-claude`
   beside `temper`, then `scripts/bundle.sh --loopback BUNDLE`.
 - **The directories:** `CONFIG`, `DATA` and `CACHE`: absolute, empty,
   private to you (0700), not reached through links. `DIR`: private to you. Nothing
   else may use these directories.
-- **A model account** on real backends: an exported login or API key
-  in a private file; a provider's browser sign-in on this machine; or
+- **A model account** for real backends: a private exported login or API
+  key file; browser sign-in here; or
   Claude Code (`claude` on `PATH`), signed in at step 5 or in a
-  configuration directory you hold.
+  configuration directory you own.
 - `BUNDLE`: the loopback bundle directory, on fake backends.
 - `REQUEST`: the change request file.
 - `CHANGE`: the change task's number (step 6).
@@ -51,10 +50,9 @@ Expect: `init: wrote DATA/worker.secret`; the last line names step 2's
 command for real backends.
 
 **Claude Code:** replace OpenAI's provider with Anthropic's below.
-`MODEL`: a Claude Code model, such as `sonnet` or `opus`.
-`PROGRAMS`: its private login directory, such as `DATA/programs`,
-or your signed-in directory's parent (step 5).
-`DIR` holds scratch copies.
+`MODEL`: a Claude Code model, e.g. `sonnet` or `opus`.
+`PROGRAMS`: its private login directory, e.g. `DATA/programs`,
+or your signed-in directory's parent (step 5). `DIR` holds scratch copies.
 
 ```
 jq --arg model MODEL '.engine.llm |= (
@@ -77,9 +75,11 @@ jq --arg model MODEL --arg claude "$(command -v claude)" --arg programs PROGRAMS
   CONFIG/agent.json > DIR/agent.json && cat DIR/agent.json > CONFIG/agent.json
 ```
 
-Expect: no output; `me` later lists provider 2, Anthropic, program
-`claude_code`. Use Claude Code's way in step 5. Keep the demo model
-to stay within init's limits.
+Expect: no output; `jq -c '[.engine.llm.models[].name]'
+CONFIG/temper.json` prints `["MODEL","demo"]`. Later, `me` lists
+provider 2, Anthropic, program `claude_code`; provider 1 is gone.
+Use Claude Code's way in step 5. Keep the demo: without it a turn
+outgrows init's limits.
 
 If not: `temper init: CONFIG/temper.json: already exists` (exit 1):
 Use empty directories.
@@ -150,21 +150,20 @@ into this existing project.
 temper ctl DIR forge setup --org work --repository hello --project PROJECT --key KEY
 ```
 
-Expect: `setting up`, then `project: PROJECT · NAME`, the project
-and its name, then `Adopted work/hello on forge FORGE as owned.` and
+Expect: `setting up`, then `project: PROJECT · NAME`,
+`Adopted work/hello on forge FORGE as owned.` and
 `It is the project's home.`
 
-At each Forgejo start the box prints its API and your login:
+Each Forgejo start prints its API and your login:
 
 ```
 Forgejo: api http://127.0.0.1:PORT/api/v1
 Forgejo: person LOGIN
 ```
 
-Your headers are `person_read.header` and `person_write.header` in
-`DATA/forge-FORGE/`: use `curl -H @PATH` to keep the header's token
-private. `person_password` beside them holds your first password;
-Forgejo lets you change it but does not require it.
+Headers: `person_read.header` and `person_write.header` in
+`DATA/forge-FORGE/`; use `curl -H @PATH` to keep tokens private.
+`person_password` holds your first password; changing it is optional.
 
 If not: past 300 seconds it prints the forges and `not met: timeout`
 (exit 3) while the box still fetches Forgejo: run `temper ctl DIR
@@ -182,7 +181,8 @@ A login exported from another deployment:
 temper ctl DIR account import FILE --key KEY
 ```
 
-A provider's browser sign-in; any HTTP client completes the fake:
+A provider's sign-in, opened in a browser on this machine; on fake
+backends, any HTTP client completes it:
 
 ```
 temper ctl DIR account connect PROVIDER --key KEY
@@ -205,9 +205,11 @@ temper ctl DIR account list
 temper ctl DIR account verify ACCOUNT --source program
 ```
 
-`program-login` signs Claude Code in here into `PROGRAMS/NAME`.
-For an existing login, set `PROGRAMS` to its parent, `NAME` to its
-name and skip `program-login`. Only one box uses it at a time.
+`program-login` signs Claude Code in through this terminal into
+`PROGRAMS/NAME`. To use an existing signed-in directory in place,
+set `PROGRAMS` to its parent and `NAME` to its name; skip
+`program-login`. temper neither moves nor reads it; only one box
+uses it at a time.
 
 Then:
 
@@ -215,8 +217,9 @@ Then:
 temper ctl DIR account list --until usable
 ```
 
-Expect: `moved in: account N`, an address, `done: add-key`, or
-`Program source S: NAME`, then `asked` for verify; the wait ends `met`.
+Expect: `moved in: account N`, the address to open, `done: add-key`,
+or `Program source S: NAME` and the command to run on each host,
+then `asked` for the verify; the wait ends with `met`.
 
 If not: `key file mode 0o644 permits group or other access` (exit 1):
 `chmod 600 FILE`, then the same call with the same key. The person's
@@ -280,9 +283,8 @@ temper ctl DIR account list
 temper ctl DIR account export ACCOUNT FILE
 ```
 
-`ACCOUNT` is the account whose source is `sign_in`, `granted`;
-`FILE` must not exist. Then stop the box with `SIGINT` (Ctrl-C) or
-`SIGTERM`.
+`ACCOUNT`: the account with source `sign_in`, `granted`;
+`FILE` must not exist. Stop with `SIGINT` (Ctrl-C) or `SIGTERM`.
 
 Expect: `moved out: account ACCOUNT to FILE`; the box's last line
 ends `Stopped`.
@@ -293,17 +295,14 @@ add a key again where needed.
 at TIME` (exit 2): no room for the move's answers; nothing moved.
 Keep the box running and export again after TIME.
 `temper ctl: unsent` (exit 1): the engine was busy; nothing moved.
-Export again later. Any other failure: keep the box running; the
-engine keeps the account and cancels the move at its deadline.
-Export again after it.
+Export later. Any other failure: keep running; the engine keeps the
+account and cancels the move at its deadline. Export after it.
 
 ## Clean up
 
-- `CONFIG`, `DATA` and `CACHE` hold the deployment: start the box
-  on the same three to resume. On fake backends, removing
+- Resume with the same `CONFIG`, `DATA` and `CACHE`. On fake backends, removing
   `DATA/box/fake-backends` resets it.
-- Keep `FILE` from step 8 private until an import on the next
-  deployment removes it.
+- Keep step 8's `FILE` private until the next deployment imports it.
 - Remove a key file once its account is usable, and `DIR` when done.
 
 ## Next

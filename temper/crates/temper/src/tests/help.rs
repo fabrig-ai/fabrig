@@ -211,6 +211,23 @@ fn help_prints_a_whole_page_and_names_an_unknown_one() {
 }
 
 #[test]
+fn box_help_funds_the_first_start_project_before_forge_setup() {
+    let page = help::answer(&configured(&["help", "box"])).expect("box page");
+    let sign_in = page.split("## 3. Sign in\n").nth(1).expect("sign-in step");
+    let (sign_in, setup) = sign_in.split_once("## 4. Set up Forgejo on this machine\n").expect("forge setup step");
+    let sign_in = sign_in.split_whitespace().collect::<Vec<_>>().join(" ");
+    assert!(sign_in.contains("First start made project 1 and its owner."), "{sign_in}");
+    assert!(sign_in.contains("After raising limits with `settings apply`"), "{sign_in}");
+    assert!(sign_in.contains("`project fund` for its period, then role 0's pool, with distinct keys"), "{sign_in}");
+    assert!(sign_in.contains("temper help weekly-budget"), "{sign_in}");
+    assert!(sign_in.contains("policy 1 sizes future projects"), "{sign_in}");
+    assert!(sign_in.contains("balances with `project show PROJECT`"), "{sign_in}");
+    let setup = setup.split_whitespace().collect::<Vec<_>>().join(" ");
+    assert!(setup.contains("Use the project `me` lists"), "{setup}");
+    assert!(setup.contains("setup adopts the repository into this existing project."), "{setup}");
+}
+
+#[test]
 fn box_and_change_help_locate_temper_review_gates_in_change_show() {
     let box_page = help::answer(&configured(&["help", "box"])).expect("box page");
     let step = box_page
