@@ -168,3 +168,16 @@ The client’s `Event` enum still lacks `Retire`.
 The next run uses the completed prerequisite and implements removal as the existing Answers specify.
 Acceptance remains pending; this task cannot be accepted as done.
 Report file was not written because this session permits filesystem reads only.
+
+### 2026-11-01: four runs found no `Event::Retire`; restart with the prerequisite, or revise the contract? (playground-reset-r6/fe-remove-4)
+
+Keep the contract; the prerequisite is done, and the branch is stale. `sv-skein-retire`
+landed on the trunk as b2d06716dc ("Retire forge writers and settle their held writes"),
+merged into `playground-reset-r6/integration` at b3550a5d3b. The branch
+`playground-reset-r6/fe-remove` stands at fbfbef1289, a merge of `fe-make` made before
+that, so each run that reused it found neither the variant nor the spec. First step of the
+next run: `git fetch origin` and merge `origin/playground-reset-r6/integration` into the
+branch (a merge, no rebase, no force-push); then check that
+`skein/crates/skein-forge-client/src/boundary.rs` has `Retire { forge: u16 }`. If it is
+still missing after that merge, that is a new question; do not ask this one again. After the
+merge, build the task as the Answers above say, changing no skein file.
