@@ -47,7 +47,7 @@ documents; jig's are named as jig's.
 - **A forge's native queue is an accelerator, never a dependency**
   (section 11).
 
-## 2. What fabrig's pipeline showed
+## 2. What fabrig's pipeline showed (10-28 to 10-30, before fab)
 
 ### 2.1 The queue's first night (10-28 22:13Z to 10-29 02:10Z)
 
@@ -118,7 +118,6 @@ documents; jig's are named as jig's.
   and the person; one writer per package or design document across them
   is kept by leases, and each branch's owner hears its outcomes.
 
-
 ## 3. Fresh by key
 
 - **No age and no path rule:** a receipt holds for its key while the key
@@ -138,7 +137,6 @@ documents; jig's are named as jig's.
   inputs changed; a red is caught in the change's own workspace rather
   than in a batch, where it costs every member a proof; and nothing
   proves main but receipts for its exact keys.
-
 
 ## 4. Keys per package
 
@@ -163,7 +161,7 @@ documents; jig's are named as jig's.
   starts a bisection or a repair.
 - **Receipts outlive candidates, once certified:** a receipt is a key's,
   not a candidate's, made only from a certificate the serializer
-  accepted (section 7). A candidate discarded later (a bisection half, a
+  accepted (section 6). A candidate discarded later (a bisection half, a
   stale base) leaves its certified receipts good for every key they
   name, so its next preparation runs only the keys the change of parent
   reached. What an invalid or incomplete certificate carried is
@@ -182,9 +180,10 @@ documents; jig's are named as jig's.
   (formatting, lints, a build, a counted baseline, a suite with no
   clock), so any runner temper dispatches and certifies may make its
   receipt, a workspace included. A measured gate's result also depends
-  on the machine (tests and their time bounds), so only a prover makes
-  its receipt. Either key names the environment: the toolchain, its
-  targets and profile.
+  on the machine (tests and their time bounds), so by default only a
+  prover makes its receipt (a project may take a workspace's,
+  `tests_before_ready`, section 13). Either key names the environment:
+  the toolchain, its targets and profile.
 - **What a key cannot see** is named by the project and checked: a test
   that reads files by path or runs another package's binary joins the
   keys it depends on.
@@ -194,12 +193,11 @@ documents; jig's are named as jig's.
   say. An idle audit proves main itself (parent and candidate both
   main's tip; nothing lands). A full proof that fails is a red like any
   other, bisected with every half proved in full; where the selections
-  before it passed, the operator is also told of a suspected key gap.
+  before it passed, the chat is also told of a suspected key gap.
 - **Paths no gate reads** (documentation outside every package and every
   repository gate's paths, a gate's ignored paths) reach no key: a
   landing of them is proved on receipts alone (`landing.md`, 7.2), and
   runs no build.
-
 
 ## 5. Candidates: one landing, or a batch
 
@@ -269,7 +267,6 @@ documents; jig's are named as jig's.
   serializer keeps the red rate and the rounds spent bisecting, and the
   batch size follows them.
 
-
 ## 6. Provers and runners
 
 - **A prover runs one candidate's gates at a time, with the machine to
@@ -299,7 +296,6 @@ documents; jig's are named as jig's.
   accepted only where the request expected one. Anything else is a
   fault.
 
-
 ## 7. Outcomes and who hears them
 
 | Outcome | What it is | What follows | Who hears it, by default | For example |
@@ -307,10 +303,10 @@ documents; jig's are named as jig's.
 | green | every blocking gate holds at the candidate (advisory gates reported only) | the turn (section 8) | each member's goal: its landing, with the commit | a batch landed |
 | red | a blocking gate's own step failed (a measured one again on its rerun), and no fault was recognized | a batch's suspects are found and bisected (5.2); one landing's red is a repair of the failing member (`landing.md`, 7.3), its brief the failing step and the log | the failing member's goal | a lint, a test, a test over its CPU budget, a raised count, a tools' suite's nonzero exit or timeout |
 | conflict | the prepare could not settle a member | conflicts the project's rules know are settled by its tooling; any other leaves that member out for a resolution (`landing.md`, 3) | the member's goal | a counted baseline recounted; a textual conflict to resolve |
-| fault | the runner's, not the change's: set-up failed, a refusal for capacity, a missing tool, a transport or certificate failure, a crash | retried with nobody rejected and no member marked tried, up to `gate_retries`; past it the landing is held (`landing.md`, 7.4) | the operator, once per episode | a disk below its floor; a runner restarted without its tools |
-| starved | a test that the prover starved of time it was owed | neither a pass nor a fail: recorded apart in the receipt, the gate's verdict unchanged by it (skein's `testing-strategy.md`, 2.10) | recorded; the operator when it recurs past its bound | a timed story on a loaded machine |
+| fault | the runner's, not the change's: set-up failed, a refusal for capacity, a missing tool, a transport or certificate failure, a crash | retried with nobody rejected and no member marked tried, up to `gate_retries`; past it the landing is held (`landing.md`, 7.4) | the chat, once per episode | a disk below its floor; a runner restarted without its tools |
+| starved | a test that the prover starved of time it was owed | neither a pass nor a fail: recorded apart in the receipt, the gate's verdict unchanged by it (skein's `testing-strategy.md`, 2.10) | recorded; the chat when it recurs past its bound | a timed story on a loaded machine |
 | stale | at the turn, its parent is not main's tip | prepared again; certified keys keep their receipts | nobody | a main moved by another landing |
-| key gap | a full proof fails where selections passed | a red as any other (bisected in full); the missing input joins its key | the operator, beside the red's own | a test reading another package's files |
+| key gap | a full proof fails where selections passed | a red as any other (bisected in full); the missing input joins its key | the chat, beside the red's own | a test reading another package's files |
 
 - **A fault outranks a red:** where a gate failed and the runner also
   recognized a fault (a refusal for capacity, a lost runner), the
@@ -319,21 +315,22 @@ documents; jig's are named as jig's.
 - **A red main already has is main's:** where a full proof of main left
   a key red, a candidate's failure in the same tests is not its
   members': nobody is rejected, its landings return to the ready set,
-  and the operator hears it, until a repair turns main's key green.
+  and the chat hears it, until a repair turns main's key green.
 
-- **A measured failure is rerun once before it is red:** its failed
-  tests run again, alone, on the same prover at the same candidate,
-  before any bisection. Failing again, it is red; passing, the gate
-  holds, nobody is rejected, and the failure is a flake, counted on its
-  finding (10.1), never silently.
+- **A measured failure is rerun once before it is red:** where its
+  failed tests are few and each passed in every member's receipt, they
+  run again, alone, on the same prover at the same candidate, before any
+  bisection. Failing again, it is red; all passing, it is a **flake at
+  the gate**: nobody is rejected or marked tried, the candidate goes
+  again, and the flake is counted on its finding (10.1). A tip with two
+  such flakes has its next red stand (gap L23).
 - **Whose a red is, is judged:** a verdict task reads the failing gate
   and log and says fix (a repair of the change, with what to change) or
-  retry (not the change's: the same tip goes back, once); which follows
-  a conflict is code's, from the gate (a resolution).
+  retry (not the change's: the same tip goes back, once). A conflict
+  needs no verdict: it is a resolution, by code's rule.
 - **The routing is a table** (`code-pipeline.md`, 2.7; section 13): a
   project may also tell the goal above the member of a red, or the
   person's chat of a fault that holds a landing.
-
 
 ## 8. The serializer and the turn
 
@@ -385,7 +382,6 @@ documents; jig's are named as jig's.
   (`code-pipeline.md`, 2.1). A project's standing report is computed
   from them (gap L19), never kept by hand.
 
-
 ## 9. After landing
 
 - **A tier** is a check too slow or too broad for a gate (an exhaustive
@@ -401,13 +397,14 @@ documents; jig's are named as jig's.
   recorded. A tip whose key has a receipt is judged by it, with no run.
 - **The verdict:** a failed test runs again, alone, at the same commit.
   Failing again it is red; passing, a flake, counted on its finding
-  (10.1); unable to run, a fault, retried and the operator told.
-  Failures the previous run had are standing, not new.
+  (10.1); unable to run, a fault, retried and the chat told. Failures
+  the previous run had are standing, not new.
 - **New reds are grouped** per tip and suspect set, the suspects being
   the landings since each test last passed. The project may bisect them
   over the range, within a bound of time and runs, to the landing whose
   commit turned them red; or "tell all" suspects, a verdict task reading
-  the evidence and naming the owner (fabrig's choice).
+  the evidence and naming the owner or saying it is not the suspects'
+  (fabrig's choice), which is news to the chat.
 - **Where a red goes:** to each suspect landing's goal as news
   (`code-pipeline.md`, 2.7), with the tests, the log's end and the
   bisection's or verdict's answer; the goal's agent decides the repair,
@@ -428,7 +425,6 @@ documents; jig's are named as jig's.
 - **No test twice on a tree:** a tier's key with a receipt is not run
   again; a bisection's runs are on other trees.
 
-
 ## 10. Findings and QA
 
 ### 10.1 Findings
@@ -439,8 +435,8 @@ documents; jig's are named as jig's.
 - **A record in temper's store** (gap L15): its kind, severity and area;
   its reproduction and commit; its signature (the failing tests' ids and
   the failure's first line, where it has one); its state (`new`,
-  `routed`, `backlog`, `dropped`, `closed`) and who holds it. The client
-  and `ctl` show it.
+  `routed`, `backlog`, `asked`, `merged`, `dropped`, `closed`) and who
+  holds it. `temper ctl` shows it.
 - **Matched by signature:** a flake seen again is counted on its
   finding, not filed again, whether a tier's or a gate's that passed on
   its rerun (section 7).
@@ -450,7 +446,9 @@ documents; jig's are named as jig's.
   another, or dropped with a reason; the chat its template names takes
   what has no goal.
 - **Closed** when a landing whose change names it lands, or clears where
-  cleared is on (section 9).
+  cleared is on (section 9); a QA finding, when its rung next passes
+  (10.2). A verdict task may say a finding is not the code's: news to
+  the chat.
 - **On the forge, optionally:** a projection of findings as issues,
   written and never read back as state, is a project's setting, off by
   default; so is a backlog rendered into a document of the project's
@@ -475,8 +473,9 @@ documents; jig's are named as jig's.
   when a walk at its edition passes after an earlier one of that
   edition, nothing holding it; a failed walk reopens it.
 - **Triage is the ladder goal's agent,** at once for a blocking finding,
-  else at a count or an age (10.1). A brief at fault is a revision of
-  the rung's spec, a new edition.
+  else at a count or an age (section 13). A brief at fault is a question
+  to the person, since an agent must not weaken its own acceptance; on
+  the answer, the rung's spec is revised, a new edition.
 - **Marks and passes** (Later, section 14): a landing marking what a
   user can now do with a `QA:` trailer, and a pass on the newest green
   main walking the marked landings (gap L17).
@@ -487,7 +486,7 @@ documents; jig's are named as jig's.
 |---|---|---|---|
 | Prepare a candidate | the forge's rebase for a landing of one; a merge chain on a branch of temper's for a batch or a train; the project's tooling (`landing.md`, 5.3) | the same | the same |
 | Prove | dispatch-only gate workflows, receipts by key (`landing.md`, 7); a project's own provers as self-hosted runners | the same; the merge queue's `merge_group` runs would be gate runs temper did not dispatch, so a queue-backed turn reports receipts already made | the same |
-| Speculate (a train) | temper's own: candidates on temper's branches, landed in order | the merge queue builds each group on the groups ahead of it: a train of GitHub's sizing | none: temper's own |
+| Speculate (a train: Later) | temper's own: candidates on temper's branches, landed in order | the merge queue builds each group on the groups ahead of it: a train of GitHub's sizing | none: temper's own |
 | The turn (check base, then land) | read main, fast-forward it (`landing.md`, 8): Forgejo by a fast-forward merge, GitHub by a ref update with an `Always` bypass | the merge queue: temper enqueues a proved candidate; its required check is temper's status, already met; GitHub merges the group it built, fast-forward | none: temper's own |
 | Show it | the candidate on its pull request, `temper/gate/<name>` statuses (`landing.md`, 10) | plus the queue's "queued" and position | the same as temper's |
 | Batching | 5.2 | the queue's groups, sized by GitHub: temper caps them by its own batch | temper's own |
@@ -516,7 +515,7 @@ data in the repository; temper does not copy it).
 
 | fab | The model | Where |
 |---|---|---|
-| `ready/<draft>/<task>` refs (gap: temper's data in the repository) | a change ready, a record in the store | 3 |
+| `ready/<draft>/<task>` refs (gap: temper's data in the repository) | a change ready, a record in the store | `code-pipeline.md`, 3 |
 | precheck's receipt, by tip and main, reused for a batch of one | receipts by key, fresh by key | 3, 4 |
 | the merge queue on the gate machine: batches of up to 8, oldest commit first, `git merge --no-ff` per member | candidates, a batch, prepared by a merge chain | 5 |
 | the old-forms recount at a batch | the project's prepare tooling | 5.1 |
@@ -541,18 +540,19 @@ data in the repository; temper does not copy it).
 
 | Setting | Scope | Default | fabrig's |
 |---|---|---|---|
-| `before_ready`: `keys`, `advisory` or `none` | project | `keys` | `keys` (its check before ready) |
+| `before_ready`: `keys`, `advisory` or `none` | project | `keys` | `advisory`: fab readies a tip without a receipt, and the queue checks it in full |
+| `tests_before_ready`: advisory, or receipts | project | advisory | receipts |
 | gates: class, ignored paths, blocking or advisory | project, repository | the repository's adoption | counted baselines, formatting, lints, the build deterministic; the default and fuzzy tests measured |
 | keys: by the project's tooling or by tree | project | by tree | per package, from cargo |
 | prepare: tooling; merge or rebase | project | temper's rebase; merge | `old_forms.py --write`; merge |
 | a candidate's size | project | by measure | 8 |
-| full proofs: every N candidates | project | 5 | 5 |
+| full proofs: every N candidates, hourly, idle after | project | 5, 1 hour, 10 minutes | every 5 candidates only |
 | a measured failure's reruns; flakes per tip before a red stands | project | 1; 2 | 1 (up to 5 tests); 2 |
 | `gate_retries` | project | 2 | — |
 | tiers: per repository; coalesce beyond N waiting | repository | none | the browser tiers of jig, temper and skein, temper's process tier, live skein; the newest tip |
 | a tier's red: bisect within a bound, or tell all with a verdict | project | bisect | tell all, a verdict naming the owner |
 | a tier's red goes to | project | the suspects' goals | the suspects' goals; with none open, the chat |
-| cleared: a goal waits for its tiers | project | off | on, for a goal's branch |
+| cleared: a goal waits for its tiers | project | off | on |
 | findings on the forge; a backlog document | project | off; off | off; on |
 | QA: a ladder goal, its backends; triage at a count or an age | project | none | one ladder: ChatGPT with an owned Forgejo or GitHub, Claude Code with an owned Forgejo; 4 findings or 30 minutes |
 | fab's own repository | repository | — | candidates of one by rebase, its whole suite under 120 s, code-style gates, no check before ready |
@@ -562,16 +562,17 @@ data in the repository; temper does not copy it).
 
 - **Trains** (revision 4's 6.3): candidates proved on candidates, with
   invalidation; fab dropped its train at the user's word (10-31).
-- **A repair first** (6.4), **fairness and the reservation** (6.5), and
-  **landings across repositories** (6.6).
-- **Machines** (the user, 11-01): provers warm by affinity, capacity
-  refusals, how many provers.
+- **A repair first, fairness and the reservation, and landings across
+  repositories** (revision 4's 6.4, 6.5, 6.6).
+- **Machines** (the user, 11-01): provers warm by affinity, how many
+  provers.
 - Keys per package for languages other than Rust; partitioned full
   proofs; deeper trains; elastic provers.
 - QA marks and passes on landed changes; a passed rung's story joining
   the live tier.
 - Findings as forge issues by default; findings matched by a normalised
-  key; bisection after landing when verdicts name the wrong owner.
+  key; for fabrig, bisection after landing when verdicts name the wrong
+  owner.
 
 ## 15. What temper has today, and what to build
 
@@ -619,7 +620,6 @@ data in the repository; temper does not copy it).
   QA, trailers in news, holds beyond J1, routing by role, handovers or
   successors. `Check::Tier` and its receipt codecs exist with no user.
 
-
 ### 15.2 Keep
 
 - **The landing task and its phases** (prepare, prove, turn), with one
@@ -639,9 +639,8 @@ data in the repository; temper does not copy it).
 - **skein's Forgejo calls; GitHub's status write, enqueue and
   `merge_group` decoding,** the last two for section 11's accelerator.
 - **`Check::Tier`** in family 24's codec, for tiers' receipts (section
-  10).
+  9).
 - **jig's J1** and its designs for J2 to J8.
-
 
 ### 15.3 Delete
 
@@ -673,12 +672,11 @@ data in the repository; temper does not copy it).
   (section 9).
 - **The drafts `process-model.md` and `porting.md`,** carried here.
 
-
 ### 15.4 What to build
 
 Revision 4's gaps that the landing pipeline keeps, and new ones (L23
-on). Trains (L2), a priority (L10) and the reservation (L18) are Later
-(section 14).
+on). Trains (L2), a priority (L10), the reservation (L18) and marks
+(L17) are Later (section 14).
 
 | Id | Gap | Grade | Changes |
 |---|---|---|---|
@@ -694,16 +692,14 @@ on). Trains (L2), a priority (L10) and the reservation (L18) are Later
 | L14 | Cleared as a setting: change results held to a verdict, the bound [T10] | design | `after-landing.md`, 6 |
 | L15 | Findings as temper's records, matched by signature, routed and triaged; the forge projection a setting [T11] | conflict | `findings.md` (the store moves from issues to temper) |
 | L16 | QA: a ladder goal of walk tasks with dependencies, editions as spec revisions, a tester charter, accounts held for a walk, rung states and the pass; marks and passes Later [T12] | design | `findings.md`, 8 |
-| L17 | Trailers in landing news and wake policies on them [T13] | design | `forge.md`, 7.2 |
-| L19 | Views and acts: candidates, batches, trains, receipts, tiers, findings, holds, leases, workspaces, in the client and `ctl`; the records a standing report is computed from (3.1, 9) [T15] | design | `landing.md`, 14; client |
+| L19 | Views and acts in `temper ctl`: candidates, batches, receipts, tiers, findings, holds; the records a standing report is computed from (`code-pipeline.md`, 2.1; section 8) [T15] | design | `landing.md`, 14 |
 | L20 | A landing is one change in one repository in v0.1.0; joint landings across repositories Later (section 14) | conflict | `landing.md`, 4.1, 5.3, 8, 13.1 |
 | F1 | skein: read a run's artifacts; update a ref fast-forward only [B1] | design | skein's `forge.md`, 3.2 |
 | F2 | GitHub's turn: tree and run reads, dispatch, rerun, the ref update under `Always` [B2] | design | skein's `forge-github.md`; `landing.md`, 8 |
 | F3 | GitHub App permissions: statuses and actions written, the `Always` bypass, `workflows` [B3, B5] | conflict | temper's `protocol/setup.md`, 17.1 |
 | F4 | Adoption checks: dispatch-only workflows, Forgejo's "autodetect manual merge" [B4] | design | `landing.md`, 13.2 |
 | F5 | GitHub's merge queue backing the turn | design | `forge.md`, 9.1; section 11 here |
-| L23 | A flake at the gate bounded per tip; the check before ready's receipt reused for a candidate of one; a verdict task on a rejection (fix or retry) | design |
-| L24 | Selection settings: what a documentation-only candidate runs, what a reused receipt reruns, a full run every N candidates | design |
+| L23 | A flake at the gate bounded per tip; a verdict task on a rejection (fix or retry) | design | `landing.md`, 7; `findings.md`, 5 |
 
 ## 16. Open questions
 

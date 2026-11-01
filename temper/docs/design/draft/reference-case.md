@@ -25,7 +25,7 @@ Machines, slots and sign-ins are left out for now.
   ends (section 8).
 - **What it asks** (section 10): the gaps of C 6 and L 15.4 it uses, by
   id. Nobody works by hand: the person talks to the chat in `temper ctl`
-  and answers their inbox. Section 9 maps the story onto fab.
+  and answers their inbox there. Section 9 maps the story onto fab.
 
 ## 2. How to read it
 
@@ -44,10 +44,10 @@ Machines, slots and sign-ins are left out for now.
 - **Export** is a goal on Claude: its agent plans the draft "Export",
   which spans the packages kit and app, and lands through its own
   branch. **Themes** is a goal on Claude in the package ui, landing each
-  change into main. **Fix** is a goal of one fix. **The ladder** is
-  Harbor's QA goal: rungs r0 and r1, r1 after r0.
+  change into main. **Fix** is a goal of one fix. **The ladder** is the
+  project's QA goal: rungs r0 and r1, r1 after r0.
 - **The delegates:** producers, reviewers, verdict tasks and walkers are
-  agent tasks on GPT; an advisor is a one-shot agent on Claude.
+  agent tasks on GPT.
 - **The repository,** works: packages kit; ui and cli, which read kit;
   app, which reads kit and ui; `tools/`, the project's tools with their
   suite; `debts.txt`, a counted baseline that may only go down; `docs/`,
@@ -56,7 +56,8 @@ Machines, slots and sign-ins are left out for now.
   the repository: `count` and `tools`; measured, per package: `test`.
   **The tier:** `browser`, on app.
 - **The settings** are fabrig's (C 5, L 13), but Themes lands each
-  change into main and is reviewed per batch.
+  change into main, with its check before ready, and to show the
+  mechanisms `before_ready` is `keys`, and main has an idle audit.
 - **At hour 0:** Themes is running, nothing is ready, no finding is
   open, `browser` is green at main.
 
@@ -69,53 +70,59 @@ Export with its `goal` tool. Export's agent writes the shapes that cross
 parts first, then delegates the plan's first batch, the changes that
 depend on nothing: k1, the record in kit (an interface), and k3; while
 it plans the rest, which it delegates in two more batches: k2 (after
-k1), a1 and a2 (after k1). Its brief listed Themes' changes; it names
-the overlap it cannot avoid, ui's menu, and both goals hear it.
+k1), a1 and a2 (after k1). Its brief listed Themes' changes and their
+paths.
 
 - **Model:** C 2.1, C 2.6.
-- **Needs:** a goal from the chat (exact); planning in batches with
-  specs (J16 for `change`'s typed spec); overlaps as news (L22).
+- **Needs:** a goal from the chat (exact), carrying its settings (J15);
+  planning in batches with typed specs (L24); the goals beside it listed
+  (L22).
 
-### 4.2 k1, checked before ready, and an early start
+### 4.2 Plain merges, an early start, a check before ready
 
-k1 changes what a kit item means. Its procedure runs the check before
-ready: its head merged onto main, uncommitted, in its workspace; the
-deterministic gates over kit and its readers. `lint` fails in cli; the
-producer fixes it, and the check passes; each key's result is a receipt.
-The readers' tests run there too, advisory. k1 lands into Export's
-branch.
+k1 changes what a kit item means. Its producer finishes, and it lands
+into Export's branch by a plain merge, with no gates: the branch's
+checks come later (4.4). k2 depends on k1 and started beside it, from
+k1's pushed branch; k1's final branch is merged into it again, and it
+lands after k1. k3 finishes, leaving a lint in ui that its change caused
+outside its paths, for its owner.
 
-k2 depends on k1 and started beside it, from k1's pushed branch; k1's
-final branch is merged into it again, and it lands after k1.
+t1, a change of Themes' landing into main, runs the check before ready:
+its head merged onto main, uncommitted, in its workspace; the
+deterministic gates over ui and its readers. `lint` fails; the producer
+fixes it, and the check passes; each key's result is a receipt, and so
+are the tests' (`tests_before_ready`).
 
-- **Model:** C 2.2, C 2.6, C 3.
-- **Needs:** the check before ready (L11), keys per package (L5, L4);
-  Export's branch (L21); a task started beside its dependency (J13).
+- **Model:** C 2.2, C 2.6, C 3, L 4.
+- **Needs:** Export's branch and its plain merges (L21); a task started
+  beside its dependency (J13); what a change left (L25); the check
+  before ready (L11), keys per package (L5, L4), gate classes (L6).
 
 ### 4.3 Questions, the options, the person
 
 k3 asks whether a field is escaped or doubled; its spec's options say
-doubled. A verdict task finds that, and k3 runs again. a1 asks whether
-it may change ui's menu, which Themes owns: Export's agent says leave it
-to its owner. a2 asks how long an export may take: a budget, so Export's
-agent asks the person, in their inbox, and a2 waits.
+doubled. The change starts a verdict task, which finds that, and k3 runs
+again. a1 asks whether it may change ui's menu, which Themes owns: the
+verdict task passes it on, Export's agent wakes at once, and says leave
+it to its owner. a1 pushes its work and asks again about a ui test; the
+agent accepts it as it stands.
 
 - **Model:** C 2.3.
-- **Needs:** a question to the requester (exact); waking on questions by
-  count and age (J14).
+- **Needs:** a change relaying its producer's question, a verdict task
+  first (L25).
 
 ### 4.4 Export's branch: checks along the way, an update, ready
 
-At the tenth landing, a job checks Export's branch without the fuzzy
-tests: red in app. A repair of the branch fixes it. Thirty minutes after
-its last update, main has moved, and Export's branch takes it by an
-update; ui's menu conflicts, as the overlap said; a resolution settles
-the files and the procedure commits. Once all have landed, the final
-check is green, and Export's branch is ready.
+Forty-five minutes after its last check, a job checks Export's branch
+without the fuzzy tests: red in app. A repair of the branch fixes it.
+Thirty minutes after its last update, main has moved, and Export's
+branch takes it by an update; kit's record conflicts with a change of
+Themes'; a resolution settles the files and the procedure commits. Once
+all have landed, the final check is green, and Export's branch is ready.
 
 - **Model:** C 2.6.
-- **Needs:** checks of a goal's branch as jobs, timed updates (L21);
-  resolutions (exact).
+- **Needs:** checks of a goal's branch as jobs (L21, J17), timed updates
+  (L21); resolutions (exact).
 
 ## 5. Act 2: landing under load (hours 2 to 4)
 
@@ -128,17 +135,18 @@ proved hold, and the rest run in one dispatch to the prover. It is
 green; the turn fast-forwards main; each change's branch is released by
 a deletion naming the head it landed; each goal hears its landing.
 
-- **Model:** L 3, L 4, L 5.1, L 8.
+- **Model:** L 3, L 4, L 5.1, L 5.2, L 8.
 - **Needs:** a batch (L1); a candidate on temper's branch (L3); the
-  prepare and key job (L4); keys per package (L5); the serializer (L9).
+  prepare and key job (L4); keys per package (L5), gate classes (L6); a
+  runner's certificate (L7); the serializer (L9).
 
 ### 5.2 A red in a big batch
 
 Candidate 4 holds six changes. An app `test` fails, and fails again
 alone. Four of the six reach app's key, so only they are suspects; the
 other two land without them. The four are bisected, left first: two
-land; t5 alone is red, and a verdict task says it is the change's: a
-repair, with the failing step and log.
+land; of the other two, one lands, and t5 alone is red. A verdict task
+says it is the change's: a repair, with the failing step and log.
 
 - **Model:** L 5.2, L 7.
 - **Needs:** a measured failure rerun once (L8); suspects by key and
@@ -148,9 +156,9 @@ repair, with the failing step and log.
 
 t6 was checked before ready at hour 2; since then Export landed, and ui
 reads kit, so t6's ui keys changed: temper checks it again before it
-joins. o1, a change to `tools/`, keeps its receipt, its only key
-unchanged. In the next candidate a fuzzy test fails that passed in both
-members' receipts, and passes alone: a flake at the gate, nobody
+joins. f3, a change of Fix's to `tools/`, keeps its receipt, its only
+key unchanged. In the next candidate a fuzzy test fails that passed in
+both members' receipts, and passes alone: a flake at the gate, nobody
 rejected, and the candidate goes again.
 
 - **Model:** L 3, L 7.
@@ -167,7 +175,8 @@ checked again and joins a later candidate.
 
 - **Model:** L 5.1, L 5.2, C 2.6.
 - **Needs:** the prepare's own commits (L3, L4); a conflict staged with
-  its attempt (L3); a resolution (exact).
+  its attempt (L3); a check again before ready (L11); a resolution
+  (exact).
 
 ### 5.5 A fault, a red main already has, a key gap
 
@@ -199,7 +208,7 @@ restarts is a fault, retried.
 
 ### 6.2 A red reaches its owner
 
-One run covers Export's branch, t10 and o2. Two tests fail, and fail
+One run covers Export's branch, t10 and f4. Two tests fail, and fail
 again alone. The red is news to each open goal among the suspects; a
 verdict task reads the evidence and names the owner: Export's k2.
 Export's agent starts a repair from main, which reproduces it in a unit
@@ -208,8 +217,9 @@ and nobody hears; the run after the repair passes them: recovered, and
 Export hears the red is closed.
 
 - **Model:** L 9, C 2.7.
-- **Needs:** reds as news to the suspects' goals, a verdict naming the
-  owner, standing reds, recovery (L13); test ids from the run (F1).
+- **Needs:** reds as news to the suspects' goals, by role (J10), a
+  verdict naming the owner, standing reds, recovery (L13); test ids from
+  the run (F1).
 
 ### 6.3 A flake, and its finding
 
@@ -220,19 +230,20 @@ fails in the same test and passes alone: counted on #7. The repair
 lands, naming #7, which closes.
 
 - **Model:** L 7, L 10.1.
-- **Needs:** findings as temper's records, matched by signature,
-  triaged, closed (L15).
+- **Needs:** a rerun alone (L8), a flake at the gate (L23); findings as
+  temper's records, matched by signature, triaged, closed (L15).
 
 ### 6.4 QA: a walk, its findings, the pass
 
 r0 is due. The ladder starts a walk task on r0's spec, at main's tip,
 holding a ChatGPT account for its length. It reports fail: #9, blocking,
 Export's CSV header is wrong; #10, a page is slow. The ladder's agent
-triages: #9 on the path, owner Export; #10 to the backlog. Export's
+triages: #9 to a repair, owner Export; #10 to the backlog. Export's
 repair lands; r0 is due again at a main holding it, its rerun at the
-same edition passes, and #9 is fixed. r1's walk fails because the walker
-guessed a pull request's number: the brief is at fault; the ladder's
-agent revises r1's spec, a new edition, and r1 is due.
+same edition passes, and #9 closes. r1's walk is void: the walker beat
+its check by guessing a pull request's number. The brief is at fault: a
+question to the person, who says how to tighten it; r1's spec is
+revised, a new edition, and r1 is due.
 
 - **Model:** L 10.2, L 10.1.
 - **Needs:** a ladder goal of walks with editions, rung states, the pass
@@ -242,20 +253,22 @@ agent revises r1's spec, a new edition, and r1 is due.
 
 ### 7.1 A question to the person
 
-a2's question (4.3) was the person's: they answer "under a minute",
-through `temper ctl`; the answer reaches a2, and the director hears a
-notice.
+t11 asks how long a suite may take: a budget. Themes, landing each
+change, wakes for its questions at 4 or after 30 minutes, then asks the
+person in their inbox. The person answers "under a minute" in `temper
+ctl`; the answer reaches Themes' agent, which answers t11, and the
+director hears a notice.
 
 - **Model:** C 2.3.
-- **Needs:** any task asking the person, the answer reaching the asker
-  (exact).
+- **Needs:** waking on questions by count and age (J14); any task asking
+  the person, the answer reaching the asker (exact).
 
 ### 7.2 Questions to the chat stay with the chat
 
-Export asks the director, its requester: "CSV first, or JSON?" The
-director answers from its notes. Later it asks "may kit's API break ui's
-old callers?"; the director asks its person, who answers, and the
-director answers Export in its own words.
+Themes asks the director, its requester: "dark mode first, or high
+contrast?" The director answers from its notes. Later it asks "may ui's
+API break the old callers?"; the director asks its person, who answers,
+and the director answers Themes in its own words.
 
 - **Model:** C 2.3.
 - **Needs:** a question to the chat staying with it (J7); the chat asks
@@ -263,9 +276,10 @@ director answers Export in its own words.
 
 ### 7.3 Parked until the person's draft
 
-Export's next part needs the person's draft on formats. Export parks it
-until a landing touches `docs/drafts/formats.md`; the person lands the
-draft, which reaches no key and lands on receipts, and the part wakes.
+Themes' next part needs the person's draft on palettes. Themes parks it
+until a landing touches `docs/drafts/palettes.md`. The person gives the
+director the draft; the director lands it as a change, which reaches no
+key and lands on receipts, and the part wakes.
 
 - **Model:** C 2.4, L 4.
 - **Needs:** a park lifted by an event (J4).
@@ -274,10 +288,10 @@ draft, which reaches no key and lands on receipts, and the part wakes.
 
 ### 8.1 The person pauses Themes
 
-The person: "pause Themes." The person drains Themes' subtree: running
-runs finish their turn, a change already in a candidate lands, nothing
-new starts. Later the director tries to lift it, cannot (the hold is the
-person's), and proposes the lift; the person accepts it.
+The person drains Themes' subtree in `temper ctl`: running runs finish
+their turn, a change already in a candidate lands, nothing new starts.
+Later the director tries to lift it, cannot (the hold is the person's),
+and proposes the lift; the person accepts it.
 
 - **Model:** C 2.4.
 - **Needs:** a drain over a subtree (J2); owned holds and proposals
@@ -319,29 +333,33 @@ that is news to the director.
 | L3 candidates on temper's branches | 5.1, 5.4 |
 | L4 the prepare and key job | 4.2, 5.1, 5.4 |
 | L5 keys per package | 4.2, 5.1, 5.3, 5.5 |
-| L7 runners | 5.5 |
-| L8 outcomes | 5.2, 5.5, 6.1 |
+| L6 gate classes | 4.2, 5.1 |
+| L7 runners | 5.1, 5.5 |
+| L8 outcomes | 5.2, 5.5, 6.1, 6.3 |
 | L9 the serializer | 5.1 |
-| L11 checks before ready | 4.2, 5.3 |
+| L11 checks before ready | 4.2, 5.3, 5.4 |
 | L13 tiers following main | 6.1, 6.2 |
 | L14 a goal ending after its verdict | 8.2 |
 | L15 findings | 6.3, 6.4 |
 | L16 QA: a ladder of walks | 6.4 |
 | L19 views and acts | every step, through `temper ctl` |
 | L21 a goal's own branch | 4.2, 4.4 |
-| L22 overlaps | 4.1 |
-| L23 a flake at the gate; a verdict on a rejection | 5.2, 5.3 |
+| L22 the goals beside | 4.1 |
+| L23 a flake at the gate; a verdict on a rejection | 5.2, 5.3, 6.3 |
+| L24 `goal` and `change` options | 4.1 |
+| L25 a change relaying questions; what it left | 4.2, 4.3 |
 | J1, J2 owned holds, drain | 8.1 |
 | J4 park until an event | 7.3 |
 | J7, J8 questions to the chat | 7.2 |
 | J10 an address by role | 5.5, 6.2 |
 | J13 started beside a dependency | 4.2 |
-| J14 waking on questions by count and age | 4.3 |
-| J16 `change` with a typed spec | 4.1 |
+| J14 waking on questions by count and age | 7.1 |
+| J15 application kinds of setting | 4.1 |
+| J17 jobs | 4.4 |
 | F1 the forge's run reads | 6.2 |
 
-None asks for a new jig primitive: J13 to J16 are knobs on jig's tasks,
-wakes and settings.
+None asks for a new jig primitive: J13 to J17 are knobs on jig's tasks,
+wakes and settings, or jobs, which jig designs already.
 
 ## 11. Left out, and why
 
@@ -353,7 +371,16 @@ wakes and settings.
 - **Moving a live goal, successors, a fresh run from notes, a project's
   holds and holds over admission** (J3, J5, J6, J9, J11): jig's, not
   used by the lab's way of running; the third edition's acts 5 and 6
-  show them.
+  show them (052e21597).
+- **Mechanics the two documents keep from revision 4 that this story
+  does not reach,** shown in the third edition or by fab's own runs:
+  overlaps between two goal branches (only Export has one here); a
+  change past its tries; a stop of a goal's branch; a review gate on a
+  change; pinned heads, side-by-side proving, a stale candidate;
+  certificates, the lock, the outbox and recovery; a tier judged by its
+  receipt, starvation, unfixed, a red no goal owns, a verdict of "not
+  the suspects'"; triage's other decisions; questions on the forge (off
+  for now).
 - **Marks and QA passes** (L17): Later; the ladder's walks are the lab's
   QA.
 - **Landings across repositories, GitHub** (L20, F2 to F5): one
