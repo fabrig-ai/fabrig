@@ -355,3 +355,86 @@ fn project_fund_marks_missing_period_and_cut_flags_as_current_reads() {
         b"project 1: spend per period 0\nnow: period: none open\nnow: project: cut\nnow: configured pools: cut\n"
     );
 }
+
+#[test]
+fn project_fund_ceiling_refusals_name_the_bound_and_remedy() {
+    for (holder, role, expected) in [
+        (
+            c::CeilingHolder::Rules,
+            None,
+            "project fund: past the rules' period spend, 1000; raise the rules first with temper ctl settings apply\n",
+        ),
+        (
+            c::CeilingHolder::Policy,
+            Some("0"),
+            "project fund: past the project's period spend, 1000; fund the project first: temper ctl project fund 1 AMOUNT\n",
+        ),
+        (
+            c::CeilingHolder::Role(0),
+            None,
+            "project fund: below role 0's period spend, 1000; lower the role first: temper ctl project fund 1 AMOUNT --role 0\n",
+        ),
+    ] {
+        let mut root = f::signed_in(f::PARTY);
+        let mut argv = vec!["project", "fund", "1", "1001", "--key", "fund"];
+        if let Some(role) = role {
+            argv.extend(["--role", role]);
+        }
+        let call = root.submit(&argv);
+        root.answered(call, ceiling_refusal(holder, c::CeilingDimension::PeriodSpend, Some(1000), Some(1001)));
+        let printed = root.answer(call).unwrap();
+        assert_eq!(printed.status, 2);
+        assert_eq!(printed.stderr.as_ref(), expected.as_bytes());
+        assert!(root.reads.is_empty());
+    }
+}
+
+#[test]
+fn project_fund_rechecks_the_rules_authority_ceiling() {
+    for (dimension, value, expected) in [
+        (
+            c::CeilingDimension::Spend,
+            Some(500),
+            "project fund: the project's authority is past the rules' spend, 500; raise the rules with temper ctl settings apply, or narrow the project's policy\n",
+        ),
+        (
+            c::CeilingDimension::Tools,
+            None,
+            "project fund: the project's authority is past the rules' tools; raise the rules with temper ctl settings apply, or narrow the project's policy\n",
+        ),
+    ] {
+        let mut root = f::signed_in(f::PARTY);
+        let call = root.submit(&["project", "fund", "1", "1000", "--key", "fund"]);
+        root.answered(call, ceiling_refusal(c::CeilingHolder::Rules, dimension, value, None));
+        let printed = root.answer(call).unwrap();
+        assert_eq!(printed.status, 2);
+        assert_eq!(printed.stderr.as_ref(), expected.as_bytes());
+    }
+}
+fn ceiling_refusal(
+    holder: c::CeilingHolder,
+    dimension: c::CeilingDimension,
+    value: Option<u64>,
+    asked: Option<u64>,
+) -> c::Answer {
+    c::Answer::Refused {
+        refusal: c::Refusal::Authority {
+            lacking: c::Lacking::Ceiling { holder, dimension, value, asked },
+            proposable: None,
+        },
+        at: None,
+    }
+}
+
+#[test]
+fn project_fund_json_preserves_the_ceiling_facts() {
+    let mut root = f::signed_in(f::PARTY);
+    let call = root.submit(&["project", "fund", "1", "1001", "--key", "fund", "--json"]);
+    root.answered(
+        call,
+        ceiling_refusal(c::CeilingHolder::Rules, c::CeilingDimension::PeriodSpend, Some(1000), Some(1001)),
+    );
+    let printed = root.answer(call).unwrap();
+    assert_eq!(printed.status, 2);
+    assert_eq!(printed.stderr.as_ref(), br#"{"operation":"project fund","outcome":{"refused":{"refusal":{"authority":{"lacking":{"ceiling":{"holder":"rules","dimension":"period_spend","value":1000}},"proposable":null}},"at":null}},"task":null,"to":null}"#);
+}
