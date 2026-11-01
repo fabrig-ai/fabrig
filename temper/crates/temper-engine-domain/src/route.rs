@@ -266,7 +266,11 @@ fn keep_produced_title(domain: &mut Domain, record: &core::Record) {
         && let tasks::Phase::Ended(tasks::Ending::Done(tasks::TaskResult::Change { title, .. })) = &row.phase
         && let tasks::Party::Task(task) = row.requester
     {
-        domain.work.push(Work::Forge(forge::Event::ProducedTitle { task, child: row.number, title: title.clone() }));
+        domain.work.push(Work::Forge(forge::Event::ProducedTitle {
+            task,
+            child: row.number,
+            title: title.words.clone(),
+        }));
     }
 }
 

@@ -26,7 +26,7 @@ fn finish(world: &mut World, producer: &engine::Assignment) {
         5,
         tasks::End::Finished {
             result: tasks::TaskResult::Change {
-                title: b"Change".as_slice().into(),
+                title: jig_domain_tasks::ChangeTitle::new(b"Change".as_slice().into()),
                 connector: 0,
                 kind: 2,
                 resource: forge_top::tag(forge_world::REPO.forge, forge_world::REPO.repository),

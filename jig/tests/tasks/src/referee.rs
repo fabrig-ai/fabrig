@@ -463,7 +463,7 @@ impl Expectations for Tasks {
 
 fn bytes(result: &TaskResult) -> usize {
     match result {
-        TaskResult::Change { title, words, .. } => title.len().max(words.len()),
+        TaskResult::Change { title, words, .. } => title.words.len().max(words.len()),
         TaskResult::Report { words } | TaskResult::Verdict { words, .. } => words.len(),
         TaskResult::Approved { state, words } => state.len() + words.as_ref().map_or(0, |words| words.len()),
         TaskResult::Failure { reason } => reason.len(),

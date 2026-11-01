@@ -98,7 +98,7 @@ fn a_merge_asked_while_kept_is_refused_naming_the_pending() {
         5,
         tasks::End::Finished {
             result: tasks::TaskResult::Change {
-                title: b"Change".as_slice().into(),
+                title: jig_domain_tasks::ChangeTitle::new(b"Change".as_slice().into()),
                 connector: 0,
                 kind: 2,
                 resource: temper_engine_domain_forge::tag(forge_world::REPO.forge, forge_world::REPO.repository),
@@ -241,7 +241,7 @@ fn a_pushed_change_is_recovered_before_its_worker_reports_the_head() {
         5,
         tasks::End::Finished {
             result: tasks::TaskResult::Change {
-                title: b"Small fix".as_slice().into(),
+                title: jig_domain_tasks::ChangeTitle::new(b"Small fix".as_slice().into()),
                 connector: 0,
                 kind: 2,
                 resource: temper_engine_domain_forge::tag(forge_world::REPO.forge, forge_world::REPO.repository),
@@ -300,7 +300,7 @@ fn a_change_whose_ci_never_reports_is_stalled_and_held() {
         5,
         tasks::End::Finished {
             result: tasks::TaskResult::Change {
-                title: b"Small fix".as_slice().into(),
+                title: jig_domain_tasks::ChangeTitle::new(b"Small fix".as_slice().into()),
                 connector: 0,
                 kind: 2,
                 resource: temper_engine_domain_forge::tag(forge_world::REPO.forge, forge_world::REPO.repository),
@@ -359,7 +359,7 @@ fn a_change_whose_ci_takes_minutes_lands_without_being_held() {
         5,
         tasks::End::Finished {
             result: tasks::TaskResult::Change {
-                title: b"Small fix".as_slice().into(),
+                title: jig_domain_tasks::ChangeTitle::new(b"Small fix".as_slice().into()),
                 connector: 0,
                 kind: 2,
                 resource: temper_engine_domain_forge::tag(forge_world::REPO.forge, forge_world::REPO.repository),
@@ -458,7 +458,7 @@ fn a_branch_read_sent_before_the_push_and_answered_missing_after_it_does_not_hol
         5,
         tasks::End::Finished {
             result: tasks::TaskResult::Change {
-                title: b"Small fix".as_slice().into(),
+                title: jig_domain_tasks::ChangeTitle::new(b"Small fix".as_slice().into()),
                 connector: 0,
                 kind: 2,
                 resource: temper_engine_domain_forge::tag(forge_world::REPO.forge, forge_world::REPO.repository),
@@ -545,7 +545,7 @@ fn check_gate_landing(no_ci: bool, owner_gate: bool) {
         5,
         tasks::End::Finished {
             result: tasks::TaskResult::Change {
-                title: b"Small fix".as_slice().into(),
+                title: jig_domain_tasks::ChangeTitle::new(b"Small fix".as_slice().into()),
                 connector: 0,
                 kind: 2,
                 resource: temper_engine_domain_forge::tag(forge_world::REPO.forge, forge_world::REPO.repository),
@@ -639,7 +639,7 @@ fn check_gate_repair(no_ci: bool) {
         5,
         tasks::End::Finished {
             result: tasks::TaskResult::Change {
-                title: b"Small fix".as_slice().into(),
+                title: jig_domain_tasks::ChangeTitle::new(b"Small fix".as_slice().into()),
                 connector: 0,
                 kind: 2,
                 resource: temper_engine_domain_forge::tag(forge_world::REPO.forge, forge_world::REPO.repository),
@@ -700,7 +700,7 @@ fn check_gate_repair(no_ci: bool) {
         5,
         tasks::End::Finished {
             result: tasks::TaskResult::Change {
-                title: b"Small fix".as_slice().into(),
+                title: jig_domain_tasks::ChangeTitle::new(b"Small fix".as_slice().into()),
                 connector: 0,
                 kind: 2,
                 resource: temper_engine_domain_forge::tag(forge_world::REPO.forge, forge_world::REPO.repository),
@@ -790,7 +790,7 @@ fn failed_ci_repair(
         5,
         tasks::End::Finished {
             result: tasks::TaskResult::Change {
-                title: b"Small fix".as_slice().into(),
+                title: jig_domain_tasks::ChangeTitle::new(b"Small fix".as_slice().into()),
                 connector: 0,
                 kind: 2,
                 resource: temper_engine_domain_forge::tag(forge_world::REPO.forge, forge_world::REPO.repository),
@@ -1059,7 +1059,7 @@ fn a_review_whose_forge_reads_take_seconds_is_prepared_once() {
         5,
         tasks::End::Finished {
             result: tasks::TaskResult::Change {
-                title: b"Small fix".as_slice().into(),
+                title: jig_domain_tasks::ChangeTitle::new(b"Small fix".as_slice().into()),
                 connector: 0,
                 kind: 2,
                 resource: forge_top::tag(forge_world::REPO.forge, forge_world::REPO.repository),
@@ -1182,7 +1182,7 @@ fn a_review_whose_forge_reads_take_seconds_is_prepared_once_and_merges() {
         5,
         tasks::End::Finished {
             result: tasks::TaskResult::Change {
-                title: b"Small fix".as_slice().into(),
+                title: jig_domain_tasks::ChangeTitle::new(b"Small fix".as_slice().into()),
                 connector: 0,
                 kind: 2,
                 resource: forge_top::tag(forge_world::REPO.forge, forge_world::REPO.repository),
@@ -1322,7 +1322,7 @@ fn a_conflicting_update_is_resolved_from_a_merge_in_progress() {
         5,
         tasks::End::Finished {
             result: tasks::TaskResult::Change {
-                title: b"Small fix".as_slice().into(),
+                title: jig_domain_tasks::ChangeTitle::new(b"Small fix".as_slice().into()),
                 connector: 0,
                 kind: 2,
                 resource: temper_engine_domain_forge::tag(forge_world::REPO.forge, forge_world::REPO.repository),
@@ -1378,7 +1378,7 @@ fn a_conflicting_update_is_resolved_from_a_merge_in_progress() {
         5,
         tasks::End::Finished {
             result: tasks::TaskResult::Change {
-                title: b"Small fix".as_slice().into(),
+                title: jig_domain_tasks::ChangeTitle::new(b"Small fix".as_slice().into()),
                 connector: 0,
                 kind: 2,
                 resource: temper_engine_domain_forge::tag(forge_world::REPO.forge, forge_world::REPO.repository),
@@ -1428,7 +1428,7 @@ fn an_approval_carries_over_a_clean_update_and_is_asked_again_after_a_repair() {
         5,
         tasks::End::Finished {
             result: tasks::TaskResult::Change {
-                title: b"Small fix".as_slice().into(),
+                title: jig_domain_tasks::ChangeTitle::new(b"Small fix".as_slice().into()),
                 connector: 0,
                 kind: 2,
                 resource: temper_engine_domain_forge::tag(forge_world::REPO.forge, forge_world::REPO.repository),
@@ -1539,7 +1539,7 @@ fn an_approval_carries_over_a_clean_update_and_is_asked_again_after_a_repair() {
         5,
         tasks::End::Finished {
             result: tasks::TaskResult::Change {
-                title: b"Small fix".as_slice().into(),
+                title: jig_domain_tasks::ChangeTitle::new(b"Small fix".as_slice().into()),
                 connector: 0,
                 kind: 2,
                 resource: temper_engine_domain_forge::tag(forge_world::REPO.forge, forge_world::REPO.repository),
@@ -1602,7 +1602,7 @@ fn an_approval_carries_over_a_clean_update_and_is_asked_again_after_a_repair() {
         5,
         tasks::End::Finished {
             result: tasks::TaskResult::Change {
-                title: b"Small fix".as_slice().into(),
+                title: jig_domain_tasks::ChangeTitle::new(b"Small fix".as_slice().into()),
                 connector: 0,
                 kind: 2,
                 resource: temper_engine_domain_forge::tag(forge_world::REPO.forge, forge_world::REPO.repository),
@@ -1704,7 +1704,7 @@ fn a_worker_frozen_past_its_grace_resumes_with_a_push_in_hand_and_lands_nothing_
         5,
         tasks::End::Finished {
             result: tasks::TaskResult::Change {
-                title: b"Small fix".as_slice().into(),
+                title: jig_domain_tasks::ChangeTitle::new(b"Small fix".as_slice().into()),
                 connector: 0,
                 kind: 2,
                 resource: temper_engine_domain_forge::tag(forge_world::REPO.forge, forge_world::REPO.repository),
@@ -1790,7 +1790,7 @@ fn a_broken_landing_branch_gets_one_deployment_repair_before_waiting_changes_lan
         5,
         tasks::End::Finished {
             result: tasks::TaskResult::Change {
-                title: b"Small fix".as_slice().into(),
+                title: jig_domain_tasks::ChangeTitle::new(b"Small fix".as_slice().into()),
                 connector: 0,
                 kind: 2,
                 resource: temper_engine_domain_forge::tag(forge_world::REPO.forge, forge_world::REPO.repository),
@@ -1838,7 +1838,7 @@ fn a_broken_landing_branch_gets_one_deployment_repair_before_waiting_changes_lan
         5,
         tasks::End::Finished {
             result: tasks::TaskResult::Change {
-                title: b"Small fix".as_slice().into(),
+                title: jig_domain_tasks::ChangeTitle::new(b"Small fix".as_slice().into()),
                 connector: 0,
                 kind: 2,
                 resource: temper_engine_domain_forge::tag(forge_world::REPO.forge, forge_world::REPO.repository),
@@ -2952,7 +2952,7 @@ fn a_tracked_goals_changes_install_landing_and_current_head_ci_topics_without_ag
         5,
         tasks::End::Finished {
             result: tasks::TaskResult::Change {
-                title: b"Small fix".as_slice().into(),
+                title: jig_domain_tasks::ChangeTitle::new(b"Small fix".as_slice().into()),
                 connector: 0,
                 kind: 2,
                 resource: temper_engine_domain_forge::tag(forge_world::REPO.forge, forge_world::REPO.repository),
@@ -3234,7 +3234,7 @@ fn a_stop_waits_for_a_sent_merge_to_be_proved() {
         5,
         tasks::End::Finished {
             result: tasks::TaskResult::Change {
-                title: b"Change".as_slice().into(),
+                title: jig_domain_tasks::ChangeTitle::new(b"Change".as_slice().into()),
                 connector: 0,
                 kind: 2,
                 resource: forge_top::tag(forge_world::REPO.forge, forge_world::REPO.repository),

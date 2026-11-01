@@ -2579,7 +2579,7 @@ fn a_plan_of_spikes_a_choice_and_changes_runs_in_dependency_order() {
         &mut driver,
         &third,
         tasks::TaskResult::Change {
-            title: b"Change".as_slice().into(),
+            title: jig_domain_tasks::ChangeTitle::new(b"Change".as_slice().into()),
             connector: 1,
             kind: 2,
             resource: 17,

@@ -551,9 +551,9 @@
         "forge.output": 82,
         "forge.repositories": 3,
         "root.journal.transcript_bytes": 1067223,
-        "root.loads.bytes": 1067475,
+        "root.loads.bytes": 1067467,
         "root.loads.read_bytes": 2134438,
-        "root.loads.reply_bytes": 1067475,
+        "root.loads.reply_bytes": 1067467,
         "root.loads.transcript_bytes": 1067219,
         "routes.query_bytes": 2048
       }

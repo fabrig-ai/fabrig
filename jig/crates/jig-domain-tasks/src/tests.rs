@@ -171,7 +171,7 @@ fn change_titles_and_words_have_independent_contract_bounds() {
             connector: 1,
             kind: 2,
             resource: 3,
-            title: skein_lib::bytes::zeroed(title),
+            title: crate::ChangeTitle::new(skein_lib::bytes::zeroed(title)),
             words: skein_lib::bytes::zeroed(words),
         };
         assert_eq!(crate::run::valid_result(&contract, &result, &limits), accepted);

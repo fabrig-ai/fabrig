@@ -20,7 +20,7 @@ pub(crate) fn translate(
         }
         connector::StepDecision::Finish { result: connector::ProcedureResult::Local { code } } => {
             core::StepEnd::Result(tasks::TaskResult::Change {
-                title: b"Change".as_slice().into(),
+                title: jig_domain_tasks::ChangeTitle::new(b"Change".as_slice().into()),
                 connector: number,
                 kind: code,
                 resource: 0,

@@ -102,7 +102,7 @@ fn a_parked_producers_existing_change_waits_for_its_resumed_terminal_to_commit()
         0,
         tasks::End::Finished {
             result: tasks::TaskResult::Change {
-                title: b"Small fix".as_slice().into(),
+                title: jig_domain_tasks::ChangeTitle::new(b"Small fix".as_slice().into()),
                 connector: 0,
                 kind: 2,
                 resource: tag,
@@ -174,7 +174,7 @@ fn produced_turn_change(landing_members: Option<u32>) -> (World, u64) {
         5,
         tasks::End::Finished {
             result: tasks::TaskResult::Change {
-                title: b"Small fix".as_slice().into(),
+                title: jig_domain_tasks::ChangeTitle::new(b"Small fix".as_slice().into()),
                 connector: 0,
                 kind: 2,
                 resource: forge_top::tag(forge_world::REPO.forge, forge_world::REPO.repository),
@@ -306,7 +306,7 @@ fn a_goal_is_kept_on_its_own_changes_landing_by_turn() {
         5,
         tasks::End::Finished {
             result: tasks::TaskResult::Change {
-                title: b"Small fix".as_slice().into(),
+                title: jig_domain_tasks::ChangeTitle::new(b"Small fix".as_slice().into()),
                 connector: 0,
                 kind: 2,
                 resource: forge_top::tag(forge_world::REPO.forge, forge_world::REPO.repository),
@@ -443,7 +443,7 @@ fn finish_producer(world: &mut World, producer: &engine::Assignment, repository:
         5,
         tasks::End::Finished {
             result: tasks::TaskResult::Change {
-                title: b"Small fix".as_slice().into(),
+                title: jig_domain_tasks::ChangeTitle::new(b"Small fix".as_slice().into()),
                 connector: 0,
                 kind: 2,
                 resource: forge_top::tag(repository.forge, repository.repository),

@@ -57,7 +57,7 @@ fn pushed(world: &mut World, producer: &engine::Assignment, branch: &[u8]) {
         5,
         tasks::End::Finished {
             result: tasks::TaskResult::Change {
-                title: b"Change".as_slice().into(),
+                title: jig_domain_tasks::ChangeTitle::new(b"Change".as_slice().into()),
                 connector: 0,
                 kind: 2,
                 resource: forge::tag(REPO.forge, REPO.repository),

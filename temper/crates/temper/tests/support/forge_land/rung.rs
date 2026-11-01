@@ -151,8 +151,8 @@ pub fn deployment(paths: &[PathBuf; 3]) {
         ("root.loads.loads", 32),
         ("root.journal.transcript_bytes", 1_507_543),
         ("root.loads.transcript_bytes", 1_507_539),
-        ("root.loads.bytes", 1_507_795),
-        ("root.loads.reply_bytes", 1_507_795),
+        ("root.loads.bytes", 1_507_787),
+        ("root.loads.reply_bytes", 1_507_787),
     ] {
         value["application"]["limits"]["overrides"][name] = count.into();
     }

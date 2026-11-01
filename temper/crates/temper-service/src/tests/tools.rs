@@ -215,7 +215,7 @@ fn a_change_result_keeps_the_settled_resource() {
         end,
         jig_domain_tasks::End::Finished {
             result: jig_domain_tasks::TaskResult::Change {
-                title: b"Change".as_slice().into(),
+                title: jig_domain_tasks::ChangeTitle::new(b"Change".as_slice().into()),
                 connector: 1,
                 kind: 2,
                 resource: 42,

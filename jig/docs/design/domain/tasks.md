@@ -104,7 +104,9 @@ it is live:
     under the task's number, and the task keeps words that summarise it. A
     change-shaped result also keeps an explicit title as opaque bytes,
     independently bounded by the contract's words cap and the deployment's
-    result-byte limit. Tasks accounts for both allocations and persistence
+    result-byte limit. The title metadata is boxed to keep inline result
+    carriers small. An oversized title is refused before charging its
+    attempt. Tasks accounts for both allocations and persistence
     retains the title; inbox result notices carry the summary words;
   - *a choice:* one of the options the spec lists, or an answer in
     words, for a person;

@@ -142,7 +142,7 @@ fn each_result_kind_reads_back() {
             words: Box::from(b"v".as_slice()),
         },
         TaskResult::Change {
-            title: b"Change".as_slice().into(),
+            title: jig_domain_tasks::ChangeTitle::new(b"Change".as_slice().into()),
             connector: 2,
             kind: 3,
             resource: 31,
@@ -160,14 +160,14 @@ fn change_title_survives_persistence_at_its_independent_byte_bound() {
         connector: 2,
         kind: 3,
         resource: 31,
-        title: skein_lib::bytes::zeroed(bound),
+        title: jig_domain_tasks::ChangeTitle::new(skein_lib::bytes::zeroed(bound)),
         words: skein_lib::bytes::zeroed(bound),
     };
     assert_eq!(saved_result(&result), Ok(result.clone()));
     let jig_domain_tasks::TaskResult::Change { words, connector, kind, resource, .. } = result else {
         panic!("change")
     };
-    let title = skein_lib::bytes::zeroed(bound + 1);
+    let title = jig_domain_tasks::ChangeTitle::new(skein_lib::bytes::zeroed(bound + 1));
     let over = jig_domain_tasks::TaskResult::Change { connector, kind, resource, title, words };
     assert_eq!(saved_result(&over), Err(bound_problem(crate::tasks_v9::Path::TaskResultTag)));
 }

@@ -704,7 +704,7 @@ fn smith_terminals_preserve_charge_and_the_root_result_contract() {
             turns: 1,
             end: tasks::End::Finished {
                 result: tasks::TaskResult::Change {
-                    title: b"Fix".as_slice().into(),
+                    title: jig_domain_tasks::ChangeTitle::new(b"Fix".as_slice().into()),
                     connector: 1,
                     kind: 2,
                     resource: 42,

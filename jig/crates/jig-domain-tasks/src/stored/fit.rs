@@ -128,7 +128,7 @@ fn result(value: &TaskResult, limits: &Limits) -> Result<(), RestoreCause> {
     let bytes = match value {
         TaskResult::Report { words } => words.len(),
         TaskResult::Change { title, words, .. } => {
-            count(RestoreBound::ResultBytes, title.len(), limits.result_bytes)?;
+            count(RestoreBound::ResultBytes, title.words.len(), limits.result_bytes)?;
             words.len()
         }
         TaskResult::Failure { reason } => reason.len(),

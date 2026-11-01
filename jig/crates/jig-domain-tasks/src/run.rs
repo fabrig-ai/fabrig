@@ -227,7 +227,7 @@ pub(crate) fn invalid_result(contract: &Contract, result: &TaskResult, limits: &
             Contract::Approval { .. } | Contract::Report { .. } | Contract::Change { .. } => Some(InvalidResult::Form),
         },
         TaskResult::Change { connector, kind, title, words, .. } => {
-            invalid_change(contract, *connector, *kind, title, words, limits)
+            invalid_change(contract, *connector, *kind, &title.words, words, limits)
         }
     }
 }
@@ -303,7 +303,8 @@ pub(crate) fn invalid_followups(
 
 pub(crate) fn result_bytes(result: &TaskResult) -> usize {
     match result {
-        TaskResult::Report { words } | TaskResult::Change { words, .. } => words.len(),
+        TaskResult::Report { words } => words.len(),
+        TaskResult::Change { title, words, .. } => title.words.len().max(words.len()),
         TaskResult::Verdict { words, fields, .. } => match crate::verdict::fields_bytes(fields) {
             Some(bytes) => bytes.saturating_add(words.len()),
             None => usize::MAX,

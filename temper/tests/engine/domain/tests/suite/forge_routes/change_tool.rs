@@ -564,7 +564,7 @@ fn a_chat_reads_its_landed_pulls_state_and_the_merge_the_fake_made() {
         5,
         tasks::End::Finished {
             result: tasks::TaskResult::Change {
-                title: b"Change".as_slice().into(),
+                title: jig_domain_tasks::ChangeTitle::new(b"Change".as_slice().into()),
                 connector: 0,
                 kind: 2,
                 resource: forge_top::tag(forge_world::REPO.forge, forge_world::REPO.repository),

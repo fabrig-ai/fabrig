@@ -254,9 +254,9 @@
       "overrides": {
         "checkout.message_bytes": 4098,
         "root.journal.transcript_bytes": 1589854,
-        "root.loads.bytes": 1590106,
+        "root.loads.bytes": 1590098,
         "root.loads.read_bytes": 3179700,
-        "root.loads.reply_bytes": 1590106,
+        "root.loads.reply_bytes": 1590098,
         "root.loads.transcript_bytes": 1589850,
         "routes.query_bytes": 2048
       }

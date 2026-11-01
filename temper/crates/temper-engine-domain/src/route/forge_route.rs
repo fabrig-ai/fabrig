@@ -2915,11 +2915,11 @@ fn landed_change(domain: &Domain, task: u64, merge: &[u8; 32], pull: u64, bound:
         connector: domain.config.forge_connector,
         kind: 1,
         resource: pull,
-        title: forge::text::fit(
+        title: tasks::ChangeTitle::new(forge::text::fit(
             &domain.forge.change(task).expect("landed change").title,
             usize::try_from(bound).expect("result bound"),
             "…".as_bytes(),
-        ),
+        )),
         words: change_landing_words(domain, task, merge, pull, bound),
     }
 }

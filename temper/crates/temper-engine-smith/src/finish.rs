@@ -126,7 +126,7 @@ fn change_result(declared: run::outcome::Change, change: Option<ChangeResource>)
         connector: resource.connector,
         kind: resource.kind,
         resource: resource.resource,
-        title: title.ok_or(Problem::Missing(b"title"))?,
+        title: jig_domain_tasks::ChangeTitle::new(title.ok_or(Problem::Missing(b"title"))?),
         words: words.ok_or(Problem::Missing(b"body"))?,
     })
 }
