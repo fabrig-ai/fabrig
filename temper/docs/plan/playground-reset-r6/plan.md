@@ -29,6 +29,7 @@ domain, view, tools and the client world.
 | 5 | `cl-pg`, `cl-pg-goes`, `fe-kept-root`, `fe-make`, `fe-playground-forge`, `fe-playground-root`, `fe-records`, `fe-remove`, `pd-acts`, `pd-vocabulary` |
 | 6 | `pd-accounts-uses`, `pd-people-purge`, `pd-store-reads`, `pd-tasks-erase`, `pd-test-connector` |
 | 7 | `bx-doc`, `bx-fixtures`, `bx-harness`, `bx-init`, `bx-walks`, `sv-family`, `sv-playground`, `sv-registry`, `sv-registry-setup`, `sv-removal`, `sv-resolve`, `sv-seed-kit`, `sv-service-fixtures`, `sv-startup-machine`, `sv-startup-refuse`, `sv-world-client-browser`, `sv-world-one-process`, `sv-world-real-loop`, `cl-world-forges` |
+| 8 | `bx-story-github`, `bx-story-playground`, `bx-story-reset-cut`, `bx-story-setup-cut`, `bx-unforge`, `cl-journeys`, `cl-world-pg`, `fe-config-drop`, `fe-demo-gone`, `fe-make-git`, `fe-world-remove`, `fe-world-reset`, `pd-client-view`, `pd-client-wire`, `pd-conformance`, `pd-core-decide`, `pd-core-erase`, `pd-core-release` |
 
 ## Critical path (as it stands)
 
