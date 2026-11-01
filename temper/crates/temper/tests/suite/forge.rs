@@ -655,3 +655,38 @@ fn forge_sign_in_prints_the_owned_command_without_its_private_secret() {
     assert!(fs::read(directory.join("forgejo.secret")).expect("same scratch secret") == secret);
     scratch.remove();
 }
+
+#[test]
+fn forge_prepare_takes_its_entry_from_the_group_file() {
+    let scratch = support::Scratch::startup("forge-prepare-group-file");
+    let init = Command::new(skein_scratch::paths::binary("temper"))
+        .arg("init")
+        .args(support::configuration::flags(scratch.path()))
+        .output()
+        .expect("init command");
+    assert!(init.status.success(), "{}", String::from_utf8_lossy(&init.stderr));
+    let document: serde_json::Value =
+        serde_json::from_slice(&fs::read(scratch.path().join("temper.json")).expect("init document")).expect("JSON");
+    assert!(document["application"]["setup"].as_array().expect("setup").iter().all(|entry| entry["forge"] != 7));
+    let mut body = document["application"]["setup"][0].clone();
+    let body = body.as_object_mut().expect("fake entry");
+    for name in ["forge", "directory", "start"] {
+        body.remove(name);
+    }
+    let settings = temper_forge_setup::setup::group_settings(&serde_json::to_vec(body).expect("body JSON"), 7)
+        .expect("group settings");
+    for name in ["box", "box/groups"] {
+        fs::create_dir_all(scratch.path().join(name)).expect("group directory");
+        fs::set_permissions(scratch.path().join(name), fs::Permissions::from_mode(0o700)).expect("private directory");
+    }
+    support::write_private(&scratch.path().join("box/groups/7"), &settings);
+    let prepared = Command::new(skein_scratch::paths::binary("temper"))
+        .args(["forge", "prepare"])
+        .args(support::configuration::flags(scratch.path()))
+        .arg("7")
+        .output()
+        .expect("prepare command");
+    assert_eq!(prepared.status.code(), Some(0), "{}", String::from_utf8_lossy(&prepared.stderr));
+    assert!(scratch.path().join("forge-7/admin_token").is_file());
+    scratch.remove();
+}

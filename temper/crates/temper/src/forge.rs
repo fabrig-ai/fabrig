@@ -197,7 +197,11 @@ pub(crate) fn start(
                 )
             });
     }
-    let entry = checked.setup.entry(number).ok_or_else(|| refused("the setup has no entry for it".into()))?;
+    let group = super::box_command::groups::entry(directories, &checked, number).map_err(refused)?;
+    let entry = group
+        .as_ref()
+        .or_else(|| checked.setup.entry(number))
+        .ok_or_else(|| refused("the setup has no entry for it".into()))?;
     let owned = match &entry.mode {
         Mode::Owned(owned) => Some(owned),
         Mode::Managed { .. } => return Err(refused("it is managed, not owned".into())),
