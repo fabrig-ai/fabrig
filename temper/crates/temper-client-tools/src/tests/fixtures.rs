@@ -135,6 +135,7 @@ pub(crate) const EVERY_TOOL: &[&[&str]] = &[
     &["project", "fund", "1", "200", "--key", "fund"],
     &["landing", "show", "41"],
     &["landing", "list", "--project", "1"],
+    &["task", "text", "1"],
 ];
 
 /// Parse the printer's bytes back without re-creating argv in each test.
@@ -587,6 +588,7 @@ impl Harness {
                 | 31
                 | 42..=45
                 | crate::jig::rows::PROPOSAL_AT
+                | crate::jig::rows::TASK_TEXT_AT
                 | crate::jig::rows::PROJECT_SHOW_AT => SINGLE_READ,
                 3 => {
                     if crate::jig::call::number(&call, 2).is_some() {
@@ -742,7 +744,7 @@ pub(crate) const UNKNOWN_ASKER: client::Asker = client::Asker(999);
 /// A stable stored request's engine key, unrelated to its client call prefix.
 const KEPT_KEY: skein_lib::RequestKey = [9; 16];
 /// One slot per row and form; fewer omits decide's second form.
-pub(super) const TOOL_FORMS: u32 = 67;
+pub(super) const TOOL_FORMS: u32 = 68;
 /// Exactly one example exercises each row and form; zero misses it entirely.
 pub(super) const EXAMPLES_PER_FORM: u32 = 1;
 /// One missing byte exercises the first refused destination; zero would fit.
@@ -794,3 +796,6 @@ pub(super) fn selected_help(selection: crate::help::Selection) -> Box<[u8]> {
     crate::help::selected(selection, &mut exact).expect("measured help");
     exact.finish()
 }
+
+mod task_text;
+pub(crate) use task_text::{source_chunk, source_summary, source_task};

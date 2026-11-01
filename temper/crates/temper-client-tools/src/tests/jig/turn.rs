@@ -14,7 +14,9 @@ fn a_turn_past_the_read_bound_exits_0() {
 #[test]
 fn a_large_page_turn_prints_its_read_call() {
     let printed = fixtures::read_answer(fixtures::ACTIVITY_CALL, fixtures::activity_too_large());
-    assert_eq!(printed.stdout, fixtures::golden("activity_turn"));
+    assert_eq!(printed.stdout, fixtures::appended(
+        b"brief: task text 41 --field specification --from 0\ninstructions: task text 41 --field instructions --from 0\n",
+        &fixtures::golden("activity_turn")));
 }
 #[test]
 fn a_page_turn_that_fits_prints_whole() {
@@ -33,7 +35,7 @@ fn a_page_turn_that_fits_prints_whole() {
     assert_eq!(printed.status, 0);
     assert_eq!(
         printed.stdout.as_ref(),
-        b"turn 3.7\ncall 2 \xc2\xb7 read\nrequest\nreply\nresult 2 \xc2\xb7 failed\nsummary\nno more\n"
+        b"brief: task text 41 --field specification --from 0\ninstructions: task text 41 --field instructions --from 0\nturn 3.7\ncall 2 \xc2\xb7 read\nrequest\nreply\nresult 2 \xc2\xb7 failed\nsummary\nno more\n"
     );
     assert!(skein_lib::bytes::find(&printed.stdout, b"read with:").is_none());
 }

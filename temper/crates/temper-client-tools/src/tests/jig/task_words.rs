@@ -8,6 +8,7 @@ const ACTIVITY_ROWS: u32 = 3;
 const MERGE: &[u8] = b"1d0b14e4db018fed000000000000000300000000";
 const INSTRUCTIONS: &[u8] =
     b"Answer on port 8080 unless the store's file names another one, and keep the /health endpoint small.";
+const FAILURE_BRIEF: &[u8] = concat!("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", "é CI failed: missing artifact").as_bytes();
 const REPORT: &[u8] = b"widget --csv prints the table\nand preserves its column order";
 fn contract(connector: u16, kind: u16) -> c::TaskContractDocument {
     c::TaskContractDocument::Change { connector, kind, words: f::LONG_WORDS }
@@ -698,5 +699,91 @@ fn an_items_hold_names_the_call_declaration_and_other_bounds_keep_their_way_out(
             b"way out: reduce the request or raise its configured allowance, then task release 41 --hold 9"
         };
         assert!(skein_lib::bytes::find(&answer.stdout, expected).is_some());
+    }
+}
+
+#[test]
+fn core_cut_task_words_offer_reads_and_preserve_the_failure_suffix() {
+    let words = FAILURE_BRIEF;
+    let (core, limits, row) = f::source_task(words);
+    let summary = f::source_summary(&core, &limits, &row);
+    assert!(summary.spec.specification.words.cut);
+    assert!(summary.instructions.as_ref().unwrap().cut);
+    for argv in [&["task", "show", "1"][..], &["task", "show", "1", "--json"][..]] {
+        let answer = f::read_answer(argv, f::task_result(summary.clone()));
+        assert_eq!(answer.status, 0);
+        assert!(skein_lib::bytes::find(&answer.stdout, b"task text 1 --field specification --from 0").is_some());
+        assert!(skein_lib::bytes::find(&answer.stdout, b"task text 1 --field instructions --from 0").is_some());
+    }
+    for (field, name) in [
+        (jig_domain_core::reads::TaskTextField::Specification, "specification"),
+        (jig_domain_core::reads::TaskTextField::Instructions, "instructions"),
+    ] {
+        let mut whole = skein_lib::Writer::new(words.len());
+        for (offset, from) in [("0", 0), ("127", 127)] {
+            let page = f::source_chunk(&core, &limits, &row, field, from);
+            let answer = f::read_answer(
+                &["task", "text", "1", "--field", name, "--from", offset],
+                c::ReadResult::Value(c::ReadValue::TaskText(Box::new(page.clone()))),
+            );
+            assert_eq!(answer.status, 0);
+            assert!(skein_lib::bytes::is_utf8(&answer.stdout));
+            assert!(skein_lib::bytes::find(&answer.stdout, page.text.bytes()).is_some());
+            whole.put(page.text.bytes()).unwrap();
+            if from == 0 {
+                assert_eq!(page.next, Some(127));
+                assert!(skein_lib::bytes::find(&answer.stdout, b"--from 127").is_some());
+            } else {
+                assert_eq!(page.next, None);
+            }
+        }
+        assert_eq!(whole.finish().as_ref(), words);
+    }
+}
+
+#[test]
+fn core_task_text_json_keeps_utf8_suffix_and_terminal_offset() {
+    let words = FAILURE_BRIEF;
+    let (core, limits, row) = f::source_task(words);
+    let page = f::source_chunk(&core, &limits, &row, jig_domain_core::reads::TaskTextField::Specification, 127);
+    let answer = f::read_answer(
+        &["task", "text", "1", "--field", "specification", "--from", "127", "--json"],
+        c::ReadResult::Value(c::ReadValue::TaskText(Box::new(page))),
+    );
+    assert_eq!(answer.status, 0);
+    assert!(skein_lib::bytes::find(&answer.stdout, "é CI failed: missing artifact".as_bytes()).is_some());
+    assert!(skein_lib::bytes::find(&answer.stdout, b"\"next\":null").is_some());
+    f::unique_keys(&answer.stdout).unwrap();
+}
+
+#[test]
+fn task_activity_points_to_the_brief_outside_its_event_log() {
+    let answer = f::read_answer(
+        &["task", "activity", "1"],
+        c::ReadResult::Value(c::ReadValue::Activity(Box::new(c::ActivityPage {
+            rows: List::with_capacity(0),
+            cut: false,
+            before: None,
+            after: None,
+        }))),
+    );
+    assert_eq!(answer.status, 0);
+    assert!(skein_lib::bytes::find(&answer.stdout, b"brief: task text 1 --field specification --from 0").is_some());
+}
+
+#[test]
+fn task_text_render_cuts_at_its_own_window_and_never_repeats_an_offset() {
+    let (core, limits, row) = f::source_task("éZ CI failed".as_bytes());
+    for (part, status, expected) in [(3, 0, b"--from 3".as_slice()), (1, 1, b"result limit".as_slice())] {
+        let mut root = f::signed_in(f::PARTY);
+        root.limits.tools.part = part;
+        let call = root.submit(&["task", "text", "1"]);
+        let page = f::source_chunk(&core, &limits, &row, jig_domain_core::reads::TaskTextField::Specification, 0);
+        root.serve(call, c::ReadResult::Value(c::ReadValue::TaskText(Box::new(page))));
+        let answer = root.answer(call).unwrap();
+        assert_eq!(answer.status, status);
+        let printed = if status == 0 { &answer.stdout } else { &answer.stderr };
+        assert!(skein_lib::bytes::find(printed, expected).is_some());
+        assert!(skein_lib::bytes::is_utf8(&answer.stdout));
     }
 }

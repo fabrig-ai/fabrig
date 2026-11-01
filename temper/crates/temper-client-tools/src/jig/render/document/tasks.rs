@@ -67,6 +67,7 @@ pub(super) fn encode_subscriptions(
 pub(super) fn encode_task(value: &jig_client::contract::Task, out: &mut Encoder, budget: &mut super::Cut) {
     let digest = budget.digest.take();
     out.object_start();
+    super::super::task_source::reads(value, out);
     encode_task_from_label(value, out, budget);
     encode_task_from_person_revision(value, out, budget);
     encode_task_from_hold(value, out, budget);
@@ -83,6 +84,7 @@ pub(super) fn encode_ended_task(
 ) {
     let digest = budget.digest.take();
     out.object_start();
+    super::super::task_source::reads(value, out);
     encode_task_from_label(value, out, budget);
     encode_task_from_person_revision(value, out, budget);
     encode_task_from_hold(value, out, budget);
