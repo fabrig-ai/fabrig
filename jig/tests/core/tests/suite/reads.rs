@@ -806,7 +806,9 @@ fn the_persons_answer_reaches_the_asking_task() {
         && word.kind == tasks::MessageKind::Answer { question }
         && word.words.as_ref() == b"proceed"));
     let row = jig_core_world::fixtures::live_row(&world, director);
-    assert!(row.inbox.iter().any(|word| word.kind == tasks::MessageKind::QuestionAnswered { question }));
+    assert!(row.inbox.iter().any(
+        |word| word.kind == tasks::MessageKind::QuestionAnswered { question } && word.words.as_ref() == b"proceed"
+    ));
     assert_eq!(row.question_lines[0].answer.expect("first answer retained").task, delegate);
     ask(&mut world, 910, reads::Read::Question { task: director, message: question });
     let reads::EndedValue::Question { answer, .. } = past(&world) else { panic!("answered question") };

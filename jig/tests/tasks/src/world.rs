@@ -47,7 +47,7 @@ pub const LIMITS: Limits = Limits {
     result_bytes: 32,
     run_inbox: 8,
     inbox_messages: 8,
-    inbox_bytes: 128,
+    inbox_bytes: 512,
     message_bytes: 32,
     proposal_stall: Duration::from_millis(10),
     escalation_stall: Duration::from_secs(3600),

@@ -843,10 +843,10 @@ fn the_persons_inbox_answer_reaches_the_goal_with_no_chat_call() {
         .iter()
         .find(|word| word.kind == tasks::MessageKind::QuestionAnswered { question })
         .expect("the chat hears which question its person answered");
-    assert!(notice.words.is_empty());
+    assert_eq!(notice.words.as_ref(), GO_AHEAD);
     assert_eq!(
         engine::inbox_words(notice).as_ref(),
-        format!("Person answered question {question} in their inbox").as_bytes()
+        [format!("Person answered question {question} in their inbox:\n").as_bytes(), GO_AHEAD].concat().as_slice()
     );
 }
 

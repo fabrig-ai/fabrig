@@ -6,3 +6,5 @@
 - **Not yet:** 3.4, 5.5, 10: supplied preview and read-cancellation/startup consumers. 3.5, 5.5: first-plan terms, program/host/activity facts and missing sign-in end facts. 3.5, 3.6: board/reordering, remaining histories/confirmations and cards tied to call objects. Account display can be empty; result-bound decoder gaps remain. 5.13: How work runs/proposal review.
 
 - **Built:** 3.5, 5.5: the tools' declaration act is distinguished from the browser's command by its directory placeholders and signed-in skip rule.
+
+- **Built:** 3.5: the chat's answer notice carries the person's words cut at 256 bytes; its conversation retains the answered-question line.

@@ -629,10 +629,13 @@ position of the question's activity line in the asker's record. Words
 and time are read from that line, never copied into the credit; the
 line does not name the addressed party.
 
-**Question notices say which words they carry.** `QuestionEnded` and
-`QuestionAnswered` carry empty words, their kind naming the question's
-number. `QuestionOwed` carries the instruction: "You owe your requester
-a question: ask your plan with message, as a question, and wait."
+**Question notices say which words they carry.** `QuestionEnded` carries
+empty words, its kind naming the question's number. `QuestionAnswered`
+carries the person's answer words within 256 bytes, including a
+`[N bytes cut]` line when cut, with the prefix ending at a UTF-8 boundary.
+Each received question reserves those 256 bytes beside its notice slot.
+Stored notices with empty words still restore. `QuestionOwed` carries the
+instruction: "You owe your requester a question: ask your plan with message, as a question, and wait."
 Unanswered questions retired together produce one `QuestionEndedDue`
 batch per asker; the core numbers each notice once.
 
@@ -1201,7 +1204,9 @@ are entries of its own (section 9), which always wake it.
   holds at most a configured number of messages and bytes, and every
   kind of message is admitted in one of three ways:
   - *room kept:* one result from each live delegate, one answer to each
-    open question it asked, one decision on each of its pending
+    open question it asked, one notice with up to 256 bytes of answer
+    words for each question it received for its person, one decision
+    on each of its pending
     proposals, and a cancel, its grace's ask to finish taking the same
     room, one ask in a task's life (section 7), so none of them can be
     refused;
