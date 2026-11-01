@@ -72,7 +72,7 @@ the same way every time is a mechanism whoever does it today.
 ```
 a person
 └─ G  the goal                       coordinator, a designer's charter; tracked
-   ├─ c0  shared contracts           change into B, handed G's run branch
+   ├─ c0  shared contracts           change into B
    ├─ P1  a part                     coordinator, a designer's charter
    │  ├─ c1…cn  a task               change into B, dependencies between them
    │  │    ├─ a producer             agent, a coding charter
@@ -98,9 +98,9 @@ a person
   round trips.
 - **B, the goal's branch,** is `forge.md`, 11.1's: made at main's tip by
   the change that lands it, written only by landings into it, deleted
-  when it lands. Its name is its own family, `temper/<root>/g<task>`
-  (`forge.md`, section 11), so a landing rule's pattern can cover every
-  goal's branch.
+  when it lands. Its name is a new family beside `forge.md`, section
+  11's, `temper/<root>/g<task>`, so a landing rule's pattern can cover
+  every goal's branch.
 - **L** is the change that lands B. It is made in G's first batch, kept
   by its dependencies from the start, and it needs no producer: its
   head is what has landed into B. While kept it steps as any procedure
@@ -131,10 +131,10 @@ goal: nothing reaches main before B does.
   draft, chooses the plan's shape and names the parts, their
   dependencies and the shared contracts: the shapes that cross parts,
   fixed before anyone builds to them. It writes no task specs.
-- **The contracts land first.** G's run writes them as files on its own
-  run branch and hands that branch to c0 (`forge.md`, 8.1 and 11; jig's
-  `domain/tasks.md`, 6.4). Only their readers wait for them: parts that
-  touch no contract start beside c0.
+- **The contracts land first.** A designer inspects and never writes
+  (`agent.md`, 4.3): G puts the shapes in c0's spec, and c0's implementer
+  writes them as code where they can be, as files where not. Only their
+  readers wait for them: parts that touch no contract start beside c0.
 - **G's first batch** is L, c0 and every part, whole or nothing (jig's
   `domain/tasks.md`, section 4). A person's question that no work waits
   for goes in G's report, and nothing parks.
@@ -170,9 +170,8 @@ goal: nothing reaches main before B does.
 | green at the end | T+6:23, against a critical path of 18 hours as estimated |
 
 Capacity decides how many run; nothing else holds them. A pause of a
-designer or a question parks only the task that needs the answer. Limits
-of flow are the worker's and its host's (jig's `domain/tasks.md`, 6.2),
-out of this draft's scope.
+designer or a question parks only the task that needs the answer. Where
+runs happen, and how many at once, is out of this draft's scope.
 
 ### 4.4 What keeps the state
 
@@ -185,9 +184,9 @@ Nothing lives only in a session.
 - **Specs are task words,** kept in the store, not files. An answer is
   an amendment, not a commit: more than two fifths of the measured run's
   merges into its branch only carried specs and answers.
-- **Shared notes are files on B:** c0's contracts, and what a part's
-  designer adds through a handed branch. Implementers read them in their
-  checkout, as specs cite them. They land with the code.
+- **Shared notes are files on B:** c0's contracts, and what a later
+  change adds. Implementers read them in their checkout, as specs cite
+  them, and a designer reads them at B's tip. They land with the code.
 - **Notes for the next designer** are jig's notes in the goal's scope
   (jig's `domain/engine.md`, section 10), read by a designer's fresh run.
 
@@ -277,8 +276,8 @@ kept ─► producing ─► opening ─► ready ─► landing into B ─► l
   cannot hold otherwise. In a run that answered nearly every question by
   widening, each became a longer rerun.
 - **Released,** the change decides afresh: a fresh producer starts from
-  its pushed head, B's tip merged in (`forge.md`, 8.2's lazy rule), its
-  brief carrying the amended spec and its earlier attempts.
+  its pushed head, B's tip merged in as `forge.md`, 8.2 does for a repair,
+  its brief carrying the amended spec and its earlier attempts.
 - **The person hears only what is theirs:** budgets, sign-ins and what
   is hard to reverse, when G passes it up and they answer in their
   inbox.
@@ -308,9 +307,10 @@ with 101 of 24,207 tests red.
   make nothing new. B's tier blames no landing: it has one goal.
 - **A red makes a repair, by code.** L's step makes one change into B,
   `forge.md`, section 9's shape: its words open with what it repairs, its
-  brief carries the failing output, and it lists the tasks not yet
-  landed with their paths, to leave what they own. It starts from B's
-  tip and lands like any task. Its question escalates to G, past L.
+  brief carries the failing output, says the red is its own whatever
+  caused it, and lists the tasks not yet landed with their paths, to
+  leave what they own. It starts from B's tip and lands like any task.
+  A question beyond that escalates to G, past L.
 - **Reds are ordinary.** 8 of the measured run's 9 checks were red, each
   fixed by one repair, and none stopped the plan.
 
@@ -321,8 +321,8 @@ conflicts, 4 repairs and 56 minutes; taken as they come they are small.
 
 - **L updates B on a cadence** while its dependencies are pending:
   after 30 minutes with main moved, before the next check, and not while
-  a repair is open. The update is `forge.md`, section 10's: mechanical,
-  by a merge, an effect that waits for no dependency.
+  a repair is open. The update is mechanical, by a merge, as `forge.md`,
+  section 10's is under a queue, and it waits for no dependency.
 - **Clean,** the next check reads what main brought. A semantic conflict
   shows as a red, and is a repair.
 - **A conflict** is settled by the project's tooling, or makes a
@@ -351,7 +351,7 @@ conflicts, 4 repairs and 56 minutes; taken as they come they are small.
 
 | Role | Task | Charter | LLM choice | Tools |
 |---|---|---|---|---|
-| Designer | G and each part | a coordinator's: starts fresh, parks at once | Opus 5.5 at xhigh; sub-agents, for surveys, Opus 5.5 at high | reads, a workspace, `delegate`, `amend`, `cancel`, `release`, `decide_escalation`, `note`, `message` |
+| Designer | G and each part | a coordinator's: starts fresh, parks at once | Opus 5.5 at xhigh; sub-agents, for surveys, Opus 5.5 at high | reads, a read-only checkout at B, `delegate`, `amend`, `cancel`, `release`, `decide_escalation`, `note`, `message` |
 | Implementer | a change's producer, resolution, repair | the coding charter (charter 2) | the coding model at high | the workspace's; no messages |
 | Reviewer | a gate, when on | the review charter (charter 4) | by lens | reads |
 
@@ -369,7 +369,7 @@ conflicts, 4 repairs and 56 minutes; taken as they come they are small.
 
 | Setting | On main | On a goal's branch |
 |---|---|---|
-| landing rule's pattern | `main` | `temper/*/g*` |
+| landing rule's pattern | `main`, the stock's rule narrowed to it | `temper/*/g*` |
 | gates | the full gate | none |
 | tiers | the slow tiers | the check, on its cadence |
 | keep up | none | every 30 minutes |
@@ -378,12 +378,16 @@ conflicts, 4 repairs and 56 minutes; taken as they come they are small.
 ### 10.3 Limits
 
 The stock's limits fit a chat and two changes. This workflow's profile
-raises what it measures: tasks per tree (several hundred: each producer,
-resolution and landing is a task), delegates per task, batch size,
-dependencies per task, tasks a change's authority may make (each question
-costs a producer), a spec's bytes (the measured specs ran to 21 KB against
-a brief of 14,592 bytes), the brief, and a designer's run budget (the
-longest run took 53 minutes). All are settings.
+raises what it measures: live tasks; tasks per tree (several hundred:
+each producer and resolution is a task, a landing being a root of its
+own); delegates per task, batch size and dependencies per task; live
+landings (`forge.landings`, 2 in the stock); a spec's bytes and the brief
+(the measured specs ran to 21 KB against a brief of 14,592 bytes), with
+its plan and notes sections; a result's bytes, 512 in the stock, which a
+list of what is left outgrows; and a designer's run budget (the longest
+run took 53 minutes). All are settings but one: a change's 6 tasks and
+depth of 2 are fixed in the code, and each question costs a producer
+(CP-1).
 
 ### 10.4 What turns on later
 
@@ -438,20 +442,19 @@ is code to build, *setting* is configuration to add.
 
 | # | Owner | Kind | What | Where |
 |---|---|---|---|---|
-| CP-1 | temper | mechanism | A typed end "needs a decision" for a producer: no tries spent, the question in the hold's words; a release with a head pushed makes a fresh producer at that head, its base taken first; a bound on a change's producers | `forge.md`, 8.1, 8.4; `agent.md`, 4.4 |
+| CP-1 | temper | mechanism | A typed end "needs a decision" for a producer: no tries spent, the question in the hold's words; a release with a head pushed makes a fresh producer at that head, its base taken first, which `forge.md`, 8.2 says of repairs alone; a bound on a change's producers, and its 6 tasks and depth of 2 as a setting; a hold's words reaching whoever its escalation reaches, since today they go to the immediate requester and a task past a procedure reads only that a decision is needed | `forge.md`, 8.1, 8.2, 8.4; `agent.md`, 4.3.1, 4.4 |
 | CP-2 | temper | mechanism | A goal's branch: its name's family; a change with no producer and no handed branch, which creates B at its first step and opens its pull request once B differs from main; a change into a branch not yet there waits for it; a landing into B is not drift on L | `forge.md`, 8.1, 8.5, 11, 11.1 |
-| CP-3 | temper | mechanism | Landing into any landing branch: `landing.md` says main throughout; a landing with no gate is proved at once | `landing.md`, sections 3 to 8 |
-| CP-4 | temper | setting | Gates and tiers per pattern of landing branches; kind 5 holds them per repository | `landing.md`, 13.1; `after-landing.md`, section 11 |
+| CP-3 | temper | mechanism | The code lands on a change's base and proves no gates at once, so what is left is `landing.md`'s words, which say main, and one bound: every prepare counts toward `updates` and holds at three, so a busy branch would wake a designer for going stale. A re-prepare from a stale base counts toward nothing | `landing.md`, sections 3 to 8 |
+| CP-4 | temper | setting | Gates and tiers per pattern of landing branches; kind 5 holds them per repository. The stock's rule covers everywhere and a project's rule never replaces it, so it narrows to `main` | `landing.md`, 13.1; `after-landing.md`, section 11; `forge.md`, 8.7 |
 | CP-5 | jig, temper | mechanism | The change procedure started kept: designed in jig, listed as not yet in temper's status | jig's `domain/connectors.md`, 6.1; `landing.md`, 4.1 |
 | CP-6 | temper | mechanism | The early start: when it may start, once only, the wait after an unfinished dependency, and a workspace start of a branch with heads merged in | `worker.md`, 4.1, section 5 |
-| CP-7 | temper | mechanism | Tiers themselves, and on a goal's branch: a cadence, no blame, a red that L's step turns into one repair change | `after-landing.md`, sections 3, 5, 7 |
-| CP-8 | temper | mechanism | Keeping up: an update on a cadence, against section 10's "never only because its base moved"; while kept; a conflict's resolution as a change into B starting from a merge in progress; the check that the tip came in | `forge.md`, 8.4, 10 |
-| CP-9 | jig, temper | mechanism | Job tasks, and the project's `prepare` on them: the only way a repository-specific rule runs without an LLM. Until then a counted file's conflict costs a resolution | jig's `domain/tasks.md`, 5.3.1; `hosts.md`, 6.9; `worker.md`, 4.4; `landing.md`, 5.3 |
-| CP-10 | temper | mechanism | Delegating changes as a batch, with `needs`, a landing branch, charter and LLM choice: `change` takes words alone, into the default branch, one at a time; change-shaped delegation is incomplete | `agent.md`, 4.3.1 |
-| CP-11 | jig | mechanism | A dependency amended onto a procedure task or a held one, loaded as the core needs: listed as not yet | `domain/tasks.status.md`; jig's `domain/tasks.md`, section 7 |
-| CP-12 | temper | setting | A designer's charter in the stock; `goal` may today start advisors alone; a designer holding a run branch it hands over | `agent.md`, 4.3.2, section 8; `../protocol/configuration.md` |
-| CP-13 | temper | setting | A profile for this workflow's limits (10.3) | `../protocol/configuration.md` |
-| CP-14 | temper | mechanism | The standing report (section 11): no view gathers it | `client/tools.md` |
+| CP-7 | temper | mechanism | Tiers themselves, of which only `Check::Tier` exists, and on a goal's branch: a cadence, no blame, a red that L's step turns into one repair change. A change's authority names no procedure, and a branch's repair is refused for any requester but the deployment; L needs both | `after-landing.md`, sections 3, 5, 7; `forge.md`, section 9 |
+| CP-8 | temper | mechanism | Keeping up: an update under the turn, where `forge.md`, section 10 applies to the queue alone, on a cadence, against its "never only because its base moved", and while kept; a conflict's resolution as a change into B, the merge in progress built for a change's own branch; the check that the tip came in | `forge.md`, 8.4, 10 |
+| CP-9 | jig, temper | mechanism | Job tasks, and the project's `prepare` on them, for a landing and for L's update, which is no landing: the only way a repository-specific rule runs without an LLM. Until then a counted file's conflict costs a resolution | jig's `domain/tasks.md`, 5.3.1; `hosts.md`, 6.9; `worker.md`, 4.4; `landing.md`, 5.3 |
+| CP-10 | temper | mechanism | Delegating changes: `change` takes words alone, into the default branch, one at a time; `delegate` of the change procedure takes a base, a batch and dependencies, but no charter or LLM choice | `agent.md`, 4.3.1 |
+| CP-11 | temper | setting | A designer's charter in the stock: its tools hold no control, decide, subscribe or note today; `goal` takes its caller's charter, gives no notes and, from a tracked run, starts advisors alone; a designer's checkout at B, since a run outside a change starts at the default branch | `agent.md`, 4.3.2, section 8; `worker.md`, 4.1; `../protocol/configuration.md` |
+| CP-12 | temper | setting | A profile for this workflow's limits (10.3) | `../protocol/configuration.md` |
+| CP-13 | temper | mechanism | The standing report (section 11): no view gathers it | `client/tools.md` |
 
 ## 14. Later
 

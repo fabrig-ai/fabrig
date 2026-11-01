@@ -103,8 +103,8 @@ landed into B.
   (`forge.md`, section 10) or, where the project names one, by its
   `prepare` on a job (`landing.md`, 5.3). A branch only moves forward:
   no forced update, commits kept as they are. Main takes the head by
-  fast-forward, so its history keeps the merge. This is the project's
-  setting; `landing.md`, 17 leaves the default open.
+  fast-forward, so its history keeps the merge. This departs from
+  `landing.md`, 5.2's default, the rebase, as a project's setting.
 - **A conflict the tooling cannot settle** is a resolution under the
   change (`landing.md`, section 3): main's tip merged into its branch,
   the files in conflict marked, an agent keeping both sides' intent.
@@ -149,9 +149,11 @@ unless a bound or a goal passes it up.
 | past a bound | the change | held; the hold escalates to the goal, which judges: more repairs, a new part, a cancel | a designer |
 | a judge that cannot decide | the goal | passes it up to its person | none |
 
-Bounds, each a setting: repairs at the gate (the third red holds),
-resolutions, updates, stale proofs. A rejection names a fault of the
-branch it rejects: one record in 130 was not, which the rerun answers.
+Bounds, each a setting: repairs at the gate (`repairs` of 2, so the
+third red holds), resolutions, updates. A stale proof has no bound: it
+costs one gate, and counts toward none of these (CP-3). A rejection names
+a fault of the branch it rejects: one record in 130 was not, which the
+rerun answers.
 
 ## 5. Landings with no goal's branch
 
@@ -159,8 +161,8 @@ The same way, into main directly:
 
 - **A fix:** a goal of one change, from a red or a finding, with no
   designer and no branch; an implementer, the full gate, the turn.
-- **A goal's last change:** its retiring run's status files and the
-  draft's retirement, delegated by G once its branch has landed.
+- **A goal's last change:** the status files and the draft's retirement,
+  which G delegates once its branch has landed and its verdict is in.
 - **A person's chat** asking for a small change, as `forge.md`, 15.1
   says.
 
@@ -212,13 +214,13 @@ branch a parameter of the change.
 | `landing.md`, 13.1, kind 4 | `by` | `turn` |
 | | `prepare` | the project's tooling, or none |
 | | prepare's style | merge (LD-1) |
-| | `gate_retries`, `tier_retries`, `stale_proofs` | 2, 2, 2 |
+| | `gate_retries`, `tier_retries`, `repairs` | 2, 2, 2 |
 | | `suspects`, `red_pauses` | `tell_all`, no |
 | | `dependencies_join`, `pins` | unused: one repository |
 | | `findings`, `triager` | on, a coordinator's charter |
 | kind 5 | `gates` | the full gate on `main`: its workflow, ignored paths, blocking |
 | | `tiers` | the slow tiers on `main`; the check on goals' branches |
-| landing rules, kind 1 and 2 | `main` | required: its gate; no review by default |
+| landing rules, kind 1 and 2 | `main` | the stock's rule narrowed to it; required: its gate; no review by default |
 | | `temper/*/g*` | nothing required |
 | repository | workflows | dispatch-only, so no check runs on a pushed head |
 
@@ -267,19 +269,20 @@ not another rule.
 
 Rows `reference-code-production.md`, section 13 holds are not repeated:
 CP-3 and CP-4, a landing on any branch and rules per pattern; CP-7,
-tiers; CP-9, jobs; CP-14, the report.
+tiers; CP-9, jobs; CP-13, the report.
 
 | # | Owner | Kind | What | Where |
 |---|---|---|---|---|
 | LD-1 | temper | mechanism | Prepare's style, merge, as a project's setting: `landing.md`, 5.2 rebases, and its keep of earlier heads and its "not drift" fall away for merge | `landing.md`, 5.2, 13.1, 17 |
 | LD-2 | temper | mechanism | A gate's rerun of its failed tests alone, whatever findings say: a gate's run must name its tests and take `temper_tests`, as a tier's does | `landing.md`, 7.3; `after-landing.md`, sections 2, 4; `findings.md`, section 5 |
-| LD-3 | temper | mechanism | A landing's holds reach the member's goal: `landing.md`, 4.2 sends them to the project's escalation role and tells goals as news, and a person would hear what a designer should judge | `landing.md`, 4.2, 7.4 |
+| LD-3 | temper | mechanism | A landing's own hold reaches its member's goal: a change's holds escalate as any task's, but a landing's, for faults past their bound, goes to the project's escalation role, and a person hears what a designer should judge | `landing.md`, 4.2, 7.4 |
 | LD-4 | temper | mechanism | A goal subscribing to a landing's verdict, with `lives to cleared` off | `after-landing.md`, sections 6, 7 |
 | LD-5 | skein, temper | mechanism | A run's artifact read, for a run's failing tests | skein's `forge.md`, 3.2; `after-landing.md`, section 4 |
 | LD-6 | temper | mechanism | Findings' filing and triage, at least for a red of no live goal | `findings.md`, sections 1 to 6 |
 | LD-7 | temper | setting | Kinds 4 and 5 as settings; the document's `landing` member until then | `landing.md`, 13.1 |
 | LD-8 | temper | mechanism | The turn on GitHub, where a project's forge is GitHub: refused today, with the ref update and tree and run reads to build | `landing.md`, section 8; skein's `forge-github.md` |
 | LD-9 | temper | setting | `.temper/pre-pr` wired to the repository's own checks, for first-attempt success | `agent.md`, 4.5 |
+| LD-10 | temper | mechanism | A member kept again under a live landing: a dependency added to L must take it out of its landing, and the code guards only a landing's start | `landing.md`, 4.1, 4.2 |
 
 ## 12. Later
 
