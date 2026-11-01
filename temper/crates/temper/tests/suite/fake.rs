@@ -444,13 +444,10 @@ fn deployment_command(kind: &str, directory: &Path) -> Command {
     command
 }
 fn forge_setup(directory: &Path, listen: &str) -> Value {
-    let mut config = support::legacy_configuration::check_document(directory);
-    config["application"]["forges"][0]["api"] = json!({"socket":listen});
-    config["application"]["forges"][0]["git"] = json!(format!("http://{listen}"));
-    let fake = &mut config["application"]["setup"][0]["mode"]["fake"];
-    fake["listen"] = json!({"socket":listen});
-    fake["owner"] = json!("fake");
-    fake["repositories"][0]["landing"] = json!("trunk");
+    let mut config = support::configuration::check_document(directory);
+    let entry = json!({"forge":1,"directory":"forge-1","bot":{"login":"temper","email":"temper@example.test"},"mode":{"fake":{
+        "listen":{"socket":listen},"git":"demo/bin/git","owner":"fake","repositories":[{"name":"widget","landing":"trunk"}]}}});
+    config["application"]["setup"] = json!([entry]);
     config
 }
 #[expect(clippy::too_many_lines, reason = "deployment forms refuse before creating files")]
@@ -481,7 +478,7 @@ fn refused_deployment_start(root: &Path) {
             "past 40 bytes",
             true,
         ),
-        ("no_entry", "2", "fake", None, false, false, "the setup has no entry for it", false),
+        ("no_entry", "2", "fake", None, false, false, "forge 2 has no settings: box/groups/2", false),
         ("owned", "1", "owned", None, false, false, "it is owned, not fake", false),
         ("managed", "1", "managed", None, false, false, "it is managed, not fake", false),
         ("both", "1", "fake", None, true, false, "invalid arguments", false),
@@ -510,7 +507,7 @@ fn refused_deployment_start(root: &Path) {
             "fake" => {}
             _ => unreachable!("fixture mode"),
         }
-        document(&dir.join("temper.json"), &config);
+        crate::groups::save(&dir, config);
         if let Some(token) = token {
             fs::create_dir(dir.join("forge-1")).expect("token directory");
             fs::set_permissions(dir.join("forge-1"), fs::Permissions::from_mode(0o700)).expect("private");
@@ -734,46 +731,13 @@ fn prepared_forge(directory: &Path) -> (SocketAddr, std::path::PathBuf, Vec<u8>)
     let listener = std::net::TcpListener::bind("127.0.0.1:0").expect("available port");
     let listen = listener.local_addr().expect("listen");
     drop(listener);
-    document(&directory.join("temper.json"), &forge_setup(directory, &listen.to_string()));
+    crate::groups::save(directory, forge_setup(directory, &listen.to_string()));
     let prepared = support::owned::prepare(directory, 1);
     assert_eq!(prepared.status.code(), Some(0), "{}", String::from_utf8_lossy(&prepared.stderr));
     let path = directory.join("forge-1/admin_token");
     let token = fs::read(&path).expect("prepared token");
     (listen, path, token)
 }
-#[test]
-fn the_old_form_prepared_fake_reconciles_twice_before_it_stops() {
-    let scratch = support::Scratch::new("fake_forge_reconcile");
-    let (_, path, token) = prepared_forge(scratch.path());
-    // temper-15 retains the explicit file-writing reconcile command.
-    let mut config = support::legacy_configuration::old_form_check_document(scratch.path());
-    let prepared: Value =
-        serde_json::from_slice(&fs::read(scratch.path().join("temper.json")).expect("prepared document"))
-            .expect("prepared JSON");
-    config["application"]["forges"][0]["api"] = prepared["application"]["forges"][0]["api"].clone();
-    config["application"]["forges"][0]["git"] = prepared["application"]["forges"][0]["git"].clone();
-    config["application"]["setup"] = prepared["application"]["setup"].clone();
-    document(&scratch.path().join("temper.json"), &config);
-    let mut command = deployment_command("forge", scratch.path());
-    command.arg("1");
-    let run = Running::command(command, None);
-    for pass in ["first", "second"] {
-        let output = Command::new(skein_scratch::paths::binary("temper"))
-            .env_clear()
-            .args(["forge", "reconcile"])
-            .args(support::configuration::flags(scratch.path()))
-            .arg("1")
-            .output()
-            .expect("reconcile ends");
-        assert_eq!(output.status.code(), Some(0), "{pass}: {}", String::from_utf8_lossy(&output.stderr));
-        assert!(output.stdout.is_empty());
-        assert!(output.stderr.is_empty());
-    }
-    run.stop();
-    assert_eq!(fs::read(path).expect("handover token kept"), token);
-    scratch.remove();
-}
-
 const CHAT:&[u8]=br#"{"model":"qa","store":false,"instructions":"","input":[{"role":"user","content":[{"type":"input_text","text":"say hello"}]}],"stream":true}"#;
 #[test]
 #[expect(clippy::too_many_lines, reason = "all LLM forms serve the same requests and retain their files")]
@@ -1335,7 +1299,9 @@ fn check_run() {
     let (agent, _) = support::configuration::documents(directory, env!("CARGO_BIN_EXE_temper"));
     support::write_private(&directory.join("agent.json"), &agent);
     support::write_private(&directory.join("root.der"), skein_tls_world::pki::ROOT);
-    document(&directory.join("temper.json"), &support::legacy_configuration::check_document(directory));
+    document(&directory.join("temper.json"), &support::configuration::check_document(directory));
+    let setup = forge_setup(directory, "127.0.0.1:9");
+    crate::groups::write(&directory.join("data"), 1, &setup["application"]["setup"][0]);
     let observations = directory.join("observations");
     fs::write(&observations, b"{\"observations_lost\":0}\n").expect("checkpoint");
     let store = directory.join("copy");
@@ -1364,7 +1330,7 @@ fn check_run() {
         )
         .as_bytes()
     );
-    assert!(!data.exists());
+    assert!(!data.join("forge-1").exists());
     assert!(!cache.exists());
     scratch.remove();
 }

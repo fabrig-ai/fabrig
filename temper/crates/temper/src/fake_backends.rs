@@ -278,14 +278,7 @@ fn checked_peers(dirs: &Directories, bytes: &[u8]) -> Result<Peers, String> {
     if let Some(webhooks) = &deployment.named.webhooks {
         serve.push(crate::address(&webhooks.listener)?);
     }
-    let ordinary = temper_fake::steps(
-        &deployment.checked.setup,
-        deployment.demo.as_ref(),
-        &dirs.flags(),
-        serve.into_boxed_slice(),
-        true,
-        Box::new([]),
-    );
+    let ordinary = temper_fake::steps(&dirs.flags(), serve.into_boxed_slice(), Box::new([]));
     let mut ports = vec![1455];
     ports.extend(deployment.ports.iter().map(SocketAddr::port));
     for step in
