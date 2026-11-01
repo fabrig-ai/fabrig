@@ -34,6 +34,15 @@ pub(super) fn open_arguments(private: &Path, link: &[u8]) -> Vec<Box<[u8]>> {
 }
 #[must_use]
 pub fn open(directory: &Path, private: &Path, link: &[u8]) -> Binary {
+    let address;
+    let link = if super::ctl::provision_linked(directory, private, link) {
+        let text = std::str::from_utf8(link).expect("printed URL");
+        let host = text.strip_prefix("http://").expect("loopback URL").split('/').next().expect("URL host");
+        address = format!("http://{host}").into_bytes();
+        address.as_slice()
+    } else {
+        link
+    };
     Binary::start(
         Command {
             program: skein_scratch::paths::binary("temper"),
