@@ -54,8 +54,35 @@ pub fn machine() -> temper_engine_domain_forge::Machine {
     playground.git = b"http://127.0.0.1:3001".as_slice().into();
     playground.web = Some(playground.git.clone());
     playground.git_program = Some(b"demo/bin/git".as_slice().into());
-    playground.setup = Some(br#"{"bot":{"login":"temper","email":"temper@localhost"},"mode":{"fake":{"listen":{"socket":"127.0.0.1:3001"},"git":"demo/bin/git","owner":"acme","repositories":[{"name":"shop","landing":"main"}]}}}"#.as_slice().into());
+    playground.setup = Some(br#"{"bot":{"login":"temper","email":"temper@localhost"},"mode":{"fake":{"listen":{"socket":"127.0.0.1:3001"},"git":"demo/bin/git","owner":"playground","repositories":[{"name":"widget","landing":"main"}]}}}"#.as_slice().into());
     f::Machine { owned: Some(owned), github: f::ForgeRecord::github_com(), playground: Some(playground) }
+}
+
+pub const PLAYGROUND_CUE: &[u8] = b"Change the title";
+pub const PLAYGROUND_REPOSITORY: u32 = 7;
+
+#[must_use]
+pub fn playground_config() -> temper_engine_domain_forge::DemoConfig {
+    use temper_engine_domain_forge as f;
+    f::DemoConfig {
+        provider: 17,
+        project_name: "Playground".into(),
+        project_policy: 1,
+        deadline: Duration::from_secs(10),
+        adoption: f::Adoption {
+            project: 0,
+            forge: 0,
+            home: true,
+            host: b"127.0.0.1:3001".as_slice().into(),
+            owner: b"playground".as_slice().into(),
+            name: b"widget".as_slice().into(),
+            prefix: b"temper/".as_slice().into(),
+            role: f::Role::Owned,
+            landing: b"main".as_slice().into(),
+            ci: true,
+            checks: Box::new([]),
+        },
+    }
 }
 
 pub const REPOSITORIES: &[(&[u8], &[u8], u32)] = &[(b"acme", b"shop", 7), (b"acme", b"second", 8)];
