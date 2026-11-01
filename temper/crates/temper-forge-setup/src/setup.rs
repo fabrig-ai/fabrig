@@ -105,51 +105,7 @@ impl Setup {
         {
             for (index, entry) in setup.entries.iter_mut().enumerate() {
                 let p = p.child(config::Segment::Index(u32::try_from(index).expect("bounded entries")));
-                if !entry.directory.is_empty() {
-                    resolve_path(
-                        directories,
-                        config::Directory::Data,
-                        &mut entry.directory,
-                        p.member(b"directory"),
-                        &mut ps,
-                    );
-                }
-                match &mut entry.mode {
-                    Mode::Managed { admin_token: Some(admin_token) } => resolve_path(
-                        directories,
-                        config::Directory::Data,
-                        admin_token,
-                        p.member(b"mode").member(b"managed").member(b"admin_token"),
-                        &mut ps,
-                    ),
-                    Mode::Managed { admin_token: None } => {}
-                    Mode::Fake(fake) => resolve_path(
-                        directories,
-                        config::Directory::Data,
-                        &mut fake.git,
-                        p.member(b"mode").member(b"fake").member(b"git"),
-                        &mut ps,
-                    ),
-                    Mode::Owned(owned) => {
-                        let p = p.member(b"mode").member(b"owned");
-                        resolve_path(
-                            directories,
-                            config::Directory::Cache,
-                            &mut owned.forgejo,
-                            p.member(b"forgejo"),
-                            &mut ps,
-                        );
-                        if let Some(runner) = &mut owned.runner {
-                            resolve_path(
-                                directories,
-                                config::Directory::Cache,
-                                &mut runner.binary,
-                                p.member(b"runner").member(b"binary"),
-                                &mut ps,
-                            );
-                        }
-                    }
-                }
+                resolve_entry(entry, directories, &p, &mut ps);
             }
         }
         let clean = ps.is_empty();
@@ -448,7 +404,7 @@ fn mode(d: &Document, at: u32, p: &Path, ps: &mut config::Problems) -> Option<Mo
         Some(Mode::Fake(fake(d, fake_at?, &p.member(b"fake"), ps)?))
     }
 }
-fn entry(d: &Document, at: u32, limits: &Limits, p: &Path, ps: &mut config::Problems) -> Option<Entry> {
+pub(crate) fn entry(d: &Document, at: u32, limits: &Limits, p: &Path, ps: &mut config::Problems) -> Option<Entry> {
     let mut o = object(d, at, p, ps)?;
     let forge_at = o.required(d, b"forge", p, ps);
     let directory_at = o.member(d, b"directory");
@@ -561,5 +517,42 @@ fn resolve_path(
     match directories.join(kind, value) {
         Ok(resolved) => *value = resolved,
         Err(what) => problems.push(path, what),
+    }
+}
+
+/// Resolves one parsed entry with the document parser's directory rules.
+pub(crate) fn resolve_entry(entry: &mut Entry, directories: &config::Directories, p: &Path, ps: &mut config::Problems) {
+    if !entry.directory.is_empty() {
+        resolve_path(directories, config::Directory::Data, &mut entry.directory, p.member(b"directory"), ps);
+    }
+    match &mut entry.mode {
+        Mode::Managed { admin_token: Some(admin_token) } => resolve_path(
+            directories,
+            config::Directory::Data,
+            admin_token,
+            p.member(b"mode").member(b"managed").member(b"admin_token"),
+            ps,
+        ),
+        Mode::Managed { admin_token: None } => {}
+        Mode::Fake(fake) => resolve_path(
+            directories,
+            config::Directory::Data,
+            &mut fake.git,
+            p.member(b"mode").member(b"fake").member(b"git"),
+            ps,
+        ),
+        Mode::Owned(owned) => {
+            let p = p.member(b"mode").member(b"owned");
+            resolve_path(directories, config::Directory::Cache, &mut owned.forgejo, p.member(b"forgejo"), ps);
+            if let Some(runner) = &mut owned.runner {
+                resolve_path(
+                    directories,
+                    config::Directory::Cache,
+                    &mut runner.binary,
+                    p.member(b"runner").member(b"binary"),
+                    ps,
+                );
+            }
+        }
     }
 }

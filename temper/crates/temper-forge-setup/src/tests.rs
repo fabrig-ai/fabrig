@@ -3,6 +3,7 @@ mod files;
 mod fixtures;
 mod given;
 mod golden;
+mod group;
 mod limits;
 mod managed;
 mod members;

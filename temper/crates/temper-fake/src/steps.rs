@@ -4,8 +4,62 @@ use alloc::boxed::Box;
 use skein_lib::{Decimal, List, Writer, bytes};
 use temper_forge_setup::{
     Group, Kind, Stage, Step, Steps,
+    group::{GroupFile, GroupKind},
     setup::{Mode, Setup},
 };
+
+/// Builds a fake forge's group (temper/docs/design/protocol/setup.md, 7.1–7.3 and 8.4).
+/// Process listeners come from the fake entry and demo; serve listeners stay outside the group.
+#[must_use]
+#[expect(clippy::boxed_local, reason = "the group builder keeps the task's owned listener signature")]
+pub fn group(
+    file: &GroupFile,
+    demo: Option<&Demo>,
+    flags: &[Box<[u8]>],
+    _listeners: Box<[core::net::SocketAddr]>,
+) -> Group {
+    let GroupKind::Fake { llm } = file.kind else { unreachable!("fake group builder requires a fake kind") };
+    let Mode::Fake(fake) = &file.entry.mode else { unreachable!("a fake group has a fake entry") };
+    let mut steps = List::with_capacity(3);
+    if llm {
+        let demo = demo.expect("a fake group with an LLM requires its demo");
+        assert_eq!(demo.forge(), file.forge, "the demo belongs to the group's forge");
+        steps
+            .push((
+                Stage::Run,
+                command(b"fake llm", &[b"fake", b"llm"], flags, None, Kind::Long)
+                    .listening(Box::new([demo.llm().listen()])),
+            ))
+            .expect("fake llm");
+    }
+    steps
+        .push((Stage::Prepare, command(b"prepare", &[b"forge", b"prepare"], flags, Some(file.forge), Kind::Once)))
+        .expect("fake preparation");
+    steps
+        .push((
+            Stage::Run,
+            command(b"fake forge", &[b"fake", b"forge"], flags, Some(file.forge), Kind::Long)
+                .listening(Box::new([fake.listen])),
+        ))
+        .expect("fake forge");
+    let label = if llm {
+        bytes::copy_of(b"Playground")
+    } else {
+        let digits = Decimal::of(u64::from(file.forge));
+        let mut writer = Writer::new(
+            6_usize
+                .checked_add(digits.as_bytes().len())
+                .expect("bounded group label")
+                .checked_add(10)
+                .expect("bounded group label"),
+        );
+        writer.put(b"Forge ").expect("label prefix");
+        writer.put(digits.as_bytes()).expect("forge number");
+        writer.put(b" (Forgejo)").expect("label kind");
+        writer.finish()
+    };
+    Group { forge: file.forge, label, recorded: false, before: 0, steps: steps.into_boxed() }
+}
 
 /// The demo's group, the fake LLM, then the demo forge's preparation
 /// and its fake forge (`application.demo.forge`, 8.4), is always asked,
@@ -47,18 +101,13 @@ pub fn steps(
         always.push(step).expect("first steps counted");
     }
     for entry in &setup.entries {
-        if let Mode::Fake(fake) = &entry.mode
+        if let Mode::Fake(_) = &entry.mode
             && demo_forge != Some(entry.forge)
         {
-            always
-                .push(command(b"prepare", &[b"forge", b"prepare"], flags, Some(entry.forge), Kind::Once))
-                .expect("fake preparation");
-            always
-                .push(
-                    command(b"fake forge", &[b"fake", b"forge"], flags, Some(entry.forge), Kind::Long)
-                        .listening(Box::new([fake.listen])),
-                )
-                .expect("fake forge");
+            let file = GroupFile { forge: entry.forge, kind: GroupKind::Fake { llm: false }, entry: entry.clone() };
+            for (_, step) in group(&file, None, flags, Box::new([])).steps {
+                always.push(step).expect("fake steps counted");
+            }
         }
     }
     for step in given.always {
@@ -71,33 +120,14 @@ pub fn steps(
             .expect("demo group"),
     );
     if let Some(demo) = demo {
-        let Mode::Fake(fake) = &setup.entry(demo.forge()).expect("checked demo forge").mode else {
-            unreachable!("demo has a fake forge")
+        let file = GroupFile {
+            forge: demo.forge(),
+            kind: GroupKind::Fake { llm: true },
+            entry: setup.entry(demo.forge()).expect("checked demo forge").clone(),
         };
-        asked
-            .push(Group {
-                forge: demo.forge(),
-                label: bytes::copy_of(b"Playground"),
-                recorded: false,
-                before: first_len,
-                steps: Box::new([
-                    (
-                        Stage::Run,
-                        command(b"fake llm", &[b"fake", b"llm"], flags, None, Kind::Long)
-                            .listening(Box::new([demo.llm().listen()])),
-                    ),
-                    (
-                        Stage::Prepare,
-                        command(b"prepare", &[b"forge", b"prepare"], flags, Some(demo.forge()), Kind::Once),
-                    ),
-                    (
-                        Stage::Run,
-                        command(b"fake forge", &[b"fake", b"forge"], flags, Some(demo.forge()), Kind::Long)
-                            .listening(Box::new([fake.listen])),
-                    ),
-                ]),
-            })
-            .expect("demo group counted");
+        let mut built = group(&file, Some(demo), flags, Box::new([]));
+        built.before = first_len;
+        asked.push(built).expect("demo group counted");
     }
     for mut group in given.asked {
         group.before = group.before.checked_add(prefix).expect("bounded group position");

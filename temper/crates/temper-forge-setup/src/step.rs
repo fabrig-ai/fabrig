@@ -1,6 +1,7 @@
 //! The box's ordered commands; each hides whether it is once, long or link.
 use crate::{
     check::joined,
+    group::{GroupFile, GroupKind},
     setup::{Mode, Setup},
 };
 use alloc::boxed::Box;
@@ -137,6 +138,43 @@ fn forge(action: &[u8], flags: &[Box<[u8]>], number: u16, run: Option<&[u8]>) ->
     };
     Step::new(name, args.into_boxed(), if run.is_some() { Kind::Long } else { Kind::Once })
 }
+/// Builds one owned forge's recorded group (temper/docs/design/protocol/setup.md, 7.1–7.3).
+/// Its process listener comes from the entry; the document's serve listeners stay outside the group.
+#[must_use]
+#[expect(clippy::boxed_local, reason = "the group builder keeps the task's owned listener signature")]
+pub fn group(
+    file: &GroupFile,
+    flags: &[Box<[u8]>],
+    _listeners: Box<[core::net::SocketAddr]>,
+    forgejo_listens: bool,
+) -> Group {
+    assert_eq!(file.kind, GroupKind::Owned, "owned group builder requires an owned kind");
+    let e = &file.entry;
+    let Mode::Owned(o) = &e.mode else { unreachable!("an owned group has an owned entry") };
+    let mut steps = List::with_capacity(4);
+    if o.fetch.forgejo || o.fetch.runner {
+        steps.push((Stage::Fetch, forge(b"fetch", flags, file.forge, None))).expect("fetch");
+    }
+    steps.push((Stage::Prepare, forge(b"prepare", flags, file.forge, None))).expect("prepare");
+    // forge run absorbs Forgejo's KillParent (temper/docs/design/protocol/setup.md, 6.4, 7.1).
+    let mut step = forge(b"run", flags, file.forge, Some(b"forgejo")).with_ready(o.listen);
+    if forgejo_listens {
+        step = step.listening(Box::new([o.listen]));
+    }
+    steps.push((Stage::Run, step)).expect("forgejo");
+    if o.runner.is_some() {
+        steps.push((Stage::Run, forge(b"run", flags, file.forge, Some(b"runner")))).expect("runner");
+    }
+    let digits = Decimal::of(u64::from(file.forge));
+    Group {
+        forge: file.forge,
+        label: joined(&[b"Forge ", digits.as_bytes(), b" (Forgejo)"]),
+        recorded: true,
+        before: 0,
+        steps: steps.into_boxed(),
+    }
+}
+
 /// Carries the box's absolute directory flags after each command's words.
 /// Commands in setup order: owned processes, legacy reconciles, then serve;
 /// an asked forge's processes apart, in a group placed in that order.
@@ -155,34 +193,14 @@ pub fn steps(
     for e in &setup.entries {
         match &e.mode {
             Mode::Managed { .. } | Mode::Fake(_) => {}
-            Mode::Owned(o) => {
-                let mut group = List::with_capacity(5);
-                if o.fetch.forgejo || o.fetch.runner {
-                    group.push((Stage::Fetch, forge(b"fetch", flags, e.forge, None))).expect("fetch");
-                }
-                group.push((Stage::Prepare, forge(b"prepare", flags, e.forge, None))).expect("prepare");
-                // forge run absorbs Forgejo's KillParent (protocol/setup.md, 6.4, 7.1).
-                let mut step = forge(b"run", flags, e.forge, Some(b"forgejo")).with_ready(o.listen);
-                if forgejo_listens {
-                    step = step.listening(Box::new([o.listen]));
-                }
-                group.push((Stage::Run, step)).expect("forgejo");
-                if o.runner.is_some() {
-                    group.push((Stage::Run, forge(b"run", flags, e.forge, Some(b"runner")))).expect("runner");
-                }
+            Mode::Owned(_) => {
+                let file = GroupFile { forge: e.forge, kind: GroupKind::Owned, entry: e.clone() };
+                let mut built = group(&file, flags, Box::new([]), forgejo_listens);
                 if e.asked {
-                    let digits = Decimal::of(u64::from(e.forge));
-                    asked
-                        .push(Group {
-                            forge: e.forge,
-                            label: joined(&[b"Forge ", digits.as_bytes(), b" (Forgejo)"]),
-                            recorded: true,
-                            before: out.len(),
-                            steps: group.into_boxed(),
-                        })
-                        .expect("entry capacity");
+                    built.before = out.len();
+                    asked.push(built).expect("entry capacity");
                 } else {
-                    for (_, step) in group.into_boxed() {
+                    for (_, step) in built.steps {
                         out.push(step).expect("step capacity");
                     }
                 }

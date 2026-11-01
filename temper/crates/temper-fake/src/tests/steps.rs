@@ -221,3 +221,59 @@ fn first_steps_precede_fakes_and_both_groups_without_entering_the_playground() {
         assert_eq!(given.label, ordinary.label);
     }
 }
+
+fn group_file(value: &Value, llm: bool) -> temper_forge_setup::group::GroupFile {
+    let bytes = serde_json::to_vec(&json!({
+        "forge":1, "kind":"fake", "llm":llm, "setup":value["application"]["setup"][0]
+    }))
+    .unwrap();
+    temper_forge_setup::group::decode(
+        &bytes,
+        &temper_forge_setup::limits::small(),
+        &config::Directories::given(b"/config", b"/data", b"/cache").unwrap(),
+    )
+    .unwrap()
+}
+
+#[test]
+fn a_playground_group_file_builds_todays_playground_group() {
+    let value = demo::fixture();
+    let file = group_file(&value, true);
+    let demo = demo::read(&value).unwrap().unwrap();
+    let flags: Vec<Box<[u8]>> =
+        ["--config", "C", "--data", "D", "--cache", "K"].iter().map(|flag| Box::from(flag.as_bytes())).collect();
+    let built = steps::group(&file, Some(&demo), &flags, Box::new([]));
+    let document = checked_steps(&value, Box::new([]));
+    assert_eq!(document.asked.as_ref(), core::slice::from_ref(&built));
+    assert_eq!(built.label.as_ref(), b"Playground");
+    assert!(!built.recorded);
+    assert_eq!(built.before, 0);
+    assert_eq!(built.steps.len(), 3);
+    assert_eq!(built.steps[0].0, Stage::Run);
+    assert_eq!(built.steps[0].1.name(), b"fake llm");
+    assert_eq!(built.steps[0].1.listeners(), &[demo.llm().listen()]);
+    assert_eq!(built.steps[1].0, Stage::Prepare);
+    assert_eq!(built.steps[2].0, Stage::Run);
+}
+
+#[test]
+fn a_fake_group_file_without_the_llm_builds_the_fake_forges_two_steps() {
+    let mut value = demo::fixture();
+    value["application"]["demo"] = Value::Null;
+    let file = group_file(&value, false);
+    let flags: Vec<Box<[u8]>> =
+        ["--config", "C", "--data", "D", "--cache", "K"].iter().map(|flag| Box::from(flag.as_bytes())).collect();
+    let built = steps::group(&file, None, &flags, Box::new([]));
+    let document = checked_steps(&value, Box::new([]));
+    assert_eq!(built.label.as_ref(), b"Forge 1 (Forgejo)");
+    assert!(!built.recorded);
+    assert_eq!(built.before, 0);
+    assert_eq!(built.steps.len(), 2);
+    assert_eq!(built.steps[0].0, Stage::Prepare);
+    assert_eq!(built.steps[1].0, Stage::Run);
+    assert_eq!(built.steps[0].1, document.always[0]);
+    assert_eq!(built.steps[1].1, document.always[1]);
+    assert_eq!(built.steps[1].1.name(), b"fake forge 1");
+    assert_eq!(built.steps[1].1.listeners(), &["127.0.0.1:3000".parse().unwrap()]);
+    assert!(document.asked.is_empty());
+}
