@@ -10,8 +10,21 @@ mode = "direct"
 needs = []
 design = "temper/docs/design/draft/playground-reset.md, 5"
 
+[[part]]
+id = "forge-records"
+title = "Forges are records in the store, made by SetUp and Connect, numbered at runtime, seeded from a document, listed by the client"
+mode = "direct"
+needs = []
+design = "temper/docs/design/draft/playground-reset.md, 3"
+
 [[slice]]
 id = 3
 story = "An owner deletes a project: it is gone at once, its tasks erased, no row names it, and a restart mid-way ends it whole"
 parts = ["project-deletion"]
+walk = false
+
+[[slice]]
+id = 1
+story = "A forge made by SetUp or Connect is a record: listed, numbered next, kept across a restart with its first repository's intent, its box group run from the file serve wrote"
+parts = ["forge-records"]
 walk = false

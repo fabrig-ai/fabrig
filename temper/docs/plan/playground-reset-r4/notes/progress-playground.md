@@ -2,7 +2,7 @@
 
 ## Specs
 
-(in progress)
+final: tasks/pg-words.md
 
 ## Parts
 
