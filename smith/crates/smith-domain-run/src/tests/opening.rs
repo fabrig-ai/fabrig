@@ -1,4 +1,4 @@
-//! First-user ownership of Open briefs; frozen pre-change Finite and resumed text.
+//! First-user ownership of Open briefs and activation-scoped resume instructions.
 #![expect(
     clippy::disallowed_macros,
     clippy::disallowed_methods,
@@ -83,14 +83,24 @@ fn finite_opening_keeps_the_pre_change_bytes() {
 }
 
 #[test]
-fn resumed_open_window_keeps_its_system_and_waking_message() {
-    for (messages, expected) in
-        [(Box::<[crate::Message]>::default(), b"Continue the saved conversation.".as_slice()), (messages(), OFFER)]
-    {
-        let opening = opened(Mode::Open, true, messages);
-        assert_eq!(opening.system.as_ref(), include_bytes!("open_system.txt"));
-        assert_eq!(opening.prompt.as_ref(), expected);
-        assert_eq!(opening.transcript, Some(Token::new(77)));
+fn resumed_windows_supersede_exhaustion_and_keep_waking_words() {
+    for mode in [Mode::Open, Mode::Finite] {
+        for messages in [Box::<[crate::Message]>::default(), messages()] {
+            let has_words = !messages.is_empty();
+            let opening = opened(mode, true, messages);
+            let waking = core::str::from_utf8(&opening.prompt).unwrap();
+            assert!(
+                waking.starts_with("A new activation starts with the fresh bounded turns and wall time in ## Budget.")
+            );
+            assert!(waking.contains("Earlier exhaustion and finish-now instructions are superseded"));
+            assert!(waking.contains("spending remains bounded by the task's remaining funds"));
+            assert_eq!(waking.contains("person: first\n\nperson: second"), has_words);
+            assert!(!waking.contains("Begin the work"));
+            assert_eq!(opening.transcript, Some(Token::new(77)));
+            if mode == Mode::Open {
+                assert_eq!(opening.system.as_ref(), include_bytes!("open_system.txt"));
+            }
+        }
     }
 }
 

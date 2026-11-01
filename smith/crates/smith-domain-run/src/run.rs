@@ -782,26 +782,7 @@ fn serve(
     let Serving { reply_to, main, conversation, made } = serving;
     match ask {
         Ask::Wait => {
-            let result = if main != conversation || !run.charter.grants.wait {
-                Returned::Refused { refusal: AskRefusal::NotGranted }
-            } else if run.charter.budget.exhausted(run.spent).is_some() {
-                Returned::Refused { refusal: AskRefusal::Over }
-            } else if run.inbox.has_queued() {
-                Returned::Waited { text: prompt::waited() }
-            } else {
-                out.push(Request::Waiting { host_run: run.host_name, read: run.inbox.fence() });
-                if run.charter.waiting == Duration::ZERO || run.wind_down.is_some() {
-                    out.push(Request::Return { spent: 0, call: made.call, result: Returned::Withheld });
-                    return wind_down(conversations, reply_to, main, Ending::Parked, out);
-                }
-                return State::Waiting {
-                    reply_to,
-                    main,
-                    call: made.call,
-                    until: env.now.saturating_add(run.charter.waiting),
-                };
-            };
-            out.push(Request::Return { spent: 0, call: made.call, result });
+            return wait(run, conversations, Serving { reply_to, main, conversation, made }, env.now, out);
         }
         Ask::Host { tool, effect, input } => {
             host_call(run, run_id, conversations, calls, alarms, conversation, made, tool, effect, input, env, out);
@@ -819,6 +800,36 @@ fn serve(
             sub_agent(run, run_id, conversations, calls, alarms, conversation, made, wanted, env, out);
         }
     }
+    State::Working { reply_to, main }
+}
+
+fn wait(
+    run: &mut Run,
+    conversations: &mut Slab<Conversation>,
+    serving: Serving,
+    now: Time,
+    out: &mut Queue<Request>,
+) -> State {
+    let Serving { reply_to, main, conversation, made } = serving;
+    let exhausted = run.charter.budget.exhausted(run.spent);
+    let result = if main != conversation || !run.charter.grants.wait {
+        Returned::Refused { refusal: AskRefusal::NotGranted }
+    } else if run.spent.units >= run.charter.budget.spend
+        || now >= run.deadline
+        || (exhausted.is_some() && run.wind_down.is_none())
+    {
+        Returned::Refused { refusal: AskRefusal::Over }
+    } else if run.wind_down.is_some() || (run.charter.waiting == Duration::ZERO && !run.inbox.has_queued()) {
+        out.push(Request::Waiting { host_run: run.host_name, read: run.inbox.fence() });
+        out.push(Request::Return { spent: 0, call: made.call, result: Returned::Withheld });
+        return wind_down(conversations, reply_to, main, Ending::Parked, out);
+    } else if run.inbox.has_queued() {
+        Returned::Waited { text: prompt::waited() }
+    } else {
+        out.push(Request::Waiting { host_run: run.host_name, read: run.inbox.fence() });
+        return State::Waiting { reply_to, main, call: made.call, until: now.saturating_add(run.charter.waiting) };
+    };
+    out.push(Request::Return { spent: 0, call: made.call, result });
     State::Working { reply_to, main }
 }
 
