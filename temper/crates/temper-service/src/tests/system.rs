@@ -381,6 +381,10 @@ fn box_setup(
     request.encode(&mut bytes).unwrap();
     let mut client = peer::Peer::new(engine, b"POST", b"/jig/v1/request", &bytes.finish(), Some(bearer));
     client.pump(engine, true);
+    if let Some(write) = engine.group_writes.pop() {
+        crate::route::box_link::group_written(engine, write.forge, Ok(()));
+        client.pump(engine, true);
+    }
     let at = skein_lib::bytes::find(client.received(), b"\r\n\r\n").unwrap().checked_add(4).unwrap();
     let mut reader = Reader::new(client.received().get(at..).unwrap());
     let j::KeyedAnswer::FinalAnswer(answer) =

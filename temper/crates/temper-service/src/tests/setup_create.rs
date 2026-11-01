@@ -283,6 +283,9 @@ fn ask_copy(service: &mut crate::Service, number: u64, playground: bool) {
     // Drive the root's journal seam, including its child continuations.
     for _ in 0_u32..256 {
         root_turn(engine);
+        if let Some(write) = engine.group_writes.pop() {
+            crate::route::box_link::group_written(engine, write.forge, Ok(()));
+        }
         if engine.box_link.write.is_some() {
             break;
         }

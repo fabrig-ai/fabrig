@@ -385,8 +385,7 @@ fn record_for_refusal() -> domain::ForgeRecord {
     record
 }
 
-#[test]
-fn an_owned_forge_made_after_startup_is_offered_and_its_setup_is_admitted() {
+fn owned_setup() -> (crate::Service, u16) {
     let mut config = fixtures::engine();
     config.machine.owned = Some(record(Kind::Forgejo, Mode::Owned, Some(OWNED)));
     fixtures::fill_files(&mut config);
@@ -428,7 +427,33 @@ fn an_owned_forge_made_after_startup_is_offered_and_its_setup_is_admitted() {
     for _ in 0_u32..256 {
         crate::engine::iterate(service.engine.as_mut().unwrap(), Time::ZERO, skein_lib::Wall::EPOCH);
     }
+    (service, number)
+}
+
+#[test]
+fn an_owned_forge_made_after_startup_is_offered_and_its_setup_is_admitted() {
+    let (mut service, number) = owned_setup();
+    let write = service.take_group_write().expect("admitted setup writes its group");
+    service.group_written(write.forge, Ok(()));
+    for _ in 0_u32..256 {
+        crate::engine::iterate(service.engine.as_mut().unwrap(), Time::ZERO, skein_lib::Wall::EPOCH);
+    }
     let engine = service.engine.as_ref().unwrap();
     assert_eq!(engine.domain.forges().rows[0].connection, domain::Connection::SettingUp { step: None });
     assert!(engine.records.get(&number).unwrap().first.is_some());
+}
+
+#[test]
+fn an_owned_forge_made_after_startup_writes_its_group_before_asking_start() {
+    let (mut service, number) = owned_setup();
+    assert_eq!(number, 1, "the first runtime forge in the empty registry");
+    let write = service.take_group_write().expect("one group write for the admitted setup");
+    assert_eq!(write.forge, number);
+    let engine = service.engine.as_ref().unwrap();
+    let entry = engine.records.get(&number).unwrap().setup.as_deref().unwrap();
+    assert_eq!(write.text, temper_forge_setup::setup::group_settings(entry, number).unwrap());
+    assert!(engine.box_link.write.is_none());
+    assert!(service.take_group_write().is_none());
+    service.group_written(number, Ok(()));
+    assert_eq!(service.engine.as_ref().unwrap().box_link.write.as_deref(), Some(b"start 1\n".as_slice()));
 }
