@@ -1,4 +1,6 @@
 //! Misbehaving outside peers deliberately contradict each promised invariant.
+#[path = "../referee/erasure.rs"]
+mod erasure;
 #[path = "../referee/proposals.rs"]
 mod proposals;
 #[path = "../referee/revisions.rs"]
