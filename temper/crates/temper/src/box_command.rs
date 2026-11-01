@@ -48,6 +48,7 @@ pub fn run(directories: &super::Directories, echo: Echo) -> Result<Exit, String>
 }
 
 /// Runs a document already retained in its effective directories. Owns all supplied listeners.
+#[expect(clippy::too_many_lines, reason = "box startup retains listeners while assembling its checked service")]
 pub(crate) fn run_configuration(
     directories: &super::Directories,
     bytes: &[u8],
@@ -64,7 +65,8 @@ pub(crate) fn run_configuration(
             .map(|(fd, _)| skein_shell::listener_at(fd).map(|address| (fd, address)))
             .collect::<Result<Vec<_>, _>>()
             .map_err(super::listeners_refusal)?;
-        let super::setup::Deployment { named, checked, demo, limits } = super::setup::check(bytes, &directories.jig())?;
+        let super::setup::Deployment { named, checked, demo, limits, ports } =
+            super::setup::check(bytes, &directories.jig())?;
         let directory = super::path(&directories.data);
         let program = std::env::current_exe().map_err(|why| why.to_string())?;
         let environment = std::env::vars_os()
@@ -108,7 +110,19 @@ pub(crate) fn run_configuration(
         for line in lines {
             eprintln!("{line}");
         }
-        let listeners = open_listeners(directories, &steps, held, &inherited, &mut owned)?;
+        let ports = ports.into_vec();
+        #[cfg(not(target_os = "linux"))]
+        let ports = {
+            let mut ports = ports;
+            if let Some(forge) = &named.machine.owned {
+                let ip =
+                    std::str::from_utf8(&forge.api.host).expect("named machine IP").parse().expect("named machine IP");
+                let listen = std::net::SocketAddr::new(ip, forge.api.port);
+                ports.retain(|address| *address != listen);
+            }
+            ports
+        };
+        let listeners = open_listeners(directories, &steps, &ports, held, &inherited, &mut owned)?;
         let signals = skein_shell::open_termination_signals().map_err(|errno| format!("signals: errno {errno}"))?;
         owned.push(signals);
         let root = skein_shell::open_root(directory).map_err(|errno| format!("directory: errno {errno}"))?;
@@ -149,16 +163,18 @@ pub(crate) fn run_configuration(
 fn open_listeners(
     directories: &super::Directories,
     steps: &temper_forge_setup::Steps,
+    ports: &[std::net::SocketAddr],
     held: Vec<(Fd, std::net::SocketAddr)>,
     inherited: &[(Fd, std::net::SocketAddr)],
     owned: &mut Vec<Fd>,
 ) -> Result<Vec<(Fd, std::net::SocketAddr)>, String> {
     for (fd, address) in inherited {
-        if !steps
-            .always
-            .iter()
-            .chain(steps.asked.iter().flat_map(|group| group.steps.iter().map(|(_, step)| step)))
-            .any(|step| step.listeners().contains(address))
+        if !ports.contains(address)
+            && !steps
+                .always
+                .iter()
+                .chain(steps.asked.iter().flat_map(|group| group.steps.iter().map(|(_, step)| step)))
+                .any(|step| step.listeners().contains(address))
         {
             return Err(format!(
                 "{}: inherited listener fd {} at {address}: no step names this listener",
@@ -168,31 +184,30 @@ fn open_listeners(
         }
     }
     let mut listeners = Vec::new();
-    for step in steps.always.iter().chain(steps.asked.iter().flat_map(|group| group.steps.iter().map(|(_, step)| step)))
-    {
-        for addr in step.listeners() {
-            if listeners.iter().any(|(_, previous)| previous == addr) {
-                continue;
-            }
-            let fd = if let Some((fd, _)) = inherited.iter().chain(&held).find(|(_, address)| address == addr) {
-                *fd
-            } else {
-                let (fd, _) = skein_shell::open_listener(
-                    *addr,
-                    jig_protocol_config::profile(jig_protocol_config::Profile::Small).io.backlog,
-                )
-                .map_err(|why| {
-                    format!(
-                        "{}: port {} ({addr}): cannot listen: {why:?}",
-                        directories.document().display(),
-                        addr.port()
-                    )
-                })?;
-                owned.push(fd);
-                fd
-            };
-            listeners.push((fd, *addr));
+    for addr in ports.iter().chain(
+        steps
+            .always
+            .iter()
+            .chain(steps.asked.iter().flat_map(|group| group.steps.iter().map(|(_, step)| step)))
+            .flat_map(temper_forge_setup::Step::listeners),
+    ) {
+        if addr.port() == 0 || listeners.iter().any(|(_, previous)| previous == addr) {
+            continue;
         }
+        let fd = if let Some((fd, _)) = inherited.iter().chain(&held).find(|(_, address)| address == addr) {
+            *fd
+        } else {
+            let (fd, _) = skein_shell::open_listener(
+                *addr,
+                jig_protocol_config::profile(jig_protocol_config::Profile::Small).io.backlog,
+            )
+            .map_err(|why| {
+                format!("{}: port {} ({addr}): cannot listen: {why:?}", directories.document().display(), addr.port())
+            })?;
+            owned.push(fd);
+            fd
+        };
+        listeners.push((fd, *addr));
     }
     // Forgejo's port must be free for Forgejo to bind (M3a, protocol/setup.md 7.1).
     for (fd, _) in held {

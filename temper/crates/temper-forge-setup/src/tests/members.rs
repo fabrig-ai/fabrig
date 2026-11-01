@@ -193,3 +193,31 @@ fn records_only_local_members_skip_files_but_keep_local_checks() {
     members.forges[1].plaintext = false;
     refused(&fixtures::three(), &members, b"application.forges[1].transport: invalid form\n");
 }
+
+#[test]
+fn no_setup_member_checks_as_an_empty_list() {
+    let checked = check::checked_at(
+        &fixtures::document(b"{}"),
+        None,
+        &jig_protocol_config::Directories::working(),
+        &Members { forges: Box::new([]), listeners: Box::new([]) },
+        None,
+        &[],
+    )
+    .unwrap();
+    assert!(checked.setup.entries.is_empty());
+    assert!(checked.records_only.is_empty());
+    assert_eq!(checked.limits, crate::limits::small());
+}
+#[test]
+fn the_first_kept_problem_preserves_its_path_and_reason() {
+    use jig_protocol_config::Path;
+    use problem::{Problems, What};
+    let mut problems = Problems::empty();
+    assert_eq!(problems.first(), None);
+    let path = Path::root().member(b"application").member(b"demo").member(b"forge");
+    problems.push(path.clone(), What::Reason(b"missing"));
+    problems.push(Path::root(), What::Own(b"other"));
+    assert_eq!(problems.first(), Some((&path, What::Reason(b"missing"))));
+    assert_eq!(problems.first(), Some((&path, What::Reason(b"missing"))));
+}

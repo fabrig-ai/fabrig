@@ -279,3 +279,19 @@ fn group_picks_by_mode() {
         assert_eq!(steps::group(&managed, Some(llm), &group_flags(), true), None);
     }
 }
+
+#[test]
+fn a_demo_of_t4s_shape_builds_no_group_at_the_start() {
+    let demo = demo::read(&demo::t4_fixture()).unwrap().unwrap();
+    let steps = steps(
+        &Setup { entries: Box::new([]) },
+        Some(&demo),
+        &[],
+        Box::new(["127.0.0.1:8367".parse().unwrap()]),
+        true,
+        Box::new([]),
+    );
+    assert!(steps.asked.is_empty());
+    assert_eq!(steps.always.len(), 1);
+    assert_eq!(steps.always[0].name(), b"serve");
+}

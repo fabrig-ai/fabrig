@@ -44,8 +44,10 @@ pub(super) fn read(value: &Value) -> Result<Option<demo::Demo>, crate::Refusal> 
     let engine = temper_service::startup::engine(&d, member(&d, 0, b"engine"), &directories).unwrap();
     let app = member(&d, 0, b"application");
     let mut ps = problem::Problems::empty();
-    let setup = Setup::read(&d, member(&d, app, b"setup"), &temper_forge_setup::limits::small(), &directories, &mut ps)
-        .unwrap();
+    let setup = match config::read::Object::new(&d, app).unwrap().member(&d, b"setup") {
+        Some(at) => Setup::read(&d, at, &temper_forge_setup::limits::small(), &directories, &mut ps).unwrap(),
+        None => Setup { entries: Box::new([]) },
+    };
     assert!(ps.is_empty(), "{:?}", problem::lines(&ps));
     let mut ps = config::Problems::empty();
     let listeners: Vec<_> = [b"clients".as_slice(), b"webhooks"]
@@ -277,8 +279,8 @@ fn demo_acceptance() {
             "asked":m["asked"], "otherwise":m["otherwise"]});
         assert_eq!(demo.llm(), &llm::Document::decode(&serde_json::to_vec(&standalone).unwrap()).unwrap());
         assert_eq!(demo.provider(), 3);
-        assert_eq!(demo.forge(), 1);
-        assert_eq!(demo.project(), 1);
+        assert_eq!(demo.forge(), Some(1));
+        assert_eq!(demo.project(), Some(1));
     }
 }
 
@@ -651,4 +653,65 @@ fn a_persons_new_request_restarts_the_chat_script() {
     assert_eq!(restarted.parts, first.parts);
     assert_eq!(restarted.finish, first.finish);
     assert_eq!(restarted.usage.output, first.usage.output);
+}
+
+pub(super) fn t4_fixture() -> Value {
+    let mut value = fixture();
+    let mut body = value["application"]["setup"][0].clone();
+    for member in ["forge", "directory", "start"] {
+        body.as_object_mut().unwrap().remove(member);
+    }
+    value["application"]["demo"]["forge"] = body;
+    value["application"]["demo"]["project"] = json!({"name":"Playground","policy":1});
+    value["application"].as_object_mut().unwrap().remove("setup");
+    value
+}
+#[test]
+fn a_demo_of_t4s_shape_reads_its_fake_and_project() {
+    let demo = read(&t4_fixture()).unwrap().unwrap();
+    assert_eq!(demo.forge(), None);
+    assert_eq!(demo.project(), None);
+    assert_eq!(demo.fake().owner.as_ref(), b"playground");
+    assert_eq!(demo.fake().git.as_ref(), b"/data/demo/bin/git");
+    assert_eq!(demo.fake().listen, "127.0.0.1:3000".parse().unwrap());
+    assert_eq!(demo.provider(), 3);
+}
+#[test]
+fn a_demo_forge_body_of_another_mode_is_refused() {
+    let mut value = t4_fixture();
+    value["application"]["demo"]["forge"]["mode"] = json!("managed");
+    assert_eq!(read(&value).unwrap_err().line().as_ref(), b"application.demo.forge: must be a fake forge\n");
+}
+#[test]
+fn todays_demo_reads_as_before() {
+    let demo = read(&fixture()).unwrap().unwrap();
+    assert_eq!(demo.forge(), Some(1));
+    assert_eq!(demo.project(), Some(1));
+    assert_eq!(demo.fake().owner.as_ref(), b"playground");
+}
+#[test]
+fn t4_demo_refusals_keep_body_paths_and_project_bounds() {
+    for (pointer, replacement, expected) in [
+        ("/application/demo/forge/bot/login", json!(42), "application.demo.forge.bot.login: wrong value kind\n"),
+        ("/application/demo/project/name", json!(""), "application.demo.project.name: invalid form\n"),
+        ("/application/demo/project/name", json!("x".repeat(65)), "application.demo.project.name: past its bound\n"),
+        ("/application/demo/project/policy", json!(0), "application.demo.project.policy: invalid form\n"),
+        (
+            "/application/demo/project/policy",
+            json!(4_294_967_296_u64),
+            "application.demo.project.policy: past its bound\n",
+        ),
+        (
+            "/application/demo/forge/mode/fake/listen/socket",
+            json!("127.0.0.1:8370"),
+            "application.demo.llm.listen: must be unique\n",
+        ),
+    ] {
+        let mut value = t4_fixture();
+        *value.pointer_mut(pointer).unwrap() = replacement;
+        assert_eq!(read(&value).unwrap_err().line().as_ref(), expected.as_bytes());
+    }
+    let mut value = t4_fixture();
+    value["application"]["demo"]["project"] = json!({"name":"x".repeat(64),"policy":u32::MAX});
+    read(&value).unwrap();
 }
