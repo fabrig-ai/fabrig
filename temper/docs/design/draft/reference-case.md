@@ -100,8 +100,8 @@ are the tests' (`tests_before_ready`).
 
 ### 4.3 Questions, the options, the person
 
-k3 asks whether a field is escaped or doubled; its spec's options say
-doubled. The change starts a verdict task, which finds that, and k3 runs
+a2 asks whether a field is escaped or doubled; its spec's options say
+doubled. The change starts a verdict task, which finds that, and a2 runs
 again. a1 asks whether it may change ui's menu, which Themes owns: the
 verdict task passes it on, Export's agent wakes at once, and says leave
 it to its owner. a1 pushes its work and asks again about a ui test; the

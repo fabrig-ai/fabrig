@@ -421,7 +421,8 @@ documents; jig's are named as jig's.
   each change's result until its tiers clear it (a run whose range holds
   it blames it nothing), up to a verification bound; its goal then ends
   only once its work is verified, and a red before then goes to it as a
-  repair. Off by default.
+  repair. Off by default. A change into a goal's branch ends at its
+  merge there; what is held is the goal's branch's own change, on main.
 - **No test twice on a tree:** a tier's key with a receipt is not run
   again; a bisection's runs are on other trees.
 
@@ -451,8 +452,8 @@ documents; jig's are named as jig's.
   the chat.
 - **On the forge, optionally:** a projection of findings as issues,
   written and never read back as state, is a project's setting, off by
-  default; so is a backlog rendered into a document of the project's
-  (`backlog_document`).
+  default. The backlog is the findings in that state, in the store,
+  shown in `temper ctl`.
 
 ### 10.2 QA
 
@@ -468,10 +469,12 @@ documents; jig's are named as jig's.
   reports a verdict (pass, fail, void) and each finding with its
   reproduction, naming an open finding it met again. A walk has a cap.
 - **A rung's state** is its tasks': passed, walking, waiting on a lower
-  rung, holding on an open finding or a person's action, or due (a first
-  walk, or a rerun once its findings' repairs have landed). It passes
-  when a walk at its edition passes after an earlier one of that
-  edition, nothing holding it; a failed walk reopens it.
+  rung, holding, or due (a first walk, or a rerun once its findings'
+  repairs have landed). It holds while a blocking finding, or one from a
+  failed or void walk, has no landed repair, or a person's action is
+  pending; a landed repair, or a finding in the backlog, holds nothing.
+  It passes when a walk at its edition passes after an earlier one of
+  that edition, nothing holding it; a failed walk reopens it.
 - **Triage is the ladder goal's agent,** at once for a blocking finding,
   else at a count or an age (section 13). A brief at fault is a question
   to the person, since an agent must not weaken its own acceptance; on
@@ -533,7 +536,7 @@ data in the repository; temper does not copy it).
 | a fabrig plan retires after its verdict | a goal ending after its tiers' verdict | 9 |
 | the QA ladder plan, rungs and editions (brief files in the repository: gap), walks by a session (gap) | a ladder goal of walk tasks, spec revisions | 10.2 |
 | findings in the log, merged by the walker or triage; a triage call | findings in the store, triaged by the ladder goal's agent | 10 |
-| the backlog file, readied (and never taken by the queue: a fault) | the backlog as findings; a rendered document, optional | 10.1 |
+| the backlog rendered into a repository file (gap: temper's data in the repository), readied (and never taken by the queue: a fault) | the backlog as findings in the store | 10.1 |
 | `fab land` for fab's own repository: a rebase, the whole suite, code-style gates | a candidate of one by rebase, its gates a setting | 5, 13 |
 
 ## 13. Settings
@@ -552,8 +555,8 @@ data in the repository; temper does not copy it).
 | tiers: per repository; coalesce beyond N waiting | repository | none | the browser tiers of jig, temper and skein, temper's process tier, live skein; the newest tip |
 | a tier's red: bisect within a bound, or tell all with a verdict | project | bisect | tell all, a verdict naming the owner |
 | a tier's red goes to | project | the suspects' goals | the suspects' goals; with none open, the chat |
-| cleared: a goal waits for its tiers | project | off | on |
-| findings on the forge; a backlog document | project | off; off | off; on |
+| cleared: a change landed on main waits for its tiers | project | off | on |
+| findings on the forge | project | off | off |
 | QA: a ladder goal, its backends; triage at a count or an age | project | none | one ladder: ChatGPT with an owned Forgejo or GitHub, Claude Code with an owned Forgejo; 4 findings or 30 minutes |
 | fab's own repository | repository | — | candidates of one by rebase, its whole suite under 120 s, code-style gates, no check before ready |
 | a forge's merge queue backs the turn | project | no | no |

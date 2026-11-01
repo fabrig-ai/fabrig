@@ -63,9 +63,10 @@ Unqualified, `landing.md`, `forge.md` and `agent.md` are temper's
   a bound it is held (2.4).
 - **Delegates** are agents (producers, reviewers, verdict tasks,
   investigators, testers), procedures (a change, a landing), jobs (a
-  gate's commands) or people (a question, an approval). Each runs under
-  a charter that names its model and effort; a delegate's charter is one
-  its parent's authority allows.
+  gate's commands) or people (a question, an approval). An agent runs
+  under a charter, its model and effort its task's LLM choice (jig's
+  `domain/tasks.md`, 3); a delegate's charter is one its parent's
+  authority allows.
 - **Briefs, notes and results:** a goal starts from its brief, keeps
   notes while it works, and ends with a result that says what it did and
   what is left, which can be the next goal's brief.
@@ -272,7 +273,7 @@ data kept in the repository; temper does not copy it).
 | updates of a goal's branch | project | before its checks | every 30 minutes, and before each check |
 | a goal's branch's bounds | project | 3 each | 3 refused updates, 3 red final checks, 3 queue rejections |
 | what a producer may do unasked | charter | nothing | the arms and fields a type it changed forces; a scoped lint exception |
-| models | charter | — | producers Codex at high; verdict tasks Codex at medium; goals and chats Claude |
+| models and effort | a task's LLM choice, or its template | — | producers Codex at high; verdict tasks Codex at medium; goals and chats Claude |
 | an agent's context | charter | measured | about 600k, measured (the user, 10-30) |
 | questions on the forge | project | off | off for now (`temper ctl` only; fab: on) |
 | routing: outcome to role | project | a red to the change's goal; a fault, a key gap to the chat | the same |
