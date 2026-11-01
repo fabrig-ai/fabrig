@@ -542,7 +542,8 @@ fn a_link_receives_only_the_first_line_and_its_end() {
 #[test]
 fn an_unrecorded_group_neither_probes_nor_writes_and_waits_at_every_box_start() {
     use skein_fake_machine::{How, Item};
-    // A non-directory would expose either an accidental probe or a write.
+    // A non-directory exposes an accidental record probe or write, beside
+    // the startup sweep and logger's own diagnostics.
     for _restart in 0_u8..2 {
         let mut steps = grouped_steps();
         steps.asked[0].recorded = false;
@@ -551,7 +552,11 @@ fn an_unrecorded_group_neither_probes_nor_writes_and_waits_at_every_box_start() 
         assert_eq!(harness.launches.len(), 1, "only serve starts");
         assert_eq!(
             harness.stderr().as_ref(),
-            b"box: cannot write /data/box/logs/: NotADirectory; the steps' lines follow here\nStarting serve\n",
+            crate::lines::joined(&[
+                b"box: sweep box/trash/: not a directory\n",
+                b"box: cannot write /data/box/logs/: NotADirectory; the steps' lines follow here\nStarting serve\n",
+            ])
+            .as_ref(),
             "no probe of box/started/3"
         );
         harness.ask(b"start 3\n");
@@ -1428,6 +1433,352 @@ fn file_exists(harness: &mut Harness, path: &[u8]) -> bool {
     };
     harness.machine.close(root);
     exists
+}
+fn trash_is_empty(harness: &mut Harness) -> bool {
+    use skein_fake_machine::{How, Refusal};
+    let root = harness.machine.reopen_root(0);
+    let empty = match harness.machine.open(root, b"box/trash", How::Directory) {
+        Ok(dir) => {
+            assert_eq!(harness.machine.stat(dir).mode & 0o777, 0o700);
+            let empty = harness.machine.list(dir, 1, 255).unwrap().is_empty();
+            harness.machine.close(dir);
+            empty
+        }
+        Err(Refusal::NotFound) => true,
+        Err(error) => panic!("trash check: {error:?}"),
+    };
+    harness.machine.close(root);
+    empty
+}
+#[test]
+fn remove_moves_the_forges_directory_to_the_trash_and_sweeps_it_whole() {
+    use skein_fake_machine::Item;
+    let mut harness = Harness::kinds(
+        Box::new([]),
+        &[
+            Item::directory(b"box"),
+            Item::directory(b"box/groups"),
+            Item::directory(b"box/started"),
+            Item::file(b"box/started/7", b""),
+            Item::file(b"box/groups/7", br#"{"playground":false,"setup":{"directory":"forge-7"}}"#),
+            Item::directory(b"forge-7"),
+            Item::directory(b"forge-7/forgejo"),
+            Item::directory(b"forge-7/forgejo/repositories"),
+            Item::directory(b"forge-7/forgejo/repositories/a"),
+            Item::directory(b"forge-7/forgejo/repositories/a/b"),
+            Item::file(b"forge-7/forgejo/repositories/a/b/c", b"repository"),
+            Item::file(b"forge-7/forgejo/repositories/a/b/d", b"second repository"),
+            Item::directory(b"forge-8"),
+            Item::file(b"forge-8/kept", b"other forge"),
+            Item::link(b"forge-7/other", b"../forge-8"),
+            Item::fifo(b"forge-7/pipe"),
+        ],
+    );
+    crate::host::pressure::directories(&mut harness.service, Box::new([(7, bytes::copy_of(b"/data/forge-8"))]));
+    harness.run_until_idle();
+    harness.trash.hold = true;
+    harness.ask(b"remove 7\n");
+    harness.run_until_idle();
+    assert!(harness.trash.call.is_some());
+    assert!(!file_exists(&mut harness, b"forge-7"), "the whole directory moves before sweeping");
+    assert!(file_exists(&mut harness, b"box/trash/7/forgejo/repositories/a/b/c"));
+    assert!(!file_exists(&mut harness, b"box/groups/7"));
+    assert!(!file_exists(&mut harness, b"box/started/7"));
+    assert!(harness.reply_bytes().is_empty(), "removed waits for the sweep");
+    harness.trash.hold = false;
+    let call = harness.trash.call.take().unwrap();
+    skein_fake_machine::step(&mut harness.machine, call, &mut harness.answers);
+    harness.sim.answer(&mut harness.answers);
+    harness.run_until_idle();
+    assert_eq!(harness.reply_bytes().as_ref(), b"removed 7\n");
+    assert!(trash_is_empty(&mut harness));
+    assert!(file_exists(&mut harness, b"forge-8/kept"));
+    assert!(file_exists(&mut harness, b"box/logs"));
+    end_box(&mut harness);
+}
+#[test]
+fn a_document_groups_directory_comes_from_the_settings() {
+    use skein_fake_machine::Item;
+    for directory in [b"/data/forge-3".as_slice(), b"forge-3", b"forge-3/../forge-3/."] {
+        let mut harness = Harness::grouped(
+            grouped_steps(),
+            &[
+                Item::directory(b"forge-3"),
+                Item::file(b"forge-3/data", b"forge"),
+                Item::directory(b"cache"),
+                Item::file(b"cache/forgejo", b"binary"),
+            ],
+            true,
+        );
+        crate::host::pressure::directories(&mut harness.service, Box::new([(3, bytes::copy_of(directory))]));
+        harness.run_until_idle();
+        harness.ask(b"remove 3\n");
+        harness.run_until_idle();
+        assert_eq!(harness.reply_bytes().as_ref(), b"removed 3\n");
+        assert!(!file_exists(&mut harness, b"forge-3"));
+        assert!(file_exists(&mut harness, b"cache/forgejo"));
+        assert!(trash_is_empty(&mut harness));
+        end_box(&mut harness);
+    }
+}
+#[test]
+fn a_directory_outside_data_is_named_and_left() {
+    use skein_fake_machine::Item;
+    for directory in [
+        b"/data-other/forge-7".as_slice(),
+        b"../forge-7",
+        b"forge-7/../../forge-8",
+        b"escape",
+        b"escape/child",
+        b"forge-7/escape/../..",
+        b"/data",
+        b".",
+        b"forge-7/../box/logs",
+    ] {
+        let file = crate::lines::joined(&[br#"{"playground":false,"setup":{"directory":""#, directory, br#""}}"#]);
+        let mut harness = Harness::kinds(
+            Box::new([]),
+            &[
+                Item::directory(b"box"),
+                Item::directory(b"box/groups"),
+                Item::file(b"box/groups/7", &file),
+                Item::directory(b"forge-7"),
+                Item::file(b"forge-7/kept", b"forge"),
+                Item::directory(b"forge-8"),
+                Item::file(b"forge-8/kept", b"other forge"),
+                Item::link(b"escape", b"../outside"),
+                Item::link(b"forge-7/escape", b"../../outside"),
+            ],
+        );
+        harness.run_until_idle();
+        harness.ask(b"remove 7\n");
+        harness.run_until_idle();
+        assert_eq!(harness.reply_bytes().as_ref(), b"removed 7\n", "{directory:?}");
+        let expected = crate::lines::joined(&[b"box: forge 7: directory outside data: ", directory, b"\n"]);
+        assert!(Harness::contains(&harness.stderr(), &expected), "{directory:?}");
+        assert!(file_exists(&mut harness, b"forge-7/kept"));
+        assert!(file_exists(&mut harness, b"forge-8/kept"));
+        assert!(file_exists(&mut harness, b"box/logs"));
+        end_box(&mut harness);
+    }
+}
+#[test]
+fn a_trash_left_by_a_cut_is_swept_at_the_next_start_and_remove_again_answers() {
+    use skein_fake_machine::Item;
+    let mut harness = Harness::kinds(
+        Box::new([]),
+        &[
+            Item::directory(b"box"),
+            Item::directory(b"box/groups"),
+            Item::file(b"box/groups/7", br#"{"playground":false,"setup":{"directory":"forge-7"}}"#),
+            Item::directory(b"box/trash").mode(0o700),
+            Item::directory(b"box/trash/7"),
+            Item::directory(b"box/trash/7/forgejo"),
+            Item::file(b"box/trash/7/forgejo/data", b"left by cut"),
+        ],
+    );
+    harness.trash.hold = true;
+    harness.run_until_idle();
+    assert_eq!(harness.spawn_times(b"serve").len(), 1, "steps do not wait for trash");
+    assert!(harness.trash.call.is_some());
+    harness.ask(b"remove 7\n");
+    harness.run_until_idle();
+    assert!(harness.reply_bytes().is_empty(), "remove waits for startup sweep");
+    harness.ask(b"remove 8\n");
+    harness.run_until_idle();
+    assert_eq!(harness.reply_bytes().as_ref(), b"failed 8 busy\n");
+    harness.replies.clear();
+    harness.trash.hold = false;
+    let call = harness.trash.call.take().unwrap();
+    skein_fake_machine::step(&mut harness.machine, call, &mut harness.answers);
+    harness.sim.answer(&mut harness.answers);
+    harness.run_until_idle();
+    assert_eq!(harness.reply_bytes().as_ref(), b"removed 7\n");
+    assert!(trash_is_empty(&mut harness));
+    assert!(!file_exists(&mut harness, b"box/groups/7"));
+    end_box(&mut harness);
+}
+#[test]
+fn a_sweep_error_fails_the_remove_and_a_second_remove_finishes_it() {
+    use skein_fake_machine::Item;
+    let mut harness = Harness::kinds(
+        Box::new([]),
+        &[
+            Item::directory(b"box"),
+            Item::directory(b"box/groups"),
+            Item::file(b"box/groups/7", br#"{"playground":true,"setup":{"directory":"forge-7"}}"#),
+            Item::directory(b"forge-7"),
+            Item::file(b"forge-7/data", b"forge"),
+        ],
+    );
+    harness.run_until_idle();
+    // Hold the first sweep List so the refusal applies to trash, after both
+    // record files have gone.
+    harness.trash.hold = true;
+    harness.ask(b"remove 7\n");
+    harness.run_until_idle();
+    assert!(harness.trash.call.is_some());
+    harness.refuse_sweep = Some(skein_io::kernel::Error::Permission);
+    harness.trash.hold = false;
+    let call = harness.trash.call.take().unwrap();
+    skein_fake_machine::step(&mut harness.machine, call, &mut harness.answers);
+    harness.sim.answer(&mut harness.answers);
+    harness.run_until_idle();
+    assert_eq!(harness.reply_bytes().as_ref(), b"failed 7 files not removed\n");
+    assert!(Harness::contains(&harness.stderr(), b"box: sweep box/trash/7: permission denied\n"));
+    assert!(file_exists(&mut harness, b"box/trash/7/data"));
+    assert!(!file_exists(&mut harness, b"box/groups/7"));
+    harness.replies.clear();
+    harness.ask(b"remove 7\n");
+    harness.run_until_idle();
+    assert_eq!(harness.reply_bytes().as_ref(), b"removed 7\n");
+    assert!(trash_is_empty(&mut harness));
+    end_box(&mut harness);
+}
+#[test]
+fn an_existing_trash_destination_is_swept_before_the_directory_is_moved_again() {
+    use skein_fake_machine::{How, Item};
+    let mut harness = Harness::kinds(
+        Box::new([]),
+        &[
+            Item::directory(b"box"),
+            Item::directory(b"box/groups"),
+            Item::file(b"box/groups/7", br#"{"playground":false,"setup":{"directory":"forge-7"}}"#),
+            Item::directory(b"forge-7"),
+            Item::file(b"forge-7/data", b"forge"),
+        ],
+    );
+    harness.run_until_idle();
+    // A cut's destination appearing after startup must not be overwritten.
+    let root = harness.machine.reopen_root(0);
+    let box_dir = harness.machine.open(root, b"box", How::Directory).unwrap();
+    harness.machine.make_directory(box_dir, b"trash", 0o700).unwrap();
+    let trash = harness.machine.open(box_dir, b"trash", How::Directory).unwrap();
+    harness.machine.make_directory(trash, b"7", 0o700).unwrap();
+    let old = harness.machine.open(trash, b"7", How::Directory).unwrap();
+    harness.machine.make_directory(old, b"old", 0o700).unwrap();
+    for fd in [old, trash, box_dir, root] {
+        harness.machine.close(fd);
+    }
+    harness.ask(b"remove 7\n");
+    harness.run_until_idle();
+    assert_eq!(harness.reply_bytes().as_ref(), b"removed 7\n");
+    assert!(!file_exists(&mut harness, b"forge-7"));
+    assert!(trash_is_empty(&mut harness));
+    end_box(&mut harness);
+}
+#[test]
+fn a_present_group_file_without_a_directory_does_not_take_the_document_directory() {
+    use skein_fake_machine::Item;
+    let mut harness = Harness::kinds(
+        Box::new([]),
+        &[
+            Item::directory(b"box"),
+            Item::directory(b"box/groups"),
+            Item::file(b"box/groups/7", br#"{"playground":false,"setup":{}}"#),
+            Item::directory(b"forge-7"),
+            Item::file(b"forge-7/data", b"kept"),
+        ],
+    );
+    crate::host::pressure::directories(&mut harness.service, Box::new([(7, bytes::copy_of(b"/data/forge-7"))]));
+    harness.run_until_idle();
+    harness.ask(b"remove 7\n");
+    harness.run_until_idle();
+    assert_eq!(harness.reply_bytes().as_ref(), b"removed 7\n");
+    assert!(file_exists(&mut harness, b"forge-7/data"));
+    end_box(&mut harness);
+}
+#[test]
+fn ambiguous_or_malformed_directory_members_leave_the_files_for_a_retry() {
+    use skein_fake_machine::Item;
+    for input in [
+        br#"{"playground":false,"setup":{"directory":"forge-7","directory":"forge-8"}}"#.as_slice(),
+        br#"{"playground":false,"setup":{"directory":false}}"#,
+        br#"{"playground":false,"setup":{},"setup":{"directory":"forge-7"}}"#,
+    ] {
+        let mut harness = Harness::kinds(
+            Box::new([]),
+            &[
+                Item::directory(b"box"),
+                Item::directory(b"box/groups"),
+                Item::file(b"box/groups/7", input),
+                Item::directory(b"forge-7"),
+                Item::file(b"forge-7/data", b"kept"),
+            ],
+        );
+        harness.run_until_idle();
+        harness.ask(b"remove 7\n");
+        harness.run_until_idle();
+        assert_eq!(harness.reply_bytes().as_ref(), b"failed 7 files not removed\n");
+        assert!(file_exists(&mut harness, b"box/groups/7"));
+        assert!(file_exists(&mut harness, b"forge-7/data"));
+        end_box(&mut harness);
+    }
+}
+#[test]
+fn a_startup_sweep_error_fails_the_waiting_remove_and_keeps_its_group_file() {
+    use skein_fake_machine::Item;
+    let mut harness = Harness::kinds(
+        Box::new([]),
+        &[
+            Item::directory(b"box"),
+            Item::directory(b"box/groups"),
+            Item::file(b"box/groups/7", br#"{"playground":true,"setup":{"directory":"forge-7"}}"#),
+            Item::directory(b"box/trash").mode(0o700),
+            Item::directory(b"box/trash/7"),
+            Item::file(b"box/trash/7/data", b"cut"),
+        ],
+    );
+    harness.trash.hold = true;
+    harness.run_until_idle();
+    harness.ask(b"remove 7\n");
+    harness.run_until_idle();
+    harness.refuse_sweep = Some(skein_io::kernel::Error::Permission);
+    harness.trash.hold = false;
+    let call = harness.trash.call.take().unwrap();
+    skein_fake_machine::step(&mut harness.machine, call, &mut harness.answers);
+    harness.sim.answer(&mut harness.answers);
+    harness.run_until_idle();
+    assert_eq!(harness.reply_bytes().as_ref(), b"failed 7 files not removed\n");
+    assert!(file_exists(&mut harness, b"box/groups/7"));
+    assert!(file_exists(&mut harness, b"box/trash/7/data"));
+    harness.replies.clear();
+    harness.ask(b"remove 7\n");
+    harness.run_until_idle();
+    assert_eq!(harness.reply_bytes().as_ref(), b"removed 7\n");
+    assert!(trash_is_empty(&mut harness));
+    end_box(&mut harness);
+}
+#[test]
+fn a_file_error_after_the_move_keeps_the_directory_in_trash_for_the_next_remove() {
+    use skein_fake_machine::Item;
+    let mut harness = Harness::kinds(
+        Box::new([]),
+        &[
+            Item::directory(b"box"),
+            Item::directory(b"box/groups"),
+            Item::directory(b"box/started"),
+            Item::file(b"box/started/7", b""),
+            Item::file(b"box/groups/7", br#"{"playground":true,"setup":{"directory":"forge-7"}}"#),
+            Item::directory(b"forge-7"),
+            Item::file(b"forge-7/data", b"forge"),
+        ],
+    );
+    harness.run_until_idle();
+    harness.refuse_sweep = Some(skein_io::kernel::Error::Permission);
+    harness.ask(b"remove 7\n");
+    harness.run_until_idle();
+    assert_eq!(harness.reply_bytes().as_ref(), b"failed 7 files not removed\n");
+    assert!(file_exists(&mut harness, b"box/groups/7"));
+    assert!(file_exists(&mut harness, b"box/started/7"));
+    assert!(file_exists(&mut harness, b"box/trash/7/data"));
+    assert!(!file_exists(&mut harness, b"forge-7"));
+    harness.replies.clear();
+    harness.ask(b"remove 7\n");
+    harness.run_until_idle();
+    assert_eq!(harness.reply_bytes().as_ref(), b"removed 7\n");
+    assert!(trash_is_empty(&mut harness));
+    end_box(&mut harness);
 }
 #[test]
 fn a_start_for_no_group_reads_its_file_and_runs_its_kinds_group_numbered() {

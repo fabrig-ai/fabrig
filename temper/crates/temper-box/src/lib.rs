@@ -13,6 +13,7 @@ pub mod pipe;
 mod ready;
 mod records;
 pub mod sink;
+mod sweep;
 pub mod terminal;
 #[cfg(test)]
 mod tests;

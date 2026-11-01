@@ -10,6 +10,7 @@ use crate::{
     ready::Ready,
     records::Records,
     sink::{Sink, Terminal},
+    sweep::Sweep,
     terminal::{self, Fact, Formatter, Item, Tail, Target},
 };
 use alloc::boxed::Box;
@@ -39,6 +40,9 @@ pub struct Settings {
     /// until filled. Its listeners are among `listeners` (contracts, 3).
     /// Recorded groups are owned Forgejo; unrecorded groups are playgrounds.
     pub vacant: Box<[Group]>,
+    /// Each document group's forge and its directory, absolute, removed at
+    /// its `remove` when its group file names none (contracts, 3).
+    pub directories: Box<[(u16, Box<[u8]>)]>,
     pub root: Fd,
     pub echo: Echo,
     pub data: Box<[u8]>,
@@ -139,6 +143,21 @@ struct Told {
     event: Event,
     wall: Wall,
 }
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum RemovePhase {
+    Read,
+    Waiting,
+    Move,
+    Files,
+    Sweep,
+}
+#[derive(Debug)]
+struct Removal {
+    forge: u16,
+    phase: RemovePhase,
+    directory: Option<Box<[u8]>>,
+    sweep_failed: bool,
+}
 
 #[derive(Debug)]
 pub struct Service {
@@ -148,6 +167,8 @@ pub struct Service {
     steps: Box<[Placed]>,
     records: Records,
     groups: Groups,
+    sweep: Sweep,
+    removal: Option<Removal>,
     logs: Logs,
     record_wall: Wall,
     control: Option<Control>,
@@ -204,8 +225,17 @@ impl Service {
             .max(limits.line_bytes.checked_add(10).expect("notice timestamp"))
             .max(terminal::max_bytes(&steps))
             .max(Logs::max_notice(&steps, &settings.data))
+            .max(limits.group_file_bytes.checked_add(128).expect("group directory diagnostic"))
             .max(terminal::failure_bytes(&steps, &settings.data))
             .max(LINE_BYTES.checked_add(1).expect("URL LF"));
+        for (_, directory) in &settings.directories {
+            bounds.output = bounds.output.max(
+                u32::try_from(directory.len())
+                    .expect("directory length")
+                    .checked_add(128)
+                    .expect("directory diagnostic"),
+            );
+        }
         let mut children = List::with_capacity(count);
         for placed in &steps {
             let step = &placed.step;
@@ -237,6 +267,8 @@ impl Service {
             steps,
             records,
             groups: Groups::new(limits.group_file_bytes),
+            sweep: Sweep::new(),
+            removal: None,
             logs,
             record_wall: Wall::EPOCH,
             control: None,
@@ -649,7 +681,11 @@ impl Service {
             Order::Terminal { fact } => self.terminal_fact(fact, wall),
             Order::Record { forge } => self.records.write(forge),
             Order::Read { forge } => self.groups.read(forge),
-            Order::Remove { forge } => self.groups.remove(forge),
+            Order::Remove { forge } => {
+                assert!(self.removal.is_none(), "one removal");
+                self.removal = Some(Removal { forge, phase: RemovePhase::Read, directory: None, sweep_failed: false });
+                self.groups.read(forge);
+            }
             Order::Fill { first, forge } => self.fill(first, forge),
             Order::Say { said } => {
                 if let Some(control) = &mut self.control {
@@ -999,12 +1035,91 @@ impl Service {
         if !self.groups.has_notice()
             && let Some(answer) = self.groups.take_answer()
         {
-            if let Input::Removed { forge } = answer {
-                self.records.removed(forge);
+            if let Some(removal) = &mut self.removal {
+                let forge = removal.forge;
+                match answer {
+                    Input::Read { playground, .. } => {
+                        removal.directory = self.groups.take_directory();
+                        if playground.is_none() {
+                            for (number, directory) in &self.settings.directories {
+                                if *number == forge {
+                                    removal.directory = Some(directory.clone());
+                                    break;
+                                }
+                            }
+                        }
+                        removal.phase = RemovePhase::Waiting;
+                    }
+                    Input::Removed { .. } => {
+                        removal.phase = RemovePhase::Sweep;
+                        self.sweep.sweep();
+                    }
+                    Input::NotRead { .. } | Input::NotRemoved { .. } => self.removal_answer(false),
+                    Input::Started { .. }
+                    | Input::Ready { .. }
+                    | Input::NotReady { .. }
+                    | Input::Line { .. }
+                    | Input::Withdrawn { .. }
+                    | Input::NotStarted { .. }
+                    | Input::Exited { .. }
+                    | Input::Closed { .. }
+                    | Input::Terminate
+                    | Input::Ask { .. }
+                    | Input::Stop { .. }
+                    | Input::Remove { .. }
+                    | Input::Written { .. }
+                    | Input::NotWritten { .. } => unreachable!("removal file answer"),
+                }
+            } else {
+                self.groups.take_directory();
+                self.input(answer);
             }
-            self.input(answer);
         }
         self.groups.tick(self.settings.root, &mut self.submissions);
+        self.sweep_work();
+    }
+    fn removal_answer(&mut self, success: bool) {
+        let forge = self.removal.take().expect("removal answer").forge;
+        if success {
+            self.records.removed(forge);
+        }
+        self.input(if success { Input::Removed { forge } } else { Input::NotRemoved { forge } });
+    }
+    fn sweep_work(&mut self) {
+        if self.notice_room()
+            && let Some(notice) = self.sweep.take_notice()
+        {
+            self.notice(self.formatter.notice(&notice, self.env.wall));
+        }
+        if !self.sweep.has_notice()
+            && let Some(success) = self.sweep.take_answer()
+            && let Some(removal) = &mut self.removal
+        {
+            match removal.phase {
+                RemovePhase::Move if success => {
+                    removal.phase = RemovePhase::Files;
+                    self.groups.remove(removal.forge);
+                }
+                RemovePhase::Move | RemovePhase::Sweep => self.removal_answer(success),
+                RemovePhase::Read | RemovePhase::Waiting => removal.sweep_failed = !success,
+                RemovePhase::Files => unreachable!("no sweep during file removal"),
+            }
+        }
+        if self.sweep.ready()
+            && let Some(removal) = &mut self.removal
+            && removal.phase == RemovePhase::Waiting
+        {
+            if removal.sweep_failed {
+                self.removal_answer(false);
+            } else if let Some(directory) = removal.directory.take() {
+                removal.phase = RemovePhase::Move;
+                self.sweep.move_directory(removal.forge, directory, &self.settings.data);
+            } else {
+                removal.phase = RemovePhase::Files;
+                self.groups.remove(removal.forge);
+            }
+        }
+        self.sweep.tick(self.settings.root, &mut self.serial, &mut self.submissions);
     }
     fn record_work(&mut self) {
         if self.notice_room()
@@ -1100,6 +1215,8 @@ impl Service {
             || self.machine.outcome().is_none()
             || !self.records.ready()
             || !self.groups.ready()
+            || !self.sweep.ready()
+            || self.removal.is_some()
             || !self.orders.is_empty()
             || self.failure.is_some()
             || !self.deferred.is_empty()
@@ -1279,6 +1396,8 @@ impl skein_shell::Host for Service {
                     self.records.complete(complete);
                 } else if Groups::owns(complete.op) {
                     self.groups.complete(complete);
+                } else if Sweep::owns(complete.op) {
+                    self.sweep.complete(complete);
                 } else if complete.op == ROOT_CLOSE {
                     self.root = Root::Closed;
                 } else {
@@ -1393,6 +1512,7 @@ impl skein_shell::Host for Service {
         }
         if (self.records.pending() && (!self.records.has_notice() || self.notice_room()))
             || (self.groups.pending() && (!self.groups.has_notice() || self.notice_room()))
+            || (self.sweep.pending() && (!self.sweep.has_notice() || self.notice_room()))
         {
             return true;
         }
@@ -1499,7 +1619,10 @@ impl skein_shell::Host for Service {
         Some(Exit::Code(u8::from(self.failed || self.machine.outcome() != Some(Outcome::Stopped))))
     }
     fn operations(&self) -> u32 {
-        io::operations(&self.env.limits).expect("io operations").checked_add(4).expect("root, records, logger, groups")
+        io::operations(&self.env.limits)
+            .expect("io operations")
+            .checked_add(5)
+            .expect("root, records, logger, groups, sweep")
     }
 }
 
@@ -1509,6 +1632,9 @@ impl skein_shell::Host for Service {
 pub(crate) mod pressure {
     use super::{Event, Fact, Item, Order, Service, Target, Told};
     use skein_lib::{Wall, bytes};
+    pub fn directories(service: &mut Service, directories: Box<[(u16, Box<[u8]>)]>) {
+        service.settings.directories = directories;
+    }
     #[derive(Debug)]
     #[expect(clippy::struct_excessive_bools, reason = "read-only test snapshot of independent gate predicates")]
     pub struct RestartGate {
