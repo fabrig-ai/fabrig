@@ -1,6 +1,8 @@
 //! The shipped binary, on a scratch deployment, drained on a signal.
 #[path = "fake_backends/mod.rs"]
 mod fake_backends;
+#[path = "reset/mod.rs"]
+mod reset;
 pub mod support;
 use skein_io::kernel::{Exit, Signal};
 use skein_lib::Duration;
@@ -2308,6 +2310,7 @@ fn a_first_run_ctl_demo_start_answers_running_twice() {
 
 // protocol/setup.md, 8.4: an unwatched end keeps its chat and account ended across restarts.
 #[test]
+#[ignore = "the demo's end on another forge's connect is gone (draft playground-reset.md, 6.3)"]
 fn a_second_forge_ends_the_playground_for_good_closing_its_chat_and_account() {
     use std::{fs, os::unix::fs::PermissionsExt};
 
