@@ -1725,6 +1725,7 @@ pub(super) fn route_tasks(
     if restored {
         super::deletion::resume_ending(core, env, &mut routed);
         crate::deletion::erase::begin(core, env, &mut routed);
+        crate::deletion::release::begin(core, env, &mut routed);
     }
     Requests::Out(routed)
 }

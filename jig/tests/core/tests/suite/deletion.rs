@@ -200,7 +200,7 @@ fn a_granted_connector_deletes_a_project_and_its_tasks_end() {
     assert_eq!(stage(&world, PROJECT), people::Stage::Erasing);
     world.reads.as_mut().expect("deletion reads").hold_loads = false;
     jig_core_world::reads::complete(&mut world);
-    assert_eq!(stage(&world, PROJECT), people::Stage::Releasing);
+    released(&world, PROJECT);
     for task in [first.0, second, child] {
         assert!(!world.store.rows.contains_key(&ended(task)));
     }
@@ -365,7 +365,7 @@ fn a_project_without_tasks_goes_straight_to_erasing() {
     let mut world = world(1904, false);
     remove(&mut world, KEY, PROJECT);
     assert_eq!(answer(&world), &people::Outcome::ProjectRemoved { project: PROJECT });
-    assert_eq!(stage(&world, PROJECT), people::Stage::Releasing);
+    released(&world, PROJECT);
     let writes = world
         .commits
         .iter()
@@ -566,14 +566,8 @@ fn erase(world: &mut World) {
     })));
 }
 
-fn releasing(world: &World) {
-    assert_eq!(
-        world.store.rows.get(&root::Key::Core(core::Key::People(people::Key::Deletion(1)))),
-        Some(&root::Record::Core(core::Record::People(people::Stored::Deletion {
-            project: 1,
-            stage: people::Stage::Releasing,
-        })))
-    );
+fn released(world: &World, project: u32) {
+    assert!(!world.store.rows.contains_key(&root::Key::Core(core::Key::People(people::Key::Deletion(project)))));
 }
 
 fn erasure_configuration() -> (root::Config, root::Limits) {
@@ -831,7 +825,7 @@ fn erasing_leaves_no_row_of_the_projects_ended_tasks() {
     assert!(!transcript(&mut world, tasks[0]).is_empty());
     assert!(!transcript(&mut world, other).is_empty());
     erase(&mut world);
-    releasing(&world);
+    released(&world, PROJECT);
     for row in world.store.rows.values() {
         assert!(!names(row, &tasks), "erased task row remains: {row:?}");
         assert!(
@@ -858,7 +852,7 @@ fn an_erased_tasks_inbox_entries_and_positions_are_gone() {
         if restart {
             world.restart(SEED, false);
         }
-        releasing(&world);
+        released(&world, PROJECT);
         assert!(
             !world
                 .store
@@ -884,7 +878,7 @@ fn erasing_pages_through_a_task_larger_than_one_page() {
     let (mut world, task) = finished(40);
     let before = world.commits.len();
     erase(&mut world);
-    releasing(&world);
+    released(&world, PROJECT);
     let write_bound = 74
         + jig_core_world::world::limits().core.tasks.placed_holds
         + 2 * jig_core_world::world::limits().core.people.people;
@@ -940,7 +934,7 @@ fn a_crash_during_erasing_resumes_from_the_start_and_ends_the_same() {
                 world.store.ask(request);
             }
             world.drain();
-            releasing(&world);
+            released(&world, PROJECT);
             assert!(!world.store.rows.contains_key(&ended(task)));
             let rows: Vec<_> = world
                 .store
@@ -980,7 +974,7 @@ fn erasing_uses_its_own_load_while_the_partys_only_read_slot_is_busy() {
         world.store.ask(request);
     }
     world.drain();
-    releasing(&world);
+    released(&world, PROJECT);
     assert!(!world.store.rows.contains_key(&ended(task)));
 }
 
@@ -994,7 +988,7 @@ fn erasing_is_independent_of_the_authenticated_read_byte_budget() {
     let (configuration, mut limits) = jig_core_world::effects::fixture(SEED, false);
     limits.core.load_bytes = 1;
     world.restart_with_limits(configuration, limits);
-    releasing(&world);
+    released(&world, PROJECT);
     assert!(!world.store.rows.contains_key(&ended(task)));
 }
 
@@ -1015,14 +1009,8 @@ fn erasing_serializes_projects_in_project_order() {
         world.store.ask(request);
     }
     world.drain();
-    releasing(&world);
-    assert_eq!(
-        world.store.rows.get(&root::Key::Core(core::Key::People(people::Key::Deletion(2)))),
-        Some(&root::Record::Core(core::Record::People(people::Stored::Deletion {
-            project: 2,
-            stage: people::Stage::Releasing
-        })))
-    );
+    released(&world, PROJECT);
+    released(&world, OTHER);
     let dropped: Vec<_> = world.commits[before..]
         .iter()
         .flatten()
@@ -1037,4 +1025,434 @@ fn erasing_serializes_projects_in_project_order() {
     assert_eq!(dropped.len(), tasks.len() + 1);
     assert_eq!(dropped.last(), Some(&other));
     assert!(world.store.rows.values().all(|row| !names(row, &tasks) && !names(row, &[other])));
+}
+
+// A page plus entries in every project scope exercises the notes continuation.
+const RELEASE_NOTES: u64 = 40;
+const SPEND: u64 = 7;
+const ACCOUNT: u32 = 0;
+const OWNER: u64 = 1;
+const REUSED_NAME: &str = "Released";
+
+fn release_configuration() -> (root::Config, root::Limits) {
+    let (mut config, mut limits) = jig_core_world::effects::fixture(SEED, false);
+    limits.core.people.requests = 32;
+    config.core.grants = Box::new([people::ActGrant {
+        connector: 1,
+        may: Box::new([people::ActKind::RemoveProject, people::ActKind::Adopt]),
+    }]);
+    let seed = &config.core.seed_projects[0].policy;
+    config.core.defaults.policies = skein_lib::Map::with_capacity(1);
+    config
+        .core
+        .defaults
+        .policies
+        .insert(
+            1,
+            core::ConfiguredPolicy {
+                policy: seed.policy.clone(),
+                permissions: Box::new([]),
+                templates: seed.templates.clone(),
+            },
+        )
+        .expect("configured replacement policy");
+    jig_core_world::peers::journal(&mut limits);
+    (config, limits)
+}
+
+fn note_rows(goal: u64) -> Vec<root::Record> {
+    use jig_domain_notes as notes;
+    let mut rows = Vec::new();
+    for name in 1..=RELEASE_NOTES {
+        let scope = match name % 3 {
+            0 => notes::Scope::Project { project: PROJECT },
+            1 => notes::Scope::Goal { project: PROJECT, goal },
+            _ => notes::Scope::Resources {
+                project: PROJECT,
+                connector: 1,
+                pattern: notes::Pattern { segments: Box::new([]), last: notes::Last::Open(Box::new([])) },
+            },
+        };
+        rows.push(root::Record::Core(core::Record::Notes(notes::Record::Entry(notes::Entry {
+            name,
+            scope: scope.clone(),
+            description: b"guidance".as_slice().into(),
+            body: b"retained body".as_slice().into(),
+            references: List::with_capacity(0),
+            author: notes::Author::Party { party: OWNER },
+            revision: 1,
+            changed: Wall::EPOCH,
+        }))));
+        rows.push(root::Record::Core(core::Record::Notes(notes::Record::Line(notes::Line {
+            name,
+            scope,
+            description: b"guidance".as_slice().into(),
+            revision: 1,
+        }))));
+    }
+    rows
+}
+
+fn release_world() -> World {
+    use jig_domain_accounts as accounts;
+    let (config, limits) = release_configuration();
+    let mut world = World::configured_with_startup(SEED, config, limits, |domain| {
+        domain.core_mut().tasks.start_restore();
+    });
+    let task = world.assigned.as_ref().expect("conversation").task;
+    let hold = core::fresh(&mut world.domain.core_mut().counters, core::Family::Message).expect("placed hold number");
+    world.turn(1, SPEND, None, b"settled spend");
+    world.end(
+        tasks::End::Finished {
+            result: tasks::TaskResult::Report { words: b"finished".as_slice().into() },
+            cancel_delegates: false,
+        },
+        SPEND,
+    );
+    let mut rows = note_rows(task);
+    let mut account =
+        world.store.rows[&root::Key::Core(core::Key::Accounts(accounts::Key::Account { number: ACCOUNT }))].clone();
+    let root::Record::Core(core::Record::Accounts(accounts::Stored::Account { uses, .. })) = &mut account else {
+        panic!("fixture account");
+    };
+    *uses = Some(Box::new([accounts::Use::Project(PROJECT), accounts::Use::Party(OWNER)]));
+    rows.push(account);
+    rows.push(root::Record::Core(core::Record::Tasks(tasks::Stored::PlacedHold(Box::new(tasks::PlacedHold {
+        number: hold,
+        project: PROJECT,
+        owner: tasks::Owner::Party { person: OWNER },
+        mode: tasks::Mode::Stop,
+        scope: tasks::Scope::Project,
+        reason: b"project hold".as_slice().into(),
+        placed_at: 0,
+        revision: 1,
+        exempt: Box::new([]),
+        lifted: false,
+    })))));
+    world.seed(rows.into_boxed_slice());
+    world.restart_with(release_configuration().0);
+    request(&mut world, 68, people::Ask::Rename { project: PROJECT, name: REUSED_NAME.into() });
+    act(
+        &mut world,
+        69,
+        people::Act::Adopt {
+            project: PROJECT,
+            adoption: people::Adoption {
+                resource: people::ResourceName {
+                    connector: 1,
+                    path: jig_test_connector_world::path(1, 1).segments().into(),
+                },
+                role: people::ResourceRole::Owned,
+                options: Box::new([]),
+            },
+        },
+    );
+    world.reads = Some(jig_core_world::reads::Parties::new(world.store.applied));
+    world
+}
+
+fn project_ledger(funder: tasks::Funder, project: u32) -> bool {
+    match funder {
+        tasks::Funder::Pool { project: owner, .. }
+        | tasks::Funder::Period { project: owner, .. }
+        | tasks::Funder::Recurring { project: owner, .. } => owner == project,
+        tasks::Funder::Task(_) => false,
+    }
+}
+
+fn own_rows_gone(world: &World) {
+    use jig_domain_notes as notes;
+    for row in world.store.rows.values() {
+        match row {
+            root::Record::Core(core::Record::People(
+                people::Stored::Policy { project, .. }
+                | people::Stored::Roles { project, .. }
+                | people::Stored::Deletion { project, .. },
+            )) => assert_ne!(*project, PROJECT),
+            root::Record::Core(core::Record::Tasks(tasks::Stored::Ledger(row))) => {
+                assert!(!project_ledger(row.funder, PROJECT));
+            }
+            root::Record::Core(core::Record::Tasks(tasks::Stored::PlacedHold(row))) => assert_ne!(row.project, PROJECT),
+            root::Record::Core(core::Record::Notes(row)) => {
+                let scope = match row {
+                    notes::Record::Entry(row) => &row.scope,
+                    notes::Record::Line(row) => &row.scope,
+                };
+                assert!(!matches!(scope, notes::Scope::Project { project } | notes::Scope::Goal { project, .. }
+                    | notes::Scope::Resources { project, .. } if *project == PROJECT));
+            }
+            root::Record::Connector { record, .. } => assert!(!matches!(
+                record,
+                jig_test_connector::Record::Adoption { project: PROJECT, .. }
+                    | jig_test_connector::Record::Task { project: PROJECT, .. }
+            )),
+            root::Record::Core(_) => {}
+        }
+    }
+}
+
+#[test]
+fn releasing_erases_the_projects_own_rows_and_frees_its_name() {
+    use jig_domain_accounts as accounts;
+    let mut world = release_world();
+    let ledgers: Vec<_> = world
+        .store
+        .rows
+        .values()
+        .filter_map(|row| match row {
+            root::Record::Core(core::Record::Tasks(tasks::Stored::Ledger(row)))
+                if project_ledger(row.funder, PROJECT) =>
+            {
+                Some(*row)
+            }
+            root::Record::Core(_) | root::Record::Connector { .. } => None,
+        })
+        .collect();
+    assert!(
+        ledgers.iter().any(|row| matches!(row.funder, tasks::Funder::Pool { .. }) && row.numbers.spent_below == SPEND)
+    );
+    assert!(ledgers.iter().any(|row| matches!(row.funder, tasks::Funder::Period { .. })));
+    assert!(
+        world.store.rows.values().any(|row| matches!(
+            row,
+            root::Record::Connector { record: jig_test_connector::Record::Adoption { project: PROJECT, .. }, .. }
+        )),
+        "adoption crossed the test connector: {:?}",
+        world.act_answers
+    );
+    let before = world.commits.len();
+    remove(&mut world, KEY, PROJECT);
+    own_rows_gone(&world);
+    let note_pages = world.commits[before..]
+        .iter()
+        .filter(|writes| {
+            writes.iter().any(|write| matches!(write, root::Write::Erase(root::Key::Core(core::Key::Notes(_)))))
+        })
+        .count();
+    assert!(note_pages >= 2, "notes exceed a single release page");
+    for mut ledger in ledgers {
+        ledger.closed = true;
+        assert_eq!(
+            world.store.rows.get(&root::Key::Core(core::Key::Tasks(tasks::Key::ClosedLedger(ledger.funder)))),
+            Some(&root::Record::Core(core::Record::Tasks(tasks::Stored::ClosedLedger(ledger))))
+        );
+    }
+    assert_eq!(
+        world.domain.accounts().account(ACCOUNT).expect("account retained").uses(),
+        Some([accounts::Use::Party(OWNER)].as_slice())
+    );
+    world.send(root::Event::Core(core::Event::People(people::Event::Roles {
+        project: people::DEPLOYMENT,
+        holdings: Box::new([people::Holding { person: OWNER, role: people::Role::Owner }]),
+    })));
+    request(&mut world, 70, people::Ask::MakeProject { name: REUSED_NAME.into(), policy: 1 });
+    assert_eq!(
+        world.people_answers.last(),
+        Some(&people::Reply::Outcome(people::Outcome::ProjectMade { project: OTHER }))
+    );
+}
+
+fn core_outputs(world: &mut World, event: core::Event) -> Vec<core::Request> {
+    let (now, wall) = world.clocks();
+    let env = skein_lib::Env { now, wall, limits: release_configuration().1.core };
+    let core::Requests::Out(mut out) = core::step(world.domain.core_mut(), &env, event);
+    let mut requests = Vec::new();
+    while let Some(request) = out.pop() {
+        requests.push(request);
+    }
+    requests
+}
+
+fn release_load(world: &World) -> Token {
+    let loads = &world.reads.as_ref().expect("release reads").loads;
+    assert_eq!(loads.len(), 1, "only the release scan is waiting");
+    assert_eq!(loads[0].1.scope, reads::Scope::Notes { project: PROJECT });
+    assert_eq!(loads[0].1.after, None);
+    loads[0].0
+}
+
+fn complete_release_at_core(world: &mut World) -> Vec<core::Request> {
+    let load = release_load(world);
+    core_outputs(
+        world,
+        core::Event::ReadLoaded { load, result: reads::Loaded::Page { rows: Box::new([]), next: None } },
+    )
+}
+
+fn release_asks(requests: &[core::Request]) -> Vec<u16> {
+    requests
+        .iter()
+        .filter_map(|request| match request {
+            core::Request::Ask { connector, ask: core::Ask::ReleaseProject { project: PROJECT } } => Some(*connector),
+            core::Request::ProjectMade { .. }
+            | core::Request::Write(_)
+            | core::Request::Ask { .. }
+            | core::Request::Held(_)
+            | core::Request::Now(_)
+            | core::Request::Decided => None,
+        })
+        .collect()
+}
+
+fn releasing_world() -> World {
+    let (config, limits) = release_configuration();
+    let mut world = World::configured_with(
+        SEED,
+        false,
+        config,
+        limits,
+        people::Ask::MarkSeen { seen: people::Seen::Results { through: 0 } },
+    );
+    world.reads = Some(jig_core_world::reads::Parties::new(world.store.applied));
+    world.reads.as_mut().expect("release reads").hold_loads = true;
+    world.send(root::Event::Core(core::Event::People(people::Event::Deletion {
+        project: PROJECT,
+        stage: Some(people::Stage::Releasing),
+    })));
+    world
+}
+
+fn answer_release(world: &mut World, project: u32, connector: u16) -> Vec<core::Request> {
+    core_outputs(world, core::Event::ProjectReleased { project, connector })
+}
+
+#[test]
+fn the_row_stays_until_every_connector_answers() {
+    let mut world = releasing_world();
+    assert_eq!(release_asks(&complete_release_at_core(&mut world)), [1, 2]);
+    for (project, connector) in [(OTHER, 1), (PROJECT, 3), (PROJECT, 1), (PROJECT, 1)] {
+        let out = answer_release(&mut world, project, connector);
+        assert!(!out.iter().any(|request| matches!(
+            request,
+            core::Request::Write(core::Write::Erase(core::Key::People(people::Key::Deletion(_))))
+        )));
+        assert!(world.domain.core_mut().deleting(PROJECT));
+    }
+    let out = answer_release(&mut world, PROJECT, 2);
+    assert!(out.iter().any(|request| matches!(
+        request,
+        core::Request::Write(core::Write::Erase(core::Key::People(people::Key::Deletion(PROJECT))))
+    )));
+    assert!(!world.domain.core_mut().deleting(PROJECT));
+    assert_eq!(answer_release(&mut world, PROJECT, 2).len(), 1, "duplicate answer decides no writes");
+}
+
+#[test]
+fn a_start_during_releasing_asks_every_connector_again() {
+    let mut world = releasing_world();
+    assert_eq!(release_asks(&complete_release_at_core(&mut world)), [1, 2]);
+    let _out = answer_release(&mut world, PROJECT, 1);
+    world.restart_with(release_configuration().0);
+    assert_eq!(release_asks(&complete_release_at_core(&mut world)), [1, 2]);
+    // Model the durable cleanup decision with only its deletion row retained.
+    for key in [core::Key::People(people::Key::Policy(PROJECT)), core::Key::People(people::Key::Roles(PROJECT))] {
+        let _row = world.erase(root::Key::Core(key));
+    }
+    world.restart_with(release_configuration().0);
+    assert_eq!(release_asks(&complete_release_at_core(&mut world)), [1, 2]);
+}
+
+#[test]
+fn a_start_after_a_deletion_restores_its_retained_answers() {
+    let mut world = release_world();
+    remove(&mut world, KEY, PROJECT);
+    let retained: Vec<_> = world
+        .store
+        .rows
+        .values()
+        .filter(|row| {
+            matches!(
+                row,
+                root::Record::Core(core::Record::People(
+                    people::Stored::Acted { outcome: people::Outcome::ProjectRemoved { project: PROJECT }, .. }
+                        | people::Stored::Answer { outcome: people::Outcome::Renamed { project: PROJECT }, .. }
+                ))
+            )
+        })
+        .cloned()
+        .collect();
+    assert_eq!(retained.len(), 2, "the act and owner's rename answer outlive the project");
+    world.restart_with(release_configuration().0);
+    assert!(world.domain.ready());
+    for row in retained {
+        assert_eq!(world.store.rows.get(&row.key()), Some(&row));
+    }
+    remove(&mut world, KEY, PROJECT);
+    assert_eq!(answer(&world), &people::Outcome::ProjectRemoved { project: PROJECT });
+    request(&mut world, 68, people::Ask::Rename { project: PROJECT, name: REUSED_NAME.into() });
+    assert_eq!(
+        world.people_answers.last(),
+        Some(&people::Reply::Outcome(people::Outcome::Renamed { project: PROJECT }))
+    );
+}
+
+fn deletion_rows(world: &World) -> Vec<root::Record> {
+    world
+        .store
+        .rows
+        .values()
+        .filter(|row| !matches!(row, root::Record::Core(core::Record::Core(core::CoreRecord::Deployment(_)))))
+        .cloned()
+        .collect()
+}
+
+#[test]
+fn a_crash_after_each_commit_of_a_deletion_ends_the_same() {
+    let mut uncut = release_world();
+    let first = uncut.store.applied + 1;
+    remove(&mut uncut, KEY, PROJECT);
+    let last = uncut.store.applied;
+    let expected = deletion_rows(&uncut);
+    assert!(last > first);
+    for number in first..=last {
+        for durable in [true, false] {
+            if !durable && number == first {
+                continue;
+            }
+            let cut = if durable { Cut::Durable(number) } else { Cut::Submitted(number) };
+            let mut world = release_world();
+            world.cut = Some(cut);
+            remove(&mut world, KEY, PROJECT);
+            assert_eq!(world.reached_cut, Some(cut));
+            world.restart_with(release_configuration().0);
+            assert!(world.domain.ready());
+            own_rows_gone(&world);
+            assert_eq!(deletion_rows(&world), expected, "crash at {cut:?}");
+        }
+    }
+}
+
+#[test]
+fn releasing_without_connectors_erases_the_row_in_its_cleanup_decision() {
+    let mut world = releasing_world();
+    world.domain.core_mut().connectors = Box::new([]);
+    let out = complete_release_at_core(&mut world);
+    assert!(release_asks(&out).is_empty());
+    for key in [people::Key::Policy(PROJECT), people::Key::Deletion(PROJECT)] {
+        assert!(out.iter().any(|request| matches!(request,
+            core::Request::Write(core::Write::Erase(core::Key::People(erased))) if *erased == key)));
+    }
+    assert!(!world.domain.core_mut().deleting(PROJECT));
+}
+
+#[test]
+fn releasing_retries_busy_loads_and_ignores_their_stale_answers() {
+    let mut world = releasing_world();
+    let first = release_load(&world);
+    world.send(root::Event::Core(core::Event::ReadLoaded { load: first, result: reads::Loaded::Busy }));
+    let loads = &world.reads.as_ref().expect("release reads").loads;
+    assert_eq!(loads.len(), 2, "the busy load and its retry");
+    let retry = loads[1].0;
+    assert_ne!(retry, first);
+    world.send(root::Event::Core(core::Event::ReadLoaded {
+        load: first,
+        result: reads::Loaded::Page { rows: Box::new([]), next: None },
+    }));
+    assert_eq!(world.reads.as_ref().expect("release reads").loads.len(), 2);
+    assert_eq!(stage(&world, PROJECT), people::Stage::Releasing);
+    world.send(root::Event::Core(core::Event::ReadLoaded {
+        load: retry,
+        result: reads::Loaded::Page { rows: Box::new([]), next: None },
+    }));
+    released(&world, PROJECT);
 }

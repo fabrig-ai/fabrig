@@ -325,6 +325,8 @@ pub struct Core {
     pub(crate) reads: skein_lib::Slab<reads::Pending>,
     pub(crate) erasing: Option<deletion::erase::Scan>,
     pub(crate) erase_load: u32,
+    pub(crate) releasing: Option<deletion::release::Scan>,
+    pub(crate) release_pending: Map<u32, Box<[u16]>>,
     /// Historical dependency results held for preparation.
     pub(crate) dependency_results: Map<u64, Box<[HistoricalResult]>>,
     /// Numbered task creation flights.
@@ -720,6 +722,8 @@ impl Core {
             reads: skein_lib::Slab::with_capacity(limits.load_slots),
             erasing: None,
             erase_load: 0,
+            releasing: None,
+            release_pending: Map::with_capacity(limits.people.projects),
             dependency_results: Map::with_capacity(limits.tasks.tasks),
             made: Map::with_capacity(limits.people.pending),
             goal_routes: Map::with_capacity(limits.people.pending),
