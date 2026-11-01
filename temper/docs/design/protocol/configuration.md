@@ -1873,7 +1873,7 @@ agent's largest turn" (`temper-service`'s `startup/checks.rs`).
 | the engine's `hub.turn_queue_bytes` | at least T | 8,537,752 | init's holds | init's holds |
 | `root.journal.transcript_bytes` | resume | 1,067,223 | 1,254,615 | 1,507,543 |
 | `root.loads.transcript_bytes` | T, at most 1,590,046 | 1,067,219 | 1,254,611 | 1,507,539 |
-| `root.loads.bytes`, `root.loads.reply_bytes` | T + 248 (a temper record) | 1,067,467 | 1,254,859 | 1,507,787 |
+| `root.loads.bytes`, `root.loads.reply_bytes` | T + 256 (a temper record) | 1,067,475 | 1,254,867 | 1,507,795 |
 | `root.loads.read_bytes` | init: 2 × T; holds T and a row and a record | 2,134,438 | init's holds | init's holds |
 
 - **Memory:** `engine.memory_bytes` is the engine's byte budget

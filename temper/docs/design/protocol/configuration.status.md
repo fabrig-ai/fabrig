@@ -12,3 +12,5 @@
 - **Built:** 3, 8: each kept forge supplies the setup host with the forge component's admitted address, transport, TLS server name and trust, at startup and while serving.
 
 - **Built:** 3: `app_read_only` is set on the kept forge by ctl connect `--read-only`; every GitHub forge keeps strays.
+
+- **Built:** 13.8: loaded-row admission derives from the 256-byte temper record, including explicit change-title metadata; deployment templates and startup fixtures use the corresponding turn-plus-record sizes.
