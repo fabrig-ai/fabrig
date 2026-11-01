@@ -295,7 +295,9 @@ pub fn records_store() -> crate::store::Store {
     let models = jig_protocol_config::core(&engine().jig, [7; 16], 7).settings.models;
     // Secret-record fixtures start from a real completed deployment, as the
     // store now refuses secrets until that start's mark is durable.
-    let maps = ready().engine.expect("bootstrap engine").store.component.into_stores();
+    let mut bootstrap = with_forges(&[]);
+    restart(&mut bootstrap);
+    let maps = bootstrap.engine.expect("bootstrap engine").store.component.into_stores();
     let limits = crate::store::limits(&root, &root.forge, &profile).expect("record fixture limits");
     let mut store = memory_store_for(&root, &profile, &models);
     store.component = jig_protocol_store::Store::over(
@@ -591,6 +593,8 @@ pub fn restart(service: &mut crate::Service) {
 pub fn ready() -> crate::Service {
     let mut service = started();
     restart(&mut service);
+    // Ready stories observe subsequent connection requests.
+    service.engine.as_mut().unwrap().forge.starts.clear();
     service
 }
 pub fn period(number: u64) -> temper_engine_domain::Event {
@@ -679,7 +683,7 @@ pub fn assignment_with_settings(
 pub fn values_with_identity(number: u32, token: &[u8]) -> crate::values::Values {
     let mut values = crate::values::Values::new(2, 4096);
     values.identities = crate::values::Identities::with_capacity(1);
-    let mut identity = engine().identities.into_iter().next().unwrap();
+    let mut identity = crate::forges::identity(&forge_record(1));
     identity.token = Secret::new(token.into());
     let value = crate::translate::identity(&identity, &wire_limits()).unwrap();
     values.identities.put(number, value);
@@ -968,13 +972,39 @@ pub fn clients() -> crate::clients::Clients {
     crate::clients::Clients::new(&engine.jig, &engine.clients, &seeds(), &engine.limits.root.journal, None, &[])
         .unwrap()
 }
+#[path = "fixtures/document.rs"]
+pub mod document_members;
 mod startup;
 pub use startup::{
     APPLICATION, demo_application, demo_service, document, engine_alone_document, files, owned_worker_agent,
-    owned_worker_alone_document, parsed, startup_agent, value, webhook_document, with, without, worker_alone_document,
+    owned_worker_alone_document, startup_agent, value, webhook_document, with, without, worker_alone_document,
     worker_runtime,
 };
+pub fn startup_runtime(input: &[u8]) -> skein_lib::List<crate::ForgeRuntime> {
+    use jig_protocol_config::{self as config, read};
+    let document =
+        config::document(input, &config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 }).unwrap();
+    let application = read::Object::new(&document, 0).unwrap().member(&document, b"application").unwrap();
+    let forges = read::Object::new(&document, application).unwrap().member(&document, b"forges");
+    if let Some(at) = forges
+        && !read::list(&document, at, 16_384).unwrap().is_empty()
+    {
+        return loopback_runtime();
+    }
+    skein_lib::List::with_capacity(0)
+}
+pub fn forge_start(engine: &crate::engine::Engine, number: u16) -> Option<&skein_forge_connection::Access> {
+    for (forge, access) in &engine.forge.starts {
+        if *forge == number {
+            return Some(access);
+        }
+    }
+    None
+}
 pub fn forge_runtime() -> skein_lib::List<crate::ForgeRuntime> {
+    skein_lib::List::with_capacity(0)
+}
+pub fn loopback_runtime() -> skein_lib::List<crate::ForgeRuntime> {
     let mut runtime = skein_lib::List::with_capacity(1);
     runtime
         .push(crate::ForgeRuntime {
@@ -1205,10 +1235,6 @@ pub fn seed_forge_records(service: &mut crate::Service, records: &[temper_engine
         if record.kind != temper_engine_domain_forge::Kind::Forgejo || record.setup.is_some() {
             continue;
         }
-        let mut identity = crate::forges::identity(record);
-        identity.token = Secret::new(b"forge-token-1234".as_slice().into());
-        let value = crate::translate::identity(&identity, &engine.workers.encoding.limits).unwrap();
-        engine.values.identities.put(u32::from(record.number), value);
         let configured = crate::forges::settings(record);
         let origin = records::origin(skein_forge_connection::settings::Kind::Forgejo, &configured.api).encode();
         for (item, bytes) in [

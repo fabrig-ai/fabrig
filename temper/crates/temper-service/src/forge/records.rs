@@ -214,6 +214,7 @@ pub(crate) fn advance(engine: &mut crate::engine::Engine) {
 fn unconfigured_numbers_resume_at_the_cursor_without_retaining_values() {
     let settings = crate::tests::fixtures::engine();
     let mut rows = Rows::new(&settings.forges, settings.limits.forge_component.forges);
+    rows.register(1);
     for forge in [u16::MAX, 77, 0, 77] {
         for item in [records::Item::AppKey, records::Item::Origin] {
             rows.push(records::number(forge, item), Secret::new(Box::from([2, 255])), 4096);

@@ -140,7 +140,7 @@ fn the_wire_admits_a_moved_file_and_temper_values_stay_at_their_bound() {
         let mut handover = skein_lib::bytes::zeroed(usize::try_from(bytes).unwrap());
         handover.fill(b'x');
         settings.setup[0].handover = Some(skein_lib::Secret::new(handover));
-        let mut forges = crate::forge::prepare(&settings, fixtures::forge_runtime()).unwrap();
+        let mut forges = crate::forge::prepare(&settings, fixtures::loopback_runtime()).unwrap();
         let result = crate::setup::prepare(&settings, &mut forges, &fixtures::seeds().crypto, false);
         if bytes == value {
             assert!(result.is_ok());
@@ -390,7 +390,7 @@ fn origin_inventory_keeps_configured_text_prefixes_and_forge_indices() {
     use crate::startup::checks;
     use jig_protocol_config::{Address, Directories};
     use temper_protocol_records as records;
-    let document = fixtures::document();
+    let document = fixtures::document_members::document();
     let input = super::startup::github_input(core::str::from_utf8(&document).unwrap());
     let mut forges = skein_lib::List::with_capacity(5);
     forges.push(crate::named(&document, &Directories::working()).unwrap().forges.into_vec().pop().unwrap()).unwrap();
@@ -434,14 +434,15 @@ fn github_component_checks_key_deadline_and_renewal() {
         (b"forge_component.renew_before_ms", 1_800_001, "forge_component.renew_before_ms"),
         (b"forge_component.installations", 0, "forge_component"),
     ] {
-        let mut config = fixtures::document_engine();
-        config.forges[0].kind = crate::settings::Kind::GitHub;
-        config.forges[0].api_token = None;
+        let mut config = fixtures::engine();
+        let mut record = fixtures::forge_record(1);
+        record.kind = temper_engine_domain_forge::Kind::GitHub;
+        config.forges = fixtures::forge_settings(&[record]);
         limits::apply(&mut config.limits, name, value).unwrap();
         if name == b"forge_component.deadline_ms" {
             config.limits.forge.client.lifetime = Duration::from_secs(300);
         }
-        let Err(found) = crate::forge::prepare(&config, fixtures::forge_runtime()) else { panic!("{expected}") };
+        let Err(found) = crate::forge::prepare(&config, fixtures::loopback_runtime()) else { panic!("{expected}") };
         let found = crate::startup::Problems::jig(found, &jig_protocol_config::Path::root());
         let lines = crate::startup::lines(&found);
         assert!(core::str::from_utf8(&lines).unwrap().contains(expected), "{expected}: {lines:?}");

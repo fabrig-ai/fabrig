@@ -433,7 +433,7 @@ fn temper_word_keeps_the_marker_bytes_and_length() {
     let config = fixtures::engine();
     let mut found = jig_protocol_config::Problems::empty();
     let settings =
-        forge::settings(&config.forges, fixtures::forge_runtime(), None, &mut found).expect("fixture settings");
+        forge::settings(&fixtures::forges(), fixtures::loopback_runtime(), None, &mut found).expect("fixture settings");
     let defaults = config.limits.forge_component;
     assert!(settings.forges.get(0).unwrap().log_origins.is_empty());
     assert_eq!((defaults.log_origins, defaults.log_pages, defaults.delivery_bytes), (4, 10, 1_048_576));
@@ -464,22 +464,22 @@ fn the_component_s_new_refusals_are_problems_naming_their_members() {
 
 #[test]
 fn the_forge_fixture_number_differs_from_its_index() {
-    let config = fixtures::engine();
-    assert_ne!(config.forges[0].number, 0);
+    let record = fixtures::forge_record(1);
+    assert_ne!(record.number, 0);
 }
 
 #[test]
 fn a_refusal_naming_a_forge_is_indexed_to_the_configured_forge() {
     use skein_forge_connection::Unusable;
-    let config = fixtures::engine();
-    let number = config.forges[0].number;
+    let forges = fixtures::forges();
+    let number = forges[0].number;
     let rows: [(Unusable, &[u8]); 3] = [
         (Unusable::PlaintextName { forge: number }, b"application.forges[0].api: past its bound\n"),
         (Unusable::Origin { forge: number, origin: skein_forge::github::redirect::Origin { tls: false, host: Box::from(b"logs.test".as_slice()), port: 80 } }, b"application.forges[0].log_origins: past its bound\n"),
         (Unusable::LogOrigins { forge: number, origins: 5, limit: 4 }, b"application.forges[0].log_origins: past its bound\napplication.limits.overrides.forge_component.log_origins: past its bound\n"),
     ];
     for (refusal, expected) in rows {
-        assert_eq!(problem_lines(forge::indexed(refusal, &config.forges)).as_ref(), expected);
+        assert_eq!(problem_lines(forge::indexed(refusal, &forges)).as_ref(), expected);
     }
 }
 
@@ -490,7 +490,7 @@ fn the_start_request_carries_the_user_agent_and_the_host() {
     face.connected(&mut service);
     assert_eq!(
         face.sent(),
-        b"GET /api/v1/user HTTP/1.1\r\nHost: forge.example:3000\r\n\
+        b"GET /api/v1/user HTTP/1.1\r\nHost: 127.0.0.1:3000\r\n\
         Authorization: token api-token\r\nUser-Agent: temper/0.0.0\r\n\r\n"
     );
 }
@@ -551,10 +551,10 @@ const REFUSED_TARGET_BYTES: u32 = 1_047_843;
 
 #[test]
 fn the_longest_head_of_the_shipped_forge_fits_its_room_to_the_byte() {
-    let mut config = fixtures::engine();
+    let mut config = fixtures::document_engine();
     for (target_bytes, expected) in [(FITTING_TARGET_BYTES, None), (REFUSED_TARGET_BYTES, Some(HEAD_PROBLEMS))] {
         config.limits.forge_component.target_bytes = target_bytes;
-        let problems = match forge::prepare(&config, fixtures::forge_runtime()) {
+        let problems = match forge::prepare(&config, fixtures::loopback_runtime()) {
             Ok(_) => None,
             Err(found) => {
                 Some(crate::startup::lines(&crate::startup::Problems::jig(found, &jig_protocol_config::Path::root())))
@@ -606,41 +606,26 @@ fn connected_then_token_refused_keeps_the_note_and_engine_running() {
 }
 
 fn records_service() -> (crate::Service, skein_lib::Secret) {
-    use crate::settings::{Kind, Transport};
     use skein_lib::List;
-    let mut settings = fixtures::engine();
+    let mut settings = fixtures::document_engine();
+    settings.limits.forge.forges = 9;
     settings.limits.forge_component.forges = 9;
     settings.limits.forge_component.repositories = 9;
     settings.limits.forge.repositories = 9;
     settings.limits.forge.client.repositories = 9;
     settings.limits.forge.output = 256;
-    let mut forges = List::with_capacity(9);
-    let mut runtime = List::with_capacity(9);
-    for number in 1..=9_u16 {
-        let mut forge = fixtures::forges().into_iter().next().unwrap();
-        forge.number = number;
-        if number != 1 {
-            forge.kind = Kind::GitHub;
-            forge.api_token = None;
-        }
-        forge.api = jig_protocol_config::Address::Addr(skein_io::Addr::Ip(
-            ([127, 0, 0, 1], 2999_u16.checked_add(number).unwrap()).into(),
-        ));
-        forge.transport = Transport::Plaintext;
-        forges.push(forge).unwrap();
-        runtime
-            .push(crate::ForgeRuntime {
-                number,
-                address: ([127, 0, 0, 1], 2999_u16.checked_add(number).unwrap()).into(),
-                transport: skein_forge_connection::settings::Transport::Plaintext { name: None },
-            })
-            .unwrap();
-    }
-    settings.forges = forges.into_boxed();
-    fixtures::fill_files(&mut settings);
+    settings.forges[0].api = jig_protocol_config::Address::Addr(skein_io::Addr::Ip(([127, 0, 0, 1], 3000).into()));
     let file_token = settings.forges[0].api_token.clone().unwrap();
-    let mut service = crate::Service::engine(settings, &fixtures::seeds(), None, runtime).unwrap();
-    service.engine.as_mut().expect("engine").store = fixtures::records_store();
+    fixtures::fill_files(&mut settings);
+    let mut service = crate::Service::engine(settings, &fixtures::seeds(), None, fixtures::loopback_runtime()).unwrap();
+    service.engine.as_mut().unwrap().store = fixtures::records_store();
+    let mut records = List::with_capacity(8);
+    for number in 2..=9 {
+        let mut record = fixtures::forge_record(number);
+        record.kind = temper_engine_domain_forge::Kind::GitHub;
+        records.push(record).unwrap();
+    }
+    fixtures::register_forges(&mut service, records.as_slice());
     (service, file_token)
 }
 #[expect(clippy::disallowed_macros, reason = "ordinary fixtures build versioned row bytes")]
