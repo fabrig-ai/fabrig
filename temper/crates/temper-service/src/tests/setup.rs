@@ -2039,25 +2039,125 @@ fn the_intent_comes_from_the_record_after_a_restart() {
     }
 }
 
-#[test]
-fn a_kept_github_record_uses_its_resolved_tls_endpoint() {
-    let mut service = service(8, Duration::from_secs(3600));
-    let record = runtime_record(domain::Kind::GitHub, domain::Mode::Connected);
-    let engine = service.engine.as_mut().unwrap();
-    insert_runtime_forge(engine, &record);
+fn tls_github_service(address: core::net::SocketAddr) -> crate::Service {
+    let mut config = fixtures::engine();
+    fixtures::fill_files(&mut config);
+    let mut service = crate::Service::engine(config, &fixtures::seeds(), None, List::with_capacity(0)).unwrap();
+    service.engine.as_mut().unwrap().store = fixtures::marked_store();
     let (_, endpoints) = tls_forges();
-    let mut endpoint = endpoints.into_boxed().into_iter().next().unwrap();
-    endpoint.number = 2;
-    let source = engine.workers.forges.get_mut(2).unwrap();
-    source.api = jig_protocol_config::Address::Host { name: b"first.test".as_slice().into(), port: 443 };
-    source.transport = crate::settings::Transport::Tls { server_name: b"first.test".as_slice().into(), trust: None };
-    engine.setup.resolved(endpoint);
-    keep(engine, &record);
-    start(&mut service, 94, host::Plan::Manifest { forge: 2, target: Target::Personal });
-    let root::SetupEnd::Done { forge: 2, outcome: root::SetupOutcome::Manifest { .. } } = terminal(&mut service) else {
-        panic!("resolved runtime GitHub serves its manifest")
+    let endpoint = endpoints.into_boxed().into_iter().next().unwrap();
+    let skein_forge_connection::settings::Transport::Tls { trust, .. } = endpoint.transport else {
+        panic!("fixture TLS trust")
+    };
+    service.configure_forge_runtime(
+        crate::ForgeRuntime {
+            number: 0,
+            address,
+            transport: skein_forge_connection::settings::Transport::Tls {
+                server_name: skein_tls::Name::new("api.github.com").unwrap(),
+                trust: trust.clone(),
+            },
+        },
+        trust,
+    );
+    assert!(service.engine.as_ref().unwrap().workers.forges.is_empty());
+    service
+}
+fn tls_github_record() -> domain::ForgeRecord {
+    let mut record = runtime_record(domain::Kind::GitHub, domain::Mode::Connected);
+    record.place.api = domain::Address {
+        host: b"api.github.com".as_slice().into(),
+        port: 443,
+        tls: Some(b"api.github.com".as_slice().into()),
+    };
+    record.place.git = b"https://github.com".as_slice().into();
+    record.place.web = Some(b"https://github.com".as_slice().into());
+    record
+}
+fn assert_github_entry_removed(service: &mut crate::Service) {
+    let Some(host::Request::Remove { forge: 2 }) = service.engine.as_mut().unwrap().setup.membership.pop() else {
+        panic!("setup Remove")
     };
 }
+#[expect(clippy::disallowed_macros, reason = "compare public TLS trust configurations without credentials")]
+fn assert_tls_github_entry(service: &mut crate::Service, address: core::net::SocketAddr) {
+    let engine = service.engine.as_mut().unwrap();
+    let Some(host::Request::Add(entry)) = engine.setup.membership.pop() else { panic!("setup Add") };
+    assert_eq!(entry.number(), 2);
+    assert_eq!(entry.address, skein_io::Addr::Ip(address));
+    let host::Transport::Tls { server_name, trust } = entry.transport else { panic!("setup TLS") };
+    assert_eq!(server_name, skein_tls::Name::new("api.github.com").unwrap());
+    assert_eq!(alloc::format!("{trust:?}"), alloc::format!("{:?}", engine.forge.roots.as_ref().unwrap()));
+}
+fn assert_github_paste_is_admitted(service: &mut crate::Service) {
+    start(service, 95, host::Plan::Paste { forge: 2, app: core::num::NonZeroU64::new(7).unwrap() });
+    let engine = service.engine.as_mut().unwrap();
+    assert!(engine.setup.runs.contains_key(&Token::new(95)), "Paste reaches the setup host: {:?}", engine.events);
+    let Some(host::Event::Need { run, need: host::Need::Read(skein_forge_setup::item::Item::Pasted) }) =
+        engine.setup.above.pop()
+    else {
+        panic!("Paste asks for the pasted App key")
+    };
+    assert_eq!(run, Token::new(95));
+}
+#[test]
+fn a_kept_github_record_uses_its_resolved_tls_endpoint() {
+    let address = ([192, 0, 2, 7], 443).into();
+    let mut service = tls_github_service(address);
+    load_routing(&mut service);
+    let engine = service.engine.as_mut().unwrap();
+    let record = tls_github_record();
+    fixtures::restore_forge(engine, record.clone());
+    crate::forges::record(engine, record);
+    start(&mut service, 94, host::Plan::Manifest { forge: 2, target: Target::Personal });
+    let end = terminal(&mut service);
+    let root::SetupEnd::Done { forge: 2, outcome: root::SetupOutcome::Manifest { .. } } = end else {
+        panic!("resolved runtime GitHub serves its manifest: {end:?}")
+    };
+    assert_tls_github_entry(&mut service, address);
+    assert_github_paste_is_admitted(&mut service);
+}
+#[test]
+fn a_github_record_restored_at_start_uses_its_resolved_tls_endpoint() {
+    let address = ([192, 0, 2, 7], 443).into();
+    let mut service = tls_github_service(address);
+    let engine = service.engine.as_mut().unwrap();
+    let record = tls_github_record();
+    fixtures::restore_forge(engine, record.clone());
+    crate::forges::record(engine, record);
+    let (settings, _) = service.engine.as_ref().unwrap().setup.pending.as_ref().unwrap();
+    assert_eq!(settings.forges.len(), 1, "the restored forge has a pending setup entry");
+    load_routing(&mut service);
+    assert_github_entry_removed(&mut service);
+    assert_tls_github_entry(&mut service, address);
+    assert_github_paste_is_admitted(&mut service);
+}
+#[test]
+fn a_held_github_setup_entry_is_replaced_when_the_shell_resolves_its_name() {
+    for host_started in [false, true] {
+        let mut service = tls_github_service(crate::forge::HELD_ADDRESS);
+        let engine = service.engine.as_mut().unwrap();
+        let record = tls_github_record();
+        fixtures::restore_forge(engine, record.clone());
+        crate::forges::record(engine, record);
+        if host_started {
+            load_routing(&mut service);
+            assert_github_entry_removed(&mut service);
+            assert_tls_github_entry(&mut service, crate::forge::HELD_ADDRESS);
+        }
+        let address = ([192, 0, 2, 7], 443).into();
+        service.resolved(2, Some(address));
+        if !host_started {
+            let (settings, _) = service.engine.as_ref().unwrap().setup.pending.as_ref().unwrap();
+            assert_eq!(settings.forges.get(0).unwrap().address, skein_io::Addr::Ip(address));
+            load_routing(&mut service);
+        }
+        assert_github_entry_removed(&mut service);
+        assert_tls_github_entry(&mut service, address);
+        assert_github_paste_is_admitted(&mut service);
+    }
+}
+
 #[test]
 fn forgetting_before_the_host_starts_does_not_restore_the_forge() {
     let mut service = local_service(runtime_config(), local_store(false));

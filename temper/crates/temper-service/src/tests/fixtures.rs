@@ -1324,18 +1324,6 @@ pub fn configured_prepared(
                     engine.forge.names.insert(name.clone(), address.ip()).unwrap();
                 }
             }
-            let transport = match &endpoint.transport {
-                skein_forge_connection::settings::Transport::Plaintext { name } => {
-                    skein_forge_connection::settings::Transport::Plaintext { name: name.clone() }
-                }
-                skein_forge_connection::settings::Transport::Tls { server_name, trust } => {
-                    skein_forge_connection::settings::Transport::Tls {
-                        server_name: server_name.clone(),
-                        trust: trust.clone(),
-                    }
-                }
-            };
-            engine.setup.resolved(crate::ForgeRuntime { number: endpoint.number, address, transport });
         }
         engine.forge.endpoints.insert(endpoint.number, endpoint).unwrap();
     }

@@ -272,8 +272,11 @@ impl Service {
         };
         endpoint.address = skein_io::Addr::Ip(address);
         engine.forge.endpoints.insert(forge, endpoint).expect("kept forge capacity");
-        if forges::keep(engine, configured) && engine.forge_records.done() {
-            forge::records::connect(engine, forge);
+        if forges::keep(engine, configured) {
+            engine.setup.replace_endpoint(forge, address);
+            if engine.forge_records.done() {
+                forge::records::connect(engine, forge);
+            }
         }
     }
 }

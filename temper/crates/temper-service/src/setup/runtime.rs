@@ -267,6 +267,7 @@ pub(crate) fn keep(engine: &mut crate::engine::Engine, record: &ForgeRecord) {
         Some(_) | None => None,
     };
     if !engine.setup.served.contains_key(&record.number) {
+        let served = forge.clone();
         if let Some((settings, _)) = &mut engine.setup.pending {
             if let host::Kind::Forgejo(given) = &forge.kind
                 && let Some(listener) = given.listener
@@ -283,7 +284,7 @@ pub(crate) fn keep(engine: &mut crate::engine::Engine, record: &ForgeRecord) {
         } else {
             return;
         }
-        engine.setup.served.insert(record.number, ()).expect("admitted setup forge");
+        engine.setup.served.insert(record.number, served).expect("admitted setup forge");
         engine.setup.unserved.remove(&record.number);
     }
     if let Some(local) = engine.setup.lifecycle.local_mut(record.number)

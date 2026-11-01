@@ -27,7 +27,7 @@ pub(crate) struct Layer {
     pub(crate) io: Queue<skein_io::Request>,
     pub(crate) closed: bool,
     closing: bool,
-    served: Map<u16, ()>,
+    served: Map<u16, host::Forge>,
     unserved: Map<u16, &'static [u8]>,
     pub(crate) staged: Map<Token, host::Plan>,
     runs: Map<Token, Run>,
@@ -47,6 +47,8 @@ pub(crate) struct Layer {
     value_bytes: u32,
     #[cfg(test)]
     pub(crate) answers: Queue<(Token, host::Answer)>,
+    #[cfg(test)]
+    membership: Queue<host::Request>,
 }
 struct Write {
     forge: u16,
@@ -110,6 +112,24 @@ impl Layer {
             runtime.resolved(endpoint);
         }
     }
+    /// Replace a held setup entry with the shell's resolved address (temper/docs/design/protocol/setup.md, 8.3).
+    pub(crate) fn replace_endpoint(&mut self, forge: u16, address: core::net::SocketAddr) {
+        let Some(entry) = self.served.get_mut(&forge) else { return };
+        entry.address = skein_io::Addr::Ip(address);
+        let entry = entry.clone();
+        if let Some((settings, _)) = &mut self.pending {
+            for index in 0..settings.forges.len() {
+                let configured = settings.forges.get_mut(index).expect("pending setup forge");
+                if configured.number() == forge {
+                    *configured = entry;
+                    break;
+                }
+            }
+        } else if self.component.is_some() {
+            self.down(host::Request::Remove { forge });
+            self.down(host::Request::Add(entry));
+        }
+    }
     #[cfg(test)]
     pub(crate) fn startup_restored(&self) -> bool {
         self.lifecycle.startup_restored()
@@ -144,7 +164,7 @@ impl Layer {
         let mut listener: Box<[u8]> = Box::new([]);
         let mut served = Map::with_capacity(limits.forges);
         for forge in &settings.forges {
-            served.insert(forge.number(), ()).expect("configured host forges");
+            served.insert(forge.number(), forge.clone()).expect("configured host forges");
             if let host::Kind::GitHub(given) = &forge.kind {
                 listener.clone_from(&given.url);
             }
@@ -179,9 +199,16 @@ impl Layer {
             value_bytes,
             #[cfg(test)]
             answers: Queue::with_capacity(64),
+            #[cfg(test)]
+            membership: Queue::uncapped(),
         }
     }
     pub(crate) fn down(&mut self, request: host::Request) {
+        #[cfg(test)]
+        match &request {
+            host::Request::Add(_) | host::Request::Remove { .. } => self.membership.push(request.clone()),
+            host::Request::Run { .. } | host::Request::Answer { .. } | host::Request::Close | host::Request::Abort => {}
+        }
         #[cfg(test)]
         if let host::Request::Answer { run, answer } = &request {
             self.answers.push((*run, answer.clone()));
