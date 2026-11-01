@@ -180,7 +180,12 @@ pub(crate) fn removed(engine: &mut Engine, forge: u16) {
     engine.workers.remove_forge(forge);
 }
 
-pub(crate) fn box_remove(_engine: &mut Engine, _forge: u16) {}
+pub(crate) fn box_remove(engine: &mut Engine, forge: u16) {
+    engine.box_link.limit_held(engine.env.limits.forge.forges);
+    let mut out = skein_lib::Queue::with_capacity(2);
+    engine.box_link.remove(forge, &mut out);
+    crate::route::box_link::drain(engine, &mut out);
+}
 
 use crate::settings;
 use alloc::boxed::Box;
