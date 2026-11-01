@@ -154,6 +154,26 @@ impl Keep {
         }
     }
 }
+pub(crate) fn remove_forge(d: &mut Domain, forge: u16, out: &mut Queue<Request>) -> bool {
+    let mut changed = false;
+    for key in keys(&d.keep) {
+        if key.repository.forge == forge {
+            let row = d.keep.live.remove(&key).expect("removed resource remains");
+            d.alarms.cancel(Alarm::Resource(row.alarm));
+            out.push(Request::Erase { key: Key::Live(key) });
+            changed = true;
+        }
+    }
+    for key in repos(&d.keep) {
+        if key.forge == forge {
+            d.keep.repos.remove(&key).expect("removed repository remains");
+            d.alarms.cancel(Alarm::Repository(key));
+            out.push(Request::Erase { key: Key::Repository(key) });
+            changed = true;
+        }
+    }
+    changed
+}
 fn valid_resource(r: &Resource, l: &Limits) -> bool {
     match &r.what {
         What::Branch(name) => !name.is_empty() && name.len() <= usize::try_from(l.op_bytes).expect("u32 fits usize"),

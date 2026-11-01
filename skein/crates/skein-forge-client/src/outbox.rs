@@ -19,7 +19,24 @@ use crate::{
     bounds, recovery,
 };
 use skein_forge::api::{self, Answer, Commit, Error, Op, Read, Repository, Write};
-use skein_lib::{Duration, Env, Map, Queue, Time, Wall};
+use skein_lib::{Duration, Env, List, Map, Queue, Time, Wall};
+
+pub(crate) fn remove_forge(d: &mut Domain, forge: u16) -> bool {
+    let mut removed = List::with_capacity(d.outbox.entries.len());
+    for (&number, writing) in &d.outbox.entries {
+        if writing.entry.repository.forge == forge {
+            removed.push(number).expect("bounded entry removals");
+        }
+    }
+    let changed = !removed.is_empty();
+    for number in removed.into_boxed() {
+        // The lane belongs to this execution copy; the parent erases its
+        // durable entry in the same decision, without an outcome.
+        d.outbox.entries.remove(&number).expect("removed entry remains");
+        d.alarms.cancel(Alarm::Entry(number));
+    }
+    changed
+}
 
 #[derive(Debug)]
 pub(crate) struct Outbox {

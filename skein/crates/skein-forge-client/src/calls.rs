@@ -6,10 +6,54 @@
 //! Queued → Out → Closed on success or permanent failure; a transient
 //! failure moves Out → Waiting → Queued. A rate refusal holds every class
 //! until reset without completing the logical read twice.
+//! Forge removal retires flights before their answers arrive. Tokens are
+//! sequenced without gaps from 1, so an absent issued token is a late
+//! terminal and changes nothing; a never-issued token remains a bug.
 use crate::domain::{Alarm, Domain};
 use crate::{Fact, Limits, Priority, Request, bounds};
 use skein_forge::api::{self, Answer, Error, Op, Repository};
-use skein_lib::{Duration, Env, Id, Map, Queue, Slab, Time, Token, Wall};
+use skein_lib::{Duration, Env, Id, List, Map, Queue, Slab, Time, Token, Wall};
+
+pub(crate) fn remove_forge(d: &mut Domain, env: &Env<Limits>, forge: u16, out: &mut Queue<Request>) -> bool {
+    let c = &mut d.calls;
+    for queue in [&mut c.fresh, &mut c.write, &mut c.keep, &mut c.slow] {
+        for _ in 0..queue.len() {
+            let id = queue.pop().expect("counted queued call");
+            if c.slab.get(id).expect("queued call remains").repository.forge != forge {
+                queue.push(id);
+            }
+        }
+    }
+    let mut flights = List::with_capacity(env.limits.calls);
+    for (&token, &id) in &c.flights {
+        if c.slab.get(id).expect("in-flight call remains").repository.forge == forge {
+            flights.push(token).expect("bounded flight removals");
+        }
+    }
+    for token in flights.into_boxed() {
+        c.flights.remove(&token).expect("removed flight remains");
+    }
+    let mut removed = List::with_capacity(env.limits.pending);
+    for (id, call) in &c.slab {
+        if call.repository.forge == forge && call.state != State::Closed {
+            removed.push(id).expect("bounded logical call removals");
+        }
+    }
+    let changed = !removed.is_empty();
+    for id in removed.into_boxed() {
+        let call = c.slab.get_mut(id).expect("removed call remains");
+        call.state = State::Closed;
+        match call.owner {
+            Owner::Read(owner) => out.push(Request::Read { owner, result: Err(Error::NotConnected) }),
+            Owner::Entry(_) | Owner::Resource(_) | Owner::Repository(_) => {}
+        }
+        // Queued and waiting calls hold no rate reservation. A sent call's
+        // charge remains spent even when its flight is forgotten.
+        d.alarms.cancel(Alarm::ReadRetry(id));
+        c.slab.retire(id);
+    }
+    changed
+}
 
 #[derive(Debug)]
 pub(crate) struct Call {
@@ -357,7 +401,10 @@ pub(crate) fn answered(
     result: Result<Answer, Error>,
     out: &mut Queue<Request>,
 ) {
-    let id = d.calls.flights.remove(&token).expect("exactly one terminal per call token");
+    let Some(id) = d.calls.flights.remove(&token) else {
+        assert!(token.raw() > 0 && token.raw() <= d.calls.sequence, "terminal names an issued call token");
+        return;
+    };
     let call = d.calls.slab.get_mut(id).expect("an in-flight call remains");
     match call.state {
         State::Out => call.state = State::Closed,

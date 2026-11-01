@@ -160,6 +160,25 @@ pub fn writer(d: &mut Domain, env: &Env<Limits>, writer: Writer, out: &mut Queue
         crate::identity::Given::Refused => false,
     }
 }
+/// Forgets a forge at once: its writer, entries, calls, flights and
+/// watches, erasing the client's rows of it (forge-client.md, 7.1;
+/// temper/docs/design/draft/playground-reset.md, 4).
+pub fn remove_forge(d: &mut Domain, env: &Env<Limits>, forge: u16, out: &mut Queue<Request>) {
+    let mut removed = crate::identity::remove_forge(d, forge, out);
+    removed |= outbox::remove_forge(d, forge);
+    removed |= calls::remove_forge(d, env, forge, out);
+    removed |= keep::remove_forge(d, forge, out);
+    if !removed {
+        return;
+    }
+    if keep::restore::fresh_done(d) {
+        out.push(Request::ReadAfreshDone);
+    }
+    if outbox::settle_done(d) {
+        out.push(Request::OutboxDone);
+    }
+    outbox::stop::advance(d, env, out);
+}
 /// Decide one parent event and emit the records and effects of that decision.
 pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     match event {

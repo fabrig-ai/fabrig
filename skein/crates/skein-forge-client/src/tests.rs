@@ -8,6 +8,7 @@ mod locate;
 mod outbox;
 mod queue;
 mod recovery;
+mod remove;
 mod settle;
 mod writer;
 use crate::{Domain, Event, Fact, Limits, Priority, Request};
