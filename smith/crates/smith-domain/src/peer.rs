@@ -83,12 +83,15 @@ impl Peer {
         }
         let capacity = u32::try_from(self.offered.host_tools.len())
             .expect("admitted host tools")
-            .checked_add(2)
-            .expect("room for finish and deliver");
+            .checked_add(3)
+            .expect("room for finish, deliver and wait");
         let mut tickets = List::with_capacity(capacity);
         tickets.push(FINISH).expect("room for finish");
         if self.offered.deliver {
             tickets.push(DELIVER).expect("room for deliver");
+        }
+        if self.offered.wait {
+            tickets.push(WAIT).expect("room for wait");
         }
         for (index, tool) in self.offered.host_tools.iter().enumerate() {
             if tool.reserve {
