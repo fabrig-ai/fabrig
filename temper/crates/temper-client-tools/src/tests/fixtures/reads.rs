@@ -449,3 +449,31 @@ pub(crate) fn held_task(mut task: c::Task, reason: c::HoldCategory) -> c::Task {
 
 /// The shared proposal identity used by the command fixtures.
 pub(crate) const PROPOSAL_CALL: &[&str] = &["proposal", "show", "p73/7"];
+
+pub(crate) fn answered_question() -> c::ReadResult {
+    let mut rows = List::with_capacity(1);
+    rows.push(c::DecodedActivityLine {
+        source: Box::new(c::ActivityLine {
+            task: TASK,
+            position: 10,
+            at: Wall::EPOCH,
+            line: c::Activity::Heard(c::Word {
+                number: 3,
+                from: c::Requester::Task(TASK),
+                kind: c::MessageKind::QuestionAnswered { question: 2 },
+                words: act_text(b""),
+                at: Wall::EPOCH,
+                hits: 1,
+                eligible: true,
+            }),
+        }),
+        decoded: None,
+    })
+    .expect("one answer notice");
+    c::ReadResult::Value(c::ReadValue::Activity(Box::new(c::ActivityPage {
+        rows,
+        before: None,
+        after: None,
+        cut: false,
+    })))
+}

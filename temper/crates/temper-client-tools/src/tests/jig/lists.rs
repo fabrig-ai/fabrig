@@ -362,3 +362,19 @@ fn inbox_questions_print_words_and_calls_within_and_past_the_text_bound() {
         }
     }
 }
+
+#[test]
+fn an_inbox_answer_is_acknowledged_in_task_activity() {
+    for argv in [fixtures::ACTIVITY_CALL, fixtures::LIMITED_TASK_CALL] {
+        let (mut root, call) = fixtures::read_call(argv);
+        if argv == fixtures::LIMITED_TASK_CALL {
+            root.serve(call, fixtures::task_result(fixtures::goal(fixtures::TASK, fixtures::waiting_on_me())));
+        }
+        root.serve(call, fixtures::answered_question());
+        let answer = root.answer(call).expect("activity answered");
+        assert_eq!(answer.status, 0);
+        assert!(
+            skein_lib::bytes::find(&answer.stdout, b"10 \xc2\xb7 You answered question 2 in your inbox\n").is_some()
+        );
+    }
+}
