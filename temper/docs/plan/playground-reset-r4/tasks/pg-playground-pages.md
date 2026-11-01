@@ -19,6 +19,7 @@ files = [
   "temper/crates/temper-client-view/src/tests/frame.rs",
   "temper/crates/temper-client-view/src/tests/demo.rs",
   "temper/crates/temper-client-shell-terminal/src/tests/golden/*.txt",
+  "temper/crates/temper-client-shell-terminal/src/tests/render.rs",
   "skein/crates/skein-ui-text/src/render.rs",
   "skein/crates/skein-ui-text/src/tests.rs",
   "skein/crates/skein-ui-text/src/tests/fixtures.rs",
@@ -228,3 +229,14 @@ wizard to " then a bound link "set up temper", and a button after it:
 the line `Use the wizard to [1] set up temper`, the button `[2]`, and
 the print's `numbers` naming the link's node first), then this task's own work; the
 terminal's goldens then show the banner's link numbered.
+
+2026-11-01, from this task's second question (the terminal's
+`tests::render::the_first_run_prints_forges_and_the_banners_connect_link`
+asserts the demo banner's "Connect a forge" link, which this task
+removes): allowed, expectation only, and `render.rs` of the terminal's
+tests is now in `files`. Rename the test
+`the_first_run_prints_forges_and_the_banners_reset_link`; keep its
+numbered `] Forges` assertion; assert the banner's link printed numbered
+(`] set up temper\n`) and that neither "Connect a forge" nor "Connect a
+model" is printed. No production change in the terminal; name the test
+in the report.
