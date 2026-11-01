@@ -407,6 +407,19 @@ fn forget(core: &mut Core, goal: u64, out: &mut Queue<Request>) {
     }
 }
 
+/// Retire the project's own feeds even when a connector has not settled them.
+pub(crate) fn forget_project(core: &mut Core, project: u32, out: &mut Queue<Request>) {
+    let mut goals = List::with_capacity(core.projections.len());
+    for (&number, state) in &core.projections {
+        if state.goal.project == project {
+            goals.push(number).expect("subset of retained projections");
+        }
+    }
+    for goal in goals.into_boxed() {
+        forget(core, goal, out);
+    }
+}
+
 /// Checked maximum owned bytes of one retained projection feed cache.
 #[must_use]
 pub fn projection_bytes(limits: &Limits) -> Option<u64> {

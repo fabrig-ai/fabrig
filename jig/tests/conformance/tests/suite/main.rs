@@ -17,6 +17,7 @@ mod trace;
 
 mod fuzzy {
     mod cuts;
+    mod deletion;
     mod scenarios;
     mod snapshot;
 }
