@@ -81,7 +81,7 @@ fn a_start_makes_the_row_and_the_fake_forge_in_one_decision() {
         }
         assert_eq!(sent.last(), Some(&Request::PlaygroundStart { request: Token::new(1) }));
         assert_eq!(d.playground(), Some(&running()));
-        assert_eq!(d.records.get(&1), Some(&record));
+        assert_eq!(d.records.get(&1).expect("kept forge").as_ref(), &record);
         assert_eq!(d.forges().rows[0].number, 1);
         assert!(!d.forge_ended(1));
         assert_eq!(answer(&d, 1), None);
@@ -269,7 +269,7 @@ fn each_step_is_resumed_at_start_from_the_row() {
     let first = outputs(&mut d, Event::SendKeptActs);
     assert!(first.contains(&Request::Unregister { forge: 1 }));
     assert_eq!(d.playground(), Some(&row));
-    let mut restored = restore(row, d.records.get(&1).cloned());
+    let mut restored = restore(row, Some(d.records.get(&1).expect("removing forge").as_ref().clone()));
     for request in first {
         if let Request::Save { record: Stored::KeptAct(act), .. } = request {
             outputs(&mut restored, Event::Restore { record: Stored::KeptAct(act) });
@@ -319,18 +319,13 @@ fn another_forge_connecting_no_longer_ends_the_playground() {
 }
 
 #[test]
-fn the_playground_numbers_past_document_forges_and_exhaustion_is_not_offered() {
-    let mut d = setup_domain(&configured(), true);
-    d.machine.playground = Some(template());
-    let mut largest = 0;
-    for forge in configured() {
-        largest = largest.max(forge.number);
-    }
-    let number = largest.checked_add(1).unwrap();
+fn the_playground_uses_the_next_record_number_and_exhaustion_is_not_offered() {
+    let mut d = playground(true);
+    outputs(&mut d, Event::Restore { record: Stored::ForgeNumbers { next: 3 } });
     let sent = start(&mut d, 1);
-    assert_eq!(d.playground().unwrap().forge, number);
-    assert_eq!(d.next_number, number.checked_add(1).unwrap());
-    assert!(sent.contains(&Request::Register(ForgeRecord { number, ..template() })));
+    assert_eq!(d.playground().unwrap().forge, 3);
+    assert_eq!(d.next_number, 4);
+    assert!(sent.contains(&Request::Register(ForgeRecord { number: 3, ..template() })));
     for case in 0_u8..3 {
         let mut d = playground(false);
         match case {
@@ -350,9 +345,9 @@ fn the_playground_numbers_past_document_forges_and_exhaustion_is_not_offered() {
                 }
             }
             _ => {
-                let mut document = configured()[0].clone();
-                document.number = u16::MAX;
-                d = setup_domain(&[document], false);
+                let mut record = configured()[0].clone();
+                record.number = u16::MAX;
+                d = setup_domain(&[record], false);
                 d.machine.playground = Some(template());
             }
         }

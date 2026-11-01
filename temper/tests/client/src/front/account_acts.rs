@@ -191,8 +191,7 @@ fn fixture_root(
         if welcome {
             config.core.connectors = Box::new([fixtures::FORGE]);
             config.machine = fixtures::machine();
-            config.forges = Box::new([]);
-            config.identities = Box::new([]);
+            config.forge.writers = Box::new([]);
         }
         let mut engine_limits = engine_limits();
         if forge == WelcomeForge::Playground {

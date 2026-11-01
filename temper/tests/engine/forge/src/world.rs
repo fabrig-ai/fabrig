@@ -229,6 +229,7 @@ impl World {
     }
 
     #[expect(clippy::too_many_arguments, reason = "one shared fake fixture with independent scenario switches")]
+    #[expect(clippy::too_many_lines, reason = "one fixture constructs the connector, peers and restored forge records")]
     fn configured(
         seed: u64,
         facts: u32,
@@ -295,8 +296,6 @@ impl World {
             &limits,
             seed,
             skein_forge_client::Config { namespace: Box::from(&b"world"[..]), writers: writer.into_iter().collect() },
-            &[top::GitIdentity { forge: REPO.forge, credential: 1 }],
-            &[],
             top::Machine::bare(),
             false,
         )
@@ -327,6 +326,22 @@ impl World {
             pull_snapshot: None,
             landing_config: None,
         };
+        let record = top::ForgeRecord {
+            number: REPO.forge,
+            kind: top::Kind::Forgejo,
+            mode: top::Mode::Connected,
+            ..top::ForgeRecord::github_com()
+        };
+        world
+            .stored
+            .insert(top::Key::Forge(REPO.forge), top::Stored::Forge(record.clone()))
+            .expect("room for the seeded forge");
+        world
+            .stored
+            .insert(top::Key::ForgeNumbers, top::Stored::ForgeNumbers { next: REPO.forge + 1 })
+            .expect("room for forge numbering");
+        world.event(top::Event::Restore { record: top::Stored::Forge(record) });
+        world.event(top::Event::Restore { record: top::Stored::ForgeNumbers { next: REPO.forge + 1 } });
         world.event(top::Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
         world
     }
@@ -510,8 +525,6 @@ impl World {
                 namespace: Box::from(&b"world"[..]),
                 writers: self.writer.into_iter().collect(),
             },
-            &[top::GitIdentity { forge: REPO.forge, credential: 1 }],
-            &[],
             top::Machine::bare(),
             false,
         )

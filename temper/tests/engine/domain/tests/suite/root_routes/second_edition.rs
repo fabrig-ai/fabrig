@@ -99,7 +99,8 @@ fn the_director_p_and_both_implementers_start_assigned_without_holds_or_findings
         assert!(matches!(row.escalation, tasks::Escalation::Unheld { revision: 0 }));
     }
     assert!(
-        !driver.store.rows.values().any(|row| matches!(row, Record::Forge { .. })),
+        !driver.store.rows.values().any(|row| matches!(row, Record::Forge { row }
+            if !matches!(row.as_ref(), temper_engine_domain_forge::Stored::Forge(_) | temper_engine_domain_forge::Stored::ForgeNumbers { .. }))),
         "the opening creates no forge finding"
     );
 }

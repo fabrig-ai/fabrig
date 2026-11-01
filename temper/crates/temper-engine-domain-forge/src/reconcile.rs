@@ -299,12 +299,10 @@ impl Domain {
     }
     fn configured_forge(&self, forge: u16) -> bool {
         self.records.contains_key(&forge)
-            || self.configured.contains_key(&forge)
-            || self.identities.contains_key(&forge)
     }
     fn reference_resolves(&self, kind: RecordKind, need: Need, live: bool) -> bool {
         match need {
-            // Identities are constructor facts too; a restored writer is never one.
+            // A restored writer names a forge record.
             Need::Forge(forge) => {
                 if kind == RecordKind::KeptAct {
                     self.records.contains_key(&forge)

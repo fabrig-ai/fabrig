@@ -316,11 +316,17 @@ fn a_census_cursor_behind_its_start_is_out_of_order() {
 fn a_forge_row_survives_the_real_store_byte_for_byte() {
     let (driver, _) = temper_engine_domain_world::direct::Driver::chat();
     let mut store = driver.store.fork();
-    assert_eq!(store.page(&Range::Forge, None, 8).0.len(), 0, "a chat's store holds no forge row");
+    let initial = store.page(&Range::Forge, None, 8).0;
+    assert_eq!(initial.len(), 2, "the forge and its number are seeded");
     let row = Record::Forge { row: Box::new(temper_engine_domain_forge::Stored::Landed { commit: [7; 32], task: 3 }) };
     store.seed(Box::new([row.clone()]), Box::new([]));
     let (rows, next) = store.page(&Range::Forge, None, 8);
-    assert_eq!((rows.as_ref(), next), ([row].as_slice(), None));
+    assert_eq!(next, None);
+    assert_eq!(rows.len(), initial.len() + 1);
+    assert!(rows.contains(&row));
+    for row in initial {
+        assert!(rows.contains(&row));
+    }
 }
 
 fn ended_read_key(task: u64, party: u64) -> Key {

@@ -61,7 +61,7 @@ fn unreachable_notes(service: &mut Service) -> u32 {
 #[test]
 fn a_held_record_is_asked_once_and_joins_both_layers_when_resolved() {
     let mut service = fixtures::ready();
-    register(&mut service, held());
+    fixtures::register_forges(&mut service, &[held()]);
     rows(&mut service, &held());
     let resolve = service.take_resolve().unwrap();
     assert_eq!((resolve.forge, resolve.host.as_ref(), resolve.port), (FORGE, HOST, PORT));
@@ -223,7 +223,7 @@ fn a_local_reconcile_waits_for_resolution_and_uses_the_resolved_endpoint() {
     let mut record = held();
     record.mode = Mode::Managed;
     record.setup = Some(br#"{"bot":{"login":"temper","email":"temper@localhost"},"mode":"managed"}"#.as_slice().into());
-    register(&mut service, record.clone());
+    fixtures::register_forges(&mut service, &[record.clone()]);
     rows(&mut service, &record);
     service.engine.as_mut().unwrap().forge_records.rows.push(
         records::number(FORGE, Item::AdminToken),

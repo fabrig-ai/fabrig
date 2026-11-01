@@ -355,11 +355,7 @@ pub fn config(seed: u64) -> engine::Config {
             namespace: Box::from(&b"root"[..]),
             writers: Box::new([skein_forge_client::Writer { forge: 1, author: 1 }]),
         },
-        // The forge's git identity is application credential 1, which the
-        // worlds name at start (D10).
-        identities: Box::new([temper_engine_domain_forge::GitIdentity { forge: 1, credential: 1 }]),
         forge_charter: 1,
-        forges: Box::new([]),
         under_box: false,
         demo: None,
     }
@@ -371,7 +367,7 @@ pub fn config(seed: u64) -> engine::Config {
 pub fn playground_config(seed: u64) -> engine::Config {
     let mut config = config(seed);
     config.under_box = true;
-    config.identities = Box::new([]);
+
     config.forge.writers = Box::new([]);
     config.core.owners[0].project = people::DEPLOYMENT;
     let mut policy = config.core.seed_projects[0].policy.clone();
@@ -839,6 +835,9 @@ impl World {
                 }
                 engine::Request::Worker(engine::WorkerRequest::Deliver(delivery))
                 | engine::Request::Party(engine::PartyRequest::Deliver(delivery)) => self.delivery(delivery),
+                engine::Request::Register(row) => {
+                    assert_eq!(row, crate::forges::record(1, forge::Kind::Forgejo, forge::Mode::Connected));
+                }
                 engine::Request::Stop => panic!("walking story stopped: {:?}", self.trace),
                 other @ (engine::Request::Worker(_)
                 | engine::Request::Party(_)
@@ -846,7 +845,6 @@ impl World {
                 | engine::Request::Account(_)
                 | engine::Request::RemoveGroup { .. }
                 | engine::Request::EraseSecrets { .. }
-                | engine::Request::Register(_)
                 | engine::Request::Unregister { .. }
                 | engine::Request::StopGroup { .. }
                 | engine::Request::SetUpGroup { .. }

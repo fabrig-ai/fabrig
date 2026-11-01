@@ -2,7 +2,7 @@
 use skein_lib::{ReplyTo, Token};
 use temper_engine_domain as engine;
 use temper_engine_domain_forge as forge;
-use temper_engine_domain_world::{direct::Driver, fixtures, store::Store, walking};
+use temper_engine_domain_world::{direct::Driver, fixtures, walking};
 
 fn driver(under_box: bool) -> Driver {
     driver_with_name_bytes(under_box, fixtures::forge_limits().forge.name_bytes)
@@ -10,10 +10,11 @@ fn driver(under_box: bool) -> Driver {
 fn driver_with_name_bytes(under_box: bool, name_bytes: u32) -> Driver {
     let mut limits = fixtures::forge_limits();
     limits.forge.name_bytes = name_bytes;
+    let mut store = fixtures::restored_store(walking::config(701), &limits);
     let configs = std::array::from_fn(|_| {
         let mut config = walking::config(701);
         config.under_box = under_box;
-        config.forges = Box::new([forge::Configured {
+        let configured: Box<[forge::Configured]> = Box::new([forge::Configured {
             admin_connect: false,
             bot: Box::new([]),
             owned: None,
@@ -25,9 +26,15 @@ fn driver_with_name_bytes(under_box: bool, name_bytes: u32) -> Driver {
             mode: forge::Mode::Owned,
             asked: true,
         }]);
+        store.seed(
+            temper_engine_domain_world::forges::rows(
+                &configured.iter().map(temper_engine_domain_world::forges::from_configured).collect::<Vec<_>>(),
+            ),
+            Box::new([]),
+        );
         config
     });
-    let mut driver = Driver::with_repositories(Store::new(), configs, &limits, &[(b"org", b"repo", 2)]);
+    let mut driver = Driver::with_repositories(store, configs, &limits, &[(b"org", b"repo", 2)]);
     driver.hello(Token::new(7));
     driver.settle();
     driver.sign_in();
@@ -203,28 +210,31 @@ fn first_repository_row_is_volatile_across_restart() {
     event(&mut driver, forge::Event::FirstMade { forge: 1, id: 2 });
     let rows = forges(&mut driver);
     assert!(rows.rows[0].first.is_some());
-    let store = driver.store.fork();
-    let mut restarted = Driver::configured(
-        store,
-        std::array::from_fn(|_| {
-            let mut config = walking::config(701);
-            config.under_box = true;
-            config.forges = Box::new([forge::Configured {
-                admin_connect: false,
-                bot: Box::new([]),
-                owned: None,
-                git: Box::new([]),
-                web: None,
-                read_only: false,
-                number: 1,
-                kind: forge::Kind::Forgejo,
-                mode: forge::Mode::Owned,
-                asked: true,
-            }]);
-            config
-        }),
-        &fixtures::forge_limits(),
-    );
+    let mut store = driver.store.fork();
+    let configs = std::array::from_fn(|_| {
+        let mut config = walking::config(701);
+        config.under_box = true;
+        let configured: Box<[forge::Configured]> = Box::new([forge::Configured {
+            admin_connect: false,
+            bot: Box::new([]),
+            owned: None,
+            git: Box::new([]),
+            web: None,
+            read_only: false,
+            number: 1,
+            kind: forge::Kind::Forgejo,
+            mode: forge::Mode::Owned,
+            asked: true,
+        }]);
+        store.seed(
+            temper_engine_domain_world::forges::rows(
+                &configured.iter().map(temper_engine_domain_world::forges::from_configured).collect::<Vec<_>>(),
+            ),
+            Box::new([]),
+        );
+        config
+    });
+    let mut restarted = Driver::configured(store, configs, &fixtures::forge_limits());
     restarted.hello(Token::new(7));
     restarted.settle();
     restarted.sign_in();

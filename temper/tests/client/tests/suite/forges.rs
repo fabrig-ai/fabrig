@@ -29,8 +29,7 @@ fn config(under_box: bool) -> engine::Config {
     config.core.connectors = Box::new([fixtures::FORGE]);
     config.under_box = under_box;
     config.machine = fixtures::machine();
-    config.forges = Box::new([]);
-    config.identities = Box::new([]);
+    config.forge.writers = Box::new([]);
     let mut limits = temper_engine_domain_world::fixtures::forge_limits();
     temper_client_world::front::first_run_projects(&mut config, &mut limits);
     config

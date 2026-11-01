@@ -70,7 +70,6 @@ pub struct Limits {
 pub fn valid(l: &Limits) -> bool {
     if l.repositories == 0
         || l.forges == 0
-        || l.client.repositories.checked_add(l.forges).is_none()
         || l.tasks == 0
         || l.holds == 0
         || l.subscriptions == 0

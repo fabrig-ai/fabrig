@@ -114,7 +114,7 @@ pub struct Repository {
     pub settings: skein_forge::api::Settings,
 }
 /// The git identity a forge's repositories are pushed and fetched with: an
-/// application credential numbered by the deployment's configuration
+/// application credential with the forge's number
 /// (protocol/credentials.md, "each repository to a git identity").
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct GitIdentity {

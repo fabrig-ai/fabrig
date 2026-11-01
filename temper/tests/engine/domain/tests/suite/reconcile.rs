@@ -107,13 +107,14 @@ fn a_seeded_forge_record_is_listed_and_registered_after_a_restart() {
         driver.advance(true);
     }
     assert!(driver.root.ready());
-    assert_eq!(driver.root.forges().rows.len(), 1);
-    let listed = &driver.root.forges().rows[0];
+    assert_eq!(driver.root.forges().rows.len(), 2);
+    let listed = &driver.root.forges().rows[1];
     assert_eq!((listed.number, listed.kind, listed.mode), (7, forge::Kind::Forgejo, forge::Mode::Owned));
     let registered: Vec<_> = driver
         .immediate
         .iter()
         .filter_map(|request| if let engine::Request::Register(row) = request { Some(row) } else { None })
         .collect();
-    assert_eq!(registered, [&row]);
+    let seeded = forges::record(1, forge::Kind::Forgejo, forge::Mode::Connected);
+    assert_eq!(registered, [&seeded, &row]);
 }

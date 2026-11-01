@@ -56,11 +56,10 @@ fn internal_output_envelopes_do_not_constrain_admission() {
     for output in [0, 1, u32::MAX] {
         let limits = Limits { output, ..LIMITS };
         assert!(valid(&limits));
-        let mut domain = Domain::new(
+        let mut domain = fixtures::with_records(
             &limits,
             4,
             skein_forge_client::Config { namespace: Box::from(&b"test"[..]), writers: Box::new([]) },
-            &[],
             &[],
             Machine::bare(),
             false,

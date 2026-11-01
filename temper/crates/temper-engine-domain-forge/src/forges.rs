@@ -13,9 +13,7 @@ pub(crate) fn make(
     choice: ForgeChoice,
     out: &mut Queue<Request>,
 ) {
-    let answer = if d.document_configures_forges() {
-        MakeAnswer::Refused(MakeRefusal::NotOffered)
-    } else if d.next_number == 0 || d.records.len() >= env.limits.forges {
+    let answer = if d.next_number == 0 || d.records.len() >= env.limits.forges {
         MakeAnswer::Refused(MakeRefusal::Full)
     } else if let Some(record) = chosen(d, choice) {
         match make_record(d, &env.limits, record, out) {
@@ -28,7 +26,7 @@ pub(crate) fn make(
     d.connect.answer(request, token, Answered::MakeForge(answer), out);
 }
 
-/// Number and keep a template, past every document forge during the transition.
+/// Give a template the next durable forge number and keep it.
 pub(crate) fn make_record(
     d: &mut Domain,
     limits: &Limits,
@@ -38,12 +36,7 @@ pub(crate) fn make_record(
     if d.next_number == 0 || d.records.len() >= limits.forges {
         return None;
     }
-    let mut number = d.next_number;
-    for (forge, _) in &d.configured {
-        if *forge >= number {
-            number = forge.checked_add(1)?;
-        }
-    }
+    let number = d.next_number;
     record.number = number;
     record.state = ForgeState::Kept;
     d.next_number = number.checked_add(1).unwrap_or(0);

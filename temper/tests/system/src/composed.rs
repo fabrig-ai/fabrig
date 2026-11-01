@@ -704,6 +704,16 @@ impl World {
                 }));
             }
             engine::Request::Forge { call, repository, op } => self.forge(call, repository, &op),
+            engine::Request::Register(row) => {
+                assert_eq!(
+                    row,
+                    temper_engine_domain_world::forges::record(
+                        1,
+                        temper_engine_domain_forge::Kind::Forgejo,
+                        temper_engine_domain_forge::Mode::Connected,
+                    )
+                );
+            }
             engine::Request::Worker(engine::WorkerRequest::Deliver(delivery))
             | engine::Request::Party(engine::PartyRequest::Deliver(delivery)) => self.delivery(delivery),
             engine::Request::Party(engine::PartyRequest::RunText {
@@ -747,7 +757,6 @@ impl World {
             | engine::Request::EraseCarried { .. }
             | engine::Request::RemoveGroup { .. }
             | engine::Request::EraseSecrets { .. }
-            | engine::Request::Register(_)
             | engine::Request::Unregister { .. }
             | engine::Request::StopGroup { .. }
             | engine::Request::SetUp { .. }

@@ -347,9 +347,7 @@ pub fn config_with_project_room(seed: u64, projects: u32) -> engine::Config {
         },
         // The forge's git identity is application credential 1, which the
         // worlds name at start (D10).
-        identities: Box::new([temper_engine_domain_forge::GitIdentity { forge: 1, credential: 1 }]),
         forge_charter: 1,
-        forges: Box::new([]),
         under_box: false,
         demo: None,
     }
@@ -530,6 +528,10 @@ pub fn root_with_config_and_limits(
             .push(people::Stored::Policy { project: project.number, name: project.name.clone(), value })
             .expect("bounded fixture projects");
     }
+    let mut forges = skein_lib::List::with_capacity(limits.forge.forges);
+    for writer in &config.forge.writers {
+        forges.push(forge_record(writer.forge)).expect("bounded fixture forges");
+    }
     let mut root = engine::Domain::new(config, limits).unwrap();
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits };
     let mut request = root.core.restart_begin(false);
@@ -545,6 +547,27 @@ pub fn root_with_config_and_limits(
             &mut root,
             &env,
             engine::Record::Core(jig_domain_core::Record::People(record)),
+        );
+    }
+    for row in forges.into_boxed() {
+        temper_engine_domain_forge::step(
+            &mut root.forge,
+            &crate::translate::environment_forge(&env),
+            temper_engine_domain_forge::Event::Restore { record: temper_engine_domain_forge::Stored::Forge(row) },
+            &mut skein_lib::Queue::uncapped(),
+        );
+    }
+    let mut forge_out = skein_lib::Queue::uncapped();
+    for event in [
+        temper_engine_domain_forge::Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic },
+        temper_engine_domain_forge::Event::ReadAfresh,
+        temper_engine_domain_forge::Event::SettleOutbox,
+    ] {
+        temper_engine_domain_forge::step(
+            &mut root.forge,
+            &crate::translate::environment_forge(&env),
+            event,
+            &mut forge_out,
         );
     }
     // In production the page's own write-free decision takes the header's
@@ -597,4 +620,16 @@ pub fn check_switch(root: &mut engine::Domain, env: &Env<engine::Limits>) {
         jig_domain_core::Event::Tasks(tasks::Event::Check),
     );
     assert!(root.core.restart_checked(), "fixture children checked before switch");
+}
+
+/// The kept forge named by a root story's writer and repositories.
+pub fn forge_record(number: u16) -> temper_engine_domain_forge::ForgeRecord {
+    temper_engine_domain_forge::ForgeRecord {
+        number,
+        kind: temper_engine_domain_forge::Kind::Forgejo,
+        mode: temper_engine_domain_forge::Mode::Connected,
+        git: Box::new([]),
+        web: None,
+        ..temper_engine_domain_forge::ForgeRecord::github_com()
+    }
 }

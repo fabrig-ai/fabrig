@@ -31,7 +31,8 @@ pub(crate) fn requested(d: &mut Domain, env: &Env<Limits>, forge: u16, out: &mut
 
 /// The playground's reset uses the same decision without the request's refusals.
 pub(crate) fn remove(d: &mut Domain, env: &Env<Limits>, forge: u16, out: &mut Queue<Request>) {
-    let Some(mut record) = d.records.get(&forge).cloned() else { return };
+    let Some(record) = d.records.get(&forge) else { return };
+    let mut record = record.as_ref().clone();
     if record.state != ForgeState::Kept {
         return;
     }

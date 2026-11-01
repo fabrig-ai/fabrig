@@ -1,4 +1,4 @@
-//! Kept records beside the document's forges (draft playground-reset.md, 3).
+//! Kept forge records (draft playground-reset.md, 3).
 use super::*;
 use skein_forge::forgejo::pin;
 
@@ -50,7 +50,7 @@ fn a_kept_record_projects_its_configured_forge() {
                 let mut d = setup_domain(&[], true);
                 fixtures::restore_records(&mut d, core::slice::from_ref(&row));
                 assert_eq!(d.configured(7), Some(&expected));
-                assert_eq!(d.records.get(&7), Some(&row));
+                assert_eq!(d.records.get(&7).expect("kept forge").as_ref(), &row);
                 outputs(&mut d, Event::Connection { forge: 7, state: Connection::NotSetUp });
                 assert_eq!(d.offer(7), if mode == Mode::Owned && asked { Offer::Offered } else { Offer::NotOffered });
                 row.git = skein_lib::bytes::zeroed(usize::try_from(PULL_ADDRESS_BYTES).unwrap() + 1);
@@ -64,7 +64,7 @@ fn a_kept_record_projects_its_configured_forge() {
 }
 
 #[test]
-fn records_list_beside_the_documents_forges_and_win_a_shared_number() {
+fn records_alone_project_the_list_and_removing_drops_the_projection() {
     let documents = configured();
     let mut d = setup_domain(&documents, true);
     let mut shared = record(documents[0].number, Kind::Forgejo, Mode::Managed);
@@ -72,7 +72,7 @@ fn records_list_beside_the_documents_forges_and_win_a_shared_number() {
     let extra = record(9, Kind::GitHub, Mode::Connected);
     fixtures::restore_records(&mut d, &[extra.clone(), shared.clone()]);
     assert_eq!(d.configured(shared.number), Some(&shared.configured()));
-    assert_eq!(d.configured(documents[1].number), Some(&documents[1]));
+    assert_eq!(d.configured(documents[1].number), Some(&fixtures::from_configured(&documents[1]).configured()));
     assert_eq!(d.configured(9), Some(&extra.configured()));
     let listed = d.forges();
     assert_eq!(listed.rows.len(), 3);
@@ -81,18 +81,18 @@ fn records_list_beside_the_documents_forges_and_win_a_shared_number() {
     assert_eq!(listed.rows[2].number, 9);
     assert_eq!(listed.rows[0].offer, d.offer(shared.number));
     assert_eq!(d.offer(shared.number), Offer::NotOffered);
-    assert!(!d.forge_ended(20), "numbers never given keep the worlds' behavior");
-    // A record change removes its projection and exposes the document again.
+    assert!(d.forge_ended(20));
+    // A removing record leaves the configured list.
     shared.state = ForgeState::Removing;
     outputs(&mut d, Event::Restore { record: Stored::Forge(shared) });
-    assert_eq!(d.configured(documents[0].number), Some(&documents[0]));
+    assert_eq!(d.configured(documents[0].number), None);
     assert_eq!(d.forges().rows.len(), 2);
 }
 
 #[test]
 fn removing_and_removed_forges_are_ended_and_their_repositories_stay_readable_by_tag() {
     let mut d = domain();
-    assert_eq!(d.next_number, 1);
+    assert_eq!(d.next_number, 2);
     let mut removing = record(3, Kind::Forgejo, Mode::Owned);
     removing.state = ForgeState::Removing;
     for number in [2, 3] {
@@ -116,11 +116,12 @@ fn removing_and_removed_forges_are_ended_and_their_repositories_stay_readable_by
     assert!(d.writable_repositories(5).is_empty());
     assert!(d.context_repositories(5, 2).unwrap().is_empty());
     assert!(d.home(5).is_none());
-    assert!(d.forges().rows.is_empty());
-    assert!(!d.forge_ended(0));
-    assert!(!d.forge_ended(1), "the document identity still names this forge");
-    assert!(!d.forge_ended(4));
-    assert!(!d.forge_ended(5));
+    assert_eq!(d.forges().rows.len(), 1);
+    assert_eq!(d.forges().rows[0].number, 1);
+    assert!(d.forge_ended(0));
+    assert!(!d.forge_ended(1), "a kept record names this forge");
+    assert!(d.forge_ended(4));
+    assert!(d.forge_ended(5));
     let documents = configured();
     let mut named = setup_domain(&documents, true);
     outputs(&mut named, Event::Restore { record: Stored::ForgeNumbers { next: 10 } });
@@ -179,17 +180,16 @@ fn more_forge_rows_than_the_limit_do_not_fit() {
 }
 
 #[test]
-fn a_records_identity_is_its_number_unless_the_document_names_one() {
+fn every_records_identity_is_its_number() {
     for state in [ForgeState::Kept, ForgeState::Removing] {
         let mut d = domain();
-        d.identities.insert(1, 17).unwrap();
         let mut numbered = record(7, Kind::GitHub, Mode::Connected);
         numbered.state = state;
         let mut named = numbered.clone();
         named.number = 1;
         fixtures::restore_records(&mut d, &[numbered, named]);
         assert_eq!(d.git_identity(7), Some(7));
-        assert_eq!(d.git_identity(1), Some(17));
+        assert_eq!(d.git_identity(1), Some(1));
         assert_eq!(d.git_identity(8), None);
         let mut repository = adopted();
         repository.provider.forge = 7;
