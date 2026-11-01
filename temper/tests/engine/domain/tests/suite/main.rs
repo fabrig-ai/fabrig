@@ -22,6 +22,7 @@ mod orders;
 mod panel_before_change;
 mod panels;
 mod periods;
+mod playground;
 mod preparation;
 mod reconcile;
 mod referee;

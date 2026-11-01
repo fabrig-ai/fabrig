@@ -365,6 +365,45 @@ pub fn config(seed: u64) -> engine::Config {
     }
 }
 
+/// A record-only playground with the init document's deployment acts
+/// (temper/docs/design/draft/playground-reset.md, 6.1; contracts T4, T6).
+#[must_use]
+pub fn playground_config(seed: u64) -> engine::Config {
+    let mut config = config(seed);
+    config.under_box = true;
+    config.identities = Box::new([]);
+    config.forge.writers = Box::new([]);
+    config.core.owners[0].project = people::DEPLOYMENT;
+    let mut policy = config.core.seed_projects[0].policy.clone();
+    policy.permissions = Box::new([]);
+    config.core.seed_projects = Box::new([]);
+    config.core.defaults.policies.insert(1, policy).expect("one playground policy");
+    config.core.defaults.templates[0].budget = people::TemplateBudget::AsAllowed { cap: Some(200) };
+    config.core.grants = Box::new([people::ActGrant {
+        connector: config.core.connectors[0],
+        may: Box::new([
+            people::ActKind::MakeProject,
+            people::ActKind::AddKey,
+            people::ActKind::Adopt,
+            people::ActKind::Cancel,
+            people::ActKind::RemoveProject,
+            people::ActKind::RemoveAccount,
+        ]),
+    }]);
+    config.machine.playground = Some(crate::forges::record(0, forge::Kind::Forgejo, forge::Mode::Fake));
+    let mut adoption = crate::fixtures::adoption(0);
+    adoption.owner = b"playground".as_slice().into();
+    adoption.name = b"widget".as_slice().into();
+    config.demo = Some(forge::DemoConfig {
+        provider: 1,
+        project_name: "Playground".into(),
+        project_policy: 1,
+        adoption,
+        deadline: Duration::from_secs(10),
+    });
+    config
+}
+
 /// Retained turns per attempt in the workers' hub, as jig's smallest
 /// profile sets them (`jig-protocol-config`'s `small.rs`, hub `turns`).
 pub const HUB_TURNS: u32 = 8;
