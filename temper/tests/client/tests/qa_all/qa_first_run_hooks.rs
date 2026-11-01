@@ -138,8 +138,8 @@ fn qa_fifth_setup_step_fails_on_welcome_and_forges() {
 
 fn ended(front: &mut Joint) {
     let mut parts = front.demo.take().expect("demo fixture").into_parts();
-    parts.state = wire::DemoState::Ended;
-    front.demo = Some(wire::DemoAnswer::new(&wire::CEILINGS, parts).expect("ended answer"));
+    parts.state = wire::PlaygroundState::Resetting;
+    front.demo = Some(wire::PlaygroundAnswer::new(&wire::CEILINGS, parts).expect("ended answer"));
 }
 
 fn no_playground(front: &mut Joint, root: &mut Root) {
@@ -164,7 +164,7 @@ fn no_playground(front: &mut Joint, root: &mut Root) {
 #[test]
 fn qa_stale_demo_read_cannot_restore_a_retired_playground() {
     for fresh_first in [false, true] {
-        let (mut front, mut root) = harness::demo_fixture(fixtures::SEED, &wire::DemoState::NotStarted);
+        let (mut front, mut root) = harness::demo_fixture(fixtures::SEED, &wire::PlaygroundState::NotStarted);
         let reads = front.demo_reads;
         front.hold_next_demo_read();
         press(&mut front, &mut root, Role::Button, b"Try the playground");

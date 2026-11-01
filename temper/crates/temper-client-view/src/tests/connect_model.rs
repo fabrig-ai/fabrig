@@ -541,7 +541,7 @@ fn a_retired_reload_offers_no_demo_key_or_card() {
             address,
             &fixtures::domain_limits(),
             b"Shop",
-            Some((fixtures::PROJECT, true, w::DemoState::Ended)),
+            Some((fixtures::PROJECT, true, w::PlaygroundState::Resetting)),
             None,
             Some(List::with_capacity(0)),
         );

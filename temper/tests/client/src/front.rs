@@ -25,7 +25,7 @@ pub struct Joint {
     pub refuse_return: bool,
     set_ups: Vec<(u16, Token)>,
     pub admin_connects: Vec<(u16, Token)>,
-    pub demo: Option<temper_client_protocol_wire::v1::DemoAnswer>,
+    pub demo: Option<temper_client_protocol_wire::v1::PlaygroundAnswer>,
     pub demo_starts: Vec<skein_lib::RequestKey>,
     pub demo_removals: Vec<skein_lib::RequestKey>,
     pub demo_reads: usize,
@@ -896,7 +896,7 @@ impl Joint {
             use temper_client_protocol_wire::{self as wire, v1 as w};
             if record.family == wire::FORGE
                 && wire::decode_requesting(&record.bytes, &w::CEILINGS)
-                    .is_some_and(|request| *request.request() == w::Request::StartDemo)
+                    .is_some_and(|request| *request.request() == w::Request::StartPlayground)
             {
                 self.demo_starts.push(*key);
                 let outcome = self.demo_outcomes.pop_front().unwrap_or(w::Outcome::Running);
@@ -904,8 +904,8 @@ impl Joint {
                     && let Some(demo) = self.demo.take()
                 {
                     let mut parts = demo.into_parts();
-                    parts.state = w::DemoState::Running;
-                    self.demo = Some(w::DemoAnswer::new(&w::CEILINGS, parts).expect("demo fixture"));
+                    parts.state = w::PlaygroundState::Running;
+                    self.demo = Some(w::PlaygroundAnswer::new(&w::CEILINGS, parts).expect("demo fixture"));
                 }
                 self.callbacks.push((
                     who,
@@ -1015,7 +1015,7 @@ impl Joint {
                             read: *read,
                             result: jig_client::Readout::Family {
                                 family: record.family,
-                                record: self.demo.as_ref().map(temper_client_protocol_wire::demo_answer),
+                                record: self.demo.as_ref().map(temper_client_protocol_wire::playground_answer),
                             },
                         },
                     },
@@ -1126,7 +1126,7 @@ impl Joint {
                 forges.push(row).expect("scripted deployment row");
             }
         }
-        let connection = if *demo.state() == w::DemoState::Running {
+        let connection = if *demo.state() == w::PlaygroundState::Running {
             w::Connection::Connected(
                 w::Connected::new(&w::CEILINGS, w::ConnectedParts { id: 2, login: b"playground".as_slice().into() })
                     .expect("fake connection"),

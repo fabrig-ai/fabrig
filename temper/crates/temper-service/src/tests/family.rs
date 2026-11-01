@@ -135,7 +135,7 @@ fn an_unconfigured_or_unknown_family_read_has_no_record() {
             "demo, unconfigured",
             wire::FORGE,
             wire::CLIENT_VERSION,
-            wire::reading(&w::Reading::new(&w::CEILINGS, w::ReadingParts { read: w::Read::Demo }).unwrap()),
+            wire::reading(&w::Reading::new(&w::CEILINGS, w::ReadingParts { read: w::Read::Playground }).unwrap()),
             people::ApplicationScope::Deployment,
             (REPLY, wire::FORGE, None),
         ),
@@ -162,7 +162,7 @@ fn demo_read(scope: people::ApplicationScope) -> kit::ToApplication {
         sign_in: 3,
         family: wire::FORGE,
         version: wire::CLIENT_VERSION,
-        record: wire::reading(&w::Reading::new(&w::CEILINGS, w::ReadingParts { read: w::Read::Demo }).unwrap()),
+        record: wire::reading(&w::Reading::new(&w::CEILINGS, w::ReadingParts { read: w::Read::Playground }).unwrap()),
         scope,
         window: jig_domain_core::documents::Window { rows: 2, after: None },
     }
@@ -176,7 +176,7 @@ fn demo_record(input: kit::ToApplication, demo: &crate::settings::Demo) -> Box<[
     record.unwrap()
 }
 #[test]
-fn the_demo_read_answers_the_configured_demo() {
+fn the_playground_read_answers_the_configured_demo() {
     let demo = crate::settings::Demo {
         state: Some(forge::DemoState::Running),
         landing: b"main".as_slice().into(),
@@ -194,10 +194,10 @@ fn the_demo_read_answers_the_configured_demo() {
     let mut cues = List::with_capacity(2);
     cues.push(b"Add CSV export to widget".as_slice().into()).unwrap();
     cues.push(b"Add a dark theme to widget".as_slice().into()).unwrap();
-    let expected = w::DemoAnswer::new(
+    let expected = w::PlaygroundAnswer::new(
         &w::CEILINGS,
-        w::DemoAnswerParts {
-            state: w::DemoState::Running,
+        w::PlaygroundAnswerParts {
+            state: w::PlaygroundState::Running,
             project: 1,
             forge: 2,
             provider: 3,
@@ -209,7 +209,7 @@ fn the_demo_read_answers_the_configured_demo() {
     .unwrap();
     for scope in [people::ApplicationScope::Deployment, people::ApplicationScope::Project(7)] {
         let record = demo_record(demo_read(scope), &demo);
-        assert_eq!(wire::decode_demo_answer(&record, &w::CEILINGS), Some(expected.clone()), "{scope:?}");
+        assert_eq!(wire::decode_playground_answer(&record, &w::CEILINGS), Some(expected.clone()), "{scope:?}");
     }
 }
 #[test]
@@ -225,9 +225,9 @@ fn the_demo_answer_carries_no_key_path_socket_or_placeholder() {
     }
 }
 #[test]
-fn a_configured_demo_does_not_answer_other_or_malformed_reads() {
+fn a_configured_playground_does_not_answer_other_or_malformed_reads() {
     let service = fixtures::demo_service();
-    let reading = wire::reading(&w::Reading::new(&w::CEILINGS, w::ReadingParts { read: w::Read::Demo }).unwrap());
+    let reading = wire::reading(&w::Reading::new(&w::CEILINGS, w::ReadingParts { read: w::Read::Playground }).unwrap());
     let mut malformed = reading.clone();
     *malformed.last_mut().expect("read tag") = 1;
     let mut writer = skein_lib::Writer::new(reading.len().checked_add(1).expect("one trailing byte fits"));
@@ -1264,8 +1264,8 @@ fn new_project_and_invalid_setup_refusals_translate_to_the_wire() {
 }
 
 #[test]
-fn demo_start_reaches_the_root_with_its_admission_envelope() {
-    let record = w::Requesting::new(&w::CEILINGS, w::RequestingParts { request: w::Request::StartDemo }).unwrap();
+fn playground_start_reaches_the_root_with_its_admission_envelope() {
+    let record = w::Requesting::new(&w::CEILINGS, w::RequestingParts { request: w::Request::StartPlayground }).unwrap();
     let Ok(root::Event::Party(root::PartyInput::Application {
         reply_to, sign_in, key, digest, request, carried, ..
     })) = family::to_root(
@@ -1283,7 +1283,7 @@ fn demo_start_reaches_the_root_with_its_admission_envelope() {
 }
 
 #[test]
-fn demo_read_tracks_not_started_running_and_ended() {
+fn playground_read_tracks_not_started_running_and_resetting() {
     let Err(answer) = family::to_root(demo_read(people::ApplicationScope::Deployment), &[], None, &w::CEILINGS) else {
         panic!("read")
     };
@@ -1292,9 +1292,9 @@ fn demo_read_tracks_not_started_running_and_ended() {
     let mut service = fixtures::demo_service();
     let demo = service.engine.as_mut().unwrap().demo.as_mut().unwrap();
     for (state, expected) in [
-        (None, Some(w::DemoState::NotStarted)),
-        (Some(forge::DemoState::Running), Some(w::DemoState::Running)),
-        (Some(forge::DemoState::Ended), Some(w::DemoState::Ended)),
+        (None, Some(w::PlaygroundState::NotStarted)),
+        (Some(forge::DemoState::Running), Some(w::PlaygroundState::Running)),
+        (Some(forge::DemoState::Ended), Some(w::PlaygroundState::Resetting)),
     ] {
         demo.state = state;
         let Err(answer) =
@@ -1305,7 +1305,7 @@ fn demo_read_tracks_not_started_running_and_ended() {
         let kit::Event::Application(kit::FromApplication::Read { record, .. }) = *answer else { panic!("demo read") };
         let got = match record {
             Some(record) => {
-                let answer = wire::decode_demo_answer(&record, &w::CEILINGS).unwrap();
+                let answer = wire::decode_playground_answer(&record, &w::CEILINGS).unwrap();
                 assert_eq!(
                     (answer.provider(), answer.project(), answer.forge()),
                     (demo.provider, demo.project, demo.forge)
@@ -1320,7 +1320,7 @@ fn demo_read_tracks_not_started_running_and_ended() {
 
 #[test]
 #[expect(clippy::manual_map, reason = "the strict subset uses explicit matches")]
-fn demo_start_outcomes_encode_every_failure_and_unknown() {
+fn playground_start_outcomes_encode_every_failure_and_unknown() {
     let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small).clients.wire;
     let group = w::GroupFailed::new(&w::CEILINGS, w::GroupFailedParts { why: b"prepare 1 exited 1".as_slice().into() })
         .unwrap();
@@ -1841,4 +1841,53 @@ fn the_landings_subject_names_no_task() {
     };
     let kit::Event::WatchRefused { watcher, why } = *refused else { panic!("unknown watch") };
     assert_eq!((watcher, why), (WATCHER, jig_domain_core::WatchRefusal::Unknown));
+}
+
+fn forge_management_requests() -> [w::Request; 3] {
+    [
+        w::Request::MakeForge(
+            w::MakeForge::new(&w::CEILINGS, w::MakeForgeParts { choice: w::ForgeChoice::Owned }).unwrap(),
+        ),
+        w::Request::RemoveForge(w::RemoveForge::new(&w::CEILINGS, w::RemoveForgeParts { forge: 1 }).unwrap()),
+        w::Request::EndPlayground,
+    ]
+}
+
+#[test]
+fn make_remove_and_end_playground_are_answered_not_offered_at_once() {
+    for request in forge_management_requests() {
+        let record = w::Requesting::new(&w::CEILINGS, w::RequestingParts { request }).unwrap();
+        let Err(event) = family::to_root(
+            exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&record)),
+            &[],
+            None,
+            &w::CEILINGS,
+        ) else {
+            panic!("answered without reaching the root")
+        };
+        let kit::Event::Application(kit::FromApplication::Answered { to, family, record }) = *event else {
+            panic!("application answer")
+        };
+        assert_eq!((to, family), (REPLY, wire::FORGE));
+        let mut reader = Reader::new(&record);
+        let answer = w::Answer::decode(&w::CEILINGS, &mut reader).unwrap();
+        assert_eq!(answer.outcome(), &w::Outcome::NotOffered);
+        assert!(reader.is_empty());
+    }
+}
+
+#[test]
+fn make_remove_and_end_playground_with_carried_are_undecodable() {
+    for request in forge_management_requests() {
+        let record = w::Requesting::new(&w::CEILINGS, w::RequestingParts { request }).unwrap();
+        let mut input = exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&record));
+        if let kit::ToApplication::Request { carried, .. } = &mut input {
+            *carried = Some(jig_domain_core::Carried { number: 1, digest: [0; 32] });
+        }
+        let Err(event) = family::to_root(input, &[], None, &w::CEILINGS) else { panic!("carried value refused") };
+        let kit::Event::Application(kit::FromApplication::Undecodable { to }) = *event else {
+            panic!("undecodable answer")
+        };
+        assert_eq!(to, REPLY);
+    }
 }

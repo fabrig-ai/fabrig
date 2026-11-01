@@ -606,7 +606,7 @@ fn a_pasted_app_hides_the_setup_strips_playground_before_installation_and_the_re
     let root = f::demo_forges_state_root(
         Address::Chats { filter: ChatsFilter::All, start: false },
         rows,
-        w::DemoState::NotStarted,
+        w::PlaygroundState::NotStarted,
     );
     assert!(root.demo_answered());
     assert!(root.forge().demo().is_some(), "retirement has not been reread yet");

@@ -263,9 +263,9 @@ pub(super) fn root_at_with_demo(
     demo: Option<(u32, bool)>,
 ) -> (temper_client_domain::Domain, Token, Option<Token>, Option<Token>, Option<Token>) {
     let state = if let temper_client_domain::Address::Welcome { .. } = address {
-        w::DemoState::NotStarted
+        w::PlaygroundState::NotStarted
     } else {
-        w::DemoState::Running
+        w::PlaygroundState::Running
     };
     root_at_with_activity(
         address,
@@ -283,7 +283,7 @@ fn root_at_with_activity(
     address: temper_client_domain::Address,
     limits: &Limits,
     project_name: &[u8],
-    demo: Option<(u32, bool, w::DemoState)>,
+    demo: Option<(u32, bool, w::PlaygroundState)>,
     activity: Option<c::ActivityPage>,
     forge_rows: Option<List<w::ForgeRow>>,
 ) -> (temper_client_domain::Domain, Token, Option<Token>, Option<Token>, Option<Token>) {
@@ -297,7 +297,7 @@ pub(super) fn root_at_with_forges(
     address: temper_client_domain::Address,
     limits: &Limits,
     project_name: &[u8],
-    demo: Option<(u32, bool, w::DemoState)>,
+    demo: Option<(u32, bool, w::PlaygroundState)>,
     activity: Option<c::ActivityPage>,
     forge_rows: Option<List<w::ForgeRow>>,
 ) -> (temper_client_domain::Domain, Token, Option<Token>, Option<Token>, Option<Token>, Option<Token>) {
@@ -1437,13 +1437,13 @@ fn demo_accounts(model: bool) -> c::OwnerAccounts {
     }
 }
 
-pub fn demo_read_answer(root: &mut temper_client_domain::Domain, read: Token, project: u32, state: w::DemoState) {
+pub fn demo_read_answer(root: &mut temper_client_domain::Domain, read: Token, project: u32, state: w::PlaygroundState) {
     let mut cues = List::with_capacity(2);
     cues.push(Box::from(DEMO_CUE)).expect("first cue");
     cues.push(Box::from(DEMO_OTHER_CUE)).expect("second cue");
-    let answer = w::DemoAnswer::new(
+    let answer = w::PlaygroundAnswer::new(
         &w::CEILINGS,
-        w::DemoAnswerParts {
+        w::PlaygroundAnswerParts {
             state,
             project,
             forge: wire::FORGE,
@@ -1462,7 +1462,7 @@ pub fn demo_read_answer(root: &mut temper_client_domain::Domain, read: Token, pr
                     read,
                     result: jig_client::Readout::Family {
                         family: wire::FORGE,
-                        record: Some(wire::demo_answer(&answer)),
+                        record: Some(wire::playground_answer(&answer)),
                     },
                 },
             },
@@ -1476,7 +1476,7 @@ fn deliver_demo(
     watch: Token,
     project: u32,
     model: bool,
-    state: w::DemoState,
+    state: w::PlaygroundState,
 ) {
     demo_read_answer(root, read, project, state);
     let accounts = demo_accounts(model);
@@ -1532,17 +1532,20 @@ pub fn demo_forges_root(
     address: temper_client_domain::Address,
     rows: List<w::ForgeRow>,
 ) -> temper_client_domain::Domain {
-    demo_forges_state_root(address, rows, w::DemoState::Running)
+    demo_forges_state_root(address, rows, w::PlaygroundState::Running)
 }
 pub fn demo_forges_state_root(
     address: temper_client_domain::Address,
     rows: List<w::ForgeRow>,
-    state: w::DemoState,
+    state: w::PlaygroundState,
 ) -> temper_client_domain::Domain {
     root_at_with_activity(address, &domain_limits(), b"Shop", Some((PROJECT, true, state)), None, Some(rows)).0
 }
 
-pub fn demo_state_root(address: temper_client_domain::Address, state: w::DemoState) -> temper_client_domain::Domain {
+pub fn demo_state_root(
+    address: temper_client_domain::Address,
+    state: w::PlaygroundState,
+) -> temper_client_domain::Domain {
     root_at_with_activity(address, &domain_limits(), b"Shop", Some((PROJECT, true, state)), None, None).0
 }
 pub fn demo_start_attempt(root: &mut temper_client_domain::Domain) -> Token {
@@ -1563,7 +1566,7 @@ pub fn demo_start_attempt(root: &mut temper_client_domain::Domain) -> Token {
                     down: jig_client::Down::Send { attempt, request: jig_client::Ask::Family { record, .. }, .. },
                 },
         } = request
-            && *wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request() == w::Request::StartDemo
+            && *wire::decode_requesting(&record.bytes, &w::CEILINGS).unwrap().request() == w::Request::StartPlayground
         {
             return attempt;
         }

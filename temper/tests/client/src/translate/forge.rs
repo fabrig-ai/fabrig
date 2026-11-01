@@ -118,6 +118,7 @@ pub fn digest(value: &forge::Adoption) -> [u8; 32] {
     writer.finish().as_ref().try_into().expect("32-byte SHA-256")
 }
 #[must_use]
+#[expect(clippy::too_many_lines, reason = "one exhaustive match translates the family's typed requests")]
 pub fn request(
     transport: &mut Transport,
     who: ClientId,
@@ -152,8 +153,13 @@ pub fn request(
                 request: engine::Application::Forge(owner::Ask::Install { forge: value.forge, back: value.back }),
             });
         }
-        v1::Request::Accept(_) | v1::Request::Reachable(_) | v1::Request::StartDemo => {
-            panic!("client sends no demo start yet")
+        v1::Request::MakeForge(_)
+        | v1::Request::RemoveForge(_)
+        | v1::Request::EndPlayground
+        | v1::Request::Accept(_)
+        | v1::Request::Reachable(_)
+        | v1::Request::StartPlayground => {
+            panic!("the client sends none yet")
         }
         v1::Request::Connect(connect) => {
             assert_eq!(scope, jig_client::contract::Scope::Deployment);
