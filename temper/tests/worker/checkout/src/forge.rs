@@ -38,25 +38,25 @@ pub const LIMITS: Limits = Limits {
     repositories: 16,
     users: 4,
     labels: 1,
-    items: 1,
-    comments: 1,
+    items: 8,
+    comments: 16,
     dependencies: 1,
-    reviews: 1,
+    reviews: 8,
     branches: 64,
     commits: 4096,
     files: 256,
-    statuses: 1,
-    contexts: 1,
+    statuses: 8,
+    contexts: 4,
     bypassing_users: 0,
     pages: 1,
     name_bytes: 256,
-    title_bytes: 16,
-    body_bytes: 32,
+    title_bytes: 256,
+    body_bytes: 16384,
     content_bytes: 65_536,
     page_size: 1,
     calls: 1,
-    hooks: 1,
-    observations: 16,
+    hooks: 32,
+    observations: 128,
 };
 
 /// A forge that answers at once and fails only as a world scripts it.
@@ -100,6 +100,7 @@ pub struct Move {
 
 #[derive(Debug)]
 pub struct Forge {
+    observations: Vec<Observation>,
     domain: Domain,
     repositories: u32,
     /// The world's clock, as of its last say.
@@ -112,7 +113,13 @@ impl Forge {
     /// An empty forge, drawing from `seed`.
     #[must_use]
     pub fn new(seed: u64) -> Forge {
-        Forge { domain: Domain::new(&CONFIG, seed), repositories: 1, now: Time::ZERO, calls: 0 }
+        Forge {
+            observations: Vec::new(),
+            domain: Domain::new(&CONFIG, seed),
+            repositories: 1,
+            now: Time::ZERO,
+            calls: 0,
+        }
     }
 
     /// Tells the forge the world's time, for the calls that follow.
@@ -137,14 +144,26 @@ impl Forge {
             Event::Call { reply_to, user, repository: remote.into(), op },
             &mut out,
         );
-        skein_fake_forge_domain::fire(&mut self.domain, &env, &mut out);
+        for _ in 0..32 {
+            if !self.domain.is_due(env.now) {
+                break;
+            }
+            skein_fake_forge_domain::fire(&mut self.domain, &env, &mut out);
+            self.domain.reclaim();
+        }
         self.domain.reclaim();
-        let Some(Request::Reply { to, result }) = out.pop() else {
-            panic!("the forge answers a call at once");
-        };
-        assert_eq!(to.into_token(), Token::new(self.calls));
-        assert!(out.is_empty() && self.domain.calls() == 0);
-        result
+        let mut answer = None;
+        while let Some(request) = out.pop() {
+            match request {
+                Request::Reply { to, result } => {
+                    assert_eq!(to.into_token(), Token::new(self.calls));
+                    assert!(answer.replace(result).is_none(), "one call terminal");
+                }
+                Request::Hook { .. } => {}
+            }
+        }
+        assert_eq!(self.domain.calls(), 0);
+        answer.expect("the forge answers a call at once")
     }
 
     /// Configure the authenticated identity used by an engine's adoption.
@@ -158,15 +177,11 @@ impl Forge {
     /// commit of `tree`, where the worker and another party may push, and
     /// returns that commit.
     pub fn repository(&mut self, remote: &[u8], default: &[u8], tree: Tree) -> u64 {
-        self.repositories = self.repositories.checked_add(1).expect("scenario repository bound");
-        let setup = Setup {
-            workflows: Box::new([]),
-            id: self.repositories,
-            name: remote.into(),
-            default: default.into(),
-            tree: files(tree),
-            labels: Box::new([]),
-            checks: Checks {
+        self.repository_with_checks(
+            remote,
+            default,
+            tree,
+            Checks {
                 cues: Box::new([]),
                 contexts: Box::new([]),
                 latency_min: Duration::ZERO,
@@ -176,6 +191,20 @@ impl Forge {
                 reruns: 0,
                 cue: None,
             },
+        )
+    }
+
+    /// Add a repository whose CI follows the supplied deterministic checks.
+    pub fn repository_with_checks(&mut self, remote: &[u8], default: &[u8], tree: Tree, checks: Checks) -> u64 {
+        self.repositories = self.repositories.checked_add(1).expect("scenario repository bound");
+        let setup = Setup {
+            workflows: Box::new([]),
+            id: self.repositories,
+            name: remote.into(),
+            default: default.into(),
+            tree: files(tree),
+            labels: Box::new([]),
+            checks,
             protection: None,
             hooked: false,
         };
@@ -251,12 +280,14 @@ impl Forge {
     pub fn moves(&mut self) -> Vec<Move> {
         let mut moves = Vec::new();
         while let Some(observation) = self.domain.pop_observation() {
+            self.observations.push(observation.clone());
             match observation {
                 Observation::Moved { repository, branch, from, to, by: _ } => {
                     moves.push(Move { remote: repository.into(), branch: branch.into(), from, to });
                 }
-                Observation::Refused { .. } | Observation::Rejected { .. } => {}
-                Observation::Enqueued { .. }
+                Observation::Refused { .. }
+                | Observation::Rejected { .. }
+                | Observation::Enqueued { .. }
                 | Observation::Group { .. }
                 | Observation::Dequeued { .. }
                 | Observation::Deleted { .. }
@@ -275,11 +306,17 @@ impl Forge {
                 | Observation::Reported { .. }
                 | Observation::Merged { .. }
                 | Observation::Rebased { .. }
-                | Observation::Wiki { .. } => panic!("only git reaches the forge here: {observation:?}"),
+                | Observation::Wiki { .. } => {}
             }
         }
         assert_eq!(self.domain.observations_lost(), 0, "the world drains the forge's observations as they come");
         moves
+    }
+
+    /// Every drained forge observation, including API writes and CI reports.
+    #[must_use]
+    pub fn observations(&self) -> &[Observation] {
+        &self.observations
     }
 
     /// Makes `op` on the repository at `remote` as `user`, routed directly:

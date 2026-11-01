@@ -188,10 +188,11 @@ impl History {
     /// The owning Complete prompt; `position` is the Said index.
     /// Complete original ID/name/input bytes retain that bounded call's identity
     /// until its exact local feedback, or observed shutdown and relay settlement.
-    /// Other historical turns may reuse the same provider ID. This single-call
-    /// story retains one origin and three caller-bounded byte fields.
+    /// Other historical turns may reuse the same provider ID. One logical operation
+    /// retains its origin and three bounded byte fields until feedback is verified;
+    /// the next operation then starts its own history.
     /// # Errors
-    /// Rejects a second provider host-tool call in this single-operation story.
+    /// Rejects a second provider host-tool call before the prior call has verified feedback.
     pub fn called(
         &mut self,
         message: u32,
@@ -200,6 +201,9 @@ impl History {
         name: Box<[u8]>,
         input: Box<[u8]>,
     ) -> Result<(), &'static str> {
+        if self.feedback && self.live.is_none() && self.shutdown.is_none() {
+            *self = Self { reply_cap: self.reply_cap, ..Self::default() };
+        }
         if self.provider_call.is_some() {
             return Err("second provider host call");
         }
