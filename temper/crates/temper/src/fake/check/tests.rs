@@ -328,6 +328,7 @@ fn agent_metadata_fixture(root: &Path) -> temper_service::settings::Agent {
     crate::agent::read(&root.join("agent.json")).expect("agent metadata")
 }
 #[test]
+#[expect(clippy::too_many_lines, reason = "the command's refusal cases share one fixture table")]
 fn verb() {
     let root = scratch("fake-check-verb");
     let agent = agent_metadata_fixture(&root);
@@ -388,7 +389,16 @@ fn verb() {
             Copy::Absent,
             refused(&format!("configuration {}: absent", path("absent-document", "temper.json").display())),
         ),
-        ("no-entry", Some(no_entry), checkpoint(), Copy::Absent, refused("forge 1: the setup has no entry for it")),
+        (
+            "no-entry",
+            Some(no_entry),
+            checkpoint(),
+            Copy::Absent,
+            refused(&format!(
+                "forge 1: the setup has no entry for it and {} is absent",
+                path("no-entry", "data/box/groups/1").display()
+            )),
+        ),
         ("managed", Some(managed), checkpoint(), Copy::Absent, refused("forge 1: it is managed, not fake")),
         ("owned", Some(owned), checkpoint(), Copy::Absent, refused("forge 1: it is owned, not fake")),
         ("invalid-document", Some(serde_json::json!({})), None, Copy::Absent, expected(1, b"", INVALID_DOCUMENT)),

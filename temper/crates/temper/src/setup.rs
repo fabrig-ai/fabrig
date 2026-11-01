@@ -116,6 +116,32 @@ pub(crate) fn check(bytes: &[u8], directories: &config::Directories) -> Result<D
     check_with(bytes, directories, &temper_service::stock::Given::Stock)
 }
 
+/// Forge `number`'s setup entry: the document's, else its group file's
+/// (contracts, 3), with whether it is the playground's.
+pub(crate) fn entry(
+    directories: &super::Directories,
+    checked: &temper_forge_setup::check::Checked,
+    number: u16,
+) -> Result<(temper_forge_setup::setup::Entry, bool), String> {
+    if let Some(entry) = checked.setup.entry(number) {
+        return Ok((entry.clone(), false));
+    }
+    let path = super::path(&directories.data).join(super::path(&temper_forge_setup::file::path(number)));
+    let bytes = skein_shell::read_private_file(&path, temper_forge_setup::file::BYTES, skein_shell::effective_user())
+        .map_err(|why| match why {
+        skein_shell::Unread::Absent => {
+            format!("the setup has no entry for it and {} is absent", path.display())
+        }
+        other @ (skein_shell::Unread::NotAFile
+        | skein_shell::Unread::TooLarge { .. }
+        | skein_shell::Unread::Kernel(_)
+        | skein_shell::Unread::Unsafe(_)) => format!("{}: {}", path.display(), super::unread(other)),
+    })?;
+    let file = temper_forge_setup::file::read(bytes.expose(), number, &checked.limits, &directories.jig())
+        .map_err(|why| super::prefixed(&path.display().to_string(), &String::from_utf8_lossy(&problem::lines(&why))))?;
+    Ok((file.entry, file.playground))
+}
+
 // Machine members use the same checked limits and directories as seeded entries.
 fn owned(
     document: &skein_json::Document,

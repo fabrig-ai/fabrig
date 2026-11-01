@@ -5,6 +5,62 @@ use std::io::Read;
 use std::os::unix::fs::PermissionsExt;
 
 #[test]
+fn the_fake_forge_reads_its_entry_from_its_group_file() {
+    let root = crate::directories::tests::scratch("fake-forge-group-file");
+    let directories = crate::directories::tests::given(&root);
+    let mut document = crate::tests::configuration::check_document(&root);
+    document["application"]["setup"] = serde_json::json!([]);
+    fs::write(directories.document(), serde_json::to_vec(&document).expect("document JSON")).expect("document");
+    let groups = root.join("data/box/groups");
+    fs::create_dir_all(&groups).expect("groups directory");
+    let path = groups.join("9");
+    fs::write(
+        &path,
+        serde_json::to_vec(&serde_json::json!({
+            "setup": {"forge":9, "directory":"forge-9",
+                "bot":{"login":"temper", "email":"temper@example.test"},
+                "mode":{"fake":{"listen":{"socket":"127.0.0.1:0"}, "git":"demo/bin/git",
+                    "owner":"playground", "repositories":[{"name":"widget", "landing":"main"}]}}},
+            "playground":true
+        }))
+        .expect("group JSON"),
+    )
+    .expect("group file");
+    fs::set_permissions(&path, fs::Permissions::from_mode(0o600)).expect("private group file");
+    assert!(
+        crate::setup::entry(
+            &directories,
+            &crate::setup::check(&serde_json::to_vec(&document).expect("document JSON"), &directories.jig())
+                .expect("checked document")
+                .checked,
+            9
+        )
+        .expect("group entry")
+        .1
+    );
+    assert_eq!(crate::forge::start(&directories, &["prepare".into(), "9".into()], None).expect("prepare fake"), 0);
+    let arguments = Arguments {
+        kind: Kind::Forge,
+        source: Source::Setup { directories, forge: 9 },
+        ready: None,
+        seed: 0,
+        observations: None,
+    };
+    let (document, _) = forge_document(&arguments.source, 0, &mut Created::default()).expect("fake document");
+    assert_eq!(document.owner(), b"playground");
+    assert_eq!(document.repositories().len(), 1);
+    assert_eq!(document.admin_token(), root.join("data/forge-9/admin_token").as_os_str().as_bytes());
+    let (mut host, mut kernel) = start(&arguments, &mut Created::default()).expect("fake starts");
+    host.stopped = true;
+    host.peer.shutdown();
+    host.signal = Signal::Close;
+    assert_eq!(skein_shell::drive(&mut kernel, &skein_shell::Clock::new(), &mut host), Exit::Code(0));
+    assert!(host.is_empty());
+    assert_eq!(kernel.in_flight(), 0);
+    fs::remove_dir_all(root).expect("scratch removed");
+}
+
+#[test]
 fn retained_seed_outputs_survive_later_refusal_and_rollback() {
     let directory = std::env::temp_dir().join(format!("temper-seed-reuse-{}", std::process::id()));
     crate::directories::make_private(&directory, skein_shell::effective_user()).expect("private fixture");

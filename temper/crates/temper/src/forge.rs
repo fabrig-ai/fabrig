@@ -184,9 +184,6 @@ pub(crate) fn start(
     let bytes = directories.read().map_err(refused)?;
     let super::setup::Deployment { named, checked, .. } =
         super::setup::check(&bytes, &directories.jig()).map_err(refused)?;
-    if verb == "sign-in" {
-        return super::forge_sign_in::run(directories, &bytes, &named, &checked, number).map_err(refused);
-    }
     if verb == "reconcile" {
         let settings = reconcile_settings(&named, &checked, number).map_err(refused)?;
         return temper_forge_setup_shell::reconcile::reconcile(settings, &skein_shell::Clock::new())
@@ -197,7 +194,10 @@ pub(crate) fn start(
                 )
             });
     }
-    let entry = checked.setup.entry(number).ok_or_else(|| refused("the setup has no entry for it".into()))?;
+    let (entry, _) = super::setup::entry(directories, &checked, number).map_err(refused)?;
+    if verb == "sign-in" {
+        return super::forge_sign_in::run(directories, &bytes, &named, &entry, number).map_err(refused);
+    }
     let owned = match &entry.mode {
         Mode::Owned(owned) => Some(owned),
         Mode::Managed { .. } => return Err(refused("it is managed, not owned".into())),
