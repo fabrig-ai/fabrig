@@ -163,7 +163,7 @@ impl Referee<cluster::Root> for Existing {
             self.members.prepare("engine");
             let path = self.members.dir("engine").join("config/temper.json");
             let mut document: Value = serde_json::from_slice(&fs::read(&path).expect("engine config")).expect("JSON");
-            document["application"]["forges"][0]["app_read_only"] = true.into();
+            document["application"]["machine"]["github"]["app_read_only"] = true.into();
             fs::write(path, serde_json::to_vec(&document).expect("JSON")).expect("read-only forge");
             self.members.up(&["engine"]);
             self.members.act(now, hosts);
@@ -173,6 +173,7 @@ impl Referee<cluster::Root> for Existing {
                 host,
                 vec![
                     ctl::Call::sign_in(),
+                    super::super::forges::make_github(),
                     ctl::Call::new(&[
                         "forge",
                         "connect",
