@@ -60,7 +60,10 @@ fn a_program_and_forgejo_here_reach_ready_on_the_fake_box() {
             Act::Now(Call::new(&["account", "list", "--json"])),
             Act::After(Box::new(|seen| {
                 let [.., declared, accounts] = seen else { panic!("program declaration and account read") };
-                assert!(String::from_utf8_lossy(&declared.stdout).contains("temper program-login claude-owner"));
+                assert!(
+                    String::from_utf8_lossy(&declared.stdout)
+                        .contains("temper program-login --config CONFIG --data DATA --cache CACHE claude-owner")
+                );
                 program_account(accounts);
                 // A read after these assertions lets the printed-command step follow the same act sequence.
                 Call::new(&["forge", "list", "--json"])

@@ -528,7 +528,7 @@ pub const DECLARE: Tool = Tool {
     keyed: Keyed::Required,
     area: 5,
     notes:
-        b"No program runs for you: run the printed command on each host that\nruns the program, then account verify.\n",
+        b"No program runs for you: run the printed command on each host that\nruns the program; skip it where the directory is already signed in.\nThen account verify.\n",
 };
 pub const VERIFY: Tool = Tool {
     name: b"account verify",

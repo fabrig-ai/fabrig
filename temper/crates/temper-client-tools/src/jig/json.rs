@@ -47,15 +47,12 @@ pub fn call(table: &[&Tool], bytes: &[u8], from: Source, limits: &Limits) -> Res
         if tool.name != name {
             continue;
         }
+        let index = u8::try_from(index).or(Err(Usage::Tool))?;
         for (form, specs) in tool.forms.iter().enumerate() {
+            let form = u8::try_from(form).or(Err(Usage::Tool))?;
             match decode(table, &doc, &arguments, specs, limits) {
                 Ok(Decoded { values, key }) => {
-                    let call = Call {
-                        tool: u8::try_from(index).or(Err(Usage::Tool))?,
-                        form: u8::try_from(form).or(Err(Usage::Tool))?,
-                        values,
-                        key,
-                    };
+                    let call = Call { tool: index, form, values, key };
                     match argv::check(table, &call, limits) {
                         Ok(()) => {
                             if from == Source::Stdin {
@@ -67,10 +64,10 @@ pub fn call(table: &[&Tool], bytes: &[u8], from: Source, limits: &Limits) -> Res
                             }
                             return Ok(call);
                         }
-                        Err(failed) => error = failed,
+                        Err(failed) => error = failed.at(index, form),
                     }
                 }
-                Err(failed) => error = failed,
+                Err(failed) => error = failed.at(index, form),
             }
         }
     }
@@ -193,7 +190,8 @@ fn decode(
             return Err(Usage::Json);
         }
     }
-    for spec in specs {
+    for (argument, spec) in specs.iter().enumerate() {
+        let argument = u8::try_from(argument).or(Err(Usage::Tool))?;
         let mut found = None;
         for (key, at) in fields {
             if text(doc, *key)? == argument_name(spec.name).as_ref() {
@@ -201,7 +199,11 @@ fn decode(
             }
         }
         let value = match found {
-            Some(at) => Some(decode_values(table, doc, at, spec, limits)?),
+            Some(at) => Some(match decode_values(table, doc, at, spec, argument, limits) {
+                Ok(value) => value,
+                Err(Usage::Json) => return Err(Usage::Kind { tool: 0, form: 0, argument }),
+                Err(why) => return Err(why),
+            }),
             None if spec.kind == Kind::Order => Some(Values::One(Value::Order(QueryOrder::Number))),
             None => None,
         };
@@ -211,7 +213,14 @@ fn decode(
     argv::defaults(specs, &mut values, limits);
     Ok(Decoded { values, key })
 }
-fn decode_values(table: &[&Tool], doc: &Document, at: u32, spec: &Argument, limits: &Limits) -> Result<Values, Usage> {
+fn decode_values(
+    table: &[&Tool],
+    doc: &Document,
+    at: u32,
+    spec: &Argument,
+    argument: u8,
+    limits: &Limits,
+) -> Result<Values, Usage> {
     let Occurs::Repeated { most } = spec.occurs else {
         return Ok(Values::One(decode_value(table, doc, at, spec, limits)?));
     };
@@ -222,7 +231,7 @@ fn decode_values(table: &[&Tool], doc: &Document, at: u32, spec: &Argument, limi
             return Ok(Values::Many(values.into_boxed()));
         }
         let value = decode_value(table, doc, index, spec, limits)?;
-        values.push(value).or(Err(Usage::Json))?;
+        values.push(value).or(Err(Usage::Many { tool: 0, form: 0, argument }))?;
     }
     Err(Usage::Json)
 }

@@ -133,7 +133,8 @@ Prints: `Program source S: NAME`, then the command to run on each host
 --json: the record declare.
 Key: --key KEY, required.
 No program runs for you: run the printed command on each host that
-runs the program, then account verify.
+runs the program; skip it where the directory is already signed in.
+Then account verify.
 ```
 
 ## account verify

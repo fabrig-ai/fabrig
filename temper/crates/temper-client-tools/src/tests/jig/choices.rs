@@ -122,14 +122,14 @@ fn chat_model_lookup_is_scoped_to_the_project() {
 fn chat_effort_requires_a_model() {
     assert_eq!(
         f::parse(&["chat", "start", "hello", "--project", "shop", "--effort", "high", "--key", "effort"]),
-        Err(crate::jig::argv::Usage::Missing { argument: 2 })
+        Err(crate::jig::argv::Usage::Missing { tool: 8, form: 0, argument: 2 })
     );
 }
 #[test]
 fn chat_model_refuses_stdin() {
     assert_eq!(
         f::parse(&["chat", "start", "hello", "--project", "shop", "--model", "-", "--key", "model"]),
-        Err(crate::jig::argv::Usage::Kind { argument: 2 })
+        Err(crate::jig::argv::Usage::Kind { tool: 8, form: 0, argument: 2 })
     );
 }
 #[test]
@@ -148,7 +148,7 @@ fn chat_effort_refuses_stdin() {
             "--key",
             "model"
         ]),
-        Err(crate::jig::argv::Usage::Kind { argument: 3 })
+        Err(crate::jig::argv::Usage::Kind { tool: 8, form: 0, argument: 3 })
     );
 }
 #[test]
@@ -164,7 +164,7 @@ fn json_chat_effort_requires_a_model() {
         f::json(
             br#"{"tool":"chat start","arguments":{"project":"shop","text":"hello","effort":"high","key":"effort"}}"#
         ),
-        Err(crate::jig::argv::Usage::Missing { argument: 2 })
+        Err(crate::jig::argv::Usage::Missing { tool: 8, form: 0, argument: 2 })
     );
 }
 
@@ -200,7 +200,7 @@ fn a_model_name_requires_utf8() {
             b"--key",
             b"invalid"
         ]),
-        Err(crate::jig::argv::Usage::Kind { argument: 2 })
+        Err(crate::jig::argv::Usage::Kind { tool: 8, form: 0, argument: 2 })
     );
 }
 
@@ -217,7 +217,7 @@ fn model_names_follow_the_text_bound() {
         if name.len() == 4 {
             parsed.expect("model at bound");
         } else {
-            assert_eq!(parsed, Err(crate::jig::argv::Usage::Long { argument: 2 }));
+            assert_eq!(parsed, Err(crate::jig::argv::Usage::Long { tool: 8, form: 0, argument: 2 }));
         }
     }
 }
@@ -247,7 +247,7 @@ fn effort_names_follow_the_text_bound() {
         if name.len() == 4 {
             parsed.expect("effort at bound");
         } else {
-            assert_eq!(parsed, Err(crate::jig::argv::Usage::Long { argument: 3 }));
+            assert_eq!(parsed, Err(crate::jig::argv::Usage::Long { tool: 8, form: 0, argument: 3 }));
         }
     }
 }

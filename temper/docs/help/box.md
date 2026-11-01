@@ -6,19 +6,19 @@ Run a whole deployment on one machine, on loopback, from its configuration to a 
 
 ## Before you start
 
-- **The binary:** `temper` on `PATH`, and git 2.41 or later. From a
-  temper checkout, `scripts/install.sh "$HOME/.local"` installs it;
-  its build needs Rust's `wasm32-unknown-unknown` target.
-- **Real or fake backends:** choose before step 2; a box never mixes
-  them. Real uses a model account and fetches Forgejo and its runner
-  on first use. Fake uses no one's account: GitHub, the model, its
-  sign-in and remote Forgejo are fakes on loopback; local Forgejo
-  stays real. For fake backends, run
-  `cargo build -p temper -p temper-fake-claude` from a temper checkout
+- **The binary:** `temper` on `PATH`, and git 2.41 or later. Install
+  from a checkout with `scripts/install.sh "$HOME/.local"`;
+  builds need Rust's `wasm32-unknown-unknown` target.
+- **Real or fake backends:** choose before step 2; never mix them.
+  Real uses a model account and fetches Forgejo and its runner on
+  first use. Fake needs no account: GitHub, the model, sign-in and
+  remote Forgejo are fakes on loopback; local Forgejo stays real. Run
+  `cargo build -p temper -p temper-fake-claude` from a checkout
   to put `fake-claude` beside `temper`, then
   `scripts/bundle.sh --loopback BUNDLE`.
-- **The directories:** `CONFIG`, `DATA` and `CACHE`, absolute and
-  empty, and `DIR`, private to you. Nothing else may use them.
+- **The directories:** `CONFIG`, `DATA` and `CACHE`, absolute, empty
+  and private to you (mode 0700, not reached through a link), and `DIR`,
+  private to you. Nothing else may use them.
 - **A model account** on real backends: an exported login or API key
   in a private file; a provider's sign-in in a browser on this
   machine; or Claude Code (`claude` on `PATH`), signed in at step 5

@@ -289,10 +289,13 @@ fn text(operation: &Operation, outcome: &Outcome, me: Option<&c::Me>, limits: &L
             out.number(u64::from(*source));
             out.put(b": ");
             out.put(name);
-            out.put(b"\nRun on each host: ");
+            out.put(b"\nRun on each host, with its directories: ");
             out.put(limits.program_login);
             out.put(b" ");
             out.put(name);
+            out.put(b"\nSkip it where the programs directory's ");
+            out.put(name);
+            out.put(b" is already signed in. Then: account verify ACCOUNT --source program, ACCOUNT as account list shows it");
         }
         c::Answer::Done(c::Outcome::Document(c::DocumentOutcome::AccountChanged)) if operation.word == b"verify" => {
             out.put(b"asked\naccount list --until settled");
@@ -422,7 +425,7 @@ fn encode(
     )))) = outcome
     {
         out.key(b"next");
-        out.string_parts(&[b"Run on each host: ", limits.program_login, b" ", name]);
+        out.string_parts(&[b"Run on each host, with its directories: ", limits.program_login, b" ", name]);
     }
     if let Some(next) = account_follow_up(operation, outcome) {
         out.key(b"next");
@@ -704,10 +707,11 @@ fn refused_text(operation: &Operation, refusal: &c::Refusal, me: Option<&c::Me>,
         out.put(b" AMOUNT");
         return;
     }
-    if let (Some(project), c::Refusal::Authority { lacking: c::Lacking::Budget { left: 0, .. }, .. }) =
+    if let (Some(project), c::Refusal::Authority { lacking: c::Lacking::Budget { needed, left }, .. }) =
         (operation.project, refusal)
+        && *left == 0
     {
-        spent_pool(operation, project, me, out);
+        spent_pool(operation, project, *needed, *left, me, out);
         return;
     }
     out.put(operation.tool_name());
@@ -738,7 +742,7 @@ fn refused_text(operation: &Operation, refusal: &c::Refusal, me: Option<&c::Me>,
 
 // Me carries the pool ledger, but no role policy spend: a cut can make
 // those different, so never call the pool budget the role's spend limit.
-fn spent_pool(operation: &Operation, project: u32, me: Option<&c::Me>, out: &mut Text) {
+fn spent_pool(operation: &Operation, project: u32, needed: u64, left: u64, me: Option<&c::Me>, out: &mut Text) {
     let mut membership = None;
     if let Some(me) = me {
         for held in &me.projects {
@@ -751,18 +755,24 @@ fn spent_pool(operation: &Operation, project: u32, me: Option<&c::Me>, out: &mut
     out.put(operation.tool_name());
     out.put(b": refused: your pool in project ");
     out.number(u64::from(project));
+    out.put(b" had ");
+    out.number(left);
+    out.put(b" left, ");
+    out.number(needed);
+    out.put(b" needed");
     let pool = match membership {
         Some(held) => held.pool.as_ref(),
         None => None,
     };
-    match pool {
-        Some(pool) => {
-            out.put(b" has ");
-            out.number(pool.left);
-            out.put(b" left; budget ");
-            out.number(pool.numbers.budget);
-        }
-        None => out.put(b" is spent"),
+    if let Some(pool) = pool
+        && pool.left >= needed
+    {
+        out.put(b"\nnow: your pool has ");
+        out.number(pool.left);
+        out.put(b" left; budget ");
+        out.number(pool.numbers.budget);
+        out.put(b"; this key keeps its first answer: start new work with a new --key");
+        return;
     }
     out.put(b"\nread it: project show ");
     out.number(u64::from(project));
