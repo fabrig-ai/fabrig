@@ -1,4 +1,5 @@
-//! The host component: the plans run inside a service (forge-setup.md, 6.3).
+//! The host component: the plans run inside a service (skein/docs/design/forge-setup.md, 6.3).
+//! Runtime forges follow temper/docs/design/draft/playground-reset.md, 3 and 4.
 mod boundary;
 pub(crate) mod connection;
 #[cfg(test)]
@@ -35,8 +36,14 @@ pub struct Host {
     ended: bool,
 }
 impl Host {
-    pub fn new(limits: &Limits, settings: Settings, crypto: CryptoRng) -> Result<Self, Unusable> {
+    pub fn new(limits: &Limits, mut settings: Settings, crypto: CryptoRng) -> Result<Self, Unusable> {
         limits::check(limits, &settings)?;
+        if settings.forges.capacity() < limits.forges {
+            let forges = core::mem::replace(&mut settings.forges, List::with_capacity(limits.forges));
+            for forge in forges.into_boxed() {
+                settings.forges.push(forge).expect("checked forge count");
+            }
+        }
         Ok(Self {
             settings,
             crypto,
@@ -50,6 +57,44 @@ impl Host {
             closing: false,
             ended: false,
         })
+    }
+    /// Adds a forge at runtime, checked as `new` checks a configured one.
+    pub fn add(&mut self, limits: &Limits, forge: Forge) -> Result<(), Unusable> {
+        if self.closing {
+            return Ok(());
+        }
+        limits::check_added(limits, &self.settings, &forge)?;
+        self.settings.forges.push(forge).expect("checked forge count");
+        Ok(())
+    }
+    /// Removes a forge at once: its runs end unheard, their connections
+    /// abort, its states clear.
+    pub fn remove(&mut self, forge: u16) {
+        if self.closing {
+            return;
+        }
+        self.closing_tokens.clear();
+        for (token, run) in &self.runs {
+            if run.forge == forge {
+                self.closing_tokens.push(*token).expect("bounded runs");
+            }
+        }
+        for token in &self.closing_tokens {
+            let mut run = self.runs.remove(token).expect("removed forge's run");
+            cut(&mut run, &mut self.connections, &mut self.plan_out);
+            if run.connection.is_some() {
+                self.wake = Some(Time::ZERO);
+            }
+        }
+        self.closing_tokens.clear();
+        self.states.clear_forge(forge);
+        let capacity = self.settings.forges.capacity();
+        let forges = core::mem::replace(&mut self.settings.forges, List::with_capacity(capacity));
+        for kept in forges.into_boxed() {
+            if kept.number() != forge {
+                self.settings.forges.push(kept).expect("kept forge count");
+            }
+        }
     }
     pub fn down(
         &mut self,
@@ -65,7 +110,11 @@ impl Host {
             Request::Run { run, plan } => {
                 let forge = plan.forge();
                 assert!(!self.runs.contains_key(&run), "one live run per owner token");
-                let configured = configured(&self.settings, forge);
+                let Some(configured) = configured(&self.settings, forge) else {
+                    up.push(Event::Stop { run, failure: unknown(&plan) });
+                    self.drive(env, up, io);
+                    return;
+                };
                 if let (Kind::Forgejo(given), Plan::Create { .. }) = (&configured.kind, &plan) {
                     crate::given::check_create(&given.limits, env.limits.string_bytes, &plan)
                         .expect("the owner checks a creation plan before sending it");
@@ -353,7 +402,11 @@ impl Host {
             cut(run, &mut self.connections, &mut self.plan_out);
             return;
         }
-        let forge = configured(&self.settings, run.forge);
+        let Some(forge) = configured(&self.settings, run.forge) else {
+            let mut run = self.runs.remove(&token).expect("live run");
+            cut(&mut run, &mut self.connections, &mut self.plan_out);
+            return;
+        };
         let send = run.send.as_ref().expect("ready send");
         let connection = match open(token, forge, &self.settings.user_agent, send, env) {
             Ok(connection) => connection,
@@ -418,13 +471,22 @@ impl core::fmt::Debug for Host {
     }
 }
 
-fn configured(settings: &Settings, number: u16) -> &Forge {
+#[expect(clippy::manual_find, reason = "step code traverses forges without closures (programming-model.md, 10.3)")]
+fn configured(settings: &Settings, number: u16) -> Option<&Forge> {
     for forge in &settings.forges {
         if forge.number() == number {
-            return forge;
+            return Some(forge);
         }
     }
-    unreachable!("owner names a configured forge")
+    None
+}
+
+fn unknown(plan: &Plan) -> Failure {
+    let step = match plan.dialect() {
+        boundary::Dialect::GitHub => Stage::App,
+        boundary::Dialect::Forgejo | boundary::Dialect::Both => Stage::Admin,
+    };
+    Failure { forge: plan.forge(), step, subject: b"forge".as_slice().into(), why: Why::Unknown }
 }
 
 pub(super) fn bounds(env_limits: &Limits, forge: &Forge) -> Bounds {

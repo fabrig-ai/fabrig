@@ -90,6 +90,15 @@ impl States {
     pub(super) fn clear(&mut self) {
         self.entries.clear();
     }
+    /// Forgets every callback binding issued for a removed forge.
+    pub(super) fn clear_forge(&mut self, forge: u16) {
+        for _ in 0..self.entries.len() {
+            let entry = self.entries.pop().expect("bounded traversal");
+            if entry.forge != forge {
+                self.entries.push(entry);
+            }
+        }
+    }
     fn prune(&mut self, now: Time) {
         for _ in 0..self.entries.len() {
             let entry = self.entries.pop().expect("bounded traversal");
