@@ -485,6 +485,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
     domain.consume_restore();
     domain.now = env.now;
     match event {
+        Event::ProjectGone { project } => crate::project_gone::project_gone(domain, project, out),
         Event::Restore { record } => restore(domain, env, record),
         Event::Want => want(domain, env, out),
         Event::ProgramTargets { source, hosts } => crate::programs::targets(domain, source, hosts, out),

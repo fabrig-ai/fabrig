@@ -600,7 +600,7 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<E
             historical::decided_proposal(core, to, key, proposal, row, busy)
         }
         Event::HistoricalProposal { request, person, project, proposer, proposal, row, busy } => {
-            route_historical_proposal(core, work, request, person, project, proposer, proposal, row, busy)
+            route_historical_proposal(core, env, work, request, person, project, proposer, proposal, row, busy)
         }
         Event::EndedTaskLoaded { request, row, busy } => result_reads::loaded(core, env, work, request, row, busy),
         Event::PartyInputsLoaded { request, row, busy } => {

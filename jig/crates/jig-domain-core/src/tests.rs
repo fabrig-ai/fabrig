@@ -3829,3 +3829,5 @@ fn validity_keeps_document_settings_and_route_refusals() {
     selected.people.program_hosts = selected.fleet.configured_workers;
     assert!(!valid(&selected), "engine outcomes need a host beyond the workers");
 }
+
+mod project_rows;

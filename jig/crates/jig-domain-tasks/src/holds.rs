@@ -803,3 +803,16 @@ pub(crate) fn startup_valid_record(domain: &Domain, limits: &Limits, row: &TaskR
     }
     true
 }
+
+/// Forget the deleted project's retained state (temper/docs/design/draft/playground-reset.md, 5).
+pub(crate) fn project_gone(domain: &mut Domain, project: u32) {
+    let mut keys = List::with_capacity(domain.resource_access.len());
+    for (key, _) in &domain.resource_access {
+        if key.project == project {
+            keys.push(key.clone()).expect("bounded project state");
+        }
+    }
+    for key in keys.into_boxed() {
+        let _removed = domain.resource_access.remove(&key);
+    }
+}

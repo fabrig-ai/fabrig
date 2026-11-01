@@ -192,3 +192,17 @@ pub(crate) fn valid_settings(items: &[crate::SettingHead]) -> bool {
     }
     true
 }
+
+/// Forget the deleted project's retained state (temper/docs/design/draft/playground-reset.md, 5).
+pub(crate) fn project_gone(domain: &mut Domain, project: u32, out: &mut Queue<Request>) {
+    let mut keys = List::with_capacity(domain.person_proposals.len());
+    for (key, row) in &domain.person_proposals {
+        if row.project == project {
+            keys.push(*key).expect("bounded project state");
+        }
+    }
+    for key in keys.into_boxed() {
+        let _removed = domain.person_proposals.remove(&key);
+        out.push(Request::Erase { key: crate::Key::PersonProposal(key) });
+    }
+}

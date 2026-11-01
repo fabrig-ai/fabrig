@@ -15,6 +15,7 @@ extern crate alloc;
 mod boundary;
 mod domain;
 mod limits;
+mod project_gone;
 mod read;
 #[cfg(test)]
 mod tests;

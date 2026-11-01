@@ -87,6 +87,7 @@ impl Domain {
 /// Decide one event and emit writes or a store load.
 pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     match event {
+        Event::ProjectGone { project } => crate::project_gone::project_gone(domain, project),
         Event::Index { owner, scopes, most } => read::index(domain, &env.limits, owner, scopes, most, out),
         Event::Recall { owner, by, page } => read::recall(domain, &env.limits, owner, by, page, out),
         Event::Write { owner, entry, recalled } => {
