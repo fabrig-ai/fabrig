@@ -310,10 +310,14 @@ pub enum StartAnswer {
 }
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum StartFailure {
-    Group { why: Box<[u8]> },
+    Group {
+        why: Box<[u8]>,
+    },
     Account,
     Adoption,
     NotConnected,
+    /// The playground's project was refused at its making (draft 6.1).
+    Project,
 }
 /// The demo's fake LLM, forge and project (protocol/setup.md, 8.4).
 #[derive(Clone, PartialEq, Eq, Debug)]

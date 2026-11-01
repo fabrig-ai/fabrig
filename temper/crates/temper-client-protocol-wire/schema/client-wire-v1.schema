@@ -36,7 +36,7 @@ record SetUpRefused { why: SetUpRefusal }
 enum StartRefusal { not_offered }
 record StartRefused { why: StartRefusal }
 record GroupFailed { why: bytes 256 }
-enum StartFailure { group: GroupFailed, account, adoption, not_connected }
+enum StartFailure { group: GroupFailed, account, adoption, not_connected, project }
 record StartFailed { why: StartFailure }
 enum DemoState { not_started, running, ended }
 
@@ -73,7 +73,7 @@ versioned record Forges { forges: list 16 ForgeRow }
 
 # The family's read name and its demo answer (client/README.md, 4.6).
 # No demo is the read's empty answer, with no record.
-enum Read { demo }
+enum Read { demo, playground }
 versioned record Reading { read: Read }
 versioned record DemoAnswer { project: u32 forge: u16 provider: u32 owner: bytes 1024 name: bytes 1024 state: DemoState cues: list 8 text 256 }
 
@@ -137,3 +137,8 @@ enum EndRefusal { not_offered }
 record EndRefused { why: EndRefusal }
 enum Outcome { adopted: Adopted, core_refused: CoreRefused, forge_refused: ForgeRefused, unknown, setting_up, set_up_refused: SetUpRefused, running, start_refused: StartRefused, start_failed: StartFailed, returning, connecting, link: Link, connect_refused: ConnectRefused, page: Page, accepted: AcceptedInstallation, removing, remove_refused: RemoveRefused, reset, end_refused: EndRefused }
 versioned record Answer { outcome: Outcome }
+
+# The playground's state (draft playground-reset.md, 6.1, 6.2):
+# the Playground row's, not_started with none.
+enum PlaygroundState { not_started, running, resetting }
+versioned record PlaygroundAnswer { state: PlaygroundState forge: option u16 project: option u32 provider: u32 owner: bytes 1024 name: bytes 1024 cues: list 8 text 256 }

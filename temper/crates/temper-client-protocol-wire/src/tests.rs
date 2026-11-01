@@ -102,6 +102,10 @@ fn limits_take_each_bound_from_its_source_field() {
             change_panel_branch: 16,
             change_panel_landing: 16,
             change_panel_gates: crate::GATES,
+            playground_answer_owner: 16,
+            playground_answer_name: 16,
+            playground_answer_cues: crate::CUES,
+            playground_answer_cues_item: crate::CUE_BYTES,
             demo_answer_owner: 16,
             demo_answer_name: 16,
             demo_answer_cues: crate::CUES,
@@ -1072,4 +1076,80 @@ fn remove_and_end_outcomes_round_trip() {
         let record = v1::Answer::new(&limits, v1::AnswerParts { outcome }).unwrap();
         assert_eq!(v1::Answer::decode(&limits, &mut Reader::new(&crate::answer(&record))), Ok(record));
     }
+}
+
+#[test]
+fn playground_answer_round_trips_each_state() {
+    let limits = fixtures::limits();
+    let reading = v1::Reading::new(&limits, v1::ReadingParts { read: v1::Read::Playground }).unwrap();
+    assert_eq!(crate::decode_reading(&crate::reading(&reading), &limits), Some(reading));
+    for state in [v1::PlaygroundState::NotStarted, v1::PlaygroundState::Running, v1::PlaygroundState::Resetting] {
+        for (forge, project) in [(None, None), (Some(u16::MAX), Some(u32::MAX))] {
+            let mut cues = List::with_capacity(crate::CUES);
+            for _ in 0..crate::CUES {
+                cues.push(b"Change it".as_slice().into()).unwrap();
+            }
+            let record = v1::PlaygroundAnswer::new(
+                &limits,
+                v1::PlaygroundAnswerParts {
+                    state: state.clone(),
+                    forge,
+                    project,
+                    provider: u32::MAX,
+                    owner: b"playground".as_slice().into(),
+                    name: b"widget".as_slice().into(),
+                    cues,
+                },
+            )
+            .unwrap();
+            let bytes = crate::playground_answer(&record);
+            assert_eq!(crate::decode_playground_answer(&bytes, &limits), Some(record));
+            for end in 0..bytes.len() {
+                assert!(crate::decode_playground_answer(&bytes[..end], &limits).is_none());
+            }
+            let mut trailing = skein_lib::Writer::new(bytes.len().checked_add(1).expect("one trailing byte fits"));
+            trailing.put(&bytes).unwrap();
+            trailing.put(&[0]).unwrap();
+            assert!(crate::decode_playground_answer(&trailing.finish(), &limits).is_none());
+        }
+    }
+}
+
+#[test]
+fn a_playground_answer_with_an_empty_cue_is_refused() {
+    let limits = fixtures::limits();
+    let mut cues = List::with_capacity(1);
+    cues.push(Box::default()).unwrap();
+    let record = v1::PlaygroundAnswer::new(
+        &limits,
+        v1::PlaygroundAnswerParts {
+            state: v1::PlaygroundState::Running,
+            forge: Some(4),
+            project: Some(7),
+            provider: 3,
+            owner: b"playground".as_slice().into(),
+            name: b"widget".as_slice().into(),
+            cues,
+        },
+    )
+    .unwrap();
+    assert!(crate::decode_playground_answer(&crate::playground_answer(&record), &limits).is_none());
+}
+
+#[test]
+fn start_failed_project_round_trips() {
+    let limits = fixtures::limits();
+    let record = v1::Answer::new(
+        &limits,
+        v1::AnswerParts {
+            outcome: v1::Outcome::StartFailed(
+                v1::StartFailed::new(&limits, v1::StartFailedParts { why: v1::StartFailure::Project }).unwrap(),
+            ),
+        },
+    )
+    .unwrap();
+    let bytes = crate::answer(&record);
+    let mut reader = Reader::new(&bytes);
+    assert_eq!(v1::Answer::decode(&limits, &mut reader), Ok(record));
+    assert!(reader.is_empty());
 }

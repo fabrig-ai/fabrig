@@ -260,31 +260,61 @@ pub fn to_root(
             if family == wire::FORGE
                 && version == wire::CLIENT_VERSION
                 && let Some(reading) = wire::decode_reading(&record, limits)
-                && *reading.read() == w::Read::Demo
                 && let Some(demo) = demo
             {
                 let mut cues = List::with_capacity(u32::try_from(demo.cues.len()).expect("bounded demo cues"));
                 for cue in &demo.cues {
                     cues.push(cue.clone()).expect("bounded demo cues");
                 }
-                let record = w::DemoAnswer::new(
-                    limits,
-                    w::DemoAnswerParts {
-                        state: match demo.state {
-                            Some(forge::DemoState::Running) => w::DemoState::Running,
-                            Some(forge::DemoState::Ended) => w::DemoState::Ended,
-                            None => w::DemoState::NotStarted,
-                        },
-                        project: demo.project,
-                        forge: demo.forge,
-                        provider: demo.provider,
-                        owner: demo.owner.clone(),
-                        name: demo.name.clone(),
-                        cues,
-                    },
-                )
-                .expect("demo checked at startup");
-                answer = Some(wire::demo_answer(&record));
+                answer = Some(match reading.read() {
+                    w::Read::Demo => {
+                        let record = w::DemoAnswer::new(
+                            limits,
+                            w::DemoAnswerParts {
+                                state: match demo.state {
+                                    Some(forge::DemoState::Running) => w::DemoState::Running,
+                                    Some(forge::DemoState::Ended) => w::DemoState::Ended,
+                                    None => w::DemoState::NotStarted,
+                                },
+                                project: demo.project,
+                                forge: demo.forge,
+                                provider: demo.provider,
+                                owner: demo.owner.clone(),
+                                name: demo.name.clone(),
+                                cues,
+                            },
+                        )
+                        .expect("demo checked at startup");
+                        wire::demo_answer(&record)
+                    }
+                    w::Read::Playground => {
+                        let (state, forge, project) = match demo.playground {
+                            Some(row) => (
+                                match row.state {
+                                    forge::PlaygroundState::Running => w::PlaygroundState::Running,
+                                    forge::PlaygroundState::Resetting => w::PlaygroundState::Resetting,
+                                },
+                                row.forge,
+                                row.project,
+                            ),
+                            None => (w::PlaygroundState::NotStarted, None, None),
+                        };
+                        let record = w::PlaygroundAnswer::new(
+                            limits,
+                            w::PlaygroundAnswerParts {
+                                state,
+                                forge,
+                                project,
+                                provider: demo.provider,
+                                owner: demo.owner.clone(),
+                                name: demo.name.clone(),
+                                cues,
+                            },
+                        )
+                        .expect("playground checked at startup");
+                        wire::playground_answer(&record)
+                    }
+                });
             }
             Err(Box::new(kit::Event::Application(kit::FromApplication::Read { reply, family, record: answer })))
         }
@@ -727,6 +757,7 @@ fn start_answer(answer: forge::StartAnswer, limits: &w::Limits) -> Option<w::Out
                         forge::StartFailure::Account => w::StartFailure::Account,
                         forge::StartFailure::Adoption => w::StartFailure::Adoption,
                         forge::StartFailure::NotConnected => w::StartFailure::NotConnected,
+                        forge::StartFailure::Project => w::StartFailure::Project,
                     },
                 },
             )

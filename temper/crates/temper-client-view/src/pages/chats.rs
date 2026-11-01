@@ -483,6 +483,7 @@ fn suggestions(
                 words.say(Word::DemoGroupFailed, &[Hole::Name(temper_client_domain::forge::words::lossy(why))])
             }
             StartFailure::Account => words.say(Word::DemoAccountFailed, &[]),
+            StartFailure::Project => b"The playground did not start: its project was refused.".as_slice().into(),
             StartFailure::Adoption => {
                 words.say(Word::DemoAdoptionFailed, &[Hole::Name(demo.owner.clone()), Hole::Name(demo.name.clone())])
             }

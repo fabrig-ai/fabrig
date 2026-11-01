@@ -121,6 +121,10 @@ pub fn limits(bounds: &Bounds) -> Option<v1::Limits> {
         change_panel_branch: bounds.field_bytes,
         change_panel_landing: bounds.field_bytes,
         change_panel_gates: GATES,
+        playground_answer_owner: bounds.field_bytes,
+        playground_answer_name: bounds.field_bytes,
+        playground_answer_cues: CUES,
+        playground_answer_cues_item: CUE_BYTES,
         demo_answer_owner: bounds.field_bytes,
         demo_answer_name: bounds.field_bytes,
         demo_answer_cues: CUES,
@@ -197,6 +201,29 @@ pub fn demo_answer(record: &v1::DemoAnswer) -> Box<[u8]> {
 pub fn decode_demo_answer(bytes: &[u8], limits: &v1::Limits) -> Option<v1::DemoAnswer> {
     let mut reader = Reader::new(bytes);
     let record = v1::DemoAnswer::decode(limits, &mut reader).ok()?;
+    if !reader.is_empty() {
+        return None;
+    }
+    for cue in record.cues() {
+        if cue.is_empty() {
+            return None;
+        }
+    }
+    Some(record)
+}
+
+/// Encode the playground's answer; no playground offered is no record.
+#[must_use]
+pub fn playground_answer(record: &v1::PlaygroundAnswer) -> Box<[u8]> {
+    let mut writer = Writer::new(usize::try_from(record.measure()).expect("measured length fits usize"));
+    record.encode(&mut writer).expect("measured room");
+    writer.finish()
+}
+/// Decode a complete playground answer, refusing empty cues, as the demo's.
+#[must_use]
+pub fn decode_playground_answer(bytes: &[u8], limits: &v1::Limits) -> Option<v1::PlaygroundAnswer> {
+    let mut reader = Reader::new(bytes);
+    let record = v1::PlaygroundAnswer::decode(limits, &mut reader).ok()?;
     if !reader.is_empty() {
         return None;
     }
