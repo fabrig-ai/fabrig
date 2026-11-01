@@ -533,6 +533,18 @@ pub enum PartyInput {
 /// and 4). Every output crosses the journal door in its peer's vocabulary.
 #[derive(PartialEq, Eq, Debug)]
 pub enum Request {
+    /// The service holds this forge (temper/docs/design/draft/playground-reset.md, 3).
+    ForgeKept {
+        forge: Box<forge::Forge>,
+    },
+    /// The service drops this removed forge (temper/docs/design/draft/playground-reset.md, 4).
+    ForgeRemoved {
+        forge: u16,
+    },
+    /// Ask the box link to remove the forge's group and files (draft 4).
+    BoxRemove {
+        forge: u16,
+    },
     /// A sent forge entry left without its outcome at the stop bound (domain/root.md, 9.2).
     Unsettled(Unsettled),
     Bound {

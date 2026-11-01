@@ -11,6 +11,9 @@ pub(crate) fn request(engine: &mut Engine, request: root::Request) {
         demo.state = engine.domain.demo_state();
     }
     match request {
+        root::Request::ForgeKept { forge } => crate::forge::table::kept(engine, *forge),
+        root::Request::ForgeRemoved { forge } => crate::forge::table::removed(engine, forge),
+        root::Request::BoxRemove { forge } => crate::forge::table::box_remove(engine, forge),
         root::Request::Bound { request, answer } => engine.clients.bound(request, answer),
         root::Request::StopGroup { forge } => {
             let mut out = skein_lib::Queue::with_capacity(1);

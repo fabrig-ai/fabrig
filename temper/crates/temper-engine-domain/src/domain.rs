@@ -748,6 +748,9 @@ pub(crate) fn stage_now(domain: &mut Domain, out: &mut Queue<Request>) {
             | Request::Setup { .. }
             | Request::StopGroup { .. }
             | Request::SetUpGroup { .. }
+            | Request::ForgeKept { .. }
+            | Request::ForgeRemoved { .. }
+            | Request::BoxRemove { .. }
             | Request::SetUp { .. }
             | Request::Bound { .. }
             | Request::Return { .. }

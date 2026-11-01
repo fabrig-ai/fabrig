@@ -9,6 +9,7 @@ pub(crate) mod held;
 pub(crate) mod host_route;
 pub use host_route::{HostDelivery, HostRequest};
 mod goal;
+pub(crate) mod kept;
 pub(crate) mod landing;
 mod now;
 mod panels;

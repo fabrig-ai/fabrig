@@ -1061,6 +1061,24 @@ pub struct ChangeDependencies {
 /// A parent or child input to the connector top.
 #[derive(PartialEq, Eq, Debug)]
 pub enum Event {
+    /// The core is ready at a start: send every kept act again (D4).
+    SendKept,
+    /// A kept jig act's saved answer: `keep` false erases its row (D4's rule).
+    KeptAnswered {
+        key: [u8; 16],
+        keep: bool,
+    },
+    /// The box's answer to `remove FORGE`: `removed` true for `removed`,
+    /// false for a `failed` line, which keeps the act (contracts, 3).
+    BoxRemoved {
+        forge: u16,
+        removed: bool,
+    },
+    /// jig's `ReleaseProject` (contracts, 4).
+    ReleaseProject {
+        request: Token,
+        project: u32,
+    },
     OrderLanding {
         task: u64,
         changes: Box<[u64]>,
@@ -1425,6 +1443,22 @@ pub enum Event {
 /// The connector's output to the root, including child API calls.
 #[derive(PartialEq, Eq, Debug)]
 pub enum Request {
+    /// The service holds this forge from now on (draft 3): at each start
+    /// for every kept record, and when a forge is made.
+    ForgeKept {
+        forge: Box<crate::Forge>,
+    },
+    /// The forge is removed: the service drops it at once (draft 4).
+    ForgeRemoved {
+        forge: u16,
+    },
+    /// Send one kept act (D4): a jig deployment act, or the box's remove.
+    SendKept(Kept),
+    /// The connector's rows of the project are erased (contracts, 4).
+    ProjectReleased {
+        request: Token,
+        project: u32,
+    },
     LandingDecision {
         task: u64,
         decision: landing::Decision,

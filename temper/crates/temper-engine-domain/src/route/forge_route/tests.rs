@@ -917,3 +917,31 @@ fn a_gate_repairs_words_open_with_its_number_kind_and_head() {
     }
     assert!(super::repair_words(&row, Repair::Gate(8), &[], 512).is_none(), "an unknown gate cannot be named");
 }
+
+#[test]
+fn release_project_reaches_the_connector_and_is_answered() {
+    use super::{Decision, Work, forge};
+    use jig_domain_core::{Event, connector};
+    use skein_lib::{Queue, Token};
+
+    let (mut domain, env) = crate::tests::resume_fixture::root();
+    let request = Token::new(71);
+    let number = domain.config.forge_connector;
+    super::effect_ask(&mut domain, &env, number, connector::Ask::ReleaseProject { request, project: 5 });
+    let Some(Work::Forge(event)) = domain.work.pop() else { panic!("release reaches the forge connector") };
+    assert_eq!(event, forge::Event::ReleaseProject { request, project: 5 });
+    assert!(domain.work.is_empty(), "the root waits for the connector's answer");
+    let mut out = Queue::uncapped();
+    forge::step(&mut domain.forge, &super::super::environment_forge(&env), event, &mut out);
+    let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
+    super::outputs(&mut domain, &env, &mut decision, &mut out);
+    let Some(Work::Core(Event::EffectConnector(connector::Event::ProjectReleased { request: answered, project }))) =
+        domain.work.pop()
+    else {
+        panic!("the connector's release answer reaches the core")
+    };
+    assert_eq!(answered, request);
+    assert_eq!(project, 5);
+    assert!(domain.work.is_empty());
+    assert!(out.is_empty());
+}

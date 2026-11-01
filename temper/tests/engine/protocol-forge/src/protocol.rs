@@ -506,6 +506,10 @@ impl Protocol {
                 | top::Request::DemoStart { .. }
                 | top::Request::StopGroup { .. }
                 | top::Request::SetUpGroup { .. }
+                | top::Request::ForgeKept { .. }
+                | top::Request::ForgeRemoved { .. }
+                | top::Request::SendKept(_)
+                | top::Request::ProjectReleased { .. }
                 | top::Request::Connect { .. }
                 | top::Request::Manifest { .. }
                 | top::Request::Reachable { .. }

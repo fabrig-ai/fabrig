@@ -745,6 +745,9 @@ pub fn settle_root(
                 root::Request::Setup { .. }
                 | root::Request::StopGroup { .. }
                 | root::Request::SetUpGroup { .. }
+                | root::Request::ForgeKept { .. }
+                | root::Request::ForgeRemoved { .. }
+                | root::Request::BoxRemove { .. }
                 | root::Request::Connect { .. }
                 | root::Request::Manifest { .. }
                 | root::Request::Reachable { .. }

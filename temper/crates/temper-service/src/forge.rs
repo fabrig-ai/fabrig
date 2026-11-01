@@ -1,6 +1,8 @@
 //! The forge component's boundary to the engine (protocol/README.md, 6).
 pub(crate) mod records;
+pub(crate) mod table;
 pub mod tokens;
+
 use crate::{limits, settings};
 use alloc::boxed::Box;
 use jig_protocol_config::{Path, Problems, Segment, What};
