@@ -11,6 +11,7 @@ pub enum Meaning {
     ElsewhereField(forge::making::Field),
     MakeElsewhere,
     AskRemove(u16),
+    StartOver(u16),
     KeepForge,
     RemoveForge(u16),
     Field(forge::Text),
@@ -97,6 +98,7 @@ pub fn decode(bindings: &Bindings, token: Token, act: Act) -> Option<Action> {
                 Meaning::MakeAndConnectGitHub { back } => Action::Forge(forge::Act::MakeAndConnectGitHub {
                     back: temper_client_domain::address::print(&back),
                 }),
+                Meaning::StartOver(forge) => Action::Forge(forge::Act::StartOver { forge }),
                 Meaning::AskRemove(forge) => Action::Forge(forge::Act::AskRemove { forge }),
                 Meaning::KeepForge => Action::Forge(forge::Act::KeepForge),
                 Meaning::RemoveForge(forge) => Action::Forge(forge::Act::RemoveForge { forge }),

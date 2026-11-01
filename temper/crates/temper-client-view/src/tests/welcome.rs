@@ -597,9 +597,11 @@ fn ready_has_no_foot_controls() {
 }
 
 #[test]
-fn a_connected_real_forge_hides_the_playground_before_its_end_is_read() {
+fn a_begun_real_forge_hides_the_playground_before_its_end_is_read() {
     let mut cases = Vec::new();
     cases.push(forge::rows(forge::connected(), w::Offer::Offered));
+    cases.push(forge::rows(w::Connection::Connecting, w::Offer::Offered));
+    cases.push(unfinished_owned_rows());
     for app in [w::AppWay::Manifest, w::AppWay::Pasted] {
         let mut rows = forge::github_rows(false);
         let mut parts = rows.get(0).unwrap().clone().into_parts();
@@ -1216,4 +1218,139 @@ fn the_welcomes_forge_step_with_no_rows_makes_on_run_here() {
     let id = node(view.tree(), Role::Button, "Run on this machine");
     assert_eq!(crate::act(&mut view, id, Act::Press), Some(d::Action::Forge(d::forge::Act::MakeAndSetUpAtOnce)));
     assert!(f::find(view.tree(), Role::Heading { level: 2 }, b"A Forgejo elsewhere").is_none());
+}
+
+fn unfinished_owned_rows() -> skein_lib::List<w::ForgeRow> {
+    forge::rows(
+        w::Connection::SetUpFailed(
+            w::SetUpFailed::new(&w::CEILINGS, w::SetUpFailedParts { why: b"fetch failed".as_slice().into(), at: None })
+                .unwrap(),
+        ),
+        w::Offer::Offered,
+    )
+}
+#[test]
+fn an_unfinished_owned_forgejo_offers_start_over_and_its_view() {
+    let root = f::forge_root(Address::Welcome { step: Step::Forge { forge: None } }, unfinished_owned_rows());
+    let view = f::page_view(&root);
+    node(view.tree(), Role::Heading { level: 2 }, "Forgejo on this machine · not finished");
+    forge::words_in_order(view.tree(), &["Set up failed: fetch failed", "Start over", "View"]);
+    assert_eq!(press(&root, Role::Button, "Start over"), d::Action::Forge(d::forge::Act::StartOver { forge: HERE }));
+    assert_eq!(
+        press(&root, Role::Link, "View"),
+        d::Action::Pages(pages::Act::Go { address: Address::ConnectForge { forge: Some(d::Choice::Forge(HERE)) } })
+    );
+    assert!(f::find(view.tree(), Role::Button, b"Go on").is_none());
+}
+#[test]
+fn an_unfinished_github_offers_go_on_before_start_over() {
+    let root = f::forge_root(Address::Welcome { step: Step::Forge { forge: None } }, forge::github_rows(false));
+    let view = f::page_view(&root);
+    node(view.tree(), Role::Heading { level: 2 }, "GitHub · not finished");
+    forge::words_in_order(view.tree(), &["no installation accepted yet", "Go on", "Start over", "View"]);
+    assert_eq!(
+        press(&root, Role::Button, "Go on"),
+        d::Action::Forge(d::forge::Act::Install {
+            forge: 2,
+            back: d::address::print(&Address::Welcome { step: Step::Forge { forge: None } })
+        })
+    );
+    let primary = node(view.tree(), Role::Button, "Go on");
+    assert!(
+        view.tree()
+            .nodes()
+            .iter()
+            .find(|n| n.id == primary)
+            .unwrap()
+            .styles
+            .as_slice()
+            .contains(&crate::look::FLOW_PRIMARY)
+    );
+    let secondary = node(view.tree(), Role::Button, "Start over");
+    assert!(
+        view.tree()
+            .nodes()
+            .iter()
+            .find(|n| n.id == secondary)
+            .unwrap()
+            .styles
+            .as_slice()
+            .contains(&crate::look::FLOW_SECONDARY)
+    );
+}
+#[test]
+fn start_over_confirms_in_place_with_what_stays() {
+    for (rows, number, stays) in [
+        (unfinished_owned_rows(), HERE, "Forgejo on this machine is set up afresh; its downloaded binaries are kept."),
+        (forge::github_rows(false), 2, "On GitHub, temper's App stays yours: delete it in its settings."),
+        (
+            {
+                let mut rows = unfinished_owned_rows();
+                let mut parts = rows.get(1).unwrap().clone().into_parts();
+                parts.mode = w::Mode::Managed;
+                *rows.get_mut(1).unwrap() = w::ForgeRow::new(&w::CEILINGS, parts).unwrap();
+                rows
+            },
+            HERE,
+            "On the forge, its bot and its webhooks stay: delete them there if you no longer want them.",
+        ),
+    ] {
+        let (mut root, watch) = f::forge_root_watch(Address::Welcome { step: Step::Forge { forge: None } }, rows);
+        let action = press(&root, Role::Button, "Start over");
+        f::root_event(&mut root, d::Event::Act { action });
+        let view = f::page_view(&root);
+        forge::words_in_order(
+            view.tree(),
+            &["Start over removes this forge and its records; the choices open again.", stays, "Start over", "Keep it"],
+        );
+        assert_eq!(
+            press(&root, Role::Button, "Start over"),
+            d::Action::Forge(d::forge::Act::RemoveForge { forge: number })
+        );
+        assert_eq!(press(&root, Role::Button, "Keep it"), d::Action::Forge(d::forge::Act::KeepForge));
+        let action = press(&root, Role::Button, "Keep it");
+        f::root_event(&mut root, d::Event::Act { action });
+        assert!(f::find(f::page_view(&root).tree(), Role::Button, b"Keep it").is_none());
+        forge::deliver(&mut root, watch, skein_lib::List::with_capacity(0));
+        let view = f::page_view(&root);
+        node(view.tree(), Role::Button, "Connect GitHub");
+        node(view.tree(), Role::Button, "Run on this machine");
+    }
+}
+#[test]
+fn a_real_account_does_not_hide_the_playground() {
+    let (mut root, _, _, _, watch) = f::root_at_with_demo(
+        Address::Welcome { step: Step::Welcome },
+        &f::domain_limits(),
+        b"Shop",
+        Some((f::PROJECT, true)),
+    );
+    let watch = watch.unwrap();
+    f::welcome_account(&mut root, watch);
+    node(f::page_view(&root).tree(), Role::Button, "Try the playground");
+    f::root_event(
+        &mut root,
+        d::Event::Went { place: d::Place::Address(Address::Welcome { step: Step::Forge { forge: None } }) },
+    );
+    node(f::page_view(&root).tree(), Role::Button, "Try the playground instead");
+}
+#[test]
+fn the_model_step_shows_an_account_added_before_ready() {
+    let (mut root, watch) =
+        f::forge_root_accounts(Address::Welcome { step: Step::Model { way: None } }, owned_adopted_rows());
+    super::accounts::deliver(
+        &mut root,
+        watch,
+        super::accounts::card_document(b"openai", b"alice@example.com", jig_client::contract::OwnerAccountKind::SignIn),
+    );
+    let view = f::page_view(&root);
+    let words = String::from_utf8(f::text(view.tree()).into_vec()).unwrap();
+    assert!(words.contains("Model:"));
+    assert!(words.contains("OpenAI"));
+    node(view.tree(), Role::Status, "done");
+    assert_eq!(
+        press(&root, Role::Link, "Next"),
+        d::Action::Pages(pages::Act::Go { address: Address::Welcome { step: Step::Ready } })
+    );
+    assert!(f::find(view.tree(), Role::Button, b"Continue with ChatGPT").is_none());
 }

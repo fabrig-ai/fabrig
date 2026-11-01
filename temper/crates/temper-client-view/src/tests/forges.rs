@@ -173,7 +173,7 @@ fn the_setup_strip_replaces_the_demo_banner_and_says_whats_missing() {
     }
     let (mut root, accounts) = f::forge_root_accounts(
         Address::Chats { filter: ChatsFilter::All, start: false },
-        cf::rows(cf::connected(), w::Offer::Offered),
+        cf::first_rows(cf::connected(), cf::made()),
     );
     let view = f::page_view(&root);
     assert!(f::find(view.tree(), Role::Paragraph, b"temper has no model yet.").is_some());

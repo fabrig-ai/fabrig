@@ -63,7 +63,7 @@ pub struct Sample {
     pub address: Address,
     pub then: Then,
 }
-pub const N: usize = 85;
+pub const N: usize = 87;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All, start: false };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -134,6 +134,18 @@ pub fn samples() -> [Sample; N] {
         owned_sample("forge-setting-up-middle", 6, false),
         owned_sample("forge-setup-failed", 9, false),
         owned_sample("welcome-setup-failed", 9, true),
+        Sample {
+            name: "welcome-forge-not-finished",
+            world: World::FirstRun { step: 9 },
+            address: Address::Welcome { step: temper_client_domain::Step::Forge { forge: None } },
+            then: Shown,
+        },
+        Sample {
+            name: "welcome-forge-go-on",
+            world: World::FirstRun { step: 20 },
+            address: Address::Welcome { step: temper_client_domain::Step::Forge { forge: None } },
+            then: Shown,
+        },
         owned_sample("welcome-ready-under-way", 6, true),
         owned_sample("welcome-ready-adopted", 8, true),
         Sample { name: "chats-setup-strip", world: Bare, address: CHATS, then: Shown },

@@ -132,7 +132,7 @@ pub(crate) fn main(
     b.style(look::MAIN);
     b.style(look::WELCOME);
     steps(b, root, w, step);
-    let playground = root.demo_answered() && root.forge().demo().is_some() && !real_forge_connected(root);
+    let playground = root.demo_answered() && root.forge().demo().is_some() && !real_forge_begun(root);
     match step {
         Step::Welcome => {
             text(b, w, Role::Heading { level: 1 }, Word::WelcomeTitle);
@@ -174,7 +174,17 @@ pub(crate) fn main(
             }
             text(b, w, Role::Heading { level: 1 }, Word::WelcomeModelTitle);
             paragraph(b, w, Word::WelcomeModelLead, look::WELCOME_LEAD);
-            super::connect_model::body(b, root, w, accounts, text_per_node);
+            if temper_client_domain::pages::welcome::model_usable(root) == Some(true)
+                && step == (Step::Model { way: None })
+            {
+                b.open(Role::List);
+                b.style(look::FLOW_PROGRESS);
+                model_line(b, root, w, bindings, accounts);
+                b.close();
+                go(b, w, bindings, Word::GitHubNext, Step::Ready);
+            } else {
+                super::connect_model::body(b, root, w, accounts, text_per_node);
+            }
         }
         Step::Ready => {
             ready_heading(b, root, w);
@@ -299,11 +309,11 @@ fn model_line(
         b.close();
     }
 }
-fn real_forge_connected(root: &Domain) -> bool {
+fn real_forge_begun(root: &Domain) -> bool {
     if let temper_client_domain::forge::forges::State::Rows(rows) = root.forges() {
         for row in rows {
             if row.mode != temper_client_domain::forge::forges::Mode::Fake
-                && let Connection::Connected { .. } = row.connection
+                && temper_client_domain::forge::connect::begun(row)
                 && match root.forge().demo() {
                     Some(demo) => row.number != demo.forge,
                     None => true,
