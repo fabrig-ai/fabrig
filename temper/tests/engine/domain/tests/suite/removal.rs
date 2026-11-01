@@ -602,9 +602,7 @@ fn assert_repository_rows(rows: &[forge::Stored]) {
             | forge::Stored::Release(_)
             | forge::Stored::Application { .. }
             | forge::Stored::Writer(_)
-            | forge::Stored::Demo(_)
             | forge::Stored::Binding { .. }
-            | forge::Stored::DemoAct(_)
             | forge::Stored::Flight { .. }
             | forge::Stored::Landing(_)
             | forge::Stored::Receipt { .. }

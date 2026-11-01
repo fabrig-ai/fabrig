@@ -126,8 +126,6 @@ pub struct Domain {
     pub(crate) demo: Option<crate::DemoConfig>,
     bindings: Map<Box<[u8]>, Box<[u8]>>,
     pub(crate) playground: Option<crate::Playground>,
-    pub(crate) demo_state: Option<crate::DemoState>,
-    pub(crate) demo_acts: Map<[u8; 16], crate::DemoActKind>,
     pub(crate) playground_pending: Map<Token, Token>,
     pub(crate) playground_answers: Map<Token, crate::StartAnswer>,
     pub(crate) playground_ends: Map<Token, Token>,
@@ -681,9 +679,7 @@ impl Domain {
             under_box,
             demo: None,
             playground: None,
-            demo_state: None,
             bindings: Map::with_capacity(l.bindings),
-            demo_acts: Map::with_capacity(crate::demo_act_bound(l).expect("validated act bound")),
             playground_pending: Map::with_capacity(l.applications),
             playground_answers: Map::with_capacity(l.applications),
             playground_ends: Map::with_capacity(l.applications),
@@ -1218,10 +1214,6 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
             };
             out.push(Request::Bound { request, answer });
         }
-        Event::DemoActs { acts } => crate::demo::acts(d, acts, out),
-        Event::DemoActAnswered { key, keep } => crate::demo::act_answered(d, key, keep, out),
-        Event::SendDemoActs => crate::demo::send_acts(d, out),
-        Event::DemoAnswered { .. } => {}
         Event::BoxClosed => {
             d.under_box = false;
             for (forge, _) in &d.configured {
@@ -5101,16 +5093,6 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
             // Cross-record reconciliation is the later restart stage (domain/root.md, 9.1).
             d.flights.insert((task, entry), ()).expect("restored flights within entry limit");
         }
-        Stored::DemoAct(row) => {
-            d.demo_acts.insert(row.key, row.act).expect("restored demo acts within limits");
-        }
-        Stored::Demo(row) => {
-            if let Some(demo) = &d.demo
-                && row.forge == demo.adoption.forge
-            {
-                d.demo_state = Some(row.state);
-            }
-        }
         Stored::Writer(row) => {
             let mut discarded = Queue::uncapped();
             child(
@@ -5553,15 +5535,12 @@ impl Domain {
             | Stored::Client(_)
             | Stored::Flight { .. }
             | Stored::Writer(_)
-            | Stored::Demo(_)
             | Stored::Landed { .. }
-            | Stored::Binding { .. }
-            | Stored::DemoAct(_) => return None,
+            | Stored::Binding { .. } => return None,
         };
         Some((u32::try_from(position).expect("retained rows fit their table capacity"), inserted))
     }
     /// Recover the durable key only after finding an unmade link.
-    #[expect(clippy::too_many_lines, reason = "one exhaustive recovery of a restored row's durable key")]
     pub(crate) fn restored_link_key(
         &self,
         kind: crate::RecordKind,
@@ -5645,10 +5624,6 @@ impl Domain {
                 let Need::Forge(forge) = need else { unreachable!("writer forge link") };
                 Key::Writer(forge)
             }
-            RecordKind::Demo => {
-                let Need::Demo(forge) = need else { unreachable!("demo configuration link") };
-                Key::Demo(forge)
-            }
             RecordKind::Client => match need {
                 Need::Forge(forge) => Key::Writer(forge),
                 Need::Repository(repository) if client_repository => {
@@ -5656,7 +5631,7 @@ impl Domain {
                 }
                 // The opaque client exposes no retained Live-row key iterator.
                 Need::Repository(_) => return None,
-                Need::Demo(_) | Need::Task { .. } | Need::EntryOwner { .. } | Need::Entry { .. } => {
+                Need::Task { .. } | Need::EntryOwner { .. } | Need::Entry { .. } => {
                     unreachable!("client forge or repository link")
                 }
             },
@@ -5668,8 +5643,7 @@ impl Domain {
             | RecordKind::ForgeNumbers
             | RecordKind::Playground
             | RecordKind::Landed
-            | RecordKind::Binding
-            | RecordKind::DemoAct => unreachable!("row has no links"),
+            | RecordKind::Binding => unreachable!("row has no links"),
         };
         Some(key)
     }

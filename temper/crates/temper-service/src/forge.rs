@@ -8,19 +8,8 @@ use skein_lib::{Duration, Env, List, Map, Queue, Time, Wall};
 use temper_engine_domain as root;
 use temper_engine_domain_forge as forge;
 
-/// The domain's ended forges gate service paths (draft playground-reset.md, 4).
+/// Removing and removed forges cannot accept service work.
 pub(crate) fn ended(engine: &crate::engine::Engine, forge: u16) -> bool {
-    // Document forges retain the demo gate until startup accepts records alone.
-    if !engine.records.contains_key(&forge) {
-        for configured in &engine.workers.forges {
-            if configured.number == forge {
-                return match &engine.demo {
-                    Some(demo) => demo.forge == forge && demo.state == Some(forge::DemoState::Ended),
-                    None => false,
-                };
-            }
-        }
-    }
     engine.domain.forge_ended(forge)
 }
 

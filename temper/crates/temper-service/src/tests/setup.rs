@@ -1647,7 +1647,6 @@ fn the_demo_waits_for_started_only_under_the_box_even_with_retained_access() {
             cues: Box::new([]),
             landing: b"main".as_slice().into(),
             key_file: b"demo/llm.key".as_slice().into(),
-            state: None,
             playground: None,
         });
         config.handover = Some(Secret::new(b"stale-handover".as_slice().into()));
@@ -1683,45 +1682,14 @@ fn the_demo_waits_for_started_only_under_the_box_even_with_retained_access() {
     }
 }
 
-fn demo_config() -> Config {
-    let mut config = local_config(true, true);
-    config.engine.jig.limits.core.people.act_grants = 1;
-    config.engine.jig.acts = Box::new([jig_domain_people::ActGrant {
-        connector: 1,
-        may: Box::new([
-            jig_domain_people::ActKind::Close,
-            jig_domain_people::ActKind::AddKey,
-            jig_domain_people::ActKind::RemoveAccount,
-            jig_domain_people::ActKind::Adopt,
-        ]),
-    }]);
-    config.engine.demo = Some(crate::settings::Demo {
-        project_name: "".into(),
-        project_policy: 0,
-        project: 1,
-        forge: 1,
-        provider: 3,
-        owner: b"demo".as_slice().into(),
-        name: b"widget".as_slice().into(),
-        cues: Box::new([]),
-        landing: b"main".as_slice().into(),
-        key_file: b"demo/llm.key".as_slice().into(),
-        state: None,
-        playground: None,
-    });
-    config
-}
-fn ended_demo_store() -> crate::store::Store {
+fn removing_forge_store() -> crate::store::Store {
     let mut store = local_store(true);
-    let mut record = demo_config().records.into_iter().next().unwrap();
+    let mut record = local_config(true, true).records.into_iter().next().unwrap();
     record.state = domain::ForgeState::Removing;
     fixtures::commit(
         &mut store,
         2,
         Box::new([
-            root::Write::Save(root::Record::Forge {
-                row: Box::new(domain::Stored::Demo(domain::Demo { forge: 1, state: domain::DemoState::Ended })),
-            }),
             root::Write::Save(root::Record::Forge { row: Box::new(domain::Stored::Forge(record)) }),
             root::Write::Save(root::Record::Forge { row: Box::new(domain::Stored::ForgeNumbers { next: 2 }) }),
         ]),
@@ -1730,13 +1698,12 @@ fn ended_demo_store() -> crate::store::Store {
     store
 }
 #[test]
-fn restored_ended_demo_without_box_skips_setup_adoption_connect_and_handover() {
-    let mut config = demo_config();
+fn restored_removing_forge_without_box_skips_setup_adoption_connect_and_handover() {
+    let mut config = local_config(true, true);
     config.handover = Some(Secret::new(b"test-admin".as_slice().into()));
-    let mut service = local_service(config, ended_demo_store());
+    let mut service = local_service(config, removing_forge_store());
     restore_local(&mut service);
     let engine = service.engine.as_mut().unwrap();
-    assert_eq!(engine.demo.as_ref().unwrap().state, Some(domain::DemoState::Ended));
     assert!(engine.domain.forge_ended(1));
     // A stale file or a pending start-time adoption cannot make the scan ready.
     engine
@@ -1760,7 +1727,7 @@ fn restored_ended_demo_without_box_skips_setup_adoption_connect_and_handover() {
 #[test]
 fn an_end_during_handover_or_reconcile_cannot_continue_setup() {
     for during_reconcile in [false, true] {
-        let mut config = demo_config();
+        let mut config = local_config(true, true);
         config.handover = Some(Secret::new(b"test-admin".as_slice().into()));
         let mut service = local_service(config, local_store(true));
         restore_local(&mut service);
@@ -1769,7 +1736,6 @@ fn an_end_during_handover_or_reconcile_cannot_continue_setup() {
         if during_reconcile {
             engine.setup.runs.get_mut(&run).unwrap().kind = Kind::LocalReconcile;
         }
-        engine.demo.as_mut().unwrap().state = Some(domain::DemoState::Ended);
         let mut record = engine.records.get(&1).unwrap().clone();
         record.state = domain::ForgeState::Removing;
         engine.step(root::Event::Forge(Box::new(domain::Event::Restore { record: domain::Stored::Forge(record) })));
@@ -1782,7 +1748,7 @@ fn an_end_during_handover_or_reconcile_cannot_continue_setup() {
 }
 #[test]
 fn ended_forge_calls_are_answered_locally_at_zero_cost_and_hints_are_dropped() {
-    let mut service = local_service(demo_config(), ended_demo_store());
+    let mut service = local_service(local_config(true, true), removing_forge_store());
     restore_local(&mut service);
     let engine = service.engine.as_mut().unwrap();
     while engine.events.pop().is_some() {}

@@ -2,7 +2,6 @@
 mod applications;
 pub(crate) mod asks;
 pub(crate) mod calendar;
-pub(crate) mod demo;
 pub(crate) mod escalation;
 pub(crate) mod forge_route;
 pub(crate) mod held;
@@ -564,7 +563,6 @@ pub(crate) fn save_connector_answer(domain: &Domain, limits: &Limits, decision: 
 
 fn forge_event(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, event: forge::Event) {
     if let forge::Event::Connection { forge, state: forge::Connection::SetUpFailed { why } } = &event {
-        demo::connection(domain, *forge, why);
         playground::connection(domain, env, decision, *forge, why);
     }
     if event == forge::Event::BoxClosed
@@ -572,20 +570,12 @@ fn forge_event(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, 
     {
         playground::connection(domain, env, decision, start.row.forge, b"the box closed the pipe");
     }
-    if event == forge::Event::BoxClosed
-        && let Some(config) = domain.forge.demo()
-    {
-        demo::connection(domain, config.adoption.forge, b"the box closed the pipe");
-    }
     let mut out = Queue::uncapped();
     forge::step(&mut domain.forge, &environment_forge(env), event, &mut out);
     if refuse_forge_fit(domain) {
         return;
     }
     forge_route::outputs(domain, env, decision, &mut out);
-    if domain.demo_start.is_some() {
-        demo::progress(domain, env, decision);
-    }
     playground::progress(domain, env, decision);
 }
 

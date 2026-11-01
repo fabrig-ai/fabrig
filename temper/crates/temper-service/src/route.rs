@@ -8,7 +8,6 @@ pub(crate) mod box_link;
 #[expect(clippy::too_many_lines, reason = "one exhaustive dispatcher routes root outputs to their components")]
 pub(crate) fn request(engine: &mut Engine, request: root::Request) {
     if let Some(demo) = &mut engine.demo {
-        demo.state = engine.domain.demo_state();
         demo.playground = engine.domain.playground();
     }
     match request {

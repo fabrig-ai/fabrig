@@ -58,12 +58,9 @@ pub struct Domain {
     pub(crate) forge: forge::Domain,
     pub(crate) application: Option<(Token, crate::Application)>,
     pub(crate) application_carried: Option<jig_domain_core::Carried>,
-    pub(crate) application_demo: Option<crate::route::demo::Context>,
-    pub(crate) demo_contexts: Map<Token, crate::route::demo::Context>,
-    pub(crate) demo_start: Option<crate::route::demo::Start>,
+    pub(crate) application_playground: Option<crate::route::playground::Context>,
+    pub(crate) playground_contexts: Map<Token, crate::route::playground::Context>,
     pub(crate) playground_start: Option<crate::route::playground::Start>,
-    pub(crate) demo_reply: Option<(Token, crate::route::demo::Phase)>,
-    pub(crate) demo_act_replies: Map<Token, forge::DemoAct>,
     pub(crate) next_act_reply: u64,
     pub(crate) kept_replies: crate::route::kept::Replies,
     pub(crate) next_application_owner: u64,
@@ -161,14 +158,10 @@ impl Domain {
     pub fn forges(&self) -> forge::Forges {
         self.forge.forges()
     }
-    /// The connector's durable demo end, shared with setup readiness scans.
+    /// Removing and removed forges cannot accept setup work.
     #[must_use]
     pub fn forge_ended(&self, forge: u16) -> bool {
         self.forge.forge_ended(forge)
-    }
-    #[must_use]
-    pub fn demo_state(&self) -> Option<forge::DemoState> {
-        self.forge.demo_state()
     }
     /// The connector's durable playground row (draft playground-reset.md, 6.2).
     #[must_use]
@@ -411,12 +404,9 @@ impl Domain {
             forge,
             application: None,
             application_carried: None,
-            application_demo: None,
-            demo_contexts: Map::with_capacity(limits.forge.applications),
-            demo_start: None,
+            application_playground: None,
+            playground_contexts: Map::with_capacity(limits.forge.applications),
             playground_start: None,
-            demo_reply: None,
-            demo_act_replies: Map::with_capacity(forge::demo_act_bound(&limits.forge).expect("validated act bound")),
             next_act_reply: 1,
             kept_replies: crate::route::kept::Replies::new(&limits.forge),
             next_application_owner: 1,
@@ -967,9 +957,6 @@ pub(crate) fn fire_routed(domain: &mut Domain, env: &Env<Limits>, out: &mut Queu
         forge::fire(&mut domain.forge, &environment_forge(env), &mut forge_out);
         forge_route::outputs(domain, env, &mut decision, &mut forge_out);
     }
-    if domain.demo_start.is_some() {
-        crate::route::demo::progress(domain, env, &mut decision);
-    }
     crate::route::playground::progress(domain, env, &mut decision);
     route_into(domain, env, &mut decision);
     if domain.ready() {
@@ -1049,17 +1036,11 @@ fn released_into(
             // jig's domain/engine.md, "a project made": the root hears it after commit.
             // LandingPolicy.projects, forge Judges.projects and GatePolicy.projects
             // hold optional seeded overrides; deployment rules already cover this project.
-            // Repositories/homes arise on adoption, panels on watching, and the demo
-            // still names its configured project. None needs an empty-project row.
+            // Repositories/homes arise on adoption and panels on watching.
+            // Neither needs an empty-project row.
         }
         Delivery::DemoActed { to, outcome } => {
-            let token = to.into_token();
-            let to = ReplyTo::new(token);
-            if domain.demo_act_replies.get(&token).is_some() {
-                crate::route::demo::end_acted(domain, env, decision, to, outcome);
-            } else {
-                crate::route::kept::acted(domain, env, decision, to, outcome);
-            }
+            crate::route::kept::acted(domain, env, decision, to, outcome);
         }
         Delivery::ForgeCommitted { entry } => {
             domain.work.push(Work::Forge(forge::Event::Committed { entry }));

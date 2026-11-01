@@ -1,7 +1,7 @@
 //! Playground creation and ordered reset (temper/docs/design/draft/playground-reset.md, 6.1–6.3, 9).
 use crate::{
-    Domain, EndAnswer, ForgeState, Key, Limits, Mode, Playground, PlaygroundState, Request, ResetAct, ResetStep,
-    StartAnswer, Stored,
+    DemoConfig, Domain, EndAnswer, ForgeState, Key, Limits, Mode, Playground, PlaygroundState, Request, ResetAct,
+    ResetStep, StartAnswer, Stored,
 };
 use skein_lib::{Env, Map, Queue, Token};
 
@@ -211,5 +211,36 @@ fn ended(d: &mut Domain, answer: EndAnswer, out: &mut Queue<Request>) {
         d.playground_ends.remove(&request);
         d.playground_end_answers.insert(token, answer).expect("one answer per bounded end");
         out.push(Request::ApplicationDone { request, token });
+    }
+}
+
+impl DemoConfig {
+    #[must_use]
+    pub fn within(&self) -> bool {
+        let adoption = &self.adoption;
+        for bytes in [
+            adoption.host.len(),
+            adoption.owner.len(),
+            adoption.name.len(),
+            adoption.prefix.len(),
+            adoption.landing.len(),
+        ] {
+            if bytes > 1024 {
+                return false;
+            }
+        }
+        adoption.checks.is_empty()
+    }
+}
+impl Domain {
+    pub fn configure_demo(&mut self, demo: Option<DemoConfig>) {
+        if let Some(demo) = &demo {
+            assert!(demo.within(), "bounded demo configuration");
+        }
+        self.demo = demo;
+    }
+    #[must_use]
+    pub fn demo(&self) -> Option<&DemoConfig> {
+        self.demo.as_ref()
     }
 }

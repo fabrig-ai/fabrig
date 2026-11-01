@@ -125,23 +125,6 @@ fn writer_keys_follow_application_and_take_every_forge_number() {
 }
 
 #[test]
-fn demo_keys_follow_writer_and_take_every_forge_number() {
-    use temper_engine_domain_forge::Key;
-    let previous = keys::encode(&Key::Writer(u16::MAX), u32::MAX).expect("writer key");
-    for forge in [0, 1, u16::MAX] {
-        let key = Key::Demo(forge);
-        let bytes = keys::encode(&key, u32::MAX).expect("demo key");
-        assert_eq!(bytes[0], 17);
-        assert_eq!(bytes.len(), 9);
-        assert_eq!(keys::decode(&bytes, &fixtures::LIMITS), Some(key));
-        assert!(bytes > previous);
-    }
-    let mut too_wide = skein_kv::KeyWriter::new(u32::MAX);
-    too_wide.tag(17).u64(65_536);
-    assert_eq!(keys::decode(&too_wide.finish().expect("small key"), &fixtures::LIMITS), None);
-}
-
-#[test]
 fn binding_keys_use_family_eighteen_and_bounded_addresses() {
     for address in [b"a@b".as_slice(), b"sam@example.com", b"Sam@example.com", b"a@@b", b"no-at", b"", b"a\0b"] {
         let key = Key::Binding(address.into());
@@ -159,23 +142,6 @@ fn binding_keys_use_family_eighteen_and_bounded_addresses() {
     assert_eq!(keys::decode(&oversized.finish().unwrap(), &fixtures::LIMITS), None);
     for bytes in [b"\x12\0".as_slice(), b"\x12\0\x01", b"\x12x", b"\xff\0\0"] {
         assert_eq!(keys::decode(bytes, &fixtures::LIMITS), None);
-    }
-}
-
-#[test]
-fn demo_act_keys_follow_demo_and_require_sixteen_bytes() {
-    use temper_engine_domain_forge::Key;
-    let previous = keys::encode(&Key::Demo(u16::MAX), u32::MAX).unwrap();
-    for key in [[0; 16], [255; 16], [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]] {
-        let bytes = keys::encode(&Key::DemoAct(key), u32::MAX).unwrap();
-        assert_eq!(bytes[0], 19);
-        assert!(bytes > previous);
-        assert_eq!(keys::decode(&bytes, &fixtures::LIMITS), Some(Key::DemoAct(key)));
-    }
-    for length in [0, 15, 17] {
-        let mut writer = skein_kv::KeyWriter::new(u32::MAX);
-        writer.tag(19).bytes(&[0; 17][..length]);
-        assert_eq!(keys::decode(&writer.finish().unwrap(), &fixtures::LIMITS), None);
     }
 }
 
@@ -238,5 +204,18 @@ fn forge_families_take_bytes_thirty_one_to_thirty_four_in_order() {
     short.tag(keys::KEPT_ACT).bytes(&[1; 15]);
     for bytes in [wide.finish().unwrap(), short.finish().unwrap()] {
         assert_eq!(keys::decode(&bytes, &fixtures::LIMITS), None);
+    }
+}
+
+#[test]
+fn demo_family_bytes_are_unused() {
+    for family in [17, 19] {
+        assert_eq!(keys::decode(&[family], &fixtures::LIMITS), None);
+        let mut key = skein_kv::KeyWriter::new(64);
+        key.tag(family).u64(1);
+        assert_eq!(keys::decode(&key.finish().unwrap(), &fixtures::LIMITS), None);
+        let mut key = skein_kv::KeyWriter::new(64);
+        key.tag(family).bytes(&[1; 16]);
+        assert_eq!(keys::decode(&key.finish().unwrap(), &fixtures::LIMITS), None);
     }
 }
