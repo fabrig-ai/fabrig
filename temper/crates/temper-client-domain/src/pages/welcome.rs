@@ -38,7 +38,7 @@ pub fn decision(root: &Domain) -> Option<bool> {
             }
             for row in rows {
                 let own = match demo {
-                    Some(demo) => row.number != demo.forge,
+                    Some(demo) => Some(row.number) != demo.forge,
                     None => true,
                 };
                 if own && let forges::Connection::Connected { .. } = row.connection {
@@ -63,9 +63,10 @@ pub fn model_usable(root: &Domain) -> Option<bool> {
     };
     let Some(accounts) = accounts else { return Some(false) };
     let Some(provider) = root.forge().demo_provider() else { return Some(accounts.usable) };
-    Some(forge::demo::other_model_usable(
-        accounts,
-        forge::demo::owner_deployment(root.forge(), root.client()),
-        provider,
-    ))
+    for line in &accounts.accounts {
+        if forge::demo::usable_account(line, Some(provider)) {
+            return Some(true);
+        }
+    }
+    Some(false)
 }

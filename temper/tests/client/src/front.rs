@@ -25,9 +25,8 @@ pub struct Joint {
     pub refuse_return: bool,
     set_ups: Vec<(u16, Token)>,
     pub admin_connects: Vec<(u16, Token)>,
-    pub demo: Option<temper_client_protocol_wire::v1::DemoAnswer>,
+    pub demo: Option<temper_client_protocol_wire::v1::PlaygroundAnswer>,
     pub demo_starts: Vec<skein_lib::RequestKey>,
-    pub demo_removals: Vec<skein_lib::RequestKey>,
     pub demo_reads: usize,
     /// Terminal replies for successive task-document attempts, before the real engine serves one.
     pub task_read_ends: VecDeque<jig_client::contract::ReadNone>,
@@ -734,7 +733,6 @@ impl Joint {
             admin_connects: Vec::new(),
             demo: None,
             demo_starts: Vec::new(),
-            demo_removals: Vec::new(),
             demo_reads: 0,
             task_read_ends: VecDeque::new(),
             reachable_reads: Vec::new(),
@@ -885,7 +883,7 @@ impl Joint {
         true
     }
     fn start_demo(&mut self, who: ClientId, request: &Request) -> bool {
-        // StartDemo is scripted here until the parallel engine task lands.
+        // The playground's start is scripted by this joint.
         if let Request::Client {
             request:
                 jig_client::Request::Down {
@@ -896,7 +894,7 @@ impl Joint {
             use temper_client_protocol_wire::{self as wire, v1 as w};
             if record.family == wire::FORGE
                 && wire::decode_requesting(&record.bytes, &w::CEILINGS)
-                    .is_some_and(|request| *request.request() == w::Request::StartDemo)
+                    .is_some_and(|request| *request.request() == w::Request::StartPlayground)
             {
                 self.demo_starts.push(*key);
                 let outcome = self.demo_outcomes.pop_front().unwrap_or(w::Outcome::Running);
@@ -904,8 +902,10 @@ impl Joint {
                     && let Some(demo) = self.demo.take()
                 {
                     let mut parts = demo.into_parts();
-                    parts.state = w::DemoState::Running;
-                    self.demo = Some(w::DemoAnswer::new(&w::CEILINGS, parts).expect("demo fixture"));
+                    parts.state = w::PlaygroundState::Running;
+                    parts.forge = parts.forge.or(Some(2));
+                    parts.project = parts.project.or(Some(1));
+                    self.demo = Some(w::PlaygroundAnswer::new(&w::CEILINGS, parts).expect("demo fixture"));
                 }
                 self.callbacks.push((
                     who,
@@ -1015,7 +1015,7 @@ impl Joint {
                             read: *read,
                             result: jig_client::Readout::Family {
                                 family: record.family,
-                                record: self.demo.as_ref().map(temper_client_protocol_wire::demo_answer),
+                                record: self.demo.as_ref().map(temper_client_protocol_wire::playground_answer),
                             },
                         },
                     },
@@ -1081,20 +1081,6 @@ impl Joint {
             ));
             return;
         }
-        if let Request::Client {
-            request:
-                jig_client::Request::Down { down: jig_client::Down::Send { key, request: jig_client::Ask::Jig(ask), .. } },
-        } = &request
-            && matches!(
-                ask.as_ref(),
-                jig_client::contract::Ask::AccountChange {
-                    holder: jig_client::contract::AccountHolder::Deployment,
-                    change: jig_client::contract::AccountChange::Remove { .. },
-                }
-            )
-        {
-            self.demo_removals.push(*key);
-        }
         if self.reachable(who, &request) || self.start_demo(who, &request) {
             return;
         }
@@ -1118,15 +1104,16 @@ impl Joint {
         else {
             return;
         };
+        let Some(forge) = *demo.forge() else { return };
         let Some(rows) = wire::decode_forges(&record.bytes, &w::CEILINGS) else { return };
         let mut forges = skein_lib::List::with_capacity(wire::FORGES);
         for row in rows.into_parts().forges.into_boxed() {
             // A change story can use the engine's fake stand as its demo forge.
-            if row.number() != demo.forge() {
+            if Some(row.number()) != *demo.forge() {
                 forges.push(row).expect("scripted deployment row");
             }
         }
-        let connection = if *demo.state() == w::DemoState::Running {
+        let connection = if *demo.state() == w::PlaygroundState::Running {
             w::Connection::Connected(
                 w::Connected::new(&w::CEILINGS, w::ConnectedParts { id: 2, login: b"playground".as_slice().into() })
                     .expect("fake connection"),
@@ -1140,7 +1127,7 @@ impl Joint {
                     &w::CEILINGS,
                     w::ForgeRowParts {
                         skein_bools: [false, false, false, false],
-                        number: demo.forge(),
+                        number: forge,
                         kind: w::Kind::Forgejo,
                         mode: w::Mode::Fake,
                         connection,

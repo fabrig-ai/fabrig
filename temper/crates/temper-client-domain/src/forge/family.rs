@@ -163,15 +163,15 @@ const fn role_from(role: &w::Role) -> forge::Role {
     }
 }
 
-/// Decode the demo's complete record, including its embedded family version.
+/// Decode the playground's complete record, including its embedded family version.
 #[must_use]
-pub fn demo(record: &[u8], limits: &w::Limits) -> Option<forge::Demo> {
-    let answer = wire::decode_demo_answer(record, limits)?.into_parts();
+pub fn playground(record: &[u8], limits: &w::Limits) -> Option<forge::Demo> {
+    let answer = wire::decode_playground_answer(record, limits)?.into_parts();
     Some(forge::Demo {
         state: match answer.state {
-            w::DemoState::NotStarted => forge::demo::DemoState::NotStarted,
-            w::DemoState::Running => forge::demo::DemoState::Running,
-            w::DemoState::Ended => forge::demo::DemoState::Ended,
+            w::PlaygroundState::NotStarted => forge::demo::DemoState::NotStarted,
+            w::PlaygroundState::Running => forge::demo::DemoState::Running,
+            w::PlaygroundState::Resetting => forge::demo::DemoState::Resetting,
         },
         project: answer.project,
         forge: answer.forge,

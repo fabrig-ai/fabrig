@@ -21,7 +21,7 @@ pub fn personal(row: &Row, demo: Option<&Demo>) -> bool {
         return false;
     }
     if let Some(demo) = demo
-        && demo.forge == row.number
+        && demo.forge == Some(row.number)
     {
         return false;
     }
@@ -74,13 +74,10 @@ pub fn dot(state: &State, demo: Option<&Demo>) -> Dot {
 }
 #[must_use]
 pub fn playground(root: &Domain) -> Option<(&Demo, &Row)> {
-    let (demo, halves) = root.demo()?;
-    if !halves.forge {
-        return None;
-    }
+    let demo = root.demo()?;
     if let State::Rows(rows) = root.forges() {
         for row in rows {
-            if row.number == demo.forge {
+            if Some(row.number) == demo.forge {
                 return Some((demo, row));
             }
         }
@@ -96,7 +93,11 @@ pub struct Setup {
 }
 #[must_use]
 pub fn setup(root: &Domain) -> Option<Setup> {
-    if !root.demo_answered() || root.forge().demo_running() || welcome::decision(root) != Some(false) {
+    if !root.demo_answered()
+        || root.forge().demo_running()
+        || root.forge().demo_resetting()
+        || welcome::decision(root) != Some(false)
+    {
         return None;
     }
     let owner = accounts::current_me(root.client())?.deployment_role == Some(jig_client::contract::HeldRole::Owner);

@@ -73,8 +73,15 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "chats-first-run-5",
-        heading: "Chats",
-        parts: &[Part::Named { role: Role::Link, name: "Manage usage" }],
+        heading: "What shall we change?",
+        parts: &[
+            Part::Named {
+                role: Role::Paragraph,
+                name: "This is the playground: a scripted model and a playground forge.",
+            },
+            Part::Named { role: Role::Link, name: "Connect a model" },
+            Part::Named { role: Role::Link, name: "Connect a forge" },
+        ],
     },
     Holds {
         name: "welcome-paste-expired",

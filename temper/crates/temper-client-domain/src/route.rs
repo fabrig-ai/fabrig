@@ -89,6 +89,9 @@ fn went(root: &mut Domain, env: &Env<Limits>, place: Place, out: &mut Queue<Requ
 pub(crate) fn pages(root: &mut Domain, env: &Env<Limits>, event: crate::pages::Event, out: &mut Queue<Request>) {
     let mut child = Queue::uncapped();
     demo_facts(root);
+    if root.forge.demo_running() {
+        crate::pages::playground_running(&mut root.pages);
+    }
     let task_document = match &event {
         crate::pages::Event::Told {
             told: jig_client::Told::Changed { handle } | jig_client::Told::Page { handle, .. },
@@ -106,7 +109,11 @@ pub(crate) fn pages(root: &mut Domain, env: &Env<Limits>, event: crate::pages::E
         | crate::pages::Event::Link { .. } => false,
     };
     crate::pages::step(&mut root.pages, env, &root.client, event, &mut child);
+    if root.forge.demo_running() {
+        crate::pages::playground_running(&mut root.pages);
+    }
     route_pages(root, env, &mut child, out);
+    select_playground(root, env, out);
     let subject = match root.pages.task() {
         Some(task) => task.panel(&root.client, root.forge_number()),
         None => None,
@@ -153,6 +160,9 @@ fn refresh_panel(
 pub(crate) fn fire_pages(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     let mut child = Queue::uncapped();
     crate::pages::fire(&mut root.pages, env, &root.client, &mut child);
+    if root.forge.demo_running() {
+        crate::pages::playground_running(&mut root.pages);
+    }
     route_pages(root, env, &mut child, out);
 }
 
@@ -311,14 +321,15 @@ fn forge_demo(root: &mut Domain, env: &Env<Limits>, told: &jig_client::Told, out
     // A demo answer can arrive after the page and account watch. Way resolution
     // must exclude its provider on that same rebuild.
     demo_facts(root);
+    select_playground(root, env, out);
     consumed
 }
 fn suggest(root: &mut Domain, env: &Env<Limits>, cue: u8, out: &mut Queue<Request>) {
     if root.forge.demo_starting() || root.forge.demo_failure().is_some() {
         return;
     }
-    let Some((demo, halves)) = root.demo() else { return };
-    if !halves.model || root.pages.project() != Some(demo.project) {
+    let Some(demo) = root.demo() else { return };
+    if demo.project.is_none() || root.pages.project() != demo.project {
         return;
     }
     let Some(words) = demo.cues.get(usize::from(cue)) else { return };
@@ -335,14 +346,12 @@ fn suggest(root: &mut Domain, env: &Env<Limits>, cue: u8, out: &mut Queue<Reques
 }
 
 fn playground(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
-    let Some(demo) = root.forge.demo() else { return };
-    if !root.demo_answered() {
+    if root.forge.demo().is_none() || !root.demo_answered() || root.forge.demo_resetting() {
         return;
     }
-    let project = demo.project;
     forge(root, env, forge::Event::Act { act: forge::Act::StartDemo }, out);
     demo_facts(root);
-    pages(root, env, crate::pages::Event::Act { act: crate::pages::Act::Project { project } }, out);
+    select_playground(root, env, out);
     out.push(Request::Show { address: Address::Chats { filter: ChatsFilter::All, start: false }, replace: false });
 }
 
@@ -367,26 +376,20 @@ fn forge_forges(root: &mut Domain, env: &Env<Limits>, told: &jig_client::Told, o
     consumed
 }
 
-#[expect(clippy::manual_map, reason = "step code reads retained identity without closures")]
 fn demo_facts(root: &mut Domain) {
     root.pages.demo_provider = root.forge.demo_provider();
-    root.pages.retired_project = match root.forge.retired_demo() {
-        Some(demo) => Some(demo.project),
-        None => None,
-    };
-    crate::pages::project_changed(&mut root.pages, &root.client);
-    root.pages.demo_model = match root.demo() {
-        Some((_, halves)) => halves.model,
-        None => false,
-    };
 }
 
-/// Reconcile demo lifecycle after the shared client's account and forge tells.
-pub(crate) fn demo_progress(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
-    let mut child = Queue::uncapped();
-    forge::demo::progress(&mut root.forge, root.pages.accounts_document(&root.client), &root.client, &mut child);
-    route_forge(root, env, &mut child, out);
-    demo_facts(root);
+fn select_playground(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
+    let Some(project) = root.forge.playground_project() else { return };
+    let Some(me) = root.pages.me(&root.client) else { return };
+    for row in &me.projects {
+        if row.project == project {
+            root.forge.playground_selected();
+            pages(root, env, crate::pages::Event::Act { act: crate::pages::Act::Project { project } }, out);
+            break;
+        }
+    }
 }
 
 /// Ready reads only while its flow is shown; pending starts survive navigation.

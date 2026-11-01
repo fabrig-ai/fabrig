@@ -16,7 +16,7 @@ pub enum Shown {
 #[expect(clippy::manual_find, reason = "step code uses bounded loops without closures")]
 pub fn row<'a>(number: u16, rows: &'a State, demo: Option<&Demo>) -> Option<&'a Row> {
     if let Some(demo) = demo
-        && demo.forge == number
+        && demo.forge == Some(number)
     {
         return None;
     }
@@ -125,7 +125,7 @@ pub fn choices(rows: &State, demo: Option<&Demo>) -> List<Choice> {
             // The forges decoder admits rows in increasing number order.
             for row in rows {
                 let demo = match demo {
-                    Some(demo) => row.number == demo.forge,
+                    Some(demo) => Some(row.number) == demo.forge,
                     None => false,
                 };
                 if row.kind == kind && row.mode != Mode::Fake && !demo && offered(row) {
@@ -147,7 +147,7 @@ pub fn personal<'a>(rows: &'a State, demo: Option<&Demo>) -> Option<&'a Row> {
             continue;
         }
         if let Some(demo) = demo
-            && row.number == demo.forge
+            && Some(row.number) == demo.forge
         {
             continue;
         }
@@ -206,7 +206,7 @@ pub fn underway_forge<'a>(rows: &'a State, demo: Option<&Demo>) -> Option<&'a Ro
             continue;
         }
         if let Some(demo) = demo
-            && row.number == demo.forge
+            && Some(row.number) == demo.forge
         {
             continue;
         }
@@ -234,7 +234,7 @@ pub enum Name {
 #[must_use]
 pub fn name(row: &Row, demo: Option<&Demo>) -> Name {
     if let Some(demo) = demo
-        && demo.forge == row.number
+        && demo.forge == Some(row.number)
     {
         return Name::Playground;
     }

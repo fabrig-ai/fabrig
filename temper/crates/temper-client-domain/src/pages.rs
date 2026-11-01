@@ -30,8 +30,6 @@ pub struct Pages {
     accounts: accounts::Accounts,
     connect_model: Option<Box<connect_model::ConnectModel>>,
     pub(crate) demo_provider: Option<u32>,
-    pub(crate) retired_project: Option<u32>,
-    pub(crate) demo_model: bool,
     pub(crate) choice: choice::Draft,
     accounts_open: bool,
     welcome: Option<welcome::Welcome>,
@@ -162,8 +160,6 @@ impl Pages {
             accounts: accounts::Accounts::default(),
             connect_model: None,
             demo_provider: None,
-            retired_project: None,
-            demo_model: false,
             choice: choice::Draft::default(),
             accounts_open: false,
             welcome: None,
@@ -342,7 +338,6 @@ pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event,
                 pages.connect_model = Some(Box::new(connect_model::ConnectModel::default()));
             }
             if let Some(page) = &mut pages.connect_model {
-                page.playground |= pages.demo_model;
                 page.act(client, &pages.address, chosen, pages.demo_provider, act, &mut pages.serial, out);
             }
         }
@@ -914,17 +909,21 @@ fn me_changed(pages: &mut Pages, client: &Client, out: &mut Queue<Request>) {
     project_changed(pages, client);
 }
 
+pub(crate) fn playground_running(pages: &mut Pages) {
+    if let Some(page) = &mut pages.connect_model {
+        page.playground = true;
+    }
+}
+
+#[expect(clippy::manual_map, reason = "step code reads the first project without a closure")]
 pub(crate) fn project_changed(pages: &mut Pages, client: &Client) {
     if let Some(me) = pages.me(client)
-        && (!contains(me, pages.project) || pages.project == pages.retired_project)
+        && !contains(me, pages.project)
     {
-        let mut project = None;
-        for row in &me.projects {
-            if Some(row.project) != pages.retired_project {
-                project = Some(row.project);
-                break;
-            }
-        }
+        let project = match me.projects.get(0) {
+            Some(row) => Some(row.project),
+            None => None,
+        };
         pages.project = project;
     }
 }

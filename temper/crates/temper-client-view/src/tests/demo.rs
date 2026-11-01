@@ -56,11 +56,11 @@ fn the_demo_banner_follows_the_frame_on_work_pages() {
     }
 }
 #[test]
-fn suggestions_show_only_in_the_demo_project_with_the_model_half() {
+fn suggestions_show_only_in_the_playground_project() {
     for (row, project, model, demo, shown) in [
         ("demo project", f::PROJECT, true, true, true),
         ("other project", f::SECOND_PROJECT, true, true, false),
-        ("no model half", f::PROJECT, false, true, false),
+        ("real model keeps suggestions", f::PROJECT, false, true, true),
         ("no demo", f::PROJECT, true, false, false),
     ] {
         let root = if demo {
@@ -168,10 +168,13 @@ fn the_demo_banner_is_absent_when_the_link_is_unavailable() {
 }
 
 #[test]
-fn a_forge_only_banner_links_to_connect_without_a_model_link() {
+fn the_playground_keeps_both_links_with_a_real_model() {
     let root = f::demo_root(Address::Chats { filter: ChatsFilter::All, start: false }, f::PROJECT, false);
     let mut view = f::page_view(&root);
-    assert!(f::find(view.tree(), Role::Paragraph, b"This is the playground: a playground forge.").is_some());
+    assert!(
+        f::find(view.tree(), Role::Paragraph, b"This is the playground: a scripted model and a playground forge.")
+            .is_some()
+    );
     let mut banner = None;
     for (index, node) in view.tree().nodes().iter().enumerate() {
         if node.role == Role::Region && node.name.as_deref() == Some(b"Playground") {
@@ -180,7 +183,7 @@ fn a_forge_only_banner_links_to_connect_without_a_model_link() {
         }
     }
     let banner = banner.unwrap();
-    assert!(skein_lib::bytes::find(&f::node_text(view.tree(), banner), b"Connect a model").is_none());
+    assert!(skein_lib::bytes::find(&f::node_text(view.tree(), banner), b"Connect a model").is_some());
     let link = f::find(view.tree(), Role::Link, b"Connect a forge").unwrap();
     assert_eq!(
         crate::act(&mut view, link, skein_ui::Act::Press),
@@ -235,7 +238,7 @@ fn the_demo_account_always_names_default_whatever_the_model_or_project() {
         ("default", f::PROJECT, true, false, "Using Scripted model · Default"),
         ("requested", f::PROJECT, true, true, "Using Scripted model · Default"),
         ("another project", f::SECOND_PROJECT, true, false, "Using Scripted model · Default"),
-        ("forge alone", f::PROJECT, false, false, "No model yet · Connect a model"),
+        ("real model", f::PROJECT, false, false, "Using Scripted model · Default"),
     ] {
         let choice = if requested {
             Some(c::LlmChoice {
@@ -321,7 +324,7 @@ fn pending_words_without_a_party_are_named_you() {
 #[test]
 fn t1_keeps_the_demo_line_after_another_providers_key() {
     let root = f::demo_kept_root();
-    assert!(!root.demo().unwrap().1.model);
+    assert!(root.demo().is_some());
     let view = f::page_view(&root);
     assert!(f::find(view.tree(), Role::Paragraph, "Using Scripted model · Default".as_bytes()).is_some());
 }
@@ -428,5 +431,27 @@ fn the_accounts_banner_precedes_the_playground_when_both_show() {
                 && accounts.unwrap() < playground.unwrap()
                 && playground.unwrap() < main.unwrap()
         );
+    }
+}
+
+#[test]
+fn the_resetting_playground_keeps_the_whole_banner() {
+    use temper_client_protocol_wire::v1 as w;
+    let root = f::demo_forges_state_root(
+        Address::Chats { filter: ChatsFilter::All, start: false },
+        super::connect_forge::rows(w::Connection::NotConnected, w::Offer::Offered),
+        w::PlaygroundState::Resetting,
+    );
+    assert!(root.forge().demo_resetting());
+    assert!(temper_client_domain::forge::listed::setup(&root).is_none());
+    let view = f::page_view(&root);
+    assert!(f::find(view.tree(), Role::Region, b"Playground").is_some());
+    assert!(f::find(view.tree(), Role::Region, b"Setup").is_none());
+    assert!(
+        f::find(view.tree(), Role::Paragraph, b"This is the playground: a scripted model and a playground forge.")
+            .is_some()
+    );
+    for name in [b"Connect a model".as_slice(), b"Connect a forge"] {
+        assert!(f::find(view.tree(), Role::Link, name).is_some());
     }
 }

@@ -73,13 +73,8 @@ impl Domain {
         self.forge.demo_answered()
     }
     #[must_use]
-    pub fn demo(&self) -> Option<(&forge::Demo, forge::demo::Halves)> {
-        if !self.forge.demo_running() {
-            return None;
-        }
-        let answer = self.forge.demo()?;
-        let halves = forge::demo::current(&self.forge, self.pages.accounts_document(&self.client), &self.client);
-        if halves.model || halves.forge { Some((answer, halves)) } else { None }
+    pub fn demo(&self) -> Option<&forge::Demo> {
+        if self.forge.demo_running() || self.forge.demo_resetting() { self.forge.demo() } else { None }
     }
 
     #[must_use]
@@ -106,7 +101,6 @@ impl Domain {
 pub fn step(root: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     route::event(root, env, event, out);
     route::picker_progress(root, env, out);
-    route::demo_progress(root, env, out);
     crate::authorize::progress(root, env, out);
     welcome(root, out);
 }
@@ -116,7 +110,6 @@ pub fn fire(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     route::route_client(root, env, &mut client, out);
     route::fire_pages(root, env, out);
     route::picker_progress(root, env, out);
-    route::demo_progress(root, env, out);
     crate::authorize::progress(root, env, out);
     welcome(root, out);
 }
