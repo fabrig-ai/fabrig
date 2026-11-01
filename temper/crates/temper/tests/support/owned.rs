@@ -994,7 +994,9 @@ fn bounded_document(directory: &Path, mut value: serde_json::Value, forge: tempe
                 .expect("configured forge count");
         }
     }
-    forges.push(forge).expect("primary forge");
+    if named.forges.iter().any(|local| local.number == forge.number) {
+        forges.push(forge).expect("primary forge");
+    }
     let mut agent = agent::preflight(&named).expect("ordinary agent declarations");
     assert_eq!(agent.programs.len(), 1, "owned example declares Claude Code");
     agent.programs[0].path = path.as_bytes().into();

@@ -212,7 +212,7 @@ fn peer_reservations_transfer_once_and_close_with_preparation() {
 
 #[test]
 fn retained_peer_edits_are_checked_without_replacement() {
-    for kind in ["edited", "zero", "collision", "ordinary", "outside", "oauth"] {
+    for kind in ["edited", "zero", "collision", "ordinary", "owned", "playground", "scripted", "outside", "oauth"] {
         let scratch = Scratch::new(&format!("peer-validation-{kind}"));
         let source = provisioned_source(&scratch);
         let first = start(&source, None).expect("fresh sandbox");
@@ -247,6 +247,7 @@ fn retained_peer_edits_are_checked_without_replacement() {
                         taken.push(ready.port());
                     }
                 }
+                machine_ports(&deployment, &mut taken);
                 let socket = reserve(&taken).expect("edited peer port");
                 edited["listen"]["socket"] = addr(&socket).expect("socket").to_string().into();
                 reservation = Some(socket);
@@ -256,6 +257,16 @@ fn retained_peer_edits_are_checked_without_replacement() {
             "ordinary" => {
                 edited["listen"]["socket"] =
                     read_json(&first.directories.document())["application"]["clients"]["listener"]["socket"].clone();
+            }
+            "owned" | "playground" | "scripted" => {
+                let document = read_json(&first.directories.document());
+                let pointer = match kind {
+                    "owned" => "/application/owned/mode/owned/listen/socket",
+                    "playground" => "/application/demo/fake/mode/fake/listen/socket",
+                    "scripted" => "/application/demo/llm/listen/socket",
+                    _ => unreachable!("machine listener"),
+                };
+                edited["listen"]["socket"] = document.pointer(pointer).expect("machine listener").clone();
             }
             "outside" => edited["key"] = "/outside/llm.key".into(),
             "oauth" => edited["redirect_port"] = 0.into(),
@@ -745,12 +756,12 @@ fn import_preserves_disabled_git_and_adds_the_fake_program() {
 }
 
 #[test]
-fn four_forges_pass_ordinary_admission_with_a_directoryless_managed_entry() {
+fn seeded_peers_pass_ordinary_admission_with_a_directoryless_managed_entry() {
     let scratch = Scratch::new("four-forge-admission-r2");
     let (_source, first) = prepared_source(&scratch);
     let checked = crate::setup::check(&first.bytes, &first.directories.jig()).expect("ordinary admission");
-    assert_eq!(checked.named.forges.len(), 4);
-    assert_eq!(checked.named.identities.len(), 4);
+    assert_eq!(checked.named.forges.iter().map(|forge| forge.number).collect::<Vec<_>>(), [2, 4]);
+    assert_eq!(checked.named.identities.len(), 2);
     let entry = checked.checked.setup.entry(4).expect("managed four");
     assert!(entry.directory.is_empty());
     assert_eq!(temper_forge_setup::given::values(entry, None, &checked.checked.limits).admin_name.as_ref(), b"admin");

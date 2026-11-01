@@ -416,6 +416,7 @@ fn template() -> Value {
     value["engine"]["llm"]["models"][1] = template["engine"]["llm"]["models"][1].clone();
     value["application"]["demo"] = template["application"]["demo"].clone();
     value["application"]["demo"]["llm"]["listen"]["socket"] = json!("127.0.0.1:8370");
+    value["application"]["demo"]["fake"]["mode"]["fake"]["listen"]["socket"] = json!("127.0.0.1:3000");
     value
 }
 

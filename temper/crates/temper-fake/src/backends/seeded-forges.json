@@ -1,0 +1,112 @@
+{
+  "forges": [
+    {
+      "number": 1,
+      "kind": "forgejo",
+      "api": {
+        "socket": "$forge"
+      },
+      "transport": "plaintext",
+      "git": "$forge_git",
+      "web": null
+    },
+    {
+      "number": 2,
+      "kind": "github",
+      "api": null,
+      "transport": null,
+      "git": null,
+      "web": null
+    },
+    {
+      "number": 3,
+      "kind": "forgejo",
+      "api": {
+        "socket": "$owned"
+      },
+      "transport": "plaintext",
+      "git": "$owned_git",
+      "web": null
+    }
+  ],
+  "identities": [
+    {
+      "number": 1,
+      "forge": 2,
+      "login": null,
+      "author": null
+    },
+    {
+      "number": 2,
+      "forge": 1,
+      "login": "temper",
+      "author": {
+        "name": "Temper",
+        "email": "temper@localhost"
+      }
+    },
+    {
+      "number": 3,
+      "forge": 3,
+      "login": "temper",
+      "author": {
+        "name": "Temper",
+        "email": "temper@localhost"
+      }
+    }
+  ],
+  "setup": [
+    {
+      "forge": 1,
+      "directory": "demo/forge",
+      "bot": {
+        "login": "temper",
+        "email": "temper@localhost"
+      },
+      "mode": {
+        "fake": {
+          "listen": {
+            "socket": "$forge"
+          },
+          "git": "demo/bin/git",
+          "owner": "playground",
+          "repositories": [
+            {
+              "name": "widget",
+              "landing": "main"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "forge": 3,
+      "directory": "forge-3",
+      "bot": {
+        "login": "temper",
+        "email": "temper@localhost"
+      },
+      "start": "asked",
+      "mode": {
+        "owned": {
+          "forgejo": "fetched",
+          "runner": {
+            "binary": "fetched",
+            "labels": [
+              "temper-host:host"
+            ],
+            "capacity": 1,
+            "path": "/usr/local/bin:/usr/bin:/bin"
+          },
+          "listen": {
+            "socket": "$owned"
+          },
+          "person": {
+            "login": "$login",
+            "email": "$email"
+          }
+        }
+      }
+    }
+  ]
+}

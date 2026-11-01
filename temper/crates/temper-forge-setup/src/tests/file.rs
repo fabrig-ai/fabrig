@@ -8,7 +8,7 @@ use crate::{
 use jig_protocol_config as config;
 
 fn fixture(forge: u16) -> String {
-    let source = include_str!("../../../temper-init/template/temper.json");
+    let source = include_str!("seeded-forges.json");
     let source = source.split_once("\"setup\": [").unwrap().1;
     let marker = format!("\"forge\": {forge},");
     let member = source.find(&marker).unwrap();

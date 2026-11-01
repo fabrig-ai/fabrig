@@ -13,8 +13,8 @@ use temper_engine_domain_forge as forge;
 use temper_forge_setup::setup::{self as s, Template};
 
 fn entry() -> s::Entry {
-    let document = include_bytes!("../../../temper-init/template/temper.json");
-    let setup = fixtures::value(document, b"application.setup[1]");
+    let document = include_bytes!("seeded-forges.json");
+    let setup = fixtures::value(document, b"setup[1]");
     let setup = core::str::from_utf8(&setup)
         .unwrap()
         .replace("$owned", "127.0.0.1:8368")

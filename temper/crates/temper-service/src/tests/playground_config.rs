@@ -10,7 +10,16 @@ use temper_engine_domain_forge::{Kind, record as r};
 use temper_forge_setup::setup::Mode;
 
 fn document(fake: bool, forge: bool) -> Box<[u8]> {
-    let mut text = include_str!("../../../temper-init/template/temper.json").to_owned();
+    let text = include_str!("../../../temper-init/template/temper.json");
+    let mut text = text.to_owned();
+    for member in ["forges", "identities", "setup"] {
+        let seeded = super::fixtures::value(include_bytes!("seeded-forges.json"), member.as_bytes());
+        text = text.replace(
+            &format!("\"{member}\": []"),
+            &format!("\"{member}\": {}", core::str::from_utf8(&seeded).unwrap()),
+        );
+    }
+    text = text.replacen("\"demo\": {", "\"demo\": {\"forge\": 1,", 1);
     for (from, to) in [
         ("$git", "/usr/bin/git"),
         ("$forge_git", "http://127.0.0.1:8369"),
@@ -25,10 +34,9 @@ fn document(fake: bool, forge: bool) -> Box<[u8]> {
     ] {
         text = text.replace(from, to);
     }
-    let fake_entry = super::fixtures::value(text.as_bytes(), b"application.setup[0]");
-    let fake_entry = core::str::from_utf8(&fake_entry).unwrap().replace("\"forge\": 1,", "");
-    if fake {
-        text = text.replacen("\"demo\": {", &format!("\"demo\": {{\"fake\": {fake_entry},"), 1);
+    if !fake {
+        let value = super::fixtures::value(text.as_bytes(), b"application.demo.fake");
+        text = text.replace(core::str::from_utf8(&value).unwrap(), "null");
     }
     if !forge {
         // Remove only the demo's forge; the setup entry keeps its number.

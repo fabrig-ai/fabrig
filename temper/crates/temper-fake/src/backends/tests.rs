@@ -44,6 +44,19 @@ fn fixture() -> (Value, Value, Paths, Peers) {
             }
         }
     }
+    let seeded: Value = serde_json::from_str(
+        &include_str!("seeded-forges.json")
+            .replace("$forge_git", "http://127.0.0.1:8369")
+            .replace("$owned_git", "http://127.0.0.1:8368")
+            .replace("$forge", "127.0.0.1:8369")
+            .replace("$owned", "127.0.0.1:8368")
+            .replace("$login", "person")
+            .replace("$email", "person@localhost"),
+    )
+    .expect("seeded fixture");
+    for member in ["forges", "identities", "setup"] {
+        temper["application"][member] = seeded[member].clone();
+    }
     let paths = Paths {
         config: b"/effective/config".as_slice().into(),
         data: b"/effective/data".as_slice().into(),
@@ -453,4 +466,33 @@ fn managed_admin_name_accepts_the_actual_fake_seeded_admin_and_token() {
         panic!("the ordinary picker finishes")
     };
     peer.shutdown();
+}
+
+#[test]
+fn a_document_naming_no_forge_gains_only_the_two_welcome_peers() {
+    for present in [false, true] {
+        let (mut temper, agent, paths, peers) = fixture();
+        for member in ["forges", "identities", "setup"] {
+            if present {
+                temper["application"][member] = json!([]);
+            } else {
+                temper["application"].as_object_mut().expect("application").remove(member);
+            }
+        }
+        let docs = write(&temper, &agent, &paths, &peers).expect("rewrite no seeded forges");
+        let effective = json(&docs.temper);
+        let application = &effective["application"];
+        assert_eq!(application["forges"].as_array().expect("forges").len(), 2);
+        assert_eq!(application["forges"][0]["number"], 2);
+        assert_eq!(application["forges"][1]["number"], 4);
+        assert_eq!(application["identities"].as_array().expect("identities").len(), 2);
+        assert_eq!(application["identities"][0], json!({"number":1,"forge":2,"login":null,"author":null}));
+        assert_eq!(
+            application["setup"],
+            json!([{"forge":4,"bot":{"login":"temper","email":"temper@localhost"},"mode":"managed"}])
+        );
+        for member in ["owned", "demo"] {
+            assert_eq!(application[member], temper["application"][member]);
+        }
+    }
 }
