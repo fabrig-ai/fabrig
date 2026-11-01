@@ -155,6 +155,26 @@ fn the_machines_github_members_replace_the_defaults() {
     }
 }
 #[test]
+fn the_machines_github_read_only_setting_reaches_its_record() {
+    for read_only in [false, true] {
+        let github = format!(r#"{{"api":null,"transport":null,"git":null,"web":null,"app_read_only":{read_only}}}"#);
+        let input = document(Some(&machine("null", &github, "null")));
+        assert_eq!(named(&input).machine.github.read_only, read_only);
+    }
+}
+#[test]
+fn the_machines_github_read_only_setting_requires_a_boolean() {
+    for value in ["null", "1", r#""true""#] {
+        let github = format!(r#"{{"api":null,"transport":null,"git":null,"web":null,"app_read_only":{value}}}"#);
+        let input = document(Some(&machine("null", &github, "null")));
+        assert_problem(
+            &input,
+            Path::root().member(b"application").member(b"machine").member(b"github").member(b"app_read_only"),
+            config::What::Kind,
+        );
+    }
+}
+#[test]
 fn the_machines_git_program_is_the_github_templates_resolved_under_data() {
     // Data's six-byte prefix leaves 4090 bytes for a relative program at the path ceiling.
     const RELATIVE_PROGRAM_BYTES: usize = 4090;
