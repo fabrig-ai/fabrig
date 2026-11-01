@@ -426,7 +426,9 @@ keeps (`../protocol/configuration.md`, section 2).
     asked is not among them: the answer is the asker's, in its
     activity (`../domain/agent.md`, 8.2), and the conversation shows
     the notice the chat heard as one line under "You", "You answered
-    question N in your inbox";
+    question N in your inbox". The notice carries the answer words cut
+    at 256 bytes on a UTF-8 boundary and marked when cut
+    (`../domain/agent.md`, section 5);
   - *a delegate's words,* each words line a task sent the chat (jig's
     `OwnerActivity::Words`, by a task), a delegate's question among
     them, under the task's name, "TN", on the agent's side, a paragraph

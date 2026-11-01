@@ -56,7 +56,7 @@ fn profile() -> root::Limits {
         result_bytes: 128,
         run_inbox: 4,
         inbox_messages: 4,
-        inbox_bytes: 192,
+        inbox_bytes: 512,
         message_bytes: 64,
         proposal_stall: Duration::from_millis(10),
         escalation_stall: Duration::from_secs(3600),

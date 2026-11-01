@@ -36,6 +36,7 @@ fn spec(value: &Spec, limits: &Limits) -> Result<(), RestoreCause> {
     count(RestoreBound::SpecBytes, bytes, limits.spec_bytes)?;
     if value.asks {
         count(RestoreBound::InboxBytes, crate::questions::OWED_WORDS.len(), limits.inbox_bytes)?;
+        count(RestoreBound::InboxBytes, crate::questions::ANSWER_NOTICE_BYTES, limits.inbox_bytes)?;
     }
     Ok(())
 }
@@ -402,6 +403,10 @@ fn payload_bound(value: &TaskRecord, word: &crate::Word, limits: &Limits) -> (Re
         return (RestoreBound::ResultBytes, limits.result_bytes);
     }
     match word.kind {
+        MessageKind::QuestionAnswered { .. } => (
+            RestoreBound::MessageBytes,
+            u32::try_from(crate::questions::ANSWER_NOTICE_BYTES).expect("fixed answer notice"),
+        ),
         MessageKind::QuestionOwed => {
             (RestoreBound::ReminderBytes, u32::try_from(crate::questions::OWED_WORDS.len()).expect("fixed reminder"))
         }
@@ -425,7 +430,6 @@ fn payload_bound(value: &TaskRecord, word: &crate::Word, limits: &Limits) -> (Re
         | MessageKind::Proposal { .. }
         | MessageKind::PersonStalled { .. }
         | MessageKind::Met { .. }
-        | MessageKind::QuestionAnswered { .. }
         | MessageKind::QuestionEnded { .. }
         | MessageKind::Timer { .. } => (RestoreBound::ZeroBytes, 0),
     }
@@ -498,7 +502,12 @@ fn inbox(value: &TaskRecord, limits: &Limits) -> Result<(), RestoreCause> {
         .checked_mul(skein_lib::length::usize_of(limits.message_bytes))
         .ok_or(RestoreCause::Accounting)?;
     let proposal = if value.proposal.is_some() { skein_lib::length::usize_of(limits.message_bytes) } else { 0 };
+    let notices = crate::inbox::received_credits(value.requester, &value.question_lines, &value.questions)
+        .checked_mul(crate::questions::ANSWER_NOTICE_BYTES)
+        .ok_or(RestoreCause::Accounting)?;
     let total = bytes
+        .checked_add(notices)
+        .ok_or(RestoreCause::Accounting)?
         .checked_add(reserved)
         .ok_or(RestoreCause::Accounting)?
         .checked_add(answers)

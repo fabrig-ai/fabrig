@@ -472,7 +472,7 @@ fn a_person_answers_a_question_its_task_has_already_read() {
 
 #[test]
 fn a_restart_restores_an_unanswered_question_beside_results() {
-    // The existing two-slot, one-level batch fixture: no new capacity.
+    // The two-slot, one-level batch fixture.
     const SLOTS: u32 = 2;
     const DEPTH: u32 = 1;
     const POOL: u64 = 500;
@@ -1331,7 +1331,7 @@ fn batch_settings(
     bounds.tasks.batch = 3;
     bounds.tasks.dependencies = 2;
     bounds.tasks.inbox_messages = 6;
-    bounds.tasks.inbox_bytes = 384;
+    bounds.tasks.inbox_bytes = 512;
     if person {
         bounds.tasks.contract_choices = 2;
         bounds.people.requests = 8;

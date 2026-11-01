@@ -1,6 +1,6 @@
 # people: status
 
-2026-10-29. Where jig's code lags or departs from [people.md](people.md).
+2026-11-01. Where jig's code lags or departs from [people.md](people.md).
 
 - **Built:** 1 to 11: operations, keyed deployment acts, runtime projects, rename, account actions and deployment roles. 3, 10: two-clock expiry, held sign-ins and full-pool/busy distinction. 1, 5.1, 6: Seen reprocessed without retained answers; ordinary reservations preserved. 5.1: `MoveToNewest`. 5.1: Stop places a stop hold of the party's over the task's subtree. 5.1, 5.2: `RoleSpend`, a role's spend per period edited alone. 5.1: a request refused for want of a retained answer's place is answered busy, answers full, with the table's size and its oldest answer's expiry. 5.1: Lift; Release's owner rule.
 - **Behind a switch:** 6, 8.1: the person's own answer is enabled by
@@ -14,3 +14,5 @@
   its new person.
 - **Not yet:** 3: service credential reissue/removal. 5.1: widening funded by the amender. 6: retention. 5.1: Hold; a party's Propose of a release.
 - **Built:** 2: `outputs_bound` is reserved by the settings route at the store commit edge.
+
+- **Built:** 6: the asked task hears the person's answer words in its notice, cut at 256 bytes and marked when cut.

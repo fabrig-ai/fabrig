@@ -651,7 +651,8 @@ entry naming the task or proposal it is and its project:
   person's inbox is refused, naming that its person answers it there,
   so a conversation never answers for its person; the person's answer
   reaches the asking task as its requester's answer, and the asked task
-  hears a notice naming the question answered (tasks.md, 8.1). J7 and
+  hears a notice naming the question answered, with the answer words cut
+  at 256 bytes on a UTF-8 boundary and marked when cut (tasks.md, 5.7). J7 and
   J8, designed, not built, change which questions wait here: a
   delegate's question to a conversation becomes the conversation's
   (tasks.md, 8.5).

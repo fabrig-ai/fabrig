@@ -462,11 +462,14 @@ jig's `domain/hosts.md`, section 9 says: each named, with its sender's
 label, its kind and its words whole, the start carrying those waiting
 in the task's inbox. Words read `2: …`; a question reads `2 asks
 (question 4): …`, its number the one `message`'s answer form takes;
-an answer reads `1 answers question 4: …`. So a goal hears its
-person's answer to question 4 by the number it asked, and a chat, which
-answers no question waiting in its person's inbox (8.2), hears that
-question 4 was answered. Proposals and escalations waiting for the task's decision
-are relayed the same way, each naming what `decide` or
+an answer reads `1 answers question 4: …`. A person's inbox answer
+notifies the asked task with `Person answered question 4 in their inbox:\n…`,
+including the answer words within 256 bytes, cut at a UTF-8 boundary and
+marked when cut; an empty stored notice keeps the line without words.
+So a goal hears its person's answer to question 4 by the number it asked,
+and a chat, which answers no question waiting in its person's inbox (8.2), hears that
+question 4 was answered, with the person's words. Proposals and
+escalations waiting for the task's decision are relayed the same way, each naming what `decide` or
 `decide_escalation` takes.
 
 ## 6. Delivery is a push
@@ -633,7 +636,9 @@ today's, until those land.
   question that waits in its person's inbox (jig's `domain/people.md`,
   section 6): its `message` answer is refused, naming that its person
   answers it there. The chat hears a notice that the question was
-  answered, and says so. The goal is kept while its question waits
+  answered, with the person's answer words cut at 256 bytes on a UTF-8
+  boundary and marked when cut, and says so. The goal is kept while its
+  question waits
   (jig's `domain/tasks.md`, 5.7): a run of it that finishes before the
   answer parks, and the answer wakes it. It then calls `change` with
   what was agreed, waits for its result and reports; the chat says what

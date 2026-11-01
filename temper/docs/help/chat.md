@@ -36,7 +36,9 @@ A chat is a conversation between a party and an agent in a project: an untracked
   the goal's question: an answer it sends is refused, naming that its
   party answers it in their inbox. In the chat's conversation the
   goal's question reads `G asks (question Q): ...` and, once answered,
-  `Person answered question Q in their inbox`. The chat says what
+  `Person answered question Q in their inbox`. When you answer a question
+  in your inbox, the chat hears that you answered it, with your words.
+  The chat says what
   landed as the result says it, never a check or test it doesn't name.
 - **An advisor, and changes in order.** Asked for an advisor first, the
   goal, never the chat, starts one with `goal` and `advisor` set: temper opens its brief
