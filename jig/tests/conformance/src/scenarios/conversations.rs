@@ -73,7 +73,9 @@ pub(super) fn action(world: &mut World, action: Action) {
                 .expect("ended results");
             ask(world, MARK_RESULTS, people::Ask::MarkSeen { seen: people::Seen::Results { through } });
         }
-        Action::WatchQuery
+        Action::FillForDeletion
+        | Action::RemoveProject
+        | Action::WatchQuery
         | Action::EndTask
         | Action::ReadEnded
         | Action::EndConversations

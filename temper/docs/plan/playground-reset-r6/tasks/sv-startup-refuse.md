@@ -3,7 +3,7 @@ id = "sv-startup-refuse"
 part = "fs"
 kind = "migration"
 needs = ["sv-service-fixtures", "sv-world-one-process", "sv-world-real-loop", "sv-world-client-browser", "bx-init", "bx-fixtures", "bx-walks"]
-files = ["temper/crates/temper-service/**", "temper/crates/temper/src/lib.rs", "temper/crates/temper/src/setup.rs", "temper/crates/temper/tests/fake_backends/walk/adoption.rs", "temper/crates/temper/tests/fake_backends/walk/here_key.rs", "temper/crates/temper/tests/fake_backends/walk/program_here.rs"]
+files = ["temper/crates/temper-service/**", "temper/crates/temper/src/lib.rs", "temper/crates/temper/src/setup.rs", "temper/crates/temper/tests/fake_backends/walk/adoption.rs", "temper/crates/temper/tests/fake_backends/walk/here_key.rs", "temper/crates/temper/tests/fake_backends/walk/program_here.rs", "temper/tests/one-process/src/**", "temper/tests/real-loop/src/**", "temper/tests/client-browser/src/**", "temper/tests/system/src/**", "temper/crates/temper/tests/**"]
 effort = "high"
 minutes = 120
 +++
@@ -115,3 +115,21 @@ lifecycle restores. Added to this task:
   `fake_backends::walk::here_key::forgejo_here_and_a_key_reach_a_first_chat_on_the_fake_box`,
   `fake_backends::walk::program_here::a_program_and_forgejo_here_reach_ready_on_the_fake_box`;
   each selects 1). A failure past the offer, read, is reported as a question.
+
+2026-11-01, from this task's run 1. Q: may this task add the now-required
+`application.machine` to `temper/tests/one-process/src/fixtures.rs`, or does
+`sv-world-one-process` supply it? A: this task adds it. Making the member required is this
+task's change, its acceptance needs the one-process suite green, and `sv-world-one-process`
+is merged, having been told no machine was expected. The same holds for every world or
+process fixture document that startup now refuses only because `application.machine` is
+missing: in `temper/tests/{one-process,real-loop,client-browser,system}/src/` and
+`temper/crates/temper/tests/` (`files` now names them).
+- The edit is T4's bare machine and nothing else: `"machine": {"owned": null, "github":
+  {"api": null, "transport": null, "git": null, "web": null}, "git_program": null}`. Put it
+  in the fixture's `application` value, or in its shared builder where one exists
+  (`support/configuration.rs` already writes one: reuse it). A story that needs an owned
+  template or a `git_program` is not this answer: list it under `## Left`.
+- Change no other member of a fixture document and no expectation; list each file touched
+  under the compiler-forced edits.
+- Your pushed branch is the start of the next run. Then resume at Steps 3: the whole runs
+  one at a time, and the three walks alone under `process-temper`.

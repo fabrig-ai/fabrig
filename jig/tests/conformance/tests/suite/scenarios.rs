@@ -124,3 +124,76 @@ fn compound_chosen_delegate_admission_cut_restores_live_delegates() {
     )
     .expect("admitted delegates resume before the compound is sent");
 }
+
+#[test]
+fn project_deleted_chosen_stage_cuts_end_the_story() {
+    use jig_conformance_world::{replay, scenarios::project_deletion_stage_cuts};
+    use std::{cell::RefCell, rc::Rc};
+    const SEED: u64 = 31;
+    let baseline = replay::fresh(Scenario::ProjectDeleted, Cut::None, SEED, false).expect("uncut project deletion");
+    let stages = project_deletion_stage_cuts(&baseline);
+    let surviving = deletion_survivors(&baseline);
+    assert!(stages.windows(2).all(|pair| pair[0] < pair[1]), "distinct deciding, erasing, releasing commits");
+    drop(baseline);
+    let cuts = Rc::new(RefCell::new(Vec::new()));
+    let reached = Rc::clone(&cuts);
+    replay::chosen_cuts_traced(Scenario::ProjectDeleted, SEED, Some(false), &stages, move |cut, world| {
+        assert!(world.outcome().crashes.contains(&cut));
+        let resumed = deletion_survivors(&world);
+        assert_eq!(resumed.len(), surviving.len(), "same surviving row count at cut {cut}");
+        for (resumed, baseline) in resumed.iter().zip(&surviving) {
+            assert_eq!(resumed, baseline, "cut {cut}, row {:?}", baseline.key());
+        }
+        reached.borrow_mut().push(cut);
+    })
+    .expect("each deletion stage reaches the checked uncut ending");
+    assert_eq!(*cuts.borrow(), stages);
+}
+
+fn deletion_survivors(world: &jig_conformance_world::actions::World) -> Vec<jig_test_domain::Record> {
+    use jig_domain_core as core;
+    use jig_domain_people as people;
+    use jig_test_domain as root;
+    world
+        .store
+        .rows
+        .values()
+        .filter_map(|row| match row {
+            root::Record::Core(
+                core::Record::Core(core::CoreRecord::Deployment(_))
+                | core::Record::People(people::Stored::Acted { .. }),
+            ) => None,
+            root::Record::Core(core::Record::Tasks(jig_domain_tasks::Stored::Ledger(ledger)))
+                if matches!(ledger.funder, jig_domain_tasks::Funder::Period { project: 3, .. }) =>
+            {
+                // The replacement is made after the crash; compare its funding apart from its opening clock.
+                let mut ledger = *ledger;
+                ledger.period.as_mut().expect("period times").began = skein_lib::Wall::EPOCH;
+                Some(root::Record::Core(core::Record::Tasks(jig_domain_tasks::Stored::Ledger(ledger))))
+            }
+            root::Record::Core(_) | root::Record::Connector { .. } => Some(row.clone()),
+        })
+        .collect()
+}
+
+#[test]
+fn project_deleted_referee_rejects_a_later_task_decision() {
+    use jig_conformance::referee::{Observed, Promise, Snapshot};
+    let world = jig_conformance_world::replay::fresh(Scenario::ProjectDeleted, Cut::None, 31, false)
+        .expect("completed project deletion");
+    let mut referee = world.referee.clone();
+    let mut snapshot = Snapshot { newest: 1, ..Snapshot::default() };
+    for row in world.store.rows.values() {
+        if let jig_test_domain::Record::Core(jig_domain_core::Record::Tasks(jig_domain_tasks::Stored::Live(task))) = row
+        {
+            let mut task = jig_core_world::observations::task(task);
+            task.project = 2;
+            snapshot.tasks.insert(task.number, task);
+        }
+    }
+    assert_eq!(snapshot.tasks.len(), 1, "control task supplies the forbidden later decision");
+    let error = referee
+        .observe(world.clock().now, Observed::Durable { number: world.outcome().commits + 1, snapshot })
+        .expect_err("deleted project cannot authorize a later task decision");
+    assert_eq!(error.promise, Promise::Authority);
+}
