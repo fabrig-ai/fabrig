@@ -111,6 +111,27 @@ impl HostWorld {
     pub fn new(seed: u64, script: &[Connect]) -> Self {
         Self::new_with(seed, script, fixtures::host_settings(), fixtures::host_limits())
     }
+    /// A managed Forgejo handed to an empty host after construction.
+    #[must_use]
+    pub fn added(seed: u64) -> Self {
+        let mut settings = fixtures::host_settings();
+        let forge = settings.forges.get(0).expect("world forge").clone();
+        settings.forges.clear();
+        let mut world = Self::new_with(seed, &[], settings, fixtures::host_limits());
+        world.action(Request::Add { forge: forge.number(), settings: forge });
+        world
+    }
+    /// The next connection follows this script entry.
+    pub fn connect_next(&mut self, connect: Connect) {
+        self.script.push_back(connect);
+    }
+    pub fn remove(&mut self, forge: u16) {
+        self.action(Request::Remove { forge });
+    }
+    #[must_use]
+    pub fn connections_closed(&self) -> bool {
+        self.peers.is_empty()
+    }
     /// The two forge kinds, with the GitHub peer's App and accepted installations.
     #[must_use]
     pub fn github(seed: u64, script: &[Connect]) -> Self {

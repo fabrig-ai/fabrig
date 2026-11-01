@@ -1428,3 +1428,173 @@ fn abort_when_idle_is_closed_at_once() {
     assert!(w.io.is_empty());
     assert_eq!(w.host.next_deadline(), None);
 }
+
+#[test]
+fn a_forge_added_after_start_runs_its_plans() {
+    let mut w = World::with(limits(), settings(&[]));
+    assert_eq!(w.host.admits(&w.env.limits, &forge(1)), Ok(()));
+    w.down(Request::Add { forge: 1, settings: forge(1) });
+    assert!(w.up.is_empty() && w.io.is_empty());
+    w.read_admin();
+    w.finish_reconcile();
+    assert_eq!(w.up.pop(), Some(Event::Done { run: Token::new(1), outcome: Outcome::Nothing }));
+    assert!(w.up.is_empty() && w.io.is_empty());
+}
+
+#[test]
+fn an_add_past_forges_or_of_a_held_number_changes_nothing() {
+    let mut w = World::new();
+    let mut replacement = forge(1);
+    replacement.address = skein_io::Addr::Ip(([127, 0, 0, 2], 4000).into());
+    assert_eq!(w.host.admits(&w.env.limits, &replacement), Err(Unusable::Duplicate { forge: 1 }));
+    w.down(Request::Add { forge: 1, settings: replacement });
+    w.down(Request::Add { forge: 9, settings: forge(2) });
+    assert_eq!(w.host.admits(&w.env.limits, &forge(2)), Ok(()), "mismatched number added nothing");
+    w.down(Request::Add { forge: 2, settings: forge(2) });
+    assert_eq!(w.host.admits(&w.env.limits, &forge(3)), Err(Unusable::Forges { forges: 2 }));
+    w.down(Request::Add { forge: 3, settings: forge(3) });
+    assert!(w.up.is_empty() && w.io.is_empty());
+    w.send();
+    w.connect(); // The held forge kept its address.
+    w.run(2, 3);
+    assert_eq!(w.up.pop(), Some(unexpected(2, 3, b"reconcile")));
+    for close in [Request::Close, Request::Abort] {
+        let mut w = World::new();
+        w.down(close);
+        assert_eq!(w.up.pop(), Some(Event::Closed));
+        w.down(Request::Add { forge: 2, settings: forge(2) });
+        assert_eq!(w.host.admits(&w.env.limits, &forge(2)), Ok(()), "closing ignored Add");
+        assert!(w.up.is_empty() && w.io.is_empty());
+    }
+}
+
+#[test]
+fn admits_names_the_same_refusal_as_start_for_a_bad_address() {
+    let mut w = World::new();
+    let mut bad = forge(2);
+    bad.address = skein_io::Addr::Ip(([192, 0, 2, 1], 3000).into());
+    let refused = Err(Unusable::Address { forge: 2 });
+    assert_eq!(w.host.admits(&w.env.limits, &bad), refused);
+    let mut initial = settings(&[]);
+    initial.forges = List::with_capacity(1);
+    initial.forges.push(bad.clone()).expect("one forge");
+    assert_eq!(Host::new(&w.env.limits, initial, crypto()).err(), refused.err());
+    w.down(Request::Add { forge: 2, settings: bad });
+    assert!(w.up.is_empty() && w.io.is_empty());
+    w.run(1, 2);
+    assert_eq!(w.up.pop(), Some(unexpected(1, 2, b"reconcile")));
+    assert_eq!(w.host.admits(&w.env.limits, &forge(2)), Ok(()));
+}
+
+#[test]
+fn an_add_of_a_github_forge_checks_the_github_limits() {
+    for (inner, string_bytes) in [(13, 512), (32, 26)] {
+        let l = Limits { string_bytes, inner, ..limits() };
+        let mut w = World::with(l, settings(&[]));
+        let mut initial = settings(&[]);
+        initial.forges = List::with_capacity(1);
+        initial.forges.push(github_forge()).expect("one forge");
+        let refused = Host::new(&l, initial, crypto()).expect_err("GitHub metadata does not fit");
+        assert_eq!(w.host.admits(&l, &github_forge()), Err(refused));
+        w.down(Request::Add { forge: 4, settings: github_forge() });
+        assert!(w.up.is_empty() && w.io.is_empty());
+        w.plan(1, Plan::Install { forge: 4 });
+        assert_eq!(w.up.pop(), Some(unexpected(1, 4, b"install")));
+    }
+    let mut w = World::new();
+    assert_eq!(w.host.admits(&w.env.limits, &github_forge()), Ok(()));
+    w.down(Request::Add { forge: 4, settings: github_forge() });
+    w.plan(1, Plan::Install { forge: 4 });
+    assert_eq!(w.up.pop(), Some(Event::Need { run: Token::new(1), need: Need::Read(Item::AppSlug) }));
+}
+
+#[test]
+fn a_removal_stops_a_live_run_down_and_aborts_its_connection() {
+    let mut w = paired();
+    w.answer(1, Answer::Read(Some(fixtures::secret(fixtures::ADMIN))));
+    let owner = w.connect();
+    w.event(skein_io::Event::Connecting { owner, socket: owner });
+    w.down(Request::Remove { forge: 1 });
+    assert_eq!(w.up.pop(), Some(stop(1, 1, Why::Down)));
+    assert_eq!(w.up.pop(), Some(stop(2, 1, Why::Down)));
+    assert_eq!(w.io.pop(), Some(skein_io::Request::Abort { entity: owner }));
+    assert!(w.up.is_empty() && w.io.is_empty());
+    w.answer(2, Answer::Read(None));
+    w.down(Request::Remove { forge: 1 });
+    w.event(skein_io::Event::Closed { owner });
+    w.fire(120_000);
+    assert!(w.up.is_empty() && w.io.is_empty(), "one Stop per removed run");
+    w.run(3, 1);
+    assert_eq!(w.up.pop(), Some(unexpected(3, 1, b"reconcile")));
+}
+
+fn install_state(w: &mut World, run: u64, forge: u16) -> Box<[u8]> {
+    w.plan(run, Plan::Install { forge });
+    assert_eq!(w.up.pop(), Some(Event::Need { run: Token::new(run), need: Need::Read(Item::AppSlug) }));
+    w.answer(run, Answer::Read(Some(fixtures::secret(b"kit-app"))));
+    let Some(Event::Done { outcome: Outcome::Install { state, .. }, .. }) = w.up.pop() else { panic!("install link") };
+    assert_eq!(state.len(), 32);
+    state
+}
+
+#[test]
+fn a_removal_forgets_the_forges_one_time_states_and_keeps_anothers() {
+    let mut w = World::with(limits(), settings(&[]));
+    let mut other = github_forge();
+    match &mut other.kind {
+        Kind::GitHub(given) => given.forge = 5,
+        Kind::Forgejo(_) => panic!("GitHub fixture"),
+    }
+    w.down(Request::Add { forge: 4, settings: github_forge() });
+    w.down(Request::Add { forge: 5, settings: other });
+    let removed = install_state(&mut w, 1, 4);
+    let kept = install_state(&mut w, 2, 5);
+    w.down(Request::Remove { forge: 99 });
+    w.down(Request::Remove { forge: 4 });
+    w.down(Request::Add { forge: 4, settings: github_forge() });
+    w.plan(
+        3,
+        Plan::Accept { forge: 4, installation: core::num::NonZeroU64::new(1).expect("id"), state: Some(removed) },
+    );
+    assert_eq!(
+        w.up.pop(),
+        Some(Event::Stop {
+            run: Token::new(3),
+            failure: Failure { forge: 4, step: Stage::State, subject: b"accept".as_slice().into(), why: Why::Unknown },
+        })
+    );
+    w.plan(4, Plan::Accept { forge: 5, installation: core::num::NonZeroU64::new(1).expect("id"), state: Some(kept) });
+    assert_eq!(w.up.pop(), Some(Event::Need { run: Token::new(4), need: Need::Read(Item::AppId) }));
+    assert!(w.up.is_empty() && w.io.is_empty());
+}
+
+fn unexpected(run: u64, forge: u16, name: &[u8]) -> Event {
+    Event::Stop {
+        run: Token::new(run),
+        failure: Failure { forge, step: Stage::Admin, subject: name.into(), why: Why::Unexpected },
+    }
+}
+
+#[test]
+fn a_run_for_a_forge_not_held_stops_unexpected() {
+    let mut w = World::new();
+    w.run(1, 99);
+    assert_eq!(w.up.pop(), Some(unexpected(1, 99, b"reconcile")));
+    w.down(Request::Remove { forge: 1 });
+    w.plan(1, Plan::Check { forge: 1 });
+    assert_eq!(w.up.pop(), Some(unexpected(1, 1, b"check")));
+    assert!(w.up.is_empty() && w.io.is_empty());
+    assert_eq!(w.host.next_deadline(), None);
+}
+
+#[test]
+fn a_removed_forge_added_again_runs_afresh() {
+    let mut w = World::with(limits(), settings(&[1, 2]));
+    w.down(Request::Remove { forge: 1 });
+    w.down(Request::Add { forge: 1, settings: forge(1) });
+    w.read_admin();
+    w.finish_reconcile();
+    assert_eq!(w.up.pop(), Some(Event::Done { run: Token::new(1), outcome: Outcome::Nothing }));
+    w.run(2, 2);
+    assert_eq!(w.up.pop(), Some(owner_read(2)), "the other forge stays held");
+}
