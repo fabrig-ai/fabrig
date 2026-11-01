@@ -14,6 +14,9 @@ files = [
   "temper/crates/temper-service/src/forge/table.rs",
   "temper/crates/temper-service/src/tests/first_intent.rs",
   "temper/tests/engine/domain/tests/qa_all/qa_first_repository.rs",
+  "temper/crates/temper-engine-domain/src/route/applications.rs",
+  "jig/crates/jig-domain-core/src/projects.rs",
+  "jig/crates/jig-domain-core/src/tests/project_names.rs",
 ]
 effort = "high"
 minutes = 55
@@ -109,3 +112,28 @@ Pre-approved options:
 
 fab's sections, and `## Interfaces`: `first::*`, where the D5 rule
 lives, and the qa test's change.
+
+## Answers
+
+2026-11-01. Question: may the task add a public project-name reader to
+`jig_domain_core::Core` and do D5 in the root's admission of `SetUp`?
+
+Yes, with this shape: `pub fn project_named(&self, name: &str) ->
+Option<u32>` in `jig/crates/jig-domain-core/src/projects.rs`, the project
+whose name is the same as `name` under `people::same_name` (the rule
+`rename` and `make_project` already apply over `Core.names`), so the
+root never compares names itself; doc comment citing jig's
+`domain/people.md`, 5.1. It reads state only: no stored format, act or
+document changes. Its test goes in
+`jig/crates/jig-domain-core/src/tests/project_names.rs`:
+`a_project_is_found_by_its_name_folded`, one name found under another
+case, an unknown name none. The D5 rule lives in the root's admission of
+`SetUp` (`temper/crates/temper-engine-domain/src/route/applications.rs`),
+the default, simpler rule: `SetUpProject::New(name)` with
+`project_named(name) == Some(p)` and `p` holding no repository in the
+forge connector's rows becomes `SetUpProject::Existing(p)`; holding one,
+refused `SetUpRefusal::NewProject` as today; none, unchanged. The
+connector's `first::project` step goes; the connector test
+`a_default_project_made_before_is_reused` moves to the root's tests of
+that admission if the connector cannot reach it, said in the report.
+The header's `files` now name these three files.
