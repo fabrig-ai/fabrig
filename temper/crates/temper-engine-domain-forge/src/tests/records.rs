@@ -167,7 +167,7 @@ fn fits_refuses_a_field_past_its_bound() {
     l.forges = u32::MAX;
     assert_eq!(kept_bound(&l), None);
     assert!(!valid(&l));
-    assert_eq!(kept_bound(&LIMITS), Some(LIMITS.tasks + 1 + 2 * LIMITS.forges + 2));
+    assert_eq!(kept_bound(&LIMITS), Some(2 * LIMITS.forges + 2));
 }
 
 fn orgs(count: usize) -> Box<[Box<[u8]>]> {

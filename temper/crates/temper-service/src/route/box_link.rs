@@ -43,7 +43,6 @@ pub(crate) enum Out {
 enum Ask {
     Start(u16),
     Writing(u16),
-    Stop(u16),
     Remove(u16),
 }
 
@@ -56,7 +55,6 @@ pub(crate) struct Link {
     // Starts and removals wait in order for the active ask (protocol/setup.md,
     // 7.1; contracts, 3), bounded by forge.forges when removing.
     held: Queue<Ask>,
-    stop: Option<u16>,
     line_bytes: u32,
     partial: List<u8>,
     skipping: bool,
@@ -71,7 +69,6 @@ impl Link {
             piped,
             asked: None,
             held: Queue::with_capacity(1),
-            stop: None,
             line_bytes,
             partial: List::with_capacity(line_bytes),
             skipping: false,
@@ -83,7 +80,7 @@ impl Link {
         for ask in &self.held {
             match ask {
                 Ask::Start(_) => held_start = true,
-                Ask::Writing(_) | Ask::Stop(_) | Ask::Remove(_) => {}
+                Ask::Writing(_) | Ask::Remove(_) => {}
             }
         }
         if self.held.room() == 0
@@ -103,24 +100,6 @@ impl Link {
         }
         out.push(Out::SettingUp { forge, step: None });
         out.push(Out::Answered { forge, request, answer: Ok(()) });
-    }
-    /// No request waits on the demo's stop. Keep it even when a start is held.
-    pub(crate) fn stop(&mut self, forge: u16, out: &mut Queue<Out>) {
-        if self.ended {
-            return;
-        }
-        for _ in 0..self.held.len() {
-            let ask = self.held.pop().expect("held ask");
-            if ask != Ask::Start(forge) {
-                self.held.push(ask);
-            }
-        }
-        if self.asked.is_some() {
-            self.stop = Some(forge);
-        } else {
-            self.asked = Some(Ask::Stop(forge));
-            out.push(Out::Write(stop(forge)));
-        }
     }
     /// Size held asks from the deployment's forge bound, preserving their order.
     pub(crate) fn limit_held(&mut self, forges: u32) {
@@ -157,17 +136,14 @@ impl Link {
         }
     }
     fn next(&mut self, out: &mut Queue<Out>) {
-        if let Some(forge) = self.stop.take() {
-            self.asked = Some(Ask::Stop(forge));
-            out.push(Out::Write(stop(forge)));
-        } else if let Some(ask) = self.held.pop() {
+        if let Some(ask) = self.held.pop() {
             match ask {
                 Ask::Start(forge) => self.begin_start(forge, out),
                 Ask::Remove(forge) => {
                     self.asked = Some(ask);
                     out.push(Out::Write(remove_line(forge)));
                 }
-                Ask::Writing(_) | Ask::Stop(_) => unreachable!("only starts and removes are held"),
+                Ask::Writing(_) => unreachable!("only starts and removes are held"),
             }
         }
     }
@@ -219,7 +195,7 @@ impl Link {
     pub(crate) fn file_written(&mut self, stored: bool, out: &mut Queue<Out>) {
         let forge = match self.asked {
             Some(Ask::Writing(forge)) => forge,
-            Some(Ask::Start(_) | Ask::Stop(_) | Ask::Remove(_)) | None => return,
+            Some(Ask::Start(_) | Ask::Remove(_)) | None => return,
         };
         if stored {
             self.asked = Some(Ask::Start(forge));
@@ -245,21 +221,16 @@ impl Link {
         out.push(Out::Named(Box::from(b"box link: the box closed the pipe".as_slice())));
         match self.asked {
             Some(Ask::Remove(forge)) => out.push(Out::Removed { forge, removed: false }),
-            Some(Ask::Start(_) | Ask::Writing(_) | Ask::Stop(_)) | None => {}
+            Some(Ask::Start(_) | Ask::Writing(_)) | None => {}
         }
         self.asked = None;
         self.held.clear();
-        self.stop = None;
         out.push(Out::Closed);
     }
 }
 
 fn remove_line(forge: u16) -> Box<[u8]> {
     joined(&[b"remove ", Decimal::of(u64::from(forge)).as_bytes(), b"\n"])
-}
-
-fn stop(forge: u16) -> Box<[u8]> {
-    joined(&[b"stop ", Decimal::of(u64::from(forge)).as_bytes(), b"\n"])
 }
 
 fn start(forge: u16) -> Box<[u8]> {
@@ -301,7 +272,6 @@ fn line(asked: &mut Option<Ask>, line: &[u8], out: &mut Queue<Out>) {
     let forge = reply.forge();
     let matches = match (*asked, &reply) {
         (Some(Ask::Start(active)), Reply::Step(..) | Reply::Started(_) | Reply::Failed(..))
-        | (Some(Ask::Stop(active)), Reply::Stopped(_) | Reply::Failed(..))
         | (Some(Ask::Remove(active)), Reply::Removed(_) | Reply::Failed(..)) => active == forge,
         _ => false,
     };
@@ -327,22 +297,19 @@ fn line(asked: &mut Option<Ask>, line: &[u8], out: &mut Queue<Out>) {
             out.push(Out::Removed { forge, removed: true });
         }
         Reply::Failed(_, why) => {
-            let (removing, stopping) = match *asked {
-                Some(Ask::Remove(_)) => (true, false),
-                Some(Ask::Stop(_)) => (false, true),
-                Some(Ask::Start(_) | Ask::Writing(_)) | None => (false, false),
+            let removing = match *asked {
+                Some(Ask::Remove(_)) => true,
+                Some(Ask::Start(_) | Ask::Writing(_)) | None => false,
             };
             *asked = None;
-            if removing || stopping {
+            if removing {
                 out.push(Out::Named(joined(&[
-                    if removing { b"box link: remove failed for forge " } else { b"box link: stop failed for forge " },
+                    b"box link: remove failed for forge ",
                     Decimal::of(u64::from(forge)).as_bytes(),
                     b": ",
                     &why,
                 ])));
-                if removing {
-                    out.push(Out::Removed { forge, removed: false });
-                }
+                out.push(Out::Removed { forge, removed: false });
             } else {
                 out.push(Out::Failed { forge, why });
             }

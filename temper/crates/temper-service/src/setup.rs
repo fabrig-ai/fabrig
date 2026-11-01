@@ -157,7 +157,7 @@ impl Layer {
                 .path(temper_forge_setup::place::File::AdminToken),
             file: lifecycle::FileStep::Idle,
             trigger: if record.playground && self.under_box {
-                lifecycle::Trigger::StartDemo
+                lifecycle::Trigger::StartPlayground
             } else if entry.asked {
                 lifecycle::Trigger::StartAsked
             } else {

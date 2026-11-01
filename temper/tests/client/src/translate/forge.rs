@@ -431,7 +431,6 @@ pub fn incoming(
         | engine::Request::Install { .. }
         | engine::Request::Accept { .. }
         | engine::Request::EraseCarried { .. }
-        | engine::Request::StopGroup { .. }
         | engine::Request::SetUp { .. }
         | engine::Request::Bound { .. }
         | engine::Request::Return { .. }
@@ -454,8 +453,7 @@ pub fn incoming(
         }
         Delivery::Application { to, outcome: value } => (to, value),
         Delivery::WebReply { to, reply } => return admission_reply(transport, to, reply, limits),
-        delivery @ (Delivery::DemoActed { .. }
-        | Delivery::DemoNote { .. }
+        delivery @ (Delivery::DemoNote { .. }
         | Delivery::SourceSignedOut { .. }
         | Delivery::Result { .. }
         | Delivery::Host(_)

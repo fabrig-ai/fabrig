@@ -247,13 +247,6 @@ pub(super) fn row(d: &Domain, l: &Limits, row: &Stored) -> Result<(), RestoreFit
         Stored::Kept(row) => {
             room(K::Kept, Rows(K::Kept), d.kept.len(), d.kept.capacity(), d.kept.contains_key(&row.key))
         }
-        Stored::DemoAct(row) => room(
-            K::DemoAct,
-            Rows(K::DemoAct),
-            d.demo_acts.len(),
-            d.demo_acts.capacity(),
-            d.demo_acts.contains_key(&row.key),
-        ),
         Stored::Writer(row) => {
             room(K::Writer, Rows(K::Writer), d.writers.len(), d.writers.capacity(), d.writers.contains_key(&row.forge))
         }
@@ -287,7 +280,9 @@ pub(super) fn row(d: &Domain, l: &Limits, row: &Stored) -> Result<(), RestoreFit
             d.releases.capacity(),
             d.releases.contains_key(&row.task),
         ),
-        Stored::Demo(_) | Stored::Client(_) | Stored::Forges { .. } | Stored::Playground(_) => Ok(()),
+        Stored::Demo(_) | Stored::DemoAct(_) | Stored::Client(_) | Stored::Forges { .. } | Stored::Playground(_) => {
+            Ok(())
+        }
     }
 }
 

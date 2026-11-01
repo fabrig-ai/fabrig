@@ -81,7 +81,7 @@ pub(crate) struct Local {
 pub(super) enum Trigger {
     Start,
     StartAsked,
-    StartDemo,
+    StartPlayground,
     Asked,
 }
 #[derive(Debug)]
@@ -858,7 +858,7 @@ fn local_stopped(engine: &mut crate::engine::Engine, forge: u16, why: crate::Set
     let connection = match local.trigger {
         Trigger::Start => domain::Connection::NotConnected,
         Trigger::StartAsked if why == crate::SetupStopped::NotPrepared => domain::Connection::NotSetUp,
-        Trigger::StartDemo | Trigger::StartAsked | Trigger::Asked => {
+        Trigger::StartPlayground | Trigger::StartAsked | Trigger::Asked => {
             domain::Connection::SetUpFailed { why: local_failure(forge, &why) }
         }
     };
@@ -882,7 +882,7 @@ fn start_local(engine: &mut crate::engine::Engine, forge: u16) {
     let local = engine.setup.lifecycle.local_mut(forge).expect("local start");
     assert!(local.source != Source::Managed || local.handover.is_none(), "managed string form never stages TakeOver");
     local.pending = false;
-    if local.trigger == Trigger::StartDemo {
+    if local.trigger == Trigger::StartPlayground {
         state(engine, forge, domain::Connection::NotSetUp);
         return;
     }

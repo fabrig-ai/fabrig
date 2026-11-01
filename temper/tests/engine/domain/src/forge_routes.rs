@@ -1129,7 +1129,6 @@ impl World {
                     _ => {}
                 },
                 engine::Request::Account(_)
-                | engine::Request::StopGroup { .. }
                 | engine::Request::SetUpGroup { .. }
                 | engine::Request::ForgeKept { .. }
                 | engine::Request::ForgeRemoved { .. }
