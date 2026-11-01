@@ -252,7 +252,8 @@ pub(crate) fn navigation(builder: &mut Builder, root: &Domain, words: &crate::wo
         | Address::Chat { .. }
         | Address::Task { .. }
         | Address::ConnectModel { .. }
-        | Address::Accounts => (false, false),
+        | Address::Accounts
+        | Address::ProjectSettings { .. } => (false, false),
     };
     let count = match root.pages().me(root.client()) {
         Some(me) => me.needs_total,
@@ -300,7 +301,8 @@ pub(crate) fn navigation(builder: &mut Builder, root: &Domain, words: &crate::wo
             | Address::Task { .. }
             | Address::Adopt { .. }
             | Address::ConnectModel { .. }
-            | Address::Accounts => false,
+            | Address::Accounts
+            | Address::ProjectSettings { .. } => false,
         },
         bindings,
     );
@@ -313,6 +315,14 @@ pub(crate) fn navigation(builder: &mut Builder, root: &Domain, words: &crate::wo
             adopt_current,
             bindings,
         );
+        action(
+            builder,
+            Role::Link,
+            &words.say(crate::words::Word::ProjectSettings, &[]),
+            Act::Go { address: Address::ProjectSettings { project } },
+            *root.pages().address() == Address::ProjectSettings { project },
+            bindings,
+        );
     }
     forges_entry(builder, root, words, bindings);
     let name = crate::accounts::words::say(words, crate::accounts::words::Word::Accounts, &[]);
@@ -321,6 +331,7 @@ pub(crate) fn navigation(builder: &mut Builder, root: &Domain, words: &crate::wo
     if match root.pages().address() {
         Address::Accounts | Address::ConnectModel { .. } => true,
         Address::Inbox { .. }
+        | Address::ProjectSettings { .. }
         | Address::Chats { .. }
         | Address::Welcome { .. }
         | Address::Forges
@@ -363,7 +374,8 @@ pub(crate) fn demo_banner(b: &mut Builder, root: &Domain, words: &crate::words::
         | Address::Chat { .. }
         | Address::Task { .. }
         | Address::Inbox { .. }
-        | Address::Adopt { .. } => {}
+        | Address::Adopt { .. }
+        | Address::ProjectSettings { .. } => {}
     }
     if let Some(setup) = temper_client_domain::forge::listed::setup(root) {
         b.open(Role::Region);
@@ -459,6 +471,7 @@ fn forges_entry(builder: &mut Builder, root: &Domain, words: &crate::words::Word
     let current = match root.pages().address() {
         Address::Forges | Address::ConnectForge { .. } => true,
         Address::Accounts
+        | Address::ProjectSettings { .. }
         | Address::ConnectModel { .. }
         | Address::Welcome { .. }
         | Address::Chats { .. }

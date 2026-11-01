@@ -35,6 +35,7 @@ pub const fn open(address: &Address) -> bool {
         | Address::Inbox { .. }
         | Address::Chats { .. }
         | Address::Accounts
+        | Address::ProjectSettings { .. }
         | Address::Welcome { .. }
         | Address::Chat { .. }
         | Address::Task { .. }
@@ -62,6 +63,7 @@ pub fn address(current: &Address, way: Option<ModelWay>) -> Address {
         | Address::Inbox { .. }
         | Address::Chats { .. }
         | Address::Accounts
+        | Address::ProjectSettings { .. }
         | Address::ConnectModel { .. }
         | Address::Chat { .. }
         | Address::Task { .. }
@@ -77,6 +79,7 @@ pub fn way(pages: &Pages, client: &Client) -> Option<Way> {
         | Address::Inbox { .. }
         | Address::Chats { .. }
         | Address::Accounts
+        | Address::ProjectSettings { .. }
         | Address::Welcome { .. }
         | Address::Chat { .. }
         | Address::Task { .. }

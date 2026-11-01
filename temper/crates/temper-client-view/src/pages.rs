@@ -8,6 +8,7 @@ pub(crate) mod chat;
 pub(crate) mod chats;
 pub(crate) mod connect_model;
 pub(crate) mod inbox;
+pub(crate) mod project;
 pub(crate) mod task;
 pub(crate) mod welcome;
 

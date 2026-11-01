@@ -301,6 +301,7 @@ pub fn mockup(sample: &Sample) -> Option<String> {
         Address::Chat { task } => ("chat", Some(task)),
         Address::Inbox { .. } => ("inbox", None),
         Address::Accounts => ("accounts", None),
+        Address::ProjectSettings { .. } => ("project-settings", None),
         Address::ConnectModel { .. } => ("connect-model", None),
         Address::Welcome { .. } => ("welcome", None),
         Address::Task { task, .. } => ("task", Some(task)),
@@ -319,6 +320,7 @@ pub fn mockup(sample: &Sample) -> Option<String> {
         Address::Inbox { .. }
         | Address::Chats { .. }
         | Address::Accounts
+        | Address::ProjectSettings { .. }
         | Address::ConnectModel { .. }
         | Address::Forges
         | Address::ConnectForge { forge: None | Some(temper_client_domain::Choice::Elsewhere) }

@@ -307,7 +307,12 @@ pub fn me_handle() -> Handle {
 pub fn step(pages: &mut Pages, env: &Env<Limits>, client: &Client, event: Event, out: &mut Queue<Request>) {
     match event {
         Event::Started => started(pages, out),
-        Event::Went { address } => went(pages, env, address, out),
+        Event::Went { address } => {
+            if let Address::ProjectSettings { project } = address {
+                choose_project(pages, client, project);
+            }
+            went(pages, env, address, out);
+        }
         Event::SignInAddress { value } => {
             if let Some(me) = accounts::current_me(client) {
                 if let Some(page) = &mut pages.connect_model {
@@ -618,6 +623,7 @@ fn went(pages: &mut Pages, env: &Env<Limits>, address: Address, out: &mut Queue<
             Address::Inbox { .. }
             | Address::Chats { .. }
             | Address::Accounts
+            | Address::ProjectSettings { .. }
             | Address::Forges
             | Address::ConnectForge { .. }
             | Address::ConnectModel { .. }
@@ -902,6 +908,9 @@ fn me_changed(pages: &mut Pages, client: &Client, out: &mut Queue<Request>) {
             }
         }
     }
+    if let Address::ProjectSettings { project } = pages.address {
+        choose_project(pages, client, project);
+    }
     project_changed(pages, client);
 }
 
@@ -988,6 +997,7 @@ fn returned(pages: &mut Pages, client: &Client, out: &mut Queue<Request>) {
         Address::Inbox { .. }
         | Address::Chats { .. }
         | Address::Accounts
+        | Address::ProjectSettings { .. }
         | Address::Forges
         | Address::ConnectForge { .. }
         | Address::ConnectModel { .. }
