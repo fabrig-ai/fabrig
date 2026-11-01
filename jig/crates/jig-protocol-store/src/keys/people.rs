@@ -25,6 +25,10 @@ pub(super) fn write(writer: &mut KeyWriter, key: &Key) {
             writer.tag(3);
             writer.u64(*number);
         }
+        Key::Deletion(project) => {
+            writer.tag(9);
+            writer.u64(u64::from(*project));
+        }
         Key::Roles(project) => {
             writer.tag(4);
             writer.u64(u64::from(*project));
@@ -57,6 +61,7 @@ pub(super) fn read(reader: &mut KeyReader<'_>) -> Option<Key> {
         7 => Key::EndedRead { task: reader.u64()?, party: reader.u64()? },
         3 => Key::SignIn(reader.u64()?),
         4 => Key::Roles(u32::try_from(reader.u64()?).ok()?),
+        9 => Key::Deletion(u32::try_from(reader.u64()?).ok()?),
         5 => Key::Policy(u32::try_from(reader.u64()?).ok()?),
         8 => {
             let connector = u16::try_from(reader.u64()?).ok()?;

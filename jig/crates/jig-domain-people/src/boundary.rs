@@ -292,6 +292,8 @@ pub enum Ask {
     ChangePolicy { project: u32, change: crate::PolicyChange },
     /// Owner replaces this project's name (people.md, 5.1).
     Rename { project: u32, name: Box<str> },
+    /// Remove a project (temper/docs/design/draft/playground-reset.md, 5).
+    RemoveProject { project: u32 },
     /// Deployment owner makes a project from a configured policy (people.md, 5.2).
     MakeProject { name: Box<str>, policy: u32 },
     /// Owner changes one person's current-period pool, preserving already spent and reserved funds.
@@ -526,6 +528,10 @@ pub enum Outcome {
     PolicyChanged {
         project: u32,
     },
+    /// A project's deletion has started (temper/docs/design/draft/playground-reset.md, 5).
+    ProjectRemoved {
+        project: u32,
+    },
     /// The project now carries its new name.
     Renamed {
         project: u32,
@@ -658,6 +664,7 @@ pub enum Act {
         provider: u32,
         join: Option<u32>,
         digest: [u8; 32],
+        uses: Option<Box<[Use]>>,
     },
     RemoveAccount {
         account: u32,
@@ -665,6 +672,16 @@ pub enum Act {
     Adopt {
         project: u32,
         adoption: Adoption,
+    },
+    /// Remove a project (temper/docs/design/draft/playground-reset.md, 5).
+    RemoveProject {
+        project: u32,
+    },
+    /// Cancel a project task as the deployment (temper/docs/plan/playground-reset-r6/notes/contracts.md, J8).
+    Cancel {
+        project: u32,
+        task: u64,
+        reason: Box<[u8]>,
     },
 }
 
@@ -676,11 +693,21 @@ pub enum ActKind {
     RemoveAccount,
     Adopt,
     MakeProject,
+    RemoveProject,
+    Cancel,
 }
 
 impl ActKind {
     /// Every deployment act kind; also bounds a configured grant's owned entries.
-    pub const ALL: &[Self] = &[Self::Close, Self::AddKey, Self::RemoveAccount, Self::Adopt, Self::MakeProject];
+    pub const ALL: &[Self] = &[
+        Self::Close,
+        Self::AddKey,
+        Self::RemoveAccount,
+        Self::Adopt,
+        Self::MakeProject,
+        Self::RemoveProject,
+        Self::Cancel,
+    ];
 }
 
 /// A connector's configured deployment authority (people.md, 5.3).
@@ -712,6 +739,8 @@ pub enum Key {
     EndedRead { task: u64, party: u64 },
     /// One durable deployment act.
     Acted(ActKey),
+    /// A deleting project's stage (temper/docs/design/draft/playground-reset.md, 5).
+    Deletion(u32),
 }
 
 impl Key {
@@ -727,15 +756,26 @@ impl Key {
             | Self::Roles(_)
             | Self::Policy(_)
             | Self::Answer(_)
-            | Self::Acted(_) => true,
+            | Self::Acted(_)
+            | Self::Deletion(_) => true,
         }
     }
+}
+
+/// A deleting project's stage (temper/docs/design/draft/playground-reset.md, 5).
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
+pub enum Stage {
+    Ending,
+    Erasing,
+    Releasing,
 }
 
 /// Owned durable record submitted to the parent or restored from it; capacities and payload
 /// bytes are checked when admitted. (domain/people.md, sections 3–5).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Stored {
+    /// A deleting project's stage (temper/docs/design/draft/playground-reset.md, 5).
+    Deletion { project: u32, stage: Stage },
     /// Connector-scoped act and its permanent answer (people.md, 5.3).
     Acted { key: ActKey, act: Act, outcome: Outcome, at: Wall },
     /// Persistent party identity; provider/subject and party numbers must be unique on restore.
@@ -800,6 +840,7 @@ impl Stored {
             Stored::Policy { project, .. } => Key::Policy(*project),
             Stored::Answer { key, .. } => Key::Answer(*key),
             Stored::Acted { key, .. } => Key::Acted(*key),
+            Stored::Deletion { project, .. } => Key::Deletion(*project),
         }
     }
 }
@@ -808,6 +849,12 @@ impl Stored {
 /// cross this boundary without protocol secrets. (domain/people.md, sections 3–5).
 #[derive(PartialEq, Eq, Debug)]
 pub enum Event {
+    /// Keep or erase a deleting project's stage (temper/docs/design/draft/playground-reset.md, 5).
+    Deletion { project: u32, stage: Option<Stage> },
+    /// Erase a task's people projections (temper/docs/design/draft/playground-reset.md, 5).
+    EraseTask { task: u64, project: u32 },
+    /// Drop a project's people rows (temper/docs/design/draft/playground-reset.md, 5).
+    DropProject { project: u32 },
     /// Admit a connector's deployment act without a sign-in.
     Act { reply_to: ReplyTo, connector: u16, key: [u8; 16], act: Box<Act> },
     /// Move a live conversation and start its new requester with nothing read.

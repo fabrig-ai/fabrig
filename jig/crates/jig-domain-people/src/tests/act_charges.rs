@@ -67,3 +67,19 @@ fn grant_count_is_bounded_by_connector_numbers() {
         assert_eq!(crate::valid(&Limits { act_grants, ..LIMITS }), fits);
     }
 }
+
+#[test]
+fn the_new_acts_check_subject_words_and_restored_answer_shape() {
+    let remove = Act::RemoveProject { project: 3 };
+    assert_eq!(valid(&LIMITS, &Act::RemoveProject { project: 0 }), Err(Refusal::Unknown));
+    assert!(valid_outcome(&LIMITS, &remove, &Outcome::ProjectRemoved { project: 3 }));
+    assert!(!valid_outcome(&LIMITS, &remove, &Outcome::ProjectRemoved { project: 4 }));
+    let cancel = Act::Cancel { project: 3, task: 7, reason: Box::new([]) };
+    assert!(valid_outcome(&LIMITS, &cancel, &Outcome::Compound { project: 3, operations: 1, first_message: 1 }));
+    assert!(!valid_outcome(&LIMITS, &cancel, &Outcome::Compound { project: 4, operations: 1, first_message: 1 }));
+    assert_eq!(valid(&LIMITS, &Act::Cancel { project: 3, task: 0, reason: Box::new([]) }), Err(Refusal::Unknown));
+    assert_eq!(
+        valid(&LIMITS, &Act::Cancel { project: 3, task: 7, reason: vec![0; 9].into() }),
+        Err(Refusal::Limit { which: LimitKind::Words })
+    );
+}

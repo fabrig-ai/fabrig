@@ -329,7 +329,7 @@ pub(super) fn touch_people_row(core: &mut Core, row: &people::Stored) {
             }
         }
         people::Stored::Answer { .. } | people::Stored::Acted { .. } => core.touch_deployment(),
-        people::Stored::SignIn { .. } | people::Stored::Policy { .. } => {}
+        people::Stored::SignIn { .. } | people::Stored::Deletion { .. } | people::Stored::Policy { .. } => {}
     }
 }
 
@@ -397,6 +397,9 @@ pub(super) fn touch_people_event(core: &mut Core, limits: &Limits, event: &peopl
         | people::Event::Ask { .. }
         | people::Event::Decided { .. }
         | people::Event::Restore { .. }
+        | people::Event::Deletion { .. }
+        | people::Event::EraseTask { .. }
+        | people::Event::DropProject { .. }
         | people::Event::Restored => {}
     }
 }

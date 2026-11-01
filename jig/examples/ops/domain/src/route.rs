@@ -319,6 +319,7 @@ fn core_held(
                 | jig_domain_people::Outcome::RolesSet { .. }
                 | jig_domain_people::Outcome::PolicyChanged { .. }
                 | jig_domain_people::Outcome::PoolSet { .. }
+                | jig_domain_people::Outcome::ProjectRemoved { .. }
                 | jig_domain_people::Outcome::Renamed { .. }
                 | jig_domain_people::Outcome::ProjectMade { .. }
                 | jig_domain_people::Outcome::SettingsChanged { .. }

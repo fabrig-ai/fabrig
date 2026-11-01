@@ -211,6 +211,7 @@ fn owner(value: &p::Outcome, limits: &w::Limits) -> Result<w::OwnerOutcome, w::P
             limits,
             w::OwnerOutcomeRolesSetParts { project: *project },
         )?),
+        p::Outcome::ProjectRemoved { .. } => return Err(problem()),
         p::Outcome::Renamed { project } => w::OwnerOutcome::Renamed(w::OwnerOutcomeRenamed::new(
             limits,
             w::OwnerOutcomeRenamedParts { project: *project },
