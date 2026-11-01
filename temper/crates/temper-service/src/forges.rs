@@ -81,11 +81,6 @@ pub(crate) fn register(engine: &mut Engine, record: ForgeRecord) {
             });
             return;
         }
-        if let Some(host) = engine.forge.unreachable(number) {
-            engine
-                .notes
-                .push(crate::Note::ForgeNotConnected { number, why: crate::NotConnected::Unreachable { host } });
-        }
         engine.workers.forges.push(configured).expect("connection admits forge");
         engine.forge_records.rows.register(number);
     }
@@ -94,8 +89,10 @@ pub(crate) fn register(engine: &mut Engine, record: ForgeRecord) {
     }
     crate::setup::register(engine, &record);
     engine.records.insert(number, record).expect("connection admits forge");
+    ask(engine, number);
 }
 pub(crate) fn unregister(engine: &mut Engine, forge: u16) {
+    cancel(engine, forge);
     crate::setup::unregister(engine, forge);
     engine.forge.remove(forge);
     let capacity = engine.workers.forges.capacity();
@@ -112,4 +109,60 @@ pub(crate) fn unregister(engine: &mut Engine, forge: u16) {
     engine.values.identities.remove(u32::from(forge));
     engine.values.tokens.remove(forge);
     crate::setup::lifecycle::remove(engine, forge);
+}
+
+fn ask(engine: &mut Engine, number: u16) {
+    if engine.forge.unreachable(number).is_none() || engine.resolving.contains_key(&number) {
+        return;
+    }
+    let record = engine.records.get(&number).expect("registered resolve");
+    let tls = match &record.api.transport {
+        ApiTransport::Plaintext => None,
+        ApiTransport::Tls { server_name, trust } => {
+            Some(crate::Tls { server_name: server_name.clone(), trust: trust.clone() })
+        }
+    };
+    engine.resolves.push(crate::Resolve { forge: number, host: record.api.host.clone(), port: record.api.port, tls });
+    engine.resolving.insert(number, ()).expect("registered resolve");
+}
+fn cancel(engine: &mut Engine, number: u16) {
+    engine.resolving.remove(&number);
+    for _ in 0..engine.resolves.len() {
+        let resolve = engine.resolves.pop().expect("queued resolve");
+        if resolve.forge != number {
+            engine.resolves.push(resolve);
+        }
+    }
+}
+pub(crate) fn resolved(engine: &mut Engine, number: u16, answer: Result<crate::ForgeRuntime, Box<[u8]>>) {
+    if !engine.records.contains_key(&number)
+        || engine.forge.unreachable(number).is_none()
+        || !engine.resolving.contains_key(&number)
+    {
+        return;
+    }
+    cancel(engine, number);
+    let record = engine.records.get(&number).expect("registered resolve").clone();
+    if let Ok(runtime) = answer
+        && runtime.number == number
+        && engine.forge.resolve(&settings(&record), runtime)
+    {
+        crate::setup::resolved(engine, &record);
+        connect_after_load(engine, number);
+        return;
+    }
+    engine.notes.push(crate::Note::ForgeNotConnected {
+        number,
+        why: crate::NotConnected::Unreachable { host: record.api.host },
+    });
+}
+fn connect_after_load(engine: &mut Engine, number: u16) {
+    for (index, forge) in engine.workers.forges.iter().enumerate() {
+        if forge.number == number {
+            if engine.forge_records.passed(u32::try_from(index).expect("forge index")) {
+                crate::forge::records::connect(engine, number);
+            }
+            return;
+        }
+    }
 }
