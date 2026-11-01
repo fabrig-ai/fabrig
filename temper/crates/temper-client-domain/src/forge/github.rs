@@ -58,7 +58,7 @@ pub enum Answer {
 }
 #[derive(Debug)]
 pub struct Pending {
-    pub forge: u16,
+    pub forge: Option<u16>,
     pub key: Key,
     pub linking: bool,
     pub answer: Option<Answer>,
@@ -93,7 +93,13 @@ pub(crate) fn key(side: &mut Side, value: Secret) {
     side.app_form.checked = false;
     side.changed();
 }
-pub(crate) fn send(side: &mut Side, limits: Limits, forge: u16, back: Option<Box<[u8]>>, out: &mut Queue<Request>) {
+pub(crate) fn send(
+    side: &mut Side,
+    limits: Limits,
+    forge: Option<u16>,
+    back: Option<Box<[u8]>>,
+    out: &mut Queue<Request>,
+) {
     if !available(side) {
         return;
     }
@@ -101,7 +107,11 @@ pub(crate) fn send(side: &mut Side, limits: Limits, forge: u16, back: Option<Box
     let bounds = super::wire_limits(&limits).expect("checked forge limits");
     let request = if let Some(back) = back {
         w::Request::Install(
-            w::Install::new(&bounds, w::InstallParts { forge, back: Some(back) }).expect("printed flow address fits"),
+            w::Install::new(
+                &bounds,
+                w::InstallParts { forge: forge.expect("install names a forge"), back: Some(back) },
+            )
+            .expect("printed flow address fits"),
         )
     } else {
         side.app_form.checked = true;
@@ -127,9 +137,7 @@ pub(crate) fn send(side: &mut Side, limits: Limits, forge: u16, back: Option<Box
             w::Connect::new(
                 &bounds,
                 w::ConnectParts {
-                    forge: w::ConnectForge::Existing(
-                        w::ExistingForge::new(&w::CEILINGS, w::ExistingForgeParts { forge }).expect("existing forge"),
-                    ),
+                    forge: target(forge),
                     how: w::How::GithubApp(w::GitHubApp::new(&bounds, w::GitHubAppParts { id }).expect("valid App id")),
                 },
             )
@@ -146,7 +154,7 @@ fn available(side: &Side) -> bool {
             None => true,
         }
 }
-pub(crate) fn manifest(side: &mut Side, limits: Limits, forge: u16, back: Box<[u8]>, out: &mut Queue<Request>) {
+pub(crate) fn manifest(side: &mut Side, limits: Limits, forge: Option<u16>, back: Box<[u8]>, out: &mut Queue<Request>) {
     if !available(side) {
         return;
     }
@@ -156,23 +164,14 @@ pub(crate) fn manifest(side: &mut Side, limits: Limits, forge: u16, back: Box<[u
             .expect("printed flow address fits"),
     );
     let request = w::Request::Connect(
-        w::Connect::new(
-            &bounds,
-            w::ConnectParts {
-                forge: w::ConnectForge::Existing(
-                    w::ExistingForge::new(&w::CEILINGS, w::ExistingForgeParts { forge }).expect("existing forge"),
-                ),
-                how,
-            },
-        )
-        .expect("connect fits"),
+        w::Connect::new(&bounds, w::ConnectParts { forge: target(forge), how }).expect("connect fits"),
     );
     dispatch(side, &bounds, forge, request, true, out);
 }
 fn dispatch(
     side: &mut Side,
     bounds: &w::Limits,
-    forge: u16,
+    forge: Option<u16>,
     request: w::Request,
     linking: bool,
     out: &mut Queue<Request>,
@@ -198,6 +197,9 @@ fn dispatch(
         );
         Event::Carry { key, name, request, value: Some(value) }
     };
+    if forge.is_none() {
+        super::connect::begin(&mut side.forges, crate::Choice::GitHub);
+    }
     side.app = Some(Pending { forge, key, linking, answer: None });
     out.push(Request::Client { asked: event });
     side.changed();
@@ -294,5 +296,14 @@ pub(crate) fn decode(outcome: &Outcome, linking: bool, limits: Limits) -> Option
             }
         }
         Answered::Jig(_) | Answered::Family(_) => None,
+    }
+}
+
+fn target(forge: Option<u16>) -> w::ConnectForge {
+    match forge {
+        Some(forge) => w::ConnectForge::Existing(
+            w::ExistingForge::new(&w::CEILINGS, w::ExistingForgeParts { forge }).expect("existing forge"),
+        ),
+        None => w::ConnectForge::Github,
     }
 }

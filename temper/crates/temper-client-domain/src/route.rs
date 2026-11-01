@@ -12,7 +12,7 @@ pub(crate) fn forge(root: &mut Domain, env: &Env<Limits>, event: forge::Event, o
         let pending = match root.forge.picker(adopted.forge) {
             Some(picker) => picker.adoption.as_ref(),
             None => match root.forge.set_up() {
-                Some(last) if last.forge == adopted.forge => last.adoption.as_ref(),
+                Some(last) if last.forge == Some(adopted.forge) => last.adoption.as_ref(),
                 Some(_) | None => None,
             },
         };
@@ -76,6 +76,23 @@ fn went(root: &mut Domain, env: &Env<Limits>, place: Place, out: &mut Queue<Requ
     crate::authorize::went(root, &place);
     match place {
         Place::Address(address) => {
+            match address {
+                Address::ConnectForge { forge: None }
+                | Address::Welcome { step: crate::Step::Forge { forge: None } } => {
+                    forge::connect::clear(&mut root.forge);
+                }
+                Address::Inbox { .. }
+                | Address::Chats { .. }
+                | Address::Accounts
+                | Address::Forges
+                | Address::ConnectForge { .. }
+                | Address::ConnectModel { .. }
+                | Address::Welcome { .. }
+                | Address::Chat { .. }
+                | Address::Task { .. }
+                | Address::Adopt { .. }
+                | Address::ProjectSettings { .. } => {}
+            }
             pages(root, env, crate::pages::Event::Went { address: address.clone() }, out);
             if let Address::Adopt { project } = address {
                 forge(root, env, forge::Event::Went { address: forge::Address::Adopt { project } }, out);
@@ -367,11 +384,41 @@ fn playground(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
 
 fn forge_forges(root: &mut Domain, env: &Env<Limits>, told: &jig_client::Told, out: &mut Queue<Request>) -> bool {
     let mut child = Queue::uncapped();
+    let before = forge::connect::following(root.forges());
     let consumed = forge::remove::told(&mut root.forge, &root.client, told, env.limits.forge)
         || forge::picker::told(&mut root.forge, &root.client, told, env.limits.forge)
         || forge::admin::told(&mut root.forge, &root.client, told, env.limits.forge, &mut child)
         || forge::github::told(&mut root.forge, &root.client, told, env.limits.forge, &mut child)
         || forge::forges::told(&mut root.forge, &root.client, told, env.limits.forge, &mut child);
+    if before != forge::connect::following(root.forges())
+        && let Some(following) = forge::connect::following(root.forges())
+        && let Some(number) = following.forge
+    {
+        let address = match root.pages.address() {
+            Address::ConnectForge { forge } if forge.is_none() || *forge == Some(following.choice) => {
+                Some(Address::ConnectForge { forge: Some(crate::Choice::Forge(number)) })
+            }
+            Address::Welcome { step: crate::Step::Forge { forge } }
+                if forge.is_none() || *forge == Some(following.choice) =>
+            {
+                Some(Address::Welcome { step: crate::Step::Forge { forge: Some(crate::Choice::Forge(number)) } })
+            }
+            Address::Inbox { .. }
+            | Address::Chats { .. }
+            | Address::Accounts
+            | Address::Forges
+            | Address::ConnectForge { .. }
+            | Address::ConnectModel { .. }
+            | Address::Welcome { .. }
+            | Address::Chat { .. }
+            | Address::Task { .. }
+            | Address::Adopt { .. }
+            | Address::ProjectSettings { .. } => None,
+        };
+        if let Some(address) = address {
+            out.push(Request::Show { address, replace: true });
+        }
+    }
     if consumed
         && let jig_client::Told::Answered { .. } = told
         && let Some(last) = root.forge.set_up()

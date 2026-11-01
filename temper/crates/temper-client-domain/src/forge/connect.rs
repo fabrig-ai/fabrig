@@ -20,7 +20,7 @@ pub fn row<'a>(number: u16, rows: &'a State, demo: Option<&Demo>) -> Option<&'a 
     {
         return None;
     }
-    let State::Rows(rows) = rows else { return None };
+    let State::Rows(rows, ..) = rows else { return None };
     for row in rows {
         if row.number == number && row.mode != Mode::Fake {
             return Some(row);
@@ -30,9 +30,9 @@ pub fn row<'a>(number: u16, rows: &'a State, demo: Option<&Demo>) -> Option<&'a 
 }
 #[must_use]
 pub fn step(choice: Option<Choice>, rows: &State, demo: Option<&Demo>) -> Shown {
-    match choice {
+    match selected(choice, rows) {
         None => Shown::Choose,
-        Some(Choice::Elsewhere) => Shown::Details(Choice::Elsewhere),
+        Some(choice @ (Choice::Elsewhere | Choice::GitHub | Choice::Owned | Choice::Forgejo)) => Shown::Details(choice),
         Some(Choice::Forge(number)) => {
             let Some(row) = row(number, rows, demo) else { return Shown::Choose };
             if row.admin && admin_stopped(row) {
@@ -119,8 +119,13 @@ fn offered(row: &Row) -> bool {
 }
 #[must_use]
 pub fn choices(rows: &State, demo: Option<&Demo>) -> List<Choice> {
-    let mut choices = List::with_capacity(temper_client_protocol_wire::FORGES.checked_add(1).expect("choices fit"));
-    if let State::Rows(rows) = rows {
+    let mut choices = List::with_capacity(temper_client_protocol_wire::FORGES.checked_add(4).expect("choices fit"));
+    let mut github = false;
+    let mut owned = false;
+    if let State::Rows(rows, ..) = rows {
+        for row in rows {
+            owned |= row.mode == Mode::Owned && !row.playground;
+        }
         for kind in [Kind::GitHub, Kind::Forgejo] {
             // The forges decoder admits rows in increasing number order.
             for row in rows {
@@ -129,11 +134,19 @@ pub fn choices(rows: &State, demo: Option<&Demo>) -> List<Choice> {
                     None => false,
                 };
                 if row.kind == kind && row.mode != Mode::Fake && !demo && offered(row) {
+                    github |= row.kind == Kind::GitHub;
                     choices.push(Choice::Forge(row.number)).expect("bounded rows");
                 }
             }
         }
     }
+    if !github {
+        choices.push(Choice::GitHub).expect("kind capacity");
+    }
+    if !owned && owned_offer(rows) != Offer::NotOffered {
+        choices.push(Choice::Owned).expect("kind capacity");
+    }
+    choices.push(Choice::Forgejo).expect("kind capacity");
     choices.push(Choice::Elsewhere).expect("one extra choice");
     choices
 }
@@ -154,7 +167,7 @@ pub fn live(row: &Row) -> bool {
 #[expect(clippy::needless_lifetimes, reason = "the signature names the row's borrow of the supplied state")]
 #[expect(clippy::manual_find, reason = "step code uses bounded loops without closures")]
 pub fn unfinished<'a>(rows: &'a State) -> Option<&'a Row> {
-    let State::Rows(rows) = rows else { return None };
+    let State::Rows(rows, ..) = rows else { return None };
     for row in rows {
         if !row.playground && !row.finished && !live(row) && row.connection != Connection::NotSetUp && !offered(row) {
             return Some(row);
@@ -166,7 +179,12 @@ pub fn unfinished<'a>(rows: &'a State) -> Option<&'a Row> {
 /// The welcome follows the person's forge once its setup has started.
 #[must_use]
 pub fn personal<'a>(rows: &'a State, demo: Option<&Demo>) -> Option<&'a Row> {
-    let State::Rows(rows) = rows else { return None };
+    if let Some(following) = following(rows)
+        && let Some(number) = following.forge
+    {
+        return row(number, rows, demo);
+    }
+    let State::Rows(rows, ..) = rows else { return None };
     for row in rows {
         if row.mode == Mode::Fake {
             continue;
@@ -225,7 +243,7 @@ pub fn failed(row: &Row) -> bool {
 /// A setup line remains visible even when another forge is already connected.
 #[must_use]
 pub fn underway_forge<'a>(rows: &'a State, demo: Option<&Demo>) -> Option<&'a Row> {
-    let State::Rows(rows) = rows else { return None };
+    let State::Rows(rows, ..) = rows else { return None };
     for row in rows {
         if row.mode == Mode::Fake || !underway(row) {
             continue;
@@ -242,7 +260,7 @@ pub fn underway_forge<'a>(rows: &'a State, demo: Option<&Demo>) -> Option<&'a Ro
 #[must_use]
 pub fn next_number(rows: &State) -> u32 {
     let mut largest = 0;
-    if let State::Rows(rows) = rows {
+    if let State::Rows(rows, ..) = rows {
         for row in rows {
             largest = largest.max(u32::from(row.number));
         }
@@ -307,4 +325,67 @@ pub fn failed_step(row: &Row) -> Option<FailedStep> {
         | Connection::Connected { .. }
         | Connection::Stopped { .. } => None,
     }
+}
+
+/// A kind request follows the newest forge not listed at dispatch (temper/docs/design/draft/playground-reset.md, 3).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Following {
+    pub choice: Choice,
+    pub before: u32,
+    pub forge: Option<u16>,
+}
+#[must_use]
+pub fn owned_offer(rows: &State) -> Offer {
+    match rows {
+        State::Rows(_, owned, _) => *owned,
+        State::Unknown | State::Ended => Offer::NotOffered,
+    }
+}
+#[must_use]
+pub fn following(rows: &State) -> Option<Following> {
+    match rows {
+        State::Rows(_, _, following) => *following,
+        State::Unknown | State::Ended => None,
+    }
+}
+pub(crate) fn begin(rows: &mut State, choice: Choice) {
+    let before = next_number(rows);
+    if let State::Rows(_, _, following) = rows {
+        *following = Some(Following { choice, before, forge: None });
+    }
+}
+pub(crate) fn clear(side: &mut super::Side) {
+    if let State::Rows(_, _, following) = &mut side.forges {
+        *following = None;
+    }
+}
+pub(crate) fn follow(state: &mut State) {
+    let State::Rows(rows, _, Some(following)) = state else { return };
+    if following.forge.is_some() {
+        return;
+    }
+    for row in rows {
+        if u32::from(row.number) < following.before || row.playground || row.mode == Mode::Fake {
+            continue;
+        }
+        let matches = match following.choice {
+            Choice::GitHub => row.kind == Kind::GitHub,
+            Choice::Owned => row.kind == Kind::Forgejo && row.mode == Mode::Owned,
+            Choice::Forgejo => row.kind == Kind::Forgejo && row.mode == Mode::Managed,
+            Choice::Forge(_) | Choice::Elsewhere => false,
+        };
+        if matches {
+            following.forge = Some(row.number);
+        }
+    }
+}
+#[must_use]
+pub fn selected(choice: Option<Choice>, rows: &State) -> Option<Choice> {
+    if let Some(following) = following(rows)
+        && choice == Some(following.choice)
+        && let Some(number) = following.forge
+    {
+        return Some(Choice::Forge(number));
+    }
+    choice
 }

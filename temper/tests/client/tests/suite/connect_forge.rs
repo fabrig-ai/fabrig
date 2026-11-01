@@ -299,7 +299,7 @@ fn github_ready_picks_adopts_into_a_new_project_and_stays_adopted_after_reload()
     assert_eq!(held.starting.as_ref().expect("its start").value.adoption.project, 2);
     assert_eq!(held.adoption.as_ref().expect("its adoption").value.project, 2);
     assert!(front.engine_adopted(1, 8));
-    let d::forge::forges::State::Rows(rows) = root.person().forges() else { panic!("forges") };
+    let d::forge::forges::State::Rows(rows, ..) = root.person().forges() else { panic!("forges") };
     assert_eq!(rows[0].repositories.len(), 1, "the engine must publish its adopted repository on the forge watch");
     assert_eq!(rows[0].repositories[0].project, 2);
     pump(

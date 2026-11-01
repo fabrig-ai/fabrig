@@ -323,7 +323,16 @@ pub fn mockup(sample: &Sample) -> Option<String> {
         | Address::ProjectSettings { .. }
         | Address::ConnectModel { .. }
         | Address::Forges
-        | Address::ConnectForge { forge: None | Some(temper_client_domain::Choice::Elsewhere) }
+        | Address::ConnectForge {
+            forge:
+                None
+                | Some(
+                    temper_client_domain::Choice::Elsewhere
+                    | temper_client_domain::Choice::GitHub
+                    | temper_client_domain::Choice::Owned
+                    | temper_client_domain::Choice::Forgejo,
+                ),
+        }
         | Address::Welcome { .. }
         | Address::Chat { .. }
         | Address::Task { .. }

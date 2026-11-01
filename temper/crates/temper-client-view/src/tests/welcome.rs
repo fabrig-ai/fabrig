@@ -38,10 +38,13 @@ fn choice_cards(tree: &skein_ui::Tree) -> Vec<&[u8]> {
 #[test]
 fn the_welcome_leaves_other_forgejos_to_connect_a_forge() {
     for (address, cards) in [
-        (Address::Welcome { step: Step::Forge { forge: None } }, ["GitHub", "Forgejo"].as_slice()),
+        (
+            Address::Welcome { step: Step::Forge { forge: None } },
+            ["GitHub", "Forgejo", "A Forgejo elsewhere"].as_slice(),
+        ),
         (
             Address::ConnectForge { forge: None },
-            ["GitHub", "Forgejo on this machine", "Forgejo at forge 4", "A Forgejo elsewhere"].as_slice(),
+            ["GitHub", "Forgejo on this machine", "Forgejo at forge 4", "Forgejo", "A Forgejo elsewhere"].as_slice(),
         ),
     ] {
         let view = f::page_view(&f::forge_root(address.clone(), rows_with_an_admin_forgejo()));
@@ -88,7 +91,7 @@ fn model_names_the_new_project_while_forgejo_sets_up() {
         Address::Welcome { step: Step::Forge { forge: None } },
         forge::rows(w::Connection::NotSetUp, w::Offer::Offered),
     );
-    f::root_event(&mut root, d::Event::Act { action: d::Action::Forge(d::forge::Act::SetUpAtOnce { forge: HERE }) });
+    f::root_event(&mut root, d::Event::Act { action: d::Action::Forge(d::forge::Act::SetUpAtOnce) });
     // The setup request supplies the names until the watch's row carries them.
     forge::deliver(
         &mut root,
@@ -1202,10 +1205,7 @@ fn welcome_forgejo_card_runs_under_the_box_and_links_to_details_elsewhere() {
                 .contains(&crate::look::FLOW_SECONDARY)
         );
         if offer == w::Offer::Offered {
-            assert_eq!(
-                crate::act(&mut view, run, Act::Press),
-                Some(d::Action::Forge(d::forge::Act::SetUpAtOnce { forge: HERE }))
-            );
+            assert_eq!(crate::act(&mut view, run, Act::Press), Some(d::Action::Forge(d::forge::Act::SetUpAtOnce)));
         } else {
             assert_eq!(crate::href(&mut view, run).as_deref(), Some(b"/welcome?at=forge&forge=3".as_slice()));
         }

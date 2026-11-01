@@ -77,7 +77,7 @@ pub(super) fn refresh(side: &mut Side) {
         Some(State::Confirming(_) | State::Removing { .. } | State::Refused { .. }) | None => return,
     };
     let rows = match &side.forges {
-        forges::State::Rows(rows) => rows,
+        forges::State::Rows(rows, ..) => rows,
         forges::State::Unknown | forges::State::Ended => return,
     };
     for row in rows {

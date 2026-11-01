@@ -90,7 +90,10 @@ fn a_forge_row_opened_offers_its_action() {
             .unwrap(),
     );
     let root = root(Address::Forges, failed);
-    assert_eq!(action(&root, Role::Button, b"Set up again"), d::Action::Forge(d::forge::Act::SetUp { forge: HERE }));
+    assert_eq!(
+        action(&root, Role::Button, b"Set up again"),
+        d::Action::Forge(d::forge::Act::SetUp { forge: Some(HERE) })
+    );
     let view = f::page_view(&root);
     assert!(!view.tree().nodes().iter().any(|n| n.styles.as_slice().contains(&crate::look::FLOW_PRIMARY)));
     let row = view

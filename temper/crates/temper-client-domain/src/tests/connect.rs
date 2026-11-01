@@ -34,7 +34,7 @@ fn row(number: u16, kind: Kind, mode: Mode, connection: C, offer: Offer) -> Row 
     }
 }
 fn rows(connection: C) -> State {
-    State::Rows(Box::new([row(HERE, Kind::Forgejo, Mode::Owned, connection, Offer::Offered)]))
+    State::Rows(Box::new([row(HERE, Kind::Forgejo, Mode::Owned, connection, Offer::Offered)]), Offer::NotOffered, None)
 }
 #[test]
 fn the_flow_shows_the_step_its_row_is_at() {
@@ -69,29 +69,41 @@ fn the_flow_shows_the_step_its_row_is_at() {
     }
     let demo = forge::family::playground(&demo::answer(b"title"), &w::CEILINGS).unwrap();
     assert_eq!(connect::step(Some(Choice::Forge(demo.forge.unwrap())), &rows(C::NotSetUp), Some(&demo)), Shown::Choose);
-    let github = State::Rows(Box::new([row(2, Kind::GitHub, Mode::Managed, C::NotConnected, Offer::NotOffered)]));
+    let github = State::Rows(
+        Box::new([row(2, Kind::GitHub, Mode::Managed, C::NotConnected, Offer::NotOffered)]),
+        Offer::NotOffered,
+        None,
+    );
     assert_eq!(connect::step(Some(Choice::Forge(2)), &github, None), Shown::Details(Choice::Forge(2)));
-    let fake = State::Rows(Box::new([row(HERE, Kind::Forgejo, Mode::Fake, C::NotSetUp, Offer::Offered)]));
+    let fake = State::Rows(
+        Box::new([row(HERE, Kind::Forgejo, Mode::Fake, C::NotSetUp, Offer::Offered)]),
+        Offer::NotOffered,
+        None,
+    );
     assert_eq!(connect::step(Some(Choice::Forge(HERE)), &fake, None), Shown::Choose);
 }
 #[test]
 fn choose_offers_github_forgejo_here_and_elsewhere_by_offer() {
     let demo = forge::family::playground(&demo::answer(b"title"), &w::CEILINGS).unwrap();
-    let state = State::Rows(Box::new([
-        row(demo.forge.unwrap(), Kind::GitHub, Mode::Managed, C::NotConnected, Offer::NotOffered),
-        row(2, Kind::GitHub, Mode::Managed, C::NotConnected, Offer::NotOffered),
-        row(3, Kind::Forgejo, Mode::Owned, C::NotSetUp, Offer::NotUnderTheBox),
-        row(4, Kind::Forgejo, Mode::Owned, C::NotSetUp, Offer::NotOffered),
-        row(5, Kind::GitHub, Mode::Fake, C::NotConnected, Offer::NotOffered),
-        row(6, Kind::Forgejo, Mode::Managed, C::NotConnected, Offer::NotOffered),
-        row(7, Kind::Forgejo, Mode::Owned, C::NotSetUp, Offer::Offered),
-    ]));
+    let state = State::Rows(
+        Box::new([
+            row(demo.forge.unwrap(), Kind::GitHub, Mode::Managed, C::NotConnected, Offer::NotOffered),
+            row(2, Kind::GitHub, Mode::Managed, C::NotConnected, Offer::NotOffered),
+            row(3, Kind::Forgejo, Mode::Owned, C::NotSetUp, Offer::NotUnderTheBox),
+            row(4, Kind::Forgejo, Mode::Owned, C::NotSetUp, Offer::NotOffered),
+            row(5, Kind::GitHub, Mode::Fake, C::NotConnected, Offer::NotOffered),
+            row(6, Kind::Forgejo, Mode::Managed, C::NotConnected, Offer::NotOffered),
+            row(7, Kind::Forgejo, Mode::Owned, C::NotSetUp, Offer::Offered),
+        ]),
+        Offer::NotOffered,
+        None,
+    );
     // Demo numbers belong to their own fixture; the other six numbers stay distinct.
     assert_eq!(
         connect::choices(&state, Some(&demo)).as_slice(),
-        &[Choice::Forge(2), Choice::Forge(3), Choice::Forge(7), Choice::Elsewhere]
+        &[Choice::Forge(2), Choice::Forge(3), Choice::Forge(7), Choice::Forgejo, Choice::Elsewhere]
     );
-    assert_eq!(connect::next_number(&State::Rows(Box::new([]))), 1);
+    assert_eq!(connect::next_number(&State::Rows(Box::new([]), Offer::NotOffered, None)), 1);
     assert_eq!(connect::next_number(&rows(C::NotSetUp)), 4);
 }
 fn event(root: &mut crate::Domain, event: Event) -> Queue<Request> {
@@ -172,7 +184,7 @@ fn signing_out_unwatches_the_forges() {
     let State::Unknown = root.forges() else { panic!("forges cleared") };
 }
 fn setup(root: &mut crate::Domain) -> Queue<Request> {
-    f::form_act(root, forge::Act::SetUp { forge: HERE })
+    f::form_act(root, forge::Act::SetUp { forge: Some(HERE) })
 }
 fn answered(root: &mut crate::Domain, outcome: w::Outcome) -> Queue<Request> {
     let key =
@@ -333,13 +345,17 @@ fn the_forges_page_lists_the_persons_forges_not_fakes_or_the_demos() {
         fake.number = demo.forge.unwrap();
         assert!(!listed::personal(&fake, Some(&demo)));
     }
-    let state = State::Rows(Box::new([
-        row(demo.forge.unwrap(), Kind::Forgejo, Mode::Connected, C::Connecting, Offer::NotOffered),
-        row(2, Kind::GitHub, Mode::Managed, C::Connecting, Offer::NotOffered),
-        row(3, Kind::Forgejo, Mode::Fake, C::Connecting, Offer::NotOffered),
-        row(4, Kind::Forgejo, Mode::Owned, C::NotSetUp, Offer::Offered),
-        row(5, Kind::Forgejo, Mode::Owned, C::Stopped { reason: Box::default() }, Offer::Offered),
-    ]));
+    let state = State::Rows(
+        Box::new([
+            row(demo.forge.unwrap(), Kind::Forgejo, Mode::Connected, C::Connecting, Offer::NotOffered),
+            row(2, Kind::GitHub, Mode::Managed, C::Connecting, Offer::NotOffered),
+            row(3, Kind::Forgejo, Mode::Fake, C::Connecting, Offer::NotOffered),
+            row(4, Kind::Forgejo, Mode::Owned, C::NotSetUp, Offer::Offered),
+            row(5, Kind::Forgejo, Mode::Owned, C::Stopped { reason: Box::default() }, Offer::Offered),
+        ]),
+        Offer::NotOffered,
+        None,
+    );
     let listed = listed::rows(&state, Some(&demo));
     assert_eq!(listed.len(), 2_u32);
     assert_eq!(listed.as_slice()[0].number, 2_u16);
@@ -363,10 +379,14 @@ fn the_dot_is_red_for_a_forge_that_needs_the_person_else_amber_while_one_sets_up
     for connections in
         [[C::Connecting, C::Stopped { reason: Box::default() }], [C::Stopped { reason: Box::default() }, C::Connecting]]
     {
-        let state = State::Rows(Box::new([
-            row(2, Kind::GitHub, Mode::Managed, connections[0].clone(), Offer::NotOffered),
-            row(HERE, Kind::Forgejo, Mode::Owned, connections[1].clone(), Offer::Offered),
-        ]));
+        let state = State::Rows(
+            Box::new([
+                row(2, Kind::GitHub, Mode::Managed, connections[0].clone(), Offer::NotOffered),
+                row(HERE, Kind::Forgejo, Mode::Owned, connections[1].clone(), Offer::Offered),
+            ]),
+            Offer::NotOffered,
+            None,
+        );
         assert_eq!(listed::dot(&state, None), Dot::Red);
         assert_eq!(
             connect::underway_forge(&state, None).unwrap().number,
@@ -374,10 +394,14 @@ fn the_dot_is_red_for_a_forge_that_needs_the_person_else_amber_while_one_sets_up
         );
     }
     let demo = forge::family::playground(&demo::answer(b"title"), &w::CEILINGS).unwrap();
-    let state = State::Rows(Box::new([
-        row(demo.forge.unwrap(), Kind::GitHub, Mode::Managed, C::Connecting, Offer::NotOffered),
-        row(HERE, Kind::Forgejo, Mode::Fake, C::Stopped { reason: Box::default() }, Offer::NotOffered),
-    ]));
+    let state = State::Rows(
+        Box::new([
+            row(demo.forge.unwrap(), Kind::GitHub, Mode::Managed, C::Connecting, Offer::NotOffered),
+            row(HERE, Kind::Forgejo, Mode::Fake, C::Stopped { reason: Box::default() }, Offer::NotOffered),
+        ]),
+        Offer::NotOffered,
+        None,
+    );
     assert_eq!(listed::dot(&state, Some(&demo)), Dot::None);
     assert!(connect::underway_forge(&state, Some(&demo)).is_none());
 }
@@ -436,7 +460,7 @@ fn first(state: forges::FirstState) -> forges::First {
 fn with_first(connection: C, state: forges::FirstState) -> State {
     let mut row = row(HERE, Kind::Forgejo, Mode::Owned, connection, Offer::Offered);
     row.first = Some(first(state));
-    State::Rows(Box::new([row]))
+    State::Rows(Box::new([row]), Offer::NotOffered, None)
 }
 fn deliver_first(
     root: &mut crate::Domain,
@@ -820,7 +844,7 @@ fn github_picker_rows() -> State {
         suspended: false,
         stray: false,
     }));
-    State::Rows(Box::new([github]))
+    State::Rows(Box::new([github]), Offer::NotOffered, None)
 }
 fn picker_opened() -> (crate::Domain, Token, Token, Queue<Request>) {
     let (mut root, me, watch) = opened(true);
@@ -874,7 +898,7 @@ fn banner_project(root: &mut crate::Domain, me: Token, name: &[u8]) -> Queue<Req
 #[test]
 fn github_without_an_accepted_installation_is_connecting() {
     let mut state = github_picker_rows();
-    let State::Rows(rows) = &mut state else { panic!("rows") };
+    let State::Rows(rows, ..) = &mut state else { panic!("rows") };
     rows[0].installations = Box::default();
     assert_eq!(connect::step(Some(Choice::Forge(2)), &state, None), Shown::SettingUp(2));
 }
@@ -1247,7 +1271,8 @@ fn welcome_skips_owned_details_only_when_offered_under_the_box() {
     for (offer, expected) in
         [(Offer::Offered, Shown::Choose), (Offer::NotUnderTheBox, Shown::Details(Choice::Forge(HERE)))]
     {
-        let state = State::Rows(Box::new([row(HERE, Kind::Forgejo, Mode::Owned, C::NotSetUp, offer)]));
+        let state =
+            State::Rows(Box::new([row(HERE, Kind::Forgejo, Mode::Owned, C::NotSetUp, offer)]), Offer::NotOffered, None);
         assert_eq!(connect::welcome_step(Some(Choice::Forge(HERE)), &state, None), expected);
         assert_eq!(connect::step(Some(Choice::Forge(HERE)), &state, None), Shown::Details(Choice::Forge(HERE)));
     }
@@ -1276,7 +1301,7 @@ fn at_once_sends_fixed_names_without_reading_or_marking_the_form() {
     write_setup(&mut root, forges::SetupField::Project, b"");
     let before = root.forge().setup_form();
     let before = (before.fields.clone(), before.written, before.named, before.checked);
-    let (_, _, w::Request::SetUp(value)) = sent(f::form_act(&mut root, forge::Act::SetUpAtOnce { forge: HERE })) else {
+    let (_, _, w::Request::SetUp(value)) = sent(f::form_act(&mut root, forge::Act::SetUpAtOnce)) else {
         panic!("setup")
     };
     assert_eq!((value.org(), value.repository(), value.playground()), (b"work".as_slice(), b"hello".as_slice(), false));
@@ -1289,16 +1314,16 @@ fn at_once_sends_fixed_names_without_reading_or_marking_the_form() {
     );
     let after = root.forge().setup_form();
     assert_eq!((after.fields.clone(), after.written, after.named, after.checked), before);
-    assert!(f::form_act(&mut root, forge::Act::SetUpAtOnce { forge: HERE }).is_empty());
+    assert!(f::form_act(&mut root, forge::Act::SetUpAtOnce).is_empty());
 }
 #[test]
 fn at_once_sends_nothing_without_a_party_or_when_out_of_date() {
     let mut root = crate::unlinked(&f::limits(), f::SEED);
-    assert!(f::form_act(&mut root, forge::Act::SetUpAtOnce { forge: HERE }).is_empty());
+    assert!(f::form_act(&mut root, forge::Act::SetUpAtOnce).is_empty());
     assert!(root.forge().set_up().is_none());
     let (mut root, _, _) = opened(true);
     event(&mut root, Event::Forge(forge::Event::Served { served: forge::Served::OutOfDate }));
-    assert!(f::form_act(&mut root, forge::Act::SetUpAtOnce { forge: HERE }).is_empty());
+    assert!(f::form_act(&mut root, forge::Act::SetUpAtOnce).is_empty());
     assert!(root.forge().set_up().is_none());
     assert!(!root.forge().setup_form().checked);
 }
@@ -1310,7 +1335,7 @@ fn accepting_at_once_on_either_welcome_forge_address_moves_to_model() {
             &mut root,
             Event::Went { place: Place::Address(Address::Welcome { step: Step::Forge { forge: choice } }) },
         );
-        let (attempt, _, _) = sent(f::form_act(&mut root, forge::Act::SetUpAtOnce { forge: HERE }));
+        let (attempt, _, _) = sent(f::form_act(&mut root, forge::Act::SetUpAtOnce));
         let out = reply(&mut root, attempt, w::Outcome::SettingUp);
         let mut moved = false;
         for request in &out {

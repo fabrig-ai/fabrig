@@ -72,7 +72,7 @@ fn an_unfinished_forge_is_one_with_no_live_step() {
         ("disconnected admin Forgejo", admin, false, false),
     ] {
         assert_eq!(connect::live(&row), live, "{name}");
-        let rows = State::Rows(Box::new([row]));
+        let rows = State::Rows(Box::new([row]), Offer::NotOffered, None);
         assert_eq!(connect::unfinished(&rows).is_some(), unfinished, "{name}");
     }
     assert!(connect::unfinished(&State::Unknown).is_none());
@@ -80,7 +80,7 @@ fn an_unfinished_forge_is_one_with_no_live_step() {
     let mut first = row(connected());
     first.number = 2;
     first.kind = Kind::GitHub;
-    let rows = State::Rows(Box::new([row(Connection::Connecting), first, row(connected())]));
+    let rows = State::Rows(Box::new([row(Connection::Connecting), first, row(connected())]), Offer::NotOffered, None);
     assert_eq!(connect::unfinished(&rows).expect("first idle unfinished row").number, 2);
 }
 #[test]
