@@ -151,11 +151,11 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
   host tools, instructions, brief, and finish and deliver schemas) passes
   its bound, 51,870 bytes in the small profile, before any turn. The largest stock
   charter's non-brief host part, charter 1 with a Change contract, is
-  34,242 bytes; with the authorised brief's 14,592 body bytes and
+  34,524 bytes; with the authorised brief's 14,592 body bytes and
   1,472 bytes for 64 stock sections' titles and framing (16 title bytes
-  and 7 framing bytes each), the sum is 50,306, leaving 1,564 bytes.
-  Charter 1 Open has 32,617 non-brief bytes and leaves 3,189; charter 2
-  has 32,004 and leaves 3,802; charter 4 has 30,706 and leaves 5,100.
+  and 7 framing bytes each), the sum is 50,588, leaving 1,282 bytes.
+  Charter 1 Open has 32,919 non-brief bytes and leaves 2,887; charter 2
+  has 32,119 and leaves 3,687; charter 4 has 30,640 and leaves 5,166.
   A gathered brief spends what the non-brief host part leaves. So a new
   host tool is offered only where a family and the charter gate it,
   never to every run, and a charter's room is measured before a tool
@@ -275,14 +275,18 @@ a chat that names none, runs with no workspace (worker.md, 4.1).
 
 #### 4.3.1 A change, in the run's words
 
-The stock chat's words send repository changes to `change`. For a fix,
-first it reads the named code with the forge's `read_branch` for its head,
-then `read_file`; if the named fault is absent, it changes nothing and
-says what the code has. The stock coder likewise writes nothing and
-finishes with a failure saying what the code has when the named fault is
-absent, never adding a feature in a fix's place. When a change lands, the
-chat names the pull request and merge commit from its result's `Landed`
-line, and describes what changed only as the result or pull request says,
+The stock chat first reads the code a repository change touches with the
+forge's `read_branch` for its head, then `read_file`. It calls `change`
+with the person's request and only what it read, never describing code
+it has not read. For a fix, if the named fault is absent, it changes
+nothing and says what the code has. The stock coder likewise writes
+nothing and finishes with a failure saying what the code has when the
+named fault is absent, never adding a feature in a fix's place. Where
+the change's words describe the code otherwise than it is, the coder
+builds what they ask to add in the code there is, under its names,
+finishing with a failure only when it cannot be built there. When a change
+lands, the chat names the pull request and merge commit from its result's
+`Landed` line, and describes what changed only as the result or pull request says,
 never by restating the request as done.
 
 A chat cannot know what a change's `delegate` needs: the procedure's

@@ -254,7 +254,7 @@ fn a_stock_policy_past_its_limit_is_refused_while_naming_files() {
 fn the_chats_words_send_plain_changes_to_change() {
     let words = include_str!("../stock/chat.txt");
     assert!(words.starts_with("Help the person with their work.\n"));
-    assert!(words.contains("When they ask for a change to a repository, call change."));
+    assert!(words.contains("then call change with their request and only what you read"));
     assert!(words.contains("Call goal only when they want to hear a plan or give a go-ahead before anything changes"));
     assert!(words.contains("never call change for work they want agreed first"));
     assert!(!words.contains("never call change yourself"));
@@ -598,9 +598,10 @@ fn stock_and_init_admit_the_landing_procedure_and_its_effects() {
 mod brief;
 
 #[test]
-fn the_chats_words_read_a_fixs_premise_before_changing_anything() {
+fn the_chats_words_read_a_changes_code_before_briefing_it() {
     let words = include_str!("../stock/chat.txt");
-    assert!(words.contains("When they ask you to fix something, first read the code it names with the forge's reads (read_branch for its head, then read_file); if what they call broken is not there, change nothing and tell them so in words, saying what the code has."));
+    assert!(words.contains("When they ask for a change to a repository, first read the code it touches with the forge's reads (read_branch for its head, then read_file), then call change with their request and only what you read: never describe code you have not read."));
+    assert!(words.contains("When they ask you to fix something and what they call broken is not there, change nothing and tell them so in words, saying what the code has."));
 }
 
 #[test]
@@ -613,4 +614,10 @@ fn the_chats_words_report_only_the_landed_results_or_pull_requests_change() {
 fn the_coders_words_refuse_an_absent_fix_instead_of_adding_a_feature() {
     let words = include_str!("../stock/coding.txt");
     assert!(words.contains("Change only what your words ask: if what they name as broken or to fix is not in the code, write nothing and finish with a failure saying what the code has instead; never add a feature in a fix's place."));
+}
+
+#[test]
+fn the_coders_words_build_additions_in_the_code_there_is() {
+    let words = include_str!("../stock/coding.txt");
+    assert!(words.contains("Where your words describe the code otherwise than it is, build what they ask to add in the code there is, under its names; finish with a failure only when it cannot be built there."));
 }
