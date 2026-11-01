@@ -93,7 +93,7 @@ fn owned_is_offered_only_from_the_machine_under_the_box_and_once() {
             }
             if under_box && template {
                 make(&mut d, 1, ForgeChoice::Owned, MakeAnswer::Made { forge: 1 });
-                assert_eq!(d.records.get(&1).map(Box::as_ref), Some(&ForgeRecord { number: 1, ..owned() }));
+                assert_eq!(d.records.get(&1).expect("kept forge").as_ref(), &ForgeRecord { number: 1, ..owned() });
                 make(&mut d, 2, ForgeChoice::Owned, MakeAnswer::Refused(MakeRefusal::NotOffered));
                 let mut removing = d.records.get(&1).unwrap().as_ref().clone();
                 removing.state = ForgeState::Removing;
@@ -228,7 +228,7 @@ fn a_made_record_is_saved_registered_and_answered_in_one_decision() {
             Request::ApplicationDone { request: Token::new(1), token: Token::new(1) },
         ]
     );
-    assert_eq!(d.records.get(&1).map(Box::as_ref), Some(&expected));
+    assert_eq!(d.records.get(&1).expect("kept forge").as_ref(), &expected);
     assert_eq!(d.configured(1), Some(&expected.configured()));
 }
 

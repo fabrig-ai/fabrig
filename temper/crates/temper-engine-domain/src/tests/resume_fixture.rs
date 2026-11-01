@@ -528,7 +528,10 @@ pub fn root_with_config_and_limits(
             .push(people::Stored::Policy { project: project.number, name: project.name.clone(), value })
             .expect("bounded fixture projects");
     }
-    let forges = config.forge.writers.iter().map(|writer| forge_record(writer.forge)).collect::<Vec<_>>();
+    let mut forges = skein_lib::List::with_capacity(limits.forge.forges);
+    for writer in &config.forge.writers {
+        forges.push(forge_record(writer.forge)).expect("bounded fixture forges");
+    }
     let mut root = engine::Domain::new(config, limits).unwrap();
     let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits: *limits };
     let mut request = root.core.restart_begin(false);
@@ -546,7 +549,7 @@ pub fn root_with_config_and_limits(
             engine::Record::Core(jig_domain_core::Record::People(record)),
         );
     }
-    for row in forges {
+    for row in forges.into_boxed() {
         temper_engine_domain_forge::step(
             &mut root.forge,
             &crate::translate::environment_forge(&env),

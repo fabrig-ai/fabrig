@@ -1,7 +1,6 @@
 //! Whole-forge removal and its durable acts
 //! (temper/docs/design/draft/playground-reset.md, section 4).
 use crate::{Domain, ForgeState, KeptAct, KeptActKind, Key, Limits, RemoveAnswer, RemoveRefusal, Request, Stored};
-use alloc::boxed::Box;
 use skein_lib::{Env, List, Queue};
 
 pub(crate) const fn bound(l: &Limits) -> Option<u32> {
@@ -32,7 +31,8 @@ pub(crate) fn requested(d: &mut Domain, env: &Env<Limits>, forge: u16, out: &mut
 
 /// The playground's reset uses the same decision without the request's refusals.
 pub(crate) fn remove(d: &mut Domain, env: &Env<Limits>, forge: u16, out: &mut Queue<Request>) {
-    let Some(mut record) = d.records.get(&forge).map(Box::as_ref).cloned() else { return };
+    let Some(record) = d.records.get(&forge) else { return };
+    let mut record = record.as_ref().clone();
     if record.state != ForgeState::Kept {
         return;
     }

@@ -2,7 +2,7 @@
 use skein_lib::{ReplyTo, Token};
 use temper_engine_domain as engine;
 use temper_engine_domain_forge as forge;
-use temper_engine_domain_world::{direct::Driver, fixtures, store::Store, walking};
+use temper_engine_domain_world::{direct::Driver, fixtures, walking};
 
 fn driver(under_box: bool) -> Driver {
     driver_with_name_bytes(under_box, fixtures::forge_limits().forge.name_bytes)
@@ -211,33 +211,30 @@ fn first_repository_row_is_volatile_across_restart() {
     let rows = forges(&mut driver);
     assert!(rows.rows[0].first.is_some());
     let mut store = driver.store.fork();
-    let mut restarted = Driver::configured(
-        store,
-        std::array::from_fn(|_| {
-            let mut config = walking::config(701);
-            config.under_box = true;
-            let configured: Box<[forge::Configured]> = Box::new([forge::Configured {
-                admin_connect: false,
-                bot: Box::new([]),
-                owned: None,
-                git: Box::new([]),
-                web: None,
-                read_only: false,
-                number: 1,
-                kind: forge::Kind::Forgejo,
-                mode: forge::Mode::Owned,
-                asked: true,
-            }]);
-            store.seed(
-                temper_engine_domain_world::forges::rows(
-                    &configured.iter().map(temper_engine_domain_world::forges::from_configured).collect::<Vec<_>>(),
-                ),
-                Box::new([]),
-            );
-            config
-        }),
-        &fixtures::forge_limits(),
-    );
+    let configs = std::array::from_fn(|_| {
+        let mut config = walking::config(701);
+        config.under_box = true;
+        let configured: Box<[forge::Configured]> = Box::new([forge::Configured {
+            admin_connect: false,
+            bot: Box::new([]),
+            owned: None,
+            git: Box::new([]),
+            web: None,
+            read_only: false,
+            number: 1,
+            kind: forge::Kind::Forgejo,
+            mode: forge::Mode::Owned,
+            asked: true,
+        }]);
+        store.seed(
+            temper_engine_domain_world::forges::rows(
+                &configured.iter().map(temper_engine_domain_world::forges::from_configured).collect::<Vec<_>>(),
+            ),
+            Box::new([]),
+        );
+        config
+    });
+    let mut restarted = Driver::configured(store, configs, &fixtures::forge_limits());
     restarted.hello(Token::new(7));
     restarted.settle();
     restarted.sign_in();

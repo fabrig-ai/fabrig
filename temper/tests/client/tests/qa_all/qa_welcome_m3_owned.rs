@@ -9,7 +9,7 @@ use temper_client_world::{
 };
 use temper_engine_domain as engine;
 use temper_engine_domain_forge as forge;
-use temper_engine_domain_world::{direct::Driver, store::Store, walking};
+use temper_engine_domain_world::{direct::Driver, walking};
 
 fn owned_fixture(runner: Option<&[u8]>) -> (Joint, Root) {
     let seed = fixtures::SEED;

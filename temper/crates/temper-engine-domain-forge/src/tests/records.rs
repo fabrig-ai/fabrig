@@ -50,7 +50,7 @@ fn a_kept_record_projects_its_configured_forge() {
                 let mut d = setup_domain(&[], true);
                 fixtures::restore_records(&mut d, core::slice::from_ref(&row));
                 assert_eq!(d.configured(7), Some(&expected));
-                assert_eq!(d.records.get(&7).map(Box::as_ref), Some(&row));
+                assert_eq!(d.records.get(&7).expect("kept forge").as_ref(), &row);
                 outputs(&mut d, Event::Connection { forge: 7, state: Connection::NotSetUp });
                 assert_eq!(d.offer(7), if mode == Mode::Owned && asked { Offer::Offered } else { Offer::NotOffered });
                 row.git = skein_lib::bytes::zeroed(usize::try_from(PULL_ADDRESS_BYTES).unwrap() + 1);

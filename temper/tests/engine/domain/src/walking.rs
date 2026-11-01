@@ -836,7 +836,7 @@ impl World {
                 engine::Request::Worker(engine::WorkerRequest::Deliver(delivery))
                 | engine::Request::Party(engine::PartyRequest::Deliver(delivery)) => self.delivery(delivery),
                 engine::Request::Register(row) => {
-                    assert_eq!(row, crate::forges::record(1, forge::Kind::Forgejo, forge::Mode::Connected))
+                    assert_eq!(row, crate::forges::record(1, forge::Kind::Forgejo, forge::Mode::Connected));
                 }
                 engine::Request::Stop => panic!("walking story stopped: {:?}", self.trace),
                 other @ (engine::Request::Worker(_)

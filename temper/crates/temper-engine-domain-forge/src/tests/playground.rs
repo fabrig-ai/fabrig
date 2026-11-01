@@ -81,7 +81,7 @@ fn a_start_makes_the_row_and_the_fake_forge_in_one_decision() {
         }
         assert_eq!(sent.last(), Some(&Request::PlaygroundStart { request: Token::new(1) }));
         assert_eq!(d.playground(), Some(&running()));
-        assert_eq!(d.records.get(&1).map(Box::as_ref), Some(&record));
+        assert_eq!(d.records.get(&1).expect("kept forge").as_ref(), &record);
         assert_eq!(d.forges().rows[0].number, 1);
         assert!(!d.forge_ended(1));
         assert_eq!(answer(&d, 1), None);
@@ -269,7 +269,7 @@ fn each_step_is_resumed_at_start_from_the_row() {
     let first = outputs(&mut d, Event::SendKeptActs);
     assert!(first.contains(&Request::Unregister { forge: 1 }));
     assert_eq!(d.playground(), Some(&row));
-    let mut restored = restore(row, d.records.get(&1).map(Box::as_ref).cloned());
+    let mut restored = restore(row, Some(d.records.get(&1).expect("removing forge").as_ref().clone()));
     for request in first {
         if let Request::Save { record: Stored::KeptAct(act), .. } = request {
             outputs(&mut restored, Event::Restore { record: Stored::KeptAct(act) });

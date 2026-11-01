@@ -123,8 +123,14 @@ impl Protocol {
         };
         let record =
             top::ForgeRecord { number: REPO.forge, kind, mode: top::Mode::Connected, ..top::ForgeRecord::github_com() };
-        world.stored.insert(top::Key::Forge(REPO.forge), top::Stored::Forge(record.clone())).unwrap();
-        world.stored.insert(top::Key::ForgeNumbers, top::Stored::ForgeNumbers { next: REPO.forge + 1 }).unwrap();
+        world
+            .stored
+            .insert(top::Key::Forge(REPO.forge), top::Stored::Forge(record.clone()))
+            .expect("room for the seeded forge");
+        world
+            .stored
+            .insert(top::Key::ForgeNumbers, top::Stored::ForgeNumbers { next: REPO.forge + 1 })
+            .expect("room for forge numbering");
         world.event(top::Event::Restore { record: top::Stored::Forge(record) });
         world.event(top::Event::Restore { record: top::Stored::ForgeNumbers { next: REPO.forge + 1 } });
         world.accept_installations();

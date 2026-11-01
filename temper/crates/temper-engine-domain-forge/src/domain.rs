@@ -305,7 +305,10 @@ impl Domain {
     /// The kept forge record's configured projection.
     #[must_use]
     pub fn configured(&self, forge: u16) -> Option<&crate::Configured> {
-        self.configured.get(&forge).map(Box::as_ref)
+        match self.configured.get(&forge) {
+            Some(configured) => Some(configured.as_ref()),
+            None => None,
+        }
     }
     #[must_use]
     pub fn connection(&self, forge: u16) -> crate::Connection {
@@ -336,7 +339,8 @@ impl Domain {
         false
     }
     pub(crate) fn keep_first(&mut self, forge: u16, out: &mut Queue<Request>) {
-        if let Some(mut record) = self.records.get(&forge).map(Box::as_ref).cloned() {
+        if let Some(record) = self.records.get(&forge) {
+            let mut record = record.as_ref().clone();
             record.first = self.first.get(&forge).cloned();
             crate::forges::keep_record(self, record, out);
         } else {
@@ -606,7 +610,6 @@ impl Domain {
     }
     /// Construct a connector with the deployment namespace and any writers
     /// known at start; invalid limits or writer configuration are refused.
-    #[expect(clippy::too_many_lines, reason = "constructor sizes the connector tables from their entrance limits")]
     pub fn new(
         l: &Limits,
         seed: u64,
