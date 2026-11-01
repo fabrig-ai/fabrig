@@ -693,21 +693,16 @@ fn landing_words_name_the_pull_and_use_the_forges_address_when_it_fits() {
 
 #[expect(clippy::manual_map, reason = "the strict subset uses explicit matches")]
 fn landing_forge(kind: super::forge::Kind, git: &[u8], web: Option<&[u8]>) -> super::forge::Configured {
-    super::forge::Configured {
-        admin_connect: false,
-        bot: Box::new([]),
-        owned: None,
-        git: git.into(),
-        web: match web {
-            Some(web) => Some(web.into()),
-            None => None,
-        },
-        read_only: false,
-        number: 1,
-        kind,
-        mode: super::forge::Mode::Connected,
-        asked: false,
-    }
+    super::forge::Configured::from_record(
+        &(super::forge::Forge {
+            git: git.into(),
+            web: match web {
+                Some(web) => Some(web.into()),
+                None => None,
+            },
+            ..super::forge::Forge::connected(1, kind, &[])
+        }),
+    )
 }
 
 fn expected_landing(line: &[u8]) -> Box<[u8]> {

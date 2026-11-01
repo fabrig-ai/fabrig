@@ -1176,8 +1176,6 @@ fn admitted_binding_and_writer_saves_obey_writer_rules_before_codec_round_trip()
         91,
         skein_forge_client::Config { namespace: Box::new([7; 16]), writers: Box::new([]) },
         &[],
-        &[],
-        &[],
         false,
     )
     .unwrap();

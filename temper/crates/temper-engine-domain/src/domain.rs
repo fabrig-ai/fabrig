@@ -273,16 +273,9 @@ impl Domain {
             skein_forge_client::Config { namespace: Box::new([]), writers: Box::new([]) },
         );
         forge_config.namespace = Box::from(config.core.deployment);
-        let mut forge = forge::Domain::new(
-            &limits.forge,
-            config.core.seed,
-            forge_config,
-            &config.identities,
-            &config.forges,
-            &config.seed,
-            config.under_box,
-        )
-        .expect("valid forge configuration");
+        let mut forge =
+            forge::Domain::new(&limits.forge, config.core.seed, forge_config, &config.seed, config.under_box)
+                .expect("valid forge configuration");
         forge.configure_demo(config.demo.take());
         forge.configure_owned(config.owned.take());
         let built = policy_translate::build_landing(
@@ -1223,15 +1216,9 @@ pub fn refused(mut config: Config, limits: &Limits) -> Box<[Refused]> {
         skein_forge_client::Config { namespace: Box::new([]), writers: Box::new([]) },
     );
     forge_config.namespace = Box::from(config.core.deployment);
-    let Ok(mut forge) = forge::Domain::new(
-        &limits.forge,
-        config.core.seed,
-        forge_config,
-        &config.identities,
-        &config.forges,
-        &config.seed,
-        config.under_box,
-    ) else {
+    let Ok(mut forge) =
+        forge::Domain::new(&limits.forge, config.core.seed, forge_config, &config.seed, config.under_box)
+    else {
         refused.push(Refused::Forges).expect("counted refusals");
         return refused.into_boxed();
     };

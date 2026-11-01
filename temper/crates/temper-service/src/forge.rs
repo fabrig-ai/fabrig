@@ -464,18 +464,8 @@ pub(crate) fn prepare(
     Ok(prepared)
 }
 
-pub(crate) fn config(
-    settings: &settings::Engine,
-    deployment: [u8; 16],
-) -> (skein_forge_client::Config, Box<[forge::GitIdentity]>) {
-    let count = u32::try_from(settings.forges.len()).expect("configured forges");
-    let mut identities = List::with_capacity(count);
-    for forge in &settings.forges {
-        identities
-            .push(forge::GitIdentity { forge: forge.number, credential: forge.identity })
-            .expect("forge identities");
-    }
-    (skein_forge_client::Config { namespace: Box::new(deployment), writers: Box::new([]) }, identities.into_boxed())
+pub(crate) fn config(deployment: [u8; 16]) -> skein_forge_client::Config {
+    skein_forge_client::Config { namespace: Box::new(deployment), writers: Box::new([]) }
 }
 
 /// What a forge connect starts from.

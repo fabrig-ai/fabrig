@@ -58,8 +58,8 @@ fn connect_to_a_forge_to_make_is_refused_no_such_forge() {
         );
     }
 }
-fn setup_configured(number: u16, mode: Mode, asked: bool) -> Configured {
-    Configured { number, mode, asked, ..configured()[0].clone() }
+fn setup_configured(number: u16, mode: Mode, asked: bool) -> Forge {
+    forge_mode(number, Kind::Forgejo, mode, asked)
 }
 fn setup() -> Ask {
     Ask::SetUp {
@@ -71,10 +71,7 @@ fn setup() -> Ask {
 }
 #[test]
 fn set_up_sets_up_the_asked_owned_forge() {
-    for other in [
-        Configured { kind: Kind::GitHub, ..setup_configured(2, Mode::Connected, false) },
-        setup_configured(4, Mode::Owned, true),
-    ] {
+    for other in [Forge::connected(2, Kind::GitHub, &[]), setup_configured(4, Mode::Owned, true)] {
         let mut d = setup_domain(&[other, setup_configured(3, Mode::Owned, true)], true);
         outputs(&mut d, Event::Connection { forge: 3, state: Connection::NotSetUp });
         assert_eq!(crate::asks::set_up_forge(&d), Some(3));
@@ -95,7 +92,7 @@ fn set_up_sets_up_the_asked_owned_forge() {
 }
 #[test]
 fn set_up_without_an_owned_asked_forge_is_not_offered() {
-    let rows: [Box<[Configured]>; 3] = [
+    let rows: [Box<[Forge]>; 3] = [
         Box::new([]),
         Box::new([setup_configured(3, Mode::Owned, false)]),
         Box::new([setup_configured(3, Mode::Managed, true)]),

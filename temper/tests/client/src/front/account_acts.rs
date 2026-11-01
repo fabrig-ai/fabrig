@@ -187,25 +187,43 @@ fn fixture_root(
         config.under_box |= forge_setup;
         if welcome {
             config.core.connectors = Box::new([fixtures::FORGE]);
-            config.forges = Box::new([temper_engine_domain_forge::Configured {
-                admin_connect: false,
-                bot: Box::new([]),
-                owned: None,
-                git: Box::new([]),
-                web: None,
-                read_only: false,
-                number: 1,
-                kind: if matches!(forge, WelcomeForge::Demo { github: true, .. }) {
-                    temper_engine_domain_forge::Kind::GitHub
+            config.seed = Box::new([temper_engine_domain_forge::Forge {
+                setup: if forge_setup {
+                    Some(temper_engine_domain_forge::record::Setup {
+                        directory: Box::new([]),
+                        bot: temper_engine_domain_forge::record::Account { login: Box::new([]), email: Box::new([]) },
+                        orgs: Box::new([]),
+                        mode: temper_engine_domain_forge::record::SetupMode::Owned(
+                            temper_engine_domain_forge::record::OwnedEntry {
+                                public: None,
+                                fetch: temper_engine_domain_forge::record::Fetch {
+                                    forgejo: true,
+                                    runner: false,
+                                    mirror: None,
+                                },
+                                forgejo: Box::new([]),
+                                runner: None,
+                                listen: ([127, 0, 0, 1], 3000).into(),
+                                person: temper_engine_domain_forge::record::Account {
+                                    login: Box::new([]),
+                                    email: Box::new([]),
+                                },
+                            },
+                        ),
+                        asked: forge_setup,
+                    })
                 } else {
-                    temper_engine_domain_forge::Kind::Forgejo
+                    None
                 },
-                mode: if forge_setup {
-                    temper_engine_domain_forge::Mode::Owned
-                } else {
-                    temper_engine_domain_forge::Mode::Connected
-                },
-                asked: forge_setup,
+                ..temper_engine_domain_forge::Forge::connected(
+                    1,
+                    if matches!(forge, WelcomeForge::Demo { github: true, .. }) {
+                        temper_engine_domain_forge::Kind::GitHub
+                    } else {
+                        temper_engine_domain_forge::Kind::Forgejo
+                    },
+                    &[],
+                )
             }]);
         }
         let mut engine_limits = engine_limits();

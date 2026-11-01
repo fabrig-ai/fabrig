@@ -398,7 +398,11 @@ pub fn root() -> (temper_engine_domain::Domain, skein_lib::Env<temper_engine_dom
     let settings = engine();
     let limits = limits::engine(&settings.jig.limits, &settings.limits).unwrap();
     let config = root::Config {
-        seed: Box::new([]),
+        seed: Box::new([temper_engine_domain_forge::Forge::connected(
+            1,
+            temper_engine_domain_forge::Kind::Forgejo,
+            &[],
+        )]),
         period_span: crate::stock::PERIOD_SPAN,
         core: jig_protocol_config::core(&settings.jig, [7; 16], 7),
         landing: settings.landing,
@@ -406,9 +410,7 @@ pub fn root() -> (temper_engine_domain::Domain, skein_lib::Env<temper_engine_dom
             namespace: Box::new([7; 16]),
             writers: Box::new([skein_forge_client::Writer { forge: 1, author: 42 }]),
         },
-        identities: Box::new([temper_engine_domain_forge::GitIdentity { forge: 1, credential: 1 }]),
         forge_charter: settings.charter,
-        forges: Box::new([]),
         owned: None,
         under_box: false,
         demo: None,

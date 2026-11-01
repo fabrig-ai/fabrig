@@ -65,9 +65,7 @@ pub(super) fn config(real: bool) -> engine::Config {
         connector: config.core.connectors[0],
         may: Box::new([people::ActKind::Cancel, people::ActKind::RemoveProject, people::ActKind::RemoveAccount]),
     }]);
-    config.identities = Box::new([]);
     config.forge.writers = Box::new([]);
-    config.forges = Box::new([]);
     config.seed = if real {
         Box::new([forge::Forge { number: 2, playground: false, setup: None, ..fake() }])
     } else {

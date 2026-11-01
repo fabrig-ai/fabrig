@@ -45,49 +45,49 @@ fn follow(world: &mut Pages, client: ClientId, steps: Vec<PersonStep<Address>>) 
     let outcome = world.run(Until::Done);
     assert_eq!(outcome.verdict, Verdict::Passed, "{outcome:?}");
 }
-fn owned_details() -> forge::Owned {
-    forge::Owned {
-        forgejo: b"17.0.0".as_slice().into(),
-        runner: Some(b"13.2.0".as_slice().into()),
-        password: b"/fake/forge/person_password".as_slice().into(),
-    }
+fn forge_mode(number: u16, kind: forge::Kind, mode: forge::Mode, asked: bool) -> forge::Forge {
+    use forge::record as r;
+    let row = forge::Forge::connected(number, kind, &[]);
+    let mode = match mode {
+        forge::Mode::Connected => return row,
+        forge::Mode::Owned => r::SetupMode::Owned(r::OwnedEntry {
+            public: None,
+            fetch: r::Fetch { forgejo: true, runner: true, mirror: None },
+            forgejo: Box::new([]),
+            runner: Some(r::Runner { binary: Box::new([]), labels: Box::new([]), capacity: 1, path: Box::new([]) }),
+            listen: ([127, 0, 0, 1], 3000).into(),
+            person: r::Account { login: Box::new([]), email: Box::new([]) },
+        }),
+        forge::Mode::Managed => r::SetupMode::Managed { admin_token: Some(Box::new([])) },
+        forge::Mode::Fake => r::SetupMode::Fake(r::FakeEntry {
+            listen: ([127, 0, 0, 1], 3000).into(),
+            git: Box::new([]),
+            owner: Box::new([]),
+            repositories: Box::new([]),
+        }),
+    };
+    row.with_setup(r::Setup {
+        directory: b"/fake/forge".as_slice().into(),
+        bot: r::Account { login: Box::new([]), email: Box::new([]) },
+        orgs: Box::new([]),
+        mode,
+        asked,
+    })
 }
 fn configured(owner: bool, under_box: bool, mode: forge::Mode) -> Pages {
     configured_with(
         owner,
         under_box,
         &[
-            forge::Configured {
-                admin_connect: false,
-                bot: Box::new([]),
-                owned: (mode == forge::Mode::Owned).then(owned_details),
-                git: Box::new([]),
-                web: None,
-                read_only: false,
-                number: OWNED,
-                kind: forge::Kind::Forgejo,
-                mode,
-                asked: true,
-            },
-            forge::Configured {
-                admin_connect: false,
-                bot: Box::new([]),
-                owned: None,
-                git: Box::new([]),
-                web: None,
-                read_only: false,
-                number: GITHUB,
-                kind: forge::Kind::GitHub,
-                mode: forge::Mode::Connected,
-                asked: false,
-            },
+            forge_mode(OWNED, forge::Kind::Forgejo, mode, true),
+            forge::Forge::connected(GITHUB, forge::Kind::GitHub, &[]),
         ],
     )
 }
-fn configured_with(owner: bool, under_box: bool, rows: &[forge::Configured; 2]) -> Pages {
+fn configured_with(owner: bool, under_box: bool, rows: &[forge::Forge; 2]) -> Pages {
     configured_accounts(owner, under_box, rows, true)
 }
-fn configured_accounts(owner: bool, under_box: bool, rows: &[forge::Configured; 2], account: bool) -> Pages {
+fn configured_accounts(owner: bool, under_box: bool, rows: &[forge::Forge; 2], account: bool) -> Pages {
     let mut world = if owner { f::accounts_world(f::SEED) } else { f::world(f::SEED) };
     let front = world.front();
     let mut store = std::mem::replace(&mut front.engine.store, Store::new());
@@ -101,6 +101,8 @@ fn configured_accounts(owner: bool, under_box: bool, rows: &[forge::Configured; 
             .collect();
         store.seed(Box::new([]), accounts);
     }
+    // These fixtures replace the forges while retaining the world's core records.
+    store.rows.retain(|key, _| !matches!(key, engine::Key::Forge(forge::Key::Forge(_) | forge::Key::Forges)));
     let mut limits = front.engine.env.limits;
     let configs = std::array::from_fn(|_| {
         let mut config = walking::config(f::SEED);
@@ -114,9 +116,9 @@ fn configured_accounts(owner: bool, under_box: bool, rows: &[forge::Configured; 
                 writer
             })
             .collect();
-        config.forges = Box::new((*rows).clone());
+        config.seed = Box::new((*rows).clone());
         config.under_box = under_box;
-        if rows.iter().any(|row| row.admin_connect) {
+        if rows.iter().any(|row| forge::Configured::from_record(row).admin_connect) {
             temper_client_world::front::first_run_projects(&mut config, &mut limits);
         }
         config
@@ -134,60 +136,46 @@ fn world_for(number: u16) -> Pages {
             true,
             true,
             &[
-                forge::Configured {
-                    admin_connect: false,
-                    bot: Box::new([]),
-                    owned: None,
-                    git: Box::new([]),
-                    web: None,
-                    read_only: false,
-                    number: GITHUB,
-                    kind: forge::Kind::GitHub,
-                    mode: forge::Mode::Connected,
+                forge::Forge::connected(GITHUB, forge::Kind::GitHub, &[]),
+                forge::Forge::connected(REMOTE, forge::Kind::Forgejo, &[]).with_setup(forge::record::Setup {
+                    directory: Box::new([]),
+                    bot: forge::record::Account { login: Box::new([]), email: Box::new([]) },
+                    orgs: Box::new([]),
+                    mode: forge::record::SetupMode::Managed { admin_token: Some(Box::new([])) },
                     asked: false,
-                },
-                forge::Configured {
-                    admin_connect: false,
-                    bot: Box::new([]),
-                    owned: None,
-                    git: Box::new([]),
-                    web: None,
-                    read_only: false,
-                    number: REMOTE,
-                    kind: forge::Kind::Forgejo,
-                    mode: forge::Mode::Managed,
-                    asked: false,
-                },
+                }),
             ],
         ),
         FAKE => configured_with(
             true,
             true,
             &[
-                forge::Configured {
-                    admin_connect: false,
-                    bot: Box::new([]),
-                    owned: None,
-                    git: Box::new([]),
-                    web: None,
-                    read_only: false,
-                    number: OWNED,
-                    kind: forge::Kind::Forgejo,
-                    mode: forge::Mode::Owned,
+                forge::Forge::connected(OWNED, forge::Kind::Forgejo, &[]).with_setup(forge::record::Setup {
+                    directory: Box::new([]),
+                    bot: forge::record::Account { login: Box::new([]), email: Box::new([]) },
+                    orgs: Box::new([]),
+                    mode: forge::record::SetupMode::Owned(forge::record::OwnedEntry {
+                        public: None,
+                        fetch: forge::record::Fetch { forgejo: true, runner: false, mirror: None },
+                        forgejo: Box::new([]),
+                        runner: None,
+                        listen: ([127, 0, 0, 1], 3000).into(),
+                        person: forge::record::Account { login: Box::new([]), email: Box::new([]) },
+                    }),
                     asked: true,
-                },
-                forge::Configured {
-                    admin_connect: false,
-                    bot: Box::new([]),
-                    owned: None,
-                    git: Box::new([]),
-                    web: None,
-                    read_only: false,
-                    number: FAKE,
-                    kind: forge::Kind::Forgejo,
-                    mode: forge::Mode::Fake,
+                }),
+                forge::Forge::connected(FAKE, forge::Kind::Forgejo, &[]).with_setup(forge::record::Setup {
+                    directory: Box::new([]),
+                    bot: forge::record::Account { login: Box::new([]), email: Box::new([]) },
+                    orgs: Box::new([]),
+                    mode: forge::record::SetupMode::Fake(forge::record::FakeEntry {
+                        listen: ([127, 0, 0, 1], 3000).into(),
+                        git: Box::new([]),
+                        owner: Box::new([]),
+                        repositories: Box::new([]),
+                    }),
                     asked: false,
-                },
+                }),
             ],
         ),
         _ => world(),
@@ -395,30 +383,8 @@ fn unoffered_forge_has_no_owned_choose_card() {
             true,
             true,
             &[
-                forge::Configured {
-                    admin_connect: false,
-                    bot: Box::new([]),
-                    owned: None,
-                    git: Box::new([]),
-                    web: None,
-                    read_only: false,
-                    number: OWNED,
-                    kind: forge::Kind::Forgejo,
-                    mode,
-                    asked,
-                },
-                forge::Configured {
-                    admin_connect: false,
-                    bot: Box::new([]),
-                    owned: None,
-                    git: Box::new([]),
-                    web: None,
-                    read_only: false,
-                    number: GITHUB,
-                    kind: forge::Kind::GitHub,
-                    mode: forge::Mode::Connected,
-                    asked: false,
-                },
+                forge_mode(OWNED, forge::Kind::Forgejo, mode, asked),
+                forge::Forge::connected(GITHUB, forge::Kind::GitHub, &[]),
             ],
         );
         connection(&mut world, OWNED, state);
@@ -479,30 +445,17 @@ fn admin_world() -> Pages {
         true,
         false,
         &[
-            forge::Configured {
-                owned: None,
-                admin_connect: true,
-                bot: Box::new([]),
-                git: Box::new([]),
+            forge::Forge {
                 web: Some(b"https://git.example.org".as_slice().into()),
-                read_only: false,
-                number: OWNED,
-                kind: forge::Kind::Forgejo,
-                mode: forge::Mode::Managed,
-                asked: false,
+                ..forge::Forge::connected(OWNED, forge::Kind::Forgejo, &[]).with_setup(forge::record::Setup {
+                    directory: Box::new([]),
+                    bot: forge::record::Account { login: Box::new([]), email: Box::new([]) },
+                    orgs: Box::new([]),
+                    mode: forge::record::SetupMode::Managed { admin_token: None },
+                    asked: false,
+                })
             },
-            forge::Configured {
-                owned: None,
-                admin_connect: false,
-                bot: Box::new([]),
-                git: Box::new([]),
-                web: None,
-                read_only: false,
-                number: GITHUB,
-                kind: forge::Kind::GitHub,
-                mode: forge::Mode::Connected,
-                asked: false,
-            },
+            forge::Forge::connected(GITHUB, forge::Kind::GitHub, &[]),
         ],
         false,
     );
@@ -1104,30 +1057,21 @@ fn accounts_banner_shows_without_a_setup_strip() {
             true,
             true,
             &[
-                forge::Configured {
-                    admin_connect: false,
-                    bot: Box::new([]),
-                    owned: None,
-                    git: Box::new([]),
-                    web: None,
-                    read_only: false,
-                    number: OWNED,
-                    kind: forge::Kind::Forgejo,
-                    mode: forge::Mode::Owned,
+                forge::Forge::connected(OWNED, forge::Kind::Forgejo, &[]).with_setup(forge::record::Setup {
+                    directory: Box::new([]),
+                    bot: forge::record::Account { login: Box::new([]), email: Box::new([]) },
+                    orgs: Box::new([]),
+                    mode: forge::record::SetupMode::Owned(forge::record::OwnedEntry {
+                        public: None,
+                        fetch: forge::record::Fetch { forgejo: true, runner: false, mirror: None },
+                        forgejo: Box::new([]),
+                        runner: None,
+                        listen: ([127, 0, 0, 1], 3000).into(),
+                        person: forge::record::Account { login: Box::new([]), email: Box::new([]) },
+                    }),
                     asked: true,
-                },
-                forge::Configured {
-                    admin_connect: false,
-                    bot: Box::new([]),
-                    owned: None,
-                    git: Box::new([]),
-                    web: None,
-                    read_only: false,
-                    number: GITHUB,
-                    kind: forge::Kind::GitHub,
-                    mode: forge::Mode::Connected,
-                    asked: false,
-                },
+                }),
+                forge::Forge::connected(GITHUB, forge::Kind::GitHub, &[]),
             ],
             false,
         );

@@ -25,7 +25,7 @@ fn account() -> r::Account {
 fn setup(mode: r::SetupMode) -> r::Setup {
     r::Setup { directory: b"/data/forge-3".as_slice().into(), bot: account(), orgs: Box::new([]), mode, asked: false }
 }
-fn owned() -> r::OwnedEntry {
+pub(super) fn owned() -> r::OwnedEntry {
     r::OwnedEntry {
         public: None,
         fetch: r::Fetch { forgejo: true, runner: true, mirror: None },
@@ -80,19 +80,14 @@ fn next_forge_is_one_without_its_row() {
 fn configured_from_record_follows_each_mode() {
     use skein_forge::forgejo::pin;
     let mut row = forge();
-    let mut expected = Configured {
-        admin_connect: false,
-        bot: Box::new([]),
-        owned: None,
-        git: b"https://github.com".as_slice().into(),
-        web: Some(b"https://github.com".as_slice().into()),
-        read_only: false,
-        number: 2,
-        kind: Kind::GitHub,
-        mode: Mode::Connected,
-        asked: false,
-    };
-    assert_eq!(Configured::from_record(&row), expected);
+    let mut expected = Configured::from_record(&row);
+    assert_eq!(expected.number, 2);
+    assert_eq!(expected.kind, Kind::GitHub);
+    assert_eq!(expected.mode, Mode::Connected);
+    assert!(!expected.asked && !expected.admin_connect && !expected.read_only);
+    assert!(expected.bot.is_empty() && expected.owned.is_none());
+    assert_eq!(expected.git.as_ref(), b"https://github.com");
+    assert_eq!(expected.web.as_deref(), Some(b"https://github.com".as_slice()));
     row.number = 1;
     row.kind = Kind::Forgejo;
     row.git = b"http://127.0.0.1:8369".as_slice().into();

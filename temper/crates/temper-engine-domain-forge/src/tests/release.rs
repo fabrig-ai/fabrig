@@ -387,9 +387,7 @@ fn domain() -> Domain {
             namespace: Box::from(&b"test"[..]),
             writers: Box::new([skein_forge_client::Writer { forge: 1, author: 7 }]),
         },
-        &[GitIdentity { forge: 1, credential: 1 }],
-        &[],
-        &[],
+        &[Forge::connected(1, Kind::Forgejo, &[])],
         false,
     )
     .expect("valid connector")

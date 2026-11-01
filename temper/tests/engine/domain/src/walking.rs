@@ -294,7 +294,11 @@ pub fn config(seed: u64) -> engine::Config {
         requirements: Box::new([]),
     };
     engine::Config {
-        seed: Box::new([]),
+        seed: Box::new([temper_engine_domain_forge::Forge::connected(
+            1,
+            temper_engine_domain_forge::Kind::Forgejo,
+            &[],
+        )]),
         period_span: PERIOD_SPAN,
         core: jig_domain_core::Config {
             deployment: [31; 16],
@@ -356,9 +360,7 @@ pub fn config(seed: u64) -> engine::Config {
         },
         // The forge's git identity is application credential 1, which the
         // worlds name at start (D10).
-        identities: Box::new([temper_engine_domain_forge::GitIdentity { forge: 1, credential: 1 }]),
         forge_charter: 1,
-        forges: Box::new([]),
         owned: None,
         under_box: false,
         demo: None,
@@ -781,12 +783,12 @@ impl World {
                 engine::Request::Worker(engine::WorkerRequest::Deliver(delivery))
                 | engine::Request::Party(engine::PartyRequest::Deliver(delivery)) => self.delivery(delivery),
                 engine::Request::Stop => panic!("walking story stopped: {:?}", self.trace),
+                engine::Request::ForgeKept { .. } => {}
                 other @ (engine::Request::Worker(_)
                 | engine::Request::Party(_)
                 | engine::Request::Store(_)
                 | engine::Request::Account(_)
                 | engine::Request::SetUpGroup { .. }
-                | engine::Request::ForgeKept { .. }
                 | engine::Request::ForgeRemoved { .. }
                 | engine::Request::BoxRemove { .. }
                 | engine::Request::Connect { .. }

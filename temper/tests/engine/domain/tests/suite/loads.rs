@@ -314,9 +314,8 @@ fn a_census_cursor_behind_its_start_is_out_of_order() {
 
 #[test]
 fn a_forge_row_survives_the_real_store_byte_for_byte() {
-    let (driver, _) = temper_engine_domain_world::direct::Driver::chat();
-    let mut store = driver.store.fork();
-    assert_eq!(store.page(&Range::Forge, None, 8).0.len(), 0, "a chat's store holds no forge row");
+    let mut store = Store::new();
+    assert_eq!(store.page(&Range::Forge, None, 8).0.len(), 0, "an empty store holds no forge row");
     let row = Record::Forge { row: Box::new(temper_engine_domain_forge::Stored::Landed { commit: [7; 32], task: 3 }) };
     store.seed(Box::new([row.clone()]), Box::new([]));
     let (rows, next) = store.page(&Range::Forge, None, 8);

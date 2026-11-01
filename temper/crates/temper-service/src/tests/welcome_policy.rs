@@ -77,17 +77,14 @@ fn generated() -> (engine::Config, engine::Limits) {
         .expect("unchanged effective limits");
     let seeds = fixtures::seeds();
     let core = config::core(&settings.jig, seeds.deployment, seeds.seed);
-    let (forge, identities) = crate::forge::config(&settings, seeds.deployment);
-    let forges = settings.seed.iter().map(temper_engine_domain_forge::Configured::from_record).collect::<Box<[_]>>();
+    let forge = crate::forge::config(seeds.deployment);
     let demo = settings.demo.as_ref().map(|demo| demo.domain(&settings.forges, settings.limits.setup.deadline));
     (
         engine::Config {
-            seed: Box::new([]),
+            seed: settings.seed,
             period_span: crate::stock::PERIOD_SPAN,
             core,
             forge,
-            identities,
-            forges,
             demo,
             landing: settings.landing,
             forge_charter: settings.charter,

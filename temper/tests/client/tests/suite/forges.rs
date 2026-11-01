@@ -28,55 +28,50 @@ fn config(under_box: bool, asked: bool) -> engine::Config {
     let mut config = walking::config(fixtures::SEED);
     config.core.connectors = Box::new([fixtures::FORGE]);
     config.under_box = under_box;
-    config.forges = Box::new([
-        forge::Configured {
-            admin_connect: false,
-            bot: Box::new([]),
-            owned: None,
-            git: Box::new([]),
-            web: None,
-            read_only: false,
-            number: FORGE,
-            kind: forge::Kind::Forgejo,
-            mode: forge::Mode::Owned,
+    config.seed = Box::new([
+        forge::Forge::connected(FORGE, forge::Kind::Forgejo, &[]).with_setup(forge::record::Setup {
+            directory: Box::new([]),
+            bot: forge::record::Account { login: Box::new([]), email: Box::new([]) },
+            orgs: Box::new([]),
+            mode: forge::record::SetupMode::Owned(forge::record::OwnedEntry {
+                public: None,
+                fetch: forge::record::Fetch { forgejo: true, runner: false, mirror: None },
+                forgejo: Box::new([]),
+                runner: None,
+                listen: ([127, 0, 0, 1], 3000).into(),
+                person: forge::record::Account { login: Box::new([]), email: Box::new([]) },
+            }),
             asked,
-        },
-        forge::Configured {
-            admin_connect: false,
-            bot: Box::new([]),
-            owned: None,
-            git: Box::new([]),
-            web: None,
-            read_only: false,
-            number: OTHER,
-            kind: forge::Kind::Forgejo,
-            mode: forge::Mode::Owned,
+        }),
+        forge::Forge::connected(OTHER, forge::Kind::Forgejo, &[]).with_setup(forge::record::Setup {
+            directory: Box::new([]),
+            bot: forge::record::Account { login: Box::new([]), email: Box::new([]) },
+            orgs: Box::new([]),
+            mode: forge::record::SetupMode::Owned(forge::record::OwnedEntry {
+                public: None,
+                fetch: forge::record::Fetch { forgejo: true, runner: false, mirror: None },
+                forgejo: Box::new([]),
+                runner: None,
+                listen: ([127, 0, 0, 1], 3000).into(),
+                person: forge::record::Account { login: Box::new([]), email: Box::new([]) },
+            }),
             asked,
-        },
-        forge::Configured {
-            admin_connect: false,
-            bot: Box::new([]),
-            owned: None,
-            git: Box::new([]),
-            web: None,
-            read_only: false,
-            number: CONNECTED_MODE,
-            kind: forge::Kind::Forgejo,
-            mode: forge::Mode::Connected,
+        }),
+        forge::Forge::connected(CONNECTED_MODE, forge::Kind::Forgejo, &[]),
+        forge::Forge::connected(AUTOMATIC, forge::Kind::Forgejo, &[]).with_setup(forge::record::Setup {
+            directory: Box::new([]),
+            bot: forge::record::Account { login: Box::new([]), email: Box::new([]) },
+            orgs: Box::new([]),
+            mode: forge::record::SetupMode::Owned(forge::record::OwnedEntry {
+                public: None,
+                fetch: forge::record::Fetch { forgejo: true, runner: false, mirror: None },
+                forgejo: Box::new([]),
+                runner: None,
+                listen: ([127, 0, 0, 1], 3000).into(),
+                person: forge::record::Account { login: Box::new([]), email: Box::new([]) },
+            }),
             asked: false,
-        },
-        forge::Configured {
-            admin_connect: false,
-            bot: Box::new([]),
-            owned: None,
-            git: Box::new([]),
-            web: None,
-            read_only: false,
-            number: AUTOMATIC,
-            kind: forge::Kind::Forgejo,
-            mode: forge::Mode::Owned,
-            asked: false,
-        },
+        }),
     ]);
     let mut limits = temper_engine_domain_world::fixtures::forge_limits();
     temper_client_world::front::first_run_projects(&mut config, &mut limits);

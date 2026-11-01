@@ -120,7 +120,6 @@ pub struct Domain {
     pub(crate) forge_records: Map<u16, crate::Forge>,
     pub(crate) next_forge: Option<u16>,
     pub(crate) seed: Box<[crate::Forge]>,
-    pub(crate) seed_path: bool,
     pub(crate) playground: Option<crate::Playground>,
     pub(crate) playground_start: crate::playground::State,
     pub(crate) kept: Map<[u8; 16], crate::KeptAct>,
@@ -237,7 +236,7 @@ impl Domain {
         self.apps = Map::with_capacity(forges);
         self.installations = Map::with_capacity(forges.checked_mul(installations).expect("connection bounds"));
     }
-    /// Public startup configuration; never restored from records.
+    /// Connector configuration derived from seeded or restored forge records.
     #[must_use]
     pub fn configured(&self, forge: u16) -> Option<&crate::Configured> {
         self.configured.get(&forge)
@@ -581,13 +580,10 @@ impl Domain {
     }
     /// Construct a connector with the deployment namespace and any writers
     /// known at start; invalid limits or writer configuration are refused.
-    #[expect(clippy::too_many_lines, reason = "constructor initializes the connector tables together")]
     pub fn new(
         l: &Limits,
         random_seed: u64,
         config: skein_forge_client::Config,
-        identities: &[crate::GitIdentity],
-        forges: &[crate::Configured],
         seed: &[crate::Forge],
         under_box: bool,
     ) -> Result<Domain, skein_forge::api::Error> {
@@ -598,25 +594,8 @@ impl Domain {
         {
             return Err(skein_forge::api::Error::TooLarge);
         }
-        let seed_path = forges.is_empty() && identities.is_empty();
-        if !seed.is_empty() && !seed_path {
-            return Err(skein_forge::api::Error::Refused);
-        }
         let mut configured = Map::with_capacity(l.forges);
-        for forge in forges {
-            if forge.git.len() > usize::try_from(crate::PULL_ADDRESS_BYTES).expect("u32 fits usize") {
-                return Err(skein_forge::api::Error::TooLarge);
-            }
-            if configured.insert(forge.number, forge.clone()).is_err() {
-                return Err(skein_forge::api::Error::TooLarge);
-            }
-        }
         let mut credentials = Map::with_capacity(l.forges);
-        for identity in identities {
-            if credentials.insert(identity.forge, identity.credential).is_err() {
-                return Err(skein_forge::api::Error::TooLarge);
-            }
-        }
         for row in seed {
             if !row.fits()
                 || row.number == u16::MAX
@@ -635,7 +614,6 @@ impl Domain {
         Ok(Domain {
             forge_records: Map::with_capacity(l.forges),
             seed: Box::from(seed),
-            seed_path,
             next_forge: None,
             playground: None,
             playground_start: crate::playground::State::new(l),
@@ -5006,26 +4984,24 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
             d.flights.insert((task, entry), ()).expect("restored flights within entry limit");
         }
         Stored::Forge(row) => {
-            if d.seed_path {
-                if !d.configured.contains_key(&row.number) && d.configured.len() == d.configured.capacity() {
-                    // Restored records take the room of provisional seeds.
-                    let mut provisional = None;
-                    for (number, _) in &d.configured {
-                        if !d.forge_records.contains_key(number) {
-                            provisional = Some(*number);
-                            break;
-                        }
-                    }
-                    if let Some(number) = provisional {
-                        d.configured.remove(&number);
-                        d.identities.remove(&number);
+            if !d.configured.contains_key(&row.number) && d.configured.len() == d.configured.capacity() {
+                // Restored records take the room of provisional seeds.
+                let mut provisional = None;
+                for (number, _) in &d.configured {
+                    if !d.forge_records.contains_key(number) {
+                        provisional = Some(*number);
+                        break;
                     }
                 }
-                d.configured
-                    .insert(row.number, crate::Configured::from_record(&row))
-                    .expect("restored forge within limits");
-                d.identities.insert(row.number, row.identity.number).expect("restored forge within limits");
+                if let Some(number) = provisional {
+                    d.configured.remove(&number);
+                    d.identities.remove(&number);
+                }
             }
+            d.configured
+                .insert(row.number, crate::Configured::from_record(&row))
+                .expect("restored forge within limits");
+            d.identities.insert(row.number, row.identity.number).expect("restored forge within limits");
             crate::first::restored(d, &row);
             d.forge_records.insert(row.number, row).expect("restored forge within limits");
         }
@@ -5073,10 +5049,8 @@ fn restored(d: &mut Domain, env: &Env<Limits>, clock: skein_forge_client::Recove
     if d.fit_restored(&env.limits).is_err() {
         return;
     }
-    if d.seed_path {
-        crate::seed::seed(d, out);
-        crate::seed::kept(d, out);
-    }
+    crate::seed::seed(d, out);
+    crate::seed::kept(d, out);
     d.restore_phase = RestorePhase::Restoring;
     child(d, env, skein_forge_client::Event::Restored { clock }, out);
     retire_ended(d, env, out);

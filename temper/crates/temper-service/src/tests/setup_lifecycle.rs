@@ -697,20 +697,7 @@ fn paste_row(limits: &domain::Limits, request: Token, connected: bool, why: Opti
         limits,
         7,
         skein_forge_client::Config { namespace: Box::from(b"fixture".as_slice()), writers: Box::new([]) },
-        &[],
-        &[domain::Configured {
-            bot: Box::new([]),
-            admin_connect: false,
-            owned: None,
-            git: Box::new([]),
-            web: None,
-            read_only: false,
-            number: 1,
-            kind: domain::Kind::GitHub,
-            mode: domain::Mode::Connected,
-            asked: false,
-        }],
-        &[],
+        &[domain::Forge::connected(1, domain::Kind::GitHub, &[])],
         false,
     )
     .unwrap();

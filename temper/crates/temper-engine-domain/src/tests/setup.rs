@@ -16,20 +16,27 @@ fn signed_in(role: Option<people::Role>) -> (Domain, Env<Limits>) {
 }
 fn signed_in_on(role: Option<people::Role>, kind: forge::Kind) -> (Domain, Env<Limits>) {
     let mut config = config(1);
-    config.forges = Box::new([forge::Configured {
-        admin_connect: false,
-        bot: Box::new([]),
-        owned: None,
-        git: Box::new([]),
-        web: None,
-        read_only: false,
-        number: 1,
-        kind,
-        mode: forge::Mode::Owned,
-        asked: true,
-    }]);
+    let mut row = signed_in_config();
+    row.kind = kind;
+    config.seed = Box::new([row]);
     config.under_box = true;
     signed_in_root(root_with_config(config), role)
+}
+fn signed_in_config() -> forge::Forge {
+    forge::Forge::connected(1, forge::Kind::Forgejo, &[]).with_setup(forge::record::Setup {
+        directory: Box::new([]),
+        bot: forge::record::Account { login: Box::new([]), email: Box::new([]) },
+        orgs: Box::new([]),
+        mode: forge::record::SetupMode::Owned(forge::record::OwnedEntry {
+            public: None,
+            fetch: forge::record::Fetch { forgejo: true, runner: false, mirror: None },
+            forgejo: Box::new([]),
+            runner: None,
+            listen: ([127, 0, 0, 1], 3000).into(),
+            person: forge::record::Account { login: Box::new([]), email: Box::new([]) },
+        }),
+        asked: true,
+    })
 }
 fn signed_in_root((mut domain, env): (Domain, Env<Limits>), role: Option<people::Role>) -> (Domain, Env<Limits>) {
     domain.core.people = people::Domain::new(&env.limits.people, Box::new([]), 1, Box::new([]));
@@ -225,7 +232,7 @@ fn the_deployment_owner_watches_forges_again_after_a_connection_changes() {
                     app: None,
                     web: None,
                     repositories: Box::new([]),
-                    owned: None,
+                    owned: forge::Configured::from_record(&signed_in_config()).owned,
                     admin: false,
                     read_only: false,
                     ended_stop: None,
@@ -268,7 +275,7 @@ fn row(connection: forge::Connection) -> forge::Row {
         app: None,
         web: None,
         repositories: Box::new([]),
-        owned: None,
+        owned: forge::Configured::from_record(&signed_in_config()).owned,
         admin: false,
         read_only: false,
         ended_stop: None,
@@ -633,18 +640,13 @@ fn whose_returns_the_live_person_and_none_after_sign_out_or_for_an_unknown_sign_
 
 fn admin_root(role: Option<people::Role>) -> (Domain, Env<Limits>) {
     let mut config = config(1);
-    config.forges = Box::new([forge::Configured {
-        admin_connect: true,
-        bot: Box::new([]),
-        owned: None,
-        git: Box::new([]),
-        web: None,
-        read_only: false,
-        number: 1,
-        kind: forge::Kind::Forgejo,
-        mode: forge::Mode::Managed,
+    config.seed = Box::new([forge::Forge::connected(1, forge::Kind::Forgejo, &[]).with_setup(forge::record::Setup {
+        directory: Box::new([]),
+        bot: forge::record::Account { login: Box::new([]), email: Box::new([]) },
+        orgs: Box::new([]),
+        mode: forge::record::SetupMode::Managed { admin_token: None },
         asked: false,
-    }]);
+    })]);
     signed_in_root(root_with_config(config), role)
 }
 fn admin_first() -> forge::FirstAsk {

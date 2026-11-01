@@ -300,6 +300,7 @@ impl World {
             limits.journal.writes = journal::WALKING_WRITES;
             let mut config = walking::config(71);
             if boxed_setup {
+                config.seed = Box::new([]);
                 // The welcome can make Default beside the fixture's project and deployment roster.
                 limits.people.projects = 3;
                 limits.authority.projects = 2;

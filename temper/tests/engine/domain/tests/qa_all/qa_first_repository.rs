@@ -13,18 +13,21 @@ fn driver_with_name_bytes(under_box: bool, name_bytes: u32) -> Driver {
     let configs = std::array::from_fn(|_| {
         let mut config = walking::config(701);
         config.under_box = under_box;
-        config.forges = Box::new([forge::Configured {
-            admin_connect: false,
-            bot: Box::new([]),
-            owned: None,
-            git: Box::new([]),
-            web: None,
-            read_only: false,
-            number: 1,
-            kind: forge::Kind::Forgejo,
-            mode: forge::Mode::Owned,
-            asked: true,
-        }]);
+        config.seed =
+            Box::new([forge::Forge::connected(1, forge::Kind::Forgejo, &[]).with_setup(forge::record::Setup {
+                directory: Box::new([]),
+                bot: forge::record::Account { login: Box::new([]), email: Box::new([]) },
+                orgs: Box::new([]),
+                mode: forge::record::SetupMode::Owned(forge::record::OwnedEntry {
+                    public: None,
+                    fetch: forge::record::Fetch { forgejo: true, runner: false, mirror: None },
+                    forgejo: Box::new([]),
+                    runner: None,
+                    listen: ([127, 0, 0, 1], 3000).into(),
+                    person: forge::record::Account { login: Box::new([]), email: Box::new([]) },
+                }),
+                asked: true,
+            })]);
         config
     });
     let mut driver = Driver::with_repositories(Store::new(), configs, &limits, &[(b"org", b"repo", 2)]);
@@ -208,18 +211,21 @@ fn first_repository_intent_survives_a_restart() {
         std::array::from_fn(|_| {
             let mut config = walking::config(701);
             config.under_box = true;
-            config.forges = Box::new([forge::Configured {
-                admin_connect: false,
-                bot: Box::new([]),
-                owned: None,
-                git: Box::new([]),
-                web: None,
-                read_only: false,
-                number: 1,
-                kind: forge::Kind::Forgejo,
-                mode: forge::Mode::Owned,
-                asked: true,
-            }]);
+            config.seed =
+                Box::new([forge::Forge::connected(1, forge::Kind::Forgejo, &[]).with_setup(forge::record::Setup {
+                    directory: Box::new([]),
+                    bot: forge::record::Account { login: Box::new([]), email: Box::new([]) },
+                    orgs: Box::new([]),
+                    mode: forge::record::SetupMode::Owned(forge::record::OwnedEntry {
+                        public: None,
+                        fetch: forge::record::Fetch { forgejo: true, runner: false, mirror: None },
+                        forgejo: Box::new([]),
+                        runner: None,
+                        listen: ([127, 0, 0, 1], 3000).into(),
+                        person: forge::record::Account { login: Box::new([]), email: Box::new([]) },
+                    }),
+                    asked: true,
+                })]);
             config
         }),
         &fixtures::forge_limits(),

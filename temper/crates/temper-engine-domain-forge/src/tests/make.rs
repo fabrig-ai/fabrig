@@ -8,8 +8,6 @@ fn new(seed: &[Forge]) -> Domain {
         &LIMITS,
         4,
         skein_forge_client::Config { namespace: b"make".as_slice().into(), writers: Box::new([]) },
-        &[],
-        &[],
         seed,
         false,
     )

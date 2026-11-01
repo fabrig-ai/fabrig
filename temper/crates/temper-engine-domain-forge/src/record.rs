@@ -220,6 +220,39 @@ fn setup(total: &mut u64, value: &Setup, check: bool) -> Option<()> {
     Some(())
 }
 impl Forge {
+    /// Build a records-only forge with no setup and an empty login and author.
+    #[must_use]
+    pub fn connected(number: u16, kind: crate::Kind, git: &[u8]) -> Self {
+        Self {
+            number,
+            kind,
+            api: Address::Socket(core::net::SocketAddr::from(([127, 0, 0, 1], 3000))),
+            transport: Transport::Plaintext,
+            git: git.into(),
+            git_program: None,
+            web: None,
+            read_only: false,
+            identity: Identity {
+                number: u32::from(number),
+                login: Box::new([]),
+                name: Box::new([]),
+                email: Box::new([]),
+            },
+            files: None,
+            setup: None,
+            first: None,
+            playground: false,
+            removing: false,
+        }
+    }
+
+    /// Attach the forge's setup entry.
+    #[must_use]
+    pub fn with_setup(mut self, setup: Setup) -> Self {
+        self.setup = Some(setup);
+        self
+    }
+
     /// Whether every retained field fits the store schema's ceilings.
     #[must_use]
     pub fn fits(&self) -> bool {

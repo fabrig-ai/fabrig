@@ -1900,25 +1900,16 @@ fn forge_configuration_retains_only_git_bases_within_the_pull_address_bound() {
 
 #[test]
 fn forge_configuration_keeps_kind_mode_and_asked_start() {
-    use temper_engine_domain_forge::{Configured, Kind, Mode};
+    use temper_engine_domain_forge::{Configured, Forge, Kind, Mode, record};
     let mut settings = fixtures::engine();
     for (source, kind) in [(settings::Kind::Forgejo, Kind::Forgejo), (settings::Kind::GitHub, Kind::GitHub)] {
         settings.forges[0].kind = source;
         fixtures::reseed(&mut settings);
         assert_eq!(
             settings.seed.iter().map(Configured::from_record).collect::<Box<[_]>>().as_ref(),
-            [Configured {
-                bot: Box::new([]),
-                admin_connect: false,
-                owned: None,
-                git: settings.forges[0].git.clone(),
-                web: None,
-                read_only: false,
-                number: 1,
-                kind,
-                mode: Mode::Connected,
-                asked: false
-            }]
+            [Configured::from_record(
+                &(Forge { git: settings.forges[0].git.clone(), ..Forge::connected(1, kind, &[]) })
+            )]
         );
     }
     settings.forges[0].kind = settings::Kind::Forgejo;
@@ -1926,22 +1917,25 @@ fn forge_configuration_keeps_kind_mode_and_asked_start() {
     fixtures::reseed(&mut settings);
     assert_eq!(
         settings.seed.iter().map(Configured::from_record).collect::<Box<[_]>>().as_ref(),
-        [Configured {
-            bot: b"temper".as_slice().into(),
-            admin_connect: false,
-            owned: Some(temper_engine_domain_forge::Owned {
-                forgejo: skein_forge::forgejo::pin::VERSION.as_bytes().into(),
-                runner: None,
-                password: b"/data/forge/person_password".as_slice().into(),
-            }),
-            git: settings.forges[0].git.clone(),
-            web: None,
-            read_only: false,
-            number: 1,
-            kind: Kind::Forgejo,
-            mode: Mode::Owned,
-            asked: true,
-        }]
+        [Configured::from_record(
+            &(Forge {
+                git: settings.forges[0].git.clone(),
+                ..Forge::connected(1, Kind::Forgejo, &[]).with_setup(record::Setup {
+                    directory: b"/data/forge".as_slice().into(),
+                    bot: record::Account { login: b"temper".as_slice().into(), email: Box::new([]) },
+                    orgs: Box::new([]),
+                    mode: record::SetupMode::Owned(record::OwnedEntry {
+                        public: None,
+                        fetch: record::Fetch { forgejo: true, runner: false, mirror: None },
+                        forgejo: Box::new([]),
+                        runner: None,
+                        listen: ([127, 0, 0, 1], 3000).into(),
+                        person: record::Account { login: Box::new([]), email: Box::new([]) }
+                    }),
+                    asked: true
+                })
+            })
+        )]
     );
     for (admin_token, allowed) in [(None, true), (Some(b"admin-file".as_slice().into()), false)] {
         settings.setup[0].entry.mode = temper_forge_setup::setup::Mode::Managed { admin_token };

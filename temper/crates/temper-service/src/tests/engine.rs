@@ -28,9 +28,7 @@ fn the_forge_reports_the_earliest_procedure_or_projection_wait() {
             namespace: Box::new([7; 16]),
             writers: Box::new([skein_forge_client::Writer { forge: 1, author: 42 }]),
         },
-        &[temper_engine_domain_forge::GitIdentity { forge: 1, credential: 1 }],
-        &[],
-        &[],
+        &[temper_engine_domain_forge::Forge::connected(1, temper_engine_domain_forge::Kind::Forgejo, &[])],
         false,
     )
     .unwrap();

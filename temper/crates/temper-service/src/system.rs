@@ -211,7 +211,7 @@ impl Service {
             identities.put(*number, value.clone());
         }
         values.identities = identities;
-        let (forge_config, _identities) = crate::forge::config(&settings, seeds.deployment);
+        let forge_config = crate::forge::config(seeds.deployment);
         let mut first_periods = List::with_capacity(limits.authority.projects);
         for project in &settings.jig.projects {
             first_periods
@@ -251,9 +251,7 @@ impl Service {
             core: jig_protocol_config::core(&settings.jig, seeds.deployment, seeds.seed),
             landing: settings.landing,
             forge: forge_config,
-            identities: Box::new([]),
             forge_charter: settings.charter,
-            forges: Box::new([]),
             seed: settings.seed,
             under_box: box_line_bytes.is_some(),
             demo: demo_config,

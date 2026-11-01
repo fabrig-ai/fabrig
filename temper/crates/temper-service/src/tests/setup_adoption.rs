@@ -266,18 +266,23 @@ fn old_form_service(hooks: bool) -> crate::Service {
     }
     assert_eq!(
         rows.as_slice(),
-        [domain::Configured {
-            bot: b"temper".as_slice().into(),
-            admin_connect: false,
-            owned: None,
-            git: config.forges[0].git.clone(),
-            web: None,
-            read_only: false,
-            number: 1,
-            kind: domain::Kind::Forgejo,
-            mode: domain::Mode::Fake,
-            asked: false
-        }]
+        [domain::Configured::from_record(
+            &(domain::Forge {
+                git: config.forges[0].git.clone(),
+                ..domain::Forge::connected(1, domain::Kind::Forgejo, &[]).with_setup(domain::record::Setup {
+                    directory: Box::new([]),
+                    bot: domain::record::Account { login: b"temper".as_slice().into(), email: Box::new([]) },
+                    orgs: Box::new([]),
+                    mode: domain::record::SetupMode::Fake(domain::record::FakeEntry {
+                        listen: ([127, 0, 0, 1], 3000).into(),
+                        git: Box::new([]),
+                        owner: Box::new([]),
+                        repositories: Box::new([])
+                    }),
+                    asked: false
+                })
+            })
+        )]
     );
     fixtures::reseed(&mut config);
     let store = fixtures::records_store_with(&config);
@@ -455,28 +460,25 @@ fn old_form_owned_and_managed_serve_reads_without_start_time_writing_plans() {
         for record in &config.seed {
             rows.push(domain::Configured::from_record(record)).unwrap();
         }
+        let [row] = rows.as_slice() else { panic!("one configured forge") };
+        assert_eq!(row.number, 1);
+        assert_eq!(row.kind, domain::Kind::Forgejo);
+        assert_eq!(row.mode, if managed { domain::Mode::Managed } else { domain::Mode::Owned });
+        assert_eq!(row.bot.as_ref(), b"temper");
+        assert_eq!(row.git, config.forges[0].git);
+        assert!(!row.admin_connect && !row.asked && !row.read_only);
+        assert_eq!(row.web, None);
         assert_eq!(
-            rows.as_slice(),
-            [domain::Configured {
-                bot: b"temper".as_slice().into(),
-                admin_connect: false,
-                owned: if managed {
-                    None
-                } else {
-                    Some(domain::Owned {
-                        forgejo: skein_forge::forgejo::pin::VERSION.as_bytes().into(),
-                        runner: None,
-                        password: b"/data/forge/person_password".as_slice().into(),
-                    })
-                },
-                git: config.forges[0].git.clone(),
-                web: None,
-                read_only: false,
-                number: 1,
-                kind: domain::Kind::Forgejo,
-                mode: if managed { domain::Mode::Managed } else { domain::Mode::Owned },
-                asked: false,
-            }]
+            row.owned,
+            if managed {
+                None
+            } else {
+                Some(domain::Owned {
+                    forgejo: skein_forge::forgejo::pin::VERSION.as_bytes().into(),
+                    runner: None,
+                    password: b"/data/forge/person_password".as_slice().into(),
+                })
+            }
         );
         let mut endpoints = crate::forge::prepare(&config, fixtures::forge_runtime()).unwrap();
         let setup = prepare(&config, &mut endpoints, &fixtures::seeds().crypto, false).unwrap();

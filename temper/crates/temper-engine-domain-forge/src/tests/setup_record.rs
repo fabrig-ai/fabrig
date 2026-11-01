@@ -29,8 +29,6 @@ fn started(seed: &[Forge], template: bool, under_box: bool) -> Domain {
         &LIMITS,
         4,
         skein_forge_client::Config { namespace: b"setup".as_slice().into(), writers: Box::new([]) },
-        &[],
-        &[],
         seed,
         under_box,
     )

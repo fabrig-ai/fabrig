@@ -47,6 +47,7 @@ fn bounded_connector_tables_and_client_fit_the_declared_heap() {
     }
 }
 
+// Names and holds exercise table mechanics without a forge configuration.
 fn connector(limits: &top::Limits) -> top::Domain {
     top::Domain::new(
         limits,
@@ -55,8 +56,6 @@ fn connector(limits: &top::Limits) -> top::Domain {
             namespace: Box::from(&b"world"[..]),
             writers: Box::new([skein_forge_client::Writer { forge: REPO.forge, author: 1 }]),
         },
-        &[top::GitIdentity { forge: REPO.forge, credential: 1 }],
-        &[],
         &[],
         false,
     )
