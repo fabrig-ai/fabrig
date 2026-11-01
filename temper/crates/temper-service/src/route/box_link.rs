@@ -26,6 +26,8 @@ pub(crate) enum Out {
     SettingUp { forge: u16, step: Option<Step> },
     /// `started FORGE`: the ask ended, the group started.
     Started { forge: u16 },
+    /// `removed FORGE`: the group and its files are gone.
+    Removed { forge: u16 },
     /// `failed FORGE WHY`.
     Failed { forge: u16, why: Box<[u8]> },
     /// One log line naming what the link dropped, or the pipe's end.
@@ -38,11 +40,14 @@ pub(crate) enum Out {
 enum Ask {
     Start(u16),
     Stop(u16),
+    Remove(u16),
 }
 
 pub(crate) struct Link {
     pub(crate) write: Option<Box<[u8]>>,
     ended: bool,
+    piped: bool,
+    removes: Queue<u16>,
     asked: Option<Ask>,
     // which the box link holds while another group starts and sends once that
     // one answers (protocol/setup.md, 8.4).
@@ -54,10 +59,12 @@ pub(crate) struct Link {
 }
 impl Link {
     /// The routing only sends asks admitted by the domain.
-    pub(crate) fn new(line_bytes: u32, _piped: bool) -> Link {
+    pub(crate) fn new(line_bytes: u32, piped: bool, forges: u32) -> Link {
         Link {
             write: None,
             ended: false,
+            piped,
+            removes: Queue::with_capacity(forges),
             asked: None,
             held: None,
             stop: None,
@@ -101,6 +108,23 @@ impl Link {
             out.push(Out::Write(stop(forge)));
         }
     }
+    /// A removal stays a kept act until its matching `removed` reply.
+    pub(crate) fn remove(&mut self, forge: u16, out: &mut Queue<Out>) {
+        if self.ended || !self.piped {
+            out.push(Out::Named(joined(&[
+                b"box link: dropped remove for forge ",
+                Decimal::of(u64::from(forge)).as_bytes(),
+                b", link ended",
+            ])));
+        } else if self.asked.is_some() {
+            if self.removes.try_push(forge).is_err() {
+                out.push(Out::Named(Box::from(b"box link: dropped remove, queue full".as_slice())));
+            }
+        } else {
+            self.asked = Some(Ask::Remove(forge));
+            out.push(Out::Write(remove(forge)));
+        }
+    }
     /// Any chunking is accepted. The caller reserves one output slot per LF in
     /// this chunk (including an LF completing a previous partial line), plus
     /// one for a held ask sent after the active group's answer.
@@ -135,6 +159,9 @@ impl Link {
                     } else if let Some(forge) = self.held.take() {
                         self.asked = Some(Ask::Start(forge));
                         out.push(Out::Write(start(forge)));
+                    } else if let Some(forge) = self.removes.pop() {
+                        self.asked = Some(Ask::Remove(forge));
+                        out.push(Out::Write(remove(forge)));
                     }
                 }
             } else if self.partial.room() == 0 {
@@ -156,8 +183,15 @@ impl Link {
         self.asked = None;
         self.held = None;
         self.stop = None;
+        for _ in 0..self.removes.len() {
+            let _forge = self.removes.pop();
+        }
         out.push(Out::Closed);
     }
+}
+
+fn remove(forge: u16) -> Box<[u8]> {
+    joined(&[b"remove ", Decimal::of(u64::from(forge)).as_bytes(), b"\n"])
 }
 
 fn stop(forge: u16) -> Box<[u8]> {
@@ -172,12 +206,17 @@ enum Reply {
     Step(u16, Step),
     Started(u16),
     Stopped(u16),
+    Removed(u16),
     Failed(u16, Box<[u8]>),
 }
 impl Reply {
     fn forge(&self) -> u16 {
         match self {
-            Self::Step(forge, _) | Self::Started(forge) | Self::Stopped(forge) | Self::Failed(forge, _) => *forge,
+            Self::Step(forge, _)
+            | Self::Started(forge)
+            | Self::Stopped(forge)
+            | Self::Removed(forge)
+            | Self::Failed(forge, _) => *forge,
         }
     }
     fn word(&self) -> &'static [u8] {
@@ -185,6 +224,7 @@ impl Reply {
             Self::Step(..) => b"step",
             Self::Started(_) => b"started",
             Self::Stopped(_) => b"stopped",
+            Self::Removed(_) => b"removed",
             Self::Failed(..) => b"failed",
         }
     }
@@ -197,7 +237,8 @@ fn line(asked: &mut Option<Ask>, line: &[u8], out: &mut Queue<Out>) {
     let forge = reply.forge();
     let matches = match (*asked, &reply) {
         (Some(Ask::Start(active)), Reply::Step(..) | Reply::Started(_) | Reply::Failed(..))
-        | (Some(Ask::Stop(active)), Reply::Stopped(_) | Reply::Failed(..)) => active == forge,
+        | (Some(Ask::Stop(active)), Reply::Stopped(_) | Reply::Failed(..))
+        | (Some(Ask::Remove(active)), Reply::Removed(_) | Reply::Failed(..)) => active == forge,
         _ => false,
     };
     if !matches {
@@ -217,15 +258,22 @@ fn line(asked: &mut Option<Ask>, line: &[u8], out: &mut Queue<Out>) {
             out.push(Out::Started { forge });
         }
         Reply::Stopped(_) => *asked = None,
+        Reply::Removed(_) => {
+            *asked = None;
+            out.push(Out::Removed { forge });
+        }
         Reply::Failed(_, why) => {
-            let stopping = match *asked {
-                Some(Ask::Stop(_)) => true,
-                Some(Ask::Start(_)) | None => false,
+            let operation = match *asked {
+                Some(Ask::Stop(_)) => Some(b"stop".as_slice()),
+                Some(Ask::Remove(_)) => Some(b"remove".as_slice()),
+                Some(Ask::Start(_)) | None => None,
             };
             *asked = None;
-            if stopping {
+            if let Some(operation) = operation {
                 out.push(Out::Named(joined(&[
-                    b"box link: stop failed for forge ",
+                    b"box link: ",
+                    operation,
+                    b" failed for forge ",
                     Decimal::of(u64::from(forge)).as_bytes(),
                     b": ",
                     &why,
@@ -243,6 +291,9 @@ fn decoded(line: &[u8]) -> Option<Reply> {
     }
     if let Some(digits) = line.strip_prefix(b"stopped ") {
         return Some(Reply::Stopped(number(digits)?));
+    }
+    if let Some(digits) = line.strip_prefix(b"removed ") {
+        return Some(Reply::Removed(number(digits)?));
     }
     let (word, rest) = if let Some(rest) = line.strip_prefix(b"step ") {
         (b"step".as_slice(), rest)
@@ -318,6 +369,9 @@ pub(crate) fn drain(engine: &mut crate::engine::Engine, out: &mut Queue<Out>) {
                 state(engine, forge, Connection::SettingUp { step });
             }
             Out::Failed { forge, why } => state(engine, forge, Connection::SetUpFailed { why }),
+            Out::Removed { forge } => engine.events.push(temper_engine_domain::Event::Forge(Box::new(
+                temper_engine_domain_forge::Event::GroupRemoved { forge },
+            ))),
             Out::Started { forge } => {
                 crate::setup::lifecycle::started(engine, forge);
             }
@@ -342,4 +396,43 @@ pub(crate) fn drain(engine: &mut crate::engine::Engine, out: &mut Queue<Out>) {
             Out::Named(line) => engine.notes.push(crate::Note::BoxLink { line }),
         }
     }
+}
+
+/// Stage the host's whole group write before admitting its start (contracts T3).
+pub(crate) fn set_up_group(engine: &mut crate::engine::Engine, forge: u16, request: Token, entry: &[u8]) {
+    if entry.is_empty() {
+        let mut out = Queue::with_capacity(3);
+        engine.box_link.ask(forge, request, &mut out);
+        drain(engine, &mut out);
+    } else if let Some(text) = temper_forge_setup::setup::group_settings(entry, forge) {
+        engine.group_starts.insert(forge, request).expect("one group write per admitted forge");
+        engine.group_writes.push(crate::GroupWrite { forge, text });
+    } else {
+        group_failed(engine, forge, request, b"group settings write: invalid entry".as_slice().into());
+    }
+}
+pub(crate) fn group_written(engine: &mut crate::engine::Engine, forge: u16, result: Result<(), i32>) {
+    let Some(request) = engine.group_starts.remove(&forge) else { return };
+    if engine.end.is_some() || engine.drain.is_some() {
+        return;
+    }
+    match result {
+        Ok(()) => {
+            let mut out = Queue::with_capacity(3);
+            engine.box_link.ask(forge, request, &mut out);
+            drain(engine, &mut out);
+        }
+        Err(errno) => group_failed(
+            engine,
+            forge,
+            request,
+            joined(&[b"group settings write failed: errno ", Decimal::of(u64::from(errno.unsigned_abs())).as_bytes()]),
+        ),
+    }
+}
+fn group_failed(engine: &mut crate::engine::Engine, forge: u16, request: Token, why: Box<[u8]>) {
+    let mut out = Queue::with_capacity(2);
+    out.push(Out::Answered { forge, request, answer: Ok(()) });
+    out.push(Out::Failed { forge, why });
+    drain(engine, &mut out);
 }

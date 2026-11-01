@@ -75,6 +75,9 @@ struct Held {
 }
 
 impl Layer {
+    pub(crate) fn next_run(&mut self) -> Token {
+        lifecycle::next_run(&mut self.lifecycle)
+    }
     #[cfg(test)]
     pub(crate) fn startup_restored(&self) -> bool {
         self.lifecycle.startup_restored()
@@ -760,6 +763,9 @@ pub(crate) fn advance(engine: &mut crate::engine::Engine) {
 }
 pub(crate) fn answer(engine: &mut crate::engine::Engine, event: StoreEvent) {
     if let StoreEvent::Erased { owner } = event {
+        if crate::erase::answered(engine, owner) {
+            return;
+        }
         if let Some(forge) = engine.setup.erases.remove(&owner)
             && !engine.setup.closing
             && engine.drain.is_none()
