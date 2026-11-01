@@ -70,6 +70,8 @@ pub enum Act {
     SetPool,
     /// Withdraw the party's own pending proposal.
     Withdraw,
+    /// Delete the project.
+    RemoveProject,
 }
 
 /// What a current engine judgment says about an act.

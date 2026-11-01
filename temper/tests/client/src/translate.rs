@@ -52,6 +52,7 @@ pub fn party(event: core::Event) -> engine::Event {
         core::Event::Application { .. } => panic!("the client kit does not make Application"),
         core::Event::ApplicationPart { .. } => panic!("the client kit does not make ApplicationPart"),
         core::Event::ApplicationFinished { .. } => panic!("the client kit does not make ApplicationFinished"),
+        core::Event::ProjectReleased { .. } => panic!("the client kit does not make ProjectReleased"),
         core::Event::ProjectionSettled { .. } => panic!("the client kit does not make ProjectionSettled"),
         core::Event::DecidedProposal { .. } => panic!("the client kit does not answer archived proposals"),
         core::Event::SettledCall { .. } => panic!("the client kit does not make SettledCall"),

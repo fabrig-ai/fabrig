@@ -165,7 +165,8 @@ fn a_chat_s_activity_holds_the_person_s_words_its_turns_and_its_delegate_s_resul
             root::Write::Save(_)
             | root::Write::Wires
             | root::Write::Erase(_)
-            | root::Write::CopySettingsRevision(_) => false,
+            | root::Write::CopySettingsRevision(_)
+            | root::Write::DropTranscript { .. } => false,
         });
         let line = commit.iter().any(|write| match write {
             root::Write::Save(root::Record::Core(core::Record::Tasks(tasks::Stored::Activity(row)))) => {
@@ -175,7 +176,8 @@ fn a_chat_s_activity_holds_the_person_s_words_its_turns_and_its_delegate_s_resul
             root::Write::Save(_)
             | root::Write::Wires
             | root::Write::Erase(_)
-            | root::Write::CopySettingsRevision(_) => false,
+            | root::Write::CopySettingsRevision(_)
+            | root::Write::DropTranscript { .. } => false,
         });
         terminal && line
     }));

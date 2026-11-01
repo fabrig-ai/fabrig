@@ -467,7 +467,7 @@ fn a_move_in_counts_against_the_sign_ins_bound() {
     for event in [
         change(3, ALICE, Change::MoveIn { carried: CARRIED }),
         change(3, ALICE, Change::MoveOut { account: 5 }),
-        change(3, ALICE, Change::AddKey { provider: 1, join: None, carried: CARRIED }),
+        change(3, ALICE, Change::AddKey { provider: 1, join: None, carried: CARRIED, uses: None }),
         Event::SignIn { request: Token::new(3), holder: ALICE, by: 9, provider: 1 },
     ] {
         assert_eq!(world.step(event), refused(3, Refusal::Limit { bound: Bound::SignIns }));
@@ -534,7 +534,7 @@ fn a_move_out_waits_for_a_key_keep_joining_its_account() {
     world.step(Event::Want);
     let source = world.domain.next_number();
     assert_eq!(
-        world.step(change(3, ALICE, Change::AddKey { provider: 1, join: Some(5), carried: CARRIED })),
+        world.step(change(3, ALICE, Change::AddKey { provider: 1, join: Some(5), carried: CARRIED, uses: None })),
         vec![
             save(Stored::Next { number: source + 1 }),
             Request::Signing(Signing::Keep { source, carried: CARRIED, replaces: false }),
@@ -572,7 +572,7 @@ fn a_key_keep_cannot_join_an_account_while_its_source_moves() {
         }
         let next = world.domain.next_number();
         assert_eq!(
-            world.step(change(3, ALICE, Change::AddKey { provider: 1, join: Some(5), carried: CARRIED })),
+            world.step(change(3, ALICE, Change::AddKey { provider: 1, join: Some(5), carried: CARRIED, uses: None })),
             refused(3, Refusal::Moving)
         );
         assert_eq!(world.domain.next_number(), next);

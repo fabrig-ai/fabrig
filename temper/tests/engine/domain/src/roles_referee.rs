@@ -96,6 +96,7 @@ impl Referee {
         let mut keys = BTreeSet::new();
         for write in writes {
             let key = match write {
+                Write::DropTranscript { task } => Key::Transcript(*task),
                 Write::Wires => Key::Wires,
                 Write::Save(record) => record.key(),
                 Write::Erase(key) => key.clone(),
@@ -146,6 +147,7 @@ impl Referee {
                 )
                 | Write::Erase(_)
                 | Write::Wires
+                | Write::DropTranscript { .. }
                 | Write::CopySettingsRevision(_) => None,
             })
             .collect();
@@ -196,6 +198,7 @@ impl Referee {
                 )
                 | Write::Erase(_)
                 | Write::Wires
+                | Write::DropTranscript { .. }
                 | Write::CopySettingsRevision(_) => None,
             })
             .collect();
@@ -270,6 +273,7 @@ impl Referee {
                     )
                     | Write::Erase(_)
                     | Write::Wires
+                    | Write::DropTranscript { .. }
                     | Write::CopySettingsRevision(_) => None,
                 });
                 if found.is_none() {
@@ -350,11 +354,12 @@ impl Referee {
                 | Write::Erase(Key::Core(jig_domain_core::Key::Accounts(_))) => {
                     return Err("role administration changed accounts");
                 }
-                Write::Save(Record::Core(
+                Write::DropTranscript { .. }
+                | Write::Save(Record::Core(
                     jig_domain_core::Record::People(_)
                     | jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Deployment(_)),
                 ))
-                | Write::Erase(Key::Core(jig_domain_core::Key::People(_))) => {}
+                | Write::Erase(Key::Transcript(_) | Key::Core(jig_domain_core::Key::People(_))) => {}
                 Write::Save(Record::Forge { .. }) | Write::Erase(Key::Forge(_)) => {
                     return Err("role administration changed forge state");
                 }
@@ -368,6 +373,7 @@ impl Referee {
         }
         for write in writes {
             match write {
+                Write::DropTranscript { .. } => {}
                 Write::Wires | Write::CopySettingsRevision(_) => {
                     unreachable!("role administration settings write refused above")
                 }

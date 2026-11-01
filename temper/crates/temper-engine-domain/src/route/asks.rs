@@ -227,6 +227,10 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
             domain.work.push(Work::Core(core::Event::ProcedureHoldings { task, step, connector, holdings }));
             None
         }
+        core::Ask::ReleaseProject { project } => {
+            domain.work.push(Work::Core(core::Event::ProjectReleased { project, connector }));
+            None
+        }
         core::Ask::ProjectGoal { feed } => {
             if connector == domain.config.forge_connector {
                 domain.work.push(Work::ProjectGoal(feed));

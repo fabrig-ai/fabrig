@@ -265,6 +265,7 @@ fn cold_restart_loads_every_child_before_opening_decisions() {
                         crate::Write::Wires
                         | crate::Write::Save(_)
                         | crate::Write::Erase(_)
+                        | crate::Write::DropTranscript { .. }
                         | crate::Write::CopySettingsRevision(_) => {}
                     }
                 }
