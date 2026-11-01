@@ -8,7 +8,7 @@ Specs under `temper/docs/plan/playground-reset-r6/tasks/`; notes `notes/cl-wire.
 
 ## Contract requests
 
-1. **T8's version move lands with the journeys, not in `cl-wire`.** Every forge ask (watch,
+1. **Accepted (lead).** **T8's version move lands with the journeys, not in `cl-wire`.** Every forge ask (watch,
    read, request) carries `CLIENT_VERSION`, so moving it to 12 stales both committed
    journeys (`temper/docs/design/client/journeys.md`, 8), which the gate's
    `temper-client-journeys` test replays (`.config/gate/always.txt`): `cl-wire` could not
@@ -23,7 +23,7 @@ Specs under `temper/docs/plan/playground-reset-r6/tasks/`; notes `notes/cl-wire.
    goldens, the two hand-made goldens `golden/connect_forgejo_admin_*.bin` and
    `src/tests/forgejo_admin.rs`'s `peer` head (`0, 11` → `0, 12`), and `again` for both
    journeys in that task, which then needs Chromium on its builder.
-2. **The wire's reading of the engine's new answers** (for sv's family translation):
+2. **Accepted (lead).** **The wire's reading of the engine's new answers** (for sv's family translation):
    `notes/cl-wire.md`, 3. T8 names the new outcomes but not each engine answer's; the one
    T8 leaves open is `RemoveRefusal::NoSuchForge`, read as the existing
    `connect_refused { why: no_such_forge }`. The `PlaygroundAnswer`'s `project` and
