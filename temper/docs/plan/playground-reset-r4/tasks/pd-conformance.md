@@ -131,3 +131,12 @@ Step 2 requires “every row … whose key or value names the project” to be a
 Both `jig/crates/jig-domain-people/src/domain/removal.rs` and `jig/tests/core/src/removal.rs` classify every AccountChange as project-free; neither file belongs to this task.
 Route the retained-answer defect and reference-audit omission to pd-delete’s family.
 After that repair, pd-conformance resumes its required checks, then commits and pushes. Acceptance remains unmet; this is not an acceptance as done.
+
+### 2026-11-01: Should fab land pd-delete's retained AccountChange::SetUses answer and reference-audit repair, then restart pd-conformance (recommended), or supply a base already containing that repair? The assigned base still lacks the prerequisite required by the spec's 2026-11-01 answer. (playground-reset-r4/pd-conformance-3, foreman playground-reset-r4/pd-conformance/foreman-3)
+
+Supply a base containing pd-delete’s retained-answer and reference-audit repair, then restart pd-conformance.
+The binding answer says: “Route the retained-answer defect and reference-audit omission to pd-delete’s family.”
+It then says: “After that repair, pd-conformance resumes its required checks, then commits and pushes.”
+Both omissions remain in `jig/crates/jig-domain-people/src/domain/removal.rs` and `jig/tests/core/src/removal.rs`.
+The next run implements the pending scenario and transcript accessor within its existing ownership, completes checks, commits and pushes.
+Acceptance remains unmet; this is not acceptance as done.
