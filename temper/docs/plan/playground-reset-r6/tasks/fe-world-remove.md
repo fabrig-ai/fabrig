@@ -103,3 +103,14 @@ Both requested tips, `b301e3c700` and `12bebefd3a`, are ancestors of this integr
 The next run uses the refreshed prerequisites, runs the four removal stories, and completes the specified checks. Acceptance remains unproven.
 This does not authorize the implementer to merge prerequisite tips in its slot.
 The requested report file could not be written because this session’s filesystem is read-only.
+
+### 2026-11-01: Refresh this task branch with supplied fe-remove b301e3c700 and pd-core-decide 12bebefd3a (recommended), or authorize prerequisite implementation in a separate task? This slot still lacks both implementations, so its four removal stories fail. (playground-reset-r6/fe-world-remove-4, foreman playground-reset-r6/fe-world-remove/foreman-3)
+
+Fab refreshes the task branch with fe-remove b301e3c700 and pd-core-decide 12bebefd3a, then resumes fe-world-remove.
+The existing answer says: “Resume fe-world-remove with fe-remove and pd-core-decide supplied, as the existing answer requires; fab refreshes the task branch.”
+It also says: “prerequisite implementations remain with their named tasks.”
+The boundary says: “May change: nothing else” and “do not fix it here.”
+Both supplied tips are ancestors of this integration checkout; its forge removal and deployment Cancel routes contain implementations.
+The next run uses the refreshed prerequisites, runs the four removal stories, and completes the specified checks. Acceptance remains unproven.
+This does not authorize prerequisite implementation or merging prerequisite tips in the implementer’s slot.
+The requested report file could not be written because this session’s filesystem is read-only.
