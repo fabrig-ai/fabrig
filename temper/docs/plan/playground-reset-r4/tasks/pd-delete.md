@@ -265,3 +265,12 @@ is inherited: name it under Left with both logs, it is not this task's.
 Passing there, it is this task's: `resume_removals` with no kept removal
 must route nothing and leave the root's decision as it was; fix it in
 `routing/mod.rs` or the root's Open arm, no other line.
+
+2026-11-01, on four runs without landing: does the task need recutting?
+No. Each run stopped at a different boundary (the observer, startup
+resolution, the legacy Open, the push), each now answered above, and run
+4 built the whole task with its checks green but the two `Left` items
+answered above. The next run starts with the merges above, then applies
+the `erase.rs` expected-set answer and the `jig-test-domain` link answer,
+reruns step 4's checks and pushes. A boundary the answers above already
+grant is not asked again; only a new one is a question.
