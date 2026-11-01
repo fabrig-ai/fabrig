@@ -137,6 +137,14 @@ fn the_serve_child_reads_retained_effective_documents_across_restart() {
         generated["workers"][0]["agent"]["arguments"],
         serde_json::json!(["internal", "agent", effective.join("agent.json")])
     );
+    let github = &generated["application"]["machine"]["github"];
+    let peer = value(&effective.join("github.json"));
+    assert_eq!(github["api"], peer["listen"]);
+    assert_eq!(github["transport"], "plaintext");
+    let origin = format!("http://{}", peer["listen"]["socket"].as_str().expect("held GitHub peer"));
+    assert_eq!(github["git"], origin);
+    assert_eq!(github["web"], origin);
+    assert!(generated["application"].get("forges").is_none());
     let adapter = value(&effective.join("agent.json"));
     let sibling = skein_scratch::paths::binary("temper").parent().expect("temper parent").join("fake-claude");
     assert_eq!(adapter["programs"]["claude_code"]["path"], sibling.to_str().expect("adapter path"));
