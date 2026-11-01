@@ -503,6 +503,11 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<E
             application_routes::finished(core, env, work, request, outcome)
         }
         Event::ProjectionSettled { goal, connector } => route_projection_settled(core, goal, connector),
+        Event::ProjectReleased { .. } => {
+            let mut out = Queue::uncapped();
+            out.push(Request::Decided);
+            Requests::Out(out)
+        }
         Event::SettledCall { to, key, name, call } => {
             crate::conversation::settle(core, &env.limits, to, key, name, call)
         }

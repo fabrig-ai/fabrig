@@ -29,6 +29,7 @@ pub(crate) fn add(
     join: Option<u32>,
     carried: u64,
     out: &mut Queue<Request>,
+    _uses: Option<Box<[crate::Use]>>,
 ) {
     if let Err(refusal) = addable(domain, &env.limits, holder, provider, join) {
         answer(request, refusal, out);

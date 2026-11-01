@@ -123,6 +123,9 @@ pub enum Ask {
     DelegateRefused { task: Option<u64> },
     /// Start one admitted procedure through its numbered connector.
     StartProcedure { context: Box<tasks::RunContext>, step: u64 },
+    /// Erase every row the connector keeps for this project, then answer `ProjectReleased`.
+    /// (`draft playground-reset.md`, 5; contracts J5).
+    ReleaseProject { project: u32 },
 }
 
 /// Store mutation issued by a child of the core.
@@ -134,6 +137,9 @@ pub enum Write {
     Save(Record),
     /// Erase one authentic core or child key.
     Erase(Key),
+    /// The task's transcript file and its places, dropped whole
+    /// (`draft playground-reset.md`, 5; contracts J6).
+    DropTranscript { task: u64 },
 }
 
 /// Core output that must follow the decision's commit.
@@ -645,6 +651,8 @@ pub enum Event {
     View(views::Event),
     /// A scoped note.
     Notes(notes::Event),
+    /// The connector erased its project rows (`draft playground-reset.md`, 5; contracts J5).
+    ProjectReleased { project: u32, connector: u16 },
 }
 /// One member's concrete identity passed to a connector for its own holdings.
 #[derive(Clone, Debug)]
@@ -846,6 +854,7 @@ impl Event {
             | Self::ApplicationPart { .. }
             | Self::ApplicationFinished { .. }
             | Self::ProjectionSettled { .. }
+            | Self::ProjectReleased { .. }
             | Self::SettledCall { .. }
             | Self::EffectDeadline
             | Self::Unwatch { .. }
@@ -935,7 +944,9 @@ fn tasks_new_work(event: &tasks::Event) -> bool {
         | tasks::Event::Make { .. }
         | tasks::Event::Hold { .. }
         | tasks::Event::HoldFrom { .. } => true,
-        tasks::Event::Charters { .. }
+        tasks::Event::Erase { .. }
+        | tasks::Event::ForgetProject { .. }
+        | tasks::Event::Charters { .. }
         | tasks::Event::WakeProcedure { .. }
         | tasks::Event::RecurringBatch { .. }
         | tasks::Event::Procedure { .. }
@@ -1041,7 +1052,8 @@ fn account_new_work(event: &accounts::Event) -> bool {
         | accounts::Event::Credential { .. }
         | accounts::Event::SignIn { .. }
         | accounts::Event::SignOut { .. } => true,
-        accounts::Event::Restore { .. }
+        accounts::Event::ForgetProject { .. }
+        | accounts::Event::Restore { .. }
         | accounts::Event::ProgramTargets { .. }
         | accounts::Event::ProgramSignedOut { .. }
         | accounts::Event::Component(..)

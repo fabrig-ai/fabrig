@@ -438,6 +438,8 @@ fn selected(scope: &Scope) -> (u32, u32, u32, bool) {
         | Scope::Inbox { .. }
         | Scope::Notes { .. }
         | Scope::ScopedNotes { .. }
+        | Scope::ProjectRows { .. }
+        | Scope::TaskRows { .. }
         | Scope::Spend { .. } => unreachable!("settings range dispatched by its scope"),
     }
 }
