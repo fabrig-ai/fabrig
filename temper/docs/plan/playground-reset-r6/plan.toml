@@ -1,0 +1,17 @@
+ready = false
+draft = "playground-reset-r6"
+repo = "fabrig"
+sources = ["temper/docs/design/draft/playground-reset.md", "temper/docs/plan/playground-reset-r6/inputs/brief.md", "temper/docs/plan/playground-reset-r6/inputs/README.md", "AGENTS.md"]
+
+[[part]]
+id = "fs"
+title = "Forges as records in temper's store, the box's groups by kind, the limits as counts"
+mode = "direct"
+needs = []
+design = "temper/docs/design/draft/playground-reset.md, 3"
+
+[[slice]]
+id = 1
+story = "A forge made at runtime is kept in the store and connects; the box runs its group from its file"
+parts = ["fs"]
+walk = false
