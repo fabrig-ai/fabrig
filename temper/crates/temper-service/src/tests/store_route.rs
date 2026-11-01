@@ -902,3 +902,48 @@ fn startup_asserts_a_decoded_census_cursor_that_cannot_name_its_walk() {
         &mut out,
     );
 }
+
+#[test]
+fn a_sweep_passes_one_typed_page_and_its_continuation_to_the_root() {
+    let mut routes = fixtures::routes();
+    let sweep = core::reads::Sweep::Task(8);
+    let range = engine::Range::Core(engine::CoreRange::Sweep(sweep));
+    let Some(store::Request::Load { owner, range: store::Load::Sweep(found), after: None, rows: 2, bytes: 4096 }) =
+        route::down(&mut routes, load(range.clone(), None, 2, 4096))
+    else {
+        panic!("one bounded sweep load");
+    };
+    assert_eq!(found, sweep);
+    let row = core::Record::People(jig_domain_people::Stored::EndedRead { task: 8, party: 1, through: 1 });
+    let key = engine::Key::Core(row.key());
+    let cursor = store::Cursor { interval: 5, after: store::keys::encode(&row.key(), u32::MAX).unwrap() };
+    let mut out = Queue::uncapped();
+    route::up(
+        &mut routes,
+        store::Event::Loaded { owner, rows: Box::new([store::Row::Jig(row.clone())]), next: Some(cursor.clone()) },
+        &mut out,
+    );
+    let (waiter, rows, next) = page(&mut out);
+    assert_eq!(waiter, fixtures::OWNER);
+    assert_eq!(rows.as_ref(), &[engine::Record::Core(row)]);
+    assert_eq!(next, Some(key.clone()));
+    assert!(out.is_empty(), "one page without a chained load");
+    let Some(store::Request::Load { after: Some(found), .. }) =
+        route::down(&mut routes, load(range, Some(key), 2, 4096))
+    else {
+        panic!("sweep cursor");
+    };
+    assert_eq!(found, cursor);
+}
+
+#[test]
+fn a_core_transcript_drop_crosses_the_service_commit_boundary() {
+    let mut routes = fixtures::routes();
+    let request = engine::StoreRequest::Commit { number: 1, writes: Box::new([engine::Write::DropTranscript(8)]) };
+    let Some(store::Request::Commit { number: 1, writes }) = route::down(&mut routes, request) else {
+        panic!("commit");
+    };
+    let [store::Write::DropTranscript { task: 8 }] = writes.as_ref() else {
+        panic!("whole transcript drop");
+    };
+}

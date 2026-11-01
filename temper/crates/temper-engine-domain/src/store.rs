@@ -359,6 +359,8 @@ pub enum CoreRange {
     TaskTranscript { task: u64, from: (u64, u32) },
     /// One bounded notes-child load by name or by scope and cursor.
     Notes(jig_domain_notes::Range),
+    /// One typed page loaded for core erasure (jig's protocol/store.md, 11.1).
+    Sweep(jig_domain_core::reads::Sweep),
 }
 
 /// Child-contiguous live or historical store range.
@@ -424,7 +426,8 @@ impl CoreRange {
             | Self::TaskResult { .. }
             | Self::Turns { .. }
             | Self::TaskTranscript { .. }
-            | Self::Notes(_) => &[],
+            | Self::Notes(_)
+            | Self::Sweep(_) => &[],
         }
     }
 
@@ -500,6 +503,7 @@ impl CoreRange {
                 let Core::Core(CoreKey::Turn { task: found, attempt, turn }) = key else { return false };
                 *task != 0 && found == task && *attempt != 0 && *turn != 0 && (*attempt, *turn) >= *from
             }
+            CoreRange::Sweep(sweep) => sweep.admits(key),
             CoreRange::Notes(range) => {
                 let Core::Notes(child) = key else { return false };
                 match range {
@@ -554,6 +558,8 @@ pub enum Write {
     Wires,
     /// Copy a held revision to its history destination before its held row is erased.
     CopySettingsRevision(u32),
+    /// Drop the task's whole transcript (jig's protocol/store.md, 8.5).
+    DropTranscript(u64),
     /// Replace the row at its own key.
     Save(/** Owned typed row, byte-bounded by journal admission. */ Record),
     /// Remove the named row, with no owned payload.
@@ -569,6 +575,13 @@ impl Write {
             Write::CopySettingsRevision(number) => Key::Core(jig_domain_core::Key::Core(
                 jig_domain_core::CoreKey::Settings(jig_domain_core::settings::Key::History(*number)),
             )),
+            // Turn zero is outside the stored turn key space; it names this
+            // whole-transcript operation for the decision's write coalescing.
+            Write::DropTranscript(task) => Key::Core(jig_domain_core::Key::Core(jig_domain_core::CoreKey::Turn {
+                task: *task,
+                attempt: 0,
+                turn: 0,
+            })),
             Write::Wires => Key::Wires,
             Write::Save(row) => row.key(),
             Write::Erase(key) => key.clone(),
@@ -827,7 +840,8 @@ pub(crate) fn owned_bytes(write: &Write) -> Option<u64> {
         Write::Erase(Key::Core(jig_domain_core::Key::Notes(jig_domain_notes::Key::Line { scope, .. }))) => {
             note_scope_bytes(scope)
         }
-        Write::Wires
+        Write::DropTranscript(_)
+        | Write::Wires
         | Write::Erase(
             Key::Core(
                 jig_domain_core::Key::Notes(jig_domain_notes::Key::Entry { .. })

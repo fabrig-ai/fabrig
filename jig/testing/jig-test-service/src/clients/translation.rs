@@ -42,6 +42,7 @@ pub(crate) fn to_component(held: core::Held) -> Option<kit::Event> {
         | core::Held::StopRun { .. }
         | core::Held::Load(..)
         | core::Held::NotesLoad { .. }
+        | core::Held::Sweep { .. }
         | core::Held::NotesWritten { .. }
         | core::Held::NotesDeleted { .. } => None,
     }
@@ -199,6 +200,7 @@ pub(crate) fn watcher(value: &core::Event) -> Option<Token> {
         | core::Event::Holdings { .. }
         | core::Event::Account(..)
         | core::Event::View(..)
+        | core::Event::Swept { .. }
         | core::Event::Notes(..) => None,
     }
 }
@@ -282,6 +284,7 @@ pub(crate) fn starting(value: core::Event) -> Option<kit::Event> {
         | core::Event::Holdings { .. }
         | core::Event::Account(..)
         | core::Event::View(..)
+        | core::Event::Swept { .. }
         | core::Event::Notes(..) => None,
     }
 }

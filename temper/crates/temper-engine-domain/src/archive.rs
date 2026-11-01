@@ -22,6 +22,7 @@ pub(crate) enum Waiting {
     Input,
     GoalWords,
     Notes,
+    Sweep,
 }
 
 pub(crate) fn waiting(domain: &Domain, waiter: Token) -> Option<Waiting> {
@@ -34,6 +35,7 @@ pub(crate) fn waiting(domain: &Domain, waiter: Token) -> Option<Waiting> {
         Some(Read::InputCheck(_)) => Some(Waiting::Input),
         Some(Read::GoalWords(_)) => Some(Waiting::GoalWords),
         Some(Read::Notes { .. }) => Some(Waiting::Notes),
+        Some(Read::Sweep { .. }) => Some(Waiting::Sweep),
         None => None,
     }
 }
@@ -119,7 +121,8 @@ pub(crate) fn take_note_owner(domain: &mut Domain, waiter: Token) -> Option<Toke
     match take_read(domain, waiter) {
         Some(Read::Notes { owner }) => Some(owner),
         Some(
-            Read::Ended(_)
+            Read::Sweep { .. }
+            | Read::Ended(_)
             | Read::Escalation(_)
             | Read::Proposal(_)
             | Read::TaskProposal { .. }
@@ -129,6 +132,36 @@ pub(crate) fn take_note_owner(domain: &mut Domain, waiter: Token) -> Option<Toke
         )
         | None => None,
     }
+}
+
+pub(crate) fn sweep_loaded(
+    domain: &mut Domain,
+    waiter: Token,
+    rows: Box<[Record]>,
+    next: Option<Key>,
+    cut: Option<loads::Cut>,
+) {
+    let Some(Read::Sweep { owner }) = take_read(domain, waiter) else {
+        return;
+    };
+    domain.archive_reads.retire(Id::from_token(waiter));
+    if cut.is_some() {
+        domain.load_failure = Some(loads::Failure::Bytes);
+        domain.stop_pending = true;
+        return;
+    }
+    let mut kept = List::with_capacity(u32::try_from(rows.len()).expect("bounded sweep page"));
+    for row in rows {
+        let Record::Core(record) = row else {
+            unreachable!("sweep contains core rows only");
+        };
+        kept.push(record).expect("same count");
+    }
+    domain.work.push(Work::Core(jig_domain_core::Event::Swept {
+        owner,
+        rows: kept.into_boxed(),
+        more: next.is_some(),
+    }));
 }
 
 pub(crate) fn note_failed(domain: &mut Domain, waiter: Token) {

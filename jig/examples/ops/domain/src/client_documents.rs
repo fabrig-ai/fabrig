@@ -153,6 +153,7 @@ pub(crate) fn document(
                 | core::Held::StopRun { .. }
                 | core::Held::Load(..)
                 | core::Held::NotesLoad { .. }
+                | core::Held::Sweep { .. }
                 | core::Held::NotesWritten { .. }
                 | core::Held::Acted { .. }
                 | core::Held::NotesDeleted { .. }) => {

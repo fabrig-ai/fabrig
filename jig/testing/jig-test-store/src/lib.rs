@@ -54,6 +54,7 @@ pub enum StoreOut {
     Restart { step: jig_domain_core::RestartStep, census: Option<jig_domain_core::Census> },
     ReadLoad { load: skein_lib::Token, range: Box<jig_domain_core::reads::Range> },
     NotesLoad { owner: skein_lib::Token, range: jig_domain_notes::Range },
+    Sweep { owner: skein_lib::Token, sweep: jig_domain_core::reads::Sweep },
     Now(jig_domain_core::Now),
 }
 /// A restored row, a root terminal or the next store request.

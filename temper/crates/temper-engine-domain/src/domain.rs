@@ -1040,6 +1040,7 @@ fn released_into(
         }
         Delivery::Restart(_) => unreachable!("root holds only switch and mark continuations"),
         Delivery::Fleet(event) => domain.work.push(Work::Fleet(event)),
+        Delivery::Sweep { owner, sweep } => crate::route::held::sweep_load(domain, env, decision, owner, sweep),
         Delivery::NotesLoad { owner, range } => crate::route::held::notes_load(domain, env, decision, owner, range),
         Delivery::Relay { task, attempt, word, .. } => {
             let name = Token::new(word.number);
@@ -1062,6 +1063,7 @@ fn released_into(
                 | Read::GoalWords(_)
                 | Read::InputCheck(_)
                 | Read::Notes { .. }
+                | Read::Sweep { .. }
                 | Read::Proposal(_)
                 | Read::TaskProposal { .. } => {
                     unreachable!("decision archive waiter")

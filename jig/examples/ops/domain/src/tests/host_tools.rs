@@ -42,6 +42,7 @@ fn subscription_writes(mut writes: Queue<crate::Write>) {
             crate::Write::Save(crate::Record::Core(core::Record::Tasks(_))) => task = true,
             crate::Write::Wires
             | crate::Write::Save(_)
+            | crate::Write::DropTranscript(_)
             | crate::Write::Erase(_)
             | crate::Write::CopySettingsRevision(_) => {}
         }

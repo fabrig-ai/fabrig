@@ -14,6 +14,8 @@
 //! | loading | missing transport range | retired | held gone |
 //! | retired | late duplicate terminal | retired | nothing |
 
+pub mod sweep;
+pub use sweep::Sweep;
 pub mod settings;
 pub use settings::{SettingsAnswer, SettingsRead};
 mod vocabulary;

@@ -157,6 +157,9 @@ impl World {
                         }
                         self.send(root::Event::Released(child));
                     }
+                    root::Output::Core(core::Held::Sweep { owner, .. }) => {
+                        self.send(root::Event::Core(core::Event::Swept { owner, rows: Box::new([]), more: false }));
+                    }
                     root::Output::Core(core::Held::NotesLoad { owner, .. }) => {
                         self.send(root::Event::Core(core::Event::Notes(jig_domain_notes::Event::Loaded {
                             owner,

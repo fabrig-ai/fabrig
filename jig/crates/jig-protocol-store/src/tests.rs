@@ -17,6 +17,7 @@ mod readers;
 mod reads;
 mod restore;
 mod secrets;
+mod sweep;
 mod transcripts;
 
 mod settings;

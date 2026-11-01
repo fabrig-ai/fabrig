@@ -102,6 +102,7 @@ pub fn party(event: core::Event) -> engine::Event {
         core::Event::Holdings { .. } => panic!("the client kit does not make Holdings"),
         core::Event::Account(..) => panic!("the client kit does not make Account"),
         core::Event::View(..) => panic!("the client kit does not make View"),
+        core::Event::Swept { .. } => panic!("the client kit does not make Swept"),
         core::Event::Notes(..) => panic!("the client kit does not make Notes"),
         core::Event::Act { .. } => panic!("the client kit does not make deployment acts"),
     })
@@ -343,6 +344,7 @@ fn delivery_packet(
         | Delivery::Refuse { .. }
         | Delivery::TurnBusy { .. }
         | Delivery::NotesLoad { .. }
+        | Delivery::Sweep { .. }
         | Delivery::Load { .. } => None,
     }
 }

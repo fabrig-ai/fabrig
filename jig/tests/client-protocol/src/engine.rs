@@ -430,6 +430,7 @@ pub fn held_event(held: core::Held) -> Option<Event> {
         | core::Held::StopRun { .. }
         | core::Held::Load(..)
         | core::Held::NotesLoad { .. }
+        | core::Held::Sweep { .. }
         | core::Held::NotesWritten { .. }
         | core::Held::NotesDeleted { .. } => return None,
     })
@@ -555,6 +556,7 @@ pub fn watcher(event: &core::Event) -> Option<Token> {
         | core::Event::Holdings { .. }
         | core::Event::Account(_)
         | core::Event::View(_)
+        | core::Event::Swept { .. }
         | core::Event::Notes(_) => None,
     }
 }

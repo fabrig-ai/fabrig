@@ -98,6 +98,7 @@ pub fn to_root(event: core::Event) -> Result<root::PartyInput, Box<kit::Event>> 
         | core::Event::Holdings { .. }
         | core::Event::Account(..)
         | core::Event::View(..)
+        | core::Event::Swept { .. }
         | core::Event::Notes(..)
         | core::Event::Act { .. } => return Err(Box::new(kit::Event::Abort)),
     };
@@ -152,6 +153,7 @@ fn delivered(delivery: root::Delivery) -> Option<kit::Event> {
         | root::Delivery::Refuse { .. }
         | root::Delivery::TurnBusy { .. }
         | root::Delivery::NotesLoad { .. }
+        | root::Delivery::Sweep { .. }
         | root::Delivery::Restart(_)
         | root::Delivery::Load { .. } => None,
     }

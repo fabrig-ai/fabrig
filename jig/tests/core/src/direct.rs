@@ -282,6 +282,9 @@ impl Driver {
                 root::Request::Deliver(root::Delivery::Core(core::Held::Load(load))) => {
                     self.store.ask(StoreOut::Now(*load));
                 }
+                root::Request::Deliver(root::Delivery::Core(core::Held::Sweep { owner, sweep })) => {
+                    self.store.ask(jig_test_store::StoreOut::Sweep { owner, sweep });
+                }
                 root::Request::Deliver(root::Delivery::Core(core::Held::NotesLoad { owner, range })) => {
                     self.store.ask(StoreOut::NotesLoad { owner, range });
                 }

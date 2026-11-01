@@ -27,6 +27,7 @@ pub(super) fn restarting(range: &Range) -> bool {
             | CoreRange::Turns { .. }
             | CoreRange::TaskTranscript { .. }
             | CoreRange::Notes(_)
+            | CoreRange::Sweep(_)
             | CoreRange::ProposalDecision { .. }
             | CoreRange::TaskProposal { .. }
             | CoreRange::EscalationDecision { .. },
@@ -56,6 +57,20 @@ pub(super) fn cursor(range: &Range, key: &Key) -> Option<store::Cursor> {
         Key::Forge(key) => store::keys::application(&temper_protocol_store::keys::encode(key, u32::MAX)?, u32::MAX)?,
     };
     let interval = match (range, key) {
+        (Range::Core(CoreRange::Sweep(sweep)), Key::Core(_)) => {
+            let mut found = None;
+            for (index, interval) in store::intervals::sweep(sweep).iter().enumerate() {
+                let below_end = match &interval.end {
+                    Some(end) => after.as_ref() < end.as_ref(),
+                    None => true,
+                };
+                if after.as_ref() >= interval.start.as_ref() && below_end {
+                    found = Some(u32::try_from(index).ok()?);
+                    break;
+                }
+            }
+            found?
+        }
         (_, Key::Wires) => return None,
         (Range::Census(census), Key::Core(key)) => census.interval(key)?,
         (Range::Core(range), Key::Core(_)) if !range.restore_ranges().is_empty() => {
@@ -127,6 +142,9 @@ pub(super) fn request(owner: skein_lib::Token, flight: &Flight) -> Option<store:
                         revision: *revision,
                     })),
                 });
+            }
+            CoreRange::Sweep(sweep) => {
+                return Some(store::Request::Load { owner, range: store::Load::Sweep(*sweep), after, rows, bytes });
             }
             CoreRange::Notes(range) => {
                 return Some(store::Request::Load {

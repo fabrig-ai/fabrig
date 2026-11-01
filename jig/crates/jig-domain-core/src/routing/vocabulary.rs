@@ -134,6 +134,8 @@ pub enum Write {
     Save(Record),
     /// Erase one authentic core or child key.
     Erase(Key),
+    /// The task's transcript dropped whole, its file with it (store.md, 8.5).
+    DropTranscript(u64),
 }
 
 /// Core output that must follow the decision's commit.
@@ -210,6 +212,8 @@ pub enum Held {
     StopRun { task: u64, attempt: u64 },
     /// Store page requested by the notes child after earlier commits.
     NotesLoad { owner: Token, range: notes::Range },
+    /// One page of the sweep's rows, after every earlier commit is durable.
+    Sweep { owner: Token, sweep: crate::reads::Sweep },
     /// A note write's accepted revision.
     NotesWritten { owner: Token, name: u64, revision: u32 },
     /// A note deletion's accepted name.
@@ -405,6 +409,8 @@ pub struct CoreBriefBudgets {
 /// One event routed to a child of the core.
 #[derive(Debug)]
 pub enum Event {
+    /// One typed sweep page; `more` says the store had a next cursor.
+    Swept { owner: Token, rows: Box<[Record]>, more: bool },
     /// Owner settings value held only while people admits its keyed digest.
     ChangeSettings {
         reply_to: ReplyTo,
@@ -838,7 +844,8 @@ impl Event {
             | Self::StartRecurring { .. }
             | Self::Period { .. }
             | Self::NamedAction { .. } => true,
-            Self::SettingsCommit { .. }
+            Self::Swept { .. }
+            | Self::SettingsCommit { .. }
             | Self::Fill { .. }
             | Self::Stopping
             | Self::Marked { .. }

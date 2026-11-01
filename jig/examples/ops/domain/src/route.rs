@@ -244,6 +244,9 @@ pub(crate) fn core_out(
             core::Request::Write(core::Write::Save(record)) => {
                 write(domain, decision, Write::Save(Record::Core(record)));
             }
+            core::Request::Write(core::Write::DropTranscript(task)) => {
+                write(domain, decision, Write::DropTranscript(task));
+            }
             core::Request::Write(core::Write::Erase(key)) => write(domain, decision, Write::Erase(Key::Core(key))),
             core::Request::Held(value) => core_held(domain, env, decision, *value, work),
             core::Request::Now(value) => core_now(domain, env, *value, work),
@@ -451,6 +454,7 @@ fn core_held(
         | core::Held::Refuse { .. }
         | core::Held::TurnBusy { .. }
         | core::Held::NotesLoad { .. }
+        | core::Held::Sweep { .. }
         | core::Held::NotesWritten { .. }
         | core::Held::NotesDeleted { .. }) => held(decision, Output::Core(other)),
     }

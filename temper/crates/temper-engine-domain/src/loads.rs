@@ -83,6 +83,7 @@ pub enum Kind {
     Turns,
     TaskTranscript,
     Notes,
+    Sweep,
     ProposalDecision,
     TaskProposal,
     EscalationDecision,
@@ -113,6 +114,7 @@ pub(crate) fn kind(range: &Range) -> Kind {
         Range::Core(CoreRange::Turns { .. }) => Kind::Turns,
         Range::Core(CoreRange::TaskTranscript { .. }) => Kind::TaskTranscript,
         Range::Core(CoreRange::Notes(_)) => Kind::Notes,
+        Range::Core(CoreRange::Sweep(_)) => Kind::Sweep,
         Range::Core(CoreRange::ProposalDecision { .. }) => Kind::ProposalDecision,
         Range::Core(CoreRange::TaskProposal { .. }) => Kind::TaskProposal,
         Range::Core(CoreRange::EscalationDecision { .. }) => Kind::EscalationDecision,
@@ -436,6 +438,7 @@ fn read_cursor(entry: &Entry, empty: bool, previous: Option<&Key>, cursor: &Key)
             | crate::CoreRange::People
             | crate::CoreRange::RunProofs
             | crate::CoreRange::Calls
+            | crate::CoreRange::Sweep(_)
             | crate::CoreRange::Notes(jig_domain_notes::Range::Lines { .. }),
         )
         | Range::Census(_)
@@ -492,6 +495,7 @@ fn valid_range(range: &Range) -> bool {
             | crate::CoreRange::People
             | crate::CoreRange::RunProofs
             | crate::CoreRange::Calls
+            | crate::CoreRange::Sweep(_)
             | crate::CoreRange::Notes(jig_domain_notes::Range::Lines { .. }),
         )
         | Range::Census(_)

@@ -329,6 +329,7 @@ impl Store {
             out @ (StoreOut::Restart { .. }
             | StoreOut::ReadLoad { .. }
             | StoreOut::NotesLoad { .. }
+            | StoreOut::Sweep { .. }
             | StoreOut::Now(_)) => self.request(out),
         }
     }
@@ -454,6 +455,10 @@ impl Store {
                 let writes = self.inflight.remove(&number).expect("commit belongs to the root");
                 for write in &writes {
                     match write {
+                        root::Write::DropTranscript(task) => {
+                            self.rows.retain(|_, row| !matches!(row,
+                                root::Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Turn(turn))) if turn.task == *task));
+                        }
                         root::Write::Wires => {}
                         root::Write::CopySettingsRevision(number) => {
                             use jig_domain_core as core;

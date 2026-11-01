@@ -624,6 +624,10 @@ impl Application for Testing {
                 store.ask(StoreOut::Now(*load));
                 Vec::new()
             }
+            root::Delivery::Core(core::Held::Sweep { owner, sweep }) => {
+                store.ask(jig_test_store::StoreOut::Sweep { owner, sweep });
+                Vec::new()
+            }
             root::Delivery::Core(core::Held::NotesLoad { owner, range }) => {
                 store.ask(StoreOut::NotesLoad { owner, range });
                 Vec::new()

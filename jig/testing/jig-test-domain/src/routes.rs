@@ -32,6 +32,9 @@ pub(super) fn route_core(
             core::Request::Write(core::Write::Save(record)) => {
                 write(domain, decision, Write::Save(Record::Core(record)));
             }
+            core::Request::Write(core::Write::DropTranscript(task)) => {
+                write(domain, decision, Write::DropTranscript(task));
+            }
             core::Request::Write(core::Write::Erase(key)) => write(domain, decision, Write::Erase(Key::Core(key))),
             core::Request::Held(held) => match *held {
                 core::Held::ApplicationDelivery { .. } => {
@@ -100,6 +103,7 @@ pub(super) fn route_core(
                 | core::Held::StopRun { .. }
                 | core::Held::Load(..)
                 | core::Held::NotesLoad { .. }
+                | core::Held::Sweep { .. }
                 | core::Held::NotesWritten { .. }
                 | core::Held::Acted { .. }
                 | core::Held::NotesDeleted { .. }) => hold(decision, crate::link::down(domain, Delivery::Core(other))),

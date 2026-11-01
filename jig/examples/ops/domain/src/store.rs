@@ -60,4 +60,6 @@ pub enum Write {
     Save(Record),
     /// Erase the owner's address.
     Erase(Key),
+    /// Drop the task's whole transcript (protocol/store.md, 8.5).
+    DropTranscript(u64),
 }

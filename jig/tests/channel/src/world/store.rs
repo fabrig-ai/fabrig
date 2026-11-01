@@ -233,6 +233,11 @@ impl Store {
                         *self.lengths.entry(turn.task).or_default() += len;
                     }
                 }
+                root::Write::DropTranscript(task) => {
+                    self.rows.retain(|_, row| !matches!(row,
+                        root::Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Turn(turn))) if turn.task == *task));
+                    self.lengths.remove(task);
+                }
                 root::Write::Erase(key) => {
                     self.rows.remove(key);
                 }

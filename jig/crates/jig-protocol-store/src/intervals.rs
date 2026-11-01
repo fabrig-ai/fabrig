@@ -118,6 +118,31 @@ pub fn notes(range: &notes::Range) -> Box<[Range]> {
         }
     }])
 }
+/// Exact intervals in encoded key order for erasure (store.md, 4.3 and 11.1).
+#[must_use]
+pub fn sweep(sweep: &core::reads::Sweep) -> Box<[Range]> {
+    match sweep {
+        core::reads::Sweep::Ended { after: task } => {
+            let mut range = Range::prefix(&[keys::JIG, 1, 6]);
+            range.start = after(&encoded(&core::Key::Tasks(jig_domain_tasks::Key::Ended(*task))));
+            Box::new([range])
+        }
+        core::reads::Sweep::Task(task) => Box::new([
+            numbered_prefix(&[keys::JIG, 0, 5], *task),
+            numbered_prefix(&[keys::JIG, 0, 7], *task),
+            numbered_prefix(&[keys::JIG, 1, 9], *task),
+            numbered_prefix(&[keys::JIG, 1, 10], *task),
+            numbered_prefix(&[keys::JIG, 1, 11], *task),
+            numbered_prefix(&[keys::JIG, 2, 7], *task),
+        ]),
+        core::reads::Sweep::Notes { project } => Box::new([
+            numbered_prefix(&[keys::JIG, 3, 1, 1], u64::from(*project)),
+            numbered_prefix(&[keys::JIG, 3, 1, 2], u64::from(*project)),
+            numbered_prefix(&[keys::JIG, 3, 1, 3], u64::from(*project)),
+        ]),
+    }
+}
+
 fn encoded(key: &core::Key) -> Box<[u8]> {
     keys::encode(key, u32::MAX).expect("the domain's bounded key fits a u32 length")
 }
