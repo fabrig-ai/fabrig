@@ -1308,8 +1308,6 @@ pub(crate) fn valid_ask(limits: &Limits, ask: &Ask) -> bool {
         return false;
     }
     match ask {
-        // Refused until pd-close gives it a body.
-        Ask::RemoveProject { .. } => false,
         Ask::Compound { operations, .. } => crate::compound::refusal(limits, operations).is_none(),
         Ask::MarkSeen { seen } => match seen {
             Seen::Results { .. } => true,
@@ -1325,7 +1323,8 @@ pub(crate) fn valid_ask(limits: &Limits, ask: &Ask) -> bool {
                     None => false,
                 }
         }
-        Ask::ChangeSettings { .. }
+        Ask::RemoveProject { .. }
+        | Ask::ChangeSettings { .. }
         | Ask::MoveToNewest { .. }
         | Ask::Application { .. }
         | Ask::AccountSignIn { .. }
@@ -1407,8 +1406,6 @@ pub(crate) fn valid_ask(limits: &Limits, ask: &Ask) -> bool {
 // Admission identifies the bounded payload before any keyed flight is made.
 pub(crate) fn invalid_ask(limits: &Limits, ask: &Ask) -> Refusal {
     let which = match ask {
-        // Refused until pd-close gives it a body.
-        Ask::RemoveProject { .. } => return Refusal::NotOffered,
         Ask::Compound { operations, .. } => {
             return crate::compound::refusal(limits, operations).expect("invalid compound");
         }
@@ -1431,7 +1428,8 @@ pub(crate) fn invalid_ask(limits: &Limits, ask: &Ask) -> Refusal {
             }
             LimitKind::Words
         }
-        Ask::MarkSeen { .. }
+        Ask::RemoveProject { .. }
+        | Ask::MarkSeen { .. }
         | Ask::Application { .. }
         | Ask::TakePerson { .. }
         | Ask::HandBackPerson { .. }

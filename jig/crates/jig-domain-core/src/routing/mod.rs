@@ -68,6 +68,7 @@ pub(crate) mod procedure_steps;
 mod projects;
 mod proposal_revisions;
 pub(crate) mod refusals;
+mod removal;
 mod run_controls;
 mod run_delegation;
 mod run_payloads;
@@ -544,7 +545,7 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<E
         }
         Event::ClaimRefused { task } => route_claim_refused(core, work, task),
         Event::ConnectorRepair { seed, executor, spec, contract, holdings } => {
-            route_connector_repair(work, seed, executor, spec, contract, holdings)
+            route_connector_repair(core, work, seed, executor, spec, contract, holdings)
         }
         Event::Period { project, period, budget, next } => route_period(core, work, project, period, budget, next),
         Event::PreparationFailed { task } => route_preparation_failed(core, work, task),

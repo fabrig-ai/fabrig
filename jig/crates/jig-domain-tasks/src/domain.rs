@@ -409,6 +409,23 @@ impl Domain {
         names.into_boxed()
     }
 
+    /// Live roots of a project, in task-number order (draft 5).
+    #[must_use]
+    pub fn project_roots(&self, project: u32) -> Box<[u64]> {
+        let mut numbers = List::with_capacity(self.names.capacity());
+        for (number, _) in &self.names {
+            let row = record(self, *number).expect("live name");
+            let root = match row.requester {
+                Party::Task(_) => false,
+                Party::Person(_) | Party::Deployment { .. } => true,
+            };
+            if row.project == project && root {
+                numbers.push(*number).expect("one identity per task");
+            }
+        }
+        numbers.into_boxed()
+    }
+
     /// Current deployment-owned core recurring task identities for one project.
     #[must_use]
     pub fn recurring_tasks(&self, project: u32) -> Box<[u64]> {

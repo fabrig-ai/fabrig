@@ -232,6 +232,13 @@ pub(super) fn tag_people(
                 Request::Now(Box::new(Now::RestoreRefused))
             }
             people::Request::Route { request, person, project, role, mut ask, models } => {
+                if project != people::DEPLOYMENT && !core.projects.as_slice().contains(&project) {
+                    work.push(Event::People(people::Event::Decided {
+                        request,
+                        outcome: people::Outcome::Refused(people::Refusal::Unknown),
+                    }));
+                    continue;
+                }
                 if !crate::model_names::resolve(&mut ask, &models, &core.settings.models) {
                     work.push(Event::People(people::Event::Decided {
                         request,
@@ -248,10 +255,7 @@ pub(super) fn tag_people(
                 }
                 match *ask {
                     people::Ask::RemoveProject { .. } => {
-                        work.push(Event::People(people::Event::Decided {
-                            request,
-                            outcome: people::Outcome::Refused(people::Refusal::NotOffered),
-                        }));
+                        super::removal::remove_request(core, env, work, &mut out, request, person, project);
                     }
                     people::Ask::Compound { operations, .. } => {
                         crate::compound::route(

@@ -56,10 +56,13 @@ pub(super) fn route(
     act: people::Act,
 ) {
     match act {
-        people::Act::RemoveProject { .. } => {
-            refused(work, request, people::Refusal::NotOffered);
+        people::Act::RemoveProject { project } => {
+            super::removal::remove_act(core, env, work, out, request, project);
         }
         people::Act::Cancel { project, task, grace, reason } => {
+            if !core.projects.as_slice().contains(&project) {
+                return refused(work, request, people::Refusal::Unknown);
+            }
             let Some(row) = core.tasks.task(task) else {
                 return super::result_reads::closed_subject(core, work, out, request, project, task);
             };
@@ -81,6 +84,9 @@ pub(super) fn route(
             super::projects::make_project_act(core, env, work, out, request, maker, name, policy);
         }
         people::Act::Close { project, task, grace, reason } => {
+            if !core.projects.as_slice().contains(&project) {
+                return refused(work, request, people::Refusal::Unknown);
+            }
             if core.tasks.task(task).is_none() {
                 return super::result_reads::closed_subject(core, work, out, request, project, task);
             }
