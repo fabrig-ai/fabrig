@@ -1,23 +1,20 @@
 # The reference case
 
-Draft, 2026-11-01, fourth edition. Nothing here is adopted until the
-user approves it. One invented story, as small as it can be while it
-runs every mechanic of `landing-model.md` (revision 5), the model fab
-runs today, with the cast fab has, so that someone who knows fab
-recognises each role and step. temper and jig must be able to run it.
-Each step cites the model's sections it shows; section 9 maps the
-story onto fab and the model; section 11 lists, mechanic by mechanic,
-what temper and jig have today and what they lack, the input to the
-execution plan that follows approval. Other designs cite the third
-edition's steps; they are repointed when this one is adopted.
+Draft, 2026-11-01, fourth edition, not adopted until the user approves
+it. One invented story, as small as it can be while it runs every
+mechanic of `landing-model.md` (revision 5) with fab's own cast, so
+that someone who knows fab recognises each role and step. temper and
+jig must be able to run it. Section 9 maps the story onto fab and the
+model; section 11 lists what temper and jig have and lack, mechanic by
+mechanic: the input to the execution plan. Designs citing the third
+edition are repointed on adoption.
 
 ## 1. In one page
 
 - **One project, Harbor,** one repository on an owned Forgejo.
-- **Two people's parts:** Ines, the person, and Ines's chat, which
-  reads the inbox page and does the hand work fab leaves to sessions.
-  Every other role is the dispatcher's: its runs and its calls
-  (section 3.2).
+- **Ines and her chat,** which reads the inbox page and does the hand
+  work fab leaves to sessions; every other role is the dispatcher's
+  (3.2).
 - **Three plans:** Export and Themes, two drafts on trunks of their
   own, and the ladder, Harbor's QA.
 - **Five acts, 26 steps, about 10 hours,** overlapping in time: the
@@ -30,9 +27,8 @@ edition's steps; they are repointed when this one is adopted.
   `landing-model.md` it shows.
 - **Time** is hours from the start. On fakes, timers and bounds are
   scaled down.
-- **Run two ways:** on fakes, each call's and run's report scripted as
-  the oracle; on real backends, with real producers on the real forge,
-  and Ines's words typed by a QA driver.
+- **Run two ways:** on fakes, each report scripted as the oracle; on
+  real backends, Ines's words typed by a QA driver.
 
 ## 3. The project, the cast and the start
 
@@ -58,23 +54,13 @@ edition's steps; they are repointed when this one is adopted.
 
 ### 3.2 The cast
 
-| In the story | What it is | fab's role |
-|---|---|---|
-| Ines | the person | the user |
-| Ines's chat | a session | the director (and, for the machines, ops) |
-| the scheduler | code, on the hub | the tick (`fab tick`), woken by events |
-| the cut | a Claude call | the cut (the designer) |
-| the implementers | Codex runs in slots | implementers |
-| the foreman | a read-only Codex run | the question and refusal foremen |
-| the red foreman, the finding foreman | read-only Codex runs | the same |
-| the answerer | a Claude call | the answer call |
-| the reviewer, the amender, the settler | a Codex run, Claude calls | the review run, the amend and settle calls |
-| the skeleton call, the structure review, the retire call | Claude calls | the same |
-| the triager | a Claude call | triage, in the director's role |
-| the walker | a Claude agent of Ines's chat | the QA walker, by hand |
-| the reply call | a Claude call | the issue reply (`fab issues sync`) |
-| the queue | code, on G | the merge queue (`fab queue`) |
-| the tier runner | code, on G's last slot | after-landing (`fab after-landing`) |
+Ines and her chat; and the dispatcher's roles, each as fab has it: the
+scheduler (fab's tick), the cut, the implementers (Codex runs in
+slots), the foreman, the red and finding foremen, the answerer, the
+reviewer, the amender and the settler, the skeleton call, the
+structure review, the retire call, the triager, the reply call, the
+queue on G and the tier runner. The walker is an agent of Ines's chat,
+as fab's walks are still walked by hand. Section 9 maps each onto fab.
 
 ### 3.3 At hour 0
 
@@ -323,9 +309,9 @@ suspects:
 
 ### 7.3 Export's red reaches its owner
 
-The scheduler opens `red-2` for the two tests and starts the red
-foreman, since Export's trunk is a plan's: fix, owner e4, the export
-command drops a header row under one locale. `red-2`'s repair runs from
+The scheduler opens `red-2` for the two tests; Export's trunk is a
+plan's, so the red foreman reads it: fix, owner e4, a header row
+dropped under one locale. `red-2`'s repair runs from
 main and is readied. Alone in its batch, its receipt green for that tip
 and main, it lands on the receipt after the counted baselines and
 formatting. The next tier run passes both tests: recovered, and
@@ -428,12 +414,11 @@ clears with the pass.
   backstop tick collects it and notes the lost event. The run's unit
   had gone with a restart of B2, so its slot's claim is stale, and the
   scheduler releases it.
-- **The reports:** the next morning the chat runs the daily reports.
-  The code report shows each plan's runs, questions, idle gaps and
-  weights; the landing report its batches, the collateral one, the
-  bisection, the reds by state, and the ladder's walks and passes. The
-  status page showed the overlap, the questions waiting and the
-  subscriptions' pace throughout.
+- **The reports:** next morning the chat runs the daily code and
+  landing reports (runs, questions, idle gaps, weights; batches,
+  collateral, bisection, reds, walks and passes); the status page
+  showed the overlap, the questions waiting and the subscriptions'
+  pace throughout.
 
 - **Model:** 3, 12.1, 12.2, 13.
 
@@ -441,6 +426,10 @@ clears with the pass.
 
 | Story | fab | Model |
 |---|---|---|
+| Ines; Ines's chat | the user; the director (and ops, for the machines) | 11, 12 |
+| the scheduler | the tick, `fab tick` | 3 |
+| the implementers | Codex implementer runs | 5.1 |
+| the walker | the QA walker, by hand | 9.2 |
 | Ines starts a draft (4.1) | `fab call cut --plan ... --source ...` | 4.1 |
 | Export's options (4.1) | `plan.toml`: `landing`, `ready`, `reviews`, `direct`, `early` | 4.4 |
 | the cut's early pushes (4.2) | `cut-run.md`'s early release, `fab wake cut`, the tick's cut merge | 4.2 |
@@ -497,42 +486,42 @@ clears with the pass.
 
 ## 11. What temper and jig have, and lack
 
-Mechanic by mechanic, in the model's order. "Have" is what temper and
-jig hold today at fabrig 2075ff38b, built unless marked *designed*;
-"lack" is what the case needs beyond it. Unqualified documents are
-temper's `../domain/` ones.
+Mechanic by mechanic, in the model's order (its steps are in section 9).
+"Have" is what temper and jig hold today at fabrig 2075ff38b, built
+unless marked *designed*; "lack" is what the case needs beyond it.
+Unqualified documents are temper's `../domain/` ones.
 
-| Mechanic | Model | Steps | temper and jig have | They lack |
-|---|---|---|---|---|
-| One writer, state folded from records, event wakes, a backstop | 3 | 4.1, 5.3, 8.5 | one engine as the store's only writer, each decision a journalled commit; inbox, queue and turn derived, never stored; timers (jig's README 6, `domain/engine.md` 5; `root.md` 5.7) | records of the case's own kinds: walks, findings, reds, overlaps |
-| A draft started; the cut: a plan of parts, slices, questions and briefs, released early | 4.1, 4.2 | 4.1 to 4.3 | the chat's `goal`, which plans, asks its requester and makes changes in batches (`agent.md` 4.3.2, 8.2; jig's `domain/core.md` 7.1, `domain/tasks.md` 4); notes (jig's `domain/engine.md` 10) | a one-shot design call whose output is a plan and briefs as files, released in pieces; drafts beside it in its brief |
-| Changes, briefs with options, repairs made from records, a plan's options | 4.3, 4.4 | 4.1, 4.2, 5.6 | a change with its producer, repairs and resolutions (`forge.md` 8); briefs compiled from sections (jig's `domain/engine.md` 9) | pre-approved options in a brief; repairs folded from records; per-plan landing options |
-| A run: its outcome line, `Left`, a rerun from its pushed branch, a run limit | 5.1 | 5.1 to 5.5, 8.4 | a producing task on a worker; finished, parked or failed with failure classes, transient failures retried with backoff; follow-ups; a retried producer continuing on its pushed branch; bounded tries reset by a release (jig's `domain/tasks.md` 5.5, 5.6; `worker.md` 5) | an `Infra:` outcome that spends no try and narrows the flow; a `Left` list the trunk's checks take up |
-| Places, a flow target, calm builders, the order of starts, a start handed on | 5.2 | 5.1, 5.8, 8.2, 8.4 | fleet slots, fenced attempts, placement preferring a warm worker, a busy one placed again (jig's `domain/engine.md` 8) | a target of runs in flight that grows and halves; calm; repairs first |
-| Merging into a draft's trunk, a counted baseline recounted, a conflict to a rebase | 6.1 | 4.2, 5.3, 5.4 | a goal's own branch landed whole (`forge.md` 11.1, *designed*); a conflict as a resolution (`forge.md` 8.4); the project's prepare tooling (`landing.md` 5.3, *designed*) | a trunk each done change merges into, dependents starting from it, the recount at a merge |
-| Early starts | 6.2 | 5.2 | a procedure started kept beside its dependency (jig's `domain/connectors.md` 6.1, *designed*) | a start on a need's pushed branch, merged again before the push, refused on a conflict |
-| Checks along the way and their repairs | 6.3 | 5.6 | a red base pausing the queue for one repair change (`forge.md` 9) | periodic checks of a trunk; repairs naming the unmerged changes; answers folded into a repair |
-| Catching up with main, its repairs, a stop | 6.4 | 6.2 | updates by the forge's merge, a conflict as a resolution, bounds that hold a change (`forge.md` 10, 8.4) | a timed catch-up of a trunk; a check that main is contained; a plan's stop cleared by a hand merge |
-| The end check, ready, a re-check after a rejection | 6.5 | 5.8, 6.3, 6.4 | a goal branch landed as a change, with CI and bounded repairs (`forge.md` 8.2 to 8.4, 11.1) | a full check of the trunk before ready; a re-check after the queue rejects it |
-| An overlap probe between drafts | 6.6 | 4.2, 5.7, 6.2 | a landing waking a goal whose changes' files it overlaps (`forge.md` 7.3, in part) | a merge probe of each pair of trunks, recorded and shown |
-| The queue: batches, selection, an exclusive gate lane, the push, an error | 7.1 | 6.1, 6.4, 7.1 | the turn: bases read again, fast-forward only, one per project (`landing.md` 8, on Forgejo); selection by keys and ignored paths (`landing.md` 6.1); a queue per landing branch (`forge.md` 9) | batches of unrelated changes; a full selection every fifth batch; an exclusive lane; an error that rejects nobody |
-| The check before ready and its receipt reused | 7.2 | 7.1, 7.3 | receipts by key, reused by every member, never run twice (`landing.md` 6) | a check before ready in the change's workspace, and a receipt from it |
-| Collateral reds | 7.3 | 7.1, 8.4 | a runner's fault kept apart from a failure (`landing.md` 7.4); a gate's flake rerun when it matches an open finding (`findings.md` 5, *designed*) | a failed test retried alone before anyone is blamed, with its bound |
-| Bisection of a red batch | 7.4 | 6.1 | bisection of a red tier run (`after-landing.md` 5.2, *designed*) | bisection at the gate |
-| Who hears a rejection: the refusal foreman, a retry, a hand-pushed branch | 7.5 | 5.4, 6.1, 6.4, 8.4 | a real failure as a repair under the member's change (`landing.md` 7.3); a held change in the person's inbox (`agent.md` 8.2) | a judge choosing fix or retry; an unchanged tip readied again; a signal for a branch no goal owns |
-| Tiers following main | 8.1 | 7.1 to 7.3 | tiers on the newest tip, failures rerun alone, new, inherited and flaky, faults (`after-landing.md` 2 to 5, *designed*; only `Check::Tier` built) | the tiers built; CPU and starvation; recovered and unattributed; live pairs on borrowed sign-ins |
-| A red reaching its owner | 8.2 | 7.1, 7.3, 7.4 | a red to the landing's goals, a repair naming it, cleared by a passing run; reds of no goal to findings (`after-landing.md` 5.3, 7, *designed*) | grouping by tip and suspects; a red's judge; a repair from main made by the system; unfixed; signals |
-| A plan retired after its verdict | 8.3, 10.6 | 7.5 | a change living to cleared (`after-landing.md` 6, *designed*) | a plan waiting for its trunk's verdict; a retire call |
-| The ladder, editions, a walk entered by command | 9.1, 9.2 | 8.1, 8.3, 8.4 | the ladder as a process (`../qa.md`; `testing.md` 2.7); a walk with a sign-in in custody (`findings.md` 8, *designed*) | rungs and editions as records; a walk's start and result as records |
-| Findings, merges, again, triage, the backlog | 9.3 | 8.1 to 8.4 | finding records matched by signature, triaged to a goal, the backlog or a drop (`findings.md` 2, 4, 6, *designed*) | merges by the walker's word; again; the person's and the brief's decisions; a backlog file landed |
-| A finding's repair, rung states, the pass | 9.4 | 8.2, 8.4 | a routed finding as news to its goal, closed by its fix once cleared (`findings.md` 6, 7, *designed*) | a judge then a repair from main; rung states; a pass on an unchanged rerun; unfixed |
-| Calls | 10.1 | 4.1, 4.4 | finite agent tasks on a compiled brief, with budgets of turns, spend and time; report-only advisors (jig's `domain/engine.md` 9; `agent.md` 4.3.2, 4.6) | a call's peak context measured |
-| Review chains, settle, a landing's refusal, the structure review | 10.2 | 4.3, 4.4, 5.8 | a separate read-only reviewer; changes requested as a repair; a failed review asked once more, then held (`forge.md` 8.3) | settle (land, amend, the person); a landing's refusal counted; a structure review writing consolidations |
-| The foreman | 10.3 | 5.2, 5.4 to 5.6, 7.1, 8.2, 8.4 | escalations and proposals decided by the nearest holder; a person task choosing among options (jig's `domain/tasks.md` 9, `domain/people.md` 8) | settling from a brief's options with no one asked; `Accept:`; a read-only judge of refusals, reds and findings |
-| The answerer and parks | 10.4, 10.5 | 4.3, 4.4, 5.4 to 5.6, 8.4 | a task's own question parks its run, spending no try; wakes batched after N or T (jig's `domain/tasks.md` 5.7, 8.3); a conversation answering its delegates (8.5, *designed*) | one call answering a plan's queued questions; a part parked on a plan's question |
-| Skeleton calls and the changes started from them | 10.6 | 4.4 | nothing | design calls per part, their tips checked, changes started from them and rebased onto the merged tip |
-| The inbox page, signals, answers and clears | 11.1, 11.2 | 4.3, 6.1, 7.1 to 7.4, 8.3, 8.4 | a party's inbox of questions, proposals, escalations, person tasks and results, answered with `temper ctl task answer` (jig's `domain/people.md` 6, 8) | signals as a kind, opened and cleared from records; a plan's question answered in the plan |
-| Questions on the forge | 11.3 | 4.4, 8.3 | a question as an issue, the first comment its answer (`forge.md` 12.1, *designed*, Later) | a reply call that converses before it records |
-| Workspaces, disk, lanes, stale claims | 12.1 | 5.1, 5.4, 8.5 | a checkout cache by workstream, one operation at a time, released or discarded (`worker.md` 5; jig's `domain/hosts.md` 7, *designed*) | disk admission that waits and reclaims; a sweep that bounds a workspace; lanes |
-| The shelf | 12.2 | 7.2, 8.1, 8.5 | accounts with holders, sources and states, limited until a reset; a claim records its account; moves out and in (jig's `domain/accounts.md` 1 to 6) | lending to a run and returning; a swap; checks of every limit |
-| Reports and the status page | 13 | 5.7, 8.5 | views of tasks and what they wait on (jig's `domain/engine.md` 11); spend per period (jig's `domain/authority.md` 7); `ctl landing show` and `list` | daily code and landing reports; a public page of counts; weights |
+| Mechanic | Model | temper and jig have | They lack |
+|---|---|---|---|
+| One writer, state folded from records, event wakes, a backstop | 3 | one engine as the store's only writer, each decision a journalled commit; inbox, queue and turn derived, never stored; timers (jig's README 6, `domain/engine.md` 5; `root.md` 5.7) | records of the case's own kinds: walks, findings, reds, overlaps |
+| A draft started; the cut: a plan of parts, slices, questions and briefs, released early | 4.1, 4.2 | the chat's `goal`, which plans, asks its requester and makes changes in batches (`agent.md` 4.3.2, 8.2; jig's `domain/core.md` 7.1, `domain/tasks.md` 4); notes (jig's `domain/engine.md` 10) | a one-shot design call whose output is a plan and briefs as files, released in pieces; drafts beside it in its brief |
+| Changes, briefs with options, repairs made from records, a plan's options | 4.3, 4.4 | a change with its producer, repairs and resolutions (`forge.md` 8); briefs compiled from sections (jig's `domain/engine.md` 9) | pre-approved options in a brief; repairs folded from records; per-plan landing options |
+| A run: its outcome line, `Left`, a rerun from its pushed branch, a run limit | 5.1 | a producing task on a worker; finished, parked or failed with failure classes, transient failures retried with backoff; follow-ups; a retried producer continuing on its pushed branch; bounded tries reset by a release (jig's `domain/tasks.md` 5.5, 5.6; `worker.md` 5) | an `Infra:` outcome that spends no try and narrows the flow; a `Left` list the trunk's checks take up |
+| Places, a flow target, calm builders, the order of starts, a start handed on | 5.2 | fleet slots, fenced attempts, placement preferring a warm worker, a busy one placed again (jig's `domain/engine.md` 8) | a target of runs in flight that grows and halves; calm; repairs first |
+| Merging into a draft's trunk, a counted baseline recounted, a conflict to a rebase | 6.1 | a goal's own branch landed whole (`forge.md` 11.1, *designed*); a conflict as a resolution (`forge.md` 8.4); the project's prepare tooling (`landing.md` 5.3, *designed*) | a trunk each done change merges into, dependents starting from it, the recount at a merge |
+| Early starts | 6.2 | a procedure started kept beside its dependency (jig's `domain/connectors.md` 6.1, *designed*) | a start on a need's pushed branch, merged again before the push, refused on a conflict |
+| Checks along the way and their repairs | 6.3 | a red base pausing the queue for one repair change (`forge.md` 9) | periodic checks of a trunk; repairs naming the unmerged changes; answers folded into a repair |
+| Catching up with main, its repairs, a stop | 6.4 | updates by the forge's merge, a conflict as a resolution, bounds that hold a change (`forge.md` 10, 8.4) | a timed catch-up of a trunk; a check that main is contained; a plan's stop cleared by a hand merge |
+| The end check, ready, a re-check after a rejection | 6.5 | a goal branch landed as a change, with CI and bounded repairs (`forge.md` 8.2 to 8.4, 11.1) | a full check of the trunk before ready; a re-check after the queue rejects it |
+| An overlap probe between drafts | 6.6 | a landing waking a goal whose changes' files it overlaps (`forge.md` 7.3, in part) | a merge probe of each pair of trunks, recorded and shown |
+| The queue: batches, selection, an exclusive gate lane, the push, an error | 7.1 | the turn: bases read again, fast-forward only, one per project (`landing.md` 8, on Forgejo); selection by keys and ignored paths (`landing.md` 6.1); a queue per landing branch (`forge.md` 9) | batches of unrelated changes; a full selection every fifth batch; an exclusive lane; an error that rejects nobody |
+| The check before ready and its receipt reused | 7.2 | receipts by key, reused by every member, never run twice (`landing.md` 6) | a check before ready in the change's workspace, and a receipt from it |
+| Collateral reds | 7.3 | a runner's fault kept apart from a failure (`landing.md` 7.4); a gate's flake rerun when it matches an open finding (`findings.md` 5, *designed*) | a failed test retried alone before anyone is blamed, with its bound |
+| Bisection of a red batch | 7.4 | bisection of a red tier run (`after-landing.md` 5.2, *designed*) | bisection at the gate |
+| Who hears a rejection: the refusal foreman, a retry, a hand-pushed branch | 7.5 | a real failure as a repair under the member's change (`landing.md` 7.3); a held change in the person's inbox (`agent.md` 8.2) | a judge choosing fix or retry; an unchanged tip readied again; a signal for a branch no goal owns |
+| Tiers following main | 8.1 | tiers on the newest tip, failures rerun alone, new, inherited and flaky, faults (`after-landing.md` 2 to 5, *designed*; only `Check::Tier` built) | the tiers built; CPU and starvation; recovered and unattributed; live pairs on borrowed sign-ins |
+| A red reaching its owner | 8.2 | a red to the landing's goals, a repair naming it, cleared by a passing run; reds of no goal to findings (`after-landing.md` 5.3, 7, *designed*) | grouping by tip and suspects; a red's judge; a repair from main made by the system; unfixed; signals |
+| A plan retired after its verdict | 8.3, 10.6 | a change living to cleared (`after-landing.md` 6, *designed*) | a plan waiting for its trunk's verdict; a retire call |
+| The ladder, editions, a walk entered by command | 9.1, 9.2 | the ladder as a process (`../qa.md`; `testing.md` 2.7); a walk with a sign-in in custody (`findings.md` 8, *designed*) | rungs and editions as records; a walk's start and result as records |
+| Findings, merges, again, triage, the backlog | 9.3 | finding records matched by signature, triaged to a goal, the backlog or a drop (`findings.md` 2, 4, 6, *designed*) | merges by the walker's word; again; the person's and the brief's decisions; a backlog file landed |
+| A finding's repair, rung states, the pass | 9.4 | a routed finding as news to its goal, closed by its fix once cleared (`findings.md` 6, 7, *designed*) | a judge then a repair from main; rung states; a pass on an unchanged rerun; unfixed |
+| Calls | 10.1 | finite agent tasks on a compiled brief, with budgets of turns, spend and time; report-only advisors (jig's `domain/engine.md` 9; `agent.md` 4.3.2, 4.6) | a call's peak context measured |
+| Review chains, settle, a landing's refusal, the structure review | 10.2 | a separate read-only reviewer; changes requested as a repair; a failed review asked once more, then held (`forge.md` 8.3) | settle (land, amend, the person); a landing's refusal counted; a structure review writing consolidations |
+| The foreman | 10.3 | escalations and proposals decided by the nearest holder; a person task choosing among options (jig's `domain/tasks.md` 9, `domain/people.md` 8) | settling from a brief's options with no one asked; `Accept:`; a read-only judge of refusals, reds and findings |
+| The answerer and parks | 10.4, 10.5 | a task's own question parks its run, spending no try; wakes batched after N or T (jig's `domain/tasks.md` 5.7, 8.3); a conversation answering its delegates (8.5, *designed*) | one call answering a plan's queued questions; a part parked on a plan's question |
+| Skeleton calls and the changes started from them | 10.6 | nothing | design calls per part, their tips checked, changes started from them and rebased onto the merged tip |
+| The inbox page, signals, answers and clears | 11.1, 11.2 | a party's inbox of questions, proposals, escalations, person tasks and results, answered with `temper ctl task answer` (jig's `domain/people.md` 6, 8) | signals as a kind, opened and cleared from records; a plan's question answered in the plan |
+| Questions on the forge | 11.3 | a question as an issue, the first comment its answer (`forge.md` 12.1, *designed*, Later) | a reply call that converses before it records |
+| Workspaces, disk, lanes, stale claims | 12.1 | a checkout cache by workstream, one operation at a time, released or discarded (`worker.md` 5; jig's `domain/hosts.md` 7, *designed*) | disk admission that waits and reclaims; a sweep that bounds a workspace; lanes |
+| The shelf | 12.2 | accounts with holders, sources and states, limited until a reset; a claim records its account; moves out and in (jig's `domain/accounts.md` 1 to 6) | lending to a run and returning; a swap; checks of every limit |
+| Reports and the status page | 13 | views of tasks and what they wait on (jig's `domain/engine.md` 11); spend per period (jig's `domain/authority.md` 7); `ctl landing show` and `list` | daily code and landing reports; a public page of counts; weights |
