@@ -67,7 +67,8 @@ Neighbours, each edit the line or arm named:
   dropping any cached line or entry of the project's scopes; its rows
   are erased by the core's sweep), `domain.rs`, `lib.rs`;
 - `jig-domain-core`: `reads/sweep.rs` (the `Sweep::Recurring { project
-  }` and `Sweep::Proposals` variants, their `admits` arms and their
+  }` and `Sweep::Proposals { after: Option<u64> }` variants (Answers,
+  2026-11-01, fifth), their `admits` arms and their
   test's cases), `lib.rs` (`mod
   project_rows;`, and the field `pub(crate) row_sweeps: Map<Token,
   project_rows::RowSweep>` beside `erasures` (Answers, 2026-11-01,
@@ -83,7 +84,8 @@ Neighbours, each edit the line or arm named:
   `numbered_prefix(&[keys::JIG, 1, 7, 2], project)`, the
   `ClosedLedger` family's `Funder::Recurring` tag; the
   `Sweep::Proposals` arm: `Range::prefix(&[keys::JIG, 1, 8])`, the
-  `DecidedProposal` family), `tests/sweep.rs` (two tests);
+  `DecidedProposal` family, its start moved past
+  `Key::DecidedProposal(after)` as the `Sweep::Ended` arm moves it), `tests/sweep.rs` (two tests);
 - compiler arms for the three new events and the sweep anywhere in
   `jig/**` and `temper/**`.
 
@@ -127,9 +129,10 @@ Pre-approved:
    project } }`. `swept`: erase each line and its entry; sweep again on
    `more`; else `Sweep::Recurring { project }` (the archived
    `ClosedLedger(Funder::Recurring { project, .. })` rows), each erased
-   by key, again on `more`; else `Sweep::Proposals` (Answers,
-   2026-11-01, third and fourth), again on `more` once the page's
-   accepted decisions are loaded; else `rows_done` (empty but for `// pd-delete continues the
+   by key, again on `more`; else `Sweep::Proposals { after: None }`
+   (Answers, 2026-11-01, third to fifth), again on `more` once the
+   page's accepted decisions are loaded, `after` the page's greatest
+   proposal number; else `rows_done` (empty but for `// pd-delete continues the
    project's deletion here.`).
 2. Tests:
    - `jig-domain-tasks` `src/tests/project_gone.rs`:
@@ -146,6 +149,7 @@ Pre-approved:
      `a_notes_page_erases_each_line_and_its_entry`,
      `the_last_notes_page_sweeps_the_closed_recurring_ledgers`,
      `a_proposals_page_erases_only_the_projects_decisions_and_their_updates`,
+     `a_proposals_page_of_other_projects_rows_sweeps_on_past_them`,
      `an_accepted_proposals_update_goes_at_its_loaded_decision_time`.
 3. Checks: `cargo fmt`; clippy on the four crates; their `--lib`
    tests; `heavy cargo nextest run -p jig-tasks-world`, `-p
@@ -261,3 +265,27 @@ Option<ProposalDecisionRecord>, busy }` by `jig-protocol-store`'s
   the rejected one's rows go in the page, one `HistoricalProposal`
   load leaves, and its answer erases the accepted one's `Update` at
   the loaded `at`; then `rows_done`'s point is reached.
+
+2026-11-01, from this task's question (how does the proposals sweep
+get past the other projects' rows it keeps, when every route issues a
+sweep with `after: None`?): option A, the shape `Sweep::Ended { after
+}` already has; the routes and the stored format stay.
+
+- `Sweep::Proposals { after: Option<u64> }`: `admits` takes a
+  `DecidedProposal(number)` key with `number > after` (every one for
+  `None`); `intervals::sweep` starts the `[JIG, 1, 8]` prefix at
+  `after(&encoded(Key::DecidedProposal(after)))` when `Some`, as the
+  `Ended` arm does.
+- The stage starts with `after: None`. Each page records its greatest
+  proposal number, of whatever project, in `RowSweep.sweep`
+  (`Sweep::Proposals { after: Some(greatest) }`); once its `waiting`
+  is empty, `more` sweeps again with that sweep, else the owner goes
+  and `rows_done` is called. A page that keeps all its rows so still
+  advances, and a retained prefix cannot starve later rows.
+- Tests: `the_proposals_sweep_admits_the_decided_proposals_family_only`
+  also checks the bound (`Some(n)` admits `n + 1`, not `n`; the store
+  returns only rows above it); `jig-domain-core`'s
+  `a_proposals_page_of_other_projects_rows_sweeps_on_past_them`: page
+  size two, proposals 1 and 2 of another project, 3 of the project:
+  the second request is `Sweep::Proposals { after: Some(2) }`, its page
+  erases 3's rows and `rows_done`'s point is reached.
