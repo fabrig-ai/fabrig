@@ -63,7 +63,8 @@ pub struct ServiceHost {
     pub(crate) fixture: Option<crate::forge::Fixture>,
     pub(crate) seen: crate::forge::Seen,
     github: Option<crate::github::Fixture>,
-    github_seeded: bool,
+    forge_seeded: bool,
+    document_forge: SocketAddr,
     clients: Option<SocketAddr>,
     clients_listener: Option<TcpListener>,
     pub(crate) github_seen: crate::github::Seen,
@@ -163,7 +164,8 @@ impl ServiceHost {
             forge_address: None,
             fixture,
             github,
-            github_seeded: github.is_none_or(|fixture| !fixture.connected),
+            forge_seeded: restartable,
+            document_forge: address,
             clients,
             clients_listener,
             github_seen: crate::github::Seen::default(),
@@ -225,15 +227,36 @@ impl ServiceHost {
         }
         self.github_seen.checkpoint(peer, calls);
     }
-    fn github_documents(&self, forge: SocketAddr) {
-        let Some(fixture) = self.github else { return };
-        if fixture.connected {
-            temper_github_app::seed(
-                &self.path.join("state"),
-                &temper_github_app::records(&temper_github_app::APP, 1, &[crate::github::INSTALLATION], forge),
+    fn seed_forge(&self, forge: SocketAddr) {
+        use temper_engine_domain_forge::ApiTransport;
+        let git = format!("http://{forge}").into_bytes();
+        let (mut record, records) = if let Some(fixture) = self.github {
+            let mut record = temper_github_app::github(1, forge, b"localhost", None);
+            record.api.transport = ApiTransport::Plaintext;
+            record.git = git.into();
+            record.web = Some(record.git.clone());
+            let records = if fixture.connected {
+                temper_github_app::records(&temper_github_app::APP, 1, &[crate::github::INSTALLATION], forge)
+            } else {
+                Box::new([])
+            };
+            (record, records)
+        } else {
+            let (token, user, hook, git_token) = if self.fixture.is_some() {
+                let token = temper_fake_git_hosted::fixtures::TOKEN;
+                (token, 1, Some(crate::forge::HOOK_SECRET), token)
+            } else {
+                (b"forge-1-api-token-value".as_slice(), 42, None, b"forge-1-git-token-value".as_slice())
+            };
+            (
+                temper_github_app::forgejo(1, forge, &git),
+                temper_github_app::forgejo_records(1, token, user, hook, git_token, forge),
             )
-            .expect("durable App seed");
-        }
+        };
+        record.bot.login = b"temper".as_slice().into();
+        record.bot.name = b"Temper".as_slice().into();
+        record.bot.email = b"temper@example.test".as_slice().into();
+        temper_github_app::seed_forges(&self.path.join("state"), &[record], &records).expect("durable forge seed");
     }
     /// Settled lives in order; `ran()` and `linked()` retain their aggregate history.
     #[must_use]
@@ -311,15 +334,14 @@ impl ServiceHost {
     fn finish_bootstrap(&mut self) {
         let Some(service) = &mut self.service else { return };
         if !self.signals_adopted && service.end().is_some_and(|end| *end != crate::End::Drained) {
-            // A failed bootstrap will not reopen: close its retained signal
-            // reader through the ended service's ordinary io lifecycle.
             service.adopt_signals(self.signals).expect("failed bootstrap signal pipe");
             self.signals_adopted = true;
         }
-        if !self.github_seeded && service.is_empty() && service.end() == Some(&crate::End::Drained) {
+        if !self.forge_seeded && service.is_empty() && service.end() == Some(&crate::End::Drained) {
             self.service = None;
-            self.github_documents(self.forge_address.expect("GitHub peer address"));
-            self.github_seeded = true;
+            let forge = self.forge_address.unwrap_or(self.document_forge);
+            self.seed_forge(forge);
+            self.forge_seeded = true;
         }
     }
     fn ready(&self) -> bool {
@@ -335,7 +357,7 @@ impl ServiceHost {
         .expect("standalone preparation");
         if let Some(listener) = &self.clients_listener {
             // Keep the original bound across the bootstrap service's shutdown
-            // and the configured App's second start at the same address.
+            // and the seeded forge's start at the same address.
             let listener = listener.try_clone().expect("clients listener descriptor");
             service
                 .adopt_listener(Fd::new(listener.as_raw_fd()), listener.local_addr().expect("clients address"))
@@ -431,7 +453,7 @@ impl Host for ServiceHost {
                 .forge_address
                 .unwrap_or_else(|| self.forge.as_ref().expect("held forge").local_addr().expect("forge address"));
             if self.state != LifeState::Second {
-                fixtures::bind(&self.path, address, forge).expect("bound standalone documents");
+                fixtures::bind(&self.path, address, self.document_forge, forge).expect("bound standalone documents");
                 if let Some(shape) = &self.cluster {
                     shape.write(self.path.parent().expect("cluster scratch"));
                 }
@@ -442,7 +464,7 @@ impl Host for ServiceHost {
             } else {
                 assert_eq!(service.operations(), self.operations, "preparation preserves operations");
             }
-            if self.github_seeded {
+            if self.forge_seeded {
                 service.adopt_signals(self.signals).expect("service signal pipe");
                 self.signals_adopted = true;
                 self.started_at.get_or_insert(now);
@@ -487,11 +509,9 @@ impl Host for ServiceHost {
                 self.notes.push(note);
             }
             while let Some(link) = service.links().pop() {
-                if !self.github_seeded {
-                    // domain/root.md, 9.1: the first start seeds settings and
-                    // owners before its durable mark permits secret writes.
-                    // Drain that real deployment before the App fixture opens
-                    // its store; only the following start releases the caller.
+                if !self.forge_seeded {
+                    // First-start settings and owners must be durable before
+                    // the fixture opens the store to seed its forge records.
                     service.shutdown();
                     continue;
                 }
@@ -501,7 +521,7 @@ impl Host for ServiceHost {
                 self.link.push(b'\n');
                 fixtures::private(&self.path.join("link"), &self.link).expect("private printed link");
             }
-            if service.is_empty() && self.github_seeded {
+            if service.is_empty() && self.forge_seeded {
                 self.forge = None;
                 self.clients_listener = None;
             }
