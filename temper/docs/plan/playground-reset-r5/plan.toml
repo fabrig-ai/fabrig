@@ -16,3 +16,16 @@ id = 1
 story = "A project deleted by its owner or the deployment ends whole across a restart, and no row names it after"
 parts = ["jig-remove-project"]
 walk = false
+
+[[part]]
+id = "playground"
+title = "The playground as ordinary records: StartPlayground, EndPlayground's reset, the empty, unfinished and whole states"
+mode = "direct"
+needs = ["jig-remove-project"]
+design = "temper/docs/design/draft/playground-reset.md, 6.1-6.3"
+
+[[slice]]
+id = 2
+story = "A first run into the playground and out by its reset leaves the store empty and the person on the welcome's Forge step"
+parts = ["playground"]
+walk = false
