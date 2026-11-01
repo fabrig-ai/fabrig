@@ -386,18 +386,7 @@ impl World {
             root_out: Queue::uncapped(),
             root_events: VecDeque::from([engine::Event::Restart { pending: false }]),
             store,
-            party: parties::Party::new(
-                1,
-                parties::Role::Owner,
-                400,
-                Box::new([
-                    parties::Act::SignIn { provider: 0, subject: 7_u64.to_be_bytes().into() },
-                    parties::Act::Request {
-                        key: [41; 16],
-                        ask: parties::Ask::Chat { words: Box::from(&b"@system"[..]) },
-                    },
-                ]),
-            ),
+            party: signed_in_party(),
             protocol: Protocol::default(),
             worker: worker::Domain::new(&worker_limits),
             worker_out: Queue::uncapped(),
@@ -861,11 +850,7 @@ impl World {
         match delivery {
             // A run watch first supplies its current document, then streams
             // provisional suffixes. Acknowledge both kinds of delivery.
-            Delivery::Document { watcher, .. } => {
-                assert_eq!(watcher, RUN_WATCH);
-                assert!(self.run_watch.is_some(), "the party's run watch");
-                self.root_events.push_back(engine::Event::Party(engine::PartyInput::Delivered { watcher }));
-            }
+            Delivery::Document { watcher, .. } => self.acknowledge_run(watcher),
             Delivery::SourceSignedOut { .. } => panic!("this story requests no source sign-out"),
             Delivery::Application { to, outcome } => {
                 assert_eq!(to.into_token(), ADOPTION);
@@ -918,6 +903,12 @@ impl World {
             | Delivery::Load { .. }
             | Delivery::CarriedUnused { .. }) => panic!("unscripted released delivery: {other:?}"),
         }
+    }
+
+    fn acknowledge_run(&mut self, watcher: Token) {
+        assert_eq!(watcher, RUN_WATCH);
+        assert!(self.run_watch.is_some(), "the party's run watch");
+        self.root_events.push_back(engine::Event::Party(engine::PartyInput::Delivered { watcher }));
     }
 
     fn web_reply(&mut self, to: Token, reply: people::Reply) {
@@ -1013,17 +1004,7 @@ impl World {
                 self.worker_events.push_back(worker::Event::RelayCancelled { run, attempt, call });
             }
             worker::Request::Stop => panic!("the worker stops only once shut down"),
-            worker::Request::Process(request) => {
-                let mut around = Around {
-                    events: &mut self.worker_events,
-                    observed: &mut self.observed,
-                    disk: &mut self.disk,
-                    store: &self.store,
-                    assignment: self.assignment.as_ref(),
-                    repository: self.adoption != Adoption::Without,
-                };
-                self.process.request(*request, &mut around);
-            }
+            worker::Request::Process(request) => self.process_request(*request),
             worker::Request::Decode { agent, run, start } => {
                 let start = worker_protocol::decode(run, *start, &self.worker_env.limits.agent);
                 self.worker_events.push_back(worker::Event::Decoded { agent, start });
@@ -1048,9 +1029,33 @@ impl World {
         }
     }
 
+    fn process_request(&mut self, request: worker::agent::process::Request) {
+        let mut around = Around {
+            events: &mut self.worker_events,
+            observed: &mut self.observed,
+            disk: &mut self.disk,
+            store: &self.store,
+            assignment: self.assignment.as_ref(),
+            repository: self.adoption != Adoption::Without,
+        };
+        self.process.request(request, &mut around);
+    }
+
     fn up(&mut self, link: engine::Link) {
         self.root_events.push_back(engine::Event::Worker(engine::WorkerInput::Link { channel: CHANNEL, link }));
     }
+}
+
+fn signed_in_party() -> parties::Party {
+    parties::Party::new(
+        1,
+        parties::Role::Owner,
+        400,
+        Box::new([
+            parties::Act::SignIn { provider: 0, subject: 7_u64.to_be_bytes().into() },
+            parties::Act::Request { key: [41; 16], ask: parties::Ask::Chat { words: Box::from(&b"@system"[..]) } },
+        ]),
+    )
 }
 
 /// Map the service's git remote to the fake forge's repository name.

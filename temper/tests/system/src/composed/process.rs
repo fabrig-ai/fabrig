@@ -62,6 +62,36 @@ struct Producer {
     holding: bool,
 }
 
+impl Producer {
+    fn hold(&mut self, record: &record::Turn, number: u32) -> host::Piece {
+        let mut text = Vec::new();
+        for message in &record.messages {
+            if message.role == llm::Role::Assistant {
+                for block in &message.content {
+                    if let llm::Block::Text { text: bytes, .. } = block {
+                        text.extend_from_slice(bytes);
+                    }
+                }
+            }
+        }
+        assert!(text.len() >= self.count, "one nonempty text slice per piece");
+        assert!(!self.holding, "one held reply turn");
+        for part in 0..self.count {
+            let from = text.len() * part / self.count;
+            let to = text.len() * (part + 1) / self.count;
+            self.pieces.push_back(host::Piece {
+                turn: number,
+                retry: 0,
+                kind: host::LiveKind::Text,
+                offset: u64::try_from(from).expect("bounded reply offset"),
+                bytes: text[from..to].into(),
+            });
+        }
+        self.holding = true;
+        self.pieces.pop_front().expect("the first reply piece")
+    }
+}
+
 /// What a process request needs of the world around it.
 pub(crate) struct Around<'a> {
     pub(crate) events: &'a mut VecDeque<worker::Event>,
@@ -367,33 +397,9 @@ impl Process {
             let index = usize::try_from(*number - 1).expect("positive turn");
             let record = agent.turns()[index].clone();
             if let Some(producer) = &mut self.producer {
-                let mut text = Vec::new();
-                for message in &record.messages {
-                    if message.role == llm::Role::Assistant {
-                        for block in &message.content {
-                            if let llm::Block::Text { text: bytes, .. } = block {
-                                text.extend_from_slice(bytes);
-                            }
-                        }
-                    }
-                }
-                assert!(text.len() >= producer.count, "one nonempty text slice per piece");
-                assert!(!producer.holding, "one held reply turn");
-                for part in 0..producer.count {
-                    let from = text.len() * part / producer.count;
-                    let to = text.len() * (part + 1) / producer.count;
-                    producer.pieces.push_back(host::Piece {
-                        turn: *number,
-                        retry: 0,
-                        kind: host::LiveKind::Text,
-                        offset: u64::try_from(from).expect("bounded reply offset"),
-                        bytes: text[from..to].into(),
-                    });
-                }
-                let piece = producer.pieces.pop_front().expect("the first reply piece");
+                let piece = producer.hold(&record, *number);
                 assert_eq!(self.reading.take(), self.owner, "a granted read for the live piece");
                 around.events.push_back(worker::Event::Live { agent: self.owner.expect("spawned agent"), piece });
-                producer.holding = true;
             }
             self.up.push_back(agent::Up::Turn {
                 turn: agent::Turn {
@@ -412,12 +418,7 @@ impl Process {
         self.sent_waits = agent.waiting().len();
         if self.settled {
             unmount(agent.disk(), around.disk, &self.mounts);
-            let mut read = None;
-            for (_, turn_read, _) in agent.turn_metadata() {
-                if turn_read.is_some() {
-                    read = *turn_read;
-                }
-            }
+            let read = agent.turn_metadata().iter().filter_map(|(_, read, _)| *read).next_back();
             let (turns, spent, result) = result(agent.answer());
             self.up.push_back(agent::Up::Answer { answer: agent::Answer { read, turns, spent, result } });
             self.answered = Some((turns, spent));
