@@ -153,6 +153,7 @@ pub fn root(
                 | Scenario::ConversationEndsWhileRead
                 | Scenario::QueryWatchedWhileTasksEnd,
             ) => &[1, 2, 15],
+            Some(Scenario::ProjectRemoved) => panic!("project removal story unsupported"),
             Some(Scenario::ShrinkingPool) => panic!("forge has no pooled holds"),
             None => &[1, 8, 13, 2, 3, 4, 6, 15],
         }

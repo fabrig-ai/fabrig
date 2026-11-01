@@ -30,12 +30,14 @@ pub enum Scenario {
     RacingDecisions,
     /// Conversations end and restart while their requesting party reads.
     ConversationEndsWhileRead,
+    /// A project is deleted whole across the decision and erasure cuts.
+    ProjectRemoved,
     /// A task query is watched across ends and cold starts.
     QueryWatchedWhileTasksEnd,
 }
 
 /// Every shared story, in a stable order for focused cuts and sweeps.
-pub const ALL: [Scenario; 13] = [
+pub const ALL: [Scenario; 14] = [
     Scenario::LateCopy,
     Scenario::OtherHand,
     Scenario::UncertainRestarts,
@@ -49,11 +51,16 @@ pub const ALL: [Scenario; 13] = [
     Scenario::QueryWatchedWhileTasksEnd,
     Scenario::Compound,
     Scenario::Grace,
+    Scenario::ProjectRemoved,
 ];
 
 /// One scenario action, translated at the application's outside boundaries.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Action {
+    /// Populate the project's store families through the testing application.
+    MakeProjectRows,
+    /// Delete the populated project through the deployment's act.
+    RemoveProject,
     /// Move and cancel two delegates, and ask their conversation to finish.
     Compound,
     /// Send the identical compound under its original request key.
@@ -155,6 +162,10 @@ pub fn program(scenario: Scenario) -> Vec<Step> {
         lifecycle(&mut steps, scenario);
         return steps;
     }
+    if scenario == Scenario::ProjectRemoved {
+        removal(&mut steps);
+        return steps;
+    }
     if scenario == Scenario::QueryWatchedWhileTasksEnd {
         query(&mut steps);
         return steps;
@@ -193,6 +204,7 @@ pub fn program(scenario: Scenario) -> Vec<Step> {
         Scenario::RacingDecisions => &[Action::PartyAmend, Action::RunAmend],
         Scenario::Compound
         | Scenario::Grace
+        | Scenario::ProjectRemoved
         | Scenario::QueryWatchedWhileTasksEnd
         | Scenario::ConversationEndsWhileRead => {
             unreachable!("conversation program returned")
@@ -237,6 +249,7 @@ pub fn program(scenario: Scenario) -> Vec<Step> {
         | Scenario::RunBudget
         | Scenario::RacingDecisions
         | Scenario::ConversationEndsWhileRead
+        | Scenario::ProjectRemoved
         | Scenario::QueryWatchedWhileTasksEnd => {}
     }
     steps
@@ -334,4 +347,13 @@ fn query(steps: &mut Vec<Step>) {
             Step::Drain,
         ]);
     }
+}
+
+fn removal(steps: &mut Vec<Step>) {
+    steps.extend([
+        Step::Action(Action::MakeProjectRows),
+        Step::Drain,
+        Step::Action(Action::RemoveProject),
+        Step::Drain,
+    ]);
 }

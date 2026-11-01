@@ -2,6 +2,7 @@
 mod conversations;
 pub(crate) mod lifecycle;
 pub(crate) mod queries;
+pub mod removal;
 use crate::{Config, Testing, actions::World};
 use jig_conformance::referee::{Promise, Violation};
 use jig_conformance::scenarios::{Action, Scenario, ScenarioApplication};
@@ -132,6 +133,7 @@ impl ScenarioApplication for Testing {
     fn check(world: &World, scenario: Scenario) -> Result<(), Violation> {
         let applied = world.systems[0].observed().iter().filter(|effect| effect.applied).count();
         match scenario {
+            Scenario::ProjectRemoved => removal::check_ending(world),
             Scenario::Compound | Scenario::Grace => lifecycle::check_ending(world, scenario),
             Scenario::QueryWatchedWhileTasksEnd => queries::check_ending(world),
             Scenario::ConversationEndsWhileRead => conversations::check_ending(world),
@@ -228,6 +230,9 @@ impl Continuation {
     pub(crate) fn advance(&mut self, world: &mut World) -> Result<bool, Violation> {
         loop {
             match self.action {
+                Action::MakeProjectRows | Action::RemoveProject => {
+                    return removal::advance(world, self.action, &mut self.phase);
+                }
                 Action::Compound | Action::CompoundAgain | Action::CancelWithGrace | Action::Finish => {
                     return lifecycle::advance(world, self.action, &mut self.phase);
                 }
@@ -654,7 +659,9 @@ fn atomic(world: &mut World, action: Action) -> Result<(), Violation> {
             );
         }
 
-        Action::Conversation { .. }
+        Action::MakeProjectRows
+        | Action::RemoveProject
+        | Action::Conversation { .. }
         | Action::Turn
         | Action::MarkTurns
         | Action::EndConversations
