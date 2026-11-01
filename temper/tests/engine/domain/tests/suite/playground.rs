@@ -30,7 +30,9 @@ fn limits() -> engine::Limits {
 
 fn driver(seed: u64, real: bool) -> Driver {
     let limits = limits();
-    let mut store = fixtures::first_start_over(Store::with_limits(&limits), walking::playground_config(seed), &limits);
+    let config = walking::playground_config(seed);
+    let store = Store::with_models(&limits, config.core.settings.models.clone());
+    let mut store = fixtures::first_start_over(store, config, &limits);
     if real {
         store.seed(forges::rows(&[forges::record(1, forge::Kind::Forgejo, forge::Mode::Managed)]), Box::new([]));
     }
@@ -132,8 +134,10 @@ fn a_start_makes_the_fake_forge_project_account_and_adoption() {
         assert!(cuts::forge_rows(&d.store).iter().any(|record| matches!(record,
             forge::Stored::Forge(record) if record.number == row.forge && record.playground && record.mode == forge::Mode::Fake)));
         assert!(d.store.rows.values().any(|record| matches!(record,
-            Record::Core(core::Record::People(people::Stored::Policy { project: number, name, .. }))
-                if *number == project && name.as_ref() == "Playground")));
+            Record::Core(core::Record::People(people::Stored::Policy { project: number, name, value, .. }))
+                if *number == project && name.as_ref() == "Playground"
+                    && value.ceiling.models == Some(people::Models::Named(1))
+                    && value.roles[0].authority.models == Some(people::Models::Named(1)))));
         assert!(cuts::acted(&d.store).iter().any(|(_, act, outcome)| matches!((act, outcome),
             (people::Act::MakeProject { name, policy: 1, .. }, people::Outcome::ProjectMade { project: made })
                 if *made == project && name.as_ref() == "Playground")));
@@ -180,7 +184,7 @@ fn ask(d: &mut Driver, sign_in: u64, key: u8, ask: people::Ask) {
 }
 
 fn other_project(d: &mut Driver, owner: u64) -> u32 {
-    ask(d, owner, 83, people::Ask::MakeProject { name: "Other project".into(), policy: 1 });
+    ask(d, owner, 83, people::Ask::MakeProject { name: "Other project".into(), policy: 2 });
     let project = d
         .delivered
         .iter()
@@ -196,6 +200,10 @@ fn other_project(d: &mut Driver, owner: u64) -> u32 {
         })
         .expect("other project made");
     assert_ne!(Some(project), playground(d).project);
+    assert!(d.store.rows.values().any(|record| matches!(record,
+        Record::Core(core::Record::People(people::Stored::Policy { project: number, value, .. }))
+            if *number == project && value.ceiling.models == Some(people::Models::Named(2))
+                && value.roles[0].authority.models == Some(people::Models::Named(2)))));
     project
 }
 
@@ -236,16 +244,17 @@ fn another_project_cannot_select(d: &mut Driver, account: u32) {
     let people::Ask::Create { mut batch, .. } = walking::chat(1, b"Work in the other project") else {
         panic!("chat fixture")
     };
+    batch[0].authority.models = None;
     batch[0].llm = Some(people::LlmChoice {
         account: Some(account),
-        main: people::ModelEffort { model: 0, effort: None },
+        main: people::ModelEffort { model: 1, effort: None },
         subagents: Box::new([]),
     });
     ask(d, sign_in, 87, people::Ask::Create { project, batch });
     assert!(
         d.delivered.iter().any(|delivery| matches!(delivery,
         Delivery::WebReply { to, reply: people::Reply::Outcome(people::Outcome::Refused(
-            people::Refusal::Account { account: refused, why: people::AccountWhy::Uses })) }
+            people::Refusal::Account { account: refused, why: people::AccountWhy::Provider })) }
             if *to == ReplyTo::new(Token::new(87)) && *refused == account)),
         "another project's task cannot select the scripted account: {:?}",
         d.delivered
@@ -375,6 +384,12 @@ fn assert_empty(d: &Driver) {
     }
 }
 
+fn playground_chat(project: u32) -> people::Ask {
+    let people::Ask::Create { mut batch, .. } = walking::chat(1, b"Try the playground") else { panic!("chat fixture") };
+    batch[0].authority.models = None;
+    people::Ask::Create { project, batch }
+}
+
 fn live_chat(d: &mut Driver) -> engine::Assignment {
     let project = playground(d).project.expect("playground project");
     d.send(engine::Event::Party(engine::PartyInput::Period { project, period: 1, budget: 1000, next: None }));
@@ -385,7 +400,7 @@ fn live_chat(d: &mut Driver) -> engine::Assignment {
         reply_to: ReplyTo::new(Token::new(85)),
         sign_in: session(d),
         key: [85; 16],
-        ask: walking::chat(project, b"Try the playground"),
+        ask: playground_chat(project),
     }));
     d.settle();
     let chat = d.last_assignment();
@@ -588,7 +603,6 @@ fn a_start_that_finds_the_playground_running_resets_it() {
 
 #[test]
 fn the_starting_person_cannot_select_the_scripted_account_in_another_project() {
-    let mut leaks = Vec::new();
     for seed in SEEDS {
         let mut d = running(seed);
         let account = playground(&d).account.expect("scripted account");
@@ -597,35 +611,28 @@ fn the_starting_person_cannot_select_the_scripted_account_in_another_project() {
         d.send(engine::Event::Party(engine::PartyInput::Period { project, period: 1, budget: 1000, next: None }));
         d.hello(Token::new(7));
         d.pump();
-        let people::Ask::Create { mut batch, .. } = walking::chat(1, b"Work outside the playground") else {
-            panic!("chat fixture")
-        };
-        batch[0].llm = Some(people::LlmChoice {
-            account: Some(account),
-            main: people::ModelEffort { model: 0, effort: None },
-            subagents: Box::new([]),
-        });
-        ask(&mut d, owner, 87, people::Ask::Create { project, batch });
-        let refused = d.delivered.iter().any(|delivery| {
-            matches!(delivery,
-            Delivery::WebReply { to, reply: people::Reply::Outcome(people::Outcome::Refused(
-                people::Refusal::Account { account: refused, why: people::AccountWhy::Uses })) }
-                if *to == ReplyTo::new(Token::new(87)) && *refused == account)
-        });
-        if !refused {
-            let selected: Vec<_> = d
-                .delivered
-                .iter()
-                .filter_map(|delivery| {
-                    if let Delivery::Assigned { assignment, .. } = delivery {
-                        Some((assignment.task, assignment.run.accounts.to_vec()))
-                    } else {
-                        None
-                    }
-                })
-                .collect();
-            leaks.push((seed, project, selected));
+        for (key, model, why) in [
+            (87, 1, people::Refusal::Account { account, why: people::AccountWhy::Provider }),
+            (88, 0, people::Refusal::Llm { model: 0, why: people::LlmWhy::Authority }),
+        ] {
+            let people::Ask::Create { mut batch, .. } = walking::chat(1, b"Work outside the playground") else {
+                panic!("chat fixture")
+            };
+            batch[0].authority.models = None;
+            batch[0].llm = Some(people::LlmChoice {
+                account: Some(account),
+                main: people::ModelEffort { model, effort: None },
+                subagents: Box::new([]),
+            });
+            ask(&mut d, owner, key, people::Ask::Create { project, batch });
+            assert!(
+                d.delivered.iter().any(|delivery| matches!(delivery,
+                Delivery::WebReply { to, reply: people::Reply::Outcome(people::Outcome::Refused(refusal)) }
+                    if *to == ReplyTo::new(Token::new(u64::from(key))) && *refusal == why)),
+                "seed {seed}: another project's task cannot select the scripted account: {:?}",
+                d.delivered
+            );
         }
+        assert!(!d.delivered.iter().any(|delivery| matches!(delivery, Delivery::Assigned { .. })));
     }
-    assert!(leaks.is_empty(), "another project's task selected the playground account: {leaks:?}");
 }

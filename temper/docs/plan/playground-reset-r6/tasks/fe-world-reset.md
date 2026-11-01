@@ -80,3 +80,14 @@ Acceptance (a new `tests/suite/playground.rs`, registered in `tests/suite/main.r
 
 - The cut points walked; any row naming the project or forge afterwards beyond J4's and
   section 4's keep lists.
+
+## Answers
+
+### 2026-11-01: Should fab arrange an upstream fix enforcing project isolation for the playground account (recommended), or revise acceptance to rely on disjoint project model policies / different financial payers? The starting person's task in another project selects the playground account at both seeds. Work is committed and pushed. (playground-reset-r6/fe-world-reset-1, foreman playground-reset-r6/fe-world-reset/foreman-1)
+
+Use disjoint project model policies as design 6.1 requires; retain the acceptance requirement.
+`temper/docs/design/draft/playground-reset.md`, 6.1: “the playground's project allows only the scripted model, and no other project allows it”.
+J8 requires `Some([people::Use::Party(starting person), people::Use::Project(playground's project)])` and explains that a person's chat has the person as payer.
+The same-policy regression does not model the cited design's restriction.
+The next run should configure the other project's policy accordingly and prove its task cannot select the playground account, including for the same starting person.
+Keep changes within `temper/tests/engine/domain/`, run the required checks, then commit and push.
