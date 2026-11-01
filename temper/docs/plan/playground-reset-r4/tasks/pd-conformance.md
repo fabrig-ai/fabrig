@@ -14,6 +14,8 @@ files = [
   "jig/crates/jig-domain-people/src/domain/removal.rs",
   "jig/crates/jig-domain-people/src/tests/removal.rs",
   "jig/tests/core/src/removal.rs",
+  "jig/crates/jig-domain-people/src/domain.rs",
+  "jig/crates/jig-domain-people/src/tests/moving_chat.rs",
 ]
 effort = "high"
 minutes = 55
@@ -270,3 +272,36 @@ Then finish step 4's checks, the two added by the `SetUses` answer
 included, then commit and push. A row the scenario finds that the
 deletion does not erase, other than the `SetUses` answer, the `Made`
 rows and this former requester's reply rows, is still a question.
+
+### 2026-11-01: the zero read position a conversation move saves, refused at a cold restart (playground-reset-r4/pd-conformance-7)
+
+(A). The default restore's check is wrong, not the scenario's crash
+coverage: the shared sweep keeps cutting every setup commit.
+`inbox/moving.rs` `move_chat` saves `ReadConversation { through: 0 }` on
+purpose: the new requester starts with nothing read, and the row is how
+its position exists at all (`tests/moving_chat.rs`
+`a_moved_conversations_new_requester_starts_with_nothing_read`). The
+explicit start's `start.rs` `load` already admits that row: its `fits`
+checks only occupancy. Only `domain.rs` `restore_default` refuses it,
+so one stored row restores on one start and fails the other.
+
+- `jig/crates/jig-domain-people/src/domain.rs` `restore_default`, the
+  `Stored::ReadConversation` arm of `valid`: drop `&& *through != 0`.
+  `party != 0`, `task != 0`, the duplicate and the capacity checks stay.
+  No other line of `domain.rs` changes; `ReadResults` keeps its
+  `position != 0` (no writer saves zero there).
+- Its test, in `jig/crates/jig-domain-people/src/tests/moving_chat.rs`:
+  `a_moved_conversations_zero_position_restores_cold`. Take the row the
+  move saved (`moving_chat()`'s `out[1]`), restore it into a fresh
+  domain as `tests.rs`'s cold restores do (`Test::new`, then
+  `d = Domain::new(..)`, `Event::Restore` of persons 1 and 2 and the
+  row, then `Event::Restored`), and assert that no restore output
+  refuses it and `conversation_seen(2, 9) == Some(0)`.
+- Add `heavy cargo nextest run -p jig-domain-people --lib -E
+  'test(=tests::moving_chat::a_moved_conversations_zero_position_restores_cold)'`
+  to step 4, then rerun the crash sweep alone, then the rest of step 4.
+
+The `files` list above now names both files. A row the scenario finds
+that the deletion does not erase, other than the three excepted above,
+is still a question; so is a restore refusal of a row some writer other
+than `move_chat` saves.
