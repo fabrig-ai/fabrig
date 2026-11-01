@@ -1,4 +1,5 @@
-//! The connector's retained account of a procedure decision (domain/forge.md, 8.4).
+//! Retained accounts of procedure decisions and resource holds
+//! (temper/docs/design/domain/forge.md, 8.4 and 11).
 use super::{
     Domain, EffectDescription, Env, Limits, List, ProcedureStep, StepEnd, Work, append, append_change_replies,
     authority, decimal, forge, tasks,
@@ -173,6 +174,58 @@ pub(crate) fn refused_step(
 
 pub(crate) fn hold(domain: &mut Domain, task: u64, reason: &[u8]) {
     hold_as(domain, task, tasks::Hold::Procedure, reason);
+}
+
+pub(super) fn taken_words(domain: &Domain, resource: &forge::Name, by: u64) -> Box<[u8]> {
+    let mut words = List::with_capacity(tasks::HOLD_ACCOUNT_BYTES);
+    resource_words(domain, resource, &mut words);
+    append(&mut words, b" is taken by holder ");
+    append(&mut words, &decimal(by));
+    words.into_boxed()
+}
+
+pub(super) fn lost_words(domain: &Domain, task: u64, attempt: u64, resource: &forge::Name, reason: &[u8]) -> Box<[u8]> {
+    let mut words = List::with_capacity(tasks::HOLD_ACCOUNT_BYTES);
+    append(&mut words, b"task ");
+    append(&mut words, &decimal(task));
+    append(&mut words, b"'s ");
+    resource_words(domain, resource, &mut words);
+    append(&mut words, b" could not be read again after run ");
+    append(&mut words, &decimal(attempt));
+    append(&mut words, b" ended: ");
+    append(&mut words, reason);
+    words.into_boxed()
+}
+
+fn resource_words(domain: &Domain, resource: &forge::Name, words: &mut List<u8>) {
+    match &resource.what {
+        forge::What::Branch(segments) => {
+            append(words, b"branch ");
+            for (index, segment) in segments.iter().enumerate() {
+                if index > 0 {
+                    append(words, b"/");
+                }
+                append(words, segment);
+            }
+        }
+        forge::What::Repository => append(words, b"repository"),
+        forge::What::Pull(number) | forge::What::Issue(number) => {
+            append(words, b"item ");
+            append(words, &decimal(*number));
+        }
+    }
+    append(words, b" in ");
+    let provider = skein_forge::api::Repository { forge: resource.forge, repository: resource.repository };
+    if let Some(repository) = domain.forge.repository(provider) {
+        append(words, &repository.owner);
+        append(words, b"/");
+        append(words, &repository.name);
+    } else {
+        append(words, b"forge ");
+        append(words, &decimal(u64::from(resource.forge)));
+        append(words, b" repository ");
+        append(words, &decimal(u64::from(resource.repository)));
+    }
 }
 
 pub(crate) fn hold_as(domain: &mut Domain, task: u64, why: tasks::Hold, reason: &[u8]) {

@@ -12,6 +12,7 @@ static HEAP: skein_world::domain::heap::Counting = skein_world::domain::heap::Co
 mod admission;
 mod budget;
 mod projection_settled;
+pub(crate) use projection_settled::live_task;
 mod release;
 mod removal;
 mod restore_fit;

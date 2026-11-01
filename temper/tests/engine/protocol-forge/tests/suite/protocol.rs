@@ -527,6 +527,7 @@ fn land_change(world: &mut Protocol) -> bool {
                 | top::Request::Erase { .. }
                 | top::Request::Taken { .. }
                 | top::Request::Refused { .. }
+                | top::Request::LostReadFailed { .. }
                 | top::Request::Outcome { .. }
                 | top::Request::ProjectionOutcome { .. }
                 | top::Request::NotMade { .. }

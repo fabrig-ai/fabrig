@@ -1656,6 +1656,13 @@ pub enum Request {
     Refused {
         task: u64,
     },
+    /// A run ended, but its branch could not be read afresh.
+    LostReadFailed {
+        task: u64,
+        attempt: u64,
+        resource: Name,
+        reason: &'static [u8],
+    },
     /// An entry settled or remains uncertain; root routes the task's news.
     Outcome {
         entry: u64,
