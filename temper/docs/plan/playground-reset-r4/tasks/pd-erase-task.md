@@ -67,9 +67,10 @@ Pre-approved:
   be computed from its line, say so and leave those rows;
 - a `Stub` of the task that the tasks child still holds is named by
   live work and stays; one it does not hold is erased by key;
-- `ClosedLedger(Funder::Task(task))` and the task's recurring ledgers
-  are erased (spend is never per task: draft 5); a period's or a pool's
-  ledger is not this task's to touch.
+- `ClosedLedger(Funder::Task(task))` is erased (spend is never per
+  task: draft 5); a period's, a pool's or a recurring ledger
+  (`Funder::Recurring`) is not this task's to touch: the project's rows
+  close and erase the recurring ones (`pd-project-rows`; Answers).
 
 ## Steps
 
@@ -128,3 +129,21 @@ Pre-approved:
 fab's sections; `## Interfaces`: the four functions and `Erasing`;
 the keys of the last step, family by family; what is left by an option
 taken (stubs held, reply updates not computable).
+
+## Answers
+
+2026-11-01. Question: may the sweep owner add discovery of this task's
+archived recurring ledgers, or does acceptance leave them? Answer:
+neither here. A `Funder::Recurring { project, task, period }` ledger
+is a per-period allotment of the project's period: its spend posts
+into the period's ledger when it closes (`retire.rs`), so it is the
+period's accounting, keyed project first. The erasure leaves every
+`Ledger` and `ClosedLedger` of `Funder::Recurring` (and an ended
+record whose `funder` is one), and adds no sweep. `pd-project-rows`
+closes the project's live recurring ledgers into the period and erases
+them, then sweeps and erases its archived `ClosedLedger(Recurring {
+project, .. })` rows (`Sweep::Recurring { project }`, one exact
+interval), so the deletion still ends with no row naming the task.
+The erasure's last step erases `Ledger(Funder::Task(task))` and
+`ClosedLedger(Funder::Task(task))` as before. Report the recurring
+ledgers as left to `pd-project-rows`.
