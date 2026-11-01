@@ -349,6 +349,9 @@ impl Connection {
         }
     }
     pub fn connect(&mut self, env: &Env<Limits>) {
+        if self.phase != Phase::Connecting {
+            return;
+        }
         match &mut self.tls {
             Some(tls) => {
                 self.phase = Phase::Handshaking;

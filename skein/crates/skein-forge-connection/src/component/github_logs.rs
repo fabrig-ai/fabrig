@@ -29,7 +29,9 @@ impl Component {
                 break;
             }
         }
-        let at = position.expect("call forge");
+        let Some(at) = position else {
+            return;
+        };
         let forge = self.settings.forges.get(at).expect("forge");
         let mut matched = None;
         for index in 0..forge.log_origins.len() {
