@@ -189,13 +189,17 @@ pub fn http_limits() -> jig_protocol_engine_clients_http::Limits {
 }
 #[must_use]
 pub fn mount() -> jig_protocol_engine_clients_http::Mount {
+    mount_with_limits(&http_limits())
+}
+#[must_use]
+pub fn mount_with_limits(limits: &jig_protocol_engine_clients_http::Limits) -> jig_protocol_engine_clients_http::Mount {
     let mut mount = jig_protocol_engine_clients_http::Mount::new(
         jig_protocol_engine_clients_http::Settings { prefix: Box::from(b"/jig".as_slice()), public: None },
-        &http_limits(),
+        limits,
     );
     let mut hosts = skein_lib::List::with_capacity(1);
     hosts.push(Box::from(HOST.as_bytes())).expect("one host");
-    let env = skein_lib::Env { now: skein_lib::Time::ZERO, wall: skein_lib::Wall::EPOCH, limits: http_limits() };
+    let env = skein_lib::Env { now: skein_lib::Time::ZERO, wall: skein_lib::Wall::EPOCH, limits: *limits };
     mount.down(&env, jig_protocol_engine_clients_http::Event::Listening { hosts });
     mount
 }

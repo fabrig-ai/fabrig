@@ -122,6 +122,34 @@ fn overrides_are_checked_together() {
         Ok(expected)
     );
 }
+
+#[test]
+fn stream_overrides_keep_four_exchanges_beside_every_stream() {
+    let limits = parse(br#"{"profile":"small","overrides":{"clients.streams":8,"clients_http.streams":8,"clients_http.calls":12,"clients.exchanges":12}}"#).unwrap();
+    assert_eq!((limits.clients.streams, limits.clients_http.streams), (8, 8));
+    assert_eq!((limits.clients.exchanges, limits.clients_http.calls), (12, 12));
+    for (name, bytes) in [
+        (b"clients.exchanges".as_slice(), br#"{"profile":"small","overrides":{"clients.streams":8,"clients_http.streams":8,"clients_http.calls":12,"clients.exchanges":11}}"#.as_slice()),
+        (b"clients_http.calls", br#"{"profile":"small","overrides":{"clients.streams":8,"clients_http.streams":8,"clients_http.calls":11,"clients.exchanges":12}}"#),
+        (b"clients.exchanges", br#"{"profile":"small","overrides":{"clients.streams":8,"clients_http.streams":8,"clients_http.calls":13,"clients.exchanges":12}}"#),
+    ] {
+        problem(bytes, &[b"limits", b"overrides", name], What::Override);
+    }
+}
+
+#[test]
+fn stream_and_carrier_overrides_are_positive_representable_counts() {
+    for name in [b"clients.streams".as_slice(), b"clients.exchanges", b"clients_http.streams", b"clients_http.calls"] {
+        for value in [0, u64::from(u32::MAX) + 1] {
+            assert_eq!(overrides::apply(&mut small(), name, value), Err(What::Override));
+        }
+    }
+    problem(
+        br#"{"profile":"small","overrides":{"clients.exchanges":4294967295}}"#,
+        &[b"limits", b"overrides", b"clients.exchanges"],
+        What::Override,
+    );
+}
 fn a_non_integer_override_is_refused_naming_it() {
     problem(
         br#"{"profile":"small","overrides":{"hub.slots":{}}}"#,

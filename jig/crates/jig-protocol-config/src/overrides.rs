@@ -1,4 +1,4 @@
-//! Named limits and strict profile selection (configuration.md, 6).
+//! Named limits and strict profile selection (jig/docs/design/protocol/configuration.md, 6).
 use crate::{Limits, Path, Problem, Problems, Profile, Segment, What, profile, read};
 use skein_json::{Document, document::Kind};
 use skein_lib::{Duration, bytes};
@@ -46,8 +46,22 @@ pub fn apply(limits: &mut Limits, name: &[u8], value: u64) -> Result<(), What> {
                 return Err(What::Override);
             }
             match field {
+                b"streams" => limits.clients.streams = count,
+                b"exchanges" => limits.clients.exchanges = count,
                 b"provider_codes" => limits.clients.provider_codes = count,
                 b"provider_tokens" => limits.clients.provider_tokens = count,
+                _ => return Err(What::Override),
+            }
+            Ok(())
+        }
+        b"clients_http" => {
+            let count = count(value)?;
+            if count == 0 {
+                return Err(What::Override);
+            }
+            match field {
+                b"streams" => limits.clients_http.streams = count,
+                b"calls" => limits.clients_http.calls = count,
                 _ => return Err(What::Override),
             }
             Ok(())
@@ -706,6 +720,7 @@ fn members(
     let mut object = read::Object::new(document, at)?;
     let end = read::after(document, at)?.checked_sub(1).ok_or(What::Kind)?;
     let mut next = at.checked_add(1).ok_or(What::Bound)?;
+    let mut stream_overrides = false;
     for _ in at..end {
         if next == end {
             break;
@@ -715,6 +730,10 @@ fn members(
             return Err(What::Kind);
         }
         let name = document.text(key).ok_or(What::Kind)?;
+        stream_overrides |= name == b"clients.streams"
+            || name == b"clients.exchanges"
+            || name == b"clients_http.streams"
+            || name == b"clients_http.calls";
         let value_at = next.checked_add(1).ok_or(What::Bound)?;
         if object.member(document, name) == Some(value_at) {
             let value = read::integer(document, value_at, u64::MAX).or(Err(What::Override));
@@ -744,7 +763,27 @@ fn members(
         }
         next = read::after(document, next.checked_add(1).ok_or(What::Bound)?)?;
     }
+    if stream_overrides && problems.is_empty() {
+        check_carriers(limits, path, problems);
+    }
     Ok(())
+}
+
+// Stream overrides keep four ordinary exchanges beside the largest stream bound
+fn check_carriers(limits: &Limits, path: &Path, problems: &mut Problems) {
+    let streams = limits.clients.streams.max(limits.clients_http.streams);
+    let minimum = streams.checked_add(4);
+    for (name, count, calls) in [
+        (b"clients.exchanges".as_slice(), limits.clients.exchanges, limits.clients_http.calls),
+        (b"clients_http.calls".as_slice(), limits.clients_http.calls, 0),
+    ] {
+        if match minimum {
+            Some(minimum) => count < minimum.max(calls),
+            None => true,
+        } {
+            problems.push(path.member(name), What::Override);
+        }
+    }
 }
 
 /// Each family's worst case over the overridden limits, computed once when first asked.
@@ -767,7 +806,8 @@ fn valid(limits: &Limits, name: &[u8], fits: &mut Fits) -> bool {
             }
             fits.hub.expect("hub fit checked")
         }
-        Some(b"link") => true,
+        Some(b"link" | b"clients_http") => true,
+        Some(b"clients") => jig_protocol_engine_clients::valid(&limits.clients),
         Some(
             b"core" | b"tasks" | b"people" | b"fleet" | b"authority" | b"brief" | b"accounts" | b"notes" | b"views"
             | b"documents",

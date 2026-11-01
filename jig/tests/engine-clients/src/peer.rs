@@ -212,16 +212,25 @@ impl Peer {
     }
     #[must_use]
     pub fn with_bounds(settings: &Settings, limits: Limits, http_limits: mapping::Limits) -> Self {
+        Self::with_server_bounds(settings, limits, http_limits, fixtures::server_limits())
+    }
+    #[must_use]
+    pub fn with_server_bounds(
+        settings: &Settings,
+        limits: Limits,
+        http_limits: mapping::Limits,
+        server_limits: jig_test_service::server::Limits,
+    ) -> Self {
         let env = Env { now: Time::ZERO, wall: Wall::EPOCH, limits };
         let mut out = Queue::with_capacity(64);
         let component = Component::new(fixtures::copy_settings(settings), &env, &mut out).expect("component starts");
         let mut peer = Self {
             component,
-            server: fixtures::server(),
+            server: jig_test_service::server::Server::new(fixtures::address(), &server_limits),
             server_out: Queue::with_capacity(64),
-            mount: fixtures::mount(),
+            mount: fixtures::mount_with_limits(&http_limits),
             http_limits,
-            refused: skein_lib::Map::with_capacity(fixtures::server_limits().connections),
+            refused: skein_lib::Map::with_capacity(server_limits.connections),
             mount_out: Queue::with_capacity(64),
             env,
             out,
@@ -492,7 +501,17 @@ impl Peer {
         limits: Limits,
         http_limits: mapping::Limits,
     ) -> Self {
-        let mut peer = Self::with_bounds(settings, limits, http_limits);
+        Self::signed_in_with_server_bounds(settings, sign_in, limits, http_limits, fixtures::server_limits())
+    }
+    #[must_use]
+    pub fn signed_in_with_server_bounds(
+        settings: &Settings,
+        sign_in: u64,
+        limits: Limits,
+        http_limits: mapping::Limits,
+        server_limits: jig_test_service::server::Limits,
+    ) -> Self {
+        let mut peer = Self::with_server_bounds(settings, limits, http_limits, server_limits);
         let exchange = peer.post_link(&peer.printed_link());
         peer.answer_signed_in(sign_in, fixtures::FIRST_PERSON);
         peer.answer_kept(sign_in);
