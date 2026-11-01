@@ -9,11 +9,13 @@ today. temper must offer these mechanisms to replace fab; it may offer
 fabrig's configuration as a ready-made default. The sources are fab's
 designs and code (the agents repository, `docs/design/` and `fab/`, at
 1dc102c); where they differ the code is followed and the departure is
-said. `reference-case.md` is one story that runs every mechanism, and
-ends with what temper and jig have and lack for each. Section 15 holds
-what fab does not do but may need later; it is not to be carried out
-now. Other designs cite revision 4's sections and gap ids; they are
-repointed when this one is adopted.
+said. Where fab does a step by hand, or mixes code and judgement, the
+model has a mechanism of its own, and section 14.2 says so.
+`reference-case.md` is one story that runs every mechanism, and ends
+with what temper and jig have and lack for each. Section 15 holds what
+fab does not do but may need later; it is not to be carried out now.
+Other designs cite revision 4's sections and gap ids; they are repointed
+when this one is adopted.
 
 Words are jig's, then temper's; section 2 names the few that are new.
 Unqualified, `landing.md`, `after-landing.md`, `findings.md`, `forge.md`
@@ -23,26 +25,23 @@ named `fab:<name>`; jig's are named as jig's.
 ## 1. In one page
 
 - **An LLM for judgement, code for mechanisms.** Every mechanism here is
-  code: scheduling, merging, queueing, checks, bisecting, retries,
-  keeping, lending, reports. Every judgement is an agent task: planning,
-  producing, answering, examining, reviewing, arbitrating, triaging,
-  walking. Nothing mixes them; each heading says which it is. Where fab
-  today uses an agent for a mechanism, or code for a judgement, section
-  14.2 calls it a fab gap.
-- **The person talks to a chat; everything else is automatic.** The
-  chat, made from a template of the person's choosing and reached
-  through `temper ctl`, has tools that create tasks. Given a draft, or
-  "fix this", it creates a goal; the goal's agent decides the sub-tasks;
-  mechanisms take each change to landed; only questions reach the
-  person, in their inbox (sections 4, 11).
-- **One engine, one store.** The engine decides every mechanical step
-  from specs in git and records in its store, which it alone writes;
-  every status is derived (section 3).
-- **A planner plans a goal** and releases it in pieces, so producers
+  code: scheduling, merging, rebasing, queueing, checks, bisecting,
+  retries, holds, lending, reports. Every judgement is an agent task:
+  planning, producing, resolving a conflict, answering, examining,
+  reviewing, arbitrating, triaging, walking. Nothing mixes them; each
+  heading says which it is.
+- **The person talks to a chat through `temper ctl`; everything else is
+  automatic.** The chat, made from a template of the person's choosing,
+  has tools that create tasks. Given a draft, or "fix this", it creates
+  a goal; the goal's agent decides the sub-tasks; mechanisms take each
+  change to landed; only questions reach the person, in their inbox
+  (sections 4, 11).
+- **The engine decides each mechanical step** from specs in git and
+  records in its store, which it alone writes (section 3).
+- **A planner plans a goal** and hands it over in pieces, so producers
   start while it plans the rest (section 4).
-- **Producers are runs in claimed workspaces,** as many as the workers'
-  slots allow; each run's result is finished, a question, a transient
-  failure or failed (section 5).
+- **Producers are runs in workspaces,** as many as the workers take;
+  each ends finished, with a question, or failed (section 5).
 - **A goal may land through its own branch:** each finished change
   merges into it; dependents start from it, or early from a dependency's
   pushed branch; it is checked along the way, updated from main, checked
@@ -55,59 +54,55 @@ named `fab:<name>`; jig's are named as jig's.
   repair from main (section 8). **QA walks** feed a findings loop
   (section 9).
 - **Judgement is in agent tasks, never residents** (section 10); custody
-  lends accounts and workspaces (section 12); reports come from the
-  store (section 13).
+  lends accounts and workers take runs (section 12); reports come from
+  the store (section 13).
 
 ## 2. Words
 
-Most words are jig's (task, goal, chat, template, plan, spec, brief,
-run, try, kept, wake, timer, inbox, worker, slot, workspace, account,
-lend, recurring) or temper's (change, producer, landing queue,
-candidate, gate, receipt, tier, red, flake, fault, repair, resolution,
-update, finding, triage, walk, ladder, rung). These are new, for what
-neither names:
+Most words are jig's (task, goal, chat, template, charter, plan, spec,
+brief, run, try, kept, held, wake, timer, inbox, worker, slot,
+workspace, job, account, grant, recurring) or temper's (change,
+producer, landing queue, candidate, gate, receipt, tier, red, flake,
+fault, repair, resolution, update, finding, triage, and `../qa.md`'s
+walk, ladder and rung). jig's tries count failed attempts per class;
+here a change also has `tries`, its runs not landed. These are new, for
+what neither names:
 
 | Word | What it is |
 |---|---|
-| planner | the agent task that turns a draft into a goal's plan |
+| planner | the agent task that turns a draft into a goal's plan and its files |
 | part, slice | a unit of the plan; a story that runs end to end |
-| goal branch | the branch a goal's changes merge into before it lands whole (temper's "a branch per goal", `forge.md` 11.1) |
+| goal branch | the branch a goal's changes merge into before it lands whole (temper's "a branch per goal", `forge.md` 11.1, designed) |
 | early start | a change started on a dependency's pushed, unmerged branch |
 | interim check, final check | the goal branch checked whole along the way, and before ready |
+| check job, tier job | a gate's or a tier's commands run in a workspace with no agent (jig's job) |
+| counted baseline | a file of counts of old forms that may only fall, recounted by the project's tooling |
+| lane | a worker's queue for builds: a build lane of a few at once, a gate lane of one |
+| run target | a worker's hint of how many runs it takes; its slots are the hard count |
 | examiner | a read-only agent task that decides one thing: a question, a rejection, a red, a finding |
 | answerer | the agent task that answers a goal's queued questions in one pass |
 | reviser, arbiter | the agent task that revises a reviewed output once; the one that decides after a second refusal |
 | alert | an inbox item for a chat: something no goal owns |
-| run target | a worker's hint of how many runs it takes; its slots are the hard count |
-| check job, tier job | a gate's or a tier's commands run in a workspace, with no agent (jig's job) |
-
-| edition | a rung's brief, identified by its bytes |
+| edition | a rung's brief files, identified by their bytes |
 | scaffold | a planning task that writes a part as code before its changes fill it |
-| closing task | the agent task that ends a goal: status files current |
-| custody | the accounts held centrally and lent to workers and runs |
+| wrap-up | the agent task that ends a goal: the project's duty at the end, such as status files current |
+| custody | the accounts and the application's credentials, held centrally and lent |
 
 ## 3. The engine and its store (code)
 
-- **One writer.** The engine appends every record to its store; workers,
-  the landing queue and the tier runner keep records of their own, which
-  the engine reads by asking.
+- **One writer.** The engine decides each event once, commits its
+  decision to its store, which it alone writes, and only then acts (jig
+  `README.md` 6.1). The landing queue and the tier runner keep records
+  of their own, which the engine imports.
 - **Status is derived, never stored:** a change's (waiting, runnable,
-  running, kept, finished, ready, landed, rejected), a part's, a red's,
-  a finding's, a rung's and every open question are pure functions of
-  the specs and the records. A reader ignores kinds it does not know.
-- **One round decides everything mechanical,** in a fixed order: read
-  each goal's plan and the queue's and the tiers' records; close and
-  open reds; measure the workers; then, goal by goal, merge the
-  planner's pieces, record triage and passes, take ended runs, merge,
-  land or ready finished changes, keep, start runs and agent tasks, and
-  take one step of the goal branch; then probe overlaps and rewrite the
-  inboxes. Several goals share one round and one set of workers.
+  running, kept, held, finished, ready, landed, rejected), a part's, a
+  red's, a finding's, a rung's and every open question are functions of
+  the specs and the records.
 - **Events wake it:** a run's or an agent task's end, a planner's piece,
   a candidate landed or rejected, a tier run with a new red or a
-  recovery, an answer, a walk's result. A burst of wakes makes one
-  round. A backstop timer (`backstop`) finds lost wakes and notes them;
-  a round whose own records need another wakes itself, up to a bound
-  (`self_wakes`).
+  recovery, an answer, a walk's result. A run whose worker is lost ends
+  as lost, and runs again (jig `tasks.md` 5.5).
+- **One engine serves every goal** and one set of workers.
 
 ## 4. Intake, goals, plans and changes
 
@@ -115,26 +110,29 @@ neither names:
 
 - **The person talks to a chat** through `temper ctl`: a free-form,
   possibly long-running agent task made from a template of their
-  choosing: a director, or a department such as QA or the web UI. The
-  template sets its charter, its tools and which alerts reach it (11.2).
+  choosing, such as a director, or a department such as QA. Its charter
+  sets its tools; which alerts and reports reach it is a setting
+  (`alerts_to`).
 - **The chat's tools create tasks.** Given a draft, or a request such as
   "fix this", its agent creates a goal with the settings its template
-  allows (4.4), naming the draft or the request as the goal's spec.
+  allows (4.4), naming the draft or the request in the goal's spec.
 - **The goal's agent decides its sub-tasks:** for a draft, a planner
   (4.2); for a small fix, one change; later, whatever its records ask
-  for: a fresh resolution after a stop (6.4), a goal for an alert. From
+  for: a fresh resolution after a hold (6.4), a goal for an alert. From
   there every step to landed is a mechanism or another agent task's
   judgement; no one works by hand.
 - **The plan's files live with the goal:** a directory in the
   repository; a goal with a goal branch keeps them on that branch.
 
-### 4.2 The planner (LLM; its release is code)
+### 4.2 The planner (LLM; its hand-over is code)
 
 - **One agent task writes the plan:** its parts, their dependencies, the
   slices (and whether QA walks each), the person's questions, and every
   change's spec, with notes several specs share and the shapes that
-  cross parts written first. With `scaffold` off, every part is direct:
-  one or two changes, no scaffold.
+  cross parts written first. It may survey the code with read-only runs
+  of its own, and split the design across agents of its own, from shared
+  shapes it fixes first; it is still one task, under one timeout. With
+  `scaffold` off, every part is direct: one or two changes, no scaffold.
 - **It hands the plan over in pieces** (a goal branch, `scaffold` and
   `review` off): it commits first the changes that depend on nothing,
   then each batch that holds together; the engine pushes each piece,
@@ -143,32 +141,28 @@ neither names:
   for its review (10.2).
 - **It sees the goals beside it:** its brief lists the other goals'
   unlanded changes with the paths each owns, and asks it to keep early
-  work off them (6.6).
-- **It may survey and split the design:** read-only runs of its own to
-  survey the code, and agents of its own for parts, from shared shapes
-  it fixes first; it is still one task, under one timeout.
+  work off them, naming any overlap it cannot avoid (6.6).
 - **The person's questions** name the parts that wait for their answer.
 
-### 4.3 A change and its spec
+### 4.3 A change and its spec (LLM writes it; code reads it)
 
 - **A spec** is words with typed parameters: its part, its kind (from
-  the project's list), its dependencies, the paths it owns (for the
-  planner and the producer; never enforced), its effort and expected
-  time. Its words say what to do, how it is accepted, and its
-  **options**, each with a default, so that a question they answer needs
-  no one.
-- **Repairs have no written spec:** of the goal branch, of an update, of
-  a red after landing, of a finding; the engine makes them from records
-  (code), their words the evidence, the examiner's section and their
-  answers.
+  the project's list, `change_kinds`), its dependencies, the paths it
+  owns (for the planner and the producer; never enforced), its effort
+  and expected time. Its words say what to do, how it is accepted, and
+  its **options**, each with a default, so that a question they answer
+  needs no one.
+- **Repairs have no written spec:** of the goal branch, of a red after
+  landing, of a finding; the engine makes them from records, their words
+  the evidence, the examiner's section and their answers.
 
-### 4.4 A goal's settings
+### 4.4 A goal's settings (code)
 
 | Setting | Values | What it sets |
 |---|---|---|
 | `landing` | `goal_branch` or `each` | the goal branch (section 6), or each change readied on its own |
 | `ready` | yes or no | the checked goal branch readied, or left unlanded (a replay) |
-| `review` | on or off | agent outputs reviewed (10.2) |
+| `review` | on or off | planning and judgement outputs reviewed (10.2) |
 | `scaffold` | on or off | parts designed as code first (10.6), or every part direct |
 | `early_start` | on or off | early starts (6.2) |
 
@@ -178,21 +172,23 @@ A ladder is a goal of `each` with rungs instead of parts (section 9).
 
 ### 5.1 A run (LLM; its frame is code)
 
-- **One run of a producer** for one change, in a workspace the engine
-  claims for it on a worker. Its base is the goal branch's tip, or its
-  own pushed branch when it ran before (a rebase starts afresh).
-- **Its brief is compiled, not gathered:** the producer's charter text,
+- **One run of a producer** for one change, in a workspace on a worker.
+  Its base is the goal branch's tip, or its own pushed branch when it
+  ran before; the engine sets the workspace up.
+- **Its brief** is assembled by the engine: the producer's charter text,
   the spec and its facts; the producer reads what they name.
 - **The producer edits, tests and commits;** the engine pushes its
-  branch at the run's end. Its result is one of:
+  branch at the run's end. It ends:
   - **finished,** perhaps with a list of what it **left**: outside the
     change and still red, for its owner or the final check;
-  - **a question,** with the options and a recommendation: the change is
+  - **with a question,** the options and a recommendation: the change is
     kept until it is answered (section 10);
-    - **a transient failure** (disk, a machine, a tool): run again
-      without asking, from its pushed branch; it counts toward `tries`
-      and narrows an adaptive flow;
   - **failed:** held, and escalated to the answerer.
+- **A transient failure** (a build short of disk, a lost worker) is
+  classed by code from the tool's exit or the worker's state, never from
+  the agent's words; the engine runs the change again without asking,
+  from its pushed branch. It counts toward `tries` and narrows an
+  adaptive flow.
 - **What it may do without asking** is its charter's
   (`producer_allowances`): edits outside its paths that its own change
   forces, within limits the project names.
@@ -200,38 +196,45 @@ A ladder is a goal of `each` with rungs instead of parts (section 9).
   a repair of a red or a finding after `fix_tries`, is held and
   escalated to the answerer, whose answer grants fresh tries.
 
-### 5.2 Slots and the flow (code)
+### 5.2 Slots, run targets and the flow (code)
 
-- **A worker has slots, its workspaces, a hard count, and a run target,
-  a hint** (`run_target`). The target of runs in flight is the sum of
-  the workers' run targets. With `flow` fixed it stays there; with
-  `flow` adaptive it grows by one with each first-attempt landing made
-  with the target full, and halves with each transient failure or
-  rejection (not at a merge or rebase), never below one.
-- **A calm worker takes one more:** a worker under its calm thresholds
-  (`calm`: load, recent lane and disk waits, refused builds) takes one
-  run beyond its run target, never beyond its slots.
+- **A worker has slots,** the runs it can host at once, each in a
+  workspace of its own, **and a run target,** a hint (`run_target`). The
+  target of runs in flight is the sum of the workers' run targets. With
+  `flow` fixed it stays there; with `flow` adaptive it grows by one with
+  each first-attempt landing made with the target full, and halves with
+  each transient failure or rejection (not at a merge or rebase), never
+  below one.
+- **Placement:** a run goes to the worker furthest under its run target;
+  a worker under its calm thresholds (`calm`: load, recent lane and disk
+  waits, refused builds) takes one run beyond its target, never beyond
+  its slots. A start whose worker's slots are all taken hands on to
+  another worker under its target.
 - **The order of starts:** consolidations, then repairs of reds and
   findings and the runs that follow a rejection, then shared-shape
   parts' changes, then the rest by slice, part and spec order; the goal
   branch's own repairs after them; early starts last.
-- **A start hands on** to another worker under its run target when its
-  own slots are claimed by other work.
 - **Workers follow the engine:** before a start, a worker's code moves
   forward to the engine's version, unless pinned.
 
-## 6. The goal branch (code; resolutions and repairs are LLM)
+## 6. The goal branch (code; conflicts and repairs are LLM)
 
 ### 6.1 Merging
 
 - **A finished change merges, not lands:** the engine merges its branch
   into the goal branch with a merge commit and pushes it fast-forward
   only. No gate runs here; the check before ready and the goal branch's
-  checks below do.
+  checks do.
 - **Mechanical conflicts settle themselves:** a conflict confined to a
   counted baseline is settled by the project's tooling, taking the goal
   branch's side and recounting, which refuses a raise. Any other
-  conflict is a rejection at the merge, and a rebase follows (10.3).
+  conflict is a rejection at the merge, which goes to an examiner
+  (10.3).
+- **A rebase is the engine's; its conflicts are an agent's.** The engine
+  starts the rebase or merge in a workspace; where it conflicts, an
+  agent task resolves the conflicting files only, with no git writes of
+  its own; the engine commits and pushes (as temper's resolution,
+  `forge.md` 8.4).
 - **A merged change counts as landed for its dependents:** they start
   from the goal branch's tip. Agent tasks' branches and answers merge
   the same way.
@@ -241,7 +244,8 @@ A ladder is a goal of `each` with rungs instead of parts (section 9).
 - **A waiting change starts early** when each unmerged dependency is
   running or finished with its branch pushed, and has no unmerged
   dependencies of its own. Its workspace starts from the goal branch
-  with those branches merged in; a conflict refuses the early start.
+  with those branches merged in, with no recount; any conflict refuses
+  the early start.
 - **Before it merges,** the engine merges its dependencies' final
   branches into it again; it merges only after they have.
 - **Once at most:** after a question, or a failure because its
@@ -250,8 +254,8 @@ A ladder is a goal of `each` with rungs instead of parts (section 9).
 ### 6.3 Interim checks
 
 - **While changes remain,** after `interim_every` merges or
-  `interim_after` minutes with one, the engine checks the goal branch's
-  tip, a check job with the final check's gates less the slowest
+  `interim_after` minutes with one, the engine runs a check job on the
+  goal branch's tip with the final check's gates less the slowest
   (`interim_skip`), in an idle workspace, when no repair is open.
 - **A red becomes a repair** of the goal branch, owning every path: its
   words the failing gates and the report, and the unmerged changes'
@@ -260,21 +264,21 @@ A ladder is a goal of `each` with rungs instead of parts (section 9).
 ### 6.4 Updating from main
 
 - **Main moves under a goal branch** as other goals land. For a goal
-  with `ready` yes, while changes remain, when it lacks main's tip and
-  `update_after` minutes have passed since its last update, the engine
-  merges main into it (counted baselines recounted). It waits while a
-  repair is open or the planner runs. Once every change has merged, it
-  updates only before a check, so a ready branch does not move under the
-  queue.
-- **A conflicting update is a resolution:** a change that merges that
-  main into a branch from the goal branch, keeping both sides' intent,
-  and fixes what main's changes break; the engine then checks the goal
-  branch contains that main.
-- **A stop wakes the goal's agent:** a refusal at a main whose
-  resolution has merged, or the `update_refusals`th since the last clean
-  update, stops the goal branch's steps; the goal's agent reads the
-  record and decides: a fresh resolution with what failed, or a question
-  to the person.
+  with `ready` yes, while changes remain, when the goal branch lacks
+  main's tip and `update_after` minutes have passed since its last
+  update, the engine merges main into it (counted baselines recounted).
+  It waits while a repair is open or the planner runs. Once every change
+  has merged, it updates only before a check, so a ready branch does not
+  move under the queue.
+- **A conflicting update is a resolution** (6.1): the engine starts the
+  merge of that main in a workspace from the goal branch; an agent
+  resolves the conflicts, keeping both sides' intent; the engine commits
+  it and merges it. What main's changes break beyond the conflicts, the
+  next check finds and a repair fixes.
+- **Held after `update_refusals`:** that many refused updates since the
+  last clean one hold the goal branch, escalated to the goal's agent,
+  which reads the record and decides: a fresh resolution with what
+  failed, or a question to the person.
 
 ### 6.5 The final check, and ready
 
@@ -282,59 +286,59 @@ A ladder is a goal of `each` with rungs instead of parts (section 9).
   checked in full by one check job: every counted baseline, formatting,
   lints, the build and every test gate the queue runs.
 - **Red makes a repair,** and the check runs again; the `final_reds`th
-  red stops it.
+  red holds the goal branch.
 - **Green makes it ready,** one landing for the whole goal. A queue
   rejection updates it, checks it again and readies it again; the
-  `queue_refusals`th stops it.
-- **A stop** wakes the goal's agent as in 6.4; meanwhile only repairs of
-  reds and findings start.
+  `queue_refusals`th holds it.
+- **A held goal branch** is escalated to the goal's agent as in 6.4;
+  meanwhile only repairs of reds and findings start.
 
 ### 6.6 Goals beside each other
 
-- **An overlap probe, shown only:** each round, for each pair of goals
-  with `ready` yes whose goal branches are not yet on main, the engine
-  merges each with main in memory, then the pair, and records the
-  conflicting paths when they change, cached by the commits. Nothing
+- **An overlap probe, shown only:** each round of the engine, for each
+  pair of goals with `ready` yes whose goal branches are not yet on
+  main, it merges each with main in memory, then the pair, and records
+  the conflicting paths when they change, cached by the commits. Nothing
   waits on it; the second to land meets the conflict at its update.
-- **It is shown** on the status page, and the planner's brief lists the
-  goals beside it (4.2).
+- **It is shown** in `temper ctl`'s status, and the planner's brief
+  lists the goals beside it (4.2).
 
 ## 7. Landing (code; examiners are LLM)
 
 ### 7.1 The landing queue
 
-- **Ready branches, oldest first:** each cycle the queue takes up to
-  `candidate_size` untried ready tips, merges them onto main in order
-  (`prepare`: merge, or rebase for a candidate of one) into one
-  candidate, and runs its gates; a push that finds main moved is retried
-  (`push_retries`). A member that conflicts, or that touches a path the
-  repository refuses (`refused_paths`), is rejected.
-- **Selection** is the packages the candidate reaches and their reverse
-  dependencies, with paths that always run and paths tests read; a
-  documentation candidate runs only a touched tree's counted baseline.
-  Every `full_every`th candidate runs the full selection. A repository
-  may run its whole suite instead (`selection = whole`).
+- **Ready branches, oldest tip first:** each cycle the queue takes up to
+  `candidate_size` untried ready tips, by their commits' time, prepares
+  them onto main in order (`prepare`: merge, or rebase for a candidate
+  of one) into one candidate, and runs its gates. A member that
+  conflicts, or touches a path the repository refuses (`refused_paths`),
+  is rejected.
+- **Selection** (`selection`) is the packages the candidate reaches and
+  their reverse dependencies, with paths that always run and paths tests
+  read, or the whole suite. A documentation candidate runs only a
+  touched counted baseline. Every `full_every`th candidate runs the full
+  selection.
 - **The gates** run in a gate lane nothing else builds in: counted
-  baselines (recounted), formatting, lints, the build, the test gates,
-  and any code-style gates of the repository (`gate_set`). CPU is
-  measured per tree; starved tests stay green; budgets, when the person
-  sets them, are reported.
-- **Green:** main is pushed, expecting its parent; each ready ref is
-  deleted under a lease on its tip, and its source branch when it still
-  names that tip.
-- **An error is the gate's:** short of disk, a dirty checkout, a refused
-  push; nobody is rejected or marked tried, and it goes again.
+  baselines (recounted), formatting, lints, the build, the test gates.
+  Gates of a change alone (`gate_set`: code style, counted baselines)
+  run before it is readied (7.2). CPU is measured; starved tests stay
+  green; budgets, when the person sets them, are reported.
+- **Green:** main is pushed, expecting its parent (`push_attempts`);
+  each ready ref is deleted under a lease on its tip, and its source
+  branch when it still names that tip.
+- **A fault of the gate** (short of disk, a dirty checkout, a refused
+  push) rejects nobody and marks nobody tried; the candidate goes again.
 - **The queue keeps its records and little else,** and re-derives the
   rest from git.
 
 ### 7.2 A change's own check, reused
 
 - **Before ready, in its workspace,** the engine runs the check before
-  ready on a change readied on its own, after its run: its tip merged
-  onto main, the queue's selection in the build lane, the checkout reset
-  after. A red is the change's, back to its producer. The
-  counted-baseline gate runs before it is readied, and the engine
-  carries the receipt to the gate lane with it.
+  ready on a change readied on its own, after its run: a check job on
+  its tip merged onto main, the queue's selection, in the build lane.
+  Then the change's own gates (`gate_set`) run. A red is the change's,
+  back to its producer. The engine carries the receipt to the gate lane
+  with the ready.
 - **The receipt is reused:** a candidate of one, not due for a full run,
   whose receipt is green for the same tip and the same main lands on it
   after the counted baselines and formatting alone.
@@ -351,7 +355,7 @@ A ladder is a goal of `each` with rungs instead of parts (section 9).
 
 ### 7.4 Bisecting
 
-- **A red candidate is halved,** the left half first, each half merged
+- **A red candidate is halved,** the left half first, each half prepared
   and checked again; a green half lands before the right is checked,
   until each red is one branch's, which is rejected. After a red full
   candidate, its halves are checked in full.
@@ -382,10 +386,11 @@ A ladder is a goal of `each` with rungs instead of parts (section 9).
   red is **recovered**.
 - **Faults and starvation:** a tier that cannot run (no account, disk, a
   missing report) faults and says nothing about its tests; wall-clock
-  expiry is **starved**, counted apart, never red; CPU is measured. A
-  run is red (any confirmed red, or over a set budget), else partial (a
-  fault), else green; the cursor moves only past a run without a fault,
-  so a faulted tip runs again.
+  expiry is **starved**, counted apart, never red; CPU is measured.
+- **A run's verdict:** red (any confirmed red, or over a set budget),
+  else partial (a fault), else green. A partial run's tip is not run
+  again: the next tip's run covers its suspects. A red run with a fault
+  runs its tip again.
 - **Budgets** are the person's to set; with none, CPU and wall are
   reported only.
 
@@ -394,11 +399,11 @@ A ladder is a goal of `each` with rungs instead of parts (section 9).
 - **Grouped once:** one red per tip and suspect set, for the new and
   unattributed reds still red in the newest run, with its evidence (the
   tests, the suspects, the reruns' log ends).
-- **A red with a goal's change among its suspects goes to an examiner**
-  (10.3), which reads the evidence and the suspects' specs at the red's
-  tip: **fix** (what, where, and the owner among the suspects), or **not
-  the suspects'** (a flake that failed its rerun too, the tier's
-  environment), which makes it an alert.
+- **A red with an open goal's change among its suspects goes to an
+  examiner** (10.3), which reads the evidence and the suspects' specs at
+  the red's tip: **fix** (what, where, and the owner among the
+  suspects), or **not the suspects'** (a flake that failed its rerun
+  too, the tier's environment), which makes it an alert.
 - **The repair is a change of its own,** from main, in the owner's goal:
   reproduce in the lowest tier that shows it, then fix; readied like any
   change; `fix_tries`, then the answerer.
@@ -409,12 +414,12 @@ A ladder is a goal of `each` with rungs instead of parts (section 9).
   alert (11.2); a fault clears only when a run no longer faults.
 - **No bisecting after landing:** the examiner names the owner.
 
-### 8.3 A goal closes after its verdict (code; the closing task is LLM)
+### 8.3 A goal ends after its verdict (code; the wrap-up is LLM)
 
 When every part is done, a goal waits until its last branch has landed
 on main and a tier run covers it, and while any red of its own is being
-decided or repaired (an alert does not hold it); then the closing task
-runs (10.6).
+decided or repaired (an alert does not hold it); then the wrap-up runs
+(10.6).
 
 ## 9. QA walks and the findings loop
 
@@ -424,8 +429,8 @@ runs (10.6).
   (`backends`: a model and a forge), its brief files (a shared kit, then
   its own), and the rungs that must pass first. The ladder names its
   happy path (a design citation) and its backlog file.
-- **A rung's edition is its brief's bytes:** "rerun unchanged" is a walk
-  at the same edition; a changed brief or kit starts a new edition.
+- **A rung's edition is its brief files' bytes:** "rerun unchanged" is a
+  walk at the same edition; a changed brief or kit starts a new edition.
 - **A rung's state:** passed, walking, waiting (a lower rung has not
   passed), holding (a blocking finding, or one from a failed or void
   walk, is open, or an action of the person's it needs), or due (a first
@@ -435,11 +440,11 @@ runs (10.6).
 
 - **A due rung starts a walk:** the engine records its start at main's
   tip (never a commit lacking a landed repair of the rung's findings),
-  builds the binary at that commit in a workspace, lends the backend's
-  accounts from custody (`walk_boxes` at once), and starts the walker,
-  an agent task on the rung's brief, the open findings and how to
-  report, under a time cap (`walk_cap`). It returns the accounts at the
-  end.
+  builds what the walk deploys at that commit in a workspace, lends the
+  backend's accounts from custody (at most `walk_boxes` walks at once),
+  and starts the walker, an agent task on the rung's brief files, the
+  open findings and how to report, under a time cap (`walk_cap`). It
+  returns the accounts at the end.
 - **The result** is a verdict (pass, fail, void), a reason, and
   findings: title, severity, area, whether it blocked, reproduction,
   expected, seen, evidence, and `same`, an open finding met again. The
@@ -450,8 +455,8 @@ runs (10.6).
 - **A finding is a record:** new, routed, backlog, dropped, asked,
   merged, left (its examiner's "not the code's"), or in repair. The same
   finding is merged by the walker's `same` or by triage, never filed
-  twice; a sighting of one whose repair has landed is filed again,
-  `again`, for triage.
+  twice; a sighting of one that cannot take a merge (its repair landed,
+  fixed, unfixed, left or dropped) is filed again, `again`, for triage.
 - **The triager is an agent task in the chat's role,** started at once
   for a blocking finding or one from a failed or void walk, else at
   `triage_at` new findings or after `triage_after` minutes. One line per
@@ -461,9 +466,7 @@ runs (10.6).
   it, or asks the person), **merge**, or **drop**.
 - **The backlog** is a file in the tree, rendered from the records and
   readied whenever it differs from main; `backlog_rejections` of one
-  render raise an alert. (fab's queue never takes this branch: it takes
-  ready names of two segments only, and the backlog's has three; a
-  fault.)
+  render raise an alert.
 
 ### 9.4 A repair, and the pass (code; the examiner is LLM)
 
@@ -479,23 +482,24 @@ runs (10.6).
 
 ### 10.1 Agent tasks (LLM; started and measured by code)
 
-- **Each is a fresh run on a compiled brief,** ending with its result or
-  files the engine pushes. None waits, polls or watches a run; each runs
-  under its charter's model and effort.
+- **Each is a fresh run on a brief the engine assembles,** ending with
+  its result or files the engine pushes. None waits, polls or watches a
+  run; each runs under its charter's model and its template's effort.
 - **Measured, not capped:** peak context, turns and tokens are recorded
   against the person's target (`context_target`); a timeout
-  (`agent_timeout`) is the only stop, for tasks on the engine's machine.
+  (`agent_timeout`) is the only stop.
 - **Who starts them:** the chat starts goals; a goal's agent starts its
-  planner; the engine starts the producers, examiners and reviewers (on
-  workers, in their slots), and the answerer, revisers, arbiters,
-  scaffolds, the structure review, the closing task, the triager,
-  walkers and the forge's reply. One runs per subject at a time.
+  planner; the engine starts producers, examiners, reviewers, resolvers,
+  the answerer, revisers, arbiters, scaffolds, the structure review, the
+  wrap-up, the triager, walkers and the forge's reply. Which run on
+  workers and which on the engine's machine is a setting
+  (`agent_hosts`). One runs per subject at a time.
 
 ### 10.2 Review (LLM; the counts are code)
 
 - **What is reviewed:** the branches of planning and judgement tasks
   (the planner, scaffolds, the answerer, the structure review, the
-  closing task), never a producer's.
+  wrap-up), never a producer's.
 - **With `review` on,** such a branch gets a read-only reviewer:
   approve, or refuse with remarks, in a few lines its charter bounds.
   Refused, the remarks go once to a reviser on the same branch; refused
@@ -503,11 +507,11 @@ runs (10.6).
   is held for an **arbiter**, which says land, revise (once more, with
   guidance) or the person's (budgets, machines, what is hard to reverse,
   a change of direction). An arbiter gets two attempts; a second that
-  fails keeps the subject for the person.
+  fails holds the subject for the person.
 - **A landing's rejection is a review's refusal,** whatever `review`
   says: a rejection of the branch (its merge into the goal branch, the
-  queue) counts: revised when there has been no revision since its last
-  reset, else held for the arbiter.
+  queue) counts: revised (the engine rebases, 6.1) when there has been
+  no revision since its last reset, else held for the arbiter.
 - **With `review` on, a structure review** reads the digests of the
   changes landed since the last (every `review_every` landings or
   `review_after` hours) and writes consolidation changes, which start
@@ -524,10 +528,11 @@ the question queues, or the repair starts with the evidence alone.
   queue at once, and their answers join its words): when the spec's
   options answer it, the answer joins the spec and the change runs
   again; when its work is pushed and accepted and what it asks lies
-  outside it, **accept** finishes the change (a goal branch's);
-  otherwise the question queues for the answerer.
-- **A rejection:** fix (a repair or rebase section for the next run) or
-  retry (not the change's: the same tip goes back, once).
+  outside it, **accept** finishes the change as it stands (a goal
+  branch's); otherwise the question queues for the answerer.
+- **A rejection:** fix (a repair section for the next run), rebase (the
+  engine rebases, an agent resolves, 6.1), or retry (not the change's:
+  the same tip goes back, once).
 - **A red after landing, an on-path finding:** fix (a repair change), or
   not the code's (an alert).
 
@@ -540,32 +545,31 @@ the question queues, or the repair starts with the evidence alone.
   final check, widening a change only when its acceptance needs it.
 - **What it cannot settle** it asks the person (11.1).
 
-### 10.5 Kept (code)
+### 10.5 Kept and held (code)
 
-- **Only the change that needs an answer is kept** (a change past its
-  tries, or failed, is held, 5.1); its dependents wait, everything else
-  runs. An answer releases it.
+- **Only the change that needs an answer is kept;** its dependents wait,
+  everything else runs. An answer releases it. A change past its tries,
+  or failed, is held (5.1).
 - **A part named by an open question** of the person's is not designed.
-- **An agent task's question keeps its subject** until the person
+- **An agent task's question holds its subject** until the person
   answers.
 
-### 10.6 Scaffolds and the closing task (LLM; their frames are code)
+### 10.6 Scaffolds and the wrap-up (LLM; their frames are code)
 
 - **A scaffold** designs a part as code (types, signatures, empty
   bodies, its specs) when `scaffold` is on, started when the ready
-  changes fall below a band; a part shared by others is scaffolded
-  first. The engine checks the scaffold's tip (gates and tests) and
-  starts the part's changes from it before it merges; a part waits for
-  its dependencies to be designed, not done.
+  changes fall below `scaffold_band` times the target; a part shared by
+  others is scaffolded first. The engine checks the scaffold's tip
+  (gates and tests) and starts the part's changes from it before it
+  merges; a part waits for its dependencies to be designed, not done.
 - **Changes started from a scaffold wait for its review:** a finished
-  change merges only once the scaffold has; if it was revised, each such
-  change gets one rebase onto it, outside its tries; a held scaffold
-  keeps its changes.
-- **The closing task:** once a goal's parts are done (and after 8.3),
-  one task brings the changed designs' status files current; its branch
-  lands, and the goal ends. Its brief quotes each changed design as its
-  diff or whole, the shorter, within a bound.
-
+  change merges only once the scaffold has; if it was revised, the
+  engine rebases each such change onto it once, outside its tries; a
+  held scaffold holds its changes.
+- **The wrap-up:** once a goal's parts are done (and after 8.3), one
+  task does the project's duty at the end (`wrap_up`); its brief quotes
+  each design the goal changed as its diff or whole, the shorter, within
+  a bound. Its branch lands, and the goal ends.
 
 ## 11. The person, the chats and the forge
 
@@ -574,15 +578,15 @@ the question queues, or the repair starts with the evidence alone.
 - **Only what is the person's reaches the person:** budgets, accounts,
   machines, what is hard to reverse, a change of direction. Whoever asks
   decides: a planner's question, an agent task's, an arbiter's referral,
-  a triager's `user`, a goal's agent after a stop.
+  a triager's `user` or `brief`, a goal's agent after a hold.
 - **The person's inbox,** read and answered through `temper ctl`, lists
   the open questions with what to read and how to answer; an answer is
   recorded once, carried in every later brief of its subject, and
-  written into the plan where it is a plan's.
+  written into the plan's files where it is a plan's.
 
 ### 11.2 Alerts (code; acting on them is LLM)
 
-- **An alert is what no goal owns,** sent to the chat its template names
+- **An alert is what no goal owns,** sent to the chat `alerts_to` names
   (by default the person's): a red no open goal owns or one left
   unfixed, a tier that cannot run, a finding its examiner called not the
   code's, a backlog branch rejected too often.
@@ -595,83 +599,85 @@ the question queues, or the repair starts with the evidence alone.
 - **One issue per open question** of an agent task, a held review or a
   triager (never a plan's), labelled on the forge, opened, conversed and
   closed by a pass on a timer (`forge_sync`).
-- **The person answers in a comment:** a reply task reads it with the
+- **The person may answer in a comment:** a reply task reads it with the
   question and its report, and either replies (context, options, a
   recommendation) or records the answer, and the issue closes.
 
-## 12. Workers, workspaces and accounts (code)
+## 12. Workers, workspaces and custody (code)
 
 ### 12.1 Workers and workspaces
 
-- **The engine's machine** runs the engine, the Claude agent tasks, the
-  inboxes, custody and the status page. **Workers** run producers,
-  examiners, reviewers and builds; which worker holds the gate lane and
-  the tier runner is configuration.
-- **A workspace is claimed** for a run and swept at its end (incremental
-  data, stale test executables), which bounds it (`workspace_bound`); a
-  claim whose run is gone is stale and released.
-- **Builds wait for disk:** in a build lane of `builds` concurrent
-  builds per worker, or the gate lane; short of headroom, a build
-  reclaims idle workspaces and waits up to `disk_wait`, then fails as
-  transient.
+- **The engine's machine** runs the engine, custody and the agent tasks
+  `agent_hosts` puts there. **Workers** run the rest and the builds;
+  which worker holds the gate lane and the tier runner is configuration.
+- **A workspace is claimed** for a run and swept at its end of what the
+  project names as build waste, which bounds it (`workspace_bound`); a
+  claim whose run is gone is stale, and the engine releases it.
+- **Builds wait for disk:** in a build lane of `builds` builds at once
+  per worker, or the gate lane; short of headroom, a build reclaims idle
+  workspaces and waits up to `disk_wait`, then fails as transient.
 - **A worker's disk is budgeted:** the cache's cap (`cache_cap`), its
   workspaces at their bound, headroom (`headroom`), and one more on the
   gate's worker.
 
 ### 12.2 Custody
 
-- **Every account is held centrally,** one entry each: the workers'
-  model accounts, and QA's model records, Claude Code directories and
-  forge fixtures.
+- **Every account and credential is held centrally,** one entry each:
+  model accounts, and the application's credentials its walks and live
+  tiers use.
 - **Custody is records:** added, lent (to whom, where), returned,
   checked, retired. A lent account's central copy is a placeholder until
   returned; tokens refresh, so the copy last used is the true one; bytes
   are moved and hashed, never printed.
-- **Lent to workers and to runs:** each machine holds the accounts its
-  role needs (`machine_accounts`); a live tier or a walk borrows for its
-  run.
+- **Lent to workers and to runs:** the engine lends each machine the
+  accounts its role needs (`machine_accounts`) when it joins; a live
+  tier or a walk borrows for its run.
 - **Checked on a timer** (`account_check`): the account and every usage
   limit. A machine whose account passes `swap_at` of its weekly limit is
   swapped onto a free account of the same model.
 
 ## 13. What is measured and reported (code)
 
-- **Two reports a day, from records alone,** by a recurring task, each
-  figure beside the day before's, sent to the chat its template names.
-- **The code report,** per goal: runs and results, runs in flight
-  against run targets, idle gaps, time per change, questions and time to
-  answer, transient minutes, disk and lane waits, each part's time to
-  landed, usage and weights, stops ranked by time lost.
+- **Two reports, from records alone,** each day by a recurring task (on
+  a timer, `reports_at`), each figure beside the day before's, sent to
+  the chat `alerts_to` names: a code report per goal and one landing
+  report.
+- **The code report:** runs and results, runs in flight against run
+  targets, idle gaps, time per change, questions and time to answer,
+  transient minutes, disk and lane waits, each part's time to landed,
+  usage and weights, stops ranked by time lost.
 - **The landing report:** candidates and outcomes, rejections by gate,
   flakes at the gate, candidates landed on a receipt, ready-to-landed
-  latency, bisecting, gate durations, CPU per tree; reds opened, routed,
-  settled and closed; walks, findings, triage, repairs and passes.
+  latency, bisecting, gate durations; reds opened, routed, decided and
+  closed; walks, findings, triage, repairs and passes.
 - **Weights** (`weights`) per kind of token and model; the ratio of the
   models' weights per goal, with the chats' own runs shown apart.
-- **A public status page** shows counts only: what is in flight, landed
-  and merged today, questions waiting and their age, each goal's
-  activity, overlaps, and the accounts' use and pace; never a branch,
-  path or text.
+- **Status through `temper ctl`:** what is in flight, landed and merged
+  today, questions waiting and their age, each goal's activity,
+  overlaps, and the accounts' use and pace.
 
 ## 14. fabrig's model as configuration
 
 ### 14.1 The choices
 
 fabrig's way of running, as fab runs it, is these choices. Values are
-fab's (`fab/` at 1dc102c) unless marked.
+fab's (`fab/` at 1dc102c) unless marked; "none" means fab has no such
+mechanism and works by hand (14.2).
 
 | Choice | fabrig's value |
 |---|---|
-| the chat | one, a director template, reached through `temper ctl`; alerts and reports go to it |
+| the chat | one, a director template; `alerts_to` it |
 | a draft's goal (4.4) | `landing = goal_branch`, `ready` yes, `review` off, `scaffold` off, `early_start` on |
 | a small fix's goal | `landing = each` |
-| fab's own repository | `landing = each`, `candidate_size` 1, `prepare` rebase, `selection = whole` (its suite, under 120 s), `push_retries` 3, `refused_paths` the legacy kit and the person's drafts, `gate_set` code style (no changed signature but for an interface or migration, no function over 60 lines added or grown, no banned name, docs on public items, no repeated block of 8 lines); its rebuild with `review` and `scaffold` on |
+| fabrig's queue (7.1) | `prepare` merge, `selection` packages, `push_attempts` 1, no `refused_paths`; `gate_set` the counted-baseline gate before ready |
+| fab's own repository | `landing = each`, `candidate_size` 1, `prepare` rebase, `selection` whole (its suite, 30 s, under a 120 s timeout), `push_attempts` 3, `refused_paths` the legacy kit and the person's drafts, `gate_set` code style (no changed signature but for an interface or migration, no function over 60 lines added or grown, no banned name, docs on public items, no repeated block of 8 lines); its `agents-rebuild` goal with `review` on and `scaffold` on |
 | QA | one ladder goal, `landing = each`; `backends`: ChatGPT with an owned Forgejo or GitHub, Claude Code with an owned Forgejo |
+| `change_kinds` | feature, interface, migration, repair, rebase, docs |
 | `tries`, `fix_tries` | 4, 2 |
 | `flow` | fixed for a goal branch, adaptive for `each` |
-| workers | three; run targets 6, 4 and 4, 7 slots each, `builds` 4, `cache_cap` 50 GB, `headroom` 10 GB; the third holds the gate lane and the tier runner (slot 7) |
+| workers | three; run targets 6, 4 and 4, 7 slots each, `builds` 4, `cache_cap` 50 GB, `headroom` 10 GB; the third holds the gate lane and the tier runner (its seventh workspace) |
 | `calm` | load per CPU under 0.7; under 5 minutes of lane and disk waits in the last 30; no refused build |
-| scaffolds | started below 1.0 times the target in ready changes; 2 at once at first |
+| `scaffold_band` | 1.0 times the target; 2 scaffolds at once at first |
 | `interim_every`, `interim_after`, `interim_skip` | 10 merges, 45 minutes, the fuzzy tests |
 | `update_after`, `update_refusals` | 30 minutes, 3 |
 | `final_reds`, `queue_refusals` | 3, 3 |
@@ -682,12 +688,14 @@ fab's (`fab/` at 1dc102c) unless marked.
 | `triage_at`, `triage_after`, `backlog_rejections` | 4, 30 minutes, 2 |
 | `review_every`, `review_after`, `review_faults` | 10, 4 hours, 3 |
 | `context_target`, `agent_timeout` | about 600k (the user, 10-30), 60 minutes |
-| `backstop`, `self_wakes` | 10 minutes, 5 |
 | models | producers Codex (gpt-6.1-sol) at high; examiners and reviewers Codex at medium; the others Claude (Opus) at high, the answerer, arbiter, triager and reply at medium |
+| `agent_hosts` | Codex tasks on workers, Claude tasks on the engine's machine |
 | `producer_allowances` | the arms, fields and literals the compiler requires because of a type the change altered, anywhere in its tree; a scoped lint exception on an item it wrote |
-| `machine_accounts` | one Codex and one Claude account per machine |
-| `walk_cap` | 3 hours (designed in `fab:qa.md` 2) |
-| `forge_sync`, `account_check` | 2 minutes, 30 minutes (timers installed by hand) |
+| `wrap_up` | the status files of the designs the goal changed brought current |
+| `machine_accounts` | one Codex and one Claude account per machine (lent by hand) |
+| `walk_boxes`, `walk_cap` | none (designed: a QA worker's `boxes`); none enforced (3 hours designed, `fab:qa.md` 2) |
+| `swap_at` | none (by hand) |
+| `forge_sync`, `account_check`, `reports_at` | 2 minutes, 30 minutes (timers installed by hand); none (by hand) |
 | `workspace_bound`, `disk_wait` | 25 GB, 20 minutes |
 | `weights` | input 1, cache write 1.25, cache read 0.1; output 5 for Claude, 8 for Codex |
 
@@ -700,17 +708,26 @@ a judgement, the model does not copy it:
   goal); answers to a plan's questions written into plan.toml; ready
   refs pushed by hand, which no plan owns (their rejections and reds
   become signals); the hand merge of main after a stop; walks run by a
-  session (`fab qa walk`, `fab qa result`); account swaps (`fab logins
-  swap`); the daily reports (`fab report daily`); signals read and
-  cleared by a session.
+  session, with its own build and its own account loans (`fab qa walk`,
+  `fab qa result`); a rung's brief edited after a triage `brief`
+  question; stale slot claims released by hand (designed in
+  `fab:machines.md` 2, not built); accounts lent to machines and swapped
+  (`fab logins lend`, `swap`); the daily reports (`fab report daily`);
+  the timers of the forge sync and the account checks, installed by
+  hand; signals read and cleared by a session.
 - **An agent doing a mechanism:** the cut pushes its pieces and runs
   `fab wake cut`; the implementer pushes its branch, runs the check
   before ready (`fab precheck`) and merges its early-start dependencies
-  again before pushing; the reviser rebases a branch `fab land` refused,
-  as text work.
+  again before pushing; rebase runs reset, rebase and push themselves
+  (`run._rebase_brief`); catch-up repairs merge main themselves; the
+  amender rebases and force-pushes a refused branch; a run's transient
+  class is read from the agent's own `Infra:` line.
 - **Code doing a judgement:** a goal's stop is a note, not a question to
   anyone (`fab:integration.md` 3 designs the question); a red's repair
   goes to the newest suspect's plan whatever owner its examiner names.
+- **fab's engine:** a tick, woken by events into rounds, with a backstop
+  timer (10 minutes) for lost wakes and up to 5 self-wakes; temper's
+  engine decides each event as it comes (section 3).
 - **Faults:** an integration plan's retire branch merges into a trunk
   that has already landed, so it never reaches main; the rebase onto an
   amended skeleton repeats without end in an integration plan
@@ -733,8 +750,8 @@ Each waits for the numbers or the person's word that asks for it.
 - **Landing:** receipts by key per package (the previous edition's keys,
   gate classes and audits); receipts reused for candidates of several;
   speculative candidates (a train) or a second gate lane; the candidate
-  size from measures; budgets that turn the gate red (after landing they
-  already turn a run red); evidence bound to trees.
+  size from measures; budgets that turn the gate red; evidence bound to
+  trees; CPU per tree in the landing report.
 - **After landing:** bisecting to a culprit when examiners name the
   wrong owner; a second repair of an unfixed red; QA passes on landings
   marked for QA.
@@ -747,13 +764,10 @@ Each waits for the numbers or the person's word that asks for it.
 - **Agent tasks:** a cap on context or turns once the person sets one; a
   question that holds a direct part's changes; dependencies across
   goals.
-- **Workers:** added and retired by demand; accounts lent to a new
-  worker when it joins.
+- **Workers:** added and retired by demand.
 - **Landings across repositories,** and a forge's native merge queue as
   an accelerator.
-- **The web UI:** the chat, the inbox and the status page in a browser;
-  a track of its own (the user, 11-01). Here everything goes through
-  `temper ctl`.
-
-
+- **The web UI:** the chat, the inbox and a public status page in a
+  browser; a track of its own (the user, 11-01). Here everything goes
+  through `temper ctl`.
 
