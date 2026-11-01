@@ -514,6 +514,14 @@ pub fn own_defaults(deployment: &serde_json::Value, flags: &serde_json::Value) -
     temper_service::stock::Given::Own(Box::new(defaults))
 }
 
+/// Keep the fixture's other settings while making its chats standing.
+pub(crate) fn standing_chats(directory: &Path) -> std::io::Result<()> {
+    let path = directory.join("world-settings.json");
+    let mut flags: serde_json::Value = serde_json::from_slice(&std::fs::read(&path)?)?;
+    flags["requester"] = true.into();
+    private(&path, &serde_json::to_vec(&flags)?)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -543,12 +551,4 @@ mod tests {
             assert_eq!((agent, config), configured(fixture, llm, forge));
         }
     }
-}
-
-/// Keep the fixture's other settings while making its chats standing.
-pub(crate) fn standing_chats(directory: &Path) -> std::io::Result<()> {
-    let path = directory.join("world-settings.json");
-    let mut flags: serde_json::Value = serde_json::from_slice(&std::fs::read(&path)?)?;
-    flags["requester"] = true.into();
-    private(&path, &serde_json::to_vec(&flags)?)
 }
