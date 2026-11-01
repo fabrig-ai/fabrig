@@ -32,8 +32,8 @@ N instead. This answers the playground designer's contract problem in
 
 Acceptance:
 
-- `temper_fake::llm::Document::for_forge(self, forge: u16) -> Document`
-  (a name this task creates): every `resource` member of every tool call's
+- `temper_fake::llm::Document::for_forge(self, forge: u16) -> Result<Document, Refusal>`
+  (a name this task creates; `Err` is the joint-bound refusal below): every `resource` member of every tool call's
   arguments in its scripts (cued, asked and otherwise), at any depth, whose
   value is an integer tag of forge 1 (`tag >> 32 == 1`), becomes `(N << 32)
   | (tag & 0xffff_ffff)`; nothing else of the arguments changes (members'
@@ -44,9 +44,11 @@ Acceptance:
   `temper_forge_setup::file::read`); with one, it serves `for_forge(N)`; with
   none, the scripts as written (the document's own playground forge, D1);
   with more than one, the highest N, named on stderr.
-- The rewritten scripts stay within the fake's byte bounds (the domain's
-  joint bound is checked again: `scripts past their joint byte bound` if a
-  longer number pushes past it).
+- The rewritten scripts stay within the fake's byte bounds: `for_forge`
+  checks them again through `check_scripts` and returns its `Err`
+  (`scripts past their joint byte bound`) if a longer number pushes past
+  it; `llm_configuration` maps that refusal to its `String` error as
+  `Source::Document` does.
 - The tests below pass, and temper-fake's and the binary's existing tests.
 
 ## Inputs
@@ -102,3 +104,16 @@ Acceptance:
 
 Fab's sections; under `## Interfaces`: `llm::Document::for_forge`,
 `setup::playground_forge`, the rule for which tags change.
+
+## Answers
+
+2026-11-01. May `Document::for_forge` return `Result<Document, Refusal>` to
+refuse a rewrite past the joint byte bound? Yes (option A): the signature is
+`pub fn for_forge(self, forge: u16) -> Result<Document, Refusal>`. It runs
+`check_scripts` over the rewritten scripts (the same check `decode` makes, so
+`Document::domain`'s "checked scripts" invariant holds) and returns its
+refusal; `configuration` and `domain` stay infallible. In `fake.rs`'s
+`Source::Demo` arm, clone `demo.llm()`, call `for_forge(n)` and map the
+refusal with `String::from_utf8_lossy(&why.line())` as the `Source::Document`
+arm does. `a_rewrite_past_the_joint_bound_is_refused` asserts the `Err` and
+its diagnostic.
