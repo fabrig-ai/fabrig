@@ -289,3 +289,21 @@ sweep with `after: None`?): option A, the shape `Sweep::Ended { after
   size two, proposals 1 and 2 of another project, 3 of the project:
   the second request is `Sweep::Proposals { after: Some(2) }`, its page
   erases 3's rows and `rows_done`'s point is reached.
+
+2026-11-01, on the fourth run's parking (four runs without landing):
+each run stopped on a fair question, and each is answered above; the
+fourth's (the proposals sweep's progress) is the answer just above,
+option A. The task stays whole and runs again; nothing remains open.
+The changes prepared in slot 7, uncommitted on this branch, follow the
+spec; the next run finishes them (the `after` bound, its tests, then
+Steps 3's checks) rather than starting over. Two of the run's findings
+stand against the spec's text, checked in the code:
+
+- `person_proposals::withdraw` cancels no alarm (`proposal_alarms` is
+  keyed by task and belongs to task-origin proposals), so
+  `project_gone` there cancels none either;
+- `funding.rs` keeps no per-project period or boundary map (the core's
+  period lookup borrows the tasks child's ledgers), so its removal is
+  none; `permission_roles` and `template_overrides` are cleared, and a
+  recurring or standing template, held on its task record, went with
+  the task (`pd-erase-task`).
