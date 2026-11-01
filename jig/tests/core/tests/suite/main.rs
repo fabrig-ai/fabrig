@@ -44,6 +44,7 @@ mod read_filters;
 mod reads;
 mod referee;
 mod refusals;
+mod removal;
 mod restart;
 mod restore_pages;
 mod route_orders;

@@ -395,6 +395,16 @@ pub(super) fn procedure_step(
         out.push(Request::Decided);
         return Requests::Out(out);
     }
+    if let Some(row) = core.tasks.task(task)
+        && !core.projects.as_slice().contains(&row.project)
+    {
+        return super::procedure_steps::refused(
+            core,
+            task,
+            step,
+            super::procedure_steps::problem(task, tasks::Refusal::Unknown),
+        );
+    }
     core.take_models(task, &mut decision.batch);
     core.take_deadline(task, &mut decision.batch);
     if let Err(why) = core.task_as_allowed(task, &mut decision.batch) {
@@ -587,7 +597,9 @@ pub(super) fn procedure_holdings(
     let mut out = Queue::uncapped();
     if flight.remaining == 0 {
         let flight = core.creating_procedures.remove(&(task, step)).expect("completed procedure holdings");
-        if flight.failed {
+        if flight.failed
+            || !core.projects.as_slice().contains(&flight.members.first().expect("nonempty procedure batch").project)
+        {
             return super::procedure_steps::refused(
                 core,
                 task,
@@ -617,6 +629,9 @@ pub(super) fn start_recurring(
     authority: tasks::Authority,
     mut template: tasks::RecurringTemplate,
 ) {
+    if !core.projects.as_slice().contains(&project) {
+        return;
+    }
     // Its members are its delegates, so they take its models (domain/authority.md, section 5).
     for member in &mut template.batch {
         member.authority.models = authority.models;

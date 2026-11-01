@@ -1080,3 +1080,7 @@ fn valid_proof(proof: &RunProof, expected: &RestoringProof, result_bytes: u32) -
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+#[path = "tests/removal.rs"]
+mod removal_tests;

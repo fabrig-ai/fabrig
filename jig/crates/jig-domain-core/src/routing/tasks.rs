@@ -180,6 +180,9 @@ pub(super) fn tag_tasks(
             }
             tasks::Request::RecurringDue { task, period, members } => {
                 let Some(context) = core.tasks.delegation(task) else { continue };
+                if !core.projects.as_slice().contains(&context.project) {
+                    continue;
+                }
                 let Some(template) = core.tasks.recurring_template(task) else { continue };
                 if members != u32::try_from(template.batch.len()).expect("bounded template") {
                     continue;
@@ -562,6 +565,9 @@ pub(super) fn tag_tasks(
                 let Some(PersonTaskRoute::Compound { .. }) = core.person_tasks.remove(&request) else {
                     unreachable!("compound continuation");
                 };
+                if request == super::removal::CANCEL_REQUEST {
+                    continue;
+                }
                 let outcome = person_problem_refusal(core, problem);
                 let outcome = if let people::Outcome::Refused(why) = outcome {
                     people::Outcome::CompoundRefused { at, why }
@@ -574,6 +580,9 @@ pub(super) fn tag_tasks(
             tasks::Request::Done { reply_to } => {
                 let token = reply_to.into_token();
                 if let Some(route) = core.person_tasks.remove(&token) {
+                    if token == super::removal::CANCEL_REQUEST {
+                        continue;
+                    }
                     let outcome = match route {
                         PersonTaskRoute::Compound { project, operations, first_message } => {
                             people::Outcome::Compound { project, operations, first_message }
@@ -1551,6 +1560,21 @@ pub(super) fn route_task_escalation(core: &mut Core, env: &Env<Limits>, event: t
 
 pub(super) fn route_person_proposal(core: &mut Core, env: &Env<Limits>, event: tasks::Event) -> Requests {
     let mut out = Queue::uncapped();
+    if let tasks::Event::Make { batch, .. } | tasks::Event::MakeResultFollowups { batch, .. } = &event {
+        for row in batch {
+            if !core.projects.as_slice().contains(&row.project) {
+                let (tasks::Event::Make { reply_to, .. } | tasks::Event::MakeResultFollowups { reply_to, .. }) = event
+                else {
+                    unreachable!("checked creation event")
+                };
+                out.push(tasks::Request::Refused {
+                    reply_to,
+                    problem: tasks::Problem::new(None, tasks::Refusal::Unknown),
+                });
+                return tag_tasks(core, env, out, true, false, false);
+            }
+        }
+    }
     if let tasks::Event::Make { batch, .. } | tasks::Event::MakeResultFollowups { batch, .. } = &event
         && let Err(problem) = core.batch_accounts(batch)
     {
@@ -1574,6 +1598,7 @@ pub(super) fn route_person_proposal(core: &mut Core, env: &Env<Limits>, event: t
 
 #[expect(clippy::boxed_local, reason = "the moved route retains its owned event payload")]
 pub(super) fn route_connector_repair(
+    core: &Core,
     work: &mut Queue<Event>,
     seed: Box<crate::connector::RepairSeed>,
     executor: tasks::Executor,
@@ -1581,6 +1606,11 @@ pub(super) fn route_connector_repair(
     contract: tasks::Contract,
     holdings: Box<[tasks::Holding]>,
 ) -> Requests {
+    if !core.projects.as_slice().contains(&seed.project) {
+        let mut out = Queue::uncapped();
+        out.push(Request::Decided);
+        return Requests::Out(out);
+    }
     if seed.open_period {
         work.push(Event::Tasks(tasks::Event::OpenPeriod {
             reply_to: ReplyTo::new(Token::new(u64::MAX - 2)),
@@ -1617,6 +1647,10 @@ pub(super) fn route_connector_repair(
     Requests::Out(out)
 }
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "task admission keeps each event's resource, account and project checks together"
+)]
 pub(super) fn route_tasks(
     core: &mut Core,
     env: &Env<Limits>,
@@ -1644,6 +1678,21 @@ pub(super) fn route_tasks(
         let tasks::Event::Amend { task, reply_to, .. } = event else { unreachable!("checked amendment") };
         out.push(tasks::Request::Refused { reply_to, problem: tasks::Problem::new(Some(task), tasks::Refusal::Goals) });
         return tag_tasks(core, env, out, false, false, false);
+    }
+    if let tasks::Event::Make { batch, .. } | tasks::Event::MakeResultFollowups { batch, .. } = &event {
+        for row in batch {
+            if !core.projects.as_slice().contains(&row.project) {
+                let (tasks::Event::Make { reply_to, .. } | tasks::Event::MakeResultFollowups { reply_to, .. }) = event
+                else {
+                    unreachable!("checked creation event")
+                };
+                out.push(tasks::Request::Refused {
+                    reply_to,
+                    problem: tasks::Problem::new(None, tasks::Refusal::Unknown),
+                });
+                return tag_tasks(core, env, out, false, false, false);
+            }
+        }
     }
     if let tasks::Event::Make { batch, .. } = &event {
         let mut tracked = 0_u32;

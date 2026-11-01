@@ -98,6 +98,12 @@ pub(super) fn parts(
 
 pub(super) fn apply(core: &mut Core, env: &Env<Limits>, task: u64, step: u64, event: tasks::Event) -> Requests {
     let tasks::Event::Procedure { decision, .. } = &event else { unreachable!("procedure event") };
+    if !decision.batch.is_empty()
+        && let Some(row) = core.tasks.task(task)
+        && !core.projects.as_slice().contains(&row.project)
+    {
+        return refused(core, task, step, problem(task, tasks::Refusal::Unknown));
+    }
     let mut revised = List::with_capacity(env.limits.tasks.batch.checked_mul(2).expect("step revision room"));
     let mut first = None;
     for member in &decision.batch {

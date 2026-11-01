@@ -80,7 +80,7 @@ pub(super) fn admit(
     }
 }
 
-fn project_admission(core: &Core, limits: &Limits, party: u64, act: Act, project: u32) -> Admission {
+pub(crate) fn project_admission(core: &Core, limits: &Limits, party: u64, act: Act, project: u32) -> Admission {
     let held = core.people.role(party, project);
     if let Err(why) = standing::role(core, project, held, act) {
         return Admission::Refused(why);
