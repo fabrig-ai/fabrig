@@ -10,8 +10,10 @@ followed and the departure is said. The model is written in temper's
 words wherever a fab term maps onto one (section 2); where none fits,
 the fab term stays and is marked *(fab)*. `reference-case.md` is one
 story that runs every mechanic here, and ends with what temper and jig
-have and lack for each. Section 15 holds what fab does not do but may
-need later; it is not to be carried out now.
+have and lack for each. Section 14 holds what fab does not do but may
+need later; it is not to be carried out now. Other designs cite
+revision 4's sections and gap ids; they are repointed when this one is
+adopted.
 
 Unqualified, `landing.md`, `after-landing.md`, `findings.md`,
 `forge.md` and `worker.md` are temper's `../domain/` documents; fab's
@@ -58,7 +60,7 @@ repository's `docs/design/integration.md`); jig's are named as jig's.
   and swept, builds wait for disk, sign-ins are lent from one shelf
   (section 12).
 - **Measured, not felt:** reports and a public status page are computed
-  from the record (section 14).
+  from the record (section 13).
 
 ## 2. Words
 
@@ -79,8 +81,8 @@ repository's `docs/design/integration.md`); jig's are named as jig's.
 | `<draft>/integration` | trunk *(fab)* | none |
 | `ready/<name>` | ready, a landing | a ready change, a landing of one |
 | merge queue (`fab queue`) | queue | the landing turn (`landing.md`, 8) |
-| batch | batch | a candidate of several landings |
-| precheck | the check before ready | none built (old edition's 4.1) |
+| batch | batch | none (a candidate is one landing's members) |
+| precheck | the check before ready | none |
 | precheck receipt | receipt, by tip and main | receipt, by key (`landing.md`, 6) |
 | the gate machine, `heavy --gate` | the prover, its exclusive lane | a runner |
 | after-landing tiers | tiers | tiers (`after-landing.md`) |
@@ -89,7 +91,7 @@ repository's `docs/design/integration.md`); jig's are named as jig's.
 | `FAB_HOME/user.md`, an ask, a signal | the inbox page, a question, a signal *(fab)* | the person's inbox |
 | issue on the forge per ask | the question's issue | questions projected as issues |
 | login shelf | the shelf | custody of a sign-in |
-| ladder, rung, walk, finding, triage, backlog | the same | temper's `qa.md`, `findings.md` |
+| ladder, rung, walk, finding, triage, backlog | the same | temper's `../qa.md`, `findings.md` |
 
 ## 3. The dispatcher and its record
 
@@ -112,12 +114,12 @@ repository's `docs/design/integration.md`); jig's are named as jig's.
   collects runs no plan owns, and rewrites the inbox page. Several plans
   share one tick and one set of builders.
 - **Events wake it** (`fab:tick.md`, 6): a run's end, a call's end, a
-  cut's push, a queue cycle that landed or rejected, a tier run with a new red or a
-  recovery, a landing, the person's answer, a walk's result. A wake is
-  one line in a want file; a path unit starts one tick for a burst of
-  them. A timer every 10 minutes is the backstop, and notes any lost
-  event it finds. A tick whose own records need another round wakes
-  itself, at most five times in a row.
+  cut's push, a queue cycle that landed or rejected, a tier run with a
+  new red or a recovery, a landing, the person's answer, a walk's
+  result. A wake is one line in a want file; a path unit starts one tick
+  for a burst of them. A timer every 10 minutes is the backstop, and
+  notes any lost event it finds. A tick whose own records need another
+  round wakes itself, at most five times in a row.
 
 ## 4. Drafts, cuts, plans and changes
 
@@ -135,24 +137,28 @@ repository's `docs/design/integration.md`); jig's are named as jig's.
 
 ### 4.2 The cut
 
-- **One call, about 12-20 minutes, writes the plan:** its parts (each
-  `direct`: one or two changes, no skeleton), their needs, the slices
+- **One call, about 12-20 minutes, writes the plan:** its parts (with
+  `direct` on, each direct: one or two changes, no skeleton), their
+  needs, the slices
   (stories that run end to end, and whether QA walks them), the
   person's questions, and every change's brief, with notes several
   briefs share (`notes/`) and the shapes that cross parts written
   first (`notes/contracts.md`).
-- **It releases early:** it pushes first the changes that need no other,
+- **It releases early** (an integration plan with reviews off): it
+  pushes first the changes that need no other,
   then each batch that holds together, waking the dispatcher each time;
   the dispatcher merges each push into the trunk, and those changes
-  start while the cut designs the rest. A released brief never changes.
+  start while the cut designs the rest. The cut never rewrites a brief
+  it has released. With reviews on, the plan waits for its review
+  chain (10.2).
 - **It sees the drafts beside it:** its brief lists the other plans'
   changes not yet on main, with the paths each owns, and asks it to keep
-  early work off them (6.7).
+  early work off them (6.6).
 - **It may split the design** across designer subagents, from shared
   contracts it fixes first; it is still one call, with a 60-minute
   timeout.
 - **Questions for the person** are `[[question]]`s naming the parts that
-  wait for their answer. A direct part's changes do not wait (15).
+  wait for their answer. A direct part's changes do not wait (14).
 
 ### 4.3 A change and its brief
 
@@ -168,7 +174,7 @@ repository's `docs/design/integration.md`); jig's are named as jig's.
 
 ### 4.4 The plan's options
 
-| Option | fabrig default | What it sets |
+| Option | Default | What it sets |
 |---|---|---|
 | `landing` | `integration` | the trunk (section 6), or `queue`: each change readied (or, in the agents repository, landed) on its own |
 | `ready` | true | the checked trunk readied for the queue; false leaves it unlanded (a replay) |
@@ -186,7 +192,8 @@ QA ladder is a queue plan with rungs instead of parts (section 9).
 - **One Codex execution** for one change, in a workspace claimed for
   it: a slot on a builder (fabrig) or a worktree (a repository that
   builds nothing heavy). Its base is the trunk's tip, or the change's
-  own pushed branch when it ran before.
+  own pushed branch when it ran before (a rebase run starts afresh
+  from the trunk).
 - **Its brief is compiled, not gathered:** the role text, the change's
   brief and facts (its branch, its trunk); the producer reads what it
   names in its checkout.
@@ -218,9 +225,10 @@ QA ladder is a queue plan with rungs instead of parts (section 9).
 - **A calm builder takes one more:** a builder with low load and no
   recent disk or lane waits, measured each tick, takes one run beyond
   its places, never beyond its slots.
-- **The order of starts:** consolidations, then repairs and rebases
-  (repairs after landing among them), then contract parts' changes,
-  then the rest by slice, part and brief order; early starts after.
+- **The order of starts:** consolidations, then repairs after landing
+  and the runs that follow a refusal, then contract parts' changes,
+  then the parts' changes by slice, part and brief order; the trunk's
+  own repairs and catch-ups after them; early starts last.
 - **A full builder hands a start on** to the next builder with free
   places, since slots claimed by other work are not the dispatcher's.
 - **Builders follow the dispatcher:** before each start, a builder's
@@ -297,17 +305,11 @@ QA ladder is a queue plan with rungs instead of parts (section 9).
   the whole draft. A queue rejection catches it up, checks it again and
   readies it again; a third rejection stops the plan.
 - **A stop** is a note in the record: the trunk takes no further step,
-  and only repairs after landing still start. `fab:integration.md` 3
-  says a third red parks the plan with a question; the code asks none,
-  and nothing reaches the inbox (15).
+  and only repairs of reds and findings still start.
+  `fab:integration.md` 3 says a third red parks the plan with a
+  question; the code asks none, and nothing reaches the inbox (14).
 
-### 6.6 Repairs' questions
-
-A repair has no options to settle by, so its questions skip the foreman
-and queue for the answerer; an answer is folded into its body, which its
-next run reads.
-
-### 6.7 Drafts beside each other
+### 6.6 Drafts beside each other
 
 - **An overlap probe, report only:** each tick, for every pair of ready
   plans' trunks not yet on main, the dispatcher merges each trunk with
@@ -352,8 +354,9 @@ next run reads.
 
 - **Before ready, in its workspace,** a change readied on its own (a
   queue plan's, or a repair after landing) runs the check before ready
-  inside its run: its tip merged onto main uncommitted, the gate's
-  selection in the build lane (`fab precheck`). Its receipt is kept on
+  inside its run: its tip merged onto main on a detached checkout, the
+  gate's selection in the build lane, the checkout reset after
+  (`fab precheck`). Its receipt is kept on
   the builder. The dispatcher then runs the counted-baseline gate on it
   (a raise is refused, as the change's) and readies it.
 - **The receipt travels with the ready:** the dispatcher hands it to the
@@ -391,13 +394,13 @@ next run reads.
 
 ### 7.6 The agents repository
 
-fab's own repository lands one branch at a time through `fab land`:
-the dispatcher first runs fab's code gates on the branch (no changed
-signature unless the change is an interface's, no function over 60
-lines added or grown, no banned name, docs on public items, no repeated
-block), then a rebase onto main, the whole suite (under 30 seconds),
-and a fast-forward push. A conflict or a red is a rejection as in 7.5. It refuses the
-user's drafts and the legacy kit.
+fab's own repository lands one branch at a time through `fab land`: the
+dispatcher first runs fab's code gates on the branch (no changed
+signature unless the change is an interface or a migration, no function
+over 60 lines added or grown, no banned name, docs on public items, no
+repeated block), then a rebase onto main, the whole suite (within 120
+seconds), and a fast-forward push. A conflict or a red is a rejection as
+in 7.5. It refuses the user's drafts and the legacy kit.
 
 ## 8. After landing
 
@@ -461,7 +464,8 @@ retire call (10.6).
 ### 9.1 The ladder
 
 - **A ladder is a queue plan with rungs:** each rung is a story on a
-  backend (ChatGPT or Claude Code, with an owned Forgejo or GitHub),
+  backend (ChatGPT with an owned Forgejo or GitHub, or Claude Code
+  with an owned Forgejo),
   its brief files (the kit, then the rung's own), and the rungs that
   must pass first (`after`). Its `[ladder]` names the happy path (a
   design citation) and the backlog file.
@@ -510,10 +514,10 @@ retire call (10.6).
   open), or due (a first walk, or a rerun at a main holding its
   repairs). The inbox page shows each rung's line.
 - **A pass is recorded** when a walk at the rung's edition passes after
-  an earlier walk of that edition, with nothing holding the rung and
-  its lower rungs passed. A finding whose repair landed is then fixed;
-  one filed again is unfixed. A failed walk after a pass reopens the
-  rung.
+  an earlier walk of that edition that passed or failed, with nothing
+  holding the rung and its lower rungs passed. A finding whose repair
+  landed is then fixed; one filed again is unfixed. A failed walk after
+  a pass reopens the rung.
 
 ## 10. Calls and judgement
 
@@ -541,9 +545,10 @@ retire call (10.6).
   amend (with guidance, once more) or user (only for what is the
   person's: budgets, machines, what is hard to reverse, a change of
   direction).
-- **A landing's refusal is a review's refusal:** the queue's rejection
-  of a call's branch, or `fab land`'s, counts in the chain, so a call
-  whose branch conflicts on main is amended (rebased) rather than lost.
+- **A landing's refusal is a review's refusal:** any rejection of a
+  call's branch counts in the chain (a conflict merging it into the
+  trunk, the queue's rejection, `fab land`'s), so a call whose branch
+  conflicts is amended (rebased) rather than lost.
 - **With reviews off** (fabrig's default), a call's branch is merged
   into the trunk as it ends.
 - **With reviews on, a structure review** call reads the digests of
@@ -556,13 +561,14 @@ retire call (10.6).
 A read-only Codex run (medium) that decides one thing and writes no
 code; the dispatcher records what it decides.
 
-- **A question** from a run of a change with a brief file (repairs'
-  questions queue at once): when the change's pre-approved options
-  answer it, the answer goes into the brief's Answers and the change
-  runs again; when
-  the run's work is pushed and accepted and what it asks lies outside
-  the change, `Accept:` folds the change done (integration plans);
-  otherwise the question queues for the answerer.
+- **A question** from a run of a change with a brief file (a repair has
+  no options to settle by: its questions queue at once, and an answer is
+  folded into its body, which its next run reads): when the change's
+  pre-approved options answer it, the answer goes into the brief's
+  Answers and the change runs again; when the run's work is pushed and
+  accepted and what it asks lies outside the change, `Accept:` folds the
+  change done (integration plans); otherwise the question queues for the
+  answerer.
 - **A refusal:** fix (a `## Repair` or `## Rebase` section for the next
   run) or retry (not the change's: the tip goes back unchanged, once).
 - **A red after landing and an on-path finding:** fix (a repair change)
@@ -586,8 +592,6 @@ code; the dispatcher records what it decides.
 
 - **Only the change that needs an answer parks;** its dependents wait,
   everything else runs. A park lifts when its question is answered.
-- **A parked part:** a part named by an open plan question is not
-  designed.
 - **A call's question parks its subject** until the person answers.
 
 ### 10.6 The designer's other calls
@@ -595,15 +599,22 @@ code; the dispatcher records what it decides.
 - **Retire:** once a plan's parts are done (and, for fabrig, after 8.3),
   one call brings the changed designs' status files current and marks
   the plan retired; its brief quotes each changed design as a diff,
-  within a bound.
+  within a bound. Its branch is delivered as the plan's other calls'
+  are: for an integration plan, merged into the trunk, which has
+  already landed by then, so its changes do not reach main (a fab
+  fault, untried live).
 - **Skeleton and contract calls** design a part as code (types,
   signatures, empty bodies, its briefs) when `direct` is off, started
   when the ready changes fall below the plan's band. The dispatcher
   checks the call's tip (gates and tests) and starts the part's changes
   from it before it merges; a part waits for its needs to be designed,
   not done. fabrig's plans keep `direct` on, so they make none.
+- **Changes started from a skeleton wait for its chain:** a done change
+  merges only once the skeleton has; if the skeleton landed amended,
+  each such change gets a rebase run onto it, outside its run limit;
+  a held or parked chain parks its changes.
 - **A decision call,** by hand, turns a probe part's report into a
-  design section; the probe run itself is not built (15).
+  design section; the probe run itself is not built (14).
 
 ## 11. The person's channel
 
@@ -617,7 +628,9 @@ code; the dispatcher records what it decides.
   answer, the open signals, the reports' signals that are the person's,
   the newest tier verdict, and the ladder's rungs; the dispatcher
   rewrites it each tick. `fab page answer SUBJECT TEXT` records the
-  answer; every later call of the subject carries it.
+  answer; every later call of the subject carries it. A plan's question
+  is answered by writing its answer into the plan and landing (or
+  merging) that.
 
 ### 11.2 Signals
 
@@ -631,7 +644,8 @@ record, or by `fab page clear` with a reason (but a fault).
 
 ### 11.3 On the forge
 
-- **One issue per open question** (the calls' and parked chains'),
+- **One issue per open question** in the record (calls', parked
+  chains' and triage's; never a plan's),
   labelled `waiting-on-user` on the agents repository's Forgejo, opened,
   conversed and closed by `fab issues sync`, which a timer installed by
   hand runs every 2 minutes.
@@ -656,7 +670,8 @@ record, or by `fab page clear` with a reason (but a fault).
   free, reclaims idle slots and waits up to 20 minutes, then exits 75,
   which the run reports as `Infra: disk`.
 - **A builder's disk is budgeted:** the cache's cap plus its slots at
-  the slot bound plus headroom. Live overrides of the machines' file
+  the slot bound plus headroom, and one slot bound more on the gate
+  machine for the queue. Live overrides of the machines' file
   are by hand.
 
 ### 12.2 The shelf
@@ -675,23 +690,10 @@ record, or by `fab page clear` with a reason (but a fault).
   and every usage limit (the weekly percent is the signal for a swap),
   every 30 minutes.
 
-## 13. One plan, end to end
+## 13. What is measured and reported
 
-The order of things for a fabrig integration plan, as fab runs it:
-the person starts the draft; the cut releases its first changes and
-they run at once, as wide as the places; done changes merge into the
-trunk and dependents start, some early; questions go to the foreman,
-then the answerer; the trunk is checked every ten merges and caught up
-with main every half hour, red checks and conflicting catch-ups
-becoming repairs; at the last merge the end check runs, repairs follow
-until green, and the trunk is readied; the queue lands it in a batch;
-the tiers judge the new main and route any red to the plan's foreman
-and a repair; the retire call ends the plan. The QA ladder runs beside
-it on main, walk by walk.
-
-## 14. What is measured and reported
-
-- **Two daily reports, from records alone** (`fab report`): the code
+- **Two daily reports, from records alone,** written by `fab report
+  daily` run by hand: the code
   report per plan (runs and outcomes, runs in flight against places,
   idle gaps, minutes per change, questions and time to answer, Infra
   minutes, disk and lane waits, each part's time from start to landed,
@@ -710,7 +712,7 @@ it on main, walk by walk.
   and their age, each draft's activity, overlaps, and the subscriptions'
   use and pace, from the record, never a branch, path or text.
 
-## 15. Future ideas
+## 14. Future ideas
 
 **Not to be carried out now.** These are in the previous edition or in
 fab's designs, fab does not do them today, and they may be needed
@@ -732,15 +734,17 @@ it.
   pushed a hand-pushed branch told of its rejection or red; QA passes
   on landings marked for QA.
 - **The trunk:** a stop raised as a question in the inbox, as
-  `fab:integration.md` 3 has it; a build of overlapping trunks' merge; landing a trunk
-  at slice boundaries; overlaps that reorder work; a lighter lint of
-  the trunk after each merge.
+  `fab:integration.md` 3 has it; a build of overlapping trunks' merge;
+  landing a trunk at slice boundaries; overlaps that reorder work; a
+  lighter lint of the trunk after each merge.
 - **QA:** walks run by the dispatcher (a walk call, a box on a QA
   builder, sign-ins borrowed per backend, a 3-hour cap); a passed
   rung's story joining the live tier, its fake twin in the worlds;
   findings matched by a normalised key; findings of other finders
   (flakes, reviews' follow-ups); findings and questions on the forge as
   temper's own records.
+- **Reports:** the daily reports on a timer, sent to the person's
+  chat.
 - **Calls:** a cap on a call's context or turns once the person sets
   one; a plan question that holds a direct part's changes; the cut
   started when a draft lands; needs across plans.
