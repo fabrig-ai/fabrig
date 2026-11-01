@@ -115,11 +115,13 @@ Acceptance:
    `forgejo_setup_steps` drives it, now making a forge record and its group
    file): one test per cut, each named for its step:
    `a_set_up_killed_at_fetch_is_started_over_from_the_cache`,
-   `..._at_prepare_...`, `..._at_run_...` (at the box's `step N fetch|prepare|run`
-   line), `..._after_started_...` (at the group's `started` and before the
-   engine reconciles: the record and part of the secrets written),
-   `..._before_the_first_repository_...` (the forge connected, its first
-   repository not adopted). Each: run 1 cut; run 2: the `forges` subject
+   `..._at_prepare_...`, `..._at_run_...` (at the box's terminal line
+   starting that step: `Starting fetch N`, `Starting prepare N`,
+   `Starting forgejo N`), `..._after_started_...` (at the terminal's
+   `Forge N (Forgejo): started`, before the engine reconciles: the record
+   and part of the secrets written). No story cuts between the forge
+   connected and its first repository adopted: the terminal marks no such
+   line (see Answers). Each: run 1 cut; run 2: the `forges` subject
    lists the forge unfinished (contracts, 5: not connected with its first
    repository adopted); the forge is removed (`RemoveForge`, as Start over
    sends it) and the removal answers; assert `<data>/box/groups/N`,
@@ -139,3 +141,21 @@ Acceptance:
 Fab's sections; that the stories were not run; for each story, its cut's
 marking line, the asks it drives and through what (ctl tool or client
 script), and its expected cost against the process tier's budget.
+
+## Answers
+
+2026-11-01. Question: for the connected-before-first-repository cut, may
+the setup owner add a deterministic pause or terminal marker before
+adoption, or may the story use the group-started cut? Neither: the fifth
+story (`..._before_the_first_repository_...`) is dropped, and no production
+pause or diagnostic is added. The draft's section 8 asks for a set up killed
+at each of its steps, and the box's steps are fetch, prepare, run and the
+group's started; the gap between connected and adopted is the engine's, with
+no terminal line to cut on, and a cut timed from a ctl snapshot does not
+replay (`AGENTS.md`, 2: a seed replays). That state is checked in the lowest
+tier that shows it (`AGENTS.md`, 6): `fr-first-intent`'s service test
+`an_intent_restored_with_its_forge_is_made_at_the_next_connect` and its qa
+test `first_repository_intent_survives_a_restart`. The four step stories cut
+at `Starting fetch N`, `Starting prepare N`, `Starting forgejo N` and
+`Forge N (Forgejo): started`, the terminal lines the run found; step 3 now
+says so. The report names the dropped story and where its state is checked.
