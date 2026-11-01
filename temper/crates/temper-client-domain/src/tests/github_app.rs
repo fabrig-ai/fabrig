@@ -238,6 +238,8 @@ fn a_first_organization_named_as_the_bot_asks_for_another_name() {
 
 fn github_row() -> forge::forges::Row {
     forge::forges::Row {
+        finished: false,
+        playground: false,
         number: 2,
         kind: forge::forges::Kind::GitHub,
         mode: forge::forges::Mode::Connected,

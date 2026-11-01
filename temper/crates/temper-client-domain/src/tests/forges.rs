@@ -180,6 +180,7 @@ fn fixture_owned(m: Mode) -> Option<forge::forges::Owned> {
     }
 }
 #[test]
+#[expect(clippy::too_many_lines, reason = "wire and decoded rows keep the connection cases together")]
 fn every_connection_decodes_into_the_forges_words() {
     let mut records = List::with_capacity(10);
     let mut expected = List::with_capacity(10);
@@ -246,6 +247,8 @@ fn every_connection_decodes_into_the_forges_words() {
             )
             .unwrap();
         let row = Row {
+            finished: false,
+            playground: false,
             number,
             kind: k,
             mode: m,
@@ -284,6 +287,8 @@ fn every_connection_decodes_into_the_forges_words() {
 #[test]
 fn the_offer_drives_the_manual_words_and_setup_actions() {
     let mut row = Row {
+        finished: false,
+        playground: false,
         number: 3,
         kind: Kind::Forgejo,
         mode: Mode::Owned,

@@ -100,7 +100,7 @@ fn rows(root: &mut Domain, watch: Token, number: u16) -> Queue<Request> {
             w::ForgeRow::new(
                 &limits,
                 w::ForgeRowParts {
-                    skein_bools: [false, false, false, false],
+                    skein_bools: [false, false, true, number == wire::FORGE && root.forge().demo().is_some()],
                     number,
                     kind: w::Kind::Forgejo,
                     mode: w::Mode::Connected,
@@ -424,7 +424,7 @@ fn continue_setting_up_goes_to_the_first_step_not_done() {
             w::Connected::new(&w::CEILINGS, w::ConnectedParts { id: 42, login: b"temper".as_slice().into() }).unwrap(),
         )),
     );
-    assert!(listed::setup(&root).is_none());
+    assert_eq!(listed::setup(&root).unwrap().step, Step::Ready);
     account(&mut root, accounts, 18, false);
     let setup = listed::setup(&root).unwrap();
     assert!(!setup.forge);

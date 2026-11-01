@@ -249,7 +249,7 @@ pub fn forges(bytes: &[u8], limits: &w::Limits) -> Option<Box<[forge::forges::Ro
     let mut rows = List::with_capacity(record.forges.len());
     for row in record.forges.into_boxed() {
         let row = row.into_parts();
-        let [admin, read_only, _, _] = row.skein_bools;
+        let [admin, read_only, finished, playground] = row.skein_bools;
         let connection = connection_from(row.connection);
         let mut installations = List::with_capacity(row.installations.len());
         for installation in row.installations.into_boxed() {
@@ -277,6 +277,8 @@ pub fn forges(bytes: &[u8], limits: &w::Limits) -> Option<Box<[forge::forges::Ro
                 .ok()?;
         }
         rows.push(Row {
+            finished,
+            playground,
             read_only,
             number: row.number,
             kind: match row.kind {
