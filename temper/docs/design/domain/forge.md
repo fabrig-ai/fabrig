@@ -703,7 +703,7 @@ recovery are skein's `forge-client.md`, section 7. temper's effects:
 
 | Kind | Effect | What it is | Recovery class (jig's `domain/connectors.md`, 4.3) | Found again after an uncertain failure |
 |---|---|---|---|---|
-| 3 | open a pull request | a creation: from a branch into its landing branch, with a title, a body and a key | conditional: only while no pull request for its branches is open; Forgejo keeps it, closed or not | by its branches: the pull request open for them, else the oldest |
+| 3 | open a pull request | a creation: from a branch into its landing branch, with a title, a body and a key | conditional: only while no pull request for its branches is open; Forgejo keeps it, closed or not | by its branches; the change accepts an open pull request, or one with its recorded number or pushed head |
 | 10 | edit a pull request's title, body or base | a set | idempotent | written again |
 | 11 | update a pull request from its base | a transition: the base's tip merged into its branch, by the forge | unrecoverable | its head contains the base tip it asked for |
 | 4 | merge a pull request | a transition, conditional on its exact head; or, where the forge keeps a merge queue on the base, the pull request queued there (9.1) | conditional | merged, and at which commit; or in the forge's merge queue |
@@ -740,11 +740,17 @@ recovery are skein's `forge-client.md`, section 7. temper's effects:
   key it would refuse a second creation by, so no kind is keyed. A pull
   request is opened only while none is open for its branches, and
   each forge keeps every pull request, closed or not, so the
-  state it leads to is always found, closed by another hand included,
-  which is drift (8.5). A change opens one only when none exists for its
-  branches, and reopens its own when it was closed (8.5), so the oldest
-  for its branches is the one it follows; one another hand opened while
-  that one is closed is the open one, found first. A branch is created
+  client can find the state it leads to, closed by another hand included.
+  Branch names can repeat across deployments and a repository's past.
+  A change accepts an open pull request on its branches. A closed or
+  merged one is its own only when its number is the one the change
+  recorded, or its head is a head the change pushed (`last_head`). Other
+  closed or merged pull requests are Missing to the change; their numbers
+  are never recorded. The change can then produce and open a new pull
+  request on the reused names. Once it records a number, its fresh reads
+  use that number rather than the branches, so an older pull request
+  cannot replace its own. Its own closed pull request is drift and is
+  reopened on release (8.5). A branch is created
   only while none of its name exists, but another hand can delete it, and
   nothing then shows it was made: its creation is unrecoverable.
 - **An unrecoverable creation is looked for first:** an uncertain review,
@@ -755,9 +761,10 @@ recovery are skein's `forge-client.md`, section 7. temper's effects:
 - **Keys are carried** in what temper creates: a marker at the head of a
   body, a comment or a review, hidden where the forge renders it (skein's
   `forge.md`, section 6; temper's word and namespace,
-  `../protocol/forge.md`, section 4). A pull request's key is its
-  branches, which temper alone names. An entry's start, and the find that
-  reads only what came after it, are the client's (skein's
+  `../protocol/forge.md`, section 4). A pull request's branches locate
+  a candidate; the change owns it when it is open on those branches or
+  the change knows its number or pushed head, as above. An entry's start,
+  and the find that reads only what came after it, are the client's (skein's
   `forge-client.md`, section 7).
 - **An effect's identity** is its purpose, and the top encodes it. The
   client takes the bytes whole and never inspects them (skein's
@@ -1209,7 +1216,10 @@ the change reads the head afresh once the slot is freed. Otherwise:
 - **Its pull request retargeted** to another base: held. A release
   retargets it back, or takes the new base as its landing branch if its
   requester amends the change so.
-- **Merged by someone else:** landed, like any other landing.
+- **Its pull request merged by someone else:** landed, like any other
+  landing. A merged pull request on reused branch names is its own only
+  when its recorded number or pushed head matches (section 6); any other
+  merged pull request is Missing and cannot land the change.
 
 Nothing is written over: a held change makes no effect until it is
 released. A drift is the change's to judge: what the forge says of a
@@ -1846,7 +1856,12 @@ steps:
    its key after the entry's start, a set written again; one not found
    waits for the retry deadline its last attempt committed, and an
    unrecoverable one holds its task for a person;
-3. it steps every change once, and every goal's issue.
+3. it steps every change once, and every goal's issue. A change reads
+   its recorded pull request by number. Without a number, it reads by
+   branches and accepts an open pull request, or a closed or merged one
+   at its pushed head. This recovers an uncertain open whose reply was
+   lost, even if it merged before the restart. Other closed or merged
+   history is Missing and never supplies the change's pull number.
 
 Its listings start from the newest time the store kept for each
 repository, inclusive, so what changed while the engine was down is

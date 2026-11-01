@@ -2621,11 +2621,20 @@ fn step_read(
                 }
             }
             pending.stage = StepStage::Pull;
-            skein_forge::api::Read::PullFor { head: branch, base }
+            match row.pull {
+                Some(number) => skein_forge::api::Read::Pull { number },
+                None => skein_forge::api::Read::PullFor { head: branch, base },
+            }
         }
         StepStage::Pull => {
             match result {
-                Ok(skein_forge::api::Answer::Pull(pull)) => pending.pull = Some(pull),
+                Ok(skein_forge::api::Answer::Pull(pull)) => {
+                    // Branch names can repeat across deployments and a repository's past.
+                    let own = (pull.state == skein_forge::api::State::Open && pull.merged.is_none())
+                        || row.pull == Some(pull.number)
+                        || row.change.last_head == Some(pull.commit);
+                    pending.pull = if own { Some(pull) } else { None };
+                }
                 Err(skein_forge::api::Error::Missing) => pending.pull = None,
                 Ok(_) | Err(_) => {
                     emit(out, Request::Refused { task: pending.task });
