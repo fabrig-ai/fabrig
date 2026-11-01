@@ -228,7 +228,7 @@ pub(crate) fn ask(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisio
             None
         }
         core::Ask::ReleaseProject { project } => {
-            domain.work.push(Work::Core(core::Event::ProjectReleased { project, connector }));
+            super::kept::release(domain, connector, project);
             None
         }
         core::Ask::ProjectGoal { feed } => {

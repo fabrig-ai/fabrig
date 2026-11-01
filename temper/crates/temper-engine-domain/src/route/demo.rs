@@ -286,8 +286,7 @@ pub(crate) fn list_end_acts(domain: &mut Domain) {
 }
 
 pub(crate) fn send_end_act(domain: &mut Domain, row: forge::DemoAct) {
-    let token = Token::new(domain.next_demo_act_reply);
-    domain.next_demo_act_reply = domain.next_demo_act_reply.checked_add(1).expect("demo act reply sequence");
+    let token = super::kept::reply_token(domain);
     domain.demo_act_replies.insert(token, row).expect("one reply per kept demo act");
     let act = match row.act {
         forge::DemoActKind::Close { project, task } => {
@@ -385,7 +384,7 @@ pub(crate) fn end_acted(
     domain.work.push(Work::Forge(forge::Event::DemoActAnswered { key: row.key, keep }));
 }
 
-fn refusal_name(why: &people::Refusal) -> &'static str {
+pub(super) fn refusal_name(why: &people::Refusal) -> &'static str {
     use people::Refusal;
     match why {
         Refusal::Stale { .. } => "Stale",
