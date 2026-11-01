@@ -683,7 +683,7 @@ impl<F: FnOnce(&Binary) -> T, T> Referee<Process> for CtlJudge<'_, F, T> {
             let expected = self.expected_exits.iter().find(|(at, _)| *at == index).map_or(0, |(_, code)| *code);
             calls.observed_at()[index].is_some()
                 && call.exit != Some(Exit::Code(expected))
-                && !(calls.was_cut(index) && call.exit == Some(Exit::Code(143)))
+                && !(calls.was_cut(index) && matches!(call.exit, Some(Exit::Code(143) | Exit::Signal(15))))
         });
         if let Some(face) = &self.face {
             let Process::Calls(calls) = &mut procs[1] else { panic!("ctl") };
@@ -747,7 +747,7 @@ impl<F: FnOnce(&Binary) -> T, T> Referee<Process> for CtlJudge<'_, F, T> {
             let expected = self.expected_exits.iter().find(|(at, _)| *at == index).map_or(0, |(_, code)| *code);
             calls.observed_at()[index].is_some()
                 && call.exit != Some(Exit::Code(expected))
-                && !(calls.was_cut(index) && call.exit == Some(Exit::Code(143)))
+                && !(calls.was_cut(index) && matches!(call.exit, Some(Exit::Code(143) | Exit::Signal(15))))
         });
         let failed = failed
             || self.fail_on_panic.is_some()

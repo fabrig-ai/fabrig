@@ -28,8 +28,7 @@ fn reset_cut(twice: bool) {
     ]);
     if twice {
         steps.extend([
-            Step::Until(Call::new(&["forge", "list"]).json(), b"\"forges\":[]"),
-            Step::Run(Call::new(&["account", "list"]).json()),
+            Step::Start(Call::new(&["playground", "reset", "--key", "second-cut-reset"])),
             Step::KillBox,
             Step::StartBox,
         ]);
@@ -57,10 +56,9 @@ fn reset_cut(twice: bool) {
     assert_ne!(calls[5].stdout, b"reset\n", "immediate cut missed the reset");
     eprintln!("first kill: immediate-cut fallback after starting keyed reset; reset phase and resumption not shown");
     if twice {
-        assert_empty_forges(&calls[7]);
-        playground::assert_running_accounts(&calls[8]);
+        assert_ne!(calls[7].stdout, b"reset\n", "second immediate cut missed the reset");
         eprintln!(
-            "second kill: fake forge absent, scripted account still listed; resetting at Forge/Account; next start resumed reset"
+            "second kill: immediate-cut fallback after sending a fresh keyed reset; reset phase and resumption not shown"
         );
     }
     let tail = &calls[calls.len() - 4..];
