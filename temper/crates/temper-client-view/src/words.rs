@@ -10,6 +10,9 @@ use skein_ui::{
 };
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Word {
+    PlaygroundBanner,
+    PlaygroundSetUp,
+    PlaygroundLeaving,
     ForgeAskRemove,
     ForgeNotFinished,
     ForgeGoOn,
@@ -687,10 +690,13 @@ pub enum Word {
 // The paste of a sign-in's address adds fifteen phrases and twenty-one segments.
 // M1's Model details add eight phrases and sixteen segments.
 // The welcome's Forgejo card adds four literal phrases and segments.
-const PHRASES: u32 = 1202;
-const SEGMENTS: u32 = 2101;
-// Thirteen forge removal phrases join the 602 frame and forge phrases.
-const ALL: [Word; 620] = [
+const PHRASES: u32 = 1205;
+const SEGMENTS: u32 = 2104;
+// Frame and forge phrases, including the playground reset.
+const ALL: [Word; 623] = [
+    Word::PlaygroundBanner,
+    Word::PlaygroundSetUp,
+    Word::PlaygroundLeaving,
     Word::ForgeAskRemove,
     Word::ForgeNotFinished,
     Word::ForgeGoOn,
@@ -1317,6 +1323,9 @@ impl Word {
     fn id(self, connector: u16) -> PhraseId {
         let number = match self {
             Self::ForgeNotFinished => 4025,
+            Self::PlaygroundBanner => 4030,
+            Self::PlaygroundSetUp => 4031,
+            Self::PlaygroundLeaving => 4032,
             Self::ForgeGoOn => 4026,
             Self::ForgeStartOver => 4027,
             Self::ForgeStartOverBody => 4028,
@@ -2382,6 +2391,9 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ForgeRemoving => (&[b"Removing forge ", b"\xe2\x80\xa6"], &[Number]),
         Word::ForgeRemovingRecords => (&[b"Removing forge ", b": temper is ending its work and erasing its records."], &[Number]),
         Word::ForgeGone => (&[b"This forge is gone already."], &[]),
+        Word::PlaygroundBanner => (&[b"This is the playground: a scripted model and in-memory forge. Use the wizard to "], &[]),
+        Word::PlaygroundSetUp => (&[b"set up temper"], &[]),
+        Word::PlaygroundLeaving => (&[b"Leaving the playground\xe2\x80\xa6"], &[]),
         Word::ForgeRemovePlayground => (&[b"The playground's forge goes with the playground."], &[]),
         Word::ForgeApi => (&[b"API address"], &[]),
         Word::ForgeApiHint => (&[b"HOST:PORT, where temper reaches its API"], &[]),

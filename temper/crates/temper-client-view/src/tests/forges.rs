@@ -156,7 +156,7 @@ fn the_setup_strip_replaces_the_demo_banner_and_says_whats_missing() {
     let root = root(Address::Chats { filter: ChatsFilter::All, start: false }, w::Connection::NotSetUp);
     let view = f::page_view(&root);
     assert!(f::find(view.tree(), Role::Region, b"Setup").is_some());
-    assert!(f::find(view.tree(), Role::Region, b"Playground").is_none());
+    assert!(f::find(view.tree(), Role::Region, b"The playground").is_none());
     assert!(f::find(view.tree(), Role::Paragraph, b"temper has no forge and no model yet.").is_some());
     assert_eq!(
         action(&root, Role::Link, b"Continue setting up"),
@@ -180,15 +180,9 @@ fn the_setup_strip_replaces_the_demo_banner_and_says_whats_missing() {
     f::welcome_account(&mut root, accounts);
     assert!(f::find(f::page_view(&root).tree(), Role::Region, b"Setup").is_none());
 }
+
 #[test]
-fn the_demo_banners_connect_a_forge_is_a_link() {
-    let root =
-        f::demo_frame_root(Address::Chats { filter: ChatsFilter::All, start: false }, f::PROJECT, true, None, None);
-    assert_eq!(action(&root, Role::Link, b"Connect a forge"), go(Address::ConnectForge { forge: None }));
-    assert!(f::find(f::page_view(&root).tree(), Role::Button, b"Connect a forge").is_none());
-}
-#[test]
-fn a_set_up_under_way_shows_in_either_banner_with_view() {
+fn a_set_up_under_way_shows_in_the_setup_strip_but_not_the_playground_banner() {
     for demo in [false, true] {
         let rows = cf::rows(w::Connection::Connecting, w::Offer::Offered);
         let root = if demo {
@@ -197,13 +191,21 @@ fn a_set_up_under_way_shows_in_either_banner_with_view() {
             f::forge_root(Address::Chats { filter: ChatsFilter::All, start: false }, rows)
         };
         let view = f::page_view(&root);
-        assert!(f::find(view.tree(), Role::Paragraph, "Forgejo on this machine · Connecting".as_bytes()).is_some());
-        assert_eq!(action(&root, Role::Link, b"View"), go(Address::ConnectForge { forge: Some(Choice::Forge(HERE)) }));
+        if demo {
+            assert!(f::find(view.tree(), Role::Link, b"View").is_none());
+            assert_eq!(action(&root, Role::Link, b"set up temper"), d::Action::Pages(d::pages::Act::LeavePlayground));
+        } else {
+            assert!(f::find(view.tree(), Role::Paragraph, "Forgejo on this machine · Connecting".as_bytes()).is_some());
+            assert_eq!(
+                action(&root, Role::Link, b"View"),
+                go(Address::ConnectForge { forge: Some(Choice::Forge(HERE)) })
+            );
+        }
         assert!(f::find(view.tree(), Role::Link, b"Connect a forge").is_none());
     }
 }
 #[test]
-fn the_playground_forge_shows_while_the_forge_half_holds() {
+fn the_playground_forge_shows_while_running_whatever_the_forge_half() {
     let mut rows = List::with_capacity(2);
     rows.push(cf::row(wire::FORGE, w::Kind::Forgejo, w::Mode::Fake, cf::connected(), w::Offer::NotOffered)).unwrap();
     rows.push(cf::row(HERE, w::Kind::Forgejo, w::Mode::Owned, w::Connection::Connecting, w::Offer::Offered)).unwrap();
@@ -222,6 +224,18 @@ fn the_playground_forge_shows_while_the_forge_half_holds() {
         d::Event::Went { place: d::Place::Address(Address::Chats { filter: ChatsFilter::All, start: false }) },
     );
     assert!(d::forge::listed::playground(&root).is_some());
+    let mut rows = List::with_capacity(3);
+    rows.push(cf::row(wire::FORGE, w::Kind::Forgejo, w::Mode::Fake, cf::connected(), w::Offer::NotOffered)).unwrap();
+    for row in &cf::rows(cf::connected(), w::Offer::Offered) {
+        rows.push(row.clone()).unwrap();
+    }
+    let root = f::demo_forges_root(Address::Forges, rows);
+    assert!(!root.demo().unwrap().1.forge, "a personal forge supplies the forge half");
+    assert!(d::forge::listed::playground(&root).is_some(), "the running playground still has its section");
+    let view = f::page_view(&root);
+    assert!(f::find(view.tree(), Role::Heading { level: 2 }, b"The playground").is_some());
+    assert!(f::find(view.tree(), Role::Link, b"+ Add a forge").is_none());
+    assert!(f::find(view.tree(), Role::Disclosure, b"Forgejo on this machine").is_some());
     let root = f::demo_forges_root(Address::Forges, cf::rows(cf::connected(), w::Offer::Offered));
     assert!(d::forge::listed::playground(&root).is_none());
     assert!(f::find(f::page_view(&root).tree(), Role::Heading { level: 2 }, b"The playground").is_none());

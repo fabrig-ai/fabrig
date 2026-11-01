@@ -20,6 +20,7 @@ pub enum World {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Then {
     Shown,
+    PlaygroundLeaving,
     RemoveConfirm,
     Removing,
     Filled,
@@ -63,7 +64,7 @@ pub struct Sample {
     pub address: Address,
     pub then: Then,
 }
-pub const N: usize = 87;
+pub const N: usize = 89;
 const CHATS: Address = Address::Chats { filter: ChatsFilter::All, start: false };
 use World::{Bare, FirstRun, Reference, Solo};
 #[must_use]
@@ -81,6 +82,13 @@ pub fn samples() -> [Sample; N] {
         Sample { name: "task-solo-T3", world: Solo, address: task(3), then: Shown },
         Sample { name: "accounts-solo", world: Solo, address: Address::Accounts, then: Shown },
         welcome_sample("welcome-first-run-0", temper_client_domain::Step::Welcome),
+        Sample { name: "chats-playground", world: FirstRun { step: 1 }, address: CHATS, then: Shown },
+        Sample {
+            name: "chats-playground-leaving",
+            world: FirstRun { step: 1 },
+            address: CHATS,
+            then: Then::PlaygroundLeaving,
+        },
         Sample { name: "chats-first-run-1", world: FirstRun { step: 1 }, address: CHATS, then: Shown },
         owned_sample("connect-forge-first-run-6", 6, false),
         Sample { name: "forges-first-run-7", world: FirstRun { step: 7 }, address: Address::Forges, then: Shown },
@@ -307,6 +315,7 @@ pub fn mockup(sample: &Sample) -> Option<String> {
             Then::Renewed => "#other-states-renewed",
             Then::SignInRefused => "#other-states-refused",
             Then::Shown
+            | Then::PlaygroundLeaving
             | Then::RemoveConfirm
             | Then::Removing
             | Then::Filled
@@ -382,6 +391,9 @@ pub fn domain(sample: &Sample) -> Domain {
     let mut out = Queue::uncapped();
     match sample.then {
         Then::Shown | Then::Held => {}
+        Then::PlaygroundLeaving => {
+            step(&mut root, Event::Act { action: Action::Pages(Act::LeavePlayground) }, &mut out);
+        }
         Then::RemoveConfirm | Then::Removing => remove_forge(&mut root, sample.then, &mut out),
         Then::Filled | Then::Refused => adoption(&mut root, sample.then == Then::Refused, &mut out),
         Then::SignedOut | Then::GoogleSignIn => step(&mut root, Event::SignedOut, &mut out),

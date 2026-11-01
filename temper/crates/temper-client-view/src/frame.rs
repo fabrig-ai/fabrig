@@ -348,9 +348,41 @@ pub(crate) fn navigation(builder: &mut Builder, root: &Domain, words: &crate::wo
     builder.close();
 }
 
-/// The demo's one banner, after the accounts' banner and before the page and its chatbar (client/README.md, 5.1).
-pub(crate) fn demo_banner(b: &mut Builder, root: &Domain, words: &crate::words::Words, bindings: &mut Bindings) {
+/// The playground banner follows the accounts banner (temper/docs/design/draft/playground-reset.md, 6.1–6.2).
+pub(crate) fn playground_banner(b: &mut Builder, root: &Domain, words: &crate::words::Words, bindings: &mut Bindings) {
     if unavailable(root).is_some() {
+        return;
+    }
+    match root.pages().address() {
+        Address::Welcome { .. } => return,
+        Address::Accounts
+        | Address::ConnectModel { .. }
+        | Address::ConnectForge { .. }
+        | Address::Forges
+        | Address::Chats { .. }
+        | Address::Chat { .. }
+        | Address::Task { .. }
+        | Address::Inbox { .. }
+        | Address::Adopt { .. } => {}
+    }
+    if root.forge().playground_running() || root.forge().leaving() {
+        b.open(Role::Region);
+        b.style(crate::look::ACCOUNTS);
+        b.name(&words.say(crate::words::Word::ForgePlaygroundHeading, &[]));
+        if root.forge().leaving() {
+            text(b, Role::Status, &words.say(crate::words::Word::PlaygroundLeaving, &[]), None);
+        } else {
+            text(b, Role::Paragraph, &words.say(crate::words::Word::PlaygroundBanner, &[]), None);
+            action(
+                b,
+                Role::Link,
+                &words.say(crate::words::Word::PlaygroundSetUp, &[]),
+                Act::LeavePlayground,
+                false,
+                bindings,
+            );
+        }
+        b.close();
         return;
     }
     match root.pages().address() {
@@ -397,41 +429,7 @@ pub(crate) fn demo_banner(b: &mut Builder, root: &Domain, words: &crate::words::
             );
         }
         b.close();
-        return;
     }
-    let Some((_, halves)) = root.demo() else { return };
-    b.open(Role::Region);
-    b.style(crate::look::ACCOUNTS);
-    b.name(&words.say(crate::words::Word::Demo, &[]));
-    let word = if halves.model && halves.forge {
-        crate::words::Word::DemoBoth
-    } else if halves.model {
-        crate::words::Word::DemoModel
-    } else {
-        crate::words::Word::DemoForge
-    };
-    text(b, Role::Paragraph, &words.say(word, &[]), None);
-    if halves.model {
-        action(
-            b,
-            Role::Link,
-            &words.say(crate::words::Word::ConnectModel, &[]),
-            Act::Go { address: Address::ConnectModel { way: None } },
-            false,
-            bindings,
-        );
-    }
-    if halves.forge && !setup_underway(b, root, words, bindings) {
-        action(
-            b,
-            Role::Link,
-            &words.say(crate::words::Word::ConnectForge, &[]),
-            Act::Go { address: Address::ConnectForge { forge: None } },
-            false,
-            bindings,
-        );
-    }
-    b.close();
 }
 
 fn setup_underway(b: &mut Builder, root: &Domain, words: &crate::words::Words, bindings: &mut Bindings) -> bool {
