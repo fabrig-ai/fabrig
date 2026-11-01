@@ -4,6 +4,10 @@ pub(crate) mod application;
 mod calls_tests;
 pub(crate) mod checks;
 mod problems;
+pub mod seed;
+#[cfg(test)]
+#[path = "tests/seed.rs"]
+mod seed_tests;
 #[cfg(test)]
 #[path = "tests/welcome_policy.rs"]
 mod welcome_policy;
@@ -900,6 +904,7 @@ fn checked_start_with(
         None
     };
     let mut engine = settings::Engine {
+        seed: Box::new([]),
         jig: parsed.engine,
         clients: parsed.application.clients,
         sign_in: resolved.sign_in,
@@ -919,6 +924,7 @@ fn checked_start_with(
         charter: parsed.application.charter,
         limits: parsed.application.limits,
     };
+    engine.seed = seed::seed(&parsed.application.forges, &parsed.application.identities, &engine)?;
     let root = engine_limits(&mut engine.jig.limits, &engine.limits, engine.jig.memory)?;
     checks::root(core, &engine, seeds, &parsed.application.landing_projects, &root, &mut problems);
     if !problems.is_empty() {

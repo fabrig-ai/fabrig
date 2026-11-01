@@ -297,6 +297,7 @@ impl World {
             skein_forge_client::Config { namespace: Box::from(&b"world"[..]), writers: writer.into_iter().collect() },
             &[top::GitIdentity { forge: REPO.forge, credential: 1 }],
             &[],
+            &[],
             false,
         )
         .expect("valid connector configuration");
@@ -510,6 +511,7 @@ impl World {
                 writers: self.writer.into_iter().collect(),
             },
             &[top::GitIdentity { forge: REPO.forge, credential: 1 }],
+            &[],
             &[],
             false,
         )

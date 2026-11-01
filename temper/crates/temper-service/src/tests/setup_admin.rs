@@ -21,10 +21,11 @@ fn config() -> crate::settings::Engine {
     entry.entry.orgs = Box::new([]);
     entry.handover = None;
     config.identities[0].login = Box::new([]);
+    fixtures::reseed(&mut config);
     config
 }
 fn store(forge: &Forge) -> crate::store::Store {
-    let mut store = fixtures::records_store();
+    let mut store = fixtures::records_store_with(&config());
     for (item, bytes) in [(Item::ApiToken, b"test-api".as_slice()), (Item::GitToken, b"test-git")] {
         kept_record(&mut store, 1, item, bytes);
     }

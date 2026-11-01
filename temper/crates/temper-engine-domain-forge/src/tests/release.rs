@@ -389,6 +389,7 @@ fn domain() -> Domain {
         },
         &[GitIdentity { forge: 1, credential: 1 }],
         &[],
+        &[],
         false,
     )
     .expect("valid connector")

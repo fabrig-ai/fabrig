@@ -32,6 +32,8 @@ pub struct Config {
     /// of the core's charters (domain/root.md, 6).
     pub forge_charter: u32,
     pub forges: Box<[forge::Configured]>,
+    /// First-start forge records (contracts, D1).
+    pub seed: Box<[forge::Forge]>,
     pub under_box: bool,
     pub demo: Option<forge::DemoConfig>,
 }

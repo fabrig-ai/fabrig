@@ -30,6 +30,7 @@ fn the_forge_reports_the_earliest_procedure_or_projection_wait() {
         },
         &[temper_engine_domain_forge::GitIdentity { forge: 1, credential: 1 }],
         &[],
+        &[],
         false,
     )
     .unwrap();
@@ -436,10 +437,17 @@ fn startup_admission_does_not_promise_a_connected_forge() {
     service.engine.as_mut().expect("engine").step(startup_adopt(88));
     fixtures::settle_root(&mut service, &mut Queue::with_capacity(32));
     let rows = fixtures::load(&mut service.engine.as_mut().expect("engine").store, root::Range::Forge);
-    let [root::Record::Forge { row }] = rows.as_ref() else { panic!("one durable application row: {rows:?}") };
-    let forge::Stored::Application { token, outcome, .. } = row.as_ref() else { panic!("application row: {row:?}") };
+    let mut applications = skein_lib::List::with_capacity(u32::try_from(rows.len()).unwrap());
+    for row in &rows {
+        if let root::Record::Forge { row } = row
+            && let forge::Stored::Application { token, outcome, .. } = row.as_ref()
+        {
+            applications.push((*token, outcome)).unwrap();
+        }
+    }
+    let [(token, outcome)] = applications.as_slice() else { panic!("one durable application row: {rows:?}") };
     assert_eq!(*token, 1);
-    assert_eq!(outcome, &forge::ApplicationOutcome::ForgeRefused(forge::AdoptionRefusal::Unreachable));
+    assert_eq!(*outcome, &forge::ApplicationOutcome::ForgeRefused(forge::AdoptionRefusal::Unreachable));
     let engine = service.engine.as_mut().expect("engine");
     engine.step(root::Event::Forge(Box::new(forge::Event::Connection {
         forge: 1,
