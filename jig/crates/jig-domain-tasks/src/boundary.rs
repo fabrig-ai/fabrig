@@ -120,7 +120,8 @@ pub enum MessageKind {
     Met { dependency: u64, removed: bool },
     /// The question ended without an answer; its asker may go on.
     QuestionEnded { question: u64 },
-    /// Its person answered the question in their inbox (domain/people.md, 6).
+    /// Its person answered the question in their inbox; `Word::from` names its asker
+    /// (domain/people.md, 6; domain/tasks.md, 5.7).
     QuestionAnswered { question: u64 },
     /// Its requester is owed a question before a done finish (domain/tasks.md, 5.7).
     QuestionOwed,

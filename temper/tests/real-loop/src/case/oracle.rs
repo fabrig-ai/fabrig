@@ -1090,7 +1090,7 @@ pub fn step_4_4(observed: &Observed) -> Vec<Miss> {
     misses
 }
 fn pace_inbox(misses: &mut Vec<Miss>, observed: &Observed) {
-    use super::{PACE_ANSWER, PACE_QUESTION, PACE_QUESTION_MESSAGE};
+    use super::{A, PACE_ANSWER, PACE_QUESTION, PACE_QUESTION_MESSAGE};
     const ONE: usize = 1;
     let rows = document(observed, Read::PaceAsked).pointer("/needs/rows").and_then(Value::as_array);
     step_check(
@@ -1119,7 +1119,7 @@ fn pace_inbox(misses: &mut Vec<Miss>, observed: &Observed) {
         told.agent == Agent::Director
             && contains(
                 &told.words,
-                &format!("Person answered question {PACE_QUESTION_MESSAGE} in their inbox:\n{PACE_ANSWER}"),
+                &format!("Person answered task {A}'s question {PACE_QUESTION_MESSAGE} in their inbox; task {A} has the answer and does the work:\n{PACE_ANSWER}"),
             )
     });
     step_check(
@@ -1304,7 +1304,7 @@ mod pace_tests {
                 told(
                     Agent::Director,
                     &format!(
-                        "Person answered question {PACE_QUESTION_MESSAGE} in their inbox:\n{PACE_ANSWER}\nNote 1 revision 1 written"
+                        "Person answered task {A}'s question {PACE_QUESTION_MESSAGE} in their inbox; task {A} has the answer and does the work:\n{PACE_ANSWER}\nNote 1 revision 1 written"
                     ),
                     DEFAULT_MODEL,
                     0,
@@ -7530,7 +7530,10 @@ fn budget_person_answer(observed: &Observed, misses: &mut Vec<Miss>) {
         BUDGET_UP_QUESTION_NUMBER,
     };
     let question = blocker_delivery(observed, Agent::BudgetDirector, BUDGET_UP_QUESTION);
-    let notice = format!("answered question {BUDGET_UP_QUESTION_NUMBER} in their inbox:\n{BUDGET_PERSON_ANSWER}");
+    let owner = super::BUDGET_OWNER;
+    let notice = format!(
+        "Person answered task {owner}'s question {BUDGET_UP_QUESTION_NUMBER} in their inbox; task {owner} has the answer and does the work:\n{BUDGET_PERSON_ANSWER}"
+    );
     let answer = blocker_delivery(observed, Agent::BudgetOwner, BUDGET_PERSON_ANSWER);
     step_check(
         misses,
@@ -7543,7 +7546,7 @@ fn budget_person_answer(observed: &Observed, misses: &mut Vec<Miss>) {
                 .iter()
                 .filter(|r| {
                     number(r, "/line/heard/number") == Some(BUDGET_NOTICE_NUMBER)
-                        && number(r, "/line/heard/from/task") == Some(super::BUDGET_DIRECTOR)
+                        && number(r, "/line/heard/from/task") == Some(super::BUDGET_OWNER)
                         && number(r, "/line/heard/kind/question_answered/question") == Some(BUDGET_UP_QUESTION_NUMBER)
                         && text(r, "/line/heard/words") == BUDGET_PERSON_ANSWER
                 })
@@ -7906,7 +7909,7 @@ mod budget_tests {
                 .1
                 .push(json!({"words":{"message":message,"by":by,"kind":kind,"words":words}}));
         }
-        lines.get_mut(&Read::BudgetDirectorEnded).expect("director").1.push(json!({"heard":{"number":BUDGET_NOTICE_NUMBER,"from":{"task":BUDGET_DIRECTOR},"kind":{"question_answered":{"question":BUDGET_UP_QUESTION_NUMBER}},"words":BUDGET_PERSON_ANSWER,"eligible":true}}));
+        lines.get_mut(&Read::BudgetDirectorEnded).expect("director").1.push(json!({"heard":{"number":BUDGET_NOTICE_NUMBER,"from":{"task":BUDGET_OWNER},"kind":{"question_answered":{"question":BUDGET_UP_QUESTION_NUMBER}},"words":BUDGET_PERSON_ANSWER,"eligible":true}}));
         lines.get_mut(&Read::BudgetSubownerEnded).expect("A1").1.push(json!({"words":{"message":BUDGET_FINDING_NUMBER,"by":{"task":BUDGET_A5},"kind":"words","words":BUDGET_FINDING}}));
         for (task, message, words) in [
             (BUDGET_A5, BUDGET_A5_REPORT_NUMBER, BUDGET_A5_REPORT),
@@ -8031,7 +8034,7 @@ mod budget_tests {
             4,
             told(
                 Agent::BudgetDirector,
-                &[input(&format!("Person answered question 2 in their inbox:\n{BUDGET_PERSON_ANSWER}"))],
+                &[input(&format!("Person answered task 2's question 2 in their inbox; task 2 has the answer and does the work:\n{BUDGET_PERSON_ANSWER}"))],
             ),
         );
     }

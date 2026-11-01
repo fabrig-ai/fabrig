@@ -316,20 +316,26 @@ pub(crate) fn message(run: Token, attempt: Token, word: &tasks::Word) -> host::L
         attempt,
         name: Token::new(word.number),
         sender: inbox_sender(word),
-        words: inbox_words(word),
+        words: inbox_words(run.raw(), word),
         finish_requested: word.finish_requested(),
     }
 }
 
 /// Preserve the task-owned message kind when translating its opaque words,
-/// for a live run's message and a starting run's inbox alike.
+/// for a live run's message and a starting run's inbox alike. `task` is
+/// the receiving task, so an answer notice can distinguish its delegate's question.
 #[must_use]
-pub fn inbox_words(word: &tasks::Word) -> Box<[u8]> {
+pub fn inbox_words(task: u64, word: &tasks::Word) -> Box<[u8]> {
     if let tasks::MessageKind::SettingsDecision { outcome, .. } = word.kind {
         return settings_decision_words(outcome, &word.words);
     }
     let (label, number) = match word.kind {
         tasks::MessageKind::QuestionAnswered { question } => {
+            if let tasks::Party::Task(asker) = word.from
+                && asker != task
+            {
+                return delegated_answer_notice(asker, question, &word.words);
+            }
             return question_notice(b"Person answered question ", question, b" in their inbox", &word.words);
         }
         tasks::MessageKind::QuestionEnded { question } => {
@@ -373,6 +379,32 @@ pub fn inbox_words(word: &tasks::Word) -> Box<[u8]> {
     writer.put(number.as_bytes()).expect("measured source");
     writer.put(b":\n").expect("measured separator");
     writer.put(&word.words).expect("measured words");
+    writer.finish()
+}
+
+fn delegated_answer_notice(asker: u64, question: u64, words: &[u8]) -> Box<[u8]> {
+    let asker = Decimal::of(asker);
+    let question = Decimal::of(question);
+    let separator = if words.is_empty() { b"".as_slice() } else { b":\n".as_slice() };
+    let parts = [
+        b"Person answered task ".as_slice(),
+        asker.as_bytes(),
+        b"'s question ",
+        question.as_bytes(),
+        b" in their inbox; task ",
+        asker.as_bytes(),
+        b" has the answer and does the work",
+        separator,
+        words,
+    ];
+    let mut bytes = 0_usize;
+    for part in parts {
+        bytes = bytes.checked_add(part.len()).expect("bounded answer notice");
+    }
+    let mut writer = Writer::new(bytes);
+    for part in parts {
+        writer.put(part).expect("measured answer notice");
+    }
     writer.finish()
 }
 
@@ -663,16 +695,18 @@ mod tests {
 
     #[test]
     fn question_notices_render_their_number_and_any_answer_words() {
-        let cases: &[(tasks::MessageKind, &[u8], &[u8])] = &[
-            (tasks::MessageKind::QuestionAnswered { question: 42 }, b"", b"Person answered question 42 in their inbox"),
+        let cases: &[(u64, tasks::MessageKind, &[u8], &[u8])] = &[
+            (2, tasks::MessageKind::QuestionAnswered { question: 42 }, b"", b"Person answered question 42 in their inbox"),
             (
-                tasks::MessageKind::QuestionAnswered { question: 42 },
+                2, tasks::MessageKind::QuestionAnswered { question: 42 },
                 b"fruit,count\nGo ahead.",
                 b"Person answered question 42 in their inbox:\nfruit,count\nGo ahead.",
             ),
-            (tasks::MessageKind::QuestionEnded { question: 42 }, b"", b"Question 42 ended"),
+            (1, tasks::MessageKind::QuestionAnswered { question: 42 }, b"", b"Person answered task 2's question 42 in their inbox; task 2 has the answer and does the work"),
+            (1, tasks::MessageKind::QuestionAnswered { question: 42 }, b"fruit,count\nGo ahead.", b"Person answered task 2's question 42 in their inbox; task 2 has the answer and does the work:\nfruit,count\nGo ahead."),
+            (2, tasks::MessageKind::QuestionEnded { question: 42 }, b"", b"Question 42 ended"),
         ];
-        for (kind, words, expected) in cases {
+        for (task, kind, words, expected) in cases {
             let word = tasks::Word {
                 number: 7,
                 from: tasks::Party::Task(2),
@@ -682,7 +716,11 @@ mod tests {
                 hits: 1,
                 eligible: true,
             };
-            assert_eq!(inbox_words(&word).as_ref(), *expected);
+            assert_eq!(inbox_words(*task, &word).as_ref(), *expected);
+            let host::LinkDown::Message { words: live, .. } = message(Token::new(*task), Token::new(1), &word) else {
+                panic!("live message");
+            };
+            assert_eq!(live.as_ref(), *expected);
         }
     }
 
@@ -708,7 +746,7 @@ mod tests {
                 hits: 1,
                 eligible: true,
             };
-            assert_eq!(inbox_words(&word).as_ref(), expected);
+            assert_eq!(inbox_words(2, &word).as_ref(), expected);
         }
     }
 }

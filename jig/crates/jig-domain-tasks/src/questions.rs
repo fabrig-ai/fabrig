@@ -104,8 +104,13 @@ pub(crate) fn person_answer(domain: &mut Domain, env: &Env<Limits>, event: Event
     let heard = crate::AnswerLine { task: asker, position: record(domain, asker).expect("answered asker").activity };
     crate::positions::sent_answer(domain, env, Party::Task(asked), question, heard, out);
     if asked != asker
-        && let Some((previous, word)) =
-            append_notice(domain, env, asked, notice, MessageKind::QuestionAnswered { question }, words, out)
+        && let Some((previous, word)) = append_notice(
+            domain,
+            env,
+            asked,
+            Notice { message: notice, from: asker, kind: MessageKind::QuestionAnswered { question }, words },
+            out,
+        )
     {
         changed(domain, asked);
         crate::wake::after_message(domain, env, asked, previous, word, out);
@@ -185,9 +190,12 @@ pub(crate) fn ended(
             domain,
             env,
             task,
-            notice.message,
-            MessageKind::QuestionEnded { question: notice.question },
-            Box::new([]),
+            Notice {
+                message: notice.message,
+                from: task,
+                kind: MessageKind::QuestionEnded { question: notice.question },
+                words: Box::new([]),
+            },
             out,
         );
     }
@@ -197,20 +205,26 @@ pub(crate) fn ended(
     }
 }
 
+struct Notice {
+    message: u64,
+    from: u64,
+    kind: MessageKind,
+    words: Box<[u8]>,
+}
+
 fn append_notice(
     domain: &mut Domain,
     env: &Env<Limits>,
     task: u64,
-    message: u64,
-    kind: MessageKind,
-    words: Box<[u8]>,
+    notice: Notice,
     out: &mut Queue<Request>,
 ) -> Option<(Option<u64>, Word)> {
+    let Notice { message, from, kind, words } = notice;
     let row = record(domain, task)?;
     if !crate::moving::mutable(&row.phase) {
         return None;
     }
-    let word = Word { number: message, from: Party::Task(task), words, kind, at: env.wall, hits: 1, eligible: true };
+    let word = Word { number: message, from: Party::Task(from), words, kind, at: env.wall, hits: 1, eligible: true };
     let admission = if word.kind == MessageKind::QuestionOwed {
         crate::inbox::Admission::Merged
     } else {
@@ -354,9 +368,13 @@ pub(crate) fn owed(domain: &mut Domain, env: &Env<Limits>, task: u64, message: u
     if !row.spec.asks || row.asked_requester || row.phase != crate::Phase::Active(crate::Active::Idle) {
         return;
     }
-    if let Some((previous, word)) =
-        append_notice(domain, env, task, message, MessageKind::QuestionOwed, Box::from(OWED_WORDS), out)
-    {
+    if let Some((previous, word)) = append_notice(
+        domain,
+        env,
+        task,
+        Notice { message, from: task, kind: MessageKind::QuestionOwed, words: Box::from(OWED_WORDS) },
+        out,
+    ) {
         changed(domain, task);
         crate::wake::after_message(domain, env, task, previous, word, out);
     }

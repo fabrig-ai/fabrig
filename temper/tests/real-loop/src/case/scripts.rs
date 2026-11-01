@@ -65,7 +65,7 @@ pub fn step_4_6_rules() -> Box<[Box<[Rule]>]> {
     let chat = [
         (super::PHASE_REPORT, 5),
         (CROSSED, 5),
-        ("Person answered question", 4),
+        ("Person answered task", 4),
         (super::PHASE_QUESTION, 2),
         (DELEGATED, 1),
         (DELIVERY, 1),
@@ -1376,7 +1376,7 @@ pub fn step_6_5_rules() -> Box<[Box<[Rule]>]> {
         table(&[
             (BUDGET_OWNER_REPORT, 1),
             (CROSSED, 1),
-            ("Person answered question", 3),
+            ("Person answered task", 3),
             (BUDGET_UP_QUESTION, 2),
             (MESSAGE, 2),
             (DELEGATED, 2),

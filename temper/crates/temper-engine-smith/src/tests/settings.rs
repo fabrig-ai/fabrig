@@ -185,7 +185,7 @@ fn settings_inbox_outcomes_keep_the_revision_and_rejection_reason() {
             hits: 1,
             eligible: true,
         };
-        assert_eq!(engine::inbox_words(&word).as_ref(), expected.as_bytes());
+        assert_eq!(engine::inbox_words(1, &word).as_ref(), expected.as_bytes());
     }
 }
 

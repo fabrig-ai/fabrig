@@ -297,6 +297,7 @@ fn the_chats_words_send_work_agreed_first_to_a_goal() {
         words.contains("Never answer the work's question yourself: your person answers it in their inbox, and the goal hears it there."),
         "the person answers the question in their inbox and the goal hears it there"
     );
+    assert!(words.contains("When the person answers your goal's question, the goal has the answer and does the work: never call change or goal for it yourself; tell the person the work goes ahead."));
 }
 
 #[test]

@@ -643,7 +643,8 @@ line does not name the addressed party.
 
 **Question notices say which words they carry.** `QuestionEnded` carries
 empty words, its kind naming the question's number. `QuestionAnswered`
-carries the person's answer words within 256 bytes, including a
+names the asker in its word's `from` party and carries the person's
+answer words within 256 bytes, including a
 `[N bytes cut]` line when cut, with the prefix ending at a UTF-8 boundary.
 Each received question reserves those 256 bytes beside its notice slot.
 Stored notices with empty words still restore. `QuestionOwed` carries the

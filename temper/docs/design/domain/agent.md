@@ -473,12 +473,13 @@ label, its kind and its words whole, the start carrying those waiting
 in the task's inbox. Words read `2: …`; a question reads `2 asks
 (question 4): …`, its number the one `message`'s answer form takes;
 an answer reads `1 answers question 4: …`. A person's inbox answer
-notifies the asked task with `Person answered question 4 in their inbox:\n…`,
+notifies the asked task with `Person answered task 2's question 4 in their inbox; task 2 has the answer and does the work:\n…` when task 2 asked it.
+A question the receiving task asked itself keeps `Person answered question 4 in their inbox:\n…`,
 including the answer words within 256 bytes, cut at a UTF-8 boundary and
 marked when cut; an empty stored notice keeps the line without words.
 So a goal hears its person's answer to question 4 by the number it asked,
 and a chat, which answers no question waiting in its person's inbox (8.2), hears that
-question 4 was answered, with the person's words. Proposals and
+question 4 was answered, with the person's words and the asker that owns the work. Proposals and
 escalations waiting for the task's decision are relayed the same way, each naming what `decide` or
 `decide_escalation` takes.
 
@@ -617,7 +618,9 @@ today's, until those land.
   carry the rule: work the person wants to agree before anything is
   changed goes to such a delegate, which tells its plan, asks, and calls
   `change` only after the answer, which reaches it from the person's
-  inbox, not through the chat. The chat passes the person's words whole, at once, even where they
+  inbox, not through the chat. When the person answers the goal's question,
+  the goal has the answer and does the work; the chat never calls `change`
+  or `goal` for that answer and tells the person the work goes ahead. The chat passes the person's words whole, at once, even where they
   ask for an advisor first, since the goal asks one itself (4.3.2): it
   never sets `advisor` for such work, writes the plan or asks the
   go-ahead in its own reply, nor calls `change`. The goal, once it has

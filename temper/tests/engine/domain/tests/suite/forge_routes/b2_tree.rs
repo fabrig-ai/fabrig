@@ -845,8 +845,8 @@ fn the_persons_inbox_answer_reaches_the_goal_with_no_chat_call() {
         .expect("the chat hears which question its person answered");
     assert_eq!(notice.words.as_ref(), GO_AHEAD);
     assert_eq!(
-        engine::inbox_words(notice).as_ref(),
-        [format!("Person answered question {question} in their inbox:\n").as_bytes(), GO_AHEAD].concat().as_slice()
+        engine::inbox_words(chat.task, notice).as_ref(),
+        [format!("Person answered task {}'s question {question} in their inbox; task {} has the answer and does the work:\n", work.task, work.task).as_bytes(), GO_AHEAD].concat().as_slice()
     );
 }
 
@@ -915,7 +915,7 @@ fn an_agreed_goal_finishing_before_asking_is_parked_then_woken_and_asks() {
     let notice =
         resumed.messages.iter().find(|word| word.kind == tasks::MessageKind::QuestionOwed).expect("owing notice");
     assert_eq!(
-        engine::inbox_words(notice).as_ref(),
+        engine::inbox_words(chat.task, notice).as_ref(),
         b"You owe your requester a question: ask your plan with message, as a question, and wait."
     );
     assert!(matches!(

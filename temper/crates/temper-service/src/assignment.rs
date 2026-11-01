@@ -106,7 +106,7 @@ pub fn down(
         channel,
         down: host::LinkDown::Assign {
             assignment: host::Assignment {
-                messages: messages(&assignment.messages),
+                messages: messages(assignment.task, &assignment.messages),
                 assignment: host::RunAssignment {
                     identity,
                     live: assignment.live,
@@ -137,14 +137,14 @@ fn identity(deployment: &[u8; 16], task: u64, conversation: u64) -> [u8; 16] {
     }
     identity.finish().as_ref().try_into().expect("sixteen identity bytes")
 }
-fn messages(words: &[tasks::Word]) -> Box<[host::StartMessage]> {
+fn messages(task: u64, words: &[tasks::Word]) -> Box<[host::StartMessage]> {
     let mut messages = List::with_capacity(u32::try_from(words.len()).expect("bounded messages"));
     for word in words {
         messages
             .push(host::StartMessage {
                 name: Token::new(word.number),
                 sender: root::inbox_sender(word),
-                words: root::inbox_words(word),
+                words: root::inbox_words(task, word),
                 finish_requested: word.finish_requested(),
             })
             .expect("bounded messages");
@@ -213,7 +213,7 @@ mod tests {
                 eligible: true,
             },
         ];
-        let messages = messages(&words);
+        let messages = messages(1, &words);
         assert_eq!(messages[0].sender.as_ref(), b"2 asks (question 4)");
         assert_eq!(messages[0].words.as_ref(), b"The plan?");
         assert_eq!(messages[1].sender.as_ref(), b"1 answers question 4");
@@ -233,7 +233,7 @@ mod tests {
             hits: 1,
             eligible: true,
         };
-        let started = messages(&[met]);
+        let started = messages(1, &[met]);
         assert_eq!(started[0].sender.as_ref(), b"2");
         assert_eq!(started[0].words.as_ref(), b"T2 is done; the task can go on");
     }
