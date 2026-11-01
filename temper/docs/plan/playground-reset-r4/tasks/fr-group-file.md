@@ -8,6 +8,7 @@ files = [
   "temper/crates/temper-service/src/route/group_file.rs",
   "temper/crates/temper-service/src/tests/group_file.rs",
   "temper/crates/temper-service/src/tests/box_link.rs",
+  "temper/crates/temper-service/src/system.rs",
 ]
 effort = "high"
 minutes = 50
@@ -100,3 +101,19 @@ Pre-approved options:
 
 fab's sections, and `## Interfaces`: `render`, `write`, the new ask
 state, the `failed` why, and the file's mode bits as set.
+
+## Answers
+
+2026-11-01. May this task change `temper-service/src/system.rs` for the
+box link's file io? Yes (option A); `system.rs` is now in `files`. The
+service owns the kernel and routes every completion by its token's
+prefix (`Service::complete`), so the link's file requests cannot be
+driven from `box_link.rs` alone. In `system.rs`, only: open `<data>`
+(the pre-approved default) when `adopt_box` makes the `Link`, and hand
+the link its directory; submit the link's file requests beside
+`box_io`'s pipe requests; route completions bearing the link's token
+(`tokens.rs`) to the link, ahead of `io::up`; carry the write's
+deadline and close its descriptors on shutdown, as the store's are.
+Rendering and the write's states stay in `route/group_file.rs`, the
+ask's state in `route/box_link.rs`. `fr-setup` also edits `system.rs`:
+keep the change to those places so the merge stays small.
