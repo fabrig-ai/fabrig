@@ -559,14 +559,6 @@ pair = "qa-temper"
 package = "temper"
 filter = "all()"
 [[fixture.reader]]
-pair = "qa-temper"
-package = "temper-client-browser-world"
-filter = "all()"
-[[fixture.reader]]
-pair = "qa-temper"
-package = "temper-real-loop-world"
-filter = "all()"
-[[fixture.reader]]
 pair = "browser-temper"
 package = "temper-client-browser-world"
 filter = "all()"
@@ -753,10 +745,6 @@ filter = "kind(lib)"
 pair = "fuzzy"
 package = "temper-service"
 filter = "kind(lib)"
-[[fixture.reader]]
-pair = "qa-temper"
-package = "temper-service"
-filter = "kind(lib)"
 
 # support/cluster.rs: description/read/documents/render_files and settings_file; suite
 # configuration/startup/fake_opening and process cluster/case callers.
@@ -771,17 +759,13 @@ pair = "process-temper"
 package = "temper"
 filter = "binary(=process)"
 
-# fixtures/b2.rs: suite/b2.rs and qa_all/qa_task_pages.rs call the B2 builders.
+# fixtures/b2.rs: suite/b2.rs calls the B2 builders.
 [[fixture]]
 paths = ["temper/tests/client/src/fixtures/*.rs"]
 [[fixture.reader]]
 pair = "default"
 package = "temper-client-world"
 filter = "binary(=suite) & test(/^b2::/)"
-[[fixture.reader]]
-pair = "qa-temper"
-package = "temper-client-world"
-filter = "binary(=qa_all) & test(/qa_task_pages::/)"
 
 # suite/main.rs includes stock.rs; settings/b2.rs and forge_routes/b2_tree.rs call box_model.
 [[fixture]]

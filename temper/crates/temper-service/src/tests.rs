@@ -24,9 +24,9 @@ mod worker_admission;
 mod worker_git;
 mod worker_orders;
 
+mod box_link;
 mod checks;
 mod family;
-mod qa_box_link;
 mod root_checks;
 mod startup;
 mod system;
@@ -34,7 +34,6 @@ mod system;
 mod forge;
 mod forge_runtime;
 
-mod box_link;
 mod bundle;
 mod server;
 

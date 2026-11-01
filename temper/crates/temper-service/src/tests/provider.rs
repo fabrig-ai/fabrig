@@ -187,6 +187,8 @@ fn a_google_member_redeems_by_basic_and_by_body_and_reads_the_same_claims() {
             started.elapsed().as_secs_f64()
         );
     }
+    refused_authorizations(&mut service, &cookie);
+    document_routes(&mut service);
     let discovery = request(&mut service, "GET", "/.well-known/openid-configuration", "", &[]);
     assert_eq!(text(&json(&discovery), b"issuer").as_ref(), b"https://temper.example.com");
     assert_eq!(text(&json(&discovery), b"token_endpoint").as_ref(), b"https://temper.example.com/oauth/token");
@@ -219,5 +221,51 @@ fn provider_routes_without_a_provider_are_not_found() {
     ] {
         let peer = request(&mut service, method, path, "", &[]);
         assert!(peer.received().starts_with(b"HTTP/1.1 404"));
+    }
+}
+
+// protocol/sign-in.md, 9.2: a refusal leaves the public documents routable, including queries.
+fn document_routes(service: &mut crate::Service) {
+    for (method, path, status) in [
+        ("POST", "/.well-known/openid-configuration", b"405"),
+        ("GET", "/.well-known/openid-configuration", b"200"),
+        ("POST", "/oauth/keys", b"405"),
+        ("GET", "/oauth/keys", b"200"),
+        ("GET", "/oauth/token", b"405"),
+        ("POST", "/oauth/userinfo", b"405"),
+        ("GET", "/.well-known/openid-configuration", b"200"),
+        ("GET", "/.well-known/openid-configuration?cache=one", b"200"),
+        ("GET", "/oauth/keys?cache=two", b"200"),
+        ("POST", "/oauth/keys?cache=three", b"405"),
+    ] {
+        let peer = request(service, method, path, "", &[]);
+        assert_eq!(peer.received().get(9..12), Some(status.as_slice()), "{method} {path}");
+    }
+}
+
+// protocol/sign-in.md, 9.3: an unknown client or redirect never yields an external destination.
+fn refused_authorizations(service: &mut crate::Service, cookie: &[u8]) {
+    let fields = format!(
+        "Content-Type: application/octet-stream\r\nJig-Client: browser\r\nCookie: {}\r\n",
+        core::str::from_utf8(cookie).unwrap()
+    );
+    let limits = service.engine.as_ref().unwrap().clients.env.limits.wire;
+    for (client, why) in
+        [("unknown", wire::AuthorizeWhy::UnknownClient), ("forgejo", wire::AuthorizeWhy::UnknownRedirect)]
+    {
+        let query = format!(
+            "response_type=code&client_id={client}&redirect_uri=http%3A%2F%2F127.0.0.1%3A9%2Fescape&scope=openid&state=refusal&code_challenge=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA&code_challenge_method=S256"
+        );
+        let record = wire::Authorize::new(&limits, wire::AuthorizeParts { query: query.into_bytes().into() }).unwrap();
+        let mut out = Writer::new(usize::try_from(record.measure()).unwrap());
+        record.encode(&mut out).unwrap();
+        let peer = request(service, "POST", "/jig/v1/authorize", &fields, &out.finish());
+        assert!(peer.received().starts_with(b"HTTP/1.1 200"));
+        let wire::AuthorizeAnswer::Refused(answer) =
+            wire::AuthorizeAnswer::decode(&limits, &mut Reader::new(body(&peer))).unwrap()
+        else {
+            panic!("hostile authorization yields no destination")
+        };
+        assert_eq!(answer.why(), &why);
     }
 }

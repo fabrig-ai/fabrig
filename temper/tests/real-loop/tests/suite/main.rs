@@ -43,3 +43,7 @@ mod fuzzy {
     mod program_landing;
     mod repair;
 }
+
+mod adoption_hold;
+mod github_repair;
+mod plan_chat;

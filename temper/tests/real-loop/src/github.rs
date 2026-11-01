@@ -495,6 +495,12 @@ pub fn check_connection(ran: &Ran) {
 /// Check the single landing and return its merge commit as hex.
 #[must_use]
 pub fn check_landing(ran: &Ran) -> String {
+    check_landing_at(ran, CHANGE)
+}
+
+/// Check the landing using the story's plain change-document read.
+#[must_use]
+pub fn check_landing_at(ran: &Ran, change_call: usize) -> String {
     let seen = ran.github();
     let opened: Vec<_> =
         seen.pulls.iter().filter(|row| matches!(row, Observation::Opened { kind: api::Kind::Pull, .. })).collect();
@@ -518,7 +524,7 @@ pub fn check_landing(ran: &Ran) -> String {
     let main = seen.branches.get(b"main".as_slice()).expect("main moved by merge");
     assert_eq!(main.head, *commit);
     assert_eq!(main.tree.get(b"README.md".as_slice()).expect("README"), &[landing::README, landing::EDIT].concat());
-    let task: Value = serde_json::from_slice(&ran.calls()[CHANGE].stdout).expect("change document");
+    let task: Value = serde_json::from_slice(&ran.calls()[change_call].stdout).expect("change document");
     assert_eq!(task["chip"]["task"], 2);
     assert_eq!(task["chip"]["phase"], "ended");
     let result = &task["result"]["value"]["change"];
@@ -540,9 +546,14 @@ pub fn check_landing(ran: &Ran) -> String {
 
 /// The chat receives the landed change result before reporting to the person.
 pub fn check_chat_heard_the_landing(ran: &Ran, hex: &str) {
-    let chat: Value = serde_json::from_slice(&ran.calls()[CHAT].stdout).expect("chat document");
+    check_chat_heard_the_landing_at(ran, hex, CHANGE, CHAT);
+}
+
+/// Check the result delivery using this story's change and completed-chat reads.
+pub fn check_chat_heard_the_landing_at(ran: &Ran, hex: &str, change_call: usize, chat_call: usize) {
+    let chat: Value = serde_json::from_slice(&ran.calls()[chat_call].stdout).expect("chat document");
     assert_eq!(chat["task"]["result"]["value"]["report"]["bytes"], "The change landed.");
-    let change: Value = serde_json::from_slice(&ran.calls()[CHANGE].stdout).expect("change document");
+    let change: Value = serde_json::from_slice(&ran.calls()[change_call].stdout).expect("change document");
     let words = change["result"]["value"]["change"]["words"]["bytes"].as_str().expect("landing words");
     assert_eq!(words.lines().next(), Some(hex), "the chat's result begins with the merge id");
     let told = format!("Result from task 2:\n{words}");

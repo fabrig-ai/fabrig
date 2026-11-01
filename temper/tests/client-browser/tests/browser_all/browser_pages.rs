@@ -3,30 +3,9 @@
 //! its line, and a panic shows the failure page.
 use skein_browser::boundary::Key;
 use skein_fake_person::{Find, Step as PersonStep};
-use skein_fake_person_browser::{
-    Harness, Outcome, Script, Step,
-    stories::{self, Shown},
-};
+use skein_fake_person_browser::{Harness, Outcome, Script, Step, stories};
 use skein_ui::Role;
 use temper_client_browser_world::{ABSENT, FIRST_CHAT, FIRST_CHAT_ADDRESS, Tier, WITHIN, first_chat};
-
-#[test]
-fn back_then_forward_returns_to_the_chat() {
-    let tier = Tier::new("back-then-forward").with_model();
-    let mut started = Script::new(temper_client_browser_world::start_chat(b"Hello").into_boxed_slice());
-    assert_eq!(Harness::new(tier.setup()).run(&mut [&mut started]), Outcome::Done, "the chat to return to");
-    let chats = Shown { address: b"/chats", sees: Find::exactly_named(Role::Heading { level: 1 }, b"Chats") };
-    let chat = Shown { address: FIRST_CHAT_ADDRESS, sees: first_chat(b"Hello") };
-    assert_eq!(
-        stories::back_and_forward(
-            &tier.setup(),
-            chats,
-            chat,
-            Find::exactly_named(Role::Heading { level: 1 }, b"Connect a forge"),
-        ),
-        Outcome::Done
-    );
-}
 
 #[test]
 fn a_non_page_address_opens_the_inbox_at_slash() {
@@ -77,26 +56,8 @@ fn a_panic_shows_the_failure_page() {
 }
 
 #[test]
-fn a_chat_has_a_day_and_turn_clocks_beside_separately_named_speakers() {
-    let tier = Tier::demo("chat-turn-times");
-    let mut steps = temper_client_browser_world::start_playground_chat(b"Add CSV export to widget");
-    for find in [
-        Find::exactly_named(Role::Log, b"Conversation"),
-        Find::exactly_named(Role::Paragraph, b"You"),
-        Find::named(Role::Paragraph, "Today · ".as_bytes()),
-        Find::named(Role::Time, b":"),
-        Find::exactly_named(Role::TextArea, b"Message"),
-        Find::exactly_named(Role::Button, b"Send"),
-    ] {
-        steps.push(Step::Person(PersonStep::See { find, within: WITHIN }));
-    }
-    let mut script = Script::new(steps.into_boxed_slice());
-    assert_eq!(Harness::new(tier.setup()).run(&mut [&mut script]), Outcome::Done);
-}
-
-#[test]
-fn new_chat_focus_and_filter_survive_reload_and_back() {
-    let tier = Tier::new("new-chat-filter-address");
+fn history_keeps_the_chat_focus_and_filter_across_reload_and_back() {
+    let tier = Tier::new("history-chat-filter-address").with_model();
     let see = |find| Step::Person(PersonStep::See { find, within: WITHIN });
     let press = |role, name: &[u8]| Step::Person(PersonStep::Press { find: Find::exactly_named(role, name) });
     let pressed = |position| Step::Keep {
@@ -106,8 +67,17 @@ fn new_chat_focus_and_filter_survive_reload_and_back() {
         attribute: Some(b"aria-pressed".as_slice().into()),
         name: b"pressed-filter".as_slice().into(),
     };
-    let mut script = Script::new(Box::new([
-        see(Find::exactly_named(Role::Link, b"Set up temper")),
+    let mut steps = temper_client_browser_world::start_chat(b"Hello");
+    steps.extend([
+        press(Role::Link, b"Chats"),
+        see(Find::exactly_named(Role::Heading { level: 1 }, b"Chats")),
+        press(Role::Link, FIRST_CHAT),
+        see(first_chat(b"Hello")),
+        Step::Address(FIRST_CHAT_ADDRESS.into()),
+        Step::Back,
+        see(Find::exactly_named(Role::Heading { level: 1 }, b"Chats")),
+        Step::Forward,
+        see(first_chat(b"Hello")),
         Step::Person(PersonStep::Go { address: b"/".as_slice().into() }),
         see(tier.states().live),
         see(Find::exactly_named(Role::Heading { level: 1 }, b"Inbox")),
@@ -116,7 +86,7 @@ fn new_chat_focus_and_filter_survive_reload_and_back() {
         Step::Focused(Find::exactly_named(Role::TextArea, b"Start a chat")),
         Step::Address(b"/chats?at=start".as_slice().into()),
         press(Role::Button, b"Live"),
-        see(Find::exactly_named(Role::Paragraph, b"No live chats.")),
+        see(Find::exactly_named(Role::Link, FIRST_CHAT)),
         Step::Address(b"/chats?state=live".as_slice().into()),
         Step::Person(PersonStep::Reload),
         see(Find::exactly_named(Role::Button, b"Live")),
@@ -125,6 +95,7 @@ fn new_chat_focus_and_filter_survive_reload_and_back() {
         see(Find::exactly_named(Role::Button, b"All")),
         Step::Address(b"/chats?at=start".as_slice().into()),
         pressed(1),
-    ]));
+    ]);
+    let mut script = Script::new(steps.into_boxed_slice());
     assert_eq!(Harness::new(tier.setup()).run(&mut [&mut script]), Outcome::Done);
 }

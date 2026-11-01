@@ -978,8 +978,8 @@ Each step lands working, and shows what it proved in the real loop
     is charged, not served); no credential in a record, a request line
     or a fact, the handed, replaced and renewed ones too. temper's
     protocol world covers these until then.
-- **The installation's rate,** in the protocol world's qa profile
-  (`tests/engine/protocol-forge/tests/qa_rate.rs`): one, two and three
+- **The installation's rate,** in the protocol world's focused suite
+  (`tests/engine/protocol-forge/tests/suite/rate.rs`): one, two and three
   changes on one installation, heard by polling at the shipped
   cadences, counted as GitHub charges them (the installation's HTTP
   requests, the App's JWT calls apart) over a virtual window scaled to
@@ -1098,7 +1098,7 @@ Each with the default the draft takes.
 - **Three iterating changes on one installation:** they ask about
   6,000 requests an hour, over the installation's 5,000 (section 8);
   two ask about 4,300, and three with CI pending about 4,200
-  (`qa_rate.rs`). The base's reads are about 5 % of it, and sharing
+  (`suite/rate.rs`). The base's reads are about 5 % of it, and sharing
   them across changes would save under 1 %. The pull's keep, six reads per
   pass, is about 70 %, and the repository's listing 720 an hour.
   The fake charged every answer here, while GitHub answers an unchanged

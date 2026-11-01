@@ -1,11 +1,6 @@
-//! Real task addresses, a fresh open and the lineage bar, on a procedure's plan (client/README.md,
-//! 5.10), through `temper box`'s demo and its own fakes. The terminal-side proofs of the same pages
-//! are tests/client's `tests/task.rs`, `b2::roadmap_b2_through_the_task_pages` (including a fresh
-//! client at a delegate's address), and the agent's page golden
-//! `crates/temper-client-shell-terminal/src/tests/golden/agent_task.txt`. `crates/temper/tests/qa_delegation.rs`
-//! opens Task 2 in a box too, but has been broken on main since a2d78e2a4 (its "Task 2" link prints
-//! an outward mark the typist does not match), so it is cited, not relied on. The browser alone
-//! proves the addresses and the first read after a full page load at `/tasks/3`.
+//! Task addresses, a fresh open and lineage (client/browser.md, 4.6, 11).
+//! The client world's task scenarios and the terminal's agent-page golden
+//! hold the page contents; Chromium holds the first full load at `/tasks/3`.
 use skein_fake_person::{Find, Step as PersonStep, Target};
 use skein_fake_person_browser::{Harness, Outcome, Script, Step};
 use skein_ui::Role;
@@ -34,8 +29,6 @@ fn a_procedures_plan_reaches_its_agent_and_back_by_address() {
         see(heading(1, b"What shall we change?")),
         see(Find::exactly_named(Role::Button, b"Add CSV export to widget")),
         press(Find::exactly_named(Role::Button, b"Add CSV export to widget")),
-        // 2: qa_delegation::running_card_names_the_change_and_exposes_its_steps opens this procedure
-        // (broken on main since a2d78e2a4, see the module's doc).
         // The card settles at its call once the turn's words show (client/README.md, 5.7).
         // A person reads the reply, then follows its card.
         see(Find::text("I’ll delegate this change in playground/widget. It will push a branch, open a pull request, check CI and land into main on Playground forge.".as_bytes())

@@ -6,3 +6,10 @@
 - **Not yet:** 2.4: remaining terminal/link/setup/webhook/real-agent/real-git paths. 2.6: rebound-Host/board stories; reference-case worker-drain race. 2.7: live GitHub success, Claude Code paths and first-terminal-failure stop. 4.3: rg/sh subset. 5.1: shipped-profile limits everywhere. 5.3: full 6.6, 6.7, 6.8 and later case gaps. 6: digests, transition coverage, event fuzzing and containment. 2.6: the tier at 1369 s of its 6 minutes, 127 stories (10-28): those past its first rule move down (the restart variants, holds, revision, question, review and repair stories), and one first-run story drops; 2.7: the rung's offline walk moves to `proof-live.sh`. The twin's `asked` scripts for fresh Open chats; lags until `ready/temper/demo-cues` lands.
 
 - **Built:** 2.4, 4.1: fixtures are re-recorded with temper-twin; `--replace` covers assistant text as well as call arguments.
+
+- **Built (2026-11-01):** 6.1: world and step scenarios outside the `temper`
+  package run in their ordinary `suite` modules, including retained ignored
+  findings. The browser tier has eleven active tests, with item 12 awaiting
+  the playground. Provider and codec rows and the watcher-bound scenario run
+  below Chromium. The two direct GitHub landing variants share
+  `suite::github_land::a_chats_change_lands_on_connected_github`.
