@@ -1,12 +1,15 @@
 //! Real OAuth endpoints. Selected only by `cargo nextest run --profile live-skein`.
-//! No auth files, refreshes, retries, or alternate endpoints in this harness.
+//! Credentials come from the login files the caller names, read and never
+//! written: no refreshes, retries, or alternate endpoints in this harness.
 use std::io::{Read as _, Write as _};
 use std::net::{Shutdown, TcpStream, ToSocketAddrs};
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Duration;
 
 use rustls::pki_types::{CertificateDer, ServerName, pem::PemObject};
 use rustls::{ClientConfig, ClientConnection, RootCertStore, StreamOwned};
+use skein_json::{Document, Kind, document, tokenizer};
 use skein_lib::stream::{Down, Read, Up};
 use skein_lib::{Env, Intake, Queue, Time, Token, Wall};
 use skein_llm::{
@@ -22,8 +25,62 @@ fn setting(name: &str) -> Option<String> {
 fn enabled() -> bool {
     setting("NEXTEST_PROFILE").as_deref() == Some("live-skein")
 }
-fn required(name: &str) -> Box<[u8]> {
-    setting(name).unwrap_or_else(|| panic!("live profile requires {name}")).into_bytes().into()
+/// A login the caller lends to the live run (skein/crates/skein-llm/README.md):
+/// its variable names the login's file, or a directory holding it as `file`.
+struct Login {
+    variable: &'static str,
+    file: &'static str,
+}
+/// Codex's `auth.json`, or a `CODEX_HOME` holding it.
+const CODEX: Login = Login { variable: "SKEIN_TEST_LIVE_OPENAI_AUTH", file: "auth.json" };
+/// Claude Code's `.credentials.json`, or a `CLAUDE_CONFIG_DIR` holding it.
+const CLAUDE_CODE: Login = Login { variable: "SKEIN_TEST_LIVE_ANTHROPIC_CREDENTIALS", file: ".credentials.json" };
+/// The longest login file the harness reads: one is a few kilobytes.
+const LOGIN_BYTES: u32 = 1 << 16;
+/// A login's grammar: no string or number is longer than its file, and a
+/// login nests a few containers deep. The chunk, the most one scan of a
+/// string demands, only paces `parse`.
+const LOGIN_JSON: tokenizer::Limits =
+    tokenizer::Limits { depth: 8, string: LOGIN_BYTES, number: LOGIN_BYTES, chunk: 4096, length: LOGIN_BYTES };
+/// Each record reads at least a byte of the file, and no text decodes longer than it is.
+const LOGIN_RETAINED: document::Limits = document::Limits { tokens: LOGIN_BYTES, text: LOGIN_BYTES };
+/// The strings at `fields` in the login its variable names. A missing
+/// variable, file or field fails the live run, naming the variable, the file
+/// and the field, never a value read from it.
+fn lent<const N: usize>(login: &Login, fields: [&[&str]; N]) -> [Box<[u8]>; N] {
+    let variable = login.variable;
+    let named = setting(variable).unwrap_or_else(|| panic!("live profile requires {variable}"));
+    login_fields(Path::new(&named), login.file, fields).unwrap_or_else(|refusal| panic!("{variable}: {refusal}"))
+}
+/// The file a login's variable names: `named` itself, or `file` in the
+/// directory `named`.
+fn login_file(named: &Path, file: &str) -> PathBuf {
+    if named.is_dir() { named.join(file) } else { named.to_path_buf() }
+}
+/// The non-empty strings at `fields` in a login's JSON, each field a path of
+/// members from the root object. A refusal names the file and the first
+/// field it lacks, never a value read from it.
+fn login_fields<const N: usize>(named: &Path, file: &str, fields: [&[&str]; N]) -> Result<[Box<[u8]>; N], String> {
+    let path = login_file(named, file);
+    let text = std::fs::read(&path).map_err(|error| format!("{}: {error}", path.display()))?;
+    let document = skein_json::parse(&text, &LOGIN_JSON, &LOGIN_RETAINED)
+        .map_err(|error| format!("{}: not a login's JSON: {error:?}", path.display()))?;
+    let mut values: [Box<[u8]>; N] = std::array::from_fn(|_| Box::default());
+    for (value, field) in values.iter_mut().zip(fields) {
+        *value = login_string(&document, field)
+            .ok_or_else(|| format!("{}: no non-empty string at .{}", path.display(), field.join(".")))?;
+    }
+    Ok(values)
+}
+/// The decoded bytes of the string at `field` below the root object, or
+/// nothing when a member is absent, is not a string, or is empty.
+fn login_string(document: &Document, field: &[&str]) -> Option<Box<[u8]>> {
+    let mut at = 0;
+    for name in field {
+        at = document.member(at, name.as_bytes())?;
+    }
+    let record = document.token(at).filter(|record| record.kind == Kind::String)?;
+    document.text(record).filter(|text| !text.is_empty()).map(Box::from)
 }
 fn bytes(text: &str) -> Box<[u8]> {
     text.as_bytes().into()
@@ -61,13 +118,10 @@ fn input(provider: Provider, owner: u64) -> Call {
                 .into_iter()
                 .map(|header| skein_http::Header { name: header.name, value: header.value })
                 .collect();
+            let [value, account_id] = lent(&CODEX, [&["tokens", "access_token"], &["tokens", "account_id"]]);
             (
                 endpoint,
-                Credential {
-                    scheme: skein_llm::Scheme::Bearer,
-                    value: required("SKEIN_TEST_LIVE_OPENAI_ACCESS_TOKEN"),
-                    account_id: required("SKEIN_TEST_LIVE_OPENAI_ACCOUNT_ID"),
-                },
+                Credential { scheme: skein_llm::Scheme::Bearer, value, account_id },
                 setting("SKEIN_TEST_LIVE_OPENAI_MODEL").unwrap_or_else(|| "gpt-5.5".into()),
                 bytes("Follow the user's instructions exactly. Be terse."),
                 Some(bytes("low")),
@@ -83,9 +137,10 @@ fn input(provider: Provider, owner: u64) -> Call {
                     header.value = bytes("claude-code-20250219,oauth-2025-04-20");
                 }
             }
+            let [token] = lent(&CLAUDE_CODE, [&["claudeAiOauth", "accessToken"]]);
             (
                 endpoint,
-                Credential::anthropic(required("SKEIN_TEST_LIVE_ANTHROPIC_ACCESS_TOKEN")),
+                Credential::anthropic(token),
                 setting("SKEIN_TEST_LIVE_ANTHROPIC_MODEL").unwrap_or_else(|| "claude-haiku-4-5".into()),
                 anthropic::identity::instructions(b"Follow the user's instructions exactly. Be terse.")
                     .expect("bounded identity instructions"),
@@ -459,4 +514,46 @@ fn openai_unauthorized() {
 #[test]
 fn anthropic_unauthorized() {
     unauthorized(Provider::Anthropic);
+}
+
+/// Synthetic: a Codex `auth.json`'s fields, its values fixtures.
+const CODEX_AUTH: &[u8] = br#"{"OPENAI_API_KEY":null,"tokens":{"id_token":"fixture-id","access_token":"fixture-codex-access","refresh_token":"fixture-codex-refresh","account_id":"fixture-account"},"last_refresh":"2026-11-01T00:00:00Z"}"#;
+/// Synthetic: a Claude Code `.credentials.json`'s fields, its values fixtures.
+const CLAUDE_CODE_CREDENTIALS: &[u8] = br#"{"claudeAiOauth":{"accessToken":"fixture-claude-access","refreshToken":"fixture-claude-refresh","expiresAt":1793491200000,"scopes":["user:inference","user:profile"],"subscriptionType":"max"}}"#;
+/// Offline: a login's field read from the file its variable names, or from
+/// the directory holding that file.
+#[test]
+fn a_login_is_read_from_its_file_or_the_directory_holding_it() {
+    let scratch = skein_scratch::Scratch::new("live-logins");
+    std::fs::write(scratch.path().join(CODEX.file), CODEX_AUTH).expect("write the Codex login");
+    std::fs::write(scratch.path().join(CLAUDE_CODE.file), CLAUDE_CODE_CREDENTIALS)
+        .expect("write the Claude Code login");
+    let rows: [(&str, &str, &[&str], &[u8]); 4] = [
+        (CODEX.file, CODEX.file, &["tokens", "access_token"], b"fixture-codex-access"),
+        (".", CODEX.file, &["tokens", "account_id"], b"fixture-account"),
+        (CLAUDE_CODE.file, CLAUDE_CODE.file, &["claudeAiOauth", "accessToken"], b"fixture-claude-access"),
+        (".", CLAUDE_CODE.file, &["claudeAiOauth", "accessToken"], b"fixture-claude-access"),
+    ];
+    for (named, file, field, expected) in rows {
+        let [value] = login_fields(&scratch.path().join(named), file, [field]).expect("a lent login");
+        assert_eq!(&*value, expected, "{file} named as {named}");
+    }
+}
+/// Offline: the refusal names the file and the field, and no value the file holds.
+#[test]
+fn a_login_lacking_a_field_is_refused_naming_only_the_field() {
+    let rows: [&[u8]; 3] = [
+        br#"{"tokens":{"access_token":"fixture-codex-access"}}"#,
+        br#"{"tokens":{"access_token":"fixture-codex-access","account_id":null}}"#,
+        br#"{"tokens":{"access_token":"fixture-codex-access","account_id":""}}"#,
+    ];
+    for contents in rows {
+        let scratch = skein_scratch::Scratch::new("live-login");
+        let path = scratch.path().join(CODEX.file);
+        std::fs::write(&path, contents).expect("write the Codex login");
+        let refusal =
+            login_fields(scratch.path(), CODEX.file, [&["tokens", "access_token"], &["tokens", "account_id"]])
+                .expect_err("a login without its account");
+        assert_eq!(refusal, format!("{}: no non-empty string at .tokens.account_id", path.display()));
+    }
 }
