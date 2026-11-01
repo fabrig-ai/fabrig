@@ -745,3 +745,42 @@ fn deployment_arguments() {
         );
     }
 }
+
+#[test]
+fn the_deployments_fake_llm_uses_the_playground_group_forge() {
+    use serde_json::json;
+    let root = crate::directories::tests::scratch("fake-llm-playground-forge");
+    let directories = crate::directories::tests::given(&root);
+    let mut document = crate::tests::configuration::demo_document(&root, "127.0.0.1:8370");
+    document["application"]["demo"]["llm"]["otherwise"] = json!([{
+        "lines":[{"call":"delegate","arguments":{"resource":4_294_967_297_u64}}],
+        "finish":"tool_calls","tokens":1
+    }]);
+    fs::write(directories.document(), serde_json::to_vec(&document).expect("document JSON")).expect("document");
+    fs::create_dir_all(root.join("data/demo")).expect("model directory");
+    let mut created = Created::default();
+    created.output(&root.join("data/demo/llm.key"), b"fixture-key\n").expect("fixture model key");
+    let groups = root.join("data/box/groups");
+    let source = Source::Demo { directories };
+    for forge in [1_u16, 5, 9] {
+        if forge != 1 {
+            fs::create_dir_all(&groups).expect("groups directory");
+            let mut setup = document["application"]["setup"][0].clone();
+            setup["forge"] = forge.into();
+            created
+                .file(
+                    &groups.join(forge.to_string()),
+                    &serde_json::to_vec(&json!({"setup":setup,"playground":true})).expect("group JSON"),
+                )
+                .expect("group file");
+        }
+        let configuration = llm_configuration(&source, 0, &mut created).expect("deployment LLM configuration");
+        let script = configuration.domain.scripts().last().expect("fallback script");
+        let skein_fake_llm_domain::api::Line::Call { arguments, .. } = &script.turns[0].lines[0] else {
+            panic!("fallback tool call");
+        };
+        let arguments: serde_json::Value = serde_json::from_slice(arguments).expect("call arguments");
+        assert_eq!(arguments["resource"], json!((u64::from(forge) << 32_u32) | 1));
+    }
+    fs::remove_dir_all(root).expect("scratch removed");
+}

@@ -126,6 +126,15 @@ pub(crate) fn entry(
     if let Some(entry) = checked.setup.entry(number) {
         return Ok((entry.clone(), false));
     }
+    let file = group_file(directories, checked, number)?;
+    Ok((file.entry, file.playground))
+}
+
+fn group_file(
+    directories: &super::Directories,
+    checked: &Checked,
+    number: u16,
+) -> Result<temper_forge_setup::file::GroupFile, String> {
     let path = super::path(&directories.data).join(super::path(&temper_forge_setup::file::path(number)));
     let bytes = skein_shell::read_private_file(&path, temper_forge_setup::file::BYTES, skein_shell::effective_user())
         .map_err(|why| match why {
@@ -137,9 +146,41 @@ pub(crate) fn entry(
         | skein_shell::Unread::Kernel(_)
         | skein_shell::Unread::Unsafe(_)) => format!("{}: {}", path.display(), super::unread(other)),
     })?;
-    let file = temper_forge_setup::file::read(bytes.expose(), number, &checked.limits, &directories.jig())
-        .map_err(|why| super::prefixed(&path.display().to_string(), &String::from_utf8_lossy(&problem::lines(&why))))?;
-    Ok((file.entry, file.playground))
+    temper_forge_setup::file::read(bytes.expose(), number, &checked.limits, &directories.jig())
+        .map_err(|why| super::prefixed(&path.display().to_string(), &String::from_utf8_lossy(&problem::lines(&why))))
+}
+
+/// The playground's runtime forge from its group file (contracts, 3).
+pub(crate) fn playground_forge(directories: &super::Directories) -> Result<Option<u16>, String> {
+    let path = super::path(&directories.data).join("box/groups");
+    let files = match std::fs::read_dir(&path) {
+        Ok(files) => files,
+        Err(why) if why.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(why) => return Err(format!("{}: {why}", path.display())),
+    };
+    let document = directories.document();
+    let bytes = skein_shell::read_file(&document, super::CONFIG_BYTES)
+        .map_err(|why| format!("{}: {}", document.display(), super::unread(why)))?;
+    let deployment = check(&bytes, &directories.jig())?;
+    let mut forge = None;
+    let mut several = false;
+    for file in files {
+        let file = file.map_err(|why| format!("{}: {why}", path.display()))?;
+        let name = file.file_name();
+        let Some(name) = name.to_str() else { continue };
+        let Ok(number) = name.parse::<u16>() else { continue };
+        if number == 0 || name != number.to_string() {
+            continue;
+        }
+        if group_file(directories, &deployment.checked, number)?.playground {
+            several |= forge.is_some();
+            forge = Some(forge.unwrap_or(number).max(number));
+        }
+    }
+    if several {
+        eprintln!("several playground group files: using forge {}", forge.expect("playground files"));
+    }
+    Ok(forge)
 }
 
 // Machine members use the same checked limits and directories as seeded entries.
