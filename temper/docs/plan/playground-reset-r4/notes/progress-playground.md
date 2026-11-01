@@ -13,6 +13,7 @@ final: tasks/pg-welcome-states.md
 final: tasks/pg-start-over.md
 final: tasks/pg-ctl.md
 final: tasks/pg-ctl-help.md
+final: tasks/pg-demo-out-wire.md
 
 ## Parts
 

@@ -8,6 +8,11 @@ final: tasks/sk-client-remove.md
 final: tasks/sk-conn-remove.md
 final: tasks/fr-limits.md
 final: tasks/fr-surface.md
+final: tasks/fr-seed.md
+final: tasks/fr-forge-tables.md
+final: tasks/fr-forge-added.md
+final: tasks/fr-group-file.md
+final: tasks/fr-make-forge.md
 
 ## Parts
 
