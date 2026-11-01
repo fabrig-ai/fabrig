@@ -168,6 +168,11 @@ impl Domain {
     pub fn demo_state(&self) -> Option<forge::DemoState> {
         self.forge.demo_state()
     }
+    /// The connector's durable playground row (draft playground-reset.md, 6.1, 6.2).
+    #[must_use]
+    pub fn playground(&self) -> Option<&forge::Playground> {
+        self.forge.playground()
+    }
     /// Restored provider ids for the setup host's start-time reconcile.
     #[must_use]
     pub fn adopted_ids(&self, forge: u16) -> Box<[u64]> {

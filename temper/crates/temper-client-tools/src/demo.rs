@@ -35,6 +35,7 @@ fn text(answer: &StartAnswer, kept: bool, limits: &Limits, out: &mut Text) {
                 }
                 StartFailure::Account => out.put(b"the account refused"),
                 StartFailure::Adoption => out.put(b"the adoption refused"),
+                StartFailure::Project => out.put(b"the project refused"),
                 StartFailure::NotConnected => out.put(b"the forge not connected in time"),
             }
             out.put(b"\n");
@@ -80,6 +81,7 @@ fn json(answer: &StartAnswer, kept: bool, out: &mut Encoder) {
                 }
                 StartFailure::Account => out.string(b"account"),
                 StartFailure::Adoption => out.string(b"adoption"),
+                StartFailure::Project => out.string(b"project"),
                 StartFailure::NotConnected => out.string(b"not_connected"),
             }
         }

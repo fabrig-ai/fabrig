@@ -448,6 +448,7 @@ pub enum StartFailure {
     Account,
     Adoption,
     NotConnected,
+    Project,
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum StartAnswer {
@@ -499,6 +500,7 @@ pub fn answer(value: &jig_client::Answered, limits: &Limits) -> Option<StartAnsw
             w::StartFailure::Account => StartFailure::Account,
             w::StartFailure::Adoption => StartFailure::Adoption,
             w::StartFailure::NotConnected => StartFailure::NotConnected,
+            w::StartFailure::Project => StartFailure::Project,
         }),
         w::Outcome::Connecting
         | w::Outcome::Link(_)

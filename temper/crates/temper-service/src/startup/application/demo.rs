@@ -123,6 +123,7 @@ pub(super) fn parse(
             landing,
             key_file,
             state: None,
+            playground: None,
         });
     }
     problems.push(path.member(b"forge"), What::Jig(config::What::Refers));
