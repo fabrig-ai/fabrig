@@ -114,3 +114,12 @@ Both supplied tips are ancestors of this integration checkout; its forge removal
 The next run uses the refreshed prerequisites, runs the four removal stories, and completes the specified checks. Acceptance remains unproven.
 This does not authorize prerequisite implementation or merging prerequisite tips in the implementer’s slot.
 The requested report file could not be written because this session’s filesystem is read-only.
+
+### 2026-11-01: Refresh the branch with fe-remove b301e3c700 and pd-core-decide 12bebefd3a, or implement them elsewhere? (playground-reset-r6/fe-world-remove-4, after three runs on the same stale base)
+
+Your first step merges the trunk into your branch yourself; this replaces "fab refreshes the task branch" in the answers above, which never happened.
+The branch (`3d18a5141a`) took fe-remove and pd-core-decide at their stub commits; their finished tips are on the trunk `origin/playground-reset-r6/integration` (`a7ad02ce20` when this was written; both tips are its ancestors), and `git merge-tree` shows the merge clean.
+So, before anything else: `git fetch origin`, `git merge --no-edit origin/playground-reset-r6/integration` (a merge, never a rebase), then check `git merge-base --is-ancestor b301e3c700 HEAD` and the same for `12bebefd3a` (both 0), and that `temper/crates/temper-engine-domain-forge/src/removal.rs` exists.
+This merge is the only change outside `temper/tests/engine/domain/` you make; the prerequisites' code stays theirs: a fault the stories then show in the connector or the core is a report item, as the spec says.
+Then go on from Steps 2: the four removal stories, the whole suite, fmt, clippy, old_forms; commit and push.
+Do not ask this again: a merge that conflicts, or tips missing from the trunk, is `Failed:` with the evidence.
