@@ -1594,3 +1594,6 @@ fn a_gate_repairs_with_its_named_pull_before_its_whole_remarks() {
     assert_eq!(rendered.brief.sections[pull_at].text.as_ref(), pull.as_ref());
     assert_eq!(rendered.brief.sections[reviews_at].text.as_ref(), words.as_ref());
 }
+
+#[path = "reviews/retier.rs"]
+mod retier;

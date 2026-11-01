@@ -1,8 +1,8 @@
 # The workspace's focused, fuzzy, and tier profiles.
 #
 # The focused suite, profile default, is each tree's focused suite: every test
-# but the fuzzy ones and the tiers' binaries (process, live, QA, browser,
-# exhaustive). The fuzzy suite, profile fuzzy,
+# but the fuzzy ones and the tiers' binaries (process, live, browser).
+# The fuzzy suite, profile fuzzy,
 # is each tree's fuzzy suite: the `fuzzy` module
 # of a package's `suite` binary. Each tree's filter is its own, restricted to the
 # packages under its directory (cargo metadata), joined with |.
@@ -18,7 +18,7 @@
 #
 # The tier profiles are browser-skein, live-skein; live-smith; live-jig,
 # browser-jig; and
-# process-temper, live-temper, qa-temper, browser-temper. Each keeps its tree's
+# process-temper, live-temper, browser-temper. Each keeps its tree's
 # own budget.
 #
 # Each tree's budget was 30 s focused and 120 s fuzzy, doubled provisionally
@@ -50,7 +50,7 @@ default-filter = """
   (package(/^temper(-|$)/) | package(=git-transcripts))
   & not test(/^tests::sign_in::fuzzy_/) & not (kind(test) & test(/^fuzzy::/))
   & not binary(/^(process|live|live_github)$/)
-  & not binary(/^qa_/) & not test(/::qa_/) & not binary(/^browser_/)
+  & not binary(/^browser_/)
 ) | package(=fabrig-boundary)
 """
 global-timeout = "120s"
@@ -92,7 +92,7 @@ default-filter = """
 ) | (
   (package(/^temper(-|$)/) | package(=git-transcripts))
   & ((kind(test) & test(/^fuzzy::/)) | (package(=temper-service) & test(/^tests::sign_in::fuzzy_/)))
-  & not binary(/^(process|live|live_github)$/) & not binary(/^qa_/)
+  & not binary(/^(process|live|live_github)$/)
 )
 """
 global-timeout = "480s"
@@ -161,15 +161,6 @@ default-filter = "(binary(=live) | binary(=live_github)) & (package(/^temper(-|$
 global-timeout = "50m"
 test-threads = 1
 retries = 0
-
-[profile.qa-temper]
-default-filter = "(binary(/^qa_/) | test(/::qa_/)) & (package(/^temper(-|$)/) | package(=git-transcripts))"
-global-timeout = "20m"
-test-threads = 1
-
-[[profile.qa-temper.overrides]]
-filter = "package(=temper-real-loop-world) & kind(test)"
-test-group = "temper-real-loop"
 
 [profile.browser-temper]
 default-filter = "(package(=temper-client-browser-world) & binary(/^browser_/)) & (package(/^temper(-|$)/) | package(=git-transcripts))"

@@ -555,10 +555,6 @@ pair = "live-temper"
 package = "temper"
 filter = "all()"
 [[fixture.reader]]
-pair = "qa-temper"
-package = "temper"
-filter = "all()"
-[[fixture.reader]]
 pair = "browser-temper"
 package = "temper-client-browser-world"
 filter = "all()"

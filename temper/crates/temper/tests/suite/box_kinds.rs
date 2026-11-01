@@ -1,7 +1,7 @@
 //! A real owned slot driven over the box pipe without serve (temper/docs/design/draft/playground-reset.md, 3 and 4).
 use super::support;
 use skein_io::kernel::{Exit, Fd, ServiceSignal};
-use skein_lib::Time;
+use skein_lib::{Duration, Time};
 use skein_shell::{Delegate, Host};
 use skein_world::{
     Referee,
@@ -40,6 +40,8 @@ impl Referee<BoxProcess> for Judge {
     fn observe(&mut self, now: Time, procs: &[BoxProcess]) {
         if (!self.stopping && self.removed.exists()) || (self.stopping && procs.iter().all(Host::is_empty)) {
             self.wake = Some(now);
+        } else if !self.settled {
+            self.wake = Some(now.saturating_add(Duration::from_millis(10)));
         }
     }
     fn next_deadline(&self) -> Option<Time> {

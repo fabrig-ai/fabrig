@@ -45,7 +45,7 @@ impl Face for ReplyFace<'_> {
     }
 }
 const START_WITHIN: skein_lib::Duration = skein_lib::Duration::from_secs(40);
-// Measured 21 s from Start to landed + one missed slow poll of 40 s = 61 s.
+// The demo uses its configuration's parking and forge-polling intervals.
 const DEMO_LANDS_WITHIN: skein_lib::Duration = skein_lib::Duration::from_secs(122);
 const SIGN_IN_FIRST: skein_lib::Duration = skein_lib::Duration::from_millis(100);
 const SIGN_IN_MOST: skein_lib::Duration = skein_lib::Duration::from_secs(2);
@@ -675,8 +675,7 @@ fn adoption_refusal(tree: &skein_ui::Tree) -> Option<String> {
     Some(reason)
 }
 
-#[test]
-fn a_native_adoption_refusal_names_the_alert_without_a_wait() {
+pub fn a_native_adoption_refusal_names_the_alert_without_a_wait() {
     let (view, _) = temper_client_shell_terminal::limits::view(&temper_client_shell_terminal::limits::native())
         .expect("native view bounds");
     let mut builder = skein_ui::Builder::new(&view.tree);

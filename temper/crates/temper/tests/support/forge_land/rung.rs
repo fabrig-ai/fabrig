@@ -1190,12 +1190,11 @@ fn landing(driver: &mut Driver, chat: &str, goal_text: &str, change: &str) -> Re
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use super::Driver;
     use std::path::Path;
 
-    #[test]
-    fn an_expired_rung_phase_starts_no_further_command() {
+    pub fn an_expired_rung_phase_starts_no_further_command() {
         let scratch = skein_scratch::Scratch::new("rung-expired-phase");
         let mut driver = Driver::owned(scratch.path(), &scratch.path().join("client"));
         driver.arm("the expired rung phase", skein_lib::Duration::ZERO);
@@ -1205,8 +1204,7 @@ mod tests {
         assert!(!scratch.path().join("call-0.out").exists());
     }
 
-    #[test]
-    fn rung_phases_keep_the_request_deadlines_when_selected_again() {
+    pub fn rung_phases_keep_the_request_deadlines_when_selected_again() {
         let mut driver = Driver::owned(Path::new("."), Path::new("client"));
         driver.request();
         assert_eq!(driver.phases.len(), 10);

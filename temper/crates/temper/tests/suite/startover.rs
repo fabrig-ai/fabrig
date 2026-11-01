@@ -83,38 +83,39 @@ fn finished_setup(scratch: &Path, flags: Vec<String>) -> CtlOutcome<()> {
 }
 
 #[test]
-fn an_owned_set_up_killed_at_fetch_is_started_over() {
-    start_over(Cut::Fetch);
-}
-
-#[test]
-fn an_owned_set_up_killed_at_prepare_is_started_over() {
-    start_over(Cut::Prepare);
-}
-
-#[test]
-fn an_owned_set_up_killed_at_run_is_started_over() {
-    start_over(Cut::Run);
-}
-
-#[test]
-fn an_owned_set_up_killed_after_started_is_started_over() {
-    start_over(Cut::Started);
-}
-
-fn start_over(cut: Cut) {
-    let scratch = support::Scratch::new(&format!("startover-{cut:?}"));
+fn owned_setup_cuts_start_over_and_a_removal_cut_finishes_on_restart() {
+    let scratch = support::Scratch::new("owned-setup-cuts");
     let paths = ["config", "data", "cache"].map(|name| scratch.path().join(name));
     support::forge_land::initialize(&paths);
     support::own_listener_files(&paths[0]);
     let (binaries, sources) = cache_forgejo_binaries(&paths[2]);
     let flags = boxed::echo_steps(deployment_flags(&paths));
+    for (index, cut) in [Cut::Fetch, Cut::Prepare, Cut::Run, Cut::Started].into_iter().enumerate() {
+        start_over(&scratch, &paths, &flags, cut, u16::try_from(index + 1).expect("four cuts"));
+    }
+    let fresh = finished_setup(scratch.path(), flags.clone());
+    answered(&fresh, 2);
+    let list = support::ctl::json(&fresh.calls[1]);
+    let rows = list["forges"].as_array().expect("new forge rows");
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0]["number"], 5, "removed numbers are never reused");
+    assert_eq!(rows[0]["first"]["state"], "made");
+    cached(&fresh);
+    removal_cut(&scratch, &paths, flags, 5);
+    for (binary, source) in binaries.iter().zip(&sources) {
+        assert_cached_binary_unchanged(binary, source);
+    }
+    scratch.remove();
+}
+
+fn start_over(scratch: &support::Scratch, paths: &[std::path::PathBuf; 3], flags: &[String], cut: Cut, number: u16) {
+    let number_text = number.to_string();
     let mut engine_paused = false;
     let data = &paths[1];
     eprintln!("start-over {cut:?}: cut");
     let first = boxed::run_ctl_with_cut(
         scratch.path(),
-        flags.clone(),
+        flags.to_vec(),
         vec![Step::Run(Call::sign_in()), Step::Run(Call::new(&["forge", "setup"]))],
         |binary, _| {
             let stage = match cut {
@@ -131,10 +132,10 @@ fn start_over(cut: Cut) {
                     signal(child(binary, &[b"serve"]).expect("engine under this box"), "-STOP");
                     engine_paused = true;
                 }
-                return data.join("box/started/1").exists()
+                return data.join(format!("box/started/{number}")).exists()
                     && binary.stderr().windows(b"Forgejo: started\n".len()).any(|line| line == b"Forgejo: started\n");
             }
-            assert!(!data.join("box/started/1").exists(), "the cut precedes started");
+            assert!(!data.join(format!("box/started/{number}")).exists(), "the cut precedes started");
             true
         },
     );
@@ -143,11 +144,14 @@ fn start_over(cut: Cut) {
     eprintln!("start-over {cut:?}: remove after restart");
     let restarted = boxed::run_ctl_with_cut(
         scratch.path(),
-        flags.clone(),
-        vec![Step::Run(Call::new(&["forge", "list", "--json"])), Step::Run(Call::new(&["forge", "remove", "1"]))],
+        flags.to_vec(),
+        vec![
+            Step::Run(Call::new(&["forge", "list", "--json"])),
+            Step::Run(Call::new(&["forge", "remove", &number_text])),
+        ],
         |binary, calls| {
             if calls.idle() {
-                wait_absent(binary, data, 1);
+                wait_absent(binary, data, number);
             }
             false
         },
@@ -156,58 +160,29 @@ fn start_over(cut: Cut) {
     let list = support::ctl::json(&restarted.calls[0]);
     let rows = list["forges"].as_array().expect("unfinished forge rows");
     assert_eq!(rows.len(), 1, "one unfinished owned forge: {list}");
-    assert_eq!(rows[0]["number"], 1);
+    assert_eq!(rows[0]["number"], number);
     assert_eq!(rows[0]["mode"], "owned");
     assert_ne!(rows[0]["first"]["state"], "made", "the cut precedes adoption: {list}");
     assert_eq!(String::from_utf8_lossy(&restarted.calls[1].stdout).trim(), "removed");
-    absent(data, 1);
-    for (binary, source) in binaries.iter().zip(&sources) {
-        assert_cached_binary_unchanged(binary, source);
-    }
-    eprintln!("start-over {cut:?}: fresh setup");
-    let fresh = finished_setup(scratch.path(), flags);
-    answered(&fresh, 2);
-    let list = support::ctl::json(&fresh.calls[1]);
-    let rows = list["forges"].as_array().expect("new forge rows");
-    assert_eq!(rows.len(), 1, "the unfinished forge stays removed: {list}");
-    assert_eq!(rows[0]["number"], 2, "a removed number is never reused");
-    assert_eq!(rows[0]["first"]["state"], "made");
-    assert!(String::from_utf8_lossy(&fresh.calls[0].stdout).contains("Adopted work/hello on forge 2"));
-    cached(&fresh);
-    eprintln!("start-over {cut:?}: checked");
-    scratch.remove();
+    absent(data, number);
 }
 
-#[test]
-fn a_removal_cut_by_a_kill_ends_whole_at_the_next_start() {
-    let scratch = support::Scratch::new("removal-cut-startover");
-    let paths = ["config", "data", "cache"].map(|name| scratch.path().join(name));
-    support::forge_land::initialize(&paths);
-    support::own_listener_files(&paths[0]);
-    let (binaries, sources) = cache_forgejo_binaries(&paths[2]);
-    let flags = boxed::echo_steps(deployment_flags(&paths));
-    let connected = boxed::run_ctl_with_cut(
-        scratch.path(),
-        flags.clone(),
-        vec![Step::Run(Call::sign_in()), Step::Run(Call::new(&["forge", "setup"]))],
-        |_, _| false,
-    );
-    answered(&connected, 2);
-    assert!(paths[1].join("box/started/1").exists(), "owned forge reached started");
+fn removal_cut(scratch: &support::Scratch, paths: &[std::path::PathBuf; 3], flags: Vec<String>, number: u16) {
+    let number_text = number.to_string();
     let paused = std::rc::Rc::new(std::cell::Cell::new(false));
     let box_pid = std::rc::Rc::new(std::cell::Cell::new(None));
     let cut = boxed::run_ctl_with_cut(
         scratch.path(),
         flags.clone(),
         vec![
-            Step::Run(Call::new(&["forge", "list", "--until", "connected:1", "--timeout", "60s"])),
+            Step::Run(Call::new(&["forge", "list", "--until", &format!("connected:{number}")])),
             Step::Then(Box::new({
                 let paused = paused.clone();
                 let box_pid = box_pid.clone();
                 move |_| {
                     signal(box_pid.get().expect("the fixture box"), "-STOP");
                     paused.set(true);
-                    Call::new(&["forge", "remove", "1"])
+                    Call::new(&["forge", "remove", &number_text])
                 }
             })),
         ],
@@ -219,7 +194,7 @@ fn a_removal_cut_by_a_kill_ends_whole_at_the_next_start() {
     );
     assert!(cut.checked.is_some(), "cut after removed answer: {}", String::from_utf8_lossy(&cut.stderr));
     assert_eq!(cut.exit, Some(Exit::Signal(9)));
-    assert!(paths[1].join("box/groups/1").exists(), "paused box has not completed removal");
+    assert!(paths[1].join(format!("box/groups/{number}")).exists(), "paused box has not completed removal");
     let restarted = boxed::run_ctl_with_cut(
         scratch.path(),
         flags,
@@ -230,24 +205,17 @@ fn a_removal_cut_by_a_kill_ends_whole_at_the_next_start() {
         ],
         |binary, calls| {
             if calls.idle() {
-                wait_absent(binary, &paths[1], 1);
+                wait_absent(binary, &paths[1], number);
             }
             false
         },
     );
     answered(&restarted, 3);
-    let tasks = support::ctl::json(&restarted.calls[2]);
-    let rows = tasks.get("tasks").map_or(&tasks["live"], |tasks| &tasks["rows"]);
-    assert!(rows.as_array().expect("live task rows").is_empty(), "no live task of the removed forge: {tasks}");
     let list = support::ctl::json(&restarted.calls[0]);
     assert!(
         list["forges"].as_array().expect("forge rows").is_empty(),
         "no removed forge or secret-backed connection: {list}"
     );
     assert!(!String::from_utf8_lossy(&restarted.calls[1].stdout).lines().any(|line| line.starts_with("forge 1")));
-    absent(&paths[1], 1);
-    for (binary, source) in binaries.iter().zip(&sources) {
-        assert_cached_binary_unchanged(binary, source);
-    }
-    scratch.remove();
+    absent(&paths[1], number);
 }

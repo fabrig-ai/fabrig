@@ -1767,53 +1767,30 @@ bound itself, whatever the others' fixtures raise.
 
 ### 11.4 The process tier
 
-Settings inventory, a setting, a revision and revision history each have
-one named ctl process story in text and JSON. An owner's change has one
-story: read the current revision, change a charter, read its full value
-and revision back, and refuse a stale request naming the newest revision.
-Running work keeps its revision, one story, the system world's
-(`../domain/testing.md`, 2.1), since none of it needs a process, its
-printed lines 11.1's: a chat whose run, on
-the fake LLM, delegates one task and waits, the delegate parked between
-two runs under revision R, the chat and its delegate the deployment's
-only live agent tasks; an owner's `settings apply` of the delegate's
-charter's instructions makes R+1; `task show` on the delegate prints
-`settings: revision R · newest R+1`, `settings show` counts two live
-tasks on R, and `settings show charter C --revision R` prints the old
-instructions; `revision advance R` answers two moved and none that
-could not; the delegate's next run, woken by a message, reads R+1's
-instructions, as the fake LLM's request shows, and R is no longer held.
-What jig's worlds show of revisions (a restart with R held, a removed
-charter's task finishing on R, the bound reached) is not repeated here.
+Settings inventory, individual values, history, proposals, owner decisions
+and placed holds use the CLI's scripted machine world, client tools' step
+tests and jig's core worlds. Their rendering is 11.1's. Running work
+keeps its revision in `tests/system/tests/suite/running_revision.rs`
+(`../domain/testing.md`, 2.1): two parked chats retain R after an owner's
+instruction change makes R+1; the owner's advance moves both, and smith's
+next requests read R+1's instructions. Jig's worlds cover a restart with
+R held, a removed charter and revision bounds.
 
-`temper serve` and `temper ctl` as processes over skein's fake LLM peer
-(`../domain/testing.md`, 2.6), on a scratch directory of their own, for
-what needs the executable: argv through `main`, printed output, the OS's
-exit statuses, the printed link read on stdin (`sign-in -`), the
-deployment's credential (its key added from a private file as the first act,
-section 10, and a key's file refused when it is not private, as a
-forge's pasted value's file is), an act
-cut by a termination signal, its status 128 plus the signal's number
-(8.2), then asked again under its key, made once, and agent process
-launch; an account moved between two deployments (below). Under
-`temper box`, `forge setup` of the default document's forge 3 and
-`forge list --until settled` against the real Forgejo and runner
-(`../domain/testing.md`, 2.6). One landing on the owned Forgejo proves
-a change against real git and CI (`../domain/testing.md`, 2.6). The
-lock, DIRECTORY's files and a call's exit are the real loop's (11.3).
+The focused suite has one short path through the shipped binary on fakes
+(`../domain/testing.md`, 2.6). Other process stories add only the OS's
+boundary: a ctl act cut by a termination signal, its status 128 plus the
+signal number and its keyed replay; process-tree supervision and a real
+binary restart. An interrupted account export reuses a minimal imported
+account on a fake issuer, then restarts and reads it usable. The CLI's
+`moves` machine tests own private FILE checks, write synchronization,
+lost replies and kept retries; jig's account worlds own move deadlines
+and restore decisions.
 
-**An account moved,** one story (5.5, area 5): two `temper serve`
-processes, deployments A and B on directories of their own, and one
-fake issuer. A person signs in to A with the LLM provider through
-`account connect`, the fake browser approving; `account export ACCOUNT
-FILE` exits 0 and A's `account list` no longer has the account; the
-owner of B, signed in to B by its printed link, runs `account import
-FILE --key NAME`, which prints the account and exits 0, FILE gone; B,
-stopped and started again on its directories, holds the account, and a
-grant is lent on it after its one refresh at the issuer; the issuer
-refuses the refresh token FILE held.
-What jig's worlds show of the move (a late *written*, a restart while
-moving, the refusals' decisions) is not repeated here.
+The owned-Forgejo stories (`../domain/testing.md`, 2.6) share setup where
+one adds a variant: a real turn gate cancelled and retried across restart;
+a first CSV change whose failed CI output reaches its repair, followed by
+a blocking review, landing and a restart that finds it. The lock,
+DIRECTORY's files and a call's exit are the real loop's (11.3).
 
 ### 11.5 The agents' help
 

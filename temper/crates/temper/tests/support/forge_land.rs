@@ -285,7 +285,7 @@ impl Reply {
                     expected_exits.push((calls.ends().len() + 3, 2));
                     for args in [
                         &["chat", "close", "1", "--key", "close-plan", "--json"][..],
-                        &["task", "show", "1", "--until", "ended", "--timeout", "60s", "--json"],
+                        &["task", "show", "1", "--until", "ended", "--json"],
                         &["task", "list", "--project", FIRST_PROJECT, "--json"],
                         &["task", "show", "5", "--json"],
                     ] {
@@ -314,8 +314,6 @@ impl Reply {
                 "replied",
                 "--since",
                 self.snapshot.as_deref().expect("snapshot before conversation"),
-                "--timeout",
-                "120s",
                 "--json",
             ])));
             calls.push(Step::Run(Call::new(&["task", "show", "1", "--json"])));
@@ -482,13 +480,13 @@ pub fn plan_change_steps(
     setup_calls: usize,
     words: &str,
 ) -> (usize, usize) {
-    change_steps(steps, first, setup_calls, words, "120s", Ends::Landed)
+    change_steps(steps, first, setup_calls, words, Ends::Landed)
 }
 
 /// The first box's steps when its coder fails: the change holds, and the chat,
 /// woken by the held change's escalation, answers.
 pub fn held_change_steps(steps: &mut Vec<super::ctl::Step>, setup_calls: usize, words: &str) -> (usize, usize) {
-    change_steps(steps, true, setup_calls, words, "120s", Ends::Held)
+    change_steps(steps, true, setup_calls, words, Ends::Held)
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -502,7 +500,6 @@ fn change_steps(
     first: bool,
     setup_calls: usize,
     words: &str,
-    within: &str,
     ends: Ends,
 ) -> (usize, usize) {
     use super::ctl::{Call, Step};
@@ -532,7 +529,7 @@ fn change_steps(
     if first {
         // Chat creation answers before its delegate exists. As in the
         // first-repository story, wait for the chat's initial reply first.
-        steps.push(Step::Run(Call::new(&["task", "show", "1", "--until", "replied", "--timeout", within, "--json"])));
+        steps.push(Step::Run(Call::new(&["task", "show", "1", "--until", "replied", "--json"])));
     }
     let found_at = account_at + 1 + 2 * usize::from(first);
     steps.extend(match ends {
@@ -540,7 +537,7 @@ fn change_steps(
         // The box's referee then waits for the chat's HELD reply to the
         // escalation; a chat refused before each run never gives it.
         Ends::Held => vec![
-            Step::Run(Call::new(&["task", "show", "2", "--until", "held", "--timeout", within, "--json"])),
+            Step::Run(Call::new(&["task", "show", "2", "--until", "held", "--json"])),
             Step::Run(Call::new(&["task", "show", "2", "--json"])),
         ],
     });
@@ -602,7 +599,7 @@ pub fn forgejo_setup_steps(run: &str) -> Vec<super::ctl::Step> {
     // Real preparation, hashing two releases, runner registration and reconcile
     // take seconds; allow three minutes, plus ten seconds to stop and reap.
     steps.extend([
-        Step::Run(Call::new(&["forge", "list", "--until", "settled", "--timeout", "180s"])),
+        Step::Run(Call::new(&["forge", "list", "--until", "settled"])),
         Step::Run(Call::new(&["forge", "list", "--json"])),
         Step::Run(Call::new(&["forge", "list"])),
     ]);

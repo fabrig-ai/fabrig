@@ -241,9 +241,9 @@ fn life(root: &Path, restarted: bool) {
             "elsewhere-connect",
             "--json",
         ])));
-        steps.push(ctl::Step::Run(ctl::Call::new(&["forge", "list", "--until", "made:1", "--timeout", "60s"])));
+        steps.push(ctl::Step::Run(ctl::Call::new(&["forge", "list", "--until", "made:1"])));
     }
-    steps.push(ctl::Step::Run(ctl::Call::new(&["forge", "list", "--until", "connected:1", "--timeout", "30s"])));
+    steps.push(ctl::Step::Run(ctl::Call::new(&["forge", "list", "--until", "connected:1"])));
     steps.push(ctl::Step::Run(ctl::Call::new(&["forge", "list", "--json"])));
     let mut world = real::World::new(Judge {
         root: root.into(),
@@ -367,7 +367,7 @@ impl Referee<Process> for Judge {
                         "--key",
                         "elsewhere-model",
                     ]),
-                    ctl::Call::new(&["account", "list", "--until", "usable", "--timeout", "10s"]),
+                    ctl::Call::new(&["account", "list", "--until", "usable"]),
                     ctl::Call::new(&[
                         "chat",
                         "start",
@@ -378,8 +378,8 @@ impl Referee<Process> for Judge {
                         "@elsewhere-chat Land a README change in elsewhere/first",
                         "--json",
                     ]),
-                    ctl::Call::new(&["task", "show", "1", "--until", "replied", "--timeout", "120s", "--json"]),
-                    ctl::Call::new(&["task", "show", "2", "--until", "ended", "--timeout", "120s", "--json"]),
+                    ctl::Call::new(&["task", "show", "1", "--until", "replied", "--json"]),
+                    ctl::Call::new(&["task", "show", "2", "--until", "ended", "--json"]),
                     ctl::Call::new(&["task", "show", "2"]),
                 ] {
                     calls.push(ctl::Step::Run(call));

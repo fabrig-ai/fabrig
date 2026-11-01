@@ -51,13 +51,15 @@ pub fn configuration(directory: &Path, names: &Names<'_>) {
 }
 #[must_use]
 pub fn prepare(directory: &Path, forge: u16) -> Output {
-    Command::new(skein_scratch::paths::binary("temper"))
-        .args(["forge", "prepare"])
-        .args(super::configuration::flags(directory))
-        .arg(forge.to_string())
-        .current_dir(directory)
-        .output()
-        .expect("temper forge prepare")
+    super::story_command::standalone(
+        Command::new(skein_scratch::paths::binary("temper"))
+            .args(["forge", "prepare"])
+            .args(super::configuration::flags(directory))
+            .arg(forge.to_string())
+            .current_dir(directory),
+        "the owned forge's preparation",
+        super::boxed::BOX_DEADLINE,
+    )
 }
 #[must_use]
 pub fn files(directory: &Path) -> Vec<PathBuf> {

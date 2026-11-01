@@ -20,11 +20,6 @@ cpu_suite_s = 85
 cpu_test_s = 60
 wall_hard_s = 300
 
-[qa-temper]
-cpu_suite_s = 455
-cpu_test_s = 60
-wall_hard_s = 1365
-
 [process-temper]
 cpu_suite_s = 360
 cpu_test_s = 60

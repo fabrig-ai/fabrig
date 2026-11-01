@@ -73,12 +73,12 @@ and what is still open (section 10).
 Every child domain has a world of its own but the engine's rules, which
 keep no state and are tested by their step tests alone: a departure from
 testing-strategy.md, 2.2, since with no state there is no sequence for a
-world to drive. The process tier departs from the strategy's end to end
-(testing-strategy.md, 2.9) twice: its forge is an owned Forgejo with its
-runner, never a fake, since temper provisions and runs it, but in a
-first run's story and the cluster's, whose forge is temper's fake forge
-as a process; and it runs outside both suites, by its script, since
-starting Forgejo takes longer than a suite's budget.
+world to drive. The focused suite has one short path through the shipped binary on fakes
+(2.6). The process profile runs owned Forgejo stories outside both suites,
+since provisioning Forgejo exceeds a suite's budget. Its other stories
+need OS process boundaries: a real signal, a process tree, cgroup
+supervision, or a binary interrupted during account transfer. These are
+explicit process-profile exceptions; their domain behaviour stays below.
 
 The tiers in the two suites keep the budgets of 6.1; the process and the
 live tiers, outside them, keep their own (2.6, 2.7). The browser tier,
@@ -95,30 +95,12 @@ directory, never in a suite or at the gate. The user's own token is never used.
 The fake-backend welcome's configuration and issuer contracts are tested
 at their lowest owning layer (../protocol/configuration.md, 12.1;
 ../protocol/setup.md, 7.5): CLI and filesystem preparation in temper's unit
-tests, bounded document rewriting and issuer plans in temper-fake, and
-actual child configuration reads in the existing process tier. A new
-process module proves a fresh effective box, retained restart, standalone
-issuer sign-in through the shipped registration and a first fake-model
-reply. It keeps private fixtures, the existing fetch stub and ordinary
-teardown; no test contacts a real account or downloads Forgejo. The managed elsewhere entry's fourth stable forge id and admin-token
-naming are checked at the lowest setup/configuration layer. Missing or
-unsafe required peer documents and program sidecars have named refusal
-coverage; compatible retained edits remain untouched. Browser coverage is
-only for the uninterrupted navigation chain, not document rewrites or
-OAuth bytes. The walk's token file is private and its contents are never
-captured in readiness output or browser/QA evidence. Tests stay in their tiers. A/B evidence reports
-summed test execution by world and the new process stories against their
-two-second aim, excluding compilation, queue and gate elapsed time.
-
-Each welcome path has a process story on the fake box
-(`crates/temper/tests/fake_backends/walk.rs`): a fresh box driven through
-`ctl` with the acts the welcome's buttons send, and a visitor that follows
-an address an act prints through redirects and the manifest form, as the
-person's tab would. Each story pairs one new path with one already
-proved, so that a failure names one thing, and ends with the forge's
-first repository adopted, the account usable and the first chat's reply
-committed; a program's story ends at Ready, since a program takes no
-chat yet. Browser walks use QA's process (../qa.md); the lab was retired.
+tests, document rewriting and issuer plans in temper-fake, and welcome
+acts in the client and setup worlds. Compatible retained edits remain
+untouched; a changed source requires explicit reset. The focused binary
+wiring proof is `suite::wiring::a_scratch_binary_answers_one_chat_and_drains`.
+The owned welcome walk combines its key and declared-program variants on
+one owned Forgejo. It keeps private fixtures and ordinary teardown.
 
 ### 2.1 System worlds
 
@@ -838,6 +820,45 @@ terminal client, the captures and the faults.
   is added here only where its Musts depend on processes. A variant
   grows an existing story, never a copy of its setup.
 
+- **Focused wiring,** one short test in the ordinary `suite` binary:
+  a shipped `temper serve` on a scratch configuration signs in a native
+  client, answers one chat through the fake model, drains, and exits 0.
+  It does not replay a whole first-run, welcome, settings or account story.
+  The shared harness's 22 step checks are registered only by this binary.
+
+- **Lower worlds own the behaviours.** Settings proposals and placed
+  holds are jig's core and temper's client-tool tests; two parked tasks
+  keeping revision R until the owner's advance is `tests/system`'s
+  `running_revision`. Held reviewers' readable budget and owner holds
+  survive cold restart in the engine domain's `reviews::retier` table;
+  the pre-call reviewer has attempt zero before and after that restart.
+  Producer failure and the chat's explanation are `producer_failure`'s;
+  task-exhaustion review holds are `reviews`'s. Long questions and closed
+  conversations use the client world's cut-question and open-chat stories,
+  with the whole goal question and landing in the real-loop fuzzy twin.
+  File moves, interrupted writes and lost replies use the CLI machine
+  world's `moves` tests; HTTP routes, listener refusal and handover-file
+  bounds use the service and host's step tests. The `temper` package has
+  no QA binary or QA-named test group.
+
+- **Account transfer interrupted by a signal,** one short process story:
+  import an account on a fake issuer, interrupt an export while its write
+  is pending, stop and restart the binary, and read it usable. It needs
+  the OS signal and real binary restart, so remains in this profile;
+  the restore and file-handshake decisions are the lower worlds'. It
+  needs no Forgejo, change, CI or reviewer.
+
+- **Owned variants share their setup.** Runner cancellation contains the
+  main-advanced and mid-proof/restarted turn-landing checks. The owned
+  welcome includes program login and key admission. One setup-cut story
+  walks fetch, preparation, run and started cuts using one scratch and
+  cache, makes one final setup, then restarts across its removal cut.
+  The slot-host story still belongs here: its loop starts the shipped
+  owned-slot subprocess and real Forgejo. Its referee polls the marker
+  promptly instead of waiting for the fixture shell's 30-second sleep.
+  The plan-face landing remains separate as the offline proof of the
+  shared live driver's model face (2.7).
+
 - **The upgrade's commands,** through the real binary, whose patch sets
   are empty until the first release: `temper versions`' lines;
   `temper upgrade --check` over a stopped deployment's copy, saying the
@@ -904,42 +925,20 @@ terminal client, the captures and the faults.
   board and its plan on its page, and finds the same after the restart.
   The forge's state is the story's proof of the change, read through
   Forgejo's API.
-- **The first owner's deployment accounts,** a separate smoke on the
-  fake-issuer sign-in configuration: the configured first owner signs in
-  by the printed link, sees "Deployment accounts", adds an API key with
-  "Use deployment accounts", and sees its deployment-held account there.
-  It runs in under five seconds, without an LLM call or a real account.
-- **ChatGPT's sign-in from the welcome,** on the same fake-issuer
-  configuration: the person, its root a browser's (`../client/README.md`,
-  3.5, The tab's departure) over jig's native transport, opens the
-  welcome's Model step and presses "Continue with ChatGPT"; its root's
-  `Leave` names the issuer's address, which a visitor follows through
-  the issuer's redirect to the engine's listener, whose `303` names the
-  clients' origin and `/welcome?at=ready`; the person opens a client at
-  that address, and Ready names the account. `temper serve` then stops
-  and starts again on the same directory, and the accounts page shows
-  the account signed in. Without an LLM call or a real account. A
-  sign-in pending across a restart is not here: its return is never
-  kept, and skein's listener tier shows a sign-in started again with
-  none answered by the fixed page (skein's `oauth.md`, 6.5). The
-  browser's root over the native transport is the tier's alone:
-  `temper-client-shell-terminal`'s `NativeClient::departing`, behind
-  its `browser-root` feature, which only `crates/temper`'s
-  dev-dependencies turn on, so that the shipped `temper` has no such
-  root. The terminal's own root signs in from a page as the browser's
-  does up to its link, which the joint world shows; the tier's
-  fixed page is the ctl sign-in's.
+  This same story raises the keep's polling intervals and the change's
+  stall past its patience, with a slow CI job, so it also proves that
+  deliveries carry the job's end (../protocol/setup.md, 13.4).
+
 - **The build it runs in.** The tier runs the binary its build made,
   with or without its browser (`TEMPER_BUNDLE`; ../client/browser.md,
   2.6), and passes in both: where a start with `clients.bundle` `null`
   shows the browser (init's line for no browser, the page at `/`), the
   test expects what the binary holds, as `temper::bundle::OWN` says,
   never one build's answer alone.
-- **Its endings.** The crash is the tier's one deliberate kill. It
+- **Its endings.** The landing story's crash
   proves what a crash of every process keeps on disk, the page cache
   surviving it, not what a power loss does, which the one-process world
-  draws (2.5). Every other end of `temper serve`, after the restart and
-  in every other test of the tier, is a deployment's healthy stop
+  draws (2.5). Every end outside a named crash, cancellation or setup cut, is a deployment's healthy stop
   (skein's `shell.md`, 13): the test sends `Terminate`, the engine
   drains (`root.md`, 9.2), the service closes what it started, and the
   binary exits 0 with none of its tree running. A process left at that
@@ -957,92 +956,22 @@ terminal client, the captures and the faults.
   by `SIGINT` or `SIGTERM` sends nothing more, prints nothing more,
   leaves DIRECTORY's kept requests as they are, and exits 130 or 143
   (../client/tools.md, 8.2).
-- **A sign-in kept,** on a scratch directory of its own, over three
-  starts of `temper serve`, each printing a fresh link: `temper ctl
-  DIRECTORY sign-in -` with each start's link keeps the first's token,
-  byte for byte, and every sign-in passes in a pool the configuration
-  makes two (`people.sign_ins`; ../client/README.md, section 7; jig's
-  `domain/people.md`, section 3). The browser's cookie on the link route
-  is proved in jig, by the mapping's step tests and the clients'
-  component's world (jig's `protocol/client.md`, section 14).
-- **A full pool says so,** in one start of `temper serve`, so that each
-  client DIRECTORY's address stays the engine's, with five DIRECTORYs,
-  each a person's own, and the pool of two: two sign-ins fill it, each
-  later link drawn by a refused one; a third, by `ctl sign-in -` and by
-  `temper open`, exits 1 with the full line, its T the earliest
-  sign-in's expiry and its U the link's, each to the second, and writes
-  no token; one signs out,
-  and the same link signs the third in; a fourth link, full again, its T
-  the next sign-in's; another signs out, and the same `temper open`
-  signs in and prints the inbox (../client/README.md, 6.7; ../client/
-  tools.md, 8.1). The browser's words for full and busy are the view's
-  and the web host's step tests', and its retry, the printed link
-  opened again, is jig's browser story of a spent link sent again.
-- **The server's guards,** a third test, against `temper serve`'s
-  clients' listener: jig's one attack story that needs no browser, a
-  rebound Host (jig's `protocol/browser.md`, section 15): a request
-  naming a host off the list is answered `421`, and nothing it asked is
-  made. The cross-site request and the framed page need a browser: they
-  are the browser tier's (../client/browser.md, section 4).
-- **The hinted story,** a fourth test (../protocol/setup.md, 13.4): the
-  story with the keep's `poll`, `poll_max` and `slow` and the change's
-  `stall` raised past the story's budget (../protocol/configuration.md,
-  section 7), and its CI's job outlasting `settle`, so that it lands
-  within its budget only if its job's end is delivered
-  (../protocol/setup.md, section 10, "Checked").
 - **`temper box`,** a fifth test, on a scratch directory of its own
   (../protocol/setup.md, 13.4): `temper box` on the owned example prints the
   sign-in link on its stdout; Forgejo killed is restarted by the box, with
   the engine still serving; a stop leaves no process the box started.
-- **A Forgejo set up from the client,** a test of its own
-  (../protocol/setup.md, 13.4, "A first run set up for real"): `temper
-  box` on three empty scratch directories, forge 3's binaries placed
-  where its fetch looks, then `temper ctl DIRECTORY forge setup 3` and
-  `forge list --until settled`, the box's group run on the real Forgejo
-  and runner; forge 3's row goes through "Setting up" and "Connecting"
-  to "Connected as temper", with no restart, its first repository
-  `work/hello` made and adopted into project 2. The owner's first task
-  there, on the fake LLM, is cloned by its worker, its pull's run of the
-  starter workflow passes on the owned runner, and it lands, all read
-  through temper's own reads, with no credential. The handover file is gone,
-  and forge 3's directory holds no `api_token`, `git_token`, `user` or
-  `webhook_secret` file. A second box on the same directories starts the
-  group by its record; preparation makes a new handover, and serve takes
-  it over, connects forge 3 from its records and finds the task landed. Plaintext throughout:
-  no TLS and no call off the machine.
-- **The first run whole,** a test of its own (../protocol/setup.md,
-  13.4, "The first run whole"): one box, with no restart, plays the
-  playground's chat, then sets a Forgejo up from the client; its
-  connect ends the playground at runtime, and the owner's first task
-  lands on `work/hello`.
-- **A first run,** a test of its own (../protocol/setup.md, 13.4):
-  `temper box` on three empty scratch directories writes the
-  configuration (../protocol/setup.md, 8.2), says so on stderr, and
-  prints a sign-in link that signs the owner in; the demo's suggested
-  change, sent to the project's chat, is delegated, pushed by `temper
-  fake git`, checked and landed into the fake's `main` on the demo
-  model, and the chat says so, its card for the change reading it
-  landed (../protocol/setup.md, 8.4 and 13.4; ../client/README.md, 5.7).
-  The test reads the one hook on `playground/widget` at the box's webhooks'
-  listener with the handover's token and prints each box run's time,
-  asserting no time. A delivery's acceptance is shown by
-  `tests/real-loop/tests/suite/forge.rs`'s
-  `a_forge_delivery_is_accepted_by_the_engines_listener`; its secret's
-  matching is checked by the step tests. The demo's scripts are data,
-  checked in `temper-init`'s step tests; this test alone plays them end
-  to end.
-- **`temper program-login`,** a sixth test, on a scratch directory of
-  its own (../protocol/credentials.md, section 3): on the owned example
-  with Claude Code's path at smith's fake `claude`, `temper
-  program-login live`, given the test's three directories, makes the
-  programs directory and `live` in it, each `0o700`, and replaces
-  itself with the fake's `auth
-  login`, which observes `CLAUDE_CONFIG_DIR` at that directory and none
-  of the program's credential variables, and writes its login there;
-  the command's exit status is the fake's. A name out of bounds, and a
-  programs directory readable by another user, are each refused, exit
-  1, with nothing made. A deployment started after it, its program
-  source declared as `live`, finds the source signed in.
+- **The first owned repository,** one story on a fresh `temper box`:
+  setup makes and adopts `work/hello`; the owner's CSV task pushes a
+  change with real git. The owned runner first fails because the release
+  note is absent. Its output reaches the repair's brief; the repair adds
+  that note, CI passes at the repaired head, and a blocking agent review
+  approves that same head before landing. A second box finds the same
+  task, head and merge without replaying setup or making another task.
+  Its fresh admin handover is consumed and revokes an independent older
+  admin oracle. No credential is borrowed or printed. The fixture sets
+  the stock charters' parking intervals to one millisecond: parking time
+  is tested with simulated clocks, not by sleeping through it here.
+
 - **Forgejo signing in through temper,** a test of its own at the end of
   `crates/temper/tests/process.rs`, on `support/forgejo_sign_in.rs`
   (../protocol/sign-in.md, 9.8): an owned Forgejo prepared by temper's
@@ -1087,50 +1016,7 @@ terminal client, the captures and the faults.
   in jig's secrets' store, and the admin's token the preparation's
   handover, `admin_token`, which the setup host takes once
   (../protocol/setup.md, sections 3 and 9).
-- **ChatGPT's sign-in,** three tests of their own
-  (`crates/temper/tests/support/sign_in.rs`;
-  ../protocol/credentials.md, section 3), on skein's fake issuer and the
-  fake LLM peer, with the sign-in's terms as `temper init` writes them
-  (../protocol/setup.md, 8.1), only its addresses swapped for the
-  fakes', plaintext, and the redirect's port the kernel's. The issuer's
-  access token is as long as a real plan's, 4,096 bytes shaped as a
-  JWT, so the bounds it crosses (the accounts' table, the grant, the
-  model's request head) are a real one's; the fake LLM peer's request
-  head takes it. The peer's replies carry a Content-Type where a plan's
-  route sends none: skein-llm's own world holds that its client takes a
-  reply without one (skein's `tests/llm`, `stream_head.rs`), and no
-  layer above skein-llm sees the header:
-  - *signed in, a chat that lasts:* `temper ctl account connect 1` prints
-    the sign-in's address and the accounts page, a native person's view,
-    shows the sign-in under way; the test drives the redirect as a
-    browser would; the page then shows the person's account, "ChatGPT ·
-    DISPLAY · OpenAI", a plan, its source ready. A chat on gpt-6-luna
-    is answered on it by text alone, with no `finish` call, as a plan's
-    model answers a chat: the reply commits once and the chat parks
-    (`agent.md`, 4.6). The person's next words wake it, and the
-    peer's second answer carries a reasoning item at the model's
-    allowance, so its turn passes jig's small profile's 64 KiB and
-    stays within the bounds the document derives from smith's largest
-    turn (../protocol/configuration.md, section 7): it commits once and
-    the chat parks again. The person reads the conversation page by
-    page, the long turn decoded whole. Close cancels the chat with the
-    chat template's grace (jig's `shapes::close_chat`): one closing
-    turn, and the task ends cancelled by its person, with no result.
-    The peer has seen three requests, one for each of the person's
-    words and the closing turn's, each answered, and the chat holds two
-    replies, each once: no retry and no second reply. The peer
-    observes a bearer, the grant's scheme, never its value;
-  - *past its allowance:* the peer's reasoning item one byte past the
-    model's allowance holds the chat at once, after one request, with
-    the reason the tools' JSON names, the bound and its configured
-    value (`worker.md`, 4.3); the person's release allows one
-    more request, whose answer holds the chat again;
-  - *stopped while signing:* the binary, told to stop with a sign-in
-    under way, ends at once with exit 0, well before the sign-in's
-    deadline, its client answered (jig's `domain/accounts.md`, section
-    5: the accounts' close cancels each sign-in under way).
-- **A person's change on the owned forge, signed in with ChatGPT,** a
-  test of its own (`crates/temper/tests/support/forge_land.rs`): "A
+- **A person's change on the owned forge, signed in with ChatGPT,** the offline proof of the live driver (`crates/temper/tests/support/forge_land.rs`): "A
   Forgejo set up from the client" (above), its set-up, first repository
   and landing reused, carried on with ChatGPT's sign-in as above, a
   chat on the plan, and a restart from a fresh client. The module writes
@@ -1140,11 +1026,11 @@ terminal client, the captures and the faults.
   - *the box and its forge:* `temper init` into three empty private
     directories, the sign-in's and the LLM endpoint's addresses swapped
     for the fakes', then `temper box` on them, which reads that
-    document; forge 3 set up from the client and `work/hello` made and
-    adopted into project 1, by that story's steps;
+    document; the owned forge set up from the client and `work/hello` made and
+    adopted into project 2, by that story's steps;
   - *the change:* the owner connects ChatGPT (`account connect 1`,
     `account list --until settled`) and opens a chat on gpt-6-luna in
-    project 1 asking for one README line, unique to the run. The
+    project 2 asking for one README line, unique to the run. The
     chat's agent calls `change`, naming `work/hello`, and the root
     delegates the change procedure on it (agent.md, 4.3.1; forge.md,
     section 8); the coder edits on the plan's grant, its
@@ -1166,18 +1052,6 @@ terminal client, the captures and the faults.
     the forge's own state is checked as that story checks it. The
     peer's requests number the script's, each answered, the closing
     turn's included.
-- **`temper program-login`,** in two stories of their own, each within ten
-  seconds (five seconds before the user's doubling of 10-22, provisional)
-  and with no engine, service or deployment secret: it execs smith's fake
-  `claude`, which signs the source in; and the fake's refusal exits with the
-  fake's status, while an exec that fails exits 1 with one final `temper
-  program-login:` line, which only smith's secret-free `smith: ` diagnostics
-  may precede (../protocol/credentials.md, section 3). The fake is smith's
-  `smith_fake_claude::main()` at temper's pin, built as
-  `tools/fake-claude`'s `fake-claude` binary and named by the absolute path
-  in `TEMPER_TEST_CLAUDE`. The argument checks, the directories checked at
-  each name and made private, and the command's arguments and environment
-  before the exec are the shell's lower tests.
 - **The cluster,** its own tests (../protocol/README.md, 15.6), on
   temper's fakes as processes, never on Forgejo: `crates/temper/tests/fixtures/cluster/`, the
   process tier's cluster fixture (../protocol/README.md, 15.5), read
@@ -1192,222 +1066,13 @@ terminal client, the captures and the faults.
   the fake forge's API, once it joins: ../protocol/README.md, 15.5), and
   no process of the cluster outliving it. Without delegated cgroups the cluster's tests
   fail at their start, saying why (section 10).
-- **The reference case on the cluster** (5.3), stories of the cluster's
-  own, each a step of the case run as the real loop runs it, on the
-  case's library unchanged, by `crates/temper/tests/support/case.rs`:
-  - **What runs:** `crates/temper/tests/fixtures/cluster/`'s members (../protocol/README.md,
-    15.5): the fake forge serving kit, the case's repository, at its
-    `id` with its `tree` (4.2), and one inert repository (below); the
-    fake LLM playing the step's scripts (`case/scripts.rs`), written
-    into its document once the
-    forge's address is known, its queries recorded (4.1); the engine
-    alone; and the case's workers alone, named as the case names them,
-    ws, s1 and s2 once a step adds it, one slot each. s2 is the fixture's
-    second worker's description copied under its own name, with its own
-    directories and link secret, prepared with the others and started
-    by the step's act. A step's cast is the fewest workers its Musts
-    need: ws, s1 and s2 for 4.1, 4.3 and 4.6, whose Musts are where
-    runs go and how they move; ws alone for 4.4 and 4.5, whose Musts
-    are the deployment's accounts, their order and their states, which
-    no worker holds: a worker's own sources (s2's switch, its sign-in)
-    are undesigned (5.3), so a second worker would show nothing more,
-    and ws's one slot keeps the real loop's order, the step's agents
-    taking it in turn as on the standalone service's one worker. The
-    forge runs in every step, kit unread in 4.4 and 4.5, so that the
-    case's fixture and its accounts' numbers are the same in each. The
-    case's
-    fixture (`case.rs`) is applied once to the cluster's documents, as
-    the real loop's cluster applies it to its own: to the engine's
-    document and one worker's together, then split into the engine's
-    and each worker's; the cluster fixture's base is brought first to the real
-    loop's where the two differ (the chat charter's wait, its ending
-    and its text), and its charters are the case's alone, so that a
-    charter the cluster fixture adds never meets one the fixture adds, in one
-    place that names them.
-  - **The forge, reached as a Forgejo,** as serve reaches a fake one:
-    the case's run makes the engine's forge 1 the fake's records-only
-    setup entry (../protocol/setup.md, 6.5 and 8.4), at the forge
-    member's address, its handover the token the fake wrote at its
-    document's `admin_token`; serve takes the handover over at its
-    start, reconciles with the webhooks' address it bound, and adopts
-    the setup's repositories. That adoption walks the forge's ids from
-    1, one per repository the setup lists, so the forge seeds kit
-    first, at the id the scripts name, its first commit the draft, and
-    then one inert repository at id 1 that no act names, which goes
-    when adoption takes the forge's own ids. The setup entry and the
-    inert repository are the case's departures from the description's
-    forge, in one function of the harness.
-  - **The person's acts** are the step's (`case/acts.rs`), each a real
-    `temper ctl` call through `support/ctl.rs`, interpreted by one
-    exhaustive match over the acts' steps, so that a step added to the
-    library is a build error here the day it is added; a step no
-    process story runs yet fails its story, naming it. The fake LLM's
-    key is added as the deployment's, and its account waited usable,
-    after the first sign-in and outside the acts' positions, as the
-    real loop provisions it. A second key an act adds (4.4's) is the
-    fake LLM's second accepted credential, the document's first
-    `added_keys` (../protocol/setup.md, 8.4), written by the fake at
-    the path the act names; a script's failing line (4.5's) is the
-    document's `fail`, failing the credential the script names. And
-    after the chat act, outside them too, where
-    the step has more than one worker, the director's chat is waited
-    running once, with its document, since it can end before an act
-    reads it live and its channel names its worker; with ws alone it
-    can only run there. The cluster's steps
-    are the harness's: a worker added is started (`Members::up`) and
-    waited linked; a worker stopped is ended (`Members::stop_one`) and
-    waited ended, its directories kept; a worker started again is
-    restarted (`Members::restart`) on its own three directories and
-    waited linked once more; a wait the acts watch (`Watching`) goes on
-    once its background `temper ctl` call is running: no process
-    shows when that call has its task's document, and none needs to,
-    since `task show TASK --until ended` without `--since` holds on
-    whichever document it receives first, an ended task's being
-    retained, so what it prints doesn't hang on when it subscribed, as
-    the opener's two watches already run without the act; the real
-    loop's world
-    holds the act until its host has the delivery, to keep its hosts
-    in one order. Where a script holds a reply until every worker holds a run
-    (4.3's check, armed on `cluster::PLACED`), the harness releases the
-    hold through the fake LLM's control (4.1) at each of its passes
-    once every started worker has held a run, read from the tasks'
-    documents and their channels' hosts, as the real loop's world
-    releases it at each of its iterations; a release before the reply
-    is held changes nothing, so it is sent again until the acts end,
-    and, since no process shows when the reply is held and the
-    referee's passes follow its processes' events, the referee passes
-    at least every 20 ms while the release is due: the release is
-    idempotent, and the cadence decides only how soon the held reply
-    goes on, never whether a wait is met.
-  - **Its referee:** the step's oracle, unchanged (5.3), over one
-    `Observed` filled from the processes: the documents, `temper
-    ctl`'s JSON by the acts that read them; the commands, the acts'
-    verbs; what each agent was told, from the fake LLM's records; kit,
-    from the fake forge's observations, the checks at each merged
-    head, and main's tree at the last merge, read by the fake git
-    route's `objects` before the forge stops. And the tier's: each act
-    exits 0; where each task ran, from the documents the acts and that
-    read show, a live task's channel, mapped to its worker by one read of
-    `account list`'s `deployment_facts`' `program_hosts` after the acts,
-    each worker having linked once so that the channels are the same
-    links, or, where a step stops a worker and starts it again, one
-    read before its stop and one after its next link, each mapping its
-    own life's channels, and, with ws alone, none: every task can
-    only have run there; no file and no document the harness gives a
-    worker (its `temper.json`, its `agent.json`, its link secret) holds
-    the fake forge's admin token or a token the forge minted, read from
-    those files after the stop, so that the forge's credentials stay
-    the engine's: a git call's credential reaches a worker's git only
-    per call, which no file shows; and, after the stop, from the workers' roots, which only the
-    harness sees: the worker whose workspace holds the change's tree
-    made the change. A task neither shows goes unasserted and its
-    step's row names it, since a task's document drops its channel when
-    it ends and its activity keeps none (jig's `domain/tasks.md`), and
-    the real loop's harness sees it on the worker's wire, in its own
-    process; every process stopped exits 0 and none outlives the
-    story.
-  - **Its stories:**
-    `the_opener_and_the_two_hour_check_run_on_three_workers_as_processes_without_pools_lending_or_host_moves`,
-    4.1 then 4.3, on the real loop's acts for the two, as the real
-    loop runs them, so that the opener runs once: ws and s1 linked
-    before the acts, s2 added by its act once the benchmark is due;
-    the directors' chats on ws, the design's change made on s1, B on
-    s1 and the benchmark on s2, by the acts' reads and the workers'
-    roots.
-    `a_restarted_workstation_keeps_the_directors_question_and_answers_it_once_as_processes_without_a_hang_past_the_grace`,
-    4.6: ws, s1 and s2 linked before the acts; the first attempt on
-    ws and the next on s1 or s2, each by its own life's mapping; ws
-    stopped and started again, its two lives each linked once, the
-    second running nothing.
-    `the_pace_question_reaches_the_person_and_its_answer_is_kept_as_processes_on_one_worker_without_plan_pacing`,
-    4.4, and
-    `a_refused_key_holds_its_work_until_it_is_replaced_as_processes_on_one_worker_without_a_sign_in`
-    and `a_limited_account_holds_its_work_until_its_reset_as_processes_on_one_worker`,
-    4.5's two: ws alone linked before the acts, every task's run on
-    its one slot in turn. What each leaves out is its step's row in
-    5.3.
-  - **The scripts' rules.** On processes a message reaches an agent
-    at its next `wait`, as in the real loop, but in an order the real
-    loop's one ring never shows: kit's landing news can wake A, a
-    goal, between its question and the green light. A script that
-    such a wake would put out of step carries rule tables
-    (`case/scripts.rs`, skein's `fake-llm.md`, 2.4), the same in the
-    real loop, whose turns the tables pick as the count did: 4.1's A
-    and director, each wake matched by the case's own words where it
-    has them, a delegation's or a message's acknowledgement by smith's
-    words, and any other delivery (the renderer's `": "` after its
-    sender) answered by a `wait`. The other scripts count, since no
-    wake but the expected one reaches them; one gains a table where a
-    run shows it. A table can't tell a turn whose fresh input is the
-    same as another's: 4.6's director's first activation and its retry
-    both begin with smith's opening, so it counts, which the retry
-    resumes in step.
-  - **Past the deadline,** the story's referee names its stage, the act
-    in flight and the next on stderr before the cleanup, so that a
-    stall is read from its output.
-- **GitHub's App, through a restart,** a test of its own
-  (../protocol/credentials.md, section 4; ../client/forge.md, 5.4), on
-  temper's fakes as processes, never on github.com: `temper fake forge`
-  serving the fake's GitHub layer (4.2), the fake LLM, an engine alone
-  and one worker alone (../protocol/README.md, 15.1), by
-  `crates/temper/tests/support/github.rs` on the cluster's members:
-  each started on its ready lines in a cgroup of its own, after the one
-  before, and stopped in reverse. Not from `crates/temper/tests/fixtures/cluster/`'s
-  description: the App is made on the layer before the engine starts,
-  a step the fixture's format has no place for (../protocol/README.md,
-  15.5). The engine starts with no forge records; its clients' listener
-  is on a loopback port the test reserved (2.4), and the worker's git
-  is the `temper` binary under the name `git`, `temper fake git` (4.3),
-  over the layer's git route.
-  - **The story, first life:** the referee makes the App on the layer
-    by its manifest's form and conversion over HTTP, as the real loop's
-    GitHub story does (2.4), its setup URL the engine's
-    `/forges/1/github/setup`, and writes its key to a file of mode
-    0600; the person signs in, adds the test's key (2.4), connects the
-    App with `temper ctl forge connect 1 github-app APP FILE`, waits on
-    `forge list --until connected:1`, takes `forge install 1`'s link,
-    and the referee visits it as a browser does, one GET following the
-    layer's 302 to temper's setup route; the story waits until the
-    forges settle, adopts `acme/app`, the layer's one installed
-    account's repository; a chat delegates a change whose coder reads,
-    edits and finishes it, scripted as the real loop's story 6 is
-    (2.4), on the worker; the story waits, on a watch, until the
-    change's production has delivered.
-  - **Its restart:** the worker, then the engine, stopped on their ready
-    lines' processes (an engine is never restarted under live workers,
-    ../protocol/README.md, 15.4), and started again in order on the same
-    directories, the layer and the LLM left running.
-  - **Its referee** is the tier's. In the first life: the coder's task
-    ended on the worker; the forge's observations, which hold the
-    layer's record of its git calls and never a token, show the clone
-    and the push, each by a token minted for `acme`'s installation,
-    the push a write, and the branch's head the coder's commit. After
-    the restart, each a Must: `temper ctl forge list --json`'s row 1 is
-    connected as the same `SLUG[bot]` and id, with installation 1 on
-    `acme`, accepted, neither suspended nor stray; the adoption holds
-    (its request sent again answers its kept outcome); the layer saw
-    no uninstall of installation 1 and no second acceptance; the
-    observations hold one push across both lives; and no file under
-    the processes' directories but jig's secrets store, nor any
-    process's output or ctl's, holds the key (PEM, DER, DER as
-    base64) or an installation token, as the real loop's GitHub story
-    scans (2.4). No process outlives the story.
-  - **It aims at 2 s (1 s before the user's doubling of 10-22,
-    provisional),** as a world's story does (6.1); the restart's own
-    cost is measured beside the first life's, and a story past its aim
-    goes to the user with its figures, never cut by weakening a Must.
-- **A chat's change on connected GitHub, through a restart,** a test of
-  its own, on the same processes, layer and connection as the App's
-  story above, by `crates/temper/tests/support/github_land.rs` on
-  `support/github.rs`'s steps: the chat asks for a change, scripted as
-  the real loop's story 1 is (2.4), and the story waits until the
-  change task has ended landed and the chat has replied and closed.
-  Then the worker and the engine are restarted as above. Its Musts,
-  after the restart: the change task ended landed, its result the
-  same pull request and merge commit as in the first life; the layer
-  saw one merge and one pull request opened across both lives, and no
-  task was made after the restart; the forge reconnects as
-  in the App's story. Its aim is the App's story's.
+  These remain in the process profile because SIGKILL/SIGSTOP,
+  parent death, delegated cgroups and process exit order are their Musts.
+  The reference case's 4.1/4.3 placement, 4.4 pace and 4.5 account choices
+  run only in the real-loop fuzzy stories. The ignored process 4.6
+  workstation-restart finding remains: a draining OS worker can still
+  receive a retry before its channel is removed from placement.
+
 - **Outside the gate suites:** nextest profile `process-temper`, run once
   the binary and the fake `claude` are built, with `TEMPER_TEST_CLAUDE` set.
   The 6-minute aim (3 minutes before the user's doubling of 10-22,
@@ -1415,6 +1080,13 @@ terminal client, the captures and the faults.
   the user's to set from measurements, separate from its wall hard limit.
   Both follow testing-strategy.md, 8.1 and its three-question repair rule:
   a story moves only if what it checks belongs in another tier.
+
+  The suite CPU budget remains 360 CPU seconds; its wall hard limit
+  belongs to `tools/tiers/budgets.toml`. Harness waits use `Patience` or
+  skein-world's `Deadline`; product `ctl --timeout` is not their bound.
+  Starved waits pass with their figures after cleanup (testing-strategy.md,
+  2.10). The owned preparation command watches its child with a deadline;
+  the ctl referee reports overdue work to the world's starvation judge.
 
 ### 2.7 The live tier
 
@@ -1645,8 +1317,11 @@ section 8; testing-strategy.md, 2.9).
   scenario as a test in `crates/temper/tests/live.rs`, run by
   `scripts/proof-live.sh RUNG`, `rung-a` to `rung-b2`. Its driver, the
   same code, first walks the whole story offline on the rung's twin
-  (2.4), run by `scripts/proof-live.sh` before the live story and never
-  in the process profile, so a driver's own fault is met there, never
+  (2.4). B0's three offline proofs are the ignored `proof_live` binary,
+  run by `scripts/proof-live.sh rung-b0-offline` before the live story and never
+  in the process profile. The offline command selects only `proof_live`
+  under the manual live profile's timeout horizon, overriding its default
+  filter; it admits no live account. A driver's own fault is met there, never
   by spending a held login.
   - **Their stories are the third edition's** of the reference case
     (`../draft/reference-case.md`; the user, 10-27 and 10-30), with
@@ -2277,7 +1952,7 @@ Act 1 (retired first edition; see `../draft/reference-case.md` for the third):
 
 | Step | Its story shows | It leaves out, and what holds it |
 |---|---|---|
-| 4.1 | `the_opener_and_the_two_hour_check_run_on_three_workers` (`suite::fuzzy::case_4_1_4_3`, past the guide by the change procedure's landing path), its first part, on the cluster of ws, s1 and s2, one slot each (../protocol/README.md, 15.7), ws and s1 started: the person asks the director to schedule a draft at priority 1; the director delegates A, an agent on the model and effort it names, tracked as a goal at that priority, its brief naming the draft's commit, under authority within its own; A has its design delegated, a change of Markdown alone on kit, which lands through the change procedure with CI green at its head; A sends its design report to the director as a question, and the director answers it with a green light. The oracle: A tracked at its priority, on its model, with its brief, its authority within the director's, and its spend rolled up to the goal; the report delivered to the director, and the answer to A; kit's main holding the design, merged with CI green, and nothing but Markdown changed. The story asserts where each task ran, a fact only the harness sees: the director's chat, which waits in its run, keeps ws; A, and its design's coder and reviewer after it, run on s1. The engine places them by the cached workspace first, then free slots, and the story only checks where they went. `qa_case_4_1`'s misses run the opener alone, on the standalone service. On the process tier's cluster (2.6), `the_opener_and_the_two_hour_check_run_on_three_workers_as_processes_without_pools_lending_or_host_moves` runs this part with the same acts, scripts and oracle, ws and s1 being processes, and asserts the director's chat on ws, by the acts' reads, and the design's change made on s1, whose workspace alone holds it; A's and the director's scripts carry rule tables, in both worlds, so that kit's landing news, which on processes can wake A between its question and the green light, is answered by a wait (2.6) | A's survey before its design, one more report delegate than the director's own, for 6.1's guide; A's instructions and its pool (jig's `domain/tasks.md`, section 6), which the agent's `delegate` doesn't decode (`agent.md`, 4.3); which workers have room (`../draft/temper-on-temper.md`, 6.7); a host kind, which neither the agent's `delegate` nor jig's task spec or amendment names, and no worker declares: placement by free slots stands in; s2's part in the opener: the opener's agents run one at a time behind A's workspace, so it fills two workers, and s2 joins in 4.3; the director's chat waiting in its run, as the case's director keeps ws as its home, on a charter of the case's fixture for the person's chats (5.1): its threshold is past the story's patience, a mechanism never waited out, every run ends on its own conditions, and a run that parks is 4.4's and 4.5's, on the standalone service; the fast path for Markdown alone, which is the repository's CI's and not temper's (`../draft/temper-on-temper.md`, 4.3): the fake forge's CI passes at once; the goal's issue, with kit adopted without a home, since a goal whose issue write ends uncertain or refused is held from closing (`forge.md`, section 12), a finding of this story's; the director as a standing chat: its chat ends with its report once A has ended, so that the person's acts wait on it; A's report in 15 lines: its design report is the question it sends. Its process story leaves out the same, and where A and its design's reviewer ran: no act reads them while they run, an ended task's document names no worker, and neither leaves a tree of its own on its worker (2.6) |
+| 4.1 | `the_opener_and_the_two_hour_check_run_on_three_workers` (`suite::fuzzy::case_4_1_4_3`, past the guide by the change procedure's landing path), its first part, on the cluster of ws, s1 and s2, one slot each (../protocol/README.md, 15.7), ws and s1 started: the person asks the director to schedule a draft at priority 1; the director delegates A, an agent on the model and effort it names, tracked as a goal at that priority, its brief naming the draft's commit, under authority within its own; A has its design delegated, a change of Markdown alone on kit, which lands through the change procedure with CI green at its head; A sends its design report to the director as a question, and the director answers it with a green light. The oracle: A tracked at its priority, on its model, with its brief, its authority within the director's, and its spend rolled up to the goal; the report delivered to the director, and the answer to A; kit's main holding the design, merged with CI green, and nothing but Markdown changed. The story asserts where each task ran, a fact only the harness sees: the director's chat, which waits in its run, keeps ws; A, and its design's coder and reviewer after it, run on s1. The engine places them by the cached workspace first, then free slots, and the story only checks where they went. `qa_case_4_1`'s misses run the opener alone, on the standalone service. | A's survey before its design, one more report delegate than the director's own, for 6.1's guide; A's instructions and its pool (jig's `domain/tasks.md`, section 6), which the agent's `delegate` doesn't decode (`agent.md`, 4.3); which workers have room (`../draft/temper-on-temper.md`, 6.7); a host kind, which neither the agent's `delegate` nor jig's task spec or amendment names, and no worker declares: placement by free slots stands in; s2's part in the opener: the opener's agents run one at a time behind A's workspace, so it fills two workers, and s2 joins in 4.3; the director's chat waiting in its run, as the case's director keeps ws as its home, on a charter of the case's fixture for the person's chats (5.1): its threshold is past the story's patience, a mechanism never waited out, every run ends on its own conditions, and a run that parks is 4.4's and 4.5's, on the standalone service; the fast path for Markdown alone, which is the repository's CI's and not temper's (`../draft/temper-on-temper.md`, 4.3): the fake forge's CI passes at once; the goal's issue, with kit adopted without a home, since a goal whose issue write ends uncertain or refused is held from closing (`forge.md`, section 12), a finding of this story's; the director as a standing chat: its chat ends with its report once A has ended, so that the person's acts wait on it; A's report in 15 lines: its design report is the question it sends. |
 | 4.2 | none | CI at the tip and the queue's priorities are the forge's worlds' (`forge.md`, sections 8 and 9); a failure at the tip that matches an open finding leaving the queue running is undesigned (`../draft/temper-on-temper.md`, 6.5), and today's pause and repair at a failed tip is the conflict the case names, so the step does not run as the case's |
 | 4.3 | `the_opener_and_the_two_hour_check_run_on_three_workers` (`suite::fuzzy::case_4_1_4_3`), its second part, after the opener: the person asks the director, in a second chat, to schedule B's benchmark and to run the two-hour check; the director delegates B, an owner, and B delegates its benchmark, each waiting in its run, so B keeps s1; the benchmark is due with no free slot; the person adds s2, which links, and the benchmark is placed there and waits in its run, holding s2: the stall; the director arms its check, a timer, once every worker holds a run; the timer's wake reaches the director, which cancels the benchmark with its reason; B, told of its delegate's cancelled ending, reports, and the director reports. The oracle: the director told its timer's wake after its subscription, and its activity recording the timer; the benchmark ended, cancelled by the director with the reason, its run's end cancelled; no run of the benchmark left open, and B told the cancelled ending before its report. The story asserts what only the harness sees: ws ran the directors alone, s1 A's tasks and B, s2 the benchmark alone; s2 started after ws and s1 each held a run; every worker drained, and no agent killed. The cancel is cooperative: the benchmark's run stops at its next turn (smith's stop), so the story shows a cancel that is heeded. On the process tier's cluster (2.6), `the_opener_and_the_two_hour_check_run_on_three_workers_as_processes_without_pools_lending_or_host_moves` runs this part with the same acts, scripts and oracle, ws, s1 and s2 being processes, s2 started by its act: the check's turn is held on the fake LLM process until every started worker has held a run, and released by its control (4.1); the story asserts the directors on ws, B on s1 and the benchmark on s2, by the acts' reads | a run that ignores the cancel, its worker holding it past a bound, which is the hung worker's, 4.6's; pools resized by amendment and a slot lent to A: there is no pool control on main, in temper's `ctl` or the agent's tools, and one slot per worker (../protocol/README.md, 15.7); a host kind amended for the next run, which jig's amendment doesn't carry (`../draft/temper-on-temper.md`, 6.4); the check's report of load, queue and disk, worker health being undesigned (6.4); the timer's wake stands in for it; B moved to s2 with its notes and branches, which is placement by host kind: here B keeps s1's one slot, so the benchmark stalls on s2 and not on s1, the case's order under one slot per worker; data that is neither git nor notes, a benchmark's quiet machine, disk floors, build lanes, caches and memory caps, the plane's (hearth and the lab); the two hours: the timer is due at once, `at` 0, the shortest length that keeps the case's order, its turn held until every worker holds a run; B and the benchmark waiting in their runs, on the person's chats' charter (5.1), as the director does: a run that parks frees its slot, and the stall is a slot held. Its process story leaves out the same: the pools, the lending and the host moves are in its name |
 | 4.4 | `the_pace_question_reaches_the_person_and_its_answer_is_kept` (`suite::fuzzy::case_4_4`, past the guide by its seven activations, S3's floor): the deployment holds two accounts, the second idle; the director delegates A on the owner's model, without its design; A asks the director the pace question, its recommendation first, and the question waits in the person's inbox, the director being the person's chat; the person ranks the second account first with `temper ctl account rank` and answers the question with `temper ctl task answer`; the director, woken by the answer, writes it into a note of the project and amends A's model to the default one, the amendment's reason relaying the answer to A, which wakes once; A, on its new model, has a survey delegated, which pays from the account now first; the director recalls the note before its report. The oracle: the question in the person's inbox, on the director's task and A's message, until it is answered; the person's answer in what the director was told, after A's question; the note holding the answer, and recalled; A's model the director's choice at its next spec revision, and A's next query on it; the accounts in the person's order, and the survey's run paying from the account now first while A keeps the account it started on. On the process tier's cluster (2.6), `the_pace_question_reaches_the_person_and_its_answer_is_kept_as_processes_on_one_worker_without_plan_pacing`, past the guide by the same activations, runs it with the same acts, scripts, fixture and oracle, the engine and ws being processes: the second account's key is the fake LLM's second accepted credential (../protocol/setup.md, 8.4), written where the act reads it | the director as the asker: a task can't ask its own person, since a question comes from a delegate (jig's `domain/tasks.md`, 8.1), so A's question to the director, which waits for the director's person, stands in for it; a plan's windows, its resets and its sustainable pace as the account's facts (`../draft/temper-on-temper.md`, 6.3); B's model, one owner amended being enough; s2's sources, with one worker until the cluster's stories: the holder's order of its accounts stands in, and a task keeps the account it started on; the question not asked again, which the note's recall stands for; the director amending A's model alone: the story's amendment also changes A's spec, the fake LLM's need, since after a model change smith recaps A's conversation and the fake, which picks a turn by the count of replies said, can't follow a recap, and the oracle passes no judgement on the spec. Its process story leaves out the same: s2's sources stay out on the cluster too, a worker's own sources being undesigned, so it runs on ws alone (2.6); the plan's pacing is in its name |
@@ -2537,7 +2212,7 @@ and one smoke above:
 | the one-process world (2.5) | its fixture's document without the six members; its restart story with one change of settings before it | no new story |
 | the real loop (2.4) | one smoke: a gate added to a project's landing rule from the client, the next change asking for its review and landing after it | at most 2 s, its guide; about 11.5 s of the 15 s ceiling (13 s before the user's increase of 10-24), from 9.5 s at its last measure (case 2’s M4) |
 | the system world (2.1) | running work keeping its revision, and `revision advance` moving it, one story (`../client/tools.md`, 11.4) | at most 2 s, a world story's aim (6.1) |
-| the process tier | temper ctl settings show, settings show KIND, revision show, revision list and settings apply, one named story each; reads in text and JSON, owner's change read back through its full new revision. A restore, one story: two changes after revision R, `revision restore R` proposing both settings back, accepted, `settings show` reading as R left them. The configuring agent, one story: `chat start --template 3` on the scripted fake LLM, whose run reads the settings and proposes; `proposal show` shows its items; the owner's `proposal decide … accept`; the chat's next turn says the revision it made. | existing process profile, measured separately |
+| the process tier | Owned Forgejo gates, real signals and process-tree supervision only (2.6). Settings reads, proposals, owner decisions and held revisions use the CLI machine, core and system worlds. | process-temper; one focused wiring smoke |
 
 - **The tests that move:** every test document and typed builder that
   writes the six members (25 files of documents, 20 of builders, a
@@ -2567,7 +2242,8 @@ and one smoke above:
 ```
 crates/*/src/tests.rs               step tests
 tests/codecs                        temper-codecs-world: the generated codecs and the foreign documents' decoders
-crates/temper/tests/process.rs      the process tier (2.6): the story, the terminal, the server's guards, the hinted story, `temper box`, the cluster's stories, GitHub's App through a restart; nextest profile process-temper
+crates/temper/tests/process.rs      owned Forgejo integration and OS process boundaries (2.6); nextest profile process-temper
+crates/temper/tests/proof_live.rs   ignored offline B0 driver proofs (2.7), scripts/proof-live.sh rung-b0-offline
 crates/temper/tests/support/github.rs   GitHub's App as processes (2.6): the fake GitHub, the fake LLM, an engine alone and a worker alone, the App made on the layer and connected through ctl
 crates/temper/tests/support/cluster.rs  the cluster's reader: `crates/temper/tests/fixtures/cluster/` started, awaited and stopped on skein-world's `Binary` (../protocol/README.md, 15.5)
 crates/temper/tests/fixtures/cluster  the retained cluster's description, read by the process tier
@@ -2647,7 +2323,7 @@ scripts/proof-live.sh               the live tier
   with a fixed author and time, so its id is the same on every run.
   Default: the real loop's clone, push and landing stories run on the
   fake git program over the fake forge's git route (2.4), real git meets a forge
-  in the process tier (2.6) and the QA loop's M2, and no story waits for
+  in the real-loop and system worlds, and no story waits for
   the bridge.
 - **What the real loop leaves out:** the real-git bridge (above),
   CI that runs a workflow's steps in the shell subset (how much sh,

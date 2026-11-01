@@ -611,8 +611,7 @@ fn stopped_members_details(stopped: &[cluster::Stopped]) -> String {
     details
 }
 
-#[test]
-fn stopped_members_details_include_exits_and_bounded_stderr() {
+pub fn stopped_members_details_include_exits_and_bounded_stderr() {
     let stderr = [b"discard old output\n".as_slice(), "é".repeat(2048).as_bytes(), b"listener bind failed\n"].concat();
     let stopped = [
         cluster::Stopped {
@@ -832,8 +831,7 @@ impl Scan {
     }
 }
 
-#[test]
-fn file_scan_excludes_only_jigs_generation_secrets_store() {
+pub fn file_scan_excludes_only_jigs_generation_secrets_store() {
     let scratch = Scratch::new(&format!("github_file_scan-{}", std::process::id()));
     let engine = scratch.path().join("engine");
     let store = engine.join("data/state/generations/1/secrets");

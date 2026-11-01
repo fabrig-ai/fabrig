@@ -110,13 +110,12 @@ pub fn socket_timeout(deadline: &Deadline) -> std::time::Duration {
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use super::{Patience, Verdict, socket_timeout};
     use skein_lib::Duration;
     use skein_world::{Deadline, Figures};
 
-    #[test]
-    fn starvation_disarms_the_inner_wait_without_passing_the_world() {
+    pub fn starvation_disarms_the_inner_wait_without_passing_the_world() {
         let mut patience = Patience::arm("the helper's answer", Duration::ZERO);
         assert!(patience.until().is_some());
         assert!(patience.handle(Verdict::Starved).is_none());
@@ -125,8 +124,7 @@ mod tests {
         assert!(patience.failed().is_none());
     }
 
-    #[test]
-    fn a_failed_wait_keeps_its_figures_and_deadline() {
+    pub fn a_failed_wait_keeps_its_figures_and_deadline() {
         let mut patience = Patience::arm("the helper's answer", Duration::ZERO);
         let figures = Figures {
             what: "the helper's answer",
@@ -142,8 +140,7 @@ mod tests {
         assert!(patience.until().is_some());
     }
 
-    #[test]
-    fn socket_waits_round_up_and_refusals_never_classify_as_starvation() {
+    pub fn socket_waits_round_up_and_refusals_never_classify_as_starvation() {
         let deadline = Deadline::arm("the socket's answer", Duration::ZERO);
         assert_eq!(socket_timeout(&deadline), std::time::Duration::from_millis(1));
         let mut patience = Patience::arm("the socket's answer", Duration::ZERO);
@@ -151,8 +148,7 @@ mod tests {
         assert_eq!(error.kind(), std::io::ErrorKind::ConnectionRefused);
     }
 
-    #[test]
-    fn an_interrupted_socket_retries_with_the_same_deadline() {
+    pub fn an_interrupted_socket_retries_with_the_same_deadline() {
         let mut patience = Patience::arm("the socket's answer", Duration::from_secs(2));
         let until = patience.until();
         patience.socket_retry(std::io::ErrorKind::Interrupted.into()).expect("retry the interrupted operation");

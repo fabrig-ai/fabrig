@@ -611,8 +611,9 @@ fixes it, and its owner runs it until then.
 
 ### 8.1 CPU budgets, wall hard limits and the repair rule
 
-Every tree's focused and fuzzy suites, and each slow tier (exhaustive,
-qa, browser, process and live), have a CPU budget and a wall hard limit.
+Every tree's focused and fuzzy suites, and each slow tier (browser,
+process and live), have a CPU budget and a wall hard limit. A test's
+provenance (who wrote it, or why) is never a tier.
 The rule holds wherever they run: at the merge gate for focused and
 fuzzy, after landing, through `tools/tiers/run`, or in a person's or a
 lead's run. Slow tiers never run in the gate.
