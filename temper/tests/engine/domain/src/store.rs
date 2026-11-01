@@ -125,13 +125,16 @@ impl Store {
     }
     #[must_use]
     pub fn with_limits(limits: &engine::Limits) -> Store {
+        Self::with_models(limits, crate::walking::models())
+    }
+    /// Keep the same configured model names across encoding, forks and cold starts.
+    #[must_use]
+    pub fn with_models(limits: &engine::Limits, models: Box<[engine::Model]>) -> Store {
         let component_limits = component_limits(limits);
         let stores = Stores {
             store: skein_kv::Store::memory(&component_limits.store),
             secrets: skein_kv::Store::memory(&component_limits.secrets),
         };
-        // The worlds' configured models, in their order (jig's store over a configuration's).
-        let models = crate::walking::models();
         let mut component = protocol::Store::over(
             &component_limits,
             temper_protocol_store::application(&limits.forge, limits.tasks.spec_bytes).expect("checked family sizes"),
@@ -247,7 +250,7 @@ impl Store {
     }
     #[must_use]
     pub fn fork(&self) -> Store {
-        let mut fresh = Store::with_limits(&self.limits);
+        let mut fresh = Store::with_models(&self.limits, self.models.clone());
         for (number, writes) in &self.durable {
             fresh.submit(*number, writes.clone(), 0);
             assert_eq!(fresh.tick(false), Ok(Some(*number)));

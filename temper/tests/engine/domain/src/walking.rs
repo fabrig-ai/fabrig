@@ -376,8 +376,26 @@ pub fn playground_config(seed: u64) -> engine::Config {
     config.core.owners[0].project = people::DEPLOYMENT;
     let mut policy = config.core.seed_projects[0].policy.clone();
     policy.permissions = Box::new([]);
+    let mut other_policy = policy.clone();
+    policy.policy.ceiling.models = authority::Models::Named(1);
+    policy.policy.roles[0].authority.models = authority::Models::Named(1);
+    other_policy.policy.ceiling.models = authority::Models::Named(2);
+    other_policy.policy.roles[0].authority.models = authority::Models::Named(2);
     config.core.seed_projects = Box::new([]);
-    config.core.defaults.policies.insert(1, policy).expect("one playground policy");
+    config.core.defaults.policies = skein_lib::Map::with_capacity(2);
+    config.core.defaults.policies.insert(1, policy).expect("playground policy");
+    config.core.defaults.policies.insert(2, other_policy).expect("other project's disjoint model policy");
+    let mut other_model = config.core.settings.models[0].clone();
+    other_model.name = b"other-model".as_slice().into();
+    other_model.endpoint = 2;
+    config.core.defaults.charters[0].policy.alternatives = Box::new([other_model.clone()]);
+    let mut other_provider = config.core.settings.llm_providers.providers[0].clone();
+    other_provider.number = 2;
+    other_provider.name = b"Other provider".as_slice().into();
+    other_provider.models = Box::new([other_model.name.clone()]);
+    let scripted_provider = config.core.settings.llm_providers.providers[0].clone();
+    config.core.settings.llm_providers.providers = Box::new([scripted_provider, other_provider]);
+    config.core.settings.models = Box::new([config.core.settings.models[0].clone(), other_model]);
     config.core.defaults.templates[0].budget = people::TemplateBudget::AsAllowed { cap: Some(200) };
     config.core.grants = Box::new([people::ActGrant {
         connector: config.core.connectors[0],
@@ -390,7 +408,9 @@ pub fn playground_config(seed: u64) -> engine::Config {
             people::ActKind::RemoveAccount,
         ]),
     }]);
-    config.machine.playground = Some(crate::forges::record(0, forge::Kind::Forgejo, forge::Mode::Fake));
+    let mut playground = crate::forges::record(0, forge::Kind::Forgejo, forge::Mode::Fake);
+    playground.playground = true;
+    config.machine.playground = Some(playground);
     let mut adoption = crate::fixtures::adoption(0);
     adoption.owner = b"playground".as_slice().into();
     adoption.name = b"widget".as_slice().into();
