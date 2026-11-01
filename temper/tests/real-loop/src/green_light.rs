@@ -273,7 +273,9 @@ fn check_waiting(ran: &Ran) {
     assert!(String::from_utf8_lossy(&ran.calls()[ACTIVITY].stdout).contains(person("question")));
     let notice = told(query_at(ran, CHAT_CUE, 4));
     let question_at = notice.find(person("question")).expect("chat hears the plan");
-    let answer_at = notice.find("Person answered question 2 in their inbox").expect("chat hears the notice");
+    let answer_at = notice
+        .find("Person answered task 2's question 2 in their inbox; task 2 has the answer and does the work")
+        .expect("chat hears the notice");
     assert!(question_at < answer_at);
     assert!(heard_tool(query_at(ran, WORK_CUE, 4), "Message 2 sent"));
     assert!(told(query_at(ran, WORK_CUE, 5)).contains(person("answer")), "work hears approval before change");

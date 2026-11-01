@@ -60,7 +60,7 @@ pub fn start(
             .push(run::Message {
                 name: Token::new(word.number),
                 label: engine::inbox_sender(word),
-                text: engine::inbox_words(word),
+                text: engine::inbox_words(assignment.task, word),
                 finish_requested: word.finish_requested(),
             })
             .expect("bounded start messages");

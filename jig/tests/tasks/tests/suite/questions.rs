@@ -435,6 +435,7 @@ fn the_asked_task_hears_its_person_answered() {
         .iter()
         .find(|word| word.kind == MessageKind::QuestionAnswered { question: QUESTION })
         .expect("answer notice");
+    assert_eq!(notice.from, Party::Task(ASKER));
     assert_eq!(notice.words.as_ref(), b"proceed");
     assert!(!row.inbox.iter().any(|word| matches!(word.kind, MessageKind::Answer { .. })));
 }

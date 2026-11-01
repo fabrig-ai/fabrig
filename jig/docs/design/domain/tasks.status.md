@@ -9,4 +9,4 @@
 - **Built:** 6, 12: one restore, which decodes, fits and links: it judges no task's shape, funding or writers, and a link it cannot make panics naming the record's key and its target. A waiting escalation keeps its holder while the serving route still chooses it, and is routed again at the core's `Link` when it does not.
 - **Not yet:** 7: widening a task funded by another party charges the existing funder. Dependency loads on compound/proposal/procedure/preview/decision amendments remain. 5.9: drain, a project's scope, a party's proposal of a release, parked until an event.
 
-- **Built:** 5.7: `QuestionAnswered` carries the person's answer within 256 bytes, including a counted cut marker at a UTF-8 boundary; admission and restore price each received question's notice bytes. Empty stored notices still restore.
+- **Built:** 5.7: `QuestionAnswered` names its asker in `Word.from` (the existing stored and wire party field; no schema change) and carries the person's answer within 256 bytes, including a counted cut marker at a UTF-8 boundary; admission and restore price each received question's notice bytes. Empty stored notices still restore.

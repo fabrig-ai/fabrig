@@ -212,7 +212,9 @@ fn check_waiting(ran: &Ran) {
     let notice = told(query_at(ran, 0, 3));
     assert!(
         notice.find(person("question")).expect("question")
-            < notice.find("Person answered question 1 in their inbox").expect("answer notice")
+            < notice
+                .find("Person answered task 2's question 1 in their inbox; task 2 has the answer and does the work")
+                .expect("answer notice")
     );
     assert!(told(query_at(ran, 1, 5)).contains(person("answer")), "approval before change call");
     let seed = &ran.forge().snapshots()[0];

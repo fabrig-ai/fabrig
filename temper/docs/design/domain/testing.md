@@ -260,9 +260,10 @@ in the lower world that owns it, never here.
   puts the question in the inbox of T1's person (jig's
   `domain/people.md`, section 6); the person answers it there with
   `temper ctl task answer`; the answer reaches T2 directly as its
-  requester T1's answer. T1 hears "Person answered question N in their
-  inbox" (N is the question's number) and acknowledges it to its person,
-  never relaying the approval through `message`; T2 then
+  requester T1's answer. T1 hears "Person answered task T2's question N in their inbox; task T2
+  has the answer and does the work" (N is the question's number) and
+  acknowledges that the work goes ahead, never starting another goal
+  or change or relaying the approval through `message`; T2 then
   delegates the change T3, whose coder edits widget's `src/main.rs`; it
   lands with CI green at its head, T2 reports, and T1 says so.
   - **The work that waits asks.** The change's own agents cannot reach
