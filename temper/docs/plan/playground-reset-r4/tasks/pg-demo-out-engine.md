@@ -127,3 +127,17 @@ Pre-approved:
 
 fab's sections; every test deleted or moved, by file and name; what
 moved to `playground.rs`.
+
+## Rebase (2026-11-01, step merge, foreman playground-reset-r4/pg-demo-out-engine/foreman-1)
+
+retain first_intent test registration while removing demo, and update its legacy demo fixture.
+The merge conflicts in `temper/crates/temper-engine-domain-forge/src/tests.rs`.
+Incoming commit `19fcb2f995` (“Keep first repository intents so setup resumes after restart”), merged by `8c2e4b3c6d`, adds `mod first_intent;` beside the deleted `mod demo;`.
+Resolve that block with `mod connect_new;`, `mod first_intent;`, `mod fixtures;`; leave `mod demo;` deleted.
+Preserve this branch’s removal of obsolete request match arms elsewhere in `tests.rs`.
+Also adapt incoming `src/tests/first_intent.rs`, test `retained_repositories_take_the_project_even_when_the_forge_is_ended_or_removing`.
+It restores `Stored::Demo(Demo { ... DemoState::Ended })`, which this branch correctly ignores.
+Remove that test’s `configure_demo` and legacy Demo restore block.
+Keep the removing Forge record fixture and the assertions that `forge_ended(1)` and `project_has_repository(5)` hold.
+This preserves repository retention coverage using removal state, consistent with draft 6.3 and the task’s allowed neighbour edits.
+No files changed or builds run; the read-only environment prevents writing report.md.
