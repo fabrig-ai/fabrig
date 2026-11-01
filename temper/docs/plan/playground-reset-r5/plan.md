@@ -50,11 +50,14 @@ standing rules: `notes/common.md`.
 | `jp-view` | jig-remove-project | jp-wire, jp-close | 80 | Give a project's owners Delete on the project's settings in jig's client, confirmed by typing the project's name (draft `temper/docs/design/draft/playground-res… |
 | `jp-wire` | jig-remove-project | jp-acts, jp-people | 80 | Carry the owners' `Ask::RemoveProject` and its answer across jig's client wire (draft `temper/docs/design/draft/playground-reset.md`, section 5, "its client"), … |
 | `pg-jig-uses` | playground | jp-acts | 60 | Give jig a deployment act that sets an account's uses, so temper's playground can make its scripted account the deployment's with its uses naming the playground… |
+| `pg-reset` | playground | pg-start, jp-close | 110 | The playground's reset on the engine's side (draft `temper/docs/design/draft/playground-reset.md`, 6.2, and section 9's first default): `EndPlayground` turns th… |
+| `pg-start` | playground | rf-domain, rf-root, pg-jig-uses | 120 | The playground made when chosen, on the engine's side (draft `temper/docs/design/draft/playground-reset.md`, 6.1 and 6.3's offer): `StartPlayground` keeps a `Pl… |
 | `pg-wire` | playground | - | 60 | Add the playground's client wire beside today's demo forms, so the client part builds on it at once (draft `temper/docs/design/draft/playground-reset.md`, 6.1 a… |
 | `rf-box` | remove-forge | fr-box | 70 | The box's `remove FORGE` (contracts, section 4; `notes/remove-forge.md`, section 6; draft `temper/docs/design/draft/playground-reset.md`, section 4, "Its box gr… |
 | `rf-domain` | remove-forge | rf-family | 120 | The forge connector removes a forge whole (draft `temper/docs/design/draft/playground-reset.md`, section 4; 6.4's start over): `Domain::remove_forge` ends it in… |
 | `rf-family` | remove-forge | fr-demo | 90 | The removal's surface (draft `temper/docs/design/draft/playground-reset.md`, section 4; `notes/remove-forge.md`): store family 19 renamed from `DemoAct` to `Kep… |
 | `rf-root` | remove-forge | rf-family, jp-acts | 90 | The root carries the removal between the connector, jig and the service (`notes/remove-forge.md`, sections 2 to 5): every kept row's act is sent in the deployme… |
+| `rf-service` | remove-forge | rf-root, fr-svc-route, rf-box | 110 | The service's half of removing a forge (draft `temper/docs/design/draft/playground-reset.md`, section 4; `notes/remove-forge.md`, sections 2, 3 and 6): an ended… |
 
 ## Critical path (as it stands)
 
