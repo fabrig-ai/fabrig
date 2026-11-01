@@ -1145,7 +1145,10 @@ impl Joint {
                 .expect("scripted demo forge"),
             )
             .expect("demo row fits");
-        record.bytes = wire::forges(&w::Forges::new(&w::CEILINGS, w::ForgesParts { forges }).expect("scripted forges"));
+        record.bytes = wire::forges(
+            &w::Forges::new(&w::CEILINGS, w::ForgesParts { forges, owned: w::Offer::NotOffered })
+                .expect("scripted forges"),
+        );
     }
     fn callback(&mut self, client: ClientId, mut event: RootEvent) {
         self.demo_forges(&mut event);

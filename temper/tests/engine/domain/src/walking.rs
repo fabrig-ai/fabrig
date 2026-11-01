@@ -359,6 +359,7 @@ pub fn config(seed: u64) -> engine::Config {
         identities: Box::new([temper_engine_domain_forge::GitIdentity { forge: 1, credential: 1 }]),
         forge_charter: 1,
         forges: Box::new([]),
+        owned: None,
         under_box: false,
         demo: None,
     }

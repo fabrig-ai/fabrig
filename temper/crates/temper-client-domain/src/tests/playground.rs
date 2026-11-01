@@ -151,7 +151,10 @@ fn a_connected_forge_and_a_usable_account_end_nothing() {
             record: jig_client::Family {
                 family: wire::FORGE,
                 version: wire::CLIENT_VERSION,
-                bytes: wire::forges(&w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: rows }).unwrap()),
+                bytes: wire::forges(
+                    &w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: rows, owned: w::Offer::NotOffered })
+                        .unwrap(),
+                ),
             },
         },
     );

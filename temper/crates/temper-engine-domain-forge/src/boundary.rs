@@ -468,6 +468,7 @@ pub struct Row {
 /// The deployment's forges, ordered by number (domain/forge.md, 4.1).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Forges {
+    pub owned: Offer,
     pub rows: Box<[Row]>,
 }
 /// The admitted repository and its observed collaborators.

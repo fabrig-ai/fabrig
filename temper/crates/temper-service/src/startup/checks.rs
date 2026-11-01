@@ -675,6 +675,7 @@ pub fn root(
         identities: Box::new([]),
         forge_charter: engine.charter,
         forges: Box::new([]),
+        owned: None,
         under_box: false,
     };
     let mut numbers = List::with_capacity(engine.jig.limits.core.authority.projects);

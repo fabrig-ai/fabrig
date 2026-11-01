@@ -416,7 +416,11 @@ pub(super) fn root_at_with_forges(
                             family: wire::FORGE,
                             version: wire::CLIENT_VERSION,
                             bytes: wire::forges(
-                                &w::Forges::new(&wire_limits, w::ForgesParts { forges: rows }).unwrap(),
+                                &w::Forges::new(
+                                    &wire_limits,
+                                    w::ForgesParts { forges: rows, owned: w::Offer::NotOffered },
+                                )
+                                .unwrap(),
                             ),
                         },
                     },

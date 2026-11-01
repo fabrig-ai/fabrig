@@ -409,6 +409,7 @@ pub fn root() -> (temper_engine_domain::Domain, skein_lib::Env<temper_engine_dom
         identities: Box::new([temper_engine_domain_forge::GitIdentity { forge: 1, credential: 1 }]),
         forge_charter: settings.charter,
         forges: Box::new([]),
+        owned: None,
         under_box: false,
         demo: None,
     };

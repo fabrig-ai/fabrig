@@ -792,6 +792,7 @@ fn protection(value: forge::Protection, limits: &w::Limits) -> Option<w::Protect
 
 /// Encode the connector's whole document without adding policy from settings.
 #[must_use]
+#[expect(clippy::too_many_lines, reason = "one total translation keeps the forge document member mappings together")]
 pub fn forges(value: forge::Forges, limits: &w::Limits) -> Option<Box<[u8]>> {
     let mut forges = List::with_capacity(limits.forges_forges);
     for row in value.rows {
@@ -890,7 +891,20 @@ pub fn forges(value: forge::Forges, limits: &w::Limits) -> Option<Box<[u8]>> {
             )
             .ok()?;
     }
-    Some(wire::forges(&w::Forges::new(limits, w::ForgesParts { forges }).ok()?))
+    Some(wire::forges(
+        &w::Forges::new(
+            limits,
+            w::ForgesParts {
+                forges,
+                owned: match value.owned {
+                    forge::Offer::NotOffered => w::Offer::NotOffered,
+                    forge::Offer::NotUnderTheBox => w::Offer::NotUnderTheBox,
+                    forge::Offer::Offered => w::Offer::Offered,
+                },
+            },
+        )
+        .ok()?,
+    ))
 }
 fn connection(
     value: forge::Connection,

@@ -1045,6 +1045,7 @@ fn forge_row(
 }
 fn configured_forge_rows() -> forge::Forges {
     forge::Forges {
+        owned: forge::Offer::NotOffered,
         rows: Box::new([
             forge::Row {
                 finished: false,
@@ -1286,7 +1287,7 @@ fn setup_projects_and_first_repository_states_translate_without_losing_fields() 
                 forge::Offer::NotOffered,
             );
             row.first = Some(first);
-            let value = forge::Forges { rows: Box::new([row]) };
+            let value = forge::Forges { owned: forge::Offer::NotOffered, rows: Box::new([row]) };
             let bytes = family::forges(value, &w::CEILINGS).unwrap();
             let rows = wire::decode_forges(&bytes, &w::CEILINGS).unwrap().into_parts().forges;
             let first = rows.get(0).unwrap().first().as_ref().unwrap();
@@ -1565,6 +1566,7 @@ fn install_without_a_back_is_admitted() {
 fn installations_and_the_last_connect_end_encode_unchanged() {
     let bytes = family::forges(
         forge::Forges {
+            owned: forge::Offer::NotOffered,
             rows: Box::new([forge::Row {
                 finished: false,
                 playground: false,
@@ -1642,6 +1644,7 @@ fn owned_details_fit_their_bounds_and_an_overlong_field_drops_only_the_details()
         (64, Some(64), 513, false),
     ] {
         let value = forge::Forges {
+            owned: forge::Offer::NotOffered,
             rows: Box::new([forge::Row {
                 finished: false,
                 playground: false,

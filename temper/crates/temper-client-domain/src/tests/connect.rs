@@ -497,7 +497,10 @@ fn deliver_first_record(
             record: client::Family {
                 family: wire::FORGE,
                 version: wire::CLIENT_VERSION,
-                bytes: wire::forges(&w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: rows }).unwrap()),
+                bytes: wire::forges(
+                    &w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: rows, owned: w::Offer::NotOffered })
+                        .unwrap(),
+                ),
             },
         },
     )
@@ -1011,7 +1014,10 @@ fn deliver_picker(root: &mut crate::Domain, watch: Token, changed: bool) -> Queu
             record: client::Family {
                 family: wire::FORGE,
                 version: wire::CLIENT_VERSION,
-                bytes: wire::forges(&w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: rows }).unwrap()),
+                bytes: wire::forges(
+                    &w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: rows, owned: w::Offer::NotOffered })
+                        .unwrap(),
+                ),
             },
         },
     )

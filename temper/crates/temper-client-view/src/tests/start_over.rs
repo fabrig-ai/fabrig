@@ -180,7 +180,11 @@ fn starting_over_then_removed_draws_the_choices_again() {
                         family: wire::FORGE,
                         version: wire::CLIENT_VERSION,
                         bytes: wire::forges(
-                            &w::Forges::new(&w::CEILINGS, w::ForgesParts { forges: remaining }).unwrap(),
+                            &w::Forges::new(
+                                &w::CEILINGS,
+                                w::ForgesParts { forges: remaining, owned: w::Offer::NotOffered },
+                            )
+                            .unwrap(),
                         ),
                     },
                 },

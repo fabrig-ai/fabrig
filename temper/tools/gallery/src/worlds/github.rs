@@ -62,7 +62,9 @@ pub(super) fn forges(world: World) -> Box<[u8]> {
     }
     let mut forges = List::with_capacity(1);
     forges.push(w::ForgeRow::new(&w::CEILINGS, parts).expect("sample row")).expect("row room");
-    wire::forges(&w::Forges::new(&w::CEILINGS, w::ForgesParts { forges }).expect("sample forges"))
+    wire::forges(
+        &w::Forges::new(&w::CEILINGS, w::ForgesParts { forges, owned: w::Offer::NotOffered }).expect("sample forges"),
+    )
 }
 pub(super) fn answer_page(root: &mut Domain, attempt: Token, out: &mut Queue<Request>) {
     let mut rows = List::with_capacity(4);

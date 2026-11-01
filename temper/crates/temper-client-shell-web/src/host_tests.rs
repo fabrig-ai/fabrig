@@ -453,7 +453,9 @@ fn the_github_rows_external_web_link_has_its_address_and_noopener() {
                 .expect("forge row"),
             )
             .expect("one forge");
-        let mut host = fixture_forges(Some(&w::Forges::new(&w::CEILINGS, w::ForgesParts { forges }).expect("forges")));
+        let mut host = fixture_forges(Some(
+            &w::Forges::new(&w::CEILINGS, w::ForgesParts { forges, owned: w::Offer::NotOffered }).expect("forges"),
+        ));
         host.went(b"/forges");
         let mut page = skein_ui_web::page::Page::new(
             skein_ui_web::Look {

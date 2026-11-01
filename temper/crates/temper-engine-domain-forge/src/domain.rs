@@ -141,7 +141,6 @@ pub struct Domain {
     pub(crate) connect: crate::connect::State,
     #[expect(dead_code, reason = "removal state is reserved for the removal body")]
     pub(crate) removal: crate::removal::State,
-    #[expect(dead_code, reason = "make state is reserved for the forge creation body")]
     pub(crate) make: crate::make::State,
     pub(crate) installations: Map<(u16, u64), crate::Installation>,
     pub(crate) repositories: Map<skein_forge::api::Repository, Repository>,
@@ -359,7 +358,19 @@ impl Domain {
             })
             .expect("configured forges");
         }
-        crate::Forges { rows: rows.into_boxed() }
+        let mut owned = if self.make.owned.is_none() {
+            crate::Offer::NotOffered
+        } else if self.under_box {
+            crate::Offer::Offered
+        } else {
+            crate::Offer::NotUnderTheBox
+        };
+        for row in &rows {
+            if row.mode == crate::Mode::Owned {
+                owned = crate::Offer::NotOffered;
+            }
+        }
+        crate::Forges { rows: rows.into_boxed(), owned }
     }
     /// One decision shared by the document and setup admission (domain/forge.md, 4.1).
     #[must_use]
@@ -1314,7 +1325,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
                         }
                         crate::SetUpProject::Existing(_) => false,
                     };
-                    let refusal = if forge.is_none() {
+                    let refusal = if forge.is_none() && d.make.owned.is_none() {
                         Some(crate::SetUpRefusal::NotOffered)
                     } else if !setup_login(&org)
                         || !setup_repository(&repository)
@@ -1327,7 +1338,8 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
                     } else {
                         let offer = match forge {
                             Some(number) => d.offer(number),
-                            None => crate::Offer::NotOffered,
+                            None if d.under_box => crate::Offer::Offered,
+                            None => crate::Offer::NotUnderTheBox,
                         };
                         match offer {
                             crate::Offer::NotOffered => Some(crate::SetUpRefusal::NotOffered),
@@ -1346,7 +1358,25 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
                     match refusal {
                         Some(why) => d.setup_answer(env, request, crate::SetUpAnswer::Refused(why), out),
                         None => {
-                            let forge = forge.expect("offered configured forge");
+                            let forge = match forge {
+                                Some(number) => number,
+                                None => {
+                                    let record = d.make.owned.clone().expect("offered owned template");
+                                    match crate::make::make(d, env, record, out) {
+                                        Ok(number) => number,
+                                        Err(why) => {
+                                            let why = match why {
+                                                crate::make::Refusal::Busy => crate::SetUpRefusal::Busy,
+                                                crate::make::Refusal::Full
+                                                | crate::make::Refusal::Invalid
+                                                | crate::make::Refusal::Exhausted => crate::SetUpRefusal::NotOffered,
+                                            };
+                                            d.setup_answer(env, request, crate::SetUpAnswer::Refused(why), out);
+                                            return;
+                                        }
+                                    }
+                                }
+                            };
                             d.first
                                 .insert(
                                     forge,

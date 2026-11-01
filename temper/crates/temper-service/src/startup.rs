@@ -3,6 +3,7 @@ pub(crate) mod application;
 #[cfg(test)]
 mod calls_tests;
 pub(crate) mod checks;
+pub(crate) mod owned_record;
 mod problems;
 pub mod seed;
 #[cfg(test)]
@@ -925,6 +926,11 @@ fn checked_start_with(
         limits: parsed.application.limits,
     };
     engine.seed = seed::seed(&parsed.application.forges, &parsed.application.identities, &engine)?;
+    if let Some(template) = &engine.owned
+        && let Err(found) = owned_record::record(template)
+    {
+        return Err(Problems::jig(found, &Path::root()));
+    }
     let root = engine_limits(&mut engine.jig.limits, &engine.limits, engine.jig.memory)?;
     checks::root(core, &engine, seeds, &parsed.application.landing_projects, &root, &mut problems);
     if !problems.is_empty() {

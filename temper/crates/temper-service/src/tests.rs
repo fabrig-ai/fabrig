@@ -48,3 +48,5 @@ mod provider;
 mod stock;
 
 mod playground_config;
+
+mod setup_record;

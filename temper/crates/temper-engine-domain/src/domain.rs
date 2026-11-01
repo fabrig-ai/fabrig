@@ -294,6 +294,7 @@ impl Domain {
         )
         .expect("valid forge configuration");
         forge.configure_demo(config.demo.take());
+        forge.configure_owned(config.owned.take());
         let built = policy_translate::build_landing(
             &config.landing.deployment,
             false,

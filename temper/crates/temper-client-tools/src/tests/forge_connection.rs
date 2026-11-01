@@ -464,7 +464,9 @@ fn first_page(root: &mut f::Harness, connection: w::Connection, state: w::FirstS
             record: client::Family {
                 family: wire::FORGE,
                 version: wire::CLIENT_VERSION,
-                bytes: wire::forges(&w::Forges::new(&l, w::ForgesParts { forges: rows }).unwrap()),
+                bytes: wire::forges(
+                    &w::Forges::new(&l, w::ForgesParts { forges: rows, owned: w::Offer::NotOffered }).unwrap(),
+                ),
             },
         },
     });

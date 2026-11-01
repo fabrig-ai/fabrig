@@ -91,6 +91,7 @@ fn generated() -> (engine::Config, engine::Limits) {
             demo,
             landing: settings.landing,
             forge_charter: settings.charter,
+            owned: None,
             under_box: false,
         },
         limits,

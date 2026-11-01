@@ -13,7 +13,11 @@ pub(crate) fn set_up_forge(d: &Domain) -> Option<u16> {
             Some(number) => *forge < number,
             None => true,
         };
-        if config.mode == Mode::Owned && config.asked && !d.forge_ended(*forge) && lower {
+        let removing = match d.forge_record(*forge) {
+            Some(row) => row.removing,
+            None => false,
+        };
+        if config.mode == Mode::Owned && config.asked && !removing && !d.forge_ended(*forge) && lower {
             selected = Some(*forge);
         }
     }
