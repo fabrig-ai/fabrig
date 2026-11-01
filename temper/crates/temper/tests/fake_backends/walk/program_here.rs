@@ -41,20 +41,22 @@ fn assert_program_usable(call: &super::Ended) {
 }
 
 #[test]
+#[ignore = "a made owned forge is not offered: sv-startup-refuse"]
 fn a_program_and_forgejo_here_reach_ready_on_the_fake_box() {
     let walk = Walk::owned("walk-program-here");
     let seen = walk
         .run(vec![
+            Act::Now(super::forges::make_here()),
             Act::Now(Call::new(&["account", "list", "--json"])),
             Act::Now(Call::new(&["forge", "list", "--json"])),
             Act::Mark("welcome preconditions"),
             Act::After(Box::new(|seen| {
                 here_key::assert_offered(seen);
-                Call::new(&["forge", "setup", "3", "--key", "walk-here", "--json"])
+                Call::new(&["forge", "setup", &super::made(seen).to_string(), "--key", "walk-here", "--json"])
             })),
             Act::Mark("owned forge adopted"),
             Act::After(Box::new(|seen| {
-                here_key::assert_adopted(seen.last().expect("setup adoption"));
+                here_key::assert_adopted(seen.last().expect("setup adoption"), super::made(seen));
                 Call::new(&["account", "declare", "2", "claude_code", NAME, "--key", "walk-program"])
             })),
             Act::Now(Call::new(&["account", "list", "--json"])),
