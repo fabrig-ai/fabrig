@@ -343,6 +343,7 @@ impl World {
             Event::Keep { .. }
             | Event::Pushed { .. }
             | Event::Withdraw { .. }
+            | Event::Retire { .. }
             | Event::Restore { .. }
             | Event::Restored { .. }
             | Event::PauseOutbox

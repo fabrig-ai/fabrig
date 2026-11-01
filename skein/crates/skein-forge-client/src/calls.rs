@@ -393,7 +393,8 @@ pub(crate) fn answered(
             Error::RateLimited { after } => {
                 limited(d, env, env.now.saturating_add(after));
                 let retry = match &owner {
-                    Owner::Read(_) | Owner::Entry(_) => true,
+                    Owner::Read(_) => true,
+                    Owner::Entry(number) => !crate::outbox::retired(&d.outbox, *number),
                     Owner::Resource(resource) => crate::keep::active_resource(&d.keep, resource),
                     Owner::Repository(repository) => crate::keep::active_repository(&d.keep, *repository),
                 };
