@@ -147,6 +147,7 @@ pub(crate) fn plain(mut read: Read) -> (Read, Option<Cursor>) {
         Read::Activity { before, .. } => before.take(),
         Read::Me
         | Read::Turn { .. }
+        | Read::TaskText { .. }
         | Read::Task { .. }
         | Read::Proposal { .. }
         | Read::Escalation { .. }
@@ -200,6 +201,7 @@ impl<A: crate::Application> Engine<A> {
                 return self.checked_read(self.truth.frames.get(&party).cloned().map(|v| ReadValue::Me(Box::new(v))));
             }
             Read::Turn { task, attempt, turn } => return self.read_turn(party, *task, *attempt, *turn),
+            Read::TaskText { .. } => return Err(ReadNone::Unknown),
             Read::Task { task } => Some(ObjectKey::Task(*task)),
             Read::Proposal { proposal } => Some(ObjectKey::Proposal(*proposal)),
             Read::Escalation { task } => Some(ObjectKey::Escalation(*task)),
@@ -370,7 +372,7 @@ impl<A: crate::Application> Engine<A> {
                 if row.project.is_some_and(|project| !self.truth.visible(party,project)) { return false; }
                 match query {
                     Read::Inbox { group, project, kind, goal, .. } => *group == InboxReadGroup::of(row.group()) && project.is_none_or(|p| Some(p) == row.project) && kind.is_none_or(|k| k == row.group()) && goal.is_none_or(|g| self.truth.inbox_selection.get(&party).is_some_and(|selections| selections.iter().any(|selection| selection.cursor == row.cursor && selection.goals.iter().any(|goal| *goal == g)))),
-                    Read::Tasks { .. } | Read::Me | Read::Task { .. } | Read::Proposal { .. } | Read::Escalation { .. } | Read::Question { .. }
+                    Read::TaskText { .. } | Read::Tasks { .. } | Read::Me | Read::Task { .. } | Read::Proposal { .. } | Read::Escalation { .. } | Read::Question { .. }
                     | Read::Turn { .. } | Read::PersonTask { .. } | Read::Result { .. } | Read::Ended { .. } | Read::History { .. } | Read::Activity { .. } | Read::Spend { .. } | Read::Project { .. } | Read::Notes { .. } | Read::Settings | Read::Setting(_) | Read::Revision(_) | Read::Revisions(_) | Read::Deployment => false,
                 }
             }).collect();
@@ -394,7 +396,8 @@ impl<A: crate::Application> Engine<A> {
     }
     pub(crate) fn read_visible(&self, party: u64, read: &Read) -> bool {
         let key = match read {
-            Read::Task { task }
+            Read::TaskText { task, .. }
+            | Read::Task { task }
             | Read::Turn { task, .. }
             | Read::Ended { task, .. }
             | Read::History { task, .. }
@@ -444,6 +447,7 @@ fn empty(read: &Read) -> Rows {
         Read::Notes { .. } => Rows::Notes(vec![]),
         Read::Me
         | Read::Turn { .. }
+        | Read::TaskText { .. }
         | Read::Task { .. }
         | Read::Proposal { .. }
         | Read::Escalation { .. }

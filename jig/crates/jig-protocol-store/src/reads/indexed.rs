@@ -42,7 +42,8 @@ fn owner_number(key: &core::Key) -> Result<u64, Failure> {
 fn selection(scope: &reads::Scope) -> Option<(reads::Group, reads::Filter)> {
     match scope {
         reads::Scope::Inbox { group, filter } => Some((*group, *filter)),
-        reads::Scope::Task { .. }
+        reads::Scope::TaskText { .. }
+        | reads::Scope::Task { .. }
         | reads::Scope::Proposal { .. }
         | reads::Scope::Escalation { .. }
         | reads::Scope::Question { .. }
@@ -66,7 +67,8 @@ fn selection(scope: &reads::Scope) -> Option<(reads::Group, reads::Filter)> {
 fn history_root(scope: &reads::Scope) -> Option<u64> {
     match scope {
         reads::Scope::History { task, subtree: true } => Some(*task),
-        reads::Scope::Task { .. }
+        reads::Scope::TaskText { .. }
+        | reads::Scope::Task { .. }
         | reads::Scope::Proposal { .. }
         | reads::Scope::Escalation { .. }
         | reads::Scope::Question { .. }

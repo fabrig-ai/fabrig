@@ -54,6 +54,7 @@ pub(super) fn decided(
         ReadValue::Settings(_)
         | ReadValue::Setting(_)
         | ReadValue::Revision(_)
+        | ReadValue::TaskText(_)
         | ReadValue::Revisions(_)
         | ReadValue::Tasks(_)
         | ReadValue::Project(_)

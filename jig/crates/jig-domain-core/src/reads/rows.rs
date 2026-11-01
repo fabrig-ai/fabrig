@@ -40,7 +40,8 @@ pub(super) fn scope_allowed(core: &Core, party: u64, scope: &Scope) -> bool {
             Some(project) => project_allowed(core, party, project),
             None => true,
         },
-        Scope::Task { task }
+        Scope::TaskText { task, .. }
+        | Scope::Task { task }
         | Scope::Escalation { task }
         | Scope::Question { task, .. }
         | Scope::PersonTask { task }
@@ -119,6 +120,7 @@ pub(super) fn needs_store(read: &Read, document: &Document) -> bool {
                 ..
             }
             | Read::Frame
+            | Read::TaskText { .. }
             | Read::Task { .. }
             | Read::Proposal { .. }
             | Read::Escalation { .. }
@@ -169,6 +171,7 @@ pub(super) fn live_page(core: &Core, limits: &Limits, party: u64, read: &Read, d
             let (group, filter) = match read {
                 Read::Inbox { group, filter, .. } => (group, filter),
                 Read::Frame
+                | Read::TaskText { .. }
                 | Read::Task { .. }
                 | Read::Proposal { .. }
                 | Read::Escalation { .. }
@@ -343,7 +346,8 @@ fn is_page(scope: &Scope) -> bool {
         | Scope::ScopedNotes { .. }
         | Scope::SettingsHistory { .. }
         | Scope::Spend { .. } => true,
-        Scope::Task { .. }
+        Scope::TaskText { .. }
+        | Scope::Task { .. }
         | Scope::Proposal { .. }
         | Scope::Escalation { .. }
         | Scope::Question { .. }
@@ -393,6 +397,7 @@ pub(super) fn from_store(
         Scope::EndedTasks | Scope::TaskRows { .. } => unreachable!("erasure scopes are core-only"),
         Scope::SettingsHistory { .. } => super::settings::from_store(core, limits, range, raw, next),
         Scope::Tasks { .. }
+        | Scope::TaskText { .. }
         | Scope::Task { .. }
         | Scope::Proposal { .. }
         | Scope::Escalation { .. }
@@ -543,8 +548,15 @@ fn object(
     row: Row,
     wall: skein_lib::Wall,
 ) -> Result<Option<Answer>, Missing> {
+    if let Scope::TaskText { task, field, from } = &range.scope {
+        let Some(owner) = row_owner(&row) else { return Ok(None) };
+        if owner.number != *task {
+            return Ok(None);
+        }
+        return Ok(Some(super::task_text::answer(core, limits, range.party, owner, *field, *from)));
+    }
     match &range.scope {
-        Scope::Task { task } | Scope::PersonTask { task } | Scope::Result { task } => {
+        Scope::TaskText { task, .. } | Scope::Task { task } | Scope::PersonTask { task } | Scope::Result { task } => {
             let Some(owner) = row_owner(&row) else {
                 return Ok(None);
             };
@@ -559,7 +571,7 @@ fn object(
                 documents::result_from_row(core, limits, range.party, owner, wall)?,
             )?;
             let answer = match range.scope {
-                Scope::Task { .. } => ended_answer(
+                Scope::TaskText { .. } | Scope::Task { .. } => ended_answer(
                     EndedValue::Task {
                         document: Box::new(hydrate_task(
                             core,
@@ -973,6 +985,7 @@ fn page_row(core: &Core, limits: &Limits, range: &Range, row: Row) -> Result<Opt
         Scope::Inbox { group, filter } => inbox_row(core, limits, range.party, *group, *filter, row),
         Scope::EndedTasks
         | Scope::TaskRows { .. }
+        | Scope::TaskText { .. }
         | Scope::Task { .. }
         | Scope::Proposal { .. }
         | Scope::Escalation { .. }
@@ -990,6 +1003,7 @@ fn inbox_contexts(scope: &Scope, rows: u32) -> Option<List<documents::InboxSelec
         Scope::Inbox { .. } => Some(List::with_capacity(rows)),
         Scope::EndedTasks
         | Scope::TaskRows { .. }
+        | Scope::TaskText { .. }
         | Scope::Task { .. }
         | Scope::Proposal { .. }
         | Scope::Escalation { .. }
@@ -1493,6 +1507,7 @@ pub(super) fn position_allowed(scope: &Scope, position: &Position) -> bool {
             Scope::Inbox { group, .. } => inbox_key_allowed(*group, *task, *object, key),
             Scope::EndedTasks
             | Scope::TaskRows { .. }
+            | Scope::TaskText { .. }
             | Scope::Task { .. }
             | Scope::Proposal { .. }
             | Scope::Escalation { .. }
@@ -1513,9 +1528,10 @@ pub(super) fn position_allowed(scope: &Scope, position: &Position) -> bool {
         Position::Owner(key) => {
             let kind = key_kind(key);
             match scope {
-                Scope::Task { task } | Scope::PersonTask { task } | Scope::Result { task } => {
-                    kind == KeyKind::Ended(*task)
-                }
+                Scope::TaskText { task, .. }
+                | Scope::Task { task }
+                | Scope::PersonTask { task }
+                | Scope::Result { task } => kind == KeyKind::Ended(*task),
                 Scope::Proposal { proposer, proposal } => match proposer {
                     Proposer::Task(task) => kind == KeyKind::History(*task),
                     Proposer::Party(_) => kind == KeyKind::PersonProposal(*proposal),

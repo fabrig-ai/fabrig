@@ -103,6 +103,7 @@ impl Component {
                 core::reads::Answer::Setting(_)
                 | core::reads::Answer::Revision(_)
                 | core::reads::Answer::Revisions(_)
+                | core::reads::Answer::TaskText(_)
                 | core::reads::Answer::Tasks(_)
                 | core::reads::Answer::Document(_)
                 | core::reads::Answer::Ended(_)
