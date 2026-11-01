@@ -1,5 +1,6 @@
 //! The shared scenarios bound to two test connectors and independent hosts.
 mod conversations;
+pub(crate) mod deletion;
 pub(crate) mod lifecycle;
 pub(crate) mod queries;
 use crate::{Config, Testing, actions::World};
@@ -108,7 +109,8 @@ impl ScenarioApplication for Testing {
             false,
             if matches!(
                 scenario,
-                Scenario::Compound
+                Scenario::ProjectDeleted
+                    | Scenario::Compound
                     | Scenario::ShrinkingPool
                     | Scenario::ConversationEndsWhileRead
                     | Scenario::QueryWatchedWhileTasksEnd
@@ -132,6 +134,7 @@ impl ScenarioApplication for Testing {
     fn check(world: &World, scenario: Scenario) -> Result<(), Violation> {
         let applied = world.systems[0].observed().iter().filter(|effect| effect.applied).count();
         match scenario {
+            Scenario::ProjectDeleted => deletion::check_ending(world),
             Scenario::Compound | Scenario::Grace => lifecycle::check_ending(world, scenario),
             Scenario::QueryWatchedWhileTasksEnd => queries::check_ending(world),
             Scenario::ConversationEndsWhileRead => conversations::check_ending(world),
@@ -228,6 +231,9 @@ impl Continuation {
     pub(crate) fn advance(&mut self, world: &mut World) -> Result<bool, Violation> {
         loop {
             match self.action {
+                Action::FillForDeletion | Action::RemoveProject => {
+                    return deletion::advance(world, self.action, &mut self.phase);
+                }
                 Action::Compound | Action::CompoundAgain | Action::CancelWithGrace | Action::Finish => {
                     return lifecycle::advance(world, self.action, &mut self.phase);
                 }
@@ -654,7 +660,9 @@ fn atomic(world: &mut World, action: Action) -> Result<(), Violation> {
             );
         }
 
-        Action::Conversation { .. }
+        Action::FillForDeletion
+        | Action::RemoveProject
+        | Action::Conversation { .. }
         | Action::Turn
         | Action::MarkTurns
         | Action::EndConversations
@@ -698,4 +706,10 @@ fn check_deadline(world: &mut World) -> Result<(), Violation> {
         world.peers.saved_deadline = Some(deadline);
     }
     Ok(())
+}
+
+/// First deciding, erasing and releasing commits observed in the deletion story.
+#[must_use]
+pub fn project_deletion_stage_cuts(world: &World) -> [u64; 3] {
+    deletion::stage_cuts(world)
 }

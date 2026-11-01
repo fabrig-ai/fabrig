@@ -132,6 +132,7 @@ pub(crate) fn world_document() -> serde_json::Value {
         value["engine"]["limits"]["overrides"][name] = count.into();
     }
     value["application"] = serde_json::json!({
+        "machine":{"owned":null,"github":{"api":null,"transport":null,"git":null,"web":null},"git_program":null},
         "webhooks":{"listener":{"socket":"127.0.0.1:0"}},
 "clients":{"listener":{"socket":CLIENTS.to_string()},"public":null,"bundle":null},
         "demo":null,"sign_in":null,"landing":{"deployment":[],"projects":[]},"charter":1,
