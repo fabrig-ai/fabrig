@@ -13,7 +13,7 @@ fn the_application_sizes_are_the_largest_key_and_row() {
     // Result evidence adds four 4096-byte prefixes, cut counts, a head and repair count.
     assert_eq!(
         application(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes),
-        Some(jig_protocol_store::sizes::Application { version: 10, key: 511, value: 53_492 })
+        Some(jig_protocol_store::sizes::Application { version: 11, key: 511, value: 53_492 })
     );
 }
 #[test]
@@ -50,13 +50,13 @@ fn a_row_whose_key_disagrees_with_its_record_is_undecodable() {
     assert_eq!(records::row(&key, &[], &bounds), Err(Undecodable), "malformed value");
 }
 #[test]
-fn the_store_version_is_ten() {
-    assert_eq!(crate::STORE_VERSION, 10);
+fn the_store_version_is_eleven() {
+    assert_eq!(crate::STORE_VERSION, 11);
 }
 
 #[test]
 fn demo_row_sizes_fit_the_existing_application_ceiling() {
-    use crate::v10 as w;
+    use crate::v11 as w;
     assert_eq!(w::Demo::encoded_bound(&w::CEILINGS), Some(3));
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
     for state in [forge::DemoState::Running, forge::DemoState::Ended] {
@@ -79,17 +79,17 @@ fn plan_text_uses_the_body_bound_without_changing_the_format() {
     const ISSUE_ROW_AFTER_HEAP_CEILING: u64 = 10_000;
     let bounds = crate::bounds(&fixtures::LIMITS, fixtures::LIMITS.client.op_bytes).expect("fixture bounds");
     let after = *bounds.limits();
-    let before = crate::v10::Limits { plan_item_text: fixtures::LIMITS.issue_policy.comment_bytes, ..after };
-    let old_view = crate::v10::GoalView::encoded_bound(&before).expect("old view size");
-    let new_view = crate::v10::GoalView::encoded_bound(&after).expect("new view size");
+    let before = crate::v11::Limits { plan_item_text: fixtures::LIMITS.issue_policy.comment_bytes, ..after };
+    let old_view = crate::v11::GoalView::encoded_bound(&before).expect("old view size");
+    let new_view = crate::v11::GoalView::encoded_bound(&after).expect("new view size");
     assert_eq!(new_view - old_view, EXTRA_PLAN_BYTES);
     // The schema's fixed framing plus the measured view; ChangeRow still dominates Row.
     assert_eq!(old_view, 5238);
     assert_eq!(new_view, 7286);
-    assert_eq!(crate::v10::IssueRow::encoded_bound(&before), Some(5657));
-    assert_eq!(crate::v10::IssueRow::encoded_bound(&after), Some(7705));
-    assert_eq!(crate::v10::IssueRow::decoded_bound(&before), Some(5888));
-    assert_eq!(crate::v10::IssueRow::decoded_bound(&after), Some(7936));
+    assert_eq!(crate::v11::IssueRow::encoded_bound(&before), Some(5657));
+    assert_eq!(crate::v11::IssueRow::encoded_bound(&after), Some(7705));
+    assert_eq!(crate::v11::IssueRow::decoded_bound(&before), Some(5888));
+    assert_eq!(crate::v11::IssueRow::decoded_bound(&after), Some(7936));
     for (name, limits, ceiling) in
         [("before", before, ISSUE_ROW_BEFORE_HEAP_CEILING), ("after", after, ISSUE_ROW_AFTER_HEAP_CEILING)]
     {
@@ -99,22 +99,22 @@ fn plan_text_uses_the_body_bound_without_changing_the_format() {
         let encoded = writer.finish();
         assert_eq!(
             Some(u64::try_from(encoded.len()).expect("encoded length")),
-            crate::v10::IssueRow::encoded_bound(&limits)
+            crate::v11::IssueRow::encoded_bound(&limits)
         );
         let meter = skein_world::domain::heap::Meter::new();
         meter.start();
         let decoded =
-            crate::v10::IssueRow::decode(&limits, &mut skein_lib::Reader::new(&encoded)).expect("full issue row");
+            crate::v11::IssueRow::decode(&limits, &mut skein_lib::Reader::new(&encoded)).expect("full issue row");
         let peak = meter.end().peak();
         assert!(peak <= ceiling, "{name}: {peak} bytes exceeds {ceiling}");
         assert_eq!(decoded, row);
     }
-    assert_eq!(crate::v10::Row::encoded_bound(&before), Some(53_492));
-    assert_eq!(crate::v10::Row::encoded_bound(&after), Some(53_492));
+    assert_eq!(crate::v11::Row::encoded_bound(&before), Some(53_492));
+    assert_eq!(crate::v11::Row::encoded_bound(&after), Some(53_492));
 }
 
-fn full_issue_row(limits: &crate::v10::Limits) -> crate::v10::IssueRow {
-    use crate::v10 as w;
+fn full_issue_row(limits: &crate::v11::Limits) -> crate::v11::IssueRow {
+    use crate::v11 as w;
     use skein_lib::{List, bytes};
     let key = w::MilestoneKey::Lifecycle(
         w::Lifecycle::new(limits, w::LifecycleParts { task: u64::MAX, position: u64::MAX }).expect("fixed key"),
