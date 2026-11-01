@@ -3,7 +3,7 @@ id = "sv-world-real-loop"
 part = "fs"
 kind = "migration"
 needs = ["sv-seed-kit", "sv-registry-setup"]
-files = ["temper/tests/real-loop/**", "temper/crates/temper-service/src/setup/lifecycle.rs", "temper/crates/temper-service/src/tests/registry_setup.rs"]
+files = ["temper/tests/real-loop/**", "temper/crates/temper-service/src/setup/lifecycle.rs", "temper/crates/temper-service/src/tests/registry_setup.rs", "temper/crates/temper-service/src/forge/records.rs"]
 effort = "high"
 minutes = 110
 +++
@@ -98,3 +98,26 @@ answer's slip, corrected above in `files` and the bullets: add the case to the l
 existing module `src/tests/registry_setup.rs` and run it with `heavy cargo nextest run -p
 temper-service --lib -E 'test(/tests::registry_setup::/)'`. `sv-world-one-process` now
 waits on this task for the `connected` fix, so land it before anything else.
+
+2026-11-01. Q (run 3): may this task also fix the records-only Forgejo's webhook access and
+git-credential publication, or should `sv-startup-refuse` supply them? A: this task fixes
+both, narrowly. `sv-startup-refuse` and `sv-world-one-process` wait on this task, so they
+cannot supply what its acceptance needs. The task's `files` now add
+`temper/crates/temper-service/src/forge/records.rs`; `src/forge.rs` stays unchanged, and
+`setup/lifecycle.rs` may now change beyond `connected`'s last branch only as below.
+- Webhook access: in `forge/records.rs`'s restored branch (a registered record with no
+  setup entry), pass `records::access`'s `webhooks` as true for a Forgejo record whose rows
+  hold `Item::WebhookSecret`; GitHub's call and every other caller stay as they are.
+- Git credential: move the identity-publishing block of `setup/lifecycle.rs::connect_local`
+  (the `GitToken` read and check, `translate::identity`, `values.identities.put`,
+  `root::Event::Credential`) into one `pub(crate)` helper taking the forge's
+  `settings::Identity` and its rows; `connect_local` calls it as before, and the restored
+  Forgejo branch of `forge/records.rs` calls it with `crate::forges::identity(record)` (its
+  number is the forge's) before `crate::forge::connect`, when its rows hold `GitToken`.
+- Two cases in `src/tests/registry_setup.rs`: a registered Forgejo with no setup entry and a
+  seeded `WebhookSecret` connects with the secret in its `Connect` access; with a seeded
+  `GitToken` it publishes one `Credential` for identity <the forge's number> and the
+  identities table holds it. Run the module as above, then the whole
+  `temper-real-loop-world` default run.
+- If `forced_overdue_observes_real_tasks_operations_and_dispatch` still stalls after both
+  fixes, do not widen further: report its log and diagnosis as a question.
