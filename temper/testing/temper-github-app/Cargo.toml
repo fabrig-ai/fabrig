@@ -8,6 +8,7 @@ rust-version.workspace = true
 publish.workspace = true
 
 [dependencies]
+temper-engine-domain-forge.workspace = true
 temper-protocol-records = { workspace = true, features = ["forge"] }
 temper-protocol-store.workspace = true
 temper-service.workspace = true
