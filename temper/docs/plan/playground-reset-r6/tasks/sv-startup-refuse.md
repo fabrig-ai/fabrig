@@ -176,3 +176,15 @@ settings, the forge's setup entry and its port, to `<data>/box/groups/N` and ask
   temper-service is this task's; one read to lie in the box's group loading or the binary
   (`temper/crates/temper/src/**`, `bx-unforge`'s files) goes under `## Left` naming
   `bx-unforge`, with the walk's log, and does not hold this task.
+
+## Rebase (2026-11-01, step merge, foreman playground-reset-r6/sv-startup-refuse/foreman-4)
+
+resolve the three merge conflicts while preserving trunk’s setup and worker-limit repairs.
+The merge conflicts are in `temper/crates/temper-service/src/{route.rs,setup.rs,tests/worker.rs}`.
+Reconcile with integration commits `83d159eb15`, `4dc85b4efd` and `dcef03bb38`.
+- `route.rs`, `Request::SetUp`: retain one call to `box_link::set_up_group` after `lifecycle::first`, using the record’s setup entry or empty bytes. Both sides implement this behavior.
+- `setup.rs`, `register`: reconcile the overlapping `NotSetUp` initialization with `4dc85b4efd`. Preserve the startup-restored guard and trigger-based handling for `StartDemo`/`StartAsked`, so restored lifecycle state remains authoritative. Keep this task’s removal of `file_api` and document-backed setup.
+- `tests/worker.rs`: retain trunk’s `registered_forges_keep_assignments_within_the_workers_receive_terms`; remove its obsolete `settings.identities` assignment because this branch deletes that field.
+- `workers.rs` auto-merges, but verify `limits().sizes.credentials` retains `core.accounts.credentials` from `dcef03bb38`; the branch’s forge-count assertion must go.
+- Preserve `83d159eb15`’s pending-group Busy refusal in `route/box_link.rs` and its auto-merged registry test, alongside this branch’s runtime-owned group-write tests.
+Verify the registry setup tests and worker receive-terms test before the spec’s remaining checks.
