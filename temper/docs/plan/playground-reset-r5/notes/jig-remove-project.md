@@ -158,3 +158,14 @@ report names them.
   and the referee's end check that no durable row names the project
   (`jp-conform`), with the deletion cut by a crash after each step's
   commit, resumed to the same end.
+
+## 6. Test files, as the specs name them (added after section 5)
+
+Section 5's core-world file names give way to these, chosen so that the
+three tasks' `mod` lines in `jig/tests/core/tests/suite/main.rs` fall
+apart in its sorted list: `closing_projects.rs` (`jp-close`),
+`project_removal_steps.rs` (`jp-steps`), `removed_rows.rs` (`jp-rows`).
+The rows' step drives the tasks child directly from `removal/rows.rs`
+(`tasks::step` with its own follow queue, as `routing/tasks.rs`' `Ended`
+arm does for `DelegateResult`), so it needs no edit of `routing/tasks.rs`,
+which `jp-steps` owns.
