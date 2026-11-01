@@ -152,8 +152,10 @@ pub(super) fn tag_people(
             }
             people::Request::Save { record } => {
                 super::view_routes::touch_people_row(core, &record);
-                let erasing = match &record {
-                    people::Stored::Deletion { stage, .. } => *stage == people::Stage::Erasing,
+                let (erasing, releasing) = match &record {
+                    people::Stored::Deletion { stage, .. } => {
+                        (*stage == people::Stage::Erasing, *stage == people::Stage::Releasing)
+                    }
                     people::Stored::Person { .. }
                     | people::Stored::ReadResults { .. }
                     | people::Stored::ReadConversation { .. }
@@ -162,8 +164,11 @@ pub(super) fn tag_people(
                     | people::Stored::Roles { .. }
                     | people::Stored::Policy { .. }
                     | people::Stored::Answer { .. }
-                    | people::Stored::Acted { .. } => false,
+                    | people::Stored::Acted { .. } => (false, false),
                 };
+                if releasing {
+                    crate::deletion::release::begin(core, env, &mut out);
+                }
                 if erasing {
                     crate::deletion::erase::begin(core, env, &mut out);
                 }
