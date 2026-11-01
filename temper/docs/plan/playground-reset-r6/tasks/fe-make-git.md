@@ -3,7 +3,7 @@ id = "fe-make-git"
 part = "fs"
 kind = "feature"
 needs = ["fe-config-drop"]
-files = ["temper/crates/temper-engine-domain-forge/**"]
+files = ["temper/crates/temper-engine-domain-forge/**", "temper/crates/temper/tests/fake_backends/walk.rs"]
 effort = "medium"
 minutes = 30
 +++
@@ -54,3 +54,15 @@ Acceptance:
 ## Report
 
 - Nothing beyond the implementer's text.
+
+## Answers
+
+2026-11-01, from bx-walks' question (its fake-backends walk of a Forgejo elsewhere fails
+for want of this change). Also: remove the
+`#[ignore = "managed Forgejo's git program: fe-make-git"]` that bx-walks put on
+`temper/crates/temper/tests/fake_backends/walk.rs`'s
+`forgejo_elsewhere_and_a_key_reach_a_first_chat_on_the_fake_box` (the attribute alone;
+`files` now names `walk.rs`), and run it alone:
+`heavy cargo nextest run -p temper --profile process-temper --test process -E
+'test(=fake_backends::walk::forgejo_elsewhere_and_a_key_reach_a_first_chat_on_the_fake_box)'`
+(check the count: 1). It passes, or its failure, read, is reported as a question.
