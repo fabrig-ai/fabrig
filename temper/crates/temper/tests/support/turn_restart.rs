@@ -38,6 +38,7 @@ fn reads(root: &Path, landing: u64, change: u64) -> Reads {
 pub fn configure(root: &Path, repository: u64) {
     let path = root.join("temper.json");
     let mut config: Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
+    super::legacy_configuration::landing_forge(root, &mut config);
     config["application"]["landing"]["projects"] = json!([{
         "project":1,"by":"turn","rules":[],
         "gates":[{"forge":1,"repository":repository,
@@ -310,7 +311,7 @@ fn run_to(
         let ctl_root = skein_shell::open_root(root).expect("ctl root");
         fds.push(ctl_root);
         world.spawn_with_fds(fds, || {
-            Process::Calls(Box::new(ctl::Calls::new(ctl_root, setup(root), Some(&streams), None)))
+            Process::Calls(Box::new(ctl::Calls::new(ctl_root, setup(root), Some(&streams), None).with_fixture(root)))
         });
     } else {
         fds.push(person_root);

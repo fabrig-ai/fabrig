@@ -12,6 +12,46 @@ use support::forge_land::{
 use support::boxed::BOX_DEADLINE;
 
 #[test]
+fn fixture_forges_are_provisioned_before_box_ctl_and_native_steps() {
+    use support::ctl::{Call, Step};
+    let scratch = support::Scratch::new("box-runtime-forge");
+    support::configuration(scratch.path(), &support::Forge::Unreached);
+    let flags = || {
+        support::configuration::flags(scratch.path())
+            .into_iter()
+            .map(|word| word.into_string().expect("UTF-8 flag"))
+            .collect()
+    };
+    let ctl = support::boxed::run_ctl(
+        scratch.path(),
+        flags(),
+        scratch.path(),
+        vec![Step::Run(Call::sign_in()), Step::Run(Call::new(&["forge", "list", "--json"]))],
+        BOX_DEADLINE,
+        |_| (),
+    );
+    assert_eq!(ctl.exit, Some(Exit::Code(0)), "{}", String::from_utf8_lossy(&ctl.stderr));
+    let [signed, listed] = ctl.calls.as_slice() else { panic!("only the caller's two calls") };
+    assert_eq!(signed.exit, Some(Exit::Code(0)));
+    let forges = support::ctl::json(listed);
+    let rows = forges["forges"].as_array().expect("forge rows");
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0]["number"], 1);
+    let native = support::boxed::run_story(
+        scratch.path(),
+        flags(),
+        scratch.path(),
+        support::person::fixture_forge(),
+        BOX_DEADLINE,
+        || (),
+    );
+    assert!(native.finished, "{}", String::from_utf8_lossy(&native.stderr));
+    assert_eq!(native.exit, Some(Exit::Code(0)));
+    assert_eq!(native.left, Some(Vec::new()));
+    scratch.remove();
+}
+
+#[test]
 fn rung_b0s_funds_document_applies_through_ctl_and_preserves_the_settings() {
     use serde_json::json;
     use support::ctl::{Call, Step, Story};

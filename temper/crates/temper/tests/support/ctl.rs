@@ -1,7 +1,7 @@
 //! Executable calls beside serve, with every descriptor on one real ring.
 //! temper/docs/design/domain/testing.md, 2.6.
 mod member;
-use super::{Ended, Process, WITHIN, patience::Patience};
+use super::{Ended, Process, WITHIN, forges::FixturePhase, patience::Patience};
 use skein_io::kernel::{Complete, Done, Error, Exit, Fd, Op, Pipe, Signal, Spawn, Submit, Target, Way};
 use skein_lib::{Duration, Queue, Time, Token, Wall};
 use skein_shell::{Clock, Host};
@@ -90,6 +90,8 @@ impl Call {
 }
 pub type NextCall = Box<dyn FnOnce(&[Ended]) -> Call>;
 pub enum Step {
+    /// Complete runtime provisioning and start recording the caller's evidence.
+    FixtureReady,
     Mark(&'static str),
     /// Wait for bytes in the box's captured stderr; requires a box referee.
     Stderr(&'static [u8]),
@@ -403,6 +405,8 @@ enum BoxStderr {
     Captured,
 }
 pub struct Calls {
+    fixture: FixturePhase,
+    provisioning_client: Option<Box<[u8]>>,
     sign_ins: Vec<Call>,
     cuts: Vec<usize>,
     root: Option<Fd>,
@@ -569,12 +573,12 @@ impl Calls {
     /// Completed calls, in the order their steps ran.
     #[must_use]
     pub fn ends(&self) -> &[Ended] {
-        &self.ends
+        if matches!(self.fixture, FixturePhase::Provisioning) { &[] } else { &self.ends }
     }
     /// Wall input at completed response observation, parallel to ends (not server sample time).
     #[must_use]
     pub fn observed_at(&self) -> &[Option<Wall>] {
-        &self.observed_at
+        if matches!(self.fixture, FixturePhase::Provisioning) { &[] } else { &self.observed_at }
     }
     /// All bytes read from the box's stdout, including an incomplete link on failure.
     pub(super) fn stdout(&self) -> &[u8] {
@@ -607,8 +611,26 @@ impl Calls {
             self.advance(now);
         }
     }
+    #[must_use]
+    pub fn with_fixture(mut self, directory: &Path) -> Self {
+        if let Some(forge) = super::forges::fixture(directory) {
+            let at = self.steps.iter().position(|step| !matches!(step, Step::Mark(_))).expect("story sign-in");
+            let Some(Step::Run(sign_in @ Call { stdin: Stdin::Link, .. })) = self.steps.remove(at) else {
+                panic!("a forge story starts with sign-in");
+            };
+            self.provisioning_client.clone_from(&sign_in.client);
+            let mut prefix: VecDeque<_> = self.steps.drain(..at).collect();
+            prefix.extend(super::forges::fixture_steps(&forge, sign_in));
+            prefix.append(&mut self.steps);
+            self.steps = prefix;
+            self.fixture = FixturePhase::Provisioning;
+        }
+        self
+    }
     pub(super) fn new(root: Fd, steps: Vec<Step>, streams: Option<&Streams>, forgejo: Option<u32>) -> Self {
         let mut calls = Self {
+            fixture: FixturePhase::Story,
+            provisioning_client: None,
             sign_ins: Vec::new(),
             cuts: Vec::new(),
             root: Some(root),
@@ -698,7 +720,10 @@ impl Calls {
             self.child = Some(child);
         }
     }
-    fn start(&mut self, call: Call, started: bool) {
+    fn start(&mut self, mut call: Call, started: bool) {
+        if matches!(self.fixture, FixturePhase::Provisioning) && call.client.is_none() {
+            call.client.clone_from(&self.provisioning_client);
+        }
         let sign_in = matches!(call.stdin, Stdin::Link).then(|| call.clone());
         let kind = if call.arguments.first().is_some_and(|word| word.as_ref() == b"repository")
             && call.arguments.get(1).is_some_and(|word| word.as_ref() == b"adopt")
@@ -752,6 +777,17 @@ impl Calls {
             self.awaiting_started = false;
         }
     }
+    fn fixture_answer(&self, ended: &Ended) {
+        if matches!(self.fixture, FixturePhase::Provisioning) && !self.cancelling {
+            assert_eq!(
+                ended.exit,
+                Some(Exit::Code(0)),
+                "fixture provisioning: stdout {}; stderr {}",
+                String::from_utf8_lossy(&ended.stdout),
+                String::from_utf8_lossy(&ended.stderr)
+            );
+        }
+    }
     fn finish(&mut self, now: Time) {
         self.finish_started();
         if !self.child.as_ref().is_some_and(Child::finished) {
@@ -760,6 +796,7 @@ impl Calls {
         let child = self.child.take().expect("finished ctl");
         self.signed_in(&child);
         let ended = child.ended;
+        self.fixture_answer(&ended);
         self.finish_step(true);
         match self.action.take().expect("current action") {
             Action::Run => {
@@ -967,6 +1004,26 @@ impl Calls {
         self.action = Some(Action::TaskExists(call.clone(), task));
         self.start(call, false);
     }
+    fn fixture_ready(&mut self, now: Time) {
+        for call in &self.ends {
+            assert_eq!(
+                call.exit,
+                Some(Exit::Code(0)),
+                "fixture provisioning: {}",
+                String::from_utf8_lossy(&call.stderr)
+            );
+        }
+        eprintln!(
+            "fixture forge make/connect: {} ms",
+            self.phase.take().map_or(0, |began| now.saturating_since(began).as_nanos() / 1_000_000)
+        );
+        self.fixture = FixturePhase::Story;
+        self.ends.truncate(1);
+        self.observed_at.truncate(1);
+        self.spans.truncate(1);
+        self.tokens.clear();
+        self.advance(now);
+    }
     fn advance(&mut self, now: Time) {
         // A box that exits before printing its link must be diagnosed by
         // its referee, rather than panicking while constructing sign-in stdin.
@@ -992,6 +1049,7 @@ impl Calls {
             self.deadline = Some(Patience::arm("the measured ctl step", within));
         }
         match self.steps.pop_front() {
+            Some(Step::FixtureReady) => self.fixture_ready(now),
             Some(Step::Mark(name)) => {
                 if let Some(began) = self.phase.replace(now) {
                     eprintln!("{name}: {} ms", now.saturating_since(began).as_nanos() / 1_000_000);
@@ -1277,7 +1335,7 @@ pub fn run(story: Story<'_>) -> Seen {
     });
     world.spawn_with_fds(serve.descriptors(), || Process::Binary(Box::new(serve)));
     world.spawn_with_fds(fds, || {
-        let mut calls = Calls::new(root, story.steps, Some(&streams), story.forgejo);
+        let mut calls = Calls::new(root, story.steps, Some(&streams), story.forgejo).with_fixture(story.scratch);
         calls.within = story.measured.then_some(WITHIN);
         if story.measured {
             let began = clock.now();
@@ -1300,6 +1358,29 @@ pub fn run(story: Story<'_>) -> Seen {
         tokens: std::mem::take(&mut calls.tokens),
     }
 }
+/// Provision a terminal story before its typist starts, keeping the same signed-in directory.
+pub fn provision_linked(directory: &Path, client: &Path, link: &[u8]) -> bool {
+    if super::forges::fixture(directory).is_none() {
+        return false;
+    }
+    let clock = Clock::new();
+    let mut calls = Calls::linked(std::str::from_utf8(link).expect("printed link"), client);
+    calls.push(Step::Run(Call::sign_in()));
+    calls = calls.with_fixture(directory);
+    let root = calls.root.expect("fixture root");
+    let mut world = real::World::new(Judge {
+        stopped: false,
+        settled: false,
+        deadline: clock.now().now.saturating_add(WITHIN),
+        scratch: directory.into(),
+        token_names: Vec::new(),
+    });
+    world.spawn_with_fds(vec![root], || Process::Calls(Box::new(calls)));
+    let ended = world.run(&clock, WITHIN);
+    assert!(ended.procs.iter().all(Host::is_empty), "fixture calls settle before the terminal starts");
+    true
+}
+
 #[must_use]
 pub fn alone(scratch: &Path, call: Call) -> Ended {
     let clock = Clock::new();

@@ -423,7 +423,7 @@ fn fake_preparation_refuses_an_open_directory_and_run_still_refuses_fake() {
 }
 
 fn fake_configuration(directory: &std::path::Path) {
-    let config = support::configuration::check_document(directory);
+    let config = support::legacy_configuration::check_document(directory);
     fs::write(directory.join("temper.json"), serde_json::to_vec(&config).expect("document")).expect("document");
 }
 
