@@ -207,6 +207,7 @@ pub(super) fn tag_people(
                     | people::Outcome::PolicyChanged { .. }
                     | people::Outcome::Renamed { .. }
                     | people::Outcome::ProjectMade { .. }
+                    | people::Outcome::ProjectRemoved { .. }
                     | people::Outcome::SettingsChanged { .. }
                     | people::Outcome::MovedToNewest { .. }
                     | people::Outcome::PoolSet { .. }
@@ -243,6 +244,12 @@ pub(super) fn tag_people(
                     continue;
                 }
                 match *ask {
+                    people::Ask::RemoveProject { .. } => {
+                        work.push(Event::People(people::Event::Decided {
+                            request,
+                            outcome: people::Outcome::Refused(people::Refusal::NotOffered),
+                        }));
+                    }
                     people::Ask::Compound { operations, .. } => {
                         crate::compound::route(
                             core,

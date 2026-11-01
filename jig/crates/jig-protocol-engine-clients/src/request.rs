@@ -446,6 +446,7 @@ fn carried_kind(ask: &people::Ask) -> Option<crate::CarriedKind> {
         | people::Ask::SetRoles { .. }
         | people::Ask::ChangePolicy { .. }
         | people::Ask::Rename { .. }
+        | people::Ask::RemoveProject { .. }
         | people::Ask::MakeProject { .. }
         | people::Ask::SetPool { .. }
         | people::Ask::DecideEscalation { .. }

@@ -424,6 +424,7 @@ pub(crate) fn connector(
         | connector::Event::SectionReady { .. }
         | connector::Event::WorkspaceReady { .. }
         | connector::Event::Adopted { .. }
+        | connector::Event::ProjectReleased { .. }
         | connector::Event::RestartDone { .. } => {}
     }
     end(&mut out);

@@ -19,7 +19,9 @@ pub(super) fn start(
 ) -> Requests {
     let digest = match &*act {
         people::Act::AddKey { digest, .. } => Some(*digest),
-        people::Act::MakeProject { .. }
+        people::Act::RemoveProject { .. }
+        | people::Act::Cancel { .. }
+        | people::Act::MakeProject { .. }
         | people::Act::Close { .. }
         | people::Act::RemoveAccount { .. }
         | people::Act::Adopt { .. } => None,
@@ -54,6 +56,9 @@ pub(super) fn route(
     act: people::Act,
 ) {
     match act {
+        people::Act::RemoveProject { .. } | people::Act::Cancel { .. } => {
+            refused(work, request, people::Refusal::NotOffered);
+        }
         people::Act::MakeProject { maker, name, policy } => {
             super::projects::make_project_act(core, env, work, out, request, maker, name, policy);
         }

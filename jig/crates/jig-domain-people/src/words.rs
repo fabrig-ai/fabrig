@@ -46,6 +46,7 @@ pub(crate) fn valid(ask: &Ask) -> bool {
         | Ask::SetRoles { .. }
         | Ask::ChangePolicy { .. }
         | Ask::Rename { .. }
+        | Ask::RemoveProject { .. }
         | Ask::MakeProject { .. }
         | Ask::ChangeSettings { .. }
         | Ask::MoveToNewest { .. }

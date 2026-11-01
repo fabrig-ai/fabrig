@@ -1107,6 +1107,7 @@ fn effectconnector_new_work(event: &crate::connector::Event) -> bool {
         | crate::connector::Event::SectionReady { .. }
         | crate::connector::Event::WorkspaceReady { .. }
         | crate::connector::Event::Adopted { .. }
+        | crate::connector::Event::ProjectReleased { .. }
         | crate::connector::Event::Closed { .. }
         | crate::connector::Event::RestartDone { .. } => false,
     }

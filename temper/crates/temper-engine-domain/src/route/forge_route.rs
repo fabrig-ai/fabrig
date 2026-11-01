@@ -3598,6 +3598,13 @@ pub(crate) fn effect_answer(domain: &Domain, key: CallKey, part: &jig_domain_cor
 #[expect(clippy::too_many_lines, reason = "one exhaustive core effect handoff translator")]
 pub(crate) fn effect_ask(domain: &mut Domain, env: &Env<Limits>, number: u16, ask: jig_domain_core::connector::Ask) {
     match ask {
+        jig_domain_core::connector::Ask::ReleaseProject { request, project } => {
+            // The forge connector erases its rows of the project first from
+            // rm-release-project on.
+            domain.work.push(Work::Core(jig_domain_core::Event::EffectConnector(
+                jig_domain_core::connector::Event::ProjectReleased { request, project },
+            )));
+        }
         // A person settles a held uncertain effect (brief D14; jig's
         // `domain/connectors.md`, 4.3): again remakes it, a creation looked
         // for first; otherwise it is recorded not made.

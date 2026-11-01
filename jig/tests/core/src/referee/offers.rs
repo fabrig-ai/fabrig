@@ -275,7 +275,9 @@ fn request(ask: &people::Ask) -> Option<(Act, Subject)> {
             Subject::Note { note: *name },
         ),
         people::Ask::Adopt { project, .. } => (Act::Adopt, Subject::Project { project: *project }),
-        people::Ask::Rename { project, .. } => (Act::Rename, Subject::Project { project: *project }),
+        people::Ask::Rename { project, .. } | people::Ask::RemoveProject { project } => {
+            (Act::Rename, Subject::Project { project: *project })
+        }
         people::Ask::ChangePolicy { project, .. } => (Act::ChangePolicy, Subject::Project { project: *project }),
         people::Ask::SetRoles { project, .. } => (Act::SetRoles, Subject::Project { project: *project }),
         people::Ask::MakeService { project, .. } => (Act::MakeService, Subject::Project { project: *project }),

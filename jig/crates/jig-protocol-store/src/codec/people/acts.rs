@@ -3,6 +3,8 @@ use super::{asks, compound, domain, wire};
 
 pub(super) fn encode(act: &domain::Act, limits: &wire::Limits) -> Result<wire::Act, wire::Problem> {
     Ok(match act {
+        // Encoded from pd-store on.
+        domain::Act::RemoveProject { .. } | domain::Act::Cancel { .. } => return Err(super::problem()),
         domain::Act::MakeProject { maker, name, policy } => wire::Act::MakeProject(wire::ActMakeProject::new(
             limits,
             wire::ActMakeProjectParts { maker: *maker, name: name.as_bytes().into(), policy: *policy },

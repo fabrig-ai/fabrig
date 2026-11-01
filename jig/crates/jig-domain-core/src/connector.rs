@@ -103,6 +103,11 @@ pub enum EffectRefusal {
 /// A connector's answer in jig's vocabulary, after root translation.
 #[derive(Debug)]
 pub enum Event {
+    /// The connector holds no row of the project any more.
+    ProjectReleased {
+        request: Token,
+        project: u32,
+    },
     Resource {
         project: u32,
         name: tasks::Name,
@@ -216,6 +221,12 @@ pub struct AdoptedParty {
 /// What the core asks a numbered connector to do.
 #[derive(Debug)]
 pub enum Ask {
+    /// Erase the connector's rows of a deleted project (its adoptions,
+    /// its settings of the project's scope); answered by `ProjectReleased`.
+    ReleaseProject {
+        request: Token,
+        project: u32,
+    },
     Names {
         task: u64,
         resources: Box<[tasks::Name]>,

@@ -715,6 +715,7 @@ fn outcome_reply(outcome: Outcome) -> Reply {
         | Outcome::PolicyChanged { .. }
         | Outcome::Renamed { .. }
         | Outcome::ProjectMade { .. }
+        | Outcome::ProjectRemoved { .. }
         | Outcome::SettingsChanged { .. }
         | Outcome::MovedToNewest { .. }
         | Outcome::PoolSet { .. }
@@ -768,6 +769,7 @@ fn apply_roles(
         | Ask::Adopt { .. }
         | Ask::ChangePolicy { .. }
         | Ask::Rename { .. }
+        | Ask::RemoveProject { .. }
         | Ask::MakeProject { .. }
         | Ask::ChangeSettings { .. }
         | Ask::MoveToNewest { .. }
@@ -821,6 +823,7 @@ fn apply_roles(
         | Ask::Adopt { .. }
         | Ask::ChangePolicy { .. }
         | Ask::Rename { .. }
+        | Ask::RemoveProject { .. }
         | Ask::MakeProject { .. }
         | Ask::ChangeSettings { .. }
         | Ask::MoveToNewest { .. }
@@ -949,6 +952,7 @@ fn make_service(domain: &mut Domain, env: &Env<Limits>, request: Token, person: 
         | Ask::SetRoles { .. }
         | Ask::ChangePolicy { .. }
         | Ask::Rename { .. }
+        | Ask::RemoveProject { .. }
         | Ask::MakeProject { .. }
         | Ask::ChangeSettings { .. }
         | Ask::MoveToNewest { .. }
@@ -1173,6 +1177,7 @@ fn project(ask: &Ask) -> u32 {
         | Ask::AccountChange { .. } => 0,
         Ask::MakeProject { .. } | Ask::ChangeSettings { .. } | Ask::MoveToNewest { .. } => crate::DEPLOYMENT,
         Ask::Rename { project, .. }
+        | Ask::RemoveProject { project, .. }
         | Ask::Compound { project, .. }
         | Ask::EditNote { project, .. }
         | Ask::MakeService { project, .. }
@@ -1291,6 +1296,8 @@ pub(crate) fn valid_ask(limits: &Limits, ask: &Ask) -> bool {
         return false;
     }
     match ask {
+        // Refused until pd-close gives it a body.
+        Ask::RemoveProject { .. } => false,
         Ask::Compound { operations, .. } => crate::compound::refusal(limits, operations).is_none(),
         Ask::MarkSeen { seen } => match seen {
             Seen::Results { .. } => true,
@@ -1388,6 +1395,8 @@ pub(crate) fn valid_ask(limits: &Limits, ask: &Ask) -> bool {
 // Admission identifies the bounded payload before any keyed flight is made.
 pub(crate) fn invalid_ask(limits: &Limits, ask: &Ask) -> Refusal {
     let which = match ask {
+        // Refused until pd-close gives it a body.
+        Ask::RemoveProject { .. } => return Refusal::NotOffered,
         Ask::Compound { operations, .. } => {
             return crate::compound::refusal(limits, operations).expect("invalid compound");
         }
@@ -1498,6 +1507,7 @@ fn valid_answer_shape(ask: &Ask, outcome: Outcome) -> bool {
         Policy(u32),
         Rename(u32),
         MakeProject,
+        RemoveProject(u32),
         ChangeSettings,
         MoveToNewest,
         Pool(u32, u64),
@@ -1553,6 +1563,7 @@ fn valid_answer_shape(ask: &Ask, outcome: Outcome) -> bool {
         Ask::ChangePolicy { project, .. } => Expected::Policy(*project),
         Ask::Rename { project, .. } => Expected::Rename(*project),
         Ask::MakeProject { .. } => Expected::MakeProject,
+        Ask::RemoveProject { project } => Expected::RemoveProject(*project),
         Ask::ChangeSettings { .. } => Expected::ChangeSettings,
         Ask::MoveToNewest { .. } => Expected::MoveToNewest,
         Ask::SetPool { project, person, .. } => Expected::Pool(*project, *person),
@@ -1617,6 +1628,7 @@ fn valid_answer_shape(ask: &Ask, outcome: Outcome) -> bool {
         Outcome::MovedToNewest { newest, .. } => expected == Expected::MoveToNewest && newest != 0,
         Outcome::SettingsChanged { revision } => expected == Expected::ChangeSettings && revision != 0,
         Outcome::ProjectMade { project } => expected == Expected::MakeProject && project != crate::DEPLOYMENT,
+        Outcome::ProjectRemoved { project } => expected == Expected::RemoveProject(project),
         Outcome::PoolSet { project, person } => expected == Expected::Pool(project, person),
         Outcome::EscalationDecided { .. } => expected == Expected::Escalation,
         Outcome::AccountSignInStarted { .. } => expected == Expected::AccountSignIn,
@@ -1875,6 +1887,7 @@ fn reserves_answer(ask: &Ask) -> bool {
         | Ask::SetRoles { .. }
         | Ask::ChangePolicy { .. }
         | Ask::Rename { .. }
+        | Ask::RemoveProject { .. }
         | Ask::MakeProject { .. }
         | Ask::ChangeSettings { .. }
         | Ask::MoveToNewest { .. }
@@ -1949,6 +1962,7 @@ pub(super) fn answer_decided(
         | Outcome::PolicyChanged { .. }
         | Outcome::Renamed { .. }
         | Outcome::ProjectMade { .. }
+        | Outcome::ProjectRemoved { .. }
         | Outcome::SettingsChanged { .. }
         | Outcome::MovedToNewest { .. }
         | Outcome::PoolSet { .. }
@@ -2151,6 +2165,7 @@ fn restored(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                 | Ask::Adopt { .. }
                 | Ask::ChangePolicy { .. }
                 | Ask::Rename { .. }
+                | Ask::RemoveProject { .. }
                 | Ask::MakeProject { .. }
                 | Ask::ChangeSettings { .. }
                 | Ask::MoveToNewest { .. }
@@ -2186,6 +2201,7 @@ fn restored(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
             | Outcome::PolicyChanged { .. }
             | Outcome::Renamed { .. }
             | Outcome::ProjectMade { .. }
+            | Outcome::ProjectRemoved { .. }
             | Outcome::SettingsChanged { .. }
             | Outcome::MovedToNewest { .. }
             | Outcome::PoolSet { .. }
@@ -2267,6 +2283,7 @@ pub fn application_part(domain: &mut Domain, env: &Env<Limits>, request: Token, 
         | Ask::SetRoles { .. }
         | Ask::ChangePolicy { .. }
         | Ask::Rename { .. }
+        | Ask::RemoveProject { .. }
         | Ask::MakeProject { .. }
         | Ask::ChangeSettings { .. }
         | Ask::MoveToNewest { .. }
@@ -2308,6 +2325,7 @@ pub fn application_part(domain: &mut Domain, env: &Env<Limits>, request: Token, 
         | Ask::SetRoles { .. }
         | Ask::ChangePolicy { .. }
         | Ask::Rename { .. }
+        | Ask::RemoveProject { .. }
         | Ask::MakeProject { .. }
         | Ask::ChangeSettings { .. }
         | Ask::MoveToNewest { .. }
@@ -2393,6 +2411,7 @@ fn admission(domain: &Domain, person: u64, _project: u32, role: Option<Role>, as
         | Ask::SetRoles { .. }
         | Ask::ChangePolicy { .. }
         | Ask::Rename { .. }
+        | Ask::RemoveProject { .. }
         | Ask::MakeProject { .. }
         | Ask::SetPool { .. }
         | Ask::Create { .. }
@@ -2485,6 +2504,7 @@ fn valid_program_outcome(limits: &Limits, outcome: &Outcome) -> bool {
         | Outcome::PolicyChanged { .. }
         | Outcome::Renamed { .. }
         | Outcome::ProjectMade { .. }
+        | Outcome::ProjectRemoved { .. }
         | Outcome::SettingsChanged { .. }
         | Outcome::MovedToNewest { .. }
         | Outcome::PoolSet { .. }

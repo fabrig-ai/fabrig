@@ -321,6 +321,7 @@ fn core_held(
                 | jig_domain_people::Outcome::PoolSet { .. }
                 | jig_domain_people::Outcome::Renamed { .. }
                 | jig_domain_people::Outcome::ProjectMade { .. }
+                | jig_domain_people::Outcome::ProjectRemoved { .. }
                 | jig_domain_people::Outcome::SettingsChanged { .. }
                 | jig_domain_people::Outcome::MovedToNewest { .. }
                 | jig_domain_people::Outcome::EscalationDecided { .. }
@@ -745,6 +746,12 @@ fn core_ask(
 #[expect(clippy::manual_map, reason = "step code copies owner scope without closure-taking methods")]
 fn effect_ask(domain: &mut Domain, env: &Env<Limits>, number: u16, ask: core::connector::Ask, work: &mut Queue<Work>) {
     match ask {
+        core::connector::Ask::ReleaseProject { request, project } => {
+            work.push(Work::Core(core::Event::EffectConnector(core::connector::Event::ProjectReleased {
+                request,
+                project,
+            })));
+        }
         core::connector::Ask::Describe { owner } => match domain.effects.remove(&owner) {
             Some(effect) => work.push(Work::Infrastructure(infrastructure::Event::Describe { token: owner, effect })),
             None => {

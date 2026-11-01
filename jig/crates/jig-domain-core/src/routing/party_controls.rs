@@ -209,6 +209,7 @@ pub(super) fn cancel_request(
         | people::Ask::Amend { .. }
         | people::Ask::SetRoles { .. }
         | people::Ask::Rename { .. }
+        | people::Ask::RemoveProject { .. }
         | people::Ask::MakeProject { .. }
         | people::Ask::ChangeSettings { .. }
         | people::Ask::MoveToNewest { .. }
@@ -284,6 +285,7 @@ pub(super) fn release_request(
                 | people::Ask::Amend { .. }
                 | people::Ask::SetRoles { .. }
                 | people::Ask::Rename { .. }
+                | people::Ask::RemoveProject { .. }
                 | people::Ask::MakeProject { .. }
                 | people::Ask::ChangeSettings { .. }
                 | people::Ask::MoveToNewest { .. }

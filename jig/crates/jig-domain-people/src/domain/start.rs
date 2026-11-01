@@ -103,6 +103,7 @@ impl Domain {
                 | Outcome::PolicyChanged { .. }
                 | Outcome::Renamed { .. }
                 | Outcome::ProjectMade { .. }
+                | Outcome::ProjectRemoved { .. }
                 | Outcome::SettingsChanged { .. }
                 | Outcome::MovedToNewest { .. }
                 | Outcome::PoolSet { .. }
@@ -277,6 +278,7 @@ fn link_roster(domain: &Domain, source: Key, ask: &crate::Ask) {
         | crate::Ask::Adopt { .. }
         | crate::Ask::ChangePolicy { .. }
         | crate::Ask::Rename { .. }
+        | crate::Ask::RemoveProject { .. }
         | crate::Ask::MakeProject { .. }
         | crate::Ask::ChangeSettings { .. }
         | crate::Ask::MoveToNewest { .. }
