@@ -171,7 +171,7 @@ fn engine_turn_limits() -> String {
     result
 }
 fn worker_turn_limits() -> String {
-    r#"{"hub.slots":1,"hub.run_calls":1,"tasks.run_inbox":2,"hub.turns":1,"tasks.message_bytes":512,"people.words":512,"core.call_answer_bytes":2048}"#.into()
+    r#"{"hub.slots":1,"hub.run_calls":1,"tasks.run_inbox":2,"hub.turns":1,"tasks.message_bytes":512,"people.words":512,"core.call_answer_bytes":2048,"accounts.credentials":4}"#.into()
 }
 /// Copy a JSON value for a fixture derived from another document.
 pub fn value(input: &[u8], path: &[u8]) -> Box<[u8]> {

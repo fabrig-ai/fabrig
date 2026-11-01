@@ -116,6 +116,7 @@ pub(crate) fn world_document() -> serde_json::Value {
     value["workers"][0]["engine"] = serde_json::json!({"in_process":"workers"});
     value["workers"][0]["agent"] = serde_json::json!({"program":"/opt/temper/bin/temper","configuration":"/opt/temper/agent.json","arguments":["internal", "agent","/opt/temper/agent.json"]});
     value["workers"][0]["limits"]["overrides"]["hub.accounts"] = 4.into();
+    value["workers"][0]["limits"]["overrides"]["accounts.credentials"] = 4.into();
     value["workers"][0]["limits"]["overrides"]["hub.event_bytes"] = 1024.into();
     value["engine"]["hosts"]["listener"] = serde_json::json!([{"in_process":"workers"}]);
     value["engine"]["connectors"] = serde_json::json!([1]);

@@ -42,8 +42,16 @@ pub(crate) fn files(machine: &mut skein_fake_machine::Machine, story: Story) -> 
     let root = machine.reopen_root(0);
     export(machine, root, scratch.path());
     machine.close(root);
-    // Owned setup takes over through its admin handover; GitHub stories paste their App.
-    let records = if matches!(story, Story::HeldChange) || crate::lower::github::active() {
+    // The owned fixture reconciles from its admin record; GitHub stories paste their App.
+    let records = if matches!(story, Story::HeldChange) {
+        use temper_protocol_records::{self as records, Item};
+        Box::new([(
+            records::number(1, Item::AdminToken),
+            records::encode(Item::AdminToken, crate::restart_control::ADMIN_TOKEN)
+                .expect("fixture admin record")
+                .into_boxed_slice(),
+        )])
+    } else if crate::lower::github::active() {
         Box::default()
     } else {
         temper_github_app::forgejo_records(1, API_TOKEN, 1, Some(HOOK_SECRET), GIT_TOKEN, FORGE)
