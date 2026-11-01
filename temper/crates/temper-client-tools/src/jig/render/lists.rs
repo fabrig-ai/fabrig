@@ -125,26 +125,37 @@ fn tree_cut(tree: &c::Tree, _project: Option<u32>, book: &Phrasebook, out: &mut 
             separator = b", ";
         }
     }
-    out.put(b"); read on with: ");
+    out.put(b")\n");
     let project = {
         let c::ChipPhaseFacts { details, .. } = tree.root.details.as_ref();
         details.project
     };
-    let values = Box::new([
-        Some(Values::One(Value::Project(crate::jig::call::Project::Number(project)))),
-        None,
-        None,
-        None,
-        None,
-        None,
-        None,
-        Some(Values::One(Value::Number(tree.root.task))),
-        None,
-        None,
-        None,
-    ]);
-    write_call(&Call { tool: 2, form: 0, values, key: None }, out);
-    out.put(b"\n");
+    for index in 0..tree.folded.len() {
+        let parent = tree.folded.get(index).expect("fold index").parent;
+        let mut printed = false;
+        for prior in tree.folded.as_slice().iter().take(usize::try_from(index).expect("fold index fits")) {
+            printed |= prior.parent == parent;
+        }
+        if printed {
+            continue;
+        }
+        out.put(b"read on with: ");
+        let values = Box::new([
+            Some(Values::One(Value::Project(crate::jig::call::Project::Number(project)))),
+            None,
+            None,
+            None,
+            None,
+            None,
+            None,
+            Some(Values::One(Value::Number(parent))),
+            None,
+            None,
+            None,
+        ]);
+        write_call(&Call { tool: 2, form: 0, values, key: None }, out);
+        out.put(b"\n");
+    }
 }
 pub(super) fn next(call: &Call, index: usize, cursor: Option<&c::Cursor>, out: &mut Text) {
     let Some(cursor) = cursor else {

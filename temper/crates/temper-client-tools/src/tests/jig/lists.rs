@@ -250,9 +250,9 @@ fn tree_answer(folded: bool) -> crate::jig::Printed {
             })
             .expect("tree row");
     }
-    tree.folded = List::with_capacity(2);
-    // Independent parents ensure the summary adds every fold, not just the root's.
-    for (parent, waiting, running) in [(41, 1, 1), (42, 0, 1)] {
+    tree.folded = List::with_capacity(3);
+    // Independent parents contribute to the total; a repeated parent gets one read-on call.
+    for (parent, waiting, running) in [(41, 1, 1), (42, 0, 1), (42, 0, 0)] {
         tree.folded
             .push(c::TreeFold {
                 parent,
