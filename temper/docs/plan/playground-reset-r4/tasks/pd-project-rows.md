@@ -13,14 +13,16 @@ files = [
   "jig/crates/jig-domain-notes/src/project_gone.rs",
 ]
 effort = "high"
-minutes = 50
+minutes = 60
 +++
 
 ## Goal
 
 A deleted project's own rows, once its tasks are erased (draft 5,
 "Then its own rows"): its pools and its period in the current period
-closed, so their spend stays in the period's totals, its per-project
+closed, so their spend stays in the period's totals, its recurring
+ledgers posted into the period and erased (spend is never per task),
+its per-project
 state gone from the tasks child, its notes erased, every account's use
 naming it dropped, and the core's per-project maps cleared. One
 function the deletion calls (`pd-delete`), with its own completion
@@ -63,12 +65,18 @@ Neighbours, each edit the line or arm named:
 - `jig-domain-notes`: `boundary.rs` (`Event::ProjectGone { project }`,
   dropping any cached line or entry of the project's scopes; its rows
   are erased by the core's sweep), `domain.rs`, `lib.rs`;
-- `jig-domain-core`: `lib.rs` (`mod project_rows;`), `tests.rs` (`mod
-  project_rows;`), `erase.rs` (`swept` hands a page whose owner is not
+- `jig-domain-core`: `reads/sweep.rs` (one `Sweep::Recurring { project
+  }` variant, its `admits` arm and its test's cases), `lib.rs` (`mod
+  project_rows;`), `tests.rs` (`mod project_rows;`), `erase.rs` (`swept` hands a page whose owner is not
   an erasure's to `project_rows::swept`), the core's per-project maps'
   owners (`funding.rs` periods and boundaries, `Core.permission_roles`,
   `Core.template_overrides`): one removal each;
-- compiler arms for the three new events anywhere in `jig/**`.
+- `jig-protocol-store`: `intervals.rs` (the `Sweep::Recurring` arm:
+  `numbered_prefix(&[keys::JIG, 1, 7, 2], project)`, the
+  `ClosedLedger` family's `Funder::Recurring` tag), `tests/sweep.rs`
+  (one test);
+- compiler arms for the three new events and the sweep anywhere in
+  `jig/**` and `temper/**`.
 
 Pre-approved:
 
@@ -97,25 +105,34 @@ Pre-approved:
    ```
 
    `erase_rows`: `tasks::Event::ProjectGone` (the current period's and
-   pools' ledgers closed as `retire::close` closes one, the project's
-   recurring and standing templates and period state dropped, each row
-   written), `accounts::Event::ProjectGone` (each account's `Use::Project
+   pools' ledgers closed as `retire::close` closes one; before them,
+   each live `Funder::Recurring { project, .. }` ledger's spend posted
+   into its period as `retire`'s first loop posts it and its `Ledger`
+   row erased, no `ClosedLedger` written; the project's recurring and
+   standing templates and period state dropped, each row written), `accounts::Event::ProjectGone` (each account's `Use::Project
    (project)` dropped, the account row saved), `notes::Event::ProjectGone`,
    the core's maps; then `Held::Sweep { owner, sweep: Sweep::Notes {
    project } }`. `swept`: erase each line and its entry; sweep again on
-   `more`; else `rows_done` (empty but for `// pd-delete continues the
+   `more`; else `Sweep::Recurring { project }` (the archived
+   `ClosedLedger(Funder::Recurring { project, .. })` rows), each erased
+   by key, again on `more`; else `rows_done` (empty but for `// pd-delete continues the
    project's deletion here.`).
 2. Tests:
    - `jig-domain-tasks` `src/tests/project_gone.rs`:
-     `a_gone_projects_period_and_pools_are_closed_and_its_templates_dropped`;
+     `a_gone_projects_period_and_pools_are_closed_and_its_templates_dropped`,
+     `a_gone_projects_recurring_ledgers_post_into_its_period_and_go`;
+   - `jig-protocol-store` `src/tests/sweep.rs`:
+     `the_recurring_sweep_admits_only_its_projects_closed_recurring_ledgers`;
    - `jig-accounts-world` `tests/suite/project_gone.rs`:
      `each_accounts_use_of_a_gone_project_is_dropped`;
    - `jig-domain-core` `src/tests/project_rows.rs`:
      `erasing_a_projects_rows_closes_its_ledgers_and_sweeps_its_notes`,
-     `a_notes_page_erases_each_line_and_its_entry`.
+     `a_notes_page_erases_each_line_and_its_entry`,
+     `the_last_notes_page_sweeps_the_closed_recurring_ledgers`.
 3. Checks: `cargo fmt`; clippy on the four crates; their `--lib`
    tests; `heavy cargo nextest run -p jig-tasks-world`, `-p
-   jig-accounts-world`, `-p jig-notes-world`; `heavy cargo check --tests -p
+   jig-accounts-world`, `-p jig-notes-world`; `heavy cargo nextest run
+   -p jig-protocol-store --lib`; `heavy cargo check --tests -p
    jig-core-world -p jig-conformance-world -p temper-engine-domain`.
    Commit, push.
 
@@ -123,3 +140,15 @@ Pre-approved:
 
 fab's sections; `## Interfaces`: the three events, the three functions;
 each row kind erased or closed, by key; which options were taken.
+
+## Answers
+
+2026-11-01, from `pd-erase-task`'s question (where are an ended task's
+archived recurring ledgers found?): a task's erasure leaves its
+recurring ledgers; this task owns them, as the project's period
+accounting (`Funder::Recurring { project, task, period }`, keyed
+project first). The spec above adds `Sweep::Recurring { project }`
+and the steps that post the live ones into the period and erase the
+archived ones; the deletion's end check (`pd-delete`,
+`pd-conformance`) exempts only the period's and pools' `ClosedLedger`
+rows, so none naming a task remains.
