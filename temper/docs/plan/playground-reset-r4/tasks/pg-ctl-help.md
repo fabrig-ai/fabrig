@@ -152,3 +152,19 @@ nothing more. If it does not, add exactly those three arms and nothing
 else in that file: this task owns `translate.rs` for that alone, and the
 report names it under `## Interfaces` as a compile repair. Any other
 compile error outside the three pages is a question again.
+
+2026-11-01. May the task update the two stale summary rows in
+`temper/crates/temper-docs/src/lib.rs` and shorten the concept page's
+summary? Yes, with these words, the lead's. The concept page's line 5
+becomes exactly this one sentence (194 bytes, under `SUMMARY_BYTES`),
+the rest of step 2's text unchanged:
+
+    The playground is temper with nothing of yours: a repository on an in-memory forge and a scripted model, made when you choose it and removed when you leave it, so a chat runs through real tasks.
+
+This task owns `temper/crates/temper-docs/src/lib.rs` for two `summary`
+strings alone: the `playground` page's becomes that same sentence, and
+the `ctl-playground` page's becomes the generated page's, `The
+playground: start it, or reset it.` (the tool table's line with its
+period). No other field or row of that file changes; the report names
+the file under `## Changes`. Any other rule failure outside the three
+pages and these two strings is a question again.
