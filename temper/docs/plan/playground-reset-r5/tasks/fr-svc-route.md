@@ -23,7 +23,8 @@ box asked to start it.
 Acceptance:
 
 - `family::to_root`: wire `ForgeChoice::New(choice)` →
-  `machine::fill(&engine.machine, choice)` → `Ask::SetUp`/`Connect` with
+  `machine::fill(&engine.machine, &choice.forge)` (`choice` the wire's
+  `NewForgeChoice`, `notes/forge-records.md`, section 6) → `Ask::SetUp`/`Connect` with
   `ForgeChoice::New(NewForge::Filled(template))`; a refused fill answers
   `set_up_refused { invalid }` / `connect_refused { not_taken }`
   (replacing `fr-wire`'s `make_refused { not_offered }` placeholder).

@@ -39,8 +39,9 @@ Acceptance:
 - Senders: `forge::forges::set_up` / `set_up_at_once` (owned),
   `forge::github::send` / `manifest` (GitHub), `forge::admin::send` (a
   Forgejo elsewhere, its address the form's new field `Field::Address`)
-  take a `ForgeChoice` (`New(NewForge::{Owned, GitHub { read_only },
-  Forgejo { address }})` for `Choice::{Owned, GitHub, Elsewhere}`,
+  take a `ForgeChoice` (`New(NewForgeChoice { forge })`, its `forge`
+  `NewForge::{Owned, GitHub { read_only }, Forgejo { address }}`, for
+  `Choice::{Owned, GitHub, Elsewhere}`,
   `Kept(n)` for `Choice::Forge(n)`). After a `New` ask answers
   (`setting_up`, `connecting` or `link`), the session follows the row the
   Forges watch delivers next whose number it has not seen before the ask

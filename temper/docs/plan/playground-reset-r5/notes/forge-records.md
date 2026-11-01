@@ -292,7 +292,8 @@ record NewGitHub { read_only: bool }
 record NewForgejo { address: bytes 2048 }
 enum NewForge { owned, github: NewGitHub, forgejo: NewForgejo }
 record KeptForge { forge: u16 }
-enum ForgeChoice { new: NewForge, kept: KeptForge }
+record NewForgeChoice { forge: NewForge }
+enum ForgeChoice { new: NewForgeChoice, kept: KeptForge }
 record SetUp { forge: ForgeChoice org: bytes 1024 repository: bytes 1024 project: SetUpProject playground: bool }
 record Connect { forge: ForgeChoice how: How }
 record RemoveForge { forge: u16 }
@@ -304,6 +305,12 @@ enum RemoveRefusal { no_such_forge, role }
 record RemoveRefused { why: RemoveRefusal }
 enum Outcome { ..., make_refused: MakeRefused, removing: Removing, remove_refused: RemoveRefused }
 ```
+
+A schema enum's variant holds a record, never an enum (skein's
+`enum_payloads_must_be_records`), so `new` holds `NewForgeChoice`, whose
+`forge` is the `NewForge`: in Rust, `ForgeChoice::New(NewForgeChoice {
+forge: NewForge::Owned })`. Elsewhere in these notes a wire
+`ForgeChoice::New(choice)` means `choice.forge`.
 
 `Outcome` gains, after pg-wire's `reset`: `make_refused: MakeRefused`
 (a `SetUp` or `Connect` whose forge could not be made), `removing:
