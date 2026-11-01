@@ -93,3 +93,33 @@ Acceptance:
 
 - Every file outside the owned crates edited, and under `## Left` every reader of the
   demo's removed items you did not own and could not route.
+
+## Rebase (2026-11-01, step merge, foreman playground-reset-r6/fe-demo-gone/foreman-1)
+
+resolve merge conflicts while preserving landed playground record handling and removing legacy demo types.
+The merge failed in nine paths; this is the branch’s red, not a tool failure.
+Conflicting paths:
+- `temper/crates/temper-engine-domain/src/route/playground.rs`
+- `temper/crates/temper-service/src/{engine,family,forge,route,settings}.rs`
+- `temper/crates/temper-service/src/tests/{family,setup,setup_admin}.rs`
+
+In root `route/playground.rs`, preserve integration commit `f91a8c5d5b`:
+keep `Start.maker: u64`, resolve the starting person even with an existing project,
+and retain both Party and Project account uses. Apply this branch’s
+`demo_contexts` → `playground_contexts` rename and moved context helpers.
+
+Service conflicts overlap `2d063cbd01` (read playground state from engine records).
+Keep its `Demo.playground` field, refreshes in `engine::iterate` and `route::request`,
+and `family::to_root` mapping state, project and forge from that row.
+Remove obsolete `Demo.state`, its `demo_state()` refreshes and compiler-forced literals;
+the spec’s replacement `state` field was conditional on sv not having migrated readers.
+In `forge::ended`, retain this branch’s direct `engine.domain.forge_ended(forge)`.
+
+Keep integration’s expanded playground family tests; remove their obsolete DemoState setup.
+Setup conflicts also include fixture migration commit `0614a006ea`.
+Preserve its registered-forge fixtures and Removing-record coverage.
+Where an old test now exercises Removing records, remove only legacy demo setup,
+Stored::Demo writes and DemoState assertions rather than deleting that coverage.
+List every compiler-forced service file changed in the implementer’s report.
+
+No builds or changes performed. The read-only filesystem prevents writing the requested `report.md`; this response supplies its contents.
