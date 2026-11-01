@@ -123,8 +123,9 @@ workspace that can write can remove, with no shell needed.
   beneath a directory, in path order, to `depth` levels or the whole
   tree:
   - **files:** the files `rg` lists, and only those whose names match
-    `glob` when it is given. Files the ignore files exclude are left
-    out, as `rg` leaves them out;
+    `glob` when it is given. Dot-named files and directories are included.
+    Only ignore-file rules and git directories exclude paths, as for
+    search (section 5);
   - **directories:** the directories that hold such a file at any
     depth. An empty directory is not listed, nor one that holds only
     ignored or unmatched files. Git directories never appear. The
@@ -261,8 +262,11 @@ workspace that can write can remove, with no shell needed.
   call sets a variable.
 - **Search** is `rg`, run as a process of its own: no configuration, the
   pattern and glob passed so that neither reads as an option, and an
-  empty environment. A code graph served over MCP is to complement it,
-  as a tool source of its own (run.md, 5.1).
+  empty environment. It searches dot-named files and directories too;
+  only ignore-file rules and git directories exclude paths, apart from
+  the requested glob. Git directories stay excluded even when the glob
+  selects them. A code graph served over MCP is to complement it, as a
+  tool source of its own (run.md, 5.1).
 - **Shell** runs a command with `sh`, in the working directory:
   - **its deadline** is the one the LLM asked for, or the profile's
     default, clamped to a tool call's longest deadline, a policy value of

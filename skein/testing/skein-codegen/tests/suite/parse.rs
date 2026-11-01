@@ -26,6 +26,8 @@ mod tests {
         let variants = (0_u16..257).map(|index| format!("v{index}")).collect::<Vec<_>>().join(", ");
         let too_many_variants = format!("family f 1\nenum A {{ {variants} }}");
         let cases = [
+            ("family f 1\nrecord R { a_b: bytes 1 a__b: bytes 1 }", 2, "generated path RAB is used twice"),
+            ("family f 1\nrecord R {\n x:\n", 3, "unexpected end of schema"),
             ("family f 1\nrecord A { b: B }\nrecord B {}", 2, "type B used before declaration"),
             ("family f 1\nrecord A {}\nenum A { x }", 3, "duplicate type A"),
             ("family f 1\nrecord A { x: u8 x: u16 }", 2, "duplicate field x"),

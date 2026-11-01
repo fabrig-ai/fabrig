@@ -1,9 +1,0 @@
-//! QA real-loop scenarios (temper/docs/design/domain/testing.md, 2.4).
-use skein_world::domain::heap::Counting;
-
-#[global_allocator]
-static HEAP: Counting = Counting;
-
-mod qa_adoption_hold;
-mod qa_github_land;
-mod qa_plan_chat;

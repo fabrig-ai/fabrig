@@ -263,7 +263,7 @@ fn sent(face: &mut Face, service: &mut crate::Service) {
 }
 
 #[test]
-fn qa_an_account_without_repositories_answers_no_rows_and_no_more() {
+fn an_account_without_repositories_answers_no_rows_and_no_more() {
     let mut service = service(8, Duration::from_secs(3600));
     app(&mut service);
     accepted(&mut service, &[11]);

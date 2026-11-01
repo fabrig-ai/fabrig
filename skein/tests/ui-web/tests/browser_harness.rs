@@ -187,28 +187,24 @@ fn keep_script(steps: Vec<harness::Step>) -> Script {
     all.extend(steps);
     Script::new(all.into())
 }
-fn read_kept(selector: &[u8], attribute: Option<&[u8]>) -> Vec<u8> {
+#[test]
+fn keeps_read_values_named_and_empty_attributes_in_one_run() {
+    type KeepRow<'a> = (&'a [u8], Option<&'a [u8]>, &'a [u8]);
+    let rows: &[KeepRow<'_>] = &[
+        (b"input[type=hidden]", None, b"first"),
+        (b"input", Some(b"data-note"), b"named"),
+        (b"input", Some(b"data-empty"), b""),
+        (b"input", None, b"first"),
+    ];
     let mut harness = keep_harness();
-    let mut person = keep_script(vec![keep(selector, attribute, b"read")]);
+    let mut person =
+        keep_script(rows.iter().map(|(selector, attribute, _)| keep(selector, *attribute, b"read")).collect());
     assert_eq!(harness.run(&mut [&mut person]), Outcome::Done);
-    assert_eq!(harness.kept()[0].name.as_ref(), b"read");
-    harness.kept()[0].value.to_vec()
-}
-#[test]
-fn a_keep_reads_a_hidden_inputs_value_attribute() {
-    assert_eq!(read_kept(b"input[type=hidden]", None), b"first");
-}
-#[test]
-fn a_keep_reads_a_named_attribute() {
-    assert_eq!(read_kept(b"input", Some(b"data-note")), b"named");
-}
-#[test]
-fn a_keep_retains_an_empty_attribute() {
-    assert_eq!(read_kept(b"input", Some(b"data-empty")), b"");
-}
-#[test]
-fn a_keep_reads_the_first_matching_element() {
-    assert_eq!(read_kept(b"input", None), b"first");
+    assert_eq!(harness.kept().len(), rows.len());
+    for (kept, (selector, attribute, expected)) in harness.kept().iter().zip(rows) {
+        assert_eq!(kept.name.as_ref(), b"read");
+        assert_eq!(kept.value.as_ref(), *expected, "{selector:?} {attribute:?}");
+    }
 }
 #[test]
 fn a_keep_without_an_element_fails_its_step() {

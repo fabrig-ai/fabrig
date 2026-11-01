@@ -192,9 +192,13 @@ fn origin_matching_and_shot_components_have_boundaries() {
     for url in ["http://127.0.0.1:41", "http://127.0.0.1:41/", "http://127.0.0.1:41/a?b"] {
         assert!(calls::on_origin(url, ["http://127.0.0.1:41"].into_iter()));
     }
-    for url in
-        ["http://127.0.0.1:4100/", "http://127.0.0.1:41.example/", "https://127.0.0.1:41/", "http://127.0.0.1:41@evil/"]
-    {
+    for url in [
+        "data:text/html,unserved",
+        "http://127.0.0.1:4100/",
+        "http://127.0.0.1:41.example/",
+        "https://127.0.0.1:41/",
+        "http://127.0.0.1:41@evil/",
+    ] {
         assert!(!calls::on_origin(url, ["http://127.0.0.1:41"].into_iter()));
     }
     for file in ["a.png", "a/b.png", "é space.png"] {
@@ -226,9 +230,9 @@ fn directories_types_links_and_each_limit() {
     ] {
         assert_eq!(files::pages(scratch.path(), limits).err().unwrap().0, "limit");
     }
-    symlink(scratch.path().join("index.html"), scratch.path().join("link")).unwrap();
+    symlink(scratch.path().join("index.html"), scratch.path().join("nested/link")).unwrap();
     assert_eq!(files::pages(scratch.path(), files::LIMITS).err().unwrap().0, "origin");
-    assert_eq!(files::pages(&scratch.path().join("link"), files::LIMITS).err().unwrap().0, "origin");
+    assert_eq!(files::pages(&scratch.path().join("nested/link"), files::LIMITS).err().unwrap().0, "origin");
     for (ext, mime) in [
         ("html", "text/html"),
         ("CSS", "text/css"),

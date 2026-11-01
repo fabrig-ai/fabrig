@@ -57,19 +57,10 @@ impl Referee<Process> for LoginJudge {
     }
 }
 
-fn sign_in_url(stderr: &[u8]) -> Option<Vec<u8>> {
+pub(crate) fn sign_in_url(stderr: &[u8]) -> Option<Vec<u8>> {
     stderr
         .split_inclusive(|byte| *byte == b'\n')
         .find_map(|line| line.strip_suffix(b"\n").and_then(|line| line.strip_prefix(b"Sign in: ")).map(Vec::from))
-}
-
-#[test]
-fn a_sign_in_address_waits_for_its_whole_piped_line() {
-    let partial = b"Sign in: http://127.0.0.1:34444/authorize?state=";
-    assert_eq!(sign_in_url(partial), None);
-    let mut complete = partial.to_vec();
-    complete.extend_from_slice(b"whole-state\n");
-    assert_eq!(sign_in_url(&complete), Some(b"http://127.0.0.1:34444/authorize?state=whole-state".to_vec()));
 }
 
 #[must_use]

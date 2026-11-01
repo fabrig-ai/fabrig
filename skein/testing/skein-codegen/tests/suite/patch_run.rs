@@ -87,6 +87,14 @@ mod tests {
         );
         assert_files(&root, &[("schema/kept/shelf-v1.schema", V1), ("schema/kept/label-v4.schema", LABEL)]);
         assert_eq!(report.findings, []);
+        write_files(&root, &[("unrelated.txt", "not landed")]);
+        let kept = Landed::read(&root).expect("landed tree");
+        assert!(kept.get(Path::new("schema/shelf-v1.schema")).is_none());
+        assert!(kept.get(Path::new("unrelated.txt")).is_none());
+        let files =
+            kept.paths().map(|path| (path.to_owned(), kept.get(path).expect("listed bytes").to_vec())).collect();
+        assert_eq!(Landed::new(files), kept);
+        assert_eq!(Landed::none().paths().count(), 0);
         end(&root);
     }
 

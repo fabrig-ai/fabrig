@@ -8,3 +8,10 @@
 - **Built:** 2.4, 4.1: fixtures are re-recorded with temper-twin; `--replace` covers assistant text as well as call arguments.
 
 - **Built (11-01):** 2.5–2.7: the temper QA binary is dissolved. One focused fake wiring test answers a chat and drains; harness step checks run once in `suite`. Revision retention is the system world's; held-review cold reads are a domain table. Duplicated settings, questions, reviews, welcome and file-move stories use their lower owners. Owned landing/delivery, cancellation, CSV repair/review/restart, welcome and setup-cut variants share fixtures. The B0 offline driver proofs run only through `proof-live.sh rung-b0-offline`; live stories and their binaries retain their path. The process profile keeps explicit OS signal/tree/cgroup and interrupted-transfer exceptions alongside owned Forgejo. Baseline: 146 observations, 145 pass, one turn-fixture race; 614.506 CPU s against 360, 1101.746 wall s, starved at its hard horizon. Final measurements are in the al-temper-process report.
+
+- **Built (2026-11-01):** 6.1: world and step scenarios outside the `temper`
+  package run in their ordinary `suite` modules, including retained ignored
+  findings. The browser tier has eleven active tests, with item 12 awaiting
+  the playground. Provider and codec rows and the watcher-bound scenario run
+  below Chromium. The two direct GitHub landing variants share
+  `suite::github_land::a_chats_change_lands_on_connected_github`.

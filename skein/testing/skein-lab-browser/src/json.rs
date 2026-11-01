@@ -20,12 +20,14 @@ pub fn object(entries: impl IntoIterator<Item = (impl Into<String>, Value)>) -> 
 pub fn string(text: impl Into<String>) -> Value {
     Value::String(text.into())
 }
+#[must_use]
 pub fn bytes(text: &[u8]) -> Value {
     string(String::from_utf8_lossy(text))
 }
 pub fn number(n: impl TryInto<i64>) -> Value {
     Value::Number(n.try_into().ok().expect("bounded integer"))
 }
+#[must_use]
 pub fn encode(value: &Value) -> Vec<u8> {
     let limits = writer::Limits { depth: 16, length: 32 << 20 };
     let mut size = writer::Encoder::measure(&limits);
@@ -57,6 +59,10 @@ fn emit(out: &mut writer::Encoder, value: &Value) {
         Value::Null => out.null(),
     }
 }
+/// Reads the lab browser's bounded JSON vocabulary.
+///
+/// # Errors
+/// Refuses malformed JSON, duplicate members, unsupported numbers, or input past its limits.
 pub fn parse(input: &[u8]) -> Result<Value, String> {
     if input.len() > LINE {
         return Err("call line exceeds 1 MiB".into());

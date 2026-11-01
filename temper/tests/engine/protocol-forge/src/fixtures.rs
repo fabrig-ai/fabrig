@@ -164,7 +164,8 @@ pub fn goal_view() -> temper_engine_domain_forge_issues::GoalView {
 pub fn token_absent(value: &impl core::fmt::Debug) -> bool {
     let text = format!("{value:?}");
     let bytes = format!("{TOKEN:?}");
-    !text.as_bytes().windows(TOKEN.len()).any(|part| part == TOKEN) && !text.contains(&bytes[1..bytes.len() - 1])
+    !text.contains(core::str::from_utf8(TOKEN).expect("ASCII fixture token"))
+        && !text.contains(&bytes[1..bytes.len() - 1])
 }
 
 /// The machine world's fake App and bot, supplied by temper's own fixture.

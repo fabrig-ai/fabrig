@@ -658,6 +658,12 @@ fn identity_stops_at_held_secrets_through_nested_records() {
 fn pieces_require_their_items_conversion_to_copy() {
     let rows = [
         (
+            "versioned",
+            "versioned record R {} record D { p: bytes 32 pieces R }",
+            "versioned record R {} record D { p: bytes 32 pieces R }",
+            "",
+        ),
+        (
             "integer",
             "record R { a: u8 } record D { p: bytes 32 pieces R }",
             "record R { a: u16 } record D { p: bytes 32 pieces R }",

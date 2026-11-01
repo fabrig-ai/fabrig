@@ -6,3 +6,5 @@
 - **Built:** 10.1, 10.2: every open loads and fits, judging no count or join: `Check` is `Large`, `Load` or `Private`, and the counts go to the manifest.
 - **Departs:** 15, item 9: the accounts' family restores by fit and link alone; no record is counted as breaking the child's rules.
 - **Not yet:** 7.3, 11.1, 15: retention and cut-before-first-row history/spend/notes. 14: ops real-store worlds and kill at every turn-commit phase. Direct-read room failure/closing-proof changes, key moves remain.
+
+- **Built:** 14: generation, upgrade, check and frame scenarios share the focused store suite; layout and manifest cases are table rows, copy-mutation and check/switch cuts have separate owners, and step-only duplicates are removed.

@@ -139,6 +139,9 @@ fn ordinals_keep_the_teens_and_the_last_digit() {
         (101, O::St),
         (111, O::Th),
         (112, O::Th),
+        (23, O::Rd),
+        (113, O::Th),
+        (u32::MAX, O::Th),
     ] {
         assert_eq!(change::ordinal(number), expected);
     }

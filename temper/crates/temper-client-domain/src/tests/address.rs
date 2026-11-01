@@ -96,7 +96,7 @@ fn one_trailing_slash_is_ignored() {
 
 #[test]
 fn a_path_that_is_no_page_is_missing() {
-    let paths: [&[u8]; 12] = [
+    let paths: &[&[u8]] = &[
         b"/jig/v1/sign-in/link",
         b"/bundle/x",
         b"/test/panic",
@@ -109,6 +109,20 @@ fn a_path_that_is_no_page_is_missing() {
         b"/projects/3/adopt/x",
         b"//",
         b"/chats/%37",
+        b"/nowhere",
+        b"/chats/abc",
+        b"/chats/-1",
+        b"/chats/99999999999999999999999999",
+        b"/chats/1/extra",
+        b"/chats/%zz",
+        b"/chats//1",
+        b"/tasks/x",
+        b"/projects/x/adopt",
+        b"/projects//adopt",
+        b"/CHATS",
+        b"/test/other",
+        b"/test/panic/",
+        b"/test/Panic",
     ];
     for path in paths {
         assert_eq!(parse(path), Place::Missing, "{path:?}");
@@ -133,6 +147,17 @@ fn each_number_spans_its_types_range() {
     assert_eq!(&*print(&Address::Adopt { project: u32::MAX }), b"/projects/4294967295/adopt");
     assert_eq!(parse(b"/chats/18446744073709551616"), Place::Missing);
     assert_eq!(parse(b"/projects/4294967296/adopt"), Place::Missing);
+    for (path, address) in [
+        (b"/chats/0".as_slice(), Address::Chat { task: 0 }),
+        (b"/chats/999", Address::Chat { task: 999 }),
+        (b"/chats/4294967295", Address::Chat { task: 4_294_967_295 }),
+        (b"/chats/4294967296", Address::Chat { task: 4_294_967_296 }),
+        (b"/tasks/1", Address::Task { task: 1, filter: PlanFilter::All }),
+        (b"/projects/1/adopt", Address::Adopt { project: 1 }),
+        (b"/projects/65536/adopt", Address::Adopt { project: 65_536 }),
+    ] {
+        assert_eq!(parse(path), Place::Address(address), "{path:?}");
+    }
 }
 
 #[test]

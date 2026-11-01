@@ -984,4 +984,31 @@ mod tests {
         assert_eq!(kit.last().unwrap().as_ref(), b"--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE 127.0.0.1");
         assert!(kit.iter().any(|arg| arg.as_ref() == b"--proxy-server=http://127.0.0.1:12345"));
     }
+    #[test]
+    fn shots_refuse_output_links_before_writing_outside() {
+        const PNG: &[u8] = b"\x89PNG\r\n\x1a\n\0\0\0\rIHDR\0\0\0\x01\0\0\0\x01";
+
+        use crate::{config::Config, json};
+        use std::{fs, os::unix::fs::symlink};
+        let scratch = skein_scratch::Scratch::new("shot-links");
+        let outside = scratch.path().join("outside.png");
+        let out = scratch.path().join("out");
+        fs::create_dir(&out).expect("output directory");
+        let config = Config {
+            chromium: "/chromium".into(),
+            fonts: "/fonts".into(),
+            scratch: scratch.path().into(),
+            out: out.clone(),
+            hand: None,
+        };
+        for (link, target) in [("alias.png", outside.clone()), ("parent", scratch.path().into())] {
+            symlink(target, out.join(link)).expect("output link");
+        }
+        for file in ["alias.png", "parent/outside.png"] {
+            let answer = super::shot(&config, file, PNG).expect("refusal answer");
+            let json::Value::Object(fields) = answer else { panic!("object") };
+            assert_eq!(fields.get("refused"), Some(&json::string("call")), "{file}");
+            assert!(!outside.exists(), "shot stays under --out");
+        }
+    }
 }

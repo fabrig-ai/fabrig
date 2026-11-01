@@ -1,24 +1,57 @@
 //! A chat's change is checked, reviewed and landed by its connected GitHub App.
 use temper_real_loop_world::{
-    Ran,
+    Ran, argv,
+    calls::{D1, call, number},
     github::{
         self, check_chat_heard_the_landing, check_connection, check_landing, connect_adopt_and_ask_for_a_change,
         scripts,
     },
-    landing, llm, run_github,
+    landing, llm, run_github, terminal,
 };
 
 const ONE_PUSH: usize = 1;
+// The connected story's first chat delegates its first change.
+const CHANGE_TASK: u64 = 2;
+// Plain change reads in the connected landing recipe and its continuation.
+const FIRST_LANDED_READ: usize = 11;
+const REPEATED_LANDED_READ: usize = 13;
 
 #[test]
 fn a_chats_change_lands_on_connected_github() {
     let mut fixture = github::fixture();
     fixture.connected = false;
     fixture.configure = |value, agent, at| (landing::fixture().configure)(value, agent, at);
-    let ran = run_github(fixture, |at| llm::cued(scripts(at)), connect_adopt_and_ask_for_a_change);
+    let ran = run_github(
+        fixture,
+        |at| llm::cued(scripts(at)),
+        || {
+            let mut steps = connect_adopt_and_ask_for_a_change();
+            steps.extend([
+                call(D1, argv!["task", "show", number(CHANGE_TASK), "--json"]),
+                terminal::open(),
+                terminal::see(b"Project 1 (pressed)"),
+                terminal::type_on(b"Chats", b""),
+                terminal::see(b"T1"),
+                terminal::type_on(b"T1", b""),
+                terminal::see(b"The change landed."),
+                terminal::close(),
+            ]);
+            steps
+        },
+    );
     check_connection(&ran);
     let commit = check_landing(&ran);
     check_chat_heard_the_landing(&ran, &commit);
+    let before: serde_json::Value = serde_json::from_slice(&ran.calls()[FIRST_LANDED_READ].stdout).expect("ended task");
+    let after: serde_json::Value =
+        serde_json::from_slice(&ran.calls()[REPEATED_LANDED_READ].stdout).expect("repeated task read");
+    assert_eq!(before["result"], after["result"], "the landing result survives repeated reads");
+    assert!(
+        ran.terminal()
+            .pages
+            .iter()
+            .any(|page| { skein_lib::bytes::find(&page.bytes, b"The change landed.").is_some() })
+    );
     check_authenticated_git(&ran);
     let files = files_outside_the_secrets_store(&ran);
     no_installation_token_pattern_or_app_key_outside_the_secrets_store(&ran, &files);

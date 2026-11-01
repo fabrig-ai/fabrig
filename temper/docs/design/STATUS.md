@@ -47,12 +47,11 @@ Not design documents:
 | `../help/forgejo.md` | A walk of the managed mode, temper as a Forgejo's site admin: 1 the forge configured, before the start; 2 the start and sign-in; 3 connected as its admin, a first repository made and adopted; 4 another repository adopted. Every command line parses. | The connected mode is refused on main and no walk; the owned mode is the box's (`../help/box.md`). Other help-to-product coverage unknown. |
 | `../help/server.md` | A walk: 1 the engine's configuration; 2 its secrets; 3 Forgejo, then the engine; 4 the TLS proxy; 5 the workers' host over WireGuard; 6 ctl's sign-in through a tunnel; 7 a redeploy from main, the model's account carried by ctl's export and import. Every command line parses. | Its proxy, WireGuard, units and tunnel are the operator's, walked by no test. Other help-to-product coverage unknown. |
 
-kept: real-loop/qa tests no lower test holds the whole assertion of yet
+kept: focused real-loop assertions no lower test holds whole
 
 - `github::a_seeded_app_reopens_with_its_deployments_settings_and_owner`
 - `template_bounds::the_two_call_agent_past_smalls_page_is_refused_by_name`
-- `qa_adoption_hold::a_chat_created_after_home_adoption_gets_a_writable_run_branch`
-- `qa_github_land::a_chats_failed_github_check_is_repaired_at_a_new_head_and_lands_once`
-- `qa_github_land::checked_head_lands_once_and_repeated_reads_name_main`
-- `qa_github_land::landed_chat_is_readable_on_the_persons_page`
-- `qa_plan_chat::words_during_a_turn_are_answered_once`
+- `suite::adoption_hold::a_chat_created_after_home_adoption_gets_a_writable_run_branch`
+- `suite::github_repair::a_chats_failed_github_check_is_repaired_at_a_new_head_and_lands_once`
+- `suite::github_land::a_chats_change_lands_on_connected_github` (repeated results and the landed chat's terminal page share the connected landing story)
+- `suite::plan_chat::words_during_a_turn_are_answered_once`
