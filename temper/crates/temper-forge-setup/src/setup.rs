@@ -83,6 +83,74 @@ pub struct Entry {
     pub mode: Mode,
     pub asked: bool,
 }
+/// A setup entry less `forge` and `start`: the machine's owned Forgejo or
+/// playground fake (temper/docs/plan/playground-reset-r4/notes/contracts.md, 6).
+/// Paths resolve as an entry's paths do in `Setup::read`.
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct Template {
+    pub directory: Box<[u8]>,
+    pub bot: Account,
+    pub orgs: Box<[Box<[u8]>]>,
+    pub mode: Mode,
+}
+/// The mode a template must have.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Want {
+    Owned,
+    Fake,
+}
+impl Template {
+    /// Reads the object at `at`, with problems rooted at `path`; refuses
+    /// `forge`, `start` and a mode other than `want`.
+    pub fn read(
+        d: &Document,
+        at: u32,
+        want: Want,
+        limits: &Limits,
+        directories: &config::Directories,
+        path: &Path,
+        problems: &mut config::Problems,
+    ) -> Option<Self> {
+        let mut ps = config::Problems::empty();
+        let mut o = object(d, at, path, problems)?;
+        for member in [b"forge".as_slice(), b"start"] {
+            valid(o.member(d, member).is_none(), path.member(member), &mut ps);
+        }
+        let mut template = entry_members(d, o, limits, path, &mut ps);
+        if let Some(template) = &mut template {
+            let wanted = match &template.mode {
+                Mode::Owned(_) => want == Want::Owned,
+                Mode::Fake(_) => want == Want::Fake,
+                Mode::Managed { .. } => false,
+            };
+            valid(wanted, path.member(b"mode"), &mut ps);
+            if ps.is_empty() {
+                resolve_entry(&mut template.directory, &mut template.mode, directories, path, &mut ps);
+            }
+        }
+        let clean = ps.is_empty();
+        for problem in &ps.problems {
+            problems.push(problem.path.clone(), problem.what);
+        }
+        problems.past = problems.past.saturating_add(ps.past);
+        if clean { template } else { None }
+    }
+    /// Forge `forge`'s entry, asked when owned (contracts, 3).
+    #[must_use]
+    pub fn entry(&self, forge: u16) -> Entry {
+        Entry {
+            forge,
+            directory: self.directory.clone(),
+            bot: self.bot.clone(),
+            orgs: self.orgs.clone(),
+            mode: self.mode.clone(),
+            asked: match self.mode {
+                Mode::Owned(_) => true,
+                Mode::Fake(_) | Mode::Managed { .. } => false,
+            },
+        }
+    }
+}
 /// The setup list, with at most one entry per forge.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Setup {
@@ -105,51 +173,7 @@ impl Setup {
         {
             for (index, entry) in setup.entries.iter_mut().enumerate() {
                 let p = p.child(config::Segment::Index(u32::try_from(index).expect("bounded entries")));
-                if !entry.directory.is_empty() {
-                    resolve_path(
-                        directories,
-                        config::Directory::Data,
-                        &mut entry.directory,
-                        p.member(b"directory"),
-                        &mut ps,
-                    );
-                }
-                match &mut entry.mode {
-                    Mode::Managed { admin_token: Some(admin_token) } => resolve_path(
-                        directories,
-                        config::Directory::Data,
-                        admin_token,
-                        p.member(b"mode").member(b"managed").member(b"admin_token"),
-                        &mut ps,
-                    ),
-                    Mode::Managed { admin_token: None } => {}
-                    Mode::Fake(fake) => resolve_path(
-                        directories,
-                        config::Directory::Data,
-                        &mut fake.git,
-                        p.member(b"mode").member(b"fake").member(b"git"),
-                        &mut ps,
-                    ),
-                    Mode::Owned(owned) => {
-                        let p = p.member(b"mode").member(b"owned");
-                        resolve_path(
-                            directories,
-                            config::Directory::Cache,
-                            &mut owned.forgejo,
-                            p.member(b"forgejo"),
-                            &mut ps,
-                        );
-                        if let Some(runner) = &mut owned.runner {
-                            resolve_path(
-                                directories,
-                                config::Directory::Cache,
-                                &mut runner.binary,
-                                p.member(b"runner").member(b"binary"),
-                                &mut ps,
-                            );
-                        }
-                    }
-                }
+                resolve_entry(&mut entry.directory, &mut entry.mode, directories, &p, &mut ps);
             }
         }
         let clean = ps.is_empty();
@@ -451,10 +475,56 @@ fn mode(d: &Document, at: u32, p: &Path, ps: &mut config::Problems) -> Option<Mo
 fn entry(d: &Document, at: u32, limits: &Limits, p: &Path, ps: &mut config::Problems) -> Option<Entry> {
     let mut o = object(d, at, p, ps)?;
     let forge_at = o.required(d, b"forge", p, ps);
+    let start_at = o.member(d, b"start");
+    let template = entry_members(d, o, limits, p, ps)?;
+    let mode = &template.mode;
+    let asked = if let Some(at) = start_at {
+        let value = match read::text(d, at, 4096) {
+            Ok(value) => value,
+            Err(what) => {
+                ps.push(p.member(b"start"), what);
+                return None;
+            }
+        };
+        valid(
+            value.as_ref() == b"asked"
+                && match mode {
+                    Mode::Owned(_) => true,
+                    Mode::Managed { .. } | Mode::Fake(_) => false,
+                },
+            p.member(b"start"),
+            ps,
+        );
+        true
+    } else {
+        false
+    };
+    let forge = match read::integer(d, forge_at?, u64::from(u16::MAX)) {
+        Ok(n) => u16::try_from(n).expect("forge bounded"),
+        Err(w) => {
+            ps.push(p.member(b"forge"), w);
+            return None;
+        }
+    };
+    Some(Entry {
+        forge,
+        directory: template.directory,
+        bot: template.bot,
+        orgs: template.orgs,
+        mode: template.mode,
+        asked,
+    })
+}
+fn entry_members(
+    d: &Document,
+    mut o: read::Object,
+    limits: &Limits,
+    p: &Path,
+    ps: &mut config::Problems,
+) -> Option<Template> {
     let directory_at = o.member(d, b"directory");
     let bot_at = o.required(d, b"bot", p, ps);
     let mode_at = o.required(d, b"mode", p, ps);
-    let start_at = o.member(d, b"start");
     let mode = match mode_at {
         Some(at) => mode(d, at, &p.member(b"mode"), ps),
         None => None,
@@ -500,38 +570,9 @@ fn entry(d: &Document, at: u32, limits: &Limits, p: &Path, ps: &mut config::Prob
         },
     };
     o.finish(d, p, ps);
-    let mode = mode?;
-    let asked = if let Some(at) = start_at {
-        let value = match read::text(d, at, 4096) {
-            Ok(value) => value,
-            Err(what) => {
-                ps.push(p.member(b"start"), what);
-                return None;
-            }
-        };
-        valid(
-            value.as_ref() == b"asked"
-                && match mode {
-                    Mode::Owned(_) => true,
-                    Mode::Managed { .. } | Mode::Fake(_) => false,
-                },
-            p.member(b"start"),
-            ps,
-        );
-        true
-    } else {
-        false
-    };
-    let forge = match read::integer(d, forge_at?, u64::from(u16::MAX)) {
-        Ok(n) => u16::try_from(n).expect("forge bounded"),
-        Err(w) => {
-            ps.push(p.member(b"forge"), w);
-            return None;
-        }
-    };
-    let directory = directory?;
-    Some(Entry { forge, directory, bot: account(d, bot_at?, &p.member(b"bot"), ps)?, orgs: orgs?, mode, asked })
+    Some(Template { directory: directory?, bot: account(d, bot_at?, &p.member(b"bot"), ps)?, orgs: orgs?, mode: mode? })
 }
+
 fn list(d: &Document, at: u32, limits: &Limits, p: &Path, ps: &mut config::Problems) -> Option<Setup> {
     let items = match read::list(d, at, 65_536) {
         Ok(v) => v,
@@ -561,5 +602,47 @@ fn resolve_path(
     match directories.join(kind, value) {
         Ok(resolved) => *value = resolved,
         Err(what) => problems.push(path, what),
+    }
+}
+
+fn resolve_entry(
+    directory: &mut Box<[u8]>,
+    mode: &mut Mode,
+    directories: &config::Directories,
+    p: &Path,
+    ps: &mut config::Problems,
+) {
+    if !directory.is_empty() {
+        resolve_path(directories, config::Directory::Data, directory, p.member(b"directory"), ps);
+    }
+    match mode {
+        Mode::Managed { admin_token: Some(admin_token) } => resolve_path(
+            directories,
+            config::Directory::Data,
+            admin_token,
+            p.member(b"mode").member(b"managed").member(b"admin_token"),
+            ps,
+        ),
+        Mode::Managed { admin_token: None } => {}
+        Mode::Fake(fake) => resolve_path(
+            directories,
+            config::Directory::Data,
+            &mut fake.git,
+            p.member(b"mode").member(b"fake").member(b"git"),
+            ps,
+        ),
+        Mode::Owned(owned) => {
+            let p = p.member(b"mode").member(b"owned");
+            resolve_path(directories, config::Directory::Cache, &mut owned.forgejo, p.member(b"forgejo"), ps);
+            if let Some(runner) = &mut owned.runner {
+                resolve_path(
+                    directories,
+                    config::Directory::Cache,
+                    &mut runner.binary,
+                    p.member(b"runner").member(b"binary"),
+                    ps,
+                );
+            }
+        }
     }
 }

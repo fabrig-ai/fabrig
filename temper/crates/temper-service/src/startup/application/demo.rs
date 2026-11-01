@@ -39,6 +39,21 @@ pub(super) fn parse(
     let mut object = read::object(document, at, &path, problems)?;
     let project = read::number(&mut object, document, b"project", &path, problems)?;
     let forge = read::short(&mut object, document, b"forge", &path, problems)?;
+    let fake_at = object.member(document, b"fake");
+    let mut found = config::Problems::empty();
+    let fake_template = match fake_at {
+        Some(at) if document.token(at)?.kind != Kind::Null => temper_forge_setup::setup::Template::read(
+            document,
+            at,
+            temper_forge_setup::setup::Want::Fake,
+            &temper_forge_setup::limits::small(),
+            directories,
+            &path.member(b"fake"),
+            &mut found,
+        ),
+        Some(_) | None => None,
+    };
+    problems.append(found, &Path::root());
     let at = read::required(&mut object, document, b"llm", &path, problems)?;
     let llm_path = path.member(b"llm");
     let mut llm = read::object(document, at, &llm_path, problems)?;
@@ -100,6 +115,7 @@ pub(super) fn parse(
         return Some(settings::Demo {
             project,
             forge,
+            fake: fake_template,
             provider,
             owner,
             name,

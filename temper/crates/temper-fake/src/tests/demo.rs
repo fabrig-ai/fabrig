@@ -652,3 +652,40 @@ fn a_persons_new_request_restarts_the_chat_script() {
     assert_eq!(restarted.finish, first.finish);
     assert_eq!(restarted.usage.output, first.usage.output);
 }
+
+fn machine_fake(d: &mut Value) {
+    let mut fake = d["application"]["setup"][0].clone();
+    fake.as_object_mut().unwrap().remove("forge");
+    fake.as_object_mut().unwrap().remove("start");
+    d["application"]["demo"]["fake"] = fake;
+}
+#[test]
+fn a_demo_reads_its_fake_beside_its_forge() {
+    let mut d = fixture();
+    machine_fake(&mut d);
+    let parsed = read(&d).unwrap().unwrap();
+    assert_eq!(parsed.forge(), 1);
+    let entry = parsed.fake().unwrap().entry(9);
+    assert_eq!(entry.forge, 9);
+    assert_eq!(entry.directory.as_ref(), b"/data/forge-1");
+    assert!(!entry.asked);
+    let temper_forge_setup::setup::Mode::Fake(fake) = entry.mode else { panic!("fake template") };
+    assert_eq!(fake.git.as_ref(), b"/data/demo/bin/git");
+}
+#[test]
+fn a_demo_fake_on_another_ones_port_is_refused() {
+    let mut d = fixture();
+    machine_fake(&mut d);
+    for pointer in [
+        "/application/clients/listener/socket",
+        "/application/webhooks/listener/socket",
+        "/application/demo/llm/listen/socket",
+    ] {
+        d["application"]["demo"]["fake"]["mode"]["fake"]["listen"]["socket"] = d.pointer(pointer).unwrap().clone();
+        assert_eq!(
+            read(&d).unwrap_err().line().as_ref(),
+            b"application.demo.fake.mode.fake.listen: must be unique\n",
+            "{pointer}"
+        );
+    }
+}

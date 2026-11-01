@@ -1629,6 +1629,7 @@ fn the_demo_waits_for_started_only_under_the_box_even_with_retained_access() {
     for (under_box, retained) in [(false, false), (false, true), (true, false), (true, true)] {
         let mut config = local_config(true, true);
         config.demo = Some(crate::settings::Demo {
+            fake: None,
             project: 1,
             forge: 1,
             provider: 3,
@@ -1700,6 +1701,7 @@ fn demo_config() -> crate::settings::Engine {
         ]),
     }]);
     config.demo = Some(crate::settings::Demo {
+        fake: None,
         project: 1,
         forge: 1,
         provider: 3,

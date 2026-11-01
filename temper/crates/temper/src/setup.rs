@@ -1,5 +1,9 @@
 //! The setup owner checks its document before commands read any files.
 use jig_protocol_config as config;
+use temper_forge_setup::setup::{Mode, Template, Want};
+
+#[cfg(test)]
+mod tests;
 use temper_forge_setup::{
     check::{self, Checked, Members},
     problem,
@@ -12,6 +16,7 @@ pub(crate) struct Deployment {
     pub checked: Checked,
     pub limits: temper_box::limits::Limits,
     pub demo: Option<temper_fake::demo::Demo>,
+    pub owned: Option<Template>,
 }
 
 pub(crate) fn check_with(
@@ -66,6 +71,7 @@ pub(crate) fn check_with(
     let listener = named.webhooks.as_ref().map(|webhooks| super::address(&webhooks.listener)).transpose()?;
     let checked = check::checked(&document, at, directories, &members, listener, &setup_overrides)
         .map_err(|why| String::from_utf8_lossy(&problem::lines(&why)).into_owned())?;
+    let owned = owned(&document, application, &checked, directories)?;
     let mut problems = temper_service::startup::Problems::empty();
     for (index, entry) in checked.setup.entries.iter().enumerate() {
         use temper_forge_setup::setup::Mode;
@@ -102,12 +108,64 @@ pub(crate) fn check_with(
         return Err(String::from_utf8_lossy(&temper_service::startup::lines(&problems)).into_owned());
     }
     let limits = box_limits(&named.overrides)?;
-    Ok(Deployment { named, checked, limits, demo })
+    let deployment = Deployment { named, checked, limits, demo, owned };
+    unique_owned(deployment.owned.as_ref(), deployment.demo.as_ref(), &deployment.checked, &members.listeners)?;
+    Ok(deployment)
 }
 pub(crate) fn check(bytes: &[u8], directories: &config::Directories) -> Result<Deployment, String> {
     check_with(bytes, directories, &temper_service::stock::Given::Stock)
 }
 
+// Machine members use the same checked limits and directories as seeded entries.
+fn owned(
+    document: &skein_json::Document,
+    application: u32,
+    checked: &Checked,
+    directories: &config::Directories,
+) -> Result<Option<Template>, String> {
+    let mut object = config::read::Object::new(document, application).expect("checked application");
+    let Some(at) = object.member(document, b"owned") else { return Ok(None) };
+    if document.token(at).expect("member token").kind == skein_json::document::Kind::Null {
+        return Ok(None);
+    }
+    let mut found = config::Problems::empty();
+    let template = Template::read(
+        document,
+        at,
+        Want::Owned,
+        &checked.limits,
+        directories,
+        &config::Path::root().member(b"application").member(b"owned"),
+        &mut found,
+    );
+    let problems = temper_service::startup::Problems::jig(found, &config::Path::root());
+    if problems.is_empty() {
+        Ok(template)
+    } else {
+        Err(String::from_utf8_lossy(&temper_service::startup::lines(&problems)).into_owned())
+    }
+}
+fn unique_owned(
+    template: Option<&Template>,
+    demo: Option<&temper_fake::demo::Demo>,
+    checked: &Checked,
+    listeners: &[core::net::SocketAddr],
+) -> Result<(), String> {
+    let Some(Template { mode: Mode::Owned(owned), .. }) = template else { return Ok(()) };
+    let mut conflict = listeners.contains(&owned.listen);
+    if let Some(demo) = demo {
+        conflict |= demo.llm().listen() == owned.listen;
+        if let Some(Template { mode: Mode::Fake(fake), .. }) = demo.fake() {
+            conflict |= fake.listen == owned.listen;
+        }
+    }
+    for entry in &checked.setup.entries {
+        if let Mode::Fake(fake) = &entry.mode {
+            conflict |= fake.listen == owned.listen;
+        }
+    }
+    if conflict { Err("application.owned.mode.owned.listen: must be unique\n".into()) } else { Ok(()) }
+}
 fn box_limits(overrides: &[(Box<[u8]>, u64)]) -> Result<temper_box::limits::Limits, String> {
     use temper_box::limits::{self, Refused};
     let mut limits = limits::small();

@@ -5,6 +5,8 @@ use skein_lib::{List, Secret};
 /// The deployment's demo as the clients read it (client/README.md, 8; protocol/setup.md, 8.4).
 #[derive(Debug)]
 pub struct Demo {
+    /// The playground's fake forge template (contracts, 6).
+    pub fake: Option<temper_forge_setup::setup::Template>,
     pub project: u32,
     pub forge: u16,
     pub provider: u32,
@@ -137,6 +139,8 @@ pub struct Setup {
 /// temper's members (protocol/configuration.md, sections 2 and 3).
 #[derive(Debug)]
 pub struct Engine {
+    /// The machine's owned Forgejo template (contracts, 6).
+    pub owned: Option<temper_forge_setup::setup::Template>,
     pub jig: jig_protocol_config::Engine,
     pub clients: crate::startup::application::Clients,
     pub sign_in: Option<SignIn>,
