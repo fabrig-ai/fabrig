@@ -555,14 +555,6 @@ pair = "live-smith"
 package = "smith-agent-process-world"
 filter = "all()"
 [[fixture.reader]]
-pair = "qa-jig"
-package = "jig-channel-world"
-filter = "all()"
-[[fixture.reader]]
-pair = "process-jig"
-package = "jig-test"
-filter = "all()"
-[[fixture.reader]]
 pair = "live-jig"
 package = "jig-test"
 filter = "all()"
