@@ -219,3 +219,21 @@ No restore flag is needed: the run showed the connector's `ForgeKept`
 records precede `RestartDone { stage: Restored }` and the durable
 start mark that `records::advance` waits for; the report says so under
 `## Interfaces`, as run 4's did.
+
+2026-11-01. Can fab restore run 4's retained, uncommitted work into a
+new run's slot? No (option B): work never committed and pushed does not
+pass between runs, and a run never reads another slot. The previous
+answer's "the next run resumes from it" is withdrawn: the next run
+recreates the work from its base, with run 4's report
+(`/home/free/src/fabrig/fab/runs/playground-reset-r4/fr-forge-added-4/report.md`,
+its "Work completed", "Interfaces" and "Fixture/test files
+changed" sections) as the map. Everything that answer and the ones before it
+allow still holds; the one-process resolver goes in with the rest, not
+after. Run `fake::refused_start` and the six client-world failures once
+at this run's base (the commit the slot starts from) for the "Left"
+classification, not at `f4b9d27143`. So that no work is lost again: a
+run that must stop with a question first commits its work and pushes
+the task branch (`git push origin HEAD`), says so in the report with
+the commit; a run whose own task branch stands on origin ahead of
+its base continues from that commit, merging its base into it if
+the base has moved.
