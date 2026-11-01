@@ -65,6 +65,26 @@ fn advance(service: &mut crate::Service) {
     setup::advance(service.engine.as_mut().unwrap());
 }
 #[test]
+fn a_registered_forgejo_without_setup_connects_as_its_recorded_bot() {
+    let mut service = service();
+    let mut record = record(Kind::Forgejo, Mode::Connected, None);
+    record.bot.login = b"recorded-bot".as_slice().into();
+    register(&mut service, record);
+    row(&mut service, Item::User, &42_u64.to_le_bytes());
+    let engine = service.engine.as_mut().unwrap();
+    engine.events.clear();
+    setup::lifecycle::connected(engine, 1);
+    let Some(root::Event::Forge(event)) = engine.events.pop() else { panic!("connection event") };
+    assert!(engine.events.is_empty());
+    assert_eq!(
+        event.as_ref(),
+        &domain::Event::Connection {
+            forge: 1,
+            state: domain::Connection::Connected { id: 42, login: b"recorded-bot".as_slice().into() },
+        }
+    );
+}
+#[test]
 fn a_registered_owned_record_is_served_and_waits_for_its_group() {
     let mut hooks = config();
     hooks.webhooks =
