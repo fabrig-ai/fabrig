@@ -21,6 +21,8 @@ final: tasks/rm-box-remove.md
 final: tasks/rm-remove-forge.md
 final: tasks/rm-forge-secrets.md
 final: tasks/rm-release-project.md
+final: tasks/rm-stories.md
+final: tasks/fr-seed-worlds.md
 
 ## Parts
 
@@ -30,7 +32,12 @@ final: tasks/rm-release-project.md
 
 ## Critical path
 
-(filled as the tasks are written)
+Implementer minutes, earliest finish from the run's start (others' needs: `jig-acts` 50, `bx-machine` 50, `pg-wire`):
+
+- `store-families` 60 (60) -> `forge-asks` 75 (135) -> `fr-surface` 50 (185; also `fr-limits` 35 at 95, `jig-acts`) -> `fr-seed` 70 (255) -> `fr-forge-tables` 55 (310) -> `fr-forge-added` 60 (370; `sk-*` done long before) -> `fr-setup` 55 (425) -> `rm-remove-forge` 70 (495) -> `fr-first-intent` 55 (560) -> `rm-stories` 60 (620) -> `fr-seed-worlds` 50 (670).
+- Beside it: `fr-make-forge` 40 (295) -> `fr-connect` 45 (340); `kept-acts` 55 (310); `fr-group-file` 50 (420) -> `rm-box-remove` 40 (460) -> `rm-forge-secrets` 45 (505); `rm-release-project` 45 (230).
+- skein, needing nothing: `sk-conn-add` 50 -> `sk-conn-remove` 60 (110); `sk-setup-forges` 45; `sk-client-remove` 55.
+- Other parts wait on: `fr-make-forge` (295: `pg-start`, `bx-init`), `fr-setup` (425: `bx-init`), `rm-remove-forge` (495: `bx-stories`, the reset), `kept-acts` (310: the reset).
 
 ## Decisions
 
@@ -58,3 +65,5 @@ final: tasks/rm-release-project.md
 ## Contract problems
 
 - Contracts 2 says the `Forge` row holds the document's members "less what is a credential's (a file-backed `api_token`, `webhook_secret`, a `user` by file)". 27 files (process stories, real-loop, one-process, client-browser, service fixtures) use the file form, which D1 must keep seeding. Proposed fix, cut so: the row keeps the file form's file *names* (`record::Files`: `api_token`, `webhook_secret`, `user` by id or file, the identity's `token`), never their bytes; the service reads the files at start as today. A records-only forge has `files: None`. temper-15 removes the file form.
+
+done
