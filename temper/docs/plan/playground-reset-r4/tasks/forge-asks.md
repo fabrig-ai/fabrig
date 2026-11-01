@@ -280,3 +280,38 @@ fab's sections, and `## Interfaces`: the domain's new and changed items
 records and variants as written, and `asks::set_up_forge`. List every
 neighbour file edited and why; any test whose configuration you
 renumbered (the first option).
+
+## Answers
+
+2026-11-01. **How does `temper-client-tools` restore a kept `SetUp`
+once its forge number leaves the wire?** Option A: the forge is unknown
+there, and the hint that names it is left out. The kept request holds no
+forge number, and the engine now chooses the forge itself
+(`asks::set_up_forge`), so inventing a number would print wrong commands.
+In `temper-client-tools/src/forges.rs`, an edit allowed for this question:
+
+- `setup_print`, `setup_text` and `setup_json` take `forge: Option<u16>`.
+  A live call passes `Some(intent.forge)`, the number its argv names, and
+  prints as today. A restored one passes `None`.
+- `restore` keeps a `SetUp` without making an `Intent`. Either give
+  `SettingUp` a three-armed field (a set up with its `Intent`, a kept set
+  up, the demo) in place of `intent: Option<Intent>`, or keep `Intent` and
+  make its `forge` an `Option<u16>`, `None` only from `restore`. Take
+  whichever changes less. Nothing may `expect` the number on the restored
+  path: a restored entry has `called: None` and never reaches
+  `watch_first`.
+- *Not under the box* with no forge known: the text prints the refusal
+  line and no command line. The JSON prints `refused` with its `why` and
+  no `next` key. With a forge known, the words stay as today.
+- A test in `temper-client-tools/src/tests/forges.rs`, after the file's
+  kept-line test (`kept: forge-setup setting up`): a kept `SetUp`
+  restored and answered *not under the box* prints
+  `kept: forge-setup refused: ` with its words and no `temper forge fetch`.
+  The live-call tests (`tests/client/tests/suite/forges.rs`, the
+  `set_up_commands(FORGE)` checks) still pass unchanged.
+
+The report's other two blockers fall under the existing call-site rules.
+A kept `Connect` in the manifest reads its number from
+`ConnectForge::Existing(n)`, and any other form is ignored as a request it
+does not restore. The repositories decoder's new `Outcome` variants take
+its arm for an outcome it does not expect.
