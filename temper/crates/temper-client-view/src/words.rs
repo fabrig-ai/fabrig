@@ -125,11 +125,6 @@ pub enum Word {
     ForgePlaygroundHeading,
     ForgeDotAmber,
     ForgeDotRed,
-    Setup,
-    SetupBoth,
-    SetupForge,
-    SetupModel,
-    SetupContinue,
 
     ForgeSetupUrl,
     SetupOrganization,
@@ -435,8 +430,6 @@ pub enum Word {
     ChatDelegates,
     ChatHint,
     ChatSendHint,
-    DemoBoth,
-    DemoForge,
     ConnectForge,
     ChatTitle,
     DemoModelName,
@@ -450,7 +443,6 @@ pub enum Word {
     NewChatLink,
     Ready,
     Demo,
-    DemoModel,
     ConnectModel,
     DemoHeading,
     DemoStarting,
@@ -673,7 +665,7 @@ pub enum Word {
 // The flow's three state words (5.2).
 // The Accounts navigation's two state words (5.3).
 // ConnectForge's and the welcome's forge words (client/forge.md, 5.4).
-// The Forges page, navigation dot and setup strip, with owned Runs and password (27 phrases).
+// The Forges page and navigation dot, with owned Runs and password.
 // Thirty-one model-flow phrases (client/README.md, 5.5).
 // The account rows' nineteen literal and two shaped phrases (client/README.md, 5.5).
 // The setup fields and first repository add eleven phrases.
@@ -690,10 +682,10 @@ pub enum Word {
 // The paste of a sign-in's address adds fifteen phrases and twenty-one segments.
 // M1's Model details add eight phrases and sixteen segments.
 // The welcome's Forgejo card adds four literal phrases and segments.
-const PHRASES: u32 = 1205;
-const SEGMENTS: u32 = 2104;
+const PHRASES: u32 = 1196;
+const SEGMENTS: u32 = 2095;
 // Frame and forge phrases, including the playground reset.
-const ALL: [Word; 623] = [
+const ALL: [Word; 615] = [
     Word::PlaygroundBanner,
     Word::PlaygroundSetUp,
     Word::PlaygroundLeaving,
@@ -805,11 +797,6 @@ const ALL: [Word; 623] = [
     Word::ForgePlaygroundHeading,
     Word::ForgeDotAmber,
     Word::ForgeDotRed,
-    Word::Setup,
-    Word::SetupBoth,
-    Word::SetupForge,
-    Word::SetupModel,
-    Word::SetupContinue,
     Word::ForgeSetupUrl,
     Word::SetupOrganization,
     Word::SetupRepository,
@@ -1107,8 +1094,6 @@ const ALL: [Word; 623] = [
     Word::ChatDelegates,
     Word::ChatHint,
     Word::ChatSendHint,
-    Word::DemoBoth,
-    Word::DemoForge,
     Word::ConnectForge,
     Word::ChatTitle,
     Word::DemoModelName,
@@ -1122,7 +1107,6 @@ const ALL: [Word; 623] = [
     Word::NewChatLink,
     Word::Ready,
     Word::Demo,
-    Word::DemoModel,
     Word::ConnectModel,
     Word::DemoHeading,
     Word::DemoStarting,
@@ -1397,11 +1381,6 @@ impl Word {
             Self::ForgePlaygroundHeading => 1810,
             Self::ForgeDotAmber => 1811,
             Self::ForgeDotRed => 1812,
-            Self::Setup => 1813,
-            Self::SetupBoth => 1814,
-            Self::SetupForge => 1815,
-            Self::SetupModel => 1816,
-            Self::SetupContinue => 1817,
             Self::ForgeSetupUrl => 1700,
             Self::SetupOrganization => 1820,
             Self::SetupRepository => 1821,
@@ -1765,8 +1744,6 @@ impl Word {
             Self::ChatDelegates => 145,
             Self::ChatHint => 185,
             Self::ChatSendHint => 186,
-            Self::DemoBoth => 273,
-            Self::DemoForge => 274,
             Self::ConnectForge => 275,
             Self::ChatTitle => 276,
             Self::DemoModelName => 277,
@@ -1780,7 +1757,6 @@ impl Word {
             Self::NewChatLink => 1258,
             Self::Ready => 287,
             Self::Demo => 187,
-            Self::DemoModel => 188,
             Self::ConnectModel => 189,
             Self::DemoHeading => 190,
             Self::DemoStarting => 1900,
@@ -2269,15 +2245,10 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ForgePasswordLabel => (&[b"First password"], &[]),
         Word::ForgeOpenSetup => (&[b"Open its set-up \xe2\x80\xba"], &[]),
         Word::ForgeRestartBox => (&[b"Restart temper box: its preparation mends it"], &[]),
-        Word::ForgePlaygroundSummary => (&[b"Playground forge \xc2\xb7 the playground\xe2\x80\x99s, until a forge of yours connects \xc2\xb7 ", b"/", b""], &[Name, Name]),
+        Word::ForgePlaygroundSummary => (&[b"Playground forge \xc2\xb7 the playground\xe2\x80\x99s \xc2\xb7 ", b"/", b""], &[Name, Name]),
         Word::ForgePlaygroundHeading => (&[b"The playground"], &[]),
         Word::ForgeDotAmber => (&[b"a forge is setting up"], &[]),
         Word::ForgeDotRed => (&[b"a forge needs you"], &[]),
-        Word::Setup => (&[b"Setup"], &[]),
-        Word::SetupBoth => (&[b"temper has no forge and no model yet."], &[]),
-        Word::SetupForge => (&[b"temper has no forge yet."], &[]),
-        Word::SetupModel => (&[b"temper has no model yet."], &[]),
-        Word::SetupContinue => (&[b"Continue setting up"], &[]),
         Word::ForgeSetupUrl => (&[b"On GitHub, set the App\xe2\x80\x99s setup URL to temper\xe2\x80\x99s address followed by /forges/", b"/github/setup, and give it the permissions and events temper\xe2\x80\x99s guide lists."], &[Number]),
         Word::SetupOrganization => (&[b"Organization"], &[]),
         Word::SetupRepository => (&[b"Repository"], &[]),
@@ -2662,8 +2633,6 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ChatDelegates => (&[b"", b" delegates"], &[Number]),
         Word::ChoiceProvider => (&[b"", b""], &[Name]),
         Word::ChatSendHint => (&[b"Enter to send \xc2\xb7 Shift+Enter for newline"], &[]),
-        Word::DemoBoth => (&[b"This is the playground: a scripted model and a playground forge."], &[]),
-        Word::DemoForge => (&[b"This is the playground: a playground forge."], &[]),
         Word::ConnectForge => (&[b"Connect a forge"], &[]),
         Word::ChatTitle => (&[b"T", b" \xc2\xb7 ", b""], &[Number, Name]),
         Word::DemoModelName => (&[b"Scripted model"], &[]),
@@ -2680,7 +2649,6 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::NewChatLink => (&[b"+ New chat"], &[]),
         Word::Ready => (&[b"Ready"], &[]),
         Word::Demo => (&[b"Playground"], &[]),
-        Word::DemoModel => (&[b"This is the playground: a scripted model."], &[]),
         Word::ConnectModel => (&[b"Connect a model"], &[]),
         Word::DemoStarting => (&[b"Starting"], &[]),
         Word::DemoNotStarted => (&[b"Not started"], &[]),

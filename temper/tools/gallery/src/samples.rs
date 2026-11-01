@@ -156,7 +156,7 @@ pub fn samples() -> [Sample; N] {
         },
         owned_sample("welcome-ready-under-way", 6, true),
         owned_sample("welcome-ready-adopted", 8, true),
-        Sample { name: "chats-setup-strip", world: Bare, address: CHATS, then: Shown },
+        Sample { name: "chats-not-started", world: Bare, address: CHATS, then: Shown },
         Sample { name: "adoption", world: Reference, address: Address::Adopt { project: 1 }, then: Shown },
         Sample { name: "adoption-filled", world: Reference, address: Address::Adopt { project: 1 }, then: Filled },
         Sample { name: "adoption-refused", world: Reference, address: Address::Adopt { project: 1 }, then: Refused },

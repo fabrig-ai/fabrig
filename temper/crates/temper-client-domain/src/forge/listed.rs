@@ -1,12 +1,9 @@
-//! The Forges page, navigation dot and setup strip (client/forge.md, 5.4; client/README.md, 5.1, 5.3, 5.6).
+//! The Forges page, navigation dot (client/forge.md, 5.4; client/README.md, 5.1, 5.3, 5.6).
 use super::{
     Demo, connect,
     forges::{Connection, Mode, Row, State},
 };
-use crate::{
-    Domain, Step,
-    pages::{accounts, welcome},
-};
+use crate::Domain;
 use skein_lib::List;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -67,7 +64,7 @@ pub fn dot(state: &State, demo: Option<&Demo>) -> Dot {
 }
 #[must_use]
 pub fn playground(root: &Domain) -> Option<(&Demo, &Row)> {
-    let demo = root.forge().demo()?;
+    let demo = root.demo()?;
     if !root.forge().playground_running() {
         return None;
     }
@@ -79,43 +76,4 @@ pub fn playground(root: &Domain) -> Option<(&Demo, &Row)> {
         }
     }
     None
-}
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Setup {
-    pub playground: bool,
-    pub forge: bool,
-    pub model: bool,
-    pub step: Step,
-}
-#[must_use]
-pub fn setup(root: &Domain) -> Option<Setup> {
-    if !root.demo_answered() || root.forge().demo_running() || welcome::decision(root) != Some(false) {
-        return None;
-    }
-    let owner = accounts::current_me(root.client())?.deployment_role == Some(jig_client::contract::HeldRole::Owner);
-    let mut connected = false;
-    let mut started = false;
-    let mut personal_connected = false;
-    for row in &rows(root.forges(), root.forge().demo()) {
-        if let Connection::Connected { .. } = row.connection {
-            personal_connected = true;
-            connected |= !connect::underway(row) && !connect::failed(row);
-            started = true;
-        }
-        started |= connect::underway(row);
-    }
-    let model = !welcome::model_usable(root)?;
-    let step = if owner && !started {
-        Step::Forge { forge: None }
-    } else if model {
-        Step::Model { way: None }
-    } else {
-        Step::Ready
-    };
-    Some(Setup {
-        playground: !personal_connected && root.forge().demo().is_some(),
-        forge: owner && !connected,
-        model,
-        step,
-    })
 }

@@ -555,7 +555,6 @@ fn demo_change_page(demo_forge: u16, resetting: bool) {
             temper_client_domain::forge::demo::DemoState::Resetting
         );
         assert!(root.forge().leaving());
-        assert_eq!(root.forge().retired_demo(), None);
     } else {
         assert_eq!(root.forge().demo().expect("started demo").forge, demo_forge);
     }

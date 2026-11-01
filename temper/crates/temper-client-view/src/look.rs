@@ -247,8 +247,6 @@ pub const FLOW_CODE: Style = Style { owner: owner(), token: 119 };
 pub const FORGES: Style = Style { owner: owner(), token: 120 };
 /// A forge's row on the Forges page (client/forge.md, 5.4).
 pub const FORGE_ROW: Style = Style { owner: owner(), token: 121 };
-/// The setup strip (client/README.md, 5.1, 5.6).
-pub const SETUP_STRIP: Style = Style { owner: owner(), token: 122 };
 /// Browser sign-in page (protocol/sign-in.md, 7).
 pub const SIGN_IN: Style = Style { owner: owner(), token: 123 };
 /// A connection flow's filled primary control.
@@ -452,7 +450,7 @@ pub const NAMES: Names<'static> = Names {
         b"temper-flow-code",
         b"temper-forges",
         b"temper-forge-row",
-        b"temper-setup-strip",
+        b"temper-reserved-122",
         b"temper-sign-in",
         b"temper-account-row",
         b"temper-flow-primary",
