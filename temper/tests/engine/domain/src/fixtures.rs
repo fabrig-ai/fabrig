@@ -220,14 +220,25 @@ pub fn restored_over(
     config: engine::Config,
     limits: &engine::Limits,
 ) -> crate::store::Store {
-    let forges: Vec<_> = config.forge.writers.iter().map(|writer| {
-        crate::forges::record(writer.forge, temper_engine_domain_forge::Kind::Forgejo,
-            temper_engine_domain_forge::Mode::Connected)
-    }).collect();
+    let forges: Vec<_> = config
+        .forge
+        .writers
+        .iter()
+        .map(|writer| {
+            crate::forges::record(
+                writer.forge,
+                temper_engine_domain_forge::Kind::Forgejo,
+                temper_engine_domain_forge::Mode::Connected,
+            )
+        })
+        .collect();
     let accounts = account_rows(&config.core.settings.llm_providers);
     let mut store = first_start_over(store, config, limits);
-    store.seed(accounts, Box::new([]));
-    store.seed(crate::forges::rows(&forges), Box::new([]));
+    let mut rows = accounts.into_vec();
+    if !forges.is_empty() {
+        rows.extend(crate::forges::rows(&forges).into_vec());
+    }
+    store.seed(rows.into_boxed_slice(), Box::new([]));
     store
 }
 

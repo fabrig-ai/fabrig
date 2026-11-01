@@ -225,9 +225,7 @@ impl Service {
             core: jig_protocol_config::core(&settings.jig, seeds.deployment, seeds.seed),
             landing: settings.landing,
             forge: forge_config,
-            identities: Box::new([]),
             forge_charter: settings.charter,
-            forges: Box::new([]),
             under_box: box_line_bytes.is_some(),
             demo: demo_config,
         };

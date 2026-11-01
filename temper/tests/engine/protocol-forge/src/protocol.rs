@@ -117,6 +117,16 @@ impl Protocol {
             item_start: 0,
             request_times: Vec::new(),
         };
+        let kind = match fixture.kind {
+            skein_forge_connection::settings::Kind::Forgejo => top::Kind::Forgejo,
+            skein_forge_connection::settings::Kind::GitHub => top::Kind::GitHub,
+        };
+        let record =
+            top::ForgeRecord { number: REPO.forge, kind, mode: top::Mode::Connected, ..top::ForgeRecord::github_com() };
+        world.stored.insert(top::Key::Forge(REPO.forge), top::Stored::Forge(record.clone())).unwrap();
+        world.stored.insert(top::Key::ForgeNumbers, top::Stored::ForgeNumbers { next: REPO.forge + 1 }).unwrap();
+        world.event(top::Event::Restore { record: top::Stored::Forge(record) });
+        world.event(top::Event::Restore { record: top::Stored::ForgeNumbers { next: REPO.forge + 1 } });
         world.accept_installations();
         world.event(top::Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
         world
@@ -135,8 +145,6 @@ impl Protocol {
                 namespace: Box::from(b"world".as_slice()),
                 writers: Box::new([skein_forge_client::Writer { forge: REPO.forge, author }]),
             },
-            &[top::GitIdentity { forge: REPO.forge, credential: 1 }],
-            &[],
             top::Machine::bare(),
             false,
         )

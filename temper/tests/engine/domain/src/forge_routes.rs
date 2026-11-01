@@ -784,8 +784,13 @@ impl World {
             store_limits.tasks.holdings = limits.tasks.holdings;
             store_limits.journal.writes = limits.journal.writes;
         }
-        let store =
+        let mut store =
             temper_engine_domain_world::fixtures::restored_over(Store::with_limits(&store_limits), bootstrap, &limits);
+        let mut record =
+            temper_engine_domain_world::forges::record(1, forge_top::Kind::Forgejo, forge_top::Mode::Connected);
+        record.web = None;
+        record.git = Box::new([]);
+        store.seed(temper_engine_domain_world::forges::rows(&[record]), Box::new([]));
         let period_budget = config.core.defaults.rules.period_spend;
         Self {
             creating: jig_core_world::fixtures::Creating::new(&config.core, limits.tasks.tree_tasks),

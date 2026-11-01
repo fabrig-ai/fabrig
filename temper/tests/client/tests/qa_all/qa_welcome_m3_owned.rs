@@ -18,12 +18,13 @@ fn owned_fixture(runner: Option<&[u8]>) -> (Joint, Root) {
     bounds.people.projects = 3;
     bounds.people.holdings = 3;
     bounds.people.requests = 5;
+    let mut store = temper_engine_domain_world::fixtures::restored_store(walking::config(seed), &bounds);
     let configs = std::array::from_fn(|_| {
         let mut config = walking::config(seed);
         first_run_projects(&mut config, &mut bounds);
         config.under_box = true;
         config.core.connectors = Box::new([fixtures::FORGE]);
-        config.forges = Box::new([forge::Configured {
+        let configured: Box<[forge::Configured]> = Box::new([forge::Configured {
             number: 1,
             kind: forge::Kind::Forgejo,
             mode: forge::Mode::Owned,
@@ -39,10 +40,16 @@ fn owned_fixture(runner: Option<&[u8]>) -> (Joint, Root) {
                 password: b"fixture/person_password".as_slice().into(),
             }),
         }]);
+        store.seed(
+            temper_engine_domain_world::forges::rows(
+                &configured.iter().map(temper_engine_domain_world::forges::from_configured).collect::<Vec<_>>(),
+            ),
+            Box::new([]),
+        );
         config
     });
     let mut front = Joint::new(seed, limits);
-    front.engine = Driver::with_repositories(Store::new(), configs, &bounds, &[(b"work", b"hello", 42)]);
+    front.engine = Driver::with_repositories(store, configs, &bounds, &[(b"work", b"hello", 42)]);
     front.engine.send(engine::Event::Forge(Box::new(forge::Event::Connection {
         forge: 1,
         state: forge::Connection::NotSetUp,

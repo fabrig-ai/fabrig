@@ -232,9 +232,8 @@ fn a_restored_writer_does_not_configure_a_missing_forge() {
     repository.provider.forge = OTHER_FORGE;
     let writer = skein_forge_client::Writer { forge: OTHER_FORGE, author: 7 };
     outputs(&mut d, Event::Restore { record: Stored::Writer(writer) });
-    for row in [Stored::Repository(repository), Stored::Writer(writer)] {
-        assert!(!resolved(&d, &row, true), "{row:?}");
-    }
+    assert!(resolved(&d, &Stored::Repository(repository), true), "a missing record is a removed forge");
+    assert!(!resolved(&d, &Stored::Writer(writer), true));
 }
 #[test]
 fn flights_resolve_only_to_the_entry_of_the_same_task() {
@@ -426,15 +425,19 @@ fn production_link_asserts_a_missing_repository() {
 }
 
 #[test]
-fn production_link_asserts_a_missing_configured_forge() {
+fn production_link_asserts_a_writer_with_no_forge_record() {
     let mut d = domain();
-    let mut repository = adopted();
-    repository.provider.forge = OTHER_FORGE;
-    let key = Some(Key::Repository(repository.provider));
-    outputs(&mut d, Event::Restore { record: Stored::Repository(repository) });
+    outputs(
+        &mut d,
+        Event::Restore { record: Stored::Writer(skein_forge_client::Writer { forge: OTHER_FORGE, author: 7 }) },
+    );
     assert_eq!(
         d.missing_link(&empty_tasks()),
-        Some(MissingLink { kind: RecordKind::Repository, key, need: Need::Forge(OTHER_FORGE) })
+        Some(MissingLink {
+            kind: RecordKind::Writer,
+            key: Some(Key::Writer(OTHER_FORGE)),
+            need: Need::Forge(OTHER_FORGE)
+        })
     );
 }
 

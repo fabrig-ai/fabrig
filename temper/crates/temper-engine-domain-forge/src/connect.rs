@@ -116,7 +116,7 @@ pub(crate) fn start(
 fn send(d: &mut Domain, request: Token, forge: u16, ask: Ask, carried: Option<Carried>, out: &mut Queue<Request>) {
     match ask {
         Ask::Connect { how: how @ crate::How::GitHubApp { .. }, .. } => {
-            if let Some(mut record) = d.records.get(&forge).cloned()
+            if let Some(mut record) = d.records.get(&forge).map(Box::as_ref).cloned()
                 && record.kind == crate::Kind::GitHub
                 && record.mode == crate::Mode::Managed
             {

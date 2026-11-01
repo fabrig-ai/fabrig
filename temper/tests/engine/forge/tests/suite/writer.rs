@@ -9,7 +9,8 @@ fn a_runtime_writer_is_kept_once_and_refused_writers_keep_nothing() {
     let writer = Writer { forge: REPO.forge, author: 1 };
     assert!(!world.give_writer(Writer { author: 0, ..writer }));
     assert_eq!(world.writer_saves(), 0);
-    assert!(world.stored().is_empty());
+    assert_eq!(world.stored().len(), 2, "only the forge record and its next number");
+    assert!(!world.stored().contains_key(&top::Key::Writer(REPO.forge)));
     assert!(world.give_writer(writer));
     assert_eq!(world.writer_saves(), 1);
     assert_eq!(world.stored().get(&top::Key::Writer(REPO.forge)), Some(&top::Stored::Writer(writer)));
@@ -18,7 +19,7 @@ fn a_runtime_writer_is_kept_once_and_refused_writers_keep_nothing() {
         assert!(!world.give_writer(refused));
     }
     assert_eq!(world.writer_saves(), 1);
-    assert_eq!(world.stored().len(), 1);
+    assert_eq!(world.stored().len(), 3);
 }
 
 #[test]

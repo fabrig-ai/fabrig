@@ -126,15 +126,14 @@ fn client_limits_must_be_coherent_and_their_capacities_representable() {
 }
 
 fn domain() -> Domain {
-    Domain::new(
+    fixtures::with_records(
         &LIMITS,
         4,
         skein_forge_client::Config {
             namespace: Box::from(&b"test"[..]),
             writers: Box::new([skein_forge_client::Writer { forge: 1, author: 7 }]),
         },
-        &[GitIdentity { forge: 1, credential: 1 }],
-        &[],
+        &[fixtures::configured(1)],
         Machine::bare(),
         false,
     )
@@ -275,7 +274,10 @@ fn an_outbox_entry_waits_for_its_commit() {
     outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
     assert_eq!(
         outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic }).as_ref(),
-        &[Request::RestartDone { stage: RestartStage::Restored }],
+        &[
+            Request::Register(fixtures::from_configured(&fixtures::configured(1))),
+            Request::RestartDone { stage: RestartStage::Restored }
+        ],
     );
     assert_eq!(
         outputs(&mut d, Event::ReadAfresh).as_ref(),
@@ -565,7 +567,10 @@ fn restored_ci_subscriptions_are_read_in_the_fresh_step_and_delay_its_completion
     );
     assert_eq!(
         outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic }).as_ref(),
-        &[Request::RestartDone { stage: RestartStage::Restored }]
+        &[
+            Request::Register(fixtures::from_configured(&fixtures::configured(1))),
+            Request::RestartDone { stage: RestartStage::Restored }
+        ]
     );
     let fresh = outputs(&mut d, Event::ReadAfresh);
     assert!(fresh.is_empty(), "the subscription read is scheduled before completion");
@@ -753,7 +758,10 @@ fn a_held_effect_survives_a_restart_out_of_the_clients_outbox() {
     let mut d = held_restored();
     assert_eq!(
         outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic }).as_ref(),
-        &[Request::RestartDone { stage: RestartStage::Restored }]
+        &[
+            Request::Register(fixtures::from_configured(&fixtures::configured(1))),
+            Request::RestartDone { stage: RestartStage::Restored }
+        ]
     );
     assert_eq!(
         outputs(&mut d, Event::ReadAfresh).as_ref(),
@@ -1192,12 +1200,11 @@ fn bounded_words_keep_the_requested_edge() {
 }
 
 fn routing_domain() -> Domain {
-    Domain::new(
+    fixtures::with_records(
         &LIMITS,
         4,
         skein_forge_client::Config { namespace: Box::from(b"test".as_slice()), writers: Box::new([]) },
-        &[GitIdentity { forge: 1, credential: 1 }],
-        &[],
+        &[fixtures::configured(1)],
         Machine::bare(),
         false,
     )
@@ -1270,45 +1277,18 @@ fn configured() -> [Configured; 2] {
     ]
 }
 fn setup_domain(forges: &[Configured], under_box: bool) -> Domain {
-    Domain::new(
+    fixtures::with_records(
         &LIMITS,
         4,
         skein_forge_client::Config {
             namespace: Box::from(b"test".as_slice()),
             writers: Box::new([skein_forge_client::Writer { forge: 1, author: 7 }]),
         },
-        &[],
         forges,
         Machine::bare(),
         under_box,
     )
     .unwrap()
-}
-#[test]
-fn a_configured_git_base_is_bounded_by_its_priced_pull_address_bytes() {
-    let base = [b'g'; 2049];
-    for length in [2048, 2049] {
-        let mut forge = configured()[0].clone();
-        forge.git = base.get(..length).unwrap().into();
-        let result = Domain::new(
-            &LIMITS,
-            4,
-            skein_forge_client::Config { namespace: b"test".as_slice().into(), writers: Box::new([]) },
-            &[],
-            &[forge],
-            Machine::bare(),
-            false,
-        );
-        if length == 2048 {
-            assert!(result.is_ok(), "the priced base is admitted");
-        } else {
-            assert_eq!(
-                result.err(),
-                Some(skein_forge::api::Error::TooLarge),
-                "a larger base is refused before retaining it"
-            );
-        }
-    }
 }
 
 fn setup_row(number: u16, kind: Kind, connection: Connection, offer: Offer) -> Row {
@@ -1325,7 +1305,12 @@ fn setup_row(number: u16, kind: Kind, connection: Connection, offer: Offer) -> R
         app: None,
         web: None,
         repositories: Box::new([]),
-        owned: None,
+        owned: Some(
+            fixtures::from_configured(&Configured { mode: Mode::Owned, ..fixtures::configured(number) })
+                .configured()
+                .owned
+                .unwrap(),
+        ),
         admin: false,
         read_only: false,
         ended_stop: None,
@@ -1362,6 +1347,8 @@ fn setup_rows_and_answers_agree_in_every_connection_state() {
                     assert_eq!(
                         emitted.as_ref(),
                         [
+                            fixtures::saved_forge(&d, 1),
+                            fixtures::registered_forge(&d, 1),
                             Request::MarkedForges,
                             Request::SetUp {
                                 playground: false,
@@ -1445,24 +1432,6 @@ fn closing_the_box_fails_setup_and_marks_every_offer_unavailable() {
     );
     assert_eq!(d.application_answer(token), Some(Answered::SetUp(SetUpAnswer::Refused(SetUpRefusal::NotUnderTheBox))));
 }
-#[test]
-fn configured_forges_are_bounded_at_construction() {
-    fn config() -> skein_forge_client::Config {
-        skein_forge_client::Config { namespace: b"test".as_slice().into(), writers: Box::new([]) }
-    }
-    let count = usize::try_from(LIMITS.client.repositories).unwrap();
-    let mut forges = skein_lib::List::with_capacity(LIMITS.client.repositories.checked_add(1).unwrap());
-    for number in 0..=count {
-        forges
-            .push(Configured { owned: None, number: u16::try_from(number).unwrap(), ..configured()[0].clone() })
-            .unwrap();
-    }
-    Domain::new(&LIMITS, 4, config(), &[], &forges.as_slice()[..count], Machine::bare(), false).unwrap();
-    assert_eq!(
-        Domain::new(&LIMITS, 4, config(), &[], forges.as_slice(), Machine::bare(), false).unwrap_err(),
-        skein_forge::api::Error::TooLarge
-    );
-}
 
 #[test]
 fn set_up_states_are_kept_as_told_and_give_no_writer() {
@@ -1503,6 +1472,7 @@ fn routing_installations_keep_their_stray_and_suspended_states_without_durable_r
 fn routing_tables_take_every_installation_with_the_connection_components_bounds() {
     let mut d = domain();
     d.connection_limits(2, 8);
+    d.keep_record(fixtures::from_configured(&fixtures::configured(2)));
     for forge in 1..=2 {
         for installation in 1..=8 {
             let state = Installation { account: None, stray: true, suspended: false };
@@ -1594,6 +1564,8 @@ fn setup_answers_reserve_room_until_retention_ends() {
     let mut out = Queue::uncapped();
     step(&mut d, &later, setup_application(1, request, request), &mut out);
     assert_eq!(d.application_answer(Token::new(1)), None, "expired answer released");
+    assert_eq!(out.pop(), Some(fixtures::saved_forge(&d, 1)));
+    assert_eq!(out.pop(), Some(fixtures::registered_forge(&d, 1)));
     assert_eq!(out.pop(), Some(Request::MarkedForges));
     assert_eq!(
         out.pop(),
@@ -1713,6 +1685,8 @@ fn a_new_project_is_admitted_and_retained_until_the_repository_is_made() {
     assert_eq!(
         emitted.as_ref(),
         [
+            fixtures::saved_forge(&d, 1),
+            fixtures::registered_forge(&d, 1),
             Request::MarkedForges,
             Request::SetUp {
                 playground: false,
@@ -1792,6 +1766,8 @@ fn setup_names_are_validated_at_admission_on_both_sides_of_the_name_bound() {
                     &mut emitted,
                 );
                 if accepted {
+                    assert_eq!(emitted.pop(), Some(fixtures::saved_forge(&d, 1)));
+                    assert_eq!(emitted.pop(), Some(fixtures::registered_forge(&d, 1)));
                     assert_eq!(emitted.pop(), Some(Request::MarkedForges));
                     assert_eq!(
                         emitted.pop(),
@@ -1852,6 +1828,8 @@ fn admitted_setup_projects_its_fields_as_making_and_the_next_admission_replaces_
             )
             .as_ref(),
             [
+                fixtures::saved_forge(&d, 1),
+                fixtures::registered_forge(&d, 1),
                 Request::MarkedForges,
                 Request::SetUp { playground: false, forge: 1, request, org: org.into(), repository: repository.into() }
             ]
@@ -1870,10 +1848,16 @@ fn first_repository_tells_mark_made_failed_and_retry_and_ignore_absent_intents()
     }
     outputs(&mut d, Event::Connection { forge: 1, state: Connection::NotSetUp });
     outputs(&mut d, setup_application(1, Token::new(91), Token::new(92)));
-    assert_eq!(outputs(&mut d, Event::FirstMade { forge: 1, id: 42 }).as_ref(), [Request::MarkedForges]);
+    assert_eq!(
+        outputs(&mut d, Event::FirstMade { forge: 1, id: 42 }).as_ref(),
+        [fixtures::saved_forge(&d, 1), fixtures::registered_forge(&d, 1), Request::MarkedForges]
+    );
     assert_eq!(d.forges().rows[0].first.as_ref().unwrap().state, FirstState::Made { id: 42 });
     for step in [CreateStep::Admin, CreateStep::Org, CreateStep::Repository, CreateStep::File] {
-        assert_eq!(outputs(&mut d, Event::FirstFailed { forge: 1, step }).as_ref(), [Request::MarkedForges]);
+        assert_eq!(
+            outputs(&mut d, Event::FirstFailed { forge: 1, step }).as_ref(),
+            [fixtures::saved_forge(&d, 1), fixtures::registered_forge(&d, 1), Request::MarkedForges]
+        );
         assert_eq!(d.forges().rows[0].first.as_ref().unwrap().state, FirstState::Failed { step });
     }
     outputs(&mut d, Event::Connection { forge: 1, state: Connection::SetUpFailed { why: b"file".as_slice().into() } });
@@ -1986,7 +1970,7 @@ fn forges_carry_owned_startup_details_for_the_owned_row_alone() {
     let owned = Owned {
         forgejo: b"17.0.0".as_slice().into(),
         runner: Some(b"13.2.0".as_slice().into()),
-        password: b"/fake/forge/person_password".as_slice().into(),
+        password: b"forge-1/person_password".as_slice().into(),
     };
     let configs = [
         Configured { owned: Some(owned.clone()), ..configured()[0].clone() },

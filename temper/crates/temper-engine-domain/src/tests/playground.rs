@@ -26,6 +26,12 @@ fn row(project: Option<u32>, account: Option<u32>) -> forge::Playground {
 
 fn fixture(carried: bool) -> (Domain, Env<Limits>) {
     let (mut domain, env) = root();
+    forge::step(
+        &mut domain.forge,
+        &crate::translate::environment_forge(&env),
+        forge::Event::Restore { record: forge::Stored::Forge(super::resume_fixture::forge_record(FORGE)) },
+        &mut Queue::uncapped(),
+    );
     domain.forge.configure_demo(Some(forge::DemoConfig {
         project_name: "Playground".into(),
         project_policy: 1,

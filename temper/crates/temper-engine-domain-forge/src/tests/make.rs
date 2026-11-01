@@ -30,7 +30,7 @@ fn the_first_make_is_forge_one_and_each_next_is_never_reused() {
     let mut d = setup_domain(&[], true);
     github(&mut d, 1);
     github(&mut d, 2);
-    let second = d.records.get(&2).unwrap().clone();
+    let second = d.records.get(&2).unwrap().as_ref().clone();
     let mut restored = setup_domain(&[], true);
     outputs(&mut restored, Event::Restore { record: Stored::Forge(second) });
     outputs(&mut restored, Event::Restore { record: Stored::ForgeNumbers { next: d.next_number } });
@@ -65,7 +65,7 @@ fn makes_past_the_forge_limit_are_full() {
     for number in 1..=u16::try_from(LIMITS.forges).unwrap() {
         github(&mut d, number);
     }
-    let mut removing = d.records.get(&1).unwrap().clone();
+    let mut removing = d.records.get(&1).unwrap().as_ref().clone();
     removing.state = ForgeState::Removing;
     outputs(&mut d, Event::Restore { record: Stored::Forge(removing) });
     let out = make(&mut d, 5, ForgeChoice::GitHub, MakeAnswer::Refused(MakeRefusal::Full));
@@ -93,9 +93,9 @@ fn owned_is_offered_only_from_the_machine_under_the_box_and_once() {
             }
             if under_box && template {
                 make(&mut d, 1, ForgeChoice::Owned, MakeAnswer::Made { forge: 1 });
-                assert_eq!(d.records.get(&1), Some(&ForgeRecord { number: 1, ..owned() }));
+                assert_eq!(d.records.get(&1).map(Box::as_ref), Some(&ForgeRecord { number: 1, ..owned() }));
                 make(&mut d, 2, ForgeChoice::Owned, MakeAnswer::Refused(MakeRefusal::NotOffered));
-                let mut removing = d.records.get(&1).unwrap().clone();
+                let mut removing = d.records.get(&1).unwrap().as_ref().clone();
                 removing.state = ForgeState::Removing;
                 outputs(&mut d, Event::Restore { record: Stored::Forge(removing) });
                 make(&mut d, 3, ForgeChoice::Owned, MakeAnswer::Refused(MakeRefusal::NotOffered));
@@ -205,14 +205,11 @@ fn a_forgejo_elsewhere_is_managed_from_its_addresses() {
 }
 
 #[test]
-fn nothing_is_made_while_the_document_configures_forges() {
-    for choice in [ForgeChoice::Owned, ForgeChoice::GitHub, forgejo(b"host")] {
-        let mut d = setup_domain(&configured(), true);
-        d.machine.owned = Some(owned());
-        make(&mut d, 1, choice, MakeAnswer::Refused(MakeRefusal::NotOffered));
-        assert_eq!(d.next_number, 1);
-        assert!(d.records.is_empty());
-    }
+fn records_allow_another_forge_to_be_made() {
+    let mut d = setup_domain(&configured(), true);
+    github(&mut d, 3);
+    assert_eq!(d.records.len(), 3);
+    assert_eq!(d.next_number, 4);
 }
 
 #[test]
@@ -231,7 +228,7 @@ fn a_made_record_is_saved_registered_and_answered_in_one_decision() {
             Request::ApplicationDone { request: Token::new(1), token: Token::new(1) },
         ]
     );
-    assert_eq!(d.records.get(&1), Some(&expected));
+    assert_eq!(d.records.get(&1).map(Box::as_ref), Some(&expected));
     assert_eq!(d.configured(1), Some(&expected.configured()));
 }
 
@@ -315,7 +312,7 @@ fn the_first_repositorys_intent_is_kept_and_restored() {
         }
         if admin {
             let mut restored = setup_domain(&[], true);
-            let record = d.records.get(&1).unwrap().clone();
+            let record = d.records.get(&1).unwrap().as_ref().clone();
             fixtures::restore_records(&mut restored, &[record]);
             let out = connect(&mut restored, 3, How::ForgejoAdmin { first: None });
             restored_intent(saved_record(&out), None);
@@ -368,7 +365,7 @@ fn apply(store: &mut skein_lib::Map<Key, Stored>, out: &[Request]) {
     clippy::too_many_lines,
     reason = "one release checks the complete durable erasure, surviving rows and restart boundary"
 )]
-fn a_released_project_leaves_no_row_but_retained_answers() {
+fn a_released_project_leaves_no_row_or_adoption_answer() {
     let mut d = domain();
     let mut store = skein_lib::Map::with_capacity(32);
     let other = skein_forge::api::Repository { forge: 1, repository: 3 };
@@ -461,7 +458,7 @@ fn a_released_project_leaves_no_row_but_retained_answers() {
     for key in removed {
         assert!(!store.contains_key(&key));
     }
-    assert_eq!(store.get(&Key::Application(1)), Some(&answer));
+    assert_eq!(store.get(&Key::Application(1)), None);
     assert!(store.contains_key(&Key::Repository(other)));
     assert!(store.contains_key(&Key::Client(skein_forge_client::Key::Live(surviving_resource))));
     assert!(store.contains_key(&Key::Client(skein_forge_client::Key::Repository(other))));
@@ -488,8 +485,7 @@ fn a_released_project_leaves_no_row_but_retained_answers() {
     outputs(&mut restored, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
     assert!(restored.repository(REPO).is_none());
     assert!(restored.repository(other).is_some());
-    let Stored::Application { outcome, .. } = answer else { unreachable!("retained application") };
-    assert_eq!(restored.application_answer(Token::new(1)), Some(Answered::Adopt(outcome)));
+    assert_eq!(restored.application_answer(Token::new(1)), None);
 }
 
 #[test]

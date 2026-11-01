@@ -403,11 +403,9 @@ pub fn root() -> (temper_engine_domain::Domain, skein_lib::Env<temper_engine_dom
             namespace: Box::new([7; 16]),
             writers: Box::new([skein_forge_client::Writer { forge: 1, author: 42 }]),
         },
-        identities: Box::new([temper_engine_domain_forge::GitIdentity { forge: 1, credential: 1 }]),
         forge_charter: settings.charter,
         under_box: false,
         demo: None,
-        forges: Box::new([]),
     };
     (
         root::Domain::new(config, &limits).expect("valid engine configuration"),
