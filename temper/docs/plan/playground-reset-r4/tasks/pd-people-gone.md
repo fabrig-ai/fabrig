@@ -120,3 +120,38 @@ Pre-approved:
 fab's sections; `## Interfaces`: the three events, `names_project`'s
 paths and signatures; what "names the project" covers, variant by
 variant; how services were told.
+
+## Answers
+
+2026-11-01. May `ProjectClosed` erase the retained answers that would
+name a reference it removes, or must restoration learn to tolerate absent
+references until `ProjectGone`? `ProjectClosed` erases them; restoration
+does not change. The rule: after `closed`'s step, every row left passes
+`start_link` (`domain/start.rs`) and the legacy `restored` checks
+(`domain.rs`) as they are, so a restart between close and gone restores.
+In the close's decision, with the roles, policy, services and sign-ins,
+erase and cancel the alarm of:
+
+- every `Answer` whose `key.person` is a removed service, whatever its
+  ask names, person-wide asks (`AccountSignIn` and kin) included;
+- every successful `Answer` whose outcome or ask requires a removed
+  reference: `ServiceMade { person }` of a removed service, `RolesSet`
+  of the project, and `RolesSet` of another project whose holdings name
+  a removed service;
+- every other row keyed by or linked to a removed service:
+  `ReadResults { party }`, `ReadConversation { party, .. }`, its
+  `EndedRead` and inbox rows held in memory, its caches.
+
+Erasing a successful answer early is what its retention does at the
+horizon (the same key sent again is judged afresh), so this changes no
+meaning the draft does not already accept (draft 5, "What outlives it").
+`ProjectGone` then erases what still names the project, as the Goal says;
+answers already gone are skipped. `start.rs` and the restore checks stay
+untouched. Add a unit test
+`a_closed_project_leaves_no_answer_naming_a_removed_service_or_roster`
+(a service's own sign-in refusal, its `MakeService` answer, a `SetRoles`
+answer of another project naming it) and make the world test restart
+once between close and gone as well as after gone. The remaining concern
+the run named, `EndedRead` rows of a removed service that `TaskErased`
+cannot enumerate, is `pd-erase-task`'s sweep (`reads/sweep.rs`
+`Sweep::Task`), which covers them by task: leave them to it.
