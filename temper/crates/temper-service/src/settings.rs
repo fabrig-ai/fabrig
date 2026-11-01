@@ -6,6 +6,8 @@ use skein_lib::{List, Secret};
 #[derive(Debug)]
 pub struct Demo {
     pub project: u32,
+    pub project_name: Box<str>,
+    pub project_policy: u32,
     pub forge: u16,
     pub provider: u32,
     pub owner: Box<[u8]>,
@@ -20,6 +22,7 @@ impl Demo {
     pub(crate) fn domain(
         &self,
         forges: &[Forge],
+        machine: &temper_engine_domain_forge::Machine,
         deadline: skein_lib::Duration,
     ) -> temper_engine_domain_forge::DemoConfig {
         use temper_engine_domain_forge as forge;
@@ -30,9 +33,14 @@ impl Demo {
                 break;
             }
         }
+        if !self.project_name.is_empty()
+            && let Some(playground) = &machine.playground
+        {
+            host = crate::family::host(&playground.git);
+        }
         forge::DemoConfig {
-            project_name: "Playground".into(),
-            project_policy: 1,
+            project_name: self.project_name.clone(),
+            project_policy: self.project_policy,
             provider: self.provider,
             deadline,
             adoption: forge::Adoption {
@@ -145,6 +153,7 @@ pub struct Engine {
     pub webhooks: Option<skein_forge_connection::hooks::Webhooks>,
     pub files: Files,
     pub forges: Box<[Forge]>,
+    pub machine: temper_engine_domain_forge::Machine,
     pub demo: Option<Demo>,
     pub setup: Box<[Setup]>,
     /// Checked local entries whose access comes from records.

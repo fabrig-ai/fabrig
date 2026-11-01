@@ -228,6 +228,7 @@ pub struct Named {
     pub projects: Box<[config::Project]>,
     pub worker: Option<NamedWorker>,
     pub forges: Box<[Forge]>,
+    pub machine: temper_engine_domain_forge::Machine,
     pub identities: Box<[Identity]>,
     pub clients: config::Address,
     pub sign_in: Option<SignIn>,
@@ -609,6 +610,7 @@ fn load_document(
         engine.as_ref().expect("required engine checked"),
         &application.limits,
         &application.forges,
+        &application.machine,
         &mut problems,
     );
     checks::limits(&application.limits, &application.limits.git_component, &mut problems);
@@ -702,6 +704,7 @@ pub fn named_with(
         bundle_limits: parsed.application.limits.clients,
         webhooks: parsed.application.webhooks,
         forges: parsed.application.forges,
+        machine: parsed.application.machine,
         identities: parsed.application.identities,
         overrides: parsed.application.overrides,
         deployment: parsed.engine.deployment.directory,
@@ -906,6 +909,7 @@ fn checked_start_with(
         webhooks: resolved.webhooks,
         files: settings::Files { entries: files.entries.clone() },
         forges: resolved.forges,
+        machine: parsed.application.machine,
         demo: parsed.application.demo,
         setup: setup_values,
         // Records-only local starts wait for the root to restore.

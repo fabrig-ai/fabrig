@@ -251,6 +251,9 @@ pub fn webhooks(members: &super::application::Members, problems: &mut Problems) 
 /// Every git rule is checked independently, so one start reports them all.
 pub fn limits(limits: &limits::Limits, git: &temper_worker_protocol_git::Limits, problems: &mut Problems) {
     use temper_worker_protocol_git::{Unfit, check};
+    if limits.forge_component.forges < limits.forge.forges {
+        against(problems, b"forge_component.forges", b"application.limits.overrides.forge.forges");
+    }
     let mut checked = *git;
     // Repair just the reported rule in the local copy, then ask for the next.
     for _ in 0_u8..7 {
@@ -663,10 +666,10 @@ pub fn root(
     let landing = landing_config(engine);
     let (forge, identities) = crate::forge::config(engine, seeds.deployment);
     let config = domain::Config {
-        machine: temper_engine_domain_forge::Machine::bare(),
+        machine: engine.machine.clone(),
         period_span: crate::stock::PERIOD_SPAN,
         demo: match &engine.demo {
-            Some(demo) => Some(demo.domain(&engine.forges, engine.limits.setup.deadline)),
+            Some(demo) => Some(demo.domain(&engine.forges, &engine.machine, engine.limits.setup.deadline)),
             None => None,
         },
         core,
@@ -1018,10 +1021,13 @@ pub(super) fn raw_worker(document: &skein_json::Document, at: u32, path: &Path, 
 pub(crate) fn record_writes(
     limits: &limits::Limits,
     forges: &[super::application::Forge],
+    machine: &temper_engine_domain_forge::Machine,
 ) -> List<(Option<u64>, &'static [u8], Option<usize>)> {
     use temper_protocol_records as records;
-    let capacity =
-        u32::try_from(forges.len()).expect("bounded configured forges").checked_add(5).expect("five scalars");
+    let capacity = u32::try_from(forges.len())
+        .expect("bounded configured forges")
+        .checked_add(8)
+        .expect("five scalars and three templates");
     let mut writes = List::with_capacity(capacity);
     let accepted = match u64::from(limits.forges.installations).checked_mul(8) {
         Some(bytes) => bytes.checked_add(7),
@@ -1056,13 +1062,54 @@ pub(crate) fn record_writes(
             ))
             .expect("configured origins");
     }
+    for record in [machine.owned.as_ref(), Some(&machine.github), machine.playground.as_ref()].into_iter().flatten() {
+        let origin = template_origin(record).encode();
+        writes
+            .push((
+                u64::try_from(records::encode(records::Item::Origin, &origin).expect("machine origin").len()).ok(),
+                b"Origin",
+                None,
+            ))
+            .expect("three template origins");
+    }
     writes
+}
+// The record keeps an IP without brackets; Origin keeps an IPv6 socket bracketed.
+#[expect(clippy::disallowed_methods, reason = "the configuration protocol has validated the host text")]
+fn template_origin(record: &temper_engine_domain_forge::ForgeRecord) -> temper_protocol_records::Origin {
+    let kind = match record.kind {
+        temper_engine_domain_forge::Kind::Forgejo => skein_forge_connection::settings::Kind::Forgejo,
+        temper_engine_domain_forge::Kind::GitHub => skein_forge_connection::settings::Kind::GitHub,
+    };
+    let ipv6 = record.api.host.contains(&b':');
+    let port = Decimal::of(u64::from(record.api.port));
+    let length = record
+        .api
+        .host
+        .len()
+        .checked_add(port.as_bytes().len())
+        .expect("bounded authority")
+        .checked_add(if ipv6 { 3 } else { 1 })
+        .expect("port separator and brackets");
+    let mut text = Writer::new(length);
+    if ipv6 {
+        text.put(b"[").expect("measured bracket");
+    }
+    text.put(&record.api.host).expect("measured host");
+    if ipv6 {
+        text.put(b"]").expect("measured bracket");
+    }
+    text.put(b":").expect("measured separator");
+    text.put(port.as_bytes()).expect("measured port");
+    let text = text.finish();
+    temper_protocol_records::Origin { kind, api: core::str::from_utf8(&text).expect("validated host").into() }
 }
 /// Application records fit the store and the largest encoded active write.
 pub fn records(
     jig: &config::Engine,
     limits: &limits::Limits,
     forges: &[super::application::Forge],
+    machine: &temper_engine_domain_forge::Machine,
     problems: &mut Problems,
 ) {
     let component = &limits.forge_component;
@@ -1119,7 +1166,7 @@ pub fn records(
         }
     }
     let mut largest = (0, b"AppKey (forge_component.key_bytes)".as_slice(), None);
-    for (bytes, source, index) in record_writes(limits, forges).into_boxed() {
+    for (bytes, source, index) in record_writes(limits, forges, machine).into_boxed() {
         if bytes.unwrap_or(u64::MAX) > largest.0 {
             largest = (bytes.unwrap_or(u64::MAX), source, index);
         }

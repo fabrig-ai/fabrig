@@ -56,6 +56,7 @@ fn generated() -> (engine::Config, engine::Limits) {
     let resolved = application::resolve(&parsed.application, &files, &mut problems).expect("generated file values");
     assert!(problems.is_empty());
     let mut settings = settings::Engine {
+        machine: temper_engine_domain_forge::Machine::bare(),
         jig: parsed.engine,
         clients: parsed.application.clients,
         sign_in: resolved.sign_in,
@@ -76,7 +77,10 @@ fn generated() -> (engine::Config, engine::Limits) {
     let core = config::core(&settings.jig, seeds.deployment, seeds.seed);
     let (forge, identities) = crate::forge::config(&settings, seeds.deployment);
     let forges = application::configured(&settings);
-    let demo = settings.demo.as_ref().map(|demo| demo.domain(&settings.forges, settings.limits.setup.deadline));
+    let demo = settings
+        .demo
+        .as_ref()
+        .map(|demo| demo.domain(&settings.forges, &settings.machine, settings.limits.setup.deadline));
     (
         engine::Config {
             machine: temper_engine_domain_forge::Machine::bare(),
