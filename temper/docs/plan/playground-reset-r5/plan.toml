@@ -1,0 +1,18 @@
+ready = false
+
+draft = "playground-reset-r5"
+repo = "fabrig"
+sources = ["temper/docs/design/draft/playground-reset.md", "temper/docs/plan/playground-reset-r5/inputs/brief.md", "temper/docs/plan/playground-reset-r5/inputs/README.md", "AGENTS.md"]
+
+[[part]]
+id = "jig-remove-project"
+title = "jig's RemoveProject: a project closed, its tasks ended and erased, its rows gone; the deployment's Cancel"
+mode = "direct"
+needs = []
+design = "temper/docs/design/draft/playground-reset.md, 5"
+
+[[slice]]
+id = 1
+story = "A project deleted by its owner or the deployment ends whole across a restart, and no row names it after"
+parts = ["jig-remove-project"]
+walk = false
