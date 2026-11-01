@@ -83,6 +83,9 @@ fn settle(domain: &mut Domain, env: &Env<Limits>) -> Box<[Request]> {
                 Request::ToChild(released) => crate::try_step(domain, env, Event::Released(released)).unwrap(),
                 request @ (Request::StopGroup { .. }
                 | Request::SetUpGroup { .. }
+                | Request::ForgeKept { .. }
+                | Request::ForgeRemoved { .. }
+                | Request::BoxRemove { .. }
                 | Request::SetUp { .. }
                 | Request::Bound { .. }
                 | Request::Return { .. }

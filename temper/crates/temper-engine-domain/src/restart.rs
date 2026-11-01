@@ -423,6 +423,7 @@ pub(crate) fn restart_request(
                     }
                 }
                 domain.work.push(Work::Forge(forge::Event::SendDemoActs));
+                domain.work.push(Work::Forge(forge::Event::SendKept));
                 // Later Resumes activate restored due tasks one at a time,
                 // after checking the transcript and turn budget.
             }

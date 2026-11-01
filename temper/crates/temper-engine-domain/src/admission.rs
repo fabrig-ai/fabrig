@@ -84,6 +84,10 @@ pub fn completes(event: &Event) -> bool {
             | forge::Event::DemoActs { .. }
             | forge::Event::DemoActAnswered { .. }
             | forge::Event::SendDemoActs
+            | forge::Event::SendKept
+            | forge::Event::KeptAnswered { .. }
+            | forge::Event::BoxRemoved { .. }
+            | forge::Event::ReleaseProject { .. }
             | forge::Event::DemoAnswered { .. }
             | forge::Event::BoxClosed
             | forge::Event::ConnectAnswered { .. }

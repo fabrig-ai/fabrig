@@ -136,6 +136,10 @@ pub struct Domain {
     setup_answers: Map<Token, (skein_lib::Wall, crate::SetUpAnswer)>,
     setup_pending: Map<Token, (Token, Duration)>,
     pub(crate) connect: crate::connect::State,
+    #[expect(dead_code, reason = "removal state is reserved for the removal body")]
+    pub(crate) removal: crate::removal::State,
+    #[expect(dead_code, reason = "make state is reserved for the forge creation body")]
+    pub(crate) make: crate::make::State,
     pub(crate) installations: Map<(u16, u64), crate::Installation>,
     pub(crate) repositories: Map<skein_forge::api::Repository, Repository>,
     names: Map<u64, Box<[Name]>>,
@@ -591,6 +595,8 @@ impl Domain {
             setup_answers: Map::with_capacity(l.applications),
             setup_pending: Map::with_capacity(l.applications),
             connect: crate::connect::State::new(l.applications),
+            removal: crate::removal::State::new(l),
+            make: crate::make::State::new(l),
             installations: Map::with_capacity(l.client.rows),
             repositories: Map::with_capacity(l.repositories),
             names: Map::with_capacity(l.tasks),
@@ -1102,6 +1108,10 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         Event::DemoActs { acts } => crate::demo::acts(d, acts, out),
         Event::DemoActAnswered { key, keep } => crate::demo::act_answered(d, key, keep, out),
         Event::SendDemoActs => crate::demo::send_acts(d, out),
+        Event::SendKept => crate::kept::send_all(d, out),
+        Event::KeptAnswered { key, keep } => crate::kept::answered(d, key, keep, out),
+        Event::BoxRemoved { forge, removed } => crate::kept::box_answered(d, forge, removed, out),
+        Event::ReleaseProject { request, project } => crate::release::release(d, request, project, out),
         Event::DemoAnswered { answer } => crate::demo::answered(d, answer, out),
         Event::BoxClosed => {
             d.under_box = false;

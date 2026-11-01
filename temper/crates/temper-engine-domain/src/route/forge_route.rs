@@ -2987,6 +2987,18 @@ pub(crate) fn outputs(
             forge::Request::Bound { request, answer } => {
                 emit(decision, &env.limits, Delivery::Bound { request, answer });
             }
+            forge::Request::ForgeKept { forge } => {
+                assert!(super::now(domain, Request::ForgeKept { forge }), "forge kept door reserved");
+            }
+            forge::Request::ForgeRemoved { forge } => {
+                assert!(super::now(domain, Request::ForgeRemoved { forge }), "forge removed door reserved");
+            }
+            forge::Request::SendKept(row) => super::kept::send(domain, row),
+            forge::Request::ProjectReleased { request, project } => {
+                domain.work.push(Work::Core(jig_domain_core::Event::EffectConnector(
+                    jig_domain_core::connector::Event::ProjectReleased { request, project },
+                )));
+            }
             forge::Request::ListDemoActs => super::demo::list_end_acts(domain),
             forge::Request::SendDemoAct(row) => super::demo::send_end_act(domain, row),
             forge::Request::DemoStart { request } => super::demo::start(domain, env, decision, request),
@@ -3599,11 +3611,7 @@ pub(crate) fn effect_answer(domain: &Domain, key: CallKey, part: &jig_domain_cor
 pub(crate) fn effect_ask(domain: &mut Domain, env: &Env<Limits>, number: u16, ask: jig_domain_core::connector::Ask) {
     match ask {
         jig_domain_core::connector::Ask::ReleaseProject { request, project } => {
-            // The forge connector erases its rows of the project first from
-            // rm-release-project on.
-            domain.work.push(Work::Core(jig_domain_core::Event::EffectConnector(
-                jig_domain_core::connector::Event::ProjectReleased { request, project },
-            )));
+            domain.work.push(Work::Forge(forge::Event::ReleaseProject { request, project }));
         }
         // A person settles a held uncertain effect (brief D14; jig's
         // `domain/connectors.md`, 4.3): again remakes it, a creation looked

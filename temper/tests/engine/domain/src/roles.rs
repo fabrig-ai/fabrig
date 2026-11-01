@@ -532,6 +532,9 @@ impl World {
                 | engine::Request::Account(_)
                 | engine::Request::StopGroup { .. }
                 | engine::Request::SetUpGroup { .. }
+                | engine::Request::ForgeKept { .. }
+                | engine::Request::ForgeRemoved { .. }
+                | engine::Request::BoxRemove { .. }
                 | engine::Request::Connect { .. }
                 | engine::Request::Manifest { .. }
                 | engine::Request::Reachable { .. }

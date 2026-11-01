@@ -739,6 +739,9 @@ impl World {
             )
             | engine::Request::Account(_)
             | engine::Request::SetUpGroup { .. }
+            | engine::Request::ForgeKept { .. }
+            | engine::Request::ForgeRemoved { .. }
+            | engine::Request::BoxRemove { .. }
             | engine::Request::Connect { .. }
             | engine::Request::Manifest { .. }
             | engine::Request::Reachable { .. }
@@ -785,6 +788,9 @@ impl World {
             | engine::Request::Forge { .. }
             | engine::Request::Account(_)
             | engine::Request::SetUpGroup { .. }
+            | engine::Request::ForgeKept { .. }
+            | engine::Request::ForgeRemoved { .. }
+            | engine::Request::BoxRemove { .. }
             | engine::Request::Connect { .. }
             | engine::Request::Manifest { .. }
             | engine::Request::Reachable { .. }

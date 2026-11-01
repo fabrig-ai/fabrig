@@ -22,6 +22,7 @@ mod records;
 mod restore_fit;
 mod runs;
 mod stopping;
+mod surface;
 mod views;
 use alloc::boxed::Box;
 use skein_lib::{Duration, Env, Queue, Time, Token, Wall};
@@ -361,6 +362,10 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::SendDemoAct(_)
         | Request::DemoStart { .. }
         | Request::Settled { .. }
+        | Request::ForgeKept { .. }
+        | Request::ForgeRemoved { .. }
+        | Request::SendKept(_)
+        | Request::ProjectReleased { .. }
         | Request::RestartDone { .. } => panic!("permission call"),
     };
     assert_eq!(op, skein_forge::api::Op::Read(skein_forge::api::Read::Permission { user: 7 }));
@@ -433,6 +438,10 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::SendDemoAct(_)
         | Request::DemoStart { .. }
         | Request::Settled { .. }
+        | Request::ForgeKept { .. }
+        | Request::ForgeRemoved { .. }
+        | Request::SendKept(_)
+        | Request::ProjectReleased { .. }
         | Request::RestartDone { .. } => panic!("branches call"),
     };
     assert!(
@@ -502,6 +511,10 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::SendDemoAct(_)
         | Request::DemoStart { .. }
         | Request::Settled { .. }
+        | Request::ForgeKept { .. }
+        | Request::ForgeRemoved { .. }
+        | Request::SendKept(_)
+        | Request::ProjectReleased { .. }
         | Request::RestartDone { .. } => panic!("settings follows collision read"),
     }
 }
