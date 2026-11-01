@@ -910,7 +910,8 @@ branch. Its parameters:
   by the forge's. The producing task's successful result supplies the pull's
   explicit title, retained with that result and copied into the change before
   opening. A visible pushed branch waits for this metadata; it alone cannot
-  open the pull. The title is fitted to 256 UTF-8 bytes, preserving punctuation
+  open the pull. This wait keeps the producing phase's stall deadline.
+  The title is fitted to 256 UTF-8 bytes, preserving punctuation
   and marking a cut with “…”; it is never interpreted as sentences. A handed-in
   branch supplies its title as bytes parameter 10. A missing or empty title on
   that path uses “Update repository”, never context from the brief. The body

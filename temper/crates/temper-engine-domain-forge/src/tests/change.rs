@@ -789,3 +789,52 @@ fn oversized_gate_remarks_are_marked_before_they_are_saved() {
     assert!(saved.ends_with(b" bytes cut]\n"));
     assert!(saved.len() <= usize::try_from(LIMITS.client.answer_bytes).expect("test fixture"));
 }
+
+#[test]
+fn awaiting_a_producer_title_keeps_the_changes_stall_deadline() {
+    use temper_engine_domain_forge_change as change;
+    for expired in [false, true] {
+        let mut d = domain();
+        outputs(&mut d, Event::Restore { record: Stored::Repository(adopted()) });
+        outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+        outputs(&mut d, Event::ReadAfresh);
+        outputs(&mut d, Event::SettleOutbox);
+        let mut row = fixtures::opening_row();
+        row.pending = None;
+        row.effect = change::EffectResult::None;
+        row.title = Box::new([]);
+        row.delegate = Some((52, change::Delegate::Produce));
+        row.change.state = change::State::Producing { requested: true };
+        row.change.since = if expired {
+            Wall::from_nanos(env().wall.as_nanos().saturating_sub(LIMITS.change_policy.stall.as_nanos()))
+        } else {
+            env().wall
+        };
+        outputs(&mut d, Event::Change { row });
+        fixtures::missing_pull(&mut d);
+        let finished = fixtures::finish_missing(&mut d);
+        let decision = if expired {
+            change::Decision::Hold(change::Hold::Stalled)
+        } else {
+            change::Decision::Wait { until: Some(WAIT_UNTIL) }
+        };
+        assert!(
+            finished.contains(&Request::ChangeDecision {
+                task: fixtures::CHANGE,
+                decision,
+                entry: None,
+                evidence: None,
+            }),
+            "title wait: {finished:?}"
+        );
+        if expired {
+            assert_eq!(
+                d.change(fixtures::CHANGE).expect("change").change.state,
+                change::State::Held {
+                    was: Box::new(change::State::Producing { requested: true }),
+                    why: change::Hold::Stalled,
+                }
+            );
+        }
+    }
+}

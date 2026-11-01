@@ -2860,29 +2860,37 @@ fn finish_step(d: &mut Domain, env: &Env<Limits>, pending: PendingStep, out: &mu
     }
 }
 
-fn titled_change(d: &Domain, task: u64, out: &mut Queue<Request>) -> Option<ChangeRow> {
-    let row = d.changes.get(&task)?.clone();
+fn titled_change(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<Request>) -> Option<ChangeRow> {
+    let mut row = d.changes.get(&task)?.clone();
     let producing = match row.delegate {
         Some((_, kind)) => kind == change::Delegate::Produce,
         None => false,
     };
-    if row.title.is_empty() && (producing || row.delegate_status == change::Status::Passed) {
-        emit(
-            out,
-            Request::ChangeDecision {
-                task: row.task,
-                decision: change::Decision::Wait { until: None },
-                entry: None,
-                evidence: None,
-            },
+    if row.title.is_empty()
+        && (producing || row.delegate_status == change::Status::Passed)
+        && row.change.state == (change::State::Producing { requested: true })
+    {
+        let until = skein_lib::Wall::from_nanos(
+            row.change.since.as_nanos().saturating_add(env.limits.change_policy.stall.as_nanos()),
         );
+        let decision = if env.wall >= until {
+            let before = crate::panel::ready(&row);
+            row.change.owns_turn = false;
+            row.change.state = change::State::Held { was: Box::new(row.change.state), why: change::Hold::Stalled };
+            d.changes.insert(task, row.clone()).expect("replaces change");
+            save_queue_change(d, env, before, row, out);
+            change::Decision::Hold(change::Hold::Stalled)
+        } else {
+            change::Decision::Wait { until: Some(until) }
+        };
+        emit(out, Request::ChangeDecision { task, decision, entry: None, evidence: None });
         return None;
     }
     Some(row)
 }
 
 fn decide_step(d: &mut Domain, env: &Env<Limits>, pending: &PendingStep, out: &mut Queue<Request>) {
-    let Some(mut row) = titled_change(d, pending.task, out) else { return };
+    let Some(mut row) = titled_change(d, env, pending.task, out) else { return };
     let before = crate::panel::ready(&row);
     let prior = row.change.clone();
     let Some(base_tip) = pending.base_tip else {
