@@ -120,6 +120,7 @@ fn connector_class(event: &connector::Event) -> Class {
         | connector::Event::Restart(..)
         | connector::Event::Names { .. }
         | connector::Event::Unnamed { .. }
+        | connector::Event::Release { .. }
         | connector::Event::Adopt { .. }
         | connector::Event::DescribeTopic { .. }
         | connector::Event::Subscribe { .. }

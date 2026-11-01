@@ -722,6 +722,10 @@ pub enum Event {
     },
     /// The connector's system reported a change.
     System(SystemEvent),
+    /// Erase every connector record belonging to this project.
+    Release {
+        project: u32,
+    },
 }
 
 /// A named resource's role and hold for the core's use.
@@ -898,6 +902,8 @@ pub enum Request {
     Save { record: Record },
     /// Erase a record with the decision that removed it.
     Erase { key: RecordKey },
+    /// The project's connector records are erased in this decision.
+    Released { project: u32 },
 }
 
 /// Why the core refused a procedure step.

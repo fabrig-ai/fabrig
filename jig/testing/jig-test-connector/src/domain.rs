@@ -228,6 +228,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         Event::Names { task, project, resources } => names(domain, env, task, project, resources, out),
         Event::Unnamed { task } => unnamed(domain, task, out),
         Event::Adopt { project, resource, role } => adopt(domain, env, project, resource, role, out),
+        Event::Release { project } => release(domain, project, out),
         Event::DescribeTopic { token, topic } => {
             let mut resources = None;
             for spec in &domain.config.topics {
@@ -417,6 +418,55 @@ fn unnamed(domain: &mut Domain, task: u64, out: &mut Queue<Request>) {
     if domain.results.remove(&task).is_some() {
         out.push(Request::Erase { key: RecordKey::Result(task) });
     }
+}
+
+/// Project release gathers task identities before erasing their project-bearing rows.
+fn release(domain: &mut Domain, project: u32, out: &mut Queue<Request>) {
+    let mut tasks = Map::uncapped();
+    for (task, record) in &domain.tasks {
+        if matches!(record, Record::Task { project: owner, .. } if *owner == project) {
+            tasks.insert(*task, ()).expect("connector-owned task identities fit");
+        }
+    }
+    for (task, state) in &domain.procedures {
+        if state.project == project {
+            tasks.insert(*task, ()).expect("connector-owned task identities fit");
+        }
+    }
+    for (_, (owner, task, _)) in &domain.outbox.proposals {
+        if *owner == project {
+            tasks.insert(*task, ()).expect("connector-owned task identities fit");
+        }
+    }
+
+    let mut adoptions = Queue::uncapped();
+    for ((owner, path), _) in &domain.adoptions {
+        if *owner == project {
+            adoptions.push(path.clone());
+        }
+    }
+    for _ in 0..adoptions.len() {
+        let path = adoptions.pop().expect("collected project adoption");
+        domain.adoptions.remove(&(project, path.clone()));
+        out.push(Request::Erase { key: RecordKey::Adoption { project, path } });
+    }
+
+    let mut subscriptions = Queue::uncapped();
+    for ((topic, task), _) in &domain.subscriptions {
+        if tasks.contains_key(task) {
+            subscriptions.push((*topic, *task));
+        }
+    }
+    for _ in 0..subscriptions.len() {
+        let (topic, task) = subscriptions.pop().expect("collected task subscription");
+        unsubscribe(domain, task, topic, out);
+    }
+    crate::outbox::release(domain, &tasks, out);
+    for (task, ()) in &tasks {
+        domain.closing.remove(task);
+        unnamed(domain, *task, out);
+    }
+    out.push(Request::Released { project });
 }
 
 fn adopt(
