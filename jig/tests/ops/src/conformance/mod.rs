@@ -312,7 +312,7 @@ impl Application for Ops {
                     let mut results = Vec::new();
                     while let Some(write) = writes.pop() {
                         rows.push(match write {
-                            root::Write::Wires => continue,
+                            root::Write::Wires | root::Write::DropTranscript { .. } => continue,
                             root::Write::Save(row) => {
                                 if let root::Record::Core(core::Record::Tasks(tasks::Stored::Live(parent))) = &row {
                                     for word in &parent.inbox {

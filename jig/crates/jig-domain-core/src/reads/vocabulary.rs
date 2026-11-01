@@ -96,6 +96,10 @@ pub enum Scope {
     ScopedNotes { scope: notes::Scope, description: Option<Box<[u8]>> },
     /// Historical project period ledgers.
     Spend { project: u32 },
+    /// Every ended task row and decided person proposal of one project, in key order.
+    ProjectRows { project: u32 },
+    /// Every row under one task's key prefixes, in key order.
+    TaskRows { task: u64 },
 }
 
 /// Owner key in this query's store order. Inbox indices preserve exact identity

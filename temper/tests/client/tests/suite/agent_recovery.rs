@@ -46,6 +46,7 @@ fn cut_chat() -> (World, Client, u64) {
             }
             temper_engine_domain::Key::Core(_)
             | temper_engine_domain::Key::Forge(_)
+            | temper_engine_domain::Key::Transcript(_)
             | temper_engine_domain::Key::Wires => None,
         })
         .expect("committed chat task");

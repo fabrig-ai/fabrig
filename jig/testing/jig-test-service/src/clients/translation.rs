@@ -143,6 +143,7 @@ pub(crate) fn watcher(value: &core::Event) -> Option<Token> {
         | core::Event::Application { .. }
         | core::Event::ApplicationPart { .. }
         | core::Event::ApplicationFinished { .. }
+        | core::Event::ProjectReleased { .. }
         | core::Event::ProjectionSettled { .. }
         | core::Event::SettledCall { .. }
         | core::Event::EffectStart { .. }
@@ -227,6 +228,7 @@ pub(crate) fn starting(value: core::Event) -> Option<kit::Event> {
         | core::Event::Application { .. }
         | core::Event::ApplicationPart { .. }
         | core::Event::ApplicationFinished { .. }
+        | core::Event::ProjectReleased { .. }
         | core::Event::ProjectionSettled { .. }
         | core::Event::SettledCall { .. }
         | core::Event::EffectStart { .. }

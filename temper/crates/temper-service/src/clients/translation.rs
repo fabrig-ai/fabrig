@@ -47,6 +47,7 @@ pub fn to_root(event: core::Event) -> Result<root::PartyInput, Box<kit::Event>> 
         | core::Event::Application { .. }
         | core::Event::ApplicationPart { .. }
         | core::Event::ApplicationFinished { .. }
+        | core::Event::ProjectReleased { .. }
         | core::Event::ProjectionSettled { .. }
         | core::Event::SettledCall { .. }
         | core::Event::EffectStart { .. }

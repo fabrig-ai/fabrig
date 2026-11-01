@@ -298,6 +298,7 @@ impl Decision {
             Write::Save(Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Deployment(_))))
             | Write::Erase(
                 Key::Wires
+                | Key::Transcript(_)
                 | Key::Core(jig_domain_core::Key::Core(
                     jig_domain_core::CoreKey::Deployment
                     | jig_domain_core::CoreKey::EscalationDecision { .. }
@@ -313,7 +314,8 @@ impl Decision {
             Write::Save(Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Call(row)))) => {
                 row.key.task != 0 && row.key.attempt != 0 && row.key.completion != 0
             }
-            Write::Wires
+            Write::DropTranscript { .. }
+            | Write::Wires
             | Write::Erase(
                 Key::Core(
                     jig_domain_core::Key::Core(

@@ -26,7 +26,7 @@ fn done() -> Request {
     Request::Answer { request: REQUEST, answer: Answer::Done }
 }
 fn add(world: &mut World, join: Option<u32>) -> u32 {
-    let outputs = change(world, Change::AddKey { provider: PROVIDER, join, carried: CARRIED });
+    let outputs = change(world, Change::AddKey { provider: PROVIDER, join, carried: CARRIED, uses: None });
     outputs
         .iter()
         .find_map(
@@ -95,7 +95,7 @@ fn a_key_joining_another_holders_account_is_refused_unknown() {
         world.step(Event::Change {
             request: REQUEST,
             holder: OTHER,
-            change: Change::AddKey { provider: PROVIDER, join: Some(account), carried: CARRIED }
+            change: Change::AddKey { provider: PROVIDER, join: Some(account), carried: CARRIED, uses: None }
         }),
         vec![refused(Refusal::Unknown)]
     );
@@ -160,7 +160,7 @@ fn keys_being_kept_are_bounded_with_the_sign_ins() {
     let mut world = fresh();
     let source = add(&mut world, None);
     assert_eq!(
-        change(&mut world, Change::AddKey { provider: PROVIDER, join: None, carried: CARRIED }),
+        change(&mut world, Change::AddKey { provider: PROVIDER, join: None, carried: CARRIED, uses: None }),
         vec![refused(Refusal::Limit { bound: Bound::SignIns })]
     );
     assert_eq!(
@@ -170,7 +170,7 @@ fn keys_being_kept_are_bounded_with_the_sign_ins() {
     world.step(Event::Component(FromComponent::KeepFailed { account: source, why: KeyFailure::NotStored }));
     world.step(Event::SignIn { request: REQUEST, holder: HOLDER, by: 7, provider: PROVIDER });
     assert_eq!(
-        change(&mut world, Change::AddKey { provider: PROVIDER, join: None, carried: CARRIED }),
+        change(&mut world, Change::AddKey { provider: PROVIDER, join: None, carried: CARRIED, uses: None }),
         vec![refused(Refusal::Limit { bound: Bound::SignIns })]
     );
 }

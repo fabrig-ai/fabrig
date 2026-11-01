@@ -1805,6 +1805,10 @@ pub enum Event {
     /// Replay bounded activations/adoptions/closing outputs after `Check` passed.
     /// Before `Check`, refuses as out of order. Repetition after ready/failed is ignored.
     Restored,
+    /// Erase one ended task whole (contracts J6).
+    Erase { record: Box<TaskRecord> },
+    /// Forget the project after its tasks are erased.
+    ForgetProject { project: u32 },
 }
 
 /// Tasks-to-root persistence, lifecycle and terminal reply outputs; root groups resulting
