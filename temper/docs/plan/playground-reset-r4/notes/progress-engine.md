@@ -13,6 +13,10 @@ final: tasks/fr-forge-tables.md
 final: tasks/fr-forge-added.md
 final: tasks/fr-group-file.md
 final: tasks/fr-make-forge.md
+final: tasks/fr-connect.md
+final: tasks/fr-setup.md
+final: tasks/fr-first-intent.md
+final: tasks/kept-acts.md
 
 ## Parts
 
@@ -40,6 +44,10 @@ final: tasks/fr-make-forge.md
 
 - `fr-surface` lands the vocabulary of every later forge-records/forge-removal body (connector `Request::{ForgeKept, ForgeRemoved, SendKept, ProjectReleased}`, `Event::{SendKept, KeptAnswered, BoxRemoved, ReleaseProject}`, root `Request::{ForgeKept, ForgeRemoved, BoxRemove}`) routed to stubs in new module files (`kept.rs`, `release.rs`, `removal.rs`, `make.rs`, root `route/kept.rs`, service `forge/table.rs`), so the bodies own disjoint files and run in parallel instead of queueing on `domain.rs`.
 - A kept `BoxRemove` answered `failed` stays kept (the box designer's contract problem, accepted by the lead): `Event::BoxRemoved { removed: false }`.
+
+- The deployment-level `SetUp` offer the playground designer asked for is the client wire's `Forges.owned: Offer`, filled by the service (`fr-setup`).
+- `fr-setup` edits the client wire after `pg-wire`; `pg-demo-out-wire` also owns the wire: the lead orders the two (suggested: `pg-demo-out-wire` needs `fr-setup`).
+- `kept-acts` owns the root's `domain.rs` after `fr-seed`; `fr-setup` (one call there) needs `kept-acts` so the two never overlap.
 
 ## Contract problems
 
