@@ -1,5 +1,4 @@
-//! Removal of volatile inbox references (jig/docs/design/domain/people.md, 6;
-//! temper/docs/plan/playground-reset-r6/notes/contracts.md, J4).
+//! Removal of volatile inbox references (jig/docs/design/domain/people.md, 6).
 use super::{Domain, Entry, List, Queue, Request, Update, Whom};
 use crate::Key;
 

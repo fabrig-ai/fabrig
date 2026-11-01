@@ -392,7 +392,7 @@ pub static PAGES: [Page; 53] = [
         name: "ctl-forge",
         kind: Kind::Reference,
         title: "temper ctl forge",
-        summary: "Forges: read them, set one up, connect it, accept an installation, read what it reaches.",
+        summary: "Forges: read them, make one, set one up, connect it, accept an installation, read what it reaches, remove one.",
         text: include_str!("../../../docs/help/reference/ctl-forge.md"),
     },
     Page {
@@ -434,7 +434,7 @@ pub static PAGES: [Page; 53] = [
         name: "ctl-playground",
         kind: Kind::Reference,
         title: "temper ctl playground",
-        summary: "The playground: start the demo.",
+        summary: "The playground: start it, or leave it.",
         text: include_str!("../../../docs/help/reference/ctl-playground.md"),
     },
     Page {

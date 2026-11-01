@@ -292,7 +292,7 @@ pub enum Ask {
     ChangePolicy { project: u32, change: crate::PolicyChange },
     /// Owner replaces this project's name (people.md, 5.1).
     Rename { project: u32, name: Box<str> },
-    /// Remove a project (temper/docs/design/draft/playground-reset.md, 5).
+    /// Remove a project.
     RemoveProject { project: u32 },
     /// Deployment owner makes a project from a configured policy (people.md, 5.2).
     MakeProject { name: Box<str>, policy: u32 },
@@ -528,7 +528,7 @@ pub enum Outcome {
     PolicyChanged {
         project: u32,
     },
-    /// A project's deletion has started (temper/docs/design/draft/playground-reset.md, 5).
+    /// A project's deletion has started.
     ProjectRemoved {
         project: u32,
     },
@@ -673,11 +673,11 @@ pub enum Act {
         project: u32,
         adoption: Adoption,
     },
-    /// Remove a project (temper/docs/design/draft/playground-reset.md, 5).
+    /// Remove a project.
     RemoveProject {
         project: u32,
     },
-    /// Cancel a project task as the deployment (temper/docs/plan/playground-reset-r6/notes/contracts.md, J8).
+    /// Cancel a project task as the deployment.
     Cancel {
         project: u32,
         task: u64,
@@ -739,7 +739,7 @@ pub enum Key {
     EndedRead { task: u64, party: u64 },
     /// One durable deployment act.
     Acted(ActKey),
-    /// A deleting project's stage (temper/docs/design/draft/playground-reset.md, 5).
+    /// A deleting project's stage.
     Deletion(u32),
 }
 
@@ -762,7 +762,7 @@ impl Key {
     }
 }
 
-/// A deleting project's stage (temper/docs/design/draft/playground-reset.md, 5).
+/// A deleting project's stage.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Stage {
     Ending,
@@ -774,7 +774,7 @@ pub enum Stage {
 /// bytes are checked when admitted. (domain/people.md, sections 3–5).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Stored {
-    /// A deleting project's stage (temper/docs/design/draft/playground-reset.md, 5).
+    /// A deleting project's stage.
     Deletion { project: u32, stage: Stage },
     /// Connector-scoped act and its permanent answer (people.md, 5.3).
     Acted { key: ActKey, act: Act, outcome: Outcome, at: Wall },
@@ -849,11 +849,11 @@ impl Stored {
 /// cross this boundary without protocol secrets. (domain/people.md, sections 3–5).
 #[derive(PartialEq, Eq, Debug)]
 pub enum Event {
-    /// Keep or erase a deleting project's stage (temper/docs/design/draft/playground-reset.md, 5).
+    /// Keep or erase a deleting project's stage.
     Deletion { project: u32, stage: Option<Stage> },
-    /// Erase a task's people projections (temper/docs/design/draft/playground-reset.md, 5).
+    /// Erase a task's people projections.
     EraseTask { task: u64, project: u32 },
-    /// Drop a project's people rows (temper/docs/design/draft/playground-reset.md, 5).
+    /// Drop a project's people rows.
     DropProject { project: u32 },
     /// Admit a connector's deployment act without a sign-in.
     Act { reply_to: ReplyTo, connector: u16, key: [u8; 16], act: Box<Act> },
