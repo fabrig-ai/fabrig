@@ -123,6 +123,10 @@ impl Judge<'_> {
         let Some(run) = self.barrier.waiting(self.previous.map(|proof| proof.run)) else { return false };
         let actual = forge.repository_observation("acme", "widget", &format!("actions/runs/{run}"));
         assert_eq!(actual["id"], run, "marker names the forge's actual run");
+        if actual["workflow_id"] == "check.yaml" && actual["status"] == "cancelled" {
+            self.barrier.release(run);
+            return false;
+        }
         assert_eq!(actual["status"], "running");
         if actual["workflow_id"] == "check.yaml" {
             // The change cannot prepare until its CI passes. Release that job

@@ -36,7 +36,7 @@ pub(super) fn assert_ready(seen: &[Ended]) {
 #[test]
 fn forgejo_here_and_a_key_reach_a_first_chat_on_the_fake_box() {
     let walk = Walk::owned("walk-here-key");
-    let seen = walk.run(vec![
+    let mut acts = vec![
         Act::Now(Call::new(&["account", "list", "--json"])),
         Act::Now(Call::new(&["forge", "list", "--json"])),
         Act::Mark("welcome preconditions"),
@@ -45,12 +45,16 @@ fn forgejo_here_and_a_key_reach_a_first_chat_on_the_fake_box() {
             Call::new(&["forge", "setup", "--key", "walk-here", "--json"])
         })),
         Act::Mark("owned forge adopted"),
-        walk.add_key(),
+    ];
+    acts.extend(super::program_here::steps());
+    acts.push(walk.add_key());
+    acts.extend([
         Act::Now(Call::new(&["account", "list", "--until", "usable", "--json"])),
         Act::Now(Call::new(&["forge", "list", "--json"])),
         Act::Now(Call::new(&["account", "list", "--json"])),
         Act::After(Box::new(|seen| {
             assert_ready(seen);
+            super::program_here::assert_program_usable(seen.last().expect("accounts"));
             Call::new(&[
                 "chat",
                 "start",
@@ -69,6 +73,7 @@ fn forgejo_here_and_a_key_reach_a_first_chat_on_the_fake_box() {
         Act::Now(Call::new(&["chat", "show", "1", "--json"])),
         Act::Mark("first chat committed"),
     ]);
+    let seen = walk.run(acts);
     assert_adopted(seen.answers.get(2).expect("setup adoption"));
     super::assert_reply(&seen);
     walk.scratch.remove();

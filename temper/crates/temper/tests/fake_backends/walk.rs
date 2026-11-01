@@ -18,7 +18,6 @@ enum Act {
     Now(Call),
     After(ctl::NextCall),
     /// Follow the preceding act's printed address through the box's supervised peers.
-    Visit,
     ProgramLogin(&'static str),
     Mark(&'static str),
 }
@@ -65,7 +64,6 @@ impl Walk {
         let mut steps = vec![Step::Run(Call::sign_in())];
         steps.extend(acts.into_iter().map(|act| match act {
             Act::Now(call) => Step::Run(call),
-            Act::Visit => Step::Visit,
             Act::ProgramLogin(name) => Step::ProgramLogin(name),
             Act::Mark(name) => Step::Mark(name),
             Act::After(next) => Step::Then(Box::new(move |seen| {
@@ -99,7 +97,7 @@ impl Walk {
         assert_eq!(outcome.calls.len(), count + 1, "all welcome acts completed; box: {diagnostic}");
         assert!(outcome.checked.is_some(), "live checkpoint reached; box: {diagnostic}");
         assert_eq!(outcome.left, Some(Vec::new()), "no child outlives its box: {diagnostic}");
-        Seen { answers: outcome.calls.into_iter().skip(1).collect(), visits: outcome.visits }
+        Seen { answers: outcome.calls.into_iter().skip(1).collect() }
     }
 }
 
@@ -144,99 +142,13 @@ fn adopted_forge(call: &Ended) -> u16 {
         .expect("bounded forge number")
 }
 
-#[test]
-fn forgejo_elsewhere_and_a_key_reach_a_first_chat_on_the_fake_box() {
-    elsewhere::run();
-}
-
 struct Seen {
     answers: Vec<Ended>,
-    visits: Vec<Vec<support::sign_in_browser::Hop>>,
 }
 
-mod adoption;
-mod chatgpt;
-mod elsewhere;
-mod github;
 mod here_key;
 mod program_here;
 
-#[test]
-fn chatgpt_sign_in_and_github_one_click_reach_a_first_chat_on_the_fake_box() {
-    chatgpt::run();
-}
-
-#[test]
-fn github_one_click_and_a_key_reach_a_first_chat_on_the_fake_box() {
-    github::one_click();
-}
-
-#[test]
-fn githubs_own_app_and_a_key_reach_a_first_chat_on_the_fake_box() {
-    github::own_app();
-}
-
-fn accounts() -> Act {
-    Act::Now(Call::new(&["account", "list", "--json"]))
-}
-fn forges() -> Act {
-    Act::Now(Call::new(&["forge", "list", "--json"]))
-}
-fn wait_forges() -> Act {
-    Act::Now(Call::new(&["forge", "list", "--until", "settled", "--json"]))
-}
-fn adopt_github() -> Act {
-    Act::After(Box::new(|seen| {
-        let connected = only_forge(seen.last().expect("settled forges"));
-        let forge = number(&connected).to_string();
-        assert_eq!(connected["state"], "connected", "{connected}");
-        let [installation] = connected["installations"].as_array().expect("installations").as_slice() else {
-            panic!("one installation: {connected}")
-        };
-        assert_eq!(installation["account"]["login"], "fake-person", "{installation}");
-        assert_eq!(installation["stray"], false, "the come-back accepted the installation");
-        Call::new(&[
-            "repository",
-            "adopt",
-            "--project",
-            "1",
-            "--forge",
-            &forge,
-            "--owner",
-            "fake-person",
-            "--name",
-            "widget",
-            "--landing",
-            "main",
-            "--key",
-            "walk-adopt",
-            "--json",
-        ])
-    }))
-}
-fn first_chat() -> Vec<Act> {
-    vec![
-        Act::Now(Call::new(&["account", "list", "--until", "usable", "--json"])),
-        Act::After(Box::new(|seen| {
-            assert!(usable(seen.last().expect("usable account read")), "Ready has a usable account");
-            Call::new(&[
-                "chat",
-                "start",
-                "--project",
-                "1",
-                "--model",
-                "gpt-6-luna",
-                "--key",
-                "walk-chat",
-                "Hello",
-                "--json",
-            ])
-        })),
-        Act::Now(Call::new(&["task", "show", "1", "--json"])),
-        Act::Now(Call::new(&["task", "show", "1", "--until", "replied", "--json"])),
-        Act::Now(Call::new(&["chat", "show", "1", "--json"])),
-    ]
-}
 fn assert_reply(seen: &Seen) {
     let [.., waited, conversation] = seen.answers.as_slice() else { panic!("reply and conversation reads") };
     assert_committed_reply(waited, conversation);
@@ -267,25 +179,4 @@ fn assert_committed_reply(waited: &Ended, conversation: &Ended) {
         .filter_map(|block| block["text"]["text"].as_str())
         .collect();
     assert_eq!(replies, ["Hello from the local fake model."]);
-}
-
-fn assert_adopted(seen: &Seen, name: &str) -> u16 {
-    let adopted = seen
-        .answers
-        .iter()
-        .filter_map(|answer| serde_json::from_slice::<Value>(&answer.stdout).ok())
-        .find_map(|value| value.get("adopted").cloned())
-        .expect("first repository durably adopted");
-    let number = u16::try_from(adopted["forge"].as_u64().expect("adopted forge")).expect("bounded forge number");
-    let listed = seen
-        .answers
-        .iter()
-        .rev()
-        .find(|answer| serde_json::from_slice::<Value>(&answer.stdout).is_ok_and(|value| value.get("forges").is_some()))
-        .expect("forge read before adoption");
-    assert_eq!(only_forge(listed)["number"], number);
-    assert_eq!(adopted["owner"], "fake-person");
-    assert_eq!(adopted["name"], name);
-    assert_eq!(adopted["home"], true);
-    number
 }

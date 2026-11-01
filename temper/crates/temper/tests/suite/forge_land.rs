@@ -668,3 +668,45 @@ exit 17"#;
     assert!(scratch.path().join("store/give-back").is_file(), "store retained for recovery");
     scratch.remove();
 }
+
+#[test]
+fn a_held_chatgpt_record_is_admitted_only_as_a_private_regular_file_never_named() {
+    use std::{fs, os::unix::fs::PermissionsExt};
+    use support::forge_land::held_account;
+    let scratch = support::Scratch::new("held-account");
+    let file = scratch.path().join("record");
+    assert_eq!(held_account(&file), Err("TEMPER_LIVE_ACCOUNT names no file"));
+    fs::write(&file, b"record").expect("record");
+    for (mode, admitted) in [
+        (0o600, Ok(())),
+        (0o640, Err("TEMPER_LIVE_ACCOUNT is not 0600")),
+        (0o644, Err("TEMPER_LIVE_ACCOUNT is not 0600")),
+        (0o400, Err("TEMPER_LIVE_ACCOUNT is not 0600")),
+        (0o700, Err("TEMPER_LIVE_ACCOUNT is not 0600")),
+    ] {
+        fs::set_permissions(&file, fs::Permissions::from_mode(mode)).expect("mode");
+        assert_eq!(held_account(&file), admitted, "mode {mode:o}");
+    }
+    let link = scratch.path().join("link");
+    std::os::unix::fs::symlink(&file, &link).expect("link");
+    assert_eq!(held_account(&link), Err("TEMPER_LIVE_ACCOUNT is not a regular file"));
+    assert_eq!(held_account(scratch.path()), Err("TEMPER_LIVE_ACCOUNT is not a regular file"));
+    scratch.remove();
+}
+
+#[test]
+fn an_imported_records_path_is_printed_as_file() {
+    use support::forge_land::printed_command;
+    let words = |words: &[&str]| words.iter().map(|word| (*word).to_owned()).collect::<Vec<_>>();
+    assert_eq!(
+        printed_command(&words(&["account", "import", "/held/record", "--key", "connect-plan"])),
+        words(&["account", "import", "FILE", "--key", "connect-plan"])
+    );
+    for kept in [
+        &["account", "list", "--json"][..],
+        &["account", "connect", "1", "--key", "connect-plan"],
+        &["account", "import"],
+    ] {
+        assert_eq!(printed_command(&words(kept)), words(kept));
+    }
+}

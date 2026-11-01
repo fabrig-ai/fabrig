@@ -194,7 +194,7 @@ impl Socket {
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use super::{Scope, Socket};
     use skein_lib::Duration;
     use std::{
@@ -202,8 +202,7 @@ mod tests {
         net::{TcpListener, TcpStream},
     };
 
-    #[test]
-    fn bounded_reads_preserve_the_next_bytes_and_eof_is_an_error() {
+    pub fn bounded_reads_preserve_the_next_bytes_and_eof_is_an_error() {
         let listener = TcpListener::bind("127.0.0.1:0").expect("local fixture listener");
         let client = TcpStream::connect(listener.local_addr().expect("address")).expect("fixture connection");
         let (mut peer, _) = listener.accept().expect("fixture peer");

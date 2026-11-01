@@ -949,12 +949,11 @@ fn probe(scratch: &Path) {
 }
 
 #[cfg(test)]
-mod deadline_tests {
+pub mod deadline_tests {
     use super::MemberWait;
     use skein_lib::{Duration, Time};
 
-    #[test]
-    fn a_member_wait_can_defer_only_to_a_longer_world() {
+    pub fn a_member_wait_can_defer_only_to_a_longer_world() {
         let within = Duration::from_secs(20);
         for (world, can_defer) in [(19, false), (20, false), (21, true)] {
             let wait = MemberWait::arm("the member's answer", Time::ZERO, within, Duration::from_secs(world));

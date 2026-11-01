@@ -25,13 +25,14 @@ fn process_engine() -> jig_protocol_config::Engine {
 }
 
 #[test]
-fn the_process_and_qa_configurations_documents_fit_their_clients() {
+fn the_process_and_client_world_documents_fit_their_clients() {
     let engine = process_engine();
     let client = temper_client_shell_terminal::limits::native().client;
     assert_documents_fit(&engine.limits.core, client.client.domain);
-    let qa = temper_client_world::fixtures::domain_limits();
-    let front = temper_client_world::front::Joint::with_change_landing(temper_client_world::fixtures::SEED, &qa);
-    assert_documents_fit(&temper_engine_domain::core_limits(&front.engine.env.limits), qa.client.domain);
+    let client_world = temper_client_world::fixtures::domain_limits();
+    let front =
+        temper_client_world::front::Joint::with_change_landing(temper_client_world::fixtures::SEED, &client_world);
+    assert_documents_fit(&temper_engine_domain::core_limits(&front.engine.env.limits), client_world.client.domain);
 }
 fn assert_documents_fit(engine: &jig_domain_core::Limits, native: jig_client::DomainLimits) {
     assert!(engine.documents.rows <= native.rows, "the client can receive every document row");

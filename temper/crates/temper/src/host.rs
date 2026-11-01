@@ -636,16 +636,27 @@ fn the_shell_trims_only_the_handovers_final_newline() {
         std::env::temp_dir().join(format!("temper-handover-read-{}", skein_shell::seed().expect("scratch name")));
     std::fs::create_dir(&directory).expect("handover fixture");
     let path = directory.join("admin_token");
-    std::fs::write(&path, b"test-admin\n").expect("handover fixture");
-    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600)).expect("handover fixture");
     let read = temper_service::HandoverRead {
         forge: 1,
         run: skein_lib::Token::new(7),
         path: path.as_os_str().as_bytes().into(),
         max: 11,
     };
-    let answer = read_handover(&read).expect("handover fixture").expect("handover fixture");
-    assert!(answer.expose() == b"test-admin", "the final LF is not part of the handover");
+    for (bytes, expected) in [
+        (b"test-admin\n".as_slice(), b"test-admin".as_slice()),
+        (b"test-admin".as_slice(), b"test-admin".as_slice()),
+        (b"token\r\n".as_slice(), b"token\r".as_slice()),
+        (b"one\ntwo".as_slice(), b"one\ntwo".as_slice()),
+        (b"".as_slice(), b"".as_slice()),
+        (b"12345678901".as_slice(), b"12345678901".as_slice()),
+    ] {
+        std::fs::write(&path, bytes).expect("handover fixture");
+        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600)).expect("private fixture");
+        let answer = read_handover(&read).expect("within read bound").expect("present fixture");
+        assert!(answer.expose() == expected, "only one final LF is removed");
+    }
+    std::fs::write(&path, b"123456789012").expect("one byte beyond the bound");
+    assert!(matches!(read_handover(&read), Err(temper_service::HandoverUnread::TooLarge)));
     std::fs::remove_dir_all(directory).expect("handover fixture");
 }
 

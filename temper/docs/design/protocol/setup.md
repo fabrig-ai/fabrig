@@ -678,7 +678,8 @@ files: at a first preparation, and for a runner older than its pin
     forge run killed takes Forgejo with it at once. Kill, not Terminate:
     a Forgejo still stopping gracefully when nothing waits for it would
     meet the restarted forge run's on the box's socket and its database
-    (QA, `qa_forgejo_dies_when_its_forge_run_parent_is_killed`).
+    (`crates/temper/tests/suite/startup.rs`,
+    `killing_forge_run_alone_kills_its_forgejo_child`).
     Forgejo's graceful stop is forge run's forwarded Terminate. A
     failure, the parent changed or the program missing, prints `temper
     internal forge-child: WHY` and exits 1.
@@ -3226,21 +3227,11 @@ it checks of this document:
   and connects forge 3 from its records (6.5), and the task is found
   landed, its CI at its head unknown until a next step reads it
   (`../domain/forge.md`, 8.8).
-- **The first run whole,** a test of its own: one box on three empty
-  scratch directories, forge 3's binaries placed where its fetch looks,
-  with no restart. The person signs in and starts the playground
-  (`temper ctl DIRECTORY playground start`), and its chat in project 1
-  is answered by the scripted model. Then "Set up a Forgejo here",
-  `forge setup 3` and `forge list --until settled`: forge 3 reads
-  "Connected as temper", `work/hello` made and adopted into the new
-  project `hello`, project 2. That connect ends the playground at
-  runtime (8.4): the box's terminal says `Playground: stopped`
-  once, no list shows forge 1, the playground's chat reads cancelled by
-  the deployment, `Ended with the playground`, the deployment holds no
-  account of the demo's provider, and `playground start` is answered not
-  offered. The owner's first task in project 2 then lands on
-  `work/hello`, read as in the test above. On Linux, Forgejo's step is
-  given the listener the box held from its start (6.4, 7.1).
+- **The first-run behaviours** use their lower owners: the stock scripts'
+  data tests, the real-loop playground stories, and the client and engine
+  setup/reset worlds. The process tier has one short fake wiring test;
+  it does not replay the playground before the owned repository story
+  (`../domain/testing.md`, 2.6).
 
 ## 15. Later
 
