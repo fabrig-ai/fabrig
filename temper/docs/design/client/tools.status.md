@@ -35,3 +35,4 @@
 
 - **Built (2026-11-02, plan me-retention):** 6.1: `me` prints its retention in whole seconds, `retention: 86400 seconds` for a day, a remainder below a second dropped; a met wait on `me` prints it alike. `--json` keeps `"retention"` in nanoseconds. This is the second form the request allowed (QA `v0.1.0-ladder/finding-13`: `1 day`, or ctl's form elsewhere for durations); help named no form, so no help page changed.
 - **Not yet (6.1):** a refused worker hello's stop bound, in a task wait's refusal, prints `allowed grace N ns` (`render/document/llm.rs`, `HelloRefusal::StopBound`), jig's raw nanoseconds, not whole seconds. The plan kept to `me`'s one line. Its JSON `grace` stays in nanoseconds.
+- **Built (2026-11-01):** 6.1, 6.4: `task text` pages specification and effective instruction source bytes beyond overview cuts. Task summaries, JSON and activity expose the source reads; UTF-8 chunks carry explicit continuation offsets.

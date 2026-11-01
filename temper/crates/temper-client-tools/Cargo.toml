@@ -21,6 +21,11 @@ skein-json.workspace = true
 skein-ui.workspace = true
 
 [dev-dependencies]
+jig-domain-core.workspace = true
+jig-domain-tasks.workspace = true
+jig-domain-people.workspace = true
+jig-test-profile.workspace = true
+jig-protocol-engine-clients.workspace = true
 jig-client-test-records.workspace = true
 temper-client-shell-terminal.workspace = true
 

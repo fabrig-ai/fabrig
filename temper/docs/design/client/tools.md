@@ -231,6 +231,7 @@ watch's subject, its digest (5.4). It needs no key.
 | `chat show TASK [--before CURSOR]` | a conversation: turns, words and, where the run's host gives it, provisional text, in order, a page from its end | `activity{n}`, `run{n}`, through `thread` |
 | `task activity TASK [--before CURSOR] [--limit COUNT]` | a task's activity, a page from its end | `activity{n}` |
 | `task turn TASK TURN [--part PART] [--from OFFSET]` | one turn of the task, TURN as `A.T`, attempt A, turn T, whole: its text, each call and its result | `turn{n, attempt, turn}` (jig's `client/domain/contract.md`, section 6) |
+| `task text TASK [--field specification\|instructions] [--from OFFSET]` | one bounded UTF-8 chunk from the stored specification words (default) or effective instructions, with total bytes and continuation | `task_text{n, field, from}` |
 | `task tree TASK` | a task's live tree: its root and each row its window holds, a chip a line, and what it folds (6.1) | `tree{root}` |
 | `task run TASK` | a task's live run: its attempt, its provisional text where its host gives it, its current call | `run{n}` |
 | `settings show` | the settings: the newest revision's number; each setting, by kind and number with its name, following its default or a change and the revision that last changed it; each revision held, with who decided it, when, the proposal it came from and how many live tasks hold it; the pending proposals of settings | `settings` |
@@ -1059,7 +1060,12 @@ digest: task 7c1e09a2b44f0d13
   many bytes they hold and where to read them whole, `(N bytes; --json
   prints them whole)`. They are the task's instructions in force, its
   charter's or an amendment's, and the document does not say which
-  (section 15). With none, no line.
+  (section 15). With none, no line. A core-cut instruction preview names the
+  held byte count; JSON also holds only that prefix. A cut specification or
+  instruction prints `read specification:` or `read instructions:` and its
+  `task text TASK --field FIELD --from 0` call. Task JSON carries these calls
+  under `text_reads`. `task activity` prints the two source reads before its
+  events: the brief is outside the activity log.
 - **Its settings revision,** for an agent task, after its instructions:
   `settings: revision 7`, the revision its runs read their charter
   from, jig's `Task.settings.task` (jig's `domain/engine.md`, 17.3);
@@ -1274,7 +1280,15 @@ may change with them.
   cannot fit the text budget, JSON prints null and text omits its bytes;
   the document's cut flag is true. A displayed prefix is never a target.
 - **Long texts are paged, never whole by default:** `chat show`, `task
-  activity` and `task turn` take a cursor or an offset. An agent's
+  activity`, `task turn` and `task text` take a cursor or an offset.
+  `task text` reads the source rather than the overview's prefix. It prints
+  the source chunk, its starting byte offset and total size; a cut ends with
+  `N bytes left; read on with: task text TASK --field FIELD --from OFFSET`.
+  JSON carries `task`, `field`, `from`, `total`, `text` and `next` (null at
+  the end). Offsets keep characters whole. Instructions are the task's
+  override or its charter at the task's recorded settings revision; unavailable
+  instructions are unknown. Reads reflect current state; restart at zero after
+  an amendment or settings move. An agent's
   context is the
   budget the defaults are chosen for.
 - **The numbers** are section 12's. A path is never cut: the tools
