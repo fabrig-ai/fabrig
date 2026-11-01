@@ -24,7 +24,7 @@ fn key(bytes: &[u8]) {
 fn golden(bytes: &[u8], bounds: &Bounds) {
     record(bytes, bounds);
     // Value's goldens hold each family; prepend Row's version to reach its decoder.
-    let mut versioned = vec![0_u8, 10];
+    let mut versioned = vec![0_u8, 11];
     versioned.extend_from_slice(bytes);
     record(&versioned, bounds);
 }
@@ -72,6 +72,7 @@ fn store_decoders_never_panic_and_reencode_the_same() {
         });
         row_and_key(&demo, &mut rng, &bounds);
         end_act(&mut rng, &bounds);
+        forge_rows(&mut rng, &bounds);
         let writer = forge::Stored::Writer(skein_forge_client::Writer {
             forge: u16::try_from(rng.below(65_536)).expect("u16"),
             author: rng.next_u64().max(1),
@@ -155,4 +156,44 @@ fn store_decoders_never_panic_and_reencode_the_same() {
             golden(&temper_codecs_world::mutated(&mut rng, bytes), &bounds);
         }
     }
+}
+
+fn forge_rows(rng: &mut Rng, bounds: &Bounds) {
+    let number = u16::try_from(rng.below(65_536)).expect("u16");
+    let mut forge_record = forge::ForgeRecord::github_com();
+    forge_record.number = number;
+    forge_record.api.host = temper_codecs_world::drawn(rng, 255).into_boxed_slice();
+    forge_record.git = temper_codecs_world::drawn(rng, 1024).into_boxed_slice();
+    row_and_key(&forge::Stored::Forge(forge_record), rng, bounds);
+    row_and_key(&forge::Stored::ForgeNumbers { next: number }, rng, bounds);
+    let state = match rng.below(4) {
+        0 => forge::PlaygroundState::Running,
+        1 => forge::PlaygroundState::Resetting(forge::ResetStep::Project),
+        2 => forge::PlaygroundState::Resetting(forge::ResetStep::Forge),
+        _ => forge::PlaygroundState::Resetting(forge::ResetStep::Account),
+    };
+    row_and_key(
+        &forge::Stored::Playground(forge::Playground {
+            state,
+            forge: number,
+            project: Some(u32::from(number)),
+            account: None,
+        }),
+        rng,
+        bounds,
+    );
+    let act = match rng.below(3) {
+        0 => forge::KeptActKind::Cancel { project: u32::from(number), task: rng.next_u64() },
+        1 => forge::KeptActKind::RemoveGroup,
+        _ => forge::KeptActKind::EraseSecrets,
+    };
+    row_and_key(
+        &forge::Stored::KeptAct(forge::KeptAct {
+            key: [u8::try_from(rng.below(256)).expect("byte"); 16],
+            forge: number,
+            act,
+        }),
+        rng,
+        bounds,
+    );
 }

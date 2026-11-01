@@ -94,6 +94,10 @@ fn pump(service: &mut crate::Service) -> Option<w::Outcome> {
                 root::Request::Party(_) => {}
                 request @ (root::Request::Unsettled(_)
                 | root::Request::Bound { .. }
+                | root::Request::RemoveGroup { .. }
+                | root::Request::EraseSecrets { .. }
+                | root::Request::Register(_)
+                | root::Request::Unregister { .. }
                 | root::Request::StopGroup { .. }
                 | root::Request::SetUpGroup { .. }
                 | root::Request::Return { .. }

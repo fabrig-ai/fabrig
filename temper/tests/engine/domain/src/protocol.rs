@@ -291,6 +291,10 @@ impl Protocol {
             | engine::Request::Worker(_)
             | engine::Request::Party(_)
             | engine::Request::Forge { .. }
+            | engine::Request::RemoveGroup { .. }
+            | engine::Request::EraseSecrets { .. }
+            | engine::Request::Register(_)
+            | engine::Request::Unregister { .. }
             | engine::Request::StopGroup { .. }
             | engine::Request::SetUpGroup { .. }
             | engine::Request::Connect { .. }

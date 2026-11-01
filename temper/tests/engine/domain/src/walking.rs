@@ -19,6 +19,7 @@ use std::{
 };
 use temper_engine_domain as engine;
 use temper_engine_domain::{Delivery, JournalLimits, Record, loads};
+use temper_engine_domain_forge as forge;
 
 // Deliveries for the walking world's fleet burst and continuation.
 const WALKING_DELIVERIES: u32 = 26;
@@ -294,6 +295,7 @@ pub fn config(seed: u64) -> engine::Config {
         requirements: Box::new([]),
     };
     engine::Config {
+        machine: forge::Machine::bare(),
         period_span: PERIOD_SPAN,
         core: jig_domain_core::Config {
             deployment: [31; 16],
@@ -783,6 +785,10 @@ impl World {
                 | engine::Request::Party(_)
                 | engine::Request::Store(_)
                 | engine::Request::Account(_)
+                | engine::Request::RemoveGroup { .. }
+                | engine::Request::EraseSecrets { .. }
+                | engine::Request::Register(_)
+                | engine::Request::Unregister { .. }
                 | engine::Request::StopGroup { .. }
                 | engine::Request::SetUpGroup { .. }
                 | engine::Request::Connect { .. }

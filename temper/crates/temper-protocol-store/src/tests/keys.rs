@@ -196,3 +196,47 @@ fn flight_keys_name_task_then_entry_under_family_twenty_one() {
     assert_eq!(keys::flight(&trailing[..16]), None);
     assert_eq!(keys::flight(&[20]), None);
 }
+
+#[test]
+fn forge_families_take_bytes_thirty_one_to_thirty_four_in_order() {
+    let keys = [
+        Key::Forge(0),
+        Key::Forge(u16::MAX),
+        Key::ForgeNumbers,
+        Key::Playground,
+        Key::KeptAct([0; 16]),
+        Key::KeptAct([255; 16]),
+    ];
+    let mut previous = keys::encode(
+        &Key::Receipt(temper_engine_domain_forge::ReceiptKey {
+            project: u32::MAX,
+            repository: skein_forge::api::Repository { forge: u16::MAX, repository: u32::MAX },
+            check: temper_engine_domain_forge::Check::Tier(Box::new([255; 32])),
+            key: [255; 32],
+        }),
+        u32::MAX,
+    )
+    .unwrap();
+    let flight = keys::encode(&Key::Flight { task: u64::MAX, entry: u64::MAX }, u32::MAX).unwrap();
+    for (key, tag) in keys.into_iter().zip([31, 31, 32, 33, 34, 34]) {
+        let encoded = keys::encode(&key, u32::MAX).unwrap();
+        assert_eq!(encoded[0], tag);
+        assert!(encoded > previous);
+        assert!(encoded > flight);
+        assert_eq!(keys::decode(&encoded, &fixtures::LIMITS), Some(key));
+        let mut trailing = skein_lib::List::with_capacity(1024);
+        for byte in encoded.as_ref() {
+            trailing.push(*byte).expect("small key");
+        }
+        trailing.push(0).expect("trailing byte");
+        assert_eq!(keys::decode(trailing.as_slice(), &fixtures::LIMITS), None);
+        previous = encoded;
+    }
+    let mut wide = skein_kv::KeyWriter::new(u32::MAX);
+    wide.tag(keys::FORGE).u64(65_536);
+    let mut short = skein_kv::KeyWriter::new(u32::MAX);
+    short.tag(keys::KEPT_ACT).bytes(&[1; 15]);
+    for bytes in [wide.finish().unwrap(), short.finish().unwrap()] {
+        assert_eq!(keys::decode(&bytes, &fixtures::LIMITS), None);
+    }
+}

@@ -16,6 +16,8 @@ pub const FIRST_NAME_BYTES: u32 = 1024;
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Limits {
     pub repositories: u32,
+    /// The forges kept at most, `Kept` and `Removing` records (draft playground-reset.md, 3).
+    pub forges: u32,
     pub tasks: u32,
     pub holds: u32,
     pub subscriptions: u32,

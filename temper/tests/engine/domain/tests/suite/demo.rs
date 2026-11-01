@@ -53,8 +53,13 @@ fn config(under_box: bool) -> engine::Config {
             asked: false,
         },
     ]);
-    config.demo =
-        Some(forge::DemoConfig { provider: 1, adoption: fixtures::adoption(1), deadline: Duration::from_secs(10) });
+    config.demo = Some(forge::DemoConfig {
+        project_name: "Playground".into(),
+        project_policy: 1,
+        provider: 1,
+        adoption: fixtures::adoption(1),
+        deadline: Duration::from_secs(10),
+    });
     config
 }
 fn driver(connected: bool, under_box: bool) -> (Driver, u64) {
@@ -104,7 +109,7 @@ fn start(d: &mut Driver, sign_in: u64, number: u8, carry: bool) {
         key: [number; 16],
         digest: [9; 32],
         scope: people::ApplicationScope::Project(999),
-        request: engine::Application::Forge(forge::Ask::StartDemo),
+        request: engine::Application::Forge(forge::Ask::StartPlayground),
         carried: carry.then_some(core::Carried { number: u64::from(number), digest: [7; 32] }),
     }));
     d.settle();
@@ -131,7 +136,7 @@ fn keeps(d: &Driver) -> usize {
 fn demo_start_adds_the_deployments_account_and_adopts_the_repository_once() {
     let (mut d, sign_in) = driver(true, false);
     start(&mut d, sign_in, 81, true);
-    assert_eq!(answers(&d), [Some(engine::ApplicationAnswer::StartDemo(forge::StartAnswer::Running))]);
+    assert_eq!(answers(&d), [Some(engine::ApplicationAnswer::StartPlayground(forge::StartAnswer::Running))]);
     assert_eq!(keeps(&d), 1);
     assert!(d.store.rows.values().any(|record| matches!(record, engine::Record::Forge { row }
         if matches!(row.as_ref(), forge::Stored::Repository(row)
@@ -147,7 +152,7 @@ fn demo_start_adds_the_deployments_account_and_adopts_the_repository_once() {
     let calls = d.forge.as_ref().expect("fake forge").calls;
     d.delivered.clear();
     start(&mut d, sign_in, 82, true);
-    assert_eq!(answers(&d), [Some(engine::ApplicationAnswer::StartDemo(forge::StartAnswer::Running))]);
+    assert_eq!(answers(&d), [Some(engine::ApplicationAnswer::StartPlayground(forge::StartAnswer::Running))]);
     assert_eq!((keeps(&d), d.forge.as_ref().expect("fake forge").calls), (1, calls));
     assert!(matches!(d.delivered.first(), Some(Delivery::CarriedUnused { number: 82 })));
 }
@@ -159,7 +164,7 @@ fn demo_start_replays_its_retained_answer_without_repeating_acts() {
     let calls = d.forge.as_ref().expect("fake forge").calls;
     d.delivered.clear();
     start(&mut d, sign_in, 81, true);
-    assert_eq!(answers(&d), [Some(engine::ApplicationAnswer::StartDemo(forge::StartAnswer::Running))]);
+    assert_eq!(answers(&d), [Some(engine::ApplicationAnswer::StartPlayground(forge::StartAnswer::Running))]);
     assert_eq!(keeps(&d), 1);
     assert_eq!(d.forge.as_ref().expect("fake forge").calls, calls);
     assert!(matches!(d.delivered.first(), Some(Delivery::CarriedUnused { number: 81 })));
@@ -173,7 +178,9 @@ fn demo_start_fails_when_its_account_is_refused_or_the_key_is_missing() {
         start(&mut d, sign_in, 81, carry);
         assert_eq!(
             answers(&d),
-            [Some(engine::ApplicationAnswer::StartDemo(forge::StartAnswer::Failed(forge::StartFailure::Account)))]
+            [Some(engine::ApplicationAnswer::StartPlayground(forge::StartAnswer::Failed(
+                forge::StartFailure::Account
+            )))]
         );
         assert_eq!(d.forge.as_ref().expect("fake forge").calls, 0);
     }
@@ -186,7 +193,7 @@ fn demo_start_fails_when_its_adoption_is_refused() {
     start(&mut d, sign_in, 81, true);
     assert_eq!(
         answers(&d),
-        [Some(engine::ApplicationAnswer::StartDemo(forge::StartAnswer::Failed(forge::StartFailure::Adoption)))]
+        [Some(engine::ApplicationAnswer::StartPlayground(forge::StartAnswer::Failed(forge::StartFailure::Adoption)))]
     );
     assert_eq!(keeps(&d), 1);
 }
@@ -200,7 +207,7 @@ fn demo_start_names_the_groups_failure_and_truncates_its_reason() {
     connection(&mut d, forge::Connection::SetUpFailed { why: vec![b'x'; 300].into_boxed_slice() });
     assert_eq!(
         answers(&d),
-        [Some(engine::ApplicationAnswer::StartDemo(forge::StartAnswer::Failed(forge::StartFailure::Group {
+        [Some(engine::ApplicationAnswer::StartPlayground(forge::StartAnswer::Failed(forge::StartFailure::Group {
             why: vec![b'x'; 256].into_boxed_slice()
         })))]
     );
@@ -215,7 +222,9 @@ fn demo_start_waits_for_connection_until_the_configured_deadline() {
     d.settle();
     assert_eq!(
         answers(&d),
-        [Some(engine::ApplicationAnswer::StartDemo(forge::StartAnswer::Failed(forge::StartFailure::NotConnected)))]
+        [Some(engine::ApplicationAnswer::StartPlayground(forge::StartAnswer::Failed(
+            forge::StartFailure::NotConnected
+        )))]
     );
 }
 
@@ -249,7 +258,7 @@ fn demo_start_skips_an_existing_account_but_still_adopts() {
     connection(&mut d, forge::Connection::Connected { id: 1, login: b"temper".as_slice().into() });
     d.delivered.clear();
     start(&mut d, sign_in, 82, true);
-    assert_eq!(answers(&d), [Some(engine::ApplicationAnswer::StartDemo(forge::StartAnswer::Running))]);
+    assert_eq!(answers(&d), [Some(engine::ApplicationAnswer::StartPlayground(forge::StartAnswer::Running))]);
     assert_eq!(keeps(&d), 1);
     assert!(d.delivered.iter().any(|delivery| matches!(delivery, Delivery::CarriedUnused { number: 82 })));
     assert!(d.store.rows.values().any(|record| matches!(record, engine::Record::Forge { row }
@@ -272,7 +281,7 @@ fn demo_start_skips_an_existing_repository_but_still_adds_the_account() {
     let calls = d.forge.as_ref().expect("fake forge").calls;
     d.delivered.clear();
     start(&mut d, sign_in, 81, true);
-    assert_eq!(answers(&d), [Some(engine::ApplicationAnswer::StartDemo(forge::StartAnswer::Running))]);
+    assert_eq!(answers(&d), [Some(engine::ApplicationAnswer::StartPlayground(forge::StartAnswer::Running))]);
     assert_eq!(keeps(&d), 1);
     assert_eq!(d.forge.as_ref().expect("fake forge").calls, calls);
 }
@@ -284,7 +293,7 @@ fn simultaneous_demo_starts_share_one_pair_of_acts_and_return_unused_keys() {
     start(&mut d, sign_in, 82, true);
     assert!(answers(&d).is_empty());
     connection(&mut d, forge::Connection::Connected { id: 1, login: b"temper".as_slice().into() });
-    assert_eq!(answers(&d), vec![Some(engine::ApplicationAnswer::StartDemo(forge::StartAnswer::Running)); 2]);
+    assert_eq!(answers(&d), vec![Some(engine::ApplicationAnswer::StartPlayground(forge::StartAnswer::Running)); 2]);
     assert_eq!(keeps(&d), 1);
     assert!(d.delivered.iter().any(|delivery| matches!(delivery, Delivery::CarriedUnused { number: 82 })));
 }
@@ -308,14 +317,14 @@ fn a_busy_box_link_fails_the_demo_start_with_the_groups_reason() {
     d.settle();
     assert_eq!(
         answers(&d),
-        [Some(engine::ApplicationAnswer::StartDemo(forge::StartAnswer::Failed(forge::StartFailure::Group {
+        [Some(engine::ApplicationAnswer::StartPlayground(forge::StartAnswer::Failed(forge::StartFailure::Group {
             why: b"busy".as_slice().into()
         })))]
     );
     connection(&mut d, forge::Connection::Connected { id: 1, login: b"temper".as_slice().into() });
     d.delivered.clear();
     start(&mut d, sign_in, 82, true);
-    assert_eq!(answers(&d), [Some(engine::ApplicationAnswer::StartDemo(forge::StartAnswer::Running))]);
+    assert_eq!(answers(&d), [Some(engine::ApplicationAnswer::StartPlayground(forge::StartAnswer::Running))]);
     assert_eq!(keeps(&d), 1);
     assert!(matches!(d.delivered.first(), Some(Delivery::CarriedUnused { number: 82 })));
 }
@@ -362,7 +371,7 @@ fn another_connected_forge_ends_the_demo_persists_and_stops_once_and_restart_ask
     start(&mut d, sign_in, 82, true);
     assert_eq!(
         answers(&d),
-        [Some(engine::ApplicationAnswer::StartDemo(forge::StartAnswer::NotOffered))],
+        [Some(engine::ApplicationAnswer::StartPlayground(forge::StartAnswer::NotOffered))],
         "deliveries: {:?}; stopped: {}",
         d.delivered,
         d.stopped
@@ -392,7 +401,7 @@ fn another_forge_connecting_answers_a_held_demo_start_not_offered() {
     d.settle();
     assert_eq!(
         answers(&d),
-        [Some(engine::ApplicationAnswer::StartDemo(forge::StartAnswer::NotOffered))],
+        [Some(engine::ApplicationAnswer::StartPlayground(forge::StartAnswer::NotOffered))],
         "deliveries: {:?}; stopped: {}",
         d.delivered,
         d.stopped
@@ -402,7 +411,7 @@ fn another_forge_connecting_answers_a_held_demo_start_not_offered() {
     d.settle();
     assert_eq!(
         answers(&d),
-        [Some(engine::ApplicationAnswer::StartDemo(forge::StartAnswer::NotOffered))],
+        [Some(engine::ApplicationAnswer::StartPlayground(forge::StartAnswer::NotOffered))],
         "deliveries: {:?}; stopped: {}",
         d.delivered,
         d.stopped

@@ -30,6 +30,7 @@ const CLIENT: skein_forge_client::Limits = skein_forge_client::Limits {
 };
 pub const LIMITS: top::Limits = top::Limits {
     repositories: 2,
+    forges: 4,
     tasks: 8,
     holds: 8,
     subscriptions: 8,
@@ -148,7 +149,7 @@ fn client_key(random: &mut Rng) -> skein_forge_client::Key {
 #[expect(clippy::disallowed_macros, reason = "property inputs number canonical member addresses")]
 pub fn key(random: &mut Rng) -> top::Key {
     let number = random.next_u64();
-    match random.below(23) {
+    match random.below(27) {
         0 => top::Key::Call(top::NamedCall {
             task: number,
             attempt: random.next_u64(),
@@ -176,6 +177,10 @@ pub fn key(random: &mut Rng) -> top::Key {
         19 => top::Key::DemoAct([u8::try_from(random.below(256)).expect("byte"); 16]),
         20 => top::Key::Flight { task: number, entry: random.next_u64() },
         21 => top::Key::Landing(number),
+        23 => top::Key::Forge(u16::try_from(random.below(65_536)).expect("u16")),
+        24 => top::Key::ForgeNumbers,
+        25 => top::Key::Playground,
+        26 => top::Key::KeptAct([u8::try_from(random.below(256)).expect("byte"); 16]),
         _ => top::Key::Receipt(top::ReceiptKey {
             project: u32::try_from(random.below(4_294_967_296)).expect("u32"),
             repository: repository(random),
@@ -552,7 +557,7 @@ pub fn answers_without_item_pieces() -> [skein_forge::api::Answer; 19] {
         Answer::Located { repository: 27 },
     ]
 }
-pub fn encoded(value: &crate::v10::Error) -> Box<[u8]> {
+pub fn encoded(value: &crate::v11::Error) -> Box<[u8]> {
     let mut writer = skein_lib::Writer::new(usize::try_from(value.measure()).expect("measured error length"));
     value.encode(&mut writer).expect("measured room");
     writer.finish()
@@ -604,13 +609,13 @@ pub fn item_answers() -> [skein_forge::api::Answer; 3] {
         Answer::Reviews { reviews: Box::new([review(), review()]), more: true },
     ]
 }
-pub fn encoded_row(row: &crate::v10::Row) -> Box<[u8]> {
+pub fn encoded_row(row: &crate::v11::Row) -> Box<[u8]> {
     let mut writer = skein_lib::Writer::new(usize::try_from(row.measure()).expect("measured row length"));
     row.encode(&mut writer).expect("measured room");
     writer.finish()
 }
-pub fn item_piece_row(items: Box<[u8]>) -> crate::v10::Row {
-    use crate::v10 as w;
+pub fn item_piece_row(items: Box<[u8]>) -> crate::v11::Row {
+    use crate::v11 as w;
     let answer = w::Answer::Items(
         w::ItemsAnswer::new(&w::CEILINGS, w::ItemsAnswerParts { items, more: false, now: 1 }).expect("piece ceiling"),
     );

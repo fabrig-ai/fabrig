@@ -2990,11 +2990,28 @@ pub(crate) fn outputs(
             forge::Request::ListDemoActs => super::demo::list_end_acts(domain),
             forge::Request::SendDemoAct(row) => super::demo::send_end_act(domain, row),
             forge::Request::DemoStart { request } => super::demo::start(domain, env, decision, request),
+            // fe-kept-root routes kept acts; fe-playground-root routes the start and reset.
+            forge::Request::SendKeptAct(_) | forge::Request::PlaygroundStart { .. } | forge::Request::ResetAct(_) => {}
+            forge::Request::RemoveGroup { forge } => {
+                assert!(super::now(domain, Request::RemoveGroup { forge }), "remove group door");
+            }
+            forge::Request::EraseSecrets { forge } => {
+                assert!(super::now(domain, Request::EraseSecrets { forge }), "erase secrets door");
+            }
+            forge::Request::Register(record) => {
+                assert!(super::now(domain, Request::Register(record)), "register door");
+            }
+            forge::Request::Unregister { forge } => {
+                assert!(super::now(domain, Request::Unregister { forge }), "unregister door");
+            }
             forge::Request::StopGroup { forge } => {
                 assert!(super::now(domain, Request::StopGroup { forge }), "demo stop door reserved");
             }
-            forge::Request::SetUpGroup { forge, request } => {
-                assert!(super::now(domain, Request::SetUpGroup { forge, request }), "demo box group door reserved");
+            forge::Request::SetUpGroup { forge, request, entry } => {
+                assert!(
+                    super::now(domain, Request::SetUpGroup { forge, request, entry }),
+                    "demo box group door reserved"
+                );
             }
             forge::Request::SetUp { forge, request, org, repository, playground } => {
                 assert!(

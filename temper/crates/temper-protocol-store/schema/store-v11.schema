@@ -1,4 +1,4 @@
-family temper-store 10
+family temper-store 11
 
 # 04.2: values the families share (protocol/store.md, 2 and 3).
 record Repository { forge: u16 repository: u32 }
@@ -241,5 +241,34 @@ record ReceiptKey { project: u32 repository: Repository check_name: ReceiptCheck
 record ReceiptRun { id: u64 number: u64 url: bytes 2048 }
 record Receipt { passed: bool run: ReceiptRun candidate: fixed 32 ended: u64 }
 record ReceiptRow { key: ReceiptKey receipt: Receipt }
-enum Value { call: Call, proposed_effect: ProposedEffect, repository: Adopted, hold: Hold, names: Names, subscription: Subscriber, branch_head: BranchHead, pull_state: PullState, ci: CiState, landed: Landed, entry: EntryRow, client: ClientRow, change: boxed ChangeRow, issue: boxed IssueRow, release: ReleaseRow, application: Application, writer: ForgeWriter, demo: Demo, binding: Binding, demo_act: DemoAct, flight: Flight, landing: LandingRow, receipt: ReceiptRow }
+# Family 31: a forge the deployment keeps (draft playground-reset.md, section 3).
+enum ForgeKind { forgejo, github }
+enum ForgeMode { connected, managed, owned, fake }
+record ApiTls { server_name: bytes 255 trust: option bytes 4096 }
+enum ApiTransport { plaintext, tls: ApiTls }
+record ForgeApi { host: bytes 255 port: u16 transport: ApiTransport }
+record ForgeBot { login: bytes 255 name: bytes 255 email: bytes 254 }
+record FirstExisting { project: u32 }
+record FirstNew { name: bytes 1024 }
+enum FirstProject { existing: FirstExisting, new: FirstNew }
+enum FirstCreateStep { admin, org, repository, file }
+record FirstMadeId { id: u64 }
+record FirstFailedStep { step: FirstCreateStep }
+enum FirstState { making, made: FirstMadeId, failed: FirstFailedStep }
+record ForgeFirst { playground: bool org: bytes 1024 repository: bytes 1024 project: FirstProject state: FirstState label: bytes 64 }
+enum ForgeState { kept, removing }
+record Forge { number: u16 kind: ForgeKind mode: ForgeMode api: ForgeApi git: bytes 1024 git_program: option bytes 4096 web: option bytes 1024 read_only: bool bot: ForgeBot setup: option bytes 4096 first: option ForgeFirst playground: bool state: ForgeState }
+# Family 32: the next forge number to give; absent is 1.
+record ForgeNumbers { next: u16 }
+# Family 33: the playground (draft playground-reset.md, 6.1 and 6.2).
+enum ResetStep { project, forge, account }
+record PlaygroundResetting { step: ResetStep }
+enum PlaygroundState { running, resetting: PlaygroundResetting }
+record Playground { state: PlaygroundState forge: u16 project: option u32 account: option u32 }
+# Family 34: a removal's acts, kept until answered (draft playground-reset.md, section 4).
+record KeptCancel { project: u32 task: u64 }
+enum KeptActKind { cancel: KeptCancel, remove_group, erase_secrets }
+record KeptAct { key: fixed 16 forge: u16 act: KeptActKind }
+
+enum Value { call: Call, proposed_effect: ProposedEffect, repository: Adopted, hold: Hold, names: Names, subscription: Subscriber, branch_head: BranchHead, pull_state: PullState, ci: CiState, landed: Landed, entry: EntryRow, client: ClientRow, change: boxed ChangeRow, issue: boxed IssueRow, release: ReleaseRow, application: Application, writer: ForgeWriter, demo: Demo, binding: Binding, demo_act: DemoAct, flight: Flight, landing: LandingRow, receipt: ReceiptRow, forge: Forge, forge_numbers: ForgeNumbers, playground: Playground, kept_act: KeptAct }
 versioned record Row { value: Value }

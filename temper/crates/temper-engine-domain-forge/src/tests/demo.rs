@@ -160,6 +160,8 @@ fn configured(under_box: bool) -> Domain {
     }
     d.connection_limits(3, 1);
     d.configure_demo(Some(DemoConfig {
+        project_name: "Playground".into(),
+        project_policy: 1,
         provider: 1,
         adoption: fixtures::adoption(),
         deadline: Duration::from_secs(10),
@@ -175,7 +177,7 @@ fn start(d: &mut Domain, number: u64) -> Box<[Request]> {
             request: Token::new(number),
             token: Token::new(number.checked_add(100).unwrap()),
             retention: Duration::from_secs(60),
-            ask: Ask::StartDemo,
+            ask: Ask::StartPlayground,
         },
     )
 }
@@ -189,7 +191,7 @@ fn demo_start_is_not_offered_without_a_demo_or_after_its_end() {
             start(&mut d, 1).as_ref(),
             [Request::ApplicationDone { request: Token::new(1), token: Token::new(101) }]
         );
-        assert_eq!(d.application_answer(Token::new(101)), Some(Answered::StartDemo(StartAnswer::NotOffered)));
+        assert_eq!(d.application_answer(Token::new(101)), Some(Answered::StartPlayground(StartAnswer::NotOffered)));
     }
 }
 
@@ -238,7 +240,7 @@ fn simultaneous_demo_starts_share_the_answer_and_bound_their_waiters() {
     for number in 1..=u64::from(LIMITS.applications) {
         assert_eq!(
             d.application_answer(Token::new(number.checked_add(100).unwrap())),
-            Some(Answered::StartDemo(answer.clone()))
+            Some(Answered::StartPlayground(answer.clone()))
         );
     }
     assert_eq!(d.application_answer(Token::new(900)), None);
@@ -325,10 +327,13 @@ fn first_other_connection_ends_once_from_none_or_running_and_answers_held_starts
             assert_eq!(d.offer(1), Offer::NotOffered);
             if running {
                 assert!(sent.contains(&Request::ApplicationDone { request: Token::new(1), token: Token::new(101) }));
-                assert_eq!(d.application_answer(Token::new(101)), Some(Answered::StartDemo(StartAnswer::NotOffered)));
+                assert_eq!(
+                    d.application_answer(Token::new(101)),
+                    Some(Answered::StartPlayground(StartAnswer::NotOffered))
+                );
             }
             start(&mut d, 2);
-            assert_eq!(d.application_answer(Token::new(102)), Some(Answered::StartDemo(StartAnswer::NotOffered)));
+            assert_eq!(d.application_answer(Token::new(102)), Some(Answered::StartPlayground(StartAnswer::NotOffered)));
             let sent = connected(&mut d, 2);
             assert!(!saved(&sent));
             assert!(!sent.contains(&Request::StopGroup { forge: 1 }));
