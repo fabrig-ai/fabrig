@@ -130,7 +130,13 @@ fn begin(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision) {
 
 pub(crate) fn progress(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision) {
     let Some(start) = &domain.playground_start else { return };
-    let row = *domain.forge.playground().expect("running playground");
+    let row = match domain.forge.playground() {
+        Some(row) if row.state == forge::PlaygroundState::Running => *row,
+        _ => {
+            domain.playground_start = None;
+            return;
+        }
+    };
     let connected = super::demo::connected(&domain.forge.connection(row.forge.expect("made forge")));
     if !connected && env.now >= start.until {
         finish(domain, forge::StartAnswer::Failed(forge::StartFailure::NotConnected));

@@ -41,7 +41,7 @@ fn fake() -> forge::Forge {
         removing: false,
     }
 }
-fn config(real: bool) -> engine::Config {
+pub(super) fn config(real: bool) -> engine::Config {
     let mut config = walking::config(71);
     config.core.defaults.templates[0].budget = people::TemplateBudget::AsAllowed { cap: Some(200) };
     config.core.defaults.rules.ceiling.delegation.depth = 2;
@@ -61,7 +61,10 @@ fn config(real: bool) -> engine::Config {
             },
         )
         .expect("stock policy");
-    config.core.grants = Box::new([]);
+    config.core.grants = Box::new([people::ActGrant {
+        connector: config.core.connectors[0],
+        may: Box::new([people::ActKind::Cancel, people::ActKind::RemoveProject, people::ActKind::RemoveAccount]),
+    }]);
     config.identities = Box::new([]);
     config.forge.writers = Box::new([]);
     config.forges = Box::new([]);
@@ -82,6 +85,7 @@ fn driver(real: bool) -> (Driver, u64) {
     limits.tasks.depth = 2;
     limits.accounts.accounts = 2;
     limits.fleet.grants = limits.accounts.credentials + limits.accounts.accounts;
+    limits.people.act_grants = 1;
     limits.people.pending = 4;
     limits.people.requests = 8;
     limits.authority.projects = 2;
