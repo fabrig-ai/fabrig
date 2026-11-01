@@ -33,6 +33,7 @@ const STDERR: Fd = Fd::new(3);
 const USER: u32 = 7;
 pub const TOKEN_BYTES: &[u8] = b"0123456789012345678901234567890123456789";
 pub const PARTIAL: usize = 3; // More than one short write is needed for every host diagnostic.
+pub const FULL_STREAMS: u32 = 2; // A small engine bound shared by the full-stream stories.
 #[expect(clippy::struct_excessive_bools, reason = "independent scripted file and network facts")]
 pub struct Frame {
     pub move_answers: VecDeque<moves::Answer>,
@@ -235,6 +236,12 @@ impl Frame {
     }
     pub fn read(words: &[&str]) -> Self {
         Self::act(&words.iter().map(|word| word.as_bytes()).collect::<Vec<_>>())
+    }
+    pub fn full_streams(words: &[&str], bound: w::StreamBound, size: u32) -> Self {
+        let mut frame = Self::read(words);
+        frame.streams_full = Some((bound, size));
+        frame.drain();
+        frame
     }
     pub fn sign_in_then_deliver_me(&mut self) {
         self.deliver = Some(());

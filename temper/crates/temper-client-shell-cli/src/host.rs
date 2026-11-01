@@ -231,11 +231,6 @@ impl OneShot {
     }
     fn root_event(&mut self, event: jig_client::Event) {
         root::step(&mut self.root, &self.root_env, root::Event::Client { event }, &mut self.requests);
-        if self.status.is_none()
-            && let Some(full) = self.root.client().link().streams_full
-        {
-            self.fail(format!("the engine's {} streams are all in use, by waits and open clients; end one, or wait and call again", full.size).as_bytes());
-        }
     }
 
     fn local_start(&mut self) {
@@ -582,6 +577,10 @@ impl OneShot {
         if self.status.is_none() && self.until.is_some_and(|at| now >= at) {
             if self.signing.as_ref().is_some_and(|signing| signing.last == Some(jig_client::NotSignedIn::Busy)) {
                 self.fail(b"temper is busy; this link stays usable until it expires");
+                return;
+            }
+            if let Some(full) = self.root.client().link().streams_full {
+                self.fail(format!("the engine's {} streams are all in use, by waits and open clients; end one, or wait and call again", full.size).as_bytes());
                 return;
             }
             let address = std::str::from_utf8(self.directory.address.as_deref().expect("loaded address"))

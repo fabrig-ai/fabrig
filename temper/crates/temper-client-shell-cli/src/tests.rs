@@ -2,6 +2,7 @@ pub(crate) mod fixtures;
 use crate::{directory, limits};
 use skein_io::kernel::{Exit, ServiceSignal};
 const SIGN_IN_FIRST: skein_lib::Duration = skein_lib::Duration::from_millis(100);
+const DEADLINE_TICK: skein_lib::Duration = skein_lib::Duration::from_nanos(1); // The clock's smallest step.
 const SIGN_IN_FILE_CALL: &[u8] = br#"{"tool":"sign-in","arguments":{"file":"link-file"}}"#;
 #[test]
 fn memory_exchanges_wait_for_closing_sockets() {
@@ -152,12 +153,14 @@ fn an_unheard_read_exits_1_at_the_link_deadline() {
     assert_eq!(f.exit(), Some(Exit::Code(1)));
 }
 #[test]
-fn streams_full_exits_one_as_soon_as_the_bound_is_known() {
+fn streams_full_exits_one_at_the_link_deadline() {
     for bound in [jig_client_protocol_wire::StreamBound::Component, jig_client_protocol_wire::StreamBound::Transport] {
         for words in [&["me"][..], &["task", "show", "41", "--until", "changed"][..]] {
-            let mut f = fixtures::Engine::read(words);
-            f.streams_full = Some((bound.clone(), 2));
-            f.drain();
+            let mut f = fixtures::Engine::full_streams(words, bound.clone(), fixtures::FULL_STREAMS);
+            f.advance_past(skein_lib::Duration::from_nanos(limits::DEADLINE.as_nanos() - DEADLINE_TICK.as_nanos()));
+            assert_eq!(f.exit(), None);
+            assert!(f.stderr().is_empty());
+            f.advance_past(DEADLINE_TICK);
             assert_eq!(f.exit(), Some(Exit::Code(1)));
             assert_eq!(f.stderr(), b"temper ctl: the engine's 2 streams are all in use, by waits and open clients; end one, or wait and call again\n");
             assert!(f.stderr().len() <= 240);
@@ -167,12 +170,24 @@ fn streams_full_exits_one_as_soon_as_the_bound_is_known() {
 }
 #[test]
 fn streams_full_uses_the_reported_size_within_the_diagnostic_bound() {
-    let mut f = fixtures::Engine::read(&["me"]);
-    f.streams_full = Some((jig_client_protocol_wire::StreamBound::Transport, u32::MAX));
-    f.drain();
+    let mut f = fixtures::Engine::full_streams(&["me"], jig_client_protocol_wire::StreamBound::Transport, u32::MAX);
+    f.advance_past(limits::DEADLINE);
     assert_eq!(f.exit(), Some(Exit::Code(1)));
     assert_eq!(f.stderr(), b"temper ctl: the engine's 4294967295 streams are all in use, by waits and open clients; end one, or wait and call again\n");
     assert!(f.stderr().len() <= 240);
+}
+#[test]
+fn streams_full_retries_and_succeeds_when_a_stream_frees_before_the_deadline() {
+    for bound in [jig_client_protocol_wire::StreamBound::Component, jig_client_protocol_wire::StreamBound::Transport] {
+        let mut f = fixtures::Engine::full_streams(&["me", "--json"], bound, fixtures::FULL_STREAMS);
+        f.streams_full = None;
+        f.sign_in_then_deliver_me();
+        f.advance_past(limits::native().root.domain.client.domain.backoff.first);
+        assert_eq!(f.exit(), Some(Exit::Code(0)));
+        assert!(f.stdout().starts_with(b"{\""));
+        assert!(f.stderr().is_empty());
+        assert_eq!(f.host.root.client().link().streams_full, None);
+    }
 }
 #[test]
 fn a_read_sends_no_stream_gone() {

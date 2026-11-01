@@ -18,4 +18,4 @@
 
 - **Built:** 5.3: `project fund` ceiling refusals name the rules, policy or role bound and its remedy; JSON preserves the ceiling's holder, dimension and value.
 
-- **Built:** 8.2: a full stream opening exits 1 immediately with the engine's stream count and the wait/open-client remedy, within 240 bytes; the command reference notes explain that a call holds a stream for its span.
+- **Built:** 8.2: a full stream opening retries by backoff within the link deadline and proceeds when a stream frees; at the deadline, a still-full opening exits 1 with the engine's stream count and the wait/open-client remedy, within 240 bytes. The command reference notes explain that a call holds a stream for its span.
