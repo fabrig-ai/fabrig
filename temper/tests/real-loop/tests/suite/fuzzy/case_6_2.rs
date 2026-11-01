@@ -12,7 +12,7 @@ fn a_blocker_goes_up_two_levels_as_questions_and_its_fix_lands_before_the_live_t
     // The six signatures are e1's words. B's stop is the question's reason;
     // stopped-owner news is 5.2's. The ancestor's gate is A1's convention:
     // delegate e1 only after the answer. Dependency circles, reach and
-    // refusals belong to jig's tasks world and qa_added_deps.
+    // refusals belong to jig's tasks world and added_deps.
     // A has depth 4 and A1 depth 3 (departing from act 3's depth one),
     // allowing e1 depth 2 for its coder/reviewer; a3 keeps depth 0.
     // Singleton batches need standard for five store joins, beyond small's

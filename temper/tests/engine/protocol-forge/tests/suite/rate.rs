@@ -1,19 +1,21 @@
 //! Installation HTTP traffic, with the root's wake-driven procedure scheduler.
 //!
-//! Two-minute warmup, then a 1200-second window scaled by three. The shipped
+//! Two-minute warmup, then a full 40-second steady cycle scaled by ninety. The shipped
 //! 1800-second stall stays outside the window. CI takes 7200 virtual seconds.
 //! Run with `TEMPER_RATE=1` to print the installation's HTTP routes and costs.
-//! This is QA because the three protocol worlds together take over 0.5 s.
 //! Conservative phase allowance: two passes per endpoint/resource (fast and
-//! slow), scaled by three: at most 6*(7*N+1) requests/hour either way.
-//! The chosen 1200 s contains whole steady periods of the shipped cadences.
+//! slow), scaled by ninety: at most 180*(7*N+1) requests/hour either way.
+//! The shipped 5-second listing, 20-second checks and 40-second slow reads all fit this cycle.
 //!
 //! Busy stories keep changes unlanded, report staggered worker pushes every
 //! 300 s, accept each reported new head, and let CI turn green after 120 s.
 //! They warm for 300 s, measure 600 s, and scale by six. Main moves every
 //! 600 s in the second shape. Totals allow two fast/slow passes per endpoint
 //! at the boundary: +/-12*(7*N+1) requests/hour. Fake replies take no time.
-use std::{collections::BTreeMap, fmt::Write};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    fmt::Write,
+};
 
 use skein_fake_forge_domain::{Observation, api as raw};
 use skein_forge_machine_world::joint::{self, REPO};
@@ -24,7 +26,7 @@ use temper_engine_forge_world::{changes::change_row, translate::commit};
 use temper_engine_protocol_forge_world::protocol::Protocol;
 use temper_service::limits::{Profile, profile};
 
-const WINDOW: u64 = 1200;
+const WINDOW: u64 = 40;
 const SCALE: u64 = 3600 / WINDOW;
 const KINDS: [&str; 16] = [
     "Base branch tip",
@@ -194,7 +196,7 @@ fn commit_hex(number: u64) -> String {
 // Snapshot after draining, then count newly completed HTTP lines. A timestamp
 // filter including the start instant would count requests already in costs().
 fn histogram(world: &Protocol, start: usize) -> BTreeMap<String, u64> {
-    let bases: Vec<_> = world
+    let bases: BTreeSet<_> = world
         .base_reads()
         .iter()
         .filter_map(|(_, _, commit)| *commit)
@@ -266,22 +268,22 @@ fn pending_changes_installation_requests_per_hour() {
         let table = histogram(&world, start);
         let total: u64 = table.values().sum();
         let changes = u64::try_from(count).expect("small change count");
-        // Recorded 1200-second counts: 30 branch reads and 60 of each of the
-        // pull's six HTTP endpoints per change, plus 240 repository listings.
+        // One full steady cycle: one branch read and two of each of the
+        // pull's six HTTP endpoints per change, plus eight repository listings.
         let expected: BTreeMap<_, _> = KINDS
             .into_iter()
             .zip([
                 0,
                 0,
                 0,
-                30 * changes,
-                60 * changes,
-                60 * changes,
-                60 * changes,
-                60 * changes,
-                60 * changes,
-                60 * changes,
-                240,
+                changes,
+                2 * changes,
+                2 * changes,
+                2 * changes,
+                2 * changes,
+                2 * changes,
+                2 * changes,
+                8,
                 0,
                 0,
                 0,
@@ -358,7 +360,7 @@ fn busy_run(world: &mut Protocol, scheduler: &mut Scheduler, count: usize, movin
 }
 
 fn sharing(world: &Protocol, start: usize, bucket: u64) -> (u64, u64, u64) {
-    let bases: Vec<_> = world.base_reads().iter().filter_map(|(_, _, commit)| *commit).collect();
+    let bases: BTreeSet<_> = world.base_reads().iter().filter_map(|(_, _, commit)| *commit).collect();
     let mut groups = BTreeMap::new();
     let mut cohorts = BTreeMap::new();
     for (at, read, returned) in &world.base_reads()[start..] {
