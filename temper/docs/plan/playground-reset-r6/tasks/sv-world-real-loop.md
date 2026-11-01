@@ -3,7 +3,7 @@ id = "sv-world-real-loop"
 part = "fs"
 kind = "migration"
 needs = ["sv-seed-kit", "sv-registry-setup"]
-files = ["temper/tests/real-loop/**", "temper/crates/temper-service/src/setup/lifecycle.rs", "temper/crates/temper-service/tests/registry_setup.rs"]
+files = ["temper/tests/real-loop/**", "temper/crates/temper-service/src/setup/lifecycle.rs", "temper/crates/temper-service/src/tests/registry_setup.rs"]
 effort = "high"
 minutes = 110
 +++
@@ -76,18 +76,25 @@ setup entry; may this task fix it in `temper-service`? A: yes, this task fixes i
 owners cannot take it in time: `sv-registry-setup` is merged, `sv-startup-refuse` waits on
 this task, and `sv-resolve` is about held records. The task's `files` now name
 `temper/crates/temper-service/src/setup/lifecycle.rs` and
-`temper/crates/temper-service/tests/registry_setup.rs`, and nothing else of the service.
+`temper/crates/temper-service/src/tests/registry_setup.rs`, and nothing else of the service.
 - In `connected`'s last branch (no GitHub, no `Local`): when the forge's records hold
   `Item::User`, report that id, as the `Local` branch does; take the login from the
   registered record's `bot.login` when the forge is registered (the registry
   `crate::forges` keeps; the same login `setup.rs` gives the host's `Given` for a
   record with no entry); otherwise, for a document forge, keep `config.user` and the
   identity table as today. Change nothing else of `connected` or the file.
-- Add one case to `tests/registry_setup.rs`: a registered Forgejo record with no setup
+- Add one case to `src/tests/registry_setup.rs`: a registered Forgejo record with no setup
   entry and a seeded `User` connects as `Connected { id: <the record's User>, login:
-  <its bot login> }`. Run it with `heavy cargo nextest run -p temper-service --test
-  registry_setup`, then this task's own acceptance (the whole `temper-real-loop-world`
+  <its bot login> }`. Run it with `heavy cargo nextest run -p temper-service --lib -E
+  'test(/tests::registry_setup::/)'` (a module of the lib's tests, not a test binary), then this task's own acceptance (the whole `temper-real-loop-world`
   default run).
 - Keep the empty-start seeding point you took. Leave the other service readers your report
   lists under `## Left` (`startup/application.rs`, `forge.rs::config`,
   `setup/settings.rs::fixed`) to `sv-startup-refuse`.
+
+2026-11-01. Q (run 2): the answer names `temper-service/tests/registry_setup.rs`, which does
+not exist; may the case go into `src/tests/registry_setup.rs`? A: yes, that path was the
+answer's slip, corrected above in `files` and the bullets: add the case to the lib's
+existing module `src/tests/registry_setup.rs` and run it with `heavy cargo nextest run -p
+temper-service --lib -E 'test(/tests::registry_setup::/)'`. `sv-world-one-process` now
+waits on this task for the `connected` fix, so land it before anything else.
