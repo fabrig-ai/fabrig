@@ -96,6 +96,8 @@ pub(crate) const EVERY_TOOL: &[&[&str]] = &[
     &["forge", "list"],
     &["forge", "setup", "3"],
     &["playground", "start"],
+    &["playground", "reset"],
+    &["forge", "remove", "3"],
     &["forge", "connect", "3", "github-app", "4242", "app.pem", "--key", "app"],
     &["forge", "connect", "3", "github", "--key", "app"],
     &["forge", "connect", "3", "forgejo", "tokens", "--key", "app"],
@@ -725,7 +727,7 @@ pub(crate) const UNKNOWN_ASKER: client::Asker = client::Asker(999);
 /// A stable stored request's engine key, unrelated to its client call prefix.
 const KEPT_KEY: skein_lib::RequestKey = [9; 16];
 /// One slot per row and form; fewer omits decide's second form.
-pub(super) const TOOL_FORMS: u32 = 62;
+pub(super) const TOOL_FORMS: u32 = 64;
 /// Exactly one example exercises each row and form; zero misses it entirely.
 pub(super) const EXAMPLES_PER_FORM: u32 = 1;
 /// One missing byte exercises the first refused destination; zero would fit.

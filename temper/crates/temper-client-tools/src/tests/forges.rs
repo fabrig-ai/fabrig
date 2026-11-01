@@ -81,6 +81,10 @@ fn forge_calls_round_trip_through_argv_json_and_help() {
         &["forge", "setup", "3", "--org", "team", "--repository", "widget", "--project", "shop"],
         &["forge", "list", "--until", "made:3"],
         &["forge", "setup", "3", "--project", ""],
+        &["playground", "reset"],
+        &["playground", "reset", "--key", "reset"],
+        &["forge", "remove", "1"],
+        &["forge", "remove", "65535", "--key", "remove"],
         &["forge", "list", "--until", "settled"],
         &["forge", "list", "--since", "0123456789abcdef", "--until", "connected:3", "--timeout", "2s"],
     ] {
@@ -92,10 +96,13 @@ fn forge_calls_round_trip_through_argv_json_and_help() {
         assert!(skein_lib::bytes::find(&help, argv[0].as_bytes()).is_some());
     }
     for argv in [
-        &["forge", "setup"][..],
-        &["forge", "setup", "oops"],
+        &["forge", "setup", "oops"][..],
         &["forge", "setup", "65536"],
         &["forge", "setup", "0"],
+        &["forge", "remove"],
+        &["forge", "remove", "0"],
+        &["forge", "remove", "65536"],
+        &["forge", "remove", "oops"],
         &["forge", "list", "--until", "busy"],
         &["forge", "list", "--until", "made:x"],
         &["forge", "list", "--until", "made:0"],
@@ -282,17 +289,38 @@ fn setup_answers_print_their_words_json_and_status() {
     for (outcome, expected, status) in [
         (w::Outcome::SettingUp, b"setting up\n".as_slice(), 0),
         (w::Outcome::Unknown, b"unknown\n", 2),
-        (w::Outcome::SetUpRefused(w::SetUpRefused::new(&limits, w::SetUpRefusedParts { why: w::SetUpRefusal::Busy }).unwrap()), b"refused: busy\n", 2),
-        (w::Outcome::SetUpRefused(w::SetUpRefused::new(&limits, w::SetUpRefusedParts { why: w::SetUpRefusal::NotOffered }).unwrap()), b"refused: not offered\n", 2),
-        (w::Outcome::SetUpRefused(w::SetUpRefused::new(&limits, w::SetUpRefusedParts { why: w::SetUpRefusal::NotUnderTheBox }).unwrap()), b"refused: not under the box\nrun `temper forge fetch 3`, `temper forge prepare 3`, `temper forge run 3 forgejo` and `temper forge run 3 runner`, then restart `temper serve`\n", 2),
+        (
+            w::Outcome::SetUpRefused(
+                w::SetUpRefused::new(&limits, w::SetUpRefusedParts { why: w::SetUpRefusal::Busy }).unwrap(),
+            ),
+            b"refused: busy\n",
+            2,
+        ),
+        (
+            w::Outcome::SetUpRefused(
+                w::SetUpRefused::new(&limits, w::SetUpRefusedParts { why: w::SetUpRefusal::NotOffered }).unwrap(),
+            ),
+            b"refused: not offered\n",
+            2,
+        ),
+        (
+            w::Outcome::SetUpRefused(
+                w::SetUpRefused::new(&limits, w::SetUpRefusedParts { why: w::SetUpRefusal::NotUnderTheBox }).unwrap(),
+            ),
+            b"refused: not under the box\n",
+            2,
+        ),
     ] {
         for json in [false, true] {
             let mut root = f::signed_in(f::PARTY);
             let call = root.submit_prepared(f::call(&["forge", "setup", "3"]), json, None);
             let client::Ask::Family { scope, record } = root.adoption_bytes(call) else { panic!("family") };
             assert_eq!(*scope, c::Scope::Deployment);
-            let w::Request::SetUp(_) = wire::decode_requesting(&record.bytes, &limits).unwrap().into_parts().request else { panic!("set up"); };
-                    root.adoption_answer(call, outcome.clone());
+            let w::Request::SetUp(_) = wire::decode_requesting(&record.bytes, &limits).unwrap().into_parts().request
+            else {
+                panic!("set up");
+            };
+            root.adoption_answer(call, outcome.clone());
             if status == 0 {
                 assert!(root.answer(call).is_none());
                 assert!(root.progress.as_slice().last().is_some());
@@ -301,7 +329,11 @@ fn setup_answers_print_their_words_json_and_status() {
             let printed = root.answer(call).unwrap();
             assert_eq!(printed.status, status);
             let bytes = if status == 0 { &printed.stdout } else { &printed.stderr };
-            if json { assert!(bytes.starts_with(b"{")); } else { assert_eq!(bytes.as_ref(), expected); }
+            if json {
+                assert!(bytes.starts_with(b"{"));
+            } else {
+                assert_eq!(bytes.as_ref(), expected);
+            }
         }
     }
 }
@@ -506,8 +538,12 @@ fn an_unknown_project_is_sent_as_new_and_both_new_refusals_exit_two() {
 fn made_sends_the_home_adoption_with_its_stable_key_and_prints_its_answer() {
     for home_taken in [false, true] {
         let mut root = f::signed_in(f::PARTY);
-        let call =
-            root.submit(&["forge", "setup", "3", "--org", "team", "--repository", "widget", "--project", "shop"]);
+        let words = if home_taken {
+            &["forge", "setup", "--org", "team", "--repository", "widget", "--project", "shop"][..]
+        } else {
+            &["forge", "setup", "65535", "--org", "team", "--repository", "widget", "--project", "shop"]
+        };
+        let call = root.submit(words);
         root.adoption_answer(call, w::Outcome::SettingUp);
         assert!(root.answer(call).is_none());
         assert_eq!(root.progress.as_slice(), &[Box::<[u8]>::from(b"setting up\n".as_slice())]);

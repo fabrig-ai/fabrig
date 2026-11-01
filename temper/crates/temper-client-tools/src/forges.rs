@@ -42,7 +42,7 @@ pub const SET_UP: Tool = Tool {
     prints: b"`setting up`, then, once Forgejo runs, the adoption of its first repository",
     result: b"forge-setup",
     forms: &[&[
-        positional(b"forge", b"FORGE", Kind::NumberRange { min: 1, max: 65535 }, Required, b"The owned Forgejo's forge number"),
+        positional(b"forge", b"FORGE", Kind::NumberRange { min: 1, max: 65535 }, Optional, b"Unused; sets up the box's owned Forgejo"),
         flag(b"org", b"ORG", Kind::Literal, Optional, b"The organization; work when absent"),
         flag(b"repository", b"REPOSITORY", Kind::Literal, Optional, b"The first repository; hello when absent"),
         flag(
@@ -177,6 +177,26 @@ pub const DEMO_START: Tool = Tool {
     area: 6,
     notes: b"It returns once the playground runs. A failed start names its step,\nthe fakes, the account, the adoption or the forge, and the same\ncall again finishes it. `refused: not offered` (exit 2): this\ndeployment has no playground.\n",
 };
+pub const PLAYGROUND_RESET: Tool = Tool {
+    name: b"playground reset",
+    line: b"Reset the playground: its project, forge and account are removed, and the welcome opens at its Forge step",
+    prints: b"`reset`",
+    result: b"playground-reset",
+    forms: &[&[]],
+    keyed: Keyed::Optional,
+    area: 6,
+    notes: b"It returns once the playground is gone. `refused: not offered`\n(exit 2): no playground runs.\n",
+};
+pub const REMOVE: Tool = Tool {
+    name: b"forge remove",
+    line: b"Remove a forge whole: its live work cancelled, its records erased, its box group removed",
+    prints: b"`removing`",
+    result: b"forge-remove",
+    forms: &[&[positional(b"forge", b"FORGE", Kind::NumberRange { min: 1, max: 65535 }, Required, b"The forge's number")]],
+    keyed: Keyed::Optional,
+    area: 6,
+    notes: b"An owned Forgejo goes with its directory. A managed Forgejo's bot\nand hooks stay on the forge. A GitHub App stays yours: delete it\nthrough its settings on GitHub.\n",
+};
 
 use crate::{
     jig::{
@@ -227,6 +247,8 @@ enum SetUpIntent {
     Live(Intent),
     Kept,
     Demo,
+    Reset,
+    Remove,
 }
 #[derive(Debug)]
 struct SettingUp {
@@ -302,6 +324,8 @@ pub(crate) fn owns(call: &jig::call::Call) -> bool {
     name == READ.name
         || name == SET_UP.name
         || name == DEMO_START.name
+        || name == PLAYGROUND_RESET.name
+        || name == REMOVE.name
         || name == CONNECT.name
         || name == INSTALL.name
         || name == ACCEPT.name
@@ -356,13 +380,8 @@ fn send(state: &mut Forges, client: &Client, env: &Env<Limits>, called: Called, 
         finish(called, printed, out);
         return;
     }
-    if name == SET_UP.name || name == DEMO_START.name {
-        let intent = if name == SET_UP.name {
-            let forge = u16::try_from(number_arg(&called.call)).expect("checked forge number");
-            Some(intent(forge, &called.call, client))
-        } else {
-            None
-        };
+    if name == SET_UP.name || name == DEMO_START.name || name == PLAYGROUND_RESET.name || name == REMOVE.name {
+        let intent = if name == SET_UP.name { Some(intent(0, &called.call, client)) } else { None };
         let request = match &intent {
             Some(intent) => domain::ask(
                 intent.forge,
@@ -370,6 +389,13 @@ fn send(state: &mut Forges, client: &Client, env: &Env<Limits>, called: Called, 
                 intent.repository.clone(),
                 intent.project.clone(),
                 intent.playground,
+                &env.limits.domain.forge,
+            ),
+            None if name == PLAYGROUND_RESET.name => {
+                temper_client_domain::forge::demo::end_ask(&env.limits.domain.forge)
+            }
+            None if name == REMOVE.name => temper_client_domain::forge::remove::ask(
+                u16::try_from(number_arg(&called.call)).expect("checked forge number"),
                 &env.limits.domain.forge,
             ),
             None => temper_client_domain::forge::demo::ask(&env.limits.domain.forge),
@@ -380,16 +406,18 @@ fn send(state: &mut Forges, client: &Client, env: &Env<Limits>, called: Called, 
             return;
         };
         let key = Key { asker: Owner::Forge.asker(), number };
-        let name = match &called.call.key {
+        let key_name = match &called.call.key {
             Some(name) => Some(crate::key::engine(name)),
             None => None,
         };
         let intent = match intent {
             Some(intent) => SetUpIntent::Live(intent),
+            None if name == PLAYGROUND_RESET.name => SetUpIntent::Reset,
+            None if name == REMOVE.name => SetUpIntent::Remove,
             None => SetUpIntent::Demo,
         };
         state.pending.insert(key, SettingUp { intent, called: Some(called) });
-        out.push(Out::Client { event: Event::Send { key, name, request } });
+        out.push(Out::Client { event: Event::Send { key, name: key_name, request } });
     } else {
         let waiting = jig::call::waiting(&READ, &called.call);
         let since = match value(&called.call, 0) {
@@ -460,11 +488,17 @@ pub(crate) fn told(state: &mut Forges, client: &Client, env: &Env<Limits>, told:
                 None => state.json,
             };
             let printed = match &pending.intent {
-                SetUpIntent::Live(intent) => {
-                    setup_print(Some(intent.forge), outcome, json, pending.called.is_none(), &env.limits)
-                }
+                SetUpIntent::Live(intent) => setup_print(
+                    if intent.forge == 0 { None } else { Some(intent.forge) },
+                    outcome,
+                    json,
+                    pending.called.is_none(),
+                    &env.limits,
+                ),
                 SetUpIntent::Kept => setup_print(None, outcome, json, true, &env.limits),
                 SetUpIntent::Demo => crate::demo::print(outcome, json, pending.called.is_none(), &env.limits),
+                SetUpIntent::Reset => crate::demo::print_reset(outcome, json, pending.called.is_none(), &env.limits),
+                SetUpIntent::Remove => crate::demo::print_remove(outcome, json, pending.called.is_none(), &env.limits),
             };
             match pending.called {
                 Some(called) => match pending.intent {
@@ -474,7 +508,11 @@ pub(crate) fn told(state: &mut Forges, client: &Client, env: &Env<Limits>, told:
                         });
                         watch_first(state, env, *key, called, intent, out);
                     }
-                    SetUpIntent::Live(_) | SetUpIntent::Kept | SetUpIntent::Demo => finish(called, printed, out),
+                    SetUpIntent::Live(_)
+                    | SetUpIntent::Kept
+                    | SetUpIntent::Demo
+                    | SetUpIntent::Reset
+                    | SetUpIntent::Remove => finish(called, printed, out),
                 },
                 None => out.push(Out::Kept { line: if printed.status == 0 { printed.stdout } else { printed.stderr } }),
             }
@@ -516,14 +554,14 @@ fn restore(state: &mut Forges, env: &Env<Limits>, key: Key, request: &jig_client
     let intent = match request.into_parts().request {
         temper_client_protocol_wire::v1::Request::SetUp(_) => SetUpIntent::Kept,
         temper_client_protocol_wire::v1::Request::StartPlayground => SetUpIntent::Demo,
+        temper_client_protocol_wire::v1::Request::EndPlayground => SetUpIntent::Reset,
+        temper_client_protocol_wire::v1::Request::RemoveForge(_) => SetUpIntent::Remove,
         temper_client_protocol_wire::v1::Request::Reachable(_)
         | temper_client_protocol_wire::v1::Request::Adopt(_)
         | temper_client_protocol_wire::v1::Request::Return(_)
         | temper_client_protocol_wire::v1::Request::Connect(_)
         | temper_client_protocol_wire::v1::Request::Accept(_)
-        | temper_client_protocol_wire::v1::Request::RemoveForge(_)
         | temper_client_protocol_wire::v1::Request::StartDemo
-        | temper_client_protocol_wire::v1::Request::EndPlayground
         | temper_client_protocol_wire::v1::Request::Install(_) => return,
     };
     state.pending.insert(key, SettingUp { intent, called: None });
@@ -1188,9 +1226,12 @@ fn setup_changed(
     rows: &[Row],
     out: &mut Queue<Out>,
 ) {
-    let watch = state.watches.get(&handle).expect("active setup watch");
-    let intent = watch.setup.as_ref().expect("setup intent");
+    let watch = state.watches.get_mut(&handle).expect("active setup watch");
+    let intent = watch.setup.as_mut().expect("setup intent");
     for row in rows {
+        if intent.forge == 0 && row.mode == domain::Mode::Owned && row.kind == domain::Kind::Forgejo {
+            intent.forge = row.number;
+        }
         if row.number != intent.forge {
             continue;
         }
