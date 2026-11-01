@@ -1,5 +1,5 @@
 //! Total translations between durable domain rows and generated records.
-use crate::{Bounds, Undecodable, v10 as w};
+use crate::{Bounds, Undecodable, v11 as w};
 use alloc::boxed::Box;
 use skein_lib::{Reader, Writer};
 use temper_engine_domain_forge as d;
@@ -11,6 +11,7 @@ mod client;
 #[cfg(test)]
 pub(crate) use api::encode_error;
 mod entries;
+mod forge;
 mod issues;
 mod landing;
 mod names;
@@ -21,6 +22,12 @@ const FITS: &str = "admitted fields fit the schema";
 #[must_use]
 pub fn encode(value: &d::Stored) -> Box<[u8]> {
     let value = match value {
+        d::Stored::Forge(row) => w::Value::Forge(Box::new(forge::encode_forge(row))),
+        d::Stored::Forges { next } => {
+            w::Value::Forges(w::Forges::new(&w::CEILINGS, w::ForgesParts { next: *next }).expect(FITS))
+        }
+        d::Stored::Playground(row) => w::Value::Playground(forge::encode_playground(row)),
+        d::Stored::Kept(row) => w::Value::Kept(forge::encode_kept(row)),
         d::Stored::Landing(row) => w::Value::Landing(landing::encode(row)),
         d::Stored::Receipt { key, receipt } => w::Value::Receipt(landing::encode_receipt(key, receipt)),
         d::Stored::Application { token, until, outcome } => {
@@ -93,6 +100,10 @@ pub fn encode(value: &d::Stored) -> Box<[u8]> {
 pub fn decode(bytes: &[u8], bounds: &Bounds) -> Result<d::Stored, Undecodable> {
     let row = w::Row::decode(bounds.limits(), &mut Reader::new(bytes)).or(Err(Undecodable))?;
     Ok(match row.into_parts().value {
+        w::Value::Forge(row) => d::Stored::Forge(forge::decode_forge(*row)),
+        w::Value::Forges(row) => d::Stored::Forges { next: row.into_parts().next },
+        w::Value::Playground(row) => d::Stored::Playground(forge::decode_playground(row)),
+        w::Value::Kept(row) => d::Stored::Kept(forge::decode_kept(row)),
         w::Value::Landing(row) => d::Stored::Landing(landing::decode(row)),
         w::Value::Receipt(row) => landing::decode_receipt(row),
         w::Value::Application(value) => application::decode(value, bounds)?,
@@ -168,6 +179,8 @@ pub fn row(key: &[u8], value: &[u8], bounds: &Bounds) -> Result<d::Stored, Undec
 
 pub(crate) fn limits(forge: &d::Limits) -> Option<w::Limits> {
     Some(w::Limits {
+        // Organization and runner label text follow the connector's name bound.
+        setup_name_name: forge.name_bytes,
         landing_state_members: forge.landing_members,
         landing_member_gates: forge.gates,
         landing_row_asks: forge.landing_members,

@@ -24,7 +24,7 @@ fn key(bytes: &[u8]) {
 fn golden(bytes: &[u8], bounds: &Bounds) {
     record(bytes, bounds);
     // Value's goldens hold each family; prepend Row's version to reach its decoder.
-    let mut versioned = vec![0_u8, 10];
+    let mut versioned = vec![0_u8, 11];
     versioned.extend_from_slice(bytes);
     record(&versioned, bounds);
 }
@@ -54,6 +54,49 @@ fn end_act(rng: &mut Rng, bounds: &Bounds) {
     key(&bytes);
     key(&temper_codecs_world::mutated(rng, &bytes));
 }
+fn forge_rows(rng: &mut Rng, bounds: &Bounds) {
+    use forge::record as r;
+    let number = u16::try_from(rng.below(65_536)).expect("u16");
+    let project = u32::try_from(rng.below(4_294_967_296)).expect("u32");
+    let account = u32::try_from(rng.below(4_294_967_296)).expect("u32");
+    let row = forge::Forge {
+        number,
+        kind: if rng.below(2) == 0 { forge::Kind::Forgejo } else { forge::Kind::GitHub },
+        api: r::Address::Host { name: temper_codecs_world::drawn(rng, 255).into_boxed_slice(), port: number },
+        transport: r::Transport::Tls {
+            server_name: temper_codecs_world::drawn(rng, 255).into_boxed_slice(),
+            trust: None,
+        },
+        git: temper_codecs_world::drawn(rng, 64).into_boxed_slice(),
+        git_program: None,
+        web: None,
+        read_only: rng.below(2) == 0,
+        identity: r::Identity { number: account, login: Box::new([]), name: Box::new([]), email: Box::new([]) },
+        files: None,
+        setup: None,
+        first: None,
+        playground: rng.below(2) == 0,
+        removing: rng.below(2) == 0,
+    };
+    row_and_key(&forge::Stored::Forge(row), rng, bounds);
+    row_and_key(&forge::Stored::Forges { next: number }, rng, bounds);
+    let playground = forge::Playground {
+        state: if rng.below(2) == 0 { forge::PlaygroundState::Running } else { forge::PlaygroundState::Resetting },
+        forge: if rng.below(2) == 0 { None } else { Some(number) },
+        project: if rng.below(2) == 0 { None } else { Some(project) },
+        account: if rng.below(2) == 0 { None } else { Some(account) },
+    };
+    row_and_key(&forge::Stored::Playground(playground), rng, bounds);
+    let act = match rng.below(5) {
+        0 => forge::KeptAct::Cancel { project, task: rng.next_u64() },
+        1 => forge::KeptAct::RemoveProject { project },
+        2 => forge::KeptAct::RemoveAccount { account },
+        3 => forge::KeptAct::BoxRemove { forge: number },
+        _ => forge::KeptAct::RemoveForge { forge: number },
+    };
+    let row = forge::Stored::Kept(forge::Kept { key: [u8::try_from(rng.below(256)).expect("byte"); 16], act });
+    row_and_key(&row, rng, bounds);
+}
 #[test]
 fn store_decoders_never_panic_and_reencode_the_same() {
     let bounds = temper_protocol_store::bounds(&LIMITS, LIMITS.client.op_bytes).expect("fixture limits fit");
@@ -72,6 +115,7 @@ fn store_decoders_never_panic_and_reencode_the_same() {
         });
         row_and_key(&demo, &mut rng, &bounds);
         end_act(&mut rng, &bounds);
+        forge_rows(&mut rng, &bounds);
         let writer = forge::Stored::Writer(skein_forge_client::Writer {
             forge: u16::try_from(rng.below(65_536)).expect("u16"),
             author: rng.next_u64().max(1),

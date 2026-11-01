@@ -81,6 +81,15 @@ fn row(kind: RecordKind, number: u32) -> Stored {
             Stored::Binding { address: Box::new([u8::try_from(number).unwrap()]), subject: Box::new([]) }
         }
         RecordKind::Flight => Stored::Flight { task: n, entry: n },
+        RecordKind::Forge => {
+            let mut row = records::forge();
+            row.number = u16::try_from(number).unwrap();
+            Stored::Forge(row)
+        }
+        RecordKind::Kept => Stored::Kept(Kept {
+            key: [u8::try_from(number).unwrap(); 16],
+            act: KeptAct::Cancel { project: 5, task: n },
+        }),
         RecordKind::DemoAct => Stored::DemoAct(DemoAct {
             key: [u8::try_from(number).unwrap(); 16],
             act: DemoActKind::Close { project: 5, task: n },
@@ -114,7 +123,7 @@ fn row(kind: RecordKind, number: u32) -> Stored {
             effects_settled: true,
             releasing: true,
         }),
-        RecordKind::Client | RecordKind::Demo => panic!("no own table"),
+        RecordKind::Client | RecordKind::Demo | RecordKind::Forges | RecordKind::Playground => panic!("no own table"),
     }
 }
 fn application(token: u64, until: Wall) -> Stored {
@@ -145,6 +154,8 @@ fn owned_tables_fit_at_limit_replace_and_refuse_one_more() {
         (K::Binding, LIMITS.bindings),
         (K::Flight, LIMITS.entries),
         (K::DemoAct, demo_act_bound(&LIMITS).unwrap()),
+        (K::Forge, CLIENT.repositories),
+        (K::Kept, kept_bound(&LIMITS).unwrap()),
         (K::Writer, CLIENT.repositories),
         (K::Change, LIMITS.changes),
         (K::Issue, LIMITS.issues),

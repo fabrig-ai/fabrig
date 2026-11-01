@@ -795,10 +795,6 @@ pub enum CallPayload {
 
 /// The connector's durable records, wrapped by the root store.
 #[derive(Clone, PartialEq, Eq, Debug)]
-#[expect(
-    clippy::large_enum_variant,
-    reason = "durable rows move whole through the bounded store queue priced at startup"
-)]
 pub enum Stored {
     /// The connector part of a live named call.
     Call {
@@ -864,6 +860,12 @@ pub enum Stored {
         task: u64,
         entry: u64,
     },
+    Forge(crate::record::Forge),
+    Forges {
+        next: u16,
+    },
+    Playground(Playground),
+    Kept(Kept),
     Landing(LandingRow),
     Receipt {
         key: ReceiptKey,
@@ -914,6 +916,10 @@ pub enum Key {
     },
     Landing(u64),
     Receipt(ReceiptKey),
+    Forge(u16),
+    Forges,
+    Playground,
+    Kept([u8; 16]),
 }
 /// A completed phase of the connector's restart contract.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -1646,4 +1652,40 @@ pub enum DemoActKind {
 pub struct Unfinished {
     pub entry: u64,
     pub task: u64,
+}
+
+/// Playground state kept across starts (temper/docs/plan/playground-reset-r4/notes/contracts.md, 2).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct Playground {
+    pub state: PlaygroundState,
+    pub forge: Option<u16>,
+    pub project: Option<u32>,
+    pub account: Option<u32>,
+}
+/// The playground's durable phase.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum PlaygroundState {
+    Running,
+    Resetting,
+}
+/// An act retained until its saved answer (temper/docs/plan/playground-reset-r4/notes/contracts.md, 2).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct Kept {
+    pub key: [u8; 16],
+    pub act: KeptAct,
+}
+/// Removal and reset acts (contracts, section 2).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum KeptAct {
+    /// jig's deployment act `Cancel` (section 4): a removed forge's live change.
+    Cancel { project: u32, task: u64 },
+    /// jig's deployment act `RemoveProject`: the playground's project.
+    RemoveProject { project: u32 },
+    /// jig's deployment act `RemoveAccount`: the scripted account.
+    RemoveAccount { account: u32 },
+    /// The box's `remove FORGE` (section 3), until `removed FORGE`.
+    BoxRemove { forge: u16 },
+    /// The connector's own removal of a forge, the reset's second step,
+    /// answered once that forge's own kept acts are all answered.
+    RemoveForge { forge: u16 },
 }
