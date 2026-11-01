@@ -189,7 +189,7 @@ pub static PAGES: [Page; 53] = [
         name: "playground",
         kind: Kind::Concept,
         title: "The playground",
-        summary: "The playground is temper's demo: a repository on a fake forge and a scripted model, started with one call, so that a chat and its change run through real tasks with no account of yours.",
+        summary: "The playground is temper with nothing of yours: a repository on an in-memory forge and a scripted model, made when you choose it and removed when you leave it, so a chat runs through real tasks.",
         text: include_str!("../../../docs/help/playground.md"),
     },
     Page {
@@ -434,7 +434,7 @@ pub static PAGES: [Page; 53] = [
         name: "ctl-playground",
         kind: Kind::Reference,
         title: "temper ctl playground",
-        summary: "The playground: start the demo.",
+        summary: "The playground: start it, or reset it.",
         text: include_str!("../../../docs/help/reference/ctl-playground.md"),
     },
     Page {
