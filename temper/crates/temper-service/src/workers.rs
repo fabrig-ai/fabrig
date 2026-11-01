@@ -512,7 +512,7 @@ pub fn limits(settings: &crate::settings::Engine) -> Option<kit::Limits> {
         models: ceilings.bounds_models,
         workstreams: core.fleet.workstreams,
         accounts: core.accounts.accounts,
-        credentials: settings.limits.forge_component.forges,
+        credentials: core.accounts.credentials,
         facts: link.facts,
     };
     let limits = kit::Limits {
