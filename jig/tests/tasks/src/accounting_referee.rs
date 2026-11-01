@@ -280,6 +280,9 @@ impl Accounting {
         self.messages_and_holders(rows, requests)?;
         ended_party_indexes(rows, requests)?;
         for (key, old) in &self.before {
+            let erased_ended = matches!(old, Stored::Ended(_))
+                && !rows.contains_key(key)
+                && requests.iter().any(|request| matches!(request, Request::Erase { key: erased } if erased == key));
             if matches!(
                 old,
                 Stored::Ended(_)
@@ -289,6 +292,7 @@ impl Accounting {
                     | Stored::ClosedLedger(_)
                     | Stored::DecidedProposal(_)
             ) && rows.get(key) != Some(old)
+                && !erased_ended
             {
                 return Err("immutable accounting row changed");
             }

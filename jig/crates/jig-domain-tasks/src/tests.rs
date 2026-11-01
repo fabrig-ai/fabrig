@@ -24,6 +24,7 @@ pub(crate) fn charters() -> Box<[crate::CharterModels]> {
 }
 
 mod decision_reads;
+mod erase;
 mod hold_origin;
 mod kept;
 mod keys;
