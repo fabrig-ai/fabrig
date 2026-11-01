@@ -228,6 +228,7 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         Event::Names { task, project, resources } => names(domain, env, task, project, resources, out),
         Event::Unnamed { task } => unnamed(domain, task, out),
         Event::Adopt { project, resource, role } => adopt(domain, env, project, resource, role, out),
+        Event::Release { project } => release(domain, project, out),
         Event::DescribeTopic { token, topic } => {
             let mut resources = None;
             for spec in &domain.config.topics {
@@ -405,6 +406,18 @@ fn names(
 }
 
 fn unnamed(domain: &mut Domain, task: u64, out: &mut Queue<Request>) {
+    let mut subscriptions = Queue::uncapped();
+    for ((topic, subscriber), _) in &domain.subscriptions {
+        if *subscriber == task {
+            subscriptions.push(*topic);
+        }
+    }
+    for _ in 0..subscriptions.len() {
+        let topic = subscriptions.pop().expect("collected task subscription");
+        unsubscribe(domain, task, topic, out);
+    }
+    crate::outbox::release(domain, task, out);
+    domain.closing.remove(&task);
     if domain.delegate_outcomes.remove(&task).is_some() {
         out.push(Request::Erase { key: RecordKey::ProcedureDelegateOutcome(task) });
     }
@@ -417,6 +430,57 @@ fn unnamed(domain: &mut Domain, task: u64, out: &mut Queue<Request>) {
     if domain.results.remove(&task).is_some() {
         out.push(Request::Erase { key: RecordKey::Result(task) });
     }
+}
+
+/// Project release gathers task identities before erasing their project-bearing rows.
+fn release(domain: &mut Domain, project: u32, out: &mut Queue<Request>) {
+    let mut tasks = Map::uncapped();
+    for (task, record) in &domain.tasks {
+        let owner = match record {
+            Record::Task { project, .. } => *project,
+            Record::ApplicationObject { .. }
+            | Record::ApplicationAnswer { .. }
+            | Record::Proposal { .. }
+            | Record::Procedure(_)
+            | Record::ProcedureDelegateOutcome { .. }
+            | Record::Result { .. }
+            | Record::Adoption { .. }
+            | Record::Subscription { .. }
+            | Record::Pool { .. }
+            | Record::Outbox(_)
+            | Record::Made { .. } => unreachable!("task map holds task records"),
+        };
+        if owner == project {
+            tasks.insert(*task, ()).expect("connector-owned task identities fit");
+        }
+    }
+    for (task, state) in &domain.procedures {
+        if state.project == project {
+            tasks.insert(*task, ()).expect("connector-owned task identities fit");
+        }
+    }
+    for (_, (owner, task, _)) in &domain.outbox.proposals {
+        if *owner == project {
+            tasks.insert(*task, ()).expect("connector-owned task identities fit");
+        }
+    }
+
+    let mut adoptions = Queue::uncapped();
+    for ((owner, path), _) in &domain.adoptions {
+        if *owner == project {
+            adoptions.push(path.clone());
+        }
+    }
+    for _ in 0..adoptions.len() {
+        let path = adoptions.pop().expect("collected project adoption");
+        domain.adoptions.remove(&(project, path.clone()));
+        out.push(Request::Erase { key: RecordKey::Adoption { project, path } });
+    }
+
+    for (task, ()) in &tasks {
+        unnamed(domain, *task, out);
+    }
+    out.push(Request::Released { project });
 }
 
 fn adopt(
@@ -491,6 +555,7 @@ fn unsubscribe(domain: &mut Domain, task: u64, topic: u16, out: &mut Queue<Reque
     }
 }
 
+/// Restores this test's rows; no test store outlives a test, so orphaned task rows need no restart sweep.
 fn restore(domain: &mut Domain, record: Record, out: &mut Queue<Request>) {
     match record {
         Record::ApplicationObject { object, now } => domain.application.restore_object(object, now),

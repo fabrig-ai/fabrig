@@ -163,6 +163,7 @@ pub(crate) fn read(
             | connector::Request::ApplicationAgain { .. }
             | connector::Request::ApplicationRelease { .. }
             | connector::Request::Resource { .. }
+            | connector::Request::Released { .. }
             | connector::Request::Closed { .. }
             | connector::Request::Verdict { .. }
             | connector::Request::Step { .. }
