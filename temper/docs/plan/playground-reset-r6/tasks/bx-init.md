@@ -115,3 +115,17 @@ Acceptance:
 - Whether the fakes' git program is set, and how.
 - Under `## Left`: every process or qa test you saw reading init's forges or the fake
   backends' forge 2 or 4, with file and line.
+
+## Answers
+
+### 2026-11-01: Resume bx-init after bx-doc publishes its T4 reader and Deployment.ports (recommended), or authorize finishing that prerequisite here? Current work is committed and pushed. (playground-reset-r6/bx-init-1, foreman playground-reset-r6/bx-init/foreman-1)
+
+Resume bx-init after bx-doc publishes its T4 reader, optional setup check and Deployment.ports.
+
+The spec declares `needs = ["bx-doc"]` and limits ownership to “the files in `files`.”
+The missing reader and deployment changes belong to bx-doc; completing them here is outside bx-init’s scope.
+Acceptance requires “Every test of the default profile in `temper-init`, `temper-fake` and `temper` passes.”
+The run explicitly reports “Acceptance is not complete,” so it cannot be accepted as done.
+The next run merges completed bx-doc work into the preserved branch, resolves overlaps and completes the required checks.
+
+The filesystem is read-only, so I could not write `report.md`; this is the report.
