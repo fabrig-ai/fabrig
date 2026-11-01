@@ -18,6 +18,7 @@ files = [
   "temper/crates/temper-service/src/system.rs",
   "temper/crates/temper-service/src/startup/checks.rs",
   "temper/crates/temper-service/src/tests/seed.rs",
+  "temper/crates/temper-engine-domain-forge/src/tests/restore_fit.rs",
 ]
 effort = "high"
 minutes = 70
@@ -164,3 +165,16 @@ Pre-approved options:
 fab's sections, and `## Interfaces`: `Domain::new`'s signature,
 `Config.seed`, `settings::Engine::seed`, `startup::seed::seed`, and
 where the first start's saves go (the first option or not).
+
+## Answers
+
+2026-11-01. May fr-seed change the `Forge` and `Writer` rows of
+`temper-engine-domain-forge/src/tests/restore_fit.rs`'s bound table from
+`CLIENT.repositories` to `LIMITS.forges`? Yes (option A). The table
+states the capacities `Domain::new` gives the owned tables, and this task
+owns those capacities (`forge_records` and `writers` to `l.forges`), so
+their expectations follow them. The file is added to the header; in it,
+change those two rows and the `Domain::new` call's new argument, nothing
+else. If the fixture's `LIMITS.forges` makes another row of the test
+unreachable (a constructor writer outside the restored keys, say), fix
+the fixture's rows to fit the new bound and say so in the report.
