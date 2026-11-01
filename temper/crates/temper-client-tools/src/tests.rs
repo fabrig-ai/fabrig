@@ -22,3 +22,5 @@ mod words;
 
 mod landing;
 mod printed;
+
+mod playground_reset;

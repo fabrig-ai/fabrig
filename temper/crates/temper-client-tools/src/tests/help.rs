@@ -87,7 +87,7 @@ const USAGES: &[&[u8]] = &[
     b"account declare PROVIDER ADAPTER NAME [--account ACCOUNT] --key KEY\n",
     b"account verify ACCOUNT [--source sign_in|key|program] [--key KEY]\n",
     b"forge list [--since DIGEST] [--until CONDITION] [--timeout DURATION]\n",
-    b"forge setup FORGE [--org ORG] [--repository REPOSITORY] [--project PROJECT] [--playground] [--key KEY]\n",
+    b"forge setup [FORGE] [--org ORG] [--repository REPOSITORY] [--project PROJECT] [--playground] [--key KEY]\n",
     b"playground start [--key KEY]\n",
     b"forge connect FORGE github-app APP FILE --key KEY\nforge connect FORGE github --key KEY\nforge connect FORGE forgejo FILE --key KEY\nforge connect FORGE forgejo-admin FILE [--first ORG/REPOSITORY] [--project PROJECT] [--label LABEL] --key KEY\n",
     b"forge install FORGE [--key KEY]\n",
@@ -110,6 +110,8 @@ const USAGES: &[&[u8]] = &[
     b"hold lift HOLD --rev REV [--with-tasks] [--key KEY]\n",
     b"landing show TASK [--project PROJECT]\n",
     b"landing list --project PROJECT [--ended]\n",
+    b"playground reset [--key KEY]\n",
+    b"forge remove FORGE [--key KEY]\n",
 ];
 #[test]
 fn a_tools_usage_reads_as_the_design_writes_it() {
