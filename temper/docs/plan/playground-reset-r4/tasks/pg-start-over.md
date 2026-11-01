@@ -173,3 +173,38 @@ only:
   changed, is a question.
 
 `connect::personal` for Model and Ready stays as pre-approved.
+
+2026-11-01. Four `tests/connect_forge.rs` tests lose their choice cards
+once a slot row draws a "not finished" card, and an empty store draws
+no GitHub or Forgejo choice: replace the welcome's choices here, or
+elsewhere? Neither: the rule above is narrowed instead, and the choices
+by kind are a new task, `pg-connect-kinds`, which does not block this
+one. A row on which no set up has started is no set up cut short
+(draft 6.4): it is a choice, and the seeded forges (`fr-seed`, and
+`temper box --fake-backends`' fake GitHub and Forgejo, `bx-init`) are
+such rows. So:
+
+- `unfinished` is the first row that is not `playground`, not
+  `finished`, not `live`, and not *untouched*: a row is untouched when
+  its connection is `NotSetUp`, or when `connect::offered(row)` holds
+  (the test `choices` uses, whatever the place: a GitHub
+  `NotConnected`/`Stopped`, an admin Forgejo disconnected, an owned
+  `NotSetUp` offered). A connect that fails returns its forge to
+  `NotConnected` (`temper-engine-domain-forge/src/connect.rs`), so it
+  is offered again as its own choice, which goes on with it. Add the
+  domain case to `an_unfinished_forge_is_one_with_no_live_step`: a
+  GitHub `NotConnected` and an owned `NotSetUp` (offered and not
+  offered): not unfinished.
+- The four failing tests then pass as they are; change none of them.
+  Return `a_forge_under_way_is_no_choice_in_the_welcome`'s fixture to
+  the base's shared `rows`: it passes under the narrowed rule, and the
+  earlier answer's fixture-only change is withdrawn.
+- `starting_over_then_removed_draws_the_choices_again`: its rows hold,
+  beside the removed row, a GitHub `NotConnected` slot row; after the
+  removal assert the GitHub choice card ("Connect GitHub") is drawn and
+  the not finished card is gone. The choices of a store with no row at
+  all (GitHub and the owned Forgejo by kind, `Forges.owned`) are
+  `pg-connect-kinds`', not this task's.
+- Domain and view `forge/connect.rs` change only for `live`,
+  `unfinished`, the card and its act; `choices` and `choose` stay as
+  they are.
