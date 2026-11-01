@@ -17,6 +17,9 @@ final: tasks/pg-demo-out-wire.md
 final: tasks/pg-config.md
 final: tasks/pg-start.md
 final: tasks/pg-reset.md
+final: tasks/pg-reset-crash.md
+final: tasks/pg-demo-out-engine.md
+final: tasks/pg-demo-out-store.md
 
 ## Parts
 
