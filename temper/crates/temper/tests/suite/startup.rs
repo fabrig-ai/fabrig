@@ -2190,35 +2190,7 @@ fn a_box_drops_a_started_record_without_settings() {
 
 /// An init document with T4's machine templates and no configured forges.
 pub(super) fn initialized_t4_box(scratch: &support::Scratch) -> serde_json::Value {
-    let mut document = initialized_box(scratch);
-    let application = document["application"].as_object_mut().expect("application");
-    let entries = application.remove("setup").expect("setup");
-    let body = |forge| {
-        let mut entry = entries
-            .as_array()
-            .expect("setup list")
-            .iter()
-            .find(|entry| entry["forge"] == forge)
-            .expect("init forge")
-            .clone();
-        for member in ["forge", "directory", "start"] {
-            entry.as_object_mut().expect("entry").remove(member);
-        }
-        entry
-    };
-    application.insert(
-        "machine".into(),
-        serde_json::json!({
-            "owned":body(3), "github":{"api":null,"transport":null,"git":null,"web":null}, "git_program":null
-        }),
-    );
-    application["demo"]["forge"] = body(1);
-    application["demo"]["project"] = serde_json::json!({"name":"Playground","policy":1});
-    for member in ["forges", "identities"] {
-        application.remove(member);
-    }
-    support::write_private(&scratch.path().join("temper.json"), &serde_json::to_vec(&document).expect("T4 JSON"));
-    document
+    initialized_box(scratch)
 }
 #[test]
 fn a_box_on_a_t4_document_holds_the_machines_ports_and_reaches_serves_link() {

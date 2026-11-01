@@ -327,7 +327,9 @@ fn generated_configuration_passes_the_same_checks_as_serve() {
     for member in ["setup", "forges", "identities"] {
         assert!(document["application"].get(member).is_none());
     }
-    let ports: [std::net::SocketAddr; 3] = [
+    let ports: [std::net::SocketAddr; 5] = [
+        "/application/clients/listener/socket",
+        "/application/webhooks/listener/socket",
         "/application/machine/owned/mode/owned/listen/socket",
         "/application/demo/forge/mode/fake/listen/socket",
         "/application/demo/llm/listen/socket",
@@ -340,9 +342,9 @@ fn generated_configuration_passes_the_same_checks_as_serve() {
     assert_eq!(demo.provider(), 3);
     assert!(demo.forge().is_none());
     assert!(demo.project().is_none());
-    assert_eq!(demo.fake().listen, ports[1]);
+    assert_eq!(demo.fake().listen, ports[3]);
     assert_eq!(demo.fake().git.as_ref(), path(&dirs.data).join("demo/bin/git").as_os_str().as_bytes());
-    assert_eq!(demo.llm().listen(), ports[2]);
+    assert_eq!(demo.llm().listen(), ports[4]);
     assert_eq!(document["application"]["demo"]["project"], serde_json::json!({"name": "Playground", "policy": 1}));
     crate::close(written.listeners.into_iter().map(|(fd, _)| fd).collect());
     fs::remove_dir_all(root).expect("cleanup");
