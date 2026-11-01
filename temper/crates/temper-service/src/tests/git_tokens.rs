@@ -275,11 +275,14 @@ fn a_github_repository_carries_its_owners_entrys_account() {
         assert_eq!(*items.repositories().get(0).unwrap().account(), expected);
     }
     let assignment = fixtures::assignment_with(fixtures::repository(7, b"owner", b"repo"));
-    let settings = fixtures::engine();
-    let items =
-        crate::translate::items(&assignment, &settings.forges, &engine.values.tokens, &engine.workers.encoding.limits)
-            .unwrap()
-            .unwrap();
+    let items = crate::translate::items(
+        &assignment,
+        &fixtures::forges(),
+        &engine.values.tokens,
+        &engine.workers.encoding.limits,
+    )
+    .unwrap()
+    .unwrap();
     assert_eq!(*items.repositories().get(0).unwrap().account(), None);
 }
 #[test]

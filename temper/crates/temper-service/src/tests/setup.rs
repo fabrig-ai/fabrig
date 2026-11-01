@@ -53,7 +53,7 @@ fn github_config(
     life: Duration,
     public: Option<crate::startup::application::Origin>,
 ) -> crate::settings::Engine {
-    let mut config = fixtures::engine();
+    let mut config = fixtures::document_engine();
     config.clients.public = public;
     config.forges[0].kind = crate::settings::Kind::GitHub;
     config.identities[0].token = Secret::new(Box::new([]));
@@ -210,7 +210,7 @@ fn an_install_can_evict_a_manifests_state_while_its_page_lives() {
     assert!(service.setup_page(1, &state, Time::ZERO).is_some());
     // The slug above only made an Install-purpose state; no App remains in this host-state fixture.
     service.engine.as_mut().expect("engine").forge_records.rows = crate::forge::records::Loader::new(
-        &fixtures::engine().limits,
+        &fixtures::document_engine().limits,
         service.engine.as_ref().expect("engine").workers.forges.as_slice(),
     )
     .rows;
@@ -451,9 +451,11 @@ fn tls_forges() -> (crate::settings::Engine, List<crate::ForgeRuntime>) {
         412,
     )
     .unwrap();
-    let mut config = fixtures::engine();
-    config.forges =
-        Box::new([fixtures::forges().into_iter().next().unwrap(), fixtures::forges().into_iter().next().unwrap()]);
+    let mut config = fixtures::document_engine();
+    config.forges = Box::new([
+        fixtures::document_forges().into_iter().next().unwrap(),
+        fixtures::document_forges().into_iter().next().unwrap(),
+    ]);
     let mut runtime = List::with_capacity(2);
     for (index, (number, name, address)) in
         [(1, "first.test", [192, 0, 2, 7]), (2, "second.test", [192, 0, 2, 8])].into_iter().enumerate()
@@ -610,7 +612,7 @@ fn every_host_unusable_arm_has_an_operator_path() {
 #[test]
 fn invalid_host_limits_stop_after_load_and_setup_overrides_are_checked() {
     let mut service = service(8, Duration::from_secs(3600));
-    let mut config = fixtures::engine();
+    let mut config = fixtures::document_engine();
     config.forges[0].kind = crate::settings::Kind::GitHub;
     config.identities[0].token = Secret::new(Box::new([]));
     config.identities[0].login = Box::new([]);
@@ -619,7 +621,7 @@ fn invalid_host_limits_stop_after_load_and_setup_overrides_are_checked() {
     config.forges[0].api_token = None;
     config.limits.forge_component.inner = 13;
     config.limits.picker.page = 1;
-    let mut endpoints = crate::forge::prepare(&fixtures::engine(), fixtures::forge_runtime()).unwrap();
+    let mut endpoints = crate::forge::prepare(&fixtures::document_engine(), fixtures::forge_runtime()).unwrap();
     service.engine.as_mut().expect("engine").setup =
         prepare(&config, &mut endpoints, &fixtures::seeds().crypto, false).unwrap();
     advance(service.engine.as_mut().expect("engine"));
@@ -654,7 +656,8 @@ fn stopped_connection_text_has_a_fixed_bound() {
     }
 }
 fn configured(runs: u32, states: u32, tls: bool) -> (crate::settings::Engine, List<crate::ForgeRuntime>) {
-    let (mut config, runtime) = if tls { tls_forges() } else { (fixtures::engine(), fixtures::forge_runtime()) };
+    let (mut config, runtime) =
+        if tls { tls_forges() } else { (fixtures::document_engine(), fixtures::forge_runtime()) };
     config.forges[0].kind = crate::settings::Kind::GitHub;
     config.identities[0].token = Secret::new(Box::new([]));
     config.identities[0].login = Box::new([]);
@@ -678,11 +681,11 @@ mod adoption_tests;
 
 #[test]
 fn an_unresolved_forge_keeps_its_setup_entry_but_restored_and_asked_connects_never_dial() {
-    let mut config = fixtures::engine();
+    let mut config = fixtures::document_engine();
     config.forges[0].kind = crate::settings::Kind::GitHub;
     config.forges[0].api = jig_protocol_config::Address::Host { name: b"forge.example".as_slice().into(), port: 443 };
     config.forges[0].api_token = None;
-    let mut other = fixtures::forges().into_iter().next().unwrap();
+    let mut other = fixtures::document_forges().into_iter().next().unwrap();
     other.number = 2;
     let first = config.forges.into_iter().next().unwrap();
     config.forges = Box::new([first, other]);
@@ -757,7 +760,7 @@ fn an_unresolved_forge_keeps_its_setup_entry_but_restored_and_asked_connects_nev
 mod git_tokens;
 
 pub(crate) fn local_config(records: bool, fake: bool) -> crate::settings::Engine {
-    let mut config = fixtures::engine();
+    let mut config = fixtures::document_engine();
     config.forges[0].api = jig_protocol_config::Address::Addr(skein_io::Addr::Ip(([127, 0, 0, 1], 9).into()));
     config.setup = Box::new([fixtures::owned_setup(1)]);
     config.setup[0].entry.asked = false;
@@ -1062,7 +1065,7 @@ fn an_old_form_owned_start_makes_no_reconcile() {
 }
 fn local_with_other(config: crate::settings::Engine, store: crate::store::Store) -> crate::Service {
     let mut config = config;
-    let mut other = fixtures::forges().into_iter().next().unwrap();
+    let mut other = fixtures::document_forges().into_iter().next().unwrap();
     other.number = 2;
     other.kind = crate::settings::Kind::GitHub;
     other.api_token = None;

@@ -1844,7 +1844,7 @@ fn an_asked_file_present_past_its_bound_still_refuses_startup() {
 
 #[test]
 fn forge_configuration_retains_only_git_bases_within_the_pull_address_bound() {
-    let mut settings = fixtures::engine();
+    let mut settings = fixtures::document_engine();
     let base = [b'g'; 2049];
     for length in [2048, 2049] {
         settings.forges[0].git = base.get(..length).unwrap().into();
@@ -1860,7 +1860,7 @@ fn forge_configuration_retains_only_git_bases_within_the_pull_address_bound() {
 #[test]
 fn forge_configuration_keeps_kind_mode_and_asked_start() {
     use temper_engine_domain_forge::{Configured, Kind, Mode};
-    let mut settings = fixtures::engine();
+    let mut settings = fixtures::document_engine();
     for (source, kind) in [(settings::Kind::Forgejo, Kind::Forgejo), (settings::Kind::GitHub, Kind::GitHub)] {
         settings.forges[0].kind = source;
         assert_eq!(
@@ -2129,7 +2129,7 @@ fn string_managed_starts_disconnected_without_a_setup_run() {
 #[test]
 fn owned_startup_details_keep_the_runner_pin_and_directory_path_and_managed_has_none() {
     use temper_forge_setup::setup::{Mode, Runner};
-    let mut settings = fixtures::engine();
+    let mut settings = fixtures::document_engine();
     settings.setup = Box::new([fixtures::owned_setup(1)]);
     settings.setup[0].entry.directory = b"/data/another-forge".as_slice().into();
     let Mode::Owned(owned) = &mut settings.setup[0].entry.mode else { panic!("owned fixture") };

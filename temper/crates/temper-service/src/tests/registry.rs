@@ -114,7 +114,7 @@ fn a_registered_record_needing_io_is_held_until_the_host_answers() {
 }
 #[test]
 fn a_registered_github_record_has_its_tokens_entry_and_identity_room() {
-    let mut service = fixtures::started();
+    let mut service = fixtures::with_forges(&[fixtures::forge_record(1)]);
     let engine = service.engine.as_mut().unwrap();
     register(engine, record(3, Kind::GitHub));
     assert!(engine.values.tokens.contains(3));
@@ -251,7 +251,21 @@ fn records_restored_before_the_load_connect_a_forgejo_record_from_its_records() 
 }
 #[test]
 fn the_document_forges_seed_the_registry_unchanged() {
-    let mut service = fixtures::started_with_two_forges();
+    let mut settings = fixtures::document_engine();
+    let mut second = fixtures::document_forges().into_iter().next().unwrap();
+    second.number = 2;
+    settings.forges = Box::new([settings.forges.into_iter().next().unwrap(), second]);
+    fixtures::fill_files(&mut settings);
+    let mut runtime = fixtures::forge_runtime();
+    let mut second = fixtures::forge_runtime().into_boxed().into_iter().next().unwrap();
+    second.number = 2;
+    runtime = {
+        let mut all = skein_lib::List::with_capacity(2);
+        all.push(runtime.into_boxed().into_iter().next().unwrap()).unwrap();
+        all.push(second).unwrap();
+        all
+    };
+    let mut service = crate::Service::engine(settings, &fixtures::seeds(), None, runtime).unwrap();
     let engine = service.engine.as_mut().unwrap();
     assert_eq!(engine.workers.forges.len(), 2);
     for (index, number) in [(0, 1), (1, 2)] {
