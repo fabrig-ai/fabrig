@@ -613,10 +613,10 @@ fn deliver_role(root: &mut crate::Domain, me: skein_lib::Token, role: Option<c::
 
 #[test]
 fn a_resetting_read_is_independent_of_document_order() {
-    for ended_first in [true, false] {
+    for resetting_first in [true, false] {
         let mut root = crate::unlinked(&f::limits(), f::SEED);
         let (me, account) = f::start_accounts(&mut root, List::with_capacity(0));
-        if ended_first {
+        if resetting_first {
             assert!(deliver_demo_read(&mut root, page_with_state(w::PlaygroundState::Resetting)).is_empty());
         }
         let mut out = deliver_role(&mut root, me, Some(c::HeldRole::Owner));
@@ -624,13 +624,13 @@ fn a_resetting_read_is_independent_of_document_order() {
         let forges = family_watch(&out);
         forge_rows(&mut root, forges, false);
         deliver_accounts(&mut root, account, accounts(Some(PROVIDER), true, false));
-        if !ended_first {
+        if !resetting_first {
             assert!(deliver_demo_read(&mut root, page_with_state(w::PlaygroundState::Resetting)).is_empty());
         }
         assert!(root.forge().leaving());
         assert_eq!(root.forge().demo_provider(), Some(PROVIDER));
         assert_eq!(root.forge().demo().unwrap().state, demo::DemoState::Resetting);
-        assert!(root.demo().is_none());
+        assert_eq!(root.demo().unwrap().state, demo::DemoState::Resetting);
         assert_eq!(root.pages().project(), Some(f::PROJECT));
         assert_eq!(crate::pages::welcome::model_usable(&root), Some(false), "stale demo account is excluded");
         for act in [Act::Playground, Act::RetryDemo] {
@@ -718,6 +718,7 @@ fn set_up_temper_sends_one_end_and_leaves_until_its_answer() {
     let mut out = act(&mut root, Act::LeavePlayground);
     let request = root.forge().ending().unwrap().request;
     assert!(root.forge().leaving());
+    assert_eq!(root.demo().unwrap().project, f::PROJECT);
     assert!(!root.forge().playground_running());
     assert!(act(&mut root, Act::LeavePlayground).is_empty());
     // The public action retains one keyed deployment request through navigation.
@@ -783,6 +784,7 @@ fn a_resetting_read_reads_again_every_two_seconds_then_opens_the_forge_step() {
     use skein_lib::{Duration, Time};
     let (mut root, _, _, _) =
         ending_root_with_page(Some(c::HeldRole::Owner), page_with_state(w::PlaygroundState::Resetting));
+    assert_eq!(root.demo().unwrap().state, demo::DemoState::Resetting);
     let mut env = f::env(&f::limits());
     for second in [2, 4] {
         assert_eq!(

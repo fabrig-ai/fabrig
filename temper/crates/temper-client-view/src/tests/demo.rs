@@ -471,6 +471,7 @@ fn leaving_replaces_the_line_with_its_status() {
         assert!(root.forge().leaving());
         let view = f::page_view(&root);
         assert!(f::find(view.tree(), Role::Status, "Leaving the playground…".as_bytes()).is_some());
+        assert!(f::find(view.tree(), Role::Heading { level: 1 }, b"What shall we change?").is_some());
         assert!(f::find(view.tree(), Role::Link, b"set up temper").is_none());
         assert!(f::find(view.tree(), Role::Region, b"Setup").is_none());
     }

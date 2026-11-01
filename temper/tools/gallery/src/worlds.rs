@@ -97,7 +97,7 @@ fn frame(w: World, connecting: bool) -> c::Me {
         let mut hello = member.clone();
         hello.project = 2;
         hello.name = doc("hello");
-        projects.push(member.clone()).expect("retired playground");
+        projects.push(member.clone()).expect("playground project");
         projects.push(hello).expect("new project");
         me.projects = projects;
     }

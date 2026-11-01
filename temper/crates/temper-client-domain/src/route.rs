@@ -403,7 +403,7 @@ fn demo_facts(root: &mut Domain) {
     crate::pages::project_changed(&mut root.pages, &root.client);
 }
 
-/// Reconcile demo lifecycle after the shared client's account and forge tells.
+/// Poll the playground reset and reconcile its project selection.
 pub(crate) fn demo_progress(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     let mut child = Queue::uncapped();
     forge::demo::poll(&mut root.forge, env.now, &mut child);

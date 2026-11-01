@@ -74,7 +74,7 @@ impl Domain {
     }
     #[must_use]
     pub fn demo(&self) -> Option<&forge::Demo> {
-        if !self.forge.demo_running() || self.forge.leaving() {
+        if !self.forge.demo_running() && !self.forge.leaving() {
             return None;
         }
         self.forge.demo()

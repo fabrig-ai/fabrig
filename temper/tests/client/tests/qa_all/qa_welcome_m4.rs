@@ -14,9 +14,8 @@ use temper_engine_domain_forge as forge;
 
 // client/forge.md 5.4: fetching, preparing, starting, connecting, making/adopting.
 const SETUP_STEPS: usize = 5;
-// The owned forge and its restored writer in the public harness fixtures.
+// The owned forge in the public harness fixtures.
 const OWNED_FORGE: u16 = 1;
-const FORGE_WRITER: u64 = 1;
 
 fn page(front: &mut Joint, root: &mut Root, address: Address) -> View {
     harness::event(front, root, Temper::went(address));

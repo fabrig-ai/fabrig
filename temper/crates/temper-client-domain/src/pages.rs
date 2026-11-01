@@ -902,6 +902,7 @@ fn me_changed(pages: &mut Pages, client: &Client, out: &mut Queue<Request>) {
     project_changed(pages, client);
 }
 
+#[expect(clippy::manual_map, reason = "step code reads the selected project without closures")]
 pub(crate) fn project_changed(pages: &mut Pages, client: &Client) {
     if let Some(me) = pages.me(client)
         && !contains(me, pages.project)
