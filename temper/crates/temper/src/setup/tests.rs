@@ -147,3 +147,57 @@ fn a_refused_group_file_is_named() {
     assert!(why.contains("readable by others or reached through a link"), "{why}");
     fs::remove_dir_all(root).expect("scratch removed");
 }
+
+fn playground_file(root: &std::path::Path, number: u16, playground: bool) {
+    let groups = root.join("data/box/groups");
+    fs::create_dir_all(&groups).expect("groups directory");
+    let path = groups.join(number.to_string());
+    let mut setup = document()["application"]["setup"][0].clone();
+    setup["forge"] = number.into();
+    fs::write(
+        &path,
+        serde_json::to_vec(&serde_json::json!({"setup":setup,"playground":playground})).expect("group JSON"),
+    )
+    .expect("group file");
+    fs::set_permissions(path, fs::Permissions::from_mode(0o600)).expect("private group file");
+}
+
+#[test]
+fn the_playground_forge_is_its_group_files_number() {
+    let root = crate::directories::tests::scratch("playground-forge");
+    let directories = crate::directories::tests::given(&root);
+    fs::write(directories.document(), serde_json::to_vec(&document()).expect("document JSON")).expect("document");
+    playground_file(&root, 5, true);
+    playground_file(&root, 12, false);
+    assert_eq!(playground_forge(&directories).expect("playground forge"), Some(5));
+    playground_file(&root, 9, true);
+    assert_eq!(playground_forge(&directories).expect("highest playground forge"), Some(9));
+    fs::remove_dir_all(root).expect("scratch removed");
+}
+
+#[test]
+fn no_playground_file_is_none() {
+    let root = crate::directories::tests::scratch("no-playground-forge");
+    let directories = crate::directories::tests::given(&root);
+    assert_eq!(playground_forge(&directories).expect("absent group directory"), None);
+    assert!(!root.join("data").exists(), "lookup creates no files");
+    fs::write(directories.document(), serde_json::to_vec(&document()).expect("document JSON")).expect("document");
+    fs::create_dir_all(root.join("data/box/groups")).expect("empty group directory");
+    assert_eq!(playground_forge(&directories).expect("empty group directory"), None);
+    playground_file(&root, 3, false);
+    assert_eq!(playground_forge(&directories).expect("no playground file"), None);
+    fs::remove_dir_all(root).expect("scratch removed");
+}
+
+#[test]
+fn a_refused_playground_group_file_is_named() {
+    let root = crate::directories::tests::scratch("playground-group-refused");
+    let directories = crate::directories::tests::given(&root);
+    fs::write(directories.document(), serde_json::to_vec(&document()).expect("document JSON")).expect("document");
+    playground_file(&root, 5, true);
+    let path = root.join("data/box/groups/5");
+    fs::write(&path, b"invalid JSON").expect("invalid group file");
+    let why = playground_forge(&directories).expect_err("invalid playground file");
+    assert!(why.starts_with(&format!("{}: ", path.display())), "{why}");
+    fs::remove_dir_all(root).expect("scratch removed");
+}

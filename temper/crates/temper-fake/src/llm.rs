@@ -28,6 +28,20 @@ pub struct Document {
     rules: api::Rules,
 }
 impl Document {
+    /// Gives forge 1's resource tags the playground's runtime forge number
+    /// (temper/docs/design/protocol/setup.md, 8.4).
+    pub fn for_forge(mut self, forge: u16) -> Result<Document, Refusal> {
+        if forge == 1 {
+            return Ok(self);
+        }
+        for script in self.scripts.cued.iter_mut().chain(self.scripts.asked.iter_mut()) {
+            turns_for_forge(&mut script.turns, forge);
+        }
+        turns_for_forge(&mut self.scripts.otherwise, forge);
+        check_scripts(&self.scripts, &Path::root().member(b"otherwise"))?;
+        check_inputs(&self.scripts, &self.rules, &Path::root().member(b"otherwise"))?;
+        Ok(self)
+    }
     pub fn decode(bytes: &[u8]) -> Result<Self, Refusal> {
         let d = read::document(bytes)?;
         let p = Path::root();
@@ -122,6 +136,60 @@ impl Document {
         domain::Domain::played_by_input(&LIMITS, seed, self.scripts.clone(), empty_menu(), self.rules.clone())
             .expect("checked scripts and rules")
     }
+}
+fn turns_for_forge(turns: &mut [api::Turn], forge: u16) {
+    use skein_json::writer::{Encoder, Limits};
+    for turn in turns {
+        for line in &mut turn.lines {
+            let api::Line::Call { arguments, .. } = line else { continue };
+            let document = read::document(arguments).expect("checked call arguments");
+            let limits = Limits { depth: 32, length: crate::SCRIPT_BYTES };
+            let mut measure = Encoder::measure(&limits);
+            if !arguments_for_forge(&mut measure, &document, forge) {
+                continue;
+            }
+            let size = measure.measured().expect("one call fits the script bound");
+            let mut write = Encoder::write(size, &limits);
+            arguments_for_forge(&mut write, &document, forge);
+            *arguments = write.finish();
+        }
+    }
+}
+fn arguments_for_forge(json: &mut skein_json::writer::Encoder, document: &Json, forge: u16) -> bool {
+    use skein_json::document::Kind;
+    let mut resource = false;
+    let mut changed = false;
+    for at in 0..document.len() {
+        let record = document.token(at).expect("retained record");
+        let text = document.text(record).expect("checked text range");
+        let tag = if resource && record.kind == Kind::Number {
+            jig_protocol_config::read::integer(document, at, u64::MAX).ok()
+        } else {
+            None
+        };
+        if let Some(tag) = tag
+            && tag >> 32_u32 == 1
+        {
+            json.unsigned((u64::from(forge) << 32_u32) | (tag & 0xffff_ffff));
+            changed = true;
+        } else {
+            match record.kind {
+                Kind::ObjectStart => json.object_start(),
+                Kind::ObjectEnd => json.object_end(),
+                Kind::ArrayStart => json.array_start(),
+                Kind::ArrayEnd => json.array_end(),
+                Kind::Key => json.key(text),
+                Kind::String => json.string(text),
+                Kind::Number => json.number(text),
+                Kind::True => json.boolean(true),
+                Kind::False => json.boolean(false),
+                Kind::Null => json.null(),
+                Kind::Long => unreachable!("checked arguments retain every string"),
+            }
+        }
+        resource = record.kind == Kind::Key && text == b"resource";
+    }
+    changed
 }
 /// `OpenAI`'s public-route configuration, accepting the primary and added keys.
 /// Typed wire codecs are constructed by the peer factory; the document's advertised
