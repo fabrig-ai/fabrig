@@ -158,6 +158,11 @@ fn github_one_click_and_a_key_reach_a_first_chat_on_the_fake_box() {
 }
 
 #[test]
+fn github_goes_on_after_a_box_restart_to_its_installation_and_a_first_chat() {
+    github::go_on_after_a_restart();
+}
+
+#[test]
 fn githubs_own_app_and_a_key_reach_a_first_chat_on_the_fake_box() {
     github::own_app();
 }
