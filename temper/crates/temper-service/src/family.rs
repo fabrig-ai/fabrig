@@ -277,7 +277,7 @@ pub fn to_root(
                                     None => w::DemoState::NotStarted,
                                 },
                                 project: demo.project,
-                                forge: demo.forge,
+                                forge: demo.forge.unwrap_or(0),
                                 provider: demo.provider,
                                 owner: demo.owner.clone(),
                                 name: demo.name.clone(),

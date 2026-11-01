@@ -295,7 +295,7 @@ fn the_template_shaped_demo_reads_into_its_public_fields() {
     let (members, problems) = application(&fixtures::demo_application(), &fixtures::engine().jig);
     assert_eq!(&*lines(&problems), b"");
     let demo = members.unwrap().demo.unwrap();
-    assert_eq!((demo.project, demo.forge, demo.provider), (1, 1, 3));
+    assert_eq!((demo.project, demo.forge, demo.provider), (1, Some(1), 3));
     assert_eq!((demo.owner.as_ref(), demo.name.as_ref()), (b"demo".as_slice(), b"widget".as_slice()));
     assert_eq!(
         demo.cues.as_ref(),

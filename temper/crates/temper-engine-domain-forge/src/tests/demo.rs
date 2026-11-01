@@ -160,6 +160,7 @@ fn configured(under_box: bool) -> Domain {
     }
     d.connection_limits(3, 1);
     d.configure_demo(Some(DemoConfig {
+        forge: None,
         provider: 1,
         adoption: fixtures::adoption(),
         deadline: Duration::from_secs(10),

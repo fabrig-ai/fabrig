@@ -322,6 +322,8 @@ pub enum StartFailure {
 /// The demo's fake LLM, forge and project (protocol/setup.md, 8.4).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct DemoConfig {
+    /// The playground's fake forge, with its number assigned at start (draft 6.1).
+    pub forge: Option<crate::Forge>,
     pub provider: u32,
     pub adoption: Adoption,
     pub deadline: skein_lib::Duration,

@@ -273,6 +273,7 @@ fn writable_repositories_exclude_an_ended_forge() {
     use super::forge;
     let (mut domain, env) = two_forges();
     domain.forge.configure_demo(Some(forge::DemoConfig {
+        forge: None,
         provider: 1,
         adoption: forge::Adoption {
             project: 5,

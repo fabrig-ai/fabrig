@@ -7,6 +7,11 @@ use skein_lib::{Queue, Token};
 impl DemoConfig {
     #[must_use]
     pub fn within(&self) -> bool {
+        if let Some(forge) = &self.forge
+            && !forge.fits()
+        {
+            return false;
+        }
         let adoption = &self.adoption;
         for bytes in [
             adoption.host.len(),

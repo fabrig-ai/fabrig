@@ -314,6 +314,7 @@ fn retained_demo_and_its_owner_fit_their_heap_ceiling() {
 fn demo_domain() -> Domain {
     let mut d = held_domain();
     d.configure_demo(Some(DemoConfig {
+        forge: None,
         provider: 1,
         adoption: fixtures::adoption(),
         deadline: Duration::from_secs(10),

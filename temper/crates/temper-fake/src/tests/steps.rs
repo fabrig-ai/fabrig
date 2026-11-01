@@ -245,7 +245,7 @@ fn the_playground_group_is_the_demos_group_in_steps() {
     let demo = demo::read(&value).unwrap().unwrap();
     let flags: Vec<Box<[u8]>> =
         ["--config", "C", "--data", "D", "--cache", "K"].iter().map(|flag| Box::from(flag.as_bytes())).collect();
-    let group = steps::group(&fake_entry(demo.forge()), Some(demo.llm().listen()), &flags).unwrap();
+    let group = steps::group(&fake_entry(demo.forge().unwrap()), Some(demo.llm().listen()), &flags).unwrap();
     assert_eq!(group, checked_steps(&value, Box::new([])).asked[0]);
 }
 

@@ -113,6 +113,7 @@ fn set_up_without_an_owned_asked_forge_is_not_offered() {
 fn set_up_skips_an_ended_owned_forge() {
     let mut d = setup_domain(&[setup_configured(1, Mode::Owned, true), setup_configured(3, Mode::Owned, true)], true);
     d.configure_demo(Some(DemoConfig {
+        forge: None,
         provider: 1,
         adoption: fixtures::adoption(),
         deadline: Duration::from_secs(10),
@@ -146,6 +147,7 @@ fn the_demo_forge_row_says_playground() {
     let mut d =
         setup_domain(&[setup_configured(REPO.forge, Mode::Fake, true), setup_configured(3, Mode::Owned, true)], true);
     d.configure_demo(Some(DemoConfig {
+        forge: None,
         provider: 1,
         adoption: fixtures::adoption(),
         deadline: Duration::from_secs(10),

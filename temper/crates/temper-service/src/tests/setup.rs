@@ -1659,7 +1659,7 @@ fn the_demo_waits_for_started_only_under_the_box_even_with_retained_access() {
         config.demo = Some(crate::settings::Demo {
             fake: None,
             project: 1,
-            forge: 1,
+            forge: Some(1),
             provider: 3,
             owner: b"demo".as_slice().into(),
             name: b"widget".as_slice().into(),
@@ -1734,7 +1734,7 @@ fn demo_config() -> crate::settings::Engine {
     config.demo = Some(crate::settings::Demo {
         fake: None,
         project: 1,
-        forge: 1,
+        forge: Some(1),
         provider: 3,
         owner: b"demo".as_slice().into(),
         name: b"widget".as_slice().into(),

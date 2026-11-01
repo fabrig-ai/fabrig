@@ -13,7 +13,7 @@ use temper_engine_domain_forge as forge;
 /// The mirrored durable demo state gates every service path (protocol/forge.md, 8.1).
 pub(crate) fn ended(engine: &crate::engine::Engine, forge: u16) -> bool {
     match &engine.demo {
-        Some(demo) => demo.forge == forge && demo.state == Some(forge::DemoState::Ended),
+        Some(demo) => demo.forge == Some(forge) && demo.state == Some(forge::DemoState::Ended),
         None => false,
     }
 }

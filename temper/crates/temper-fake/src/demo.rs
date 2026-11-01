@@ -47,7 +47,7 @@ pub fn key(file: &[u8]) -> Result<&[u8], KeyRefused> {
 pub struct Demo {
     llm: llm::Document,
     provider: u32,
-    forge: u16,
+    forge: Option<u16>,
     fake: Option<Template>,
     project: u32,
 }
@@ -61,7 +61,7 @@ impl Demo {
         self.provider
     }
     #[must_use]
-    pub fn forge(&self) -> u16 {
+    pub fn forge(&self) -> Option<u16> {
         self.forge
     }
     #[must_use]
@@ -91,7 +91,7 @@ pub fn read(document: &Json, at: u32, facts: &Facts<'_>) -> Result<Option<Demo>,
     let p = Path::root().member(b"application").member(b"demo");
     let mut o = read::object(document, at, &p)?;
     let llm_at = read::required(&mut o, document, b"llm", &p)?;
-    let forge_at = read::required(&mut o, document, b"forge", &p)?;
+    let forge_at = o.member(document, b"forge");
     let fake_at = o.member(document, b"fake");
     let project_at = read::required(&mut o, document, b"project", &p)?;
     read::finish(o, document, &p)?;
@@ -133,18 +133,29 @@ pub fn read(document: &Json, at: u32, facts: &Facts<'_>) -> Result<Option<Demo>,
     let scripts =
         api::Scripts { cued, asked, otherwise: llm::turns(document, otherwise_at, &lp.member(b"otherwise"))? };
     let llm = llm::Document::checked(listen, key, None, models, scripts, &lp)?;
-    let forge = read::integer(document, forge_at, u64::from(u16::MAX), &p.member(b"forge"))?;
-    let forge = u16::try_from(forge).expect("u16 bound");
-    let configured = match facts.setup.entry(forge) {
-        Some(entry) => match &entry.mode {
-            Mode::Fake(_) => true,
-            Mode::Owned(_) | Mode::Managed { .. } => false,
-        },
-        None => false,
+    let forge = match forge_at {
+        Some(at) => {
+            let forge = read::integer(document, at, u64::from(u16::MAX), &p.member(b"forge"))?;
+            let forge = u16::try_from(forge).expect("u16 bound");
+            let configured = match facts.setup.entry(forge) {
+                Some(entry) => match &entry.mode {
+                    Mode::Fake(_) => true,
+                    Mode::Owned(_) | Mode::Managed { .. } => false,
+                },
+                None => false,
+            };
+            if !configured {
+                return Err(read::why(&p.member(b"forge"), b"names no fake setup entry"));
+            }
+            Some(forge)
+        }
+        None => {
+            if fake.is_none() {
+                return Err(read::why(&p, b"missing fake"));
+            }
+            None
+        }
     };
-    if !configured {
-        return Err(read::why(&p.member(b"forge"), b"names no fake setup entry"));
-    }
     let project = read::integer(document, project_at, u64::from(u32::MAX), &p.member(b"project"))?;
     let project = u32::try_from(project).expect("u32 bound");
     if !facts.projects.contains(&project) {

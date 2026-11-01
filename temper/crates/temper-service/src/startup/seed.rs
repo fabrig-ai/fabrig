@@ -100,7 +100,7 @@ pub fn seed(
             setup,
             first: None,
             playground: match &settings.demo {
-                Some(demo) => demo.forge == forge.number,
+                Some(demo) => demo.forge == Some(forge.number),
                 None => false,
             },
             removing: false,

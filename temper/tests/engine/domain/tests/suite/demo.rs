@@ -53,8 +53,12 @@ fn config(under_box: bool) -> engine::Config {
             asked: false,
         },
     ]);
-    config.demo =
-        Some(forge::DemoConfig { provider: 1, adoption: fixtures::adoption(1), deadline: Duration::from_secs(10) });
+    config.demo = Some(forge::DemoConfig {
+        forge: None,
+        provider: 1,
+        adoption: fixtures::adoption(1),
+        deadline: Duration::from_secs(10),
+    });
     config
 }
 fn driver(connected: bool, under_box: bool) -> (Driver, u64) {
