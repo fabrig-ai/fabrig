@@ -32,6 +32,7 @@ fn prompt() -> llm::Prompt {
         system: b"@client-host".as_slice().into(),
         tools: tools::Grants { inspect: false, modify: false, shell: false },
         served: Box::new([llm::Served::Host(run::HostTool {
+            reserve: false,
             name: b"opaque_host".as_slice().into(),
             description: b"Whole caller host contract.".as_slice().into(),
             schema: SCHEMA.into(),

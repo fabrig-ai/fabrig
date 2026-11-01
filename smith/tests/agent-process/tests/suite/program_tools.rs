@@ -35,6 +35,7 @@ fn charter_mode(mode: smith_charter::Mode) -> Box<[u8]> {
                 smith_charter::HostTool::new(
                     &smith_charter::CEILINGS,
                     smith_charter::HostToolParts {
+                        reserve: false,
                         name: b"lookup".as_slice().into(),
                         description: b"Look up".as_slice().into(),
                         input: br#"{"type":"object","properties":{}}"#.as_slice().into(),

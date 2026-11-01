@@ -1895,3 +1895,40 @@ mod dependencies;
 
 #[path = "../stories/kept.rs"]
 mod kept;
+
+#[test]
+fn a_held_chats_delegate_waits_for_its_person_without_a_stall() {
+    let (configuration, limits) = jig_core_world::faults::plan_fixture(129);
+    let creating = jig_test_profile::fixtures::Creating::new(&configuration.core, limits.core.tasks.tree_tasks);
+    let people::Ask::Create { project, mut batch } =
+        jig_test_profile::fixtures::create_chat(&creating, 1, 0, b"chat".as_slice().into())
+    else {
+        panic!("chat creation")
+    };
+    batch[0].flags.ended_by = people::EndedBy::Requester;
+    let mut world = World::new(Setup {
+        seed: 129,
+        configuration: Some(configuration),
+        limits,
+        initial: Some(people::Ask::Create { project, batch }),
+        ..Setup::default()
+    });
+    let parent = world.assignments[0];
+    assert_eq!(live_row(&world, parent.0).flags.ended_by, tasks::EndedBy::Requester);
+    let child = member(&world, tasks::Executor::Agent { charter: 1 }, b"held delegate");
+    let child = delegate(&mut world, parent, 1, child);
+    let run = running(&world, child);
+    world.send(root::Event::Answer {
+        read: None,
+        refused: Box::new([]),
+        channel: Token::new(7),
+        task: run.0,
+        attempt: run.1,
+        cumulative: 0,
+        end: tasks::End::Exceeded(tasks::Exceeded { bound: tasks::Bound::Reasoning, value: 2048 }),
+    });
+    assert!(matches!(
+        live_row(&world, child).escalation,
+        tasks::Escalation::Waiting { holder: tasks::EscalationHolder::Person(1), .. }
+    ));
+}

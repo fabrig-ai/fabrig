@@ -1936,7 +1936,12 @@ fn claim(
             return;
         }
         match row.writer {
-            Some(Writer::Run { task: owner, attempt: old }) if owner == task && old == attempt => {}
+            Some(Writer::Run { task: owner, attempt: old } | Writer::Lost { task: owner, attempt: old })
+                if owner == task && old > attempt =>
+            {
+                return;
+            }
+            Some(Writer::Run { task: owner, .. } | Writer::Lost { task: owner, .. }) if owner == task => {}
             Some(Writer::Run { task: owner, .. } | Writer::Lost { task: owner, .. }) => {
                 emit(out, Request::Taken { task, resource: name.clone(), by: owner });
                 return;
@@ -2024,14 +2029,12 @@ fn lost(d: &mut Domain, env: &Env<Limits>, task: u64, attempt: u64, out: &mut Qu
             skein_forge_client::What::Repository
             | skein_forge_client::What::Pull(_)
             | skein_forge_client::What::Issue(_) => {
-                lost_release(d, name, true, out);
-                emit(out, Request::Refused { task });
+                lost_failed(d, task, attempt, name, b"lost writer does not name a branch", out);
                 continue;
             }
         };
         let Some(sequence) = d.sequence.checked_add(1) else {
-            lost_release(d, name, true, out);
-            emit(out, Request::Refused { task });
+            lost_failed(d, task, attempt, name, b"lost-writer read sequence exhausted", out);
             return;
         };
         d.sequence = sequence;
@@ -2043,8 +2046,7 @@ fn lost(d: &mut Domain, env: &Env<Limits>, task: u64, attempt: u64, out: &mut Qu
             )
             .is_err()
         {
-            lost_release(d, name, true, out);
-            emit(out, Request::Refused { task });
+            lost_failed(d, task, attempt, name, b"lost-writer read capacity exhausted", out);
             return;
         }
         child(d, env, skein_forge_client::Event::Read { owner, repository: resource.repository, read }, out);
@@ -2088,6 +2090,10 @@ fn lost_read(
     out: &mut Queue<Request>,
 ) {
     let Some(mut pending) = d.lost.remove(&owner) else { return };
+    let Some(row) = d.holds.get(&pending.name) else { return };
+    if row.writer != Some(Writer::Lost { task: pending.task, attempt: pending.attempt }) {
+        return;
+    }
     // The writer slot is freed only once the branch is read afresh (jig's
     // domain/tasks.md, 6.3). Busy waits for call room; NotConnected waits
     // for this forge's connection (domain/forge.md, 16), without ready work.
@@ -2147,9 +2153,12 @@ fn lost_read(
             // its writer when no previous head was recorded.
             None
         }
-        (_, Ok(_) | Err(_)) => {
-            lost_release(d, &pending.name, true, out);
-            emit(out, Request::Refused { task: pending.task });
+        (_, result) => {
+            let error = match result {
+                Ok(_) => skein_forge::api::Error::InvalidAnswer,
+                Err(error) => error,
+            };
+            lost_failed(d, pending.task, pending.attempt, &pending.name, crate::effect_words::error_words(error), out);
             return;
         }
     };
@@ -2163,8 +2172,7 @@ fn lost_read(
     if undrifted && let Some(commit) = observed {
         let head = BranchHead { name: pending.name.clone(), commit, owned: true };
         if d.heads.insert(pending.name.clone(), head.clone()).is_err() {
-            lost_release(d, &pending.name, true, out);
-            emit(out, Request::Refused { task: pending.task });
+            lost_failed(d, pending.task, pending.attempt, &pending.name, b"branch head capacity exhausted", out);
             return;
         }
         emit(out, Request::Save { read_afresh: None, release: None, record: Stored::BranchHead(head) });
@@ -2172,6 +2180,11 @@ fn lost_read(
     }
     child(d, env, skein_forge_client::Event::Writer { resource, taken: false }, out);
     lost_release(d, &pending.name, false, out);
+}
+
+fn lost_failed(d: &Domain, task: u64, attempt: u64, name: &Name, reason: &'static [u8], out: &mut Queue<Request>) {
+    lost_release(d, name, true, out);
+    emit(out, Request::LostReadFailed { task, attempt, resource: name.clone(), reason });
 }
 
 /// Wake the holder's existing release after its lost writer's reread ends.

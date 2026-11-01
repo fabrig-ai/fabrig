@@ -68,6 +68,8 @@ A versioned record (skein's `codec.md`, section 3):
     - its input's JSON Schema, as bytes;
     - its effect, read or write;
     - its deadline, as a duration;
+    - `reserve`, a boolean granting it during Finite reserve completions;
+      it grants no tool to Open final replies or to children;
 - **the result contract** (2.1);
 - **conventions,** if any: the relative paths of the guide and the checks;
   without them, smith's defaults apply (domain/run.md, 8.1);
@@ -213,8 +215,9 @@ domain's `Limits` check the charter as a whole at the entrance:
   output above its declaration is: an invalid start naming the model
   (the channel's `llm`, which carries no bound), with no refusal of its
   own;
-- its instructions, brief and host tools, with a guide at its bound for
-  each of the start's directories, within a window's host part
+- its instructions, brief and host tools, including the names and prose added
+  to its reserve note, with a guide at its bound for each of the start's
+  directories, within a window's host part
   (limits.md, 3.9).
 
 A writer that keeps within the ceilings writes a charter every agent can

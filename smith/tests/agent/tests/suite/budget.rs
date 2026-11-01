@@ -471,6 +471,41 @@ fn a_real_child_session_answers_its_last_turn_without_running_written_calls() {
 }
 
 #[test]
+fn main_reserve_turn_keeps_a_named_host_tool() {
+    // One ordinary completion and one reserve completion (run.md, 9.1).
+    const TURNS: u32 = 2;
+    let mut settings = settings(712, false, false);
+    settings.budget.turns = TURNS;
+    settings.limits.run.budget.turns = TURNS;
+    let mut charter = charter(&settings, b"@reserve-host", &MODEL_RATES);
+    charter.reserve = run::charter::Reserve { turns: 1, time: Duration::from_secs(300) };
+    let question = run::HostTool {
+        reserve: true,
+        name: b"message".as_slice().into(),
+        description: b"Ask the requester a question".as_slice().into(),
+        schema: br#"{"type":"object"}"#.as_slice().into(),
+        effect: run::HostEffect::Write,
+        timeout: Duration::from_secs(1),
+    };
+    let ordinary = run::HostTool { reserve: false, name: b"recall".as_slice().into(), ..question.clone() };
+    charter.grants.host_tools = Box::new([question, ordinary]);
+    let scripts = Box::new([script(
+        b"@reserve-host",
+        vec![calls(vec![call(b"finish", b"{}")], 3), calls(vec![call(b"message", b"{}")], 3)],
+    )]);
+    let mut world = World::with_workspace_scripts_charter(settings, None, None, Checkout::new(), scripts, charter);
+    world.run(20_000);
+    assert_eq!(world.host_submissions().len(), 1, "the reserve question reaches its host");
+    assert_eq!(world.host_submissions()[0].tool.as_ref(), b"message");
+    let reserve = world.prompts().last().expect("reserve prompt");
+    assert_eq!(reserve.tools, world.prompts()[0].tools, "declarations remain fixed");
+
+    assert!(reserve.messages.iter().flat_map(|message| &message.parts).any(|part| {
+        matches!(part, Part::Text { text } if skein_lib::bytes::find(text, b"or message to meet an outstanding obligation").is_some())
+    }));
+}
+
+#[test]
 fn main_final_turns_keep_definitions_append_one_note_and_skip_outside_workspace_calls() {
     let mut settings = settings(711, true, false);
     settings.budget.turns = 4;

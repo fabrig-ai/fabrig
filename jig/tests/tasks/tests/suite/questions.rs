@@ -568,6 +568,7 @@ fn a_task_owing_a_question_parks_on_finish_and_wakes_with_a_notice() {
     assert_eq!(row.phase, Phase::Active(Active::Due));
     assert_eq!(row.tries.run, 1);
     assert!(row.inbox.iter().any(|word| word.kind == MessageKind::QuestionOwed && word.words.as_ref() == OWED));
+    assert!(!row.inbox.iter().any(|word| word.kind == MessageKind::NothingAwaited));
     assert!(world.records.values().any(|row| matches!(
         row,
         Stored::Activity(ActivityLine {

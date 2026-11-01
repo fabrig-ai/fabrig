@@ -626,6 +626,11 @@ today's, until those land.
   so that the task's title is the work (4.3.2); a blank line follows,
   then the root's goal line and its line that the work is to be agreed,
   then the person's heading and words.
+- **A held change or goal waits for the person at once.** jig skips
+  conversations when it chooses the escalation's holder (jig's
+  `domain/tasks.md`, section 9). The chat tells the person in words
+  what its delegate waits on and that it waits in their inbox, then
+  waits for their decision.
 - **Designed, not built (J7, J8):** the goal's question stays with the
   chat (jig's `domain/tasks.md`, 8.5): the chat, woken by it, answers
   from what it knows (its person's priorities, its notes), or asks its
@@ -633,6 +638,7 @@ today's, until those land.
   the person's inbox, and answers the goal once it has the person's
   answer. The rest of this section is today's route, which this
   replaces once jig's rule is built.
+- Every Finite charter 1 run keeps `message` in smith's reserve; the owing fact is enforced at the root and is not known when the worker builds the charter.
 - **The goal asks its requester,** the chat, with `message` in the
   question form, before it calls `change`, and waits. jig puts the
   question in the inbox of the chat's person, since the person requested

@@ -334,6 +334,7 @@ pub(crate) fn charter() -> Charter {
 
             agents: false,
             host_tools: Box::new([HostTool {
+                reserve: false,
                 name: bytes(b"comment"),
                 description: b"Host action".as_slice().into(),
                 schema: b"{}".as_slice().into(),

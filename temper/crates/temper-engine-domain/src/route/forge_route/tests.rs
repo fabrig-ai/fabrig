@@ -271,6 +271,70 @@ fn pushed_heads_route_only_to_their_own_forges_hold() {
 }
 
 #[test]
+fn forge_resource_holds_name_the_branch_holder_and_failed_run() {
+    use super::{forge, holds};
+    let (domain, _) = two_forges();
+    let resource = forge::Name {
+        forge: 3,
+        repository: 1,
+        what: forge::What::Branch(Box::new([Box::from(b"temper".as_slice()), Box::from(b"7".as_slice())])),
+    };
+    assert!(domain.forge.change(7).is_none(), "an agent task has no change row");
+    assert_eq!(holds::taken_words(&domain, &resource, 9).as_ref(), b"branch temper/7 in org/repo is taken by holder 9");
+    assert_eq!(
+        holds::lost_words(&domain, 7, 4, &resource, b"forge policy refused the operation").as_ref(),
+        b"task 7's branch temper/7 in org/repo could not be read again after run 4 ended: forge policy refused the operation"
+    );
+}
+
+#[test]
+fn a_goals_failed_reread_routes_a_resource_hold_with_its_cause() {
+    use super::{Work, forge, tasks};
+    let (mut domain, env, task) = crate::tests::live_task(None, tasks::Executor::Agent { charter: 1 });
+    let resource = forge::Name {
+        forge: 1,
+        repository: 1,
+        what: forge::What::Branch(Box::new([Box::from(b"temper".as_slice()), Box::from(b"goal".as_slice())])),
+    };
+    let mut out = skein_lib::Queue::uncapped();
+    domain.forge.restore_begin(env.wall);
+    forge::step(
+        &mut domain.forge,
+        &skein_lib::Env { now: env.now, wall: env.wall, limits: env.limits.forge },
+        forge::Event::Restore { record: forge::Stored::Repository(adopted(1)) },
+        &mut out,
+    );
+    while out.pop().is_some() {}
+    assert!(domain.forge.change(task).is_none());
+    out.push(forge::Request::LostReadFailed {
+        task,
+        attempt: 4,
+        resource,
+        reason: b"forge policy refused the operation",
+    });
+    let mut decision = super::Decision::decide(&mut domain.journal, &env.limits.journal);
+    super::outputs(&mut domain, &env, &mut decision, &mut out);
+    let Some(Work::Tasks(event @ tasks::Event::HoldFrom { .. })) = domain.work.pop() else {
+        panic!("reread failure holds the goal");
+    };
+    tasks::step(
+        &mut domain.core.tasks,
+        &skein_lib::Env { now: env.now, wall: env.wall, limits: env.limits.tasks },
+        event,
+        &mut skein_lib::Queue::uncapped(),
+    );
+    let tasks::Phase::Held { why, source: Some(source), .. } = &domain.core.tasks.task(task).unwrap().phase else {
+        panic!("resource holds apply to agent tasks");
+    };
+    assert_eq!(*why, tasks::Hold::ResourceUnavailable);
+    let tasks::HoldSource::Account { words, .. } = source.as_ref() else { panic!("retained cause") };
+    assert_eq!(
+        words.as_ref(),
+        b"task 1's branch temper/goal in org/repo could not be read again after run 4 ended: forge policy refused the operation; resolve this reason, then task release 1 --hold 1; or task cancel 1 REASON"
+    );
+}
+
+#[test]
 fn writable_repositories_include_only_the_requested_project() {
     let (domain, _) = two_forges();
     assert_eq!(domain.forge.writable_repositories(5).len(), 2);

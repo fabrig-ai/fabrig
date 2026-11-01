@@ -21,6 +21,9 @@ pub enum HostEffect {
 /// ownership limits before any session or IO. Names are unique across sources.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub struct HostTool {
+    /// Main may call this tool during Finite reserve completions to meet an outstanding obligation.
+    pub reserve: bool,
+
     /// Nonempty protocol-attested UTF-8 tool name, compared byte for byte; never a policy label.
     pub name: Box<[u8]>,
 

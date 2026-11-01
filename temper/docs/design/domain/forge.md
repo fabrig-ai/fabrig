@@ -954,7 +954,7 @@ producing ─► opening ─► checking ─► gating ─► queued ─► firs
    names, whose workspace starts from its landing branch (or its saved
    work) and pushes the change's branch (`agent.md`, section 6). Its
    result is the head it pushed. An attempt whose answer was lost may
-   have pushed all the same: its writer slot is freed only once the
+   have pushed all the same: its writer slot is freed for another task only once the
    branch has been read afresh (jig's `domain/tasks.md`, 6.3), and a
    head found there then is the change's own (the branch is held by this
    change alone), so the change cancels its producing task, whose work
@@ -1555,6 +1555,14 @@ instead (`landing.md`, section 5).
   A task made before its project's home was adopted holds no run branch
   there: its runs read the home without pushing, and its brief says why.
   A new task gets the branch.
+
+  A later attempt of the same task reclaims its own writer slot, whether
+  running or lost; its own earlier writer never holds it. An earlier
+  attempt's reread cannot free the later writer, report drift for it or
+  hold the later run. A failed reread holds the task as a resource
+  unavailable, naming the task, run, branch, repository and read error.
+  Another holder's contention names the resource and holder in a resource
+  wait hold. Neither is a procedure hold: an agent task has no procedure.
 
   They are siblings under `temper/<root>/`, so no name is the prefix of
   another as git refs forbid, and one grant covers a tree's branches;

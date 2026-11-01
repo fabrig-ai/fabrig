@@ -642,6 +642,7 @@ fn response_unknown_and_unsent_failures_preserve_full_evidence() {
 fn block_peer(configuration: &Configuration, bounds: &Limits, source: Vec<u8>) -> (Context, RawWorld) {
     let mut requested = prompt(Box::new([user(b"Start.")]));
     requested.served = Box::new([llm::Served::Host(run::HostTool {
+        reserve: false,
         name: Box::from(b"host_action".as_slice()),
         description: Box::from(b"A bounded host action".as_slice()),
         schema: Box::from(br#"{"type":"object"}"#.as_slice()),
