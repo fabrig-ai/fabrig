@@ -277,8 +277,15 @@ pub(super) fn row(d: &Domain, l: &Limits, row: &Stored) -> Result<(), RestoreFit
             d.releases.capacity(),
             d.releases.contains_key(&row.task),
         ),
-        Stored::Forge(_)
-        | Stored::ForgeNumbers { .. }
+        Stored::Forge(record) => room(
+            K::Forge,
+            Rows(K::Forge),
+            d.records.len(),
+            d.records.capacity(),
+            d.records.contains_key(&record.number),
+        ),
+        // This family has one key; repeated restores replace its value.
+        Stored::ForgeNumbers { .. }
         | Stored::Playground(_)
         | Stored::KeptAct(_)
         | Stored::Demo(_)

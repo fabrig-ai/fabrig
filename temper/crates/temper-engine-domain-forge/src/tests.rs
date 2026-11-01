@@ -17,6 +17,7 @@ mod panel;
 mod projection;
 mod purpose;
 mod reconcile;
+mod records;
 mod restore_fit;
 mod runs;
 mod stopping;
@@ -132,6 +133,7 @@ fn domain() -> Domain {
         },
         &[GitIdentity { forge: 1, credential: 1 }],
         &[],
+        Machine::bare(),
         false,
     )
     .expect("valid connector")
@@ -366,6 +368,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::SendKeptAct(_)
         | Request::PlaygroundStart { .. }
         | Request::ResetAct(_)
+        | Request::ProjectReleased { .. }
         | Request::RestartDone { .. } => panic!("permission call"),
     };
     assert_eq!(op, skein_forge::api::Op::Read(skein_forge::api::Read::Permission { user: 7 }));
@@ -445,6 +448,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::SendKeptAct(_)
         | Request::PlaygroundStart { .. }
         | Request::ResetAct(_)
+        | Request::ProjectReleased { .. }
         | Request::RestartDone { .. } => panic!("branches call"),
     };
     assert!(
@@ -521,6 +525,7 @@ fn adoption_reads_permission_before_committing_its_role() {
         | Request::SendKeptAct(_)
         | Request::PlaygroundStart { .. }
         | Request::ResetAct(_)
+        | Request::ProjectReleased { .. }
         | Request::RestartDone { .. } => panic!("settings follows collision read"),
     }
 }
@@ -1200,6 +1205,7 @@ fn routing_domain() -> Domain {
         skein_forge_client::Config { namespace: Box::from(b"test".as_slice()), writers: Box::new([]) },
         &[GitIdentity { forge: 1, credential: 1 }],
         &[],
+        Machine::bare(),
         false,
     )
     .unwrap()
@@ -1280,6 +1286,7 @@ fn setup_domain(forges: &[Configured], under_box: bool) -> Domain {
         },
         &[],
         forges,
+        Machine::bare(),
         under_box,
     )
     .unwrap()
@@ -1296,6 +1303,7 @@ fn a_configured_git_base_is_bounded_by_its_priced_pull_address_bytes() {
             skein_forge_client::Config { namespace: b"test".as_slice().into(), writers: Box::new([]) },
             &[],
             &[forge],
+            Machine::bare(),
             false,
         );
         if length == 2048 {
@@ -1456,9 +1464,9 @@ fn configured_forges_are_bounded_at_construction() {
             .push(Configured { owned: None, number: u16::try_from(number).unwrap(), ..configured()[0].clone() })
             .unwrap();
     }
-    Domain::new(&LIMITS, 4, config(), &[], &forges.as_slice()[..count], false).unwrap();
+    Domain::new(&LIMITS, 4, config(), &[], &forges.as_slice()[..count], Machine::bare(), false).unwrap();
     assert_eq!(
-        Domain::new(&LIMITS, 4, config(), &[], forges.as_slice(), false).unwrap_err(),
+        Domain::new(&LIMITS, 4, config(), &[], forges.as_slice(), Machine::bare(), false).unwrap_err(),
         skein_forge::api::Error::TooLarge
     );
 }

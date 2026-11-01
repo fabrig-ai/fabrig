@@ -143,6 +143,7 @@ fn a_long_queue_counts_every_place_but_carries_only_the_nearest_ahead() {
         skein_forge_client::Config { namespace: Box::from(&b"test"[..]), writers: Box::new([]) },
         &[],
         &[],
+        Machine::bare(),
         false,
     )
     .expect("long queue bounds");
@@ -275,6 +276,7 @@ fn admission_accepts_large_internal_output_and_rejects_oversized_panel_names() {
         skein_forge_client::Config { namespace: Box::from(&b"test"[..]), writers: Box::new([]) },
         &[],
         &[],
+        Machine::bare(),
         false,
     )
     .expect("large internal output does not limit admission");
@@ -292,6 +294,7 @@ fn priority_moves_mark_the_nearest_followers_and_stop_at_the_mark_bound() {
         skein_forge_client::Config { namespace: Box::from(&b"test"[..]), writers: Box::new([]) },
         &[],
         &[],
+        Machine::bare(),
         false,
     )
     .expect("queue bounds");

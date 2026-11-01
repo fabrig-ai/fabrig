@@ -137,6 +137,7 @@ impl Protocol {
             },
             &[top::GitIdentity { forge: REPO.forge, credential: 1 }],
             &[],
+            top::Machine::bare(),
             false,
         )
         .expect("configured connector")
@@ -511,6 +512,7 @@ impl Protocol {
                 | top::Request::Reachable { .. }
                 | top::Request::Install { .. }
                 | top::Request::Accept { .. }
+                | top::Request::ProjectReleased { .. }
                 | top::Request::RemoveGroup { .. }
                 | top::Request::EraseSecrets { .. }
                 | top::Request::Register(_)

@@ -260,3 +260,11 @@ pub fn finish_open(d: &mut Domain) -> Box<[Request]> {
         }),
     )
 }
+
+/// Restore records through the connector's public restoration events.
+pub(crate) fn restore_records(d: &mut Domain, records: &[ForgeRecord]) {
+    for record in records {
+        assert!(outputs(d, Event::Restore { record: Stored::Forge(record.clone()) }).is_empty());
+    }
+    outputs(d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+}
