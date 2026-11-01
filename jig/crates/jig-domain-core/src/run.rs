@@ -74,8 +74,8 @@ impl Core {
             return credentials;
         }
         match self.proofs.get(&task) {
-            Some(proof) => &proof.credentials,
-            None => &[],
+            Some(proof) if proof.terminal.is_none() => &proof.credentials,
+            Some(_) | None => &[],
         }
     }
     pub(crate) fn credentials_ready(&self, task: u64) -> bool {

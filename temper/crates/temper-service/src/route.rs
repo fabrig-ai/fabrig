@@ -37,10 +37,10 @@ pub(crate) fn request(engine: &mut Engine, request: root::Request) {
         root::Request::SetUp { forge, request, org, repository, playground } => {
             crate::setup::lifecycle::first(engine, forge, org, repository, playground);
             let entry = match engine.records.get(&forge) {
-                Some(record) => record.setup.clone(),
-                None => None,
+                Some(record) => record.setup.clone().unwrap_or_default(),
+                None => Box::default(),
             };
-            box_link::set_up_group(engine, forge, request, entry.as_deref().unwrap_or(b""));
+            box_link::set_up_group(engine, forge, request, &entry);
         }
         root::Request::Connect { forge, request, how, carried } => match how {
             temper_engine_domain_forge::How::GitHubApp { app } => {

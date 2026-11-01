@@ -467,3 +467,62 @@ fn thirty_two_adoptions_are_answered_during_retention() {
     assert_eq!(out.pop(), Some(Request::ApplicationAgain { request, why: people::Again::Busy }));
     assert!(out.is_empty());
 }
+
+#[test]
+fn releasing_an_adopted_project_erases_its_answer_before_restore() {
+    use skein_forge::api;
+    for forget in [false, true] {
+        let mut d = domain();
+        let mut saved = skein_lib::Map::with_capacity(64);
+        let request = Token::new(4);
+        save_outputs(&mut saved, &fixtures::begin_adoption(&mut d, request, fixtures::adoption()));
+        for answer in [
+            api::Answer::Permission(api::Permission::Write),
+            api::Answer::Branches(Box::new([])),
+            api::Answer::Settings(adopted().settings),
+            api::Answer::Protection(None),
+            api::Answer::Collaborators { collaborators: Box::new([]), more: false },
+        ] {
+            save_outputs(&mut saved, &fixtures::answer_next(&mut d, Ok(answer)));
+        }
+        save_outputs(
+            &mut saved,
+            &outputs(&mut d, Event::ApplicationAnswered { request, outcome: people::Outcome::Adopted { project: 5 } }),
+        );
+        let Some(ApplicationOutcome::Adopted(_)) = d.application_outcome(request) else {
+            panic!("adoption answered Adopted")
+        };
+        assert!(saved.contains_key(&Key::Repository(REPO)));
+        assert!(saved.contains_key(&Key::Application(request.raw())));
+        let event = if forget {
+            Event::ForgetAdoption { repository: REPO, restore: None }
+        } else {
+            Event::ReleaseProject { project: 5 }
+        };
+        let erased = outputs(&mut d, event);
+        assert!(erased.contains(&Request::Erase { key: Key::Repository(REPO) }));
+        assert!(erased.contains(&Request::Erase { key: Key::Application(request.raw()) }));
+        assert_eq!(d.application_outcome(request), None);
+        save_outputs(&mut saved, &erased);
+        assert!(!saved.contains_key(&Key::Application(request.raw())));
+        let mut restored = domain();
+        for (_, row) in &saved {
+            outputs(&mut restored, Event::Restore { record: row.clone() });
+        }
+        outputs(&mut restored, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
+        restored.reconcile(&reconcile::empty_tasks());
+        assert_eq!(restored.reconciliation(), Ok(()));
+        assert_eq!(restored.application_outcome(request), None, "erased adoption answers unknown");
+    }
+}
+
+fn save_outputs(saved: &mut skein_lib::Map<Key, Stored>, requests: &[Request]) {
+    for request in requests {
+        if let Request::Save { record, .. } = request {
+            saved.insert(stored_key(record), record.clone()).expect("bounded saved rows");
+        }
+        if let Request::Erase { key } = request {
+            saved.remove(key);
+        }
+    }
+}

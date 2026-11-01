@@ -8,7 +8,13 @@ fn client_crates_carry_the_client_prefix() {
     let breaches = jig_boundary::client_names::breaches(
         &root,
         "temper",
-        &["temper", "temper-one-process-world", "temper-real-loop-world"],
+        &[
+            "temper",
+            "temper-one-process-world",
+            "temper-real-loop-world",
+            // Service and client worlds share the forge fixture (domain/testing.md, 2.4).
+            "temper-github-app",
+        ],
     );
     assert!(breaches.is_empty(), "client crates outside temper-client: {}", breaches.join(", "));
 }

@@ -153,3 +153,65 @@ all 232 passing at its merge (`658edf3bdb`). The trunk's repair (`repair-5`) own
   `bx-unforge`'s `src/forge/tests.rs`, `src/tests.rs`, `src/fake/check.rs`, go under
   `## Left` with their owner), `heavy cargo check --workspace --all-targets`, then the three
   walks alone under `process-temper`; then Step 4.
+
+2026-11-01, from this task's run 3. Q: who diagnoses and repairs the adoption walk's
+`Set up failed: no settings` after the setup is admitted, this task or `bx-unforge`? A: this
+task; it is temper-service's, and this task's removal of the document's setup exposed it.
+The box answers `failed N no settings` when `start N` finds no `box/groups/N`
+(`temper-box/src/host.rs`, `Loaded::Absent`). The playground's start writes that file first
+(`Request::SetUpGroup` → `route/box_link.rs::set_up_group`, which stages a `GroupWrite` and
+asks `start N` only in `group_written`), but `Request::SetUp` in `route.rs` calls
+`engine.box_link.ask` directly, relying on the box's fallback to the document's
+`application.setup`, which is gone. Draft `playground-reset.md`, 3: "serve writes a group's
+settings, the forge's setup entry and its port, to `<data>/box/groups/N` and asks `start N`".
+`bx-unforge` removes the box's fallback and needs this write; it owns no service file. So:
+- In `route.rs`'s `Request::SetUp`, after `setup::lifecycle::first`, stage the start through
+  `box_link::set_up_group(engine, forge, request, entry)` with the registered record's setup
+  entry (`engine.records`' `setup`, empty when the record has none, which keeps today's
+  direct ask), instead of `box_link.ask`. Change no domain crate and no box or binary file.
+- A test in the crate, beside the run-1 answer's offer test: an owned forge made after
+  startup, its setup admitted under the box, yields one `GroupWrite` for it whose text is
+  the entry's `group_settings`, and no `start` on the pipe until `group_written` answers.
+- Then the three walks alone under `process-temper`, and Step 4. A further failure in
+  temper-service is this task's; one read to lie in the box's group loading or the binary
+  (`temper/crates/temper/src/**`, `bx-unforge`'s files) goes under `## Left` naming
+  `bx-unforge`, with the walk's log, and does not hold this task.
+
+## Rebase (2026-11-01, step merge, foreman playground-reset-r6/sv-startup-refuse/foreman-4)
+
+resolve the three merge conflicts while preserving trunk’s setup and worker-limit repairs.
+The merge conflicts are in `temper/crates/temper-service/src/{route.rs,setup.rs,tests/worker.rs}`.
+Reconcile with integration commits `83d159eb15`, `4dc85b4efd` and `dcef03bb38`.
+- `route.rs`, `Request::SetUp`: retain one call to `box_link::set_up_group` after `lifecycle::first`, using the record’s setup entry or empty bytes. Both sides implement this behavior.
+- `setup.rs`, `register`: reconcile the overlapping `NotSetUp` initialization with `4dc85b4efd`. Preserve the startup-restored guard and trigger-based handling for `StartDemo`/`StartAsked`, so restored lifecycle state remains authoritative. Keep this task’s removal of `file_api` and document-backed setup.
+- `tests/worker.rs`: retain trunk’s `registered_forges_keep_assignments_within_the_workers_receive_terms`; remove its obsolete `settings.identities` assignment because this branch deletes that field.
+- `workers.rs` auto-merges, but verify `limits().sizes.credentials` retains `core.accounts.credentials` from `dcef03bb38`; the branch’s forge-count assertion must go.
+- Preserve `83d159eb15`’s pending-group Busy refusal in `route/box_link.rs` and its auto-merged registry test, alongside this branch’s runtime-owned group-write tests.
+Verify the registry setup tests and worker receive-terms test before the spec’s remaining checks.
+
+## Answers
+
+2026-11-01, from fab's hold after run 4 (four runs without landing). Q: run this task again,
+or settle it another way? A: one more run, a merge alone. Run 4 met the acceptance (its
+report: temper-service 839 passed, the five refusals, the three walks alone, the exceptions
+the earlier answers allow); it did not land only because the trunk took, meanwhile, its own
+repairs of the same two faults (`4dc85b4efd`, `83d159eb15`) and `dcef03bb38`, and the merge
+conflicts in three temper-service files, all small. So:
+- Merge `origin/playground-reset-r6/integration` into your branch (a merge, as `1f98274a71`
+  did; no rebase, no new branch name) and resolve as the Rebase section says, taking the
+  trunk's side where both do the same thing:
+  - `route.rs`: the trunk's lines (`unwrap_or_default()`, `&entry`).
+  - `setup.rs`, `register`: the trunk's condition, `asked && engine.setup.lifecycle.
+    startup_restored()`; drop the branch's `record.playground || Mode::Owned` line. If one of
+    this branch's registry setup tests then fails, the trunk's repair is the one kept: make
+    the test read the trunk's behaviour only where both tests assert the same offer, else stop
+    and ask with the failure's log.
+  - `tests/worker.rs`: the trunk's test, less its `settings.identities` line.
+- Checks, one at a time: `heavy cargo check --workspace --all-targets`; `-p temper-service
+  --lib -E 'test(/tests::registry_setup::/) | test(/tests::worker::/) |
+  test(/tests::startup_machine::/)'`; `-p temper-service` whole; the three walks alone under
+  `process-temper`; `cargo fmt --all --check`; `heavy cargo clippy -p temper-service -p temper
+  --all-targets -- -D warnings`; old forms. The worlds' and `-p temper`'s whole runs are not
+  repeated: run 4's results and their `## Left` stand, and the trunk's end check runs them.
+- Change nothing past the conflicts and what the merged code's compile forces (list each).
+  Report, then push.

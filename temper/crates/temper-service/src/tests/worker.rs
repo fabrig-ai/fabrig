@@ -452,11 +452,25 @@ fn a_program_grant_lends_only_its_validated_name_without_a_table_entry() {
 }
 
 #[test]
-fn worker_credentials_have_room_for_registered_forges_without_document_identities() {
+fn registered_forges_keep_assignments_within_the_workers_receive_terms() {
+    use jig_protocol_worker_wire::{self as wire, sizes};
     let mut settings = fixtures::engine();
+    let mut worker = fixtures::worker_settings();
+    worker.jig.limits = settings.jig.limits;
+    let payload = crate::translate::limits(&settings.limits).unwrap();
+    let receiving = worker_settings::link_limits(&worker.jig, &payload).unwrap();
+    let receiving = wire::schema(&sizes::limits(&receiving.sizes).unwrap()).unwrap();
+    let mut terms = skein_lib::List::with_capacity(wire::KINDS.len().try_into().unwrap());
+    for kind in &receiving.versions.get(0).unwrap().kinds {
+        if kind.direction == skein_channel::Direction::FromResponder {
+            terms.push(skein_channel::Term { kind: kind.kind, largest: kind.largest }).unwrap();
+        }
+    }
     for forges in [1, 4, 16] {
         settings.limits.forge_component.forges = forges;
-        assert_eq!(crate::workers::limits(&settings).unwrap().sizes.credentials, forges);
+        let sending = crate::workers::limits(&settings).unwrap();
+        let sending = wire::schema(&sizes::limits(&sending.sizes).unwrap()).unwrap();
+        assert_eq!(wire::terms_gap(&sending, skein_channel::Role::Responder, &terms), None, "{forges} forges");
     }
 }
 

@@ -60,6 +60,8 @@ pub struct CallError {
 pub struct World {
     creating: jig_core_world::fixtures::Creating,
     pub root: engine::Domain,
+    /// An independent configuration for stories that cold-start another driver.
+    pub cold_config: Option<engine::Config>,
     pub env: Env<engine::Limits>,
     pub out: Queue<engine::Request>,
     pub events: VecDeque<engine::Event>,
@@ -111,6 +113,8 @@ pub struct World {
 
 #[derive(Clone, Copy, Default)]
 pub struct StoryLimits {
+    pub cold_config: bool,
+    pub seed: Option<u64>,
     pub turn: bool,
     pub across: bool,
     pub library_gate_latency: Option<Duration>,
@@ -256,6 +260,8 @@ impl World {
     ) -> Self {
         // Sizes subscription/hold notifications and workspace-resource bookkeeping
         let StoryLimits {
+            cold_config,
+            seed,
             brief,
             stall,
             spec_bytes,
@@ -269,7 +275,7 @@ impl World {
             library_gate_latency,
         } = timing;
         let paths::Gate { approval, agent: agent_gate, owner: owner_gate } = gate;
-        let [(bootstrap, mut limits), (config, _)] = std::array::from_fn(|_| {
+        let [(bootstrap, mut limits), (config, _), (restart_config, _)] = std::array::from_fn(|_| {
             let mut limits = walking::limits();
             if let Some(bytes) = result_bytes {
                 limits.tasks.result_bytes = bytes;
@@ -282,7 +288,7 @@ impl World {
                 limits.people.amendment_bytes = 2048;
             }
             limits.journal.writes = journal::WALKING_WRITES;
-            let mut config = walking::config(71);
+            let mut config = walking::config(seed.unwrap_or(71));
             if approval.is_some() || agent_gate || owner_gate {
                 limits.authority.roles = 3;
             }
@@ -784,6 +790,7 @@ impl World {
         Self {
             creating: jig_core_world::fixtures::Creating::new(&config.core, limits.tasks.tree_tasks),
             root: engine::Domain::new(config, &limits).expect("valid engine configuration"),
+            cold_config: cold_config.then_some(restart_config),
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
             out: Queue::uncapped(),
             events: VecDeque::from([engine::Event::Restart { pending: store.pending_generation }]),
