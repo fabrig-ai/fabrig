@@ -185,7 +185,7 @@ this shell's text (ui.md, 17.1).
   | banner, navigation, main, complementary, content info, form, search, region, figure, dialog | named: `NAME:` and its children indented; unnamed: its children |
   | disclosure | named: `NAME: DESCRIPTION`, then its states, and its children indented; without a description: `NAME:`; unnamed: its children |
   | heading | `#` once per level, a space, its text |
-  | paragraph, text, time | its text; a time's text is its owner's words for it (ui.md, section 9) |
+  | paragraph, text, time | its text, a link within it printed in place as a link prints (`[n] TEXT`, numbered in preorder: section 6); a time's text is its owner's words for it (ui.md, section 9) |
   | list, tree, menu | named: `NAME:` and its items indented; unnamed: its items |
   | item, tree item | `- ` before its first line, its other lines indented |
   | table | its rows, one line each |

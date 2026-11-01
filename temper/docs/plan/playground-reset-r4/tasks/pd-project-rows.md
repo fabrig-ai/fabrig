@@ -44,7 +44,7 @@ memory names it; tests below.
   own rows", "What outlives it").
 - `jig/docs/design/domain/tasks.md` (funding: a period's ledgers, a
   party's pool), `jig/docs/design/domain/accounts.md`, 4.2 (an
-  account's uses), `jig/docs/design/domain/notes.md` (scopes).
+  account's uses), `jig/docs/design/domain/engine.md`, section 10 (notes' scopes).
 - `jig/crates/jig-domain-tasks/src/retire.rs` (`close`: a ledger saved
   as `ClosedLedger`, the model), `funders.rs`, `value.rs` (`Funder`);
   `jig/crates/jig-domain-accounts/src/records.rs` (`Use::Project`);
@@ -67,7 +67,9 @@ Neighbours, each edit the line or arm named:
   are erased by the core's sweep), `domain.rs`, `lib.rs`;
 - `jig-domain-core`: `reads/sweep.rs` (one `Sweep::Recurring { project
   }` variant, its `admits` arm and its test's cases), `lib.rs` (`mod
-  project_rows;`), `tests.rs` (`mod project_rows;`), `erase.rs` (`swept` hands a page whose owner is not
+  project_rows;`, and the field `pub(crate) row_sweeps: Map<Token,
+  reads::Sweep>` beside `erasures`, made in `Core::new` with
+  `Map::with_capacity(limits.authority.projects)`), `tests.rs` (`mod project_rows;`), `erase.rs` (`swept` hands a page whose owner is not
   an erasure's to `project_rows::swept`), the core's per-project maps'
   owners (`funding.rs` periods and boundaries, `Core.permission_roles`,
   `Core.template_overrides`): one removal each;
@@ -152,3 +154,16 @@ and the steps that post the live ones into the period and erase the
 archived ones; the deletion's end check (`pd-delete`,
 `pd-conformance`) exempts only the period's and pools' `ClosedLedger`
 rows, so none naming a task remains.
+
+2026-11-01, from this task's question (how does `swept` know a page's
+project and its sweep?): option A. `Core.row_sweeps: Map<Token,
+reads::Sweep>`, beside `erasures` and bounded as it is
+(`limits.authority.projects`, one deletion per project), is allowed in
+`lib.rs` (Owns, `jig-domain-core`). `erase_rows` takes an owner from
+`next_result_request`, as `erase::erase_task` does, and inserts
+`Sweep::Notes { project }`; the notes sweep's last page replaces it
+with `Sweep::Recurring { project }` under the same owner; the recurring
+sweep's last page removes it before `rows_done`. `erase::swept` hands a
+page whose owner is not in `erasures` to `project_rows::swept`, which
+ignores an owner in neither map, as `erase::swept` does. The notes
+design in Inputs is `jig/docs/design/domain/engine.md`, section 10.
