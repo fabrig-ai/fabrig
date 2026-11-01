@@ -36,8 +36,10 @@ named `fab:<name>`; jig's are named as jig's.
   a goal; the goal's agent decides the sub-tasks; mechanisms take each
   change to landed; only questions reach the person, in their inbox
   (sections 4, 11).
-- **The engine decides each mechanical step** from specs in git and
-  records in its store, which it alone writes (section 3).
+- **The engine decides each mechanical step** from its store, which it
+  alone writes; tasks, plans, specs, answers and findings live there,
+  never in a repository, which holds only the project's own code and
+  documents (section 3).
 - **A planner plans a goal** and hands it over in pieces, so producers
   start while it plans the rest (section 4).
 - **Producers are runs in workspaces,** as many as the workers take;
@@ -71,7 +73,7 @@ landed. These are new, for what neither names:
 
 | Word | What it is |
 |---|---|
-| planner | the agent task that turns a draft into a goal's plan and its files |
+| planner | the agent task that turns a draft into a goal's plan: its tasks and their specs, in the store |
 | part, slice | a unit of the plan; a story that runs end to end |
 | goal branch | the branch a goal's changes merge into before it lands whole (temper's "a branch per goal", `forge.md` 11.1, designed) |
 | early start | a change started on a dependency's pushed, unmerged branch |
@@ -84,7 +86,7 @@ landed. These are new, for what neither names:
 | answerer | the agent task that answers a goal's queued questions in one pass (the party jig's question credit names as answerer) |
 | reviser, arbiter | the agent task that revises a reviewed output once; the one that decides after a second refusal |
 | alert | an inbox item for a chat: something no goal owns |
-| edition | a rung's brief files, identified by their bytes |
+| edition | a rung's brief, identified by its bytes |
 | scaffold | a planning task that writes a part as code before its changes fill it |
 | wrap-up | the agent task that ends a goal: the project's duty at the end, such as status files current |
 | custody | the accounts and the application's credentials, held centrally and lent |
@@ -95,6 +97,10 @@ landed. These are new, for what neither names:
   decision to its store, which it alone writes, and only then acts (jig
   `README.md` 6.1). The landing queue and the tier runner keep records
   of their own, which the engine imports.
+- **The store is temper's only data:** goals, plans, specs, answers,
+  findings, rungs and every record live there. A repository holds the
+  project's code and its own documents (its designs, its drafts),
+  nothing temper-specific; temper reads it and lands changes into it.
 - **Status is derived, never stored:** a change's (waiting, runnable,
   running, kept, held, finished, ready, landed, rejected), a part's, a
   red's, a finding's, a rung's and every open question are functions of
@@ -122,8 +128,9 @@ landed. These are new, for what neither names:
   for: a fresh resolution after a hold (6.4), a rung's brief rewritten
   (9.3). From there every step to landed is a mechanism or another agent
   task's judgement; no one works by hand.
-- **The plan's files live with the goal:** a directory in the
-  repository; a goal with a goal branch keeps them on that branch.
+- **The plan is the goal's, in the store:** jig's plan, the subtree of
+  tasks the goal delegates (jig `core.md` 7.1), with each task's spec;
+  nothing of it is written to a repository.
 
 ### 4.2 The planner (LLM; its hand-over is code)
 
@@ -134,12 +141,12 @@ landed. These are new, for what neither names:
   of its own, and split the design across agents of its own, from shared
   shapes it fixes first; it is still one task, under one timeout. With
   `scaffold` off, every part is direct: one or two changes, no scaffold.
-- **It hands the plan over in pieces** (a goal branch, `scaffold` and
-  `review` off): it commits first the changes that depend on nothing,
-  then each batch that holds together; the engine pushes each piece,
-  merges it into the goal branch and starts its changes. It never
-  rewrites a spec it has handed over. With `review` on, the plan waits
-  for its review (10.2).
+- **It hands the plan over in pieces** (`scaffold` and `review` off):
+  first the changes that depend on nothing, then each batch that holds
+  together, each piece recorded in the store as delegated tasks with
+  their specs, which the engine starts at once. It never rewrites a spec
+  it has handed over. With `review` on, the plan waits for its review
+  (10.2).
 - **It sees the goals beside it:** its brief lists the other goals'
   unlanded changes with the paths each owns, and asks it to keep early
   work off them, naming any overlap it cannot avoid (6.6).
@@ -239,8 +246,8 @@ A ladder is a goal of `each` with rungs instead of parts (section 9).
   merge and pushes (temper's resolution, `forge.md` 8.4). A branch only
   moves forward (`forge.md` 10).
 - **A merged change counts as landed for its dependents:** they start
-  from the goal branch's tip. Agent tasks' branches and answers merge
-  the same way.
+  from the goal branch's tip. Scaffolds' and the wrap-up's branches,
+  which hold code and documents, merge the same way.
 
 ### 6.2 Early starts
 
@@ -428,12 +435,12 @@ decided or repaired (an alert does not hold it); then the wrap-up runs
 
 ### 9.1 The ladder (code)
 
-- **A ladder is a goal of rungs:** each rung is a story on a backend
-  (`backends`: a model and a forge), its brief files (a shared kit, then
-  its own), and the rungs that must pass first. The ladder names its
-  happy path (a design citation) and its backlog file.
-- **A rung's edition is its brief files' bytes:** "rerun unchanged" is a
-  walk at the same edition; a changed brief or kit starts a new edition.
+- **A ladder is a goal of rungs,** in the store: each rung is a story on
+  a backend (`backends`: a model and a forge), its brief (a shared kit,
+  then its own), and the rungs that must pass first. The ladder names
+  its happy path (a design citation).
+- **A rung's edition is its brief's bytes:** "rerun unchanged" is a walk
+  at the same edition; a changed brief or kit starts a new edition.
 - **A rung's state:** passed, walking, waiting (a lower rung has not
   passed), holding (a blocking finding, or one from a failed or void
   walk, is open, or an action of the person's it needs), or due (a first
@@ -445,9 +452,9 @@ decided or repaired (an alert does not hold it); then the wrap-up runs
   tip (never a commit lacking a landed repair of the rung's findings),
   builds what the walk deploys at that commit in a workspace, lends the
   backend's accounts from custody (at most `walk_boxes` walks at once),
-  and starts the walker, an agent task on the rung's brief files, the
-  open findings and how to report, under a time cap (`walk_cap`). It
-  returns the accounts at the end.
+  and starts the walker, an agent task on the rung's brief, the open
+  findings and how to report, under a time cap (`walk_cap`). It returns
+  the accounts at the end.
 - **The result** is a verdict (pass, fail, void), a reason, and
   findings: title, severity, area, whether it blocked, reproduction,
   expected, seen, evidence, and `same`, an open finding met again. The
@@ -465,12 +472,13 @@ decided or repaired (an alert does not hold it); then the wrap-up runs
   `triage_at` new findings or after `triage_after` minutes. One line per
   finding: **path** (its owner; perhaps an action the person must take
   before the rerun), **backlog**, **user** (a question to the person),
-  **brief** (the rung's brief files at fault: the ladder goal's agent
-  rewrites them as a change, or asks the person), **merge**, or
+  **brief** (the rung's brief at fault: the ladder goal's agent revises
+  it in the store, a new edition, or asks the person), **merge**, or
   **drop**.
-- **The backlog** is a file in the tree, rendered from the records and
-  readied whenever it differs from main; `backlog_rejections` of one
-  render raise an alert.
+- **The backlog** is the findings in state backlog, in the store, shown
+  through `temper ctl`. A project may also have them rendered into a
+  document of its own and landed as a change (`backlog_document`);
+  `backlog_rejections` of one render raise an alert.
 
 ### 9.4 A repair, and the pass (code; the examiner is LLM)
 
@@ -502,26 +510,27 @@ decided or repaired (an alert does not hold it); then the wrap-up runs
 
 ### 10.2 Review (LLM; the counts are code)
 
-- **What is reviewed:** the branches of planning and judgement tasks
-  (the planner, scaffolds, the answerer, the structure review, the
-  wrap-up), never a producer's.
-- **With `review` on,** such a branch gets a read-only reviewer:
+- **What is reviewed:** the outputs of planning and judgement tasks (the
+  planner's plan, the answerer's answers, the structure review's
+  changes, a scaffold's and the wrap-up's branches), never a producer's.
+- **With `review` on,** such an output gets a read-only reviewer:
   approve, or refuse with remarks, in a few lines its charter bounds.
-  Refused, the remarks go once to a reviser on the same branch; refused
+  Refused, the remarks go once to a reviser on the same output; refused
   again (or the reviser failed, or `review_faults` reviews faulted), it
   is held for an **arbiter**, which says land, revise (once more, with
   guidance) or the person's (budgets, machines, what is hard to reverse,
   a change of direction). An arbiter gets two attempts; a second that
   fails holds the subject for the person.
 - **A landing's rejection is a review's refusal,** whatever `review`
-  says: a rejection of the branch (its merge into the goal branch, the
-  queue) counts: revised (a resolution, 6.1) when there has been no
-  revision since its last reset, else held for the arbiter.
+  says: a rejection of a scaffold's or the wrap-up's branch (its merge
+  into the goal branch, the queue) counts: revised (a resolution, 6.1)
+  when there has been no revision since its last reset, else held for
+  the arbiter.
 - **With `review` on, a structure review** reads the digests of the
   changes landed since the last (every `review_every` landings or
   `review_after` hours) and writes consolidation changes, which start
   first, and examples for the producers' charter.
-- **With `review` off,** such a branch merges as it ends.
+- **With `review` off,** such an output is taken as it ends.
 
 ### 10.3 The examiner (LLM; what it decides is recorded by code)
 
@@ -591,8 +600,8 @@ the question queues, or the repair starts with the evidence alone.
   a triager's `user` or `brief`, a goal's agent after a hold.
 - **The person's inbox,** read and answered through `temper ctl`, lists
   the open questions with what to read and how to answer; an answer is
-  recorded once, carried in every later brief of its subject, and
-  written into the plan's files where it is a plan's.
+  recorded once in the store and carried in every later brief of its
+  subject.
 
 ### 11.2 Alerts (code; acting on them is LLM)
 
@@ -684,7 +693,7 @@ mechanism and works by hand (14.2).
 | a small fix's goal | `landing = each` |
 | fabrig's queue (7.1) | `prepare` merge, `selection` packages, `push_attempts` 1, no `refused_paths`; `gates`: the counted baselines (`<tree>/scripts/old-forms.txt`, recounted by `old_forms.py --write`), formatting, lints, the build, the `default` and `fuzzy` tests; `docs_gates` the touched trees' counted baselines; `receipt_gates` the counted baselines and formatting; `gate_set` the counted-baseline gate; `check_before_ready` on |
 | fab's own repository | `landing = each`, `candidate_size` 1, `prepare` rebase, `selection` whole (its suite, 30 s, under a 120 s timeout), `push_attempts` 3, `refused_paths` the legacy kit and the person's drafts, `check_before_ready` off, `gate_reruns` 0, `gate_set` code style (no changed signature but for an interface or migration, no function over 60 lines added or grown, no banned name, docs on public items, no repeated block of 8 lines); its `agents-rebuild` goal with `review` on and `scaffold` on |
-| QA | one ladder goal, `landing = each`; `backends`: ChatGPT with an owned Forgejo or GitHub, Claude Code with an owned Forgejo |
+| QA | one ladder goal, `landing = each`; `backends`: ChatGPT with an owned Forgejo or GitHub, Claude Code with an owned Forgejo; `backlog_document` on (`temper/docs/design/debt/v0.1.0-ladder.md`) |
 | `change_kinds` | feature, interface, migration, repair, rebase, docs |
 | `tries`, `fix_tries` | 4, 2 |
 | `flow` | fixed for a goal branch, adaptive for `each` |
@@ -719,6 +728,10 @@ mechanism and works by hand (14.2).
 Where fab today works by hand, has an agent do a mechanism, or code make
 a judgement, the model does not copy it:
 
+- **temper's data in the repository:** fab keeps its plans, specs,
+  answers, repair sections and rung briefs as files in the project's
+  repository (`docs/plan/<draft>/plan.toml`, `tasks/*.md`, landed or
+  merged on branches); temper keeps them in its store.
 - **By hand:** the person or a session starts the cut (no chat creates a
   goal); answers to a plan's questions written into plan.toml; ready
   refs pushed by hand, which no plan owns (their rejections and reds
@@ -787,6 +800,7 @@ Each waits for the numbers or the person's word that asks for it.
 - **The web UI:** the chat, the inbox and a public status page in a
   browser; a track of its own (the user, 11-01). Here everything goes
   through `temper ctl`.
+
 
 
 

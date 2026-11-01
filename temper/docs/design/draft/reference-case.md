@@ -40,7 +40,8 @@ real backends, a QA driver types Ines's words through `temper ctl`.
   - packages: `kit`; `ui`, which reads kit; `app`, which reads kit and
     ui;
   - `debts.txt`, a counted baseline, recounted by `tools/count`;
-  - `docs/`, with the drafts and each goal's plan files.
+    - `docs/`, the project's designs and drafts. Goals, plans, specs and
+      findings live in temper's store, never in the repository.
 - **The gates:** formatting, lints, the build, and the `default` and
   `fuzzy` tests: the check before ready runs them in a change's
   workspace, the landing queue in its gate lane, the final check whole.
@@ -67,8 +68,8 @@ tier runner are code. Section 9 maps each onto fab.
 ### 3.3 At hour 0
 
 Main is green in every tier. The ladder goal, which Ines's chat created
-from the QA kit, is open, its plan on main with rungs r0 and r1 (r1
-after r0), each on ChatGPT with the owned Forgejo, sharing `kit.md`.
+from the QA kit, is open, with rungs r0 and r1 (r1 after r0), each on
+ChatGPT with the owned Forgejo, sharing a kit.
 
 ## 4. Act 1: the start (hours 0 to 1)
 
@@ -85,25 +86,24 @@ allows. Each goal's agent starts a planner on its draft.
 ### 4.2 Export's planner hands over early
 
 The planner surveys kit with a read-only run, writes the export record's
-shape first, then commits the plan with three changes that depend on
-nothing: e1, the record in kit; e2, the CSV writer in app; e3, the menu
-entry in ui. The engine pushes that piece, merges it into Export's goal
-branch and starts e1 to e3, each on the worker furthest under its run
-target, while the planner writes e4 to e9 in two more pieces. Its brief
-listed Themes' changes and paths; it names the overlap it could not
-avoid: both goals touch ui's menu.
+shape first, then hands over the plan's first piece, three changes that
+depend on nothing, recorded in the store with their specs: e1, the
+record in kit; e2, the CSV writer in app; e3, the menu entry in ui. The
+engine starts them at once, from Export's goal branch, each on the
+worker furthest under its run target, while the planner writes e4 to e9
+in two more pieces. Its brief listed Themes' changes and paths; it names
+the overlap it could not avoid: both goals touch ui's menu.
 
-- **Model:** 4.2, 4.3, 5.1, 5.2, 6.1, 6.6.
+- **Model:** 3, 4.2, 4.3, 5.1, 5.2, 6.6.
 
 ### 4.3 Themes' planner, reviewed, and a part kept
 
 Themes' planner writes two scaffolded parts, palette and dark, and a
 question for Ines: does dark mode follow the system? It names part dark.
-The reviewer refuses the plan's branch (a spec names a package that does
-not exist); the reviser fixes it, the reviewer approves, and the plan
-merges into Themes' goal branch. Dark is not designed while the question
-is open. Ines answers "follow the system" in her inbox; the engine
-writes the answer into the plan's files.
+The reviewer refuses the plan (a spec names a package that does not
+exist); the reviser fixes it, the reviewer approves, and the plan is
+taken. Dark is not designed while the question is open. Ines answers
+"follow the system" in her inbox; the answer is recorded in the store.
 
 - **Model:** 4.2, 10.2, 10.5, 11.1.
 
@@ -352,12 +352,12 @@ ends.
 
 r0 is due, a first walk. The engine records the walk's start at main's
 tip, builds Harbor there, lends chatgpt-1, and starts the walker on r0's
-brief files. It reports fail, with two findings. f1, blocking: dark mode
+brief. It reports fail, with two findings. f1, blocking: dark mode
 ignores the system's setting. f2: the history page is slow.
 
 f1 is blocking, so the triager runs at once: f1 path, owner ui; f2
-backlog. The engine renders the backlog file from the records and
-readies it, and it lands on its counted baselines.
+backlog, shown in `temper ctl`; fabrig's settings also render it into a
+project document, readied as a change, and it lands.
 
 - **Model:** 9.1, 9.2, 9.3, 12.2.
 
@@ -378,10 +378,9 @@ fixed.
 
 r1's first walk is void: the box's setup failed. Its second fails: the
 walker's model beat r1's check by guessing a pull request's number, and
-f3 says so. The triager says brief r1; the ladder goal's agent rewrites
-r1's check to name the pull request's opening time, as a change that
-lands, and f3 is dropped. r1's edition changes, and its first walk at it
-is due.
+f3 says so. The triager says brief r1; the ladder goal's agent revises
+r1's brief in the store to name the pull request's opening time, and f3
+is dropped. r1's edition changes, and its first walk at it is due.
 
 - **Model:** 4.1, 9.1, 9.3.
 
@@ -430,17 +429,17 @@ an agent where the model has code, or by code where it has an agent
 | Story | Kind | fab | Model |
 |---|---|---|---|
 | Ines talks to her chat in ctl (4.1) | LLM | the user, the director; gap: `fab call cut` by hand | 4.1 |
-| a goal's settings | code | `plan.toml` options | 4.4 |
+| a goal's settings | code | `plan.toml` (gap: plans and specs in the repository) | 4.4 |
 | the engine | code | the tick, `fab tick`; its rounds and backstop are fab's (14.2) | 3 |
-| the planner, its survey (4.2, 4.3) | LLM | the cut, its read-only survey runs | 4.2 |
-| its pieces pushed and merged (4.2) | code | gap: the cut pushes and runs `fab wake cut` | 4.2 |
+| the planner, its survey (4.2) | LLM | the cut, its survey runs | 4.2 |
+| its pieces recorded, started (4.2) | code | gap: the cut pushes and runs `fab wake cut` | 4.2 |
 | specs (e1 to e9) | LLM | task specs | 4.3 |
 | repair-1, red-1, finding-1 made from records | code | `repair-<n>`, `red-<n>`, `finding-<n>` | 4.3 |
 | reviewer, reviser, arbiter (4.3, 4.5) | LLM | the call review run, `amend`, `settle` | 10.2 |
 | a rejection counted as a refusal (4.5) | code | the trunk merge's rejection of `calls/<id>` | 10.2 |
 | scaffolds (4.4, 4.5) | LLM | skeleton calls | 10.6 |
 | a scaffold's checked tip, merged in (4.5) | code | `call.checked`; gap: task rebases | 10.6 |
-| a plan's answer written (4.3) | code | gap: written into plan.toml by hand | 11.1 |
+| a plan's answer recorded (4.3) | code | gap: written into plan.toml by hand | 11.1 |
 | the forge's issue (4.4) | code | `fab issues sync` (gap: its timer by hand) | 11.3 |
 | the reply (4.4) | LLM | the reply call | 11.3 |
 | producers | LLM | Codex implementers | 5.1 |
@@ -514,7 +513,7 @@ Evidence at fabrig 2075ff38b; unqualified documents are temper's
 |---|---|---|---|---|
 | One writer, derived state, wakes | 3 | code | generic: the engine, the store's only writer (jig's `domain/engine.md` 2); the inbox derived (jig's `domain/people.md` 6); wake policies, timers (jig's `domain/tasks.md` 8.3) | record kinds a deployment declares |
 | A chat from a template; tools that create goals | 4.1 | LLM | generic in part: templates and charters as settings (jig's `protocol/configuration.md` 3.1); the chat's `goal`, `change` and `delegate` tools (`agent.md` 4.3.2, 4.3.1, 4.3) | ctl starting a chat from any template; `goal` choosing its template; `alerts_to` |
-| The planner | 4.2 | LLM; code | lacks | an agent task whose result is a plan of parts, slices and specs, handed over in pieces the engine pushes |
+| The planner | 4.2 | LLM; code | lacks | an agent task whose result is a plan of tasks with specs, in the store, in pieces |
 | Changes, specs with options, repairs from records | 4.3 | LLM; code | fixed: the change procedure (`forge.md` 8); briefs from sections (jig's `domain/engine.md` 9) | options settling questions; repairs made from records |
 | A goal's settings | 4.4 | code | lacks: landing settings are per project (`landing.md` 13.1) | settings per goal |
 | A run, its ends, tries | 5.1 | LLM; code | generic: charters; tries per failure class configured per deployment (jig's `domain/tasks.md` 5.5; `jig-protocol-config` overrides) | tries counted as runs not landed; a list of what was left; fresh tries granted by an answer |
@@ -542,11 +541,13 @@ Evidence at fabrig 2075ff38b; unqualified documents are temper's
 | The examiner | 10.3 | LLM | generic in part: escalations (jig's `domain/tasks.md` 9) | settling from options; accept; a judge of rejections, reds, findings |
 | The answerer; kept and held | 10.4, 10.5 | LLM; code | generic in part: a question keeps its task, routed to its requester; held past tries (jig's `domain/tasks.md` 5.5, 5.7) | one task answering queued questions; waking on questions by count and age (a bool today); a part kept |
 | Scaffolds | 10.6 | LLM; code | lacks | scaffolds, checked tips, changes started from them |
-| The inbox and alerts | 11.1, 11.2 | code; LLM | generic in part: a party's inbox in ctl (jig's `domain/people.md` 6, 8) | alerts to a chat; plan answers written |
+| The inbox and alerts | 11.1, 11.2 | code; LLM | generic in part: a party's inbox in ctl (jig's `domain/people.md` 6, 8) | alerts to a chat |
 | Questions on the forge | 11.3 | code; LLM | lacks (*designed*: `forge.md` 12.1, Later) | a reply task |
 | Workspaces and disk | 12.1 | code | fixed in part: a checkout cache (`worker.md` 5) | disk admission, sweeps, lanes, stale claims released |
 | Custody | 12.2 | code | generic in part: accounts with holders, a run's grant, limited until a reset, export and import (jig's `domain/accounts.md` 3.2, 3.4, 3.5) | swaps, limit checks, credentials lent to walks; moving a program's login between machines conflicts with `accounts.md` 6 |
 | Reports and status | 13 | code | lacks for ctl: recurring tasks fire per spend period, and nothing in ctl starts one (jig's `domain/tasks.md` 10) | the two reports on a daily timer; status counts in ctl; weights |
+
+
 
 
 
