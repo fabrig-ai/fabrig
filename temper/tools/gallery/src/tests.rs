@@ -139,8 +139,11 @@ const HOLDS: [Holds; samples::N] = [
     },
     Holds {
         name: "chats-first-run-5",
-        heading: "Chats",
-        parts: &[Part::Named { role: Role::Link, name: "Manage usage" }],
+        heading: "What shall we change?",
+        parts: &[
+            Part::Named { role: Role::Link, name: "Manage usage" },
+            Part::Named { role: Role::Button, name: "Add CSV export to widget" },
+        ],
     },
     Holds {
         name: "welcome-paste-expired",

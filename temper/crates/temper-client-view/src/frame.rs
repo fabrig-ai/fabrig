@@ -378,7 +378,6 @@ pub(crate) fn playground_banner(b: &mut Builder, root: &Domain, words: &crate::w
             );
         }
         b.close();
-        return;
     }
 }
 
