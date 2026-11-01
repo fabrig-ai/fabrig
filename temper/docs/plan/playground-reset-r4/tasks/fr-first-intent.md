@@ -15,6 +15,7 @@ files = [
   "temper/crates/temper-service/src/tests/first_intent.rs",
   "temper/tests/engine/domain/tests/qa_all/qa_first_repository.rs",
   "temper/crates/temper-engine-domain/src/route/applications.rs",
+  "temper/crates/temper-engine-domain/src/route.rs",
   "jig/crates/jig-domain-core/src/projects.rs",
   "jig/crates/jig-domain-core/src/tests/project_names.rs",
 ]
@@ -137,3 +138,34 @@ connector's `first::project` step goes; the connector test
 `a_default_project_made_before_is_reused` moves to the root's tests of
 that admission if the connector cannot reach it, said in the report.
 The header's `files` now name these three files.
+
+2026-11-01. Question: may the task add `Domain::project_has_repository`
+and `Domain::refuse_set_up` on the forge connector for D5?
+
+Yes, both, in `first.rs` (an `impl Domain` block there), with this shape:
+
+- `pub fn project_has_repository(&self, project: u32) -> bool`: any row
+  of the connector's `repositories` with that project, ended and removing
+  forges included (not `readable_repositories`, which drops ended
+  forges); doc comment citing contracts, D5.
+- `pub fn refuse_set_up(&mut self, env: &Env<Limits>, request: Token,
+  token: Token, retention: Duration, why: SetUpRefusal, out: &mut
+  Queue<Request>)`: the `SetUp` arm's own path, not `connect.answers`:
+  the expired answer dropped, the room check (`ApplicationAgain` Busy
+  when `setup_pending` and `setup_answers` fill `applications`), then
+  `setup_pending` and `setup_answer`, so the refusal is retained and
+  read by `application_answer` as every `SetUp` answer is. Factor that
+  prologue out of the `SetUp` arm of `domain.rs` into one private
+  function both call (the arm's change: the call only).
+
+The root applies D5 where it can route the connector's outputs: in
+`route.rs`'s `forge_event`, before `forge::step`, one call into an
+`applications.rs` function given the `Event::Application` whose ask is
+`SetUp` with `SetUpProject::New(name)`: `core.project_named(name)` none,
+the event unchanged; `Some(p)` and `!project_has_repository(p)`, the
+event with `SetUpProject::Existing(p)`; `Some(p)` holding one,
+`refuse_set_up(.., NewProject, &mut out)` and no step, `out` routed by
+`forge_route::outputs` as the step's are. `route.rs` joins the header's
+`files` for that call only. The test `a_default_project_made_before_is_reused`
+and a `a_named_project_with_a_repository_is_refused` go in the root's
+tests of that admission. No stored format, protocol or act changes.
