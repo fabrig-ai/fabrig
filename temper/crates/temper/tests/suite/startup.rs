@@ -2121,3 +2121,67 @@ fn box_logs_must_hold_one_whole_record_and_tails_at_least_one_line() {
         scratch.remove();
     }
 }
+
+fn initialized_box(scratch: &support::Scratch) -> serde_json::Value {
+    let init = std::process::Command::new(skein_scratch::paths::binary("temper"))
+        .arg("init")
+        .args(support::configuration::flags(scratch.path()))
+        .output()
+        .expect("init command");
+    assert!(init.status.success(), "{}", String::from_utf8_lossy(&init.stderr));
+    support::own_listener_files(scratch.path());
+    serde_json::from_slice(&fs::read(scratch.path().join("temper.json")).expect("init document")).expect("JSON")
+}
+fn started_record(root: &std::path::Path, forge: u16) {
+    use std::os::unix::fs::PermissionsExt;
+    for name in ["box", "box/started"] {
+        fs::create_dir_all(root.join(name)).expect("record directory");
+        fs::set_permissions(root.join(name), fs::Permissions::from_mode(0o700)).expect("private directory");
+    }
+    support::write_private(&root.join(format!("box/started/{forge}")), b"");
+}
+#[test]
+fn a_box_runs_a_recorded_group_from_its_file_before_serve() {
+    use std::os::unix::fs::PermissionsExt;
+    let scratch = support::Scratch::startup("box-recorded-file");
+    let document = initialized_box(&scratch);
+    let mut body = document["application"]["setup"][0].clone();
+    let body = body.as_object_mut().expect("fake entry");
+    for name in ["forge", "directory", "start"] {
+        body.remove(name);
+    }
+    let settings = temper_forge_setup::setup::group_settings(&serde_json::to_vec(body).expect("body JSON"), 7)
+        .expect("group settings");
+    started_record(scratch.path(), 7);
+    fs::create_dir(scratch.path().join("box/groups")).expect("groups directory");
+    fs::set_permissions(scratch.path().join("box/groups"), fs::Permissions::from_mode(0o700))
+        .expect("private directory");
+    support::write_private(&scratch.path().join("box/groups/7"), &settings);
+    let ended = support::boxed::run(scratch.path(), None, support::boxed::Plan::Stop, support::boxed::BOX_DEADLINE);
+    let diagnostic = String::from_utf8_lossy(&ended.stderr);
+    assert!(support::printed_link(&ended.stdout).is_some(), "serve's link: {diagnostic}");
+    assert_eq!(ended.exit, Some(skein_io::kernel::Exit::Code(0)), "{diagnostic}");
+    assert_eq!(ended.left, Some(Vec::new()), "no process outlived the box: {diagnostic}");
+    assert!(scratch.path().join("forge-7/admin_token").is_file(), "{diagnostic}");
+    assert!(scratch.path().join("box/logs/fake-forge-7.log").is_file(), "{diagnostic}");
+    assert!(scratch.path().join("box/started/7").is_file());
+    scratch.remove();
+}
+#[test]
+fn a_box_drops_a_started_record_without_settings() {
+    let scratch = support::Scratch::startup("box-record-without-settings");
+    initialized_box(&scratch);
+    started_record(scratch.path(), 9);
+    let ended = support::boxed::run(scratch.path(), None, support::boxed::Plan::Stop, support::boxed::BOX_DEADLINE);
+    let diagnostic = String::from_utf8_lossy(&ended.stderr);
+    assert!(support::printed_link(&ended.stdout).is_some(), "serve's link: {diagnostic}");
+    assert_eq!(ended.exit, Some(skein_io::kernel::Exit::Code(0)), "{diagnostic}");
+    assert_eq!(ended.left, Some(Vec::new()), "no process outlived the box: {diagnostic}");
+    assert!(!scratch.path().join("box/started/9").exists());
+    assert_eq!(
+        diagnostic.matches("box: group 9: no settings; its started record is removed").count(),
+        1,
+        "{diagnostic}"
+    );
+    scratch.remove();
+}

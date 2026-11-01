@@ -1,4 +1,8 @@
 //! The checked configuration's steps, supervised on one skein-io loop (protocol/setup.md, 7.1).
+pub(crate) mod groups;
+#[cfg(test)]
+mod tests;
+
 use skein_io::kernel::{Exit, Fd};
 use skein_shell::{Clock, Config, Host, Kernel};
 use std::os::unix::ffi::OsStrExt;
@@ -84,6 +88,26 @@ pub(crate) fn run_configuration(
             first,
         );
         owned_notices(&mut steps, &checked.setup);
+        let built = checked
+            .setup
+            .entries
+            .iter()
+            .filter(|entry| !matches!(entry.mode, temper_forge_setup::setup::Mode::Managed { .. }))
+            .map(|entry| entry.forge)
+            .collect::<Vec<_>>();
+        let context = groups::Context {
+            directories: directories.clone(),
+            limits: checked,
+            llm: demo.as_ref().map(|demo| demo.llm().listen()),
+            forgejo_listens: cfg!(target_os = "linux"),
+        };
+        let before = u32::try_from(steps.always.iter().position(|step| step.name() == b"serve").expect("serve step"))
+            .expect("bounded steps");
+        let (recorded, lines) = groups::recorded(&context, &built, before)?;
+        steps.asked = steps.asked.into_vec().into_iter().chain(recorded).collect();
+        for line in lines {
+            eprintln!("{line}");
+        }
         let listeners = open_listeners(directories, &steps, held, &inherited, &mut owned)?;
         let signals = skein_shell::open_termination_signals().map_err(|errno| format!("signals: errno {errno}"))?;
         owned.push(signals);
@@ -110,7 +134,7 @@ pub(crate) fn run_configuration(
         };
         let service = Service::new(&limits, steps, settings).map_err(|why| format!("box limits: {why:?}"))?;
         let kernel = Kernel::open(Config { operations: service.operations() }).map_err(|why| why.to_string())?;
-        Ok((service, kernel))
+        Ok((groups::Boxed { service, context }, kernel))
     })();
     let (mut service, mut kernel) = match opened {
         Ok(opened) => opened,
@@ -148,11 +172,7 @@ fn open_listeners(
     {
         for addr in step.listeners() {
             if listeners.iter().any(|(_, previous)| previous == addr) {
-                return Err(format!(
-                    "{}: port {} ({addr}): two steps name the same listener",
-                    directories.document().display(),
-                    addr.port()
-                ));
+                continue;
             }
             let fd = if let Some((fd, _)) = inherited.iter().chain(&held).find(|(_, address)| address == addr) {
                 *fd
@@ -188,36 +208,41 @@ fn open_listeners(
 /// public lines on the Forgejo step, never credentials or setup configuration.
 fn owned_notices(steps: &mut temper_forge_setup::Steps, setup: &temper_forge_setup::Setup) {
     for entry in &setup.entries {
-        let temper_forge_setup::setup::Mode::Owned(owned) = &entry.mode else { continue };
-        let label = format!("Forge {} (Forgejo): ", entry.forge);
-        let address = owned.listen.to_string();
-        let notice = [
-            label.as_bytes(),
-            b"started\n",
-            label.as_bytes(),
-            b"api http://",
-            address.as_bytes(),
-            b"/api/v1\n",
-            label.as_bytes(),
-            b"person ",
-            &owned.person.login,
-            b", read header ",
-            &entry.directory,
-            b"/person_read.header, write header ",
-            &entry.directory,
-            b"/person_write.header\n",
-        ]
-        .concat();
+        let Some((address, notice)) = owned_notice(entry) else { continue };
         for step in steps
             .always
             .iter_mut()
             .chain(steps.asked.iter_mut().flat_map(|group| group.steps.iter_mut().map(|(_, step)| step)))
         {
-            if step.ready() == Some(owned.listen) {
-                step.set_started_notice(notice.clone().into_boxed_slice());
+            if step.ready() == Some(address) {
+                step.set_started_notice(notice.clone());
             }
         }
     }
+}
+
+fn owned_notice(entry: &temper_forge_setup::setup::Entry) -> Option<(std::net::SocketAddr, Box<[u8]>)> {
+    let temper_forge_setup::setup::Mode::Owned(owned) = &entry.mode else { return None };
+    let label = format!("Forge {} (Forgejo): ", entry.forge);
+    let address = owned.listen.to_string();
+    let notice = [
+        label.as_bytes(),
+        b"started\n",
+        label.as_bytes(),
+        b"api http://",
+        address.as_bytes(),
+        b"/api/v1\n",
+        label.as_bytes(),
+        b"person ",
+        &owned.person.login,
+        b", read header ",
+        &entry.directory,
+        b"/person_read.header, write header ",
+        &entry.directory,
+        b"/person_write.header\n",
+    ]
+    .concat();
+    Some((owned.listen, notice.into_boxed_slice()))
 }
 
 type Configuration = (Box<[u8]>, Vec<(Fd, std::num::NonZeroU16)>);

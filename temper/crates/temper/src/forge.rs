@@ -150,6 +150,7 @@ fn inherited_listener(which: Which) -> Result<Option<std::net::SocketAddr>, Stri
     // Unlike inherited_listeners, listener_at preserves fd 3's exec flags.
     skein_shell::listener_at(skein_io::kernel::Fd::new(3)).map(Some).map_err(super::listeners_refusal)
 }
+#[expect(clippy::too_many_lines, reason = "forge command dispatch keeps its checked inputs together")]
 pub(crate) fn start(
     directories: &super::Directories,
     arguments: &[OsString],
@@ -197,7 +198,11 @@ pub(crate) fn start(
                 )
             });
     }
-    let entry = checked.setup.entry(number).ok_or_else(|| refused("the setup has no entry for it".into()))?;
+    let group = super::box_command::groups::entry(directories, &checked, number).map_err(refused)?;
+    let entry = group
+        .as_ref()
+        .or_else(|| checked.setup.entry(number))
+        .ok_or_else(|| refused("the setup has no entry for it".into()))?;
     let owned = match &entry.mode {
         Mode::Owned(owned) => Some(owned),
         Mode::Managed { .. } => return Err(refused("it is managed, not owned".into())),
