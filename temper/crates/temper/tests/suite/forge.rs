@@ -667,8 +667,8 @@ fn forge_prepare_takes_its_entry_from_the_group_file() {
     assert!(init.status.success(), "{}", String::from_utf8_lossy(&init.stderr));
     let document: serde_json::Value =
         serde_json::from_slice(&fs::read(scratch.path().join("temper.json")).expect("init document")).expect("JSON");
-    assert!(document["application"]["setup"].as_array().expect("setup").iter().all(|entry| entry["forge"] != 7));
-    let mut body = document["application"]["setup"][0].clone();
+    assert!(document["application"].get("setup").is_none());
+    let mut body = document["application"]["demo"]["forge"].clone();
     let body = body.as_object_mut().expect("fake entry");
     for name in ["forge", "directory", "start"] {
         body.remove(name);

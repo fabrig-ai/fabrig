@@ -186,6 +186,17 @@ pub fn checked(
     listener: Option<SocketAddr>,
     overrides: &[(Box<[u8]>, u64)],
 ) -> Result<Checked, Problems> {
+    checked_at(document, Some(at), directories, members_value, listener, overrides)
+}
+/// Checks an optional setup member; absence supplies an empty list.
+pub fn checked_at(
+    document: &Document,
+    at: Option<u32>,
+    directories: &jig_protocol_config::Directories,
+    members_value: &Members,
+    listener: Option<SocketAddr>,
+    overrides: &[(Box<[u8]>, u64)],
+) -> Result<Checked, Problems> {
     let mut ps = Problems::empty();
     let mut limits = limits::small();
     let mut fetch_bytes = limits::FETCH_BYTES;
@@ -219,7 +230,10 @@ pub fn checked(
             false
         }
     };
-    let setup = Setup::read(document, at, &limits, directories, &mut ps);
+    let setup = match at {
+        Some(at) => Setup::read(document, at, &limits, directories, &mut ps),
+        None => Some(Setup { entries: Box::new([]) }),
+    };
     if let Some(setup) = &setup {
         members(setup, members_value, listener.is_some(), &mut ps);
         if limits_ok {

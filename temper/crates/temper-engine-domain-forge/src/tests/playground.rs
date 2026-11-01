@@ -95,7 +95,7 @@ fn a_start_makes_the_row_and_the_fake_forge_in_one_decision() {
 
 #[test]
 fn a_start_is_not_offered_beside_a_real_forge_or_while_resetting() {
-    for case in 0..5 {
+    for case in 0_u8..5 {
         let mut d = playground(true);
         match case {
             0 => d.machine.playground = None,
@@ -186,9 +186,17 @@ fn the_reset_removes_project_forge_and_account_in_order_then_the_row() {
     assert!(!group.contains(&Request::ResetAct(account)));
     assert!(d.records.contains_key(&1));
     let erased = outputs(&mut d, Event::SecretsErased { forge: 1 });
-    let forge_end = erased.iter().position(|request| *request == Request::Erase { key: Key::Forge(1) }).unwrap();
-    let account_start = erased.iter().position(|request| *request == save(resetting(row, ResetStep::Account))).unwrap();
-    assert!(forge_end < account_start);
+    let mut forge_end = None;
+    let mut account_start = None;
+    for (index, request) in erased.iter().enumerate() {
+        if *request == (Request::Erase { key: Key::Forge(1) }) {
+            forge_end = Some(index);
+        }
+        if *request == save(resetting(row, ResetStep::Account)) {
+            account_start = Some(index);
+        }
+    }
+    assert!(forge_end.unwrap() < account_start.unwrap());
     assert_eq!(erased.last(), Some(&Request::ResetAct(account)));
     assert!(!d.records.contains_key(&1));
     assert_eq!(answer(&d, 2), None);
@@ -268,7 +276,7 @@ fn each_step_is_resumed_at_start_from_the_row() {
         }
     }
     let sent = outputs(&mut restored, Event::SendKeptActs);
-    let mut count = 0;
+    let mut count = 0_u32;
     for request in sent {
         if let Request::SendKeptAct(_) = request {
             count += 1;
@@ -323,7 +331,7 @@ fn the_playground_numbers_past_document_forges_and_exhaustion_is_not_offered() {
     assert_eq!(d.playground().unwrap().forge, number);
     assert_eq!(d.next_number, number.checked_add(1).unwrap());
     assert!(sent.contains(&Request::Register(ForgeRecord { number, ..template() })));
-    for case in 0..3 {
+    for case in 0_u8..3 {
         let mut d = playground(false);
         match case {
             0 => d.next_number = 0,
@@ -393,7 +401,15 @@ fn a_running_start_asks_only_a_dormant_group_under_the_box() {
             outputs(&mut d, Event::PlaygroundAnswered { answer: StartAnswer::Running });
             outputs(&mut d, Event::Connection { forge: 1, state: connection.clone() });
             let sent = start(&mut d, 2);
-            let needs_group = under_box && !matches!(connection, Connection::Connecting | Connection::Connected { .. });
+            let needs_group = under_box
+                && match connection {
+                    Connection::Connecting | Connection::Connected { .. } => false,
+                    Connection::NotConnected
+                    | Connection::NotSetUp
+                    | Connection::SettingUp { .. }
+                    | Connection::SetUpFailed { .. }
+                    | Connection::Stopped { .. } => true,
+                };
             assert_eq!(sent.len(), if needs_group { 2 } else { 1 });
             if needs_group {
                 assert_eq!(
@@ -421,7 +437,27 @@ fn a_legacy_ended_demo_has_no_effect_on_the_playground_forge() {
     assert_eq!(d.playground(), Some(&running()));
     assert!(!d.forge_ended(1));
     assert_eq!(d.forges().rows.len(), 1);
+    outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
     for request in outputs(&mut d, Event::ReadAfresh) {
-        assert!(!matches!(request, Request::SetUpGroup { .. } | Request::StopGroup { .. } | Request::ListDemoActs));
+        if let Request::SetUpGroup { .. } | Request::StopGroup { .. } | Request::ListDemoActs = request {
+            panic!("legacy demo state must not start or end a group");
+        }
     }
+}
+
+#[test]
+fn a_resumed_removal_with_no_acts_begins_the_account_step_once() {
+    let row = resetting(Playground { project: Some(7), account: Some(9), ..running() }, ResetStep::Forge);
+    let mut d = restore(row, Some(ForgeRecord { number: 1, state: ForgeState::Removing, ..template() }));
+    let sent = outputs(&mut d, Event::SendKeptActs);
+    assert_eq!(
+        sent.as_ref(),
+        [
+            Request::Erase { key: Key::Writer(1) },
+            Request::Erase { key: Key::Forge(1) },
+            save(resetting(row, ResetStep::Account)),
+            Request::ResetAct(ResetAct::RemoveAccount { account: 9 }),
+        ]
+    );
+    assert_eq!(d.playground(), Some(&resetting(row, ResetStep::Account)));
 }

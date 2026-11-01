@@ -1,32 +1,43 @@
 //! Application secrets and forge connections after the durable start mark (domain/root.md, 9.1).
 use alloc::boxed::Box;
 use jig_protocol_store::{Event, SecretOwner, Secrets};
-use skein_lib::{List, Map, Secret, Token};
+#[cfg(test)]
+use skein_lib::List;
+use skein_lib::{Map, Secret, Token};
 use temper_protocol_records as records;
 pub(crate) const LOAD: Token = Token::new(crate::tokens::FORGE | 1);
 const FORGES: u32 = 65536;
-/// The service retains values only for its configured forges. The codec's
+/// The service retains values only for its registered forges. The codec's
 /// general-purpose Rows is filled solely through this holder's checked push.
 #[derive(Debug)]
 pub(crate) struct Rows {
     values: records::Rows,
-    configured: List<u16>,
+    configured: Map<u16, ()>,
     unconfigured: Map<u16, ()>,
 }
 impl Rows {
-    fn new(forges: &[crate::settings::Forge]) -> Self {
-        let mut configured = List::with_capacity(u32::try_from(forges.len()).expect("configured forges"));
+    fn new(forges: &[crate::settings::Forge], capacity: u32) -> Self {
+        let mut configured = Map::with_capacity(capacity);
         for forge in forges {
-            configured.push(forge.number).expect("configured forges");
+            configured.insert(forge.number, ()).expect("configured forges");
         }
         Self { values: records::Rows::new(), configured, unconfigured: Map::with_capacity(FORGES) }
+    }
+    pub(crate) fn register(&mut self, forge: u16) {
+        self.configured.insert(forge, ()).expect("admitted forge");
+        self.unconfigured.remove(&forge);
+    }
+    pub(crate) fn unregister(&mut self, forge: u16) {
+        self.configured.remove(&forge);
+        self.unconfigured.remove(&forge);
+        self.values.drop_forge(forge);
     }
     pub(crate) fn push(&mut self, number: u64, bytes: Secret, value_bytes: u32) {
         if number >= records::CARRIED || number >> 48_u32 != u64::from(records::FAMILY_FORGE) {
             return;
         }
         let Ok(forge) = u16::try_from((number >> 16_u32) & 0xffff_ffff) else { return };
-        if !self.configured.as_slice().contains(&forge) {
+        if !self.configured.contains_key(&forge) {
             self.unconfigured.insert(forge, ()).expect("all u16 forge numbers fit");
             return;
         }
@@ -58,7 +69,7 @@ pub(crate) struct Loader {
 #[derive(Debug)]
 enum Phase {
     Load { after: Option<u64> },
-    Connect { index: usize },
+    Connect { index: u32 },
     Sweep { number: u64, asked: bool },
     Name { after: u32 },
     Done,
@@ -68,7 +79,7 @@ impl Loader {
         Self {
             #[cfg(test)]
             inspected: List::with_capacity(128),
-            rows: Rows::new(forges),
+            rows: Rows::new(forges, limits.forge_component.forges),
             phase: Phase::Load { after: None },
             value_bytes: limits.records.value_bytes,
             bounds: skein_forge_setup::item::Bounds {
@@ -161,14 +172,20 @@ pub(crate) fn advance(engine: &mut crate::engine::Engine) {
                 return;
             }
             let number = forge.number;
-            if forge.kind == crate::settings::Kind::GitHub {
-                let kind = skein_forge_connection::settings::Kind::GitHub;
+            if forge.kind == crate::settings::Kind::GitHub
+                || engine.records.contains_key(&number)
+                    && !engine.setup.records_only(number)
+                    && engine.records.get(&number).expect("registered record").setup.is_none()
+            {
+                let kind = match forge.kind {
+                    crate::settings::Kind::GitHub => skein_forge_connection::settings::Kind::GitHub,
+                    crate::settings::Kind::Forgejo => skein_forge_connection::settings::Kind::Forgejo,
+                };
                 let expected = records::origin(kind, &forge.api);
                 let start = match engine.forge_records.rows.forge(number) {
                     Some(rows) => records::access(kind, &expected, rows, &engine.forge_records.bounds, false),
                     None => Err(records::NotConnected::NoRecords),
                 };
-                // temper-02 uses start.slug for the git identity's bot author.
                 let start = match start {
                     Ok(start) => Ok(crate::forge::Start::Restored(start)),
                     Err(why) => Err(why),
@@ -177,12 +194,11 @@ pub(crate) fn advance(engine: &mut crate::engine::Engine) {
             } else if engine.setup.records_only(number) {
                 // The root restore releases Reconcile; the loader never starts it.
             } else if let Some(host) = engine.forge.unreachable(number) {
-                // Forgejo connects nothing until temper-15; a held one is still named.
+                // Document access and setup starts still name an unresolved host.
                 engine
                     .notes
                     .push(crate::Note::ForgeNotConnected { number, why: crate::NotConnected::Unreachable { host } });
             }
-            // Forgejo keeps its files until temper-15; its grouped rows change nothing.
             engine.forge_records.phase = Phase::Connect { index: index.checked_add(1).expect("configured forges") };
         }
         Phase::Name { after } => {
@@ -210,7 +226,7 @@ pub(crate) fn advance(engine: &mut crate::engine::Engine) {
 #[test]
 fn unconfigured_numbers_resume_at_the_cursor_without_retaining_values() {
     let settings = crate::tests::fixtures::engine();
-    let mut rows = Rows::new(&settings.forges);
+    let mut rows = Rows::new(&settings.forges, settings.limits.forge_component.forges);
     for forge in [u16::MAX, 77, 0, 77] {
         for item in [records::Item::AppKey, records::Item::Origin] {
             rows.push(records::number(forge, item), Secret::new(Box::from([2, 255])), 4096);

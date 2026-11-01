@@ -1,4 +1,4 @@
-//! The owned example, with only setup.md 8.3's edits, and whole JSON string placeholders.
+//! The default document (draft/playground-reset.md, 3 and 6.1), with whole JSON string placeholders.
 //! The pinned jig and smith parsers require positive prices, so demo uses their
 //! minimum (one per million) until they admit setup.md 8.3's zero prices.
 //! Embedding these fixed templates is init's job (setup.md, 8.2); they are not runtime inputs.
@@ -16,15 +16,7 @@ pub(crate) fn documents(facts: &Facts<'_>, directories: &Directories<'_>, login:
     let agent = path::join(directories.config, b"agent.json");
     let programs = path::join(directories.data, b"programs");
     let forge = listener(facts.ports.forge);
-    let mut forge_git = Writer::new(7_usize.checked_add(forge.len()).expect("an HTTP base fits"));
-    forge_git.put(b"http://").expect("the scheme was counted");
-    forge_git.put(&forge).expect("the socket was counted");
-    let forge_git = forge_git.finish();
     let owned = listener(facts.ports.owned);
-    let mut owned_git = Writer::new(7_usize.checked_add(owned.len()).expect("an HTTP base fits"));
-    owned_git.put(b"http://").expect("the scheme was counted");
-    owned_git.put(&owned).expect("the socket was counted");
-    let owned_git = owned_git.finish();
     let mut email = Writer::new(login.len().checked_add(10).expect("a login and @localhost fit"));
     email.put(login).expect("the login was counted");
     email.put(b"@localhost").expect("the domain was counted");
@@ -38,9 +30,7 @@ pub(crate) fn documents(facts: &Facts<'_>, directories: &Directories<'_>, login:
         (b"git".as_slice(), json(Value::Text(facts.git))),
         (b"listener".as_slice(), json(Value::Text(Some(&listener)))),
         (b"forge".as_slice(), json(Value::Text(Some(&forge)))),
-        (b"forge_git".as_slice(), json(Value::Text(Some(&forge_git)))),
         (b"owned".as_slice(), json(Value::Text(Some(&owned)))),
-        (b"owned_git".as_slice(), json(Value::Text(Some(&owned_git)))),
         (b"login".as_slice(), json(Value::Text(Some(login)))),
         (b"email".as_slice(), json(Value::Text(Some(&email)))),
         (b"llm".as_slice(), json(Value::Text(Some(&llm)))),

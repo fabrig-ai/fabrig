@@ -86,7 +86,7 @@ fn a_first_run_welcome_without_a_demo() {
         while let Some(request) = out.pop() {
             moved |= request
                 == (d::Request::Show {
-                    address: Address::Chats { filter: ChatsFilter::All, start: false },
+                    address: Address::Welcome { step: Step::Forge { forge: None } },
                     replace: true,
                 });
             if let Duty::Wire(request) = Temper::duty(request) {
@@ -104,7 +104,7 @@ fn a_first_run_welcome_without_a_demo() {
     }
     assert!(
         moved,
-        "the second open replaces welcome with chats: {:?}, role {:?}, decision {:?}",
+        "the second open resumes Forge until a repository is adopted: {:?}, role {:?}, decision {:?}",
         root.person().pages().welcome(),
         d::pages::accounts::current_me(root.person().client()).expect("current account facts").deployment_role,
         d::pages::welcome::decision(root.person())
@@ -143,8 +143,12 @@ fn a_configured_model_hides_the_banner_and_the_strips_model_half() {
         state: temper_engine_domain_forge::Connection::Connected { id: 1, login: b"bot".as_slice().into() },
     })));
     accounts::settle(&mut front, &mut root);
-    assert_eq!(d::pages::welcome::decision(root.person()), Some(true));
-    assert!(d::forge::listed::setup(root.person()).is_none());
+    assert_eq!(
+        d::pages::welcome::state(root.person()),
+        Some(d::pages::welcome::State::Unfinished(Step::Forge { forge: None }))
+    );
+    let setup = d::forge::listed::setup(root.person()).expect("a repository is still missing");
+    assert!(!setup.model);
 }
 
 #[test]

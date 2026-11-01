@@ -236,7 +236,7 @@ fn a_github_repository_carries_its_owners_entrys_account() {
         let assignment = fixtures::assignment_with(fixtures::repository(7, owner, b"repo"));
         let items = crate::translate::items(
             &assignment,
-            &engine.workers.forges,
+            engine.workers.forges.as_slice(),
             &engine.values.tokens,
             &engine.workers.encoding.limits,
         )

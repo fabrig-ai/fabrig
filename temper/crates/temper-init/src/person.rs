@@ -1,4 +1,4 @@
-//! Forge 3's person (protocol/setup.md, 8.2).
+//! The owned Forgejo's person (protocol/setup.md, 8.2).
 use crate::Person;
 use skein_lib::bytes;
 

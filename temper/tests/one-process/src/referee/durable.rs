@@ -210,7 +210,9 @@ impl Store {
         for write in &commit.writes {
             match write {
                 root::Write::Wires => {}
-                root::Write::CopySettingsRevision(_) => super::restart::apply(&mut self.rows, write),
+                root::Write::DropTranscript { .. } | root::Write::CopySettingsRevision(_) => {
+                    super::restart::apply(&mut self.rows, write);
+                }
                 root::Write::Save(row) => {
                     self.rows.insert(row.key(), row.clone());
                     if let root::Record::Core(core::Record::Core(core::CoreRecord::Turn(turn))) = row {

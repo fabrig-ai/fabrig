@@ -111,3 +111,61 @@ Acceptance:
 
 - The demo tests deleted, and any reader of the demo's state that no longer means anything
   (for `fe-demo-gone`).
+
+## Answers
+
+### 2026-11-01: Rerun this task after fe-remove publishes its removal implementation (recommended), or reassign that missing implementation to this task? The partial playground work is committed and pushed. (playground-reset-r6/fe-playground-forge-1, foreman playground-reset-r6/fe-playground-forge/foreman-1)
+
+Rerun fe-playground-forge after fe-remove publishes its removal implementation; removal remains fe-remove’s work.
+The task spec declares `needs = ["fe-remove"]`.
+Its acceptance requires: “`Forge`: `fe-remove`'s `remove` of the playground's record (no refusal)”.
+The pre-approved option specifies: “`removal::answered` tells the playground module when it erases a record whose number is the row's forge.”
+The next run integrates the completed dependency, combines removal handlers and replay with playground progression, resolves conflicts, and completes all required checks.
+The partial pushed work is not accepted as done: the report explicitly says acceptance is incomplete and tests remain unverified.
+
+### 2026-11-01: The required fe-remove implementation is still unpublished. Rerun after fe-remove publishes (recommended, following the recorded answer), or supply the completed dependency commit if it was published under another ref? (playground-reset-r6/fe-playground-forge-2, foreman playground-reset-r6/fe-playground-forge/foreman-2)
+
+Rerun fe-playground-forge after fe-remove publishes its removal implementation; removal remains fe-remove’s work.
+The recorded answer explicitly requires: “Rerun fe-playground-forge after fe-remove publishes its removal implementation”.
+The spec declares `needs = ["fe-remove"]`.
+Acceptance requires: “`Forge`: `fe-remove`'s `remove` of the playground's record (no refusal)”.
+The next run integrates the completed dependency, combines removal handlers and replay with playground progression, and completes all required checks.
+The partial pushed work is not accepted as done: the report explicitly says acceptance remains blocked and checks remain unverified.
+The requested report file could not be written because this environment permits only filesystem reads.
+
+### 2026-11-01: Rerun after fe-remove publishes its completed removal implementation (recommended, as the two recorded answers require), or supply its completed commit if published under another ref? The partial playground work remains committed and pushed. (playground-reset-r6/fe-playground-forge-3, foreman playground-reset-r6/fe-playground-forge/foreman-3)
+
+Rerun fe-playground-forge after fe-remove publishes its removal implementation; removal remains fe-remove’s work.
+The recorded answer requires: “Rerun fe-playground-forge after fe-remove publishes its removal implementation”.
+The spec declares `needs = ["fe-remove"]`.
+Acceptance requires: “`Forge`: `fe-remove`'s `remove` of the playground's record (no refusal)”.
+The next run integrates the completed dependency, combines removal handlers and replay with playground progression, and completes all required checks.
+The partial pushed work is not accepted as done: the report explicitly says acceptance remains blocked and checks remain unverified.
+The requested report file could not be written because this environment permits only filesystem reads.
+
+### 2026-11-01: Rerun after fe-remove publishes its completed removal implementation (recommended, following the three recorded answers), or supply its completed commit if published under another ref? The partial playground commit remains pushed. (playground-reset-r6/fe-playground-forge-4, foreman playground-reset-r6/fe-playground-forge/foreman-4)
+
+Rerun fe-playground-forge after fe-remove publishes its removal implementation; removal remains fe-remove’s work.
+The recorded answer requires: “Rerun fe-playground-forge after fe-remove publishes its removal implementation”.
+The spec declares `needs = ["fe-remove"]`.
+Acceptance requires: “`Forge`: `fe-remove`'s `remove` of the playground's record (no refusal)”.
+The next run integrates the completed dependency, combines removal handlers and replay with playground progression, and completes all required checks.
+The partial pushed work is not accepted as done: the report explicitly says acceptance remains blocked and checks remain unverified.
+The requested report file could not be written because this environment permits only filesystem reads.
+
+### 2026-11-01: four runs found fe-remove's removal unpublished; needs judgement. (playground-reset-r6/fe-playground-forge-4)
+
+Keep the task as written; start it again only once fe-remove has landed on the trunk.
+fe-remove was itself blocked on `sv-skein-retire`, and its branch went stale; its answer of
+today has it merge the trunk and build the removal, which its run 5 is doing. Until
+`playground-reset-r6/fe-remove` is merged into `playground-reset-r6/integration`, a run
+of this task can only find `removal.rs` missing, as runs 1 to 4 did.
+
+First step of the next run: `git fetch origin`, then merge
+`origin/playground-reset-r6/integration` into this branch (a merge, no rebase, no
+force-push). Then check that `temper/crates/temper-engine-domain-forge/src/removal.rs`
+exists with the `remove` that `src/playground.rs` calls. If it does not, stop with that
+one line as the report; do not ask this question again. After the merge, combine the
+staged playground handlers in `domain.rs` with fe-remove's kept-act handlers and replay,
+using the pre-approved default (`removal::answered` tells the playground module). Then run
+every check in Steps 4 and 5. Commit 8edae6bfef is the starting point, not accepted work.

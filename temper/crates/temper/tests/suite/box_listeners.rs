@@ -51,7 +51,7 @@ fn a_fresh_box_holds_serves_clients_port() {
         {
             address = Some(clients(&document));
             owned = Some(
-                document["application"]["setup"][1]["mode"]["owned"]["listen"]["socket"]
+                document["application"]["machine"]["owned"]["mode"]["owned"]["listen"]["socket"]
                     .as_str()
                     .expect("owned listener")
                     .parse::<SocketAddr>()
@@ -108,4 +108,25 @@ fn a_later_box_refuses_a_taken_port_naming_the_port_and_document() {
     assert!(diagnostic.contains("cannot listen"), "{diagnostic}");
     assert!(output.stdout.is_empty(), "refused before steps start");
     fs::remove_dir_all(&root).expect("cleanup");
+}
+
+#[test]
+fn an_inherited_machine_port_is_accepted_with_no_step_naming_it() {
+    use crate::{listeners, support};
+    let scratch = support::Scratch::startup("inherited-t4-machine");
+    let mut document = super::startup::initialized_t4_box(&scratch);
+    let listener = TcpListener::bind("127.0.0.1:0").expect("held machine port");
+    let address = listener.local_addr().expect("machine address");
+    document["application"]["demo"]["forge"]["mode"]["fake"]["listen"] =
+        serde_json::json!({"socket":address.to_string()});
+    let client = clients(&document);
+    support::write_private(&scratch.path().join("temper.json"), &serde_json::to_vec(&document).expect("T4 JSON"));
+    let mut command = listeners::command(listener, "exec \"$@\" 3<&0 0</dev/null");
+    command.arg("box").args(support::configuration::flags(scratch.path()));
+    let ended = listeners::probe(command, client, "secret=");
+    assert!(ended.ready.is_some(), "serve's link: {:?}", ended.stderr);
+    assert!(ended.reply.expect("clients answer").starts_with(b"HTTP/1.1 "));
+    assert!(ended.status.success(), "box drains: {:?}", ended.stderr);
+    assert!(!scratch.path().join("forge-1").exists(), "the fake group stayed dormant");
+    scratch.remove();
 }

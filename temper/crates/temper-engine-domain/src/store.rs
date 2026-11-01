@@ -301,6 +301,8 @@ pub enum Key {
     Wires,
     Core(jig_domain_core::Key),
     Forge(temper_engine_domain_forge::Key),
+    /// Coalescing identity for a whole transcript drop; never a saved row.
+    Transcript(u64),
 }
 
 /// Root-owned page ranges (domain/root.md, section 8).
@@ -379,7 +381,7 @@ impl Range {
     #[must_use]
     pub fn contains(&self, key: &Key) -> bool {
         let core = match key {
-            Key::Wires => return false,
+            Key::Wires | Key::Transcript(_) => return false,
             Key::Core(core) => core,
             Key::Forge(_) => return *self == Range::Forge,
         };
@@ -558,6 +560,8 @@ pub enum Write {
     Save(/** Owned typed row, byte-bounded by journal admission. */ Record),
     /// Remove the named row, with no owned payload.
     Erase(/** Fixed-size row key; journal callers cannot erase the header. */ Key),
+    /// Drop the task's transcript whole.
+    DropTranscript { task: u64 },
 }
 
 impl Write {
@@ -570,6 +574,7 @@ impl Write {
                 jig_domain_core::CoreKey::Settings(jig_domain_core::settings::Key::History(*number)),
             )),
             Write::Wires => Key::Wires,
+            Write::DropTranscript { task } => Key::Transcript(*task),
             Write::Save(row) => row.key(),
             Write::Erase(key) => key.clone(),
         }
@@ -790,7 +795,7 @@ pub fn record_bytes(record: &Record) -> Option<u64> {
                     },
                     jig_domain_people::Act::RemoveAccount { .. } | jig_domain_people::Act::RemoveProject { .. } => 0,
                     jig_domain_people::Act::Adopt { adoption, .. } => adoption_bytes(adoption)?,
-                    jig_domain_people::Act::MakeProject { .. } => unreachable!("demo never makes a project"),
+                    jig_domain_people::Act::MakeProject { name, .. } => u64::try_from(name.len()).ok()?,
                 };
                 payload.checked_add(program_answer_bytes(outcome)?)
             }
@@ -832,7 +837,8 @@ pub(crate) fn owned_bytes(write: &Write) -> Option<u64> {
         Write::Erase(Key::Core(jig_domain_core::Key::Notes(jig_domain_notes::Key::Line { scope, .. }))) => {
             note_scope_bytes(scope)
         }
-        Write::Wires
+        Write::DropTranscript { .. }
+        | Write::Wires
         | Write::Erase(
             Key::Core(
                 jig_domain_core::Key::Notes(jig_domain_notes::Key::Entry { .. })
@@ -852,6 +858,7 @@ pub(crate) fn owned_bytes(write: &Write) -> Option<u64> {
                 | jig_domain_core::Key::Accounts(_),
             )
             | Key::Wires
+            | Key::Transcript(_)
             | Key::Forge(_),
         ) => Some(0),
     }

@@ -28,6 +28,7 @@ pub mod forge_sign_in;
 pub mod forgejo;
 pub mod forgejo_elsewhere;
 pub mod forgejo_sign_in;
+pub mod forges;
 pub mod live;
 pub mod live_github;
 pub mod llm;
@@ -97,8 +98,8 @@ pub fn own_listeners(document: &mut serde_json::Value) {
 
     let old = [
         "/application/clients/listener/socket",
-        "/application/setup/1/mode/owned/listen/socket",
-        "/application/setup/0/mode/fake/listen/socket",
+        "/application/machine/owned/mode/owned/listen/socket",
+        "/application/demo/forge/mode/fake/listen/socket",
         "/application/demo/llm/listen/socket",
         "/application/webhooks/listener/socket",
     ]

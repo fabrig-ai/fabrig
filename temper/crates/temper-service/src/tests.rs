@@ -33,6 +33,8 @@ mod startup_machine;
 mod system;
 
 mod forge;
+mod registry;
+mod registry_setup;
 
 mod box_link;
 mod bundle;

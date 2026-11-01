@@ -996,8 +996,7 @@ fn accept_requires_the_owner_a_real_connected_github_and_a_free_writing_slot() {
 }
 
 #[test]
-fn make_remove_and_end_are_refused_until_their_tasks() {
-    let mut d = github(Kind::GitHub, Mode::Managed);
+fn unavailable_make_remove_and_end_requests_refuse_and_release_carried_values() {
     for (ask, answer) in [
         (
             Ask::MakeForge { choice: ForgeChoice::Owned },
@@ -1007,6 +1006,7 @@ fn make_remove_and_end_are_refused_until_their_tasks() {
         (Ask::EndPlayground, Answered::EndPlayground(EndAnswer::NotOffered)),
     ] {
         for carried in [None, Some(VALUE)] {
+            let mut d = github(Kind::GitHub, Mode::Managed);
             let out = application(&mut d, 7, ask.clone(), Some(PartyRole::Owner), carried);
             assert_eq!(d.application_answer(Token::new(7)), Some(answer.clone()));
             assert!(out.contains(&Request::ApplicationDone { request: Token::new(7), token: Token::new(7) }));
@@ -1018,7 +1018,7 @@ fn make_remove_and_end_are_refused_until_their_tasks() {
     }
 }
 #[test]
-fn serve_and_root_answers_are_inert_until_their_tasks() {
+fn unsolicited_serve_and_root_answers_have_no_effect() {
     let mut d = github(Kind::GitHub, Mode::Managed);
     for event in [
         Event::GroupRemoved { forge: 1 },
@@ -1036,30 +1036,19 @@ fn serve_and_root_answers_are_inert_until_their_tasks() {
     assert!(d.playground().is_none());
 }
 #[test]
-#[expect(clippy::disallowed_macros, reason = "the test compares every domain map through its full Debug snapshot")]
-fn playground_and_kept_act_rows_restore_as_no_ops() {
+fn the_playground_row_restores_without_effects() {
     let mut d = github(Kind::GitHub, Mode::Managed);
     d.restore_begin(Wall::from_nanos(0));
-    for record in [
-        Stored::Playground(Playground {
-            state: PlaygroundState::Running,
-            forge: 1,
-            project: Some(1),
-            account: Some(2),
-        }),
-        Stored::KeptAct(KeptAct { key: [1; 16], forge: 1, act: KeptActKind::EraseSecrets }),
-    ] {
-        assert!(outputs(&mut d, Event::Restore { record }).is_empty());
-    }
-    // Restoration tracks its phase; the tables and public projection stay unchanged.
+    let row = Playground { state: PlaygroundState::Running, forge: 1, project: Some(1), account: Some(2) };
+    assert!(outputs(&mut d, Event::Restore { record: Stored::Playground(row) }).is_empty());
     let mut control = github(Kind::GitHub, Mode::Managed);
     control.restore_begin(Wall::from_nanos(0));
     assert_eq!(d.forges(), control.forges());
-    assert!(d.playground().is_none());
+    assert_eq!(d.playground(), Some(&row));
     assert!(d.restore_fit_failure().is_none());
     let out = outputs(&mut d, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
     let control_out = outputs(&mut control, Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic });
     assert_eq!(out, control_out);
     assert!(out.contains(&Request::RestartDone { stage: RestartStage::Restored }));
-    assert_eq!(alloc::format!("{d:?}"), alloc::format!("{control:?}"), "all maps unchanged");
+    assert_eq!(d.playground(), Some(&row));
 }

@@ -359,25 +359,8 @@ fn end_task(domain: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Queue
     domain.alarms.cancel(number);
     domain.grace_alarms.cancel(number);
     out.push(Request::Erase { key: Key::Live(number) });
-    if let Party::Person(party) = requester {
-        out.push(Request::Save {
-            record: Stored::EndedByParty(crate::EndedByParty {
-                party,
-                label: ended.label,
-                ended_at: env.wall,
-                task: number,
-            }),
-        });
-    }
-    if ended.flags.listed {
-        out.push(Request::Save {
-            record: Stored::EndedByProject(crate::EndedByProject {
-                project: ended.project,
-                label: ended.label,
-                ended_at: env.wall,
-                task: number,
-            }),
-        });
+    for index in ended_indices(&ended).into_boxed() {
+        out.push(Request::Save { record: index });
     }
     out.push(Request::Save { record: Stored::Ended(Box::new(ended)) });
     let dependents = snapshot(domain, env.limits.tasks);
@@ -428,7 +411,6 @@ fn end_task(domain: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Queue
     }
     match requester {
         Party::Task(parent) => {
-            out.push(Request::Save { record: Stored::EndedDelegate(crate::Edge { requester: parent, task: number }) });
             let mut remaining = List::with_capacity(env.limits.delegates);
             let task = task_mut(domain, parent).expect("requester remains live until all delegates end");
             for delegate in &task.record.delegates {
@@ -469,6 +451,39 @@ fn end_task(domain: &mut Domain, env: &Env<Limits>, number: u64, out: &mut Queue
     crate::subscriptions::notify_state(domain, number, state, words, out);
     out.push(Request::Ended { task: number, requester, ending });
     fact(domain, Fact::Ended { task: number, status });
+}
+
+/// The ended indexes named by the retained record (protocol/store.md, 7.4).
+pub(crate) fn ended_indices(record: &crate::TaskRecord) -> List<Stored> {
+    // A task has at most its party, project and delegate indexes.
+    let mut rows = List::with_capacity(3);
+    let ended_at = record.ended_at.expect("ended record has its ending time");
+    match record.requester {
+        Party::Person(party) => {
+            rows.push(Stored::EndedByParty(crate::EndedByParty {
+                party,
+                label: record.label,
+                ended_at,
+                task: record.number,
+            }))
+            .expect("one party index");
+        }
+        Party::Task(requester) => {
+            rows.push(Stored::EndedDelegate(crate::Edge { requester, task: record.number }))
+                .expect("one delegate index");
+        }
+        Party::Deployment { .. } => {}
+    }
+    if record.flags.listed {
+        rows.push(Stored::EndedByProject(crate::EndedByProject {
+            project: record.project,
+            label: record.label,
+            ended_at,
+            task: record.number,
+        }))
+        .expect("one project index");
+    }
+    rows
 }
 
 fn end_milestone(ended: &mut crate::TaskRecord, at: skein_lib::Wall, out: &mut Queue<Request>) {

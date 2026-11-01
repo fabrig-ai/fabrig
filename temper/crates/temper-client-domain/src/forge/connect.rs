@@ -138,8 +138,45 @@ fn visible(row: &Row, demo: Option<&Demo>) -> bool {
     }
     true
 }
-fn unbegun(row: &Row) -> bool {
-    row.first.is_none() && row.app.is_none() && row.installations.is_empty() && row.repositories.is_empty()
+/// A kept real row has begun once it leaves its untouched choice.
+#[must_use]
+pub fn begun(row: &Row) -> bool {
+    if let Connection::NotSetUp | Connection::NotConnected = row.connection {
+        row.first.is_some() || row.app.is_some() || !row.installations.is_empty() || !row.repositories.is_empty()
+    } else {
+        true
+    }
+}
+/// Connected with an adopted repository and, on GitHub, an accepted installation.
+#[must_use]
+pub fn whole(row: &Row) -> bool {
+    if row.mode == Mode::Fake {
+        return false;
+    }
+    let Connection::Connected { .. } = row.connection else { return false };
+    if row.kind == Kind::GitHub && !super::forges::accepted(row) {
+        return false;
+    }
+    if !row.repositories.is_empty() {
+        return true;
+    }
+    if let Some(first) = &row.first
+        && let super::forges::FirstState::Made { .. } = first.state
+    {
+        return true;
+    }
+    false
+}
+#[must_use]
+pub fn unfinished<'a>(rows: &'a State, demo: Option<&Demo>) -> Option<&'a Row> {
+    if let State::Rows(rows) = rows {
+        for row in rows {
+            if visible(row, demo) && begun(row) && !whole(row) {
+                return Some(row);
+            }
+        }
+    }
+    None
 }
 #[must_use]
 pub fn cards(rows: &State, demo: Option<&Demo>) -> List<Card> {
@@ -155,12 +192,12 @@ pub fn cards(rows: &State, demo: Option<&Demo>) -> List<Card> {
             }
             if row.kind == Kind::GitHub {
                 github_seen = true;
-                if github.is_none() && offered(row) && unbegun(row) {
+                if github.is_none() && offered(row) && !begun(row) {
                     github = Some(row.number);
                 }
             } else if row.mode == Mode::Owned {
                 here_seen = true;
-                if here.is_none() && offered(row) && unbegun(row) {
+                if here.is_none() && offered(row) && !begun(row) {
                     here = Some(row.number);
                 }
             }

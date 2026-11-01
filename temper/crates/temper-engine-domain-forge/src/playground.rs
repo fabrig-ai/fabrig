@@ -48,9 +48,7 @@ fn offered(d: &Domain) -> bool {
     if d.machine.playground.is_none() {
         return false;
     }
-    if let Some(row) = d.playground
-        && matches!(row.state, PlaygroundState::Resetting(_))
-    {
+    if let Some(Playground { state: PlaygroundState::Resetting(_), .. }) = d.playground {
         return false;
     }
     for (number, record) in &d.records {
@@ -122,7 +120,7 @@ pub(crate) fn end(d: &mut Domain, env: &Env<Limits>, request: Token, token: Toke
 
 pub(crate) fn step(d: &mut Domain, env: &Env<Limits>, step: ResetStep, out: &mut Queue<Request>) {
     let mut next = step;
-    for _ in 0..3 {
+    for _ in 0_u8..3 {
         let Some(mut row) = d.playground else { return };
         row.state = PlaygroundState::Resetting(next);
         save(d, row, out);
@@ -161,12 +159,12 @@ pub(crate) fn acted(d: &mut Domain, env: &Env<Limits>, act: ResetAct, keep: bool
         (PlaygroundState::Resetting(ResetStep::Project), ResetAct::RemoveProject { project })
             if row.project == Some(project) =>
         {
-            step(d, env, ResetStep::Forge, out)
+            step(d, env, ResetStep::Forge, out);
         }
         (PlaygroundState::Resetting(ResetStep::Account), ResetAct::RemoveAccount { account })
             if row.account == Some(account) =>
         {
-            erase(d, out)
+            erase(d, out);
         }
         _ => {}
     }

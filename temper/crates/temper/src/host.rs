@@ -337,6 +337,9 @@ fn note_line(note: temper_service::Note) -> String {
             };
             format!("temper serve: forge {number}: Not connected: {why}\n")
         }
+        temper_service::Note::ForgeRecordChanged { number } => {
+            format!("temper serve: forge {number}: record changes its kind or API; ignored\n")
+        }
         temper_service::Note::ForgeNotConnected { number, why } => {
             format!("temper serve: forge {number}: not connected: {why}\n")
         }

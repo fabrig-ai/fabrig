@@ -264,6 +264,18 @@ pub enum Event {
     Remake { entry: Entry },
     /// Cancel an entry before it reaches the forge.
     Withdraw { entry: u64 },
+    /// Drop this forge's writer without erasing its durable row and retire
+    /// every held entry on it in entry-number order, regardless of phase,
+    /// attempt or uncertainty. Other forges' work and budgets are untouched.
+    /// Cancel entry alarms and queued calls; settle once with
+    /// `Failed(NotConnected)` now, or at an outstanding call's terminal,
+    /// whatever its answer, without progress, echoes, recovery or more calls.
+    /// Retired entries are absent from outbox settlement and stop results;
+    /// their lanes free now, or at that terminal. A later make is forbidden
+    /// without a writer. Unknown forges say nothing. This acts on what is
+    /// held before or after restore; live resources and repository records
+    /// remain the owner's to drop through its next `Keep`.
+    Retire { forge: u16 },
     /// Restore a durable working-set record.
     Restore { record: Stored },
     /// Finish restoring the working set and select a recovery clock.

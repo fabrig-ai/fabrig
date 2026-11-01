@@ -7,6 +7,8 @@ files = [
   "jig/crates/jig-domain-core/**",
   "jig/tests/core/tests/suite/**",
   "jig/tests/core/src/fixtures.rs",
+  "jig/crates/jig-domain-people/src/inbox.rs",
+  "jig/crates/jig-domain-people/src/tests.rs",
 ]
 effort = "high"
 minutes = 120
@@ -128,3 +130,19 @@ Options, pre-approved:
 
 The choke points and lists you changed, each with its file; anything that names a project
 and was left (with why).
+
+## Answers
+
+2026-11-01. May this task change `jig/crates/jig-domain-people/src/inbox.rs` so a deleting
+project leaves the inbox counts and cached selection? Yes, option (A): J3's "leaves every inbox
+count at once" cannot hold from the core, since `counts` caps the private census before the core
+reads it. `pd-people-purge`, which owns the crate, is merged into the trunk, so the widening
+meets no running owner. Scope, and no more: in `inbox.rs`, the visibility and count predicates
+(`counts`' three scans, `needs`, the recent/unread selection the core's documents read) treat a
+project whose `self.deletion(project).is_some()` as one the person has no role in; roles,
+`chat_updates`, `result_census` and every durable row stay until `DropProject`/`EraseTask`
+(`pd-people-purge`, J4). No new public or stored vocabulary. A unit test in the crate's
+`tests.rs` (counts and needs drop a deleting project's entries; a live project's stay exact,
+`more_unread` with it), beside the core-world `deletion.rs` cases; run
+`heavy cargo nextest run -p jig-domain-people --lib` too. The files list above is widened by
+these two files.

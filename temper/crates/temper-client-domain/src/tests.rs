@@ -163,3 +163,5 @@ fn validity_accepts_stock_limits_and_refuses_invalid_edges() {
 }
 
 mod making;
+
+mod removing;

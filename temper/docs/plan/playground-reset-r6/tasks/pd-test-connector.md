@@ -65,3 +65,28 @@ Owned: the `files` above. Compiler-forced arms on the connector's `Event`/`Reque
 ## Report
 
 The connector records you found naming a project, and which of them you erase.
+
+## Answers
+
+### 2026-11-01: May `Unnamed` erase the task's remaining rows, or must project ownership be kept until `Release`? (playground-reset-r6/pd-test-connector-1)
+
+Option 1: `Unnamed` erases them; no stored shape changes. The root sends `Unnamed` for the
+core's `Ask::Release { task, .. }` (`jig-test-domain/src/routes.rs`), the closing task's
+final release. That comes after `Close` has settled the task's effects
+(`jig-domain-core/src/routing/vocabulary.rs`), so the task keeps nothing more and makes
+nothing more. Its subscriptions wake nothing, and its `Made` rows dedupe no later keep
+(`outbox.rs::keep` reads them only when the task keeps the same effect again). Leaving them only fills
+`limits.made`.
+
+- `unnamed(domain, task, out)` also drops from memory, and erases in the same decision,
+  every `Subscription { topic, task }` of the task (through `unsubscribe`, as `release`
+  does) and every `Made` whose key's task is the task. If the reproducer shows an `Outbox`
+  row of the task outliving `Unnamed`, apply the same rule with the task's share of
+  `outbox::release`. Keep `unnamed` the single place where a task's rows go, and have
+  `release` call it as it does now.
+- Rows orphaned before this change: no restart sweep. This is jig's testing application,
+  and no store of it outlives a test. Say so in a line in `restore`'s doc.
+- Un-ignore `release::a_released_project_erases_rows_of_an_unnamed_task`. A test in
+  `jig/tests/test-connector` that expected a `Made` or a subscription to survive a
+  task's release follows the new rule; list it in the report. Then run the remaining checks
+  from Steps 3 and 4.

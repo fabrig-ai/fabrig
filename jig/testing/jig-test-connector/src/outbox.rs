@@ -156,6 +156,43 @@ pub(crate) fn drop_staged(domain: &mut Domain, token: Token) {
     domain.outbox.staged.remove(&token);
 }
 
+/// Task release removes payloads, recovery state and made keys together.
+pub(crate) fn release(domain: &mut Domain, task: u64, out: &mut Queue<Request>) {
+    let mut proposals = Queue::uncapped();
+    for (number, (_, owner, _)) in &domain.outbox.proposals {
+        if *owner == task {
+            proposals.push(*number);
+        }
+    }
+    for _ in 0..proposals.len() {
+        let number = proposals.pop().expect("collected task proposal");
+        drop_proposal(domain, number, out);
+    }
+    let mut entries = Queue::uncapped();
+    for (number, entry) in &domain.outbox.entries {
+        if entry.task == task || entry.key.task == task {
+            entries.push((*number, entry.key));
+        }
+    }
+    for _ in 0..entries.len() {
+        let (number, key) = entries.pop().expect("collected task outbox entry");
+        domain.outbox.entries.remove(&number);
+        domain.outbox.runtime.remove(&number);
+        out.push(Request::Erase { key: RecordKey::Outbox(key) });
+    }
+    let mut made = Queue::uncapped();
+    for (key, _) in &domain.outbox.made {
+        if key.task == task {
+            made.push(*key);
+        }
+    }
+    for _ in 0..made.len() {
+        let key = made.pop().expect("collected task made key");
+        domain.outbox.made.remove(&key);
+        out.push(Request::Erase { key: RecordKey::Made(key) });
+    }
+}
+
 pub(crate) fn keep(
     domain: &mut Domain,
     env: &Env<Limits>,

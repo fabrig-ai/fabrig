@@ -24,6 +24,14 @@ impl Problems {
     pub fn is_empty(&self) -> bool {
         self.entries.is_empty() && self.past == 0
     }
+    /// The first kept problem, in check order; its reason is copied.
+    #[must_use]
+    pub fn first(&self) -> Option<(&Path, What)> {
+        match self.entries.get(0) {
+            Some((path, what)) => Some((path, *what)),
+            None => None,
+        }
+    }
     pub(crate) fn push(&mut self, path: Path, what: What) {
         if self.entries.push((path, what)).is_err() {
             self.past = self.past.saturating_add(1);

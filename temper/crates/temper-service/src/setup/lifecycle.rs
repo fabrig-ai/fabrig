@@ -57,35 +57,35 @@ pub(crate) struct Intent {
     pub(crate) repository: Box<[u8]>,
 }
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub(super) enum Source {
+pub(crate) enum Source {
     Prepared,
     Managed,
 }
 #[derive(Debug)]
-pub(super) struct Local {
-    pub(super) source: Source,
+pub(crate) struct Local {
+    pub(crate) source: Source,
     pub(crate) first: Option<Intent>,
-    pub(super) repositories: u64,
-    pub(super) pending: bool,
-    pub(super) restored: bool,
-    pub(super) limits: skein_forge_setup::limits::Limits,
-    pub(super) webhooks: bool,
-    pub(super) bot_login: Box<[u8]>,
-    pub(super) identity: crate::settings::Identity,
-    pub(super) handover: Option<Secret>,
-    pub(super) path: Box<[u8]>,
-    pub(super) file: FileStep,
-    pub(super) trigger: Trigger,
+    pub(crate) repositories: u64,
+    pub(crate) pending: bool,
+    pub(crate) restored: bool,
+    pub(crate) limits: skein_forge_setup::limits::Limits,
+    pub(crate) webhooks: bool,
+    pub(crate) bot_login: Box<[u8]>,
+    pub(crate) identity: crate::settings::Identity,
+    pub(crate) handover: Option<Secret>,
+    pub(crate) path: Box<[u8]>,
+    pub(crate) file: FileStep,
+    pub(crate) trigger: Trigger,
 }
 #[derive(PartialEq, Eq, Debug)]
-pub(super) enum Trigger {
+pub(crate) enum Trigger {
     Start,
     StartAsked,
     StartDemo,
     Asked,
 }
 #[derive(Debug)]
-pub(super) enum FileStep {
+pub(crate) enum FileStep {
     Idle,
     Reading { run: Token, sent: bool },
     Read(Result<Option<Secret>, crate::HandoverUnread>),
@@ -122,7 +122,30 @@ pub(super) struct Lifecycle {
     restored: bool,
 }
 impl Lifecycle {
-    #[cfg(test)]
+    pub(crate) fn remove(&mut self, forge: u16) {
+        self.adoptions.remove(&forge);
+        self.reconcile.remove(&forge);
+        self.deleting.remove(&forge);
+        let mut installations = List::with_capacity(self.installations.len());
+        for ((number, id), _) in &self.installations {
+            if *number == forge {
+                installations.push(*id).expect("installation count");
+            }
+        }
+        for id in &installations {
+            self.installations.remove(&(forge, *id));
+        }
+        let mut deleted = List::with_capacity(self.deleted.len());
+        for ((number, id), ()) in &self.deleted {
+            if *number == forge {
+                deleted.push(*id).expect("deleted count");
+            }
+        }
+        for id in &deleted {
+            self.deleted.remove(&(forge, *id));
+        }
+    }
+
     pub(crate) const fn startup_restored(&self) -> bool {
         self.restored
     }
@@ -504,6 +527,23 @@ fn finish(engine: &mut crate::engine::Engine, token: Token, end: root::SetupEnd)
     }
 }
 pub(super) fn kept(engine: &mut crate::engine::Engine, purpose: Purpose) {
+    match &purpose {
+        Purpose::Host(run)
+        | Purpose::Origin(run)
+        | Purpose::PasteOrigin(run)
+        | Purpose::LocalOrigin(run)
+        | Purpose::AdminOrigin(run)
+        | Purpose::Admin(run) => {
+            if !engine.setup.runs.contains_key(run) {
+                return;
+            }
+        }
+        Purpose::Deleted(forge) => {
+            if !engine.setup.lifecycle.deleting.contains_key(forge) {
+                return;
+            }
+        }
+    }
     match purpose {
         Purpose::AdminOrigin(run) => admin_create(engine, run),
         Purpose::Admin(run) => {
@@ -1475,4 +1515,38 @@ fn admin_done(engine: &mut crate::engine::Engine, token: Token, outcome: reconci
         return;
     }
     unreachable!("admin Done belongs to Reconcile or Create");
+}
+
+pub(crate) fn remove(engine: &mut crate::engine::Engine, forge: u16) {
+    engine.setup.lifecycle.remove(forge);
+}
+
+#[cfg(test)]
+pub(crate) fn test_unregister(engine: &mut crate::engine::Engine, forge: u16) {
+    for number in [1, forge] {
+        let lifecycle = &mut engine.setup.lifecycle;
+        lifecycle
+            .adoptions
+            .insert(number, Adoption { next: NonZeroU64::new(1).unwrap(), repositories: 1, files: None })
+            .unwrap();
+        lifecycle.reconcile.insert(number, Reconcile::GitHub).unwrap();
+        lifecycle.deleting.insert(number, ()).unwrap();
+        lifecycle
+            .installations
+            .insert((number, 7), domain::Installation { account: None, stray: false, suspended: false })
+            .unwrap();
+        lifecycle.deleted.insert((number, 8), ()).unwrap();
+    }
+    crate::route::request(engine, root::Request::Unregister { forge });
+    let lifecycle = &engine.setup.lifecycle;
+    assert!(!lifecycle.adoptions.contains_key(&forge));
+    assert!(!lifecycle.reconcile.contains_key(&forge));
+    assert!(!lifecycle.deleting.contains_key(&forge));
+    assert!(!lifecycle.installations.contains_key(&(forge, 7)));
+    assert!(!lifecycle.deleted.contains_key(&(forge, 8)));
+    assert!(lifecycle.adoptions.contains_key(&1));
+    assert!(lifecycle.reconcile.contains_key(&1));
+    assert!(lifecycle.deleting.contains_key(&1));
+    assert!(lifecycle.installations.contains_key(&(1, 7)));
+    assert!(lifecycle.deleted.contains_key(&(1, 8)));
 }

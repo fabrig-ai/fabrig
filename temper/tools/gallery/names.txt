@@ -39,6 +39,8 @@ forge-details
 forge-setting-up-middle
 forge-setup-failed
 welcome-setup-failed
+welcome-forge-not-finished
+welcome-forge-go-on
 welcome-ready-under-way
 welcome-ready-adopted
 chats-setup-strip
@@ -81,3 +83,5 @@ task-reference-T12
 task-solo-T9
 forges-github-install
 forge-admin-details
+forges-remove-confirm
+forges-removing

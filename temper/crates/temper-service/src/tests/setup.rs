@@ -69,7 +69,7 @@ fn github_config(
     fixtures::fill_files(&mut config);
     config
 }
-fn load_routing(service: &mut crate::Service) {
+pub(crate) fn load_routing(service: &mut crate::Service) {
     fixtures::mark_store(&mut service.engine.as_mut().expect("engine").store);
     assert!(service.engine.as_ref().expect("engine").setup.component.is_none(), "no host before the rows load");
     for _ in 0_u32..8 {
@@ -97,12 +97,12 @@ fn load_routing(service: &mut crate::Service) {
     }
 }
 
-pub(super) fn start(service: &mut crate::Service, run: u64, plan: host::Plan) {
+pub(crate) fn start(service: &mut crate::Service, run: u64, plan: host::Plan) {
     let run = Token::new(run);
     service.engine.as_mut().expect("engine").setup.staged.insert(run, plan).unwrap();
     crate::route::request(service.engine.as_mut().expect("engine"), root::Request::Setup { run });
 }
-pub(super) fn terminal(service: &mut crate::Service) -> root::SetupEnd {
+pub(crate) fn terminal(service: &mut crate::Service) -> root::SetupEnd {
     for _ in 0_u32..4 {
         advance(service.engine.as_mut().expect("engine"));
     }
@@ -211,7 +211,7 @@ fn an_install_can_evict_a_manifests_state_while_its_page_lives() {
     // The slug above only made an Install-purpose state; no App remains in this host-state fixture.
     service.engine.as_mut().expect("engine").forge_records.rows = crate::forge::records::Loader::new(
         &fixtures::engine().limits,
-        &service.engine.as_ref().expect("engine").workers.forges,
+        service.engine.as_ref().expect("engine").workers.forges.as_slice(),
     )
     .rows;
     start(&mut service, 3, host::Plan::Convert { forge: 1, code: code(), state });
@@ -230,17 +230,17 @@ fn code() -> Secret {
     Secret::new(Box::from(skein_lib::Decimal::of(Rng::new(805).next_u64()).as_bytes()))
 }
 
-pub(super) struct Face {
+pub(crate) struct Face {
     owner: Option<Token>,
     hold_done: bool,
     done: Option<host::Event>,
-    pub(super) wire: skein_world::stream::Wire,
+    pub(crate) wire: skein_world::stream::Wire,
 }
 impl Face {
-    pub(super) fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self { owner: None, hold_done: false, done: None, wire: skein_world::stream::Wire::new(7) }
     }
-    pub(super) fn turn(&mut self, service: &mut crate::Service) {
+    pub(crate) fn turn(&mut self, service: &mut crate::Service) {
         for _ in 0_u32..service.engine.as_mut().expect("engine").setup.io.len() {
             match service.engine.as_mut().expect("engine").setup.io.pop().unwrap() {
                 skein_io::Request::Connect { owner, .. } => {
@@ -292,7 +292,7 @@ impl Face {
         }
         advance(service.engine.as_mut().expect("engine"));
     }
-    fn reply(&mut self, service: &mut crate::Service, body: &[u8]) {
+    pub(crate) fn reply(&mut self, service: &mut crate::Service, body: &[u8]) {
         self.reply_status(service, b"200 OK", body);
     }
     fn reply_status(&mut self, service: &mut crate::Service, status: &[u8], body: &[u8]) {
@@ -323,7 +323,7 @@ impl Face {
             self.turn(service);
         }
     }
-    pub(super) fn sent(&mut self, service: &mut crate::Service) {
+    pub(crate) fn sent(&mut self, service: &mut crate::Service) {
         for _ in 0_u32..1024 {
             self.turn(service);
         }
@@ -549,7 +549,7 @@ fn the_host_names_the_metadata_limits_and_rejects_bad_start_limits() {
     }
 }
 
-fn contains(bytes: &[u8], needle: &[u8]) -> bool {
+pub(crate) fn contains(bytes: &[u8], needle: &[u8]) -> bool {
     for part in bytes.windows(needle.len()) {
         if part == needle {
             return true;
@@ -702,7 +702,8 @@ fn an_unresolved_forge_keeps_its_setup_entry_but_restored_and_asked_connects_nev
     assert_eq!(settings.forges.get(0).unwrap().address, skein_io::Addr::Ip(crate::forge::HELD_ADDRESS));
     lifecycle_tests::app(&mut service);
     let engine = service.engine.as_mut().unwrap();
-    let expected = records::origin(skein_forge_connection::settings::Kind::GitHub, &engine.workers.forges[0].api);
+    let expected =
+        records::origin(skein_forge_connection::settings::Kind::GitHub, &engine.workers.forges.as_slice()[0].api);
     assert!(
         records::access(
             skein_forge_connection::settings::Kind::GitHub,
@@ -755,7 +756,7 @@ fn an_unresolved_forge_keeps_its_setup_entry_but_restored_and_asked_connects_nev
 #[path = "git_tokens.rs"]
 mod git_tokens;
 
-fn local_config(records: bool, fake: bool) -> crate::settings::Engine {
+pub(crate) fn local_config(records: bool, fake: bool) -> crate::settings::Engine {
     let mut config = fixtures::engine();
     config.forges[0].api = jig_protocol_config::Address::Addr(skein_io::Addr::Ip(([127, 0, 0, 1], 9).into()));
     config.setup = Box::new([fixtures::owned_setup(1)]);
@@ -780,7 +781,7 @@ fn local_config(records: bool, fake: bool) -> crate::settings::Engine {
     fixtures::fill_files(&mut config);
     config
 }
-fn kept_record(store: &mut crate::store::Store, forge: u16, item: Item, bytes: &[u8]) {
+pub(crate) fn kept_record(store: &mut crate::store::Store, forge: u16, item: Item, bytes: &[u8]) {
     let owner = Token::new(901);
     assert!(
         store
@@ -802,7 +803,7 @@ fn kept_record(store: &mut crate::store::Store, forge: u16, item: Item, bytes: &
     };
     assert_eq!(found, owner);
 }
-fn local_store(token: bool) -> crate::store::Store {
+pub(crate) fn local_store(token: bool) -> crate::store::Store {
     use temper_engine_domain_forge::Stored;
     // Persist the real first-start settings before constructing a restart fixture.
     let mut bootstrap = fixtures::ready();
@@ -833,7 +834,7 @@ fn local_store(token: bool) -> crate::store::Store {
     assert_eq!(number, header.commits);
     store
 }
-fn local_repository() -> domain::Repository {
+pub(crate) fn local_repository() -> domain::Repository {
     use temper_engine_domain_forge::{Kinds, Protection, Repository, Role};
     Repository {
         project: 1,
@@ -866,12 +867,12 @@ fn local_repository() -> domain::Repository {
         },
     }
 }
-fn local_service(config: crate::settings::Engine, store: crate::store::Store) -> crate::Service {
+pub(crate) fn local_service(config: crate::settings::Engine, store: crate::store::Store) -> crate::Service {
     let mut service = crate::Service::engine(config, &fixtures::seeds(), None, fixtures::forge_runtime()).unwrap();
     service.engine.as_mut().unwrap().store = store;
     service
 }
-fn restore_local(service: &mut crate::Service) {
+pub(crate) fn restore_local(service: &mut crate::Service) {
     // The generic kernel refuses unhandled network connects. Hold local work
     // until service admission opens, then give its real setup streams to Face.
     // domain/root.md, 9.1 holds effects through the durable mark; the service pass
@@ -905,7 +906,7 @@ fn restore_local(service: &mut crate::Service) {
         engine.domain.deployment(),
     );
 }
-fn local_sent(service: &mut crate::Service, face: &mut Face, path: &[u8]) {
+pub(crate) fn local_sent(service: &mut crate::Service, face: &mut Face, path: &[u8]) {
     face.sent(service);
     assert!(contains(&face.wire.received, path), "wanted path {path:?}");
 }
@@ -1233,7 +1234,7 @@ fn takeover_to_kept(service: &mut crate::Service, face: &mut Face) {
     face.reply(service, br#"{"max_response_items":50,"default_paging_num":10}"#);
     local_sent(service, face, b"GET /api/v1/admin/users/temper-admin/tokens");
 }
-fn takeover_done(service: &mut crate::Service, face: &mut Face) -> crate::HandoverRemoval {
+pub(crate) fn takeover_done(service: &mut crate::Service, face: &mut Face) -> crate::HandoverRemoval {
     takeover_to_kept(service, face);
     face.hold_done = true;
     face.reply(service, b"[]");
@@ -1246,7 +1247,7 @@ fn takeover_done(service: &mut crate::Service, face: &mut Face) -> crate::Handov
     assert!(service.engine.as_ref().unwrap().forge.starts.is_empty());
     remove
 }
-fn box_started(service: &mut crate::Service) -> crate::HandoverRead {
+pub(crate) fn box_started(service: &mut crate::Service) -> crate::HandoverRead {
     while service.notes().pop().is_some() {}
     let engine = service.engine.as_mut().unwrap();
     let mut out = Queue::with_capacity(3);
@@ -1259,7 +1260,7 @@ fn box_started(service: &mut crate::Service) -> crate::HandoverRead {
     assert!(told_local(engine, &domain::Connection::Connecting));
     service.take_handover_read().expect("box preparation requests the handover")
 }
-fn finish_local(service: &mut crate::Service, face: &mut Face) {
+pub(crate) fn finish_local(service: &mut crate::Service, face: &mut Face) {
     face.hold_done = false;
     reconcile_to_repository(service, face);
     face.reply(service, br#"{"permission":"write","user":{"id":42,"login":"temper"}}"#);

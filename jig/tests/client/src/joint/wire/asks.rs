@@ -144,6 +144,7 @@ fn translate(
             project: *project,
             name: core::str::from_utf8(name.bytes()).expect("client text is UTF-8").into(),
         },
+        client::Ask::RemoveProject { project } => people::Ask::RemoveProject { project: *project },
         client::Ask::MakeProject { name, policy } => people::Ask::MakeProject {
             name: core::str::from_utf8(name.bytes()).expect("client text is UTF-8").into(),
             policy: *policy,

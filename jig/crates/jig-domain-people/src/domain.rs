@@ -416,13 +416,13 @@ impl Domain {
         if identity.key.provider == self.deployment_provider { Kind::Service } else { Kind::Person }
     }
 
-    /// A deleting project's stage (temper/docs/design/draft/playground-reset.md, 5).
+    /// A deleting project's stage.
     #[must_use]
     pub fn deletion(&self, project: u32) -> Option<Stage> {
         self.deletions.get(&project).copied()
     }
 
-    /// All deleting projects' stages (temper/docs/design/draft/playground-reset.md, 5).
+    /// All deleting projects' stages.
     #[must_use]
     pub const fn deletions(&self) -> &Map<u32, Stage> {
         &self.deletions

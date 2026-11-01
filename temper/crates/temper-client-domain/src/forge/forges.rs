@@ -327,6 +327,7 @@ pub(crate) fn configure(side: &mut super::Side, limits: super::Limits, out: &mut
         if side.link == Link::SignedOut {
             side.set_up = None;
             side.making = None;
+            side.removal = None;
             side.making_address = None;
             side.elsewhere_form = super::making::Draft::new();
             side.pickers.clear();
@@ -502,6 +503,7 @@ pub(crate) fn told(
                 },
                 None => State::Unknown,
             };
+            super::removing::prune(side);
             if let State::Ended = side.forges {
                 end(side, out);
             }

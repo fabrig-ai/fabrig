@@ -2068,6 +2068,8 @@ fn accounts(w: World, then: Then) -> c::OwnerAccounts {
                 end: c::OwnerAccountEnd::Refused { refusal: c::OwnerAccountRefusal::Held { provider: 18 } },
             }),
             Then::Shown
+            | Then::RemoveConfirm
+            | Then::Removing
             | Then::Filled
             | Then::Refused
             | Then::SignedOut
@@ -2143,6 +2145,7 @@ fn offers(kinds: &[c::ActKind]) -> List<c::Offered> {
             | c::ActKind::SetRoles
             | c::ActKind::MakeService
             | c::ActKind::SetPool
+            | c::ActKind::RemoveProject
             | c::ActKind::Rename
             | c::ActKind::Withdraw => None,
         };

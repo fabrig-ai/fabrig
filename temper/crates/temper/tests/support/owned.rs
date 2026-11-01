@@ -788,11 +788,11 @@ pub fn bounded(directory: &Path) -> Bounded {
     bounded_document(
         directory,
         value,
-        temper_service::ForgeRuntime {
+        Some(temper_service::ForgeRuntime {
             number: 1,
             address: owned.forgejo,
             transport: skein_forge_connection::settings::Transport::Plaintext { name: None },
-        },
+        }),
     )
 }
 
@@ -810,11 +810,11 @@ pub fn bounded_records(directory: &Path) -> Bounded {
     bounded_document(
         directory,
         value,
-        temper_service::ForgeRuntime {
+        Some(temper_service::ForgeRuntime {
             number: 1,
             address: owned.forgejo,
             transport: skein_forge_connection::settings::Transport::Plaintext { name: None },
-        },
+        }),
     )
 }
 
@@ -855,19 +855,7 @@ pub fn bounded_template(directory: &Path) -> Bounded {
     local_agent(directory, "agent.json", "127.0.0.1:8370".parse().expect("LLM stand-in"));
     let value =
         serde_json::from_slice(&fs::read(directory.join("temper.json")).expect("template")).expect("template JSON");
-    let (trust, _) = skein_tls::Config::from_der(&[skein_tls_world::pki::ROOT.into()], &[]).expect("fixture trust");
-    bounded_document(
-        directory,
-        value,
-        temper_service::ForgeRuntime {
-            number: 2,
-            address: "127.255.255.254:65535".parse().expect("resolved GitHub stand-in"),
-            transport: skein_forge_connection::settings::Transport::Tls {
-                server_name: skein_tls::Name::new("api.github.com").expect("GitHub name"),
-                trust,
-            },
-        },
-    )
+    bounded_document(directory, value, None)
 }
 
 /// Checked-in process fixture profile with local destinations and synthetic named files.
@@ -968,7 +956,11 @@ pub fn deployment_profile(directory: &Path, relative: &str) -> Bounded {
     }
 }
 
-fn bounded_document(directory: &Path, mut value: serde_json::Value, forge: temper_service::ForgeRuntime) -> Bounded {
+fn bounded_document(
+    directory: &Path,
+    mut value: serde_json::Value,
+    forge: Option<temper_service::ForgeRuntime>,
+) -> Bounded {
     use skein_lib::{List, Secret};
     use temper_service::settings::{Files, PROGRAM_PATH_BYTES, Seeds};
     let path = format!("/{}", "p".repeat(PROGRAM_PATH_BYTES - 1));
@@ -979,7 +971,7 @@ fn bounded_document(directory: &Path, mut value: serde_json::Value, forge: tempe
         temper_service::named(&document, &jig_protocol_config::Directories::working()).expect("bounded example named");
     let mut forges = List::with_capacity(u32::try_from(named.forges.len()).expect("forge count"));
     for local in &named.forges {
-        if local.number != forge.number {
+        if forge.as_ref().is_none_or(|forge| local.number != forge.number) {
             let jig_protocol_config::Address::Addr(address) = &local.api else {
                 panic!("additional bounded forges have socket addresses")
             };
@@ -993,7 +985,9 @@ fn bounded_document(directory: &Path, mut value: serde_json::Value, forge: tempe
                 .expect("configured forge count");
         }
     }
-    forges.push(forge).expect("primary forge");
+    if let Some(forge) = forge {
+        forges.push(forge).expect("primary forge");
+    }
     let mut agent = agent::preflight(&named).expect("ordinary agent declarations");
     assert_eq!(agent.programs.len(), 1, "owned example declares Claude Code");
     agent.programs[0].path = path.as_bytes().into();
@@ -1050,10 +1044,7 @@ fn checked_setup(bytes: &[u8], named: &temper_service::Named) -> temper_forge_se
         .expect("bounded root")
         .member(&document, b"application")
         .expect("bounded application");
-    let at = read::Object::new(&document, application)
-        .expect("bounded application object")
-        .member(&document, b"setup")
-        .expect("bounded setup");
+    let at = read::Object::new(&document, application).expect("bounded application object").member(&document, b"setup");
     let mut forges = Vec::new();
     for forge in &named.forges {
         let mut identity = None;
@@ -1094,7 +1085,7 @@ fn checked_setup(bytes: &[u8], named: &temper_service::Named) -> temper_forge_se
         None => None,
     };
     listeners.extend(listener);
-    check::checked(
+    check::checked_at(
         &document,
         at,
         &config::Directories::working(),

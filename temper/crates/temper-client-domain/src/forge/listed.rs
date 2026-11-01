@@ -25,14 +25,7 @@ pub fn personal(row: &Row, demo: Option<&Demo>) -> bool {
     {
         return false;
     }
-    match row.connection {
-        Connection::NotConnected | Connection::NotSetUp => false,
-        Connection::SettingUp { .. }
-        | Connection::SetUpFailed { .. }
-        | Connection::Connecting
-        | Connection::Connected { .. }
-        | Connection::Stopped { .. } => true,
-    }
+    true
 }
 /// The decoder keeps these rows in increasing forge number order.
 #[must_use]

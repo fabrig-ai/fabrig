@@ -44,6 +44,7 @@ pub fn store_asks() -> List<c::Ask> {
     let revision = read_value_revision();
     list([
         c::Ask::Rename { project: 7, name: store_text() },
+        c::Ask::RemoveProject { project: 7 },
         c::Ask::MakeProject { name: store_text(), policy: 1 },
         message(),
         create_ask(),

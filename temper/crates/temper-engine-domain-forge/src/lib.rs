@@ -39,6 +39,7 @@ pub mod purpose;
 mod result;
 pub use result::{ChangeResult, ResultText};
 mod reconcile;
+mod removal;
 pub mod runs;
 mod views;
 pub use reconcile::{RecordKind, Unresolved};

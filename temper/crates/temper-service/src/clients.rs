@@ -649,7 +649,10 @@ impl Clients {
                         endings.push(number).expect("bounded commit writes");
                     }
                 }
-                root::Write::Wires | root::Write::CopySettingsRevision(_) | root::Write::Save(_) => {}
+                root::Write::Wires
+                | root::Write::DropTranscript { .. }
+                | root::Write::CopySettingsRevision(_)
+                | root::Write::Save(_) => {}
             }
         }
         if !endings.is_empty() {
@@ -710,6 +713,7 @@ fn ended(key: &root::Key) -> Option<u64> {
             | core::Key::Accounts(_),
         )
         | root::Key::Wires
+        | root::Key::Transcript(_)
         | root::Key::Forge(_) => None,
     }
 }

@@ -406,7 +406,7 @@ fn refused_box(scratch: &support::Scratch, value: &serde_json::Value) -> String 
     .expect_err("box refused")
 }
 #[test]
-fn a_box_on_a_fresh_init_reaches_serves_link_with_forge_3_dormant() {
+fn a_box_on_a_fresh_init_reaches_serves_link_with_no_forge() {
     let scratch = support::Scratch::startup("box-fresh-init");
     let init = std::process::Command::new(skein_scratch::paths::binary("temper"))
         .arg("init")
@@ -414,7 +414,6 @@ fn a_box_on_a_fresh_init_reaches_serves_link_with_forge_3_dormant() {
         .output()
         .expect("init command");
     assert!(init.status.success(), "{}", String::from_utf8_lossy(&init.stderr));
-    // init's ports are fixed when free; tests run side by side, so each listener moves to a drawn one.
     support::own_listener_files(scratch.path());
     let ended = support::boxed::run(scratch.path(), None, support::boxed::Plan::Stop, support::boxed::BOX_DEADLINE);
     let diagnostic = String::from_utf8_lossy(&ended.stderr);
@@ -423,8 +422,11 @@ fn a_box_on_a_fresh_init_reaches_serves_link_with_forge_3_dormant() {
     assert!(!diagnostic.contains("application.setup"), "{diagnostic}");
     assert_eq!(ended.exit, Some(skein_io::kernel::Exit::Code(0)), "{diagnostic}");
     assert_eq!(ended.left, Some(Vec::new()), "no process outlived the box: {diagnostic}");
-    // Forge 3 is asked: its group never ran, so it has no directory and nothing was fetched.
-    for absent in ["forge-3", "forgejo", "forgejo-runner"] {
+    for entry in fs::read_dir(scratch.path()).expect("deployment directory") {
+        let entry = entry.expect("directory entry");
+        assert!(!entry.file_name().to_string_lossy().starts_with("forge-"), "{diagnostic}");
+    }
+    for absent in ["forgejo", "forgejo-runner"] {
         assert!(!scratch.path().join(absent).exists(), "{absent}: {diagnostic}");
     }
     scratch.remove();
@@ -2145,7 +2147,7 @@ fn a_box_runs_a_recorded_group_from_its_file_before_serve() {
     use std::os::unix::fs::PermissionsExt;
     let scratch = support::Scratch::startup("box-recorded-file");
     let document = initialized_box(&scratch);
-    let mut body = document["application"]["setup"][0].clone();
+    let mut body = document["application"]["demo"]["forge"].clone();
     let body = body.as_object_mut().expect("fake entry");
     for name in ["forge", "directory", "start"] {
         body.remove(name);
@@ -2183,5 +2185,110 @@ fn a_box_drops_a_started_record_without_settings() {
         1,
         "{diagnostic}"
     );
+    scratch.remove();
+}
+
+/// An init document with T4's machine templates and no configured forges.
+pub(super) fn initialized_t4_box(scratch: &support::Scratch) -> serde_json::Value {
+    initialized_box(scratch)
+}
+#[test]
+fn a_box_on_a_t4_document_holds_the_machines_ports_and_reaches_serves_link() {
+    use std::{
+        io::Read,
+        net::{SocketAddr, TcpListener, TcpStream},
+        os::fd::AsRawFd,
+        process::Stdio,
+    };
+    let scratch = support::Scratch::startup("box-t4-machine-ports");
+    let document = initialized_t4_box(&scratch);
+    let application = &document["application"];
+    let owned: SocketAddr = application["machine"]["owned"]["mode"]["owned"]["listen"]["socket"]
+        .as_str()
+        .expect("owned address")
+        .parse()
+        .expect("socket");
+    let fake: SocketAddr = application["demo"]["forge"]["mode"]["fake"]["listen"]["socket"]
+        .as_str()
+        .expect("fake address")
+        .parse()
+        .expect("socket");
+    let llm: SocketAddr =
+        application["demo"]["llm"]["listen"]["socket"].as_str().expect("LLM address").parse().expect("socket");
+    let mut child = std::process::Command::new(skein_scratch::paths::binary("temper"))
+        .arg("box")
+        .args(support::configuration::flags(scratch.path()))
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("box");
+    let mut deadline = skein_world::Deadline::arm("T4 box's link", support::WITHIN);
+    deadline.watch_process(child.id());
+    let mut stdout = Vec::new();
+    loop {
+        let output = child.stdout.as_mut().expect("stdout");
+        if !skein_shell::wait_readable(skein_io::kernel::Fd::new(output.as_raw_fd()), deadline.remaining())
+            .expect("stdout readiness")
+        {
+            if deadline.passed() {
+                support::parent::end_child(&mut child);
+                match deadline.expired() {
+                    skein_world::Expired::Starved(starved) => starved.pass(),
+                    skein_world::Expired::Failed(figures) => panic!("T4 link: {figures}"),
+                }
+            }
+            continue;
+        }
+        let mut bytes = [0; 4096];
+        let count = output.read(&mut bytes).expect("stdout read");
+        stdout.extend_from_slice(&bytes[..count]);
+        if count == 0 || support::printed_link(&stdout).is_some() {
+            break;
+        }
+    }
+    #[cfg(target_os = "linux")]
+    let observed = support::parent::Guard::observing_test();
+    let owned_held = if cfg!(target_os = "linux") { TcpStream::connect(owned).is_ok() } else { true };
+    let fake_held = TcpStream::connect(fake).is_ok();
+    let llm_held = TcpStream::connect(llm).is_ok();
+    let dormant = !scratch.path().join("forge-3").exists()
+        && !scratch.path().join("forge-1").exists()
+        && !scratch.path().join("box/logs/fake-llm.log").exists();
+    #[cfg(target_os = "linux")]
+    let only_serve = observed.children(child.id()).len() == 1;
+    support::parent::signal(&mut child, "TERM");
+    let ended = child.wait_with_output().expect("box reaped");
+    let diagnostic = String::from_utf8_lossy(&ended.stderr);
+    assert!(support::printed_link(&stdout).is_some(), "serve's link: {diagnostic}");
+    assert!(owned_held && fake_held && llm_held, "machine listeners held: {diagnostic}");
+    assert!(dormant, "no forge or fake ran: {diagnostic}");
+    #[cfg(target_os = "linux")]
+    assert!(only_serve && observed.all_exited(), "only serve ran, and nothing outlived the box: {diagnostic}");
+    assert!(ended.status.success(), "{diagnostic}");
+    for address in [owned, fake, llm] {
+        assert!(TcpListener::bind(address).is_ok(), "released {address}");
+    }
+    scratch.remove();
+}
+#[test]
+fn a_t4_document_runs_a_loaded_playground_group() {
+    let scratch = support::Scratch::startup("box-t4-recorded-playground");
+    let document = initialized_t4_box(&scratch);
+    let body = serde_json::to_vec(&document["application"]["demo"]["forge"]).expect("fake body");
+    let settings = temper_forge_setup::setup::group_settings(&body, 7).expect("group settings");
+    started_record(scratch.path(), 7);
+    fs::create_dir(scratch.path().join("box/groups")).expect("groups directory");
+    fs::set_permissions(scratch.path().join("box/groups"), fs::Permissions::from_mode(0o700)).expect("private groups");
+    support::write_private(&scratch.path().join("box/groups/7"), &settings);
+    let ended = support::boxed::run(scratch.path(), None, support::boxed::Plan::Stop, support::boxed::BOX_DEADLINE);
+    let diagnostic = String::from_utf8_lossy(&ended.stderr);
+    assert!(support::printed_link(&ended.stdout).is_some(), "serve's link: {diagnostic}");
+    assert_eq!(ended.exit, Some(skein_io::kernel::Exit::Code(0)), "{diagnostic}");
+    assert_eq!(ended.left, Some(Vec::new()), "no process outlived the box: {diagnostic}");
+    assert!(scratch.path().join("forge-7/admin_token").is_file(), "{diagnostic}");
+    assert!(scratch.path().join("box/logs/fake-forge-7.log").is_file(), "{diagnostic}");
+    assert!(scratch.path().join("box/started/7").is_file());
+    assert!(!scratch.path().join("forge-3").exists());
     scratch.remove();
 }

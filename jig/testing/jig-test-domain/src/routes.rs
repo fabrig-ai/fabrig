@@ -26,6 +26,9 @@ pub(super) fn route_core(
     let core::Requests::Out(mut requests) = requests;
     for _ in 0..requests.len() {
         match requests.pop().expect("core request count") {
+            core::Request::Write(core::Write::DropTranscript { task }) => {
+                write(domain, decision, Write::DropTranscript { task });
+            }
             core::Request::Write(core::Write::CopySettingsRevision(number)) => {
                 write(domain, decision, Write::CopySettingsRevision(number));
             }
@@ -283,6 +286,16 @@ fn route_ask(
                     hold(decision, Delivery::LostRead { connector: number, task, attempt, resource, call });
                 }
             }
+        }
+        core::Ask::ReleaseProject { project } => {
+            let mut requests = Queue::uncapped();
+            connector::step(
+                crate::numbered(domain, number),
+                &Env { now: env.now, wall: env.wall, limits: env.limits.connector },
+                connector::Event::Release { project },
+                &mut requests,
+            );
+            route_connector(domain, env, decision, number, &mut requests, work);
         }
         core::Ask::ProjectGoal { feed } => hold(decision, Delivery::Projection { connector: number, feed }),
         core::Ask::EndTopic { task, .. } => crate::topics::sync(domain, number, task, work),
@@ -628,6 +641,9 @@ pub(super) fn route_connector(
                     task,
                     connector: number,
                 })));
+            }
+            connector::Request::Released { project } => {
+                work.push(Work::Core(core::Event::ProjectReleased { project, connector: number }));
             }
             connector::Request::Drift { pool: resource, tasks }
             | connector::Request::DriftResource { tasks, resource } => {

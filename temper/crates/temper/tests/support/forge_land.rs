@@ -763,12 +763,7 @@ pub fn live_deployment(paths: &[PathBuf; 3], model: LiveModel<'_>) -> std::net::
     let mut value: serde_json::Value = serde_json::from_slice(&fs::read(&path).expect("configuration")).expect("JSON");
     value["engine"]["limits"]["overrides"]["accounts.sign_in_deadline_ms"] = 600_000.into();
     super::write_private(&path, &serde_json::to_vec(&value).expect("live configuration"));
-    value["application"]["forges"]
-        .as_array()
-        .expect("forges")
-        .iter()
-        .find(|forge| forge["number"] == 3)
-        .expect("owned forge")["api"]["socket"]
+    value["application"]["machine"]["owned"]["mode"]["owned"]["listen"]["socket"]
         .as_str()
         .expect("forge address")
         .parse()
@@ -2271,6 +2266,7 @@ fn live_deadline(budget: Duration, binary: &skein_world::end_to_end::Binary) -> 
 }
 
 /// The live face has only the supervised box and ctl, no issuer, visitor or peer.
+#[expect(clippy::too_many_lines, reason = "the live driver keeps setup, story and teardown together")]
 pub fn run_live(
     plan: LivePlan<'_>,
     budget: Duration,
@@ -2365,6 +2361,7 @@ pub fn run_live(
         return Err(message);
     }
     Ok(super::boxed::CtlOutcome {
+        runs: Vec::new(),
         model: None,
         exit: binary.exit_status(),
         stdout: calls.stdout().to_vec(),
