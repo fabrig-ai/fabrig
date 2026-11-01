@@ -87,8 +87,7 @@ impl Domain {
             link(self, source, key.person);
             match &answer.outcome {
                 Outcome::ServiceMade { person } => link(self, source, *person),
-                Outcome::RolesSet { project } => {
-                    assert!(self.roles.contains_key(project), "{source:?} links missing roster {project}");
+                Outcome::RolesSet { .. } => {
                     // Only successful roster asks retain their members as required references.
                     link_roster(self, source, &answer.ask);
                 }

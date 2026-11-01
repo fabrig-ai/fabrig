@@ -562,6 +562,8 @@ impl Domain {
 /// The most outputs one step emits.
 /// Bootstrap writes one roles record per configured owner match, alongside person/sign-in records
 /// and reply, plus one expired sign-in's erase; completion answers every bounded waiter.
+/// Task erasure can retire live and ended positions for every party; project removal retires
+/// every live conversation position and the roster.
 /// Internal output queues are uncapped; callers count output payload bytes separately.
 #[must_use]
 pub fn outputs_bound(limits: &Limits) -> u32 {
@@ -572,13 +574,15 @@ pub fn outputs_bound(limits: &Limits) -> u32 {
         .max(limits.sign_ins.saturating_add(1))
         .max(limits.holdings.saturating_add(1))
         .max(limits.people.saturating_add(1))
+        .max(limits.people.saturating_mul(2))
+        .max(limits.inbox_tasks.saturating_add(1))
 }
 
 /// Apply one root-issued `event` with iteration clocks and immutable configured bounds in `env`
 /// to an uncapped `out` queue. Emits
 /// routing/persistence/replies, never IO; root completes each `Route` once and withholds replies
 /// until required atomic writes are durable. Restore admission validates role-success shape;
-/// `Restored` checks its project/person references without rechecking current membership or
+/// `Restored` checks its person references without rechecking current membership or
 /// requiring the historical roster to equal the current one. Refused role asks retain their invalid
 /// targets for keyed replay.
 pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
@@ -601,7 +605,16 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
                 }
             }
         }
-        Event::EraseTask { .. } | Event::DropProject { .. } => {}
+        Event::EraseTask { task, project } => {
+            if domain.ready() {
+                inbox::erase_task(domain, &env.limits, task, project, out);
+            }
+        }
+        Event::DropProject { project } => {
+            if domain.ready() {
+                drop_project(domain, project, out);
+            }
+        }
         Event::Act { reply_to, connector, key, act } => {
             acts::admit(domain, env, reply_to, crate::ActKey { connector, key }, *act, out);
         }
@@ -672,6 +685,13 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
         }
         Event::Decided { request, outcome } => decided(domain, env, Id::<Pending>::from_token(request), outcome, out),
     }
+}
+
+fn drop_project(domain: &mut Domain, project: u32, out: &mut Queue<Request>) {
+    if domain.roles.remove(&project).is_some() {
+        out.push(Request::Erase { key: Key::Roles(project) });
+    }
+    inbox::purge_project(domain, project, out);
 }
 
 /// One expiration per fire; other expirations stay due for later iterations. Expire at most one
@@ -2187,10 +2207,7 @@ fn restored(domain: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
                 }
             }
             Outcome::RolesSet { .. } => match &answer.ask {
-                Ask::SetRoles { project, holdings } => {
-                    if !domain.roles.contains_key(project) {
-                        return restore_failed(domain, Key::Answer(*key), Refusal::Unknown, out);
-                    }
+                Ask::SetRoles { holdings, .. } => {
                     for holding in holdings {
                         if !domain.people.contains_key(&holding.person) {
                             return restore_failed(domain, Key::Answer(*key), Refusal::Unknown, out);
