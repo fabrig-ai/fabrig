@@ -15,7 +15,7 @@ fn started(input: &[u8], files: &crate::settings::Files, agent: &crate::settings
         &fixtures::seeds(),
         None,
         fixtures::worker_runtime(),
-        fixtures::forge_runtime(),
+        fixtures::startup_runtime(input),
     ) {
         Ok(service) => {
             drop(service);
@@ -70,7 +70,7 @@ fn an_identity_past_the_grant_bound_is_refused_naming_it() {
         .entries
         .push((b"secrets/forge-1.git-token".as_slice().into(), skein_lib::Secret::new(Box::new([b'x'; 8192]))))
         .unwrap();
-    let found = started(&fixtures::document(), &files, &fixtures::startup_agent());
+    let found = started(&fixtures::document_members::document(), &files, &fixtures::startup_agent());
     assert_eq!(&*lines(&found), b"application.identities[0]: past its bound\n".as_slice());
 }
 #[test]

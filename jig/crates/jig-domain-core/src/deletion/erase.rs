@@ -1,5 +1,4 @@
-//! Bounded whole-task erasure (protocol/store.md, 8.5 and 11.1;
-//! temper/docs/plan/playground-reset-r6/notes/contracts.md, J4 and J6).
+//! Bounded whole-task erasure (jig/docs/design/protocol/store.md, 8.5 and 11.1).
 //! The ended owner survives every page until the final task decision. A start
 //! discards this transient scan and visits that owner again from the beginning.
 //!

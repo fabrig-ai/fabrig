@@ -9,38 +9,29 @@ use skein_lib::{List, Secret};
 pub const APPLICATION: &[u8] = br#"{
 "webhooks":null,
 "clients":{"listener":{"socket":"127.0.0.1:7100"},"public":null,"bundle":null},
-"forges":[{"number":1,"kind":"forgejo","api":{"socket":"127.0.0.1:9"},"transport":"plaintext","git":"http://127.0.0.1:9","webhook_secret":null,"api_token":"secrets/forge-1.api-token","user":{"file":"secrets/forge-1.user"},"identity":1}],
-"identities":[{"number":1,"token":"secrets/forge-1.git-token","login":"temper","author":{"name":"Temper","email":"temper@example.test"}}],
 "landing":{"deployment":[],"projects":[{"project":1,"rules":[{"connector":1,"kind":4,"pattern":{"segments":["forge","127.0.0.1:9","acme","app"],"last":"open","value":"main"},"enforce":true,"ci":false,"up_to_date":true,"gates":[],"approvals":[]}]}]},
-"setup":[],"demo":null,"sign_in":null,"charter":1,"limits":{"profile":"small","overrides":{}},"workers":[{"root":"worker-root","git":"/usr/bin/git"}]
+"machine":{"owned":null,"github":{"api":null,"transport":null,"git":null,"web":null},"git_program":null},"demo":null,"sign_in":null,"charter":1,"limits":{"profile":"small","overrides":{}},"workers":[{"root":"worker-root","git":"/usr/bin/git"}]
 }"#;
 pub const DEMO: &str = r#""demo":{"llm":{"listen":{"socket":"$llm"},"provider":3,"key":"demo/llm.key",
 "asked":[{"cue":"Add CSV export to widget","turns":["CSV"]},
 {"cue":"Add a dark theme to widget","turns":["Theme"]},
 {"cue":"Fix widget's empty search state","turns":["Search"]}],
 "cued":[{"cue":"Export widget's table as CSV","turns":["Code"]}],"otherwise":["Demo"]},
-"forge":1,"project":1}"#;
-pub const DEMO_SETUP: &str = r#""setup":[{"forge":1,"directory":"demo/forge",
-"bot":{"login":"temper","email":"temper@example.test"},"mode":{"fake":{
-"listen":{"socket":"$forge"},"git":"demo/bin/git","owner":"demo",
-"repositories":[{"name":"widget","landing":"main"},{"name":"other","landing":"main"}]}}}]"#;
+"forge":{"bot":{"login":"temper","email":"temper@example.test"},"mode":{"fake":{
+"listen":{"socket":"127.0.0.1:9"},"git":"demo/bin/git","owner":"demo",
+"repositories":[{"name":"widget","landing":"main"},{"name":"other","landing":"main"}]}}},
+"project":{"name":"Playground","policy":1}}"#;
 pub fn demo_application() -> Box<[u8]> {
-    core::str::from_utf8(APPLICATION)
-        .unwrap()
-        .replace("\"setup\":[]", DEMO_SETUP)
-        .replace("\"demo\":null", DEMO)
-        .into_bytes()
-        .into_boxed_slice()
+    core::str::from_utf8(APPLICATION).unwrap().replace("\"demo\":null", DEMO).into_bytes().into_boxed_slice()
 }
 pub fn demo_document() -> Box<[u8]> {
     core::str::from_utf8(&document())
         .unwrap()
         .replacen(
             "\"engine\":{",
-            "\"engine\":{\"acts\":[{\"connector\":1,\"may\":[\"close\",\"add_key\",\"remove_account\",\"adopt\"]}],",
+            "\"engine\":{\"acts\":[{\"connector\":1,\"may\":[\"make_project\",\"add_key\",\"remove_account\",\"adopt\",\"cancel\",\"remove_project\"]}],",
             1,
         )
-        .replace("\"setup\":[]", DEMO_SETUP)
         .replace("\"demo\":null", DEMO)
         .into_bytes()
         .into_boxed_slice()
@@ -54,7 +45,7 @@ pub fn demo_service() -> crate::Service {
         &super::seeds(),
         None,
         worker_runtime(),
-        super::forge_runtime(),
+        List::with_capacity(0),
     )
     .unwrap()
 }
@@ -78,13 +69,6 @@ pub fn document() -> Box<[u8]> {
     let document = with(&document, b"workers[0].limits.overrides", worker_turn_limits().as_bytes());
     // Retain the checkout bounds alongside the turn-derived application bounds.
     with(&document, b"application.limits.overrides", br#"{"checkout.name_bytes":600,"checkout.repositories":4,"git_component.stdout_bytes":2048,"forge.name_bytes":256,"forge.resources_per_task":4}"#)
-}
-pub fn parsed() -> skein_json::Document {
-    jig_protocol_config::document(
-        &document(),
-        &jig_protocol_config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 },
-    )
-    .unwrap()
 }
 pub fn files() -> settings::Files {
     let mut entries = List::with_capacity(8);
@@ -187,7 +171,7 @@ fn engine_turn_limits() -> String {
     result
 }
 fn worker_turn_limits() -> String {
-    r#"{"hub.slots":1,"hub.run_calls":1,"tasks.run_inbox":2,"hub.turns":1,"tasks.message_bytes":512,"people.words":512,"core.call_answer_bytes":2048}"#.into()
+    r#"{"hub.slots":1,"hub.run_calls":1,"tasks.run_inbox":2,"hub.turns":1,"tasks.message_bytes":512,"people.words":512,"core.call_answer_bytes":2048,"accounts.credentials":4}"#.into()
 }
 /// Copy a JSON value for a fixture derived from another document.
 pub fn value(input: &[u8], path: &[u8]) -> Box<[u8]> {
@@ -262,7 +246,7 @@ fn member_span(input: &[u8], path: &[u8]) -> core::ops::Range<usize> {
 
 /// One webhook listener and its private secret path, on the shipped profile.
 pub fn webhook_document() -> Box<[u8]> {
-    core::str::from_utf8(&document())
+    core::str::from_utf8(&super::document_members::document())
         .unwrap()
         .replace("\"webhooks\":null", "\"webhooks\":{\"listener\":{\"socket\":\"127.0.0.1:7200\"}}")
         .replace("\"webhook_secret\":null", "\"webhook_secret\":\"secrets/forge-1.webhook-secret\"")

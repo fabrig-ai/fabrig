@@ -878,6 +878,48 @@ fn a_start_with_no_project_selects_the_read_project_once_running() {
 }
 
 #[test]
+fn a_failed_start_selects_the_project_it_made() {
+    for read_first in [false, true] {
+        let (mut root, _, me_watch) = start_project(0);
+        assert_eq!(root.pages().project(), None);
+        let request = root.forge().demo_request().unwrap();
+        let mut out = end_told(
+            &mut root,
+            request,
+            terminal(w::Outcome::StartFailed(
+                w::StartFailed::new(&w::CEILINGS, w::StartFailedParts { why: w::StartFailure::Account }).unwrap(),
+            )),
+        );
+        assert_eq!(root.pages().project(), None);
+        assert_eq!(root.forge().demo_failure(), Some(&demo::StartFailure::Account));
+        let read = demo_reread(&mut out);
+        if read_first {
+            up(&mut root, jig_client::Up::ReadDone { read, result: page() });
+            assert_eq!(root.pages().project(), None, "wait until Me names the project");
+        }
+        let mut me = f::chats::me();
+        let original = me.projects.get(0).unwrap().clone();
+        let mut other = original.clone();
+        other.project = 2;
+        me.projects = List::with_capacity(2);
+        me.projects.push(other).unwrap();
+        me.projects.push(original).unwrap();
+        up(
+            &mut root,
+            jig_client::Up::Watched { watch: me_watch, event: c::WatchEvent::Delivered(c::Delivery::Me(Box::new(me))) },
+        );
+        if !read_first {
+            assert_eq!(root.pages().project(), Some(2));
+            up(&mut root, jig_client::Up::ReadDone { read, result: page() });
+        }
+        assert_eq!(root.pages().project(), Some(f::PROJECT));
+        assert_eq!(root.forge().demo_failure(), Some(&demo::StartFailure::Account));
+        act(&mut root, Act::Project { project: 2 });
+        assert_eq!(root.pages().project(), Some(2), "automatic selection happens once");
+    }
+}
+
+#[test]
 fn a_start_with_a_project_asks_nothing_more() {
     let (mut root, mut out, _) = start_project(f::PROJECT);
     assert_eq!(root.pages().project(), Some(f::PROJECT));

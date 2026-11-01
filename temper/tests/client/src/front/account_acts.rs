@@ -72,9 +72,8 @@ enum WelcomeForge {
     Fresh,
     Owned,
     SeededOwned,
-    Demo { running: bool, github: bool },
-    DemoWithProjects,
-    DemoAdoption,
+    Playground,
+    PlaygroundAccount,
 }
 #[must_use]
 pub fn program_fixture(seed: u64) -> (Joint, Root) {
@@ -122,9 +121,8 @@ fn without_deployment_account((mut front, mut root): (Joint, Root)) -> (Joint, R
     }
     (front, root)
 }
-fn demo_providers(config: &mut engine::Config) {
-    // Both providers use this world's restored fake key sources, so Remove
-    // goes through the real account policy. Only their usability is scripted.
+fn playground_providers(config: &mut engine::Config) {
+    // Keep the playground's provider distinct from the person's real model.
     let demo = config.core.settings.llm_providers.providers[0].clone();
     let mut other = demo.clone();
     other.number = PROVIDER + 1;
@@ -143,21 +141,19 @@ fn fixture_root(
     forge: WelcomeForge,
     program: bool,
 ) -> (Joint, Root) {
-    let adoption = forge == WelcomeForge::DemoAdoption;
-    let forge = if adoption { WelcomeForge::Demo { running: false, github: false } } else { forge };
+    let real_account = forge == WelcomeForge::PlaygroundAccount;
+    let forge = if real_account { WelcomeForge::Playground } else { forge };
     let spend = match tools {
         Tools::Spend(spend) => Some(spend),
         Tools::Off | Tools::On => None,
     };
     let tools = tools != Tools::Off;
-    let surviving_projects = forge == WelcomeForge::DemoWithProjects;
-    let forge = if surviving_projects { WelcomeForge::Demo { running: true, github: false } } else { forge };
     let welcome = forge != WelcomeForge::None;
     let mut limits = if tools { temper_client_tools::limits::client() } else { fixtures::domain_limits() };
     if let Some(rows) = rows {
         limits.client.domain.rows = rows;
     }
-    let [(bootstrap, engine_limits), (config, _)] = std::array::from_fn(|index| {
+    let [(bootstrap, engine_limits), (config, _)] = std::array::from_fn(|_| {
         let mut config = walking::config(seed);
         config.core.settings.llm_providers = a::Providers {
             providers: Box::new([a::Provider {
@@ -169,12 +165,8 @@ fn fixture_root(
                 offers: a::Offers { sign_in: true, key: true, programs: Box::new([]) },
             }]),
         };
-        // Bootstrap restores the demo account alone; the runtime offers both.
-        let runtime = index == 1;
-        if let WelcomeForge::Demo { .. } = forge
-            && runtime
-        {
-            demo_providers(&mut config);
+        if forge == WelcomeForge::Playground {
+            playground_providers(&mut config);
         }
         if tools || program {
             config.core.settings.llm_providers.providers.get_mut(0).expect("fixture provider").offers.programs =
@@ -203,17 +195,30 @@ fn fixture_root(
             config.identities = Box::new([]);
         }
         let mut engine_limits = engine_limits();
-        if adoption {
-            // The chat needs one delegation below its own template's depth.
+        if forge == WelcomeForge::Playground {
+            super::first_run_projects(&mut config, &mut engine_limits);
+            config.demo = Some(fixtures::playground_config());
             engine_limits.tasks.depth = 2;
             engine_limits.brief.sections = 5;
             config.core.defaults.rules.ceiling.delegation.depth = 2;
             let policy = &mut config.core.seed_projects[0].policy.policy;
             policy.ceiling.delegation.depth = 2;
             policy.roles[0].authority.delegation.depth = 2;
-        }
-        if surviving_projects {
-            demo_surviving_projects(&mut config, &mut engine_limits);
+            let mut policy = config.core.defaults.policies.get(&1).expect("playground policy").clone();
+            policy.policy.ceiling.delegation.depth = 2;
+            policy.policy.roles[0].authority.delegation.depth = 2;
+            config.core.defaults.policies.insert(1, policy).expect("configured policy");
+            config.core.grants = Box::new([jig_domain_people::ActGrant {
+                connector: fixtures::FORGE,
+                may: Box::new([
+                    jig_domain_people::ActKind::MakeProject,
+                    jig_domain_people::ActKind::AddKey,
+                    jig_domain_people::ActKind::Adopt,
+                    jig_domain_people::ActKind::RemoveProject,
+                    jig_domain_people::ActKind::RemoveAccount,
+                ]),
+            }]);
+            engine_limits.people.act_grants = 1;
         }
         // Restore one deployment account and leave the requested room for party accounts.
         engine_limits.documents.lines = engine_limits.documents.lines.max(own_accounts);
@@ -230,36 +235,42 @@ fn fixture_root(
         }
         (config, engine_limits)
     });
-    let mut store = temper_engine_domain_world::fixtures::restored_over(Store::new(), bootstrap, &engine_limits);
-    if matches!(forge, WelcomeForge::Demo { .. } | WelcomeForge::SeededOwned) {
-        use temper_engine_domain_forge as f;
-        let mut record = if matches!(forge, WelcomeForge::Demo { github: true, .. }) {
-            let mut record = config.machine.github.clone();
-            record.mode = f::Mode::Connected;
-            record
-        } else {
-            config.machine.owned.clone().expect("owned fixture")
-        };
+    let mut store = if forge == WelcomeForge::Playground {
+        temper_engine_domain_world::fixtures::first_start_over(Store::new(), bootstrap, &engine_limits)
+    } else {
+        temper_engine_domain_world::fixtures::restored_over(Store::new(), bootstrap, &engine_limits)
+    };
+    if real_account {
+        let providers = a::Providers { providers: Box::new([config.core.settings.llm_providers.providers[1].clone()]) };
+        let mut rows = temper_engine_domain_world::fixtures::account_rows(&providers);
+        for record in &mut rows {
+            if let engine::Record::Core(jig_domain_core::Record::Accounts(a::Stored::Account { holder, .. })) = record {
+                *holder = a::Holder::Party(fixtures::PARTY);
+            }
+        }
+        store.seed(rows, Box::new([]));
+    }
+    if forge == WelcomeForge::SeededOwned {
+        let mut record = config.machine.owned.clone().expect("owned fixture");
         record.number = 1;
         store.seed(temper_engine_domain_world::forges::rows(&[record]), Box::new([]));
     }
     let mut front = Joint::with_engine(seed, &limits, store, [walking::config(seed), config], &engine_limits, 1);
-    if matches!(forge, WelcomeForge::SeededOwned | WelcomeForge::Demo { github: false, .. }) {
+    if forge == WelcomeForge::SeededOwned {
         front.engine.send(engine::Event::Forge(Box::new(temper_engine_domain_forge::Event::Connection {
             forge: 1,
             state: temper_engine_domain_forge::Connection::NotSetUp,
         })));
         front.engine.settle();
     }
-    if let WelcomeForge::Demo { running, .. } = forge {
-        let mut demo = playground_answer(running).into_parts();
-        if adoption {
-            demo.forge = 1;
-        }
-        front.demo = Some(
-            temper_client_protocol_wire::v1::PlaygroundAnswer::new(&temper_client_protocol_wire::v1::CEILINGS, demo)
-                .expect("demo fixture"),
-        );
+    if real_account {
+        front.engine.send(engine::Event::Account(a::Event::Component(a::FromComponent::Granted {
+            account: 1,
+            generation: 1,
+            valid: Duration::from_secs(3600),
+            form: a::Form::Credential(a::Scheme::Key),
+        })));
+        front.engine.settle();
     }
     front.bind(CLIENT, fixtures::PARTY);
     let mut root = if tools {
@@ -432,80 +443,32 @@ pub fn account_chat(front: &mut Joint, account: u32) -> u64 {
         .expect("created account-funded task")
 }
 
-/// A scripted demo read and start, beside the real root's account and forge facts.
+/// The playground's configured model and fake forge, before its first start.
 #[must_use]
-pub fn demo_fixture(seed: u64, state: &temper_client_protocol_wire::v1::PlaygroundState) -> (Joint, Root) {
-    fixture_root(
-        seed,
-        Tools::Off,
-        2,
-        None,
-        false,
-        WelcomeForge::Demo {
-            running: *state == temper_client_protocol_wire::v1::PlaygroundState::Running,
-            github: false,
-        },
-        false,
-    )
+pub fn playground_fixture(seed: u64) -> (Joint, Root) {
+    fixture_root(seed, Tools::Off, 2, None, false, WelcomeForge::Playground, false)
 }
 
-/// The playground starts against the real fixture forge, whose repository is not adopted yet.
+/// A person's usable account precedes the playground's own account.
 #[must_use]
-pub fn demo_adoption_fixture(seed: u64) -> (Joint, Root) {
-    fixture_root(seed, Tools::Off, 2, None, false, WelcomeForge::DemoAdoption, false)
+pub fn playground_with_real_account_fixture(seed: u64) -> (Joint, Root) {
+    fixture_root(seed, Tools::Off, 2, None, false, WelcomeForge::PlaygroundAccount, false)
 }
 
-/// The playground plus two real projects; ordinary demo fixtures keep their single project.
+/// Begin through the same client request as the welcome's playground button.
 #[must_use]
-pub fn demo_fixture_with_projects(seed: u64) -> (Joint, Root) {
-    fixture_root(seed, Tools::Off, 2, None, false, WelcomeForge::DemoWithProjects, false)
-}
-
-fn demo_surviving_projects(config: &mut engine::Config, limits: &mut engine::Limits) {
-    let policy = config.core.seed_projects[0].policy.clone();
-    let mut projects = std::mem::take(&mut config.core.seed_projects).into_vec();
-    for number in [2, 3] {
-        projects.push(jig_domain_core::SeedProject {
-            number,
-            name: format!("Project {number}").into(),
-            policy: policy.clone(),
-        });
-    }
-    config.core.seed_projects = projects.into_boxed_slice();
-    let identity = config.core.owners[0].identity.clone();
-    config.core.owners =
-        [1, 2, 3].map(|project| jig_domain_people::InitialOwner { project, identity: identity.clone() }).into();
-    limits.authority.projects = 3;
-    limits.forge.judge_projects = 3;
-    limits.people.projects = 4; // Three projects and the deployment roster.
-    limits.people.holdings = 4;
-    limits.people.initial_owners = 3;
-    limits.documents.lines = limits.documents.lines.max(3);
-}
-
-/// `NotStarted` beside an unconnected pasted GitHub App, before any installation.
-#[must_use]
-pub fn demo_github_fixture(seed: u64) -> (Joint, Root) {
-    fixture_root(seed, Tools::Off, 2, None, false, WelcomeForge::Demo { running: false, github: true }, false)
-}
-
-fn playground_answer(running: bool) -> temper_client_protocol_wire::v1::PlaygroundAnswer {
-    use temper_client_protocol_wire::v1 as w;
-    let mut cues = skein_lib::List::with_capacity(1);
-    cues.push(b"Change the title".as_slice().into()).expect("one cue");
-    w::PlaygroundAnswer::new(
-        &w::CEILINGS,
-        w::PlaygroundAnswerParts {
-            project: 1,
-            forge: 2,
-            provider: PROVIDER,
-            owner: b"acme".as_slice().into(),
-            name: b"shop".as_slice().into(),
-            state: if running { w::PlaygroundState::Running } else { w::PlaygroundState::NotStarted },
-            cues,
-        },
-    )
-    .expect("demo fixture")
+pub fn running_playground_fixture(seed: u64) -> (Joint, Root) {
+    let (mut front, mut root) = playground_fixture(seed);
+    event(
+        &mut front,
+        &mut root,
+        temper_client_domain::Event::Act {
+            action: temper_client_domain::Action::Pages(temper_client_domain::pages::Act::Playground),
+        }
+        .into(),
+    );
+    assert!(front.playground().is_some());
+    (front, root)
 }
 
 /// Fresh page on the same engine and person, with an explicit departure policy.

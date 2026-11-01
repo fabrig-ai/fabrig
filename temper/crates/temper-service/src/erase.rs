@@ -15,10 +15,7 @@ struct Flight {
 }
 impl Layer {
     pub(crate) fn new(forges: u32) -> Self {
-        Self {
-            pending: Map::with_capacity(forges.checked_mul(10).expect("forge erase owners")),
-            forges: Map::with_capacity(forges),
-        }
+        Self { pending: Map::with_capacity(1), forges: Map::with_capacity(forges) }
     }
 }
 pub(crate) fn erase(engine: &mut Engine, forge: u16) {
@@ -27,19 +24,26 @@ pub(crate) fn erase(engine: &mut Engine, forge: u16) {
         return;
     }
     engine.erasing.forges.insert(forge, Flight { remaining: 10, answers: 1 }).expect("admitted forges");
-    for item in temper_protocol_records::ITEMS {
-        let owner = engine.setup.next_run();
-        engine.erasing.pending.insert(owner, forge).expect("ten erase owners per forge");
-        let answer = engine.store.secrets(
-            owner,
-            Secrets::Erase { owner: SecretOwner::Application, number: temper_protocol_records::number(forge, item) },
-        );
-        if let Some(answer) = answer {
-            crate::setup::answer(engine, answer);
-        }
-        if engine.end.is_some() {
-            return;
-        }
+    advance(engine);
+}
+// Removal shares the store's bounded commit entrance with the other secret writers.
+// Keep one erase in flight across all forges, including an absent item's erase.
+fn advance(engine: &mut Engine) {
+    if !engine.erasing.pending.is_empty() || engine.end.is_some() {
+        return;
+    }
+    let Some((forge, flight)) = engine.erasing.forges.first() else { return };
+    let forge = *forge;
+    let index = 10_u32.checked_sub(flight.remaining).expect("remaining forge items");
+    let item = *temper_protocol_records::ITEMS.get(usize::try_from(index).expect("ten items")).expect("forge item");
+    let owner = engine.setup.next_run();
+    engine.erasing.pending.insert(owner, forge).expect("one erase in flight");
+    let answer = engine.store.secrets(
+        owner,
+        Secrets::Erase { owner: SecretOwner::Application, number: temper_protocol_records::number(forge, item) },
+    );
+    if let Some(answer) = answer {
+        crate::setup::answer(engine, answer);
     }
 }
 /// Returns whether this durable terminal belongs to a forge removal.
@@ -57,5 +61,6 @@ pub(crate) fn answered(engine: &mut Engine, owner: Token) -> bool {
             }
         }
     }
+    advance(engine);
     true
 }

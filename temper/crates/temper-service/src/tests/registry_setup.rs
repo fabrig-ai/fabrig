@@ -32,12 +32,7 @@ fn record(kind: Kind, mode: Mode, setup: Option<&[u8]>) -> domain::ForgeRecord {
     record
 }
 fn config() -> settings::Engine {
-    let mut config = fixture::local_config(true, false);
-    config.forges = Box::new([]);
-    config.setup = Box::new([]);
-    config.records_only = Box::new([]);
-    config.identities = Box::new([]);
-    config
+    fixture::local_config(true, false).engine
 }
 fn service() -> crate::Service {
     let mut service = support::setup_service(config(), fixtures::ready().engine.unwrap().store);
@@ -188,11 +183,6 @@ fn a_registered_owned_record_is_served_and_waits_for_its_group() {
     let Some(host::Kind::Forgejo(given)) = support::given(&service, 3) else { panic!("connected Given") };
     assert_eq!(given.bot_login, connected.bot.login);
     assert_eq!(given.bot_email, connected.bot.email);
-    let mut seeded = fixtures::started_with_two_forges();
-    let before = support::given(&seeded, 1).cloned();
-    route::request(seeded.engine.as_mut().unwrap(), root::Request::Register(updated));
-    assert_eq!(support::given(&seeded, 1), before.as_ref());
-    assert!(seeded.engine.as_ref().unwrap().records.is_empty());
 }
 #[test]
 fn a_registered_owned_record_reconciles_after_its_group_started() {

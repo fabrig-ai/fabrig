@@ -59,15 +59,14 @@ fn welcome(step: Step) -> Address {
 #[test]
 fn brand_returns_to_chats_from_every_welcome_step_without_starting_the_playground() {
     for step in [Step::Welcome, Step::Forge { forge: None }, Step::Model { way: None }, Step::Ready] {
-        let (mut front, mut root) =
-            h::demo_fixture(fixtures::SEED, &temper_client_protocol_wire::v1::PlaygroundState::NotStarted);
+        let (mut front, mut root) = h::playground_fixture(fixtures::SEED);
         go(&mut front, &mut root, welcome(step));
         assert!(has(&root, Role::Link, b"temper chats"));
         assert!(!has(&root, Role::Link, b"Inbox"));
         press(&mut front, &mut root, Role::Link, b"temper chats");
         assert!(has(&root, Role::Link, b"Accounts"), "{}", text(Temper::tree(&draw(&root))));
         assert!(has(&root, Role::Heading { level: 1 }, b"Chats"), "{}", text(Temper::tree(&draw(&root))));
-        assert!(front.demo_starts.is_empty(), "brand must only navigate");
+        assert!(front.playground().is_none(), "brand must only navigate");
     }
 }
 
@@ -87,12 +86,12 @@ fn setup_model_sentence_names_supported_plans_for_different_providers() {
 
 #[test]
 fn setup_model_sentence_keeps_supported_plans_in_the_playground() {
-    let (front, root) = h::demo_fixture(fixtures::SEED, &temper_client_protocol_wire::v1::PlaygroundState::NotStarted);
+    let (front, root) = h::playground_fixture(fixtures::SEED);
     let shown = text(Temper::tree(&draw(&root)));
     assert!(shown.contains("Your model: ChatGPT or Claude"), "{shown}");
     assert!(!shown.contains("Other fake"), "{shown}");
     assert!(!shown.contains("Scripted"), "{shown}");
-    assert!(front.demo_starts.is_empty());
+    assert!(front.playground().is_none());
 }
 
 #[test]

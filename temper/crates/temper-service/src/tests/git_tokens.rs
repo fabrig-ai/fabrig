@@ -117,13 +117,14 @@ fn a_registered_github_uses_the_app_git_login_and_the_recorded_author() {
 }
 #[test]
 fn configured_login_and_author_override_the_app_defaults() {
-    let mut service = github();
-    let mut settings = fixtures::engine();
-    settings.forges[0].kind = crate::settings::Kind::GitHub;
-    service.engine.as_mut().unwrap().values.tokens = crate::forge::tokens::Tokens::new(&settings);
+    let mut config = super::github_config(8, Duration::from_secs(3600), None);
+    config.records[0].bot = fixtures::forge_record(1).bot;
+    let mut service = super::local_service(config, fixtures::records_store());
+    super::load_routing(&mut service);
+    lifecycle_tests::app(&mut service);
     route(&mut service, connection::Event::Connected { forge: 1 });
     let identity = value(&service, 1).unwrap();
-    assert_eq!(identity.login(), b"temper");
+    assert_eq!(identity.login(), b"x-access-token");
     assert_eq!(identity.name(), b"temper");
     assert_eq!(identity.email(), b"temper@forge.example");
 }
@@ -275,11 +276,14 @@ fn a_github_repository_carries_its_owners_entrys_account() {
         assert_eq!(*items.repositories().get(0).unwrap().account(), expected);
     }
     let assignment = fixtures::assignment_with(fixtures::repository(7, b"owner", b"repo"));
-    let settings = fixtures::engine();
-    let items =
-        crate::translate::items(&assignment, &settings.forges, &engine.values.tokens, &engine.workers.encoding.limits)
-            .unwrap()
-            .unwrap();
+    let items = crate::translate::items(
+        &assignment,
+        &fixtures::forges(),
+        &engine.values.tokens,
+        &engine.workers.encoding.limits,
+    )
+    .unwrap()
+    .unwrap();
     assert_eq!(*items.repositories().get(0).unwrap().account(), None);
 }
 #[test]

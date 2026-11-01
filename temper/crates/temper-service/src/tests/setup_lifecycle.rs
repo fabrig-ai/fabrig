@@ -603,6 +603,7 @@ fn new_app_admission_changes_neither_a_connected_nor_a_stopped_forges_state() {
         let setup = setup.engine.expect("engine");
         service.engine.as_mut().expect("engine").setup = setup.setup;
         service.engine.as_mut().expect("engine").forge_records.rows = setup.forge_records.rows;
+        service.engine.as_mut().expect("engine").forge.starts.clear();
         service
             .engine
             .as_mut()
@@ -1591,7 +1592,8 @@ fn qa_uninstalled_store() -> crate::store::Store {
         kept_record(&mut store, 1, item, &value);
     }
     let config = github_config(8, Duration::from_secs(3600), None);
-    let origin = records::origin(connection::settings::Kind::GitHub, &config.forges[0].api).encode();
+    let origin =
+        records::origin(connection::settings::Kind::GitHub, &crate::forges::settings(&config.records[0]).api).encode();
     kept_record(&mut store, 1, Item::Origin, &origin);
     store
 }
