@@ -255,7 +255,7 @@ pub fn paging(draw: u64) -> Paging {
     let store = Rc::new(RefCell::new(Store::new()));
     world::lower_store(Some(store.clone()));
     let seen = Rc::new(RefCell::new(Paging::default()));
-    let mut disk = crate::machine::fresh();
+    let mut disk = crate::machine::fresh(Story::Adopt);
     let setup = disk.lay(&[skein_fake_machine::Item::file(b"llm.key", fixtures::LLM_TOKEN).mode(0o600)]);
     disk.close(setup);
     let client = disk.reopen_root(2);
