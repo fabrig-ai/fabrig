@@ -153,3 +153,26 @@ all 232 passing at its merge (`658edf3bdb`). The trunk's repair (`repair-5`) own
   `bx-unforge`'s `src/forge/tests.rs`, `src/tests.rs`, `src/fake/check.rs`, go under
   `## Left` with their owner), `heavy cargo check --workspace --all-targets`, then the three
   walks alone under `process-temper`; then Step 4.
+
+2026-11-01, from this task's run 3. Q: who diagnoses and repairs the adoption walk's
+`Set up failed: no settings` after the setup is admitted, this task or `bx-unforge`? A: this
+task; it is temper-service's, and this task's removal of the document's setup exposed it.
+The box answers `failed N no settings` when `start N` finds no `box/groups/N`
+(`temper-box/src/host.rs`, `Loaded::Absent`). The playground's start writes that file first
+(`Request::SetUpGroup` → `route/box_link.rs::set_up_group`, which stages a `GroupWrite` and
+asks `start N` only in `group_written`), but `Request::SetUp` in `route.rs` calls
+`engine.box_link.ask` directly, relying on the box's fallback to the document's
+`application.setup`, which is gone. Draft `playground-reset.md`, 3: "serve writes a group's
+settings, the forge's setup entry and its port, to `<data>/box/groups/N` and asks `start N`".
+`bx-unforge` removes the box's fallback and needs this write; it owns no service file. So:
+- In `route.rs`'s `Request::SetUp`, after `setup::lifecycle::first`, stage the start through
+  `box_link::set_up_group(engine, forge, request, entry)` with the registered record's setup
+  entry (`engine.records`' `setup`, empty when the record has none, which keeps today's
+  direct ask), instead of `box_link.ask`. Change no domain crate and no box or binary file.
+- A test in the crate, beside the run-1 answer's offer test: an owned forge made after
+  startup, its setup admitted under the box, yields one `GroupWrite` for it whose text is
+  the entry's `group_settings`, and no `start` on the pipe until `group_written` answers.
+- Then the three walks alone under `process-temper`, and Step 4. A further failure in
+  temper-service is this task's; one read to lie in the box's group loading or the binary
+  (`temper/crates/temper/src/**`, `bx-unforge`'s files) goes under `## Left` naming
+  `bx-unforge`, with the walk's log, and does not hold this task.
