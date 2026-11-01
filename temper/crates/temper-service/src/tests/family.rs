@@ -1843,51 +1843,168 @@ fn the_landings_subject_names_no_task() {
     assert_eq!((watcher, why), (WATCHER, jig_domain_core::WatchRefusal::Unknown));
 }
 
-fn forge_management_requests() -> [w::Request; 3] {
-    [
-        w::Request::MakeForge(
-            w::MakeForge::new(&w::CEILINGS, w::MakeForgeParts { choice: w::ForgeChoice::Owned }).unwrap(),
-        ),
-        w::Request::RemoveForge(w::RemoveForge::new(&w::CEILINGS, w::RemoveForgeParts { forge: 1 }).unwrap()),
-        w::Request::EndPlayground,
-    ]
-}
-
-#[test]
-fn make_remove_and_end_playground_are_answered_not_offered_at_once() {
-    for request in forge_management_requests() {
-        let record = w::Requesting::new(&w::CEILINGS, w::RequestingParts { request }).unwrap();
-        let Err(event) = family::to_root(
-            exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&record)),
-            &[],
-            None,
-            &w::CEILINGS,
-        ) else {
-            panic!("answered without reaching the root")
-        };
-        let kit::Event::Application(kit::FromApplication::Answered { to, family, record }) = *event else {
-            panic!("application answer")
-        };
-        assert_eq!((to, family), (REPLY, wire::FORGE));
-        let mut reader = Reader::new(&record);
-        let answer = w::Answer::decode(&w::CEILINGS, &mut reader).unwrap();
-        assert_eq!(answer.outcome(), &w::Outcome::NotOffered);
-        assert!(reader.is_empty());
+fn assert_forge_request(request: w::Request, expected: forge::Ask) {
+    let record = w::Requesting::new(&w::CEILINGS, w::RequestingParts { request }).unwrap();
+    for scope in [people::ApplicationScope::Deployment, people::ApplicationScope::Project(7)] {
+        for carried in [None, Some(jig_domain_core::Carried { number: 1, digest: [9; 32] })] {
+            let input = kit::ToApplication::Request {
+                scope,
+                reply_to: REPLY,
+                sign_in: 3,
+                key: REQUEST_KEY,
+                digest: [7; 32],
+                carried,
+                family: wire::FORGE,
+                version: wire::CLIENT_VERSION,
+                record: wire::requesting(&record),
+            };
+            let event = family::to_root(input, &[], None, &w::CEILINGS).unwrap();
+            let root::Event::Party(root::PartyInput::Application {
+                scope: got_scope,
+                reply_to,
+                sign_in,
+                key,
+                digest,
+                carried: got_carried,
+                request,
+            }) = event
+            else {
+                panic!("forge application request")
+            };
+            assert_eq!(
+                (got_scope, reply_to, sign_in, key, digest, got_carried),
+                (scope, REPLY, 3, REQUEST_KEY, [7; 32], carried),
+                "{expected:?}",
+            );
+            assert_eq!(request, root::Application::Forge(expected.clone()));
+        }
     }
 }
 
 #[test]
-fn make_remove_and_end_playground_with_carried_are_undecodable() {
-    for request in forge_management_requests() {
-        let record = w::Requesting::new(&w::CEILINGS, w::RequestingParts { request }).unwrap();
-        let mut input = exchange(wire::FORGE, wire::CLIENT_VERSION, wire::requesting(&record));
-        if let kit::ToApplication::Request { carried, .. } = &mut input {
-            *carried = Some(jig_domain_core::Carried { number: 1, digest: [0; 32] });
-        }
-        let Err(event) = family::to_root(input, &[], None, &w::CEILINGS) else { panic!("carried value refused") };
-        let kit::Event::Application(kit::FromApplication::Undecodable { to }) = *event else {
-            panic!("undecodable answer")
-        };
-        assert_eq!(to, REPLY);
+fn a_make_forge_of_each_choice_reaches_the_root_as_its_ask() {
+    for (choice, expected) in [
+        (w::ForgeChoice::Owned, forge::ForgeChoice::Owned),
+        (w::ForgeChoice::Github, forge::ForgeChoice::GitHub),
+        (
+            w::ForgeChoice::Forgejo(
+                w::ForgejoChoice::new(
+                    &w::CEILINGS,
+                    w::ForgejoChoiceParts {
+                        api: b"forge.example:3000".as_slice().into(),
+                        git: b"https://forge.example/git".as_slice().into(),
+                        web: Some(b"https://forge.example/web".as_slice().into()),
+                    },
+                )
+                .unwrap(),
+            ),
+            forge::ForgeChoice::Forgejo {
+                api: b"forge.example:3000".as_slice().into(),
+                git: b"https://forge.example/git".as_slice().into(),
+                web: Some(b"https://forge.example/web".as_slice().into()),
+            },
+        ),
+        (
+            w::ForgeChoice::Forgejo(
+                w::ForgejoChoice::new(
+                    &w::CEILINGS,
+                    w::ForgejoChoiceParts {
+                        api: b"forge.example:4000".as_slice().into(),
+                        git: b"https://forge.example/other".as_slice().into(),
+                        web: None,
+                    },
+                )
+                .unwrap(),
+            ),
+            forge::ForgeChoice::Forgejo {
+                api: b"forge.example:4000".as_slice().into(),
+                git: b"https://forge.example/other".as_slice().into(),
+                web: None,
+            },
+        ),
+    ] {
+        assert_forge_request(
+            w::Request::MakeForge(w::MakeForge::new(&w::CEILINGS, w::MakeForgeParts { choice }).unwrap()),
+            forge::Ask::MakeForge { choice: expected },
+        );
+    }
+}
+
+#[test]
+fn a_remove_forge_reaches_the_root_as_its_ask() {
+    const FORGE: u16 = 3;
+    assert_forge_request(
+        w::Request::RemoveForge(w::RemoveForge::new(&w::CEILINGS, w::RemoveForgeParts { forge: FORGE }).unwrap()),
+        forge::Ask::RemoveForge { forge: FORGE },
+    );
+}
+
+#[test]
+fn an_end_playground_reaches_the_root_as_its_ask() {
+    assert_forge_request(w::Request::EndPlayground, forge::Ask::EndPlayground);
+}
+
+#[test]
+fn each_new_answer_is_encoded_as_the_wire_reads_it() {
+    const FORGE: u16 = 3;
+    let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small).clients.wire;
+    for (row, answer, expected) in [
+        (
+            "made",
+            Some(root::ApplicationAnswer::MakeForge(forge::MakeAnswer::Made { forge: FORGE })),
+            w::Outcome::Made(w::MadeForge::new(&w::CEILINGS, w::MadeForgeParts { forge: FORGE }).unwrap()),
+        ),
+        (
+            "full",
+            Some(root::ApplicationAnswer::MakeForge(forge::MakeAnswer::Refused(forge::MakeRefusal::Full))),
+            w::Outcome::Full,
+        ),
+        (
+            "make not offered",
+            Some(root::ApplicationAnswer::MakeForge(forge::MakeAnswer::Refused(forge::MakeRefusal::NotOffered))),
+            w::Outcome::NotOffered,
+        ),
+        ("removing", Some(root::ApplicationAnswer::RemoveForge(forge::RemoveAnswer::Removing)), w::Outcome::Removing),
+        (
+            "no such forge",
+            Some(root::ApplicationAnswer::RemoveForge(forge::RemoveAnswer::Refused(forge::RemoveRefusal::NoSuchForge))),
+            w::Outcome::ConnectRefused(
+                w::ConnectRefused::new(&w::CEILINGS, w::ConnectRefusedParts { why: w::ForgeRefusal::NoSuchForge })
+                    .unwrap(),
+            ),
+        ),
+        (
+            "playground",
+            Some(root::ApplicationAnswer::RemoveForge(forge::RemoveAnswer::Refused(forge::RemoveRefusal::Playground))),
+            w::Outcome::Playground,
+        ),
+        ("reset", Some(root::ApplicationAnswer::EndPlayground(forge::EndAnswer::Reset)), w::Outcome::Reset),
+        (
+            "end not offered",
+            Some(root::ApplicationAnswer::EndPlayground(forge::EndAnswer::NotOffered)),
+            w::Outcome::NotOffered,
+        ),
+        ("running", Some(root::ApplicationAnswer::StartPlayground(forge::StartAnswer::Running)), w::Outcome::Running),
+        (
+            "start not offered",
+            Some(root::ApplicationAnswer::StartPlayground(forge::StartAnswer::NotOffered)),
+            w::Outcome::StartRefused(
+                w::StartRefused::new(&w::CEILINGS, w::StartRefusedParts { why: w::StartRefusal::NotOffered }).unwrap(),
+            ),
+        ),
+        (
+            "start failed",
+            Some(root::ApplicationAnswer::StartPlayground(forge::StartAnswer::Failed(forge::StartFailure::Account))),
+            w::Outcome::StartFailed(
+                w::StartFailed::new(&w::CEILINGS, w::StartFailedParts { why: w::StartFailure::Account }).unwrap(),
+            ),
+        ),
+        ("past retention", None, w::Outcome::Unknown),
+    ] {
+        let bytes = family::answer(answer, &w::CEILINGS, &jig).unwrap();
+        let mut reader = Reader::new(&bytes);
+        let answer = w::Answer::decode(&w::CEILINGS, &mut reader).unwrap();
+        assert_eq!(answer.outcome(), &expected, "{row}");
+        assert!(reader.is_empty(), "{row}");
     }
 }
