@@ -279,6 +279,9 @@ fn open_follow(
 // Construction authenticates jig's named values; connector values remain opaque.
 // Unmakeable documents refuse Unknown (`client/domain/contract.md`, 7.2).
 fn admission(core: &Core, env: &Env<Limits>, party: u64, subject: &Subject, window: &Window) -> Option<WatchRefusal> {
+    if core.deleting_subject(subject) {
+        return Some(WatchRefusal::Unknown);
+    }
     match subject {
         Subject::Application { scope, connector, .. } => {
             if !core.connectors.as_ref().contains(connector) {

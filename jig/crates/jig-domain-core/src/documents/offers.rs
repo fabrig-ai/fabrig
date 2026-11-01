@@ -8,7 +8,7 @@ use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use skein_lib::List;
 
-const MAX_ACTS: u32 = 23;
+const MAX_ACTS: u32 = 24;
 
 fn receiving_recipient(value: Recipient, limits: &DocumentLimits) -> Result<Recipient, Missing> {
     match value {
@@ -59,6 +59,12 @@ fn list(
 ) -> Result<List<Offered>, Missing> {
     let mut result = List::with_capacity(u32::try_from(kinds.len()).expect("closed act list"));
     for act in kinds {
+        if *act == Act::RemoveProject {
+            let Subject::Project { project } = subject else { unreachable!("project deletion offer") };
+            if core.visible_role(party, *project) != Some(people::Role::Owner) {
+                continue;
+            }
+        }
         let value = acts::admit(core, limits, party, *act, subject, decision);
         let admission = receiving(value, &limits.documents)?;
         result
@@ -131,7 +137,16 @@ pub(super) fn subject(
             limits,
             party,
             subject,
-            &[Act::Adopt, Act::Reorder, Act::ChangePolicy, Act::Rename, Act::SetRoles, Act::MakeService, Act::SetPool],
+            &[
+                Act::Adopt,
+                Act::Reorder,
+                Act::ChangePolicy,
+                Act::Rename,
+                Act::SetRoles,
+                Act::MakeService,
+                Act::SetPool,
+                Act::RemoveProject,
+            ],
             decision,
         ),
         Subject::Proposal { proposer: super::Proposer::Party(person), number }
@@ -140,7 +155,7 @@ pub(super) fn subject(
                 None => false,
             } =>
         {
-            let owner = core.people.role(party, people::DEPLOYMENT) == Some(people::Role::Owner);
+            let owner = core.visible_role(party, people::DEPLOYMENT) == Some(people::Role::Owner);
             let kinds = if owner && *person == party {
                 &[Act::Accept, Act::Reject, Act::Withdraw][..]
             } else if owner {

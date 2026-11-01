@@ -248,11 +248,13 @@ pub(super) fn tag_people(
                     continue;
                 }
                 match *ask {
-                    people::Ask::RemoveProject { .. } => {
-                        work.push(Event::People(people::Event::Decided {
-                            request,
-                            outcome: people::Outcome::Refused(people::Refusal::NotOffered),
-                        }));
+                    people::Ask::RemoveProject { project } => {
+                        if let Err(why) = super::deletion::remove_project(core, env, work, &mut out, request, project) {
+                            work.push(Event::People(people::Event::Decided {
+                                request,
+                                outcome: people::Outcome::Refused(why),
+                            }));
+                        }
                     }
                     people::Ask::Compound { operations, .. } => {
                         crate::compound::route(

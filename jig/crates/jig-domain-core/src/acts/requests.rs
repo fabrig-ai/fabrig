@@ -16,6 +16,9 @@ pub(crate) fn request(
     ask: &people::Ask,
     decision: skein_lib::Wall,
 ) -> Result<(), people::Refusal> {
+    if core.deleting(project) || deleting_task(core, ask) {
+        return Err(people::Refusal::Unknown);
+    }
     if let people::Ask::Release { task, again, .. } = ask
         && let Some(row) = core.tasks.task(*task)
         && row.project == project
@@ -117,9 +120,8 @@ pub(crate) fn request(
             );
         }
         people::Ask::Adopt { .. } => (Act::Adopt, documents::Subject::Project { project }),
-        people::Ask::RemoveProject { .. } | people::Ask::Rename { .. } => {
-            (Act::Rename, documents::Subject::Project { project })
-        }
+        people::Ask::RemoveProject { .. } => (Act::RemoveProject, documents::Subject::Project { project }),
+        people::Ask::Rename { .. } => (Act::Rename, documents::Subject::Project { project }),
         people::Ask::ChangePolicy { .. } => (Act::ChangePolicy, documents::Subject::Project { project }),
         people::Ask::SetRoles { .. } => (Act::SetRoles, documents::Subject::Project { project }),
         people::Ask::MakeService { .. } => (Act::MakeService, documents::Subject::Project { project }),
@@ -216,5 +218,75 @@ pub(crate) fn request(
             Ok(())
         }
         Admission::Refused(why) => Err(why),
+    }
+}
+
+fn deleting_task(core: &Core, ask: &people::Ask) -> bool {
+    let task = match ask {
+        people::Ask::Say { task, .. }
+        | people::Ask::AnswerQuestion { task, .. }
+        | people::Ask::TakePerson { task, .. }
+        | people::Ask::HandBackPerson { task, .. }
+        | people::Ask::AnswerPerson { task, .. }
+        | people::Ask::Release { task, .. }
+        | people::Ask::Amend { task, .. }
+        | people::Ask::Stop { task, .. }
+        | people::Ask::Cancel { task, .. }
+        | people::Ask::Move { task, .. }
+        | people::Ask::DecideEscalation { task, .. }
+        | people::Ask::DecideProposal { proposer: people::Proposer::Task(task), .. }
+        | people::Ask::MarkSeen { seen: people::Seen::Conversation { task, .. } }
+        | people::Ask::Propose { action: people::Action::Amend { task, .. }, .. } => Some(*task),
+        people::Ask::DecideProposal { proposer: people::Proposer::Party(party), proposal, .. } => {
+            return match core.tasks.person_proposal(*party, *proposal) {
+                Some(row) => core.deleting(row.project),
+                None => false,
+            };
+        }
+        people::Ask::Compound { operations, .. } => {
+            for operation in operations {
+                let task = match operation {
+                    people::Operation::Cancel { task, .. }
+                    | people::Operation::Move { task, .. }
+                    | people::Operation::Amend { task, .. }
+                    | people::Operation::Release { task, .. }
+                    | people::Operation::Message { task, .. }
+                    | people::Operation::Stop { task } => *task,
+                };
+                if core.deleting_task(task) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        people::Ask::Lift { hold, .. } => {
+            return match core.tasks.placed_hold(*hold) {
+                Some(row) => core.deleting(row.project),
+                None => false,
+            };
+        }
+        people::Ask::Create { .. }
+        | people::Ask::Propose { action: people::Action::Batch(_) | people::Action::Settings { .. }, .. }
+        | people::Ask::Withdraw { .. }
+        | people::Ask::MarkSeen { seen: people::Seen::Results { .. } }
+        | people::Ask::Application { .. }
+        | people::Ask::EditNote { .. }
+        | people::Ask::MakeService { .. }
+        | people::Ask::Adopt { .. }
+        | people::Ask::SetRoles { .. }
+        | people::Ask::ChangePolicy { .. }
+        | people::Ask::Rename { .. }
+        | people::Ask::RemoveProject { .. }
+        | people::Ask::MakeProject { .. }
+        | people::Ask::SetPool { .. }
+        | people::Ask::ChangeSettings { .. }
+        | people::Ask::MoveToNewest { .. }
+        | people::Ask::AccountSignIn { .. }
+        | people::Ask::AccountSignOut { .. }
+        | people::Ask::AccountChange { .. } => None,
+    };
+    match task {
+        Some(task) => core.deleting_task(task),
+        None => false,
     }
 }

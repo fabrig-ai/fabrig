@@ -56,17 +56,33 @@ pub(super) fn route(
     act: people::Act,
 ) {
     match act {
-        people::Act::RemoveProject { .. } | people::Act::Cancel { .. } => {
-            refused(work, request, people::Refusal::NotOffered);
+        people::Act::RemoveProject { project } => {
+            if let Err(why) = super::deletion::remove_project(core, env, work, out, request, project) {
+                refused(work, request, why);
+            }
+        }
+        people::Act::Cancel { project, task, reason } => {
+            if core.deleting(project) || core.deleting_task(task) {
+                return refused(work, request, people::Refusal::Unknown);
+            }
+            if core.tasks.task(task).is_none() {
+                return super::result_reads::closed_subject(core, work, out, request, project, task);
+            }
+            if let Err(why) = cancel(core, work, request, project, task, None, reason, false) {
+                refused(work, request, why);
+            }
         }
         people::Act::MakeProject { maker, name, policy } => {
             super::projects::make_project_act(core, env, work, out, request, maker, name, policy);
         }
         people::Act::Close { project, task, grace, reason } => {
+            if core.deleting(project) || core.deleting_task(task) {
+                return refused(work, request, people::Refusal::Unknown);
+            }
             if core.tasks.task(task).is_none() {
                 return super::result_reads::closed_subject(core, work, out, request, project, task);
             }
-            if let Err(why) = close(core, work, request, project, task, grace, reason) {
+            if let Err(why) = cancel(core, work, request, project, task, grace, reason, true) {
                 refused(work, request, why);
             }
         }
@@ -101,7 +117,7 @@ pub(super) fn route(
             account(core, work, request, people::AccountChange::Remove { account: number });
         }
         people::Act::Adopt { project, adoption } => {
-            if !core.projects.as_slice().contains(&project) {
+            if !core.projects.as_slice().contains(&project) || core.deleting(project) {
                 return refused(work, request, people::Refusal::Unknown);
             }
             out.push(Request::Ask {
@@ -121,7 +137,8 @@ fn account(core: &mut Core, work: &mut Queue<Event>, request: Token, change: peo
 fn refused(work: &mut Queue<Event>, request: Token, why: people::Refusal) {
     work.push(Event::People(people::Event::Decided { request, outcome: people::Outcome::Refused(why) }));
 }
-fn close(
+#[expect(clippy::too_many_arguments, reason = "close and cancel share the deployment compound envelope")]
+fn cancel(
     core: &mut Core,
     work: &mut Queue<Event>,
     request: Token,
@@ -129,6 +146,7 @@ fn close(
     task: u64,
     grace: Option<skein_lib::Duration>,
     reason: Box<[u8]>,
+    conversation: bool,
 ) -> Result<(), people::Refusal> {
     let row = core.tasks.task(task).ok_or(people::Refusal::Unknown)?;
     if row.project != project {
@@ -136,15 +154,19 @@ fn close(
     }
     match &row.phase {
         tasks::Phase::Ended(ending) => return Err(super::refusals::ended(ending)),
-        tasks::Phase::Closing(closing) => return Err(super::refusals::ended(&closing.ending)),
+        tasks::Phase::Closing(closing) | tasks::Phase::Held { was: tasks::Was::Closing(closing), .. } => {
+            return Err(super::refusals::ended(&closing.ending));
+        }
         tasks::Phase::Waiting | tasks::Phase::Active(_) | tasks::Phase::Held { .. } => {}
     }
-    if !row.flags.conversation {
+    if conversation && !row.flags.conversation {
         return Err(people::Refusal::NotOffered);
     }
     match row.requester {
-        tasks::Party::Person(_) => {}
-        tasks::Party::Task(_) | tasks::Party::Deployment { .. } => return Err(people::Refusal::NotOffered),
+        tasks::Party::Task(_) | tasks::Party::Deployment { .. } if conversation => {
+            return Err(people::Refusal::NotOffered);
+        }
+        tasks::Party::Person(_) | tasks::Party::Task(_) | tasks::Party::Deployment { .. } => {}
     }
     if core.person_tasks.len() == core.person_tasks.capacity() {
         return Err(people::Refusal::Limit { which: people::LimitKind::LiveTasks });
@@ -153,6 +175,13 @@ fn close(
         u32::try_from(row.delegates.len()).expect("bounded delegates").checked_add(1).expect("bounded delegates"),
     );
     for delegate in &row.delegates {
+        let Some(row) = core.tasks.task(*delegate) else { continue };
+        match row.phase {
+            tasks::Phase::Closing(_)
+            | tasks::Phase::Ended(_)
+            | tasks::Phase::Held { was: tasks::Was::Closing(_), .. } => continue,
+            tasks::Phase::Waiting | tasks::Phase::Active(_) | tasks::Phase::Held { .. } => {}
+        }
         operations
             .push(tasks::Operation::Cancel { task: *delegate, grace: None, message: None, reason: reason.clone() })
             .expect("one per delegate");
