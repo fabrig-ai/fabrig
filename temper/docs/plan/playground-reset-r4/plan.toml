@@ -24,6 +24,13 @@ mode = "direct"
 needs = []
 design = "temper/docs/design/draft/playground-reset.md, 6.1-6.3"
 
+[[part]]
+id = "box-groups"
+title = "The box runs a forge's group by its kind from the file serve writes, removes it whole, and keeps the cache; temper init names no forge"
+mode = "direct"
+needs = []
+design = "temper/docs/design/draft/playground-reset.md, 3 and 4"
+
 [[slice]]
 id = 3
 story = "An owner deletes a project: it is gone at once, its tasks erased, no row names it, and a restart mid-way ends it whole"
@@ -33,7 +40,7 @@ walk = false
 [[slice]]
 id = 1
 story = "A forge made by SetUp or Connect is a record: listed, numbered next, kept across a restart with its first repository's intent, its box group run from the file serve wrote"
-parts = ["forge-records"]
+parts = ["forge-records", "box-groups"]
 walk = false
 
 [[slice]]
