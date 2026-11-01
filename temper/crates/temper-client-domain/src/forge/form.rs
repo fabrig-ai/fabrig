@@ -35,24 +35,61 @@ pub enum Broken {
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Act {
-    Go { address: Address },
-    Write { field: Text, text: Box<[u8]>, typed: Typed },
-    Choose { role: Role },
+    Go {
+        address: Address,
+    },
+    Write {
+        field: Text,
+        text: Box<[u8]>,
+        typed: Typed,
+    },
+    Choose {
+        role: Role,
+    },
     Home,
     Ci,
     Adopt,
-    SetUp { forge: u16 },
-    SetUpAtOnce { forge: u16 },
-    SetupWrite { field: super::forges::SetupField, text: Box<[u8]> },
-    StartIn { forge: u16 },
-    Picker { forge: u16, act: super::picker::Act },
+    SetUp {
+        forge: u16,
+    },
+    SetUpAtOnce {
+        forge: u16,
+    },
+    SetupWrite {
+        field: super::forges::SetupField,
+        text: Box<[u8]>,
+    },
+    StartIn {
+        forge: u16,
+    },
+    Picker {
+        forge: u16,
+        act: super::picker::Act,
+    },
     StartDemo,
-    AdminWrite { field: super::admin::Field, text: Box<[u8]> },
-    ConnectAdmin { forge: u16 },
-    AppWrite { text: Box<[u8]> },
-    ConnectApp { forge: u16 },
-    ConnectManifest { forge: u16, back: Box<[u8]> },
-    Install { forge: u16, back: Box<[u8]> },
+    /// The banner's "set up temper": the playground's reset (draft 6.2).
+    EndPlayground,
+    AdminWrite {
+        field: super::admin::Field,
+        text: Box<[u8]>,
+    },
+    ConnectAdmin {
+        forge: u16,
+    },
+    AppWrite {
+        text: Box<[u8]>,
+    },
+    ConnectApp {
+        forge: u16,
+    },
+    ConnectManifest {
+        forge: u16,
+        back: Box<[u8]>,
+    },
+    Install {
+        forge: u16,
+        back: Box<[u8]>,
+    },
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Typed {

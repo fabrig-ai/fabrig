@@ -1,4 +1,4 @@
-//! The Forges page, navigation dot and setup strip (client/forge.md, 5.4; client/README.md, 5.1, 5.3, 5.6).
+//! The Forges page, navigation dot and setup facts (client/forge.md, 5.4; client/README.md, 5.1, 5.3, 5.6).
 use super::{
     Demo, connect,
     forges::{Connection, Mode, Row, State},
