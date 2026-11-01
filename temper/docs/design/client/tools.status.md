@@ -29,3 +29,5 @@
   as provider lines and keeps `cut:`. Model text keeps its field lines.
 
 - **Built:** 5.5: ctl connect `--read-only` carries and keeps the hook policy, and writable connects name the hook repair.
+
+- **Built (2026-11-01):** 6.1, 6.4: `task text` pages specification and effective instruction source bytes beyond overview cuts. Task summaries, JSON and activity expose the source reads; UTF-8 chunks carry explicit continuation offsets.

@@ -258,6 +258,7 @@ fn task_text(
     if let Some(instructions) = &task.instructions {
         instruction_words::text(instructions, out);
     }
+    super::task_source::summary(task, out);
     task_settings::text(task.settings.as_ref(), out);
     dependencies::text(task, me, book, out);
     llm::text_wait(task.run_wait, out);
