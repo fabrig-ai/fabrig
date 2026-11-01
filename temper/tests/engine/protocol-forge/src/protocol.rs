@@ -502,11 +502,7 @@ impl Protocol {
                 }
                 other @ (top::Request::Settled { .. }
                 | top::Request::Bound { .. }
-                | top::Request::ListDemoActs
-                | top::Request::SendDemoAct(_)
-                | top::Request::DemoStart { .. }
                 | top::Request::PlaygroundStart { .. }
-                | top::Request::StopGroup { .. }
                 | top::Request::SetUpGroup { .. }
                 | top::Request::ForgeKept { .. }
                 | top::Request::ForgeRemoved { .. }
@@ -675,9 +671,8 @@ fn key(row: &top::Stored) -> top::Key {
         }),
         top::Stored::Change(row) => top::Key::Change(row.task),
         top::Stored::Issue(row) => top::Key::Issue(row.goal),
-        top::Stored::Demo(row) => top::Key::Demo(row.forge),
         top::Stored::Binding { address, .. } => top::Key::Binding(address.clone()),
-        top::Stored::DemoAct(row) => top::Key::DemoAct(row.key),
+        top::Stored::Demo(_) | top::Stored::DemoAct(_) => unreachable!("legacy demo rows are discarded"),
         top::Stored::Forge(row) => top::Key::Forge(row.number),
         top::Stored::Forges { .. } => top::Key::Forges,
         top::Stored::Playground(_) => top::Key::Playground,

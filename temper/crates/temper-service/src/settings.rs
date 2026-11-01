@@ -15,7 +15,6 @@ pub struct Demo {
     pub cues: Box<[Box<[u8]>]>,
     pub landing: Box<[u8]>,
     pub key_file: Box<[u8]>,
-    pub state: Option<temper_engine_domain_forge::DemoState>,
     /// The durable playground row read by clients (draft playground-reset.md, 6.1, 6.2).
     pub playground: Option<temper_engine_domain_forge::Playground>,
 }

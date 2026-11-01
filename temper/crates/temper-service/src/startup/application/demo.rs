@@ -97,7 +97,6 @@ pub(super) fn parse(
             landing: repository.landing.clone(),
             key_file,
             fake: fake_template,
-            state: None,
             playground: None,
         });
     };
@@ -154,7 +153,6 @@ pub(super) fn parse(
             cues: cues.into_boxed(),
             landing,
             key_file,
-            state: None,
             playground: None,
         });
     }

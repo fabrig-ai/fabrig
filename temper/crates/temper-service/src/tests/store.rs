@@ -120,25 +120,6 @@ fn a_forge_row_committed_is_restored_by_the_forge_interval() {
 }
 
 #[test]
-fn demo_states_committed_are_restored_by_the_forge_interval() {
-    use temper_engine_domain_forge::{Demo, DemoState, Stored};
-    for state in [DemoState::Running, DemoState::Ended] {
-        let mut store = fixtures::memory_store();
-        let row = Stored::Demo(Demo { forge: 1, state });
-        fixtures::commit(
-            &mut store,
-            1,
-            Box::new([engine::Write::Save(engine::Record::Forge { row: Box::new(row.clone()) })]),
-        );
-        let Some(jig_protocol_store::Event::Committed { number: 1, .. }) = store.above.pop() else {
-            panic!("demo commit")
-        };
-        let rows = fixtures::load(&mut store, engine::Range::Forge);
-        assert_eq!(rows.as_ref(), [engine::Record::Forge { row: Box::new(row) }]);
-    }
-}
-
-#[test]
 fn the_store_closes_after_its_drivers() {
     let mut store = fixtures::memory_store();
     let root = Fd::new(10);

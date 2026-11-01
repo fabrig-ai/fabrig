@@ -209,8 +209,6 @@ fn historical_records_need_no_live_task_or_member() {
         Stored::Change(fixtures::opening_row()),
         issue(true),
         Stored::Binding { address: b"former@example.com".as_slice().into(), subject: b"former".as_slice().into() },
-        Stored::DemoAct(DemoAct { key: [1; 16], act: DemoActKind::Close { project: 1, task: OTHER_TASK } }),
-        Stored::DemoAct(DemoAct { key: [2; 16], act: DemoActKind::RemoveAccount { account: 99 } }),
         Stored::Application {
             token: 1,
             until: Wall::EPOCH,
@@ -249,11 +247,6 @@ fn flights_refuse_an_absent_entry_or_another_tasks_entry() {
     for row in [Stored::Flight { task: TASK, entry: 99 }, Stored::Flight { task: OTHER_TASK, entry: ENTRY }] {
         assert!(!resolved(&d, &row, true), "{row:?}");
     }
-}
-#[test]
-fn a_demo_record_requires_the_configured_demo() {
-    let d = held_domain();
-    assert!(!resolved(&d, &Stored::Demo(Demo { forge: 1, state: DemoState::Ended }), false));
 }
 
 // Measured peak: 3,072 bytes; 25% headroom, rounded up to two significant digits.
@@ -295,58 +288,6 @@ fn populated_reconciliation_owner_fits_its_heap_ceiling() {
     let measured = meter.end();
     meter.check(measured, RECONCILIATION_HEAP_CEILING, &LIMITS);
     assert!(resolved(&d, &Stored::Flight { task: TASK, entry: ENTRY }, true));
-}
-
-// Measured peak: 9,170 bytes; 25% headroom, rounded up to two significant digits.
-const DEMO_HEAP_CEILING: u64 = 12_000;
-
-#[test]
-fn retained_demo_and_its_owner_fit_their_heap_ceiling() {
-    let meter = Meter::new();
-    meter.start();
-    // The boxed owner includes its optional demo record in the measured heap.
-    let d = Box::new(demo_domain());
-    let measured = meter.end();
-    meter.check(measured, DEMO_HEAP_CEILING, &LIMITS);
-    assert!(resolved(&d, &Stored::Demo(Demo { forge: 1, state: DemoState::Ended }), false));
-}
-
-fn demo_domain() -> Domain {
-    let mut d = held_domain();
-    d.configure_demo(Some(DemoConfig {
-        forge: None,
-        provider: 1,
-        adoption: fixtures::adoption(),
-        deadline: Duration::from_secs(10),
-    }));
-    outputs(&mut d, Event::Restore { record: Stored::Demo(Demo { forge: 1, state: DemoState::Ended }) });
-    d
-}
-#[test]
-fn the_configured_ended_demo_and_its_retired_owners_resolve() {
-    let d = demo_domain();
-    for row in [
-        Stored::Demo(Demo { forge: 1, state: DemoState::Ended }),
-        Stored::Names { task: OTHER_TASK, resources: Box::new([branch()]) },
-        hold(OTHER_TASK, Some(Writer::Lost { task: OTHER_TASK, attempt: 1 })),
-        subscription(),
-        Stored::Entry { entry: status(ENTRY, OTHER_TASK), held: true },
-        issue(false),
-        Stored::Flight { task: TASK, entry: ENTRY },
-    ] {
-        assert!(resolved(&d, &row, false), "{row:?}");
-    }
-}
-#[test]
-fn an_ended_demo_does_not_resolve_a_different_demo_record() {
-    assert!(!resolved(&demo_domain(), &Stored::Demo(Demo { forge: OTHER_FORGE, state: DemoState::Ended }), false));
-}
-#[test]
-fn a_mixed_resource_set_still_requires_its_live_owner() {
-    let d = demo_domain();
-    let mut other = branch();
-    other.forge = OTHER_FORGE;
-    assert!(!resolved(&d, &Stored::Names { task: OTHER_TASK, resources: Box::new([branch(), other]) }, false));
 }
 
 #[test]
@@ -557,22 +498,6 @@ fn production_link_requires_a_failed_issues_repository() {
 fn production_link_preserves_pending_closing_entry_and_flight() {
     let (mut d, _) = closing_history(Some(ENTRY), REPO);
     outputs(&mut d, Event::Restore { record: Stored::Flight { task: TASK, entry: ENTRY } });
-    d.reconcile(&empty_tasks());
-    assert_eq!(d.reconciliation(), Ok(()));
-}
-
-#[test]
-fn production_link_preserves_retired_demo_owners() {
-    let mut d = demo_domain();
-    for record in [
-        Stored::Names { task: OTHER_TASK, resources: Box::new([branch()]) },
-        hold(OTHER_TASK, Some(Writer::Lost { task: OTHER_TASK, attempt: 1 })),
-        subscription(),
-        issue(false),
-        Stored::Flight { task: TASK, entry: ENTRY },
-    ] {
-        outputs(&mut d, Event::Restore { record });
-    }
     d.reconcile(&empty_tasks());
     assert_eq!(d.reconciliation(), Ok(()));
 }

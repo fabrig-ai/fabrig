@@ -161,13 +161,6 @@ fn retained_repositories_take_the_project_even_when_the_forge_is_ended_or_removi
     record.removing = true;
     outputs(&mut d, Event::Restore { record: Stored::Forge(record) });
     assert!(d.project_has_repository(5));
-    d.configure_demo(Some(DemoConfig {
-        forge: None,
-        provider: 1,
-        adoption: fixtures::adoption(),
-        deadline: Duration::from_secs(10),
-    }));
-    outputs(&mut d, Event::Restore { record: Stored::Demo(Demo { forge: 1, state: DemoState::Ended }) });
     assert!(d.forge_ended(1));
     assert!(d.project_has_repository(5));
 }

@@ -10,15 +10,9 @@ use skein_lib::{Duration, Env, List, Map, Queue, Time, Wall};
 use temper_engine_domain as root;
 use temper_engine_domain_forge as forge;
 
-/// Missing forges and the ended demo gate every service path (draft/playground-reset.md, 4).
+/// Missing and removed forges cannot start another service operation (draft/playground-reset.md, 4).
 pub(crate) fn ended(engine: &crate::engine::Engine, forge: u16) -> bool {
-    if table::record(engine, forge).is_none() {
-        return true;
-    }
-    match &engine.demo {
-        Some(demo) => demo.forge == Some(forge) && demo.state == Some(forge::DemoState::Ended),
-        None => false,
-    }
+    table::record(engine, forge).is_none() || engine.domain.forge_ended(forge)
 }
 
 /// The user agent every forge request carries; a test pins it.

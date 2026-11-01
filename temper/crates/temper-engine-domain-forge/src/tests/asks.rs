@@ -110,18 +110,6 @@ fn set_up_without_an_owned_asked_forge_is_not_offered() {
     }
 }
 #[test]
-fn set_up_skips_an_ended_owned_forge() {
-    let mut d = setup_domain(&[setup_configured(1, Mode::Owned, true), setup_configured(3, Mode::Owned, true)], true);
-    d.configure_demo(Some(DemoConfig {
-        forge: None,
-        provider: 1,
-        adoption: fixtures::adoption(),
-        deadline: Duration::from_secs(10),
-    }));
-    outputs(&mut d, Event::Restore { record: Stored::Demo(Demo { forge: 1, state: DemoState::Ended }) });
-    assert_eq!(crate::asks::set_up_forge(&d), Some(3));
-}
-#[test]
 fn a_row_is_finished_once_connected_with_a_repository() {
     for (connected, adopted, finished) in
         [(false, false, false), (true, false, false), (false, true, false), (true, true, true)]

@@ -137,7 +137,7 @@ pub(crate) fn progress(domain: &mut Domain, env: &Env<Limits>, decision: &mut De
             return;
         }
     };
-    let connected = super::demo::connected(&domain.forge.connection(row.forge.expect("made forge")));
+    let connected = connected(&domain.forge.connection(row.forge.expect("made forge")));
     if !connected && env.now >= start.until {
         finish(domain, forge::StartAnswer::Failed(forge::StartFailure::NotConnected));
         return;
@@ -252,7 +252,6 @@ pub(crate) fn adopted(
                 forge::ApplicationOutcome::CoreRefused(_) | forge::ApplicationOutcome::ForgeRefused(_),
             )
             | forge::Answered::SetUp(_)
-            | forge::Answered::StartDemo(_)
             | forge::Answered::StartPlayground(_)
             | forge::Answered::EndPlayground(_)
             | forge::Answered::RemoveForge(_)
@@ -290,5 +289,17 @@ pub(crate) fn done(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisi
     }
     if active(domain, request) {
         domain.playground_start = None;
+    }
+}
+
+pub(crate) fn connected(connection: &forge::Connection) -> bool {
+    match connection {
+        forge::Connection::Connected { .. } => true,
+        forge::Connection::Connecting
+        | forge::Connection::NotConnected
+        | forge::Connection::NotSetUp
+        | forge::Connection::SettingUp { .. }
+        | forge::Connection::SetUpFailed { .. }
+        | forge::Connection::Stopped { .. } => false,
     }
 }

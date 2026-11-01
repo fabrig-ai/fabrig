@@ -327,7 +327,7 @@ fn local_starts(config: &crate::settings::Engine, layer: &mut super::Layer, unde
                 .path(temper_forge_setup::place::File::AdminToken),
             file: super::lifecycle::FileStep::Idle,
             trigger: if demo_forge == Some(setup.entry.forge) {
-                super::lifecycle::Trigger::StartDemo
+                super::lifecycle::Trigger::StartPlayground
             } else if setup.entry.asked {
                 super::lifecycle::Trigger::StartAsked
             } else {

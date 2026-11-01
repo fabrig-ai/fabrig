@@ -24,7 +24,6 @@ mod capabilities;
 mod ci;
 mod commit;
 mod connect;
-mod demo;
 mod domain;
 mod effect_words;
 mod first;
@@ -64,8 +63,7 @@ pub use domain::{Domain, RestoreFit, RestoreSet, fire, resume, step, tag, untag,
 pub use gates::{GateCandidate, GateLast, GatePattern, GatePolicy, GateTemplate};
 pub use judge::{Criterion, Freshness as JudgeFreshness, Judges, Reviewer, Verdict as JudgeVerdict};
 pub use limits::{
-    BOT_LOGIN_SUFFIX, CONNECT_WHY_BYTES, FIRST_NAME_BYTES, Limits, STOPPED_TEXT_BYTES, demo_act_bound, kept_bound,
-    valid,
+    BOT_LOGIN_SUFFIX, CONNECT_WHY_BYTES, FIRST_NAME_BYTES, Limits, STOPPED_TEXT_BYTES, kept_bound, valid,
 };
 pub use panel::{MARKED, PANEL_AHEAD, PANEL_GATES, PANEL_NAME_BYTES, Panel, PanelGate, PanelStep, PanelUsed};
 pub use temper_engine_domain_forge_landing::{CHECK_NAME_BYTES, WORKFLOW_BYTES};

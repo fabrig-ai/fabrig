@@ -254,7 +254,6 @@ pub fn incoming(
         | engine::Request::Install { .. }
         | engine::Request::Accept { .. }
         | engine::Request::EraseCarried { .. }
-        | engine::Request::StopGroup { .. }
         | engine::Request::SetUp { .. }
         | engine::Request::Bound { .. }
         | engine::Request::Return { .. }
@@ -325,8 +324,7 @@ fn delivery_packet(
             None
         }
         // Jig has no separate live requester Result; the task document carries it.
-        Delivery::DemoActed { .. }
-        | Delivery::DemoNote { .. }
+        Delivery::DemoNote { .. }
         | Delivery::Application { .. }
         | Delivery::Forges { .. }
         | Delivery::ForgeDocument { .. }
