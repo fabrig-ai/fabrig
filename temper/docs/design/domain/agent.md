@@ -332,9 +332,11 @@ it as any `delegate`:
   `domain/tasks.md`, section 3), with a report's contract bounded by
   the deployment's largest result, jig's `tasks.result_bytes` (512 on
   the small profile a box runs), whatever the run's own contract's
-  bound (a chat's is a line), since jig refuses a batch whose contract
-  is above it (4.4): the work a person asked for, which plans, asks its
-  requester with `message` where its words say to (8.2), calls `change`
+  bound (a chat's bound reaches neither its brief nor its replies,
+  since its requester ends it, jig's `domain/tasks.md`, 5.8), since jig
+  refuses a batch whose contract is above it (4.4): the work a person
+  asked for, which plans, asks its requester with `message` where its
+  words say to (8.2), calls `change`
   for each change, and reports. The contract bounds the result, not
   the work: asking first is the instructions', and the rail is
   authority's;
