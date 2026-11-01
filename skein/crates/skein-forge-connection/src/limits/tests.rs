@@ -397,7 +397,10 @@ fn valid_refuses_a_log_page_past_u32() {
 
 #[test]
 fn valid_ignores_heap_call_tables() {
-    let limits = super::Limits { connections: u32::MAX, ..fixtures::limits() };
-    let shared = Shared { calls: u32::MAX, rows: u32::MAX, answer_bytes: u32::MAX, ..fixtures::shared() };
+    let base = fixtures::limits();
+    // Socket capacity includes every forge's reserved connection (7.2).
+    let calls = u32::MAX.checked_sub(base.forges).expect("room for reserved connections");
+    let limits = super::Limits { connections: calls, ..base };
+    let shared = Shared { calls, rows: u32::MAX, answer_bytes: u32::MAX, ..fixtures::shared() };
     assert_eq!(check(&limits, &shared, &fixtures::settings()), Ok(()));
 }

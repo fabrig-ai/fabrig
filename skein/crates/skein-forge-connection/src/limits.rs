@@ -167,6 +167,8 @@ pub enum Unusable {
     Stack { stacked: Stacked, demand: u32, cap: u32 },
     /// More forges than `forges`.
     Forges { forges: u32 },
+    /// An Add names a number different from its settings.
+    Number { forge: u16 },
     /// Two forges with one number.
     Duplicate { forge: u16 },
     /// A forge's credential of the other dialect's kind.
@@ -220,7 +222,12 @@ pub fn check(l: &Limits, s: &Shared, settings: &Settings) -> Result<(), Unusable
     if l.deadline > s.lifetime {
         return Err(Unusable::Deadline { deadline: l.deadline, lifetime: s.lifetime });
     }
-    check_github(l, s, settings)?;
+    for forge in &settings.forges {
+        if forge.kind == Kind::GitHub {
+            check_github(l, s)?;
+            break;
+        }
+    }
     if !skein_forge::marker::valid_word(&settings.word) {
         return Err(Unusable::Word);
     }
@@ -280,7 +287,7 @@ pub fn check(l: &Limits, s: &Shared, settings: &Settings) -> Result<(), Unusable
 // Socket slots, Forgejo staging and GitHub log pages are derived capacities,
 // independent of the price of their backing allocations.
 fn capacity_bound(l: &Limits, s: &Shared, forges: Forges) -> Option<()> {
-    l.connections.checked_add(forges.github)?;
+    l.connections.checked_add(l.forges)?;
     if l.body_bytes_in == u32::MAX || l.hook_body_bytes == u32::MAX {
         return None;
     }
@@ -293,31 +300,24 @@ fn capacity_bound(l: &Limits, s: &Shared, forges: Forges) -> Option<()> {
     Some(())
 }
 
-fn check_github(l: &Limits, s: &Shared, settings: &Settings) -> Result<(), Unusable> {
-    let mut github = false;
-    for forge in &settings.forges {
-        if forge.kind == Kind::GitHub {
-            github = true;
-        }
+fn check_github(l: &Limits, s: &Shared) -> Result<(), Unusable> {
+    if let Err(problem) = skein_forge::github::limits::check(&github_documents(l)) {
+        return Err(Unusable::GitHubDocuments(problem));
     }
-    if github {
-        if let Err(problem) = skein_forge::github::limits::check(&github_documents(l)) {
-            return Err(Unusable::GitHubDocuments(problem));
-        }
-        if let Err(problem) = skein_forge::github::limits::check(&github_mint_documents(l)) {
-            return Err(Unusable::GitHubDocuments(problem));
-        }
-        installation_bounds(l, s).ok_or(Unusable::Zero)?;
-        if l.deadline > APP_DEADLINE {
-            return Err(Unusable::AppDeadline { deadline: l.deadline });
-        }
-        if l.renew_before < l.deadline.saturating_mul(2) || l.renew_before > MAX_RENEW_BEFORE {
-            return Err(Unusable::RenewBefore { renew_before: l.renew_before, deadline: l.deadline });
-        }
-        if usize::try_from(l.key_bytes).expect("u32 fits") < skein_tls::RS256_KEY_BYTES {
-            return Err(Unusable::KeyBytes { key_bytes: l.key_bytes });
-        }
+    if let Err(problem) = skein_forge::github::limits::check(&github_mint_documents(l)) {
+        return Err(Unusable::GitHubDocuments(problem));
     }
+    installation_bounds(l, s).ok_or(Unusable::Zero)?;
+    if l.deadline > APP_DEADLINE {
+        return Err(Unusable::AppDeadline { deadline: l.deadline });
+    }
+    if l.renew_before < l.deadline.saturating_mul(2) || l.renew_before > MAX_RENEW_BEFORE {
+        return Err(Unusable::RenewBefore { renew_before: l.renew_before, deadline: l.deadline });
+    }
+    if usize::try_from(l.key_bytes).expect("u32 fits") < skein_tls::RS256_KEY_BYTES {
+        return Err(Unusable::KeyBytes { key_bytes: l.key_bytes });
+    }
+    log_page_bytes(l).ok_or(Unusable::Zero)?;
     Ok(())
 }
 fn nonzero(l: &Limits) -> Result<(), Unusable> {
@@ -392,54 +392,77 @@ fn check_settings(l: &Limits, s: &Shared, settings: &Settings) -> Result<(), Unu
                 Value::Secret => Unusable::Secret { forge: forge.number },
             });
         }
-        let tls = match &forge.transport {
-            Transport::Plaintext { name } => {
-                if let Some(name) = name
-                    && !plaintext_name(name)
-                {
-                    return Err(Unusable::PlaintextName { forge: forge.number });
-                }
-                false
-            }
-            Transport::Tls { .. } => true,
-        };
-        match forge.address {
-            skein_io::Addr::Ip(ip) => {
-                if !tls && !ip.ip().is_loopback() {
-                    return Err(Unusable::Address { forge: forge.number });
-                }
-            }
-            skein_io::Addr::InProcess(_) => return Err(Unusable::Address { forge: forge.number }),
-        }
-        check_origins(l, s, settings, forge, tls)?;
-        // Longest method, target, seven fields and final empty line. Decimal lengths
-        // use u64's longest spelling; headers here reserve their complete framing.
-        let head = u64::from(l.target_bytes)
-            .checked_add(
-                u64::try_from(crate::settings::host(forge).ok_or(Unusable::Zero)?.len()).ok().ok_or(Unusable::Zero)?,
-            )
-            .ok_or(Unusable::Zero)?;
-        let credential = match forge.kind {
-            Kind::Forgejo => u64::from(l.token_bytes),
-            Kind::GitHub => u64::from(l.token_bytes)
-                .max(u64::try_from(skein_forge::github::jwt::JWT_BYTES).expect("JWT bound fits")),
-        };
-        let head = head
-            .checked_add(credential)
-            .ok_or(Unusable::Zero)?
-            .checked_add(u64::try_from(settings.user_agent.len()).ok().ok_or(Unusable::Zero)?)
-            .ok_or(Unusable::Zero)?
-            .checked_add(192)
-            .ok_or(Unusable::Zero)?;
-        if !header_value(&settings.user_agent) || head > u64::from(http(l, tls, &s.io).request) {
-            return Err(Unusable::Request { forge: forge.number });
-        }
+        self::forge(l, s, settings, forge)?;
     }
     if let Some(hooks) = &settings.webhooks {
         match hooks.listener {
             skein_io::Addr::Ip(ip) if ip.ip().is_loopback() => {}
             skein_io::Addr::Ip(_) | skein_io::Addr::InProcess(_) => return Err(Unusable::Listener),
         }
+    }
+    Ok(())
+}
+/// The settings shared by start and runtime admission; access is checked separately.
+pub(crate) fn forge(
+    l: &Limits,
+    s: &Shared,
+    settings: &Settings,
+    forge: &crate::settings::Forge,
+) -> Result<(), Unusable> {
+    for held in &settings.forges {
+        if held.number == forge.number && !core::ptr::eq(held, forge) {
+            return Err(Unusable::Duplicate { forge: forge.number });
+        }
+    }
+    match forge.kind {
+        Kind::Forgejo => {
+            let bytes = s.op_bytes.checked_div(8).ok_or(Unusable::Zero)?;
+            bytes.checked_add(l.inner).ok_or(Unusable::Zero)?;
+        }
+        Kind::GitHub => check_github(l, s)?,
+    }
+    let tls = match &forge.transport {
+        Transport::Plaintext { name } => {
+            if let Some(name) = name
+                && !plaintext_name(name)
+            {
+                return Err(Unusable::PlaintextName { forge: forge.number });
+            }
+            false
+        }
+        Transport::Tls { .. } => true,
+    };
+    match forge.address {
+        skein_io::Addr::Ip(ip) => {
+            if !tls && !ip.ip().is_loopback() {
+                return Err(Unusable::Address { forge: forge.number });
+            }
+        }
+        skein_io::Addr::InProcess(_) => return Err(Unusable::Address { forge: forge.number }),
+    }
+    check_origins(l, s, settings, forge, tls)?;
+    // Longest method, target, seven fields and final empty line. Decimal lengths
+    // use u64's longest spelling; headers here reserve their complete framing.
+    let head = u64::from(l.target_bytes)
+        .checked_add(
+            u64::try_from(crate::settings::host(forge).ok_or(Unusable::Zero)?.len()).ok().ok_or(Unusable::Zero)?,
+        )
+        .ok_or(Unusable::Zero)?;
+    let credential = match forge.kind {
+        Kind::Forgejo => u64::from(l.token_bytes),
+        Kind::GitHub => {
+            u64::from(l.token_bytes).max(u64::try_from(skein_forge::github::jwt::JWT_BYTES).expect("JWT bound fits"))
+        }
+    };
+    let head = head
+        .checked_add(credential)
+        .ok_or(Unusable::Zero)?
+        .checked_add(u64::try_from(settings.user_agent.len()).ok().ok_or(Unusable::Zero)?)
+        .ok_or(Unusable::Zero)?
+        .checked_add(192)
+        .ok_or(Unusable::Zero)?;
+    if !header_value(&settings.user_agent) || head > u64::from(http(l, tls, &s.io).request) {
+        return Err(Unusable::Request { forge: forge.number });
     }
     Ok(())
 }

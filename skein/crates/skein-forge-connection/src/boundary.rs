@@ -57,6 +57,13 @@ pub struct Answered {
 /// From the routing.
 #[derive(Debug)]
 pub enum Request {
+    /// A forge held from now on, as one handed at start is (3.1); its access, when it has
+    /// one, starts it as a `Connect` does (3.5). Ignored, with nothing said, when the
+    /// component cannot hold it: see `Component::admits`.
+    Add { forge: u16, settings: crate::settings::Forge },
+    /// A forge held no more: its open calls end as at their deadlines, its connections
+    /// close, and nothing it held is kept. Ignored for a forge not held.
+    Remove { forge: u16 },
     /// Hands or replaces a forge's access (forge-connection.md, 3.5): at most one
     /// Connected and at most one Stopped per generation, including refusal after Ready.
     /// A replacement suppresses the old generation's remaining events.

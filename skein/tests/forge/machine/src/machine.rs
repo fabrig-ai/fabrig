@@ -3,7 +3,7 @@ use crate::{fixtures, github, peer::Peer};
 use skein_forge::api;
 use skein_forge_connection::{Answered, Component, Event, Limits, Request, Settings, Stopped};
 use skein_lib::{
-    Duration, Env, Queue, Time, Token, Wall,
+    Duration, Env, Lifecycle, Queue, Time, Token, Wall,
     stream::{Down, Fault, Up},
 };
 use std::{
@@ -99,6 +99,8 @@ pub struct Machine {
     facts: Vec<Event>,
     hints: Vec<skein_forge_connection::hooks::Hinted>,
     log_script: VecDeque<String>,
+    next_access_generation: u64,
+    lifecycle: Lifecycle,
     access_generations: BTreeMap<u16, Option<AccessGeneration>>,
     forge_addresses: Vec<(skein_io::Addr, u16)>,
     connection_generations: BTreeMap<Token, (u16, u64)>,
@@ -204,6 +206,8 @@ impl Machine {
             facts: Vec::new(),
             hints: Vec::new(),
             log_script: VecDeque::new(),
+            next_access_generation: 2,
+            lifecycle: Lifecycle::Live,
             access_generations,
             forge_addresses,
             connection_generations: BTreeMap::new(),
@@ -357,12 +361,38 @@ impl Machine {
     /// Delivers an owner action, preserving every answer offer in the history.
     pub fn action(&mut self, request: Request) {
         self.events();
+        if let Request::Add { forge, settings } = &request
+            && self.lifecycle == Lifecycle::Live
+            && *forge == settings.number
+            && self.component.admits(&self.env.limits, settings).is_ok()
+        {
+            self.forge_addresses.push((settings.address, *forge));
+            if matches!(settings.transport, skein_forge_connection::settings::Transport::Tls { .. }) {
+                self.tls_addresses.push(settings.address);
+            }
+            let generation = settings.access.as_ref().map(|_| {
+                let next = self.next_access_generation;
+                self.next_access_generation += 1;
+                AccessGeneration::new(next)
+            });
+            self.access_generations.insert(*forge, generation);
+        }
+        if let Request::Remove { forge } = &request
+            && self.lifecycle == Lifecycle::Live
+        {
+            self.access_generations.remove(forge);
+            self.forge_addresses.retain(|(_, number)| number != forge);
+        }
         if let Request::Connect { forge, .. } = &request
-            && !self.closed
+            && self.lifecycle == Lifecycle::Live
             && let Some(generation) = self.access_generations.get_mut(forge)
         {
-            let next = generation.as_ref().map_or(1, |generation| generation.number + 1);
+            let next = self.next_access_generation;
+            self.next_access_generation += 1;
             *generation = Some(AccessGeneration::new(next));
+        }
+        if matches!(&request, Request::Close | Request::Abort) {
+            self.lifecycle = Lifecycle::Closing;
         }
         if let Request::Refused(answer) | Request::Returned(answer) = &request {
             assert!(self.answers.remove(&answer.call.raw()).is_some(), "owner holds a delivered answer");
@@ -553,6 +583,14 @@ impl Machine {
             return;
         }
         while let Some(event) = self.above.pop() {
+            if let Event::Connected { forge }
+            | Event::Stopped { forge, .. }
+            | Event::Installation { forge, .. }
+            | Event::GitToken { forge, .. }
+            | Event::Fact { forge, .. } = &event
+            {
+                assert!(self.access_generations.contains_key(forge), "output names a held forge");
+            }
             if let Event::Connected { forge } = event {
                 self.access_event(forge, true);
                 self.connected_forges.push(forge);
@@ -601,6 +639,7 @@ impl Machine {
                 Event::Closed => {
                     assert!(!self.closed, "one close");
                     self.closed = true;
+                    self.lifecycle = Lifecycle::Closed;
                     self.closed_events += 1;
                 }
             }
@@ -845,6 +884,7 @@ impl Machine {
     }
     /// Closes the component, allowing at most 1,000 ticks for its terminal.
     pub fn close(&mut self) -> bool {
+        self.lifecycle = Lifecycle::Closing;
         self.component.down(&self.env, Request::Close, &mut self.above, &mut self.below);
         for _ in 0..1000 {
             self.tick();
