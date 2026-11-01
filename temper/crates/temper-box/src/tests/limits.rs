@@ -10,6 +10,7 @@ fn the_small_profile_has_the_values_of_the_plan() {
             restarts: 5,
             window: Duration::from_secs(300),
             line_bytes: 256,
+            group_file_bytes: 65536,
             log_bytes: 4_194_304,
             tail_lines: 10,
             grace: Duration::from_secs(10)

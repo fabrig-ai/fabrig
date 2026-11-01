@@ -33,6 +33,56 @@ pub struct Group {
     pub before: u32,
     pub steps: Box<[(Stage, Step)]>,
 }
+impl Group {
+    /// The same group for forge `forge`: arguments equal to this group's
+    /// decimal number, and matching space-separated words in names and the
+    /// label, become `forge`'s: the box knows kinds, not forges
+    /// (temper/docs/plan/playground-reset-r4/notes/contracts.md, 3).
+    #[must_use]
+    pub fn numbered(&self, forge: u16) -> Group {
+        let old = Decimal::of(u64::from(self.forge));
+        let new = Decimal::of(u64::from(forge));
+        let mut group = self.clone();
+        group.forge = forge;
+        group.label = numbered_words(&self.label, old.as_bytes(), new.as_bytes());
+        for (_, step) in &mut group.steps {
+            step.name = numbered_words(&step.name, old.as_bytes(), new.as_bytes());
+            for argument in &mut step.arguments {
+                if argument.as_ref() == old.as_bytes() {
+                    *argument = bytes::copy_of(new.as_bytes());
+                }
+            }
+        }
+        group
+    }
+}
+fn numbered_words(words: &[u8], old: &[u8], new: &[u8]) -> Box<[u8]> {
+    let mut size = words.len();
+    let mut first = 0;
+    for end in 0..=words.len() {
+        if end == words.len() || words.get(end) == Some(&b' ') {
+            if words.get(first..end).expect("word range") == old {
+                size = size.checked_sub(old.len()).expect("word in name").checked_add(new.len()).expect("bounded name");
+            }
+            first = end.checked_add(1).expect("word end");
+        }
+    }
+    let mut out = List::with_capacity(u32::try_from(size).expect("bounded name"));
+    first = 0;
+    for end in 0..=words.len() {
+        if end == words.len() || words.get(end) == Some(&b' ') {
+            let word = words.get(first..end).expect("word range");
+            for byte in if word == old { new } else { word } {
+                out.push(*byte).expect("counted word");
+            }
+            if end != words.len() {
+                out.push(b' ').expect("counted separator");
+            }
+            first = end.checked_add(1).expect("word end");
+        }
+    }
+    out.into_boxed()
+}
 /// Commands run at startup, and groups run when asked.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Steps {

@@ -1360,3 +1360,391 @@ fn a_ready_probe_deadline_waits_for_request_credit() {
     harness.sim.assert_quiescent(harness.pid);
     harness.sim.assert_no_open_fds(harness.pid);
 }
+
+fn owned_kind() -> temper_forge_setup::Group {
+    use temper_forge_setup::{Group, Stage};
+    let address = ([127, 0, 0, 1], 8200).into();
+    Group {
+        forge: u16::MAX,
+        label: bytes::copy_of(b"Forge 65535 (Forgejo)"),
+        recorded: true,
+        before: 0,
+        steps: Box::new([
+            (Stage::Fetch, once(b"fetch 65535", &[b"exit", b"0", b"forge", b"fetch", b"/data", b"65535"])),
+            (Stage::Prepare, once(b"prepare 65535", &[b"exit", b"0", b"forge", b"prepare", b"/data", b"65535"])),
+            (
+                Stage::Run,
+                long(b"forgejo 65535", &[b"never", b"forge", b"run", b"/data", b"65535", b"forgejo"])
+                    .listening(Box::new([address]))
+                    .with_ready(address),
+            ),
+            (Stage::Run, long(b"runner 65535", &[b"never", b"forge", b"run", b"/data", b"65535", b"runner"])),
+        ]),
+    }
+}
+fn version_answer(harness: &mut Harness, name: &[u8]) {
+    use super::fixtures::call;
+    use skein_io::kernel::Op;
+    let child = harness.hosted.get(harness.child_index(name)).unwrap();
+    let pid = child.pid;
+    let listener = child.listeners[0];
+    let Ok(Done::Accepted { fd, .. }) = call(&mut harness.sim, pid, Op::Accept { fd: listener }).result else {
+        panic!("version connection queued")
+    };
+    let response = b"HTTP/1.1 200 OK\r\n";
+    assert_eq!(
+        call(&mut harness.sim, pid, Op::Send { fd, bytes: bytes::copy_of(response), from: 0 }).result,
+        Ok(Done::Count(u32::try_from(response.len()).unwrap()))
+    );
+    harness.run_until_idle();
+    call(&mut harness.sim, pid, Op::Close { fd });
+}
+fn end_box(harness: &mut Harness) {
+    harness.terminate();
+    assert_eq!(harness.run_to_end(), Exit::Code(0));
+    harness.sim.assert_quiescent(harness.pid);
+    harness.sim.assert_no_open_fds(harness.pid);
+    assert_eq!(harness.machine.open_handles(), 0);
+}
+fn group_files() -> [skein_fake_machine::Item; 4] {
+    use skein_fake_machine::Item;
+    [
+        Item::directory(b"box"),
+        Item::directory(b"box/groups"),
+        Item::file(b"box/groups/7", br#"{"setup":{},"playground":false}"#).mode(0o600),
+        Item::file(b"box/groups/8", br#"{"setup":{},"playground":false}"#).mode(0o600),
+    ]
+}
+fn file_exists(harness: &mut Harness, path: &[u8]) -> bool {
+    use skein_fake_machine::How;
+    let root = harness.machine.reopen_root(0);
+    let exists = match harness.machine.open(root, path, How::Read) {
+        Ok(file) => {
+            harness.machine.close(file);
+            true
+        }
+        Err(skein_fake_machine::Refusal::NotFound) => false,
+        Err(error) => panic!("file check: {error:?}"),
+    };
+    harness.machine.close(root);
+    exists
+}
+#[test]
+fn a_start_for_no_group_reads_its_file_and_runs_its_kinds_group_numbered() {
+    use skein_fake_machine::How;
+    let mut harness = Harness::kinds(Box::new([owned_kind()]), &group_files());
+    harness.run_until_idle();
+    assert_eq!(harness.launches.len(), 1, "kind stays dormant");
+    harness.ask(b"start 7\n");
+    harness.run_until_idle();
+    assert_eq!(harness.reply_bytes().as_ref(), b"step 7 fetch\nstep 7 prepare\nstep 7 run\n");
+    assert!(harness.spawn_times(b"runner 7").is_empty(), "version gates runner");
+    version_answer(&mut harness, b"forgejo 7");
+    assert_eq!(harness.reply_bytes().as_ref(), b"step 7 fetch\nstep 7 prepare\nstep 7 run\nstep 7 run\nstarted 7\n");
+    let prepare = harness.launches.get(2).unwrap();
+    assert_eq!(prepare.name.as_ref(), b"prepare 7");
+    assert_eq!(
+        &prepare.arguments[2..6],
+        &[bytes::copy_of(b"forge"), bytes::copy_of(b"prepare"), bytes::copy_of(b"/data"), bytes::copy_of(b"7")]
+    );
+    let root = harness.machine.reopen_root(0);
+    let file = harness.machine.open(root, b"box/started/7", How::Read).unwrap();
+    assert_eq!(harness.machine.stat(file).mode & 0o777, 0o600);
+    harness.machine.close(file);
+    let log = harness.machine.open(root, b"box/logs/prepare-7.log", How::Read).unwrap();
+    harness.machine.close(log);
+    harness.machine.close(root);
+    end_box(&mut harness);
+}
+#[test]
+fn a_start_for_no_group_and_no_file_is_not_asked_and_a_taken_kind_is_busy() {
+    let mut harness = Harness::kinds(Box::new([owned_kind()]), &[]);
+    harness.run_until_idle();
+    harness.ask(b"start 7\n");
+    harness.run_until_idle();
+    assert_eq!(harness.reply_bytes().as_ref(), b"failed 7 not asked\n");
+    end_box(&mut harness);
+    let mut harness = Harness::kinds(Box::new([owned_kind()]), &group_files());
+    harness.run_until_idle();
+    harness.ask(b"start 7\n");
+    harness.run_until_idle();
+    version_answer(&mut harness, b"forgejo 7");
+    harness.replies.clear();
+    harness.ask(b"start 8\n");
+    harness.run_until_idle();
+    assert_eq!(harness.reply_bytes().as_ref(), b"failed 8 busy\n");
+    end_box(&mut harness);
+}
+#[test]
+fn the_playground_file_takes_the_unrecorded_kind_and_writes_no_record() {
+    use skein_fake_machine::Item;
+    use temper_forge_setup::{Group, Stage};
+    let playground = Group {
+        forge: u16::MAX,
+        label: bytes::copy_of(b"Playground"),
+        recorded: false,
+        before: 0,
+        steps: Box::new([(Stage::Run, long(b"fake forge 65535", &[b"never"]))]),
+    };
+    let mut harness = Harness::kinds(
+        Box::new([owned_kind(), playground]),
+        &[
+            Item::directory(b"box"),
+            Item::directory(b"box/groups"),
+            Item::file(b"box/groups/7", br#"{"setup":{},"playground":true}"#),
+        ],
+    );
+    harness.run_until_idle();
+    harness.ask(b"start 7\n");
+    harness.run_until_idle();
+    assert_eq!(harness.reply_bytes().as_ref(), b"step 7 run\nstarted 7\n");
+    assert_eq!(harness.spawn_times(b"fake forge 7").len(), 1);
+    assert!(harness.spawn_times(b"forgejo 7").is_empty());
+    assert!(!file_exists(&mut harness, b"box/started/7"));
+    end_box(&mut harness);
+}
+#[test]
+fn a_malformed_group_file_is_named_and_fails_its_start() {
+    use skein_fake_machine::Item;
+    for input in [
+        b"{".as_slice(),
+        b"{}",
+        b"[]",
+        br#"{"playground":1}"#,
+        br#"{"playground":true,"playground":false}"#,
+        br#"{"setup":{"playground":true}}"#,
+        br#"{"playground":false} true"#,
+    ] {
+        let mut harness = Harness::kinds(
+            Box::new([owned_kind()]),
+            &[Item::directory(b"box"), Item::directory(b"box/groups"), Item::file(b"box/groups/7", input)],
+        );
+        harness.run_until_idle();
+        harness.ask(b"start 7\n");
+        harness.run_until_idle();
+        assert_eq!(harness.reply_bytes().as_ref(), b"failed 7 group file unreadable\n", "{input:?}");
+        assert!(Harness::contains(&harness.stderr(), b"box: box/groups/7: malformed group file\n"));
+        end_box(&mut harness);
+    }
+}
+#[test]
+fn remove_stops_a_started_group_removes_both_files_and_frees_its_kind() {
+    let mut harness = Harness::kinds(Box::new([owned_kind()]), &group_files());
+    harness.run_until_idle();
+    harness.ask(b"start 7\n");
+    harness.run_until_idle();
+    version_answer(&mut harness, b"forgejo 7");
+    harness.replies.clear();
+    harness.ask(b"remove 7\n");
+    harness.run_until_idle();
+    assert!(harness.reply_bytes().is_empty(), "long steps still closing");
+    for name in [b"runner 7".as_slice(), b"forgejo 7"] {
+        let pid = harness.hosted.get(harness.child_index(name)).unwrap().pid;
+        harness.sim.finish_service(pid, Exit::Code(0));
+        harness.run_until_idle();
+    }
+    let mut children = List::with_capacity(5);
+    let mut signalled = List::with_capacity(2);
+    for entry in harness.sim.trace() {
+        if entry.pid == harness.pid {
+            match &entry.event {
+                Event::Complete { result: Ok(Done::Spawned { pidfd, .. }), .. } => {
+                    children.push(*pidfd).unwrap();
+                }
+                Event::Submit { kind: Summary::Signal { pidfd, signal: 15, to: Target::Child }, .. } => {
+                    signalled.push(*pidfd).unwrap();
+                }
+                Event::Submit { .. } | Event::Complete { .. } | Event::Fault(_) | Event::Digest(_) => {}
+            }
+        }
+    }
+    assert_eq!(signalled.as_slice(), &[children.as_slice()[4], children.as_slice()[3]], "runner then Forgejo");
+    assert_eq!(harness.reply_bytes().as_ref(), b"removed 7\n");
+    assert!(Harness::contains(&harness.stderr(), b"Forge 7 (Forgejo): removed\n"));
+    assert!(!file_exists(&mut harness, b"box/started/7"));
+    assert!(!file_exists(&mut harness, b"box/groups/7"));
+    harness.replies.clear();
+    harness.ask(b"start 8\n");
+    harness.run_until_idle();
+    version_answer(&mut harness, b"forgejo 8");
+    assert!(harness.reply_bytes().ends_with(b"started 8\n"));
+    assert!(file_exists(&mut harness, b"box/started/8"));
+    assert!(file_exists(&mut harness, b"box/logs/prepare-8.log"));
+    end_box(&mut harness);
+}
+#[test]
+fn remove_for_no_group_and_no_file_answers_removed_and_again_after_a_restart() {
+    for _ in 0_u32..2 {
+        let mut harness = Harness::kinds(Box::new([owned_kind()]), &[]);
+        harness.run_until_idle();
+        for _ in 0_u32..2 {
+            harness.ask(b"remove 7\n");
+            harness.run_until_idle();
+            assert_eq!(harness.reply_bytes().as_ref(), b"removed 7\n");
+            harness.replies.clear();
+        }
+        end_box(&mut harness);
+    }
+}
+#[test]
+fn remove_of_a_document_group_leaves_no_group_for_that_forge() {
+    let mut harness = Harness::grouped(grouped_steps(), &[], true);
+    harness.run_until_idle();
+    harness.ask(b"remove 3\n");
+    harness.run_until_idle();
+    assert_eq!(harness.reply_bytes().as_ref(), b"removed 3\n");
+    harness.replies.clear();
+    for line in [b"start 3\n".as_slice(), b"stop 3\n"] {
+        harness.ask(line);
+        harness.run_until_idle();
+        assert_eq!(harness.reply_bytes().as_ref(), b"failed 3 not asked\n");
+        harness.replies.clear();
+    }
+    end_box(&mut harness);
+}
+#[test]
+fn remove_is_busy_while_a_group_starts_and_stopping_while_the_box_stops() {
+    let mut harness = Harness::grouped(grouped_steps(), &[], true);
+    harness.hold_spawn = Some(bytes::copy_of(b"prepare 3"));
+    harness.run_until_idle();
+    harness.ask(b"start 3\n");
+    harness.run_until_idle();
+    harness.replies.clear();
+    harness.ask(b"remove 3\n");
+    harness.run_until_idle();
+    assert_eq!(harness.reply_bytes().as_ref(), b"failed 3 busy\n");
+    harness.terminate();
+    harness.run_until_idle();
+    harness.replies.clear();
+    harness.ask(b"remove 3\n");
+    harness.run_until_idle();
+    assert_eq!(harness.reply_bytes().as_ref(), b"failed 3 stopping\n");
+    harness.release_spawn();
+    assert_eq!(harness.run_to_end(), Exit::Code(0));
+}
+#[test]
+fn a_file_error_at_remove_is_named_and_fails_with_files_not_removed() {
+    use skein_fake_machine::Item;
+    let mut harness = Harness::kinds(
+        Box::new([owned_kind()]),
+        &[
+            Item::directory(b"box"),
+            Item::directory(b"box/groups").mode(0o500),
+            Item::file(b"box/groups/7", br#"{"playground":false}"#),
+        ],
+    );
+    harness.run_until_idle();
+    harness.ask(b"remove 7\n");
+    harness.run_until_idle();
+    assert_eq!(harness.reply_bytes().as_ref(), b"failed 7 files not removed\n");
+    assert!(Harness::contains(&harness.stderr(), b"box: box/groups/7: Permission\n"));
+    assert!(file_exists(&mut harness, b"box/groups/7"));
+    end_box(&mut harness);
+}
+
+#[test]
+fn group_files_are_bounded_at_the_whole_file_and_unreadable_files_fail() {
+    use skein_fake_machine::Item;
+    use temper_forge_setup::Steps;
+    for (length, mode, expected) in [
+        (32, 0o600, b"step 7 fetch\nstep 7 prepare\nstep 7 run\n".as_slice()),
+        (33, 0o600, b"failed 7 group file too long\n"),
+        (32, 0, b"failed 7 group file unreadable\n"),
+    ] {
+        let mut input = List::with_capacity(length);
+        for byte in br#"{"playground":false}"# {
+            input.push(*byte).unwrap();
+        }
+        for _ in input.len()..length {
+            input.push(b' ').unwrap();
+        }
+        let limits = crate::limits::Limits { group_file_bytes: 32, ..crate::limits::small() };
+        let mut harness = Harness::configured_vacant(
+            Steps { always: Box::new([long(b"serve", &[b"never"])]), asked: Box::new([]) },
+            Box::new([owned_kind()]),
+            &[
+                Item::directory(b"box"),
+                Item::directory(b"box/groups"),
+                Item::file(b"box/groups/7", input.as_slice()).mode(mode),
+            ],
+            true,
+            skein_sim::Config::calm().buffer,
+            &limits,
+            crate::host::Echo::Steps,
+        );
+        harness.run_until_idle();
+        harness.ask(b"start 7\n");
+        harness.run_until_idle();
+        assert_eq!(harness.reply_bytes().as_ref(), expected);
+        if length == 33 || mode == 0 {
+            assert!(Harness::contains(&harness.stderr(), b"box: box/groups/7:"));
+        }
+        end_box(&mut harness);
+    }
+}
+
+#[test]
+fn group_file_reads_and_removals_keep_the_one_ask_in_flight() {
+    let mut harness = Harness::kinds(Box::new([owned_kind()]), &group_files());
+    harness.run_until_idle();
+    for command in [b"start 7\n".as_slice(), b"remove 7\n"] {
+        harness.group_file.hold = true;
+        harness.ask(command);
+        harness.run_until_idle();
+        assert!(harness.group_file.call.is_some());
+        for line in [b"start 8\n".as_slice(), b"stop 8\n", b"remove 8\n"] {
+            harness.ask(line);
+            harness.run_until_idle();
+            assert_eq!(harness.reply_bytes().as_ref(), b"failed 8 busy\n");
+            harness.replies.clear();
+        }
+        harness.release_group_file();
+        harness.run_until_idle();
+        if command == b"start 7\n" {
+            version_answer(&mut harness, b"forgejo 7");
+            harness.ask(b"stop 7\n");
+            harness.run_until_idle();
+            for name in [b"runner 7".as_slice(), b"forgejo 7"] {
+                let pid = harness.hosted.get(harness.child_index(name)).unwrap().pid;
+                harness.sim.finish_service(pid, Exit::Code(0));
+                harness.run_until_idle();
+            }
+        } else {
+            assert_eq!(harness.reply_bytes().as_ref(), b"removed 7\n");
+        }
+        harness.replies.clear();
+    }
+    end_box(&mut harness);
+}
+
+#[test]
+fn vacant_labels_name_no_forge_even_when_the_filled_number_is_the_template_number() {
+    use skein_fake_machine::Item;
+    use temper_forge_setup::{Group, Stage};
+    let playground = Group {
+        forge: u16::MAX,
+        label: bytes::copy_of(b"Playground"),
+        recorded: false,
+        before: 0,
+        steps: Box::new([(Stage::Run, long(b"fake forge 65535", &[b"never"]))]),
+    };
+    let mut harness = Harness::kinds(
+        Box::new([owned_kind(), playground]),
+        &[
+            Item::directory(b"box"),
+            Item::directory(b"box/groups"),
+            Item::directory(b"box/started"),
+            Item::file(b"box/started/65535", b""),
+            Item::file(b"box/groups/65535", br#"{"playground":true}"#),
+        ],
+    );
+    harness.run_until_idle();
+    assert_eq!(harness.launches.len(), 1, "template records are not probed");
+    harness.ask(b"start 65535\n");
+    harness.run_until_idle();
+    assert_eq!(harness.reply_bytes().as_ref(), b"step 65535 run\nstarted 65535\n");
+    let stderr = harness.stderr();
+    assert!(Harness::contains(&stderr, b"Playground: started\n"));
+    assert!(!Harness::contains(&stderr, b"Forge 65535"));
+    end_box(&mut harness);
+}

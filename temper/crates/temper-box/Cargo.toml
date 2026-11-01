@@ -10,6 +10,8 @@ publish.workspace = true
 [dependencies]
 temper-forge-setup.workspace = true
 skein-lib.workspace = true
+skein-json.workspace = true
+jig-protocol-config.workspace = true
 skein-io.workspace = true
 skein-shell.workspace = true
 

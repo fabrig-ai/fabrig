@@ -1,7 +1,7 @@
 //! One placement, shared by host and policy (protocol/setup.md, 7.3).
 use alloc::boxed::Box;
 use skein_lib::List;
-use temper_forge_setup::{Stage, Step, Steps};
+use temper_forge_setup::{Group, Stage, Step, Steps};
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Asked {
     pub forge: u16,
@@ -68,4 +68,34 @@ pub fn label(steps: &[Placed], forge: u16) -> Option<&[u8]> {
         }
     }
     None
+}
+
+/// Templates share the fixed placement, but have no forge until filled.
+pub(crate) fn flatten_kinds(steps: Steps, vacant: &[Group]) -> (Box<[Placed]>, Box<[usize]>) {
+    let mut firsts = List::with_capacity(u32::try_from(vacant.len()).expect("bounded kinds"));
+    let mut position = 0_usize;
+    for before in 0..=steps.always.len() {
+        for group in &steps.asked {
+            if usize::try_from(group.before).expect("group position") == before {
+                position = position.checked_add(group.steps.len()).expect("bounded steps");
+            }
+        }
+        for group in vacant {
+            if usize::try_from(group.before).expect("kind position") == before {
+                assert!(!group.steps.is_empty(), "a kind has steps");
+                firsts.push(position).expect("one first per kind");
+                position = position.checked_add(group.steps.len()).expect("bounded steps");
+            }
+        }
+        position = position.checked_add(1).expect("bounded steps");
+    }
+    let count = steps.asked.len().checked_add(vacant.len()).expect("bounded groups");
+    let mut asked = List::with_capacity(u32::try_from(count).expect("bounded groups"));
+    for group in steps.asked {
+        asked.push(group).expect("counted group");
+    }
+    for group in vacant {
+        asked.push(group.clone()).expect("counted kind");
+    }
+    (flatten(Steps { always: steps.always, asked: asked.into_boxed() }), firsts.into_boxed())
 }

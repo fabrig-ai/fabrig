@@ -90,6 +90,7 @@ pub(crate) fn run_configuration(
         let root = skein_shell::open_root(directory).map_err(|errno| format!("directory: errno {errno}"))?;
         owned.push(root);
         let settings = Settings {
+            vacant: Box::new([]),
             program: program.as_os_str().as_bytes().into(),
             environment,
             listeners: listeners.into_boxed_slice(),
