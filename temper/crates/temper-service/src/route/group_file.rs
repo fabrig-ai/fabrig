@@ -354,6 +354,13 @@ impl Files {
                 self.state = State::Ready;
                 return Some(true);
             }
+            file::Event::Failed { error: skein_io::kernel::Error::Exists, .. }
+                if self.state == State::MakingBox || self.state == State::MakingGroups =>
+            {
+                if !self.closing {
+                    self.made();
+                }
+            }
             file::Event::Failed { .. }
             | file::Event::Refused { .. }
             | file::Event::Cancelled { .. }

@@ -644,3 +644,36 @@ fn a_connected_record_under_the_box_starts_without_writing_a_group_file() {
     assert_eq!(engine.box_link.write.as_deref(), Some(b"start 1\n".as_slice()));
     assert!(engine.box_link.files.as_ref().unwrap().submitted.is_empty());
 }
+
+#[test]
+fn existing_private_group_directories_allow_a_record_forge_start() {
+    use skein_io::kernel::{Complete, Error, Fd, Op};
+    let mut service = record_service();
+    let engine = service.engine.as_mut().unwrap();
+    let mut out = Queue::with_capacity(OUTPUTS);
+    engine.box_link.ask(FORGE, REQUEST, &mut out);
+    crate::route::box_link::drain(engine, &mut out);
+    let mut renamed = false;
+    for index in 0_u16..64 {
+        crate::route::group_file::drive(engine, skein_lib::Time::ZERO, false);
+        if let Some(line) = &engine.box_link.write {
+            assert_eq!(line.as_ref(), b"start 7\n");
+            assert!(renamed, "the group file is stored before start");
+            return;
+        }
+        let files = engine.box_link.files.as_mut().unwrap();
+        for _ in 0..files.submitted.len() {
+            let submit = files.submitted.pop().unwrap();
+            if let Op::Rename { .. } = &submit.kind {
+                renamed = true;
+            }
+            let result = if let Op::MakeDirectory { .. } = &submit.kind {
+                Err(Error::Exists)
+            } else {
+                file_answer(&submit.kind, Fd::new(i32::from(index).checked_add(FILE_FD_BASE).unwrap()))
+            };
+            files.complete(Complete { op: submit.op, kind: submit.kind, result });
+        }
+    }
+    panic!("existing private directories permit the stored group file to release start");
+}
