@@ -156,9 +156,10 @@ named `fab:<name>`; jig's are named as jig's.
 - **It hands the plan over in pieces** (`scaffold` and `review` off):
   first the changes that depend on nothing, then each batch that holds
   together; code makes each piece, on the planner's word, as one batch
-  of the goal's delegates (jig `tasks.md` 4) with their specs, and the
-  engine starts them at once. It never rewrites a spec it has handed
-  over. With `review` on, the plan waits for its review (10.2).
+  of the goal's delegates (a route jig lacks: `tasks.md` 4 makes a batch
+  its maker's) with their specs, and the engine starts them at once. It
+  never rewrites a spec it has handed over. With `review` on, the plan
+  waits for its review (10.2).
 - **It sees the goals beside it:** its brief lists the other goals'
   unlanded changes with the paths each owns, and asks it to keep early
   work off them, naming any overlap it cannot avoid (6.6).

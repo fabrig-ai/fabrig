@@ -463,7 +463,7 @@ data in the repository (model 14.2); temper does not copy it.
 | the check before ready (6.1) | code | gap: run by the implementer | 7.2 |
 | a candidate, a full selection, bisecting (6.1) | code | `fab queue`, a batch, every fifth full | 7.1, 7.4 |
 | updates (6.2) | code | catch-ups (gap: a repair merges main itself) | 6.4 |
-| a stop, the goal's agent (6.2) | LLM | gap: a note, a hand merge | 6.4 |
+| a stop, the goal's agent (6.2) | LLM | gap: a note, hand merge | 6.4 |
 | the final check (5.8, 6.3) | code | `fab check` (`fab precheck --full`) | 6.5 |
 | the gate's fault, readied again (6.4) | code | a batch `error`; re-check, a new ready | 7.1, 6.5 |
 | a flake at the gate (7.1) | code | a collateral red | 7.3 |
@@ -472,7 +472,7 @@ data in the repository (model 14.2); temper does not copy it.
 | the tier runner (7.1 to 7.3) | code | `fab after-landing run` | 8.1 |
 | a red's repair in its owner's goal (7.3) | code | gap: in the newest suspect's plan | 8.2 |
 | alerts to the chat (7.1, 7.2, 8.4) | code | gap: signals on the page | 11.2 |
-| the chat acting on alerts (7.1) | LLM | gap: read and cleared by a session | 11.2 |
+| the chat acting on alerts (7.1) | LLM | gap: a session | 11.2 |
 | the wrap-up (7.4) | LLM | the retire call (gap: on a trunk, never reaches main) | 8.3, 10.6 |
 | a walk started, built, lent, recorded (8.1) | code | gap: a session, `fab qa walk`, `fab qa result` | 9.2 |
 | the walker (8.1) | LLM | a session's walker | 9.2 |
@@ -538,7 +538,7 @@ Evidence at fabrig 2075ff38b; unqualified documents are temper's
 | Findings, triage, the backlog | 9.3 | code; LLM | lacks (*designed* as forge issues, `findings.md` 1, 2; the model keeps them in the store) | merges, again, triage, the backlog in ctl |
 | A finding's repair, the pass | 9.4 | code; LLM | lacks (*designed*: `findings.md` 6, 7) | an examiner, a repair from main, a pass on an unchanged rerun |
 | Agent tasks | 10.1 | LLM | generic: finite tasks under charters (jig's `domain/engine.md` 9; `agent.md` 4.6) | peak context measured; `agent_hosts` |
-| Review, reviser, arbiter, structure review | 10.2 | LLM; code | generic in part: review gates per rule, the review charter, remarks as a bounded repair (`forge.md` 8.3, 8.4) | review of planning outputs, the arbiter |
+| Review, reviser, arbiter, structure review | 10.2 | LLM; code | generic in part: review gates per rule, the review charter, remarks as a bounded repair (`forge.md` 8.3, 8.4) | review of planning outputs, the arbiter, a rejection counted |
 | The examiner | 10.3 | LLM | generic in part: escalations (jig's `domain/tasks.md` 9) | settling from options; accept; a judge of rejections, reds, findings |
 | The answerer; kept and held | 10.4, 10.5 | LLM; code | generic in part: a question keeps its task, routed to its requester; held past tries (jig's `domain/tasks.md` 5.5, 5.7) | one task answering queued questions; waking by their count and age; a part kept |
 | Scaffolds | 10.6 | LLM; code | lacks | scaffolds, checked tips, changes started from them |
