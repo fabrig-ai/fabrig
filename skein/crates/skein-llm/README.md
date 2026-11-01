@@ -104,21 +104,28 @@ replay, HTTP connection reuse, and invalid-token failures for each provider.
 There are no retries or credential refreshes. Positive tests use subscription
 quota and require valid, unexpired OAuth access tokens, rather than API keys.
 
-Set these environment variables, then run:
+Name a Codex login and a Claude Code login, each by its file or by the
+directory holding it, then run:
 
 ```sh
-export SKEIN_TEST_LIVE_OPENAI_ACCESS_TOKEN="$(jq -er '.tokens.access_token' ~/.codex/auth.json)"
-export SKEIN_TEST_LIVE_OPENAI_ACCOUNT_ID="$(jq -er '.tokens.account_id' ~/.codex/auth.json)"
-export SKEIN_TEST_LIVE_ANTHROPIC_ACCESS_TOKEN="$(jq -er '.claudeAiOauth.accessToken' ~/.claude/.credentials.json)"
-cargo nextest run --workspace --profile live
+export SKEIN_TEST_LIVE_OPENAI_AUTH="$HOME/.codex/auth.json"
+export SKEIN_TEST_LIVE_ANTHROPIC_CREDENTIALS="$HOME/.claude/.credentials.json"
+cargo nextest run --workspace --profile live-skein
 ```
 
-The tests consume only environment variables; they never read those auth
-files themselves. Missing credentials fail the live run. The default, fuzzy
-and measure profiles exclude the `live` binary, and its tests perform no
-network I/O outside `NEXTEST_PROFILE=live`, including under `cargo test`.
-The live profile selects only these tests, runs them serially, and allows
-twenty minutes (ten minutes before the user's doubling of 10-22,
+`SKEIN_TEST_LIVE_OPENAI_AUTH` names a Codex `auth.json`, or a directory
+holding one (a `CODEX_HOME`); the tests read its `.tokens.access_token` and
+`.tokens.account_id`. `SKEIN_TEST_LIVE_ANTHROPIC_CREDENTIALS` names a Claude
+Code `.credentials.json`, or a directory holding one (`~/.claude`, or a
+`CLAUDE_CONFIG_DIR`); the tests read its `.claudeAiOauth.accessToken`. They
+read nothing else from those files and never write them. A missing
+variable, file or field fails the live run, naming the variable, the file
+and the field, never a token. The default and fuzzy profiles exclude the
+`live` binary, and its provider tests perform no network I/O outside
+`NEXTEST_PROFILE=live-skein`, including under `cargo test`; its offline tests
+of the login reading use fixture files in a scratch directory.
+The `live-skein` profile selects only this binary, runs its tests serially,
+and allows twenty minutes (ten minutes before the user's doubling of 10-22,
 provisional) overall with a six-minute (three-minute before the user's
 doubling of 10-22, provisional) per-test limit and 60-second (30-second
 before the user's doubling of 10-22, provisional) socket timeouts.
