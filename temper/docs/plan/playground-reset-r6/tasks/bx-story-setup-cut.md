@@ -146,3 +146,17 @@ then `start 1\n`. Run `-p temper-service --lib -E 'test(/tests::registry_setup::
 `tests::box_link::`, then the four stories. The `names::client_crates_carry_the_client_prefix`
 failure (`temper-github-app`) is not this task's: report it under `## Left`. A third blocker
 outside these files is a question again.
+
+## Rebase (2026-11-01, step merge, foreman playground-reset-r6/bx-story-setup-cut/foreman-4)
+
+resolve reset/mod.rs by retaining both reset_cut and setup_cut module declarations.
+The merge failed in `temper/crates/temper/tests/reset/mod.rs`: both branches append a module after `mod playground;`.
+Integration commit `0544f90a562c46c96f8c71188a5a8e9133000386` adds `mod reset_cut;`; this branch adds `mod setup_cut;`.
+Resolve the conflict by keeping the module documentation followed by:
+```rust
+mod playground;
+mod reset_cut;
+mod setup_cut;
+```
+Both stories are required by `temper/docs/design/draft/playground-reset.md`, section 8.
+No test-body or service change is needed for this refusal.
