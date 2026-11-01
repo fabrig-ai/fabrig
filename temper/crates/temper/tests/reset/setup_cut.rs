@@ -88,7 +88,7 @@ fn starts_over(cut: Cut) {
         panic!("restart, remove, make and setup calls: {stderr}")
     };
     assert_unfinished(unfinished);
-    assert_eq!(removing.stdout, b"removing\n");
+    assert_eq!(removing.stdout, b"removing: forge 1\n");
     assert_empty(absent);
     assert_removed(&paths[1]);
     let replacement = forges::made(made);
@@ -160,9 +160,15 @@ fn setup_cut_steps(cut: Cut, data: &Path) -> Vec<Step> {
             forges::remove(1)
         })),
         Step::Until(forge_list(), b"\"forges\":[]"),
+    ]);
+    if matches!(cut, Cut::FirstRepository) {
+        // A started group's removal finishes after its row leaves the list.
+        steps.push(Step::Stderr(b"Forge 1 (Forgejo): removed\n"));
+    }
+    steps.extend([
         Step::Then(Box::new(move |calls| {
             assert_empty(calls.last().expect("forge list after removal"));
-            assert_eq!(calls[calls.len() - 2].stdout, b"removing\n");
+            assert_eq!(calls[calls.len() - 2].stdout, b"removing: forge 1\n");
             assert_removed(&removed_data);
             forges::make_here()
         })),
