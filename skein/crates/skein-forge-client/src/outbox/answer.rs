@@ -10,6 +10,10 @@ pub(crate) fn answered(
     out: &mut Queue<Request>,
 ) {
     let w = d.outbox.entries.get(&number).expect("call owner remains");
+    if w.retired {
+        super::finish(d, env, number, Outcome::Failed(Error::NotConnected), out);
+        return;
+    }
     if w.withdrawn {
         super::finish(d, env, number, Outcome::Withdrawn, out);
         return;
