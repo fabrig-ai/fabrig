@@ -234,6 +234,9 @@ const DIRECT_CALLS: &[&[&str]] = &[
     &["forge", "install", "3", "--key", "install"],
     &["forge", "accept", "3", "22", "--key", "accept"],
     &["playground", "start", "--key", "start"],
+    &["playground", "reset", "--key", "reset"],
+    &["forge", "make", "here", "--key", "make"],
+    &["forge", "remove", "19", "--key", "remove"],
 ];
 fn direct(argv: &[&str]) {
     for json in [false, true] {

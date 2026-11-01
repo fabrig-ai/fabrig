@@ -28,7 +28,7 @@ pub const GROUPS: &[Group] = &[
     Group { name: b"repository", line: b"Repositories: adopt one into a project" },
     Group {
         name: b"forge",
-        line: b"Forges: read them, set one up, connect it, accept an installation, read what it reaches",
+        line: b"Forges: read them, make one, set one up, connect it, accept an installation, read what it reaches, remove one",
     },
     Group {
         name: b"account",
@@ -38,7 +38,7 @@ pub const GROUPS: &[Group] = &[
     Group { name: b"settings", line: b"The settings: read them, change them, or propose a change to their owners" },
     Group { name: b"revision", line: b"Settings revisions: read one or the history, move running work to the newest" },
     Group { name: b"project", line: b"Projects: read their periods and pools, set their spend per period" },
-    Group { name: b"playground", line: b"The playground: start the demo" },
+    Group { name: b"playground", line: b"The playground: start it, or leave it" },
 ];
 pub const TOOLS: &[&Tool] = &[
     &rows::ME,
@@ -78,6 +78,7 @@ pub const TOOLS: &[&Tool] = &[
     &crate::forges::READ,
     &crate::forges::SET_UP,
     &crate::forges::DEMO_START,
+    &crate::forges::PLAYGROUND_RESET,
     &crate::forges::CONNECT,
     &crate::forges::INSTALL,
     &crate::forges::REPOSITORIES,
@@ -92,6 +93,8 @@ pub const TOOLS: &[&Tool] = &[
     &rows::PROPOSAL,
     &crate::change::READ,
     &crate::forges::ACCEPT,
+    &crate::forges::MAKE,
+    &crate::forges::REMOVE,
     &rows::MOVE_TO_NEWEST,
     &rows::TASK_DECIDE,
     &rows::PROJECT_SHOW,

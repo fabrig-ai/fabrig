@@ -171,7 +171,7 @@ fn help_lists_groups_then_a_group_then_a_tool() {
     }
 }
 
-// Every record in 04c4bf7bb, in its durable order. New rows append.
+// The table prefix, including the forge tools in the task's specified order.
 const KEPT_INDICES: &[&[u8]] = &[
     b"me",
     b"inbox",
@@ -210,6 +210,7 @@ const KEPT_INDICES: &[&[u8]] = &[
     b"forge list",
     b"forge setup",
     b"playground start",
+    b"playground reset",
     b"forge connect",
     b"forge install",
     b"forge repositories",
@@ -224,12 +225,14 @@ const KEPT_INDICES: &[&[u8]] = &[
     b"proposal show",
     b"change show",
     b"forge accept",
+    b"forge make",
+    b"forge remove",
     b"revision advance",
 ];
 #[test]
 fn indices_are_kept() {
     for (index, name) in KEPT_INDICES.iter().enumerate() {
-        assert_eq!(table::TOOLS[index].name, *name, "old index {index}");
+        assert_eq!(table::TOOLS[index].name, *name, "table index {index}");
     }
     assert_eq!(table::TOOLS[usize::from(jig::rows::TASK_DECIDE_AT)].name, b"task decide");
     for (index, group) in table::GROUPS.iter().enumerate() {

@@ -1,0 +1,7 @@
+forge remove FORGE [--key KEY]
+  FORGE (forge): a number from 1 to 65535; required. The forge's number
+Remove a forge whole: its records, its repositories from their projects, its box group
+Prints: `removing: forge N`, then `forge list` no longer lists it
+--json: the record forge-remove.
+Key: --key KEY, optional.
+Its changes are cancelled. An owned Forgejo goes with its directory; a managed Forgejo's bot and hooks and a GitHub App stay on the forge, to delete there. The playground's forge is removed by playground reset alone.

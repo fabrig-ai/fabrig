@@ -2,7 +2,7 @@
 
 Kind: reference
 
-Forges: read them, set one up, connect it, accept an installation, read what it reaches.
+Forges: read them, make one, set one up, connect it, accept an installation, read what it reaches, remove one.
 
 ## forge list
 
@@ -117,4 +117,33 @@ Key: --key KEY, optional.
 It needs no browser, and an installation accepted already answers
 the same. `GitHub has no installation I of this App` (exit 2): read
 forge list for the ids.
+```
+
+## forge make
+
+```
+forge make here|github [--key KEY]
+  here|github (kind): one of here or github; required. The kind of forge to make
+forge make forgejo API GIT [--web WEB] [--key KEY]
+  forgejo (kind): one of forgejo; required. A Forgejo at these addresses
+  API (api): text, at most 259 bytes; required. The Forgejo's API address, HOST:PORT
+  GIT (git): text, at most 1024 bytes; required. Its git address, a URL
+  --web WEB: text, at most 1024 bytes; optional. Its web address, a URL, when not the git address's
+Make a forge by its kind, to set up or connect by the number it is given
+Prints: `made: forge N`, then `forge setup N` or `forge connect N` to make
+--json: the record forge-make.
+Key: --key KEY, optional.
+here is the Forgejo temper box runs on this machine; github is GitHub through temper's App. `refused: not offered` (exit 2): this deployment offers no such forge (here needs temper box). `refused: full` (exit 2): the deployment keeps as many forges as it may; remove one first.
+```
+
+## forge remove
+
+```
+forge remove FORGE [--key KEY]
+  FORGE (forge): a number from 1 to 65535; required. The forge's number
+Remove a forge whole: its records, its repositories from their projects, its box group
+Prints: `removing: forge N`, then `forge list` no longer lists it
+--json: the record forge-remove.
+Key: --key KEY, optional.
+Its changes are cancelled. An owned Forgejo goes with its directory; a managed Forgejo's bot and hooks and a GitHub App stay on the forge, to delete there. The playground's forge is removed by playground reset alone.
 ```
