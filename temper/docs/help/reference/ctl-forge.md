@@ -22,8 +22,8 @@ INSTALLATION` that accepts it.
 ## forge setup
 
 ```
-forge setup FORGE [--org ORG] [--repository REPOSITORY] [--project PROJECT] [--playground] [--key KEY]
-  FORGE (forge): a number from 1 to 65535; required. The owned Forgejo's forge number
+forge setup [FORGE] [--org ORG] [--repository REPOSITORY] [--project PROJECT] [--playground] [--key KEY]
+  FORGE (forge): a number from 1 to 65535; optional. Unused; sets up the box's owned Forgejo
   --org ORG: text, at most 1048576 bytes; optional. The organization; work when absent
   --repository REPOSITORY: text, at most 1048576 bytes; optional. The first repository; hello when absent
   --project PROJECT: a project's name or number; optional. Adopt into this project; a new project named after the repository when absent
@@ -117,4 +117,18 @@ Key: --key KEY, optional.
 It needs no browser, and an installation accepted already answers
 the same. `GitHub has no installation I of this App` (exit 2): read
 forge list for the ids.
+```
+
+## forge remove
+
+```
+forge remove FORGE [--key KEY]
+  FORGE (forge): a number from 1 to 65535; required. The forge's number
+Remove a forge whole: its live work cancelled, its records erased, its box group removed
+Prints: `removing`
+--json: the record forge-remove.
+Key: --key KEY, optional.
+An owned Forgejo goes with its directory. A managed Forgejo's bot
+and hooks stay on the forge. A GitHub App stays yours: delete it
+through its settings on GitHub.
 ```
