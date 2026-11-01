@@ -828,6 +828,8 @@ mod turns;
 
 mod activity;
 
+mod erasure;
+
 #[test]
 fn task_scopes_name_their_first_rows_join_bound() {
     const ANCESTOR_JOINS: u32 = 1; // The ancestor fits, but the terminal does not.

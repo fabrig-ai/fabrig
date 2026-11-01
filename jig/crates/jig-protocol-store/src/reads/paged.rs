@@ -1,6 +1,7 @@
 //! Bounded family pages and dense backwards activity (protocol/store.md, 7.3).
 use super::{Failure, Spent, empty, joins};
 use crate::{Cursor, Row, Store, intervals, keys, pages};
+use alloc::boxed::Box;
 use jig_domain_core::{self as core, reads};
 use jig_domain_notes as notes;
 use jig_domain_tasks as tasks;
@@ -186,6 +187,91 @@ pub(super) fn history(
 
 pub(super) fn spend(store: &mut Store, range: &reads::Range, spent: &mut Spent) -> Result<reads::Loaded, Failure> {
     family(store, range, None, spent)
+}
+
+pub(super) fn project_rows(
+    store: &mut Store,
+    range: &reads::Range,
+    project: u32,
+    spent: &mut Spent,
+) -> Result<reads::Loaded, Failure> {
+    raw_rows(store, range, Some(project), spent)
+}
+
+pub(super) fn task_rows(store: &mut Store, range: &reads::Range, spent: &mut Spent) -> Result<reads::Loaded, Failure> {
+    raw_rows(store, range, None, spent)
+}
+
+/// Core erasure scans charge stored key and value bytes, including filtered rows
+/// (playground-reset-r6/tasks/pd-store-reads.md, Acceptance).
+fn raw_rows(
+    store: &mut Store,
+    range: &reads::Range,
+    project: Option<u32>,
+    spent: &mut Spent,
+) -> Result<reads::Loaded, Failure> {
+    let intervals = intervals::scope(range.party, &range.scope).ok_or(Failure::Corrupt)?;
+    let after = cursor(range, &intervals)?;
+    let walked = pages::walk(store, &intervals, after.as_ref(), spent.rows).ok_or(Failure::Corrupt)?;
+    let mut found = List::with_capacity(u32::try_from(walked.rows.len()).or(Err(Failure::Corrupt))?);
+    let mut last = range.after.clone();
+    for item in walked.rows {
+        let bytes = u64::try_from(item.row.key.len())
+            .or(Err(Failure::Corrupt))?
+            .checked_add(u64::try_from(item.row.value.len()).or(Err(Failure::Corrupt))?)
+            .ok_or(Failure::Corrupt)?;
+        let Some(remaining) = spent.bytes.checked_sub(bytes) else {
+            return Ok(reads::Loaded::Page { rows: found.into_boxed(), next: last });
+        };
+        let value = decode(store, item.row)?;
+        spent.bytes = remaining;
+        spent.rows = spent.rows.checked_sub(1).ok_or(Failure::Corrupt)?;
+        last = Some(reads::Position::Owner(value.key()));
+        if let Some(project) = project {
+            let selected = match &value {
+                core::Record::Tasks(tasks::Stored::Ended(task)) => task.project == project,
+                core::Record::Tasks(tasks::Stored::DecidedProposal(proposal)) => proposal.project == project,
+                core::Record::Core(_)
+                | core::Record::People(_)
+                | core::Record::Notes(_)
+                | core::Record::Accounts(_)
+                | core::Record::Tasks(
+                    tasks::Stored::Live(_)
+                    | tasks::Stored::PlacedHold(_)
+                    | tasks::Stored::Stub(_)
+                    | tasks::Stored::Ledger(_)
+                    | tasks::Stored::Writer(_)
+                    | tasks::Stored::Pool(_)
+                    | tasks::Stored::PersonProposal(_)
+                    | tasks::Stored::ClosedLedger(_)
+                    | tasks::Stored::History(_)
+                    | tasks::Stored::Milestone(_)
+                    | tasks::Stored::Activity(_)
+                    | tasks::Stored::Update(_)
+                    | tasks::Stored::Result(_)
+                    | tasks::Stored::EndedByParty(_)
+                    | tasks::Stored::EndedByProject(_)
+                    | tasks::Stored::EndedDelegate(_)
+                    | tasks::Stored::Delegate(_),
+                ) => return Err(Failure::Corrupt),
+            };
+            if !selected {
+                continue;
+            }
+        }
+        let row = reads::Row {
+            value,
+            owner: None,
+            ancestors: Box::new([]),
+            related: None,
+            unjoined: None,
+            ended_read: None,
+            linked: Box::new([]),
+            inbox: None,
+        };
+        found.push(row).expect("bounded by scanned rows");
+    }
+    Ok(reads::Loaded::Page { rows: found.into_boxed(), next: if walked.next.is_some() { last } else { None } })
 }
 
 pub(super) fn notes(store: &mut Store, range: &reads::Range, spent: &mut Spent) -> Result<reads::Loaded, Failure> {
