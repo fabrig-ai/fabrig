@@ -773,7 +773,7 @@ real key in that restored form.
 - **A suite of its own,** outside the focused and fuzzy suites
   (`../domain/testing.md`, section 2), in its own crate
   (`tests/client-browser`, `temper-client-browser-world`), run by
-  `scripts/browser.sh`, a slow tier outside temper's gate, with a nextest profile `browser`,
+  `scripts/browser.sh`, a slow tier outside temper's gate, with the nextest profile `browser-temper`,
   one test at a time, on the bundle it builds first, with the dev
   profile.
 - **The tier's bundle** turns on skein-ui-web's
@@ -864,7 +864,8 @@ The tier's tests, each one test of the steps it names, each on its own
 
 1. **Signing in** (4.1, 1): the printed link signs in, a reload on a
    chat signs in by the cookie, and the link spent shows the
-   signed-out words.
+   signed-out words; signing out clears the cookie on later loads. The same
+   chat reconnects after a server restart and remains live after rapid reloads.
 2. **History** (4.1, 2): from the chats to a chat by its link, Back and
    Forward; a new chat's composer focused, and its filter's address and
    pressed state kept across a reload and Back.
@@ -873,7 +874,7 @@ The tier's tests, each one test of the steps it names, each on its own
 5. **A panic** (4.1, 4).
 6. **jig's attacks that need a browser** (4.1, 5): a cross-site request
    from another port and from another host does nothing, and a framed
-   page shows nothing, from one attacker's origin.
+   page shows nothing, in one harness with both attacker host names.
 7. **A cross-site authorization** returns its code and the link's state
    (4.5).
 8. **The accounts page after a key's send:** Back restores an emptied
@@ -885,7 +886,24 @@ The tier's tests, each one test of the steps it names, each on its own
 12. **The playground's story A** on the built playground, its log
     downloaded and replayed natively (`../playground.md`, 9).
 
+Items 1 to 11 are built, each as one test in `browser_all`; item 12 is
+pending the built playground (`../playground.status.md`). The cap includes
+all browser tests, whatever their names.
+
 Gone from the tier, each to the lowest world that shows it:
+- **Address-codec edge rows:** `temper-client-domain`'s
+  `tests::address::{a_path_that_is_no_page_is_missing,each_number_spans_its_types_range}`.
+  Browser test 3 keeps the shell's replacement of a missing address with `/`.
+- **Repeated loads at the watcher bound:** the client world's
+  `suite::reloads::repeated_loads_release_the_previous_clients_watches`.
+- **Composer bounds:** the client domain's
+  `tests::pages::chats::new_chats_and_cues_keep_the_send_bound_when_receiving_grows`.
+- **Provider routes and refusal pages:** the service's provider protocol test,
+  with the view's `sign_in::tests::each_authorization_page_uses_the_mockup_words`.
+- **A moving account's rendering:** the view's
+  `tests::accounts::a_moving_account_shows_its_state_without_buttons`; the
+  accounts world's `suite::moves::a_written_move_erases_the_source_and_its_account`
+  holds removal. The browser attempt had no authenticated split-move driver.
 - **A chat's day and turn clocks beside its speakers:** words and roles
   alone, which the view's tests (`temper-client-view`'s chat tests:
   order, day lines, midnight) and the client world's chat already hold.
