@@ -385,6 +385,13 @@ fn project_outcomes_keep_the_project_number() {
             ),
         ),
         (
+            p::Outcome::ProjectRemoved { project: u32::MAX },
+            w::OwnerOutcome::ProjectRemoved(
+                w::OwnerOutcomeProjectRemoved::new(&limits, w::OwnerOutcomeProjectRemovedParts { project: u32::MAX })
+                    .expect("removed"),
+            ),
+        ),
+        (
             p::Outcome::ProjectMade { project: 4 },
             w::OwnerOutcome::ProjectMade(
                 w::OwnerOutcomeProjectMade::new(&limits, w::OwnerOutcomeProjectMadeParts { project: 4 }).expect("made"),

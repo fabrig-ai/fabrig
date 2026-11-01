@@ -32,6 +32,7 @@ pub fn name(act: ActKind) -> &'static [u8] {
         ActKind::SetRoles => b"set-roles",
         ActKind::MakeService => b"make-service",
         ActKind::Rename => b"rename",
+        ActKind::RemoveProject => b"remove_project",
         ActKind::SetPool => b"set-pool",
         ActKind::Withdraw => b"withdraw",
     }
@@ -113,6 +114,7 @@ fn has_tool(_task: &Task, act: ActKind) -> bool {
         | ActKind::DeleteNote
         | ActKind::ChangePolicy
         | ActKind::SetRoles
+        | ActKind::RemoveProject
         | ActKind::Rename
         | ActKind::MakeService
         | ActKind::SetPool
@@ -146,6 +148,7 @@ fn call(task: &Task, act: ActKind, out: &mut Text) {
                 | ActKind::Adopt
                 | ActKind::ChangePolicy
                 | ActKind::SetRoles
+                | ActKind::RemoveProject
                 | ActKind::Rename
                 | ActKind::MakeService
                 | ActKind::SetPool
@@ -188,6 +191,7 @@ fn call(task: &Task, act: ActKind, out: &mut Text) {
         | ActKind::DeleteNote
         | ActKind::ChangePolicy
         | ActKind::SetRoles
+        | ActKind::RemoveProject
         | ActKind::Rename
         | ActKind::MakeService
         | ActKind::SetPool
