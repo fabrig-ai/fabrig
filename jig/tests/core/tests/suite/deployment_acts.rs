@@ -1,6 +1,6 @@
 use jig_core_world::{
     effects::{Cut, World},
-    fixtures::live_row,
+    fixtures::{delegate, live_row, member},
     stories::delegates::delegate_pair,
 };
 use jig_domain_accounts as accounts;
@@ -24,6 +24,7 @@ fn configuration(seed: u64) -> (root::Config, root::Limits) {
         connector: CONNECTOR,
         may: Box::new([
             people::ActKind::Close,
+            people::ActKind::Cancel,
             people::ActKind::AddKey,
             people::ActKind::RemoveAccount,
             people::ActKind::Adopt,
@@ -41,6 +42,9 @@ fn world(seed: u64) -> World {
 }
 fn close(task: u64, project: u32, grace: Option<Duration>) -> people::Act {
     people::Act::Close { project, task, grace, reason: REASON.into() }
+}
+fn cancel(task: u64, project: u32, grace: Option<Duration>) -> people::Act {
+    people::Act::Cancel { project, task, grace, reason: REASON.into() }
 }
 fn event(key: u8, act: people::Act, carried: Option<core::Carried>) -> root::Event {
     root::Event::Core(core::Event::Act {
@@ -456,5 +460,80 @@ fn make_project_is_not_offered_to_a_connector_without_its_grant() {
 fn a_make_project_act_refuses_a_maker_outside_its_subject() {
     let mut world = project_world(true);
     act(&mut world, KEY, make_project(u64::MAX));
+    assert_eq!(answered(&world), &people::Outcome::Refused(people::Refusal::Unknown));
+}
+
+#[test]
+fn a_connector_cancels_any_live_task_of_a_project_with_its_delegates() {
+    let mut world = world(1860);
+    let chat = world.assignments[0];
+    let parent = member(&world, tasks::Executor::Agent { charter: 1 }, b"parent");
+    let parent = delegate(&mut world, chat, 1, parent);
+    let run = *world.assignments.iter().find(|(task, _)| *task == parent).expect("parent assigned");
+    let mut child = member(&world, tasks::Executor::Agent { charter: 1 }, b"child");
+    // The parent's twenty-unit budget also reserves its ten-unit run.
+    child.authority.budget.spend = 5;
+    child.authority.delegation = tasks::Delegation { kinds: Box::new([]), tasks: 0, depth: 0 };
+    let child = delegate(&mut world, run, 1, child);
+    act(&mut world, KEY, cancel(parent, PROJECT, Some(GRACE)));
+    assert!(matches!(answered(&world), people::Outcome::Compound { project: PROJECT, operations: 2, .. }));
+    cancelled(&world, child);
+    let finish = live_row(&world, parent).grace.as_ref().expect("parent finish asked");
+    assert_eq!(finish.by, tasks::Party::Deployment { project: PROJECT });
+    assert_eq!(finish.reason.as_ref(), REASON);
+    world.advance(GRACE);
+    cancelled(&world, parent);
+    assert!(matches!(live_row(&world, chat.0).phase, tasks::Phase::Active(_)));
+}
+
+#[test]
+fn a_cancel_of_a_task_requested_by_the_deployment_is_made() {
+    let mut world = world(1861);
+    let seed = world.domain.core_mut().repair_seed(PROJECT).expect("deployment repair admitted");
+    let task = seed.number();
+    world.send(root::Event::Core(core::Event::ConnectorRepair {
+        seed: Box::new(seed),
+        executor: tasks::Executor::Agent { charter: 1 },
+        spec: tasks::Spec {
+            asks: false,
+            words: b"repair".as_slice().into(),
+            parameters: Box::new([]),
+            inputs: Box::new([]),
+        },
+        contract: tasks::Contract::Report { words: 128 },
+        holdings: Box::new([]),
+    }));
+    act(&mut world, KEY, cancel(task, PROJECT, None));
+    assert!(matches!(answered(&world), people::Outcome::Compound { project: PROJECT, operations: 1, .. }));
+    cancelled(&world, task);
+}
+
+#[test]
+fn a_cancel_of_an_ended_task_answers_ended_and_an_unknown_one_unknown() {
+    let mut world = world(1862);
+    let task = world.assignments[0].0;
+    act(&mut world, KEY, cancel(task, PROJECT, None));
+    act(&mut world, KEY + 1, cancel(task, PROJECT, None));
+    assert!(matches!(
+        answered(&world),
+        people::Outcome::Refused(people::Refusal::Ended {
+            how: people::Ending::Cancelled { by: people::Party::Deployment { project: PROJECT }, .. }
+        })
+    ));
+    act(&mut world, KEY + 2, cancel(u64::MAX, PROJECT, None));
+    assert_eq!(answered(&world), &people::Outcome::Refused(people::Refusal::Unknown));
+}
+
+#[test]
+fn a_cancel_naming_another_project_is_unknown() {
+    const OTHER_PROJECT: u32 = PROJECT + 1;
+    let mut world = world(1863);
+    let task = world.assignments[0].0;
+    let before = live_row(&world, task).clone();
+    act(&mut world, KEY, cancel(task, OTHER_PROJECT, None));
+    assert_eq!(answered(&world), &people::Outcome::Refused(people::Refusal::Unknown));
+    assert_eq!(live_row(&world, task), &before);
+    act(&mut world, KEY + 1, cancel(task, PROJECT, None));
+    act(&mut world, KEY + 2, cancel(task, OTHER_PROJECT, None));
     assert_eq!(answered(&world), &people::Outcome::Refused(people::Refusal::Unknown));
 }
