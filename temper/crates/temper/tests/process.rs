@@ -1,4 +1,6 @@
 //! The shipped binary, on a scratch deployment, drained on a signal.
+#[path = "box_stories/mod.rs"]
+mod box_stories;
 #[path = "fake_backends/mod.rs"]
 mod fake_backends;
 pub mod support;
