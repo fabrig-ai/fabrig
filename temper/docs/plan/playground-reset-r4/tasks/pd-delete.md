@@ -129,3 +129,31 @@ fab's sections; `## Interfaces`: the routing functions, `rows_naming`;
 each stage's resume rule as built; any row kind `rows_naming` found
 that no task erases (say which, and leave the test red only if it is
 yours).
+
+## Answers
+
+2026-11-01. The core world's `Observer::durable_at`
+(`jig/tests/core/src/observations.rs`) panics "immutable activity row
+disappeared" when the deletion erases a task's activity: may this task
+change the observer? Yes, the minimal repair, as a neighbour edit of
+that file:
+
+- the observer learns each task's project from the `Live`/`Ended` rows
+  it reads, and the projects removing from the `Removal` rows
+  (`CoreKey::Removal(project)`) it has seen durable at this or an
+  earlier commit (a removal never goes back);
+- an activity row of a task of a removing project may disappear: its
+  entry leaves the observer's `activity` map, and its `Ended` row may go
+  with it. Any other disappearance or change panics as today; the
+  existing `activity_referee_rejects_changed_or_erased_lines` passes
+  unchanged;
+- add `activity_of_a_removing_project_may_be_erased` to its
+  `activity_tests`: a task's `Ended` row of project P, its activity
+  row, a `Removal { project: P, stage: Erasing }` row, then the activity
+  erased: accepted; and the same erasure for a task of another project:
+  rejected;
+- another observer or referee check the deletion trips the same way (a
+  row of the removing project, or of one of its tasks, that the check
+  holds may never go) gets the same rule in the same file, each named
+  in the report's Changed; a check that fails for another reason, or a
+  referee (`r::Referee`) change, is a question.
