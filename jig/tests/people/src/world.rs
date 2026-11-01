@@ -367,6 +367,11 @@ impl World {
         self.send(Event::Roles { project, holdings });
     }
 
+    /// Deliver the core's release of the project's people projections.
+    pub fn drop_project(&mut self, project: u32) {
+        self.send(Event::DropProject { project });
+    }
+
     pub fn seed(&mut self, project: u32, collaborators: Box<[Seed]>) {
         assert!(self.domain.can_seed(&self.env.limits, project, &collaborators));
         self.send(Event::Seed { project, collaborators });
@@ -626,7 +631,8 @@ impl World {
                         | Ask::MarkSeen { .. }
                         | Ask::Release { .. }
                         | Ask::Amend { .. }
-                        | Ask::Say { .. } => RouteKind::Control,
+                        | Ask::Say { .. }
+                        | Ask::SetRoles { .. } => RouteKind::Control,
                         Ask::AccountSignIn { .. } | Ask::AccountSignOut { .. } | Ask::AccountChange { .. } => {
                             RouteKind::Account
                         }
@@ -636,7 +642,6 @@ impl World {
                         | Ask::Cancel { .. }
                         | Ask::Move { .. }
                         | Ask::AnswerQuestion { .. }
-                        | Ask::SetRoles { .. }
                         | Ask::RemoveProject { .. }
                         | Ask::Rename { .. }
                         | Ask::MakeProject { .. }
@@ -692,6 +697,14 @@ impl World {
                         self.deferred.push((request, key));
                     } else {
                         match *ask {
+                            Ask::SetRoles { .. } => {
+                                people::step(
+                                    &mut self.domain,
+                                    &self.env,
+                                    Event::ApplyRoles { reply_to: ReplyTo::new(request), request },
+                                    &mut self.out,
+                                );
+                            }
                             Ask::Compound { project, operations } => {
                                 let outcome = if self.settings.authority_refuses {
                                     Outcome::CompoundRefused { at: 1, why: Refusal::Unknown }
@@ -1066,7 +1079,6 @@ impl World {
                             | Ask::Cancel { .. }
                             | Ask::Move { .. }
                             | Ask::AnswerQuestion { .. }
-                            | Ask::SetRoles { .. }
                             | Ask::RemoveProject { .. }
                             | Ask::Rename { .. }
                             | Ask::MakeProject { .. }
@@ -1078,7 +1090,21 @@ impl World {
                         }
                     }
                 }
-                Request::RolesApplied { .. } | Request::RolesRefused { .. } => {
+                Request::RolesApplied { request, result, .. } => {
+                    let outcome = match result {
+                        Ok(()) => {
+                            let Ask::SetRoles { project, .. } =
+                                self.domain.pending_ask(request).expect("admitted roster request")
+                            else {
+                                panic!("successful roster request is SetRoles");
+                            };
+                            Outcome::RolesSet { project: *project }
+                        }
+                        Err(outcome) => outcome,
+                    };
+                    people::step(&mut self.domain, &self.env, Event::Decided { request, outcome }, &mut self.out);
+                }
+                Request::RolesRefused { .. } => {
                     self.ending("busy");
                 }
                 Request::ServiceMade { request, outcome } => {

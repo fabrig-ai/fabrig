@@ -3,7 +3,10 @@
 //! positions restore. Ended conversations retain positions until the owner forgets them.
 #[path = "inbox/moving.rs"]
 mod moving;
+#[path = "inbox/purge.rs"]
+mod purge;
 pub(super) use moving::move_chat;
+pub(super) use purge::purge_project;
 
 use super::{ChatTotal, Domain, Need, Pending, Phase, Recent, decided, role};
 use crate::{
@@ -640,6 +643,14 @@ fn forget_chat(domain: &mut Domain, limits: &Limits, task: u64, out: &mut Queue<
         out.push(Request::Erase { key: Key::ReadConversation { party, task } });
     }
     drop(domain.replies.remove(&task));
+}
+
+/// Erase every volatile reference and every known read position for one task.
+pub(super) fn erase_task(domain: &mut Domain, limits: &Limits, task: u64, _project: u32, out: &mut Queue<Request>) {
+    purge::erase_ended_positions(domain, task, out);
+    replace_waiting(domain, limits, task, &[]);
+    forget_chat(domain, limits, task, out);
+    purge::purge_references(domain, purge::Subject::Task(task));
 }
 
 fn addressed(domain: &Domain, person: u64, need: Need) -> bool {

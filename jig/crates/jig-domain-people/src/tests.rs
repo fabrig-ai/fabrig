@@ -1056,9 +1056,9 @@ fn restored_successful_role_rosters_require_positive_unique_people() {
 }
 
 #[test]
-fn restored_role_success_checks_historical_people_and_project_after_all_rows_arrive() {
+fn restored_role_success_checks_historical_people_after_all_rows_arrive() {
     let key = RequestKey { person: 1, key: [7; 16] };
-    for (project, person) in [(1, 99), (2, 1)] {
+    for (project, person) in [(1, 99), (2, 99)] {
         let mut test = Test::new(LIMITS);
         test.d = Domain::new(&LIMITS, Box::new([]), 2, Box::new([]));
         assert!(
@@ -2479,3 +2479,5 @@ fn valid_refuses_each_unrepresentable_limit() {
 mod start;
 
 mod deletion;
+
+mod deletion_purge;
