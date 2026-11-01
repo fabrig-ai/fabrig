@@ -63,7 +63,8 @@ pub struct Domain {
     pub(crate) demo_start: Option<crate::route::demo::Start>,
     pub(crate) demo_reply: Option<(Token, crate::route::demo::Phase)>,
     pub(crate) demo_act_replies: Map<Token, forge::DemoAct>,
-    pub(crate) next_demo_act_reply: u64,
+    pub(crate) next_act_reply: u64,
+    pub(crate) kept_replies: crate::route::kept::Replies,
     pub(crate) next_application_owner: u64,
     pub(crate) returns: Map<Token, (Time, Wall)>,
     pub(crate) adoption_restore: Map<Token, Option<forge::Repository>>,
@@ -167,6 +168,11 @@ impl Domain {
     #[must_use]
     pub fn demo_state(&self) -> Option<forge::DemoState> {
         self.forge.demo_state()
+    }
+    /// The connector's durable playground row (draft playground-reset.md, 6.2).
+    #[must_use]
+    pub fn playground(&self) -> Option<forge::Playground> {
+        self.forge.playground().copied()
     }
     /// Restored provider ids for the setup host's start-time reconcile.
     #[must_use]
@@ -409,7 +415,8 @@ impl Domain {
             demo_start: None,
             demo_reply: None,
             demo_act_replies: Map::with_capacity(forge::demo_act_bound(&limits.forge).expect("validated act bound")),
-            next_demo_act_reply: 1,
+            next_act_reply: 1,
+            kept_replies: crate::route::kept::Replies::new(&limits.forge),
             next_application_owner: 1,
             returns: Map::with_capacity(limits.people.requests),
             adoption_restore: Map::with_capacity(limits.forge.adoptions),
@@ -1032,7 +1039,15 @@ fn released_into(
             // Repositories/homes arise on adoption, panels on watching, and the demo
             // still names its configured project. None needs an empty-project row.
         }
-        Delivery::DemoActed { to, outcome } => crate::route::demo::end_acted(domain, env, decision, to, outcome),
+        Delivery::DemoActed { to, outcome } => {
+            let token = to.into_token();
+            let to = ReplyTo::new(token);
+            if domain.demo_act_replies.get(&token).is_some() {
+                crate::route::demo::end_acted(domain, env, decision, to, outcome);
+            } else {
+                crate::route::kept::acted(domain, env, decision, to, outcome);
+            }
+        }
         Delivery::ForgeCommitted { entry } => {
             domain.work.push(Work::Forge(forge::Event::Committed { entry }));
         }
