@@ -57,3 +57,11 @@ says so.
 As the implementer's text says, plus `## Left` (what stays outside your
 scope, file and why) and `## Design` (what the draft or the contracts got
 wrong, or left open, and what you chose).
+
+## Merging beside other tasks (added 09:09Z)
+
+- Several tasks add a module beside others in the same crate or test
+  binary. A new `mod` line goes at its alphabetical place among its
+  neighbours (never appended at the end), and a new variant or arm goes
+  after its nearest kin rather than last, so branches merged one after
+  another into the trunk do not collide.
