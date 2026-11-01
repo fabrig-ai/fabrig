@@ -76,6 +76,9 @@ impl Signing {
         io: skein_io::Limits,
     ) -> Result<Self, &'static [u8]> {
         let bytes = bytes.strip_suffix(b"\n").unwrap_or(bytes);
+        if bytes.is_empty() {
+            return Err(b"sign-in: stdin held no link; give the box's sign-in link on stdin: temper ctl DIR sign-in -");
+        }
         let parsed = jig_client_protocol_http::printed(
             &jig_client_protocol_http::Mapping::new(b"/jig").expect("mapping"),
             bytes,

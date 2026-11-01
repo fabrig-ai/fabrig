@@ -340,8 +340,7 @@ fn question(reading: &Reading, key: (u64, u64), out: &mut Text) {
         out.put(b"read whole: ");
         out.put(reading.command_prefix);
         out.put(b"task activity ");
-        let task = super::document::question::asking_task(question);
-        out.number(task);
+        out.number(question.task.task);
         out.put(b"\n");
     }
     out.put(b"answer: ");

@@ -71,6 +71,7 @@ pub struct OneShot {
     signals: Option<Token>,
     stdin: Option<Token>,
     input: Option<Vec<u8>>,
+    stdin_ended: Option<()>,
     value: Option<skein_lib::Secret>,
     preparing: bool,
     complete: Queue<Complete>,
@@ -158,6 +159,7 @@ impl OneShot {
             signals,
             stdin,
             input: None,
+            stdin_ended: None,
             value: None,
             preparing: true,
             complete: Queue::with_capacity(ROOM),
@@ -613,8 +615,12 @@ impl OneShot {
                     true,
                 ),
                 io::Event::Stream { owner, up } => {
-                    if Some(owner) == self.stdin && self.input.is_some() {
-                        self.input_event(up);
+                    if Some(owner) == self.stdin {
+                        if self.input.is_some() {
+                            self.input_event(up);
+                        } else if matches!(up, Up::End) {
+                            self.stdin_ended = Some(());
+                        }
                         continue;
                     }
                     if !self.closed
