@@ -400,6 +400,25 @@ impl World {
         self.domain.conversation_seen(person, task).expect("known party conversation position")
     }
 
+    /// The scripted project owner commits its policy through the same barrier.
+    pub fn project_policy(&mut self, project: u32, value: people::PolicyValue) {
+        self.out.push(Request::Save { record: Stored::Policy { project, name: "Project".into(), value } });
+        self.send_inner(None, None);
+    }
+
+    pub fn close_project(&mut self, project: u32) {
+        self.send(Event::ProjectClosed { project });
+    }
+
+    pub fn project_gone(&mut self, project: u32) {
+        self.send(Event::ProjectGone { project });
+    }
+
+    pub fn erase_task(&mut self, task: u64, project: u32) {
+        self.ended_chats.remove(&task);
+        self.send(Event::TaskErased { task, project });
+    }
+
     pub fn forget_chat(&mut self, task: u64) {
         self.send(Event::Forget { task, project: 1, party: None, last_reply: 0 });
     }
@@ -604,6 +623,15 @@ impl World {
                                     | Ask::AccountChange { .. }
                             )
                     );
+                    if project != 0 && !self.domain.has_project(project) {
+                        people::step(
+                            &mut self.domain,
+                            &self.env,
+                            Event::Decided { request, outcome: Outcome::Refused(Refusal::Unknown) },
+                            &mut self.out,
+                        );
+                        continue;
+                    }
                     let key = self.context.expect("a routed call carries the client's key");
                     assert_eq!(person, key.person);
                     let kind = match ask.as_ref() {
@@ -1219,7 +1247,7 @@ impl World {
                 let lower = after.map_or(std::ops::Bound::Unbounded, std::ops::Bound::Excluded);
                 let Some((key, record)) = self.records.range((lower, std::ops::Bound::Unbounded)).next() else { break };
                 after = Some(*key);
-                if key.live() {
+                if key.live() && !matches!(key, Key::Policy(_)) {
                     let record = record.clone();
                     self.send(Event::Restore { record });
                 }
@@ -1231,7 +1259,7 @@ impl World {
                 let lower = after.map_or(std::ops::Bound::Unbounded, std::ops::Bound::Excluded);
                 let Some((key, record)) = self.records.range((lower, std::ops::Bound::Unbounded)).next() else { break };
                 after = Some(*key);
-                if key.live() {
+                if key.live() && !matches!(key, Key::Policy(_)) {
                     self.domain.start_sweep_row(&self.env, record, &mut self.out);
                     self.send_inner(None, None);
                     self.commit_all();
@@ -1240,7 +1268,13 @@ impl World {
             self.commit_all();
             assert!(self.domain.start_complete(&self.env));
         } else {
-            for record in self.records.values().filter(|record| record.key().live()).cloned().collect::<Vec<_>>() {
+            for record in self
+                .records
+                .values()
+                .filter(|record| record.key().live() && !matches!(record, Stored::Policy { .. }))
+                .cloned()
+                .collect::<Vec<_>>()
+            {
                 self.send(Event::Restore { record });
             }
             self.send(Event::Restored);

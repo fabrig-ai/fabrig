@@ -154,6 +154,9 @@ fn people_gate(event: people::Event) -> Result<Event, Requests> {
         event @ (people::Event::ChatState { .. }
         | people::Event::MoveChat { .. }
         | people::Event::Forget { .. }
+        | people::Event::ProjectClosed { .. }
+        | people::Event::ProjectGone { .. }
+        | people::Event::TaskErased { .. }
         | people::Event::MakeService { .. }
         | people::Event::Seed { .. }
         | people::Event::Waiting { .. }

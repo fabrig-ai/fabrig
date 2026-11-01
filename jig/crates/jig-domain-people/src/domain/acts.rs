@@ -341,3 +341,27 @@ pub(super) fn valid_outcome(limits: &Limits, act: &Act, outcome: &Outcome) -> bo
 #[cfg(test)]
 #[path = "../tests/act_charges.rs"]
 mod tests;
+
+/// Retire deployment answers naming this project (draft 5; people.md, 5.3).
+pub(super) fn erase_project(domain: &mut Domain, project: u32, out: &mut Queue<Request>) {
+    fn names_project(act: &Act, project: u32) -> bool {
+        match act {
+            Act::Close { project: named, .. }
+            | Act::Cancel { project: named, .. }
+            | Act::Adopt { project: named, .. }
+            | Act::RemoveProject { project: named } => *named == project,
+            Act::MakeProject { .. } | Act::AddKey { .. } | Act::RemoveAccount { .. } => false,
+        }
+    }
+    let mut keys = List::with_capacity(domain.acted.len());
+    for (key, answer) in &domain.acted {
+        if names_project(&answer.act, project) {
+            keys.push(*key).expect("one key per retained act");
+        }
+    }
+    for key in keys.into_boxed() {
+        drop(domain.acted.remove(&key));
+        domain.act_alarms.cancel(key);
+        out.push(Request::Erase { key: Key::Acted(key) });
+    }
+}

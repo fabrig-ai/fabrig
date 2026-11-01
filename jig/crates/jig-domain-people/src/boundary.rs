@@ -837,6 +837,15 @@ impl Stored {
 /// cross this boundary without protocol secrets. (domain/people.md, sections 3–5).
 #[derive(PartialEq, Eq, Debug)]
 pub enum Event {
+    /// Close the project and retire its roster, policy and services in this decision
+    /// (draft 5; jig/docs/design/domain/people.md, 5.2).
+    ProjectClosed { project: u32 },
+    /// Retire retained answers naming the deleted project
+    /// (draft 5, "What outlives it"; jig/docs/design/domain/people.md, 5.2).
+    ProjectGone { project: u32 },
+    /// Retire every party's positions and inbox contributions for the erased task
+    /// (draft 5; jig/docs/design/domain/people.md, 5.2).
+    TaskErased { task: u64, project: u32 },
     /// Admit a connector's deployment act without a sign-in.
     Act { reply_to: ReplyTo, connector: u16, key: [u8; 16], act: Box<Act> },
     /// Move a live conversation and start its new requester with nothing read.

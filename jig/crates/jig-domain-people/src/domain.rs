@@ -12,6 +12,7 @@ mod inbox;
 pub use ended::EndedMark;
 pub(crate) mod acts;
 mod parties;
+mod removal;
 mod start;
 use inbox::{conversation_seen_decision, mark_seen, prune_unheld_roles, replace_waiting};
 
@@ -558,6 +559,14 @@ pub fn outputs_bound(limits: &Limits) -> u32 {
         .max(limits.sign_ins.saturating_add(1))
         .max(limits.holdings.saturating_add(1))
         .max(limits.people.saturating_add(1))
+        .max(
+            limits
+                .requests
+                .saturating_add(limits.sign_ins)
+                .saturating_add(limits.people.saturating_mul(2))
+                .saturating_add(limits.people.saturating_mul(limits.inbox_tasks).saturating_mul(2))
+                .saturating_add(2),
+        )
 }
 
 /// Apply one root-issued `event` with iteration clocks and immutable configured bounds in `env`
@@ -570,6 +579,9 @@ pub fn outputs_bound(limits: &Limits) -> u32 {
 pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Request>) {
     domain.touched = true;
     match event {
+        Event::ProjectClosed { project } => removal::closed(domain, env, project, out),
+        Event::ProjectGone { project } => removal::gone(domain, env, project, out),
+        Event::TaskErased { task, project } => inbox::task_erased(domain, env, task, project, out),
         Event::Act { reply_to, connector, key, act } => {
             acts::admit(domain, env, reply_to, crate::ActKey { connector, key }, *act, out);
         }

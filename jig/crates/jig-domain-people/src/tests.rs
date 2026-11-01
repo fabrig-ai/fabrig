@@ -7,6 +7,7 @@
 mod fixtures;
 mod names;
 mod projects;
+mod removal;
 use crate::*;
 use skein_lib::{Duration, Env, List, Queue, ReplyTo, Time, Token, Wall};
 
