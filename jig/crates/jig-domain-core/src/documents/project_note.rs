@@ -22,6 +22,7 @@ use skein_lib::{List, Map, Wall};
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum ResourceRole {
     Owned,
+    Fork,
     Participant,
     Unavailable,
     Context,
@@ -31,6 +32,7 @@ pub enum ResourceRole {
 pub struct ProjectResource {
     pub part: Part,
     pub role: ResourceRole,
+    pub home: bool,
 }
 /// One policy role's permission and allotment ceilings.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -265,8 +267,8 @@ pub(super) fn project(
     let value = core.authority.policy(number).ok_or(Missing::Unknown)?;
     let holdings = core.people.project_members(number).ok_or(Missing::Unknown)?;
     let mut resources = List::with_capacity(limits.documents.lines);
-    let mut cut = core.resource_roles_full;
-    for (key, role) in &core.resource_roles {
+    let mut cut = false;
+    for (key, adoption) in &core.adoptions {
         if key.project == number {
             if resources.room() == 0 {
                 cut = true;
@@ -275,14 +277,15 @@ pub(super) fn project(
             resources
                 .push(ProjectResource {
                     part: super::task_tree::part_path(limits, key.name.connector, PartKind::Resource, &key.name.path)?,
-                    role: match role {
-                        crate::effects::connector::ResourceRole::Owned => ResourceRole::Owned,
-                        crate::effects::connector::ResourceRole::Participant => ResourceRole::Participant,
-                        crate::effects::connector::ResourceRole::Context => ResourceRole::Context,
-                        crate::effects::connector::ResourceRole::Unavailable => ResourceRole::Unavailable,
+                    role: match adoption.role {
+                        crate::effects::connector::AdoptionRole::Owned => ResourceRole::Owned,
+                        crate::effects::connector::AdoptionRole::Participant => ResourceRole::Participant,
+                        crate::effects::connector::AdoptionRole::Context => ResourceRole::Context,
+                        crate::effects::connector::AdoptionRole::Fork => ResourceRole::Fork,
                     },
+                    home: adoption.home,
                 })
-                .expect("bounded resource roles");
+                .expect("bounded project adoptions");
         }
     }
     let mut members = List::with_capacity(limits.documents.lines);

@@ -316,6 +316,7 @@ pub(crate) fn deployment_fields(value: &w::Deployment, limits: &Limits) -> Resul
 
 pub(crate) fn project_resource_role_fields(value: &w::ProjectResourceRole) -> c::ProjectResourceRole {
     match value {
+        w::ProjectResourceRole::Fork => c::ProjectResourceRole::Fork,
         w::ProjectResourceRole::Owned => c::ProjectResourceRole::Owned,
         w::ProjectResourceRole::Participant => c::ProjectResourceRole::Participant,
         w::ProjectResourceRole::Unavailable => c::ProjectResourceRole::Unavailable,
@@ -327,5 +328,6 @@ pub(crate) fn project_resource_fields(value: &w::ProjectResource) -> c::ProjectR
     c::ProjectResource {
         part: crate::translate::facts::part(value.part()),
         role: project_resource_role_fields(value.role()),
+        home: value.home(),
     }
 }

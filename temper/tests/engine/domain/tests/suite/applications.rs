@@ -181,6 +181,53 @@ fn an_adoption_on_a_configured_forge_is_adopted_with_what_temper_may_do() {
 }
 
 #[test]
+fn an_adopted_repository_is_the_projects_home_after_restart() {
+    let mut driver = driver();
+    adopt(&mut driver, fixtures::adoption(1), 95);
+    assert_project_home(&mut driver);
+    driver.root = engine::Domain::new(temper_engine_domain_world::walking::config(71), &driver.env.limits)
+        .expect("valid engine configuration");
+    driver.delivered.clear();
+    driver.send(engine::Event::Restart { pending: false });
+    driver.settle();
+    driver.sign_in();
+    driver.settle();
+    assert_project_home(&mut driver);
+}
+
+fn assert_project_home(driver: &mut Driver) {
+    use jig_domain_core::{documents, reads};
+    let sign_in = driver.session();
+    driver.delivered.clear();
+    driver.send(engine::Event::Party(engine::PartyInput::Read {
+        reply_to: ReplyTo::new(Token::new(97)),
+        sign_in,
+        read: reads::Read::Project { project: 1 },
+    }));
+    driver.settle();
+    let project = driver
+        .delivered
+        .iter()
+        .find_map(|delivery| {
+            if let Delivery::Read { answer: reads::Answer::Document(document), .. } = delivery
+                && let documents::Document::Project(project) = document.as_ref()
+            {
+                Some(project)
+            } else {
+                None
+            }
+        })
+        .expect("project document");
+    assert_eq!(project.resources.len(), 1, "adoption is part of the project");
+    let home = project.resources.get(0).expect("adopted repository");
+    assert!(home.home);
+    assert_eq!(home.role, documents::ResourceRole::Owned);
+    assert_eq!(home.part.connector, 0);
+    let documents::PartKey::Path(path) = &home.part.key else { panic!("resource path") };
+    assert_eq!(path.as_slice(), [Box::from(1_u16.to_be_bytes().as_slice()), Box::from(2_u32.to_be_bytes().as_slice())]);
+}
+
+#[test]
 fn an_adoption_sent_again_under_its_key_is_answered_its_kept_outcome() {
     let mut driver = driver();
     adopt(&mut driver, fixtures::adoption(1), 95);

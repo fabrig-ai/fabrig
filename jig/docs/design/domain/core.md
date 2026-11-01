@@ -301,6 +301,11 @@ A project is a body of work people steer, kept in the store:
 - **its parties and their roles** (people.md, section 4);
 - **its notes** (engine.md, section 10).
 
+The core keeps adopted names, roles and home flags apart from the live
+hold reports that narrow effects. Connectors own the stored adoptions and
+report them to the core when adopted and during restoration
+(connectors.md, sections 12 and 14).
+
 Every task belongs to one project, which its delegates inherit.
 
 A project begins in one of two ways:

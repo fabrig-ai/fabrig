@@ -22,7 +22,7 @@ pub(super) fn text(
         out.words(project.name.bytes());
         out.put(b"\nhomes:");
         for resource in &project.resources {
-            if resource.role == c::ProjectResourceRole::Owned {
+            if resource.home {
                 out.put(b" ");
                 vocabulary.owner_part(&resource.part, out);
             }

@@ -286,6 +286,7 @@ fn resources(b: &mut Builder, value: &Project, _client: &Borrowed<'_>, words: &W
             b,
             words,
             match resource.role {
+                ProjectResourceRole::Fork => P::Fork,
                 ProjectResourceRole::Owned => P::Owned,
                 ProjectResourceRole::Participant => P::Participant,
                 ProjectResourceRole::Unavailable => P::Unavailable,

@@ -12,7 +12,9 @@ pub fn project(models: &[crate::Model], value: &d::Project, limits: &w::Limits) 
                 limits,
                 w::ProjectResourceParts {
                     part: owner::part(&row.part, limits)?,
+                    home: row.home,
                     role: match row.role {
+                        d::ResourceRole::Fork => w::ProjectResourceRole::Fork,
                         d::ResourceRole::Owned => w::ProjectResourceRole::Owned,
                         d::ResourceRole::Participant => w::ProjectResourceRole::Participant,
                         d::ResourceRole::Unavailable => w::ProjectResourceRole::Unavailable,

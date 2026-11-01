@@ -52,6 +52,7 @@ pub(in crate::codec) fn wire_project_resource(
         w::ProjectResourceParts {
             part: wire_part(&value.part, limits)?,
             role: wire_project_resource_role(&value.role, limits)?,
+            home: value.home,
         },
     )
 }
@@ -61,6 +62,7 @@ pub(in crate::codec) fn wire_project_resource_role(
     _limits: &w::Limits,
 ) -> Result<w::ProjectResourceRole, w::Problem> {
     Ok::<_, w::Problem>(match value {
+        c::ProjectResourceRole::Fork => w::ProjectResourceRole::Fork,
         c::ProjectResourceRole::Owned => w::ProjectResourceRole::Owned,
         c::ProjectResourceRole::Participant => w::ProjectResourceRole::Participant,
         c::ProjectResourceRole::Unavailable => w::ProjectResourceRole::Unavailable,

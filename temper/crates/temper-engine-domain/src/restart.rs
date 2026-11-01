@@ -474,7 +474,12 @@ pub(crate) fn restore_page_row(domain: &mut Domain, env: &Env<Limits>, row: Reco
                 jig_domain_core::Restore::Refused => domain.stop_core(),
             }
         }
-        Record::Forge { row } => domain.work.push(Work::Forge(forge::Event::Restore { record: *row })),
+        Record::Forge { row } => {
+            if let forge::Stored::Repository(repository) = row.as_ref() {
+                crate::route::forge_route::report_adoption(domain, repository);
+            }
+            domain.work.push(Work::Forge(forge::Event::Restore { record: *row }));
+        }
     }
 }
 
