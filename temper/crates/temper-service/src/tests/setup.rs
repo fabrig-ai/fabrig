@@ -35,39 +35,62 @@ fn routing_service_at(
     public: Option<crate::startup::application::Origin>,
 ) -> crate::Service {
     let config = github_config(states, life, public);
-    let mut runtime = List::with_capacity(1);
-    runtime
-        .push(crate::ForgeRuntime {
-            number: 1,
-            address: ([127, 0, 0, 1], 3000).into(),
-            transport: skein_forge_connection::settings::Transport::Plaintext { name: None },
-        })
-        .unwrap();
-    let mut service = crate::Service::engine(config, &fixtures::seeds(), None, runtime).unwrap();
-    service.engine.as_mut().expect("engine").store = fixtures::records_store();
+    let mut service = local_service(config, fixtures::records_store());
     load_routing(&mut service);
     service
 }
-fn github_config(
-    states: u32,
-    life: Duration,
-    public: Option<crate::startup::application::Origin>,
-) -> crate::settings::Engine {
-    let mut config = fixtures::engine();
-    config.clients.public = public;
-    config.forges[0].kind = crate::settings::Kind::GitHub;
-    config.identities[0].token = Secret::new(Box::new([]));
-    config.identities[0].login = Box::new([]);
-    config.identities[0].author.name = Box::new([]);
-    config.identities[0].author.email = Box::new([]);
-    config.forges[0].api = jig_protocol_config::Address::Addr(skein_io::Addr::Ip(([127, 0, 0, 1], 3000).into()));
-    config.forges[0].web = Some(Box::from(b"http://127.0.0.1:3000".as_slice()));
-    config.forges[0].api_token = None;
-    config.forges[0].transport = crate::settings::Transport::Plaintext;
-    config.limits.setup.states = states;
-    config.limits.setup.state_life = life;
-    fixtures::fill_files(&mut config);
-    config
+fn github_record() -> domain::ForgeRecord {
+    let mut record = fixtures::forge_record(1);
+    record.kind = domain::Kind::GitHub;
+    record.web = Some(b"http://127.0.0.1:3000".as_slice().into());
+    record.bot.login = Box::new([]);
+    record.bot.name = Box::new([]);
+    record.bot.email = Box::new([]);
+    record
+}
+fn github_config(states: u32, life: Duration, public: Option<crate::startup::application::Origin>) -> Config {
+    let mut engine = fixtures::engine();
+    engine.clients.public = public;
+    engine.limits.setup.states = states;
+    engine.limits.setup.state_life = life;
+    fixtures::fill_files(&mut engine);
+    Config { engine, records: Box::new([github_record()]), handover: None, under_box: false }
+}
+/// The document stays empty; the runtime receives the fixture's forge records.
+pub(crate) struct Config {
+    pub engine: crate::settings::Engine,
+    pub records: Box<[domain::ForgeRecord]>,
+    pub handover: Option<Secret>,
+    pub under_box: bool,
+}
+impl Config {
+    fn start(self, store: crate::store::Store) -> crate::Service {
+        self.with_runtime(store, List::with_capacity(0))
+    }
+    fn with_runtime(self, store: crate::store::Store, runtime: List<crate::ForgeRuntime>) -> crate::Service {
+        let io = self.engine.jig.limits.io;
+        let endpoints = crate::forge::prepare(&self.engine, List::with_capacity(0)).unwrap();
+        let mut service = crate::Service::prepared(
+            self.engine,
+            &fixtures::seeds(),
+            None,
+            endpoints,
+            None,
+            io,
+            if self.under_box { Some(256) } else { None },
+        )
+        .unwrap();
+        service.engine.as_mut().unwrap().store = store;
+        fixtures::register_forges(&mut service, &self.records);
+        for endpoint in runtime.into_boxed() {
+            service.resolved(endpoint.number, Ok(endpoint));
+        }
+        if let Some(handover) = self.handover {
+            service.engine.as_mut().unwrap().setup.lifecycle.local_mut(1).expect("registered setup entry").handover =
+                Some(handover);
+        }
+        service
+    }
 }
 pub(crate) fn load_routing(service: &mut crate::Service) {
     fixtures::mark_store(&mut service.engine.as_mut().expect("engine").store);
@@ -435,7 +458,7 @@ fn draining_closes_the_host_and_waits_for_closed() {
     assert!(service.engine.as_ref().expect("engine").setup.pages.is_empty());
     assert_eq!(service.engine.as_ref().expect("engine").setup.next_deadline(), None);
 }
-fn tls_forges() -> (crate::settings::Engine, List<crate::ForgeRuntime>) {
+fn tls_forges() -> (Config, List<crate::ForgeRuntime>) {
     // Skein's fixed TLS-world root, carried here without another test dependency.
     let root = skein_lib::base64::decode(
         skein_lib::base64::Alphabet::Standard,
@@ -451,18 +474,17 @@ fn tls_forges() -> (crate::settings::Engine, List<crate::ForgeRuntime>) {
         412,
     )
     .unwrap();
-    let mut config = fixtures::engine();
-    config.forges =
-        Box::new([fixtures::forges().into_iter().next().unwrap(), fixtures::forges().into_iter().next().unwrap()]);
+    let mut config = github_config(8, Duration::from_secs(3600), None);
+    config.records = Box::new([github_record(), github_record()]);
     let mut runtime = List::with_capacity(2);
     for (index, (number, name, address)) in
         [(1, "first.test", [192, 0, 2, 7]), (2, "second.test", [192, 0, 2, 8])].into_iter().enumerate()
     {
-        config.forges[index].number = number;
-        config.forges[index].kind = crate::settings::Kind::GitHub;
-        config.forges[index].api_token = None;
-        config.forges[index].transport =
-            crate::settings::Transport::Tls { server_name: name.as_bytes().into(), trust: None };
+        config.records[index].number = number;
+        config.records[index].api.host = name.as_bytes().into();
+        config.records[index].api.port = 443;
+        config.records[index].api.transport =
+            domain::ApiTransport::Tls { server_name: name.as_bytes().into(), trust: None };
         let (trust, _) = skein_tls::Config::from_der(core::slice::from_ref(&root), &[name.as_bytes()]).unwrap();
         runtime
             .push(crate::ForgeRuntime {
@@ -484,13 +506,14 @@ fn tls_forges() -> (crate::settings::Engine, List<crate::ForgeRuntime>) {
 )]
 fn each_github_tls_entry_keeps_its_prepared_name_trust_and_address() {
     let (config, runtime) = tls_forges();
-    let mut endpoints = crate::forge::prepare(&config, runtime).unwrap();
-    let setup = prepare(&config, &mut endpoints, &fixtures::seeds().crypto, false).unwrap();
-    assert_eq!(setup.served.len(), 2);
-    let (settings, _) = setup.pending.unwrap();
+    let service = config.with_runtime(fixtures::records_store(), runtime);
+    let engine = service.engine.as_ref().unwrap();
+    assert_eq!(engine.setup.served.len(), 2);
+    let (settings, _) = engine.setup.pending.as_ref().unwrap();
     assert_eq!(settings.forges.len(), 2);
     assert_eq!(settings.user_agent.as_ref(), crate::forge::USER_AGENT.as_bytes());
-    for endpoint in &endpoints.forges {
+    for number in [1, 2] {
+        let endpoint = engine.forge.endpoint(number).unwrap();
         let mut entry = None;
         for candidate in &settings.forges {
             if candidate.number() == endpoint.number {
@@ -499,7 +522,7 @@ fn each_github_tls_entry_keeps_its_prepared_name_trust_and_address() {
             }
         }
         let entry = entry.unwrap();
-        assert_eq!(entry.address, endpoint.address);
+        assert_eq!(entry.address, skein_io::Addr::Ip(endpoint.address));
         let host::Transport::Tls { server_name, trust } = &entry.transport else { panic!("TLS entry") };
         let skein_forge_connection::settings::Transport::Tls { server_name: name, trust: prepared } =
             &endpoint.transport
@@ -513,7 +536,7 @@ fn each_github_tls_entry_keeps_its_prepared_name_trust_and_address() {
 #[test]
 fn admitted_tls_starts_after_rows_and_serves_a_local_manifest() {
     let (config, runtime) = configured(8, 8, true);
-    let mut service = crate::Service::engine(config, &fixtures::seeds(), None, runtime).unwrap();
+    let mut service = config.with_runtime(fixtures::records_store(), runtime);
     assert!(service.engine.as_ref().expect("engine").setup.component.is_none(), "no host before the rows load");
     let (settings, _) = service.engine.as_ref().expect("engine").setup.pending.as_ref().unwrap();
     assert_eq!(settings.forges.len(), 2);
@@ -609,20 +632,13 @@ fn every_host_unusable_arm_has_an_operator_path() {
 }
 #[test]
 fn invalid_host_limits_stop_after_load_and_setup_overrides_are_checked() {
-    let mut service = service(8, Duration::from_secs(3600));
-    let mut config = fixtures::engine();
-    config.forges[0].kind = crate::settings::Kind::GitHub;
-    config.identities[0].token = Secret::new(Box::new([]));
-    config.identities[0].login = Box::new([]);
-    config.identities[0].author.name = Box::new([]);
-    config.identities[0].author.email = Box::new([]);
-    config.forges[0].api_token = None;
-    config.limits.forge_component.inner = 13;
-    config.limits.picker.page = 1;
-    let mut endpoints = crate::forge::prepare(&fixtures::engine(), fixtures::forge_runtime()).unwrap();
-    service.engine.as_mut().expect("engine").setup =
-        prepare(&config, &mut endpoints, &fixtures::seeds().crypto, false).unwrap();
-    advance(service.engine.as_mut().expect("engine"));
+    let mut service = local_service(github_config(8, Duration::from_secs(3600), None), fixtures::records_store());
+    let engine = service.engine.as_mut().unwrap();
+    engine.setup.env.limits.inner = 13;
+    for _ in 0_u32..8 {
+        crate::forge::records::advance(engine);
+    }
+    advance(engine);
     assert!(service.end().is_some());
     let mut own = crate::limits::profile(crate::limits::Profile::Small);
     for name in [b"setup.states".as_slice(), b"setup.runs", b"setup.state_life_ms", b"setup.orgs"] {
@@ -653,17 +669,14 @@ fn stopped_connection_text_has_a_fixed_bound() {
         );
     }
 }
-fn configured(runs: u32, states: u32, tls: bool) -> (crate::settings::Engine, List<crate::ForgeRuntime>) {
-    let (mut config, runtime) = if tls { tls_forges() } else { (fixtures::engine(), fixtures::forge_runtime()) };
-    config.forges[0].kind = crate::settings::Kind::GitHub;
-    config.identities[0].token = Secret::new(Box::new([]));
-    config.identities[0].login = Box::new([]);
-    config.identities[0].author.name = Box::new([]);
-    config.identities[0].author.email = Box::new([]);
-    config.forges[0].api_token = None;
-    config.limits.setup.runs = runs;
-    config.limits.setup.states = states;
-    fixtures::fill_files(&mut config);
+fn configured(runs: u32, states: u32, tls: bool) -> (Config, List<crate::ForgeRuntime>) {
+    let (mut config, runtime) = if tls {
+        tls_forges()
+    } else {
+        (github_config(states, Duration::from_secs(3600), None), List::with_capacity(0))
+    };
+    config.engine.limits.setup.runs = runs;
+    config.engine.limits.setup.states = states;
     (config, runtime)
 }
 
@@ -678,28 +691,29 @@ mod adoption_tests;
 
 #[test]
 fn an_unresolved_forge_keeps_its_setup_entry_but_restored_and_asked_connects_never_dial() {
-    let mut config = fixtures::engine();
-    config.forges[0].kind = crate::settings::Kind::GitHub;
-    config.forges[0].api = jig_protocol_config::Address::Host { name: b"forge.example".as_slice().into(), port: 443 };
-    config.forges[0].api_token = None;
-    let mut other = fixtures::forges().into_iter().next().unwrap();
-    other.number = 2;
-    let first = config.forges.into_iter().next().unwrap();
-    config.forges = Box::new([first, other]);
-    fixtures::fill_files(&mut config);
-    let mut runtime = fixtures::forge_runtime();
-    runtime.get_mut(0).unwrap().address = crate::forge::HELD_ADDRESS;
-    let mut endpoints = List::with_capacity(2);
-    endpoints.push(runtime.into_boxed().into_iter().next().unwrap()).unwrap();
-    let mut other = fixtures::forge_runtime().into_boxed().into_iter().next().unwrap();
-    other.number = 2;
-    endpoints.push(other).unwrap();
-    let mut service = crate::Service::engine(config, &fixtures::seeds(), None, endpoints).unwrap();
+    let mut config = github_config(8, Duration::from_secs(3600), None);
+    config.records[0].api.host = b"forge.example".as_slice().into();
+    config.records[0].api.port = 443;
+    config.records = Box::new([config.records.into_iter().next().unwrap(), fixtures::forge_record(2)]);
+    let mut service = local_service(config, fixtures::records_store());
+    fixtures::seed_forge_records(&mut service, &[fixtures::forge_record(2)]);
+    service.resolved(1, Err(b"unreachable".as_slice().into()));
     let setup = &service.engine.as_ref().unwrap().setup;
-    assert!(setup.served.contains_key(&1), "the held forge still has a setup entry");
-    let (settings, _) = setup.pending.as_ref().unwrap();
-    assert_eq!(settings.forges.len(), 2, "both the held GitHub and connected Forgejo serve picker reads");
-    assert_eq!(settings.forges.get(0).unwrap().address, skein_io::Addr::Ip(crate::forge::HELD_ADDRESS));
+    assert!(!setup.served.contains_key(&1));
+    assert_eq!(setup.unserved.get(&1), Some(&b"unreachable".as_slice()));
+    let mut named = false;
+    for note in service.notes().iter() {
+        if *note
+            == (crate::Note::ForgeNotConnected {
+                number: 1,
+                why: crate::NotConnected::Unreachable { host: b"forge.example".as_slice().into() },
+            })
+        {
+            named = true;
+        }
+    }
+    assert!(named);
+    service.notes().clear();
     lifecycle_tests::app(&mut service);
     let engine = service.engine.as_mut().unwrap();
     let expected =
@@ -720,19 +734,12 @@ fn an_unresolved_forge_keeps_its_setup_entry_but_restored_and_asked_connects_nev
     for _ in 0_u32..8 {
         crate::forge::records::advance(engine);
     }
-    assert_eq!(
-        engine.notes.pop(),
-        Some(crate::Note::ForgeNotConnected {
-            number: 1,
-            why: crate::NotConnected::Unreachable { host: b"forge.example".as_slice().into() }
-        })
-    );
-    assert!(engine.forge.starts.is_empty());
+    assert!(fixtures::forge_start(engine, 1).is_none());
     engine.forge.iterate(Time::ZERO, Wall::EPOCH);
     let mut other_connects = 0_u32;
     for request in &engine.forge.io {
         if let skein_io::Request::Connect { addr, .. } = request {
-            assert_eq!(*addr, skein_io::Addr::Ip(([127, 0, 0, 1], 3000).into()));
+            assert_eq!(*addr, skein_io::Addr::Ip(([127, 0, 0, 1], 3001).into()));
             other_connects += 1;
         }
     }
@@ -747,7 +754,7 @@ fn an_unresolved_forge_keeps_its_setup_entry_but_restored_and_asked_connects_nev
         assert_eq!(reason.as_ref(), b"unreachable: forge.example");
     }
     let engine = service.engine.as_ref().unwrap();
-    assert!(engine.forge.starts.is_empty());
+    assert!(fixtures::forge_start(engine, 1).is_none());
     assert!(engine.setup.io.is_empty(), "no held setup request reaches a socket");
     assert!(engine.setup.runs.is_empty(), "the host never receives a held plan");
     assert_eq!(engine.domain.forge_connection(1), temper_engine_domain_forge::Connection::NotConnected);
@@ -756,30 +763,29 @@ fn an_unresolved_forge_keeps_its_setup_entry_but_restored_and_asked_connects_nev
 #[path = "git_tokens.rs"]
 mod git_tokens;
 
-pub(crate) fn local_config(records: bool, fake: bool) -> crate::settings::Engine {
-    let mut config = fixtures::engine();
-    config.forges[0].api = jig_protocol_config::Address::Addr(skein_io::Addr::Ip(([127, 0, 0, 1], 9).into()));
-    config.setup = Box::new([fixtures::owned_setup(1)]);
-    config.setup[0].entry.asked = false;
-    if fake {
-        config.setup[0].entry.mode = temper_forge_setup::setup::Mode::Fake(temper_forge_setup::setup::Fake {
-            listen: ([127, 0, 0, 1], 9).into(),
-            git: b"/data/git".as_slice().into(),
-            owner: b"demo".as_slice().into(),
-            repositories: Box::new([]),
-        });
+pub(crate) fn local_config(records: bool, fake: bool) -> Config {
+    let mut engine = fixtures::engine();
+    engine.limits.forge.client.repositories = 3;
+    engine.limits.forge.output = 96;
+    fixtures::fill_files(&mut engine);
+    if !records {
+        engine.forges = fixtures::document_forges();
+        engine.identities = fixtures::document_engine().identities;
+        engine.forges[0].api = jig_protocol_config::Address::Addr(skein_io::Addr::Ip(([127, 0, 0, 1], 9).into()));
+        engine.setup = Box::new([fixtures::owned_setup(1)]);
+        engine.setup[0].entry.asked = false;
+        return Config { engine, records: Box::new([]), handover: None, under_box: false };
     }
-    if records {
-        config.records_only = Box::new([1]);
-        config.forges[0].api_token = None;
-        config.forges[0].user = 0;
-        config.identities[0].token = Secret::new(Box::new([]));
-        config.identities[0].login = if fake { Box::new([]) } else { b"git-user".as_slice().into() };
-    }
-    config.limits.forge.client.repositories = 3;
-    config.limits.forge.output = 96;
-    fixtures::fill_files(&mut config);
-    config
+    let mut record = fixtures::forge_record(1);
+    record.api.port = 9;
+    record.mode = if fake { domain::Mode::Fake } else { domain::Mode::Owned };
+    record.bot.login = b"temper".as_slice().into();
+    record.setup = Some(if fake {
+        br#"{"bot":{"login":"temper","email":"temper@example.test"},"mode":{"fake":{"listen":{"socket":"127.0.0.1:9"},"git":"/data/git","owner":"demo","repositories":[{"name":"widget","landing":"main"}]}}}"#.as_slice().into()
+    } else {
+        fixtures::owned_body().into()
+    });
+    Config { engine, records: Box::new([record]), handover: None, under_box: false }
 }
 pub(crate) fn kept_record(store: &mut crate::store::Store, forge: u16, item: Item, bytes: &[u8]) {
     let owner = Token::new(901);
@@ -867,10 +873,15 @@ pub(crate) fn local_repository() -> domain::Repository {
         },
     }
 }
-pub(crate) fn local_service(config: crate::settings::Engine, store: crate::store::Store) -> crate::Service {
-    let mut service = crate::Service::engine(config, &fixtures::seeds(), None, fixtures::forge_runtime()).unwrap();
-    service.engine.as_mut().unwrap().store = store;
-    service
+pub(crate) fn local_service(config: Config, store: crate::store::Store) -> crate::Service {
+    // File-era document cases alone carry their prepared endpoint.
+    if !config.engine.forges.is_empty() {
+        let mut service =
+            crate::Service::engine(config.engine, &fixtures::seeds(), None, fixtures::loopback_runtime()).unwrap();
+        service.engine.as_mut().unwrap().store = store;
+        return service;
+    }
+    config.start(store)
 }
 pub(crate) fn restore_local(service: &mut crate::Service) {
     // The generic kernel refuses unhandled network connects. Hold local work
@@ -909,6 +920,15 @@ pub(crate) fn restore_local(service: &mut crate::Service) {
 pub(crate) fn local_sent(service: &mut crate::Service, face: &mut Face, path: &[u8]) {
     face.sent(service);
     assert!(contains(&face.wire.received, path), "wanted path {path:?}");
+}
+fn finish_fake_adoption(service: &mut crate::Service, face: &mut Face) {
+    if !service.engine.as_ref().unwrap().setup.lifecycle.adoptions.contains_key(&1) {
+        return;
+    }
+    face.hold_done = false;
+    local_sent(service, face, b"GET /api/v1/user ");
+    face.reply(service, br#"{"id":1,"login":"temper-admin","is_admin":true}"#);
+    adoption_tests::record_repository(service, face, 1, adoption_tests::WRITE_PERMISSION);
 }
 fn reconcile_to_repository(service: &mut crate::Service, face: &mut Face) {
     local_sent(service, face, b"GET /api/v1/user ");
@@ -972,12 +992,16 @@ fn kept_local_records_wait_for_restore_done_and_origin_before_connecting_as_the_
             panic!("durable Origin");
         };
         answer(engine, StoreEvent::Kept { owner });
+        if fake {
+            finish_fake_adoption(&mut service, &mut face);
+        }
+        let engine = service.engine.as_mut().unwrap();
         assert_eq!(engine.forge.starts.get(0).unwrap().1.user, 42);
         assert!(engine.forge.accepted.is_empty(), "Forgejo has no installation set");
         let (generation, value) = engine.values.identities.newest(1).unwrap();
         assert_eq!(generation, 1);
         let value = fixtures::decoded_identity(value);
-        assert_eq!(value.login(), if fake { b"temper".as_slice() } else { b"git-user" });
+        assert_eq!(value.login(), b"temper");
         assert_eq!(
             match value.kind() {
                 temper_protocol_worker_wire::v1::Kind::Forgejo(token) => token.token(),
@@ -1028,22 +1052,15 @@ fn kept_local_records_wait_for_restore_done_and_origin_before_connecting_as_the_
 #[test]
 fn local_given_uses_the_repository_capacity_no_orgs_and_configured_listener() {
     let mut config = local_config(true, false);
-    config.webhooks =
+    config.engine.webhooks =
         Some(skein_forge_connection::hooks::Webhooks { listener: skein_io::Addr::Ip(([127, 0, 0, 1], 7101).into()) });
-    let endpoints = crate::forge::prepare(&config, fixtures::forge_runtime()).unwrap();
-    assert!(endpoints.forges.get(0).unwrap().access.is_none());
-    let (host, _) = settings::fixed(&config, &endpoints).unwrap();
-    let entry = host.forges.get(0).unwrap();
-    assert_eq!(entry.address, endpoints.forges.get(0).unwrap().address);
-    let host::Kind::Forgejo(given) = &entry.kind else {
-        panic!("local Given");
-    };
-    assert_eq!(given.limits.repositories, config.limits.forge.client.repositories);
+    let service = local_service(config, local_store(true));
+    let engine = service.engine.as_ref().unwrap();
+    let host::Kind::Forgejo(given) = engine.setup.served.get(&1).unwrap() else { panic!("local Given") };
     assert_eq!(given.limits.repositories, 3);
     assert!(given.orgs.is_empty());
     assert_eq!(given.org_owner.as_deref(), Some(b"owner".as_slice()));
     assert_eq!(given.listener, Some(([127, 0, 0, 1], 7101).into()));
-    assert_eq!(prepare(&config, &mut { endpoints }, &fixtures::seeds().crypto, false).unwrap().served.len(), 1);
 }
 #[test]
 fn an_old_form_owned_start_makes_no_reconcile() {
@@ -1060,23 +1077,11 @@ fn an_old_form_owned_start_makes_no_reconcile() {
         assert!(engine.values.identities.newest(1).is_some(), "retained file identity");
     }
 }
-fn local_with_other(config: crate::settings::Engine, store: crate::store::Store) -> crate::Service {
-    let mut config = config;
-    let mut other = fixtures::forges().into_iter().next().unwrap();
+fn local_with_other(mut config: Config, store: crate::store::Store) -> crate::Service {
+    let mut other = github_record();
     other.number = 2;
-    other.kind = crate::settings::Kind::GitHub;
-    other.api_token = None;
-    other.api = jig_protocol_config::Address::Addr(skein_io::Addr::Ip(([127, 0, 0, 1], 3000).into()));
-    config.forges = Box::new([config.forges.into_iter().next().unwrap(), other]);
-    let mut runtime = List::with_capacity(2);
-    runtime.push(fixtures::forge_runtime().into_boxed().into_iter().next().unwrap()).unwrap();
-    let mut other = fixtures::forge_runtime().into_boxed().into_iter().next().unwrap();
-    other.number = 2;
-    other.address = ([127, 0, 0, 1], 3000).into();
-    runtime.push(other).unwrap();
-    let mut service = crate::Service::engine(config, &fixtures::seeds(), None, runtime).unwrap();
-    service.engine.as_mut().unwrap().store = store;
-    service
+    config.records = Box::new([config.records.into_iter().next().unwrap(), other]);
+    local_service(config, store)
 }
 fn other_progresses(service: &mut crate::Service) {
     while service.notes().pop().is_some() {}
@@ -1212,9 +1217,9 @@ fn told_local(engine: &crate::engine::Engine, expected: &domain::Connection) -> 
     }
     false
 }
-fn with_handover(token: &[u8]) -> crate::settings::Engine {
+fn with_handover(token: &[u8]) -> Config {
     let mut config = local_config(true, false);
-    config.setup[0].handover = Some(Secret::new(token.into()));
+    config.handover = Some(Secret::new(token.into()));
     config
 }
 fn takeover_to_kept(service: &mut crate::Service, face: &mut Face) {
@@ -1268,6 +1273,8 @@ pub(crate) fn finish_local(service: &mut crate::Service, face: &mut Face) {
     assert!(engine.forge.starts.is_empty());
     let Some(StoreEvent::Kept { owner }) = engine.store.above.pop() else { panic!("durable Origin") };
     answer(engine, StoreEvent::Kept { owner });
+    finish_fake_adoption(service, face);
+    let engine = service.engine.as_mut().unwrap();
     assert_eq!(engine.forge.starts.get(0).unwrap().1.user, 42);
     lifecycle::connected(engine, 1);
 }
@@ -1353,7 +1360,7 @@ fn restart_always_takes_a_present_handover_even_when_the_record_differs() {
 #[test]
 fn an_asked_forge_takes_its_handover_at_started_and_connects() {
     let mut config = local_config(true, false);
-    config.setup[0].entry.asked = true;
+    config.under_box = true;
     let mut service = local_service(config, local_store(false));
     restore_local(&mut service);
     assert!(!service.engine.as_ref().unwrap().setup.lifecycle.local(1).unwrap().pending);
@@ -1629,7 +1636,7 @@ mod create_tests;
 fn the_demo_waits_for_started_only_under_the_box_even_with_retained_access() {
     for (under_box, retained) in [(false, false), (false, true), (true, false), (true, true)] {
         let mut config = local_config(true, true);
-        config.demo = Some(crate::settings::Demo {
+        config.engine.demo = Some(crate::settings::Demo {
             project_name: "".into(),
             project_policy: 0,
             project: 1,
@@ -1643,23 +1650,11 @@ fn the_demo_waits_for_started_only_under_the_box_even_with_retained_access() {
             state: None,
             playground: None,
         });
-        config.setup[0].handover = Some(Secret::new(b"stale-handover".as_slice().into()));
-        let configured = crate::startup::application::configured(&config);
-        assert!(configured[0].asked);
-        assert_eq!(configured[0].mode, domain::Mode::Fake);
-        let endpoints = crate::forge::prepare(&config, fixtures::forge_runtime()).unwrap();
-        let io = config.jig.limits.io;
-        let mut service = crate::Service::prepared(
-            config,
-            &fixtures::seeds(),
-            None,
-            endpoints,
-            None,
-            io,
-            if under_box { Some(256) } else { None },
-        )
-        .unwrap();
-        service.engine.as_mut().unwrap().store = local_store(retained);
+        config.handover = Some(Secret::new(b"stale-handover".as_slice().into()));
+        config.under_box = under_box;
+        config.records[0].playground = under_box;
+        config.records[0].bot.login = b"temper".as_slice().into();
+        let mut service = local_service(config, local_store(retained));
         restore_local(&mut service);
         let engine = service.engine.as_ref().unwrap();
         if !under_box {
@@ -1670,10 +1665,7 @@ fn the_demo_waits_for_started_only_under_the_box_even_with_retained_access() {
             );
             continue;
         }
-        assert!(
-            told_local(engine, &domain::Connection::NotSetUp)
-                || engine.domain.forge_connection(1) == domain::Connection::NotSetUp
-        );
+        assert_eq!(engine.domain.forge_connection(1), domain::Connection::NotSetUp);
         assert_eq!(engine.domain.forges().rows[0].offer, domain::Offer::NotOffered);
         assert!(engine.setup.runs.is_empty());
         assert!(engine.forge.starts.is_empty());
@@ -1691,10 +1683,10 @@ fn the_demo_waits_for_started_only_under_the_box_even_with_retained_access() {
     }
 }
 
-fn demo_config() -> crate::settings::Engine {
+fn demo_config() -> Config {
     let mut config = local_config(true, true);
-    config.jig.limits.core.people.act_grants = 1;
-    config.jig.acts = Box::new([jig_domain_people::ActGrant {
+    config.engine.jig.limits.core.people.act_grants = 1;
+    config.engine.jig.acts = Box::new([jig_domain_people::ActGrant {
         connector: 1,
         may: Box::new([
             jig_domain_people::ActKind::Close,
@@ -1703,7 +1695,7 @@ fn demo_config() -> crate::settings::Engine {
             jig_domain_people::ActKind::Adopt,
         ]),
     }]);
-    config.demo = Some(crate::settings::Demo {
+    config.engine.demo = Some(crate::settings::Demo {
         project_name: "".into(),
         project_policy: 0,
         project: 1,
@@ -1721,12 +1713,18 @@ fn demo_config() -> crate::settings::Engine {
 }
 fn ended_demo_store() -> crate::store::Store {
     let mut store = local_store(true);
+    let mut record = demo_config().records.into_iter().next().unwrap();
+    record.state = domain::ForgeState::Removing;
     fixtures::commit(
         &mut store,
         2,
-        Box::new([root::Write::Save(root::Record::Forge {
-            row: Box::new(domain::Stored::Demo(domain::Demo { forge: 1, state: domain::DemoState::Ended })),
-        })]),
+        Box::new([
+            root::Write::Save(root::Record::Forge {
+                row: Box::new(domain::Stored::Demo(domain::Demo { forge: 1, state: domain::DemoState::Ended })),
+            }),
+            root::Write::Save(root::Record::Forge { row: Box::new(domain::Stored::Forge(record)) }),
+            root::Write::Save(root::Record::Forge { row: Box::new(domain::Stored::ForgeNumbers { next: 2 }) }),
+        ]),
     );
     assert!(store.above.pop().is_some());
     store
@@ -1734,7 +1732,7 @@ fn ended_demo_store() -> crate::store::Store {
 #[test]
 fn restored_ended_demo_without_box_skips_setup_adoption_connect_and_handover() {
     let mut config = demo_config();
-    config.setup[0].handover = Some(Secret::new(b"test-admin".as_slice().into()));
+    config.handover = Some(Secret::new(b"test-admin".as_slice().into()));
     let mut service = local_service(config, ended_demo_store());
     restore_local(&mut service);
     let engine = service.engine.as_mut().unwrap();
@@ -1763,7 +1761,7 @@ fn restored_ended_demo_without_box_skips_setup_adoption_connect_and_handover() {
 fn an_end_during_handover_or_reconcile_cannot_continue_setup() {
     for during_reconcile in [false, true] {
         let mut config = demo_config();
-        config.setup[0].handover = Some(Secret::new(b"test-admin".as_slice().into()));
+        config.handover = Some(Secret::new(b"test-admin".as_slice().into()));
         let mut service = local_service(config, local_store(true));
         restore_local(&mut service);
         let engine = service.engine.as_mut().unwrap();
@@ -1772,6 +1770,9 @@ fn an_end_during_handover_or_reconcile_cannot_continue_setup() {
             engine.setup.runs.get_mut(&run).unwrap().kind = Kind::LocalReconcile;
         }
         engine.demo.as_mut().unwrap().state = Some(domain::DemoState::Ended);
+        let mut record = engine.records.get(&1).unwrap().clone();
+        record.state = domain::ForgeState::Removing;
+        engine.step(root::Event::Forge(Box::new(domain::Event::Restore { record: domain::Stored::Forge(record) })));
         lifecycle::done(engine, run, reconcile::Outcome::Nothing);
         assert!(engine.setup.runs.is_empty());
         assert!(engine.setup.writes.is_empty());
@@ -1836,13 +1837,11 @@ fn github_app_urls_use_the_clients_public_origin() {
 fn setup_reconciliation_waits_for_the_mark() {
     // The shared service restart fixture's existing iteration horizon.
     const PASSES: u32 = 256;
-    let mut previous = fixtures::ready().engine.unwrap();
-    kept_record(&mut previous.store, 1, Item::AdminToken, b"test-admin");
-    let mut service = fixtures::restarting_from(previous);
-    let config = local_config(true, false);
-    let mut endpoints = crate::forge::prepare(&config, fixtures::forge_runtime()).unwrap();
-    let setup = prepare(&config, &mut endpoints, &fixtures::seeds().crypto, false).unwrap();
-    service.engine.as_mut().unwrap().setup = setup;
+    let mut store = fixtures::records_store();
+    kept_record(&mut store, 1, Item::AdminToken, b"test-admin");
+    let root = fixtures::store_limits().0;
+    let store = fixtures::reopened_store(store, &root);
+    let mut service = local_service(local_config(true, false), store);
     service.engine.as_mut().unwrap().store.hold_mark = true;
     for _ in 0..PASSES {
         fixtures::turn(&mut service);

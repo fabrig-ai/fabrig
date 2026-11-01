@@ -93,7 +93,7 @@ fn failed_steps(tree: &Tree) {
 
 #[test]
 fn qa_fifth_setup_step_fails_on_welcome_and_forges() {
-    let (mut front, mut root) = harness::forge_fixture(fixtures::SEED);
+    let (mut front, mut root) = harness::seeded_forge_fixture(fixtures::SEED);
     harness::event(&mut front, &mut root, Temper::went(Address::ConnectForge { forge: Some(Choice::Forge(1)) }));
     for (name, value) in [(b"Organization".as_slice(), b"acme".as_slice()), (b"Repository", b"shop")] {
         act(&mut front, &mut root, Role::TextField, name, skein_ui::Act::Input { value: value.into() });

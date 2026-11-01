@@ -38,6 +38,53 @@ pub fn forge_settings() -> [temper_service::settings::Forge; 1] {
         identity: 1,
     }]
 }
+/// First-run templates, with no numbered forge (draft playground-reset.md, 3).
+#[must_use]
+pub fn machine() -> temper_engine_domain_forge::Machine {
+    use temper_engine_domain_forge as f;
+    let mut owned = temper_engine_domain_world::forges::record(0, f::Kind::Forgejo, f::Mode::Owned);
+    owned.api = f::Api { host: b"127.0.0.1".as_slice().into(), port: 3000, transport: f::ApiTransport::Plaintext };
+    owned.git = b"http://127.0.0.1:3000".as_slice().into();
+    owned.web = Some(owned.git.clone());
+    owned.setup = Some(br#"{"bot":{"login":"temper","email":"temper@localhost"},"mode":{"owned":{"forgejo":"fetched","runner":{"binary":"fetched","labels":["local:host"],"capacity":1,"path":"/usr/bin"},"listen":{"socket":"127.0.0.1:3000"},"person":{"login":"person","email":"person@localhost"}}}}"#.as_slice().into());
+    let mut playground = owned.clone();
+    playground.mode = f::Mode::Fake;
+    playground.playground = true;
+    playground.api.port = 3001;
+    playground.git = b"http://127.0.0.1:3001".as_slice().into();
+    playground.web = Some(playground.git.clone());
+    playground.git_program = Some(b"demo/bin/git".as_slice().into());
+    playground.setup = Some(br#"{"bot":{"login":"temper","email":"temper@localhost"},"mode":{"fake":{"listen":{"socket":"127.0.0.1:3001"},"git":"demo/bin/git","owner":"playground","repositories":[{"name":"widget","landing":"main"}]}}}"#.as_slice().into());
+    f::Machine { owned: Some(owned), github: f::ForgeRecord::github_com(), playground: Some(playground) }
+}
+
+pub const PLAYGROUND_CUE: &[u8] = b"Change the title";
+pub const PLAYGROUND_REPOSITORY: u32 = 7;
+
+#[must_use]
+pub fn playground_config() -> temper_engine_domain_forge::DemoConfig {
+    use temper_engine_domain_forge as f;
+    f::DemoConfig {
+        provider: 17,
+        project_name: "Playground".into(),
+        project_policy: 1,
+        deadline: Duration::from_secs(10),
+        adoption: f::Adoption {
+            project: 0,
+            forge: 0,
+            home: true,
+            host: b"127.0.0.1:3001".as_slice().into(),
+            owner: b"playground".as_slice().into(),
+            name: b"widget".as_slice().into(),
+            prefix: b"temper/".as_slice().into(),
+            role: f::Role::Owned,
+            landing: b"main".as_slice().into(),
+            ci: true,
+            checks: Box::new([]),
+        },
+    }
+}
+
 pub const REPOSITORIES: &[(&[u8], &[u8], u32)] = &[(b"acme", b"shop", 7), (b"acme", b"second", 8)];
 pub const PARTY: u64 = 1;
 pub const SEED: u64 = 1101;

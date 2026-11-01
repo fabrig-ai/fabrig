@@ -5,7 +5,7 @@ use temper_forge_setup::setup::{Account, Entry, Fake, Mode, Repository};
 const HANDOVER: &[u8] = b"0123456789abcdef0123456789abcdef01234567";
 const HOOK: &[u8] = b"file-hook-secret";
 fn old_form_configured(hooks: bool) -> crate::settings::Engine {
-    let mut config = fixtures::engine();
+    let mut config = fixtures::document_engine();
     config.forges[0].api = jig_protocol_config::Address::Addr(skein_io::Addr::Ip(([127, 0, 0, 1], 9).into()));
     // A listener alone must not make Adopt draw a secret the connection cannot read.
     config.webhooks =
@@ -35,21 +35,16 @@ fn old_form_configured(hooks: bool) -> crate::settings::Engine {
     fixtures::fill_files(&mut config);
     config
 }
-fn configured(hooks: bool) -> crate::settings::Engine {
-    let mut config = old_form_configured(false);
-    config.records_only = Box::new([1]);
-    config.forges[0].api_token = None;
-    config.forges[0].user = 0;
-    config.forges[0].webhook_secret = None;
-    config.identities[0].token = Secret::new(Box::new([]));
-    config.setup[0].handover = None;
-    if !hooks {
-        config.webhooks = None;
+fn configured(hooks: bool) -> Config {
+    let mut config = local_config(true, true);
+    config.records[0].bot.login = b"temper".as_slice().into();
+    config.records[0].setup = Some(br#"{"bot":{"login":"temper","email":"temper@example.test"},"mode":{"fake":{"listen":{"socket":"127.0.0.1:9"},"git":"/data/git","owner":"demo","repositories":[{"name":"widget","landing":"main"},{"name":"other","landing":"main"}]}}}"#.as_slice().into());
+    config.engine.limits.forge.repositories = 3;
+    if hooks {
+        config.engine.webhooks = Some(skein_forge_connection::hooks::Webhooks {
+            listener: skein_io::Addr::Ip(([127, 0, 0, 1], 7101).into()),
+        });
     }
-    config.limits.forge.repositories = 3;
-    config.limits.forge.client.repositories = 3;
-    config.limits.forge.output = 96;
-    fixtures::fill_files(&mut config);
     config
 }
 fn record_answers(service: &mut crate::Service) {
@@ -73,7 +68,7 @@ fn reconcile_bot(service: &mut crate::Service, face: &mut Face) {
     }
 }
 #[expect(clippy::disallowed_macros, reason = "the protocol peer formats its repository fixture")]
-fn record_repository(service: &mut crate::Service, face: &mut Face, id: u64, permission: &[u8]) {
+pub(super) fn record_repository(service: &mut crate::Service, face: &mut Face, id: u64, permission: &[u8]) {
     local_sent(service, face, format!("GET /api/v1/repositories/{id} ").as_bytes());
     face.reply(service, format!(r#"{{"id":{id},"owner":{{"id":1,"login":"demo"}},"name":"widget","object_format_name":"sha1","default_branch":"main","default_merge_style":"merge","allow_merge_commits":true,"allow_squash_merge":true,"allow_rebase":true,"html_url":"http://127.0.0.1:9/demo/widget"}}"#).as_bytes());
     local_sent(service, face, b"/collaborators/temper/permission ");
@@ -94,11 +89,11 @@ fn record_hook(service: &mut crate::Service, face: &mut Face, secret: &[u8]) {
         br#"{"id":1,"config":{"url":"http://127.0.0.1:7101/hooks/1"},"events":["push"],"active":true}"#,
     );
 }
-const WRITE_PERMISSION: &[u8] = br#"{"permission":"write","user":{"id":42,"login":"temper"}}"#;
+pub(super) const WRITE_PERMISSION: &[u8] = br#"{"permission":"write","user":{"id":42,"login":"temper"}}"#;
 fn records_reconciled(hooks: bool, handover: bool) -> (crate::Service, Face, Box<[u8]>) {
     let mut config = configured(hooks);
     if handover {
-        config.setup[0].handover = Some(Secret::new(b"test-admin".as_slice().into()));
+        config.handover = Some(Secret::new(b"test-admin".as_slice().into()));
     }
     let mut service = local_service(config, local_store(true));
     restore_local(&mut service);
@@ -246,10 +241,10 @@ fn records_fake_restart_reconciles_restored_repositories_and_adopts_only_the_mis
 #[test]
 fn records_fake_given_uses_the_webhooks_listener_without_a_file_secret() {
     for hooks in [false, true] {
-        let config = configured(hooks);
-        let endpoints = crate::forge::prepare(&config, fixtures::forge_runtime()).unwrap();
-        let (settings, _) = settings::fixed(&config, &endpoints).unwrap();
-        let host::Kind::Forgejo(given) = &settings.forges.get(0).unwrap().kind else { panic!("Forgejo Given") };
+        let service = local_service(configured(hooks), local_store(true));
+        let host::Kind::Forgejo(given) = service.engine.as_ref().unwrap().setup.served.get(&1).unwrap() else {
+            panic!("Forgejo Given")
+        };
         assert_eq!(given.listener, if hooks { Some(([127, 0, 0, 1], 7101).into()) } else { None });
     }
 }
@@ -270,7 +265,7 @@ fn old_form_service(hooks: bool) -> crate::Service {
             asked: false
         }]
     );
-    let mut service = crate::Service::engine(config, &fixtures::seeds(), None, fixtures::forge_runtime()).unwrap();
+    let mut service = crate::Service::engine(config, &fixtures::seeds(), None, fixtures::loopback_runtime()).unwrap();
     service.engine.as_mut().expect("engine").store = fixtures::records_store();
     advance(service.engine.as_mut().expect("engine"));
     assert!(service.engine.as_ref().expect("engine").setup.runs.is_empty(), "wait for records");
@@ -412,7 +407,7 @@ fn a_stopped_old_form_fake_adoption_names_its_step_and_drops_the_remaining_repos
 fn old_form_fake_given_uses_the_webhooks_listener_only_with_a_file_secret() {
     for hooks in [false, true] {
         let config = old_form_configured(hooks);
-        let endpoints = crate::forge::prepare(&config, fixtures::forge_runtime()).unwrap();
+        let endpoints = crate::forge::prepare(&config, fixtures::loopback_runtime()).unwrap();
         let (settings, _) = settings::fixed(&config, &endpoints).unwrap();
         let host::Kind::Forgejo(given) = &settings.forges.get(0).unwrap().kind else { panic!("Forgejo Given") };
         assert_eq!(given.listener, if hooks { Some(([127, 0, 0, 1], 7101).into()) } else { None });
@@ -453,7 +448,7 @@ fn old_form_owned_and_managed_serve_reads_without_start_time_writing_plans() {
                 asked: false,
             }]
         );
-        let mut endpoints = crate::forge::prepare(&config, fixtures::forge_runtime()).unwrap();
+        let mut endpoints = crate::forge::prepare(&config, fixtures::loopback_runtime()).unwrap();
         let setup = prepare(&config, &mut endpoints, &fixtures::seeds().crypto, false).unwrap();
         assert!(setup.lifecycle.adoptions.is_empty());
         assert!(setup.runs.is_empty());
@@ -461,7 +456,8 @@ fn old_form_owned_and_managed_serve_reads_without_start_time_writing_plans() {
         assert!(setup.served.contains_key(&1));
         let (settings, _) = setup.pending.unwrap();
         let host::Kind::Forgejo(_) = &settings.forges.get(0).unwrap().kind else { panic!("Forgejo Given") };
-        let mut service = crate::Service::engine(config, &fixtures::seeds(), None, fixtures::forge_runtime()).unwrap();
+        let mut service =
+            crate::Service::engine(config, &fixtures::seeds(), None, fixtures::loopback_runtime()).unwrap();
         service.engine.as_mut().expect("engine").store = fixtures::records_store();
         for _ in 0_u32..8 {
             crate::forge::records::advance(service.engine.as_mut().expect("engine"));
@@ -478,7 +474,7 @@ fn old_form_owned_and_managed_serve_reads_without_start_time_writing_plans() {
 #[test]
 fn an_unserved_old_form_fake_drops_its_adoptions_and_names_the_exclusion_without_connecting() {
     let config = old_form_configured(false);
-    let mut endpoints = crate::forge::prepare(&config, fixtures::forge_runtime()).unwrap();
+    let mut endpoints = crate::forge::prepare(&config, fixtures::loopback_runtime()).unwrap();
     endpoints.forges.get_mut(0).unwrap().address = skein_io::Addr::Ip(([192, 0, 2, 7], 9).into());
     let setup = prepare(&config, &mut endpoints, &fixtures::seeds().crypto, false).unwrap();
     assert!(endpoints.forges.get(0).unwrap().access.is_none());
@@ -497,7 +493,7 @@ fn an_unserved_old_form_fake_drops_its_adoptions_and_names_the_exclusion_without
 fn an_unresolved_old_form_fake_keeps_its_entry_but_suppresses_file_access_and_adoption() {
     let mut config = old_form_configured(false);
     config.forges[0].api = jig_protocol_config::Address::Host { name: b"fake.example".as_slice().into(), port: 9 };
-    let mut runtime = fixtures::forge_runtime();
+    let mut runtime = fixtures::loopback_runtime();
     runtime.get_mut(0).unwrap().address = crate::forge::HELD_ADDRESS;
     let mut service = crate::Service::engine(config, &fixtures::seeds(), None, runtime).unwrap();
     let engine = service.engine.as_mut().unwrap();
@@ -531,7 +527,7 @@ fn an_unresolved_old_form_fake_keeps_its_entry_but_suppresses_file_access_and_ad
 fn an_unresolved_old_form_forgejos_asked_check_is_refused_before_its_unstaged_connected_path() {
     let mut config = old_form_configured(false);
     config.forges[0].api = jig_protocol_config::Address::Host { name: b"fake.example".as_slice().into(), port: 9 };
-    let mut runtime = fixtures::forge_runtime();
+    let mut runtime = fixtures::loopback_runtime();
     runtime.get_mut(0).unwrap().address = crate::forge::HELD_ADDRESS;
     let mut service = crate::Service::engine(config, &fixtures::seeds(), None, runtime).unwrap();
     let engine = service.engine.as_mut().unwrap();

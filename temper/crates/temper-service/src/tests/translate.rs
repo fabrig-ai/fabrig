@@ -12,7 +12,7 @@ fn a_workspace_reaches_items_with_each_remote_made_from_its_base() {
         (b"https://forge.example".as_slice(), b"https://forge.example/acme/shop.git".as_slice()),
         (b"https://other.example/root".as_slice(), b"https://other.example/root/acme/shop.git".as_slice()),
     ] {
-        let mut forge = fixtures::engine().forges.into_iter().next().unwrap();
+        let mut forge = fixtures::forges().into_iter().next().unwrap();
         forge.git = base.into();
         let items = translate::items(&assignment, &[forge], &crate::forge::tokens::Tokens::empty(), &limits)
             .unwrap()
@@ -61,7 +61,6 @@ fn branch() -> wire::Branch {
 }
 #[test]
 fn each_workspace_start_reaches_its_items() {
-    let settings = fixtures::engine();
     let limits = fixtures::wire_limits();
     let rows = [
         (root::ForgeStart::Base(b"main".as_slice().into()), wire::Start::Base(branch())),
@@ -78,7 +77,7 @@ fn each_workspace_start_reaches_its_items() {
     let mut assignment = fixtures::assignment_with(fixtures::repository(7, b"acme", b"shop"));
     for (start, expected) in rows {
         assignment.workspace.repositories[0].start = start;
-        let items = translate::items(&assignment, &settings.forges, &crate::forge::tokens::Tokens::empty(), &limits)
+        let items = translate::items(&assignment, &fixtures::forges(), &crate::forge::tokens::Tokens::empty(), &limits)
             .unwrap()
             .unwrap();
         assert_eq!(items.repositories().get(0).unwrap().start(), &expected, "{expected:?}");
@@ -86,7 +85,6 @@ fn each_workspace_start_reaches_its_items() {
 }
 #[test]
 fn each_workspace_access_reaches_its_items() {
-    let settings = fixtures::engine();
     let limits = fixtures::wire_limits();
     let mut assignment = fixtures::assignment_with(fixtures::repository(7, b"acme", b"shop"));
     for (push, expected) in [
@@ -103,7 +101,7 @@ fn each_workspace_access_reaches_its_items() {
         ),
     ] {
         assignment.workspace.repositories[0].push = push;
-        let items = translate::items(&assignment, &settings.forges, &crate::forge::tokens::Tokens::empty(), &limits)
+        let items = translate::items(&assignment, &fixtures::forges(), &crate::forge::tokens::Tokens::empty(), &limits)
             .unwrap()
             .unwrap();
         assert_eq!(items.repositories().get(0).unwrap().access(), &expected, "{expected:?}");
@@ -111,7 +109,6 @@ fn each_workspace_access_reaches_its_items() {
 }
 #[test]
 fn a_workspace_past_the_wire_bound_or_without_a_forge_is_refused() {
-    let settings = fixtures::engine();
     let assignment = fixtures::assignment_with(fixtures::repository(7, b"acme", b"shop"));
     let limits = fixtures::wire_limits();
     assert!(
@@ -127,7 +124,7 @@ fn a_workspace_past_the_wire_bound_or_without_a_forge_is_refused() {
             limits.items_repositories = 0;
         }
         assert_eq!(
-            translate::items(&assignment, &settings.forges, &crate::forge::tokens::Tokens::empty(), &limits)
+            translate::items(&assignment, &fixtures::forges(), &crate::forge::tokens::Tokens::empty(), &limits)
                 .unwrap_err()
                 .path,
             expected,
@@ -231,13 +228,12 @@ fn each_preparation_reaches_the_roots_parts() {
 
 #[test]
 fn an_empty_workspace_has_no_items() {
-    let settings = fixtures::engine();
     let mut assignment = fixtures::assignment_with(fixtures::repository(7, b"acme", b"shop"));
     assignment.workspace.repositories = Box::new([]);
     assert_eq!(
         translate::items(
             &assignment,
-            &settings.forges,
+            &fixtures::forges(),
             &crate::forge::tokens::Tokens::empty(),
             &fixtures::wire_limits()
         ),
@@ -251,7 +247,8 @@ fn absent_parts_leave_the_roots_parts_empty() {
 
 #[test]
 fn a_configured_identity_encodes_as_forgejos_kind() {
-    let configured = fixtures::engine().identities.into_iter().next().unwrap();
+    let mut configured = crate::forges::identity(&fixtures::forge_record(1));
+    configured.token = skein_lib::Secret::new(b"forge-token-1234".as_slice().into());
     let limits = fixtures::wire_limits();
     let bytes = translate::identity(&configured, &limits).unwrap();
     let value = wire::Identity::decode(&limits, &mut skein_lib::Reader::new(bytes.expose())).unwrap();
@@ -284,10 +281,9 @@ fn repositories_without_a_published_entry_carry_no_account() {
 
 #[test]
 fn a_repositorys_account_reaches_the_workers_domain() {
-    let settings = fixtures::engine();
     let assignment = fixtures::assignment_with(fixtures::repository(7, b"acme", b"shop"));
     let limits = fixtures::wire_limits();
-    let original = translate::items(&assignment, &settings.forges, &crate::forge::tokens::Tokens::empty(), &limits)
+    let original = translate::items(&assignment, &fixtures::forges(), &crate::forge::tokens::Tokens::empty(), &limits)
         .unwrap()
         .unwrap();
     let mut expected = translate::workspace(Some(&original));
@@ -305,7 +301,6 @@ fn a_repositorys_account_reaches_the_workers_domain() {
 
 #[test]
 fn landing_comparison_roundtrips_and_read_only_access_strips_it() {
-    let settings = fixtures::engine();
     let limits = fixtures::wire_limits();
     for writable in [false, true] {
         let mut repository = fixtures::repository(7, b"acme", b"shop");
@@ -314,7 +309,7 @@ fn landing_comparison_roundtrips_and_read_only_access_strips_it() {
             repository.push = None;
         }
         let assignment = fixtures::assignment_with(repository);
-        let items = translate::items(&assignment, &settings.forges, &crate::forge::tokens::Tokens::empty(), &limits)
+        let items = translate::items(&assignment, &fixtures::forges(), &crate::forge::tokens::Tokens::empty(), &limits)
             .unwrap()
             .unwrap();
         let encoded = temper_protocol_worker_wire::items(&items);
@@ -332,13 +327,12 @@ fn landing_comparison_roundtrips_and_read_only_access_strips_it() {
 
 #[test]
 fn each_repository_keeps_its_own_saved_work_destination() {
-    let settings = fixtures::engine();
     let mut run = fixtures::assignment_with(fixtures::repository(7, b"acme", b"shop"));
     let mut other = fixtures::repository(8, b"acme", b"other");
     other.save = Some(b"other/7/s7".as_slice().into());
     run.workspace.repositories = Box::new([run.workspace.repositories[0].clone(), other]);
     let items =
-        translate::items(&run, &settings.forges, &crate::forge::tokens::Tokens::empty(), &fixtures::wire_limits())
+        translate::items(&run, &fixtures::forges(), &crate::forge::tokens::Tokens::empty(), &fixtures::wire_limits())
             .unwrap()
             .unwrap();
     let workspace = translate::workspace(Some(&items));

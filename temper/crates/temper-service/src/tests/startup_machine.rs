@@ -17,10 +17,9 @@ const PROJECT_NAME_BYTES: usize = 64;
 const PROJECT: &[u8] = br#"{"name":"Playground","policy":1}"#;
 
 fn document(machine: Option<&str>) -> Box<[u8]> {
-    let input = fixtures::with(&fixtures::document(), b"application.forges", b"[]");
-    let input = fixtures::with(&input, b"application.identities", b"[]");
+    let input = fixtures::document();
     let input = core::str::from_utf8(&input).unwrap();
-    let input = input.replace("\"forges\":[],", "").replace("\"identities\":[],", "").replace("\"setup\":[],", "");
+    let input = input.replace("\"machine\":{\"owned\":null,\"github\":{\"api\":null,\"transport\":null,\"git\":null,\"web\":null},\"git_program\":null},", "");
     match machine {
         Some(machine) => input
             .replace("\"demo\":null", &format!("\"machine\":{machine},\"demo\":null"))
@@ -88,6 +87,19 @@ fn local_record(mode: Mode, port: u16, text: &str, playground: bool, git_program
 
 #[test]
 fn a_document_with_no_forge_identity_or_setup_starts() {
+    let settings = fixtures::engine();
+    assert!(settings.forges.is_empty());
+    assert!(settings.identities.is_empty());
+    assert!(settings.setup.is_empty());
+    assert!(settings.records_only.is_empty());
+    let parsed = config::document(
+        fixtures::APPLICATION,
+        &config::DocumentLimits { bytes: 1_048_576, tokens: 16_384, depth: 32 },
+    )
+    .unwrap();
+    for member in [b"forges".as_slice(), b"identities", b"setup"] {
+        assert!(config::read::Object::new(&parsed, 0).unwrap().member(&parsed, member).is_none());
+    }
     let input = document(None);
     let named = named(&input);
     assert!(named.forges.is_empty());
@@ -96,7 +108,7 @@ fn a_document_with_no_forge_identity_or_setup_starts() {
     let service = start(&input);
     assert_eq!(service.engine_domain().unwrap().forges().rows.len(), 0);
     // Explicit empty lists remain accepted too.
-    let input = fixtures::with(&fixtures::document(), b"application.forges", b"[]");
+    let input = fixtures::with(&fixtures::document_members::document(), b"application.forges", b"[]");
     let input = fixtures::with(&input, b"application.identities", b"[]");
     start(&input);
 }
@@ -248,8 +260,12 @@ fn a_demo_project_name_past_64_bytes_or_policy_0_is_refused() {
 }
 #[test]
 fn todays_demo_shape_reads_as_before() {
-    let application = fixtures::demo_application();
-    let input = fixtures::with(&fixtures::document(), b"application.demo", &fixtures::value(&application, b"demo"));
+    let application = fixtures::document_members::demo_application();
+    let input = fixtures::with(
+        &fixtures::document_members::document(),
+        b"application.demo",
+        &fixtures::value(&application, b"demo"),
+    );
     let input = fixtures::with(&input, b"application.setup", &fixtures::value(&application, b"setup"));
     let service = crate::startup(
         &input,
@@ -259,7 +275,7 @@ fn todays_demo_shape_reads_as_before() {
         &fixtures::seeds(),
         None,
         fixtures::worker_runtime(),
-        fixtures::forge_runtime(),
+        fixtures::loopback_runtime(),
     )
     .unwrap();
     let demo = service.engine.as_ref().unwrap().demo.as_ref().unwrap();

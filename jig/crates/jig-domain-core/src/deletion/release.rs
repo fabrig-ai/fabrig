@@ -1,5 +1,5 @@
-//! Project rows and connector release (temper/docs/design/draft/playground-reset.md, 5;
-//! temper/docs/plan/playground-reset-r6/notes/contracts.md, J4–J5).
+//! Project rows and connector release (jig/docs/design/domain/core.md, 6.1;
+//! jig/docs/design/domain/people.md, 5.2).
 //!
 //! | State | Event | Next | Writes |
 //! | --- | --- | --- | --- |

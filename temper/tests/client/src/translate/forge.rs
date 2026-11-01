@@ -153,12 +153,49 @@ pub fn request(
                 request: engine::Application::Forge(owner::Ask::Install { forge: value.forge, back: value.back }),
             });
         }
-        v1::Request::MakeForge(_)
-        | v1::Request::RemoveForge(_)
-        | v1::Request::EndPlayground
-        | v1::Request::Accept(_)
-        | v1::Request::Reachable(_)
-        | v1::Request::StartPlayground => {
+        v1::Request::MakeForge(make) => {
+            assert_eq!(scope, jig_client::contract::Scope::Deployment);
+            assert!(reader.is_empty(), "whole make request");
+            let choice = match make.into_parts().choice {
+                v1::ForgeChoice::Owned => owner::ForgeChoice::Owned,
+                v1::ForgeChoice::Github => owner::ForgeChoice::GitHub,
+                v1::ForgeChoice::Forgejo(value) => {
+                    let value = value.into_parts();
+                    owner::ForgeChoice::Forgejo { api: value.api, git: value.git, web: value.web }
+                }
+            };
+            return deployment_request(transport, who, attempt, key, ask, owner::Ask::MakeForge { choice });
+        }
+        v1::Request::RemoveForge(remove) => {
+            assert_eq!(scope, jig_client::contract::Scope::Deployment);
+            assert!(reader.is_empty(), "whole remove request");
+            return deployment_request(
+                transport,
+                who,
+                attempt,
+                key,
+                ask,
+                owner::Ask::RemoveForge { forge: remove.forge() },
+            );
+        }
+        request @ (v1::Request::StartPlayground | v1::Request::EndPlayground) => {
+            assert_eq!(scope, jig_client::contract::Scope::Deployment);
+            assert!(reader.is_empty(), "whole playground request");
+            let start = matches!(request, v1::Request::StartPlayground);
+            let mut event = deployment_request(
+                transport,
+                who,
+                attempt,
+                key,
+                ask,
+                if start { owner::Ask::StartPlayground } else { owner::Ask::EndPlayground },
+            );
+            if let engine::Event::Party(PartyInput::Application { carried: value, .. }) = &mut event {
+                *value = carried;
+            }
+            return event;
+        }
+        v1::Request::Accept(_) | v1::Request::Reachable(_) => {
             panic!("the client sends none yet")
         }
         v1::Request::Connect(connect) => {
@@ -234,6 +271,30 @@ pub fn request(
         ))),
     })
 }
+fn deployment_request(
+    transport: &mut Transport,
+    who: ClientId,
+    attempt: Token,
+    key: [u8; 16],
+    ask: &jig_client::Family,
+    request: owner::Ask,
+) -> engine::Event {
+    let reply_to = transport.reply_to(Reply::Keyed {
+        client: who,
+        attempt,
+        key,
+        owner: KeyedOwner::Application { connector: crate::fixtures::FORGE },
+    });
+    engine::Event::Party(PartyInput::Application {
+        scope: jig_domain_people::ApplicationScope::Deployment,
+        reply_to,
+        sign_in: transport.sign_in(who).expect("authenticated forge choice"),
+        key,
+        digest: skein_lib::sha256::digest(&ask.bytes),
+        carried: None,
+        request: engine::Application::Forge(request),
+    })
+}
 fn admin_request(
     transport: &mut Transport,
     who: ClientId,
@@ -245,19 +306,27 @@ fn admin_request(
 ) -> engine::Event {
     use temper_client_protocol_wire::v1;
     let connect = connect.into_parts();
-    let v1::How::ForgejoAdmin(admin) = connect.how else { panic!("admin fixture") };
-    let first = admin.into_parts().first.map(|first| {
-        let first = first.into_parts();
-        owner::FirstAsk {
-            org: first.org,
-            repository: first.repository,
-            label: first.label,
-            project: match first.project {
-                v1::SetUpProject::New(project) => owner::SetUpProject::New(project.into_parts().name),
-                v1::SetUpProject::Existing(project) => owner::SetUpProject::Existing(project.project()),
-            },
+    let how = match connect.how {
+        v1::How::ForgejoAdmin(admin) => {
+            let first = admin.into_parts().first.map(|first| {
+                let first = first.into_parts();
+                owner::FirstAsk {
+                    org: first.org,
+                    repository: first.repository,
+                    label: first.label,
+                    project: match first.project {
+                        v1::SetUpProject::New(project) => owner::SetUpProject::New(project.into_parts().name),
+                        v1::SetUpProject::Existing(project) => owner::SetUpProject::Existing(project.project()),
+                    },
+                }
+            });
+            owner::How::ForgejoAdmin { first }
         }
-    });
+        v1::How::GithubApp(app) => {
+            owner::How::GitHubApp { app: std::num::NonZeroU64::new(app.id()).expect("decoded nonzero App") }
+        }
+        v1::How::GithubManifest(manifest) => owner::How::GitHubManifest { back: manifest.into_parts().back },
+    };
     let reply_to = transport.reply_to(Reply::Keyed {
         client: who,
         attempt,
@@ -271,10 +340,7 @@ fn admin_request(
         key,
         digest: skein_lib::sha256::digest(&ask.bytes),
         carried,
-        request: engine::Application::Forge(owner::Ask::Connect {
-            forge: connect.forge,
-            how: owner::How::ForgejoAdmin { first },
-        }),
+        request: engine::Application::Forge(owner::Ask::Connect { forge: connect.forge, how }),
     })
 }
 /// Open only the forge's whole, project-scoped change subject (client/forge.md, 9.2).
@@ -542,22 +608,59 @@ fn answered(route: &Reply, body: Option<temper_engine_domain::ApplicationAnswer>
                     answer: Some(jig_client::Answered::Family(jig_client::Family {
                         family: connector,
                         version: temper_client_protocol_wire::CLIENT_VERSION,
-                        bytes: temper_service::family::answer(
-                            body,
-                            &forge::wire_limits(&crate::app::limits().forge).expect("wire bounds"),
-                            &jig_client_protocol_link::Limits::new(
-                                crate::app::limits().client.domain,
-                                crate::app::limits().client.exchanges,
-                            )
-                            .expect("link bounds")
-                            .wire,
-                        )
-                        .expect("whole forge answer"),
+                        bytes: answer(body),
                     })),
                 },
             },
         },
     )
+}
+
+fn answer(body: Option<engine::ApplicationAnswer>) -> Box<[u8]> {
+    use temper_client_protocol_wire::{self as wire, v1 as w};
+    let limits = forge::wire_limits(&crate::app::limits().forge).expect("wire bounds");
+    let outcome = match body {
+        Some(engine::ApplicationAnswer::MakeForge(answer)) => match answer {
+            owner::MakeAnswer::Made { forge } => {
+                w::Outcome::Made(w::MadeForge::new(&limits, w::MadeForgeParts { forge }).expect("made forge"))
+            }
+            owner::MakeAnswer::Refused(owner::MakeRefusal::Full) => w::Outcome::Full,
+            owner::MakeAnswer::Refused(owner::MakeRefusal::NotOffered) => w::Outcome::NotOffered,
+        },
+        Some(engine::ApplicationAnswer::RemoveForge(answer)) => match answer {
+            owner::RemoveAnswer::Removing => w::Outcome::Removing,
+            owner::RemoveAnswer::Refused(owner::RemoveRefusal::NoSuchForge) => w::Outcome::ConnectRefused(
+                w::ConnectRefused::new(&limits, w::ConnectRefusedParts { why: w::ForgeRefusal::NoSuchForge })
+                    .expect("removal refusal"),
+            ),
+            owner::RemoveAnswer::Refused(owner::RemoveRefusal::Playground) => w::Outcome::Playground,
+        },
+        other @ (Some(
+            engine::ApplicationAnswer::Adopt(_)
+            | engine::ApplicationAnswer::SetUp(_)
+            | engine::ApplicationAnswer::StartPlayground(_)
+            | engine::ApplicationAnswer::Connect(_)
+            | engine::ApplicationAnswer::Install(_)
+            | engine::ApplicationAnswer::Accept(_)
+            | engine::ApplicationAnswer::Reachable(_)
+            | engine::ApplicationAnswer::EndPlayground(_)
+            | engine::ApplicationAnswer::Returning,
+        )
+        | None) => {
+            return temper_service::family::answer(
+                other,
+                &limits,
+                &jig_client_protocol_link::Limits::new(
+                    crate::app::limits().client.domain,
+                    crate::app::limits().client.exchanges,
+                )
+                .expect("link bounds")
+                .wire,
+            )
+            .expect("whole forge answer");
+        }
+    };
+    wire::answer(&w::Answer::new(&limits, w::AnswerParts { outcome }).expect("whole forge answer"))
 }
 
 fn set_up_request(
@@ -772,6 +875,94 @@ mod watch_tests {
             request,
             engine::Application::Forge(owner::Ask::Adopt(super::adoption(&adoption, crate::fixtures::FORGE_HOST)))
         );
+    }
+
+    #[test]
+    fn every_make_choice_and_removal_reaches_the_deployments_engine() {
+        for (choice, expected) in [
+            (v1::ForgeChoice::Owned, owner::ForgeChoice::Owned),
+            (v1::ForgeChoice::Github, owner::ForgeChoice::GitHub),
+            (
+                v1::ForgeChoice::Forgejo(
+                    v1::ForgejoChoice::new(
+                        &v1::CEILINGS,
+                        v1::ForgejoChoiceParts {
+                            api: b"forge.test:443".as_slice().into(),
+                            git: b"https://forge.test".as_slice().into(),
+                            web: None,
+                        },
+                    )
+                    .expect("choice"),
+                ),
+                owner::ForgeChoice::Forgejo {
+                    api: b"forge.test:443".as_slice().into(),
+                    git: b"https://forge.test".as_slice().into(),
+                    web: None,
+                },
+            ),
+        ] {
+            let ask =
+                v1::Request::MakeForge(v1::MakeForge::new(&v1::CEILINGS, v1::MakeForgeParts { choice }).expect("make"));
+            assert_deployment_request(ask, owner::Ask::MakeForge { choice: expected });
+        }
+        assert_deployment_request(
+            v1::Request::RemoveForge(
+                v1::RemoveForge::new(&v1::CEILINGS, v1::RemoveForgeParts { forge: 7 }).expect("remove"),
+            ),
+            owner::Ask::RemoveForge { forge: 7 },
+        );
+    }
+
+    fn assert_deployment_request(ask: v1::Request, expected: owner::Ask) {
+        let request = v1::Requesting::new(&v1::CEILINGS, v1::RequestingParts { request: ask }).expect("request");
+        let family =
+            jig_client::Family { family: w::FORGE, version: w::CLIENT_VERSION, bytes: w::requesting(&request) };
+        let event = super::request(&mut transport(), CLIENT, NATIVE, [6; 16], c::Scope::Deployment, &family, None);
+        let engine::Event::Party(PartyInput::Application { scope, request, key, digest, carried, .. }) = event else {
+            panic!("deployment application")
+        };
+        assert_eq!(scope, jig_domain_people::ApplicationScope::Deployment);
+        assert_eq!(request, engine::Application::Forge(expected));
+        assert_eq!(key, [6; 16]);
+        assert_eq!(digest, skein_lib::sha256::digest(&family.bytes));
+        assert!(carried.is_none());
+    }
+
+    #[test]
+    fn every_make_and_remove_answer_keeps_its_wire_meaning() {
+        for (body, expected) in [
+            (
+                engine::ApplicationAnswer::MakeForge(owner::MakeAnswer::Made { forge: 7 }),
+                v1::Outcome::Made(v1::MadeForge::new(&v1::CEILINGS, v1::MadeForgeParts { forge: 7 }).expect("made")),
+            ),
+            (
+                engine::ApplicationAnswer::MakeForge(owner::MakeAnswer::Refused(owner::MakeRefusal::Full)),
+                v1::Outcome::Full,
+            ),
+            (
+                engine::ApplicationAnswer::MakeForge(owner::MakeAnswer::Refused(owner::MakeRefusal::NotOffered)),
+                v1::Outcome::NotOffered,
+            ),
+            (engine::ApplicationAnswer::RemoveForge(owner::RemoveAnswer::Removing), v1::Outcome::Removing),
+            (
+                engine::ApplicationAnswer::RemoveForge(owner::RemoveAnswer::Refused(owner::RemoveRefusal::NoSuchForge)),
+                v1::Outcome::ConnectRefused(
+                    v1::ConnectRefused::new(
+                        &v1::CEILINGS,
+                        v1::ConnectRefusedParts { why: v1::ForgeRefusal::NoSuchForge },
+                    )
+                    .expect("refusal"),
+                ),
+            ),
+            (
+                engine::ApplicationAnswer::RemoveForge(owner::RemoveAnswer::Refused(owner::RemoveRefusal::Playground)),
+                v1::Outcome::Playground,
+            ),
+        ] {
+            let bytes = super::answer(Some(body));
+            let answer = v1::Answer::decode(&v1::CEILINGS, &mut skein_lib::Reader::new(&bytes)).expect("wire answer");
+            assert_eq!(answer.into_parts().outcome, expected);
+        }
     }
 
     #[test]

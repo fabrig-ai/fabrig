@@ -800,7 +800,7 @@ fn delete_is_offered_only_when_the_engine_offers_it() {
     }
 }
 #[test]
-fn delete_stays_disabled_until_the_typed_name_matches_exactly() {
+fn delete_stays_disabled_until_the_confirmation_name_matches_exactly() {
     let mut domain = native_owner(delete_source());
     assert!(press_delete(&mut domain).is_empty());
     for name in [b"".as_slice(), b"Tall", b"tally", b"Tally ", b"Tally"] {

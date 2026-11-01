@@ -12,7 +12,8 @@ fn reconcile_hands_the_forge_the_bound_webhook_address_after_a_port_zero_bind() 
         let mut config = local_config(true, fake);
         let mut requested = bound;
         requested.set_port(0);
-        config.webhooks = Some(skein_forge_connection::hooks::Webhooks { listener: skein_io::Addr::Ip(requested) });
+        config.engine.webhooks =
+            Some(skein_forge_connection::hooks::Webhooks { listener: skein_io::Addr::Ip(requested) });
         let mut store = local_store(true);
         kept_record(&mut store, 1, Item::WebhookSecret, b"test-hook");
         let mut service = local_service(config, store);

@@ -3,7 +3,13 @@ id = "cl-world-pg"
 part = "pg"
 kind = "feature"
 needs = ["cl-world-forges", "fe-playground-forge", "fe-playground-root", "pd-core-release"]
-files = ["temper/tests/client/**"]
+files = [
+  "temper/tests/client/**",
+  "temper/crates/temper-engine-domain/src/route/playground.rs",
+  "temper/crates/temper-engine-domain/src/tests/playground.rs",
+  "temper/crates/temper-client-domain/src/forge/demo.rs",
+  "temper/crates/temper-client-domain/src/tests/demo.rs",
+]
 effort = "high"
 minutes = 120
 +++
@@ -39,8 +45,9 @@ removed; `start_playground`, `end_playground` and `Read::playground` reach the e
 
 ## Owns and may change
 
-Owned: `temper/tests/client/`. Not yours: the engine world library (as `cl-world-forges`
-says: a seam you lack is written over its public API in `front.rs`, or a question).
+Owned: `temper/tests/client/`, and the two fixes in this spec's Answers, in the files they
+name. Not yours: the engine world library (as `cl-world-forges` says: a seam you lack is
+written over its public API in `front.rs`, or a question).
 
 Options, pre-approved:
 
@@ -54,8 +61,8 @@ Options, pre-approved:
    world's playground read as the Goal says; the start's fake forge stand.
 2. **Cases** (`tests/suite/demo_start.rs`, renamed `playground.rs` if you like):
    - `try_the_playground_starts_it_on_the_engine_in_its_project` (the row `Running`, the
-     fake forge's record, the project made, the scripted account serving that project
-     alone, `playground/widget` adopted, the chats page in the project);
+     fake forge's record, the project made, the scripted account's uses exactly the
+     starting person and that project, `playground/widget` adopted, the chats page in the project);
    - `set_up_temper_resets_the_playground_and_opens_the_forge_step` (the banner's link;
      "Leaving the playground…" until `reset`; then: no `Playground` row, no forge record,
      the project gone, the scripted account gone; the welcome at Forge reads Empty and
@@ -76,3 +83,54 @@ Options, pre-approved:
 ## Report
 
 - Each `demo_start` and `qa_all` case rewritten or removed, and why.
+
+## Answers
+
+2026-11-01. Q: assign the funding and failed-start fixes and resume this branch, or retire
+the two preserved `demo_start` cases?
+
+A: Keep both cases and fix both here; this task's files widen to the four named (its
+acceptance cannot hold without them). Merge the trunk into this branch first, then:
+
+- **Funding: temper's, not jig's.** `coverage.rs` is right and stays: a person's chat is
+  funded by their pool, so its payer is the person (jig's `domain/accounts.md`, 4.1), and a
+  project in an account's uses covers that project's period-funded work alone. J8/T6's uses
+  were wrong, and are amended: the scripted account is made with
+  `Some([Use::Party(starting person), Use::Project(project)])`. In
+  `route/playground.rs`, `begin` keeps the sign-in's person for every start, not only while
+  the row has no project, so that a retry's `AddKey` can name them, and `prepare` sends those
+  uses. Update `tests/playground.rs`'s expected act and stored account. The world never
+  broadens the uses itself. `try_the_playground_...` asserts these uses exactly, and
+  `enter_waits_for_adoption_then_the_chat_can_delegate` stays as it is. Should that chat stop
+  on anything but its account, that is a new question.
+- **Failed start: the client's.** In `forge/demo.rs`'s start answer, the selection moves
+  from `Starting` to `Reading` on `StartAnswer::Failed(_)` as on `Running`, so the following
+  read selects the project the failed start made and `chats.rs::demo_start` draws the alert
+  and Try again. Add `a_failed_start_selects_the_project_it_made` to `src/tests/demo.rs`.
+  `failed_start_survives_navigation_and_try_again_uses_a_new_key` stays as it is. A start
+  that failed before making a project has no project to select: leave it, under `## Left`.
+- **Left:** `names.rs::client_crates_carry_the_client_prefix` and the seven `qa_all` cases in
+  your `## Left` are outside this task: leave them there, unweakened. This task is accepted
+  with the `demo_start` cases and its rewritten `qa_all` cases passing.
+- Add to your checks: `heavy cargo nextest run -p temper-engine-domain --lib` and `-p
+  temper-client-domain --lib`, with clippy `--tests` on both.
+
+2026-11-01. Q: the preserved chat case now stops on `TaskRunWait::Credential`: whose is it?
+
+A: This task's, in the world: the fake setup host never grants the playground forge's git
+identity. A run's workspace names each repository's git identity as an application
+credential (`temper-engine-domain/src/route/now.rs::workspace`); a record forge's identity is
+its own number (`temper-engine-domain-forge/src/domain.rs::git_identity`), and jig waits on
+`Credential` until that number is granted. serve grants a forge's identity when its setup
+keeps the git token (`temper-service/src/setup/lifecycle.rs`, `root::Event::Credential`); the
+world's stand does serve's part, as `fixtures.rs::adopt_change_repository` already does.
+
+- In `front/playground.rs::connect_playground`, before the `Connected` event, send
+  `engine::Event::Credential { number: u32::from(row.forge), generation: 1, valid:
+  Duration::from_secs(3600) }`. Every connect grants it, so a playground started again after
+  a reset, on a new forge number, is granted too.
+- `enter_waits_for_adoption_then_the_chat_can_delegate` stays as it is. No account, use or
+  engine change. Should the chat still stop after this grant, stop and report what it then
+  waits on, with the task document's `run_wait`.
+- Left, unchanged: `forge_route/tests.rs::writable_repositories_exclude_an_ended_forge`
+  (outside the task) and the cases already left.

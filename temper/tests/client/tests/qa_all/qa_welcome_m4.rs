@@ -3,7 +3,6 @@ use jig_client_world::harness::App;
 use skein_lib::Queue;
 use skein_ui::{Role, Tree};
 use temper_client_domain::{Address, Step};
-use temper_client_protocol_wire::v1 as wire;
 use temper_client_world::{
     app::{Root, Temper, View},
     fixtures,
@@ -49,7 +48,7 @@ fn failed_setup_keeps_steps_and_names_the_failed_one() {
         (forge::Connection::SettingUp { step: None }, "Set up", SETUP_STEPS),
     ];
     for (state, label, failed) in cases {
-        let (mut front, mut root) = harness::forge_fixture(fixtures::SEED);
+        let (mut front, mut root) = harness::seeded_forge_fixture(fixtures::SEED);
         connection(&mut front, &mut root, state);
         connection(
             &mut front,
@@ -108,22 +107,8 @@ fn failed_setup_keeps_steps_and_names_the_failed_one() {
 }
 
 #[test]
-fn unavailable_demo_read_does_not_retire_a_project() {
-    let (mut front, mut root) = harness::demo_fixture(fixtures::SEED, &wire::PlaygroundState::Running);
-    front.demo = None;
-    harness::reopen(&mut front, &mut root, fixtures::chats_page(), false);
-    let view = page(&mut front, &mut root, fixtures::chats_page());
-    let tree = Temper::tree(&view);
-    assert!(
-        tree.nodes().iter().any(|node| node.role == Role::Button && node.name.as_deref() == Some(b"Project 1")),
-        "an absent demo answer leaves the seeded project available: {:?}",
-        words(tree)
-    );
-}
-
-#[test]
 fn running_demo_project_is_named_playground() {
-    let (mut front, mut root) = harness::demo_fixture(fixtures::SEED, &wire::PlaygroundState::Running);
+    let (mut front, mut root) = harness::running_playground_fixture(fixtures::SEED);
     let view = page(&mut front, &mut root, fixtures::chats_page());
     let tree = Temper::tree(&view);
     assert!(
