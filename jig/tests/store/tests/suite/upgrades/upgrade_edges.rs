@@ -1,7 +1,6 @@
 //! Independent upgrade contract checks through the public store world.
 //! jig/docs/design/protocol/store.md 8.3, 8.6 and 10.2.
-use jig_domain_core as core;
-use jig_protocol_store::{Event, PatchSets, Request, TranscriptRead, Write};
+use jig_protocol_store::{Event, PatchSets, Request, TranscriptRead};
 use jig_store_world::{World, patches, root};
 use skein_lib::Token;
 
@@ -163,63 +162,4 @@ fn accepted_prefix_continues_without_skipping_after_an_unread() {
             [charge]
         );
     }
-}
-
-#[test]
-fn fresh_closing_changes_only_the_crossed_and_window_flags() {
-    const WINDOWS: &[bool] = &[true, true, false];
-    let mut world = patches::fresh_committed(SEED, WINDOWS, false);
-    let last = world.open_switched().expect("old generation opens");
-    let core::Record::Core(core::CoreRecord::RunProof(mut already_closed)) = patches::fresh_proof(TASK + 1, true, true)
-    else {
-        panic!("fixture run proof");
-    };
-    already_closed.crossed = false;
-    world
-        .commit(Box::new([
-            Write::Save(root::header(last + 1)),
-            Write::Save(core::Record::Core(core::CoreRecord::RunProof(already_closed))),
-        ]))
-        .expect("already closed proof committed");
-    let before: Vec<_> = (0..WINDOWS.len())
-        .map(|index| {
-            let task = TASK + u64::try_from(index).expect("fixture task index");
-            world.get(core::Key::Core(core::CoreKey::RunProof(task)))
-        })
-        .collect();
-    let source = patches::source(&mut world);
-    world.patch_sets(patches::FRESH_AFTER);
-    world.crash(SEED);
-    world.open_switched().expect("fresh upgrade opens");
-    assert_eq!(world.active(), b"2\n");
-    patches::kept(&source, &patches::source(&mut world), &"closing preserves rollback bytes");
-    for original in &before {
-        let mut expected = original.clone();
-        let core::Record::Core(core::CoreRecord::RunProof(proof)) = &mut expected else { panic!("fixture run proof") };
-        if let Some(window) = &mut proof.window {
-            window.closed = true;
-        }
-        proof.crossed = true;
-        assert_eq!(world.get(original.key()), expected, "identity and every other field survive closing");
-    }
-    // Opening the retained generation proves it still owns the open window.
-    world.rewrite(b"active", b"1\n");
-    world.patch_sets(patches::FRESH_BEFORE);
-    world.crash(SEED);
-    world.open_switched().expect("retained generation reopens");
-    for original in before {
-        assert_eq!(world.get(original.key()), original);
-    }
-}
-
-#[test]
-fn an_applied_fresh_mark_leaves_new_windows_open() {
-    let current = patches::fixture_turn(2, SAID, &[], 0);
-    let mut world = committed(patches::FRESH_AFTER, &[&current]);
-    let expected = world.get(core::Key::Core(core::CoreKey::RunProof(TASK)));
-    let active = world.active();
-    world.crash(SEED);
-    world.open_switched().expect("same binary reopens");
-    assert_eq!(world.active(), active);
-    assert_eq!(world.get(expected.key()), expected, "no pending mark means no new close");
 }

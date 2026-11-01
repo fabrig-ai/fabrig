@@ -364,7 +364,6 @@ Each pays back as the review's appendix says. Grouped by area.
   - the test family's page composition must be re-named on every sync, because `Named` can arrive before the working set;
   - the HTTP engine and temper keep their own composition loops;
   - a host-world trace assertion matches `Debug` text;
-  - qa-jig's `qa_settings_proposals` hard-coded `MEMBER = 2` until the repair of `main`: hard-coded person numbers, run only by the ungated qa tier;
   - `jig-client-test-records` has `lib.test = false`, and `jig-test-profile` has no tests;
   - an ops incident-panel test was deleted with the plain chip renderer (possible coverage loss).
 - **Ops:**

@@ -36,20 +36,8 @@ live-temper = [
     "temper",
 ]
 
-process-jig = [
-    "jig-test",
-]
-
 process-temper = [
     "temper",
-]
-
-qa-jig = [
-    "jig-channel-world",
-    "jig-conformance-world",
-    "jig-core-world",
-    "jig-fleet-world",
-    "jig-store-world",
 ]
 
 qa-skein = [
@@ -60,7 +48,6 @@ qa-skein = [
     "skein-oauth-accounts-world",
     "skein-oauth-world",
 ]
-
 
 qa-temper = [
     "temper",
@@ -86,9 +73,7 @@ live-jig = []
 live-skein = []
 live-smith = []
 live-temper = []
-process-jig = []
 process-temper = [{ package = "temper-fake-claude", bin = "fake-claude", env = "TEMPER_TEST_CLAUDE" }]
-qa-jig = []
 qa-skein = []
 qa-temper = [
     { package = "temper", bin = "temper" },

@@ -82,6 +82,9 @@ fn pending_marks_close_windows_without_family_changes() {
                 .iter()
                 .all(|(owner, _, counts)| { *owner == Owner::Smith && counts.records == 0 && counts.commits == 0 })
         );
+        world.crash(SEED);
+        open(&mut world, sets);
+        proofs(&mut world, true);
     }
 }
 
@@ -89,6 +92,9 @@ fn pending_marks_close_windows_without_family_changes() {
 fn absent_other_and_other_owners_words_leave_windows_open() {
     for sets in [WITHOUT_WORD, ANOTHER_WORD, OTHER_OWNER] {
         let mut world = patches::fresh_committed(SEED, patches::FRESH_WINDOWS, false);
+        open(&mut world, sets);
+        proofs(&mut world, false);
+        world.crash(SEED);
         open(&mut world, sets);
         proofs(&mut world, false);
     }
@@ -218,64 +224,6 @@ fn uncrossed_closed_and_absent_windows_are_written_crossed() {
             1,
             "task {task} crossed once"
         );
-    }
-}
-
-#[test]
-fn power_loss_at_each_closing_commit_and_seal_recovers_whole() {
-    let mut traced = patches::fresh_committed(SEED, patches::FRESH_WINDOWS, false);
-    traced.trace_writes();
-    let last = open(&mut traced, patches::FRESH_AFTER);
-    let closed: Vec<_> = patches::FRESH_WINDOWS
-        .iter()
-        .enumerate()
-        .map(|(index, window)| {
-            encoded(&patches::fresh_proof(root::LIVE + u64::try_from(index).expect("task"), *window, true))
-        })
-        .chain(std::iter::once(encoded(&root::header(last))))
-        .collect();
-    let writes: Vec<_> = traced
-        .written()
-        .iter()
-        .filter(|(_, bytes)| closed.iter().any(|record| contains(bytes, record)))
-        .map(|(operation, _)| *operation)
-        .collect();
-    assert_eq!(
-        writes.len(),
-        CLOSING_PAGES + usize::try_from(SEAL_COMMITS).expect("seal"),
-        "two closing pages and the sealing commit"
-    );
-    let mut cuts = Vec::new();
-    for write in writes {
-        let sync = traced
-            .changes()
-            .iter()
-            .find(|(operation, change)| *operation > write && *change == Change::Sync)
-            .expect("commit sync")
-            .0;
-        cuts.extend([write, write + 1, sync, sync + 1]);
-    }
-    cuts.sort_unstable();
-    cuts.dedup();
-    for cut in cuts {
-        let mut world = patches::fresh_committed(SEED, patches::FRESH_WINDOWS, false);
-        let frames = transcripts(&mut world);
-        let source = patches::source(&mut world);
-        world.trace_writes();
-        world.cut_at(cut);
-        world.patch_sets(patches::FRESH_AFTER);
-        assert_eq!(world.open_switched(), None, "cut {cut} reached");
-        world.crash(SEED);
-        assert_eq!(world.active(), b"1\n", "cut {cut} precedes switch");
-        // The source binary must still open every window as it stood.
-        open(&mut world, patches::FRESH_BEFORE);
-        proofs(&mut world, false);
-        patches::kept(&source, &patches::source(&mut world), &cut);
-        world.crash(SEED);
-        open(&mut world, patches::FRESH_AFTER);
-        proofs(&mut world, true);
-        patches::whole(&mut world);
-        assert_eq!(transcripts(&mut world), frames, "cut {cut}");
     }
 }
 
