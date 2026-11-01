@@ -19,6 +19,10 @@ files = [
   "temper/crates/temper-client-view/src/tests/frame.rs",
   "temper/crates/temper-client-view/src/tests/demo.rs",
   "temper/crates/temper-client-shell-terminal/src/tests/golden/*.txt",
+  "skein/crates/skein-ui-text/src/render.rs",
+  "skein/crates/skein-ui-text/src/tests.rs",
+  "skein/crates/skein-ui-text/src/tests/fixtures.rs",
+  "skein/crates/skein-ui-text/src/tests/golden/*.txt",
 ]
 effort = "high"
 minutes = 60
@@ -101,6 +105,9 @@ Neighbour files, edits allowed:
   task's, each named in the report.
 - `temper/tools/gallery/` samples that draw the strip: the forced or
   plainly wrong expectation only.
+- Any golden or expected print elsewhere in `skein/**` or `temper/**`
+  that the inline link numbering (Answers) changes: the numbers only,
+  each named in the report.
 
 Pre-approved:
 
@@ -201,3 +208,23 @@ Pre-approved:
 fab's sections; `## Interfaces`: the acts, `EndFailure`, `EndAnswer`,
 `end_ask`, `end_answer`, `demo_leaving`, `demo_end_failure`; every test
 elsewhere whose expectation changed, by file and name.
+
+## Answers
+
+2026-11-01, from this task's question (the terminal prints the banner's
+"set up temper" with no number, so it cannot be pressed): extend
+skein-ui-text, first, in a commit of its own; the banner stays one
+paragraph. `skein/docs/design/ui-text.md`, section 6, already numbers
+every bound, enabled link "from 1 in preorder", wherever it sits; a
+paragraph flattening its links departs from it, and the paragraph's row
+in section 5's table now says so. In `render.rs`, `line` and `content`
+print a bound link descendant of a paragraph (and of any role printed
+by `line`) in place as `[n] TEXT`, numbered through `number` in
+preorder, a disabled or unbound one `[-] TEXT`, an external link of
+Markdown's as today (`TEXT <URL>`, no number); a control's own content
+is unchanged. A test in `skein-ui-text`'s `tests.rs`,
+`a_link_inside_a_paragraph_is_numbered_in_place` (a paragraph "Use the
+wizard to " then a bound link "set up temper", and a button after it:
+the line `Use the wizard to [1] set up temper`, the button `[2]`, and
+the print's `numbers` naming the link's node first), then this task's own work; the
+terminal's goldens then show the banner's link numbered.
