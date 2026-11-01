@@ -121,7 +121,6 @@ pub struct Domain {
     document_forges: Map<u16, crate::Configured>,
     pub(crate) records: Map<u16, crate::ForgeRecord>,
     pub(crate) next_number: u16,
-    #[expect(dead_code, reason = "fe-make consumes the retained machine templates")]
     pub(crate) machine: crate::Machine,
     pub(crate) under_box: bool,
     pub(crate) demo: Option<crate::DemoConfig>,
@@ -212,7 +211,78 @@ impl Domain {
                 }
             }
         }
+        self.first.remove(&number);
+        if let Some(first) = &record.first {
+            self.first.insert(number, first.clone()).expect("forge records bound first intents");
+        }
         self.records.insert(number, record).expect("forge record admitted within limits");
+    }
+
+    /// Erase the project's repository rows; task rows belong to jig's earlier erasure.
+    pub(crate) fn erase_project_rows(&mut self, project: u32, out: &mut Queue<Request>) {
+        let mut repositories = List::with_capacity(self.repositories.len());
+        for (provider, row) in &self.repositories {
+            if row.project == project {
+                repositories.push(*provider).expect("bounded project repositories");
+            }
+        }
+        let mut ci = List::with_capacity(self.ci.len());
+        for (key, _) in &self.ci {
+            if repositories.as_slice().contains(&key.0) {
+                ci.push(*key).expect("bounded project CI");
+            }
+        }
+        for (repository, head) in ci.into_boxed() {
+            self.ci.remove(&(repository, head));
+            out.push(Request::Erase { key: Key::Ci { repository, head } });
+        }
+        let mut heads = List::with_capacity(self.heads.len());
+        for (name, _) in &self.heads {
+            if repositories
+                .as_slice()
+                .contains(&skein_forge::api::Repository { forge: name.forge, repository: name.repository })
+            {
+                heads.push(name.clone()).expect("bounded project heads");
+            }
+        }
+        for name in heads.into_boxed() {
+            self.heads.remove(&name);
+            out.push(Request::Erase { key: Key::BranchHead(name) });
+        }
+        let mut pulls = List::with_capacity(self.pulls.len());
+        for (name, _) in &self.pulls {
+            if repositories
+                .as_slice()
+                .contains(&skein_forge::api::Repository { forge: name.forge, repository: name.repository })
+            {
+                pulls.push(name.clone()).expect("bounded project pulls");
+            }
+        }
+        for name in pulls.into_boxed() {
+            self.pulls.remove(&name);
+            self.pull_mergeable.remove(&name);
+            out.push(Request::Erase { key: Key::PullState(name) });
+        }
+        for repository in repositories.into_boxed() {
+            self.repositories.remove(&repository);
+            out.push(Request::Erase { key: Key::Repository(repository) });
+        }
+        let mut receipts = List::with_capacity(self.landing.receipts.len());
+        for (key, _) in &self.landing.receipts {
+            if key.project == project {
+                receipts.push(key.clone()).expect("bounded project receipts");
+            }
+        }
+        for key in receipts.into_boxed() {
+            self.landing.receipts.remove(&key);
+            out.push(Request::Erase { key: Key::Receipt(key) });
+        }
+        self.landing.projects.remove(&project);
+        self.judges.projects.remove(&project);
+    }
+
+    pub(crate) fn document_configures_forges(&self) -> bool {
+        !self.document_forges.is_empty()
     }
 
     pub(crate) fn git_identity(&self, forge: u16) -> Option<u32> {
@@ -229,7 +299,7 @@ impl Domain {
             Some(record) => record.state == crate::ForgeState::Removing,
             None => {
                 forge > 0
-                    && forge < self.next_number
+                    && (self.next_number == 0 || forge < self.next_number)
                     && !self.document_forges.contains_key(&forge)
                     && !self.identities.contains_key(&forge)
             }
@@ -269,20 +339,30 @@ impl Domain {
         }
     }
     /// Create's service tell; a forge without a setup intent ignores it.
-    pub fn first_made(&mut self, forge: u16, id: u64) -> bool {
+    pub fn first_made(&mut self, forge: u16, id: u64, out: &mut Queue<Request>) -> bool {
         if let Some(first) = self.first.get_mut(&forge) {
             first.state = crate::FirstState::Made { id };
+            self.keep_first(forge, out);
             return true;
         }
         false
     }
-    /// Create's stopped step is volatile, like its setup intent.
-    pub fn first_failed(&mut self, forge: u16, step: crate::CreateStep) -> bool {
+    /// Keep Create's stopped step with the first repository's intent.
+    pub fn first_failed(&mut self, forge: u16, step: crate::CreateStep, out: &mut Queue<Request>) -> bool {
         if let Some(first) = self.first.get_mut(&forge) {
             first.state = crate::FirstState::Failed { step };
+            self.keep_first(forge, out);
             return true;
         }
         false
+    }
+    pub(crate) fn keep_first(&mut self, forge: u16, out: &mut Queue<Request>) {
+        if let Some(mut record) = self.records.get(&forge).cloned() {
+            record.first = self.first.get(&forge).cloned();
+            crate::forges::keep_record(self, record, out);
+        } else {
+            out.push(Request::MarkedForges);
+        }
     }
     #[must_use]
     pub fn forges(&self) -> crate::Forges {
@@ -588,6 +668,7 @@ impl Domain {
         for (number, forge) in &document_forges {
             configured.insert(*number, forge.clone()).expect("document fits configured union");
         }
+        let forge_capacity = configured.capacity();
         Ok(Domain {
             configured,
             document_forges,
@@ -602,10 +683,10 @@ impl Domain {
             demo_acts: Map::with_capacity(crate::demo_act_bound(l).expect("validated act bound")),
             demo_pending: Map::with_capacity(l.applications),
             demo_answers: Map::with_capacity(l.applications),
-            connections: Map::with_capacity(l.client.repositories),
-            first: Map::with_capacity(l.client.repositories),
-            ended: Map::with_capacity(l.client.repositories),
-            apps: Map::with_capacity(l.client.repositories),
+            connections: Map::with_capacity(forge_capacity),
+            first: Map::with_capacity(forge_capacity),
+            ended: Map::with_capacity(forge_capacity),
+            apps: Map::with_capacity(forge_capacity),
             setup_answers: Map::with_capacity(l.applications),
             setup_pending: Map::with_capacity(l.applications),
             connect: crate::connect::State::new(l.applications),
@@ -1175,14 +1256,10 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
             }
         }
         Event::FirstMade { forge, id } => {
-            if d.first_made(forge, id) {
-                out.push(Request::MarkedForges);
-            }
+            d.first_made(forge, id, out);
         }
         Event::FirstFailed { forge, step } => {
-            if d.first_failed(forge, step) {
-                out.push(Request::MarkedForges);
-            }
+            d.first_failed(forge, step, out);
         }
         Event::Connection { forge, state } => {
             if d.forge_ended(forge) {
@@ -1249,19 +1326,23 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
             | crate::Ask::Reachable { .. }) => {
                 crate::connect::start(d, request, token, ask, role, carried, out);
             }
-            ask @ (crate::Ask::MakeForge { .. } | crate::Ask::RemoveForge { .. } | crate::Ask::EndPlayground) => {
+            crate::Ask::MakeForge { choice } => {
+                if let Some(value) = carried {
+                    out.push(Request::CarriedUnused { number: value.number });
+                }
+                crate::forges::make(d, env, request, token, choice, out);
+            }
+            ask @ (crate::Ask::RemoveForge { .. } | crate::Ask::EndPlayground) => {
                 if let Some(value) = carried {
                     out.push(Request::CarriedUnused { number: value.number });
                 }
                 let answer = match ask {
-                    crate::Ask::MakeForge { .. } => {
-                        crate::Answered::MakeForge(crate::MakeAnswer::Refused(crate::MakeRefusal::NotOffered))
-                    }
                     crate::Ask::RemoveForge { .. } => {
                         crate::Answered::RemoveForge(crate::RemoveAnswer::Refused(crate::RemoveRefusal::NoSuchForge))
                     }
                     crate::Ask::EndPlayground => crate::Answered::EndPlayground(crate::EndAnswer::NotOffered),
-                    crate::Ask::Adopt(_)
+                    crate::Ask::MakeForge { .. }
+                    | crate::Ask::Adopt(_)
                     | crate::Ask::SetUp { .. }
                     | crate::Ask::StartPlayground
                     | crate::Ask::Connect { .. }
@@ -1334,7 +1415,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
                                     },
                                 )
                                 .expect("configured forges bound first repositories");
-                            out.push(Request::MarkedForges);
+                            d.keep_first(forge, out);
                             out.push(Request::SetUp { forge, request, org, repository, playground });
                         }
                     }
@@ -1488,7 +1569,10 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
             child(d, env, skein_forge_client::Event::Hint { hint }, out);
         }
         Event::Client(event) => child(d, env, event, out),
-        Event::ReleaseProject { project } => emit(out, Request::ProjectReleased { project }),
+        Event::ReleaseProject { project } => {
+            release_project_watches(d, env, project, out);
+            crate::forges::release_project(d, project, out);
+        }
         Event::Restore { record } => restore(d, env, record),
         Event::Restored { clock } => restored(d, env, clock, out),
         Event::ReadAfresh => read_afresh(d, env, out),
@@ -1964,6 +2048,41 @@ fn names(d: &mut Domain, env: &Env<Limits>, task: u64, resources: Box<[Name]>, o
         emit(out, Request::Save { read_afresh: None, release: None, record: Stored::Names { task, resources } });
     }
     drain(d, env, out);
+}
+
+// Keep the surviving tasks' watch union through the child's own durable erase path.
+fn release_project_watches(d: &mut Domain, env: &Env<Limits>, project: u32, out: &mut Queue<Request>) {
+    let mut present = false;
+    for (_, row) in &d.repositories {
+        present |= row.project == project;
+    }
+    if !present {
+        return;
+    }
+    let mut watches = Map::with_capacity(env.limits.client.resources);
+    for (_, names) in &d.names {
+        for name in names {
+            let repository = skein_forge::api::Repository { forge: name.forge, repository: name.repository };
+            if let Some(row) = d.repositories.get(&repository)
+                && row.project == project
+            {
+                continue;
+            }
+            if d.forge_ended(name.forge) {
+                continue;
+            }
+            let Some(resource) = to_client(name, &env.limits) else { continue };
+            let participating = participating(d, &resource);
+            watches
+                .insert(resource.clone(), skein_forge_client::Watch { resource, participating })
+                .expect("surviving watch union fits");
+        }
+    }
+    let mut list = List::with_capacity(watches.len());
+    for (_, watch) in &watches {
+        list.push(watch.clone()).expect("bounded surviving watches");
+    }
+    child(d, env, skein_forge_client::Event::Keep { owner: Token::new(u64::MAX), watches: list.into_boxed() }, out);
 }
 
 fn unnamed(d: &mut Domain, env: &Env<Limits>, task: u64, out: &mut Queue<Request>) {
