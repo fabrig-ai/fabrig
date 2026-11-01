@@ -264,7 +264,7 @@ impl Domain {
         }
         false
     }
-    /// Create's stopped step is volatile, like its setup intent.
+    /// Create's stopped step is volatile; the intent remains in its forge record.
     pub fn first_failed(&mut self, forge: u16, step: crate::CreateStep) -> bool {
         if let Some(first) = self.first.get_mut(&forge) {
             first.state = crate::FirstState::Failed { step };
@@ -395,7 +395,32 @@ impl Domain {
             | crate::Connection::Stopped { .. } => crate::Offer::NotOffered,
         }
     }
-    fn setup_answer(
+    pub(crate) fn setup_admit(
+        &mut self,
+        env: &Env<Limits>,
+        request: Token,
+        token: Token,
+        retention: Duration,
+        out: &mut Queue<Request>,
+    ) -> bool {
+        let mut expired = None;
+        for (token, (until, _)) in &self.setup_answers {
+            if *until <= env.wall {
+                expired = Some(*token);
+                break;
+            }
+        }
+        if let Some(token) = expired {
+            self.setup_answers.remove(&token);
+        }
+        if self.setup_pending.len().saturating_add(self.setup_answers.len()) >= env.limits.applications {
+            out.push(Request::ApplicationAgain { request, why: jig_domain_people::Again::Busy });
+            return false;
+        }
+        self.setup_pending.insert(request, (token, retention)).expect("setup answer room checked");
+        true
+    }
+    pub(crate) fn setup_answer(
         &mut self,
         env: &Env<Limits>,
         request: Token,
@@ -1212,6 +1237,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         }
         Event::FirstMade { forge, id } => {
             if d.first_made(forge, id) {
+                crate::first::made(d, forge, out);
                 out.push(Request::MarkedForges);
             }
         }
@@ -1304,20 +1330,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
             crate::Ask::Adopt(adoption) => adoption::start(d, env, request, token, retention, adoption, out),
             crate::Ask::SetUp { org, repository, project, playground } => {
                 let forge = crate::asks::set_up_forge(d);
-                let mut expired = None;
-                for (token, (until, _)) in &d.setup_answers {
-                    if *until <= env.wall {
-                        expired = Some(*token);
-                        break;
-                    }
-                }
-                if let Some(token) = expired {
-                    d.setup_answers.remove(&token);
-                }
-                if d.setup_pending.len().saturating_add(d.setup_answers.len()) >= env.limits.applications {
-                    out.push(Request::ApplicationAgain { request, why: jig_domain_people::Again::Busy });
-                } else {
-                    d.setup_pending.insert(request, (token, retention)).expect("setup answer room checked");
+                if d.setup_admit(env, request, token, retention, out) {
                     let invalid_project = match &project {
                         crate::SetUpProject::New(name) => {
                             name.is_empty()
@@ -1377,19 +1390,19 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
                                     }
                                 }
                             };
-                            d.first
-                                .insert(
-                                    forge,
-                                    crate::First {
-                                        playground,
-                                        org: org.clone(),
-                                        repository: repository.clone(),
-                                        project,
-                                        state: crate::FirstState::Making,
-                                        label: Box::from(b"temper-host".as_slice()),
-                                    },
-                                )
-                                .expect("configured forges bound first repositories");
+                            crate::first::keep(
+                                d,
+                                forge,
+                                crate::First {
+                                    playground,
+                                    org: org.clone(),
+                                    repository: repository.clone(),
+                                    project,
+                                    state: crate::FirstState::Making,
+                                    label: Box::from(b"temper-host".as_slice()),
+                                },
+                                out,
+                            );
                             out.push(Request::MarkedForges);
                             out.push(Request::SetUp { forge, request, org, repository, playground });
                         }
@@ -5037,6 +5050,7 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
                     .expect("restored forge within limits");
                 d.identities.insert(row.number, row.identity.number).expect("restored forge within limits");
             }
+            crate::first::restored(d, &row);
             d.forge_records.insert(row.number, row).expect("restored forge within limits");
         }
         Stored::Forges { next } => d.next_forge = Some(next),

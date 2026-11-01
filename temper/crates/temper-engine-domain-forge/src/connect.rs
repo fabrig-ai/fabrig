@@ -342,22 +342,28 @@ fn admin(
     };
     d.connect.previous.insert(forge, (previous, failed)).expect("one previous connection per running connect");
     d.connections.insert(forge, (Connection::Connecting, None)).expect("configured forge");
-    if let crate::How::ForgejoAdmin { first } = &how {
-        d.first.remove(&forge);
-        if let Some(first) = first {
-            d.first
-                .insert(
-                    forge,
-                    crate::First {
-                        playground: false,
-                        org: first.org.clone(),
-                        repository: first.repository.clone(),
-                        project: first.project.clone(),
-                        state: crate::FirstState::Making,
-                        label: first.label.clone(),
-                    },
-                )
-                .expect("configured forges bound first repositories");
+    if let crate::How::ForgejoAdmin { first: Some(first) } = &how {
+        crate::first::keep(
+            d,
+            forge,
+            crate::First {
+                playground: false,
+                org: first.org.clone(),
+                repository: first.repository.clone(),
+                project: first.project.clone(),
+                state: crate::FirstState::Making,
+                label: first.label.clone(),
+            },
+            out,
+        );
+    }
+    if let crate::How::ForgejoAdmin { first: None } = &how {
+        let kept = match d.forge_record(forge) {
+            Some(record) => record.first.is_some(),
+            None => false,
+        };
+        if !kept {
+            d.first.remove(&forge);
         }
     }
     out.push(Request::MarkedForges);

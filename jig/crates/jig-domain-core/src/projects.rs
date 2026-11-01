@@ -12,6 +12,17 @@ pub(crate) struct Made {
 }
 
 impl Core {
+    /// Find a project under the folded-name rule (jig/docs/design/domain/people.md, 5.1).
+    #[must_use]
+    pub fn project_named(&self, name: &str) -> Option<u32> {
+        for (project, held) in &self.names {
+            if people::same_name(held, name) {
+                return Some(*project);
+            }
+        }
+        None
+    }
+
     pub(crate) fn rename(
         &mut self,
         limits: &Limits,

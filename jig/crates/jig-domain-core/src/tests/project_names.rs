@@ -97,3 +97,11 @@ fn project_policy_restore_admits_the_policy_byte_budget() {
     assert_eq!(core.authority.policy(RESTORE_PROJECT), Some(&configured.policy));
     assert_eq!(core.names.get(&RESTORE_PROJECT).unwrap().as_ref(), "Tally");
 }
+
+#[test]
+fn a_project_is_found_by_its_name_folded() {
+    let (mut core, limits, value) = restoring();
+    assert!(core.restore_policy(&limits, FIRST_PROJECT, Box::from("Default"), value));
+    assert_eq!(core.project_named("dEfAuLt"), Some(FIRST_PROJECT));
+    assert_eq!(core.project_named("Unknown"), None);
+}
