@@ -8,6 +8,7 @@ pub mod cluster;
 pub mod configuration;
 pub mod csv_repair;
 pub mod ctl;
+pub mod cut;
 pub mod fetch;
 pub mod first_repository;
 pub mod github;
