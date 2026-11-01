@@ -2991,7 +2991,11 @@ pub(crate) fn outputs(
             forge::Request::SendDemoAct(row) => super::demo::send_end_act(domain, row),
             forge::Request::DemoStart { request } => super::demo::start(domain, env, decision, request),
             // fe-kept-root routes kept acts; fe-playground-root routes the start and reset.
-            forge::Request::SendKeptAct(_) | forge::Request::PlaygroundStart { .. } | forge::Request::ResetAct(_) => {}
+            // fe-kept-root answers the core.
+            forge::Request::ProjectReleased { .. }
+            | forge::Request::SendKeptAct(_)
+            | forge::Request::PlaygroundStart { .. }
+            | forge::Request::ResetAct(_) => {}
             forge::Request::RemoveGroup { forge } => {
                 assert!(super::now(domain, Request::RemoveGroup { forge }), "remove group door");
             }

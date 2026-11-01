@@ -118,6 +118,11 @@ pub(crate) type ConnectionState = (crate::Connection, Option<crate::FailedStep>)
 #[derive(Debug)]
 pub struct Domain {
     pub(crate) configured: Map<u16, crate::Configured>,
+    document_forges: Map<u16, crate::Configured>,
+    pub(crate) records: Map<u16, crate::ForgeRecord>,
+    pub(crate) next_number: u16,
+    #[expect(dead_code, reason = "fe-make consumes the retained machine templates")]
+    pub(crate) machine: crate::Machine,
     pub(crate) under_box: bool,
     pub(crate) demo: Option<crate::DemoConfig>,
     bindings: Map<Box<[u8]>, Box<[u8]>>,
@@ -193,6 +198,50 @@ pub struct Domain {
 }
 
 impl Domain {
+    /// Keep the record and configured projection together (draft playground-reset.md, 3).
+    pub(crate) fn keep_record(&mut self, record: crate::ForgeRecord) {
+        let number = record.number;
+        match record.state {
+            crate::ForgeState::Kept => {
+                self.configured.insert(number, record.configured()).expect("configured union fits records");
+            }
+            crate::ForgeState::Removing => {
+                self.configured.remove(&number);
+                if let Some(document) = self.document_forges.get(&number) {
+                    self.configured.insert(number, document.clone()).expect("document fits configured union");
+                }
+            }
+        }
+        self.records.insert(number, record).expect("forge record admitted within limits");
+    }
+
+    pub(crate) fn git_identity(&self, forge: u16) -> Option<u32> {
+        if let Some(credential) = self.identities.get(&forge) {
+            return Some(*credential);
+        }
+        if self.records.contains_key(&forge) { Some(u32::from(forge)) } else { None }
+    }
+
+    /// Removing records, removed numbers and the ended demo cannot accept work.
+    #[must_use]
+    pub fn forge_ended(&self, forge: u16) -> bool {
+        let ended = match self.records.get(&forge) {
+            Some(record) => record.state == crate::ForgeState::Removing,
+            None => {
+                forge > 0
+                    && forge < self.next_number
+                    && !self.document_forges.contains_key(&forge)
+                    && !self.identities.contains_key(&forge)
+            }
+        };
+        ended
+            || (self.demo_state == Some(crate::DemoState::Ended)
+                && match &self.demo {
+                    Some(demo) => demo.adoption.forge == forge,
+                    None => false,
+                })
+    }
+
     /// Before the first input, size the volatile routing tables by the connection component's bounds.
     /// The product of the connection bounds must fit the installation row count.
     pub fn connection_limits(&mut self, forges: u32, installations: u32) {
@@ -204,7 +253,7 @@ impl Domain {
         self.apps = Map::with_capacity(forges);
         self.installations = Map::with_capacity(forges.checked_mul(installations).expect("connection bounds"));
     }
-    /// Public startup configuration; never restored from records.
+    /// The document's forges and kept records, with records taking precedence.
     #[must_use]
     pub fn configured(&self, forge: u16) -> Option<&crate::Configured> {
         self.configured.get(&forge)
@@ -495,12 +544,14 @@ impl Domain {
     }
     /// Construct a connector with the deployment namespace and any writers
     /// known at start; invalid limits or writer configuration are refused.
+    #[expect(clippy::too_many_lines, reason = "constructor sizes the connector tables from their entrance limits")]
     pub fn new(
         l: &Limits,
         seed: u64,
         config: skein_forge_client::Config,
         identities: &[crate::GitIdentity],
         forges: &[crate::Configured],
+        machine: crate::Machine,
         under_box: bool,
     ) -> Result<Domain, skein_forge::api::Error> {
         if !crate::valid(l)
@@ -531,8 +582,18 @@ impl Domain {
                 return Err(skein_forge::api::Error::TooLarge);
             }
         }
+        let document_forges = configured;
+        let mut configured =
+            Map::with_capacity(l.client.repositories.checked_add(l.forges).expect("validated forge capacity"));
+        for (number, forge) in &document_forges {
+            configured.insert(*number, forge.clone()).expect("document fits configured union");
+        }
         Ok(Domain {
             configured,
+            document_forges,
+            records: Map::with_capacity(l.forges),
+            next_number: 1,
+            machine,
             under_box,
             demo: None,
             playground: None,
@@ -1427,6 +1488,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
             child(d, env, skein_forge_client::Event::Hint { hint }, out);
         }
         Event::Client(event) => child(d, env, event, out),
+        Event::ReleaseProject { project } => emit(out, Request::ProjectReleased { project }),
         Event::Restore { record } => restore(d, env, record),
         Event::Restored { clock } => restored(d, env, clock, out),
         Event::ReadAfresh => read_afresh(d, env, out),
@@ -4843,7 +4905,9 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
         return;
     }
     match record {
-        Stored::Forge(_) | Stored::ForgeNumbers { .. } | Stored::Playground(_) | Stored::KeptAct(_) => {}
+        Stored::Forge(record) => d.keep_record(record),
+        Stored::ForgeNumbers { next } => d.next_number = next,
+        Stored::Playground(_) | Stored::KeptAct(_) => {}
         Stored::Landing(row) => {
             d.landing.rows.insert(row.landing.task, row).expect("restored landing within limits");
         }
@@ -4950,6 +5014,9 @@ fn restored(d: &mut Domain, env: &Env<Limits>, clock: skein_forge_client::Recove
         return;
     }
     d.restore_phase = RestorePhase::Restoring;
+    for (_, record) in &d.records {
+        emit(out, Request::Register(record.clone()));
+    }
     child(d, env, skein_forge_client::Event::Restored { clock }, out);
     retire_ended(d, env, out);
     // The client's transient watcher flags are rebuilt from the connector's
@@ -5032,7 +5099,22 @@ fn read_afresh(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
 // A permanently retired forge has no future observation to await. Its
 // historical rows stay; its live watches and local release gates do not.
 fn retire_ended(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
-    if d.demo_state != Some(crate::DemoState::Ended) {
+    let mut ended = false;
+    for number in 1..d.next_number {
+        if d.forge_ended(number) {
+            ended = true;
+            break;
+        }
+    }
+    if !ended {
+        for (number, _) in &d.records {
+            if d.forge_ended(*number) {
+                ended = true;
+                break;
+            }
+        }
+    }
+    if !ended && d.demo_state != Some(crate::DemoState::Ended) {
         return;
     }
     let mut removed = List::with_capacity(env.limits.holds);

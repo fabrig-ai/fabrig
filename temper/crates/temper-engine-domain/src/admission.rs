@@ -74,7 +74,8 @@ pub fn completes(event: &Event) -> bool {
         | Event::Restart { .. } => false,
         Event::Forge(event) => match event.as_ref() {
             forge::Event::Bind { .. } | forge::Event::Installation { .. } | forge::Event::Hint { .. } => false,
-            forge::Event::GroupRemoved { .. }
+            forge::Event::ReleaseProject { .. }
+            | forge::Event::GroupRemoved { .. }
             | forge::Event::SecretsErased { .. }
             | forge::Event::KeptActAnswered { .. }
             | forge::Event::SendKeptActs

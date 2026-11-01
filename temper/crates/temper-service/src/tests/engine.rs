@@ -30,6 +30,7 @@ fn the_forge_reports_the_earliest_procedure_or_projection_wait() {
         },
         &[temper_engine_domain_forge::GitIdentity { forge: 1, credential: 1 }],
         &[],
+        temper_engine_domain_forge::Machine::bare(),
         false,
     )
     .unwrap();

@@ -304,6 +304,7 @@ fn a_configured_forge_without_a_writer_refuses_adoption_before_any_read() {
         skein_forge_client::Config { namespace: Box::from(b"test".as_slice()), writers: Box::new([]) },
         &[GitIdentity { forge: 1, credential: 1 }],
         &[],
+        Machine::bare(),
         false,
     )
     .unwrap();
@@ -410,6 +411,7 @@ fn thirty_two_adoptions_are_answered_during_retention() {
         },
         &[GitIdentity { forge: 1, credential: 1 }],
         &[],
+        Machine::bare(),
         false,
     )
     .expect("valid connector");

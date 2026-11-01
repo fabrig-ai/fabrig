@@ -144,7 +144,7 @@ impl Domain {
             push,
             landing,
             holder,
-            credential: self.identities.get(&repository.provider.forge).copied(),
+            credential: self.git_identity(repository.provider.forge),
             bytes,
         })
     }
