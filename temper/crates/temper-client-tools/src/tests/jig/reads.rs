@@ -53,6 +53,15 @@ fn a_closed_chat_reads_its_kept_conversation() {
     }
 }
 #[test]
+fn an_inbox_answer_is_acknowledged_in_the_chat_conversation() {
+    let (mut root, call) = fixtures::read_call(fixtures::CHAT_CALL);
+    root.serve(call, fixtures::answered_question());
+    root.end(call, &fixtures::run_watch(), jig_client::contract::WatchEnd::SubjectEnded);
+    let answer = root.answer(call).expect("conversation answered");
+    assert_eq!(answer.status, 0);
+    assert!(skein_lib::bytes::find(&answer.stdout, b"10 \xc2\xb7 You answered question 2 in your inbox\n").is_some());
+}
+#[test]
 fn a_task_run_read_of_an_ended_task_prints_the_task() {
     use jig_client::contract as c;
     for json in [false, true] {

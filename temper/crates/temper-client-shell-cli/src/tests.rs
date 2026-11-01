@@ -495,6 +495,24 @@ fn sign_in_dash_reads_stdin() {
     assert_eq!(f.exit(), Some(Exit::Code(0)));
 }
 #[test]
+fn sign_in_dash_refuses_empty_stdin() {
+    for input in [b"".as_slice(), b"\n"] {
+        let mut f = fixtures::Disk::act(&[b"sign-in", b"-"]);
+        f.input = input;
+        f.drain();
+        assert_eq!(f.exit(), Some(Exit::Code(1)));
+        assert_eq!(
+            f.stderr(),
+            b"temper ctl: sign-in: stdin held no link; give the box's sign-in link on stdin: temper ctl DIR sign-in -\n"
+        );
+        assert!(f.stderr().len() <= 240);
+        assert_eq!(f.requests(), 0);
+        assert_eq!(f.stdout(), b"");
+        assert_eq!(f.stored(b"token"), None);
+        assert_eq!(f.stored(b"address"), None);
+    }
+}
+#[test]
 fn close_kept_line() {
     let mut f = fixtures::Disk::act_with(fixtures::local::kept_close());
     f.answer_kept();
@@ -689,6 +707,27 @@ fn usage_exits_1_before_directory_opens() {
         b"temper ctl: usage: temper ctl DIR GROUP VERB [ARGUMENT...]; temper ctl help GROUP VERB prints one tool\n"
     );
     assert!(f.no_directory());
+}
+#[test]
+fn a_json_argument_refusal_names_the_tool_before_opening_the_directory() {
+    for path in ["-", "/elsewhere/call.json"] {
+        let mut f = fixtures::Frame::read(&["--call", path]);
+        let call = br#"{"tool":"task activity","arguments":{"task":2,"limit":40}}"#;
+        if path == "-" {
+            f.input = call;
+        } else {
+            f.link = call;
+        }
+        f.drain();
+        assert_eq!(f.exit(), Some(Exit::Code(1)));
+        assert_eq!(
+            f.stderr(),
+            b"temper ctl: task activity: --limit COUNT takes a count from 1 to 32; temper ctl help task activity\n"
+        );
+        assert!(f.stdout().is_empty());
+        assert!(!f.opened(b"directory"));
+        assert_eq!(f.requests(), 0);
+    }
 }
 #[test]
 fn a_terminal_task_phase_names_until_ended_and_sends_nothing() {

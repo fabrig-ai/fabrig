@@ -965,6 +965,101 @@ fn documents_tree_folds_every_unshown_phase_and_keeps_held_counts() {
     assert_eq!(next.held_below, 1);
 }
 
+fn delegate_tree_row(core: &mut Core, limits: &Limits, parent: u64, number: u64) {
+    let row = new_row(core, number, tasks::Funder::Task(parent), None);
+    send_task(
+        core,
+        limits,
+        tasks::Event::Make {
+            reply_to: ReplyTo::new(Token::new(number)),
+            creator: tasks::Party::Task(parent),
+            batch: Box::new([row]),
+        },
+    );
+    assert_eq!(core.tasks.task(number).unwrap().requester, tasks::Party::Task(parent));
+}
+
+#[test]
+fn documents_tree_folds_grandchildren_under_the_nearest_shown_ancestor() {
+    let (mut core, limits) = make_tree();
+    delegate_tree_row(&mut core, &limits, 2, 5);
+    delegate_tree_row(&mut core, &limits, 5, 6);
+    send_task(&mut core, &limits, tasks::Event::Hold { task: 6, why: tasks::Hold::Budget });
+    let Document::Tree(tree) =
+        make(&core, &limits, 1, &Subject::Tree { task: 1 }, &Window { rows: 3, after: None }, Wall::EPOCH).unwrap()
+    else {
+        panic!("tree")
+    };
+    assert_eq!(tree.rows.len(), 3);
+    assert_eq!(tree.folded.len(), 1);
+    let fold = tree.folded.get(0).unwrap();
+    assert_eq!(fold.parent, 2);
+    assert_eq!(fold.phases, PhaseCounts { starting: 1, held: 1, ..PhaseCounts::ZERO });
+    assert_eq!(fold.held_below, 1);
+    assert_eq!(tree.held_below, 2);
+}
+
+fn tree_fold(tree: &Tree, parent: u64) -> FoldedCount {
+    for fold in &tree.folded {
+        if fold.parent == parent {
+            return *fold;
+        }
+    }
+    panic!("missing fold for parent {parent}")
+}
+
+#[test]
+fn documents_tree_merges_overflow_folding_parents_into_the_root() {
+    let (mut core, limits) = make_tree();
+    delegate_tree_row(&mut core, &limits, 2, 5);
+    delegate_tree_row(&mut core, &limits, 3, 6);
+    send_task(&mut core, &limits, tasks::Event::Hold { task: 5, why: tasks::Hold::Budget });
+    for rows in [1, 2, 3] {
+        let Document::Tree(tree) =
+            make(&core, &limits, 1, &Subject::Tree { task: 1 }, &Window { rows, after: None }, Wall::EPOCH).unwrap()
+        else {
+            panic!("tree")
+        };
+        assert!(tree.folded.len() <= rows);
+        if rows == 1 {
+            let root = tree_fold(&tree, 1);
+            assert_eq!(root.phases, PhaseCounts { starting: 2, held: 2, ..PhaseCounts::ZERO });
+            assert_eq!(root.held_below, 2);
+        } else {
+            assert_eq!(tree.folded.len(), 2);
+            let child = tree_fold(&tree, 2);
+            assert_eq!(child.phases, PhaseCounts { held: 1, ..PhaseCounts::ZERO });
+            assert_eq!(child.held_below, 1);
+            let other = tree_fold(&tree, if rows == 2 { 1 } else { 3 });
+            assert_eq!(other.phases, PhaseCounts { starting: if rows == 2 { 2 } else { 1 }, ..PhaseCounts::ZERO });
+        }
+    }
+}
+
+#[test]
+fn documents_tree_creates_a_root_fold_when_the_parent_cap_is_full() {
+    let (mut core, limits) = make_tree();
+    for (parent, number) in [(2, 5), (3, 6), (4, 7), (1, 8)] {
+        delegate_tree_row(&mut core, &limits, parent, number);
+    }
+    send_task(&mut core, &limits, tasks::Event::Hold { task: 7, why: tasks::Hold::Budget });
+    let Document::Tree(tree) =
+        make(&core, &limits, 1, &Subject::Tree { task: 1 }, &Window { rows: 3, after: None }, Wall::EPOCH).unwrap()
+    else {
+        panic!("tree")
+    };
+    assert_eq!(tree.folded.len(), 3);
+    for parent in [2, 3] {
+        let fold = tree_fold(&tree, parent);
+        assert_eq!(fold.phases, PhaseCounts { starting: 1, ..PhaseCounts::ZERO });
+        assert_eq!(fold.held_below, 0);
+    }
+    let root = tree_fold(&tree, 1);
+    assert_eq!(root.phases, PhaseCounts { starting: 1, held: 1, ..PhaseCounts::ZERO });
+    assert_eq!(root.held_below, 1);
+    assert_eq!(tree.held_below, 2);
+}
+
 #[test]
 fn documents_task_carries_overview_lineage_and_the_hold_reason() {
     let (core, limits) = make_tree();

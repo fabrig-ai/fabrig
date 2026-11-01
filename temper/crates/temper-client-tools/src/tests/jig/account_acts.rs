@@ -288,7 +288,7 @@ fn a_lost_replacement_prints_its_recoverable_name() {
 
 #[test]
 fn declare_validates_the_offer_and_sends_only_the_contract_fields() {
-    for join in [false, true] {
+    for (join, json) in [(false, false), (true, false), (false, true), (true, true)] {
         let mut root = f::account_root(false);
         let mut me = f::me(f::PARTY);
         me.providers = f::provider_offers();
@@ -298,7 +298,8 @@ fn declare_validates_the_offer_and_sends_only_the_contract_fields() {
         } else {
             &["account", "declare", "9", "helper", "work-login", "--key", "declaration"][..]
         };
-        let call = root.submit(words);
+        let words = if json { f::extended(words, &["--json"]) } else { f::extended(words, &[]) };
+        let call = root.submit(words.as_slice());
         let (_, name, ask) = root.sends.get(&call).expect("declaration");
         assert_eq!(*name, f::named("declaration"));
         assert_eq!(
@@ -321,7 +322,17 @@ fn declare_validates_the_offer_and_sends_only_the_contract_fields() {
         );
         let printed = root.answer(call).expect("declared");
         assert_eq!(printed.status, 0);
-        assert!(f::has(&printed, b"Run on each host: temper program-login work-login"));
+        assert!(f::has(
+            &printed,
+            b"Run on each host, with its directories: temper program-login --config CONFIG --data DATA --cache CACHE work-login"
+        ));
+        if json {
+            f::unique_keys(&printed.stdout).expect("valid JSON with unique keys");
+            assert!(f::has(&printed, b"\"next\":\"Run on each host, with its directories: temper program-login --config CONFIG --data DATA --cache CACHE work-login\""));
+        } else {
+            let skip = b"Skip it where the programs directory's work-login is already signed in. Then: account verify ACCOUNT --source program, ACCOUNT as account list shows it";
+            assert!(f::has(&printed, skip));
+        }
     }
 }
 #[test]

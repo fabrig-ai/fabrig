@@ -283,11 +283,29 @@ fn a_spent_pool_refusal_names_the_project_role_and_remedy() {
         root.answered(call, spent_pool_refusal());
         let printed = root.answer(call).unwrap();
         assert_eq!(printed.status, 2);
-        let numbers = if pool_known { " has 0 left; budget 114" } else { " is spent" };
+        assert_eq!(
+            String::from_utf8_lossy(&printed.stderr),
+            "chat start: refused: your pool in project 1 had 0 left, 1 needed\nread it: project show 1\nraise it: project fund 1 AMOUNT --role 0, and first the project's if its period has no room: project fund 1 AMOUNT\n"
+        );
+    }
+}
+#[test]
+fn a_kept_spent_pool_refusal_with_room_now_names_the_new_key_remedy() {
+    for left in [1, 40] {
+        let mut root = f::chat_root(100, f::SEED);
+        let mut me = f::chat_me(100);
+        let mut pool = project().pools.get(0).unwrap().clone();
+        pool.left = left;
+        me.projects.get_mut(0).unwrap().pool = Some(pool);
+        root.deliver(c::Delivery::Me(Box::new(me)));
+        let call = root.submit(f::CREATE_CHAT_CALL);
+        root.answered(call, spent_pool_refusal());
+        let printed = root.answer(call).unwrap();
+        assert_eq!(printed.status, 2);
         assert_eq!(
             String::from_utf8_lossy(&printed.stderr),
             format!(
-                "chat start: refused: your pool in project 1{numbers}\nread it: project show 1\nraise it: project fund 1 AMOUNT --role 0, and first the project's if its period has no room: project fund 1 AMOUNT\n"
+                "chat start: refused: your pool in project 1 had 0 left, 1 needed\nnow: your pool has {left} left; budget 100; this key keeps its first answer: start new work with a new --key\n"
             )
         );
     }

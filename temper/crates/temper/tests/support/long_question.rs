@@ -73,7 +73,7 @@ pub fn steps() -> (Vec<Step>, usize, usize) {
     steps.push(Step::Run(Call::new(&["task", "show", "1", "--until", "phase:idle", "--timeout", "60s", "--json"])));
     let inbox = steps.iter().filter(|step| matches!(step, Step::Run(_))).count();
     steps.push(Step::Run(Call::new(&["inbox", "--kind", "questions"])));
-    steps.push(Step::Run(Call::new(&["task", "activity", "2", "--json"])));
+    steps.push(Step::Run(Call::new(&["task", "activity", "1", "--json"])));
     let answer = steps.iter().filter(|step| matches!(step, Step::Run(_))).count();
     steps.push(Step::Run(Call::new(&["task", "answer", "1", "1", "Go ahead.", "--key", "long-answer"])));
     steps.push(Step::Run(Call::new(&["task", "show", "2", "--until", "ended", "--timeout", "60s", "--json"])));

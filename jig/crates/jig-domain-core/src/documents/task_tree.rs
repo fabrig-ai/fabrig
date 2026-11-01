@@ -338,7 +338,7 @@ pub struct TreeRow {
     pub cut: bool,
 }
 
-/// Unshown descendants folded under their nearest shown common root.
+/// Unshown descendants folded under their nearest shown ancestor; overflow joins the root.
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub struct FoldedCount {
     pub parent: u64,
@@ -962,12 +962,64 @@ fn task_with_lineage(
     })
 }
 
+fn folding_parent(core: &Core, rows: &List<TreeRow>, root: u64, number: u64, depth: u32) -> u64 {
+    let mut current = number;
+    for _ in 0..=depth {
+        let row = core.tasks.task(current).expect("live descendant has live ancestors");
+        let parent = match row.requester {
+            tasks::Party::Task(parent) => parent,
+            tasks::Party::Person(_) | tasks::Party::Deployment { .. } => {
+                unreachable!("descendant has a requester task")
+            }
+        };
+        if parent == root {
+            return root;
+        }
+        for shown in rows {
+            if shown.chip.number == parent {
+                return parent;
+            }
+        }
+        current = parent;
+    }
+    unreachable!("descendant reaches its root within the task depth")
+}
+
+fn fold_phase(folded: &mut List<FoldedCount>, parent: u64, root: u64, phase: &tasks::Phase) {
+    let mut root_index = None;
+    for index in 0..folded.len() {
+        let fold = folded.get_mut(index).expect("fold index");
+        if fold.parent == parent {
+            fold.phases.add(phase);
+            fold.held_below = fold.phases.held;
+            return;
+        }
+        if fold.parent == root {
+            root_index = Some(index);
+        }
+    }
+    if folded.room() > 0 {
+        let mut phases = PhaseCounts::ZERO;
+        phases.add(phase);
+        folded.push(FoldedCount { parent, held_below: phases.held, phases }).expect("fold room checked");
+        return;
+    }
+    // At most rows + 1 parents can fold. Keep overflow in the root's count.
+    let index = match root_index {
+        Some(index) => index,
+        None => folded.len().checked_sub(1).expect("at least one folding parent fits"),
+    };
+    let fold = folded.get_mut(index).expect("overflow fold index");
+    fold.parent = root;
+    fold.phases.add(phase);
+    fold.held_below = fold.phases.held;
+}
+
 pub(super) fn tree(core: &Core, limits: &Limits, party: u64, number: u64, window: &Window) -> Result<Tree, Missing> {
     let root = super::small::visible(core, party, number)?;
     let mut rows = List::with_capacity(window.rows);
-    let mut phases = PhaseCounts::ZERO;
+    let mut folded = List::with_capacity(window.rows.max(1));
     let mut held_below = 0_u32;
-    let mut folded_total = 0_u32;
     let mut last = None;
     let after = match window.after {
         Some(Cursor::Number { number }) => number,
@@ -990,8 +1042,8 @@ pub(super) fn tree(core: &Core, limits: &Limits, party: u64, number: u64, window
             held_below = held_below.checked_add(1).expect("bounded held count");
         }
         if rows.room() == 0 || candidate.number <= after {
-            phases.add(&row.phase);
-            folded_total = folded_total.checked_add(1).expect("bounded folded count");
+            let parent = folding_parent(core, &rows, number, row.number, limits.tasks.depth);
+            fold_phase(&mut folded, parent, number, &row.phase);
             more |= candidate.number > after;
             continue;
         }
@@ -1016,10 +1068,6 @@ pub(super) fn tree(core: &Core, limits: &Limits, party: u64, number: u64, window
         })
         .expect("tree window room checked");
         last = Some(Cursor::Number { number: row.number });
-    }
-    let mut folded = List::with_capacity(1);
-    if folded_total > 0 {
-        folded.push(FoldedCount { parent: number, held_below: phases.held, phases }).expect("one fold at window root");
     }
     Ok(Tree {
         root: super::small::chip(core, limits, party, number)?,
@@ -1070,7 +1118,7 @@ pub(super) fn overview_bound(limits: &super::DocumentLimits) -> Option<u64> {
     let tree = chip
         .checked_add(List::<TreeRow>::price(limits.rows)?)?
         .checked_add(rows.checked_mul(chip.checked_add(references)?.checked_add(List::<ProposalRef>::price(1)?)?)?)?
-        .checked_add(List::<FoldedCount>::price(1)?)?;
+        .checked_add(List::<FoldedCount>::price(limits.rows)?)?;
     Some(task.max(tree))
 }
 

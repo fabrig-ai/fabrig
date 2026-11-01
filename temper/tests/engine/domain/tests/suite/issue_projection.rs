@@ -203,6 +203,18 @@ fn configured_world(
     failing: bool,
     defaults: &jig_domain_core::settings::Defaults,
 ) -> (World, engine::Assignment, engine::Assignment) {
+    let (mut world, chat) = configured_chat(failing, defaults, b"Complete the tracked work");
+    let goal_task = delegate(&mut world, &chat, &[b'g'; GOAL_BYTES], true);
+    answer(&mut world, &chat, tasks::End::Parked);
+    let goal = assigned(&world, goal_task);
+    (world, chat, goal)
+}
+
+fn configured_chat(
+    failing: bool,
+    defaults: &jig_domain_core::settings::Defaults,
+    words: &[u8],
+) -> (World, engine::Assignment) {
     let limits = box_limits();
     let mut world = World::configured_stock_limits(defaults, &model(), &limits);
     world.adopt();
@@ -227,7 +239,7 @@ fn configured_world(
             },
         },
     }));
-    let people::Ask::Create { project, mut batch } = world.chat(PROJECT, b"Complete the tracked work") else {
+    let people::Ask::Create { project, mut batch } = world.chat(PROJECT, words) else {
         panic!("chat batch");
     };
     batch[0].contract = people::Contract::Report { words: 32 };
@@ -242,10 +254,7 @@ fn configured_world(
     }));
     advance(&mut world);
     let chat = world.assigned.first().expect("chat assigned").clone();
-    let goal_task = delegate(&mut world, &chat, &[b'g'; GOAL_BYTES], true);
-    answer(&mut world, &chat, tasks::End::Parked);
-    let goal = assigned(&world, goal_task);
-    (world, chat, goal)
+    (world, chat)
 }
 
 fn assert_reported(world: &World, chat: u64, goal: u64) {
@@ -269,6 +278,71 @@ fn assert_reported(world: &World, chat: u64, goal: u64) {
         ),))),
         "final projection settled"
     );
+}
+
+const REQUEST_TITLE: &[u8] = b"Add CSV export to widget.";
+const REQUEST: &[u8] =
+    b"Add CSV export to widget.\nBefore anything is changed, have the work tell me its plan and wait for my go-ahead.";
+
+fn agreed_goal() -> (World, engine::Assignment) {
+    let (mut world, chat) = configured_chat(false, &defaults(), REQUEST);
+    assert_eq!(world.env.limits.forge.issue_policy.body_bytes, u32::try_from(BODY_BYTES).expect("stock body"));
+    let engine::CallAnswer::Delegated(made) =
+        call(&mut world, &chat, engine::Tool::Goal { agree: true, words: REQUEST.into(), advisor: false })
+    else {
+        panic!("goal delegated");
+    };
+    answer(&mut world, &chat, tasks::End::Parked);
+    let goal = assigned(&world, made[0].task);
+    (world, goal)
+}
+
+fn chip_title(world: &mut World, task: u64) -> Box<[u8]> {
+    let jig_domain_core::reads::Answer::Document(document) =
+        world.party_read(jig_domain_core::reads::Read::Task { task })
+    else {
+        panic!("task document");
+    };
+    let jig_domain_core::documents::Document::Task(task) = *document else {
+        panic!("task document");
+    };
+    assert!(!task.chip.title.cut, "caller first line fits the chip");
+    task.chip.title.bytes
+}
+
+#[test]
+fn a_goal_and_its_issue_are_titled_by_the_callers_first_line() {
+    let (mut world, goal) = agreed_goal();
+    let number = issue(&world, goal.task).number.expect("issue created");
+    let raw::Answer::Item { item, .. } = world
+        .fake
+        .inspect(&world.fake_env.limits, b"org/repo", &raw::Read::Item { number, after: 0 })
+        .expect("fake issue")
+    else {
+        panic!("item read");
+    };
+    assert_eq!(item.title.as_ref(), b"Add CSV export to widget");
+    assert!(item.body.starts_with(REQUEST_TITLE), "issue body opens with the request");
+    assert!(item.title.len() + item.body.len() <= BODY_BYTES, "stock edit bound");
+    assert_eq!(chip_title(&mut world, goal.task).as_ref(), REQUEST_TITLE);
+}
+
+#[test]
+fn an_advisor_is_titled_by_the_callers_first_line() {
+    const TITLE: &[u8] = b"Inspect widget CSV export.";
+    let (mut world, goal) = agreed_goal();
+    let engine::CallAnswer::Delegated(made) = call(
+        &mut world,
+        &goal,
+        engine::Tool::Goal {
+            agree: false,
+            words: b"Inspect widget CSV export.\nRead the code and report a plan; change nothing.".as_slice().into(),
+            advisor: true,
+        },
+    ) else {
+        panic!("advisor delegated");
+    };
+    assert_eq!(chip_title(&mut world, made[0].task).as_ref(), TITLE);
 }
 
 #[test]

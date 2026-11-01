@@ -138,10 +138,7 @@ impl Judge {
                 let text = String::from_utf8(output).expect("tree text");
                 let next = text
                     .lines()
-                    .find_map(|line| {
-                        line.strip_prefix("cut: ")
-                            .and_then(|line| line.split_once("; read on with: ").map(|(_, next)| next))
-                    })
+                    .find_map(|line| line.strip_prefix("read on with: "))
                     .expect("tree continuation")
                     .to_owned();
                 self.seen.borrow_mut().tree = text;

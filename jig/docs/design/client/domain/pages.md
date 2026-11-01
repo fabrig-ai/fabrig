@@ -326,7 +326,9 @@ A section with nothing in it is not shown.
   waiting in the subtree on its proposer's line. Ended branches fold to
   their line; a level with many tasks folds into counts by phase ("12
   done · 2 running · 1 held"), opened on demand; a folded line carries
-  the count of what is held below it, so nothing held is hidden.
+  the count of what is held below it, so nothing held is hidden. Each
+  unshown descendant folds under its nearest shown ancestor; folds
+  beyond the window's row bound join the root's fold.
   Filtered: held only, live only. Live tasks are watched; ended ones are
   read as their branches open.
 - **History:** each task made (with its batch), amended (before and

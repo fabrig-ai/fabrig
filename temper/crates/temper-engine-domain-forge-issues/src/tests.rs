@@ -413,6 +413,55 @@ fn a_title_is_cut_at_its_utf8_boundary() {
 }
 
 #[test]
+fn a_paragraph_title_uses_its_first_sentence() {
+    let title = issue_title("Add CSV export to the widget. Read src/main.rs to see how the widget works.");
+    assert_eq!(title.as_ref(), "Add CSV export to the widget");
+}
+
+#[test]
+fn a_long_first_sentence_title_cuts_at_a_word() {
+    const WORDS: usize = 50; // Eight bytes per word exceed the issue's 128-byte title bound.
+    const KEPT_WORDS: usize = 15; // 15 * 8 - 1 + 3 marker bytes fit; one more word does not.
+    let title = issue_title(&("Exports ".repeat(WORDS) + "widgets. Keep the full specification."));
+    assert_eq!(title.as_ref(), "Exports ".repeat(KEPT_WORDS - 1) + "Exports…");
+}
+
+fn issue_title(words: &str) -> Box<str> {
+    let mut view = goal();
+    view.title = words.into();
+    let Decision::Effect(Effect::Open { title, .. }) =
+        project(&view, &Projected::default(), at(0), &BOX_LIMITS).decision
+    else {
+        panic!("issue opens");
+    };
+    title
+}
+
+#[test]
+fn title_sentence_endings_and_byte_bounds() {
+    for (words, bound, expected) in [
+        ("Export widgets. More details.", 40, "Export widgets"),
+        ("Export widgets? More details.", 40, "Export widgets?"),
+        ("Export widgets! More details.", 40, "Export widgets!"),
+        ("Read src/main.rs. More details.", 40, "Read src/main.rs"),
+        ("Export widgets.\r\nMore details.", 40, "Export widgets"),
+        ("Export widgets\nMore details.", 40, "Export widgets"),
+        ("Export widgets.", 14, "Export widgets"),
+        ("Export widgets", 14, "Export widgets"),
+        ("Export widgets", 13, "Export…"),
+        ("Export widgets soon", 17, "Export widgets…"),
+        ("界界界界", 10, "界界…"),
+        ("界界界界", 3, "…"),
+        ("界界界界", 2, ""),
+        ("界界界界", 0, ""),
+        ("", 0, ""),
+    ] {
+        let title = crate::text::title(words.as_bytes(), bound);
+        assert_eq!(title.as_ref(), expected.as_bytes(), "{words:?}, bound {bound}");
+    }
+}
+
+#[test]
 fn incremental_milestones_keep_the_count_across_empty_feeds() {
     let mut prior = None;
     for milestone in history_goal(false).milestones {

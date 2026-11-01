@@ -319,6 +319,10 @@ fn the_project_reference_is_what_the_table_renders() {
 }
 
 #[test]
+fn the_account_reference_is_what_the_table_renders() {
+    reference_matches(b"account", b"ctl-account");
+}
+#[test]
 fn the_forge_reference_is_what_the_table_renders() {
     reference_matches(b"forge", b"ctl-forge");
 }

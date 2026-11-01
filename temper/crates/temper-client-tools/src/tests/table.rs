@@ -52,12 +52,12 @@ fn an_unknown_tool_or_argument_is_a_usage_error() {
     }
 }
 const MISSING: &[(&[&str], Usage)] = &[
-    (&["task", "list"], Usage::Missing { argument: 0 }),
-    (&["task", "show"], Usage::Missing { argument: 0 }),
-    (&["task", "turn", "41"], Usage::Missing { argument: 1 }),
-    (&["inbox", "--root"], Usage::Missing { argument: 2 }),
-    (&["inbox", "--root", "41", "--root", "42"], Usage::Twice { argument: 2 }),
-    (&["task", "show", "41", "--tree", "--tree"], Usage::Twice { argument: 1 }),
+    (&["task", "list"], Usage::Missing { tool: 2, form: 0, argument: 0 }),
+    (&["task", "show"], Usage::Missing { tool: 3, form: 0, argument: 0 }),
+    (&["task", "turn", "41"], Usage::Missing { tool: 6, form: 0, argument: 1 }),
+    (&["inbox", "--root"], Usage::Missing { tool: 1, form: 0, argument: 2 }),
+    (&["inbox", "--root", "41", "--root", "42"], Usage::Twice { tool: 1, form: 0, argument: 2 }),
+    (&["task", "show", "41", "--tree", "--tree"], Usage::Twice { tool: 3, form: 0, argument: 1 }),
 ];
 #[test]
 fn a_missing_or_repeated_argument_is_a_usage_error() {
@@ -66,17 +66,17 @@ fn a_missing_or_repeated_argument_is_a_usage_error() {
     }
 }
 const INVALID: &[(&[&str], Usage)] = &[
-    (&["task", "show", "x"], Usage::Kind { argument: 0 }),
-    (&["task", "show", "18446744073709551616"], Usage::Kind { argument: 0 }),
-    (&["task", "list", "--project", "4294967296"], Usage::Kind { argument: 0 }),
-    (&["task", "list", "--project", "3", "--order", "ended"], Usage::Kind { argument: 5 }),
-    (&["task", "list", "--project", "3", "--order", "changed"], Usage::Kind { argument: 5 }),
-    (&["inbox", "--kind", "other"], Usage::Kind { argument: 1 }),
-    (&["chat", "show", "41", "--before", "AB"], Usage::Kind { argument: 1 }),
-    (&["chat", "show", "41", "--before", "a"], Usage::Kind { argument: 1 }),
-    (&["task", "turn", "41", "3.4294967296"], Usage::Kind { argument: 1 }),
-    (&["task", "activity", "41", "--limit", "33"], Usage::Rows { argument: 2 }),
-    (&["task", "activity", "41", "--limit", "0"], Usage::Rows { argument: 2 }),
+    (&["task", "show", "x"], Usage::Kind { tool: 3, form: 0, argument: 0 }),
+    (&["task", "show", "18446744073709551616"], Usage::Kind { tool: 3, form: 0, argument: 0 }),
+    (&["task", "list", "--project", "4294967296"], Usage::Kind { tool: 2, form: 0, argument: 0 }),
+    (&["task", "list", "--project", "3", "--order", "ended"], Usage::Kind { tool: 2, form: 0, argument: 5 }),
+    (&["task", "list", "--project", "3", "--order", "changed"], Usage::Kind { tool: 2, form: 0, argument: 5 }),
+    (&["inbox", "--kind", "other"], Usage::Kind { tool: 1, form: 0, argument: 1 }),
+    (&["chat", "show", "41", "--before", "AB"], Usage::Kind { tool: 4, form: 0, argument: 1 }),
+    (&["chat", "show", "41", "--before", "a"], Usage::Kind { tool: 4, form: 0, argument: 1 }),
+    (&["task", "turn", "41", "3.4294967296"], Usage::Kind { tool: 6, form: 0, argument: 1 }),
+    (&["task", "activity", "41", "--limit", "33"], Usage::Rows { tool: 5, form: 0, argument: 2 }),
+    (&["task", "activity", "41", "--limit", "0"], Usage::Rows { tool: 5, form: 0, argument: 2 }),
 ];
 #[test]
 fn a_value_outside_its_kind_or_rows_is_a_usage_error() {
@@ -234,7 +234,10 @@ fn decides_two_forms_parse_by_their_arguments() {
             Some(Values::One(Value::Proposal(ProposalKey { proposer, number })))
         );
     }
-    assert_eq!(fixtures::parse(&["proposal", "decide", "3/17", "accept"]), Err(Usage::Kind { argument: 0 }));
+    assert_eq!(
+        fixtures::parse(&["proposal", "decide", "3/17", "accept"]),
+        Err(Usage::Kind { tool: 12, form: 0, argument: 0 })
+    );
 }
 #[test]
 fn adopts_flags_parse_and_its_absent_flags_stay_absent() {
@@ -286,7 +289,7 @@ fn adopts_flags_parse_and_its_absent_flags_stay_absent() {
             "--key",
             "adopt"
         ]),
-        Err(Usage::Kind { argument: 1 })
+        Err(Usage::Kind { tool: 17, form: 0, argument: 1 })
     );
 }
 /// Eight is the delegate/check ceiling; one more must fail before a call is made.
@@ -309,7 +312,11 @@ fn repeated_moves_and_checks_stop_at_their_bound() {
             if count == REPEATS_MOST {
                 assert!(parsed.is_ok(), "{flag} {count}");
             } else {
-                assert_eq!(parsed, Err(Usage::Many { argument }), "{flag} {count}");
+                assert_eq!(
+                    parsed,
+                    Err(Usage::Many { tool: if flag == "--move" { 10 } else { 17 }, form: 0, argument }),
+                    "{flag} {count}"
+                );
             }
         }
     }
@@ -339,7 +346,7 @@ const ASK_BYTES: u64 = 2;
 fn text_is_bounded_for_argv_and_typed_calls() {
     let mut limits = crate::limits::tools();
     limits.ask_bytes = ASK_BYTES;
-    for (text, result) in [("ok", Ok(())), ("bad", Err(Usage::Long { argument: 1 }))] {
+    for (text, result) in [("ok", Ok(())), ("bad", Err(Usage::Long { tool: 9, form: 0, argument: 1 }))] {
         let words: &[&[u8]] = &[b"task", b"message", b"41", text.as_bytes(), b"--key", b"text"];
         let call = fixtures::call(&["task", "message", "41", text, "--key", "text"]);
         assert_eq!(
@@ -392,16 +399,28 @@ fn bound_is_what_the_parser_accepts() {
     limits.wait = skein_lib::Duration::from_secs(1);
     limits.wait_most = skein_lib::Duration::from_secs(4);
     let edges: &[BoundEdge] = &[
-        (b"--range", b"4", b"5", Bound::Numbers { least: 2, most: 4 }, Usage::Kind { argument: 0 }),
-        (b"--count", b"2", b"3", Bound::Numbers { least: 1, most: 2 }, Usage::Rows { argument: 1 }),
-        (b"--forge", b"65535", b"65536", Bound::Numbers { least: 0, most: 65535 }, Usage::Kind { argument: 2 }),
-        (b"--text", b"abc", b"abcd", Bound::Bytes { most: 3 }, Usage::Long { argument: 3 }),
-        (b"--timeout", b"4", b"5", Bound::Seconds { most: 4 }, Usage::Rows { argument: 4 }),
-        (b"--named", b"made:4", b"made:5", Bound::Numbers { least: 2, most: 4 }, Usage::Kind { argument: 5 }),
-        (b"--literal", b"abc", b"abcd", Bound::Bytes { most: 3 }, Usage::Long { argument: 6 }),
-        (b"--items", b"abc", b"abcd", Bound::Bytes { most: 3 }, Usage::Long { argument: 7 }),
-        (b"--instructions", b"abc", b"abcd", Bound::Bytes { most: 3 }, Usage::Long { argument: 8 }),
-        (b"--spec", b"abc", b"abcd", Bound::Bytes { most: 3 }, Usage::Long { argument: 9 }),
+        (b"--range", b"4", b"5", Bound::Numbers { least: 2, most: 4 }, Usage::Kind { tool: 0, form: 0, argument: 0 }),
+        (b"--count", b"2", b"3", Bound::Numbers { least: 1, most: 2 }, Usage::Rows { tool: 0, form: 0, argument: 1 }),
+        (
+            b"--forge",
+            b"65535",
+            b"65536",
+            Bound::Numbers { least: 0, most: 65535 },
+            Usage::Kind { tool: 0, form: 0, argument: 2 },
+        ),
+        (b"--text", b"abc", b"abcd", Bound::Bytes { most: 3 }, Usage::Long { tool: 0, form: 0, argument: 3 }),
+        (b"--timeout", b"4", b"5", Bound::Seconds { most: 4 }, Usage::Rows { tool: 0, form: 0, argument: 4 }),
+        (
+            b"--named",
+            b"made:4",
+            b"made:5",
+            Bound::Numbers { least: 2, most: 4 },
+            Usage::Kind { tool: 0, form: 0, argument: 5 },
+        ),
+        (b"--literal", b"abc", b"abcd", Bound::Bytes { most: 3 }, Usage::Long { tool: 0, form: 0, argument: 6 }),
+        (b"--items", b"abc", b"abcd", Bound::Bytes { most: 3 }, Usage::Long { tool: 0, form: 0, argument: 7 }),
+        (b"--instructions", b"abc", b"abcd", Bound::Bytes { most: 3 }, Usage::Long { tool: 0, form: 0, argument: 8 }),
+        (b"--spec", b"abc", b"abcd", Bound::Bytes { most: 3 }, Usage::Long { tool: 0, form: 0, argument: 9 }),
     ];
     for (index, (spec, (flag, at, past, expected, error))) in BOUNDED.forms[0].iter().zip(edges).enumerate() {
         assert_eq!(bound(spec, &limits), *expected, "{spec:?}");

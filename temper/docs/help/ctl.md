@@ -7,17 +7,15 @@ temper ctl is the command line through which an agent works in a deployment for 
 ## What it is
 
 - **A call** is `temper ctl DIR GROUP VERB [ARGUMENT...] [--json]`:
-  one process, one tool, then its exit status. A group is one of
-  temper's nouns, such as `task`, `forge` or `account`; its verbs are
-  its tools: `task show`, `forge setup`. Five tools are one word:
-  `me`, `inbox`, `sign-in`, `sign-out`, `pending`.
+  one tool, then its exit status. A group is a noun (`task`); its verbs
+  are tools (`task show`). Five tools are one word: `me`, `inbox`,
+  `sign-in`, `sign-out`, `pending`.
 - **Help:** `temper ctl help` prints this page, then the groups, a
   line each; `temper ctl help GROUP` the group's tools; `temper ctl
   help GROUP VERB` one tool's usage, arguments and result.
-- **`DIR`** is the agent's directory for one deployment and one party:
-  the sign-in's token, the engine's address, and the requests the
-  engine has not yet answered. It is private to the user who owns it.
-  Every call names it; ctl never chooses a deployment.
+- **`DIR`** is private to its user and holds one deployment's address,
+  one party's sign-in token and unanswered requests. Every call names
+  it; ctl never chooses a deployment.
 - **A read** prints a document: a header and its fields, then, where
   something can follow, `acts:`, the calls ready to copy, and, where a
   wait can follow, a `digest:`.
@@ -156,10 +154,11 @@ both do. `--until changed` returns at the subject's next change.
 - ctl reaches an engine on loopback alone: `127.0.0.0/8` or `[::1]`.
 - The link's deadline is 30 seconds: an engine that does not answer
   within it fails the call (exit 1).
-- A malformed call prints the usage line alone: `temper ctl: usage:
-  temper ctl DIR GROUP VERB [ARGUMENT...]; temper ctl help GROUP VERB
-  prints one tool`. A word that names no group or tool says which, and
-  where help lists them.
+- A call whose argument is wrong prints one line naming the tool, the
+  argument and what it takes, such as `temper ctl: task activity: --limit COUNT takes a count from 1 to 32; temper ctl help task activity`.
+  A call that names no tool prints the usage line: `temper ctl: usage: temper ctl DIR GROUP VERB [ARGUMENT...]; temper ctl help GROUP VERB prints one tool`.
+  A word that names no group or tool says which, and where help lists
+  them.
 - A `DIR` holds one party's sign-in; several parties take several
   directories. Give `temper open` a directory of its own.
 - Calls that send take `DIR` in turns: a second waits up to 60

@@ -145,20 +145,92 @@ pub fn refusal(why: Usage, words: &[&[u8]], out: &mut skein_lib::Writer) -> Resu
             out.put(b" waits on its subject alone: drop --")?;
             out.put(spec.name)
         }
+        Usage::Kind { tool, form, argument } | Usage::Rows { tool, form, argument } => {
+            argument_refusal(tool, form, argument, ArgumentRule::Value { long: false }, out)
+        }
+        Usage::Long { tool, form, argument } => {
+            argument_refusal(tool, form, argument, ArgumentRule::Value { long: true }, out)
+        }
+        Usage::Missing { tool, form, argument } => argument_refusal(tool, form, argument, ArgumentRule::Missing, out),
+        Usage::Twice { tool, form, argument } => argument_refusal(tool, form, argument, ArgumentRule::Twice, out),
+        Usage::Many { tool, form, argument } => argument_refusal(tool, form, argument, ArgumentRule::Many, out),
         Usage::AmendmentRevision => out.put(b"task amend needs --rev REV"),
         Usage::Tool
         | Usage::Unknown { .. }
         | Usage::Extra { .. }
-        | Usage::Missing { .. }
-        | Usage::Twice { .. }
-        | Usage::Kind { .. }
-        | Usage::Rows { .. }
-        | Usage::Long { .. }
-        | Usage::Many { .. }
         | Usage::Stdin
         | Usage::Key
         | Usage::Condition
         | Usage::Json => out.put(USAGE),
     }
+}
+#[derive(Clone, Copy)]
+enum ArgumentRule {
+    Value { long: bool },
+    Missing,
+    Twice,
+    Many,
+}
+fn argument_refusal(
+    tool: u8,
+    form: u8,
+    argument: u8,
+    rule: ArgumentRule,
+    out: &mut skein_lib::Writer,
+) -> Result<(), skein_lib::Overflow> {
+    let row = TOOLS.get(usize::from(tool)).ok_or(skein_lib::Overflow)?;
+    let args = row.forms.get(usize::from(form)).ok_or(skein_lib::Overflow)?;
+    let spec = args.get(usize::from(argument)).ok_or(skein_lib::Overflow)?;
+    // The prefix and final newline leave 227 of the error's 240 bytes.
+    let mut measured = skein_lib::Writer::new(227);
+    let compact = argument_words(rule, row, spec, false, &mut measured).is_err();
+    argument_words(rule, row, spec, compact, out)
+}
+fn argument_words(
+    rule: ArgumentRule,
+    row: &Tool,
+    spec: &crate::jig::table::Argument,
+    compact: bool,
+    out: &mut skein_lib::Writer,
+) -> Result<(), skein_lib::Overflow> {
+    use crate::jig::{
+        help,
+        table::{Occurs, Place},
+    };
+    out.put(row.name)?;
+    out.put(b": ")?;
+    if spec.place != Place::Positional {
+        out.put(b"--")?;
+    }
+    out.put(spec.name)?;
+    if !compact && !spec.shown.is_empty() {
+        out.put(b" ")?;
+        out.put(spec.shown)?;
+    }
+    match rule {
+        ArgumentRule::Missing => out.put(b" is required")?,
+        ArgumentRule::Twice => out.put(b" may be given only once")?,
+        ArgumentRule::Many => match spec.occurs {
+            Occurs::Repeated { most } => {
+                out.put(b" takes at most ")?;
+                out.put(skein_lib::Decimal::of(u64::from(most)).as_bytes())?;
+                out.put(b" values")?;
+            }
+            Occurs::Required | Occurs::Optional => out.put(b" takes one value")?,
+        },
+        ArgumentRule::Value { long } => {
+            if spec.place == Place::Switch {
+                out.put(b" is a switch: omit it or use true in --call")?;
+            } else if row.name == b"account declare" && (spec.name == b"adapter" || spec.name == b"name") {
+                out.put(if long { b" is too long" } else { b" has an invalid value" })?;
+            } else {
+                out.put(b" takes ")?;
+                help::argument_type(spec.kind, out)?;
+                help::argument_bound(spec, &crate::limits::tools(), out)?;
+            }
+        }
+    }
+    out.put(b"; temper ctl help ")?;
+    out.put(row.name)
 }
 pub const USAGE: &[u8] = b"usage: temper ctl DIR GROUP VERB [ARGUMENT...]; temper ctl help GROUP VERB prints one tool";

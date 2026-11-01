@@ -60,6 +60,11 @@ fn owner(row: &c::ActivityLine, out: &mut Text) {
     out.put(b" \xc2\xb7 ");
     match &row.line {
         c::Activity::Words { words, .. } => out.words(words.bytes()),
+        c::Activity::Heard(c::Word { kind: c::MessageKind::QuestionAnswered { question }, .. }) => {
+            out.put(b"You answered question ");
+            out.number(*question);
+            out.put(b" in your inbox");
+        }
         c::Activity::Heard(word) | c::Activity::Notified { word, .. } => out.words(word.words.bytes()),
         c::Activity::RunBegan { attempt, .. } => {
             out.put(b"run ");

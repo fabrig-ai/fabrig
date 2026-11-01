@@ -265,7 +265,7 @@ fn amend_refuses_both_of_a_pair() {
         (["--dependency", "43", "--no-dependencies"].as_slice(), 9),
     ] {
         let argv = f::extended(&["task", "amend", "41", "--rev", "7", "because"], flags);
-        assert_eq!(f::parse(argv.as_slice()), Err(Usage::Twice { argument }), "{flags:?}");
+        assert_eq!(f::parse(argv.as_slice()), Err(Usage::Twice { tool: 31, form: 0, argument }), "{flags:?}");
     }
 }
 #[test]
@@ -283,7 +283,7 @@ fn amend_refuses_a_malformed_deadline() {
     ] {
         assert_eq!(
             f::parse(&["task", "amend", "41", "--rev", "7", "--deadline", deadline, "because"]),
-            Err(Usage::Kind { argument: 4 })
+            Err(Usage::Kind { tool: 31, form: 0, argument: 4 })
         );
     }
 }
@@ -307,7 +307,7 @@ fn amend_refuses_a_repeated_flag() {
         (["--model", "chosen-model", "--model", "plain-model"].as_slice(), 10),
     ] {
         let argv = f::extended(&["task", "amend", "41", "--rev", "7", "because"], flags);
-        assert_eq!(f::parse(argv.as_slice()), Err(Usage::Twice { argument }), "{flags:?}");
+        assert_eq!(f::parse(argv.as_slice()), Err(Usage::Twice { tool: 31, form: 0, argument }), "{flags:?}");
     }
 }
 #[test]
@@ -321,7 +321,7 @@ fn amend_uses_stdin_only_once() {
 fn amend_requires_a_model_for_an_effort() {
     assert_eq!(
         f::parse(&["task", "amend", "41", "--rev", "7", "--effort", "high", "because"]),
-        Err(Usage::Missing { argument: 10 })
+        Err(Usage::Missing { tool: 31, form: 0, argument: 10 })
     );
 }
 #[test]
@@ -354,7 +354,10 @@ fn amend_accepts_dependencies_at_the_argument_bound() {
 }
 #[test]
 fn amend_refuses_dependencies_past_the_argument_bound() {
-    assert_eq!(f::parse(dependencies_at(crate::limits::ROWS + 1).as_slice()), Err(Usage::Many { argument: 8 }));
+    assert_eq!(
+        f::parse(dependencies_at(crate::limits::ROWS + 1).as_slice()),
+        Err(Usage::Many { tool: 31, form: 0, argument: 8 })
+    );
 }
 
 #[test]

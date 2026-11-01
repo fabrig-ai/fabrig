@@ -175,14 +175,9 @@ pub(super) fn start_landing(domain: &mut Domain, env: &Env<Limits>, task: u64) {
     }
     let mut words = List::with_capacity(env.limits.tasks.spec_bytes.saturating_sub(32));
     append(&mut words, b"Land ");
-    for byte in &change.title {
-        if *byte == b'\n' {
-            break;
-        }
-        if words.push(*byte).is_err() {
-            break;
-        }
-    }
+    let room = usize::try_from(words.capacity().saturating_sub(words.len())).expect("u32 fits usize");
+    let title = temper_engine_domain_forge_issues::text::title(&change.title, room);
+    append(&mut words, &title);
     let mut members = List::with_capacity(env.limits.forge.landing_members);
     let mut asks = List::with_capacity(env.limits.forge.landing_members);
     for task in &joined {

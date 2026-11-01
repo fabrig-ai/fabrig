@@ -945,7 +945,7 @@ fn a_met_owner_inbox_wait_prints_the_plain_reads_question_and_calls() {
         }
         assert!(f::has(&plain, b"1 \xc2\xb7 task\n"));
         assert_eq!(f::has(&plain, b" (cut)\n"), cut);
-        assert_eq!(f::has(&plain, b"read whole: temper ctl DIR task activity 2\n"), cut);
+        assert_eq!(f::has(&plain, b"read whole: temper ctl DIR task activity 1\n"), cut);
         assert!(f::has(&plain, b"answer: temper ctl DIR task answer 1 2 TEXT\n"));
         assert_eq!(f::has(&plain, b"read on with: inbox --after 011122\n"), more);
         assert_eq!(plain.stdout.ends_with(b"no more\n"), !more);

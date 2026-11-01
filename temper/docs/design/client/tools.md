@@ -693,7 +693,7 @@ area lands with its stories (section 11).
    | `account add-key PROVIDER FILE [--account ACCOUNT] [--deployment]` | adds a key read from FILE: to ACCOUNT, or as a new key-only account; the deployment's with `--deployment`, by an owner | add a key | yes |
    | `account replace-key ACCOUNT FILE` | replaces the account's key with the one read from FILE | replace a key | |
    | `account forget ACCOUNT [--source SOURCE]` | removes a source, or the account with every source, each signed out as `account disconnect` does | remove | |
-   | `account declare PROVIDER ADAPTER NAME [--account ACCOUNT]` | declares a program's login under the source's NAME (1 to 32 of `a` to `z`, `0` to `9` and `-`): a new account, or a source of ACCOUNT; the answer names the command to run on each host, `temper program-login NAME` (`../protocol/credentials.md`, section 3) | declare a program's login | yes |
+   | `account declare PROVIDER ADAPTER NAME [--account ACCOUNT]` | declares a program's login under the source's NAME (1 to 32 of `a` to `z`, `0` to `9` and `-`): a new account, or a source of ACCOUNT; the answer names the command to run on each host with its directories, `temper program-login --config CONFIG --data DATA --cache CACHE NAME`; CONFIG, DATA and CACHE stand for that box's directories, and skips it where the programs directory's NAME is already signed in, then `account verify ACCOUNT --source program`, ACCOUNT as `account list` shows it (`../protocol/credentials.md`, section 3) | declare a program's login | yes |
    | `account verify ACCOUNT [--source SOURCE]` | has each host check a program source's login now; answered once asked, then `account list --until settled` | check | |
    | `account rank ACCOUNT POSITION [--source SOURCE]` | the account's place among its holder's accounts of its LLM provider, from 1; with `--source`, the source's place in the account's order | order | |
    | `account retry ACCOUNT [--source SOURCE]` | resumes a limited source, so that the runs it holds start again | resume | |
@@ -737,6 +737,11 @@ area lands with its stories (section 11).
      the source; the person, or the harness, runs `temper program-login`
      on each host, outside `temper ctl`, since it hands the terminal to
      the program's own sign-in (`../protocol/credentials.md`, section 3).
+     The printed act names `--config CONFIG --data DATA --cache CACHE`,
+     placeholders for that box's three directories: ctl reads no box
+     configuration. Skip it where the programs directory's NAME is
+     already signed in. Then `account verify ACCOUNT --source program`,
+     ACCOUNT as `account list` shows it.
    - **The task's model** is chosen with this area: `chat start` and area
      2's `goal start` take `--model MODEL [--effort EFFORT]`, the task's
      LLM choice, the charter's default without them (jig's
@@ -977,7 +982,10 @@ The default: plain UTF-8 lines, no colour, no wrapping. A document
 prints its header line, its fields, its acts and, for a watch's
 subject, its digest (5.4). A met text inbox wait uses the plain inbox
 read, including question details and continuation calls, then prints
-`met`. A goal waiting on the agent:
+`met`. A cut inbox question's `read whole: task activity TASK` names the
+asked task whose activity holds its words, the same TASK as its
+`answer: task answer TASK N TEXT` call; JSON's `read_whole` names it too.
+A goal waiting on the agent:
 
 ```
 task 41 · goal · Running · shop · priority 2
@@ -1068,6 +1076,8 @@ digest: task 7c1e09a2b44f0d13
   milestone's, `phase changed`: the activity names only the position of
   the task's history row that says which phase, and no tool reads that
   history (section 15).
+  A heard `QuestionAnswered` notice prints `POSITION · You answered
+  question N in your inbox`, including when its words are empty.
 - **Acts as calls,** without the `temper ctl DIRECTORY` prefix; a keyed
   act's call ends with `--key NAME`. A proposable act says to whom; a
   refused one says why, and prints no call. The host gives the
@@ -1084,16 +1094,17 @@ digest: task 7c1e09a2b44f0d13
 - **A tree** prints `tree:`, then its root and each row its window
   holds, a chip a line. The engine answers the tools' window within its
   own rows (jig's `client/domain/contract.md`, 7.2), so a tree larger
-  than either folds the rest, and its text says so on one line after
-  the rows: `cut: 3 more not shown (1 Waiting, 2 Running); read on
-  with: task list --project 1 --parent 41`, the folded tasks' count, then
-  each phase that has any, in a chip's words and jig's order of phases,
-  then the call that lists the root's delegates, the project's number
-  from the root's document. A tree's window opens at its start only
-  (jig's wire carries no cursor for it), so the rest is read as the
-  root's delegates, a page at a time by `--after`, and each one's tree
-  by `task show TASK --tree`. With nothing folded, no line. Under `--json`,
-  `more` and `folded` as the document carries them.
+  than either folds the rest. Its text prints one total line after the
+  rows: `cut: 3 more not shown (1 Waiting, 2 Running)`, the folded tasks'
+  count, then each phase that has any, in a chip's words and jig's order
+  of phases. Then one `read on with: task list --project 1 --parent 41`
+  line per distinct fold parent lists that parent's delegates, with the
+  project's number from the root's document. A tree's window opens at
+  its start only (jig's wire carries no cursor for it), so read on with
+  the folds' parents' delegates, a page at a time by `--after`, and each
+  one's tree by `task show TASK --tree`. With nothing folded, no cut or
+  read-on lines. Under `--json`, `more` and `folded` as the document
+  carries them.
 - **An activity page** cut before its first row (jig's
   `protocol/store.md`, 7.3) prints no rows and its `read on with:` call,
   never `no more`; under `--json`, `"cut":true` and the position to read
@@ -1160,6 +1171,14 @@ may change with them.
 | 3 | a wait's timeout, or its subject's watch ended, its condition not met | the current document, or the last, and its digest |
 | 128 + N | ended by signal N, `SIGINT` or `SIGTERM`: 130 or 143 (8.2) | nothing more |
 
+- **An argument refused before a call** names the tool, the argument
+  and what it takes from the same specification as help, including its
+  bound: `temper ctl: task activity: --limit COUNT takes a count from 1 to 32; temper ctl help task activity`.
+  The line is at most 240 bytes, ends with the tool's help call, and is
+  the same for argv and `--call`. Missing, repeated and excessive
+  arguments name the rule they broke. A call that names no tool keeps
+  the usage line; an unknown group or tool names it and where help
+  lists it.
 - **2 is the engine's answer alone:** what it decided about the
   request, with the alternatives it names. The client's own answers
   are 1. Two of them never reach a call: unconfirmed, since the runner
@@ -1265,6 +1284,12 @@ may change with them.
   still gets the first answer; one under that name with another ask, or
   under a name another party's parked request holds (8.2), meets
   `Held`, and exits 1.
+- **A spent-pool refusal keeps its own figures first:**
+  `chat start: refused: your pool in project P had LEFT left, NEEDED needed`.
+  If today's `me` pool still has less than NEEDED, the `read it:` and
+  `raise it:` calls follow. With room now, the next line is
+  `now: your pool has L left; budget B; this key keeps its first answer: start new work with a new --key`.
+  Today's pool never replaces the refusal's figures.
 - **Names are the party's.** Agents sharing a party give their names a
   prefix of their own; the page `ctl` says so (11.5).
 - **Acts that decide name the revision the agent saw;** a moved one is
@@ -1348,6 +1373,11 @@ temper ctl help [GROUP [VERB]]
   beside the link: a sign-in kept leaves `token` as it was. Its
   answers, each exit 1 with one line, and none writing `token` or
   `address`:
+  - *empty* (no link after stripping one trailing newline): `temper ctl:
+    sign-in: stdin held no link; give the box's sign-in link on stdin:
+    temper ctl DIR sign-in -`; stdin's end is kept even when it arrives
+    before DIRECTORY is ready, so empty stdin is refused without waiting
+    or sending a sign-in;
   - *refused* (the link spent, expired or unknown): `temper ctl: the
     sign-in link was refused`; `temper serve` prints a fresh link;
   - *full* (jig's `domain/people.md`, section 3): `temper ctl: all N
