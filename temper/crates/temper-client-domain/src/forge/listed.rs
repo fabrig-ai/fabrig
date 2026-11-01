@@ -17,7 +17,7 @@ pub enum Dot {
 }
 #[must_use]
 pub fn personal(row: &Row, demo: Option<&Demo>) -> bool {
-    if row.mode == Mode::Fake {
+    if row.playground || row.mode == Mode::Fake {
         return false;
     }
     if let Some(demo) = demo

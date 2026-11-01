@@ -80,13 +80,13 @@ fn a_first_run_welcome_without_a_demo() {
         &mut out,
     );
     // Reopening the welcome decides from the session's current forges rows.
-    // The root-only pump discards shell navigation, so retain it here through its actual callbacks.
+    // The root-only pump discards shell navigation, so retain it here through its callbacks.
     let mut moved = false;
     for _ in 0..32 {
         while let Some(request) = out.pop() {
             moved |= request
                 == (d::Request::Show {
-                    address: Address::Chats { filter: ChatsFilter::All, start: false },
+                    address: Address::Welcome { step: Step::Forge { forge: None } },
                     replace: true,
                 });
             if let Duty::Wire(request) = Temper::duty(request) {
@@ -104,7 +104,7 @@ fn a_first_run_welcome_without_a_demo() {
     }
     assert!(
         moved,
-        "the second open replaces welcome with chats: {:?}, role {:?}, decision {:?}",
+        "the second open replaces welcome with the unfinished forge step: {:?}, role {:?}, decision {:?}",
         root.person().pages().welcome(),
         d::pages::accounts::current_me(root.person().client()).expect("current account facts").deployment_role,
         d::pages::welcome::decision(root.person())
@@ -144,6 +144,10 @@ fn a_configured_model_hides_the_account_banner_and_no_setup_strip_shows() {
         state: temper_engine_domain_forge::Connection::Connected { id: 1, login: b"bot".as_slice().into() },
     })));
     accounts::settle(&mut front, &mut root);
-    assert_eq!(d::pages::welcome::decision(root.person()), Some(true));
-    assert!(d::forge::listed::setup(root.person()).is_none());
+    assert_eq!(d::pages::welcome::decision(root.person()), Some(false));
+    assert_eq!(
+        d::pages::welcome::setup(root.person()),
+        Some(d::pages::welcome::Setup::Unfinished(Step::Forge { forge: None }))
+    );
+    assert_eq!(d::forge::listed::setup(root.person()).unwrap().step, Step::Ready);
 }

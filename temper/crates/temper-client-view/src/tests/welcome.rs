@@ -596,9 +596,14 @@ fn ready_has_no_foot_controls() {
 }
 
 #[test]
-fn a_connected_real_forge_hides_the_playground_before_its_end_is_read() {
+fn a_kept_real_forge_withdraws_the_playground_on_every_welcome_step() {
     let mut cases = Vec::new();
     cases.push(forge::rows(forge::connected(), w::Offer::Offered));
+    let mut kept = forge::github_rows(false);
+    let mut parts = kept.get(0).unwrap().clone().into_parts();
+    parts.connection = w::Connection::NotConnected;
+    *kept.get_mut(0).unwrap() = w::ForgeRow::new(&w::CEILINGS, parts).unwrap();
+    cases.push(kept);
     for app in [w::AppWay::Manifest, w::AppWay::Pasted] {
         let mut rows = forge::github_rows(false);
         let mut parts = rows.get(0).unwrap().clone().into_parts();
@@ -607,10 +612,37 @@ fn a_connected_real_forge_hides_the_playground_before_its_end_is_read() {
         cases.push(rows);
     }
     for rows in cases {
-        for step in [Step::Forge { forge: None }, Step::Model { way: None }] {
-            let root = f::demo_forges_root(Address::Welcome { step }, rows.clone());
-            assert!(root.forge().demo().is_some(), "the cached answer has not been reread yet");
+        for step in [Step::Welcome, Step::Forge { forge: None }, Step::Model { way: None }] {
+            let root =
+                f::demo_forges_state_root(Address::Welcome { step }, rows.clone(), w::PlaygroundState::NotStarted);
             let view = f::page_view(&root);
+            assert!(f::find(view.tree(), Role::Button, b"Try the playground").is_none());
+            assert!(f::find(view.tree(), Role::Button, b"Try the playground instead").is_none());
+        }
+    }
+}
+#[test]
+fn the_playgrounds_forge_keeps_both_welcome_offers() {
+    let mut rows = forge::github_rows(false);
+    let mut parts = rows.get(0).unwrap().clone().into_parts();
+    parts.skein_bools = [false, false, true, true];
+    *rows.get_mut(0).unwrap() = w::ForgeRow::new(&w::CEILINGS, parts).unwrap();
+    for (step, button) in [
+        (Step::Welcome, b"Try the playground".as_slice()),
+        (Step::Forge { forge: None }, b"Try the playground instead"),
+        (Step::Model { way: None }, b"Try the playground instead"),
+    ] {
+        let root = f::demo_forges_state_root(Address::Welcome { step }, rows.clone(), w::PlaygroundState::NotStarted);
+        assert!(f::find(f::page_view(&root).tree(), Role::Button, button).is_some());
+    }
+}
+#[test]
+fn a_running_or_resetting_playground_withdraws_the_welcome_offers() {
+    for state in [w::PlaygroundState::Running, w::PlaygroundState::Resetting] {
+        for step in [Step::Welcome, Step::Forge { forge: None }, Step::Model { way: None }] {
+            let root = f::demo_state_root(Address::Welcome { step }, state.clone());
+            let view = f::page_view(&root);
+            assert!(f::find(view.tree(), Role::Button, b"Try the playground").is_none());
             assert!(f::find(view.tree(), Role::Button, b"Try the playground instead").is_none());
         }
     }

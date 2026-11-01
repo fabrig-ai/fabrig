@@ -146,13 +146,20 @@ fn welcome(root: &mut Domain, out: &mut Queue<Request>) {
     if page.decided {
         return;
     }
-    if let Some(over) = crate::pages::welcome::decision(root) {
-        root.pages.decide_welcome();
-        if over {
-            out.push(Request::Show {
-                address: crate::Address::Chats { filter: crate::ChatsFilter::All, start: false },
-                replace: true,
-            });
+    let Some(setup) = crate::pages::welcome::setup(root) else { return };
+    root.pages.decide_welcome();
+    let address = if root.forge.demo_running() || root.forge.demo_resetting() {
+        Some(crate::Address::Chats { filter: crate::ChatsFilter::All, start: false })
+    } else {
+        match setup {
+            crate::pages::welcome::Setup::Empty => None,
+            crate::pages::welcome::Setup::Unfinished(step) => Some(crate::Address::Welcome { step }),
+            crate::pages::welcome::Setup::Whole => {
+                Some(crate::Address::Chats { filter: crate::ChatsFilter::All, start: false })
+            }
         }
+    };
+    if let Some(address) = address {
+        out.push(Request::Show { address, replace: true });
     }
 }

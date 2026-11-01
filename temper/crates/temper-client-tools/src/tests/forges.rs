@@ -12,6 +12,8 @@ use temper_client_domain::forge::{
 use temper_client_protocol_wire::{self as wire, v1 as w};
 pub(super) fn row(connection: C) -> Row {
     Row {
+        finished: false,
+        playground: false,
         number: 3,
         kind: Kind::Forgejo,
         mode: Mode::Owned,

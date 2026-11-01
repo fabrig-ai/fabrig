@@ -15,6 +15,7 @@ mod panel;
 mod playground;
 mod playground_end;
 mod project_settings;
+mod welcome_states;
 use crate::{Address, Event, Fact, Request, forge};
 use jig_client::contract;
 use skein_lib::{List, Queue};

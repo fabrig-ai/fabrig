@@ -128,8 +128,12 @@ pub struct Owned {
     pub runner: Option<Box<[u8]>>,
     pub password: Box<[u8]>,
 }
+/// A kept forge and its completion facts (temper/docs/design/draft/playground-reset.md, 6.3).
 #[derive(Clone, Debug, PartialEq, Eq)]
+#[expect(clippy::struct_excessive_bools, reason = "forge rows carry independent facts from the wire")]
 pub struct Row {
+    pub finished: bool,
+    pub playground: bool,
     pub read_only: bool,
     pub number: u16,
     pub kind: Kind,
