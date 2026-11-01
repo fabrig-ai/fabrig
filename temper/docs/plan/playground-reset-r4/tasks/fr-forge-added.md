@@ -11,6 +11,7 @@ files = [
   "temper/crates/temper-service/src/system.rs",
   "temper/crates/temper-service/src/engine.rs",
   "temper/crates/temper-service/src/tests/forge_added.rs",
+  "temper/crates/temper-protocol-records/src/forge.rs",
 ]
 effort = "high"
 minutes = 60
@@ -118,3 +119,19 @@ fab's sections, and `## Interfaces`: `table::kept`, `table::removed`,
 `table::record`,
 `records::connect_one`, any `NotConnected` variant, and where the
 loader waits (first option).
+
+## Answers
+
+2026-11-01. May this task change `temper-protocol-records/src/forge.rs`
+for a new `NotConnected` variant? Yes (option A): the file is added to
+the header's `files`, for the variant and its `Display` arm only, and
+any match the compiler then requires is repaired where it stands. Name
+it `NotConnected::NotHeld { reason: Box<[u8]> }`, not `NotKept`: the
+connector kept the forge, the service could not hold it. Its `Display`
+is `the service could not hold it: ` and the reason; the reason is
+ASCII the service writes from skein's refusal, naming the layer that
+refused and why (`Component::add`'s `Added::Closed` or
+`Added::Unusable`, `Host::add`'s `Unusable`), with counts and limits at
+most: no host, token or record bytes. Like `Unreachable`, it is an
+operator diagnostic, never a wire or stored value; a conversion refused
+keeps the existing variants (`Unreachable`, `Unreadable`, ...).
