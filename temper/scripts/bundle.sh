@@ -26,8 +26,9 @@ fi
 cargo build --target wasm32-unknown-unknown $flag ${features:+--features "$features"} -p temper-client-shell-web
 cargo build -p skein-ui-bundle
 shell=crates/temper-client-shell-web
-target/debug/skein-ui-bundle \
-    --module "target/wasm32-unknown-unknown/$profile/temper_client_shell_web.wasm" \
+target=$(cargo metadata --format-version 1 --no-deps | sed -n 's/.*"target_directory":"\([^"]*\)".*/\1/p')
+"$target/debug/skein-ui-bundle" \
+    --module "$target/wasm32-unknown-unknown/$profile/temper_client_shell_web.wasm" \
     --name temper_client_shell_web --prefix /bundle/ \
     --stylesheet "$shell/temper.css" \
     --stylesheet "$shell/task-pages.css" \
