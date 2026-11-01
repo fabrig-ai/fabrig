@@ -28,6 +28,7 @@ domain, view, tools and the client world.
 | 4 | `cl-choices`, `cl-ctl`, `cl-forges`, `cl-welcome` |
 | 5 | `cl-pg`, `cl-pg-goes`, `fe-kept-root`, `fe-make`, `fe-playground-forge`, `fe-playground-root`, `fe-records`, `fe-remove`, `pd-acts`, `pd-vocabulary` |
 | 6 | `pd-accounts-uses`, `pd-people-purge`, `pd-store-reads`, `pd-tasks-erase`, `pd-test-connector` |
+| 7 | `bx-doc`, `bx-fixtures`, `bx-harness`, `bx-init`, `bx-walks`, `sv-family`, `sv-playground`, `sv-registry`, `sv-registry-setup`, `sv-removal`, `sv-resolve`, `sv-seed-kit`, `sv-service-fixtures`, `sv-startup-machine`, `sv-startup-refuse`, `sv-world-client-browser`, `sv-world-one-process`, `sv-world-real-loop`, `cl-world-forges` |
 
 ## Critical path (as it stands)
 

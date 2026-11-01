@@ -1,11 +1,43 @@
 # sv's progress (temper's service and skein's forge layers)
 
-| Spec | State | Needs |
-|---|---|---|
-| `sv-skein-connection` | final | none |
-| `sv-skein-setup` | final | none |
+| Spec | State | Needs | Crates |
+|---|---|---|---|
+| `sv-skein-connection` | final | none | skein-forge-connection, skein-forge-machine-world |
+| `sv-skein-setup` | final | none | skein-forge-setup, skein-forge-setup-world |
+| `sv-family` | final | cl-wire, fe-surface | temper-service (family) |
+| `sv-startup-machine` | final | sv-family, fe-surface, bx-steps | temper-service (startup) |
+| `sv-registry` | final | sv-startup-machine, sv-skein-connection, sv-skein-setup | temper-service, temper-protocol-records |
+| `sv-registry-setup` | final | sv-registry, bx-steps | temper-service (setup) |
+| `sv-resolve` | final | sv-registry-setup | temper-service; temper's `src/host.rs` |
+| `sv-removal` | final | sv-resolve, bx-pipe | temper-service, temper-protocol-records; temper's `src/host.rs` |
+| `sv-playground` | final | sv-removal, fe-kept-root, fe-records, cl-wire | temper-service |
+| `sv-seed-kit` | final | fe-records | temper-github-app (testing) |
+| `sv-world-one-process` | final | sv-seed-kit, sv-registry-setup | temper-one-process-world |
+| `sv-world-real-loop` | final | sv-seed-kit, sv-registry-setup | temper-real-loop-world |
+| `sv-world-client-browser` | final | sv-seed-kit, sv-registry-setup, bx-init | temper-client-browser-world |
+| `sv-service-fixtures` | final | sv-playground | temper-service (tests) |
+| `sv-startup-refuse` | final | sv-service-fixtures, sv-world-one-process, sv-world-real-loop, sv-world-client-browser, bx-init, bx-fixtures, bx-walks | temper-service; temper's `lib.rs`/`setup.rs` call sites |
 
-(the rest of the part's specs are being written; see the requests below, which they depend on)
+`fe-records` and `fe-kept-root` are named from their task files (not yet marked final in
+`notes/fe-progress.md` when written): release `sv-playground` and `sv-seed-kit` after them.
+temper-system-world builds a `settings::Forge` literal only (no document): no task of its
+own; `sv-startup-refuse` runs it.
+
+## Task graph and critical path
+
+- Parallel from the start: `sv-skein-connection`, `sv-skein-setup` (skein only).
+- temper-service has one writer at a time, so its tasks are a chain:
+  `sv-family` → `sv-startup-machine` → `sv-registry` → `sv-registry-setup` → `sv-resolve` →
+  `sv-removal` → `sv-playground` → `sv-service-fixtures` → `sv-startup-refuse`.
+  `sv-family` and `sv-startup-machine` go first because cl's world and bx's chain
+  (`bx-doc` → `bx-init`, `bx-fixtures`) wait for them; `sv-registry` also waits for the two
+  skein tasks.
+- Off the chain, in parallel once `sv-registry-setup` and `fe-records` land: `sv-seed-kit`,
+  then the three worlds (one crate each).
+- Critical path (implementer minutes, after `cl-wire` and `fe-surface`): the service chain,
+  about 50 + 110 + 120 + 110 + 80 + 90 + 70 + 120 + 120 = 870, gated near its end by
+  `fe-kept-root` (for `sv-playground`) and by bx's `bx-fixtures`/`bx-walks` and the worlds
+  (for `sv-startup-refuse`).
 
 ## Contract requests
 
@@ -31,7 +63,7 @@
      same step (compiler-forced) or after.
    Until answered, sv's specs follow this order and name fe's tasks by the role they play
    (filled in from `notes/fe-progress.md` when it has ids).
-2. **A record's API host and TLS trust need io (T1's `Api`).** skein's connection and setup
+2. **A record's API host and TLS trust need io (T1's `Api`).** *Taken by `sv-resolve` (see 7: `lib.rs` is not edited).* skein's connection and setup
    host take a resolved socket address and a built `skein_tls::Config`; today the binary
    resolves each document forge's host (`to_socket_addrs`) and reads its trust file before
    the loop (`temper/crates/temper/src/lib.rs`, `forges()` and `trust()`), and an unresolved
@@ -47,7 +79,7 @@
    unresolved host is today (`Note::ForgeNotConnected { Unreachable }`). sv's task edits
    `host.rs` and `lib.rs` for this alone, ordered after bx's tasks that touch those files.
    Until answered, sv's spec follows this recommendation.
-3. **One setup entry parsed alone (T3).** serve builds a record's setup-host `Given`, its
+3. **One setup entry parsed alone (T3).** *Answered by `bx-steps` (`Entry::body_text`).* serve builds a record's setup-host `Given`, its
    local reconcile entry and its fake/owned facts from the record's `setup` text plus `forge`
    and `directory` (`forge-N`), as the box does from `box/groups/N`. Both need
    `temper-forge-setup`'s entry parser for one entry, outside `Setup::read`'s list.
@@ -55,7 +87,7 @@
    `temper_forge_setup::setup::Entry::read_one(text: &[u8], forge: u16, limits:
    &skein_forge_setup::limits::Limits, directories: &config::Directories) -> Result<Entry,
    Problems>` (name bx's); sv's registry task names that task in `needs`.
-4. **`forge.forges` (T4).** It bounds the store's `Forge`/`ForgeNumbers` rows (fe) and serve's
+4. **`forge.forges` (T4).** *Answered by `fe-surface` (`Limits::forges`); `sv-startup-machine` adds the override.* It bounds the store's `Forge`/`ForgeNumbers` rows (fe) and serve's
    forge layer, setup host and tokens (sv). **Recommendation:** fe adds
    `temper_engine_domain_forge::Limits::forges` (with `4` in temper-service's `FORGE`
    constant, compiler-forced); sv's `sv-startup-machine` adds the override name
@@ -95,3 +127,11 @@
    `check::checked(.., at: u32)` and adds `check::checked_at(.., at: Option<u32>)`, so it
    writes no temper-service file; `sv-startup-refuse` moves the call. Until answered, sv's
    specs assume this.
+
+7. **Answered by the lead (recorded):** `failed N ...` during `remove N` is "not removed"
+   (`sv-removal`); `application.machine.git_program` goes to `Machine.github.git_program`
+   (`sv-startup-machine`); `sv-startup-refuse` needs `bx-init`, `bx-fixtures`, `bx-walks`;
+   sv's tasks may edit `temper/crates/temper/src/host.rs` (so `sv-resolve` no longer needs
+   `bx-init`: it calls `lib.rs`'s private `address`/`trust`/`server_name` from `host.rs`
+   without editing `lib.rs`); a Forgejo elsewhere has a managed setup entry (T4), which
+   `sv-registry` and `sv-registry-setup` follow.
