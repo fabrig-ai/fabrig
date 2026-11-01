@@ -198,3 +198,15 @@ Acceptance:
 - Every file outside the owned crates you edited, one line each with what changed.
 - Under `## Left`, readers in files you do not own that still name `StartDemo` or
   `start_demo` (the client wire's are `cl-wire`'s).
+
+## Answers
+
+- 2026-11-01. Q: may this task change `temper/crates/temper-service/src/tests/stop.rs`'s
+  two `assert_eq!(wanted, 10)` (lines 154 and 163) to 11? A: yes. They pin
+  `STORE_VERSION`, which this task raises, so they are this surface's forced edits, as the
+  service files listed under "May change" are: change both literals to 11 and nothing else
+  in that file (no new `found: 10` case; a v10 store's refusal is not this task's). The same
+  holds for any other test, in a package Steps, 6 runs or the workspace check reaches, whose
+  only failure is a literal store version 10 (or a `[0, 10, ..]` prefix): update it to 11
+  and list each file in the report. Anything else failing outside the owned crates is a
+  question again. Then finish Steps, 6 from the service run on.
