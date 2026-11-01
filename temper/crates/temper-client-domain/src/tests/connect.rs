@@ -328,7 +328,7 @@ fn an_out_of_date_link_unwatches_the_forges() {
 }
 
 #[test]
-fn the_forges_page_lists_the_persons_forges_not_fakes_or_the_demos() {
+fn every_kept_row_is_listed_but_the_playgrounds() {
     use forge::listed;
     let demo = forge::family::demo(&demo::answer(b"title"), &w::CEILINGS).unwrap();
     let connections = [
@@ -341,14 +341,8 @@ fn the_forges_page_lists_the_persons_forges_not_fakes_or_the_demos() {
         C::Stopped { reason: Box::default() },
     ];
     for connection in connections {
-        let expected = match connection {
-            C::NotConnected | C::NotSetUp => false,
-            C::SettingUp { .. } | C::SetUpFailed { .. } | C::Connecting | C::Connected { .. } | C::Stopped { .. } => {
-                true
-            }
-        };
         let candidate = row(HERE, Kind::Forgejo, Mode::Owned, connection, Offer::Offered);
-        assert_eq!(listed::personal(&candidate, Some(&demo)), expected);
+        assert!(listed::personal(&candidate, Some(&demo)));
         let mut fake = candidate.clone();
         fake.mode = Mode::Fake;
         assert!(!listed::personal(&fake, None));
@@ -364,9 +358,10 @@ fn the_forges_page_lists_the_persons_forges_not_fakes_or_the_demos() {
         row(5, Kind::Forgejo, Mode::Owned, C::Stopped { reason: Box::default() }, Offer::Offered),
     ]));
     let listed = listed::rows(&state, Some(&demo));
-    assert_eq!(listed.len(), 2_u32);
+    assert_eq!(listed.len(), 3_u32);
     assert_eq!(listed.as_slice()[0].number, 2_u16);
-    assert_eq!(listed.as_slice()[1].number, 5_u16);
+    assert_eq!(listed.as_slice()[1].number, 4_u16);
+    assert_eq!(listed.as_slice()[2].number, 5_u16);
     assert!(listed::rows(&State::Unknown, None).is_empty());
     assert!(listed::rows(&State::Ended, None).is_empty());
 }

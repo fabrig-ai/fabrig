@@ -2068,6 +2068,8 @@ fn accounts(w: World, then: Then) -> c::OwnerAccounts {
                 end: c::OwnerAccountEnd::Refused { refusal: c::OwnerAccountRefusal::Held { provider: 18 } },
             }),
             Then::Shown
+            | Then::RemoveConfirm
+            | Then::Removing
             | Then::Filled
             | Then::Refused
             | Then::SignedOut

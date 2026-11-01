@@ -93,6 +93,11 @@ fn personal(
     b.open(Role::Disclosure);
     b.style(look::FORGE_ROW);
     b.name(&connect::name(w, row, root));
+    if let Some(removal) = root.forge().removal()
+        && removal.forge == row.number
+    {
+        b.state(skein_ui::State::Expanded);
+    }
     let kind = match row.kind {
         Kind::Forgejo => Word::ForgeOther,
         Kind::GitHub => Word::ForgeGitHub,
@@ -180,6 +185,7 @@ fn personal(
             | Connection::Stopped { .. } => {}
         }
     }
+    removal(b, root, w, forge, row);
     b.close();
 }
 fn github(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, forge: &mut ForgeBindings, row: &Row) {
@@ -332,4 +338,95 @@ pub(crate) fn open_link(
     b.text(skein_ui::Run::Plain, &label);
     b.close();
     true
+}
+
+fn remove_control(
+    b: &mut Builder,
+    w: &Words,
+    bindings: &mut ForgeBindings,
+    word: Word,
+    meaning: super::bindings::Meaning,
+    disabled: bool,
+) {
+    b.open(Role::Button);
+    b.name(&w.say(word, &[]));
+    if word == Word::ForgeRemove {
+        b.style(look::TASK_DANGER);
+    }
+    if disabled {
+        b.state(skein_ui::State::Disabled);
+    } else {
+        b.bind(bindings.insert(meaning));
+    }
+    b.close();
+}
+fn removal(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut ForgeBindings, row: &Row) {
+    use super::bindings::Meaning;
+    use forge::removing::RemoveAnswer;
+    let removal = root.forge().removal();
+    let busy = match removal {
+        Some(removal) => removal.progress.is_some() || removal.answer == Some(RemoveAnswer::Removing),
+        None => false,
+    };
+    let Some(removal) = removal else {
+        remove_control(b, w, bindings, Word::ForgeAskRemove, Meaning::AskRemove(row.number), false);
+        return;
+    };
+    if removal.forge != row.number {
+        remove_control(b, w, bindings, Word::ForgeAskRemove, Meaning::AskRemove(row.number), busy);
+        return;
+    }
+    let number = &[Hole::Number(u64::from(row.number))];
+    if removal.confirming || removal.progress.is_some() {
+        b.open(Role::Alert);
+        crate::cards::text(b, Role::Heading { level: 3 }, &w.say(Word::ForgeRemoveTitle, number));
+        connect::text(b, w, Role::Paragraph, Word::ForgeRemoveBody);
+        match row.kind {
+            Kind::Forgejo => connect::text(
+                b,
+                w,
+                Role::Paragraph,
+                if row.mode == Mode::Owned { Word::ForgeRemoveOwned } else { Word::ForgeRemoveManaged },
+            ),
+            Kind::GitHub => {
+                connect::text(b, w, Role::Paragraph, Word::ForgeRemoveGitHub);
+                let web = row.web.as_deref().unwrap_or(b"https://github.com");
+                let web = web.strip_suffix(b"/").unwrap_or(web);
+                let mut url =
+                    skein_lib::Writer::new(web.len().checked_add(b"/settings/apps".len()).expect("settings URL fits"));
+                url.put(web).expect("web counted");
+                url.put(b"/settings/apps").expect("path counted");
+                b.open(Role::Link);
+                b.name(&w.say(Word::ForgeAppSettings, &[]));
+                b.external(&url.finish());
+                b.close();
+            }
+        }
+        b.open(Role::Slot);
+        b.style(look::TASK_ACTS);
+        let disabled = busy || root.forge().served() == forge::Served::OutOfDate;
+        remove_control(b, w, bindings, Word::ForgeRemove, Meaning::RemoveForge(row.number), disabled);
+        remove_control(b, w, bindings, Word::ForgeKeep, Meaning::KeepForge, busy);
+        b.close();
+        b.close();
+    }
+    if removal.progress.is_some() {
+        crate::cards::text(b, Role::Status, &w.say(Word::ForgeRemoving, number));
+    }
+    if let Some(answer) = &removal.answer {
+        match answer {
+            RemoveAnswer::Removing => crate::cards::text(b, Role::Status, &w.say(Word::ForgeRemovingRecords, number)),
+            RemoveAnswer::NoSuchForge => connect::text(b, w, Role::Alert, Word::ForgeGone),
+            RemoveAnswer::Playground => connect::text(b, w, Role::Alert, Word::ForgeRemovePlayground),
+            RemoveAnswer::Unknown => w.status(b, crate::cards::P::Unknown, &[]),
+            RemoveAnswer::EntranceRefused(refusal) => {
+                b.open(Role::Alert);
+                w.refusal(b, refusal.refusal(), w.name_bytes);
+                b.close();
+            }
+        }
+    }
+    if !busy && !removal.confirming {
+        remove_control(b, w, bindings, Word::ForgeAskRemove, Meaning::AskRemove(row.number), false);
+    }
 }
