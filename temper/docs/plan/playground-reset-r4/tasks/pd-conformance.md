@@ -140,3 +140,12 @@ It then says: “After that repair, pd-conformance resumes its required checks, 
 Both omissions remain in `jig/crates/jig-domain-people/src/domain/removal.rs` and `jig/tests/core/src/removal.rs`.
 The next run implements the pending scenario and transcript accessor within its existing ownership, completes checks, commits and pushes.
 Acceptance remains unmet; this is not acceptance as done.
+
+### 2026-11-01: Supply a base containing pd-delete’s retained AccountChange::SetUses answer and reference-audit repair, then restart pd-conformance (recommended), or explicitly revise the prerequisite and ownership? The supplied base still lacks the repair required by the binding answers. (playground-reset-r4/pd-conformance-4, foreman playground-reset-r4/pd-conformance/foreman-4)
+
+Supply a base containing pd-delete’s retained-answer and reference-audit repair, then restart pd-conformance.
+The latest binding answer explicitly says: “Supply a base containing pd-delete’s retained-answer and reference-audit repair, then restart pd-conformance.”
+Ownership remains settled: “Route the retained-answer defect and reference-audit omission to pd-delete’s family.”
+Inspection confirms both predicates still classify AccountChange as project-free in `jig/crates/jig-domain-people/src/domain/removal.rs` and `jig/tests/core/src/removal.rs`.
+After the repaired base is supplied, pd-conformance implements its pending scenario and transcript accessor within existing ownership, completes checks, commits and pushes.
+Acceptance remains unmet; this is not acceptance as done.
