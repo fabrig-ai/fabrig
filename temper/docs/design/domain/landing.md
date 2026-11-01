@@ -627,6 +627,14 @@ Under `../client/tools.md`, 5.1's names (a group `landing`):
 | `landing list --project PROJECT [--ended]` | the project's landings, newest first, with their phases; the turn's holder first |
 | `repository receipts REPOSITORY [--gate GATE]` | a repository's receipts, newest first: gate, key, verdict, run, candidate, time |
 
+The reads above describe turn landing tasks. A queue change creates no
+landing task: `landing show TASK` on its change task answers
+`no landing for task TASK` (exit 2), in text and JSON, and its queue merge
+does not appear in `landing list`, including with `--ended`. Read the
+change and its merge with `change show TASK`. A matching change document
+on the shared task watch means no landing; malformed documents and
+documents for another task or project remain errors.
+
 - **A change's panel** (`forge.md`, 8.8) names its landing and its way.
 - **Acts** are jig's on the landing task: release and cancel, by the
   project's maintainers.

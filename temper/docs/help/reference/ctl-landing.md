@@ -17,6 +17,7 @@ Key: none.
 A landing lands its changes by turn: each gate is proved by a receipt
 of its key, then main is fast-forwarded to each candidate. A task with
 no landing fails, `no landing for task TASK` (exit 2).
+Queue changes have no landing task; read them with `change show TASK`.
 ```
 
 ## landing list
@@ -30,4 +31,6 @@ Prints: `landings of project PROJECT`, the turn, and a line per landing: its tas
 --json: the record landings.
 Key: none.
 Without --ended, the live landings alone. `landing show TASK` reads one.
+These are turn landings. Queue merges create no landing task and do not
+appear here, including with --ended. Read a queue change with `change show TASK`.
 ```
