@@ -6,6 +6,7 @@ mod demo;
 mod demo_start;
 pub(crate) mod fixtures;
 mod forge_page;
+mod forge_remove;
 mod forges;
 mod frame;
 mod inbox;
