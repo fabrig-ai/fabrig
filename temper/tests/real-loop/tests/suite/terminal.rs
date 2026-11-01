@@ -1,9 +1,9 @@
 //! A person starts a chat at the terminal and reads its committed answer.
 use std::os::unix::fs::MetadataExt;
 use temper_real_loop_world::{
-    Exit,
+    Exit, Scratch,
     calls::{D1, sign_in},
-    run, scripts, terminal,
+    fixtures, llm, run_on, scripts, terminal,
 };
 // The production view's Provisional word (cards/words.rs).
 const PROVISIONAL: &[u8] = b"Writing...";
@@ -12,8 +12,11 @@ const SIGN_IN: usize = 0;
 
 #[test]
 fn a_person_at_the_terminal_reads_a_chats_committed_reply() {
-    let ran = run(
-        || scripts::chat_scripts(1),
+    let scratch = Scratch::new("standing-terminal");
+    fixtures::standing_chats(scratch.path()).expect("standing chat fixture");
+    let ran = run_on(
+        scratch,
+        || llm::scripted(scripts::chat_scripts(1)),
         || {
             vec![
                 sign_in(D1),

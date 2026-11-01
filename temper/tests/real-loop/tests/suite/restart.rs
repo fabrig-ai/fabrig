@@ -14,6 +14,7 @@ const CHATS: usize = 1;
 #[test]
 fn a_restarted_service_keeps_the_chat_with_its_reply() {
     let scratch = temper_real_loop_world::Scratch::new("settings-restart");
+    fixtures::standing_chats(scratch.path()).expect("standing chat fixture");
     let path = scratch.path().to_path_buf();
     let first = run_on(
         scratch,

@@ -10,12 +10,15 @@ const CHATS: usize = 1;
 #[test]
 fn a_signed_in_chat_shows_its_reply_only_once_committed() {
     use temper_real_loop_world::{
-        Exit, argv,
+        Exit, Scratch, argv,
         calls::{D1, occurrences, task, until},
-        fixtures, run, scripts,
+        fixtures, llm, run_on, scripts,
     };
-    let ran = run(
-        || scripts::chat_scripts(CHATS),
+    let scratch = Scratch::new("standing-reply");
+    fixtures::standing_chats(scratch.path()).expect("standing chat fixture");
+    let ran = run_on(
+        scratch,
+        || llm::scripted(scripts::chat_scripts(CHATS)),
         || {
             let mut steps = fixtures::signed_chat("first");
             steps.push(until(D1, argv!["chat", "show", task(CHAT)], scripts::REPLY, scripts::EARLY));
