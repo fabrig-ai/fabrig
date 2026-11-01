@@ -9,7 +9,7 @@ use jig_domain_notes as notes;
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use jig_test_domain as root;
-use skein_lib::{List, Token};
+use skein_lib::{Duration, List, ReplyTo, Token};
 
 const SEED: u64 = 1880;
 const PROJECT: u32 = 1;
@@ -85,9 +85,14 @@ fn remove(world: &mut World) {
     ask(world, REMOVE, people::Ask::RemoveProject { project: PROJECT });
 }
 fn complete(world: &mut World) {
-    // The scripted host answers the cancelled root; its unassigned delegate
-    // has no run to wait for and ends through the connector lifecycle.
-    world.end(tasks::End::Parked, 0);
+    // Only a still-live assigned task can owe the host's terminal answer.
+    if world.assigned.as_ref().is_some_and(|assignment| {
+        world.store.rows.contains_key(&root::Key::Core(core::Key::Tasks(tasks::Key::Live(assignment.task))))
+    }) {
+        world.end(tasks::End::Parked, 0);
+    }
+    // A disconnected restored run finishes at its cancellation deadline.
+    world.advance(Duration::from_secs(5));
 }
 fn restart(world: &mut World) {
     let hosting = world
@@ -148,7 +153,11 @@ fn stage_commit(world: &World, expected: core::RemovalStage) -> u64 {
             root::Write::Save(root::Record::Core(core::Record::Core(core::CoreRecord::Deployment(row)))) => {
                 Some(row.commits)
             }
-            _ => None,
+            root::Write::CopySettingsRevision(_)
+            | root::Write::Wires
+            | root::Write::Save(_)
+            | root::Write::Erase(_)
+            | root::Write::DropTranscript(_) => None,
         })
         .expect("commit's deployment header")
 }
@@ -208,9 +217,27 @@ fn a_retried_remove_after_the_deletion_answers_unknown() {
 fn the_deleted_projects_name_makes_a_new_project() {
     let (mut config, limits) = jig_core_world::effects::fixture(SEED, false);
     let name = config.core.seed_projects[0].name.clone();
+    let mut policy = config.core.seed_projects[0].policy.clone();
+    policy.permissions = Box::new([]);
     config.core.defaults.policies = skein_lib::Map::with_capacity(1);
-    config.core.defaults.policies.insert(1, config.core.seed_projects[0].policy.clone()).expect("one offered policy");
-    let mut world = World::configured(SEED, false, config, limits);
+    config.core.defaults.policies.insert(1, policy).expect("one offered policy");
+    let mut world = World::first_start(config, limits);
+    assert!(
+        world.domain.ready(),
+        "restart: {:?}, restore: {:?}",
+        world.domain.restart_failure(),
+        world.domain.restore_failure()
+    );
+    world.send(root::Event::Core(core::Event::SignIn {
+        held: None,
+        reply_to: ReplyTo::new(Token::new(101)),
+        identity: people::Identity {
+            key: people::IdentityKey { provider: 0, subject: 7_u64.to_be_bytes().into() },
+            login: b"owner".as_slice().into(),
+            name: b"Owner".as_slice().into(),
+        },
+    }));
+    assert!(world.sign_in.is_some(), "owner replies: {:?}", world.people_answers);
     remove(&mut world);
     complete(&mut world);
     world.send(root::Event::Core(core::Event::People(people::Event::Roles {

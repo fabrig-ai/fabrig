@@ -12,7 +12,7 @@ use jig_test_domain as root;
 /// the project's closed period and pool totals, which outlive deletion.
 #[must_use]
 pub fn rows_naming(world: &World, project: u32, tasks: &[u64]) -> Vec<root::Key> {
-    world.store.rows.iter().filter_map(|(key, row)| names(row, project, tasks).then(|| key.clone())).collect()
+    world.store.rows.iter().filter(|(_, row)| names(row, project, tasks)).map(|(key, _)| key.clone()).collect()
 }
 
 fn funder(value: tasks::Funder, project: u32, tasks: &[u64]) -> bool {
@@ -118,7 +118,12 @@ fn task_row(row: &tasks::Stored, project: u32, ids: &[u64]) -> bool {
             {
                 false
             }
-            value => funder(value, project, ids) || row.parent.is_some_and(|parent| funder(parent, project, ids)),
+            value @ (tasks::Funder::Task(_)
+            | tasks::Funder::Period { .. }
+            | tasks::Funder::Pool { .. }
+            | tasks::Funder::Recurring { .. }) => {
+                funder(value, project, ids) || row.parent.is_some_and(|parent| funder(parent, project, ids))
+            }
         },
         tasks::Stored::PlacedHold(row) => {
             row.project == project
@@ -205,7 +210,7 @@ fn people_row(row: &people::Stored, project: u32, ids: &[u64]) -> bool {
         }
         people::Stored::ReadConversation { task, .. } | people::Stored::EndedRead { task, .. } => ids.contains(task),
         people::Stored::Answer { ask, outcome, .. } => {
-            ask_project(ask, project) || outcome_names(outcome, project, ids)
+            ask_project(ask, project) || ask_tasks(ask, ids) || outcome_names(outcome, project, ids)
         }
         people::Stored::Acted { act, outcome, .. } => {
             (match act {
@@ -262,6 +267,29 @@ fn ask_project(ask: &people::Ask, project: u32) -> bool {
     }
 }
 
+#[expect(
+    clippy::wildcard_enum_match_arm,
+    reason = "task references in retained asks supplement their project identities"
+)]
+fn ask_tasks(ask: &people::Ask, ids: &[u64]) -> bool {
+    match ask {
+        people::Ask::MarkSeen { seen: people::Seen::Conversation { task, .. } }
+        | people::Ask::Stop { task, .. }
+        | people::Ask::Cancel { task, .. }
+        | people::Ask::Release { task, .. }
+        | people::Ask::TakePerson { task, .. }
+        | people::Ask::HandBackPerson { task, .. }
+        | people::Ask::AnswerPerson { task, .. }
+        | people::Ask::Move { task, .. }
+        | people::Ask::Say { task, .. }
+        | people::Ask::AnswerQuestion { task, .. }
+        | people::Ask::Amend { task, .. }
+        | people::Ask::DecideEscalation { task, .. } => ids.contains(task),
+        people::Ask::DecideProposal { proposer: owner, .. } => proposer(*owner, ids),
+        _ => false,
+    }
+}
+
 #[expect(clippy::wildcard_enum_match_arm, reason = "only outcomes with project or task identities name deletion rows")]
 fn outcome_names(value: &people::Outcome, project: u32, ids: &[u64]) -> bool {
     match value {
@@ -271,9 +299,58 @@ fn outcome_names(value: &people::Outcome, project: u32, ids: &[u64]) -> bool {
         | people::Outcome::Renamed { project: named }
         | people::Outcome::ProjectMade { project: named }
         | people::Outcome::ProjectRemoved { project: named }
+        | people::Outcome::Adopted { project: named }
         | people::Outcome::PoolSet { project: named, .. } => *named == project,
         people::Outcome::Created { first, last, .. } => ids.iter().any(|task| first <= task && task <= last),
-        people::Outcome::Amended { task, .. } | people::Outcome::EscalationDecided { task, .. } => ids.contains(task),
+        people::Outcome::Amended { task, .. }
+        | people::Outcome::EscalationDecided { task, .. }
+        | people::Outcome::Stopped { task }
+        | people::Outcome::Cancelled { task }
+        | people::Outcome::Released { task }
+        | people::Outcome::PersonTaken { task }
+        | people::Outcome::PersonHandedBack { task }
+        | people::Outcome::PersonAnswered { task }
+        | people::Outcome::Moved { task }
+        | people::Outcome::Said { task, .. }
+        | people::Outcome::QuestionAnswered { task, .. }
+        | people::Outcome::MarkedSeen { seen: people::Seen::Conversation { task, .. } } => ids.contains(task),
+        people::Outcome::ProposalDecided { proposer: owner, .. } => proposer(*owner, ids),
         _ => false,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_audit_finds_references_held_only_in_retained_values() {
+        let mut world = World::new(1880, false);
+        let project = 99;
+        let task = 999;
+        for (ask, outcome) in [
+            (
+                people::Ask::MakeProject { name: Box::from("removed"), policy: 1 },
+                people::Outcome::ProjectMade { project },
+            ),
+            (
+                people::Ask::MarkSeen { seen: people::Seen::Conversation { task, through: 1 } },
+                people::Outcome::Refused(people::Refusal::Unknown),
+            ),
+            (people::Ask::MarkSeen { seen: people::Seen::Results { through: 0 } }, people::Outcome::Stopped { task }),
+        ] {
+            let row = root::Record::Core(core::Record::People(people::Stored::Answer {
+                key: people::RequestKey { person: 1, key: [99; 16] },
+                ask: Box::new(ask),
+                models: Box::new([]),
+                outcome,
+                at: skein_lib::Wall::EPOCH,
+            }));
+            let key = row.key();
+            world.store.rows.insert(key.clone(), row);
+            assert!(rows_naming(&world, project, &[task]).contains(&key));
+            world.store.rows.remove(&key);
+            assert!(rows_naming(&world, project, &[task]).is_empty());
+        }
     }
 }

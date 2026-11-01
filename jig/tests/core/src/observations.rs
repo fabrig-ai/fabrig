@@ -270,6 +270,7 @@ pub struct Observer {
     application_requests: bool,
     task_projects: BTreeMap<u64, u32>,
     removing: BTreeSet<u32>,
+    task_receipts: BTreeSet<r::Receipt>,
     activity: BTreeMap<(u64, u64), tasks::ActivityLine>,
     effects: [usize; 2],
     reads: [usize; 2],
@@ -291,6 +292,10 @@ pub struct Observer {
 impl Observer {
     /// Capture policy from scenario configuration before constructing the root.
     #[must_use]
+    #[expect(
+        clippy::too_many_lines,
+        reason = "one constructor captures configured policy and durable removal witnesses"
+    )]
     pub fn new(configuration: &root::Config) -> Self {
         let deployment = &configuration.core.defaults.rules;
         let mut policy = r::Policy {
@@ -382,6 +387,7 @@ impl Observer {
             application_requests: false,
             task_projects: BTreeMap::new(),
             removing: BTreeSet::new(),
+            task_receipts: BTreeSet::new(),
             activity: BTreeMap::new(),
             effects: [0; 2],
             reads: [0; 2],
@@ -612,7 +618,7 @@ impl Observer {
         // An uncommitted forget is lost with the old root. A start's mark may
         // reuse its number without forgetting the task.
         self.forgetting.retain(|commit, _| *commit <= store.applied);
-        let receipts = store
+        let mut receipts: BTreeSet<_> = store
             .rows
             .values()
             .filter_map(|row| match row {
@@ -641,6 +647,15 @@ impl Observer {
                 root::Record::Core(_) | root::Record::Connector { .. } => None,
             }))
             .collect();
+        // Only receipts witnessed durable before this erasure may outlive their
+        // stored rows, and only for tasks of a durably removing project.
+        for receipt in &self.task_receipts {
+            if let Some(task) = receipt_task(receipt)
+                && self.task_projects.get(&task).is_some_and(|project| self.removing.contains(project))
+            {
+                receipts.insert(receipt.clone());
+            }
+        }
         self.observe(now, r::Observed::ColdStore { receipts });
     }
 
@@ -1076,6 +1091,11 @@ impl Observer {
                 "immutable activity row disappeared"
             );
         }
+        for receipt in &snapshot.receipts {
+            if receipt_task(receipt).is_some() {
+                self.task_receipts.insert(receipt.clone());
+            }
+        }
         self.observe(now, r::Observed::Durable { number, snapshot });
         self.applied = number;
         let applied: Vec<_> = self.forgetting.keys().copied().filter(|commit| *commit <= number).collect();
@@ -1306,9 +1326,54 @@ impl Heap {
     }
 }
 
+fn receipt_task(receipt: &r::Receipt) -> Option<u64> {
+    match receipt {
+        r::Receipt::Task(task)
+        | r::Receipt::Claim(task, _)
+        | r::Receipt::Turn(task, ..)
+        | r::Receipt::Terminal(task, _)
+        | r::Receipt::Call(task, ..)
+        | r::Receipt::Ended(task)
+        | r::Receipt::Word(task, _) => Some(*task),
+        r::Receipt::SignIn(_) | r::Receipt::Party(..) | r::Receipt::Outbox(..) => None,
+    }
+}
+
 #[cfg(test)]
 mod activity_tests {
     use super::*;
+
+    #[test]
+    fn cold_receipts_may_disappear_only_for_a_removing_project() {
+        for (removing, accepted) in [(1, true), (2, false)] {
+            let mut world = crate::effects::World::new(507, false);
+            world.turn(1, 0, None, b"durable turn");
+            world.end(
+                tasks::End::Finished {
+                    result: tasks::TaskResult::Report { words: b"done".as_slice().into() },
+                    cancel_delegates: false,
+                },
+                0,
+            );
+            let row = root::Record::Core(core::Record::Core(core::CoreRecord::Removal(core::Removal {
+                project: removing,
+                stage: core::RemovalStage::Erasing,
+            })));
+            world.store.rows.insert(row.key(), row);
+            world.store.applied += 1;
+            world.observer.durable(world.wall_time().as_nanos(), &world.store);
+            world
+                .store
+                .rows
+                .retain(|key, _| !matches!(key, root::Key::Core(core::Key::Core(core::CoreKey::Turn { task: 1, .. }))));
+            world.store.applied += 1;
+            world.observer.durable(world.wall_time().as_nanos(), &world.store);
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                world.observer.cold(world.wall_time().as_nanos(), &world.store);
+            }));
+            assert_eq!(result.is_ok(), accepted);
+        }
+    }
 
     #[test]
     fn activity_of_a_removing_project_may_be_erased() {
@@ -1331,7 +1396,7 @@ mod activity_tests {
             })));
             world.store.rows.insert(removal.key(), removal);
             world.store.applied += 1;
-            world.observer.durable(world.wall, &world.store);
+            world.observer.durable(world.wall_time().as_nanos(), &world.store);
             world.store.rows.retain(|key, _| {
                 !matches!(
                     key,
@@ -1342,7 +1407,7 @@ mod activity_tests {
             });
             world.store.applied += 1;
             let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                world.observer.durable(world.wall, &world.store)
+                world.observer.durable(world.wall_time().as_nanos(), &world.store);
             }));
             assert_eq!(result.is_ok(), accepted);
         }
