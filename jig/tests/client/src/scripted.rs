@@ -644,6 +644,7 @@ fn observe_change(change: &engine::Change, commit: u64, seen: &mut Vec<Observed>
         | engine::Change::SignedOut { .. }
         | engine::Change::OwnerProject(_)
         | engine::Change::Project(_)
+        | engine::Change::RemoveProject { .. }
         | engine::Change::Note(_)
         | engine::Change::DeleteNote { .. }
         | engine::Change::Deployment(_)

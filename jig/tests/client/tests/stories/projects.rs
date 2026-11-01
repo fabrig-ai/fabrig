@@ -149,3 +149,17 @@ fn a_make_retried_under_its_key_after_a_reload_is_answered_once() {
     assert_eq!(frame(&world, client).projects.iter().filter(|p| p.project == project).count(), 1);
     assert!(world.root(client).client().pending(key).is_none());
 }
+
+#[test]
+fn an_owner_deletes_a_project_and_it_leaves_the_project_list() {
+    let (mut world, client) = ready(true);
+    let key = send(&mut world, client, 91, c::Ask::RemoveProject { project: PROJECT });
+    settle(&mut world);
+    assert_eq!(
+        answer(&mut world),
+        c::Answer::Done(c::Outcome::Owner(c::OwnerOutcome::ProjectRemoved { project: PROJECT }))
+    );
+    assert!(!frame(&world, client).projects.iter().any(|p| p.project == PROJECT));
+    assert!(world.root(client).client().pending(key).is_none(), "the client received the deletion answer");
+    assert!(!world.front().engine.truth().frames[&8].projects.iter().any(|p| p.project == PROJECT));
+}

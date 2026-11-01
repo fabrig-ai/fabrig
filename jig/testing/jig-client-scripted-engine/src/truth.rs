@@ -71,6 +71,10 @@ pub enum Change {
     Project(Box<Project>),
     /// Replace a whole owner project after its name changes.
     OwnerProject(Box<jig_client_domain::contract::OwnerProject>),
+    /// Drop a project's memberships and documents in the same decision.
+    RemoveProject {
+        project: u32,
+    },
     /// Replace a revisioned note.
     Note(Note),
     /// Delete a note.
@@ -117,7 +121,11 @@ impl Change {
             Self::Note(value) => payload::fits(value, bounds),
             Self::Deployment(value) => payload::fits(value, bounds),
             Self::OwnerDeployment(value) => payload::fits(value, bounds),
-            Self::SignIn { .. } | Self::SignedOut { .. } | Self::Forget { .. } | Self::DeleteNote { .. } => true,
+            Self::SignIn { .. }
+            | Self::SignedOut { .. }
+            | Self::Forget { .. }
+            | Self::DeleteNote { .. }
+            | Self::RemoveProject { .. } => true,
         };
         if fits { Ok(()) } else { Err(Invalid::Payload) }
     }
@@ -249,6 +257,7 @@ impl Truth {
             Change::Project(project) => {
                 self.projects.insert(project.number, (**project).clone());
             }
+            Change::RemoveProject { project } => self.remove_project(*project),
             Change::Note(note) => {
                 self.notes.insert(note.number, note.clone());
             }
@@ -266,11 +275,91 @@ impl Truth {
         }
         Ok(())
     }
+    fn remove_project(&mut self, project: u32) {
+        let objects: std::collections::BTreeSet<_> =
+            self.objects.keys().copied().filter(|key| self.project(*key) == Some(project)).collect();
+        let tasks: std::collections::BTreeSet<_> = objects
+            .iter()
+            .filter_map(|key| match key {
+                ObjectKey::Task(task)
+                | ObjectKey::Escalation(task)
+                | ObjectKey::Question { task, .. }
+                | ObjectKey::PersonTask(task)
+                | ObjectKey::Result(task) => Some(*task),
+                ObjectKey::Proposal(_) | ObjectKey::Note { .. } => None,
+            })
+            .collect();
+        self.projects.remove(&project);
+        self.owner_projects.remove(&project);
+        self.objects.retain(|key, _| !objects.contains(key));
+        self.object_projects.retain(|_, number| *number != project);
+        self.trees.retain(|task, _| !tasks.contains(task));
+        for positions in self.replies_seen.values_mut() {
+            positions.retain(|position| !tasks.contains(&position.task));
+        }
+        for frame in self.frames.values_mut() {
+            let mut projects = skein_lib::List::with_capacity(frame.projects.capacity());
+            for membership in frame.projects.iter().filter(|p| p.project != project) {
+                projects.push(membership.clone()).expect("remaining memberships fit");
+            }
+            frame.projects = projects;
+        }
+        self.notes.retain(|_, note| !note_in_project(&note.scope, project));
+        for source in &mut self.sources {
+            match &mut source.rows {
+                crate::Rows::Tasks(rows) => rows.retain(|row| row.project != project),
+                crate::Rows::Inbox(rows) => rows.retain(|row| row.project != project),
+                crate::Rows::Notes(rows) => rows.retain(|row| !note_in_project(&row.scope, project)),
+                crate::Rows::Ended(_) | crate::Rows::History(_) | crate::Rows::Activity(_) | crate::Rows::Spend(_) => {}
+            }
+        }
+        self.sources.retain(|source| !read_in_project(&source.read, project, &tasks));
+    }
     pub(crate) fn project(&self, key: ObjectKey) -> Option<u32> {
         document_project(self.objects.get(&key)?).or_else(|| self.object_projects.get(&key).copied())
     }
     pub(crate) fn visible(&self, party: u64, project: u32) -> bool {
         self.frames.get(&party).is_some_and(|frame| frame.projects.iter().any(|role| role.project == project))
+    }
+}
+
+fn note_in_project(scope: &jig_client_domain::contract::NoteScope, project: u32) -> bool {
+    use jig_client_domain::contract::NoteScope;
+    match scope {
+        NoteScope::Deployment => false,
+        NoteScope::Project(number)
+        | NoteScope::Resource { project: number, .. }
+        | NoteScope::Task { project: number, .. } => *number == project,
+    }
+}
+
+fn read_in_project(
+    read: &jig_client_domain::contract::Read,
+    project: u32,
+    tasks: &std::collections::BTreeSet<u64>,
+) -> bool {
+    use jig_client_domain::contract::Read;
+    match read {
+        Read::Project { project: number } | Read::Spend { project: number, .. } => *number == project,
+        Read::Tasks { query, .. } => query.project == Some(project),
+        Read::Inbox { project: number, .. } => *number == Some(project),
+        Read::Notes { scope, .. } => note_in_project(scope, project),
+        Read::Task { task }
+        | Read::Turn { task, .. }
+        | Read::Escalation { task }
+        | Read::Question { task, .. }
+        | Read::PersonTask { task }
+        | Read::Result { task }
+        | Read::Ended { task, .. }
+        | Read::History { task, .. }
+        | Read::Activity { task, .. } => tasks.contains(task),
+        Read::Proposal { .. }
+        | Read::Settings
+        | Read::Setting(_)
+        | Read::Revision(_)
+        | Read::Revisions(_)
+        | Read::Me
+        | Read::Deployment => false,
     }
 }
 

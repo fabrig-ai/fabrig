@@ -11,7 +11,7 @@ type ProjectDecision = Result<(Answer, Vec<Change>), Invalid>;
 impl<A: Application> Engine<A> {
     pub(super) fn project_request(&mut self, party: u64, ask: &Ask) -> Option<ProjectDecision> {
         let (project, name, policy) = match ask {
-            Ask::RemoveProject { .. } => return Some(Ok(refused(Refusal::NotOffered))),
+            Ask::RemoveProject { project } => return Some(self.remove_project(party, *project)),
             Ask::Rename { project, name } => (Some(*project), name, None),
             Ask::MakeProject { name, policy } => (None, name, Some(*policy)),
             Ask::ChangeSettings(_)
@@ -43,6 +43,29 @@ impl<A: Application> Engine<A> {
             | Ask::SignOut { .. } => return None,
         };
         Some(self.change_project(party, project, name, policy))
+    }
+
+    fn remove_project(&mut self, party: u64, project: u32) -> ProjectDecision {
+        let exists = self.truth.projects.contains_key(&project)
+            || self.truth.owner_projects.contains_key(&project)
+            || self.truth.frames.values().any(|frame| frame.projects.iter().any(|p| p.project == project));
+        if !exists {
+            return Ok(refused(Refusal::Unknown));
+        }
+        let held = self
+            .truth
+            .frames
+            .get(&party)
+            .and_then(|frame| frame.projects.iter().find(|p| p.project == project).map(|p| p.role));
+        if held != Some(HeldRole::Owner) {
+            return Ok(refused(Refusal::Role { held }));
+        }
+        let change = Change::RemoveProject { project };
+        change.validate(&self.bounds)?;
+        let mut next = self.truth.clone();
+        next.apply(&change)?;
+        self.truth = next;
+        Ok((Answer::Done(Outcome::Owner(OwnerOutcome::ProjectRemoved { project })), vec![change]))
     }
 
     fn change_project(
