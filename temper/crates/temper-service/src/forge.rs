@@ -365,7 +365,7 @@ pub fn problems(unusable: skein_forge_connection::Unusable, found: &mut Problems
             found.push(forge_path(u32::from(forge)).member(b"log_origins"), What::Bound);
             &[b"forge_component.log_origins"]
         }
-        Unusable::Duplicate { forge } => {
+        Unusable::Number { forge } | Unusable::Duplicate { forge } => {
             found.push(forge_path(u32::from(forge)).member(b"number"), What::Unique);
             return;
         }
@@ -412,6 +412,7 @@ pub(crate) fn indexed(
 ) -> skein_forge_connection::Unusable {
     let mut unusable = unusable;
     if let skein_forge_connection::Unusable::Duplicate { forge }
+    | skein_forge_connection::Unusable::Number { forge }
     | skein_forge_connection::Unusable::Secret { forge }
     | skein_forge_connection::Unusable::Key { forge }
     | skein_forge_connection::Unusable::Token { forge }

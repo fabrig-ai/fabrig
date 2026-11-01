@@ -98,6 +98,19 @@ impl Hooks {
             self.slab.get_mut(*id).expect("indexed hook").refused(hinted.hint);
         }
     }
+    /// Drops deliveries in progress for a forge the component no longer holds.
+    pub fn remove(&mut self, forge: u16) {
+        for (_, id) in &self.connections {
+            let c = self.slab.get_mut(*id).expect("indexed hook");
+            if c.forge == forge && !c.closing.sent() {
+                c.mac = None;
+                c.decoder = None;
+                c.decoded = None;
+                c.hint = None;
+                c.closing = Closing::Pending;
+            }
+        }
+    }
     pub fn offer(&mut self) {
         for (_, id) in &self.connections {
             self.slab.get_mut(*id).expect("indexed hook").offer();

@@ -17,6 +17,7 @@ mod github_unknown_repository;
 mod hooks;
 mod machine;
 mod memory;
+mod runtime;
 
 mod fuzzy {
     mod hooks;

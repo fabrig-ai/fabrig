@@ -437,16 +437,17 @@ fn held_answer_is_offered_once() {
     assert!(h.closed);
 }
 #[test]
-fn absent_dialect_tables_keep_nothing_and_present_tables_keep_forge_keys() {
+fn both_dialect_tables_have_room_for_forges_added_later() {
     let mut h = known();
-    assert!(h.component.forgejo_tables().repository(REPO).is_none());
+    h.component.forgejo_tables().keep_repository(REPO, f::specimen());
+    assert!(h.component.forgejo_tables().repository(REPO).is_some());
     let row = h.component.github_tables().repository(REPO).expect("row").clone();
     h.component.github_tables().keep_repository(f::OTHER_REPO, row);
     assert!(h.component.github_tables().repository(REPO).is_some());
     assert!(h.component.github_tables().repository(f::OTHER_REPO).is_some());
     let mut h = f::known();
     f::github_repository(&mut h, REPO, 22);
-    assert!(h.component.github_tables().repository(REPO).is_none());
+    assert!(h.component.github_tables().repository(REPO).is_some());
 }
 
 #[test]
