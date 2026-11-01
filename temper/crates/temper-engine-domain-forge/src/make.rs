@@ -21,7 +21,6 @@ pub(crate) enum Refusal {
     Exhausted,
 }
 
-#[cfg_attr(not(test), expect(dead_code, reason = "creation callers belong to fr-setup, fr-connect and pg-start"))]
 pub(crate) fn make(
     d: &mut Domain,
     env: &Env<Limits>,

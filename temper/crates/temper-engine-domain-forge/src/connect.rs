@@ -1,9 +1,10 @@
-//! Volatile public connects; only handles cross this boundary (client/README.md, 8).
+//! Forge creation and volatile connects (temper/docs/design/draft/playground-reset.md, 3;
+//! temper/docs/design/client/README.md, 8). Only handles cross this boundary.
 use crate::{AcceptAnswer, Answered, Ask, ConnectAnswer, Connection, Domain, ForgeRefusal, InstallAnswer, Request};
 use alloc::boxed::Box;
 use jig_domain_core::Carried;
 use jig_domain_people::Role;
-use skein_lib::{Map, Queue, Token};
+use skein_lib::{Env, Map, Queue, Token};
 
 #[derive(Debug)]
 pub(crate) struct State {
@@ -32,8 +33,14 @@ impl State {
         out.push(Request::ApplicationDone { request, token });
     }
 }
+#[expect(
+    clippy::too_many_arguments,
+    clippy::too_many_lines,
+    reason = "one admission routes new and existing connects with the caller and environment"
+)]
 pub(crate) fn start(
     d: &mut Domain,
+    env: &Env<crate::Limits>,
     request: Token,
     token: Token,
     ask: Ask,
@@ -41,15 +48,21 @@ pub(crate) fn start(
     carried: Option<Carried>,
     out: &mut Queue<Request>,
 ) {
-    match &ask {
-        Ask::Connect { forge: crate::ConnectForge::GitHub | crate::ConnectForge::Forgejo { .. }, .. } => {
-            if let Some(value) = carried {
-                out.push(Request::CarriedUnused { number: value.number });
+    let ask = match ask {
+        Ask::Connect { forge: forge @ (crate::ConnectForge::GitHub | crate::ConnectForge::Forgejo { .. }), how } => {
+            let made = make_new(d, env, &forge, &how, role, carried.is_some(), out);
+            match made {
+                Ok(forge) => Ask::Connect { forge: crate::ConnectForge::Existing(forge), how },
+                Err(why) => {
+                    if let Some(value) = carried {
+                        out.push(Request::CarriedUnused { number: value.number });
+                    }
+                    d.connect.answer(request, token, Answered::Connect(ConnectAnswer::Refused(why)), out);
+                    return;
+                }
             }
-            d.connect.answer(request, token, Answered::Connect(ConnectAnswer::Refused(ForgeRefusal::NoSuchForge)), out);
-            return;
         }
-        Ask::Connect { forge: crate::ConnectForge::Existing(_), .. }
+        ask @ (Ask::Connect { forge: crate::ConnectForge::Existing(_), .. }
         | Ask::Adopt(_)
         | Ask::SetUp { .. }
         | Ask::StartDemo
@@ -58,8 +71,8 @@ pub(crate) fn start(
         | Ask::RemoveForge { .. }
         | Ask::Install { .. }
         | Ask::Accept { .. }
-        | Ask::Reachable { .. } => {}
-    }
+        | Ask::Reachable { .. }) => ask,
+    };
     if let Ask::Reachable { forge, installation, page } = ask {
         reachable(d, request, token, forge, installation, page, role, carried, out);
         return;
@@ -141,6 +154,91 @@ pub(crate) fn start(
     d.connect.pending.insert(request, token).expect("room checked");
     send(d, request, forge, ask, carried, out);
 }
+/// New forges use the person's input (temper/docs/design/draft/playground-reset.md, 3).
+fn make_new(
+    d: &mut Domain,
+    env: &Env<crate::Limits>,
+    forge: &crate::ConnectForge,
+    how: &crate::How,
+    role: Option<Role>,
+    has_key: bool,
+    out: &mut Queue<Request>,
+) -> Result<u16, ForgeRefusal> {
+    if role != Some(Role::Owner) {
+        return Err(ForgeRefusal::Role);
+    }
+    let manifest = match how {
+        crate::How::GitHubManifest { .. } => true,
+        crate::How::GitHubApp { .. } | crate::How::ForgejoAdmin { .. } => false,
+    };
+    let record = new_record(forge, how).ok_or(ForgeRefusal::NotTaken)?;
+    if d.connect.pending.len() == d.connect.pending.capacity()
+        || d.connect.running.len() == d.connect.running.capacity()
+    {
+        return Err(ForgeRefusal::Busy);
+    }
+    if !manifest && !has_key {
+        return Err(ForgeRefusal::NoKey);
+    }
+    if let crate::How::ForgejoAdmin { first: Some(first) } = how
+        && first.org.eq_ignore_ascii_case(b"temper")
+    {
+        return Err(ForgeRefusal::FirstIsBot);
+    }
+    match crate::make::make(d, env, record, out) {
+        Ok(number) => Ok(number),
+        Err(crate::make::Refusal::Full | crate::make::Refusal::Busy | crate::make::Refusal::Exhausted) => {
+            Err(ForgeRefusal::Busy)
+        }
+        Err(crate::make::Refusal::Invalid) => Err(ForgeRefusal::NotTaken),
+    }
+}
+
+fn new_record(forge: &crate::ConnectForge, how: &crate::How) -> Option<crate::Forge> {
+    use crate::record::{Account, Address, Identity, Setup, SetupMode, Transport};
+    let mut record = crate::Forge {
+        number: 0,
+        kind: crate::Kind::GitHub,
+        api: Address::Host { name: b"api.github.com".as_slice().into(), port: 443 },
+        transport: Transport::Tls { server_name: b"api.github.com".as_slice().into(), trust: None },
+        git: b"https://github.com".as_slice().into(),
+        git_program: None,
+        web: Some(b"https://github.com".as_slice().into()),
+        read_only: false,
+        identity: Identity { number: 0, login: Box::new([]), name: Box::new([]), email: Box::new([]) },
+        files: None,
+        setup: None,
+        first: None,
+        playground: false,
+        removing: false,
+    };
+    match (forge, how) {
+        (crate::ConnectForge::GitHub, crate::How::GitHubManifest { .. } | crate::How::GitHubApp { .. }) => {}
+        (crate::ConnectForge::Forgejo { address }, crate::How::ForgejoAdmin { .. }) => {
+            let (api, transport, git) = crate::origin::forgejo(address)?;
+            record.kind = crate::Kind::Forgejo;
+            record.api = api;
+            record.transport = transport;
+            record.git = git;
+            record.web = None;
+            record.identity.login = b"temper".as_slice().into();
+            record.identity.name = b"Temper".as_slice().into();
+            record.identity.email = b"temper@localhost".as_slice().into();
+            record.setup = Some(Setup {
+                directory: Box::new([]),
+                bot: Account { login: b"temper".as_slice().into(), email: b"temper@localhost".as_slice().into() },
+                orgs: Box::new([]),
+                mode: SetupMode::Managed { admin_token: None },
+                asked: false,
+            });
+        }
+        (crate::ConnectForge::GitHub, crate::How::ForgejoAdmin { .. })
+        | (crate::ConnectForge::Forgejo { .. }, crate::How::GitHubManifest { .. } | crate::How::GitHubApp { .. })
+        | (crate::ConnectForge::Existing(_), _) => return None,
+    }
+    Some(record)
+}
+
 fn send(d: &mut Domain, request: Token, forge: u16, ask: Ask, carried: Option<Carried>, out: &mut Queue<Request>) {
     match ask {
         Ask::Connect { how: how @ crate::How::GitHubApp { .. }, .. } => {
