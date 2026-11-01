@@ -106,14 +106,10 @@ fn an_owned_setup_maps_every_given_value() {
 fn a_refused_limit_pair_keeps_its_order_and_is_printed_once() {
     use super::fixtures;
     for bytes in [fixtures::TWO, b"[]"] {
-        let problems = crate::check::checked(
-            &fixtures::document(bytes),
-            0,
-            &jig_protocol_config::Directories::working(),
-            &fixtures::members(),
-            None,
-            &[(b"setup.backoff_ms".as_slice().into(), 121_000), (b"setup.backoff_max_ms".as_slice().into(), 120_000)],
-        )
+        let problems = crate::check::checked(&[
+            (b"setup.backoff_ms".as_slice().into(), 121_000),
+            (b"setup.backoff_max_ms".as_slice().into(), 120_000),
+        ])
         .unwrap_err();
         assert_eq!(
             &*problem::lines(&problems),
@@ -141,29 +137,13 @@ fn each_kit_item_names_its_temper_file() {
 #[test]
 fn configured_repository_capacity_reaches_checked_given_and_names_its_refusal() {
     use super::fixtures;
-    let directories = jig_protocol_config::Directories::working();
     for capacity in [1_u64, 3] {
-        let checked = crate::check::checked(
-            &fixtures::document(fixtures::TWO),
-            0,
-            &directories,
-            &fixtures::members(),
-            None,
-            &[(b"forge.client.repositories".as_slice().into(), capacity)],
-        )
-        .unwrap();
-        let given = crate::given::values(checked.setup.entry(2).unwrap(), Some(fixtures::listener()), &checked.limits);
+        let checked = crate::check::checked(&[(b"forge.client.repositories".as_slice().into(), capacity)]).unwrap();
+        let given =
+            crate::given::values(fixtures::setup().entry(2).unwrap(), Some(fixtures::listener()), &checked.limits);
         assert_eq!(u64::from(given.limits.repositories), capacity);
     }
-    let refused = crate::check::checked(
-        &fixtures::document(fixtures::TWO),
-        0,
-        &directories,
-        &fixtures::members(),
-        None,
-        &[(b"forge.client.repositories".as_slice().into(), 0)],
-    )
-    .unwrap_err();
+    let refused = crate::check::checked(&[(b"forge.client.repositories".as_slice().into(), 0)]).unwrap_err();
     assert_eq!(
         problem::lines(&refused).as_ref(),
         b"application.limits.overrides.forge.client.repositories: outside its type\n"

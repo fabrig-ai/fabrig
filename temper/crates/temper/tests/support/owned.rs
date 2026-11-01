@@ -919,12 +919,7 @@ pub fn deployment_profile(directory: &Path, relative: &str) -> Bounded {
             });
         (
             part.files,
-            temper_forge_setup::check::Checked {
-                fetch_bytes: 0,
-                records_only: Box::new([]),
-                setup: temper_forge_setup::setup::Setup { entries: Box::new([]) },
-                limits: temper_forge_setup::limits::small(),
-            },
+            temper_forge_setup::check::Checked { fetch_bytes: 0, limits: temper_forge_setup::limits::small() },
             Box::<[temper_service::ForgeRuntime]>::default(),
         )
     };
@@ -1001,38 +996,8 @@ fn bounded_document(
 }
 
 // The bounded strings are synthetic, but the setup check is the shell's check on these same members.
-fn checked_setup(bytes: &[u8], named: &temper_service::Named) -> temper_forge_setup::check::Checked {
-    use jig_protocol_config::{self as config, read};
-    use temper_forge_setup::check::{self, Members};
-    let document = config::document(bytes, &config::DocumentLimits { bytes: 1_048_576, tokens: 1_048_576, depth: 32 })
-        .expect("bounded document");
-    let application = read::Object::new(&document, 0)
-        .expect("bounded root")
-        .member(&document, b"application")
-        .expect("bounded application");
-    let at = read::Object::new(&document, application).expect("bounded application object").member(&document, b"setup");
-    let forges = Vec::new();
-    let mut listeners = Vec::new();
-    if let config::Address::Addr(address) = &named.clients {
-        listeners.extend(address.socket());
-    }
-    let listener = match &named.webhooks {
-        Some(hooks) => match &hooks.listener {
-            config::Address::Addr(address) => address.socket(),
-            config::Address::Host { .. } => panic!("bounded webhooks use a socket"),
-        },
-        None => None,
-    };
-    listeners.extend(listener);
-    check::checked_at(
-        &document,
-        at,
-        &config::Directories::working(),
-        &Members { forges: forges.into_boxed_slice(), listeners: listeners.into_boxed_slice() },
-        listener,
-        &named.overrides,
-    )
-    .expect("bounded setup check")
+fn checked_setup(_bytes: &[u8], named: &temper_service::Named) -> temper_forge_setup::check::Checked {
+    temper_forge_setup::check::checked(&named.overrides).expect("bounded setup limits")
 }
 
 /// temper-01a's Adopt stand-in (forge-setup.md, 4.5 and 4.8); temper-15 removes it.

@@ -158,10 +158,17 @@ fn ctl_is_configured() {
 }
 
 #[test]
-fn fixed_sign_in_ports_are_checked_against_owned_and_fake_listeners() {
-    // Resolve the fixture's data paths as a deployment does.
-    let example = include_bytes!("../../../docs/examples/owned.json");
-    let mut value: serde_json::Value = serde_json::from_slice(example).expect("owned JSON");
+fn fixed_sign_in_ports_are_checked_against_machine_and_demo_listeners() {
+    let mut value: serde_json::Value =
+        serde_json::from_slice(include_bytes!("../../../docs/examples/owned.json")).expect("fixture value");
+    let mut owned = value["application"]["setup"][0].clone();
+    for name in ["forge", "directory", "start"] {
+        owned.as_object_mut().expect("fixture value").remove(name);
+    }
+    value["application"]["machine"] = serde_json::json!({"owned":owned,"github":{"api":null,"transport":null,"git":null,"web":null},"git_program":null});
+    for name in ["forges", "identities", "setup"] {
+        value["application"].as_object_mut().expect("fixture value").remove(name);
+    }
     value["engine"]["llm"]["providers"] = serde_json::json!([{
         "name":"OpenAI", "number":1, "signed_in_plan":false, "models":["gpt-6-luna"], "sources":{
             "sign_in": {"issuer":"https://issuer.example", "client":"client", "scopes":[],
@@ -170,54 +177,28 @@ fn fixed_sign_in_ports_are_checked_against_owned_and_fake_listeners() {
                 "must_grant":[], "redirect_path":"callback", "redirect_port":3000}
         }
     }]);
-    // Keep git concurrency at one so the small profile's 48 sockets reach the
-    // redirect-port check after this fixture adds an OAuth listener.
     value["application"]["limits"]["overrides"]["git_component.operations"] = 1.into();
     value["application"]["limits"]["overrides"]["checkout.workspaces"] = 1.into();
-    let mut fake = value.clone();
-    configuration::fake_entry(&mut fake["application"]["setup"][0], "127.0.0.1:3000");
-    let mut demo = fake.clone();
-    demo["engine"]["llm"]["providers"][0]["sources"]["sign_in"]["redirect_port"] = 8370.into();
+    let mut demo = value.clone();
     let fixture = configuration::demo_document(std::path::Path::new("/config"), "127.0.0.1:8370");
     for field in ["providers", "endpoints", "models"] {
-        let member = fixture["engine"]["llm"][field].as_array().expect("LLM table").last().expect("demo member");
-        demo["engine"]["llm"][field].as_array_mut().expect("LLM table").push(member.clone());
+        let member = fixture["engine"]["llm"][field].as_array().expect("fixture value").last().expect("fixture value");
+        demo["engine"]["llm"][field].as_array_mut().expect("fixture value").push(member.clone());
     }
     demo["application"]["demo"] = fixture["application"]["demo"].clone();
-    let mut bad_demo = demo.clone();
-    bad_demo["application"]["demo"]["project"] = 9.into();
-    for (document, expected) in [
-        (&bad_demo, "application.demo.project: names no project\n"),
-        (
-            &demo,
-            "engine.llm.providers[0].sources.sign_in.redirect_port: fixed port conflicts with application.demo.llm.listen\n",
-        ),
-        (
-            &value,
-            "engine.llm.providers[0].sources.sign_in.redirect_port: fixed port conflicts with application.setup[0].mode.owned.listen\n",
-        ),
-        (
-            &fake,
-            "engine.llm.providers[0].sources.sign_in.redirect_port: fixed port conflicts with application.setup[0].mode.fake.listen\n",
-        ),
+    for (mut document, port, expected) in [
+        (value, 3000, "application.machine.owned.mode.owned.listen"),
+        (demo.clone(), 8370, "application.demo.llm.listen"),
+        (demo, 9, "application.demo.forge.mode.fake.listen"),
     ] {
-        assert_eq!(
-            super::setup::check(
-                &serde_json::to_vec(document).expect("local JSON"),
-                &jig_protocol_config::Directories::given(b"/config", b"/data", b"/cache").expect("fixture directories")
-            )
-            .expect_err("local listen conflict"),
-            expected
-        );
+        document["engine"]["llm"]["providers"][0]["sources"]["sign_in"]["redirect_port"] = port.into();
+        let why = super::setup::check(
+            &serde_json::to_vec(&document).expect("fixture value"),
+            &jig_protocol_config::Directories::given(b"/config", b"/data", b"/cache").expect("fixture value"),
+        )
+        .expect_err("listener conflict");
+        assert!(why.contains(expected), "{why}");
     }
-    // The same API on a connected forge belongs to the remote peer, not this process.
-    value["application"]["setup"] = serde_json::json!([]);
-    let deployment = super::setup::check(
-        &serde_json::to_vec(&value).expect("connected JSON"),
-        &jig_protocol_config::Directories::given(b"/config", b"/data", b"/cache").expect("fixture directories"),
-    )
-    .expect("connected forge");
-    assert!(deployment.demo.is_none());
 }
 
 #[test]
@@ -306,27 +287,33 @@ fn configure_program_login(arguments: &[&str]) -> Result<super::Command, String>
 
 #[test]
 fn forge_commands_refuse_managed_and_fake_entries_by_name() {
-    use std::os::unix::fs::DirBuilderExt;
-    let directory = std::env::temp_dir().join(format!("temper-not-owned-{}", std::process::id()));
-    std::fs::DirBuilder::new().mode(0o700).create(&directory).expect("command scratch");
-    let (_, document) = configuration::documents(&directory, "/fixture/temper");
-    let mut managed: serde_json::Value = serde_json::from_slice(&document).expect("document");
-    managed["application"]["setup"] = serde_json::json!([{
-        "forge":1, "directory":"forge-1", "bot":{"login":"temper","email":"temper@example.test"},
-        "orgs":["acme"], "mode":{"managed":{"admin_token":"admin_token"}}
-    }]);
-    managed["application"]["forges"][0]["api_token"] = "forge-1/api_token".into();
-    managed["application"]["forges"][0]["user"] = serde_json::json!({"file":"forge-1/user"});
-    managed["application"]["identities"][0]["token"] = "forge-1/git_token".into();
-    let mut fake = managed.clone();
-    configuration::fake_entry(&mut fake["application"]["setup"][0], "127.0.0.1:9");
-    for (document, arguments, expected) in [
-        (&managed, vec!["prepare", "1"], "temper forge prepare: forge 1: it is managed, not owned\n"),
-        (&managed, vec!["run", "1", "forgejo"], "temper forge run: forge 1: it is managed, not owned\n"),
-        (&fake, vec!["run", "1", "forgejo"], "temper forge run: forge 1: it is fake, not owned\n"),
+    use std::{fs, os::unix::fs::PermissionsExt};
+    let directory = super::directories::tests::scratch("temper-not-owned");
+    let document = configuration::check_document(&directory);
+    fs::write(directory.join("temper.json"), serde_json::to_vec(&document).expect("fixture value"))
+        .expect("fixture value");
+    fs::create_dir_all(directory.join("box/groups")).expect("fixture value");
+    let mut fake = serde_json::json!({"bot":{"login":"temper","email":"temper@example.test"}});
+    configuration::fake_entry(&mut fake, "127.0.0.1:9");
+    for (mode, arguments, expected) in [
+        (
+            serde_json::json!("managed"),
+            vec!["prepare", "1"],
+            "temper forge prepare: forge 1: it is managed, not owned\n",
+        ),
+        (
+            serde_json::json!("managed"),
+            vec!["run", "1", "forgejo"],
+            "temper forge run: forge 1: it is managed, not owned\n",
+        ),
+        (fake["mode"].clone(), vec!["run", "1", "forgejo"], "temper forge run: forge 1: it is fake, not owned\n"),
     ] {
-        std::fs::write(directory.join("temper.json"), serde_json::to_vec(document).expect("document"))
-            .expect("write document");
+        let body = serde_json::json!({"bot":{"login":"temper","email":"temper@example.test"},"mode":mode});
+        let settings = temper_forge_setup::setup::group_settings(&serde_json::to_vec(&body).expect("fixture value"), 1)
+            .expect("fixture value");
+        let path = directory.join("box/groups/1");
+        fs::write(&path, settings).expect("fixture value");
+        fs::set_permissions(path, fs::Permissions::from_mode(0o600)).expect("fixture value");
         let refused = super::forge::start(
             &configuration::directories(&directory),
             &arguments.iter().map(std::ffi::OsString::from).collect::<Vec<_>>(),
@@ -336,7 +323,7 @@ fn forge_commands_refuse_managed_and_fake_entries_by_name() {
         assert_eq!(refused.line(), expected);
     }
     assert!(!directory.join("forge-1").exists());
-    std::fs::remove_dir_all(directory).expect("remove command scratch");
+    fs::remove_dir_all(directory).expect("fixture value");
 }
 
 pub(crate) fn worker_document(directory: &std::path::Path) -> (Vec<u8>, serde_json::Value) {

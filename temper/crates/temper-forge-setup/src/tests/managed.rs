@@ -1,7 +1,7 @@
 //! Client-managed configuration has no file-backed credentials.
 use super::fixtures;
 use crate::{
-    check::{self, Checked, Members, User},
+    check::{self, Members, User},
     problem,
     setup::Mode,
 };
@@ -16,8 +16,19 @@ fn members() -> Members {
     forge.identity_token = Box::new([]);
     Members { forges: Box::new([forge]), listeners: Box::new([]) }
 }
-fn checked(input: &[u8], members: &Members) -> Result<Checked, problem::Problems> {
-    check::checked(&fixtures::document(input), 0, &jig_protocol_config::Directories::working(), members, None, &[])
+fn checked(input: &[u8], members: &Members) -> Result<crate::Setup, problem::Problems> {
+    let mut problems = problem::Problems::empty();
+    let setup = crate::Setup::read(
+        &fixtures::document(input),
+        0,
+        &crate::limits::small(),
+        &jig_protocol_config::Directories::working(),
+        &mut problems,
+    );
+    if let Some(setup) = &setup {
+        check::members(setup, members, false, &mut problems);
+    }
+    if problems.is_empty() { Ok(setup.unwrap()) } else { Err(problems) }
 }
 fn refused(input: &[u8], members: &Members, expected: &[u8]) {
     assert_eq!(problem::lines(&checked(input, members).unwrap_err()).as_ref(), expected);
@@ -25,16 +36,15 @@ fn refused(input: &[u8], members: &Members, expected: &[u8]) {
 #[test]
 fn managed_string_parses_without_an_admin_token_file() {
     let checked = checked(SETUP, &members()).unwrap();
-    let entry = checked.setup.entry(1).unwrap();
+    let entry = checked.entry(1).unwrap();
     assert_eq!(entry.mode, Mode::Managed { admin_token: None });
     assert!(entry.directory.is_empty());
-    assert_eq!(checked.records_only.as_ref(), [1]);
 }
 #[test]
 fn managed_string_names_its_admin_without_temper_prefix() {
     let checked = checked(SETUP, &members()).unwrap();
     assert_eq!(
-        crate::given::values(checked.setup.entry(1).unwrap(), None, &checked.limits).admin_name.as_ref(),
+        crate::given::values(checked.entry(1).unwrap(), None, &crate::limits::small()).admin_name.as_ref(),
         b"admin"
     );
 }
@@ -97,8 +107,7 @@ fn managed_string_accepts_tls() {
 }
 #[test]
 fn managed_string_starts_serve_without_legacy_reconcile() {
-    let checked = checked(SETUP, &members()).unwrap();
-    let steps = crate::step::steps(&checked.setup, &[], Box::new([]), false);
+    let steps = crate::step::steps(&[], Box::new([]));
     assert_eq!(steps.always.len(), 1);
     assert_eq!(
         steps.always[0].arguments(),

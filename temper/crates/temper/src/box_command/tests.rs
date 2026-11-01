@@ -5,10 +5,7 @@ use std::{
     path::PathBuf,
 };
 use temper_box::host::Loaded;
-use temper_forge_setup::{
-    check::Checked,
-    setup::{Setup, group_settings},
-};
+use temper_forge_setup::{check::Checked, setup::group_settings};
 
 const FAKE: &[u8] = br#"{"bot":{"login":"temper","email":"temper@example.invalid"},"mode":{"fake":{"listen":{"socket":"127.0.0.1:8369"},"git":"demo/bin/git","owner":"demo","repositories":[{"name":"widget","landing":"main"}]}}}"#;
 const OWNED: &[u8] = br#"{"bot":{"login":"temper","email":"temper@example.invalid"},"mode":{"owned":{"forgejo":"/opt/forgejo/forgejo","runner":null,"listen":{"socket":"127.0.0.1:3000"},"person":{"login":"ada","email":"ada@example.invalid"}}}}"#;
@@ -28,8 +25,6 @@ fn context(name: &str) -> (PathBuf, Context) {
         directories,
         limits: Checked {
             fetch_bytes: temper_forge_setup::limits::FETCH_BYTES,
-            records_only: Box::new([]),
-            setup: Setup { entries: Box::new([]) },
             limits: temper_forge_setup::limits::small(),
         },
         llm: Some("127.0.0.1:8370".parse().expect("LLM address")),
@@ -172,13 +167,19 @@ fn the_start_loads_recorded_groups_and_drops_records_without_settings() {
         write(&root, &format!("box/started/{name}"), b"");
     }
     settings(&root, FAKE, 7);
-    let (groups, lines) = groups::recorded(&context, &[3], 4).expect("recorded");
+    let (groups, lines) = groups::recorded(&context, 4).expect("recorded");
     assert_eq!(groups.iter().map(|group| group.forge).collect::<Vec<_>>(), [7]);
     assert!(groups[0].recorded);
     assert_eq!(groups[0].before, 4);
-    assert_eq!(lines, ["box: group 9: no settings; its started record is removed"]);
+    assert_eq!(
+        lines,
+        [
+            "box: group 3: no settings; its started record is removed",
+            "box: group 9: no settings; its started record is removed"
+        ]
+    );
     assert!(!root.join("box/started/9").exists());
-    for name in ["3", "7", "not-a-number", "+8", "65536"] {
+    for name in ["7", "not-a-number", "+8", "65536"] {
         assert!(root.join(format!("box/started/{name}")).exists());
     }
     fs::remove_dir_all(root).expect("scratch removed");
@@ -188,7 +189,7 @@ fn the_start_leaves_a_refused_group_dormant_and_names_it() {
     let (root, context) = context("refused-record");
     write(&root, "box/started/7", b"");
     write(&root, "box/groups/7", b"{}");
-    let (groups, lines) = groups::recorded(&context, &[], 0).expect("recorded");
+    let (groups, lines) = groups::recorded(&context, 0).expect("recorded");
     assert!(groups.is_empty());
     assert_eq!(lines.len(), 1);
     assert!(lines[0].starts_with("box: group 7: box/groups/7: "));

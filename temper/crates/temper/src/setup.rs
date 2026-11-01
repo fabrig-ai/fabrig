@@ -1,7 +1,7 @@
 //! The setup owner checks its document before commands read any files.
 use jig_protocol_config as config;
 use temper_forge_setup::{
-    check::{self, Checked, Members},
+    check::{self, Checked},
     problem,
 };
 use temper_service::startup::Named;
@@ -37,29 +37,13 @@ pub(crate) fn check_with(
     {
         listeners.push(socket);
     }
-    let members = Members { forges: Box::new([]), listeners: listeners.into_boxed_slice() };
     let application = super::member(&document, 0, b"application");
-    let at = config::read::Object::new(&document, application).expect("named application").member(&document, b"setup");
     let setup_overrides: Vec<_> =
         named.overrides.iter().filter(|(name, _)| !name.starts_with(b"box.")).cloned().collect();
-    let listener = named.webhooks.as_ref().map(|webhooks| super::address(&webhooks.listener)).transpose()?;
-    let checked = check::checked_at(&document, at, directories, &members, listener, &setup_overrides)
-        .map_err(|why| String::from_utf8_lossy(&problem::lines(&why)).into_owned())?;
+    let checked =
+        check::checked(&setup_overrides).map_err(|why| String::from_utf8_lossy(&problem::lines(&why)).into_owned())?;
     let mut problems = temper_service::startup::Problems::empty();
-    for (index, entry) in checked.setup.entries.iter().enumerate() {
-        use temper_forge_setup::setup::Mode;
-        use temper_service::startup::Listener;
-        let index = u32::try_from(index).expect("bounded setup");
-        let local = match &entry.mode {
-            Mode::Managed { .. } => None,
-            Mode::Owned(owned) => Some((owned.listen, Listener::Owned(index))),
-            Mode::Fake(fake) => Some((fake.listen, Listener::Fake(index))),
-        };
-        if let Some((listen, listener)) = local {
-            temper_service::startup::redirect_ports(&named.redirects, Some(listen.port()), listener, &mut problems);
-        }
-    }
-    let mut ports = members.listeners.to_vec();
+    let mut ports = listeners;
     if let Some(owned) = &named.machine.owned {
         let host = std::str::from_utf8(&owned.api.host).expect("named machine IP");
         let ip = host.parse().expect("named machine IP");
@@ -74,17 +58,13 @@ pub(crate) fn check_with(
             );
         }
     }
-    let projects: Vec<_> = named.projects.iter().map(|project| project.number).collect();
-    let facts = temper_fake::demo::Facts {
-        llm: &named.llm,
-        projects: &projects,
-        setup: &checked.setup,
-        listeners: &ports,
-        directories,
-    };
+    let facts = temper_fake::demo::Facts { llm: &named.llm, listeners: &ports, directories };
     let demo = temper_fake::demo::read(&document, super::member(&document, application, b"demo"), &facts)
         .map_err(|why| String::from_utf8_lossy(&why.line()).into_owned())?;
     if let Some(demo) = &demo {
+        if named.redirects.iter().any(|redirect| redirect.port == demo.fake().listen.port()) {
+            return Err("application.demo.forge.mode.fake.listen: must differ from LLM sign-in redirect ports".into());
+        }
         for listen in [demo.fake().listen, demo.llm().listen()] {
             if !ports.contains(&listen) {
                 ports.push(listen);

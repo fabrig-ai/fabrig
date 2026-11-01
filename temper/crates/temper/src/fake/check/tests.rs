@@ -331,19 +331,7 @@ fn agent_metadata_fixture(root: &Path) -> temper_service::settings::Agent {
 fn verb() {
     let root = scratch("fake-check-verb");
     let agent = agent_metadata_fixture(&root);
-    let document = crate::tests::configuration::check_document(&root);
-    let mut no_entry = document.clone();
-    no_entry["application"]["setup"] = serde_json::json!([]);
-    let mut managed = crate::tests::configuration::old_form_check_document(&root);
-    managed["application"]["setup"][0]["orgs"] = serde_json::json!(["playground"]);
-    managed["application"]["setup"][0]["mode"] = serde_json::json!({"managed":{"admin_token":"admin_token"}});
-    let mut owned = crate::tests::configuration::old_form_check_document(&root);
-    owned["application"]["setup"][0]["mode"] = serde_json::json!({"owned":{
-        "forgejo":"/fixture/forgejo", "runner":null, "listen":{"socket":"127.0.0.1:9"},
-        "person":{"login":"ada","email":"ada@example.test"}
-    }});
-    let mut bad_setup = document.clone();
-    bad_setup["application"]["setup"][0]["forge"] = 7.into();
+    let document = crate::tests::configuration::old_form_check_document(&root);
     let current = Some(format::current(temper_protocol_store::STORE_VERSION, [0; 16]));
     let good = || Copy::Store { format: current, rows: deployment(false) };
     let doc = || Some(document.clone());
@@ -388,17 +376,11 @@ fn verb() {
             Copy::Absent,
             refused(&format!("configuration {}: absent", path("absent-document", "temper.json").display())),
         ),
-        ("no-entry", Some(no_entry), checkpoint(), Copy::Absent, refused("forge 1: the setup has no entry for it")),
-        ("managed", Some(managed), checkpoint(), Copy::Absent, refused("forge 1: it is managed, not fake")),
-        ("owned", Some(owned), checkpoint(), Copy::Absent, refused("forge 1: it is owned, not fake")),
+        ("no-entry", doc(), checkpoint(), Copy::Absent, refused("forge 1 has no settings: box/groups/1")),
+        ("managed", doc(), checkpoint(), Copy::Absent, refused("forge 1: it is managed, not fake")),
+        ("owned", doc(), checkpoint(), Copy::Absent, refused("forge 1: it is owned, not fake")),
         ("invalid-document", Some(serde_json::json!({})), None, Copy::Absent, expected(1, b"", INVALID_DOCUMENT)),
-        (
-            "invalid-setup",
-            Some(bad_setup),
-            None,
-            Copy::Absent,
-            refused("application.setup[0].forge: unknown reference"),
-        ),
+        ("invalid-setup", doc(), None, Copy::Absent, refused("box/groups/1: forge 7's settings")),
     ] {
         let directory = root.join(name);
         fs::create_dir(&directory).expect("row directory");
@@ -406,6 +388,23 @@ fn verb() {
         let bytes = document.map(|document| serde_json::to_vec(&document).expect("fixture document"));
         if let Some(bytes) = &bytes {
             fs::write(directories.document(), bytes).expect("document file");
+        }
+        if !matches!(name, "no-entry" | "absent-document" | "invalid-document") {
+            let mode = match name {
+                "managed" => serde_json::json!("managed"),
+                "owned" => serde_json::json!({"owned":{
+                    "forgejo":"/fixture/forgejo","runner":null,"listen":{"socket":"127.0.0.1:9"},
+                    "person":{"login":"ada","email":"ada@example.test"}}}),
+                _ => serde_json::json!({"fake":{"listen":{"socket":"127.0.0.1:9"},"git":"demo/bin/git",
+                    "owner":"playground","repositories":[{"name":"widget","landing":"main"}]}}),
+            };
+            let body = serde_json::json!({"bot":{"login":"temper","email":"temper@example.test"},"mode":mode});
+            let forge = if name == "invalid-setup" { 7 } else { 1 };
+            let settings =
+                temper_forge_setup::setup::group_settings(&serde_json::to_vec(&body).expect("fixture value"), forge)
+                    .expect("fixture value");
+            fs::create_dir_all(crate::path(&directories.data).join("box/groups")).expect("fixture value");
+            fs::write(crate::path(&directories.data).join("box/groups/1"), settings).expect("fixture value");
         }
         let check = Check { forge: 1, observations: directory.join("observations"), store: directory.join("copy") };
         if let Some(observations) = observations {
@@ -425,7 +424,7 @@ fn verb() {
             Copy::File => fs::write(&check.store, b"not a store").expect("non-store"),
         }
         assert_eq!(outcome(&directories, &check), expected, "{name}");
-        assert!(!directory.join("data").exists(), "{name}: creates no data directory");
+        assert!(!directory.join("data/forge-1").exists(), "{name}: creates no forge directory");
         assert!(!directory.join("cache").exists(), "{name}: creates no cache directory");
     }
     fs::remove_dir_all(root).expect("scratch removed");

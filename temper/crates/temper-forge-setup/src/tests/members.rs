@@ -7,9 +7,16 @@ use crate::{
 use alloc::boxed::Box;
 use core::net::{Ipv4Addr, SocketAddr};
 fn refused(bytes: &[u8], members: &Members, expected: &[u8]) {
-    let problems =
-        check::checked(&fixtures::document(bytes), 0, &jig_protocol_config::Directories::working(), members, None, &[])
-            .unwrap_err();
+    let setup = crate::Setup::read(
+        &fixtures::document(bytes),
+        0,
+        &crate::limits::small(),
+        &jig_protocol_config::Directories::working(),
+        &mut problem::Problems::empty(),
+    )
+    .unwrap();
+    let mut problems = problem::Problems::empty();
+    check::members(&setup, members, false, &mut problems);
     assert_eq!(&*problem::lines(&problems), expected);
 }
 #[test]
@@ -84,15 +91,9 @@ fn local_listens_are_unique_across_owned_and_fake_entries() {
 }
 #[test]
 fn all_three_modes_pass_the_whole_setup_check() {
-    check::checked(
-        &fixtures::document(&fixtures::three()),
-        0,
-        &jig_protocol_config::Directories::working(),
-        &fixtures::members(),
-        None,
-        &[],
-    )
-    .expect("all three modes checked");
+    let mut problems = problem::Problems::empty();
+    check::members(&fixtures::fake_setup(), &fixtures::members(), false, &mut problems);
+    assert!(problems.is_empty());
 }
 #[test]
 fn an_entry_at_odds_with_itself_or_its_forge_is_refused_naming_its_path() {
@@ -152,15 +153,8 @@ fn a_webhook_secret_off_the_forge_directory_is_refused() {
 }
 
 fn refused_webhooks(members: &Members, expected: &[u8]) {
-    let problems = check::checked(
-        &fixtures::document(fixtures::TWO),
-        0,
-        &jig_protocol_config::Directories::working(),
-        members,
-        Some(fixtures::listener()),
-        &[],
-    )
-    .unwrap_err();
+    let mut problems = problem::Problems::empty();
+    check::members(&fixtures::setup(), members, true, &mut problems);
     assert_eq!(&*problem::lines(&problems), expected);
 }
 #[test]
@@ -180,35 +174,13 @@ fn records_only_local_members_skip_files_but_keep_local_checks() {
         f.identity_token = Box::new([]);
         f.webhook_secret = None;
     }
-    let checked = check::checked(
-        &fixtures::document(&fixtures::three()),
-        0,
-        &jig_protocol_config::Directories::working(),
-        &members,
-        None,
-        &[],
-    )
-    .unwrap();
-    assert_eq!(checked.records_only.as_ref(), &[2, 3]);
+    let mut problems = problem::Problems::empty();
+    check::members(&fixtures::fake_setup(), &members, false, &mut problems);
+    assert!(problems.is_empty());
     members.forges[1].plaintext = false;
     refused(&fixtures::three(), &members, b"application.forges[1].transport: invalid form\n");
 }
 
-#[test]
-fn no_setup_member_checks_as_an_empty_list() {
-    let checked = check::checked_at(
-        &fixtures::document(b"{}"),
-        None,
-        &jig_protocol_config::Directories::working(),
-        &Members { forges: Box::new([]), listeners: Box::new([]) },
-        None,
-        &[],
-    )
-    .unwrap();
-    assert!(checked.setup.entries.is_empty());
-    assert!(checked.records_only.is_empty());
-    assert_eq!(checked.limits, crate::limits::small());
-}
 #[test]
 fn the_first_kept_problem_preserves_its_path_and_reason() {
     use jig_protocol_config::Path;

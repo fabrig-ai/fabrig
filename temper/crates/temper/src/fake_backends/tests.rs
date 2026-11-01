@@ -227,14 +227,7 @@ fn retained_peer_edits_are_checked_without_replacement() {
                 if let Some(webhooks) = &deployment.named.webhooks {
                     serve.push(crate::address(&webhooks.listener).expect("webhooks address"));
                 }
-                let ordinary = temper_fake::steps(
-                    &deployment.checked.setup,
-                    deployment.demo.as_ref(),
-                    &first.directories.flags(),
-                    serve.into_boxed_slice(),
-                    true,
-                    Box::new([]),
-                );
+                let ordinary = temper_fake::steps(&first.directories.flags(), serve.into_boxed_slice(), Box::new([]));
                 let mut taken =
                     vec![1455, first.peers.github.port(), first.peers.oauth.port(), first.peers.forgejo.port()];
                 taken.extend(deployment.ports.iter().map(SocketAddr::port));
@@ -653,14 +646,10 @@ fn effective_commands_reopen_the_retained_directories() {
     let scratch = Scratch::new("commands");
     let source = provisioned_source(&scratch);
     let prepared = start(&source, None).expect("prepare effective document");
-    let deployment =
-        crate::setup::check(&prepared.bytes, &prepared.directories.jig()).expect("checked effective setup");
+    crate::setup::check(&prepared.bytes, &prepared.directories.jig()).expect("checked effective setup");
     let steps = temper_fake::steps(
-        &deployment.checked.setup,
-        deployment.demo.as_ref(),
         &prepared.directories.flags(),
         Box::new([]),
-        true,
         backends::steps(&prepared.directories.config, &prepared.peers),
     );
     let prefix = backends::steps(&prepared.directories.config, &prepared.peers);
@@ -761,8 +750,7 @@ fn import_preserves_disabled_git_and_adds_the_fake_program() {
 fn the_effective_document_passes_ordinary_admission_with_no_forge() {
     let scratch = Scratch::new("no-forge-admission");
     let (_source, first) = prepared_source(&scratch);
-    let checked = crate::setup::check(&first.bytes, &first.directories.jig()).expect("ordinary admission");
-    assert!(checked.checked.setup.entries.is_empty());
+    crate::setup::check(&first.bytes, &first.directories.jig()).expect("ordinary admission");
     let document = read_json(&first.directories.document());
     for member in ["forges", "identities", "setup"] {
         assert!(document["application"].get(member).is_none(), "{member}");

@@ -320,7 +320,6 @@ fn generated_configuration_passes_the_same_checks_as_serve() {
     let written = write(&dirs, &env, &root.join("bin/temper"), [0, 0, 0, 0, 0]).expect("init");
     let bytes = fs::read(dirs.document()).expect("document");
     let deployment = crate::setup::check(&bytes, &dirs.jig()).expect("init document passes setup and named");
-    assert!(deployment.checked.setup.entries.is_empty(), "init declares no forge");
     let document: serde_json::Value = serde_json::from_slice(&bytes).expect("written JSON");
     for member in ["setup", "forges", "identities"] {
         assert!(document["application"].get(member).is_none());
@@ -338,8 +337,6 @@ fn generated_configuration_passes_the_same_checks_as_serve() {
     assert_eq!(deployment.ports.as_ref(), &ports);
     let demo = deployment.demo.expect("init declares the demo");
     assert_eq!(demo.provider(), 3);
-    assert!(demo.forge().is_none());
-    assert!(demo.project().is_none());
     assert_eq!(demo.fake().listen, ports[3]);
     assert_eq!(demo.fake().git.as_ref(), path(&dirs.data).join("demo/bin/git").as_os_str().as_bytes());
     assert_eq!(demo.llm().listen(), ports[4]);

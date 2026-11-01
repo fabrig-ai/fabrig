@@ -1,8 +1,5 @@
 //! The box's ordered commands; each hides whether it is once, long or link.
-use crate::{
-    check::joined,
-    setup::{Mode, Owned, Setup},
-};
+use crate::{check::joined, setup::Owned};
 use alloc::boxed::Box;
 use skein_lib::{Decimal, List, bytes};
 /// The word carried by a group's step lines (protocol/setup.md, 7.3).
@@ -28,7 +25,7 @@ pub struct Group {
     pub forge: u16,
     /// Owned opaque bytes the box uses to name the group on the terminal (protocol/setup.md, 7.3).
     pub label: Box<[u8]>,
-    /// `recorded` whether its `started` writes the box's record: an owned forge's does, the demo's does not.
+    /// Whether its `started` writes the box's record.
     pub recorded: bool,
     pub before: u32,
     pub steps: Box<[(Stage, Step)]>,
@@ -164,47 +161,9 @@ pub fn owned_group(forge: u16, owned: &Owned, flags: &[Box<[u8]>], forgejo_liste
         steps: group.into_boxed(),
     }
 }
-/// Carries the box's absolute directory flags after each command's words.
-/// Commands in setup order: owned processes, legacy reconciles, then serve;
-/// an asked forge's processes apart, in a group placed in that order.
+/// The service step, with the box's absolute directory flags.
 #[must_use]
-pub fn steps(
-    setup: &Setup,
-    flags: &[Box<[u8]>],
-    listeners: Box<[core::net::SocketAddr]>,
-    forgejo_listens: bool,
-) -> Steps {
-    let count = u32::try_from(setup.entries.len()).expect("bounded entries");
-    let mut out = List::with_capacity(
-        count.checked_mul(5).expect("bounded step count").checked_add(1).expect("bounded step count"),
-    );
-    let mut asked = List::with_capacity(count);
-    for e in &setup.entries {
-        match &e.mode {
-            Mode::Managed { .. } | Mode::Fake(_) => {}
-            Mode::Owned(o) => {
-                let mut group = owned_group(e.forge, o, flags, forgejo_listens);
-                if e.asked {
-                    group.before = out.len();
-                    asked.push(group).expect("entry capacity");
-                } else {
-                    for (_, step) in group.steps {
-                        out.push(step).expect("step capacity");
-                    }
-                }
-            }
-        }
-    }
-    for e in &setup.entries {
-        // Local forges reconcile in serve after taking their handover.
-        let reconcile = match &e.mode {
-            Mode::Owned(_) | Mode::Fake(_) | Mode::Managed { admin_token: None } => false,
-            Mode::Managed { admin_token: Some(_) } => true,
-        };
-        if !e.asked && reconcile {
-            out.push(forge(b"reconcile", flags, e.forge, None)).expect("step capacity");
-        }
-    }
+pub fn steps(flags: &[Box<[u8]>], listeners: Box<[core::net::SocketAddr]>) -> Steps {
     let mut serve = List::with_capacity(
         u32::try_from(flags.len()).expect("bounded flags").checked_add(3).expect("bounded arguments"),
     );
@@ -214,7 +173,8 @@ pub fn steps(
         serve.push(flag.clone()).expect("flags counted");
     }
     serve.push(bytes::copy_of(b"--box")).expect("box flag");
-    out.push(Step::new(bytes::copy_of(b"serve"), serve.into_boxed(), Kind::Long).listening(listeners))
-        .expect("serve capacity");
-    Steps { always: out.into_boxed(), asked: asked.into_boxed() }
+    Steps {
+        always: Box::new([Step::new(bytes::copy_of(b"serve"), serve.into_boxed(), Kind::Long).listening(listeners)]),
+        asked: Box::new([]),
+    }
 }

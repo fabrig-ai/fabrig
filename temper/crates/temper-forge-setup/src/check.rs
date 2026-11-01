@@ -8,7 +8,6 @@ use alloc::boxed::Box;
 use core::net::SocketAddr;
 use jig_protocol_config::{Path, Segment};
 use skein_forge_setup::limits::Limits;
-use skein_json::Document;
 use skein_lib::Writer;
 /// How the forge's user is written.
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -35,13 +34,10 @@ pub struct Members {
     pub forges: Box<[Forge]>,
     pub listeners: Box<[SocketAddr]>,
 }
-/// Setup and limits on which a command may act.
+/// The setup limits on which a command may act.
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct Checked {
     pub fetch_bytes: u64,
-    /// Local forges admitted without any file credential members.
-    pub records_only: Box<[u16]>,
-    pub setup: Setup,
     pub limits: Limits,
 }
 fn require(ok: bool, path: Path, ps: &mut Problems) {
@@ -177,26 +173,8 @@ fn git_listen(git: &[u8], listen: SocketAddr) -> bool {
     };
     text.parse::<SocketAddr>() == Ok(listen)
 }
-/// Applies setup overrides, checks limits and decodes and cross-checks the list.
-pub fn checked(
-    document: &Document,
-    at: u32,
-    directories: &jig_protocol_config::Directories,
-    members_value: &Members,
-    listener: Option<SocketAddr>,
-    overrides: &[(Box<[u8]>, u64)],
-) -> Result<Checked, Problems> {
-    checked_at(document, Some(at), directories, members_value, listener, overrides)
-}
-/// Checks an optional setup member; absence supplies an empty list.
-pub fn checked_at(
-    document: &Document,
-    at: Option<u32>,
-    directories: &jig_protocol_config::Directories,
-    members_value: &Members,
-    listener: Option<SocketAddr>,
-    overrides: &[(Box<[u8]>, u64)],
-) -> Result<Checked, Problems> {
+/// Applies the document's setup overrides and checks their limits.
+pub fn checked(overrides: &[(Box<[u8]>, u64)]) -> Result<Checked, Problems> {
     let mut ps = Problems::empty();
     let mut limits = limits::small();
     let mut fetch_bytes = limits::FETCH_BYTES;
@@ -223,51 +201,8 @@ pub fn checked_at(
             );
         }
     }
-    let limits_ok = match skein_forge_setup::limits::check(&limits) {
-        Ok(()) => true,
-        Err(why) => {
-            ps.extend(given::refusal(0, why));
-            false
-        }
-    };
-    let setup = match at {
-        Some(at) => Setup::read(document, at, &limits, directories, &mut ps),
-        None => Some(Setup { entries: Box::new([]) }),
-    };
-    if let Some(setup) = &setup {
-        members(setup, members_value, listener.is_some(), &mut ps);
-        if limits_ok {
-            for (position, entry) in setup.entries.iter().enumerate() {
-                let values = given::values(entry, listener, &limits);
-                if let Err(why) = skein_forge_setup::given::check(&values) {
-                    ps.extend(given::refusal(u32::try_from(position).expect("bounded entries"), why));
-                }
-            }
-        }
+    if let Err(why) = skein_forge_setup::limits::check(&limits) {
+        ps.extend(given::refusal(0, why));
     }
-    if ps.is_empty() {
-        let mut records_only =
-            skein_lib::List::with_capacity(u32::try_from(members_value.forges.len()).expect("bounded forges"));
-        for f in &members_value.forges {
-            let local = match setup.as_ref().expect("clean parse").entry(f.number) {
-                Some(entry) => match &entry.mode {
-                    Mode::Owned(_) | Mode::Fake(_) | Mode::Managed { admin_token: None } => true,
-                    Mode::Managed { admin_token: Some(_) } => false,
-                },
-                None => false,
-            };
-            if local
-                && f.api_token.is_empty()
-                && f.user == User::Id(0)
-                && f.webhook_secret.is_none()
-                && f.identity_token.is_empty()
-            {
-                records_only.push(f.number).expect("one entry per forge");
-            }
-        }
-        let records_only = records_only.into_boxed();
-        Ok(Checked { fetch_bytes, records_only, setup: setup.expect("clean parse"), limits })
-    } else {
-        Err(ps)
-    }
+    if ps.is_empty() { Ok(Checked { fetch_bytes, limits }) } else { Err(ps) }
 }

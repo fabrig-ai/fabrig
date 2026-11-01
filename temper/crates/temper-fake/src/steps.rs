@@ -1,11 +1,10 @@
 //! The demo and fake processes around forge-setup's commands (protocol/setup.md, 7.3).
-use crate::demo::Demo;
 use alloc::boxed::Box;
 use core::net::SocketAddr;
 use skein_lib::{Decimal, List, Writer, bytes};
 use temper_forge_setup::{
     Group, Kind, Stage, Step, Steps,
-    setup::{Entry, Fake, Mode, Setup},
+    setup::{Entry, Fake, Mode},
 };
 
 /// The playground's recorded group, before position zero (protocol/setup.md, 8.4; notes contracts T3).
@@ -37,81 +36,19 @@ pub fn group(entry: &Entry, llm: Option<SocketAddr>, flags: &[Box<[u8]>], forgej
     }
 }
 
-/// The demo's group, the fake LLM, then the demo forge's preparation
-/// and its fake forge (`application.demo.forge`, 8.4), is always asked,
-/// and writes no record: the demo's state is the engine's alone (8.4),
-/// so a box started again runs it only when `temper serve` asks, which
-/// serve does at the person's choice and at each of its starts while the
-/// demo runs. Its `started` follows its long steps' start, as the steps'
-/// order takes them (7.2). A fake forge other than the demo's runs in its
-/// place, unasked.
-/// The caller's first steps precede these steps and every asked group's insertion point (7.3).
+/// The caller's fake backend steps, followed by serve. Groups are loaded separately from their files.
 #[must_use]
-pub fn steps(
-    setup: &Setup,
-    demo: Option<&Demo>,
-    flags: &[Box<[u8]>],
-    listeners: Box<[SocketAddr]>,
-    forgejo_listens: bool,
-    first: Box<[Step]>,
-) -> Steps {
-    let given = temper_forge_setup::steps(setup, flags, listeners, forgejo_listens);
-    let demo_forge = match demo {
-        Some(demo) => demo.forge(),
-        None => None,
-    };
-    let first_len = u32::try_from(first.len()).expect("bounded first steps");
-    let mut prefix = first_len;
-    for entry in &setup.entries {
-        if let Mode::Fake(_) = &entry.mode
-            && demo_forge != Some(entry.forge)
-        {
-            prefix = prefix.checked_add(2).expect("bounded fake steps");
-        }
-    }
-    let capacity =
-        u32::try_from(given.always.len()).expect("bounded steps").checked_add(prefix).expect("bounded prefix");
+pub fn steps(flags: &[Box<[u8]>], listeners: Box<[SocketAddr]>, first: Box<[Step]>) -> Steps {
+    let given = temper_forge_setup::steps(flags, listeners);
+    let capacity = u32::try_from(first.len()).expect("bounded first steps").checked_add(1).expect("serve step");
     let mut always = List::with_capacity(capacity);
     for step in first {
         always.push(step).expect("first steps counted");
     }
-    for entry in &setup.entries {
-        if let Mode::Fake(fake) = &entry.mode
-            && demo_forge != Some(entry.forge)
-        {
-            always
-                .push(command(b"prepare", &[b"forge", b"prepare"], flags, Some(entry.forge), Kind::Once))
-                .expect("fake preparation");
-            always
-                .push(
-                    command(b"fake forge", &[b"fake", b"forge"], flags, Some(entry.forge), Kind::Long)
-                        .listening(Box::new([fake.listen])),
-                )
-                .expect("fake forge");
-        }
-    }
     for step in given.always {
-        always.push(step).expect("forge-setup steps counted");
+        always.push(step).expect("serve counted");
     }
-    let mut asked = List::with_capacity(
-        u32::try_from(given.asked.len())
-            .expect("bounded groups")
-            .checked_add(u32::from(demo.is_some()))
-            .expect("demo group"),
-    );
-    if let Some(demo) = demo
-        && let Some(forge) = demo.forge()
-    {
-        let mut group = playground_group(forge, demo.fake(), demo.llm().listen(), flags);
-        group.recorded = false;
-        group.before = first_len;
-        asked.push(group).expect("demo group counted");
-    }
-    for mut group in given.asked {
-        group.before = group.before.checked_add(prefix).expect("bounded group position");
-        asked.push(group).expect("owned groups counted");
-    }
-    Steps { always: always.into_boxed(), asked: asked.into_boxed() }
+    Steps { always: always.into_boxed(), asked: Box::new([]) }
 }
 
 fn command(name: &[u8], words: &[&[u8]], flags: &[Box<[u8]>], forge: Option<u16>, kind: Kind) -> Step {

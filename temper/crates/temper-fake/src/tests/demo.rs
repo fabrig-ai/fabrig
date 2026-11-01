@@ -5,7 +5,6 @@ use serde_json::{Value, json};
 use skein_fake_llm_domain::api::{self, Finish, Message, Part, Role};
 use skein_lib::{Duration, Env, Queue, ReplyTo, Time, Token, Wall};
 use smith_domain_run::{self as run, charter};
-use temper_forge_setup::{problem, setup::Setup};
 
 type Row = (Vec<(&'static str, Option<Value>)>, &'static str);
 
@@ -32,6 +31,13 @@ pub(super) fn fixture() -> Value {
         "asked":[{"cue":"Add CSV export to widget","turns":["Export CSV",{
             "lines":[{"text":"Done"}],"finish":"stop","tokens":1
         }]}],"otherwise":["demo model"]}, "forge":1, "project":1});
+    let mut body = d["application"]["setup"][0].clone();
+    for member in ["forge", "directory", "start"] {
+        body.as_object_mut().unwrap().remove(member);
+    }
+    d["application"]["demo"]["forge"] = body;
+    d["application"]["demo"]["project"] = json!({"name":"Playground","policy":1});
+    d["application"].as_object_mut().unwrap().remove("setup");
     d
 }
 fn member(d: &skein_json::Document, at: u32, name: &[u8]) -> u32 {
@@ -43,12 +49,6 @@ pub(super) fn read(value: &Value) -> Result<Option<demo::Demo>, crate::Refusal> 
     let directories = config::Directories::given(b"/config", b"/data", b"/cache").unwrap();
     let engine = temper_service::startup::engine(&d, member(&d, 0, b"engine"), &directories).unwrap();
     let app = member(&d, 0, b"application");
-    let mut ps = problem::Problems::empty();
-    let setup = match config::read::Object::new(&d, app).unwrap().member(&d, b"setup") {
-        Some(at) => Setup::read(&d, at, &temper_forge_setup::limits::small(), &directories, &mut ps).unwrap(),
-        None => Setup { entries: Box::new([]) },
-    };
-    assert!(ps.is_empty(), "{:?}", problem::lines(&ps));
     let mut ps = config::Problems::empty();
     let listeners: Vec<_> = [b"clients".as_slice(), b"webhooks"]
         .iter()
@@ -61,17 +61,10 @@ pub(super) fn read(value: &Value) -> Result<Option<demo::Demo>, crate::Refusal> 
         })
         .collect();
     assert!(ps.is_empty());
-    let projects: Vec<_> = engine.projects.iter().map(|p| p.number).collect();
     demo::read(
         &d,
         member(&d, app, b"demo"),
-        &demo::Facts {
-            llm: &engine.llm,
-            projects: &projects,
-            setup: &setup,
-            listeners: &listeners,
-            directories: &directories,
-        },
+        &demo::Facts { llm: &engine.llm, listeners: &listeners, directories: &directories },
     )
 }
 #[test]
@@ -103,17 +96,6 @@ fn demo_refusals() {
         ),
         (
             vec![("/application/demo/llm/listen/socket", Some(json!("127.0.0.1:7101")))],
-            "application.demo.llm.listen: must be unique\n",
-        ),
-        (
-            vec![("/application/demo/llm/listen/socket", Some(json!("127.0.0.1:3000")))],
-            "application.demo.llm.listen: must be unique\n",
-        ),
-        (
-            vec![
-                ("/application/setup/0", Some(owned["application"]["setup"][0].clone())),
-                ("/application/demo/llm/listen/socket", Some(json!("127.0.0.1:3000"))),
-            ],
             "application.demo.llm.listen: must be unique\n",
         ),
         (
@@ -199,12 +181,8 @@ fn demo_refusals() {
             )],
             "application.demo.llm.otherwise: scripts past their joint byte bound\n",
         ),
-        (vec![("/application/demo/forge", Some(json!(2)))], "application.demo.forge: names no fake setup entry\n"),
-        (
-            vec![("/application/setup/0", Some(owned["application"]["setup"][0].clone()))],
-            "application.demo.forge: names no fake setup entry\n",
-        ),
-        (vec![("/application/demo/project", Some(json!(9)))], "application.demo.project: names no project\n"),
+        (vec![("/application/demo/forge", Some(json!(2)))], "application.demo.forge: wrong value kind\n"),
+        (vec![("/application/demo/project", Some(json!(9)))], "application.demo.project: wrong value kind\n"),
     ];
     rows.push((
         vec![
@@ -279,8 +257,6 @@ fn demo_acceptance() {
             "asked":m["asked"], "otherwise":m["otherwise"]});
         assert_eq!(demo.llm(), &llm::Document::decode(&serde_json::to_vec(&standalone).unwrap()).unwrap());
         assert_eq!(demo.provider(), 3);
-        assert_eq!(demo.forge(), Some(1));
-        assert_eq!(demo.project(), Some(1));
     }
 }
 
@@ -656,21 +632,12 @@ fn a_persons_new_request_restarts_the_chat_script() {
 }
 
 pub(super) fn t4_fixture() -> Value {
-    let mut value = fixture();
-    let mut body = value["application"]["setup"][0].clone();
-    for member in ["forge", "directory", "start"] {
-        body.as_object_mut().unwrap().remove(member);
-    }
-    value["application"]["demo"]["forge"] = body;
-    value["application"]["demo"]["project"] = json!({"name":"Playground","policy":1});
-    value["application"].as_object_mut().unwrap().remove("setup");
-    value
+    fixture()
 }
 #[test]
 fn a_demo_of_t4s_shape_reads_its_fake_and_project() {
     let demo = read(&t4_fixture()).unwrap().unwrap();
-    assert_eq!(demo.forge(), None);
-    assert_eq!(demo.project(), None);
+
     assert_eq!(demo.fake().owner.as_ref(), b"playground");
     assert_eq!(demo.fake().git.as_ref(), b"/data/demo/bin/git");
     assert_eq!(demo.fake().listen, "127.0.0.1:3000".parse().unwrap());
@@ -681,13 +648,6 @@ fn a_demo_forge_body_of_another_mode_is_refused() {
     let mut value = t4_fixture();
     value["application"]["demo"]["forge"]["mode"] = json!("managed");
     assert_eq!(read(&value).unwrap_err().line().as_ref(), b"application.demo.forge: must be a fake forge\n");
-}
-#[test]
-fn todays_demo_reads_as_before() {
-    let demo = read(&fixture()).unwrap().unwrap();
-    assert_eq!(demo.forge(), Some(1));
-    assert_eq!(demo.project(), Some(1));
-    assert_eq!(demo.fake().owner.as_ref(), b"playground");
 }
 #[test]
 fn t4_demo_refusals_keep_body_paths_and_project_bounds() {
