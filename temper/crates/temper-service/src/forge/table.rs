@@ -9,7 +9,7 @@ pub(crate) fn kept(engine: &mut Engine, forge: Forge) {
         return;
     }
     if record(engine, number).is_some() {
-        removed(engine, number);
+        unhold(engine, number);
     }
     if let Err(why) = hold(engine, forge) {
         let why = match why {
@@ -84,6 +84,7 @@ fn hold(engine: &mut Engine, record: Forge) -> Result<(), NotKept> {
     let number = record.number;
     let mut source = settings_forge(&record, &engine.forge.files)?;
     let identity = identity(&record, &engine.forge.files)?;
+    let not_set_up = missing(&record, &engine.forge.files);
     let endpoint = endpoint(&record, engine.forge.shell)?;
     let host = match host_forge(engine, &record, &endpoint) {
         Ok(host) => Ok(host),
@@ -167,6 +168,9 @@ fn hold(engine: &mut Engine, record: Forge) -> Result<(), NotKept> {
     source.api_token = None;
     engine.workers.add_forge(source).expect("component admitted forge");
     engine.forge.records.insert(number, record).expect("component admitted forge");
+    if not_set_up {
+        crate::setup::lifecycle::state(engine, number, temper_engine_domain_forge::Connection::NotSetUp);
+    }
     if engine.forge_records.past_connect() && super::records::load_one(engine, number) {
         super::records::connect_one(engine, number);
     }
@@ -178,8 +182,15 @@ pub(crate) fn record(engine: &Engine, forge: u16) -> Option<&Forge> {
 }
 
 pub(crate) fn removed(engine: &mut Engine, forge: u16) {
+    unhold(engine, forge);
+    crate::setup::erase_forge(engine, forge);
+}
+fn unhold(engine: &mut Engine, forge: u16) {
     engine.forge.component.remove(&engine.forge.env, forge, &mut engine.forge.above, &mut engine.forge.io);
-    engine.setup.remove_forge(forge);
+    let mut callers = engine.setup.drop_forge(forge);
+    while let Some(caller) = callers.pop() {
+        crate::setup::public::removed(engine, caller);
+    }
     engine.forge.records.remove(&forge);
     engine.forge.remove_held(forge);
     engine.forge_records.rows.remove(forge);

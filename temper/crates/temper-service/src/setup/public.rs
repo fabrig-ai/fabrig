@@ -10,7 +10,7 @@ use temper_engine_domain as root;
 use temper_engine_domain_forge as domain;
 
 #[derive(Debug)]
-pub(super) enum Caller {
+pub(crate) enum Caller {
     Manifest { forge: u16, request: Token, back: Option<Box<[u8]>> },
     Redirect { forge: u16, call: Token, back: Option<Box<[u8]>> },
     // Admin runs start with Other for local failures; skein failures replace it.
@@ -21,7 +21,7 @@ pub(super) enum Caller {
     Reachable { forge: u16, request: Token },
 }
 #[derive(Debug)]
-pub(super) enum Pasted {
+pub(crate) enum Pasted {
     App(Secret),
     Admin(Secret),
 }
@@ -50,6 +50,10 @@ pub(crate) fn admin_connect(
     first: Option<domain::FirstAsk>,
     carried: Carried,
 ) {
+    if crate::forge::ended(engine, forge) {
+        removed(engine, Caller::Connect { forge, request, number: carried.number, pasted: None, stop: None });
+        return;
+    }
     if full(engine, forge) {
         erase(engine, carried.number);
         event(
@@ -115,6 +119,10 @@ pub(crate) fn admin_connect(
     }
 }
 pub(crate) fn connect(engine: &mut Engine, forge: u16, request: Token, app: NonZeroU64, carried: Carried) {
+    if crate::forge::ended(engine, forge) {
+        removed(engine, Caller::Connect { forge, request, number: carried.number, pasted: None, stop: None });
+        return;
+    }
     if full(engine, forge) {
         event(
             engine,
@@ -155,6 +163,10 @@ pub(crate) fn connect(engine: &mut Engine, forge: u16, request: Token, app: NonZ
     }
 }
 pub(crate) fn manifest(engine: &mut Engine, forge: u16, request: Token, back: Option<Box<[u8]>>) {
+    if crate::forge::ended(engine, forge) {
+        removed(engine, Caller::Manifest { forge, request, back });
+        return;
+    }
     if full(engine, forge) {
         event(
             engine,
@@ -200,6 +212,10 @@ fn pasted(bytes: &[u8], item: u16, invalid: &'static [u8]) -> Result<Secret, &'s
 pub(crate) fn install(engine: &mut Engine, forge: u16, request: Token, back: Option<Box<[u8]>>) {
     // The engine's own run on the forge holds an Install rather than refusing it (setup.md, 5.1).
     let held = engine.setup.busy_internally(forge) && engine.setup.public.len() < engine.setup.public.capacity();
+    if crate::forge::ended(engine, forge) {
+        removed(engine, Caller::Install { forge, request, back });
+        return;
+    }
     if !held && full(engine, forge) {
         event(
             engine,
@@ -217,6 +233,18 @@ pub(crate) fn install(engine: &mut Engine, forge: u16, request: Token, back: Opt
     stage(engine, run, host::Plan::Install { forge });
 }
 pub(crate) fn accept(engine: &mut Engine, forge: u16, request: Token, installation: NonZeroU64) {
+    if crate::forge::ended(engine, forge) {
+        removed(
+            engine,
+            Caller::AcceptAsked {
+                forge,
+                request,
+                installation: installation.get(),
+                stop: domain::AdoptionRefusal::Unreachable,
+            },
+        );
+        return;
+    }
     if full(engine, forge) {
         event(
             engine,
@@ -367,6 +395,48 @@ pub(super) fn ended(engine: &mut Engine, run: Token, end: &root::SetupEnd) -> bo
     }
     true
 }
+/// Answer each public request once when its forge leaves the service.
+pub(crate) fn removed(engine: &mut Engine, caller: Caller) {
+    let refusal = domain::ForgeRefusal::NotConnected;
+    match caller {
+        Caller::Connect { forge, request, number, .. } => {
+            erase(engine, number);
+            event(
+                engine,
+                domain::Event::ConnectAnswered { forge, request, answer: domain::ConnectAnswer::Refused(refusal) },
+            );
+        }
+        Caller::Manifest { forge, request, .. } => event(
+            engine,
+            domain::Event::ConnectAnswered { forge, request, answer: domain::ConnectAnswer::Refused(refusal) },
+        ),
+        Caller::Install { forge, request, .. } => event(
+            engine,
+            domain::Event::InstallAnswered {
+                forge,
+                request,
+                answer: domain::InstallAnswer::Refused(refusal),
+                stopped: None,
+            },
+        ),
+        Caller::AcceptAsked { forge, request, .. } => event(
+            engine,
+            domain::Event::AcceptAnswered {
+                forge,
+                request,
+                answer: domain::AcceptAnswer::Refused(refusal),
+                stopped: None,
+            },
+        ),
+        Caller::Reachable { forge, request } => event(
+            engine,
+            domain::Event::ReachableAnswered { forge, request, answer: domain::ReachableAnswer::Refused(refusal) },
+        ),
+        Caller::Redirect { forge, call, .. } | Caller::Accept { forge, call, .. } => {
+            super::routes::ended(engine, call, forge);
+        }
+    }
+}
 pub(crate) fn erase(engine: &mut Engine, number: u64) {
     assert!(number >= temper_protocol_records::CARRIED, "only carried rows erased");
     let owner = if engine.forge_records.erasing(number) {
@@ -404,6 +474,10 @@ pub(super) fn take_back(engine: &mut Engine, forge: u16, state: &[u8]) -> Option
 }
 
 pub(crate) fn reachable(engine: &mut Engine, forge: u16, request: Token, installation: Option<u64>, page: u32) {
+    if crate::forge::ended(engine, forge) {
+        removed(engine, Caller::Reachable { forge, request });
+        return;
+    }
     if engine.setup.reading(forge)
         || engine.setup.runs.len() == engine.setup.env.limits.runs
         || engine.setup.public.len() == engine.setup.public.capacity()

@@ -10,8 +10,11 @@ use skein_lib::{Duration, Env, List, Map, Queue, Time, Wall};
 use temper_engine_domain as root;
 use temper_engine_domain_forge as forge;
 
-/// The mirrored durable demo state gates every service path (protocol/forge.md, 8.1).
+/// Missing forges and the ended demo gate every service path (draft/playground-reset.md, 4).
 pub(crate) fn ended(engine: &crate::engine::Engine, forge: u16) -> bool {
+    if table::record(engine, forge).is_none() {
+        return true;
+    }
     match &engine.demo {
         Some(demo) => demo.forge == Some(forge) && demo.state == Some(forge::DemoState::Ended),
         None => false,
@@ -530,3 +533,7 @@ pub(crate) fn unreachable_text(host: &[u8]) -> Box<[u8]> {
     out.put(host).expect("host");
     out.finish()
 }
+
+#[cfg(test)]
+#[path = "tests/forge_secrets.rs"]
+mod secrets_tests;
