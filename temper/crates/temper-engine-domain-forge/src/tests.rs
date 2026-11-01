@@ -2,6 +2,7 @@ use crate::*;
 
 use temper_engine_domain_forge_issues as issues;
 mod adoption;
+mod asks;
 mod binding;
 mod change;
 #[path = "tests/brief.rs"]
@@ -1292,6 +1293,8 @@ fn a_configured_git_base_is_bounded_by_its_priced_pull_address_bytes() {
 
 fn setup_row(number: u16, kind: Kind, connection: Connection, offer: Offer) -> Row {
     Row {
+        finished: false,
+        playground: false,
         number,
         kind,
         mode: Mode::Owned,
@@ -1496,7 +1499,7 @@ fn routing_tables_take_every_installation_with_the_connection_components_bounds(
     assert!(!crate::limits::connection_valid(u32::MAX, u32::MAX));
 }
 
-fn setup_application(forge: u16, request: Token, token: Token) -> Event {
+fn setup_application(_forge: u16, request: Token, token: Token) -> Event {
     Event::Application {
         role: None,
         carried: None,
@@ -1505,7 +1508,6 @@ fn setup_application(forge: u16, request: Token, token: Token) -> Event {
         retention: Duration::from_secs(60),
         ask: Ask::SetUp {
             playground: false,
-            forge,
             org: b"work".as_slice().into(),
             repository: b"hello".as_slice().into(),
             project: SetUpProject::Existing(1),
@@ -1682,7 +1684,6 @@ fn a_new_project_is_admitted_and_retained_until_the_repository_is_made() {
             retention: Duration::from_secs(60),
             ask: Ask::SetUp {
                 playground: false,
-                forge: 1,
                 org: b"work".as_slice().into(),
                 repository: b"hello".as_slice().into(),
                 project: project.clone(),
@@ -1751,7 +1752,6 @@ fn setup_names_are_validated_at_admission_on_both_sides_of_the_name_bound() {
                 let accepted = given::check_create(&kit_limits, domain_bound, &plan).is_ok();
                 let ask = Ask::SetUp {
                     playground: false,
-                    forge: 1,
                     org: org_name.clone(),
                     repository: repository.clone(),
                     project: SetUpProject::Existing(1),
@@ -1812,7 +1812,6 @@ fn admitted_setup_projects_its_fields_as_making_and_the_next_admission_replaces_
         };
         let ask = Ask::SetUp {
             playground: false,
-            forge: 1,
             org: first.org.clone(),
             repository: first.repository.clone(),
             project: first.project.clone(),

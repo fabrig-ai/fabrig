@@ -326,7 +326,7 @@ fn box_sign_in(stand: &mut fixtures::system::SystemStand) -> Box<[u8]> {
 fn box_setup(
     stand: &mut fixtures::system::SystemStand,
     bearer: &[u8],
-    forge: u16,
+    _forge: u16,
     key: u8,
 ) -> temper_client_protocol_wire::v1::Outcome {
     use fixtures::http as peer;
@@ -343,7 +343,6 @@ fn box_setup(
                     &w::CEILINGS,
                     w::SetUpParts {
                         playground: false,
-                        forge,
                         org: b"work".as_slice().into(),
                         repository: b"hello".as_slice().into(),
                         project: w::SetUpProject::Existing(

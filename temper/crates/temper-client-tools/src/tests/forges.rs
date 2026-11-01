@@ -40,6 +40,7 @@ fn record_first(connection: w::Connection, first: Option<w::FirstRepository>) ->
             w::ForgeRow::new(
                 &limits,
                 w::ForgeRowParts {
+                    skein_bools: [false, false, false, false],
                     number: 3,
                     kind: w::Kind::Forgejo,
                     mode: w::Mode::Owned,
@@ -52,8 +53,6 @@ fn record_first(connection: w::Connection, first: Option<w::FirstRepository>) ->
                     web: None,
                     repositories: List::with_capacity(0),
                     owned: None,
-                    admin: false,
-                    read_only: false,
                     ended_stop: None,
                 },
             )
@@ -290,9 +289,8 @@ fn setup_answers_print_their_words_json_and_status() {
             let call = root.submit_prepared(f::call(&["forge", "setup", "3"]), json, None);
             let client::Ask::Family { scope, record } = root.adoption_bytes(call) else { panic!("family") };
             assert_eq!(*scope, c::Scope::Deployment);
-            let w::Request::SetUp(request) = wire::decode_requesting(&record.bytes, &limits).unwrap().into_parts().request else { panic!("set up"); };
-            assert_eq!(request.forge(), 3);
-            root.adoption_answer(call, outcome.clone());
+            let w::Request::SetUp(_) = wire::decode_requesting(&record.bytes, &limits).unwrap().into_parts().request else { panic!("set up"); };
+                    root.adoption_answer(call, outcome.clone());
             if status == 0 {
                 assert!(root.answer(call).is_none());
                 assert!(root.progress.as_slice().last().is_some());
@@ -329,6 +327,33 @@ fn setup_keeps_drawn_keys_and_recovers_the_answer_in_its_own_words() {
     }
 }
 #[test]
+fn a_restored_setup_without_the_box_omits_commands_for_an_unknown_forge() {
+    for json in [false, true] {
+        let mut root = f::signed_in(f::PARTY);
+        let call = root.submit(&["forge", "setup", "3"]);
+        let key = root.sent_name(call).unwrap();
+        let mut records = f::restored_adoption(f::PARTY);
+        let record = records.get_mut(0).unwrap();
+        record.key = key;
+        record.request.request = root.adoption_bytes(call).clone();
+        let mut root = f::started_with(records, f::SEED, json);
+        root.deliver(c::Delivery::Me(Box::new(f::me(f::PARTY))));
+        let limits = forge::wire_limits(&root.limits.domain.forge).unwrap();
+        root.adoption_answer(
+            0,
+            w::Outcome::SetUpRefused(
+                w::SetUpRefused::new(&limits, w::SetUpRefusedParts { why: w::SetUpRefusal::NotUnderTheBox }).unwrap(),
+            ),
+        );
+        let expected = if json {
+            b"{\"operation\":\"forge-setup\",\"outcome\":{\"refused\":{\"why\":\"not_under_the_box\"}}}\n".as_slice()
+        } else {
+            b"kept: forge-setup refused: not under the box\n".as_slice()
+        };
+        assert_eq!(root.kept_lines.as_slice(), &[Box::<[u8]>::from(expected)]);
+    }
+}
+#[test]
 fn setup_names_are_stable_and_unconfirmed_calls_wait_for_me() {
     let mut root = f::started(List::with_capacity(0));
     let call = root.submit(&["forge", "setup", "3", "--key", "start-here"]);
@@ -343,13 +368,13 @@ fn setup_names_are_stable_and_unconfirmed_calls_wait_for_me() {
 #[test]
 fn a_set_up_rejects_an_adoption_answer_and_preserves_entrance_refusals() {
     let outcome = client::Outcome::Answered(f::family_answer(f::adopted_with_unknown_protection()));
-    assert_eq!(forges::setup_print(3, &outcome, false, false, &f::limits_root()).status, 1);
+    assert_eq!(forges::setup_print(Some(3), &outcome, false, false, &f::limits_root()).status, 1);
     let outcome = client::Outcome::Answered(client::Answered::Jig(c::Answer::Refused {
         refusal: c::Refusal::Role { held: None },
         at: None,
     }));
     for json in [false, true] {
-        assert_eq!(forges::setup_print(3, &outcome, json, false, &f::limits_root()).status, 2);
+        assert_eq!(forges::setup_print(Some(3), &outcome, json, false, &f::limits_root()).status, 2);
     }
 }
 
@@ -789,6 +814,7 @@ fn settled_wait_with_installations(count: u32) {
             w::ForgeRow::new(
                 &limits,
                 w::ForgeRowParts {
+                    skein_bools: [false, false, false, false],
                     number: 3,
                     kind: w::Kind::Github,
                     mode: w::Mode::Connected,
@@ -804,8 +830,6 @@ fn settled_wait_with_installations(count: u32) {
                     web: None,
                     repositories: List::with_capacity(0),
                     owned: None,
-                    admin: false,
-                    read_only: false,
                     ended_stop: None,
                 },
             )
@@ -941,6 +965,7 @@ fn human_forges_bounds_the_wire_maximum_installations_with_longest_logins() {
             w::ForgeRow::new(
                 &bounds,
                 w::ForgeRowParts {
+                    skein_bools: [false, false, false, false],
                     number: 3,
                     kind: w::Kind::Github,
                     mode: w::Mode::Connected,
@@ -959,8 +984,6 @@ fn human_forges_bounds_the_wire_maximum_installations_with_longest_logins() {
                     web: None,
                     repositories: List::with_capacity(0),
                     owned: None,
-                    admin: false,
-                    read_only: false,
                     ended_stop: None,
                 },
             )

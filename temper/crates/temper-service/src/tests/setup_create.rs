@@ -274,7 +274,6 @@ fn ask_copy(service: &mut crate::Service, number: u64, playground: bool) {
         retention: Duration::from_secs(60),
         ask: domain::Ask::SetUp {
             playground,
-            forge: 1,
             org: if playground { b"playground".as_slice().into() } else { b"work".as_slice().into() },
             repository: if playground { b"widget".as_slice().into() } else { b"hello".as_slice().into() },
             project: domain::SetUpProject::Existing(1),

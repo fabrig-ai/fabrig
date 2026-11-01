@@ -298,6 +298,19 @@ impl Domain {
                 None => (None, None),
             };
             rows.push(crate::Row {
+                finished: match self.connection(*forge) {
+                    crate::Connection::Connected { .. } => !repositories.is_empty(),
+                    crate::Connection::NotConnected
+                    | crate::Connection::NotSetUp
+                    | crate::Connection::SettingUp { .. }
+                    | crate::Connection::SetUpFailed { .. }
+                    | crate::Connection::Connecting
+                    | crate::Connection::Stopped { .. } => false,
+                },
+                playground: match &self.demo {
+                    Some(demo) => demo.adoption.forge == *forge,
+                    None => false,
+                },
                 read_only: config.kind == crate::Kind::GitHub && config.read_only,
                 number: *forge,
                 kind: config.kind,
@@ -1210,9 +1223,31 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
             | crate::Ask::Reachable { .. }) => {
                 crate::connect::start(d, request, token, ask, role, carried, out);
             }
+            crate::Ask::RemoveForge { .. } => crate::asks::refuse(
+                d,
+                request,
+                token,
+                crate::Answered::RemoveForge(crate::RemoveAnswer::Refused(crate::RemoveRefusal::NotOffered)),
+                out,
+            ),
+            crate::Ask::StartPlayground => crate::asks::refuse(
+                d,
+                request,
+                token,
+                crate::Answered::StartPlayground(crate::StartAnswer::NotOffered),
+                out,
+            ),
+            crate::Ask::EndPlayground => crate::asks::refuse(
+                d,
+                request,
+                token,
+                crate::Answered::EndPlayground(crate::EndAnswer::NotOffered),
+                out,
+            ),
             crate::Ask::StartDemo => crate::demo::start(d, request, token, out),
             crate::Ask::Adopt(adoption) => adoption::start(d, env, request, token, retention, adoption, out),
-            crate::Ask::SetUp { forge, org, repository, project, playground } => {
+            crate::Ask::SetUp { org, repository, project, playground } => {
+                let forge = crate::asks::set_up_forge(d);
                 let mut expired = None;
                 for (token, (until, _)) in &d.setup_answers {
                     if *until <= env.wall {
@@ -1234,7 +1269,9 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
                         }
                         crate::SetUpProject::Existing(_) => false,
                     };
-                    let refusal = if !setup_login(&org)
+                    let refusal = if forge.is_none() {
+                        Some(crate::SetUpRefusal::NotOffered)
+                    } else if !setup_login(&org)
                         || !setup_repository(&repository)
                         || org.len() > usize::try_from(env.limits.name_bytes).expect("name bound fits")
                         || repository.len() > usize::try_from(env.limits.name_bytes).expect("name bound fits")
@@ -1243,7 +1280,11 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
                     {
                         Some(crate::SetUpRefusal::Invalid)
                     } else {
-                        match d.offer(forge) {
+                        let offer = match forge {
+                            Some(number) => d.offer(number),
+                            None => crate::Offer::NotOffered,
+                        };
+                        match offer {
                             crate::Offer::NotOffered => Some(crate::SetUpRefusal::NotOffered),
                             crate::Offer::NotUnderTheBox => Some(crate::SetUpRefusal::NotUnderTheBox),
                             crate::Offer::Offered => {
@@ -1260,6 +1301,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
                     match refusal {
                         Some(why) => d.setup_answer(env, request, crate::SetUpAnswer::Refused(why), out),
                         None => {
+                            let forge = forge.expect("offered configured forge");
                             d.first
                                 .insert(
                                     forge,

@@ -47,6 +47,9 @@ impl Frame {
             | f::Request::Install(_)
             | f::Request::Connect(_)
             | f::Request::Accept(_)
+            | f::Request::RemoveForge(_)
+            | f::Request::StartPlayground
+            | f::Request::EndPlayground
             | f::Request::Reachable(_) => return false,
         };
         let answer = f::Answer::new(&f::CEILINGS, f::AnswerParts { outcome }).expect("valid setup fixture");
@@ -84,6 +87,7 @@ impl Frame {
                 f::ForgeRow::new(
                     &f::CEILINGS,
                     f::ForgeRowParts {
+                        skein_bools: [false, false, false, false],
                         number: FORGE,
                         kind: f::Kind::Forgejo,
                         mode: f::Mode::Owned,
@@ -109,8 +113,6 @@ impl Frame {
                         web: None,
                         repositories: skein_lib::List::with_capacity(0),
                         owned: None,
-                        admin: false,
-                        read_only: false,
                         ended_stop: None,
                     },
                 )

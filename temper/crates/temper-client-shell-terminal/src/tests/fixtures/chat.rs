@@ -324,6 +324,7 @@ fn demo_forges() -> Box<[u8]> {
             w::ForgeRow::new(
                 &limits,
                 w::ForgeRowParts {
+                    skein_bools: [false, false, false, false],
                     number: 1,
                     kind: w::Kind::Forgejo,
                     mode: w::Mode::Fake,
@@ -339,8 +340,6 @@ fn demo_forges() -> Box<[u8]> {
                     web: None,
                     repositories: skein_lib::List::with_capacity(0),
                     owned: None,
-                    admin: false,
-                    read_only: false,
                     ended_stop: None,
                 },
             )

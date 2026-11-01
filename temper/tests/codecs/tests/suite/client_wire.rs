@@ -85,7 +85,6 @@ fn setup_and_every_first_repository_state_round_trip_at_version_eleven() {
                         &v1::CEILINGS,
                         v1::SetUpParts {
                             playground: false,
-                            forge: 3,
                             org: b"work".as_slice().into(),
                             repository: b"hello".as_slice().into(),
                             project,
@@ -123,6 +122,7 @@ fn setup_and_every_first_repository_state_round_trip_at_version_eleven() {
         let row = v1::ForgeRow::new(
             &v1::CEILINGS,
             v1::ForgeRowParts {
+                skein_bools: [false, false, false, false],
                 number: 3,
                 kind: v1::Kind::Forgejo,
                 mode: v1::Mode::Owned,
@@ -135,8 +135,6 @@ fn setup_and_every_first_repository_state_round_trip_at_version_eleven() {
                 web: None,
                 repositories: List::with_capacity(0),
                 owned: None,
-                admin: false,
-                read_only: false,
                 ended_stop: None,
             },
         )
@@ -163,7 +161,6 @@ fn first_repository_names_are_bounded_at_construction_and_decode() {
         for field in 0..3 {
             let parts = v1::SetUpParts {
                 playground: false,
-                forge: 3,
                 org: if field == 0 { name.clone() } else { b"o".as_slice().into() },
                 repository: if field == 1 { name.clone() } else { b"r".as_slice().into() },
                 project: if field == 2 {
@@ -214,7 +211,6 @@ fn first_repository_names_are_bounded_at_construction_and_decode() {
         for org in [true, false] {
             let parts = v1::SetUpParts {
                 playground: false,
-                forge: 3,
                 org: if org { name.clone() } else { b"o".as_slice().into() },
                 repository: if org { b"r".as_slice().into() } else { name.clone() },
                 project: project(),

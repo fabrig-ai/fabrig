@@ -42,13 +42,26 @@ fn request(
     let request = if let Some(installation) = installation {
         w::Request::Accept(w::Accept::new(&bounds, w::AcceptParts { forge, installation }).ok()?)
     } else if let Some(admin) = admin {
-        w::Request::Connect(w::Connect::new(&bounds, w::ConnectParts { forge, how: w::How::ForgejoAdmin(admin) }).ok()?)
+        w::Request::Connect(
+            w::Connect::new(
+                &bounds,
+                w::ConnectParts {
+                    forge: w::ConnectForge::Existing(
+                        w::ExistingForge::new(&w::CEILINGS, w::ExistingForgeParts { forge }).expect("existing forge"),
+                    ),
+                    how: w::How::ForgejoAdmin(admin),
+                },
+            )
+            .ok()?,
+        )
     } else if manifest {
         w::Request::Connect(
             w::Connect::new(
                 &bounds,
                 w::ConnectParts {
-                    forge,
+                    forge: w::ConnectForge::Existing(
+                        w::ExistingForge::new(&w::CEILINGS, w::ExistingForgeParts { forge }).expect("existing forge"),
+                    ),
                     how: w::How::GithubManifest(
                         w::GitHubManifest::new(&bounds, w::GitHubManifestParts { back: None }).ok()?,
                     ),
@@ -62,7 +75,10 @@ fn request(
                 w::Connect::new(
                     &bounds,
                     w::ConnectParts {
-                        forge,
+                        forge: w::ConnectForge::Existing(
+                            w::ExistingForge::new(&w::CEILINGS, w::ExistingForgeParts { forge })
+                                .expect("existing forge"),
+                        ),
                         how: w::How::GithubApp(w::GitHubApp::new(&bounds, w::GitHubAppParts { id }).ok()?),
                     },
                 )
@@ -267,13 +283,19 @@ pub(super) fn told(state: &mut Forges, env: &Env<Limits>, told: &Told, out: &mut
                 w::Request::Accept(value) => (value.forge(), true, Some(value.installation()), false),
                 w::Request::Install(value) => (value.forge(), true, None, false),
                 w::Request::Connect(value) => match value.how() {
-                    w::How::GithubManifest(_) => (value.forge(), false, None, true),
+                    w::How::GithubManifest(_) => match value.forge() {
+                        w::ConnectForge::Existing(forge) => (forge.forge(), false, None, true),
+                        w::ConnectForge::Github | w::ConnectForge::Forgejo(_) => return false,
+                    },
                     w::How::GithubApp(_) | w::How::ForgejoAdmin(_) => return false,
                 },
                 w::Request::Reachable(_)
                 | w::Request::Return(_)
                 | w::Request::Adopt(_)
                 | w::Request::SetUp(_)
+                | w::Request::RemoveForge(_)
+                | w::Request::StartPlayground
+                | w::Request::EndPlayground
                 | w::Request::StartDemo => {
                     return false;
                 }
@@ -358,6 +380,10 @@ fn answer(value: &Answered, limits: &Limits) -> Option<Answer> {
         | w::Outcome::SetUpRefused(_)
         | w::Outcome::Running
         | w::Outcome::StartRefused(_)
+        | w::Outcome::Removing
+        | w::Outcome::RemoveRefused(_)
+        | w::Outcome::Reset
+        | w::Outcome::EndRefused(_)
         | w::Outcome::StartFailed(_) => None,
     }
 }

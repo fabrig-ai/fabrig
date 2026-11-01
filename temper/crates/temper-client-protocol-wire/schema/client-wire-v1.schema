@@ -13,7 +13,7 @@ record Adopt { project: u32 home: bool forge: u16 owner: bytes 1024 name: bytes 
 record ExistingProject { project: u32 }
 record NewProject { name: bytes 1024 }
 enum SetUpProject { existing: ExistingProject, new: NewProject }
-record SetUp { forge: u16 org: bytes 1024 repository: bytes 1024 project: SetUpProject playground: bool }
+record SetUp { org: bytes 1024 repository: bytes 1024 project: SetUpProject playground: bool }
 record Return { source: u32 path: bytes 512 }
 # start_demo: the demo document's start (client/README.md, 4.6; protocol/setup.md, 8.4).
 record GitHubApp { id: u64 }
@@ -21,11 +21,15 @@ record GitHubManifest { back: option bytes 512 }
 record FirstAsk { org: bytes 1024 repository: bytes 1024 project: SetUpProject label: bytes 64 }
 record ForgejoAdmin { first: option FirstAsk }
 enum How { github_app: GitHubApp, github_manifest: GitHubManifest, forgejo_admin: ForgejoAdmin }
-record Connect { forge: u16 how: How }
+record ExistingForge { forge: u16 }
+record NewForgejo { address: bytes 2048 }
+enum ConnectForge { existing: ExistingForge, github, forgejo: NewForgejo }
+record Connect { forge: ConnectForge how: How }
+record RemoveForge { forge: u16 }
 record Install { forge: u16 back: option bytes 512 }
 record Reachable { forge: u16 installation: option u64 page: u32 }
 record Accept { forge: u16 installation: u64 }
-enum Request { adopt: Adopt, set_up: SetUp, start_demo, return_: Return, connect: Connect, install: Install, reachable: Reachable, accept: Accept }
+enum Request { adopt: Adopt, set_up: SetUp, start_demo, return_: Return, connect: Connect, install: Install, reachable: Reachable, accept: Accept, remove_forge: RemoveForge, start_playground, end_playground }
 versioned record Requesting { request: Request }
 enum SetUpRefusal { not_offered, not_under_the_box, busy, new_project, invalid }
 record SetUpRefused { why: SetUpRefusal }
@@ -64,7 +68,7 @@ enum AdminStop { not_admin, refused: AdminRefused, unmarked, other }
 enum AppWay { manifest, pasted }
 record Adoption { owner: bytes 1024 name: bytes 1024 project: u32 }
 record OwnedForge { forgejo: bytes 64 runner: option bytes 64 password: bytes 512 }
-record ForgeRow { number: u16 kind: Kind mode: Mode connection: Connection offer: Offer first: option FirstRepository installations: list 64 Installation ended: option ConnectStopped app: option AppWay web: option bytes 2048 repositories: list 16 Adoption owned: option OwnedForge admin: bool ended_stop: option AdminStop read_only: bool }
+record ForgeRow { number: u16 kind: Kind mode: Mode connection: Connection offer: Offer first: option FirstRepository installations: list 64 Installation ended: option ConnectStopped app: option AppWay web: option bytes 2048 repositories: list 16 Adoption owned: option OwnedForge admin: bool ended_stop: option AdminStop read_only: bool finished: bool playground: bool }
 versioned record Forges { forges: list 16 ForgeRow }
 
 # The family's read name and its demo answer (client/README.md, 4.6).
@@ -127,5 +131,9 @@ record Page { rows: list 100 Reached more: bool }
 # unknown: the outcome's retention ended (02.2's Delivery::Application
 # outcome None; client/README.md, 4.7, "unknown past the retention").
 record AcceptedInstallation { installation: u64 }
-enum Outcome { adopted: Adopted, core_refused: CoreRefused, forge_refused: ForgeRefused, unknown, setting_up, set_up_refused: SetUpRefused, running, start_refused: StartRefused, start_failed: StartFailed, returning, connecting, link: Link, connect_refused: ConnectRefused, page: Page, accepted: AcceptedInstallation }
+enum RemoveRefusal { not_offered, no_such_forge, role }
+record RemoveRefused { why: RemoveRefusal }
+enum EndRefusal { not_offered }
+record EndRefused { why: EndRefusal }
+enum Outcome { adopted: Adopted, core_refused: CoreRefused, forge_refused: ForgeRefused, unknown, setting_up, set_up_refused: SetUpRefused, running, start_refused: StartRefused, start_failed: StartFailed, returning, connecting, link: Link, connect_refused: ConnectRefused, page: Page, accepted: AcceptedInstallation, removing, remove_refused: RemoveRefused, reset, end_refused: EndRefused }
 versioned record Answer { outcome: Outcome }

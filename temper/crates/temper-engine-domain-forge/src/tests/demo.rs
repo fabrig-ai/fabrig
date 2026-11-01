@@ -382,7 +382,6 @@ fn restored_ended_demo_hides_repositories_but_keeps_lookups_and_refuses_setup() 
             retention: Duration::from_secs(60),
             ask: Ask::SetUp {
                 playground: false,
-                forge: 1,
                 org: b"org".as_slice().into(),
                 repository: b"repo".as_slice().into(),
                 project: SetUpProject::Existing(5),

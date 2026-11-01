@@ -722,7 +722,7 @@ fn paste_row(limits: &domain::Limits, request: Token, connected: bool, why: Opti
             token: request,
             retention: Duration::from_secs(3600),
             ask: domain::Ask::Connect {
-                forge: 1,
+                forge: domain::ConnectForge::Existing(1),
                 how: domain::How::GitHubApp { app: core::num::NonZeroU64::new(7).unwrap() },
             },
             role: Some(jig_domain_people::Role::Owner),

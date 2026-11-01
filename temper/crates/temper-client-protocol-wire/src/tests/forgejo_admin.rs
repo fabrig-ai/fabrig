@@ -22,15 +22,24 @@ fn first(label: &[u8]) -> Result<v1::FirstAsk, v1::Problem> {
 fn request(first: Option<v1::FirstAsk>) -> v1::Requesting {
     let limits = fixtures::limits();
     let admin = v1::ForgejoAdmin::new(&limits, v1::ForgejoAdminParts { first }).unwrap();
-    let connect = v1::Connect::new(&limits, v1::ConnectParts { forge: 1, how: v1::How::ForgejoAdmin(admin) }).unwrap();
+    let connect = v1::Connect::new(
+        &limits,
+        v1::ConnectParts {
+            forge: v1::ConnectForge::Existing(
+                v1::ExistingForge::new(&v1::CEILINGS, v1::ExistingForgeParts { forge: 1 }).expect("existing forge"),
+            ),
+            how: v1::How::ForgejoAdmin(admin),
+        },
+    )
+    .unwrap();
     v1::Requesting::new(&limits, v1::RequestingParts { request: v1::Request::Connect(connect) }).unwrap()
 }
 // An untrusted peer's Connect: version 11, Connect tag 4, forge 1,
 // ForgejoAdmin tag 2, Some(first), work/hello, Existing project 7.
 fn peer(label: &[u8]) -> Box<[u8]> {
     const HEAD: &[u8] = &[
-        0, 11, 4, 0, 1, 2, 1, 0, 0, 0, 4, b'w', b'o', b'r', b'k', 0, 0, 0, 5, b'h', b'e', b'l', b'l', b'o', 0, 0, 0, 0,
-        7,
+        0, 11, 4, 0, 0, 1, 2, 1, 0, 0, 0, 4, b'w', b'o', b'r', b'k', 0, 0, 0, 5, b'h', b'e', b'l', b'l', b'o', 0, 0, 0,
+        0, 7,
     ];
     let mut writer = Writer::new(HEAD.len().checked_add(4).unwrap().checked_add(label.len()).unwrap());
     writer.put(HEAD).unwrap();
@@ -42,17 +51,21 @@ fn peer(label: &[u8]) -> Box<[u8]> {
 #[expect(clippy::disallowed_macros, reason = "committed wire golden is test input")]
 fn forgejo_admin_without_first_round_trips_its_golden() {
     let record = request(None);
-    let bytes = include_bytes!("../../golden/connect_forgejo_admin_without_first.bin");
-    assert_eq!(crate::requesting(&record).as_ref(), bytes);
-    assert_eq!(crate::decode_requesting(bytes, &fixtures::limits()), Some(record));
+    assert_eq!(crate::decode_requesting(&crate::requesting(&record), &fixtures::limits()), Some(record));
+    how_golden(include_bytes!("../../golden/enum_how_forgejo_admin_smallest.bin"));
 }
 #[test]
 #[expect(clippy::disallowed_macros, reason = "committed wire golden is test input")]
 fn forgejo_admin_with_first_round_trips_its_golden() {
     let record = request(Some(first(b"docker").unwrap()));
-    let bytes = include_bytes!("../../golden/connect_forgejo_admin_with_first.bin");
-    assert_eq!(crate::requesting(&record).as_ref(), bytes);
-    assert_eq!(crate::decode_requesting(bytes, &fixtures::limits()), Some(record));
+    assert_eq!(crate::decode_requesting(&crate::requesting(&record), &fixtures::limits()), Some(record));
+    how_golden(include_bytes!("../../golden/enum_how_forgejo_admin_full.bin"));
+}
+fn how_golden(bytes: &[u8]) {
+    let how = v1::How::decode(&v1::CEILINGS, &mut Reader::new(bytes)).unwrap();
+    let mut writer = Writer::new(usize::try_from(how.measure()).unwrap());
+    how.encode(&mut writer).unwrap();
+    assert_eq!(writer.finish().as_ref(), bytes);
 }
 #[test]
 fn runner_labels_are_accepted_on_both_sides() {

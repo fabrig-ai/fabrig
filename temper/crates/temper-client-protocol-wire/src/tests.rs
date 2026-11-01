@@ -76,6 +76,7 @@ fn limits_take_each_bound_from_its_source_field() {
             return_path: 512,
             set_up_failed_why: crate::SET_UP_WHY_BYTES,
             group_failed_why: crate::SET_UP_WHY_BYTES,
+            new_forgejo_address: crate::ADDRESS_BYTES,
             connected_login: 16,
             account_login: 16,
             forge_row_installations: crate::INSTALLATIONS,
@@ -296,7 +297,6 @@ fn requesting_round_trips_and_refuses_trailing_and_version_three_adopt_bytes() {
                 &limits,
                 v1::SetUpParts {
                     playground: true,
-                    forge: u16::MAX,
                     org: b"work".as_slice().into(),
                     repository: b"hello".as_slice().into(),
                     project: v1::SetUpProject::Existing(
@@ -339,6 +339,7 @@ fn forges_rows(numbers: &[u16], connection: &v1::Connection) -> v1::Forges {
                 v1::ForgeRow::new(
                     &limits,
                     v1::ForgeRowParts {
+                        skein_bools: [false, false, true, true],
                         number: *number,
                         kind: v1::Kind::Forgejo,
                         mode: v1::Mode::Owned,
@@ -351,8 +352,6 @@ fn forges_rows(numbers: &[u16], connection: &v1::Connection) -> v1::Forges {
                         web: None,
                         repositories: List::with_capacity(0),
                         owned: None,
-                        admin: false,
-                        read_only: false,
                         ended_stop: None,
                     },
                 )
@@ -371,6 +370,7 @@ fn each_forge_offer_round_trips() {
         let row = v1::ForgeRow::new(
             &limits,
             v1::ForgeRowParts {
+                skein_bools: [false, false, true, true],
                 number,
                 kind: v1::Kind::Forgejo,
                 mode: v1::Mode::Owned,
@@ -383,8 +383,6 @@ fn each_forge_offer_round_trips() {
                 web: None,
                 repositories: List::with_capacity(0),
                 owned: None,
-                admin: false,
-                read_only: false,
                 ended_stop: None,
             },
         )
@@ -465,6 +463,7 @@ fn forge_fields_refuse_one_past_their_bounds_on_construction_and_decode() {
         let row = v1::ForgeRow::new(
             &v1::CEILINGS,
             v1::ForgeRowParts {
+                skein_bools: [false, false, true, true],
                 number: 1,
                 kind: v1::Kind::Github,
                 mode: v1::Mode::Connected,
@@ -477,8 +476,6 @@ fn forge_fields_refuse_one_past_their_bounds_on_construction_and_decode() {
                 web: None,
                 repositories: List::with_capacity(0),
                 owned: None,
-                admin: false,
-                read_only: false,
                 ended_stop: None,
             },
         )
@@ -505,6 +502,7 @@ fn forges_refuse_seventeen_rows_unsorted_rows_and_duplicate_numbers() {
         v1::ForgeRow::new(
             &limits,
             v1::ForgeRowParts {
+                skein_bools: [false, false, true, true],
                 number: 17,
                 kind: v1::Kind::Github,
                 mode: v1::Mode::Fake,
@@ -517,8 +515,6 @@ fn forges_refuse_seventeen_rows_unsorted_rows_and_duplicate_numbers() {
                 web: None,
                 repositories: List::with_capacity(0),
                 owned: None,
-                admin: false,
-                read_only: false,
                 ended_stop: None,
             },
         )
@@ -570,6 +566,7 @@ fn forge_login_and_stop_reason_round_trip_at_schema_ceilings() {
                     let row = v1::ForgeRow::new(
                         &limits,
                         v1::ForgeRowParts {
+                            skein_bools: [false, false, true, true],
                             number: u16::MAX,
                             kind: kind.clone(),
                             mode: mode.clone(),
@@ -582,8 +579,6 @@ fn forge_login_and_stop_reason_round_trip_at_schema_ceilings() {
                             web: None,
                             repositories: List::with_capacity(0),
                             owned: None,
-                            admin: false,
-                            read_only: false,
                             ended_stop: None,
                         },
                     )
@@ -703,7 +698,16 @@ fn pasted_apps_round_trip_and_check_nonzero_id() {
     let limits = fixtures::limits();
     for id in [0, 1, u64::MAX] {
         let app = v1::GitHubApp::new(&limits, v1::GitHubAppParts { id }).unwrap();
-        let connect = v1::Connect::new(&limits, v1::ConnectParts { forge: 1, how: v1::How::GithubApp(app) }).unwrap();
+        let connect = v1::Connect::new(
+            &limits,
+            v1::ConnectParts {
+                forge: v1::ConnectForge::Existing(
+                    v1::ExistingForge::new(&v1::CEILINGS, v1::ExistingForgeParts { forge: 1 }).expect("existing forge"),
+                ),
+                how: v1::How::GithubApp(app),
+            },
+        )
+        .unwrap();
         let record =
             v1::Requesting::new(&limits, v1::RequestingParts { request: v1::Request::Connect(connect) }).unwrap();
         let decoded = crate::decode_requesting(&crate::requesting(&record), &limits);
@@ -774,6 +778,7 @@ fn installation_row(count: u32, why_bytes: usize) -> v1::ForgeRowParts {
             .unwrap();
     }
     v1::ForgeRowParts {
+        skein_bools: [false, false, true, true],
         number: 1,
         kind: v1::Kind::Github,
         mode: v1::Mode::Connected,
@@ -788,8 +793,6 @@ fn installation_row(count: u32, why_bytes: usize) -> v1::ForgeRowParts {
         web: None,
         repositories: List::with_capacity(0),
         owned: None,
-        admin: false,
-        read_only: false,
         ended_stop: None,
     }
 }
@@ -797,7 +800,7 @@ fn installation_row(count: u32, why_bytes: usize) -> v1::ForgeRowParts {
 fn installation_row_bytes(parts: v1::ForgeRowParts, why: &[u8]) -> Box<[u8]> {
     // Number (2), four enum tags, first tag, list length (4), end tag, why length (4),
     // app tag, web tag, repositories length (4), owned tag, admin bool, typed stop tag, read-only bool.
-    let mut size = why.len().checked_add(26).unwrap();
+    let mut size = why.len().checked_add(28).unwrap();
     for installation in &parts.installations {
         size = size.checked_add(usize::try_from(installation.measure()).unwrap()).unwrap();
     }
@@ -819,7 +822,7 @@ fn installation_row_bytes(parts: v1::ForgeRowParts, why: &[u8]) -> Box<[u8]> {
     writer.put(&[0]).unwrap(); // no web address
     writer.put(&0_u32.to_be_bytes()).unwrap(); // no adoptions
     writer.put(&[0]).unwrap(); // no owned details
-    writer.put(&[0, 0, 0]).unwrap(); // admin false, no typed stop, read-only false
+    writer.put(&[0, 0, 0, 1, 1]).unwrap(); // admin false, no typed stop, read-only false, finished and playground true
     writer.finish()
 }
 #[test]
@@ -856,8 +859,16 @@ fn manifest_connects_and_app_ways_round_trip() {
     let limits = fixtures::limits();
     for back in [None, Some(Box::from(b"/forges/connect?forge=1".as_slice()))] {
         let how = v1::GitHubManifest::new(&limits, v1::GitHubManifestParts { back }).unwrap();
-        let connect =
-            v1::Connect::new(&limits, v1::ConnectParts { forge: 1, how: v1::How::GithubManifest(how) }).unwrap();
+        let connect = v1::Connect::new(
+            &limits,
+            v1::ConnectParts {
+                forge: v1::ConnectForge::Existing(
+                    v1::ExistingForge::new(&v1::CEILINGS, v1::ExistingForgeParts { forge: 1 }).expect("existing forge"),
+                ),
+                how: v1::How::GithubManifest(how),
+            },
+        )
+        .unwrap();
         let record =
             v1::Requesting::new(&limits, v1::RequestingParts { request: v1::Request::Connect(connect) }).unwrap();
         assert_eq!(crate::decode_requesting(&crate::requesting(&record), &limits), Some(record));
@@ -922,7 +933,7 @@ fn admin_rows_round_trip_the_form_stop_and_first_label() {
     for stop in stops.into_boxed() {
         for admin in [false, true] {
             let mut parts = installation_row(0, 0);
-            parts.admin = admin;
+            parts.skein_bools[0] = admin;
             parts.ended_stop = stop.clone();
             parts.first = Some(first_with_label(filled(64)).unwrap());
             let row = v1::ForgeRow::new(&limits, parts).unwrap();
@@ -993,5 +1004,72 @@ fn landing_watches_round_trip_without_trailing_bytes() {
         let bytes = crate::watching(&watching);
         assert_eq!(crate::decode_watching(&bytes, &limits), Some(watching));
         assert_eq!(crate::decode_watching(&fixtures::trailing(&bytes), &limits), None);
+    }
+}
+
+#[test]
+fn connect_round_trips_each_forge_form() {
+    let limits = fixtures::limits();
+    for forge in [
+        v1::ConnectForge::Existing(v1::ExistingForge::new(&limits, v1::ExistingForgeParts { forge: 3 }).unwrap()),
+        v1::ConnectForge::Github,
+        v1::ConnectForge::Forgejo(
+            v1::NewForgejo::new(
+                &limits,
+                v1::NewForgejoParts { address: b"https://forge.example:443".as_slice().into() },
+            )
+            .unwrap(),
+        ),
+    ] {
+        let how =
+            v1::How::GithubManifest(v1::GitHubManifest::new(&limits, v1::GitHubManifestParts { back: None }).unwrap());
+        let connect = v1::Connect::new(&limits, v1::ConnectParts { forge, how }).unwrap();
+        let record =
+            v1::Requesting::new(&limits, v1::RequestingParts { request: v1::Request::Connect(connect) }).unwrap();
+        assert_eq!(crate::decode_requesting(&crate::requesting(&record), &limits), Some(record));
+    }
+}
+#[test]
+fn an_empty_forgejo_address_is_refused() {
+    let limits = fixtures::limits();
+    let forge =
+        v1::ConnectForge::Forgejo(v1::NewForgejo::new(&limits, v1::NewForgejoParts { address: Box::new([]) }).unwrap());
+    let how =
+        v1::How::GithubManifest(v1::GitHubManifest::new(&limits, v1::GitHubManifestParts { back: None }).unwrap());
+    let connect = v1::Connect::new(&limits, v1::ConnectParts { forge, how }).unwrap();
+    let record = v1::Requesting::new(&limits, v1::RequestingParts { request: v1::Request::Connect(connect) }).unwrap();
+    assert_eq!(crate::decode_requesting(&crate::requesting(&record), &limits), None);
+}
+#[test]
+fn remove_and_playground_requests_round_trip() {
+    let limits = fixtures::limits();
+    for request in [
+        v1::Request::StartPlayground,
+        v1::Request::EndPlayground,
+        v1::Request::RemoveForge(v1::RemoveForge::new(&limits, v1::RemoveForgeParts { forge: 3 }).unwrap()),
+    ] {
+        let record = v1::Requesting::new(&limits, v1::RequestingParts { request }).unwrap();
+        assert_eq!(crate::decode_requesting(&crate::requesting(&record), &limits), Some(record));
+    }
+}
+#[test]
+fn remove_and_end_outcomes_round_trip() {
+    let limits = fixtures::limits();
+    let mut outcomes = List::uncapped();
+    for why in [v1::RemoveRefusal::NotOffered, v1::RemoveRefusal::NoSuchForge, v1::RemoveRefusal::Role] {
+        outcomes
+            .push(v1::Outcome::RemoveRefused(v1::RemoveRefused::new(&limits, v1::RemoveRefusedParts { why }).unwrap()))
+            .unwrap();
+    }
+    outcomes.push(v1::Outcome::Removing).unwrap();
+    outcomes.push(v1::Outcome::Reset).unwrap();
+    outcomes
+        .push(v1::Outcome::EndRefused(
+            v1::EndRefused::new(&limits, v1::EndRefusedParts { why: v1::EndRefusal::NotOffered }).unwrap(),
+        ))
+        .unwrap();
+    for outcome in outcomes.into_boxed() {
+        let record = v1::Answer::new(&limits, v1::AnswerParts { outcome }).unwrap();
+        assert_eq!(v1::Answer::decode(&limits, &mut Reader::new(&crate::answer(&record))), Ok(record));
     }
 }

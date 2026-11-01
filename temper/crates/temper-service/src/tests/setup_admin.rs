@@ -88,7 +88,10 @@ fn ask(service: &mut crate::Service, value: Secret, first: Option<domain::FirstA
         request: Token::new(90),
         token: Token::new(91),
         retention: Duration::from_secs(60),
-        ask: domain::Ask::Connect { forge: 1, how: domain::How::ForgejoAdmin { first } },
+        ask: domain::Ask::Connect {
+            forge: domain::ConnectForge::Existing(1),
+            how: domain::How::ForgejoAdmin { first },
+        },
     })));
 }
 fn scan(engine: &crate::engine::Engine) {

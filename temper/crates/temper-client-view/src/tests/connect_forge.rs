@@ -17,6 +17,7 @@ pub(super) fn row(
     w::ForgeRow::new(
         &w::CEILINGS,
         w::ForgeRowParts {
+            skein_bools: [false, false, false, false],
             number,
             kind,
             mode,
@@ -29,8 +30,6 @@ pub(super) fn row(
             web: None,
             repositories: List::with_capacity(0),
             owned: None,
-            admin: false,
-            read_only: false,
             ended_stop: None,
         },
     )
@@ -542,6 +541,7 @@ pub(super) fn first_rows(connection: w::Connection, state: w::FirstState) -> Lis
         w::ForgeRow::new(
             &w::CEILINGS,
             w::ForgeRowParts {
+                skein_bools: [false, false, false, false],
                 number: HERE,
                 kind: w::Kind::Forgejo,
                 mode: w::Mode::Owned,
@@ -554,8 +554,6 @@ pub(super) fn first_rows(connection: w::Connection, state: w::FirstState) -> Lis
                 web: None,
                 repositories: List::with_capacity(0),
                 owned: None,
-                admin: false,
-                read_only: false,
                 ended_stop: None,
             },
         )
@@ -1055,7 +1053,8 @@ fn connect_github_sends_the_flow_address_at_its_forge() {
             }
         }
         let w::Request::Connect(connect) = sent.expect("manifest Connect") else { panic!("Connect") };
-        assert_eq!(connect.forge(), GITHUB);
+        let w::ConnectForge::Existing(forge) = connect.forge() else { panic!("existing forge") };
+        assert_eq!(forge.forge(), GITHUB);
         let w::How::GithubManifest(manifest) = connect.how() else { panic!("manifest") };
         assert_eq!(manifest.back().as_deref(), Some(back));
     }
@@ -1954,7 +1953,7 @@ fn admin_row(
     web: bool,
 ) -> w::ForgeRow {
     let mut parts = row(HERE, w::Kind::Forgejo, w::Mode::Managed, connection, w::Offer::NotOffered).into_parts();
-    parts.admin = true;
+    parts.skein_bools[0] = true;
     parts.ended_stop = stop;
     parts.first = first;
     parts.ended = Some(

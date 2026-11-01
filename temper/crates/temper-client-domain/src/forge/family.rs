@@ -118,6 +118,10 @@ pub fn answer(record: &jig_client::Family, limits: &w::Limits, link: &link::Limi
         | w::Outcome::SetUpRefused(_)
         | w::Outcome::Running
         | w::Outcome::StartRefused(_)
+        | w::Outcome::Removing
+        | w::Outcome::RemoveRefused(_)
+        | w::Outcome::Reset
+        | w::Outcome::EndRefused(_)
         | w::Outcome::StartFailed(_) => return None,
     })
 }
@@ -180,7 +184,6 @@ pub fn demo(record: &[u8], limits: &w::Limits) -> Option<forge::Demo> {
 
 #[must_use]
 pub fn set_up(
-    forge: u16,
     org: Box<[u8]>,
     repository: Box<[u8]>,
     project: forge::forges::SetUpProject,
@@ -195,7 +198,7 @@ pub fn set_up(
             w::SetUpProject::New(w::NewProject::new(limits, w::NewProjectParts { name }).ok()?)
         }
     };
-    let request = w::SetUp::new(limits, w::SetUpParts { playground, forge, org, repository, project }).ok()?;
+    let request = w::SetUp::new(limits, w::SetUpParts { playground, org, repository, project }).ok()?;
     let record = w::Requesting::new(limits, w::RequestingParts { request: w::Request::SetUp(request) }).ok()?;
     Some(jig_client::Family { family: wire::FORGE, version: wire::CLIENT_VERSION, bytes: wire::requesting(&record) })
 }
@@ -231,6 +234,10 @@ pub fn set_up_answer(record: &jig_client::Family, limits: &w::Limits) -> Option<
         | w::Outcome::ForgeRefused(_)
         | w::Outcome::Running
         | w::Outcome::StartRefused(_)
+        | w::Outcome::Removing
+        | w::Outcome::RemoveRefused(_)
+        | w::Outcome::Reset
+        | w::Outcome::EndRefused(_)
         | w::Outcome::StartFailed(_) => return None,
     })
 }
@@ -242,6 +249,7 @@ pub fn forges(bytes: &[u8], limits: &w::Limits) -> Option<Box<[forge::forges::Ro
     let mut rows = List::with_capacity(record.forges.len());
     for row in record.forges.into_boxed() {
         let row = row.into_parts();
+        let [admin, read_only, _, _] = row.skein_bools;
         let connection = connection_from(row.connection);
         let mut installations = List::with_capacity(row.installations.len());
         for installation in row.installations.into_boxed() {
@@ -269,7 +277,7 @@ pub fn forges(bytes: &[u8], limits: &w::Limits) -> Option<Box<[forge::forges::Ro
                 .ok()?;
         }
         rows.push(Row {
-            read_only: row.read_only,
+            read_only,
             number: row.number,
             kind: match row.kind {
                 w::Kind::Forgejo => Kind::Forgejo,
@@ -307,7 +315,7 @@ pub fn forges(bytes: &[u8], limits: &w::Limits) -> Option<Box<[forge::forges::Ro
                 Some(owned) => Some(owned_from(owned)),
                 None => None,
             },
-            admin: row.admin,
+            admin,
             ended_stop: match row.ended_stop {
                 Some(stop) => Some(admin_stop(stop)),
                 None => None,

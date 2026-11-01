@@ -1139,6 +1139,7 @@ impl Joint {
                 w::ForgeRow::new(
                     &w::CEILINGS,
                     w::ForgeRowParts {
+                        skein_bools: [false, false, false, false],
                         number: demo.forge(),
                         kind: w::Kind::Forgejo,
                         mode: w::Mode::Fake,
@@ -1151,8 +1152,6 @@ impl Joint {
                         web: None,
                         repositories: skein_lib::List::with_capacity(0),
                         owned: None,
-                        admin: false,
-                        read_only: false,
                         ended_stop: None,
                     },
                 )

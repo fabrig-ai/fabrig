@@ -54,7 +54,6 @@ pub fn to_root(
                         carried,
                         request: temper_engine_domain::Application::Forge(forge::Ask::SetUp {
                             playground: value.playground,
-                            forge: value.forge,
                             org: value.org,
                             repository: value.repository,
                             project: match value.project {
@@ -123,7 +122,14 @@ pub fn to_root(
                                     forge::How::GitHubManifest { back }
                                 }
                             };
-                            forge::Ask::Connect { forge: value.forge, how }
+                            let forge = match value.forge {
+                                w::ConnectForge::Existing(value) => forge::ConnectForge::Existing(value.forge()),
+                                w::ConnectForge::Github => forge::ConnectForge::GitHub,
+                                w::ConnectForge::Forgejo(value) => {
+                                    forge::ConnectForge::Forgejo { address: value.into_parts().address }
+                                }
+                            };
+                            forge::Ask::Connect { forge, how }
                         }
                         w::Request::Accept(value) => {
                             let value = value.into_parts();
@@ -149,9 +155,36 @@ pub fn to_root(
                         | w::Request::Adopt(_)
                         | w::Request::SetUp(_)
                         | w::Request::Return(_)
+                        | w::Request::RemoveForge(_)
+                        | w::Request::StartPlayground
+                        | w::Request::EndPlayground
                         | w::Request::StartDemo => {
                             unreachable!("connect or install")
                         }
+                    };
+                    return Ok(root::Event::Party(root::PartyInput::Application {
+                        scope,
+                        reply_to,
+                        sign_in,
+                        key,
+                        digest,
+                        carried,
+                        request: root::Application::Forge(request),
+                    }));
+                }
+                value @ (w::Request::RemoveForge(_) | w::Request::StartPlayground | w::Request::EndPlayground) => {
+                    let request = match value {
+                        w::Request::RemoveForge(value) => forge::Ask::RemoveForge { forge: value.forge() },
+                        w::Request::StartPlayground => forge::Ask::StartPlayground,
+                        w::Request::EndPlayground => forge::Ask::EndPlayground,
+                        w::Request::Adopt(_)
+                        | w::Request::SetUp(_)
+                        | w::Request::StartDemo
+                        | w::Request::Return(_)
+                        | w::Request::Connect(_)
+                        | w::Request::Install(_)
+                        | w::Request::Reachable(_)
+                        | w::Request::Accept(_) => unreachable!("remove or playground request"),
                     };
                     return Ok(root::Event::Party(root::PartyInput::Application {
                         scope,
@@ -633,7 +666,27 @@ pub fn answer(
             )
             .ok()?,
         ),
-        Some(root::ApplicationAnswer::StartDemo(answer)) => start_answer(answer, limits)?,
+        Some(root::ApplicationAnswer::RemoveForge(forge::RemoveAnswer::Removing)) => w::Outcome::Removing,
+        Some(root::ApplicationAnswer::RemoveForge(forge::RemoveAnswer::Refused(why))) => w::Outcome::RemoveRefused(
+            w::RemoveRefused::new(
+                limits,
+                w::RemoveRefusedParts {
+                    why: match why {
+                        forge::RemoveRefusal::NotOffered => w::RemoveRefusal::NotOffered,
+                        forge::RemoveRefusal::NoSuchForge => w::RemoveRefusal::NoSuchForge,
+                        forge::RemoveRefusal::Role => w::RemoveRefusal::Role,
+                    },
+                },
+            )
+            .ok()?,
+        ),
+        Some(root::ApplicationAnswer::EndPlayground(forge::EndAnswer::Reset)) => w::Outcome::Reset,
+        Some(root::ApplicationAnswer::EndPlayground(forge::EndAnswer::NotOffered)) => w::Outcome::EndRefused(
+            w::EndRefused::new(limits, w::EndRefusedParts { why: w::EndRefusal::NotOffered }).ok()?,
+        ),
+        Some(root::ApplicationAnswer::StartPlayground(answer) | root::ApplicationAnswer::StartDemo(answer)) => {
+            start_answer(answer, limits)?
+        }
         Some(temper_engine_domain::ApplicationAnswer::SetUp(forge::SetUpAnswer::SettingUp)) => w::Outcome::SettingUp,
         Some(temper_engine_domain::ApplicationAnswer::SetUp(forge::SetUpAnswer::Refused(why))) => {
             w::Outcome::SetUpRefused(
@@ -753,8 +806,8 @@ pub fn forges(value: forge::Forges, limits: &w::Limits) -> Option<Box<[u8]>> {
                 w::ForgeRow::new(
                     limits,
                     w::ForgeRowParts {
+                        skein_bools: [row.admin, row.read_only, row.finished, row.playground],
                         number: row.number,
-                        read_only: row.read_only,
                         kind: match row.kind {
                             forge::Kind::Forgejo => w::Kind::Forgejo,
                             forge::Kind::GitHub => w::Kind::Github,
@@ -796,7 +849,6 @@ pub fn forges(value: forge::Forges, limits: &w::Limits) -> Option<Box<[u8]>> {
                             .ok(),
                             None => None,
                         },
-                        admin: row.admin,
                         ended_stop: match row.ended_stop {
                             Some(stop) => Some(admin_stop(stop, limits)?),
                             None => None,

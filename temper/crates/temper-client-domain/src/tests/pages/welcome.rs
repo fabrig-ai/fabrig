@@ -100,6 +100,7 @@ fn rows(root: &mut Domain, watch: Token, number: u16) -> Queue<Request> {
             w::ForgeRow::new(
                 &limits,
                 w::ForgeRowParts {
+                    skein_bools: [false, false, false, false],
                     number,
                     kind: w::Kind::Forgejo,
                     mode: w::Mode::Connected,
@@ -115,8 +116,6 @@ fn rows(root: &mut Domain, watch: Token, number: u16) -> Queue<Request> {
                     web: None,
                     repositories: List::with_capacity(0),
                     owned: None,
-                    admin: false,
-                    read_only: false,
                     ended_stop: None,
                 },
             )
@@ -338,6 +337,7 @@ fn strip_forges(root: &mut Domain, watch: Token, connection: Option<w::Connectio
                 w::ForgeRow::new(
                     &w::CEILINGS,
                     w::ForgeRowParts {
+                        skein_bools: [false, false, false, false],
                         number: 3,
                         kind: w::Kind::Forgejo,
                         mode: w::Mode::Owned,
@@ -350,8 +350,6 @@ fn strip_forges(root: &mut Domain, watch: Token, connection: Option<w::Connectio
                         web: None,
                         repositories: List::with_capacity(0),
                         owned: None,
-                        admin: false,
-                        read_only: false,
                         ended_stop: None,
                     },
                 )
