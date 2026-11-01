@@ -512,6 +512,7 @@ impl<A: Application> Harness<A> {
 /// Owned outside state at a durable commit, before its acknowledgement.
 /// No domain, boundary event, journal or reply capability belongs here.
 pub struct ColdSnapshot<A: Application> {
+    meter: skein_world::domain::heap::Meter,
     config: A::Config,
     seed: u64,
     systems: A::Systems,
@@ -534,9 +535,13 @@ where
     A::Peers: Clone,
 {
     /// Capture the outside state only; resuming necessarily performs a cold start.
+    /// The meter begins at capture, counting the outside state the resumed engine
+    /// takes over too, a conservative bound like the fresh harness's peers.
     #[must_use]
     pub fn cold_snapshot(&self) -> ColdSnapshot<A> {
+        let meter = skein_world::domain::heap::Meter::new();
         ColdSnapshot {
+            meter,
             config: self.config.clone(),
             seed: self.seed,
             systems: self.systems.clone(),
@@ -558,7 +563,6 @@ where
     /// # Errors
     /// Returns the same missing receipt or broken promise as `crash`.
     pub fn from_snapshot(mut snapshot: ColdSnapshot<A>) -> Result<Self, Violation> {
-        let meter = skein_world::domain::heap::Meter::new();
         // Exactly crash's outside sequence, before constructing its one new root.
         snapshot.crashes.push(snapshot.store.applied());
         snapshot.referee.observe(snapshot.clock.now, Observed::Restart)?;
@@ -588,7 +592,7 @@ where
             seed: snapshot.seed,
             events,
             outputs: Vec::new(),
-            meter,
+            meter: snapshot.meter,
             clock: snapshot.clock,
             iterations: snapshot.iterations,
             stopped: false,
