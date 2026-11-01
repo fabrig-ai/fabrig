@@ -11,7 +11,7 @@ use skein_lib::{Env, Map, ReplyTo};
 use temper_engine_domain_forge as forge;
 
 /// Startup configuration, supplied once by the shell (domain/root.md, 6):
-/// the core's whole, as jig's applications hold it, and temper's own.
+/// the core's whole and temper's machine templates (temper/docs/design/draft/playground-reset.md, 3).
 #[derive(Debug)]
 pub struct Config {
     /// Deployment funding span (domain/root.md, 5.7).
@@ -32,6 +32,8 @@ pub struct Config {
     /// of the core's charters (domain/root.md, 6).
     pub forge_charter: u32,
     pub forges: Box<[forge::Configured]>,
+    /// The machine's forge templates.
+    pub machine: forge::Machine,
     pub under_box: bool,
     pub demo: Option<forge::DemoConfig>,
 }

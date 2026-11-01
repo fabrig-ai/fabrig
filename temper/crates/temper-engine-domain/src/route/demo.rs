@@ -180,7 +180,10 @@ pub(crate) fn adopted(
                 forge::ApplicationOutcome::CoreRefused(_) | forge::ApplicationOutcome::ForgeRefused(_),
             )
             | forge::Answered::SetUp(_)
-            | forge::Answered::StartDemo(_)
+            | forge::Answered::MakeForge(_)
+            | forge::Answered::RemoveForge(_)
+            | forge::Answered::EndPlayground(_)
+            | forge::Answered::StartPlayground(_)
             | forge::Answered::Connect(_)
             | forge::Answered::Install(_)
             | forge::Answered::Accept(_)

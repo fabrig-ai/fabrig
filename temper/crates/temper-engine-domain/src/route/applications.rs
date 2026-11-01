@@ -24,7 +24,10 @@ pub(super) fn start(domain: &mut Domain, admission: Admission, request: Applicat
     let scope = match &request {
         Application::Forge(
             forge::Ask::SetUp { .. }
-            | forge::Ask::StartDemo
+            | forge::Ask::MakeForge { .. }
+            | forge::Ask::RemoveForge { .. }
+            | forge::Ask::EndPlayground
+            | forge::Ask::StartPlayground
             | forge::Ask::Connect { .. }
             | forge::Ask::Install { .. }
             | forge::Ask::Accept { .. }
@@ -33,7 +36,7 @@ pub(super) fn start(domain: &mut Domain, admission: Admission, request: Applicat
         Application::Forge(forge::Ask::Adopt(_)) => scope,
         Application::Return { .. } => people::ApplicationScope::Own,
     };
-    if request == Application::Forge(forge::Ask::StartDemo) {
+    if request == Application::Forge(forge::Ask::StartPlayground) {
         domain.application_demo = Some(super::demo::Context { sign_in, key, carried });
     }
     domain.application_carried = carried;
@@ -136,8 +139,11 @@ pub(super) fn answer(domain: &Domain, token: Token) -> Option<ApplicationAnswer>
     }
     match domain.forge.application_answer(token) {
         Some(forge::Answered::Adopt(answer)) => Some(ApplicationAnswer::Adopt(answer)),
+        Some(forge::Answered::MakeForge(answer)) => Some(ApplicationAnswer::MakeForge(answer)),
+        Some(forge::Answered::RemoveForge(answer)) => Some(ApplicationAnswer::RemoveForge(answer)),
+        Some(forge::Answered::EndPlayground(answer)) => Some(ApplicationAnswer::EndPlayground(answer)),
         Some(forge::Answered::SetUp(answer)) => Some(ApplicationAnswer::SetUp(answer)),
-        Some(forge::Answered::StartDemo(answer)) => Some(ApplicationAnswer::StartDemo(answer)),
+        Some(forge::Answered::StartPlayground(answer)) => Some(ApplicationAnswer::StartPlayground(answer)),
         Some(forge::Answered::Connect(answer)) => Some(ApplicationAnswer::Connect(answer)),
         Some(forge::Answered::Reachable(answer)) => Some(ApplicationAnswer::Reachable(answer)),
         Some(forge::Answered::Accept(answer)) => Some(ApplicationAnswer::Accept(answer)),

@@ -121,6 +121,7 @@ pub struct Domain {
     pub(crate) under_box: bool,
     pub(crate) demo: Option<crate::DemoConfig>,
     bindings: Map<Box<[u8]>, Box<[u8]>>,
+    playground: Option<crate::Playground>,
     pub(crate) demo_state: Option<crate::DemoState>,
     pub(crate) demo_acts: Map<[u8; 16], crate::DemoActKind>,
     pub(crate) demo_pending: Map<Token, Token>,
@@ -337,6 +338,11 @@ impl Domain {
             out.push(Request::ApplicationDone { request, token });
         }
     }
+    /// The restored or saved playground row (temper/docs/design/draft/playground-reset.md, 6).
+    #[must_use]
+    pub const fn playground(&self) -> Option<&crate::Playground> {
+        self.playground.as_ref()
+    }
     /// Volatile setup answer or retained adoption outcome for this request.
     #[must_use]
     #[expect(clippy::manual_map, reason = "step code uses explicit matches (programming-model.md, 10)")]
@@ -345,7 +351,7 @@ impl Domain {
             return Some(answer.clone());
         }
         if let Some(answer) = self.demo_answers.get(&token) {
-            return Some(crate::Answered::StartDemo(answer.clone()));
+            return Some(crate::Answered::StartPlayground(answer.clone()));
         }
         if let Some((_, answer)) = self.setup_answers.get(&token) {
             return Some(crate::Answered::SetUp(*answer));
@@ -529,6 +535,7 @@ impl Domain {
             configured,
             under_box,
             demo: None,
+            playground: None,
             demo_state: None,
             bindings: Map::with_capacity(l.bindings),
             demo_acts: Map::with_capacity(crate::demo_act_bound(l).expect("validated act bound")),
@@ -1023,6 +1030,14 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
         return;
     }
     match event {
+        Event::GroupRemoved { .. }
+        | Event::SecretsErased { .. }
+        | Event::KeptActAnswered { .. }
+        | Event::SendKeptActs
+        | Event::PlaygroundProject { .. }
+        | Event::PlaygroundAccount { .. }
+        | Event::PlaygroundAnswered { .. }
+        | Event::ResetActed { .. } => {}
         Event::OrderLanding { task, changes } => crate::landing::order(d, task, &changes, out),
         Event::JoinLanding { task, member, after } => crate::landing::join(d, task, member, &after, out),
         Event::Landing { row } => crate::landing::register(d, env, row, out),
@@ -1173,7 +1188,29 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
             | crate::Ask::Reachable { .. }) => {
                 crate::connect::start(d, request, token, ask, role, carried, out);
             }
-            crate::Ask::StartDemo => crate::demo::start(d, request, token, out),
+            ask @ (crate::Ask::MakeForge { .. } | crate::Ask::RemoveForge { .. } | crate::Ask::EndPlayground) => {
+                if let Some(value) = carried {
+                    out.push(Request::CarriedUnused { number: value.number });
+                }
+                let answer = match ask {
+                    crate::Ask::MakeForge { .. } => {
+                        crate::Answered::MakeForge(crate::MakeAnswer::Refused(crate::MakeRefusal::NotOffered))
+                    }
+                    crate::Ask::RemoveForge { .. } => {
+                        crate::Answered::RemoveForge(crate::RemoveAnswer::Refused(crate::RemoveRefusal::NoSuchForge))
+                    }
+                    crate::Ask::EndPlayground => crate::Answered::EndPlayground(crate::EndAnswer::NotOffered),
+                    crate::Ask::Adopt(_)
+                    | crate::Ask::SetUp { .. }
+                    | crate::Ask::StartPlayground
+                    | crate::Ask::Connect { .. }
+                    | crate::Ask::Install { .. }
+                    | crate::Ask::Accept { .. }
+                    | crate::Ask::Reachable { .. } => unreachable!("surface refusal admission"),
+                };
+                d.connect.answer(request, token, answer, out);
+            }
+            crate::Ask::StartPlayground => crate::demo::start(d, request, token, out),
             crate::Ask::Adopt(adoption) => adoption::start(d, env, request, token, retention, adoption, out),
             crate::Ask::SetUp { forge, org, repository, project, playground } => {
                 let mut expired = None;
@@ -4806,6 +4843,7 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
         return;
     }
     match record {
+        Stored::Forge(_) | Stored::ForgeNumbers { .. } | Stored::Playground(_) | Stored::KeptAct(_) => {}
         Stored::Landing(row) => {
             d.landing.rows.insert(row.landing.task, row).expect("restored landing within limits");
         }
@@ -5289,7 +5327,11 @@ impl Domain {
                 }
                 (position, inserted)
             }
-            Stored::Client(_)
+            Stored::Forge(_)
+            | Stored::ForgeNumbers { .. }
+            | Stored::Playground(_)
+            | Stored::KeptAct(_)
+            | Stored::Client(_)
             | Stored::Flight { .. }
             | Stored::Writer(_)
             | Stored::Demo(_)
@@ -5398,7 +5440,13 @@ impl Domain {
                     unreachable!("client forge or repository link")
                 }
             },
-            RecordKind::Landed | RecordKind::Binding | RecordKind::DemoAct => unreachable!("row has no links"),
+            RecordKind::Forge
+            | RecordKind::ForgeNumbers
+            | RecordKind::Playground
+            | RecordKind::KeptAct
+            | RecordKind::Landed
+            | RecordKind::Binding
+            | RecordKind::DemoAct => unreachable!("row has no links"),
         };
         Some(key)
     }

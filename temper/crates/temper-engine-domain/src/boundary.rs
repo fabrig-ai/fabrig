@@ -388,16 +388,23 @@ pub enum Application {
     Forge(forge::Ask),
     Return { source: u32, path: Box<[u8]> },
 }
-/// The family's terminal answer; root returns are volatile, like forge setup answers.
+/// The family's terminal answer (temper/docs/design/draft/playground-reset.md, 3, 4, 6).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ApplicationAnswer {
     Adopt(forge::ApplicationOutcome),
     SetUp(forge::SetUpAnswer),
-    StartDemo(forge::StartAnswer),
+    /// The playground start's answer.
+    StartPlayground(forge::StartAnswer),
     Connect(forge::ConnectAnswer),
     Install(forge::InstallAnswer),
     Accept(forge::AcceptAnswer),
     Reachable(forge::ReachableAnswer),
+    /// The forge creation's answer.
+    MakeForge(forge::MakeAnswer),
+    /// The forge removal's answer.
+    RemoveForge(forge::RemoveAnswer),
+    /// The playground reset's answer.
+    EndPlayground(forge::EndAnswer),
     Returning,
 }
 #[derive(Debug)]
@@ -527,7 +534,7 @@ pub enum PartyInput {
 
 /// Root to shell/worker/web. Commit and load requests each have one store
 /// terminal; deliveries are notices or consume a `ReplyTo` (domain/root.md, 3
-/// and 4). Every output crosses the journal door in its peer's vocabulary.
+/// and 4; temper/docs/design/draft/playground-reset.md, 3, 4, 6). Every output crosses the journal door.
 #[derive(PartialEq, Eq, Debug)]
 pub enum Request {
     /// A sent forge entry left without its outcome at the stop bound (domain/root.md, 9.2).
@@ -544,6 +551,22 @@ pub enum Request {
     SetUpGroup {
         forge: u16,
         request: Token,
+        /// The record's setup entry.
+        entry: Box<[u8]>,
+    },
+    /// Stop the forge's box group and remove its files.
+    RemoveGroup {
+        forge: u16,
+    },
+    /// Erase the forge's records in the secrets store.
+    EraseSecrets {
+        forge: u16,
+    },
+    /// Add or update a forge made, restored or changed.
+    Register(forge::ForgeRecord),
+    /// Drop a removed forge from the forge layer and setup host.
+    Unregister {
+        forge: u16,
     },
     /// Give this sign-in its checked return path (client/README.md, 8).
     Return {
