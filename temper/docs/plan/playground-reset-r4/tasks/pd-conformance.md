@@ -224,3 +224,49 @@ erase `Made` rows either.
 
 A row the scenario finds that the deletion does not erase, other than the
 `SetUses` answer and the `Made` rows, is still a question.
+
+### 2026-11-01: the former requester's reply-index row after `Ask::Move` (playground-reset-r4/pd-conformance-6)
+
+Neither option: no repair of `jig/crates/jig-domain-core/src/erase.rs`
+in this task. The check excepts this row, keeps the `Ask::Move`, and
+records the row as a leak.
+A reply's `Update` row is keyed by party first and saved under the
+task's requester at the time of the turn (`indexes.rs` `save`).
+`Ask::Move` changes the requester and leaves the earlier rows in place
+(`jig-domain-tasks` `moving.rs` erases only the old parent's
+`Delegate`). After that, nothing durable records who the earlier
+requester was. The `Turn` line carries no party, and the task record
+names only the current requester. So erasure has no data for a
+"targeted repair": `reply_update` can rebuild only the final
+requester's key. Finding the other rows takes either a stored-format
+change (the former requesters in the record or on the line) or a
+family-wide sweep of `Update` rows, like the decided-proposal sweep
+(`project_rows.rs`). jig's store design never considered adoption here
+(`jig/docs/design/protocol/store.md`, 7.4 and 11.1: "its replies' rows
+in its requester's updates"), so ordinary retention leaks the same row.
+That choice is for jig's designer and the user, not for this task.
+Reads already skip the row (`reads/rows.rs` `reply_update` returns
+nothing unless the party is the conversation's requester). It is dead
+weight, not a disclosure.
+
+- `jig/tests/conformance/src/scenarios/removal.rs`'s check: a
+  `tasks::Stored::Update` row whose object is `UpdateObject::Reply`,
+  whose `task` is a task the scenario moved, and whose `party` is that
+  task's requester before the move is not a violation. The scenario
+  records the moved task and its former requester when it makes the
+  move. Do not reconstruct them in the check. Every other `Update` row
+  stays a violation: the same task's rows under its final requester,
+  and its `Result` and `Proposal` updates. The check does not require
+  the excepted row to be present, so a later repair passes unchanged.
+  Comment the exception at the arm in one line, citing store.md 7.4,
+  as a known leak of adoption.
+- The report lists the row under "each family's rows" as a known leak
+  that no deletion step erases, with its key, in a section
+  `## Known leak` for jig's designer.
+- `jig/tests/core/src/removal.rs`, `erase.rs` and `moving.rs` do not
+  change.
+
+Then finish step 4's checks, the two added by the `SetUses` answer
+included, then commit and push. A row the scenario finds that the
+deletion does not erase, other than the `SetUses` answer, the `Made`
+rows and this former requester's reply rows, is still a question.
