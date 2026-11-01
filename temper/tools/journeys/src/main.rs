@@ -94,7 +94,21 @@ fn build(root: &Path, scratch: &Path, chromium: PathBuf) -> Result<Paths, String
     if !status.success() {
         return Err(format!("scripts/bundle.sh failed: {status}"));
     }
-    let target = env::var_os("CARGO_TARGET_DIR").map_or_else(|| root.join("target"), |target| root.join(target));
+    let metadata = Command::new("cargo")
+        .current_dir(root)
+        .args(["metadata", "--format-version", "1", "--no-deps"])
+        .output()
+        .map_err(|error| format!("cannot start cargo metadata: {error}"))?;
+    if !metadata.status.success() {
+        return Err(format!("cargo metadata failed: {}", String::from_utf8_lossy(&metadata.stderr)));
+    }
+    let metadata =
+        String::from_utf8(metadata.stdout).map_err(|error| format!("cargo metadata is not UTF-8: {error}"))?;
+    let target = metadata
+        .rsplit_once("\"target_directory\":\"")
+        .and_then(|(_, value)| value.split_once('"'))
+        .map(|(target, _)| Path::new(target))
+        .ok_or_else(|| "cargo metadata has no target_directory".to_owned())?;
     Ok(Paths { temper: target.join("debug/temper"), bundle, chromium, scratch: scratch.to_owned() })
 }
 
