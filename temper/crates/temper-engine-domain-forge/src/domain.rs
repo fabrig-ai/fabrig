@@ -269,6 +269,7 @@ impl Domain {
             out.push(Request::Erase { key: Key::PullState(name) });
         }
         for repository in repositories.into_boxed() {
+            adoption::erase_repository_answers(self, repository, out);
             self.repositories.remove(&repository);
             out.push(Request::Erase { key: Key::Repository(repository) });
         }
@@ -1480,6 +1481,7 @@ pub fn step(d: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queue<Req
             }
             None => {
                 if d.repositories.remove(&repository).is_some() {
+                    adoption::erase_repository_answers(d, repository, out);
                     emit(out, Request::Erase { key: Key::Repository(repository) });
                     emit(out, Request::MarkedForges);
                 }

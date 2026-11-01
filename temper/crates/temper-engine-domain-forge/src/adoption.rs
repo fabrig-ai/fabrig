@@ -64,6 +64,22 @@ impl Domain {
     }
 }
 
+/// A retained adoption cannot outlive the repository its answer names.
+pub(crate) fn erase_repository_answers(d: &mut Domain, repository: api::Repository, out: &mut Queue<Request>) {
+    let mut tokens = List::with_capacity(d.application.kept.len());
+    for (token, (_, outcome)) in &d.application.kept {
+        if let ApplicationOutcome::Adopted(adopted) = outcome
+            && adopted.repository == repository
+        {
+            tokens.push(*token).expect("bounded retained application answers");
+        }
+    }
+    for token in tokens.into_boxed() {
+        d.application.kept.remove(&token);
+        out.push(Request::Erase { key: Key::Application(token.raw()) });
+    }
+}
+
 pub(crate) fn start(
     d: &mut Domain,
     env: &Env<Limits>,
