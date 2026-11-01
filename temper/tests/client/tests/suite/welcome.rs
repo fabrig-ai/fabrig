@@ -149,5 +149,5 @@ fn a_configured_model_hides_the_account_banner_and_no_setup_strip_shows() {
         d::pages::welcome::setup(root.person()),
         Some(d::pages::welcome::Setup::Unfinished(Step::Forge { forge: None }))
     );
-    assert_eq!(d::forge::listed::setup(root.person()).unwrap().step, Step::Ready);
+    assert_eq!(d::forge::listed::setup(root.person()).expect("forge setup remains").step, Step::Ready);
 }
