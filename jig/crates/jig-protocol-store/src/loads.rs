@@ -26,6 +26,7 @@ fn page(store: &mut Store, range: Load, after: Option<&Cursor>, rows: u32, bytes
     }
     let ranges = match range {
         Load::Notes(range) => intervals::notes(&range),
+        Load::Sweep(sweep) => intervals::sweep(&sweep),
         Load::Application(ranges) => pages::application(&ranges, store.limits.store.key)?,
     };
     let walked = pages::walk(store, &ranges, after, rows)?;

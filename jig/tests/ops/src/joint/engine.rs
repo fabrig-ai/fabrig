@@ -1,16 +1,16 @@
 //! Real Ops domain on the conformance loop, retaining scripted non-person peers
 //! (client/domain/testing.md, 5; examples.md, 10).
+use crate::conformance::store::Store;
 use crate::conformance::{self, Config, Delivery, Ops, Systems};
 use jig_client_world::harness::Observed;
 use jig_client_world::joint::truth::Truth;
 use jig_conformance::{Application, Clock, Input, Output, referee};
 use jig_domain_core as core;
 use jig_domain_people as people;
-use jig_fake_store::Store;
 use jig_ops_domain as root;
 use skein_lib::Time;
 
-pub type Rows = Store<root::Key, root::Record>;
+pub type Rows = Store;
 
 /// Commit positions read from durable owner rows, for replaying actual cuts.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -155,8 +155,8 @@ fn read_page(store: &Rows, range: &core::reads::Range, tree_tasks: u32) -> core:
 
 impl Application for OpsApplication {
     type Domain = root::Domain;
-    type Store = jig_fake_store::Store<root::Key, root::Record>;
-    type Write = jig_fake_store::Write<root::Key, root::Record>;
+    type Store = Store;
+    type Write = root::Write;
     type Config = Config;
     type Systems = Systems;
     type Peers = Peers;
@@ -166,7 +166,7 @@ impl Application for OpsApplication {
     type Delivery = Delivery;
 
     fn store(_: &Config) -> Self::Store {
-        jig_fake_store::Store::new()
+        Store::new()
     }
     fn build(config: &Config) -> root::Domain {
         Ops::build(config)
@@ -221,11 +221,7 @@ impl Application for OpsApplication {
     fn step(domain: &mut root::Domain, config: &Config, clock: Clock, input: Input<root::Event, root::Record>) {
         Ops::step(domain, config, clock, input);
     }
-    fn release(
-        domain: &mut root::Domain,
-        config: &Config,
-        clock: Clock,
-    ) -> Vec<Output<jig_fake_store::Write<root::Key, root::Record>, Delivery>> {
+    fn release(domain: &mut root::Domain, config: &Config, clock: Clock) -> Vec<Output<root::Write, Delivery>> {
         Ops::release(domain, config, clock)
     }
     fn inbound(peers: &mut Peers, store: &Rows, clock: Clock, event: &mut root::Event) {
@@ -345,6 +341,7 @@ impl Application for OpsApplication {
                 | core::Held::StopRun { .. }
                 | core::Held::Load(..)
                 | core::Held::NotesLoad { .. }
+                | core::Held::Sweep { .. }
                 | core::Held::NotesWritten { .. }
                 | core::Held::Acted { .. }
                 | core::Held::NotesDeleted { .. },

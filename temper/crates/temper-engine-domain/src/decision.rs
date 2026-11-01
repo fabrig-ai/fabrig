@@ -54,6 +54,11 @@ pub enum Delivery {
         owner: Token,
         range: jig_domain_notes::Range,
     },
+    /// Retry a sweep after archive read slots can be reclaimed.
+    Sweep {
+        owner: Token,
+        sweep: jig_domain_core::reads::Sweep,
+    },
     /// The root hears a project made only after its decision commits.
     ProjectMade {
         project: u32,
@@ -295,6 +300,7 @@ impl Decision {
         assert!(*limits == self.limits, "decision uses its configured limits");
         let within = match &write {
             Write::CopySettingsRevision(number) => *number != 0,
+            Write::DropTranscript(task) => *task != 0,
             Write::Save(Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Deployment(_))))
             | Write::Erase(
                 Key::Wires
@@ -498,6 +504,7 @@ impl Decision {
             | Delivery::ReadEscalationDecision { .. }
             | Delivery::TurnBusy { .. }
             | Delivery::NotesLoad { .. }
+            | Delivery::Sweep { .. }
             | Delivery::Restart(_)
             | Delivery::Load { .. } => true,
         };

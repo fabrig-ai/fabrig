@@ -299,3 +299,56 @@ fn restart_configuration_preserves_the_ordinary_read_allowance() {
     let jig_protocol_store::Request::Load { bytes, .. } = request else { panic!("ordinary load") };
     assert_eq!(bytes, 7);
 }
+
+#[test]
+fn a_sweep_returns_one_typed_page_and_its_more_flag() {
+    let mut routes = fixtures::routes();
+    let owner = Token::new(81);
+    let sweep = core::reads::Sweep::Task(21);
+    let request = route::down(&mut routes, StoreOut::Sweep { owner, sweep }).expect("sweep request");
+    let jig_protocol_store::Request::Load {
+        owner: store_owner,
+        range: jig_protocol_store::Load::Sweep(found),
+        after,
+        rows,
+        bytes,
+    } = request
+    else {
+        panic!("one sweep load");
+    };
+    assert_eq!(found, sweep);
+    assert_eq!(after, None);
+    assert_eq!(rows, fixtures::root_limits().core.notes.load_rows);
+    assert_eq!(bytes, fixtures::root_limits().core.load_bytes);
+    let row = core::Record::People(jig_domain_people::Stored::EndedRead { task: 21, party: 1, through: 1 });
+    let mut outputs = skein_lib::Queue::uncapped();
+    route::up(
+        &mut routes,
+        jig_protocol_store::Event::Loaded {
+            owner: store_owner,
+            rows: Box::new([jig_protocol_store::Row::Jig(row.clone())]),
+            next: Some(jig_protocol_store::Cursor { interval: 0, after: Box::new([1]) }),
+        },
+        &mut outputs,
+    );
+    let Some(Up::Root(root::Event::Core(core::Event::Swept { owner: found, rows, more }))) = outputs.pop() else {
+        panic!("one swept terminal");
+    };
+    assert_eq!(found, owner);
+    assert_eq!(rows.as_ref(), &[row]);
+    assert!(more);
+    assert!(outputs.is_empty());
+    assert!(routes.idle());
+}
+
+#[test]
+fn a_root_transcript_drop_reaches_the_store_whole() {
+    let mut routes = fixtures::routes();
+    let request =
+        route::down(&mut routes, StoreOut::Commit { number: 1, writes: Box::new([root::Write::DropTranscript(21)]) })
+            .expect("commit request");
+    let writes = fixtures::commit_writes(request);
+    let [jig_protocol_store::Write::DropTranscript { task: 21 }] = writes.as_ref() else {
+        panic!("whole transcript drop");
+    };
+}

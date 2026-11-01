@@ -518,6 +518,10 @@ impl skein_world::Referee<Proc> for Referee {
                     root::Write::Save(record) => {
                         self.rows.insert(record.key(), record.clone());
                     }
+                    root::Write::DropTranscript(task) => {
+                        self.rows.retain(|_, row| !matches!(row,
+                            root::Record::Core(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Turn(turn))) if turn.task == *task));
+                    }
                     root::Write::Erase(key) => {
                         self.rows.remove(key);
                     }

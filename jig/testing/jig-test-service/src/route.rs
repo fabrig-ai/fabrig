@@ -244,6 +244,9 @@ fn core_held(engine: &mut Engine, held: core::Held) {
         core::Held::ReadLoad { load, range } => {
             crate::store::request(engine, jig_test_store::StoreOut::ReadLoad { load, range });
         }
+        core::Held::Sweep { owner, sweep } => {
+            crate::store::request(engine, jig_test_store::StoreOut::Sweep { owner, sweep });
+        }
         core::Held::NotesLoad { owner, range } => {
             crate::store::request(engine, jig_test_store::StoreOut::NotesLoad { owner, range });
         }

@@ -133,6 +133,7 @@ fn has_watch_end(out: &[Request]) -> bool {
                 | Held::StopRun { .. }
                 | Held::Load(..)
                 | Held::NotesLoad { .. }
+                | Held::Sweep { .. }
                 | Held::NotesWritten { .. }
                 | Held::NotesDeleted { .. } => {}
             },

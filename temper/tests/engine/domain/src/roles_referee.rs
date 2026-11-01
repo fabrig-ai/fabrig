@@ -98,6 +98,11 @@ impl Referee {
             let key = match write {
                 Write::Wires => Key::Wires,
                 Write::Save(record) => record.key(),
+                Write::DropTranscript(task) => Key::Core(jig_domain_core::Key::Core(jig_domain_core::CoreKey::Turn {
+                    task: *task,
+                    attempt: 0,
+                    turn: 0,
+                })),
                 Write::Erase(key) => key.clone(),
                 Write::CopySettingsRevision(number) => Key::Core(jig_domain_core::Key::Core(
                     jig_domain_core::CoreKey::Settings(jig_domain_core::settings::Key::History(*number)),
@@ -145,6 +150,7 @@ impl Referee {
                 )
                 | Write::Erase(_)
                 | Write::Wires
+                | Write::DropTranscript(_)
                 | Write::CopySettingsRevision(_) => None,
             })
             .collect();
@@ -194,6 +200,7 @@ impl Referee {
                 )
                 | Write::Erase(_)
                 | Write::Wires
+                | Write::DropTranscript(_)
                 | Write::CopySettingsRevision(_) => None,
             })
             .collect();
@@ -268,6 +275,7 @@ impl Referee {
                     )
                     | Write::Erase(_)
                     | Write::Wires
+                    | Write::DropTranscript(_)
                     | Write::CopySettingsRevision(_) => None,
                 });
                 if found.is_none() {
@@ -311,6 +319,7 @@ impl Referee {
             match write {
                 Write::Wires | Write::Erase(Key::Wires) => return Err("role administration changed wires"),
                 Write::CopySettingsRevision(_) => return Err("role administration changed settings"),
+                Write::DropTranscript(_) => return Err("role administration dropped a transcript"),
                 Write::Save(Record::Core(jig_domain_core::Record::Tasks(tasks::Stored::Live(record)))) => {
                     if replacement.is_none_or(|replacement| !replacement.tasks.contains_key(&record.number)) {
                         return Err("unchanged or rejected task was rewritten");
@@ -372,6 +381,7 @@ impl Referee {
                 Write::Save(record) => {
                     self.rows.insert(record.key(), record.clone());
                 }
+                Write::DropTranscript(_) => return Err("role administration dropped a transcript"),
                 Write::Erase(key) => {
                     self.rows.remove(key);
                 }

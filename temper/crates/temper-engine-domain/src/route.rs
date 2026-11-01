@@ -275,6 +275,10 @@ pub(crate) fn route_core_requests(
             core::Request::Write(core::Write::CopySettingsRevision(number)) => {
                 save(decision, &env.limits, Write::CopySettingsRevision(number));
             }
+            core::Request::Write(core::Write::DropTranscript(task)) => {
+                let replaced = save(decision, &env.limits, Write::DropTranscript(task));
+                domain.release_bytes(replaced, "replaced write's turn body was held");
+            }
             core::Request::Write(core::Write::Erase(key)) => {
                 if let core::Key::Core(core::CoreKey::Call(call)) = key
                     && domain.forge.forget_named_answer(named_call(call)).is_some()

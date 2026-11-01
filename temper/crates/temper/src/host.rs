@@ -241,6 +241,7 @@ fn restore_kind(kind: temper_service::RestoreRangeKind) -> &'static str {
         Kind::Turns => "turns",
         Kind::TaskTranscript => "task transcript",
         Kind::Notes => "notes",
+        Kind::Sweep => "sweep",
         Kind::ProposalDecision => "proposal decision",
         Kind::TaskProposal => "task proposal",
         Kind::EscalationDecision => "escalation decision",

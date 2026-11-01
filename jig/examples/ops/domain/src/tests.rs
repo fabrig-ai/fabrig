@@ -264,6 +264,7 @@ fn cold_restart_loads_every_child_before_opening_decisions() {
                         ) => header = Some(record),
                         crate::Write::Wires
                         | crate::Write::Save(_)
+                        | crate::Write::DropTranscript(_)
                         | crate::Write::Erase(_)
                         | crate::Write::CopySettingsRevision(_) => {}
                     }
@@ -363,6 +364,9 @@ fn settle(domain: &mut Domain, env: &Env<Limits>) -> Box<[Output]> {
             match value {
                 Output::Commit { number, .. } => step(domain, env, Event::Store(Store::Committed { number, fill: 0 })),
                 Output::ToChild(value) => step(domain, env, Event::Released(value)),
+                Output::Core(core::Held::Sweep { owner, .. }) => {
+                    step(domain, env, Event::Core(core::Event::Swept { owner, rows: Box::new([]), more: false }));
+                }
                 Output::Core(core::Held::NotesLoad { owner, .. }) => step(
                     domain,
                     env,

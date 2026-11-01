@@ -60,6 +60,8 @@ pub enum Write {
     Save(Record),
     /// Remove the row under its key.
     Erase(Key),
+    /// Drop the task's whole transcript (protocol/store.md, 8.5).
+    DropTranscript(u64),
 }
 
 /// What the journal releases after its commit, or through its read door.

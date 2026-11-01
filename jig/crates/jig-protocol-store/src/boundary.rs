@@ -61,6 +61,19 @@ pub enum Write {
     Remove { key: Box<[u8]> },
 }
 
+impl Write {
+    /// Translate a core mutation without changing its commit relationship.
+    #[must_use]
+    pub fn from_core(write: core::Write) -> Self {
+        match write {
+            core::Write::Save(row) => Self::Save(row),
+            core::Write::Erase(key) => Self::Erase(key),
+            core::Write::CopySettingsRevision(number) => Self::CopySettingsRevision(number),
+            core::Write::DropTranscript(task) => Self::DropTranscript { task },
+        }
+    }
+}
+
 /// What a restart step restores.
 #[derive(Debug)]
 pub enum Restore {
@@ -75,6 +88,8 @@ pub enum Restore {
 /// A child's range to load.
 #[derive(Debug)]
 pub enum Load {
+    /// Typed rows loaded for erasure by the core (store.md, 11.1).
+    Sweep(reads::Sweep),
     /// The notes child's entry or a scope's lines.
     Notes(notes::Range),
     /// The application's intervals, relative to its tag.

@@ -157,6 +157,7 @@ pub(crate) fn held(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisi
             emit(decision, &env.limits, Delivery::Fleet(core::Core::stop_run(task, attempt)));
         }
         core::Held::NotesLoad { owner, range } => notes_load(domain, env, decision, owner, range),
+        core::Held::Sweep { owner, sweep } => sweep_load(domain, env, decision, owner, sweep),
         core::Held::ReadLoad { load, range } => emit(decision, &env.limits, Delivery::ReadLoad { load, range }),
         core::Held::Read { reply, answer } => emit(decision, &env.limits, Delivery::Read { reply, answer }),
         core::Held::Delivery { watcher, document } => {
@@ -209,6 +210,24 @@ pub(crate) fn notes_load(
         }
     };
     emit(decision, &env.limits, delivery);
+}
+
+pub(crate) fn sweep_load(
+    domain: &mut Domain,
+    env: &Env<Limits>,
+    decision: &mut Decision,
+    owner: Token,
+    sweep: core::reads::Sweep,
+) {
+    let Ok(id) = domain.archive_reads.insert(Some(Read::Sweep { owner })) else {
+        emit(decision, &env.limits, Delivery::Sweep { owner, sweep });
+        return;
+    };
+    emit(
+        decision,
+        &env.limits,
+        Delivery::Load { waiter: id.token(), range: Range::Core(crate::CoreRange::Sweep(sweep)), after: None },
+    );
 }
 
 #[cfg(test)]
@@ -271,6 +290,38 @@ mod tests {
         assert_eq!(*owner, Token::new(1));
         assert!(domain.work.is_empty());
     }
+    #[test]
+    fn a_sweep_returns_one_archive_page_to_its_core_owner() {
+        let (mut domain, env) = crate::tests::resume_fixture::root();
+        let owner = Token::new(81);
+        let sweep = core::reads::Sweep::Task(8);
+        let mut decision = Decision::decide(&mut domain.journal, &env.limits.journal);
+        held(&mut domain, &env, &mut decision, core::Held::Sweep { owner, sweep });
+        let Delivery::Load { waiter, range, after } = delivery(&mut domain, &env.limits, decision) else {
+            panic!("one sweep load");
+        };
+        assert_eq!(range, Range::Core(crate::CoreRange::Sweep(sweep)));
+        assert!(after.is_none());
+        let row = core::Record::People(jig_domain_people::Stored::EndedRead { task: 8, party: 1, through: 1 });
+        let next = crate::Key::Core(row.key());
+        crate::archive::sweep_loaded(
+            &mut domain,
+            waiter,
+            Box::new([crate::Record::Core(row.clone())]),
+            Some(next),
+            None,
+        );
+        let Some(Work::Core(core::Event::Swept { owner: found, rows, more })) = domain.work.pop() else {
+            panic!("sweep terminal");
+        };
+        assert_eq!(found, owner);
+        assert_eq!(rows.as_ref(), &[row]);
+        assert!(more);
+        assert!(domain.work.is_empty());
+        domain.reclaim();
+        assert!(domain.archive_reads.is_empty());
+    }
+
     fn delivery(domain: &mut Domain, limits: &Limits, decision: Decision) -> Delivery {
         crate::decision::accept_routed(&mut domain.journal, &mut domain.core.counters, &limits.journal, decision, true)
             .unwrap();

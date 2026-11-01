@@ -33,6 +33,7 @@ pub(crate) fn accept_load(domain: &mut Domain, env: &Env<Limits>, decision: Opti
     }
 }
 
+#[expect(clippy::too_many_lines, reason = "one exhaustive load boundary routes startup, historical and sweep ranges")]
 pub(crate) fn request_load(
     domain: &mut Domain,
     waiter: Token,
@@ -64,7 +65,7 @@ pub(crate) fn request_load(
         )
         | Range::Census(_)
         | Range::Forge => domain.limits.loads.rows,
-        Range::Core(crate::CoreRange::Notes(jig_domain_notes::Range::Lines { .. })) => {
+        Range::Core(crate::CoreRange::Sweep(_) | crate::CoreRange::Notes(jig_domain_notes::Range::Lines { .. })) => {
             domain.limits.loads.rows.min(domain.limits.notes.load_rows)
         }
     };
@@ -95,6 +96,12 @@ pub(crate) fn request_load(
             )
             | Range::Census(_)
             | Range::Forge => {}
+            Range::Core(crate::CoreRange::Sweep(_)) => {
+                crate::archive::retire_read(domain, waiter);
+                domain.load_failure = Some(loads::Failure::Store);
+                out.push(Request::Stop);
+                return;
+            }
             Range::Core(crate::CoreRange::Notes(_)) => {
                 note_failed(domain, waiter);
                 return;
@@ -127,7 +134,9 @@ pub(crate) fn request_load(
             | Range::Forge => {
                 unreachable!("startup/result load room reserved")
             }
-            Range::Core(crate::CoreRange::Notes(_)) => unreachable!("notes load failure handled above"),
+            Range::Core(crate::CoreRange::Sweep(_) | crate::CoreRange::Notes(_)) => {
+                unreachable!("archive load failure handled above")
+            }
         }
     }
     match load_out.pop().expect("load issued") {
@@ -161,6 +170,7 @@ pub(crate) fn load_outputs(
                 }
                 match waiting(domain, waiter) {
                     Some(Waiting::Notes) => note_loaded(domain, waiter, rows, next, cut),
+                    Some(Waiting::Sweep) => crate::archive::sweep_loaded(domain, waiter, rows, next, cut),
                     Some(Waiting::GoalWords) if cut.is_none() && next.is_none() => {
                         goal_loaded(domain, waiter, rows, out);
                     }
@@ -196,6 +206,11 @@ pub(crate) fn load_outputs(
                 }
                 match waiting(domain, waiter) {
                     Some(Waiting::Notes) => note_failed(domain, waiter),
+                    Some(Waiting::Sweep) => {
+                        crate::archive::retire_read(domain, waiter);
+                        domain.load_failure = Some(failure);
+                        out.push(Request::Stop);
+                    }
                     Some(Waiting::Input) => input_failed(domain, waiter),
                     Some(Waiting::GoalWords) => goal_failed(domain, waiter),
                     Some(Waiting::Transcript) => transcript_unread(domain, waiter),
@@ -272,7 +287,9 @@ pub(crate) fn startup_page(
         ) => {
             unreachable!("startup range")
         }
-        Range::Core(crate::CoreRange::Notes(_)) => unreachable!("notes load is outside startup"),
+        Range::Core(crate::CoreRange::Sweep(_) | crate::CoreRange::Notes(_)) => {
+            unreachable!("archive load is outside startup")
+        }
     };
     if range == Range::Core(crate::CoreRange::Tasks) {
         // People's restoration terminal; at a first start the core seeds the

@@ -42,6 +42,11 @@ pub(crate) fn next(rows: &BTreeMap<root::Key, root::Record>, writes: &[root::Wri
 pub(crate) fn apply(rows: &mut BTreeMap<root::Key, root::Record>, write: &root::Write) {
     use jig_domain_core::{CoreKey, CoreRecord, Key, Record, settings};
     match write {
+        root::Write::DropTranscript(task) => {
+            rows.retain(
+                |_, row| !matches!(row, root::Record::Core(Record::Core(CoreRecord::Turn(turn))) if turn.task == *task),
+            );
+        }
         root::Write::Wires => {}
         root::Write::Save(row) => {
             rows.insert(row.key(), row.clone());

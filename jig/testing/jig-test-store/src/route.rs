@@ -23,6 +23,7 @@ enum Flight {
     Restart { step: core::RestartStep, census: Option<core::Census> },
     Read(Token),
     Notes(Token),
+    Sweep(Token),
     Historical(core::Now),
     Window { task: u64, attempt: u64, turn: u32 },
 }
@@ -65,6 +66,7 @@ pub fn down(routes: &mut Routes, out: StoreOut) -> Option<Request> {
             let mut translated = List::with_capacity(u32::try_from(writes.len()).ok()?);
             for write in writes {
                 let write = match write {
+                    root::Write::DropTranscript(task) => store::Write::from_core(core::Write::DropTranscript(task)),
                     root::Write::Wires => store::Write::Wires,
                     root::Write::CopySettingsRevision(number) => store::Write::CopySettingsRevision(number),
                     root::Write::Save(root::Record::Core(row)) => store::Write::Save(row),
@@ -114,6 +116,16 @@ pub fn down(routes: &mut Routes, out: StoreOut) -> Option<Request> {
                 bytes: limits.core.load_bytes,
             }
         }
+        StoreOut::Sweep { owner, sweep } => {
+            let owner = routes.keep(Flight::Sweep(owner));
+            Request::Load {
+                owner,
+                range: store::Load::Sweep(sweep),
+                after: None,
+                rows: limits.core.notes.load_rows,
+                bytes: limits.core.load_bytes,
+            }
+        }
         StoreOut::Now(now) => {
             if let Some(key) = store::historical::key(&now) {
                 let owner = routes.keep(Flight::Historical(now));
@@ -128,7 +140,9 @@ pub fn down(routes: &mut Routes, out: StoreOut) -> Option<Request> {
 fn restart(routes: &Routes, owner: Token, after: Option<store::Cursor>) -> Option<Request> {
     let (step, census) = match routes.pending.get(&owner)? {
         Flight::Restart { step, census } => (step, census),
-        Flight::Read(_) | Flight::Notes(_) | Flight::Historical(_) | Flight::Window { .. } => return None,
+        Flight::Read(_) | Flight::Notes(_) | Flight::Sweep(_) | Flight::Historical(_) | Flight::Window { .. } => {
+            return None;
+        }
     };
     let range = match step {
         core::RestartStep::LoadCore => Restore::Jig(Box::new(core::RestoreRange::LIVE)),
@@ -151,7 +165,9 @@ fn restart(routes: &Routes, owner: Token, after: Option<store::Cursor>) -> Optio
 fn transcript(routes: &Routes, owner: Token, after: Option<u64>) -> Option<Request> {
     let (task, attempt, turn) = match routes.pending.get(&owner)? {
         Flight::Window { task, attempt, turn } => (task, attempt, turn),
-        Flight::Restart { .. } | Flight::Read(_) | Flight::Notes(_) | Flight::Historical(_) => return None,
+        Flight::Restart { .. } | Flight::Read(_) | Flight::Notes(_) | Flight::Sweep(_) | Flight::Historical(_) => {
+            return None;
+        }
     };
     let limits = routes.limits?;
     Some(Request::Transcript {
@@ -306,7 +322,24 @@ pub fn up(routes: &mut Routes, event: Event, into: &mut Queue<Up>) {
     }
 }
 fn loaded(routes: &mut Routes, owner: Token, rows: Box<[Row]>, next: Option<store::Cursor>, into: &mut Queue<Up>) {
-    if let Some(Flight::Notes(owner)) = routes.pending.remove(&owner) {
+    let flight = routes.pending.remove(&owner);
+    if let Some(Flight::Sweep(owner)) = flight {
+        let mut records = List::with_capacity(u32::try_from(rows.len()).expect("bounded page"));
+        for row in rows {
+            let Row::Jig(record) = row else {
+                stop(routes, into);
+                return;
+            };
+            records.push(record).expect("same count");
+        }
+        into.push(Up::Root(root::Event::Core(core::Event::Swept {
+            owner,
+            rows: records.into_boxed(),
+            more: next.is_some(),
+        })));
+        return;
+    }
+    if let Some(Flight::Notes(owner)) = flight {
         let mut records = List::with_capacity(u32::try_from(rows.len()).expect("bounded page"));
         for row in rows {
             match row {

@@ -925,6 +925,7 @@ impl World {
             | Delivery::ReadEscalationDecision { .. }
             | Delivery::Relay { .. }
             | Delivery::NotesLoad { .. }
+            | Delivery::Sweep { .. }
             | Delivery::Load { .. } => {
                 panic!("internal handoff leaked to world")
             }

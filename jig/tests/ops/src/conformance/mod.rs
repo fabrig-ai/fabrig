@@ -9,6 +9,7 @@ mod observations;
 mod protocol;
 mod scripts;
 pub use scripts::agent_bounds;
+pub mod store;
 mod systems;
 
 use jig_conformance::referee as r;
@@ -117,6 +118,7 @@ pub struct Peers {
     application_requests: bool,
     pub sign_in: Option<u64>,
     account_ready: bool,
+    sweep_rows: u32,
     asked_sign_in: bool,
     role_widened: bool,
     pub results: Vec<u64>,
@@ -168,8 +170,8 @@ fn env(config: &Config, clock: Clock) -> Env<root::Limits> {
 
 impl Application for Ops {
     type Domain = root::Domain;
-    type Store = jig_fake_store::Store<root::Key, root::Record>;
-    type Write = jig_fake_store::Write<root::Key, root::Record>;
+    type Store = store::Store;
+    type Write = root::Write;
     type Config = Config;
     type Systems = Systems;
     type Peers = Peers;
@@ -179,7 +181,7 @@ impl Application for Ops {
     type Delivery = Delivery;
 
     fn store(_: &Config) -> Self::Store {
-        jig_fake_store::Store::new()
+        store::Store::new()
     }
     fn build(config: &Config) -> root::Domain {
         let mut configuration = config::root_for(config.seed, config.story == Story::Environment).0;
@@ -205,6 +207,7 @@ impl Application for Ops {
             application_requests: false,
             sign_in: None,
             account_ready: false,
+            sweep_rows: config.limits.core.notes.load_rows,
             asked_sign_in: config.client_backed,
             role_widened: false,
             results: Vec::new(),
@@ -297,11 +300,7 @@ impl Application for Ops {
         };
         root::step(domain, &env(config, clock), event);
     }
-    fn release(
-        domain: &mut root::Domain,
-        config: &Config,
-        clock: Clock,
-    ) -> Vec<Output<jig_fake_store::Write<root::Key, root::Record>, Delivery>> {
+    fn release(domain: &mut root::Domain, config: &Config, clock: Clock) -> Vec<Output<root::Write, Delivery>> {
         let mut queue = Queue::with_capacity(256);
         root::release(domain, &env(config, clock), &mut queue);
         let mut outputs = Vec::new();
@@ -311,25 +310,18 @@ impl Application for Ops {
                     let mut rows = Vec::new();
                     let mut results = Vec::new();
                     while let Some(write) = writes.pop() {
-                        rows.push(match write {
-                            root::Write::Wires => continue,
-                            root::Write::Save(row) => {
-                                if let root::Record::Core(core::Record::Tasks(tasks::Stored::Live(parent))) = &row {
-                                    for word in &parent.inbox {
-                                        if let (tasks::MessageKind::Result(_), tasks::Party::Task(child)) =
-                                            (&word.kind, word.from)
-                                        {
-                                            results.push((child, parent.number));
-                                        }
-                                    }
+                        if let root::Write::Save(root::Record::Core(core::Record::Tasks(tasks::Stored::Live(parent)))) =
+                            &write
+                        {
+                            for word in &parent.inbox {
+                                if let (tasks::MessageKind::Result(_), tasks::Party::Task(child)) =
+                                    (&word.kind, word.from)
+                                {
+                                    results.push((child, parent.number));
                                 }
-                                jig_fake_store::Write::Save { key: row.key(), row }
                             }
-                            root::Write::CopySettingsRevision(_) => {
-                                unreachable!("this scripted ops world restarts with identical defaults")
-                            }
-                            root::Write::Erase(key) => jig_fake_store::Write::Erase(key),
-                        });
+                        }
+                        rows.push(write);
                     }
                     outputs.push(Output::Commit { number, writes: rows.into_boxed_slice() });
                     if !results.is_empty() {
@@ -674,6 +666,20 @@ impl Application for Ops {
                 peers.observed.push(r::Observed::Result { task, to: r::Source::Person(person) });
                 peers.observed.push(r::Observed::Released { requires: vec![r::Receipt::Ended(task)] });
                 Vec::new()
+            }
+            root::Output::Core(core::Held::Sweep { owner, sweep }) => {
+                let page_rows = usize::try_from(peers.sweep_rows).expect("bounded notes page");
+                let mut rows = Vec::new();
+                for row in store.rows.values() {
+                    if let root::Record::Core(record) = row
+                        && sweep.admits(&record.key())
+                    {
+                        rows.push(record.clone());
+                    }
+                }
+                let more = rows.len() > page_rows;
+                rows.truncate(page_rows);
+                vec![Input::Event(root::Event::Core(core::Event::Swept { owner, rows: rows.into_boxed_slice(), more }))]
             }
             root::Output::Core(core::Held::NotesLoad { owner, .. }) => {
                 vec![Input::Event(root::Event::Core(core::Event::Notes(jig_domain_notes::Event::Loaded {

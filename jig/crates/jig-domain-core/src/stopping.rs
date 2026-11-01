@@ -81,7 +81,8 @@ pub(crate) fn gate(core: &mut Core, event: Event) -> Result<Event, Requests> {
             Err(answer(Some(Request::Held(Box::new(Held::Refuse { channel })))))
         }
         Event::Fleet(event) => Ok(Event::Fleet(event)),
-        Event::Stopping
+        Event::Swept { .. }
+        | Event::Stopping
         | Event::Activate { .. }
         | Event::PreparedAgent { .. }
         | Event::StartBrief { .. }

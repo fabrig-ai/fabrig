@@ -466,6 +466,7 @@ pub fn incoming(
         | Delivery::Refuse { .. }
         | Delivery::TurnBusy { .. }
         | Delivery::NotesLoad { .. }
+        | Delivery::Sweep { .. }
         | Delivery::Load { .. }
         | Delivery::Read { .. }
         | Delivery::Document { .. }

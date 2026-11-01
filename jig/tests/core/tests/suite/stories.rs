@@ -331,6 +331,7 @@ fn a_goal_cancelled_with_live_runs_and_an_effect_in_flight_closes_deepest_first(
             root::Write::Save(_)
             | root::Write::Wires
             | root::Write::Erase(_)
+            | root::Write::DropTranscript(_)
             | root::Write::CopySettingsRevision(_) => None,
         })
         .collect();

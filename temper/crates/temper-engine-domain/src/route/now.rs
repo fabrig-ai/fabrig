@@ -301,7 +301,8 @@ fn ended(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decision, read: 
                 | Read::Transcript { .. }
                 | Read::GoalWords(_)
                 | Read::InputCheck(_)
-                | Read::Notes { .. },
+                | Read::Notes { .. }
+                | Read::Sweep { .. },
             )
             | None,
         ) => unreachable!("the refused read returns unchanged"),

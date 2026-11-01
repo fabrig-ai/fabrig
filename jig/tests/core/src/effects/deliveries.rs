@@ -182,6 +182,9 @@ impl World {
                 })));
             }
             root::Delivery::Core(core::Held::Load(load)) => self.store.ask(jig_test_store::StoreOut::Now(*load)),
+            root::Delivery::Core(core::Held::Sweep { owner, sweep }) => {
+                self.store.ask(StoreOut::Sweep { owner, sweep });
+            }
             root::Delivery::Core(core::Held::NotesLoad { owner, range }) => {
                 self.store.ask(StoreOut::NotesLoad { owner, range });
             }

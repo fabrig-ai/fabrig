@@ -818,6 +818,7 @@ impl World {
             | Delivery::ReadEscalationDecision { .. }
             | Delivery::Relay { .. }
             | Delivery::NotesLoad { .. }
+            | Delivery::Sweep { .. }
             | Delivery::Load { .. } => panic!("internal root callback leaked to world"),
             Delivery::Host(_) => panic!("escalation world sent no calls"),
             Delivery::Procedure { .. } => panic!("escalation world sent no procedures"),

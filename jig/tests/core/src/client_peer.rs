@@ -117,6 +117,7 @@ impl ClientPeer {
                 | core::Held::StopRun { .. }
                 | core::Held::Load(..)
                 | core::Held::NotesLoad { .. }
+                | core::Held::Sweep { .. }
                 | core::Held::NotesWritten { .. }
                 | core::Held::NotesDeleted { .. } => false,
             },
