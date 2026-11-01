@@ -4,10 +4,19 @@
 //! at start; the owner gives others at runtime, and the domain's table holds
 //! both. This module decides which writer may join that table, and never
 //! decides a task's authority.
-use crate::{Domain, Limits};
+use crate::{Domain, Key, Limits, Request};
 use alloc::boxed::Box;
 use skein_forge::api;
-use skein_lib::List;
+use skein_lib::{List, Queue};
+
+pub(crate) fn remove_forge(d: &mut Domain, forge: u16, out: &mut Queue<Request>) -> bool {
+    if d.writers.remove(&forge).is_some() {
+        out.push(Request::Erase { key: Key::Writer(forge) });
+        true
+    } else {
+        false
+    }
+}
 
 /// Frame the owner's namespace and opaque effect identity (forge-client.md, 7.1).
 #[must_use]
