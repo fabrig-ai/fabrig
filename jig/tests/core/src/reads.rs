@@ -68,6 +68,9 @@ impl Parties {
                 self.admissions.push_back(reply);
             }
             root::Event::Core(core::Event::ReadLoaded { load, .. }) => {
+                if load.raw() >> 32 == u64::from(u32::MAX) {
+                    return;
+                }
                 let reply = self.flights.remove(&load.raw()).expect("one terminal for the observed load");
                 self.awaiting.get_mut(&reply).expect("admitted read").0 = self.made;
             }
@@ -129,6 +132,10 @@ impl Parties {
     }
 
     pub fn load(&mut self, load: Token, range: reads::Range, store: &Store) -> Vec<jig_test_store::StoreOut> {
+        if load.raw() >> 32 == u64::from(u32::MAX) {
+            self.loads.push((load, range));
+            return if self.hold_loads { Vec::new() } else { self.complete() };
+        }
         let reply = self.admissions.pop_front().expect("one owner load for an admitted read");
         self.awaiting
             .get(&reply)

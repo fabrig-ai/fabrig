@@ -1721,11 +1721,12 @@ pub(super) fn route_tasks(
     let event = question_event(core, event);
     tasks::step(&mut core.tasks, &Env { now: env.now, wall: env.wall, limits: env.limits.tasks }, event, &mut out);
     crate::resources::resume(core, work);
-    let Requests::Out(mut tagged) = tag_tasks(core, env, out, false, false, false);
+    let Requests::Out(mut routed) = tag_tasks(core, env, out, false, false, false);
     if restored {
-        super::deletion::resume_ending(core, env, &mut tagged);
+        super::deletion::resume_ending(core, env, &mut routed);
+        crate::deletion::erase::begin(core, env, &mut routed);
     }
-    Requests::Out(tagged)
+    Requests::Out(routed)
 }
 // Direct-answer authority stays inside the core's question admission.
 fn question_event(core: &Core, event: tasks::Event) -> tasks::Event {
