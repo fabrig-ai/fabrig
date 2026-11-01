@@ -1,4 +1,6 @@
-//! Observed rg selection and the public machine entry points for tree listings.
+//! Observed rg selection for listings and searches, and public tree-listing entry points.
+//! The fixtures keep file selection in rg and tree construction in the machine.
+//! Contract: smith/docs/design/domain/tools.md, sections 3 and 5.
 
 use skein_io::kernel;
 use skein_lib::{Env, Queue, Time, Token, Wall};
@@ -86,6 +88,7 @@ fn listed(output: &[u8], depth: tools::Depth, maximum: u32, bytes: u64, glob: Op
             assert_eq!(spawn.program.as_ref(), b"/usr/bin/rg");
             assert!(spawn.env.is_empty());
             assert!(spawn.args.iter().any(|word| word.as_ref() == b"--files"));
+            assert!(spawn.args.iter().any(|word| word.as_ref() == b"--hidden"));
             assert!(spawn.args.iter().any(|word| word.as_ref() == b"--null"));
             assert!(spawn.args.iter().any(|word| word.as_ref() == b"--sort=path"));
             if let Some(glob) = glob {
@@ -147,60 +150,55 @@ fn listed_entry(path: &[u8], kind: tools::Kind) -> tools::Entry {
     tools::Entry { name: Box::from(path), kind }
 }
 
-fn selected_native_output(suffix: &str) -> Vec<u8> {
+fn selected_native_output(suffix: &str, op: tools::Op) -> Vec<u8> {
     use std::fs;
     let scratch = skein_scratch::Scratch::new(&format!("smith-list-tree-{suffix}"));
     let root = scratch.path();
-    for directory in ["src/deep", "ignored", "empty", ".git", "unmatched"] {
+    for directory in ["src/deep", "ignored", "empty", ".git", ".forgejo/workflows", "unmatched"] {
         fs::create_dir_all(root.join(directory)).expect("fixture directory");
     }
     fs::write(root.join(".ignore"), b"ignored/\n").expect("ignore rule");
     for file in
-        ["src/empty.rs", "src/deep/only.rs", "src/not.txt", "ignored/drop.rs", ".git/config", "unmatched/only.txt"]
+        ["src/empty.rs", "src/deep/only.rs", "src/not.txt", "ignored/drop.rs", ".hidden.rs", "unmatched/only.txt"]
     {
         fs::write(root.join(file), b"").expect("empty selected file fixture");
     }
-    let output = native_output(root);
-    assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
-    assert_eq!(output.stdout.as_slice(), b"./src/deep/only.rs\0./src/empty.rs\0");
+    for file in [".forgejo/workflows/ci.yml", ".git/config", "ignored/match.yml"] {
+        fs::write(root.join(file), b"workflow marker\n").expect("search match fixture");
+    }
+    let output = native_output(root, op);
+    assert!(matches!(output.status.code(), Some(0 | 1)), "{}", String::from_utf8_lossy(&output.stderr));
     output.stdout
 }
 
-fn native_output(root: &std::path::Path) -> std::process::Output {
+fn native_output(root: &std::path::Path, op: tools::Op) -> std::process::Output {
+    let listing = matches!(&op, tools::Op::List { .. });
     let mut component = component();
     let mut up = Queue::with_capacity(2);
     let mut down = Queue::with_capacity(2);
     component.from_domain(
         &env(),
-        FromDomain::Op {
-            owner: Token::new(90),
-            op: tools::Op::List {
-                at: place(b""),
-                depth: tools::Depth::Levels(1),
-                glob: Some(Box::from(b"*.rs".as_slice())),
-                max: 2,
-                max_bytes: 512,
-            },
-            deadline: Time::from_nanos(u64::MAX),
-        },
+        FromDomain::Op { owner: Token::new(90), op, deadline: Time::from_nanos(u64::MAX) },
         &mut up,
         &mut down,
     );
-    assert!(matches!(down.pop(), Some(Below::OpenDirectory { .. })));
-    component.from_below(
-        &env(),
-        BelowEvent::File(skein_io::file::Event::Opened { owner: Token::new(90), file: Token::new(91), len: 0 }),
-        &mut up,
-        &mut down,
-    );
-    assert!(matches!(down.pop(), Some(Below::File { request: skein_io::file::Request::Close { .. }, .. })));
-    component.from_below(
-        &env(),
-        BelowEvent::File(skein_io::file::Event::Closed { owner: Token::new(90) }),
-        &mut up,
-        &mut down,
-    );
-    let spawn = match down.pop().expect("native listing") {
+    if listing {
+        assert!(matches!(down.pop(), Some(Below::OpenDirectory { .. })));
+        component.from_below(
+            &env(),
+            BelowEvent::File(skein_io::file::Event::Opened { owner: Token::new(90), file: Token::new(91), len: 0 }),
+            &mut up,
+            &mut down,
+        );
+        assert!(matches!(down.pop(), Some(Below::File { request: skein_io::file::Request::Close { .. }, .. })));
+        component.from_below(
+            &env(),
+            BelowEvent::File(skein_io::file::Event::Closed { owner: Token::new(90) }),
+            &mut up,
+            &mut down,
+        );
+    }
+    let spawn = match down.pop().expect("native selection") {
         Below::Spawn { spawn, .. } => spawn,
         Below::File { .. }
         | Below::Remove { .. }
@@ -208,7 +206,7 @@ fn native_output(root: &std::path::Path) -> std::process::Output {
         | Below::OpenRead { .. }
         | Below::OpenDirectory { .. }
         | Below::Process(_) => {
-            panic!("list spawns rg")
+            panic!("selection spawns rg")
         }
     };
     let mut command = std::process::Command::new(std::str::from_utf8(&spawn.program).expect("fixed program"));
@@ -222,11 +220,50 @@ fn native_output(root: &std::path::Path) -> std::process::Output {
 #[test]
 fn native_rg_selects_empty_files_and_ignores_empty_unmatched_and_ignored_directories() {
     const DIRECT_CHILDREN: u32 = 1;
-    const ENTRY_CAP: u32 = 2;
+    const ENTRY_CAP: u32 = 3;
     const ENTRY_BYTES: u64 = 512;
-    let output = selected_native_output("selection");
-    assert_eq!(
-        listed(&output, tools::Depth::Levels(DIRECT_CHILDREN), ENTRY_CAP, ENTRY_BYTES, Some(b"*.rs")),
-        tools::Done::Listed { entries: Box::new([listed_entry(b"src", tools::Kind::Directory)]), more: 0 }
+    let glob = b"*.{rs,yml,config}";
+    let output = selected_native_output(
+        "selection",
+        tools::Op::List {
+            at: place(b""),
+            depth: tools::Depth::Levels(DIRECT_CHILDREN),
+            glob: Some(Box::from(glob.as_slice())),
+            max: ENTRY_CAP,
+            max_bytes: ENTRY_BYTES,
+        },
     );
+    assert_eq!(output.as_slice(), b"./.forgejo/workflows/ci.yml\0./.hidden.rs\0./src/deep/only.rs\0./src/empty.rs\0");
+    assert_eq!(
+        listed(&output, tools::Depth::Levels(DIRECT_CHILDREN), ENTRY_CAP, ENTRY_BYTES, Some(glob)),
+        tools::Done::Listed {
+            entries: Box::new([
+                listed_entry(b".forgejo", tools::Kind::Directory),
+                listed_entry(b".hidden.rs", tools::Kind::File),
+                listed_entry(b"src", tools::Kind::Directory),
+            ]),
+            more: 0,
+        }
+    );
+}
+
+#[test]
+fn native_rg_searches_dot_named_paths_and_excludes_git_even_with_a_whitelist_glob() {
+    for glob in [None, Some(b"*".as_slice())] {
+        let output = selected_native_output(
+            if glob.is_some() { "search-glob" } else { "search" },
+            tools::Op::Search {
+                at: place(b""),
+                pattern: Box::from(b"workflow marker".as_slice()),
+                glob: glob.map(Box::from),
+                hits: 8,
+                bytes: 256,
+            },
+        );
+        let output = std::str::from_utf8(&output).expect("rg JSON");
+        assert!(output.contains(r#""path":{"text":"./.forgejo/workflows/ci.yml"}"#), "{output}");
+        assert_eq!(output.matches(r#""type":"match""#).count(), if glob.is_some() { 2 } else { 1 }, "{output}");
+        assert!(!output.contains(".git/"), "{output}");
+        assert_eq!(output.contains("ignored/"), glob.is_some(), "{output}");
+    }
 }

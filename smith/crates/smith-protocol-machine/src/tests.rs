@@ -942,6 +942,7 @@ fn listed(output: &[u8], depth: tools::Depth, maximum: u32, bytes: u64, glob: Op
             assert_eq!(spawn.program.as_ref(), b"/usr/bin/rg");
             assert!(spawn.env.is_empty());
             assert!(has_argument(&spawn.args, b"--files"));
+            assert!(has_argument(&spawn.args, b"--hidden"));
             assert!(has_argument(&spawn.args, b"--null"));
             assert!(has_argument(&spawn.args, b"--sort=path"));
             if let Some(glob) = glob {

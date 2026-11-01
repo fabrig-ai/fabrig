@@ -488,10 +488,11 @@ pub(crate) fn search(
     if pattern.len().checked_add(filter_bytes)? > usize::try_from(limits.tool_payload).ok()? {
         return None;
     }
-    let count = if glob.is_some() { 6 } else { 5 };
+    let count = if glob.is_some() { 9 } else { 8 };
     let mut args = List::with_capacity(count);
     args.push(Box::from(&b"--no-config"[..])).ok()?;
     args.push(Box::from(&b"--json"[..])).ok()?;
+    args.push(Box::from(&b"--hidden"[..])).ok()?;
     let mut expression = Writer::new(b"--regexp=".len().checked_add(pattern.len())?);
     expression.put(b"--regexp=").ok()?;
     expression.put(&pattern).ok()?;
@@ -499,6 +500,8 @@ pub(crate) fn search(
     if let Some(glob) = glob {
         args.push(glob_argument(&glob)?).ok()?;
     }
+    args.push(Box::from(&b"--glob=!**/.git/**"[..])).ok()?;
+    args.push(Box::from(&b"--glob=!**/.git"[..])).ok()?;
     args.push(Box::from(&b"--"[..])).ok()?;
     args.push(crate::files::io_path(at.path)).ok()?;
     let spawn = Spawn {
@@ -580,10 +583,16 @@ pub(crate) fn list(
         }
         Some(_) | None => {}
     }
-    let mut args = List::with_capacity(9);
-    for word in
-        [b"--no-config".as_slice(), b"--files", b"--null", b"--sort=path", b"--glob=!**/.git/**", b"--glob=!**/.git"]
-    {
+    let mut args = List::with_capacity(10);
+    for word in [
+        b"--no-config".as_slice(),
+        b"--files",
+        b"--null",
+        b"--sort=path",
+        b"--hidden",
+        b"--glob=!**/.git/**",
+        b"--glob=!**/.git",
+    ] {
         args.push(Box::from(word)).ok()?;
     }
     if let Some(glob) = glob {
