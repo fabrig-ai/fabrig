@@ -663,6 +663,7 @@ pub fn root(
     let landing = landing_config(engine);
     let (forge, identities) = crate::forge::config(engine, seeds.deployment);
     let config = domain::Config {
+        machine: temper_engine_domain_forge::Machine::bare(),
         period_span: crate::stock::PERIOD_SPAN,
         demo: match &engine.demo {
             Some(demo) => Some(demo.domain(&engine.forges, engine.limits.setup.deadline)),

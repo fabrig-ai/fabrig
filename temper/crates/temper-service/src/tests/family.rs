@@ -1279,7 +1279,7 @@ fn playground_start_reaches_the_root_with_its_admission_envelope() {
     };
     assert_eq!(reply_to, REPLY);
     assert_eq!((sign_in, key, digest, carried), (3, REQUEST_KEY, [7; 32], None));
-    assert_eq!(request, root::Application::Forge(forge::Ask::StartDemo));
+    assert_eq!(request, root::Application::Forge(forge::Ask::StartPlayground));
 }
 
 #[test]
@@ -1361,7 +1361,7 @@ fn playground_start_outcomes_encode_every_failure_and_unknown() {
         ),
     ] {
         let answer = match answer {
-            Some(answer) => Some(root::ApplicationAnswer::StartDemo(answer)),
+            Some(answer) => Some(root::ApplicationAnswer::StartPlayground(answer)),
             None => None,
         };
         let bytes = family::answer(answer, &w::CEILINGS, &jig).unwrap();

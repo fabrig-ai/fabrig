@@ -82,6 +82,10 @@ fn settle(domain: &mut Domain, env: &Env<Limits>) -> Box<[Request]> {
                 }
                 Request::ToChild(released) => crate::try_step(domain, env, Event::Released(released)).unwrap(),
                 request @ (Request::StopGroup { .. }
+                | Request::RemoveGroup { .. }
+                | Request::EraseSecrets { .. }
+                | Request::Register(_)
+                | Request::Unregister { .. }
                 | Request::SetUpGroup { .. }
                 | Request::SetUp { .. }
                 | Request::Bound { .. }
@@ -893,4 +897,43 @@ fn public_accept_defers_the_keyed_answer_until_the_verified_installation_is_kept
             outcome: Some(crate::ApplicationAnswer::Accept(answer)),
         }))]
     );
+}
+
+#[test]
+fn the_new_asks_are_the_deployments() {
+    for (ask, answer) in [
+        (
+            forge::Ask::MakeForge { choice: forge::ForgeChoice::GitHub },
+            crate::ApplicationAnswer::MakeForge(forge::MakeAnswer::Refused(forge::MakeRefusal::NotOffered)),
+        ),
+        (
+            forge::Ask::RemoveForge { forge: 1 },
+            crate::ApplicationAnswer::RemoveForge(forge::RemoveAnswer::Refused(forge::RemoveRefusal::NoSuchForge)),
+        ),
+        (forge::Ask::EndPlayground, crate::ApplicationAnswer::EndPlayground(forge::EndAnswer::NotOffered)),
+    ] {
+        let (mut domain, env) = signed_in(Some(people::Role::Owner));
+        crate::try_step(
+            &mut domain,
+            &env,
+            Event::Party(PartyInput::Application {
+                // The root derives the deployment scope even with a caller's project scope.
+                scope: people::ApplicationScope::Project(99),
+                reply_to: ReplyTo::new(Token::new(90)),
+                sign_in: SIGN_IN,
+                key: [3; 16],
+                digest: [3; 32],
+                carried: None,
+                request: crate::Application::Forge(ask),
+            }),
+        )
+        .unwrap();
+        assert_eq!(
+            settle(&mut domain, &env).as_ref(),
+            [Request::Party(PartyRequest::Deliver(Delivery::Application {
+                to: ReplyTo::new(Token::new(90)),
+                outcome: Some(answer),
+            }))]
+        );
+    }
 }

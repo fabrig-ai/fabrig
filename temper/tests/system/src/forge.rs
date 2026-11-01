@@ -339,6 +339,7 @@ impl World {
     }
 
     #[expect(clippy::wildcard_enum_match_arm, reason = "the world records only its scripted root deliveries")]
+    #[expect(clippy::too_many_lines, reason = "one exhaustive collector checks every root output")]
     fn collect(&mut self) {
         for _ in 0..self.out.len() {
             let request = match self.protocol.play(self.out.pop().expect("counted root output")) {
@@ -426,6 +427,10 @@ impl World {
                 | engine::Request::Install { .. }
                 | engine::Request::Accept { .. }
                 | engine::Request::EraseCarried { .. }
+                | engine::Request::RemoveGroup { .. }
+                | engine::Request::EraseSecrets { .. }
+                | engine::Request::Register(_)
+                | engine::Request::Unregister { .. }
                 | engine::Request::StopGroup { .. }
                 | engine::Request::SetUp { .. }
                 | engine::Request::Bound { .. }

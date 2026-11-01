@@ -285,6 +285,7 @@ pub fn config_with_project_room(seed: u64, projects: u32) -> engine::Config {
         requirements: Box::new([]),
     };
     engine::Config {
+        machine: forge::Machine::bare(),
         period_span: Duration::from_secs(7 * 24 * 60 * 60),
         core: jig_domain_core::Config {
             deployment: [31; 16],
@@ -449,6 +450,7 @@ const CLIENT: skein_forge_client::Limits = skein_forge_client::Limits {
 };
 const FORGE_LIMITS: forge::Limits = forge::Limits {
     repositories: 2,
+    forges: 4,
     tasks: 8,
     holds: 8,
     subscriptions: 8,

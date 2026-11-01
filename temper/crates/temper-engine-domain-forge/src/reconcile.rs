@@ -3,7 +3,7 @@ use crate::{Domain, Key, Limits, Name, Stored, Topic};
 use skein_forge::api::Repository;
 use skein_lib::List;
 
-/// A restored record's family, retained for compatibility diagnostics.
+/// A restored record's family (temper/docs/design/draft/playground-reset.md, 3, 4, 6).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum RecordKind {
     Call,
@@ -29,6 +29,14 @@ pub enum RecordKind {
     Flight,
     Landing,
     Receipt,
+    /// A forge record (temper/docs/design/draft/playground-reset.md, 3).
+    Forge,
+    /// The next forge number (temper/docs/design/draft/playground-reset.md, 3).
+    ForgeNumbers,
+    /// The playground row (temper/docs/design/draft/playground-reset.md, 6).
+    Playground,
+    /// A removal's kept act (temper/docs/design/draft/playground-reset.md, 4).
+    KeptAct,
 }
 /// Compatibility diagnostic; missing required links assert during reconciliation.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -241,7 +249,13 @@ impl Reconciliation {
             // Landing history outlives tasks (domain/forge.md, 7.2).
             // Bindings outlive members. End acts retry until the saved answer,
             // including after their target ended or was removed.
-            Stored::Landed { .. } | Stored::Binding { .. } | Stored::DemoAct(_) => Ok(()),
+            Stored::Forge(_)
+            | Stored::ForgeNumbers { .. }
+            | Stored::Playground(_)
+            | Stored::KeptAct(_)
+            | Stored::Landed { .. }
+            | Stored::Binding { .. }
+            | Stored::DemoAct(_) => Ok(()),
             Stored::Flight { task, entry } => self.need(RecordKind::Flight, Need::Entry { task: *task, entry: *entry }),
         }
     }

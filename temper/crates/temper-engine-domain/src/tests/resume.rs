@@ -481,6 +481,10 @@ fn stopping_continues_projection_deferred_finishing_without_new_commits() {
                 Request::Party(crate::PartyRequest::Deliver(crate::Delivery::WebReply { .. })) => {}
                 other @ (Request::Setup { .. }
                 | Request::StopGroup { .. }
+                | Request::RemoveGroup { .. }
+                | Request::EraseSecrets { .. }
+                | Request::Register(_)
+                | Request::Unregister { .. }
                 | Request::SetUpGroup { .. }
                 | Request::Connect { .. }
                 | Request::Manifest { .. }

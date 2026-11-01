@@ -31,6 +31,8 @@ impl Demo {
             }
         }
         forge::DemoConfig {
+            project_name: "Playground".into(),
+            project_policy: 1,
             provider: self.provider,
             deadline,
             adoption: forge::Adoption {

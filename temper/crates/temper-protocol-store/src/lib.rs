@@ -6,13 +6,13 @@ use alloc::boxed::Box;
 pub mod keys;
 pub mod records;
 #[rustfmt::skip]
-#[path = "generated/v10.rs"]
-pub mod v10;
+#[path = "generated/v11.rs"]
+pub mod v11;
 #[cfg(test)]
 mod tests;
 
 /// One version for every durable family (protocol/store.md, section 4).
-pub const STORE_VERSION: u32 = 10;
+pub const STORE_VERSION: u32 = 11;
 
 /// Largest encodings under the forge's and task spec's bounds, before jig's key tag.
 #[must_use]
@@ -24,7 +24,7 @@ pub fn application(
     Some(jig_protocol_store::sizes::Application {
         version: STORE_VERSION,
         key: keys::largest(limits)?,
-        value: u32::try_from(v10::Row::encoded_bound(bounds.limits())?).ok()?,
+        value: u32::try_from(v11::Row::encoded_bound(bounds.limits())?).ok()?,
     })
 }
 
@@ -35,13 +35,13 @@ pub struct Undecodable;
 /// Schema limits checked once alongside the forge's key bounds.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Bounds {
-    limits: v10::Limits,
+    limits: v11::Limits,
     forge: temper_engine_domain_forge::Limits,
 }
 impl Bounds {
     /// The generated decoder's limits.
     #[must_use]
-    pub const fn limits(&self) -> &v10::Limits {
+    pub const fn limits(&self) -> &v11::Limits {
         &self.limits
     }
     /// The domain limits for names and key decoding.
@@ -54,7 +54,7 @@ impl Bounds {
 /// Make schema bounds from the forge and task spec bytes, refusing any ceiling overflow.
 #[must_use]
 pub fn bounds(forge: &temper_engine_domain_forge::Limits, change_words: u32) -> Option<Bounds> {
-    let limits = v10::Limits {
+    let limits = v11::Limits {
         effect_account_words: temper_engine_domain_forge::EFFECT_ACCOUNT_BYTES,
         // A change retains its task's spec, independently of forge operation bytes.
         change_row_title: change_words,
@@ -104,7 +104,7 @@ pub fn bounds(forge: &temper_engine_domain_forge::Limits, change_words: u32) -> 
         subscriber_paths_item: forge.name_bytes,
         ..records::limits(forge)?
     };
-    v10::check_limits(&limits).ok()?;
+    v11::check_limits(&limits).ok()?;
     Some(Bounds { limits, forge: *forge })
 }
 

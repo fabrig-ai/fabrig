@@ -221,6 +221,10 @@ pub fn effect_access(repository: &Repository, what: &What, kind: u16) -> Access 
 #[must_use]
 pub fn stored_key(row: &Stored) -> Key {
     match row {
+        Stored::Forge(row) => Key::Forge(row.number),
+        Stored::ForgeNumbers { .. } => Key::ForgeNumbers,
+        Stored::Playground(_) => Key::Playground,
+        Stored::KeptAct(row) => Key::KeptAct(row.key),
         Stored::Landing(row) => Key::Landing(row.landing.task),
         Stored::Receipt { key, .. } => Key::Receipt(key.clone()),
         Stored::Call { key, .. } => Key::Call(*key),
@@ -318,6 +322,32 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
         }
     }
     match record {
+        Stored::Forge(row) => {
+            let mut total = bytes(&row.api.host)?
+                .checked_add(bytes(&row.git)?)?
+                .checked_add(bytes(&row.bot.login)?)?
+                .checked_add(bytes(&row.bot.name)?)?
+                .checked_add(bytes(&row.bot.email)?)?;
+            if let ApiTransport::Tls { server_name, trust } = &row.api.transport {
+                total = total.checked_add(bytes(server_name)?)?;
+                if let Some(trust) = trust {
+                    total = total.checked_add(bytes(trust)?)?;
+                }
+            }
+            for value in [&row.git_program, &row.web, &row.setup].into_iter().flatten() {
+                total = total.checked_add(bytes(value)?)?;
+            }
+            if let Some(first) = &row.first {
+                total = total
+                    .checked_add(bytes(&first.org)?)?
+                    .checked_add(bytes(&first.repository)?)?
+                    .checked_add(bytes(&first.label)?)?;
+                if let SetUpProject::New(name) = &first.project {
+                    total = total.checked_add(bytes(name)?)?;
+                }
+            }
+            Some(total)
+        }
         Stored::Landing(row) => landing::row_bytes(row),
         Stored::Receipt { key, receipt } => landing::receipt_bytes(key, receipt),
         Stored::Call { answer, .. } => match answer {
@@ -405,7 +435,10 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
         Stored::Binding { address, subject } => bytes(address)?.checked_add(bytes(subject)?),
         Stored::BranchHead(row) => name(&row.name),
         Stored::PullState(row) => name(&row.name),
-        Stored::Ci(_)
+        Stored::ForgeNumbers { .. }
+        | Stored::Playground(_)
+        | Stored::KeptAct(_)
+        | Stored::Ci(_)
         | Stored::Landed { .. }
         | Stored::Writer(_)
         | Stored::Demo(_)

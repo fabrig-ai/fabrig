@@ -147,16 +147,46 @@ pub struct Adoption {
     pub ci: bool,
     pub checks: Box<[u32]>,
 }
-/// A FORGE request admitted by the core (client/README.md, 8).
+/// A FORGE request admitted by the core (temper/docs/design/draft/playground-reset.md, 3, 4, 6).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Ask {
     Adopt(Adoption),
-    SetUp { forge: u16, org: Box<[u8]>, repository: Box<[u8]>, project: SetUpProject, playground: bool },
-    StartDemo,
-    Connect { forge: u16, how: How },
-    Install { forge: u16, back: Option<Box<[u8]>> },
-    Accept { forge: u16, installation: core::num::NonZeroU64 },
-    Reachable { forge: u16, installation: Option<u64>, page: u32 },
+    SetUp {
+        forge: u16,
+        org: Box<[u8]>,
+        repository: Box<[u8]>,
+        project: SetUpProject,
+        playground: bool,
+    },
+    /// Start the playground through the deployment's acts.
+    StartPlayground,
+    Connect {
+        forge: u16,
+        how: How,
+    },
+    Install {
+        forge: u16,
+        back: Option<Box<[u8]>>,
+    },
+    Accept {
+        forge: u16,
+        installation: core::num::NonZeroU64,
+    },
+    Reachable {
+        forge: u16,
+        installation: Option<u64>,
+        page: u32,
+    },
+    /// Make a forge the deployment keeps.
+    MakeForge {
+        choice: ForgeChoice,
+    },
+    /// Remove a forge and its records.
+    RemoveForge {
+        forge: u16,
+    },
+    /// Reset the playground.
+    EndPlayground,
 }
 /// The first repository requested when connecting a Forgejo (client/README.md, 8).
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -179,16 +209,23 @@ pub enum AppWay {
     Manifest,
     Pasted,
 }
-/// A retained application answer; only adoption outcomes are durable.
+/// A retained application answer (temper/docs/design/draft/playground-reset.md, 3, 4, 6).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub enum Answered {
     Adopt(ApplicationOutcome),
     SetUp(SetUpAnswer),
-    StartDemo(StartAnswer),
+    /// The playground start's answer.
+    StartPlayground(StartAnswer),
     Connect(ConnectAnswer),
     Install(InstallAnswer),
     Accept(AcceptAnswer),
     Reachable(ReachableAnswer),
+    /// The forge creation's answer.
+    MakeForge(MakeAnswer),
+    /// The forge removal's answer.
+    RemoveForge(RemoveAnswer),
+    /// The playground reset's answer.
+    EndPlayground(EndAnswer),
 }
 /// Public forge admission refusals (client/README.md, 8).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -258,12 +295,16 @@ pub enum StartFailure {
     Adoption,
     NotConnected,
 }
-/// The demo's fake LLM, forge and project (protocol/setup.md, 8.4).
+/// The playground's fake LLM, forge and project (temper/docs/design/draft/playground-reset.md, 6).
 #[derive(Clone, PartialEq, Eq, Debug)]
 pub struct DemoConfig {
     pub provider: u32,
     pub adoption: Adoption,
     pub deadline: skein_lib::Duration,
+    /// The playground project's name.
+    pub project_name: Box<str>,
+    /// The playground project's policy.
+    pub project_policy: u32,
 }
 /// The setup request's one answer, independent of its later course.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -311,6 +352,83 @@ pub struct Configured {
     /// The configuration's `start: asked`; false is the ordinary automatic start.
     pub asked: bool,
 }
+/// A forge the deployment keeps (temper/docs/design/draft/playground-reset.md, 3); secret-free.
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct ForgeRecord {
+    /// The number given once and never reused.
+    pub number: u16,
+    /// The forge provider.
+    pub kind: Kind,
+    /// How the deployment connects to the forge.
+    pub mode: Mode,
+    /// The API address.
+    pub api: Api,
+    /// The git base, as `application.forges[].git` was.
+    pub git: Box<[u8]>,
+    /// A fake's git program, a data path, as setup's `fake.git`.
+    pub git_program: Option<Box<[u8]>>,
+    /// The web URL base.
+    pub web: Option<Box<[u8]>>,
+    /// A pasted App another owns (protocol/setup.md, 17.7).
+    pub read_only: bool,
+    /// The bot's git identity.
+    pub bot: Bot,
+    /// The setup entry without `forge`, `directory` and `start`, JSON text (contracts T3).
+    pub setup: Option<Box<[u8]>>,
+    /// The first repository's intent, kept across a restart (draft, section 3).
+    pub first: Option<First>,
+    /// The playground's fake forge (draft, 6.1).
+    pub playground: bool,
+    /// Whether the forge is kept or removing.
+    pub state: ForgeState,
+}
+/// A forge's API address (temper/docs/design/draft/playground-reset.md, 3).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct Api {
+    /// The API host.
+    pub host: Box<[u8]>,
+    /// The API port.
+    pub port: u16,
+    /// The API transport.
+    pub transport: ApiTransport,
+}
+/// The API transport (temper/docs/design/draft/playground-reset.md, 3).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum ApiTransport {
+    /// An API without TLS.
+    Plaintext,
+    /// `trust` is a file path, as the document's was.
+    Tls { server_name: Box<[u8]>, trust: Option<Box<[u8]>> },
+}
+/// The bot's git identity (temper/docs/design/draft/playground-reset.md, 3).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct Bot {
+    /// The bot's login.
+    pub login: Box<[u8]>,
+    /// The bot's git name.
+    pub name: Box<[u8]>,
+    /// The bot's git email.
+    pub email: Box<[u8]>,
+}
+/// Whether a forge is kept or removing (temper/docs/design/draft/playground-reset.md, 4).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum ForgeState {
+    /// A forge the deployment keeps.
+    Kept,
+    /// A forge removed from service until its removal ends.
+    Removing,
+}
+/// The machine's forge templates, numbered 0 and `Kept` (temper/docs/design/draft/playground-reset.md, 3).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub struct Machine {
+    /// From `application.machine.owned`, mode `Owned`; none without one.
+    pub owned: Option<ForgeRecord>,
+    /// From `application.machine.github`, mode `Managed`.
+    pub github: ForgeRecord,
+    /// From `application.demo.forge`, mode `Fake`, `playground: true`; none without a playground.
+    pub playground: Option<ForgeRecord>,
+}
+
 /// The row's setup offer, also used to admit `SetUp` (domain/forge.md, 4.1).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Offer {
@@ -793,7 +911,7 @@ pub enum CallPayload {
     Read(Box<Result<skein_forge::api::Answer, skein_forge::api::Error>>),
 }
 
-/// The connector's durable records, wrapped by the root store.
+/// The connector's durable records (temper/docs/design/draft/playground-reset.md, 3, 4, 6).
 #[derive(Clone, PartialEq, Eq, Debug)]
 #[expect(
     clippy::large_enum_variant,
@@ -869,6 +987,16 @@ pub enum Stored {
         key: ReceiptKey,
         receipt: Receipt,
     },
+    /// A forge the deployment keeps.
+    Forge(ForgeRecord),
+    /// The next forge number.
+    ForgeNumbers {
+        next: u16,
+    },
+    /// The playground's row.
+    Playground(Playground),
+    /// A removal's kept act.
+    KeptAct(KeptAct),
 }
 /// A bounded connector payload awaiting an authority holder's decision.
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -878,7 +1006,7 @@ pub struct ProposedEffect {
     pub entry: skein_forge_client::Entry,
 }
 
-/// Stable store key of a connector record.
+/// Stable store key of a connector record (temper/docs/design/draft/playground-reset.md, 3, 4, 6).
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash, Debug)]
 pub enum Key {
     Call(NamedCall),
@@ -914,6 +1042,14 @@ pub enum Key {
     },
     Landing(u64),
     Receipt(ReceiptKey),
+    /// A forge the deployment keeps.
+    Forge(u16),
+    /// The next forge number.
+    ForgeNumbers,
+    /// The playground's row.
+    Playground,
+    /// A removal's kept act.
+    KeptAct([u8; 16]),
 }
 /// A completed phase of the connector's restart contract.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -987,7 +1123,7 @@ pub struct ChangeDependencies {
     pub pending: Box<[u64]>,
 }
 
-/// A parent or child input to the connector top.
+/// A parent or child input to the connector (temper/docs/design/draft/playground-reset.md, 4, 6).
 #[derive(PartialEq, Eq, Debug)]
 pub enum Event {
     OrderLanding {
@@ -1350,8 +1486,40 @@ pub enum Event {
     ReadAfresh,
     /// Look for each restored uncertain entry before procedures step.
     SettleOutbox,
+    /// The box answered `removed N`.
+    GroupRemoved {
+        forge: u16,
+    },
+    /// The forge's secrets are durably erased.
+    SecretsErased {
+        forge: u16,
+    },
+    /// The core answered a kept Cancel; keep while it must be sent again.
+    KeptActAnswered {
+        key: [u8; 16],
+        keep: bool,
+    },
+    /// Send the kept acts and reset's act again after a start.
+    SendKeptActs,
+    /// The playground's project was made.
+    PlaygroundProject {
+        project: u32,
+    },
+    /// The playground's scripted account was added.
+    PlaygroundAccount {
+        account: u32,
+    },
+    /// The playground's start ended with its answer.
+    PlaygroundAnswered {
+        answer: StartAnswer,
+    },
+    /// The core answered the reset's act; keep while it must be sent again.
+    ResetActed {
+        act: ResetAct,
+        keep: bool,
+    },
 }
-/// The connector's output to the root, including child API calls.
+/// The connector's output to the root (temper/docs/design/draft/playground-reset.md, 3, 4, 6).
 #[derive(PartialEq, Eq, Debug)]
 pub enum Request {
     LandingDecision {
@@ -1380,6 +1548,22 @@ pub enum Request {
     SetUpGroup {
         forge: u16,
         request: Token,
+        /// The record's setup entry.
+        entry: Box<[u8]>,
+    },
+    /// Stop the forge's box group and remove its files.
+    RemoveGroup {
+        forge: u16,
+    },
+    /// Erase the forge's records in the secrets store.
+    EraseSecrets {
+        forge: u16,
+    },
+    /// A forge made, restored at start, or its record changed.
+    Register(ForgeRecord),
+    /// Drop a removed forge from the forge layer and setup host.
+    Unregister {
+        forge: u16,
     },
     DemoStart {
         request: Token,
@@ -1606,6 +1790,125 @@ pub enum Request {
     RestartDone {
         stage: RestartStage,
     },
+    /// Send one kept removal act to its taker.
+    SendKeptAct(KeptAct),
+    /// Make the decided playground's project, account and adoption.
+    PlaygroundStart {
+        request: Token,
+    },
+    /// Send the reset's current step to the core as the deployment's act.
+    ResetAct(ResetAct),
+}
+
+/// What `MakeForge` makes (temper/docs/design/draft/playground-reset.md, 3).
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum ForgeChoice {
+    /// The machine's owned Forgejo.
+    Owned,
+    /// The machine's managed GitHub.
+    GitHub,
+    /// A Forgejo elsewhere: `api` is `host:port`, `git` and `web` URL bases.
+    Forgejo { api: Box<[u8]>, git: Box<[u8]>, web: Option<Box<[u8]>> },
+}
+/// The forge creation's answer (temper/docs/design/draft/playground-reset.md, 3).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum MakeAnswer {
+    /// The forge made and numbered.
+    Made { forge: u16 },
+    /// The forge was not made.
+    Refused(MakeRefusal),
+}
+/// Why a forge cannot be made (temper/docs/design/draft/playground-reset.md, 3).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum MakeRefusal {
+    /// No forge number or record capacity remains.
+    Full,
+    /// The requested forge is not offered.
+    NotOffered,
+}
+/// The removal's answer (temper/docs/design/draft/playground-reset.md, 4).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum RemoveAnswer {
+    /// The removal was decided.
+    Removing,
+    /// No removal was decided.
+    Refused(RemoveRefusal),
+}
+/// Why a forge cannot be removed (temper/docs/design/draft/playground-reset.md, 4).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum RemoveRefusal {
+    /// The forge does not exist.
+    NoSuchForge,
+    /// The playground is removed through its reset.
+    Playground,
+}
+/// The reset's answer (temper/docs/design/draft/playground-reset.md, 6).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum EndAnswer {
+    /// The reset ended and its row is erased.
+    Reset,
+    /// No playground row exists.
+    NotOffered,
+}
+
+/// The playground's row (temper/docs/design/draft/playground-reset.md, 6); no row is not started.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct Playground {
+    /// The playground running or resetting.
+    pub state: PlaygroundState,
+    /// The playground's fake forge.
+    pub forge: u16,
+    /// The playground's project, once made.
+    pub project: Option<u32>,
+    /// The scripted account, once added.
+    pub account: Option<u32>,
+}
+/// The playground running or resetting (temper/docs/design/draft/playground-reset.md, 6).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum PlaygroundState {
+    /// The playground is running.
+    Running,
+    /// The reset is at this step.
+    Resetting(ResetStep),
+}
+/// The reset's ordered steps (temper/docs/design/draft/playground-reset.md, 6).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum ResetStep {
+    /// Delete the playground's project.
+    Project,
+    /// Remove the playground's forge.
+    Forge,
+    /// Remove the scripted account.
+    Account,
+}
+/// A removal's act, kept until answered (temper/docs/design/draft/playground-reset.md, 4).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct KeptAct {
+    /// The act's replay key.
+    pub key: [u8; 16],
+    /// The removal's forge.
+    pub forge: u16,
+    /// The act kept until answered.
+    pub act: KeptActKind,
+}
+/// A removal's kept act (temper/docs/design/draft/playground-reset.md, 4).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum KeptActKind {
+    /// jig's `Act::Cancel` (contracts J8), reason `Forge removed`.
+    Cancel { project: u32, task: u64 },
+    /// The box link's `remove N`, done on `removed N`.
+    RemoveGroup,
+    /// Serve's erasure of the forge's secrets, done once durable.
+    EraseSecrets,
+}
+
+/// A reset step the core takes (temper/docs/design/draft/playground-reset.md, 6).
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum ResetAct {
+    /// Delete the playground's project.
+    RemoveProject { project: u32 },
+    /// Remove the scripted account.
+    RemoveAccount { account: u32 },
 }
 
 /// The demo's durable state (protocol/setup.md, 8.4).
@@ -1646,4 +1949,37 @@ pub enum DemoActKind {
 pub struct Unfinished {
     pub entry: u64,
     pub task: u64,
+}
+
+impl ForgeRecord {
+    /// The GitHub defaults (temper/docs/design/draft/playground-reset.md, 3).
+    #[must_use]
+    pub fn github_com() -> Self {
+        Self {
+            number: 0,
+            kind: Kind::GitHub,
+            mode: Mode::Managed,
+            api: Api {
+                host: Box::from(&b"api.github.com"[..]),
+                port: 443,
+                transport: ApiTransport::Tls { server_name: Box::from(&b"api.github.com"[..]), trust: None },
+            },
+            git: Box::from(&b"https://github.com"[..]),
+            git_program: None,
+            web: Some(Box::from(&b"https://github.com"[..])),
+            read_only: false,
+            bot: Bot { login: Box::new([]), name: Box::new([]), email: Box::new([]) },
+            setup: None,
+            first: None,
+            playground: false,
+            state: ForgeState::Kept,
+        }
+    }
+}
+impl Machine {
+    /// Neutral machine templates (temper/docs/design/draft/playground-reset.md, 3).
+    #[must_use]
+    pub fn bare() -> Self {
+        Self { owned: None, github: ForgeRecord::github_com(), playground: None }
+    }
 }

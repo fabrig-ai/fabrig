@@ -745,6 +745,10 @@ impl World {
             | engine::Request::Install { .. }
             | engine::Request::Accept { .. }
             | engine::Request::EraseCarried { .. }
+            | engine::Request::RemoveGroup { .. }
+            | engine::Request::EraseSecrets { .. }
+            | engine::Request::Register(_)
+            | engine::Request::Unregister { .. }
             | engine::Request::StopGroup { .. }
             | engine::Request::SetUp { .. }
             | engine::Request::Bound { .. }
@@ -791,6 +795,10 @@ impl World {
             | engine::Request::Install { .. }
             | engine::Request::Accept { .. }
             | engine::Request::EraseCarried { .. }
+            | engine::Request::RemoveGroup { .. }
+            | engine::Request::EraseSecrets { .. }
+            | engine::Request::Register(_)
+            | engine::Request::Unregister { .. }
             | engine::Request::StopGroup { .. }
             | engine::Request::SetUp { .. }
             | engine::Request::Bound { .. }
