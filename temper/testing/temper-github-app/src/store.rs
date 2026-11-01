@@ -12,13 +12,24 @@ use std::{
 };
 
 type Rows = Vec<(u64, Box<[u8]>)>;
+type ApplicationRow = (Box<[u8]>, Box<[u8]>);
+type ApplicationRows = Vec<ApplicationRow>;
+pub(super) struct Loaded {
+    pub secrets: Rows,
+    pub application: ApplicationRows,
+}
 const OWNER: Token = Token::new(1);
 const CLOSE: Token = Token::new(u64::MAX);
 const MASK: u64 = (1 << 60) - 1;
 const ROOM: u32 = 128;
 const OPERATIONS: u32 = 64;
 
-pub(super) fn run(data: &Path, records: &[(u64, Box<[u8]>)], load: bool) -> Result<Rows, String> {
+pub(super) fn run(
+    data: &Path,
+    application_rows: &[ApplicationRow],
+    records: &[(u64, Box<[u8]>)],
+    load: bool,
+) -> Result<Loaded, String> {
     let jig = jig_protocol_config::profile(jig_protocol_config::Profile::Small);
     let own = temper_service::limits::profile(temper_service::limits::Profile::Small);
     let root = temper_service::limits::engine(&jig, &own).ok_or("fixture engine limits")?;
@@ -70,7 +81,8 @@ pub(super) fn run(data: &Path, records: &[(u64, Box<[u8]>)], load: bool) -> Resu
         submissions: Queue::with_capacity(OPERATIONS),
         request: Some(Request::Open { owner: OWNER, root: protocol::Root { token, fd }, installation: [0; 16] }),
         records: records.iter().cloned().collect(),
-        rows: Vec::new(),
+        application: application_rows.to_vec(),
+        rows: Loaded { secrets: Vec::new(), application: Vec::new() },
         load,
         last: 0,
         closing: false,
@@ -97,7 +109,8 @@ struct StoreHost {
     submissions: Queue<Submit>,
     request: Option<Request>,
     records: VecDeque<(u64, Box<[u8]>)>,
-    rows: Rows,
+    application: ApplicationRows,
+    rows: Loaded,
     load: bool,
     last: u64,
     closing: bool,
@@ -112,12 +125,23 @@ impl StoreHost {
     }
     fn mark(&mut self, mut header: jig_domain_core::Deployment) {
         header.commits = self.last + 1;
-        self.request = Some(Request::Commit {
-            number: header.commits,
-            writes: Box::new([
-                protocol::Write::Save(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Deployment(header))),
-                protocol::Write::Wires,
-            ]),
+        let number = header.commits;
+        let mut writes = vec![
+            protocol::Write::Save(jig_domain_core::Record::Core(jig_domain_core::CoreRecord::Deployment(header))),
+            protocol::Write::Wires,
+        ];
+        for (key, value) in self.application.drain(..) {
+            writes.push(protocol::Write::Put { key, value });
+        }
+        self.request = Some(Request::Commit { number, writes: writes.into_boxed_slice() });
+    }
+    fn load_application(&mut self, after: Option<protocol::Cursor>) {
+        self.request = Some(Request::Load {
+            owner: OWNER,
+            range: protocol::Load::Application(Box::new([temper_protocol_store::interval()])),
+            after,
+            rows: self.limits.store.page.rows,
+            bytes: u64::from(self.limits.store.page.bytes),
         });
     }
     fn next(&mut self) {
@@ -180,7 +204,7 @@ impl StoreHost {
             Event::SecretsLoaded { rows, next, .. } => {
                 for row in rows {
                     if let protocol::SecretValue::Application(value) = row.value {
-                        self.rows.push((row.number, value.expose().into()));
+                        self.rows.secrets.push((row.number, value.expose().into()));
                     }
                 }
                 if let Some(after) = next {
@@ -188,6 +212,21 @@ impl StoreHost {
                         owner: OWNER,
                         request: Secrets::Load { owner: SecretOwner::Application, after: Some(after) },
                     });
+                } else {
+                    self.load_application(None);
+                }
+            }
+            Event::Loaded { rows, next, .. } => {
+                for row in rows {
+                    let protocol::Row::Application { key, value } = row else {
+                        self.error = Some("fixture application load returned a jig row".into());
+                        self.closing = true;
+                        return;
+                    };
+                    self.rows.application.push((key, value));
+                }
+                if let Some(after) = next {
+                    self.load_application(Some(after));
                 } else {
                     self.closing = true;
                 }
