@@ -18,3 +18,5 @@ mod fuzzy {
     mod simulation;
     mod start_restore;
 }
+
+mod project_gone;

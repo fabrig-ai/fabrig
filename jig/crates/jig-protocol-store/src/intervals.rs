@@ -127,6 +127,17 @@ pub fn notes(range: &notes::Range) -> Box<[Range]> {
 #[must_use]
 pub fn sweep(sweep: &core::reads::Sweep) -> Box<[Range]> {
     match sweep {
+        core::reads::Sweep::Recurring { project } => {
+            Box::new([numbered_prefix(&[keys::JIG, 1, 7, 2], u64::from(*project))])
+        }
+        core::reads::Sweep::Proposals { after: proposal } => {
+            let mut range = Range::prefix(&[keys::JIG, 1, 8]);
+            if let Some(proposal) = proposal {
+                range.start = after(&encoded(&core::Key::Tasks(jig_domain_tasks::Key::DecidedProposal(*proposal))));
+            }
+            Box::new([range])
+        }
+
         core::reads::Sweep::Ended { after: task } => {
             let mut range = Range::prefix(&[keys::JIG, 1, 6]);
             range.start = after(&encoded(&core::Key::Tasks(jig_domain_tasks::Key::Ended(*task))));

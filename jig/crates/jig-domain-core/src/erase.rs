@@ -54,7 +54,9 @@ pub(crate) fn swept(
     more: bool,
 ) -> Requests {
     let mut out = Queue::uncapped();
-    let Some(erasure) = core.erasures.get(&owner) else { return Requests::Out(out) };
+    let Some(erasure) = core.erasures.get(&owner) else {
+        return crate::project_rows::swept(core, env, work, owner, rows, more);
+    };
     let task = erasure.record.number;
     for row in rows {
         let key = row.key();

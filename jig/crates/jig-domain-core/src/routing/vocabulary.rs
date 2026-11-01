@@ -978,7 +978,8 @@ fn tasks_new_work(event: &tasks::Event) -> bool {
         | tasks::Event::CancelQuestion { .. }
         | tasks::Event::Restore { .. }
         | tasks::Event::Check
-        | tasks::Event::Restored => false,
+        | tasks::Event::Restored
+        | tasks::Event::ProjectGone { .. } => false,
     }
 }
 
@@ -1066,7 +1067,8 @@ fn account_new_work(event: &accounts::Event) -> bool {
         | accounts::Event::Opened { .. }
         | accounts::Event::NotOurs { .. }
         | accounts::Event::Adopted { .. }
-        | accounts::Event::Close => false,
+        | accounts::Event::Close
+        | accounts::Event::ProjectGone { .. } => false,
     }
 }
 
@@ -1097,7 +1099,8 @@ fn notes_new_work(event: &notes::Event) -> bool {
         notes::Event::LoadFailed { .. }
         | notes::Event::Loaded { .. }
         | notes::Event::Restore { .. }
-        | notes::Event::Restored => false,
+        | notes::Event::Restored
+        | notes::Event::ProjectGone { .. } => false,
     }
 }
 

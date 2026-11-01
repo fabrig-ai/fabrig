@@ -187,3 +187,63 @@ fn a_core_transcript_drop_removes_the_file_and_its_places() {
         .expect("attempt key");
     assert!(fixtures::get_kv(&mut store, &attempt).is_none());
 }
+
+#[test]
+fn the_recurring_sweep_admits_only_its_projects_closed_recurring_ledgers() {
+    use jig_domain_tasks::{Funder, Stored};
+    let mut all = Vec::new();
+    let mut expected = Vec::new();
+    for project in [2, PROJECT, 4] {
+        for funder in [
+            Funder::Task(TASK),
+            Funder::Pool { project, person: 1, period: 5 },
+            Funder::Recurring { project, task: TASK, period: 5 },
+            Funder::Recurring { project, task: TASK, period: 6 },
+            Funder::Period { project, period: 5 },
+        ] {
+            let mut row = fixtures::task_funding();
+            row.funder = funder;
+            row.closed = true;
+            let closed = core::Record::Tasks(Stored::ClosedLedger(row));
+            if let Funder::Recurring { project: PROJECT, .. } = funder {
+                expected.push(closed.clone());
+            }
+            all.push(closed);
+            row.closed = false;
+            all.push(core::Record::Tasks(Stored::Ledger(row)));
+        }
+    }
+    all.extend(task_rows(TASK));
+    let sweep = Sweep::Recurring { project: PROJECT };
+    for row in &all {
+        assert_eq!(sweep.admits(&row.key()), expected.contains(row));
+    }
+    let mut store = planted(&all);
+    assert_eq!(swept(&mut store, sweep), expected);
+}
+
+#[test]
+fn the_proposals_sweep_admits_the_decided_proposals_family_only() {
+    use jig_domain_tasks::{PersonProposalState, Stored};
+    let mut all = task_rows(TASK);
+    let mut expected = Vec::new();
+    for number in [1, 2, 3, u64::MAX] {
+        let mut row = fixtures::task_person_proposal();
+        row.number = number;
+        all.push(core::Record::Tasks(Stored::PersonProposal(Box::new(row.clone()))));
+        row.state = PersonProposalState::Withdrawn { at: skein_lib::Wall::from_nanos(47) };
+        let decided = core::Record::Tasks(Stored::DecidedProposal(Box::new(row)));
+        expected.push(decided.clone());
+        all.push(decided);
+    }
+    for row in &all {
+        assert_eq!(Sweep::Proposals { after: None }.admits(&row.key()), expected.contains(row));
+    }
+    let mut store = planted(&all);
+    assert_eq!(swept(&mut store, Sweep::Proposals { after: None }), expected);
+    let after = Sweep::Proposals { after: Some(2) };
+    assert!(!after.admits(&core::Key::Tasks(jig_domain_tasks::Key::DecidedProposal(2))));
+    assert!(after.admits(&core::Key::Tasks(jig_domain_tasks::Key::DecidedProposal(3))));
+    assert_eq!(swept(&mut store, after), expected[2..].to_vec());
+    assert!(swept(&mut store, Sweep::Proposals { after: Some(u64::MAX) }).is_empty());
+}

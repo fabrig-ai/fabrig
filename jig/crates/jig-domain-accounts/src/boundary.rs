@@ -73,6 +73,10 @@ pub struct Grant {
 /// confirmed the revocation (2.3).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Event {
+    /// Drop the deleted project's state after its tasks are erased.
+    ProjectGone {
+        project: u32,
+    },
     Restore {
         record: Stored,
     },

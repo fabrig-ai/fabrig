@@ -41,6 +41,7 @@ pub mod forget;
 mod funding;
 mod goal_of;
 mod goals;
+mod project_rows;
 pub use goals::CreateStart;
 mod account_preference;
 mod coverage;
@@ -305,6 +306,7 @@ pub struct Core {
     pub(crate) census_position: Option<(u64, u64, u64)>,
     pub(crate) ended_marks: Map<Token, ended_marks::Loaded>,
     pub(crate) erasures: Map<Token, erase::Erasing>,
+    pub(crate) row_sweeps: Map<Token, project_rows::RowSweep>,
     pub(crate) archived_chats: Map<u64, inbox::ArchivedChat>,
     pub(crate) proposed_input: Option<Result<Box<settings::Proposal>, people::Malformed>>,
     pub(crate) settings_offering: Option<(Token, u64, u32, settings::Proposal)>,
@@ -692,6 +694,7 @@ impl Core {
             census_position: None,
             ended_marks: Map::with_capacity(limits.people.pending),
             erasures: Map::with_capacity(limits.authority.projects),
+            row_sweeps: Map::with_capacity(limits.authority.projects),
             archived_chats: Map::with_capacity(
                 limits
                     .people

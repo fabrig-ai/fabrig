@@ -91,6 +91,7 @@ pub(super) fn route_historical_escalation(
 #[expect(clippy::too_many_arguments, reason = "the route retains its event fields")]
 pub(super) fn route_historical_proposal(
     core: &mut Core,
+    env: &Env<Limits>,
     work: &mut Queue<Event>,
     request: Token,
     person: u64,
@@ -100,6 +101,9 @@ pub(super) fn route_historical_proposal(
     row: Option<crate::ProposalDecisionRecord>,
     busy: bool,
 ) -> Requests {
+    if core.row_sweeps.contains_key(&request) {
+        return crate::project_rows::decision_loaded(core, env, work, request, row, busy);
+    }
     let outcome = if busy {
         people::Outcome::Again(people::Again::Busy)
     } else if let Some(row) = row {
