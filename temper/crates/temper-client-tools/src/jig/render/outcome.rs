@@ -668,6 +668,8 @@ fn moved_in(account: u32, renewed: bool, out: &mut Text) {
     }
 }
 
+mod ceiling;
+
 fn refused_text(operation: &Operation, refusal: &c::Refusal, me: Option<&c::Me>, limits: &Limits, out: &mut Text) {
     if operation.word == b"close"
         && ended_refusal(refusal, operation.ended_task.is_some())
@@ -692,6 +694,13 @@ fn refused_text(operation: &Operation, refusal: &c::Refusal, me: Option<&c::Me>,
             out.put(b": ");
             acts::refusal(refusal, &document::phrasebook(limits.text), out);
         }
+        return;
+    }
+    if let (Some(project), c::Refusal::Authority { lacking: c::Lacking::Ceiling { holder, dimension, value, .. }, .. }) =
+        (operation.project, refusal)
+        && operation.word == b"project fund"
+    {
+        ceiling::text(project, *holder, *dimension, *value, limits.application, out);
         return;
     }
     if let (Some(project), c::Refusal::Authority { lacking: c::Lacking::Budget { needed, left }, .. }) =

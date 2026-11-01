@@ -338,3 +338,15 @@ fn a_kept_stream_name_is_sent_gone_before_the_first_open() {
         assert!(h.has(&Request::OpenStream { credential: None }), "lost={lost}");
     }
 }
+
+#[test]
+fn a_full_stream_tells_the_bound_and_drops_its_watches_without_signing_out() {
+    let mut harness = fixtures::Harness::streaming(fixtures::frame_subject());
+    harness.clear();
+    let full = StreamsFull { bound: StreamBound::Component, size: 2 };
+    harness.link.step(Time::ZERO, Event::Streamed { message: Streamed::Full(full) }, &mut harness.out);
+    assert!(harness.has(&Request::StreamsFull { full }));
+    assert!(harness.has(&Request::CloseStream));
+    assert_eq!(harness.ended(fixtures::WATCH), Some(c::WatchEnd::Dropped));
+    assert!(!harness.has(&Request::Signing { signing: Signing::SignedOut }));
+}

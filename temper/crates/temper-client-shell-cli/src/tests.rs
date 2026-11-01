@@ -152,6 +152,29 @@ fn an_unheard_read_exits_1_at_the_link_deadline() {
     assert_eq!(f.exit(), Some(Exit::Code(1)));
 }
 #[test]
+fn streams_full_exits_one_as_soon_as_the_bound_is_known() {
+    for bound in [jig_client_protocol_wire::StreamBound::Component, jig_client_protocol_wire::StreamBound::Transport] {
+        for words in [&["me"][..], &["task", "show", "41", "--until", "changed"][..]] {
+            let mut f = fixtures::Engine::read(words);
+            f.streams_full = Some((bound.clone(), 2));
+            f.drain();
+            assert_eq!(f.exit(), Some(Exit::Code(1)));
+            assert_eq!(f.stderr(), b"temper ctl: the engine's 2 streams are all in use, by waits and open clients; end one, or wait and call again\n");
+            assert!(f.stderr().len() <= 240);
+            assert!(f.stdout().is_empty());
+        }
+    }
+}
+#[test]
+fn streams_full_uses_the_reported_size_within_the_diagnostic_bound() {
+    let mut f = fixtures::Engine::read(&["me"]);
+    f.streams_full = Some((jig_client_protocol_wire::StreamBound::Transport, u32::MAX));
+    f.drain();
+    assert_eq!(f.exit(), Some(Exit::Code(1)));
+    assert_eq!(f.stderr(), b"temper ctl: the engine's 4294967295 streams are all in use, by waits and open clients; end one, or wait and call again\n");
+    assert!(f.stderr().len() <= 240);
+}
+#[test]
 fn a_read_sends_no_stream_gone() {
     let mut f = fixtures::Engine::read(&["me"]);
     f.sign_in_then_deliver_me();

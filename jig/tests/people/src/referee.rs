@@ -141,6 +141,7 @@ fn filled(why: Refusal) -> bool {
             | Lack::ResourceAccess
             | Lack::ResourceUnavailable
             | Lack::Again { .. }
+            | Lack::Ceiling { .. }
             | Lack::Shape
             | Lack::Account
             | Lack::Writer

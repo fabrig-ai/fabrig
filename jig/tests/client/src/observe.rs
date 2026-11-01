@@ -270,6 +270,7 @@ pub fn up_received(up: &jig_client::Up) -> Vec<Receipt> {
             vec![Receipt::Parked]
         }
         Up::SignedIn
+        | Up::StreamsFull { .. }
         | Up::NotKept { .. }
         | Up::Served { served: true, .. }
         | Up::FamilyServed { .. }

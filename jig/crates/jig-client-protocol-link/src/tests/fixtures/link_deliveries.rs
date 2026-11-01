@@ -104,6 +104,7 @@ impl Harness {
                 | Request::Signing { .. }
                 | Request::ServiceCredential { .. }
                 | Request::Authorized(_)
+                | Request::StreamsFull { .. }
                 | Request::Fact { .. } => {}
             }
         }

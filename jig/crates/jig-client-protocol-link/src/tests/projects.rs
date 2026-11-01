@@ -117,3 +117,40 @@ fn remove_project_round_trips_through_the_link() {
     );
     assert_eq!(translate::documents::act_kind_fields(&w::ActKind::RemoveProject), c::ActKind::RemoveProject);
 }
+
+#[test]
+fn ceiling_refusals_keep_holders_dimensions_and_scalar_values() {
+    for (holder, wire_holder) in [
+        (c::CeilingHolder::Rules, w::CeilingHolder::Rules),
+        (c::CeilingHolder::Policy, w::CeilingHolder::Policy),
+        (
+            c::CeilingHolder::Role(0),
+            w::CeilingHolder::Role(w::CeilingRole::new(&w::CEILINGS, w::CeilingRoleParts { role: 0 }).unwrap()),
+        ),
+    ] {
+        for (dimension, wire_dimension, value, asked) in [
+            (c::CeilingDimension::PeriodSpend, w::CeilingDimension::PeriodSpend, Some(1000), Some(1001)),
+            (c::CeilingDimension::Spend, w::CeilingDimension::Spend, Some(500), Some(501)),
+            (c::CeilingDimension::Tools, w::CeilingDimension::Tools, None, None),
+            (c::CeilingDimension::Tasks, w::CeilingDimension::Tasks, Some(3), Some(4)),
+            (c::CeilingDimension::Depth, w::CeilingDimension::Depth, Some(2), Some(3)),
+            (c::CeilingDimension::Executors, w::CeilingDimension::Executors, None, None),
+            (c::CeilingDimension::Grants, w::CeilingDimension::Grants, None, None),
+            (c::CeilingDimension::Deadline, w::CeilingDimension::Deadline, Some(10), None),
+            (c::CeilingDimension::Notes, w::CeilingDimension::Notes, None, None),
+        ] {
+            let wire = w::Lacking::Ceiling(
+                w::LackingCeiling::new(
+                    &w::CEILINGS,
+                    w::LackingCeilingParts { holder: wire_holder.clone(), dimension: wire_dimension, value, asked },
+                )
+                .unwrap(),
+            );
+            let mut bytes = Writer::new(usize::try_from(wire.measure()).unwrap());
+            wire.encode(&mut bytes).unwrap();
+            let bytes = bytes.finish();
+            let decoded = w::Lacking::decode(&w::CEILINGS, &mut Reader::new(&bytes)).unwrap();
+            assert_eq!(answers::lacking(&decoded), c::Lacking::Ceiling { holder, dimension, value, asked });
+        }
+    }
+}

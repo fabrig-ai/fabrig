@@ -600,7 +600,11 @@ handles, as every presentation does (sections 7 and 8).
 
   Beside its state, the link names the party confirmed, each declared
   owner whose version the last hello does not serve (below), and a
-  sign-out that did not reach the engine (section 12).
+  sign-out that did not reach the engine (section 12). A stream refused
+  full adds `streams_full { bound, size }`, naming the component or
+  transport bound (`../../protocol/client.md`, 4 and 17.2). `Link(state)`
+  tells the caller when this fact arrives even if the state is unchanged;
+  it stays through retries until `me` returns or the sign-in ends.
 - **Judged from the stream alone,** whatever the application watches. A
   request that got no answer while the link is live is sent again after
   a backoff, and does not by itself make the client offline.

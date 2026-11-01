@@ -137,8 +137,14 @@ impl Shell {
         self.host.clocks(now, wall);
         let mut new_page = false;
         while let Some(report) = inbox.next() {
-            let read_on =
-                matches!(&report, Report::Fetch(fetch::Report::StreamOpened | fetch::Report::StreamPiece { .. }));
+            let read_on = matches!(
+                &report,
+                Report::Fetch(
+                    fetch::Report::StreamOpened
+                        | fetch::Report::StreamRefused { .. }
+                        | fetch::Report::StreamPiece { .. }
+                )
+            );
             let report = match report {
                 Report::Start => host::Report::Start,
                 #[cfg(feature = "record")]

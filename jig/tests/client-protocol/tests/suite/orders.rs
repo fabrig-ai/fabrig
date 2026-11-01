@@ -105,6 +105,7 @@ impl World {
                 | Request::Dropped
                 | Request::ServiceCredential { .. }
                 | Request::OpenStream { .. }
+                | Request::StreamsFull { .. }
                 | Request::Signing { .. }
                 | Request::CloseStream
                 | Request::Watch { .. }

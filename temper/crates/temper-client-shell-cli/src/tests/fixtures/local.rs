@@ -37,6 +37,15 @@ pub fn kept_close() -> Box<[u8]> {
 }
 impl Frame {
     pub(super) fn hello(&mut self, fd: Fd) {
+        if let Some((bound, size)) = &self.streams_full {
+            let record = w::StreamsFull::new(&w::CEILINGS, w::StreamsFullParts { bound: bound.clone(), size: *size })
+                .expect("full record");
+            let body = encode!(record);
+            let socket = self.sockets.get_mut(&fd).expect("stream request");
+            socket.reply.extend(format!("HTTP/1.1 409 Conflict\r\nContent-Length: {}\r\n\r\n", body.len()).bytes());
+            socket.reply.extend(body.iter().copied());
+            return;
+        }
         self.stream = Some(fd);
         self.sockets
             .get_mut(&fd)

@@ -107,6 +107,7 @@ impl Word {
             Self::Refusal(RefusalWord::Taken) => (34, b"Held by party ", &[HoleKind::Number]),
             Self::Refusal(RefusalWord::NotWaiting) => (35, b"This object waits for someone else", &[]),
             Self::Refusal(RefusalWord::NoFurther) => (36, b"This holder cannot pass further", &[]),
+            Self::Refusal(RefusalWord::Ceiling) => (121, b"Policy ceiling exceeded", &[]),
             Self::Refusal(RefusalWord::Authority) => (37, b"Authority missing", &[]),
             Self::Refusal(RefusalWord::Limit) => (38, b"Limit reached", &[]),
             Self::Refusal(RefusalWord::Moved) => (39, b"The object changed", &[]),

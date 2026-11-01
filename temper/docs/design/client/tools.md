@@ -1441,7 +1441,10 @@ as the terminal's host is:
   which its profile bounds (jig's `protocol/client.md`, section 13),
   only while its process runs, and calls that run one after another
   never wait on their predecessors' streams. A read or a wait sends no
-  stream gone itself (8.3).
+  stream gone itself (8.3). An opening refused full by either bound exits
+  1 as soon as its record arrives, with one stderr line, at most 240 bytes:
+  `temper ctl: the engine's N streams are all in use, by waits and open clients; end one, or wait and call again`.
+  It names the bound's size instead of waiting for the link deadline.
 - **A termination signal,** `SIGINT` or `SIGTERM`, arrives as skein's
   `Shutdown` (skein's `io.md`, section 7), and ends the call at once:
   it sends nothing more, leaves DIRECTORY's kept requests as they are,

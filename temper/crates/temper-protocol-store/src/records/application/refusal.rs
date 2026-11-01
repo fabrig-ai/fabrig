@@ -154,6 +154,15 @@ pub(super) fn decode_ending(value: w::Ending) -> p::Ending {
 }
 pub(super) fn encode_lack(value: &p::Lack, l: &w::Limits) -> Result<w::Lack, w::Problem> {
     Ok(match value {
+        p::Lack::Ceiling { holder, dimension, value, asked } => w::Lack::Ceiling(w::LackCeiling::new(
+            l,
+            w::LackCeilingParts {
+                holder: encode_ceiling_holder(*holder, l)?,
+                dimension: encode_ceiling_dimension(*dimension),
+                value: *value,
+                asked: *asked,
+            },
+        )?),
         p::Lack::HoldOwner { hold, owner } => {
             let owner = match owner {
                 p::HoldOwner::Party { person } => {
@@ -212,6 +221,12 @@ pub(super) fn decode_lack(value: w::Lack) -> p::Lack {
                 w::HoldOwner::Party(owner) => p::HoldOwner::Party { person: owner.person() },
                 w::HoldOwner::Task(owner) => p::HoldOwner::Task { task: owner.task() },
             },
+        },
+        w::Lack::Ceiling(row) => p::Lack::Ceiling {
+            holder: decode_ceiling_holder(row.holder()),
+            dimension: decode_ceiling_dimension(row.dimension()),
+            value: *row.value(),
+            asked: *row.asked(),
         },
         w::Lack::Approver => p::Lack::Approver,
         w::Lack::Budget(value) => p::Lack::Budget { needs: value.needs(), left: value.left() },
@@ -704,6 +719,49 @@ const fn decode_bound(value: w::Bound) -> p::Bound {
         w::Bound::History => p::Bound::History,
         w::Bound::Window => p::Bound::Window,
         w::Bound::Output => p::Bound::Output,
+    }
+}
+
+fn encode_ceiling_holder(value: p::CeilingHolder, limits: &w::Limits) -> Result<w::CeilingHolder, w::Problem> {
+    Ok(match value {
+        p::CeilingHolder::Rules => w::CeilingHolder::Rules,
+        p::CeilingHolder::Policy => w::CeilingHolder::Policy,
+        p::CeilingHolder::Role(role) => {
+            w::CeilingHolder::Role(w::CeilingRole::new(limits, w::CeilingRoleParts { role })?)
+        }
+    })
+}
+fn decode_ceiling_holder(value: &w::CeilingHolder) -> p::CeilingHolder {
+    match value {
+        w::CeilingHolder::Rules => p::CeilingHolder::Rules,
+        w::CeilingHolder::Policy => p::CeilingHolder::Policy,
+        w::CeilingHolder::Role(row) => p::CeilingHolder::Role(row.role()),
+    }
+}
+fn encode_ceiling_dimension(value: p::CeilingDimension) -> w::CeilingDimension {
+    match value {
+        p::CeilingDimension::PeriodSpend => w::CeilingDimension::PeriodSpend,
+        p::CeilingDimension::Spend => w::CeilingDimension::Spend,
+        p::CeilingDimension::Tools => w::CeilingDimension::Tools,
+        p::CeilingDimension::Tasks => w::CeilingDimension::Tasks,
+        p::CeilingDimension::Depth => w::CeilingDimension::Depth,
+        p::CeilingDimension::Executors => w::CeilingDimension::Executors,
+        p::CeilingDimension::Grants => w::CeilingDimension::Grants,
+        p::CeilingDimension::Deadline => w::CeilingDimension::Deadline,
+        p::CeilingDimension::Notes => w::CeilingDimension::Notes,
+    }
+}
+fn decode_ceiling_dimension(value: &w::CeilingDimension) -> p::CeilingDimension {
+    match value {
+        w::CeilingDimension::PeriodSpend => p::CeilingDimension::PeriodSpend,
+        w::CeilingDimension::Spend => p::CeilingDimension::Spend,
+        w::CeilingDimension::Tools => p::CeilingDimension::Tools,
+        w::CeilingDimension::Tasks => p::CeilingDimension::Tasks,
+        w::CeilingDimension::Depth => p::CeilingDimension::Depth,
+        w::CeilingDimension::Executors => p::CeilingDimension::Executors,
+        w::CeilingDimension::Grants => p::CeilingDimension::Grants,
+        w::CeilingDimension::Deadline => p::CeilingDimension::Deadline,
+        w::CeilingDimension::Notes => p::CeilingDimension::Notes,
     }
 }
 

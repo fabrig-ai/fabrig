@@ -15,3 +15,7 @@
 - **Built:** 5.5, area 5: program declaration prints the box directory placeholders, the signed-in skip rule and the verify call; JSON next carries the command line. 7: spent-pool refusals keep their first figures and distinguish today's room with the new-key remedy.
 
 - **Built (2026-11-01):** 6.1: tree cuts print one total followed by one delegates read-on call per distinct fold parent.
+
+- **Built:** 5.3: `project fund` ceiling refusals name the rules, policy or role bound and its remedy; JSON preserves the ceiling's holder, dimension and value.
+
+- **Built:** 8.2: a full stream opening exits 1 immediately with the engine's stream count and the wait/open-client remedy, within 240 bytes; the command reference notes explain that a call holds a stream for its span.

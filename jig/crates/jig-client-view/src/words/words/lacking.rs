@@ -8,6 +8,11 @@ impl Words {
     /// Say missing authority, keeping unavailable requested facts absent.
     pub fn lacking(&self, b: &mut Builder, lacking: &Lacking) {
         match lacking {
+            Lacking::Ceiling { .. } => self.text(
+                b,
+                JigPhrase::Word(jig_client::words::Word::Refusal(jig_client::words::RefusalWord::Ceiling)),
+                &[],
+            ),
             Lacking::Approver => self.text(b, JigPhrase::ApprovalAuthorityMissing, &[]),
             Lacking::Budget { needed, left } => {
                 self.text(b, JigPhrase::BudgetMissing, &[Hole::Amount(*left), Hole::Amount(*needed)]);

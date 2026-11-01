@@ -68,6 +68,7 @@ fn another_status_other_than_200_ends_the_stream() {
         let mut stream = Stream::new(&fixtures::stream_limits());
         let mut out = Queue::with_capacity(4);
         stream.opened(status, &mut out);
+        stream.ended(&mut out);
         assert_eq!(out.pop(), Some(Heard::StreamGone), "status {status}");
         assert!(out.is_empty(), "status {status}");
     }
@@ -94,5 +95,52 @@ fn valid_refuses_each_unrepresentable_limit() {
         crate::Limits { record: 3_221_225_400, ..base },
     ] {
         assert!(!crate::valid(&limits), "{limits:?}");
+    }
+}
+
+#[test]
+fn a_409_with_a_bound_record_is_full_at_every_cut() {
+    for bound in [jig_client_protocol_wire::StreamBound::Component, jig_client_protocol_wire::StreamBound::Transport] {
+        let record = jig_client_protocol_wire::StreamsFull::new(
+            &jig_client_protocol_wire::CEILINGS,
+            jig_client_protocol_wire::StreamsFullParts { bound: bound.clone(), size: 2 },
+        )
+        .unwrap();
+        let mut writer = skein_lib::Writer::new(usize::try_from(record.measure()).unwrap());
+        record.encode(&mut writer).unwrap();
+        let body = writer.finish();
+        for cut in 0..=body.len() {
+            let mut stream = Stream::new(&fixtures::stream_limits());
+            let mut out = Queue::uncapped();
+            stream.opened(409, &mut out);
+            stream.body(&body[..cut], &mut out);
+            stream.body(&body[cut..], &mut out);
+            assert!(out.is_empty());
+            stream.ended(&mut out);
+            let bound = match bound {
+                jig_client_protocol_wire::StreamBound::Component => jig_client_protocol_link::StreamBound::Component,
+                jig_client_protocol_wire::StreamBound::Transport => jig_client_protocol_link::StreamBound::Transport,
+            };
+            assert_eq!(
+                out.pop(),
+                Some(Heard::Streamed {
+                    message: Streamed::Full(jig_client_protocol_link::StreamsFull { bound, size: 2 })
+                })
+            );
+            stream.ended(&mut out);
+            assert!(out.is_empty());
+        }
+    }
+}
+#[test]
+fn a_409_with_a_malformed_or_oversized_record_is_gone() {
+    for body in [b"".as_slice(), &[9, 2, 0, 0, 0], &[1, 2, 0], &[1, 2, 0, 0, 0, 0]] {
+        let mut stream = Stream::new(&fixtures::stream_limits());
+        let mut out = Queue::uncapped();
+        stream.opened(409, &mut out);
+        stream.body(body, &mut out);
+        stream.ended(&mut out);
+        assert_eq!(out.pop(), Some(Heard::StreamGone));
+        assert!(out.is_empty());
     }
 }

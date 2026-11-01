@@ -33,6 +33,7 @@ extern crate alloc;
 
 mod allowed;
 mod boundary;
+mod ceilings;
 mod check;
 mod domain;
 mod holders;
@@ -58,6 +59,7 @@ pub use boundary::{
     EffectAsk, EffectResource, Finding, Given, Holder, NoteScope, PersonAsk, PersonRequest, RunAnswer, RunAsk, Source,
     Verdict, Write, Writer,
 };
+pub use ceilings::{Ceiling, CeilingDimension, CeilingHolder, policy_ceiling};
 pub use check::{
     check_batch, check_call, check_effect, check_projection, check_request, check_request_with_standing, check_run,
     covers, needed_judges, needs,

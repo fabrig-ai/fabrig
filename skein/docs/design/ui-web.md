@@ -752,7 +752,10 @@ component instead (6.1).
   at a time: each piece, at most the bound the application gives (a
   longer one handed in parts), handed to the state machine as it comes,
   the next read asked by the loop after the step (5.2), so the platform
-  paces it. One stream at a time.
+  paces it. An opening refused with a status other than 200 reports that
+  status first, then reads the response body with the same bounded pieces
+  and pace until its end or the application's close; the application
+  interprets its refusal records. One stream at a time.
 - **The transport** takes a step's requests whole: the small store's
   writes first, then the exchanges and the stream, then the navigation
   away, if any, to a path on the origin or an `https` address the step

@@ -117,7 +117,6 @@ impl<R: 'static> Fetch<R> {
                 };
                 if response.status() != 200 {
                     shared.refuse_stream(ticket, response.status());
-                    return;
                 }
                 let reader =
                     response.body().and_then(|body| body.get_reader().dyn_into::<ReadableStreamDefaultReader>().ok());
@@ -134,7 +133,7 @@ impl<R: 'static> Fetch<R> {
                         false
                     }
                 };
-                if opened {
+                if opened && response.status() == 200 {
                     shared.inbox.raise((shared.wrap)(Report::StreamOpened));
                 }
             },
@@ -166,7 +165,9 @@ impl<R: 'static> Shared<R> {
     }
     fn refuse_stream(&self, ticket: u64, status: u16) {
         let report = self.fetch.borrow_mut().refuse_stream(ticket, status);
-        self.ended_stream(report);
+        if let Some(report) = report {
+            self.inbox.raise((self.wrap)(report));
+        }
     }
     fn ended_stream(&self, report: Option<Report>) {
         if let Some(report) = report {
