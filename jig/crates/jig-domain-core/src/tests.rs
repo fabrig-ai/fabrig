@@ -3468,6 +3468,8 @@ mod templates;
 
 mod forget;
 
+mod erase;
+
 mod coverage;
 
 mod open_shape;
