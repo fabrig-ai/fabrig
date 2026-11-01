@@ -1604,10 +1604,10 @@ into the binary.
   and propose, for `withdraw`), not charter 1's with settings added.
   smith's host part counts a run's brief beside its tools, so a brief
   is rendered within the room its charter leaves. The small profile
-  gives the host part 51,870 bytes: 34,242 for the largest stock
+  gives the host part 51,870 bytes: 34,524 for the largest stock
   charter's non-brief host part, 14,592 for the authorised brief and
-  1,472 for its 64 sections' titles and framing, a sum of 50,306 with
-  1,564 of margin. The stock brief fits whole; cutting from its last
+  1,472 for its 64 sections' titles and framing, a sum of 50,588 with
+  1,282 of margin. The stock brief fits whole; cutting from its last
   section is the fallback.
   Each charter leaves at least 2,048 bytes
   (`../domain/agent.md`, 4.3). A run is offered a family's tools
