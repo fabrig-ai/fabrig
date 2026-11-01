@@ -5,81 +5,48 @@ use skein_forge_setup::{github, host};
 use skein_lib::{CryptoRng, List, Writer};
 use temper_forge_setup::setup::Mode;
 
-pub(super) fn fixed(
+/// The machine settings used when a forge is kept after startup (draft 3).
+pub(crate) struct Context {
+    limits: crate::limits::Limits,
+    public: Option<crate::startup::application::Origin>,
+    listener: jig_protocol_config::Address,
+    pub(super) webhooks: Option<skein_io::Addr>,
+}
+impl Context {
+    #[expect(clippy::manual_map, reason = "the programming model uses explicit matches")]
+    pub(crate) fn new(config: &crate::settings::Engine) -> Self {
+        Self {
+            limits: config.limits,
+            public: config.clients.public.clone(),
+            listener: config.clients.listener.clone(),
+            webhooks: match &config.webhooks {
+                Some(hooks) => Some(hooks.listener),
+                None => None,
+            },
+        }
+    }
+}
+
+pub(crate) fn fixed(
     config: &crate::settings::Engine,
     forges: &skein_forge_connection::Settings,
 ) -> Result<(host::Settings, host::Limits), Problems> {
     let own = &config.limits;
-    let pure = own.setup.plan();
     check(&own.setup)?;
     let mut configured = List::with_capacity(own.forge.forges);
+    let context = Context::new(config);
     for endpoint in &forges.forges {
         let source = source_forge(config, endpoint.number);
-        let transport = match &endpoint.transport {
-            skein_forge_connection::settings::Transport::Plaintext { name } => {
-                host::Transport::Plaintext { name: name.clone() }
+        let mut entry = None;
+        for setup in &config.setup {
+            if setup.entry.forge == source.number {
+                entry = Some(&setup.entry);
+                break;
             }
-            skein_forge_connection::settings::Transport::Tls { server_name, trust } => {
-                host::Transport::Tls { server_name: server_name.clone(), trust: trust.clone() }
-            }
-        };
-        let skein_io::Addr::Ip(address) = endpoint.address else {
-            continue;
-        };
-        let plaintext = match &transport {
-            host::Transport::Plaintext { .. } => true,
-            host::Transport::Tls { .. } => false,
-        };
-        if plaintext && !address.ip().is_loopback() {
-            continue;
         }
-        // Every kind serves picker reads; writing plans use each configured setup entry.
-        if source.kind == crate::settings::Kind::Forgejo {
-            let given = forgejo(config, source)?;
-            configured
-                .push(host::Forge { kind: host::Kind::Forgejo(given), address: endpoint.address, transport })
-                .expect("configured host forges");
-            continue;
+        if let Some(forge) = one(&context, source, entry, config.records_only.contains(&source.number), endpoint)? {
+            configured.push(forge).expect("configured host forges");
         }
-        let url = match &config.clients.public {
-            Some(origin) => origin.base(),
-            None => listener(&config.clients.listener)?,
-        };
-        let number = skein_lib::Decimal::of(u64::from(source.number));
-        let given = github::given::Given {
-            forge: source.number,
-            // Another owner's App: its hook and installations are read, never changed (setup.md 17.7).
-            read_only: source.app_read_only,
-            word: Box::from(b"temper".as_slice()),
-            web: match &source.web {
-                Some(web) => web.clone(),
-                None => Box::from(b"https://github.com".as_slice()),
-            },
-            url: url.clone(),
-            redirect_url: joined(&[&url, b"forges/", number.as_bytes(), b"/github/redirect"]),
-            setup_url: joined(&[&url, b"forges/", number.as_bytes(), b"/github/setup"]),
-            limits: github::limits::Limits {
-                key_bytes: own.forge_component.key_bytes,
-                name_bytes: own.forge.name_bytes,
-                page_bytes: own.forge_component.body_bytes,
-                installations: own.forges.installations,
-                reachable: own.picker.page,
-                // At most one installation per page, plus the terminal empty page.
-                pages: own.forges.installations.checked_add(1).ok_or(problem(b"forges.installations"))?,
-                state_life: own.setup.state_life,
-                deadline: pure.deadline,
-                backoff: pure.backoff,
-                backoff_max: pure.backoff_max,
-            },
-        };
-        if let Err(refused) = github::given::check(&given) {
-            let mut found = Problems::empty();
-            problems(host::Unusable::GitHubGiven { forge: source.number, refused }, &mut found);
-            return Err(found);
-        }
-        configured
-            .push(host::Forge { kind: host::Kind::GitHub(given), address: endpoint.address, transport })
-            .expect("configured host forges");
     }
     let f = own.forge_component;
     let limits = host::Limits {
@@ -101,21 +68,88 @@ pub(super) fn fixed(
     };
     Ok((host::Settings { forges: configured, user_agent: Box::from(crate::forge::USER_AGENT.as_bytes()) }, limits))
 }
-fn forgejo(
-    config: &crate::settings::Engine,
+pub(crate) fn one(
+    config: &Context,
     source: &crate::settings::Forge,
-) -> Result<skein_forge_setup::given::Given, Problems> {
-    for setup in &config.setup {
-        if setup.entry.forge != source.number {
-            continue;
+    entry: Option<&temper_forge_setup::setup::Entry>,
+    records_only: bool,
+    endpoint: &skein_forge_connection::settings::Forge,
+) -> Result<Option<host::Forge>, Problems> {
+    let own = &config.limits;
+    let pure = own.setup.plan();
+    let transport = match &endpoint.transport {
+        skein_forge_connection::settings::Transport::Plaintext { name } => {
+            host::Transport::Plaintext { name: name.clone() }
         }
-        let listener = if !admin_connect(&setup.entry.mode)
-            && (config.records_only.contains(&source.number) || source.webhook_secret.is_some())
-        {
+        skein_forge_connection::settings::Transport::Tls { server_name, trust } => {
+            host::Transport::Tls { server_name: server_name.clone(), trust: trust.clone() }
+        }
+    };
+    let skein_io::Addr::Ip(address) = endpoint.address else {
+        return Ok(None);
+    };
+    let plaintext = match &transport {
+        host::Transport::Plaintext { .. } => true,
+        host::Transport::Tls { .. } => false,
+    };
+    if plaintext && !address.ip().is_loopback() {
+        return Ok(None);
+    }
+    // Every kind serves picker reads; writing plans use each configured setup entry.
+    if source.kind == crate::settings::Kind::Forgejo {
+        let given = forgejo(config, source, entry, records_only)?;
+        return Ok(Some(host::Forge { kind: host::Kind::Forgejo(given), address: endpoint.address, transport }));
+    }
+    let url = match &config.public {
+        Some(origin) => origin.base(),
+        None => listener(&config.listener)?,
+    };
+    let number = skein_lib::Decimal::of(u64::from(source.number));
+    let given = github::given::Given {
+        forge: source.number,
+        // Another owner's App: its hook and installations are read, never changed (setup.md 17.7).
+        read_only: source.app_read_only,
+        word: Box::from(b"temper".as_slice()),
+        web: match &source.web {
+            Some(web) => web.clone(),
+            None => Box::from(b"https://github.com".as_slice()),
+        },
+        url: url.clone(),
+        redirect_url: joined(&[&url, b"forges/", number.as_bytes(), b"/github/redirect"]),
+        setup_url: joined(&[&url, b"forges/", number.as_bytes(), b"/github/setup"]),
+        limits: github::limits::Limits {
+            key_bytes: own.forge_component.key_bytes,
+            name_bytes: own.forge.name_bytes,
+            page_bytes: own.forge_component.body_bytes,
+            installations: own.forges.installations,
+            reachable: own.picker.page,
+            // At most one installation per page, plus the terminal empty page.
+            pages: own.forges.installations.checked_add(1).ok_or(problem(b"forges.installations"))?,
+            state_life: own.setup.state_life,
+            deadline: pure.deadline,
+            backoff: pure.backoff,
+            backoff_max: pure.backoff_max,
+        },
+    };
+    if let Err(refused) = github::given::check(&given) {
+        let mut found = Problems::empty();
+        problems(host::Unusable::GitHubGiven { forge: source.number, refused }, &mut found);
+        return Err(found);
+    }
+    Ok(Some(host::Forge { kind: host::Kind::GitHub(given), address: endpoint.address, transport }))
+}
+fn forgejo(
+    config: &Context,
+    source: &crate::settings::Forge,
+    entry: Option<&temper_forge_setup::setup::Entry>,
+    records_only: bool,
+) -> Result<skein_forge_setup::given::Given, Problems> {
+    if let Some(entry) = entry {
+        let listener = if !admin_connect(&entry.mode) && (records_only || source.webhook_secret.is_some()) {
             match &config.webhooks {
-                Some(hooks) => match hooks.listener {
-                    skein_io::Addr::Ip(address) => Some(address),
-                    skein_io::Addr::InProcess(_) => unreachable!("checked webhooks listener"),
+                Some(address) => match address {
+                    skein_io::Addr::Ip(address) => Some(*address),
+                    skein_io::Addr::InProcess(_) => return Err(problem(b"setup")),
                 },
                 None => None,
             }
@@ -126,7 +160,7 @@ fn forgejo(
         let mut limits = config.limits.setup.plan();
         limits.repositories = config.limits.forge.client.repositories;
         limits.reachable = config.limits.picker.page;
-        let given = temper_forge_setup::given::values(&setup.entry, listener, &limits);
+        let given = temper_forge_setup::given::values(entry, listener, &limits);
         if let Err(refused) = skein_forge_setup::given::check(&given) {
             let mut found = Problems::empty();
             problems(host::Unusable::Given { forge: source.number, refused }, &mut found);
@@ -177,6 +211,7 @@ pub(crate) fn prepare(
         own.records.value_bytes,
         own.forge_component.installations,
     );
+    layer.context = Some(Context::new(config));
     for source in &config.forges {
         if source.kind == crate::settings::Kind::Forgejo
             && let Some(token) = &source.api_token

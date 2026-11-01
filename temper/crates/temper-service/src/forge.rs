@@ -1,6 +1,6 @@
 //! The forge component's boundary to the engine (protocol/README.md, 6).
 pub(crate) mod records;
-pub(crate) mod table;
+pub mod table;
 pub mod tokens;
 
 use crate::{limits, settings};
@@ -209,6 +209,9 @@ pub(crate) struct Layer {
     pub(crate) closed: bool,
     begun: bool,
     held: Map<u16, Box<[u8]>>,
+    pub(crate) files: settings::Files,
+    #[cfg_attr(not(test), expect(dead_code, reason = "fr-forge-added uses the retained shell"))]
+    pub(crate) shell: table::Shell,
     #[cfg(test)]
     pub(crate) starts: List<(u16, skein_forge_connection::Access)>,
     #[cfg(test)]
@@ -222,6 +225,7 @@ impl Layer {
         limits: skein_forge_connection::Limits,
         shared: &skein_forge_connection::Shared,
         configured: &[settings::Forge],
+        shell: table::Shell,
     ) -> Result<Self, skein_forge_connection::Unusable> {
         let mut held_hosts = Map::with_capacity(limits.forges);
         for endpoint in &settings.forges {
@@ -236,6 +240,8 @@ impl Layer {
         }
         Ok(Self {
             held: held_hosts,
+            files: settings::Files { entries: List::with_capacity(0) },
+            shell,
             component: skein_forge_connection::Component::new(settings, &limits, shared)?,
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits },
             above: Queue::uncapped(),
@@ -249,6 +255,15 @@ impl Layer {
             #[cfg(test)]
             returned: 0,
         })
+    }
+    #[cfg_attr(not(test), expect(dead_code, reason = "fr-forge-added calls the dynamic table operations"))]
+    pub(crate) fn add_held(&mut self, forge: u16, host: Box<[u8]>) -> Result<(), table::NotKept> {
+        self.held.insert(forge, host).or(Err(table::NotKept::Bound))?;
+        Ok(())
+    }
+    #[cfg_attr(not(test), expect(dead_code, reason = "fr-forge-added calls the dynamic table operations"))]
+    pub(crate) fn remove_held(&mut self, forge: u16) {
+        self.held.remove(&forge);
     }
     pub(crate) fn unreachable(&self, forge: u16) -> Option<Box<[u8]>> {
         self.held.get(&forge).cloned()

@@ -121,7 +121,7 @@ impl Engine {
         values: crate::values::Values,
         first_periods: List<(u32, u64)>,
     ) -> Result<Self, jig_protocol_config::Problems> {
-        let forge_records = crate::forge::records::Loader::new(&children.limits, &children.workers.forges);
+        let forge_records = crate::forge::records::Loader::new(&children.limits, children.workers.forges.as_slice());
         let Children { accounts, workers, mut clients, demo, forge, setup, notes, limits: own } = children;
         clients.query_bytes = own.routes.query_bytes;
         let credentials = values.identities.numbers();
@@ -342,7 +342,7 @@ pub(crate) fn iterate(engine: &mut Engine, now: Time, wall: Wall) {
         now,
         wall,
         &mut engine.events,
-        &engine.workers.forges,
+        engine.workers.forges.as_slice(),
         engine.demo.as_ref(),
         &mut engine.accounts,
     );
@@ -425,11 +425,21 @@ fn completes_pending(engine: &Engine) -> Option<bool> {
     }
 }
 fn clients_pass(engine: &mut Engine) {
-    engine.clients.advance(&mut engine.events, &engine.workers.forges, engine.demo.as_ref(), &mut engine.accounts);
+    engine.clients.advance(
+        &mut engine.events,
+        engine.workers.forges.as_slice(),
+        engine.demo.as_ref(),
+        &mut engine.accounts,
+    );
     if engine.end.is_none() && engine.store.component.mark_durable() {
         engine.clients.secrets_step(&mut engine.store);
     }
-    engine.clients.advance(&mut engine.events, &engine.workers.forges, engine.demo.as_ref(), &mut engine.accounts);
+    engine.clients.advance(
+        &mut engine.events,
+        engine.workers.forges.as_slice(),
+        engine.demo.as_ref(),
+        &mut engine.accounts,
+    );
 }
 pub(crate) fn release(engine: &mut Engine) {
     // Clocks are inputs too: Resume can observe a due timer even when normal

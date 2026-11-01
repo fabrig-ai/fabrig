@@ -9,17 +9,38 @@ const FORGES: u32 = 65536;
 /// general-purpose Rows is filled solely through this holder's checked push.
 #[derive(Debug)]
 pub(crate) struct Rows {
-    values: records::Rows,
+    values: Map<u16, records::Rows>,
     configured: List<u16>,
     unconfigured: Map<u16, ()>,
 }
 impl Rows {
-    fn new(forges: &[crate::settings::Forge]) -> Self {
-        let mut configured = List::with_capacity(u32::try_from(forges.len()).expect("configured forges"));
+    fn new(forges: &[crate::settings::Forge], capacity: u32) -> Self {
+        let mut configured = List::with_capacity(capacity);
         for forge in forges {
             configured.push(forge.number).expect("configured forges");
         }
-        Self { values: records::Rows::new(), configured, unconfigured: Map::with_capacity(FORGES) }
+        Self { values: Map::with_capacity(capacity), configured, unconfigured: Map::with_capacity(FORGES) }
+    }
+    #[cfg_attr(not(test), expect(dead_code, reason = "fr-forge-added calls the dynamic table operations"))]
+    pub(crate) fn add(&mut self, forge: u16) -> Result<(), super::table::NotKept> {
+        if self.configured.as_slice().contains(&forge) {
+            return Ok(());
+        }
+        self.configured.push(forge).or(Err(super::table::NotKept::Bound))?;
+        self.unconfigured.remove(&forge);
+        Ok(())
+    }
+    #[cfg_attr(not(test), expect(dead_code, reason = "fr-forge-added calls the dynamic table operations"))]
+    pub(crate) fn remove(&mut self, forge: u16) {
+        let mut kept = List::with_capacity(self.configured.capacity());
+        for number in &self.configured {
+            if *number != forge {
+                kept.push(*number).expect("configured capacity");
+            }
+        }
+        self.configured = kept;
+        self.values.remove(&forge);
+        self.unconfigured.remove(&forge);
     }
     pub(crate) fn push(&mut self, number: u64, bytes: Secret, value_bytes: u32) {
         if number >= records::CARRIED || number >> 48_u32 != u64::from(records::FAMILY_FORGE) {
@@ -31,10 +52,13 @@ impl Rows {
             return;
         }
         // Decode temper-secrets here; get() serves skein setup bytes to every reader.
-        self.values.push(number, bytes, value_bytes);
+        if !self.values.contains_key(&forge) {
+            self.values.insert(forge, records::Rows::new()).expect("configured forge capacity");
+        }
+        self.values.get_mut(&forge).expect("configured forge rows").push(number, bytes, value_bytes);
     }
     pub(crate) fn forge(&self, forge: u16) -> Option<&records::ForgeRows> {
-        self.values.forge(forge)
+        self.values.get(&forge)?.forge(forge)
     }
     #[expect(clippy::manual_map, reason = "the programming model uses explicit matches")]
     fn next_unconfigured(&self, after: u32) -> Option<u16> {
@@ -58,7 +82,7 @@ pub(crate) struct Loader {
 #[derive(Debug)]
 enum Phase {
     Load { after: Option<u64> },
-    Connect { index: usize },
+    Connect { index: u32 },
     Sweep { number: u64, asked: bool },
     Name { after: u32 },
     Done,
@@ -68,7 +92,7 @@ impl Loader {
         Self {
             #[cfg(test)]
             inspected: List::with_capacity(128),
-            rows: Rows::new(forges),
+            rows: Rows::new(forges, limits.forge.forges),
             phase: Phase::Load { after: None },
             value_bytes: limits.records.value_bytes,
             bounds: skein_forge_setup::item::Bounds {
@@ -210,7 +234,7 @@ pub(crate) fn advance(engine: &mut crate::engine::Engine) {
 #[test]
 fn unconfigured_numbers_resume_at_the_cursor_without_retaining_values() {
     let settings = crate::tests::fixtures::engine();
-    let mut rows = Rows::new(&settings.forges);
+    let mut rows = Rows::new(&settings.forges, settings.limits.forge.forges);
     for forge in [u16::MAX, 77, 0, 77] {
         for item in [records::Item::AppKey, records::Item::Origin] {
             rows.push(records::number(forge, item), Secret::new(Box::from([2, 255])), 4096);

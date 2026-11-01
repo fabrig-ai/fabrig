@@ -51,6 +51,7 @@ fn startup_admits_a_frame_exactly_at_the_profile_page_ceiling() {
         None,
         fixtures::worker_runtime(),
         fixtures::forge_runtime(),
+        crate::forge::table::Shell::refusing(),
     )
     .expect("a whole frame exactly at Small's page ceiling starts");
     let opened =
@@ -165,6 +166,7 @@ fn a_read_bound_set_to_the_refusals_number_starts() {
                 None,
                 fixtures::worker_runtime(),
                 fixtures::forge_runtime(),
+                crate::forge::table::Shell::refusing(),
             );
             if read == required {
                 started.expect("the refusal's complete figure starts");
@@ -203,6 +205,7 @@ fn a_map_driven_page_needs_no_larger_read_bound() {
         None,
         fixtures::worker_runtime(),
         fixtures::forge_runtime(),
+        crate::forge::table::Shell::refusing(),
     )
     .expect("the chunk covers the map-driven page without raising the read bound");
 }
@@ -534,7 +537,7 @@ fn the_forges_git_program_reaches_startup_without_fake_setup() {
     let input = with_forge_git_program(&fixtures::document(), r#""/opt/custom/git""#);
     let service = start_with_git_program(&input, None).unwrap();
     assert_eq!(
-        service.engine.as_ref().unwrap().workers.forges[0].git_program.as_deref(),
+        service.engine.as_ref().unwrap().workers.forges.as_slice()[0].git_program.as_deref(),
         Some(b"/opt/custom/git".as_slice())
     );
 }
@@ -562,7 +565,7 @@ fn startup_refuses_both_sources_of_a_forges_git_program() {
 #[test]
 fn the_checked_fake_git_program_reaches_the_services_forge_settings() {
     let service = start_with_git_program(&fixtures::document(), Some(&checked_fake_setup())).unwrap();
-    let forge = &service.engine.as_ref().expect("engine").workers.forges[0];
+    let forge = &service.engine.as_ref().expect("engine").workers.forges.as_slice()[0];
     assert_eq!(forge.mode, temper_engine_domain_forge::Mode::Fake);
     assert_eq!(forge.git_program.as_deref(), Some(b"/data/demo/bin/git".as_slice()));
     assert_eq!(forge.git.as_ref(), b"http://127.0.0.1:9");
@@ -596,6 +599,7 @@ fn start_with_git_program(
         fixtures::forge_runtime(),
         checked,
         None,
+        crate::forge::table::Shell::refusing(),
     )
 }
 
@@ -872,6 +876,7 @@ fn a_file_named_but_not_given_refuses_the_start_naming_it() {
         None,
         fixtures::worker_runtime(),
         fixtures::forge_runtime(),
+        crate::forge::table::Shell::refusing(),
     );
     let Err(problems) = refused else { panic!("a missing token refuses the start") };
     assert_eq!(&*lines(&problems), b"application.identities[0].token: not read\n".as_slice());
@@ -909,6 +914,7 @@ fn startup_makes_the_one_process_from_the_example() {
         None,
         fixtures::worker_runtime(),
         fixtures::forge_runtime(),
+        crate::forge::table::Shell::refusing(),
     ) {
         Ok(service) => service,
         Err(problems) => panic!("startup: {}", core::str::from_utf8(&lines(&problems)).unwrap()),
@@ -951,6 +957,7 @@ fn a_workers_missing_or_oversized_secret_keeps_its_absolute_path() {
             None,
             fixtures::worker_runtime(),
             fixtures::forge_runtime(),
+            crate::forge::table::Shell::refusing(),
         ) {
             Ok(service) => {
                 drop(service);
@@ -1426,9 +1433,10 @@ fn a_configured_github_forge_without_records_starts_not_connected() {
         None,
         fixtures::worker_runtime(),
         fixtures::forge_runtime(),
+        crate::forge::table::Shell::refusing(),
     )
     .unwrap();
-    assert_eq!(service.engine.as_ref().expect("engine").workers.forges[0].kind, settings::Kind::GitHub);
+    assert_eq!(service.engine.as_ref().expect("engine").workers.forges.as_slice()[0].kind, settings::Kind::GitHub);
     service.engine.as_mut().expect("engine").store = fixtures::memory_store();
     let mut face = fixtures::ForgeFace::new();
     for _ in 0_u8..32 {
@@ -1460,9 +1468,10 @@ fn an_unresolved_github_forge_starts_not_connected_naming_its_host() {
         None,
         fixtures::worker_runtime(),
         runtime,
+        crate::forge::table::Shell::refusing(),
     )
     .unwrap();
-    assert_eq!(service.engine.as_ref().expect("engine").workers.forges[0].kind, settings::Kind::GitHub);
+    assert_eq!(service.engine.as_ref().expect("engine").workers.forges.as_slice()[0].kind, settings::Kind::GitHub);
     service.engine.as_mut().expect("engine").store = fixtures::memory_store();
     let mut face = fixtures::ForgeFace::new();
     for _ in 0_u8..32 {
@@ -1518,6 +1527,7 @@ fn a_store_reader_derives_serves_limits_or_their_problem_path() {
         None,
         fixtures::worker_runtime(),
         fixtures::forge_runtime(),
+        crate::forge::table::Shell::refusing(),
     )
     .unwrap();
     assert_eq!(
@@ -1566,6 +1576,7 @@ fn an_engine_alone_prepares_without_a_worker_or_its_files_and_agent() {
         fixtures::forge_runtime(),
         None,
         None,
+        crate::forge::table::Shell::refusing(),
     )
     .unwrap();
     assert!(service.worker.is_none());
@@ -1692,6 +1703,7 @@ fn fake_start(
         fixtures::forge_runtime(),
         Some(checked),
         None,
+        crate::forge::table::Shell::refusing(),
     )
 }
 
@@ -1743,6 +1755,7 @@ fn start_owned(asked: bool, files: &settings::Files) -> Result<crate::Service, P
         None,
         fixtures::worker_runtime(),
         fixtures::forge_runtime(),
+        crate::forge::table::Shell::refusing(),
     )
 }
 fn assert_owned_not_set_up(files: &settings::Files) {
@@ -1803,7 +1816,7 @@ fn an_unasked_owned_forges_absent_api_token_still_refuses_startup() {
 fn an_asked_owned_forge_with_all_files_starts_from_their_access() {
     let mut service = start_owned(true, &fixtures::files()).unwrap();
     let engine = service.engine.as_mut().unwrap();
-    assert_eq!(engine.workers.forges[0].user, 42);
+    assert_eq!(engine.workers.forges.as_slice()[0].user, 42);
     assert!(engine.values.identities.newest(1).is_some(), "identity from its file");
     engine.store = fixtures::memory_store();
     let mut face = fixtures::ForgeFace::new();
@@ -1933,6 +1946,7 @@ fn records_only_local_entries_need_the_checked_boundary_and_name_no_files() {
             fixtures::forge_runtime(),
             setup,
             None,
+            crate::forge::table::Shell::refusing(),
         );
         assert_eq!(result.is_ok(), admitted, "checked local input: {:?}", result.err());
     }
@@ -2112,6 +2126,7 @@ fn string_managed_starts_disconnected_without_a_setup_run() {
         fixtures::forge_runtime(),
         Some(&checked),
         None,
+        crate::forge::table::Shell::refusing(),
     )
     .unwrap();
     service.engine.as_mut().unwrap().store = fixtures::records_store();
@@ -2204,6 +2219,7 @@ fn turn_configuration_can_name_a_project_adopted_after_the_seed() {
         None,
         fixtures::worker_runtime(),
         fixtures::forge_runtime(),
+        crate::forge::table::Shell::refusing(),
     );
     if let Err(problems) = started {
         panic!("restored turn startup: {}", core::str::from_utf8(&lines(&problems)).unwrap());

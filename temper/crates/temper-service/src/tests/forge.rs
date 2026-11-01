@@ -585,7 +585,8 @@ fn records_service() -> (crate::Service, skein_lib::Secret) {
     settings.forges = forges.into_boxed();
     fixtures::fill_files(&mut settings);
     let file_token = settings.forges[0].api_token.clone().unwrap();
-    let mut service = crate::Service::engine(settings, &fixtures::seeds(), None, runtime).unwrap();
+    let mut service =
+        crate::Service::engine(settings, &fixtures::seeds(), None, runtime, forge::table::Shell::refusing()).unwrap();
     service.engine.as_mut().expect("engine").store = fixtures::records_store();
     (service, file_token)
 }

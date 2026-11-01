@@ -16,6 +16,7 @@ fn started(input: &[u8], files: &crate::settings::Files, agent: &crate::settings
         None,
         fixtures::worker_runtime(),
         fixtures::forge_runtime(),
+        crate::forge::table::Shell::refusing(),
     ) {
         Ok(service) => {
             drop(service);

@@ -776,6 +776,7 @@ impl Bounded {
             self.forges(),
             Some(&self.setup),
             None,
+            temper_service::forge::table::Shell::refusing(),
         )
     }
 }

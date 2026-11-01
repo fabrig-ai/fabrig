@@ -685,6 +685,7 @@ pub(crate) fn service(inherited: &Inherited) -> Proc {
         setup.as_ref(),
         None,
         &stories::given(&serde_json::from_slice(&fixtures::document()).expect("deployment JSON")),
+        temper_service::forge::table::Shell::refusing(),
     )
     .expect("one-process startup");
     service.adopt_store(root, 1000).expect("deployment store");

@@ -88,7 +88,14 @@ fn reachable_on_a_connected_forgejo_uses_its_api_token_and_filters_push_access()
     config.limits.picker.page = 2;
     fixtures::reseed(&mut config);
     let store = fixtures::records_store_with(&config);
-    let mut service = crate::Service::engine(config, &fixtures::seeds(), None, fixtures::forge_runtime()).unwrap();
+    let mut service = crate::Service::engine(
+        config,
+        &fixtures::seeds(),
+        None,
+        fixtures::forge_runtime(),
+        crate::forge::table::Shell::refusing(),
+    )
+    .unwrap();
     service.engine.as_mut().unwrap().store = store;
     for _ in 0_u32..8 {
         crate::forge::records::advance(service.engine.as_mut().unwrap());
@@ -259,7 +266,7 @@ fn sent(face: &mut Face, service: &mut crate::Service) {
         engine.events,
         engine.notes,
         engine.setup.answers,
-        engine.workers.forges[0].api_token.is_some()
+        engine.workers.forges.as_slice()[0].api_token.is_some()
     );
 }
 

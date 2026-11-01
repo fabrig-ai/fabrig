@@ -966,6 +966,7 @@ pub fn startup_with(
     runtime: WorkerRuntime,
     forges: List<crate::ForgeRuntime>,
     given: &crate::stock::Given,
+    shell: crate::forge::table::Shell,
 ) -> Result<Service, Problems> {
     with_setup_given(
         document,
@@ -979,6 +980,7 @@ pub fn startup_with(
         None,
         None,
         given,
+        shell,
     )
 }
 #[expect(clippy::too_many_arguments, reason = "the Stock entry retains the existing startup inputs")]
@@ -991,8 +993,20 @@ pub fn startup(
     accounts: Option<AccountsRuntime>,
     runtime: WorkerRuntime,
     forges: List<crate::ForgeRuntime>,
+    shell: crate::forge::table::Shell,
 ) -> Result<Service, Problems> {
-    startup_with(document, directories, files, agent, seeds, accounts, runtime, forges, &crate::stock::Given::Stock)
+    startup_with(
+        document,
+        directories,
+        files,
+        agent,
+        seeds,
+        accounts,
+        runtime,
+        forges,
+        &crate::stock::Given::Stock,
+        shell,
+    )
 }
 /// Build the standalone service with the binary's checked, resolved forge setup.
 #[expect(clippy::too_many_arguments, reason = "startup receives the checked setup beside the same runtime facts")]
@@ -1008,6 +1022,7 @@ pub fn with_setup_given(
     setup: Option<&temper_forge_setup::check::Checked>,
     box_line_bytes: Option<u32>,
     given: &crate::stock::Given,
+    shell: crate::forge::table::Shell,
 ) -> Result<Service, Problems> {
     let CheckedStart { engine, worker, io, forges, not_set_up } =
         checked_start_with(document, directories, files, agent, seeds, forges, setup, given)?;
@@ -1025,7 +1040,7 @@ pub fn with_setup_given(
         },
         None => None,
     };
-    match Service::prepared(engine, seeds, accounts, forges, worker, io, box_line_bytes) {
+    match Service::prepared(engine, seeds, accounts, forges, worker, io, box_line_bytes, shell) {
         Ok(mut service) => {
             for number in &not_set_up {
                 crate::setup::lifecycle::state(
@@ -1051,6 +1066,7 @@ pub fn with_setup(
     forges: List<crate::ForgeRuntime>,
     setup: Option<&temper_forge_setup::check::Checked>,
     box_line_bytes: Option<u32>,
+    shell: crate::forge::table::Shell,
 ) -> Result<Service, Problems> {
     with_setup_given(
         document,
@@ -1064,6 +1080,7 @@ pub fn with_setup(
         setup,
         box_line_bytes,
         &crate::stock::Given::Stock,
+        shell,
     )
 }
 

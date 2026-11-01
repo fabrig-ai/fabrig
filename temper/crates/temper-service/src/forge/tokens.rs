@@ -34,7 +34,7 @@ impl Tokens {
         Self { forges: Map::with_capacity(0) }
     }
     pub(crate) fn new(settings: &settings::Engine) -> Self {
-        let mut forges = Map::with_capacity(u32::try_from(settings.forges.len()).expect("configured forges"));
+        let mut forges = Map::with_capacity(settings.limits.forge.forges);
         for forge in &settings.forges {
             if forge.kind != settings::Kind::GitHub {
                 continue;
@@ -62,6 +62,35 @@ impl Tokens {
                 .expect("configured forges");
         }
         Self { forges }
+    }
+    #[cfg_attr(not(test), expect(dead_code, reason = "fr-forge-added calls the dynamic table operations"))]
+    pub(crate) fn add(
+        &mut self,
+        forge: u16,
+        identity: &settings::Identity,
+        installations: u32,
+    ) -> Result<(), super::table::NotKept> {
+        if self.forges.contains_key(&forge) {
+            return Ok(());
+        }
+        self.forges
+            .insert(
+                forge,
+                Forge {
+                    number: identity.number,
+                    login: identity.login.clone(),
+                    author: identity.author.clone(),
+                    entries: Map::with_capacity(installations),
+                    announced: false,
+                    made: List::with_capacity(installations),
+                },
+            )
+            .or(Err(super::table::NotKept::Bound))?;
+        Ok(())
+    }
+    #[cfg_attr(not(test), expect(dead_code, reason = "fr-forge-added calls the dynamic table operations"))]
+    pub(crate) fn remove(&mut self, forge: u16) {
+        self.forges.remove(&forge);
     }
 }
 pub(crate) fn token(

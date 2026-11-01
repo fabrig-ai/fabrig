@@ -121,7 +121,12 @@ fn pump(service: &mut crate::Service) -> Option<w::Outcome> {
         engine.step(root::Event::Resume);
         engine.store.iterate();
         crate::engine::answer(engine);
-        engine.clients.advance(&mut engine.events, &engine.workers.forges, engine.demo.as_ref(), &mut engine.accounts);
+        engine.clients.advance(
+            &mut engine.events,
+            engine.workers.forges.as_slice(),
+            engine.demo.as_ref(),
+            &mut engine.accounts,
+        );
         engine.clients.secrets_step(&mut engine.store);
         advance(engine);
         engine.forge.iterate(engine.env.now, engine.env.wall);
@@ -152,7 +157,7 @@ fn request(
             carried: None,
             scope,
         },
-        &engine.workers.forges,
+        engine.workers.forges.as_slice(),
         None,
         &w::CEILINGS,
     )
@@ -455,7 +460,7 @@ fn connected(service: &mut crate::Service, accepted_ids: &[u64], listing: &[u8])
     app(service);
     accepted(service, accepted_ids);
     let engine = service.engine.as_mut().unwrap();
-    let origin = records::origin(connection::settings::Kind::GitHub, &engine.workers.forges[0].api);
+    let origin = records::origin(connection::settings::Kind::GitHub, &engine.workers.forges.as_slice()[0].api);
     let access = records::access(
         connection::settings::Kind::GitHub,
         &origin,

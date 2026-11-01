@@ -549,6 +549,7 @@ fn start_with_settings(
         worker,
         io,
         if under_box { Some(system::BOX_BYTES) } else { None },
+        crate::forge::table::Shell::refusing(),
     )
     .unwrap();
 
@@ -728,8 +729,11 @@ pub fn workers() -> crate::workers::Workers {
     }
     let encoding = encoding(&settings);
     let limits = crate::workers::limits(&settings).unwrap();
-    crate::workers::Workers::new(&settings.jig, &settings::Files { entries }, encoding, settings.forges, &limits)
-        .unwrap()
+    let mut forges = skein_lib::List::with_capacity(settings.limits.forge.forges);
+    for forge in settings.forges {
+        forges.push(forge).unwrap();
+    }
+    crate::workers::Workers::new(&settings.jig, &settings::Files { entries }, encoding, forges, &limits).unwrap()
 }
 
 pub fn settle_root(

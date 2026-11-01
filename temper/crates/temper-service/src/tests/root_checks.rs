@@ -23,6 +23,7 @@ fn started(document: &[u8]) -> Box<[u8]> {
         None,
         fixtures::worker_runtime(),
         fixtures::forge_runtime(),
+        crate::forge::table::Shell::refusing(),
     ) {
         Ok(service) => {
             drop(service);

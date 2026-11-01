@@ -120,6 +120,7 @@ fn a_document_naming_no_forge_starts_with_an_empty_seed() {
             None,
             fixtures::worker_runtime(),
             List::with_capacity(0),
+            crate::forge::table::Shell::refusing(),
         )
         .unwrap();
         assert!(service.engine.as_ref().unwrap().domain.forges().rows.is_empty());

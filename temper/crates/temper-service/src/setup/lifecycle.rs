@@ -62,7 +62,7 @@ pub(super) enum Source {
     Managed,
 }
 #[derive(Debug)]
-pub(super) struct Local {
+pub(crate) struct Local {
     pub(super) source: Source,
     pub(crate) first: Option<Intent>,
     pub(super) repositories: u64,
@@ -108,11 +108,11 @@ impl FileStep {
 }
 #[derive(Debug)]
 #[expect(clippy::large_enum_variant, reason = "local state lives inline in the bounded forge map")]
-pub(super) enum Reconcile {
+pub(crate) enum Reconcile {
     GitHub,
     Local(Local),
 }
-pub(super) struct Lifecycle {
+pub(crate) struct Lifecycle {
     pub(super) adoptions: Map<u16, Adoption>,
     pub(super) reconcile: Map<u16, Reconcile>,
     deleted: Map<(u16, u64), ()>,
@@ -122,6 +122,27 @@ pub(super) struct Lifecycle {
     restored: bool,
 }
 impl Lifecycle {
+    #[cfg_attr(not(test), expect(dead_code, reason = "fr-forge-added calls the dynamic table operations"))]
+    pub(crate) fn add_forge(&mut self, forge: u16, reconcile: Reconcile) -> Result<(), crate::forge::table::NotKept> {
+        if self.reconcile.contains_key(&forge) {
+            return Ok(());
+        }
+        self.reconcile.insert(forge, reconcile).or(Err(crate::forge::table::NotKept::Bound))?;
+        Ok(())
+    }
+    pub(crate) fn drop_forge(&mut self, forge: u16) {
+        self.adoptions.remove(&forge);
+        self.reconcile.remove(&forge);
+        self.deleting.remove(&forge);
+        while let Some((key, ())) = self.deleted.range((forge, 0)..=(forge, u64::MAX)).next() {
+            let key = *key;
+            self.deleted.remove(&key);
+        }
+        while let Some((key, _)) = self.installations.range((forge, 0)..=(forge, u64::MAX)).next() {
+            let key = *key;
+            self.installations.remove(&key);
+        }
+    }
     #[cfg(test)]
     pub(crate) const fn startup_restored(&self) -> bool {
         self.restored
