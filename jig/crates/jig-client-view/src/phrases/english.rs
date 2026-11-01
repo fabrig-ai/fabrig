@@ -99,6 +99,7 @@ pub fn language() -> Language {
                 Segment::Text(copy_of(b"An engine host was refused at ")),
                 Segment::Hole { index: 0, kind: HoleKind::Wall },
             ]),
+            JigPhrase::ActRemoveProject => Box::new([Segment::Text(copy_of(b"Delete project"))]),
             JigPhrase::ActRename => Box::new([Segment::Text(copy_of(b"Rename"))]),
             JigPhrase::NameTaken => Box::new([Segment::Text(copy_of(b"Another project has that name"))]),
             JigPhrase::NameEmpty => Box::new([Segment::Text(copy_of(b"The project name is empty"))]),

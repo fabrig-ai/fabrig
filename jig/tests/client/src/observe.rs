@@ -108,6 +108,7 @@ pub fn jig_sent(attempt: skein_lib::Token, request_key: [u8; 16], ask: &Ask) -> 
         | Ask::Lift { .. }
         | Ask::ChangeSettings(_)
         | Ask::MoveToNewest(_)
+        | Ask::RemoveProject { .. }
         | Ask::MakeProject { .. }
         | Ask::SetPool { .. } => (None, None, None),
     };

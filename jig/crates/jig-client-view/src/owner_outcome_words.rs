@@ -1,5 +1,5 @@
 //! Checked committed-outcome phrases (client/domain/view.md, 7).
-//! IDs 6400..6470 belong to this owner vocabulary. Language data is
+//! IDs 6400..6475 belong to this owner vocabulary. Language data is
 //! composed into the caller's checked Words; no language is chosen here.
 use crate::Owner;
 use crate::words::Words;
@@ -58,6 +58,7 @@ pub enum OutcomePhrase {
     RolesSet,
     /// The project policy changed saying.
     PolicyChanged,
+    ProjectRemoved,
     Renamed,
     ProjectMade,
     /// The person pool set saying.
@@ -129,7 +130,7 @@ pub enum OutcomePhrase {
     HostFailed,
 }
 /// Every outcome phrase in stable owner order.
-pub const ALL: [OutcomePhrase; 68] = [
+pub const ALL: [OutcomePhrase; 69] = [
     OutcomePhrase::Created,
     OutcomePhrase::FirstTask,
     OutcomePhrase::LastTask,
@@ -155,6 +156,7 @@ pub const ALL: [OutcomePhrase; 68] = [
     OutcomePhrase::Proposed,
     OutcomePhrase::RolesSet,
     OutcomePhrase::PolicyChanged,
+    OutcomePhrase::ProjectRemoved,
     OutcomePhrase::Renamed,
     OutcomePhrase::ProjectMade,
     OutcomePhrase::PoolSet,
@@ -229,6 +231,7 @@ impl OutcomePhrase {
             Self::Proposed => 6419,
             Self::RolesSet => 6420,
             Self::PolicyChanged => 6421,
+            Self::ProjectRemoved => 6475,
             Self::Renamed => 6469,
             Self::ProjectMade => 6470,
             Self::PoolSet => 6422,
@@ -326,6 +329,7 @@ impl OutcomePhrase {
             | Self::Amended
             | Self::Proposed
             | Self::RolesSet
+            | Self::ProjectRemoved
             | Self::Renamed
             | Self::ProjectMade
             | Self::PolicyChanged
@@ -351,7 +355,7 @@ impl OutcomePhrase {
 /// Phrase contracts independent of the selected language's word order.
 #[must_use]
 pub fn shapes() -> Box<[PhraseShape]> {
-    let mut values = List::with_capacity(68);
+    let mut values = List::with_capacity(69);
     for phrase in ALL {
         let holes: Box<[HoleShape]> = match phrase.hole() {
             Some(kind) => Box::new([HoleShape { kind, bytes: 0 }]),
@@ -364,7 +368,7 @@ pub fn shapes() -> Box<[PhraseShape]> {
 /// Explicit English data for composition, never a rendering fallback.
 #[must_use]
 pub fn english() -> Language {
-    let mut values = List::with_capacity(68);
+    let mut values = List::with_capacity(69);
     for phrase in ALL {
         let text: &[u8] = match phrase {
             OutcomePhrase::Created => b"Tasks created",
@@ -391,6 +395,7 @@ pub fn english() -> Language {
             OutcomePhrase::Amended => b"Task amended",
             OutcomePhrase::Proposed => b"Proposed",
             OutcomePhrase::RolesSet => b"Project roles set",
+            OutcomePhrase::ProjectRemoved => b"Deleted the project",
             OutcomePhrase::Renamed => b"Renamed the project",
             OutcomePhrase::ProjectMade => b"Made project",
             OutcomePhrase::PolicyChanged => b"Project policy changed",

@@ -165,6 +165,7 @@ impl Offers {
             | Ask::Lift { .. }
             | Ask::ChangeSettings(_)
             | Ask::MoveToNewest(_)
+            | Ask::RemoveProject { .. }
             | Ask::MakeProject { .. }
             | Ask::SetPool { .. } => return None,
         };

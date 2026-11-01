@@ -118,7 +118,9 @@ pub(crate) fn request(
         }
         people::Ask::Adopt { .. } => (Act::Adopt, documents::Subject::Project { project }),
         people::Ask::Rename { .. } => (Act::Rename, documents::Subject::Project { project }),
-        people::Ask::RemoveProject { .. } => return Err(people::Refusal::NotOffered),
+        people::Ask::RemoveProject { project } => {
+            (Act::RemoveProject, documents::Subject::Project { project: *project })
+        }
         people::Ask::ChangePolicy { .. } => (Act::ChangePolicy, documents::Subject::Project { project }),
         people::Ask::SetRoles { .. } => (Act::SetRoles, documents::Subject::Project { project }),
         people::Ask::MakeService { .. } => (Act::MakeService, documents::Subject::Project { project }),

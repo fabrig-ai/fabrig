@@ -346,6 +346,7 @@ impl<A: crate::Application> Engine<A> {
             | Ask::Rename { .. }
             | Ask::ChangeSettings(_)
             | Ask::MoveToNewest(_)
+            | Ask::RemoveProject { .. }
             | Ask::MakeProject { .. }
             | Ask::SetPool { .. } => None,
         };
@@ -406,6 +407,7 @@ impl<A: crate::Application> Engine<A> {
                 | Ask::Rename { .. }
                 | Ask::ChangeSettings(_)
                 | Ask::MoveToNewest(_)
+                | Ask::RemoveProject { .. }
                 | Ask::MakeProject { .. }
                 | Ask::SetPool { .. } => Admission::Refused(Refusal::NotOffered),
             },
@@ -501,6 +503,7 @@ impl<A: crate::Application> Engine<A> {
             | Ask::Rename { .. }
             | Ask::ChangeSettings(_)
             | Ask::MoveToNewest(_)
+            | Ask::RemoveProject { .. }
             | Ask::MakeProject { .. }
             | Ask::SetPool { .. } => None,
         };
@@ -701,6 +704,7 @@ fn target(ask: &Ask) -> Option<Target> {
         Ask::Lift { .. }
         | Ask::ChangeSettings(_)
         | Ask::MoveToNewest(_)
+        | Ask::RemoveProject { .. }
         | Ask::MakeProject { .. }
         | Ask::SignIn { .. }
         | Ask::SignOut { .. }

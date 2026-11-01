@@ -251,3 +251,55 @@ fn a_task_and_its_amend_offer_hold_the_roles_grants_whole() {
         assert_eq!(grants.get(i), Some(&expected), "listed grant {kind}");
     }
 }
+
+#[test]
+fn an_owner_is_offered_remove_project_and_a_member_is_not() {
+    let (mut core, limits) = make_tree();
+    let mut policy = core.authority.policy(1).unwrap().clone();
+    policy.roles[0].requests = authority::Requests(0);
+    let mut facts = Queue::uncapped();
+    authority::step(&mut core.authority, authority::Event::Policy { project: 1, policy }, &mut facts);
+    let subject = Subject::Project { project: 1 };
+    for role in [
+        people::Role::Owner,
+        people::Role::Member,
+        people::Role::Maintainer,
+        people::Role::Observer,
+        people::Role::Policy { role: 4 },
+    ] {
+        let mut out = Queue::uncapped();
+        people::step(
+            &mut core.people,
+            &Env { now: Time::ZERO, wall: Wall::EPOCH, limits: limits.people },
+            people::Event::Roles { project: 1, holdings: Box::new([people::Holding { person: 1, role }]) },
+            &mut out,
+        );
+        let Document::Project(value) = make(&core, &limits, 1, &subject, &window(), Wall::EPOCH).unwrap() else {
+            panic!("project")
+        };
+        let admission = crate::acts::admit(&core, &limits, 1, Act::RemoveProject, &subject, Wall::EPOCH);
+        if role == people::Role::Owner {
+            assert_eq!(find(&value.acts, Act::RemoveProject), Some(&Admission::Allowed));
+            assert_eq!(admission, Admission::Allowed);
+        } else {
+            assert_eq!(find(&value.acts, Act::RemoveProject), None);
+            assert_eq!(admission, Admission::Refused(people::Refusal::Role { held: Some(role) }));
+        }
+        assert_eq!(
+            crate::acts::request(
+                &core,
+                &limits,
+                1,
+                1,
+                Some(role),
+                &people::Ask::RemoveProject { project: 1 },
+                Wall::EPOCH
+            ),
+            if role == people::Role::Owner { Ok(()) } else { Err(people::Refusal::Role { held: Some(role) }) }
+        );
+    }
+    assert_eq!(
+        crate::acts::admit(&core, &limits, 99, Act::RemoveProject, &subject, Wall::EPOCH),
+        Admission::Refused(people::Refusal::Role { held: None })
+    );
+}

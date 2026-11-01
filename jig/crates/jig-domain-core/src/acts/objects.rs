@@ -42,6 +42,7 @@ pub(super) fn admit(
             | Act::EditNote
             | Act::DeleteNote
             | Act::Adopt
+            | Act::RemoveProject
             | Act::Rename
             | Act::ChangePolicy
             | Act::SetRoles
@@ -88,6 +89,13 @@ fn project_admission(core: &Core, limits: &Limits, party: u64, act: Act, project
         Act::Reorder => allowed(core.reorder_allowed(project, held)),
         Act::Adopt | Act::Rename | Act::ChangePolicy | Act::SetRoles | Act::MakeService | Act::SetPool => {
             allowed(core.role_allowed_for(party, project, limits.tasks.tree_tasks, act))
+        }
+        Act::RemoveProject => {
+            if held == Some(people::Role::Owner) {
+                Admission::Allowed
+            } else {
+                Admission::Refused(people::Refusal::Role { held })
+            }
         }
         Act::Seen => Admission::Allowed,
         Act::Message

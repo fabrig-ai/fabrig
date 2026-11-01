@@ -217,6 +217,7 @@ pub(crate) fn refused(
         w::Ask::Rename(_)
         // task B
         | w::Ask::ChangeSettings(_) | w::Ask::MoveToNewest(_)
+        | w::Ask::RemoveProject(_)
         | w::Ask::MakeProject(_)
         | w::Ask::Message(_)
         | w::Ask::Answer(_)

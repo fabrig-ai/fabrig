@@ -340,6 +340,7 @@ fn records_7(bytes: &[u8]) {
     check!(MakeService, bytes);
     check!(Rename, bytes);
     check!(MakeProject, bytes);
+    check!(RemoveProject, bytes);
     check!(SetPool, bytes);
     check!(TaskRefMember, bytes);
     check!(TaskRefTask, bytes);
@@ -395,6 +396,7 @@ fn records_8(bytes: &[u8]) {
     check!(OwnerOutcomeAccountSignedOut, bytes);
     check!(OwnerOutcomeRenamed, bytes);
     check!(OwnerOutcomeProjectMade, bytes);
+    check!(OwnerOutcomeProjectRemoved, bytes);
     check!(NameRule, bytes);
     check!(MalformedName, bytes);
     check!(OwnerOutcomePoolSet, bytes);
@@ -712,16 +714,20 @@ fn mutation_seed(path: &Path) -> bool {
             "enum_ask_",
             "record_rename_",
             "record_make_project_",
+            "record_remove_project_",
             "record_owner_outcome_renamed_",
             "record_owner_outcome_project_made_",
+            "record_owner_outcome_project_removed_",
             "record_malformed_name_",
             "enum_owner_outcome_renamed_",
             "enum_owner_outcome_project_made_",
+            "enum_owner_outcome_project_removed_",
             "enum_refusal_name_taken_",
             "enum_malformed_name_",
             "enum_name_rule_",
             "enum_admission_limit_projects_",
             "enum_act_kind_rename_",
+            "enum_act_kind_remove_project_",
             "enum_final_",
             "enum_fact_",
             "record_hold_reason_",

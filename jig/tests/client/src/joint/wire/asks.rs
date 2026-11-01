@@ -140,6 +140,7 @@ fn translate(
         client::Ask::SignOut { holder, source } => {
             people::Ask::AccountSignOut { holder: account_holder(*holder), source: *source }
         }
+        client::Ask::RemoveProject { project } => people::Ask::RemoveProject { project: *project },
         client::Ask::Rename { project, name } => people::Ask::Rename {
             project: *project,
             name: core::str::from_utf8(name.bytes()).expect("client text is UTF-8").into(),

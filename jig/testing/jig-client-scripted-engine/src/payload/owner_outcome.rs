@@ -62,6 +62,7 @@ impl Payload for OwnerOutcome {
             Self::NoteEdited { name } => name.heap(bounds),
             Self::ServiceMade { person } => person.heap(bounds),
             Self::Renamed { project }
+            | Self::ProjectRemoved { project }
             | Self::ProjectMade { project }
             | Self::Adopted { project }
             | Self::RolesSet { project }
