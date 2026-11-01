@@ -123,3 +123,37 @@ Stored::Demo writes and DemoState assertions rather than deleting that coverage.
 List every compiler-forced service file changed in the implementer’s report.
 
 No builds or changes performed. The read-only filesystem prevents writing the requested `report.md`; this response supplies its contents.
+
+## Rebase (2026-11-01, step merge, foreman playground-reset-r6/fe-demo-gone/foreman-2)
+
+resolve three service conflicts against landed startup migration while retaining demo removal.
+The merge conflict is the branch’s red.
+Conflicting paths, relative to `temper/crates/temper-service/src/`:
+- `startup/application/demo.rs`
+- `system.rs`
+- `tests/setup.rs`
+
+Preserve integration’s startup migration from `706d037786` and follow-up `35a4d736b5`.
+In `startup/application/demo.rs`, keep integration’s template-only parser,
+reduced `parse` arguments and object validation for forge and project.
+Remove the remaining `state: None` literal; retain `playground: None`.
+Do not restore the deleted numeric-forge configuration path.
+
+In `system.rs::note_bound`, combine integration’s removal of
+`settings.forges.len()` with this branch’s replacement for `demo_act_bound`:
+`templates.checked_add(root.forge.tasks.checked_add(1)?)`.
+Keep integration’s record-driven service construction and updated signatures.
+
+In `tests/setup.rs`, retain integration’s `settings::Engine` fixtures,
+`machine.owned`, registered records, `inject_handover` and restart setup.
+Adapt this branch’s `removing_forge_store` to obtain its record from
+`local_config(true, true).machine.owned`, replacing the removed `.records` field.
+Use integration’s handover injection instead of the removed `Config.handover`.
+Keep the branch’s restored-Removing and locally-refused-call tests, adapting
+their fixtures; retain integration’s handover/reconcile Removing test.
+Do not restore `Stored::Demo`, `DemoState`, or demo-state assertions.
+Ensure the restored-store fixture uses the current commit sequence.
+List compiler-forced service files changed in the implementer’s report.
+
+No files changed or builds run. The read-only filesystem prevents writing
+the requested `report.md`; this response supplies its contents.
