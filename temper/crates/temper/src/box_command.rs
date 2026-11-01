@@ -4,6 +4,10 @@ use skein_shell::{Clock, Config, Host, Kernel};
 use std::os::unix::ffi::OsStrExt;
 use temper_box::host::{Echo, Service, Settings};
 
+mod groups;
+#[cfg(test)]
+mod tests;
+
 pub(crate) const ECHO_SETTINGS: skein_shell::Settings = skein_shell::Settings {
     tool: "temper",
     table: &[skein_shell::Setting {
@@ -60,8 +64,9 @@ pub(crate) fn run_configuration(
             .map(|(fd, _)| skein_shell::listener_at(fd).map(|address| (fd, address)))
             .collect::<Result<Vec<_>, _>>()
             .map_err(super::listeners_refusal)?;
-        let super::setup::Deployment { named, checked, demo, limits, owned: _ } =
-            super::setup::check(bytes, &directories.jig())?;
+        let deployment = super::setup::check(bytes, &directories.jig())?;
+        let (steps, vacant) = steps(directories, &deployment, first)?;
+        let super::setup::Deployment { checked, limits, .. } = deployment;
         let directory = super::path(&directories.data);
         let program = std::env::current_exe().map_err(|why| why.to_string())?;
         let environment = std::env::vars_os()
@@ -72,20 +77,7 @@ pub(crate) fn run_configuration(
                 entry.into_boxed_slice()
             })
             .collect();
-        let mut serve = vec![super::address(&named.clients)?];
-        if let Some(webhooks) = &named.webhooks {
-            serve.push(super::address(&webhooks.listener)?);
-        }
-        let mut steps = temper_fake::steps(
-            &checked.setup,
-            demo.as_ref(),
-            &directories.flags(),
-            serve.into_boxed_slice(),
-            cfg!(target_os = "linux"),
-            first,
-        );
-        owned_notices(&mut steps, &checked.setup);
-        let listeners = open_listeners(directories, &steps, held, &inherited, &mut owned)?;
+        let listeners = open_listeners(directories, &steps, &vacant, held, &inherited, &mut owned)?;
         let signals = skein_shell::open_termination_signals().map_err(|errno| format!("signals: errno {errno}"))?;
         owned.push(signals);
         let root = skein_shell::open_root(directory).map_err(|errno| format!("directory: errno {errno}"))?;
@@ -102,7 +94,7 @@ pub(crate) fn run_configuration(
                     temper_forge_setup::setup::Mode::Managed { .. } => None,
                 })
                 .collect(),
-            vacant: Box::new([]),
+            vacant,
             program: program.as_os_str().as_bytes().into(),
             environment,
             listeners: listeners.into_boxed_slice(),
@@ -135,9 +127,59 @@ pub(crate) fn run_configuration(
     Ok(skein_shell::drive(&mut kernel, &Clock::new(), &mut service))
 }
 
+type ConfiguredSteps = (temper_forge_setup::Steps, Box<[temper_forge_setup::Group]>);
+
+fn steps(
+    directories: &super::Directories,
+    deployment: &super::setup::Deployment,
+    first: Box<[temper_forge_setup::Step]>,
+) -> Result<ConfiguredSteps, String> {
+    let super::setup::Deployment { named, checked, demo, owned, .. } = deployment;
+    let flags = directories.flags();
+    let forgejo_listens = cfg!(target_os = "linux");
+    let mut serve = vec![super::address(&named.clients)?];
+    if let Some(webhooks) = &named.webhooks {
+        serve.push(super::address(&webhooks.listener)?);
+    }
+    let mut steps =
+        temper_fake::steps(&checked.setup, demo.as_ref(), &flags, serve.into_boxed_slice(), forgejo_listens, first);
+    for entry in &checked.setup.entries {
+        if let Some(group) = steps.asked.iter_mut().find(|group| group.forge == entry.forge) {
+            for (_, step) in &mut group.steps {
+                owned_notices(step, entry);
+            }
+        } else {
+            for step in &mut steps.always {
+                owned_notices(step, entry);
+            }
+        }
+    }
+    let before = u32::try_from(steps.always.len() - 1).expect("bounded steps ending in serve");
+    let files = groups::files(directories, checked, demo.as_ref(), &flags, forgejo_listens)?;
+    let mut asked = steps.asked.into_vec();
+    for (mut group, entry) in files {
+        group.before = before;
+        for (_, step) in &mut group.steps {
+            owned_notices(step, &entry);
+        }
+        asked.push(group);
+    }
+    steps.asked = asked.into_boxed_slice();
+    let mut vacant = Vec::new();
+    for (mut group, entry) in groups::kinds(owned.as_ref(), demo.as_ref(), &flags, forgejo_listens) {
+        group.before = before;
+        for (_, step) in &mut group.steps {
+            owned_notices(step, &entry);
+        }
+        vacant.push(group);
+    }
+    Ok((steps, vacant.into_boxed_slice()))
+}
+
 fn open_listeners(
     directories: &super::Directories,
     steps: &temper_forge_setup::Steps,
+    vacant: &[temper_forge_setup::Group],
     held: Vec<(Fd, std::net::SocketAddr)>,
     inherited: &[(Fd, std::net::SocketAddr)],
     owned: &mut Vec<Fd>,
@@ -146,7 +188,7 @@ fn open_listeners(
         if !steps
             .always
             .iter()
-            .chain(steps.asked.iter().flat_map(|group| group.steps.iter().map(|(_, step)| step)))
+            .chain(steps.asked.iter().chain(vacant).flat_map(|group| group.steps.iter().map(|(_, step)| step)))
             .any(|step| step.listeners().contains(address))
         {
             return Err(format!(
@@ -157,10 +199,21 @@ fn open_listeners(
         }
     }
     let mut listeners = Vec::new();
-    for step in steps.always.iter().chain(steps.asked.iter().flat_map(|group| group.steps.iter().map(|(_, step)| step)))
-    {
+    let mut owners = Vec::new();
+    for (group, step) in steps.always.iter().map(|step| (None, step)).chain(
+        steps
+            .asked
+            .iter()
+            .chain(vacant)
+            .enumerate()
+            .flat_map(|(index, group)| group.steps.iter().map(move |(_, step)| (Some(index), step))),
+    ) {
         for addr in step.listeners() {
             if listeners.iter().any(|(_, previous)| previous == addr) {
+                if group.is_some() && !owners.contains(&(*addr, group)) && !owners.contains(&(*addr, None)) {
+                    owners.push((*addr, group));
+                    continue;
+                }
                 return Err(format!(
                     "{}: port {} ({addr}): two steps name the same listener",
                     directories.document().display(),
@@ -185,6 +238,7 @@ fn open_listeners(
                 fd
             };
             listeners.push((fd, *addr));
+            owners.push((*addr, group));
         }
     }
     // Forgejo's port must be free for Forgejo to bind (M3a, protocol/setup.md 7.1).
@@ -199,9 +253,9 @@ fn open_listeners(
 
 /// The checked setup supplies the identity and paths; the box keeps only opaque
 /// public lines on the Forgejo step, never credentials or setup configuration.
-fn owned_notices(steps: &mut temper_forge_setup::Steps, setup: &temper_forge_setup::Setup) {
-    for entry in &setup.entries {
-        let temper_forge_setup::setup::Mode::Owned(owned) = &entry.mode else { continue };
+fn owned_notices(step: &mut temper_forge_setup::Step, entry: &temper_forge_setup::setup::Entry) {
+    let temper_forge_setup::setup::Mode::Owned(owned) = &entry.mode else { return };
+    if step.ready() == Some(owned.listen) {
         let label = format!("Forge {} (Forgejo): ", entry.forge);
         let address = owned.listen.to_string();
         let notice = [
@@ -221,15 +275,7 @@ fn owned_notices(steps: &mut temper_forge_setup::Steps, setup: &temper_forge_set
             b"/person_write.header\n",
         ]
         .concat();
-        for step in steps
-            .always
-            .iter_mut()
-            .chain(steps.asked.iter_mut().flat_map(|group| group.steps.iter_mut().map(|(_, step)| step)))
-        {
-            if step.ready() == Some(owned.listen) {
-                step.set_started_notice(notice.clone().into_boxed_slice());
-            }
-        }
+        step.set_started_notice(notice.into_boxed_slice());
     }
 }
 
