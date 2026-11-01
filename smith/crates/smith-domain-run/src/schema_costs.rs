@@ -22,6 +22,8 @@ pub struct SchemaCosts {
     pub kind_first: u64,
     pub kind_next: u64,
     pub field_first: u64,
+    /// First report or failure field, including the fields object and requirement.
+    pub text_field_first: u64,
     pub field_next: u64,
     /// Rendered widths of text bytes; quotes are already in the element costs.
     pub escaped: [u8; 256],
@@ -43,6 +45,7 @@ impl SchemaCosts {
         kind_first: 0,
         kind_next: 0,
         field_first: 0,
+        text_field_first: 0,
         field_next: 0,
         escaped: [0; 256],
     };
@@ -53,7 +56,7 @@ impl SchemaCosts {
         let mut bytes = self.finish;
         let mut groups = 0_u64;
         if let Some(change) = &outcome.change {
-            bytes = bytes.checked_add(self.change)?.checked_add(self.fields(&change.fields)?)?;
+            bytes = bytes.checked_add(self.change)?.checked_add(self.fields(&change.fields, self.field_first)?)?;
             groups = groups.checked_add(1)?;
         }
         let mut first = true;
@@ -65,14 +68,14 @@ impl SchemaCosts {
                 .checked_add(number(verdict.text_max))?
                 .checked_add(number(verdict.items.min))?
                 .checked_add(number(verdict.items.max))?
-                .checked_add(self.fields(&verdict.fields)?)?;
+                .checked_add(self.fields(&verdict.fields, self.field_first)?)?;
             let mut first_kind = true;
             for kind in &verdict.items.kinds {
                 let base = if first_kind { self.kind_first } else { self.kind_next };
                 bytes = bytes
                     .checked_add(base)?
                     .checked_add(self.text(&kind.kind)?)?
-                    .checked_add(self.fields(&kind.fields)?)?;
+                    .checked_add(self.fields(&kind.fields, self.field_first)?)?;
                 first_kind = false;
             }
             first = false;
@@ -84,14 +87,14 @@ impl SchemaCosts {
             bytes = bytes
                 .checked_add(self.report)?
                 .checked_add(number(report.max))?
-                .checked_add(self.fields(&report.fields)?)?;
+                .checked_add(self.fields(&report.fields, self.text_field_first)?)?;
             groups = groups.checked_add(1)?;
         }
         if let Some(failure) = &outcome.failure {
             bytes = bytes
                 .checked_add(self.failure)?
                 .checked_add(number(failure.max))?
-                .checked_add(self.fields(&failure.fields)?)?;
+                .checked_add(self.fields(&failure.fields, self.text_field_first)?)?;
             groups = groups.checked_add(1)?;
         }
         match groups.checked_sub(1) {
@@ -103,14 +106,14 @@ impl SchemaCosts {
     /// Count the exact schema of a separately granted delivery.
     #[must_use]
     pub fn deliver(&self, change: &ChangeSpec) -> Option<u64> {
-        self.deliver.checked_add(self.fields(&change.fields)?)
+        self.deliver.checked_add(self.fields(&change.fields, self.field_first)?)
     }
 
-    fn fields(&self, fields: &[FieldRule]) -> Option<u64> {
+    fn fields(&self, fields: &[FieldRule], first_cost: u64) -> Option<u64> {
         let mut bytes = 0_u64;
         let mut first = true;
         for field in fields {
-            let base = if first { self.field_first } else { self.field_next };
+            let base = if first { first_cost } else { self.field_next };
             bytes = bytes
                 .checked_add(base)?
                 .checked_add(self.text(&field.name)?.checked_mul(2)?)?

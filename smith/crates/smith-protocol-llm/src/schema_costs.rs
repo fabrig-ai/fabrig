@@ -32,6 +32,10 @@ pub fn schema_costs() -> Result<SchemaCosts, Error> {
     one.failure = Some(text);
     let failure = difference(difference(length(&finish_schema(&one, u32::MAX)?)?, finish)?, 1)?;
     let field = FieldRule { name: Box::new([]), max: 0 };
+    one = empty.clone();
+    one.report = Some(TextSpec { max: 0, fields: Box::new([field.clone()]) });
+    let text_field_first =
+        difference(difference(difference(length(&finish_schema(&one, u32::MAX)?)?, finish)?, reported)?, 1)?;
     let mut fields = change.clone();
     fields.fields = Box::new([field.clone()]);
     let first_field = length(&deliver_schema(&fields, u32::MAX)?)?;
@@ -67,6 +71,7 @@ pub fn schema_costs() -> Result<SchemaCosts, Error> {
         report: reported.checked_sub(1).ok_or(Error::Limit)?,
         failure,
         field_first: difference(difference(first_field, deliver)?, 1)?,
+        text_field_first,
         field_next: difference(difference(next_field, first_field)?, 1)?,
         verdict_first: difference(difference(first_verdict, finish)?, 3)?,
         verdict_next: difference(difference(next_verdict, first_verdict)?, 3)?,

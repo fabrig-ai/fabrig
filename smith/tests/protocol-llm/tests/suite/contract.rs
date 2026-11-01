@@ -41,6 +41,93 @@ fn served(ask: llm::Decoded) -> run::Ask {
     }
 }
 
+fn text_contract(fields: Box<[run::outcome::FieldRule]>) -> run::outcome::OutcomeSpec {
+    run::outcome::OutcomeSpec {
+        change: None,
+        verdicts: Box::new([]),
+        report: Some(run::outcome::TextSpec { max: 80, fields: fields.clone() }),
+        failure: Some(run::outcome::TextSpec { max: 60, fields }),
+    }
+}
+
+#[test]
+fn text_finish_without_fields_decodes_for_a_fieldless_rule() {
+    let rules = text_contract(Box::new([]));
+    for input in [br#"{"form":"report","text":"done"}"#.as_slice(), br#"{"form":"failure","reason":"blocked"}"#] {
+        let run::Ask::Finish { outcome } = served(codec::decode_finish(input, &rules, &limits())) else {
+            panic!("finish ask")
+        };
+        assert_eq!(run::outcome::judge(&rules, &outcome), Ok(()));
+    }
+}
+
+#[test]
+fn text_finish_with_empty_fields_still_decodes_for_a_fieldless_rule() {
+    let rules = text_contract(Box::new([]));
+    for input in [
+        br#"{"form":"report","text":"done","fields":{}}"#.as_slice(),
+        br#"{"form":"failure","reason":"blocked","fields":{}}"#,
+    ] {
+        let run::Ask::Finish { outcome } = served(codec::decode_finish(input, &rules, &limits())) else {
+            panic!("finish ask")
+        };
+        assert_eq!(run::outcome::judge(&rules, &outcome), Ok(()));
+    }
+}
+
+#[test]
+fn text_finish_without_required_fields_names_the_missing_field() {
+    let rules = text_contract(Box::new([field(b"source", 20)]));
+    for input in [br#"{"form":"report","text":"done"}"#.as_slice(), br#"{"form":"failure","reason":"blocked"}"#] {
+        assert!(matches!(
+            codec::decode_finish(input, &rules, &limits()),
+            llm::Decoded::Invalid { problem: llm::Problem::Missing { field } } if field.as_ref() == b"fields"
+        ));
+    }
+}
+
+#[test]
+fn text_finish_fieldless_schema_omits_the_fields_property_and_requirement() {
+    let schema = codec::finish_schema(&text_contract(Box::new([])), limits().client.request).expect("text schema");
+    let schema: serde_json::Value = serde_json::from_slice(&schema).expect("schema JSON");
+    assert_eq!(
+        schema,
+        serde_json::json!({
+            "oneOf": [
+                {
+                    "type": "object",
+                    "properties": {"form": {"const": "report"}, "text": {"type": "string", "maxLength": 80}},
+                    "required": ["form", "text"]
+                },
+                {
+                    "type": "object",
+                    "properties": {"form": {"const": "failure"}, "reason": {"type": "string", "maxLength": 60}},
+                    "required": ["form", "reason"]
+                }
+            ]
+        })
+    );
+}
+
+#[test]
+fn text_finish_schema_keeps_declared_fields_required() {
+    let rules = text_contract(Box::new([field(b"source", 20)]));
+    let schema = codec::finish_schema(&rules, limits().client.request).expect("text schema");
+    let schema: serde_json::Value = serde_json::from_slice(&schema).expect("schema JSON");
+    let branches = schema["oneOf"].as_array().expect("text forms");
+    for branch in branches {
+        assert_eq!(
+            branch["properties"]["fields"],
+            serde_json::json!({
+                "type": "object",
+                "properties": {"source": {"type": "string", "minLength": 1, "maxLength": 20}},
+                "required": ["source"]
+            })
+        );
+        assert!(branch["required"].as_array().expect("required properties").contains(&serde_json::json!("fields")));
+    }
+}
+
 #[test]
 fn every_contract_form_yields_a_bounded_json_schema() {
     let all = contract();

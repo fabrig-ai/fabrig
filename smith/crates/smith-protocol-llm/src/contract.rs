@@ -105,10 +105,16 @@ fn text_branch(json: &mut Encoder, form: &[u8], text_name: &[u8], text: &run::ou
     json.object_start();
     const_string(json, b"form", form);
     bounded_string(json, text_name, text.max, false);
-    json.key(b"fields");
-    fields_schema(json, &text.fields);
+    if !text.fields.is_empty() {
+        json.key(b"fields");
+        fields_schema(json, &text.fields);
+    }
     json.object_end();
-    required(json, &[b"form", text_name, b"fields"]);
+    if text.fields.is_empty() {
+        required(json, &[b"form", text_name]);
+    } else {
+        required(json, &[b"form", text_name, b"fields"]);
+    }
     json.object_end();
 }
 
@@ -215,14 +221,14 @@ fn required(json: &mut Encoder, names: &[&[u8]]) {
 /// Decode a provider's declared result under a bounded admitted contract.
 /// Shape and aggregate policy are validated by the run after this translation.
 #[must_use]
-pub fn decode_finish(input: &[u8], _contract: &run::outcome::OutcomeSpec, limits: &Limits) -> llm::Decoded {
+pub fn decode_finish(input: &[u8], contract: &run::outcome::OutcomeSpec, limits: &Limits) -> llm::Decoded {
     let document = match crate::decode::admit(input, limits) {
         Ok(document) => document,
         Err(problem) => return llm::Decoded::Invalid { problem },
     };
     let document = document.document();
     let value = Value { start: 0, end: document.len() };
-    let outcome = match declared(document, value) {
+    let outcome = match declared(document, value, contract) {
         Ok(outcome) => outcome,
         Err(problem) => return llm::Decoded::Invalid { problem },
     };
@@ -243,17 +249,21 @@ pub fn decode_deliver(input: &[u8], _change: &run::outcome::ChangeSpec, limits: 
     llm::Decoded::Served { ask: run::Ask::Deliver { change: run::outcome::Change { fields } } }
 }
 
-fn declared(document: &Document, value: Value) -> Result<run::outcome::Declared, llm::Problem> {
+fn declared(
+    document: &Document,
+    value: Value,
+    contract: &run::outcome::OutcomeSpec,
+) -> Result<run::outcome::Declared, llm::Problem> {
     let form = required_string(document, value, b"form")?;
     let outcome = match form.as_ref() {
         b"change" => run::outcome::Declared::Change(run::outcome::Change { fields: required_fields(document, value)? }),
         b"report" => run::outcome::Declared::Report(run::outcome::Report {
             text: required_string(document, value, b"text")?,
-            fields: required_fields(document, value)?,
+            fields: text_fields(document, value, contract.report.as_ref())?,
         }),
         b"failure" => run::outcome::Declared::Failure(run::outcome::DeclaredFailure {
             reason: required_string(document, value, b"reason")?,
-            fields: required_fields(document, value)?,
+            fields: text_fields(document, value, contract.failure.as_ref())?,
         }),
         b"verdict" => run::outcome::Declared::Verdict(run::outcome::Verdict {
             name: required_string(document, value, b"label")?,
@@ -272,6 +282,20 @@ fn declared(document: &Document, value: Value) -> Result<run::outcome::Declared,
 struct Value {
     start: u32,
     end: u32,
+}
+
+fn text_fields(
+    document: &Document,
+    object: Value,
+    rule: Option<&run::outcome::TextSpec>,
+) -> Result<Box<[run::outcome::Field]>, llm::Problem> {
+    if let Some(rule) = rule
+        && rule.fields.is_empty()
+        && document.member(object.start, b"fields").is_none()
+    {
+        return Ok(Box::new([]));
+    }
+    required_fields(document, object)
 }
 
 fn required_fields(document: &Document, object: Value) -> Result<Box<[run::outcome::Field]>, llm::Problem> {
