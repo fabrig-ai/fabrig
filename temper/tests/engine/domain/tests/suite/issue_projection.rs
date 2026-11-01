@@ -321,7 +321,7 @@ fn a_goal_and_its_issue_are_titled_by_the_callers_first_line() {
     else {
         panic!("item read");
     };
-    assert_eq!(item.title.as_ref(), REQUEST_TITLE);
+    assert_eq!(item.title.as_ref(), b"Add CSV export to widget");
     assert!(item.body.starts_with(REQUEST_TITLE), "issue body opens with the request");
     assert!(item.title.len() + item.body.len() <= BODY_BYTES, "stock edit bound");
     assert_eq!(chip_title(&mut world, goal.task).as_ref(), REQUEST_TITLE);

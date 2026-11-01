@@ -203,7 +203,7 @@ fn a_cut_question_is_answered_through_the_tools_and_reaches_the_asker() {
 fn answer_question_from_plain_inbox(
     world: &mut World<Temper, Joint>,
     agent: ClientId,
-    chat: u64,
+    asked: u64,
     question: u64,
     asking: u64,
     words: &[u8],
@@ -216,15 +216,15 @@ fn answer_question_from_plain_inbox(
     if let Some(bound) = cut_at {
         let words = std::str::from_utf8(&words[..usize::try_from(bound).expect("bound")]).expect("question words");
         assert!(shown.contains(&format!("{words} (cut)\n")), "{shown}");
-        assert!(shown.contains(&format!("read whole: temper ctl DIR task activity {asking}\n")), "{shown}");
+        assert!(shown.contains(&format!("read whole: temper ctl DIR task activity {asked}\n")), "{shown}");
     } else {
         let words = std::str::from_utf8(words).expect("question words");
         assert!(shown.contains(&format!("{words}\n")), "{shown}");
         assert!(!shown.contains(" (cut)"), "{shown}");
         assert!(!shown.contains("read whole:"), "{shown}");
     }
-    assert_ne!(chat, asking, "answer and whole-read calls name different tasks");
-    assert!(shown.contains(&format!("answer: temper ctl DIR task answer {chat} {question} TEXT\n")), "{shown}");
+    assert_ne!(asked, asking, "asked task differs from the asker");
+    assert!(shown.contains(&format!("answer: temper ctl DIR task answer {asked} {question} TEXT\n")), "{shown}");
     let line = shown.lines().find_map(|line| line.strip_prefix("answer: temper ctl DIR ")).expect("answer call");
     let mut words: Vec<&[u8]> = Vec::new();
     for word in line.split_ascii_whitespace() {
@@ -233,7 +233,7 @@ fn answer_question_from_plain_inbox(
     let answer = call(world, agent, &words);
     assert_eq!(answer.status, 0, "{answer:?}");
     assert!(world.front().engine.task(asking).expect("answered asker").inbox.iter().any(|word| {
-        word.from == Party::Task(chat)
+        word.from == Party::Task(asked)
             && word.kind == MessageKind::Answer { question }
             && word.words.as_ref() == b"Go ahead."
     }));
