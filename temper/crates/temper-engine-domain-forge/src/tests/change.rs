@@ -642,6 +642,25 @@ fn change_words_within_operation_bound_open_unchanged_with_first_line_title() {
 }
 
 #[test]
+fn change_paragraph_opens_with_first_sentence_title_and_whole_body() {
+    let words = b"Add CSV export to the widget. Read src/main.rs to see how the widget works. Keep the export simple.";
+    let skein_forge::api::Write::OpenPull { title, body, .. } = projected_words(words) else { panic!("open pull") };
+    assert_eq!(title.as_ref(), b"Add CSV export to the widget");
+    assert_eq!(body.as_ref(), words);
+}
+
+#[test]
+fn change_long_first_sentence_title_cuts_at_a_word() {
+    const WORDS: usize = 50; // Eight bytes per word exceed the pull's 256-byte title bound.
+    const KEPT_WORDS: usize = 31; // 31 * 8 - 1 + 3 marker bytes fit; one more word does not.
+    let words = "Exports ".repeat(WORDS) + "widgets. Keep the full specification.";
+    let skein_forge::api::Write::OpenPull { title, .. } = projected_words(words.as_bytes()) else {
+        panic!("open pull")
+    };
+    assert_eq!(title.as_ref(), ("Exports ".repeat(KEPT_WORDS - 1) + "Exports…").as_bytes());
+}
+
+#[test]
 fn oversized_gate_remarks_are_marked_before_they_are_saved() {
     use temper_engine_domain_forge_change as change;
     let mut d = domain();

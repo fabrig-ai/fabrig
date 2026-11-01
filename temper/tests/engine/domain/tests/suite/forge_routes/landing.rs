@@ -137,7 +137,7 @@ fn produced_turn_change(landing_members: Option<u32>) -> (World, u64) {
     let ask = adoption_chat(&world);
     let chat = assigned_chat(&mut world, 92, ask);
     let engine::CallAnswer::Delegated(made) =
-        change_tool::change(&mut world, &chat, 93, None, b"Small fix\nwith detail")
+        change_tool::change(&mut world, &chat, 93, None, b"Small fix. Keep the full detail.")
     else {
         panic!("change delegated")
     };

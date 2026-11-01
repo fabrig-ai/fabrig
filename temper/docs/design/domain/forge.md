@@ -897,10 +897,14 @@ branch. Its parameters:
 - **the pull request's title and body,** or what to make them from, and
   the goal it is part of. The change's words are its spec, kept whole
   for its producer's brief and bounded by the task's own limits, never
-  by the forge's; only what goes to the forge is: the title and body are
-  cut to the forge client's bounds (an operation's bytes, the forge's
-  title), marked cut, and a change is never refused or held for the
-  length of its words;
+  by the forge's. The pull's title is the first sentence of the words'
+  first line, with its trailing full stop dropped, cut at a word to the
+  forge's title bound (at a character when no space fits), marked with
+  “…” only when cut mid-sentence. The body holds the words whole, fitted
+  to the forge client's operation bound and marked when cut. A goal's
+  issue title is made the same way from its spec, and a landing's name
+  prefixes the change's title with “Land ”, fitted to its task bound.
+  A change is never refused or held for the length of its words;
 - **its bounds:** repairs, resolutions, updates, and the stall of each
   wait.
 

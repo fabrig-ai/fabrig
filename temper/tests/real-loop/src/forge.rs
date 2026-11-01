@@ -214,8 +214,8 @@ impl State {
         let mut config = temper_fake_git_hosted::fixtures::CONFIG;
         // The HTTP peer admits four simultaneous calls, unlike the git-only fixture.
         config.limits.calls = protocol_limits().calls;
-        // A change opens its pull under the full specification, before coding's
-        // result supplies its final title; the case's brief exceeds 16 bytes.
+        // A change opens its pull under its words' first sentence, fitted to
+        // the forge's title bound; the case's title exceeds 16 bytes.
         config.limits.title_bytes = 512;
         // The case's design pull body and title-plus-body commit message exceed
         // the git-only fixture's 32-byte body and 50-byte message limits.
