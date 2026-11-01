@@ -90,6 +90,17 @@ pub(crate) fn run_configuration(
         let root = skein_shell::open_root(directory).map_err(|errno| format!("directory: errno {errno}"))?;
         owned.push(root);
         let settings = Settings {
+            directories: checked
+                .setup
+                .entries
+                .iter()
+                .filter_map(|entry| match entry.mode {
+                    temper_forge_setup::setup::Mode::Owned(_) | temper_forge_setup::setup::Mode::Fake(_) => {
+                        Some((entry.forge, entry.directory.clone()))
+                    }
+                    temper_forge_setup::setup::Mode::Managed { .. } => None,
+                })
+                .collect(),
             vacant: Box::new([]),
             program: program.as_os_str().as_bytes().into(),
             environment,

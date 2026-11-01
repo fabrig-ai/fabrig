@@ -173,6 +173,8 @@ pub struct Harness {
     pub hold_spawn: Option<Box<[u8]>>,
     pub held_spawn: Option<Call>,
     pub group_file: HeldFile,
+    pub trash: HeldFile,
+    pub refuse_sweep: Option<skein_io::kernel::Error>,
     pub refuse_log: Option<Box<[u8]>>,
     pub hold_log_write: bool,
     pub held_log_write: Option<Call>,
@@ -266,6 +268,7 @@ impl Harness {
             }
         }
         let settings = Settings {
+            directories: Box::new([]),
             vacant,
             echo,
             data: bytes::copy_of(b"/data"),
@@ -305,6 +308,8 @@ impl Harness {
             hold_spawn: None,
             held_spawn: None,
             group_file: HeldFile { hold: false, call: None },
+            trash: HeldFile { hold: false, call: None },
+            refuse_sweep: None,
             refuse_log: None,
             hold_log_write: false,
             held_log_write: None,
@@ -348,6 +353,21 @@ impl Harness {
         }
     }
     fn answer_call(&mut self, call: Call) {
+        if self.trash.hold
+            && let Ask::List { .. } = &call.ask
+        {
+            assert!(self.trash.call.is_none(), "one sweep operation");
+            self.trash.call = Some(call);
+            return;
+        }
+        if let Ask::Remove { name, .. } = &call.ask
+            && name.as_ref() == b"7"
+            && let Some(error) = self.refuse_sweep.take()
+        {
+            self.answers.push(Answer { ticket: call.ticket, result: Err(error) });
+            self.sim.answer(&mut self.answers);
+            return;
+        }
         if self.group_file.hold {
             let hold = match &call.ask {
                 Ask::Open { path, .. } => path.starts_with(b"box/groups/"),

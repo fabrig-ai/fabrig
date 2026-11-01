@@ -211,6 +211,9 @@ fn path(forge: u16) -> Box<[u8]> {
     joined(&[b"box/started/", Decimal::of(u64::from(forge)).as_bytes()])
 }
 fn diagnostic(forge: u16, operation: &[u8], error: Error) -> Box<[u8]> {
+    joined(&[b"box: ", operation, b" ", &path(forge), b": ", &error_name(error), b"\n"])
+}
+pub(crate) fn error_name(error: Error) -> Box<[u8]> {
     let why: &[u8] = match error {
         Error::Permission => b"permission denied",
         Error::NotFound => b"not found",
@@ -240,16 +243,11 @@ fn diagnostic(forge: u16, operation: &[u8], error: Error) -> Box<[u8]> {
         | Error::TooLate => b"unexpected file error",
         Error::Other(code) => {
             return joined(&[
-                b"box: ",
-                operation,
-                b" ",
-                &path(forge),
-                b": error ",
+                b"error ",
                 if code < 0 { b"-" } else { b"" },
                 Decimal::of(u64::from(code.unsigned_abs())).as_bytes(),
-                b"\n",
             ]);
         }
     };
-    joined(&[b"box: ", operation, b" ", &path(forge), b": ", why, b"\n"])
+    bytes::copy_of(why)
 }

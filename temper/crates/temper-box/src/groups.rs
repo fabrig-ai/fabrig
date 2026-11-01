@@ -31,6 +31,7 @@ pub(crate) struct Groups {
     notice: Option<Box<[u8]>>,
     answer: Option<Input>,
     result: Option<Input>,
+    directory: Option<Box<[u8]>>,
 }
 impl Groups {
     pub fn new(bound: u32) -> Self {
@@ -46,6 +47,7 @@ impl Groups {
             notice: None,
             answer: None,
             result: None,
+            directory: None,
         }
     }
     pub fn owns(token: Token) -> bool {
@@ -70,7 +72,11 @@ impl Groups {
         assert!(self.ready(), "one group file operation");
         self.forge = forge;
         self.bytes.clear();
+        self.directory = None;
         self.phase = Phase::Open;
+    }
+    pub fn take_directory(&mut self) -> Option<Box<[u8]>> {
+        self.directory.take()
     }
     pub fn remove(&mut self, forge: u16) {
         assert!(self.ready(), "one group file operation");
@@ -179,9 +185,11 @@ impl Groups {
                         }
                     }
                     if count == 0 {
-                        match playground(self.bytes.as_slice(), self.bound) {
-                            Some(playground) => {
-                                self.result = Some(Input::Read { forge: self.forge, playground: Some(playground) });
+                        match members(self.bytes.as_slice(), self.bound) {
+                            Some(members) => {
+                                self.directory = members.directory;
+                                self.result =
+                                    Some(Input::Read { forge: self.forge, playground: Some(members.playground) });
                                 self.phase = Phase::ReadClose;
                             }
                             None => self.read_failed(b"malformed group file", false),
@@ -239,12 +247,31 @@ impl Groups {
         }
     }
 }
-fn playground(input: &[u8], bound: u32) -> Option<bool> {
+#[derive(Debug)]
+struct Members {
+    playground: bool,
+    directory: Option<Box<[u8]>>,
+}
+fn members(input: &[u8], bound: u32) -> Option<Members> {
     let document = document(input, &DocumentLimits { bytes: bound, tokens: bound, depth: 128 }).ok()?;
     let mut object = read::Object::new(&document, 0).ok()?;
     let at = object.member(&document, b"playground")?;
-    // The rest is the steps' own. Ambiguous kind members cannot choose a group.
+    // The rest is the steps' own. Ambiguous members cannot choose a directory.
     let mut occurrences = 0_u32;
+    let mut setups = 0_u32;
+    let mut directories = 0_u32;
+    let setup = object.member(&document, b"setup");
+    let mut setup_start = document.len();
+    let mut setup_end = 0;
+    let mut directory = None;
+    if let Some(at) = setup {
+        let mut object = read::Object::new(&document, at).ok()?;
+        setup_start = at;
+        setup_end = read::after(&document, at).ok()?;
+        if let Some(at) = object.member(&document, b"directory") {
+            directory = Some(read::text(&document, at, bound).ok()?);
+        }
+    }
     let mut depth = 0_u32;
     for index in 0..document.len() {
         let token = document.token(index)?;
@@ -253,6 +280,14 @@ fn playground(input: &[u8], bound: u32) -> Option<bool> {
             skein_json::Kind::ObjectEnd | skein_json::Kind::ArrayEnd => depth = depth.checked_sub(1)?,
             skein_json::Kind::Key if depth == 1 && document.text(token)? == b"playground" => {
                 occurrences = occurrences.checked_add(1)?;
+            }
+            skein_json::Kind::Key if depth == 1 && document.text(token)? == b"setup" => {
+                setups = setups.checked_add(1)?;
+            }
+            skein_json::Kind::Key
+                if depth == 2 && document.text(token)? == b"directory" && index > setup_start && index < setup_end =>
+            {
+                directories = directories.checked_add(1)?;
             }
             skein_json::Kind::Key
             | skein_json::Kind::String
@@ -263,8 +298,8 @@ fn playground(input: &[u8], bound: u32) -> Option<bool> {
             | skein_json::Kind::Long => {}
         }
     }
-    if occurrences != 1 {
+    if occurrences != 1 || setups > 1 || directories > 1 {
         return None;
     }
-    read::boolean(&document, at).ok()
+    Some(Members { playground: read::boolean(&document, at).ok()?, directory })
 }
