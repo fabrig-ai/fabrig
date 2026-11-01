@@ -971,32 +971,14 @@ fn running_setup_opened_in_second_tab_is_not_resent() {
 }
 
 #[test]
-fn setup_strip_tracks_progress_and_changes_its_continue_step() {
+fn no_setup_strip_or_progress_link_appears_while_a_forge_sets_up() {
     let mut world = world();
     let client = open(&mut world, Address::Chats { filter: ChatsFilter::All, start: false });
-    follow(&mut world, client, vec![see(Role::Region, b"Setup")]);
-    follow(
-        &mut world,
-        client,
-        vec![
-            PersonStep::Press { find: Find::exactly_named(Role::Link, b"Continue setting up") },
-            see(Role::Heading { level: 1 }, b"Connect a forge"),
-            PersonStep::Go { address: Address::Chats { filter: ChatsFilter::All, start: false } },
-        ],
-    );
+    follow(&mut world, client, vec![gone(Role::Region, b"Setup"), gone(Role::Link, b"Continue setting up")]);
     connection(&mut world, OWNED, forge::Connection::SettingUp { step: Some(forge::SetUpStep::Fetch) });
-    follow(&mut world, client, vec![see(Role::Link, b"View")]);
-    assert!(text(&world, client).contains("Forgejo on this machine · Setting up: fetching"));
-    follow(
-        &mut world,
-        client,
-        vec![
-            PersonStep::Press { find: Find::exactly_named(Role::Link, b"Continue setting up") },
-            see(Role::Heading { level: 1 }, b"Almost ready"),
-        ],
-    );
+    follow(&mut world, client, vec![gone(Role::Region, b"Setup"), gone(Role::Link, b"View")]);
+    assert!(!text(&world, client).contains("Forgejo on this machine · Setting up: fetching"));
 }
-
 #[test]
 fn strip_exclusions_and_forges_navigation_current_match_pages() {
     for page in [
@@ -1029,12 +1011,12 @@ fn non_owner_forges_page_explains_the_watch_refusal() {
 
 #[test]
 #[ignore = "needs: a non-owner identity; `configured(false, ..)` still signs in the deployment's owner"]
-fn non_owner_setup_strip_only_names_the_missing_model() {
+fn non_owner_has_no_setup_strip() {
     let mut world = configured(false, true, forge::Mode::Owned);
     let client = open(&mut world, Address::Chats { filter: ChatsFilter::All, start: false });
-    follow(&mut world, client, vec![see(Role::Region, b"Setup")]);
+    follow(&mut world, client, vec![gone(Role::Region, b"Setup")]);
     let words = text(&world, client);
-    assert!(words.contains("temper has no model yet."), "{words}");
+    assert!(!words.contains("temper has no model yet."), "{words}");
     assert!(!words.contains("temper has no forge"), "forges are not this person's to set up: {words}");
 }
 
@@ -1067,13 +1049,21 @@ fn playground_forge_disappears_when_real_forge_connects() {
 }
 
 #[test]
-#[ignore = "needs: non-null Demo read fixture to exercise both halves, banner order, Connect a forge href, replacement by progress, exclusions and demo-to-setup/accounts seam"]
-fn playground_banner_replaces_connect_link_with_running_setup() {
+#[ignore = "needs: non-null playground read fixture to exercise the reset banner during setup"]
+fn playground_banner_keeps_reset_link_during_running_setup() {
     let mut world = world();
     let client = open(&mut world, Address::Chats { filter: ChatsFilter::All, start: false });
-    follow(&mut world, client, vec![see(Role::Region, b"Playground"), see(Role::Link, b"Connect a forge")]);
+    follow(
+        &mut world,
+        client,
+        vec![see(Role::Region, b"Playground"), see(Role::Link, b"set up temper"), gone(Role::Link, b"Connect a forge")],
+    );
     connection(&mut world, OWNED, forge::Connection::SettingUp { step: None });
-    follow(&mut world, client, vec![see(Role::Link, b"View"), gone(Role::Link, b"Connect a forge")]);
+    follow(
+        &mut world,
+        client,
+        vec![see(Role::Link, b"set up temper"), gone(Role::Link, b"View"), gone(Role::Link, b"Connect a forge")],
+    );
 }
 
 #[test]
@@ -1101,13 +1091,13 @@ fn browser_reload_preserves_running_setup_without_resending() {
 }
 
 #[test]
-fn accounts_banner_stays_above_setup_strip_on_eligible_pages() {
-    for (page, has_strip) in [
-        (Address::Chats { filter: ChatsFilter::All, start: false }, true),
-        (f::inbox(), true),
-        (Address::Adopt { project: 1 }, true),
-        (Address::Forges, false),
-        (flow(None), false),
+fn accounts_banner_shows_without_a_setup_strip() {
+    for page in [
+        Address::Chats { filter: ChatsFilter::All, start: false },
+        f::inbox(),
+        Address::Adopt { project: 1 },
+        Address::Forges,
+        flow(None),
     ] {
         // No usable account: the accounts document is not usable.
         let mut world = configured_accounts(
@@ -1148,10 +1138,7 @@ fn accounts_banner_stays_above_setup_strip_on_eligible_pages() {
         });
         assert!(banner.is_some(), "README.md 5.1 requires the accounts banner: {}", text(&world, client));
         let strip = nodes.iter().position(|node| node.role == Role::Region && node.name.as_deref() == Some(b"Setup"));
-        assert_eq!(strip.is_some(), has_strip, "only eligible pages have a setup strip");
-        if let Some(strip) = strip {
-            assert!(banner.expect("banner exists") < strip, "accounts banner precedes setup strip");
-        }
+        assert!(strip.is_none(), "no page has a setup strip");
     }
 }
 

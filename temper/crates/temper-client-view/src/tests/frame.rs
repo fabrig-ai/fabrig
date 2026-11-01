@@ -18,6 +18,7 @@ fn the_navigation_ends_with_accounts() {
             Box::from(*b"Inbox"),
             Box::from(*b"Chats"),
             Box::from(*b"Adopt a repository"),
+            Box::from(*b"Settings"),
             Box::from(*b"Forges"),
             Box::from(*b"Accounts")
         ]
@@ -340,7 +341,7 @@ fn each_link_shows_its_name_as_its_text() {
             links += 1;
         }
     }
-    assert_eq!(links, 7);
+    assert_eq!(links, 8);
 }
 
 #[test]

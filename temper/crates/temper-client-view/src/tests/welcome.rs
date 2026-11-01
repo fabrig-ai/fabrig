@@ -515,12 +515,11 @@ fn ready_names_the_configured_model_without_an_account_row() {
     assert!(f::find(view.tree(), Role::Link, b"Connect a model").is_none());
 }
 #[test]
-fn the_setup_strip_continues_to_ready_with_a_configured_model() {
+fn no_setup_strip_offers_continue_with_a_configured_model() {
     let root = configured_model_fixture(Address::Chats { filter: ChatsFilter::All, start: false });
-    assert_eq!(
-        press(&root, Role::Link, "Continue setting up"),
-        d::Action::Pages(pages::Act::Go { address: Address::Welcome { step: Step::Ready } })
-    );
+    let view = f::page_view(&root);
+    assert!(f::find(view.tree(), Role::Region, b"Setup").is_none());
+    assert!(f::find(view.tree(), Role::Link, b"Continue setting up").is_none());
 }
 
 #[test]

@@ -15,7 +15,7 @@ fn names_are_the_promised_ones() {
 }
 
 #[test]
-fn navigation_links_have_addresses_and_install_action_links_keep_their_binding() {
+fn navigation_links_have_addresses_and_action_links_keep_their_binding() {
     for sample in samples::samples() {
         let mut view = view(&sample);
         let mut links = Vec::new();
@@ -28,17 +28,24 @@ fn navigation_links_have_addresses_and_install_action_links_keep_their_binding()
         for node in links {
             if let Some(address) = temper_client_view::href(&mut view, node) {
                 assert!(!address.is_empty(), "{}: empty href for {node:?}", sample.name);
-            } else if let Some(temper_client_domain::Action::Forge(temper_client_domain::forge::Act::Install {
-                forge,
-                ..
-            })) = temper_client_view::act(&mut view, node, skein_ui::Act::Press)
-            {
-                // The existing picker link starts an asynchronous install request;
-                // it has no static destination until the forge answers.
-                assert_eq!(sample.name, "github-picker");
-                assert_eq!(forge, 2);
             } else {
-                panic!("{}: link {node:?} has neither a destination nor its install act", sample.name);
+                match temper_client_view::act(&mut view, node, skein_ui::Act::Press) {
+                    Some(temper_client_domain::Action::Forge(temper_client_domain::forge::Act::Install {
+                        forge,
+                        ..
+                    })) => {
+                        assert_eq!(sample.name, "github-picker");
+                        assert_eq!(forge, 2);
+                    }
+                    Some(temper_client_domain::Action::Pages(temper_client_domain::pages::Act::LeavePlayground)) => {
+                        let mut reset = false;
+                        for shown in view.tree().nodes() {
+                            reset |= shown.id == node && shown.name.as_deref() == Some(b"set up temper");
+                        }
+                        assert!(reset);
+                    }
+                    _ => panic!("{}: link {node:?} has neither a destination nor its action", sample.name),
+                }
             }
         }
     }
@@ -77,10 +84,11 @@ const HOLDS: [Holds; samples::N] = [
         parts: &[
             Part::Named {
                 role: Role::Paragraph,
-                name: "This is the playground: a scripted model and a playground forge.",
+                name: "This is the playground: a scripted model and in-memory forge. Use the wizard to set up temper",
             },
-            Part::Named { role: Role::Link, name: "Connect a model" },
-            Part::Named { role: Role::Link, name: "Connect a forge" },
+            Part::Named { role: Role::Link, name: "set up temper" },
+            Part::Absent { role: Role::Link, name: "Connect a model" },
+            Part::Absent { role: Role::Link, name: "Connect a forge" },
         ],
     },
     Holds {
@@ -336,9 +344,9 @@ const HOLDS: [Holds; samples::N] = [
         name: "chats-setup-strip",
         heading: "Chats",
         parts: &[
-            Part::Named { role: Role::Region, name: "Setup" },
-            Part::Named { role: Role::Paragraph, name: "temper has no forge and no model yet." },
-            Part::Named { role: Role::Link, name: "Continue setting up" },
+            Part::Absent { role: Role::Region, name: "Setup" },
+            Part::Absent { role: Role::Paragraph, name: "temper has no forge and no model yet." },
+            Part::Absent { role: Role::Link, name: "Continue setting up" },
         ],
     },
     Holds {

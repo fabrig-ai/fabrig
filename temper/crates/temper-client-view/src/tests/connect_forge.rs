@@ -421,13 +421,13 @@ fn the_welcomes_ready_follows_a_forge_under_way() {
 }
 
 #[test]
-fn the_forge_pages_have_navigation_and_no_playground_banner() {
+fn the_forge_pages_have_navigation_and_the_playground_banner() {
     for address in [Address::ConnectForge { forge: None }, Address::Forges] {
         let root = f::demo_frame_root(address, f::PROJECT, true, None, None);
         assert!(root.demo().is_some());
         let view = f::page_view(&root);
         node(view.tree(), Role::Navigation, b"Main navigation");
-        assert!(f::find(view.tree(), Role::Region, b"Playground").is_none());
+        assert!(f::find(view.tree(), Role::Region, b"Playground").is_some());
     }
 }
 
