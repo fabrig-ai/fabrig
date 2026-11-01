@@ -543,8 +543,7 @@ call (10.6).
   call's branch counts in the chain (a conflict merging it into the
   trunk, the queue's rejection, `fab land`'s): amended (rebased) when
   the chain has had no amend since its last reset, else held for a
-  settle, which may then only land or refer it to the person. A running
-  cut's merge conflict is only a note.
+  settle. A running cut's merge conflict is only a note.
 - **With reviews off** (fabrig's default), a call's branch is merged
   into the trunk as it ends.
 - **With reviews on, a structure review** call reads the digests of the
@@ -747,4 +746,5 @@ Each waits for the numbers or the person's word that asks for it.
   builder lent its sign-ins when it joins.
 - **Landings across repositories,** and a forge's native merge queue
   (GitHub's) as an accelerator.
+
 

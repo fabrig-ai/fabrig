@@ -46,7 +46,8 @@ a QA driver types Ines's words.
 - **The machines:** the hub, which runs the dispatcher, the calls, the
   inbox page, the shelf and the status page and builds nothing; builders
   B1 (four places, five slots) and B2 (four places, four slots); G, the
-  gate machine and a builder, whose last slot is the tier runner's.
+  gate machine and a builder (two places), whose last slot is the tier
+  runner's.
 - **The shelf:** a Codex and a Claude login lent to each machine;
   codex-9 and chatgpt-1 free.
 
@@ -132,7 +133,7 @@ it merges.
 
 ### 5.1 As wide as the places
 
-Each plan's target is its builders' places, eight. Each run starts in a
+Each plan's target is its builders' places, ten. Each run starts in a
 claimed slot from its trunk's tip, on a compiled brief; before each
 start, the builder's fab install moves to the hub's commit. B1 is calm
 (low load, no disk waits), so it takes e9 as a fifth run in its fifth
@@ -437,7 +438,7 @@ with the pass.
 | a skeleton, its checked tip, the rebases (4.4) | the skeleton call, `call.checked`, a task rebase | 10.6 |
 | Ines's answers (4.3, 4.4, 8.3) | plan.toml's `answer`; `fab issues sync` and the reply call | 11.1, 11.3 |
 | a run in a slot (5.1) | `fab run start` in a builder's slot; the report's first line | 5.1 |
-| eight places, calm B1, a start handed on (5.1) | the flow target, `flow.measure`, "no idle slot" | 5.2 |
+| ten places, calm B1, a start handed on (5.1) | the flow target, `flow.measure`, "no idle slot" | 5.2 |
 | an early start, and one refused (5.2) | `early_starts`, `early.refused` | 6.2 |
 | a merge and a recount (5.3) | the tick's merge into `<draft>/integration`, `old_forms.py --write` | 6.1 |
 | the tick waking itself (5.3), a lost wake (8.5) | `fab wake`, `tick.want`, the backstop timer | 3 |
@@ -483,7 +484,7 @@ with the pass.
   skeletons show its mechanics.
 - **The flow growing** (model 5.2): only a queue plan's target grows, on
   a first-attempt landing with its window full; the ladder, the case's
-  one queue plan, never fills eight places.
+  one queue plan, never fills ten places.
 - **The rebase onto an amended skeleton** runs once in 4.4; in an
   integration plan fab repeats it (model 10.6, a fault).
 - **Where the retire's branch goes** (model 10.6): fab merges it into a
@@ -509,7 +510,7 @@ Unqualified documents are temper's `../domain/` ones.
 | Catching up with main, its repairs, a stop | 6.4 | updates by the forge's merge, a conflict as a resolution (`forge.md` 10, 8.4) | a timed catch-up of a trunk; a check that main is contained; a plan's stop cleared by a hand merge |
 | The end check, ready, a re-check after a rejection | 6.5 | a goal branch landed as a change, with bounded repairs (`forge.md` 8.4, 11.1) | a full check of the trunk before ready; a re-check after the queue rejects it |
 | An overlap probe between drafts | 6.6 | a landing waking a goal whose changes' files it overlaps (`forge.md` 7.3, in part) | a merge probe of each pair of trunks, recorded and shown |
-| The queue: batches, selection, an exclusive gate lane, the push, an error | 7.1 | the turn, fast-forward only, one per project (`landing.md` 8, on Forgejo); selection by keys (6.1); a queue per landing branch (`forge.md` 9) | batches of unrelated changes; a full selection every fifth batch; an exclusive lane; an error that rejects nobody |
+| The queue: batches, selection, an exclusive gate lane, the push, an error | 7.1 | the turn, fast-forward only, one per project (`landing.md` 8, on Forgejo); selection by keys (`landing.md` 6.1); a queue per landing branch (`forge.md` 9) | batches of unrelated changes; a full selection every fifth batch; an exclusive lane; an error that rejects nobody |
 | The check before ready and its receipt reused | 7.2 | receipts by key, reused by every member, never run twice (`landing.md` 6) | a check before ready in the change's workspace, and a receipt from it |
 | Collateral reds | 7.3 | a runner's fault kept apart from a failure (`landing.md` 7.4); a known flake rerun (`findings.md` 5, *designed*) | a failed test retried alone before anyone is blamed, with its bound |
 | Bisection of a red batch | 7.4 | bisection of a red tier run (`after-landing.md` 5.2, *designed*) | bisection at the gate |
@@ -529,6 +530,7 @@ Unqualified documents are temper's `../domain/` ones.
 | Questions on the forge | 11.3 | a question as an issue, the first comment its answer (`forge.md` 12.1, *designed*, Later) | a reply call that converses before it records |
 | Workspaces, disk, lanes, stale claims | 12.1 | a checkout cache by workstream, released or discarded (`worker.md` 5; jig's `domain/hosts.md` 7, *designed*) | disk admission that waits and reclaims; a sweep that bounds a workspace; lanes |
 | The shelf | 12.2 | accounts with holders and states, limited until a reset; a claim records its account (jig's `domain/accounts.md` 1 to 6) | lending to a run and returning; a swap; checks of every limit |
-| Reports and the status page | 13 | views of tasks (jig's `domain/engine.md` 11); spend per period (`domain/authority.md` 7); `ctl landing show` | daily code and landing reports; a public page of counts; weights |
+| Reports and the status page | 13 | views of tasks (jig's `domain/engine.md` 11); spend per period (jig's `domain/authority.md` 7); `ctl landing show` | daily code and landing reports; a public page of counts; weights |
+
 
 
