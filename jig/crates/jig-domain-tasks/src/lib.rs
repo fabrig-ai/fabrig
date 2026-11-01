@@ -74,6 +74,7 @@ pub use compound::{CompoundAdmission, CompoundContext, CompoundTask, Operation};
 mod domain;
 mod payer;
 pub use payer::{Payer, PayerLink};
+mod erase;
 mod escalation;
 mod facts;
 mod failures;

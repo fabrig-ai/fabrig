@@ -56,7 +56,7 @@ pub(crate) fn retire(domain: &mut Domain, out: &mut Queue<Request>) {
     }
 }
 
-fn close(domain: &mut Domain, funder: Funder, out: &mut Queue<Request>) {
+pub(crate) fn close(domain: &mut Domain, funder: Funder, out: &mut Queue<Request>) {
     let mut row = domain.funding.remove(&funder).expect("funding source kept until closure");
     row.closed = true;
     out.push(Request::Erase { key: Key::Ledger(funder) });
