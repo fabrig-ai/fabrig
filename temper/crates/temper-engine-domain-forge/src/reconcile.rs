@@ -161,7 +161,7 @@ impl Reconciliation {
             Stored::Receipt { key, .. } => self.repository(RecordKind::Receipt, key.repository),
             Stored::Call { key, .. } => self.task(RecordKind::Call, key.task, None),
             Stored::ProposedEffect(row) => self.entry(RecordKind::ProposedEffect, &row.entry),
-            Stored::Repository(row) => self.need(RecordKind::Repository, Need::Forge(row.provider.forge)),
+            Stored::Repository(row) => self.repository(RecordKind::Repository, row.provider),
             Stored::Hold(row) => {
                 self.name(RecordKind::Hold, &row.name)?;
                 self.task(RecordKind::Hold, row.task, Some(row.name.forge))?;
@@ -301,6 +301,12 @@ impl Domain {
     fn configured_forge(&self, forge: u16) -> bool {
         self.configured.contains_key(&forge) || self.identities.contains_key(&forge)
     }
+    fn removed_forge(&self, forge: u16) -> bool {
+        match self.next_forge {
+            Some(next) => forge < next && !self.configured_forge(forge),
+            None => false,
+        }
+    }
     fn reference_resolves(&self, need: Need, live: bool) -> bool {
         match need {
             // Identities are constructor facts too; a restored writer is never one.
@@ -310,7 +316,8 @@ impl Domain {
                 None => false,
             },
             Need::Repository(repository) => {
-                self.configured_forge(repository.forge) && self.repositories.contains_key(&repository)
+                (self.configured_forge(repository.forge) || self.removed_forge(repository.forge))
+                    && self.repositories.contains_key(&repository)
             }
             Need::Task { retired, .. } => {
                 live || match retired {
