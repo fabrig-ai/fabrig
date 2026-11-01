@@ -341,3 +341,48 @@ fn a_restart_names_each_party_source_before_wanting_it() {
             .all(|(i, _)| i > end)
     );
 }
+
+#[test]
+fn forget_project_saves_only_affected_accounts_and_keeps_empty_explicit_uses() {
+    let mut rows = Vec::new();
+    for (number, holder, uses) in [
+        (10, HOLDER, Some(vec![Use::Project(1), Use::Project(2), Use::Party(7)])),
+        (20, OTHER, Some(vec![Use::Project(1)])),
+        (30, HOLDER, Some(vec![Use::Project(2)])),
+    ] {
+        let mut row = account(number, PROVIDER, holder, b"");
+        if let Stored::Account { uses: payers, place, .. } = &mut row {
+            *payers = uses.map(Vec::into_boxed_slice);
+            *place = u32::from(number == 30);
+        }
+        rows.push(row);
+        rows.push(source(number, number + 1, 0, Kind::Key));
+    }
+    let mut world = World::with(providers(vec![provider(PROVIDER, true, true)]), &rows);
+    world.step(Event::Want);
+    let outputs = world.step(Event::ForgetProject { project: 1 });
+    assert_eq!(outputs.len(), 2);
+    for output in &outputs {
+        let Request::Save { record: row @ Stored::Account { number, uses, .. } } = output else {
+            panic!("only affected accounts are saved: {output:?}");
+        };
+        let expected: &[Use] = match number {
+            10 => &[Use::Project(2), Use::Party(7)],
+            20 => &[],
+            _ => panic!("untouched account was saved"),
+        };
+        assert_eq!(uses.as_deref(), Some(expected));
+        assert_eq!(world.domain.account(*number).expect("kept account").uses(), Some(expected));
+        let kept = rows.iter_mut().find(|old| old.key() == row.key()).expect("saved account");
+        *kept = row.clone();
+    }
+    assert_eq!(world.domain.account(30).expect("other project").uses(), Some(&[Use::Project(2)][..]));
+    assert!(world.step(Event::ForgetProject { project: 1 }).is_empty());
+    let mut cold = World::with(providers(vec![provider(PROVIDER, true, true)]), &rows);
+    cold.step(Event::Want);
+    assert_eq!(cold.domain.account(20).expect("empty explicit uses restored").uses(), Some(&[][..]));
+    assert_eq!(
+        cold.domain.account(10).expect("mixed uses restored").uses(),
+        Some(&[Use::Project(2), Use::Party(7)][..])
+    );
+}

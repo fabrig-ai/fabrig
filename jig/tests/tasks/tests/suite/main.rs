@@ -5,6 +5,7 @@ mod activity;
 mod added;
 mod circles;
 mod exceeded;
+mod forget_project;
 mod funding;
 mod holds;
 mod inbox;

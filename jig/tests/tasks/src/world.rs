@@ -440,7 +440,8 @@ impl World {
                 );
             }
             Request::Timer { task, subscription } => self.route_timer(*task, *subscription),
-            Request::Taken { .. }
+            Request::SpendForgotten { .. }
+            | Request::Taken { .. }
             | Request::Waiting { .. }
             | Request::WriterWaiting { .. }
             | Request::EndTopic { .. }
@@ -509,7 +510,9 @@ impl World {
             }
             Event::Turn { task, cumulative, .. }
             | Event::Activation { task, cause: Cause::Priced { cumulative }, .. } => Some((*task, *cumulative)),
-            Event::Place { .. }
+            Event::ForgetProject { .. }
+            | Event::ForgetLedgers { .. }
+            | Event::Place { .. }
             | Event::Lift { .. }
             | Event::MoveToNewest { .. }
             | Event::Charters { .. }
@@ -603,7 +606,9 @@ impl World {
             | Event::Notice { word, .. } => {
                 self.message = self.message.max(word.number);
             }
-            Event::Place { .. }
+            Event::ForgetProject { .. }
+            | Event::ForgetLedgers { .. }
+            | Event::Place { .. }
             | Event::Lift { .. }
             | Event::Charters { .. }
             | Event::ResourceAccess { .. }
@@ -789,7 +794,8 @@ impl World {
                 Request::Acknowledged { task, attempt, accepted: Accepted::New, .. } => {
                     terminals.push((*task, *attempt));
                 }
-                Request::Taken { .. }
+                Request::SpendForgotten { .. }
+                | Request::Taken { .. }
                 | Request::Waiting { .. }
                 | Request::Made { .. }
                 | Request::RecurringDue { .. }
@@ -908,7 +914,8 @@ impl World {
     pub fn deliver(&mut self) {
         for request in std::mem::take(&mut self.pending) {
             match request {
-                Request::Taken { .. }
+                Request::SpendForgotten { .. }
+                | Request::Taken { .. }
                 | Request::Waiting { .. }
                 | Request::Save { .. }
                 | Request::RecurringDue { .. }

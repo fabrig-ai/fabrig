@@ -73,6 +73,10 @@ pub struct Grant {
 /// confirmed the revocation (2.3).
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum Event {
+    /// Drop a deleted project from every account's explicit uses (accounts.md, 4.2).
+    ForgetProject {
+        project: u32,
+    },
     Restore {
         record: Stored,
     },

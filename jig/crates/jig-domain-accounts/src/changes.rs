@@ -378,3 +378,26 @@ fn move_source(
 pub(crate) fn refuse(request: Token, refusal: Refusal, out: &mut Queue<Request>) {
     out.push(Request::Answer { request, answer: Answer::Refused { refusal } });
 }
+
+/// Explicit uses may be less than the default, including none (accounts.md, 4.2).
+pub(crate) fn forget_project(domain: &mut Domain, project: u32, out: &mut Queue<Request>) {
+    let mut accounts = List::with_capacity(domain.accounts.capacity());
+    for (number, account) in &domain.accounts {
+        if let Some(uses) = &account.uses
+            && uses.contains(&crate::Use::Project(project))
+        {
+            accounts.push(*number).expect("bounded accounts");
+        }
+    }
+    for number in &accounts {
+        let account = domain.accounts.get_mut(number).expect("selected account");
+        let mut kept = List::with_capacity(crate::USES);
+        for payer in account.uses.as_deref().expect("selected explicit uses") {
+            if *payer != crate::Use::Project(project) {
+                kept.push(*payer).expect("bounded explicit uses");
+            }
+        }
+        account.uses = Some(kept.into_boxed());
+        out.push(Request::Save { record: crate::ordering::account_record(domain, *number) });
+    }
+}

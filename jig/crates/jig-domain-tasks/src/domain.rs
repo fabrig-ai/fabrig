@@ -582,6 +582,8 @@ pub fn step(domain: &mut Domain, env: &Env<Limits>, event: Event, out: &mut Queu
     let output_start = out.len();
     let held = crate::settings::before(domain);
     match event {
+        Event::ForgetProject { project } => crate::forget_project::project(domain, project, out),
+        Event::ForgetLedgers { project, ledgers } => crate::forget_project::ledgers(project, &ledgers, out),
         Event::MoveToNewest { from } => crate::settings_moves::move_tasks(domain, env, from, out),
         Event::Charters { newest, charters, efforts } => {
             validate_charters(&env.limits, &charters, &efforts);

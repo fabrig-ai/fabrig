@@ -971,6 +971,8 @@ fn tasks_new_work(event: &tasks::Event) -> bool {
         | tasks::Event::CancelQuestion { .. }
         | tasks::Event::Restore { .. }
         | tasks::Event::Check
+        | tasks::Event::ForgetProject { .. }
+        | tasks::Event::ForgetLedgers { .. }
         | tasks::Event::Restored => false,
     }
 }
@@ -1038,7 +1040,8 @@ fn account_new_work(event: &accounts::Event) -> bool {
         | accounts::Event::Credential { .. }
         | accounts::Event::SignIn { .. }
         | accounts::Event::SignOut { .. } => true,
-        accounts::Event::Restore { .. }
+        accounts::Event::ForgetProject { .. }
+        | accounts::Event::Restore { .. }
         | accounts::Event::ProgramTargets { .. }
         | accounts::Event::ProgramSignedOut { .. }
         | accounts::Event::Component(..)

@@ -247,7 +247,8 @@ pub(super) fn tag_tasks(
                 core.restart_unresolved(crate::RestoreChild::Tasks, 1);
                 Request::Now(Box::new(Now::RestoreRefused))
             }
-            tasks::Request::Waiting { .. }
+            tasks::Request::SpendForgotten { .. }
+            | tasks::Request::Waiting { .. }
             | tasks::Request::WriterWaiting { task: None, .. }
             | tasks::Request::EscalationsInspected { .. }
             | tasks::Request::EscalationsRechecked { .. } => continue,

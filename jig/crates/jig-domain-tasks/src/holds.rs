@@ -676,6 +676,19 @@ pub(crate) struct ResourceKey {
     name: Name,
 }
 
+/// Drop the deleted project's transient connector access reports.
+pub(crate) fn forget_project(domain: &mut Domain, project: u32) {
+    let mut keys = List::with_capacity(domain.resource_access.capacity());
+    for (key, _) in &domain.resource_access {
+        if key.project == project {
+            keys.push(key.clone()).expect("bounded resource access reports");
+        }
+    }
+    for key in &keys {
+        domain.resource_access.remove(key);
+    }
+}
+
 pub(crate) fn available_access(domain: &Domain, project: u32, name: &Name) -> crate::ResourceAccess {
     match domain.resource_access.get(&ResourceKey { project, name: name.clone() }) {
         Some(access) => *access,
