@@ -83,11 +83,9 @@ fn the_start_draws_the_frame_banner_before_its_chatbar_context_and_invitation() 
 
 #[test]
 fn other_chats_keep_their_heading_and_no_start() {
-    for (row, project, model, demo) in [
-        ("other project", f::SECOND_PROJECT, true, true),
-        ("forge alone", f::PROJECT, false, true),
-        ("no answer", f::PROJECT, true, false),
-    ] {
+    for (row, project, model, demo) in
+        [("other project", f::SECOND_PROJECT, true, true), ("no answer", f::PROJECT, true, false)]
+    {
         let root = if demo {
             f::demo_root(Address::Chats { filter: ChatsFilter::All, start: false }, project, model)
         } else {
@@ -264,8 +262,10 @@ fn starting_waits_and_each_failure_explains_why_with_try_again() {
         (w::StartFailure::Adoption, "The playground did not start: acme/shop was not adopted."),
         (w::StartFailure::NotConnected, "The playground did not start: Playground forge did not connect."),
     ] {
-        let mut root =
-            f::demo_state_root(Address::Chats { filter: ChatsFilter::All, start: false }, w::DemoState::NotStarted);
+        let mut root = f::demo_state_root(
+            Address::Chats { filter: ChatsFilter::All, start: false },
+            w::PlaygroundState::NotStarted,
+        );
         assert_eq!(root.forge().demo().unwrap().state, DemoState::NotStarted);
         let attempt = f::demo_start_attempt(&mut root);
         let view = f::page_view(&root);
@@ -303,7 +303,7 @@ fn starting_waits_and_each_failure_explains_why_with_try_again() {
 fn a_not_started_demo_has_the_setup_strip_and_no_context_or_demo_banner() {
     use temper_client_protocol_wire::v1 as w;
     for address in [Address::Chats { filter: ChatsFilter::All, start: false }, Address::Chat { task: 41 }] {
-        let root = f::demo_state_root(address, w::DemoState::NotStarted);
+        let root = f::demo_state_root(address, w::PlaygroundState::NotStarted);
         let view = f::page_view(&root);
         assert!(f::find(view.tree(), Role::Region, b"Playground").is_none());
         assert!(f::find(view.tree(), Role::Region, b"Setup").is_some());
@@ -315,7 +315,7 @@ fn a_not_started_demo_has_the_setup_strip_and_no_context_or_demo_banner() {
 fn a_full_group_failure_keeps_each_utf8_replacement_as_the_forge_failure_does() {
     use temper_client_protocol_wire::v1 as w;
     let mut root =
-        f::demo_state_root(Address::Chats { filter: ChatsFilter::All, start: false }, w::DemoState::NotStarted);
+        f::demo_state_root(Address::Chats { filter: ChatsFilter::All, start: false }, w::PlaygroundState::NotStarted);
     let attempt = f::demo_start_attempt(&mut root);
     let why = w::StartFailure::Group(
         w::GroupFailed::new(&w::CEILINGS, w::GroupFailedParts { why: Box::from([255_u8; 256]) }).unwrap(),
@@ -335,27 +335,12 @@ fn a_full_group_failure_keeps_each_utf8_replacement_as_the_forge_failure_does() 
 }
 
 #[test]
-fn a_retired_reload_removes_the_welcome_playground_card() {
-    let root = f::demo_state_root(
-        Address::Welcome { step: temper_client_domain::Step::Welcome },
-        temper_client_protocol_wire::v1::DemoState::Ended,
-    );
-    for words in [f::words(), f::browser_words()] {
-        let mut view = f::view_of(words);
-        let tree = f::build(&mut view, &root);
-        assert!(f::find(tree, Role::Button, b"Try the playground").is_none());
-        assert!(f::find(tree, Role::Heading { level: 2 }, b"Try the playground").is_none());
-        assert!(f::find(tree, Role::Link, b"Set up temper").is_some());
-    }
-}
-
-#[test]
 fn enter_and_start_wait_for_the_demo_start_answer() {
     use temper_client_domain::{Action, pages::Act};
     use temper_client_protocol_wire::v1 as w;
 
     let mut root =
-        f::demo_state_root(Address::Chats { filter: ChatsFilter::All, start: false }, w::DemoState::NotStarted);
+        f::demo_state_root(Address::Chats { filter: ChatsFilter::All, start: false }, w::PlaygroundState::NotStarted);
     let attempt = f::demo_start_attempt(&mut root);
     assert_eq!(f::type_into(&mut root, b"Start a chat", b"Add CSV export").as_ref(), b"Add CSV export");
     assert!(root.forge().demo_starting());
@@ -366,7 +351,7 @@ fn enter_and_start_wait_for_the_demo_start_answer() {
     assert_eq!(crate::act(&mut view, field, skein_ui::Act::Submit), None, "Enter waits as the button does");
 
     let read = f::demo_start_answer(&mut root, attempt, w::Outcome::Running).expect("fresh demo read");
-    f::demo_read_answer(&mut root, read, f::PROJECT, w::DemoState::Running);
+    f::playground_read_answer(&mut root, read, Some(f::PROJECT), w::PlaygroundState::Running);
     assert_eq!(root.pages().chats().expect("kept draft").words.as_ref(), b"Add CSV export");
     let mut view = f::page_view(&root);
     let button = f::find(view.tree(), Role::Button, b"Start chat").expect("ready start button");

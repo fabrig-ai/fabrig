@@ -305,7 +305,7 @@ fn real_forge_connected(root: &Domain) -> bool {
             if row.mode != temper_client_domain::forge::forges::Mode::Fake
                 && let Connection::Connected { .. } = row.connection
                 && match root.forge().demo() {
-                    Some(demo) => row.number != demo.forge,
+                    Some(demo) => Some(row.number) != demo.forge,
                     None => true,
                 }
             {

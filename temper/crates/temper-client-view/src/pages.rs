@@ -19,7 +19,7 @@ pub(crate) fn project_name(
     words: &crate::words::Words,
 ) -> Option<Box<[u8]>> {
     if let Some(demo) = demo
-        && demo.project == project
+        && demo.project == Some(project)
     {
         return Some(words.say(crate::words::Word::Demo, &[]));
     }

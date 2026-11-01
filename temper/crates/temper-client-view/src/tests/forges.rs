@@ -596,7 +596,7 @@ fn a_repository_making_or_failed_keeps_its_existing_body() {
 }
 
 #[test]
-fn a_pasted_app_hides_the_setup_strips_playground_before_installation_and_the_retirement_read() {
+fn a_pasted_app_hides_the_setup_strips_playground_before_installation() {
     let mut rows = cf::github_rows(false);
     let mut parts = rows.get(0).unwrap().clone().into_parts();
     parts.app = Some(w::AppWay::Pasted);
@@ -606,12 +606,12 @@ fn a_pasted_app_hides_the_setup_strips_playground_before_installation_and_the_re
     let root = f::demo_forges_state_root(
         Address::Chats { filter: ChatsFilter::All, start: false },
         rows,
-        w::DemoState::NotStarted,
+        w::PlaygroundState::NotStarted,
     );
     assert!(root.demo_answered());
-    assert!(root.forge().demo().is_some(), "retirement has not been reread yet");
+    assert!(root.forge().demo().is_some(), "the playground read stays offered");
     let setup = d::forge::listed::setup(&root).expect("installation and model remain to set up");
-    assert!(!setup.playground, "a connected App ends the playground offer before installation");
+    assert!(!setup.playground, "a connected App hides the playground offer before installation");
     let view = f::page_view(&root);
     assert!(f::find(view.tree(), Role::Region, b"Setup").is_some());
     assert!(f::find(view.tree(), Role::Link, b"Try the playground").is_none());

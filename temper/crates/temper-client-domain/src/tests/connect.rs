@@ -65,8 +65,8 @@ fn the_flow_shows_the_step_its_row_is_at() {
         };
         assert_eq!(connect::step(choice, &State::Unknown, None), Shown::Details(Choice::Elsewhere));
     }
-    let demo = forge::family::demo(&demo::answer(b"title"), &w::CEILINGS).unwrap();
-    assert_eq!(connect::step(Some(Choice::Forge(demo.forge)), &rows(C::NotSetUp), Some(&demo)), Shown::Choose);
+    let demo = forge::family::playground(&demo::answer(b"title"), &w::CEILINGS).unwrap();
+    assert_eq!(connect::step(Some(Choice::Forge(demo.forge.unwrap())), &rows(C::NotSetUp), Some(&demo)), Shown::Choose);
     let github = State::Rows(Box::new([row(2, Kind::GitHub, Mode::Managed, C::NotConnected, Offer::NotOffered)]));
     assert_eq!(connect::step(Some(Choice::Forge(2)), &github, None), Shown::Details(Choice::Forge(2)));
     let fake = State::Rows(Box::new([row(HERE, Kind::Forgejo, Mode::Fake, C::NotSetUp, Offer::Offered)]));
@@ -74,9 +74,9 @@ fn the_flow_shows_the_step_its_row_is_at() {
 }
 #[test]
 fn choose_offers_github_forgejo_here_and_elsewhere_by_offer() {
-    let demo = forge::family::demo(&demo::answer(b"title"), &w::CEILINGS).unwrap();
+    let demo = forge::family::playground(&demo::answer(b"title"), &w::CEILINGS).unwrap();
     let state = State::Rows(Box::new([
-        row(demo.forge, Kind::GitHub, Mode::Managed, C::NotConnected, Offer::NotOffered),
+        row(demo.forge.unwrap(), Kind::GitHub, Mode::Managed, C::NotConnected, Offer::NotOffered),
         row(2, Kind::GitHub, Mode::Managed, C::NotConnected, Offer::NotOffered),
         row(3, Kind::Forgejo, Mode::Owned, C::NotSetUp, Offer::NotUnderTheBox),
         row(4, Kind::Forgejo, Mode::Owned, C::NotSetUp, Offer::NotOffered),
@@ -168,33 +168,6 @@ fn signing_out_unwatches_the_forges() {
     event(&mut root, Event::SignedOut);
     assert!(root.client().document(forges::handle()).is_none());
     let State::Unknown = root.forges() else { panic!("forges cleared") };
-}
-#[test]
-fn the_forge_half_holds_until_a_forge_of_the_persons_connects() {
-    let demo = forge::family::demo(&demo::answer(b"title"), &w::CEILINGS).unwrap();
-    for (connection, expected) in [
-        (C::NotSetUp, true),
-        (C::SettingUp { step: None }, true),
-        (C::Connecting, true),
-        (C::Connected { id: 1, login: b"bot".as_slice().into() }, false),
-    ] {
-        assert_eq!(forge::demo::halves(Some(&demo), None, None, &rows(connection)).forge, expected);
-    }
-    let state = State::Rows(Box::new([row(
-        demo.forge,
-        Kind::Forgejo,
-        Mode::Fake,
-        C::Connected { id: 1, login: b"bot".as_slice().into() },
-        Offer::NotOffered,
-    )]));
-    assert!(forge::demo::halves(Some(&demo), None, None, &state).forge);
-}
-#[test]
-fn the_forge_half_does_not_hold_without_the_forges_rows() {
-    let demo = forge::family::demo(&demo::answer(b"title"), &w::CEILINGS).unwrap();
-    for state in [State::Unknown, State::Ended] {
-        assert!(!forge::demo::halves(Some(&demo), None, None, &state).forge);
-    }
 }
 fn setup(root: &mut crate::Domain) -> Queue<Request> {
     f::form_act(root, forge::Act::SetUp { forge: HERE })
@@ -332,7 +305,7 @@ fn an_out_of_date_link_unwatches_the_forges() {
 #[test]
 fn the_forges_page_lists_the_persons_forges_not_fakes_or_the_demos() {
     use forge::listed;
-    let demo = forge::family::demo(&demo::answer(b"title"), &w::CEILINGS).unwrap();
+    let demo = forge::family::playground(&demo::answer(b"title"), &w::CEILINGS).unwrap();
     let connections = [
         C::NotConnected,
         C::NotSetUp,
@@ -355,11 +328,11 @@ fn the_forges_page_lists_the_persons_forges_not_fakes_or_the_demos() {
         fake.mode = Mode::Fake;
         assert!(!listed::personal(&fake, None));
         fake.mode = Mode::Owned;
-        fake.number = demo.forge;
+        fake.number = demo.forge.unwrap();
         assert!(!listed::personal(&fake, Some(&demo)));
     }
     let state = State::Rows(Box::new([
-        row(demo.forge, Kind::Forgejo, Mode::Connected, C::Connecting, Offer::NotOffered),
+        row(demo.forge.unwrap(), Kind::Forgejo, Mode::Connected, C::Connecting, Offer::NotOffered),
         row(2, Kind::GitHub, Mode::Managed, C::Connecting, Offer::NotOffered),
         row(3, Kind::Forgejo, Mode::Fake, C::Connecting, Offer::NotOffered),
         row(4, Kind::Forgejo, Mode::Owned, C::NotSetUp, Offer::Offered),
@@ -398,9 +371,9 @@ fn the_dot_is_red_for_a_forge_that_needs_the_person_else_amber_while_one_sets_up
             if connections[0] == C::Connecting { 2 } else { HERE }
         );
     }
-    let demo = forge::family::demo(&demo::answer(b"title"), &w::CEILINGS).unwrap();
+    let demo = forge::family::playground(&demo::answer(b"title"), &w::CEILINGS).unwrap();
     let state = State::Rows(Box::new([
-        row(demo.forge, Kind::GitHub, Mode::Managed, C::Connecting, Offer::NotOffered),
+        row(demo.forge.unwrap(), Kind::GitHub, Mode::Managed, C::Connecting, Offer::NotOffered),
         row(HERE, Kind::Forgejo, Mode::Fake, C::Stopped { reason: Box::default() }, Offer::NotOffered),
     ]));
     assert_eq!(listed::dot(&state, Some(&demo)), Dot::None);

@@ -649,7 +649,7 @@ fn ready_under_way_lists_model_forge_and_project_with_folded_progress() {
 }
 
 #[test]
-fn model_choose_excludes_the_playgrounds_provider_before_and_after_retirement() {
+fn model_choose_excludes_the_playgrounds_provider_after_a_real_forge_connects() {
     let address = Address::Welcome { step: Step::Model { way: None } };
     let (mut root, watch) = super::choice::playground_offers_root(address, true);
     let check = |root: &d::Domain| {
@@ -676,9 +676,7 @@ fn model_choose_excludes_the_playgrounds_provider_before_and_after_retirement() 
         );
     };
     check(&root);
-    let read = super::choice::retire_playground(&mut root, watch);
-    check(&root);
-    super::choice::answer_retired_playground(&mut root, read);
+    super::choice::connect_personal_forge(&mut root, watch);
     check(&root);
 }
 

@@ -124,11 +124,6 @@ fn project_buttons(builder: &mut Builder, root: &Domain, words: &crate::words::W
         let mut projects = false;
         for selected in [true, false] {
             for row in &me.projects {
-                if let Some(demo) = root.forge().retired_demo()
-                    && demo.project == row.project
-                {
-                    continue;
-                }
                 if (Some(row.project) == root.pages().project()) == selected {
                     let name = crate::pages::project_name(Some(me), root.forge().demo(), row.project, words)
                         .expect("project from me has a name");
@@ -411,19 +406,14 @@ pub(crate) fn demo_banner(b: &mut Builder, root: &Domain, words: &crate::words::
         b.close();
         return;
     }
-    let Some((_, halves)) = root.demo() else { return };
+    if root.demo().is_none() {
+        return;
+    }
     b.open(Role::Region);
     b.style(crate::look::ACCOUNTS);
     b.name(&words.say(crate::words::Word::Demo, &[]));
-    let word = if halves.model && halves.forge {
-        crate::words::Word::DemoBoth
-    } else if halves.model {
-        crate::words::Word::DemoModel
-    } else {
-        crate::words::Word::DemoForge
-    };
-    text(b, Role::Paragraph, &words.say(word, &[]), None);
-    if halves.model {
+    text(b, Role::Paragraph, &words.say(crate::words::Word::DemoBoth, &[]), None);
+    {
         action(
             b,
             Role::Link,
@@ -433,7 +423,7 @@ pub(crate) fn demo_banner(b: &mut Builder, root: &Domain, words: &crate::words::
             bindings,
         );
     }
-    if halves.forge && !setup_underway(b, root, words, bindings) {
+    if !setup_underway(b, root, words, bindings) {
         action(
             b,
             Role::Link,

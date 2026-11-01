@@ -247,10 +247,10 @@ fn fixture_root(
     if let WelcomeForge::Demo { running, .. } = forge {
         let mut demo = demo_answer(running).into_parts();
         if adoption {
-            demo.forge = 1;
+            demo.forge = Some(1);
         }
         front.demo = Some(
-            temper_client_protocol_wire::v1::DemoAnswer::new(&temper_client_protocol_wire::v1::CEILINGS, demo)
+            temper_client_protocol_wire::v1::PlaygroundAnswer::new(&temper_client_protocol_wire::v1::CEILINGS, demo)
                 .expect("demo fixture"),
         );
     }
@@ -427,14 +427,17 @@ pub fn account_chat(front: &mut Joint, account: u32) -> u64 {
 
 /// A scripted demo read and start, beside the real root's account and forge facts.
 #[must_use]
-pub fn demo_fixture(seed: u64, state: &temper_client_protocol_wire::v1::DemoState) -> (Joint, Root) {
+pub fn demo_fixture(seed: u64, state: &temper_client_protocol_wire::v1::PlaygroundState) -> (Joint, Root) {
     fixture_root(
         seed,
         Tools::Off,
         2,
         None,
         false,
-        WelcomeForge::Demo { running: *state == temper_client_protocol_wire::v1::DemoState::Running, github: false },
+        WelcomeForge::Demo {
+            running: *state == temper_client_protocol_wire::v1::PlaygroundState::Running,
+            github: false,
+        },
         false,
     )
 }
@@ -479,19 +482,19 @@ pub fn demo_github_fixture(seed: u64) -> (Joint, Root) {
     fixture_root(seed, Tools::Off, 2, None, false, WelcomeForge::Demo { running: false, github: true }, false)
 }
 
-fn demo_answer(running: bool) -> temper_client_protocol_wire::v1::DemoAnswer {
+fn demo_answer(running: bool) -> temper_client_protocol_wire::v1::PlaygroundAnswer {
     use temper_client_protocol_wire::v1 as w;
     let mut cues = skein_lib::List::with_capacity(1);
     cues.push(b"Change the title".as_slice().into()).expect("one cue");
-    w::DemoAnswer::new(
+    w::PlaygroundAnswer::new(
         &w::CEILINGS,
-        w::DemoAnswerParts {
-            project: 1,
-            forge: 2,
+        w::PlaygroundAnswerParts {
+            project: Some(1),
+            forge: Some(2),
             provider: PROVIDER,
             owner: b"acme".as_slice().into(),
             name: b"shop".as_slice().into(),
-            state: if running { w::DemoState::Running } else { w::DemoState::NotStarted },
+            state: if running { w::PlaygroundState::Running } else { w::PlaygroundState::NotStarted },
             cues,
         },
     )

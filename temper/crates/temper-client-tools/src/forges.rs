@@ -515,14 +515,14 @@ fn restore(state: &mut Forges, env: &Env<Limits>, key: Key, request: &jig_client
     let Some(request) = temper_client_protocol_wire::decode_requesting(&record.bytes, &limits) else { return };
     let intent = match request.into_parts().request {
         temper_client_protocol_wire::v1::Request::SetUp(_) => SetUpIntent::Kept,
-        temper_client_protocol_wire::v1::Request::StartDemo => SetUpIntent::Demo,
+        temper_client_protocol_wire::v1::Request::StartPlayground => SetUpIntent::Demo,
         temper_client_protocol_wire::v1::Request::Reachable(_)
         | temper_client_protocol_wire::v1::Request::Adopt(_)
         | temper_client_protocol_wire::v1::Request::Return(_)
         | temper_client_protocol_wire::v1::Request::Connect(_)
         | temper_client_protocol_wire::v1::Request::Accept(_)
         | temper_client_protocol_wire::v1::Request::RemoveForge(_)
-        | temper_client_protocol_wire::v1::Request::StartPlayground
+        | temper_client_protocol_wire::v1::Request::StartDemo
         | temper_client_protocol_wire::v1::Request::EndPlayground
         | temper_client_protocol_wire::v1::Request::Install(_) => return,
     };

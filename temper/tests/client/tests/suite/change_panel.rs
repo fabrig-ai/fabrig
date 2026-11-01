@@ -504,7 +504,7 @@ fn a_forge_procedure_without_a_change_has_an_unknown_panel() {
     assert!(!world.front().watching_change(person, task));
 }
 
-fn demo_change_page(demo_forge: u16, ended: bool) {
+fn demo_change_page(demo_forge: u16) {
     let mut world = fixtures::world(fixtures::SEED);
     *world.front() = Joint::with_change_landing(fixtures::SEED, &fixtures::domain_limits());
     world.front().engine.forge = Some(ForgeStand::with_checks(fixtures::REPOSITORIES, &[BUILD]));
@@ -514,12 +514,12 @@ fn demo_change_page(demo_forge: u16, ended: bool) {
     let mut cues = skein_lib::List::with_capacity(1);
     cues.push(b"Change the title".as_slice().into()).expect("one cue");
     world.front().demo = Some(
-        w::DemoAnswer::new(
+        w::PlaygroundAnswer::new(
             &w::CEILINGS,
-            w::DemoAnswerParts {
-                state: if ended { w::DemoState::Ended } else { w::DemoState::Running },
-                project: 1,
-                forge: demo_forge,
+            w::PlaygroundAnswerParts {
+                state: w::PlaygroundState::Running,
+                project: Some(1),
+                forge: Some(demo_forge),
                 provider: 17,
                 owner: b"acme".as_slice().into(),
                 name: b"shop".as_slice().into(),
@@ -549,12 +549,7 @@ fn demo_change_page(demo_forge: u16, ended: bool) {
     let outcome = world.run(Until::Done);
     assert_eq!(outcome.verdict, Verdict::Passed, "{outcome:?}");
     let root = world.root(person).person();
-    if ended {
-        assert!(root.forge().demo().is_none());
-        assert_eq!(root.forge().retired_demo().expect("retired identity").forge, demo_forge);
-    } else {
-        assert_eq!(root.forge().demo().expect("started demo").forge, demo_forge);
-    }
+    assert_eq!(root.forge().demo().expect("started playground").forge, Some(demo_forge));
     let external: Vec<_> =
         world.tree(person).nodes().iter().filter(|node| node.external.as_deref() == Some(address.as_bytes())).collect();
     if on_demo {
@@ -584,17 +579,12 @@ fn facts_after_open(world: &mut World<Temper, Joint>) -> Facts {
 }
 #[test]
 fn a_demo_changes_address_is_text_not_a_link() {
-    demo_change_page(REPOSITORY.forge, false);
+    demo_change_page(REPOSITORY.forge);
 }
 #[test]
 fn another_forges_change_keeps_its_link() {
-    demo_change_page(REPOSITORY.forge + 1, false);
+    demo_change_page(REPOSITORY.forge + 1);
 }
-#[test]
-fn an_ended_demo_changes_address_stays_text() {
-    demo_change_page(REPOSITORY.forge, true);
-}
-
 fn silent_forge() -> ForgeStand {
     use skein_fake_forge_domain::api as raw;
     use skein_lib::Duration;

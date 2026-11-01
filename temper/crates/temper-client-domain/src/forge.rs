@@ -127,6 +127,13 @@ impl Side {
         }
     }
     #[must_use]
+    pub fn demo_resetting(&self) -> bool {
+        match self.demo.answer.as_ref() {
+            Some(demo) => demo.state == demo::DemoState::Resetting,
+            None => false,
+        }
+    }
+    #[must_use]
     pub const fn demo_starting(&self) -> bool {
         self.demo.start.is_some()
     }

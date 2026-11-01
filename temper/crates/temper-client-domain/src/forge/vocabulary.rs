@@ -118,12 +118,12 @@ pub enum Served {
     OutOfDate,
 }
 
-/// The deployment's demo, kept across link gaps (client/README.md, 4.6 and 4.8).
+/// The playground, kept across link gaps (temper/docs/design/draft/playground-reset.md, 6.1).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Demo {
     pub state: super::demo::DemoState,
-    pub project: u32,
-    pub forge: u16,
+    pub project: Option<u32>,
+    pub forge: Option<u16>,
     pub provider: u32,
     pub owner: Box<[u8]>,
     pub name: Box<[u8]>,

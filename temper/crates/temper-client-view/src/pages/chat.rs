@@ -210,7 +210,7 @@ pub(crate) fn context(b: &mut Builder, root: &Domain, project: u32, words: &Word
         return;
     }
     let Some(demo) = root.forge().demo() else { return };
-    if project != demo.project {
+    if Some(project) != demo.project {
         return;
     }
     let Some(me) = root.pages().me(root.client()) else { return };
@@ -231,7 +231,7 @@ pub(crate) fn context(b: &mut Builder, root: &Domain, project: u32, words: &Word
     b.close();
     let mut owner = false;
     for project in &me.projects {
-        if project.project == demo.project && project.role == c::HeldRole::Owner {
+        if Some(project.project) == demo.project && project.role == c::HeldRole::Owner {
             owner = true;
             break;
         }
