@@ -50,9 +50,12 @@ Acceptance:
 - `forge setup [FORGE] ...`: the positional is optional and its value
   unused (the engine sets up the box's owned Forgejo); every other flag
   as today;
-- each new tool is in `table::TOOLS` (the playground group's after
-  `playground start`, the forge group's after `forge setup`), the
-  playground group's line "The playground: start it, or reset it";
+- each new tool is appended to `table::TOOLS`, after
+  `crate::landing::LIST`, `PLAYGROUND_RESET` then `REMOVE`, so every
+  published index stays (`tests/words.rs`' `indices_are_kept`, the
+  `jig::rows::*_AT` constants); a group's page lists them in the
+  table's order, as `forge accept` is listed today; the playground
+  group's line "The playground: start it, or reset it";
 - the tests below pass; the tool table's other tests (usage lines,
   words) updated for the new tools.
 
@@ -80,6 +83,10 @@ Neighbour files, edits allowed:
 - `temper-client-tools/src/tests.rs`: one `mod` line;
   `src/tests/help.rs`, `src/tests/words.rs`: their expectations for the
   new tools and the changed `forge setup` usage line.
+- `temper-client-tools/src/tests/fixtures.rs`: the two tools'
+  `EVERY_TOOL` cases and `TOOL_FORMS` raised by their forms (62 to
+  64); `src/tests/golden/help.txt` and `help_groups.txt`: the
+  playground group's new line and the new tools' lines.
 - `temper/crates/temper/src/tests/commands.rs`: nothing (its test stays
   red until `pg-ctl-help`, as stated).
 
@@ -141,3 +148,16 @@ Pre-approved:
 fab's sections; `## Interfaces`: the two tools (name, forms, result),
 `print_reset`, `print_remove`; `## Left`: the help test, with the
 rendered pages for `ctl-playground.md` and `ctl-forge.md` verbatim.
+
+## Answers
+
+2026-11-01. Q (pg-ctl-1): insert the new tools after their anchors in
+`table::TOOLS`, shifting published indices, or append them and order the
+help through `help.rs`? A: append both at the end of `TOOLS`
+(`PLAYGROUND_RESET`, then `REMOVE`), keeping every index; `help.rs` is
+not changed: a group's page lists its tools in the table's order, as it
+lists `forge accept` today, so `forge remove` comes last in the forge
+group and `playground reset` after `playground start`. Acceptance and
+neighbour files amended above: `tests/fixtures.rs` (the two
+`EVERY_TOOL` cases, `TOOL_FORMS` 62 to 64) and the goldens `help.txt`
+and `help_groups.txt` are yours to update.
