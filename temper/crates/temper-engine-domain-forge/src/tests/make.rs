@@ -112,6 +112,25 @@ fn forgejo(api: &[u8]) -> ForgeChoice {
 }
 
 #[test]
+fn a_forgejo_elsewhere_takes_the_machines_git_program() {
+    let programs: [Option<Box<[u8]>>; 2] = [Some(b"data/bin/git".as_slice().into()), None];
+    for git_program in programs {
+        let mut d = setup_domain(&[], true);
+        d.machine.github.git_program = git_program.clone();
+        d.machine.owned = Some(owned());
+        let out = make(&mut d, 1, forgejo(b"forge.example"), MakeAnswer::Made { forge: 1 });
+        let record = saved_record(&out);
+        assert_eq!(record.git_program, git_program);
+        assert_eq!(d.records.get(&1).unwrap().as_ref(), &record);
+
+        let out = make(&mut d, 2, ForgeChoice::Owned, MakeAnswer::Made { forge: 2 });
+        let record = saved_record(&out);
+        assert_eq!(record, ForgeRecord { number: 2, ..owned() });
+        assert_eq!(d.records.get(&2).unwrap().as_ref(), &record);
+    }
+}
+
+#[test]
 fn a_forgejo_elsewhere_is_managed_from_its_addresses() {
     for (address, host, port, plaintext) in [
         (b"forge.example".as_slice(), b"forge.example".as_slice(), 443, false),

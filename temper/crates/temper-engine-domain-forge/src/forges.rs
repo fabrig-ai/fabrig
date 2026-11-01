@@ -74,7 +74,7 @@ fn chosen(d: &Domain, choice: ForgeChoice) -> Option<ForgeRecord> {
                 mode: Mode::Managed,
                 api: api(&address)?,
                 git,
-                git_program: None,
+                git_program: d.machine.github.git_program.clone(),
                 web,
                 read_only: false,
                 bot: Bot {
