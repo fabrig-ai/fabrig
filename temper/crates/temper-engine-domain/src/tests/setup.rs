@@ -443,6 +443,7 @@ fn a_new_binding_answers_only_after_its_commit_is_durable() {
                 crate::Write::Wires
                 | crate::Write::CopySettingsRevision(_)
                 | crate::Write::Save(_)
+                | crate::Write::DropTranscript { .. }
                 | crate::Write::Erase(_) => false,
             }));
             committed = Some(number);

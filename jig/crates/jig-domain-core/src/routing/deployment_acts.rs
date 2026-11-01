@@ -70,8 +70,32 @@ pub(super) fn route(
                 refused(work, request, why);
             }
         }
-        people::Act::AddKey { provider, join, digest, .. } => {
-            account(core, work, request, people::AccountChange::AddKey { provider, join, digest });
+        people::Act::AddKey { provider, join, uses, .. } => {
+            match super::key_routes::admitted_key(core, request, accounts::Holder::Deployment, join) {
+                Ok(carried) => {
+                    let uses = match uses {
+                        None => None,
+                        Some(uses) => {
+                            let mut converted =
+                                List::with_capacity(u32::try_from(uses.len()).expect("admitted account uses"));
+                            for value in &*uses {
+                                let value = match *value {
+                                    people::Use::Party(party) => accounts::Use::Party(party),
+                                    people::Use::Project(project) => accounts::Use::Project(project),
+                                };
+                                converted.push(value).expect("one converted account use");
+                            }
+                            Some(converted.into_boxed())
+                        }
+                    };
+                    work.push(Event::Account(accounts::Event::Change {
+                        request,
+                        holder: accounts::Holder::Deployment,
+                        change: accounts::Change::AddKey { provider, join, carried, uses },
+                    }));
+                }
+                Err(why) => refused(work, request, why),
+            }
         }
         people::Act::RemoveAccount { account: number } => {
             account(core, work, request, people::AccountChange::Remove { account: number });

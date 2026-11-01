@@ -86,8 +86,8 @@ pub(crate) fn change(
             return;
         }
         Change::CheckProgram { source } => crate::programs::check(domain, holder, source, out),
-        Change::AddKey { provider, join, carried } => {
-            crate::keys::add(domain, env, request, holder, provider, join, carried, out);
+        Change::AddKey { provider, join, carried, uses } => {
+            crate::keys::add(domain, env, request, holder, provider, join, carried, out, uses);
             return;
         }
         Change::ReplaceKey { source, carried } => {

@@ -560,7 +560,7 @@ fn live_keys_append_after_sparse_restored_places() {
         world.step(Event::Change {
             request: Token::new(1),
             holder: HOLDER,
-            change: Change::AddKey { provider: 1, join: Some(20), carried: 1 << 63 },
+            change: Change::AddKey { provider: 1, join: Some(20), carried: 1 << 63, uses: None },
         });
         world.step(Event::Component(jig_domain_accounts::FromComponent::Granted {
             account: 22,
@@ -664,8 +664,8 @@ pub(crate) fn writer_readback(seed: u64) -> Vec<Stored> {
             4 => Change::MoveSource { account, source, place: u32::try_from(rng.below(3)).expect("small place") },
             5 => Change::SetUses { account, uses: Some(Box::new([Use::Party(request)])) },
             6 => Change::Resume { source },
-            7 => Change::AddKey { provider: 1, join: Some(account), carried: 1 << 63 },
-            _ => Change::AddKey { provider: 1, join: None, carried: 1 << 63 },
+            7 => Change::AddKey { provider: 1, join: Some(account), carried: 1 << 63, uses: None },
+            _ => Change::AddKey { provider: 1, join: None, carried: 1 << 63, uses: None },
         };
         let out = world.step(Event::Change { request: Token::new(request), holder: HOLDER, change });
         keep(&mut store, &out);

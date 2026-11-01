@@ -1,6 +1,6 @@
 //! Exhaustive child routing and synchronous handoffs (jig's domain/root.md, 5).
 mod applications;
-mod asks;
+pub(crate) mod asks;
 pub(crate) mod calendar;
 pub(crate) mod demo;
 pub(crate) mod escalation;
@@ -271,6 +271,9 @@ pub(crate) fn route_core_requests(
                 }
                 let replaced = save(decision, &env.limits, Write::Save(Record::Core(record)));
                 domain.release_bytes(replaced, "replaced write's turn body was held");
+            }
+            core::Request::Write(core::Write::DropTranscript { task }) => {
+                save(decision, &env.limits, Write::DropTranscript { task });
             }
             core::Request::Write(core::Write::CopySettingsRevision(number)) => {
                 save(decision, &env.limits, Write::CopySettingsRevision(number));

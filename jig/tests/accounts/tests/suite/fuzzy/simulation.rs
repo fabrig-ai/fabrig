@@ -109,6 +109,7 @@ fn changes(seed: u64) -> Vec<Request> {
                 provider: 1,
                 join: if rng.chance(40) { Some(account) } else { None },
                 carried: 1 << 63,
+                uses: None,
             },
             1 => Change::ReplaceKey { source, carried: 1 << 63 },
             2 => Change::RemoveKey { source },
