@@ -146,6 +146,8 @@ pub(super) fn step(pages: &mut Pages, _env: &Env<Limits>, act: Act, out: &mut Qu
         | Act::Close
         | Act::DelegateFate { .. }
         | Act::Older
+        | Act::DeleteWords { .. }
+        | Act::DeleteProject
         | Act::ChatWords { .. }
         | Act::StartChat
         | Act::RetryDemo

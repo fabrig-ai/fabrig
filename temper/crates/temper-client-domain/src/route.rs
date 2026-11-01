@@ -389,6 +389,10 @@ fn forge_forges(root: &mut Domain, env: &Env<Limits>, told: &jig_client::Told, o
 
 fn demo_facts(root: &mut Domain) {
     root.pages.demo_provider = root.forge.demo_provider();
+    root.pages.playground_project = match root.demo() {
+        Some(playground) => playground.project,
+        None => None,
+    };
 }
 
 fn select_playground(root: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {

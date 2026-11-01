@@ -640,6 +640,8 @@ impl Chat {
             | Act::OpenProject { .. }
             | Act::Project { .. }
             | Act::SignOut
+            | Act::DeleteWords { .. }
+            | Act::DeleteProject
             | Act::ChatWords { .. }
             | Act::StartChat
             | Act::RetryDemo

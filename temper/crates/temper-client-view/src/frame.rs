@@ -55,6 +55,7 @@ impl Bindings {
                     }
                     (Act::AmendTracked, skein_ui::Act::Toggle) => Act::AmendTracked,
                     (Act::ChatWords { .. }, skein_ui::Act::Input { value }) => Act::ChatWords { words: value },
+                    (Act::DeleteWords { .. }, skein_ui::Act::Input { value }) => Act::DeleteWords { words: value },
                     (Act::MessageWords { .. }, skein_ui::Act::Input { value }) => Act::MessageWords { words: value },
                     (Act::CardWords { object, .. }, skein_ui::Act::Input { value }) => {
                         Act::CardWords { object: *object, words: value }

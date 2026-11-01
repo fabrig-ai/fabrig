@@ -446,6 +446,8 @@ impl Task {
             | Act::SignOut
             | Act::Accounts(_)
             | Act::ConnectModel(_)
+            | Act::DeleteWords { .. }
+            | Act::DeleteProject
             | Act::ChatWords { .. }
             | Act::StartChat
             | Act::RetryDemo
@@ -543,6 +545,8 @@ impl Task {
             | Act::SignOut
             | Act::Accounts(_)
             | Act::ConnectModel(_)
+            | Act::DeleteWords { .. }
+            | Act::DeleteProject
             | Act::ChatWords { .. }
             | Act::StartChat
             | Act::RetryDemo
