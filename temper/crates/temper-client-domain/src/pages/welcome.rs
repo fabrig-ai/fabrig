@@ -38,7 +38,7 @@ pub fn setup(root: &Domain) -> Option<Setup> {
     match root.forges() {
         Forges::Unknown => return None,
         Forges::Ended => {}
-        Forges::Rows(rows) => {
+        Forges::Rows(rows, ..) => {
             for row in rows {
                 if !row.playground {
                     kept = true;
@@ -68,7 +68,7 @@ pub fn playground_offered(root: &Domain) -> bool {
     match root.forges() {
         Forges::Unknown => false,
         Forges::Ended => true,
-        Forges::Rows(rows) => {
+        Forges::Rows(rows, ..) => {
             for row in rows {
                 if !row.playground {
                     return false;

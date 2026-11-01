@@ -50,11 +50,9 @@ pub enum Act {
     Ci,
     Adopt,
     SetUp {
-        forge: u16,
+        forge: Option<u16>,
     },
-    SetUpAtOnce {
-        forge: u16,
-    },
+    SetUpAtOnce,
     SetupWrite {
         field: super::forges::SetupField,
         text: Box<[u8]>,
@@ -82,16 +80,16 @@ pub enum Act {
         text: Box<[u8]>,
     },
     ConnectAdmin {
-        forge: u16,
+        forge: Option<u16>,
     },
     AppWrite {
         text: Box<[u8]>,
     },
     ConnectApp {
-        forge: u16,
+        forge: Option<u16>,
     },
     ConnectManifest {
-        forge: u16,
+        forge: Option<u16>,
         back: Box<[u8]>,
     },
     Install {

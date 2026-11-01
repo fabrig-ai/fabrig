@@ -267,7 +267,7 @@ fn act_on(side: &mut Side, limits: Limits, act: Act, out: &mut Queue<Request>) {
         Act::AppWrite { text } => github::write(side, text, limits),
         Act::ConnectManifest { forge, back } => github::manifest(side, limits, forge, back, out),
         Act::ConnectApp { forge } => github::send(side, limits, forge, None, out),
-        Act::Install { forge, back } => github::send(side, limits, forge, Some(back), out),
+        Act::Install { forge, back } => github::send(side, limits, Some(forge), Some(back), out),
         Act::Remove { forge } => remove::confirm(side, forge),
         Act::StartOver { forge } => remove::request(side, forge, limits, out),
         Act::ConfirmRemove => match side.remove {
@@ -279,7 +279,7 @@ fn act_on(side: &mut Side, limits: Limits, act: Act, out: &mut Queue<Request>) {
         Act::StartDemo => demo::start(side, limits, out),
         Act::EndPlayground => demo::end(side, limits, out),
         Act::SetUp { forge } => forges::set_up(side, limits, forge, out),
-        Act::SetUpAtOnce { forge } => forges::set_up_at_once(side, limits, forge, out),
+        Act::SetUpAtOnce => forges::set_up_at_once(side, limits, out),
         Act::SetupWrite { field, text } => forges::write(side, limits, field, text),
         Act::StartIn { forge } => forges::retry_start(side, limits, forge, out),
         Act::Adopt => {

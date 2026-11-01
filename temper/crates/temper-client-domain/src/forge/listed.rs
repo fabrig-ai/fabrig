@@ -38,7 +38,7 @@ pub fn personal(row: &Row, demo: Option<&Demo>) -> bool {
 #[must_use]
 pub fn rows<'a>(state: &'a State, demo: Option<&Demo>) -> List<&'a Row> {
     let mut listed = List::with_capacity(super::forges::ROWS);
-    if let State::Rows(rows) = state {
+    if let State::Rows(rows, ..) = state {
         for row in rows {
             if personal(row, demo) {
                 listed.push(row).expect("bounded forge rows");
@@ -75,7 +75,7 @@ pub fn dot(state: &State, demo: Option<&Demo>) -> Dot {
 #[must_use]
 pub fn playground(root: &Domain) -> Option<(&Demo, &Row)> {
     let demo = root.demo()?;
-    if let State::Rows(rows) = root.forges() {
+    if let State::Rows(rows, ..) = root.forges() {
         for row in rows {
             if Some(row.number) == demo.forge {
                 return Some((demo, row));

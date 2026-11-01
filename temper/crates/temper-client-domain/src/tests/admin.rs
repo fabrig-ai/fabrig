@@ -74,15 +74,17 @@ fn opened() -> (crate::Domain, Token) {
     (root, watch)
 }
 fn send(root: &mut crate::Domain) -> Queue<Request> {
-    act(root, forge::Act::ConnectAdmin { forge: FORGE })
+    act(root, forge::Act::ConnectAdmin { forge: Some(FORGE) })
 }
 fn write(root: &mut crate::Domain, field: Field, bytes: &[u8]) {
     act(root, forge::Act::AdminWrite { field, text: bytes.into() });
 }
 #[test]
 fn only_the_configured_admin_form_has_a_card() {
-    for (admin, expected) in [(false, &[Choice::Elsewhere][..]), (true, &[Choice::Forge(FORGE), Choice::Elsewhere][..])]
-    {
+    for (admin, expected) in [
+        (false, &[Choice::GitHub, Choice::Forgejo, Choice::Elsewhere][..]),
+        (true, &[Choice::Forge(FORGE), Choice::GitHub, Choice::Forgejo, Choice::Elsewhere][..]),
+    ] {
         let (mut root, watch) = opened();
         deliver(&mut root, watch, row(admin, w::Connection::NotConnected, None, None));
         assert_eq!(forge::connect::choices(root.forges(), None).as_slice(), expected);

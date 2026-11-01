@@ -20,14 +20,14 @@ fn id(root: &mut crate::Domain, bytes: &[u8]) {
 #[test]
 fn an_app_of_ones_own_is_refused_on_the_page_without_an_id_or_key() {
     let (mut root, _, _) = connect::opened(true);
-    assert!(act(&mut root, forge::Act::ConnectApp { forge: 2 }).is_empty());
+    assert!(act(&mut root, forge::Act::ConnectApp { forge: Some(2) }).is_empty());
     assert!(root.forge().app_form().checked);
     assert!(root.forge().app().is_none());
     id(&mut root, b"7");
-    assert!(act(&mut root, forge::Act::ConnectApp { forge: 2 }).is_empty());
+    assert!(act(&mut root, forge::Act::ConnectApp { forge: Some(2) }).is_empty());
     key(&mut root, b"fixture");
     id(&mut root, b"");
-    assert!(act(&mut root, forge::Act::ConnectApp { forge: 2 }).is_empty());
+    assert!(act(&mut root, forge::Act::ConnectApp { forge: Some(2) }).is_empty());
     assert!(root.forge().app_form().has_key());
 }
 #[test]
@@ -51,7 +51,7 @@ fn a_key_past_the_pasted_bundle_bound_is_refused_on_the_page() {
     let (mut root, _, _) = connect::opened(true);
     id(&mut root, b"7");
     key(&mut root, &[b'x'; 4090]);
-    assert!(act(&mut root, forge::Act::ConnectApp { forge: 2 }).is_empty());
+    assert!(act(&mut root, forge::Act::ConnectApp { forge: Some(2) }).is_empty());
     assert!(root.forge().app_form().too_long);
     assert!(!root.forge().app_form().has_key());
 }
@@ -61,7 +61,7 @@ fn carried(pem: &[u8]) -> Secret {
     id(&mut root, b"7");
     key(&mut root, pem);
     assert!(skein_lib::bytes::find(format!("{root:?}").as_bytes(), pem).is_none());
-    let mut out = act(&mut root, forge::Act::ConnectApp { forge: 2 });
+    let mut out = act(&mut root, forge::Act::ConnectApp { forge: Some(2) });
     let mut carried = None;
     while let Some(request) = out.pop() {
         assert!(skein_lib::bytes::find(format!("{request:?}").as_bytes(), pem).is_none());
@@ -165,7 +165,7 @@ fn the_bundle_bound_includes_restored_separators() {
     let (mut root, _, _) = connect::opened(true);
     id(&mut root, b"7");
     key(&mut root, pem.as_bytes());
-    assert!(act(&mut root, forge::Act::ConnectApp { forge: 2 }).is_empty());
+    assert!(act(&mut root, forge::Act::ConnectApp { forge: Some(2) }).is_empty());
     assert!(root.forge().app_form().too_long);
     assert!(root.forge().app_form().has_key());
 }
@@ -185,7 +185,7 @@ fn each_forge_refusal_is_said_in_forge_md_words() {
         let (mut root, _, _) = connect::opened(true);
         id(&mut root, b"7");
         key(&mut root, pasted);
-        let mut out = act(&mut root, forge::Act::ConnectApp { forge: 2 });
+        let mut out = act(&mut root, forge::Act::ConnectApp { forge: Some(2) });
         let mut attempt = None;
         while let Some(request) = out.pop() {
             if let Request::Client { request: jig_client::Request::Down { down: Down::Send { attempt: sent, .. } } } =
@@ -268,9 +268,23 @@ fn a_connected_app_without_an_accepted_installation_asks_to_install() {
     {
         let mut row = github_row();
         row.installations = Box::new([Installation { id: 1, account: None, suspended, stray }]);
-        assert_eq!(step(Some(crate::Choice::Forge(2)), &State::Rows(Box::new([row])), None), expected);
+        assert_eq!(
+            step(
+                Some(crate::Choice::Forge(2)),
+                &State::Rows(Box::new([row]), forge::forges::Offer::NotOffered, None),
+                None
+            ),
+            expected
+        );
     }
-    assert_eq!(step(Some(crate::Choice::Forge(2)), &State::Rows(Box::new([github_row()])), None), Shown::SettingUp(2));
+    assert_eq!(
+        step(
+            Some(crate::Choice::Forge(2)),
+            &State::Rows(Box::new([github_row()]), forge::forges::Offer::NotOffered, None),
+            None
+        ),
+        Shown::SettingUp(2)
+    );
 }
 #[test]
 fn a_stopped_connect_returns_to_details_with_its_reason() {
@@ -287,7 +301,11 @@ fn a_stopped_connect_returns_to_details_with_its_reason() {
             b"The last connect stopped: the pasted value changed"
         );
         assert_eq!(
-            step(Some(crate::Choice::Forge(2)), &State::Rows(Box::new([row])), None),
+            step(
+                Some(crate::Choice::Forge(2)),
+                &State::Rows(Box::new([row]), forge::forges::Offer::NotOffered, None),
+                None
+            ),
             Shown::Details(crate::Choice::Forge(2))
         );
     }
@@ -380,7 +398,7 @@ fn install_sends_its_way_back_and_leaves_once_only_from_the_answer() {
 }
 
 fn manifest(root: &mut crate::Domain) -> Queue<Request> {
-    act(root, forge::Act::ConnectManifest { forge: 2, back: b"/forges/connect".as_slice().into() })
+    act(root, forge::Act::ConnectManifest { forge: Some(2), back: b"/forges/connect".as_slice().into() })
 }
 #[test]
 fn manifest_connect_needs_a_party() {

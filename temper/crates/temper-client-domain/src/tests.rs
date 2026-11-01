@@ -168,3 +168,5 @@ fn validity_accepts_stock_limits_and_refuses_invalid_edges() {
     limits.forge.field_bytes = 6; // Seven bytes are needed for the forge form.
     assert!(!crate::valid(&limits));
 }
+
+mod connect_kinds;

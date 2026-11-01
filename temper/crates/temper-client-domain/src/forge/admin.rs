@@ -11,6 +11,7 @@ pub enum Field {
     Repository,
     Project,
     Label,
+    Address,
 }
 impl Field {
     #[must_use]
@@ -20,14 +21,15 @@ impl Field {
             Self::Repository => 1,
             Self::Project => 2,
             Self::Label => 3,
+            Self::Address => 4,
         }
     }
 }
 #[derive(Debug)]
 #[expect(clippy::partial_pub_fields, reason = "the view reads presentation; the token stays private")]
 pub struct Draft {
-    pub fields: [Box<[u8]>; 4],
-    pub written: [u64; 4],
+    pub fields: [Box<[u8]>; 5],
+    pub written: [u64; 5],
     pub token_written: u64,
     pub checked: bool,
     pub too_long: bool,
@@ -42,8 +44,9 @@ impl Draft {
                 b"hello".as_slice().into(),
                 b"hello".as_slice().into(),
                 b"docker".as_slice().into(),
+                Box::default(),
             ],
-            written: [0; 4],
+            written: [0; 5],
             token_written: 0,
             checked: false,
             too_long: false,
@@ -77,7 +80,7 @@ impl Draft {
 }
 #[derive(Debug)]
 pub struct Pending {
-    pub forge: u16,
+    pub forge: Option<u16>,
     pub key: Key,
     pub answer: Option<github::Answer>,
 }
@@ -112,33 +115,37 @@ pub(crate) fn write(side: &mut Side, limits: Limits, field: Field, text: Box<[u8
         draft.written[2] = draft.written[2].checked_add(1).expect("writes fit");
     }
     let index = field.index();
-    *draft.fields.get_mut(index).expect("four fields") = text;
-    let written = draft.written.get_mut(index).expect("four fields");
+    *draft.fields.get_mut(index).expect("five fields") = text;
+    let written = draft.written.get_mut(index).expect("five fields");
     *written = written.checked_add(1).expect("writes fit");
     draft.checked = false;
     side.changed();
 }
-pub(crate) fn send(side: &mut Side, limits: Limits, forge: u16, out: &mut Queue<Request>) {
+#[expect(clippy::too_many_lines, reason = "one admin request validates and dispatches its one-shot token")]
+pub(crate) fn send(side: &mut Side, limits: Limits, forge: Option<u16>, out: &mut Queue<Request>) {
     let Some(party) = side.party else { return };
     if busy(side) || side.served == Served::OutOfDate {
         return;
     }
-    let Some(row) = super::connect::row(forge, &side.forges, side.demo()) else { return };
-    if !row.admin || row.kind != forges::Kind::Forgejo {
-        return;
-    }
-    match row.connection {
-        forges::Connection::NotConnected | forges::Connection::Stopped { .. } => {}
-        forges::Connection::Connected { .. } if super::connect::failed(row) => {}
-        forges::Connection::NotSetUp
-        | forges::Connection::SettingUp { .. }
-        | forges::Connection::SetUpFailed { .. }
-        | forges::Connection::Connecting
-        | forges::Connection::Connected { .. } => return,
+    if let Some(forge) = forge {
+        let Some(row) = super::connect::row(forge, &side.forges, side.demo()) else { return };
+        if !row.admin || row.kind != forges::Kind::Forgejo {
+            return;
+        }
+        match row.connection {
+            forges::Connection::NotConnected | forges::Connection::Stopped { .. } => {}
+            forges::Connection::Connected { .. } if super::connect::failed(row) => {}
+            forges::Connection::NotSetUp
+            | forges::Connection::SettingUp { .. }
+            | forges::Connection::SetUpFailed { .. }
+            | forges::Connection::Connecting
+            | forges::Connection::Connected { .. } => return,
+        }
     }
     let draft = &mut side.admin_form;
     draft.checked = true;
     if !draft.has_token()
+        || (forge.is_none() && draft.fields[4].is_empty())
         || !draft.valid_label()
         || draft.fields[0].is_empty()
         || draft.fields[1].is_empty()
@@ -172,9 +179,15 @@ pub(crate) fn send(side: &mut Side, limits: Limits, forge: u16, out: &mut Queue<
         w::Connect::new(
             &bounds,
             w::ConnectParts {
-                forge: w::ConnectForge::Existing(
-                    w::ExistingForge::new(&w::CEILINGS, w::ExistingForgeParts { forge }).expect("existing forge"),
-                ),
+                forge: match forge {
+                    Some(forge) => w::ConnectForge::Existing(
+                        w::ExistingForge::new(&w::CEILINGS, w::ExistingForgeParts { forge }).expect("existing forge"),
+                    ),
+                    None => w::ConnectForge::Forgejo(
+                        w::NewForgejo::new(&bounds, w::NewForgejoParts { address: draft.fields[4].clone() })
+                            .expect("bounded address"),
+                    ),
+                },
                 how,
             },
         )
@@ -207,6 +220,9 @@ pub(crate) fn send(side: &mut Side, limits: Limits, forge: u16, out: &mut Queue<
         progress: None,
         answer: None,
     }));
+    if forge.is_none() {
+        super::connect::begin(&mut side.forges, crate::Choice::Forgejo);
+    }
     side.admin = Some(Pending { forge, key, answer: None });
     out.push(Request::Client { asked: Event::Carry { key, name, request, value: Some(value) } });
     side.changed();
@@ -248,13 +264,13 @@ pub(crate) fn told(
     true
 }
 pub(crate) fn stopped(side: &mut Side) {
-    let forges::State::Rows(rows) = &side.forges else { return };
+    let forges::State::Rows(rows, ..) = &side.forges else { return };
     for row in rows {
         if !row.admin {
             continue;
         }
         if let Some(pending) = &side.admin
-            && pending.forge != row.number
+            && pending.forge != Some(row.number)
         {
             continue;
         }
@@ -267,7 +283,7 @@ pub(crate) fn stopped(side: &mut Side) {
             }
         }
         if side.admin.is_none()
-            && side.admin_form.written == [0; 4]
+            && side.admin_form.written == [0; 5]
             && let Some(first) = &row.first
         {
             side.admin_form.fields[0].clone_from(&first.org);
@@ -277,7 +293,7 @@ pub(crate) fn stopped(side: &mut Side) {
                 side.admin_form.named = *name != first.repository;
             }
             side.admin_form.fields[3].clone_from(&first.label);
-            side.admin_form.written = [1; 4];
+            side.admin_form.written = [1; 5];
         }
     }
 }

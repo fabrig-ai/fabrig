@@ -37,14 +37,14 @@ pub(crate) fn main(
     let rows = listed::rows(root.forges(), root.forge().demo());
     let count = u64::from(rows.len());
     let heading = match root.forges() {
-        State::Rows(_) => w.say(Word::YourForges, &[Hole::Number(count)]),
+        State::Rows(..) => w.say(Word::YourForges, &[Hole::Number(count)]),
         State::Unknown | State::Ended => w.say(Word::YourForgesTitle, &[]),
     };
     crate::cards::text(b, Role::Heading { level: 2 }, &heading);
     match root.forges() {
         State::Unknown => {}
         State::Ended => crate::cards::refusal(b, w, &jig_client::contract::Refusal::NotOffered),
-        State::Rows(_) => {
+        State::Rows(..) => {
             if playground {
                 connect::text(b, w, Role::Paragraph, Word::PlaygroundNothingToAdd);
             } else {
@@ -178,11 +178,11 @@ fn personal(
         github(b, root, w, bindings, forge, row);
     }
     if forge::connect::failed(row) && row.offer == Offer::Offered {
-        connect::setup_control(b, root, w, forge, row.number, Word::ForgeAgain);
+        connect::setup_control(b, root, w, forge, Some(row.number), Word::ForgeAgain);
     } else {
         match row.connection {
             Connection::SetUpFailed { .. } if row.offer == Offer::Offered => {
-                connect::setup_control(b, root, w, forge, row.number, Word::ForgeAgain);
+                connect::setup_control(b, root, w, forge, Some(row.number), Word::ForgeAgain);
             }
             Connection::SettingUp { .. } | Connection::Connecting => connect::link(
                 b,
@@ -285,7 +285,7 @@ fn github(b: &mut Builder, root: &Domain, w: &Words, bindings: &mut Bindings, fo
                 root,
                 w,
                 forge,
-                row.number,
+                Some(row.number),
                 if accepted { Word::ForgeInstallAnother } else { Word::ForgeInstall },
                 Some(Address::Forges),
             );

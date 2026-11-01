@@ -101,6 +101,9 @@ fn choose_draws_a_card_per_choice_in_order() {
             "A forge of your own, run by temper box. No account needed: temper makes your first repository, and you start in it.",
             "Here · about a minute",
             "Choose",
+            "Forgejo",
+            "temper connects as its site admin, makes its bot and your first repository.",
+            "Connect as its admin",
             "A Forgejo elsewhere",
             "Your own Forgejo server. temper connects as its admin, or with its bot’s tokens.",
             "Needs a change to temper’s configuration and a restart",
@@ -110,7 +113,7 @@ fn choose_draws_a_card_per_choice_in_order() {
     let choices =
         view.tree().nodes().iter().find(|n| n.styles.as_slice().contains(&crate::look::FLOW_CHOICES)).unwrap();
     let cards: Vec<_> = view.tree().nodes().iter().filter(|n| parent(view.tree(), n.id) == Some(choices.id)).collect();
-    assert_eq!(cards.len(), 3);
+    assert_eq!(cards.len(), 4);
     let primary: Vec<_> = view
         .tree()
         .nodes()
@@ -128,7 +131,10 @@ fn choose_draws_a_card_per_choice_in_order() {
     assert!(cards.iter().all(|n| n.role == Role::Region));
     let regions: Vec<_> =
         view.tree().nodes().iter().filter(|n| n.role == Role::Region).filter_map(|n| n.name.as_deref()).collect();
-    assert_eq!(regions, [b"LLM account".as_slice(), b"GitHub", b"Forgejo on this machine", b"A Forgejo elsewhere"]);
+    assert_eq!(
+        regions,
+        [b"LLM account".as_slice(), b"GitHub", b"Forgejo on this machine", b"Forgejo", b"A Forgejo elsewhere"]
+    );
     assert_eq!(
         press(&root, Role::Link, b"Show how"),
         d::Action::Pages(pages::Act::Go { address: Address::ConnectForge { forge: Some(Choice::Elsewhere) } })
@@ -195,7 +201,7 @@ fn forgejo_here_details_say_the_first_repository_and_set_it_up() {
     );
     assert!(view.tree().nodes().iter().any(|n| n.role == Role::TextField));
     let action = press(&root, Role::Button, b"Set up a Forgejo here");
-    assert_eq!(action, d::Action::Forge(d::forge::Act::SetUp { forge: HERE }));
+    assert_eq!(action, d::Action::Forge(d::forge::Act::SetUp { forge: Some(HERE) }));
     f::root_event(&mut root, d::Event::Act { action });
     let view = f::page_view(&root);
     let id = node(view.tree(), Role::Button, b"Set up a Forgejo here");
@@ -309,7 +315,10 @@ fn set_up_failed_offers_set_up_again() {
             .contains(&crate::look::FLOW_SECONDARY)
     );
     assert!(f::find(view.tree(), Role::List, b"Each step").is_some());
-    assert_eq!(press(&root, Role::Button, b"Set up again"), d::Action::Forge(d::forge::Act::SetUp { forge: HERE }));
+    assert_eq!(
+        press(&root, Role::Button, b"Set up again"),
+        d::Action::Forge(d::forge::Act::SetUp { forge: Some(HERE) })
+    );
 }
 #[test]
 fn ready_names_the_forge_and_offers_adopt_a_repository() {
@@ -334,10 +343,7 @@ fn the_welcome_runs_owned_forgejo_without_details_at_either_address() {
         let view = f::page_view(&root);
         node(view.tree(), Role::Region, b"Forgejo");
         assert!(f::find(view.tree(), Role::TextField, b"Organization").is_none());
-        assert_eq!(
-            press(&root, Role::Button, b"Run on this machine"),
-            d::Action::Forge(d::forge::Act::SetUpAtOnce { forge: HERE })
-        );
+        assert_eq!(press(&root, Role::Button, b"Run on this machine"), d::Action::Forge(d::forge::Act::SetUpAtOnce));
     }
 }
 
@@ -442,7 +448,7 @@ fn a_set_up_refusal_is_said_below_its_button() {
     d::step(
         &mut root,
         &Env { now: Time::ZERO, wall: f::NOW, limits },
-        d::Event::Act { action: d::Action::Forge(d::forge::Act::SetUp { forge: HERE }) },
+        d::Event::Act { action: d::Action::Forge(d::forge::Act::SetUp { forge: Some(HERE) }) },
         &mut out,
     );
     let mut sent = None;
@@ -644,7 +650,7 @@ fn details_show_the_set_ups_fields_with_their_defaults() {
     let id = node(view.tree(), Role::TextField, b"Into a new project, named");
     let action = crate::act(&mut view, id, Act::Input { value: Box::default() }).unwrap();
     f::root_event(&mut root, d::Event::Act { action });
-    act(&mut root, d::forge::Act::SetUp { forge: HERE });
+    act(&mut root, d::forge::Act::SetUp { forge: Some(HERE) });
     let view = f::page_view(&root);
     assert!(has_state(view.tree(), Role::TextField, b"Into a new project, named", State::Invalid));
     node(view.tree(), Role::Alert, b"Required.");
@@ -652,7 +658,7 @@ fn details_show_the_set_ups_fields_with_their_defaults() {
 #[test]
 fn an_invalid_refusal_marks_the_organization_and_repository() {
     let mut root = here(w::Connection::NotSetUp);
-    let token = attempt(act(&mut root, d::forge::Act::SetUp { forge: HERE }));
+    let token = attempt(act(&mut root, d::forge::Act::SetUp { forge: Some(HERE) }));
     answer(
         &mut root,
         token,
@@ -711,14 +717,14 @@ fn setting_up_names_the_demo_project_playground() {
 #[test]
 fn setting_up_uses_the_sent_fields_until_the_row_carries_them() {
     let mut root = here(w::Connection::NotSetUp);
-    act(&mut root, d::forge::Act::SetUp { forge: HERE });
+    act(&mut root, d::forge::Act::SetUp { forge: Some(HERE) });
     // The flow keeps the submitted fields even when it is showing Details.
     assert_eq!(root.forge().set_up().unwrap().org.as_ref(), b"work");
     let (mut root, watch) = f::forge_root_watch(
         Address::ConnectForge { forge: Some(Choice::Forge(HERE)) },
         rows(w::Connection::NotSetUp, w::Offer::Offered),
     );
-    act(&mut root, d::forge::Act::SetUp { forge: HERE });
+    act(&mut root, d::forge::Act::SetUp { forge: Some(HERE) });
     deliver(&mut root, watch, rows(w::Connection::Connecting, w::Offer::Offered));
     let view = f::page_view(&root);
     node(view.tree(), Role::Paragraph, b"work/hello, into hello");
@@ -759,7 +765,7 @@ fn pending_adoption_with_watch() -> (d::Domain, skein_lib::Token, skein_lib::Tok
         Address::ConnectForge { forge: Some(Choice::Forge(HERE)) },
         rows(w::Connection::NotSetUp, w::Offer::Offered),
     );
-    let token = attempt(act(&mut root, d::forge::Act::SetUp { forge: HERE }));
+    let token = attempt(act(&mut root, d::forge::Act::SetUp { forge: Some(HERE) }));
     answer(&mut root, token, w::Outcome::SettingUp);
     let token = attempt(deliver(&mut root, watch, new_first_rows()));
     let token = attempt(jig_answer(
@@ -949,7 +955,10 @@ fn the_private_key_moves_as_a_secret_and_never_enters_the_view() {
         .unwrap();
     assert!(field.value.as_ref().unwrap().text.is_empty());
     let written = field.value.as_ref().unwrap().written;
-    f::root_event(&mut root, d::Event::Act { action: d::Action::Forge(d::forge::Act::ConnectApp { forge: GITHUB }) });
+    f::root_event(
+        &mut root,
+        d::Event::Act { action: d::Action::Forge(d::forge::Act::ConnectApp { forge: Some(GITHUB) }) },
+    );
     let view = f::browser_page_view(&root);
     let field = view
         .tree()
@@ -975,7 +984,7 @@ fn a_connect_refusal_is_said_below_its_button() {
     d::step(
         &mut root,
         &skein_lib::Env { now: skein_lib::Time::ZERO, wall: f::NOW, limits: f::limits() },
-        d::Event::Act { action: d::Action::Forge(d::forge::Act::ConnectApp { forge: GITHUB }) },
+        d::Event::Act { action: d::Action::Forge(d::forge::Act::ConnectApp { forge: Some(GITHUB) }) },
         &mut out,
     );
     let mut attempt = None;
@@ -1170,7 +1179,7 @@ fn ready_keeps_make_project_refusal_and_the_name_with_a_bound_retry_button() {
     for address in [Address::ConnectForge { forge: Some(Choice::Forge(HERE)) }, Address::Welcome { step: Step::Ready }]
     {
         let (mut root, watch) = f::forge_root_watch(address, rows(w::Connection::NotSetUp, w::Offer::Offered));
-        let token = attempt(act(&mut root, d::forge::Act::SetUp { forge: HERE }));
+        let token = attempt(act(&mut root, d::forge::Act::SetUp { forge: Some(HERE) }));
         answer(&mut root, token, w::Outcome::SettingUp);
         let token = attempt(deliver(&mut root, watch, new_first_rows()));
         jig_answer(
@@ -1258,7 +1267,7 @@ fn delivered_steps_keep_making_current_until_adopt_succeeds() {
         Address::ConnectForge { forge: Some(Choice::Forge(HERE)) },
         rows(w::Connection::NotSetUp, w::Offer::Offered),
     );
-    let token = attempt(act(&mut root, d::forge::Act::SetUp { forge: HERE }));
+    let token = attempt(act(&mut root, d::forge::Act::SetUp { forge: Some(HERE) }));
     answer(&mut root, token, w::Outcome::SettingUp);
     for (connection, done) in [
         (
@@ -1403,7 +1412,7 @@ fn standalone_setup_names_the_requested_target_before_the_row_has_it() {
         Address::ConnectForge { forge: Some(Choice::Forge(HERE)) },
         rows(w::Connection::NotSetUp, w::Offer::Offered),
     );
-    let token = attempt(act(&mut root, d::forge::Act::SetUp { forge: HERE }));
+    let token = attempt(act(&mut root, d::forge::Act::SetUp { forge: Some(HERE) }));
     answer(&mut root, token, w::Outcome::SettingUp);
     deliver(&mut root, watch, rows(w::Connection::Connecting, w::Offer::Offered));
     let view = f::page_view(&root);
@@ -1704,7 +1713,7 @@ fn github_adopted_card_and_completion_follow_the_row_after_reload_and_encode_the
                 Some(b"https://github.test/base/owner%20%2F%3F/repo%2F%23%25".as_slice())
             );
         }
-        let d::forge::forges::State::Rows(rows) = root.forges() else { panic!("rows") };
+        let d::forge::forges::State::Rows(rows, ..) = root.forges() else { panic!("rows") };
         assert_eq!(crate::forge::connect::adopted_project(&root, &rows[0]), Some(f::PROJECT));
         assert!(f::find(view.tree(), Role::Heading { level: 2 }, b"Choose a repository to start in").is_none());
     }
@@ -1729,7 +1738,7 @@ fn forgejo_completion_matches_the_made_repository_in_the_durable_row() {
     rows.clear();
     rows.push(w::ForgeRow::new(&w::CEILINGS, parts).unwrap()).unwrap();
     let root = f::forge_root(Address::ConnectForge { forge: Some(Choice::Forge(HERE)) }, rows);
-    let d::forge::forges::State::Rows(rows) = root.forges() else { panic!("rows") };
+    let d::forge::forges::State::Rows(rows, ..) = root.forges() else { panic!("rows") };
     assert!(root.forge().set_up().is_none());
     assert_eq!(crate::forge::connect::adopted_project(&root, &rows[0]), Some(f::PROJECT));
 }
@@ -2372,7 +2381,7 @@ fn welcome_run_is_disabled_while_setup_is_pending_or_out_of_date() {
     for pending in [true, false] {
         let mut root = welcome_owned(w::Offer::Offered);
         if pending {
-            act(&mut root, d::forge::Act::SetUpAtOnce { forge: HERE });
+            act(&mut root, d::forge::Act::SetUpAtOnce);
         } else {
             drive(&mut root, d::Event::Forge(d::forge::Event::Served { served: d::forge::Served::OutOfDate }));
         }
@@ -2387,7 +2396,7 @@ fn welcome_setup_refusals_follow_the_actions_inside_the_card_without_fields() {
         (w::SetUpRefusal::Invalid, d::forge::forges::SetUpRefusal::Invalid),
     ] {
         let mut root = welcome_owned(w::Offer::Offered);
-        let token = attempt(act(&mut root, d::forge::Act::SetUpAtOnce { forge: HERE }));
+        let token = attempt(act(&mut root, d::forge::Act::SetUpAtOnce));
         answer(
             &mut root,
             token,

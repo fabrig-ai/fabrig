@@ -2591,7 +2591,7 @@ fn adopt_owned_sample(root: &mut Domain, watch: Token, out: &mut Queue<Request>)
     step(
         root,
         Event::Act {
-            action: temper_client_domain::Action::Forge(temper_client_domain::forge::Act::SetUp { forge: 3 }),
+            action: temper_client_domain::Action::Forge(temper_client_domain::forge::Act::SetUp { forge: Some(3) }),
         },
         out,
     );

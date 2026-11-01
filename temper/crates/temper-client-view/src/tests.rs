@@ -148,3 +148,5 @@ fn validity_accepts_large_ui_edges_and_refuses_overflowing_scene_capacity() {
     limits.tree.styles_per_node = 2;
     assert!(!crate::valid(&limits, &domain, &words));
 }
+
+mod connect_kinds;

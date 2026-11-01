@@ -83,7 +83,7 @@ fn qa_an_abandoned_install_stays_connecting_and_install_again_can_accept() {
         front.leaves.last().expect("first tab departure").as_ref(),
         b"https://github.test/apps/app/installations/new?state=first"
     );
-    let d::forge::forges::State::Rows(rows) = root.person().forges() else { panic!("forge rows") };
+    let d::forge::forges::State::Rows(rows, ..) = root.person().forges() else { panic!("forge rows") };
     assert!(rows[0].installations.is_empty());
     assert!(d::forge::connect::underway(&rows[0]));
     assert!(front.reachable_reads.is_empty(), "an abandoned install gives no repository rows");
@@ -119,7 +119,7 @@ fn qa_an_abandoned_install_stays_connecting_and_install_again_can_accept() {
     node(&ready, Role::Heading { level: 2 }, b"Choose a repository to start in");
     node(&ready, Role::Choice, b"acme/shop");
     node(&ready, Role::Choice, b"acme/second");
-    let d::forge::forges::State::Rows(rows) = root.person().forges() else { panic!("ready rows") };
+    let d::forge::forges::State::Rows(rows, ..) = root.person().forges() else { panic!("ready rows") };
     assert_eq!(rows[0].installations.len(), 1);
     assert!(!d::forge::connect::underway(&rows[0]));
 }
