@@ -126,6 +126,9 @@ fn unsupported_people(event: &people::Event) -> PartyInput {
         people::Event::Restored => panic!("the client kit does not make People::Restored"),
         people::Event::Whose { .. } => panic!("the client kit does not make People::Whose"),
         people::Event::Act { .. } => panic!("the client kit does not make People::Act"),
+        people::Event::ProjectClosed { .. } => panic!("the client kit does not make People::ProjectClosed"),
+        people::Event::ProjectGone { .. } => panic!("the client kit does not make People::ProjectGone"),
+        people::Event::TaskErased { .. } => panic!("the client kit does not make People::TaskErased"),
     }
 }
 /// Retain native shell tokens, then make the real engine's party input.
