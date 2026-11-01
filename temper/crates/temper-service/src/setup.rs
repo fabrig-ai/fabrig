@@ -385,13 +385,17 @@ pub(crate) fn register(engine: &mut crate::engine::Engine, record: &temper_engin
             engine.setup.statics.under_box,
             engine.setup.lifecycle.startup_restored(),
         );
+        let asked = match local.trigger {
+            lifecycle::Trigger::StartDemo | lifecycle::Trigger::StartAsked => true,
+            lifecycle::Trigger::Start | lifecycle::Trigger::Asked => false,
+        };
         engine
             .setup
             .lifecycle
             .reconcile
             .insert(number, lifecycle::Reconcile::Local(local))
             .expect("registered local forge");
-        if record.playground && engine.setup.lifecycle.startup_restored() {
+        if asked && engine.setup.lifecycle.startup_restored() {
             lifecycle::state(engine, number, temper_engine_domain_forge::Connection::NotSetUp);
         }
     }
