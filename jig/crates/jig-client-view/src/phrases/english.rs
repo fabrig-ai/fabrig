@@ -1452,6 +1452,13 @@ pub fn language() -> Language {
             ]),
             JigPhrase::Confirmation => Box::new([Segment::Text(copy_of(b"Review before confirming"))]),
             JigPhrase::Confirm => Box::new([Segment::Text(copy_of(b"Confirm"))]),
+            JigPhrase::DeleteProject => Box::new([Segment::Text(copy_of(b"Delete project"))]),
+            JigPhrase::DeleteProjectName => Box::new([Segment::Text(copy_of(b"Type the project name"))]),
+            JigPhrase::DeleteProjectWarning => Box::new([
+                Segment::Text(copy_of(b"Deleting ")),
+                Segment::Hole { index: 0, kind: HoleKind::Name },
+                Segment::Text(copy_of(b" ends its tasks and erases them, its notes, roles and adoptions. Spend already made stays in the totals.")),
+            ]),
             JigPhrase::Dismiss => Box::new([Segment::Text(copy_of(b"Dismiss"))]),
             JigPhrase::WillPropose => Box::new([Segment::Text(copy_of(b"This will be proposed to its holder"))]),
             JigPhrase::ChangedConfirmation => Box::new([Segment::Text(copy_of(

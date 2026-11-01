@@ -3,11 +3,13 @@
 use crate::{Request, Ui, action::Act, intents::Origin, page::IntentPurpose};
 use alloc::boxed::Box;
 use jig_client::contract::{ActKind, Admission, Ask, OwnerProject, PolicyEdit, Refusal};
-use skein_lib::{Queue, Token};
-/// One unsent review and the independent pending keyed request.
+use skein_lib::{Env, Queue, Token};
+/// One unsent settings review or deletion confirmation and its pending keyed request.
 #[derive(Debug)]
 pub struct Form {
     pub review: Option<Box<Ask>>,
+    /// Typed deletion confirmation; pending and refused are shared with settings edits.
+    pub delete: Option<jig_client::contract::Text>,
     pub service_role: Option<jig_client::contract::HeldRole>,
     pub pool_period: Option<u64>,
     pub before: Option<Box<Ask>>,
@@ -92,6 +94,7 @@ pub(crate) fn service_role(domain: &mut Ui, role: jig_client::contract::HeldRole
         | jig_client::contract::HeldRole::Member
         | jig_client::contract::HeldRole::Observer => {}
     }
+    domain.project_page.settings.delete = None;
     domain.project_page.settings.service_role = Some(role);
     domain.project_page.settings.review = None;
     domain.project_page.settings.before = None;
@@ -110,6 +113,74 @@ pub fn service_offered(doc: &OwnerProject) -> bool {
         }
     }
     false
+}
+/// Deletion is available only through an explicitly allowed owner act.
+#[must_use]
+pub fn delete_offered(doc: &OwnerProject) -> bool {
+    for offer in &doc.acts {
+        if offer.act == ActKind::RemoveProject {
+            return match &offer.admission {
+                Admission::Allowed => true,
+                Admission::Proposed { .. } | Admission::Refused(_) | Admission::Bounded { .. } => false,
+            };
+        }
+    }
+    false
+}
+pub(crate) fn open_delete(domain: &mut Ui) {
+    if domain.blocked || domain.project_page.settings.pending.is_some() {
+        return;
+    }
+    let Some(doc) = &domain.project_page.owner else {
+        return;
+    };
+    if !delete_offered(doc) {
+        return;
+    }
+    domain.project_page.settings.delete =
+        Some(jig_client::contract::Text::new(Box::from([]), domain.text_limit).expect("empty name fits"));
+    domain.project_page.settings.service_role = None;
+    domain.project_page.settings.pool_period = None;
+    domain.project_page.settings.review = None;
+    domain.project_page.settings.before = None;
+    domain.project_page.settings.refused = None;
+    domain.changed();
+}
+pub(crate) fn type_name(domain: &mut Ui, text: jig_client::contract::Text) {
+    if domain.blocked
+        || domain.project_page.settings.pending.is_some()
+        || domain.project_page.settings.delete.is_none()
+        || !text.fits(domain.text_limit)
+    {
+        return;
+    }
+    domain.project_page.settings.delete = Some(text);
+    domain.project_page.settings.refused = None;
+    domain.changed();
+}
+pub(crate) fn send_delete(domain: &mut Ui, out: &mut Queue<Request>) {
+    if domain.blocked || domain.project_page.settings.pending.is_some() {
+        return;
+    }
+    let Some(scope) = domain.confirmed else {
+        return;
+    };
+    let Some(doc) = &domain.project_page.owner else {
+        return;
+    };
+    let Some(typed) = &domain.project_page.settings.delete else {
+        return;
+    };
+    if !delete_offered(doc) || typed.bytes() != doc.name.bytes.bytes() {
+        return;
+    }
+    let ask = Box::new(Ask::RemoveProject { project: doc.number });
+    let origin = Origin::Page { handle: domain.page_handle(), purpose: IntentPurpose::ProjectSettings };
+    if let Some(id) = domain.intents.ask(scope, origin, ask, out) {
+        domain.project_page.settings.pending = Some(id.token());
+        domain.project_page.settings.refused = None;
+    }
+    domain.changed();
 }
 fn policy_complete(doc: &OwnerProject, edit: &PolicyEdit) -> bool {
     match edit {
@@ -258,6 +329,7 @@ pub(crate) fn review(domain: &mut Ui, ask: Box<Ask>) {
     let Some(doc) = &domain.project_page.owner else {
         return;
     };
+    domain.project_page.settings.delete = None;
     if supported(doc, &ask) {
         domain.project_page.settings.pool_period = match ask.as_ref() {
             Ask::SetPool { .. } => Some(doc.configured_period),
@@ -364,12 +436,48 @@ pub(crate) fn send(domain: &mut Ui, out: &mut Queue<Request>) {
     };
     domain.changed();
 }
-pub(crate) fn answered(domain: &mut Ui, request: Token, answer: jig_client::contract::Answer) {
-    if domain.project_page.settings.pending == Some(request) {
-        domain.project_page.settings.pending = None;
-        crate::notices::kept::show(domain, crate::notices::kept::Kind::PageAnswer { answer });
-        domain.changed();
+pub(crate) fn answered(
+    domain: &mut Ui,
+    env: &Env<crate::Limits>,
+    request_and_handle: (Token, Option<jig_client::Handle>),
+    answer: jig_client::contract::Answer,
+    out: &mut Queue<Request>,
+    lent: &jig_client::Client,
+) {
+    use jig_client::contract::{Answer, Outcome, OwnerOutcome};
+    let (request, handle) = request_and_handle;
+    if domain.project_page.settings.pending != Some(request) {
+        return;
     }
+    domain.project_page.settings.pending = None;
+    match answer {
+        Answer::Done(Outcome::Owner(OwnerOutcome::ProjectRemoved { .. })) if handle == domain.page_handle() => {
+            crate::page::routing::navigate(
+                domain,
+                env,
+                crate::address::Place::Jig(crate::address::Address::Inbox { project: None }),
+                false,
+                out,
+                lent,
+            );
+        }
+        Answer::Refused { refusal, .. }
+            if handle == domain.page_handle() && domain.project_page.settings.delete.is_some() =>
+        {
+            domain.project_page.settings.refused = Some(refusal);
+        }
+        Answer::Done(outcome) => {
+            crate::notices::kept::show(
+                domain,
+                crate::notices::kept::Kind::PageAnswer { answer: Answer::Done(outcome) },
+            );
+        }
+        Answer::Refused { refusal, at } => crate::notices::kept::show(
+            domain,
+            crate::notices::kept::Kind::PageAnswer { answer: Answer::Refused { refusal, at } },
+        ),
+    }
+    domain.changed();
 }
 /// Retire only the matching pending settings request after retention becomes unknown.
 pub(crate) fn unknown(domain: &mut Ui, request: Token) {
@@ -385,6 +493,14 @@ pub fn action(ask: Ask) -> Act {
 
 impl Form {
     pub(crate) const fn new() -> Self {
-        Self { review: None, service_role: None, pool_period: None, before: None, pending: None, refused: None }
+        Self {
+            delete: None,
+            review: None,
+            service_role: None,
+            pool_period: None,
+            before: None,
+            pending: None,
+            refused: None,
+        }
     }
 }
