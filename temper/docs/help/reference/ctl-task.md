@@ -36,7 +36,7 @@ task show TASK [--tree] [--activity COUNT] [--run] [--since DIGEST] [--until CON
   --activity COUNT: a count from 1 to 32; optional. Add its latest COUNT lines of activity
   --run: a switch. Add its live run
   --since DIGEST: a digest, as a read prints it; optional. Wait until it differs from the read that printed DIGEST
-  --until CONDITION: a condition; optional. Wait until it holds: ended, waiting-on-me, held, replied, phase:PHASE, or changed
+  --until CONDITION: a condition; optional. Wait until it holds: ended, waiting-on-me, held, replied, phase:PHASE, or changed. PHASE is a live phase in any case: waiting, idle, due, preparing, claimed, running, backing-off (or BackingOff), active, closing or held
   --timeout DURATION: a duration: seconds, or a number with s, m or h, at most 3600 seconds; optional. How long a wait lasts; 300 seconds when absent, at most 3600
 Read a task: its state, what it waits on, and the acts you may take
 Prints: `task N`, its kind, phase, project and tracking, its fields, `acts:` and a digest; each part asked for after it, with its own digest

@@ -108,7 +108,9 @@ both do. `--until changed` returns at the subject's next change.
 - `task show TASK`, with no flag: `ended` (done, failed or
   cancelled); `waiting-on-me`, over the task's tree; `held`;
   `replied`, once a chat waits on someone, holds, closes or ends;
-  `phase:PHASE`, a live phase;
+  `phase:PHASE`, a live phase in any case: `waiting`, `idle`, `due`,
+  `preparing`, `claimed`, `running`, `backing-off` (or `BackingOff`),
+  `active`, `closing` or `held`;
 - `task tree TASK`, `task run TASK`: `ended`, met by a read that
   shows it ended; for `task run`, met at once when the task has no
   live run. A watch that ends with no read of it delivered is

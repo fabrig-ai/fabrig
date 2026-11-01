@@ -69,7 +69,7 @@ pub const TASK: Tool = Tool {
         flag(b"activity", b"COUNT", Kind::Count, Optional, b"Add its latest COUNT lines of activity"),
         switch(b"run", b"Add its live run"),
         flag(b"since", b"DIGEST", Kind::Digest, Optional, b"Wait until it differs from the read that printed DIGEST"),
-        flag(b"until", b"CONDITION", Kind::Condition, Optional, b"Wait until it holds: ended, waiting-on-me, held, replied, phase:PHASE, or changed"),
+        flag(b"until", b"CONDITION", Kind::Condition, Optional, b"Wait until it holds: ended, waiting-on-me, held, replied, phase:PHASE, or changed. PHASE is a live phase in any case: waiting, idle, due, preparing, claimed, running, backing-off (or BackingOff), active, closing or held"),
         flag(b"timeout", b"DURATION", Kind::Duration, Optional, b"How long a wait lasts; 300 seconds when absent, at most 3600"),
     ]],
     keyed: Keyed::Never,
