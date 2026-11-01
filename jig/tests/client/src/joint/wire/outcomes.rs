@@ -24,7 +24,7 @@ pub enum Outcome {
 #[expect(clippy::too_many_lines, reason = "one exhaustive translation retains every owner outcome")]
 pub fn outcome(value: &people::Outcome, limits: &Limits) -> Result<Outcome, owner::Invalid> {
     let owner = match value {
-        people::Outcome::ProjectRemoved { .. } => unreachable!("project removal is not offered by the core"),
+        people::Outcome::ProjectRemoved { project } => client::OwnerOutcome::ProjectRemoved { project: *project },
         people::Outcome::MovedToNewest { newest, moved, stayed } => {
             return Ok(Outcome::MovedToNewest { newest: *newest, moved: *moved, stayed: *stayed });
         }

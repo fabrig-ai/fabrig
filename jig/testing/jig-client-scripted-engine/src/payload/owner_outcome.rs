@@ -63,6 +63,7 @@ impl Payload for OwnerOutcome {
             Self::ServiceMade { person } => person.heap(bounds),
             Self::Renamed { project }
             | Self::ProjectMade { project }
+            | Self::ProjectRemoved { project }
             | Self::Adopted { project }
             | Self::RolesSet { project }
             | Self::PolicyChanged { project } => project.heap(bounds),

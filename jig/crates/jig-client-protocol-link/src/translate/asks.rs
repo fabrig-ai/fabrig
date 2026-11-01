@@ -699,6 +699,9 @@ pub fn ask(value: &c::Ask, limits: &w::Limits) -> Result<w::Ask, w::Problem> {
             limits,
             w::RenameParts { project: *project, name: bytes::copy_of(name.bytes()) },
         )?),
+        c::Ask::RemoveProject { project } => {
+            w::Ask::RemoveProject(w::RemoveProject::new(limits, w::RemoveProjectParts { project: *project })?)
+        }
         c::Ask::MakeProject { name, policy } => w::Ask::MakeProject(w::MakeProject::new(
             limits,
             w::MakeProjectParts { name: bytes::copy_of(name.bytes()), policy: *policy },

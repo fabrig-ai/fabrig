@@ -146,6 +146,10 @@ pub enum OwnerOutcome {
     ProjectMade {
         project: u32,
     },
+    /// The project deletion started.
+    ProjectRemoved {
+        project: u32,
+    },
     /// A person's project pool was opened or resized.
     PoolSet {
         project: u32,

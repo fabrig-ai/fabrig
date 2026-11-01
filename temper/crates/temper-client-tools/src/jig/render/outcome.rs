@@ -98,6 +98,7 @@ impl Operation {
                 c::Ask::SetRoles { .. } => (b"set-roles", None),
                 c::Ask::MakeProject { .. } => (b"make-project", None),
                 c::Ask::Rename { .. } => (b"rename", None),
+                c::Ask::RemoveProject { .. } => (b"remove_project", None),
                 c::Ask::MakeService { .. } => (b"make-service", None),
                 c::Ask::SetPool { .. } => (b"set-pool", None),
                 c::Ask::Withdraw { .. } => (b"withdraw", None),
@@ -836,6 +837,7 @@ fn proposal_project(ask: &Ask) -> Option<u32> {
             | c::Ask::ChangePolicy { .. }
             | c::Ask::SetRoles { .. }
             | c::Ask::MakeService { .. }
+            | c::Ask::RemoveProject { .. }
             | c::Ask::Rename { .. }
             | c::Ask::MakeProject { .. }
             | c::Ask::SetPool { .. }

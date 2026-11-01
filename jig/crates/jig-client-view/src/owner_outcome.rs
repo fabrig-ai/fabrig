@@ -62,6 +62,7 @@ fn header(value: &OwnerOutcome) -> P {
         OwnerOutcome::Withdrawn { .. } => P::Withdrawn,
         OwnerOutcome::RolesSet { .. } => P::RolesSet,
         OwnerOutcome::Renamed { .. } => P::Renamed,
+        OwnerOutcome::ProjectRemoved { .. } => P::ProjectRemoved,
         OwnerOutcome::ProjectMade { .. } => P::ProjectMade,
         OwnerOutcome::PolicyChanged { .. } => P::PolicyChanged,
         OwnerOutcome::AccountProgramDeclared { .. } => P::AccountProgramDeclared,
@@ -167,6 +168,7 @@ fn details(b: &mut Builder, value: &OwnerOutcome, words: &Words) {
         OwnerOutcome::ServiceMade { person } => number(b, words, P::Person, *person),
         OwnerOutcome::Adopted { project }
         | OwnerOutcome::Renamed { project }
+        | OwnerOutcome::ProjectRemoved { project }
         | OwnerOutcome::ProjectMade { project }
         | OwnerOutcome::RolesSet { project }
         | OwnerOutcome::PolicyChanged { project } => number(b, words, P::Project, u64::from(*project)),
