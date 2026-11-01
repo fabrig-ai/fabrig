@@ -815,10 +815,12 @@ tested in skein, and in a browser on skein's UI example (skein's
   `wasm32-unknown-unknown` with clippy's lints as errors, since the
   parts' platform halves are compiled only there; skein's gate builds
   skein's (section 18).
-- **The browser tier:** a suite of its own, `--profile browser`, run by
-  `scripts/browser.sh` after it builds jig's test application's bundle
-  with skein's bundler, a slow tier outside jig's gate, within its budget (a rule: its
-  profile's global timeout).
+- **The browser tier:** a suite of its own, `--profile browser-jig`, run by
+  `python3 -I -B tools/tiers/run jig browser` from the repository root.
+  The runner builds the test application's bundle with skein's bundler
+  and its native server. It stays outside jig's gate while the gate cannot
+  build the wasm bundle and run Chromium; its CPU budget and wall hard
+  limit are in `tools/tiers/budgets.toml`.
   Each test starts one server (the application's binary; for jig, the
   reference `jig-test`, serving its bundle and the mapping at `/jig`)
   and one Chromium, and plays its stories with a person each: a browser
@@ -839,10 +841,11 @@ tested in skein, and in a browser on skein's UI example (skein's
   with its binary, bundle and codec, to check its wiring of
   `jig-client`, the client's adapter and the printed link, since its
   loop is its own. Each signs its person in by the printed link:
-  - a reload keeps a pending request, which the engine makes once;
-  - the engine killed and restarted shows offline, then live, where its
-    presentation shows the link's state;
-  - a spent link is refused, and the person is signed out.
+  - a reload and engine restart keep a pending request, which the engine
+    makes once;
+  - a reload with nothing pending meets no close warning.
+  Spent-link admission and the link's offline/live state are checked in
+  the lower worlds.
 - **jig's attack stories,** in the same kit: functions an application's
   tier may call with its binary, its page's address and its mapping's
   prefix, against its own server, whether it uses jig's mapping or its
@@ -856,13 +859,11 @@ tested in skein, and in a browser on skein's UI example (skein's
     host and on another host name, makes the signed-in person's browser
     send a request under the prefix; it is refused, and nothing is done,
     which the person's page then shows;
-  - *a rebound Host:* a request naming a host off the list, as a rebound
-    name would, sent by skein's HTTP client; answered `421`, with
-    nothing done;
   - *a framed page:* such a page frames the application's page; the
     browser shows nothing of it, under the page's policy.
-- **jig's tier** calls skein's stories, jig's and jig's attack stories,
-  and adds: a person opens the printed link and sees their inbox, under
+- **jig's tier** calls skein's panic-at-start story, jig's two reload
+  stories and the three attack stories above; Host admission is covered
+  by the HTTP mapping's tests. It adds: a person opens the printed link and sees their inbox, under
   the reference policy, with no trouble.
 - **jig's test application takes skein's bundler's page** (4.3), and
   two of 3.5's steps once each: a root file (step 5); a prefix on the

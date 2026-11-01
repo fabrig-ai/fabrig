@@ -428,7 +428,7 @@ fn read_trace_resolved(
     records
 }
 
-struct Settling {
+pub(crate) struct Settling {
     poll: Time,
     next_act: Option<Time>,
     terminal_sign_in: referee::SignIn,
@@ -440,7 +440,7 @@ struct Settling {
     trace: Option<(std::path::PathBuf, bool)>,
 }
 impl Settling {
-    fn new(now: Time, deadline: Time) -> Self {
+    pub(crate) fn new(now: Time, deadline: Time) -> Self {
         Self {
             poll: now,
             next_act: None,
@@ -705,7 +705,7 @@ pub mod login;
 
 pub mod sample_host;
 
-mod window;
+pub(crate) mod window;
 
 pub mod provider_login;
 

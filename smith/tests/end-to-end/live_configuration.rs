@@ -50,3 +50,44 @@ fn the_live_arguments_carry_private_program_homes() {
         );
     }
 }
+
+#[path = "support/live_tests.rs"]
+mod live_tests;
+
+pub mod support;
+
+use skein_lib::{Duration, Time};
+use skein_world::Referee;
+use support::{
+    Settling,
+    window::{Story, WORLD_PATIENCE},
+};
+
+#[test]
+fn a_sign_in_address_waits_for_its_whole_piped_line() {
+    let partial = b"Sign in: http://127.0.0.1:34444/authorize?state=";
+    assert_eq!(support::login::sign_in_url(partial), None);
+    let mut complete = partial.to_vec();
+    complete.extend_from_slice(b"whole-state\n");
+    assert_eq!(
+        support::login::sign_in_url(&complete),
+        Some(b"http://127.0.0.1:34444/authorize?state=whole-state".to_vec())
+    );
+}
+
+#[test]
+fn resize_referee_uses_world_patience() {
+    let now = Time::ZERO;
+    let referee = Settling::new(now, now.saturating_add(Story::Resize.budget(false)));
+    assert_eq!(referee.overdue(now.saturating_add(Duration::from_millis(1118))), None);
+    let deadline = now.saturating_add(WORLD_PATIENCE);
+    assert_eq!(referee.next_deadline(), Some(deadline));
+    assert!(referee.overdue(deadline).is_some());
+}
+
+#[test]
+fn program_stories_allow_thirty_seconds_total() {
+    for story in [Story::ProgramRun, Story::ProgramCheck] {
+        assert_eq!(story.budget(false), Duration::from_secs(30));
+    }
+}

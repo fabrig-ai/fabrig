@@ -30,9 +30,7 @@ mod browser;
 fn jig_test_serves_its_bundle_s_page_under_the_reference_policy() {
     let directory = support::scratch();
     browser::configuration(directory.path(), &browser::fixture_bundle(directory.path()));
-    let mut binary = browser::start(directory.path());
-    let link = browser::printed_link_line(&mut binary);
-    let (status, headers, body) = browser::get(&link, "/tasks/7");
+    let (status, headers, body) = browser::page(directory.path());
     assert_eq!(status, 200);
     assert_eq!(browser::field(&headers, "content-security-policy"), Some(browser::POLICY));
     assert_eq!(body, browser::PAGE);

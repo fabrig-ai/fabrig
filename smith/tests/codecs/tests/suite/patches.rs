@@ -114,3 +114,10 @@ fn the_real_written_answers_every_site_no_site() {
         );
     }
 }
+
+#[test]
+fn fixture_owner_data_passes_the_landed_check() {
+    let owner = skein_scratch::paths::tree().join("tests/transcript-patches");
+    let landed = skein_codegen::patch::Landed::read(&owner).expect("fixture owner's landed data");
+    assert_eq!(skein_codegen::patch::check(&owner, &landed).expect("check fixture owner"), []);
+}

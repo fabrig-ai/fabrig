@@ -58,7 +58,7 @@ fn check(world: &mut World, version: u16, crossed: bool) {
 // proofs, but they are not crossed. Every selected write is a closing
 // commit's actual frame, or the seal's format put.
 type Put = (Box<[u8]>, Box<[u8]>);
-fn commit_keys(raw: &[u8]) -> Option<Vec<Put>> {
+pub(crate) fn commit_keys(raw: &[u8]) -> Option<Vec<Put>> {
     let mut input = skein_lib::Reader::new(raw);
     if input.bytes(4)? != b"SKVC" {
         return None;

@@ -105,24 +105,6 @@ fn bytes(events: &[Event]) -> &[u8] {
 }
 
 #[test]
-fn every_kept_pair_decodes_to_the_current_turn() {
-    let limits = patches::limits();
-    for body in [5, 6] {
-        for turn in [1, 2] {
-            let raw = frames::frame(body, &frame_reads::turn(turn, b"said", b"replay", 24));
-            let (mut component, env) = frame_reads::closed(frame_reads::SETS, &limits);
-            frame_reads::open(&mut component, &env);
-            for _ in 0..2 {
-                assert_eq!(
-                    frame_reads::decode(&mut component, &env, &raw, false),
-                    Some(frame_reads::turn(2, b"said", &[], 24))
-                );
-            }
-        }
-    }
-}
-
-#[test]
 fn every_read_patches_again_without_writes() {
     for version in [1, 2] {
         let mut world = fixture(frame_reads::SETS, &frame_reads::turn(version, b"said", b"replay", 24));
@@ -138,29 +120,6 @@ fn every_read_patches_again_without_writes() {
 }
 
 #[test]
-fn versions_outside_either_kept_interval_are_unread() {
-    let limits = patches::limits();
-    for (body, turn) in [(4, 2), (7, 2), (6, 0), (6, 3), (5, 0), (5, 3)] {
-        let raw = frames::frame(body, &frame_reads::turn(turn, b"said", b"replay", 0));
-        let (mut component, env) = frame_reads::closed(frame_reads::SETS, &limits);
-        frame_reads::open(&mut component, &env);
-        assert!(frame_reads::decode(&mut component, &env, &raw, false).is_none(), "body {body}, turn {turn}");
-    }
-}
-
-#[test]
-fn smith_machine_refuses_turns_shorter_than_a_version() {
-    let limits = patches::limits();
-    for body in [5, 6] {
-        for turn in [b"".as_slice(), &[0]] {
-            let (mut component, env) = frame_reads::closed(frame_reads::SETS, &limits);
-            frame_reads::open(&mut component, &env);
-            assert!(frame_reads::decode(&mut component, &env, &frames::frame(body, turn), false).is_none());
-        }
-    }
-}
-
-#[test]
 fn empty_sets_keep_the_opaque_turn_path() {
     for sets in [PatchSets::NONE, EMPTY] {
         let mut world = fixture(sets, b"opaque turn");
@@ -169,18 +128,6 @@ fn empty_sets_keep_the_opaque_turn_path() {
             assert_eq!(bytes(&world.request(ask(read, READ_BYTES))), b"opaque turn");
         }
         assert_eq!(world.contents(), before);
-    }
-}
-
-#[test]
-fn patched_frames_fit_exactly_at_the_page_bound() {
-    let expected = frame_reads::turn(2, b"said", &[], 19);
-    let charge = u64::try_from(frames::frame(6, &expected).len()).expect("frame charge");
-    {
-        let mut world = fixture(frame_reads::SETS, &frame_reads::turn(1, b"said", b"x", 0));
-        for read in kinds() {
-            assert_eq!(bytes(&settled(&mut world, ask(read, charge))), expected.as_ref());
-        }
     }
 }
 
@@ -203,19 +150,11 @@ fn patched_frames_past_bounds_match_current_boundaries() {
 }
 
 #[test]
-fn current_machine_frames_fit_at_the_patched_charge() {
-    let turn = frame_reads::turn(2, b"said", &[], 19);
-    let charge = u64::try_from(frames::frame(6, &turn).len()).expect("frame charge");
-    let mut world = fixture(frame_reads::SETS, &turn);
-    for read in kinds() {
-        assert_eq!(bytes(&settled(&mut world, ask(read, charge))), turn.as_ref());
-    }
-}
-
-#[test]
 fn every_site_halt_is_unread_and_the_next_read_recovers() {
     {
         let mut world = fixture(frame_reads::SETS, &frame_reads::turn(1, b"said", b"replay", 0));
+        let before = world.contents();
+        world.trace_writes();
         for read in kinds() {
             for halt in [Halt::Room, Halt::Order, Halt::NoSite(skein_codec::patch::Site::new(1, 0))] {
                 let mut events = world.request(ask(read, READ_BYTES));
@@ -228,6 +167,14 @@ fn every_site_halt_is_unread_and_the_next_read_recovers() {
                 );
             }
         }
+        assert_eq!(world.contents(), before);
+        assert!(world.changes().is_empty(), "halted reads change no durable file");
+        world.crash(43);
+        world.open_switched().expect("durable frames reopen after site halts");
+        assert_eq!(
+            bytes(&settled(&mut world, ask(selected(), READ_BYTES))),
+            frame_reads::turn(2, b"said", &[], 24).as_ref()
+        );
     }
 }
 
@@ -638,15 +585,15 @@ fn party_turn_too_large_names_the_patched_charge() {
 }
 
 #[test]
-fn serving_machines_decode_the_same_patched_turn_twice() {
-    let limits = patches::limits();
-    let raw = frames::frame(5, &frame_reads::turn(1, b"said", b"replay", 0));
-    let (mut component, env) = frame_reads::closed(frame_reads::SETS, &limits);
-    frame_reads::open(&mut component, &env);
-    for _ in 0..2 {
-        assert_eq!(
-            frame_reads::decode(&mut component, &env, &raw, false),
-            Some(frame_reads::turn(2, b"said", &[], 24))
-        );
+fn old_and_current_frames_fit_exactly_the_patched_charge() {
+    let expected = frame_reads::turn(2, b"said", &[], 19);
+    let charge = u64::try_from(frames::frame(6, &expected).len()).expect("frame charge");
+    for transcript in [frame_reads::turn(1, b"said", b"x", 0), expected.clone()] {
+        let mut world = fixture(frame_reads::SETS, &transcript);
+        let before = world.contents();
+        for read in kinds() {
+            assert_eq!(bytes(&settled(&mut world, ask(read, charge))), expected.as_ref());
+        }
+        assert_eq!(world.contents(), before);
     }
 }

@@ -16,8 +16,8 @@
 #
 #   fabrig: package(=fabrig-boundary)
 #
-# The skein tier profiles are browser-skein and live-skein;
-# live-smith, qa-smith; qa-jig, process-jig, live-jig, browser-jig; and
+# The tier profiles are browser-skein, live-skein; live-smith; live-jig,
+# browser-jig; and
 # process-temper, live-temper, qa-temper, browser-temper. Each keeps its tree's
 # own budget.
 #
@@ -38,14 +38,14 @@ default-filter = """
   & not (kind(test) & test(/^fuzzy::/)) & not binary(/^browser_/) & not binary(=live)
 ) | (
   package(/^smith(-|$)/)
-  & not (kind(test) & test(/^fuzzy::/)) & not binary(/^qa_/)
+  & not (kind(test) & test(/^fuzzy::/))
   & not ((package(=smith) | package(=smith-agent-process-world)) & binary(=live))
 ) | (
   package(/^jig(-|$)/)
   & not (kind(test) & test(/^fuzzy::/))
-  & (not binary(/^(process|live)$/) | (binary(=live) & test(=the_live_configurations_are_ones_jig_test_reads)))
-  & not binary(/^browser_/) & not binary(/^qa_/)
-  & not (package(=jig-store-world) & binary(=edges))
+  & (not binary(=live) | test(=the_live_configurations_are_ones_jig_test_reads)
+     | test(=live_sign_in::tests::a_refused_plan_is_reported_with_the_run_failure))
+  & not binary(/^browser_/)
 ) | (
   (package(/^temper(-|$)/) | package(=git-transcripts))
   & not test(/^tests::sign_in::fuzzy_/) & not (kind(test) & test(/^fuzzy::/))
@@ -84,12 +84,11 @@ default-filter = """
   & (kind(test) & test(/^fuzzy::/))
 ) | (
   package(/^smith(-|$)/)
-  & (kind(test) & test(/^fuzzy::/)) & not binary(/^qa_/) & not binary(=live)
+  & (kind(test) & test(/^fuzzy::/)) & not binary(=live)
 ) | (
   package(/^jig(-|$)/)
-  & (kind(test) & test(/^fuzzy::/)) & not binary(/^(process|live)$/)
-  & not binary(/^browser_/) & not binary(/^qa_/)
-  & not (package(=jig-store-world) & binary(=edges))
+  & (kind(test) & test(/^fuzzy::/)) & not binary(=live)
+  & not binary(/^browser_/)
 ) | (
   (package(/^temper(-|$)/) | package(=git-transcripts))
   & ((kind(test) & test(/^fuzzy::/)) | (package(=temper-service) & test(/^tests::sign_in::fuzzy_/)))
@@ -135,23 +134,8 @@ test-threads = 1
 retries = 0
 fail-fast = false
 
-[profile.qa-smith]
-default-filter = "binary(/^qa_/) & package(/^smith(-|$)/)"
-global-timeout = "120s"
-slow-timeout = { period = "6s" }
-
-[profile.qa-jig]
-default-filter = "(binary(/^qa_/) | (package(=jig-store-world) & binary(=edges))) & package(/^jig(-|$)/)"
-global-timeout = "120s"
-slow-timeout = { period = "10s" }
-
-[profile.process-jig]
-default-filter = "binary(=process) & package(/^jig(-|$)/)"
-global-timeout = "4m"
-test-threads = 1
-
 [profile.live-jig]
-default-filter = "binary(=live) & package(/^jig(-|$)/)"
+default-filter = "binary(=live) & not test(=live_sign_in::tests::a_refused_plan_is_reported_with_the_run_failure) & package(/^jig(-|$)/)"
 global-timeout = "24m"
 slow-timeout = { period = "10m", terminate-after = 1 }
 test-threads = 1

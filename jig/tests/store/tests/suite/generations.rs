@@ -22,6 +22,9 @@ fn a_first_start_cut_anywhere_is_whole_at_the_next_start() {
         let restored = world.reopen();
         assert_eq!(restored.last, 0, "empty recovered generation, cut {cut}");
         whole(&mut world);
+        world.crash(u64::from(cut));
+        assert_eq!(world.reopen().last, 0, "second restart after cut {cut}");
+        whole(&mut world);
         assert_eq!(world.commit(root::first()), Some(1));
         assert_eq!(world.commit(root::plain_commit(2)), Some(2));
         world.crash(u64::from(cut));
@@ -62,5 +65,9 @@ fn strays_cut_anywhere_are_gone_at_the_next_start() {
         let restored = world.reopen();
         whole(&mut world);
         Referee::check(&world.model, &restored).unwrap_or_else(|e| panic!("stray-removal cut {cut}: {e:?}"));
+        world.crash(u64::from(cut));
+        let restored = world.reopen();
+        whole(&mut world);
+        Referee::check(&world.model, &restored).unwrap_or_else(|e| panic!("second stray-removal restart {cut}: {e:?}"));
     }
 }

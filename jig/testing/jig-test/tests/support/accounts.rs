@@ -75,7 +75,7 @@ fn run_world<R: Referee<Process>>(
     world.run(clock, patience)
 }
 
-// Shutdown must finish well inside the process tier budget.
+// Shutdown is bounded by the focused world's shared Deadline.
 const SHUTDOWN_WAIT: Duration = Duration::from_secs(10);
 const SETUP_WAIT: Duration = Duration::from_secs(20);
 const WORLD_WAIT: Duration = Duration::from_secs(40);

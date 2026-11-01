@@ -26,6 +26,7 @@ mod readers;
 mod records;
 mod refused_after_switch;
 mod transcript_golden;
+mod upgrades;
 
 mod fuzzy {
     mod crashes;
