@@ -55,7 +55,7 @@ pub const LIMITS: Limits = Limits {
     content_bytes: 65_536,
     page_size: 1,
     calls: 1,
-    hooks: 32,
+    hooks: 1,
     observations: 128,
 };
 
