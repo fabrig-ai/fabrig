@@ -81,3 +81,5 @@ task-reference-T12
 task-solo-T9
 forges-github-install
 forge-admin-details
+forges-remove-confirm
+forges-removing

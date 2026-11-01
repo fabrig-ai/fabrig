@@ -130,6 +130,8 @@ impl Limits {
             // Choice cards: region, heading, body, note and link with text;
             // the fixed step card also holds fields, snippets or progress.
             .max(temper_client_domain::forge::forges::ROWS.checked_mul(16)?.checked_add(152)?)
+            // Every forge row offers removal; one holds its confirmation and controls.
+            .checked_add(temper_client_domain::forge::forges::ROWS.checked_add(8)?)?
             .checked_add(choices)?
             // Owned rows add Runs and First password: a slot, term and description each.
             .checked_add(temper_client_domain::forge::forges::ROWS.checked_mul(6)?)?

@@ -10,6 +10,19 @@ use skein_ui::{
 };
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Word {
+    ForgeAskRemove,
+    ForgeRemoveTitle,
+    ForgeRemove,
+    ForgeKeep,
+    ForgeRemoveBody,
+    ForgeRemoveOwned,
+    ForgeRemoveManaged,
+    ForgeRemoveGitHub,
+    ForgeAppSettings,
+    ForgeRemoving,
+    ForgeRemovingRecords,
+    ForgeGone,
+    ForgeRemovePlayground,
     ForgeApi,
     ForgeApiHint,
     ForgeGit,
@@ -669,9 +682,23 @@ pub enum Word {
 // The paste of a sign-in's address adds fifteen phrases and twenty-one segments.
 // M1's Model details add eight phrases and sixteen segments.
 // The welcome's Forgejo card adds four literal phrases and segments.
-const PHRASES: u32 = 1184;
-const SEGMENTS: u32 = 2075;
-const ALL: [Word; 602] = [
+const PHRASES: u32 = 1197;
+const SEGMENTS: u32 = 2094;
+// Thirteen forge removal phrases join the 602 frame and forge phrases.
+const ALL: [Word; 615] = [
+    Word::ForgeAskRemove,
+    Word::ForgeRemoveTitle,
+    Word::ForgeRemove,
+    Word::ForgeKeep,
+    Word::ForgeRemoveBody,
+    Word::ForgeRemoveOwned,
+    Word::ForgeRemoveManaged,
+    Word::ForgeRemoveGitHub,
+    Word::ForgeAppSettings,
+    Word::ForgeRemoving,
+    Word::ForgeRemovingRecords,
+    Word::ForgeGone,
+    Word::ForgeRemovePlayground,
     Word::ForgeApi,
     Word::ForgeApiHint,
     Word::ForgeGit,
@@ -1279,6 +1306,19 @@ impl Word {
     #[expect(clippy::too_many_lines, reason = "one exhaustive table keeps the frame phrase IDs stable")]
     fn id(self, connector: u16) -> PhraseId {
         let number = match self {
+            Self::ForgeAskRemove => 4012,
+            Self::ForgeRemoveTitle => 4013,
+            Self::ForgeRemove => 4014,
+            Self::ForgeKeep => 4015,
+            Self::ForgeRemoveBody => 4016,
+            Self::ForgeRemoveOwned => 4017,
+            Self::ForgeRemoveManaged => 4018,
+            Self::ForgeRemoveGitHub => 4019,
+            Self::ForgeAppSettings => 4020,
+            Self::ForgeRemoving => 4021,
+            Self::ForgeRemovingRecords => 4022,
+            Self::ForgeGone => 4023,
+            Self::ForgeRemovePlayground => 4024,
             Self::ForgeApi => 4000,
             Self::ForgeApiHint => 4001,
             Self::ForgeGit => 4002,
@@ -2310,6 +2350,19 @@ fn english(word: Word, shell: Shell) -> (&'static [&'static [u8]], &'static [Hol
         Word::ForgeTerminal => (&[b"Set it up from a terminal"], &[]),
         Word::ForgeTerminalNext => (&[b"Once it is connected, make your first repository here."], &[]),
         Word::ForgeTerminalDetails => (&[b"temper was not started by temper box, so it does not start a Forgejo itself. Run these, keep the last two running (a service manager is best), then restart temper:"], &[]),
+        Word::ForgeAskRemove => (&[b"Remove forge\xe2\x80\xa6"], &[]),
+        Word::ForgeRemoveTitle => (&[b"Remove forge ", b"?"], &[Number]),
+        Word::ForgeRemove => (&[b"Remove forge"], &[]),
+        Word::ForgeKeep => (&[b"Keep it"], &[]),
+        Word::ForgeRemoveBody => (&[b"temper forgets this forge: it stops working on it, cancels the changes open on its repositories, takes them out of their projects and erases its records and secrets. Chats that worked on it stay readable."], &[]),
+        Word::ForgeRemoveOwned => (&[b"Forgejo on this machine goes with it: temper stops it and deletes its directory, every repository on it with it. Its downloaded binaries stay, for a next set up."], &[]),
+        Word::ForgeRemoveManaged => (&[b"On the forge, its bot and its webhooks stay: delete them there if you no longer want them."], &[]),
+        Word::ForgeRemoveGitHub => (&[b"On GitHub, temper's App stays yours: delete it in its settings."], &[]),
+        Word::ForgeAppSettings => (&[b"The App's settings on GitHub \xe2\x86\x97"], &[]),
+        Word::ForgeRemoving => (&[b"Removing forge ", b"\xe2\x80\xa6"], &[Number]),
+        Word::ForgeRemovingRecords => (&[b"Removing forge ", b": temper is ending its work and erasing its records."], &[Number]),
+        Word::ForgeGone => (&[b"This forge is gone already."], &[]),
+        Word::ForgeRemovePlayground => (&[b"The playground's forge goes with the playground."], &[]),
         Word::ForgeApi => (&[b"API address"], &[]),
         Word::ForgeApiHint => (&[b"HOST:PORT, where temper reaches its API"], &[]),
         Word::ForgeGit => (&[b"Git address"], &[]),

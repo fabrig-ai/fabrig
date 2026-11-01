@@ -67,6 +67,27 @@ enum Part {
 }
 const HOLDS: [Holds; samples::N] = [
     Holds {
+        name: "forges-remove-confirm",
+        heading: "Forges",
+        parts: &[
+            Part::Named { role: Role::Heading { level: 3 }, name: "Remove forge 3?" },
+            Part::Named { role: Role::Button, name: "Remove forge" },
+            Part::Named { role: Role::Button, name: "Keep it" },
+            Part::Named {
+                role: Role::Paragraph,
+                name: "Forgejo on this machine goes with it: temper stops it and deletes its directory, every repository on it with it. Its downloaded binaries stay, for a next set up.",
+            },
+        ],
+    },
+    Holds {
+        name: "forges-removing",
+        heading: "Forges",
+        parts: &[Part::Named {
+            role: Role::Status,
+            name: "Removing forge 3: temper is ending its work and erasing its records.",
+        }],
+    },
+    Holds {
         name: "connect-forge-no-records",
         heading: "Connect a forge",
         parts: &[
@@ -326,7 +347,7 @@ const HOLDS: [Holds; samples::N] = [
         name: "forges-first-run-7",
         heading: "Forges",
         parts: &[
-            Part::Named { role: Role::Heading { level: 2 }, name: "Your forges 1" },
+            Part::Named { role: Role::Heading { level: 2 }, name: "Your forges 2" },
             Part::Described {
                 role: Role::Disclosure,
                 name: "Forgejo on this machine",
