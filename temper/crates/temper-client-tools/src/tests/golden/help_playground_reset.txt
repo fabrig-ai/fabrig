@@ -1,0 +1,6 @@
+playground reset [--key KEY]
+Leave the playground: its project, its forge and its account removed
+Prints: `reset`
+--json: the record playground-reset.
+Key: --key KEY, optional.
+It returns once the playground is gone; the store then holds no playground, as before it started. `refused: not offered` (exit 2): no playground runs.

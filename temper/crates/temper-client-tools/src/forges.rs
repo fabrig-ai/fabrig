@@ -145,6 +145,44 @@ pub const ACCEPT: Tool = Tool {
     area: 6,
     notes: b"It needs no browser, and an installation accepted already answers\nthe same. `GitHub has no installation I of this App` (exit 2): read\nforge list for the ids.\n",
 };
+pub const MAKE: Tool = Tool {
+    name: b"forge make",
+    line: b"Make a forge by its kind, to set up or connect by the number it is given",
+    prints: b"`made: forge N`, then `forge setup N` or `forge connect N` to make",
+    result: b"forge-make",
+    forms: &[
+        &[positional(b"kind", b"here|github", Kind::Word { set: &[b"here", b"github"] }, Required, b"The kind of forge to make")],
+        &[
+            positional(b"kind", b"forgejo", Kind::Word { set: &[b"forgejo"] }, Required, b"A Forgejo at these addresses"),
+            positional(b"api", b"API", Kind::Literal, Required, b"The Forgejo's API address, HOST:PORT"),
+            positional(b"git", b"GIT", Kind::Literal, Required, b"Its git address, a URL"),
+            flag(b"web", b"WEB", Kind::Literal, Optional, b"Its web address, a URL, when not the git address's"),
+        ],
+    ],
+    keyed: Keyed::Optional,
+    area: 6,
+    notes: b"here is the Forgejo temper box runs on this machine; github is GitHub through temper's App. `refused: not offered` (exit 2): this deployment offers no such forge (here needs temper box). `refused: full` (exit 2): the deployment keeps as many forges as it may; remove one first.\n",
+};
+pub const REMOVE: Tool = Tool {
+    name: b"forge remove",
+    line: b"Remove a forge whole: its records, its repositories from their projects, its box group",
+    prints: b"`removing: forge N`, then `forge list` no longer lists it",
+    result: b"forge-remove",
+    forms: &[&[positional(b"forge", b"FORGE", Kind::NumberRange { min: 1, max: 65535 }, Required, b"The forge's number")]],
+    keyed: Keyed::Optional,
+    area: 6,
+    notes: b"Its changes are cancelled. An owned Forgejo goes with its directory; a managed Forgejo's bot and hooks and a GitHub App stay on the forge, to delete there. The playground's forge is removed by playground reset alone.\n",
+};
+pub const PLAYGROUND_RESET: Tool = Tool {
+    name: b"playground reset",
+    line: b"Leave the playground: its project, its forge and its account removed",
+    prints: b"`reset`",
+    result: b"playground-reset",
+    forms: &[&[]],
+    keyed: Keyed::Optional,
+    area: 6,
+    notes: b"It returns once the playground is gone; the store then holds no playground, as before it started. `refused: not offered` (exit 2): no playground runs.\n",
+};
 pub const REPOSITORIES: Tool = Tool {
     name: b"forge repositories",
     line: b"Read a page of the repositories a forge reaches",
@@ -166,6 +204,7 @@ pub const REPOSITORIES: Tool = Tool {
     notes: b"On GitHub, name the installation whose repositories you want: forge\nlist prints its id.\n",
 };
 mod connection;
+mod making;
 mod repositories;
 pub const DEMO_START: Tool = Tool {
     name: b"playground start",
@@ -212,6 +251,7 @@ pub(crate) struct Forges {
     starting: BTreeMap<Key, Starting>,
     json: bool,
     connections: BTreeMap<Key, connection::Pending>,
+    making: BTreeMap<Key, making::Pending>,
     pages: BTreeMap<Key, repositories::Pending>,
 }
 #[derive(Debug)]
@@ -256,12 +296,15 @@ impl Forges {
             starting: BTreeMap::new(),
             json: false,
             connections: BTreeMap::new(),
+            making: BTreeMap::new(),
             pages: BTreeMap::new(),
         }
     }
     pub(crate) fn calls(&self) -> usize {
         self.connections
             .len()
+            .checked_add(self.making.len())
+            .expect("bounded calls")
             .checked_add(self.pages.len())
             .expect("bounded calls")
             .checked_add(self.waiting.len())
@@ -300,6 +343,7 @@ pub(crate) fn owns(call: &jig::call::Call) -> bool {
         || name == INSTALL.name
         || name == ACCEPT.name
         || name == REPOSITORIES.name
+        || making::owns(call)
 }
 fn live(client: &Client) -> bool {
     let Some(doc) = client.document(Handle { asker: crate::root::RUNNER.asker(), number: 0 }) else { return false };
@@ -327,6 +371,10 @@ pub(crate) fn ready(state: &mut Forges, client: &Client, env: &Env<Limits>, out:
 }
 #[expect(clippy::manual_map, reason = "the domain matches without closures")]
 fn send(state: &mut Forges, client: &Client, env: &Env<Limits>, called: Called, out: &mut Queue<Out>) {
+    if making::owns(&called.call) {
+        making::send(state, client, env, called, out);
+        return;
+    }
     if repositories::owns(&called.call) {
         repositories::send(state, env, called, out);
         return;
@@ -409,6 +457,9 @@ fn finish(called: Called, printed: jig::Printed, out: &mut Queue<Out>) {
     out.push(Out::Printed { number: called.number, printed });
 }
 pub(crate) fn told(state: &mut Forges, client: &Client, env: &Env<Limits>, told: &Told, out: &mut Queue<Out>) {
+    if making::told(state, env, told, out) {
+        return;
+    }
     if repositories::told(state, env, told, out) {
         return;
     }

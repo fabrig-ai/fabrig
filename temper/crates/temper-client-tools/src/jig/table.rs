@@ -108,6 +108,8 @@ pub fn bound(argument: &Argument, limits: &Limits) -> Bound {
         Kind::NumberRange { min, max } | Kind::NamedNumber { min, max, .. } => Bound::Numbers { least: min, most: max },
         Kind::Count => Bound::Numbers { least: 1, most: u64::from(limits.rows) },
         Kind::Number if argument.name == b"forge" => Bound::Numbers { least: 0, most: 65_535 },
+        Kind::Literal if argument.name == b"api" => Bound::Bytes { most: 259 },
+        Kind::Literal if argument.name == b"git" || argument.name == b"web" => Bound::Bytes { most: 1024 },
         Kind::Text | Kind::Literal => Bound::Bytes { most: limits.ask_bytes },
         Kind::File if argument.name == b"items" || argument.name == b"instructions" || argument.name == b"spec" => {
             Bound::Bytes { most: limits.ask_bytes }
@@ -167,6 +169,9 @@ pub const fn repeated(
 
 /// The published vocabulary of argument placeholders.
 pub const PLACEHOLDERS: &[&[u8]] = &[
+    b"API",
+    b"GIT",
+    b"WEB",
     b"HOLD",
     b"TASK",
     b"PROJECT",
