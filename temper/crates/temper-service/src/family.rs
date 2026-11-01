@@ -149,7 +149,10 @@ pub fn to_root(
                         | w::Request::Adopt(_)
                         | w::Request::SetUp(_)
                         | w::Request::Return(_)
-                        | w::Request::StartDemo => {
+                        | w::Request::StartDemo
+                        // pg-start owns these; they cannot be connection requests.
+                        | w::Request::StartPlayground
+                        | w::Request::EndPlayground => {
                             unreachable!("connect or install")
                         }
                     };
@@ -162,6 +165,16 @@ pub fn to_root(
                         carried,
                         request: root::Application::Forge(request),
                     }));
+                }
+                w::Request::StartPlayground | w::Request::EndPlayground => {
+                    // pg-start owns dispatch; answer as a refused start meanwhile.
+                    let outcome = start_answer(forge::StartAnswer::NotOffered, limits).expect("fieldless refusal");
+                    let answer = w::Answer::new(limits, w::AnswerParts { outcome }).expect("fieldless answer");
+                    return Err(Box::new(kit::Event::Application(kit::FromApplication::Answered {
+                        to: reply_to,
+                        family,
+                        record: wire::answer(&answer),
+                    })));
                 }
                 w::Request::StartDemo => {
                     return Ok(root::Event::Party(root::PartyInput::Application {
@@ -227,6 +240,7 @@ pub fn to_root(
             if family == wire::FORGE
                 && version == wire::CLIENT_VERSION
                 && let Some(reading) = wire::decode_reading(&record, limits)
+                // pg-start owns Playground; it receives the unknown read answer here.
                 && *reading.read() == w::Read::Demo
                 && let Some(demo) = demo
             {

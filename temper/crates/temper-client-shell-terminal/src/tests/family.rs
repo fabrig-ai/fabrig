@@ -24,7 +24,10 @@ fn an_adoption_round_trips_through_the_family_record() {
             | w::Request::Install(_)
             | w::Request::Return(_)
             | w::Request::SetUp(_)
-            | w::Request::StartDemo => {
+            | w::Request::StartDemo
+            // cl-* owns these; this fixture expects its existing operation.
+            | w::Request::StartPlayground
+            | w::Request::EndPlayground => {
                 panic!("expected adoption")
             }
         })

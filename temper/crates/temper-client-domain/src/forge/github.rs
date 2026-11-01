@@ -273,7 +273,9 @@ pub(crate) fn decode(outcome: &Outcome, linking: bool, limits: Limits) -> Option
                 | w::Outcome::StartRefused(_)
                 | w::Outcome::StartFailed(_)
                 | w::Outcome::Returning
-                | w::Outcome::Link(_) => None,
+                | w::Outcome::Link(_)
+                // cl-* owns reset; it is not a GitHub answer.
+                | w::Outcome::Reset => None,
             }
         }
         Answered::Jig(_) | Answered::Family(_) => None,

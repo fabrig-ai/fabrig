@@ -228,6 +228,8 @@ fn print(pending: &Pending, outcome: &Outcome, structured: bool, limits: &Limits
         | w::Outcome::SetUpRefused(_)
         | w::Outcome::Running
         | w::Outcome::StartRefused(_)
+        // cl-* owns reset; it is not a repositories answer.
+        | w::Outcome::Reset
         | w::Outcome::StartFailed(_) => return render::failure(b"repositories decoding failed", structured, 1),
     };
     let bytes = if structured {
