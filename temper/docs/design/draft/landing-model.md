@@ -40,8 +40,9 @@ named `fab:<name>`; jig's are named as jig's.
   alone writes; tasks, plans, specs, answers and findings live there,
   never in a repository, which holds only the project's own code and
   documents (section 3).
-- **A planner plans a goal** and hands it over in pieces, so producers
-  start while it plans the rest (section 4).
+- **A goal's agent plans** under a planning charter and delegates the
+  plan in batches with jig's own tool, so producers start while it plans
+  the rest; no new mechanism (section 4).
 - **Producers are runs in workspaces,** as many as the workers take;
   each ends finished, with a question, or failed (section 5).
 - **A goal may land through its own branch:** each finished change
@@ -84,7 +85,7 @@ named `fab:<name>`; jig's are named as jig's.
 
 | Word | What it is |
 |---|---|
-| planner | the agent task that turns a draft into a goal's plan: its tasks and their specs, in the store |
+
 | part, slice | a unit of the plan; a story that runs end to end |
 | goal branch | the branch a goal's changes merge into before it lands whole (temper's "a branch per goal", `forge.md` 11.1, designed) |
 | early start | a change started on a dependency's pushed, unmerged branch |
@@ -117,7 +118,7 @@ named `fab:<name>`; jig's are named as jig's.
   running, kept, held, finished, ready, landed, rejected), a part's, a
   red's, a finding's, a rung's and every open question are functions of
   the specs and the records.
-- **Events wake it:** a run's or an agent task's end, a planner's piece,
+- **Events wake it:** a run's or an agent task's end, a delegated batch,
   a candidate landed or rejected, a tier run with a new red or a
   recovery, an answer, a walk's result. A run whose worker is lost ends
   as lost, and runs again (jig `tasks.md` 5.5).
@@ -135,7 +136,7 @@ named `fab:<name>`; jig's are named as jig's.
 - **The chat's tools create tasks.** Given a draft, or a request such as
   "fix this", its agent creates a goal with the settings its template
   allows (4.4), naming the draft or the request in the goal's spec.
-- **The goal's agent decides its sub-tasks:** for a draft, a planner
+- **The goal's agent decides its sub-tasks:** for a draft, it plans
   (4.2); for a small fix, one change; later, whatever its records ask
   for: a fresh resolution after a hold (6.4); and it revises a rung's
   brief (9.3). From there every step to landed is a mechanism or another
@@ -144,22 +145,23 @@ named `fab:<name>`; jig's are named as jig's.
   tasks the goal delegates (jig `core.md` 7.1), with each task's spec;
   nothing of it is written to a repository.
 
-### 4.2 The planner (LLM; its hand-over is code)
+### 4.2 Planning (LLM, with jig's tools)
 
-- **One agent task writes the plan:** its parts, their dependencies, the
-  slices (and whether QA walks each), the person's questions, and every
-  change's spec, with notes several specs share and the shapes that
-  cross parts written first. It may survey the code with read-only runs
-  of its own, and split the design across agents of its own, from shared
-  shapes it fixes first; it is still one task, under one timeout. With
-  `scaffold` off, every part is direct: one or two changes, no scaffold.
-- **It hands the plan over in pieces** (`scaffold` and `review` off):
-  first the changes that depend on nothing, then each batch that holds
-  together; code makes each piece, on the planner's word, as one batch
-  of the goal's delegates (a route jig lacks: `tasks.md` 4 makes a batch
-  its maker's) with their specs, and the engine starts them at once. It
-  never rewrites a spec it has handed over. With `review` on, the plan
-  waits for its review (10.2).
+- **The goal's agent plans,** in a run under a planning charter (the
+  planner, a charter, not a mechanism): its parts, their dependencies,
+  the slices (and whether QA walks each), the person's questions, and
+  every change's spec, with notes several specs share and the shapes
+  that cross parts written first. It may survey the code with read-only
+  runs of its own, and split the design across agents of its own, from
+  shared shapes it fixes first. With `scaffold` off, every part is
+  direct: one or two changes, no scaffold.
+- **It delegates the plan in pieces** (`scaffold` and `review` off) with
+  jig's delegate tool: first the changes that depend on nothing, then
+  each batch that holds together, each a batch of the goal's delegates
+  with their specs (jig `tasks.md` 4), which the engine starts at once.
+  A running agent delegating batches over time is jig's own (`core.md`
+  7.1). It never rewrites a spec it has delegated. With `review` on,
+  each batch waits for its review (10.2).
 - **It sees the goals beside it:** its brief lists the other goals'
   unlanded changes with the paths each owns, and asks it to keep early
   work off them, naming any overlap it cannot avoid (6.6).
@@ -168,8 +170,8 @@ named `fab:<name>`; jig's are named as jig's.
 ### 4.3 A change and its spec (LLM writes it; code reads it)
 
 - **A change's spec** is words with typed parameters: its part, its kind
-  (from the project's list, `change_kinds`), the paths it owns (for the
-  planner and the producer; never enforced) and its expected time;
+  (from the project's list, `change_kinds`), the paths it owns (for
+  planning and the producer; never enforced) and its expected time;
   beside it, as jig's task fields, its dependencies and its LLM choice
   (effort). Its words say what to do, how it is accepted, and its
   **options**, each with a default, so that a question they answer needs
@@ -329,8 +331,8 @@ A ladder is a goal of `each` with rungs instead of parts (section 9).
   main, it merges each with main in memory, then the pair, and records
   the conflicting paths when they change, cached by the commits. Nothing
   waits on it; the second to land meets the conflict at its update.
-- **It is shown** in `temper ctl`'s status, and the planner's brief
-  lists the goals beside it (4.2).
+- **It is shown** in `temper ctl`'s status, and the planning brief lists
+  the goals beside it (4.2).
 
 ## 7. Landing (code; examiners are LLM)
 
@@ -523,18 +525,18 @@ decided or repaired (an alert does not hold it); then the wrap-up runs
   against the person's target (`context_target`); a timeout
   (`agent_timeout`, per model) is the only stop.
 - **Who starts them:** the chat starts goals; a goal's agent starts its
-  planner, a small fix's change, a fresh resolution; the engine starts
-  producers, examiners, reviewers, resolvers, the answerer, revisers,
-  arbiters, scaffolds, the structure review, the wrap-up, the triager,
-  walkers and the forge's reply. Which run on workers and which on the
-  engine's machine is a setting (`agent_hosts`). One runs per subject at
-  a time.
+  planning run, a small fix's change, a fresh resolution; the engine
+  starts producers, examiners, reviewers, resolvers, the answerer,
+  revisers, arbiters, scaffolds, the structure review, the wrap-up, the
+  triager, walkers and the forge's reply. Which run on workers and which
+  on the engine's machine is a setting (`agent_hosts`). One runs per
+  subject at a time.
 
 ### 10.2 Review (LLM; the counts are code)
 
 - **What is reviewed:** the outputs of planning and judgement tasks (the
-  planner's plan, the answerer's answers, the structure review's
-  changes, a scaffold's and the wrap-up's branches), never a producer's.
+  goal's plan, the answerer's answers, the structure review's changes, a
+  scaffold's and the wrap-up's branches), never a producer's.
 - **With `review` on,** such an output gets a read-only reviewer:
   approve, or refuse with remarks, in a few lines its charter bounds.
   Refused, the remarks go once to a reviser on the same output; refused
@@ -619,8 +621,8 @@ the question queues, or the repair starts with the evidence alone.
 
 - **Only what is the person's reaches the person:** budgets, accounts,
   machines, what is hard to reverse, a change of direction. Whoever asks
-  decides: a planner's question, an agent task's, an arbiter's referral,
-  a triager's `user` or `brief`, a goal's agent after a hold.
+  decides: a question from planning, an agent task's, an arbiter's
+  referral, a triager's `user` or `brief`, a goal's agent after a hold.
 - **The person's inbox,** read and answered through `temper ctl`, lists
   the open questions with what to read and how to answer; an answer is
   recorded once in the store and carried in every later brief of its
@@ -799,7 +801,7 @@ Each waits for the numbers or the person's word that asks for it.
 
 - **From the person's execution model:** scaffolds with a test
   vocabulary by default; surveys as a stage of their own before the
-  planner and each scaffold; test-writer and acceptance runs; a
+  planning and each scaffold; test-writer and acceptance runs; a
   self-critique before ready; probe runs and the decision task that
   turns a probe's report into design; a slice complete when its story
   test passes on main; a pull buffer of ready changes driving design.

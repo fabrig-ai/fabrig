@@ -59,11 +59,12 @@ real backends, a QA driver types Ines's words through `temper ctl`.
 ### 3.2 The cast
 
 Ines; her chat; each goal's agent; the engine; and the agent tasks, each
-as fab has it: the planner, the producers (Codex runs in workspaces),
-the resolvers, the examiners, the answerer, the reviewer, the reviser
-and the arbiter, the scaffolds, the structure review, the wrap-up, the
-triager, the walker and the reply task. The landing queue on G and the
-tier runner are code. Section 9 maps each onto fab.
+as fab has it: the goals' agents planning (fab's cut), the producers
+(Codex runs in workspaces), the resolvers, the examiners, the answerer,
+the reviewer, the reviser and the arbiter, the scaffolds, the structure
+review, the wrap-up, the triager, the walker and the reply task. The
+landing queue on G and the tier runner are code. Section 9 maps each
+onto fab.
 
 ### 3.3 At hour 0
 
@@ -79,26 +80,26 @@ Ines tells her chat, through `temper ctl`, that Export's draft is in,
 and then Themes'. The chat creates two goals: Export with fabrig's
 settings (a goal branch, ready, review off, scaffold off, early starts
 on), and Themes, with `review` and `scaffold` on, which its template
-allows. Each goal's agent starts a planner on its draft.
+allows. Each goal's agent plans its draft.
 
 - **Model:** 3, 4.1, 4.4, 10.1.
 
-### 4.2 Export's planner hands over early
+### 4.2 Export's plan, delegated early
 
-The planner surveys kit with a read-only run, writes the export record's
-shape first, then hands over the plan's first piece, three changes that
-depend on nothing, recorded in the store with their specs: e1, the
-record in kit; e2, the CSV writer in app; e3, the menu entry in ui. The
-engine starts them at once, from Export's goal branch, each on the
-worker furthest under its run target, while the planner writes e4 to e9
-in two more pieces. Its brief listed Themes' changes and paths; it names
-the overlap it could not avoid: both goals touch ui's menu.
+Export's agent surveys kit with a read-only run, writes the export
+record's shape first, then delegates the plan's first batch, three
+changes that depend on nothing, with their specs: e1, the record in kit;
+e2, the CSV writer in app; e3, the menu entry in ui. The engine starts
+them at once, from Export's goal branch, each on the worker furthest
+under its run target, while it plans e4 to e9 in two more batches. Its
+brief listed Themes' changes and paths; it names the overlap it could
+not avoid: both goals touch ui's menu.
 
 - **Model:** 3, 4.2, 4.3, 5.1, 5.2, 6.6.
 
-### 4.3 Themes' planner, reviewed, and a part kept
+### 4.3 Themes' plan, reviewed, and a part kept
 
-Themes' planner writes two scaffolded parts, palette and dark, and a
+Themes' agent plans two scaffolded parts, palette and dark, and a
 question for Ines: does dark mode follow the system? It names part dark.
 The reviewer refuses the plan (a spec names a package that does not
 exist); the reviser fixes it, the reviewer approves, and the plan is
@@ -432,8 +433,8 @@ data in the repository (model 14.2); temper does not copy it.
 | Ines talks to her chat in ctl (4.1) | LLM | the user, the director; gap: `fab call cut` by hand | 4.1 |
 | a goal's settings | code | `plan.toml` (gap: plans and specs in the repository) | 4.4 |
 | the engine | code | the tick, `fab tick`; its rounds and backstop are fab's (14.2) | 3 |
-| the planner, its survey (4.2) | LLM | the cut, its survey runs | 4.2 |
-| its pieces recorded, started (4.2) | code | gap: the cut pushes and runs `fab wake cut` | 4.2 |
+| a goal's agent planning (4.2) | LLM | the cut | 4.2 |
+| batches delegated, started (4.2) | code | gap: the cut pushes and runs `fab wake cut` | 4.2 |
 | specs (e1 to e9) | LLM | task specs | 4.3 |
 | repair-1, red-1, finding-1 made from records | code | `repair-<n>`, `red-<n>`, `finding-<n>` | 4.3 |
 | reviewer, reviser, arbiter (4.3, 4.5) | LLM | the call review run, `amend`, `settle` | 10.2 |
@@ -514,7 +515,7 @@ Evidence at fabrig 2075ff38b; unqualified documents are temper's
 |---|---|---|---|---|
 | One writer, derived state, wakes | 3 | code | generic: the engine, the store's only writer (jig's `domain/engine.md` 2); the inbox derived (jig's `domain/people.md` 6); wake policies, timers (jig's `domain/tasks.md` 8.3) | record kinds a deployment declares |
 | A chat from a template; tools that create goals | 4.1 | LLM | generic in part: templates and charters as settings (jig's `protocol/configuration.md` 3.1); `goal`, `change`, `delegate` (`agent.md` 4.3) | a ctl chat from any template; `goal` choosing its template; `alerts_to` |
-| The planner | 4.2 | LLM; code | generic in part: a plan as delegated tasks, in batches with specs (jig's `domain/core.md` 7.1, `domain/tasks.md` 3, 4); a goal calls `change` (`agent.md` 4.3.2) | a planner whose pieces become the goal's batches; parts, slices |
+| Planning | 4.2 | LLM | generic: an agent delegating batches with specs over time (jig's `domain/core.md` 7.1, `domain/tasks.md` 3, 4); a goal plans and calls `change` (`agent.md` 4.3.2) | a planning charter; `change` taking a typed spec and dependencies in a batch |
 | Changes, specs with options, repairs from records | 4.3 | LLM; code | fixed: the change procedure (`forge.md` 8); briefs from sections (jig's `domain/engine.md` 9) | options settling questions; repairs made from records |
 | A goal's settings (temper's) | 4.4 | code | lacks: per project only (`landing.md` 13.1); jig's application kinds *designed* (jig's `domain/engine.md` 17.5) | temper's kind; jig: a scope under a project |
 | A run, its ends, tries | 5.1 | LLM; code | generic: charters; tries per failure class, configured (jig's `domain/tasks.md` 5.5) | tries as runs not landed; a list left; fresh tries on an answer |
