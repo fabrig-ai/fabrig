@@ -198,6 +198,11 @@ pub fn small(forge: &forge::Limits) -> skein_forge_connection::Limits {
         tls: skein_tls::client::Limits { read: 16_384, send: 16_384, records: skein_tls::client::MAX_RECORD },
     }
 }
+/// A record connects directly only when it needs no host resolution or TLS loading.
+pub(crate) enum Endpoint {
+    Reachable(core::net::SocketAddr),
+    Held { host: Box<[u8]> },
+}
 /// Engine-owned queues and component, with its own output reservations.
 pub(crate) struct Layer {
     pub(crate) component: skein_forge_connection::Component,
@@ -247,6 +252,36 @@ impl Layer {
             #[cfg(test)]
             returned: 0,
         })
+    }
+    pub(crate) fn add(&mut self, forge: &settings::Forge, endpoint: Endpoint) -> bool {
+        let (address, host) = match endpoint {
+            Endpoint::Reachable(address) => (address, None),
+            Endpoint::Held { host } => (HELD_ADDRESS, Some(host)),
+        };
+        // Held endpoints have no access; the host supplies their transport when resolved.
+        let settings = skein_forge_connection::settings::Forge {
+            number: forge.number,
+            kind: match forge.kind {
+                settings::Kind::Forgejo => skein_forge_connection::settings::Kind::Forgejo,
+                settings::Kind::GitHub => skein_forge_connection::settings::Kind::GitHub,
+            },
+            address: skein_io::Addr::Ip(address),
+            transport: skein_forge_connection::settings::Transport::Plaintext { name: None },
+            access: None,
+            log_origins: List::with_capacity(0),
+        };
+        if self.component.admits(&self.env.limits, &settings).is_err() {
+            return false;
+        }
+        if let Some(host) = host {
+            self.held.insert(forge.number, host).expect("admitted forge");
+        }
+        self.down(skein_forge_connection::Request::Add { forge: forge.number, settings });
+        true
+    }
+    pub(crate) fn remove(&mut self, forge: u16) {
+        self.down(skein_forge_connection::Request::Remove { forge });
+        self.held.remove(&forge);
     }
     pub(crate) fn unreachable(&self, forge: u16) -> Option<Box<[u8]>> {
         self.held.get(&forge).cloned()

@@ -702,8 +702,11 @@ pub fn workers() -> crate::workers::Workers {
     }
     let encoding = encoding(&settings);
     let limits = crate::workers::limits(&settings).unwrap();
-    crate::workers::Workers::new(&settings.jig, &settings::Files { entries }, encoding, settings.forges, &limits)
-        .unwrap()
+    let mut forges = skein_lib::List::with_capacity(settings.limits.forge_component.forges);
+    for forge in settings.forges {
+        forges.push(forge).unwrap();
+    }
+    crate::workers::Workers::new(&settings.jig, &settings::Files { entries }, encoding, forges, &limits).unwrap()
 }
 
 pub fn settle_root(
@@ -1115,4 +1118,32 @@ pub fn marked_store() -> crate::store::Store {
 pub fn restarting_from(previous: crate::engine::Engine) -> crate::Service {
     let reopened = reopened_store(previous.store, &previous.env.limits);
     start_with_store(&[(1, 100)], Some(reopened))
+}
+
+pub fn record(
+    number: u16,
+    kind: temper_engine_domain_forge::Kind,
+    mode: temper_engine_domain_forge::Mode,
+    api: temper_engine_domain_forge::Api,
+) -> temper_engine_domain_forge::ForgeRecord {
+    use temper_engine_domain_forge::{Bot, ForgeRecord, ForgeState};
+    ForgeRecord {
+        number,
+        kind,
+        mode,
+        api,
+        git: b"https://registered.example".as_slice().into(),
+        git_program: Some(b"/data/forge/bin/git".as_slice().into()),
+        web: None,
+        read_only: false,
+        bot: Bot {
+            login: b"temper".as_slice().into(),
+            name: b"Temper".as_slice().into(),
+            email: b"temper@example.test".as_slice().into(),
+        },
+        setup: None,
+        first: None,
+        playground: false,
+        state: ForgeState::Kept,
+    }
 }

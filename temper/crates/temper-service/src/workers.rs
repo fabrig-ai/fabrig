@@ -31,7 +31,7 @@ pub struct Workers {
     ending: Option<Closing>,
     pub(crate) component_closed: bool,
     pub(crate) encoding: Encoding,
-    pub(crate) forges: Box<[Forge]>,
+    pub(crate) forges: List<Forge>,
     pub(crate) bad_parts: u64,
 }
 fn invalid(what: What) -> Problems {
@@ -44,7 +44,7 @@ impl Workers {
         config: &config::Engine,
         files: &Files,
         encoding: Encoding,
-        forges: Box<[Forge]>,
+        forges: List<Forge>,
         limits: &kit::Limits,
     ) -> Result<Self, Problems> {
         let mut workers = List::with_capacity(limits.names);
@@ -151,7 +151,7 @@ impl Workers {
         value: root::Assignment,
         values: &Values,
     ) -> Option<kit::Event> {
-        crate::assignment::down(value, &self.forges, &self.encoding, values, channel, now)
+        crate::assignment::down(value, self.forges.as_slice(), &self.encoding, values, channel, now)
     }
     pub fn send(
         &mut self,
@@ -564,6 +564,10 @@ impl Workers {
                 })
                 .expect("endpoint count");
         }
+        let mut forges = List::with_capacity(settings.limits.forge_component.forges);
+        for forge in core::mem::replace(&mut settings.forges, Box::new([])) {
+            forges.push(forge).expect("checked forge capacity");
+        }
         let workers = Self::new(
             &settings.jig,
             &settings.files,
@@ -572,7 +576,7 @@ impl Workers {
                 endpoints: smith_protocol_channel::Endpoints::new(endpoints),
                 deployment,
             },
-            ::core::mem::replace(&mut settings.forges, Box::new([])),
+            forges,
             &worker_limits,
         )?;
         Ok(workers)
