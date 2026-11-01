@@ -324,19 +324,10 @@ fn demo_domain() -> Domain {
     d
 }
 #[test]
-fn the_configured_ended_demo_and_its_retired_owners_resolve() {
+fn an_ended_demo_does_not_excuse_an_absent_task_owner() {
     let d = demo_domain();
-    for row in [
-        Stored::Demo(Demo { forge: 1, state: DemoState::Ended }),
-        Stored::Names { task: OTHER_TASK, resources: Box::new([branch()]) },
-        hold(OTHER_TASK, Some(Writer::Lost { task: OTHER_TASK, attempt: 1 })),
-        subscription(),
-        Stored::Entry { entry: status(ENTRY, OTHER_TASK), held: true },
-        issue(false),
-        Stored::Flight { task: TASK, entry: ENTRY },
-    ] {
-        assert!(resolved(&d, &row, false), "{row:?}");
-    }
+    assert!(!d.forge_ended(1));
+    assert!(!resolved(&d, &Stored::Names { task: OTHER_TASK, resources: Box::new([branch()]) }, false));
 }
 #[test]
 fn an_ended_demo_does_not_resolve_a_different_demo_record() {
@@ -558,22 +549,6 @@ fn production_link_requires_a_failed_issues_repository() {
 fn production_link_preserves_pending_closing_entry_and_flight() {
     let (mut d, _) = closing_history(Some(ENTRY), REPO);
     outputs(&mut d, Event::Restore { record: Stored::Flight { task: TASK, entry: ENTRY } });
-    d.reconcile(&empty_tasks());
-    assert_eq!(d.reconciliation(), Ok(()));
-}
-
-#[test]
-fn production_link_preserves_retired_demo_owners() {
-    let mut d = demo_domain();
-    for record in [
-        Stored::Names { task: OTHER_TASK, resources: Box::new([branch()]) },
-        hold(OTHER_TASK, Some(Writer::Lost { task: OTHER_TASK, attempt: 1 })),
-        subscription(),
-        issue(false),
-        Stored::Flight { task: TASK, entry: ENTRY },
-    ] {
-        outputs(&mut d, Event::Restore { record });
-    }
     d.reconcile(&empty_tasks());
     assert_eq!(d.reconciliation(), Ok(()));
 }

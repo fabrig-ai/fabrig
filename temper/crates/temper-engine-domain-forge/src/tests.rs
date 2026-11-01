@@ -15,6 +15,7 @@ mod landing_routes;
 mod limits;
 mod make;
 mod panel;
+mod playground;
 mod projection;
 mod purpose;
 mod reconcile;
