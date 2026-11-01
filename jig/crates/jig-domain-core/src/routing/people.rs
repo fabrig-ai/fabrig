@@ -68,6 +68,9 @@ pub(super) fn route_people(
         | people::Event::MoveChat { .. }
         | people::Event::ConversationSeen { .. }
         | people::Event::Forget { .. }
+        | people::Event::ProjectClosed { .. }
+        | people::Event::ProjectGone { .. }
+        | people::Event::TaskErased { .. }
         | people::Event::MakeService { .. }
         | people::Event::Seed { .. }
         | people::Event::Waiting { .. }

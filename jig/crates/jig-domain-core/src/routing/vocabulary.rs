@@ -1029,6 +1029,9 @@ fn people_new_work(event: &people::Event) -> bool {
         | people::Event::ChatState { .. }
         | people::Event::ConversationSeen { .. }
         | people::Event::Forget { .. }
+        | people::Event::ProjectClosed { .. }
+        | people::Event::ProjectGone { .. }
+        | people::Event::TaskErased { .. }
         | people::Event::MakeService { .. }
         | people::Event::Waiting { .. }
         | people::Event::ApplyRoles { .. }

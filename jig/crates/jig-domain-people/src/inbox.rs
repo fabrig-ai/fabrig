@@ -902,3 +902,191 @@ fn remember_project_result(domain: &mut Domain, limits: &Limits, party: u64, ent
         "one census per party/project"
     );
 }
+
+/// A deleted task retires every party's live and on-demand positions (draft 5; people.md, 6).
+pub(super) fn task_erased(domain: &mut Domain, env: &Env<Limits>, task: u64, _project: u32, out: &mut Queue<Request>) {
+    forget_chat(domain, &env.limits, task, out);
+    for (party, _) in &domain.people {
+        out.push(Request::Erase { key: Key::EndedRead { task, party: *party } });
+    }
+    purge_projections(domain, Removal { task: Some(task), project: None, party: None });
+}
+
+pub(super) fn project_closed(domain: &mut Domain, _env: &Env<Limits>, project: u32, _out: &mut Queue<Request>) {
+    purge_projections(domain, Removal { task: None, project: Some(project), party: None });
+}
+
+pub(super) fn party_removed(domain: &mut Domain, _env: &Env<Limits>, party: u64, out: &mut Queue<Request>) {
+    if domain.results_seen.remove(&party).is_some() {
+        out.push(Request::Erase { key: Key::ReadResults { party } });
+    }
+    let mut tasks = List::with_capacity(domain.conversations_seen.len());
+    for ((owner, task), _) in &domain.conversations_seen {
+        if *owner == party {
+            tasks.push(*task).expect("one entry per live position");
+        }
+    }
+    for task in tasks.into_boxed() {
+        let _old = domain.conversations_seen.remove(&(party, task));
+        out.push(Request::Erase { key: Key::ReadConversation { party, task } });
+        out.push(Request::Erase { key: Key::EndedRead { task, party } });
+    }
+    purge_projections(domain, Removal { task: None, project: None, party: Some(party) });
+}
+
+struct Removal {
+    task: Option<u64>,
+    project: Option<u32>,
+    party: Option<u64>,
+}
+impl Removal {
+    fn names(&self, task: u64, project: u32, whom: Whom) -> bool {
+        let party = match whom {
+            Whom::Person(party) => Some(party),
+            Whom::Role { .. } => None,
+        };
+        self.task == Some(task) || self.project == Some(project) || self.party.is_some() && self.party == party
+    }
+    fn entry(&self, entry: Entry) -> bool {
+        self.names(entry.task, entry.project, entry.whom)
+    }
+    fn update(&self, update: Update) -> bool {
+        match update {
+            Update::Result(entry) => self.task == Some(entry.task) || self.project == Some(entry.project),
+            Update::Reply(entry) => self.entry(entry),
+            Update::ChatReply(reply) => self.entry(reply.entry),
+        }
+    }
+}
+
+/// Filter the bounded projections without replacing any surviving contribution.
+fn purge_projections(domain: &mut Domain, removal: Removal) {
+    purge_task_projections(domain, &removal);
+    purge_party_projections(domain, &removal);
+    let mut chats = List::with_capacity(domain.chat_totals.len());
+    for (task, chat) in &domain.chat_totals {
+        if removal.names(*task, chat.project, Whom::Person(chat.party)) {
+            chats.push(*task).expect("one live chat projection");
+        }
+    }
+    for task in chats.into_boxed() {
+        let _old = domain.chat_totals.remove(&task);
+    }
+    let mut counts = List::with_capacity(domain.chat_updates.len());
+    for ((party, project), _) in &domain.chat_updates {
+        if removal.party == Some(*party) || removal.project == Some(*project) {
+            counts.push((*party, *project)).expect("one aggregate per party/project");
+        }
+    }
+    for key in counts.into_boxed() {
+        let _old = domain.chat_updates.remove(&key);
+    }
+}
+
+fn purge_task_projections(domain: &mut Domain, removal: &Removal) {
+    let mut keys = List::with_capacity(domain.needs.len());
+    for (key, _) in &domain.needs {
+        keys.push(*key).expect("one key per needs projection");
+    }
+    for task in keys.into_boxed() {
+        let old = domain.needs.remove(&task).expect("snapshot projection");
+        let mut kept: List<Need> = List::with_capacity(u32::try_from(old.len()).expect("bounded projection"));
+        for need in old {
+            if !removal.names(task, need.project, need.whom) {
+                kept.push(need).expect("projection subset");
+            }
+        }
+        if !kept.is_empty() {
+            assert!(domain.needs.insert(task, kept.into_boxed()).is_ok(), "removed projection place");
+        }
+    }
+    let mut keys = List::with_capacity(domain.waiting.len());
+    for (key, _) in &domain.waiting {
+        keys.push(*key).expect("one key per waiting projection");
+    }
+    for whom in keys.into_boxed() {
+        let old = domain.waiting.remove(&whom).expect("snapshot projection");
+        let mut kept: List<Entry> = List::with_capacity(u32::try_from(old.len()).expect("bounded projection"));
+        for entry in old {
+            if !removal.entry(entry) {
+                kept.push(entry).expect("projection subset");
+            }
+        }
+        if !kept.is_empty() {
+            assert!(domain.waiting.insert(whom, kept.into_boxed()).is_ok(), "removed projection place");
+        }
+    }
+    let mut keys = List::with_capacity(domain.replies.len());
+    for (key, _) in &domain.replies {
+        keys.push(*key).expect("one key per replies projection");
+    }
+    for task in keys.into_boxed() {
+        let old = domain.replies.remove(&task).expect("snapshot projection");
+        let mut kept: List<Entry> = List::with_capacity(u32::try_from(old.len()).expect("bounded projection"));
+        for entry in old {
+            if !removal.entry(entry) {
+                kept.push(entry).expect("projection subset");
+            }
+        }
+        if !kept.is_empty() {
+            assert!(domain.replies.insert(task, kept.into_boxed()).is_ok(), "removed projection place");
+        }
+    }
+}
+
+fn purge_party_projections(domain: &mut Domain, removal: &Removal) {
+    let mut keys = List::with_capacity(domain.recent.len());
+    for (key, _) in &domain.recent {
+        keys.push(*key).expect("one key per recent projection");
+    }
+    for party in keys.into_boxed() {
+        let old = domain.recent.remove(&party).expect("snapshot projection");
+        let mut kept: List<Recent> = List::with_capacity(u32::try_from(old.len()).expect("bounded projection"));
+        for item in old {
+            if !(removal.party == Some(party) || removal.update(item.update)) {
+                kept.push(item).expect("projection subset");
+            }
+        }
+        if !kept.is_empty() {
+            assert!(domain.recent.insert(party, kept.into_boxed()).is_ok(), "removed projection place");
+        }
+    }
+    let mut keys = List::with_capacity(domain.unread.len());
+    for (key, _) in &domain.unread {
+        keys.push(*key).expect("one key per unread projection");
+    }
+    for party in keys.into_boxed() {
+        let old = domain.unread.remove(&party).expect("snapshot projection");
+        let mut kept: List<ResultRef> = List::with_capacity(u32::try_from(old.len()).expect("bounded projection"));
+        for entry in old {
+            if !(removal.party == Some(party)
+                || removal.task == Some(entry.task)
+                || removal.project == Some(entry.project))
+            {
+                kept.push(entry).expect("projection subset");
+            }
+        }
+        if !kept.is_empty() {
+            assert!(domain.unread.insert(party, kept.into_boxed()).is_ok(), "removed projection place");
+        }
+    }
+    let mut keys = List::with_capacity(domain.result_census.len());
+    for (key, _) in &domain.result_census {
+        keys.push(*key).expect("one key per result_census projection");
+    }
+    for key in keys.into_boxed() {
+        let old = domain.result_census.remove(&key).expect("snapshot projection");
+        let mut kept: List<ResultRef> = List::with_capacity(u32::try_from(old.len()).expect("bounded projection"));
+        for entry in old {
+            if !(removal.party == Some(key.0)
+                || removal.task == Some(entry.task)
+                || removal.project == Some(entry.project))
+            {
+                kept.push(entry).expect("projection subset");
+            }
+        }
+        if !kept.is_empty() {
+            assert!(domain.result_census.insert(key, kept.into_boxed()).is_ok(), "removed projection place");
+        }
+    }
+}
