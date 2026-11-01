@@ -14,7 +14,6 @@ use std::{
 };
 
 // The stable init identities and five issuer URLs of configuration.md, 12.1.
-const GITHUB_FORGE: u16 = 2;
 const OPENAI_PROVIDER: u16 = 1;
 const OPENAI_ENDPOINT: &str = "openai";
 const ISSUER_URLS: usize = 5;
@@ -267,7 +266,7 @@ fn qa_split_directories_isolate_source_records_and_rewrite_every_public_root() {
     assert_eq!(worker["arguments"], json!(["internal", "agent", effective.join("config/agent.json")]));
     assert_eq!(worker["program"], source["workers"][0]["agent"]["program"]);
 
-    let github = row(&document["application"]["forges"], "number", &json!(GITHUB_FORGE));
+    let github = &document["application"]["machine"]["github"];
     let forge = socket(&github["api"]);
     assert_eq!(github["transport"], "plaintext");
     assert_eq!(github["git"], format!("http://{forge}"));
@@ -333,6 +332,8 @@ fn qa_restart_preserves_effective_edits_data_and_secrets() {
     let effective = fixture.effective();
     let path = effective.join("config/temper.json");
     let mut document = read_json(&path);
+    let github = document["application"]["machine"]["github"].clone();
+    assert_eq!(socket(&github["api"]), socket(&read_json(&effective.join("config/github.json"))["listen"]));
     let old = socket(&document["application"]["clients"]["listener"]);
     let [replacement] = support::free_addresses::<1>(&[old]);
     document["application"]["clients"]["listener"] = json!({"socket": replacement.to_string()});
@@ -345,6 +346,7 @@ fn qa_restart_preserves_effective_edits_data_and_secrets() {
     successful(&second);
     assert_eq!(second.checked, Some(Some(200)), "restarted child uses the edited listener");
     assert_eq!(fs::read(&path).expect("retained edit"), edited);
+    assert_eq!(read_json(&path)["application"]["machine"]["github"], github);
     assert_eq!(fs::read(effective.join("config/agent.json")).expect("retained agent"), agent);
     assert_eq!(fs::read(effective.join("data/worker.secret")).expect("retained secret"), secret);
     assert!(effective.join("prepared").is_file(), "preparation remains published");
@@ -462,8 +464,8 @@ fn qa_duplicate_provider_is_rejected_before_preparation() {
 
 #[test]
 fn qa_missing_github_target_is_rejected_before_preparation() {
-    unsupported("missing-github", "forge", |value| {
-        value["application"]["forges"].as_array_mut().expect("forges").retain(|forge| forge["number"] != GITHUB_FORGE);
+    unsupported("missing-github", "github", |value| {
+        value["application"]["machine"].as_object_mut().expect("machine templates").remove("github");
     });
 }
 

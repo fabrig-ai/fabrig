@@ -2,6 +2,7 @@
 use crate::support::{
     self, Ended, boxed,
     ctl::{self, Call, Step},
+    forges,
 };
 use serde_json::Value;
 use skein_io::kernel::Exit;
@@ -112,6 +113,10 @@ fn usable(call: &Ended) -> bool {
     document["accounts"]["usable"].as_bool().expect("account usability")
 }
 
+fn made(seen: &[Ended]) -> u16 {
+    forges::made(seen.first().expect("forge made before the welcome reads"))
+}
+
 fn forge_number(call: &Ended, number: u16) -> Value {
     let document = ctl::json(call);
     let document = if document.get("met").is_some() { &document["forges"] } else { &document };
@@ -167,7 +172,7 @@ fn wait_forges() -> Act {
 }
 fn adopt_github() -> Act {
     Act::After(Box::new(|seen| {
-        let connected = forge_number(seen.last().expect("settled forges"), 2);
+        let connected = forge_number(seen.last().expect("settled forges"), made(seen));
         assert_eq!(connected["state"], "connected", "{connected}");
         let [installation] = connected["installations"].as_array().expect("installations").as_slice() else {
             panic!("one installation: {connected}")
@@ -180,7 +185,7 @@ fn adopt_github() -> Act {
             "--project",
             "1",
             "--forge",
-            "2",
+            &made(seen).to_string(),
             "--owner",
             "fake-person",
             "--name",
@@ -237,7 +242,12 @@ fn assert_committed_reply(waited: &Ended, conversation: &Ended) {
             turn
         })
         .collect();
-    assert_eq!(turns.len(), 1, "first reply committed once");
+    assert_eq!(
+        turns.len(),
+        1,
+        "first reply committed once; phase: {}; conversation: {page}",
+        ctl::json(waited)["task"]["phase"]
+    );
     let replies: Vec<_> = turns
         .iter()
         .flat_map(|turn| turn["messages"].as_array().expect("turn messages"))
