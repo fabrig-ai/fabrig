@@ -83,8 +83,6 @@ pub(crate) fn held(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisi
             let to = skein_lib::ReplyTo::new(token);
             if super::playground::owns(domain, token) {
                 super::playground::adopted(domain, env, decision, None);
-            } else if super::demo::owns(token) {
-                super::demo::reply(domain, env, decision, to, reply);
             } else {
                 emit(decision, &env.limits, Delivery::WebReply { to, reply });
             }
@@ -178,9 +176,6 @@ pub(crate) fn held(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisi
             if super::playground::owns(domain, right) {
                 let outcome = domain.forge.application_answer(token);
                 super::playground::adopted(domain, env, decision, outcome);
-            } else if super::demo::owns(right) {
-                let outcome = domain.forge.application_answer(token);
-                super::demo::adopted(domain, env, decision, outcome);
             } else {
                 emit(
                     decision,

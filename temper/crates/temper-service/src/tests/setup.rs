@@ -1507,6 +1507,49 @@ mod admin_tests;
 #[path = "setup_create.rs"]
 mod create_tests;
 
+fn removing_forge_store() -> crate::store::Store {
+    let mut store = local_store(true);
+    let mut record = local_config(true, true).machine.owned.unwrap();
+    record.state = domain::ForgeState::Removing;
+    fixtures::commit(
+        &mut store,
+        2,
+        Box::new([
+            root::Write::Save(root::Record::Forge { row: Box::new(domain::Stored::Forge(record)) }),
+            root::Write::Save(root::Record::Forge { row: Box::new(domain::Stored::ForgeNumbers { next: 2 }) }),
+        ]),
+    );
+    let Some(StoreEvent::Committed { .. }) = store.above.pop() else { panic!("durable removing forge") };
+    store
+}
+#[test]
+fn restored_removing_forge_without_box_skips_setup_adoption_connect_and_handover() {
+    let mut config = local_config(true, true);
+    inject_handover(&mut config, Secret::new(b"test-admin".as_slice().into()));
+    let mut service = local_service(config, removing_forge_store());
+    restore_local(&mut service);
+    let engine = service.engine.as_mut().unwrap();
+    assert!(engine.domain.forge_ended(1));
+    // A stale file or a pending start-time adoption cannot make the scan ready.
+    engine
+        .setup
+        .lifecycle
+        .adoptions
+        .insert(1, lifecycle::Adoption { next: core::num::NonZeroU64::new(1).unwrap(), repositories: 2 })
+        .unwrap();
+    assert!(!engine.setup.lifecycle.ready(&engine.setup.runs, engine.setup.env.limits.runs, &engine.domain));
+    for _ in 0_u8..4 {
+        advance(engine);
+    }
+    assert!(engine.setup.runs.is_empty());
+    assert!(engine.setup.io.is_empty());
+    assert!(engine.forge.starts.is_empty());
+    lifecycle::started(engine, 1);
+    lifecycle::connect_local(engine, 1);
+    assert!(service.take_handover_read().is_none());
+    assert!(service.take_handover_removal().is_none());
+}
+
 fn demo_config() -> crate::settings::Engine {
     local_config(true, false)
 }
@@ -1531,6 +1574,44 @@ fn an_end_during_handover_or_reconcile_cannot_continue_setup() {
         assert!(engine.forge.starts.is_empty());
         assert!(service.take_handover_removal().is_none());
     }
+}
+#[test]
+fn ended_forge_calls_are_answered_locally_at_zero_cost_and_hints_are_dropped() {
+    let mut service = local_service(local_config(true, true), removing_forge_store());
+    restore_local(&mut service);
+    let engine = service.engine.as_mut().unwrap();
+    while engine.events.pop().is_some() {}
+    let call = Token::new(9001);
+    let repository = skein_forge::api::Repository { forge: 1, repository: 41 };
+    crate::route::request(
+        engine,
+        root::Request::Forge {
+            call,
+            repository,
+            op: skein_forge::api::Op::Read(skein_forge::api::Read::Permission { user: 42 }),
+        },
+    );
+    let Some(root::Event::Forge(event)) = engine.events.pop() else { panic!("immediate local answer") };
+    assert_eq!(
+        *event,
+        domain::Event::Client(skein_forge_client::Event::Answered {
+            call,
+            cost: 0,
+            free: 0,
+            rate: None,
+            result: Err(skein_forge::api::Error::NotConnected),
+        })
+    );
+    assert!(engine.forge.above.is_empty());
+    engine.forge.above.push(skein_forge_connection::Event::Hint(skein_forge_connection::hooks::Hinted {
+        connection: Token::new(9002),
+        hint: skein_forge::api::Hint { repository, change: skein_forge::api::Change::Item(7), key: None },
+    }));
+    crate::engine::forge_pass(engine);
+    assert!(engine.events.is_empty());
+    assert!(engine.forge.above.is_empty());
+    assert!(engine.forge.starts.is_empty());
+    assert!(engine.forge.io.is_empty());
 }
 #[test]
 fn github_app_urls_use_the_clients_public_origin() {

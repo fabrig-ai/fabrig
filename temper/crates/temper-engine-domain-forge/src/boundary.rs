@@ -968,15 +968,11 @@ pub enum Stored {
     },
     /// A forge's writer, kept before any restored effect (domain/forge.md, 4.1).
     Writer(skein_forge_client::Writer),
-    /// The demo's state, kept by its forge (protocol/setup.md, 8.4): no record is not started.
-    Demo(Demo),
     /// First Google subject for a member address (protocol/sign-in.md, 5).
     Binding {
         address: Box<[u8]>,
         subject: Box<[u8]>,
     },
-    /// An end act awaiting a saved answer (protocol/setup.md, 8.4).
-    DemoAct(DemoAct),
     /// A sent write not yet settled (domain/forge.md, 6; protocol/store.md, 2).
     Flight {
         task: u64,
@@ -1032,10 +1028,7 @@ pub enum Key {
     Release(u64),
     Application(u64),
     Writer(u16),
-    /// The demo's forge, application.demo.forge.
-    Demo(u16),
     Binding(Box<[u8]>),
-    DemoAct([u8; 16]),
     Flight {
         task: u64,
         entry: u64,
@@ -1163,17 +1156,6 @@ pub enum Event {
         request: Token,
         address: Box<[u8]>,
         subject: Box<[u8]>,
-    },
-    DemoActs {
-        acts: Box<[DemoAct]>,
-    },
-    DemoActAnswered {
-        key: [u8; 16],
-        keep: bool,
-    },
-    SendDemoActs,
-    DemoAnswered {
-        answer: StartAnswer,
     },
     /// The box ended its pipe (domain/forge.md, 4.1).
     BoxClosed,
@@ -1545,14 +1527,11 @@ pub enum Request {
         request: Token,
         answer: BindAnswer,
     },
-    /// Select the live chats and deployment account in this decision.
-    ListDemoActs,
-    SendDemoAct(DemoAct),
-    /// Stop the ended demo's box group; no request waits for its answer.
+    /// Stop a forge's box group.
     StopGroup {
         forge: u16,
     },
-    /// Start the demo's box group.
+    /// Start a forge's box group.
     SetUpGroup {
         forge: u16,
         request: Token,
@@ -1572,9 +1551,6 @@ pub enum Request {
     /// Drop a removed forge from the forge layer and setup host.
     Unregister {
         forge: u16,
-    },
-    DemoStart {
-        request: Token,
     },
     /// Ask the box link to set up the forge (protocol/forge.md, 2.8).
     SetUp {
@@ -1919,19 +1895,6 @@ pub enum ResetAct {
     RemoveAccount { account: u32 },
 }
 
-/// The demo's durable state (protocol/setup.md, 8.4).
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub struct Demo {
-    pub forge: u16,
-    pub state: DemoState,
-}
-/// No record is not started.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum DemoState {
-    Running,
-    Ended,
-}
-
 /// Whether this member address belongs to the presented Google subject.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum BindAnswer {
@@ -1940,18 +1903,6 @@ pub enum BindAnswer {
     /// Every binding row is taken: rows outlive their members (protocol/sign-in.md, 5).
     Full,
 }
-/// The end's selection, kept before asking the core (protocol/store.md, 2).
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub struct DemoAct {
-    pub key: [u8; 16],
-    pub act: DemoActKind,
-}
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum DemoActKind {
-    Close { project: u32, task: u64 },
-    RemoveAccount { account: u32 },
-}
-
 /// A sent entry still without its outcome when the client’s stop bound passed.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub struct Unfinished {

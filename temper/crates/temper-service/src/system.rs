@@ -1102,7 +1102,7 @@ fn note_bound(settings: &settings::Engine, root: &temper_engine_domain::Limits) 
     let templates = 1_u32
         .checked_add(u32::from(settings.machine.owned.is_some()))?
         .checked_add(u32::from(settings.machine.playground.is_some()))?;
-    templates.checked_add(temper_engine_domain_forge::demo_act_bound(&root.forge)?)
+    templates.checked_add(root.forge.tasks.checked_add(1)?)
 }
 
 #[cfg(test)]

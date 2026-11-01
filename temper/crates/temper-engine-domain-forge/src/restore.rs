@@ -237,13 +237,6 @@ pub(super) fn row(d: &Domain, l: &Limits, row: &Stored) -> Result<(), RestoreFit
             d.flights.capacity(),
             d.flights.contains_key(&(*task, *entry)),
         ),
-        Stored::DemoAct(row) => room(
-            K::DemoAct,
-            Rows(K::DemoAct),
-            d.demo_acts.len(),
-            d.demo_acts.capacity(),
-            d.demo_acts.contains_key(&row.key),
-        ),
         Stored::Writer(row) => {
             room(K::Writer, Rows(K::Writer), d.writers.len(), d.writers.capacity(), d.writers.contains_key(&row.forge))
         }
@@ -288,7 +281,7 @@ pub(super) fn row(d: &Domain, l: &Limits, row: &Stored) -> Result<(), RestoreFit
             room(K::KeptAct, Rows(K::KeptAct), d.kept.len(), d.kept.capacity(), d.kept.contains_key(&row.key))
         }
         // This family has one key; repeated restores replace its value.
-        Stored::ForgeNumbers { .. } | Stored::Playground(_) | Stored::Demo(_) | Stored::Client(_) => Ok(()),
+        Stored::ForgeNumbers { .. } | Stored::Playground(_) | Stored::Client(_) => Ok(()),
     }
 }
 

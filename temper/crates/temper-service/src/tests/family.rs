@@ -180,7 +180,6 @@ fn the_playground_read_answers_the_configured_demo() {
     let demo = crate::settings::Demo {
         project_name: "".into(),
         project_policy: 0,
-        state: Some(forge::DemoState::Running),
         playground: Some(forge::Playground {
             state: forge::PlaygroundState::Running,
             forge: 2,
@@ -1313,11 +1312,8 @@ fn the_playground_read_answers_not_started_with_no_row() {
     assert!(record.is_none());
     let mut service = fixtures::demo_service();
     let demo = service.engine.as_mut().unwrap().demo.as_mut().unwrap();
-    for state in [None, Some(forge::DemoState::Running), Some(forge::DemoState::Ended)] {
-        demo.state = state;
-        assert!(demo.playground.is_none());
-        assert_playground_read(demo, w::PlaygroundState::NotStarted, 0, 0);
-    }
+    assert!(demo.playground.is_none());
+    assert_playground_read(demo, w::PlaygroundState::NotStarted, 0, 0);
 }
 
 #[test]

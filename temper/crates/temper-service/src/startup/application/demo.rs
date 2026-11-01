@@ -128,7 +128,6 @@ fn t4(
         landing: repository.landing.clone(),
         cues,
         key_file,
-        state: None,
         playground: None,
     };
     machine.playground = Some(super::machine::playground(&entry, body));

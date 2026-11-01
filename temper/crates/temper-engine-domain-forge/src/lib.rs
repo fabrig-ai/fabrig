@@ -23,7 +23,6 @@ mod capabilities;
 mod ci;
 mod commit;
 mod connect;
-mod demo;
 mod domain;
 mod effect_words;
 mod forges;
@@ -55,9 +54,7 @@ pub use commit::commit_text;
 pub use domain::{Domain, RestoreFit, RestoreSet, fire, resume, step, tag, untag, writer};
 pub use gates::{GateCandidate, GateLast, GatePattern, GatePolicy, GateTemplate};
 pub use judge::{Criterion, Freshness as JudgeFreshness, Judges, Reviewer, Verdict as JudgeVerdict};
-pub use limits::{
-    BOT_LOGIN_SUFFIX, CONNECT_WHY_BYTES, FIRST_NAME_BYTES, Limits, STOPPED_TEXT_BYTES, demo_act_bound, valid,
-};
+pub use limits::{BOT_LOGIN_SUFFIX, CONNECT_WHY_BYTES, FIRST_NAME_BYTES, Limits, STOPPED_TEXT_BYTES, valid};
 pub use panel::{MARKED, PANEL_AHEAD, PANEL_GATES, PANEL_NAME_BYTES, Panel, PanelGate, PanelStep, PanelUsed};
 pub use temper_engine_domain_forge_landing::{CHECK_NAME_BYTES, WORKFLOW_BYTES};
 pub use temper_engine_domain_forge_landing::{Hold as LandingHold, Phase as LandingPhase};
@@ -253,9 +250,7 @@ pub fn stored_key(row: &Stored) -> Key {
         Stored::Release(row) => Key::Release(row.task),
         Stored::Application { token, .. } => Key::Application(*token),
         Stored::Writer(row) => Key::Writer(row.forge),
-        Stored::Demo(row) => Key::Demo(row.forge),
         Stored::Binding { address, .. } => Key::Binding(address.clone()),
-        Stored::DemoAct(row) => Key::DemoAct(row.key),
         Stored::Flight { task, entry } => Key::Flight { task: *task, entry: *entry },
     }
 }
@@ -444,8 +439,6 @@ pub fn stored_bytes(record: &Stored) -> Option<u64> {
         | Stored::Ci(_)
         | Stored::Landed { .. }
         | Stored::Writer(_)
-        | Stored::Demo(_)
-        | Stored::DemoAct(_)
         | Stored::Flight { .. } => Some(0),
         Stored::ProposedEffect(row) => {
             let resource = match &row.resource {
