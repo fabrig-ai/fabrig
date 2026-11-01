@@ -11,13 +11,18 @@ use skein_lib::{Map, ReplyTo, Token};
 pub(crate) struct Replies {
     kept: Map<Token, forge::KeptAct>,
     reset: Map<Token, forge::ResetAct>,
+    pub(super) start: Map<Token, super::playground::ActReply>,
 }
 
 impl Replies {
     pub(crate) fn new(limits: &forge::Limits) -> Self {
         let forges = limits.forges.checked_mul(2).expect("validated forge act bound");
         let kept = limits.tasks.checked_add(forges).expect("validated kept act bound");
-        Self { kept: Map::with_capacity(kept), reset: Map::with_capacity(2) }
+        Self {
+            kept: Map::with_capacity(kept),
+            reset: Map::with_capacity(2),
+            start: Map::with_capacity(limits.applications),
+        }
     }
 }
 
@@ -88,6 +93,10 @@ pub(crate) fn acted(
     outcome: people::Outcome,
 ) {
     let token = to.into_token();
+    if let Some(reply) = domain.kept_replies.start.remove(&token) {
+        super::playground::acted(domain, env, decision, reply, outcome);
+        return;
+    }
     let (event, prefix, why) = if let Some(row) = domain.kept_replies.kept.remove(&token) {
         let (keep, why) = classify(&outcome, "cancel");
         (forge::Event::KeptActAnswered { key: row.key, keep }, b"forge removal: ".as_slice(), why)
