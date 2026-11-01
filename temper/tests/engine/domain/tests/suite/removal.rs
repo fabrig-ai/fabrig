@@ -150,6 +150,15 @@ fn remove(d: &mut Driver) {
     // Immediate outputs leave the journal one at a time, without a commit terminal.
     for _ in 0..200 {
         if d.immediate.iter().any(|request| matches!(request, engine::Request::Unregister { forge: FORGE })) {
+            // Serve ends the unregistered forge's open calls. The stand has no connection layer.
+            d.events.extend(d.forge.as_mut().expect("fake forge").replies());
+            for event in &mut d.events {
+                if let engine::Event::Forge(event) = event
+                    && let forge::Event::Client(skein_forge_client::Event::Answered { result, .. }) = event.as_mut()
+                {
+                    *result = Err(skein_forge::api::Error::NotConnected);
+                }
+            }
             return;
         }
         engine::release(&mut d.root, &d.env, &mut d.out);
@@ -207,7 +216,7 @@ fn assert_cancelled(story: &Story) {
     assert_eq!(reason.as_ref(), b"Forge removed");
     assert!(d.transactions.iter().flatten().any(|write| matches!(write,
         Write::Save(Record::Forge { row }) if matches!(row.as_ref(), forge::Stored::KeptAct(row) if row.key == *key))));
-    for task in [story.change, story.producer] {
+    for task in [story.producer, story.change] {
         let phase = if let Some(row) = d.task(task) {
             &row.phase
         } else {
@@ -218,9 +227,19 @@ fn assert_cancelled(story: &Story) {
             };
             &row.phase
         };
+        let ending = match phase {
+            tasks::Phase::Ended(ending) => ending,
+            tasks::Phase::Held { was: tasks::Was::Closing(closing), .. } => &closing.ending,
+            tasks::Phase::Waiting | tasks::Phase::Active(_) | tasks::Phase::Closing(_) | tasks::Phase::Held { .. } => {
+                panic!(
+                    "cancelled task {task}: {phase:?}; producer phase: {:?}",
+                    d.task(story.producer).map(|row| &row.phase)
+                )
+            }
+        };
         assert!(
-            matches!(phase,
-            tasks::Phase::Ended(tasks::Ending::Cancelled { by: tasks::Party::Deployment { project: 1 }, reason, .. })
+            matches!(ending,
+            tasks::Ending::Cancelled { by: tasks::Party::Deployment { project: 1 }, reason, .. }
                 if reason.as_ref() == b"Forge removed"),
             "task {task}: {phase:?}"
         );
@@ -231,45 +250,55 @@ fn assert_cancelled(story: &Story) {
 
 #[test]
 fn removing_a_forge_cancels_its_changes_and_ends_whole() {
-    for seed in SEEDS {
-        let mut story = live(seed, true);
-        let d = &mut story.driver;
-        assert!(cuts::forge_rows(&d.store).iter().any(|row| matches!(row, forge::Stored::Writer(_))));
-        assert!(cuts::forge_rows(&d.store).iter().any(|row| matches!(row, forge::Stored::Flight { .. })));
-        remove(d);
-        let number = cuts::commit(d);
-        let acts = cuts::kept_acts(&d.store);
-        let mut saved = cuts::saved_acts(d);
-        saved.sort_by_key(|row| row.key);
-        assert_eq!(saved, acts, "all kept acts saved in this decision");
-        assert_eq!(acts.len(), 3, "Cancel, RemoveGroup and EraseSecrets kept in the decision; seed {seed}");
-        assert!(acts.iter().any(|row| row.act == forge::KeptActKind::Cancel { project: 1, task: story.change }));
-        assert!(matches!(d.store.rows.get(&Key::Forge(forge::Key::Forge(FORGE))),
+    removing_a_forge_cancels_its_changes_and_ends_whole_at(SEEDS[0]);
+}
+
+#[test]
+fn removing_a_forge_cancels_its_changes_and_ends_whole_at_second_seed() {
+    removing_a_forge_cancels_its_changes_and_ends_whole_at(SEEDS[1]);
+}
+
+fn removing_a_forge_cancels_its_changes_and_ends_whole_at(seed: u64) {
+    let mut story = live(seed, true);
+    let d = &mut story.driver;
+    assert!(cuts::forge_rows(&d.store).iter().any(|row| matches!(row, forge::Stored::Writer(_))));
+    assert!(cuts::forge_rows(&d.store).iter().any(|row| matches!(row, forge::Stored::Flight { .. })));
+    remove(d);
+    let number = cuts::commit(d);
+    let acts = cuts::kept_acts(&d.store);
+    let mut saved = cuts::saved_acts(d);
+    saved.sort_by_key(|row| row.key);
+    assert_eq!(saved, acts, "all kept acts saved in this decision");
+    assert_eq!(acts.len(), 3, "Cancel, RemoveGroup and EraseSecrets kept in the decision; seed {seed}");
+    assert!(acts.iter().any(|row| row.act == forge::KeptActKind::Cancel { project: 1, task: story.change }));
+    assert!(matches!(d.store.rows.get(&Key::Forge(forge::Key::Forge(FORGE))),
             Some(Record::Forge { row }) if matches!(row.as_ref(), forge::Stored::Forge(row) if row.state == forge::ForgeState::Removing)));
-        assert!(d.immediate.iter().any(|request| matches!(request, engine::Request::Unregister { forge: FORGE })));
-        let retained: Vec<_> = cuts::forge_rows(&d.store)
-            .into_iter()
-            .filter(|row| matches!(row, forge::Stored::Writer(_) | forge::Stored::Flight { .. }))
-            .collect();
-        assert!(retained.is_empty(), "writer and flights erased in the removal decision: {retained:?}");
-        d.send(engine::Event::Store(engine::StoreInput::Committed { number, fill: 0 }));
-        d.pump();
-        assert_removing(d);
-        assert_eq!(cuts::kept_acts(&d.store).len(), 2, "the core answered Cancel");
-        assert_cancelled(&story);
-        let d = &mut story.driver;
-        answer(d, forge::KeptActKind::RemoveGroup);
-        d.pump();
-        assert_eq!(cuts::kept_acts(&d.store).len(), 1);
-        assert!(d.store.rows.contains_key(&Key::Forge(forge::Key::Forge(FORGE))));
-        answer(d, forge::KeptActKind::EraseSecrets);
-        d.pump();
-        assert!(cuts::kept_acts(&d.store).is_empty());
-        assert!(!d.store.rows.contains_key(&Key::Forge(forge::Key::Forge(FORGE))));
-        for row in acts {
-            assert!(d.transactions.iter().flatten().any(|write| matches!(write,
+    assert!(d.immediate.iter().any(|request| matches!(request, engine::Request::Unregister { forge: FORGE })));
+    assert!(
+        !cuts::forge_rows(&d.store).iter().any(|row| matches!(row, forge::Stored::Writer(_))),
+        "writer erased in the removal decision"
+    );
+    d.send(engine::Event::Store(engine::StoreInput::Committed { number, fill: 0 }));
+    d.pump();
+    assert_removing(d);
+    assert!(
+        !d.store.rows.contains_key(&Key::Forge(forge::Key::Flight { task: story.producer, entry: ENTRY })),
+        "the open call's terminal erases its flight before Cancel's answer is checked"
+    );
+    assert_eq!(cuts::kept_acts(&d.store).len(), 2, "the core answered Cancel");
+    assert_cancelled(&story);
+    let d = &mut story.driver;
+    answer(d, forge::KeptActKind::RemoveGroup);
+    d.pump();
+    assert_eq!(cuts::kept_acts(&d.store).len(), 1);
+    assert!(d.store.rows.contains_key(&Key::Forge(forge::Key::Forge(FORGE))));
+    answer(d, forge::KeptActKind::EraseSecrets);
+    d.pump();
+    assert!(cuts::kept_acts(&d.store).is_empty());
+    assert!(!d.store.rows.contains_key(&Key::Forge(forge::Key::Forge(FORGE))));
+    for row in acts {
+        assert!(d.transactions.iter().flatten().any(|write| matches!(write,
                 Write::Erase(Key::Forge(forge::Key::KeptAct(key))) if *key == row.key)));
-        }
     }
 }
 
@@ -305,84 +334,85 @@ fn commit_erasure(d: &mut Driver, key: [u8; 16]) -> u64 {
 
 #[test]
 fn a_removal_cut_after_each_kept_act_resumes_to_the_same_end() {
-    for seed in SEEDS {
-        let mut uncut = live(seed, true);
-        remove(&mut uncut.driver);
-        finish(&mut uncut.driver);
-        assert_removing(&uncut.driver);
-        let expected = comparable(&uncut.driver);
-        // Decision; Cancel's answer; RemoveGroup's answer; EraseSecrets' answer.
-        for cut in 0..=3 {
-            let mut story = live(seed, true);
-            let d = &mut story.driver;
-            remove(d);
-            let number = cuts::commit(d);
-            let original = cuts::kept_acts(&d.store);
-            assert_eq!(original.len(), 3);
-            if cut > 0 {
+    a_removal_cut_after_each_kept_act_resumes_to_the_same_end_at(SEEDS[0]);
+}
+
+#[test]
+fn a_removal_cut_after_each_kept_act_resumes_to_the_same_end_at_second_seed() {
+    a_removal_cut_after_each_kept_act_resumes_to_the_same_end_at(SEEDS[1]);
+}
+
+fn a_removal_cut_after_each_kept_act_resumes_to_the_same_end_at(seed: u64) {
+    let mut uncut = live(seed, true);
+    remove(&mut uncut.driver);
+    finish(&mut uncut.driver);
+    assert_removing(&uncut.driver);
+    let expected = comparable(&uncut.driver);
+    // Decision; Cancel's answer; RemoveGroup's answer; EraseSecrets' answer.
+    for cut in 0..=3 {
+        let mut story = live(seed, true);
+        let d = &mut story.driver;
+        remove(d);
+        let number = cuts::commit(d);
+        let original = cuts::kept_acts(&d.store);
+        assert_eq!(original.len(), 3);
+        if cut > 0 {
+            d.send(engine::Event::Store(engine::StoreInput::Committed { number, fill: 0 }));
+            // Commit the connector's erasure of Cancel, losing that decision's terminal.
+            let cancel =
+                original.iter().find(|row| matches!(row.act, forge::KeptActKind::Cancel { .. })).expect("kept Cancel");
+            let number = commit_erasure(d, cancel.key);
+            assert!(!cuts::kept_acts(&d.store).iter().any(|row| matches!(row.act, forge::KeptActKind::Cancel { .. })));
+            if cut > 1 {
                 d.send(engine::Event::Store(engine::StoreInput::Committed { number, fill: 0 }));
-                // Commit the connector's erasure of Cancel, losing that decision's terminal.
-                let cancel = original
-                    .iter()
-                    .find(|row| matches!(row.act, forge::KeptActKind::Cancel { .. }))
-                    .expect("kept Cancel");
-                let number = commit_erasure(d, cancel.key);
-                assert!(
-                    !cuts::kept_acts(&d.store).iter().any(|row| matches!(row.act, forge::KeptActKind::Cancel { .. }))
-                );
-                if cut > 1 {
+                d.pump();
+                answer(d, forge::KeptActKind::RemoveGroup);
+                let number = cuts::commit(d);
+                if cut > 2 {
                     d.send(engine::Event::Store(engine::StoreInput::Committed { number, fill: 0 }));
                     d.pump();
-                    answer(d, forge::KeptActKind::RemoveGroup);
-                    let number = cuts::commit(d);
-                    if cut > 2 {
-                        d.send(engine::Event::Store(engine::StoreInput::Committed { number, fill: 0 }));
-                        d.pump();
-                        answer(d, forge::KeptActKind::EraseSecrets);
-                        cuts::commit(d);
-                    }
+                    answer(d, forge::KeptActKind::EraseSecrets);
+                    cuts::commit(d);
                 }
             }
-            let unanswered = cuts::kept_acts(&story.driver.store);
-            let answers = cuts::acted(&story.driver.store);
-            assert_eq!(answers.len(), 1, "the core committed its Cancel answer before the cut");
-            assert!(original.iter().any(|row| row.key == answers[0].0
-                && row.act == forge::KeptActKind::Cancel { project: 1, task: story.change }));
-            story = restart(story, true);
-            assert_eq!(cuts::acted(&story.driver.store), answers, "retained Cancel answer; seed {seed}, cut {cut}");
-            for row in &unanswered {
-                assert!(original.contains(row), "resend retains the key");
-                if !matches!(row.act, forge::KeptActKind::Cancel { .. }) {
-                    assert!(cuts::kept_acts(&story.driver.store).contains(row), "unanswered serve act retains its key");
-                }
-                match row.act {
-                    forge::KeptActKind::Cancel { .. } => assert!(!cuts::kept_acts(&story.driver.store).contains(row)),
-                    forge::KeptActKind::RemoveGroup => assert!(
-                        story
-                            .driver
-                            .immediate
-                            .iter()
-                            .any(|request| matches!(request, engine::Request::RemoveGroup { forge: FORGE }))
-                    ),
-                    forge::KeptActKind::EraseSecrets => assert!(
-                        story
-                            .driver
-                            .immediate
-                            .iter()
-                            .any(|request| matches!(request, engine::Request::EraseSecrets { forge: FORGE }))
-                    ),
-                }
+        }
+        let unanswered = cuts::kept_acts(&story.driver.store);
+        let answers = cuts::acted(&story.driver.store);
+        assert_eq!(answers.len(), 1, "the core committed its Cancel answer before the cut");
+        assert!(
+            original.iter().any(|row| row.key == answers[0].0
+                && row.act == forge::KeptActKind::Cancel { project: 1, task: story.change })
+        );
+        story = restart(story, true);
+        assert_eq!(cuts::acted(&story.driver.store), answers, "retained Cancel answer; seed {seed}, cut {cut}");
+        for row in &unanswered {
+            assert!(original.contains(row), "resend retains the key");
+            if !matches!(row.act, forge::KeptActKind::Cancel { .. }) {
+                assert!(cuts::kept_acts(&story.driver.store).contains(row), "unanswered serve act retains its key");
             }
-            finish(&mut story.driver);
-            let resumed = comparable(&story.driver);
-            assert_eq!(
-                resumed.keys().collect::<Vec<_>>(),
-                expected.keys().collect::<Vec<_>>(),
-                "seed {seed}, cut {cut}"
-            );
-            for (key, row) in resumed {
-                assert_eq!(Some(&row), expected.get(&key), "seed {seed}, cut {cut}, row {key:?}");
+            match row.act {
+                forge::KeptActKind::Cancel { .. } => assert!(!cuts::kept_acts(&story.driver.store).contains(row)),
+                forge::KeptActKind::RemoveGroup => assert!(
+                    story
+                        .driver
+                        .immediate
+                        .iter()
+                        .any(|request| matches!(request, engine::Request::RemoveGroup { forge: FORGE }))
+                ),
+                forge::KeptActKind::EraseSecrets => assert!(
+                    story
+                        .driver
+                        .immediate
+                        .iter()
+                        .any(|request| matches!(request, engine::Request::EraseSecrets { forge: FORGE }))
+                ),
             }
+        }
+        finish(&mut story.driver);
+        let resumed = comparable(&story.driver);
+        assert_eq!(resumed.keys().collect::<Vec<_>>(), expected.keys().collect::<Vec<_>>(), "seed {seed}, cut {cut}");
+        for (key, row) in resumed {
+            assert_eq!(Some(&row), expected.get(&key), "seed {seed}, cut {cut}, row {key:?}");
         }
     }
 }
@@ -419,17 +449,13 @@ fn assert_absent(story: &mut Story, key: u8) {
                 | forge::Stored::Writer(_)
                 | forge::Stored::Flight { .. }
                 | forge::Stored::KeptAct(_)
-                | forge::Stored::Hold(_)
-                | forge::Stored::Names { .. }
                 | forge::Stored::Subscription(_)
-                | forge::Stored::BranchHead(_)
-                | forge::Stored::PullState(_)
-                | forge::Stored::Ci(_)
                 | forge::Stored::Entry { .. }
                 | forge::Stored::Client(_)
         )),
         "remaining forge rows: {rows:?}"
     );
+    assert_repository_rows(&rows);
     d.delivered.clear();
     d.send(engine::Event::Party(engine::PartyInput::Watch {
         watcher: Token::new(u64::from(key)),
@@ -442,7 +468,11 @@ fn assert_absent(story: &mut Story, key: u8) {
         window: Window { rows: 1, after: None },
     }));
     d.pump();
-    assert!(!d.delivered.iter().any(|delivery| matches!(delivery, Delivery::Panel { .. })));
+    assert!(
+        !d.delivered.iter().any(|delivery| matches!(delivery, Delivery::Panel { .. })),
+        "removed forge's change panel is still delivered: {:?}",
+        d.delivered
+    );
     assert!(d.delivered.iter().any(|delivery| matches!(delivery,
         Delivery::WatchEnded { watcher, why: jig_domain_views::End::Gone } if *watcher == Token::new(u64::from(key)))));
     d.hello(Token::new(7));
@@ -483,43 +513,102 @@ fn assert_absent(story: &mut Story, key: u8) {
             if *reply_to == ReplyTo::new(Token::new(221)))));
 }
 
-#[test]
-fn nothing_of_a_removed_forge_is_read_but_its_repositories() {
-    for seed in SEEDS {
-        let mut story = live(seed, true);
-        remove(&mut story.driver);
-        finish(&mut story.driver);
-        assert_absent(&mut story, 222);
-        story = restart(story, true);
-        assert_absent(&mut story, 232);
+fn assert_repository(name: &forge::Name) {
+    assert_eq!((name.forge, name.repository), (REPOSITORY.forge, REPOSITORY.repository));
+}
+
+fn assert_repository_rows(rows: &[forge::Stored]) {
+    for row in rows {
+        match row {
+            forge::Stored::Hold(row) => assert_repository(&row.name),
+            forge::Stored::Names { resources, .. } => {
+                for name in resources {
+                    assert_repository(name);
+                }
+            }
+            forge::Stored::Change(row) => assert_eq!(row.repository, REPOSITORY),
+            forge::Stored::Application { outcome: forge::ApplicationOutcome::Adopted(row), .. } => {
+                assert_eq!(row.repository, REPOSITORY);
+            }
+            forge::Stored::BranchHead(row) => assert_repository(&row.name),
+            forge::Stored::PullState(row) => assert_repository(&row.name),
+            forge::Stored::Ci(row) => assert_eq!(row.repository, REPOSITORY),
+            forge::Stored::Call { .. }
+            | forge::Stored::ProposedEffect(_)
+            | forge::Stored::Repository(_)
+            | forge::Stored::Subscription(_)
+            | forge::Stored::Landed { .. }
+            | forge::Stored::Entry { .. }
+            | forge::Stored::Client(_)
+            | forge::Stored::Issue(_)
+            | forge::Stored::Release(_)
+            | forge::Stored::Application { .. }
+            | forge::Stored::Writer(_)
+            | forge::Stored::Demo(_)
+            | forge::Stored::Binding { .. }
+            | forge::Stored::DemoAct(_)
+            | forge::Stored::Flight { .. }
+            | forge::Stored::Landing(_)
+            | forge::Stored::Receipt { .. }
+            | forge::Stored::Forge(_)
+            | forge::Stored::ForgeNumbers { .. }
+            | forge::Stored::Playground(_)
+            | forge::Stored::KeptAct(_) => {}
+        }
     }
 }
 
 #[test]
+fn nothing_of_a_removed_forge_is_read_but_its_repositories() {
+    nothing_of_a_removed_forge_is_read_but_its_repositories_at(SEEDS[0]);
+}
+
+#[test]
+fn nothing_of_a_removed_forge_is_read_but_its_repositories_at_second_seed() {
+    nothing_of_a_removed_forge_is_read_but_its_repositories_at(SEEDS[1]);
+}
+
+fn nothing_of_a_removed_forge_is_read_but_its_repositories_at(seed: u64) {
+    let mut story = live(seed, true);
+    remove(&mut story.driver);
+    finish(&mut story.driver);
+    assert_absent(&mut story, 222);
+    story = restart(story, true);
+    assert_absent(&mut story, 232);
+}
+
+#[test]
 fn a_removal_without_the_cancel_grant_keeps_its_acts_until_a_granted_restart() {
-    for seed in SEEDS {
-        let mut story = live(seed, false);
-        remove(&mut story.driver);
-        story.driver.pump();
-        assert_removing(&story.driver);
-        let kept = cuts::kept_acts(&story.driver.store);
-        assert_eq!(kept.len(), 3);
-        assert!(cuts::acted(&story.driver.store).is_empty());
-        assert!(story.driver.delivered.iter().any(|delivery| matches!(delivery,
+    a_removal_without_the_cancel_grant_keeps_its_acts_until_a_granted_restart_at(SEEDS[0]);
+}
+
+#[test]
+fn a_removal_without_the_cancel_grant_keeps_its_acts_until_a_granted_restart_at_second_seed() {
+    a_removal_without_the_cancel_grant_keeps_its_acts_until_a_granted_restart_at(SEEDS[1]);
+}
+
+fn a_removal_without_the_cancel_grant_keeps_its_acts_until_a_granted_restart_at(seed: u64) {
+    let mut story = live(seed, false);
+    remove(&mut story.driver);
+    story.driver.pump();
+    assert_removing(&story.driver);
+    let kept = cuts::kept_acts(&story.driver.store);
+    assert_eq!(kept.len(), 3);
+    assert!(cuts::acted(&story.driver.store).is_empty());
+    assert!(story.driver.delivered.iter().any(|delivery| matches!(delivery,
             Delivery::DemoNote { line } if line.starts_with(b"forge removal:")
                 && line.windows(b"engine.acts".len()).any(|part| part == b"engine.acts")
                 && line.windows(b"cancel".len()).any(|part| part == b"cancel"))));
-        story = restart(story, false);
-        assert_eq!(cuts::kept_acts(&story.driver.store), kept);
-        assert!(cuts::acted(&story.driver.store).is_empty());
-        story = restart(story, true);
-        assert_eq!(cuts::kept_acts(&story.driver.store).len(), 2);
-        finish(&mut story.driver);
-        assert!(cuts::kept_acts(&story.driver.store).is_empty());
-        let answers = cuts::acted(&story.driver.store);
-        assert!(
-            matches!(answers.as_slice(), [(_, people::Act::Cancel { task, reason, .. }, people::Outcome::Compound { operations: 2, .. })]
+    story = restart(story, false);
+    assert_eq!(cuts::kept_acts(&story.driver.store), kept);
+    assert!(cuts::acted(&story.driver.store).is_empty());
+    story = restart(story, true);
+    assert_eq!(cuts::kept_acts(&story.driver.store).len(), 2);
+    finish(&mut story.driver);
+    assert!(cuts::kept_acts(&story.driver.store).is_empty());
+    let answers = cuts::acted(&story.driver.store);
+    assert!(
+        matches!(answers.as_slice(), [(_, people::Act::Cancel { task, reason, .. }, people::Outcome::Compound { operations: 2, .. })]
             if *task == story.change && reason.as_ref() == b"Forge removed")
-        );
-    }
+    );
 }
