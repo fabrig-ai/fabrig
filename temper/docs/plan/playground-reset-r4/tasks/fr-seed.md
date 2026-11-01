@@ -27,6 +27,9 @@ files = [
   "temper/crates/temper-service/src/tests/setup_github.rs",
   "temper/crates/temper-service/src/tests/setup_admin.rs",
   "temper/crates/temper-service/src/tests/setup_adoption.rs",
+  "temper/crates/temper-service/src/tests/setup_create.rs",
+  "temper/crates/temper-service/src/tests/setup_scopes.rs",
+  "temper/crates/temper-service/src/tests/setup_reachable.rs",
 ]
 effort = "high"
 minutes = 70
@@ -219,4 +222,28 @@ drops its `setup` case (absent `setup` is accepted; rename it
 `Application` row among the `Forge` range's rows, the seed's `Forge`
 rows and `Forges` beside it. Every other assertion stays. If a service
 test still fails after its fixture holds the seed, stop and ask with
+the test and its log.
+
+2026-11-01. May the service's bootstrap fixtures start their store from
+the document the scenario later runs (A), or do the 25 setup failures
+move to `fr-seed-worlds` (B)? A. Under D1 the document seeds only the
+store's first start and the records win after it, so a fixture that
+first starts a store with the default document (`fixtures::ready()`,
+`records_store()`) and then runs a managed, owned or GitHub document
+over it tests a store whose records say otherwise: the fixture, not the
+connector, is wrong. `fixtures.rs` gains forms that take the scenario's
+`settings::Engine` (`ready_with(settings)`, `records_store_with(&settings)`,
+or names to that effect), whose first start seeds from that document;
+the no-argument forms stay, over the default document. Each setup
+fixture that builds a service over a bootstrapped store
+(`setup_admin.rs`'s `store`, `setup_github.rs`'s `owner_service`,
+`setup_create.rs`'s `configured`, `setup_lifecycle.rs`'s, and
+`setup_adoption.rs`', `setup_scopes.rs`' and `setup_reachable.rs`'
+store swaps where they fail) passes the document it later starts with;
+the three new files are added to the header for that alone. Still no
+`Forge` record built by hand, no record erased to let the document win,
+no return to `Config.forges`/`identities`, and every assertion stays. A
+test whose scenario means a changed document to win over kept records
+across a restart tests what D1 retires: stop and ask with it. If a test
+still fails once its bootstrap holds its own document, stop and ask with
 the test and its log.
