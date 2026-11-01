@@ -13,14 +13,12 @@ use jig_protocol_store::{SecretOwner, Secrets};
 
 const ADMIN: &[u8] = b"admin-token-placeholder-0123";
 
-fn config() -> crate::settings::Engine {
+fn config() -> Config {
     let mut config = local_config(true, false);
-    let entry = &mut config.setup[0];
-    entry.entry.mode = temper_forge_setup::setup::Mode::Managed { admin_token: None };
-    entry.entry.directory = Box::new([]);
-    entry.entry.orgs = Box::new([]);
-    entry.handover = None;
-    config.identities[0].login = Box::new([]);
+    config.records[0].mode = domain::Mode::Managed;
+    config.records[0].setup =
+        Some(br#"{"bot":{"login":"temper","email":"temper@example.test"},"mode":"managed"}"#.as_slice().into());
+    config.records[0].bot.login = b"temper".as_slice().into();
     config
 }
 fn store(forge: &Forge) -> crate::store::Store {
@@ -245,7 +243,11 @@ fn admin_paste_reconciles_creates_with_its_label_then_keeps_and_restarts_from_re
         })
     );
     assert!(engine.setup.public.is_empty());
-    assert!(engine.domain.forges().rows[0].first.is_none(), "restart never repeats Create");
+    assert_eq!(
+        engine.domain.forges().rows[0].first.as_ref().unwrap().state,
+        domain::FirstState::Made { id: 1 },
+        "restart retains the completed first intent"
+    );
 }
 #[test]
 fn admin_connect_without_first_keeps_after_reconcile_and_connects() {
@@ -526,7 +528,12 @@ fn pending(service: &mut crate::Service) -> Token {
         scan(engine);
         crate::engine::iterate(engine, Time::ZERO, Wall::EPOCH);
         if let Some((run, _)) = engine.setup.public.first() {
-            return *run;
+            let run = *run;
+            for _ in 0_u32..8 {
+                scan(engine);
+                crate::engine::iterate(engine, Time::ZERO, Wall::EPOCH);
+            }
+            return run;
         }
     }
     panic!("admin run admitted");
@@ -628,6 +635,9 @@ fn an_ended_forge_finishes_the_admin_run_without_keeping_the_token() {
         state: Some(domain::DemoState::Ended),
         playground: None,
     });
+    let mut record = engine.records.get(&1).unwrap().clone();
+    record.state = domain::ForgeState::Removing;
+    engine.step(root::Event::Forge(Box::new(domain::Event::Restore { record: domain::Stored::Forge(record) })));
     // Replace the fake host's pending read with its terminal, so no stale Need follows Done.
     while engine.setup.above.pop().is_some() {}
     engine.setup.above.push(host::Event::Done { run, outcome: reconcile::Outcome::Nothing });
@@ -697,7 +707,7 @@ fn reconcile_and_create_use_the_paste_instead_of_an_older_admin_record() {
 fn string_managed_serves_no_listener_even_when_owned_forges_have_webhooks() {
     let forge = forge(true, true, false);
     let mut config = config();
-    config.webhooks =
+    config.engine.webhooks =
         Some(skein_forge_connection::hooks::Webhooks { listener: skein_io::Addr::Ip(([127, 0, 0, 1], 7101).into()) });
     let service = local_service(config, store(&forge));
     let engine = service.engine.as_ref().unwrap();

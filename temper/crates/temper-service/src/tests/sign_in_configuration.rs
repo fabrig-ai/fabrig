@@ -157,8 +157,12 @@ fn provider(jig: &mut config::Engine) {
     });
 }
 fn with_forges(rows: &str) -> String {
-    input(&SIGN_IN.replacen('{', &format!("{{\"forges\":{rows},"), 1))
+    let sign_in = SIGN_IN.replacen('{', &format!("{{\"forges\":{rows},"), 1);
+    core::str::from_utf8(fixtures::document_members::APPLICATION)
+        .unwrap()
+        .replace("\"sign_in\":null", &format!("\"sign_in\":{sign_in}"))
 }
+
 #[test]
 fn forge_sign_in_is_optional_and_joins_the_provider_client() {
     let mut jig = jig();
