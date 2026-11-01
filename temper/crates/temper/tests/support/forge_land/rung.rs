@@ -494,13 +494,14 @@ impl Driver {
             let task = child["chip"]["task"].as_u64().ok_or("planning child task number missing")?.to_string();
             let read = self.ctl(&["task", "show", &task], None)?;
             let read = read.get("task").unwrap_or(&read);
-            let words = &read["spec"]["specification"]["words"];
-            // The whole advisor cue precedes the brief's possibly cut caller words.
+            let authority = &read["authority"];
+            // The task page may cut the brief before the advisor's role line.
             require(
                 child["chip"]["executor"].get("agent").is_some()
-                    && words["bytes"].as_str().is_some_and(|brief| {
-                        brief.starts_with("You are an advisor: you read what your brief asks and report what you found; you change nothing and ask no one.\n\n")
-                    }),
+                    && read["priority"].is_null()
+                    && authority["cut"] == false
+                    && authority["authority"]["tools"] == jig_domain_core::ToolFamilies::JIG.read.0
+                    && authority["authority"]["delegation"] == json!({"kinds": [], "tasks": 0, "depth": 0}),
                 "planning work has made no change, ended or live; only advisors before the answer",
             )?;
         }

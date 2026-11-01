@@ -75,7 +75,7 @@ fn a_delegates_question_answered_in_the_inbox_reaches_the_delegate() {
                 find: Find::exactly_named(Role::Paragraph, format!("Task {delegate}").as_bytes()),
                 within: fixtures::WITHIN,
             },
-            Step::See { find: Find::text(b"You are a goal: the work your person asked for"), within: fixtures::WITHIN },
+            Step::See { find: Find::text(b"Ask the person"), within: fixtures::WITHIN },
         ],
     );
     let outcome = world.run(Until::Done);
