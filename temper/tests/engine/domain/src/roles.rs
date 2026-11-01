@@ -524,6 +524,8 @@ impl World {
                 | engine::Request::Party(engine::PartyRequest::Deliver(delivery)) => {
                     panic!("unexpected role-world delivery {delivery:?}")
                 }
+                engine::Request::Register(row) => assert_eq!(row, crate::forges::record(1,
+                    temper_engine_domain_forge::Kind::Forgejo, temper_engine_domain_forge::Mode::Connected)),
                 engine::Request::Stop => panic!("role root stopped: {:?}", self.trace),
                 other @ (engine::Request::Forge { .. }
                 | engine::Request::Worker(_)
@@ -532,7 +534,6 @@ impl World {
                 | engine::Request::Account(_)
                 | engine::Request::RemoveGroup { .. }
                 | engine::Request::EraseSecrets { .. }
-                | engine::Request::Register(_)
                 | engine::Request::Unregister { .. }
                 | engine::Request::StopGroup { .. }
                 | engine::Request::SetUpGroup { .. }
