@@ -1037,20 +1037,16 @@ fn serve_and_root_answers_are_inert_until_their_tasks() {
 }
 #[test]
 #[expect(clippy::disallowed_macros, reason = "the test compares every domain map through its full Debug snapshot")]
-fn playground_and_kept_act_rows_restore_as_no_ops() {
+fn the_playground_row_restores_without_effects() {
     let mut d = github(Kind::GitHub, Mode::Managed);
     d.restore_begin(Wall::from_nanos(0));
-    for record in [
-        Stored::Playground(Playground {
-            state: PlaygroundState::Running,
-            forge: 1,
-            project: Some(1),
-            account: Some(2),
-        }),
-        Stored::KeptAct(KeptAct { key: [1; 16], forge: 1, act: KeptActKind::EraseSecrets }),
-    ] {
-        assert!(outputs(&mut d, Event::Restore { record }).is_empty());
-    }
+    let record = Stored::Playground(Playground {
+        state: PlaygroundState::Running,
+        forge: 1,
+        project: Some(1),
+        account: Some(2),
+    });
+    assert!(outputs(&mut d, Event::Restore { record }).is_empty());
     // Restoration tracks its phase; the tables and public projection stay unchanged.
     let mut control = github(Kind::GitHub, Mode::Managed);
     control.restore_begin(Wall::from_nanos(0));

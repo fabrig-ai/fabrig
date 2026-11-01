@@ -89,6 +89,7 @@ pub(crate) fn capacity(l: &Limits) -> Option<u32> {
         .checked_add(l.applications)? // Application: adopted repository, if any.
         .checked_add(l.client.repositories)? // Writer: document forge.
         .checked_add(l.forges)? // Writer: forge record.
+        .checked_add(crate::removal::bound(l)?)? // KeptAct: forge record.
         .checked_add(l.landings.checked_mul(l.landing_members)?)?
         .checked_add(l.repositories.checked_mul(l.gates)?.checked_mul(l.receipts_per_gate)?)?
         .checked_add(1) // Demo: configured demo's forge.
@@ -246,6 +247,7 @@ impl Reconciliation {
                 crate::ApplicationOutcome::CoreRefused(_) | crate::ApplicationOutcome::ForgeRefused(_) => Ok(()),
             },
             Stored::Writer(row) => self.need(RecordKind::Writer, Need::Forge(row.forge)),
+            Stored::KeptAct(row) => self.need(RecordKind::KeptAct, Need::Forge(row.forge)),
             Stored::Demo(row) => self.need(RecordKind::Demo, Need::Demo(row.forge)),
             // Landing history outlives tasks (domain/forge.md, 7.2).
             // Bindings outlive members. End acts retry until the saved answer,
@@ -253,7 +255,6 @@ impl Reconciliation {
             Stored::Forge(_)
             | Stored::ForgeNumbers { .. }
             | Stored::Playground(_)
-            | Stored::KeptAct(_)
             | Stored::Landed { .. }
             | Stored::Binding { .. }
             | Stored::DemoAct(_) => Ok(()),
@@ -312,7 +313,11 @@ impl Domain {
         match need {
             // Identities are constructor facts too; a restored writer is never one.
             Need::Forge(forge) => {
-                self.configured_forge(forge) || (kind == RecordKind::Repository && self.forge_ended(forge))
+                if kind == RecordKind::KeptAct {
+                    self.records.contains_key(&forge)
+                } else {
+                    self.configured_forge(forge) || (kind == RecordKind::Repository && self.forge_ended(forge))
+                }
             }
             Need::Demo(forge) => match &self.demo {
                 Some(demo) => demo.adoption.forge == forge,

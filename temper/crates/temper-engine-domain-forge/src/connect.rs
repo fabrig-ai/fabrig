@@ -260,7 +260,9 @@ pub(crate) fn connected(d: &mut Domain, forge: u16, request: Token, answer: Conn
                 out.push(Request::CarriedUnused { number: carried.number });
             }
             let (previous, failed) = d.connect.previous.remove(&forge).unwrap_or((Connection::NotConnected, None));
-            d.connections.insert(forge, (previous, failed)).expect("configured forge");
+            if !d.forge_ended(forge) {
+                d.connections.insert(forge, (previous, failed)).expect("configured forge");
+            }
             out.push(Request::MarkedForges);
         }
         d.connect.answer(request, token, Answered::Connect(answer), out);
@@ -325,7 +327,7 @@ pub(crate) fn ended(
         if connected {
             d.connect.previous.remove(&forge);
         }
-        if connected && !admin {
+        if connected && !admin && !d.forge_ended(forge) {
             d.apps.insert(forge, crate::AppWay::Pasted).expect("configured forge App way");
             out.push(Request::MarkedForges);
         }
@@ -334,7 +336,9 @@ pub(crate) fn ended(
                 stopped_end(d, forge, &why, if admin { stop } else { None }, out);
             }
             let (previous, failed) = d.connect.previous.remove(&forge).unwrap_or((Connection::NotConnected, None));
-            d.connections.insert(forge, (previous, failed)).expect("configured forge");
+            if !d.forge_ended(forge) {
+                d.connections.insert(forge, (previous, failed)).expect("configured forge");
+            }
             out.push(Request::MarkedForges);
         }
     }
@@ -342,6 +346,9 @@ pub(crate) fn ended(
 
 /// Volatile per-forge diagnostics, bounded in bytes without splitting UTF-8 (client/forge.md, 5.4).
 fn stopped_end(d: &mut Domain, forge: u16, why: &[u8], stop: Option<crate::AdminStop>, out: &mut Queue<Request>) {
+    if d.forge_ended(forge) {
+        return;
+    }
     // The host supplies UTF-8. Back over continuation bytes at the cut;
     // text validation belongs to the protocol boundary.
     let mut end = why.len().min(crate::CONNECT_WHY_BYTES);
