@@ -309,17 +309,6 @@ fn oversized_patch_record_precedes_restart_load_check() {
     refuses_check(&mut world, &Check::Large { key: token_key(0) });
 }
 
-#[test]
-fn live_record_over_decode_limit_refuses_load() {
-    let records = empty();
-    let row = root::live_task(root::LIVE);
-    let mut world = records.committed_with(SEED, patches::BASE, 1, patches::limits(), std::slice::from_ref(&row));
-    let mut limits = patches::limits();
-    limits.core.tasks.spec_bytes = 1;
-    world.restart_with_limits(SEED, limits);
-    refuses_check(&mut world, &Check::Load { key: load_key(&row) });
-}
-
 fn task_with_words(number: u64, bytes: usize) -> core::Record {
     let mut row = root::live_task(number);
     let core::Record::Tasks(tasks::Stored::Live(task)) = &mut row else {
@@ -337,40 +326,6 @@ fn live_record_exactly_at_decode_bound_switches() {
     world.patch_sets(patches::SETS);
     world.open_switched().expect("codec limit is inclusive");
     assert_eq!(world.get(row.key()), row);
-}
-
-#[test]
-fn live_record_one_byte_past_decode_bound_refuses_load() {
-    let mut initial = patches::limits();
-    initial.core.tasks.spec_bytes += 1;
-    let bytes = skein_lib::length::usize_of(initial.core.tasks.spec_bytes);
-    let row = task_with_words(root::LIVE, bytes);
-    let mut world = empty().committed_with(SEED, patches::BASE, 1, initial, std::slice::from_ref(&row));
-    world.restart_with_limits(SEED, patches::limits());
-    refuses_check(&mut world, &Check::Load { key: load_key(&row) });
-}
-
-#[test]
-fn first_bad_live_key_wins_over_commit_insertion_order() {
-    let rows = [root::live_task(root::LIVE + 1), root::live_task(root::LIVE)];
-    let mut world = empty().committed_with(SEED, patches::BASE, 1, patches::limits(), &rows);
-    let mut limits = patches::limits();
-    limits.core.tasks.spec_bytes = 1;
-    world.restart_with_limits(SEED, limits);
-    refuses_check(&mut world, &Check::Load { key: load_key(&rows[1]) });
-}
-
-#[test]
-fn live_decode_failure_precedes_missing_ended_join() {
-    let row = root::live_task(root::LIVE);
-    let position =
-        core::Record::People(jig_domain_people::Stored::EndedRead { task: root::LIVE + 1, party: 1, through: 0 });
-    let rows = [position, row.clone()];
-    let mut world = empty().committed_with(SEED, patches::BASE, 1, patches::limits(), &rows);
-    let mut limits = patches::limits();
-    limits.core.tasks.spec_bytes = 1;
-    world.restart_with_limits(SEED, limits);
-    refuses_check(&mut world, &Check::Load { key: load_key(&row) });
 }
 
 #[test]
@@ -473,67 +428,6 @@ fn bounded_sets(families: usize, name_bytes: usize) -> PatchSets {
 }
 
 #[test]
-fn manifest_family_and_name_bounds_hold_at_first_start() {
-    let sets = bounded_sets(FAMILY_BOUND, NAME_BOUND);
-    let mut world = World::unopened_observed(SEED, patches::limits(), None);
-    world.patch_sets(sets);
-    assert_eq!(world.open_switched(), Some(0), "{:?}", world.refusal());
-    let first = manifest(&mut world, 1);
-    assert_eq!(skein_lib::length::usize_of(first.counts.len()), FAMILY_BOUND);
-    assert!(first.counts.iter().all(|row| row.before() == 0 && row.after() == 0));
-}
-
-#[test]
-fn each_manifest_bound_fits_without_the_other_at_bound() {
-    // Each axis is legal independently, including the two endpoints of the combined case.
-    const SHORT_NAME: usize = 8;
-    const SPARSE_FAMILIES: usize = 5; // Four fixture families and one empty family.
-    for (families, name_bytes) in [(FAMILY_BOUND, SHORT_NAME), (SPARSE_FAMILIES, NAME_BOUND)] {
-        let mut world = World::unopened_observed(SEED, patches::limits(), None);
-        world.patch_sets(bounded_sets(families, name_bytes));
-        assert_eq!(world.open_switched(), Some(0), "{families} families, {name_bytes} bytes: {:?}", world.refusal());
-        let first = manifest(&mut world, 1);
-        assert_eq!(skein_lib::length::usize_of(first.counts.len()), families);
-    }
-}
-
-#[test]
-fn combined_manifest_bounds_fit_with_larger_file_chunks() {
-    // The manifest at both bounds exceeds the fixture's 4096-byte file chunk.
-    const MANIFEST_CHUNK: u32 = 8192;
-    let mut limits = patches::limits();
-    limits.store.chunk = MANIFEST_CHUNK;
-    let mut world = World::unopened_observed(SEED, limits, None);
-    world.patch_sets(bounded_sets(FAMILY_BOUND, NAME_BOUND));
-    assert_eq!(world.open_switched(), Some(0), "{:?}", world.refusal());
-    let first = manifest(&mut world, 1);
-    assert_eq!(skein_lib::length::usize_of(first.counts.len()), FAMILY_BOUND);
-}
-
-#[test]
-fn combined_manifest_bounds_patch_with_larger_file_chunks() {
-    const MANIFEST_CHUNK: u32 = 8192; // Both manifest bounds together exceed a 4096-byte chunk.
-    let mut limits = patches::limits();
-    limits.store.chunk = MANIFEST_CHUNK;
-    let mut world = empty().committed(SEED, patches::BASE);
-    world.restart_with_limits(SEED, limits);
-    world.patch_sets(bounded_sets(FAMILY_BOUND, NAME_BOUND));
-    assert!(world.open_switched().is_some(), "{:?}", world.refusal());
-    assert_eq!(patches::counts(&mut world).len(), FAMILY_BOUND);
-}
-
-#[test]
-fn manifest_family_and_name_bounds_hold_behind() {
-    let sets = bounded_sets(FAMILY_BOUND, NAME_BOUND);
-    let mut world = empty().committed(SEED, patches::BASE);
-    world.patch_sets(sets);
-    assert!(world.open_switched().is_some(), "bounds accepted on the patch path: {:?}", world.refusal());
-    let counts = patches::counts(&mut world);
-    assert_eq!(counts.len(), FAMILY_BOUND);
-    assert!(counts.iter().all(|(_, before, after)| *before == 0 && *after == 0));
-}
-
-#[test]
 fn manifest_bounds_refuse_sets_before_any_first_start_write() {
     for (families, name_bytes, owner) in
         [(FAMILY_BOUND + 1, NAME_BOUND, Owner::Jig), (FAMILY_BOUND, NAME_BOUND + 1, Owner::Application)]
@@ -581,11 +475,32 @@ fn cuts_across_check_and_switch_recover_whole_maps() {
     complete.trace_writes();
     complete.open_switched().expect("complete patch to enumerate its cuts");
     let cuts = patches::cuts(&complete);
-    let first = *cuts.first().expect("copy has cut points");
+    // suite::patching::every_patch_write_cut_recovers_all_records_and_no_stray
+    // owns the copy's mutations. Start here at the seal's sync, then cut
+    // every operation through the read-only check and the final switch.
+    let seal = complete
+        .written()
+        .iter()
+        .find_map(|(operation, raw)| {
+            let puts = crate::fresh_windows::commit_keys(raw)?;
+            puts.iter()
+                .any(|(_, value)| {
+                    jig_protocol_store::codec::component::Format::decode(value)
+                        .is_ok_and(|format| format.levels.application == Some(2) && format.levels.jig == Some(2))
+                })
+                .then_some(*operation)
+        })
+        .expect("seal writes the target levels");
+    let first = complete
+        .changes()
+        .iter()
+        .find(|(operation, change)| *operation > seal && *change == jig_store_world::world::Change::Sync)
+        .expect("seal sync precedes the check")
+        .0;
     let after_switch = cuts.last().expect("switch has cut points") + 1;
     let mut source_opened = false;
     let mut switched = false;
-    // Include the reads between mutations: the check itself has no writes at which to cut.
+    // Include every check read: the check itself has no writes at which to cut.
     for cut in first..=after_switch {
         let mut world = records.committed(SEED, patches::BASE);
         let before = patches::source(&mut world);
@@ -620,4 +535,71 @@ fn cuts_across_check_and_switch_recover_whole_maps() {
         records.check(&mut world, 2, &cut);
     }
     assert!(source_opened && switched, "cuts reached each whole generation");
+}
+
+#[test]
+fn admitted_manifest_bounds_hold_at_first_start() {
+    const SHORT_NAME: usize = 8;
+    const SPARSE_FAMILIES: usize = 5;
+    const LARGE_CHUNK: u32 = 8192;
+    for (families, name_bytes, chunk) in [
+        (FAMILY_BOUND, NAME_BOUND, patches::limits().store.chunk),
+        (FAMILY_BOUND, SHORT_NAME, patches::limits().store.chunk),
+        (SPARSE_FAMILIES, NAME_BOUND, patches::limits().store.chunk),
+        (FAMILY_BOUND, NAME_BOUND, LARGE_CHUNK),
+    ] {
+        let mut limits = patches::limits();
+        limits.store.chunk = chunk;
+        let mut world = World::unopened_observed(SEED, limits, None);
+        world.patch_sets(bounded_sets(families, name_bytes));
+        assert_eq!(
+            world.open_switched(),
+            Some(0),
+            "families={families}, name={name_bytes}, chunk={chunk}: {:?}",
+            world.refusal()
+        );
+        let first = manifest(&mut world, 1);
+        assert_eq!(skein_lib::length::usize_of(first.counts.len()), families);
+        assert!(first.counts.iter().all(|row| row.before() == 0 && row.after() == 0));
+    }
+}
+
+#[test]
+fn admitted_manifest_bounds_hold_after_patching() {
+    const LARGE_CHUNK: u32 = 8192;
+    for chunk in [patches::limits().store.chunk, LARGE_CHUNK] {
+        let mut limits = patches::limits();
+        limits.store.chunk = chunk;
+        let mut world = empty().committed(SEED, patches::BASE);
+        world.restart_with_limits(SEED, limits);
+        world.patch_sets(bounded_sets(FAMILY_BOUND, NAME_BOUND));
+        assert!(world.open_switched().is_some(), "chunk={chunk}: {:?}", world.refusal());
+        let counts = patches::counts(&mut world);
+        assert_eq!(counts.len(), FAMILY_BOUND);
+        assert!(counts.iter().all(|(_, before, after)| *before == 0 && *after == 0));
+    }
+}
+
+#[test]
+fn invalid_live_rows_refuse_load_before_joins_in_key_order() {
+    let ordinary = patches::limits();
+    let mut wider = ordinary;
+    wider.core.tasks.spec_bytes += 1;
+    let past_bound = task_with_words(root::LIVE, skein_lib::length::usize_of(wider.core.tasks.spec_bytes));
+    let row = root::live_task(root::LIVE);
+    let position =
+        core::Record::People(jig_domain_people::Stored::EndedRead { task: root::LIVE + 1, party: 1, through: 0 });
+    for (label, initial, bound, rows, expected) in [
+        ("smaller configured bound", ordinary, 1, vec![row.clone()], load_key(&row)),
+        ("one byte past", wider, ordinary.core.tasks.spec_bytes, vec![past_bound.clone()], load_key(&past_bound)),
+        ("key order", ordinary, 1, vec![root::live_task(root::LIVE + 1), row.clone()], load_key(&row)),
+        ("load before join", ordinary, 1, vec![position, row.clone()], load_key(&row)),
+    ] {
+        let mut world = empty().committed_with(SEED, patches::BASE, 1, initial, &rows);
+        let mut limits = ordinary;
+        limits.core.tasks.spec_bytes = bound;
+        world.restart_with_limits(SEED, limits);
+        refuses_check(&mut world, &Check::Load { key: expected });
+        assert_eq!(world.active(), b"1\n", "{label}");
+    }
 }

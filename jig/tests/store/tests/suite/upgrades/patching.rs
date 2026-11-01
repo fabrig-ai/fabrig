@@ -1,5 +1,5 @@
 //! Adversarial promises at open, through the existing store world only.
-use jig_protocol_store::{Generations, Older, OpenRefusal, Owner, PatchSet, PatchSets, Write};
+use jig_protocol_store::{Older, OpenRefusal, Owner, PatchSet, PatchSets, Write};
 use jig_store_world::{
     World,
     patches::{self, BASE, Records, SETS},
@@ -174,33 +174,6 @@ fn written_refusal_repeats_and_old_binary_reopens() {
 }
 
 #[test]
-fn ahead_chooses_upstream_before_downstream() {
-    // store.md 5.3: any level past the binary refuses Ahead, the first in Owner order, upstream first.
-    let mut world = Records::story().committed_at(SEED, SETS, PATCHED);
-    world.patch_sets(BASE);
-    stray(&mut world);
-    let before = world.contents();
-    assert_eq!(world.open_switched(), None);
-    assert_eq!(
-        world.refusal(),
-        Some(&OpenRefusal::Ahead { owner: Owner::Jig, found: Some(JIG_LEVEL), wanted: Some(0) })
-    );
-    patches::kept(&before, &world.contents(), &"ahead before cleanup");
-}
-
-#[test]
-fn ahead_precedes_another_owners_missing_baseline() {
-    // store.md 5.3: first any owner's level past the binary's, then any owner's missing level.
-    let mut world = Records::story().committed_at(SEED, APP_ONLY, PATCHED);
-    world.patch_sets(BASE);
-    assert_eq!(world.open_switched(), None);
-    assert_eq!(
-        world.refusal(),
-        Some(&OpenRefusal::Ahead { owner: Owner::Application, found: Some(APPLICATION_LEVEL), wanted: Some(0) })
-    );
-}
-
-#[test]
 fn jig_baseline_does_not_hide_unleveled_application() {
     // store.md 5.3: Unleveled includes another owner's none in a row whose jig level is set.
     let mut world = Records::story().committed(SEED, JIG_ONLY);
@@ -253,115 +226,6 @@ fn stray_cleanup_restarts_listing_and_keeps_previous() {
 }
 
 #[test]
-fn active_rejects_noncanonical_and_oversize_numbers() {
-    // store.md 10.1 step 2: active is decimal without a leading zero and one newline, at most 21 bytes; anything else refuses.
-    let invalid: &[&[u8]] = &[
-        b"",
-        b"00\n",
-        b"01\n",
-        b"1",
-        b"1\n\n",
-        b"+1\n",
-        b" 1\n",
-        b"1\r\n",
-        b"1\0\n",
-        b"18446744073709551616\n",
-        b"18446744073709551615\nX",
-    ];
-    for bytes in invalid {
-        let mut world = World::unopened(SEED);
-        world.lay(&[Item::file(b"active", bytes)]);
-        let before = world.contents();
-        assert_eq!(world.open_switched(), None, "{bytes:?}");
-        assert_eq!(world.refusal(), Some(&OpenRefusal::Generations { why: Generations::Unreadable }), "{bytes:?}");
-        assert_eq!(world.contents(), before, "{bytes:?}");
-    }
-}
-
-#[test]
-fn maximum_active_number_reaches_missing_generation_check() {
-    // store.md 10.1 steps 2–3: a 21-byte canonical active is accepted before missing maps refuse.
-    let mut world = World::unopened(SEED);
-    world.lay(&[Item::file(b"active", b"18446744073709551615\n"), Item::directory(b"generations")]);
-    let before = world.contents();
-    assert_eq!(world.open_switched(), None);
-    assert_eq!(world.refusal(), Some(&OpenRefusal::Generations { why: Generations::Missing { generation: u64::MAX } }));
-    assert_eq!(world.contents(), before);
-}
-
-#[test]
-fn top_level_stores_without_active_refuse_without_writes() {
-    // store.md 2: store/, secrets/ or transcripts/ at the top without active refuses Directory before any write.
-    for directory in [b"store".as_slice(), b"secrets", b"transcripts"] {
-        let mut world = World::unopened(SEED);
-        world.lay(&[Item::directory(directory)]);
-        let before = world.contents();
-        assert_eq!(world.open_switched(), None);
-        assert_eq!(world.refusal(), Some(&OpenRefusal::OlderBuild { why: Older::Directory }));
-        assert_eq!(world.contents(), before, "{directory:?}");
-    }
-}
-
-#[test]
-fn unnamed_generation_with_store_file_is_never_first_start() {
-    // store.md 2: generations holding anything beyond an empty interrupted first start refuse Unnamed and stay unchanged.
-    let mut world = World::unopened(SEED);
-    world.lay(&[
-        Item::directory(b"generations"),
-        Item::directory(b"generations/1"),
-        Item::directory(b"generations/1/store"),
-        Item::directory(b"generations/1/secrets"),
-        Item::file(b"generations/1/store/data", b"operator must recover me"),
-    ]);
-    let before = world.contents();
-    assert_eq!(world.open_switched(), None);
-    assert_eq!(world.refusal(), Some(&OpenRefusal::Generations { why: Generations::Unnamed }));
-    assert_eq!(world.contents(), before);
-}
-
-#[test]
-fn interrupted_first_start_discards_only_empty_generation() {
-    // store.md 2: an empty generation 1 with manifest temporaries is removed with active's temporary and started afresh.
-    let mut world = World::unopened(SEED);
-    world.lay(&[
-        Item::directory(b"generations"),
-        Item::directory(b"generations/1"),
-        Item::directory(b"generations/1/store"),
-        Item::directory(b"generations/1/secrets"),
-        Item::file(b"generations/1/manifest.skein-0123456789abcdef", b"partial"),
-        Item::file(b"active.skein-0123456789abcdef", b"1\n"),
-    ]);
-    assert_eq!(world.open_switched(), Some(0));
-    assert_eq!(world.active(), b"1\n");
-    let paths = world.paths();
-    assert!(paths.iter().any(|path| path == b"generations/1/manifest"));
-    assert!(!paths.iter().any(|path| path.windows(b".skein-".len()).any(|part| part == b".skein-")));
-}
-
-#[test]
-fn wrong_owner_set_refuses_before_stray_cleanup() {
-    // store.md 10.1: nothing is removed or made until the active generation has opened and nothing refuses.
-    let mut world = pending(&Records::story());
-    world.patch_sets(WRONG_OWNER);
-    stray(&mut world);
-    let before = world.contents();
-    assert_eq!(world.open_switched(), None);
-    assert_eq!(world.refusal(), Some(&OpenRefusal::Set { owner: Owner::Application, patch: 1 }));
-    patches::kept(&before, &world.contents(), &"set refusal before removal");
-}
-
-#[test]
-fn pin_past_binary_refuses_before_copy() {
-    // store.md 10.3: after naming a level past the binary's refuses the set.
-    let mut world = pending(&Records::story());
-    world.patch_sets(PIN_TOO_FAR);
-    let before = world.contents();
-    assert_eq!(world.open_switched(), None);
-    assert_eq!(world.refusal(), Some(&OpenRefusal::Set { owner: Owner::Application, patch: 1 }));
-    patches::kept(&before, &world.contents(), &"impossible pin");
-}
-
-#[test]
 fn pin_already_passed_in_store_refuses_before_copy() {
     // store.md 10.3: after naming an upstream level already passed in the store refuses the set.
     let mut records = Records::story();
@@ -372,22 +236,6 @@ fn pin_already_passed_in_store_refuses_before_copy() {
     assert_eq!(world.open_switched(), None);
     assert_eq!(world.refusal(), Some(&OpenRefusal::Set { owner: Owner::Application, patch: 1 }));
     patches::kept(&before, &world.contents(), &"already passed pin");
-}
-
-#[test]
-fn duplicate_owner_sets_refuse_before_copy() {
-    // store.md 10.3: PatchSets contains at most one set per owner.
-    const DUPLICATE: PatchSets = PatchSets { sets: &[SETS.sets[0], SETS.sets[0], SETS.sets[1]] };
-    let mut world = pending(&Records::story());
-    world.patch_sets(DUPLICATE);
-    let before = world.contents();
-    assert_eq!(world.open_switched(), None);
-    assert!(
-        matches!(world.refusal(), Some(OpenRefusal::Set { owner: Owner::Application, .. })),
-        "{:?}",
-        world.refusal()
-    );
-    patches::kept(&before, &world.contents(), &"duplicate owner");
 }
 
 #[test]
@@ -435,5 +283,34 @@ fn drop_copy_and_switch_recover_after_every_mutation() {
         assert!(
             !after.keys().any(|path| path.starts_with(b"generations/1/") || path.starts_with(b"generations/dropped"))
         );
+    }
+}
+
+#[test]
+fn ahead_owners_precede_cleanup_and_missing_baselines() {
+    for (made, owner, level) in [(SETS, Owner::Jig, JIG_LEVEL), (APP_ONLY, Owner::Application, APPLICATION_LEVEL)] {
+        let mut world = Records::story().committed_at(SEED, made, PATCHED);
+        world.patch_sets(BASE);
+        stray(&mut world);
+        let before = world.contents();
+        assert_eq!(world.open_switched(), None);
+        assert_eq!(world.refusal(), Some(&OpenRefusal::Ahead { owner, found: Some(level), wanted: Some(0) }));
+        patches::kept(&before, &world.contents(), &owner);
+    }
+}
+
+#[test]
+fn invalid_sets_refuse_before_copy_or_stray_cleanup() {
+    const DUPLICATE: PatchSets = PatchSets { sets: &[SETS.sets[0], SETS.sets[0], SETS.sets[1]] };
+    for (label, sets, patch) in
+        [("wrong owner", WRONG_OWNER, 1), ("pin past binary", PIN_TOO_FAR, 1), ("duplicate owner", DUPLICATE, 0)]
+    {
+        let mut world = pending(&Records::story());
+        world.patch_sets(sets);
+        stray(&mut world);
+        let before = world.contents();
+        assert_eq!(world.open_switched(), None, "{label}");
+        assert_eq!(world.refusal(), Some(&OpenRefusal::Set { owner: Owner::Application, patch }), "{label}");
+        patches::kept(&before, &world.contents(), &label);
     }
 }

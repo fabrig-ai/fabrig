@@ -352,6 +352,18 @@ scenarios of the worlds they belong to, a few cuts each in the focused
 suite and swept with the rest in the fuzzy one: none needs a suite of
 its own.
 
+The store's generation, patch, check and frame scenarios are focused tests
+in `jig-store-world::suite::upgrades`, on the simulated disk. Layout,
+manifest and admission cases are data rows of their behaviour's table;
+copy mutations and check/switch cuts have one owner each. These are
+component-world scenarios, not a separate tier. `jig-test::process` also
+runs in focused: three paths through the shipped binary against fakes,
+including its bundle page under the reference policy. Startup, HTTP and
+child-exit waits use the shared real loop's `Deadline`, with the measured
+starvation verdict (testing-strategy.md, 2.10). Offline live-configuration
+and refused-plan diagnostics run in focused; real live stories remain
+opt-in.
+
 Settings' tests are priced so (engine.md, section 17). Their step tests
 are pure functions over a few settings, each well under a millisecond.
 The core's world gains about a dozen focused scenarios (half with the

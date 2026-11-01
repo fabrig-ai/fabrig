@@ -2235,9 +2235,13 @@ Each within jig's suites' budgets.
   transition) is the core's tests' (`../domain/engine.md`, 7.2), in its
   world, whose store closes the window by the walk itself: smith's
   fixture turn kept at one text, and a patch marked fresh that changes
-  no family. The independent testing of each change is an independent tester's from this
-  design, committed in `jig-store-world`'s `edges` binary, excluded from the
-  gate's default and fuzzy profiles and selected by the `qa-jig` profile.
+  no family. Generation, upgrade, check and frame scenarios run in the focused
+  `jig-store-world::suite` binary, with short cases as data rows. The copy's
+  mutation cuts belong to `patching::every_patch_write_cut_recovers_all_records_and_no_stray`;
+  `upgrades::check::cuts_across_check_and_switch_recover_whole_maps` starts
+  at the seal's sync and cuts every operation through the check and switch.
+  Frame and mark scenarios kept above step tests prove durable files or
+  proofs across restart; decoder-only duplicates stay in the step tests.
 - **Step tests:** each key encoder against the derived order; each
   range's intervals against its predicate; each codec both ways, with
   golden bytes; refusals at open (format, deployment, sizes, numbers).
