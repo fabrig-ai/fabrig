@@ -202,5 +202,5 @@ test-group = "temper-real-loop"
 [profile.browser-temper]
 default-filter = "(package(=temper-client-browser-world) & binary(/^browser_/)) & (package(/^temper(-|$)/) | package(=git-transcripts))"
 global-timeout = "120s"
-slow-timeout = { period = "40s", terminate-after = 3 }
+slow-timeout = { period = "40s" }
 test-threads = 1

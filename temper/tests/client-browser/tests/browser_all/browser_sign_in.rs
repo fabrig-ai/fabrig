@@ -1,46 +1,50 @@
-//! Signing in by the printed link (client/browser.md, 4.1, story 1): the page takes the secret from its own
-//! address, puts `/welcome` in its place, and the browser keeps jig's cookie; a reload signs in by that cookie, and a
-//! spent link shows the signed-out words.
+//! Signing in, cookies and reconnects share one browser and server (client/browser.md, 4.6, 1).
 use skein_fake_person::{Find, Step as PersonStep};
 use skein_fake_person_browser::{Harness, Outcome, Script, Step};
 use skein_ui::Role;
 use temper_client_browser_world::{FIRST_CHAT_ADDRESS, Tier, WITHIN, first_chat};
 
-#[test]
-fn the_printed_link_signs_in() {
-    let tier = Tier::new("printed-link");
-    let welcome = Find::exactly_named(Role::Heading { level: 1 }, b"Welcome to temper");
-    let mut script = Script::new(Box::new([
-        Step::Person(PersonStep::See { find: welcome, within: WITHIN }),
-        Step::Person(PersonStep::See { find: Find::exactly_named(Role::Link, b"Set up temper"), within: WITHIN }),
-        Step::Address(Box::from(b"/welcome".as_slice())),
-    ]));
-    assert_eq!(Harness::new(tier.setup()).run(&mut [&mut script]), Outcome::Done);
-}
+// Several loads begin before the preceding one reaches Live.
+const RAPID_RELOADS: usize = 5;
 
 #[test]
-fn a_reload_on_a_chat_signs_in_by_its_cookie() {
-    let tier = Tier::new("reload-on-a-chat").with_model();
+fn signing_in_reloading_reconnecting_and_signing_out_keep_the_cookie_contract() {
+    let tier = Tier::reserved("sign-in-cookie").with_model();
+    let mut setup = tier.setup();
+    setup.expected = vec![
+        b"net::ERR_CONNECTION_REFUSED".as_slice().into(),
+        b"net::ERR_INCOMPLETE_CHUNKED_ENCODING".as_slice().into(),
+        b"401".as_slice().into(),
+    ];
     let see = |find| Step::Person(PersonStep::See { find, within: WITHIN });
     let mut steps = temper_client_browser_world::start_chat(b"Hello");
     steps.extend([
         Step::Person(PersonStep::Reload),
         see(first_chat(b"Hello")),
         see(tier.states().live),
-        Step::Address(Box::from(FIRST_CHAT_ADDRESS)),
+        Step::Address(FIRST_CHAT_ADDRESS.into()),
+        Step::StopServer,
+        see(Find::exactly_named(Role::Status, b"Offline")),
+        Step::StartServer,
+        see(tier.states().live),
+        see(first_chat(b"Hello")),
+    ]);
+    for _ in 0..RAPID_RELOADS {
+        steps.push(Step::Person(PersonStep::Reload));
+    }
+    steps.extend([
+        see(tier.states().live),
+        Step::Address(FIRST_CHAT_ADDRESS.into()),
+        Step::Person(PersonStep::Press { find: Find::exactly_named(Role::Button, b"Sign out") }),
+        see(tier.states().signed_out),
+        Step::Person(PersonStep::Reload),
+        see(tier.states().signed_out),
+        Step::Person(PersonStep::Go { address: FIRST_CHAT_ADDRESS.into() }),
+        see(tier.states().signed_out),
+        Step::Reopen,
+        see(tier.states().signed_out),
+        Step::Address(b"/welcome".as_slice().into()),
     ]);
     let mut script = Script::new(steps.into_boxed_slice());
-    assert_eq!(Harness::new(tier.setup()).run(&mut [&mut script]), Outcome::Done);
-}
-
-#[test]
-fn a_spent_link_shows_the_signed_out_words() {
-    let tier = Tier::new("spent-link");
-    let mut script = Script::new(Box::new([
-        Step::Person(PersonStep::See { find: Find::exactly_named(Role::Link, b"Set up temper"), within: WITHIN }),
-        Step::Reopen,
-        Step::Person(PersonStep::See { find: tier.states().signed_out, within: WITHIN }),
-        Step::Address(Box::from(b"/welcome".as_slice())),
-    ]));
-    assert_eq!(Harness::new(tier.setup()).run(&mut [&mut script]), Outcome::Done);
+    assert_eq!(Harness::new(setup).run(&mut [&mut script]), Outcome::Done);
 }
