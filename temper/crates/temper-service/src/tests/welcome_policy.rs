@@ -56,6 +56,8 @@ fn generated() -> (engine::Config, engine::Limits) {
     let resolved = application::resolve(&parsed.application, &files, &mut problems).expect("generated file values");
     assert!(problems.is_empty());
     let mut settings = settings::Engine {
+        directories: directories.clone(),
+
         machine: temper_engine_domain_forge::Machine::bare(),
         jig: parsed.engine,
         clients: parsed.application.clients,

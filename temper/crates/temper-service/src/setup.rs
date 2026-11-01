@@ -16,6 +16,7 @@ use temper_protocol_records::Item;
 
 /// Plans are staged in the protocol layer: the root names them, never their credentials.
 pub(crate) struct Layer {
+    statics: settings::Statics,
     component: Option<host::Host>,
     pending: Option<(host::Settings, CryptoRng)>,
     waiting_for_webhooks: bool,
@@ -24,7 +25,7 @@ pub(crate) struct Layer {
     pub(crate) io: Queue<skein_io::Request>,
     pub(crate) closed: bool,
     closing: bool,
-    served: Map<u16, ()>,
+    served: Map<u16, host::Kind>,
     unserved: Map<u16, &'static [u8]>,
     pub(crate) staged: Map<Token, host::Plan>,
     runs: Map<Token, Run>,
@@ -80,12 +81,15 @@ impl Layer {
     }
     /// Consume the listener's typed bind result before any setup plan can copy Given.
     pub(crate) fn webhooks_listening(&mut self, addr: core::net::SocketAddr) {
+        self.statics.webhooks = Some(addr);
+        self.statics.webhooks_bound = true;
         if let Some((settings, _)) = &mut self.pending {
             for index in 0..settings.forges.len() {
                 if let host::Kind::Forgejo(given) = &mut settings.forges.get_mut(index).expect("configured forge").kind
                     && given.listener.is_some()
                 {
                     given.listener = Some(addr);
+                    self.served.insert(given.forge, host::Kind::Forgejo(given.clone())).expect("pending host forge");
                 }
             }
         }
@@ -94,7 +98,8 @@ impl Layer {
     pub(crate) fn records_only(&self, forge: u16) -> bool {
         self.lifecycle.local(forge).is_some()
     }
-    pub(crate) fn new(
+    fn new(
+        statics: settings::Statics,
         settings: host::Settings,
         limits: host::Limits,
         crypto: CryptoRng,
@@ -105,12 +110,13 @@ impl Layer {
         let mut listener: Box<[u8]> = Box::new([]);
         let mut served = Map::with_capacity(limits.forges);
         for forge in &settings.forges {
-            served.insert(forge.number(), ()).expect("configured host forges");
+            served.insert(forge.number(), forge.kind.clone()).expect("configured host forges");
             if let host::Kind::GitHub(given) = &forge.kind {
                 listener.clone_from(&given.url);
             }
         }
         Self {
+            statics,
             listener,
             component: None,
             pending: Some((settings, crypto)),
@@ -139,6 +145,61 @@ impl Layer {
             value_bytes,
             #[cfg(test)]
             answers: Queue::with_capacity(64),
+        }
+    }
+    /// Admit settings before sending Add; a pending host checks the same initial settings.
+    fn add(&mut self, forge: host::Forge) -> Result<(), host::Unusable> {
+        if let Some(host) = &self.component {
+            host.admits(&self.env.limits, &forge)?;
+        } else if let Some((settings, crypto)) = &self.pending {
+            let mut initial = host::Settings {
+                forges: skein_lib::List::with_capacity(self.env.limits.forges),
+                user_agent: settings.user_agent.clone(),
+            };
+            for held in &settings.forges {
+                initial.forges.push(held.clone()).expect("pending forges");
+            }
+            host::Host::new(&self.env.limits, initial, crypto.clone())?.admits(&self.env.limits, &forge)?;
+        } else {
+            return Err(host::Unusable::Address { forge: forge.number() });
+        }
+        let number = forge.number();
+        if let host::Kind::GitHub(given) = &forge.kind {
+            self.listener.clone_from(&given.url);
+        }
+        if let host::Kind::Forgejo(given) = &forge.kind
+            && given.listener.is_some()
+            && !self.statics.webhooks_bound
+        {
+            self.waiting_for_webhooks = true;
+        }
+        self.served.insert(number, forge.kind.clone()).expect("admitted host forge");
+        self.unserved.remove(&number);
+        if let Some((settings, _)) = &mut self.pending {
+            settings.forges.push(forge).expect("admitted pending forge");
+        } else {
+            self.down(host::Request::Add { forge: number, settings: forge });
+        }
+        Ok(())
+    }
+    fn remove(&mut self, forge: u16) {
+        self.served.remove(&forge);
+        if let Some((settings, _)) = &mut self.pending {
+            let held = core::mem::replace(&mut settings.forges, skein_lib::List::with_capacity(self.env.limits.forges));
+            self.waiting_for_webhooks = false;
+            for entry in held.into_boxed() {
+                if entry.number() != forge {
+                    if let host::Kind::Forgejo(given) = &entry.kind
+                        && given.listener.is_some()
+                        && !self.statics.webhooks_bound
+                    {
+                        self.waiting_for_webhooks = true;
+                    }
+                    settings.forges.push(entry).expect("remaining pending forges");
+                }
+            }
+        } else if self.component.is_some() {
+            self.down(host::Request::Remove { forge });
         }
     }
     pub(crate) fn down(&mut self, request: host::Request) {
@@ -289,6 +350,164 @@ impl Layer {
             let _oldest = self.pages.pop();
         }
         self.pages.push(Page { forge, state, bytes, until: self.env.now.saturating_add(self.life) });
+    }
+}
+/// The record's setup text supplies the same host and local values as a document entry.
+pub(crate) fn register(engine: &mut crate::engine::Engine, record: &temper_engine_domain_forge::ForgeRecord) {
+    let number = record.number;
+    let statics = &engine.setup.statics;
+    let entry = match &record.setup {
+        Some(text) => match temper_forge_setup::setup::Entry::body_text(
+            text,
+            number,
+            &statics.limits.setup.plan(),
+            &statics.directories,
+        ) {
+            Ok(entry) => Some(entry),
+            Err(_) => {
+                missing(engine, number, b"invalid setup entry");
+                return;
+            }
+        },
+        None => None,
+    };
+    if let Some(local) = engine.setup.lifecycle.local_mut(number) {
+        local.bot_login.clone_from(&record.bot.login);
+        local.identity = crate::forges::identity(record);
+    } else if let Some(entry) = &entry {
+        let local = settings::local(
+            record,
+            entry,
+            &engine.setup.statics,
+            engine.setup.statics.under_box,
+            engine.setup.lifecycle.startup_restored(),
+        );
+        engine
+            .setup
+            .lifecycle
+            .reconcile
+            .insert(number, lifecycle::Reconcile::Local(local))
+            .expect("registered local forge");
+        if record.playground && engine.setup.lifecycle.startup_restored() {
+            lifecycle::state(engine, number, temper_engine_domain_forge::Connection::NotSetUp);
+        }
+    }
+    if engine.forge.unreachable(number).is_some() {
+        missing(engine, number, b"unreachable");
+        return;
+    }
+    let configured = crate::forges::settings(record);
+    let jig_protocol_config::Address::Addr(address) = configured.api else {
+        missing(engine, number, b"unreachable");
+        return;
+    };
+    let Ok(mut forge) = settings::host_forge(
+        &engine.setup.statics,
+        &configured,
+        entry.as_ref(),
+        (address, host::Transport::Plaintext { name: None }),
+    ) else {
+        missing(engine, number, b"invalid setup settings");
+        return;
+    };
+    if entry.is_none()
+        && let host::Kind::Forgejo(given) = &mut forge.kind
+    {
+        let mut bot = given.clone();
+        bot.bot_login.clone_from(&record.bot.login);
+        bot.bot_email.clone_from(&record.bot.email);
+        if skein_forge_setup::given::check(&bot).is_ok() {
+            *given = bot;
+        }
+    }
+    if engine.setup.served.get(&number) == Some(&forge.kind) {
+        return;
+    }
+    if engine.setup.served.contains_key(&number) {
+        engine.setup.remove(number);
+    }
+    if engine.setup.add(forge).is_err() {
+        missing(engine, number, b"setup host refused forge");
+    }
+}
+fn missing(engine: &mut crate::engine::Engine, number: u16, reason: &'static [u8]) {
+    engine.setup.unserved.insert(number, reason).expect("registered unserved forge");
+    engine.notes.push(crate::Note::ForgeSetupStopped { number, why: crate::SetupStopped::Missing });
+}
+pub(crate) fn unregister(engine: &mut crate::engine::Engine, forge: u16) {
+    let layer = &mut engine.setup;
+    layer.remove(forge);
+    layer.unserved.remove(&forge);
+    layer.file_api.remove(&forge);
+    layer.lifecycle.remove(forge);
+    let mut runs = skein_lib::List::with_capacity(layer.runs.len());
+    for (token, run) in &layer.runs {
+        if run.forge == forge {
+            runs.push(*token).expect("run count");
+        }
+    }
+    for token in &runs {
+        layer.runs.remove(token);
+    }
+    let mut staged = skein_lib::List::with_capacity(layer.staged.len());
+    for (token, plan) in &layer.staged {
+        if self::forge(plan) == forge {
+            staged.push(*token).expect("staged count");
+        }
+    }
+    for token in &staged {
+        layer.staged.remove(token);
+    }
+    let mut callers = skein_lib::List::with_capacity(layer.public.len());
+    for (token, caller) in &layer.public {
+        if caller.forge() == forge {
+            callers.push(*token).expect("caller count");
+        }
+    }
+    for token in &callers {
+        layer.public.remove(token);
+    }
+    let mut pastes = skein_lib::List::with_capacity(layer.pastes.len());
+    for (number, target) in &layer.pastes {
+        if *target == forge {
+            pastes.push(*number).expect("paste count");
+        }
+    }
+    for number in &pastes {
+        layer.pastes.remove(number);
+    }
+    let mut erases = skein_lib::List::with_capacity(layer.erases.len());
+    for (token, target) in &layer.erases {
+        if *target == forge {
+            erases.push(*token).expect("erase count");
+        }
+    }
+    for token in &erases {
+        layer.erases.remove(token);
+    }
+    for _ in 0..layer.backs.len() {
+        let back = layer.backs.pop().expect("back count");
+        if back.forge != forge {
+            layer.backs.push(back);
+        }
+    }
+    for _ in 0..layer.pages.len() {
+        let page = layer.pages.pop().expect("page count");
+        if page.forge != forge {
+            layer.pages.push(page);
+        }
+    }
+    for _ in 0..layer.waiting.len() {
+        let waiting = layer.waiting.pop().expect("waiting count");
+        if waiting.forge != forge {
+            layer.waiting.push(waiting);
+        }
+    }
+    for _ in 0..layer.held.len() {
+        let held = layer.held.pop().expect("held count");
+        if held.forge != forge {
+            layer.held.push(held);
+        }
     }
 }
 /// Name the forge before gating, including plans whose connected path is staged later.
@@ -482,7 +701,8 @@ pub(crate) fn advance(engine: &mut crate::engine::Engine) {
         }
         match event {
             host::Event::Need { run, need } => {
-                let forge = engine.setup.runs.get(&run).expect("live setup run").forge;
+                let Some(active) = engine.setup.runs.get(&run) else { continue };
+                let forge = active.forge;
                 match need {
                     host::Need::Read(item) => {
                         let value = read_item(engine, run, forge, item);
@@ -499,8 +719,16 @@ pub(crate) fn advance(engine: &mut crate::engine::Engine) {
                     }
                 }
             }
-            host::Event::Done { run, outcome } => lifecycle::done(engine, run, outcome),
-            host::Event::Stop { run, failure } => lifecycle::stopped(engine, run, failure),
+            host::Event::Done { run, outcome } => {
+                if engine.setup.runs.contains_key(&run) {
+                    lifecycle::done(engine, run, outcome);
+                }
+            }
+            host::Event::Stop { run, failure } => {
+                if engine.setup.runs.contains_key(&run) {
+                    lifecycle::stopped(engine, run, failure);
+                }
+            }
             host::Event::Closed => engine.setup.closed = true,
         }
         if engine.end.is_some() {
@@ -579,7 +807,7 @@ pub(crate) fn tag(mut request: skein_io::Request) -> skein_io::Request {
 mod scopes_tests;
 #[cfg(test)]
 #[path = "tests/setup.rs"]
-mod tests;
+pub(crate) mod tests;
 
 /// Every setup path, including internal follow-ups, crosses the same unresolved-host gate.
 fn run_plan(engine: &mut crate::engine::Engine, run: Token, plan: host::Plan) {
@@ -651,3 +879,7 @@ fn read_item(
         None => None,
     }
 }
+
+#[cfg(test)]
+#[path = "tests/registry_setup_support.rs"]
+pub(crate) mod registry_support;
