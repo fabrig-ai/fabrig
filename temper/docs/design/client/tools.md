@@ -706,13 +706,37 @@ area lands with its stories (section 11).
      disconnect`; `account forget`, `account rank`, `account verify` and
      `account retry` are jig's remove, order, check and resume; `account
      export` and `account import`, its move out and in.
-   - **Offers and readiness are supplied facts.** `me` prints `providers`,
-     `providers_cut` and `key_bytes`. `account list` prints the party's
-     `readiness` and `readiness_cut`; for an owner its `deployment_facts`
-     holds the deployment's offers and readiness beside the existing
-     `deployment` account rows. Nested loss contributes to the document's
-     `cut`. Each readiness list has its own window, preserving both supplied
-     observations. These fields enter the same digest for reads and waits.
+   - **Offers and readiness are supplied facts.** In JSON, `me` prints
+     `providers`, `providers_cut` and `key_bytes`; `account list` prints the
+     party's `readiness` and `readiness_cut`, and an owner's
+     `deployment_facts` holds the deployment's offers and readiness beside
+     its `deployment` account rows. In text, `me` prints each offer as
+     `provider P · NAME · sign-in, key, programs X · manage usage URL`,
+     including only the offered methods and supplied usage address, then
+     keeps its `cut:` line. Account text starts with `current: true|false`
+     and prints `account N · provider P · NAME · DISPLAY · yours|party N|deployment`.
+     Under it, sources stay in supplied order:
+     `  source S · KIND · NAME · STATE · usable|not usable`, omitting NAME
+     except for a named source, and retaining supplied limits and resets.
+     A program source has `    host H: usable|not signed in|signed in otherwise (M)|failed R`
+     for its supplied host observations (unknown while no state is supplied),
+     and, after the fields, its `account verify N --source program` call when
+     that source is unique. A complete account held by the caller also
+     offers `account forget N`. Account payers, usage
+     addresses, runs and waiting tasks follow their supplied facts; absent
+     party activity is unavailable. `signing:` and `last end:` print when
+     present. `readiness: provider P · party N|project N · usable|unavailable|unknown`
+     prints each party observation once, with settled when supplied; an
+     owner's `deployment:` holds its accounts and offers, with
+     `deployment readiness:` only for observations different from the party's.
+     A supplied readiness cut is named `readiness cut: true (jig)` (with
+     `deployment` for that list); `cut: true` prints only on loss, before
+     the digest. Nested loss contributes to the document's `cut`. Each
+     readiness list has its own window, preserving both supplied observations.
+     Account and catalogue takes charge structural bytes within section 12's
+     result text ceiling; nested sources, hosts, programs and offers do not
+     consume an account list's row count. Text presents the bounded JSON
+     projection, sharing its omissions and digest for reads and waits.
    - **One result per call.** `account connect` prints the address and
      returns; the sign-in goes on at the engine, and `account list
      --until settled` follows it (5.4). It never opens a browser, and
@@ -980,7 +1004,9 @@ refuses there (QA 20261027-1434-temper finding 1).
 
 The default: plain UTF-8 lines, no colour, no wrapping. A document
 prints its header line, its fields, its acts and, for a watch's
-subject, its digest (5.4). A met text inbox wait uses the plain inbox
+subject, its digest (5.4). Account lists use area 5's number-first account
+and source lines, with program observations indented by host; model lists
+keep their field lines. A met text inbox wait uses the plain inbox
 read, including question details and continuation calls, then prints
 `met`. A cut inbox question's `read whole: task activity TASK` names the
 asked task whose activity holds its words, the same TASK as its

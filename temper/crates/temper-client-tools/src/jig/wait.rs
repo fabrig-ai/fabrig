@@ -453,7 +453,12 @@ fn close(wait: &Wait, me: Handle, out: &mut Queue<Out>) {
     }
 }
 fn accounts<'a>(wait: &Wait, client: &'a Client) -> render::document::accounts::Accounts<'a> {
+    let mut viewer = None;
+    if let Some(me) = live_me(client, Handle { asker: wait.handle.asker, number: 0 }) {
+        viewer = Some(me.party.number);
+    }
     let mut value = render::document::accounts::Accounts {
+        viewer,
         party: None,
         deployment: None,
         models: None,

@@ -19,3 +19,11 @@
 - **Built:** 5.3: `project fund` ceiling refusals name the rules, policy or role bound and its remedy; JSON preserves the ceiling's holder, dimension and value.
 
 - **Built:** 8.2: a full stream opening retries by backoff within the link deadline and proceeds when a stream frees; at the deadline, a still-full opening exits 1 with the engine's stream count and the wait/open-client remedy, within 240 bytes. The command reference notes explain that a call holds a stream for its span.
+
+- **Built:** 5.5 area 5, 6.1: account text prints numbered accounts and
+  sources, program states per host, sign-ins and last ends, readiness once
+  and differing deployment observations, supplied activity and verify calls.
+  Nested takes spend structural bytes, so a one-account owner with a few
+  hosts and offers is whole; text shares JSON's bounded projection and digest,
+  naming jig's readiness loss. `me` prints configured methods and usage links
+  as provider lines and keeps `cut:`. Model text keeps its field lines.

@@ -1,0 +1,15 @@
+current: true
+account 43 · provider 9 · Scripted · Work · yours
+  uses: project 1
+  manage usage: https://provider.example/usage
+  source 71 · program · helper · granted · usable
+    host worker-one: usable
+    host worker-two: usable
+    host worker-three: usable
+    host worker-four: usable
+  runs: unavailable
+  waiting: unavailable
+  verify: account verify 43 --source program
+  forget: account forget 43
+
+digest: accounts 6dc46867f246c182
