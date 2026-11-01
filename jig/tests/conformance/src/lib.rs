@@ -129,6 +129,9 @@ impl Config {
                     .rules()
                     .clone();
         }
+        if self.scenario == Some(Scenario::ProjectDeleted) {
+            scenarios::deletion::configure(&mut config, &mut limits);
+        }
         jig_core_world::peers::journal(&mut limits);
         (config, limits)
     }
@@ -184,6 +187,7 @@ pub struct Neighbours {
     routes: Vec<jig_conformance::referee::Observed>,
     query: scenarios::queries::State,
     lifecycle: scenarios::lifecycle::State,
+    deletion: scenarios::deletion::State,
 }
 
 fn env(config: &Config, clock: Clock) -> Env<root::Limits> {
@@ -257,9 +261,15 @@ impl Application for Testing {
     }
     fn build(config: &Config) -> Engine {
         let (configuration, limits) = config.root();
-        let fixture = jig_core_world::fixtures::account_rows(&configuration.core.settings.llm_providers);
+        let mut fixture = jig_core_world::fixtures::account_rows(&configuration.core.settings.llm_providers);
+        if config.scenario == Some(Scenario::ProjectDeleted) {
+            scenarios::deletion::fixture(&mut fixture);
+        }
         let mut domain = root::Domain::new(configuration, &limits);
         let env = env(config, Clock { now: 0 });
+        if config.scenario == Some(Scenario::ProjectDeleted) {
+            domain.core_mut().person_answers();
+        }
         domain.configure_holds(
             &env,
             1,
@@ -290,6 +300,13 @@ impl Application for Testing {
                 Script::Turn { body: b"conversation turn".as_slice().into(), cost: 1, read: None },
                 Script::Wait,
                 Script::Finish { report: b"conversation done".as_slice().into() },
+            ]) as Box<[Script]>,
+            Some(Scenario::ProjectDeleted) => Box::new([
+                Script::Wait,
+                Script::Turn { body: b"deletion transcript".as_slice().into(), cost: 1, read: None },
+                Script::Wait,
+                Script::Wait,
+                Script::Finish { report: b"deletion result".as_slice().into() },
             ]) as Box<[Script]>,
             Some(Scenario::Compound) => Box::new([Script::Wait, Script::Wait]) as Box<[Script]>,
             Some(Scenario::Grace) => {
@@ -369,6 +386,7 @@ impl Application for Testing {
             routes: Vec::new(),
             query: scenarios::queries::State::default(),
             lifecycle: scenarios::lifecycle::State::new(config.seed),
+            deletion: scenarios::deletion::State::default(),
         }
     }
 
@@ -430,7 +448,10 @@ impl Application for Testing {
             Input::Event(event) => root::step(domain, &env, event),
             Input::Committed(number) => root::step(domain, &env, root::Event::Committed { number, fill: 0 }),
             Input::Failed(number) => root::step(domain, &env, root::Event::Failed { number }),
-            Input::Restore(row) => assert!(root::restore_record(domain, &env, row), "row accepted by cold script"),
+            Input::Restore(row) => {
+                let key = row.key();
+                assert!(root::restore_record(domain, &env, row), "row accepted by cold script: {key:?}");
+            }
         }
     }
 
@@ -540,6 +561,7 @@ impl Application for Testing {
         };
         scenarios::queries::delivered(peers, store, &delivery);
         scenarios::lifecycle::delivered(peers, &delivery);
+        scenarios::deletion::delivered(peers, &delivery);
         peers.observer.delivered(clock.now, &mut delivery);
         peers.peers.delivered(&delivery);
         match delivery {
@@ -691,6 +713,7 @@ impl Application for Testing {
     }
 
     fn submitted(peers: &mut Neighbours, store: &Store, clock: Clock) {
+        scenarios::deletion::submitted(peers, store);
         peers.observer.submitted(clock.now, store);
     }
     fn observed(

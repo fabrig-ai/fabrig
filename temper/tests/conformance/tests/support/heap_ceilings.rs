@@ -88,6 +88,7 @@ pub(super) fn maximum(scenario: Option<Scenario>, story: Option<Story>) -> u64 {
         Some(Scenario::RunBudget) => SHARED_RUN_BUDGET_HEAP_CEILING,
         Some(Scenario::StandingTask) => SHARED_STANDING_TASK_HEAP_CEILING,
         Some(Scenario::UncertainRestarts) => SHARED_UNCERTAIN_RESTARTS_HEAP_CEILING,
+        Some(Scenario::ProjectDeleted) => unreachable!("deletion is bound by jig's testing application"),
         Some(Scenario::ShrinkingPool) => unreachable!("temper has no pooled holds"),
     }
 }

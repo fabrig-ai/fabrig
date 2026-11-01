@@ -263,6 +263,8 @@ pub struct Observer {
     pub referee: r::Referee,
     intents: intents::Intents,
     project_makes: projects::Makes,
+    deleted_projects: BTreeSet<u32>,
+    project_erases: BTreeMap<u32, u64>,
     policy_generation: u64,
     roles: BTreeMap<(u32, u32), r::Scope>,
     decisions_by_role: BTreeMap<(u32, u32), u8>,
@@ -401,6 +403,8 @@ impl Observer {
             recorded: None,
             intents: intents::Intents::configured(configuration),
             project_makes: projects::Makes::new(configuration),
+            deleted_projects: BTreeSet::new(),
+            project_erases: BTreeMap::new(),
         }
     }
 
@@ -618,6 +622,7 @@ impl Observer {
         self.forgetting.retain(|commit, _| *commit <= store.applied);
         self.erasing.retain(|commit, _| *commit <= store.applied);
         self.erased_activity.retain(|commit, _| *commit <= store.applied);
+        self.project_erases.retain(|_, commit| *commit <= store.applied);
         let receipts = store
             .rows
             .values()
@@ -704,6 +709,11 @@ impl Observer {
                     }
                 }
             }
+            for write in &pending.writes {
+                if let root::Write::Erase(root::Key::Core(core::Key::People(people::Key::Deletion(project)))) = write {
+                    self.project_erases.entry(*project).or_insert(pending.number);
+                }
+            }
             let mut forgotten = Vec::new();
             let mut erasing = BTreeSet::new();
             let mut activity = Vec::new();
@@ -780,6 +790,23 @@ impl Observer {
         for (project, policy) in self.project_makes.durable(store) {
             if !self.referee.policy.projects.contains_key(&project) {
                 self.made_project(project, &policy);
+            }
+        }
+        // A retained successful answer and the applied deletion-row erase prove completion.
+        for row in store.rows.values() {
+            if let root::Record::Core(core::Record::People(
+                people::Stored::Acted { outcome: people::Outcome::ProjectRemoved { project }, .. }
+                | people::Stored::Answer { outcome: people::Outcome::ProjectRemoved { project }, .. },
+            )) = row
+                && !store.rows.contains_key(&root::Key::Core(core::Key::People(people::Key::Deletion(*project))))
+                && self.project_erases.get(project).is_some_and(|commit| *commit <= number)
+                && self.deleted_projects.insert(*project)
+            {
+                self.project_erases.remove(project);
+                self.referee.policy.projects.remove(project);
+                self.referee.policy.projections.remove(project);
+                self.policy_generation = self.policy_generation.checked_add(1).expect("policy generation fits");
+                self.observe(now, r::Observed::ProjectDeleted { project: *project });
             }
         }
         // Apply only an externally requested policy edit whose durable answer
@@ -1385,5 +1412,45 @@ mod activity_tests {
             let rejected = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| observer.durable(1, &store)));
             assert!(rejected.is_err(), "referee must reject an immutable row changing or disappearing");
         }
+    }
+}
+
+#[cfg(test)]
+mod deletion_tests {
+    use super::*;
+
+    #[test]
+    fn deletion_requires_a_successful_answer_and_a_durable_row_erase() {
+        const PROJECT: u32 = 1;
+        let config = crate::effects::fixture(507, false).0;
+        let mut observer = Observer::recording(&config);
+        let mut store = Store::new(&crate::world::limits(), &config.core.settings.models);
+        let row = root::Record::Core(core::Record::People(people::Stored::Acted {
+            key: people::ActKey { connector: 1, key: [1; 16] },
+            act: people::Act::RemoveProject { project: PROJECT },
+            outcome: people::Outcome::ProjectRemoved { project: PROJECT },
+            at: skein_lib::Wall::EPOCH,
+        }));
+        store.rows.insert(row.key(), row);
+        store.applied = 1;
+        observer.durable(0, &store);
+        assert!(observer.referee.policy.projects.contains_key(&PROJECT), "answer alone cannot prove erasure");
+        let key = root::Key::Core(core::Key::People(people::Key::Deletion(PROJECT)));
+        store.submit(2, Box::new([root::Write::Erase(key)]), 0);
+        observer.submitted(0, &store);
+        observer.durable(0, &store);
+        assert!(observer.referee.policy.projects.contains_key(&PROJECT), "submitted erase is not durable");
+        store.applied = 2;
+        observer.durable(0, &store);
+        assert!(!observer.referee.policy.projects.contains_key(&PROJECT));
+        assert_eq!(observer.policy_generation(), 1);
+        assert_eq!(
+            observer
+                .take()
+                .iter()
+                .filter(|seen| matches!(seen, r::Observed::ProjectDeleted { project: PROJECT }))
+                .count(),
+            1
+        );
     }
 }

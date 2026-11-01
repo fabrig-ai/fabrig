@@ -17,6 +17,10 @@ const MARK_RESULTS: u8 = 104;
 const KEPT: &[u8] = b"kept conversation";
 const RELEASED: &[u8] = b"forgettable conversation";
 
+#[expect(
+    clippy::too_many_lines,
+    reason = "exhaustive shared actions include stories outside this conversation binding"
+)]
 pub(super) fn action(world: &mut World, action: Action) {
     match action {
         Action::Conversation { forgettable } => {
@@ -89,7 +93,9 @@ pub(super) fn action(world: &mut World, action: Action) {
                 .expect("ended results");
             ask(world, MARK_RESULTS, people::Ask::MarkSeen { seen: people::Seen::Results { through } });
         }
-        Action::WatchQuery
+        Action::FillForDeletion
+        | Action::RemoveProject
+        | Action::WatchQuery
         | Action::EndTask
         | Action::ReadEnded
         | Action::EndConversations
