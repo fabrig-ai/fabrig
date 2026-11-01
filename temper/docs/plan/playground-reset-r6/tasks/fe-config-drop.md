@@ -75,3 +75,19 @@ Acceptance:
 ## Report
 
 - Every file outside the owned crates edited.
+
+## Answers
+
+2026-11-01. May this task handle the seeded forge's `Register` request in
+`temper/tests/system/src/composed.rs`? Yes (option A): the task's own acceptance names
+`temper-system-world`, and the request arrives there because of this task's seeding (the
+walking fixture's writer names forge 1, whose record now registers on restore), so the
+repair is compiler-forced in kind and the task's. Add to "May change", mechanical only:
+`temper/tests/system/src/` engine-output matches (`composed.rs`, and `forge.rs` if it meets
+the same request) consume `engine::Request::Register(row)` as the fake service's registry
+update, asserting the row equals the seeded record
+(`temper_engine_domain_world::forges::record`), and drop `Register` from the panic
+alternatives; no event is answered for it. Nothing else in `tests/system` changes; a
+system-world failure past this one that is not the same mechanical kind is reported under
+`## Left`. Then finish the checks the run left: the focused reruns, `temper-service --lib`,
+the workspace check, clippy on changed packages.
