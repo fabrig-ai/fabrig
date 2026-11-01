@@ -1,4 +1,7 @@
 //! One real startup, native person, hosted agent and git, and loopback byte peers.
+mod initialize;
+pub(crate) use initialize::run as initialize;
+
 use crate::{
     fixtures,
     machine::{self, Machine, SignalHost},
@@ -662,7 +665,6 @@ pub(crate) fn service(inherited: &Inherited) -> Proc {
     let worker = inherited.roots.iter().find(|(name, _)| name.as_ref() == b"worker").expect("worker root").1;
     crate::m15::observer::root(crate::m15::observer::Role::Service, root, b"state");
     crate::m15::observer::root(crate::m15::observer::Role::Service, worker, b"worker");
-    let setup = stories::held_change().then(|| crate::restart_control::checked_setup(&fixtures::document()));
     let mut document: serde_json::Value = serde_json::from_slice(&fixtures::document()).expect("deployment JSON");
     if REFUSE_START.with(std::cell::Cell::get) {
         document["engine"]["projects"] = serde_json::json!([]);
@@ -681,8 +683,8 @@ pub(crate) fn service(inherited: &Inherited) -> Proc {
         &fixtures::seeds(),
         None,
         Some(temper_service::WorkerRuntime { root: worker, path: b"/worker".as_slice().into() }),
-        fixtures::forges(),
-        setup.as_ref(),
+        skein_lib::List::with_capacity(0),
+        None,
         None,
         &stories::given(&serde_json::from_slice(&fixtures::document()).expect("deployment JSON")),
     )
@@ -783,7 +785,7 @@ pub fn run(settings: Settings, scenario: Story) -> Outcome {
         settings,
         scenario,
         Phase::Story,
-        machine::fresh(),
+        machine::fresh(scenario),
         Store::new(),
         Rc::new(RefCell::new(referee::Run::default())),
     )
@@ -796,7 +798,7 @@ pub fn drain_mid_run(settings: Settings, restart: bool) -> Outcome {
         settings,
         Story::ChatReadThenWait { words: b"Hello" },
         Phase::Drain,
-        machine::fresh(),
+        machine::fresh(Story::ChatReadThenWait { words: b"Hello" }),
         Store::new(),
         run.clone(),
     );
@@ -816,7 +818,7 @@ pub fn crash(settings: Settings, cut: skein_world::Cut, draw: &mut skein_lib::Rn
     // The pinned world arms cuts before running. Observe the deterministic
     // pending window on fresh disk, then replay that scenario with its cut.
     let setup = Rc::new(RefCell::new(referee::Run::default()));
-    run_phase(settings, Story::Adoption, Phase::Story, machine::fresh(), Store::new(), setup.clone());
+    run_phase(settings, Story::Adoption, Phase::Story, machine::fresh(Story::Adoption), Store::new(), setup.clone());
     let (start, end) = setup.borrow().window.expect("saved pending adoption window");
     let length = end.checked_sub(start).expect("pending window ordering");
     assert!(length > 0, "pending window has a submission");
@@ -825,7 +827,7 @@ pub fn crash(settings: Settings, cut: skein_world::Cut, draw: &mut skein_lib::Rn
         settings,
         Story::Adoption,
         Phase::Fault { cut, before },
-        machine::fresh(),
+        machine::fresh(Story::Adoption),
         Store::new(),
         Rc::new(RefCell::new(referee::Run::default())),
     )
@@ -968,7 +970,7 @@ pub fn sign_in_again(settings: Settings) -> [Outcome; 2] {
     let scenario = Story::Chat { words: b"Hello" };
     let run = Rc::new(RefCell::new(referee::Run::default()));
     let (first, mut disk, store) =
-        run_phase(settings, scenario, Phase::SignIn, machine::fresh(), Store::new(), run.clone());
+        run_phase(settings, scenario, Phase::SignIn, machine::fresh(scenario), Store::new(), run.clone());
     let before = sign_ins(&store);
     assert_eq!(before.len(), 1, "one live sign-in before the fresh link");
     let token = token_bytes(&mut disk);
@@ -1043,7 +1045,8 @@ fn forge_for_run(run: &Rc<RefCell<referee::Run>>, scenario: Story) -> temper_fak
 pub fn refused_restore(settings: Settings) -> Outcome {
     let scenario = Story::Chat { words: b"Hello" };
     let run = Rc::new(RefCell::new(referee::Run::default()));
-    let (_, disk, store) = run_phase(settings, scenario, Phase::SignIn, machine::fresh(), Store::new(), run.clone());
+    let (_, disk, store) =
+        run_phase(settings, scenario, Phase::SignIn, machine::fresh(scenario), Store::new(), run.clone());
     run_phase(settings, scenario, Phase::Refused, disk, store, run).0
 }
 
@@ -1167,7 +1170,7 @@ fn run_phase(
         adoption_pending_at_restart: run.borrow().pending_adoption,
     };
     drop(run);
-    (result, std::mem::replace(&mut outcome.machine.0, machine::fresh()), records)
+    (result, std::mem::replace(&mut outcome.machine.0, skein_fake_machine::Machine::for_user(1000)), records)
 }
 
 #[cfg(test)]

@@ -72,3 +72,32 @@ Acceptance:
 ## Report
 
 Each case's cut point as it landed, its time, and how the cache was shown unused.
+
+## Answers
+
+2026-11-01. Q: the box prints no `step N …` lines on stderr and the lifecycle makes the first
+repository before it connects: have other tasks add cut points, or widen this one?
+
+A: Neither; no box, service or ctl change. The pipe's step lines already reach the forge's
+row: `forge list --json` reads `"state":"setting_up","step":"fetch"|"prepare"|"run"`
+(`temper-client-tools/src/forges.rs`, the row's `state`; serve sets it from `step N …`,
+`temper-service/src/tests/box_link.rs`). After `temper init` names no forge, forge N is the
+list's only row, so each cut is a `Step::Until(forge list --json, BYTES)` then `KillBox`:
+- **fetch:** `BYTES` = `"state":"setting_up"` (any step, the first read once the set up is
+  asked). A seeded fetch is too fast to wait for `"step":"fetch"` alone, which could hang;
+  this is the pre-approved fallback: report the step read at the kill (none, fetch or
+  prepare).
+- **prepare:** `"step":"prepare"` (it hashes two releases). If your runs miss it, the
+  pre-approved fallback applies: report it, with the reads that missed it.
+- **Forgejo running:** `"step":"run"`, then `Step::Stderr` on `forgejo N: ` (echo steps) so
+  Forgejo has printed before the kill; N is known from `forge make here` (1 on a fresh
+  init; assert it, as `Step::Stderr` takes static bytes).
+- **before its first repository:** revised. Connected with the first repository not made
+  is not a state the lifecycle reaches (Create comes before connect,
+  `temper-service/src/setup/lifecycle.rs`), so cut on `"state":"connecting"` after the run
+  step: reconcile, Origin and Create under way. Report the row's `first.state` at the kill
+  (`making`, or `made` if Create won the race); either leaves the forge unfinished (draft
+  6.3: not connected with its first repository adopted), so the rest of the case holds.
+- **No fetch of the binaries:** `assert_cached_binary_unchanged` for both, and the box's
+  stderr after `StartBox` has no line starting `fetch ` or containing `download`, as
+  `assert_forgejo_setup_after_sign_in` checks (`support/forge_land.rs`); no mirror.

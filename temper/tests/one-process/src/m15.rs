@@ -145,7 +145,7 @@ pub fn refused_replayed_pastes() -> Counts {
     world::lower_store(Some(store.clone()));
     let (_forge, mut peer) = github::peer();
     let (app, files) = observer::input(&mut peer);
-    let mut disk = crate::machine::fresh();
+    let mut disk = crate::machine::fresh(Story::Adopt);
     let input = disk.lay(&files);
     disk.close(input);
     let caller = disk.reopen_root(2);

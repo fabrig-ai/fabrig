@@ -1,3 +1,4 @@
-//! Project deletion stages (temper/docs/plan/playground-reset-r6/notes/contracts.md, J4 and J6).
+//! Project deletion stages (jig/docs/design/domain/core.md, 6.1;
+//! jig/docs/design/protocol/store.md, 11.1).
 pub(crate) mod erase;
 pub(crate) mod release;
