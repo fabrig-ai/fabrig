@@ -43,6 +43,22 @@ pub fn to_root(
                 }
             };
             let request = match request {
+                w::Request::MakeForge(_) | w::Request::RemoveForge(_) | w::Request::EndPlayground => {
+                    if carried.is_some() {
+                        return Err(Box::new(kit::Event::Application(kit::FromApplication::Undecodable {
+                            to: reply_to,
+                        })));
+                    }
+                    // These requests have no route to the root
+                    // (temper/docs/design/draft/playground-reset.md, sections 3 and 4).
+                    let answer = w::Answer::new(limits, w::AnswerParts { outcome: w::Outcome::NotOffered })
+                        .expect("fieldless outcome");
+                    return Err(Box::new(kit::Event::Application(kit::FromApplication::Answered {
+                        to: reply_to,
+                        family: wire::FORGE,
+                        record: wire::answer(&answer),
+                    })));
+                }
                 w::Request::SetUp(value) => {
                     let value = value.into_parts();
                     return Ok(root::Event::Party(root::PartyInput::Application {
@@ -145,11 +161,14 @@ pub fn to_root(
                             }
                             forge::Ask::Install { forge: value.forge, back: value.back }
                         }
-                        w::Request::Reachable(_)
+                        w::Request::MakeForge(_)
+                        | w::Request::RemoveForge(_)
+                        | w::Request::EndPlayground
+                        | w::Request::Reachable(_)
                         | w::Request::Adopt(_)
                         | w::Request::SetUp(_)
                         | w::Request::Return(_)
-                        | w::Request::StartDemo => {
+                        | w::Request::StartPlayground => {
                             unreachable!("connect or install")
                         }
                     };
@@ -163,7 +182,7 @@ pub fn to_root(
                         request: root::Application::Forge(request),
                     }));
                 }
-                w::Request::StartDemo => {
+                w::Request::StartPlayground => {
                     return Ok(root::Event::Party(root::PartyInput::Application {
                         scope,
                         reply_to,
@@ -227,20 +246,26 @@ pub fn to_root(
             if family == wire::FORGE
                 && version == wire::CLIENT_VERSION
                 && let Some(reading) = wire::decode_reading(&record, limits)
-                && *reading.read() == w::Read::Demo
+                && *reading.read() == w::Read::Playground
                 && let Some(demo) = demo
             {
                 let mut cues = List::with_capacity(u32::try_from(demo.cues.len()).expect("bounded demo cues"));
                 for cue in &demo.cues {
                     cues.push(cue.clone()).expect("bounded demo cues");
                 }
-                let record = w::DemoAnswer::new(
+                let record = w::PlaygroundAnswer::new(
                     limits,
-                    w::DemoAnswerParts {
+                    w::PlaygroundAnswerParts {
                         state: match demo.state {
-                            Some(forge::DemoState::Running) => w::DemoState::Running,
-                            Some(forge::DemoState::Ended) => w::DemoState::Ended,
-                            None => w::DemoState::NotStarted,
+                            Some(forge::DemoState::Running) => {
+                                // The playground and demo share the running state.
+                                w::PlaygroundState::Running
+                            }
+                            Some(forge::DemoState::Ended) => {
+                                // A retired demo reads as resetting until the reset is routed.
+                                w::PlaygroundState::Resetting
+                            }
+                            None => w::PlaygroundState::NotStarted,
                         },
                         project: demo.project,
                         forge: demo.forge,
@@ -251,7 +276,7 @@ pub fn to_root(
                     },
                 )
                 .expect("demo checked at startup");
-                answer = Some(wire::demo_answer(&record));
+                answer = Some(wire::playground_answer(&record));
             }
             Err(Box::new(kit::Event::Application(kit::FromApplication::Read { reply, family, record: answer })))
         }

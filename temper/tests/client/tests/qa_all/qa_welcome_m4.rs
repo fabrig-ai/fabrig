@@ -110,7 +110,7 @@ fn failed_setup_keeps_steps_and_names_the_failed_one() {
 
 #[test]
 fn unavailable_demo_read_does_not_retire_a_project() {
-    let (mut front, mut root) = harness::demo_fixture(fixtures::SEED, &wire::DemoState::Running);
+    let (mut front, mut root) = harness::demo_fixture(fixtures::SEED, &wire::PlaygroundState::Running);
     front.demo = None;
     harness::reopen(&mut front, &mut root, fixtures::chats_page(), false);
     let view = page(&mut front, &mut root, fixtures::chats_page());
@@ -124,7 +124,7 @@ fn unavailable_demo_read_does_not_retire_a_project() {
 
 #[test]
 fn first_real_forge_hides_the_playground_before_reload() {
-    let (mut front, mut root) = harness::demo_fixture(fixtures::SEED, &wire::DemoState::Running);
+    let (mut front, mut root) = harness::demo_fixture(fixtures::SEED, &wire::PlaygroundState::Running);
     retired(&mut front);
     connection(
         &mut front,
@@ -150,13 +150,13 @@ fn first_real_forge_hides_the_playground_before_reload() {
 
 fn retired(front: &mut Joint) {
     let mut parts = front.demo.take().expect("demo fixture").into_parts();
-    parts.state = wire::DemoState::Ended;
-    front.demo = Some(wire::DemoAnswer::new(&wire::CEILINGS, parts).expect("ended demo answer"));
+    parts.state = wire::PlaygroundState::Resetting;
+    front.demo = Some(wire::PlaygroundAnswer::new(&wire::CEILINGS, parts).expect("ended demo answer"));
 }
 
 #[test]
 fn retired_demo_reload_hides_its_provider_and_welcome_card() {
-    let (mut front, mut root) = harness::demo_fixture(fixtures::SEED, &wire::DemoState::NotStarted);
+    let (mut front, mut root) = harness::demo_fixture(fixtures::SEED, &wire::PlaygroundState::NotStarted);
     retired(&mut front);
     harness::reopen(&mut front, &mut root, Address::Welcome { step: Step::Welcome }, false);
     let welcome_view = page(&mut front, &mut root, Address::Welcome { step: Step::Welcome });
@@ -181,7 +181,7 @@ fn retired_demo_reload_hides_its_provider_and_welcome_card() {
 
 #[test]
 fn running_demo_project_is_named_playground() {
-    let (mut front, mut root) = harness::demo_fixture(fixtures::SEED, &wire::DemoState::Running);
+    let (mut front, mut root) = harness::demo_fixture(fixtures::SEED, &wire::PlaygroundState::Running);
     let view = page(&mut front, &mut root, fixtures::chats_page());
     let tree = Temper::tree(&view);
     assert!(
@@ -193,7 +193,7 @@ fn running_demo_project_is_named_playground() {
 
 #[test]
 fn retired_demo_reload_drops_the_only_navigation_project() {
-    let (mut front, mut root) = harness::demo_fixture(fixtures::SEED, &wire::DemoState::Running);
+    let (mut front, mut root) = harness::demo_fixture(fixtures::SEED, &wire::PlaygroundState::Running);
     retired(&mut front);
     harness::reopen(&mut front, &mut root, fixtures::chats_page(), false);
     let view = page(&mut front, &mut root, fixtures::chats_page());

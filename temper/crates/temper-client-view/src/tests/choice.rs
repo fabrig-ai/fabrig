@@ -1253,7 +1253,7 @@ pub(super) fn playground_offers_root(address: Address, playground: bool) -> (d::
         address,
         &fixtures::domain_limits(),
         b"Shop",
-        playground.then_some((fixtures::PROJECT, true, w::DemoState::Running)),
+        playground.then_some((fixtures::PROJECT, true, w::PlaygroundState::Running)),
         None,
         Some(super::connect_forge::rows(w::Connection::Connecting, w::Offer::Offered)),
     );
@@ -1311,7 +1311,7 @@ pub(super) fn retire_playground(root: &mut d::Domain, watch: Token) -> Token {
         {
             assert_eq!(
                 temper_client_protocol_wire::decode_reading(&record.bytes, &w::CEILINGS).unwrap().read(),
-                &w::Read::Demo
+                &w::Read::Playground
             );
             return read;
         }

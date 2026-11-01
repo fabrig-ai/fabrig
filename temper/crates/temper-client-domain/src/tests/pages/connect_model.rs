@@ -323,7 +323,7 @@ fn a_reloaded_retirement_excludes_the_demo_way_and_its_submit() {
     let (mut root, _, _) = root(Way::Key { provider: PROVIDER });
     crate::tests::demo::deliver_demo_read(
         &mut root,
-        crate::tests::demo::page_with_state(temper_client_protocol_wire::v1::DemoState::Ended),
+        crate::tests::demo::page_with_state(temper_client_protocol_wire::v1::PlaygroundState::Resetting),
     );
     assert_eq!(connect_model::way(root.pages(), root.client()), None);
     key(&mut root, b"fake-demo-key");

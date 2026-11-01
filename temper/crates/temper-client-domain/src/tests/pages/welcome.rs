@@ -31,11 +31,11 @@ fn answer(root: &mut Domain, present: bool) {
     };
     let page = if present {
         let mut parts =
-            wire::decode_demo_answer(&demo::answer(b"Change the title"), &w::CEILINGS).unwrap().into_parts();
-        parts.state = w::DemoState::NotStarted;
+            wire::decode_playground_answer(&demo::answer(b"Change the title"), &w::CEILINGS).unwrap().into_parts();
+        parts.state = w::PlaygroundState::NotStarted;
         Readout::Family {
             family: wire::FORGE,
-            record: Some(wire::demo_answer(&w::DemoAnswer::new(&w::CEILINGS, parts).unwrap())),
+            record: Some(wire::playground_answer(&w::PlaygroundAnswer::new(&w::CEILINGS, parts).unwrap())),
         }
     } else {
         Readout::NotServed { family: Some(wire::FORGE), served: None }

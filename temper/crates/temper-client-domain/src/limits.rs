@@ -28,7 +28,7 @@ pub fn valid(limits: &Limits) -> bool {
         && limits.client.domain.rows.checked_mul(3).is_some()
         && document.checked_add(1).is_some()
         && w::Answer::decoded_bound(&wire).is_some()
-        && w::DemoAnswer::decoded_bound(&wire).is_some()
+        && w::PlaygroundAnswer::decoded_bound(&wire).is_some()
         && w::ChangePanel::decoded_bound(&wire).is_some()
         && w::Page::decoded_bound(&wire).is_some()
         && w::Forges::decoded_bound(&wire).is_some()
