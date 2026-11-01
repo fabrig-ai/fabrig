@@ -29,3 +29,16 @@ id = 2
 story = "A first run into the playground and out by its reset leaves the store empty and the person on the welcome's Forge step"
 parts = ["playground"]
 walk = false
+
+[[part]]
+id = "client"
+title = "temper's client: Forges from records, Remove, the welcome's states and start over, the playground's pages and reset"
+mode = "direct"
+needs = ["playground"]
+design = "temper/docs/design/draft/playground-reset.md, 3-6"
+
+[[slice]]
+id = 3
+story = "A person sees the playground's one-line banner, leaves it by set up temper, and lands on the welcome's Forge step"
+parts = ["client"]
+walk = false
