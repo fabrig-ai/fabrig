@@ -36,8 +36,9 @@ Acceptance:
   `--until phase:Done` is refused with `Usage::TerminalPhase { phase: Phase::Done }`, as
   `phase:done` is.
 - `phase_word` is unchanged: refusals and the table keep printing the lower-case word.
-- `temper ctl help task show` and the `ctl` page name the accepted words (the lines below,
-  verbatim); the help goldens and `reference/ctl-task.md` agree with `rows.rs`.
+- `temper ctl help task show` names the accepted words and the `ctl` page says "in any
+  case" (the lines below, verbatim); the `ctl` page stays within its 8,192-byte concept
+  bound; the help goldens and `reference/ctl-task.md` agree with `rows.rs`.
 - `temper-client-tools` lib tests and `temper-docs` tests pass; clippy is clean.
 
 ## Inputs
@@ -72,12 +73,12 @@ the code does not do). Change nothing else under `docs/help/`.
 - `temper/docs/help/reference/ctl-task.md`: the `--until CONDITION` line under
   `## task show` becomes exactly the regenerated golden's line (below).
 - `temper/docs/help/ctl.md`, the `task show TASK` bullet of the subjects list: the line
-  `` `phase:PHASE`, a live phase; `` becomes these three lines (two-space indent, as now):
+  `` `phase:PHASE`, a live phase; `` becomes this line (two-space indent, as now; the
+  page is a concept page, bound to 8,192 bytes, and this keeps it under; the words are
+  listed in `task show`'s own help, from `rows.rs`):
 
   ```
-    `phase:PHASE`, a live phase in any case: `waiting`, `idle`, `due`,
-    `preparing`, `claimed`, `running`, `backing-off` (or `BackingOff`),
-    `active`, `closing` or `held`;
+    `phase:PHASE`, a live phase in any case;
   ```
 
 The new `rows.rs` description, verbatim:
@@ -165,3 +166,14 @@ regenerated; and, under `## Left`, that `task show` prints phrase-book words tha
 not parse as phases (`Retrying` for backing-off, `Due to run`, `Waiting for news`,
 `Preparing a host`, `Claimed by a host`, `ChipExecutor active`), with
 `jig/crates/jig-client/src/words/english.rs` as where they come from.
+
+## Answers
+
+2026-11-01. Q (run phase-any-case-1): the three-line `ctl.md` bullet puts the page at
+8,313 bytes, over its 8,192-byte concept bound; compact other prose, or change the bullet
+or the bound? A: change the bullet. It is now one line, `` `phase:PHASE`, a live phase in
+any case; `` (above), +12 bytes, the page 8,184. Compact no other prose and leave the
+bound as it is. The word list stays in `rows.rs`, so `temper ctl help task show` names
+the words. On your branch: replace the three lines in `ctl.md` with that line, regenerate
+`help_groups.txt` with the step 3 command, check that only its bullet changed, and rerun
+`heavy cargo nextest run -p temper-docs`, then the `temper-client-tools` lib tests.
