@@ -298,7 +298,8 @@ fn asked_groups_follow_their_chains_records_failures_and_stop() {
             append(
                 &[],
                 &[
-                    (I(Ask { forge: 99 }), &[failed(99, Why::NotAsked)]),
+                    (I(Ask { forge: 99 }), &[Order::Load { forge: 99 }]),
+                    (I(Input::LoadFailed { forge: 99, why: Why::NoSettings }), &[failed(99, Why::NoSettings)]),
                     (I(Exited { step: 5, exit: Exit::Code(1) }), &[Close { step: 5 }]),
                     (I(Closed { step: 5 }), &[]),
                     (F(500), &[Spawn { step: 5 }]),
@@ -1666,4 +1667,97 @@ fn a_box_stop_does_not_withdraw_a_group_stops_spawn_twice() {
     assert_eq!(&*rig.effects(), &[Order::Withdraw { step: 1 }]);
     rig.terminate();
     assert_eq!(&*rig.effects(), &[Order::Signal { step: 3 }]);
+}
+
+#[test]
+fn remove_of_a_dormant_or_unknown_group_waits_for_the_shells_answer() {
+    use crate::machine::{Said, Why};
+    for forge in [1, 99] {
+        let mut rig = stoppable_group(false);
+        rig.input(Input::Remove { forge });
+        assert_eq!(rig.effects().as_ref(), &[Order::RemoveFiles { forge }]);
+        rig.input(Input::Removed { forge: 2, ok: true });
+        assert!(rig.effects().is_empty(), "an unsolicited answer does nothing");
+        rig.input(Input::Removed { forge, ok: false });
+        assert_eq!(rig.effects().as_ref(), &[Order::Say { said: Said::Failed { forge, why: Why::NotRemoved } }]);
+        rig.input(Input::Remove { forge });
+        rig.effects();
+        rig.input(Input::Removed { forge, ok: true });
+        let mut expected = skein_lib::List::uncapped();
+        if forge == 1 {
+            expected.push(Order::Forget { forge }).unwrap();
+        }
+        expected.push(Order::Say { said: Said::Removed { forge } }).unwrap();
+        assert_eq!(rig.effects().as_ref(), expected.as_slice());
+        rig.input(Input::Removed { forge, ok: true });
+        assert!(rig.effects().is_empty(), "one answer per ask");
+        rig.terminate();
+        rig.effects();
+        rig.exited(3, Exit::Code(0));
+        rig.closed(3);
+        assert!(rig.machine.is_idle());
+    }
+}
+#[test]
+fn remove_of_a_started_group_stops_in_reverse_without_a_stopped_reply() {
+    use crate::{machine::Said, terminal::Fact};
+    let mut rig = stoppable_group(false);
+    start_stoppable(&mut rig, false);
+    rig.input(Input::Remove { forge: 1 });
+    for step in [2, 0] {
+        assert_eq!(rig.effects().as_ref(), &[Order::Signal { step }]);
+        rig.exited(step, Exit::Code(0));
+        assert_eq!(rig.effects().as_ref(), &[Order::Close { step }]);
+        rig.closed(step);
+    }
+    assert_eq!(rig.effects().as_ref(), &[Order::RemoveFiles { forge: 1 }]);
+    rig.input(Input::Removed { forge: 1, ok: true });
+    assert_eq!(rig.out.pop(), Some(Order::Terminal { fact: Fact::GroupRemoved { forge: 1 } }));
+    assert_eq!(rig.out.pop(), Some(Order::Forget { forge: 1 }));
+    assert_eq!(rig.out.pop(), Some(Order::Say { said: Said::Removed { forge: 1 } }));
+    assert!(rig.out.is_empty());
+    rig.input(Input::Ask { forge: 1 });
+    assert_eq!(rig.effects().as_ref(), &[Order::Load { forge: 1 }]);
+    rig.terminate();
+    rig.effects();
+    rig.input(Input::Removed { forge: 1, ok: true });
+    assert!(rig.effects().is_empty(), "late removal ignored during box stop");
+}
+#[test]
+fn remove_of_a_starting_failing_or_stopping_group_is_busy() {
+    use crate::machine::{Said, Why};
+    let mut rig = stoppable_group(false);
+    rig.input(Input::Ask { forge: 1 });
+    rig.effects();
+    for phase in ["starting", "failing"] {
+        for forge in [1, 99] {
+            rig.input(Input::Remove { forge });
+            assert_eq!(
+                rig.effects().as_ref(),
+                &[Order::Say { said: Said::Failed { forge, why: Why::Busy } }],
+                "{phase}"
+            );
+        }
+        if phase == "starting" {
+            rig.started(0);
+            rig.effects();
+            rig.input(Input::NotStarted { step: 1 });
+            rig.effects();
+        }
+    }
+    rig.closed(0);
+    rig.effects();
+    start_stoppable(&mut rig, false);
+    rig.input(Input::Remove { forge: 1 });
+    rig.effects();
+    for forge in [1, 99] {
+        rig.input(Input::Remove { forge });
+        assert_eq!(rig.effects().as_ref(), &[Order::Say { said: Said::Failed { forge, why: Why::Busy } }]);
+    }
+    rig.terminate();
+    rig.effects();
+    for forge in [1, 99] {
+        rig.input(Input::Remove { forge });
+        assert_eq!(rig.effects().as_ref(), &[Order::Say { said: Said::Failed { forge, why: Why::Stopping } }]);
+    }
 }

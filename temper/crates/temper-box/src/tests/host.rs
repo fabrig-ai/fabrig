@@ -159,7 +159,7 @@ fn serves_pipe_lines_are_bounded_named_and_answered() {
     too_long.push(b'\n').unwrap();
     for (name, input, expected, diagnostic) in [
         ("ask", b"start 3\n".as_slice(), b"step 3 prepare\nstep 3 run\nstarted 3\n".as_slice(), b"".as_slice()),
-        ("unknown forge", b"start 99\n", b"failed 99 not asked\n", b""),
+        ("unknown forge", b"start 99\n", b"failed 99 no settings\n", b""),
         ("unknown line", b"secret unknown\n", b"", b"box: serve: unknown pipe line\n"),
         ("too long", too_long.as_slice(), b"", b"box: serve: pipe line too long\n"),
     ] {
@@ -188,7 +188,7 @@ fn serves_pipe_lines_are_bounded_named_and_answered() {
         if !diagnostic.is_empty() {
             harness.ask(b"start 99\n");
             harness.run_until_idle();
-            assert_eq!(&*harness.reply_bytes(), b"failed 99 not asked\n", "{name}: next line recovered");
+            assert_eq!(&*harness.reply_bytes(), b"failed 99 no settings\n", "{name}: next line recovered");
         }
         harness.terminate();
         assert_eq!(harness.run_to_end(), Exit::Code(0));
@@ -316,7 +316,7 @@ fn a_serve_that_does_not_read_holds_the_next_ask_until_replies_are_written() {
         harness.ask(b"start 4\n");
         harness.run_until_idle();
         assert!(!Harness::contains(&harness.reply_bytes(), b"failed 4"), "buffer {buffer}: next ask waits");
-        let expected = b"step 3 prepare\nstep 3 run\nstarted 3\nfailed 4 not asked\n";
+        let expected = b"step 3 prepare\nstep 3 run\nstarted 3\nfailed 4 no settings\n";
         let mut received = List::with_capacity(u32::try_from(expected.len()).unwrap());
         for _ in 0..expected.len() {
             if usize::try_from(received.len()).unwrap() == expected.len() {
@@ -686,7 +686,7 @@ fn each_child_gets_only_its_listeners_and_serve_pipes_follow_them() {
     // Receiving a control answer also proves Spawned.pipes still indexes real pipes only.
     harness.ask(b"start 99\n");
     harness.run_until_idle();
-    assert_eq!(harness.reply_bytes().as_ref(), b"failed 99 not asked\n");
+    assert_eq!(harness.reply_bytes().as_ref(), b"failed 99 no settings\n");
     harness.terminate();
     assert_eq!(harness.run_to_end(), Exit::Code(0));
     harness.sim.assert_quiescent(harness.pid);
@@ -975,7 +975,7 @@ fn labelled_group_failure_keeps_serve_usable_and_wire_replies_numeric() {
         harness.replies.clear();
         harness.ask(b"start 99\n");
         harness.run_until_idle();
-        assert_eq!(harness.reply_bytes().as_ref(), b"failed 99 not asked\n");
+        assert_eq!(harness.reply_bytes().as_ref(), b"failed 99 no settings\n");
         assert!(harness.stderr().is_empty(), "a refusal is a wire reply only");
         harness.read_reply(256);
         harness.replies.clear();
@@ -1254,7 +1254,7 @@ fn pipelined_commands_keep_reply_fifo_under_load() {
         for byte in crate::lines::joined(&[b"start ", skein_lib::Decimal::of(forge).as_bytes(), b"\n"]) {
             commands.push(byte).unwrap();
         }
-        for byte in crate::lines::joined(&[b"failed ", skein_lib::Decimal::of(forge).as_bytes(), b" not asked\n"]) {
+        for byte in crate::lines::joined(&[b"failed ", skein_lib::Decimal::of(forge).as_bytes(), b" no settings\n"]) {
             expected.push(byte).unwrap();
         }
     }
@@ -1359,4 +1359,382 @@ fn a_ready_probe_deadline_waits_for_request_credit() {
     assert_eq!(harness.run_to_end(), Exit::Code(0));
     harness.sim.assert_quiescent(harness.pid);
     harness.sim.assert_no_open_fds(harness.pid);
+}
+
+fn runtime_groups(groups: u32) -> Harness {
+    let steps = temper_forge_setup::Steps { always: Box::new([long(b"serve", &[b"never"])]), asked: Box::new([]) };
+    let limits = crate::limits::Limits { groups, ..crate::limits::small() };
+    let mut harness = Harness::configured(steps, &[], true, skein_sim::Config::calm().buffer, &limits);
+    harness.run_until_idle();
+    harness
+}
+fn start_loaded(harness: &mut Harness, forge: u16) {
+    harness.settings(forge, crate::host::Loaded::Group(super::fixtures::loaded_group(forge)));
+    harness.ask(&crate::lines::joined(&[b"start ", skein_lib::Decimal::of(u64::from(forge)).as_bytes(), b"\n"]));
+    harness.run_until_idle();
+}
+fn finish_runtime(mut harness: Harness) {
+    harness.terminate();
+    assert_eq!(harness.run_to_end(), Exit::Code(0));
+    harness.sim.assert_quiescent(harness.pid);
+    harness.sim.assert_no_open_fds(harness.pid);
+    assert_eq!(harness.machine.open_handles(), 0);
+}
+fn finish_group_stop(harness: &mut Harness) {
+    for _ in 0_u32..2 {
+        harness.sim.advance_to(harness.sim.now().saturating_add(crate::limits::small().grace));
+        harness.run_until_idle();
+    }
+}
+#[test]
+fn a_start_for_an_unknown_group_loads_it_and_starts_it() {
+    use skein_fake_machine::How;
+    let mut harness = runtime_groups(4);
+    start_loaded(&mut harness, 7);
+    assert_eq!(harness.loads.as_slice(), &[7]);
+    assert_eq!(harness.reply_bytes().as_ref(), b"step 7 prepare\nstep 7 run\nstarted 7\n");
+    let root = harness.machine.reopen_root(0);
+    let record = harness.machine.open(root, b"box/started/7", How::Read).expect("loaded group recorded");
+    harness.machine.close(record);
+    harness.machine.close(root);
+    harness.replies.clear();
+    harness.ask(b"start 7\n");
+    harness.run_until_idle();
+    assert_eq!(harness.reply_bytes().as_ref(), b"started 7\n");
+    assert_eq!(harness.loads.as_slice(), &[7]);
+    finish_runtime(harness);
+}
+#[test]
+fn a_start_with_no_settings_answers_failed_no_settings_and_loads_again() {
+    let mut harness = runtime_groups(4);
+    for _ in 0_u32..2 {
+        harness.ask(b"start 7\n");
+        harness.run_until_idle();
+    }
+    assert_eq!(harness.loads.as_slice(), &[7, 7]);
+    assert_eq!(harness.reply_bytes().as_ref(), b"failed 7 no settings\nfailed 7 no settings\n");
+    finish_runtime(harness);
+}
+#[test]
+fn a_refused_load_answers_failed_with_the_shells_words() {
+    let mut harness = runtime_groups(4);
+    harness.settings(7, crate::host::Loaded::Refused(bytes::copy_of(b"cannot read settings")));
+    harness.ask(b"start 7\n");
+    harness.run_until_idle();
+    assert_eq!(harness.reply_bytes().as_ref(), b"failed 7 cannot read settings\n");
+    harness.replies.clear();
+    harness.settings(7, crate::host::Loaded::Refused(Box::from([b'x'; 300])));
+    harness.ask(b"start 7\n");
+    harness.run_until_idle();
+    assert_eq!(harness.reply_bytes().as_ref(), crate::lines::joined(&[b"failed 7 ", &[b'x'; 246], b"\n"]).as_ref());
+    harness.replies.clear();
+    start_loaded(&mut harness, 7);
+    assert_eq!(harness.loads.as_slice(), &[7, 7, 7]);
+    assert_eq!(harness.reply_bytes().as_ref(), b"step 7 prepare\nstep 7 run\nstarted 7\n");
+    finish_runtime(harness);
+}
+#[test]
+fn an_unfit_group_answers_failed_settings_unfit() {
+    use super::fixtures::{loaded_group, step};
+    use temper_forge_setup::{Kind, Stage};
+    let mut five = loaded_group(7);
+    five.steps = Box::new([
+        (Stage::Run, step(b"one", Kind::Long)),
+        (Stage::Run, step(b"two", Kind::Long)),
+        (Stage::Run, step(b"three", Kind::Long)),
+        (Stage::Run, step(b"four", Kind::Long)),
+        (Stage::Run, step(b"five", Kind::Long)),
+    ]);
+    let mut harness = runtime_groups(1);
+    for group in [five, loaded_group(8)] {
+        harness.settings(7, crate::host::Loaded::Group(group));
+        harness.ask(b"start 7\n");
+        harness.run_until_idle();
+    }
+    assert_eq!(harness.reply_bytes().as_ref(), b"failed 7 settings unfit\nfailed 7 settings unfit\n");
+    assert_eq!(harness.launches.len(), 1);
+    harness.replies.clear();
+    start_loaded(&mut harness, 7);
+    assert_eq!(harness.reply_bytes().as_ref(), b"step 7 prepare\nstep 7 run\nstarted 7\n");
+    finish_runtime(harness);
+}
+#[test]
+fn a_start_past_the_groups_answers_too_many_groups() {
+    let mut harness = runtime_groups(1);
+    start_loaded(&mut harness, 7);
+    harness.replies.clear();
+    harness.ask(b"start 8\n");
+    harness.run_until_idle();
+    assert_eq!(harness.reply_bytes().as_ref(), b"failed 8 too many groups\n");
+    assert_eq!(harness.loads.as_slice(), &[7]);
+    finish_runtime(harness);
+}
+#[test]
+fn a_remove_stops_a_started_group_then_removes_its_files_and_answers_removed() {
+    let mut harness = runtime_groups(1);
+    start_loaded(&mut harness, 7);
+    harness.replies.clear();
+    harness.ask(b"remove 7\n");
+    harness.run_until_idle();
+    assert!(harness.removals.is_empty(), "shell waits for stubborn children");
+    assert!(harness.reply_bytes().is_empty());
+    finish_group_stop(&mut harness);
+    assert_eq!(harness.removals.as_slice(), &[7]);
+    assert!(harness.hosted.get(harness.child_index(b"serve")).is_some());
+    assert_eq!(harness.reply_bytes().as_ref(), b"removed 7\n");
+    assert!(Harness::contains(&harness.stderr(), b"Forge 7 (Forgejo): removed\n"));
+    finish_runtime(harness);
+}
+#[test]
+fn a_remove_of_a_group_not_held_answers_removed_at_once() {
+    let mut harness = runtime_groups(1);
+    harness.ask(b"remove 7\n");
+    harness.run_until_idle();
+    assert_eq!(harness.removals.as_slice(), &[7]);
+    assert_eq!(harness.reply_bytes().as_ref(), b"removed 7\n");
+    assert!(!Harness::contains(&harness.stderr(), b": removed\n"));
+    finish_runtime(harness);
+}
+#[test]
+fn a_failed_removal_answers_not_removed_and_keeps_the_group() {
+    let mut harness = runtime_groups(1);
+    start_loaded(&mut harness, 7);
+    harness.replies.clear();
+    harness.removal(7, Err(bytes::copy_of(b"permission denied")));
+    harness.ask(b"remove 7\n");
+    harness.run_until_idle();
+    finish_group_stop(&mut harness);
+    assert_eq!(harness.reply_bytes().as_ref(), b"failed 7 not removed\n");
+    assert!(Harness::contains(&harness.stderr(), b"box: remove 7: permission denied\n"));
+    harness.replies.clear();
+    harness.ask(b"start 7\n");
+    harness.run_until_idle();
+    assert_eq!(harness.reply_bytes().as_ref(), b"step 7 prepare\nstep 7 run\nstarted 7\n");
+    assert_eq!(harness.loads.as_slice(), &[7]);
+    finish_runtime(harness);
+}
+#[test]
+fn a_freed_slot_takes_the_next_group() {
+    let mut harness = runtime_groups(1);
+    start_loaded(&mut harness, 7);
+    harness.ask(b"remove 7\n");
+    harness.run_until_idle();
+    finish_group_stop(&mut harness);
+    harness.replies.clear();
+    start_loaded(&mut harness, 8);
+    assert_eq!(harness.loads.as_slice(), &[7, 8]);
+    assert_eq!(harness.reply_bytes().as_ref(), b"step 8 prepare\nstep 8 run\nstarted 8\n");
+    assert!(Harness::contains(&harness.stderr(), b"Forge 8 (Forgejo): started\n"));
+    finish_runtime(harness);
+}
+#[test]
+fn a_built_group_removed_loads_on_its_next_start() {
+    let mut harness = Harness::grouped(grouped_steps(), &[], true);
+    harness.run_until_idle();
+    harness.ask(b"remove 3\n");
+    harness.run_until_idle();
+    assert_eq!(harness.reply_bytes().as_ref(), b"removed 3\n");
+    harness.replies.clear();
+    start_loaded(&mut harness, 3);
+    assert_eq!(harness.loads.as_slice(), &[3]);
+    assert_eq!(harness.reply_bytes().as_ref(), b"step 3 prepare\nstep 3 run\nstarted 3\n");
+    finish_runtime(harness);
+}
+#[test]
+fn a_remove_while_a_group_starts_answers_busy() {
+    let mut harness = runtime_groups(1);
+    harness.hold_spawn = Some(bytes::copy_of(b"prepare 7"));
+    start_loaded(&mut harness, 7);
+    harness.replies.clear();
+    harness.ask(b"remove 7\n");
+    harness.run_until_idle();
+    assert_eq!(harness.reply_bytes().as_ref(), b"failed 7 busy\n");
+    assert!(harness.removals.is_empty());
+    harness.release_spawn();
+    harness.run_until_idle();
+    finish_runtime(harness);
+}
+#[test]
+fn no_pipe_line_is_read_while_a_load_is_with_the_shell() {
+    use crate::host::Loaded;
+    use skein_shell::Host;
+    let mut harness = Harness::grouped(grouped_steps(), &[], true);
+    harness.run_until_idle();
+    harness.hold_load = true;
+    harness.ask(b"start 7\nstop 3\n");
+    harness.run_until_idle();
+    assert_eq!(harness.service.take_load(), Some(7));
+    assert_eq!(harness.service.take_load(), None);
+    harness.service.loaded(8, Loaded::Absent);
+    harness.run_until_idle();
+    assert!(harness.reply_bytes().is_empty(), "wrong forge cannot release the pipe");
+    harness.service.loaded(7, Loaded::Absent);
+    assert!(harness.service.work_pending(harness.sim.now()));
+    harness.run_until_idle();
+    assert_eq!(harness.reply_bytes().as_ref(), b"failed 7 no settings\nstopped 3\n");
+    finish_runtime(harness);
+}
+
+#[test]
+fn loaded_settings_refuse_empty_link_names_labels_notices_and_unheld_listeners() {
+    use super::fixtures::{link, loaded_group, repeated};
+    use crate::{host::Loaded, limits::GROUP_NAME_BYTES};
+    use temper_forge_setup::Stage;
+    // The fixture's data path is /data: the notice bound is 1024 + twice five bytes.
+    const NOTICE_BOUND: u32 = 1034;
+    let name_past = GROUP_NAME_BYTES.checked_add(1).unwrap();
+    let mut empty = loaded_group(7);
+    empty.steps = Box::new([]);
+    let mut linked = loaded_group(7);
+    linked.steps = Box::new([(Stage::Run, link(b"link", &[b"exit", b"0"]))]);
+    let mut name = loaded_group(7);
+    name.steps = Box::new([(Stage::Run, long(&repeated(b'n', name_past), &[b"never"]))]);
+    let mut label = loaded_group(7);
+    label.label = repeated(b'l', name_past);
+    let mut notice = loaded_group(7);
+    notice.steps[1].1.set_started_notice(repeated(b'\n', NOTICE_BOUND.checked_add(1).unwrap()));
+    let mut listener = loaded_group(7);
+    listener.steps =
+        Box::new([(Stage::Run, long(b"forgejo 7", &[b"never"]).listening(Box::new([([127, 0, 0, 1], 8100).into()])))]);
+    let mut harness = runtime_groups(1);
+    for group in [empty, linked, name, label, notice, listener] {
+        harness.settings(7, Loaded::Group(group));
+        harness.replies.clear();
+        harness.ask(b"start 7\n");
+        harness.run_until_idle();
+        assert_eq!(harness.reply_bytes().as_ref(), b"failed 7 settings unfit\n");
+        assert_eq!(harness.launches.len(), 1);
+    }
+    harness.replies.clear();
+    start_loaded(&mut harness, 7);
+    assert_eq!(harness.reply_bytes().as_ref(), b"step 7 prepare\nstep 7 run\nstarted 7\n");
+    finish_runtime(harness);
+}
+#[test]
+fn a_loaded_group_at_its_step_name_label_and_notice_bounds_starts() {
+    use super::fixtures::loaded_group;
+    use crate::host::Loaded;
+    use temper_forge_setup::Stage;
+    const NAME_BYTES: usize = 64;
+    // /data is five bytes; each byte can be LF, each gaining a timestamp.
+    const NOTICE_BYTES: usize = 1034;
+    let mut group = loaded_group(7);
+    group.label = Box::new([b'L'; NAME_BYTES]);
+    let mut last = long(&[b'd'; NAME_BYTES], &[b"never"]);
+    last.set_started_notice(Box::new([b'\n'; NOTICE_BYTES]));
+    group.steps = Box::new([
+        (Stage::Prepare, once(&[b'a'; NAME_BYTES], &[b"exit", b"0"])),
+        (Stage::Prepare, once(&[b'b'; NAME_BYTES], &[b"exit", b"0"])),
+        (Stage::Run, long(&[b'c'; NAME_BYTES], &[b"never"])),
+        (Stage::Run, last),
+    ]);
+    let mut harness = runtime_groups(1);
+    harness.write_child(harness.serve_index(), 1, b"http://sign-in/link\n");
+    harness.run_until_idle();
+    harness.settings(7, Loaded::Group(group));
+    harness.ask(b"start 7\n");
+    harness.run_until_idle();
+    assert_eq!(harness.reply_bytes().as_ref(), b"step 7 prepare\nstep 7 prepare\nstep 7 run\nstep 7 run\nstarted 7\n");
+    assert!(Harness::contains(&harness.stderr(), b"00:00:00Z \n"));
+    assert!(crate::host::pressure::bounded(&harness.service));
+    finish_runtime(harness);
+}
+#[test]
+fn a_loaded_group_can_use_a_listener_held_at_the_boxs_start() {
+    use super::fixtures::loaded_group;
+    use crate::host::Loaded;
+    use temper_forge_setup::{Stage, Steps};
+    let address = ([127, 0, 0, 1], 8100).into();
+    let mut group = loaded_group(7);
+    group.steps = Box::new([(Stage::Run, long(b"forgejo 7", &[b"never"]).listening(Box::new([address])))]);
+    let mut harness = Harness::grouped(
+        Steps { always: Box::new([long(b"serve", &[b"never"]).listening(Box::new([address]))]), asked: Box::new([]) },
+        &[],
+        true,
+    );
+    harness.run_until_idle();
+    harness.settings(7, Loaded::Group(group));
+    harness.ask(b"start 7\n");
+    harness.run_until_idle();
+    assert_eq!(harness.reply_bytes().as_ref(), b"step 7 run\nstarted 7\n");
+    let launch = harness.launches.get(1).unwrap();
+    assert_eq!(launch.pipes.len(), 3, "two output pipes and one held listener");
+    assert_eq!(launch.pipes[2].child, 3);
+    finish_runtime(harness);
+}
+#[test]
+fn no_pipe_line_is_read_while_a_removal_is_with_the_shell() {
+    use skein_shell::Host;
+    let mut harness = runtime_groups(1);
+    harness.hold_removal = true;
+    harness.ask(b"remove 7\nstart 8\n");
+    harness.run_until_idle();
+    assert_eq!(harness.service.take_removal(), Some(7));
+    assert_eq!(harness.service.take_removal(), None);
+    harness.service.removed(8, Ok(()));
+    harness.run_until_idle();
+    assert!(harness.loads.is_empty());
+    assert!(harness.reply_bytes().is_empty());
+    harness.service.removed(7, Ok(()));
+    assert!(harness.service.work_pending(harness.sim.now()));
+    harness.run_until_idle();
+    assert_eq!(harness.reply_bytes().as_ref(), b"removed 7\nfailed 8 no settings\n");
+    finish_runtime(harness);
+}
+#[test]
+fn shell_answers_after_the_box_begins_stopping_are_ignored() {
+    use crate::host::Loaded;
+    for removal in [false, true] {
+        let mut harness = runtime_groups(1);
+        harness.hold_load = true;
+        harness.hold_removal = true;
+        harness.ask(if removal { b"remove 7\n" } else { b"start 7\n" });
+        harness.run_until_idle();
+        if removal {
+            assert_eq!(harness.service.take_removal(), Some(7));
+        } else {
+            assert_eq!(harness.service.take_load(), Some(7));
+        }
+        harness.terminate();
+        harness.run_until_idle();
+        harness.service.loaded(7, Loaded::Group(super::fixtures::loaded_group(7)));
+        harness.service.removed(7, Ok(()));
+        assert_eq!(harness.run_to_end(), Exit::Code(0));
+        assert!(harness.reply_bytes().is_empty());
+        assert_eq!(harness.spawn_times(b"forgejo 7").len(), 0);
+        harness.sim.assert_quiescent(harness.pid);
+        harness.sim.assert_no_open_fds(harness.pid);
+        assert_eq!(harness.machine.open_handles(), 0);
+    }
+}
+#[test]
+fn a_loaded_groups_log_refusal_falls_back_to_the_terminal() {
+    let mut harness = runtime_groups(1);
+    harness.refuse_log = Some(bytes::copy_of(b"forgejo-7.log"));
+    start_loaded(&mut harness, 7);
+    let forge = harness.child_index(b"forgejo 7");
+    harness.write_child(forge, 2, b"forge diagnostic\n");
+    harness.run_until_idle();
+    let stderr = harness.stderr();
+    assert!(Harness::contains(&stderr, b"box: cannot write /data/box/logs/forgejo-7.log:"));
+    assert!(Harness::contains(&stderr, b"forgejo 7: forge diagnostic\n"));
+    assert_eq!(harness.reply_bytes().as_ref(), b"step 7 prepare\nstep 7 run\nstarted 7\n");
+    finish_runtime(harness);
+}
+
+#[test]
+fn a_removal_diagnostic_keeps_all_words_across_bounded_terminal_writes() {
+    // More than the loaded-step output bound (including a hundred tail lines).
+    const WORD_BYTES: u32 = 500_000;
+    const STDERR_BYTES: u32 = 510_000;
+    let mut harness = runtime_groups(1);
+    harness.stderr_bytes = List::with_capacity(STDERR_BYTES);
+    let words = super::fixtures::repeated(b'x', WORD_BYTES);
+    harness.removal(7, Err(words.clone()));
+    harness.ask(b"remove 7\n");
+    harness.run_until_idle();
+    assert!(Harness::contains(&harness.stderr(), &crate::lines::joined(&[b"box: remove 7: ", &words, b"\n"])));
+    assert_eq!(harness.reply_bytes().as_ref(), b"failed 7 not removed\n");
+    assert!(crate::host::pressure::bounded(&harness.service));
+    finish_runtime(harness);
 }

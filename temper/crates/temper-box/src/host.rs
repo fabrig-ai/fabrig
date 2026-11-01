@@ -1,10 +1,14 @@
 //! The machine on skein-io, with one bounded chunk per child pipe.
+//! The shell answers `take_load` by reading `<data>/box/groups/N` and building
+//! its kind's steps (temper/docs/design/draft/playground-reset.md, 3).
+//! It answers `take_removal` by removing `box/started/N`, then `forge-N` and its
+//! contents, then `box/groups/N`, keeping the cache (the same draft, 4).
 use crate::{
     layout::{self, Placed},
-    limits::{Limits, Unfit},
+    limits::{GROUP_NAME_BYTES, GROUP_STEPS, Limits, Unfit},
     lines::{self, Lines, Output},
     logs::{Logs, Piece},
-    machine::{Input, Machine, Order, Outcome, Said},
+    machine::{Input, Machine, Order, Outcome, Said, Why},
     pipe::{self, Command, Line, Reader},
     ready::Ready,
     records::Records,
@@ -20,7 +24,29 @@ use skein_lib::{
     Decimal, Duration, Env, List, Queue, Time, Token, Wall,
     stream::{Down, Read, Up},
 };
-use temper_forge_setup::{Kind, Step, Steps};
+use temper_forge_setup::{Group, Kind, Step, Steps};
+/// The shell's answer for `<data>/box/groups/N`
+/// (temper/docs/design/draft/playground-reset.md, 3).
+#[derive(Debug)]
+pub enum Loaded {
+    /// Its steps, built by the group's mode; forge is N.
+    Group(Group),
+    /// No box/groups/N.
+    Absent,
+    /// Unreadable or not a group's settings: failed N WORDS.
+    Refused(Box<[u8]>),
+}
+#[derive(Debug)]
+enum ShellAnswer {
+    Load(Loaded),
+    Unfit,
+    Removal(Result<(), Box<[u8]>>),
+}
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum Shell {
+    Load { forge: u16, taken: bool },
+    Removal { forge: u16, taken: bool },
+}
 /// Which diagnostic lines also reach the terminal.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum Echo {
@@ -60,6 +86,7 @@ impl Pipe {
 }
 #[derive(Debug)]
 struct Child {
+    serve: bool,
     owner: Option<Token>,
     process: Option<Token>,
     pipes: [Pipe; 2],
@@ -74,11 +101,12 @@ struct Child {
 }
 impl Child {
     #[expect(clippy::manual_map, reason = "programming-model.md: match rather than Option::map")]
-    fn new(serve: &[u8], step: &Step, tail_lines: u32) -> Self {
+    fn new(serve: bool, step: &Step, tail_lines: u32) -> Self {
         Self {
             owner: None,
             process: None,
-            pipes: [Pipe::new(lines::route(serve, step.name(), 1)), Pipe::new(false)],
+            serve,
+            pipes: [Pipe::new(serve), Pipe::new(false)],
             spawn: false,
             withdrawn: None,
             hold: false,
@@ -130,6 +158,12 @@ struct Control {
 }
 /// All io and policy state owned by one box process.
 #[derive(Debug)]
+struct RemovalNotice {
+    forge: u16,
+    bytes: Box<[u8]>,
+    at: usize,
+}
+#[derive(Debug)]
 struct Told {
     event: Event,
     wall: Wall,
@@ -140,6 +174,12 @@ pub struct Service {
     io: Io,
     env: Env<io::Limits>,
     machine: Machine,
+    shell: Option<Shell>,
+    shell_answer: Option<ShellAnswer>,
+    shell_words: Option<Box<[u8]>>,
+    removal_notice: Option<RemovalNotice>,
+    tail_lines: u32,
+    held_steps: u32,
     steps: Box<[Placed]>,
     records: Records,
     logs: Logs,
@@ -172,12 +212,27 @@ pub struct Service {
 }
 impl Service {
     /// Checks the policy limits and adopts the binary's descriptors.
+    #[expect(clippy::too_many_lines, reason = "construction reserves the box and loaded-group edges together")]
     pub fn new(limits: &Limits, steps: Steps, settings: Settings) -> Result<Self, Unfit> {
-        let reply_entries = reply_entries(&steps);
-        let steps = layout::flatten(steps);
-        let machine = Machine::new(limits, &steps)?;
+        let reply_entries = reply_entries(&steps).max(GROUP_STEPS.checked_add(2).expect("loaded replies"));
+        let built = layout::flatten(steps);
+        let machine = Machine::new(limits, &built)?;
+        let built_count = built.len();
+        let count = u32::try_from(built.len())
+            .expect("built steps")
+            .checked_add(limits.groups.checked_mul(GROUP_STEPS).expect("reserved steps"))
+            .expect("step positions");
+        let mut steps = List::with_capacity(count);
+        for placed in built {
+            steps.push(placed).expect("built position");
+        }
+        for _ in 0..limits.groups.checked_mul(GROUP_STEPS).expect("reserved positions") {
+            steps.push(empty_placed()).expect("reserved position");
+        }
+        let steps = steps.into_boxed();
         let records = Records::new(&steps);
-        let logs = Logs::new(&steps, &settings.data, limits.log_bytes);
+        let mut logs = Logs::new(&steps, &settings.data, limits.log_bytes);
+        logs.reserve(built_count);
         let count = u32::try_from(steps.len()).expect("steps fit u32");
         let mut bounds = io_limits(count);
         bounds.sockets = bounds
@@ -191,7 +246,8 @@ impl Service {
             .max(terminal::max_bytes(&steps))
             .max(Logs::max_notice(&steps, &settings.data))
             .max(terminal::failure_bytes(&steps, &settings.data))
-            .max(LINE_BYTES.checked_add(1).expect("URL LF"));
+            .max(LINE_BYTES.checked_add(1).expect("URL LF"))
+            .max(loaded_output(&settings.data));
         let mut children = List::with_capacity(count);
         for placed in &steps {
             let step = &placed.step;
@@ -202,7 +258,13 @@ impl Service {
                     .checked_add(3)
                     .expect("prefix"),
             );
-            children.push(Child::new(&settings.serve, step, limits.tail_lines)).expect("one child per step");
+            children
+                .push(Child::new(
+                    placed.asked.is_none() && step.name() == settings.serve.as_ref(),
+                    step,
+                    limits.tail_lines,
+                ))
+                .expect("one child per step");
         }
         let mut io = Io::new(&bounds);
         let signals = io.adopt_signals(settings.signals).expect("three adopted slots");
@@ -211,11 +273,20 @@ impl Service {
         let listeners = adopt_listeners(&mut io, &settings.listeners);
         let capacity =
             io::operations(&bounds).expect("bounded operations").checked_mul(4).expect("queue capacity").max(64);
-        let entries = count.checked_mul(2).expect("terminal entries").checked_add(1).expect("terminal entries").max(3);
+        let entries = terminal_entries(count);
+        let mut terminal = Terminal::new(stdout, stderr, entries);
+        let held_steps = u32::try_from(built_count).expect("built step count");
+        terminal.limit(terminal_entries(held_steps));
         Ok(Self {
             io,
             env: Env { now: Time::ZERO, wall: Wall::EPOCH, limits: bounds },
             machine,
+            shell: None,
+            shell_answer: None,
+            shell_words: None,
+            removal_notice: None,
+            tail_lines: limits.tail_lines,
+            held_steps,
             steps,
             records,
             logs,
@@ -226,7 +297,7 @@ impl Service {
             reply_entries,
             settings,
             children: children.into_boxed(),
-            terminal: Terminal::new(stdout, stderr, entries),
+            terminal,
             formatter: Formatter::new(),
             terminate_pending: false,
             failure: None,
@@ -246,6 +317,197 @@ impl Service {
             orders: Queue::uncapped(),
             order_walls: Queue::uncapped(),
         })
+    }
+    /// The group whose settings the shell reads and builds; answered by loaded.
+    pub fn take_load(&mut self) -> Option<u16> {
+        if self.machine.outcome().is_some() {
+            return None;
+        }
+        match &mut self.shell {
+            Some(Shell::Load { forge, taken }) if !*taken => {
+                *taken = true;
+                Some(*forge)
+            }
+            Some(Shell::Load { .. } | Shell::Removal { .. }) | None => None,
+        }
+    }
+    pub fn loaded(&mut self, forge: u16, loaded: Loaded) {
+        if self.machine.outcome().is_some()
+            || self.shell != Some(Shell::Load { forge, taken: true })
+            || self.shell_answer.is_some()
+        {
+            return;
+        }
+        self.shell_answer = Some(match loaded {
+            Loaded::Group(group) => {
+                if self.fits(forge, &group) {
+                    ShellAnswer::Load(Loaded::Group(group))
+                } else {
+                    ShellAnswer::Unfit
+                }
+            }
+            Loaded::Absent => ShellAnswer::Load(Loaded::Absent),
+            Loaded::Refused(words) => ShellAnswer::Load(Loaded::Refused(words)),
+        });
+    }
+    /// Remove box/started/N, forge-N and its contents, then box/groups/N;
+    /// keep the cache. Answer with removed.
+    pub fn take_removal(&mut self) -> Option<u16> {
+        if self.machine.outcome().is_some() {
+            return None;
+        }
+        let forge = match self.shell {
+            Some(Shell::Removal { forge, taken: false }) => forge,
+            Some(Shell::Load { .. } | Shell::Removal { .. }) | None => return None,
+        };
+        if let Some(step) = self.logs.step()
+            && let Some(asked) = self.steps.get(step).expect("logging step").asked
+            && asked.forge == forge
+        {
+            return None;
+        }
+        for (placed, child) in self.steps.iter().zip(&self.children) {
+            if let Some(asked) = placed.asked
+                && asked.forge == forge
+            {
+                if child.owner.is_some() || child.process.is_some() || !child.ready_settled() || child.stdin.is_some() {
+                    return None;
+                }
+                for pipe in &child.pipes {
+                    if !pipe.settled() {
+                        return None;
+                    }
+                }
+            }
+        }
+        self.shell = Some(Shell::Removal { forge, taken: true });
+        Some(forge)
+    }
+    pub fn removed(&mut self, forge: u16, removed: Result<(), Box<[u8]>>) {
+        if self.machine.outcome().is_some()
+            || self.shell != Some(Shell::Removal { forge, taken: true })
+            || self.shell_answer.is_some()
+        {
+            return;
+        }
+        self.shell_answer = Some(ShellAnswer::Removal(removed));
+    }
+    fn shell_work(&mut self) {
+        if self.removal_notice.is_some() {
+            self.removal_notice_work();
+            return;
+        }
+        if self.machine.outcome().is_some() {
+            self.shell = None;
+            self.shell_answer = None;
+            return;
+        }
+        if !self.logs.settled() || self.failure.is_some() || !self.deferred.is_empty() || !self.notice_room() {
+            return;
+        }
+        let Some(answer) = self.shell_answer.take() else {
+            return;
+        };
+        let shell = self.shell.take().expect("asked shell answer");
+        let forge = match shell {
+            Shell::Load { forge, .. } | Shell::Removal { forge, .. } => forge,
+        };
+        match answer {
+            ShellAnswer::Unfit => self.input(Input::LoadFailed { forge, why: Why::Unfit }),
+            ShellAnswer::Load(loaded) => match loaded {
+                Loaded::Group(group) => {
+                    let slot = self.machine.free_slot().expect("load reserved a free slot");
+                    let first = self.machine.slot_first(slot);
+                    let placed = layout::flatten(Steps {
+                        always: Box::new([]),
+                        asked: Box::new([Group { before: 0, ..group }]),
+                    });
+                    self.held_steps = self
+                        .held_steps
+                        .checked_add(u32::try_from(placed.len()).expect("loaded count"))
+                        .expect("held steps");
+                    self.terminal.limit(terminal_entries(self.held_steps));
+                    self.machine.place(slot, &placed);
+                    self.logs.install(first, &placed);
+                    for (offset, placed) in placed.into_iter().enumerate() {
+                        let index = first.checked_add(offset).expect("reserved index");
+                        *self.children.get_mut(index).expect("reserved child") =
+                            Child::new(false, &placed.step, self.tail_lines);
+                        *self.steps.get_mut(index).expect("reserved placement") = placed;
+                    }
+                    self.input(Input::Install { forge, slot });
+                }
+                Loaded::Absent => self.input(Input::LoadFailed { forge, why: Why::NoSettings }),
+                Loaded::Refused(words) => {
+                    self.shell_words = Some(words);
+                    self.input(Input::LoadFailed { forge, why: Why::Refused });
+                }
+            },
+            ShellAnswer::Removal(removed) => match removed {
+                Ok(()) => self.input(Input::Removed { forge, ok: true }),
+                Err(words) => {
+                    let notice = lines::joined(&[
+                        b"box: remove ",
+                        Decimal::of(u64::from(forge)).as_bytes(),
+                        b": ",
+                        &words,
+                        b"\n",
+                    ]);
+                    let item = self.formatter.notice(&notice, self.env.wall);
+                    self.removal_notice = Some(RemovalNotice { forge, bytes: item.bytes, at: 0 });
+                    self.removal_notice_work();
+                }
+            },
+        }
+    }
+    /// The shell's diagnostic is retained once and sent in bounded pieces.
+    /// Orders and child output wait so the pieces form one terminal notice.
+    fn removal_notice_work(&mut self) {
+        if !self.notice_room() {
+            return;
+        }
+        let Some(mut notice) = self.removal_notice.take() else {
+            return;
+        };
+        let end = notice
+            .at
+            .saturating_add(usize::try_from(self.env.limits.output).expect("output bound"))
+            .min(notice.bytes.len());
+        let bytes = skein_lib::bytes::copy_of(notice.bytes.get(notice.at..end).expect("notice piece"));
+        self.notice(Item { target: Target::Stderr, bytes });
+        notice.at = end;
+        if end == notice.bytes.len() {
+            self.input(Input::Removed { forge: notice.forge, ok: false });
+        } else {
+            self.removal_notice = Some(notice);
+        }
+    }
+    fn fits(&self, forge: u16, group: &Group) -> bool {
+        if group.forge != forge
+            || group.steps.is_empty()
+            || group.steps.len() > usize::try_from(GROUP_STEPS).expect("step bound")
+            || group.label.len() > usize::try_from(GROUP_NAME_BYTES).expect("label bound")
+        {
+            return false;
+        }
+        for (_, step) in &group.steps {
+            if step.kind() == Kind::Link
+                || step.name().len() > usize::try_from(GROUP_NAME_BYTES).expect("name bound")
+                || step.started_notice().len() > loaded_notice(&self.settings.data)
+            {
+                return false;
+            }
+            for address in step.listeners() {
+                let mut held = false;
+                for (_, listener) in &self.settings.listeners {
+                    held |= listener == address;
+                }
+                if !held {
+                    return false;
+                }
+            }
+        }
+        true
     }
     fn progress_event(&self, event: &Event) -> bool {
         match event {
@@ -295,6 +557,9 @@ impl Service {
         false
     }
     fn order_ready(&self) -> bool {
+        if self.removal_notice.is_some() {
+            return false;
+        }
         match self.orders.iter().next() {
             Some(Order::Terminal { fact: Fact::Starting { step } })
                 if self.steps.get(*step).expect("step").asked.is_some() =>
@@ -314,7 +579,10 @@ impl Service {
                 | Order::Wait { .. }
                 | Order::Signal { .. }
                 | Order::Close { .. }
-                | Order::Record { .. },
+                | Order::Record { .. }
+                | Order::Load { .. }
+                | Order::RemoveFiles { .. }
+                | Order::Forget { .. },
             ) => true,
             None => false,
         }
@@ -346,7 +614,7 @@ impl Service {
             Event::Exited { owner, exit } => {
                 for (step, state) in self.children.iter().enumerate() {
                     if state.owner == Some(owner) {
-                        if self.steps.get(step).expect("step").step.name() == self.settings.serve.as_ref() {
+                        if state.serve {
                             self.retire_control();
                         }
                         policy_input(
@@ -454,7 +722,7 @@ impl Service {
                 for (pipe, token) in state.pipes.iter_mut().zip(pipes) {
                     pipe.token = Some(*token);
                 }
-                if self.steps.get(step).expect("step").step.name() == self.settings.serve.as_ref() {
+                if state.serve {
                     self.control = Some(Control {
                         read: *pipes.get(2).expect("serve requests pipe"),
                         sink: Sink::new(*pipes.get(3).expect("serve answers pipe"), self.reply_entries),
@@ -617,7 +885,29 @@ impl Service {
             }
             Order::Terminal { fact } => self.terminal_fact(fact, wall),
             Order::Record { forge } => self.records.write(forge),
+            Order::Load { forge } => {
+                if self.machine.outcome().is_none() {
+                    self.shell = Some(Shell::Load { forge, taken: false });
+                }
+            }
+            Order::RemoveFiles { forge } => {
+                if self.machine.outcome().is_none() {
+                    self.shell = Some(Shell::Removal { forge, taken: false });
+                }
+            }
+            Order::Forget { forge } => {
+                for placed in &mut self.steps {
+                    if let Some(asked) = placed.asked
+                        && asked.forge == forge
+                    {
+                        *placed = empty_placed();
+                        self.held_steps = self.held_steps.checked_sub(1).expect("removed held step");
+                    }
+                }
+                self.terminal.limit(terminal_entries(self.held_steps));
+            }
             Order::Say { said } => {
+                let words = self.shell_words.take();
                 if let Some(control) = &mut self.control {
                     let line = match said {
                         Said::Step { step } => {
@@ -626,8 +916,13 @@ impl Service {
                         }
                         Said::Started { forge } => pipe::started(forge),
                         Said::Stopped { forge } => pipe::stopped(forge),
+                        Said::Removed { forge } => pipe::removed(forge),
                         Said::Failed { forge, why } => {
-                            let why = terminal::why(why, &self.steps);
+                            let why = if why == Why::Refused {
+                                words.expect("shell refusal")
+                            } else {
+                                terminal::why(why, &self.steps)
+                            };
                             pipe::failed(forge, &why, self.line_bytes)
                         }
                     };
@@ -670,7 +965,7 @@ impl Service {
                 if let Some(ready) = &mut self.children.get_mut(step).expect("step").ready {
                     ready.cancel(&mut self.requests);
                 }
-                if self.steps.get(step).expect("step").step.name() == self.settings.serve.as_ref() {
+                if self.children.get(step).expect("step").serve {
                     self.retire_control();
                 }
                 if let Some(child) = self.children.get(step).expect("machine step").process {
@@ -711,6 +1006,9 @@ impl Service {
         }
     }
     fn orders_runnable(&self) -> bool {
+        if self.removal_notice.is_some() {
+            return false;
+        }
         if self.failure.is_none() {
             return self.order_ready();
         }
@@ -724,7 +1022,10 @@ impl Service {
                 | Order::Wait { .. }
                 | Order::Signal { .. }
                 | Order::Close { .. }
-                | Order::Record { .. } => return true,
+                | Order::Record { .. }
+                | Order::Load { .. }
+                | Order::RemoveFiles { .. }
+                | Order::Forget { .. } => return true,
             }
         }
         false
@@ -766,6 +1067,9 @@ impl Service {
         }
     }
     fn children(&mut self) {
+        if self.removal_notice.is_some() {
+            return;
+        }
         self.withdrawn();
         let failure = self.failure;
         let deferred = !self.deferred.is_empty();
@@ -777,7 +1081,7 @@ impl Service {
             let state = self.children.get_mut(step).expect("child step");
             let description = &self.steps.get(step).expect("step state").step;
             for (fd, pipe) in state.pipes.iter_mut().enumerate() {
-                let plain = fd == 0 && lines::route(&self.settings.serve, description.name(), 1);
+                let plain = fd == 0 && state.serve;
                 let entries = if plain { self.formatter.block_entries() } else { 1 };
                 let terminal_available = match failure {
                     None => !deferred,
@@ -824,7 +1128,7 @@ impl Service {
             for pipe in &state.pipes {
                 settled &= pipe.settled();
             }
-            if description.name() == self.settings.serve.as_ref() {
+            if state.serve {
                 settled &= self.closing_control == [None, None];
             }
             if state.spawn && settled && self.logs.takes() && failure.is_none() && !withdraw_queued(&self.orders, step)
@@ -838,7 +1142,7 @@ impl Service {
                     state.line = None;
                 }
                 for (fd, pipe) in state.pipes.iter_mut().enumerate() {
-                    *pipe = Pipe::new(fd == 0 && lines::route(&self.settings.serve, description.name(), 1));
+                    *pipe = Pipe::new(fd == 0 && state.serve);
                 }
                 if state.hold {
                     state.pipes.get_mut(0).expect("stdout").lines.hold();
@@ -852,7 +1156,7 @@ impl Service {
                         env: spawn_environment(&self.settings.environment, description.listeners().len()),
                         root: self.settings.root,
                         dir: Box::new([]),
-                        pipes: spawn_pipes(description, &self.settings.serve, &self.listeners),
+                        pipes: spawn_pipes(description, state.serve, &self.listeners),
                     },
                 });
             }
@@ -938,7 +1242,9 @@ impl Service {
         let Some(control) = &self.control else {
             return false;
         };
-        control.sink.drained()
+        self.shell.is_none()
+            && self.removal_notice.is_none()
+            && control.sink.drained()
             && self.orders_drained()
             && self.failure.is_none()
             && self.deferred.is_empty()
@@ -959,6 +1265,7 @@ impl Service {
             Line::Whole(line) => match pipe::command(&line) {
                 Command::Start(forge) => self.input(Input::Ask { forge }),
                 Command::Stop(forge) => self.input(Input::Stop { forge }),
+                Command::Remove(forge) => self.input(Input::Remove { forge }),
                 Command::Unknown => {
                     if !self.terminal.failed() {
                         self.terminal.push(self.formatter.notice(b"box: serve: unknown pipe line\n", self.env.wall));
@@ -1009,6 +1316,7 @@ impl Service {
             || !self.orders.is_empty()
             || self.failure.is_some()
             || !self.deferred.is_empty()
+            || self.removal_notice.is_some()
         {
             return;
         }
@@ -1045,6 +1353,35 @@ impl Service {
             self.root = Root::Closing;
         }
     }
+}
+fn terminal_entries(steps: u32) -> u32 {
+    steps.checked_mul(2).expect("terminal entries").checked_add(1).expect("terminal entries").max(3)
+}
+fn empty_placed() -> Placed {
+    Placed { step: Step::new(Box::new([]), Box::new([]), Kind::Once), asked: None, label: None }
+}
+fn loaded_notice(data: &[u8]) -> usize {
+    1024_usize.checked_add(data.len().checked_mul(2).expect("data path twice")).expect("loaded notice bound")
+}
+fn loaded_output(data: &[u8]) -> u32 {
+    let notice = u32::try_from(loaded_notice(data))
+        .expect("loaded notice fits")
+        .checked_mul(11)
+        .expect("notice with timestamps");
+    let tail = GROUP_NAME_BYTES
+        .checked_add(LINE_BYTES)
+        .expect("loaded line")
+        .checked_add(7)
+        .expect("tail prefix")
+        .checked_mul(crate::limits::MAX_TAIL_LINES)
+        .expect("loaded tail");
+    notice
+        .checked_add(tail)
+        .expect("loaded failure")
+        .checked_add(u32::try_from(data.len()).expect("data path"))
+        .expect("log path")
+        .checked_add(512)
+        .expect("lifecycle and log words")
 }
 fn reply_entries(steps: &Steps) -> u32 {
     let mut longest = 0_u32;
@@ -1116,7 +1453,7 @@ fn spawn_environment(environment: &[Box<[u8]>], listeners: usize) -> Box<[Box<[u
     }
     out.into_boxed()
 }
-fn spawn_pipes(step: &Step, serve: &[u8], listeners: &[(core::net::SocketAddr, Token)]) -> Box<[kernel::Pipe]> {
+fn spawn_pipes(step: &Step, serve: bool, listeners: &[(core::net::SocketAddr, Token)]) -> Box<[kernel::Pipe]> {
     let n = u32::try_from(step.listeners().len()).expect("bounded listeners");
     let mut pipes = List::with_capacity(n.checked_add(4).expect("bounded spawn table"));
     for child in [1, 2] {
@@ -1134,7 +1471,7 @@ fn spawn_pipes(step: &Step, serve: &[u8], listeners: &[(core::net::SocketAddr, T
         let child = 3_u32.checked_add(u32::try_from(i).expect("bounded listener index")).expect("bounded child fd");
         pipes.push(kernel::Pipe { child, way: kernel::Way::Given(token), parent: None }).expect("listener slot");
     }
-    if step.name() == serve {
+    if serve {
         let requests = n.checked_add(3).expect("bounded child fd");
         let answers = n.checked_add(4).expect("bounded child fd");
         pipes.push(kernel::Pipe { child: requests, way: kernel::Way::Out, parent: None }).expect("serve requests");
@@ -1241,6 +1578,7 @@ impl skein_shell::Host for Service {
         self.failure_work();
         self.deferred_work();
         self.order_work();
+        self.shell_work();
         self.children();
         self.control_work();
         self.record_work();
@@ -1273,6 +1611,7 @@ impl skein_shell::Host for Service {
             || self.events_runnable()
             || !self.requests.is_empty() && self.io.takes() && self.submissions.room() >= io::MAX_OUT_DOWN.submissions
             || !self.orders.is_empty() && self.orders_runnable() && self.requests.room() >= 6
+            || self.shell_answer.is_some()
             || self.terminate_pending
             || self.io.is_ready() && self.submissions.room() >= io::MAX_OUT_RESUME.submissions
             || self.io.is_due(now) && self.submissions.room() >= io::MAX_OUT_FIRE.submissions
@@ -1284,7 +1623,8 @@ impl skein_shell::Host for Service {
         {
             return true;
         }
-        if self.failure_ready()
+        if self.removal_notice.is_some() && self.notice_room()
+            || self.failure_ready()
             || self.logs.pending()
             || self.logs.has_notice() && self.notice_room()
             || !self.deferred.is_empty() && self.failure.is_none() && (self.terminal.takes(1) || self.terminal.failed())
@@ -1308,6 +1648,9 @@ impl skein_shell::Host for Service {
         if self.terminal.pending(self.phase == Phase::Closing) && self.requests.room() >= 2 {
             return true;
         }
+        if self.removal_notice.is_some() {
+            return false;
+        }
         for state in &self.children {
             if state.withdrawn.is_some() {
                 return true;
@@ -1322,9 +1665,8 @@ impl skein_shell::Host for Service {
             {
                 return true;
             }
-            let description = &self.steps.get(step).expect("step state").step;
             for (fd, pipe) in state.pipes.iter().enumerate() {
-                let plain = fd == 0 && lines::route(&self.settings.serve, description.name(), 1);
+                let plain = fd == 0 && state.serve;
                 let entries = if plain { self.formatter.block_entries() } else { 1 };
                 let quiet = !plain && self.settings.echo == Echo::None && !self.logs.failed(step);
                 let visible = self.terminal_available(step, plain);
@@ -1344,7 +1686,7 @@ impl skein_shell::Host for Service {
             for pipe in &state.pipes {
                 settled &= pipe.settled();
             }
-            if description.name() == self.settings.serve.as_ref() {
+            if state.serve {
                 settled &= self.closing_control == [None, None];
             }
             if state.spawn

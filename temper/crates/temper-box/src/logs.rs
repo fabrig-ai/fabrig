@@ -8,6 +8,7 @@ use skein_lib::{Decimal, List, Queue, Token, Wall, bytes};
 const OP: Token = Token::new(u64::MAX - 9);
 #[derive(Debug)]
 struct Log {
+    active: bool,
     name: Box<[u8]>,
     fd: Option<Fd>,
     size: u32,
@@ -39,6 +40,7 @@ enum Phase {
     Make,
     Open,
     Create,
+    InstallClose,
     Idle,
     Write,
     RotateClose,
@@ -49,6 +51,10 @@ enum Phase {
     Closed,
 }
 #[derive(Debug)]
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "operation wait, availability, startup announcement and piece completion are independent"
+)]
 pub(crate) struct Logs {
     files: List<Log>,
     data: Box<[u8]>,
@@ -61,6 +67,8 @@ pub(crate) struct Logs {
     dir: Option<Fd>,
     entry: Option<Box<[u8]>>,
     at: u32,
+    create_end: u32,
+    announce: bool,
     unavailable: bool,
     notice: Option<Box<[u8]>>,
     piece: Option<Piece>,
@@ -80,7 +88,8 @@ impl Logs {
             }
             // Validate the original name too: '.' must not become a legal '.log'.
             let failed = !kernel::is_name(&name);
-            logs.push(Log { name: joined(&[&name, b".log"]), fd: None, size: 0, failed }).expect("one log per step");
+            logs.push(Log { active: true, name: joined(&[&name, b".log"]), fd: None, size: 0, failed })
+                .expect("one log per step");
         }
         Self {
             files: logs,
@@ -94,12 +103,44 @@ impl Logs {
             dir: None,
             entry: None,
             at: 0,
+            create_end: u32::try_from(steps.len()).expect("bounded steps"),
+            announce: true,
             unavailable: false,
             notice: None,
             piece: None,
             record: None,
             written: 0,
             done: false,
+        }
+    }
+    pub fn reserve(&mut self, first: usize) {
+        for index in u32::try_from(first).expect("reserved first")..self.files.len() {
+            self.files.get_mut(index).expect("reserved log").active = false;
+        }
+    }
+    /// Reuses the reserved log positions, closing their former descriptors
+    /// before creating the loaded steps' logs. No child spawns until `takes()`.
+    pub fn install(&mut self, first: usize, steps: &[Placed]) {
+        assert!(self.settled(), "install follows settled log work");
+        for (offset, placed) in steps.iter().enumerate() {
+            let index = u32::try_from(first.checked_add(offset).expect("slot index")).expect("log index");
+            let log = self.files.get_mut(index).expect("reserved log");
+            let mut name = bytes::copy_of(placed.step.name());
+            for byte in &mut name {
+                if *byte == b' ' {
+                    *byte = b'-';
+                }
+            }
+            log.active = true;
+            log.failed = !kernel::is_name(&name);
+            log.name = joined(&[&name, b".log"]);
+            log.size = 0;
+        }
+        if !self.unavailable {
+            self.at = u32::try_from(first).expect("slot first");
+            self.create_end = self.at.checked_add(u32::try_from(steps.len()).expect("slot steps")).expect("slot end");
+            self.announce = false;
+            self.phase = Phase::InstallClose;
         }
     }
     pub fn owns(token: Token) -> bool {
@@ -188,6 +229,7 @@ impl Logs {
     fn directory_fd(&self) -> Fd {
         self.box_dir.expect("opened box")
     }
+    #[expect(clippy::too_many_lines, reason = "one exhaustive dispatch describes the logger operation phases")]
     pub fn tick(&mut self, root: Fd, out: &mut Queue<Submit>) {
         if self.waiting || self.notice.is_some() || out.room() == 0 {
             return;
@@ -226,15 +268,32 @@ impl Logs {
                 no_replace: false,
             },
             Phase::Make => Op::MakeDirectory { dir: self.directory_fd(), name: bytes::copy_of(b"logs"), mode: 0o700 },
+            Phase::InstallClose => {
+                if let Some(fd) = self.log_mut().fd.take() {
+                    Op::Close { fd }
+                } else {
+                    self.phase = Phase::Create;
+                    return;
+                }
+            }
             Phase::Create => {
-                if self.at == self.files.len() {
+                if self.at == self.create_end {
                     self.phase = Phase::Idle;
-                    self.notice = Some(joined(&[b"Logs: ", &self.directory(), b"\n"]));
+                    if self.announce {
+                        self.notice = Some(joined(&[b"Logs: ", &self.directory(), b"\n"]));
+                    }
+                    return;
+                }
+                if !self.log().active {
+                    self.at = self.at.checked_add(1).expect("log index");
                     return;
                 }
                 if self.log().failed {
                     self.refuse_step(Error::InvalidArgument);
                     self.at = self.at.checked_add(1).expect("log index");
+                    if !self.announce && self.at < self.create_end {
+                        self.phase = Phase::InstallClose;
+                    }
                     return;
                 }
                 Op::Open {
@@ -343,13 +402,20 @@ impl Logs {
                 self.phase = Phase::Create;
                 self.at = 0;
             }
+            (Phase::InstallClose, Ok(Done::Nothing) | Err(_)) => self.phase = Phase::Create,
             (Phase::Create, Ok(Done::Fd(fd))) => {
                 self.log_mut().fd = Some(fd);
                 self.at = self.at.checked_add(1).expect("log index");
+                if !self.announce && self.at < self.create_end {
+                    self.phase = Phase::InstallClose;
+                }
             }
             (Phase::Create, Err(error)) => {
                 self.refuse_step(error);
                 self.at = self.at.checked_add(1).expect("log index");
+                if !self.announce && self.at < self.create_end {
+                    self.phase = Phase::InstallClose;
+                }
             }
             (Phase::Write, Ok(Done::Count(count))) if count > 0 => {
                 self.written = self.written.checked_add(count).expect("bounded write");

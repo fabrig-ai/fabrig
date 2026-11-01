@@ -8,6 +8,7 @@ fn the_small_profile_has_the_values_of_the_plan() {
             backoff: Duration::from_millis(500),
             backoff_max: Duration::from_secs(30),
             restarts: 5,
+            groups: 4,
             window: Duration::from_secs(300),
             line_bytes: 256,
             log_bytes: 4_194_304,
@@ -88,4 +89,15 @@ fn logs_hold_a_whole_record_and_tails_hold_one_to_a_hundred_lines() {
         assert_eq!(limits::check(&limits), expected);
     }
     assert_eq!(Unfit::TailLines.names(), &[b"box.tail_lines".as_slice()]);
+}
+
+#[test]
+fn box_groups_applies_and_checks() {
+    for (value, expected) in [(0, Err(Unfit::Groups)), (1, Ok(())), (64, Ok(())), (65, Err(Unfit::Groups))] {
+        let mut limits = limits::small();
+        limits::apply(&mut limits, b"box.groups", value).unwrap();
+        assert_eq!(limits.groups, u32::try_from(value).unwrap());
+        assert_eq!(limits::check(&limits), expected);
+    }
+    assert_eq!(Unfit::Groups.names(), &[b"box.groups".as_slice()]);
 }
