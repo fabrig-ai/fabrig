@@ -7,7 +7,10 @@ fn adopted_project(seen: &[Ended]) -> String {
 
 fn chat_task(seen: &[Ended]) -> String {
     let [_, _, _, _, _, _, _, started, ..] = seen else { panic!("first chat started") };
-    ctl::json(started)["outcome"]["done"]["owner"]["created"]["first"].as_u64().expect("chat's task number").to_string()
+    ctl::json(started)["outcome"]["done"]["document"]["created"]["first"]
+        .as_u64()
+        .expect("chat's task number")
+        .to_string()
 }
 
 fn assert_ready(seen: &[Ended]) {

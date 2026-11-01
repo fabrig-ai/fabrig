@@ -51,7 +51,7 @@ pub fn ctl_json(bytes: &[u8]) -> Result<Value, String> {
 /// `render/outcome.rs` and `document/act_answers.rs`: the top-level `task`
 /// names an operation target, not the task created by the owner's chat act.
 pub fn created_chat(value: &Value) -> Result<u64, String> {
-    let created = &value["outcome"]["done"]["owner"]["created"];
+    let created = &value["outcome"]["done"]["document"]["created"];
     let first = created["first"].as_u64().ok_or("chat created.first missing")?;
     require(created["last"] == first && first != 0, "one chat created")?;
     Ok(first)

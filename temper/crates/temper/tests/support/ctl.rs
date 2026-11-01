@@ -1282,13 +1282,12 @@ pub fn charter_change_file(file: &Path, setting: &Ended, instructions: &str) {
     setting_change_file(file, setting, |value| value["instructions"] = instructions.into());
 }
 
-/// Use the typed party proposal identity actually returned by the engine.
+/// Pair the returned proposal number with its requesting party (jig/docs/design/protocol/client.md, 5).
 #[must_use]
-pub fn proposal_key(ended: &Ended) -> String {
+pub fn proposal_key(ended: &Ended, me: &Ended) -> String {
     let answer = json(ended);
-    let proposal = &answer["outcome"]["done"]["proposed"]["proposal"];
-    let party = proposal["proposer"]["party"].as_u64().expect("party proposal");
-    let number = proposal["number"].as_u64().expect("proposal number");
+    let party = json(me)["party"]["number"].as_u64().expect("requesting party");
+    let number = answer["outcome"]["done"]["document"]["proposed"]["proposal"].as_u64().expect("proposal number");
     format!("p{party}/{number}")
 }
 

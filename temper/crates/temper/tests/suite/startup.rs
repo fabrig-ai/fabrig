@@ -42,10 +42,10 @@ fn a_stock_policy_past_its_limit_refuses_before_listening() {
 fn a_rung_reads_created_chats_waited_changes_and_both_child_sets_in_ctls_forms() {
     use serde_json::json;
     use support::forge_land::rung::{child_rows, created_chat, plan_question, task_digest, waited};
-    // Native chat-start outcome from the failed live run: top-level task is
-    // null, and the owner's actual created range supplies the number.
+    // The chat-start document supplies the created range; the top-level task
+    // names an operation target and is null when creating a chat.
     let created = json!({"operation":"chat","task":null,"to":null,
-        "outcome":{"done":{"owner":{"created":{"first":7,"last":7,"given":{"task":7,"amount":207_552}}}}}});
+        "outcome":{"done":{"document":{"created":{"first":7,"last":7,"given":{"task":7,"amount":207_552}}}}}});
     assert_eq!(created_chat(&created), Ok(7));
     assert!(created_chat(&json!({"task":7})).is_err(), "an operation target is not creation evidence");
     let panel = json!({"task":3,"pull":{"number":2},"head":"abc","gates":[]});

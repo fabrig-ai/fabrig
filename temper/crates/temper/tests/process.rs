@@ -3352,7 +3352,7 @@ impl skein_world::Referee<support::cluster::Root> for ClusterChatJudge {
                 match self.stage {
                     ClusterChatStage::Created => {
                         let created = json(calls.ends().last().expect("created chat"));
-                        let task = created["outcome"]["done"]["owner"]["created"]["first"]
+                        let task = created["outcome"]["done"]["document"]["created"]["first"]
                             .as_u64()
                             .unwrap_or_else(|| panic!("created chat number: {created}"))
                             .to_string();
@@ -3883,12 +3883,12 @@ fn temper_ctl_propose_settings() {
     steps.push(Step::Then(Box::new(move |calls| ctl_member_proposal_call(&calls[5], &file, "member-settings"))));
     steps.push(Step::Run(Call::new(&["settings", "show", "--json"])));
     steps.push(Step::Then(Box::new(|calls| {
-        Call::new(&["proposal", "show", &support::ctl::proposal_key(&calls[7]), "--json"])
+        Call::new(&["proposal", "show", &support::ctl::proposal_key(&calls[7], &calls[4]), "--json"])
     })));
     let seen = support::ctl::run(Story::new(scratch.path(), steps));
     ctl_assert_success(&seen.calls);
     let calls = &seen.calls;
-    assert_eq!(support::ctl::proposal_key(&calls[7]), support::ctl::proposal_key(&calls[8]));
+    assert_eq!(support::ctl::proposal_key(&calls[7], &calls[4]), support::ctl::proposal_key(&calls[8], &calls[4]));
     assert_eq!(support::ctl::json(&calls[7]), support::ctl::json(&calls[8]), "replay keeps the original role");
     let answer = support::ctl::json(&calls[7]);
     assert_eq!(answer["to"]["role"]["project"], 0);
@@ -3903,9 +3903,11 @@ fn temper_ctl_proposal() {
     use support::ctl::{Call, Step, Story};
     let scratch = ctl_scratch("ctl_proposal_m2");
     let mut steps = ctl_settings_member_setup(scratch.path());
-    steps.push(Step::Then(Box::new(|calls| Call::new(&["proposal", "show", &support::ctl::proposal_key(&calls[7])]))));
     steps.push(Step::Then(Box::new(|calls| {
-        Call::new(&["proposal", "show", &support::ctl::proposal_key(&calls[7]), "--json"])
+        Call::new(&["proposal", "show", &support::ctl::proposal_key(&calls[7], &calls[4])])
+    })));
+    steps.push(Step::Then(Box::new(|calls| {
+        Call::new(&["proposal", "show", &support::ctl::proposal_key(&calls[7], &calls[4]), "--json"])
     })));
     let direct = scratch.path().join("direct.json");
     steps.push(Step::Then(Box::new(move |calls| {
@@ -3913,7 +3915,8 @@ fn temper_ctl_proposal() {
         support::ctl::settings_change(&calls[5], &direct, "supersede-settings")
     })));
     steps.push(Step::Then(Box::new(|calls| {
-        Call::new(&["proposal", "show", &support::ctl::proposal_key(&calls[7]), "--json"]).in_directory("member")
+        Call::new(&["proposal", "show", &support::ctl::proposal_key(&calls[7], &calls[4]), "--json"])
+            .in_directory("member")
     })));
     let seen = support::ctl::run(Story::new(scratch.path(), steps));
     ctl_assert_success(&seen.calls);
@@ -3951,7 +3954,7 @@ fn temper_ctl_repeated_settings_decisions() {
             ("fresh-reject", false),
         ] {
             steps.push(Step::Then(Box::new(move |calls| {
-                let proposal = support::ctl::proposal_key(&calls[7]);
+                let proposal = support::ctl::proposal_key(&calls[7], &calls[4]);
                 let mut argv = vec!["proposal", "decide", &proposal, if accept { "accept" } else { "reject" }];
                 if accept && key == "first-decision" {
                     argv.extend(["--running", "stays"]);
@@ -3981,7 +3984,14 @@ fn temper_ctl_repeated_settings_decisions() {
     let scratch = ctl_scratch("ctl_accept_settings_default");
     let mut steps = ctl_settings_member_setup(scratch.path());
     steps.push(Step::Then(Box::new(|calls| {
-        Call::new(&["proposal", "decide", &support::ctl::proposal_key(&calls[7]), "accept", "--key", "default-stays"])
+        Call::new(&[
+            "proposal",
+            "decide",
+            &support::ctl::proposal_key(&calls[7], &calls[4]),
+            "accept",
+            "--key",
+            "default-stays",
+        ])
     })));
     steps.push(Step::Run(Call::new(&["settings", "show", "--json"])));
     steps.push(Step::Then(Box::new(|calls| {
@@ -4012,7 +4022,7 @@ fn temper_ctl_decide_settings() {
         Call::new(&[
             "proposal",
             "decide",
-            &support::ctl::proposal_key(&calls[7]),
+            &support::ctl::proposal_key(&calls[7], &calls[4]),
             "accept",
             "--key",
             "member-forbidden",
@@ -4024,7 +4034,7 @@ fn temper_ctl_decide_settings() {
         Call::new(&[
             "proposal",
             "decide",
-            &support::ctl::proposal_key(&calls[7]),
+            &support::ctl::proposal_key(&calls[7], &calls[4]),
             "accept",
             "--running",
             "moves",
@@ -4043,7 +4053,7 @@ fn temper_ctl_decide_settings() {
     })));
     steps.push(Step::Run(Call::new(&["settings", "show", "charter", "1", "--json"])));
     steps.push(Step::Then(Box::new(|calls| {
-        Call::new(&["proposal", "show", &support::ctl::proposal_key(&calls[8]), "--json"])
+        Call::new(&["proposal", "show", &support::ctl::proposal_key(&calls[8], &calls[3]), "--json"])
     })));
     let seen = support::ctl::run(Story::new(scratch.path(), steps));
     for (index, call) in seen.calls.iter().enumerate() {
@@ -4093,7 +4103,7 @@ fn temper_ctl_move_to_newest() {
         ])),
         Step::Then(Box::new(|calls| {
             let created = support::ctl::json(&calls[2]);
-            let task = created["outcome"]["done"]["owner"]["created"]["first"].as_u64().expect("created chat");
+            let task = created["outcome"]["done"]["document"]["created"]["first"].as_u64().expect("created chat");
             Call::new(&["task", "show", &task.to_string()])
         })),
         Step::Mark("Moving the newest revision answers no tasks moved or left behind"),

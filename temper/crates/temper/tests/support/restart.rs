@@ -210,7 +210,7 @@ pub fn assert_held_reviewers(calls: &[Ended], before_call: bool) {
                 "review never began a run: {reviewer}"
             );
         } else {
-            assert_eq!(reviewer["hold"]["owner"]["reason"], "budget", "budget hold: {reviewer}");
+            assert_eq!(reviewer["hold"]["reason"], "budget", "budget hold: {reviewer}");
             assert!(spent > 0, "review ran: {reviewer}");
         }
     }
