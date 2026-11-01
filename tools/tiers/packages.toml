@@ -36,21 +36,6 @@ process-temper = [
     "temper",
 ]
 
-qa-temper = [
-    "temper",
-    "temper-client-browser-world",
-    "temper-client-domain",
-    "temper-client-view",
-    "temper-client-world",
-    "temper-codecs-world",
-    "temper-engine-domain-world",
-    "temper-engine-forge-world",
-    "temper-engine-protocol-forge-world",
-    "temper-real-loop-world",
-    "temper-service",
-    "temper-worker-protocol-git-world",
-]
-
 [binaries]
 browser-jig = [{ package = "jig-test", bin = "jig-test" }]
 browser-skein = [{ package = "skein-ui-example-server", bin = "skein-ui-example" }]
@@ -60,7 +45,3 @@ live-skein = []
 live-smith = []
 live-temper = []
 process-temper = [{ package = "temper-fake-claude", bin = "fake-claude", env = "TEMPER_TEST_CLAUDE" }]
-qa-temper = [
-    { package = "temper", bin = "temper" },
-    { package = "temper-fake-claude", bin = "fake-claude" },
-]

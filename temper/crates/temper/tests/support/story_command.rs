@@ -1,6 +1,7 @@
 //! Callback commands (skein/docs/foundation/testing-strategy.md, 2.10).
-use super::{parent, patience::Patience};
+use super::parent;
 use skein_lib::Duration;
+use skein_world::{Deadline, Expired};
 use std::{
     fs,
     io::Write,
@@ -10,6 +11,15 @@ use std::{
 
 /// These commands run in story callbacks; the enclosing world keeps the verdict.
 pub fn output(command: &mut Command, what: &'static str, within: Duration, input: Option<&[u8]>) -> Output {
+    capture(command, what, within, input, true)
+}
+
+/// A command before any world starts must end and report its own starvation.
+pub fn standalone(command: &mut Command, what: &'static str, within: Duration) -> Output {
+    capture(command, what, within, None, false)
+}
+
+fn capture(command: &mut Command, what: &'static str, within: Duration, input: Option<&[u8]>, defer: bool) -> Output {
     let base = skein_scratch::paths::target_tmp();
     fs::create_dir_all(&base).expect("story command scratch parent");
     let scratch = skein_scratch::Scratch::new_in(&base, "story-command");
@@ -18,7 +28,7 @@ pub fn output(command: &mut Command, what: &'static str, within: Duration, input
     let stderr = scratch.path().join("stderr");
     super::write_private(&stdout, b"");
     super::write_private(&stderr, b"");
-    let mut patience = Patience::arm(what, within);
+    let mut deadline = Some(Deadline::arm(what, within));
     let child = command
         .stdin(if input.is_some() { Stdio::piped() } else { Stdio::null() })
         .stdout(fs::File::create(&stdout).expect("command output"))
@@ -27,7 +37,7 @@ pub fn output(command: &mut Command, what: &'static str, within: Duration, input
         .expect("story command starts");
     let mut owner = parent::Guard::new(child);
     let child = owner.child.as_mut().expect("owned command");
-    patience.watch_process(child.id());
+    deadline.as_mut().expect("armed command").watch_process(child.id());
     if let Some(input) = input {
         child.stdin.take().expect("command input").write_all(input).expect("command input written");
     }
@@ -35,8 +45,17 @@ pub fn output(command: &mut Command, what: &'static str, within: Duration, input
         if let Some(status) = child.try_wait().expect("story command status") {
             break status;
         }
-        if let Some(figures) = patience.failed() {
-            panic!("story command exceeded its bound: {figures}");
+        if let Some(bound) = &deadline
+            && bound.passed()
+        {
+            match bound.expired() {
+                Expired::Starved(_) if defer => deadline = None,
+                Expired::Starved(starved) => {
+                    drop(owner);
+                    starved.pass();
+                }
+                Expired::Failed(figures) => panic!("story command exceeded its bound: {figures}"),
+            }
         }
         std::thread::sleep(std::time::Duration::from_millis(5));
     };
@@ -51,12 +70,11 @@ pub fn output(command: &mut Command, what: &'static str, within: Duration, input
 }
 
 #[cfg(test)]
-mod tests {
+pub mod tests {
     use super::{Duration, output};
     use std::process::Command;
 
-    #[test]
-    fn a_callback_command_captures_output_and_keeps_a_bad_exit() {
+    pub fn a_callback_command_captures_output_and_keeps_a_bad_exit() {
         let output = output(
             Command::new("/bin/sh").args(["-c", "cat; printf diagnostic >&2; exit 7"]),
             "the callback command fixture",

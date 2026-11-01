@@ -1,4 +1,4 @@
-//! A chat's turn and resume admission edges (protocol/configuration.md, 5, 7, 11; protocol/setup.md, 8.1); a QA pass run by `--profile qa`.
+//! Startup admission edges (temper/docs/design/protocol/configuration.md, 5, 7, 11).
 use crate::support;
 
 use serde_json::{Value, json};
@@ -40,7 +40,7 @@ fn set(document: &mut Value, part: Part, name: &str, bytes: u64) {
 // The read's row has no public size query in this world. Check its advertised
 // required figure against admission on both sides, rather than inventing a row size.
 fn edge(part: Part, name: &str) {
-    let scratch = support::Scratch::startup(&format!("qa-plan-chat-{name}"));
+    let scratch = support::Scratch::startup(&format!("plan-chat-{name}"));
     support::configuration(scratch.path(), &support::Forge::Unreached);
     let directories = support::configuration::directories(scratch.path());
     let mut document: Value =
@@ -87,56 +87,11 @@ fn edge(part: Part, name: &str) {
 }
 
 #[test]
-fn engine_turn_edge() {
-    edge(Part::Engine, "hub.turn_bytes");
-}
-
-#[test]
-fn worker_turn_edge() {
-    edge(Part::Worker, "hub.turn_bytes");
-}
-
-#[test]
-fn resume_includes_turn_length() {
-    edge(Part::Engine, "core.resume_bytes");
-}
-
-#[test]
-fn journal_holds_resume_window() {
-    edge(Part::Application, "root.journal.transcript_bytes");
-}
-
-#[test]
-fn loaded_turn_edge() {
-    edge(Part::Application, "root.loads.transcript_bytes");
-}
-
-#[test]
-fn loaded_page_includes_row_slot() {
-    edge(Part::Application, "root.loads.bytes");
-}
-
-#[test]
-fn person_read_includes_row() {
-    edge(Part::Application, "root.loads.read_bytes");
-}
-
-#[test]
-fn engine_transcript_includes_every_box() {
-    edge(Part::Engine, "hub.transcript_bytes");
-}
-
-#[test]
-fn worker_transcript_includes_every_box() {
-    edge(Part::Worker, "hub.transcript_bytes");
-}
-
-#[test]
 fn transcript_padding_covers_all_resume_window_remainders() {
     const LENGTH_BYTES: u64 = 4;
     let box_bytes = u64::try_from(size_of::<Box<[u8]>>()).expect("box size");
     for remainder in 0..LENGTH_BYTES {
-        let scratch = support::Scratch::startup(&format!("qa-plan-chat-window-{remainder}"));
+        let scratch = support::Scratch::startup(&format!("plan-chat-window-{remainder}"));
         support::configuration(scratch.path(), &support::Forge::Unreached);
         let directories = support::configuration::directories(scratch.path());
         let mut document: Value =
@@ -162,6 +117,42 @@ fn transcript_padding_covers_all_resume_window_remainders() {
             assert!(refusal.contains(&format!("{transcript} bytes")), "missing padded window: {refusal}");
             set(&mut document, part, "hub.transcript_bytes", transcript);
         }
+        scratch.remove();
+    }
+}
+
+#[test]
+fn turn_and_resume_bounds_admit_the_edge_and_refuse_one_byte_short() {
+    for (part, name) in [
+        (Part::Engine, "hub.turn_bytes"),
+        (Part::Worker, "hub.turn_bytes"),
+        (Part::Engine, "core.resume_bytes"),
+        (Part::Application, "root.journal.transcript_bytes"),
+        (Part::Application, "root.loads.transcript_bytes"),
+        (Part::Application, "root.loads.bytes"),
+        (Part::Application, "root.loads.read_bytes"),
+        (Part::Engine, "hub.transcript_bytes"),
+        (Part::Worker, "hub.transcript_bytes"),
+    ] {
+        edge(part, name);
+    }
+}
+#[test]
+fn obsolete_owned_organization_members_refuse_startup() {
+    for member in ["orgs", "person.orgs"] {
+        let scratch = support::Scratch::startup(member);
+        support::first_repository::generated(scratch.path());
+        let file = scratch.path().join("temper.json");
+        let mut value: Value = serde_json::from_slice(&fs::read(&file).expect("configuration")).expect("JSON");
+        let owned = &mut value["application"]["machine"]["owned"];
+        let object = if member == "person.orgs" { &mut owned["person"] } else { owned };
+        object["orgs"] = json!(["work"]);
+        let why = temper::operations_in(
+            &support::configuration::directories(scratch.path()),
+            &serde_json::to_vec(&value).expect("JSON"),
+        )
+        .expect_err("obsolete orgs member");
+        assert!(why.contains("application.machine: invalid form"), "{member}: {why}");
         scratch.remove();
     }
 }

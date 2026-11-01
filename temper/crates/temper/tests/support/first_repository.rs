@@ -203,6 +203,53 @@ pub fn review_script() -> Script {
         )]),
     }
 }
+/// Process fixtures do not wait out the stock charters' parking intervals.
+#[must_use]
+pub fn short_waiting_steps(root: &Path) -> Vec<Step> {
+    let file = root.join("short-waiting.json");
+    let mut steps = vec![Step::Run(Call::new(&["settings", "show", "--json"]))];
+    for charter in ["1", "2", "4"] {
+        steps.push(Step::Run(Call::new(&["settings", "show", "charter", charter, "--json"])));
+    }
+    steps.push(Step::Then(Box::new(move |calls| {
+        let last = calls.len();
+        let items: Vec<_> = calls[last - 3..]
+            .iter()
+            .map(|call| {
+                let mut setting = super::ctl::json(call);
+                setting["value"]["waiting"] = 1_000_000.into();
+                json!({"setting":setting["setting"], "set":setting["value"]})
+            })
+            .collect();
+        write_private(&file, &serde_json::to_vec(&json!({"items":items})).expect("short waiting settings"));
+        super::ctl::settings_change(&calls[last - 4], &file, "short-waiting")
+    })));
+    steps
+}
+
+/// A separate disposable oracle token proves that the next handover revokes it.
+pub fn probe_admin_handover(paths: &[std::path::PathBuf; 3], client: &Path, older: &mut Option<String>) {
+    let number = owned_forge(client)["number"].as_u64().expect("owned forge");
+    let document: Value =
+        serde_json::from_slice(&fs::read(paths[0].join("temper.json")).expect("configuration")).expect("JSON");
+    let address: std::net::SocketAddr = document["application"]["machine"]["owned"]["listen"]["socket"]
+        .as_str()
+        .expect("address")
+        .parse()
+        .expect("socket");
+    if let Some(token) = older.take() {
+        assert!(
+            super::owned::answer(address.port(), "/api/v1/user", Some(&token)).is_err(),
+            "the fresh handover revoked the older admin oracle"
+        );
+    } else {
+        let token = super::forge_land::scoped_token(paths, true, number, "temper-admin", "all");
+        let user = super::owned::answer(address.port(), "/api/v1/user", Some(&token)).expect("admin oracle");
+        assert_eq!(user["is_admin"], true);
+        *older = Some(token);
+    }
+}
+
 /// Exercise init's landing rule with the playground's CSV request on real git.
 #[must_use]
 pub fn csv_llm(config: &Path) -> CtlLlm {
@@ -268,7 +315,7 @@ pub fn csv_task_steps(root: &Path) -> Vec<Step> {
     ]));
     let found = steps.split_off(5);
     steps.extend([
-        Step::Run(Call::new(&["change", "show", "2", "--until", "ci:passed", "--timeout", "60s", "--json"])),
+        Step::Run(Call::new(&["change", "show", "2", "--until", "ci:passed", "--json"])),
         Step::Until(Call::new(&["change", "show", "2", "--json"]), br#""verdict":"pending""#),
         Step::Then(Box::new(|calls| {
             let panel = super::ctl::json(calls.last().expect("pending panel"));
@@ -304,7 +351,7 @@ pub fn csv_task_steps(root: &Path) -> Vec<Step> {
                 .expect("pending review");
             assert_eq!(approved["head"], pending["head"], "review is approved at the CI head");
             assert_eq!(approved["ci"], "passed");
-            Call::new(&["change", "show", "2", "--until", "landed", "--timeout", "120s", "--json"])
+            Call::new(&["change", "show", "2", "--until", "landed", "--json"])
         })),
     ]);
     steps.extend(found);
@@ -340,9 +387,9 @@ pub fn playground_read_steps(root: &Path) -> Vec<Step> {
     steps.truncate(3);
     steps.extend([
         Step::TaskExists { project: FIRST.project, parent: FIRST.chat, task: FIRST.change },
-        Step::Run(Call::new(&["change", "show", "2", "--until", "pull", "--timeout", "120s", "--json"])),
+        Step::Run(Call::new(&["change", "show", "2", "--until", "pull", "--json"])),
         // The producer's final turn must be durable before reading its calls.
-        Step::Run(Call::new(&["task", "show", "3", "--until", "ended", "--timeout", "120s", "--json"])),
+        Step::Run(Call::new(&["task", "show", "3", "--until", "ended", "--json"])),
         Step::Mark("playground read evidence"),
     ]);
     steps
@@ -361,7 +408,7 @@ fn task_steps_in(root: &Path, task: Task, repository: &str) -> Vec<Step> {
             "--key",
             "first-repository-llm",
         ])),
-        Step::Run(Call::new(&["account", "list", "--until", "usable", "--timeout", "10s"])),
+        Step::Run(Call::new(&["account", "list", "--until", "usable"])),
         // forge-setup makes the repository a project of its own (tools.md 5.5).
         Step::Run(Call::new(&[
             "chat",
@@ -373,7 +420,7 @@ fn task_steps_in(root: &Path, task: Task, repository: &str) -> Vec<Step> {
             &format!("@first-repository Land a README change in {repository}"),
             "--json",
         ])),
-        Step::Run(Call::new(&["task", "show", &chat, "--until", "replied", "--timeout", "120s", "--json"])),
+        Step::Run(Call::new(&["task", "show", &chat, "--until", "replied", "--json"])),
         Step::Mark("first task's reply"),
     ]
     .into_iter()
@@ -391,7 +438,7 @@ pub fn found_steps_for(task: Task) -> Vec<Step> {
     let change = task.change.to_string();
     let producer = task.producer.to_string();
     vec![
-        Step::Run(Call::new(&["task", "show", &change, "--until", "ended", "--timeout", "120s", "--json"])),
+        Step::Run(Call::new(&["task", "show", &change, "--until", "ended", "--json"])),
         Step::Mark("first change ended"),
         Step::Run(Call::new(&["task", "show", &change])),
         Step::Run(Call::new(&["task", "show", &producer, "--json"])),

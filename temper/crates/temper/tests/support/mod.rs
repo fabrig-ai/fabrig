@@ -1,7 +1,6 @@
 //! Shared configuration fixtures for startup and the process tier.
-pub mod account_file_qa;
 pub mod account_move;
-pub mod account_move_qa;
+pub mod account_transfer;
 pub mod boxed;
 pub mod case;
 pub mod cluster;
@@ -15,8 +14,6 @@ pub mod github_land;
 pub mod held_login;
 pub mod landing_by_turn;
 pub mod owned;
-pub mod placed_holds;
-pub mod running_revision;
 pub mod socket;
 pub mod terminal;
 pub mod turn_restart;
@@ -31,7 +28,6 @@ pub mod forgejo_sign_in;
 pub mod live;
 pub mod live_github;
 pub mod llm;
-pub mod long_question;
 pub mod parent;
 pub mod patience;
 pub mod person;
@@ -733,6 +729,14 @@ fn run_story(
     let Process::Binary(binary) = &outcome.procs[0] else {
         panic!("binary");
     };
+    if !matches!(ending, Ending::Crash) {
+        assert_eq!(
+            binary.exit_status(),
+            Some(Exit::Code(0)),
+            "native story drained: {}",
+            String::from_utf8_lossy(binary.stderr())
+        );
+    }
     if matches!(ending, Ending::Crash) {
         assert!(binary.counts().is_some(), "the crashed temper serve tree settled before the restart");
     }

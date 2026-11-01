@@ -866,3 +866,38 @@ fn own_app_key_is_the_seeded_apps_private_pem() {
     let _again = start(&source, None).expect("reuse keeps the key");
     assert_eq!(fs::read(&path).expect("retained key"), key);
 }
+
+#[test]
+fn changed_source_bytes_or_directory_require_explicit_reset_without_writes() {
+    let scratch = Scratch::new("source-identity");
+    let source = provisioned_source(&scratch);
+    let prepared = start(&source, None).expect("initial preparation");
+    let retained = prepared.directories.document();
+    let before = fs::read(&retained).expect("effective public document");
+    drop(prepared);
+    for name in ["temper.json", "agent.json"] {
+        let path = crate::path(&source.config).join(name);
+        let original = fs::read(&path).expect("source public document");
+        let changed = [original.as_slice(), b"\n"].concat();
+        write(&path, &changed, true).expect("changed public bytes");
+        let refusal = start(&source, None).err().expect("changed source refused");
+        assert!(refusal.contains("changed public source documents"), "{refusal}");
+        assert_eq!(fs::read(&retained).expect("retained document"), before);
+        write(&path, &original, true).expect("restore source fixture");
+    }
+    let relocated = scratch.0.join("other-source");
+    make_private(&relocated, skein_shell::effective_user()).expect("second public source");
+    for name in ["temper.json", "agent.json"] {
+        let content = fs::read(crate::path(&source.config).join(name)).expect("source public document");
+        write(&relocated.join(name), &content, false).expect("same public bytes");
+    }
+    let other = Directories {
+        config: bytes(&relocated),
+        data: source.data.clone(),
+        cache: source.cache.clone(),
+        origins: source.origins,
+    };
+    let refusal = start(&other, None).err().expect("different source refused");
+    assert!(refusal.contains("remove this sandbox directory explicitly to reset it"), "{refusal}");
+    assert_eq!(fs::read(&retained).expect("retained document"), before);
+}

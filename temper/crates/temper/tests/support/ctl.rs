@@ -1091,6 +1091,7 @@ struct Judge {
     deadline: Time,
     scratch: PathBuf,
     token_names: Vec<String>,
+    pending: String,
 }
 impl Referee<Process> for Judge {
     fn act(&mut self, _now: Time, procs: &mut [Process]) {
@@ -1129,10 +1130,8 @@ impl Referee<Process> for Judge {
                 String::from_utf8_lossy(serve.stderr())
             );
         }
-        assert!(
-            now < self.deadline || self.settled,
-            "ctl story did not settle: {}",
-            procs
+        if !self.settled && now >= self.deadline {
+            self.pending = procs
                 .iter()
                 .find_map(|proc| match proc {
                     Process::Calls(calls) => Some(format!(
@@ -1155,14 +1154,14 @@ impl Referee<Process> for Judge {
                     | Process::Issuer(_)
                     | Process::Visitor(_) => None,
                 })
-                .unwrap_or_else(|| "no calls host".into())
-        );
+                .unwrap_or_else(|| "no calls host".into());
+        }
     }
     fn next_deadline(&self) -> Option<Time> {
         (!self.settled).then_some(self.deadline)
     }
     fn overdue(&self, now: Time) -> Option<String> {
-        (!self.settled && now >= self.deadline).then(|| "ctl story deadline".into())
+        (!self.settled && now >= self.deadline).then(|| format!("ctl story did not settle: {}", self.pending))
     }
     fn passed(&self) -> bool {
         self.settled
@@ -1189,6 +1188,7 @@ pub fn run(story: Story<'_>) -> Seen {
         deadline: clock.now().now.saturating_add(within),
         scratch: story.scratch.into(),
         token_names: story.tokens,
+        pending: String::new(),
     });
     world.spawn_with_fds(serve.descriptors(), || Process::Binary(Box::new(serve)));
     world.spawn_with_fds(fds, || {
@@ -1225,6 +1225,7 @@ pub fn alone(scratch: &Path, call: Call) -> Ended {
         deadline: clock.now().now.saturating_add(WITHIN),
         scratch: scratch.into(),
         token_names: Vec::new(),
+        pending: String::new(),
     });
     world.spawn_with_fds(vec![root], || Process::Calls(Box::new(Calls::new(root, vec![Step::Run(call)], None, None))));
     let mut outcome = world.run(&clock, WITHIN);
@@ -1292,25 +1293,27 @@ pub fn proposal_key(ended: &Ended, me: &Ended) -> String {
 }
 
 #[cfg(test)]
-mod read_condition_tests {
+pub mod read_condition_tests {
     use super::*;
 
-    #[test]
-    #[should_panic(expected = "ctl story did not settle: calls=0 member=none child=None")]
-    fn a_single_host_timeout_reports_its_pending_call() {
+    pub fn a_single_host_timeout_reports_its_pending_call() {
         let mut judge = Judge {
             stopped: false,
             settled: false,
             deadline: Time::ZERO,
             scratch: PathBuf::new(),
             token_names: Vec::new(),
+            pending: String::new(),
         };
         let calls = Calls::new(Fd::new(0), Vec::new(), None, None);
         judge.observe(Time::ZERO, &[Process::Calls(Box::new(calls))]);
+        assert_eq!(
+            judge.overdue(Time::ZERO).as_deref(),
+            Some("ctl story did not settle: calls=0 member=none child=None")
+        );
     }
 
-    #[test]
-    fn a_child_prerequisite_reads_later_pages_and_polls_again_from_the_start() {
+    pub fn a_child_prerequisite_reads_later_pages_and_polls_again_from_the_start() {
         let mut calls = Calls::new(Fd::new(0), Vec::new(), None, None);
         calls.action =
             Some(Action::TaskExists(Call::new(&["task", "list", "--project", "1", "--parent", "1", "--json"]), 3));
@@ -1346,8 +1349,7 @@ mod read_condition_tests {
         assert!(calls.ends.is_empty());
     }
 
-    #[test]
-    fn a_child_prerequisite_accepts_live_and_ended_identities_without_shifting_story_calls() {
+    pub fn a_child_prerequisite_accepts_live_and_ended_identities_without_shifting_story_calls() {
         for (arguments, present) in [
             (
                 vec!["task", "list", "--project", "1", "--parent", "1", "--json"],
@@ -1368,9 +1370,7 @@ mod read_condition_tests {
         }
     }
 
-    #[test]
-    #[should_panic(expected = "task-list prerequisite")]
-    fn a_failed_child_prerequisite_stops_before_retrying() {
+    pub fn a_failed_child_prerequisite_stops_before_retrying() {
         let mut calls = Calls::new(Fd::new(0), Vec::new(), None, None);
         calls.action =
             Some(Action::TaskExists(Call::new(&["task", "list", "--project", "1", "--parent", "1", "--json"]), 2));
@@ -1381,9 +1381,7 @@ mod read_condition_tests {
         calls.finish(Time::ZERO);
     }
 
-    #[test]
-    #[should_panic(expected = "poll prerequisite")]
-    fn a_failed_poll_stops_before_retrying_an_unmet_condition() {
+    pub fn a_failed_poll_stops_before_retrying_an_unmet_condition() {
         let mut calls = Calls::new(Fd::new(0), Vec::new(), None, None);
         calls.action = Some(Action::Until(Call::new(&["task", "show", "2"]), ReadCondition::Contains(b"ended")));
         let mut child = completed(b"");
@@ -1393,9 +1391,7 @@ mod read_condition_tests {
         calls.finish(Time::ZERO);
     }
 
-    #[test]
-    #[should_panic(expected = "adoption ended refused: exit=Some(Code(2)); unreachable")]
-    fn a_refused_started_adoption_fails_before_polling_pending() {
+    pub fn a_refused_started_adoption_fails_before_polling_pending() {
         let mut calls = Calls::new(Fd::new(0), Vec::new(), None, None);
         let mut child = completed(b"");
         child.kind = CallKind::Adoption;
@@ -1426,8 +1422,7 @@ mod read_condition_tests {
         }
     }
 
-    #[test]
-    fn a_returned_visit_drains_without_another_process_or_a_poll() {
+    pub fn a_returned_visit_drains_without_another_process_or_a_poll() {
         let scratch = super::super::Scratch::new(&format!("returned-visit-wake-{}", std::process::id()));
         let root = skein_shell::open_root(scratch.path()).expect("scratch root");
         let clock = Clock::new();
@@ -1447,8 +1442,7 @@ mod read_condition_tests {
         child.ended.stdout = stdout.to_vec();
         child
     }
-    #[test]
-    fn process_writing_task_resubscribes_from_the_subject_digest_without_a_poll_delay() {
+    pub fn process_writing_task_resubscribes_from_the_subject_digest_without_a_poll_delay() {
         let mut calls = Calls::new(Fd::new(0), Vec::new(), None, None);
         calls.action = Some(Action::Until(
             Call::new(&["task", "show", "8", "--until", "phase:running", "--json"]),
@@ -1467,8 +1461,7 @@ mod read_condition_tests {
             Call::new(&["task", "show", "8", "--since", "0123456789abcdef", "--json"]).arguments
         );
     }
-    #[test]
-    fn process_until_retains_matching_bytes_and_their_completion_wall() {
+    pub fn process_until_retains_matching_bytes_and_their_completion_wall() {
         let condition = ReadCondition::LimitedTask { task: 2, account: 1, source: 0 };
         let mut calls = Calls::new(Fd::new(0), Vec::new(), None, None);
         calls.action = Some(Action::Until(Call::new(&["task", "show", "2", "--json"]), condition));

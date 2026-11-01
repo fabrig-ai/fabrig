@@ -12,7 +12,7 @@ use std::{
 };
 
 const REPAIR: &str = "Repair the failed CI on the change branch";
-const REPOSITORY: &str = "/api/v1/repos/playground/widget";
+const REPOSITORY: &str = "/api/v1/repos/work/hello";
 fn now() -> Time {
     skein_shell::Clock::new().now().now
 }
@@ -49,31 +49,10 @@ pub fn llm(config: &Path) -> super::boxed::CtlLlm {
     let Line::Call { arguments, .. } = &mut scripts[0].turns[0].lines[0] else { panic!("delegate") };
     let mut delegate: Value = serde_json::from_slice(arguments).expect("delegate JSON");
     delegate["batch"][0]["contract"]["words"] = 512.into();
-    delegate["batch"][0]["spec"]["words"] = "@hello-readme Add CSV export to playground/widget".into();
+    delegate["batch"][0]["spec"]["words"] = "@hello-readme Add CSV export to work/hello".into();
     *arguments = serde_json::to_vec(&delegate).expect("delegate JSON").into_boxed_slice();
-    // Use the shared CSV implementation, writing only src/main.rs at H1.
-    let mut source = scripts[1]
-        .turns
-        .iter()
-        .find(|turn| {
-            turn.lines.iter().any(|line| {
-                let Line::Call { name, arguments } = line else { return false };
-                name.as_ref() == b"write"
-                    && serde_json::from_slice::<Value>(arguments).expect("write JSON")["path"] == "src/main.rs"
-            })
-        })
-        .expect("shared CSV source")
-        .clone();
-    let Line::Call { arguments, .. } = &mut source.lines[0] else { panic!("CSV write") };
-    let mut write: Value = serde_json::from_slice(arguments).expect("CSV write JSON");
-    write["content"] = write["content"].as_str().expect("CSV source").replace("name,count", "fruit,count").into();
-    *arguments = serde_json::to_vec(&write).expect("CSV write JSON").into_boxed_slice();
-    let finish = scripts[1].turns.last().expect("coder finish").clone();
-    // smith's write checks the version the agent read; playground/widget
-    // already has src/main.rs, unlike the CSV fixture's empty work/hello.
-    scripts[1].turns = Box::new([call(b"read", &json!({"path":"src/main.rs"})), source, finish]);
-    // The first-repository story holds the blocking gate; this review finishes directly.
-    scripts[2] = first_repository::review_script();
+    // Keep the shared README, CSV source and pending-review script; the repair
+    // supplies the release note whose absence made the owned runner fail.
     let mut write = call(b"write", &json!({"path":"changes/1.md", "content":NOTE}));
     let mut lines = write.lines.into_vec();
     lines.insert(
@@ -209,7 +188,7 @@ impl Forge {
         assert_eq!(pull["number"], 1);
         let head = pull["head"]["sha"].as_str().expect("pull head");
         assert_eq!(panel["head"], head, "ctl and Forgejo agree at {changes}");
-        assert_eq!(panel["pull"]["address"], format!("http://{}/playground/widget/pulls/1", self.address));
+        assert_eq!(panel["pull"]["address"], format!("http://{}/work/hello/pulls/1", self.address));
         // ctl and the API are separate samples. Forgejo can publish another
         // pending context after a brief success containing only the first job.
         // Accept the repaired head's CI only after both jobs have finished.
@@ -239,7 +218,7 @@ impl Forge {
             .map(|file| file["filename"].as_str().expect("filename"))
             .collect();
         if changes == "failure" {
-            assert_eq!(names, ["src/main.rs"], "H1 has no release note");
+            assert_eq!(names, ["Cargo.toml", "README.md", "src/main.rs"], "H1 has no release note");
         } else {
             assert!(names.contains(&"src/main.rs") && names.contains(&"changes/1.md"));
             assert_eq!(self.contents("changes/1.md", head), NOTE);
@@ -263,18 +242,15 @@ fn assert_contexts(status: &Value, event: &str, changes: &str) {
 }
 
 #[must_use]
-pub fn steps(paths: &[PathBuf; 3], client: &Path, began: Time) -> Vec<Step> {
-    let mut steps = vec![Step::Run(Call::sign_in()), Step::Run(Call::new(&["forge", "setup", "--playground"]))];
+pub fn task_steps(paths: &[PathBuf; 3], client: &Path, began: Time) -> Vec<Step> {
     let gate_paths = paths.clone();
     let gate_client = client.to_path_buf();
-    steps.push(Step::Then(Box::new(move |_| {
+    let mut steps = vec![Step::Then(Box::new(move |_| {
         Forge::person(&gate_paths, &gate_client).install();
-        eprintln!("owned CSV main gate passed: {} ms", now().saturating_since(began).as_nanos() / 1_000_000);
         Call::new(&["forge", "list", "--json"])
-    })));
+    }))];
     let mut task = first_repository::csv_task_steps(client);
-    // Account, repository, request and first reply precede the CI repair.
-    task.truncate(5);
+    let review = task.split_off(5);
     steps.extend(task);
     steps.push(Step::Until(Call::new(&["change", "show", "2", "--json"]), br#""step":"repairing""#));
     let red_paths = paths.clone();
@@ -284,11 +260,11 @@ pub fn steps(paths: &[PathBuf; 3], client: &Path, began: Time) -> Vec<Step> {
         assert_eq!(panel["ci"], "failed");
         assert_eq!(panel["repairs"]["used"], 1);
         Forge::at(&red_paths, &red_client).head(&panel, "failure");
-        eprintln!("owned CSV H1 failed, repair delegated: {} ms", now().saturating_since(began).as_nanos() / 1_000_000);
+        eprintln!("owned CSV H1 failed: {} ms", now().saturating_since(began).as_nanos() / 1_000_000);
         Call::new(&["change", "show", "2", "--json"])
     })));
     steps.push(Step::ReleaseLlm { name: b"csv-repair", cue: REPAIR.as_bytes() });
-    steps.push(Step::Run(Call::new(&["change", "show", "2", "--until", "landed", "--timeout", "120s", "--json"])));
+    steps.extend(review);
     steps
 }
 
@@ -308,7 +284,7 @@ pub fn landed(paths: &[PathBuf; 3], client: &Path, began: Time) -> Value {
     assert_eq!(main["commit"]["id"], panel["merge"]);
     let merge = panel["merge"].as_str().expect("merge SHA");
     assert_eq!(forge.contents("changes/1.md", merge), NOTE);
-    assert!(forge.contents("src/main.rs", merge).contains("fruit,count"), "main holds CSV header");
+    assert!(forge.contents("src/main.rs", merge).contains("name,count"), "main holds CSV header");
     eprintln!("owned CSV landed: {} ms; {panel}", now().saturating_since(began).as_nanos() / 1_000_000);
     panel
 }

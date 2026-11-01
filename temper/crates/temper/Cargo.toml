@@ -132,5 +132,5 @@ name = "suite"
 path = "tests/suite/main.rs"
 
 [[test]]
-name = "qa_all"
-path = "tests/qa_all/main.rs"
+name = "proof_live"
+path = "tests/proof_live.rs"
