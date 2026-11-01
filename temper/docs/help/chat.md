@@ -14,10 +14,14 @@ A chat is a conversation between a party and an agent in a project: an untracked
 - **A reply is not a result.** The agent's words answer the party,
   and the chat goes on: it ends only when its party closes it.
 - **A change is another task's.** Asked for a change to a repository,
-  the chat's run asks for it with the host tool `change`, even where
-  the code must be read first, since the change's coder reads it: a
-  change task, its delegate, writes it, opens its pull request and
-  lands it, and the chat hears its result (temper help task). Until a
+  the chat's run asks for it with the host tool `change`. Asked for a
+  fix, it first reads the named code with the forge's reads:
+  `read_branch` for its head, then `read_file`. If what the party calls
+  broken is absent, it changes nothing and says what the code has.
+  The coder also writes nothing and finishes with a failure if the
+  named fault is absent; it never adds a feature in a fix's place.
+  A change task, the chat's delegate, writes the change, opens its pull
+  request and lands it; the chat hears its result (temper help task). Until a
   delegate reports, the chat says it is started, nothing more. When
   the change holds, the chat tells the party why, in the hold's words,
   and that the party decides: release it or cancel it (temper help
@@ -37,7 +41,10 @@ A chat is a conversation between a party and an agent in a project: an untracked
   party answers it in their inbox. In the chat's conversation the
   goal's question reads `G asks (question Q): ...` and, once answered,
   `Person answered question Q in their inbox`. The chat says what
-  landed as the result says it, never a check or test it doesn't name.
+  landed with the pull request and merge commit its result's `Landed`
+  line names. It describes what changed only as the result or pull
+  request says, never by restating the party's request as done, and
+  never names a check or test the result doesn't name.
 - **An advisor, and changes in order.** Asked for an advisor first, the
   goal, never the chat, starts one with `goal` and `advisor` set: temper opens its brief
   with a line saying it is an advisor, which reads the forge and
