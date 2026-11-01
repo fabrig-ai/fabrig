@@ -72,12 +72,12 @@ pub(super) fn parse(
     let key_file = super::joined(directories, config::Directory::Data, &key_file, &llm_path.member(b"key"), problems)?;
     // This public view reads asked alone; optional cued is checked by the fake.
     // These objects are not finished here, so cued needs no consuming read.
-    let asked = read::list(&mut llm, document, b"asked", w::CEILINGS.demo_answer_cues, &llm_path, problems)?;
+    let asked = read::list(&mut llm, document, b"asked", w::CEILINGS.playground_answer_cues, &llm_path, problems)?;
     let mut cues = List::with_capacity(asked.len());
     for (index, at) in asked.iter().enumerate() {
         let path = read::index(&llm_path.member(b"asked"), index);
         let mut asked = read::object(document, *at, &path, problems)?;
-        let cue = text(document, &mut asked, b"cue", w::CEILINGS.demo_answer_cues_item, &path, problems)?;
+        let cue = text(document, &mut asked, b"cue", w::CEILINGS.playground_answer_cues_item, &path, problems)?;
         cues.push(cue).expect("bounded demo cues");
     }
     let Some(number) = forge else {
@@ -132,7 +132,7 @@ pub(super) fn parse(
         };
         let fake_path = mode_path.member(b"fake");
         let mut fake = read::object(document, at, &fake_path, problems)?;
-        let owner = text(document, &mut fake, b"owner", w::CEILINGS.demo_answer_owner, &fake_path, problems)?;
+        let owner = text(document, &mut fake, b"owner", w::CEILINGS.playground_answer_owner, &fake_path, problems)?;
         let repositories = read::list(&mut fake, document, b"repositories", document.len(), &fake_path, problems)?;
         let Some(at) = repositories.get(0) else {
             problems.push(fake_path.member(b"repositories"), What::Jig(config::What::Form));
@@ -140,7 +140,8 @@ pub(super) fn parse(
         };
         let repository_path = read::index(&fake_path.member(b"repositories"), 0);
         let mut repository = read::object(document, *at, &repository_path, problems)?;
-        let name = text(document, &mut repository, b"name", w::CEILINGS.demo_answer_name, &repository_path, problems)?;
+        let name =
+            text(document, &mut repository, b"name", w::CEILINGS.playground_answer_name, &repository_path, problems)?;
         let landing =
             text(document, &mut repository, b"landing", w::CEILINGS.adopt_landing, &repository_path, problems)?;
         return Some(settings::Demo {

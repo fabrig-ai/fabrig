@@ -106,10 +106,6 @@ fn limits_take_each_bound_from_its_source_field() {
             playground_answer_name: 16,
             playground_answer_cues: crate::CUES,
             playground_answer_cues_item: crate::CUE_BYTES,
-            demo_answer_owner: 16,
-            demo_answer_name: 16,
-            demo_answer_cues: crate::CUES,
-            demo_answer_cues_item: crate::CUE_BYTES,
             first_ask_org: 16,
             first_ask_repository: 16,
             first_ask_label: 64,
@@ -147,72 +143,6 @@ fn each_owner_round_trips_its_number() {
 #[test]
 fn an_unknown_owner_number_has_no_owner() {
     assert_eq!(crate::owner(65_535), None);
-}
-
-#[test]
-fn the_demo_read_and_answer_round_trip_with_nonempty_cues() {
-    let limits = fixtures::limits();
-    let reading = v1::Reading::new(&limits, v1::ReadingParts { read: v1::Read::Demo }).expect("demo read");
-    assert_eq!(crate::decode_reading(&crate::reading(&reading), &limits), Some(reading));
-    for (row, cue, accepted) in [("cue", "Change it", true), ("empty cue", "", false)] {
-        let mut cues = List::with_capacity(crate::CUES);
-        cues.push(cue.as_bytes().into()).expect("one cue");
-        let answer = v1::DemoAnswer::new(
-            &limits,
-            v1::DemoAnswerParts {
-                state: v1::DemoState::Running,
-                project: 7,
-                forge: crate::FORGE,
-                provider: 3,
-                owner: b"acme".as_slice().into(),
-                name: b"shop".as_slice().into(),
-                cues,
-            },
-        )
-        .expect("schema answer");
-        let back = crate::decode_demo_answer(&crate::demo_answer(&answer), &limits);
-        assert_eq!(back.is_some(), accepted, "{row}");
-        if accepted {
-            assert_eq!(back, Some(answer), "{row}");
-        }
-    }
-}
-
-#[test]
-fn demo_cues_obey_their_count_and_text_bounds() {
-    for state in [v1::DemoState::Running, v1::DemoState::Ended] {
-        for (row, count, bytes, accepted) in [
-            ("no cues", 0, b"x".as_slice(), true),
-            ("one byte", 1, b"x".as_slice(), true),
-            ("at count", crate::CUES, b"x".as_slice(), true),
-            ("past count", crate::CUES + 1, b"x".as_slice(), false),
-            ("at bytes", 1, &[b'a'; 256], true),
-            ("past bytes", 1, &[b'a'; 257], false),
-            ("not UTF-8", 1, &[255], false),
-        ] {
-            let limits = fixtures::limits();
-            let mut cues = List::with_capacity(count);
-            for _ in 0..count {
-                cues.push(bytes.into()).expect("row's cue capacity");
-            }
-            let answer = v1::DemoAnswer::new(
-                &limits,
-                v1::DemoAnswerParts {
-                    state: state.clone(),
-                    project: 7,
-                    forge: crate::FORGE,
-                    provider: 3,
-                    owner: b"acme".as_slice().into(),
-                    name: b"shop".as_slice().into(),
-                    cues,
-                },
-            );
-            assert_eq!(answer.is_ok(), accepted, "{row}");
-            if let Ok(answer) = answer {
-                assert_eq!(crate::decode_demo_answer(&crate::demo_answer(&answer), &limits), Some(answer), "{row}");
-            }
-        }
-    }
 }
 
 #[test]
@@ -294,7 +224,6 @@ fn change_panel_bounds_accept_at_and_refuse_one_past() {
 fn requesting_round_trips_and_refuses_trailing_and_version_three_adopt_bytes() {
     let limits = fixtures::limits();
     for request in [
-        v1::Request::StartDemo,
         v1::Request::Adopt(fixtures::adopt()),
         v1::Request::SetUp(
             v1::SetUp::new(
@@ -660,44 +589,6 @@ fn demo_start_outcomes_round_trip_at_each_boundary() {
     writer.put(b"x").expect("extra byte");
     let bytes = writer.finish();
     v1::Answer::decode(&limits, &mut Reader::new(&bytes)).expect_err("past ceiling on decode");
-}
-
-#[test]
-fn demo_states_round_trip_at_smallest_and_ceiling() {
-    use skein_lib::List;
-    let limits = v1::CEILINGS;
-    for state in [v1::DemoState::NotStarted, v1::DemoState::Running, v1::DemoState::Ended] {
-        for full in [false, true] {
-            let mut cues = List::with_capacity(limits.demo_answer_cues);
-            if full {
-                for _ in 0..limits.demo_answer_cues {
-                    cues.push(skein_lib::bytes::zeroed(
-                        usize::try_from(limits.demo_answer_cues_item).expect("ceiling"),
-                    ))
-                    .expect("cue room");
-                }
-            }
-            let field = if full { usize::try_from(limits.demo_answer_owner).expect("ceiling") } else { 0 };
-            let record = v1::DemoAnswer::new(
-                &limits,
-                v1::DemoAnswerParts {
-                    project: if full { u32::MAX } else { 0 },
-                    forge: if full { u16::MAX } else { 0 },
-                    provider: if full { u32::MAX } else { 0 },
-                    owner: skein_lib::bytes::zeroed(field),
-                    name: skein_lib::bytes::zeroed(field),
-                    state: state.clone(),
-                    cues,
-                },
-            )
-            .expect("demo answer");
-            let bytes = crate::demo_answer(&record);
-            assert_eq!(crate::decode_demo_answer(&bytes, &limits), Some(record));
-        }
-    }
-    let record =
-        v1::Requesting::new(&limits, v1::RequestingParts { request: v1::Request::StartDemo }).expect("start request");
-    assert_eq!(crate::decode_requesting(&crate::requesting(&record), &limits), Some(record));
 }
 
 #[test]

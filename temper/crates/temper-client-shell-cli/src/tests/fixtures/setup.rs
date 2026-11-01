@@ -43,7 +43,6 @@ impl Frame {
             ),
             f::Request::Adopt(_)
             | f::Request::Return(_)
-            | f::Request::StartDemo
             | f::Request::Install(_)
             | f::Request::Connect(_)
             | f::Request::Accept(_)

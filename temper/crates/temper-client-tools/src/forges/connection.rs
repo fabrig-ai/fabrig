@@ -295,8 +295,7 @@ pub(super) fn told(state: &mut Forges, env: &Env<Limits>, told: &Told, out: &mut
                 | w::Request::SetUp(_)
                 | w::Request::RemoveForge(_)
                 | w::Request::StartPlayground
-                | w::Request::EndPlayground
-                | w::Request::StartDemo => {
+                | w::Request::EndPlayground => {
                     return false;
                 }
             };
