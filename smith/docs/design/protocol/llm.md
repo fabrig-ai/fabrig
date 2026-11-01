@@ -229,7 +229,9 @@ A completion's prompt is built from what the domain gives:
   - each verdict's label as one of a closed list, and each item's kind
     likewise;
   - each required field by name, with its bound as a JSON Schema
-    `maxLength`.
+    `maxLength`;
+  - for a report or failure rule with no fields, no `fields` property or
+    requirement.
 
   The schema is written with skein's JSON writer, measured first.
 - **Names are unique across sources.** A charter that declares a host tool
@@ -289,6 +291,9 @@ A completion's prompt is built from what the domain gives:
   bound, and is relayed as bytes (domain/run.md, 5.2).
 - **A result for `finish`** is decoded into the domain's result: its form,
   label, text, fields and items. The domain judges it against the contract.
+  A report or failure rule with no fields accepts an absent `fields` as
+  empty, and also accepts an empty `fields` object. A rule with fields
+  requires the object.
 
 ## 5. Rendering
 
