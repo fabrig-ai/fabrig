@@ -38,7 +38,7 @@ fn the_start_draws_the_frame_banner_before_its_chatbar_context_and_invitation() 
     let mut after = 0;
     for (role, name) in [
         (Role::Banner, b"".as_slice()),
-        (Role::Region, b"Playground"),
+        (Role::Region, b"The playground"),
         (Role::Main, b""),
         (Role::Paragraph, b"New chat"),
         (Role::Status, b"Ready"),
@@ -307,7 +307,7 @@ fn a_not_started_demo_has_the_setup_strip_and_no_context_or_demo_banner() {
     for address in [Address::Chats { filter: ChatsFilter::All, start: false }, Address::Chat { task: 41 }] {
         let root = f::demo_state_root(address, w::PlaygroundState::NotStarted);
         let view = f::page_view(&root);
-        assert!(f::find(view.tree(), Role::Region, b"Playground").is_none());
+        assert!(f::find(view.tree(), Role::Region, b"The playground").is_none());
         assert!(f::find(view.tree(), Role::Region, b"Setup").is_some());
         assert!(view.tree().nodes().iter().all(|node| !node.styles.as_slice().contains(&crate::look::CONTEXT)));
     }
@@ -337,7 +337,7 @@ fn a_full_group_failure_keeps_each_utf8_replacement_as_the_forge_failure_does() 
 }
 
 #[test]
-fn a_retired_reload_removes_the_welcome_playground_card() {
+fn a_resetting_read_hides_the_welcome_playground_card() {
     let root = f::demo_state_root(
         Address::Welcome { step: temper_client_domain::Step::Welcome },
         temper_client_protocol_wire::v1::PlaygroundState::Resetting,
