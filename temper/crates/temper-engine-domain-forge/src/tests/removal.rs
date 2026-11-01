@@ -389,6 +389,57 @@ fn restored_removing_forges_retire_entries_before_resending_acts() {
 }
 
 #[test]
+fn a_restored_removing_forges_attempted_entry_is_not_sent_before_retirement() {
+    let mut d = setup_domain(&[], true);
+    let mut row = record(1);
+    row.state = ForgeState::Removing;
+    let mut entry = held_issue();
+    entry.start.as_mut().unwrap().at = env().now;
+    entry.attempt = Some(skein_forge_client::Attempt {
+        sent: env().now,
+        deadline: env().now.saturating_add(Duration::from_secs(1)),
+        wall: env().wall,
+        expires: Wall::from_nanos(env().wall.as_nanos() + Duration::from_secs(1).as_nanos()),
+    });
+    for record in [
+        Stored::ForgeNumbers { next: 2 },
+        Stored::Forge(row),
+        Stored::Repository(adopted()),
+        Stored::Entry { entry, held: false },
+        Stored::Flight { task: 7, entry: 11 },
+        Stored::KeptAct(act(1, KeptActKind::EraseSecrets)),
+    ] {
+        assert!(outputs(&mut d, Event::Restore { record }).is_empty());
+    }
+    // The root settles the outbox before it opens decisions and sends kept acts.
+    for event in [
+        Event::Restored { clock: skein_forge_client::RecoveryClock::Monotonic },
+        Event::ReadAfresh,
+        Event::SettleOutbox,
+    ] {
+        for request in outputs(&mut d, event) {
+            if let Request::Call { .. } = request {
+                panic!("no call before retirement: {request:?}");
+            }
+        }
+    }
+    for request in ready(&mut d) {
+        if let Request::Call { .. } = request {
+            panic!("no resumed call before retirement: {request:?}");
+        }
+    }
+    let out = outputs(&mut d, Event::SendKeptActs);
+    assert_failed(&out, 11, 7);
+    assert_eq!(sent_acts(&out).as_ref(), [act(1, KeptActKind::EraseSecrets)]);
+    assert!(d.entries.is_empty() && d.flights.is_empty());
+    for request in ready(&mut d) {
+        if let Request::Call { .. } = request {
+            panic!("no call after retirement: {request:?}");
+        }
+    }
+}
+
+#[test]
 fn removal_drops_watches_and_late_connection_diagnostics() {
     let mut d = restored(true, record(1));
     let name = branch();

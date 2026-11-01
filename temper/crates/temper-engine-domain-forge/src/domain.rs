@@ -5180,7 +5180,8 @@ fn settle_outbox(d: &mut Domain, env: &Env<Limits>, out: &mut Queue<Request>) {
     // A held entry waits for a person, out of the client's outbox.
     let mut entries = List::with_capacity(env.limits.entries);
     for (_, row) in &d.entries {
-        if !row.held && row.handoff != Handoff::Handed {
+        // SendKeptActs retires ended forges after the core opens decisions.
+        if !row.held && row.handoff != Handoff::Handed && !d.forge_ended(row.entry.repository.forge) {
             entries.push(row.entry.clone()).expect("entry list capacity");
         }
     }
