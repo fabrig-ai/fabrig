@@ -103,3 +103,35 @@ Pre-approved options:
 
 fab's sections, `## Fixed` (each gap fixed, its module, its story),
 and `## Interfaces` for any helper made public.
+
+## Answers
+
+2026-11-01. The removal's acts are asked in its own decision and the
+first `Cancel` is answered in it, so no saved state holds all three
+`Kept` rows: gate the sends behind the commit, or move the cuts to the
+connector boundary? Neither. The engine root stays as it is: a kept act
+is written in the removal's decision and asked in it (`DemoAct`'s rule,
+`temper/docs/design/protocol/setup.md`, 8.4; D4), and an act the core
+answers in that decision is committed with its answer, its row never
+saved and never sent again, which is whole. No production edit outside
+the gap-fix list; the cuts stay at the engine world's root and forked
+store. The first acceptance item reads, for this task:
+
+- **Crash after each commit of the removal.** The story records the
+  commits from the removal's decision to the `Forge` row's erasure and
+  restarts the world (`restart`, a fork of the store at that commit)
+  after each one, a table over them. The removal's commit holds the
+  `Forge` row `removing`, a `Kept` row for each act not answered in it
+  (here the second `Cancel` and `BoxRemove`) and no row for one answered
+  in it, whose task is cancelled in the same commit. Each run ends as the
+  item says (the `Forge` row erased, no `Kept`, `Writer`, `Flight` or
+  `Entry` row of the forge, its `Repository` rows kept and ended, the
+  forge in no `forges` row); after each restart every `Kept` row then
+  saved is sent exactly once more until answered, and no act answered
+  before the cut is sent again. At least one cut must hold a `Kept` row, or the story
+  fails.
+- **The second `Cancel` must be answered:** drive the world past the
+  chat template's grace and the task's end. If it still stays kept, that
+  is a gap the story found: fix it if it lies in `kept.rs` or
+  `removal.rs`, otherwise report it with the write batches, as the
+  option says.
