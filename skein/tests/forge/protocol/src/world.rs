@@ -192,11 +192,9 @@ impl World {
     }
     /// An immutable commit prepared before a person's push.
     pub fn prepare_commit(&mut self, parent: u64, tree: Box<[raw::File]>, message: &[u8]) -> u64 {
-        let Driver::Forgejo(joint) = &mut self.joint else { unreachable!("Forgejo world") };
-        fake::commit(&mut joint.domain, &joint.fake_env.limits, parent, tree, message)
-            .expect("fixture commit")
-            .expect("changed tree")
+        self.joint.prepare_commit(parent, tree, message)
     }
+
     /// A durable write through the client's owner and the real dialect.
     pub fn write(&mut self, write: skein_forge::api::Write) -> Outcome {
         let condition = match &write {
@@ -246,6 +244,15 @@ impl World {
             assert!(self.iterate(end), "write settles within 20 seconds");
         }
         panic!("write step budget")
+    }
+
+    /// GitHub's protocol world with ambiguous update refusals over the wire.
+    #[must_use]
+    pub fn github_ambiguous_updates(seed: u64) -> Self {
+        let mut world = Self::github(seed, 0);
+        let Driver::Github(github) = &mut world.joint else { unreachable!("GitHub world") };
+        github.ambiguous_updates = true;
+        world
     }
 
     /// One GitHub forge, with its App access handed at runtime.

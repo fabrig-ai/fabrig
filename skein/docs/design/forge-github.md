@@ -371,8 +371,14 @@ Designed, not built: the GitHub routes of forge.md 3.2's later calls.
 
 `Update` reads the pull's head, then sends it as `expected_head_sha`, so
 a push between the two is refused (`422` "expected head sha didn’t
-match current head ref.", `Stale`, the apostrophe U+2019 as GitHub
-writes it). GitHub merges the base into the head later (`202`), and the
+match current head ref.", the apostrophe U+2019 as GitHub writes it).
+That refusal is ambiguous: the plan reads the pull once more, without
+repeating the update. A head different from the pinned head is `Stale`;
+an open pull still at that head is `Conflict`. A closed pull is `Closed`.
+The refusal and the unchanged head take precedence over the read's
+mergeability hint, including `mergeable: true`. A failed verification
+read keeps its read failure; it cannot establish a conflict. GitHub merges
+the base into the head later (`202`), and the
 move is heard as any push. A head the client saw would need `Update` to
 carry it (section 15).
 
@@ -447,7 +453,7 @@ bound, revisions, markers and malformed answers; and GitHub's:
 | GraphQL `UNPROCESSABLE`, "... expected head oid does not match the current head oid" | `Stale` |
 | GraphQL `UNPROCESSABLE`, "Pull request Required status check ..." on `enqueue` | `Protected` |
 | any other GraphQL error on `enqueue` | `Refused` |
-| `422` on `Update`, "expected head sha didn’t match current head ref." | `Stale` |
+| `422` on `Update`, "expected head sha didn’t match current head ref." | one pull read: moved head `Stale`, unchanged open head `Conflict`, closed `Closed` (5.2) |
 | `422` on `Update`, "merge conflict between base and head" | `Conflict` |
 | `422` on `OpenPull`, "No commits between ..." | `NothingToMerge` |
 | `422` on `OpenPull`, "A pull request already exists for ..." | `Exists` |

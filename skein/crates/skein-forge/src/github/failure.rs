@@ -20,7 +20,7 @@ pub const MERGE_METHOD: &[u8] = b"merges are not allowed on this repository.";
 pub const ENQUEUE_STALE: &[u8] = b"expected head oid does not match the current head oid";
 /// Required check prefix (enqueue-pending-check-protected).
 pub(crate) const ENQUEUE_CHECK: &[u8] = b"Pull request Required status check ";
-/// Update stale head, matched whole (update-stale-422).
+/// Update refusal requiring pinned-head verification, matched whole (update-stale-422).
 pub const UPDATE_STALE: &[u8] = "expected head sha didn’t match current head ref.".as_bytes();
 /// Update conflict, matched whole (update-conflict-422).
 pub const UPDATE_CONFLICT: &[u8] = b"merge conflict between base and head";

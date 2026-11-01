@@ -1028,9 +1028,65 @@ fn github_update_reads_and_pins_head() {
     );
 }
 #[test]
+fn github_update_ambiguous_refusal_verifies_head_before_conflict() {
+    for mergeable in [Some(true), Some(false), None] {
+        for (moved, closed, error) in
+            [(false, false, api::Error::Conflict), (true, false, api::Error::Stale), (false, true, api::Error::Closed)]
+        {
+            let mut tables = cached_tables();
+            let (mut plan, _) = start_update(&mut tables);
+            head(&mut plan, 422, &mut tables);
+            let next = finish(&mut plan, refusal(crate::github::failure::UPDATE_STALE), &mut tables);
+            let Ok(Some(Step::Send(exchange))) = next else {
+                panic!("ambiguous update refusal needs a head read: {next:?}")
+            };
+            golden(
+                &exchange.request,
+                Method::Get,
+                b"/repos/acme/widgets/pulls/9007199254740993",
+                None,
+                Some(Kind::Pull),
+            );
+            let mut pull = update_pull();
+            pull.mergeable = mergeable;
+            pull.closed = closed;
+            if moved {
+                pull.head_commit = crate::github::id::commit(b"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa").unwrap();
+            }
+            head(&mut plan, 200, &mut tables);
+            assert_eq!(finish(&mut plan, Body::Document(Document::Pull(pull)), &mut tables), ended(Err(error)));
+            assert_eq!(
+                finish(&mut plan, Body::Document(Document::Pull(update_pull())), &mut tables),
+                Err(api::Error::InvalidAnswer)
+            );
+        }
+    }
+}
+#[test]
+fn github_update_verification_failure_never_retries_the_mutation() {
+    for body in [Body::Empty, Body::Document(Document::Pull(document::Pull { number: 1, ..update_pull() }))] {
+        let mut tables = cached_tables();
+        let (mut plan, _) = start_update(&mut tables);
+        head(&mut plan, 422, &mut tables);
+        let Ok(Some(Step::Send(_))) = finish(&mut plan, refusal(crate::github::failure::UPDATE_STALE), &mut tables)
+        else {
+            panic!("verification read")
+        };
+        head(&mut plan, 200, &mut tables);
+        assert_eq!(finish(&mut plan, body, &mut tables), ended(Err(api::Error::Unavailable)));
+    }
+    let mut tables = cached_tables();
+    let (mut plan, _) = start_update(&mut tables);
+    head(&mut plan, 422, &mut tables);
+    finish(&mut plan, refusal(crate::github::failure::UPDATE_STALE), &mut tables).unwrap();
+    assert_eq!(
+        plan.heard(Heard::Failed(Failure::Seen), bounds(), WORD, &mut tables),
+        ended(Err(api::Error::Unavailable))
+    );
+}
+#[test]
 fn github_update_422_and_first_failure() {
     for (status, message, error) in [
-        (422, "expected head sha didn’t match current head ref.", api::Error::Stale),
         (422, "merge conflict between base and head", api::Error::Conflict),
         (409, "merge conflict between base and head", api::Error::Refused),
         (422, "unknown", api::Error::Refused),
