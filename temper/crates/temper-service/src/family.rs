@@ -275,19 +275,23 @@ pub fn to_root(
                 let record = w::PlaygroundAnswer::new(
                     limits,
                     w::PlaygroundAnswerParts {
-                        state: match demo.state {
-                            Some(forge::DemoState::Running) => {
-                                // The playground and demo share the running state.
+                        state: match demo.playground {
+                            Some(forge::Playground { state: forge::PlaygroundState::Running, .. }) => {
                                 w::PlaygroundState::Running
                             }
-                            Some(forge::DemoState::Ended) => {
-                                // A retired demo reads as resetting until the reset is routed.
+                            Some(forge::Playground { state: forge::PlaygroundState::Resetting(_), .. }) => {
                                 w::PlaygroundState::Resetting
                             }
                             None => w::PlaygroundState::NotStarted,
                         },
-                        project: demo.project,
-                        forge: demo.forge,
+                        project: match demo.playground {
+                            Some(row) => row.project.unwrap_or(0),
+                            None => 0,
+                        },
+                        forge: match demo.playground {
+                            Some(row) => row.forge,
+                            None => 0,
+                        },
                         provider: demo.provider,
                         owner: demo.owner.clone(),
                         name: demo.name.clone(),

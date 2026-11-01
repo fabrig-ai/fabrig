@@ -135,3 +135,14 @@ Production repairs remain outside this task’s allowed files.
 The next run checks the repaired implementations against all four stories at both seeds, completes the remaining cuts and assertions, and runs the specified checks.
 Leave `demo.rs` to `fe-world-reset`, as specified.
 The requested report file could not be written because this session’s filesystem is read-only.
+
+### 2026-11-01: Supply the connector/root repairs and resume this branch (recommended), or assign a separate production-repair task? Three required removal stories still fail on the supplied trunk, and their production fixes are outside this task's allowed files. (playground-reset-r6/fe-world-remove-6, foreman playground-reset-r6/fe-world-remove/foreman-5)
+
+Resume fe-world-remove after the connector/root owners repair the reported failures; acceptance remains unchanged.
+The existing answer says: “Resume fe-world-remove after the connector/root owners repair the reported failures; acceptance remains unchanged.”
+The boundary says: “A fault this world shows in the connector or the root is a report item, with the failing story; do not fix it here.”
+Production repairs remain with those owners, outside this task’s allowed files.
+The report explicitly says “Acceptance is not met”; the pushed branch therefore does not qualify for Accept.
+The next run checks repaired implementations against all four stories at both seeds, completes the remaining cuts and assertions, and runs the specified checks.
+Leave `demo.rs` to `fe-world-reset`.
+The requested report file could not be written because this session’s filesystem is read-only.

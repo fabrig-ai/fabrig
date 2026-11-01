@@ -1,5 +1,5 @@
 //! Drives the box through its pipes, signals and supervised process tree.
-use super::{Process, StdoutReader, patience::Patience, printed_link};
+use super::{Process, StdoutReader, forges::FixturePhase, patience::Patience, printed_link};
 use skein_io::kernel::{Exit, Signal};
 use skein_lib::{Duration, Time};
 use skein_shell::{Clock, Host};
@@ -298,6 +298,7 @@ pub struct StoryOutcome<T> {
     pub checked: T,
 }
 struct StoryJudge<'a, F, T> {
+    fixture: FixturePhase,
     check: Option<F>,
     checked: &'a Cell<Option<T>>,
     dormant_checked: &'a Cell<bool>,
@@ -309,6 +310,15 @@ struct StoryJudge<'a, F, T> {
 }
 impl<F: FnOnce() -> T, T> Referee<Process> for StoryJudge<'_, F, T> {
     fn act(&mut self, _now: Time, procs: &mut [Process]) {
+        if matches!(self.fixture, FixturePhase::Provisioning) {
+            let Process::Calls(calls) = &procs[2] else { panic!("fixture provisioning") };
+            if calls.idle() {
+                let link = calls.link().to_vec();
+                let Process::Person(person) = &mut procs[1] else { panic!("native person") };
+                person.ctl_ready(&link);
+                self.fixture = FixturePhase::Story;
+            }
+        }
         let Process::Person(person) = &procs[1] else { panic!("native person") };
         let finished = person.finished && person.client.as_ref().is_some_and(Host::is_empty);
         let Process::Binary(binary) = &mut procs[0] else { panic!("binary") };
@@ -377,6 +387,9 @@ pub fn run_story<T>(
     deadline: Duration,
     check: impl FnOnce() -> T,
 ) -> StoryOutcome<T> {
+    let config = flags.windows(2).find(|pair| pair[0] == "--config").expect("explicit config directory");
+    let configuration = PathBuf::from(&config[1]);
+    let provisioning = super::forges::fixture(&configuration).is_some();
     let data = flags.windows(2).find(|pair| pair[0] == "--data").expect("explicit data directory");
     let logs = Path::new(&data[1]).join("box/logs");
     let clock = Clock::new();
@@ -399,10 +412,10 @@ pub fn run_story<T>(
     let mut fds = streams.descriptors();
     let Streams::Pipes { input, output } = streams else { panic!("pipes mode") };
     let root = skein_shell::open_root(client).expect("client's parent root");
-    fds.push(root);
     let checked = Cell::new(None);
     let dormant_checked = Cell::new(false);
     let mut world = real::World::new(StoryJudge {
+        fixture: if provisioning { FixturePhase::Provisioning } else { FixturePhase::Story },
         check: Some(check),
         checked: &checked,
         dormant_checked: &dormant_checked,
@@ -413,7 +426,28 @@ pub fn run_story<T>(
         deadline: action_deadline("the box person's settlement", deadline, &binary),
     });
     world.spawn_with_fds(binary.descriptors(), || Process::Binary(Box::new(binary)));
-    world.spawn_with_fds(fds, || Process::Person(Box::new(super::person::Person::new(root, input, output, script))));
+    if provisioning {
+        world.spawn_with_fds(vec![root], || {
+            Process::Person(Box::new(super::person::Person::waiting_for_ctl_with_key(root, script)))
+        });
+        let ctl_root = skein_shell::open_root(client).expect("fixture client root");
+        fds.push(ctl_root);
+        world.spawn_with_fds(fds, || {
+            Process::Calls(Box::new(
+                super::ctl::Calls::new(
+                    ctl_root,
+                    vec![super::ctl::Step::Run(super::ctl::Call::sign_in().in_directory("private"))],
+                    Some(&streams),
+                    None,
+                )
+                .with_fixture(&configuration),
+            ))
+        });
+    } else {
+        fds.push(root);
+        world
+            .spawn_with_fds(fds, || Process::Person(Box::new(super::person::Person::new(root, input, output, script))));
+    }
     let ended = world.run(&clock, deadline);
     assert!(ended.procs.iter().all(Host::is_empty), "all real io settles");
     let Process::Binary(binary) = &ended.procs[0] else { panic!("binary") };
@@ -948,6 +982,13 @@ fn configure_face(face: Option<&super::forge_land::Face>, flags: &[String]) {
     }
 }
 
+fn configuration_directory(directory: &Path, flags: &[String]) -> PathBuf {
+    flags
+        .windows(2)
+        .find(|pair| pair[0] == "--config")
+        .map_or_else(|| directory.to_path_buf(), |pair| PathBuf::from(&pair[1]))
+}
+
 fn run_ctl_peers<T>(
     directory: &Path,
     flags: Vec<String>,
@@ -972,6 +1013,7 @@ fn run_ctl_peers<T>(
         CtlModel::Account(probe) => (None, None, Some(probe.face), None),
     };
     configure_face(face.as_ref(), &flags);
+    let configuration = configuration_directory(directory, &flags);
     let tab = steps.iter().any(|step| matches!(step, super::ctl::Step::Visit));
     assert!(!tab || face.is_none(), "box-owned peers or an independent face");
     let clock = Clock::new();
@@ -1023,7 +1065,8 @@ fn run_ctl_peers<T>(
     });
     world.spawn_with_fds(binary.descriptors(), || Process::Binary(Box::new(binary)));
     world.spawn_with_fds(fds, || {
-        let mut calls = super::ctl::Calls::new(root, steps, Some(&streams), None).with_box_stderr();
+        let mut calls =
+            super::ctl::Calls::new(root, steps, Some(&streams), None).with_fixture(&configuration).with_box_stderr();
         if follow_reply {
             calls.hold();
         }

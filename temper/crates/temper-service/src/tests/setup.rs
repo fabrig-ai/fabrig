@@ -1641,6 +1641,7 @@ fn the_demo_waits_for_started_only_under_the_box_even_with_retained_access() {
             landing: b"main".as_slice().into(),
             key_file: b"demo/llm.key".as_slice().into(),
             state: None,
+            playground: None,
         });
         config.setup[0].handover = Some(Secret::new(b"stale-handover".as_slice().into()));
         let configured = crate::startup::application::configured(&config);
@@ -1714,6 +1715,7 @@ fn demo_config() -> crate::settings::Engine {
         landing: b"main".as_slice().into(),
         key_file: b"demo/llm.key".as_slice().into(),
         state: None,
+        playground: None,
     });
     config
 }
