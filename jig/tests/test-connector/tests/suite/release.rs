@@ -91,14 +91,9 @@ fn a_released_project_leaves_no_connector_row() {
     project(&mut world, DELETED_PROJECT, DELETED_TASK, DELETED_PROPOSAL);
 
     let released = world.event(Event::Release { project: DELETED_PROJECT });
-    let erased: BTreeSet<_> = released
-        .iter()
-        .filter_map(|request| match request {
-            Request::Erase { key } => Some(key.clone()),
-            Request::Released { project: DELETED_PROJECT } => None,
-            other => panic!("project release only erases and acknowledges: {other:?}"),
-        })
-        .collect();
+    let (answer, mutations) = released.split_last().expect("project release acknowledges");
+    assert_eq!(answer, &Request::Released { project: DELETED_PROJECT });
+    let erased = erased_keys(mutations);
     assert_eq!(
         erased,
         BTreeSet::from([
@@ -114,7 +109,6 @@ fn a_released_project_leaves_no_connector_row() {
             RecordKey::Made(world.key(DELETED_TASK, 2)),
         ])
     );
-    assert_eq!(released.last(), Some(&Request::Released { project: DELETED_PROJECT }));
     assert_eq!(world.records, kept);
     assert_released(&mut world);
     world.cold_restart();
@@ -161,19 +155,49 @@ fn releasing_a_project_without_rows_answers_at_once() {
 }
 
 #[test]
-#[ignore = "pd-test-connector: task-only records need a decision on project ownership after Unnamed"]
 fn a_released_project_erases_rows_of_an_unnamed_task() {
-    let mut world = World::new(SEED);
-    world.event(Event::Adopt { project: DELETED_PROJECT, resource: path(SEED, 1), role: ResourceRole::Owned });
-    world.event(Event::Names { task: DELETED_TASK, project: DELETED_PROJECT, resources: Box::new([path(SEED, 1)]) });
-    world.event(Event::Subscribe { task: DELETED_TASK, topic: kind(SEED, 1), wake_at: 2, keep_at: 1 });
-    let token = Token::new(DELETED_TASK);
-    world.event(Event::Describe { token, effect: effect() });
-    let kept =
-        world.event(Event::Keep { token, entry: DELETED_TASK, task: DELETED_TASK, key: world.key(DELETED_TASK, 1) });
-    world.release(&kept, &mut std::collections::VecDeque::new());
-    world.event(Event::Unnamed { task: DELETED_TASK });
-    world.cold_restart();
-    world.event(Event::Release { project: DELETED_PROJECT });
-    assert!(world.records.is_empty(), "released task rows remain: {:?}", world.records);
+    for settled in [false, true] {
+        let mut world = World::new(SEED);
+        world.event(Event::Adopt { project: DELETED_PROJECT, resource: path(SEED, 1), role: ResourceRole::Owned });
+        world.event(Event::Names {
+            task: DELETED_TASK,
+            project: DELETED_PROJECT,
+            resources: Box::new([path(SEED, 1)]),
+        });
+        world.event(Event::Subscribe { task: DELETED_TASK, topic: kind(SEED, 1), wake_at: 2, keep_at: 1 });
+        let token = Token::new(DELETED_TASK);
+        world.event(Event::Describe { token, effect: effect() });
+        let key = world.key(DELETED_TASK, 1);
+        let kept = world.event(Event::Keep { token, entry: DELETED_TASK, task: DELETED_TASK, key });
+        if settled {
+            world.release(&kept, &mut std::collections::VecDeque::new());
+        }
+        let unnamed = world.event(Event::Unnamed { task: DELETED_TASK });
+        let erased = erased_keys(&unnamed);
+        let effect_row = if settled { RecordKey::Made(key) } else { RecordKey::Outbox(key) };
+        assert_eq!(
+            erased,
+            BTreeSet::from([
+                RecordKey::Task(DELETED_TASK),
+                RecordKey::Subscription { topic: kind(SEED, 1), task: DELETED_TASK },
+                effect_row,
+            ])
+        );
+        assert!(world.domain.subscribed_topics(DELETED_TASK).is_empty());
+        assert_eq!(world.records.len(), 1, "only the project's adoption remains");
+        assert!(world.event(Event::Unnamed { task: DELETED_TASK }).is_empty());
+        world.cold_restart();
+        world.event(Event::Release { project: DELETED_PROJECT });
+        assert!(world.records.is_empty(), "released task rows remain: {:?}", world.records);
+    }
+}
+
+fn erased_keys(requests: &[Request]) -> BTreeSet<RecordKey> {
+    requests
+        .iter()
+        .map(|request| {
+            let Request::Erase { key } = request else { panic!("release only erases: {request:?}") };
+            key.clone()
+        })
+        .collect()
 }

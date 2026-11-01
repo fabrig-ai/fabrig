@@ -406,6 +406,18 @@ fn names(
 }
 
 fn unnamed(domain: &mut Domain, task: u64, out: &mut Queue<Request>) {
+    let mut subscriptions = Queue::uncapped();
+    for ((topic, subscriber), _) in &domain.subscriptions {
+        if *subscriber == task {
+            subscriptions.push(*topic);
+        }
+    }
+    for _ in 0..subscriptions.len() {
+        let topic = subscriptions.pop().expect("collected task subscription");
+        unsubscribe(domain, task, topic, out);
+    }
+    crate::outbox::release(domain, task, out);
+    domain.closing.remove(&task);
     if domain.delegate_outcomes.remove(&task).is_some() {
         out.push(Request::Erase { key: RecordKey::ProcedureDelegateOutcome(task) });
     }
@@ -424,7 +436,21 @@ fn unnamed(domain: &mut Domain, task: u64, out: &mut Queue<Request>) {
 fn release(domain: &mut Domain, project: u32, out: &mut Queue<Request>) {
     let mut tasks = Map::uncapped();
     for (task, record) in &domain.tasks {
-        if matches!(record, Record::Task { project: owner, .. } if *owner == project) {
+        let owner = match record {
+            Record::Task { project, .. } => *project,
+            Record::ApplicationObject { .. }
+            | Record::ApplicationAnswer { .. }
+            | Record::Proposal { .. }
+            | Record::Procedure(_)
+            | Record::ProcedureDelegateOutcome { .. }
+            | Record::Result { .. }
+            | Record::Adoption { .. }
+            | Record::Subscription { .. }
+            | Record::Pool { .. }
+            | Record::Outbox(_)
+            | Record::Made { .. } => unreachable!("task map holds task records"),
+        };
+        if owner == project {
             tasks.insert(*task, ()).expect("connector-owned task identities fit");
         }
     }
@@ -451,19 +477,7 @@ fn release(domain: &mut Domain, project: u32, out: &mut Queue<Request>) {
         out.push(Request::Erase { key: RecordKey::Adoption { project, path } });
     }
 
-    let mut subscriptions = Queue::uncapped();
-    for ((topic, task), _) in &domain.subscriptions {
-        if tasks.contains_key(task) {
-            subscriptions.push((*topic, *task));
-        }
-    }
-    for _ in 0..subscriptions.len() {
-        let (topic, task) = subscriptions.pop().expect("collected task subscription");
-        unsubscribe(domain, task, topic, out);
-    }
-    crate::outbox::release(domain, &tasks, out);
     for (task, ()) in &tasks {
-        domain.closing.remove(task);
         unnamed(domain, *task, out);
     }
     out.push(Request::Released { project });
@@ -541,6 +555,7 @@ fn unsubscribe(domain: &mut Domain, task: u64, topic: u16, out: &mut Queue<Reque
     }
 }
 
+/// Restores this test's rows; no test store outlives a test, so orphaned task rows need no restart sweep.
 fn restore(domain: &mut Domain, record: Record, out: &mut Queue<Request>) {
     match record {
         Record::ApplicationObject { object, now } => domain.application.restore_object(object, now),

@@ -156,11 +156,11 @@ pub(crate) fn drop_staged(domain: &mut Domain, token: Token) {
     domain.outbox.staged.remove(&token);
 }
 
-/// Project release removes task-owned payloads, recovery state and made keys together.
-pub(crate) fn release(domain: &mut Domain, tasks: &Map<u64, ()>, out: &mut Queue<Request>) {
+/// Task release removes payloads, recovery state and made keys together.
+pub(crate) fn release(domain: &mut Domain, task: u64, out: &mut Queue<Request>) {
     let mut proposals = Queue::uncapped();
-    for (number, (_, task, _)) in &domain.outbox.proposals {
-        if tasks.contains_key(task) {
+    for (number, (_, owner, _)) in &domain.outbox.proposals {
+        if *owner == task {
             proposals.push(*number);
         }
     }
@@ -170,7 +170,7 @@ pub(crate) fn release(domain: &mut Domain, tasks: &Map<u64, ()>, out: &mut Queue
     }
     let mut entries = Queue::uncapped();
     for (number, entry) in &domain.outbox.entries {
-        if tasks.contains_key(&entry.task) || tasks.contains_key(&entry.key.task) {
+        if entry.task == task || entry.key.task == task {
             entries.push((*number, entry.key));
         }
     }
@@ -182,7 +182,7 @@ pub(crate) fn release(domain: &mut Domain, tasks: &Map<u64, ()>, out: &mut Queue
     }
     let mut made = Queue::uncapped();
     for (key, _) in &domain.outbox.made {
-        if tasks.contains_key(&key.task) {
+        if key.task == task {
             made.push(*key);
         }
     }
