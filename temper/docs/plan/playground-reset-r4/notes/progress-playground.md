@@ -5,6 +5,7 @@
 final: tasks/pg-words.md
 final: tasks/pg-project-page.md
 final: tasks/pg-wire.md
+final: tasks/pg-client-read.md
 
 ## Parts
 

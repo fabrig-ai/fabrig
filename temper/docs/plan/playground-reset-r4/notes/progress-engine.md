@@ -2,6 +2,10 @@
 
 final: tasks/store-families.md
 final: tasks/forge-asks.md
+final: tasks/sk-conn-add.md
+final: tasks/sk-setup-forges.md
+final: tasks/sk-client-remove.md
+final: tasks/sk-conn-remove.md
 
 ## Parts
 
@@ -24,6 +28,8 @@ final: tasks/forge-asks.md
 - `Connect`'s forge is `ConnectForge::{Existing(u16), GitHub, Forgejo { address }}`: the person's input; the make path (`fr-make-forge`) turns it into a record. The client wire stays at `CLIENT_VERSION` 11, changed in place (client/README.md, 4.6).
 - `SetUp`'s stub sets up the lowest owned asked forge (the seeded document's); `fr-setup` makes the record from `application.owned`.
 - New answers: `RemoveAnswer::{Removing, Refused(NotOffered | NoSuchForge | Role)}`, `EndAnswer::{Reset, NotOffered}` (answered once the playground is gone); `StartPlayground` answers as `StartDemo` (`StartAnswer`).
+
+- skein's runtime forges are methods (`Component::add`/`remove`, `Host::add`/`remove`, `skein_forge_client::remove_forge`), no new `Request`/`Event`/`Why` variant, so the skein branches force no temper arm; skein's `forge-setup.md` 6.5 (settings fixed for the host's life) is departed from, named in the commit for its designer.
 
 ## Contract problems
 
