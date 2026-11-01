@@ -1119,7 +1119,8 @@ pub fn form_read_value(v: &c::ReadValue) -> n::ReadValue {
         c::ReadValue::Setting(x) => n::ReadValue::Setting(Box::new(form_setting_document(x))),
         c::ReadValue::Revision(x) => n::ReadValue::Revision(Box::new(form_revision_answer(x))),
         c::ReadValue::Revisions(x) => n::ReadValue::Revisions(Box::new(form_revisions_page(x))),
-        c::ReadValue::Tasks(_)
+        c::ReadValue::TaskText(_)
+        | c::ReadValue::Tasks(_)
         | c::ReadValue::Project(_)
         | c::ReadValue::Ended(_)
         | c::ReadValue::Me(_)

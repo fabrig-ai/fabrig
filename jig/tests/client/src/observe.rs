@@ -168,6 +168,7 @@ fn read_cards(v: &ReadValue) -> Vec<Receipt> {
         | ReadValue::Settings(_)
         | ReadValue::Setting(_)
         | ReadValue::Revision(_)
+        | ReadValue::TaskText(_)
         | ReadValue::Revisions(_)
         | ReadValue::Deployment(_) => vec![],
     }

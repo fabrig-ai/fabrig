@@ -6,3 +6,5 @@
 - **Not yet:** 5.3: complete creating bounds/executors and UTF-8 result validation. 6: retained-transcript gone answer. 7.4: application streams. 11: distinct over-bound document answer unresolved. 3.2: Hold; 5.6: holds{project}.
 
 - **Built (2026-11-01):** 5.1, 7.2: live-tree folds name the nearest shown ancestor, with overflow merged into the root within the window's row bound; phase and held counts cover every unshown descendant.
+
+- **Built (2026-11-01):** 6: bounded task source-text reads preserve specification and effective instruction suffixes independently of overview truncation, for live and retained tasks.

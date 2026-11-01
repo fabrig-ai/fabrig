@@ -8,23 +8,7 @@ use skein_lib::{Reader, Writer};
 pub(crate) fn read(value: w::Read) -> Option<reads::Read> {
     Some(match value {
         w::Read::Settings => reads::Read::Settings,
-        w::Read::Setting(value) => {
-            let mut proposal = None;
-            if let Some(key) = value.proposal() {
-                proposal = Some((
-                    match key.proposer() {
-                        w::Proposer::Party(party) => people::Proposer::Party(party.value()),
-                        w::Proposer::Task(task) => people::Proposer::Task(task.value()),
-                    },
-                    key.number(),
-                ));
-            }
-            reads::Read::Setting {
-                setting: super::settings::setting(value.setting()),
-                revision: value.revision(),
-                proposal,
-            }
-        }
+        w::Read::Setting(value) => read_setting(value),
         w::Read::Revision(value) => reads::Read::Revision { number: value.number() },
         w::Read::Revisions(value) => reads::Read::Revisions { before: *value.before() },
         w::Read::Tasks(value) => {
@@ -36,6 +20,7 @@ pub(crate) fn read(value: w::Read) -> Option<reads::Read> {
             }
         }
         w::Read::Turn(value) => reads::Read::Turn { task: value.task(), attempt: value.attempt(), turn: value.turn() },
+        w::Read::TaskText(value) => read_task_text(value),
         w::Read::Me => reads::Read::Frame,
         w::Read::Task(value) => reads::Read::Task { task: value.task() },
         w::Read::Proposal(value) => reads::Read::Proposal {
@@ -49,39 +34,10 @@ pub(crate) fn read(value: w::Read) -> Option<reads::Read> {
         w::Read::Question(value) => reads::Read::Question { task: value.task(), message: value.message() },
         w::Read::PersonTask(value) => reads::Read::PersonTask { task: value.task() },
         w::Read::Result(value) => reads::Read::Result { task: value.task() },
-        w::Read::Ended(value) => {
-            let parts = value.into_parts();
-            let from = match parts.after {
-                Some(value) => Some(cursor::decode(value.value())?),
-                None => None,
-            };
-            reads::Read::EndedDelegates { task: parts.task, from }
-        }
-        w::Read::History(value) => {
-            let parts = value.into_parts();
-            let from = match parts.after {
-                Some(value) => Some(cursor::decode(value.value())?),
-                None => None,
-            };
-            reads::Read::History { task: parts.task, subtree: parts.subtree, from }
-        }
-        w::Read::Activity(value) => {
-            let parts = value.into_parts();
-            let before = match parts.before {
-                Some(value) => Some(cursor::decode(value.value())?),
-                None => None,
-            };
-            reads::Read::Activity { task: parts.task, before }
-        }
-        w::Read::Inbox(value) => {
-            let parts = value.into_parts();
-            let group = group(parts.group, parts.kind)?;
-            let from = match parts.after {
-                Some(value) => Some(cursor::decode(value.value())?),
-                None => None,
-            };
-            reads::Read::Inbox { group, filter: reads::Filter { project: parts.project, goal: parts.goal }, from }
-        }
+        w::Read::Ended(value) => read_ended(value)?,
+        w::Read::History(value) => read_history(value)?,
+        w::Read::Activity(value) => read_activity(value)?,
+        w::Read::Inbox(value) => read_inbox(value)?,
         w::Read::Spend(value) => {
             let parts = value.into_parts();
             let from = match parts.after {
@@ -91,14 +47,7 @@ pub(crate) fn read(value: w::Read) -> Option<reads::Read> {
             reads::Read::Spend { project: parts.project, from }
         }
         w::Read::Project(value) => reads::Read::Project { project: value.project() },
-        w::Read::Notes(value) => {
-            let parts = value.into_parts();
-            let from = match parts.after {
-                Some(value) => Some(cursor::decode(value.value())?),
-                None => None,
-            };
-            reads::Read::ScopedNotes { scope: note_scope(parts.scope), description: parts.description, from }
-        }
+        w::Read::Notes(value) => read_notes(value)?,
         w::Read::Deployment => reads::Read::Deployment,
     })
 }
@@ -174,6 +123,7 @@ pub(crate) fn answer(
             w::ReadRevisionAnswerParts { value: super::settings::revision(value, models, limits)? },
         )?),
         reads::Answer::Revisions(value) => w::ReadValue::Revisions(super::settings::revisions(value, limits)?),
+        reads::Answer::TaskText(value) => w::ReadValue::TaskText(task_text(value, limits)?),
         reads::Answer::Tasks(page) => pages::tasks(page, limits)?,
         reads::Answer::Page(page) => pages::page(models, read, page, limits)?,
         reads::Answer::Document(_) | reads::Answer::Ended(_) => objects::document(answer, models, limits)?,
@@ -205,4 +155,108 @@ fn decode_cursor(value: Option<w::Cursor>) -> Option<Option<reads::Cursor>> {
         Some(value) => Some(Some(cursor::decode(value.value())?)),
         None => Some(None),
     }
+}
+
+fn task_text(value: &reads::TaskText, limits: &w::Limits) -> Result<w::TaskText, w::Problem> {
+    w::TaskText::new(
+        limits,
+        w::TaskTextParts {
+            task: value.task,
+            field: match value.field {
+                reads::TaskTextField::Specification => w::TaskTextField::Specification,
+                reads::TaskTextField::Instructions => w::TaskTextField::Instructions,
+            },
+            from: value.from,
+            total: value.total,
+            next: value.next,
+            words: skein_lib::bytes::copy_of(&value.bytes),
+        },
+    )
+}
+
+fn read_setting(value: w::ReadSetting) -> reads::Read {
+    {
+        let mut proposal = None;
+        if let Some(key) = value.proposal() {
+            proposal = Some((
+                match key.proposer() {
+                    w::Proposer::Party(party) => people::Proposer::Party(party.value()),
+                    w::Proposer::Task(task) => people::Proposer::Task(task.value()),
+                },
+                key.number(),
+            ));
+        }
+        reads::Read::Setting {
+            setting: super::settings::setting(value.setting()),
+            revision: value.revision(),
+            proposal,
+        }
+    }
+}
+
+fn read_task_text(value: w::ReadTaskText) -> reads::Read {
+    reads::Read::TaskText {
+        task: value.task(),
+        from: value.from(),
+        field: match value.field() {
+            w::TaskTextField::Specification => reads::TaskTextField::Specification,
+            w::TaskTextField::Instructions => reads::TaskTextField::Instructions,
+        },
+    }
+}
+
+fn read_ended(value: w::ReadEnded) -> Option<reads::Read> {
+    Some({
+        let parts = value.into_parts();
+        let from = match parts.after {
+            Some(value) => Some(cursor::decode(value.value())?),
+            None => None,
+        };
+        reads::Read::EndedDelegates { task: parts.task, from }
+    })
+}
+
+fn read_history(value: w::ReadHistory) -> Option<reads::Read> {
+    Some({
+        let parts = value.into_parts();
+        let from = match parts.after {
+            Some(value) => Some(cursor::decode(value.value())?),
+            None => None,
+        };
+        reads::Read::History { task: parts.task, subtree: parts.subtree, from }
+    })
+}
+
+fn read_activity(value: w::ReadActivity) -> Option<reads::Read> {
+    Some({
+        let parts = value.into_parts();
+        let before = match parts.before {
+            Some(value) => Some(cursor::decode(value.value())?),
+            None => None,
+        };
+        reads::Read::Activity { task: parts.task, before }
+    })
+}
+
+fn read_inbox(value: w::ReadInbox) -> Option<reads::Read> {
+    Some({
+        let parts = value.into_parts();
+        let group = group(parts.group, parts.kind)?;
+        let from = match parts.after {
+            Some(value) => Some(cursor::decode(value.value())?),
+            None => None,
+        };
+        reads::Read::Inbox { group, filter: reads::Filter { project: parts.project, goal: parts.goal }, from }
+    })
+}
+
+fn read_notes(value: w::ReadNotes) -> Option<reads::Read> {
+    Some({
+        let parts = value.into_parts();
+        let from = match parts.after {
+            Some(value) => Some(cursor::decode(value.value())?),
+            None => None,
+        };
+        reads::Read::ScopedNotes { scope: note_scope(parts.scope), description: parts.description, from }
+    })
 }

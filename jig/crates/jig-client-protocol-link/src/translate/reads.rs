@@ -26,6 +26,17 @@ pub fn read(read: &c::Read, limits: &w::Limits) -> Result<w::Read, w::Problem> {
         c::Read::Turn { task, attempt, turn } => {
             w::Read::Turn(w::ReadTurn::new(limits, w::ReadTurnParts { task: *task, attempt: *attempt, turn: *turn })?)
         }
+        c::Read::TaskText { task, field, from } => w::Read::TaskText(w::ReadTaskText::new(
+            limits,
+            w::ReadTaskTextParts {
+                task: *task,
+                field: match field {
+                    c::TaskTextField::Specification => w::TaskTextField::Specification,
+                    c::TaskTextField::Instructions => w::TaskTextField::Instructions,
+                },
+                from: *from,
+            },
+        )?),
         c::Read::Me => w::Read::Me,
         c::Read::Task { task } => w::Read::Task(w::ReadTask::new(limits, w::ReadTaskParts { task: *task })?),
         c::Read::Proposal { proposal } => w::Read::Proposal(w::ReadProposal::new(
@@ -182,6 +193,7 @@ pub fn value(bytes: &[u8], limits: &Limits) -> Result<c::ReadValue, Undecodable>
         w::ReadValue::Ended(record) => c::ReadValue::Ended(Box::new(objects::ended(*record, limits)?)),
         w::ReadValue::Tasks(record) => c::ReadValue::Tasks(Box::new(pages::task_page(record, limits)?)),
         w::ReadValue::Turn(record) => c::ReadValue::Turn(Box::new(super::turn::archive(record, limits)?)),
+        w::ReadValue::TaskText(record) => c::ReadValue::TaskText(Box::new(task_text(record, limits)?)),
         w::ReadValue::Me(record) => c::ReadValue::Me(Box::new(documents::frame(record, limits)?)),
         w::ReadValue::Task(record) => c::ReadValue::Task(Box::new(documents::task(record, limits)?)),
         w::ReadValue::Proposal(record) => c::ReadValue::Proposal(Box::new(objects::proposal(record, limits)?)),
@@ -196,5 +208,29 @@ pub fn value(bytes: &[u8], limits: &Limits) -> Result<c::ReadValue, Undecodable>
         w::ReadValue::Spend(record) => c::ReadValue::Spend(Box::new(pages::spend_page(record, limits)?)),
         w::ReadValue::Notes(record) => c::ReadValue::Notes(Box::new(pages::note_page(record, limits)?)),
         w::ReadValue::Deployment(record) => c::ReadValue::Deployment(Box::new(documents::deployment(record, limits)?)),
+    })
+}
+
+fn task_text(value: w::TaskText, limits: &Limits) -> Result<c::TaskText, Undecodable> {
+    let value = value.into_parts();
+    let Ok(text) = c::Text::new(value.words, limits.client().text) else { return Err(Undecodable::TooLarge) };
+    let end = value
+        .from
+        .checked_add(u64::try_from(text.bytes().len()).expect("text length fits"))
+        .ok_or(Undecodable::Malformed)?;
+    let next = if end < value.total { Some(end) } else { None };
+    if end > value.total || value.next != next || (value.next.is_some() && text.bytes().is_empty()) {
+        return Err(Undecodable::Malformed);
+    }
+    Ok(c::TaskText {
+        task: value.task,
+        field: match value.field {
+            w::TaskTextField::Specification => c::TaskTextField::Specification,
+            w::TaskTextField::Instructions => c::TaskTextField::Instructions,
+        },
+        from: value.from,
+        total: value.total,
+        next: value.next,
+        text,
     })
 }

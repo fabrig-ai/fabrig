@@ -38,7 +38,7 @@ pub(crate) fn read(store: &mut Store, owner: Token, range: Range, above: &mut Qu
         Scope::EndedTasks => erasure::read(store, &range, None, &mut spent),
         Scope::TaskRows { task } => erasure::read(store, &range, Some(task), &mut spent),
         Scope::SettingsHistory { .. } => settings::read(store, &range),
-        Scope::Task { task } | Scope::PersonTask { task } | Scope::Result { task } => {
+        Scope::TaskText { task, .. } | Scope::Task { task } | Scope::PersonTask { task } | Scope::Result { task } => {
             point::task(store, &range, task, &mut spent)
         }
         Scope::Proposal { proposer, proposal } => point::proposal(store, &range, proposer, proposal, &mut spent),

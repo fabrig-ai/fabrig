@@ -517,6 +517,7 @@ fn change_facts(change: &engine::Change, commit: u64, out: &mut Vec<Observed>) {
                 | ReadValue::Settings(_)
                 | ReadValue::Setting(_)
                 | ReadValue::Revision(_)
+                | ReadValue::TaskText(_)
                 | ReadValue::Revisions(_) => false,
             };
             if terminal {
@@ -547,6 +548,7 @@ fn change_facts(change: &engine::Change, commit: u64, out: &mut Vec<Observed>) {
                 | ReadValue::Settings(_)
                 | ReadValue::Setting(_)
                 | ReadValue::Revision(_)
+                | ReadValue::TaskText(_)
                 | ReadValue::Revisions(_) => {}
             }
         }
@@ -590,6 +592,7 @@ impl Scripted {
             | Read::Settings
             | Read::Setting(_)
             | Read::Revision(_)
+            | Read::TaskText { .. }
             | Read::Revisions(_)
             | Read::Deployment => self.last_object,
         }

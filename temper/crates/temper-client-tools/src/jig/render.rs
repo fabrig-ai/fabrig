@@ -36,7 +36,8 @@ impl<'a> Part<'a> {
             ReadValue::Tasks(value) => Some(Self::TaskPage(value)),
             ReadValue::Task(value) => Some(Self::Task(value)),
             ReadValue::Ended(value) => Some(Self::Task(ended_task(value)?.0)),
-            ReadValue::Settings(_)
+            ReadValue::TaskText(_)
+            | ReadValue::Settings(_)
             | ReadValue::Setting(_)
             | ReadValue::Revision(_)
             | ReadValue::Revisions(_)

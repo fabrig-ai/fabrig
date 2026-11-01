@@ -35,9 +35,13 @@ pub(super) fn task(
             return Ok(empty());
         }
         let Some(owner) = joins::as_task(&value) else { return Err(Failure::Corrupt) };
-        let owner = owner.clone();
-        let related = core::Key::Core(core::CoreKey::Terminal { task, attempt: owner.attempt });
-        let row = joins::row(store, value, Some(&owner), Some(related), spent)?;
+        let row = if let reads::Scope::TaskText { .. } = range.scope {
+            joins::row(store, value, None, None, spent)?
+        } else {
+            let owner = owner.clone();
+            let related = core::Key::Core(core::CoreKey::Terminal { task, attempt: owner.attempt });
+            joins::row(store, value, Some(&owner), Some(related), spent)?
+        };
         return Ok(reads::Loaded::Page { rows: Box::new([row]), next: None });
     }
     Ok(empty())

@@ -925,3 +925,18 @@ fn erasure_scopes_answer_an_empty_page() {
         assert_empty(&result);
     }
 }
+
+#[test]
+fn task_source_text_loads_only_its_owner_without_spending_graph_joins() {
+    let mut store = child_store();
+    store.limits.joins = 1;
+    let scope = reads::Scope::TaskText { task: CHILD, field: reads::TaskTextField::Specification, from: 0 };
+    let result = load(&mut store, fixtures::read(ALICE, scope));
+    let row = one_row(&result);
+    let core::Record::Tasks(tasks::Stored::Ended(owner)) = &row.value else { panic!("source owner") };
+    assert_eq!(owner.number, CHILD);
+    assert!(row.linked.is_empty());
+    assert!(row.ancestors.is_empty());
+    assert!(row.related.is_none());
+    assert!(row.owner.is_none());
+}
