@@ -53,7 +53,8 @@ fn delegate_question(world: &mut jig_core_world::world::World, parent: u64) {
         panic!("admitted delegate")
     };
     let child = numbers[0].task;
-    world.park_for_message(0);
+    // The live delegate gives the requester something to await.
+    world.end(tasks::End::Parked, 0);
     assert_eq!(world.assigned.as_ref().expect("delegate assigned").task, child);
     world.send(root::Event::Core(core::Event::NamedAction {
         to: ReplyTo::new(Token::new(4002)),
@@ -64,7 +65,7 @@ fn delegate_question(world: &mut jig_core_world::world::World, parent: u64) {
             words: b"what next?".as_slice().into(),
         },
     }));
-    assert!(matches!(world.answers.last(), Some((_, _, core::CallPart::Sent { .. }))));
+    assert!(matches!(world.answers.last(), Some((_, _, core::CallPart::Sent { .. }))), "{:?}", world.answers.last());
 }
 
 #[test]

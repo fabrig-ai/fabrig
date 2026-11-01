@@ -16,6 +16,8 @@ fn two_parked_tasks_keep_their_revision_until_the_owner_advances_them() {
     let mut limits = walking::limits();
     // Two creations, one change, one advance and one message per task.
     limits.people.requests = 6;
+    // The timer reserves a delivery; each owner message carries one byte beside it.
+    limits.tasks.inbox_bytes = limits.tasks.result_bytes.max(limits.tasks.message_bytes) + 1;
     let mut root = Driver::configured(Store::new(), [world::config(SEED), world::config(SEED)], &limits);
     root.settle();
     root.send(world::hello(2));
@@ -35,7 +37,7 @@ fn two_parked_tasks_keep_their_revision_until_the_owner_advances_them() {
         root.settle();
         let assignment = root.last_assignment();
         let mut agent =
-            world::scripted_waiting_agent_for(&assignment, None, waiting(&assignment.run.policy.instructions));
+            world::scripted_waiting_agent_for(&assignment, None, waiting(&assignment.run.policy.instructions, true));
         world::run_assignment(&mut root, &assignment, &mut agent);
         assert!(matches!(
             root.task(assignment.task).expect("parked task").phase,
@@ -80,7 +82,7 @@ fn two_parked_tasks_keep_their_revision_until_the_owner_advances_them() {
         assert_eq!(next.task, assignment.task);
         assert!(next.attempt > assignment.attempt);
         assert_eq!(next.run.policy.instructions.as_ref(), NEW_INSTRUCTIONS);
-        let mut agent = world::scripted_waiting_agent_for(&next, None, waiting(&next.run.policy.instructions));
+        let mut agent = world::scripted_waiting_agent_for(&next, None, waiting(&next.run.policy.instructions, false));
         world::run_assignment(&mut root, &next, &mut agent);
         assert!(
             agent.prompts().iter().any(|query| skein_lib::bytes::find(&query.system, NEW_INSTRUCTIONS).is_some()),
@@ -89,13 +91,23 @@ fn two_parked_tasks_keep_their_revision_until_the_owner_advances_them() {
     }
 }
 
-fn waiting(cue: &[u8]) -> Script {
-    Script {
-        cue: cue.into(),
-        turns: Box::new([Turn {
-            lines: Box::new([Line::Call { name: b"wait".as_slice().into(), arguments: b"{}".as_slice().into() }]),
+fn waiting(cue: &[u8], subscribe: bool) -> Script {
+    let mut turns = Vec::new();
+    if subscribe {
+        // Keep the result-ended task awaiting input across the revision change.
+        turns.push(Turn {
+            lines: Box::new([Line::Call {
+                name: b"subscribe".as_slice().into(),
+                arguments: br#"{"kind":"timer","at":18446744073709551615}"#.as_slice().into(),
+            }]),
             finish: Finish::ToolCalls,
             tokens: 20,
-        }]),
+        });
     }
+    turns.push(Turn {
+        lines: Box::new([Line::Call { name: b"wait".as_slice().into(), arguments: b"{}".as_slice().into() }]),
+        finish: Finish::ToolCalls,
+        tokens: 20,
+    });
+    Script { cue: cue.into(), turns: turns.into_boxed_slice() }
 }

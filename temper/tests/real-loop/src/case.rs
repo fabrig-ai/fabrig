@@ -988,10 +988,11 @@ pub const BUDGET_UP_QUESTION_NUMBER: u64 = 2;
 pub const BUDGET_PERSON_ANSWER_NUMBER: u64 = 3;
 pub const BUDGET_NOTICE_NUMBER: u64 = 4;
 pub const BUDGET_ANSWER_NUMBER: u64 = 5;
-pub const BUDGET_FINDING_NUMBER: u64 = 6;
-pub const BUDGET_AMENDMENT_NUMBER: u64 = 7;
-pub const BUDGET_A5_REPORT_NUMBER: u64 = 8;
-pub const BUDGET_ADVISOR_REPORT_NUMBER: u64 = 9;
+pub const BUDGET_TIMER_NUMBER: u64 = 6;
+pub const BUDGET_FINDING_NUMBER: u64 = 7;
+pub const BUDGET_AMENDMENT_NUMBER: u64 = 8;
+pub const BUDGET_A5_REPORT_NUMBER: u64 = 9;
+pub const BUDGET_ADVISOR_REPORT_NUMBER: u64 = 10;
 pub const BUDGET_REVISION: u64 = 1;
 pub const BUDGET_MEDIUM_NUMBER: u8 = 0;
 pub const BUDGET_HIGH_NUMBER: u8 = 1;
@@ -1025,8 +1026,8 @@ pub fn fixture_6_5() -> forge::Fixture {
             // Small profile; default engine/agent model efforts [medium, high].
             // Singleton delegations, five tasks, parked owners and investigator.
             // Two calls carry a tool and wait in one completion; three fleet
-            // calls admit PAUSE_WORKERS. Spend: a5/advisor 10 each; A1 25
-            // (3 spent itself + a5's 2 + 10 advisor + 10 run reserve),
+            // calls admit PAUSE_WORKERS. Spend: a5 10, advisor 9; A1 25
+            // (3 spent itself + a5's 3 + 9 advisor + 10 run reserve),
             // A 35 (25 + 10 run reserve), director 45 (35 + 10 reserve).
             // The base eight-task allowance holds this five-task tree.
             // landing.projects is empty: no repository or change is adopted.
@@ -1037,6 +1038,8 @@ pub fn fixture_6_5() -> forge::Fixture {
             value["world_settings"]["cap"] = 45.into();
             for project in value["world_settings"]["policies"].as_array_mut().expect("projects") {
                 project["policy"]["roles"][0]["authority"]["budget"]["spend"] = 45.into();
+                project["policy"]["ceiling"]["tools"] = (0x0187 | 0x20).into();
+                project["policy"]["roles"][0]["authority"]["tools"] = (0x0187 | 0x20).into();
             }
             value["application"]["landing"]["projects"] = json!([]);
             landing::admit(value);
