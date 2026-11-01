@@ -13,9 +13,10 @@ fn reconcile_hands_the_forge_the_bound_webhook_address_after_a_port_zero_bind() 
         let mut requested = bound;
         requested.set_port(0);
         config.webhooks = Some(skein_forge_connection::hooks::Webhooks { listener: skein_io::Addr::Ip(requested) });
-        let mut store = local_store(true);
+        let mut store = local_store_with(true, &config);
         kept_record(&mut store, 1, Item::WebhookSecret, b"test-hook");
         let mut service = local_service(config, store);
+        fixtures::restore_forges(&mut service);
         let engine = service.engine.as_mut().unwrap();
         // Answer the unrelated worker listener so the real engine pass has routing room.
         for _ in 0..engine.workers.io.len() {
@@ -43,6 +44,8 @@ fn reconcile_hands_the_forge_the_bound_webhook_address_after_a_port_zero_bind() 
             assert!(!engine.setup.waiting_for_webhooks, "bind before records reaches the staged settings");
             assert!(engine.setup.component.is_none(), "the bind still waits for records");
         }
+        fixtures::restore_mark(&mut service);
+        let engine = service.engine.as_mut().unwrap();
         for _ in 0_u32..8 {
             crate::forge::records::advance(engine);
         }

@@ -585,9 +585,9 @@ fn records_service() -> (crate::Service, skein_lib::Secret) {
     settings.forges = forges.into_boxed();
     fixtures::fill_files(&mut settings);
     let file_token = settings.forges[0].api_token.clone().unwrap();
-    let mut service =
-        crate::Service::engine(settings, &fixtures::seeds(), None, runtime, forge::table::Shell::refusing()).unwrap();
-    service.engine.as_mut().expect("engine").store = fixtures::records_store();
+    let store = fixtures::records_store_with(&settings);
+    let mut service = crate::Service::engine(settings, &fixtures::seeds(), None, runtime, fixtures::shell()).unwrap();
+    service.engine.as_mut().expect("engine").store = store;
     (service, file_token)
 }
 #[expect(clippy::disallowed_macros, reason = "ordinary fixtures build versioned row bytes")]
@@ -677,8 +677,11 @@ fn records_start_erases_carried_rows_before_connecting_without_decoding_them() {
             other => panic!("row kept: {other:?}"),
         }
     }
+    let engine = service.engine.as_mut().unwrap();
+    let store = core::mem::replace(&mut engine.store, fixtures::memory_store());
+    engine.store = fixtures::reopened_store(store, &engine.env.limits);
     let mut face = fixtures::ForgeFace::new();
-    for _ in 0_u32..40 {
+    for _ in 0_u32..256 {
         face.turn(&mut service);
     }
     assert!(service.engine.as_ref().expect("engine").forge_records.done());
@@ -710,8 +713,9 @@ fn records_start_erases_carried_rows_before_connecting_without_decoding_them() {
         service.engine.as_ref().expect("engine").forge_records.inspected.len(),
         kept.len().checked_sub(2).unwrap()
     );
-    assert_eq!(service.engine.as_ref().expect("engine").forge.starts.len(), 1);
-    let (number, access) = service.engine.as_mut().expect("engine").forge.starts.get(0).unwrap();
+    assert_eq!(service.engine.as_ref().expect("engine").forge.starts.len(), 2);
+    assert_eq!(service.engine.as_ref().unwrap().forge.starts.get(0).unwrap().0, 1);
+    let (number, access) = service.engine.as_mut().expect("engine").forge.starts.get(1).unwrap();
     assert_eq!((*number, access.user), (2, 9));
     let skein_forge::credential::Credential::App { id, key } = &access.credential else { panic!("App credential") };
     assert_eq!(*id, 7);
@@ -855,8 +859,11 @@ fn a_records_key_that_cannot_sign_stops_only_its_forge() {
             .secrets(Token::new(123), fixtures::application_request(number, value));
         let _kept = service.engine.as_mut().expect("engine").store.above.pop();
     }
+    let engine = service.engine.as_mut().unwrap();
+    let store = core::mem::replace(&mut engine.store, fixtures::memory_store());
+    engine.store = fixtures::reopened_store(store, &engine.env.limits);
     let mut face = fixtures::ForgeFace::new();
-    for _ in 0_u32..40 {
+    for _ in 0_u32..256 {
         face.turn(&mut service);
     }
     let mut stopped = 0_u32;

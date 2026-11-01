@@ -421,10 +421,24 @@ pub fn root() -> (temper_engine_domain::Domain, skein_lib::Env<temper_engine_dom
 /// The worker digests the engine document names.
 pub fn fill_files(settings: &mut settings::Engine) {
     reseed(settings);
-    settings.files.entries = skein_lib::List::with_capacity(2);
     for worker in &settings.jig.hosts.workers {
-        settings.files.entries.push((worker.digest.clone(), Secret::new(WORKER_DIGEST.into()))).unwrap();
+        put_file(&mut settings.files, worker.digest.clone(), Secret::new(WORKER_DIGEST.into()));
     }
+}
+fn put_file(files: &mut settings::Files, name: Box<[u8]>, value: Secret) {
+    for index in 0..files.entries.len() {
+        let entry = files.entries.get_mut(index).unwrap();
+        if entry.0 == name {
+            entry.1 = value;
+            return;
+        }
+    }
+    let mut entries = skein_lib::List::with_capacity(files.entries.len().checked_add(1).unwrap());
+    for entry in core::mem::replace(&mut files.entries, skein_lib::List::with_capacity(0)).into_boxed() {
+        entries.push(entry).unwrap();
+    }
+    entries.push((name, value)).unwrap();
+    files.entries = entries;
 }
 pub fn started_with_two_forges() -> crate::Service {
     start_with_worker(&[(1, 100)], None, None, true, false)
@@ -447,19 +461,24 @@ fn start_with_worker(
 ) -> crate::Service {
     start_with_settings(projects, stored, worker, two_forges, under_box, None)
 }
+#[expect(
+    clippy::too_many_lines,
+    reason = "the fixture aligns its declarations and file contents before constructing the service"
+)]
 fn start_with_settings(
     projects: &[(u32, u64)],
     stored: Option<crate::store::Store>,
     worker: Option<crate::Worker>,
     two_forges: bool,
     under_box: bool,
-    seed: Option<Box<[temper_engine_domain_forge::Forge]>>,
+    seed: Option<&settings::Engine>,
 ) -> crate::Service {
     let mut settings = engine();
     let mut runtime = forge_runtime();
     if two_forges {
         let mut second = forges().into_iter().next().unwrap();
         second.number = 2;
+        second.api = jig_protocol_config::Address::Host { name: b"forge.example".as_slice().into(), port: 3001 };
         second.api_token =
             Some(Secret::new(Box::from(skein_lib::Decimal::of(skein_lib::Rng::new(104).next_u64()).as_bytes())));
         let mut first = settings.forges.into_iter().next().unwrap();
@@ -524,11 +543,28 @@ fn start_with_settings(
     if worker.is_some() {
         settings.jig.limits.hub = worker_settings().jig.limits.hub;
         settings.limits.checkout = worker_limits().checkout;
-        settings.files.entries.get_mut(0).unwrap().1 =
-            Secret::new(b"8f7be71db3941de11249a5e3fba7750a41c7d9958083ef522cb79e9fd7822878".as_slice().into());
+        let digest = settings.jig.hosts.workers[0].digest.clone();
+        put_file(
+            &mut settings.files,
+            digest,
+            Secret::new(b"8f7be71db3941de11249a5e3fba7750a41c7d9958083ef522cb79e9fd7822878".as_slice().into()),
+        );
     }
     if let Some(seed) = seed {
-        settings.seed = seed;
+        settings.limits.forge.forges = settings.limits.forge.forges.max(u32::try_from(seed.seed.len()).unwrap());
+        settings.limits.forge_component.forges = settings.limits.forge.forges;
+        let mut records = crate::startup::seed::seed(&[], &[], seed).unwrap();
+        for record in &mut records {
+            for declared in &seed.seed {
+                if declared.number == record.number {
+                    record.files.clone_from(&declared.files);
+                }
+            }
+        }
+        settings.seed = records;
+        for (name, value) in &seed.files.entries {
+            put_file(&mut settings.files, name.clone(), value.clone());
+        }
     }
     let root = limits::engine(&settings.jig.limits, &settings.limits).unwrap();
     let store = match stored {
@@ -549,7 +585,7 @@ fn start_with_settings(
         worker,
         io,
         if under_box { Some(system::BOX_BYTES) } else { None },
-        crate::forge::table::Shell::refusing(),
+        shell(),
     )
     .unwrap();
 
@@ -580,8 +616,7 @@ pub fn restart(service: &mut crate::Service) {
     assert_eq!(service.end(), None);
 }
 pub fn ready_with(settings: &settings::Engine) -> crate::Service {
-    let seed = crate::startup::seed::seed(&[], &[], settings).expect("bootstrap document seed");
-    let mut service = start_with_settings(&[(1, 100)], None, None, false, false, Some(seed));
+    let mut service = start_with_settings(&[(1, 100)], None, None, false, false, Some(settings));
     restart(&mut service);
     service
 }
@@ -1104,7 +1139,8 @@ pub fn application_request(number: u64, value: Secret) -> jig_protocol_store::Se
 
 /// Reopen a fixture's durable maps as a fresh process, including a fresh mark gate.
 pub fn reopened_store(mut store: crate::store::Store, root: &temper_engine_domain::Limits) -> crate::store::Store {
-    let settings = engine();
+    let mut settings = engine();
+    settings.jig.limits.store.store.page.rows = 32;
     let models = jig_protocol_config::core(&settings.jig, [7; 16], 7).settings.models;
     let limits = crate::store::limits(root, &root.forge, &settings.jig.limits.store).expect("fixture store limits");
     let maps = store.component.into_stores();
@@ -1147,6 +1183,171 @@ pub fn restarting_from(previous: crate::engine::Engine) -> crate::Service {
 }
 
 /// Rebuild a typed fixture's document seed after changing its public settings.
+#[expect(clippy::manual_map, reason = "fixture record conversions use explicit matches")]
 pub fn reseed(settings: &mut settings::Engine) {
-    settings.seed = crate::startup::seed::seed(&[], &[], settings).expect("fixture seed");
+    use crate::startup::application as app;
+    let mut forges = skein_lib::List::with_capacity(settings.limits.forge.forges);
+    let mut identities = skein_lib::List::with_capacity(settings.limits.forge.forges);
+    for forge in &settings.forges {
+        let number = skein_lib::Decimal::of(u64::from(forge.number));
+        let api = fixture_name(&[b"fixture/", number.as_bytes(), b".api"]);
+        let hook = fixture_name(&[b"fixture/", number.as_bytes(), b".hook"]);
+        if let Some(value) = &forge.api_token {
+            put_file(&mut settings.files, api.clone(), value.clone());
+        }
+        if let Some(value) = &forge.webhook_secret {
+            put_file(&mut settings.files, hook.clone(), value.clone());
+        }
+        forges
+            .push(app::Forge {
+                records_only: settings.records_only.contains(&forge.number) || forge.api_token.is_none(),
+                number: forge.number,
+                kind: forge.kind,
+                api: forge.api.clone(),
+                transport: match &forge.transport {
+                    settings::Transport::Plaintext => app::Transport::Plaintext,
+                    settings::Transport::Tls { server_name, .. } => {
+                        app::Transport::Tls { server_name: server_name.clone(), trust: None }
+                    }
+                },
+                git: forge.git.clone(),
+                git_program: forge.git_program.clone(),
+                web: forge.web.clone(),
+                app_read_only: forge.app_read_only,
+                api_token: api,
+                webhook_secret: match forge.webhook_secret {
+                    Some(_) => Some(hook),
+                    None => None,
+                },
+                user: app::User::Id(forge.user),
+                identity: forge.identity,
+            })
+            .unwrap();
+    }
+    for setup in &settings.setup {
+        let path = temper_forge_setup::place::Place { directory: setup.entry.directory.clone(), user: Box::new([]) }
+            .path(temper_forge_setup::place::File::AdminToken);
+        if let Some(value) = &setup.handover {
+            put_file(&mut settings.files, path, value.clone());
+        } else {
+            settings.files.entries =
+                without(core::mem::replace(&mut settings.files.entries, skein_lib::List::with_capacity(0)), &path);
+        }
+    }
+    for identity in &settings.identities {
+        let number = skein_lib::Decimal::of(u64::from(identity.number));
+        let token = fixture_name(&[b"fixture/identity-", number.as_bytes()]);
+        put_file(&mut settings.files, token.clone(), identity.token.clone());
+        identities
+            .push(app::Identity {
+                number: identity.number,
+                forge: Some(identity.forge),
+                token,
+                token_configured: true,
+                login: identity.login.clone(),
+                author: identity.author.clone(),
+            })
+            .unwrap();
+    }
+    settings.seed =
+        crate::startup::seed::seed(forges.as_slice(), identities.as_slice(), settings).expect("fixture seed");
+}
+pub fn shell() -> crate::forge::table::Shell {
+    crate::forge::table::Shell { address: fixture_address, trust: fixture_trust }
+}
+fn fixture_address(address: &jig_protocol_config::Address) -> Result<core::net::SocketAddr, Box<[u8]>> {
+    match address {
+        jig_protocol_config::Address::Addr(skein_io::Addr::Ip(value)) if *value == ([127, 0, 0, 1], 9).into() => {
+            Ok(([127, 0, 0, 1], 3000).into())
+        }
+        jig_protocol_config::Address::Addr(skein_io::Addr::Ip(value)) => Ok(*value),
+        jig_protocol_config::Address::Host { name, port } if name.as_ref() == b"forge.example" => {
+            Ok(([127, 0, 0, 1], if *port == 443 { 3000 } else { *port }).into())
+        }
+        jig_protocol_config::Address::Host { name, .. } if name.as_ref() == b"fake.example" => {
+            Ok(([127, 0, 0, 1], 9).into())
+        }
+        jig_protocol_config::Address::Host { name, port } if name.as_ref() == b"api.github.com" => {
+            Ok(([127, 0, 0, 1], *port).into())
+        }
+        jig_protocol_config::Address::Addr(_) | jig_protocol_config::Address::Host { .. } => {
+            Err(b"fixture address refused".as_slice().into())
+        }
+    }
+}
+#[expect(clippy::unnecessary_wraps, reason = "fixture implements the shell resolver signature")]
+fn fixture_trust(_: Option<&[u8]>) -> Result<skein_tls::Config, Box<[u8]>> {
+    for forge in skein_forge_machine_world::tls::settings().forges.into_boxed() {
+        if let skein_forge_connection::settings::Transport::Tls { trust, .. } = forge.transport {
+            return Ok(trust);
+        }
+    }
+    panic!("fixture trust")
+}
+
+/// Restore connector membership before a harness captures per-forge state.
+pub fn restore_forges(service: &mut crate::Service) {
+    for _ in 0_u32..4096 {
+        if !service.engine.as_ref().unwrap().workers.forges.is_empty() {
+            return;
+        }
+        crate::engine::iterate(
+            service.engine.as_mut().unwrap(),
+            skein_lib::Time::from_nanos(1),
+            skein_lib::Wall::from_nanos(1),
+        );
+        assert_eq!(service.end(), None);
+    }
+    panic!("forge records restored");
+}
+
+/// Persist a fixture's changed public declarations before replaying connector restore.
+pub fn store_forges(store: &mut crate::store::Store, settings: &settings::Engine) {
+    let mut writes = skein_lib::List::with_capacity(settings.limits.forge.forges);
+    for record in &settings.seed {
+        writes
+            .push(temper_engine_domain::Write::Save(temper_engine_domain::Record::Forge {
+                row: Box::new(temper_engine_domain_forge::Stored::Forge(record.clone())),
+            }))
+            .unwrap();
+    }
+    commit(store, 1, writes.into_boxed());
+    let Some(jig_protocol_store::Event::Committed { .. }) = store.above.pop() else {
+        panic!("fixture declarations committed")
+    };
+}
+
+pub fn restore_mark(service: &mut crate::Service) {
+    for _ in 0_u32..4096 {
+        if service.engine.as_ref().unwrap().store.component.mark_durable() {
+            return;
+        }
+        turn(service);
+        assert_eq!(service.end(), None);
+    }
+    panic!("start mark durable");
+}
+
+pub fn refusing_hosts() -> crate::forge::table::Shell {
+    crate::forge::table::Shell { address: refuse_host, trust: fixture_trust }
+}
+fn refuse_host(address: &jig_protocol_config::Address) -> Result<core::net::SocketAddr, Box<[u8]>> {
+    match address {
+        jig_protocol_config::Address::Addr(skein_io::Addr::Ip(value)) => Ok(*value),
+        jig_protocol_config::Address::Addr(_) | jig_protocol_config::Address::Host { .. } => {
+            Err(b"fixture host refused".as_slice().into())
+        }
+    }
+}
+
+fn fixture_name(parts: &[&[u8]]) -> Box<[u8]> {
+    let mut size = 0_usize;
+    for part in parts {
+        size = size.checked_add(part.len()).unwrap();
+    }
+    let mut out = skein_lib::Writer::new(size);
+    for part in parts {
+        out.put(part).unwrap();
+    }
+    out.finish()
 }

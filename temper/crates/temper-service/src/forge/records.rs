@@ -21,7 +21,6 @@ impl Rows {
         }
         Self { values: Map::with_capacity(capacity), configured, unconfigured: Map::with_capacity(FORGES) }
     }
-    #[cfg_attr(not(test), expect(dead_code, reason = "fr-forge-added calls the dynamic table operations"))]
     pub(crate) fn add(&mut self, forge: u16) -> Result<(), super::table::NotKept> {
         if self.configured.as_slice().contains(&forge) {
             return Ok(());
@@ -30,7 +29,6 @@ impl Rows {
         self.unconfigured.remove(&forge);
         Ok(())
     }
-    #[cfg_attr(not(test), expect(dead_code, reason = "fr-forge-added calls the dynamic table operations"))]
     pub(crate) fn remove(&mut self, forge: u16) {
         let mut kept = List::with_capacity(self.configured.capacity());
         for number in &self.configured {
@@ -101,6 +99,12 @@ impl Loader {
                 key_bytes: limits.forge_component.key_bytes,
                 installations: limits.forges.installations,
             },
+        }
+    }
+    pub(crate) fn past_connect(&self) -> bool {
+        match self.phase {
+            Phase::Name { .. } | Phase::Done => true,
+            Phase::Load { .. } | Phase::Connect { .. } | Phase::Sweep { .. } => false,
         }
     }
     pub(crate) fn loading(&self) -> bool {
@@ -185,28 +189,7 @@ pub(crate) fn advance(engine: &mut crate::engine::Engine) {
                 return;
             }
             let number = forge.number;
-            if forge.kind == crate::settings::Kind::GitHub {
-                let kind = skein_forge_connection::settings::Kind::GitHub;
-                let expected = records::origin(kind, &forge.api);
-                let start = match engine.forge_records.rows.forge(number) {
-                    Some(rows) => records::access(kind, &expected, rows, &engine.forge_records.bounds, false),
-                    None => Err(records::NotConnected::NoRecords),
-                };
-                // temper-02 uses start.slug for the git identity's bot author.
-                let start = match start {
-                    Ok(start) => Ok(crate::forge::Start::Restored(start)),
-                    Err(why) => Err(why),
-                };
-                crate::forge::connect(engine, number, start);
-            } else if engine.setup.records_only(number) {
-                // The root restore releases Reconcile; the loader never starts it.
-            } else if let Some(host) = engine.forge.unreachable(number) {
-                // Forgejo connects nothing until temper-15; a held one is still named.
-                engine
-                    .notes
-                    .push(crate::Note::ForgeNotConnected { number, why: crate::NotConnected::Unreachable { host } });
-            }
-            // Forgejo keeps its files until temper-15; its grouped rows change nothing.
+            connect_one(engine, number);
             engine.forge_records.phase = Phase::Connect { index: index.checked_add(1).expect("configured forges") };
         }
         Phase::Name { after } => {
@@ -254,4 +237,77 @@ fn unconfigured_numbers_resume_at_the_cursor_without_retaining_values() {
     rows.push(records::number(1, records::Item::User), Secret::new(Box::from([1, 9])), 4096);
     assert!(rows.forge(1).is_some());
     assert_eq!(rows.unconfigured.len(), 4);
+}
+
+/// Load one runtime forge's bounded secret items from the durable store.
+pub(crate) fn load_one(engine: &mut crate::engine::Engine, forge: u16) -> bool {
+    for item in [
+        records::Item::AdminToken,
+        records::Item::ApiToken,
+        records::Item::GitToken,
+        records::Item::User,
+        records::Item::WebhookSecret,
+        records::Item::AppId,
+        records::Item::AppSlug,
+        records::Item::AppKey,
+        records::Item::Accepted,
+        records::Item::Origin,
+    ] {
+        let number = records::number(forge, item);
+        match engine.store.secrets(LOAD, Secrets::Get { owner: SecretOwner::Application, number }) {
+            Some(Event::Secret { value: Some(jig_protocol_store::SecretValue::Application(value)), .. }) => {
+                engine.forge_records.rows.push(number, value, engine.forge_records.value_bytes);
+            }
+            Some(Event::Secret { value: None, .. }) => {}
+            Some(_) | None => {
+                crate::stop::unavailable(engine, b"forge records");
+                return false;
+            }
+        }
+    }
+    true
+}
+/// Connect one held forge through the same path at startup and at runtime.
+pub(crate) fn connect_one(engine: &mut crate::engine::Engine, number: u16) {
+    let mut source = None;
+    for forge in &engine.workers.forges {
+        if forge.number == number {
+            source = Some(forge);
+            break;
+        }
+    }
+    let Some(forge) = source else { return };
+    let files = match super::table::record(engine, number) {
+        Some(record) => record.files.is_some(),
+        None => false,
+    };
+    if forge.kind == crate::settings::Kind::GitHub || (!files && !engine.setup.records_only(number)) {
+        let kind = match forge.kind {
+            crate::settings::Kind::GitHub => skein_forge_connection::settings::Kind::GitHub,
+            crate::settings::Kind::Forgejo => skein_forge_connection::settings::Kind::Forgejo,
+        };
+        let expected = records::origin(kind, &forge.api);
+        let start = match engine.forge_records.rows.forge(number) {
+            Some(rows) => records::access(kind, &expected, rows, &engine.forge_records.bounds, false),
+            None => Err(records::NotConnected::NoRecords),
+        };
+        let start = match start {
+            Ok(start) => Ok(crate::forge::Start::Restored(start)),
+            Err(why) => Err(why),
+        };
+        crate::forge::connect(engine, number, start);
+    } else if engine.setup.records_only(number) || engine.setup.adopting(number) {
+        // The root restore releases Reconcile; the loader never starts it.
+    } else if let Some(record) = super::table::record(engine, number) {
+        let source = super::table::settings_forge(record, &engine.forge.files).expect("held file form");
+        if let Some(access) = crate::forge::file_access(&source) {
+            crate::forge::connect(engine, number, Ok(crate::forge::Start::Adopted(access)));
+        } else if let Some(host) = engine.forge.unreachable(number) {
+            engine
+                .notes
+                .push(crate::Note::ForgeNotConnected { number, why: crate::NotConnected::Unreachable { host } });
+        }
+    } else if let Some(host) = engine.forge.unreachable(number) {
+        engine.notes.push(crate::Note::ForgeNotConnected { number, why: crate::NotConnected::Unreachable { host } });
+    }
 }

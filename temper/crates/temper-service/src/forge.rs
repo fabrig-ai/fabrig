@@ -113,7 +113,7 @@ pub fn settings(
     }
 }
 // Transitional Forgejo files; temper-15 replaces them with records.
-fn file_access(forge: &settings::Forge) -> Option<skein_forge_connection::Access> {
+pub(crate) fn file_access(forge: &settings::Forge) -> Option<skein_forge_connection::Access> {
     let token = forge.api_token.as_ref()?;
     Some(skein_forge_connection::Access {
         credential: skein_forge::credential::Credential::Token(token.clone()),
@@ -209,8 +209,8 @@ pub(crate) struct Layer {
     pub(crate) closed: bool,
     begun: bool,
     held: Map<u16, Box<[u8]>>,
+    pub(crate) records: Map<u16, forge::Forge>,
     pub(crate) files: settings::Files,
-    #[cfg_attr(not(test), expect(dead_code, reason = "fr-forge-added uses the retained shell"))]
     pub(crate) shell: table::Shell,
     #[cfg(test)]
     pub(crate) starts: List<(u16, skein_forge_connection::Access)>,
@@ -240,6 +240,7 @@ impl Layer {
         }
         Ok(Self {
             held: held_hosts,
+            records: Map::with_capacity(limits.forges),
             files: settings::Files { entries: List::with_capacity(0) },
             shell,
             component: skein_forge_connection::Component::new(settings, &limits, shared)?,
@@ -256,12 +257,10 @@ impl Layer {
             returned: 0,
         })
     }
-    #[cfg_attr(not(test), expect(dead_code, reason = "fr-forge-added calls the dynamic table operations"))]
     pub(crate) fn add_held(&mut self, forge: u16, host: Box<[u8]>) -> Result<(), table::NotKept> {
         self.held.insert(forge, host).or(Err(table::NotKept::Bound))?;
         Ok(())
     }
-    #[cfg_attr(not(test), expect(dead_code, reason = "fr-forge-added calls the dynamic table operations"))]
     pub(crate) fn remove_held(&mut self, forge: u16) {
         self.held.remove(&forge);
     }

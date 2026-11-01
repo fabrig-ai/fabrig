@@ -63,7 +63,6 @@ impl Tokens {
         }
         Self { forges }
     }
-    #[cfg_attr(not(test), expect(dead_code, reason = "fr-forge-added calls the dynamic table operations"))]
     pub(crate) fn add(
         &mut self,
         forge: u16,
@@ -88,7 +87,6 @@ impl Tokens {
             .or(Err(super::table::NotKept::Bound))?;
         Ok(())
     }
-    #[cfg_attr(not(test), expect(dead_code, reason = "fr-forge-added calls the dynamic table operations"))]
     pub(crate) fn remove(&mut self, forge: u16) {
         self.forges.remove(&forge);
     }

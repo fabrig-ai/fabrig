@@ -281,15 +281,11 @@ fn old_form_service(hooks: bool) -> crate::Service {
     );
     fixtures::reseed(&mut config);
     let store = fixtures::records_store_with(&config);
-    let mut service = crate::Service::engine(
-        config,
-        &fixtures::seeds(),
-        None,
-        fixtures::forge_runtime(),
-        crate::forge::table::Shell::refusing(),
-    )
-    .unwrap();
-    service.engine.as_mut().expect("engine").store = store;
+    let mut service =
+        crate::Service::engine(config, &fixtures::seeds(), None, fixtures::forge_runtime(), fixtures::shell()).unwrap();
+    let limits = service.engine.as_ref().unwrap().env.limits;
+    service.engine.as_mut().expect("engine").store = fixtures::reopened_store(store, &limits);
+    fixtures::restore_forges(&mut service);
     advance(service.engine.as_mut().expect("engine"));
     assert!(service.engine.as_ref().expect("engine").setup.runs.is_empty(), "wait for records");
     service.engine.as_mut().expect("engine").forge.iterate(Time::ZERO, Wall::EPOCH);
@@ -301,8 +297,14 @@ fn old_form_service(hooks: bool) -> crate::Service {
         // The fixture supplies the forge's successful bind result before starting setup.
         service.engine.as_mut().expect("engine").setup.webhooks_listening(addr.socket().unwrap());
     }
+    fixtures::restore_mark(&mut service);
     for _ in 0_u32..8 {
         crate::forge::records::advance(service.engine.as_mut().expect("engine"));
+    }
+    let adoption = service.engine.as_mut().unwrap().setup.lifecycle.adoptions.remove(&1);
+    restore_local(&mut service);
+    if let Some(adoption) = adoption {
+        service.engine.as_mut().unwrap().setup.lifecycle.adoptions.insert(1, adoption).unwrap();
     }
     advance(service.engine.as_mut().expect("engine"));
     assert!(service.engine.as_ref().expect("engine").forge_records.done());
@@ -486,14 +488,9 @@ fn old_form_owned_and_managed_serve_reads_without_start_time_writing_plans() {
         let host::Kind::Forgejo(_) = &settings.forges.get(0).unwrap().kind else { panic!("Forgejo Given") };
         fixtures::reseed(&mut config);
         let store = fixtures::records_store_with(&config);
-        let mut service = crate::Service::engine(
-            config,
-            &fixtures::seeds(),
-            None,
-            fixtures::forge_runtime(),
-            crate::forge::table::Shell::refusing(),
-        )
-        .unwrap();
+        let mut service =
+            crate::Service::engine(config, &fixtures::seeds(), None, fixtures::forge_runtime(), fixtures::shell())
+                .unwrap();
         service.engine.as_mut().expect("engine").store = store;
         for _ in 0_u32..8 {
             crate::forge::records::advance(service.engine.as_mut().expect("engine"));
@@ -529,11 +526,15 @@ fn an_unserved_old_form_fake_drops_its_adoptions_and_names_the_exclusion_without
 fn an_unresolved_old_form_fake_keeps_its_entry_but_suppresses_file_access_and_adoption() {
     let mut config = old_form_configured(false);
     config.forges[0].api = jig_protocol_config::Address::Host { name: b"fake.example".as_slice().into(), port: 9 };
+    fixtures::reseed(&mut config);
+    let store = fixtures::records_store_with(&config);
     let mut runtime = fixtures::forge_runtime();
     runtime.get_mut(0).unwrap().address = crate::forge::HELD_ADDRESS;
     let mut service =
-        crate::Service::engine(config, &fixtures::seeds(), None, runtime, crate::forge::table::Shell::refusing())
-            .unwrap();
+        crate::Service::engine(config, &fixtures::seeds(), None, runtime, fixtures::refusing_hosts()).unwrap();
+    let limits = service.engine.as_ref().unwrap().env.limits;
+    service.engine.as_mut().unwrap().store = fixtures::reopened_store(store, &limits);
+    fixtures::restore_forges(&mut service);
     let engine = service.engine.as_mut().unwrap();
     assert!(engine.setup.served.contains_key(&1));
     assert!(engine.setup.lifecycle.adoptions.is_empty());
@@ -565,11 +566,15 @@ fn an_unresolved_old_form_fake_keeps_its_entry_but_suppresses_file_access_and_ad
 fn an_unresolved_old_form_forgejos_asked_check_is_refused_before_its_unstaged_connected_path() {
     let mut config = old_form_configured(false);
     config.forges[0].api = jig_protocol_config::Address::Host { name: b"fake.example".as_slice().into(), port: 9 };
+    fixtures::reseed(&mut config);
+    let store = fixtures::records_store_with(&config);
     let mut runtime = fixtures::forge_runtime();
     runtime.get_mut(0).unwrap().address = crate::forge::HELD_ADDRESS;
     let mut service =
-        crate::Service::engine(config, &fixtures::seeds(), None, runtime, crate::forge::table::Shell::refusing())
-            .unwrap();
+        crate::Service::engine(config, &fixtures::seeds(), None, runtime, fixtures::refusing_hosts()).unwrap();
+    let limits = service.engine.as_ref().unwrap().env.limits;
+    service.engine.as_mut().unwrap().store = fixtures::reopened_store(store, &limits);
+    fixtures::restore_forges(&mut service);
     let engine = service.engine.as_mut().unwrap();
     engine.store = fixtures::records_store();
     engine.forge_records.loaded(Box::new([]), None);

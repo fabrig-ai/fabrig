@@ -685,7 +685,10 @@ pub(crate) fn service(inherited: &Inherited) -> Proc {
         setup.as_ref(),
         None,
         &stories::given(&serde_json::from_slice(&fixtures::document()).expect("deployment JSON")),
-        temper_service::forge::table::Shell::refusing(),
+        temper_service::forge::table::Shell {
+            address: forge_address,
+            trust: temper_service::forge::table::Shell::refusing().trust,
+        },
     )
     .expect("one-process startup");
     service.adopt_store(root, 1000).expect("deployment store");
@@ -1176,4 +1179,13 @@ mod tests;
 
 pub(crate) fn lower_store(store: Option<Rc<RefCell<Store>>>) {
     STORE.with(|cell| *cell.borrow_mut() = store);
+}
+
+fn forge_address(address: &jig_protocol_config::Address) -> Result<core::net::SocketAddr, Box<[u8]>> {
+    match address {
+        jig_protocol_config::Address::Addr(skein_io::Addr::Ip(address)) => Ok(*address),
+        jig_protocol_config::Address::Addr(_) | jig_protocol_config::Address::Host { .. } => {
+            Err(b"fixture address refused".as_slice().into())
+        }
+    }
 }

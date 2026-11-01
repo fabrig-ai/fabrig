@@ -702,7 +702,8 @@ fn string_managed_serves_no_listener_even_when_owned_forges_have_webhooks() {
     let mut config = config();
     config.webhooks =
         Some(skein_forge_connection::hooks::Webhooks { listener: skein_io::Addr::Ip(([127, 0, 0, 1], 7101).into()) });
-    let service = local_service(config, store(&forge));
+    let mut service = local_service(config, store(&forge));
+    fixtures::restore_forges(&mut service);
     let engine = service.engine.as_ref().unwrap();
     let (settings, _) = engine.setup.pending.as_ref().unwrap();
     let host::Kind::Forgejo(given) = &settings.forges.get(0).unwrap().kind else { panic!("Forgejo") };
