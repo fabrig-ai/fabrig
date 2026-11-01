@@ -12,6 +12,7 @@ files = [
   "temper/crates/temper/src/fake.rs",
   "temper/crates/temper/src/fake/tests.rs",
   "temper/crates/temper/src/fake/check.rs",
+  "temper/crates/temper/src/fake/check/tests.rs",
 ]
 effort = "medium"
 minutes = 40
@@ -106,3 +107,13 @@ Acceptance:
 
 Fab's sections; under `## Interfaces`: `setup::entry` and each command's new
 refusal words.
+
+## Answers
+
+2026-11-01. May this task update `fake/check/tests.rs`'s `no-entry` row
+for the new refusal? Yes: the file joins this task's files (no other task
+owns it). Change only that row's expected refusal to the new words,
+`forge 1: the setup has no entry for it and <data>/box/groups/1 is absent`
+with the path absolute, built as the row's neighbours build theirs
+(`path("no-entry", "data/box/groups/1")` if that is the case's data
+directory); no other assertion there changes.
