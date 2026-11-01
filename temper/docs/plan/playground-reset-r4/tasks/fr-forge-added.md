@@ -12,6 +12,7 @@ files = [
   "temper/crates/temper-service/src/engine.rs",
   "temper/crates/temper-service/src/tests/forge_added.rs",
   "temper/crates/temper-protocol-records/src/forge.rs",
+  "temper/crates/temper-service/src/tests/**",
 ]
 effort = "high"
 minutes = 60
@@ -148,3 +149,33 @@ calls the item; each other line of those files stays. In
 becomes `engine.workers.forges.as_slice()`, as the file's other calls
 already read, and nothing else there changes. Both files join this
 task's scope for these edits only; list them in the report.
+
+2026-11-01. May this task adapt the service test fixtures' inputs
+(seed, credentials, resolver, restore harnesses) beyond driving the
+start? Yes (option A). `fr-seed`, their owner, has landed, and the
+acceptance ("every service and system-world test passes") is this
+task's: the fixtures now describe their forges the way the service
+reads them, from records (contracts, D1). `temper-service/src/tests/**`
+joins the header, for test-only edits under these rules:
+
+- Credentials reach a fixture's forge as a document's do: `reseed`
+  and its callers pass the file-form declarations with their `Files`
+  contents, so the seeded record carries them; a test about a
+  records-only forge puts its secrets in the store's records instead.
+  No typed-settings path is read by production code for them.
+- The resolver is a test `forge::table::Shell` of plain functions
+  (no DNS, no clock): `address` maps the fixture's declared host to the
+  runtime address it already uses, `trust` returns the trust it already
+  builds; `start_with_settings` and `fixtures/startup.rs` pass it where
+  they pass `Shell::refusing()` today. `Shell::refusing()` stays for
+  the tests that mean refusal.
+- A restore harness that captures local state takes it after the
+  start's `ForgeKept`, by driving the start first.
+- Every assertion keeps its meaning: an expected request still names
+  the fixture's token and declared host, an injected forge outcome is
+  still the one seen; no test is removed, ignored or loosened, and no
+  production file outside the header changes.
+- If a red remains that a fixture input cannot explain (a production
+  behaviour), stop and ask with it.
+
+List each fixture and test file changed in the report, with why.
