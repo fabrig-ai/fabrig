@@ -553,6 +553,7 @@ fn land_change(world: &mut Protocol) -> bool {
                 | top::Request::ApplicationAgain { .. }
                 | top::Request::RestartDone { .. }
                 | top::Request::LandingDecision { .. }
+                | top::Request::ProjectReleased { .. }
                 | top::Request::RemoveGroup { .. }
                 | top::Request::EraseSecrets { .. }
                 | top::Request::Register(_)

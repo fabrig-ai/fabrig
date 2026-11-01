@@ -57,6 +57,7 @@ fn connector(limits: &top::Limits) -> top::Domain {
         },
         &[top::GitIdentity { forge: REPO.forge, credential: 1 }],
         &[],
+        top::Machine::bare(),
         false,
     )
     .expect("admitted limits")

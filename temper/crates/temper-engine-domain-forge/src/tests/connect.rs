@@ -25,6 +25,7 @@ fn github(kind: Kind, mode: Mode) -> Domain {
             mode,
             asked: false,
         }],
+        Machine::bare(),
         false,
     )
     .unwrap()
@@ -362,6 +363,7 @@ fn installation_updates_mark_rows_in_id_order_and_deletion_drops_one() {
                 asked: false,
             },
         ],
+        Machine::bare(),
         false,
     )
     .unwrap();
@@ -1035,12 +1037,10 @@ fn serve_and_root_answers_are_inert_until_their_tasks() {
 }
 #[test]
 #[expect(clippy::disallowed_macros, reason = "the test compares every domain map through its full Debug snapshot")]
-fn the_new_rows_restore_as_no_ops() {
+fn playground_and_kept_act_rows_restore_as_no_ops() {
     let mut d = github(Kind::GitHub, Mode::Managed);
     d.restore_begin(Wall::from_nanos(0));
     for record in [
-        Stored::Forge(ForgeRecord::github_com()),
-        Stored::ForgeNumbers { next: 2 },
         Stored::Playground(Playground {
             state: PlaygroundState::Running,
             forge: 1,

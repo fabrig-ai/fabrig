@@ -278,6 +278,7 @@ impl Domain {
             forge_config,
             &config.identities,
             &config.forges,
+            config.machine.clone(),
             config.under_box,
         )
         .expect("valid forge configuration");
@@ -1227,6 +1228,7 @@ pub fn refused(mut config: Config, limits: &Limits) -> Box<[Refused]> {
         forge_config,
         &config.identities,
         &config.forges,
+        config.machine.clone(),
         config.under_box,
     ) else {
         refused.push(Refused::Forges).expect("counted refusals");

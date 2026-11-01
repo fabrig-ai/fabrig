@@ -579,6 +579,7 @@ fn a_zero_capacity_table_refuses_its_first_row() {
             skein_forge_client::Config { namespace: b"test".as_slice().into(), writers: Box::new([]) },
             &[],
             &[],
+            Machine::bare(),
             false,
         )
         .unwrap();
