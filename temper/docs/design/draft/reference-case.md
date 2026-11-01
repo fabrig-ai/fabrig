@@ -40,8 +40,8 @@ real backends, a QA driver types Ines's words through `temper ctl`.
   - packages: `kit`; `ui`, which reads kit; `app`, which reads kit and
     ui;
   - `debts.txt`, a counted baseline, recounted by `tools/count`;
-      - `docs/`, the project's designs and drafts; temper's data lives
-        in its store, never here.
+  - `docs/`, the project's designs and drafts; temper's data lives in
+    its store, never here.
 - **The gates:** formatting, lints, the build, and the `default` and
   `fuzzy` tests: the check before ready runs them in a change's
   workspace, the landing queue in its gate lane, the final check whole.
@@ -69,7 +69,7 @@ tier runner are code. Section 9 maps each onto fab.
 
 Main is green in every tier. The ladder goal, which Ines's chat created
 from the QA kit, is open, with rungs r0 and r1 (r1 after r0), each on
-ChatGPT with the owned Forgejo, sharing a kit.
+ChatGPT with the owned Forgejo, sharing the QA kit's common brief.
 
 ## 4. Act 1: the start (hours 0 to 1)
 
@@ -120,14 +120,15 @@ runs again with the answer in its brief.
 
 ### 4.5 Two scaffolds: an arbiter, a resolution
 
-Palette's scaffold writes its types with empty bodies and the part's
-specs. The engine checks its tip (gates and tests), and t1 to t3 start
-from it while the reviewer reads it. The reviewer refuses it: a type's
-doc contradicts the design it cites; the reviser fixes it; the reviewer
-refuses again: a body the design leaves to guesswork. It is held, and
-the arbiter says land: the part's specs settle that body. It merges. The
-engine merges the revised scaffold into t1 to t3, finished from the
-first tip, as resolutions outside their tries, and they merge.
+Palette's scaffold writes its types with empty bodies, and records the
+part's specs in the store. The engine checks its tip (gates and tests),
+and t1 to t3 start from it while the reviewer reads it. The reviewer
+refuses it: a type's doc contradicts the design it cites; the reviser
+fixes it; the reviewer refuses again: a body the design leaves to
+guesswork. It is held, and the arbiter says take: the part's specs
+settle that body. It merges. The engine merges the revised scaffold into
+t1 to t3, finished from the first tip, as resolutions outside their
+tries, and they merge.
 
 Dark's scaffold, approved at once, conflicts with palette's when it
 merges into the goal branch: that rejection counts as a refusal, with no
@@ -422,9 +423,9 @@ with the pass.
 
 ## 9. The story in fab's terms
 
-Kind: **code** or **LLM**, the model's. "Gap": fab does it by hand, by
-an agent where the model has code, or by code where it has an agent
-(model 14.2); temper does not copy it.
+Kind: **code** or **LLM**. "Gap": fab does it by hand, by an agent where
+the model has code, by code where it has an agent, or keeps temper's
+data in the repository (model 14.2); temper does not copy it.
 
 | Story | Kind | fab | Model |
 |---|---|---|---|
@@ -458,7 +459,7 @@ an agent where the model has code, or by code where it has an agent
 | an interim check (5.6) | code | `fab check start --default` | 6.3 |
 | overlaps (5.7) | code | `trunks.overlap` | 6.6 |
 | the structure review (5.8) | LLM | the `review` call | 10.2 |
-| Docfix, a small goal (6.1) | LLM | gap: a ready ref pushed by hand, no plan's | 4.1 |
+| Docfix, a small goal (6.1) | LLM | gap: a hand-pushed ready ref | 4.1 |
 | the check before ready (6.1) | code | gap: run by the implementer | 7.2 |
 | a candidate, a full selection, bisecting (6.1) | code | `fab queue`, a batch, every fifth full | 7.1, 7.4 |
 | updates (6.2) | code | catch-ups (gap: a repair merges main itself) | 6.4 |
@@ -512,11 +513,11 @@ Evidence at fabrig 2075ff38b; unqualified documents are temper's
 | Mechanism | Model | Kind | Today | What is missing |
 |---|---|---|---|---|
 | One writer, derived state, wakes | 3 | code | generic: the engine, the store's only writer (jig's `domain/engine.md` 2); the inbox derived (jig's `domain/people.md` 6); wake policies, timers (jig's `domain/tasks.md` 8.3) | record kinds a deployment declares |
-| A chat from a template; tools that create goals | 4.1 | LLM | generic in part: templates and charters as settings (jig's `protocol/configuration.md` 3.1); the chat's `goal`, `change` and `delegate` tools (`agent.md` 4.3.2, 4.3.1, 4.3) | ctl starting a chat from any template; `goal` choosing its template; `alerts_to` |
-| The planner | 4.2 | LLM; code | lacks | an agent task whose result is a plan of tasks with specs, in the store, in pieces |
+| A chat from a template; tools that create goals | 4.1 | LLM | generic in part: templates and charters as settings (jig's `protocol/configuration.md` 3.1); `goal`, `change`, `delegate` (`agent.md` 4.3) | a ctl chat from any template; `goal` choosing its template; `alerts_to` |
+| The planner | 4.2 | LLM; code | generic in part: a plan as delegated tasks, in batches with specs (jig's `domain/core.md` 7.1, `domain/tasks.md` 3, 4); a goal calls `change` (`agent.md` 4.3.2) | a planner whose pieces become the goal's batches; parts, slices |
 | Changes, specs with options, repairs from records | 4.3 | LLM; code | fixed: the change procedure (`forge.md` 8); briefs from sections (jig's `domain/engine.md` 9) | options settling questions; repairs made from records |
 | A goal's settings (temper's) | 4.4 | code | lacks: per project only (`landing.md` 13.1); jig's application kinds *designed* (jig's `domain/engine.md` 17.5) | temper's kind; jig: a scope under a project |
-| A run, its ends, tries | 5.1 | LLM; code | generic: charters; tries per failure class configured per deployment (jig's `domain/tasks.md` 5.5; `jig-protocol-config` overrides) | tries counted as runs not landed; a list of what was left; fresh tries granted by an answer |
+| A run, its ends, tries | 5.1 | LLM; code | generic: charters; tries per failure class, configured (jig's `domain/tasks.md` 5.5) | tries as runs not landed; a list left; fresh tries on an answer |
 | Slots, run targets, the order of starts | 5.2 | code | generic in part: slots and placement (jig's `domain/engine.md` 8); priority in hold queues (jig's `domain/tasks.md` 6.2) | a run target and a flow target; calm; repairs first |
 | The goal branch and its merges | 6.1 | code; LLM | lacks (*designed*: `forge.md` 11.1, landing each change gated); resolutions fixed (`forge.md` 8.4) | ungated merges into a goal branch, the recount |
 | Early starts | 6.2 | code | lacks (*designed*: jig's `domain/connectors.md` 6.1) | a start on a dependency's pushed branch |
@@ -534,28 +535,15 @@ Evidence at fabrig 2075ff38b; unqualified documents are temper's
 | A goal ending after its verdict | 8.3, 10.6 | code; LLM | lacks (*designed*: `after-landing.md` 6) | waiting for the verdict; the wrap-up |
 | The ladder and its rungs | 9.1 | code | lacks: a process outside (`../qa.md`) | rungs, editions, states as records |
 | A walk | 9.2 | code; LLM | lacks (*designed*: `findings.md` 8) | walks started, builds, accounts lent, results recorded |
-| Findings, triage, the backlog | 9.3 | code; LLM | lacks (*designed*: `findings.md` 2, 4, 6) | merges, again, the triager's decisions, a backlog landed |
+| Findings, triage, the backlog | 9.3 | code; LLM | lacks (*designed* as forge issues, `findings.md` 1, 2; the model keeps them in the store) | merges, again, triage, the backlog in ctl |
 | A finding's repair, the pass | 9.4 | code; LLM | lacks (*designed*: `findings.md` 6, 7) | an examiner, a repair from main, a pass on an unchanged rerun |
 | Agent tasks | 10.1 | LLM | generic: finite tasks under charters (jig's `domain/engine.md` 9; `agent.md` 4.6) | peak context measured; `agent_hosts` |
-| Review, reviser, arbiter, structure review | 10.2 | LLM; code | generic in part: review gates per landing rule, the review charter; remarks as a bounded repair (`forge.md` 8.3, 8.4; `protocol/configuration.md` 3) | review of planning outputs, the arbiter, a rejection counted |
+| Review, reviser, arbiter, structure review | 10.2 | LLM; code | generic in part: review gates per rule, the review charter, remarks as a bounded repair (`forge.md` 8.3, 8.4) | review of planning outputs, the arbiter |
 | The examiner | 10.3 | LLM | generic in part: escalations (jig's `domain/tasks.md` 9) | settling from options; accept; a judge of rejections, reds, findings |
-| The answerer; kept and held | 10.4, 10.5 | LLM; code | generic in part: a question keeps its task, routed to its requester; held past tries (jig's `domain/tasks.md` 5.5, 5.7) | one task answering queued questions; waking on questions by count and age (a bool today); a part kept |
+| The answerer; kept and held | 10.4, 10.5 | LLM; code | generic in part: a question keeps its task, routed to its requester; held past tries (jig's `domain/tasks.md` 5.5, 5.7) | one task answering queued questions; waking by their count and age; a part kept |
 | Scaffolds | 10.6 | LLM; code | lacks | scaffolds, checked tips, changes started from them |
 | The inbox and alerts | 11.1, 11.2 | code; LLM | generic in part: a party's inbox in ctl (jig's `domain/people.md` 6, 8) | alerts to a chat |
 | Questions on the forge | 11.3 | code; LLM | lacks (*designed*: `forge.md` 12.1, Later) | a reply task |
 | Workspaces and disk | 12.1 | code | fixed in part: a checkout cache (`worker.md` 5) | disk admission, sweeps, lanes, stale claims released |
 | Custody | 12.2 | code | generic in part: accounts with holders, a run's grant, limited until a reset, export and import (jig's `domain/accounts.md` 3.2, 3.4, 3.5) | swaps, limit checks, credentials lent to walks; moving a program's login between machines conflicts with `accounts.md` 6 |
 | Reports and status | 13 | code | lacks for ctl: recurring tasks fire per spend period, and nothing in ctl starts one (jig's `domain/tasks.md` 10) | the two reports on a daily timer; status counts in ctl; weights |
-
-
-
-
-
-
-
-
-
-
-
-
-
