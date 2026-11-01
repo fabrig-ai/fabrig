@@ -661,8 +661,9 @@ pub fn root(
     problems: &mut Problems,
 ) {
     let landing = landing_config(engine);
-    let (forge, identities) = crate::forge::config(engine, seeds.deployment);
+    let (forge, _identities) = crate::forge::config(engine, seeds.deployment);
     let config = domain::Config {
+        seed: engine.seed.clone(),
         period_span: crate::stock::PERIOD_SPAN,
         demo: match &engine.demo {
             Some(demo) => Some(demo.domain(&engine.forges, engine.limits.setup.deadline)),
@@ -671,9 +672,9 @@ pub fn root(
         core,
         landing,
         forge,
-        identities,
+        identities: Box::new([]),
         forge_charter: engine.charter,
-        forges: super::application::configured(engine),
+        forges: Box::new([]),
         under_box: false,
     };
     let mut numbers = List::with_capacity(engine.jig.limits.core.authority.projects);

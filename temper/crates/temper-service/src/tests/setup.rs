@@ -7,7 +7,8 @@ use temper_protocol_records as records;
 
 fn service(states: u32, life: Duration) -> crate::Service {
     let mut service = routing_service(states, life);
-    let ready = fixtures::ready().engine.expect("engine");
+    let config = github_config(states, life, None);
+    let ready = fixtures::ready_with(&config).engine.expect("engine");
     service.engine.as_mut().expect("engine").env.limits = ready.env.limits;
     service.engine.as_mut().expect("engine").domain = ready.domain;
     service
@@ -43,8 +44,9 @@ fn routing_service_at(
             transport: skein_forge_connection::settings::Transport::Plaintext { name: None },
         })
         .unwrap();
+    let store = fixtures::records_store_with(&config);
     let mut service = crate::Service::engine(config, &fixtures::seeds(), None, runtime).unwrap();
-    service.engine.as_mut().expect("engine").store = fixtures::records_store();
+    service.engine.as_mut().expect("engine").store = store;
     load_routing(&mut service);
     service
 }
@@ -67,6 +69,7 @@ fn github_config(
     config.limits.setup.states = states;
     config.limits.setup.state_life = life;
     fixtures::fill_files(&mut config);
+    fixtures::reseed(&mut config);
     config
 }
 fn load_routing(service: &mut crate::Service) {
@@ -475,6 +478,7 @@ fn tls_forges() -> (crate::settings::Engine, List<crate::ForgeRuntime>) {
             })
             .unwrap();
     }
+    fixtures::reseed(&mut config);
     (config, runtime)
 }
 #[test]
@@ -664,6 +668,7 @@ fn configured(runs: u32, states: u32, tls: bool) -> (crate::settings::Engine, Li
     config.limits.setup.runs = runs;
     config.limits.setup.states = states;
     fixtures::fill_files(&mut config);
+    fixtures::reseed(&mut config);
     (config, runtime)
 }
 
@@ -778,6 +783,7 @@ fn local_config(records: bool, fake: bool) -> crate::settings::Engine {
     config.limits.forge.client.repositories = 3;
     config.limits.forge.output = 96;
     fixtures::fill_files(&mut config);
+    fixtures::reseed(&mut config);
     config
 }
 fn kept_record(store: &mut crate::store::Store, forge: u16, item: Item, bytes: &[u8]) {
@@ -803,9 +809,12 @@ fn kept_record(store: &mut crate::store::Store, forge: u16, item: Item, bytes: &
     assert_eq!(found, owner);
 }
 fn local_store(token: bool) -> crate::store::Store {
+    local_store_with(token, &local_config(true, false))
+}
+fn local_store_with(token: bool, config: &crate::settings::Engine) -> crate::store::Store {
     use temper_engine_domain_forge::Stored;
     // Persist the real first-start settings before constructing a restart fixture.
-    let mut bootstrap = fixtures::ready();
+    let mut bootstrap = fixtures::ready_with(config);
     let mut header = bootstrap.engine.as_ref().unwrap().domain.deployment();
     header.commits = header.commits.checked_add(1).unwrap();
     let mut store = bootstrap.engine.take().unwrap().store;
@@ -866,7 +875,8 @@ fn local_repository() -> domain::Repository {
         },
     }
 }
-fn local_service(config: crate::settings::Engine, store: crate::store::Store) -> crate::Service {
+fn local_service(mut config: crate::settings::Engine, store: crate::store::Store) -> crate::Service {
+    fixtures::reseed(&mut config);
     let mut service = crate::Service::engine(config, &fixtures::seeds(), None, fixtures::forge_runtime()).unwrap();
     service.engine.as_mut().unwrap().store = store;
     service
@@ -927,7 +937,9 @@ fn reconcile_to_repository(service: &mut crate::Service, face: &mut Face) {
 #[test]
 fn kept_local_records_wait_for_restore_done_and_origin_before_connecting_as_the_recorded_bot() {
     for fake in [false, true] {
-        let mut service = local_service(local_config(true, fake), local_store(true));
+        let config = local_config(true, fake);
+        let store = local_store_with(true, &config);
+        let mut service = local_service(config, store);
         let engine = service.engine.as_mut().unwrap();
         for _ in 0_u32..8 {
             crate::forge::records::advance(engine);
@@ -1047,7 +1059,9 @@ fn local_given_uses_the_repository_capacity_no_orgs_and_configured_listener() {
 #[test]
 fn an_old_form_owned_start_makes_no_reconcile() {
     for token in [false, true] {
-        let mut service = local_service(local_config(false, false), local_store(token));
+        let config = local_config(false, false);
+        let store = local_store_with(token, &config);
+        let mut service = local_service(config, store);
         restore_local(&mut service);
         let engine = service.engine.as_ref().unwrap();
         assert!(engine.setup.lifecycle.local(1).is_none());
@@ -1067,6 +1081,7 @@ fn local_with_other(config: crate::settings::Engine, store: crate::store::Store)
     other.api_token = None;
     other.api = jig_protocol_config::Address::Addr(skein_io::Addr::Ip(([127, 0, 0, 1], 3000).into()));
     config.forges = Box::new([config.forges.into_iter().next().unwrap(), other]);
+    fixtures::reseed(&mut config);
     let mut runtime = List::with_capacity(2);
     runtime.push(fixtures::forge_runtime().into_boxed().into_iter().next().unwrap()).unwrap();
     let mut other = fixtures::forge_runtime().into_boxed().into_iter().next().unwrap();
@@ -1214,6 +1229,7 @@ fn told_local(engine: &crate::engine::Engine, expected: &domain::Connection) -> 
 fn with_handover(token: &[u8]) -> crate::settings::Engine {
     let mut config = local_config(true, false);
     config.setup[0].handover = Some(Secret::new(token.into()));
+    fixtures::reseed(&mut config);
     config
 }
 fn takeover_to_kept(service: &mut crate::Service, face: &mut Face) {
@@ -1316,7 +1332,9 @@ fn takeover_waits_for_kept_done_and_correlated_removal_before_restored_reconcile
 #[test]
 fn restart_always_takes_a_present_handover_even_when_the_record_differs() {
     for next in [Some(b"test-admin".as_slice()), Some(b"different-admin".as_slice()), None] {
-        let mut service = local_service(with_handover(b"test-admin"), local_store(false));
+        let config = with_handover(b"test-admin");
+        let store = local_store_with(false, &config);
+        let mut service = local_service(config, store);
         restore_local(&mut service);
         let mut face = Face::new();
         let remove = takeover_done(&mut service, &mut face);
@@ -1353,7 +1371,9 @@ fn restart_always_takes_a_present_handover_even_when_the_record_differs() {
 fn an_asked_forge_takes_its_handover_at_started_and_connects() {
     let mut config = local_config(true, false);
     config.setup[0].entry.asked = true;
-    let mut service = local_service(config, local_store(false));
+    let config = config;
+    let store = local_store_with(false, &config);
+    let mut service = local_service(config, store);
     restore_local(&mut service);
     assert!(!service.engine.as_ref().unwrap().setup.lifecycle.local(1).unwrap().pending);
     let engine = service.engine.as_ref().unwrap();
@@ -1394,7 +1414,9 @@ fn a_takeover_that_stops_at_started_fails_naming_its_step_and_keeps_the_file() {
 }
 #[test]
 fn a_failed_removal_at_started_blocks_reconcile_and_the_next_ask_takes_it_over_again() {
-    let mut service = local_service(local_config(true, false), local_store(false));
+    let config = local_config(true, false);
+    let store = local_store_with(false, &config);
+    let mut service = local_service(config, store);
     restore_local(&mut service);
     for attempt in 0_u32..2 {
         let read = box_started(&mut service);
@@ -1488,7 +1510,9 @@ fn takeover_stops_missing_and_busy_keep_the_handover_and_isolate_the_forge() {
 #[test]
 fn unreadable_or_missing_handover_at_started_is_a_named_retryable_failure() {
     for answer in [Ok(None), Err(crate::HandoverUnread::Unsafe(skein_io::file::Unsafe::Link))] {
-        let mut service = local_service(local_config(true, false), local_store(false));
+        let config = local_config(true, false);
+        let store = local_store_with(false, &config);
+        let mut service = local_service(config, store);
         restore_local(&mut service);
         let read = box_started(&mut service);
         service.handover_read(1, read.run, answer);
@@ -1516,7 +1540,9 @@ fn unreadable_or_missing_handover_at_started_is_a_named_retryable_failure() {
 #[test]
 fn closing_discards_pending_file_correlations_and_late_answers() {
     for removal in [false, true] {
-        let mut service = local_service(local_config(true, false), local_store(false));
+        let config = local_config(true, false);
+        let store = local_store_with(false, &config);
+        let mut service = local_service(config, store);
         restore_local(&mut service);
         let read = box_started(&mut service);
         let run = if removal {
@@ -1557,7 +1583,9 @@ fn setup_reasons_fit_the_wire_at_a_character_boundary() {
 
 #[test]
 fn file_answers_wait_for_output_room_and_ignore_other_correlations() {
-    let mut service = local_service(local_config(true, false), local_store(false));
+    let config = local_config(true, false);
+    let store = local_store_with(false, &config);
+    let mut service = local_service(config, store);
     restore_local(&mut service);
     let read = box_started(&mut service);
     service.handover_read(2, read.run, Ok(None));
@@ -1642,11 +1670,13 @@ fn the_demo_waits_for_started_only_under_the_box_even_with_retained_access() {
             playground: None,
         });
         config.setup[0].handover = Some(Secret::new(b"stale-handover".as_slice().into()));
-        let configured = crate::startup::application::configured(&config);
-        assert!(configured[0].asked);
-        assert_eq!(configured[0].mode, domain::Mode::Fake);
+        fixtures::reseed(&mut config);
+        let configured = domain::Configured::from_record(&config.seed[0]);
+        assert!(configured.asked);
+        assert_eq!(configured.mode, domain::Mode::Fake);
         let endpoints = crate::forge::prepare(&config, fixtures::forge_runtime()).unwrap();
         let io = config.jig.limits.io;
+        let store = local_store_with(retained, &config);
         let mut service = crate::Service::prepared(
             config,
             &fixtures::seeds(),
@@ -1657,7 +1687,7 @@ fn the_demo_waits_for_started_only_under_the_box_even_with_retained_access() {
             if under_box { Some(256) } else { None },
         )
         .unwrap();
-        service.engine.as_mut().unwrap().store = local_store(retained);
+        service.engine.as_mut().unwrap().store = store;
         restore_local(&mut service);
         let engine = service.engine.as_ref().unwrap();
         if !under_box {
@@ -1714,6 +1744,7 @@ fn demo_config() -> crate::settings::Engine {
         state: None,
         playground: None,
     });
+    fixtures::reseed(&mut config);
     config
 }
 fn ended_demo_store() -> crate::store::Store {
@@ -1761,7 +1792,9 @@ fn an_end_during_handover_or_reconcile_cannot_continue_setup() {
     for during_reconcile in [false, true] {
         let mut config = demo_config();
         config.setup[0].handover = Some(Secret::new(b"test-admin".as_slice().into()));
-        let mut service = local_service(config, local_store(true));
+        let config = config;
+        let store = local_store_with(true, &config);
+        let mut service = local_service(config, store);
         restore_local(&mut service);
         let engine = service.engine.as_mut().unwrap();
         let run = *engine.setup.runs.first().unwrap().0;

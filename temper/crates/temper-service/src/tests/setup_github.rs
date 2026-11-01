@@ -22,7 +22,9 @@ const LIVE: &[u8] = br#"[{"id":22,"account":{"id":122,"login":"account-fixture",
 const MINT: &[u8] = br#"{"token":"artificial-installation-token","expires_at":"1970-01-01T01:00:00Z"}"#;
 
 fn owner_service() -> crate::Service {
-    let mut bootstrap = fixtures::ready();
+    let mut config = github_config(STATES, LIFE, None);
+    config.jig.limits.core.authority.segments = ADOPTION_SEGMENTS;
+    let mut bootstrap = fixtures::ready_with(&config);
     let mut header = bootstrap.engine.as_ref().unwrap().domain.deployment();
     header.commits = header.commits.checked_add(1).unwrap();
     let mut store = bootstrap.engine.take().unwrap().store;
@@ -39,8 +41,6 @@ fn owner_service() -> crate::Service {
         ]),
     }));
     let _committed = store.above.pop().unwrap();
-    let mut config = github_config(STATES, LIFE, None);
-    config.jig.limits.core.authority.segments = ADOPTION_SEGMENTS;
     let mut service = local_service(config, store);
     load_routing(&mut service);
     restore_local(&mut service);

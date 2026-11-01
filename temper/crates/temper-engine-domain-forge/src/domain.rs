@@ -118,7 +118,9 @@ pub(crate) type ConnectionState = (crate::Connection, Option<crate::FailedStep>)
 #[derive(Debug)]
 pub struct Domain {
     pub(crate) forge_records: Map<u16, crate::Forge>,
-    next_forge: Option<u16>,
+    pub(crate) next_forge: Option<u16>,
+    pub(crate) seed: Box<[crate::Forge]>,
+    pub(crate) seed_path: bool,
     playground: Option<crate::Playground>,
     pub(crate) kept: Map<[u8; 16], crate::KeptAct>,
     pub(crate) configured: Map<u16, crate::Configured>,
@@ -274,7 +276,12 @@ impl Domain {
     pub fn forges(&self) -> crate::Forges {
         let mut rows = List::with_capacity(self.configured.len());
         for (forge, config) in &self.configured {
-            if self.forge_ended(*forge) {
+            if self.forge_ended(*forge)
+                || match self.forge_records.get(forge) {
+                    Some(row) => row.removing,
+                    None => false,
+                }
+            {
                 continue;
             }
             let mut installations = List::with_capacity(self.installations.len());
@@ -311,9 +318,12 @@ impl Domain {
                     | crate::Connection::Connecting
                     | crate::Connection::Stopped { .. } => false,
                 },
-                playground: match &self.demo {
-                    Some(demo) => demo.adoption.forge == *forge,
-                    None => false,
+                playground: match self.forge_records.get(forge) {
+                    Some(row) => row.playground,
+                    None => match &self.demo {
+                        Some(demo) => demo.adoption.forge == *forge,
+                        None => false,
+                    },
                 },
                 read_only: config.kind == crate::Kind::GitHub && config.read_only,
                 number: *forge,
@@ -541,10 +551,11 @@ impl Domain {
     #[expect(clippy::too_many_lines, reason = "constructor initializes the connector tables together")]
     pub fn new(
         l: &Limits,
-        seed: u64,
+        random_seed: u64,
         config: skein_forge_client::Config,
         identities: &[crate::GitIdentity],
         forges: &[crate::Configured],
+        seed: &[crate::Forge],
         under_box: bool,
     ) -> Result<Domain, skein_forge::api::Error> {
         if !crate::valid(l)
@@ -554,7 +565,11 @@ impl Domain {
         {
             return Err(skein_forge::api::Error::TooLarge);
         }
-        let mut configured = Map::with_capacity(l.client.repositories);
+        let seed_path = forges.is_empty() && identities.is_empty();
+        if !seed.is_empty() && !seed_path {
+            return Err(skein_forge::api::Error::Refused);
+        }
+        let mut configured = Map::with_capacity(l.forges);
         for forge in forges {
             if forge.git.len() > usize::try_from(crate::PULL_ADDRESS_BYTES).expect("u32 fits usize") {
                 return Err(skein_forge::api::Error::TooLarge);
@@ -563,20 +578,31 @@ impl Domain {
                 return Err(skein_forge::api::Error::TooLarge);
             }
         }
-        let mut credentials = Map::with_capacity(l.repositories);
+        let mut credentials = Map::with_capacity(l.forges);
         for identity in identities {
             if credentials.insert(identity.forge, identity.credential).is_err() {
                 return Err(skein_forge::api::Error::TooLarge);
             }
         }
-        let mut writers = Map::with_capacity(l.client.repositories);
+        for row in seed {
+            if !row.fits()
+                || row.number == u16::MAX
+                || configured.insert(row.number, crate::Configured::from_record(row)).is_err()
+                || credentials.insert(row.number, row.identity.number).is_err()
+            {
+                return Err(skein_forge::api::Error::TooLarge);
+            }
+        }
+        let mut writers = Map::with_capacity(l.forges);
         for writer in &config.writers {
             if writers.insert(writer.forge, writer.author).is_err() {
                 return Err(skein_forge::api::Error::TooLarge);
             }
         }
         Ok(Domain {
-            forge_records: Map::with_capacity(l.client.repositories),
+            forge_records: Map::with_capacity(l.forges),
+            seed: Box::from(seed),
+            seed_path,
             next_forge: None,
             playground: None,
             kept: Map::with_capacity(crate::kept_bound(l).expect("validated kept bound")),
@@ -588,10 +614,10 @@ impl Domain {
             demo_acts: Map::with_capacity(crate::demo_act_bound(l).expect("validated act bound")),
             demo_pending: Map::with_capacity(l.applications),
             demo_answers: Map::with_capacity(l.applications),
-            connections: Map::with_capacity(l.client.repositories),
-            first: Map::with_capacity(l.client.repositories),
-            ended: Map::with_capacity(l.client.repositories),
-            apps: Map::with_capacity(l.client.repositories),
+            connections: Map::with_capacity(l.forges),
+            first: Map::with_capacity(l.forges),
+            ended: Map::with_capacity(l.forges),
+            apps: Map::with_capacity(l.forges),
             setup_answers: Map::with_capacity(l.applications),
             setup_pending: Map::with_capacity(l.applications),
             connect: crate::connect::State::new(l.applications),
@@ -635,7 +661,7 @@ impl Domain {
             reconciliation: crate::reconcile::Reconciliation::new(l),
             restore_started: None,
             restore_fit: None,
-            client: skein_forge_client::Domain::configured(&l.client, seed, config)?,
+            client: skein_forge_client::Domain::configured(&l.client, random_seed, config)?,
             client_out: Queue::uncapped(),
             brief_reclaim: 0,
             brief_fetches: Map::with_capacity(l.brief_sections),
@@ -4952,6 +4978,26 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
             d.flights.insert((task, entry), ()).expect("restored flights within entry limit");
         }
         Stored::Forge(row) => {
+            if d.seed_path {
+                if !d.configured.contains_key(&row.number) && d.configured.len() == d.configured.capacity() {
+                    // Restored records take the room of provisional seeds.
+                    let mut provisional = None;
+                    for (number, _) in &d.configured {
+                        if !d.forge_records.contains_key(number) {
+                            provisional = Some(*number);
+                            break;
+                        }
+                    }
+                    if let Some(number) = provisional {
+                        d.configured.remove(&number);
+                        d.identities.remove(&number);
+                    }
+                }
+                d.configured
+                    .insert(row.number, crate::Configured::from_record(&row))
+                    .expect("restored forge within limits");
+                d.identities.insert(row.number, row.identity.number).expect("restored forge within limits");
+            }
             d.forge_records.insert(row.number, row).expect("restored forge within limits");
         }
         Stored::Forges { next } => d.next_forge = Some(next),
@@ -5007,6 +5053,10 @@ fn restore(d: &mut Domain, env: &Env<Limits>, record: Stored) {
 fn restored(d: &mut Domain, env: &Env<Limits>, clock: skein_forge_client::RecoveryClock, out: &mut Queue<Request>) {
     if d.fit_restored(&env.limits).is_err() {
         return;
+    }
+    if d.seed_path {
+        crate::seed::seed(d, out);
+        crate::seed::kept(d, out);
     }
     d.restore_phase = RestorePhase::Restoring;
     child(d, env, skein_forge_client::Event::Restored { clock }, out);

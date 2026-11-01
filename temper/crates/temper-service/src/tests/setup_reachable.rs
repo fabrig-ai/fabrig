@@ -86,8 +86,10 @@ fn reachable_stages_github_pages_beside_a_writer_and_counts_both_against_runs() 
 fn reachable_on_a_connected_forgejo_uses_its_api_token_and_filters_push_access() {
     let mut config = picker_config();
     config.limits.picker.page = 2;
+    fixtures::reseed(&mut config);
+    let store = fixtures::records_store_with(&config);
     let mut service = crate::Service::engine(config, &fixtures::seeds(), None, fixtures::forge_runtime()).unwrap();
-    service.engine.as_mut().unwrap().store = fixtures::records_store();
+    service.engine.as_mut().unwrap().store = store;
     for _ in 0_u32..8 {
         crate::forge::records::advance(service.engine.as_mut().unwrap());
     }

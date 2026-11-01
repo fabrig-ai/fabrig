@@ -21,6 +21,7 @@ mod reconcile;
 mod records;
 mod restore_fit;
 mod runs;
+mod seed;
 mod stopping;
 mod surface;
 mod views;
@@ -134,6 +135,7 @@ fn domain() -> Domain {
             writers: Box::new([skein_forge_client::Writer { forge: 1, author: 7 }]),
         },
         &[GitIdentity { forge: 1, credential: 1 }],
+        &[],
         &[],
         false,
     )
@@ -1194,6 +1196,7 @@ fn routing_domain() -> Domain {
         skein_forge_client::Config { namespace: Box::from(b"test".as_slice()), writers: Box::new([]) },
         &[GitIdentity { forge: 1, credential: 1 }],
         &[],
+        &[],
         false,
     )
     .unwrap()
@@ -1274,6 +1277,7 @@ fn setup_domain(forges: &[Configured], under_box: bool) -> Domain {
         },
         &[],
         forges,
+        &[],
         under_box,
     )
     .unwrap()
@@ -1290,6 +1294,7 @@ fn a_configured_git_base_is_bounded_by_its_priced_pull_address_bytes() {
             skein_forge_client::Config { namespace: b"test".as_slice().into(), writers: Box::new([]) },
             &[],
             &[forge],
+            &[],
             false,
         );
         if length == 2048 {
@@ -1445,16 +1450,16 @@ fn configured_forges_are_bounded_at_construction() {
     fn config() -> skein_forge_client::Config {
         skein_forge_client::Config { namespace: b"test".as_slice().into(), writers: Box::new([]) }
     }
-    let count = usize::try_from(LIMITS.client.repositories).unwrap();
-    let mut forges = skein_lib::List::with_capacity(LIMITS.client.repositories.checked_add(1).unwrap());
+    let count = usize::try_from(LIMITS.forges).unwrap();
+    let mut forges = skein_lib::List::with_capacity(LIMITS.forges.checked_add(1).unwrap());
     for number in 0..=count {
         forges
             .push(Configured { owned: None, number: u16::try_from(number).unwrap(), ..configured()[0].clone() })
             .unwrap();
     }
-    Domain::new(&LIMITS, 4, config(), &[], &forges.as_slice()[..count], false).unwrap();
+    Domain::new(&LIMITS, 4, config(), &[], &forges.as_slice()[..count], &[], false).unwrap();
     assert_eq!(
-        Domain::new(&LIMITS, 4, config(), &[], forges.as_slice(), false).unwrap_err(),
+        Domain::new(&LIMITS, 4, config(), &[], forges.as_slice(), &[], false).unwrap_err(),
         skein_forge::api::Error::TooLarge
     );
 }

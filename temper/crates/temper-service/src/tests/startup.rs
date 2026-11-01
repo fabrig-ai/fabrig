@@ -1033,16 +1033,11 @@ fn a_user_object_with_an_empty_path_is_refused() {
     assert_eq!(&*refused_user("{\"file\":\"\"}"), b"application.forges[0].user.file: invalid form\n");
 }
 #[test]
-fn a_missing_setup_or_demo_is_refused_naming_its_path() {
-    for (member, expected) in [
-        ("\"setup\":[],", b"application.setup: missing\n".as_slice()),
-        ("\"demo\":null,", b"application.demo: missing\n".as_slice()),
-    ] {
-        let input = core::str::from_utf8(fixtures::APPLICATION).unwrap().replace(member, "");
-        let (members, problems) = application(input.as_bytes(), &fixtures::engine().jig);
-        assert!(members.is_none());
-        assert_eq!(&*lines(&problems), expected);
-    }
+fn a_missing_demo_is_refused_naming_its_path() {
+    let input = core::str::from_utf8(fixtures::APPLICATION).unwrap().replace("\"demo\":null,", "");
+    let (members, problems) = application(input.as_bytes(), &fixtures::engine().jig);
+    assert!(members.is_none());
+    assert_eq!(&*lines(&problems), b"application.demo: missing\n");
 }
 
 #[test]
@@ -1852,7 +1847,9 @@ fn forge_configuration_retains_only_git_bases_within_the_pull_address_bound() {
     let base = [b'g'; 2049];
     for length in [2048, 2049] {
         settings.forges[0].git = base.get(..length).unwrap().into();
-        let configured = application::configured(&settings);
+        fixtures::reseed(&mut settings);
+        let configured =
+            settings.seed.iter().map(temper_engine_domain_forge::Configured::from_record).collect::<Box<[_]>>();
         if length == 2048 {
             assert_eq!(configured[0].git, settings.forges[0].git);
         } else {
@@ -1867,8 +1864,9 @@ fn forge_configuration_keeps_kind_mode_and_asked_start() {
     let mut settings = fixtures::engine();
     for (source, kind) in [(settings::Kind::Forgejo, Kind::Forgejo), (settings::Kind::GitHub, Kind::GitHub)] {
         settings.forges[0].kind = source;
+        fixtures::reseed(&mut settings);
         assert_eq!(
-            application::configured(&settings).as_ref(),
+            settings.seed.iter().map(Configured::from_record).collect::<Box<[_]>>().as_ref(),
             [Configured {
                 bot: Box::new([]),
                 admin_connect: false,
@@ -1885,8 +1883,9 @@ fn forge_configuration_keeps_kind_mode_and_asked_start() {
     }
     settings.forges[0].kind = settings::Kind::Forgejo;
     settings.setup = Box::new([fixtures::owned_setup(1)]);
+    fixtures::reseed(&mut settings);
     assert_eq!(
-        application::configured(&settings).as_ref(),
+        settings.seed.iter().map(Configured::from_record).collect::<Box<[_]>>().as_ref(),
         [Configured {
             bot: b"temper".as_slice().into(),
             admin_connect: false,
@@ -1906,7 +1905,8 @@ fn forge_configuration_keeps_kind_mode_and_asked_start() {
     );
     for (admin_token, allowed) in [(None, true), (Some(b"admin-file".as_slice().into()), false)] {
         settings.setup[0].entry.mode = temper_forge_setup::setup::Mode::Managed { admin_token };
-        let configured = application::configured(&settings);
+        fixtures::reseed(&mut settings);
+        let configured = settings.seed.iter().map(Configured::from_record).collect::<Box<[_]>>();
         assert_eq!(configured[0].mode, Mode::Managed);
         assert_eq!(configured[0].admin_connect, allowed);
     }
@@ -2143,13 +2143,19 @@ fn owned_startup_details_keep_the_runner_pin_and_directory_path_and_managed_has_
         capacity: 1,
         path: b"/bin".as_slice().into(),
     });
-    let rows = application::configured(&settings);
+    fixtures::reseed(&mut settings);
+    let rows = settings.seed.iter().map(temper_engine_domain_forge::Configured::from_record).collect::<Box<[_]>>();
     let details = rows[0].owned.as_ref().unwrap();
     assert_eq!(details.forgejo.as_ref(), skein_forge::forgejo::pin::VERSION.as_bytes());
     assert_eq!(details.runner.as_deref(), Some(skein_forge::forgejo::pin::RUNNER_VERSION.as_bytes()));
     assert_eq!(details.password.as_ref(), b"/data/another-forge/person_password");
     settings.setup[0].entry.mode = Mode::Managed { admin_token: Some(b"/fake/admin-token".as_slice().into()) };
-    assert!(application::configured(&settings)[0].owned.is_none());
+    fixtures::reseed(&mut settings);
+    assert!(
+        settings.seed.iter().map(temper_engine_domain_forge::Configured::from_record).collect::<Box<[_]>>()[0]
+            .owned
+            .is_none()
+    );
 }
 
 #[test]

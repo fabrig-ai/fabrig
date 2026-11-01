@@ -40,6 +40,7 @@ pub mod purpose;
 mod release;
 mod removal;
 mod result;
+mod seed;
 pub use result::{ChangeResult, ResultText};
 pub mod record;
 pub use record::Forge;

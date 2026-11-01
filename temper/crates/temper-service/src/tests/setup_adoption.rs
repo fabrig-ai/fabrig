@@ -33,6 +33,7 @@ fn old_form_configured(hooks: bool) -> crate::settings::Engine {
         handover: Some(Secret::new(HANDOVER.into())),
     }]);
     fixtures::fill_files(&mut config);
+    fixtures::reseed(&mut config);
     config
 }
 fn configured(hooks: bool) -> crate::settings::Engine {
@@ -50,6 +51,7 @@ fn configured(hooks: bool) -> crate::settings::Engine {
     config.limits.forge.client.repositories = 3;
     config.limits.forge.output = 96;
     fixtures::fill_files(&mut config);
+    fixtures::reseed(&mut config);
     config
 }
 fn record_answers(service: &mut crate::Service) {
@@ -100,7 +102,8 @@ fn records_reconciled(hooks: bool, handover: bool) -> (crate::Service, Face, Box
     if handover {
         config.setup[0].handover = Some(Secret::new(b"test-admin".as_slice().into()));
     }
-    let mut service = local_service(config, local_store(true));
+    let store = local_store_with(true, &config);
+    let mut service = local_service(config, store);
     restore_local(&mut service);
     let mut face = Face::new();
     if handover {
@@ -209,7 +212,8 @@ fn records_fake_stops_at_adopt_without_connecting_or_starting_the_next_repositor
 #[test]
 fn records_fake_restart_reconciles_restored_repositories_and_adopts_only_the_missing_one() {
     for adopted in [1_u64, 2] {
-        let mut store = local_store(true);
+        let config = configured(false);
+        let mut store = local_store_with(true, &config);
         let mut writes = List::with_capacity(2);
         for id in 1..=adopted {
             let mut repository = local_repository();
@@ -222,7 +226,7 @@ fn records_fake_restart_reconciles_restored_repositories_and_adopts_only_the_mis
         }
         fixtures::commit(&mut store, 2, writes.into_boxed());
         assert!(store.above.pop().is_some());
-        let mut service = local_service(configured(false), store);
+        let mut service = local_service(config, store);
         restore_local(&mut service);
         assert_eq!(service.engine.as_ref().unwrap().domain.adopted_ids(1).len(), usize::try_from(adopted + 1).unwrap());
         let mut face = Face::new();
@@ -254,9 +258,14 @@ fn records_fake_given_uses_the_webhooks_listener_without_a_file_secret() {
     }
 }
 fn old_form_service(hooks: bool) -> crate::Service {
-    let config = old_form_configured(hooks);
+    let mut config = old_form_configured(hooks);
+    fixtures::reseed(&mut config);
+    let mut rows = List::with_capacity(config.limits.forge.forges);
+    for record in &config.seed {
+        rows.push(domain::Configured::from_record(record)).unwrap();
+    }
     assert_eq!(
-        crate::startup::application::configured(&config).as_ref(),
+        rows.as_slice(),
         [domain::Configured {
             bot: b"temper".as_slice().into(),
             admin_connect: false,
@@ -270,8 +279,10 @@ fn old_form_service(hooks: bool) -> crate::Service {
             asked: false
         }]
     );
+    fixtures::reseed(&mut config);
+    let store = fixtures::records_store_with(&config);
     let mut service = crate::Service::engine(config, &fixtures::seeds(), None, fixtures::forge_runtime()).unwrap();
-    service.engine.as_mut().expect("engine").store = fixtures::records_store();
+    service.engine.as_mut().expect("engine").store = store;
     advance(service.engine.as_mut().expect("engine"));
     assert!(service.engine.as_ref().expect("engine").setup.runs.is_empty(), "wait for records");
     service.engine.as_mut().expect("engine").forge.iterate(Time::ZERO, Wall::EPOCH);
@@ -430,8 +441,13 @@ fn old_form_owned_and_managed_serve_reads_without_start_time_writing_plans() {
         } else {
             fixtures::owned_setup(1).entry.mode
         };
+        fixtures::reseed(&mut config);
+        let mut rows = List::with_capacity(config.limits.forge.forges);
+        for record in &config.seed {
+            rows.push(domain::Configured::from_record(record)).unwrap();
+        }
         assert_eq!(
-            crate::startup::application::configured(&config).as_ref(),
+            rows.as_slice(),
             [domain::Configured {
                 bot: b"temper".as_slice().into(),
                 admin_connect: false,
@@ -461,8 +477,10 @@ fn old_form_owned_and_managed_serve_reads_without_start_time_writing_plans() {
         assert!(setup.served.contains_key(&1));
         let (settings, _) = setup.pending.unwrap();
         let host::Kind::Forgejo(_) = &settings.forges.get(0).unwrap().kind else { panic!("Forgejo Given") };
+        fixtures::reseed(&mut config);
+        let store = fixtures::records_store_with(&config);
         let mut service = crate::Service::engine(config, &fixtures::seeds(), None, fixtures::forge_runtime()).unwrap();
-        service.engine.as_mut().expect("engine").store = fixtures::records_store();
+        service.engine.as_mut().expect("engine").store = store;
         for _ in 0_u32..8 {
             crate::forge::records::advance(service.engine.as_mut().expect("engine"));
         }

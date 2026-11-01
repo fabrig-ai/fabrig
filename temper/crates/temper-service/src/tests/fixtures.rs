@@ -63,7 +63,8 @@ pub fn engine() -> settings::Engine {
     let jig = parse_engine(ENGINE);
     // This typed fixture reaches the core's start; policy 1 needs 3250 bytes.
 
-    settings::Engine {
+    let mut settings = settings::Engine {
+        seed: Box::new([]),
         owned: None,
         records_only: Box::new([]),
         jig,
@@ -95,7 +96,9 @@ pub fn engine() -> settings::Engine {
         },
         charter: 1,
         limits: limits::profile(limits::Profile::Small),
-    }
+    };
+    reseed(&mut settings);
+    settings
 }
 
 /// A parsed engine passed the stock, before any component is made.
@@ -251,12 +254,15 @@ pub fn memory_store() -> crate::store::Store {
     memory_store_for(&root, &profile, &models)
 }
 pub fn records_store() -> crate::store::Store {
+    records_store_with(&engine())
+}
+pub fn records_store_with(settings: &settings::Engine) -> crate::store::Store {
     let (root, _, mut profile) = store_limits();
     profile.store.page.rows = 32;
     let models = jig_protocol_config::core(&engine().jig, [7; 16], 7).settings.models;
     // Secret-record fixtures start from a real completed deployment, as the
     // store now refuses secrets until that start's mark is durable.
-    let maps = ready().engine.expect("bootstrap engine").store.component.into_stores();
+    let maps = ready_with(settings).engine.expect("bootstrap engine").store.component.into_stores();
     let limits = crate::store::limits(&root, &root.forge, &profile).expect("record fixture limits");
     let mut store = memory_store_for(&root, &profile, &models);
     store.component = jig_protocol_store::Store::over(
@@ -392,6 +398,7 @@ pub fn root() -> (temper_engine_domain::Domain, skein_lib::Env<temper_engine_dom
     let settings = engine();
     let limits = limits::engine(&settings.jig.limits, &settings.limits).unwrap();
     let config = root::Config {
+        seed: Box::new([]),
         period_span: crate::stock::PERIOD_SPAN,
         core: jig_protocol_config::core(&settings.jig, [7; 16], 7),
         landing: settings.landing,
@@ -413,6 +420,7 @@ pub fn root() -> (temper_engine_domain::Domain, skein_lib::Env<temper_engine_dom
 
 /// The worker digests the engine document names.
 pub fn fill_files(settings: &mut settings::Engine) {
+    reseed(settings);
     settings.files.entries = skein_lib::List::with_capacity(2);
     for worker in &settings.jig.hosts.workers {
         settings.files.entries.push((worker.digest.clone(), Secret::new(WORKER_DIGEST.into()))).unwrap();
@@ -436,6 +444,16 @@ fn start_with_worker(
     worker: Option<crate::Worker>,
     two_forges: bool,
     under_box: bool,
+) -> crate::Service {
+    start_with_settings(projects, stored, worker, two_forges, under_box, None)
+}
+fn start_with_settings(
+    projects: &[(u32, u64)],
+    stored: Option<crate::store::Store>,
+    worker: Option<crate::Worker>,
+    two_forges: bool,
+    under_box: bool,
+    seed: Option<Box<[temper_engine_domain_forge::Forge]>>,
 ) -> crate::Service {
     let mut settings = engine();
     let mut runtime = forge_runtime();
@@ -509,6 +527,9 @@ fn start_with_worker(
         settings.files.entries.get_mut(0).unwrap().1 =
             Secret::new(b"8f7be71db3941de11249a5e3fba7750a41c7d9958083ef522cb79e9fd7822878".as_slice().into());
     }
+    if let Some(seed) = seed {
+        settings.seed = seed;
+    }
     let root = limits::engine(&settings.jig.limits, &settings.limits).unwrap();
     let store = match stored {
         Some(store) => store,
@@ -556,6 +577,12 @@ pub fn restart(service: &mut crate::Service) {
     }
     assert!(service.engine.as_ref().expect("engine").domain.ready(), "restart ready");
     assert_eq!(service.end(), None);
+}
+pub fn ready_with(settings: &settings::Engine) -> crate::Service {
+    let seed = crate::startup::seed::seed(&[], &[], settings).expect("bootstrap document seed");
+    let mut service = start_with_settings(&[(1, 100)], None, None, false, false, Some(seed));
+    restart(&mut service);
+    service
 }
 pub fn ready() -> crate::Service {
     let mut service = started();
@@ -1113,4 +1140,9 @@ pub fn marked_store() -> crate::store::Store {
 pub fn restarting_from(previous: crate::engine::Engine) -> crate::Service {
     let reopened = reopened_store(previous.store, &previous.env.limits);
     start_with_store(&[(1, 100)], Some(reopened))
+}
+
+/// Rebuild a typed fixture's document seed after changing its public settings.
+pub fn reseed(settings: &mut settings::Engine) {
+    settings.seed = crate::startup::seed::seed(&[], &[], settings).expect("fixture seed");
 }

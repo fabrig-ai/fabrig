@@ -194,7 +194,7 @@ impl Service {
             values::Values::new(settings.jig.limits.driver.accounts, values::credential_bytes(&settings.jig));
         let wire = translate::limits(&settings.limits).ok_or(start_problem(b"limits", What::Bound))?;
         values.fill(&settings, &wire)?;
-        let (forge_config, identities) = crate::forge::config(&settings, seeds.deployment);
+        let (forge_config, _identities) = crate::forge::config(&settings, seeds.deployment);
         let mut first_periods = List::with_capacity(limits.authority.projects);
         for project in &settings.jig.projects {
             first_periods
@@ -218,7 +218,6 @@ impl Service {
                 .expect("checked forge limits");
         forget_handover(&mut settings);
         let notes = Queue::with_capacity(note_bound(&settings, &limits).expect("validated diagnostic room"));
-        let configured = crate::startup::application::configured(&settings);
         // Workers take the forge settings; derive the demo's adoption host first.
         let demo_config = match &settings.demo {
             Some(demo) => Some(demo.domain(&settings.forges, settings.limits.setup.deadline)),
@@ -230,9 +229,10 @@ impl Service {
             core: jig_protocol_config::core(&settings.jig, seeds.deployment, seeds.seed),
             landing: settings.landing,
             forge: forge_config,
-            identities,
+            identities: Box::new([]),
             forge_charter: settings.charter,
-            forges: configured,
+            forges: Box::new([]),
+            seed: settings.seed,
             under_box: box_line_bytes.is_some(),
             demo: demo_config,
         };

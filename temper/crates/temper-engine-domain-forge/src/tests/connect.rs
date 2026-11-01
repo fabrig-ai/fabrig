@@ -25,6 +25,7 @@ fn github(kind: Kind, mode: Mode) -> Domain {
             mode,
             asked: false,
         }],
+        &[],
         false,
     )
     .unwrap()
@@ -362,6 +363,7 @@ fn installation_updates_mark_rows_in_id_order_and_deletion_drops_one() {
                 asked: false,
             },
         ],
+        &[],
         false,
     )
     .unwrap();

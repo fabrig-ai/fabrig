@@ -141,6 +141,8 @@ pub struct Setup {
 /// temper's members (protocol/configuration.md, sections 2 and 3).
 #[derive(Debug)]
 pub struct Engine {
+    /// Document forge records, used only at the store's first start (contracts, D1).
+    pub seed: Box<[temper_engine_domain_forge::Forge]>,
     /// The machine's owned Forgejo template (contracts, 6).
     pub owned: Option<temper_forge_setup::setup::Template>,
     pub jig: jig_protocol_config::Engine,

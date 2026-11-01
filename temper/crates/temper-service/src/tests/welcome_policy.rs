@@ -56,6 +56,7 @@ fn generated() -> (engine::Config, engine::Limits) {
     let resolved = application::resolve(&parsed.application, &files, &mut problems).expect("generated file values");
     assert!(problems.is_empty());
     let mut settings = settings::Engine {
+        seed: Box::new([]),
         owned: None,
         jig: parsed.engine,
         clients: parsed.application.clients,
@@ -71,15 +72,17 @@ fn generated() -> (engine::Config, engine::Limits) {
         charter: parsed.application.charter,
         limits: parsed.application.limits,
     };
+    settings.seed = super::seed::seed(&parsed.application.forges, &parsed.application.identities, &settings).unwrap();
     let limits = super::engine_limits(&mut settings.jig.limits, &settings.limits, settings.jig.memory)
         .expect("unchanged effective limits");
     let seeds = fixtures::seeds();
     let core = config::core(&settings.jig, seeds.deployment, seeds.seed);
     let (forge, identities) = crate::forge::config(&settings, seeds.deployment);
-    let forges = application::configured(&settings);
+    let forges = settings.seed.iter().map(temper_engine_domain_forge::Configured::from_record).collect::<Box<[_]>>();
     let demo = settings.demo.as_ref().map(|demo| demo.domain(&settings.forges, settings.limits.setup.deadline));
     (
         engine::Config {
+            seed: Box::new([]),
             period_span: crate::stock::PERIOD_SPAN,
             core,
             forge,

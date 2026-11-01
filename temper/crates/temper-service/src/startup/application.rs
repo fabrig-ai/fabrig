@@ -779,7 +779,7 @@ pub fn parse(
     let path = Path::root().member(b"application");
     let mut object = read::object(document, at, &path, problems)?;
     let mut overrides = List::with_capacity(document.len());
-    let setup_at = read::required(&mut object, document, b"setup", &path, problems);
+    let setup_at = object.member(document, b"setup");
     let demo_at = read::required(&mut object, document, b"demo", &path, problems);
     let limit_at = read::required(&mut object, document, b"limits", &path, problems);
     let limits = match limit_at {
@@ -787,9 +787,16 @@ pub fn parse(
         None => None,
     };
     let bounds = limits.unwrap_or(limits::profile(limits::Profile::Small));
-    let forge_ats = read::list(&mut object, document, b"forges", bounds.forge.client.repositories, &path, problems);
-    let identity_ats =
-        read::list(&mut object, document, b"identities", jig.limits.core.accounts.credentials, &path, problems);
+    let forge_ats = if object.member(document, b"forges").is_some() {
+        read::list(&mut object, document, b"forges", bounds.forge.forges, &path, problems)
+    } else {
+        None
+    };
+    let identity_ats = if object.member(document, b"identities").is_some() {
+        read::list(&mut object, document, b"identities", jig.limits.core.accounts.credentials, &path, problems)
+    } else {
+        None
+    };
     let workers_ats = read::list(&mut object, document, b"workers", jig.limits.core.fleet.workers, &path, problems);
     let charter = read::number(&mut object, document, b"charter", &path, problems);
     let clients_at = read::required(&mut object, document, b"clients", &path, problems);
@@ -817,13 +824,10 @@ pub fn parse(
         Some(ats) => ats.len(),
         None => 0,
     };
-    if forge_ats.is_some() && forge_count == 0 {
-        problems.push(path.member(b"forges"), What::Jig(config::What::Bound));
-    }
     if identity_ats.is_some() && forge_ats.is_some() && identity_count != forge_count {
         problems.push(path.member(b"identities"), What::Jig(config::What::Bound));
     }
-    let mut forges = List::with_capacity(bounds.forge.client.repositories);
+    let mut forges = List::with_capacity(bounds.forge.forges);
     if let Some(ats) = forge_ats {
         for (index, at) in ats.iter().enumerate() {
             if let Some(mut forge) = forge(document, *at, &read::index(&path.member(b"forges"), index), problems) {
@@ -1294,68 +1298,4 @@ fn resolve_forge(directories: &config::Directories, forge: &mut Forge, fp: &Path
     {
         *value = resolved;
     }
-}
-
-/// Public forge configuration for the connector, decided before its first input.
-pub(crate) fn configured(settings: &settings::Engine) -> Box<[temper_engine_domain_forge::Configured]> {
-    use temper_engine_domain_forge::{Configured, Kind, Mode};
-    let mut rows = List::with_capacity(u32::try_from(settings.forges.len()).expect("configured forges"));
-    for forge in &settings.forges {
-        let mut mode = Mode::Connected;
-        let mut admin_connect = false;
-        let mut bot: Box<[u8]> = Box::new([]);
-        let mut owned = None;
-        let mut asked = match &settings.demo {
-            Some(demo) => demo.forge == forge.number,
-            None => false,
-        };
-        for setup in &settings.setup {
-            if setup.entry.forge == forge.number {
-                bot.clone_from(&setup.entry.bot.login);
-                (mode, admin_connect) = match &setup.entry.mode {
-                    temper_forge_setup::setup::Mode::Managed { admin_token } => (Mode::Managed, admin_token.is_none()),
-                    temper_forge_setup::setup::Mode::Owned(value) => {
-                        use skein_forge::forgejo::pin;
-                        let place = temper_forge_setup::place::Place {
-                            directory: setup.entry.directory.clone(),
-                            user: Box::new([]),
-                        };
-                        owned = Some(temper_engine_domain_forge::Owned {
-                            forgejo: pin::VERSION.as_bytes().into(),
-                            runner: value.runner.is_some().then_some(pin::RUNNER_VERSION.as_bytes().into()),
-                            password: place.path(temper_forge_setup::place::File::PersonPassword),
-                        });
-                        (Mode::Owned, false)
-                    }
-                    temper_forge_setup::setup::Mode::Fake(_) => (Mode::Fake, false),
-                };
-                asked |= setup.entry.asked;
-                break;
-            }
-        }
-        let kind = match forge.kind {
-            settings::Kind::Forgejo => Kind::Forgejo,
-            settings::Kind::GitHub => Kind::GitHub,
-        };
-        rows.push(Configured {
-            bot,
-            admin_connect,
-            owned,
-            number: forge.number,
-            kind,
-            mode,
-            asked,
-            git: if forge.git.len()
-                <= usize::try_from(temper_engine_domain_forge::PULL_ADDRESS_BYTES).expect("u32 fits usize")
-            {
-                forge.git.clone()
-            } else {
-                Box::new([])
-            },
-            web: forge.web.clone(),
-            read_only: forge.app_read_only,
-        })
-        .expect("configured forges");
-    }
-    rows.into_boxed()
 }
