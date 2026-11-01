@@ -455,7 +455,8 @@ impl Domain {
         Some(crate::DelegationContext {
             project: record.project,
             requester: record.requester,
-            deciding: !crate::run::ends::kept(self, task).blocks_claims()
+            deciding: record.flags.ended_by != crate::EndedBy::Requester
+                && !crate::run::ends::kept(self, task).blocks_claims()
                 && match record.phase {
                     Phase::Waiting | Phase::Active(_) => match record.executor {
                         crate::Executor::Agent { .. } => true,

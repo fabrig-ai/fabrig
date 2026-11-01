@@ -1380,8 +1380,9 @@ proposed, what an action needs, and what an acceptance funds.
   a notice, which merges.
 - **Where they wait.** At the nearest task above the proposer, or the
   held task, whose authority covers the decision (authority.md,
-  section 9), skipping procedures, which decide nothing, and kept tasks,
-  which start no run to decide (5.7). Above the tree's
+  section 9), skipping procedures, kept tasks and conversations: procedures
+  decide nothing, kept tasks start no run to decide (5.7), and a
+  conversation is ended by its requester (5.8). Above the tree's
   root task is whoever requested it: a party is the next holder there,
   when their authority covers it; past them, or past a root the
   deployment requested, it waits for the parties whose role the project's
