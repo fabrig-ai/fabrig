@@ -187,7 +187,15 @@ pub(crate) fn held(domain: &mut Domain, env: &Env<Limits>, decision: &mut Decisi
         core::Held::NotesWritten { .. } | core::Held::NotesDeleted { .. } => {
             unreachable!("the current application has no note caller")
         }
-        core::Held::Acted { to, outcome } => emit(decision, &env.limits, Delivery::DemoActed { to, outcome }),
+        core::Held::Acted { to, outcome } => {
+            let token = to.into_token();
+            let to = skein_lib::ReplyTo::new(token);
+            if super::kept::owns(token) {
+                super::kept::acted(domain, env, decision, to, outcome);
+            } else {
+                emit(decision, &env.limits, Delivery::DemoActed { to, outcome });
+            }
+        }
     }
 }
 
