@@ -47,7 +47,6 @@ pub fn group(entry: &Entry, llm: Option<SocketAddr>, flags: &[Box<[u8]>], forgej
 /// place, unasked.
 /// The caller's first steps precede these steps and every asked group's insertion point (7.3).
 #[must_use]
-#[expect(clippy::manual_map, reason = "step code uses explicit matches, never closures")]
 pub fn steps(
     setup: &Setup,
     demo: Option<&Demo>,
@@ -58,7 +57,7 @@ pub fn steps(
 ) -> Steps {
     let given = temper_forge_setup::steps(setup, flags, listeners, forgejo_listens);
     let demo_forge = match demo {
-        Some(demo) => Some(demo.forge()),
+        Some(demo) => demo.forge(),
         None => None,
     };
     let first_len = u32::try_from(first.len()).expect("bounded first steps");
@@ -100,11 +99,10 @@ pub fn steps(
             .checked_add(u32::from(demo.is_some()))
             .expect("demo group"),
     );
-    if let Some(demo) = demo {
-        let Mode::Fake(fake) = &setup.entry(demo.forge()).expect("checked demo forge").mode else {
-            unreachable!("demo has a fake forge")
-        };
-        let mut group = playground_group(demo.forge(), fake, demo.llm().listen(), flags);
+    if let Some(demo) = demo
+        && let Some(forge) = demo.forge()
+    {
+        let mut group = playground_group(forge, demo.fake(), demo.llm().listen(), flags);
         group.recorded = false;
         group.before = first_len;
         asked.push(group).expect("demo group counted");
