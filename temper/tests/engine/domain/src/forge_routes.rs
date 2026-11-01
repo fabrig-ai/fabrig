@@ -56,6 +56,14 @@ pub struct CallError {
     pub text: Box<[u8]>,
 }
 
+/// One durable engine decision selected by a crash story (temper/docs/design/domain/testing.md, 5.2).
+pub struct CommitCut {
+    pub store: Store,
+    pub writes: Box<[engine::Write]>,
+    pub now: Time,
+    pub wall: Wall,
+}
+
 #[expect(clippy::struct_excessive_bools, reason = "independent outside fault and observation switches remain explicit")]
 pub struct World {
     creating: jig_core_world::fixtures::Creating,
@@ -70,6 +78,7 @@ pub struct World {
     pub pending: BTreeMap<Token, skein_forge::api::Op>,
     pub forge_calls: u32,
     pub adopted: Vec<forge_top::ApplicationOutcome>,
+    pub applications: Vec<Option<engine::ApplicationAnswer>>,
     pub signed_in: Option<u64>,
     pub assigned: Vec<engine::Assignment>,
     /// Inbox messages delivered after an assignment, as a real worker receives them.
@@ -107,6 +116,11 @@ pub struct World {
     pub drained: Option<u64>,
     pub unsettled: Vec<engine::Unsettled>,
     pub busy_calls: u32,
+    /// Setup and removal handoffs observed at the engine root.
+    pub setup_requests: Vec<engine::Request>,
+    /// Durable snapshots and write batches at each selected crash cut.
+    pub commit_cuts: Option<Vec<CommitCut>>,
+    boxed_setup: bool,
 }
 
 #[derive(Clone, Copy, Default)]
@@ -122,6 +136,7 @@ pub struct StoryLimits {
     pub spec_bytes: Option<u32>,
     pub result_bytes: Option<u32>,
     pub forge_charter: Option<u32>,
+    pub boxed_setup: bool,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -267,6 +282,7 @@ impl World {
             tasks,
             across,
             library_gate_latency,
+            boxed_setup,
         } = timing;
         let paths::Gate { approval, agent: agent_gate, owner: owner_gate } = gate;
         let [(bootstrap, mut limits), (config, _)] = std::array::from_fn(|_| {
@@ -283,6 +299,22 @@ impl World {
             }
             limits.journal.writes = journal::WALKING_WRITES;
             let mut config = walking::config(71);
+            if boxed_setup {
+                // The welcome can make Default beside the fixture's project and deployment roster.
+                limits.people.projects = 3;
+                limits.authority.projects = 2;
+                limits.people.initial_owners = 2;
+                limits.people.act_grants = 1;
+                config.forge.writers = Box::new([]);
+                config.under_box = true;
+                config.owned = Some(owned_template());
+                config.core.owners = Box::new([
+                    config.core.owners[0].clone(),
+                    people::InitialOwner { project: 0, identity: config.core.owners[0].identity.clone() },
+                ]);
+                config.core.grants =
+                    Box::new([people::ActGrant { connector: 0, may: Box::new([people::ActKind::Cancel]) }]);
+            }
             if approval.is_some() || agent_gate || owner_gate {
                 limits.authority.roles = 3;
             }
@@ -295,7 +327,8 @@ impl World {
             }
             if with_change {
                 // One adoption, three chat creations and two Says survive the restart cut.
-                limits.people.requests = 6;
+                // Boxed stories also retain setup, removal and cancellation answers across their cuts.
+                limits.people.requests = if boxed_setup { 16 } else { 6 };
                 // Adoption stories ask in 128 bytes of words.
                 limits.people.words = 128;
                 limits.tasks.message_bytes = 128;
@@ -661,6 +694,14 @@ impl World {
             if let Some((_, _, Some(deployment))) = stock {
                 limits = *deployment;
             }
+            if boxed_setup {
+                limits.documents = paths::document_limits(limits.documents, &limits);
+                let mut policy = config.core.seed_projects[0].policy.clone();
+                for permission in &mut policy.permissions {
+                    permission.role = people::Role::Owner.number();
+                }
+                config.core.defaults.policies.insert(1, policy).expect("the welcome's configured policy");
+            }
             (config, limits)
         });
         let mut fake_config = forge_world::fake_config();
@@ -794,6 +835,7 @@ impl World {
             pending: BTreeMap::new(),
             forge_calls: 0,
             adopted: Vec::new(),
+            applications: Vec::new(),
             signed_in: None,
             assigned: Vec::new(),
             delivered_messages: BTreeMap::new(),
@@ -820,6 +862,9 @@ impl World {
             drained: None,
             unsettled: Vec::new(),
             busy_calls: 0,
+            setup_requests: Vec::new(),
+            commit_cuts: None,
+            boxed_setup,
             merges: 0,
             writes: Vec::new(),
             repository_writes: Vec::new(),
@@ -867,7 +912,12 @@ impl World {
             if self.gate.owner { 0 } else { 1000 },
             self.gate,
             None,
-            StoryLimits { brief: Some(self.env.limits.brief), forge_charter, ..StoryLimits::default() },
+            StoryLimits {
+                brief: Some(self.env.limits.brief),
+                forge_charter,
+                boxed_setup: self.boxed_setup,
+                ..StoryLimits::default()
+            },
         );
         std::mem::swap(&mut self.root, &mut fresh.root);
         std::mem::swap(&mut self.out, &mut fresh.out);
@@ -1043,7 +1093,9 @@ impl World {
                     let located = translate::locate_name(&op);
                     let name: &[u8] = if let Some(name) = &located {
                         name
-                    } else if repository == forge_world::REPO {
+                    } else if repository == forge_world::REPO
+                        || (self.boxed_setup && repository.repository == forge_world::REPO.repository)
+                    {
                         b"org/repo"
                     } else if repository == (skein_forge::api::Repository { forge: 1, repository: 4 }) {
                         b"org/lib"
@@ -1121,25 +1173,25 @@ impl World {
                         self.busy_calls += 1;
                     }
                     Delivery::Application { outcome, .. } => {
-                        let Some(engine::ApplicationAnswer::Adopt(outcome)) = outcome else {
-                            panic!("retained adoption answer")
-                        };
-                        self.adopted.push(outcome);
+                        if let Some(engine::ApplicationAnswer::Adopt(answer)) = &outcome {
+                            self.adopted.push(answer.clone());
+                        }
+                        self.applications.push(outcome);
                     }
                     _ => {}
                 },
-                engine::Request::Account(_)
-                | engine::Request::SetUpGroup { .. }
-                | engine::Request::ForgeKept { .. }
+                request @ (engine::Request::ForgeKept { .. }
                 | engine::Request::ForgeRemoved { .. }
                 | engine::Request::BoxRemove { .. }
+                | engine::Request::SetUp { .. }) => self.setup_requests.push(request),
+                engine::Request::Account(_)
+                | engine::Request::SetUpGroup { .. }
                 | engine::Request::Connect { .. }
                 | engine::Request::Manifest { .. }
                 | engine::Request::Reachable { .. }
                 | engine::Request::Install { .. }
                 | engine::Request::Accept { .. }
                 | engine::Request::EraseCarried { .. }
-                | engine::Request::SetUp { .. }
                 | engine::Request::Bound { .. }
                 | engine::Request::Return { .. }
                 | engine::Request::Setup { .. }
@@ -1261,7 +1313,16 @@ impl World {
                     if row.number == target && row.inbox.iter().any(|word| matches!(word.from, tasks::Party::Task(_))))
                 })
             });
+            let writes = if self.commit_cuts.is_some() { Some(writes.clone()) } else { None };
             let number = self.store.apply();
+            if let Some(cuts) = &mut self.commit_cuts {
+                cuts.push(CommitCut {
+                    store: self.store.fork(),
+                    writes: writes.expect("selected commit writes"),
+                    now: self.env.now,
+                    wall: self.env.wall,
+                });
+            }
             if !lost {
                 self.send(engine::Event::Store(engine::StoreInput::Committed { number, fill: 0 }));
             }
@@ -1930,4 +1991,96 @@ fn box_profile() -> jig_protocol_config::Limits {
     let at = engine.member(&document, b"limits").expect("engine limits");
     config::overrides::parse(&document, at, &config::Path::root().member(b"engine").member(b"limits"))
         .expect("init limits")
+}
+
+/// Owned setup template for the root's boxed stories (temper/docs/design/draft/playground-reset.md, 6.4).
+#[must_use]
+pub fn owned_template() -> forge_top::Forge {
+    use forge_top::record as r;
+    forge_top::Forge {
+        number: 1,
+        kind: forge_top::Kind::Forgejo,
+        api: r::Address::Socket(([127, 0, 0, 1], 3000).into()),
+        transport: r::Transport::Plaintext,
+        git: b"http://forge.example".as_slice().into(),
+        git_program: None,
+        web: None,
+        read_only: false,
+        identity: r::Identity { number: 1, login: Box::new([]), name: Box::new([]), email: Box::new([]) },
+        files: None,
+        setup: Some(r::Setup {
+            directory: b"/data/forge".as_slice().into(),
+            bot: r::Account { login: b"temper".as_slice().into(), email: b"temper@localhost".as_slice().into() },
+            orgs: Box::new([]),
+            mode: r::SetupMode::Owned(r::OwnedEntry {
+                public: None,
+                fetch: r::Fetch { forgejo: true, runner: false, mirror: None },
+                forgejo: b"/bin/forgejo".as_slice().into(),
+                runner: None,
+                listen: ([127, 0, 0, 1], 3000).into(),
+                person: r::Account { login: b"person".as_slice().into(), email: b"person@localhost".as_slice().into() },
+            }),
+            asked: true,
+        }),
+        first: None,
+        playground: false,
+        removing: false,
+    }
+}
+
+impl World {
+    /// An owner under the box, with a runtime owned-forge template and cancel grant.
+    #[must_use]
+    pub fn boxed_setup() -> Self {
+        Self::configured_limits(
+            true,
+            true,
+            false,
+            1000,
+            Gate::default(),
+            None,
+            StoryLimits { boxed_setup: true, ..StoryLimits::default() },
+        )
+    }
+
+    /// One owner's forge application through the root's authorization and journal.
+    pub fn forge_ask(&mut self, key: u8, ask: forge_top::Ask) {
+        self.send(engine::Event::Party(engine::PartyInput::Application {
+            scope: people::ApplicationScope::Deployment,
+            reply_to: ReplyTo::new(Token::new(u64::from(key))),
+            sign_in: self.signed_in.expect("owner session"),
+            key: [key; 16],
+            digest: [key; 32],
+            carried: None,
+            request: engine::Application::Forge(ask),
+        }));
+    }
+
+    /// A box line translated at the domain boundary; false is `failed`, true `removed`.
+    pub fn box_removed(&mut self, forge: u16, removed: bool) {
+        self.send(engine::Event::Forge(Box::new(forge_top::Event::BoxRemoved { forge, removed })));
+    }
+}
+
+impl World {
+    /// Crash at a durable removal cut, dropping the old process's pending read terminals.
+    pub fn restart_removal(&mut self, store: Store) {
+        for op in self.pending.values() {
+            assert!(matches!(op, skein_forge::api::Op::Read(_)), "removal leaves no outward write pending");
+        }
+        for _ in 0..STEPS {
+            if self.pending.is_empty() {
+                break;
+            }
+            self.fake_env.now = self.fake_env.now.saturating_add(Duration::from_millis(100));
+            fake::fire(&mut self.fake, &self.fake_env, &mut self.fake_out);
+            while let Some(request) = self.fake_out.pop() {
+                if let fake::Request::Reply { to, .. } = request {
+                    assert!(self.pending.remove(&to.into_token()).is_some(), "old process read terminal");
+                }
+            }
+        }
+        self.store = store;
+        self.restart(true, true);
+    }
 }
