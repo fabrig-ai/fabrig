@@ -166,7 +166,12 @@ fn a_forgejo_admin_connect_makes_a_managed_forgejo_from_its_origin() {
                 name: b"Temper".as_slice().into(),
                 email: b"temper@localhost".as_slice().into(),
             },
-            first: first.as_ref().map(|first| r::FirstIntent { org: first.org.clone(), repository: first.repository.clone(), project: first.project.clone(), label: first.label.clone() }),
+            first: first.as_ref().map(|first| r::FirstIntent {
+                org: first.org.clone(),
+                repository: first.repository.clone(),
+                project: first.project.clone(),
+                label: first.label.clone(),
+            }),
             setup: Some(r::Setup {
                 directory: Box::new([]),
                 bot: r::Account { login: b"temper".as_slice().into(), email: b"temper@localhost".as_slice().into() },
@@ -178,7 +183,25 @@ fn a_forgejo_admin_connect_makes_a_managed_forgejo_from_its_origin() {
         };
         assert_eq!(d.forge_record(1), Some(&expected));
         assert_eq!(d.configured(1), Some(&Configured::from_record(&expected)));
-        made_before_connect(&out, &expected);
+        let mut created = expected.clone();
+        created.first = None;
+        made_before_connect(&out, &created);
+        if first.is_some() {
+            let saved = out
+                .iter()
+                .position(|request| {
+                    *request
+                        == Request::Save { record: Stored::Forge(expected.clone()), release: None, read_afresh: None }
+                })
+                .expect("first intent is durable");
+            let connected = out
+                .iter()
+                .position(|request| {
+                    *request == Request::Connect { forge: 1, request: Token::new(1), how: how.clone(), carried: VALUE }
+                })
+                .expect("connect");
+            assert!(saved < connected, "save the first intent before asking the host");
+        }
         assert!(out.contains(&Request::Connect { forge: 1, request: Token::new(1), how, carried: VALUE }));
         assert_eq!(d.connection(1), Connection::Connecting);
         assert_eq!(

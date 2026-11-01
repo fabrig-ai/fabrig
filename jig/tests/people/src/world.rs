@@ -720,7 +720,12 @@ impl World {
                     } else {
                         match *ask {
                             Ask::RemoveProject { project } => {
-                                people::step(&mut self.domain, &self.env, Event::Decided { request, outcome: Outcome::ProjectRemoved { project } }, &mut self.out);
+                                people::step(
+                                    &mut self.domain,
+                                    &self.env,
+                                    Event::Decided { request, outcome: Outcome::ProjectRemoved { project } },
+                                    &mut self.out,
+                                );
                             }
                             Ask::Compound { project, operations } => {
                                 let outcome = if self.settings.authority_refuses {
@@ -1098,7 +1103,7 @@ impl World {
                             | Ask::AnswerQuestion { .. }
                             | Ask::SetRoles { .. }
                             | Ask::Rename { .. }
-                                | Ask::MakeProject { .. }
+                            | Ask::MakeProject { .. }
                             | Ask::ChangeSettings { .. }
                             | Ask::MoveToNewest { .. }
                             | Ask::ChangePolicy { .. }
