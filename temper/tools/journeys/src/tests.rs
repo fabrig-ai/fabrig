@@ -60,8 +60,8 @@ fn a_name_outside_the_pattern_is_refused() {
         assert!(!crate::named(name), "invalid name: {name:?}");
         assert!(matches!(crate::add(scratch.path(), name, b""), Err(crate::Refusal::Name(refused)) if refused == name));
     }
-    assert!(crate::named("welcome-set-up"));
-    assert!(matches!(crate::add(scratch.path(), "welcome-set-up", b""), Err(crate::Refusal::Proof { .. })));
+    assert!(crate::named("welcome-playground"));
+    assert!(matches!(crate::add(scratch.path(), "welcome-playground", b""), Err(crate::Refusal::Proof { .. })));
 }
 
 #[test]
@@ -211,7 +211,7 @@ fn every_journey_has_its_description() {
 #[test]
 fn a_reprint_keeps_a_journeys_readme() {
     let scratch = Scratch::new("temper-client-journeys-readme");
-    let directory = scratch.path().join("welcome-set-up");
+    let directory = scratch.path().join("welcome-playground");
     fs::create_dir(&directory).expect("journey directory");
     let readme = directory.join("README.md");
     let description = b"The journey's description.\n";
