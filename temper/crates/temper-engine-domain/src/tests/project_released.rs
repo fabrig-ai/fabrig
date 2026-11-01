@@ -1,12 +1,12 @@
-//! The root immediately answers the project release placeholder (contracts J5).
+//! Project release for other connectors needs no forge work (contracts J5).
 use jig_domain_core as core;
 
 #[test]
-fn a_release_ask_is_answered_at_once() {
-    for known in [true, false] {
+fn another_connectors_release_ask_is_answered_at_once() {
+    for stopping in [false, true] {
         let (mut domain, env) = super::resume_fixture::root();
-        let connector = if known { domain.config.forge_connector } else { u16::MAX };
-        if !known {
+        let connector = u16::MAX;
+        if stopping {
             let _stopping = core::step(&mut domain.core, &crate::limits::environment_core(&env), core::Event::Stopping);
             assert!(domain.core.stopping());
         }
