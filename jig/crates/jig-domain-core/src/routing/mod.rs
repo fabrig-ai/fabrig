@@ -54,7 +54,7 @@ pub use vocabulary::{
 pub(crate) use watch_marks::finish_watches;
 
 pub(crate) mod account_requests;
-mod children;
+pub(crate) mod children;
 pub(crate) mod first_start;
 mod historical;
 #[path = "notes.rs"]
@@ -518,7 +518,13 @@ fn step_one(core: &mut Core, env: &Env<Limits>, event: Event, work: &mut Queue<E
         }
         Event::EffectDeadline => crate::effects::deadline(core, env),
         Event::SignIn { reply_to, identity, held } => sign_in(core, env, work, reply_to, identity, held),
-        Event::ReadLoaded { load, result } => crate::reads::loaded(core, env, load, result),
+        Event::ReadLoaded { load, result } => {
+            if crate::deletion::erase::owns(load) {
+                crate::deletion::erase::loaded(core, env, load, result)
+            } else {
+                crate::reads::loaded(core, env, load, result)
+            }
+        }
         Event::Read { reply, sign_in, read } => crate::reads::start(core, env, reply, sign_in, read),
         Event::Watch { watcher, sign_in, subject, window } => open(core, env, watcher, sign_in, subject, window),
         Event::WatchRun { watcher, sign_in, task, turn, offset } => {
