@@ -12,6 +12,7 @@ files = [
   "temper/crates/temper-service/src/engine.rs",
   "temper/crates/temper-service/src/setup/settings.rs",
   "temper/crates/temper-service/src/tests/limits.rs",
+  "temper/crates/temper-engine-domain-forge/src/tests/records.rs",
 ]
 effort = "medium"
 minutes = 35
@@ -102,3 +103,16 @@ Pre-approved options:
 
 fab's sections, and `## Interfaces`: `Limits.forges`, the name, and
 where the component's and host's bounds now come from.
+
+## Answers
+
+2026-11-01. May fr-limits update the stale `kept_bound` assertions in
+`temper-engine-domain-forge/src/tests/records.rs`
+(`fits_refuses_a_field_past_its_bound`)? Yes (option A): the file is
+now in this task's header. They test this task's acceptance
+(`kept_bound` counts forges), and `store-families`, which wrote them, is
+done. In that test only: set `l.forges = u32::MAX` in place of
+`l.client.repositories = u32::MAX` (still `kept_bound` None and
+`!valid`), and expect `LIMITS.tasks + 1 + 2 * LIMITS.forges + 2` (or
+the formula `kept_bound` now has) in place of `CLIENT.repositories`.
+Nothing else in the file changes.
