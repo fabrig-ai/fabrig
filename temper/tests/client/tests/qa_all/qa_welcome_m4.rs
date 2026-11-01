@@ -16,7 +16,6 @@ use temper_engine_domain_forge as forge;
 const SETUP_STEPS: usize = 5;
 // The owned forge and its restored writer in the public harness fixtures.
 const OWNED_FORGE: u16 = 1;
-const FORGE_WRITER: u64 = 1;
 
 fn page(front: &mut Joint, root: &mut Root, address: Address) -> View {
     harness::event(front, root, Temper::went(address));
@@ -50,7 +49,7 @@ fn failed_setup_keeps_steps_and_names_the_failed_one() {
         (forge::Connection::SettingUp { step: None }, "Set up", SETUP_STEPS),
     ];
     for (state, label, failed) in cases {
-        let (mut front, mut root) = harness::forge_fixture(fixtures::SEED);
+        let (mut front, mut root) = harness::seeded_forge_fixture(fixtures::SEED);
         connection(&mut front, &mut root, state);
         connection(
             &mut front,

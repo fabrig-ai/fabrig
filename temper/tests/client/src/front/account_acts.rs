@@ -41,7 +41,7 @@ pub fn small_rows_fixture(seed: u64) -> (Joint, Root) {
 }
 #[must_use]
 pub fn welcome_fixture(seed: u64) -> (Joint, Root) {
-    fixture_root(seed, Tools::Off, 2, None, false, WelcomeForge::Connected, false)
+    fixture_root(seed, Tools::Off, 2, None, false, WelcomeForge::Fresh, false)
 }
 /// The first-run forge is owned by the box; the test scripts its connection rows.
 #[must_use]
@@ -55,11 +55,23 @@ pub fn forge_fixture(seed: u64) -> (Joint, Root) {
     ]));
     (front, root)
 }
+/// A story explicitly starts with the owned forge's kept record.
+#[must_use]
+pub fn seeded_forge_fixture(seed: u64) -> (Joint, Root) {
+    let (mut front, root) = fixture_root(seed, Tools::Off, 2, None, false, WelcomeForge::SeededOwned, false);
+    front.engine.forge = Some(temper_engine_domain_world::forge_stand::ForgeStand::with(&[
+        (b"acme", b"shop", 7),
+        (b"acme", b"second", 8),
+        (b"work", b"hello", 42),
+    ]));
+    (front, root)
+}
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum WelcomeForge {
     None,
-    Connected,
+    Fresh,
     Owned,
+    SeededOwned,
     Demo { running: bool, github: bool },
     DemoWithProjects,
     DemoAdoption,
@@ -141,7 +153,6 @@ fn fixture_root(
     let surviving_projects = forge == WelcomeForge::DemoWithProjects;
     let forge = if surviving_projects { WelcomeForge::Demo { running: true, github: false } } else { forge };
     let welcome = forge != WelcomeForge::None;
-    let forge_setup = matches!(forge, WelcomeForge::Owned | WelcomeForge::Demo { github: false, .. });
     let mut limits = if tools { temper_client_tools::limits::client() } else { fixtures::domain_limits() };
     if let Some(rows) = rows {
         limits.client.domain.rows = rows;
@@ -184,29 +195,12 @@ fn fixture_root(
             policy.roles[0].period_spend = spend;
             config.core.defaults.rules.period_spend = policy.period_spend.checked_mul(2).expect("fixture spend fits");
         }
-        config.under_box |= forge_setup;
+        config.under_box |= welcome;
         if welcome {
             config.core.connectors = Box::new([fixtures::FORGE]);
-            config.forges = Box::new([temper_engine_domain_forge::Configured {
-                admin_connect: false,
-                bot: Box::new([]),
-                owned: None,
-                git: Box::new([]),
-                web: None,
-                read_only: false,
-                number: 1,
-                kind: if matches!(forge, WelcomeForge::Demo { github: true, .. }) {
-                    temper_engine_domain_forge::Kind::GitHub
-                } else {
-                    temper_engine_domain_forge::Kind::Forgejo
-                },
-                mode: if forge_setup {
-                    temper_engine_domain_forge::Mode::Owned
-                } else {
-                    temper_engine_domain_forge::Mode::Connected
-                },
-                asked: forge_setup,
-            }]);
+            config.machine = fixtures::machine();
+            config.forges = Box::new([]);
+            config.identities = Box::new([]);
         }
         let mut engine_limits = engine_limits();
         if adoption {
@@ -231,13 +225,26 @@ fn fixture_root(
         // Each extra grant adds one entry to each of the four fleet routing cohorts.
         engine_limits.journal.writes =
             engine_limits.journal.writes.checked_add((engine_limits.fleet.grants - 2) * 4).expect("grant cohorts fit");
-        if forge == WelcomeForge::Owned {
+        if matches!(forge, WelcomeForge::Owned | WelcomeForge::SeededOwned) {
             super::first_run_projects(&mut config, &mut engine_limits);
         }
         (config, engine_limits)
     });
-    let mut front = Joint::with_engine(seed, &limits, Store::new(), [bootstrap, config], &engine_limits, 1);
-    if forge_setup {
+    let mut store = temper_engine_domain_world::fixtures::restored_over(Store::new(), bootstrap, &engine_limits);
+    if matches!(forge, WelcomeForge::Demo { .. } | WelcomeForge::SeededOwned) {
+        use temper_engine_domain_forge as f;
+        let mut record = if matches!(forge, WelcomeForge::Demo { github: true, .. }) {
+            let mut record = config.machine.github.clone();
+            record.mode = f::Mode::Connected;
+            record
+        } else {
+            config.machine.owned.clone().expect("owned fixture")
+        };
+        record.number = 1;
+        store.seed(temper_engine_domain_world::forges::rows(&[record]), Box::new([]));
+    }
+    let mut front = Joint::with_engine(seed, &limits, store, [walking::config(seed), config], &engine_limits, 1);
+    if matches!(forge, WelcomeForge::SeededOwned | WelcomeForge::Demo { github: false, .. }) {
         front.engine.send(engine::Event::Forge(Box::new(temper_engine_domain_forge::Event::Connection {
             forge: 1,
             state: temper_engine_domain_forge::Connection::NotSetUp,
