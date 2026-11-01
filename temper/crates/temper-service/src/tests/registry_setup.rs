@@ -84,6 +84,58 @@ fn a_registered_forgejo_without_setup_connects_as_its_recorded_bot() {
         }
     );
 }
+fn restored_forgejo() -> crate::Service {
+    let mut service = service();
+    let record = record(Kind::Forgejo, Mode::Connected, None);
+    let origin =
+        records::origin(skein_forge_connection::settings::Kind::Forgejo, &crate::forges::settings(&record).api)
+            .encode();
+    register(&mut service, record);
+    row(&mut service, Item::Origin, &origin);
+    row(&mut service, Item::ApiToken, b"test-api");
+    row(&mut service, Item::User, &42_u64.to_le_bytes());
+    service
+}
+#[test]
+fn a_registered_forgejo_without_setup_connects_with_its_recorded_webhook_secret() {
+    let mut service = restored_forgejo();
+    row(&mut service, Item::WebhookSecret, b"test-webhook");
+    let engine = service.engine.as_mut().unwrap();
+    crate::forge::records::connect(engine, 1);
+    let [(forge, access)] = engine.forge.starts.as_slice() else { panic!("one restored connection") };
+    assert_eq!((*forge, access.user), (1, 42));
+    assert_eq!(access.webhook_secret, Some(Secret::new(b"test-webhook".as_slice().into())));
+}
+#[test]
+fn a_registered_forgejo_without_setup_publishes_its_recorded_git_identity() {
+    let mut service = restored_forgejo();
+    row(&mut service, Item::GitToken, b"test-git");
+    let engine = service.engine.as_mut().unwrap();
+    engine.events.clear();
+    assert!(engine.values.identities.newest(1).is_none());
+    crate::forge::records::connect(engine, 1);
+    let Some(root::Event::Credential { number, generation, valid }) = engine.events.pop() else {
+        panic!("recorded git credential")
+    };
+    assert_eq!((number, generation, valid), (1, 1, skein_lib::Duration::from_nanos(u64::MAX)));
+    assert!(engine.events.is_empty(), "one credential publication");
+    let (kept_generation, value) = engine.values.identities.newest(number).unwrap();
+    assert_eq!(kept_generation, generation);
+    let identity = temper_protocol_worker_wire::v1::Identity::decode(
+        &engine.workers.encoding.limits,
+        &mut skein_lib::Reader::new(value.expose()),
+    )
+    .unwrap();
+    let record = engine.records.get(&1).unwrap();
+    assert_eq!(identity.login(), record.bot.login.as_ref());
+    assert_eq!(identity.name(), record.bot.name.as_ref());
+    assert_eq!(identity.email(), record.bot.email.as_ref());
+    let temper_protocol_worker_wire::v1::Kind::Forgejo(token) = identity.kind() else { panic!("Forgejo git token") };
+    assert_eq!(token.token().expose(), b"test-git");
+    let [(forge, access)] = engine.forge.starts.as_slice() else { panic!("one restored connection") };
+    assert_eq!((*forge, access.user), (1, 42));
+    assert!(access.webhook_secret.is_none());
+}
 #[test]
 fn a_registered_owned_record_is_served_and_waits_for_its_group() {
     let mut hooks = config();
