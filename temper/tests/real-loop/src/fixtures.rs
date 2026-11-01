@@ -50,6 +50,7 @@ pub fn documents(directory: &Path, llm: SocketAddr, _forge: SocketAddr) -> (serd
     value["engine"]["limits"]["overrides"]["views.watchers"] = 16.into();
     value["engine"]["limits"]["overrides"]["views.watchers_per_party"] = 16.into();
     value["application"] = serde_json::json!({
+        "machine":{"owned":null,"github":{"api":null,"transport":null,"git":null,"web":null},"git_program":null},
         "webhooks":null,
 "clients":{"listener":{"socket":"127.0.0.1:0"},"public":null,"bundle":null},
         "demo":null,"sign_in":null,"landing":{"deployment":[],"projects":[]},"charter":1,
