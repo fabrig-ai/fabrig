@@ -20,15 +20,19 @@ impl Core {
                 tasks::Owner::Party { person } => tasks::Party::Person(person),
                 tasks::Owner::Task { task } => tasks::Party::Task(task),
             };
-            if self.authority.policy(hold.project).is_none() || !self.party_resolves(owner) {
+            if !self.project_resolves(hold.project) || !self.party_resolves(owner) {
                 records = records.saturating_add(1);
             }
         }
         records
     }
 
+    pub(crate) fn project_resolves(&self, project: u32) -> bool {
+        self.authority.policy(project).is_some() || self.removals.contains_key(&project)
+    }
+
     pub(crate) fn task_references_resolve(&self, row: &tasks::TaskRecord) -> bool {
-        if self.authority.policy(row.project).is_none()
+        if !self.project_resolves(row.project)
             || !self.party_resolves(row.requester)
             || !self.executor_resolves(row.executor)
             || !self.funder_person_resolves(row.funder)
@@ -79,7 +83,7 @@ impl Core {
     fn phase_parties_resolve(&self, row: &tasks::TaskRecord) -> bool {
         if let Some(number) = row.placed {
             let Some(hold) = self.tasks.placed_hold(number) else { return false };
-            if self.authority.policy(hold.project).is_none() {
+            if !self.project_resolves(hold.project) {
                 return false;
             }
             if let tasks::Owner::Party { person } = hold.owner

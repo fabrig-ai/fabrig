@@ -71,6 +71,16 @@ impl Core {
             },
             Phase::Open => {
                 self.start.phase = None;
+                let mut work = Queue::uncapped();
+                crate::routing::removal::resume(self, env, &mut work, out);
+                for _ in 0..env.limits.routes {
+                    let Some(event) = work.pop() else { break };
+                    let crate::Requests::Out(mut batch) = crate::step(self, env, event);
+                    for _ in 0..batch.len() {
+                        out.push(batch.pop().expect("removal resume output"));
+                    }
+                }
+                assert!(work.is_empty(), "removal resume routes drained");
                 return Action::Idle;
             }
         };

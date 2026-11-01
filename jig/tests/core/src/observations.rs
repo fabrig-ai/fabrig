@@ -268,6 +268,8 @@ pub struct Observer {
     decisions_by_role: BTreeMap<(u32, u32), u8>,
     applied: u64,
     application_requests: bool,
+    task_projects: BTreeMap<u64, u32>,
+    removing: BTreeSet<u32>,
     activity: BTreeMap<(u64, u64), tasks::ActivityLine>,
     effects: [usize; 2],
     reads: [usize; 2],
@@ -378,6 +380,8 @@ impl Observer {
             decisions_by_role,
             applied: 0,
             application_requests: false,
+            task_projects: BTreeMap::new(),
+            removing: BTreeSet::new(),
             activity: BTreeMap::new(),
             effects: [0; 2],
             reads: [0; 2],
@@ -761,6 +765,14 @@ impl Observer {
                 self.policy_change(project, &change);
             }
         }
+        for (key, row) in &store.rows {
+            if let root::Key::Core(core::Key::Core(core::CoreKey::Removal(project))) = key {
+                self.removing.insert(*project);
+            }
+            if let root::Record::Core(core::Record::Tasks(tasks::Stored::Live(row) | tasks::Stored::Ended(row))) = row {
+                self.task_projects.insert(row.number, row.project);
+            }
+        }
         let mut snapshot = r::Snapshot::default();
         let mut decisions = Vec::new();
         let mut task_acceptances = Vec::new();
@@ -1052,6 +1064,11 @@ impl Observer {
                 }
             }
         }
+        self.activity.retain(|(task, position), _| {
+            let key = root::Key::Core(core::Key::Tasks(tasks::Key::Activity { task: *task, position: *position }));
+            store.rows.contains_key(&key)
+                || !self.task_projects.get(task).is_some_and(|project| self.removing.contains(project))
+        });
         for ((task, position), kept) in &self.activity {
             let key = root::Key::Core(core::Key::Tasks(tasks::Key::Activity { task: *task, position: *position }));
             assert!(
@@ -1292,6 +1309,44 @@ impl Heap {
 #[cfg(test)]
 mod activity_tests {
     use super::*;
+
+    #[test]
+    fn activity_of_a_removing_project_may_be_erased() {
+        const TASK: u64 = 1;
+        const PROJECT: u32 = 1;
+        const OTHER_PROJECT: u32 = 2;
+        for (removing, accepted) in [(PROJECT, true), (OTHER_PROJECT, false)] {
+            let mut world = crate::effects::World::new(507, false);
+            world.turn(1, 0, None, b"activity to erase");
+            world.end(
+                tasks::End::Finished {
+                    result: tasks::TaskResult::Report { words: b"done".as_slice().into() },
+                    cancel_delegates: false,
+                },
+                0,
+            );
+            let removal = root::Record::Core(core::Record::Core(core::CoreRecord::Removal(core::Removal {
+                project: removing,
+                stage: core::RemovalStage::Erasing,
+            })));
+            world.store.rows.insert(removal.key(), removal);
+            world.store.applied += 1;
+            world.observer.durable(world.wall, &world.store);
+            world.store.rows.retain(|key, _| {
+                !matches!(
+                    key,
+                    root::Key::Core(core::Key::Tasks(
+                        tasks::Key::Activity { task: TASK, .. } | tasks::Key::Ended(TASK)
+                    ))
+                )
+            });
+            world.store.applied += 1;
+            let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+                world.observer.durable(world.wall, &world.store)
+            }));
+            assert_eq!(result.is_ok(), accepted);
+        }
+    }
 
     #[test]
     fn activity_referee_rejects_changed_or_erased_lines() {

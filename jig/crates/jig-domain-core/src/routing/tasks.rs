@@ -1216,6 +1216,17 @@ pub(super) fn tag_tasks(
                     }
                     tasks::Party::Deployment { .. } => {}
                 }
+                let mut project = None;
+                for request in &out {
+                    if let Request::Write(Write::Save(Record::Tasks(tasks::Stored::Ended(row)))) = request
+                        && row.number == task
+                    {
+                        project = Some(row.project);
+                    }
+                }
+                if let Some(project) = project {
+                    super::removal::task_ended(core, env, &mut Queue::uncapped(), &mut out, project);
+                }
                 continue;
             }
             tasks::Request::Refused { reply_to, problem } => {

@@ -31,3 +31,5 @@ pub mod fixtures;
 
 pub mod agents_tools;
 pub mod reference;
+
+pub mod removal;

@@ -29,7 +29,6 @@ struct Waiting {
 }
 
 /// Erase a deleted project's own rows; completes in `rows_done`.
-#[cfg_attr(not(test), expect(dead_code, reason = "pd-delete calls the project row erasure entry point"))]
 pub(crate) fn erase_rows(
     core: &mut Core,
     _env: &Env<Limits>,
@@ -60,7 +59,9 @@ pub(crate) fn swept(
     more: bool,
 ) -> Requests {
     let mut out = Queue::uncapped();
-    let Some(mut state) = core.row_sweeps.remove(&owner) else { return Requests::Out(out) };
+    let Some(mut state) = core.row_sweeps.remove(&owner) else {
+        return crate::routing::removal::swept(core, env, work, owner, rows, more);
+    };
     assert!(state.waiting.is_empty(), "a page follows its decision loads");
     let proposals_page = match state.sweep {
         Sweep::Proposals { .. } => true,
@@ -224,5 +225,5 @@ fn request_sweep(out: &mut Queue<Request>, owner: Token, sweep: Sweep) {
 
 /// `pd-delete` continues the deletion here.
 fn rows_done(_core: &mut Core, _env: &Env<Limits>, _work: &mut Queue<Event>, _out: &mut Queue<Request>, _project: u32) {
-    // pd-delete continues the project's deletion here.
+    crate::routing::removal::rows_erased(_core, _env, _work, _out, _project);
 }

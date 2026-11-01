@@ -50,7 +50,8 @@ fn a_removal_saves_its_row_and_closes_the_project_in_one_decision() {
     while let Some(next) = out.pop() {
         match next {
             Request::Write(Write::Save(Record::Core(CoreRecord::Removal(removal)))) => {
-                assert_eq!(removal, Removal { project: PROJECT, stage: RemovalStage::Ending });
+                assert_eq!(removal.project, PROJECT);
+                assert_eq!(removal.stage, if row { RemovalStage::Erasing } else { RemovalStage::Ending });
                 row = true;
             }
             Request::Write(Write::Erase(Key::People(people::Key::Policy(PROJECT)))) => policy = true,

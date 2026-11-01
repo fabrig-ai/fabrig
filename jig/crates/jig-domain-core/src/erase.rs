@@ -16,7 +16,6 @@ pub(crate) struct Erasing {
 }
 
 /// Begin erasing an ended task whole.
-#[cfg_attr(not(test), expect(dead_code, reason = "pd-delete calls the ended-task erasure entry point"))]
 pub(crate) fn erase_task(
     core: &mut Core,
     _env: &Env<Limits>,
@@ -122,7 +121,10 @@ fn erase_record(core: &Core, out: &mut Queue<Request>, record: &tasks::TaskRecor
             let update = tasks::Update { party, at: ended_at, task, object: tasks::UpdateObject::Result };
             erase(out, update.key());
         }
-        tasks::Party::Task(requester) => erase(out, tasks::Key::EndedDelegate { requester, task }),
+        tasks::Party::Task(requester) => {
+            erase(out, tasks::Key::EndedDelegate { requester, task });
+            erase(out, tasks::Key::Delegate { requester, task });
+        }
         tasks::Party::Deployment { .. } => {}
     }
     if record.flags.listed {
@@ -204,5 +206,5 @@ fn finished(
     _project: u32,
     _task: u64,
 ) {
-    // pd-delete continues the project's deletion here.
+    crate::routing::removal::erased(_core, _env, _work, _out, _project, _task);
 }
