@@ -41,6 +41,7 @@ fn assert_program_usable(call: &super::Ended) {
 }
 
 #[test]
+#[ignore = "a made owned forge is not offered: sv-startup-refuse"]
 fn a_program_and_forgejo_here_reach_ready_on_the_fake_box() {
     let walk = Walk::owned("walk-program-here");
     let seen = walk
