@@ -11,6 +11,8 @@ final: tasks/pg-project-delete.md
 final: tasks/pg-forge-remove.md
 final: tasks/pg-welcome-states.md
 final: tasks/pg-start-over.md
+final: tasks/pg-ctl.md
+final: tasks/pg-ctl-help.md
 
 ## Parts
 
