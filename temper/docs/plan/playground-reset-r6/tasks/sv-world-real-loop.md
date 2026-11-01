@@ -146,3 +146,17 @@ now add `temper/crates/temper-service/src/forges.rs` and `src/tests/git_tokens.r
   the document-forge readers): other tasks and the trunk's end check take them. If a GitHub
   story still fails after this fix, report its log and diagnosis as a question; do not widen
   further.
+
+2026-11-01. Judgement after four runs without landing: run once more, on the answers above.
+Each run closed a distinct, real blocker (the `connected` id, the Forgejo webhook access and
+git credential, now the GitHub git login), and run 4's branch holds all but the last; its
+question is the one answered just above, so nothing new is open. This run is the task's last:
+- Apply the GitHub login fix as answered (`forges.rs::register`'s GitHub branch, one case in
+  `src/tests/git_tokens.rs`), run that module, then the whole `temper-real-loop-world`
+  default run.
+- If a real-loop story still fails after that fix, do not ask: diagnose it once from its
+  log, push the branch with every fix that passes its own regression, and report the
+  failing stories, their logs and the diagnosis under `## Left`, with acceptance stated as
+  not met for them. fab merges it so that `sv-world-one-process` and `sv-startup-refuse`
+  start; the trunk's end check and its repair take what is left.
+- Change no file beyond `files`; what lies outside stays under `## Left` as answered above.
