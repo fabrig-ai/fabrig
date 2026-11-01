@@ -1,0 +1,18 @@
+# `--until phase:<Phase>` in the spelling `task show` prints (inputs/request.md): QA finding 42,
+# fab's first probe of a fabrig plan from intake to main, kept to one direct part of one task.
+draft = "phase-case"
+repo = "fabrig"
+sources = ["temper/docs/plan/phase-case/inputs/request.md", "AGENTS.md"]
+
+[[part]]
+id = "phase-case"
+title = "--until phase:PHASE parses its word in any case, and the help says so"
+mode = "direct"
+needs = []
+design = "temper/docs/design/client/tools.md, 5.4"
+
+[[slice]]
+id = 1
+story = "temper ctl task show TASK --until phase:Running waits as phase:running does, and temper ctl help task show names the accepted words"
+parts = ["phase-case"]
+walk = false
