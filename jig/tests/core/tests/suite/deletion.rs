@@ -1,4 +1,5 @@
 //! Project deletion closes admission before ending work (playground-reset contracts J1–J4, J8).
+use jig_core_world::stories::reads::{request as erasure_request, world as erasure_world};
 use jig_core_world::{
     client_peer::ClientPeer,
     effects::{Cut, World},
@@ -6,7 +7,6 @@ use jig_core_world::{
     reads::{ask, latest},
 };
 use jig_domain_core::{self as core, documents, reads};
-use jig_core_world::stories::reads::{request as erasure_request, world as erasure_world};
 use jig_domain_people as people;
 use jig_domain_tasks as tasks;
 use jig_test_domain as root;
@@ -366,9 +366,16 @@ fn a_project_without_tasks_goes_straight_to_erasing() {
     remove(&mut world, KEY, PROJECT);
     assert_eq!(answer(&world), &people::Outcome::ProjectRemoved { project: PROJECT });
     assert_eq!(stage(&world, PROJECT), people::Stage::Releasing);
-    let writes = world.commits.iter().find(|writes| writes.contains(&root::Write::Save(root::Record::Core(core::Record::People(people::Stored::Deletion {
-        project: PROJECT, stage: people::Stage::Ending,
-    }))))).expect("deletion's first decision");
+    let writes = world
+        .commits
+        .iter()
+        .find(|writes| {
+            writes.contains(&root::Write::Save(root::Record::Core(core::Record::People(people::Stored::Deletion {
+                project: PROJECT,
+                stage: people::Stage::Ending,
+            }))))
+        })
+        .expect("deletion's first decision");
     let stages: Vec<_> = writes
         .iter()
         .filter_map(|write| match write {
